@@ -16,11 +16,21 @@ import { applyWarFootingPoliticalCost, syncWarFootingFromDiplomacy } from "./war
 
 type TaxBases = { salesTax: number; pollTax: number };
 
+/**
+ * pollTax ×3-rescaled 2026-08-06 together with the personal-stipend ladder
+ * (characterStipends.ts, treasuryAllocation.ts, characterLivingCosts.ts) — domesticIncome
+ * (pollTax × population) is the input the ruler-household and central-office stipend formulas
+ * take their proportional share of, so pollTax has to grow with the same factor or only the
+ * floor/cap-bound extremes (very poor/very rich states) would see any personal-pay change,
+ * leaving the broad middle unaffected. salesTax is deliberately left untouched — it taxes trade
+ * *value* from the separately-calibrated Goods economy (deal.tax), not a flat per-head levy, and
+ * rescaling it would desync state revenue from goods-unit-scale.md's pricing calibration.
+ */
 const DEFAULT_TAX_BY_FORM: Record<string, TaxBases> = {
-  Monarchy: { salesTax: 0.15, pollTax: 0.2 },
-  Theocracy: { salesTax: 0.25, pollTax: 0.1 },
-  Union: { salesTax: 0.07, pollTax: 0.13 },
-  Republic: { salesTax: 0.05, pollTax: 0.15 },
+  Monarchy: { salesTax: 0.15, pollTax: 0.6 },
+  Theocracy: { salesTax: 0.25, pollTax: 0.3 },
+  Union: { salesTax: 0.07, pollTax: 0.39 },
+  Republic: { salesTax: 0.05, pollTax: 0.45 },
   Anarchy: { salesTax: 0, pollTax: 0 }
 };
 const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;

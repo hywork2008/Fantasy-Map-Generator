@@ -67,11 +67,11 @@ describe("TaxesModule", () => {
 
       taxesModule.defineTaxRates();
 
-      // base salesTax 0.25, bounds [0.125, 0.375]; base pollTax 0.1, bounds [0.05, 0.15]
+      // base salesTax 0.25, bounds [0.125, 0.375]; base pollTax 0.3, bounds [0.15, 0.45]
       expect(state.salesTax).toBeGreaterThanOrEqual(0.13);
       expect(state.salesTax).toBeLessThanOrEqual(0.37);
-      expect(state.pollTax).toBeGreaterThanOrEqual(0.05);
-      expect(state.pollTax).toBeLessThanOrEqual(0.15);
+      expect(state.pollTax).toBeGreaterThanOrEqual(0.15);
+      expect(state.pollTax).toBeLessThanOrEqual(0.45);
       expect(state.treasury).toBe(0);
     });
 

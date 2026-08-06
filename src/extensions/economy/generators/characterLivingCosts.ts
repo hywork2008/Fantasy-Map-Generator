@@ -12,9 +12,15 @@ import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
  * transferred to a treasury) — it represents private spending leaving the personal ledger.
  *
  * Scale is anchored to the stipend ladder in character-wealth-balance.md and the About-tab
- * subsistence research (docs/analytics/cost-of-living.md): bare urban food ~0.05 SP/cycle.
- * Ranked lifestyles sit below typical pay so roles still save slowly; a small wealth-linked
- * upkeep drains oversized seed piles without bankrupting mid-tier officers.
+ * subsistence research (docs/analytics/cost-of-living.md): bare urban food was ~0.05 SP/cycle at
+ * original calibration. Ranked lifestyles sit below typical pay so roles still save slowly; a
+ * small wealth-linked upkeep drains oversized seed piles without bankrupting mid-tier officers.
+ *
+ * ×3-rescaled 2026-08-06 together with the stipend ladder (characterStipends.ts) and
+ * `DEFAULT_TAX_BY_FORM.*.pollTax` (taxes-generator.ts) — net take-home pay (stipend − living
+ * cost) was landing around 2 copper/cycle for common paid roles, barely a single "meal + drink"
+ * per docs/plan/goods-unit-scale.md's flavor reference. A uniform factor preserves every ratio in
+ * this tier table (and the `stipend ≈ lifestyle × 2.5` no-infinite-growth invariant) exactly.
  */
 
 const CENTRAL_OFFICE_TITLES = new Set(CENTRAL_OFFICES.map(office => office.title));
@@ -38,19 +44,19 @@ export type LifestyleTier =
  */
 export const LIVING_COST_BY_TIER: Record<LifestyleTier, number> = {
   /** Board + training from master; cash pocket money is discretionary. */
-  apprenticeBoarded: 0.01,
+  apprenticeBoarded: 0.03,
   /** Bare urban subsistence-ish cash spend for titled-less cash holders. */
-  common: 0.05,
-  marketRival: 0.12,
-  guildMaster: 0.15,
-  marketManager: 0.3,
-  /** Camp, kit refresh, small retinue share — under commander floor pay (0.5). */
-  fieldCommander: 0.35,
-  provinceLord: 0.55,
-  /** Under central-office floor pay (0.8) so minimum stipend still nets non-negative. */
-  centralOffice: 0.7,
-  /** Court cash outlay; under household floor (1.0) so small realms still scrape by. */
-  ruler: 0.85
+  common: 0.15,
+  marketRival: 0.36,
+  guildMaster: 0.45,
+  marketManager: 0.9,
+  /** Camp, kit refresh, small retinue share — under commander floor pay (1.5). */
+  fieldCommander: 1.05,
+  provinceLord: 1.65,
+  /** Under central-office floor pay (2.4) so minimum stipend still nets non-negative. */
+  centralOffice: 2.1,
+  /** Court cash outlay; under household floor (3.0) so small realms still scrape by. */
+  ruler: 2.55
 };
 
 const TIER_RANK: Record<LifestyleTier, number> = {

@@ -10,6 +10,7 @@ import { getMarkets, getWorldContext } from "../economyContext";
 import { backPayCycles, MARKET_MANAGER_STIPEND, MARKET_RIVAL_STIPEND } from "./characterStipends";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
+import { raceHoardBonus } from "./raceWealthBias";
 import { resolveBurgCulture } from "./resolveBurgCulture";
 
 export const MARKET_MANAGER_ROLE_SOURCE = "economy";
@@ -124,8 +125,10 @@ function createMarketManager(market: Market): Character | null {
   // before economy's first collectTaxes() cycle, so without it the manager's very first live
   // payMarketStipends() payout — rationed by whatever the market treasury balance happens to be
   // moments after Markets.generate() — would become their entire starting purse, often just a
-  // few copper (docs/analytics/character-wealth-balance.md).
-  character.wealth = rn(MARKET_MANAGER_STIPEND * backPayCycles(), 2);
+  // few copper (docs/analytics/character-wealth-balance.md). raceHoardBonus() adds age-scaled
+  // hoarding flavor for a handful of long-lived races (0 for everyone else) — see
+  // raceWealthBias.ts.
+  character.wealth = rn(MARKET_MANAGER_STIPEND * backPayCycles() + raceHoardBonus(character), 2);
   market.managerCharacterId = character.i;
   return character;
 }
@@ -161,7 +164,7 @@ function createMarketRival(market: Market): Character | null {
     currentYear: simulationContext.currentYear
   });
   // Fixed stipend × back-pay — see the matching comment in createMarketManager().
-  character.wealth = rn(MARKET_RIVAL_STIPEND * backPayCycles(), 2);
+  character.wealth = rn(MARKET_RIVAL_STIPEND * backPayCycles() + raceHoardBonus(character), 2);
   return character;
 }
 

@@ -8,6 +8,7 @@ import { getRegimentCommander } from "../../nobility/generators/officerAssignmen
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getGuildKnowledgeStocks, getMarkets, getWorldContext, setGuildKnowledgeStocks } from "../economyContext";
 import { findApprentices, findMaster } from "./guildSuccession";
+import { raceHoardBonus } from "./raceWealthBias";
 import {
   DEPARTMENT_BY_PRIMARY_SKILL,
   findLivingOfficeHolder,
@@ -26,19 +27,36 @@ import {
  *
  * | Role | Typical pay | Notes |
  * | :--- | ---: | :--- |
- * | Soldier (reference) | 0.12 | BASE_UPKEEP_PER_HEAD — not Character.wealth |
- * | Guild apprentice | 0.03–0.08 | Fixed age band; only if master–apprentice bond is good |
- * | Market rival | 0.30 | Fixed; market treasury is a ceiling only |
- * | Guild master | 0.35 | Fixed; guild treasury is a ceiling only |
- * | Market manager | 0.70 | Fixed |
- * | Field commander | 0.50–1.50 | Upkeep share with floor/cap (treasuryAllocation) |
- * | Province lord | 1.00 | Fixed from seated Burg treasury |
- * | Central office | 0.80–3.00 | Share of department budget with floor/cap |
- * | Ruler household | 1.00–5.00 | Share of income with floor/cap |
+ * | Soldier (reference) | 0.12 | BASE_UPKEEP_PER_HEAD (militaryLogistics.ts) — not Character.wealth, Grain-price-anchored, not rescaled below |
+ * | Guild apprentice | 0.09–0.24 | Fixed age band; only if master–apprentice bond is good |
+ * | Market rival | 0.90 | Fixed; market treasury is a ceiling only |
+ * | Guild master | 1.05 | Fixed; guild treasury is a ceiling only |
+ * | Market manager | 2.10 | Fixed |
+ * | Field commander | 1.50–4.50 | Upkeep share with floor/cap (treasuryAllocation) |
+ * | Province lord | 3.00 | Fixed from seated Burg treasury |
+ * | Central office | 2.40–9.00 | Share of department budget with floor/cap |
+ * | Ruler household | 3.00–15.00 | Share of income with floor/cap |
  *
  * Percentage draws against large institutional piles (burg/market/guild treasuries, full
  * department budgets) are avoided for *personal* pay — they made children richer than captains
  * and officers richer than small-realm kings. Pools only cap what can be funded this cycle.
+ *
+ * ## Uniform ×3 rescale (2026-08-06)
+ *
+ * Every value in the ladder above (except the Grain-price-anchored soldier reference) was
+ * uniformly multiplied by 3 from its original calibration, together with `LIVING_COST_BY_TIER`
+ * (characterLivingCosts.ts) and `DEFAULT_TAX_BY_FORM.*.pollTax` (taxes-generator.ts) — the state
+ * income these office/ruler stipends are ultimately a share of. A uniform factor preserves every
+ * existing ratio (role ordering, the `stipend ≈ lifestyle × 2.5` equilibrium invariant that keeps
+ * purses from growing forever, floor-vs-proportional balance) exactly; only the absolute SP size
+ * of the whole personal-pay economy moves. Root cause: net take-home pay (stipend − living cost)
+ * was landing around 2 copper/cycle for common paid roles — read against
+ * docs/plan/goods-unit-scale.md's "meal + drink ≈ 2–4 copper" flavor reference, a full cycle's
+ * savings bought at most one night out. `salesTax` (trade-value tax, feeds off the separately-
+ * calibrated Goods economy) and `BASE_UPKEEP_PER_HEAD`/`MOUNTED_FODDER_COST_PER_HEAD`
+ * (militaryLogistics.ts, explicitly derived from Grain.value/food-subsistence research) are
+ * deliberately excluded — rescaling either would desync this ladder from the goods-price
+ * calibration this factor was chosen to read sensibly against.
  *
  * docs/plan/state-treasury-department-budget.md §7 item 7–8; docs/analytics/character-wealth-balance.md
  */
@@ -46,12 +64,12 @@ import {
 /** @deprecated Was 10% of burg treasury. Personal pay is now PROVINCE_LORD_STIPEND fixed. */
 export const PROVINCE_LORD_STIPEND_RATE = 0;
 /** Fixed personal stipend (SP / cycle) for a landed province lord, paid from their seated Burg. */
-export const PROVINCE_LORD_STIPEND = 1.0;
+export const PROVINCE_LORD_STIPEND = 3.0;
 
 /** @deprecated Was 5–10% of guild treasury. Personal pay is now GUILD_MASTER_STIPEND fixed. */
 export const GUILD_MASTER_STIPEND_RATE = 0;
 /** Fixed master stipend (SP / cycle). Above apprentices, below field-commander floor. */
-export const GUILD_MASTER_STIPEND = 0.35;
+export const GUILD_MASTER_STIPEND = 1.05;
 
 /**
  * @deprecated Former wage share of guild treasury (was 3%). Pocket money is age-fixed; kept at 0.
@@ -64,12 +82,12 @@ export const GUILD_APPRENTICE_POCKET_SOLIDARITY_MIN = 20;
 
 /**
  * Fixed pocket money (SP / cycle) by apprentice age — never a share of guild treasury.
- * Full bond, ~12 cycles/year: 12–14 → 0.36, 15–17 → 0.60, 18+ → 0.96 SP/year.
+ * Full bond, ~12 cycles/year: 12–14 → 1.08, 15–17 → 1.80, 18+ → 2.88 SP/year.
  */
 export const GUILD_APPRENTICE_POCKET_BY_AGE = {
-  child: 0.03,
-  youth: 0.05,
-  adult: 0.08
+  child: 0.09,
+  youth: 0.15,
+  adult: 0.24
 } as const;
 
 export const GUILD_APPRENTICE_POCKET_MAX = GUILD_APPRENTICE_POCKET_BY_AGE.adult;
@@ -77,12 +95,12 @@ export const GUILD_APPRENTICE_POCKET_MAX = GUILD_APPRENTICE_POCKET_BY_AGE.adult;
 /** @deprecated Was 8% of market balance. Personal pay is now MARKET_MANAGER_STIPEND fixed. */
 export const MARKET_MANAGER_STIPEND_RATE = 0;
 /** Fixed market-manager stipend (SP / cycle). */
-export const MARKET_MANAGER_STIPEND = 0.7;
+export const MARKET_MANAGER_STIPEND = 2.1;
 
 /** @deprecated Was 3% of market balance. Personal pay is now MARKET_RIVAL_STIPEND fixed. */
 export const MARKET_RIVAL_STIPEND_RATE = 0;
 /** Fixed rival-merchant stipend (SP / cycle). Below manager, above apprentice pocket money. */
-export const MARKET_RIVAL_STIPEND = 0.3;
+export const MARKET_RIVAL_STIPEND = 0.9;
 
 /** Pay `desired` from `pool` without overdrawing. */
 export function payFromPool(pool: number, desired: number): number {
@@ -291,7 +309,7 @@ export function seedMissingCharacterWealth(): void {
     const rulerId = getRulerId(state);
     const ruler = characters.find(character => character.i === rulerId && !character.dead);
     if (ruler && !ruler.wealth) {
-      ruler.wealth = rn(getRulerHouseholdStipend(state, income) * backPayCycles(), 2);
+      ruler.wealth = rn(getRulerHouseholdStipend(state, income) * backPayCycles() + raceHoardBonus(ruler), 2);
     }
 
     for (const office of CENTRAL_OFFICES) {
@@ -303,7 +321,10 @@ export function seedMissingCharacterWealth(): void {
 
       const structuralMultiplier = departmentKey === "marshalcy" ? getMilitaryStructuralMultiplier(state) : 1;
       const departmentBudget = rn(income * baseline[departmentKey] * structuralMultiplier, 2);
-      holder.wealth = rn(getCentralOfficePersonalStipend(departmentBudget) * backPayCycles(), 2);
+      holder.wealth = rn(
+        getCentralOfficePersonalStipend(departmentBudget) * backPayCycles() + raceHoardBonus(holder),
+        2
+      );
     }
 
     for (const regiment of state.military || []) {
@@ -311,7 +332,7 @@ export function seedMissingCharacterWealth(): void {
       const commander = getRegimentCommander(characters, regiment);
       if (!commander || commander.wealth) continue;
 
-      commander.wealth = rn(getFieldCommanderStipend(regiment) * backPayCycles(), 2);
+      commander.wealth = rn(getFieldCommanderStipend(regiment) * backPayCycles() + raceHoardBonus(commander), 2);
     }
   }
 
@@ -334,7 +355,9 @@ export function seedMissingCharacterWealth(): void {
     // the ones most likely to have no burg at all. Requiring a burg here (to mirror
     // payProvinceLordStipends()'s live per-cycle draw, which correctly does need one to pay from)
     // silently skipped every burg-less lord and left them stuck at wealth 0 forever.
-    lord.wealth = rn(PROVINCE_LORD_STIPEND * backPayCycles(), 2);
+    // raceHoardBonus() adds age-scaled hoarding flavor for a handful of long-lived races (0 for
+    // everyone else) — see raceWealthBias.ts.
+    lord.wealth = rn(PROVINCE_LORD_STIPEND * backPayCycles() + raceHoardBonus(lord), 2);
   }
 
   for (const entry of getGuildKnowledgeStocks()) {
@@ -345,7 +368,8 @@ export function seedMissingCharacterWealth(): void {
     const master = findMaster(characters, entry.burgId, entry.domain);
     if (!master) continue;
     // Fixed stipend × back-pay, not pool-capped by entry.treasury — see the function doc comment.
-    if (!master.wealth) master.wealth = rn(GUILD_MASTER_STIPEND * backPayCycles(), 2);
+    // raceHoardBonus() adds age-scaled hoarding flavor for a handful of long-lived races.
+    if (!master.wealth) master.wealth = rn(GUILD_MASTER_STIPEND * backPayCycles() + raceHoardBonus(master), 2);
 
     for (const apprentice of findApprentices(characters, master.i, entry.burgId, entry.domain)) {
       if (apprentice.wealth || apprentice.dead) continue;

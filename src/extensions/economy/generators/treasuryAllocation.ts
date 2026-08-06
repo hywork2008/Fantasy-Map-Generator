@@ -197,11 +197,13 @@ function updateMilitaryDiscontent(state: State, fundingRatio: number): void {
  * cycle. Multi-ledger PR-2: the form's full household *share* credits L1 `householdPurse` from
  * L2; only this capped personal stipend moves L1 → ruler L0.
  *
- * Scale target (silver pieces / production cycle, ~12 cycles/year):
- *   soldier wage ≈ 0.12, field commander 0.5–1.5, province lord ≈ 1, office 0.8–3, ruler 1–5.
+ * Scale target (silver pieces / production cycle, ~12 cycles/year; ×3-rescaled 2026-08-06, see
+ * characterStipends.ts's ladder doc comment):
+ *   soldier wage ≈ 0.12 (unscaled), field commander 1.5–4.5, province lord ≈ 3, office 2.4–9,
+ *   ruler 3–15.
  */
-export const HOUSEHOLD_STIPEND_FLOOR = 1.0;
-export const HOUSEHOLD_STIPEND_CAP = 5.0;
+export const HOUSEHOLD_STIPEND_FLOOR = 3.0;
+export const HOUSEHOLD_STIPEND_CAP = 15.0;
 
 /** Full household budget intent this cycle (form % × domestic income) — funds L1, not L0. */
 export function getHouseholdNominalBudget(state: Pick<State, "form">, domesticIncome: number): number {
@@ -284,8 +286,9 @@ export function findLivingOfficeHolder(characters: Character[], stateId: number,
  * The institutional remainder stays in L3a `departmentBalances` (PR-3).
  */
 export const CENTRAL_OFFICE_PERSONAL_SHARE = 0.12;
-export const CENTRAL_OFFICE_STIPEND_FLOOR = 0.8;
-export const CENTRAL_OFFICE_STIPEND_CAP = 3.0;
+/** ×3-rescaled 2026-08-06 (characterStipends.ts's ladder doc comment). */
+export const CENTRAL_OFFICE_STIPEND_FLOOR = 2.4;
+export const CENTRAL_OFFICE_STIPEND_CAP = 9.0;
 
 export type DepartmentBalanceKey = keyof Pick<
   DepartmentBaselineAllocation,
@@ -410,16 +413,18 @@ export const FIELD_COMMANDER_STIPEND_RATE = 0.15;
 
 /**
  * Minimum personal command pay per production cycle (silver pieces), regardless of how small
- * the regiment's raw-score upkeep is after populationRate scaling. Roughly 4× a common
- * soldier's monthly wage (BASE_UPKEEP_PER_HEAD = 0.12).
+ * the regiment's raw-score upkeep is after populationRate scaling. Roughly 12× a common
+ * soldier's monthly wage (BASE_UPKEEP_PER_HEAD = 0.12, deliberately left unscaled — see
+ * characterStipends.ts's ladder doc comment). ×3-rescaled 2026-08-06 (was 0.5).
  */
-export const FIELD_COMMANDER_STIPEND_FLOOR = 0.5;
+export const FIELD_COMMANDER_STIPEND_FLOOR = 1.5;
 
 /**
  * Maximum personal command pay per cycle so huge regiments do not pay captains like princes.
- * ~1.5 SP × 12 cycles ≈ 18 SP/year held income — sits above guild masters, below central offices.
+ * ~4.5 SP × 12 cycles ≈ 54 SP/year held income — sits above guild masters, below central offices.
+ * ×3-rescaled 2026-08-06 (was 1.5).
  */
-export const FIELD_COMMANDER_STIPEND_CAP = 1.5;
+export const FIELD_COMMANDER_STIPEND_CAP = 4.5;
 
 /**
  * Per-cycle stipend for a field/fleet officer: clamp(upkeep × rate, floor, cap).

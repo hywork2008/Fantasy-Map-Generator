@@ -13,7 +13,6 @@ import {
   clearTreasuryAllocationSnapshots,
   drawFromMarshalcyThenTreasury,
   ensureDepartmentBalances,
-  FIELD_COMMANDER_STIPEND_CAP,
   FIELD_COMMANDER_STIPEND_FLOOR,
   getCentralOfficePersonalStipend,
   getFieldCommanderStipend,
@@ -109,7 +108,7 @@ describe("treasuryAllocation", () => {
         const ruler = makeRuler();
         worldContext.pack.characters = [ruler];
 
-        // Raw 25% of 1000 = 250 → personal cap 5, drawn from L1
+        // Raw 25% of 1000 = 250 → personal cap 15, drawn from L1
         const paid = payRulerHouseholdStipend(state, 1000);
 
         expect(paid).toBe(HOUSEHOLD_STIPEND_CAP);
@@ -124,7 +123,7 @@ describe("treasuryAllocation", () => {
         const ruler = makeRuler({ wealth: 10 });
         worldContext.pack.characters = [ruler];
 
-        // Republic 5% of 1000 = 50 → still capped at 5, from L1
+        // Republic 5% of 1000 = 50 → still capped at 15, from L1
         payRulerHouseholdStipend(state, 1000);
         payRulerHouseholdStipend(state, 1000);
 
@@ -457,12 +456,15 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      // regiment upkeep = 100 heads × 0.12/head = 12; stipend = clamp(12 × 0.15, 0.5, 1.5) = 1.5 (cap)
-      expect(allocation.fieldCommanderStipendsPaid).toBe(FIELD_COMMANDER_STIPEND_CAP);
-      expect(commander.wealth).toBe(FIELD_COMMANDER_STIPEND_CAP);
-      expect(getFieldCommanderStipend({ u: { Infantry: 100 } })).toBe(FIELD_COMMANDER_STIPEND_CAP);
-      // No Marshal office holder → full marshalcy credit 350, then field pay 1.5 from L3a
-      expect(state.departmentBalances?.marshalcy).toBe(rn(350 - FIELD_COMMANDER_STIPEND_CAP, 2));
+      // regiment upkeep = 100 heads × 0.12/head = 12 (BASE_UPKEEP_PER_HEAD deliberately not
+      // rescaled — see characterStipends.ts's ladder doc comment); stipend =
+      // clamp(12 × 0.15, 1.5, 4.5) = 1.8, between the ×3-rescaled floor/cap.
+      const expectedStipend = 1.8;
+      expect(allocation.fieldCommanderStipendsPaid).toBe(expectedStipend);
+      expect(commander.wealth).toBe(expectedStipend);
+      expect(getFieldCommanderStipend({ u: { Infantry: 100 } })).toBe(expectedStipend);
+      // No Marshal office holder → full marshalcy credit 350, then field pay 1.8 from L3a
+      expect(state.departmentBalances?.marshalcy).toBe(rn(350 - expectedStipend, 2));
       expect(state.treasury).toBe(0);
     });
 
@@ -471,7 +473,7 @@ describe("treasuryAllocation", () => {
         i: 22,
         titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
       });
-      // 1 head → upkeep 0.12 → proportional 0.018, floor lifts to 0.5
+      // 1 head → upkeep 0.12 → proportional 0.018, floor lifts to 1.5
       const state = {
         i: 1,
         form: "Monarchy",

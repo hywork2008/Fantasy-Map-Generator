@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createDefaultRaces } from "../../../data/races";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import "../../characters/types";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, Province, State } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import { clearNobilityContext, initNobilityContext, setRulerId } from "../../nobility/nobilityContext";
 import {
   clearEconomyContext,
@@ -194,7 +196,7 @@ describe("characterStipends", () => {
       expect(apprentice.wealth).toBe(apprenticeAmount);
       expect(apprentice.wealth).toBeGreaterThan(0);
       expect(apprentice.wealth).toBeLessThanOrEqual(GUILD_APPRENTICE_POCKET_BY_AGE.child);
-      expect(getGuildKnowledgeStocks()[0].treasury).toBe(10_000 - GUILD_MASTER_STIPEND - apprenticeAmount);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBe(rn(10_000 - GUILD_MASTER_STIPEND - apprenticeAmount, 2));
     });
 
     it("pays the master but withholds apprentice pocket money when the bond is cool", () => {
@@ -340,7 +342,7 @@ describe("characterStipends", () => {
 
       seedMissingCharacterWealth();
 
-      // income = 40; raw household 10 → capped at 5; 4–10 cycles => [20, 50]
+      // income = 40; raw household 10 (floor 3, cap 15 — neither binds); 4–10 cycles => [40, 100]
       expect(ruler.wealth).toBeGreaterThanOrEqual(HOUSEHOLD_STIPEND_FLOOR * 4);
       expect(ruler.wealth).toBeLessThanOrEqual(HOUSEHOLD_STIPEND_CAP * 10);
     });
@@ -373,7 +375,7 @@ describe("characterStipends", () => {
 
       seedMissingCharacterWealth();
 
-      // fixed 1.0 × 4–10 cycles
+      // fixed PROVINCE_LORD_STIPEND × 4–10 cycles
       expect(lord.wealth).toBeGreaterThanOrEqual(PROVINCE_LORD_STIPEND * 4);
       expect(lord.wealth).toBeLessThanOrEqual(PROVINCE_LORD_STIPEND * 10);
     });
@@ -432,6 +434,40 @@ describe("characterStipends", () => {
 
       expect(lord.wealth).toBeGreaterThanOrEqual(PROVINCE_LORD_STIPEND * 4);
       expect(lord.wealth).toBeLessThanOrEqual(PROVINCE_LORD_STIPEND * 10);
+    });
+
+    it("adds an age-scaled hoard bonus on top of the flat seed for a long-lived hoarding race (Draconic)", () => {
+      // Draconic maturity (fertilityStart) = 100, hoard rate 1.0 SP/adult-year (raceWealthBias.ts)
+      // => age 1000 banks 900 SP from age alone, dwarfing the flat 1–10 SP province-lord seed —
+      // intentional: an ancient Draconic warden is meant to hold an unspendable hoard.
+      const races = createDefaultRaces();
+      const draconicId = races.find(race => race.key === "draconic")!.i;
+      const state = { i: 1, form: "Monarchy", diplomacy: [], pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      const lord = makeCharacter({
+        i: 65,
+        wealth: 0,
+        race: draconicId,
+        age: 1000,
+        titles: [{ title: "Warden", landed: true, entityType: "province", entityId: 4 }]
+      });
+      worldContext.pack = {
+        races,
+        states: [state],
+        characters: [lord],
+        provinces: [
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { i: 4, state: 1, burg: 0, removed: false } as unknown as Province
+        ],
+        burgs: [undefined]
+      } as unknown as PackedGraph;
+
+      seedMissingCharacterWealth();
+
+      expect(lord.wealth).toBeGreaterThanOrEqual(900);
+      expect(lord.wealth).toBeLessThanOrEqual(900 + PROVINCE_LORD_STIPEND * 10 + 1);
     });
 
     it("still seeds a fresh guild master's full back-pay even from a barely-funded domain", () => {
