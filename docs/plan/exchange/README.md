@@ -13,6 +13,8 @@
 | [03-early-modern-goods.md](03-early-modern-goods.md) | 近世(大航海時代〜18世紀)の主要交易品カタログ |
 | [04-goods-data-candidates.md](04-goods-data-candidates.md) | **GOODS_DATA 形式の新規エントリ具体案**(優先度付き・実装チェックリスト付き) |
 
+史実の時代フレーバーとは別軸で、Culture set が `highFantasy` / `darkFantasy` のときに出したいジャンル・フレーバー品(ポーション、ミスリル、竜の鱗など)は [../fantasy-culture-set-goods.md](../fantasy-culture-set-goods.md) を参照。
+
 各時代カタログの表では、既存 `GOODS_DATA` との対応を次の記号で示す:
 
 - ✅ **既存** — 現行の Good がそのまま該当する

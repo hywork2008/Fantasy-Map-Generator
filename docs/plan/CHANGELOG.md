@@ -3,6 +3,8 @@
 2026-08-06
 
 - docs/plan/characters/character-health-and-disease.md
+- docs/plan/fantasy-culture-set-goods.md
+- docs/world/help/trademarked-fantasy-terms.md
 
 2026-08-05
 

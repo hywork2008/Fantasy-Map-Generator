@@ -44,3 +44,7 @@ GOODS_DATA の編集 UI（Goods Editor）が存在する。マップ生成時に
 
 - 小麦 Wheat / 大麦 Barley / 蕎麦 Buckwheat / 米 Rice / 芋 Potatoes
 - 綿 Cotton / Cacao / Narwhal の角 / ゴムの木 / ゴム
+
+## Fantasy Culture Set 専用品（調査済み・未実装）
+
+Culture set が `highFantasy` / `darkFantasy` のときに出したいジャンル・フレーバー品（ポーション、ミスリル、竜の鱗、魔石など）の JRPG／英語圏ファンタジー比較調査は [docs/plan/fantasy-culture-set-goods.md](../plan/fantasy-culture-set-goods.md) を参照。
