@@ -2,7 +2,9 @@
  * Shore fishing / coastal gathering — household-scale activity on beaches and
  * intertidal coasts. Distinct from Economy Ships, shipyard queues, and completed hulls.
  *
- * Formal harbors and shipbuilding remain gated by allowsFormalHarbor (no sandy beach).
+ * Independent of formal harbor siting/capacity (docs/plan/harbor-siting.md) — a cell counted here
+ * as an informal shore-fishing site is unaffected by whether some other burg's formal harbor
+ * capacity on similar substrate is degraded by `evaluateHarborCoastalHabitat()`.
  */
 
 import {
@@ -81,7 +83,12 @@ export function computeShoreFishingSites(pack: PackedGraph): ShoreFishingSite[] 
   return sites;
 }
 
-/** True if this land cell can host only informal small-craft landing (sandy beach). */
+/**
+ * True if this land cell's coastal-habitat substrate is sandy beach. Despite the name, this no
+ * longer implies a formal harbor is impossible here (docs/plan/harbor-siting.md §4.3/§4.4 —
+ * sandyBeach now only degrades formal harbor capacity via `evaluateHarborCoastalHabitat()`); it
+ * still identifies where household-scale, no-infrastructure small-craft landing is the default.
+ */
 export function isSmallCraftOnlyLanding(pack: PackedGraph, cellId: number): boolean {
   const code = pack.cells.coastalHabitat?.[cellId];
   return isSandyBeach(code ?? 0);

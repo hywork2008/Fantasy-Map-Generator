@@ -121,11 +121,13 @@ export function isSandyBeach(code: CoastalHabitatCode): boolean {
   return getCoastalHabitatKey(code) === "sandyBeach";
 }
 
-/** Formal harbors / shipyards must not sit on sandy beach cells. */
-export function allowsFormalHarbor(coastalCode: CoastalHabitatCode | undefined): boolean {
-  if (coastalCode === undefined) return true;
-  return !isSandyBeach(coastalCode);
-}
+// NOTE: This module previously exported `allowsFormalHarbor()`, a hard sandyBeach-excludes-a-
+// candidate gate. It was removed (docs/plan/harbor-siting.md §4.3/§4.4): no coastal-habitat
+// substrate hard-excludes a formal harbor/shipyard candidate any more — Elevation Unsuitable
+// (`evaluateHarborElevation()`, `harborSiteConditions.ts`) is the only remaining hard gate.
+// Substrate now only degrades capacity via `evaluateHarborCoastalHabitat()` in the same module.
+// `isSandyBeach()` above stays — it still backs `shoreFishing.ts`'s unrelated "informal small-craft
+// landing" classification, which is orthogonal to formal harbor economics.
 
 export function ensureCoastalHabitatColumns(
   cellCount: number,

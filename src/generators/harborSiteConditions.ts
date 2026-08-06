@@ -9,12 +9,23 @@
  * so a short BFS out from `haven` is used instead to find how deep the nearby water actually
  * gets (`findNearbyMaxDepthMeters()`).
  *
+ * Coastal Habitat substrate (`pack.cells.coastalHabitat`) follows the same policy: only
+ * `rockyIntertidal` (and the non-coastal `none` sentinel) count as Ideal. `sandyBeach`,
+ * `coastalDune`, and `tidalFlat` are Marginal substrates — real harbors are routinely built on
+ * exactly this ground (estuarine/tidal-flat ports like Rotterdam or Shanghai; breakwater-protected
+ * marinas on sand), at the cost of ongoing dredging/breakwater/pile maintenance — so none of them
+ * hard-exclude a candidate. See docs/plan/harbor-siting.md §4.3/§4.4 for the rationale and the
+ * prior (now superseded) hard-exclusion design this replaces.
+ *
  * Both conditions follow the same "don't drop candidates to zero" policy as the rest of the
  * harbor system: only Elevation's Unsuitable tier (>100m — no feasible footing at all) is a hard
- * candidate-gate exclusion. Elevation's Marginal tier and every Depth tier instead degrade
- * capacity (`elevationFactor`, tiered `large` capacity) rather than excluding the burg outright.
+ * candidate-gate exclusion. Elevation's Marginal tier, every Coastal Habitat substrate, and every
+ * Depth tier instead degrade capacity (`elevationFactor`, `coastalHabitatFactor`, tiered `large`
+ * capacity) rather than excluding the burg outright.
  */
 
+import { getCoastalHabitatKey } from "../data/coastalHabitatCatalog";
+import type { CoastalHabitatCode } from "../types/coastalHabitat";
 import type { PackedGraph } from "../types/PackedGraph";
 import { isWater } from "../utils/graphUtils";
 import { depthToMeters, heightToMeters } from "../utils/height";
@@ -69,6 +80,50 @@ export function evaluateHarborElevation(hIndex: number, heightExponent: number):
   }
 
   return { elevationM, tier: "unsuitable", elevationFactor: ELEVATION_FACTOR_FLOOR };
+}
+
+export type HarborCoastalHabitatTier = "ideal" | "marginal";
+
+export interface HarborCoastalHabitatEvaluation {
+  tier: HarborCoastalHabitatTier;
+  /** Capacity multiplier: 1 for rockyIntertidal/none, a substrate-specific value for Marginal. */
+  coastalHabitatFactor: number;
+}
+
+/**
+ * `coastalHabitatFactor` for `tidalFlat`: soft sediment held by continuous dredging and pile
+ * foundations (the Venice-lagoon pattern already described in docs/plan/harbor-siting.md §4.3).
+ * Less penalized than sandy substrate — a working channel through mud needs upkeep, not a whole
+ * new engineered structure.
+ */
+export const HARBOR_COASTAL_HABITAT_FACTOR_TIDAL_FLAT = 0.6;
+/**
+ * `coastalHabitatFactor` for `sandyBeach` / `coastalDune`: loose, longshore-drift-mobile substrate
+ * that needs a breakwater plus periodic re-nourishment to hold a stable berth — a bigger standing
+ * investment than a dredged channel, hence a lower floor than `tidalFlat`. `coastalDune` shares the
+ * value because it's the same sand substrate one step back from the waterline, not a distinct case.
+ */
+export const HARBOR_COASTAL_HABITAT_FACTOR_SANDY = 0.5;
+
+/**
+ * Classify a burg's land-side coastal-habitat substrate into ideal/marginal, with the capacity
+ * multiplier to apply. `rockyIntertidal` (firm natural foundation) and the non-coastal `none`
+ * sentinel are Ideal; every other substrate is Marginal — see the module doc comment for why none
+ * of them hard-exclude a candidate the way the old `allowsFormalHarbor()` gate used to.
+ */
+export function evaluateHarborCoastalHabitat(
+  coastalCode: CoastalHabitatCode | undefined
+): HarborCoastalHabitatEvaluation {
+  const key = coastalCode === undefined ? "none" : getCoastalHabitatKey(coastalCode);
+  switch (key) {
+    case "tidalFlat":
+      return { tier: "marginal", coastalHabitatFactor: HARBOR_COASTAL_HABITAT_FACTOR_TIDAL_FLAT };
+    case "sandyBeach":
+    case "coastalDune":
+      return { tier: "marginal", coastalHabitatFactor: HARBOR_COASTAL_HABITAT_FACTOR_SANDY };
+    default:
+      return { tier: "ideal", coastalHabitatFactor: 1 };
+  }
 }
 
 /**

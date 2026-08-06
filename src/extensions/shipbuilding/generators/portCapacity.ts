@@ -1,5 +1,6 @@
 import {
   computeLargeDepthShareMultiplier,
+  evaluateHarborCoastalHabitat,
   evaluateHarborDepth,
   evaluateHarborElevation
 } from "../../../generators/harborSiteConditions";
@@ -31,11 +32,11 @@ const LARGE_MIN_HARBOR_FACTOR = 0.5;
 
 /**
  * Provisional per-burg port capacity (max ships moored at once, by size tier), derived
- * purely from existing population/harbor/status data plus the Elevation/Depth siting
- * conditions — see docs/plan/ships.md ("港湾収容力（暫定案）") for the base derivation and
- * docs/plan/harbor-siting.md §4 for the elevationFactor / depth-tiered large capacity added
- * on top. Pure derived data, recomputed alongside `computeShipyardCandidates()`; never written
- * back to `pack.burgs`.
+ * purely from existing population/harbor/status data plus the Elevation/Coastal-Habitat/Depth
+ * siting conditions — see docs/plan/ships.md ("港湾収容力（暫定案）") for the base derivation and
+ * docs/plan/harbor-siting.md §4 for the elevationFactor / coastalHabitatFactor / depth-tiered
+ * large capacity added on top. Pure derived data, recomputed alongside
+ * `computeShipyardCandidates()`; never written back to `pack.burgs`.
  */
 export function computePortCapacity(candidates: readonly ShipyardCandidate[]): Map<number, PortCapacity> {
   const { pack, populationRate, urbanization } = getWorldContext();
@@ -71,7 +72,16 @@ function computeBurgPortCapacity(
   // computeShipyardCandidates(), so elevationFactor here is always in [ELEVATION_FACTOR_FLOOR, 1].
   const { elevationFactor } = evaluateHarborElevation(cells.h[burg.cell], heightExponent);
 
-  let total = basePortScore * (HARBOR_FACTOR_FLOOR + (1 - HARBOR_FACTOR_FLOOR) * harborFactor) * elevationFactor;
+  // Coastal Habitat substrate (sandyBeach/coastalDune/tidalFlat) similarly degrades capacity
+  // instead of gating the candidate — no substrate hard-excludes any more (docs/plan/harbor-siting.md
+  // §4.3/§4.4); only rockyIntertidal/none are Ideal (coastalHabitatFactor = 1).
+  const { coastalHabitatFactor } = evaluateHarborCoastalHabitat(cells.coastalHabitat?.[burg.cell]);
+
+  let total =
+    basePortScore *
+    (HARBOR_FACTOR_FLOOR + (1 - HARBOR_FACTOR_FLOOR) * harborFactor) *
+    elevationFactor *
+    coastalHabitatFactor;
   if (burg.capital) total *= CAPITAL_MULTIPLIER;
   if (burg.citadel) total *= CITADEL_MULTIPLIER;
 

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { getCoastalHabitatCode } from "../data/coastalHabitatCatalog";
 import type { PackedGraph } from "../types/PackedGraph";
 import {
   computeLargeDepthShareMultiplier,
   ELEVATION_FACTOR_FLOOR,
+  evaluateHarborCoastalHabitat,
   evaluateHarborElevation,
   findNearbyMaxDepthMeters,
+  HARBOR_COASTAL_HABITAT_FACTOR_SANDY,
+  HARBOR_COASTAL_HABITAT_FACTOR_TIDAL_FLAT,
   HARBOR_ELEVATION_IDEAL_MAX_M,
   HARBOR_ELEVATION_UNSUITABLE_MIN_M
 } from "./harborSiteConditions";
@@ -57,6 +61,36 @@ describe("evaluateHarborElevation", () => {
     expect(aboveBoundary.tier).toBe("marginal");
     expect(unsuitable.elevationM).toBe(101);
     expect(unsuitable.tier).toBe("unsuitable");
+  });
+});
+
+describe("evaluateHarborCoastalHabitat", () => {
+  it("treats rockyIntertidal as ideal with no capacity penalty", () => {
+    const result = evaluateHarborCoastalHabitat(getCoastalHabitatCode("rockyIntertidal"));
+    expect(result.tier).toBe("ideal");
+    expect(result.coastalHabitatFactor).toBe(1);
+  });
+
+  it("treats none (non-coastal sentinel) and undefined as ideal", () => {
+    expect(evaluateHarborCoastalHabitat(getCoastalHabitatCode("none")).tier).toBe("ideal");
+    expect(evaluateHarborCoastalHabitat(getCoastalHabitatCode("none")).coastalHabitatFactor).toBe(1);
+    expect(evaluateHarborCoastalHabitat(undefined).tier).toBe("ideal");
+    expect(evaluateHarborCoastalHabitat(undefined).coastalHabitatFactor).toBe(1);
+  });
+
+  it("degrades but never excludes tidalFlat", () => {
+    const result = evaluateHarborCoastalHabitat(getCoastalHabitatCode("tidalFlat"));
+    expect(result.tier).toBe("marginal");
+    expect(result.coastalHabitatFactor).toBe(HARBOR_COASTAL_HABITAT_FACTOR_TIDAL_FLAT);
+    expect(result.coastalHabitatFactor).toBeGreaterThan(0);
+  });
+
+  it("degrades sandyBeach and coastalDune identically, never excluding either", () => {
+    const sandy = evaluateHarborCoastalHabitat(getCoastalHabitatCode("sandyBeach"));
+    const dune = evaluateHarborCoastalHabitat(getCoastalHabitatCode("coastalDune"));
+    expect(sandy.tier).toBe("marginal");
+    expect(sandy.coastalHabitatFactor).toBe(HARBOR_COASTAL_HABITAT_FACTOR_SANDY);
+    expect(dune).toEqual(sandy);
   });
 });
 

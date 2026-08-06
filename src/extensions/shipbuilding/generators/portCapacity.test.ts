@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getCoastalHabitatCode } from "../../../data/coastalHabitatCatalog";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearShipbuildingContext, initShipbuildingContext } from "../shipbuildingContext";
@@ -115,5 +116,80 @@ describe("computePortCapacity", () => {
     (worldContext.pack.cells.h as Uint8Array)[2] = 17;
     const candidates = setup({ population: 30, capital: 1, citadel: 1 }, 6);
     expect(computePortCapacity(candidates).get(1)).toEqual({ small: 20, medium: 7, large: 2 });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Coastal Habitat substrate (docs/plan/harbor-siting.md §4.3/§4.4): sandyBeach/coastalDune/
+  // tidalFlat degrade total capacity via coastalHabitatFactor instead of gating the candidate —
+  // no substrate excludes a burg from `computePortCapacity()`'s result set at all.
+  it("applies no penalty on rockyIntertidal (ideal substrate)", () => {
+    (worldContext.pack.cells.coastalHabitat as Uint8Array) = Uint8Array.from([
+      0,
+      getCoastalHabitatCode("rockyIntertidal"),
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]);
+    const candidates = setup({ population: 30 }, 5);
+    // Baseline with no coastalHabitat column at all (undefined -> "none" -> ideal) is
+    // {small:10, medium:3, large:1}; rockyIntertidal must match it exactly.
+    expect(computePortCapacity(candidates).get(1)).toEqual({ small: 10, medium: 3, large: 1 });
+  });
+
+  it("shrinks capacity via coastalHabitatFactor on a sandy beach", () => {
+    (worldContext.pack.cells.coastalHabitat as Uint8Array) = Uint8Array.from([
+      0,
+      getCoastalHabitatCode("sandyBeach"),
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]);
+    const candidates = setup({ population: 30 }, 5);
+    // Baseline at ideal substrate for the same population/harbor is {small:10, medium:3, large:1}.
+    expect(computePortCapacity(candidates).get(1)).toEqual({ small: 5, medium: 1, large: 0 });
+  });
+
+  it("shrinks capacity by the same factor on coastalDune as on sandyBeach", () => {
+    (worldContext.pack.cells.coastalHabitat as Uint8Array) = Uint8Array.from([
+      0,
+      getCoastalHabitatCode("coastalDune"),
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]);
+    const candidates = setup({ population: 30 }, 5);
+    expect(computePortCapacity(candidates).get(1)).toEqual({ small: 5, medium: 1, large: 0 });
+  });
+
+  it("shrinks capacity less severely on tidalFlat than on sandyBeach", () => {
+    (worldContext.pack.cells.coastalHabitat as Uint8Array) = Uint8Array.from([
+      0,
+      getCoastalHabitatCode("tidalFlat"),
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]);
+    const candidates = setup({ population: 30 }, 5);
+    expect(computePortCapacity(candidates).get(1)).toEqual({ small: 6, medium: 2, large: 0 });
   });
 });

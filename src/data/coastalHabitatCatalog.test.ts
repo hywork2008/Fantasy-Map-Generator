@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COASTAL_HABITAT_KEYS, NEARSHORE_HABITAT_KEYS } from "../types/coastalHabitat";
 import {
-  allowsFormalHarbor,
   getCoastalHabitatCode,
   getCoastalHabitatKey,
   getNearshoreHabitatCode,
@@ -18,11 +17,12 @@ describe("coastalHabitatCatalog", () => {
     expect(NEARSHORE_HABITAT_KEYS).toHaveLength(4);
   });
 
-  it("blocks formal harbors on sandy beaches only", () => {
+  it("identifies sandy beach substrate", () => {
     expect(isSandyBeach(getCoastalHabitatCode("sandyBeach"))).toBe(true);
-    expect(allowsFormalHarbor(getCoastalHabitatCode("sandyBeach"))).toBe(false);
-    expect(allowsFormalHarbor(getCoastalHabitatCode("rockyIntertidal"))).toBe(true);
-    expect(allowsFormalHarbor(getCoastalHabitatCode("none"))).toBe(true);
-    expect(allowsFormalHarbor(undefined)).toBe(true);
+    expect(isSandyBeach(getCoastalHabitatCode("rockyIntertidal"))).toBe(false);
   });
+
+  // Formal-harbor suitability by substrate (previously `allowsFormalHarbor()`, a hard
+  // sandyBeach-only gate) now lives in `evaluateHarborCoastalHabitat()`
+  // (src/generators/harborSiteConditions.ts) as a graded capacity factor — see its tests there.
 });

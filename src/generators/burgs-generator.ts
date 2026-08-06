@@ -15,7 +15,6 @@ import {
   isNomadicBiome,
   isSnowBiome
 } from "../data/biomeCatalog";
-import { allowsFormalHarbor } from "../data/coastalHabitatCatalog";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
@@ -133,7 +132,6 @@ class BurgModule {
         if (!feature || feature.cells <= 1) continue;
         if (NON_NAVIGABLE_LAKE_GROUPS.has(feature.group)) continue;
         if (temp[cells.g[burg.cell]] <= 0) continue; // frozen
-        if (!allowsFormalHarbor(cells.coastalHabitat?.[burg.cell])) continue;
         if (!this.elevationAllowsFormalHarbor(burg.cell)) continue;
 
         const isLake = feature.type === "lake";
@@ -364,7 +362,6 @@ class BurgModule {
         return false;
       }
       if (this.worldContext.grid.cells.temp[cells.g[burg.cell]] <= 0) return false;
-      if (!allowsFormalHarbor(cells.coastalHabitat?.[burg.cell])) return false;
       if (!this.elevationAllowsFormalHarbor(burg.cell)) return false;
       if (feature.type === "lake" && this.getLakePortCapacity(feature) === 0) return false;
       if (feature.type === "lake" && this.countLakePorts(feature.i) >= this.getLakePortCapacity(feature)) return false;

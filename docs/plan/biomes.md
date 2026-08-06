@@ -104,9 +104,20 @@ nearshoreHabitat: rockyReef
 
 ### 港湾・船舶と砂浜
 
-`sandyBeach` は正式な港湾・造船拠点の候補から除外する。具体的には `coastalHabitat === "sandyBeach"` のセルに、通常の `harbor`、Burg の港フラグ、Economy / Shipbuilding 拡張の shipyard candidate、商品としての `Ships`、造船所で完成する hull を生成してはならない。砂浜の背後に港町を置く場合も、港の係留・荷役セルは砂浜ではない、保護された入り江・河口・人工港のセルとして別に確保する。実装は `allowsFormalHarbor()`（`src/data/coastalHabitatCatalog.ts`）。
+**（2026-08-06改訂）** 当初 `sandyBeach` は正式な港湾・造船拠点の候補から一律除外する設計だった
+（旧`allowsFormalHarbor()`）。この方針は [harbor-siting.md](harbor-siting.md) §4.3 で撤回している —
+`sandyBeach`・`coastalDune`・`tidalFlat` はいずれも候補地からは除外されず、`coastalHabitatFactor`
+による収容力（`harbor`、Burg の港フラグ、shipyard candidate、`Ships`、hull を含む）の縮小として扱う。
+砂浜・干潟の背後に港町を置く場合、係留・荷役の実務上は保護された入り江・河口を使う方が自然だが、
+ゲームプレイ上のモデルとしては同じ`coastalHabitat`セル上でも港は成立し、防波堤・浚渫の維持費相当分
+だけ容量が下がる（現状は容量縮小のみで維持費そのものは未実装 — harbor-siting.md §5.3/§6）。
 
-`tidalFlat`（干潟）も同様に正式な港湾・造船拠点から除外すべきと判断した（2026-08時点、`allowsFormalHarbor()` は現状 `sandyBeach` のみ除外しており未実装）。`tidalFlat` は本カタログの分類基準（`classifySegmentBase()`）自体が「非常に平坦・停滞・堆積物過多で泥として堆積」と定義しており、`sandyBeach` より軟弱・浅い底質になる。恒久的に港湾用地へ転換したい場合は干拓（`coastalHabitat` の書き換え）、一時的に運用したい場合は浚渫維持費を伴う運用を想定する。詳細は [harbor-siting.md](harbor-siting.md) §4.3。
+`tidalFlat`（干潟）も同様に`coastalHabitatFactor`で扱う。本カタログの分類基準
+（`classifySegmentBase()`）自体が「非常に平坦・停滞・堆積物過多で泥として堆積」と定義しており、
+`sandyBeach`より軟弱・浅い底質になるが、`coastalHabitatFactor`は`sandyBeach`よりむしろ緩やか
+（浚渫維持の方が防波堤新設より投資が軽いという判断、harbor-siting.md §4.3）。恒久的に港湾用地へ
+転換したい場合は干拓（`coastalHabitat`の書き換え、`urban-water-and-sanitation-system.md`との接続を
+想定）を使う設計方針だけを記録し、具体設計・実装は未着手（harbor-siting.md §4.4/§6）。
 
 `rockyIntertidal` であっても、それだけで港を意味しない。正式な港湾・造船所には、既存の港適性に相当する**遮蔽された泊地**、十分な水深、海上経路への接続を別途要求する。岩場は港を許可しうる地質条件の一つにすぎず、外洋に曝された断崖・磯には港を作らない。「十分な水深」および陸側の標高条件の具体的なしきい値・実装配線は [harbor-siting.md](harbor-siting.md) を参照。
 
@@ -312,7 +323,7 @@ BiomeCatalogSnapshot + biomeCode
 
 1. 色、地形アイコン、衛星テクスチャ、WebGL描画を追加する。 ✅（標準23種の色/アイコン/衛星アルベド、WebGL キャッシュが `keys` も追随）
 2. Biomes Editorから各新規種をセルへ手動適用できるようにし、沿岸ハビタットは専用の海岸編集操作で設定できるようにする。 ✅（Brush の Paint 切替: biome / coastal / nearshore）
-3. 砂浜・磯・干潟・浅海岩礁を SVG と WebGL の双方で描画し、海亀、カニ、貝、海鳥、漁場等のコンテンツが参照できるようにする。 ✅（`toggleCoastalHabitats`、`coastalHabitat`/`nearshoreHabitat` 列、cell info / tooltip / `allowsFormalHarbor`）
+3. 砂浜・磯・干潟・浅海岩礁を SVG と WebGL の双方で描画し、海亀、カニ、貝、海鳥、漁場等のコンテンツが参照できるようにする。 ✅（`toggleCoastalHabitats`、`coastalHabitat`/`nearshoreHabitat` 列、cell info / tooltip。当時の `allowsFormalHarbor` は2026-08-06に廃止 — §「港湾・船舶と砂浜」参照）
 4. 新規種ごとの居住適性・移動コストを適用し、経路・国家・文化の生成結果を確認する。 ✅（カタログ定義の habitability / movementCost が既存経路で読まれる）
 
 **残メモ (Phase 2 境界):**
@@ -327,7 +338,7 @@ BiomeCatalogSnapshot + biomeCode
 4. 気候バンドから地中海性森林・温帯針葉樹林を割り当てる。 ✅
 5. 地域マスクを導入し、`centralEuropeanGreatForest` とヒース／湿原性荒野を連続した地域として生成する。 ✅ (`smoothRegionMask`, `biomeRegionProfile`)
 6. 海岸勾配・基質・波浪・潮差、水深・海底基質・海水温を使い、沿岸・浅海ハビタットを自動割当する。 ✅ (`coastalHabitatAssignment.ts` — 勾配/流量/水温プロキシ)
-7. 海岸を連続区間として分類し、`global` では砂質海岸を海岸線長の25〜35%に調整する。砂浜セルを正式な港湾・造船候補から除外する。 ✅（区間 BFS + `balanceSandyShare`; shipyard は Phase 2 の `allowsFormalHarbor`）
+7. 海岸を連続区間として分類し、`global` では砂質海岸を海岸線長の25〜35%に調整する。 ✅（区間 BFS + `balanceSandyShare`）。砂浜セルを正式な港湾・造船候補から一律除外する仕様は2026-08-06に撤回し、`coastalHabitatFactor`による収容力縮小へ置き換えた（[harbor-siting.md](harbor-siting.md) §4.3）。
 
 **オプション:** Options → Generation → **Biome region**（`global` / `medievalEurope` / `mediterranean` / `tropicalRiverBasin` / `mountainRealm`）。生成時に `worldContext.options.biomeRegionProfile` へ反映。
 
@@ -339,7 +350,7 @@ BiomeCatalogSnapshot + biomeCode
    - `biomeTag()` / `biomeOutputByTag`（Wood, Game, Honey, Olives, …）  
    - Burg groups: `biomeTags`  
    - 軍事地形: 新規森林種・山地タグ  
-   - 造船: `allowsFormalHarbor`（砂浜除外）
+   - 造船: 当時は `allowsFormalHarbor`（砂浜除外）。2026-08-06に廃止し `coastalHabitatFactor`（容量縮小）へ置換 — [harbor-siting.md](harbor-siting.md) §4.3
 4. 砂浜の小舟による漁業・採集と、港湾・造船所を必要とする `Ships` / completed hull を分離する。 ✅（`shoreFishing.ts` — informal small craft only）
 5. 将来の「古代の森」「魔法の森」等の属性レイヤーを、バイオームを増やさず追加できる形にする。 ✅  
    - `biomeAttributes` 型 + `forestCover` / `forestCondition` / `canopy` / `landCover` / `specialFeature`  
@@ -355,7 +366,7 @@ BiomeCatalogSnapshot + biomeCode
 | レガシー移行テスト | 旧標準13種、旧形式のカスタムバイオーム、旧コード列を `LegacyBiomeCodec` が対応する `BiomeKey` と既定値へ正規化できること |
 | レンダラーテスト | SVG・WebGL Hybridの双方で色、可視状態、更新後のキャッシュ無効化を確認する。カタログのコード順を変えても描画結果の意味が変わらないこと |
 | E2Eテスト | Biomes Editorでの手動変更、凡例、地域プロファイル選択、保存・再読み込みを確認する。SVGを対象にするテストは必要に応じて `renderMode: "svg"` を明示する |
-| バランステスト | 新規森林・湿地・山地を跨ぐ経路、国家拡大、資源、居住人口に不自然な偏りがないこと。砂浜の漁業活動が可能でも、正式な港湾・造船・`Ships` の候補にならないこと |
+| バランステスト | 新規森林・湿地・山地を跨ぐ経路、国家拡大、資源、居住人口に不自然な偏りがないこと。砂浜・干潟の漁業活動と、同じセルの正式な港湾・造船・`Ships`（容量が`coastalHabitatFactor`で縮小される）が両立すること — [harbor-siting.md](harbor-siting.md) §4.3 |
 
 ## 完了条件
 
@@ -369,7 +380,7 @@ BiomeCatalogSnapshot + biomeCode
 - ビャウォヴィエジャ／ポリーシャ型のプロファイルまたは地域マスクで、`centralEuropeanGreatForest`、`heathMoorland`、`Wetland`、`floodedForest` が不自然に細分化されず、連続した森林・湿原・河畔林のモザイクとして生成される。
 - 温暖な地方の高峰で、森林限界より上かつ夏に植生が露出するセルは `alpineTundra`、夏にも雪氷が残るセルは Glacier & perennial snowfield となる。単に低温であるだけでは雪氷バイオームにしない。
 - 砂浜・磯・干潟・浅海岩礁は気候バイオームを置き換えず、`coastalHabitat` / `nearshoreHabitat` として生成・編集・描画・保存できる。海亀、カニ、貝、海鳥、漁場などのコンテンツはこれらを参照できる。
-- `global` プロファイルでは砂質海岸が海岸線長の25〜35%を目安に連続区間として生成され、砂浜セルに正式な港湾、造船所、`Ships`、completed hull は生成されない。個人漁師の小舟は、これらと別の沿岸生活活動として砂浜へ着岸できる。
+- `global` プロファイルでは砂質海岸が海岸線長の25〜35%を目安に連続区間として生成される。砂浜・干潟セルの正式な港湾・造船所・`Ships`・completed hull は、2026-08-06以降は一律禁止ではなく`coastalHabitatFactor`による容量縮小として扱う（[harbor-siting.md](harbor-siting.md) §4.3）。個人漁師の小舟は、これらと別の沿岸生活活動として砂浜へ着岸できる。
 - 森林・湿地などのゲームロジックが数値ID範囲ではなく、明示的なタグまたは `key` を用いる。
 - 古代・魔法・暗黒・巨木などは、追加の気候バイオームではなく、後続の属性レイヤーで表現できる設計になっている。
 

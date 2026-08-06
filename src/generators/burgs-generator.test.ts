@@ -408,7 +408,10 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     expect(portStates).toEqual([1, 2, 3]);
   });
 
-  it("does not promote a formal port on a sandy coast", () => {
+  // A sandy coast no longer hard-excludes a formal port (docs/plan/harbor-siting.md §4.3/§4.4) —
+  // it only degrades port capacity via `evaluateHarborCoastalHabitat()` (see portCapacity.test.ts).
+  // Only the Elevation Unsuitable gate (below) still excludes a candidate outright.
+  it("still promotes a formal port on a sandy coast (capacity is degraded, not the candidacy)", () => {
     const cells = {
       ...BASE_CELLS,
       coastalHabitat: [0, getCoastalHabitatCode("sandyBeach"), getCoastalHabitatCode("sandyBeach"), 0, 0, 0]
@@ -423,8 +426,8 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
 
     Burgs.shift();
 
-    expect(worldContext.pack.burgs[1].port).toBeUndefined();
-    expect(worldContext.pack.burgs[2].port).toBeUndefined();
+    expect(worldContext.pack.burgs[1].port).toBeDefined();
+    expect(worldContext.pack.burgs[2].port).toBeDefined();
   });
 
   // -------------------------------------------------------------------------

@@ -57,10 +57,13 @@ Shipyardsで生産された船は経て港へ停泊する。
 
 ## 4. 港湾収容力（暫定案）
 
-> Elevation（陸側標高）・Depth（水深、大型ティアの喫水条件を含む）による追加の立地・容量条件は
-> [harbor-siting.md](harbor-siting.md) で実装済み。本節の式へ `elevationFactor`（Marginal帯での
-> 容量縮小）と水深ティア別の `large` 減算が重ねてある（`computeBurgPortCapacity()`）。
-> `tidalFlat` の維持費統合・Economy側の経常維持費コストはまだ未実装（harbor-siting.md §6）。
+> Elevation（陸側標高）・Coastal Habitat（陸側基質）・Depth（水深、大型ティアの喫水条件を含む）に
+> よる追加の立地・容量条件は[harbor-siting.md](harbor-siting.md)で実装済み。本節の式へ
+> `elevationFactor`（Marginal帯での容量縮小）・`coastalHabitatFactor`（`sandyBeach`/`coastalDune`/
+> `tidalFlat`基質での容量縮小）・水深ティア別の`large`減算が重ねてある（`computeBurgPortCapacity()`）。
+> 旧`allowsFormalHarbor()`による`sandyBeach`のハード除外は廃止済み — 基質はいずれも候補地から除外
+> されず、容量側でのみ縮小する（harbor-siting.md §4.3）。Economy側の経常維持費コスト・干拓による
+> 基質の恒久転換はまだ未実装（harbor-siting.md §6）。
 
 前提: 現状のコード（`src/extensions/shipbuilding/generators/shipyardCandidates.ts`,
 `shipyardQueue.ts`）には「港が何隻まで停泊できるか」という上限は存在しない。完成した船体は

@@ -1,5 +1,4 @@
 import { isForestBiome } from "../../../data/biomeCatalog";
-import { allowsFormalHarbor } from "../../../data/coastalHabitatCatalog";
 import { evaluateHarborElevation } from "../../../generators/harborSiteConditions";
 import { normalizeHeightExponent } from "../../../utils/height";
 import { useOptionsState } from "../../hostCore";
@@ -36,9 +35,6 @@ export function computeShipyardCandidates(): ShipyardCandidate[] {
 
   for (const burg of pack.burgs) {
     if (!burg.i || burg.removed || !burg.port) continue;
-
-    // Sandy beaches cannot host formal shipyards (biomes plan Phase 2).
-    if (!allowsFormalHarbor(pack.cells.coastalHabitat?.[burg.cell])) continue;
 
     // Elevation Unsuitable gate (docs/plan/harbor-siting.md §3.1/§5.2). burgs-generator.ts
     // already applies this before a burg can become a port, so this is a defensive re-check —
