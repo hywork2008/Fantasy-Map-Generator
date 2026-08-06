@@ -294,17 +294,22 @@ resolved fluid solve (§2) actually finds a cell to be sheltered or exposed.
 `coastalHabitatAssignment.ts` (sandy/rocky/tidal-flat classification) deliberately does **not**
 read `pack.cells.enclosure` — it reads `grid.cells.ambientCurrentSpeed` directly as a "current
 exposure" signal instead. `pack.cells.enclosure` is a user-configurable display value
-(`enclosureCalculationMode` below) that defaults to a mode which saturates near 100 for almost
-every coastal cell; classifying coastal habitat against it made nearly all mild-slope coastline
-read as "enclosed" and get swallowed into `tidalFlat` before `sandyBeach` was ever considered,
-regardless of what the user has the enclosure display set to. See the doc comment atop
-`coastalHabitatAssignment.ts` for the full redesign (current exposure, offshore depth-drop/fjord
-detection, and longshore-drift sediment diffusion along the coast).
+(`enclosureCalculationMode` below) that at the time `coastalHabitatAssignment.ts` was written
+defaulted to `"oceanCurrents"`, a mode which saturates near 100 for almost every coastal cell;
+classifying coastal habitat against it made nearly all mild-slope coastline read as "enclosed" and
+get swallowed into `tidalFlat` before `sandyBeach` was ever considered, regardless of what the
+user has the enclosure display set to. (The default has since moved to `"oceanCurrentsAmbient"`,
+which does not have this saturation problem — see below — but `coastalHabitatAssignment.ts` still
+reads `ambientCurrentSpeed` directly rather than `pack.cells.enclosure`, since the latter remains
+user-overridable to `"oceanCurrents"`/`"radius"` and habitat classification must not silently
+change with a display setting.) See the doc comment atop `coastalHabitatAssignment.ts` for the
+full redesign (current exposure, offshore depth-drop/fjord detection, and longshore-drift sediment
+diffusion along the coast).
 
 `Options → Generation → "Enclosure calculation"` (`useOptionsState`'s
 `enclosureCalculationMode: "oceanCurrents" | "oceanCurrentsAmbient" | "radius"`, default
-`"oceanCurrents"`) now lets `pack.cells.enclosure` for ocean-connected water instead read the
-*resolved* current speed this document describes — `FeatureModule.applyOceanCurrentEnclosure()`:
+`"oceanCurrentsAmbient"`) now lets `pack.cells.enclosure` for ocean-connected water instead read
+the *resolved* current speed this document describes — `FeatureModule.applyOceanCurrentEnclosure()`:
 
 - Both current-based modes share the same scoring formula and only differ in which `grid.cells`
   array they read `speed` from: for every `pack` water cell belonging to an `"ocean"`-type

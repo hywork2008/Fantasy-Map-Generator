@@ -4,7 +4,7 @@
 | :--- | :--- |
 | Status | Design discussion — 実装なし。2案を検証済み、着手判断待ち |
 | Parent | なし(独立した調査) |
-| Related | [ships.md](ships.md), [shipbuilding.md](shipbuilding.md) |
+| Related | [ships.md](ships.md), [shipbuilding.md](shipbuilding.md), [harbor-siting.md](harbor-siting.md)(Elevation/Depthによる別軸の立地条件) |
 | Scope | `pack.cells.enclosure`(水セルの囲まれ度スコア)をレンダリング以外のゲームプレイ機構に転用できるか検証する |
 
 ## 1. 背景

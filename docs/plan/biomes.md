@@ -104,9 +104,11 @@ nearshoreHabitat: rockyReef
 
 ### 港湾・船舶と砂浜
 
-`sandyBeach` は正式な港湾・造船拠点の候補から除外する。具体的には `coastalHabitat === "sandyBeach"` のセルに、通常の `harbor`、Burg の港フラグ、Economy / Shipbuilding 拡張の shipyard candidate、商品としての `Ships`、造船所で完成する hull を生成してはならない。砂浜の背後に港町を置く場合も、港の係留・荷役セルは砂浜ではない、保護された入り江・河口・人工港のセルとして別に確保する。
+`sandyBeach` は正式な港湾・造船拠点の候補から除外する。具体的には `coastalHabitat === "sandyBeach"` のセルに、通常の `harbor`、Burg の港フラグ、Economy / Shipbuilding 拡張の shipyard candidate、商品としての `Ships`、造船所で完成する hull を生成してはならない。砂浜の背後に港町を置く場合も、港の係留・荷役セルは砂浜ではない、保護された入り江・河口・人工港のセルとして別に確保する。実装は `allowsFormalHarbor()`（`src/data/coastalHabitatCatalog.ts`）。
 
-`rockyIntertidal` であっても、それだけで港を意味しない。正式な港湾・造船所には、既存の港適性に相当する**遮蔽された泊地**、十分な水深、海上経路への接続を別途要求する。岩場は港を許可しうる地質条件の一つにすぎず、外洋に曝された断崖・磯には港を作らない。
+`tidalFlat`（干潟）も同様に正式な港湾・造船拠点から除外すべきと判断した（2026-08時点、`allowsFormalHarbor()` は現状 `sandyBeach` のみ除外しており未実装）。`tidalFlat` は本カタログの分類基準（`classifySegmentBase()`）自体が「非常に平坦・停滞・堆積物過多で泥として堆積」と定義しており、`sandyBeach` より軟弱・浅い底質になる。恒久的に港湾用地へ転換したい場合は干拓（`coastalHabitat` の書き換え）、一時的に運用したい場合は浚渫維持費を伴う運用を想定する。詳細は [harbor-siting.md](harbor-siting.md) §4.3。
+
+`rockyIntertidal` であっても、それだけで港を意味しない。正式な港湾・造船所には、既存の港適性に相当する**遮蔽された泊地**、十分な水深、海上経路への接続を別途要求する。岩場は港を許可しうる地質条件の一つにすぎず、外洋に曝された断崖・磯には港を作らない。「十分な水深」および陸側の標高条件の具体的なしきい値・実装配線は [harbor-siting.md](harbor-siting.md) を参照。
 
 一方、砂浜には個人漁師・沿岸採集者の小舟が着岸できる。これは港湾インフラや `Ships` 商品ではなく、`shoreFishing` のような世帯・集落規模の生活活動として扱う。小舟は砂浜での漁、貝・カニ採集、短距離の沿岸移動を説明できるが、港、交易路、造船所、船舶在庫、軍事・遠洋航行の条件を満たさない。小舟を明示的に状態化する必要が生じた場合も、Economy 拡張の shipbuilding queue / completed hulls と別の `smallCraft` または漁業活動として保持する。
 
