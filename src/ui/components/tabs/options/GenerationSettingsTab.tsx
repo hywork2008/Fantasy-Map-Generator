@@ -4,7 +4,7 @@ import {
   heightmapLandmassThresholds,
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../../../../data";
-import { useGenerationProgressState } from "../../../../store/generationProgressState";
+import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { lock } from "../../../../utils/domUtils";
@@ -15,6 +15,10 @@ import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+  // Generation is merely paused for stage review (including the initial map's review
+  // flow), not actively computing a stage — safe to redirect it to a new seed instead
+  // of waiting for the whole thing to finish.
+  const isGenerationPaused = useGenerationProgressState(state => state.isOpen && !state.isGenerating);
   const updateOption = options.setOption;
   const usesPolityDensity = options.initialSettlementPattern !== "standard";
   const statesNumberLabel = usesPolityDensity ? "Polity density" : "States number";
@@ -32,6 +36,20 @@ export const GenerationSettingsTab: React.FC = () => {
 
   const handleMapSizeChange = () => {
     document.dispatchEvent(new CustomEvent("react-map-size-change"));
+  };
+
+  // While a generation is paused for stage review (including the initial map's own
+  // review flow, which otherwise leaves no window to apply a custom seed without a
+  // URL param), redirect the already-running pipeline instead of starting a second,
+  // concurrent one. Once generation is fully idle, fall through to the normal
+  // confirm-and-regenerate path used by the "New Map" button.
+  const generateWithSeed = () => {
+    if (isGenerationPaused) {
+      generationProgressStore.getState().restartWithSeed(options.seed);
+      return;
+    }
+    if (isMapGenerationInProgress) return;
+    document.dispatchEvent(new CustomEvent("react-generate-map-with-seed", { detail: { seed: options.seed } }));
   };
 
   const updateCanvasDimension = (key: "mapWidth" | "mapHeight", value: string) => {
@@ -84,7 +102,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Map seed number. Press 'Enter' to apply. Seed produces the same map only if canvas size and options are the same">
+          <tr data-tip="Map seed number. Press 'Enter' or click the play button to generate a new map with this seed">
             <td>
               <i
                 data-tip="Show seed history to apply a previous seed"
@@ -104,12 +122,16 @@ export const GenerationSettingsTab: React.FC = () => {
                 value={options.seed}
                 onChange={e => updateOption("seed", e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter" && !isMapGenerationInProgress) {
-                    document.dispatchEvent(
-                      new CustomEvent("react-generate-map-with-seed", { detail: { seed: options.seed } })
-                    );
+                  if (e.key === "Enter" && (!isMapGenerationInProgress || isGenerationPaused)) {
+                    generateWithSeed();
                   }
                 }}
+              />
+              <IconButton
+                data-tip="Generate a new map with this seed"
+                icon="icon-play"
+                disabled={isMapGenerationInProgress && !isGenerationPaused}
+                onClick={generateWithSeed}
               />
             </td>
             <td>

@@ -994,8 +994,15 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
       if (action === "loadMap") throw new MapLoadRequestedError();
       if (action === "next") continue;
 
-      restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : action === "retryStage" ? stageIndex : 0;
-      activeRequest = action === "retryLandscape" ? { graph: null } : activeRequest;
+      if (action === "restartWithSeed") {
+        // Redirect the in-flight pipeline to a new seed instead of spawning a second,
+        // concurrent generate() call — the paused loop below simply restarts at stage 0.
+        restartAt = 0;
+        activeRequest = { seed: generationProgressStore.getState().restartSeed ?? undefined };
+      } else {
+        restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : action === "retryStage" ? stageIndex : 0;
+        activeRequest = action === "retryLandscape" ? { graph: null } : activeRequest;
+      }
       shouldRestart = true;
       break;
     }
