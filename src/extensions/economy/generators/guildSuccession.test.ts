@@ -94,6 +94,26 @@ describe("GuildSuccessionModule", () => {
     expect(worldContext.pack.characters.filter(c => isMaster(c))).toHaveLength(firstMasterCount);
   });
 
+  it("reports (burgId, domain) only for masters newly created this pass, so a caller can seed their working capital", () => {
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0 }]);
+
+    const firstPass = GuildSuccession.settleAnnual();
+    expect(firstPass).toEqual([{ burgId: 1, domain: "metallurgy" }]);
+
+    worldContext.options = { year: 501 };
+    const secondPass = GuildSuccession.settleAnnual();
+    expect(secondPass).toEqual([]);
+  });
+
+  it("returns an empty list when called again within the same simulation year (already-settled guard)", () => {
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0 }]);
+
+    GuildSuccession.settleAnnual();
+    const secondCallSameYear = GuildSuccession.settleAnnual();
+
+    expect(secondCallSameYear).toEqual([]);
+  });
+
   it("caps a master at two apprentices", () => {
     setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0 }]);
     for (let year = 500; year < 510; year++) {

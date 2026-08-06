@@ -2,15 +2,32 @@ import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
   getBurgTreasuryLastSettledYear,
+  getGoods,
   getGuildKnowledgeStocks,
   getSimulationYear,
   getWorldContext,
   setBurgTreasuryLastSettledYear,
   setGuildKnowledgeStocks
 } from "../economyContext";
+import { backPayCycles, GUILD_MASTER_STIPEND } from "./characterStipends";
 import { STARTING_BURG_TREASURY_PER_POPULATION } from "./foodProduction";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import { Markets } from "./markets-generator";
+
+/**
+ * Domain's most representative raw/base craft good, seeded into a brand-new guild's home Burg
+ * market alongside the working-capital seed below (seedNewGuildWorkingCapital()) — so day-one
+ * production isn't blocked on the ore/smelter chain warming up before this domain's finished goods
+ * (and thus its guild's own margin income, GUILD_PROFIT_SHARE below) can flow at all. Scoped only to
+ * domains guildSuccession.ts's SUCCESSION_DOMAINS actually creates masters for today — no
+ * speculative data for domains that don't have guild characters yet.
+ */
+const NEW_GUILD_STARTER_MATERIAL: Readonly<Partial<Record<CraftKnowledgeDomain, string>>> = {
+  metallurgy: "Bronze"
+};
+
+/** Units of starter material seeded per back-pay cycle — a kickstart, not a standing subsidy. */
+const NEW_GUILD_MATERIAL_UNITS_PER_CYCLE = 1;
 
 /**
  * Share of a craft-domain manufactured Good's after-tax sale revenue routed to that domain guild's
@@ -69,6 +86,40 @@ export class GuildTreasuryModule {
     }
 
     setGuildKnowledgeStocks([...stocks, { burgId, domain, stock: 0, treasury: rn(amount, 2) }]);
+  }
+
+  /**
+   * One-time seed fired when guildSuccession.ts's createMaster() establishes a domain guild's
+   * first Guild Master: credits a back-pay-equivalent working capital to the guild's own treasury
+   * and, for domains with a known starter material, tops up the home Burg's market stock of it.
+   *
+   * Without this, a brand-new guild's only funding path is GUILD_PROFIT_SHARE off its own finished
+   * goods actually clearing the market at a margin — which can stay permanently at 0 when the ore/
+   * smelter (or equivalent) chain feeding those goods hasn't warmed up yet, leaving the master (and
+   * any apprentice) unpaid indefinitely with no fallback, unlike a Province Lord who always draws
+   * from their seated Burg. Fires once per master, not a recurring subsidy.
+   */
+  seedNewGuildWorkingCapital(burgId: number, domain: CraftKnowledgeDomain): void {
+    const cycles = backPayCycles();
+    this.creditGuildTreasury(burgId, domain, GUILD_MASTER_STIPEND * cycles);
+
+    const materialName = NEW_GUILD_STARTER_MATERIAL[domain];
+    if (!materialName) return;
+
+    const burg = getWorldContext().pack.burgs[burgId] as Burg | undefined;
+    if (!burg?.market) return;
+
+    const market = Markets.get(burg.market);
+    const good = getGoods().find(candidate => candidate.name === materialName);
+    if (!market || !good) return;
+
+    // Only raises stock, never lowers it — safe to call again if this Burg's guild ever loses its
+    // master and later gets a new one, without clobbering any real stock accrued in between.
+    const targetStock = rn(NEW_GUILD_MATERIAL_UNITS_PER_CYCLE * cycles, 2);
+    const existing = market.goods[good.i];
+    if (!existing || existing.stock < targetStock) {
+      market.goods[good.i] = { stock: targetStock, price: existing?.price ?? good.value };
+    }
   }
 
   /**

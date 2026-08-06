@@ -329,13 +329,14 @@ function maybeSpawnApprentice(
   createApprentice(characters, burgId, domain, master.i);
 }
 
+/** Returns true when this call established a brand-new master (not a reused/succeeded one). */
 function processGuildSuccession(
   characters: Character[],
   burgId: number,
   domain: CraftKnowledgeDomain,
   year: number,
   chance: (probability: number) => boolean
-): void {
+): boolean {
   let master = findMaster(characters, burgId, domain);
 
   if (master?.dead) {
@@ -343,14 +344,23 @@ function processGuildSuccession(
     master = findMaster(characters, burgId, domain);
   }
 
+  let createdNewMaster = false;
   if (!master) {
     master = createMaster(characters, burgId, domain) ?? undefined;
+    createdNewMaster = Boolean(master);
   }
   // Enemy-dedicated burgs (goblin etc.) never run peaceful craft guilds.
-  if (!master) return;
+  if (!master) return false;
 
   growApprentices(characters, master, burgId, domain, chance);
   maybeSpawnApprentice(characters, master, burgId, domain);
+  return createdNewMaster;
+}
+
+/** A domain guild that got its first-ever Guild Master this settleAnnual() pass. */
+export interface NewGuildMaster {
+  readonly burgId: number;
+  readonly domain: CraftKnowledgeDomain;
 }
 
 export class GuildSuccessionModule {
@@ -358,15 +368,24 @@ export class GuildSuccessionModule {
    * Runs at most once per simulation year. No ordering dependency beyond GuildKnowledge having
    * settled this year's stock first, so this year's growth/eligibility checks read fresh values
    * (docs/plan/knowledge-guild-system.md §9 Phase 6).
+   *
+   * Returns every (burgId, domain) that got a brand-new master this pass, so a caller above both
+   * this module and guildTreasury.ts in the dependency graph (economy/index.tsx) can fire that
+   * guild's one-time working-capital/starter-material seed (GuildTreasury.seedNewGuildWorkingCapital())
+   * without this module importing guildTreasury.ts directly — guildTreasury.ts transitively depends
+   * on markets-generator.ts → marketManagers.ts → characterStipends.ts, which already imports this
+   * module (findMaster/findApprentices), so a direct import here would close an import cycle.
    */
-  settleAnnual(chance: (probability: number) => boolean = P): boolean {
+  settleAnnual(chance: (probability: number) => boolean = P): NewGuildMaster[] {
     const year = getSimulationYear();
-    if (getGuildSuccessionLastSettledYear() === year) return false;
+    if (getGuildSuccessionLastSettledYear() === year) return [];
     setGuildSuccessionLastSettledYear(year);
 
     const { pack } = getWorldContext();
     pack.characters ??= [];
     const characters = pack.characters;
+
+    const newMasters: NewGuildMaster[] = [];
 
     for (const domain of SUCCESSION_DOMAINS) {
       const burgIds = getGuildKnowledgeStocks()
@@ -374,11 +393,12 @@ export class GuildSuccessionModule {
         .map(entry => entry.burgId);
 
       for (const burgId of burgIds) {
-        processGuildSuccession(characters, burgId, domain, year, chance);
+        const createdNewMaster = processGuildSuccession(characters, burgId, domain, year, chance);
+        if (createdNewMaster) newMasters.push({ burgId, domain });
       }
     }
 
-    return true;
+    return newMasters;
   }
 }
 

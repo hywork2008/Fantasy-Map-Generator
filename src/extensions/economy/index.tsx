@@ -2155,7 +2155,13 @@ export function init(api: ExtensionAPI): void {
         // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
         // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
         // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.
-        GuildSuccession.settleAnnual(probability => context.rng.P(probability));
+        // One-time working-capital + starter-material seed for every guild that got its first-ever
+        // master this pass — otherwise a brand-new guild has no funding source but its own finished
+        // goods clearing the market at a margin, which can stay permanently at 0 (unlike a Province
+        // Lord, who always draws from their seated Burg regardless of any other pool).
+        for (const { burgId, domain } of GuildSuccession.settleAnnual(probability => context.rng.P(probability))) {
+          GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
+        }
         // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
         // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
         // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
