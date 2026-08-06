@@ -5,7 +5,9 @@ import { createPerson, resolveRaceIdForCulture } from "../../characters/personFa
 import { isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import { simulationContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import { getMarkets, getWorldContext } from "../economyContext";
+import { backPayCycles, MARKET_MANAGER_STIPEND, MARKET_RIVAL_STIPEND } from "./characterStipends";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
 import { resolveBurgCulture } from "./resolveBurgCulture";
@@ -118,6 +120,12 @@ function createMarketManager(market: Market): Character | null {
     stateNames: {},
     currentYear: simulationContext.currentYear
   });
+  // Fixed stipend × back-pay, seeded now rather than left for a later backfill pass: this runs
+  // before economy's first collectTaxes() cycle, so without it the manager's very first live
+  // payMarketStipends() payout — rationed by whatever the market treasury balance happens to be
+  // moments after Markets.generate() — would become their entire starting purse, often just a
+  // few copper (docs/analytics/character-wealth-balance.md).
+  character.wealth = rn(MARKET_MANAGER_STIPEND * backPayCycles(), 2);
   market.managerCharacterId = character.i;
   return character;
 }
@@ -152,6 +160,8 @@ function createMarketRival(market: Market): Character | null {
     stateNames: {},
     currentYear: simulationContext.currentYear
   });
+  // Fixed stipend × back-pay — see the matching comment in createMarketManager().
+  character.wealth = rn(MARKET_RIVAL_STIPEND * backPayCycles(), 2);
   return character;
 }
 

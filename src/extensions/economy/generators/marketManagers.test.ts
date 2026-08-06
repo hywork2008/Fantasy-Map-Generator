@@ -4,6 +4,7 @@ import "../../characters/types";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, getMarkets, initEconomyContext } from "../economyContext";
+import { MARKET_MANAGER_STIPEND, MARKET_RIVAL_STIPEND } from "./characterStipends";
 import {
   clearMarketManagers,
   MARKET_MANAGER_ROLE_KIND,
@@ -65,6 +66,25 @@ describe("market managers", () => {
     expect(
       worldContext.pack.characters.filter(c => c.roles?.some(role => role.kind === MARKET_RIVAL_MERCHANT_ROLE_KIND))
     ).toHaveLength(4);
+  });
+
+  it("seeds a fixed back-pay purse for every freshly-created manager and rival", () => {
+    // Regression: managers/rivals used to start at Character.wealth 0 and get their first purse
+    // entirely from that market's own (often still-thin, moments-old) treasury balance via the
+    // first live payMarketStipends() cycle — sometimes only a few copper.
+    syncMarketManagers();
+
+    for (const market of getMarkets()) {
+      const manager = worldContext.pack.characters.find(c => c.i === market.managerCharacterId)!;
+      expect(manager.wealth).toBeGreaterThanOrEqual(MARKET_MANAGER_STIPEND * 4);
+      expect(manager.wealth).toBeLessThanOrEqual(MARKET_MANAGER_STIPEND * 10);
+
+      for (const rivalId of market.rivalCharacterIds!) {
+        const rival = worldContext.pack.characters.find(c => c.i === rivalId)!;
+        expect(rival.wealth).toBeGreaterThanOrEqual(MARKET_RIVAL_STIPEND * 4);
+        expect(rival.wealth).toBeLessThanOrEqual(MARKET_RIVAL_STIPEND * 10);
+      }
+    }
   });
 
   it("clears economy-only managers but keeps characters that still have titles", () => {

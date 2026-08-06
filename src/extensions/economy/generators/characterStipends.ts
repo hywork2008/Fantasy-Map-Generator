@@ -252,13 +252,29 @@ export function payMarketStipends(): void {
 const BACK_PAY_CYCLES_MIN = 4;
 const BACK_PAY_CYCLES_MAX = 10;
 
-function backPayCycles(): number {
+/**
+ * Random back-pay window shared by every generation-time wealth seed (this module and
+ * marketManagers.ts's character-creation seed) so a fresh character's starting purse reads as
+ * "a few cycles of wages already banked" rather than a single paycheck.
+ */
+export function backPayCycles(): number {
   return rand(BACK_PAY_CYCLES_MIN, BACK_PAY_CYCLES_MAX);
 }
 
 /**
- * Seeds Character.wealth for paid roles still at 0 after generate, using the same per-cycle
- * formulas as live pay × a short random back-pay window. Never overwrites non-zero wealth.
+ * Seeds Character.wealth for paid roles still at 0 after generate, using each role's *fixed*
+ * per-cycle stipend (never the pool-capped `computeXStipend()` live-pay helpers above) × a short
+ * random back-pay window. This is deliberate: at generation time the funding pool a role would
+ * normally draw from (Burg/guild/market treasury) is often still thin or literally empty — no
+ * production cycle has run yet, or the role was assigned after economy's first cycle already
+ * drained it — so pool-capping the seed the same way live pay is capped starved province lords,
+ * guild masters, market managers, and market rivals down to near-zero even though their
+ * institution is healthy once a normal cycle or two has passed (docs/analytics/
+ * character-wealth-balance.md). Ruler/central-office/field-commander seeding already worked this
+ * way; this mirrors it for the remaining fixed-stipend roles. Never overwrites non-zero wealth —
+ * market manager/rival wealth has its own creation-time seed in marketManagers.ts instead of a
+ * loop here, since by the time this function runs they may already hold a live-paid (but
+ * pool-starved) balance that this guard would then skip topping up.
  */
 export function seedMissingCharacterWealth(): void {
   if (!hasCharactersContext()) return;
@@ -300,9 +316,7 @@ export function seedMissingCharacterWealth(): void {
   }
 
   for (const province of pack.provinces ?? []) {
-    if (!province?.i || province.removed || !province.burg) continue;
-    const burg = pack.burgs[province.burg];
-    if (!burg || !(burg.treasury && burg.treasury > 0)) continue;
+    if (!province?.i || province.removed) continue;
 
     const lord = characters.find(
       character =>
@@ -311,15 +325,27 @@ export function seedMissingCharacterWealth(): void {
     );
     if (!lord || lord.wealth) continue;
 
-    lord.wealth = rn(computeProvinceLordStipend(burg.treasury) * backPayCycles(), 2);
+    // Fixed stipend × back-pay, not pool-capped by (or even requiring) the seated Burg's
+    // treasury — see the function doc comment. Deliberately does NOT require `province.burg`:
+    // assignProvinceLords() (provinceLordGenerator.ts) sparsely appoints frontier "margrave"
+    // lords to *any* threatened province, seated or not — the Warden/Governor/Clan
+    // Chief/Steward titles (Territory/Colony/Clan/Dependency forms) are explicitly the
+    // "wild/leftover provinces" bucket in titleTable.ts's PROVINCE_FORMNAME_TITLES, i.e. exactly
+    // the ones most likely to have no burg at all. Requiring a burg here (to mirror
+    // payProvinceLordStipends()'s live per-cycle draw, which correctly does need one to pay from)
+    // silently skipped every burg-less lord and left them stuck at wealth 0 forever.
+    lord.wealth = rn(PROVINCE_LORD_STIPEND * backPayCycles(), 2);
   }
 
   for (const entry of getGuildKnowledgeStocks()) {
+    // Requires the domain to have earned *something* — unlike the roles above, an untouched
+    // domain guild (treasury still exactly 0) has no economic activity to back-pay a master for.
     if (!(entry.treasury > 0)) continue;
 
     const master = findMaster(characters, entry.burgId, entry.domain);
     if (!master) continue;
-    if (!master.wealth) master.wealth = rn(computeGuildMasterStipend(entry.treasury) * backPayCycles(), 2);
+    // Fixed stipend × back-pay, not pool-capped by entry.treasury — see the function doc comment.
+    if (!master.wealth) master.wealth = rn(GUILD_MASTER_STIPEND * backPayCycles(), 2);
 
     for (const apprentice of findApprentices(characters, master.i, entry.burgId, entry.domain)) {
       if (apprentice.wealth || apprentice.dead) continue;
@@ -329,19 +355,13 @@ export function seedMissingCharacterWealth(): void {
     }
   }
 
-  for (const market of getMarkets()) {
-    const balance = market.marketTreasury?.balance || 0;
-    if (!(balance > 0)) continue;
-
-    const manager = characters.find(character => character.i === market.managerCharacterId && !character.dead);
-    if (manager && !manager.wealth) {
-      manager.wealth = rn(computeMarketManagerStipend(balance) * backPayCycles(), 2);
-    }
-
-    for (const rivalId of market.rivalCharacterIds ?? []) {
-      const rival = characters.find(character => character.i === rivalId && !character.dead);
-      if (!rival || rival.wealth) continue;
-      rival.wealth = rn(computeMarketRivalStipend(balance) * backPayCycles(), 2);
-    }
-  }
+  // Market manager/rival wealth is seeded at character-creation time instead of here (see
+  // createMarketManager()/createMarketRival() in marketManagers.ts). Those characters are created
+  // before economy's very first collectTaxes() cycle, so by the time that live cycle's
+  // payMarketStipends() runs they already hold a fixed back-pay balance — the live payout simply
+  // adds a normal cycle's pay on top. Seeding them here instead would almost always no-op: the
+  // `!wealth` guard above is already false by the time this function runs, because that first live
+  // cycle already paid them *something* (rationed thin by whatever the market treasury balance
+  // happened to be moments after Markets.generate()) — which is exactly the bug this data flow
+  // used to have (docs/analytics/character-wealth-balance.md).
 }

@@ -377,5 +377,88 @@ describe("characterStipends", () => {
       expect(lord.wealth).toBeGreaterThanOrEqual(PROVINCE_LORD_STIPEND * 4);
       expect(lord.wealth).toBeLessThanOrEqual(PROVINCE_LORD_STIPEND * 10);
     });
+
+    it("still seeds a fresh province lord's full back-pay when the seated Burg's treasury is empty", () => {
+      // Regression: a newly-assigned lord (e.g. a Tribe/Territory Chieftain/Warden appointed
+      // after economy's first collectTaxes() cycle) whose seated Burg hasn't accumulated any
+      // treasury yet used to be silently skipped and left at wealth 0 forever.
+      const state = { i: 1, form: "Anarchy", diplomacy: [], pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      const lord = makeCharacter({
+        i: 62,
+        wealth: 0,
+        titles: [{ title: "Chieftain", landed: true, entityType: "province", entityId: 2 }]
+      });
+      const burg = { i: 5, treasury: 0 } as unknown as Burg;
+      worldContext.pack = {
+        states: [state],
+        characters: [lord],
+        provinces: [undefined, undefined, { i: 2, state: 1, burg: 5, removed: false } as unknown as Province],
+        burgs: [undefined, undefined, undefined, undefined, undefined, burg]
+      } as unknown as PackedGraph;
+
+      seedMissingCharacterWealth();
+
+      expect(lord.wealth).toBeGreaterThanOrEqual(PROVINCE_LORD_STIPEND * 4);
+      expect(lord.wealth).toBeLessThanOrEqual(PROVINCE_LORD_STIPEND * 10);
+      // No pool to draw from, so the Burg's own (empty) treasury is left untouched.
+      expect(burg.treasury).toBe(0);
+    });
+
+    it("still seeds a fresh province lord's back-pay when the province has no seated Burg at all", () => {
+      // Regression: assignProvinceLords() sparsely appoints frontier "margrave" lords to any
+      // threatened province, burg or not — Warden/Governor/Clan Chief/Steward (Territory/Colony/
+      // Clan/Dependency forms) are exactly titleTable.ts's "wild/leftover provinces" bucket, i.e.
+      // the ones most likely to have province.burg === 0. Requiring a resolvable Burg here used
+      // to skip these lords entirely, leaving them stuck at wealth 0 forever.
+      const state = { i: 1, form: "Monarchy", diplomacy: [], pollTax: 0.2, rural: 0, urban: 0 } as unknown as State;
+      const lord = makeCharacter({
+        i: 64,
+        wealth: 0,
+        titles: [{ title: "Warden", landed: true, entityType: "province", entityId: 3 }]
+      });
+      worldContext.pack = {
+        states: [state],
+        characters: [lord],
+        provinces: [
+          undefined,
+          undefined,
+          undefined,
+          { i: 3, state: 1, burg: 0, removed: false } as unknown as Province
+        ],
+        burgs: [undefined]
+      } as unknown as PackedGraph;
+
+      seedMissingCharacterWealth();
+
+      expect(lord.wealth).toBeGreaterThanOrEqual(PROVINCE_LORD_STIPEND * 4);
+      expect(lord.wealth).toBeLessThanOrEqual(PROVINCE_LORD_STIPEND * 10);
+    });
+
+    it("still seeds a fresh guild master's full back-pay even from a barely-funded domain", () => {
+      const master = makeCharacter({
+        i: 63,
+        wealth: 0,
+        roles: [
+          {
+            source: "economy",
+            kind: "guildMaster",
+            entityType: "burg",
+            entityId: 1,
+            domain: "metallurgy",
+            label: "Guild Master"
+          }
+        ]
+      });
+      worldContext.pack.states = [];
+      worldContext.pack.provinces = [];
+      worldContext.pack.burgs = [];
+      worldContext.pack.characters = [master];
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0.01 }]);
+
+      seedMissingCharacterWealth();
+
+      expect(master.wealth).toBeGreaterThanOrEqual(GUILD_MASTER_STIPEND * 4);
+      expect(master.wealth).toBeLessThanOrEqual(GUILD_MASTER_STIPEND * 10);
+    });
   });
 });
