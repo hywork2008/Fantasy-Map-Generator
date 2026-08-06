@@ -359,6 +359,52 @@ text.drag {
   input[type="range"]::-moz-range-thumb {
     cursor: pointer;
   }
+
+  /* The native number-input spinner reserves a fixed ~20px inside the box
+     no matter how narrow it is drawn, so a tight width clips the digits
+     themselves rather than the (invisible) empty space. Hide it — typing,
+     the mouse wheel, and arrow keys still change the value. */
+  input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Canvas size and Year hold ~4 digits but had no width limit, so the
+     browser rendered them wide enough for 7+ digits. Only these three fields
+     get a fixed width — other numeric fields (zoom extent, danger rarity
+     min/max, etc.) are intentionally left alone so they keep sizing
+     themselves instead of stretching to match. */
+  #mapWidthInput,
+  #mapHeightInput,
+  #yearInput {
+    width: 4ch;
+  }
+
+  /* Two-up numeric fields (canvas width/height, year) read better centered
+     than the browser's default left alignment. */
+  input.paired {
+    text-align: center;
+  }
+
+  /* Row-label cells are <th> for semantics, but should read like the plain
+     <td> labels they replaced — left-aligned, normal weight, and sized to
+     their own content rather than wrapping onto two lines. The value column
+     already has its own explicit widths (sliders, paired inputs, colSpan),
+     so it doesn't need the label column's room; white-space: nowrap +
+     width: 1% is the standard "shrink this column to its longest
+     single-line content" trick under the default table layout algorithm. */
+  #generationSettingsTable th:not([colspan]) {
+    text-align: left;
+    font-weight: normal;
+    white-space: nowrap;
+    width: 1%;
+  }
 }
 
 .tab {

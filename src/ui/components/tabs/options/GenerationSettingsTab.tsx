@@ -74,15 +74,16 @@ export const GenerationSettingsTab: React.FC = () => {
       <p data-tip="Map generation settings. Generate a new map to apply the settings">
         Map settings (new map to apply):
       </p>
-      <table>
+      <table id="generationSettingsTable">
         <tbody>
           <tr data-tip="Set original map size on generation. It cannot be changed later. Always keep canvas size equal to your screen size or less.">
             <td>
               <IconButton data-tip="Restore default canvas size" icon="icon-ccw" onClick={handleRestoreDefaultSize} />
             </td>
-            <td>Canvas size</td>
+            <th>Canvas size</th>
             <td>
               <input
+                id="mapWidthInput"
                 className="paired"
                 type="number"
                 min={MIN_CANVAS_WIDTH}
@@ -91,6 +92,7 @@ export const GenerationSettingsTab: React.FC = () => {
               />
               <span>x</span>
               <input
+                id="mapHeightInput"
                 className="paired"
                 type="number"
                 min={MIN_CANVAS_HEIGHT}
@@ -110,7 +112,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 className="icon-hourglass-1"
               ></i>
             </td>
-            <td>Map seed</td>
+            <th>Map seed</th>
             <td>
               <input
                 id="optionsSeed"
@@ -147,7 +149,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="points" />
             </td>
-            <td>Points number</td>
+            <th>Points number</th>
             <td>
               <input
                 type="range"
@@ -171,7 +173,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="template" />
             </td>
-            <td>Heightmap</td>
+            <th>Heightmap</th>
             <td
               id="templateInputContainer"
               className="pointer"
@@ -185,7 +187,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="When Heightmap is unlocked, limit random selection to templates with the selected average land or ocean coverage">
             <td></td>
-            <td>Random heightmap pool</td>
+            <th>Random heightmap pool</th>
             <td colSpan={2}>
               <select
                 value={options.templateRandomization}
@@ -209,9 +211,9 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="biomeRegionProfile" />
             </td>
-            <td>
+            <th>
               <label htmlFor="biomeRegionProfile">Biome region</label>
-            </td>
+            </th>
             <td colSpan={2}>
               <select
                 id="biomeRegionProfile"
@@ -237,9 +239,9 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="enclosureCalculationMode" />
             </td>
-            <td>
+            <th>
               <label htmlFor="enclosureCalculationMode">Enclosure calculation</label>
-            </td>
+            </th>
             <td colSpan={2}>
               <select
                 id="enclosureCalculationMode"
@@ -262,9 +264,9 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="How the Ocean Currents WebGL layer draws grid.cells.currentAngle/currentSpeed. Direction Lines draws a short arrow per cell, colored by water temperature — cells reading exactly 0 speed are skipped, so a calm patch looks like a gap. Intensity Shading instead fills every ocean cell by current speed alone (pale = calm, dark = strong), with full gapless coverage. Applies immediately, no regenerate needed.">
             <td></td>
-            <td>
+            <th>
               <label htmlFor="oceanCurrentRenderMode">Ocean current rendering</label>
-            </td>
+            </th>
             <td colSpan={2}>
               <select
                 id="oceanCurrentRenderMode"
@@ -289,7 +291,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="cultures" />
             </td>
-            <td>Cultures number</td>
+            <th>Cultures number</th>
             <td colSpan={2}>
               <input
                 type="range"
@@ -312,7 +314,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="culturesSet" />
             </td>
-            <td>Cultures set</td>
+            <th>Cultures set</th>
             <td>
               <select
                 id="culturesSet"
@@ -359,7 +361,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 onClick={() => openDialog("racePersonNames")}
               />
             </td>
-            <td>Race person names</td>
+            <th>Race person names</th>
             <td colSpan={2}>
               <button type="button" className="button" onClick={() => openDialog("racePersonNames")}>
                 Configure…
@@ -371,7 +373,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="initialPopulationSaturation" />
             </td>
-            <td>Initial population %</td>
+            <th>Initial population %</th>
             <td colSpan={2}>
               <SliderInput
                 min="10"
@@ -387,7 +389,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="initialSettlementPattern" />
             </td>
-            <td>Settlement pattern</td>
+            <th>Settlement pattern</th>
             <td colSpan={2}>
               <select
                 value={options.initialSettlementPattern}
@@ -423,7 +425,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="oikoumeneLandShare" />
             </td>
-            <td>Oikoumene land share %</td>
+            <th>Oikoumene land share %</th>
             <td colSpan={2}>
               <SliderInput
                 min="15"
@@ -439,7 +441,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="manors" />
             </td>
-            <td>Burgs number</td>
+            <th>Burgs number</th>
             <td>
               <input
                 id="manorsInput"
@@ -463,7 +465,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="statesNumber" />
             </td>
-            <td>{statesNumberLabel}</td>
+            <th>{statesNumberLabel}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -478,7 +480,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="sizeVariety" />
             </td>
-            <td>Size variety</td>
+            <th>Size variety</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -494,7 +496,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="growthRate" />
             </td>
-            <td>Growth rate</td>
+            <th>Growth rate</th>
             <td colSpan={2}>
               <SliderInput
                 min="0.1"
@@ -510,7 +512,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="provincesRatio" />
             </td>
-            <td>Provinces ratio</td>
+            <th>Provinces ratio</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -525,7 +527,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="diplomacyHistoryAttempts" />
             </td>
-            <td>History attempts</td>
+            <th>History attempts</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -540,7 +542,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="religionsNumber" />
             </td>
-            <td>Religions number</td>
+            <th>Religions number</th>
             <td colSpan={2}>
               <SliderInput
                 id="religionsNumber"
@@ -559,7 +561,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="mapName" />
             </td>
-            <td>Map name</td>
+            <th>Map name</th>
             <td>
               <input
                 className="long"
@@ -587,9 +589,10 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="year" />
             </td>
-            <td>Year and era</td>
+            <th>Year and era</th>
             <td>
               <input
+                id="yearInput"
                 type="number"
                 step="1"
                 className="paired"
@@ -628,7 +631,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="historicalPeriod" />
             </td>
-            <td>Historical period</td>
+            <th>Historical period</th>
             <td>
               <select
                 className="long"
@@ -651,7 +654,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="stateLabelsMode" />
             </td>
-            <td>State labels</td>
+            <th>State labels</th>
             <td>
               <select
                 value={options.stateLabelsMode}
