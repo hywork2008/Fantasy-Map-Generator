@@ -11,7 +11,7 @@
  *   - Domesticated (liveAnimal): husbandry.ts (§5.4) doesn't exist yet (Phase 3), so this first
  *     cut sizes the ceiling off the pre-Phase-2 flat production rate as an interim proxy — replace
  *     with a real pasture/labour-based figure once husbandry.ts lands.
- * Non-food domesticated species (Cats, Horses, Camels, Elephants) get an additional
+ * Non-food domesticated species (Cats, Horses, Camels, Elephants, Dogs) get an additional
  * demand-absorption ceiling (§4.5) so an unsellable surplus slows breeding instead of piling up.
  *
  * Gated by `options.ruralEcosystemDetail` (§11): "simplified" makes every exported draw function
@@ -111,7 +111,8 @@ const SPECIES_PROFILES: Record<string, FaunaSpeciesProfile> = {
   Chicken: { annualBreedingRate: 3.0, youngMaturityYears: 0.5, breedingTenureYears: 2, oldLifespanYears: 1 },
   Camels: { annualBreedingRate: 0.3, youngMaturityYears: 4, breedingTenureYears: 10, oldLifespanYears: 6 },
   Elephants: { annualBreedingRate: 0.15, youngMaturityYears: 8, breedingTenureYears: 20, oldLifespanYears: 10 },
-  Cats: { annualBreedingRate: 1.5, youngMaturityYears: 1, breedingTenureYears: 3, oldLifespanYears: 2 }
+  Cats: { annualBreedingRate: 1.5, youngMaturityYears: 1, breedingTenureYears: 3, oldLifespanYears: 2 },
+  Dogs: { annualBreedingRate: 1.0, youngMaturityYears: 1, breedingTenureYears: 4, oldLifespanYears: 3 }
 };
 
 function getSpeciesProfile(speciesKey: string): FaunaSpeciesProfile {

@@ -15,7 +15,8 @@ import {
   isGoodEnabled,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
-  migrateLiveCatsGood
+  migrateLiveCatsGood,
+  migrateLiveDogsGood
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
 
@@ -231,6 +232,27 @@ describe("GoodsModule", () => {
     expect(migrateLiveCatsGood()).toBe(true);
     expect(getGoods().find(good => good.name === "Cats")).toMatchObject({ i: 8, unit: "head" });
     expect(migrateLiveCatsGood()).toBe(false);
+  });
+
+  it("defines Dogs as a live, locally produced herding good (docs/plan/biome-goods-producer-ecosystem.md §5.4)", () => {
+    goodsModule.restoreDefaults();
+
+    const dogs = getGoods().find(good => good.name === "Dogs");
+    expect(dogs).toMatchObject({
+      unit: "head",
+      tags: expect.arrayContaining(["liveAnimal", "herding"]),
+      biomeOutputByTag: { grassland: 0.02, nomadic: 0.02, scrub: 0.015, mountain: 0.01 }
+    });
+    expect(dogs?.trade).toMatchObject({ distancePremium: -2, lossRisk: 5 });
+    expect(dogs?.cargo?.handlingClass).toBe("live");
+  });
+
+  it("adds Dogs once to catalogues saved before the good existed", () => {
+    setGoods([{ i: 7, name: "Legacy good", tags: [], value: 1, unit: "unit", icon: "legacy", color: "#000000" }]);
+
+    expect(migrateLiveDogsGood()).toBe(true);
+    expect(getGoods().find(good => good.name === "Dogs")).toMatchObject({ i: 8, unit: "head" });
+    expect(migrateLiveDogsGood()).toBe(false);
   });
 
   it("backfills liveAnimal only for shipped living animals in old catalogues", () => {

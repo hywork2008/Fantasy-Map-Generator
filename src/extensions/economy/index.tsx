@@ -88,7 +88,8 @@ import {
   isGoodEnabled,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
-  migrateLiveCatsGood
+  migrateLiveCatsGood,
+  migrateLiveDogsGood
 } from "./generators/goods-generator";
 import { GuildChapters } from "./generators/guildChapters";
 import { GuildKnowledge } from "./generators/guildKnowledge";
@@ -1536,8 +1537,9 @@ export function init(api: ExtensionAPI): void {
       } else {
         const migratedLegacyMetals = migrateLegacyOreIngotGoods();
         const migratedLiveCats = migrateLiveCatsGood();
+        const migratedLiveDogs = migrateLiveDogsGood();
         const migratedLiveAnimalTags = migrateLiveAnimalTags();
-        if (migratedLegacyMetals || migratedLiveCats || migratedLiveAnimalTags) {
+        if (migratedLegacyMetals || migratedLiveCats || migratedLiveDogs || migratedLiveAnimalTags) {
           Goods.sync();
           Markets.initializeMarketPrices();
         }
@@ -1698,8 +1700,9 @@ export function init(api: ExtensionAPI): void {
     DevelopmentPotential.generate();
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
+    const migratedLiveDogs = migrateLiveDogsGood();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
-    if (migratedLegacyMetals || migratedLiveCats || migratedLiveAnimalTags) {
+    if (migratedLegacyMetals || migratedLiveCats || migratedLiveDogs || migratedLiveAnimalTags) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }
@@ -2225,8 +2228,9 @@ export function init(api: ExtensionAPI): void {
     attachSvgClickHandlers();
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
+    const migratedLiveDogs = migrateLiveDogsGood();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
-    if (migratedLegacyMetals || migratedLiveCats || migratedLiveAnimalTags) {
+    if (migratedLegacyMetals || migratedLiveCats || migratedLiveDogs || migratedLiveAnimalTags) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }

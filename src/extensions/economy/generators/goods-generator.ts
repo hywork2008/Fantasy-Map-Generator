@@ -1627,6 +1627,24 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     unit: "head",
     biomeOutputByTag: { arable: 0.005, grassland: 0.003 }
+  },
+  {
+    name: "Dogs",
+    // "herding" is a forward-looking marker tag (docs/plan/biome-goods-producer-ecosystem.md §5.4,
+    // docs/temp/herding-dogs.md): Phase 3's husbandry.ts is expected to read a cell's Dogs headcount
+    // to scale up its herdsPerWorker constant — Arnott et al. 2014 (Univ. of Sydney, 800+ Australian
+    // farms) found a trained handler+dogs team musters up to 2,000 sheep or 500 cattle, replacing at
+    // least one full-time stockperson. Not yet wired to that mechanic; today Dogs is a live good like
+    // Cats, produced/traded/stocked but with no active consumer.
+    tags: ["liveAnimal", "herding"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#a97142",
+    value: 4,
+    chance: 0,
+    unit: "head",
+    multipliers: { cultureType: { Nomadic: 1.6, Hunting: 1.3 } },
+    biomeOutputByTag: { grassland: 0.02, nomadic: 0.02, scrub: 0.015, mountain: 0.01 }
   }
 ];
 
@@ -1664,6 +1682,9 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Fodder: tradeProfile(4, 5, 1, -2, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
   Cats: tradeProfile(1, 1, 2, -2, -2, 1, 5),
+  // Trained working dogs are a lean, fragile live cargo like Cats — mostly sold/kept locally
+  // rather than hauled long distance.
+  Dogs: tradeProfile(1, 1, 2, -2, -2, 1, 5),
   // Pigs don't drove well over distance (stress/weight loss), so local sale is preferred even more
   // than Grain's -1; distancePremium keeps that as an economic disincentive, not a hard trade ban.
   Pig: tradeProfile(4, 4, 1, -1, -2, 1, 5),
@@ -2053,6 +2074,22 @@ export function migrateLiveCatsGood(): boolean {
   if (!cats) throw new Error("Cats must be present in the shipped goods catalogue");
   cats.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   goods.push(cats);
+  return true;
+}
+
+/**
+ * Adds Dogs to catalogues saved before the live herding good existed (docs/plan/
+ * biome-goods-producer-ecosystem.md §5.4). Same shape as migrateLiveCatsGood: deliberately does
+ * not seed stock, only a future production pass may create new animals.
+ */
+export function migrateLiveDogsGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Dogs")) return false;
+
+  const dogs = Goods.getDefaultGood("Dogs");
+  if (!dogs) throw new Error("Dogs must be present in the shipped goods catalogue");
+  dogs.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  goods.push(dogs);
   return true;
 }
 
