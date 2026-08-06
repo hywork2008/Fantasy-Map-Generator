@@ -285,7 +285,9 @@ function getProduction(): Record<number, GoodProduction> {
   const productionByBiome = Goods.getBiomesProduction();
   const marketCells = getMarketCellColumn();
   for (const cellId of worldContext().pack.cells.i) {
-    const produced = getCellProduction(cellId, productionByBiome);
+    // preview: true — this is a read-only report table, not the real production cycle; must not
+    // cull fauna stock (see getRuralProductionContributions()'s doc-comment in production-utils.ts).
+    const produced = getCellProduction(cellId, productionByBiome, { preview: true });
     for (const goodId in produced) {
       addProduction(Number(goodId), produced[goodId] || 0, "cell", marketCells[cellId]);
     }

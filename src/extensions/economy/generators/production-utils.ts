@@ -3,12 +3,12 @@ import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
 import { getGoodCellColumn, getGoods, getSimulationMonth, getWorldContext } from "../economyContext";
-import { drawDomesticatedFaunaOfftake } from "./faunaPopulation";
+import { drawDomesticatedFaunaOfftake, previewDomesticatedFaunaOfftake } from "./faunaPopulation";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
-import { getFishingWorkerFactor, getHuntingGameOutput } from "./ruralOccupationAllocation";
+import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
 import { getGrapeHarvestOutput } from "./viticulture";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
@@ -125,11 +125,22 @@ export function getRuralCellPopulation(cellId: number): number {
  * Returns the pre-season, pre-depletion quantities for this cell. The market
  * production index uses these stable contributions to aggregate rural output
  * once per topology/goods change, then applies time-varying factors at settlement.
+ *
+ * `options.preview` (default false, i.e. real/mutating): Game and grazed-livestock amounts are
+ * capped by Phase 2's fauna stock model (faunaPopulation.ts §4), which by default *draws down*
+ * (culls) that stock as a side effect. The real production pipeline (markets-generator.ts) wants
+ * that. Every other caller — map redraw (draw-goods.ts/economyWebglLayers.ts), CellInfo/tooltip
+ * hover (tooltipHandler.ts), the Goods editor's cell preview — only wants to know what *would* be
+ * produced and must stay read-only per the Renderer-purity rule (AGENTS.md §1); pass
+ * `{ preview: true }` there. Omitting it previously culled live animals on every mouse-over/redraw
+ * (found 2026-08-07).
  */
 export function getRuralProductionContributions(
   cellId: number,
-  biomeProduction: Record<number, { goodId: number; production: number }[]>
+  biomeProduction: Record<number, { goodId: number; production: number }[]>,
+  options: { preview?: boolean } = {}
 ): RuralProductionContribution[] {
+  const { preview = false } = options;
   const worldContext = getWorldContext();
   const cells = worldContext.pack.cells;
   const population = getRuralCellPopulation(cellId);
@@ -143,7 +154,7 @@ export function getRuralProductionContributions(
     // Rural Occupation Allocator (docs/plan/biome-goods-producer-ecosystem.md §3) gates these by
     // actual assigned workers instead of raw population — Phase 1 of that redesign.
     if (good.name === "Game") {
-      const amount = getHuntingGameOutput(cellId);
+      const amount = preview ? previewHuntingGameOutput(cellId) : getHuntingGameOutput(cellId);
       if (amount > 0) contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
       continue;
     }
@@ -159,7 +170,9 @@ export function getRuralProductionContributions(
       // Phase 2 fauna stock model (docs/plan/biome-goods-producer-ecosystem.md §4): caps the
       // (now possibly husbandry-gated) rate by the domesticated stock's actual harvestable
       // headcount. A pass-through to `amount` unchanged when options.ruralEcosystemDetail === "simplified".
-      amount = drawDomesticatedFaunaOfftake(cellId, good, amount);
+      amount = preview
+        ? previewDomesticatedFaunaOfftake(cellId, good, amount)
+        : drawDomesticatedFaunaOfftake(cellId, good, amount);
     }
     contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
   }
@@ -188,7 +201,8 @@ export function getRuralProductionContributions(
 
 export function getCellProduction(
   cellId: number,
-  biomeProduction: Record<number, { goodId: number; production: number }[]>
+  biomeProduction: Record<number, { goodId: number; production: number }[]>,
+  options: { preview?: boolean } = {}
 ): Record<number, number> {
   const produced: Record<number, number> = {};
 
@@ -196,7 +210,7 @@ export function getCellProduction(
     produced[goodId] = rn((produced[goodId] || 0) + amount, 2);
   };
 
-  for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
+  for (const contribution of getRuralProductionContributions(cellId, biomeProduction, options)) {
     const good = Goods.get(contribution.goodId);
     if (!good) continue;
     const multiplier = getDepletionMultiplier(good, cellId) * getSeasonalProductionMultiplier(good, cellId);

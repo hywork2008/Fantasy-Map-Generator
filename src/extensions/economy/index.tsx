@@ -379,6 +379,7 @@ function registerOverviewColumns(api: ExtensionAPI): void {
   api.registerCellInfoRow({ id: "marketHolder", extensionId: ECONOMY_EXTENSION_ID, label: "Market Holder" });
   api.registerCellInfoRow({ id: "cellProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Cell Production" });
   api.registerCellInfoRow({ id: "burgProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Burg Production" });
+  api.registerCellInfoRow({ id: "fauna", extensionId: ECONOMY_EXTENSION_ID, label: "Fauna" });
 }
 
 function unregisterOverviewColumns(api: ExtensionAPI): void {
@@ -397,6 +398,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
   api.unregisterCellInfoRow("marketHolder");
   api.unregisterCellInfoRow("cellProduction");
   api.unregisterCellInfoRow("burgProduction");
+  api.unregisterCellInfoRow("fauna");
 }
 
 let _unsubscribe: (() => void) | null = null;

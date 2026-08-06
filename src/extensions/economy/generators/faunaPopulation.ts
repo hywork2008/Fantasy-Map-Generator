@@ -341,6 +341,38 @@ export function drawDomesticatedFaunaOfftake(cellId: number, good: Good, desired
   return drawOfftake(cellId, good.name, desiredAmount, getDomesticatedCullSelectivity(cellId), capacity);
 }
 
+/**
+ * What a stock currently holds, without seeding/writing it (mirrors `ensureStock`'s "not yet
+ * tracked" seeding math so a preview and a real first draw agree, but never touches the table).
+ */
+function peekHarvestableStock(cellId: number, speciesKey: string, capacity: number): number {
+  const existing = getOrCreateFaunaStockTable()?.[getStockKey(cellId, speciesKey)];
+  if (existing) return cohortTotal(existing);
+  return capacity > 0 ? capacity * INITIAL_STOCK_FRACTION_OF_CAPACITY : 0;
+}
+
+/**
+ * Read-only counterpart to `drawWildFaunaOfftake` — reports what *would* be harvested without
+ * culling the stock. `getRuralProductionContributions()`/`getCellProduction()` (production-utils.ts)
+ * are called from non-production contexts too (map redraw, CellInfo/tooltip hover, the Goods
+ * editor's cell preview), which must stay read-only per the Renderer-purity rule (AGENTS.md §1) —
+ * routing those through the mutating draw functions was silently culling live animals on every
+ * mouse-over/redraw (found 2026-08-07, via CellInfo's Phase 2 fauna headcount display).
+ */
+export function previewWildFaunaOfftake(cellId: number, desiredAmount: number): number {
+  if (getRuralEcosystemDetail() !== "detailed") return desiredAmount;
+  if (desiredAmount <= 0) return 0;
+  return Math.min(desiredAmount, peekHarvestableStock(cellId, WILD_SPECIES_KEY, getWildCarryingCapacity(cellId)));
+}
+
+/** Read-only counterpart to `drawDomesticatedFaunaOfftake` — see `previewWildFaunaOfftake`. */
+export function previewDomesticatedFaunaOfftake(cellId: number, good: Good, desiredAmount: number): number {
+  if (getRuralEcosystemDetail() !== "detailed") return desiredAmount;
+  if (desiredAmount <= 0) return 0;
+  const capacity = getDomesticatedCarryingCapacity(cellId, good, desiredAmount);
+  return Math.min(desiredAmount, peekHarvestableStock(cellId, good.name, capacity));
+}
+
 // ---- Annual cohort update (§4.3) ----
 
 function advanceCohortsOneYear(
@@ -466,6 +498,43 @@ export function recordQuarterlyNonFoodDemand(): void {
       snapshotTable[key] = currentStock;
     }
   }
+}
+
+// ---- CellInfo summary (read-only) ----
+
+/** One domesticated species' current total headcount (cohorts summed, no age-band breakdown). */
+export interface FaunaHeadcountEntry {
+  readonly name: string;
+  readonly count: number;
+}
+
+/**
+ * Per-cell wild vs. domesticated headcount summary for the CellInfo dialog — cohorts collapsed to
+ * a single total per species since CellInfo has no use for the young/breeding/old split (§4.1's
+ * internal bookkeeping). Zero-count domesticated species (not tracked at this cell, or a species
+ * whose stock has been fully culled/starved out) are omitted rather than listed at 0. Reads
+ * whatever is in the stock table regardless of `ruralEcosystemDetail` — "simplified" mode freezes
+ * further updates (§11.2) but does not erase prior counts, so this still reports the last-settled
+ * figures rather than always showing "no data".
+ */
+export function getCellFaunaHeadcounts(cellId: number): {
+  wild: number;
+  domesticated: FaunaHeadcountEntry[];
+} {
+  const table = getOrCreateFaunaStockTable();
+
+  const wildCohorts = table?.[getStockKey(cellId, WILD_SPECIES_KEY)];
+  const wild = wildCohorts ? cohortTotal(wildCohorts) : 0;
+
+  const domesticated = getGoods()
+    .filter(good => good.tags.includes("liveAnimal") && isGoodEnabled(good))
+    .map(good => {
+      const cohorts = table?.[getStockKey(cellId, good.name)];
+      return { name: good.name, count: cohorts ? cohortTotal(cohorts) : 0 };
+    })
+    .filter(entry => entry.count > 0);
+
+  return { wild, domesticated };
 }
 
 /** Clears all fauna-model state — called by the economy extension's "clear"/cleanup paths. */

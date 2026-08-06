@@ -2,10 +2,19 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WorldContext } from "../../hostCore";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setGoodCellColumn, setGoods } from "../economyContext";
+import {
+  clearEconomyContext,
+  getOrCreateFaunaStockTable,
+  initEconomyContext,
+  setCultivatedArea,
+  setGoodCellColumn,
+  setGoods,
+  setHuntingWorkers
+} from "../economyContext";
 import { clearForestDepletion, registerLogHarvest } from "./forestDepletion";
 import { Goods } from "./goods-generator";
 import { getCellProduction } from "./production-utils";
+import { GAME_YIELD_PER_HUNTER_PER_MONTH } from "./ruralOccupationAllocation";
 
 describe("getCellProduction depletion integration", () => {
   afterEach(() => {
@@ -181,5 +190,94 @@ describe("getCellProduction seasonal food output", () => {
     const autumnOutput = getCellProduction(0, biomeProduction)[0];
 
     expect(autumnOutput).toBeLessThan(summerOutput * 1.5);
+  });
+});
+
+describe("getCellProduction preview option", () => {
+  // Regression coverage for the 2026-08-07 bug: every non-production caller (map redraw,
+  // CellInfo/tooltip hover, the Goods editor's report table) invoked getCellProduction() without
+  // realizing it culls Game's wild fauna stock as a side effect on every call — repeated hovering
+  // over the same cell silently drained it. Callers must now pass `{ preview: true }`.
+  afterEach(() => {
+    clearEconomyContext();
+    simulationContext.extensions = {};
+  });
+
+  beforeEach(() => {
+    simulationContext.extensions = {};
+    initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
+    const gameGood = {
+      i: 0,
+      name: "Game",
+      value: 1,
+      tags: ["food"],
+      unit: "carcass",
+      icon: "icon",
+      color: "#fff",
+      distribution: "1",
+      recipes: [],
+      demandCoverage: {}
+    };
+    worldContext.options = { ruralEcosystemDetail: "detailed" } as unknown as WorldContext["options"];
+    worldContext.distanceScale = 1;
+    worldContext.biomesData = { tags: [[], ["forest"]], habitability: [100, 100] } as never;
+    worldContext.pack = {
+      goods: [gameGood],
+      cultures: [],
+      burgs: [],
+      states: [],
+      zones: [],
+      cells: {
+        i: new Uint16Array([0]),
+        biomeCode: new Uint8Array([1]),
+        culture: new Uint16Array([0]),
+        state: new Uint16Array([0]),
+        religion: new Uint16Array([0]),
+        burg: new Uint16Array([0]),
+        good: new Uint16Array([0]),
+        pop: [50],
+        h: new Uint8Array([30]),
+        area: new Float32Array([100]), // physicalHectares = 100 * 1^2 * 100 = 10,000 ha
+        c: [[]],
+        p: [[0, 50]] // latitude ~0 (equator) -> seasonal multiplier stays near 1, out of this test's way
+      }
+    } as unknown as PackedGraph;
+    worldContext.mapCoordinates = { latN: 90, latT: 180 };
+    worldContext.graphHeight = 100;
+    setCultivatedArea(new Float32Array([0]));
+    setGoods([gameGood] as never);
+    setGoodCellColumn(new Uint16Array([0]));
+    setHuntingWorkers(new Float32Array([3])); // desired = 3 * GAME_YIELD_PER_HUNTER_PER_MONTH
+    Goods.sync();
+
+    // Pin a stock smaller than one call's desired demand, so a real (non-preview) draw visibly
+    // exhausts it on the very next call — independent of the wild carrying-capacity formula.
+    const desired = 3 * GAME_YIELD_PER_HUNTER_PER_MONTH;
+    const half = (desired * 0.5) / 3;
+    getOrCreateFaunaStockTable()!["0:Game"] = { young: half, breeding: half, old: half };
+  });
+
+  it("preview: true never shrinks the fauna stock across repeat calls", () => {
+    const biomeProduction = { 1: [{ goodId: 0, production: 1 }] };
+    const stockBefore = { ...getOrCreateFaunaStockTable()!["0:Game"] };
+
+    const first = getCellProduction(0, biomeProduction, { preview: true })[0];
+    const second = getCellProduction(0, biomeProduction, { preview: true })[0];
+    const third = getCellProduction(0, biomeProduction, { preview: true })[0];
+
+    expect(first).toBeGreaterThan(0);
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    expect(getOrCreateFaunaStockTable()!["0:Game"]).toEqual(stockBefore);
+  });
+
+  it("omitting preview (the real production path) draws the stock down across repeat calls", () => {
+    const biomeProduction = { 1: [{ goodId: 0, production: 1 }] };
+
+    const first = getCellProduction(0, biomeProduction)[0];
+    const second = getCellProduction(0, biomeProduction)[0] ?? 0; // stock may be fully exhausted (0 -> omitted key)
+
+    expect(first).toBeGreaterThan(0);
+    expect(second).toBeLessThan(first);
   });
 });

@@ -22,6 +22,8 @@ import {
   getRuralEcosystemDetail,
   getWildCarryingCapacity,
   getWildCullSelectivity,
+  previewDomesticatedFaunaOfftake,
+  previewWildFaunaOfftake,
   recordQuarterlyNonFoodDemand,
   updateAnnualFaunaCohorts,
   WILD_GAME_DENSITY_PER_HECTARE,
@@ -190,6 +192,77 @@ describe("faunaPopulation", () => {
       const second = drawWildFaunaOfftake(0, initialStock); // stock is now near-empty
       expect(first).toBeGreaterThan(0);
       expect(second).toBeLessThan(first);
+    });
+  });
+
+  describe("previewWildFaunaOfftake", () => {
+    // Regression coverage for the 2026-08-07 bug: production-utils.ts's getCellProduction()/
+    // getRuralProductionContributions() are also invoked from read-only contexts (map redraw,
+    // CellInfo/tooltip hover, the Goods editor's report table) — those must call the preview
+    // variant, or every hover/redraw was silently culling live animals (see production-utils.ts's
+    // doc-comment on getRuralProductionContributions()).
+    it("passes the desired amount through unchanged in simplified mode, without touching the stock table", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+
+      expect(previewWildFaunaOfftake(0, 42)).toBe(42);
+      expect(getOrCreateFaunaStockTable()).toEqual({});
+    });
+
+    it("agrees with drawWildFaunaOfftake's first grant but never shrinks the stock on repeat calls", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      setCultivatedArea(new Float32Array([9999])); // small habitat -> small, easily-exhausted stock
+
+      const desired = getWildCarryingCapacity(0) * 0.6; // = the seeded initial stock exactly
+
+      // Repeated preview calls (simulating repeated mouse hover / redraw) must return the exact
+      // same figure every time and never write to the stock table.
+      const firstPreview = previewWildFaunaOfftake(0, desired);
+      const secondPreview = previewWildFaunaOfftake(0, desired);
+      const thirdPreview = previewWildFaunaOfftake(0, desired);
+      expect(secondPreview).toBe(firstPreview);
+      expect(thirdPreview).toBe(firstPreview);
+      expect(getOrCreateFaunaStockTable()).toEqual({});
+
+      // A real draw for the same amount grants exactly what the preview promised...
+      const realDraw = drawWildFaunaOfftake(0, desired);
+      expect(realDraw).toBeCloseTo(firstPreview, 5);
+      // ...and only THAT actually shrinks the stock available to a subsequent draw.
+      const drawAfter = drawWildFaunaOfftake(0, desired);
+      expect(drawAfter).toBeLessThan(realDraw);
+    });
+  });
+
+  describe("previewDomesticatedFaunaOfftake", () => {
+    it("passes desired amount through unchanged in simplified mode", () => {
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+      expect(previewDomesticatedFaunaOfftake(0, CATTLE_GOOD as never, 7)).toBe(7);
+    });
+
+    it("never shrinks stock on repeat calls (cell 0), unlike drawDomesticatedFaunaOfftake (cell 1)", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+
+      // Cell 0: preview-only. Repeated hover/redraw-style calls must return the same figure and
+      // must never write to the stock table.
+      const first = previewDomesticatedFaunaOfftake(0, PIG_GOOD as never, 2);
+      const second = previewDomesticatedFaunaOfftake(0, PIG_GOOD as never, 2);
+      expect(second).toBe(first);
+      expect(getOrCreateFaunaStockTable()).toEqual({});
+
+      // Cell 1: pin a tiny existing stock directly (the flat-rate proxy's capacity otherwise
+      // scales with the desired amount itself, so it can never bind on a fresh seed — see
+      // getDomesticatedCarryingCapacity's non-grazed branch) and draw well above it, to show that
+      // path IS throttled by the second call — the contrast previewDomesticatedFaunaOfftake must avoid.
+      getOrCreateFaunaStockTable()!["1:Pig"] = { young: 1, breeding: 1, old: 1 };
+      const hugeDesired = 100;
+      const realDraw = drawDomesticatedFaunaOfftake(1, PIG_GOOD as never, hugeDesired);
+      const drawAfter = drawDomesticatedFaunaOfftake(1, PIG_GOOD as never, hugeDesired);
+      expect(drawAfter).toBeLessThan(realDraw);
+
+      // Cell 0's preview is still untouched by cell 1's real draws.
+      expect(previewDomesticatedFaunaOfftake(0, PIG_GOOD as never, 2)).toBe(first);
     });
   });
 

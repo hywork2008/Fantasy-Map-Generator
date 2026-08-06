@@ -29,7 +29,7 @@ import {
   getGoods,
   getHuntingWorkers
 } from "../economyContext";
-import { drawWildFaunaOfftake } from "./faunaPopulation";
+import { drawWildFaunaOfftake, previewWildFaunaOfftake } from "./faunaPopulation";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateHusbandryDemand } from "./husbandry";
@@ -272,6 +272,17 @@ export function getHuntingGameOutput(cellId: number): number {
   const workers = getHuntingWorkers()[cellId] ?? 0;
   const desired = workers * GAME_YIELD_PER_HUNTER_PER_MONTH;
   return drawWildFaunaOfftake(cellId, desired);
+}
+
+/**
+ * Read-only counterpart to `getHuntingGameOutput` for non-production callers (map redraw,
+ * CellInfo/tooltip hover, the Goods editor's cell preview) — see faunaPopulation.ts's
+ * `previewWildFaunaOfftake` doc-comment for why this exists.
+ */
+export function previewHuntingGameOutput(cellId: number): number {
+  const workers = getHuntingWorkers()[cellId] ?? 0;
+  const desired = workers * GAME_YIELD_PER_HUNTER_PER_MONTH;
+  return previewWildFaunaOfftake(cellId, desired);
 }
 
 /** 0..1 labour-sufficiency ratio gating Fish's bonus-good output at `cellId` (the holder cell). */

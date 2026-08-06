@@ -85,7 +85,9 @@ function drawGoodsCellsCanvas(
   let maxTotal = 0;
   for (const cellId of getWorldContext().pack.cells.i) {
     let total = 0;
-    const produced = getCellProduction(cellId, biomeProduction);
+    // preview: true — rendering must stay read-only, not cull fauna stock on every redraw (see
+    // getRuralProductionContributions()'s doc-comment in production-utils.ts).
+    const produced = getCellProduction(cellId, biomeProduction, { preview: true });
     const filteredProduced = Object.entries(produced).reduce((map, [goodId, amount]) => {
       if (displayedGoods.has(+goodId)) {
         map.set(+goodId, amount as number);

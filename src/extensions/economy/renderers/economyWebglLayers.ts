@@ -104,7 +104,9 @@ export function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): Ext
   let maxTotal = 0;
 
   for (const cellId of worldContext.pack.cells.i) {
-    const produced = getCellProduction(cellId, biomeProduction);
+    // preview: true — rendering must stay read-only, not cull fauna stock on every redraw (see
+    // getRuralProductionContributions()'s doc-comment in production-utils.ts).
+    const produced = getCellProduction(cellId, biomeProduction, { preview: true });
     const displayed = new Map<number, number>();
     let total = 0;
     for (const [goodIdText, amount] of Object.entries(produced)) {

@@ -4,6 +4,7 @@ import { useCellInfoState } from "../hostUi";
 import { rn } from "../hostUtils";
 import { getGoodCellColumn, getMarketCellColumn, getWorldContext } from "./economyContext";
 import { getBurgMarketLedger, getDominantMerchant, getMerchantName } from "./generators/burgMarketLedgers";
+import { getCellFaunaHeadcounts } from "./generators/faunaPopulation";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
@@ -46,7 +47,9 @@ export function showEconomyTooltip(
     }
 
     if (el.closest("#goodsCells")) {
-      const produced = getCellProduction(i, Goods.getBiomesProduction());
+      // preview: true — a tooltip hover must stay read-only, not cull fauna stock (see
+      // getRuralProductionContributions()'s doc-comment in production-utils.ts).
+      const produced = getCellProduction(i, Goods.getBiomesProduction(), { preview: true });
       tip(
         `Cell rural production: ${formatProduct(produced).join(", ")}. Click to select displayed goods in Goods Editor`
       );
@@ -86,7 +89,15 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
     extra.market = "no";
   }
 
-  const cellProduced = getCellProduction(i, Goods.getBiomesProduction());
+  const fauna = getCellFaunaHeadcounts(i);
+  const domesticatedText = fauna.domesticated.length
+    ? fauna.domesticated.map(entry => `${entry.name} ${rn(entry.count)}`).join(", ")
+    : "none";
+  extra.fauna = `Wild ${rn(fauna.wild)} | Domesticated: ${domesticatedText}`;
+
+  // preview: true — CellInfo must stay read-only, not cull fauna stock (see
+  // getRuralProductionContributions()'s doc-comment in production-utils.ts).
+  const cellProduced = getCellProduction(i, Goods.getBiomesProduction(), { preview: true });
   const cellEntries = Object.entries(cellProduced).filter(([, amt]) => amt > 0);
   extra.cellProduction = cellEntries.length
     ? cellEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
