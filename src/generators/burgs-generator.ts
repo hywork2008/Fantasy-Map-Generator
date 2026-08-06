@@ -26,6 +26,7 @@ import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
+import { normalizeHeightExponent } from "../utils/height";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
@@ -35,6 +36,7 @@ import {
   getChronicleContestedBurgs,
   normalizeHabitability
 } from "./frontierAnalysis";
+import { evaluateHarborElevation } from "./harborSiteConditions";
 import { getInitialPolityCapitalCount, selectInitialPolityCapitalNodes } from "./initialPolities";
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
@@ -96,6 +98,18 @@ class BurgModule {
     }
   }
 
+  /**
+   * Elevation Unsuitable gate (docs/plan/harbor-siting.md §3.1/§5.2): a burg cell whose land-side
+   * elevation exceeds HARBOR_ELEVATION_UNSUITABLE_MIN_M (>100m) has no feasible footing for a
+   * formal harbor/shipyard, regardless of coastalHabitat. Below that, elevation only degrades
+   * capacity (`elevationFactor`, applied in portCapacity.ts) — it never excludes the candidate.
+   */
+  private elevationAllowsFormalHarbor(cellId: number): boolean {
+    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+    const { tier } = evaluateHarborElevation(this.worldContext.pack.cells.h[cellId], heightExponent);
+    return tier !== "unsuitable";
+  }
+
   private collectPortCandidates(burgs: Burg[]): Map<number, PortCandidate[]> {
     const { cells, features } = this.worldContext.pack;
     const temp = this.worldContext.grid.cells.temp;
@@ -120,6 +134,7 @@ class BurgModule {
         if (NON_NAVIGABLE_LAKE_GROUPS.has(feature.group)) continue;
         if (temp[cells.g[burg.cell]] <= 0) continue; // frozen
         if (!allowsFormalHarbor(cells.coastalHabitat?.[burg.cell])) continue;
+        if (!this.elevationAllowsFormalHarbor(burg.cell)) continue;
 
         const isLake = feature.type === "lake";
         if (isLake && this.getLakePortCapacity(feature) === 0) continue;
@@ -350,6 +365,7 @@ class BurgModule {
       }
       if (this.worldContext.grid.cells.temp[cells.g[burg.cell]] <= 0) return false;
       if (!allowsFormalHarbor(cells.coastalHabitat?.[burg.cell])) return false;
+      if (!this.elevationAllowsFormalHarbor(burg.cell)) return false;
       if (feature.type === "lake" && this.getLakePortCapacity(feature) === 0) return false;
       if (feature.type === "lake" && this.countLakePorts(feature.i) >= this.getLakePortCapacity(feature)) return false;
       const portFeatureId = feature.type === "lake" ? this.resolveLakePortFeature(feature.i) : feature.i;

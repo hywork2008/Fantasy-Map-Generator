@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | Design — 実装なし。数値・配線ポイントを確定し、実装者が着手できる状態にする |
+| Status | **Implemented (2026-08-06)** — Elevation Unsuitable ゲートと`elevationFactor`/水深ティア別`large`容量は実装済み。`tidalFlat`の維持費統合・干拓メカニクス・Economy側の経常維持費は未実装のまま(§4.3, §6) |
 | Parent | なし(独立した設計書。[biomes.md](biomes.md)「港湾・船舶と砂浜」節から分離) |
 | Related | [biomes.md](biomes.md)(`coastalHabitat`/`sandyBeach`/`tidalFlat`の分類)、[ships.md](ships.md) §4(港湾収容力の計算式)、[enclosure-gameplay-applications.md](enclosure-gameplay-applications.md)(`pack.cells.enclosure`の造船所補正案)、[../simulation/ocean-currents.md](../simulation/ocean-currents.md) §6(enclosure算出) |
 | Scope | 正式な港湾・造船所（`allowsFormalHarbor()`が判定する候補地、および`computeBurgPortCapacity()`が算出する収容力）に、Elevation（陸側の標高）とDepth（水側の水深）の条件を追加する設計 |
@@ -221,36 +221,51 @@ Depth の各ティアは、以下の「改善費・維持費」モデルで扱�
 「単純な述語」という性質が崩れるため（enclosure-gameplay-applications.md §4.2 が指摘した
 「候補判定(gate)には使わず、容量(capacity)側の補正にとどめる」という教訓と同じ)。
 
-## 5. 実装への配線（提案）
+## 5. 実装への配線
 
-### 5.1 新規ユーティリティ
+### 5.1 新規ユーティリティ（実装済み）
 
 - `src/utils/height.ts` に `depthToMeters(h: number): number` を追加（§2.3）。
-- 新規 `src/generators/harborSiteConditions.ts`（仮）に以下を追加:
+  `cellInfoService.ts` の `getHeight()` はこの関数を呼ぶだけの純粋なリファクタに変更済み
+  （表示文言・既存動作は変えていない）。
+- 新規 `src/generators/harborSiteConditions.ts` に以下を実装:
   - `HarborElevationTier = "ideal" | "marginal" | "unsuitable"`
   - `evaluateHarborElevation(hIndex: number, heightExponent: number): { elevationM: number; tier: HarborElevationTier; elevationFactor: number }`
   - `findNearbyMaxDepthMeters(pack: PackedGraph, havenCellId: number, radiusHops: number): number`
-    （`calculateEnclosure()`/`waterDepthTrend()` と同じBFSパターンを使用）
-  - しきい値定数（§7 参照）
+    （`calculateEnclosure()`/`waterDepthTrend()` と同じ「水セルのみを辿るBFS」パターンを使用）
+  - `evaluateHarborDepth(pack, havenCellId)`（小/中/大の3半径をまとめて評価するヘルパー）
+  - `computeLargeDepthShareMultiplier(largeDepthM)`（§4.2の`large`減算式）
+  - しきい値定数（§7 参照。すべて named export、`portCapacity.ts`の既存定数と同じ扱い）
+  - 単体テスト: `src/generators/harborSiteConditions.test.ts`（境界値・BFS半径・heightExponent非依存性を検証）
 
-### 5.2 候補地ゲート（Elevation Unsuitable のみ）
+### 5.2 候補地ゲート（Elevation Unsuitable のみ・実装済み）
 
-- `src/generators/burgs-generator.ts` の `collectPortCandidates()`（[:122](../../src/generators/burgs-generator.ts#L122)）
-  と `developPort()`（[:352](../../src/generators/burgs-generator.ts#L352)）に、
-  `allowsFormalHarbor(...)` と並べて `evaluateHarborElevation(...).tier !== "unsuitable"` を追加。
-- `src/extensions/shipbuilding/generators/shipyardCandidates.ts` の同等チェック（[:37](../../src/extensions/shipbuilding/generators/shipyardCandidates.ts#L37)）
+- `src/generators/burgs-generator.ts` に private `elevationAllowsFormalHarbor(cellId)` を追加し、
+  `collectPortCandidates()` と `developPort()` の両方で `allowsFormalHarbor(...)` と並べて呼び出す
+  （`tier !== "unsuitable"` のときのみ通過）。
+- `src/extensions/shipbuilding/generators/shipyardCandidates.ts` の `computeShipyardCandidates()`
   にも同じ条件を追加（burgs-generator側で既に港でないburgはshipyard候補になり得ないため、実質的には
   ここでの追加は防御的な二重チェックになる）。
+- 単体テスト: `src/generators/burgs-generator.test.ts`（Elevation Unsuitable な burg が
+  候補から除外され、残り2件で港ペアが成立することを確認）。
 
-### 5.3 収容力側（Elevation Marginal / Depth ティア別 / tidalFlat 維持費）
+### 5.3 収容力側（Elevation Marginal / Depth ティア別・実装済み／tidalFlat 維持費は未実装）
 
 - `src/extensions/shipbuilding/generators/portCapacity.ts` の `computeBurgPortCapacity()` に
-  `elevationFactor` と、水深ティア別に減じた `large` の計算を追加する（§4.1, §4.2の式）。
-- 維持費（Economy拡張向け）は、Shipbuilding拡張の既存の疎結合パターン（`dependencies: [{ id:
-  "economy", required: false }]`、CustomEventベースの通知）を再利用し、Economy拡張側の burg/state
-  経常支出に「Harbor works」的な行を追加する形にする。具体的な支出計算式は
-  [state-treasury-department-budget](state-treasury-department-budget.md) 系の既存の経常支出パターンに
-  合わせて別途設計する（本書のスコープ外）。
+  `elevationFactor`（`total`への乗算）と、`evaluateHarborDepth()`/`computeLargeDepthShareMultiplier()`
+  による水深ティア別`large`減算を実装済み（§4.1, §4.2の式どおり）。関数シグネチャは
+  `harborByCell: ArrayLike<number>` から `pack: PackedGraph` + `heightExponent: number` を受け取る形に
+  変更した（`cells.h`/`cells.haven`/`cells.c`が必要なため）。
+- 単体テスト: `src/extensions/shipbuilding/generators/portCapacity.test.ts`
+  （Marginal帯での容量縮小、Depthティア別の`large`0/半減/満額を個別に検証）。
+- **未実装のまま**: 維持費（Economy拡張向け）。Shipbuilding拡張の既存の疎結合パターン
+  （`dependencies: [{ id: "economy", required: false }]`、CustomEventベースの通知）を再利用し、
+  Economy拡張側の burg/state 経常支出に「Harbor works」的な行を追加する形を想定しているが、
+  具体的な支出計算式は [state-treasury-department-budget](state-treasury-department-budget.md) 系の
+  既存の経常支出パターンに合わせて別途設計する必要がある（本書のスコープ外のまま）。
+  したがって、現状 Elevation Marginal / Depth マージナル帯は「容量が下がるだけで実際のコストは
+  発生しない」状態 — §4.1/§4.2 で説明した「Economy無効時はコストなしで適用される」の状態が、
+  Economy有効時にもまだ続いている。
 
 ## 6. 未解決の論点
 
@@ -267,9 +282,12 @@ Depth の各ティアは、以下の「改善費・維持費」モデルで扱�
    着手前に方針を確定させること。
 4. 探索半径（Depth）・標高しきい値（Elevation）はいずれも本書の暫定値。地形の生成テンプレート
    （フィヨルド系・平坦海岸系など）ごとに、どの程度のセルがMarginal/Unsuitableへ落ちるかを
-   実データで検証してから確定するのが望ましい。
+   実データで検証してから確定するのが望ましい（§8「バランステスト」は未実施のまま）。
+5. 維持費そのもの（Economy拡張側の経常支出）が未実装なため、Elevation Marginal / Depth
+   マージナル帯は現状「容量が下がるだけ」で、§4が意図した「維持費を払えば環境改善できる」の
+   "維持費を払う"側の仕組みがまだ存在しない（§5.3）。
 
-## 7. 定数一覧（実装時の暫定値）
+## 7. 定数一覧（実装済み — `src/generators/harborSiteConditions.ts`）
 
 | 定数 | 値 | 用途 |
 | :--- | -: | :--- |
@@ -284,15 +302,16 @@ Depth の各ティアは、以下の「改善費・維持費」モデルで扱�
 | `HARBOR_DEPTH_SEARCH_RADIUS_MEDIUM` | 2 | 中型ティアの水深探索ホップ数 |
 | `HARBOR_DEPTH_SEARCH_RADIUS_LARGE` | 3 | 大型ティアの水深探索ホップ数 |
 
-`ships.md` §4.3 の既存定数（`POWER_LAW_COEFFICIENT` 等）と同じ扱いで、`portCapacity.ts` に
-named export の調整用定数として実装する。
+`ships.md` §4.3 の既存定数（`POWER_LAW_COEFFICIENT` 等）と同じ扱いで、`portCapacity.ts` から
+参照する named export として実装済み。
 
 ## 8. テスト計画
 
-| 種別 | 検証内容 |
-| :--- | :--- |
-| 単体テスト | `depthToMeters()`/`evaluateHarborElevation()`/`findNearbyMaxDepthMeters()` の境界値（h=19/20/31、探索半径0/1/2/3） |
-| 単体テスト | `heightExponent` を変えたときに Elevation ティア境界がメートル基準で不変であること（`h`基準では変わって良い） |
-| 生成テスト | Elevation Unsuitable帯の海岸線で `allowsFormalHarbor` 相当のゲートが正式港湾候補を生成しないこと。小型ティアがゼロになる海岸が（`tidalFlat`/Elevation Unsuitable以外の理由で）存在しないこと |
-| 生成テスト | 浅い入江（`haven`のみ深いが近傍が浅い地形）で大型ティアが0または半減ティアになり、小型・中型は維持されること |
-| バランステスト | フィヨルド系・平坦海岸系テンプレートで各ティアの分布を確認し、§7 の定数を調整する |
+| 種別 | 検証内容 | 状態 |
+| :--- | :--- | :--- |
+| 単体テスト | `evaluateHarborElevation()`/`findNearbyMaxDepthMeters()`/`computeLargeDepthShareMultiplier()` の境界値（h=19/20/24/25/30/31、探索半径0/1/2/3） | ✅ `harborSiteConditions.test.ts` |
+| 単体テスト | `heightExponent` を変えたときに Elevation ティア境界がメートル基準で不変であること（`h`基準では変わって良い） | ✅ `harborSiteConditions.test.ts` |
+| 単体テスト | Elevation Unsuitable帯の burg が `collectPortCandidates()`/`developPort()` で候補から除外されること | ✅ `burgs-generator.test.ts` |
+| 単体テスト | Elevation Marginal帯で `elevationFactor` が容量を縮小すること／浅い入江でDepthティア別に`large`が0・半減・満額に分かれ、小型・中型は不変であること | ✅ `portCapacity.test.ts` |
+| 生成テスト | フル生成パイプラインでElevation Unsuitable帯の海岸線に正式港湾候補が生成されないこと。小型ティアがゼロになる海岸が（`tidalFlat`/Elevation Unsuitable以外の理由で）存在しないこと | ⬜ 未実施（上記は最小フィクスチャでのユニットテストのみ） |
+| バランステスト | フィヨルド系・平坦海岸系テンプレートで各ティアの分布を確認し、§7 の定数を調整する | ⬜ 未実施（§6 論点4） |

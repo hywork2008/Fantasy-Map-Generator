@@ -27,6 +27,10 @@ import type { FrontierSegment } from "./frontierAnalysis";
 // and is used in the "open lake draining to ocean" scenario.
 
 const BASE_CELLS = {
+  // Land cells 1 & 2 sit at sea-level (h=20 -> ~3.5m, Elevation "ideal" tier) so the
+  // Elevation Unsuitable gate (docs/plan/harbor-siting.md §3.1) never excludes them here —
+  // that gate is exercised by dedicated tests below. Water cells stay h<20.
+  h: [0, 20, 20, 0, 19, 19],
   haven: [0, 4, 4, 0, 0, 0], // cells 1 & 2 look onto lake cell 4
   harbor: [0, 1, 1, 0, 0, 0], // safe harbour on both land cells
   f: [0, 0, 0, 0, 1, 2], // cell 4 → feature 1 (lake); cell 5 → feature 2 (ocean)
@@ -296,6 +300,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
       ],
       cells: {
         i: new Uint16Array(4000),
+        h: [0, 20, 20, 20, 19], // land cells 1-3 at sea-level (Elevation "ideal"); cell 4 is lake water
         haven: [0, 4, 4, 4, 0],
         harbor: [0, 1, 1, 1, 0],
         f: [0, 0, 0, 0, 1],
@@ -354,6 +359,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
       ],
       cells: {
         i: new Uint16Array(4000),
+        h: [0, 20, 20, 20, 20, 19], // land cells 1-4 at sea-level (Elevation "ideal"); cell 5 is lake water
         haven: [0, 5, 5, 5, 5, 0],
         harbor: [0, 1, 1, 1, 1, 0],
         f: [0, 0, 0, 0, 0, 1],
@@ -429,6 +435,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     worldContext.pack = {
       burgs: [0 as any, { i: 1, cell: 1, x: 5, y: 5, capital: 0 }, { i: 2, cell: 2, x: 15, y: 5, capital: 0 }],
       cells: {
+        h: [0, 20, 20, 19], // land cells 1-2 at sea-level (Elevation "ideal"); cell 3 is ocean water
         haven: [0, 3, 3, 0],
         harbor: [0, 1, 2, 0], // burg 1 safe harbour, burg 2 exposed coast
         f: [0, 10, 11, 2], // burg 1 → island 10, burg 2 → island 11, cell 3 → ocean 2
@@ -475,6 +482,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     worldContext.pack = {
       burgs: [0 as any, { i: 1, cell: 1, x: 5, y: 5, capital: 0 }, { i: 2, cell: 2, x: 15, y: 5, capital: 0 }],
       cells: {
+        h: [0, 20, 20, 19], // land cells 1-2 at sea-level (Elevation "ideal"); cell 3 is ocean water
         haven: [0, 3, 3, 0],
         harbor: [0, 2, 2, 0], // both exposed, neither a safe harbour
         f: [0, 10, 10, 2], // both burgs on island 10; cell 3 → ocean 2
@@ -512,6 +520,66 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     const { burgs } = worldContext.pack;
     expect(burgs[1].port).toBe(2);
     expect(burgs[2].port).toBe(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // Three burgs share one ocean coast; burg 1's cell sits at h=31 (~101m, Elevation
+  // Unsuitable — docs/plan/harbor-siting.md §3.1). It must be excluded from port
+  // promotion even though it otherwise qualifies (safe harbour, warm, no bad substrate) —
+  // the other two, at sea level, still form the required pair of port endpoints.
+  it("excludes a formal port when the burg cell's elevation is Unsuitable (>100m)", () => {
+    worldContext.pack = {
+      burgs: [
+        0 as any,
+        { i: 1, cell: 1, x: 0, y: 5, capital: 0 },
+        { i: 2, cell: 2, x: 10, y: 5, capital: 0 },
+        { i: 3, cell: 3, x: 20, y: 5, capital: 0 }
+      ],
+      cells: {
+        h: [0, 31, 20, 20, 19], // burg 1 unsuitable (~101m); burgs 2 & 3 ideal (sea level)
+        haven: [0, 4, 4, 4, 0],
+        harbor: [0, 1, 1, 1, 0], // all "safe harbour" (harbor === 1) — otherwise unconditionally preferred
+        f: [0, 0, 0, 0, 2], // land cells share landmass 0; cell 4 → ocean feature 2
+        g: [0, 0, 0, 0, 0],
+        r: [0, 0, 0, 0, 0],
+        fl: [0, 0, 0, 0, 0],
+        p: [
+          [0, 0],
+          [0, 5],
+          [10, 5],
+          [20, 5],
+          [10, 10]
+        ] as [number, number][],
+        v: [[], [0, 1], [2, 3], [4, 5], []]
+      },
+      features: [null, null, { i: 2, type: "ocean", cells: 5 }],
+      vertices: {
+        c: [
+          [1, 4],
+          [1, 4],
+          [2, 4],
+          [2, 4],
+          [3, 4],
+          [3, 4]
+        ],
+        p: [
+          [5, 0],
+          [5, 10],
+          [10, 0],
+          [10, 10],
+          [15, 0],
+          [15, 10]
+        ] as [number, number][]
+      },
+      rivers: []
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    const { burgs } = worldContext.pack;
+    expect(burgs[1].port).toBeUndefined(); // Elevation Unsuitable — gate excludes it
+    expect(burgs[2].port).toBe(2);
+    expect(burgs[3].port).toBe(2);
   });
 });
 

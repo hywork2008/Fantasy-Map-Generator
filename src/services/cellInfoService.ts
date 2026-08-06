@@ -8,6 +8,7 @@ import type { PackedGraphFeature } from "../types/models";
 import { getLatitude, getLongitude } from "../utils/commonUtils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
+import { depthToMeters, heightToMeters } from "../utils/height";
 import { rn } from "../utils/numberUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
 import { tooltipExtensions } from "./tooltipExtensions";
@@ -137,8 +138,8 @@ export function getHeight(h: number, abs?: string): string {
   else if (unit === "f") unitRatio = 0.5468;
 
   let height = -990;
-  if (h >= 20) height = (h - 18) ** useOptionsState.getState().heightExponent;
-  else if (h < 20 && h > 0) height = ((h - 20) / h) * 50;
+  if (h >= 20) height = heightToMeters(h, useOptionsState.getState().heightExponent);
+  else if (h < 20 && h > 0) height = depthToMeters(h);
 
   if (abs) height = Math.abs(height);
   return `${rn(height * unitRatio)} ${unit}`;
