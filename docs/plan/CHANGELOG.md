@@ -2,6 +2,7 @@
 
 2026-08-06
 
+- docs/plan/biome-goods-producer-ecosystem.md
 - docs/plan/characters/character-health-and-disease.md
 - docs/plan/fantasy-culture-set-goods.md
 - docs/plan/harbor-siting.md

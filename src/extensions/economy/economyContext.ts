@@ -91,6 +91,11 @@ let _farmLaborRequiredFallback: Float32Array<ArrayBufferLike> = new Float32Array
 let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _huntingWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _fishingWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _fishingRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _viticultureWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _viticultureRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 let _agTechLastSettledYearFallback: number | null = null;
 let _industrialTechLastSettledYearFallback: number | null = null;
@@ -121,6 +126,11 @@ export function clearEconomyContext(): void {
   _migratableAdultsFallback = new Float32Array();
   _ruralReleasePressureFallback = new Float32Array();
   _settlementDevelopmentPotentialFallback = new Float32Array();
+  _huntingWorkersFallback = new Float32Array();
+  _fishingWorkersFallback = new Float32Array();
+  _fishingRequiredWorkersFallback = new Float32Array();
+  _viticultureWorkersFallback = new Float32Array();
+  _viticultureRequiredWorkersFallback = new Float32Array();
   _settlementDevelopmentLastEvaluatedYearFallback = null;
   _agTechLastSettledYearFallback = null;
   _industrialTechLastSettledYearFallback = null;
@@ -385,6 +395,54 @@ export function getRuralReleasePressure(): Float32Array<ArrayBufferLike> {
 export function setRuralReleasePressure(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("ruralReleasePressure", value, next => {
     _ruralReleasePressureFallback = next;
+  });
+}
+
+/**
+ * Rural Occupation Allocator output (docs/plan/biome-goods-producer-ecosystem.md §3), keyed by
+ * cell id. Hunting is a fixed subsistence headcount (no "required" counterpart — see
+ * ruralOccupationAllocation.ts). Fishing/viticulture are gated the mineOperations way
+ * (workerFactor = assigned/required); fishing's required/assigned columns are keyed by the
+ * "holder" cell that actually carries the Fish bonus-good slot, which may be a water cell.
+ */
+export function getHuntingWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("huntingWorkers", _huntingWorkersFallback);
+}
+export function setHuntingWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("huntingWorkers", value, next => {
+    _huntingWorkersFallback = next;
+  });
+}
+export function getFishingWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("fishingWorkers", _fishingWorkersFallback);
+}
+export function setFishingWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("fishingWorkers", value, next => {
+    _fishingWorkersFallback = next;
+  });
+}
+export function getFishingRequiredWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("fishingRequiredWorkers", _fishingRequiredWorkersFallback);
+}
+export function setFishingRequiredWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("fishingRequiredWorkers", value, next => {
+    _fishingRequiredWorkersFallback = next;
+  });
+}
+export function getViticultureWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("viticultureWorkers", _viticultureWorkersFallback);
+}
+export function setViticultureWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("viticultureWorkers", value, next => {
+    _viticultureWorkersFallback = next;
+  });
+}
+export function getViticultureRequiredWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("viticultureRequiredWorkers", _viticultureRequiredWorkersFallback);
+}
+export function setViticultureRequiredWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("viticultureRequiredWorkers", value, next => {
+    _viticultureRequiredWorkersFallback = next;
   });
 }
 

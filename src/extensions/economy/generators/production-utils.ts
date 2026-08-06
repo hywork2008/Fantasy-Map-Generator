@@ -6,6 +6,7 @@ import { getGoodCellColumn, getSimulationMonth, getWorldContext } from "../econo
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { isMineSuppliedGoodName } from "./mineralResources";
+import { getFishingWorkerFactor, getHuntingGameOutput, getViticultureWorkerFactor } from "./ruralOccupationAllocation";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;
@@ -134,16 +135,27 @@ export function getRuralProductionContributions(
   const contributions: RuralProductionContribution[] = [];
   for (const { goodId, production } of biomeProduction[cells.biomeCode[cellId]] || []) {
     const good = Goods.get(goodId);
-    if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name)) {
-      contributions.push({ goodId, amount: population * production * getModifiers(good, cellId) });
+    if (!good || !isGoodEnabled(good) || isMineSuppliedGoodName(good.name)) continue;
+
+    // Rural Occupation Allocator (docs/plan/biome-goods-producer-ecosystem.md §3) gates these by
+    // actual assigned workers instead of raw population — Phase 1 of that redesign.
+    if (good.name === "Game") {
+      const amount = getHuntingGameOutput(cellId);
+      if (amount > 0) contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
+      continue;
     }
+
+    let amount = population * production;
+    if (good.name === "Wine") amount *= getViticultureWorkerFactor(cellId);
+    contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
   }
 
   const bonusGoodId = getGoodCellColumn()[cellId];
   if (bonusGoodId) {
     const good = Goods.get(bonusGoodId);
     if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name)) {
-      const bonus = Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
+      let bonus = Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
+      if (good.name === "Fish") bonus *= getFishingWorkerFactor(cellId);
       contributions.push({ goodId: bonusGoodId, amount: bonus * getModifiers(good, cellId) });
     }
   }

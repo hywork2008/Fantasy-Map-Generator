@@ -21,15 +21,21 @@ import {
   setCultivableArea,
   setCultivatedArea,
   setFarmLaborRequired,
+  setFishingRequiredWorkers,
+  setFishingWorkers,
   setFoodPotential,
+  setHuntingWorkers,
   setMigratableAdults,
   setRuralFoodCapacity,
   setRuralReleasePressure,
   setSettlementDevelopmentLastEvaluatedYear,
   setSettlementDevelopmentPotential,
+  setViticultureRequiredWorkers,
+  setViticultureWorkers,
   setYieldPerArea
 } from "../economyContext";
 import { calculateAgriculturalLandProfile } from "./agriculturalLandUse";
+import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
 
 /**
  * Broadcasts each Market's agTechStock (docs/plan/rural-agtech-investment.md) to its cells so
@@ -97,9 +103,9 @@ export class DevelopmentPotentialModule {
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const agriculture = calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell);
     const settlementDevelopmentPotential = calculateSettlementDevelopmentPotential(world, getMineralDeposits());
-    this.storeAgriculture(agriculture);
+    const occupations = this.storeAgriculture(world, agriculture);
     setSettlementDevelopmentPotential(settlementDevelopmentPotential);
-    return { ...agriculture, settlementDevelopmentPotential };
+    return { ...agriculture, ruralReleasePressure: occupations.ruralReleasePressure, settlementDevelopmentPotential };
   }
 
   getPotentials(): DevelopmentPotentials {
@@ -125,6 +131,11 @@ export class DevelopmentPotentialModule {
     setFarmLaborRequired(new Float32Array());
     setMigratableAdults(new Float32Array());
     setRuralReleasePressure(new Float32Array());
+    setHuntingWorkers(new Float32Array());
+    setFishingWorkers(new Float32Array());
+    setFishingRequiredWorkers(new Float32Array());
+    setViticultureWorkers(new Float32Array());
+    setViticultureRequiredWorkers(new Float32Array());
     setSettlementDevelopmentPotential(new Float32Array());
     clearSettlementDevelopmentLastEvaluatedYear();
   }
@@ -136,7 +147,7 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    this.storeAgriculture(calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell));
+    this.storeAgriculture(world, calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell));
     return true;
   }
 
@@ -156,7 +167,10 @@ export class DevelopmentPotentialModule {
     return changed;
   }
 
-  private storeAgriculture(agriculture: Omit<DevelopmentPotentials, "settlementDevelopmentPotential">): void {
+  private storeAgriculture(
+    world: Readonly<WorldContext>,
+    agriculture: Omit<DevelopmentPotentials, "settlementDevelopmentPotential">
+  ): RuralOccupationAllocation {
     setFoodPotential(agriculture.foodPotential);
     setCultivableArea(agriculture.cultivableArea);
     setYieldPerArea(agriculture.yieldPerArea);
@@ -164,7 +178,19 @@ export class DevelopmentPotentialModule {
     setCultivatedArea(agriculture.cultivatedArea);
     setFarmLaborRequired(agriculture.farmLaborRequired);
     setMigratableAdults(agriculture.migratableAdults);
-    setRuralReleasePressure(agriculture.ruralReleasePressure);
+
+    // Rural Occupation Allocator (docs/plan/biome-goods-producer-ecosystem.md §3) claims hunting/
+    // fishing/viticulture labour out of migratableAdults before anything is released toward urban
+    // migration, so the persisted ruralReleasePressure is the post-claim residual, not
+    // agriculture's own occupation-unaware figure (§2.2's "triple claim" problem).
+    const occupations = allocateRuralOccupations(world, agriculture.migratableAdults);
+    setHuntingWorkers(occupations.huntingWorkers);
+    setFishingWorkers(occupations.fishingWorkers);
+    setFishingRequiredWorkers(occupations.fishingRequiredWorkers);
+    setViticultureWorkers(occupations.viticultureWorkers);
+    setViticultureRequiredWorkers(occupations.viticultureRequiredWorkers);
+    setRuralReleasePressure(occupations.ruralReleasePressure);
+    return occupations;
   }
 }
 
