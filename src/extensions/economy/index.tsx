@@ -152,6 +152,7 @@ import {
   unregisterUrbanPregnancyBirthFloor
 } from "./generators/urbanPregnancy";
 import { getUrbanWaterSystemForBurg, sanitationScoreFromSystem, UrbanWater } from "./generators/urbanWaterSystem";
+import { clearViticultureAllocationShares } from "./generators/viticultureAllocation";
 import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
@@ -1062,6 +1063,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearForestDepletion();
       clearLiveAnimalCatchAccumulators();
       clearFaunaPopulation();
+      clearViticultureAllocationShares();
       clearStrategicProcurementExpenses();
       clearTreasuryAllocationSnapshots();
       StrategicProcurement.clear();
@@ -2494,6 +2496,7 @@ export function cleanup(api: ExtensionAPI): void {
   clearForestDepletion();
   clearLiveAnimalCatchAccumulators();
   clearFaunaPopulation();
+  clearViticultureAllocationShares();
   resetEffectiveCapacities(getWorldContext().pack.burgs);
   StrategicProcurement.clear();
   clearBurgMarketLedgers();

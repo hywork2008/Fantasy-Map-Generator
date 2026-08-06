@@ -1439,6 +1439,25 @@ export function getOrCreateNonFoodFaunaDemandSnapshot(): Record<string, number> 
   return table;
 }
 
+/**
+ * Sparse "burgId:goodName" → smoothed 0..1 preference share, owned by the economy slice
+ * (docs/plan/biome-goods-producer-ecosystem.md §9.4, Phase 5). Tracks how a Burg's craft output is
+ * currently leaning between Grapes-derived conversion goods (Wine/Raisins) that compete for the
+ * same harvested Grapes stock and craft labour, so production-generator.ts's per-cycle winner-take-
+ * all decision doesn't flip abruptly — see viticultureAllocation.ts.
+ */
+export function getOrCreateViticultureAllocationShares(): Record<string, number> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.viticultureAllocationShares;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, number>;
+  }
+  const table: Record<string, number> = {};
+  slice.viticultureAllocationShares = table;
+  return table;
+}
+
 export function getViewContext() {
   return getApi().viewContext;
 }

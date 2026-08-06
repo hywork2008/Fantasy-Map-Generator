@@ -70,6 +70,7 @@ import {
 } from "./strategicProductionDemand";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
+import { advanceViticultureAllocationShares, getViticultureAllocationMultiplier } from "./viticultureAllocation";
 import { VolcanicAshOperations } from "./volcanicAshOperations";
 
 export type {
@@ -238,6 +239,11 @@ export class ProductionModule {
       const smoothed = smoothCraftWorkers(cycle.craftDomainWorkersByKey.get(key) ?? 0, observed);
       cycle.craftDomainWorkersByKey.set(key, smoothed);
     }
+    // Phase 5 (docs/plan/biome-goods-producer-ecosystem.md §9.4): advances Wine/Raisins' smoothed
+    // allocation shares from this cycle's market snapshot, read back next cycle by
+    // getViticultureAllocationMultiplier() in makeProductionDecision() — same one-cycle-lag timing
+    // as the craft employment smoothing above.
+    advanceViticultureAllocationShares(burg.i, market);
 
     const phaseRevenue = this.sellInventoryToMarket(state);
     burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
@@ -958,8 +964,10 @@ export class ProductionModule {
         state.strategicDemandByGood.get(good.i),
         demandFocus !== null
       );
+      // Phase 5 (§9.4): 1 (no-op) for every good except Wine/Raisins — see viticultureAllocation.ts.
+      const viticultureAllocationMultiplier = getViticultureAllocationMultiplier(good, state.burg.i ?? 0);
       const demandEffect: DemandEffect = {
-        multiplier: populationDemandEffect.multiplier * strategicDemandMultiplier,
+        multiplier: populationDemandEffect.multiplier * strategicDemandMultiplier * viticultureAllocationMultiplier,
         category: populationDemandEffect.category
       };
       const goalPlan = this.planGoodAction(index, state, good, fraction, fraction, workersLeft, demandEffect);
@@ -976,7 +984,8 @@ export class ProductionModule {
         const activeDemand: DemandEffect = {
           multiplier:
             populationDemandEffect.multiplier *
-            getStrategicDemandMultiplier(state.strategicDemandByGood.get(activeGood.i), demandFocus !== null),
+            getStrategicDemandMultiplier(state.strategicDemandByGood.get(activeGood.i), demandFocus !== null) *
+            getViticultureAllocationMultiplier(activeGood, state.burg.i ?? 0),
           category: populationDemandEffect.category
         };
         activeGoal = this.planGoodAction(index, state, activeGood, fraction, fraction, workersLeft, activeDemand);

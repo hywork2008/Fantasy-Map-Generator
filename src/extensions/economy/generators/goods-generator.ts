@@ -1731,7 +1731,10 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Chicken: tradeProfile(2, 2, 1, -2, -2, 1, 5),
   Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
   Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
-  Wine: tradeProfile(3, 3, 3, 2, 2, 4, 2),
+  // durability bumped to the 1-5 scale's max (Phase 5, §9.4): wine ages/stores better than most
+  // goods, and viticultureAllocation.ts's reallocation-speed smoothing needs Wine and Raisins to
+  // actually differ (both were 4 pre-Phase-5) for "Wine reallocates slower than Raisins" to hold.
+  Wine: tradeProfile(3, 3, 3, 2, 2, 5, 2),
   Olives: tradeProfile(3, 3, 2, 1, -1, 3, 2),
   Honey: tradeProfile(3, 3, 2, 1, 0, 4, 1),
   Salt: tradeProfile(3, 2, 2, 1, 0, 5, 1),
