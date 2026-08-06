@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { worldContext } from "../hostCore";
+import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import {
   applyCharacterBackstory,
   canHaveDirectSolidarity,
@@ -20,6 +22,7 @@ import {
   setSolidarity,
   shouldRecordSolidarity
 } from "./backstoryProfile";
+import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 import { expectsClericalCelibacy, getFormPack, resolveFormPackId } from "./cultureFormPacks";
 
@@ -1505,5 +1508,89 @@ describe("historical origin / role biases", () => {
       if (s === "high_noble") highNoble++;
     }
     expect(blurred).toBeGreaterThan(highNoble);
+  });
+});
+
+describe("animal tastes (pets / horses)", () => {
+  afterEach(() => {
+    clearCharactersContext();
+  });
+
+  // resolveCultureTypeForLoadout indexes pack.cultures[cultureId] by array position,
+  // so pad the array up to cultureId before placing the entry.
+  function setCultureType(cultureId: number, type: string): void {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    const cultures = new Array(cultureId).fill(undefined);
+    cultures[cultureId] = { i: cultureId, name: "Test Culture", base: 0, shield: "round", type };
+    worldContext.pack = { cultures } as unknown as PackedGraph;
+  }
+
+  it("gives Nomadic-culture characters a near-default love of horses", () => {
+    setCultureType(1, "Nomadic");
+    let horseLikes = 0;
+    const n = 40;
+    for (let i = 0; i < n; i++) {
+      const rider = baseCharacter({ i: 7000 + i, name: `Rider${i}`, culture: 1 });
+      applyCharacterBackstory(rider, { roleClass: "ordinary" });
+      if (rider.backstory!.tastes.some(t => t.id === "horses" && t.polarity === "like")) horseLikes++;
+    }
+    expect(horseLikes / n).toBeGreaterThan(0.5);
+  });
+
+  it("likes horses far less often for a non-Nomadic, non-martial, non-hunting baseline", () => {
+    setCultureType(1, "Generic");
+    let horseLikes = 0;
+    const n = 40;
+    for (let i = 0; i < n; i++) {
+      const clerk = baseCharacter({
+        i: 7100 + i,
+        name: `Clerk${i}`,
+        culture: 1,
+        skills: {
+          artistry: 50,
+          diplomacy: 50,
+          engineering: 50,
+          geography: 50,
+          intrigue: 50,
+          learning: 50,
+          martial: 20,
+          prowess: 50,
+          stewardship: 50
+        }
+      });
+      applyCharacterBackstory(clerk, { roleClass: "central_officer" });
+      if (clerk.backstory!.tastes.some(t => t.id === "horses" && t.polarity === "like")) horseLikes++;
+    }
+    expect(horseLikes / n).toBeLessThan(0.35);
+  });
+
+  it("can seed pet fondness (cats/dogs/etc.) as a like, unrelated to culture type", () => {
+    setCultureType(1, "Generic");
+    let petLikes = 0;
+    const n = 80;
+    for (let i = 0; i < n; i++) {
+      const c = baseCharacter({
+        i: 7200 + i,
+        name: `Kindly${i}`,
+        culture: 1,
+        personality: {
+          boldness: 50,
+          compassion: 85,
+          greed: 50,
+          honor: 50,
+          rationality: 50,
+          sociability: 50,
+          vengefulness: 50,
+          zeal: 50,
+          energy: 50,
+          piety: 50,
+          guile: 50,
+          confidence: 50
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "ordinary" });
+      if (c.backstory!.tastes.some(t => t.id === "pets" && t.polarity === "like")) petLikes++;
+    }
+    expect(petLikes).toBeGreaterThan(0);
   });
 });

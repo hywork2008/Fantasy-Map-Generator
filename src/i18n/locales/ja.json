@@ -343,7 +343,9 @@
       "titles_glory": "称号・栄光",
       "piety_practice": "信心深い生活",
       "cruelty": "残虐",
-      "mercy": "慈悲"
+      "mercy": "慈悲",
+      "pets": "愛玩動物",
+      "horses": "馬"
     },
     "characterSolidarity": "連帯感（政治的立場）",
     "solidarityHint": "同僚・ライバル・脅威としての評価。恋愛・性的関心ではありません。",

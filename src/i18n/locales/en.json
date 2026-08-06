@@ -343,7 +343,9 @@
       "titles_glory": "Titles & glory",
       "piety_practice": "Pious practice",
       "cruelty": "Cruelty",
-      "mercy": "Mercy"
+      "mercy": "Mercy",
+      "pets": "Pets / Companion animals",
+      "horses": "Horses"
     },
     "characterSolidarity": "Solidarity (Political Standing)",
     "solidarityHint": "How this person regards others as colleagues, rivals, or threats — not romance.",

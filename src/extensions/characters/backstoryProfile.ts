@@ -626,7 +626,9 @@ const TASTE_CATALOG = [
   "titles_glory",
   "piety_practice",
   "cruelty",
-  "mercy"
+  "mercy",
+  "pets",
+  "horses"
 ] as const;
 
 /**
@@ -650,7 +652,8 @@ export const TASTE_GOOD_MATCH: Readonly<Record<string, readonly string[]>> = {
   hunting: ["Horses", "Furs", "Arms"],
   lust: ["Perfume", "Silk", "Wine"],
   ceremony: ["Incense", "Silk", "Jewelry"],
-  gossip: ["Perfume", "Wine", "Silk"]
+  gossip: ["Perfume", "Wine", "Silk"],
+  horses: ["Horses"]
 };
 
 /**
@@ -947,7 +950,8 @@ function buildTastes(
   roleClass: CharacterRoleClass,
   commitment?: CharacterCommitment,
   origin?: CharacterOrigin,
-  formName?: string
+  formName?: string,
+  cultureType?: string
 ): CharacterTaste[] {
   const p = character.personality;
   const s = character.skills;
@@ -1183,6 +1187,36 @@ function buildTastes(
     dislike("cruelty", rand(50, 90));
   } else if (p.compassion <= 25 && P(0.25)) {
     like("cruelty", rand(40, 80));
+  }
+
+  // Animals: companion-animal fondness (cats, dogs, birds) is a broad, low-key trait;
+  // compassionate and solitary types lean into it, cruelty-prone types can go the other way.
+  if (!likes.some(t => t.id === "pets") && !dislikes.some(t => t.id === "pets")) {
+    const petsChance =
+      0.14 +
+      (p.compassion >= 65 ? 0.2 : 0) +
+      (p.sociability <= 30 ? 0.1 : 0) +
+      (raisedIn === "capital_court" || stratum === "high_noble" || stratum === "royal" ? 0.08 : 0) +
+      (female ? 0.06 : 0);
+    if (P(Math.min(0.55, petsChance))) {
+      like("pets", rand(40, 90));
+    } else if (p.compassion <= 20 && likes.some(t => t.id === "cruelty") && P(0.2)) {
+      dislike("pets", rand(35, 70));
+    }
+  }
+
+  // Horses: universally plausible for martial/hunting types, but a near-default bond for
+  // Nomadic-culture characters — the horse is livelihood and kin, not just a mount.
+  if (!likes.some(t => t.id === "horses") && !dislikes.some(t => t.id === "horses")) {
+    const nomadic = cultureType === "Nomadic";
+    const horseChance =
+      (nomadic ? 0.75 : 0) +
+      (s.martial >= 60 || roleClass === "commander" ? 0.15 : 0) +
+      (raisedIn === "military_camp" || raisedIn === "frontier_burg" ? 0.1 : 0) +
+      (likes.some(t => t.id === "hunting") ? 0.12 : 0);
+    if (horseChance > 0 && P(Math.min(0.92, horseChance))) {
+      like("horses", rand(nomadic ? 60 : 45, nomadic ? 100 : 88));
+    }
   }
 
   // RaisedIn flavour (spec §5.3)
@@ -1421,7 +1455,8 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
 
   const origin = buildOrigin(character, options, roleClass);
   const commitment = buildCommitment(character, roleClass, options.formName, origin.socialStratum);
-  const tastes = buildTastes(character, roleClass, commitment, origin, options.formName);
+  const cultureType = resolveCultureTypeForLoadout(character.culture);
+  const tastes = buildTastes(character, roleClass, commitment, origin, options.formName, cultureType);
 
   // Integrity: faith commitment with very low piety → boost piety slightly (G1 soft)
   if (commitment.primary.kind === "faith" && character.personality.piety < 20) {
@@ -1454,7 +1489,7 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
   seedCharacterLoadout(character, {
     catalog: resolveLoadoutGoodsCatalog(),
     roleClass,
-    cultureType: resolveCultureTypeForLoadout(character.culture),
+    cultureType,
     onlyIfMissing: true
   });
 }
