@@ -325,6 +325,17 @@ export const CharacterDetailsDialog: React.FC = () => {
     if (role.entityType === "burg") {
       const burg = burgs[role.entityId];
       if (!burg) return t("characters.burg", { id: role.entityId });
+
+      // Guild master/apprentice roles carry a craft-domain guild rather than a market stall —
+      // show which domain guild they belong to instead of the burg's market.
+      if ((role.kind === "guildMaster" || role.kind === "guildApprentice") && role.domain) {
+        const domainLabel = role.domain.charAt(0).toUpperCase() + role.domain.slice(1);
+        return t("characters.guildAtBurg", {
+          burg: burg.name ?? t("characters.burg", { id: role.entityId }),
+          domain: domainLabel
+        });
+      }
+
       const market = markets.find(m => m.i === burg.market);
       const marketCenter = market ? burgs[market.centerBurgId] : undefined;
       const marketName =

@@ -447,6 +447,7 @@
     "market": "市場 {{id}}",
     "noMarket": "市場なし",
     "marketAtBurg": "{{burg}}（{{market}}市場）",
+    "guildAtBurg": "{{burg}}（{{domain}}ギルド）",
     "entity": "{{type}} {{id}}",
     "radarChart": "レーダーチャート",
     "artistry": "芸術",

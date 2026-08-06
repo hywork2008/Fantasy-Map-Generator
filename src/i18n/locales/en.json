@@ -447,6 +447,7 @@
     "market": "Market {{id}}",
     "noMarket": "No market",
     "marketAtBurg": "{{burg}} ({{market}} market)",
+    "guildAtBurg": "{{burg}} ({{domain}} guild)",
     "entity": "{{type}} {{id}}",
     "radarChart": "Radar chart",
     "artistry": "Artistry",
