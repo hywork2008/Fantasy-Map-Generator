@@ -97,6 +97,8 @@ let _fishingWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _fishingRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _viticultureWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _viticultureRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _husbandryWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _husbandryRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 let _agTechLastSettledYearFallback: number | null = null;
 let _industrialTechLastSettledYearFallback: number | null = null;
@@ -133,6 +135,8 @@ export function clearEconomyContext(): void {
   _fishingRequiredWorkersFallback = new Float32Array();
   _viticultureWorkersFallback = new Float32Array();
   _viticultureRequiredWorkersFallback = new Float32Array();
+  _husbandryWorkersFallback = new Float32Array();
+  _husbandryRequiredWorkersFallback = new Float32Array();
   _settlementDevelopmentLastEvaluatedYearFallback = null;
   _agTechLastSettledYearFallback = null;
   _industrialTechLastSettledYearFallback = null;
@@ -446,6 +450,23 @@ export function getViticultureRequiredWorkers(): Float32Array<ArrayBufferLike> {
 export function setViticultureRequiredWorkers(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("viticultureRequiredWorkers", value, next => {
     _viticultureRequiredWorkersFallback = next;
+  });
+}
+/** Husbandry (docs/plan/biome-goods-producer-ecosystem.md §5.4, Phase 3) — same workerFactor pattern as viticulture. */
+export function getHusbandryWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("husbandryWorkers", _husbandryWorkersFallback);
+}
+export function setHusbandryWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("husbandryWorkers", value, next => {
+    _husbandryWorkersFallback = next;
+  });
+}
+export function getHusbandryRequiredWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("husbandryRequiredWorkers", _husbandryRequiredWorkersFallback);
+}
+export function setHusbandryRequiredWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("husbandryRequiredWorkers", value, next => {
+    _husbandryRequiredWorkersFallback = next;
   });
 }
 

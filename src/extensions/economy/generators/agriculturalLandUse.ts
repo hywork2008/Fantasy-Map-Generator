@@ -21,6 +21,13 @@ export const AGTECH_NO_DRAFT_EFFECT_SHARE = 0.6;
 export const DRAFT_CAPABLE_BIOME_TAGS: readonly string[] = ["grassland", "nomadic"];
 
 /**
+ * Approximate built-up area per burg population point, used to exclude a settlement's own
+ * footprint from cropland/pasture/wildHabitatArea accounting. ~50 people/ha is a plausible dense
+ * medieval town density.
+ */
+export const URBAN_AREA_HECTARES_PER_POPULATION_POINT = 0.02;
+
+/**
  * State-funded public agricultural infrastructure (roads, irrigation), driven by
  * AgTechInvestment.settleAnnual()'s state-level settlement. See docs/plan/rural-agtech-investment.md §6.1.
  * Yield-only: unlike AGTECH_*, this has no labor-savings or draft-animal gating — infrastructure
@@ -185,6 +192,28 @@ export function calculatePhysicalAreaHectares(world: Readonly<WorldContext>, cel
   return rawArea * Math.max(0, world.distanceScale || 1) ** 2 * 100;
 }
 
+/**
+ * Fraction of a cell's land that's workable given its elevation, independent of what it's being
+ * worked for — cropland (below) and husbandry.ts's pasture ceiling both use this same "steeper
+ * terrain is harder to farm/graze" curve.
+ */
+export function calculateTerrainWorkableShare(height: number): number {
+  return height <= 50 ? 0.9 : Math.max(0.2, 0.9 - (height - 50) / 90);
+}
+
+/**
+ * A settlement's own built-up footprint, in hectares — excluded from both cropland/pasture and
+ * wildHabitatArea accounting (docs/plan/biome-goods-producer-ecosystem.md §4.2). Exported so
+ * faunaPopulation.ts and husbandry.ts share one figure instead of re-deriving it.
+ */
+export function calculateBurgBuiltAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
+  const burgId = world.pack.cells.burg?.[cellId];
+  if (!burgId) return 0;
+  const burg = world.pack.burgs?.[burgId];
+  if (!burg || burg.removed) return 0;
+  return Math.max(0, burg.population ?? 0) * URBAN_AREA_HECTARES_PER_POPULATION_POINT;
+}
+
 function calculateCultivableAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const cells = world.pack.cells;
   const physicalHectares = calculatePhysicalAreaHectares(world, cellId);
@@ -195,7 +224,7 @@ function calculateCultivableAreaHectares(world: Readonly<WorldContext>, cellId: 
   const habitability = Math.max(0, world.biomesData.habitability[biomeCode] ?? 0);
   if (habitability <= 0) return 0;
   const tags = world.biomesData.tags?.[biomeCode] ?? [];
-  const terrainShare = height <= 50 ? 0.9 : Math.max(0.2, 0.9 - (height - 50) / 90);
+  const terrainShare = calculateTerrainWorkableShare(height);
   const biomeCeiling = tags.includes("wetland")
     ? 0.35
     : tags.includes("desert")

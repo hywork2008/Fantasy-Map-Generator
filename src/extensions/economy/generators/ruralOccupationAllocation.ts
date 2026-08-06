@@ -15,10 +15,9 @@
  *      simple greedy pass ordered by unit value (mineOperations.ts's workerFactor pattern)
  *   4. Whatever is left becomes `ruralReleasePressure`, which ruralLaborRelease.ts consumes.
  *
- * Husbandry (§5.4) is not part of this pass yet — it lands in Phase 3 once liveAnimal carrying
- * capacity exists to size it against. Fauna/biomass stock (§4) is Phase 2; until then Game and
- * Fish still draw on the same uncapped biome/bonus-good rates as before, just gated by labour
- * instead of running unconstrained off raw population.
+ * Husbandry (§5.4, Phase 3) joins fishing/viticulture in step 3's greedy pass — husbandry.ts
+ * aggregates required herders across every grazed-species good (Cattle/Sheep/Goats/Horses/Camels)
+ * present in a cell's biome into one `HusbandryDemand` candidate.
  */
 
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
@@ -35,6 +34,7 @@ import {
 import { drawWildFaunaOfftake } from "./faunaPopulation";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
+import { calculateHusbandryDemand } from "./husbandry";
 
 // ---- Placeholder constants (§9.3 — calibration TBD alongside the rest of this ecosystem) ----
 
@@ -88,7 +88,10 @@ export interface RuralOccupationAllocation {
   /** Assigned/required viticulture workers, keyed by the (land) producing cell. */
   readonly viticultureWorkers: Float32Array;
   readonly viticultureRequiredWorkers: Float32Array;
-  /** Residual after Grain + hunting + fishing + viticulture claims; feeds ruralLaborRelease.ts. */
+  /** Assigned/required husbandry workers (§5.4), keyed by the (land) producing cell. */
+  readonly husbandryWorkers: Float32Array;
+  readonly husbandryRequiredWorkers: Float32Array;
+  /** Residual after Grain + hunting + fishing + viticulture + husbandry claims; feeds ruralLaborRelease.ts. */
   readonly ruralReleasePressure: Float32Array;
 }
 
@@ -167,6 +170,8 @@ export function allocateRuralOccupations(
   const fishingRequiredWorkers = new Float32Array(count);
   const viticultureWorkers = new Float32Array(count);
   const viticultureRequiredWorkers = new Float32Array(count);
+  const husbandryWorkers = new Float32Array(count);
+  const husbandryRequiredWorkers = new Float32Array(count);
   const ruralReleasePressure = new Float32Array(count);
   if (!count || migratableAdults.length !== count) {
     return {
@@ -175,6 +180,8 @@ export function allocateRuralOccupations(
       fishingRequiredWorkers,
       viticultureWorkers,
       viticultureRequiredWorkers,
+      husbandryWorkers,
+      husbandryRequiredWorkers,
       ruralReleasePressure
     };
   }
@@ -198,7 +205,12 @@ export function allocateRuralOccupations(
     huntingWorkers[cellId] = hunting;
     budget -= hunting;
 
-    const candidates: { kind: "viticulture" | "fishing"; required: number; value: number; holderId?: number }[] = [];
+    const candidates: {
+      kind: "viticulture" | "fishing" | "husbandry";
+      required: number;
+      value: number;
+      holderId?: number;
+    }[] = [];
 
     if (wineGood && isGoodEnabled(wineGood)) {
       const wineRate = resolveBiomeOutputRate(
@@ -220,6 +232,11 @@ export function allocateRuralOccupations(
         candidates.push({ kind: "fishing", required: offer.share, value: fishGood!.value, holderId: offer.holderId });
     }
 
+    const husbandryDemand = calculateHusbandryDemand(world, cellId);
+    husbandryRequiredWorkers[cellId] = husbandryDemand.requiredWorkers;
+    if (husbandryDemand.requiredWorkers > 0)
+      candidates.push({ kind: "husbandry", required: husbandryDemand.requiredWorkers, value: husbandryDemand.value });
+
     // Greedy, value-ranked allocation up to each candidate's requiredWorkers cap — the same
     // "simple sufficiency model" mineOperations.ts uses, not a linear-programming optimum (§3.1).
     candidates.sort((a, b) => b.value - a.value);
@@ -228,6 +245,7 @@ export function allocateRuralOccupations(
       const assign = Math.min(budget, candidate.required);
       if (assign <= 0) continue;
       if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assign;
+      else if (candidate.kind === "husbandry") husbandryWorkers[cellId] += assign;
       else fishingWorkers[candidate.holderId!] += assign;
       budget -= assign;
     }
@@ -241,11 +259,15 @@ export function allocateRuralOccupations(
     fishingRequiredWorkers,
     viticultureWorkers,
     viticultureRequiredWorkers,
+    husbandryWorkers,
+    husbandryRequiredWorkers,
     ruralReleasePressure
   };
 }
 
 // ---- Consumption side: read the persisted allocation to gate Game/Fish/Wine (production-utils.ts) ----
+// Husbandry's own workerFactor getter lives in husbandry.ts (getHusbandryWorkerFactor) since that
+// module already needs it internally for getPastureAreaUsedHectares().
 
 /**
  * Game's monthly output, driven by hunter headcount instead of population (§5.1). Pre-modifier.

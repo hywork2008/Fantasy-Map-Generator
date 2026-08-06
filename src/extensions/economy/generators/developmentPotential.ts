@@ -25,6 +25,8 @@ import {
   setFishingWorkers,
   setFoodPotential,
   setHuntingWorkers,
+  setHusbandryRequiredWorkers,
+  setHusbandryWorkers,
   setMigratableAdults,
   setRuralFoodCapacity,
   setRuralReleasePressure,
@@ -136,6 +138,8 @@ export class DevelopmentPotentialModule {
     setFishingRequiredWorkers(new Float32Array());
     setViticultureWorkers(new Float32Array());
     setViticultureRequiredWorkers(new Float32Array());
+    setHusbandryWorkers(new Float32Array());
+    setHusbandryRequiredWorkers(new Float32Array());
     setSettlementDevelopmentPotential(new Float32Array());
     clearSettlementDevelopmentLastEvaluatedYear();
   }
@@ -189,6 +193,8 @@ export class DevelopmentPotentialModule {
     setFishingRequiredWorkers(occupations.fishingRequiredWorkers);
     setViticultureWorkers(occupations.viticultureWorkers);
     setViticultureRequiredWorkers(occupations.viticultureRequiredWorkers);
+    setHusbandryWorkers(occupations.husbandryWorkers);
+    setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
     setRuralReleasePressure(occupations.ruralReleasePressure);
     return occupations;
   }

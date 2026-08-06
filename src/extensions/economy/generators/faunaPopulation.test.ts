@@ -41,6 +41,21 @@ const CATTLE_GOOD = {
   demandCoverage: {}
 };
 
+// Not in husbandry.ts's HUSBANDRY_SPECIES_PROFILES (unlike Cattle, Phase 3), so it stays on the
+// Phase 1/2 flat-rate x months proxy — used where a test wants a plain non-grazed food species.
+const PIG_GOOD = {
+  i: 3,
+  name: "Pig",
+  value: 2,
+  tags: ["food", "liveAnimal"],
+  unit: "head",
+  icon: "icon",
+  color: "#fff",
+  chance: 3,
+  biomeOutputByTag: { forest: 0.08 },
+  demandCoverage: {}
+};
+
 const CATS_GOOD = {
   i: 2,
   name: "Cats",
@@ -232,9 +247,9 @@ describe("faunaPopulation", () => {
   });
 
   describe("getDomesticatedCarryingCapacity", () => {
-    it("food species use the flat-rate x months proxy directly", () => {
+    it("non-grazed food species (e.g. Pig) use the flat-rate x months proxy directly", () => {
       const flatRate = 2;
-      expect(getDomesticatedCarryingCapacity(0, CATTLE_GOOD as never, flatRate)).toBeCloseTo(
+      expect(getDomesticatedCarryingCapacity(0, PIG_GOOD as never, flatRate)).toBeCloseTo(
         flatRate * DOMESTICATED_CAPACITY_MONTHS_PROXY,
         5
       );
@@ -260,10 +275,10 @@ describe("faunaPopulation", () => {
       expect(drawDomesticatedFaunaOfftake(0, CATTLE_GOOD as never, 7)).toBe(7);
     });
 
-    it("grants the full desired amount when stock comfortably covers it (food species)", () => {
+    it("grants the full desired amount when stock comfortably covers it (non-grazed food species)", () => {
       forestCellWorld();
       worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
-      expect(drawDomesticatedFaunaOfftake(0, CATTLE_GOOD as never, 2)).toBeCloseTo(2, 5);
+      expect(drawDomesticatedFaunaOfftake(0, PIG_GOOD as never, 2)).toBeCloseTo(2, 5);
     });
   });
 

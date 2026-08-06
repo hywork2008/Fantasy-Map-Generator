@@ -6,6 +6,7 @@ import { getGoodCellColumn, getSimulationMonth, getWorldContext } from "../econo
 import { drawDomesticatedFaunaOfftake } from "./faunaPopulation";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
+import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, getViticultureWorkerFactor } from "./ruralOccupationAllocation";
 
@@ -148,10 +149,18 @@ export function getRuralProductionContributions(
 
     let amount = population * production;
     if (good.name === "Wine") amount *= getViticultureWorkerFactor(cellId);
-    // Phase 2 fauna stock model (docs/plan/biome-goods-producer-ecosystem.md §4): caps the
-    // flat population-driven rate by the domesticated stock's actual harvestable headcount. A
-    // pass-through to `amount` unchanged when options.ruralEcosystemDetail === "simplified".
-    else if (good.tags.includes("liveAnimal")) amount = drawDomesticatedFaunaOfftake(cellId, good, amount);
+    else if (good.tags.includes("liveAnimal")) {
+      // Husbandry (§5.4, Phase 3): grazed species (Cattle/Sheep/Goats/Horses/Camels) are gated by
+      // herder labour the same way Wine is gated by viticulture labour, always-on regardless of
+      // ruralEcosystemDetail (§11.2 — Phase 1's labour allocator is never toggled off). Pig/
+      // Chicken/Cats/Dogs aren't herded on open pasture, so they skip this gate (husbandry.ts's
+      // module doc-comment explains the scope split).
+      if (isGrazedLivestockGood(good.name)) amount *= getHusbandryWorkerFactor(cellId);
+      // Phase 2 fauna stock model (docs/plan/biome-goods-producer-ecosystem.md §4): caps the
+      // (now possibly husbandry-gated) rate by the domesticated stock's actual harvestable
+      // headcount. A pass-through to `amount` unchanged when options.ruralEcosystemDetail === "simplified".
+      amount = drawDomesticatedFaunaOfftake(cellId, good, amount);
+    }
     contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
   }
 

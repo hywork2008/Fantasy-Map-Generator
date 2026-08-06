@@ -6,11 +6,13 @@
  * out there" and heavy culling now measurably thins next year's breeding stock. Both share the
  * same 3-cohort (young/breeding/old) structure and logistic-growth annual update, but size their
  * ceiling (`carryingCapacity`) differently (§4.2):
- *   - Wild (Game): the cell's unclaimed land — physical area minus what farming has already
- *     claimed — times a fixed density. Cropland always wins; game only lives on what's left.
- *   - Domesticated (liveAnimal): husbandry.ts (§5.4) doesn't exist yet (Phase 3), so this first
- *     cut sizes the ceiling off the pre-Phase-2 flat production rate as an interim proxy — replace
- *     with a real pasture/labour-based figure once husbandry.ts lands.
+ *   - Wild (Game): the cell's unclaimed land — physical area minus what farming and husbandry
+ *     (husbandry.ts's pastureAreaUsed, §5.4) have already claimed — times a fixed density.
+ *     Cropland/pasture always win first; game only lives on what's left.
+ *   - Domesticated (liveAnimal): grazed species (Cattle/Sheep/Goats/Horses/Camels — husbandry.ts's
+ *     `isGrazedLivestockGood`) size their ceiling from real pasture land x herder labour
+ *     (husbandry.ts, §5.4, Phase 3). Non-grazed species (Pig/Chicken/Cats/Dogs) stay on the
+ *     Phase 1/2 interim proxy below — see husbandry.ts's module doc-comment for the scope split.
  * Non-food domesticated species (Cats, Horses, Camels, Elephants, Dogs) get an additional
  * demand-absorption ceiling (§4.5) so an unsellable surplus slows breeding instead of piling up.
  *
@@ -41,9 +43,10 @@ import {
   getWorldContext,
   setFaunaPopulationLastSettledYear
 } from "../economyContext";
-import { calculatePhysicalAreaHectares } from "./agriculturalLandUse";
+import { calculateBurgBuiltAreaHectares, calculatePhysicalAreaHectares } from "./agriculturalLandUse";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { type Good, isGoodEnabled } from "./goods-generator";
+import { getGrazedCarryingCapacity, getPastureAreaUsedHectares, isGrazedLivestockGood } from "./husbandry";
 
 /** The species key used for Game's wild stock — Game itself carries no `liveAnimal` tag (§4.1). */
 export const WILD_SPECIES_KEY = "Game";
@@ -53,14 +56,11 @@ export const WILD_SPECIES_KEY = "Game";
 /** Sustainable wild headcount per hectare of unclaimed forest-appropriate land (§4.2). */
 export const WILD_GAME_DENSITY_PER_HECTARE = 0.08;
 /**
- * Approximate built-up area per burg population point, used to exclude a settlement's own
- * footprint from wildHabitatArea. ~50 people/ha is a plausible dense medieval town density.
- */
-export const URBAN_AREA_HECTARES_PER_POPULATION_POINT = 0.02;
-/**
- * Interim domesticated carrying-capacity proxy (§4.2): until husbandry.ts (Phase 3) sizes this
- * from real pasture/labour, treat the pre-Phase-2 flat monthly production rate as "how many
- * months of that rate's worth of animals this land could plausibly keep alive as breeding stock."
+ * Interim domesticated carrying-capacity proxy (§4.2) for non-grazed species (Pig/Chicken/Cats/
+ * Dogs — husbandry.ts's `isGrazedLivestockGood` is false for these): treat the flat monthly
+ * production rate as "how many months of that rate's worth of animals this land could plausibly
+ * keep alive as breeding stock." Grazed species (Cattle/Sheep/Goats/Horses/Camels) use
+ * husbandry.ts's real pasture/labour-based figure instead (Phase 3).
  */
 export const DOMESTICATED_CAPACITY_MONTHS_PROXY = 24;
 
@@ -143,20 +143,10 @@ export function getRuralEcosystemDetail(): "detailed" | "simplified" {
 
 // ---- Carrying capacity (§4.2) ----
 
-function getBurgBuiltAreaHectares(cellId: number): number {
-  const world = getWorldContext();
-  const burgId = world.pack.cells.burg?.[cellId];
-  if (!burgId) return 0;
-  const burg = world.pack.burgs?.[burgId];
-  if (!burg || burg.removed) return 0;
-  return Math.max(0, burg.population ?? 0) * URBAN_AREA_HECTARES_PER_POPULATION_POINT;
-}
-
 /**
- * Wild (Game) carrying capacity for a forest cell: fixed density over whatever land farming
- * hasn't already claimed. Vineyard (§5.3) and pasture (§5.4) area aren't tracked yet
- * (Phase 3/4) — subtract them here too once they exist, so wildHabitatArea keeps shrinking as
- * those industries claim more land.
+ * Wild (Game) carrying capacity for a forest cell: fixed density over whatever land farming and
+ * husbandry (husbandry.ts's pastureAreaUsed, §5.4, Phase 3) haven't already claimed. Vineyard
+ * (§5.3) area isn't tracked yet (Phase 4) — subtract it here too once it exists.
  */
 export function getWildCarryingCapacity(cellId: number): number {
   const world = getWorldContext();
@@ -169,8 +159,9 @@ export function getWildCarryingCapacity(cellId: number): number {
 
   const physicalArea = calculatePhysicalAreaHectares(world, cellId);
   const cultivated = getCultivatedArea()[cellId] ?? 0;
-  const burgArea = getBurgBuiltAreaHectares(cellId);
-  const wildHabitatArea = Math.max(0, physicalArea - cultivated - burgArea);
+  const burgArea = calculateBurgBuiltAreaHectares(world, cellId);
+  const pastureAreaUsed = getPastureAreaUsedHectares(cellId);
+  const wildHabitatArea = Math.max(0, physicalArea - cultivated - burgArea - pastureAreaUsed);
   return WILD_GAME_DENSITY_PER_HECTARE * wildHabitatArea;
 }
 
@@ -197,12 +188,15 @@ function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number 
 }
 
 /**
- * Domesticated carrying capacity (§4.2). `flatRateAmount` is the caller's already-computed
- * pre-Phase-2 flat monthly rate (population × biomeOutput) for this cell/good — used both as the
- * interim capacity proxy and, for non-food species, capped further by market demand (§4.5).
+ * Domesticated carrying capacity (§4.2). Grazed species (Cattle/Sheep/Goats/Horses/Camels) size
+ * from husbandry.ts's real pasture/labour figure (Phase 3); everyone else keeps the interim
+ * flat-rate proxy (`flatRateAmount` is the caller's already-computed pre-Phase-2 flat monthly rate,
+ * population × biomeOutput). Non-food species are capped further by market demand either way (§4.5).
  */
 export function getDomesticatedCarryingCapacity(cellId: number, good: Good, flatRateAmount: number): number {
-  const rawCapacity = Math.max(0, flatRateAmount) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
+  const rawCapacity = isGrazedLivestockGood(good.name)
+    ? getGrazedCarryingCapacity(cellId, good)
+    : Math.max(0, flatRateAmount) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
   if (good.tags.includes("food")) return rawCapacity;
   return Math.min(rawCapacity, getNonFoodDemandAbsorptionCapacity(cellId, good));
 }
