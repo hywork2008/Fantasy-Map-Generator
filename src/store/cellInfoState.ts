@@ -18,6 +18,14 @@ export interface CellInfoData {
   biome: string;
   coastalHabitat: string;
   nearshoreHabitat: string;
+  /** Ocean current direction in degrees, or "n/a" off open ocean. See `grid.cells.currentAngle`. */
+  currentDirection: string;
+  /** Ocean current speed as a percentage of the 0-255 scale, or "n/a" off open ocean. */
+  currentSpeed: string;
+  /** Surface water temperature, or "n/a" off open ocean. See `grid.cells.waterTemp`. */
+  waterTemp: string;
+  /** How enclosed/sheltered the water is (0 = open, 100 = fully enclosed), or "n/a" on land. */
+  enclosure: string;
   state: string;
   province: string;
   culture: string;
@@ -50,6 +58,10 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   biome: "n/a",
   coastalHabitat: "none",
   nearshoreHabitat: "none",
+  currentDirection: "n/a",
+  currentSpeed: "n/a",
+  waterTemp: "n/a",
+  enclosure: "n/a",
   state: "n/a",
   province: "n/a",
   culture: "n/a",

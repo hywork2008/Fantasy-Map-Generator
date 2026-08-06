@@ -12,7 +12,7 @@ import {
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
-import { findPath, minmax } from "../utils";
+import { findPath, lerp, minmax } from "../utils";
 import { normalizeHeightExponent } from "../utils/height";
 import { getCurrentDirection } from "../utils/seasonUtils";
 import { isRegimentLockedForBattle } from "./battleLock";
@@ -85,15 +85,51 @@ const CURRENT_FAVORABLE_MULTIPLIER = 0.7;
 const CURRENT_UNFAVORABLE_MULTIPLIER = 1.4;
 
 /**
- * Cost multiplier for a fleet traveling from `fromPoint` to `toPoint` this month: favorable if
- * the edge's east/west component aligns with the month's current direction, unfavorable if it
- * opposes it, 1 (no effect) for a purely north-south edge. Increasing x is east (matches
- * getLongitude's convention in commonUtils.ts).
+ * Cost multiplier for a fleet traveling from `fromCell` to `toCell` this month. When
+ * `worldContext.grid.cells.currentSpeed`/`.currentAngle` are populated (docs/simulation/
+ * ocean-currents.md), this reads the *real* per-cell current at `fromCell` (via `pack.cells.g`,
+ * the same grid-cell lookup `temp`/`prec` consumers already use) and projects it onto the edge's
+ * travel direction: fully favorable at full following current, fully unfavorable head-on against
+ * it, smoothly interpolated in between — a genuine 360° local read instead of a single east/west
+ * sign. Falls back to the coarse global seasonal bias (`getCurrentDirection`, docs/simulation/
+ * seasons.md) whenever per-cell data isn't available (e.g. a saved-map fixture predating this
+ * field, or a unit test that only exercises the seasonal path) or the local current is calm.
  */
-function getCurrentCostMultiplier(fromPoint: [number, number], toPoint: [number, number], month: number): number {
+function getCurrentCostMultiplier(
+  pack: PackedGraph,
+  fromCell: number,
+  toCell: number,
+  month: number,
+  worldContext?: WorldContext
+): number {
+  const fromPoint = pack.cells.p[fromCell];
+  const toPoint = pack.cells.p[toCell];
   const dx = toPoint[0] - fromPoint[0];
-  if (dx === 0) return 1;
+  const dy = toPoint[1] - fromPoint[1];
 
+  const currentSpeed = worldContext?.grid?.cells?.currentSpeed;
+  const currentAngle = worldContext?.grid?.cells?.currentAngle;
+  const gridCellId = pack.cells.g?.[fromCell];
+
+  if (currentSpeed && currentAngle && gridCellId !== undefined) {
+    const speed = currentSpeed[gridCellId];
+    if (speed > 0) {
+      const edgeLength = Math.hypot(dx, dy);
+      if (edgeLength === 0) return 1;
+
+      const angleRad = (currentAngle[gridCellId] * Math.PI) / 180;
+      const currentVx = Math.cos(angleRad) * speed;
+      const currentVy = Math.sin(angleRad) * speed;
+      // Signed projection of the current onto the travel direction, normalized by the 0-255
+      // current-speed scale: +1 = fully with the current, -1 = fully against it.
+      const alignment = minmax((currentVx * dx + currentVy * dy) / edgeLength / 255, -1, 1);
+      return alignment >= 0
+        ? lerp(1, CURRENT_FAVORABLE_MULTIPLIER, alignment)
+        : lerp(1, CURRENT_UNFAVORABLE_MULTIPLIER, -alignment);
+    }
+  }
+
+  if (dx === 0) return 1;
   const travelingEast = dx > 0;
   const currentFavorsEast = getCurrentDirection(month) === 1;
   const withCurrent = travelingEast === currentFavorsEast;
@@ -1002,7 +1038,7 @@ export function advanceAlongPath(
     const edgeLength = Math.hypot(toPoint[0] - fromPoint[0], toPoint[1] - fromPoint[1]);
     let costMultiplier = 1;
     if (isFleet && month !== undefined) {
-      costMultiplier = getCurrentCostMultiplier(fromPoint, toPoint, month);
+      costMultiplier = getCurrentCostMultiplier(pack, fromCell, toCell, month, worldContext);
     } else if (!isFleet && worldContext) {
       costMultiplier = landEdgeCostMultiplier(pack, worldContext, r, fromCell, toCell, edgeLength);
     }

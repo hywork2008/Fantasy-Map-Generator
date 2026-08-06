@@ -1,6 +1,6 @@
 import { landTravelLegSpeeds } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { useOptionsState } from "../../hostCore";
+import { useOptionsState, type WorldContext } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getCaravans,
@@ -22,7 +22,8 @@ import {
   type CaravanMovementSettings,
   DEFAULT_DRAFT_ANIMAL_ID,
   getDraftAnimalType,
-  getSeaConditionMultiplier
+  getSeaConditionMultiplier,
+  type OceanCurrentSample
 } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
 import {
@@ -33,7 +34,7 @@ import {
 } from "./foodCoLoad";
 import type { Good } from "./goods-generator";
 import { utilizationOf } from "./marketFlowBudget";
-import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment } from "./marketTypes";
+import type { Caravan, Deal, ExportStagingLot, Market, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { markRetailInventoryDirty } from "./retailInventory";
@@ -336,8 +337,32 @@ export interface CaravanTickResult {
 }
 
 /**
+ * Reads the real per-cell ocean current (docs/simulation/ocean-currents.md) at a route point's
+ * pack cell, via the same `pack.cells.g` -> `grid.cells.currentAngle`/`currentSpeed` lookup other
+ * consumers use for `temp`/`prec`. Returns null (falls back to the seasonal bias in
+ * getSeaConditionMultiplier) whenever the point carries no cell id, `worldContext` wasn't given,
+ * or the map predates this field.
+ */
+function resolveOceanCurrentAtPoint(
+  worldContext: WorldContext | null | undefined,
+  point: TradeRoutePoint
+): OceanCurrentSample | null {
+  const packCellId = point[2];
+  if (packCellId === undefined || !worldContext) return null;
+
+  const gridCellId = worldContext.pack?.cells?.g?.[packCellId];
+  const currentAngle = worldContext.grid?.cells?.currentAngle;
+  const currentSpeed = worldContext.grid?.cells?.currentSpeed;
+  if (gridCellId === undefined || !currentAngle || !currentSpeed) return null;
+
+  return { angleDeg: currentAngle[gridCellId], speed: currentSpeed[gridCellId] };
+}
+
+/**
  * Bake planar legs + speeds at spawn so tick-time advance does not re-sample grade
  * (or re-read sea current). `currentDistance` remains cumulative planar km (plan A).
+ * `worldContext`, if given, resolves each sea leg's real per-cell ocean current at its starting
+ * cell; omit it (as existing callers/tests do) to keep the coarse seasonal-only fallback.
  */
 export function bakeCaravanTravelLegs(
   segments: readonly TradeRouteSegment[],
@@ -346,7 +371,8 @@ export function bakeCaravanTravelLegs(
   movement: CaravanMovementSettings,
   month: number,
   heights: ArrayLike<number> | null,
-  heightExponent: number
+  heightExponent: number,
+  worldContext?: WorldContext | null
 ): CaravanTravelLeg[] {
   const animal = getDraftAnimalType(draftAnimalId);
   const legs: CaravanTravelLeg[] = [];
@@ -365,8 +391,9 @@ export function bakeCaravanTravelLegs(
       if (runKm <= 0) continue;
       const from = toXy(seg.points[0]);
       const to = toXy(seg.points[seg.points.length - 1]);
+      const current = seg.type === "river" ? null : resolveOceanCurrentAtPoint(worldContext, seg.points[0]);
       const currentMultiplier =
-        seg.type === "river" ? 1 : getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength);
+        seg.type === "river" ? 1 : getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength, current);
       const speed = (seg.type === "river" ? movement.riverKmPerDay : movement.seaKmPerDay) * currentMultiplier;
       cursorKm += runKm;
       legs.push({ endKm: cursorKm, speedKmPerDay: Math.max(speed, 1e-6) });
@@ -422,7 +449,8 @@ function advanceCaravan(
   let legs = caravan.travelLegs;
   if (!legs?.length) {
     // Legacy caravans / tests without baked legs: bake once and cache on the instance.
-    const heights = getWorldContext().pack?.cells?.h ?? null;
+    const world = getWorldContext();
+    const heights = world.pack?.cells?.h ?? null;
     legs = bakeCaravanTravelLegs(
       caravan.routeSegments,
       distanceScale,
@@ -430,7 +458,8 @@ function advanceCaravan(
       movement,
       month,
       heights,
-      normalizeHeightExponent(useOptionsState.getState().heightExponent)
+      normalizeHeightExponent(useOptionsState.getState().heightExponent),
+      world
     );
     caravan.travelLegs = legs;
   }
@@ -505,7 +534,8 @@ export class CaravansModule {
       bake.movement,
       bake.month,
       bake.heights,
-      bake.heightExponent
+      bake.heightExponent,
+      world
     );
     const good = getGoods()[deal.good];
     const cargoSlots = good ? deal.units * getGoodCargoSlotsPerUnit(good) : 0;
@@ -711,7 +741,8 @@ export class CaravansModule {
           bake.movement,
           bake.month,
           bake.heights,
-          bake.heightExponent
+          bake.heightExponent,
+          world
         );
 
         const dayOfMonth = getSimulationDay();

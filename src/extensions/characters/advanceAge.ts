@@ -1,6 +1,12 @@
 import { getRaceById } from "../../data/races";
 import { P, rand } from "../hostUtils";
-import { ownRaceAppearanceScore, resolveCharacterRaceId } from "./appearance";
+import {
+  LOOKS_SOFT_DECLINE_PER_YEAR,
+  LOOKS_VITALITY_DECLINE_PER_YEAR,
+  ownRaceAppearanceScore,
+  resolveCharacterRaceId
+} from "./appearance";
+import { diseaseDeathReason, diseaseDeathRiskFor } from "./characterHealth";
 import {
   getCharacters,
   getCurrentYear,
@@ -9,10 +15,12 @@ import {
   replaceCharacters
 } from "./charactersContext";
 import type { Character, CharacterRoleClass, CharacterSkills } from "./characterTypes";
+import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
 /** Physical decline sets in past this age for short-lived (human-scale) races only. */
 export const DECLINE_AGE_THRESHOLD = 35;
-export const APPEARANCE_DECLINE_PER_YEAR = 1.5;
+/** Legacy scalar appearance decline (characters without `looks` axes). Matches vitality axis rate. */
+export const APPEARANCE_DECLINE_PER_YEAR = LOOKS_VITALITY_DECLINE_PER_YEAR;
 /** Civilian / non-military personal combat decline after peak age. */
 export const PROWESS_DECLINE_PER_YEAR = 2;
 /**
@@ -105,12 +113,12 @@ export function advanceCharacterAging(deltaYears: number): void {
     const skipAgePenalty = characterIgnoresAgeDecline(character);
 
     const appearanceDecline =
-      declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR, skipAgePenalty) -
-      declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR, skipAgePenalty);
-    // Mild soft-feature loss (~1/3 of vitality decline rate), only when aging past the threshold.
+      declineAt(newAge, LOOKS_VITALITY_DECLINE_PER_YEAR, skipAgePenalty) -
+      declineAt(oldAge, LOOKS_VITALITY_DECLINE_PER_YEAR, skipAgePenalty);
+    // Mild soft-feature loss on symmetry/refinement after peak age.
     const softDecline =
-      declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR * 0.35, skipAgePenalty) -
-      declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR * 0.35, skipAgePenalty);
+      declineAt(newAge, LOOKS_SOFT_DECLINE_PER_YEAR, skipAgePenalty) -
+      declineAt(oldAge, LOOKS_SOFT_DECLINE_PER_YEAR, skipAgePenalty);
     const prowessRate = prowessDeclineRateForCharacter(character);
     const prowessDecline =
       declineAt(newAge, prowessRate, skipAgePenalty) - declineAt(oldAge, prowessRate, skipAgePenalty);
@@ -139,13 +147,16 @@ export function advanceCharacterAging(deltaYears: number): void {
 
     // Mortality: human-scale curve for short-lived races only.
     // Long-lived folk do not take the "past 50" spike (no human mid-life age penalty).
-    const mortalityRisk = skipAgePenalty ? 0.002 : 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
-    const survivalProb = (1 - Math.min(0.99, mortalityRisk)) ** deltaYears;
+    const baseMortalityRisk = skipAgePenalty ? 0.002 : 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
+    // Sickness (see characterHealth.ts) adds to, never replaces, the age curve above — a
+    // character with no active affliction contributes 0 here, so this is purely additive.
+    const mortalityRisk = Math.min(0.99, baseMortalityRisk + diseaseDeathRiskFor(character));
+    const survivalProb = (1 - mortalityRisk) ** deltaYears;
     if (Math.random() > survivalProb) {
       character.dead = true;
       character.deathYear = getCurrentYear();
 
-      let baseReason = "Deceased";
+      let baseReason = diseaseDeathReason(character) ?? "Deceased";
       if (character.titles.length > 0) {
         if (character.personality.sociability < 30 && P(0.005 * deltaYears)) {
           baseReason = "Assassinated";
@@ -163,9 +174,13 @@ export function advanceCharacterAging(deltaYears: number): void {
       continue;
     }
 
-    // Age Growth for young characters
-    if (newAge <= 25 && deltaYears > 0) {
-      const growthMax = newAge <= 16 ? rand(3, 8) : rand(0, 2);
+    // Age growth for young characters (thresholds scale with race maturity).
+    const raceId = resolveCharacterRaceId(character);
+    const profile = resolveRaceAgeProfile(raceId);
+    const maturity = getRaceMaturityAge(raceId);
+    const youngAdultCap = scaleHumanAgeToRace(25, profile);
+    if (newAge <= youngAdultCap && deltaYears > 0) {
+      const growthMax = newAge <= maturity ? rand(3, 8) : rand(0, 2);
       const growth = Math.floor(growthMax * deltaYears);
       if (growth > 0) {
         for (const key of Object.keys(character.skills) as (keyof typeof character.skills)[]) {
@@ -180,7 +195,7 @@ export function advanceCharacterAging(deltaYears: number): void {
       }
 
       // Personality drift for children (personalities become more extreme/defined as they grow)
-      if (newAge <= 16) {
+      if (newAge <= maturity) {
         const drift = Math.floor(rand(1, 4) * deltaYears);
         for (const key of Object.keys(character.personality) as (keyof typeof character.personality)[]) {
           if (key === "confidence") continue; // Handled above

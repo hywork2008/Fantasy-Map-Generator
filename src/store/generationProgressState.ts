@@ -31,7 +31,13 @@ export const GENERATION_STAGES = [
 ] as const;
 
 export type GenerationStage = (typeof GENERATION_STAGES)[number];
-export type GenerationProgressAction = "next" | "previous" | "retryLandscape" | "retryStage" | "loadMap";
+export type GenerationProgressAction =
+  | "next"
+  | "previous"
+  | "retryLandscape"
+  | "retryStage"
+  | "loadMap"
+  | "restartWithSeed";
 export type GenerationReviewLayerId =
   | "terrain"
   | "biomes"
@@ -114,6 +120,8 @@ type GenerationProgressState = {
   autoRun: boolean;
   reviewLayers: GenerationReviewLayerId[];
   resolver: ((action: GenerationProgressAction) => void) | null;
+  /** Seed requested via `restartWithSeed`, read once by the paused pipeline loop then consumed. */
+  restartSeed: string | null;
   beginStage: (stage: number, isInitialGeneration: boolean) => void;
   waitForAction: (stage: number) => Promise<GenerationProgressAction>;
   next: () => void;
@@ -121,6 +129,12 @@ type GenerationProgressState = {
   retryLandscape: () => void;
   retryStage: () => void;
   runAll: () => void;
+  /**
+   * Redirect a generation that is currently paused for stage review (including the
+   * initial map's review flow) to restart from stage 0 with a different seed, without
+   * spawning a second concurrent `generate()` call. No-op if nothing is awaiting review.
+   */
+  restartWithSeed: (seed: string) => void;
   /** Stop a paused generation so a validated saved map can replace its incomplete world. */
   loadMap: () => void;
   toggleReviewLayer: (layer: GenerationReviewLayerId) => void;
@@ -142,6 +156,7 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
   autoRun: false,
   reviewLayers: [...getGenerationReviewProfile(0).defaultLayers],
   resolver: null,
+  restartSeed: null,
   beginStage: (stage, isInitialGeneration) =>
     set({
       isOpen: true,
@@ -173,6 +188,12 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
     const state = get();
     resolveAction(state, "retryLandscape");
     set({ resolver: null, isGenerating: true, autoRun: false });
+  },
+  restartWithSeed: seed => {
+    const state = get();
+    if (!state.resolver) return;
+    resolveAction(state, "restartWithSeed");
+    set({ resolver: null, isGenerating: true, autoRun: false, restartSeed: seed });
   },
   retryStage: () => {
     const state = get();
@@ -207,7 +228,8 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
       isInitialGeneration: false,
       autoRun: false,
       reviewLayers: [],
-      resolver: null
+      resolver: null,
+      restartSeed: null
     }),
   fail: () =>
     set({
@@ -216,7 +238,8 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
       isInitialGeneration: false,
       autoRun: false,
       reviewLayers: [],
-      resolver: null
+      resolver: null,
+      restartSeed: null
     })
 }));
 

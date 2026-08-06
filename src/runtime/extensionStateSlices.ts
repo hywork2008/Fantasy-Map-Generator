@@ -373,9 +373,48 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "militaryResourceLedgers",
     "tradeSecurityLedgers",
     "guildChapters",
-    "individualSkills"
+    "individualSkills",
+    // Threat cull hire board (docs/plan/player-threat-cull-jobs.md PR-2) — stricter than
+    // construction hire arrays, which remain unvalidated opaque fields.
+    "cullJobPostings",
+    "cullHireApplications",
+    "cullActiveContracts",
+    // Escort (護衛) job board — all culture sets.
+    "escortJobPostings",
+    "escortHireApplications",
+    "escortActiveContracts"
   ]) {
     assertOptionalArrayField(slice, field, "economy");
+  }
+  if (slice.cullCooldowns !== undefined) {
+    if (typeof slice.cullCooldowns !== "object" || slice.cullCooldowns === null || Array.isArray(slice.cullCooldowns)) {
+      throw new Error("Archive simulation.extensions.economy.cullCooldowns must be a record");
+    }
+    for (const [key, value] of Object.entries(slice.cullCooldowns as Record<string, unknown>)) {
+      if (!/^\d+$/.test(key)) {
+        throw new Error(`Archive simulation.extensions.economy.cullCooldowns has invalid key ${key}`);
+      }
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        throw new Error(`Archive simulation.extensions.economy.cullCooldowns.${key} must be a finite number`);
+      }
+    }
+  }
+  if (slice.escortCooldowns !== undefined) {
+    if (
+      typeof slice.escortCooldowns !== "object" ||
+      slice.escortCooldowns === null ||
+      Array.isArray(slice.escortCooldowns)
+    ) {
+      throw new Error("Archive simulation.extensions.economy.escortCooldowns must be a record");
+    }
+    for (const [key, value] of Object.entries(slice.escortCooldowns as Record<string, unknown>)) {
+      if (!/^\d+$/.test(key)) {
+        throw new Error(`Archive simulation.extensions.economy.escortCooldowns has invalid key ${key}`);
+      }
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        throw new Error(`Archive simulation.extensions.economy.escortCooldowns.${key} must be a finite number`);
+      }
+    }
   }
   validateInnFacilities(slice.innFacilities, world);
   validateInnConstructionOrders(slice.innConstructionOrders, world);

@@ -1,9 +1,32 @@
-# CC0 general-person-name corpora
+# CC0 person-name corpora
 
-This directory contains only **CC0 1.0 / Public Domain dedication** data. Both corpora contain names, not lists of famous people:
+This directory contains only **CC0 1.0 / Public Domain dedication** data.
+
+## Files
+
+| File | Role |
+| :--- | :--- |
+| `cc0-country-given-names.csv` | Modern general-population country forenames (rank, gender, year) — **docs / future short-lived use** |
+| `cc0-wikidata-given-names.csv` | Language-attached given-name spellings (no frequency) — spelling dictionary only |
+| **`cc0-mythic-ancient-names.csv`** | **Mythology figures + ancient historical persons**, one cultural sphere per `name_base_id` — **used by long-lived character names** |
+| `sources.csv` | Provenance / license |
+
+### Modern corpora (country + Wikidata given names)
 
 - `cc0-country-given-names.csv` has 1,382 mechanically imported country records from `popular-names-by-country-dataset`. It preserves country, year, rank, gender, localized spelling, romanization, population count (when supplied), and note fields.
 - `cc0-wikidata-given-names.csv` has 1,125 language-attached Wikidata given-name entities. It supplies a broader spelling dictionary for languages whose country ranking is shallow or absent. Wikidata does not supply a usable gender or frequency value for these selected name entities, so every row is deliberately `unknown` for gender and has no derived rank.
+
+### Mythic / ancient corpus (long-lived races)
+
+- `cc0-mythic-ancient-names.csv` is built from **Wikidata Query Service** labels (CC0 1.0).
+- Rows are **strictly partitioned** by FMG `name_base_id` (e.g. Greek=7, Nordic=6, Japanese=12). A picker must **never** mix bases for one culture/homeland.
+- `category` is `mythology` (deities, legendary figures) or `ancient_person` (pre-modern historical people).
+- Large spheres (Greek, Roman, Nordic, Japanese, Arabic, Celtic) come from class-based SPARQL; smaller spheres (German heroic, English Arthurian, Chinese, Mesopotamian, Iranian, Levantine) use **label-verified QIDs** plus filters that drop place/taxon/junk labels.
+- Runtime catalog: `src/data/mythicAncientNames.ts` (emit via `node scripts/emitMythicAncientNamesTs.mjs`).
+- Generation wiring: long-lived races (`lifespan ≥ 150`) use `tryRollMythicPersonName` with `culture.personNameBase` or fantasy→sphere map (`src/data/personNameSpheres.ts`). Short-lived races keep Markov `Names.getCulture()`.
+- **Race → sphere UI**: Options → Generation → **Race person names** opens a dialog (`RacePersonNamesDialog`). Mapping is stored in `options.racePersonNameSpheres` / localStorage and applied in `cultures-generator` via `applyRacePersonNameSpheres` (`src/data/racePersonNameConfig.ts`). Each race has a primary sphere and an optional alternate (2nd culture of the same race).
+- High Fantasy default: Quenian elves → Greek; Eldar → Celtic; Dunirr dwarves → Nordic — never a mixed bag inside one culture.
+- **Variation law** (`src/data/personNameVariation.ts`): small spheres rarely use a bare catalog form. Names are uniquified against living characters via sphere-local prefixes/suffixes, vowel swaps, or stem recombination (e.g. Mesopotamian *Inanna* → *Ninanna*, *Inannesh*, …) so a dark-elf court does not stamp eight identical *Inanna*s.
 
 ## Scope and limits
 
@@ -14,14 +37,22 @@ This directory contains only **CC0 1.0 / Public Domain dedication** data. Both c
 
 ## Use
 
-Use the country corpus when a gendered ranking is needed: filter by `name_base_id`, then choose a country and gender as appropriate. `source_rank` is an observed source ordering and is the only default weight. `source_population` is blank when the source did not publish a count. Use the Wikidata corpus only to widen spellings; do not derive gender or frequency from it. These files remain documentation-only and do not alter `Names.getCulture()` or character generation.
+- **Modern country corpus:** filter by `name_base_id`, then country and gender when a ranked pool is needed. Documentation-first; not yet the default short-lived generator.
+- **Mythic/ancient corpus:** filter by **exactly one** `name_base_id` (the culture’s person-name sphere). Do not blend spheres. This **does** drive long-lived character names via `src/data/personNames.ts`.
 
 ## Reproduction
 
-Run the checked-in generator with a downloaded source snapshot:
+### Mythic / ancient (live Wikidata)
+
+```sh
+node scripts/generateCc0MythicAncientNames.mjs
+node scripts/emitMythicAncientNamesTs.mjs
+```
+
+### Modern country corpus
 
 ```sh
 node scripts/generateCc0PersonNameCorpus.mjs <source.csv> docs/data/historical-person-names/cc0-country-given-names.csv
 ```
 
-The country generator deliberately includes only mappings recorded in its `baseCountryCoverage` table, so additions require an explicit coverage decision rather than silently assigning a country to a language. The Wikidata generator runs in four-language batches to tolerate public-query time limits; run it with offsets `0`, `4`, ..., `40`, then run `dedupeCc0WikidataGivenNames.mjs`.
+(The country generator script may live only in historical notes; the mythic pipeline above is the active CC0 path for long-lived names.)

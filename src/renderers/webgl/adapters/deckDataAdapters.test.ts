@@ -30,6 +30,7 @@ import {
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
+  buildOceanCurrentIntensityPolygons,
   buildPrecipitationSymbols,
   buildRiverPolygons,
   buildRoutePaths,
@@ -214,6 +215,28 @@ describe("deck.gl data adapters", () => {
         fillColor: [0, 61, 255, 255]
       })
     ]);
+  });
+
+  it("builds ocean-current intensity polygons covering every ocean cell, including calm ones the path mode would skip", () => {
+    const worldContext = createWorldContext();
+    worldContext.grid.features = [
+      { i: 0, land: true, border: false, type: "island" },
+      { i: 1, land: false, border: true, type: "ocean" }
+    ] as unknown as typeof worldContext.grid.features;
+    worldContext.grid.cells.f = new Uint8Array([0, 1]);
+    // Cell 1 reads exactly 0 speed — buildOceanCurrentPaths() would skip it entirely (nothing to
+    // draw for a zero-length line), but the intensity mode must still cover it.
+    worldContext.grid.cells.currentSpeed = new Uint8Array([0, 0]);
+    worldContext.grid.cells.currentAngle = new Uint16Array([0, 0]);
+    worldContext.grid.cells.waterTemp = new Int8Array([0, 15]);
+
+    const polygons = buildOceanCurrentIntensityPolygons(worldContext, null);
+
+    // Cell 0 is land (h=45), excluded; cell 1 is the only ocean cell and is included despite its
+    // 0 speed.
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]).toMatchObject({ id: "ocean-current-intensity-1", kind: "oceanCurrent", cellId: 1 });
+    expect(polygons[0].polygon.length).toBeGreaterThanOrEqual(3);
   });
 
   it("uses diplomacy relation colours without changing persisted state colours", () => {

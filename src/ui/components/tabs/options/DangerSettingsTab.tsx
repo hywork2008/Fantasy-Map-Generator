@@ -20,7 +20,23 @@ export const DangerSettingsTab: React.FC = () => {
       <p data-tip="Settings related to danger/threat generation">Danger settings:</p>
       <table>
         <tbody>
-          <tr data-tip="Select the danger layer visualization style">
+          <tr data-tip="Master switch for monsters, dungeon bosses, and the danger field they paint. On by default for High/Dark Fantasy culture sets. When off, wilderness carries no danger cost — states and the oikoumene can settle/claim land without the 'wilderness stays wild' constraint.">
+            <td>
+              <LockIconButton id="dangerEnabled" />
+            </td>
+            <td>
+              <label htmlFor="dangerEnabled">Enable danger / threats</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="dangerEnabled"
+                type="checkbox"
+                checked={options.dangerEnabled}
+                onChange={e => updateOptionAndLock("dangerEnabled", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip="Smooth Contours blend neighboring threats into a density field. Cell Heatmap paints each cell only from its own danger value (0–255); color matches the cell tooltip.">
             <td></td>
             <td>Danger rendering</td>
             <td>
@@ -33,8 +49,8 @@ export const DangerSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-danger-rendering-mode"));
                 }}
               >
-                <option value="contour">Smooth Contours</option>
-                <option value="choropleth">Cell Heatmap</option>
+                <option value="contour">Smooth Contours (blended)</option>
+                <option value="choropleth">Cell Heatmap (per-cell, default)</option>
               </select>
             </td>
             <td></td>
@@ -51,11 +67,14 @@ export const DangerSettingsTab: React.FC = () => {
                 value={options.threatCalculation}
                 onChange={e => {
                   updateOptionAndLock("threatCalculation", e.target.value as "additive" | "max" | "nonlinear");
+                  // Rebuild danger paint from living monsters so the layer reflects the mode
+                  // immediately. Population capacity still requires a full map regenerate.
+                  document.dispatchEvent(new CustomEvent("react-change-threat-calculation"));
                 }}
               >
-                <option value="additive">Accumulative (Default)</option>
+                <option value="additive">Accumulative</option>
                 <option value="max">Highest Overlap (Max)</option>
-                <option value="nonlinear">Steep Decay (Non-linear)</option>
+                <option value="nonlinear">Steep Decay (Non-linear, default)</option>
               </select>
             </td>
             <td></td>

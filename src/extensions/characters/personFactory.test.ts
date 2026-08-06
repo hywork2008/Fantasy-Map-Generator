@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createDefaultRaces } from "../../data/races";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import {
   APPEARANCE_MEAN,
   APPEARANCE_STDDEV,
+  createPerson,
+  generateFamily,
+  getEpisodicCurrentlyPairedChance,
   getUnmarriedChance,
   resolvePersonGender,
+  resolveRaceIdForCulture,
   rollPeakAppearance
 } from "./personFactory";
+import { FEUDAL_MALE_SHARE, LONG_LIVED_MALE_SHARE, maleShareForLifespan, raceUsesEpisodicPairing } from "./raceAge";
 
 describe("getUnmarriedChance", () => {
   it("uses a 20% permanent-unmarried baseline for established ordinary adults", () => {
@@ -113,5 +119,171 @@ describe("resolvePersonGender", () => {
     const samples = Array.from({ length: 200 }, () => resolvePersonGender(3));
     const maleShare = samples.filter(g => g === "male").length / samples.length;
     expect(maleShare).toBeGreaterThan(0.75);
+  });
+
+  it("uses near-parity with slight female lean for long-lived races without characterGender", () => {
+    worldContext.pack = {
+      races: createDefaultRaces(),
+      cultures: [{ i: 0, name: "Elvenhold", base: 1, shield: "round", race: 2 }]
+    } as unknown as PackedGraph;
+    const elf = createDefaultRaces().find(r => r.key === "elf")!;
+    expect(elf.characterGender).toBeUndefined();
+    expect(maleShareForLifespan(elf.lifespan!)).toBe(LONG_LIVED_MALE_SHARE);
+
+    const samples = Array.from({ length: 400 }, () => resolvePersonGender(0, undefined, elf.i));
+    const maleShare = samples.filter(g => g === "male").length / samples.length;
+    // ~0.45 male; allow sampling noise but reject feudal ~0.9
+    expect(maleShare).toBeGreaterThan(0.32);
+    expect(maleShare).toBeLessThan(0.58);
+  });
+});
+
+describe("maleShareForLifespan", () => {
+  it("keeps feudal bias at human lifespan and female lean at elf scale", () => {
+    expect(maleShareForLifespan(75)).toBe(FEUDAL_MALE_SHARE);
+    expect(maleShareForLifespan(50)).toBe(FEUDAL_MALE_SHARE);
+    expect(maleShareForLifespan(500)).toBe(LONG_LIVED_MALE_SHARE);
+    expect(maleShareForLifespan(750)).toBe(LONG_LIVED_MALE_SHARE);
+    const dwarf = maleShareForLifespan(350);
+    expect(dwarf).toBeGreaterThan(LONG_LIVED_MALE_SHARE);
+    expect(dwarf).toBeLessThan(FEUDAL_MALE_SHARE);
+  });
+});
+
+describe("generateFamily episodic pairing (long-lived)", () => {
+  afterEach(() => {
+    clearCharactersContext();
+  });
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {
+      races: createDefaultRaces(),
+      cultures: []
+    } as unknown as PackedGraph;
+  });
+
+  it("flags elves as episodic and humans as continuous marriage", () => {
+    const races = createDefaultRaces();
+    const elf = races.find(r => r.key === "elf")!;
+    const human = races.find(r => r.key === "human")!;
+    expect(raceUsesEpisodicPairing(elf.i)).toBe(true);
+    expect(raceUsesEpisodicPairing(human.i)).toBe(false);
+  });
+
+  it("allows elf parents to be currently unpaired (children ≠ lifelong marriage)", () => {
+    const races = createDefaultRaces();
+    const elfId = races.find(r => r.key === "elf")!.i;
+    const n = 400;
+    let withKids = 0;
+    let kidsUnpaired = 0;
+    let currentlyPaired = 0;
+
+    for (let i = 0; i < n; i++) {
+      // Mid-to-late fertile / early post-fertile adult elf court age
+      const f = generateFamily(320, "female", undefined, "ordinary", false, elfId);
+      if (f.spouses > 0) currentlyPaired++;
+      if (f.children > 0) {
+        withKids++;
+        if (f.spouses === 0) kidsUnpaired++;
+      }
+    }
+
+    expect(withKids).toBeGreaterThan(80);
+    // Majority of parents should not be frozen in lifelong marriage at snapshot time
+    expect(kidsUnpaired / withKids).toBeGreaterThan(0.4);
+    // Most adults unpaired most of the time
+    expect(currentlyPaired / n).toBeLessThan(0.45);
+  });
+
+  it("keeps human continuous model: unmarried snapshot has no household children", () => {
+    const races = createDefaultRaces();
+    const humanId = races.find(r => r.key === "human")!.i;
+    // Force high unmarried chance path by sampling young adults heavily
+    let unmarriedWithKids = 0;
+    let unmarried = 0;
+    for (let i = 0; i < 300; i++) {
+      const f = generateFamily(22, "female", undefined, "ordinary", false, humanId);
+      if (f.spouses === 0) {
+        unmarried++;
+        if (f.children > 0) unmarriedWithKids++;
+      }
+    }
+    expect(unmarried).toBeGreaterThan(100);
+    expect(unmarriedWithKids).toBe(0);
+  });
+
+  it("raises currently-paired chance while co-parenting is plausible", () => {
+    const races = createDefaultRaces();
+    const elf = races.find(r => r.key === "elf")!;
+    const fert = elf.fertility!;
+    const alone = getEpisodicCurrentlyPairedChance(500, "ordinary", false, undefined, 0, fert);
+    const raising = getEpisodicCurrentlyPairedChance(200, "ordinary", false, undefined, 2, fert);
+    const dynastic = getEpisodicCurrentlyPairedChance(200, "dynastic", false, undefined, 0, fert);
+    expect(raising).toBeGreaterThan(alone);
+    expect(dynastic).toBeGreaterThan(alone);
+  });
+});
+
+describe("resolveRaceIdForCulture Wildlands", () => {
+  afterEach(() => clearCharactersContext());
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    const races = createDefaultRaces();
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", base: 1, shield: "round", race: 0 },
+        { i: 1, name: "Anor", base: 1, shield: "heater", race: 1 }
+      ]
+    } as unknown as PackedGraph;
+  });
+
+  it("maps Wildlands (race 0) to Human, not Unknown", () => {
+    expect(resolveRaceIdForCulture(0)).toBe(1);
+    expect(resolveRaceIdForCulture(1)).toBe(1);
+  });
+});
+
+describe("createPerson bound servitors (wyrmkin under draconic)", () => {
+  afterEach(() => clearCharactersContext());
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    const races = createDefaultRaces();
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
+        { i: 1, name: "Drake", base: 39, shield: "fantasy2", race: draconic }
+      ],
+      nameBases: []
+    } as unknown as PackedGraph;
+  });
+
+  it("makes market merchants wyrmkin, not draconic", () => {
+    const races = createDefaultRaces();
+    const wyrmkin = races.find(r => r.key === "wyrmkin")!.i;
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    const merchant = createPerson(0, 1, {
+      roleClass: "merchant",
+      primarySkill: "stewardship",
+      homeStateId: 1
+    });
+    expect(merchant.race).toBe(wyrmkin);
+    expect(merchant.race).not.toBe(draconic);
+  });
+
+  it("keeps rulers draconic under the same culture", () => {
+    const races = createDefaultRaces();
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    const ruler = createPerson(0, 1, {
+      roleClass: "ruler",
+      homeStateId: 1,
+      marriageExpectation: "dynastic"
+    });
+    expect(ruler.race).toBe(draconic);
   });
 });

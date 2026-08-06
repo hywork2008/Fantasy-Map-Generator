@@ -4,16 +4,21 @@ import {
   heightmapLandmassThresholds,
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../../../../data";
-import { useGenerationProgressState } from "../../../../store/generationProgressState";
+import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { lock } from "../../../../utils/domUtils";
+import { openDialog } from "../../../dialogs/dialogService";
 import { IconButton } from "../../IconButton";
 import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+  // Generation is merely paused for stage review (including the initial map's review
+  // flow), not actively computing a stage — safe to redirect it to a new seed instead
+  // of waiting for the whole thing to finish.
+  const isGenerationPaused = useGenerationProgressState(state => state.isOpen && !state.isGenerating);
   const updateOption = options.setOption;
   const usesPolityDensity = options.initialSettlementPattern !== "standard";
   const statesNumberLabel = usesPolityDensity ? "Polity density" : "States number";
@@ -31,6 +36,20 @@ export const GenerationSettingsTab: React.FC = () => {
 
   const handleMapSizeChange = () => {
     document.dispatchEvent(new CustomEvent("react-map-size-change"));
+  };
+
+  // While a generation is paused for stage review (including the initial map's own
+  // review flow, which otherwise leaves no window to apply a custom seed without a
+  // URL param), redirect the already-running pipeline instead of starting a second,
+  // concurrent one. Once generation is fully idle, fall through to the normal
+  // confirm-and-regenerate path used by the "New Map" button.
+  const generateWithSeed = () => {
+    if (isGenerationPaused) {
+      generationProgressStore.getState().restartWithSeed(options.seed);
+      return;
+    }
+    if (isMapGenerationInProgress) return;
+    document.dispatchEvent(new CustomEvent("react-generate-map-with-seed", { detail: { seed: options.seed } }));
   };
 
   const updateCanvasDimension = (key: "mapWidth" | "mapHeight", value: string) => {
@@ -83,7 +102,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Map seed number. Press 'Enter' to apply. Seed produces the same map only if canvas size and options are the same">
+          <tr data-tip="Map seed number. Press 'Enter' or click the play button to generate a new map with this seed">
             <td>
               <i
                 data-tip="Show seed history to apply a previous seed"
@@ -103,12 +122,16 @@ export const GenerationSettingsTab: React.FC = () => {
                 value={options.seed}
                 onChange={e => updateOption("seed", e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter" && !isMapGenerationInProgress) {
-                    document.dispatchEvent(
-                      new CustomEvent("react-generate-map-with-seed", { detail: { seed: options.seed } })
-                    );
+                  if (e.key === "Enter" && (!isMapGenerationInProgress || isGenerationPaused)) {
+                    generateWithSeed();
                   }
                 }}
+              />
+              <IconButton
+                data-tip="Generate a new map with this seed"
+                icon="icon-play"
+                disabled={isMapGenerationInProgress && !isGenerationPaused}
+                onClick={generateWithSeed}
               />
             </td>
             <td>
@@ -210,6 +233,54 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="How harbor/mooring calmness (pack.cells.enclosure) is scored for ocean-connected water. Ocean Currents reads the resolved current speed at the shoreline itself — bends around headlands and funnels out of bays/straits, but almost every shore cell reads near-zero regardless of real shelter, so it saturates toward 100 close to the coast. Ocean Currents (Ambient) instead reads the current speed a short distance offshore, distinguishing a genuinely sheltered bay from an exposed open coastline — better for siting decisions like harbor placement. Both score every lake cell fully enclosed. Radius is the legacy fixed 6-hop land-blocked-ratio heuristic for all. Applies immediately, no regenerate needed.">
+            <td>
+              <LockIconButton id="enclosureCalculationMode" />
+            </td>
+            <td>
+              <label htmlFor="enclosureCalculationMode">Enclosure calculation</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="enclosureCalculationMode"
+                name="enclosureCalculationMode"
+                value={options.enclosureCalculationMode}
+                onChange={e => {
+                  options.setOptions({
+                    enclosureCalculationMode: e.target.value as typeof options.enclosureCalculationMode
+                  });
+                  lock("enclosureCalculationMode");
+                  document.dispatchEvent(new CustomEvent("react-change-enclosure-calculation"));
+                }}
+              >
+                <option value="oceanCurrents">Ocean Currents (default)</option>
+                <option value="oceanCurrentsAmbient">Ocean Currents (Ambient)</option>
+                <option value="radius">Radius (shape only)</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="How the Ocean Currents WebGL layer draws grid.cells.currentAngle/currentSpeed. Direction Lines draws a short arrow per cell, colored by water temperature — cells reading exactly 0 speed are skipped, so a calm patch looks like a gap. Intensity Shading instead fills every ocean cell by current speed alone (pale = calm, dark = strong), with full gapless coverage. Applies immediately, no regenerate needed.">
+            <td></td>
+            <td>
+              <label htmlFor="oceanCurrentRenderMode">Ocean current rendering</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="oceanCurrentRenderMode"
+                name="oceanCurrentRenderMode"
+                value={options.oceanCurrentRenderMode}
+                onChange={e => {
+                  updateOption("oceanCurrentRenderMode", e.target.value as typeof options.oceanCurrentRenderMode);
+                  document.dispatchEvent(new CustomEvent("react-change-ocean-current-render-mode"));
+                }}
+              >
+                <option value="path">Direction Lines (default)</option>
+                <option value="intensity">Intensity Shading</option>
+              </select>
+            </td>
+          </tr>
+
           <tr>
             <th colSpan={4}>3. Cultures and settlements</th>
           </tr>
@@ -280,6 +351,22 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="Assign person-name cultural spheres to races (e.g. Dark Elf → Mesopotamian). Opens a dialog so Generation stays short. Applies on the next map generation.">
+            <td>
+              <IconButton
+                data-tip="Open race person-name sphere mapping"
+                icon="icon-book"
+                onClick={() => openDialog("racePersonNames")}
+              />
+            </td>
+            <td>Race person names</td>
+            <td colSpan={2}>
+              <button type="button" className="button" onClick={() => openDialog("racePersonNames")}>
+                Configure…
+              </button>
+            </td>
+          </tr>
+
           <tr data-tip="Determines how full the world is relative to its carrying capacity at the start. 100% means fully saturated, lower values allow for future demographic growth.">
             <td>
               <LockIconButton id="initialPopulationSaturation" />
@@ -296,7 +383,7 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Choose whether initial people are spread across suitable land or concentrated around favorable settlement hubs. Selecting a preset also applies its recommended initial population percentage.">
+          <tr data-tip="Choose whether initial people are spread across suitable land or concentrated around favorable settlement hubs. Selecting a preset also applies its recommended initial population percentage. Marches sits between Frontier and Scattered: several polity islands with wilderness/danger between them.">
             <td>
               <LockIconButton id="initialSettlementPattern" />
             </td>
@@ -309,9 +396,13 @@ export const GenerationSettingsTab: React.FC = () => {
                   const preset = getInitialSettlementPatternPreset(initialSettlementPattern);
                   options.setOptions({
                     initialSettlementPattern,
-                    initialPopulationSaturation: preset.initialPopulationSaturation
+                    initialPopulationSaturation: preset.initialPopulationSaturation,
+                    oikoumeneLandShare: preset.settledFootprint
                   });
+                  // Persist pattern + linked oikoumene share together so reloads stay consistent.
                   lock("initialSettlementPattern");
+                  lock("oikoumeneLandShare");
+                  lock("initialPopulationSaturation");
                 }}
               >
                 {INITIAL_SETTLEMENT_PATTERN_PRESETS.map(preset => (
@@ -320,6 +411,27 @@ export const GenerationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+
+          <tr
+            data-tip="Target share of suitable land capacity that becomes the oikoumene (settled / state-claimable core). Lower = more wilderness and shorter interstate borders; higher = larger realms. Ignored for Standard (full habitable fill). Fantasy defaults ~45%."
+            style={{
+              display: options.initialSettlementPattern === "standard" ? "none" : undefined
+            }}
+          >
+            <td>
+              <LockIconButton id="oikoumeneLandShare" />
+            </td>
+            <td>Oikoumene land share %</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="15"
+                max="85"
+                step="5"
+                value={Math.round(options.oikoumeneLandShare * 100)}
+                onChange={v => updateOptionAndLock("oikoumeneLandShare", Number(v) / 100)}
+              />
             </td>
           </tr>
 

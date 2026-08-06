@@ -6,9 +6,11 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getHeightmapTemplateWeights, getInitialSettlementPatternPreset } from "../data";
+import { parseRacePersonNameMapping, resolveRacePersonNameMapping } from "../data/racePersonNameConfig";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
+import { culturesSetUsesFrontierSettlement, getThreatOptionDefaults } from "../generators/threatProfiles";
 import { syncSimulationClockFromOptions } from "../generators/timeEngine";
 import { Cloud } from "../io/cloud";
 import { loadMapFromURL } from "../io/load";
@@ -26,7 +28,7 @@ import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { isValidCanvasDimension, isValidCanvasSize, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
-import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
+import { applyOption, lock, locked, store, stored, unlock } from "../utils/domUtils";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { cleanupData } from "../versioning";
@@ -257,9 +259,31 @@ export function getCellsDensityColor(cells: number): string {
 // ─── Options changes ───────────────────────────────────────────────────────────
 
 function changeCultureSet(): void {
-  // const max = (culturesSet.selectedOptions[0] as HTMLElement).dataset.max!;
-  /* removed */
-  /* removed */
+  // Fantasy presets: marches oikoumene (~45% land share, several polity islands) +
+  // culture-set threat profile defaults into Danger Options (Threats.generate reads Options).
+  // Always rewrite these values (and lock storage if present) so switching to High Fantasy
+  // after experimenting with Frontier does not leave a sticky locked "frontier" setting.
+  const { culturesSet } = useOptionsState.getState();
+  if (!culturesSetUsesFrontierSettlement(culturesSet)) return;
+
+  const threatDefaults = getThreatOptionDefaults(culturesSet);
+  useOptionsState.getState().setOptions({
+    initialSettlementPattern: "marches",
+    oikoumeneLandShare: 0.45,
+    initialPopulationSaturation: 45,
+    // Danger is on by default for fantasy sets but stays user-toggleable
+    // (Danger tab checkbox) — a lock (below) protects an explicit choice.
+    dangerEnabled: true,
+    ...(threatDefaults ?? {})
+  });
+  // Keep lock keys in sync with the new fantasy defaults when they were already locked.
+  if (locked("initialSettlementPattern")) store("initialSettlementPattern", "marches");
+  if (locked("oikoumeneLandShare")) store("oikoumeneLandShare", "0.45");
+  if (locked("initialPopulationSaturation")) store("initialPopulationSaturation", "45");
+  if (locked("dangerEnabled")) store("dangerEnabled", "true");
+  if (threatDefaults?.threatCalculation && locked("threatCalculation")) {
+    store("threatCalculation", threatDefaults.threatCalculation);
+  }
 }
 
 function changeEmblemShape(emblemShape: string): void {
@@ -458,7 +482,9 @@ export function applyStoredOptions(): void {
     "growthRate",
     "initialPopulationSaturation",
     "initialSettlementPattern",
+    "oikoumeneLandShare",
     "biomeRegionProfile",
+    "enclosureCalculationMode",
     "manors",
     "religionsNumber",
     "stateLabelsMode",
@@ -512,6 +538,19 @@ export function applyStoredOptions(): void {
         loadedOptions.initialSettlementPattern
       ).initialPopulationSaturation;
     }
+    if (!locked("oikoumeneLandShare")) {
+      loadedOptions.oikoumeneLandShare = getInitialSettlementPatternPreset(
+        loadedOptions.initialSettlementPattern
+      ).settledFootprint;
+    }
+  }
+  if (typeof loadedOptions.oikoumeneLandShare === "number") {
+    // Stored as percent (45) or fraction (0.45) depending on older builds.
+    const share = loadedOptions.oikoumeneLandShare;
+    loadedOptions.oikoumeneLandShare = share > 1 ? share / 100 : share;
+    if (loadedOptions.oikoumeneLandShare < 0.1 || loadedOptions.oikoumeneLandShare > 0.95) {
+      loadedOptions.oikoumeneLandShare = 0.45;
+    }
   }
   optionsStore.setOptions(loadedOptions);
 
@@ -538,6 +577,15 @@ export function applyStoredOptions(): void {
   if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
   if (stored("gunpowderEraEnabled")) {
     worldContext.options.gunpowderEraEnabled = stored("gunpowderEraEnabled") === "true";
+  }
+  // Race → person-name spheres: always-persisted JSON (not a simple lock string).
+  if (stored("racePersonNameSpheres")) {
+    try {
+      const parsed = JSON.parse(stored("racePersonNameSpheres")!);
+      optionsStore.setOption("racePersonNameSpheres", resolveRacePersonNameMapping(parseRacePersonNameMapping(parsed)));
+    } catch {
+      // keep defaults when storage is corrupt
+    }
   }
 
   if (stored("tooltipSize")) changeTooltipSize(stored("tooltipSize")!);
@@ -888,6 +936,8 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     const { culturesSet, cultures } = useOptionsState.getState();
     const max = culturesSetMaxMap[culturesSet] ?? 100;
     if (cultures > max) useOptionsState.getState().setOption("cultures", max);
+    // Apply frontier oikoumene + fantasy threat mood for High/Dark Fantasy.
+    changeCultureSet();
   });
 
   document.addEventListener("react-restore-default-zoom-extent", restoreDefaultZoomExtent);
@@ -923,7 +973,17 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       import("../renderers").then(({ PopulationRenderer }) => {
         PopulationRenderer.render(worldContext, viewContext, appServices);
       });
+      // WebGL hybrid always uses the cell-heatmap projection; rebuild when style mode changes.
+      import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
     }
+  });
+
+  document.addEventListener("react-change-population-color-scale", () => {
+    if (!layerIsOn("togglePopulation")) return;
+    import("../renderers").then(({ PopulationRenderer }) => {
+      PopulationRenderer.render(worldContext, viewContext, appServices);
+    });
+    import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
   });
 
   document.addEventListener("react-change-heightmap-rendering-mode", () => {
@@ -939,7 +999,50 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       import("../renderers").then(({ DangerRenderer }) => {
         DangerRenderer.render(worldContext, viewContext, appServices);
       });
+      // Hybrid mode hides #danger SVG; refresh the deck.gl cell layer too.
+      void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
     }
+  });
+
+  // Threat aggregation mode: rebuild pack.cells.danger from living threats so the
+  // Danger layer updates without a full regenerate. Does not re-rank population.
+  document.addEventListener("react-change-threat-calculation", () => {
+    const monsters = worldContext.pack?.monsters;
+    if (!monsters?.length && !worldContext.pack?.dungeons?.length) return;
+    void import("../generators/dungeons-generator").then(({ rebuildDungeonDanger }) => {
+      rebuildDungeonDanger(worldContext);
+      if (layerIsOn("toggleDanger")) {
+        void import("../renderers").then(({ DangerRenderer }) => {
+          DangerRenderer.render(worldContext, viewContext, appServices);
+        });
+      }
+      void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
+    });
+  });
+
+  // Enclosure calculation mode: rebuild pack.cells.enclosure (harbor/mooring calmness) from the
+  // currently generated map so the Enclosure layer and any consumer reading it (e.g. sheltered-
+  // water river navigation) update without a full regenerate.
+  document.addEventListener("react-change-enclosure-calculation", () => {
+    if (!worldContext.pack?.cells?.i?.length) return;
+    void import("../generators/features").then(({ Features }) => {
+      Features.recalculateEnclosure();
+      if (layerIsOn("toggleEnclosure")) {
+        void import("../renderers").then(({ EnclosureRenderer }) => {
+          EnclosureRenderer.render(worldContext, viewContext, appServices);
+        });
+      }
+      void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
+    });
+  });
+
+  // Ocean current rendering mode: purely a WebGL visualization choice (direction lines vs.
+  // intensity-shaded cells) over already-computed grid.cells.currentAngle/currentSpeed — no data
+  // recompute needed, just a redraw. toggleOceanCurrents is WebGL-only (no SVG path), so this only
+  // needs to nudge the deck.gl canvas.
+  document.addEventListener("react-change-ocean-current-render-mode", () => {
+    if (!layerIsOn("toggleOceanCurrents")) return;
+    void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
   });
 
   document.addEventListener("react-change-combat-deaths-rendering-mode", () => {

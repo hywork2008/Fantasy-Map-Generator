@@ -16,6 +16,7 @@ import {
 } from "../data/races";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
+import { OceanCurrents } from "../generators/oceanCurrents";
 import { Routes } from "../generators/routes-generator";
 import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
@@ -262,6 +263,11 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       mapWidth: worldContext.graphWidth,
       mapHeight: worldContext.graphHeight,
       initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern)
+    });
+    // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
+    legacyMutation(() => {
+      migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
+      return { result: undefined, topics: ["map.politics"] };
     });
     callback?.();
     document.getElementById("coas")?.replaceChildren();
@@ -596,6 +602,24 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   // previous-world entries before restoring the legacy extension slots below.
   resetExtensionStateSlices(simulationContext);
   Features.markupPack();
+  // Not persisted in the positional save format: a pure deterministic function of already-restored
+  // grid.cells.h/f, grid.features, and options.winds/mapCoordinates, so it is cheaper and always
+  // consistent to recompute here rather than serialize three more per-cell arrays (see
+  // docs/simulation/ocean-currents.md).
+  OceanCurrents.generate(worldContext, viewContext, appServices, {
+    pack: worldContext.pack,
+    grid: worldContext.grid,
+    seed: worldContext.seed,
+    options: worldContext.options,
+    nameBases: worldContext.nameBases,
+    biomesData: worldContext.biomesData,
+    notes: worldContext.notes
+  });
+  // Options → Generation "Enclosure calculation" may prefer the current-speed-based score over
+  // Features.markupPack()'s fixed-radius baseline set above; must run before pack.features is
+  // overwritten with the saved data below, since it still needs the freshly-recomputed pack.features/
+  // pack.cells.f pairing to identify ocean-type cells (see docs/simulation/ocean-currents.md §6).
+  Features.applyOceanCurrentEnclosure();
   worldContext.pack.features = JSON.parse(data[12]);
   worldContext.pack.cultures = JSON.parse(data[13]);
   // [56] races — optional trailing slot; migrate legacy culture.characterGender onto races.
@@ -658,6 +682,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     ? Uint16Array.from(data[44].split(","), Number)
     : new Uint16Array(worldContext.pack.cells.i.length);
   worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
+  migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
   restoreStrategicEconomyState(data[52]);
   restoreMineralResourceState(data[55]);
 
@@ -1334,4 +1359,24 @@ function migrateLoadedRaces(loaded: Race[] | undefined, cultures: Culture[]): Ra
   }
 
   return races;
+}
+
+/**
+ * Named characters created on Wildlands (culture 0) can store race id 0 (catalog "Unknown").
+ * Court generation already remaps that to Human; economy merchants did not — fix on load.
+ */
+function migrateUnknownCharacterRaces(
+  characters: Array<{ race?: number; culture?: number } | null | undefined> | undefined,
+  cultures: Culture[] | undefined
+): void {
+  if (!characters?.length) return;
+  for (const character of characters) {
+    if (!character) continue;
+    if (character.race !== undefined && character.race !== null && character.race !== UNKNOWN_RACE_ID) continue;
+    const cultureRace = character.culture !== undefined ? cultures?.[character.culture]?.race : undefined;
+    character.race =
+      cultureRace !== undefined && cultureRace !== null && cultureRace !== UNKNOWN_RACE_ID
+        ? cultureRace
+        : HUMAN_RACE_ID;
+  }
 }

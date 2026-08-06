@@ -5,6 +5,8 @@
  * Organization:
  *   - HeightThreshold  : terrain height boundaries (water/land/highland/mountain)
  *   - TemperatureThreshold : climate temperature thresholds
+ *   - OceanCurrentConstants : ocean current generation parameters
+ *   - FluidSolverConstants : generic D2Q9 Lattice Boltzmann solver tuning parameters
  *   - RiverConstants   : river generation parameters
  *   - BiomeConstants   : biome classification thresholds
  *   - FeatureSizeRatio : ocean/sea/continent/island minimum size ratios
@@ -69,6 +71,115 @@ export const TemperatureThreshold = {
 
   /** Temperature at or below which wetland biome is impossible (too cold). */
   WETLAND_COLD_LIMIT: -2
+} as const;
+
+// ---------------------------------------------------------------------------
+// Ocean current generation constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Parameters for `OceanCurrents.generate()` (`src/generators/oceanCurrents.ts`): a real D2Q9
+ * Lattice Boltzmann fluid solve (`src/generators/fluidSolver.ts`), driven by the latitude-tier
+ * prevailing winds (`options.winds`) as a standing body force and land/lake cells as bounce-back
+ * obstacles, plus latitude-baseline water temperature advected along the resolved current field.
+ * See `docs/simulation/ocean-currents.md`.
+ */
+export const OceanCurrentConstants = {
+  /** Reference current speed (0-255 scale): the output value a lattice velocity of `LATTICE_SPEED_REFERENCE` maps to. */
+  BASE_SPEED: 160,
+
+  /**
+   * Body-force magnitude (lattice units) applied every LBM iteration, representing wind stress on
+   * the ocean surface. Kept small relative to the lattice speed of sound (1/√3 ≈ 0.577) so the
+   * resolved flow stays in the low-Mach, near-incompressible regime the equilibrium distribution
+   * assumes — too large a force here introduces compressibility artifacts and can destabilize the
+   * BGK collision. Paired with `DRAG_COEFFICIENT` below so the steady-state speed
+   * (`WIND_FORCE_MAGNITUDE / DRAG_COEFFICIENT`) stays a comfortable, empirically-verified-stable
+   * 0.1 lattice units.
+   */
+  WIND_FORCE_MAGNITUDE: 0.0003,
+
+  /**
+   * Linear drag coefficient (see `fluidSolver.ts`'s module doc comment) representing bottom/
+   * interfacial friction. Without it, a spatially uniform wind over open, unobstructed water has
+   * no velocity gradient for BGK viscosity to dissipate and would accelerate without bound instead
+   * of reaching a steady speed. At steady state an unobstructed cell settles at
+   * `WIND_FORCE_MAGNITUDE / DRAG_COEFFICIENT` (lattice units) — see `LATTICE_SPEED_REFERENCE`.
+   * Also the main lever on how far a coastline's deflection propagates along-shore before drag
+   * damps it out: lower drag lets a boundary current persist further from its point of origin
+   * (a corner/headland) at the cost of needing more iterations to reach steady state — empirically
+   * tuned (see `docs/simulation/ocean-currents.md`) so a deflection is still clearly present, not
+   * just noise, tens of cells from where it originated, rather than fading out within a handful of
+   * cells the way the previous heuristic's `PIN_DISTANCE` mechanism effectively did.
+   */
+  DRAG_COEFFICIENT: 0.003,
+
+  /**
+   * Lattice velocity magnitude (lattice units) that maps to `BASE_SPEED` on the app's 0-255 output
+   * scale — the conversion factor between the solver's internal units and `currentSpeed`. Set to
+   * `WIND_FORCE_MAGNITUDE / DRAG_COEFFICIENT`, the theoretical steady-state speed of an
+   * unobstructed, uniformly-forced open-water cell, so open ocean with nothing to deflect off
+   * reads close to `BASE_SPEED` rather than saturating or bottoming out the 0-255 range.
+   */
+  LATTICE_SPEED_REFERENCE: 0.1,
+
+  /** Passes used to advect latitude-baseline sea temperature along the resolved current field. */
+  TEMP_ADVECTION_PASSES: 4,
+
+  /** Blend weight toward the upstream cell's temperature at full current speed, per pass. */
+  TEMP_ADVECTION_WEIGHT: 0.35,
+
+  /** Water-temperature color scale bounds (°C) used by the WebGL current vector renderer. */
+  RENDER_TEMP_MIN: -2,
+  RENDER_TEMP_MAX: 30,
+
+  /**
+   * Passes used to derive `grid.cells.ambientCurrentSpeed` from `currentSpeed` by repeated
+   * neighbor-averaging (through ocean cells only, land/lake blocks the spread — see
+   * `OceanCurrentsModule.computeAmbientCurrentSpeed()`). `currentSpeed` itself reads near-zero
+   * on almost every cell touching land, regardless of whether that shore is a sheltered bay or
+   * an exposed open coastline — a structural no-slip boundary-layer effect of the LBM solve, not
+   * a meaningful difference in shelter. Averaging each cell toward its ocean-neighbor mean, a
+   * few passes deep, lets a cell "see" how fast the water gets a short distance offshore: still
+   * slow in a genuinely enclosed bay, picking up real open-water speed within a couple of hops on
+   * an exposed coast. Chosen to loosely match `FeatureModule.ENCLOSURE_BFS_RADIUS` (6) — the
+   * legacy heuristic's hop reach — while staying a cheap O(passes × cells) sweep over the whole
+   * grid rather than a per-cell BFS restart (see `docs/simulation/ocean-currents.md`).
+   */
+  AMBIENT_SMOOTHING_PASSES: 6
+} as const;
+
+/**
+ * Tuning parameters for the generic D2Q9 Lattice Boltzmann solver (`src/generators/fluidSolver.ts`).
+ * Not specific to ocean currents — any future caller of the solver (e.g. a heightmap-driven wind
+ * field, if ever picked back up) shares these.
+ */
+export const FluidSolverConstants = {
+  /**
+   * BGK single relaxation time (tau). Must stay strictly above 0.5 — the collision operator is
+   * unconditionally unstable at or below that (it corresponds to zero viscosity). Values further
+   * above 0.5 trade some flow "sharpness" for stability headroom; this is the conventional choice
+   * for a driven, dissipative flow rather than a value tuned for a specific Reynolds number.
+   */
+  RELAXATION_TIME: 0.7,
+
+  /**
+   * Iterations run for a full map-generation solve (Generate, Assist Mode resample, map load),
+   * where solve quality — specifically, giving a boundary current enough steps to propagate along
+   * the *entire* length of a coastline rather than just deflecting near the point of impact —
+   * matters more than latency. Empirically, 1500 iterations is where the ocean-current solve's
+   * steady state stops changing further at `DRAG_COEFFICIENT`'s timescale (see
+   * `docs/simulation/ocean-currents.md`).
+   */
+  ITERATIONS_FULL_GENERATION: 1500,
+
+  /**
+   * Iterations run for a live in-editor recompute (heightmap Erase mode, `fmg:world-recalculate`),
+   * where responsiveness matters more than full convergence. Lower than
+   * `ITERATIONS_FULL_GENERATION`; the field will look slightly less settled immediately after a
+   * live edit than after a full generation, which is an acceptable trade-off for interactivity.
+   */
+  ITERATIONS_LIVE_RECOMPUTE: 400
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -209,6 +320,47 @@ export const BiomeConstants = {
 
   /** Nearshore: maximum water depth proxy (height below sea) for habitat. */
   NEARSHORE_MAX_DEPTH_PROXY: 8,
+
+  /**
+   * Coastal habitat classification (`coastalHabitatAssignment.ts`): current/wave exposure
+   * (0-100, from `grid.cells.ambientCurrentSpeed`) below which a coastline is treated as
+   * stagnant — a `tidalFlat` candidate rather than `sandyBeach`, and at/above which there's
+   * enough current action to sort sediment into sand or scour bare rock if steep and
+   * sediment-starved.
+   */
+  COASTAL_EXPOSURE_CALM_THRESHOLD: 15,
+
+  /**
+   * Coastal habitat: offshore depth-drop (`waterDepthTrend()`, a `HeightThreshold`-based proxy
+   * comparing mean depth one hop vs. two hops offshore) above which a coastline is treated as
+   * fjord-like regardless of how mild its land-side slope looks — beaches don't form where the
+   * seabed drops away sharply just offshore.
+   */
+  COASTAL_FJORD_DEPTH_DROP: 10,
+
+  /**
+   * Coastal habitat: number of neighbor-averaging passes used to spread river-mouth sediment
+   * along the coastline (`diffuseSediment()`, a longshore-drift proxy), so cells near but not
+   * exactly at a river mouth get partial sediment credit. Shorter reach than ocean current's own
+   * `OceanCurrentConstants.AMBIENT_SMOOTHING_PASSES` (6) — a sediment plume shouldn't spread a
+   * whole coastline's length, just a short stretch either side of the mouth.
+   */
+  COASTAL_SEDIMENT_DIFFUSION_PASSES: 3,
+
+  /**
+   * Coastal habitat: minimum diffused sediment supply that lets a calm, mild-slope segment
+   * become `sandyBeach` even without enough current exposure on its own — a sheltered, sedimented
+   * cove is still a beach, not a scoured rock.
+   */
+  COASTAL_SEDIMENT_SANDY_MIN: 0.3,
+
+  /**
+   * Coastal habitat: diffused sediment supply above which a very flat, stagnant segment is
+   * treated as `tidalFlat` (mud/estuary) rather than `sandyBeach` — too much fine sediment
+   * relative to the near-zero current means nothing sorts it into clean sand, so it settles as
+   * mud instead.
+   */
+  COASTAL_SEDIMENT_TIDAL_MIN: 1.5,
 
   // ── Phase 5: cold steppe, tropical dry forest, boreal peatland ────────────
 

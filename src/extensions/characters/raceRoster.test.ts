@@ -59,4 +59,56 @@ describe("sampleRaceIdForState", () => {
     expect(humanHits).toBeGreaterThan(20);
     expect(humanHits).toBeLessThan(80);
   });
+
+  it("never samples enemy-colony or distant races into mixed courts", () => {
+    const races = createDefaultRaces();
+    const human = races.find(r => r.key === "human")!.i;
+    const forbidden = new Set(
+      races
+        .filter(r => ["goblin", "orc", "arachnid", "dark_elf", "giant", "draconic", "amazones"].includes(r.key))
+        .map(r => r.i)
+    );
+    const allowed = new Set(races.filter(r => ["human", "elf", "dwarf"].includes(r.key)).map(r => r.i));
+    for (let i = 0; i < 100; i++) {
+      const id = sampleRaceIdForState(
+        { culture: 1, racialComposition: "mixed" },
+        { race: human, monoRacial: false },
+        races
+      );
+      expect(forbidden.has(id)).toBe(false);
+      expect(allowed.has(id)).toBe(true);
+    }
+  });
+
+  it("still allows enemy-colony mono polities to use their own race", () => {
+    const races = createDefaultRaces();
+    const orc = races.find(r => r.key === "orc")!.i;
+    const goblin = races.find(r => r.key === "goblin")!.i;
+    const arachnid = races.find(r => r.key === "arachnid")!.i;
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: orc, monoRacial: true }, races)
+    ).toBe(orc);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: goblin, monoRacial: true }, races)
+    ).toBe(goblin);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: arachnid, monoRacial: true }, races)
+    ).toBe(arachnid);
+  });
+
+  it("staffs draconic mono merchants as wyrmkin, rulers as draconic", () => {
+    const races = createDefaultRaces();
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    const wyrmkin = races.find(r => r.key === "wyrmkin")!.i;
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: draconic, monoRacial: true }, races, {
+        roleClass: "merchant"
+      })
+    ).toBe(wyrmkin);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: draconic, monoRacial: true }, races, {
+        roleClass: "ruler"
+      })
+    ).toBe(draconic);
+  });
 });

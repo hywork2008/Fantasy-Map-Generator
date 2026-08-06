@@ -1,15 +1,19 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { setPlayerCharacter } from "../../../nobility/controllers/playerCharacter";
 import { hasNobilityContext } from "../../../nobility/nobilityContext";
 import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
+import { attractiveness } from "../../appearance";
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
+import { getCharacterHealth, HEALTH_FULL } from "../../characterHealth";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
-import type { Character, CharacterRole, TitleHolding } from "../../characterTypes";
+import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
+import { resolveCharacterRaceName } from "../../controllers/characters-overview";
 import { formatFlavorHook } from "../../flavorHooks";
+import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
@@ -45,7 +49,51 @@ type CharacterInventoryRow = Readonly<{
   units: number;
   averageUnitCost: number | null;
 }>;
-type CharacterDetailsTab = "skills" | "personality" | "inventory" | "backstory" | "relationships" | "stateAffinities";
+type CharacterDetailsTab =
+  | "skills"
+  | "personality"
+  | "loadout"
+  | "inventory"
+  | "backstory"
+  | "relationships"
+  | "stateAffinities";
+
+const QUALITY_OPTIONS = [1, 2, 3, 4, 5] as const;
+
+function slotLabelKey(slot: LoadoutSlotId): string {
+  switch (slot) {
+    case "body":
+      return "loadoutSlotBody";
+    case "weapon":
+      return "loadoutSlotWeapon";
+    case "accessory":
+      return "loadoutSlotAccessory";
+    case "mount":
+      return "loadoutSlotMount";
+  }
+}
+
+function sourceLabelKey(source: EquippedItem["source"]): string {
+  switch (source) {
+    case "seeded":
+      return "loadoutSourceSeeded";
+    case "equipped":
+      return "loadoutSourceEquipped";
+    case "editor":
+      return "loadoutSourceEditor";
+    case "gift":
+      return "loadoutSourceGift";
+    case "spoils":
+      return "loadoutSourceSpoils";
+  }
+}
+
+function findSlotForGoodName(goodName: string): LoadoutSlotId | null {
+  for (const slot of LOADOUT_SLOT_IDS) {
+    if (LOADOUT_SLOT_GOOD_NAMES[slot].includes(goodName)) return slot;
+  }
+  return null;
+}
 
 function getEconomyMarkets(pack: unknown): readonly EconomyMarketSnapshot[] {
   const markets = (pack as Record<string, unknown>).markets;
@@ -113,10 +161,20 @@ export const CharacterDetailsDialog: React.FC = () => {
   const goBackCharacterDetails = useCharactersUiState(state => state.goBackCharacterDetails);
   const goForwardCharacterDetails = useCharactersUiState(state => state.goForwardCharacterDetails);
   const clearCharacterDetailsHistory = useCharactersUiState(state => state.clearCharacterDetailsHistory);
+  const consumePendingDetailsTab = useCharactersUiState(state => state.consumePendingDetailsTab);
   useCharactersUiState(state => state.refreshToken);
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
   const [activeTab, setActiveTab] = useState<CharacterDetailsTab>("skills");
   const [, setInventoryRevision] = useState(0);
+  const [, setLoadoutRevision] = useState(0);
+  const [equipError, setEquipError] = useState<string | null>(null);
+
+  // Honor one-shot tab requests (e.g. PC panel Prepare → Loadout).
+  useEffect(() => {
+    if (!isOpen) return;
+    const requested = consumePendingDetailsTab();
+    if (requested) setActiveTab(requested);
+  }, [isOpen, consumePendingDetailsTab]);
 
   useEffect(() => {
     const onInventoryChanged = (event: Event) => {
@@ -126,8 +184,20 @@ export const CharacterDetailsDialog: React.FC = () => {
         setInventoryRevision(revision => revision + 1);
       }
     };
+    const onLoadoutChanged = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      if (!detail || typeof detail !== "object") return;
+      if ((detail as { characterId?: unknown }).characterId === selectedCharacterId) {
+        setLoadoutRevision(revision => revision + 1);
+        setInventoryRevision(revision => revision + 1);
+      }
+    };
     document.addEventListener("fmg:character-inventory-changed", onInventoryChanged);
-    return () => document.removeEventListener("fmg:character-inventory-changed", onInventoryChanged);
+    document.addEventListener("fmg:character-loadout-changed", onLoadoutChanged);
+    return () => {
+      document.removeEventListener("fmg:character-inventory-changed", onInventoryChanged);
+      document.removeEventListener("fmg:character-loadout-changed", onLoadoutChanged);
+    };
   }, [selectedCharacterId]);
 
   // Clear browsing history whenever the dialog is closed (X, close-all, or programmatic).
@@ -147,7 +217,53 @@ export const CharacterDetailsDialog: React.FC = () => {
 
   const character = characters.find(c => c.i === selectedCharacterId);
   const inventoryRows = character ? getEconomyInventoryRows(character) : [];
+  const goodsCatalog = useMemo(() => {
+    const economy = getApi().simulationContext?.extensions?.economy;
+    const slice = economy && typeof economy === "object" ? (economy as Record<string, unknown>) : null;
+    const goods = Array.isArray(slice?.goods) ? slice.goods.filter(isEconomyGood) : [];
+    if (goods.length) return goods;
+    const packGoods = (worldContext.pack as { goods?: unknown }).goods;
+    return Array.isArray(packGoods) ? packGoods.filter(isEconomyGood) : [];
+  }, [worldContext.pack]);
+  const goodById = useMemo(() => new Map(goodsCatalog.map(good => [good.i, good])), [goodsCatalog]);
   const hasStateAffinitiesTab = character ? inferRoleClass(character) === "ruler" : false;
+
+  const dispatchLoadoutCommand = (name: string, payload: Record<string, unknown>): boolean => {
+    setEquipError(null);
+    try {
+      getApi().dispatchExtensionCommand({
+        extensionId: "characters",
+        name,
+        payload
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setEquipError(message);
+      return false;
+    }
+  };
+
+  const handleEquip = (slot: LoadoutSlotId, goodId: number, options?: { quality?: number; goodName?: string }) => {
+    if (!character || character.dead) return;
+    dispatchLoadoutCommand("equipFromInventory", {
+      characterId: character.i,
+      slot,
+      goodId,
+      ...(options?.quality !== undefined ? { quality: options.quality } : {}),
+      ...(options?.goodName ? { goodName: options.goodName } : {})
+    });
+  };
+
+  const handleUnequip = (slot: LoadoutSlotId) => {
+    if (!character || character.dead) return;
+    dispatchLoadoutCommand("unequipSlot", { characterId: character.i, slot });
+  };
+
+  const handleSetQuality = (slot: LoadoutSlotId, quality: number) => {
+    if (!character || character.dead) return;
+    dispatchLoadoutCommand("setSlotQuality", { characterId: character.i, slot, quality });
+  };
 
   useEffect(() => {
     if (activeTab === "stateAffinities" && !hasStateAffinitiesTab) {
@@ -165,6 +281,23 @@ export const CharacterDetailsDialog: React.FC = () => {
   const nobilityAvailable = hasNobilityContext();
   const isCurrentPlayer = playerCharacterId === character.i;
   const canSetAsPlayer = nobilityAvailable && !character.dead && !isCurrentPlayer;
+
+  // Player-viewpoint beauty: observer = focus PC, subject = this sheet (hidden for self / no PC).
+  const playerCharacter =
+    playerCharacterId !== null && playerCharacterId !== character.i
+      ? characters.find(c => c.i === playerCharacterId)
+      : undefined;
+  const viewFromPlayer = playerCharacter ? attractiveness(playerCharacter, character) : null;
+  const appearanceToYouKindKey =
+    viewFromPlayer === null
+      ? null
+      : viewFromPlayer.kind === "same_race"
+        ? "appearanceToYouKindSameRace"
+        : viewFromPlayer.kind === "cross_race_aesthetic"
+          ? "appearanceToYouKindAesthetic"
+          : viewFromPlayer.kind === "cross_race_partial"
+            ? "appearanceToYouKindPartial"
+            : "appearanceToYouKindAlien";
 
   const handleClose = () => {
     closeDialog("characterDetails");
@@ -215,11 +348,8 @@ export const CharacterDetailsDialog: React.FC = () => {
   };
 
   const cultureName = cultures[character.culture]?.name ?? t("characters.unknown");
-  const raceId = character.race ?? cultures[character.culture]?.race;
-  const raceName =
-    (raceId !== undefined ? races[raceId]?.name : undefined) ??
-    (raceId !== undefined ? cultures[character.culture]?.name : undefined) ??
-    t("characters.unknown");
+  // Prefer shared resolver: Wildlands/Unknown (race 0) displays as Human, not catalog "Unknown".
+  const raceName = resolveCharacterRaceName(character, races, cultures);
   const looks = character.looks;
 
   const getAffinityText = (score: number) => {
@@ -272,6 +402,14 @@ export const CharacterDetailsDialog: React.FC = () => {
       : t("characters.deceased", { age: character.age })
     : t("characters.alive");
 
+  const healthValue = getCharacterHealth(character);
+  const sickStatusText = character.affliction
+    ? t("characters.sickStatus", {
+        disease: t(`characters.afflictionKind.${character.affliction.kind}`),
+        severity: t(`characters.afflictionSeverity.${character.affliction.severity}`)
+      })
+    : null;
+
   const downloadCSV = () => {
     if (!character) return;
 
@@ -283,12 +421,22 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`${t("characters.age")}, ${character.age}`);
     rows.push(`${t("characters.gender")}, ${t(`characters.${character.gender}`)}`);
     rows.push(`${t("characters.status")}, ${statusText}`);
+    if (!character.dead) {
+      rows.push(
+        `${t("characters.health")}, ${healthValue}/${HEALTH_FULL}${sickStatusText ? ` (${sickStatusText})` : ""}`
+      );
+    }
     rows.push(`${t("characters.culture")}, ${cultureName}`);
     rows.push(`${t("characters.race")}, ${raceName}`);
     rows.push(`${t("characters.location")}, ${locationStr}`);
     rows.push(
       `${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")} (${t("characters.appearanceSameRaceHint")})`
     );
+    if (viewFromPlayer && appearanceToYouKindKey) {
+      rows.push(
+        `${t("characters.appearanceToYou")}, ${viewFromPlayer.score} (${t(`characters.${appearanceToYouKindKey}`)}); ${viewFromPlayer.reaction}`
+      );
+    }
     if (looks) {
       rows.push(
         `${t("characters.looks")}, stature ${looks.stature}, build ${looks.build}, symmetry ${looks.symmetry}, refinement ${looks.refinement}, vitality ${looks.vitality}, ornament ${looks.ornament}`
@@ -591,6 +739,19 @@ export const CharacterDetailsDialog: React.FC = () => {
                 )}
               </td>
             </tr>
+            {!character.dead && (
+              <tr>
+                <th style={{ padding: "4px 0" }} data-tip={t("characters.healthTip")}>
+                  {t("characters.health")}
+                </th>
+                <td>
+                  {healthValue}/{HEALTH_FULL}
+                  {sickStatusText && (
+                    <span style={{ color: "#ffa94d", fontSize: "0.85em", marginLeft: 6 }}>({sickStatusText})</span>
+                  )}
+                </td>
+              </tr>
+            )}
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.culture")}</th>
               <td>{cultureName}</td>
@@ -610,6 +771,22 @@ export const CharacterDetailsDialog: React.FC = () => {
                 </span>
               </td>
             </tr>
+            {viewFromPlayer && appearanceToYouKindKey && (
+              <tr>
+                <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceToYouTip")}>
+                  {t("characters.appearanceToYou")}
+                </th>
+                <td>
+                  {viewFromPlayer.score}
+                  <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
+                    ({t(`characters.${appearanceToYouKindKey}`)})
+                  </span>
+                  <div style={{ color: "#868e96", fontSize: "0.85em", marginTop: 2, lineHeight: 1.35 }}>
+                    {viewFromPlayer.reaction}
+                  </div>
+                </td>
+              </tr>
+            )}
             {looks && (
               <tr>
                 <th style={{ padding: "4px 0", verticalAlign: "top" }} data-tip={t("characters.looksTip")}>
@@ -749,6 +926,13 @@ export const CharacterDetailsDialog: React.FC = () => {
           </button>
           <button
             type="button"
+            className={`options ${activeTab === "loadout" ? "active" : ""}`}
+            onClick={() => setActiveTab("loadout")}
+          >
+            {t("characters.loadout")}
+          </button>
+          <button
+            type="button"
             className={`options ${activeTab === "inventory" ? "active" : ""}`}
             onClick={() => setActiveTab("inventory")}
           >
@@ -826,8 +1010,132 @@ export const CharacterDetailsDialog: React.FC = () => {
           </div>
         )}
 
+        {activeTab === "loadout" && (
+          <div>
+            <p style={{ color: "#adb5bd", fontSize: "0.9em", marginTop: 0 }}>{t("characters.loadoutHint")}</p>
+            {equipError ? (
+              <p style={{ color: "#ff6b6b", fontSize: "0.9em" }} role="alert">
+                {equipError}
+              </p>
+            ) : null}
+            <table className="fmg-table character-details__table">
+              <thead>
+                <tr>
+                  <th>{t("characters.loadoutSlot")}</th>
+                  <th>{t("characters.good")}</th>
+                  <th data-tip={t("characters.loadoutQualityTip")}>{t("characters.loadoutQuality")}</th>
+                  <th>{t("characters.loadoutSource")}</th>
+                  <th>{t("characters.loadoutActions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {LOADOUT_SLOT_IDS.map(slot => {
+                  const item = character.loadout?.[slot];
+                  const good = item ? goodById.get(item.goodId) : undefined;
+                  const goodName = good
+                    ? t(`economy.goods.names.${good.name}`, { defaultValue: good.name })
+                    : item
+                      ? t("characters.goodId", { id: item.goodId })
+                      : t("characters.loadoutEmpty");
+                  const eligibleRows = inventoryRows.filter(row => isGoodEligibleForSlot(slot, row.goodName));
+                  return (
+                    <tr key={slot}>
+                      <td>{t(`characters.${slotLabelKey(slot)}`)}</td>
+                      <td>
+                        {item && good ? (
+                          <>
+                            <svg aria-hidden="true" width="1.3em" height="1.3em" className="goodIcon">
+                              <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
+                            </svg>{" "}
+                            {goodName}
+                            {item.styleKey ? (
+                              <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
+                                ({t(`characters.styleKeys.${item.styleKey}`, { defaultValue: item.styleKey })})
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <span style={{ color: "#868e96" }}>{goodName}</span>
+                        )}
+                      </td>
+                      <td>
+                        {item ? (
+                          <select
+                            aria-label={t("characters.loadoutQuality")}
+                            value={item.quality}
+                            disabled={!!character.dead}
+                            onChange={event => handleSetQuality(slot, Number(event.target.value))}
+                          >
+                            {QUALITY_OPTIONS.map(q => (
+                              <option key={q} value={q}>
+                                {t("characters.loadoutQualityValue", { quality: q })}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          t("characters.notAvailable")
+                        )}
+                      </td>
+                      <td>{item ? t(`characters.${sourceLabelKey(item.source)}`) : t("characters.notAvailable")}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {item ? (
+                          <button
+                            type="button"
+                            className="button"
+                            disabled={!!character.dead}
+                            onClick={() => handleUnequip(slot)}
+                            data-tip={
+                              item.source === "equipped"
+                                ? t("characters.unequipReturnTip")
+                                : t("characters.unequipDiscardTip")
+                            }
+                          >
+                            {t("characters.unequip")}
+                          </button>
+                        ) : null}{" "}
+                        {eligibleRows.length > 0 && !character.dead ? (
+                          <select
+                            aria-label={t("characters.equipFromInventory")}
+                            defaultValue=""
+                            onChange={event => {
+                              const goodId = Number(event.target.value);
+                              const row = eligibleRows.find(r => r.goodId === goodId);
+                              event.target.value = "";
+                              if (Number.isFinite(goodId) && goodId > 0) {
+                                handleEquip(slot, goodId, { goodName: row?.goodName });
+                              }
+                            }}
+                          >
+                            <option value="" disabled>
+                              {t("characters.equipFromInventory")}
+                            </option>
+                            {eligibleRows.map(row => (
+                              <option key={row.goodId} value={row.goodId}>
+                                {t(`economy.goods.names.${row.goodName}`, { defaultValue: row.goodName })} ×{row.units}
+                              </option>
+                            ))}
+                          </select>
+                        ) : !item ? (
+                          <span style={{ color: "#868e96", fontSize: "0.85em" }}>
+                            {t("characters.noEligibleInventory")}
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {activeTab === "inventory" && (
           <div>
+            {equipError && activeTab === "inventory" ? (
+              <p style={{ color: "#ff6b6b", fontSize: "0.9em" }} role="alert">
+                {equipError}
+              </p>
+            ) : null}
             {inventoryRows.length ? (
               <table className="fmg-table character-details__table">
                 <thead>
@@ -836,11 +1144,13 @@ export const CharacterDetailsDialog: React.FC = () => {
                     <th>{t("characters.quantity")}</th>
                     <th data-tip={t("characters.purchasePriceTip")}>{t("characters.purchasePrice")}</th>
                     <th>{t("characters.inventoryValue")}</th>
+                    <th>{t("characters.loadoutActions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {inventoryRows.map(row => {
                     const goodName = t(`economy.goods.names.${row.goodName}`, { defaultValue: row.goodName });
+                    const equipSlot = findSlotForGoodName(row.goodName);
                     return (
                       <tr key={row.goodId}>
                         <td title={row.unit}>
@@ -859,6 +1169,22 @@ export const CharacterDetailsDialog: React.FC = () => {
                           {row.averageUnitCost === null
                             ? t("characters.notAvailable")
                             : formatPrice(row.units * row.averageUnitCost)}
+                        </td>
+                        <td>
+                          {equipSlot && !character.dead ? (
+                            <button
+                              type="button"
+                              className="button"
+                              onClick={() => handleEquip(equipSlot, row.goodId, { goodName: row.goodName })}
+                              data-tip={t("characters.equipTip", {
+                                slot: t(`characters.${slotLabelKey(equipSlot)}`)
+                              })}
+                            >
+                              {t("characters.equip")}
+                            </button>
+                          ) : (
+                            <span style={{ color: "#868e96" }}>{t("characters.notAvailable")}</span>
+                          )}
                         </td>
                       </tr>
                     );

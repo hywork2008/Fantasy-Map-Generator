@@ -1,9 +1,62 @@
 import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 import { States } from "./states-generator";
 
 describe("States.expandStates", () => {
+  it("does not annex high-danger land under standard flood-fill", () => {
+    const { initialSettlementPattern, growthRate, statesGrowthRate } = useOptionsState.getState();
+    useOptionsState.setState({ initialSettlementPattern: "standard", growthRate: 100, statesGrowthRate: 1 });
+
+    try {
+      const danger = new Uint8Array([0, STATE_EXPAND_DANGER_BAN, 0]);
+      const worldContext = {
+        options: { initialSettlementPattern: "standard" },
+        biomesData: { cost: new Uint16Array([10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]) },
+        pack: {
+          cells: {
+            i: new Uint16Array([0, 1, 2]),
+            state: new Uint16Array(3),
+            h: new Uint8Array([25, 25, 25]),
+            c: [[1], [0, 2], [1]],
+            biomeCode: new Uint8Array([0, 0, 0]),
+            culture: new Uint16Array([1, 1, 1]),
+            pop: new Float32Array([10, 5, 5]),
+            burg: new Uint16Array([1, 0, 0]),
+            s: new Uint16Array([20, 20, 20]),
+            f: new Uint16Array([0, 0, 0]),
+            r: new Uint16Array(3),
+            fl: new Uint16Array(3),
+            t: new Int8Array([2, 2, 2]),
+            danger,
+            routes: {},
+            p: [
+              [0, 0],
+              [1, 0],
+              [2, 0]
+            ]
+          },
+          features: [{ type: "land" }],
+          cultures: [0, { center: 0, type: "Generic" }],
+          states: [
+            { i: 0, name: "Neutrals" },
+            { i: 1, name: "Aster", center: 0, capital: 1, culture: 1, expansionism: 5, type: "Generic" }
+          ],
+          burgs: [0, { i: 1, capital: 1, cell: 0 }]
+        }
+      } as unknown as WorldContext;
+
+      States.expandStates(worldContext, {} as never, {} as never);
+
+      expect(worldContext.pack.cells.state[0]).toBe(1);
+      // Cell 1 is banned by danger; flood cannot claim it or leapfrog to cell 2 via it.
+      expect(worldContext.pack.cells.state[1]).toBe(0);
+    } finally {
+      useOptionsState.setState({ initialSettlementPattern, growthRate, statesGrowthRate });
+    }
+  });
+
   it("does not create a Cold Desert administrative corridor without an initial movement route", () => {
     const { initialSettlementPattern, growthRate, statesGrowthRate } = useOptionsState.getState();
     // Without an initial route, both the distant burg and the intervening

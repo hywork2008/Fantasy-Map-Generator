@@ -15,6 +15,12 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
+import type {
+  EscortActiveContract,
+  EscortCooldowns,
+  EscortHireApplication,
+  EscortJobPosting
+} from "./generators/escortHireTypes";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { GuildChapter } from "./generators/guildChapterTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
@@ -63,6 +69,12 @@ import type { StateSecretStock } from "./generators/stateSecretTypes";
 import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
+import type {
+  CullActiveContract,
+  CullCooldowns,
+  CullHireApplication,
+  CullJobPosting
+} from "./generators/threatCullHireTypes";
 import type { TradeSecurityLedger } from "./generators/tradeSecurityTypes";
 import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntakeTypes";
 import type { UrbanPregnancyRecord } from "./generators/urbanPregnancyTypes";
@@ -169,6 +181,11 @@ export function getSimulationDay(): number {
   if (typeof day === "number" && Number.isFinite(day) && day >= 1) return Math.floor(day);
   const fallback = Number(getWorldContext().options?.day);
   return Number.isFinite(fallback) && fallback >= 1 ? Math.floor(fallback) : 1;
+}
+
+/** Live simulation context (wilderness cull projects, clock). Null only in minimal tests. */
+export function getSimulationContext() {
+  return _api?.simulationContext ?? null;
 }
 
 /**
@@ -1022,6 +1039,84 @@ export function getConstructionNamedSeats(): ConstructionNamedSeat[] {
 }
 export function setConstructionNamedSeats(seats: readonly ConstructionNamedSeat[]): void {
   setSliceArray("constructionNamedSeats", seats);
+}
+
+/** Threat cull / pest job postings (docs/plan/player-threat-cull-jobs.md PR-2). */
+export function getCullJobPostings(): CullJobPosting[] {
+  return getSliceArray<CullJobPosting>("cullJobPostings");
+}
+export function setCullJobPostings(posts: readonly CullJobPosting[]): void {
+  setSliceArray("cullJobPostings", posts);
+}
+
+export function getCullHireApplications(): CullHireApplication[] {
+  return getSliceArray<CullHireApplication>("cullHireApplications");
+}
+export function setCullHireApplications(apps: readonly CullHireApplication[]): void {
+  setSliceArray("cullHireApplications", apps);
+}
+
+export function getCullActiveContracts(): CullActiveContract[] {
+  return getSliceArray<CullActiveContract>("cullActiveContracts");
+}
+export function setCullActiveContracts(contracts: readonly CullActiveContract[]): void {
+  setSliceArray("cullActiveContracts", contracts);
+}
+
+export function getCullCooldowns(): CullCooldowns {
+  const slice = getEconomySlice();
+  const value = slice ? slice.cullCooldowns : getLegacyPackFields().cullCooldowns;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as CullCooldowns;
+  }
+  return {};
+}
+export function setCullCooldowns(cooldowns: CullCooldowns): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.cullCooldowns = cooldowns;
+    return;
+  }
+  getLegacyPackFields().cullCooldowns = cooldowns;
+}
+
+/** Escort (護衛) job board — all culture sets. */
+export function getEscortJobPostings(): EscortJobPosting[] {
+  return getSliceArray<EscortJobPosting>("escortJobPostings");
+}
+export function setEscortJobPostings(posts: readonly EscortJobPosting[]): void {
+  setSliceArray("escortJobPostings", posts);
+}
+
+export function getEscortHireApplications(): EscortHireApplication[] {
+  return getSliceArray<EscortHireApplication>("escortHireApplications");
+}
+export function setEscortHireApplications(apps: readonly EscortHireApplication[]): void {
+  setSliceArray("escortHireApplications", apps);
+}
+
+export function getEscortActiveContracts(): EscortActiveContract[] {
+  return getSliceArray<EscortActiveContract>("escortActiveContracts");
+}
+export function setEscortActiveContracts(contracts: readonly EscortActiveContract[]): void {
+  setSliceArray("escortActiveContracts", contracts);
+}
+
+export function getEscortCooldowns(): EscortCooldowns {
+  const slice = getEconomySlice();
+  const value = slice ? slice.escortCooldowns : getLegacyPackFields().escortCooldowns;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as EscortCooldowns;
+  }
+  return {};
+}
+export function setEscortCooldowns(cooldowns: EscortCooldowns): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.escortCooldowns = cooldowns;
+    return;
+  }
+  getLegacyPackFields().escortCooldowns = cooldowns;
 }
 
 /** Urban pregnancy pipeline stock (docs/plan/urban-housing-system.md PR-P1). */

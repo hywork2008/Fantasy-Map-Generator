@@ -6,6 +6,7 @@ import { useOptionsState } from "../store/optionsState";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { getScopedGraph, isCellInScope, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
+import { buildPopulationColorMetrics, heatBucketToColorT } from "./populationColorScale";
 
 export const PopulationRenderer: IRenderer = {
   id: "population",
@@ -20,14 +21,11 @@ export const PopulationRenderer: IRenderer = {
     const { cells, burgs } = pack;
 
     const renderingMode = useOptionsState.getState().populationRenderingMode;
-    const unsettledFootprint = getUnsettledFootprintPath(pack, focusScope);
 
     population.selectAll("*").remove();
     population.attr("mask", renderingMode === "contour" ? "url(#land)" : null);
 
-    if (renderingMode !== "choropleth" && unsettledFootprint) {
-      population.append("g").attr("id", "unsettledFootprint").html(unsettledFootprint).attr("opacity", 0.22);
-    }
+    // Zero-population land stays fully transparent (no gray "unsettled" fill).
 
     if (renderingMode === "original") {
       population.append("g").attr("id", "rural").attr("stroke", "#0000ff");
@@ -110,56 +108,43 @@ export const PopulationRenderer: IRenderer = {
         .attr("stroke", "none")
         .attr("opacity", 0.7);
     } else if (renderingMode === "choropleth") {
-      const populationRate = worldContext.populationRate;
-      const totalPop = new Float32Array(cells.i.length);
-      const densities = new Float32Array(cells.i.length);
-      let maxDensity = 0;
+      const colorScale = useOptionsState.getState().populationColorScale;
+      const { getBucket } = buildPopulationColorMetrics({
+        cellIds: cells.i,
+        pop: cells.pop,
+        area: cells.area,
+        capacity: cells.capacity,
+        height: cells.h,
+        burgs,
+        populationRate: worldContext.populationRate,
+        urbanization,
+        colorScale,
+        isInScope: i => isCellInScope(focusScope, i)
+      });
 
+      let hasHeat = false;
       for (const i of cells.i) {
-        if (!isCellInScope(focusScope, i)) continue;
-        const pop = cells.pop[i] as number;
-        totalPop[i] = pop * populationRate;
-      }
-
-      for (const b of burgs) {
-        if (b.i && !b.removed && isCellInScope(focusScope, b.cell)) {
-          const uPop = (b.population ?? 0) * populationRate * urbanization;
-          totalPop[b.cell] += uPop;
+        if (getBucket(i) > 0) {
+          hasHeat = true;
+          break;
         }
       }
+      // Empty map: leave the layer fully transparent (no gray empty-land fill).
+      if (!hasHeat) return;
 
-      for (const i of cells.i) {
-        if (!isCellInScope(focusScope, i)) continue;
-        const area = cells.area[i];
-        if (area > 0) {
-          const density = totalPop[i] / area;
-          densities[i] = density;
-          if (density > maxDensity) maxDensity = density;
-        }
-      }
-
-      if (maxDensity === 0) return;
-
-      const getPopBucket = (cellId: number): number => {
-        const density = densities[cellId];
-        if (density < 1) return -1;
-        if (maxDensity <= 1) return 0;
-
-        const ratio = Math.log(density) / Math.log(maxDensity);
-        return Math.min(9, Math.floor(ratio * 10));
-      };
-
+      // getBucket returns 0 (falsy) for non-heat cells so getIsolines never outlines ocean/empty
+      // as a type. Heat bands are 1–10 (truthy). Never pass -1 — it is truthy and paints seas.
       const isolines: Record<string, { fill?: string }> = getIsolines(
         getScopedGraph(pack, focusScope),
-        scopedGetType(focusScope, getPopBucket),
+        scopedGetType(focusScope, getBucket),
         { fill: true }
       );
 
-      const bodyPaths: string[] = unsettledFootprint ? [unsettledFootprint] : [];
+      const bodyPaths: string[] = [];
       Object.entries(isolines).forEach(([index, { fill }]) => {
         const bucket = +index;
-        if (bucket < 0) return;
-        const color = d3.interpolateYlOrRd((bucket + 1) / 10);
+        if (!(bucket > 0)) return;
+        const color = d3.interpolateYlOrRd(heatBucketToColorT(bucket));
         bodyPaths.push(getGappedFillPaths("pop", fill, undefined, color, bucket));
       });
 
@@ -172,20 +157,6 @@ export const PopulationRenderer: IRenderer = {
     viewContext.population.selectAll("*").remove();
   }
 };
-
-/** A subdued footprint makes suitable but empty land legible in every SVG population mode. */
-function getUnsettledFootprintPath(
-  pack: Readonly<WorldContext>["pack"],
-  focusScope: FocusFields["focusScope"]
-): string {
-  const isolines = getIsolines(
-    getScopedGraph(pack, focusScope),
-    scopedGetType(focusScope, cellId => (pack.cells.h[cellId] >= 20 && pack.cells.pop[cellId] <= 0 ? 1 : null)),
-    { fill: true }
-  );
-  const unsettled = isolines["1"];
-  return getGappedFillPaths("unsettled", unsettled?.fill, undefined, "#5c5870", 1);
-}
 
 export function animatePopulationTurnOn(
   worldContext: Readonly<WorldContext>,

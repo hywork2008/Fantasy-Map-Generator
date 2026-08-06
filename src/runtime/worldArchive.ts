@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import {
   createEmptyFrontierSimulationState,
+  createEmptyWildernessEcologyState,
   FRONTIER_INVESTMENTS,
   type SimulationContext
 } from "../context/simulationContext";
@@ -722,6 +723,72 @@ function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCou
   }
 }
 
+function assertAndNormalizeWilderness(simulation: Record<string, unknown>): void {
+  if (simulation.wilderness === undefined) {
+    simulation.wilderness = createEmptyWildernessEcologyState();
+    return;
+  }
+  if (!isRecord(simulation.wilderness)) throw new Error("Archive simulation.wilderness must be a record");
+  const wilderness = simulation.wilderness;
+  if (wilderness.lastEvaluatedYear !== null && !isFiniteNonNegativeInteger(wilderness.lastEvaluatedYear)) {
+    throw new Error("Archive simulation.wilderness.lastEvaluatedYear must be null or a non-negative integer");
+  }
+  if (wilderness.cullProjects === undefined) wilderness.cullProjects = {};
+  if (!isRecord(wilderness.cullProjects)) {
+    throw new Error("Archive simulation.wilderness.cullProjects must be a record");
+  }
+  for (const [rawCellId, project] of Object.entries(wilderness.cullProjects)) {
+    const cellId = Number(rawCellId);
+    if (!Number.isInteger(cellId) || cellId < 0 || String(cellId) !== rawCellId) {
+      throw new Error(`Archive simulation.wilderness.cullProjects has invalid cell key ${rawCellId}`);
+    }
+    if (!isRecord(project)) throw new Error(`Archive simulation.wilderness.cullProjects.${rawCellId} must be a record`);
+    if (
+      !isFiniteNonNegativeInteger(project.cellId) ||
+      project.cellId !== cellId ||
+      !isPositiveInteger(project.stateId) ||
+      !isFiniteNonNegativeInteger(project.establishedYear) ||
+      !isFiniteNonNegativeInteger(project.progressYears) ||
+      typeof project.dangerReduced !== "number" ||
+      !Number.isFinite(project.dangerReduced) ||
+      project.dangerReduced < 0
+    ) {
+      throw new Error(`Archive simulation.wilderness.cullProjects.${rawCellId} is invalid`);
+    }
+    if (project.monsterId !== null && !isFiniteNonNegativeInteger(project.monsterId)) {
+      throw new Error(`Archive simulation.wilderness.cullProjects.${rawCellId}.monsterId is invalid`);
+    }
+    if (
+      project.lastOutcome !== undefined &&
+      project.lastOutcome !== "progress" &&
+      project.lastOutcome !== "cleared" &&
+      project.lastOutcome !== "abandoned"
+    ) {
+      throw new Error(`Archive simulation.wilderness.cullProjects.${rawCellId}.lastOutcome is invalid`);
+    }
+  }
+  // pestSuppressionByCell: optional sparse 0..1 map (player-threat-cull-jobs PR-1).
+  if (wilderness.pestSuppressionByCell === undefined) {
+    wilderness.pestSuppressionByCell = {};
+  } else if (!isRecord(wilderness.pestSuppressionByCell)) {
+    throw new Error("Archive simulation.wilderness.pestSuppressionByCell must be a record");
+  } else {
+    const cleaned: Record<number, number> = {};
+    for (const [rawCellId, rawValue] of Object.entries(wilderness.pestSuppressionByCell)) {
+      const cellId = Number(rawCellId);
+      if (!Number.isInteger(cellId) || cellId < 0 || String(cellId) !== rawCellId) {
+        throw new Error(`Archive simulation.wilderness.pestSuppressionByCell has invalid cell key ${rawCellId}`);
+      }
+      if (typeof rawValue !== "number" || !Number.isFinite(rawValue)) {
+        throw new Error(`Archive simulation.wilderness.pestSuppressionByCell.${rawCellId} is invalid`);
+      }
+      const clamped = Math.max(0, Math.min(1, rawValue));
+      if (clamped > 0) cleaned[cellId] = clamped;
+    }
+    wilderness.pestSuppressionByCell = cleaned;
+  }
+}
+
 function isUint8Array(value: unknown): value is Uint8Array {
   return isTypedArray(value) && value.constructor.name === "Uint8Array";
 }
@@ -823,6 +890,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   assertAndNormalizePopulationLoss(simulation);
   assertAndNormalizeNavalTechBonus(simulation);
   assertAndNormalizeTechnology(simulation);
+  assertAndNormalizeWilderness(simulation);
   const cells = pack.cells as Record<string, unknown>;
   if (cells.i !== undefined && !isTypedArray(cells.i)) {
     throw new Error("Archive pack.cells.i must be a typed array");

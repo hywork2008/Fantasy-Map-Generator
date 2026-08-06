@@ -13,7 +13,11 @@ import Alea from "alea";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices, initRng } from "./context/appServices";
-import { simulationContext } from "./context/simulationContext";
+import {
+  createEmptyFrontierSimulationState,
+  createEmptyWildernessEcologyState,
+  simulationContext
+} from "./context/simulationContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
@@ -24,7 +28,9 @@ import { applyStyleOnLoad } from "./controllers/style";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
 import { Cultures } from "./generators/cultures-generator";
+import { dangerSuitabilityMultiplier } from "./generators/dangerExpandPolicy";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
+import { Dungeons } from "./generators/dungeons-generator";
 import { Features } from "./generators/features";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
@@ -33,6 +39,7 @@ import { Lakes } from "./generators/lakes";
 import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
 import { Names } from "./generators/names-generator";
+import { OceanCurrents } from "./generators/oceanCurrents";
 import { Provinces } from "./generators/provinces-generator";
 import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
@@ -42,6 +49,7 @@ import { States } from "./generators/states-generator";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
 import { establishVassalage } from "./generators/vassalage";
+import { assignWildLandTags } from "./generators/wildLandTags";
 import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
@@ -373,12 +381,18 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     regenerateMap((e as CustomEvent<{ seed?: string } | undefined>).detail);
   });
   document.addEventListener("fmg:world-recalculate", (e: Event) => {
-    const { coords, temps, prec, biomes } = (
-      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; biomes?: boolean }>
+    const { coords, temps, prec, currents, biomes } = (
+      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; currents?: boolean; biomes?: boolean }>
     ).detail;
     if (coords) calculateMapCoordinates();
     if (temps) calculateTemperatures();
     if (prec) generatePrecipitation();
+    if (currents) {
+      // Live recompute (not a full generation): use the lower iteration tier for responsiveness
+      // (see FluidSolverConstants.ITERATIONS_LIVE_RECOMPUTE).
+      OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState(), "live");
+      Features.applyOceanCurrentEnclosure();
+    }
     if (biomes) {
       legacyMutation(() => {
         Biomes.define(getWorldState());
@@ -980,8 +994,15 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
       if (action === "loadMap") throw new MapLoadRequestedError();
       if (action === "next") continue;
 
-      restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : action === "retryStage" ? stageIndex : 0;
-      activeRequest = action === "retryLandscape" ? { graph: null } : activeRequest;
+      if (action === "restartWithSeed") {
+        // Redirect the in-flight pipeline to a new seed instead of spawning a second,
+        // concurrent generate() call — the paused loop below simply restarts at stage 0.
+        restartAt = 0;
+        activeRequest = { seed: generationProgressStore.getState().restartSeed ?? undefined };
+      } else {
+        restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : action === "retryStage" ? stageIndex : 0;
+        activeRequest = action === "retryLandscape" ? { graph: null } : activeRequest;
+      }
       shouldRestart = true;
       break;
     }
@@ -1027,6 +1048,12 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
     delete (worldContext.pack as unknown as Record<string, unknown>)[k];
   });
   Object.assign(worldContext.pack, {} as typeof worldContext.pack);
+  // Clear project-bearing simulation slices immediately. Pack wipe leaves React
+  // panels (e.g. FrontierStatusPanel) able to re-render before the late
+  // initSimulationClock() at the end of generation; stale cull/frontier projects
+  // would then index pack.states that no longer exist.
+  simulationContext.frontier = createEmptyFrontierSimulationState();
+  simulationContext.wilderness = createEmptyWildernessEcologyState();
   resetExtensionStateSlices(simulationContext);
   resetSimulationBurgState(simulationContext);
   resetSimulationStateState(simulationContext);
@@ -1058,6 +1085,11 @@ function getGenerationStages(): Array<() => Promise<void>> {
       calculateTemperatures();
       generatePrecipitation();
       const state = getWorldState();
+      OceanCurrents.generate(worldContext, viewContext, appServices, state);
+      // Options → Generation "Enclosure calculation" may prefer the current-speed-based score
+      // over the fixed-radius heuristic markupPack() already assigned; Rivers/Biomes/Features
+      // below read pack.cells.enclosure, so this must run before them.
+      Features.applyOceanCurrentEnclosure();
       Rivers.generate(worldContext, viewContext, appServices, state);
       Biomes.define(state);
       Features.defineGroups();
@@ -1069,13 +1101,15 @@ function getGenerationStages(): Array<() => Promise<void>> {
       rankCells();
       Cultures.generate(worldContext, viewContext, appServices, state);
       Cultures.expand(state);
+      const optionsSnap = useOptionsState.getState();
       const settlementPattern = applyInitialSettlementPattern(
         worldContext.pack.cells,
         worldContext.options.initialSettlementPattern,
-        useOptionsState.getState().initialPopulationSaturation / 100,
+        optionsSnap.initialPopulationSaturation / 100,
         Math.random,
         { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
-        useOptionsState.getState().statesNumber
+        optionsSnap.statesNumber,
+        optionsSnap.oikoumeneLandShare
       );
       if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
       else delete worldContext.pack.settlementFoundation;
@@ -1097,6 +1131,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
       Burgs.specify(worldContext, viewContext, appServices, state);
       States.collectStatistics(state);
       States.defineStateForms(state);
+      // Phase 3: classify unclaimed land after politics are painted.
+      assignWildLandTags(worldContext.pack.cells);
       Provinces.generate(worldContext, viewContext, appServices, state);
       Provinces.getPoles(state);
       Rivers.specify(worldContext, viewContext, appServices, state);
@@ -1108,6 +1144,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
       establishVassalage(worldContext.pack, worldContext.populationRate);
       FrontierForts.generate(worldContext, viewContext, appServices, state);
       Markers.generate(worldContext, viewContext, appServices, state);
+      // High Fantasy dungeon sites (boss + treasure); after markers so icons share the layer.
+      Dungeons.generate(worldContext, { year: useOptionsState.getState().year });
       Zones.generate(worldContext, viewContext, appServices, state);
       initSimulationClock();
       bindSimulationBurgState(worldContext, simulationContext);
@@ -1780,10 +1818,11 @@ export function rankCells() {
 
     packCells.s[i] = score / 5;
 
+    // Monster domains (danger ≥ SETTLEMENT_DANGER_ZERO / expand ban) zero capacity;
+    // softer rings scale linearly. See dangerSuitabilityMultiplier.
     const danger = packCells.danger ? packCells.danger[i] : 0;
     if (danger > 0) {
-      const multiplier = Math.max(0, 1 - danger / 200);
-      packCells.s[i] = Math.round(packCells.s[i] * multiplier);
+      packCells.s[i] = Math.round(packCells.s[i] * dangerSuitabilityMultiplier(danger));
     }
 
     packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;

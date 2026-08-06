@@ -2,6 +2,7 @@ import type { Color } from "@deck.gl/core";
 import {
   forceCollide,
   forceSimulation,
+  interpolateBlues,
   interpolateMagma,
   interpolateRdYlGn,
   interpolateSpectral,
@@ -14,9 +15,10 @@ import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../../../data/coastalHabitatCatalog";
-import { HeightThreshold } from "../../../data/constants";
+import { HeightThreshold, OceanCurrentConstants } from "../../../data/constants";
 import { Rivers } from "../../../generators/river-generator";
 import { Routes } from "../../../generators/routes-generator";
+import { useOptionsState } from "../../../store/optionsState";
 import type {
   Burg,
   BurgGroup,
@@ -31,11 +33,13 @@ import type {
 } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
-import { clipPoly, getPortAnchorPosition, isWater } from "../../../utils";
+import { clipPoly, getPortAnchorPosition, isWater, lerp, minmax } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
+import { dangerValueToMagmaT } from "../../dangerColorScale";
+import { buildPopulationColorMetrics, heatBucketToColorT } from "../../populationColorScale";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
 import { hasExternalIconFailed } from "../externalIconFailureCache";
@@ -615,6 +619,106 @@ export function buildTemperaturePolygons(
 }
 
 /**
+ * One short line segment per open-ocean grid cell, pointing in `grid.cells.currentAngle` with
+ * length/width proportional to `grid.cells.currentSpeed` and color from `grid.cells.waterTemp`
+ * (same cold-blue -> warm-red scale as `buildTemperaturePolygons`, but scoped to a
+ * water-appropriate range so ocean temperature differences stay visible). Purely a visualization
+ * of data `OceanCurrents.generate()` already computed on `grid.cells` — see
+ * `docs/simulation/ocean-currents.md`.
+ */
+export function buildOceanCurrentPaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null
+): DeckPath[] {
+  const { grid } = worldContext;
+  const { cells, points, features, spacing } = grid;
+  const { currentAngle, currentSpeed, waterTemp } = cells;
+  if (!currentAngle || !currentSpeed || !waterTemp) return [];
+
+  const tMin = OceanCurrentConstants.RENDER_TEMP_MIN;
+  const tMax = OceanCurrentConstants.RENDER_TEMP_MAX;
+  const delta = tMax - tMin;
+  const minLength = spacing * 0.15;
+  const maxLength = spacing * 0.55;
+
+  const paths: DeckPath[] = [];
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    const speed = currentSpeed[cellId];
+    if (!speed) continue;
+    if (cells.h[cellId] >= 20 || features[cells.f[cellId]]?.type !== "ocean") continue;
+    if (!isGridCellInScope(focusScope, cellId)) continue;
+
+    const position = points[cellId];
+    if (!position) continue;
+
+    const speedNorm = minmax(speed / 255, 0, 1);
+    const length = lerp(minLength, maxLength, speedNorm);
+    const angleRad = (currentAngle[cellId] * Math.PI) / 180;
+    const [x, y] = position;
+    const end: DeckPosition = [x + Math.cos(angleRad) * length, y + Math.sin(angleRad) * length];
+
+    const tNormalized = 1 - (waterTemp[cellId] - tMin) / delta;
+    const hexColor = interpolateSpectral(minmax(tNormalized, 0, 1));
+
+    paths.push({
+      id: `ocean-current-${cellId}`,
+      path: [[x, y], end],
+      color: colorToRgba(hexColor, "#999999", 0.85),
+      width: lerp(0.5, 2.5, speedNorm),
+      kind: "oceanCurrent",
+      cellId
+    });
+  }
+
+  return paths;
+}
+
+/**
+ * Choropleth alternative to `buildOceanCurrentPaths()`: one polygon per open-ocean grid cell,
+ * shaded purely by `currentSpeed` (0 = calmest/palest, 255 = strongest/darkest) instead of drawn
+ * as a directional line segment.
+ *
+ * Deliberately gives every ocean cell a polygon, including ones reading exactly 0 — the line mode
+ * above skips zero-speed cells entirely (a zero-length segment has nothing to draw), which makes a
+ * calm patch visually indistinguishable from "no data here." Full, gapless coverage is the whole
+ * point of this mode: it exists so a continuous calm region (or a discontinuity between one) reads
+ * as a clearly bounded shape instead of a gap in an otherwise-arrow-covered map — useful for
+ * spotting patterns in the resolved field that a sparse arrow field can hide.
+ */
+export function buildOceanCurrentIntensityPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  maxOpacity = 0.85
+): DeckCellPolygon[] {
+  const { grid } = worldContext;
+  const { cells, vertices, features } = grid;
+  const { currentSpeed } = cells;
+  if (!currentSpeed) return [];
+
+  const polygons: DeckCellPolygon[] = [];
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (cells.h[cellId] >= 20 || features[cells.f[cellId]]?.type !== "ocean") continue;
+    if (!isGridCellInScope(focusScope, cellId)) continue;
+
+    const polygon = getCellPolygon(cells, vertices, cellId);
+    if (!polygon) continue;
+
+    const speedNorm = minmax(currentSpeed[cellId] / 255, 0, 1);
+    const hexColor = interpolateBlues(speedNorm);
+
+    polygons.push({
+      id: `ocean-current-intensity-${cellId}`,
+      kind: "oceanCurrent",
+      cellId,
+      polygon,
+      fillColor: colorToRgba(hexColor, "#999999", maxOpacity)
+    });
+  }
+
+  return polygons;
+}
+
+/**
  * Builds the same rain circles as `PrecipitationRenderer`: precipitation controls each circle's
  * area, rather than tinting every land polygon. The latter obscured the rainfall distribution in
  * WebGL hybrid mode.
@@ -681,31 +785,15 @@ export function buildDangerPolygons(
   const { cells } = pack;
   if (!cells?.i || !cells.danger) return [];
 
-  let maxDanger = 0;
-  for (const i of cells.i) {
-    if (!isCellInScope(focusScope, i)) continue;
-    const d = cells.danger[i] as number;
-    if (d > maxDanger) maxDanger = d;
-  }
-
-  if (maxDanger === 0) return [];
-
-  const getDangerBucket = (cellId: number): number => {
-    const d = cells.danger[cellId] as number;
-    if (d <= 0) return -1;
-
-    const ratio = d / maxDanger;
-    return Math.min(9, Math.floor(ratio * 10));
-  };
-
+  // Per-cell absolute scale (0–255): color from this cell's danger only.
   return buildCellPolygons(
     worldContext,
     focusScope,
     "danger",
     cellId => {
-      const bucket = getDangerBucket(cellId);
-      if (bucket < 0) return [0, 0, 0, 0];
-      const hexColor = interpolateMagma((bucket + 1) / 10);
+      const d = cells.danger[cellId] as number;
+      if (!(d > 0)) return [0, 0, 0, 0];
+      const hexColor = interpolateMagma(dangerValueToMagmaT(d));
       return colorToRgba(hexColor, "#999999", maxOpacity);
     },
     cellId => (cells.danger[cellId] ?? 0) > 0
@@ -879,51 +967,30 @@ export function buildPopulationPolygons(
   const { cells, burgs } = pack;
   if (!cells?.i) return [];
 
-  const totalPop = new Float32Array(cells.i.length);
-  const densities = new Float32Array(cells.i.length);
-  let maxDensity = 0;
-
-  for (const i of cells.i) {
-    if (!isCellInScope(focusScope, i)) continue;
-    const pop = cells.pop[i] as number;
-    totalPop[i] = pop * populationRate;
-  }
-
-  for (const b of burgs) {
-    if (b.i && !b.removed && isCellInScope(focusScope, b.cell)) {
-      const uPop = (b.population ?? 0) * populationRate * urbanization;
-      totalPop[b.cell] += uPop;
-    }
-  }
-
-  for (const i of cells.i) {
-    if (!isCellInScope(focusScope, i)) continue;
-    const area = cells.area[i];
-    if (area > 0) {
-      const density = totalPop[i] / area;
-      densities[i] = density;
-      if (density > maxDensity) maxDensity = density;
-    }
-  }
-
-  const getPopBucket = (cellId: number): number => {
-    const density = densities[cellId];
-    if (density < 1) return -1;
-    if (maxDensity <= 1) return 0;
-
-    const ratio = Math.log(density) / Math.log(maxDensity);
-    return Math.min(9, Math.floor(ratio * 10));
-  };
+  const colorScale = useOptionsState.getState().populationColorScale;
+  const { totalPop, getBucket } = buildPopulationColorMetrics({
+    cellIds: cells.i,
+    pop: cells.pop,
+    area: cells.area,
+    capacity: cells.capacity,
+    height: cells.h,
+    burgs,
+    populationRate,
+    urbanization,
+    colorScale,
+    isInScope: i => isCellInScope(focusScope, i)
+  });
 
   return buildLandPolygons(
     worldContext,
     focusScope,
     "population",
     cellId => {
-      if (totalPop[cellId] <= 0) return [92, 88, 112, Math.round(maxOpacity * 255 * 0.22)];
-      const bucket = getPopBucket(cellId);
-      if (bucket < 0) return [0, 0, 0, 0];
-      const hexColor = interpolateYlOrRd((bucket + 1) / 10);
+      // Zero population: fully transparent (no gray unsettled footprint).
+      if (totalPop[cellId] <= 0) return [0, 0, 0, 0];
+      const bucket = getBucket(cellId);
+      if (bucket <= 0) return [0, 0, 0, 0];
+      const hexColor = interpolateYlOrRd(heatBucketToColorT(bucket));
       return colorToRgba(hexColor, "#999999", maxOpacity);
     },
     landCells
@@ -2165,9 +2232,12 @@ function buildCellPolygons(
   return polygons;
 }
 
+// Structural (not PackedGraph-specific) so this also works on `grid.cells`/`grid.vertices` —
+// both `PackedGraphCells`/`PackedGraphVertices` and the `Grid` graph's `Cells`/`Vertices`
+// (`src/types/voronoi.ts`) share this shape from the same underlying Voronoi computation.
 function getCellPolygon(
-  cells: Readonly<PackedGraphCells>,
-  vertices: Readonly<PackedGraphVertices>,
+  cells: Readonly<{ v: number[][] }>,
+  vertices: Readonly<{ p: readonly ([number, number] | undefined)[] }>,
   cellId: number
 ): DeckPosition[] | null {
   const polygon = (cells.v[cellId] ?? [])

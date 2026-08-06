@@ -1,6 +1,7 @@
 import { appServices, restoreRngFromSimulation } from "../context/appServices";
 import {
   createEmptyFrontierSimulationState,
+  createEmptyWildernessEcologyState,
   type SimulationContext,
   simulationContext
 } from "../context/simulationContext";
@@ -30,6 +31,7 @@ import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExpo
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
+import { advanceDungeonEcology } from "./dungeonEcology";
 import { advanceFrontierExpansion } from "./frontierExpansion";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
@@ -40,6 +42,7 @@ import { createSimulationSystemRegistry, type SimulationStepContext, type Simula
 import { seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
+import { advanceWildernessEcology } from "./wildernessEcology";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
 const DAYS_PER_YEAR = 365.2425;
@@ -135,6 +138,43 @@ registerSimulationSystem({
   }
 });
 
+// Phase 4 wild oikoumene: hunt/cull lowers danger; rewild recovers pressure.
+// Claiming land remains a separate frontier/politics cost (never sets cells.state).
+registerSimulationSystem({
+  id: "wilderness-ecology.tick",
+  phase: "politics",
+  reads: ["map.politics", "simulation.cells", "simulation.states"],
+  writes: ["simulation.cells", "simulation.states"],
+  cadence: { every: 1 },
+  profileLabel: "wildernessEcology",
+  run: (context, writer) => {
+    const result = advanceWildernessEcology({
+      world: worldContext,
+      simulation: simulationContext,
+      rng: context.rng
+    });
+    if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
+
+// High Fantasy dungeons: rare spontaneous land sites over decades–centuries.
+registerSimulationSystem({
+  id: "dungeon-ecology.tick",
+  phase: "politics",
+  reads: ["map.annotations", "map.settlements", "simulation.cells"],
+  writes: ["map.annotations", "simulation.cells"],
+  cadence: { every: 1 },
+  profileLabel: "dungeonEcology",
+  run: (context, writer) => {
+    const result = advanceDungeonEcology({
+      world: worldContext,
+      simulation: simulationContext,
+      rng: context.rng
+    });
+    if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
+
 // Technology graph: evaluate after economy knowledge/stocks have updated in the
 // economy phase (lexical order places "technology.tick" after "shipbuilding.tick").
 // Self-gates to once per calendar year inside settleTechnologyAnnual().
@@ -217,6 +257,7 @@ export function initSimulationClock(): void {
   simulationContext.strategicGoals = {};
   simulationContext.navalTechBonus = {};
   simulationContext.frontier = createEmptyFrontierSimulationState(worldContext.pack?.cells?.i.length ?? 0);
+  simulationContext.wilderness = createEmptyWildernessEcologyState();
   simulationContext.technology = createEmptyTechnologySimulationState();
   seedTechnologyStartProfile(simulationContext.currentYear);
   resetPopulationLossTracker();

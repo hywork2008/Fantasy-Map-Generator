@@ -15,6 +15,7 @@ import {
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
 import type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
+import { resolveBurgCulture } from "./resolveBurgCulture";
 
 export type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
 
@@ -476,13 +477,6 @@ function getNextCharacterId(characters: Character[]): number {
 
 function getBurg(burgId: number): Burg | undefined {
   return getWorldContext().pack.burgs[burgId] as Burg | undefined;
-}
-
-function resolveBurgCulture(burg: Burg | undefined): number {
-  const { pack } = getWorldContext();
-  const cellCulture = burg?.cell !== undefined ? pack.cells?.culture?.[burg.cell] : undefined;
-  const stateCulture = burg?.state !== undefined ? pack.states?.[burg.state]?.culture : undefined;
-  return burg?.culture ?? cellCulture ?? stateCulture ?? 0;
 }
 
 function getTradeRangeKm(scale: MerchantOrganizationScale): number {

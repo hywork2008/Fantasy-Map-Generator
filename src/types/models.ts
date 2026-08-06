@@ -6,9 +6,11 @@ export type CultureType = (typeof CULTURE_TYPES)[number];
 
 /**
  * How character generation rolls sex for people of this race (nobility / createPerson).
- * - male_dominant: historical feudal court bias (~90% male) — the default when omitted
+ * - male_dominant: historical feudal court bias (~90% male)
  * - female_only: Amazones-style all-female polities
  * - balanced: ~50/50
+ * When omitted, sex ratio is derived from typical lifespan (short-lived ≈ male-biased courts;
+ * long-lived ≈ parity with a slight female majority). See `maleShareForLifespan` in raceAge.ts.
  */
 export const CHARACTER_GENDER_MODES = ["male_dominant", "female_only", "balanced"] as const;
 export type CharacterGenderMode = (typeof CHARACTER_GENDER_MODES)[number];
@@ -27,6 +29,8 @@ export type RaceKey =
   | "orc"
   | "giant"
   | "draconic"
+  /** Bound servitors of draconic realms — no free polities (see raceBoundServitors). */
+  | "wyrmkin"
   | "arachnid"
   | "amazones"
   | (string & {});
@@ -44,7 +48,12 @@ export interface RaceBeautyIdeal {
   weights: Partial<Record<AppearanceAxisId, number>>;
 }
 
-/** Species reproductive defaults (character households / future tick births). */
+/**
+ * Species reproductive defaults (character households / future tick births).
+ * Calibrated so R_max = (end−start)/interbirth × litterMean supports multi-race
+ * population balance (long-lived races near replacement). See
+ * docs/plan/characters/appearance-and-reproduction.md §3.2.
+ */
 export interface RaceFertility {
   /** Age of reproductive maturity (years). */
   fertilityStart: number;
@@ -245,6 +254,13 @@ export interface Culture {
   name: string;
   i: number;
   base: number;
+  /**
+   * Optional **person-name** cultural sphere (real-world name_base_id).
+   * Place names still use `base`. Long-lived races draw mythic/ancient CC0 names
+   * only from this sphere (or from a fantasy→sphere map when unset) so one
+   * homeland never mixes Greek + Norse + Japanese labels.
+   */
+  personNameBase?: number;
   shield: string;
   lock?: boolean;
   code?: string;
@@ -272,10 +288,10 @@ export interface Culture {
    */
   raceKey?: RaceKey;
   /**
-   * Fantasy sets: when true, states of this culture are mono-racial purity polities
-   * (dangerous fringe in the multi-race balance setting). When false/omitted, states
-   * are multi-racial mixed societies with a cultural majority.
-   * See docs/world/help/multi-race-geopolitics.md.
+   * When true (default for most races), states of this culture are mono-racial.
+   * When false, rare multi-folk polities (human/elf/dwarf cosmopolitan only).
+   * Enemy colonies (orc/goblin/arachnid) and distant folk are always mono.
+   * See docs/world/help/multi-race-geopolitics.md and raceCivicStance.ts.
    */
   monoRacial?: boolean;
   /**
@@ -377,8 +393,49 @@ export interface Monster {
   cell: number;
   name: string;
   rarity: number;
+  /** Current influence radius / strength (may drop as hunts progress). */
   power: number;
+  /**
+   * Spawn-time power used by Phase 4 rewilding to regenerate pressure toward
+   * the original threat level when a hunt does not finish the creature.
+   */
+  basePower?: number;
   type: string;
+}
+
+/**
+ * Fixed fantasy dungeon site: boss danger + independent treasure tier.
+ * Spec: docs/plan/high-fantasy-dungeons.md
+ *
+ * Not the same as roaming Monster (cull/rewild) or legacy Watabou marker dungeons.
+ * Defeat boss → remove from pack.dungeons (map presence only; no interior sim).
+ */
+export type DungeonKind = "wealth_lair" | "problem_lair" | "lost_vault" | "empty_ruin";
+
+export interface Dungeon {
+  i: number;
+  cell: number;
+  x: number;
+  y: number;
+  name: string;
+  /** Boss strength ladder — same semantic as Monster.rarity (1–3 High Fantasy). */
+  bossRarity: number;
+  /** Influence radius for danger paint; scales with rarity like Monster.power. */
+  bossPower: number;
+  bossBasePower?: number;
+  bossType: string;
+  /**
+   * Independent of boss strength: 0 = barren lair, higher = richer haul.
+   * Soft-correlated with rarity at spawn, never guaranteed.
+   */
+  treasureTier: number;
+  kind: DungeonKind;
+  /** Optional economy mineral deposit id when placed on/near one. */
+  mineralDepositId?: number | null;
+  /** Year appeared (generation year or spontaneous spawn). */
+  appearedYear: number;
+  /** Linked markers layer id (`type: "dungeon-site"`). */
+  markerId?: number | null;
 }
 
 export interface Province {

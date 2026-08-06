@@ -3,6 +3,7 @@ import type { Quadtree } from "d3";
 import type {
   Burg,
   Culture,
+  Dungeon,
   FrontierFort,
   IceElement,
   Marker,
@@ -73,6 +74,12 @@ export interface PackedGraphCells {
   province: TypedArray; // cell province id
   routes: Record<number, Record<number, number>>;
   danger: TypedArray; // cell threat/danger level
+  /**
+   * Wild land class for unclaimed land (Phase 3 oikoumene).
+   * 0 none (ocean/governed), 1 claimable_frontier, 2 wild_margin, 3 monster_domain.
+   * See `src/generators/wildLandTags.ts`.
+   */
+  wildLand?: TypedArray;
   capacity: TypedArray; // cell population carrying capacity
   children: TypedArray; // cell children pop
   maleAdults: TypedArray; // cell male adults pop
@@ -110,6 +117,11 @@ export interface PackedGraph {
   ice: IceElement[];
   provinces: Province[];
   monsters: Monster[];
+  /**
+   * High Fantasy dungeon sites (fixed boss + treasure). Absent/empty on
+   * non-fantasy maps. Spec: docs/plan/high-fantasy-dungeons.md
+   */
+  dungeons?: Dungeon[];
   /**
    * Pre-polity human geography. Absent on legacy and `standard` maps, where
    * the historical all-suitable-cell placement remains the compatibility

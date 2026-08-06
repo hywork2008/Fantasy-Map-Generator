@@ -3,9 +3,10 @@ import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers, FocusFields, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
-import { getGappedFillPaths, getIsolines } from "../utils";
-import { getScopedGraph, isCellInScope, scopedGetType } from "./core/focusScope";
+import { getPackPolygon } from "../utils";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
+import { dangerIntensityToMagmaT, dangerValueToMagmaT } from "./dangerColorScale";
 
 export const DangerRenderer: IRenderer = {
   id: "danger",
@@ -51,8 +52,8 @@ export const DangerRenderer: IRenderer = {
       if (contours.length === 0) return;
 
       const maxValue = d3.max(contours, d => d.value) || 1;
-      // Dark fantasy danger colors: interpolator from dark purple to deep red
-      const color = d3.scaleSequential(d3.interpolateMagma).domain([0, maxValue * 1.5]);
+      // Magma window: edges purple-gray, peaks deep red (not pale yellow).
+      const color = d3.scaleSequential(t => d3.interpolateMagma(dangerIntensityToMagmaT(t))).domain([0, maxValue]);
       const geoPath = d3.geoPath();
 
       danger
@@ -65,40 +66,25 @@ export const DangerRenderer: IRenderer = {
         .attr("stroke", "none")
         .attr("opacity", 0.6);
     } else if (renderingMode === "choropleth") {
-      let maxDanger = 0;
-
+      // True per-cell heatmap: one polygon per cell, fill from that cell's danger only.
+      // Do NOT use getIsolines here — region merges drop type-0 (falsy), skip interior-only
+      // starts, and can leave geometric holes so high-danger cells look empty/transparent.
+      const ids: number[] = [];
       for (const i of cells.i) {
         if (!isCellInScope(focusScope, i)) continue;
-        const d = cells.danger[i] as number;
-        if (d > maxDanger) maxDanger = d;
+        if ((cells.danger[i] as number) > 0) ids.push(i);
       }
+      if (ids.length === 0) return;
 
-      if (maxDanger === 0) return;
-
-      const getDangerBucket = (cellId: number): number => {
-        const d = cells.danger[cellId] as number;
-        if (d <= 0) return -1;
-
-        const ratio = d / maxDanger;
-        return Math.min(9, Math.floor(ratio * 10));
-      };
-
-      const isolines: Record<string, { fill?: string }> = getIsolines(
-        getScopedGraph(pack, focusScope),
-        scopedGetType(focusScope, getDangerBucket),
-        { fill: true }
-      );
-
-      const bodyPaths: string[] = [];
-      Object.entries(isolines).forEach(([index, { fill }]) => {
-        const bucket = +index;
-        if (bucket < 0) return;
-        const color = d3.interpolateMagma((bucket + 1) / 10);
-        bodyPaths.push(getGappedFillPaths("danger", fill, undefined, color, bucket));
-      });
-
-      danger.html(bodyPaths.join(""));
-      danger.selectAll("path").attr("opacity", 0.6);
+      danger
+        .selectAll("polygon")
+        .data(ids)
+        .enter()
+        .append("polygon")
+        .attr("points", i => getPackPolygon(i, pack).join(" "))
+        .attr("fill", i => d3.interpolateMagma(dangerValueToMagmaT(cells.danger[i] as number)))
+        .attr("stroke", "none")
+        .attr("opacity", 0.6);
     }
   },
 

@@ -179,63 +179,126 @@ interface RaceFertility {
 }
 ```
 
-### 3.2 Genre defaults (Western fantasy, rough)
+### 3.2 Calibration goal: **population simulation first**
 
-| Race | fertilityStart | fertilityEnd | interbirthYears | litterMean | litterMax | Rationale |
-| :--- | ---: | ---: | ---: | ---: | ---: | :--- |
-| Human / Unknown | 16 | 45 | 3.5 | 1.05 | 3 | Historical-ish spacing + rare twins |
-| Amazones | 16 | 42 | 3.0 | 1.1 | 3 | Human-like, slightly higher twin myth |
-| Elf | 100 | 500 | 20 | 1.0 | 2 | Slow generations, scarce heirs |
-| Dark Elf | 80 | 450 | 18 | 1.0 | 2 | Slightly faster than high elves |
-| Dwarf | 40 | 200 | 8 | 1.05 | 2 | Slow maturity, modest family size |
-| Goblin | 10 | 35 | 1.5 | 2.0 | 5 | Fast breeders, clutches |
-| Orc | 12 | 40 | 2.5 | 1.3 | 4 | Hardy, occasional multiples |
-| Giant | 30 | 150 | 10 | 1.0 | 2 | Slow, few offspring |
-| Draconic | 50 | 600 | 25 | 1.0 | 3 | Rare eggs/clutches, long wait |
-| Arachnid | 8 | 30 | 1.2 | 3.0 | 8 | Egg-sac fantasy |
-| Serpent | 18 | 120 | 5 | 1.5 | 4 | Occasional multi-egg clutches |
+Genre flavor (Tolkien / D&D maturity ages) still sets *when* a race can breed.  
+**Spacing and window length** are chosen so multi-race maps do not explode or go extinct under long-lived low-mortality folk.
 
-Numbers are **design priors** for character households and future tick fertility — not demography engine calibration.
-
-### 3.3 Using fertility in `generateFamily`
-
-Replace the human-only “1 child every 4 years × spouses” rule with:
+Primary metric:
 
 ```
-fertileYears = clamp(age, fertilityStart, fertilityEnd) span after firstMarriageAge
-expectedBirthEvents ≈ fertileYears / interbirthYears  (× spouse scaling if polygyny)
-children ≈ sum over events of sampleLitter(litterMean, litterMax)
+R_max = (fertilityEnd − fertilityStart) / interbirthYears × litterMean
 ```
 
-- **First marriage age** still social (form / culture / role); clamp to ≥ `fertilityStart`.
-- **Polygyny / harem:** form-based spouse count remains; only *biological* rates come from race (of the birthing parent — usually the female partner’s race in heterosexual pairings; Amazones race needs an explicit rule: all-female polity may use external sires with Amazon mother fertility).
+= expected live births for one birthing parent **continuously monogamous through the entire fertile window**.
+
+| Band | Target R_max | Role |
+| :--- | ---: | :--- |
+| Near-immortal / deep-time (elf, giant, draconic) | **2.0–3.5** | Near replacement; adult death is rare outside war; multi-millennial polities |
+| Long-lived (dwarf, dark elf) | **3.0–5.0** | Slow recovery; scarce heirs still feel true |
+| Human-scale (human, amazones) | **7–10** | Pre-modern completed fertility; macro mortality trims growth |
+| Boom species (orc, goblin, arachnid) | **≫ 10** | Fast rebound / clutch lore; later juvenile loss can cap them |
+
+**Why not “elf every 20 years”?**  
+A 400-year fertile window at 20-year spacing yields R_max ≈ **20** — higher than human completed fertility and catastrophic if adult mortality is low. English-fantasy sibling gaps of decades–centuries are a *side effect* of this balance, not the primary goal.
+
+**Generation length** also matters: long `interbirthYears` and late `fertilityStart` keep intrinsic growth rate \(r \approx \ln(R_0)/T\) small even when R_max is slightly above 2.
+
+### 3.3 Catalog defaults (population-sim calibrated)
+
+| Race | fertilityStart | fertilityEnd | interbirthYears | litterMean | litterMax | R_max ≈ | Rationale |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| Human / Unknown | 16 | 45 | 3.5 | 1.05 | 3 | 8.7 | Pre-modern continuous pairing TFR |
+| Amazones | 16 | 42 | 3.0 | 1.1 | 3 | 9.5 | Human-like + warrior attrition |
+| Elf | 100 | 400 | **120** | 1.0 | 2 | **2.5** | Near-replacement; century-scale sibling gaps |
+| Dark Elf | 80 | 380 | **100** | 1.0 | 2 | **3.0** | Slightly faster / more war loss than high elves |
+| Dwarf | 40 | 160 | **30** | 1.05 | 2 | **4.2** | Slow clans; not human spacing × long life |
+| Goblin | 10 | 35 | 1.5 | 2.0 | 5 | 33 | Boom / bust |
+| Orc | 12 | 40 | 2.5 | 1.3 | 4 | 14.6 | Fast, below goblin |
+| Giant | 100 | 450 | **130** | 1.0 | 2 | **2.7** | God-line deep time (lifespan 800 / max 1200); below draconic |
+| Draconic | 100 | 500 | **160** | 1.0 | 3 | **2.5** | Scarce clutches |
+| Arachnid | 8 | 30 | 1.2 | 3.0 | 8 | 55 | Egg-sac boom (lore: few reach adulthood) |
+
+Implemented in `src/data/races.ts`. Helper: `lifetimeExpectedBirths()` in `src/extensions/characters/fertility.ts`.
+
+Fertile windows for long-lived races are **front-loaded** (end well before typical `lifespan`) so ancient individuals stop adding births — same stability trick as “one childbearing season” tropes, expressed as numbers.
+
+### 3.4 Using fertility in `generateFamily`
+
+Two household models (see `raceUsesEpisodicPairing`, lifespan ≥ 150):
+
+**A. Continuous marriage (short-lived / human-scale)**
+
+```
+if unmarried roll → spouses=0, children=0
+else:
+  fertileYears = clamp(age, fertilityStart, fertilityEnd) after firstMarriageAge
+  expected ≈ fertileYears / interbirthYears × spouses × litterMean
+  children ≈ noise(expected)
+```
+
+**B. Episodic pairing (long-lived: elf, dwarf, giant, draconic, …)**
+
+Long-lived folk are **not** married for centuries by default.
+
+```
+never-parent roll → children=0 (independent of current bond)
+else:
+  firstParentAge = social first co-parenting age (≥ fertilityStart)
+  expected ≈ fertileYearsElapsed / interbirthYears × litterMean × availability(0.65)
+  children ≈ noise(expected)   // past partners may differ; no spouse multiplier
+
+current spouses = roll(currentlyPairedChance)   // independent of children
+  // higher while co-parenting / for dynastic roles; low otherwise
+```
+
+- **Children and current spouses are decoupled** — a parent may be unpaired at snapshot time.
+- **Availability** models “not always together at conception timing” (travel, separate courts).
+- **Polygyny / harem:** still only when currently paired and form allows; does not multiply lifetime episodic births.
 - **Cross-race couples (later):** use mother’s race for gestation/litter; optional hybrid penalties.
 
-### 3.4 Tick-time births (future)
+### 3.5 Tick-time births (future)
 
 When live succession births exist:
 
 1. Track `yearsSinceLastBirth` on mothers (or household).
 2. Eligible if age in `[fertilityStart, fertilityEnd]` and interval ≥ `interbirthYears` (with noise).
 3. Spawn `sampleLitter()` child characters with race inheritance rules (mother / father / culture of court).
+4. Soft-stop when lifetime births for that parent approach R_max (same formula as §3.2), so tick noise cannot create 10-child elves.
 
-### 3.5 Demography link (optional, later)
+### 3.6 Demography link (macro ↔ micro)
 
-Cell/burg birth rates stay aggregate. Character race fertility should **not** silently rewrite global `demographicBirthRate` until a dedicated multi-race population model exists. Document the split:
+| Layer | Owner | Today | Target |
+| :--- | :--- | :--- | :--- |
+| **Macro** cells / burgs | `demographicBirthRate`, cohorts | Abstract human-scale growth | Multi-race: weight by race mix × race-specific effective birth rates derived from R_max / generation length |
+| **Micro** named characters | `RaceFertility` | Households via `generateFamily` | Tick births use same R_max / interval |
 
-- Macro: `demographicBirthRate` (abstract humans)
-- Micro: Race fertility (named characters)
+**Rule:** do **not** silently rewrite global `demographicBirthRate` from character fertility until a dedicated multi-race population model exists. When that model lands, **micro numbers are the source of truth** for species rates; macro applies carrying capacity (`roomForGrowth`), sex structure, and juvenile mortality.
+
+**Bridge formula (sketch for later demography work):**
+
+```
+generationYears_r ≈ fertilityStart_r + 0.5 × (fertilityEnd_r − fertilityStart_r)
+// or mean age at childbearing once marriage age is known
+effectiveDaughters_r ≈ 0.5 × R_max_r × juvenileSurvival_r
+r_intrinsic_r ≈ ln(max(ε, effectiveDaughters_r)) / generationYears_r
+// then scale by roomForGrowth as today
+```
+
+Short-lived boom races need **high juvenile mortality** (or strong K pressure) so R_max ≫ 2 does not flood the map. Long-lived races rely on **low R_max**, not high juvenile death.
 
 **World consequence (High Fantasy):** if military power stays ~1:1 per combatant, continuous race war wipes slow-fertility folk. Setting assumption: the present age is a **settled multi-race balance**; mono-racial purity states are fringe radicals. See `docs/world/help/multi-race-geopolitics.md`.
 
-### 3.6 Implementation phases (Reproduction)
+### 3.7 Implementation phases (Reproduction)
 
 | Phase | Deliverable |
 | :--- | :--- |
 | R1 | `RaceFertility` on catalog + `pack.races`; load migration |
 | R2 | `generateFamily` uses mother/character race fertility |
-| R3 | UI: race editor or culture editor tooltip shows fertility summary |
-| R4 | Tick births for nobility succession using interval + litter |
+| R2b | **Population-sim recalibration** of catalog R_max (this revision) |
+| R3 | UI: race editor or culture editor tooltip shows fertility summary + R_max |
+| R4 | Tick births for nobility succession using interval + litter + lifetime soft-cap |
+| R5 | Multi-race macro demography bridge (§3.6) |
 
 ---
 
@@ -287,23 +350,25 @@ export interface Race {
 
 1. **Legacy `appearance` cache:** **subject’s own race ideal** (“handsome among my people”). Favor uses real observer via `attractiveness(observer, subject)`.
 2. **Same race:** full Appearance judgment (phenotype × race beauty ideal).
-3. **Cross race:** not beautiful/ugly on home scale — primarily *odd / hard to read*; stature+build similarity allows limited “sturdy/slight like ours” partial reading (score capped ~50). Lore: `docs/world/help/races-beauty-and-pairing.md`.
-4. **Cross-race pairing:** socially **deviant**; dynastic marriage refuses (`cross_race_deviant`); romantic favor almost never seeds and stays low.
-5. **Amazones reproduction:** external sire stories allowed; **Amazon mother fertility** for brood math; court characters remain female-only via race policy.
-6. **Axis count:** six (stature, build, symmetry, refinement, vitality, ornament).
-7. **Litter sampling:** `gauss(litterMean, …)` clamped to `[1, litterMax]`.
+3. **Cross race (default):** not beautiful/ugly on home scale — primarily *odd / hard to read*; stature+build similarity allows limited “sturdy/slight like ours” partial reading (score capped ~50).
+4. **Cross race (readable pairs):** asymmetric `crossRaceAestheticReadability` matrix. Observer may partially apply **their own** ideal with **observer baseline** as typical (so Human→typical Elf scores ~60–75, not re-centered to 50). Kind `cross_race_aesthetic`; soft score cap below same-race legendary. Classic trope: fair folk look beautiful to humans. Matrix lives in `appearance.ts`.
+5. **Cross-race pairing:** socially **deviant** even when aesthetic pull is high; dynastic marriage refuses (`cross_race_deviant`); romantic favor almost never seeds and stays low.
+6. **Amazones reproduction:** external sire stories allowed; **Amazon mother fertility** for brood math; court characters remain female-only via race policy.
+7. **Axis count:** six (stature, build, symmetry, refinement, vitality, ornament).
+8. **Litter sampling:** `gauss(litterMean, …)` clamped to `[1, litterMax]`.
+9. **Fertility priority:** **population simulation balance** over narrative “human-like spacing.” Long-lived R_max stays near replacement (§3.2–3.3). Sibling age gaps of ~100 years for elves are an accepted consequence.
 
 ---
 
 ## 7. Suggested first PR (minimal vertical slice)
 
-1. Add fertility fields to race catalog (numbers from §3.2).  
+1. Add fertility fields to race catalog (numbers from §3.3).  
 2. Switch `generateFamily` to race fertility when race is known; keep form-based spouse rules.  
 3. Add `looks` axes + race baselines; keep `appearance` as derived own-race attractiveness.  
 4. Point favor seeding at `attractiveness(observer, subject)` with race ideals.  
-5. Tests: elf households fewer kids than goblin; orc observer ranks high-`build` higher than elf observer.
+5. Tests: elf households fewer kids than goblin; long-lived R_max band; orc observer ranks high-`build` higher than elf observer.
 
-No demography engine change in the first PR.
+No demography engine change until R5. R1–R2 (+ R2b recalibration) are in tree.
 
 ---
 
@@ -312,6 +377,7 @@ No demography engine change in the first PR.
 - Should Culture get a `beautyFashion` overlay in Phase A or wait for A4?
 - Display language for axes (English UI): “Stature / Build / …” vs flavor prose only?
 - Hybrid children: race id inheritance (mother / father / coin flip) when both parents exist as characters?
+- Juvenile survival rates per race for the §3.6 demography bridge (especially goblin / arachnid)?
 
 ---
 
@@ -322,4 +388,5 @@ No demography engine change in the first PR.
 | Looks | 1 number = beauty | Multi-axis **phenotype** |
 | Beauty | Universal high=good | **Observer ideals** (race ± culture ± personal) |
 | Kids count | Human 4-year rule × spouses | Race **interbirth + litter** × social marriage |
+| Long-lived spacing | (was) ~20y elves → R_max≈20 | **R_max≈2.5–4** (pop-sim; ~100y elf gaps) |
 | Data owner | Implicit human | **Race** biology + social form packs |

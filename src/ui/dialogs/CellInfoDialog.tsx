@@ -71,6 +71,39 @@ export const CellInfoDialog: React.FC = () => {
             <td>{info.temp}</td>
           </tr>
           <tr>
+            <th
+              scope="row"
+              data-tip="Surface water temperature advected along the resolved current field; open ocean only"
+            >
+              Water temperature
+            </th>
+            <td>{info.waterTemp}</td>
+          </tr>
+          <tr>
+            <th scope="row" data-tip="Ocean current direction in degrees; open ocean only">
+              Current direction
+            </th>
+            <td>{info.currentDirection}</td>
+          </tr>
+          <tr>
+            <th
+              scope="row"
+              data-tip="Ocean current strength as a percentage of the solver's 0-255 output scale; open ocean only"
+            >
+              Current speed
+            </th>
+            <td>{info.currentSpeed}</td>
+          </tr>
+          <tr>
+            <th
+              scope="row"
+              data-tip="How enclosed/sheltered the water is, per Options → Generation → Enclosure calculation (0 = open, 100 = fully enclosed); water only"
+            >
+              Enclosure
+            </th>
+            <td>{info.enclosure}</td>
+          </tr>
+          <tr>
             <th scope="row">Biome</th>
             <td>{info.biome}</td>
           </tr>

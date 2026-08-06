@@ -6,7 +6,9 @@ import {
 } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
-import { createPerson } from "../../characters/personFactory";
+import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
+import { rollApprenticeAge } from "../../characters/raceAge";
+import { isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import type { Burg } from "../../hostTypes";
 import { P, rand } from "../../hostUtils";
 import {
@@ -30,6 +32,7 @@ import {
   settleBlacksmithingTechniques
 } from "./individualSkillMastery";
 import type { CharacterDomainSkill } from "./individualSkillTypes";
+import { resolveBurgCulture } from "./resolveBurgCulture";
 
 /**
  * Master/apprentice succession for GuildKnowledgeStock (docs/plan/knowledge-guild-system.md §5,
@@ -54,8 +57,6 @@ const SUCCESSION_DOMAINS: readonly CraftKnowledgeDomain[] = ["metallurgy"];
 /** Skill level at which a master is established enough to start training an apprentice. */
 const MASTER_APPRENTICE_ELIGIBLE_SKILL = 40;
 const MAX_APPRENTICES_PER_MASTER = 2;
-const APPRENTICE_MIN_AGE = 12;
-const APPRENTICE_MAX_AGE = 17;
 
 function isMasterRole(role: CharacterRole, burgId: number, domain: CraftKnowledgeDomain): boolean {
   return (
@@ -104,11 +105,11 @@ function getNextCharacterId(characters: Character[]): number {
   return Math.max(0, ...characters.map(c => c.i), -1) + 1;
 }
 
-function resolveBurgCulture(burg: Burg | undefined): number {
+/** Enemy-dedicated races (goblins) have no peaceful craft guild masters. */
+function cultureAllowsGuildCharacters(cultureId: number): boolean {
   const { pack } = getWorldContext();
-  const cellCulture = burg?.cell !== undefined ? pack.cells?.culture?.[burg.cell] : undefined;
-  const stateCulture = burg?.state !== undefined ? pack.states?.[burg.state]?.culture : undefined;
-  return burg?.culture ?? cellCulture ?? stateCulture ?? 0;
+  const raceId = resolveRaceIdForCulture(cultureId);
+  return !isEnemyDedicatedRaceKey(pack.races?.[raceId]?.key);
 }
 
 export function findMaster(
@@ -132,10 +133,12 @@ export function findApprentices(
   );
 }
 
-function createMaster(characters: Character[], burgId: number, domain: CraftKnowledgeDomain): Character {
+function createMaster(characters: Character[], burgId: number, domain: CraftKnowledgeDomain): Character | null {
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
-  const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
+  const cultureId = resolveBurgCulture(burg);
+  if (!cultureAllowsGuildCharacters(cultureId)) return null;
+  const character = createPerson(getNextCharacterId(characters), cultureId, {
     // Engineering is retained as a broad technical trait and seeds the initial
     // blacksmithing record below; it is no longer the practical craft skill.
     primarySkill: "engineering",
@@ -191,10 +194,11 @@ function createApprentice(
 ): Character {
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
-  const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
+  const cultureId = resolveBurgCulture(burg);
+  const character = createPerson(getNextCharacterId(characters), cultureId, {
     primarySkill: "engineering",
     roleClass: "ordinary",
-    ageOverride: rand(APPRENTICE_MIN_AGE, APPRENTICE_MAX_AGE),
+    ageOverride: rollApprenticeAge(resolveRaceIdForCulture(cultureId)),
     homeStateId: burg?.state ?? 0,
     genderOverride: rollBalancedEconomyGender(characters)
   });
@@ -339,7 +343,11 @@ function processGuildSuccession(
     master = findMaster(characters, burgId, domain);
   }
 
-  if (!master) master = createMaster(characters, burgId, domain);
+  if (!master) {
+    master = createMaster(characters, burgId, domain) ?? undefined;
+  }
+  // Enemy-dedicated burgs (goblin etc.) never run peaceful craft guilds.
+  if (!master) return;
 
   growApprentices(characters, master, burgId, domain, chance);
   maybeSpawnApprentice(characters, master, burgId, domain);

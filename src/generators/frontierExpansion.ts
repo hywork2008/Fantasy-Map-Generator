@@ -8,8 +8,10 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import type { RNGService } from "../utils/probabilityUtils";
+import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
+import { allowsFrontierOutpost } from "./wildLandTags";
 
 const SETUP_COST = 8;
 const TREASURY_RESERVE = 12;
@@ -17,7 +19,7 @@ const TREASURY_RESERVE = 12;
 const MIN_COLONISTS = 0.5;
 const MIN_OUTPOST_CAPACITY = 2;
 const SETTLEMENT_SUPPORT_YEARS = 3;
-const MAX_OUTPOST_DANGER = 120;
+const MAX_OUTPOST_DANGER = FRONTIER_OUTPOST_MAX_DANGER;
 const SETUP_FOOD = 4;
 const MAX_FRONTIER_HOPS = 6;
 const SOURCE_RETENTION_RATIO = 0.65;
@@ -74,10 +76,11 @@ export function getFrontierCandidateSummaries(
   world: WorldContext,
   simulation: SimulationContext
 ): readonly FrontierCandidateSummary[] {
-  const { cells, states } = world.pack;
-  if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  const cells = world.pack?.cells;
+  const states = world.pack?.states;
+  if (!cells || !states || !isFrontierPattern(world.options?.initialSettlementPattern)) return [];
   const candidates: FrontierCandidateSummary[] = [];
-  for (const state of states ?? []) {
+  for (const state of states) {
     if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i, cells, state.center)) continue;
     candidates.push(...getAvailableStateCandidates(state.i, cells, simulation.frontier, state.center));
   }
@@ -93,22 +96,24 @@ export function getFrontierCandidateBlockerSummaries(
   world: WorldContext,
   simulation: SimulationContext
 ): readonly FrontierCandidateBlockerSummary[] {
-  if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  const cells = world.pack?.cells;
+  const states = world.pack?.states;
+  if (!cells || !states || !isFrontierPattern(world.options?.initialSettlementPattern)) return [];
   const blockers: FrontierCandidateBlockerSummary[] = [];
-  for (const state of world.pack.states ?? []) {
+  for (const state of states) {
     if (!state?.i || state.removed) continue;
-    const startBlocker = getStateStartBlocker(state, simulation, state.i, world.pack.cells, state.center);
+    const startBlocker = getStateStartBlocker(state, simulation, state.i, cells, state.center);
     if (startBlocker) {
       blockers.push({ stateId: state.i, reason: startBlocker });
       continue;
     }
-    const allCandidates = getStateCandidates(state.i, world.pack.cells, simulation.frontier, state.center);
-    if (!getAvailableStateCandidates(state.i, world.pack.cells, simulation.frontier, state.center).length) {
+    const allCandidates = getStateCandidates(state.i, cells, simulation.frontier, state.center);
+    if (!getAvailableStateCandidates(state.i, cells, simulation.frontier, state.center).length) {
       if (allCandidates.length) {
         blockers.push({ stateId: state.i, reason: "All viable sites are in active frontier sectors" });
         continue;
       }
-      const available = getBestReachableColonistPool(state.i, world.pack.cells, simulation.frontier);
+      const available = getBestReachableColonistPool(state.i, cells, simulation.frontier);
       blockers.push({
         stateId: state.i,
         reason:
@@ -476,12 +481,15 @@ function isEligibleTarget(
   frontier: FrontierSimulationState,
   cellId: number
 ): boolean {
+  // monster_domain / wild_margin are not outpost targets (survival distance).
+  const wildOk = cells.wildLand ? allowsFrontierOutpost(cells.wildLand[cellId]) : true;
   return (
     cells.state[cellId] === 0 &&
     cells.province[cellId] === 0 &&
     frontier.cellStages[cellId] === FRONTIER_STAGE.wilderness &&
     cells.capacity[cellId] >= MIN_OUTPOST_CAPACITY &&
-    cells.danger[cellId] <= MAX_OUTPOST_DANGER
+    cells.danger[cellId] <= MAX_OUTPOST_DANGER &&
+    wildOk
   );
 }
 

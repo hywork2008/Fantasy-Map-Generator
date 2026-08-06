@@ -10,6 +10,7 @@ import { Lakes } from "../generators/lakes";
 import { Markers } from "../generators/markers-generator";
 import { Military } from "../generators/military-generator";
 import { Names } from "../generators/names-generator";
+import { OceanCurrents } from "../generators/oceanCurrents";
 import { Provinces } from "../generators/provinces-generator";
 import { Religions } from "../generators/religions-generator";
 import { Resample } from "../generators/resample";
@@ -31,6 +32,7 @@ export const GenerationPipeline = {
   Markers,
   Military,
   Names,
+  OceanCurrents,
   Provinces,
   Religions,
   Resample,

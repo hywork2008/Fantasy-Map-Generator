@@ -27,6 +27,7 @@ import {
   trimVowels
 } from "../utils";
 import { TIME } from "../utils/debug";
+import { getStateExpandDangerCost } from "./dangerExpandPolicy";
 import { COA } from "./emblem/generator";
 import { assignInitialPolities } from "./initialPolities";
 import { Names } from "./names-generator";
@@ -205,13 +206,21 @@ class StatesModule {
         if (state.lock) return; // do not overwrite cell of locked states
         if (cells.state[e] && e === state.center) return; // do not overwrite capital cells
 
+        // Phase 2 wild oikoumene: do not annex high-danger wilderness (monster/beast cores).
+        const danger = cells.danger?.[e] ?? 0;
+        const dangerCost = getStateExpandDangerCost(danger);
+        if (dangerCost === null) return;
+
         const cultureCost = culture === cells.culture[e] ? -9 : 100;
         const populationCost = cells.h[e] < 20 ? 0 : cells.s[e] ? Math.max(20 - cells.s[e], 0) : 5000;
         const biomeCost = this.getBiomeCost(b, cells.biomeCode[e], type);
         const heightCost = this.getHeightCost(pack.features[cells.f[e]], cells.h[e], type);
         const riverCost = this.getRiverCost(cells.r[e], e, type);
         const typeCost = this.getTypeCost(cells.t[e], type);
-        const cellCost = Math.max(cultureCost + populationCost + biomeCost + heightCost + riverCost + typeCost, 0);
+        const cellCost = Math.max(
+          cultureCost + populationCost + biomeCost + heightCost + riverCost + typeCost + dangerCost,
+          0
+        );
         const totalCost = p + 10 + cellCost / states[s].expansionism;
 
         if (totalCost > growthRate) return;

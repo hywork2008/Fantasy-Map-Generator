@@ -14,16 +14,34 @@ import type { Character, CharacterSkills } from "../../characters/characterTypes
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
 import {
+  careerStartAge,
+  directChildAgeGap,
+  isRaceMinor,
+  rollElectedAdultAge,
+  rollHereditaryHeirAge,
+  rollOfficerAge,
+  rollRulerAge
+} from "../../characters/raceAge";
+import {
   densityForState,
   ensureStateRacialComposition,
   resolvePersonCultureAndRace,
   selectCentralOffices
 } from "../../characters/raceRoster";
+import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
 import { getCurrentYear, getRulerId, getWorldContext, setRulerId } from "../nobilityContext";
+
+/** True when the state's culture race is enemy-dedicated (goblin warbands, etc.). */
+function stateIsEnemyDedicated(state: Pick<State, "culture">): boolean {
+  const { pack } = getWorldContext();
+  const culture = pack.cultures?.[state.culture];
+  const race = culture?.race !== undefined ? pack.races?.[culture.race] : undefined;
+  return isEnemyDedicatedRaceKey(race?.key);
+}
 
 function buildStateNameMap(states: { i: number; name?: string }[]): Record<number, string> {
   const map: Record<number, string> = {};
@@ -49,12 +67,6 @@ export type {
   Gender,
   TitleHolding
 } from "../../characters/characterTypes";
-
-const MIN_RULER_AGE = 28;
-const MAX_RULER_AGE = 65;
-
-const MIN_OFFICER_AGE = 22;
-const MAX_OFFICER_AGE = 60;
 
 function getNextCharacterId(characters: Character[]): number {
   return Math.max(0, ...characters.map(c => c.i), -1) + 1;
@@ -122,7 +134,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
       landed: true,
       entityType: "state",
       entityId: state.i,
-      startYear: currentYear - rand(0, Math.max(0, ruler.age - 20))
+      startYear: currentYear - rand(0, Math.max(0, ruler.age - careerStartAge(rulerIds.raceId)))
     });
     applyCharacterBackstory(ruler, {
       roleClass: "ruler",
@@ -136,7 +148,11 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     setRulerId(state, ruler.i);
 
     // Long-lived mono polities field thinner courts (scarce elders / heirs).
-    const offices = selectCentralOffices(CENTRAL_OFFICES, density);
+    // Goblin (enemy-dedicated) courts: martial offices only — no peaceful desks.
+    let offices = selectCentralOffices(CENTRAL_OFFICES, density);
+    if (stateIsEnemyDedicated(state)) {
+      offices = filterOfficesForEnemyRace(offices);
+    }
     for (const office of offices) {
       const religious = isReligiousForm(state, office.primarySkill);
       // Marshal / Minister of War are court-side martial careers → commander skill medians.
@@ -161,7 +177,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
         landed: false,
         entityType: "state",
         entityId: state.i,
-        startYear: currentYear - rand(0, Math.max(0, officer.age - 20))
+        startYear: currentYear - rand(0, Math.max(0, officer.age - careerStartAge(ids.raceId)))
       });
       applyCharacterBackstory(officer, {
         roleClass: officerRoleClass,
@@ -288,7 +304,7 @@ function createOfficer(
     marriageExpectation: "elite",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
-    ageOverride: rand(MIN_OFFICER_AGE, MAX_OFFICER_AGE),
+    ageOverride: rollOfficerAge(ids.raceId),
     roleClass: "commander",
     raceOverride: ids.raceId
   });
@@ -330,7 +346,7 @@ function createProvinceLord(
     marriageExpectation: "dynastic",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
-    ageOverride: rand(MIN_RULER_AGE, MAX_RULER_AGE),
+    ageOverride: rollRulerAge(ids.raceId),
     roleClass: "province_lord",
     raceOverride: ids.raceId
   });
@@ -549,22 +565,17 @@ function processSuccessions(): void {
     if (rulerVacant) {
       let heirAge: number | undefined;
       const isHereditary = state.form === "Monarchy" || state.form === "Dictatorship";
+      const heirIds = resolvePersonCultureAndRace(state, pack);
 
       if (currentRuler) {
         if (isHereditary) {
-          if (currentRuler.age < 16) {
-            // If a child ruler dies, the heir is usually an adult relative (uncle/cousin)
-            heirAge = rand(16, 50);
-          } else {
-            heirAge = Math.max(0, currentRuler.age - rand(15, 45));
-          }
+          heirAge = rollHereditaryHeirAge(heirIds.raceId, currentRuler.age);
         } else {
           // Republics, Theocracies, etc. elect/appoint established adults
-          heirAge = rand(35, 75);
+          heirAge = rollElectedAdultAge(heirIds.raceId);
         }
       }
 
-      const heirIds = resolvePersonCultureAndRace(state, pack);
       const heir = createPerson(nextId++, heirIds.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
@@ -578,7 +589,8 @@ function processSuccessions(): void {
       // Setup Heir relationships if possible
       if (currentRuler && isHereditary) {
         // If the heir is young enough, assume they are a direct child
-        if (heir.age < currentRuler.age - 14) {
+        const childGap = directChildAgeGap(heirIds.raceId);
+        if (heir.age < currentRuler.age - childGap) {
           heir.family.fatherId = currentRuler.gender === "male" ? currentRuler.i : undefined;
           heir.family.motherId = currentRuler.gender === "female" ? currentRuler.i : undefined;
 
@@ -589,7 +601,7 @@ function processSuccessions(): void {
 
       heir.location = state.capital;
       let rulerTitleName = resolveRulerTitle(state, heir.gender);
-      if (heir.age < 16) {
+      if (isRaceMinor(heir.age, heirIds.raceId)) {
         rulerTitleName += " (Under Regency)";
       }
 
@@ -617,12 +629,15 @@ function processSuccessions(): void {
       livingStateChars.push(heir);
     }
 
-    const vacantOffices = CENTRAL_OFFICES.filter(
+    let vacantOffices = CENTRAL_OFFICES.filter(
       office => !livingStateChars.some(c => c.titles.some(t => t.title === office.title))
     ).map(o => ({ ...o }));
+    if (stateIsEnemyDedicated(state)) {
+      vacantOffices = filterOfficesForEnemyRace(vacantOffices);
+    }
 
-    // If the current ruler is underage, ensure there's a Regent office
-    if (currentRuler && currentRuler.age < 16) {
+    // If the current ruler is underage (below race maturity), ensure there's a Regent office
+    if (currentRuler && isRaceMinor(currentRuler.age, currentRuler.race)) {
       const hasRegent = livingStateChars.some(c => c.titles.some(t => t.title === "Regent"));
       if (!hasRegent) {
         vacantOffices.push({ title: "Regent", primarySkill: "stewardship" });

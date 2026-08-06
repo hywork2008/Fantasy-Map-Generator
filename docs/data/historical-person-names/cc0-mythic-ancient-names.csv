@@ -1,0 +1,867 @@
+name_base_id,name_base,sphere_key,category,gender,name,name_qid,source_dataset,source_license
+0,German,base_0,mythology,unknown,Beowulf,Q48328,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+0,German,base_0,mythology,unknown,Brunhild,Q992632,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+0,German,base_0,mythology,male,Roland,Q207535,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+0,German,base_0,mythology,unknown,Siegfried,Q333146,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,male,Galahad,Q831462,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,male,Gawain,Q831685,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,female,Guinevere,Q272054,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,male,King Arthur,Q45792,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,male,Lancelot,Q215681,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,unknown,Merlin,Q76148,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,male,Mordred,Q81109,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,male,Percival,Q728510,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+1,English,base_1,mythology,unknown,Tristan,Q413090,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Abner of Burgos,Q322560,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Achila II,Q393730,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Adelgaster,Q8188115,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Attilanus of Zamora,Q705797,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Azriel,Q557882,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Bernhard,Q824674,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Diego de Acebo,Q1220590,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Dominicus Gundissalinus,Q1237726,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Durand of Huesca,Q3041516,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Emilian of Cogolla,Q153204,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Fandilus,Q2082240,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Fernando Díaz Gudiel,Q5859476,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Fernando Pérez,Q5801647,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Flaianus,Q5457050,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Florentius,Q3746711,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Francio of Cantabria,Q5802517,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Froila,Q5505325,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Fruela Díaz,Q5506348,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Fulgentius of Cartagena,Q2616176,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,García Álvarez,Q1493998,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Gil de Torres,Q748383,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Gonzalo Miguel,Q5883112,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Gonzalo Pérez Gudiel,Q2420654,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Gonzalo de Aguilar,Q5883357,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Hugo of Santalla,Q387106,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Ibn Juzayy,Q3773066,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Ibn Luyun,Q3147449,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Isaac ibn Latif,Q1673518,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Jacob ben Reuben,Q1679439,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Juan de Ortega,Q2713819,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Judah ben Asher,Q828097,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Lucas de Tuy,Q3065693,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Munio of Zamora,Q2356240,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Opilano,Q6051614,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Pedro Ansúrez,Q1159977,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Pedro de Cuéllar,Q6070467,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Pedro de Peñafiel,Q6070553,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Pelayo Peláez,Q6070890,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Pere Tomás,Q6070246,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Pere de Montsó,Q3899765,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Peter González,Q2715632,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Pêro da Ponte,Q1779292,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Ramon de Caldes,Q3608950,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Salomon ibn Parhon,Q3470074,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Savaric I,Q7427948,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Shem-Tov ibn Falaquera,Q1383938,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Sisebut,Q350656,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,male,Sisebut de Cardeña,Q5678123,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+4,Castillian,base_4,ancient_person,female,Teresa Gil,Q6142561,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Alako,Q2016658,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Alfadur,Q9602646,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Alfrigg,Q2646410,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Alsviðr,Q432825,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Alvaldi,Q2021358,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Alvíss,Q1143134,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Andhrímnir,Q534156,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Andvari,Q525149,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Annar,Q2573198,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Aslaug,Q732678,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Atla,Q2143293,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Aurvandill,Q279501,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Barri,Q4863474,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Bergelmir,Q266233,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Bifröst,Q208525,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Billingr,Q953464,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Bláin,Q881142,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Bragi,Q199959,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Brokkr,Q926010,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Byggvir,Q1018519,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Bödvar Bjarki,Q2519089,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Bøyg,Q1789846,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Búri,Q336145,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Býleistr,Q1018548,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Dagr,Q1136295,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Dellingr,Q944790,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Durinn,Q1261767,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Dvalinn,Q1268297,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Dáinn,Q841703,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Eggther,Q981889,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Eir,Q427355,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Elli,Q1283197,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Fimafeng,Q2540845,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Fin,Q2481558,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Fjölnir,Q1400296,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Fjölvar,Q742527,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Fjörgyn,Q108807778,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Forseti,Q62548,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Freyr,Q131474,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Frigg,Q131654,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Frotho I,Q887924,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Fulla,Q847429,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Fáfnir,Q745315,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Gandalf,Q587350,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Gaut,Q1402029,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Gersemi,Q1515018,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Gestumblindi,Q1519694,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Gjallarbrú,Q1528902,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Gjálp and Greip,Q345799,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Gjöll,Q1500292,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Glenr,Q5569275,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Grani,Q2418385,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Grerr,Q1545912,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Grimhild,Q1565635,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Grímnir,Q1262034,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Gróa,Q1280875,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Gudrun,Q1257834,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Gullfaxi,Q1200682,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Gullveig,Q1324152,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Gutthorm,Q1557360,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Gylfi,Q2296321,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Göll,Q96657669,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Hagbard,Q1456415,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Hagen,Q1568447,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Heidrek,Q2215697,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Heiðr,Q2243464,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Helblindi,Q282516,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Helgi Hundingsbane,Q155432,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Hermod,Q579612,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Hervör alvitr,Q1115537,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Hildr,Q2580125,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Himinglæva,Q666857,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Hlöd,Q2383464,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Hnoss,Q1543730,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Hoddmímis holt,Q679137,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Hreiðmarr,Q1390232,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Hringhorni,Q1424849,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Hrist,Q10655862,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Hræsvelgr,Q564342,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Hvergelmir,Q536442,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Högne,Q937699,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Ilmr,Q3323186,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Ingunar-Freyr,Q519622,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Iðunn,Q204691,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Jörð,Q548730,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Jötnar,Q210053,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Kvasir,Q216763,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Kári,Q688566,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Kólga,Q179227,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Laufey,Q607641,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Leikn,Q388585,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Loki,Q133147,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Lóðurr,Q1501311,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Magni,Q1845668,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Meili,Q1617533,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Miskorblindi,Q2200742,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Mundilfari,Q578248,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Muspell,Q675304,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Máni,Q739765,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Mímameiðr,Q1273709,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Mímir,Q336496,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Mímisbrunnr,Q990571,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Mótsognir,Q1284136,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Móðguðr,Q1752972,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Móði,Q601453,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Mökkurkálfi,Q3267273,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Naglfar,Q846277,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Naglfari,Q2736538,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Nanna,Q500390,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Nari,Q1194706,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Nepr,Q929021,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Ninus,Q1152356,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Niðhad,Q1987427,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Njord,Q193879,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Njörun,Q431044,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Norse dwarves,Q2738581,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Nótt,Q576795,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Odin,Q43610,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Ragnarök,Q170148,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Regin,Q1502974,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Rerir,Q457767,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Rindr,Q1324396,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Rán,Q663348,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Ríg,Q15843446,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Röskva,Q1852740,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Sif,Q211613,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Siggeir,Q1810814,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Sigi,Q458489,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Sigmund,Q1158552,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Sigrdrífa,Q1076478,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Sigrún,Q3041936,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Sigurd,Q537554,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Sigyn,Q734508,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Sindri,Q1468430,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Sinfjötli,Q513564,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Sister-wife of Njörðr,Q18211476,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Skaði,Q244032,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Skjöldr,Q1771470,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Skuld,Q500473,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Skírnir,Q264522,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Skögul,Q6319136,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Slidr,Q1851773,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Sons of Odin,Q7562334,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Starkad,Q957042,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Surtr,Q211700,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Svafrlami,Q1817116,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Svanhildr,Q1758567,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Svipdagr,Q764214,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Svipul,Q7652719,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Sváfa,Q1085116,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Sága,Q1263128,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Sága and Sökkvabekkr,Q1799815,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Sökkvabekkr,Q16513498,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Thor,Q42952,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Trebeta,Q572358,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Tyr,Q172713,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Urðarbrunnr,Q1458366,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Urðr,Q946913,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Veraldur,Q61000566,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Verðandi,Q917725,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Viðfinnr,Q1621291,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Váli,Q2646624,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Víðarr,Q372614,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Völsung,Q1263694,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Völsungs,Q1242790,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Yule Lads,Q1715040,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Árvakr,Q12344299,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Ægir,Q204927,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Élivágar,Q274754,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Ótr,Q1967084,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Óttar,Q2449577,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,unknown,Öku-Thor,Q296494,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Ölrún,Q80190608,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Örvar-Oddr,Q2275382,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Þorbjörg Lítilvölva,Q335816,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Þorgerðr Hölgabrúðr,Q16513995,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,male,Þrymr,Q1123905,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+6,Nordic,base_6,mythology,female,Þrúðr,Q827758,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Aba,Q304227,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Abantidas,Q305524,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Abarbarea,Q279782,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Aeantides of Lampsacus,Q403403,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Aegle,Q26276980,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Aelianus Tacticus,Q380793,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Agathon,Q391497,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,female,Aglais,Q83759154,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Aineades,Q405957,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Aison,Q327857,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Amalthea,Q107785,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Amphitrite,Q180222,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Anchiroe,Q29654988,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Anchius,Q15783253,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Ancius,Q3615218,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Andes,Q21548629,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Anippe,Q10411954,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Anthédon,Q21548693,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Antimachus,Q21548750,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Aphareus,Q26806435,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Apollodorus of Acharnae,Q328853,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Areius,Q55484966,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Argeia,Q644354,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Argeus,Q15783910,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Argyra,Q3560453,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Aristophanes,Q667194,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Aristotle,Q868,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Asia,Q605744,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Asteas,Q328002,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Asteria,Q18642285,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Astraeus,Q250588,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Athenaeus,Q294923,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Atlas,Q130818,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Batea,Q810744,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Bolbe,Q4810860,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Briareus,Q849647,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Caliadne,Q2559167,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Callirhoe,Q1722503,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Calypso,Q48961,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Cassotis,Q1735272,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Castalia,Q170053,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Celusa,Q57157139,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Chares,Q1063128,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Charitaios,Q1063233,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Chlidanope,Q18643251,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Cisseis,Q57521633,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Clanis,Q57664165,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Cleocharia,Q2980753,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Cleone,Q2754601,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Cnossia,Q10546716,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Coeus,Q182837,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Cottus,Q3318918,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Crenaeus,Q124316484,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Creusa,Q1232622,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Crocale,Q122067349,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Cronus,Q44204,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Cyane,Q1423058,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Cyllarus,Q3676711,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Cyllene,Q7595427,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Daphne,Q194015,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Daphnis,Q122227110,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Daulis,Q17461398,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Deiniades,Q1183292,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Demoleon,Q59772137,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Demosthenes,Q117253,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Dionysicles of Miletus,Q1226971,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Dipylon Master,Q943544,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Drosera,Q5308511,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Elatus,Q60300036,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,unknown,Elbows Out,Q1325382,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Elymus,Q65054738,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Epainetos,Q1029554,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Ephydatia,Q5820239,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Epicharmus of Kos,Q312410,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Epiktetos,Q938972,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Euboea,Q1372109,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Eucheiros,Q974212,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Euphronios,Q358508,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Eurryroe,Q106795677,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Eurynome,Q548099,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Eurynomus,Q61046327,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Eurytion,Q124357578,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Euthymides,Q560260,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Evadne,Q1259960,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Glaucia,Q5567263,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Glaukia,Q126890351,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Gyges,Q1187298,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Helops,Q125968721,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Hermonax,Q328215,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Hesione,Q669635,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Hylaeus,Q124559102,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Hyles,Q124422562,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Hylonome,Q391070,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Inachides,Q126898460,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Iphinous,Q126087412,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Ismenis,Q6085037,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Kalligeneia,Q126911214,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Kalliroe,Q126911246,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Kealtes,Q1303181,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Kleitias,Q722963,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Kretheis,Q126709504,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Langia,Q12754452,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Latreus,Q107552580,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Lelantos,Q3270327,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Lilaea,Q460094,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Limnaee,Q1825523,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Liriope,Q1815682,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Lotis,Q2465677,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Lycabas,Q124821370,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Lycotas,Q124767454,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Lycus,Q124654213,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Lydos,Q946281,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Lysis of Taras,Q720939,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Makron,Q427706,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Melite,Q126833753,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Merope,Q427122,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Messeis,Q107313059,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Metagenes,Q1176269,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Methone,Q3855694,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Metis,Q190565,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Metope,Q1237258,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Mimas,Q125813526,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Mis,Q138447956,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Mnemosyne,Q102884,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Mnesilochus,Q1178108,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Myrtoessa,Q10592638,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,female,Neaira,Q431067,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Nearchos,Q330410,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Nemea,Q1977078,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Nemesis,Q185747,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Nessus,Q466866,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Nicocles,Q715078,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Nikosthenes,Q275165,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Oceanus,Q161419,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Oenone,Q858671,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Oikopheles,Q1356545,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Olymbros,Q126552519,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Onesimos,Q475054,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Orseis,Q979627,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Ostasos,Q126552589,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Pallas,Q457294,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Paria,Q12757019,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Pegasis,Q10622216,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Peitho,Q611171,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Periander,Q11941122,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Periboea,Q17197552,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Perses,Q660924,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Phaenias of Eresus,Q943529,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Pharmakeia,Q126710308,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Philyra,Q398524,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Phlegraeus,Q126118957,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Phocylides,Q972799,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Phoebe,Q183281,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Phoenissa,Q106808293,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Pirene,Q4843985,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Pitane,Q25393568,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Plataea,Q6078094,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Pleione,Q463865,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Plouto,Q662968,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Polkan,Q1990860,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Polyxo,Q2103187,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Praxithea,Q13058657,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Pronoe,Q2112864,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Pylenor,Q16327570,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Pyracmus,Q125274680,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Rhodos,Q641286,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Rhoecus,Q12758406,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Rhoetus,Q124962285,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Sakonides,Q1331545,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Salmacis,Q828579,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Samia,Q12884308,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Sinope,Q1539539,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Skythes,Q1297344,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Smikros,Q510558,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,unknown,Stilbe,Q1576404,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Stilbon,Q7616947,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Strophia,Q3661549,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,male,Styphelus,Q125377972,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Styx,Q542758,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Symaithis,Q28224106,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,ancient_person,male,Theodorus,Q139020003,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Thronia,Q135921774,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Thyia,Q949266,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Tiasa,Q7800294,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Tyche,Q213440,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,Zeuxo,Q197039,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+7,Greek,base_7,mythology,female,mother of Aetolus,Q122964728,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Abaris,Q305570,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Abellio,Q318682,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Acmon,Q420261,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Acron,Q16160516,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Aeternitas,Q381914,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Agdistis,Q392120,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Aius Locutius,Q411066,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Ambrose,Q43689,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Amulius,Q889656,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Ancaria,Q3615151,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Anextiomarus,Q529652,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Anna,Q559304,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Anna Perenna,Q539796,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Annona,Q581656,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Antevorta,Q1250207,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Antoninus Pius,Q1429,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Anxur,Q26690196,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Apollo,Q900649,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Apotropaei,Q25338401,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Appias,Q56036020,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Aquilon,Q2859290,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Arrian,Q31845,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Ascanius,Q655566,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Athanasius of Alexandria,Q44024,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Augustine of Hippo,Q8018,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Augustus,Q1405,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Aulus Terentius Varro,Q141723,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Auster,Q611138,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Aëtius of Antioch,Q16442,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Balbinus,Q1805,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Bellona,Q207234,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Bona Dea,Q724896,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Caca,Q1024984,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Cacus,Q754686,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Caligula,Q1409,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Capricornus,Q11294655,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Capys,Q20018046,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Caracalla,Q1446,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Caritas,Q128715023,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Catiline,Q75826,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Cicero,Q1541,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Cissonius,Q1093253,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Claudius,Q1411,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Clement I,Q42887,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Cloacina,Q2879107,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Commodus,Q1434,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Constantine the Great,Q8413,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Cornelius Nepos,Q109594,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Cybele,Q188236,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Cyril of Alexandria,Q44079,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Decius,Q1830,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Deiopea,Q3704814,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Deverra,Q3025430,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Didius Julianus,Q1440,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Dies,Q18206465,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Diocletian,Q43107,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Diogenes Laërtius,Q59138,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Disciplina,Q3495260,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Domitian,Q1423,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Domitius Marsus,Q8809,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Edusa,Q3622563,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Elagabalus,Q1762,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,female,Engratia,Q32313,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Eusebius of Caesarea,Q142999,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Falacer,Q3738525,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,female,Faustina,Q63533,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Flavius Victor,Q18874,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Flora,Q209644,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Forculus,Q18548363,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gaius Cornelius Gallus,Q8825,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gaius Julius Iullus,Q138217,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gaius Maecenas,Q8833,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gaius Maecenas Melissus,Q8800,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Gaius Mucius Scaevola,Q312660,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gaius Valgius Rufus,Q8817,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Galba,Q1414,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Galen,Q8778,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Garamantis,Q1493870,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gnaeus Domitius Calvinus,Q63447,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gordian I,Q1782,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gordian II,Q1803,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gordian III,Q1812,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Gregory of Nazianzus,Q44011,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Hadrian,Q1427,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Hercules,Q240679,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Horace,Q6197,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Iapyx,Q1180888,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Ignatius of Antioch,Q44170,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Josephus,Q134461,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Jovian,Q34074,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,female,Julia the Elder,Q2259,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Julian,Q33941,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Julius Caesar,Q1048,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Julius I,Q103101,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Julius Nepos,Q103860,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Junius Rusticus,Q18999,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Juturna,Q139448,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Latinus,Q779406,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Lavinia,Q1137364,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Lawrence of Rome,Q17590,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Leo I,Q43954,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Liber,Q1145491,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Libera,Q2633166,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Linus,Q47144,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Lucifer,Q4270105,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Lucius Domitius Ahenobarbus,Q120122,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Lucius Neratius Priscus,Q63389,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Lucius Tarutius Firmanus,Q138724,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Lucius Varius Rufus,Q8820,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Lucius Verus,Q1433,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Macarius of Egypt,Q43920,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Macrinus,Q1752,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Marcellus I,Q102131,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Marcus Aurelius,Q1430,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Marcus Fulvius Paetinus,Q135279,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Mark Antony,Q51673,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Mark the Evangelist,Q31966,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Martial,Q2098,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Maximinus Thrax,Q1777,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Mellona,Q3142105,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Mercury,Q1150,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Nero,Q1413,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Nerva,Q1424,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Numitor,Q660623,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Ocnus,Q1929263,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Otho,Q1416,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Ovid,Q7198,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Owl of Athena,Q1196035,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Pales,Q654604,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Paul the Apostle,Q9200,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Pavor,Q12137419,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Pax,Q1132674,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Pertinax,Q1436,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Philip the Arab,Q1817,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Philotis,Q7186297,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Phlegon of Tralles,Q138531,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Plautus,Q47160,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Pliny the Elder,Q82778,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Plotius Tucca,Q6184,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Plutarch,Q41523,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Pontius Pilatus,Q17131,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Procas,Q887384,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Propertius,Q8827,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Pseudo-Marius,Q110659,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Ptolemy,Q34943,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Pupienus,Q1797,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Quinctilius Varus,Q8808,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Quintus Curtius Rufus,Q5959,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Rediculus,Q7305935,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Remmius Palaemon,Q24548,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Remus,Q1242632,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Rhea Silvia,Q219936,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Robigus,Q10752043,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Roma,Q953033,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Romulus,Q2186,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,female,Saint Afra,Q114845,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,female,Saint Cecilia,Q80513,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Sallust,Q7170,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Scipio Aemilianus,Q2307,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Scipio Africanus,Q2253,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Seneca,Q2054,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Septimius Severus,Q1442,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Severus,Q46814,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Severus Alexander,Q1769,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Soter,Q101280,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Suadela,Q1459682,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Subruncinator,Q3502626,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Suetonius,Q10133,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Tacitus,Q2161,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Theodore of Amasea,Q37599,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Thomas the Apostle,Q43669,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Tiberinus,Q937512,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Tiberius,Q1407,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Tibullus,Q109598,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Tiburtus,Q3528137,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Titus,Q1421,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Titus Calidius Severus,Q122437,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Titus Livius,Q2039,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,unknown,Tosco,Q3995887,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Trajan,Q1425,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,female,Valeria Maximilla,Q45535,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Vegetius,Q4298,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Vertumnus,Q374311,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Vespasian,Q1419,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Virgil,Q1398,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,male,Visidianus,Q2528300,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,ancient_person,male,Vitellius,Q1417,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+8,Roman,base_8,mythology,female,Voluptas,Q651660,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+11,Chinese,base_11,mythology,female,Chang'e,Q466462,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+11,Chinese,base_11,mythology,male,Fuxi,Q236972,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+11,Chinese,base_11,mythology,male,Jade Emperor,Q860434,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+11,Chinese,base_11,mythology,male,Nezha,Q547105,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+11,Chinese,base_11,mythology,female,Nüwa,Q641632,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+11,Chinese,base_11,mythology,male,Sun Wukong,Q11773777,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+11,Chinese,base_11,mythology,male,Yellow Emperor,Q29201,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Adakayanushitakikihime,Q133260613,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ahashima,Q13275856,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Aizu-hime-no-Kami,Q56350355,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Amamikatsuhime no Mikoto,Q106160485,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Amanosakitama no Mikoto,Q106241395,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Ame no Hiratome,Q85879124,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ame no Ikutama,Q97184246,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ame no Mikemochi,Q110064530,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ame no Mikudaru,Q110120205,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ame no Tomi,Q24899653,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ame-no-Hibaraooshinadomi-no-Kami,Q60996386,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ame-no-Oshikumone,Q91088537,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Ame-no-Tsudoechine,Q55533659,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Ashinataka-no-Kami,Q55533749,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ashinazuchi,Q109554668,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Atago Gongen,Q1101132,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Chikatō-no-Kami,Q38276367,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Chimata-no-Kami,Q24887893,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Chimyō Gongen,Q11514781,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Eighty Gods,Q65249011,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Fuha-no-Mojikunusunu,Q65266248,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Fukabuchi-no-Mizuyarehana,Q65272471,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Funozuno,Q65266238,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Furutama,Q106241380,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Futemimi,Q65266228,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Hachiōji Gongen,Q11391615,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Hakone Gongen,Q11603375,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Hakusan Gongen,Q11579578,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Hayaakitsuhiko,Q116026335,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Hayaakitsuhime,Q116026336,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Hikawa-hime,Q65270244,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Hikokamiwake-no-Mikoto,Q70537095,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Himegami,Q22070227,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Himuro Gongen,Q134844607,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Hinarashibime,Q135330162,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Honoakari,Q60673696,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Hyōzu no Kami,Q135195558,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Ibukidonushi no Kami,Q86734190,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Ihika,Q24866003,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Ikugui,Q135011342,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Ikutamatakitamahime Kami,Q135330219,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Isetsuhiko,Q17193127,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Isurugi Gongen,Q11585202,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Itsuhayahime-no-Mikoto,Q48753263,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Iwaoshiwaku no Ko,Q24866029,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Izuhayao-no-Mikoto,Q48749523,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Izuna Gongen,Q11666654,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Izusan Gongen,Q11380566,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Izushiyamae no okami,Q112298467,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Jūzenji,Q123524325,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Kamo Taketsunomi,Q11634939,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Kamo Wake-ikazuchi,Q11634943,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kamuna'obi,Q86725467,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kasuga Gongen,Q11088804,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Katakurabe no Mikoto,Q60995918,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kihisakamitakahiko,Q123511661,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kihisatsumi,Q123511663,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kodamahiko-no-Mikoto,Q109594446,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kompira,Q167077,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Konohanachiruhime,Q48745675,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kumano Gongen,Q11568925,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Kuninotoshimi-no-Kami,Q48759713,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Kushimachi no Mikoto,Q108039939,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Kushiyatama,Q86734749,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Kuzu Daimyōjin,Q112368210,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Michikaeshi Ōkami,Q134891408,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Mimatsuhiko-Irodo-no-Mikoto,Q86728909,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Mishokutsuomi no Mikoto,Q110796235,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Moritaku-no-Kami,Q38276368,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Munasukihime,Q24863211,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Nago,Q126542856,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Nezu Gongen,Q11536449,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Niemotsu no Ko,Q55532732,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Oasahiko-no-Mikoto,Q134846383,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Omizunu,Q48745416,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Sakitamahime,Q135330068,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Sanki Daigongen,Q11358323,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Sannō Gongen,Q11470054,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Sashikuni Wakahime,Q38276815,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Sashikuni Ōkami,Q48745417,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Seiryū Gongen,Q11561324,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Sugane,Q123511648,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Suhijini,Q84865529,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Tajimamorosuku no kami,Q112298337,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Takamen,Q134350458,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Takei-Otomo-no-Ookami,Q86728307,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Takeminawake no Mikoto,Q86730053,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Takeuioki-no-Mikoto,Q134845057,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Tamahime no Mikoto,Q109598469,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Tamaru-hime,Q56347882,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Tanabatabime-no-Mikoto,Q48750893,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Tateyama Gongen,Q11597837,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Tenazuchi,Q109554669,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Torinarumi no kami,Q55522639,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Totori no kami,Q48760952,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Totsuyami-Sakitara-no-Kami,Q55523289,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Tsunuga Arashito,Q17216052,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Tsunugui,Q135011341,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Uhijini,Q84865505,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Unochihiko,Q123511657,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Utsushihikanasaku,Q86736058,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Yachinomi-no-Mikoto,Q65249081,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Yametsuhime,Q98082969,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Yashimajinumi no kami,Q55522907,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Yashimamuji,Q65249018,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Yatsuagata Sukune,Q56347860,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Yazuka-Otoko-no-Mikoto,Q86728350,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Yuga Daigongen,Q11573853,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,unknown,Zaō Gongen,Q10514059,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Ōmiyanome,Q24865597,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Ōnotehime-no-Kami,Q85878978,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,female,Ōtonobe,Q84868574,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+12,Japanese,base_12,mythology,male,Ōtonoji,Q84868546,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,female,Abbasa,Q305965,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abdul Qadir Gilani,Q307365,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu Bakr al-Kalabadhi,Q334857,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu Dawud al-Sijistani,Q336558,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu Firas al-Hamdani,Q481409,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu Isa at-Tirmidhi,Q293578,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu Ma'shar al-Balkhi,Q11373,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu Mikhnaf,Q337009,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu Nuwas,Q5670,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu al-Faraj al-Isfahani,Q335599,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abu-Sa'id Jannabi,Q288260,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abū Ḥanīfa Dīnawarī,Q293520,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Abū-Sa'īd Abul-Khayr,Q335282,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ahmed ar-Rifa'i,Q401463,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Baladhuri,Q293528,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Basasiri,Q288840,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Bayhaqi,Q293663,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Fadl ibn Sahl,Q292178,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Hilli,Q290506,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Karaji,Q461062,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Kindi,Q179759,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mas'udi,Q168705,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mawardi,Q335635,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mu'tadid,Q284567,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mu'tamid,Q284721,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mu'tazz,Q281989,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muktafi,Q284701,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muntasir,Q284012,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muqanna,Q287761,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muqtadi,Q293683,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muqtafi,Q293617,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Musta'in,Q284157,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Musta'sim,Q293454,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mustadi,Q293646,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mustakfi,Q293640,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mustanjid,Q293448,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mustansir,Q293545,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mustarshid,Q293621,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Mustazhir,Q293632,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muti,Q284730,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muttaqi,Q284759,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muwaffaq,Q291410,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Muzani,Q48703,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Nasa'i,Q293535,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Nasir,Q284750,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Qa'im,Q293626,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Qadir,Q284427,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Qahir,Q284711,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Rashid,Q293509,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Waqidi,Q285255,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Al-Wathiq,Q284585,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ali al-Hadi,Q315377,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ali al-Rida,Q25105,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,At-Ta'i,Q284779,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Az-Zahir,Q293450,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Baha ad-Din Shoieb,Q253568,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Bayazid Bastami,Q380241,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Farabi,Q160460,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,female,Fatima al-Fihriya,Q182363,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,female,Fātima bint Mūsā,Q445398,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Hasan al-Askari,Q315920,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ibn Khordadbeh,Q380004,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ibn Majah,Q381469,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ibn al-Haytham,Q11104,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ibrahim al-Nazzam,Q287501,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Imam Zufar,Q228203,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,female,Inan,Q11926586,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ishaq Ibn Rahwayh,Q439344,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Ishodad of Merv,Q213120,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Mansur Al-Hallaj,Q172862,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Mu'nis al-Khadim,Q287837,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Muhammad al-Jawad,Q25088,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Musa al-Kazim,Q315031,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Muslim ibn al-Ḥajjāj,Q140124,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Nafi' al-Madani,Q112465,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Nasir al-Din al-Tusi,Q302835,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Nizam al-Mulk,Q298427,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,female,Rabia of Basri,Q256506,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Saadia Gaon,Q328748,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Sahl ibn Bishr,Q353889,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Shapur ibn Sahl,Q325676,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Sharif Radhi,Q130561,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Sharif al-Murtadha,Q130169,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Shihab al-Din Suhrawardi,Q282883,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Shmym al-Ḥillī,Q6807343,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Subuk,Q7632290,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,Thābit ibn Qurra,Q250568,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+18,Arabic,base_18,ancient_person,male,al-Yaʿqubi,Q293689,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Annea,Q565968,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,female,Ansotica,Q570056,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,female,Aobh,Q615537,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Arawn,Q626770,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Arvalus,Q716910,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Baeserta,Q799755,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Bandua,Q806376,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Bith,Q878793,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Brath,Q12384644,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Buxenus,Q1018287,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Bébinn,Q1019353,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,female,Cailleach,Q1025867,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Cernunnos,Q739737,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Dumiatis,Q1264987,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Emrys,Q10483170,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Fish-man,Q1586937,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Frìd,Q13194676,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Hooded Spirits,Q1425293,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,female,Latiaran,Q11753178,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Lir,Q1827715,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Math fab Mathonwy,Q2097638,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,female,Nabia,Q3321513,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,male,Reo,Q3392532,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Sluagh,Q3136673,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,female,Suleviae,Q1399677,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+22,Celtic,base_22,mythology,unknown,Veteris,Q1354248,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+23,Mesopotamian,base_23,mythology,male,Enki,Q189726,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+23,Mesopotamian,base_23,mythology,male,Enlil,Q214672,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+23,Mesopotamian,base_23,mythology,unknown,Gilgamesh,Q75352,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+23,Mesopotamian,base_23,mythology,female,Inanna,Q272523,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+23,Mesopotamian,base_23,mythology,female,Ishtar,Q47553,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+23,Mesopotamian,base_23,mythology,male,Marduk,Q190123,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+24,Iranian,base_24,mythology,unknown,Ahriman,Q3607025,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+24,Iranian,base_24,mythology,unknown,Ahura Mazda,Q179575,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+24,Iranian,base_24,mythology,male,Rostam,Q60062,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,male,Abraham,Q9181,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,unknown,Adam,Q70899,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,male,David,Q41370,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,female,Eve,Q239464,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,male,Joshua,Q7734,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,male,Moses,Q9077,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,male,Noah,Q81422,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0
+42,Levantine,base_42,mythology,male,Solomon,Q37085,CC0-WIKIDATA-MYTHIC-ANCIENT,CC0-1.0

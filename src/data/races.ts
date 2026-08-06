@@ -6,13 +6,20 @@
  *
  * Index 0 is reserved for "Unknown" (Wildlands / unset), matching culture id 0.
  *
- * Lifespans / fertility / beauty ideals are Western-fantasy genre defaults
- * (Tolkien-ish / D&D-flavoured tabletop scale), not historical demography.
+ * Lifespans / beauty ideals are Western-fantasy genre defaults (Tolkien-ish /
+ * D&D tabletop scale). Fertility is calibrated for **population simulation**:
+ * long-lived races sit near replacement lifetime births (not human-scale
+ * spacing stretched only a little). See docs/plan/characters/appearance-and-reproduction.md §3.
+ *
+ * Court sex ratio when `characterGender` is omitted follows typical lifespan
+ * (short-lived ≈ feudal male bias; long-lived ≈ near parity / slight female majority).
+ * See `maleShareForLifespan` in src/extensions/characters/raceAge.ts.
  *
  * World rule (beauty & pairing): same-race judgment uses phenotype + race ideals;
- * cross-race looks are mostly "incomprehensible / odd", with limited grasp when
- * stature/build are similar. Cross-race pairing is socially deviant.
- * See docs/world/help/races-beauty-and-pairing.md.
+ * most cross-race looks are "incomprehensible / odd" (physique-only), but selected
+ * asymmetric pairs have aesthetic readability (e.g. Human→Elf: fair-folk beauty
+ * on the human scale). Cross-race pairing remains socially deviant.
+ * See docs/world/help/races-beauty-and-pairing.md and appearance.ts.
  */
 import type {
   AppearanceAxes,
@@ -43,6 +50,7 @@ const humanLooks: AppearanceAxes = {
   ornament: 45
 };
 
+/** R_max ≈ 8.7 — pre-modern completed fertility under continuous pairing. */
 const humanFertility: RaceFertility = {
   fertilityStart: 16,
   fertilityEnd: 45,
@@ -86,10 +94,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { refinement: 1.4, symmetry: 1.1, stature: 0.4, build: -0.6, vitality: 0.5, ornament: 0.2 }
     },
+    // R_max ≈ 2.5 (near-replacement; low adult mortality ⇒ must not explode)
     fertility: {
       fertilityStart: 100,
-      fertilityEnd: 500,
-      interbirthYears: 20,
+      fertilityEnd: 400,
+      interbirthYears: 120,
       litterMean: 1.0,
       litterMax: 2
     }
@@ -103,10 +112,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { refinement: 1.2, symmetry: 1.0, ornament: 0.7, vitality: 0.4, build: -0.3, stature: 0.3 }
     },
+    // R_max ≈ 3.0 (slightly above high elves; higher war attrition assumed)
     fertility: {
       fertilityStart: 80,
-      fertilityEnd: 450,
-      interbirthYears: 18,
+      fertilityEnd: 380,
+      interbirthYears: 100,
       litterMean: 1.0,
       litterMax: 2
     }
@@ -120,10 +130,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { build: 1.2, vitality: 0.9, ornament: 0.6, symmetry: 0.7, stature: -0.4, refinement: 0.2 }
     },
+    // R_max ≈ 4.2 (slow recovery, stable clans)
     fertility: {
       fertilityStart: 40,
-      fertilityEnd: 200,
-      interbirthYears: 8,
+      fertilityEnd: 160,
+      interbirthYears: 30,
       litterMean: 1.05,
       litterMax: 2
     }
@@ -137,6 +148,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { vitality: 1.0, ornament: 0.8, build: 0.5, symmetry: 0.3, refinement: -0.4, stature: 0.2 }
     },
+    // R_max ≈ 33 (boom / bust; high juvenile death in macro demography later)
     fertility: {
       fertilityStart: 10,
       fertilityEnd: 35,
@@ -154,6 +166,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { build: 1.4, stature: 1.0, ornament: 0.8, vitality: 0.9, refinement: -0.7, symmetry: 0.2 }
     },
+    // R_max ≈ 14.6 (fast breeders, below goblin clutches)
     fertility: {
       fertilityStart: 12,
       fertilityEnd: 40,
@@ -163,18 +176,23 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     }
   },
   {
+    // God-line distant folk (Yotunn cultures): apex might + cyclopean craft; not hill-ogre colonies.
+    // Deep-time continuity sits just below high elves / well below draconic (skills already apex).
+    // Skills/personality: raceSkillBias / racePersonalityBias.
     key: "giant",
     name: "Giant",
-    lifespan: 250,
-    maxLifespan: 400,
+    lifespan: 800,
+    maxLifespan: 1200,
     looksBaseline: { stature: 90, build: 80, symmetry: 45, refinement: 35, vitality: 55, ornament: 40 },
     beautyIdeal: {
       weights: { stature: 1.5, build: 1.0, vitality: 0.7, symmetry: 0.4, refinement: -0.3, ornament: 0.2 }
     },
+    // R_max ≈ 2.7 — near-replacement + century-scale spacing so polity-age lore tracks millennia
+    // (not the old 250y / short-window profile that capped growth-age estimates ~1–2K years).
     fertility: {
-      fertilityStart: 30,
-      fertilityEnd: 150,
-      interbirthYears: 10,
+      fertilityStart: 100,
+      fertilityEnd: 450,
+      interbirthYears: 130,
       litterMean: 1.0,
       litterMax: 2
     }
@@ -188,10 +206,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { vitality: 1.2, stature: 0.9, ornament: 0.8, build: 0.7, symmetry: 0.5, refinement: 0.4 }
     },
+    // R_max ≈ 2.5 (very slow; scarce clutches)
     fertility: {
-      fertilityStart: 50,
-      fertilityEnd: 600,
-      interbirthYears: 25,
+      fertilityStart: 100,
+      fertilityEnd: 500,
+      interbirthYears: 160,
       litterMean: 1.0,
       litterMax: 3
     }
@@ -199,12 +218,15 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
   {
     key: "arachnid",
     name: "Arachnid",
+    // Spider-kin: nest-bound predators. Trap-and-eat ecology makes multi-folk
+    // co-residence unworkable — enemy-dedicated characters only (see raceSkillBias).
     lifespan: 60,
     maxLifespan: 100,
     looksBaseline: { stature: 40, build: 45, symmetry: 35, refinement: 40, vitality: 55, ornament: 70 },
     beautyIdeal: {
       weights: { ornament: 1.3, vitality: 0.8, refinement: 0.5, build: 0.4, symmetry: -0.2, stature: 0.3 }
     },
+    // R_max ≈ 55 (egg-sac boom; most offspring do not reach adulthood in lore)
     fertility: {
       fertilityStart: 8,
       fertilityEnd: 30,
@@ -223,11 +245,32 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { vitality: 1.2, build: 1.0, stature: 0.6, symmetry: 0.7, refinement: 0.4, ornament: 0.3 }
     },
+    // R_max ≈ 9.5 (human-like; warrior attrition)
     fertility: {
       fertilityStart: 16,
       fertilityEnd: 42,
       interbirthYears: 3.0,
       litterMean: 1.1,
+      litterMax: 3
+    }
+  },
+  {
+    // Bound servitors of draconic realms only — no independent cultures/states.
+    // Fill merchant, craft, and desk roles dragons will not take (see raceBoundServitors).
+    key: "wyrmkin",
+    name: "Wyrmkin",
+    lifespan: 55,
+    maxLifespan: 75,
+    looksBaseline: { stature: 38, build: 42, symmetry: 48, refinement: 42, vitality: 55, ornament: 68 },
+    beautyIdeal: {
+      weights: { ornament: 1.3, vitality: 0.8, symmetry: 0.5, refinement: 0.4, build: 0.3, stature: -0.2 }
+    },
+    // R_max ≈ 12 (short-lived thrall stock under long-lived masters)
+    fertility: {
+      fertilityStart: 14,
+      fertilityEnd: 40,
+      interbirthYears: 2.5,
+      litterMean: 1.2,
       litterMax: 3
     }
   }
@@ -267,21 +310,28 @@ export function applyCatalogLifespanDefaults(race: Race): Race {
   return applyCatalogRaceDefaults(race);
 }
 
-/** Backfill all catalog-derived race fields for older saves. */
+/**
+ * Backfill / refresh catalog-derived race fields for older saves.
+ * Built-in keys always re-sync lifespan + fertility from the current catalog so
+ * balance patches (e.g. god-line giant deep time) apply without New Map.
+ * Looks / beauty ideals only fill when missing (no race appearance editor yet).
+ */
 export function applyCatalogRaceDefaults(race: Race): Race {
   const def = RACE_DEFINITIONS.find(d => d.key === race.key);
-  if (race.lifespan === undefined) {
-    race.lifespan = def?.lifespan ?? DEFAULT_RACE_LIFESPAN;
+  if (def) {
+    race.lifespan = def.lifespan;
+    race.maxLifespan = def.maxLifespan;
+    race.fertility = { ...def.fertility };
+  } else {
+    if (race.lifespan === undefined) race.lifespan = DEFAULT_RACE_LIFESPAN;
+    if (race.maxLifespan === undefined) race.maxLifespan = DEFAULT_RACE_MAX_LIFESPAN;
+    if (!race.fertility) race.fertility = { ...DEFAULT_RACE_FERTILITY };
   }
-  if (race.maxLifespan === undefined) {
-    race.maxLifespan = def?.maxLifespan ?? DEFAULT_RACE_MAX_LIFESPAN;
-  }
-  if (race.maxLifespan < race.lifespan) {
+  if (race.maxLifespan! < race.lifespan!) {
     race.maxLifespan = race.lifespan;
   }
   if (!race.looksBaseline && def) race.looksBaseline = { ...def.looksBaseline };
   if (!race.beautyIdeal && def) race.beautyIdeal = { weights: { ...def.beautyIdeal.weights } };
-  if (!race.fertility && def) race.fertility = { ...def.fertility };
   if (!race.fertility) race.fertility = { ...DEFAULT_RACE_FERTILITY };
   return race;
 }

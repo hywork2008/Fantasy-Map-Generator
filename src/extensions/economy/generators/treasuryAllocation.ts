@@ -6,22 +6,16 @@ import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getRegimentCommander } from "../../nobility/generators/officerAssignment";
 import { getRulerId } from "../../nobility/nobilityContext";
+import type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
 import { getRegimentMilitaryUpkeep, getStateMilitaryUpkeep } from "./militaryLogistics";
 import { applyWarFootingToBaseline, updateMilitaryMobilizationBoost } from "./warFooting";
+
+export type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
 
 /** Max absolute share points ruler greed can add to household (PR-7 personality). */
 export const PERSONALITY_HOUSEHOLD_GREED_SHIFT = 0.04;
 /** Max absolute share points ruler boldness can add to marshalcy (PR-7 personality). */
 export const PERSONALITY_MARSHALCY_BOLDNESS_SHIFT = 0.05;
-
-export interface DepartmentBaselineAllocation {
-  marshalcy: number;
-  household: number;
-  chancery: number;
-  stewardship: number;
-  spymastery: number;
-  ecclesiastica: number;
-}
 
 /**
  * Baseline share of this cycle's domestic income (poll tax + voyage income, the same base

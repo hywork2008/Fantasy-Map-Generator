@@ -4,6 +4,7 @@ import { DEFAULT_INITIAL_SETTLEMENT_PATTERN, normalizeInitialSettlementPattern }
 describe("normalizeInitialSettlementPattern", () => {
   it("preserves every supported preset", () => {
     expect(normalizeInitialSettlementPattern("frontier")).toBe("frontier");
+    expect(normalizeInitialSettlementPattern("marches")).toBe("marches");
     expect(normalizeInitialSettlementPattern("scattered")).toBe("scattered");
     expect(normalizeInitialSettlementPattern("standard")).toBe("standard");
     expect(normalizeInitialSettlementPattern("dense")).toBe("dense");

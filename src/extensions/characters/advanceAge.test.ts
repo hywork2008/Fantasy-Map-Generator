@@ -78,7 +78,7 @@ describe("advanceCharacterAging", () => {
 
     const character = worldContext.pack.characters[0];
     expect(character.age).toBe(37);
-    expect(character.appearance).toBe(77); // 80 - floor(2 * 1.5)
+    expect(character.appearance).toBe(79); // 80 - floor(2 * 0.55 vitality rate)
     expect(character.skills.prowess).toBe(76); // civilian: 80 - floor(2 * 2)
   });
 
@@ -97,7 +97,7 @@ describe("advanceCharacterAging", () => {
 
     const character = worldContext.pack.characters[0];
     expect(character.age).toBe(37);
-    expect(character.appearance).toBe(77); // appearance is unchanged by military status
+    expect(character.appearance).toBe(79); // appearance is unchanged by military status
     expect(character.skills.prowess).toBe(78); // military: 80 - floor(2 * 1)
   });
 
@@ -135,5 +135,40 @@ describe("advanceCharacterAging", () => {
   it("does nothing when there are no characters", () => {
     worldContext.pack.characters = [];
     expect(() => advanceCharacterAging(5)).not.toThrow();
+  });
+
+  it("a character with a critical affliction dies more often than an unafflicted twin (statistical, characterHealth.ts integration)", () => {
+    const trials = 200;
+    let sickDeaths = 0;
+    let healthyDeaths = 0;
+
+    const makeTwin = (i: number, afflicted: boolean) =>
+      ({
+        i,
+        age: 30,
+        dead: false,
+        appearance: 50,
+        skills: { prowess: 50 } as never,
+        personality: { confidence: 50, sociability: 50, boldness: 50 } as never,
+        titles: [],
+        pastTitles: [],
+        state: 1,
+        wealth: 0,
+        health: 100,
+        affliction: afflicted ? { kind: "plague" as const, severity: "critical" as const, sinceYear: 1 } : undefined
+      }) as never;
+
+    for (let i = 0; i < trials; i++) {
+      const sick = makeTwin(0, true);
+      const healthy = makeTwin(1, false);
+      worldContext.pack.characters = [sick, healthy];
+
+      advanceCharacterAging(1);
+
+      if (sick.dead) sickDeaths++;
+      if (healthy.dead) healthyDeaths++;
+    }
+
+    expect(sickDeaths).toBeGreaterThan(healthyDeaths);
   });
 });

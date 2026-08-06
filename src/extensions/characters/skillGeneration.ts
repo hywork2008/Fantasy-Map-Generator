@@ -8,6 +8,7 @@
  */
 import { gauss } from "../hostUtils";
 import type { Character, CharacterRoleClass, CharacterSkills, RaisedIn, SocialStratum } from "./characterTypes";
+import { raceSkillBiasForKey, skillStddevForRace } from "./raceSkillBias";
 
 /** Baseline median for untrained skills (1–100 scale). */
 export const SKILL_BASE_MEAN = 50;
@@ -228,39 +229,45 @@ const PRIMARY_ADJACENT: Partial<Record<keyof CharacterSkills, SkillMeanTable>> =
 export interface RollSkillsOptions {
   primarySkill?: keyof CharacterSkills;
   roleClass?: CharacterRoleClass;
+  /** Catalog key (`elf`, `orc`, …) for species skill medians. */
+  raceKey?: string;
+  /** Typical lifespan — widens σ for long-lived masters without lifting every median. */
+  lifespan?: number;
 }
 
 function clampSkill(value: number): number {
   return Math.max(1, Math.min(100, Math.round(value)));
 }
 
-/** Integer skill sample from N(mean, SKILL_STDDEV), optionally hard-floored. */
-export function rollSkillValue(mean: number, min = 1, max = 100): number {
-  return clampSkill(gauss(mean, SKILL_STDDEV, min, max, 0));
+/** Integer skill sample from N(mean, stddev), optionally hard-floored. */
+export function rollSkillValue(mean: number, min = 1, max = 100, stddev: number = SKILL_STDDEV): number {
+  return clampSkill(gauss(mean, stddev, min, max, 0));
 }
 
 /**
  * Resolve the gaussian mean for one skill before the draw.
  * primarySkill stacks with role bias without double-counting full boosts.
+ * Race bias is a species median shift (elf martial low, orc prowess high, …).
  */
 export function skillMeanFor(
   skill: keyof CharacterSkills,
   options: RollSkillsOptions = {}
 ): { mean: number; min: number } {
   const roleBias = (options.roleClass ? ROLE_SKILL_BIAS[options.roleClass][skill] : undefined) ?? 0;
+  const raceBias = raceSkillBiasForKey(options.raceKey)[skill] ?? 0;
   const isPrimary = options.primarySkill === skill;
   const adjacent =
     options.primarySkill && options.primarySkill !== skill ? (PRIMARY_ADJACENT[options.primarySkill]?.[skill] ?? 0) : 0;
 
-  let mean = SKILL_BASE_MEAN + roleBias + adjacent;
+  let mean = SKILL_BASE_MEAN + roleBias + adjacent + raceBias;
   let min = 1;
 
   if (isPrimary) {
     // Combat primaries use a colder boost so courts are not full of 100-cap legends.
     const primaryBoost =
       skill === "martial" ? MARTIAL_PRIMARY_BOOST : skill === "prowess" ? PROWESS_PRIMARY_BOOST : PRIMARY_SKILL_BOOST;
-    // Pull toward a competent professional band; absorb overlapping role bias.
-    mean = SKILL_BASE_MEAN + primaryBoost + roleBias * 0.5;
+    // Pull toward a competent professional band; absorb overlapping role bias; keep full race tilt.
+    mean = SKILL_BASE_MEAN + primaryBoost + roleBias * 0.5 + raceBias;
     min = PRIMARY_SKILL_MIN;
   }
 
@@ -269,10 +276,11 @@ export function skillMeanFor(
 
 /** Roll a full CharacterSkills block for a new person. */
 export function rollCharacterSkills(options: RollSkillsOptions = {}): CharacterSkills {
+  const stddev = skillStddevForRace(options.lifespan);
   const skills = {} as CharacterSkills;
   for (const skill of ALL_SKILLS) {
     const { mean, min } = skillMeanFor(skill, options);
-    skills[skill] = rollSkillValue(mean, min);
+    skills[skill] = rollSkillValue(mean, min, 100, stddev);
   }
   return skills;
 }

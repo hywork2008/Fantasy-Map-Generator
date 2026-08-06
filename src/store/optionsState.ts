@@ -1,5 +1,10 @@
 import { create } from "zustand";
 import type { HeightmapTemplateRandomization } from "../data";
+import {
+  DEFAULT_RACE_PERSON_NAME_SPHERES,
+  type RacePersonNameMapping,
+  resolveRacePersonNameMapping
+} from "../data/racePersonNameConfig";
 import type { BiomeRegionProfile } from "../types/biomeRegion";
 import type { ConflictAutonomy, InitialSettlementPattern } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
@@ -24,6 +29,12 @@ export interface OptionsState {
   templateRandomization: HeightmapTemplateRandomization;
   cultures: number;
   culturesSet: string;
+  /**
+   * Race → person-name sphere (real-world name_base_id) for long-lived character names.
+   * Applied when generating High/Dark Fantasy cultures (and any culture with raceKey).
+   * Always persisted to localStorage as JSON (`racePersonNameSpheres`).
+   */
+  racePersonNameSpheres: RacePersonNameMapping;
   statesNumber: number;
   provincesRatio: number;
   sizeVariety: number;
@@ -34,6 +45,39 @@ export interface OptionsState {
   resolveDepressionsSteps: number;
   lakeElevationLimit: number;
   threatCalculation: "additive" | "max" | "nonlinear";
+  /**
+   * How pack.cells.enclosure (harbor/mooring calmness, 0 = open sea, 100 = fully sheltered) is
+   * scored for ocean-connected water cells. All three modes override every lake cell to fully
+   * enclosed (100) except "radius" — OceanCurrentsModule never models lake current, so there's
+   * no current-derived signal for a lake cell either mode-with-currents could use.
+   * - "oceanCurrents": reads the resolved current speed at the cell itself
+   *   (grid.cells.currentSpeed). Land-shape-responsive, but almost every cell touching land reads
+   *   near-zero speed regardless of whether the shore is a sheltered bay or an exposed open
+   *   coastline — a structural no-slip boundary-layer effect of the LBM solve — so this mode
+   *   saturates most coastal water toward 100 and gives little spread for siting decisions
+   *   right at the shoreline (e.g. harbor placement).
+   * - "oceanCurrentsAmbient": reads grid.cells.ambientCurrentSpeed instead — currentSpeed
+   *   smoothed across nearby ocean cells, so a coastal cell reflects the speed a short distance
+   *   offshore rather than the boundary-layer value at the shore itself. Distinguishes a
+   *   genuinely enclosed bay (still slow a few hops out) from an exposed coastline (picks up
+   *   real open-water speed within a couple of hops) — the mode intended for shoreline siting
+   *   decisions.
+   * - "radius": the legacy fixed 6-hop land-blocked-ratio heuristic, left completely unmodified
+   *   as a genuine point of comparison against both current-based modes.
+   * See FeatureModule.applyOceanCurrentEnclosure() (features.ts) and
+   * docs/simulation/ocean-currents.md §6.
+   */
+  enclosureCalculationMode: "oceanCurrents" | "oceanCurrentsAmbient" | "radius";
+  /**
+   * How the "Ocean Currents" WebGL layer (toggleOceanCurrents) visualizes grid.cells.currentAngle/
+   * currentSpeed. "path" draws a short directional line segment per ocean cell, colored by
+   * waterTemp — skips any cell reading exactly 0 speed entirely (nothing to draw), so a calm patch
+   * is visually indistinguishable from a gap. "intensity" instead fills every ocean cell's polygon
+   * by currentSpeed alone (pale = calm, dark = strong), giving full, gapless coverage — useful for
+   * spotting continuous calm/rough regions a sparse arrow field can hide. See
+   * buildOceanCurrentPaths()/buildOceanCurrentIntensityPolygons() (deckDataAdapters.ts).
+   */
+  oceanCurrentRenderMode: "path" | "intensity";
   /**
    * "simple" keeps the classic fixed field-army cap (MAX_FIELD_ARMIES in military-generator.ts).
    * "dynamic" opts into docs/plan/military-movement.md Phase 4: field armies can split off
@@ -46,6 +90,13 @@ export interface OptionsState {
   initialPopulationSaturation: number;
   /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
   initialSettlementPattern: InitialSettlementPattern;
+  /**
+   * Target share (0–1) of suitable land capacity inside the oikoumene for non-standard
+   * settlement patterns. Overrides the pattern preset's settledFootprint when set.
+   * Higher → larger state-controlled area; lower → more wilderness / shorter interstate borders.
+   * Fantasy defaults use ~0.45 (Marches). Ignored for `standard`.
+   */
+  oikoumeneLandShare: number;
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
   demographicBirthRate: number;
@@ -91,6 +142,16 @@ export interface OptionsState {
   diplomacyHistoryAttempts: number;
 
   // Danger settings
+  /**
+   * Master switch for the Danger/Threat system (monsters, dungeon bosses, the
+   * danger field they paint). Defaults on for High/Dark Fantasy culture sets
+   * (see changeCultureSet in controllers/options.ts) and off otherwise. When
+   * off, Threats.generate/Dungeons.generate leave cells.danger at all-zero,
+   * so dangerExpandPolicy's expand cost/ban and settlement suitability
+   * penalties never trigger — states and the oikoumene can fill land without
+   * the "wilderness stays wild" constraint (docs/plan/wild-oikoumene-frontier.md).
+   */
+  dangerEnabled: boolean;
   dangerRarity5Min: number;
   dangerRarity5Max: number;
   dangerRarity5Power: number;
@@ -158,6 +219,12 @@ export interface OptionsState {
   rescaleLabels: boolean;
   hideLabels: boolean;
   populationRenderingMode: "original" | "contour" | "choropleth";
+  /**
+   * How the Population cell heatmap maps values to color (SVG choropleth + WebGL).
+   * - capacity: rural pop / cell capacity (default) — near-full cells are darkest
+   * - relativeDensity: legacy density vs densest cell on the map
+   */
+  populationColorScale: "capacity" | "relativeDensity";
   /** SVG-only heightmap visualization. WebGL Hybrid continues to use its deck.gl terrain renderer. */
   heightmapRenderingMode: "heatmap" | "contours" | "labeledContours";
   dangerRenderingMode: "contour" | "choropleth";
@@ -219,6 +286,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   templateRandomization: "all",
   cultures: 12,
   culturesSet: "world",
+  racePersonNameSpheres: resolveRacePersonNameMapping(DEFAULT_RACE_PERSON_NAME_SPHERES),
   statesNumber: 15,
   provincesRatio: 20,
   sizeVariety: 4,
@@ -228,11 +296,14 @@ export const useOptionsState = create<OptionsState>(set => ({
   stateLabelsMode: "auto",
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
-  threatCalculation: "additive",
+  threatCalculation: "nonlinear",
+  enclosureCalculationMode: "oceanCurrents",
+  oceanCurrentRenderMode: "path",
   militaryHierarchy: "simple",
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
   initialSettlementPattern: "standard",
+  oikoumeneLandShare: 0.45,
   biomeRegionProfile: "global",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
@@ -249,6 +320,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   warFrequency: 1.0,
   diplomacyHistoryAttempts: 1,
 
+  dangerEnabled: false,
   dangerRarity5Min: 1,
   dangerRarity5Max: 2,
   dangerRarity5Power: 50,
@@ -290,22 +362,32 @@ export const useOptionsState = create<OptionsState>(set => ({
   rescaleLabels: true,
   hideLabels: false,
   populationRenderingMode: "choropleth",
+  populationColorScale: "capacity",
   heightmapRenderingMode: "labeledContours",
-  dangerRenderingMode: "contour",
+  dangerRenderingMode: "choropleth",
   combatDeathsRenderingMode: "contour",
 
   setOption: (key, value) => {
     // A lock is represented by a localStorage entry bearing the option key.
     // Keep that entry current when a user changes an already locked setting;
     // otherwise the old value would be restored on the next page load.
-    if (localStorage.getItem(key) !== null) localStorage.setItem(key, String(value));
+    // Complex objects (race person-name map) always serialize as JSON.
+    if (key === "racePersonNameSpheres") {
+      localStorage.setItem(key, JSON.stringify(value));
+    } else if (localStorage.getItem(key) !== null) {
+      localStorage.setItem(key, String(value));
+    }
     set({ [key]: value });
   },
   setOptions: updates => {
     // Preset controls can update several options together. Apply the same
     // invariant as setOption to each value that already has a lock.
     for (const [key, value] of Object.entries(updates)) {
-      if (localStorage.getItem(key) !== null) localStorage.setItem(key, String(value));
+      if (key === "racePersonNameSpheres") {
+        localStorage.setItem(key, JSON.stringify(value));
+      } else if (localStorage.getItem(key) !== null) {
+        localStorage.setItem(key, String(value));
+      }
     }
     set(updates);
   }

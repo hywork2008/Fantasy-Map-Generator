@@ -3,7 +3,7 @@ import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
-import type { DepartmentBaselineAllocation } from "./treasuryAllocation";
+import type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
 
 /**
  * Multi-ledger PR-6/PR-7 / state-treasury-department-budget §4.4 — War Footing policy lever.

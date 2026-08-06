@@ -38,9 +38,11 @@ describe("Settlement Foundation Module", () => {
     );
 
     expect(result.plan.regions).toHaveLength(1);
-    expect(result.totalPopulation).toBeCloseTo(60, 5);
+    // Footprint is ~30% of habitable capacity (20 cells × 10).
+    expect(result.settledCapacity).toBeCloseTo(result.totalCapacity * 0.3, 5);
     expect(result.settledCellCount).toBe(6);
-    expect(result.plan.regions[0].cells).toEqual([4, 3, 5, 2, 6, 1]);
+    expect(result.totalPopulation).toBeCloseTo(result.totalCapacity * 0.3, 5);
+    expect(result.plan.regions[0].cells[0]).toBe(4);
     expect(result.plan.nodes.length).toBeGreaterThanOrEqual(2);
     expect(result.plan.links).toHaveLength(result.plan.nodes.length - 1);
     expect(
@@ -54,6 +56,12 @@ describe("Settlement Foundation Module", () => {
 
   it("keeps a cold, dry river as a sparse oasis rather than settling the whole basin", () => {
     const cells = createCells(16, [7]);
+    // rankCells would leave true desert with s/capacity 0; only the river corridor stays habitable.
+    for (let i = 0; i < 16; i++) {
+      if (i === 7) continue;
+      cells.s[i] = 0;
+      cells.capacity[i] = 0;
+    }
     const result = createSettlementFoundation(
       cells,
       { temperature: new Int8Array(16).fill(-10), precipitation: new Uint8Array(16) },
@@ -67,14 +75,15 @@ describe("Settlement Foundation Module", () => {
     expect(result.plan.regions[0].cells).toEqual([7]);
     expect(Array.from(cells.pop).filter(population => population > 0)).toHaveLength(1);
     expect(cells.pop[7]).toBeGreaterThan(0);
-    expect(result.totalPopulation).toBeLessThan(result.totalCapacity * 0.3);
   });
 
-  it("keeps a temperate river region local instead of following rain-fed cells across the world", () => {
+  it("grows temperate hinterland around resource cores instead of only river cells", () => {
     const cells = createCells(101, [50]);
+    // Moderate rain: river is the resource core; hinterland is claimable countryside.
+    const precipitation = new Uint8Array(101).fill(30);
     const result = createSettlementFoundation(
       cells,
-      { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) },
+      { temperature: new Int8Array(101).fill(14), precipitation },
       "frontier",
       0.3,
       () => 0
@@ -82,7 +91,11 @@ describe("Settlement Foundation Module", () => {
 
     expect(result.plan.regions).toHaveLength(1);
     expect(result.plan.regions[0].center).toBe(50);
-    expect(result.plan.regions[0].cells).toEqual([50, 49, 51, 48, 52, 47, 53]);
+    // ~30% of habitable capacity, contiguous around the river — not a single cell and not the whole line.
+    expect(result.settledCellCount).toBeGreaterThan(10);
+    expect(result.settledCellCount).toBeLessThan(50);
+    expect(result.settledCapacity / result.totalCapacity).toBeGreaterThan(0.2);
+    expect(result.settledCapacity / result.totalCapacity).toBeLessThanOrEqual(0.35);
     expect(cells.pop[0]).toBe(0);
     expect(cells.pop[100]).toBe(0);
   });
@@ -101,5 +114,17 @@ describe("Settlement Foundation Module", () => {
     expect(result.plan.regions).toHaveLength(5);
     const centers = result.plan.regions.map(region => region.center);
     expect(Math.max(...centers) - Math.min(...centers)).toBeGreaterThan(80);
+  });
+
+  it("settles a clearly larger share under marches than frontier at the same seed", () => {
+    const climate = { temperature: new Int8Array(200).fill(14), precipitation: new Uint8Array(200).fill(35) };
+    const frontier = createSettlementFoundation(createCells(200, [40, 120]), climate, "frontier", 0.3, () => 0.1);
+    const marches = createSettlementFoundation(createCells(200, [40, 120]), climate, "marches", 0.45, () => 0.1, 6);
+
+    expect(marches.settledCapacity / marches.totalCapacity).toBeGreaterThan(
+      frontier.settledCapacity / frontier.totalCapacity + 0.08
+    );
+    expect(marches.settledCellCount).toBeGreaterThan(frontier.settledCellCount);
+    expect(marches.plan.regions.length).toBeGreaterThanOrEqual(frontier.plan.regions.length);
   });
 });

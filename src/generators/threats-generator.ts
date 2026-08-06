@@ -5,6 +5,14 @@ import { useOptionsState } from "../store/optionsState";
 import type { Monster } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rand } from "../utils";
+import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
+import { biomePredatorScaleForMode, rebuildDangerField } from "./dangerField";
+import {
+  buildThreatBandsFromOptions,
+  getThreatSpawnProfile,
+  resolveThreatCalculation,
+  resolveThreatCultureMode
+} from "./threatProfiles";
 
 export const Threats = {
   generate(worldContext: WorldContext, _viewContext: ViewContext, _appServices: AppServices, _state: WorldState) {
@@ -15,8 +23,14 @@ export const Threats = {
     cells.danger = new Uint8Array(cells.i.length);
     pack.monsters = [];
 
-    const isDarkFantasy = useOptionsState.getState().culturesSet === "darkFantasy";
-    if (!isDarkFantasy) return;
+    const options = useOptionsState.getState();
+    const culturesSet = options.culturesSet;
+    const profile = getThreatSpawnProfile(culturesSet);
+    // Options-driven bands (Danger tab). Null when culture set is non-fantasy.
+    const bands = buildThreatBandsFromOptions(options, culturesSet);
+    // Danger master switch off: leave cells.danger at all-zero (no spawns, no
+    // field). dangerExpandPolicy's expand cost/ban then never triggers.
+    if (!options.dangerEnabled || !profile || !bands) return;
 
     const monsters: Monster[] = [];
     const validCells = Array.from(cells.i).filter(i => cells.h[i] >= 20); // land only
@@ -32,6 +46,7 @@ export const Threats = {
         name,
         rarity,
         power,
+        basePower: power,
         type
       });
 
@@ -60,61 +75,23 @@ export const Threats = {
       }
     };
 
-    // Get settings
-    const options = useOptionsState.getState();
-
-    // Rarity 5: Unkillable / Multi-state alliance required
-    const numRarity5 = rand(options.dangerRarity5Min, options.dangerRarity5Max);
-    for (let i = 0; i < numRarity5; i++) {
-      spawnMonster(5, options.dangerRarity5Power, options.dangerRarity5Type);
+    for (const band of bands) {
+      if (band.max <= 0 && band.min <= 0) continue;
+      const hi = Math.max(band.min, band.max);
+      const lo = Math.min(band.min, band.max);
+      const count = rand(lo, hi);
+      for (let i = 0; i < count; i++) spawnMonster(band.rarity, band.power, band.type);
     }
-
-    // Rarity 4: Regional bosses
-    const numRarity4 = rand(options.dangerRarity4Min, options.dangerRarity4Max);
-    for (let i = 0; i < numRarity4; i++) spawnMonster(4, options.dangerRarity4Power, options.dangerRarity4Type);
-
-    // Rarity 3: Greater monsters
-    const numRarity3 = rand(options.dangerRarity3Min, options.dangerRarity3Max);
-    for (let i = 0; i < numRarity3; i++) spawnMonster(3, options.dangerRarity3Power, options.dangerRarity3Type);
-
-    // Rarity 1-2: Background threats
-    const numRarity1 = rand(options.dangerRarity1Min, options.dangerRarity1Max);
-    for (let i = 0; i < numRarity1; i++) spawnMonster(1, options.dangerRarity1Power, options.dangerRarity1Type);
 
     pack.monsters = monsters;
-
-    // Propagate danger
-    for (const m of monsters) {
-      const start = m.cell;
-      const power = m.power;
-
-      const queue = [{ cell: start, dist: 0 }];
-      const visited = new Set<number>([start]);
-
-      while (queue.length > 0) {
-        const { cell, dist } = queue.shift()!;
-
-        const d = Math.max(0, power - dist);
-        if (d > 0) {
-          const threatCalculation = useOptionsState.getState().threatCalculation;
-          if (threatCalculation === "max") {
-            cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, d * 5));
-          } else if (threatCalculation === "nonlinear") {
-            const nonLinearDanger = Math.round(255 * (d / power) ** 2);
-            cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, nonLinearDanger));
-          } else {
-            cells.danger[cell] = Math.min(255, cells.danger[cell] + d * 4);
-          }
-
-          for (const n of cells.c[cell]) {
-            if (!visited.has(n)) {
-              visited.add(n);
-              queue.push({ cell: n, dist: dist + 1 });
-            }
-          }
-        }
-      }
-    }
+    const threatCalculation = resolveThreatCalculation(options);
+    // Monsters + Phase 5 forest/mountain predators (no markers for the latter).
+    rebuildDangerField(cells, monsters, threatCalculation, {
+      biomesData: worldContext.biomesData,
+      biomePredatorScale: biomePredatorScaleForMode(resolveThreatCultureMode(culturesSet)),
+      // Generation runs before states; flag kept explicit for annual rebuilds.
+      reducePredatorsOnGovernedLand: true
+    });
   },
 
   appendCasualtyNotes(worldContext: WorldContext) {
@@ -122,9 +99,10 @@ export const Threats = {
     const { cells, monsters } = pack;
     if (!monsters || !pack.markers || !worldContext.notes) return;
 
-    const populationRate = useOptionsState.getState().populationRate;
-    const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
-    const threatCalculation = useOptionsState.getState().threatCalculation;
+    const options = useOptionsState.getState();
+    const populationRate = options.populationRate;
+    const initialPopulationSaturation = options.initialPopulationSaturation / 100;
+    const threatCalculation = resolveThreatCalculation(options);
 
     // Calculate meanArea once for capacity formula
     let totalArea = 0;
@@ -169,9 +147,9 @@ export const Threats = {
           if (baseScore > 0) {
             const potential_s = Math.max(0, baseScore - (cells.h[cell] - 50) / 5);
 
-            // The danger multiplier in rankCells is: multiplier = Math.max(0, 1 - danger / 200)
-            // So the 's' lost to this danger is: potential_s * Math.min(1, dangerVal / 200)
-            const lost_s = potential_s * Math.min(1, dangerVal / 200);
+            // rankCells multiplies s by dangerSuitabilityMultiplier(danger).
+            // Lost share = 1 - mult (clamped), applied to potential_s.
+            const lost_s = potential_s * (1 - dangerSuitabilityMultiplier(dangerVal));
 
             const lostCapacity = (lost_s * cells.area[cell]) / meanArea;
             const lostPop = lostCapacity * initialPopulationSaturation * populationRate;

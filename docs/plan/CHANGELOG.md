@@ -1,5 +1,20 @@
 # 追加したドキュメント
 
+2026-08-06
+
+- docs/plan/characters/character-health-and-disease.md
+
+2026-08-05
+
+- docs/simulation/ocean-currents.md
+
+2026-08-04
+
+- docs/plan/character-loadout-and-readiness.md
+- docs/plan/high-fantasy-dungeons.md
+- docs/plan/player-threat-cull-jobs.md
+- docs/plan/wild-oikoumene-frontier.md
+
 2026-08-03
 
 - docs/analytics/advance-year-performance.md

@@ -1,3 +1,4 @@
+import type { DataTopic } from "../../runtime/worldRuntime";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import { useOptionsState } from "../hostCore";
@@ -62,6 +63,14 @@ import {
   tickConstructionHiring
 } from "./generators/constructionHire";
 import { DevelopmentPotential } from "./generators/developmentPotential";
+import {
+  applyCharacterToEscortJob,
+  cancelEscortApplication,
+  clearEscortHiringSession,
+  resignEscortJob,
+  tickEscortHiring
+} from "./generators/escortHire";
+import { clearEscortHireState, rebuildEscortJobPostings, tickEscortJobBoard } from "./generators/escortJobPostings";
 import { ExportStaging } from "./generators/exportStaging";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
@@ -112,6 +121,14 @@ import {
   registerVoyageIncome,
   Taxes
 } from "./generators/taxes-generator";
+import {
+  applyCharacterToCullJob,
+  cancelCullApplication,
+  clearCullHiringSession,
+  resignCullJob,
+  tickCullHiring
+} from "./generators/threatCullHire";
+import { clearCullHireState, rebuildCullJobPostings, tickCullJobBoard } from "./generators/threatCullJobPostings";
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
@@ -404,6 +421,12 @@ let _unregisterClearCommand: (() => void) | null = null;
 let _unregisterJobsApplyCommand: (() => void) | null = null;
 let _unregisterJobsResignCommand: (() => void) | null = null;
 let _unregisterJobsCancelCommand: (() => void) | null = null;
+let _unregisterJobsApplyCullCommand: (() => void) | null = null;
+let _unregisterJobsResignCullCommand: (() => void) | null = null;
+let _unregisterJobsCancelCullCommand: (() => void) | null = null;
+let _unregisterJobsApplyEscortCommand: (() => void) | null = null;
+let _unregisterJobsResignEscortCommand: (() => void) | null = null;
+let _unregisterJobsCancelEscortCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 
@@ -877,6 +900,94 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: result.ok, result };
     }
   });
+  _unregisterJobsApplyCullCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.applyCull",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to apply for cull work");
+      }
+      const payload = value as { characterId?: number; postingId?: number } | undefined;
+      if (!payload?.characterId || !payload?.postingId) {
+        throw new Error("jobs.applyCull requires { characterId, postingId }");
+      }
+      const result = applyCharacterToCullJob({
+        characterId: payload.characterId,
+        postingId: payload.postingId
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsResignCullCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.resignCull",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to resign cull work");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.resignCull requires { characterId }");
+      const result = resignCullJob(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsCancelCullCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.cancelCullApplication",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to cancel a cull application");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.cancelCullApplication requires { characterId }");
+      const result = cancelCullApplication(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsApplyEscortCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.applyEscort",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to apply for escort work");
+      }
+      const payload = value as { characterId?: number; postingId?: number } | undefined;
+      if (!payload?.characterId || !payload?.postingId) {
+        throw new Error("jobs.applyEscort requires { characterId, postingId }");
+      }
+      const result = applyCharacterToEscortJob({
+        characterId: payload.characterId,
+        postingId: payload.postingId
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsResignEscortCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.resignEscort",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to resign escort work");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.resignEscort requires { characterId }");
+      const result = resignEscortJob(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsCancelEscortCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.cancelEscortApplication",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to cancel an escort application");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.cancelEscortApplication requires { characterId }");
+      const result = cancelEscortApplication(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
   _unregisterCommerceTradeCommand = api.registerExtensionCommand({
     extensionId: ECONOMY_EXTENSION_ID,
     name: "commerce.trade",
@@ -915,6 +1026,10 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       InnStays.clear();
       UrbanWater.clear();
       clearConstructionHireState();
+      clearCullHireState();
+      clearCullHiringSession();
+      clearEscortHireState();
+      clearEscortHiringSession();
       clearUrbanPregnancy();
       MineralResources.clear();
       Minting.clear();
@@ -1408,6 +1523,8 @@ export function init(api: ExtensionAPI): void {
         Production.produce();
         Taxes.collectTaxes();
         synchronizePlayerCommerce();
+        rebuildCullJobPostings({ clearAll: true });
+        rebuildEscortJobPostings({ clearAll: true });
       } else {
         const migratedLegacyMetals = migrateLegacyOreIngotGoods();
         const migratedLiveCats = migrateLiveCatsGood();
@@ -1431,6 +1548,8 @@ export function init(api: ExtensionAPI): void {
         if (!getUrbanWaterSystems().length) {
           UrbanWater.generate();
         }
+        rebuildCullJobPostings();
+        rebuildEscortJobPostings();
       }
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -1545,6 +1664,10 @@ export function init(api: ExtensionAPI): void {
           InnFacilities.generate();
           InnStays.clear();
           UrbanWater.generate();
+          // Threat cull / pest job board (docs/plan/player-threat-cull-jobs.md PR-2).
+          rebuildCullJobPostings({ clearAll: true });
+          // Escort (護衛) job board — all culture sets.
+          rebuildEscortJobPostings({ clearAll: true });
           api.requestWebglRender();
         } finally {
           TIME && console.timeEnd("generateEconomy");
@@ -1574,6 +1697,9 @@ export function init(api: ExtensionAPI): void {
     }
     if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+    // Rebuild cull / escort boards when empty or only invalid targets remain after load.
+    rebuildCullJobPostings();
+    rebuildEscortJobPostings();
   };
   document.addEventListener("fmg:world-loaded", _worldLoadedHandler);
 
@@ -1808,8 +1934,24 @@ export function init(api: ExtensionAPI): void {
   _unregisterTickSystem = api.registerSimulationSystem({
     id: "economy.tick",
     phase: "economy",
-    reads: ["map.politics", "extension.economy", "simulation.burgs", "simulation.states"],
-    writes: ["extension.economy", "simulation.burgs", "simulation.states", "map.settlements"],
+    // map.annotations / simulation.cells: cull resolve may mutate monsters, markers, danger
+    // (docs/plan/player-threat-cull-jobs.md K18 / PR-3b).
+    reads: [
+      "map.politics",
+      "map.annotations",
+      "extension.economy",
+      "simulation.burgs",
+      "simulation.states",
+      "simulation.cells"
+    ],
+    writes: [
+      "extension.economy",
+      "simulation.burgs",
+      "simulation.states",
+      "map.settlements",
+      "simulation.cells",
+      "map.annotations"
+    ],
     cadence: { every: 1 },
     profileLabel: "economy",
     run: (context, writer) => {
@@ -1924,12 +2066,21 @@ export function init(api: ExtensionAPI): void {
       let settledAdultsFromMobility = 0;
       let urbanWaterChanged = false;
       let burgGroupsChanged = false;
+      let cullTopics: readonly DataTopic[] = [];
+      let escortTopics: readonly string[] = [];
       measureTickStep("economy:dailyHiringPregnancy", () => {
         // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
         // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
         tickUrbanPregnancy(effectiveDeltaYears);
         // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
         tickConstructionHiring(effectiveDays);
+        // Threat cull / pest job board expiry + monthly top-up (PR-2).
+        tickCullJobBoard(effectiveDays);
+        // Cull hire lag / accept / combat resolve + ecology (PR-3b).
+        cullTopics = tickCullHiring(effectiveDays, context.rng).topics;
+        // Escort (護衛) board + hire resolve — all culture sets.
+        tickEscortJobBoard(effectiveDays);
+        escortTopics = tickEscortHiring(effectiveDays, context.rng).topics;
       });
       measureTickStep("economy:annualUrbanKnowledge", () => {
         const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
@@ -2007,6 +2158,13 @@ export function init(api: ExtensionAPI): void {
       if (burgGroupsChanged || settledAdultsFromMobility > 0 || urbanWaterChanged) {
         writer.markChanged("simulation.burgs", "map.settlements");
       }
+      // Cull ecology topics (cells/annotations) — only when resolve actually mutated host data.
+      if (cullTopics.length) {
+        const hostTopics = cullTopics.filter(t => t === "simulation.cells" || t === "map.annotations");
+        if (hostTopics.length) writer.markChanged(...hostTopics);
+      }
+      // Escort resolve already mutates extension.economy + simulation.states (marked above).
+      void escortTopics;
     }
   });
 
@@ -2186,6 +2344,18 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterJobsResignCommand = null;
   _unregisterJobsCancelCommand?.();
   _unregisterJobsCancelCommand = null;
+  _unregisterJobsApplyCullCommand?.();
+  _unregisterJobsApplyCullCommand = null;
+  _unregisterJobsResignCullCommand?.();
+  _unregisterJobsResignCullCommand = null;
+  _unregisterJobsCancelCullCommand?.();
+  _unregisterJobsCancelCullCommand = null;
+  _unregisterJobsApplyEscortCommand?.();
+  _unregisterJobsApplyEscortCommand = null;
+  _unregisterJobsResignEscortCommand?.();
+  _unregisterJobsResignEscortCommand = null;
+  _unregisterJobsCancelEscortCommand?.();
+  _unregisterJobsCancelEscortCommand = null;
   _unregisterCommerceTradeCommand?.();
   _unregisterCommerceTradeCommand = null;
   _unregisterClearCommand?.();

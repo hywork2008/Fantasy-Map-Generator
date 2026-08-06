@@ -67,7 +67,8 @@ class MarkersModule {
   regenerate() {
     const { pack, notes } = this.worldContext;
     pack.markers = pack.markers.filter(({ i, lock, cell, type }) => {
-      if (lock || type === "monster") {
+      // Preserve fantasy system markers owned by Threats / Dungeons generators.
+      if (lock || type === "monster" || type === "dungeon-site") {
         this.occupied[cell] = true;
         return true;
       }
@@ -105,6 +106,8 @@ class MarkersModule {
   private getDefaultConfig(): MarkerConfig[] {
     const culturesSet = useOptionsState.getState().culturesSet;
     const isFantasy = culturesSet.includes("Fantasy");
+    // High Fantasy uses first-class pack.dungeons; suppress legacy Watabou dungeon markers.
+    const legacyDungeonMultiplier = culturesSet === "highFantasy" ? 0 : 1;
 
     /*
       Default markers config:
@@ -218,7 +221,7 @@ class MarkersModule {
         px: 13,
         min: 30,
         each: 200,
-        multiplier: 1,
+        multiplier: legacyDungeonMultiplier,
         list: this.listDungeons.bind(this),
         add: this.addDungeon.bind(this)
       },

@@ -14,7 +14,7 @@ import { discardIndividualSkill, getIndividualSkill } from "./individualSkillMas
 import type { AptitudeTier, CharacterDomainSkill } from "./individualSkillTypes";
 
 export const MARTIAL_INDIVIDUAL_DOMAINS = ["swordsmanship", "archery"] as const;
-type MartialIndividualDomain = (typeof MARTIAL_INDIVIDUAL_DOMAINS)[number];
+export type MartialIndividualDomain = (typeof MARTIAL_INDIVIDUAL_DOMAINS)[number];
 
 const COMMANDER_TITLES = ["Commander", "Admiral", "Marshal"] as const;
 const COMMANDER_BASE_PRACTICE_GAIN = 2.5;
@@ -57,6 +57,14 @@ function ensureMartialSkill(character: Character, domain: MartialIndividualDomai
   };
   setIndividualSkills([...getIndividualSkills(), skill]);
   return skill;
+}
+
+/**
+ * Materialize a martial domain skill for hunters / commanders (lazy, idempotent).
+ * Used by cull practice credit (EQ-4) and annual commander mastery.
+ */
+export function ensureMartialDomainSkill(character: Character, domain: MartialIndividualDomain): CharacterDomainSkill {
+  return ensureMartialSkill(character, domain);
 }
 
 function classifyUnitType(unitType: string | undefined): MartialIndividualDomain | null {

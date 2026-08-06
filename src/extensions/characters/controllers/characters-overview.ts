@@ -1,3 +1,4 @@
+import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../../data/raceCivicStance";
 import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";
@@ -5,11 +6,7 @@ import { useCharactersUiState } from "../ui/charactersUiState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../utils/characterLabels";
 
 /** Culture sets where non-human races are first-class and worth a dedicated Race column. */
-export const FANTASY_CULTURE_SETS = new Set(["highFantasy", "darkFantasy"]);
-
-export function isFantasyCulturesSet(culturesSet: string | undefined | null): boolean {
-  return !!culturesSet && FANTASY_CULTURE_SETS.has(culturesSet);
-}
+export { FANTASY_CULTURE_SETS, isFantasyCulturesSet };
 
 export interface CharacterRowData {
   c: Character;
@@ -28,10 +25,22 @@ export function resolveCharacterRaceName(
   cultures?: readonly Pick<Culture, "i" | "race">[] | null
 ): string {
   const raceId = character.race ?? cultures?.[character.culture]?.race;
-  if (raceId === undefined || raceId === null) return "Unknown";
+  // Wildlands / catalog Unknown (0) is not a playable folk — display as Human.
+  if (raceId === undefined || raceId === null || raceId === 0) {
+    const human = races?.find(r => r.i === 1) ?? races?.[1];
+    return human?.name && !human.removed ? human.name : "Human";
+  }
   const race = races?.[raceId];
-  if (!race || race.removed) return "Unknown";
-  return race.name || "Unknown";
+  if (!race || race.removed) {
+    const human = races?.find(r => r.i === 1) ?? races?.[1];
+    return human?.name && !human.removed ? human.name : "Human";
+  }
+  // Catalog slot 0 is literally named "Unknown"
+  if (race.i === 0 || race.name === "Unknown") {
+    const human = races?.find(r => r.i === 1) ?? races?.[1];
+    return human?.name && !human.removed ? human.name : "Human";
+  }
+  return race.name || "Human";
 }
 
 export function filterAndSortCharacters(
