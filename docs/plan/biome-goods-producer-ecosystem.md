@@ -8,6 +8,12 @@
 
 **2026-08-06 Phase 1実装完了**: §8のPhase 1（農村労働配分器の導入＋狩猟自給枠・漁業・ブドウ栽培収穫段階の労働力ゲート化）を実装した。新規`src/extensions/economy/generators/ruralOccupationAllocation.ts`が`developmentPotential.ts`の`storeAgriculture()`（`generate()`/`updateAnnualAgriculture()`双方から呼ばれる）に組み込まれ、`migratableAdults`予算から狩猟自給枠→漁業/ブドウ栽培（`good.value`降順の貪欲配分）の順に労働力を割り当て、残余を`ruralReleasePressure`として`ruralLaborRelease.ts`に渡す（§2.2の三重取り問題を解消）。`production-utils.ts`の`getRuralProductionContributions()`はGame/Fish/Wineの3品目についてのみ、この配分結果（`getHuntingGameOutput`/`getFishingWorkerFactor`/`getViticultureWorkerFactor`）で既存レートをゲートするよう変更した。個体群/バイオマスストック（§4）・牧畜（§5.4）・Grapes新設（§5.3）はまだ未着手（Phase 2以降）。Fishの労働力は「Fishボーナス枠を持つセル（水域セルもあり得る）」に紐づき、水域セルの場合は隣接する陸セルへ均等按分する簡易モデルとした（隣接陸セルが複数あると同一水域枠の労働力予算が重複して見える簡略化が残る——校正はPhase 2以降）。定数（`HUNTING_POPULATION_SHARE`, `GAME_YIELD_PER_HUNTER_PER_MONTH`, `FISHING_WORKERS_PER_UNIT_OUTPUT`, `VITICULTURE_WORKERS_PER_UNIT_OUTPUT`等）はすべて仮置き（§9.3）。単体テスト`ruralOccupationAllocation.test.ts`で狩猟枠・ワークファクター・優先順位配分・Game出力が人口非依存であることを検証済み。既存テスト831件（economy拡張全体）は全て green、`tsc --noEmit`/`lint`/`madge --circular`もクリーン。
 
+**2026-08-06 §10未決定事項への回答＋パフォーマンストグル要件を反映**: ユーザーから§10の5項目全てに回答があり、以下を決定事項として§9へ格上げした（詳細は各項目参照）。(1) §4.5`demandAbsorptionCapacity`は直近4四半期（1年分）の実績平均×バッファ係数1.2倍を基準とし、さらに「増やせる労働力の量」と「増やせる敷地/面積の量」の小さい方でキャップする——需要が急伸しても、労働力か土地のどちらか狭い方より速くは物理的に拡張できないという制約を明示した。(2) 狩猟自給枠の下限は**集落規模によらず一律3人**（既存の`HUNTING_FLOOR_POPULATION_THRESHOLD`によるサイズゲートは撤廃）、規模が大きい集落での比率は`manpower.ts`の`PEACE_TARGET_MOBILIZATION`（平時徴兵率1%）に倣い3%→1%へ変更——**この2点は既にPhase 1実装済みの`ruralOccupationAllocation.ts`の定数なので、ドキュメント確定と同時にコードも修正済み**（`HUNTING_MINIMUM_HEADCOUNT: 1→3`、`HUNTING_POPULATION_SHARE: 0.03→0.01`、`HUNTING_FLOOR_POPULATION_THRESHOLD`定数は削除、`ruralOccupationAllocation.test.ts`の該当4アサーションも追随して更新、テスト全green）。害獣のセル密度による枠の増減は、そうした密度指標が現状どこにも存在しないため、Phase 2以降の拡張点としてフックのみ残す。(3) 牧畜（§5.4）の面積・労働定数は史料からの概算・類推を優先し、良いデータが見つからない場合はPhase 3着手時に改めてユーザーと相談する。(4) 加工労働力（燻製・塩蔵・乾燥・醸造）のBurg雇用セクターは、新設`foodProcessing`セクター案を撤回し、既存`craft`セクターを再利用する——§6の記述を修正。醸造・製パンなどはキャラクターのスキル/熟練度に強く依存しうるが、厳密な生産計算式は求めず、既存の個体スキル熟練度パターン（`martialIndividualMastery.ts`と同型の民生版、または`guildKnowledgeTypes.ts`の`CRAFT_DOMAIN_BY_GOOD_NAME`が持つギルド技能ドメインの概念）をキャラクター背景・フレーバーとして接続できれば十分とする。(5) Wineのレシピに樽を追加する。**コードベース調査の結果、樽は`Barrels`という独立Goodとして既に実装済み**（`recipes: [{ Wood: 1 }]`、`guildKnowledgeTypes.ts`で`woodworking`ギルド技能ドメインに紐付け済み、`Beer`の`{ Grain: 1, Barrels: 1 }`等で既に消費されている）——つまり「樽職人・ギルドが成り立つか」を判定するまでもなく、現行実装は期間・文化を問わず樽職人（woodworkingギルド）を常に成立させている。よってWine（Phase 4/5で導入）のレシピは新規Good追加不要で`{ Grapes: X, Barrels: Y }`（Beerと同型）に決定し、「樽が成り立たない場合の`Grapes`+`Wood`直接レシピ」は、将来的に文化/時代別の樽ギルド不成立ケースを作る場合のみ使うフォールバックとして設計に残すに留める。
+
+**2026-08-06 §5.2の事実誤認を訂正（ユーザー指摘）**: 「現行カタログに`Dried Fish`/`Salted Fish`に相当する商品は存在しない」という記述は誤りだった。実際には`Stockfish`（`recipes: [{ Fish: 1 }]`、干物・無塩、`tags: ["food", "preservative"]`）と`Preserved food`（`recipes: [{ Fish: 1, Salt: 1 }, { Fish: 1, Vinegar: 0.5 }, { Fish: 1, Wood: 1 }, ...]`、塩漬け/酢漬け/燻製に相当し`Game`/`Cattle`/`Sheep`/`Pig`等も原料に取れる、`icon: "good-salted-fish"`）の両方が既に実装済みで、いずれもFishを原料とする保存食そのものである。新規Good追加は不要。さらに調査の結果、これらのような`recipes`を持つGood（`Barrels`/`Beer`/`Stockfish`/`Preserved food`等）は、`production-generator.ts`の汎用`runWorkerLoop`が生産サイクル毎にBurg人口をどれだけ製造へ割り当てるかを既に決めており、`craftEmployment.ts`はその観測値を`基本雇用需要`用に平滑化しているだけと判明した。つまり「収穫＝rural／加工＝Burg雇用プール」の二段構成そのものは、`mineOperations.ts`/`smelterOperations.ts`型の**新規`requiredWorkers`ゲートを発明するまでもなく**、レシピを持つGood全般に対してこの既存の汎用生産ループが既に担っている。§5.2・§5.3・§9.5の「専用の加工労働力を要求する二段構成」という記述は、新規メカニズムの発明ではなく、**新しいレシピ（`Wine: { Grapes, Barrels }`、`Raisins: { Grapes }`）を登録するだけで既存の汎用パイプラインに乗る**、という意味に修正した。Phase 4のスコープはこれにより大幅に縮小し、正味「新規Good`Grapes`・`Raisins`の追加とWineのレシピ切替」のみが残る（Fish→保存食は追加実装ゼロで既に完成している）。§5.2/§5.3/§9/§8のPhase 4行を修正した。
+
+**モデル詳細度トグル（Options → Generation）**: 「Phase 2以降は処理が重くなりうるため、簡素化モデル（または現行の古いモデル）をUIから選択可能にし、新モデルを既定にしたい」という要件を受け、新設オプション`ruralEcosystemDetail: "detailed" | "simplified"`（既定`"detailed"`）を`useOptionsState`に追加し、`GenerationSettingsTab.tsx`に`biomeRegionProfile`/`enclosureCalculationMode`と同型の`<select>`＋`LockIconButton`行として配置する設計とした（詳細は新設§11）。Phase 1の配分器自体はセル数に対して線形の軽い処理のため常時有効のままとし、トグルが実際に効くのはPhase 2で導入するfauna個体群ストック（コホート・繁殖・年齢選択性間引き、種×セルのスパース状態を持つ）以降の重い計算——`"simplified"`選択時はコホート更新をスキップし、Game/liveAnimalはPhase 1同等の「労働力充足率でゲートされた無上限レート」のまま据え置く（個体群上限なし＝実質的に旧モデルに近い挙動）。トグル自体の導入はPhase 2実装時に行う（本書更新時点ではまだ未実装）。
+
 ---
 
 ## 1. 目的
@@ -143,7 +149,9 @@ effectiveCarryingCapacity(cell, good) =
     : min(husbandryCapacity(cell, good), demandAbsorptionCapacity(good))  // 非食用種は需要でも制約
 ```
 
-`demandAbsorptionCapacity(good)`は、既存のMarket在庫・販売実績（`market.goods[goodId]`の在庫推移、または直近数四半期の実売れ行き）から「直近の実需要＋一定バッファ（例: 直近平均販売量の1.2倍）」を導出する。新規の状態を増やさず、既存のMarket在庫トレンドを読むだけで済む設計を推奨する。実需要を上回る供給は、繁殖を鈍化させる（`young`世代の生産数を絞る）形でフィードバックする——「倉庫に売れない猫が積み上がる」ような状態を避ける。
+`demandAbsorptionCapacity(good)`は、既存のMarket在庫・販売実績（`market.goods[goodId]`の在庫推移）から**直近4四半期（1年分）の実売れ行きの平均×バッファ係数1.2倍**を基準値として導出する（§10.1で確定）。新規の状態を増やさず、既存のMarket在庫トレンドを読むだけで済む設計を維持する。実需要を上回る供給は、繁殖を鈍化させる（`young`世代の生産数を絞る）形でフィードバックする——「倉庫に売れない猫が積み上がる」ような状態を避ける。
+
+さらに、この基準値そのものが急伸しても、`effectiveCarryingCapacity`は**「増やせる労働力の量」と「増やせる敷地/牧草地面積の量」のうち小さい方**を上回って拡張できない（§10.1で確定）。需要が一年で倍になっても、牧夫を今期中に倍増できなければ、あるいは牧草地をその分広げられなければ、頭数上限はどちらか狭い方の制約で頭打ちになる、という物理的整合性を持たせる。
 
 ---
 
@@ -154,7 +162,7 @@ effectiveCarryingCapacity(cell, good) =
 **狩猟は「市場向け商品を最大生産する産業」ではなく、「農村になんとなく常に少数いる、自給＋獣害対策の担い手」としてモデル化する。** 熊・猪・鹿などが畑や家畜、人を襲う害を継続的に抑える役目も兼ねるため、専業でなくとも、ある程度の人口規模を超えた農村セルにはほぼ必ず少数の猟師がいる、という想定にする。§3.1のとおり他産業と競合する貪欲配分の対象にしない。
 
 - 対象: `biomeTag("forest")`セル（現行`Game`の`distribution`と同じ判定を流用）。
-- **自給枠**: `getHuntingSubsistenceClaim(cell)` — 「その人数が自分（＋近い家族）を養える程度」を基準にした小さな固定枠。例: `min(availableForestAdults, max(huntersPerSettlementFloor, forestAdults × smallShare))`のように、人口に対する低い比率（数%オーダー）か、集落規模を超えたら最低1〜2名、という小さな値で仮置きする（具体的な係数は§9.3で仮置き値として決定）。市場最大化のための`requiredWorkersForFullCapacity`のような「フル稼働に必要な人数」という上限概念は使わない。
+- **自給枠**: `getHuntingSubsistenceClaim(cell)` — 「その人数が自分（＋近い家族）を養える程度」を基準にした小さな固定枠。`min(availableForestAdults, max(HUNTING_MINIMUM_HEADCOUNT, forestAdults × HUNTING_POPULATION_SHARE))`という式で、**下限は集落規模によらず一律3人**、規模が大きくなった集落では`manpower.ts`の平時徴兵率（`PEACE_TARGET_MOBILIZATION`＝1%）に倣った約1%が効いてくる（§10.2で確定、Phase 1実装済み）。市場最大化のための`requiredWorkersForFullCapacity`のような「フル稼働に必要な人数」という上限概念は使わない。害獣（獣害）のセル密度に応じて枠を増減させる拡張は、そうした密度指標がまだ存在しないためフックのみ残し、実装はしない。
 - ストック: §4のfauna個体群モデル（野生ストック側、§4.2の`wildHabitatArea`ベースのキャリング容量）を適用する。
 - 月産出（`wain`単位の食肉、現行同様に`liveAnimal`タグは付与しない＝生体ではなく解体済み食肉として流通）は、自給枠の猟師数×一人あたり持続可能捕獲量（在庫が少なければそれ以下）。市場供給量が少なめでも仕様どおり——狩猟はもともと市場向け主力商品ではない。
 - **既存の脅威駆除システムとの関係**: [`threatCullHire.ts`](../../src/extensions/economy/generators/threatCullHire.ts)/[`cullPractice.ts`](../../src/extensions/economy/generators/cullPractice.ts)は、named Characterが個別の脅威（危険な獣・モンスター）討伐依頼に応じる**別系統**の仕組み（[`docs/plan/player-threat-cull-jobs.md`](player-threat-cull-jobs.md)）。本設計の狩猟自給枠は、そうした特定脅威イベントとは独立した、恒常的な背景労働力の統計値であり、混同しない。将来、狩猟自給枠の存在が獣害イベントの発生率を下げる、といった軽い接続は拡張候補として残すが、本設計のスコープ外とする。
@@ -167,7 +175,8 @@ effectiveCarryingCapacity(cell, good) =
 - ストック: 家畜ほど厳密な年齢構造は不要（ユーザー原文も漁業には年齢選択性を求めていない）。**連続バイオマスのロジスティック成長モデル**（在庫が上限に近づくほど増加が鈍る、一つの数値で十分）を採用する。
 - `getFishingRequiredWorkers(stock)`で必要漁業従事者数を算出、`workerFactor`で月産出をゲートする（§3.1の貪欲配分ループに参加する通常の二次産業）。
 - **不漁・豊漁**: ユーザー指示どおり本設計では確定させない。フックだけ用意する（例: `getCatchLuckMultiplier(cellId, month)`、既定値1.0）。将来、海況・海流データ（[`docs/simulation/ocean-currents.md`](../simulation/ocean-currents.md)）や年ごとの乱数ウォークに接続する。
-- **保存食（干物・塩漬け魚）**: 現行カタログに`Dried Fish`/`Salted Fish`に相当する商品は存在しない。新規Good追加が必要。**確定**: この変換には専用の加工労働力を要求する（§9.5で確定）。`mineOperations.ts`（採掘＝rural harvest labor）→`smelterOperations.ts`（製錬＝別の労働プールでゲートされる下流の加工工程）という既存の二段構成をそのまま踏襲し、「漁獲（rural、漁業従事者）」と「燻製・塩蔵加工（Burg寄りの加工労働力、既存の`craftEmployment.ts`系のBurg雇用プールから確保するのが自然）」を別の労働プールとして分離する。加工量は`min(1, processingWorkers / requiredProcessingWorkers) × 原料投入量`で、既存`recipes: { Fish: X, Salt: Y }`中間財パターン（[`production-generator.ts`](../../src/extensions/economy/generators/production-generator.ts)、`Brick`＝`Clay`+`Wood`と同型）に乗せる。
+- **保存食（干物・塩漬け魚）— 既に実装済み、新規作業ゼロ**（2026-08-06訂正、ユーザー指摘）: `Stockfish`（`recipes: [{ Fish: 1 }]`、無塩の干物）と`Preserved food`（`recipes: [{ Fish: 1, Salt: 1 }, { Fish: 1, Vinegar: 0.5 }, { Fish: 1, Wood: 1 }, ...]`、塩漬け/酢漬け/燻製、`Game`等の他原料も可）が両方とも既存カタログに実装済みで、新規Good追加は不要。
+- **加工労働力は既存の汎用パイプラインが既に担っている**: `recipes`を持つGood全般（`Barrels`/`Beer`/`Stockfish`/`Preserved food`等）は、`production-generator.ts`の`runWorkerLoop`が生産サイクル毎にBurg人口を製造へ割り当て、`craftEmployment.ts`がその観測値を雇用需要へ平滑化する、という既存の汎用機構で既にBurg側の労働力ゲートがかかっている（§10.4で`craft`セクターに紐付けると確定した理由でもある）。よって「漁獲（rural、漁業従事者、§3.1で配分済み）」と「加工（Burg、`craft`セクター）」の二段構成は、`mineOperations.ts`/`smelterOperations.ts`型の**新しい`requiredWorkers`ゲートを発明する必要はなく**、Fish→Stockfish/Preserved foodは何もしなくても既に完成している。Phase 4でこの節に関して行うべき実装は実質ゼロ。
 
 ### 5.3 ブドウ栽培 → Grapes・干しブドウ・Wine（`viticulture.ts` + 加工工程）
 
@@ -179,25 +188,26 @@ effectiveCarryingCapacity(cell, good) =
 - `grapeYieldPerArea` / `grapeFarmersRequired`: Grainの`yieldPerArea`/`farmLaborRequired`と同型だが、単位労働あたりの必要労働日数はGrainより低くてよい（果樹は年間労働がGrainほど集中しない）。
 - 収穫量 = `vineyardArea × grapeYieldPerArea × workerFactor(grapeFarmersRequired)`。この量が新設`Grapes`（`tags: ["food"]`、生鮮品）の産出になる——**生食分はここで市場に出る分**そのもの（追加の加工不要）。
 
-**加工段階（Burg寄りの加工労働力、§5.2の魚と同型の二段構成）**:
+**加工段階（Burg側、`craft`セクター経由の既存レシピ生産パイプラインに乗せるだけ）**:
 
-- 収穫された`Grapes`のうち、生食に回さない分を、干しブドウ（`Raisins`、新規Good、保存食）とワイン（`Wine`、既存Good）へ**需要に応じて**振り分ける（§9.4、下記）。どちらも`recipes: { Grapes: X }`の中間財変換とし、変換自体に専用の加工労働力（乾燥場・醸造の職人、Burg雇用プール）を要求する（§9.5、Fish→保存食と同型）。
+- 収穫された`Grapes`のうち、生食に回さない分を、干しブドウ（`Raisins`、新規Good、保存食）とワイン（`Wine`、既存Good、レシピを新設）へ**需要に応じて**振り分ける（§9.4、下記）。どちらも`recipes: { Grapes: X }`（Wineはさらに`Barrels: Y`、§10.5）を持つ新規/更新レシピとして登録するだけでよい——§5.2訂正のとおり、レシピ消費の労働力ゲート自体は`production-generator.ts`の`runWorkerLoop`（`craft`セクター、§10.4）が既に汎用的に担っており、Fish→保存食と同型の新しい二段構成コードを別途書く必要はない。
 - **3方向配分の需要連動と速度**（§9.4確定）: 生食・`Raisins`・`Wine`の配分比率は、各商品の直近需要（Marketの在庫消化・価格トレンド）に応じて再計算するが、**再配分の速度を各商品の既存`good.trade.durability`値に反比例させる**——生鮮`Grapes`（低耐久）は需要変化に即座に追従、`Raisins`（中耐久）はやや緩やか、`Wine`（高耐久・貯蔵可能）は最も緩やか（例: 四半期ごとの配分比率変化に上限を設ける、または長い半減期のEMAで均す）。これは既存のGoodカタログが持つ`trade.durability`/`timeValueTrend`フィールドをそのまま再利用でき、Wine専用の新しい定数を増やさずに済む。腐りやすい生鮮品は毎期売り切る必要があるため配分を素早く調整し、貯蔵の効くワインは在庫が需要の緩衝材になるため急な価格変動に振り回されない、という直感と一致する。
-- ブドウ以外の`Wine`原料（樽材のWoodなど）を`recipes`に加えるかは実装時に決める。
+- **樽（確定、§10.5）**: `Wine`のレシピに樽を追加する。コードベース調査の結果、樽は既に`Barrels`という独立Good（`recipes: [{ Wood: 1 }]`、`guildKnowledgeTypes.ts`で`woodworking`ギルド技能ドメインに紐付け、`Beer`の`{ Grain: 1, Barrels: 1 }`等で既に消費されている）として実装済みで、期間・文化を問わず常に成立する前提で動いている——「樽職人・ギルドが史料上成り立つか」を新たに判定するまでもなく、現行実装がすでにその答え（成り立つ）を出している。よって新規Good追加は不要で、`Wine`のレシピは`Beer`と同型の`{ Grapes: X, Barrels: Y }`に決定する。「樽が成り立たない場合の`Grapes`+`Wood`直接レシピ」は、将来的に特定の文化・時代設定で樽ギルドが不成立になるケースを作る場合のみ使うフォールバックとして設計に残す（現時点では未使用）。
 
 ### 5.4 牧畜 → liveAnimal家畜のキャリング容量（`husbandry.ts`、新規）
 
-§4.2で家畜ストックのキャリング容量が「牧畜労働力×牧草地/飼料配分」で決まるとしたことに対応する、新設の二次産業。ブドウ栽培・漁業と同じ§3.1の貪欲配分ループに参加する。詳細な面積・労働定数はGrain/ブドウと同型のため、Phase 2着手時に個別設計する（本書では占位置のみ確定）。
+§4.2で家畜ストックのキャリング容量が「牧畜労働力×牧草地/飼料配分」で決まるとしたことに対応する、新設の二次産業。ブドウ栽培・漁業と同じ§3.1の貪欲配分ループに参加する。詳細な面積・労働定数はGrain/ブドウと同型のため、Phase 3着手時に個別設計する（本書では占位置のみ確定）。**確定（§10.3）**: 具体的な定数（牧草地の土地適性係数、牧夫1人あたり許容頭数など）は、可能な限り史料（中世牧畜の反当たり許容頭数、牧夫1人あたり管理可能頭数の記録等）から大まかに算出・類推する。十分な裏付けデータが見つからない場合は仮置きで進めず、Phase 3着手時に改めてユーザーへ相談する。
 
 ---
 
 ## 6. Burg雇用構成との接続
 
-「バイオームと同セルの都市の労働者の数や種類と密接に関係する」という要件に対応し、`burgEmploymentComposition.ts`へ`hunting`/`fishing`/`viticulture`/`husbandry`の4セクター（rural harvest labor）に加え、§5.2/§5.3で確定した加工工程（燻製・塩蔵、干しブドウ、醸造）の`foodProcessing`セクター（Burg寄りの加工労働力）を追加する。
+「バイオームと同セルの都市の労働者の数や種類と密接に関係する」という要件に対応し、`burgEmploymentComposition.ts`へ`hunting`/`fishing`/`viticulture`/`husbandry`の4セクター（rural harvest labor）を追加する。§5.2/§5.3で確定した加工工程（燻製・塩蔵、干しブドウ、醸造）の労働力は、**新設セクターを起こさず既存`craft`セクターへ計上する**（§10.4で確定、当初案の新設`foodProcessing`セクターは撤回）。
 
-- 既存の`collectionBurgId`帰属ロジック（[`markets-generator.ts:632-650`](../../src/extensions/economy/generators/markets-generator.ts#L632-L650)、セルに最も近いBurgへ生産を帰属させる仕組み）をそのまま再利用し、農村労働配分器の各セルの`assignedWorkers`を`collectionBurgId`ごとに集計する。加工工程の労働力はもとよりBurg雇用プール（`craftEmployment.ts`系）から確保するため、この帰属を介さず直接Burgに乗る。
+- 既存の`collectionBurgId`帰属ロジック（[`markets-generator.ts:632-650`](../../src/extensions/economy/generators/markets-generator.ts#L632-L650)、セルに最も近いBurgへ生産を帰属させる仕組み）をそのまま再利用し、農村労働配分器の各セルの`assignedWorkers`を`collectionBurgId`ごとに集計する。加工工程の労働力はもとよりBurg雇用プール（`craftEmployment.ts`系、`craft`セクター）から確保するため、この帰属を介さず直接Burgに乗る。
 - `sumActiveWorkers()`（[`burgEmploymentComposition.ts:73-83`](../../src/extensions/economy/generators/burgEmploymentComposition.ts#L73-L83)）と同型の集計関数を追加する。
 - 発展として、Burgの`cultureType`（既に`multipliers.cultureType`で使われている概念、例: `Naval`/`Hunting`/`Highland`）を農村労働配分器の産業優先順位重みにフィードバックし、「漁業文化のBurgは同じ生産性でも漁業を優先配分する」という双方向の関係にできる。狩猟の自給枠についても、`Hunting`文化圏では枠そのものをやや広め（§4.4の選択的間引きに加え、獣害対策要員としての需要も高いと想定）にする、という同種のフィードバックが自然に載る。
+- **確定（§10.4）**: 醸造・製パンなど`craft`セクターの加工職は、キャラクターごとのスキル・熟練度への依存度が特に高くなりうる想定。ただしこれを生産量に厳密に反映する計算式までは求めない——`martialIndividualMastery.ts`と同型の民生スキル熟練度、または`guildKnowledgeTypes.ts`の`CRAFT_DOMAIN_BY_GOOD_NAME`が既に持つギルド技能ドメインの概念を流用し、まずはキャラクターの経歴・フレーバー情報として接続できれば十分とする（生産量への定量反映はPhase 6以降の余地として残す）。
 
 ---
 
@@ -214,9 +224,9 @@ effectiveCarryingCapacity(cell, good) =
 | Phase | 内容 | 依存 |
 | :--- | :--- | :--- |
 | 1 ✅ | 農村労働配分器（§3）の導入。狩猟の自給枠（§5.1）＋漁業・ブドウ栽培（収穫段階のみ）を「労働力充足率でゲートされた連続レート」に変える（個体群/バイオマスストックはまだ導入しない＝現行の無限湧きレートに`workerFactor`／自給枠の頭数を掛けるだけ）。実装: `ruralOccupationAllocation.ts`（§0 2026-08-06 Phase 1実装完了を参照） | なし |
-| 2 | Fauna個体群ストック・繁殖・年齢選択性間引き（§4）。野生（Game）・家畜（liveAnimal）を別キャリング容量計算で導入。非食用家畜の需要キャップ（§4.5） | Phase 1 |
+| 2 | Fauna個体群ストック・繁殖・年齢選択性間引き（§4）。野生（Game）・家畜（liveAnimal）を別キャリング容量計算で導入。非食用家畜の需要キャップ（§4.5）。**このフェーズで新規モデル詳細度トグル（§11）を`Options → Generation`に導入し、`"detailed"`（既定）/`"simplified"`を切替可能にする**——コホート計算はここから初めて重くなるため | Phase 1 |
 | 3 | 牧畜（`husbandry.ts`、§5.4）の面積・労働定数を確定し導入。家畜キャリング容量（§4.2）と接続 | Phase 1, 2 |
-| 4 | `Grapes`・`Raisins`の新規Good追加、ブドウ収穫〜生食/加工3分岐（§5.3）、Fish→保存食の加工工程（§5.2）。加工労働力（Burg雇用プール）の新設 | Phase 1 |
+| 4 | `Grapes`・`Raisins`の新規Good追加、ブドウ収穫段階の労働力ゲート（§5.3の収穫段階、農村労働配分器に統合）、Wineのレシピを`{ Grapes, Barrels }`へ切替。加工段階（Grapes→Raisins/Wine）は既存`production-generator.ts`の`runWorkerLoop`＋`craft`セクターに新規レシピを乗せるだけ（2026-08-06訂正、新規機構は発明しない）。Fish→保存食（`Stockfish`/`Preserved food`）は既に実装済みのため本フェーズでの作業なし | Phase 1 |
 | 5 | 3分岐・保存食配分の需要連動＋`durability`比例の再配分速度（§9.4） | Phase 4 |
 | 6 | Burg雇用構成への接続（§6）、文化タイプによる産業優先度重み・狩猟自給枠の広狭 | Phase 1–4 |
 | 7 | 不漁・豊漁の変動モデル（§5.2、ユーザー指示により別途決定） | Phase 1 |
@@ -229,14 +239,47 @@ effectiveCarryingCapacity(cell, good) =
 
 1. **決定**: コホート/繁殖モデルは野生（Game）・家畜（liveAnimal）の両方に適用する。ただしキャリング容量の計算式は別系統（§4.2: 野生＝残地面積ベース、家畜＝牧畜労働力/牧草地ベース）。
 2. **決定**: `Grapes`を独立した交易可能な新規Goodとして新設し、生食・`Raisins`（干しブドウ、保存食）・`Wine`の3方向に加工する（§5.3）。
-3. **仮置き**: 各産業の具体的な定数は初期値を仮置きし、実プレイでの校正を前提とする（Grain/mine実装と同様）。特に狩猟の自給枠（§5.1）は「本人が生きていくのに困らない量」という基準を数値化する必要があり、既存の1人あたり食料消費定数（[`agriculturalLandUse.ts`](../../src/extensions/economy/generators/agriculturalLandUse.ts)の`STAPLE_NEED_KG_PER_PERSON_YEAR`相当）を流用して「Gameで同カロリーを賄える頭数」から逆算するのが自然な出発点。
+3. **決定（§10.2、Phase 1実装済み）**: 狩猟自給枠（§5.1）は`min(availableAdults, max(3, availableAdults × 0.01))`——下限は集落規模によらず一律3人、規模が大きい集落での比率は`manpower.ts`の平時徴兵率（1%）に倣う。害獣のセル密度による増減は指標未整備のためフックのみ（§9.6参照）。Game一人あたり月産出量（`GAME_YIELD_PER_HUNTER_PER_MONTH`）は引き続き既存の1人あたり食料消費定数（`GROSS_FOOD_NEED`）からの逆算値で仮置き。
 4. **決定**: 生食・`Raisins`・`Wine`の配分比率は需要連動の可変値とし、再配分速度を各商品の`good.trade.durability`に反比例させる（Wineは緩やか、生鮮Grapesは即応）。
-5. **決定**: 保存食変換（Fish→干物・塩漬け、Grapes→Raisins）は専用の加工労働力を要求する二段構成（収穫＝rural、加工＝Burg雇用プール、mineOperations/smelterOperationsと同型）。
+5. **決定（2026-08-06訂正）**: 保存食変換（Fish→干物・塩漬け、Grapes→Raisins）は「収穫＝rural（§3の配分器）／加工＝Burg雇用プール」の二段構成という設計自体は維持するが、**加工段階の労働力ゲートは新規メカニズムを発明せず`production-generator.ts`の既存`runWorkerLoop`＋`craftEmployment.ts`（`craft`セクター）にそのまま乗せる**。Fish→`Stockfish`/`Preserved food`は両方とも既にレシピとして実装済みで追加作業は不要、Grapes→`Raisins`/`Wine`はレシピを新設するだけでよい（mineOperations/smelterOperations型の新規`requiredWorkers`ゲートは不要）。
+6. **決定（§10.1）**: `demandAbsorptionCapacity(good)`は直近4四半期（1年）の実売れ行き平均×バッファ係数1.2倍を基準とし、`effectiveCarryingCapacity`の伸びは「増やせる労働力の量」と「増やせる敷地/面積の量」の小さい方でさらにキャップする。
+7. **決定（§10.3）**: 牧畜（`husbandry.ts`）の面積・労働定数は史料からの概算・類推を優先する。十分なデータが見つからない場合は仮置きせずPhase 3着手時に改めて相談する。
+8. **決定（§10.4）**: 加工労働力（燻製・塩蔵・乾燥・醸造）は新設セクターを起こさず、既存Burg雇用プールの`craft`セクターに紐付ける。醸造等のキャラクター熟練度依存は、生産量への厳密反映ではなくキャラクター背景・フレーバー接続に留める。
+9. **決定（§10.5）**: `Wine`のレシピに樽を追加する。樽は既存Good`Barrels`（`recipes: [{ Wood: 1 }]`、`woodworking`ギルド技能ドメイン、`Beer`等で消費実績あり）をそのまま再利用し、`Wine`のレシピは`{ Grapes: X, Barrels: Y }`に決定（新規Good不要）。「樽が成り立たない場合の`Grapes`+`Wood`直接レシピ」は将来の文化/時代別分岐用のフォールバックとして設計にのみ残す。
+10. **決定**: Phase 2以降の重い計算（fauna個体群コホート等）に備え、`Options → Generation`にモデル詳細度トグル（`ruralEcosystemDetail: "detailed" | "simplified"`、既定`"detailed"`）を新設する（§11）。導入はPhase 2実装時。
 
 ## 10. 新たに生じた未決定事項
 
-1. §4.5の`demandAbsorptionCapacity(good)`を、Market在庫の何日／何四半期分の移動平均から導出するか、バッファ係数（例1.2倍）をどう校正するか。
-2. §5.1の狩猟自給枠の具体的な下限・比率定数、および「集落規模を超えたら最低何人」という閾値。
-3. §5.4 牧畜（`husbandry.ts`）の面積・労働定数（牧草地の土地適性、牧夫1人あたり許容頭数）—Grain/ブドウと同型だが未設計。
-4. 加工労働力（燻製・塩蔵・乾燥・醸造）をBurg雇用プールのどのセクター（既存`craft`か、新設の`foodProcessing`か）に紐付けるか。
-5. Grapes以外の`Wine`原料（樽材のWoodなど）を`recipes`に加えるか。
+1. 害獣（獣害）のセル密度を表す指標が現状どこにも存在しない。§5.1の狩猟自給枠をこれで増減させる拡張は、その指標自体の設計をどこかのフェーズで別途行う必要がある（`threatCullHire.ts`/`cullPractice.ts`の脅威イベント頻度と関連付けるのが有力候補だが未検討）。
+2. §11のトグルの正式なオプションキー名・UIコピー・「新モデルは規定だが`"simplified"`固定ロード時にも既存セーブの`faunaStock`をどう扱うか」（切替時のマイグレーション）は、Phase 2実装時に詰める。
+
+---
+
+## 11. モデル詳細度トグル（`Options → Generation`）
+
+Phase 2以降で導入するfauna個体群コホート計算（§4）は、疎とはいえ種×セル単位で繁殖・年齢遷移・間引きを年次更新する必要があり、Phase 1の農村労働配分器（セル数に対して線形の単純な四則演算）より明確に重い。ユーザー要望「新しく導入するモデルを簡素化したモデル(或いは現行の古いモデル)をUIのOptions → Generationで選択可能にしたい。新モデルがデフォルト」を受け、以下の設計とする。
+
+### 11.1 オプション
+
+- `useOptionsState`に`ruralEcosystemDetail: "detailed" | "simplified"`を追加（既定値`"detailed"`）。他の生成時専用オプション（`biomeRegionProfile`, `enclosureCalculationMode`）と同じ`options`スライスに置く。
+- `GenerationSettingsTab.tsx`に、`biomeRegionProfile`行と同型の`<LockIconButton>`＋`<select>`の行を追加する（表内のどのセクション見出し配下に置くかは実装時に決める。内容的には「6. Rural economy」のような新セクション見出しを起こすのが自然）。
+
+  ```text
+  <select value={options.ruralEcosystemDetail} onChange={...}>
+    <option value="detailed">Detailed (fauna population model)</option>
+    <option value="simplified">Simplified (faster)</option>
+  </select>
+  ```
+
+- `enclosureCalculationMode`と同じく「即座に適用、次回生成不要」寄りにするか、`template`のように「次回生成が必要」寄りにするかは、fauna個体群ストックが`faunaStock`という新規セーブ状態を持つ（§4.1）ため、**セーブ済みマップ上での切替は次回生成が必要**（`LockIconButton`ロック対象）という運用が自然。既存マップ上で`"detailed"`↔`"simplified"`をシームレスに相互変換する移行ロジックは要求しない。
+
+### 11.2 何が切り替わるか
+
+- **Phase 1（農村労働配分器、§3）は常時有効**——軽量なため、トグルの対象外。`"simplified"`でも狩猟自給枠・漁業/ブドウ栽培の労働力ゲートはそのまま動く。
+- **`"detailed"`（既定）**: §4のfauna個体群コホートモデルをフル稼働——野生（Game）・家畜（liveAnimal）それぞれ別系統のキャリング容量、繁殖、年齢選択性間引き、非食用家畜の需要キャップ（§4.5）まで含む。
+- **`"simplified"`**: fauna個体群コホートの年次更新をスキップする。Game/liveAnimalの産出は、Phase 1で確立済みの「労働力充足率でゲートされた無上限レート」（個体群上限なし）のまま据え置く——実質的にはPhase 1時点の（＝現行の「古いモデル」に近い）挙動が固定される。牧畜（§5.4）・Grapes3分岐（§5.3）など、fauna個体群ストックの存在を前提とする後続フェーズの機能は、`"simplified"`では対応する簡易フォールバック（固定レート、または該当機能自体を無効化）に倒す——具体的な対応表はPhase 2〜5の各実装時にこの節へ追記する。
+
+### 11.3 実装への影響
+
+- fauna個体群の年次コホート更新関数（Phase 2で新設、想定`faunaPopulation.ts`の`updateAnnualFaunaCohorts()`相当）は、呼び出し側で`options.ruralEcosystemDetail === "detailed"`をガードとして早期リターンする、という単純な条件分岐で足りる。個体群ストック自体は`"simplified"`時も触らない（怠惰に放置）——次に`"detailed"`へ戻したときに初期化し直せば十分で、都度クリアするような特別な処理は不要という設計にする。
+- 本トグルの実装（コード変更）はPhase 2着手時に行う。本節時点ではまだ未実装。

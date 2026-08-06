@@ -91,8 +91,8 @@ describe("ruralOccupationAllocation", () => {
     const migratableAdults = new Float32Array([5]);
     const result = allocateRuralOccupations(worldContext, migratableAdults);
 
-    expect(result.huntingWorkers[0]).toBeCloseTo(1, 5); // floor(1) beats the 3% share of 5
-    expect(result.ruralReleasePressure[0]).toBeCloseTo(4, 5);
+    expect(result.huntingWorkers[0]).toBeCloseTo(3, 5); // floor(3) beats the 1% share of 5
+    expect(result.ruralReleasePressure[0]).toBeCloseTo(2, 5);
   });
 
   it("gates Wine's continuous biome output by the assigned/required viticulture workerFactor", () => {
@@ -189,7 +189,7 @@ describe("ruralOccupationAllocation", () => {
     const result = allocateRuralOccupations(worldContext, migratableAdults);
     persist(result);
 
-    // huntingWorkers assigned = max(1, 3*0.03) = 1 (population never enters this formula).
-    expect(getHuntingGameOutput(0)).toBeCloseTo(1 * GAME_YIELD_PER_HUNTER_PER_MONTH, 5);
+    // huntingWorkers assigned = min(3, max(3, 3*0.01)) = 3 (population never enters this formula).
+    expect(getHuntingGameOutput(0)).toBeCloseTo(3 * GAME_YIELD_PER_HUNTER_PER_MONTH, 5);
   });
 });

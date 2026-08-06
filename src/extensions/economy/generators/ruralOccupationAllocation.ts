@@ -37,12 +37,20 @@ import { isGoodEnabled } from "./goods-generator";
 
 // ---- Placeholder constants (§9.3 — calibration TBD alongside the rest of this ecosystem) ----
 
-/** Share of a forest cell's post-Grain adult surplus claimed for subsistence hunting. */
-export const HUNTING_POPULATION_SHARE = 0.03;
-/** Minimum hunter headcount a forest cell keeps once it clears the floor threshold below. */
-export const HUNTING_MINIMUM_HEADCOUNT = 1;
-/** Below this much post-Grain surplus, even the minimum headcount isn't guaranteed. */
-export const HUNTING_FLOOR_POPULATION_THRESHOLD = 2;
+/**
+ * Share of a forest cell's post-Grain adult surplus claimed for subsistence hunting once a
+ * settlement is large enough for the share to dominate the fixed floor below. ~1%, mirroring
+ * manpower.ts's PEACE_TARGET_MOBILIZATION — "about as many hunters as a peacetime army's
+ * conscription rate" (§10.2).
+ */
+export const HUNTING_POPULATION_SHARE = 0.01;
+/**
+ * Minimum hunter headcount a forest cell keeps, regardless of settlement size (§10.2) — still
+ * clamped to `availableAdults`, so a hamlet too small to field 3 hunters gives what it has. A
+ * future refinement could scale this with local vermin/pest cell density once that's modeled
+ * (§10.2's "害獣のセル密度次第" — not yet tracked anywhere in the codebase).
+ */
+export const HUNTING_MINIMUM_HEADCOUNT = 3;
 /**
  * A subsistence hunter's monthly Game yield: enough to roughly cover their own annual food need
  * (GROSS_FOOD_NEED, the same constant Grain's food-ledger uses) plus a modest surplus for
@@ -86,8 +94,7 @@ export interface RuralOccupationAllocation {
 function getHuntingSubsistenceClaim(availableAdults: number): number {
   if (availableAdults <= 0) return 0;
   const share = availableAdults * HUNTING_POPULATION_SHARE;
-  const floor = availableAdults >= HUNTING_FLOOR_POPULATION_THRESHOLD ? HUNTING_MINIMUM_HEADCOUNT : 0;
-  return Math.min(availableAdults, Math.max(floor, share));
+  return Math.min(availableAdults, Math.max(HUNTING_MINIMUM_HEADCOUNT, share));
 }
 
 interface FishingOffer {
