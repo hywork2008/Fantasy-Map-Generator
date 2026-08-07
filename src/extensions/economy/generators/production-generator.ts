@@ -317,6 +317,37 @@ export class ProductionModule {
           recipe.ingredients.some(ingredient => Goods.get(ingredient.goodId)?.tags.includes("freshFood"))
         )
     );
+    // 2026-08-08 (docs/temp/0807-alcoholic.md): a preservation good's first-claim priority below is
+    // worthless if a craft-produced ingredient it depends on (Wine's Barrels) never accumulates stock,
+    // because that ingredient itself still has to out-rank every other Good in Phase 2's normal
+    // profit-ranked loop, cycle after cycle, just to get produced at all. Extend first claim to those
+    // direct craft ingredients too — one level of the recipe graph only (not recursive), since the
+    // observed bottleneck (Barrels) sits one step down and further raw inputs (Wood, Salt) are abundant
+    // enough not to need it.
+    //
+    // 2026-08-08 correction (same doc): only extend it to an ingredient that appears in *every* recipe
+    // alternative of at least one preservation good — a true single-point-of-failure dependency, not
+    // merely "used somewhere". Wine's { Grapes, Barrels } is its only recipe, so Barrels qualifies. But
+    // Cheese's four coagulant recipes ({ Milk, Salt }/{ Milk, Vinegar }/{ Milk, Rennet }/{ Milk, Ash })
+    // were deliberately designed so no single one bottlenecks Cheese-making (see that recipe's own
+    // doc-comment) — an earlier, broader version of this filter (any direct ingredient of any recipe)
+    // wrongly gave Rennet the same first-claim priority as Cheese itself despite Rennet having zero
+    // independent demandCoverage. With nothing capping its output to what Cheese's { Rennet: 0.1 } leg
+    // actually consumes, Rennet's healthy margin let it win Phase 1's per-step ranking against Cheese
+    // (and everything else in the priority set) essentially unbounded, flooding the market with surplus
+    // Rennet while starving Cheese of its own priority turns (confirmed via Balance History: Rennet
+    // stock/cumulative-sales ~16400 vs. Cheese's ~550).
+    const preservationIngredientGoods = productiveGoods.filter(
+      good =>
+        !preservationGoods.includes(good) &&
+        preservationGoods.some(preservationGood => {
+          const recipeAlternatives = recipesByOutput[preservationGood.i]!;
+          return recipeAlternatives.every(recipe =>
+            recipe.ingredients.some(ingredient => ingredient.goodId === good.i)
+          );
+        })
+    );
+    const priorityGoods = [...preservationGoods, ...preservationIngredientGoods];
 
     return {
       goods,
@@ -324,7 +355,7 @@ export class ProductionModule {
       demandGoodsByCategory,
       recipesByOutput,
       productiveGoods,
-      preservationGoods,
+      priorityGoods,
       minWorkersByGood
     };
   }
@@ -384,15 +415,20 @@ export class ProductionModule {
    * (docs/plan/knowledge-guild-system.md §9 Phase 2).
    *
    * Two phases (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase M): perishable-preserving
-   * goods (`index.preservationGoods` — Wine, Preserved food, Cheese, Stockfish, Raisins) get first
-   * claim on this cycle's craft labour, ahead of the normal profit-ranked loop over every
+   * goods and their direct craft ingredients (`index.priorityGoods` — Wine, Preserved food, Cheese,
+   * Stockfish, Raisins, plus e.g. Barrels for Wine as of 2026-08-08, docs/temp/0807-alcoholic.md) get
+   * first claim on this cycle's craft labour, ahead of the normal profit-ranked loop over every
    * productive Good. Root cause this fixes: `getDemandFocus()`/`getDemandEffect()` only ever boost
    * a Good that covers the single most-underserved demand category, and rural Grain alone routinely
    * saturates the "food" target — so food-only Goods (Cheese included) never receive a demand boost
    * and lose every ranked comparison to whichever non-food category currently has real shortage,
-   * even when Milk/Grapes/Fish sit unprocessed in the market and would spoil. Both phases still
+   * even when Milk/Grapes/Fish sit unprocessed in the market and would spoil. The ingredient half of
+   * the set fixes the same problem one step down the chain: without it, a preservation good could win
+   * this priority queue every cycle and still never produce anything, because a shared craft
+   * ingredient like Barrels (also consumed by Beer/Liquor) never accumulates stock — it still has to
+   * out-rank higher-margin luxury goods in Phase 2 on every cycle to get made at all. Both phases still
    * reuse `makeProductionDecision()`'s existing `projectedGain <= 0` guard (see there), so this
-   * never forces a manufacturing loss — it only removes preservation goods from having to *out-rank*
+   * never forces a manufacturing loss — it only removes these goods from having to *out-rank*
    * unrelated categories to get a turn at all.
    */
   private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): CraftWorkerUsage {
@@ -408,10 +444,10 @@ export class ProductionModule {
     const maxSteps = Math.max(0, Math.ceil(state.population));
     let step = 0;
 
-    // Phase 1: preservation goods only, re-evaluated every step — this candidate set is small
-    // (a handful of Goods), so the reevalEvery batching phase 2 needs for its much larger
-    // productiveGoods list isn't worth the staleness here.
-    if (index.preservationGoods.length) {
+    // Phase 1: preservation goods and their direct craft ingredients only, re-evaluated every step —
+    // this candidate set is small (a handful of Goods), so the reevalEvery batching phase 2 needs for
+    // its much larger productiveGoods list isn't worth the staleness here.
+    if (index.priorityGoods.length) {
       state.activeGoalGoodId = null;
       for (; step < maxSteps; step++) {
         const workersLeft = state.population - workersUsed;
@@ -426,7 +462,7 @@ export class ProductionModule {
           state.activeGoalGoodId,
           workersLeft,
           workerFraction,
-          index.preservationGoods
+          index.priorityGoods
         );
         if (!decision) break; // No more affordable/available preserving work this cycle.
         state.activeGoalGoodId = decision.goalGoodId;
@@ -1119,10 +1155,18 @@ type ProductionIndex = {
   /**
    * Food-tagged productiveGoods whose recipe consumes at least one `freshFood`-tagged ingredient
    * (Fish/Game/Milk/Shellfish/Grapes) — Wine, Preserved food, Cheese, Stockfish, Raisins as of
-   * 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase M). Given first claim on craft labour in
-   * runWorkerLoop() ahead of the normal profit-ranked loop — see that function's doc-comment for why.
+   * 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase M) — plus, as of 2026-08-08
+   * (docs/temp/0807-alcoholic.md), any other productiveGood that is a *hard* dependency of one of
+   * those: an ingredient appearing in *every* recipe alternative of that preservation good, not merely
+   * some of them (e.g. Barrels, the only recipe Wine has). A good used in only some alternatives
+   * (Cheese's Rennet/Ash/Vinegar/Salt coagulant choices) is deliberately excluded — Cheese was designed
+   * so no single one of those bottlenecks it, and giving one first-claim priority anyway let it win
+   * every Phase-1 ranking step against Cheese itself with nothing capping its output to what Cheese
+   * actually consumes (see buildProductionIndex()'s inline correction note for the observed effect).
+   * Given first claim on craft labour in runWorkerLoop() ahead of the normal profit-ranked loop — see
+   * that function's doc-comment for why.
    */
-  preservationGoods: Good[];
+  priorityGoods: Good[];
   minWorkersByGood: number[];
 };
 

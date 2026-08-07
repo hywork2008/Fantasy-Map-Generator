@@ -41,8 +41,10 @@ import {
   getMarketCellColumn,
   getMarkets,
   getOrCreateFaunaStockTable,
+  getOrCreateMarketGoodProductionTotals,
   getOrCreateNonFoodFaunaDemandHistory,
   getOrCreateNonFoodFaunaDemandSnapshot,
+  getOrCreateNonFoodFaunaProductionSnapshot,
   getSimulationYear,
   getWorldContext,
   setFaunaPopulationLastSettledYear
@@ -524,18 +526,33 @@ export function updateAnnualFaunaCohorts(): boolean {
 // ---- Non-food demand-absorption history (§4.5) ----
 
 /**
- * Snapshots each market's non-food liveAnimal goods' stock once per quarter, deriving that
- * quarter's "consumed" sample as max(0, previousStock - currentStock) — i.e. only a net drawdown
- * counts as demand; a quarter where stock merely piled up contributes a 0 sample, which correctly
- * pulls the rolling average (and so next quarter's capacity) down. Call from the same quarterly
- * cadence as FoodProduction.generateQuarterlyLedger().
+ * Snapshots each market's non-food liveAnimal goods' stock AND cumulative production once per
+ * quarter, deriving that quarter's "consumed" sample as
+ * `max(0, producedThisQuarter + previousStock - currentStock)` — the standard stock/flow
+ * accounting identity (`consumed = produced + previousStock - currentStock`).
+ *
+ * Found 2026-08-08 (real-map report: Sheep collapsing to near-zero within a year despite selling
+ * well): the earlier version dropped the `producedThisQuarter` term and used a bare
+ * `previousStock - currentStock` delta. That's correct only when nothing was produced during the
+ * interval; for a good whose supply chronically can't keep up with demand (Sheep, entirely bought
+ * up as Wool's `recipes: [{ Sheep: 1 }]` ingredient the moment it lands — see goods-generator.ts's
+ * Wool entry) stock sits near-zero at EVERY quarter boundary even while large volumes are actually
+ * changing hands. The bare delta reads two already-near-zero snapshots as "no demand" and crashes
+ * the capacity exactly as if it were an unsellable surplus nobody wants, wiping the species out
+ * within a year via §4.3's `carryingCapacity <= 0` hard-zero rule — the opposite of what the real
+ * situation (undersupply, not oversupply) called for. Re-adding the production term recovers true
+ * throughput regardless of how little stock ever had a chance to visibly pile up.
+ *
+ * Call from the same quarterly cadence as FoodProduction.generateQuarterlyLedger().
  */
 export function recordQuarterlyNonFoodDemand(): void {
   if (getRuralEcosystemDetail() !== "detailed") return;
 
   const historyTable = getOrCreateNonFoodFaunaDemandHistory();
   const snapshotTable = getOrCreateNonFoodFaunaDemandSnapshot();
-  if (!historyTable || !snapshotTable) return;
+  const productionTotals = getOrCreateMarketGoodProductionTotals();
+  const productionSnapshotTable = getOrCreateNonFoodFaunaProductionSnapshot();
+  if (!historyTable || !snapshotTable || !productionTotals || !productionSnapshotTable) return;
 
   const goods = getGoods().filter(
     good => good.tags.includes("liveAnimal") && !good.tags.includes("food") && isGoodEnabled(good)
@@ -545,15 +562,21 @@ export function recordQuarterlyNonFoodDemand(): void {
   for (const market of getMarkets()) {
     for (const good of goods) {
       const key = getDemandHistoryKey(market.i, good.i);
+
+      const currentProduced = productionTotals[key] ?? 0;
+      const previousProduced = productionSnapshotTable[key] ?? currentProduced;
+      const producedThisQuarter = Math.max(0, currentProduced - previousProduced);
+      productionSnapshotTable[key] = currentProduced;
+
       const currentStock = market.goods[good.i]?.stock ?? 0;
       const previousStock = snapshotTable[key] ?? currentStock;
-      const consumed = Math.max(0, previousStock - currentStock);
+      const consumed = Math.max(0, producedThisQuarter + previousStock - currentStock);
+      snapshotTable[key] = currentStock;
 
       const history = historyTable[key] ?? [];
       history.push(consumed);
       if (history.length > NON_FOOD_DEMAND_QUARTERS_TRACKED) history.shift();
       historyTable[key] = history;
-      snapshotTable[key] = currentStock;
     }
   }
 }
@@ -657,4 +680,6 @@ export function clearFaunaPopulation(): void {
   if (history) for (const key of Object.keys(history)) delete history[key];
   const snapshot = getOrCreateNonFoodFaunaDemandSnapshot();
   if (snapshot) for (const key of Object.keys(snapshot)) delete snapshot[key];
+  const productionSnapshot = getOrCreateNonFoodFaunaProductionSnapshot();
+  if (productionSnapshot) for (const key of Object.keys(productionSnapshot)) delete productionSnapshot[key];
 }

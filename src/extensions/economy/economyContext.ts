@@ -1413,7 +1413,11 @@ export function getOrCreateFaunaStockTable(): Record<string, FaunaCohorts> | nul
  * Sparse "marketId:goodId" → last up-to-4 quarterly consumed-stock samples, for non-food
  * liveAnimal goods' demand-absorption carrying-capacity cap (§4.5). Paired with
  * getOrCreateNonFoodFaunaDemandSnapshot(), which holds the stock level as of the last quarter
- * boundary so the next quarter's sample can be derived as a stock delta.
+ * boundary, and getOrCreateNonFoodFaunaProductionSnapshot(), which holds the cumulative-production
+ * total as of the same boundary — together they let the next quarter's sample be derived as
+ * "produced this quarter + stock delta" rather than a raw stock delta alone (see that function's
+ * doc-comment for why the raw-delta-only version silently reports ~0 demand for a chronically
+ * undersupplied good).
  */
 export function getOrCreateNonFoodFaunaDemandHistory(): Record<string, number[]> | null {
   const slice = getEconomySlice();
@@ -1440,6 +1444,31 @@ export function getOrCreateNonFoodFaunaDemandSnapshot(): Record<string, number> 
 }
 
 /**
+ * Snapshot of getOrCreateMarketGoodProductionTotals() as of the last quarter boundary, for the
+ * same "marketId:goodId" key as getOrCreateNonFoodFaunaDemandSnapshot(). Found 2026-08-08: a good
+ * whose market supply chronically can't keep up with demand (e.g. Sheep, entirely bought up as
+ * Wool's `recipes: [{ Sheep: 1 }]` ingredient the moment it lands) sits at near-zero stock at
+ * EVERY quarter boundary even while huge volumes are actually changing hands — `previousStock -
+ * currentStock` alone reads that as "nobody wants it" (both snapshots are already ~0, so the delta
+ * is ~0 too) and the demand-absorption cap crashes toward 0 exactly as if it really were an
+ * unsellable surplus, wiping the species out within a year (§4.3's carryingCapacity<=0 hard-zero
+ * rule). Recovering `producedThisQuarter + previousStock - currentStock` instead correctly
+ * attributes that throughput as consumption regardless of how little stock ever had a chance to
+ * visibly pile up between snapshots.
+ */
+export function getOrCreateNonFoodFaunaProductionSnapshot(): Record<string, number> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.nonFoodFaunaProductionSnapshot;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, number>;
+  }
+  const table: Record<string, number> = {};
+  slice.nonFoodFaunaProductionSnapshot = table;
+  return table;
+}
+
+/**
  * Sparse "burgId:goodName" → smoothed 0..1 preference share, owned by the economy slice
  * (docs/plan/biome-goods-producer-ecosystem.md §9.4, Phase 5). Tracks how a Burg's craft output is
  * currently leaning between Grapes-derived conversion goods (Wine/Raisins) that compete for the
@@ -1455,6 +1484,61 @@ export function getOrCreateViticultureAllocationShares(): Record<string, number>
   }
   const table: Record<string, number> = {};
   slice.viticultureAllocationShares = table;
+  return table;
+}
+
+/**
+ * Sparse goodId → cumulative units ever placed into a market for sale, owned by the economy slice.
+ * Two independent event sources feed it, both in markets-generator.ts: Markets.sell() (a Burg selling
+ * its own craft-manufactured output — the production-generator.ts:594 call site, matching
+ * production-overview.ts's own "sold" deal-kind naming) and addRuralOutput() (a cell's rural/biome
+ * harvest — Grapes, Milk, Fish, Game, Wood, ... — reaching the market; these are never manufactured by
+ * a Burg, so no Deal exists for them). 2026-08-08 (docs/temp/0807-alcoholic.md): the addRuralOutput()
+ * half was added after the Goods Editor's Sales column shipped with only the sell() half — craft goods
+ * (Wine, Cheese) showed real numbers while their own raw ingredients (Grapes, Milk), produced and
+ * consumed just as continuously, sat at ~0. Unlike `production` (economyTotals.ts's getProduction(), a
+ * per-cycle snapshot recomputed fresh every time) and `deals` (wiped every production cycle for UI
+ * history — see getDeals()'s doc-comment), this accumulates across the whole session and is only ever
+ * cleared explicitly (resetCumulativeGoodsSales(), the Goods Editor's reset button). Returns null when
+ * the extension API / simulation context is not available.
+ */
+export function getOrCreateCumulativeGoodsSales(): Record<number, number> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.cumulativeGoodsSales;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<number, number>;
+  }
+  const table: Record<number, number> = {};
+  slice.cumulativeGoodsSales = table;
+  return table;
+}
+
+/** Zeroes every good's cumulative-sales counter (getOrCreateCumulativeGoodsSales()) in place. */
+export function resetCumulativeGoodsSales(): void {
+  const table = getOrCreateCumulativeGoodsSales();
+  if (!table) return;
+  for (const goodId of Object.keys(table)) delete table[Number(goodId)];
+}
+
+/**
+ * Sparse "marketId:goodId" → cumulative units ever placed into THAT market's stock, owned by the
+ * economy slice. Same two event sources as getOrCreateCumulativeGoodsSales() (Markets.sell() and
+ * addRuralOutput() in markets-generator.ts), just market-scoped instead of world-wide. Lets a
+ * per-market consumer recover how much actually flowed INTO a market between two points in time,
+ * not just where its stock number happened to net out to — see
+ * getOrCreateNonFoodFaunaProductionSnapshot()'s doc-comment for why that distinction matters.
+ * Never reset automatically; only meaningful as a delta between two snapshots taken by the caller.
+ */
+export function getOrCreateMarketGoodProductionTotals(): Record<string, number> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.marketGoodProductionTotals;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, number>;
+  }
+  const table: Record<string, number> = {};
+  slice.marketGoodProductionTotals = table;
   return table;
 }
 

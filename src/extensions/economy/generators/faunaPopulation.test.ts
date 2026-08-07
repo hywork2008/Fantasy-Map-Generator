@@ -4,8 +4,10 @@ import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
   getOrCreateFaunaStockTable,
+  getOrCreateMarketGoodProductionTotals,
   getOrCreateNonFoodFaunaDemandHistory,
   getOrCreateNonFoodFaunaDemandSnapshot,
+  getOrCreateNonFoodFaunaProductionSnapshot,
   initEconomyContext,
   setCultivatedArea,
   setGoods,
@@ -431,6 +433,28 @@ describe("faunaPopulation", () => {
       expect(history.length).toBe(4);
     });
 
+    it("recovers demand from production+stock delta when stock stays chronically near zero (2026-08-08 fix)", () => {
+      // Regression test: a good bought up almost as fast as it's produced (e.g. Sheep, entirely
+      // consumed by Wool's `recipes: [{ Sheep: 1 }]`) must not read as "no demand" just because its
+      // stock never has room to visibly drop between quarterly snapshots.
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      setGoods([CATS_GOOD] as never);
+      setMarkets([{ i: 1, goods: { [CATS_GOOD.i]: { stock: 1, price: 3 } } }] as never);
+
+      recordQuarterlyNonFoodDemand(); // first snapshot: no prior baseline, consumed = 0
+      expect(getOrCreateNonFoodFaunaDemandHistory()![`1:${CATS_GOOD.i}`]).toEqual([0]);
+
+      // 50 units flowed into the market this quarter, but stock still reads ~1 — it was bought up
+      // almost as fast as it arrived. A bare stock delta (previousStock - currentStock) would see
+      // this as 0 demand and crash the species' carrying capacity to 0 within a year.
+      const productionTotals = getOrCreateMarketGoodProductionTotals()!;
+      productionTotals[`1:${CATS_GOOD.i}`] = 50;
+      setMarkets([{ i: 1, goods: { [CATS_GOOD.i]: { stock: 1, price: 3 } } }] as never);
+      recordQuarterlyNonFoodDemand();
+      const history = getOrCreateNonFoodFaunaDemandHistory()![`1:${CATS_GOOD.i}`];
+      expect(history).toEqual([0, 50]);
+    });
+
     it("does nothing in simplified mode", () => {
       worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
       setGoods([CATS_GOOD] as never);
@@ -494,7 +518,7 @@ describe("faunaPopulation", () => {
   });
 
   describe("clearFaunaPopulation", () => {
-    it("empties the stock, demand history, and demand snapshot tables", () => {
+    it("empties the stock, demand history, demand snapshot, and production snapshot tables", () => {
       worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
       const table = getOrCreateFaunaStockTable()!;
       table["0:Game"] = { young: 1, breeding: 1, old: 1 };
@@ -502,12 +526,15 @@ describe("faunaPopulation", () => {
       history["1:2"] = [1, 2];
       const snapshot = getOrCreateNonFoodFaunaDemandSnapshot()!;
       snapshot["1:2"] = 5;
+      const productionSnapshot = getOrCreateNonFoodFaunaProductionSnapshot()!;
+      productionSnapshot["1:2"] = 50;
 
       clearFaunaPopulation();
 
       expect(getOrCreateFaunaStockTable()).toEqual({});
       expect(getOrCreateNonFoodFaunaDemandHistory()).toEqual({});
       expect(getOrCreateNonFoodFaunaDemandSnapshot()).toEqual({});
+      expect(getOrCreateNonFoodFaunaProductionSnapshot()).toEqual({});
     });
   });
 });

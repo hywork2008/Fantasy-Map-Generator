@@ -69,7 +69,7 @@ export const GOODS_DATA: GoodData[] = [
     unit: "pile",
     demandCoverage: { construction: 1, utilities: 1 },
     multipliers: { cultureType: { Hunting: 1.5 } },
-    biomeOutputByTag: { forest: 0.1, wetland: 0.05 }
+    biomeOutputByTag: { forest: 0.3, wetland: 0.1 }
   },
   {
     name: "Stone",
@@ -317,10 +317,18 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "luxury"],
     icon: "good-wine",
     color: "#963e48",
-    // Bumped from the pre-Phase-4 value of 5 — the minimum that still clears { Grapes: 2, Barrels: 1 }
-    // (cost 2*2 + 1*2 = 6) ingredient cost, chosen to minimize the ripple into Vinegar/Preserved
-    // food/Cheese, which all price off Wine's value transitively.
-    value: 6,
+    // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8. The old value 6 was chosen only
+    // to *clear* { Grapes: 2, Barrels: 1 }'s ingredient cost (2*2 + 1*2 = 6) — a zero-margin recipe by
+    // construction. production-generator.ts's makeProductionDecision() rejects any candidate whose
+    // projectedGain <= 0, and Wine gets no exemption from that guard just because it's in
+    // preservationGoods' first-claim-on-labour set (Phase M) — a zero-margin baseline meant Wine's
+    // projectedGain sat at ~0 and routinely dipped negative on live market prices, so Wine was never
+    // actually produced despite the priority queue access (confirmed via Balance History export: Grapes
+    // piled up ~20x over a year while Wine fell from 4 to 0). value 8 gives a ~33% margin over the same
+    // recipe cost, matching Beer's { Grain: 1, Barrels: 1 } margin ratio (value 4 vs cost 3). Vinegar's
+    // { Wine: 1 } recipe (below) now costs more than Vinegar's own value, so Vinegar-making will favor
+    // its { Honey: 1 } alternative instead — an acceptable, market-rational shift, not a regression.
+    value: 8,
     chance: 0,
     recipes: [{ Grapes: 2, Barrels: 1 }],
     unit: "barrel",
@@ -1197,10 +1205,16 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "preservative"],
     icon: "good-vinegar",
     color: "#9b111e",
-    // Bumped from 5 alongside Wine's Phase 4 value increase — { Wine: 1 } now costs 6.
+    // Bumped from 5 alongside Wine's Phase 4 value increase, to clear { Wine: 1 }'s then-cost of 6.
+    // 2026-08-08 (docs/temp/0807-alcoholic.md): Wine's own value rose to 8, so the Wine-leg amount
+    // below was reduced from 1 to 0.75 (8 * 0.75 = 6) to keep clearing this unchanged value instead of
+    // bumping Vinegar's value itself — which would ripple into Cheese/Preserved food's own { Vinegar }
+    // recipe legs (both price off Vinegar's value transitively) the same way the original comment on
+    // Wine warned about. Left at breakeven deliberately, same as Wine pre-fix: Vinegar's real margin
+    // comes from its { Honey: 1 } leg (cost 4, healthy margin), not from converting valuable Wine.
     value: 6,
     chance: 0,
-    recipes: [{ Wine: 1 }, { Honey: 1 }],
+    recipes: [{ Wine: 0.75 }, { Honey: 1 }],
     unit: "barrel",
     demandCoverage: { utilities: 0.5 }
   },

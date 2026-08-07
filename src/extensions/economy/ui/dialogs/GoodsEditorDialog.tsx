@@ -19,6 +19,7 @@ import {
   removeGood,
   requestGoodsRegeneration,
   requestProductionRegeneration,
+  resetGoodsCumulativeSales,
   toggleAllDisplayed,
   toggleDisplayedGood,
   togglePercentageMode,
@@ -42,6 +43,7 @@ export const GoodsEditorDialog: React.FC = () => {
     goods,
     totalProduced,
     totalStock,
+    totalCumulativeSales,
     displayedCount,
     isPercentageMode,
     hasTagFilter,
@@ -82,6 +84,7 @@ export const GoodsEditorDialog: React.FC = () => {
                 </>
               ) : (
                 <>
+                  <col />
                   <col />
                   <col />
                   <col />
@@ -166,6 +169,15 @@ export const GoodsEditorDialog: React.FC = () => {
                       tip="Total units in stock across all markets and burg inventories. Click to sort"
                     />
                     <SortableHeader
+                      field="cumulativeSales"
+                      label="Sales"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Cumulative units placed into markets — burg craft output plus rural/biome harvest — since generation or the last reset. Click to sort"
+                    />
+                    <SortableHeader
                       field="resourceCells"
                       label="Cells"
                       sortBy={sortBy}
@@ -208,6 +220,9 @@ export const GoodsEditorDialog: React.FC = () => {
                 const displayedStock = isPercentageMode
                   ? `${rn(totalStock ? (good.stock / totalStock) * 100 : 0, 2)}%`
                   : String(good.stock);
+                const displayedCumulativeSales = isPercentageMode
+                  ? `${rn(totalCumulativeSales ? (good.cumulativeSales / totalCumulativeSales) * 100 : 0, 2)}%`
+                  : String(good.cumulativeSales);
                 const priceTip = good.unitFlavor?.itemsPerUnit
                   ? t("economy.goodsUnitFlavor.batch", {
                       count: good.unitFlavor.itemsPerUnit,
@@ -230,6 +245,7 @@ export const GoodsEditorDialog: React.FC = () => {
                     data-baseprice={good.basePrice}
                     data-produced={good.produced}
                     data-stock={good.stock}
+                    data-cumulative-sales={good.cumulativeSales}
                     data-resource-cells={good.resourceCells}
                     data-production-per-thousand={good.productionPerThousand}
                     data-type={good.types.join(",")}
@@ -306,6 +322,12 @@ export const GoodsEditorDialog: React.FC = () => {
                           <div className="d-inline-block">⛁</div>
                         </td>
                         <td
+                          data-tip="Cumulative units placed into markets — burg craft output plus rural/biome harvest — since generation or the last reset"
+                          className="goodCumulativeSales"
+                        >
+                          {displayedCumulativeSales}
+                        </td>
+                        <td
                           data-tip="Current assigned resource cells. In Phase 0, this is a placement count, not a mineral deposit or reserve count"
                           className="goodResourceCells"
                         >
@@ -356,6 +378,9 @@ export const GoodsEditorDialog: React.FC = () => {
           </div>
           <div data-tip="Total units in stock across all markets and burg inventories">
             Stock:<span id="goodsStock">{totalStock}</span>
+          </div>
+          <div data-tip="Total units placed into markets — burg craft output plus rural/biome harvest — since generation or the last reset">
+            Sales:<span id="goodsCumulativeSales">{totalCumulativeSales}</span>
           </div>
         </div>
 
@@ -421,6 +446,13 @@ export const GoodsEditorDialog: React.FC = () => {
             data-tip="Restore default list and regenerate goods"
             className={`icon-history hide${isAssignMode ? " hidden" : ""}`}
             onClick={goodsRestoreDefaults}
+          />
+          <button
+            type="button"
+            id="goodsResetCumulativeSales"
+            data-tip="Reset the cumulative sales counter for every good"
+            className={`icon-ccw hide${isAssignMode ? " hidden" : ""}`}
+            onClick={resetGoodsCumulativeSales}
           />
           <button
             type="button"

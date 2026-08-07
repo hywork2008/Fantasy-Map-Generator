@@ -16,6 +16,8 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getOrCreateCumulativeGoodsSales,
+  getOrCreateMarketGoodProductionTotals,
   getSimulationMonth,
   getSimulationYear,
   getWorldContext,
@@ -596,6 +598,25 @@ export class MarketsModule {
     const marketGood = this.getMarketGood(market, good);
     marketGood.stock = rn(marketGood.stock + resolvedAmount, 2);
     if (collectionBurgId) addWholesaleGoodStock(collectionBurgId, marketId, goodId, resolvedAmount);
+
+    // 2026-08-08 (docs/temp/0807-alcoholic.md): rural/biome-produced goods (Grapes, Milk, Fish, Game,
+    // Wood, ...) enter a market's stock through this path, never through sell() below — they're not
+    // burg-manufactured, so no Deal/craft-sale event exists for them. Left unrecorded, the Goods
+    // Editor's cumulative-sales counter (added earlier this session) only ever moved for craft goods
+    // (Wine, Cheese), while their own raw ingredients — produced and consumed just as continuously —
+    // sat at ~0, reading as though those goods were never actually reaching the market. Count a rural
+    // harvest reaching the market as "sold" too, symmetric with sell()'s own event, and with how
+    // getProduction() (economyTotals.ts) already folds rural cell output and burg output into one
+    // "Produced" figure.
+    const salesTable = getOrCreateCumulativeGoodsSales();
+    if (salesTable) salesTable[good.i] = rn((salesTable[good.i] ?? 0) + resolvedAmount, 2);
+
+    // Market-scoped counterpart — see the matching call site in sell() above.
+    const marketProductionTable = getOrCreateMarketGoodProductionTotals();
+    if (marketProductionTable) {
+      const key = `${marketId}:${goodId}`;
+      marketProductionTable[key] = rn((marketProductionTable[key] ?? 0) + resolvedAmount, 2);
+    }
   }
 
   private addRuralGoodTotal(
@@ -891,6 +912,24 @@ export class MarketsModule {
     deals.push(deal);
 
     marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -units), 2);
+
+    // Cumulative-sales counter for the Goods Editor (docs/temp/0807-alcoholic.md's Balance History
+    // investigation surfaced the need for a session-long "units sold" figure distinct from the
+    // per-cycle `production` snapshot and the deals list, which is wiped every cycle). Persists until
+    // explicitly reset. addRuralOutput() below records the same counter for rural/biome-produced goods,
+    // which never reach the market through this burg-manufacture path.
+    const salesTable = getOrCreateCumulativeGoodsSales();
+    if (salesTable) salesTable[good.i] = rn((salesTable[good.i] ?? 0) + units, 2);
+
+    // Market-scoped counterpart of the above, keyed "marketId:goodId" — see
+    // getOrCreateMarketGoodProductionTotals()'s doc-comment for the consumer (faunaPopulation.ts's
+    // §4.5 demand sampling) that needs per-market granularity the world-wide table above can't give.
+    const marketProductionTable = getOrCreateMarketGoodProductionTotals();
+    if (marketProductionTable) {
+      const key = `${market.i}:${good.i}`;
+      marketProductionTable[key] = rn((marketProductionTable[key] ?? 0) + units, 2);
+    }
+
     return deal;
   }
 
