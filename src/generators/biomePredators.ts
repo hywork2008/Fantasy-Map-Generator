@@ -5,6 +5,17 @@
  * Forest / mountain wildlife feeds the same `cells.danger` channel as named
  * monsters, but never creates marker entities. Intensity stays well below the
  * expand ban (80) so predators texture wilderness without spawning domains alone.
+ *
+ * Deep-forest interior scaling (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase I) — a large
+ * contiguous forest mass is meaningfully more dangerous/impenetrable than a forest edge cell next
+ * to open land, mirroring how real settlement historically hugged forest margins/clearings rather
+ * than pushing into unbroken deep woodland. `computeForestDepthFromNonForest()` runs a multi-source
+ * BFS from every non-forest (incl. water) cell, giving each forest cell its hop-distance to the
+ * nearest non-forest land; `applyBiomePredatorDanger()` layers an additional per-hop danger bonus on
+ * top of the existing flat per-biome base for cells beyond the immediate edge (depth > 1). This is
+ * additive on top of `getBiomePredatorBaseDanger()`, which stays "pure of map topology" per its own
+ * doc-comment/contract (`threatCullEffects.ts`'s pest-hinterland job-posting scan calls it directly,
+ * without a neighbor graph, and must keep working) — depth only ever gets computed and applied here.
  */
 import { biomeHasTag, isForestBiome, isMountainBiome } from "../data/biomeCatalog";
 import type { BiomesData } from "../types/WorldState";
@@ -12,6 +23,59 @@ import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 
 /** Hard cap for predator-only contribution (before combining with monsters). */
 export const BIOME_PREDATOR_DANGER_CAP = 22;
+
+/**
+ * Danger added per BFS hop beyond the forest edge (depth 1, i.e. adjacent to non-forest, gets no
+ * bonus — matches today's pre-Phase-I behavior for forest-edge/patchy forest). A depth-5+ cell (the
+ * center of a forest mass roughly 5 cells / tens of km across) reaches the cap below.
+ */
+export const DEEP_FOREST_DANGER_PER_HOP = 8;
+/**
+ * Combined base+depth cap, deliberately higher than `BIOME_PREDATOR_DANGER_CAP` but still short of
+ * `STATE_EXPAND_DANGER_BAN` (80) by more than the governed-land halving could ever close, so a
+ * biome-predator-only cell can never alone reach the annexation ban (this file's original design
+ * invariant — "predators texture wilderness without spawning domains alone").
+ */
+export const DEEP_FOREST_DANGER_CAP = 65;
+
+/**
+ * Hop-distance from each land cell to the nearest non-forest cell (0 for non-forest cells
+ * themselves, including water/ocean). Forest cells adjacent to non-forest land are depth 1.
+ * O(n) multi-source BFS over the existing cell adjacency graph.
+ */
+function computeForestDepthFromNonForest(
+  cells: BiomePredatorCells,
+  biomesData: BiomesData | null | undefined
+): Uint8Array {
+  const depth = new Uint8Array(cells.i.length);
+  if (!biomesData) return depth; // No catalog to classify forest vs. non-forest — leave flat.
+
+  const queue: number[] = [];
+  const visited = new Uint8Array(cells.i.length);
+  for (let index = 0; index < cells.i.length; index++) {
+    const id = cells.i[index];
+    const height = cells.h[id] ?? 0;
+    const forest = height >= 20 && isForestBiome(biomesData, cells.biomeCode?.[id] ?? 0);
+    if (!forest) {
+      visited[id] = 1;
+      queue.push(id);
+    }
+  }
+
+  let head = 0;
+  while (head < queue.length) {
+    const id = queue[head++];
+    const nextDepth = depth[id] + 1;
+    for (const neighbor of cells.c[id] ?? []) {
+      if (visited[neighbor]) continue;
+      visited[neighbor] = 1;
+      depth[neighbor] = nextDepth;
+      queue.push(neighbor);
+    }
+  }
+
+  return depth;
+}
 
 export interface BiomePredatorCells {
   readonly i: ArrayLike<number>;
@@ -89,6 +153,7 @@ export function applyBiomePredatorDanger(
 
   const reduceGoverned = options.reduceOnGovernedLand !== false;
   const local = new Uint8Array(cells.i.length);
+  const forestDepth = computeForestDepthFromNonForest(cells, biomesData);
   let touched = 0;
 
   for (let index = 0; index < cells.i.length; index++) {
@@ -99,11 +164,15 @@ export function applyBiomePredatorDanger(
     let base = getBiomePredatorBaseDanger(cells.biomeCode?.[id], height, biomesData);
     if (base <= 0) continue;
 
+    // Deep-forest interior bonus (depth 1 = forest edge, no bonus — see module doc-comment).
+    const depth = forestDepth[id] ?? 0;
+    if (depth > 1) base += (depth - 1) * DEEP_FOREST_DANGER_PER_HOP;
+
     if (reduceGoverned && (cells.state?.[id] ?? 0) > 0) {
       base = Math.max(0, Math.round(base * 0.5));
     }
     const suppression = clamp01(options.pestSuppressionByCell?.[id] ?? 0);
-    const value = Math.min(BIOME_PREDATOR_DANGER_CAP, Math.round(base * scale * (1 - suppression)));
+    const value = Math.min(DEEP_FOREST_DANGER_CAP, Math.round(base * scale * (1 - suppression)));
     if (value <= 0) continue;
     local[id] = value;
     touched++;

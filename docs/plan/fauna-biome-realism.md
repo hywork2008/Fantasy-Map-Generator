@@ -36,7 +36,28 @@
 
 **残る既知の不正確さ（今回は許容、未修正）**: Elephantsは`grassland`タグを維持したため、savanna（熱帯草原、意図通り）だけでなく温帯寒帯の`Grassland`/`Heath & moorland`/`Cold steppe`biomeにも低レート（0.015）で登場し続ける——実地検証でも1セルあたり1頭未満（Grasslandで89セル中42.8頭合計）と非常に薄いが、厳密には熱帯savanna限定にできていない。`tropical`と`grassland`を1つのタグに統合すると、savannaと深林の密度差（savanna高密度・森林低密度という意図した区別）を表現できなくなるため、今回はこのまま残した——気になる場合は`savanna`専用タグの新設、または`biomeOutput`数値上書きでの個別対応が次の一手になる。
 
-**Phase Dは引き続きD1（見送り）で未着手。Phase F（Milk/Wool/Cheeseの再設計、下記§3.1参照）はユーザーから設計方針の指定を受けたが実装は未着手——実装タイミングは要確認。**
+**2026-08-07 Phase I（「深い森は猛獣が出やすく大都市を築きにくくする」——deep-forest危険度スケーリングを実装）**: ユーザーから「隣接セルが森かどうかで深い森を判定し、深い森なら猛獣が出やすく大都市を築きにくくする。逆に森に大人口都市があるなら草原へ作り変えられているはずで、セル面積と人口比率で草原化が進む生成時オプションがあってもよい。この種のペナルティは（ファンタジー種族ではなく）Humanのみに掛けるのはどうか」との設計提案を受けた。事前調査（Explore agent）の結果:
+
+1. `pack.cells.biomeCode`はシミュレーション側から一度も書き換えられない完全な生成時静的属性（`dataFieldOwnership.ts`が`"map.physical"`と明示分類）——「人口に応じて草原化していく」仕組みは、このコードベースで初めて生成専用データを実行時シミュレーションが書き換える前例になる。
+2. 「深い森」（隣接セルの連続性から森の深度を判定する）概念は皆無。近い仕組み（隣接セルの森率、造船所候補地/ギルド適性/軍移動コストの3箇所）はあるが深度BFSはしていない。
+3. `src/generators/biomePredators.ts` + `cells.danger`という「森・山岳の野生動物脅威度」システムが**既に存在**し、`rankCells()`の入植適性減衰・`frontierExpansion.ts`のアウトポスト配置ゲート・`initialPolities.ts`の領有権取得ゲート・`dangerExpandPolicy.ts`の州拡張禁止（danger≥80）まで、既に広範囲に効いている。ただし現状は「森かどうか」のみを見ており「深さ」は見ていない。加えて、この同日`fauna-biome-realism.md`の別エントリでこのシステムの拡張（Phase D）自体を一度D1（見送り）と決めていた——今回は同じ`biomePredators.ts`を別の切り口（Fauna/経済フレーバーではなく入植適性抑制）から再訪する形になる。
+4. `biomeCatalog.ts`のhabitability（入植適性の基礎値）はTemperate deciduous forest=100（全27バイオーム中最高）等、森林バイオームがgrassland(30)/savanna(22)より大幅に高く設定されている——現状「danger」はこれに対する部分的な相殺要因でしかなく負けており、これが「大都市が平気で森に建つ」ことの一因になっている可能性が高い。
+5. 種族(Race)には地形適性の概念が皆無（`Culture.race`は寿命・繁殖力等のキャラクター特性のみ、`cells.race`列自体が存在しない）——「Humanだけ森でペナルティ」は新規データモデル+新規配線が必要な規模の大きい変更。
+
+**ユーザー確認（AskUserQuestion）**: 3フェーズ構成（(1) 既存`biomePredators.ts`/habitabilityの再校正、(2) 人口密度連動のバイオーム変化、(3) 種族別地形適性）のうち、**Phase 1（既存システムの再校正）のみ今回実装**を選択——Phase 2（生成専用データの実行時書き換えという新しいアーキテクチャ境界）とPhase 3（新規Race地形適性データモデル）は、規模が大きいため今回は見送り、将来の別途検討課題として保留。
+
+**実装（Phase 1）**: `biomePredators.ts`に`computeForestDepthFromNonForest()`を新設——非森林（陸・水を問わず）セルを起点とする多始点BFSで、各森林セルの「最寄りの非森林セルまでのホップ距離」を1回のO(n)走査で算出する。`applyBiomePredatorDanger()`内で、深度1（森の縁、非森林に隣接）はボーナス無し（既存挙動と同じ）、深度2以降は1ホップにつき`DEEP_FOREST_DANGER_PER_HOP`=8を加算——大きな連続森林の中心部ほど危険度が線形に上昇する。合成後の危険度上限を`BIOME_PREDATOR_DANGER_CAP`(22、単純な平坦バイオーム基礎値用、無変更)から独立した`DEEP_FOREST_DANGER_CAP`=65へ拡張——ただし`STATE_EXPAND_DANGER_BAN`(80)には届かないよう据え置き、「biome predator単体では絶対に州の領有権取得禁止ラインに到達しない」という本ファイルの既存設計不変条件は維持した。`getBiomePredatorBaseDanger()`自体（`threatCullEffects.ts`のペスト雇用告知スキャンが座標情報無しで直接呼ぶ、"pure of map topology"契約を持つ関数）は無改修——深度加算は`applyBiomePredatorDanger()`内のみで完結させ、既存の呼び出し契約を破らないようにした。
+
+**habitability（入植適性基礎値）の平坦な再校正は今回は見送った**——上記4番の問題（森林biomeがgrassland/savannaより高いhabitability）は依然残っているが、`habitability`はrankCells/settlementFoundation以外にもroutes-generator（経路コスト）やthreats-generator、Goodsの確率的distribution式（`habitability()`/`minHabitability()`）など複数箇所でマグニチュードとして参照されており、値そのものを動かすと影響範囲の完全な洗い出しが今回のスコープを超える。まずdanger側のみの効果を実プレイで確認し、それでも大都市が深い森に平気で建つようなら次の一手として検討する方針とした。
+
+**Playwright実地検証**: (1) ユニットテスト同型の直線チェーン検証に加え、実際に生成したマップ（Playwrightで`window.fmg`から`cells.biomeCode`/`cells.c`/`cells.danger`を読み出し、モンスター影響範囲内のセルを除外した上で）森林の深度別に危険度を集計したところ、深度1（森の縁）の平均危険度4.9・最大8に対し、深度2は平均10.0・最大16と、深度が増すごとに危険度が明確に上昇することを確認した（このマップ自体の森林塊が小粒で深度2までしか到達しなかったが、機構自体は意図通り機能している）。(2) `biomePredators.test.ts`に新規4件（森の縁はボーナス無し／深度が増すほど厳密に上昇／`DEEP_FOREST_DANGER_CAP`で頭打ちかつ州拡張禁止ラインより低いまま／非森林の起点が存在しない全森林セット——深度が定義不能——では従来通り変化無し）を追加、既存5件を含め全9件green。経済拡張含む全体2203件（既存の無関係な6件の失敗を除き）green、`tsc --noEmit`/`lint`/`madge --circular`もクリーン。
+
+**2026-08-07 habitability再校正を巡るユーザーの補足指摘とコード裏取り（実装無し、分析のみ）**: ユーザーから「穀物栽培は最短でも数ヶ月かかり、その間は狩猟・採集で食いつなぐ必要があるため、新規開拓地にとって森への接続は本来重要——国家支援（食料潤沢）があれば安全な草原でも良い。Settlement pattern=Frontierは後者（支援あり）のはずなので、そこで森林habitabilityを下げるのは微妙な結果になりかねない。森林都市が問題になるのは地図生成時の初期配置に限る」との補足があった。Explore agentでコードを裏取りした結果:
+
+1. **"Settlement pattern: Frontier"は2つの別物を指している**——(a) 生成時の人口分布プリセット（`initialSettlementPatterns.ts`、footprint/clustering/regionCount等の形状パラメータのみで食料・狩猟とは無関係）と、(b) `frontierExpansion.ts`のライブシミュレーション「フロンティア前哨地」システム（`SETUP_FOOD`消費・穀倉庫(granary)投資による食料負担軽減・`SETTLEMENT_SUPPORT_YEARS`=3年の支援期間という、ユーザーの言う「国家支援」を実際に持つ仕組み）——同じ名前を共有するが別メカニズムで、(b)はAdvance Time中に年1回しか動かない生成後の仕組み。ユーザーの「森林都市の問題は地図生成時の初期配置のみ」という整理は概ね正しいが、実際には生成時のburgs-generator.tsだけでなく、この(b)のフロンティア前哨地選定（`frontierExpansion.ts`の`scoreCandidate`）も同じ`cells.capacity`/`cells.s`シグナルを使っており、こちらも森林考慮ゼロ・危険度考慮あり（`- cells.danger[cellId] * 0.8`）という状態だった。
+2. **朗報**: 狩猟・採集の生存担保（`hasWildGameHabitat()`、economy拡張）は`habitability > 0`という**真偽値ゲート**のみで、`habitability`の大きさそのものには依存しない。つまりTemperate deciduous forestのhabitabilityを100から下げても（0にしない限り）狩猟適格性は一切損なわれない——ユーザーが懸念する「開拓民の狩猟による命綱」は、habitability再校正の影響を受けない設計になっている。
+3. **残る難点**: `rankCells()`が算出する`cells.s`/`cells.capacity`は、一般的な人口収容力・生成時のburg/capital配置スコア・フロンティア前哨地の候補地スコアの**全てで共有される単一シグナル**であり、「国家支援がある開拓（森は不要）」と「自力の開拓（森が命綱）」を区別する仕組みは現状どこにも無い。habitabilityを下げれば両方に一律に効き、「支援付き開拓は森である必要が無い」という区別を再現するには、単純な数値再校正では足りず新たな条件分岐（支援の有無で森ボーナスを出し分ける等）が要る——これはPhase 1の想定規模を超える。
+4. **結論**: 今回実装済みのPhase I（深い森限定の危険度上昇）は、まさにこの補足が示す方向性——「森への接続自体は（縁であれば）有用、危険なのは深い・広大な連続森林」——と自然に一致している。しかもburgs-generator.tsの初期配置（capitals/towns）もsettlementFoundation.ts経由で`dangerSuitabilityMultiplier(danger)`を既に読んでいるため、Phase Iは「地図生成時の初期配置」というユーザーが特定した本丸に既に届いている。以上より、**habitabilityの平坦な再校正は追加では行わず**、Phase 1はPhase Iの実装をもって完了とし、実プレイでの体感確認を待つ方針を維持する。
 
 ---
 
