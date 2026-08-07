@@ -3,6 +3,7 @@ import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
 import { getGoodCellColumn, getGoods, getSimulationMonth, getWorldContext } from "../economyContext";
+import { getMilkOutput } from "./dairy";
 import { drawDomesticatedFaunaOfftake, previewDomesticatedFaunaOfftake } from "./faunaPopulation";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
@@ -184,6 +185,17 @@ export function getRuralProductionContributions(
   if (grapesGood && isGoodEnabled(grapesGood) && !isMineSuppliedGoodName(grapesGood.name)) {
     const amount = getGrapeHarvestOutput(cellId);
     if (amount > 0) contributions.push({ goodId: grapesGood.i, amount: amount * getModifiers(grapesGood, cellId) });
+  }
+
+  // Milk (docs/plan/fauna-biome-realism.md §3 Phase K): local dairy-headcount-driven harvest,
+  // mirroring Grapes above — see dairy.ts's module doc-comment. Cheese itself is a regular
+  // burg-craft recipe good again (`{ Milk: 3, Salt/Vinegar }`, goods-generator.ts), restored so
+  // Salt/Vinegar logistics and craft employment flow through the standard pipeline; Milk staying a
+  // freshFood-tagged, cell-local harvest is what keeps Cheese-making tied to where the animals are.
+  const milkGood = getGoods().find(good => good.name === "Milk");
+  if (milkGood && isGoodEnabled(milkGood) && !isMineSuppliedGoodName(milkGood.name)) {
+    const amount = getMilkOutput(cellId);
+    if (amount > 0) contributions.push({ goodId: milkGood.i, amount: amount * getModifiers(milkGood, cellId) });
   }
 
   const bonusGoodId = getGoodCellColumn()[cellId];

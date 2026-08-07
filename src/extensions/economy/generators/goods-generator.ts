@@ -368,7 +368,18 @@ export const GOODS_DATA: GoodData[] = [
     unit: "bag",
     demandCoverage: { utilities: 1 },
     multipliers: { cultureType: { Naval: 1.2 } },
-    biomeOutput: { 1: 0.1, 2: 0.1 }
+    // `biomeOutput: { 1: 0.1, 2: 0.1 }` (hotDesert/coldDesert numeric codes only) -> tag-based
+    // 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase L): the same "distribution says broader
+    // than biomeOutput allows" mismatch already found and fixed for Cattle/Elephants/Camels this
+    // session. This good's own `distribution` above rolls tidal flats/salt shores/desert(70%)/
+    // wetland(10%) — desert dominant, wetland a minor secondary source (matches real coastal
+    // salt-panning being a real but smaller supplement to desert/mine salt) — but the actual economic
+    // production (this field) only ever fired in desert biomes, leaving Salt structurally undersupplied
+    // everywhere else (including every coastal/wetland region the flavor text implies should produce
+    // some). `shore(1)`/`coastalHabitat("tidalFlat")` are geographic, not biome-based, so they can't be
+    // expressed here at all (no cell-adjacency term exists in resolveBiomeOutputRate) — true
+    // distance-from-sea salt economics stay a placeholder gap, not fully closed by this fix.
+    biomeOutputByTag: { desert: 0.1, wetland: 0.015 }
   },
   {
     name: "Dates",
@@ -1194,6 +1205,71 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { utilities: 0.5 }
   },
   {
+    // A rural, cell-local dairy-headcount-driven harvest good (dairy.ts's getMilkOutput(), wired
+    // into production-utils.ts's getRuralProductionContributions() the same way Grapes is) — it can
+    // only be produced in a cell that itself has local Cattle/Sheep/Goats, never another cell's or a
+    // pooled market's stock. `freshFood` (no refrigeration) keeps long-haul caravan trade
+    // uneconomical without a bespoke non-tradeable flag — see dairy.ts's module doc-comment (Phase K,
+    // 2026-08-07, docs/plan/fauna-biome-realism.md §3) for the full history, including why Cheese
+    // (below) went back to consuming this as a recipe ingredient instead of computing itself
+    // directly the way this good does.
+    name: "Milk",
+    tags: ["food", "freshFood"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#f5f0e6",
+    value: 1,
+    chance: 0,
+    unit: "jug",
+    demandCoverage: { food: 1 }
+  },
+  {
+    // Real cheesemaking curdles Milk with an acid (Salt-brined whey/Vinegar, already modeled below)
+    // or rennet (an enzyme, historically extracted from a slaughtered calf/lamb/kid's stomach), not
+    // literally the salt/vinegar itself acting alone — added 2026-08-07 (docs/plan/
+    // fauna-biome-realism.md §3 Phase N, docs/temp/0807-cheese.md) as a second, independent
+    // coagulant path for Cheese's recipe below, alongside Ash. A cheap byproduct of animals already
+    // being culled for other liveAnimal goods — modeled as a small direct headcount draw (not tied
+    // to dairy specifically; a calf/lamb/kid doesn't have to come from a milking herd) via the
+    // standard recipe/Market pipeline, unlike Milk itself.
+    name: "Rennet",
+    tags: ["preservative"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#e8d5c4",
+    value: 4,
+    chance: 0,
+    recipes: [{ Cattle: 0.03 }, { Sheep: 0.03 }, { Goats: 0.03 }],
+    unit: "vial",
+    demandCoverage: {}
+  },
+  {
+    // Wood ash — a cheap alkaline coagulant/preservative used historically in some traditional
+    // cheeses (alongside surface mold/acidity control), added 2026-08-07 (docs/plan/
+    // fauna-biome-realism.md §3 Phase N, docs/temp/0807-cheese.md) as Cheese's third coagulant path.
+    // Deliberately modeled as burnt Wood (not raw Wood itself) for the same "actually processed, not
+    // just renamed" reasoning as Barrels-from-Wood below. Wood is abundant almost everywhere, so this
+    // gives Cheese-making a near-universally available fallback input when Salt/Vinegar/Rennet are
+    // locally scarce.
+    name: "Ash",
+    tags: ["construction"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#b8b8b0",
+    value: 1,
+    chance: 0,
+    recipes: [{ Wood: 1 }],
+    unit: "sack",
+    demandCoverage: { construction: 0.2 }
+  },
+  {
+    // Cheese consumes Milk (above) rather than Cattle/Sheep/Goats headcount directly — Milk's own
+    // cell-local production keeps Cheese-making geographically tied to where the dairy animals are,
+    // while Cheese itself stays a normal burg-craft recipe good so Salt/Vinegar demand and craft
+    // employment flow through the standard pipeline (2026-08-07 Phase K, see dairy.ts and Milk above).
+    // Rennet/Ash recipe variants added 2026-08-07 (Phase N, docs/temp/0807-cheese.md) so Cheese-making
+    // isn't bottlenecked behind a single scarce coagulant good — four independent raw-material paths
+    // now compete for the same Milk surplus instead of one.
     name: "Cheese",
     tags: ["food"],
     icon: "good-cheese",
@@ -1201,15 +1277,31 @@ export const GOODS_DATA: GoodData[] = [
     value: 5,
     chance: 0,
     recipes: [
-      { Cattle: 0.5, Salt: 0.25 },
-      { Sheep: 0.5, Salt: 0.25 },
-      { Goats: 0.5, Salt: 0.25 },
-      { Sheep: 0.5, Vinegar: 0.25 },
-      { Cattle: 0.5, Vinegar: 0.25 },
-      { Goats: 0.5, Vinegar: 0.25 }
+      { Milk: 3, Salt: 0.25 },
+      { Milk: 3, Vinegar: 0.25 },
+      { Milk: 3, Rennet: 0.1 },
+      { Milk: 3, Ash: 0.15 }
     ],
     unit: "wain",
     demandCoverage: { food: 1 }
+  },
+  {
+    // A second-stage processing good — smoking a finished Cheese for extended shelf life and flavor,
+    // not a Milk-coagulation method itself (docs/temp/0807-cheese.md's own distinction). Added
+    // 2026-08-07 (Phase N) partly as an additional Milk sink (indirectly, via consuming more Cheese)
+    // and partly as a genuine higher-value export good — real-map testing found Milk supply
+    // (even after this session's yield-rate cut, see dairy.ts) still outpacing what plain Cheese
+    // demand alone could absorb.
+    name: "Smoked Cheese",
+    tags: ["food", "luxury"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#c68642",
+    value: 9,
+    chance: 0,
+    recipes: [{ Cheese: 1, Wood: 0.5 }],
+    unit: "wain",
+    demandCoverage: { food: 0.5, luxury: 0.5 }
   },
   {
     name: "Egg",

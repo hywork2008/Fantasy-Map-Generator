@@ -3,6 +3,7 @@
 2026-08-07
 
 - docs/plan/fauna-biome-realism.md
+- docs/plan/food-nutrition-audit.md
 
 2026-08-06
 

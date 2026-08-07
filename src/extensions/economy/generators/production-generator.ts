@@ -310,6 +310,13 @@ export class ProductionModule {
     const recipesByOutput = this.buildRecipesByOutput(recipes);
     const productiveGoods = goods.filter(good => recipesByOutput[good.i]?.length);
     const minWorkersByGood = this.buildMinWorkersByGood(goods, recipesByOutput);
+    const preservationGoods = productiveGoods.filter(
+      good =>
+        good.tags.includes("food") &&
+        recipesByOutput[good.i]!.some(recipe =>
+          recipe.ingredients.some(ingredient => Goods.get(ingredient.goodId)?.tags.includes("freshFood"))
+        )
+    );
 
     return {
       goods,
@@ -317,6 +324,7 @@ export class ProductionModule {
       demandGoodsByCategory,
       recipesByOutput,
       productiveGoods,
+      preservationGoods,
       minWorkersByGood
     };
   }
@@ -374,6 +382,18 @@ export class ProductionModule {
    * Goods this cycle (docs/plan/urban-employment-demand.md §3.7), both as a Burg-wide total (the
    * pre-existing `basicEmploymentDemand` signal) and broken down by craft-guild domain
    * (docs/plan/knowledge-guild-system.md §9 Phase 2).
+   *
+   * Two phases (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase M): perishable-preserving
+   * goods (`index.preservationGoods` — Wine, Preserved food, Cheese, Stockfish, Raisins) get first
+   * claim on this cycle's craft labour, ahead of the normal profit-ranked loop over every
+   * productive Good. Root cause this fixes: `getDemandFocus()`/`getDemandEffect()` only ever boost
+   * a Good that covers the single most-underserved demand category, and rural Grain alone routinely
+   * saturates the "food" target — so food-only Goods (Cheese included) never receive a demand boost
+   * and lose every ranked comparison to whichever non-food category currently has real shortage,
+   * even when Milk/Grapes/Fish sit unprocessed in the market and would spoil. Both phases still
+   * reuse `makeProductionDecision()`'s existing `projectedGain <= 0` guard (see there), so this
+   * never forces a manufacturing loss — it only removes preservation goods from having to *out-rank*
+   * unrelated categories to get a turn at all.
    */
   private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): CraftWorkerUsage {
     const burgId = state.burg.i;
@@ -385,12 +405,49 @@ export class ProductionModule {
     for (const [domain, workers] of reservedTransportWork.byDomain) byDomain.set(domain, workers);
 
     // Cap iterations to ceil(population) so floating-point leftovers cannot spin.
+    const maxSteps = Math.max(0, Math.ceil(state.population));
+    let step = 0;
+
+    // Phase 1: preservation goods only, re-evaluated every step — this candidate set is small
+    // (a handful of Goods), so the reevalEvery batching phase 2 needs for its much larger
+    // productiveGoods list isn't worth the staleness here.
+    if (index.preservationGoods.length) {
+      state.activeGoalGoodId = null;
+      for (; step < maxSteps; step++) {
+        const workersLeft = state.population - workersUsed;
+        const workerFraction = Math.min(1, workersLeft);
+        if (workerFraction <= 1e-9) break;
+
+        const decision = this.makeProductionDecision(
+          index,
+          state,
+          state.demandTargets,
+          state.demandCoverage,
+          state.activeGoalGoodId,
+          workersLeft,
+          workerFraction,
+          index.preservationGoods
+        );
+        if (!decision) break; // No more affordable/available preserving work this cycle.
+        state.activeGoalGoodId = decision.goalGoodId;
+
+        this.executeManufacture(state, index, decision, workerFraction);
+        workersUsed += workerFraction;
+
+        const domain = getCraftDomainForGood(decision.action.good.name);
+        if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);
+      }
+    }
+
+    // Phase 2: the normal profit-ranked loop over every productive Good, for whatever labour
+    // phase 1 didn't use. Fresh sticky/active-goal state so phase 1's preservation pick doesn't
+    // bias phase 2's full-candidate ranking.
+    state.activeGoalGoodId = null;
     // Full good-ranking is O(productiveGoods); re-rank every few worker-units instead of
     // every unit. Output stays close when a burg's best craft is stable across a stretch.
-    const maxSteps = Math.max(0, Math.ceil(state.population));
     const reevalEvery = 4;
     let stickyDecision: ProductionDecision | null = null;
-    for (let step = 0; step < maxSteps; step++) {
+    for (; step < maxSteps; step++) {
       const workersLeft = state.population - workersUsed;
       const workerFraction = Math.min(1, workersLeft);
       if (workerFraction <= 1e-9) break;
@@ -949,7 +1006,8 @@ export class ProductionModule {
     demandCoverage: number[],
     activeGoalGoodId: number | null,
     workersLeft: number,
-    fraction: number
+    fraction: number,
+    candidateGoods: Good[] = index.productiveGoods
   ): ProductionDecision | null {
     // Candidate list is only attached to production records when debug.production is on.
     const collectCandidates = Boolean(DEBUG.production);
@@ -958,7 +1016,7 @@ export class ProductionModule {
 
     let chosenGoal: GoalActionPlan | null = null;
     let activeGoal: GoalActionPlan | null = null;
-    for (const good of index.productiveGoods) {
+    for (const good of candidateGoods) {
       const populationDemandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood);
       const strategicDemandMultiplier = getStrategicDemandMultiplier(
         state.strategicDemandByGood.get(good.i),
@@ -1058,6 +1116,13 @@ type ProductionIndex = {
   demandGoodsByCategory: DemandGoodCandidate[][];
   recipesByOutput: Recipe[][];
   productiveGoods: Good[];
+  /**
+   * Food-tagged productiveGoods whose recipe consumes at least one `freshFood`-tagged ingredient
+   * (Fish/Game/Milk/Shellfish/Grapes) — Wine, Preserved food, Cheese, Stockfish, Raisins as of
+   * 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase M). Given first claim on craft labour in
+   * runWorkerLoop() ahead of the normal profit-ranked loop — see that function's doc-comment for why.
+   */
+  preservationGoods: Good[];
   minWorkersByGood: number[];
 };
 
