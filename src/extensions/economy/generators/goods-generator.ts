@@ -280,7 +280,23 @@ export const GOODS_DATA: GoodData[] = [
     unit: "wain",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Naval: 0.6, Nomadic: 1.4, Hunting: 2 } },
-    biomeOutputByTag: { forest: 0.05 }
+    // No longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §2.2/§3 Phase A): every
+    // habitable biome has SOME huntable wildlife in reality (Savanna herds, desert game, etc.).
+    // These per-tag rates only gate whether Game enters this biome's production loop at all
+    // (getHuntingGameOutput()'s actual monthly yield is hunters x a fixed per-hunter rate, not this
+    // number) — relative ordering mirrors faunaPopulation.ts's WILD_GAME_DENSITY_PER_HECTARE_BY_TAG,
+    // kept in sync by eye. `distribution` (map-generation resource-icon scatter) stays forest-only —
+    // that's a separate, cosmetic upstream mechanic this change doesn't touch.
+    biomeOutputByTag: {
+      forest: 0.05,
+      wetland: 0.045,
+      grassland: 0.04,
+      scrub: 0.025,
+      mountain: 0.02,
+      cold: 0.015,
+      dry: 0.01,
+      desert: 0.005
+    }
   },
   {
     // Phase 4 (docs/plan/biome-goods-producer-ecosystem.md §5.3): Wine is no longer directly
@@ -401,7 +417,12 @@ export const GOODS_DATA: GoodData[] = [
     distribution: "biome(1, 3, 5, 7)",
     unit: "head",
     demandCoverage: { utilities: 0.2, military: 0.8 },
-    multipliers: { cultureType: { Highland: 0.2 } }
+    multipliers: { cultureType: { Highland: 0.2 } },
+    // Found 2026-08-07 (docs/plan/fauna-biome-realism.md §2.3): Elephants previously had neither
+    // biomeOutput nor biomeOutputByTag, so resolveBiomeOutputRate() always returned 0 and this good
+    // never entered production at all, in any biome. Savanna (grassland tag) + tropical forest
+    // (forest tag) match real elephant range; low rate reflects the high per-head value (30).
+    biomeOutputByTag: { grassland: 0.015, forest: 0.01 }
   },
   {
     name: "Camels",
@@ -415,7 +436,13 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { utilities: 0.7, military: 0.3 },
     multipliers: { cultureType: { Nomadic: 2, Generic: 0.8 } },
-    biomeOutput: { 1: 0.05, 2: 0.05 }
+    // Migrated from numeric biomeOutput: { 1: 0.05, 2: 0.05 } (hardcoded hotDesert/coldDesert
+    // codes) to tag-based rates 2026-08-07 (docs/plan/fauna-biome-realism.md §2.3/§3 Phase C) — the
+    // numeric form silently stops matching if a custom biome catalog reorders codes, and every
+    // other liveAnimal good already uses tags. `desert` keeps the original hotDesert/coldDesert
+    // rate; `dry` (arid steppe/scrubland — coldSteppe, xericShrubland, Savanna's own "dry" tag)
+    // adds camels' broader real-world range at a lower rate.
+    biomeOutputByTag: { desert: 0.05, dry: 0.03 }
   },
   {
     name: "Hemp",

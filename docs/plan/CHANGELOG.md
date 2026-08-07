@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-07
+
+- docs/plan/fauna-biome-realism.md
+
 2026-08-06
 
 - docs/plan/biome-goods-producer-ecosystem.md

@@ -29,7 +29,7 @@ import {
   getGoods,
   getHuntingWorkers
 } from "../economyContext";
-import { drawWildFaunaOfftake, previewWildFaunaOfftake } from "./faunaPopulation";
+import { drawWildFaunaOfftake, hasWildGameHabitat, previewWildFaunaOfftake } from "./faunaPopulation";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateHusbandryDemand } from "./husbandry";
@@ -197,9 +197,10 @@ export function allocateRuralOccupations(
     let budget = Math.max(0, migratableAdults[cellId] ?? 0);
     if (budget <= 0) continue;
 
-    const biomeCode = cells.biomeCode[cellId];
-    const isForestCell = (world.biomesData.tags?.[biomeCode] ?? []).includes("forest");
-    const hunting = isForestCell ? getHuntingSubsistenceClaim(budget) : 0;
+    // No longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §2.2/§3 Phase A) — the
+    // hunting claim now follows the same wild-game biome eligibility as faunaPopulation.ts's
+    // carrying capacity, instead of an independently-hardcoded forest tag check.
+    const hunting = hasWildGameHabitat(cellId) ? getHuntingSubsistenceClaim(budget) : 0;
     huntingWorkers[cellId] = hunting;
     budget -= hunting;
 

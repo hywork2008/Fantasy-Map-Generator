@@ -118,32 +118,47 @@ describe("husbandry", () => {
       expect(calculateHusbandryDemand(worldContext, 0)).toEqual({ requiredWorkers: 0, value: 0 });
     });
 
-    it("computes required workers from raw demand over the dogless baseline heads-per-herder", () => {
+    it("computes required workers from land capacity over the dogless baseline heads-per-herder (2026-08-07 Phase B)", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD] as never);
-      // rawDemand = 600 * 0.1 = 60; Cattle's baseline is 60 heads/herder -> exactly 1 worker needed.
+      // ceiling = 10,000 * terrainShare(0.9) * grassland(0.85) = 7,650 ha; desiredArea =
+      // min(7650, 600*HUSBANDRY_LAND_AREA_PER_POPULATION_POINT(1)) = 600 ha; landCapacity = 600*0.5 = 300;
+      // requiredWorkers = 300 / 60 (Cattle's dogless baseline) = 5.
       const demand = calculateHusbandryDemand(worldContext, 0);
-      expect(demand.requiredWorkers).toBeCloseTo(1, 5);
+      expect(demand.requiredWorkers).toBeCloseTo(5, 5);
       expect(demand.value).toBeCloseTo(5, 5);
     });
 
     it("reduces required workers once Dogs stock provides full team coverage (§10.3 dog multiplier)", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD] as never);
-      // workersNoDogs = 1 -> dogsNeededForFullCoverage = 1 * DOGS_PER_HERDER_FOR_FULL_COVERAGE(3) = 3.
+      // landCapacity = 300 (see above); workersNoDogs = 300/60 = 5 -> dogsNeededForFullCoverage =
+      // 5 * DOGS_PER_HERDER_FOR_FULL_COVERAGE(3) = 15.
       const table = getOrCreateFaunaStockTable()!;
-      table["0:Dogs"] = { young: 0, breeding: 3, old: 0 };
-      // effectiveHeadsPerHerder = 60 * (1 + (dogMultiplier(8)-1)*1) = 480 -> requiredWorkers = 60/480.
+      table["0:Dogs"] = { young: 0, breeding: 3, old: 0 }; // coverage = 3/15 = 0.2
+      // effectiveHeadsPerHerder = 60 * (1 + (dogMultiplier(8)-1)*0.2) = 144 -> requiredWorkers = 300/144.
       const demand = calculateHusbandryDemand(worldContext, 0);
-      expect(demand.requiredWorkers).toBeCloseTo(0.125, 5);
+      expect(demand.requiredWorkers).toBeCloseTo(300 / 144, 5);
     });
 
-    it("weights value by each grazed good's share of raw demand", () => {
+    it("weights value by each grazed good's share of land capacity", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
-      // Both produce rawDemand 60 (600 * 0.1); weighted value = (60*5 + 60*1) / 120 = 3.
+      // desiredArea = 600 ha for both; landCapacity_Cattle = 600*0.5 = 300, landCapacity_Sheep = 600*3 = 1800
+      // (Sheep's stocking density is much higher); weighted value = (300*5 + 1800*1) / 2100 = 11/7.
       const demand = calculateHusbandryDemand(worldContext, 0);
-      expect(demand.value).toBeCloseTo(3, 5);
+      expect(demand.value).toBeCloseTo(11 / 7, 5);
+    });
+
+    it("is bounded by population, not just land suitability, avoiding the 2026-08-06 'tiny population owns a huge herd' bug", () => {
+      // ceiling = 7,650 ha regardless of population; a small population must NOT be able to claim it.
+      grasslandCellWorld(50);
+      setGoods([CATTLE_GOOD] as never);
+      // desiredArea = min(7650, 50*1) = 50 ha -> requiredWorkers = 50*0.5/60, far below what the full
+      // 7,650 ha ceiling would imply (7650*0.5/60 = 63.75).
+      const demand = calculateHusbandryDemand(worldContext, 0);
+      expect(demand.requiredWorkers).toBeCloseTo((50 * 0.5) / 60, 5);
+      expect(demand.requiredWorkers).toBeLessThan((7650 * 0.5) / 60);
     });
   });
 
@@ -181,8 +196,10 @@ describe("husbandry", () => {
       setCultivatedArea(new Float32Array([0]));
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([10])); // full coverage
-      // ceiling = 10,000 * terrainShare(0.9) * PASTURE_DEFAULT_CEILING(0.1) = 900 ha.
-      expect(getPastureAreaUsedHectares(0)).toBeCloseTo(900, 1);
+      // ceiling = 10,000 * terrainShare(0.9) * PASTURE_DEFAULT_CEILING(0.1) = 900 ha; desiredArea =
+      // min(900, population(50)*HUSBANDRY_LAND_AREA_PER_POPULATION_POINT(1)) = 50 ha (2026-08-07
+      // Phase B — population-bounded, not the raw land ceiling).
+      expect(getPastureAreaUsedHectares(0)).toBeCloseTo(50, 1);
     });
 
     it("is 0 when husbandry has no assigned workers (workerFactor 0)", () => {
@@ -190,12 +207,20 @@ describe("husbandry", () => {
       expect(getPastureAreaUsedHectares(0)).toBe(0);
     });
 
-    it("scales the land-suitability ceiling by the husbandry worker factor", () => {
-      grasslandCellWorld();
-      // ceiling = 10,000 * terrainShare(0.9) * grassland-tag ceiling(0.85) = 7,650 ha.
+    it("scales the population-bounded desired area by the husbandry worker factor", () => {
+      grasslandCellWorld(); // population defaults to 50
+      // ceiling = 10,000 * terrainShare(0.9) * grassland-tag ceiling(0.85) = 7,650 ha; desiredArea =
+      // min(7650, 50*1) = 50 ha.
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([5])); // workerFactor 0.5
-      expect(getPastureAreaUsedHectares(0)).toBeCloseTo(3825, 1);
+      expect(getPastureAreaUsedHectares(0)).toBeCloseTo(25, 1);
+    });
+
+    it("is bounded well below the land ceiling for a small population even at full staffing", () => {
+      grasslandCellWorld(50);
+      setHusbandryRequiredWorkers(new Float32Array([10]));
+      setHusbandryWorkers(new Float32Array([10])); // full coverage
+      expect(getPastureAreaUsedHectares(0)).toBeCloseTo(50, 1); // not anywhere near the 7,650 ha ceiling
     });
   });
 
@@ -205,11 +230,35 @@ describe("husbandry", () => {
       expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBe(0);
     });
 
-    it("multiplies the used pasture area by the species' stocking density", () => {
-      grasslandCellWorld();
+    it("multiplies the used (population-bounded, labour-gated) pasture area by the species' stocking density", () => {
+      grasslandCellWorld(600);
       setHusbandryRequiredWorkers(new Float32Array([10]));
-      setHusbandryWorkers(new Float32Array([10])); // full coverage -> pastureAreaUsed = 7,650 ha
-      expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBeCloseTo(7650 * 0.5, 1);
+      setHusbandryWorkers(new Float32Array([10])); // full coverage -> pastureAreaUsed = min(7650, 600) = 600 ha
+      expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBeCloseTo(600 * 0.5, 5);
+    });
+
+    it("does not let a tiny population claim a land-ceiling-sized herd, even at full staffing (2026-08-06 bug)", () => {
+      grasslandCellWorld(50); // far below the 7,650 ha ceiling's population-equivalent
+      setHusbandryRequiredWorkers(new Float32Array([10]));
+      setHusbandryWorkers(new Float32Array([10])); // full coverage
+      const capacity = getGrazedCarryingCapacity(0, CATTLE_GOOD as never);
+      expect(capacity).toBeCloseTo(50 * 0.5, 5); // population-bounded desiredArea(50) x density(0.5)
+      expect(capacity).toBeLessThan(7650 * 0.5); // nowhere near the full ecological ceiling
+    });
+
+    it("scales down proportionally when understaffed", () => {
+      grasslandCellWorld(600);
+      setHusbandryRequiredWorkers(new Float32Array([10]));
+      setHusbandryWorkers(new Float32Array([5])); // workerFactor 0.5
+      expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBeCloseTo(600 * 0.5 * 0.5, 5);
+    });
+
+    it("is 0 when this species has no biome rate, even if another co-located grazed species keeps pastureAreaUsed positive", () => {
+      grasslandCellWorld(600);
+      setHusbandryRequiredWorkers(new Float32Array([10]));
+      setHusbandryWorkers(new Float32Array([10]));
+      const desertOnlyCamels = { ...CATTLE_GOOD, name: "Camels", biomeOutputByTag: { desert: 0.05 } }; // no grassland rate
+      expect(getGrazedCarryingCapacity(0, desertOnlyCamels as never)).toBe(0);
     });
   });
 });

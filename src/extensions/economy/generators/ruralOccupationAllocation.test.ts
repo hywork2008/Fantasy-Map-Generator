@@ -115,13 +115,17 @@ describe("ruralOccupationAllocation", () => {
     const migratableAdults = new Float32Array([6]);
     const result = allocateRuralOccupations(worldContext, migratableAdults);
 
+    // Hunting is no longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase A) —
+    // it now claims its fixed floor from ANY habitable biome first: min(6, max(3, 6*0.01)) = 3,
+    // leaving only 3 of the 6-adult budget for viticulture.
     // ceiling = 5,000 * terrainShare(0.9) * scrub(0.5) = 2,250 ha; desiredArea = min(2250, 140*0.5) = 70 ha;
-    // required = 70 * 20 / 140 = 10; only 6 of that is staffed.
-    expect(result.viticultureWorkers[0]).toBeCloseTo(6, 5);
+    // required = 70 * 20 / 140 = 10; only 3 of that is staffed after hunting's claim.
+    expect(result.huntingWorkers[0]).toBeCloseTo(3, 5);
+    expect(result.viticultureWorkers[0]).toBeCloseTo(3, 5);
     expect(result.viticultureRequiredWorkers[0]).toBeCloseTo(10, 5);
     expect(result.ruralReleasePressure[0]).toBeCloseTo(0, 5);
     persist(result);
-    expect(getViticultureWorkerFactor(0)).toBeCloseTo(0.6, 5);
+    expect(getViticultureWorkerFactor(0)).toBeCloseTo(0.3, 5);
   });
 
   it("splits a water-held Fish slot's required workers across its land neighbors", () => {
@@ -141,14 +145,19 @@ describe("ruralOccupationAllocation", () => {
     const migratableAdults = new Float32Array([10, 10, 0]);
     const result = allocateRuralOccupations(worldContext, migratableAdults);
 
+    // Hunting is no longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase A) —
+    // both land cells claim their fixed floor first: min(10, max(3, 10*0.01)) = 3 each, leaving 7.
     // holder popProxy = 20 + 30 = 50; rawOutput = min(50*0.25, 5) = 5; required = 5*6 = 30,
-    // split evenly across the two land neighbors -> 15 each, each staffs all it can (10).
+    // split evenly across the two land neighbors -> 15 each, each staffs all of its post-hunting
+    // remainder (7).
+    expect(result.huntingWorkers[0]).toBeCloseTo(3, 5);
+    expect(result.huntingWorkers[1]).toBeCloseTo(3, 5);
     expect(result.fishingRequiredWorkers[2]).toBeCloseTo(30, 5);
-    expect(result.fishingWorkers[2]).toBeCloseTo(20, 5); // 10 (cell 0) + 10 (cell 1)
+    expect(result.fishingWorkers[2]).toBeCloseTo(14, 5); // 7 (cell 0) + 7 (cell 1)
     expect(result.ruralReleasePressure[0]).toBeCloseTo(0, 5);
     expect(result.ruralReleasePressure[1]).toBeCloseTo(0, 5);
     persist(result);
-    expect(getFishingWorkerFactor(2)).toBeCloseTo(20 / 30, 5);
+    expect(getFishingWorkerFactor(2)).toBeCloseTo(14 / 30, 5);
   });
 
   it("prioritizes the higher-value occupation (Grapes over Fish) when labour can't cover both", () => {
@@ -170,9 +179,12 @@ describe("ruralOccupationAllocation", () => {
     const migratableAdults = new Float32Array([8, 0]);
     const result = allocateRuralOccupations(worldContext, migratableAdults);
 
-    // Viticulture (Grapes, value 2) is offered first and consumes the entire budget (required 10 > 8)
-    // before fishing (value 1) gets anything, even though both are eligible at cell 0.
-    expect(result.viticultureWorkers[0]).toBeCloseTo(8, 5);
+    // Hunting is no longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase A) —
+    // it claims its fixed floor first: min(8, max(3, 8*0.01)) = 3, leaving 5. Viticulture (Grapes,
+    // value 2) is offered next and consumes the rest of the budget (required 10 > 5) before fishing
+    // (value 1) gets anything, even though both are eligible at cell 0.
+    expect(result.huntingWorkers[0]).toBeCloseTo(3, 5);
+    expect(result.viticultureWorkers[0]).toBeCloseTo(5, 5);
     expect(result.fishingWorkers[1]).toBeCloseTo(0, 5);
     expect(result.ruralReleasePressure[0]).toBeCloseTo(0, 5);
   });

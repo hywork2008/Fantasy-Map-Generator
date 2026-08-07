@@ -807,11 +807,16 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to regenerate data");
       if (!isEconomyRegenerationRequest(value)) throw new Error("economy.regenerate received an invalid target");
 
+      // Goods before DevelopmentPotential — see the matching comment at the main generation call
+      // site (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase B follow-up): DevelopmentPotential
+      // reads getGoods() (via calculateHusbandryDemand()/calculateViticultureDemand()) to find
+      // Cattle/Sheep/.../Grapes, which is empty on the very first "economy" regenerate before Goods
+      // has ever been generated.
+      if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "minerals") {
         MineralResources.generate();
         DevelopmentPotential.generate();
       }
-      if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy") {
         InnFacilities.generate();
@@ -1520,8 +1525,10 @@ export function init(api: ExtensionAPI): void {
           setMarketCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
         }
         MineralResources.generate();
-        DevelopmentPotential.generate();
+        // Goods before DevelopmentPotential — see the matching comment at the main generation
+        // call site above (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase B follow-up).
         Goods.generate();
+        DevelopmentPotential.generate();
         Markets.generate();
         InnFacilities.generate();
         InnStays.clear();
@@ -1667,8 +1674,17 @@ export function init(api: ExtensionAPI): void {
           StrategicProcurement.clear();
           TradeAnimation.clearRouteCache();
           MineralResources.generate();
-          DevelopmentPotential.generate();
+          // Goods before DevelopmentPotential (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase
+          // B follow-up): DevelopmentPotential.generate() -> storeAgriculture() ->
+          // allocateRuralOccupations() calls calculateHusbandryDemand()/calculateViticultureDemand(),
+          // both of which read getGoods() to find Cattle/Sheep/.../Grapes. Running DevelopmentPotential
+          // first meant getGoods() was still empty on every fresh generation, so husbandryRequiredWorkers/
+          // viticultureRequiredWorkers (and so every grazed-species fauna stock and Grapes/Wine output)
+          // were silently 0 for the map's entire first year, self-correcting only once
+          // updateAnnualAgriculture() re-ran on the first "Advance Time" tick (found via live-map
+          // verification while diagnosing "Cattle/Sheep never appear").
           Goods.generate();
+          DevelopmentPotential.generate();
           Markets.generate();
           MerchantTransportAssets.requestMerchantHullSnapshot();
           MineOperations.generate();

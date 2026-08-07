@@ -7,8 +7,10 @@
  * same 3-cohort (young/breeding/old) structure and logistic-growth annual update, but size their
  * ceiling (`carryingCapacity`) differently (§4.2):
  *   - Wild (Game): the cell's unclaimed land — physical area minus what farming and husbandry
- *     (husbandry.ts's pastureAreaUsed, §5.4) have already claimed — times a fixed density.
- *     Cropland/pasture always win first; game only lives on what's left.
+ *     (husbandry.ts's pastureAreaUsed, §5.4) have already claimed — times a density that varies by
+ *     the cell's dominant biome tag (`WILD_GAME_DENSITY_PER_HECTARE_BY_TAG`; forest is no longer a
+ *     hard gate — see docs/plan/fauna-biome-realism.md §2.2/§3 Phase A, found 2026-08-07). Cropland/
+ *     pasture always win first; game only lives on what's left.
  *   - Domesticated (liveAnimal): grazed species (Cattle/Sheep/Goats/Horses/Camels — husbandry.ts's
  *     `isGrazedLivestockGood`) size their ceiling from real pasture land x herder labour
  *     (husbandry.ts, §5.4, Phase 3). Non-grazed species (Pig/Chicken/Cats/Dogs) stay on the
@@ -28,6 +30,8 @@
  */
 
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
+import type { BiomeTag } from "../../../types/biome";
+import type { BiomesData } from "../../../types/WorldState";
 import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import {
@@ -54,8 +58,30 @@ export const WILD_SPECIES_KEY = "Game";
 
 // ---- Placeholder constants (calibration TBD, matching the rest of this ecosystem's §9.3 stance) ----
 
-/** Sustainable wild headcount per hectare of unclaimed forest-appropriate land (§4.2). */
-export const WILD_GAME_DENSITY_PER_HECTARE = 0.08;
+/**
+ * Sustainable wild headcount per hectare of unclaimed land, by the cell's dominant biome tag
+ * (§4.2's `biomeBaseDensity(biome)` — the density model the spec always intended; the first cut
+ * collapsed it to "forest only, else 0", found non-realistic 2026-08-07, see
+ * docs/plan/fauna-biome-realism.md §2.2/§3 Phase A). Values are relative-ordering placeholders
+ * (§9.3 policy): forest/wetland browse cover supports the densest wildlife, open grassland (which
+ * also covers Savanna — it carries the "grassland" tag, not a dedicated one) a bit less, scrub/
+ * mountain/cold biomes less still, arid biomes sparsest. `resolveBiomeOutputRate()`-style "best
+ * matching tag wins" — see `getWildGameDensityPerHectare()`.
+ */
+export const WILD_GAME_DENSITY_PER_HECTARE_BY_TAG: Partial<Record<BiomeTag, number>> = {
+  forest: 0.08,
+  wetland: 0.06,
+  grassland: 0.05,
+  scrub: 0.03,
+  mountain: 0.025,
+  cold: 0.02,
+  dry: 0.012,
+  desert: 0.006
+};
+/** Any biome without a tag matched above still keeps SOME wildlife rather than exactly 0 — §4.2's
+ * "unless ~100% developed, wildlife is always present somewhere" intent, now actually honored
+ * outside forest (see the constant above's doc-comment). */
+export const WILD_GAME_DEFAULT_DENSITY_PER_HECTARE = 0.01;
 /**
  * Interim domesticated carrying-capacity proxy (§4.2) for non-grazed species (Pig/Chicken/Cats/
  * Dogs — husbandry.ts's `isGrazedLivestockGood` is false for these): treat the flat monthly
@@ -144,10 +170,36 @@ export function getRuralEcosystemDetail(): "detailed" | "simplified" {
 
 // ---- Carrying capacity (§4.2) ----
 
+/** Best-matching-tag density lookup, mirroring `resolveBiomeOutputRate()`'s "best tag wins" rule
+ * and husbandry.ts's `PASTURE_BIOME_TAG_CEILING` reduce pattern. */
+function getWildGameDensityPerHectare(biomeCode: number, biomesData: Pick<BiomesData, "tags">): number {
+  const tags = biomesData.tags?.[biomeCode] ?? [];
+  return tags.reduce(
+    (max, tag) => Math.max(max, WILD_GAME_DENSITY_PER_HECTARE_BY_TAG[tag] ?? 0),
+    WILD_GAME_DEFAULT_DENSITY_PER_HECTARE
+  );
+}
+
+/** True when `cellId`'s biome supports wild game at all — i.e. not a habitability-0 biome like
+ * glacier/marine. Cheap, tag/habitability-only eligibility check deliberately decoupled from the
+ * full land-area accounting in `getWildCarryingCapacity()` below, so hunting-labor eligibility
+ * (ruralOccupationAllocation.ts) doesn't depend on this cycle's not-yet-computed husbandry/
+ * viticulture land-use figures — see docs/plan/fauna-biome-realism.md §3 Phase A. */
+export function hasWildGameHabitat(cellId: number): boolean {
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  if ((cells.h[cellId] ?? 0) < 20) return false;
+  const biomeCode = cells.biomeCode[cellId] ?? 0;
+  return (world.biomesData.habitability?.[biomeCode] ?? 0) > 0;
+}
+
 /**
- * Wild (Game) carrying capacity for a forest cell: fixed density over whatever land farming,
- * husbandry (husbandry.ts's pastureAreaUsed, §5.4, Phase 3), and viticulture (viticulture.ts's
- * vineyardAreaUsed, §5.3, Phase 4) haven't already claimed.
+ * Wild (Game) carrying capacity: a biome-tag-dependent density (`WILD_GAME_DENSITY_PER_HECTARE_BY_TAG`)
+ * over whatever land farming, husbandry (husbandry.ts's pastureAreaUsed, §5.4, Phase 3), and
+ * viticulture (viticulture.ts's vineyardAreaUsed, §5.3, Phase 4) haven't already claimed. No longer
+ * forest-only (§4.2's `biomeBaseDensity(biome)` intent, restored 2026-08-07 — see
+ * docs/plan/fauna-biome-realism.md §2.2/§3 Phase A); a habitability-0 biome (glacier/marine-like)
+ * still yields 0.
  */
 export function getWildCarryingCapacity(cellId: number): number {
   const world = getWorldContext();
@@ -155,8 +207,10 @@ export function getWildCarryingCapacity(cellId: number): number {
   if ((cells.h[cellId] ?? 0) < 20) return 0;
 
   const biomeCode = cells.biomeCode[cellId] ?? 0;
-  const isForestCell = (world.biomesData.tags?.[biomeCode] ?? []).includes("forest");
-  if (!isForestCell) return 0;
+  const habitability = Math.max(0, world.biomesData.habitability?.[biomeCode] ?? 0);
+  if (habitability <= 0) return 0;
+
+  const density = getWildGameDensityPerHectare(biomeCode, world.biomesData);
 
   const physicalArea = calculatePhysicalAreaHectares(world, cellId);
   const cultivated = getCultivatedArea()[cellId] ?? 0;
@@ -164,7 +218,7 @@ export function getWildCarryingCapacity(cellId: number): number {
   const pastureAreaUsed = getPastureAreaUsedHectares(cellId);
   const vineyardAreaUsed = getVineyardAreaUsedHectares(cellId);
   const wildHabitatArea = Math.max(0, physicalArea - cultivated - burgArea - pastureAreaUsed - vineyardAreaUsed);
-  return WILD_GAME_DENSITY_PER_HECTARE * wildHabitatArea;
+  return density * wildHabitatArea;
 }
 
 function getDemandHistoryKey(marketId: number, goodId: number): string {
@@ -196,6 +250,10 @@ function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number 
  * population × biomeOutput). Non-food species are capped further by market demand either way (§4.5).
  */
 export function getDomesticatedCarryingCapacity(cellId: number, good: Good, flatRateAmount: number): number {
+  // Grazed species recompute their own ungated population x biome-rate demand internally (see
+  // getGrazedLaborCapacityHeads()'s doc-comment) rather than trusting `flatRateAmount` here — at
+  // production-utils.ts's call site it has already been multiplied by getHusbandryWorkerFactor(),
+  // which would double-gate the labour-based herd ceiling below.
   const rawCapacity = isGrazedLivestockGood(good.name)
     ? getGrazedCarryingCapacity(cellId, good)
     : Math.max(0, flatRateAmount) * DOMESTICATED_CAPACITY_MONTHS_PROXY;

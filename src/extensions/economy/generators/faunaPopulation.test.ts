@@ -22,11 +22,13 @@ import {
   getRuralEcosystemDetail,
   getWildCarryingCapacity,
   getWildCullSelectivity,
+  hasWildGameHabitat,
   previewDomesticatedFaunaOfftake,
   previewWildFaunaOfftake,
   recordQuarterlyNonFoodDemand,
   updateAnnualFaunaCohorts,
-  WILD_GAME_DENSITY_PER_HECTARE,
+  WILD_GAME_DEFAULT_DENSITY_PER_HECTARE,
+  WILD_GAME_DENSITY_PER_HECTARE_BY_TAG,
   WILD_SPECIES_KEY
 } from "./faunaPopulation";
 
@@ -124,25 +126,65 @@ describe("faunaPopulation", () => {
   });
 
   describe("getWildCarryingCapacity", () => {
-    it("is 0 for a non-forest cell", () => {
+    // 2026-08-07 (docs/plan/fauna-biome-realism.md §2.2/§3 Phase A): no longer forest-only — a
+    // habitable biome without a matching density tag falls back to
+    // WILD_GAME_DEFAULT_DENSITY_PER_HECTARE (some wildlife) rather than exactly 0. Only a
+    // habitability-0 biome (glacier/marine-like) yields 0.
+    it("falls back to the default density for a biome with no matching density tag", () => {
       forestCellWorld();
-      worldContext.biomesData = biomesData({ 1: [] }) as never; // no forest tag
+      worldContext.biomesData = biomesData({ 1: [] }) as never; // no tags -> default density applies
+      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DEFAULT_DENSITY_PER_HECTARE * 10000, 5);
+    });
+
+    it("is 0 for a habitability-0 biome", () => {
+      forestCellWorld();
+      const data = biomesData({ 1: [] });
+      data.habitability = [0, 0];
+      worldContext.biomesData = data as never;
       expect(getWildCarryingCapacity(0)).toBe(0);
+    });
+
+    it("uses the best-matching tag's density, not the default, for a tagged biome", () => {
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
+      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DENSITY_PER_HECTARE_BY_TAG.grassland! * 10000, 5);
     });
 
     it("scales with unclaimed (physicalArea - cultivatedArea) hectares", () => {
       forestCellWorld();
       // physicalArea = 10,000 ha, no cultivation yet -> full area is wild habitat.
-      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DENSITY_PER_HECTARE * 10000, 5);
+      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DENSITY_PER_HECTARE_BY_TAG.forest! * 10000, 5);
 
       setCultivatedArea(new Float32Array([4000])); // Grain claims 4,000 ha
-      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DENSITY_PER_HECTARE * 6000, 5);
+      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DENSITY_PER_HECTARE_BY_TAG.forest! * 6000, 5);
     });
 
     it("never goes negative when cultivation exceeds physical area", () => {
       forestCellWorld();
       setCultivatedArea(new Float32Array([999999]));
       expect(getWildCarryingCapacity(0)).toBe(0);
+    });
+  });
+
+  describe("hasWildGameHabitat", () => {
+    it("is true for any habitable land biome, not just forest", () => {
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never; // e.g. Savanna
+      expect(hasWildGameHabitat(0)).toBe(true);
+    });
+
+    it("is false for a habitability-0 biome", () => {
+      forestCellWorld();
+      const data = biomesData({ 1: [] });
+      data.habitability = [0, 0];
+      worldContext.biomesData = data as never;
+      expect(hasWildGameHabitat(0)).toBe(false);
+    });
+
+    it("is false below the land-cell height threshold", () => {
+      forestCellWorld();
+      worldContext.pack.cells.h = new Uint8Array([10]); // water/below-threshold
+      expect(hasWildGameHabitat(0)).toBe(false);
     });
   });
 
