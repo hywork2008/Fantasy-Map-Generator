@@ -306,6 +306,28 @@ export function notifyAfterDayStep(deltaYears: number, deltaMonths: number, delt
 registerDayStepObserver(notifyAfterDayStep);
 
 /**
+ * Fires once per completed top-level advance action — one `advanceTime()` call, or one full
+ * `runTimeSimulation()` run (Tools tab Advance Day/Month/Year button) — regardless of how many
+ * calendar days it expanded to internally. `notifyAfterDayStep`/`fmg:time-advanced` fires once per
+ * *day* (or per rAF frame's chunk of days for the UI loop), which is too fine-grained for
+ * listeners that want "the user's advance action is done" (e.g. Balance History's one-snapshot-
+ * per-action capture, `src/extensions/economy/controllers/balance-history.ts`). Not dispatched on
+ * a failed/thrown batch — see call sites.
+ */
+function notifyAdvanceCompleted(): void {
+  document.dispatchEvent(
+    new CustomEvent("fmg:time-advance-completed", {
+      detail: {
+        currentYear: simulationContext.currentYear,
+        currentMonth: simulationContext.currentMonth,
+        currentDay: simulationContext.currentDay,
+        era: simulationContext.era
+      }
+    })
+  );
+}
+
+/**
  * Advances simulation time. Public entry for `window.fmg.actions.advanceTime`.
  *
  * P2-5: multi-day / month / year spans expand to a calendar-day sequence of
@@ -322,6 +344,7 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
     const commit = stepDaySimulation();
     if (!commit) return;
     notifyAfterDayStep(0, 0, 1);
+    notifyAdvanceCompleted();
     return;
   }
 
@@ -349,8 +372,12 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
     failed = true;
     throw error;
   } finally {
-    if (failed) exitDayBatchAfterFailure();
-    else exitDayBatch();
+    if (failed) {
+      exitDayBatchAfterFailure();
+    } else {
+      exitDayBatch();
+      notifyAdvanceCompleted();
+    }
   }
 }
 
@@ -748,6 +775,9 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       currentState.clearSimulation();
       // isRunning is now false; let suppressed decorative draw hooks catch up.
       publishBulkRunFinishedRedraw();
+      // One completion signal per Advance Day/Month/Year button click, whether it ran to
+      // completion or was stopped early — see notifyAdvanceCompleted()'s doc-comment.
+      if (currentProgress > 0) notifyAdvanceCompleted();
       return;
     }
 

@@ -19,6 +19,7 @@ import {
 } from "../hostUi";
 import { formatPrice, measureTickStep, rn, si, TIME } from "../hostUtils";
 import { getBurgEconomySummary } from "./burgEconomySummary";
+import { recordAdvanceBalanceSnapshot, recordInitialBalanceSnapshot } from "./controllers/balance-history";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import {
   clearEconomyContext,
@@ -171,6 +172,7 @@ import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
 import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { BurgEditorWaterTab } from "./ui/components/BurgEditorWaterTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
+import { BalanceHistoryDialog } from "./ui/dialogs/BalanceHistoryDialog";
 import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
 import { CouncilSessionDialog } from "./ui/dialogs/CouncilSessionDialog";
 import { DebtNegotiationDialog } from "./ui/dialogs/DebtNegotiationDialog";
@@ -417,6 +419,7 @@ let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
 let _worldLoadedHandler: (() => void) | null = null;
+let _timeAdvanceCompletedHandler: (() => void) | null = null;
 let _settlementPromotedHandler: ((e: Event) => void) | null = null;
 let _unregisterGoodsAssignCellCommand: (() => void) | null = null;
 let _unregisterGoodsUpdateCommand: (() => void) | null = null;
@@ -1257,6 +1260,11 @@ export function init(api: ExtensionAPI): void {
     extensionId: ECONOMY_EXTENSION_ID,
     component: DomainPollDetailDialog
   });
+  api.registerDialog({
+    id: "balanceHistory",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: BalanceHistoryDialog
+  });
 
   // Register Economy Style Config
   api.registerStyleConfig(economyStyleConfig);
@@ -1426,6 +1434,20 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-edit-balance-history",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Balance History",
+    dialogId: "balanceHistory",
+    tooltip:
+      "Click to open Balance History — Population/Goods/Fauna over time, one row per generation and Advance Time action, downloadable as CSV for balance tuning",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "balanceHistoryButton" } }));
+    }
+  });
+
+  api.registerAction({
     id: "economy-edit-debt-negotiation",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -1488,6 +1510,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
+  api.registerToolAction("balanceHistoryButton", () => toggleEditorDialog("balanceHistory", null));
   api.registerToolAction("debtNegotiationButton", () => toggleEditorDialog("debtNegotiation", null));
   api.registerToolAction("councilSessionButton", () => toggleEditorDialog("councilSession", null));
   api.registerToolAction("domainPollDetailButton", () => toggleEditorDialog("domainPollDetail", null));
@@ -1727,6 +1750,8 @@ export function init(api: ExtensionAPI): void {
           rebuildCullJobPostings({ clearAll: true });
           // Escort (護衛) job board — all culture sets.
           rebuildEscortJobPostings({ clearAll: true });
+          // Balance History's first row for this map — everything above has settled by now.
+          recordInitialBalanceSnapshot();
           api.requestWebglRender();
         } finally {
           TIME && console.timeEnd("generateEconomy");
@@ -1771,8 +1796,20 @@ export function init(api: ExtensionAPI): void {
     // Rebuild cull / escort boards when empty or only invalid targets remain after load.
     rebuildCullJobPostings();
     rebuildEscortJobPostings();
+    // Balance History's first row for the just-loaded map (fresh-generation's counterpart lives
+    // at the end of the "economy.initialization" map-ready task above).
+    recordInitialBalanceSnapshot();
   };
   document.addEventListener("fmg:world-loaded", _worldLoadedHandler);
+
+  // One Balance History row per completed Advance Day/Month/Year action — see
+  // notifyAdvanceCompleted()'s doc-comment in src/generators/timeEngine.ts for why this event
+  // (rather than the per-day `fmg:time-advanced`) is the right granularity.
+  _timeAdvanceCompletedHandler = () => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    recordAdvanceBalanceSnapshot();
+  };
+  document.addEventListener("fmg:time-advance-completed", _timeAdvanceCompletedHandler);
 
   // Production-affecting changes are accumulated between monthly settlements. In
   // particular, Shipbuilding can emit a logging event every simulated day; making
@@ -2525,6 +2562,10 @@ export function cleanup(api: ExtensionAPI): void {
     document.removeEventListener("fmg:world-loaded", _worldLoadedHandler);
     _worldLoadedHandler = null;
   }
+  if (_timeAdvanceCompletedHandler) {
+    document.removeEventListener("fmg:time-advance-completed", _timeAdvanceCompletedHandler);
+    _timeAdvanceCompletedHandler = null;
+  }
   if (_settlementPromotedHandler) {
     document.removeEventListener("fmg:settlement-promoted", _settlementPromotedHandler);
     _settlementPromotedHandler = null;
@@ -2565,6 +2606,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("employmentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
+  api.unregisterToolAction("balanceHistoryButton");
   api.unregisterToolAction("debtNegotiationButton");
   api.unregisterToolAction("councilSessionButton");
   api.unregisterToolAction("domainPollDetailButton");

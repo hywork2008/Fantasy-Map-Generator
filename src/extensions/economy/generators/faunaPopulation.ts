@@ -595,6 +595,60 @@ export function getCellFaunaHeadcounts(cellId: number): {
   return { wild, domesticated };
 }
 
+/** World-wide (all cells) headcount for the wild stock and every liveAnimal-tagged domesticated species. */
+export interface FaunaWorldHeadcountSummary {
+  readonly wildTotal: number;
+  readonly domesticatedTotal: number;
+  /** Per-species world total, keyed by species (`WILD_SPECIES_KEY` for wild, else a Good's name). */
+  readonly bySpecies: Readonly<Record<string, number>>;
+}
+
+/**
+ * World-wide counterpart to `getCellFaunaHeadcounts()` — sums every (cell, species) stock entry
+ * into per-species totals in a single pass over the stock table, for balance-tuning tools (e.g.
+ * the Balance History snapshot, `generators/balanceSnapshot.ts`) that need "how many of this
+ * species exist on the whole map right now" rather than a per-cell breakdown. Read-only: reads
+ * `getOrCreateFaunaStockTable()`'s existing entries without seeding any new cell/species pair, so
+ * calling this never creates stock for a cell that hasn't been touched yet (mirrors
+ * `getCellFaunaHeadcounts()`'s read-only contract).
+ */
+export function getWorldFaunaHeadcountSummary(): FaunaWorldHeadcountSummary {
+  const table = getOrCreateFaunaStockTable();
+  const bySpecies: Record<string, number> = {};
+
+  if (table) {
+    for (const [key, cohorts] of Object.entries(table)) {
+      const separatorIndex = key.indexOf(":");
+      if (separatorIndex < 0) continue;
+      const speciesKey = key.slice(separatorIndex + 1);
+      bySpecies[speciesKey] = (bySpecies[speciesKey] ?? 0) + cohortTotal(cohorts);
+    }
+  }
+
+  // Only report species the current Goods catalog still recognizes as a liveAnimal (plus the wild
+  // stock) — a stale key from a removed/renamed Good would otherwise show up as an unlabeled entry.
+  const domesticatedNames = new Set(
+    getGoods()
+      .filter(good => good.tags.includes("liveAnimal") && isGoodEnabled(good))
+      .map(good => good.name)
+  );
+
+  let wildTotal = 0;
+  let domesticatedTotal = 0;
+  const filteredBySpecies: Record<string, number> = {};
+  for (const [speciesKey, total] of Object.entries(bySpecies)) {
+    if (speciesKey === WILD_SPECIES_KEY) {
+      wildTotal += total;
+      filteredBySpecies[speciesKey] = total;
+    } else if (domesticatedNames.has(speciesKey)) {
+      domesticatedTotal += total;
+      filteredBySpecies[speciesKey] = total;
+    }
+  }
+
+  return { wildTotal, domesticatedTotal, bySpecies: filteredBySpecies };
+}
+
 /** Clears all fauna-model state — called by the economy extension's "clear"/cleanup paths. */
 export function clearFaunaPopulation(): void {
   const table = getOrCreateFaunaStockTable();

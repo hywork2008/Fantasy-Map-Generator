@@ -41,6 +41,7 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 5. 登録済み simulation systems を実行（`economy.tick` 等）
 6. `fmg:time-advanced` / `fmg:simulation-updated` を dispatch
 7. 開発ビルドでは `useDebugSnapshotState` にスナップショットを追加（デバッグ用）
+8. （UIボタン経由の場合はループ完了時に1回だけ、プログラム経由の場合は `advanceTime()` 呼び出し完了時に1回だけ）`fmg:time-advance-completed` を dispatch — §3参照
 
 ## 1. State層: `SimulationContext`
 
@@ -69,7 +70,8 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 
 | イベント名 | detail | 発火元 | 用途 |
 | :--- | :--- | :--- | :--- |
-| `fmg:time-advanced` | `{ deltaYears, deltaMonths, deltaDays, currentYear }` | `advanceTime()` | 差分ベースの購読者向け。 |
+| `fmg:time-advanced` | `{ deltaYears, deltaMonths, deltaDays, currentYear }` | `advanceTime()` | 差分ベースの購読者向け。日単位（`runTimeSimulation()`のUIループでは1フレームで処理した日数チャンク単位）で発火するため、1回の Advance Day/Month/Year 操作中に複数回発火しうる。 |
+| `fmg:time-advance-completed` | `{ currentYear, currentMonth, currentDay, era }` | `advanceTime()` / `runTimeSimulation()` | **1回のトップレベル advance 操作**（Advance Day/Month/Year ボタン1クリック、または `window.fmg.actions.advanceTime()` の1呼び出し）につき正確に1回だけ発火する完了シグナル。内部で何日に展開されたか・何回 `fmg:time-advanced` が発火したかに関わらず1回。失敗（例外）で終わったバッチでは発火しない。「ユーザー操作1回につき1レコード」が欲しい購読者（例: Economy拡張の Balance History スナップショット、`src/extensions/economy/controllers/balance-history.ts`）向け。 |
 | `fmg:simulation-updated` | `{ currentYear, currentMonth, currentDay, era }` | `advanceTime()` / `initSimulationClock()` / `syncSimulationClockFromOptions()` | UI（カレンダーオーバーレイ、ToolsTab 表示）の再描画トリガー。currentYear/era が変わりうる**全ての**経路で発火する。 |
 | `fmg:generate-post-core` | なし | `src/main.ts`（コア生成完了後） | 拡張機能がマップ生成データを元に自身のデータを生成するタイミング。Shipbuilding/Economy/Nobility が購読。 |
 | `fmg:shipbuilding-ship-completed` | `{ burgId, stateId, owner, shipClassId }` | `src/extensions/shipbuilding/generators/shipyardQueue.ts` | Military 側の `navalTechBonus.ts` が購読し、国家所有の完成船数に応じた海軍技術ボーナスを蓄積する（拡張間の直接 import を避けるイベント経由連携の例）。 |

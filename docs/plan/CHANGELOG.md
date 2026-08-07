@@ -2,6 +2,7 @@
 
 2026-08-07
 
+- docs/plan/balance-history-export.md
 - docs/plan/fauna-biome-realism.md
 - docs/plan/food-nutrition-audit.md
 

@@ -1,24 +1,12 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
 import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
-import {
-  getApi,
-  getBurgProductionRecords,
-  getBurgRetailInventories,
-  getBurgWholesaleInventories,
-  getGoodCellColumn,
-  getGoods,
-  getMarketCellColumn,
-  getMarkets,
-  getViewContext,
-  getWorldContext
-} from "../economyContext";
+import { getApi, getGoodCellColumn, getGoods, getViewContext, getWorldContext } from "../economyContext";
+import { getAllStockData, getProduction, getTotalPopulation } from "../generators/economyTotals";
 import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
 import { getDefaultGoodsUnitFlavor } from "../generators/goodsUnitFlavor";
 import { Markets } from "../generators/markets-generator";
 import { Production } from "../generators/production-generator";
-import { getCellProduction } from "../generators/production-utils";
-import { reconcileRetailInventory } from "../generators/retailInventory";
 import { drawGoods } from "../renderers/draw-goods";
 import {
   getDisplayedGoodIds,
@@ -37,8 +25,6 @@ const worldContext = () => getWorldContext();
 
 const visibleTags = new Set<string>();
 let cellsWasForced = false;
-
-type GoodProduction = { burg: number; cell: number; market: Record<number, number> };
 
 function refreshEditor(): void {
   goodsEditorAddLines();
@@ -200,65 +186,6 @@ export function openProducersDialog(goodId: number): void {
   });
 }
 
-type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
-
-function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
-  const result: Record<number, { total: number; sources: StockSource[] }> = {};
-  for (const good of getGoods().filter(isGoodEnabled)) {
-    result[good.i] = { total: 0, sources: [] };
-  }
-
-  // Materialize the market-wide total into its actual burg shelves / depots before
-  // presenting locations. Production records are a per-cycle accounting journal, not stock.
-  reconcileRetailInventory();
-
-  for (const market of getMarkets()) {
-    for (const [goodIdStr, { stock }] of Object.entries(market.goods)) {
-      const goodId = +goodIdStr;
-      if (!result[goodId] || stock <= 0) continue;
-      result[goodId].total += stock;
-    }
-  }
-
-  const stockByBurgAndGood = new Map<string, number>();
-  const addPhysicalStock = (burgId: number, goodId: number, units: number): void => {
-    if (!result[goodId] || !(units > 0.001)) return;
-    const key = `${burgId}:${goodId}`;
-    stockByBurgAndGood.set(key, (stockByBurgAndGood.get(key) ?? 0) + units);
-  };
-  for (const inventory of getBurgRetailInventories()) {
-    for (const [goodId, stock] of Object.entries(inventory.goods)) {
-      addPhysicalStock(inventory.burgId, Number(goodId), stock.onHand);
-    }
-  }
-  for (const inventory of getBurgWholesaleInventories()) {
-    for (const [goodId, units] of Object.entries(inventory.goods)) {
-      addPhysicalStock(inventory.burgId, Number(goodId), units);
-    }
-  }
-  for (const [key, stock] of stockByBurgAndGood) {
-    const [burgIdString, goodIdString] = key.split(":");
-    const burgId = Number(burgIdString);
-    const goodId = Number(goodIdString);
-    const burg = worldContext().pack.burgs[burgId];
-    if (!burg || burg.removed || !result[goodId]) continue;
-    result[goodId].sources.push({
-      name: burg.name || `Burg ${burgId}`,
-      type: "burg",
-      x: burg.x ?? 0,
-      y: burg.y ?? 0,
-      id: burgId,
-      stock: rn(stock, 2)
-    });
-  }
-
-  for (const good of getGoods().filter(isGoodEnabled)) {
-    result[good.i].total = rn(result[good.i].total, 2);
-  }
-
-  return result;
-}
-
 export function openStockDialog(goodId: number): void {
   const good = Goods.get(goodId);
   if (!good) return;
@@ -274,53 +201,12 @@ export function openStockDialog(goodId: number): void {
   });
 }
 
-function getProduction(): Record<number, GoodProduction> {
-  const production: Record<number, GoodProduction> = {};
-  const addProduction = (goodId: number, amount: number, type: "burg" | "cell", marketId?: number) => {
-    if (!production[goodId]) production[goodId] = { burg: 0, cell: 0, market: {} };
-    production[goodId][type] += amount;
-    if (marketId) production[goodId].market[marketId] = (production[goodId].market[marketId] ?? 0) + amount;
-  };
-
-  const productionByBiome = Goods.getBiomesProduction();
-  const marketCells = getMarketCellColumn();
-  for (const cellId of worldContext().pack.cells.i) {
-    // preview: true — this is a read-only report table, not the real production cycle; must not
-    // cull fauna stock (see getRuralProductionContributions()'s doc-comment in production-utils.ts).
-    const produced = getCellProduction(cellId, productionByBiome, { preview: true });
-    for (const goodId in produced) {
-      addProduction(Number(goodId), produced[goodId] || 0, "cell", marketCells[cellId]);
-    }
-  }
-
-  for (const burg of worldContext().pack.burgs) {
-    if (!burg || burg.removed || !getBurgProductionRecords(burg).length) continue;
-    const produced = Production.getBurgProduction(burg);
-    for (const goodId in produced) {
-      addProduction(Number(goodId), produced[goodId] || 0, "burg", burg.market);
-    }
-  }
-
-  return production;
-}
-
 function getCellsByGood(): Record<number, number> {
   const cellsByGood: Record<number, number> = {};
   for (const goodId of getGoodCellColumn()) {
     if (goodId) cellsByGood[goodId] = (cellsByGood[goodId] ?? 0) + 1;
   }
   return cellsByGood;
-}
-
-function getTotalPopulation(): number {
-  const { pack, populationRate, urbanization } = worldContext();
-  const rate = populationRate || 1;
-  const urbanScale = rate * (urbanization || 1);
-  let ruralPoints = 0;
-  for (const cellId of pack.cells.i) ruralPoints += pack.cells.pop[cellId] ?? 0;
-  const rural = ruralPoints * rate;
-  const urban = pack.burgs.reduce((sum, burg) => sum + (burg?.removed ? 0 : (burg?.population ?? 0)), 0) * urbanScale;
-  return rural + urban;
 }
 
 export function openTagsVisibilityDialog(): void {
