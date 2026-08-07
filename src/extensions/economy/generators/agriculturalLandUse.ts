@@ -17,8 +17,15 @@ export const AGTECH_YIELD_BONUS_MAX = 0.4;
 export const AGTECH_LABOR_SAVINGS_MAX = 0.35;
 /** Share of the bonus reached with Tools alone, before a draft animal is available (see below). */
 export const AGTECH_NO_DRAFT_EFFECT_SHARE = 0.6;
-/** Biome tags where Cattle/Horses are actually raised locally (their biomeOutputByTag keys in goods-generator.ts). */
-export const DRAFT_CAPABLE_BIOME_TAGS: readonly string[] = ["grassland", "nomadic"];
+/**
+ * Biome tags where Cattle/Horses are actually raised locally (their biomeOutputByTag keys in
+ * goods-generator.ts). `arable` added 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase H)
+ * alongside Cattle/Horses gaining an `arable` biomeOutputByTag entry — mixed-farming forest biomes
+ * (Temperate deciduous forest, Tropical seasonal forest, Central European great forest) now also
+ * raise draft animals, so they should get the same Tools-alone-vs-Tools-plus-draft-animal agtech
+ * split as grassland/nomadic instead of always being treated as draft-animal-free.
+ */
+export const DRAFT_CAPABLE_BIOME_TAGS: readonly string[] = ["grassland", "nomadic", "arable"];
 
 /**
  * Approximate built-up area per burg population point, used to exclude a settlement's own

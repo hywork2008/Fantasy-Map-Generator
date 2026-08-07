@@ -816,6 +816,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "minerals") {
         MineralResources.generate();
         DevelopmentPotential.generate();
+        // See the matching comment at the main generation call site — reseeds any cell whose fauna
+        // stock hadn't been created yet instead of leaving it to appear lazily on first draw.
+        updateAnnualFaunaCohorts();
       }
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy") {
@@ -1530,6 +1533,9 @@ export function init(api: ExtensionAPI): void {
         Goods.generate();
         DevelopmentPotential.generate();
         Markets.generate();
+        // See the matching comment at the main generation call site — seeds fauna stock immediately
+        // instead of leaving it to lazily appear cell-by-cell on first hunting/husbandry draw.
+        updateAnnualFaunaCohorts();
         InnFacilities.generate();
         InnStays.clear();
         UrbanWater.generate();
@@ -1686,6 +1692,15 @@ export function init(api: ExtensionAPI): void {
           Goods.generate();
           DevelopmentPotential.generate();
           Markets.generate();
+          // Seed every eligible cell's fauna stock now rather than waiting for the first annual
+          // tick (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase G): without this, a stock
+          // entry only gets created lazily on that cell's first hunting/husbandry draw, so cells
+          // that hadn't been assigned a hunter yet showed "Wild: 0" in CellInfo next to same-biome
+          // neighbors already in the thousands — an artifact of allocation order, not ecology. This
+          // call unconditionally seeds every land cell at ~60% of its actual carrying capacity
+          // (initializeStock(), same as the annual update does), matching what the first Advance
+          // Time tick would have produced anyway.
+          updateAnnualFaunaCohorts();
           MerchantTransportAssets.requestMerchantHullSnapshot();
           MineOperations.generate();
           SmelterOperations.generate();

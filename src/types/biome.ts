@@ -20,7 +20,13 @@ export const BIOME_TAGS = [
   "scrub",
   "snow",
   "arable",
-  "nomadic"
+  "nomadic",
+  // Tropical/subtropical climate band, orthogonal to "forest" (2026-08-07,
+  // docs/plan/fauna-biome-realism.md §3 Phase H) — added because "forest" alone can't distinguish
+  // a tropical rainforest from a temperate deciduous forest, which goods like Elephants need
+  // (savanna/tropical forest range only; a bare "forest" tag was leaking them into every temperate/
+  // cold forest biome too). See biomeCatalog.ts's STANDARD_BIOME_DEFINITIONS for which biomes carry it.
+  "tropical"
 ] as const;
 
 export type BiomeTag = (typeof BIOME_TAGS)[number];

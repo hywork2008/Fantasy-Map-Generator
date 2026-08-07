@@ -19,6 +19,26 @@
  * calculations in husbandry.ts/viticulture.ts — `calculateHusbandryDemand`/`calculateViticultureDemand`
  * aggregate a cell's requirement into one candidate each; this module only runs the greedy pass and
  * persists the result. Fishing's bonus-good model (below) is the one candidate still computed inline.
+ *
+ * `migratableAdults` unit bug (2026-08-07, docs/plan/fauna-biome-realism.md §2.5/§3 Phase E) —
+ * `agriculturalLandUse.ts`'s `migratableAdults` is expressed in *rural population points* (the same
+ * unit as `cells.pop`/`cells.maleAdults`/`cells.femaleAdults`, self-consistent with what
+ * `ruralLaborRelease.ts` compares it against). This module's candidates, however, are all sized in
+ * REAL headcounts: `HUNTING_MINIMUM_HEADCOUNT` is documented as "a hamlet too small to field 3
+ * hunters" (a real body count, not population points), `GAME_YIELD_PER_HUNTER_PER_MONTH` is derived
+ * from `GROSS_FOOD_NEED` the same way `agriculturalLandUse.ts`'s own `foodPotential` is (a real
+ * person's food need), and husbandry.ts's/viticulture.ts's `requiredWorkers` are both real headcounts
+ * by construction (`area × labourDays / WORKABLE_DAYS_PER_ADULT`, mirroring
+ * `agriculturalLandUse.ts`'s own `requiredAdults` before ITS OWN `/ populationRate` step). Passing
+ * population-point-scale `migratableAdults` straight into this module as if it were already a real
+ * headcount made the whole budget spuriously tiny (population points are typically single digits per
+ * cell) — small enough that hunting's fixed 3-headcount floor alone consumed the entire budget on
+ * almost every cell with wild-game habitat, starving fishing/viticulture/husbandry map-wide regardless
+ * of how large the underlying real population actually was. Fixed by scaling `migratableAdults` up to
+ * a real headcount (`× world.populationRate`) once, at the top of `allocateRuralOccupations()` — every
+ * candidate's `required` was already real-headcount-scale, so nothing downstream needed to change
+ * except `ruralReleasePressure`, which is scaled back down (`÷ populationRate`) before being returned,
+ * since `ruralLaborRelease.ts` still expects population points to match `cells.maleAdults`/`femaleAdults`.
  */
 
 import type { WorldContext } from "../../hostCore";
@@ -191,10 +211,14 @@ export function allocateRuralOccupations(
   const fishOffersByLandCell =
     fishGood && isGoodEnabled(fishGood) ? collectFishingOffers(world, fishGood.i, fishingRequiredWorkers) : new Map();
 
+  // migratableAdults arrives in rural population points; every candidate below is sized in real
+  // headcounts, so it's converted once here (see module doc-comment's "migratableAdults unit bug").
+  const populationRate = Math.max(1, world.populationRate || 1);
+
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue; // rural occupations claim land-cell labour only
 
-    let budget = Math.max(0, migratableAdults[cellId] ?? 0);
+    let budget = Math.max(0, migratableAdults[cellId] ?? 0) * populationRate;
     if (budget <= 0) continue;
 
     // No longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §2.2/§3 Phase A) — the
@@ -243,7 +267,8 @@ export function allocateRuralOccupations(
       budget -= assign;
     }
 
-    ruralReleasePressure[cellId] = Math.max(0, budget);
+    // Back to population points — ruralLaborRelease.ts compares this against cells.maleAdults/femaleAdults.
+    ruralReleasePressure[cellId] = Math.max(0, budget) / populationRate;
   }
 
   return {

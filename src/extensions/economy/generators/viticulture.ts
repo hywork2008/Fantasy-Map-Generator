@@ -58,11 +58,18 @@ const VINEYARD_BIOME_TAG_CEILING: Partial<Record<BiomeTag, number>> = {
 };
 
 /**
- * Hectares of vineyard a population point's worth of local demand (consumption + tradeable
- * surplus) could realistically keep worked — mirrors Grain's population-driven requiredArea, since
- * Grapes has no staple-food need equation to derive one from directly.
+ * Hectares of vineyard one REAL resident's worth of local demand (consumption + tradeable surplus)
+ * could realistically keep worked — mirrors Grain's population-driven requiredArea, since Grapes has
+ * no staple-food need equation to derive one from directly. Per actual person, not per raw `cells.pop`
+ * unit — see husbandry.ts's `HUSBANDRY_LAND_HECTARES_PER_PERSON` doc-comment for the population-point
+ * vs. real-person distinction this mirrors. Confirmed 2026-08-07 via the same
+ * `docs/plan/fauna-biome-realism.md` labour-scarcity investigation that this module has the identical
+ * bug husbandry.ts did: `cells.pop[cellId]` is a "population point" (`populationRate` was 1000 on a
+ * real generated map, `cells.pop` typically 1-20 per cell), so a raw-point-based desiredArea was on
+ * the order of a few hectares per cell rather than a few thousand, rounding `requiredWorkers` down to
+ * near-zero and starving Grapes/Wine of any labour allocation.
  */
-const VINEYARD_AREA_PER_POPULATION_POINT = 0.5;
+const VINEYARD_AREA_HECTARES_PER_PERSON = 0.5;
 /** Grape yield, `Grapes`-unit output per hectare per month at full staffing. */
 export const GRAPE_YIELD_PER_HECTARE_PER_MONTH = 0.03;
 /**
@@ -104,8 +111,9 @@ function calculateVineyardCeilingAreaHectares(world: Readonly<WorldContext>, cel
 function calculateDesiredVineyardAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const ceiling = calculateVineyardCeilingAreaHectares(world, cellId);
   if (ceiling <= 0) return 0;
-  const population = Math.max(0, world.pack.cells.pop[cellId] ?? 0);
-  return Math.min(ceiling, population * VINEYARD_AREA_PER_POPULATION_POINT);
+  const populationPoints = Math.max(0, world.pack.cells.pop[cellId] ?? 0);
+  const realPopulation = populationPoints * Math.max(1, world.populationRate || 1);
+  return Math.min(ceiling, realPopulation * VINEYARD_AREA_HECTARES_PER_PERSON);
 }
 
 /**

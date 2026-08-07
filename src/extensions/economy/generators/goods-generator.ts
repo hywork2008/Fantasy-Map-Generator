@@ -252,7 +252,17 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Nomadic: 2 } },
-    biomeOutputByTag: { grassland: 0.1, nomadic: 0.08 }
+    // `arable` added 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase H): this good's own
+    // `distribution` above already draws Cattle in forest 70% of the time (medieval mixed-farming/
+    // wood-pasture flavor), but biomeOutputByTag had no forest-linked entry at all, so the actual
+    // economy (husbandry.ts) could never produce Cattle outside grassland/nomadic — on a map with
+    // little grassland, all Cattle got crammed into that sliver of land while every temperate/
+    // tropical farmland-forest biome (Temperate deciduous forest, Tropical seasonal forest, Central
+    // European great forest — all `arable`-tagged) showed zero. Rate is well below grassland's,
+    // reflecting real lower livestock density on cleared/mixed farmland vs. open pasture; husbandry.ts
+    // needs no change since its pasture ceiling already has a PASTURE_DEFAULT_CEILING fallback for
+    // arable-but-not-grassland biomes.
+    biomeOutputByTag: { grassland: 0.1, nomadic: 0.08, arable: 0.04 }
   },
   {
     name: "Fish",
@@ -387,7 +397,10 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { utilities: 0.6, military: 0.4 },
     multipliers: { cultureType: { Nomadic: 2 } },
-    biomeOutputByTag: { nomadic: 0.06, grassland: 0.05 }
+    // `arable` added 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase H) — same rationale as
+    // Cattle above: draft/plow horses were a fixture of medieval mixed farmland, not only steppe/
+    // grassland cultures. Rate kept below both nomadic and grassland's.
+    biomeOutputByTag: { nomadic: 0.06, grassland: 0.05, arable: 0.03 }
   },
   {
     name: "Fodder",
@@ -421,8 +434,17 @@ export const GOODS_DATA: GoodData[] = [
     // Found 2026-08-07 (docs/plan/fauna-biome-realism.md §2.3): Elephants previously had neither
     // biomeOutput nor biomeOutputByTag, so resolveBiomeOutputRate() always returned 0 and this good
     // never entered production at all, in any biome. Savanna (grassland tag) + tropical forest
-    // (forest tag) match real elephant range; low rate reflects the high per-head value (30).
-    biomeOutputByTag: { grassland: 0.015, forest: 0.01 }
+    // match real elephant range; low rate reflects the high per-head value (30).
+    // `forest` -> `tropical` 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase H): a bare
+    // "forest" tag matches temperate/cold forest biomes too (Temperate deciduous forest, Taiga,
+    // Temperate rainforest, ...), which have no elephant population in reality — every land cell
+    // with any forest was getting a token ~1-head "unbreedable" elephant, crowding out the biome's
+    // actual real-world livestock (Cattle/Sheep) that the old tag set locked out of forest entirely
+    // (see Cattle/Horses/Sheep below). `tropical` (types/biome.ts) is scoped to Savanna/Tropical
+    // seasonal forest/Tropical rainforest/Tropical dry forest/Mangrove/Cloud forest only — matches
+    // this good's own `distribution` field's original biome(1, 3, 5, 7) intent (minus hotDesert,
+    // whose ~0 habitability already makes it a non-producer).
+    biomeOutputByTag: { grassland: 0.015, tropical: 0.01 }
   },
   {
     name: "Camels",
@@ -569,7 +591,11 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Naval: 1.4, Highland: 1.4 } },
-    biomeOutputByTag: { grassland: 0.1, scrub: 0.08 }
+    // `arable` added 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase H) — same rationale as
+    // Cattle above: this good's own `distribution` already draws Sheep in forest 70% of the time,
+    // but biomeOutputByTag had no forest-linked entry, locking Sheep out of every
+    // temperate/tropical farmland-forest biome.
+    biomeOutputByTag: { grassland: 0.1, scrub: 0.08, arable: 0.04 }
   },
   {
     name: "Slaves",

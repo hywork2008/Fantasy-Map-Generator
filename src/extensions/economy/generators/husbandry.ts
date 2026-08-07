@@ -96,7 +96,7 @@ const PASTURE_DEFAULT_CEILING = 0.1;
 
 /**
  * Hectares of pasture one REAL resident's worth of local demand could realistically keep stocked
- * — mirrors viticulture.ts's `VINEYARD_AREA_PER_POPULATION_POINT` in spirit (see module doc-comment's
+ * — mirrors viticulture.ts's `VINEYARD_AREA_HECTARES_PER_PERSON` in spirit (see module doc-comment's
  * "requiredWorkers redefinition" entry), but per actual person, not per raw `cells.pop` unit. Found
  * 2026-08-07 (real-map verification via Playwright after this constant still produced a near-empty
  * herd everywhere): `cells.pop[cellId]` is a "population point" — `agriculturalLandUse.ts`'s own
@@ -105,10 +105,10 @@ const PASTURE_DEFAULT_CEILING = 0.1;
  * a raw-point-based desiredArea of "population x 1 ha" was on the order of a few HECTARES per cell,
  * not a few THOUSAND, making every grazed species' capacity round to ~0). Multiplying by
  * `populationRate` first fixes the unit mismatch; this constant itself stays a placeholder,
- * calibration TBD (§9.3). NOTE: `viticulture.ts`'s `VINEYARD_AREA_PER_POPULATION_POINT` has the
- * same raw-`cells.pop` pattern and is very likely under-scaled the same way — not fixed here since
- * it's outside today's Cattle/Sheep/Goats/Horses/Camels scope, but flagged in
- * docs/plan/fauna-biome-realism.md for follow-up.
+ * calibration TBD (§9.3). `viticulture.ts`'s `VINEYARD_AREA_PER_POPULATION_POINT` had the identical
+ * raw-`cells.pop` pattern — confirmed under-scaled the same way and fixed the same day
+ * (renamed `VINEYARD_AREA_HECTARES_PER_PERSON`) as part of the labour-scarcity investigation in
+ * docs/plan/fauna-biome-realism.md §2.5.
  */
 const HUSBANDRY_LAND_HECTARES_PER_PERSON = 1;
 

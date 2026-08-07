@@ -47,11 +47,18 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
   D("marine", "Marine", "#466eab", 0, 10, 0, {}, ["marine"]),
   D("hotDesert", "Hot desert", "#fbe79f", 4, 200, 3, { dune: 3, cactus: 6, deadTree: 1 }, ["dry", "desert", "nomadic"]),
   D("coldDesert", "Cold desert", "#b5b887", 10, 150, 2, { dune: 9, deadTree: 1 }, ["dry", "desert", "cold", "nomadic"]),
-  D("savanna", "Savanna", "#d2d082", 22, 60, 120, { acacia: 1, grass: 9 }, ["dry", "grassland", "arable", "nomadic"]),
+  D("savanna", "Savanna", "#d2d082", 22, 60, 120, { acacia: 1, grass: 9 }, [
+    "dry",
+    "grassland",
+    "arable",
+    "nomadic",
+    "tropical"
+  ]),
   D("grassland", "Grassland", "#c8d68f", 30, 50, 120, { grass: 1 }, ["grassland", "arable", "nomadic"]),
   D("tropicalSeasonalForest", "Tropical seasonal forest", "#b6d95d", 50, 70, 120, { acacia: 8, palm: 1 }, [
     "forest",
-    "arable"
+    "arable",
+    "tropical"
   ]),
   D("temperateDeciduousForest", "Temperate deciduous forest", "#29bc56", 100, 70, 120, { deciduous: 1 }, [
     "forest",
@@ -65,7 +72,7 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
     80,
     150,
     { acacia: 5, palm: 3, deciduous: 1, swamp: 1 },
-    ["forest"]
+    ["forest", "tropical"]
   ),
   D("temperateRainforest", "Temperate rainforest", "#409c43", 90, 90, 150, { deciduous: 6, swamp: 1 }, ["forest"]),
   D("taiga", "Taiga", "#4b6b32", 12, 200, 100, { conifer: 1 }, ["forest", "cold"]),
@@ -81,7 +88,10 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
     120,
     140,
     { deciduous: 4, conifer: 3, deadTree: 1 },
-    ["forest"]
+    // "arable" added 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase H) — this biome's name/
+    // intent is medieval mixed-farming forest (wood-pasture, forest clearings), but it was missing
+    // the tag every farmland-linked good (Chicken/Fodder, and now Cattle/Horses/Sheep) keys off.
+    ["forest", "arable"]
   ),
   D(
     "mediterraneanWoodlandScrub",
@@ -101,7 +111,8 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
   D("mangrove", "Mangrove", "#1a6b4f", 8, 400, 180, { palm: 2, swamp: 4, deciduous: 1 }, [
     "wetland",
     "coastal",
-    "forest"
+    "forest",
+    "tropical"
   ]),
   D("xericShrubland", "Xeric shrubland", "#c4b07a", 12, 100, 40, { cactus: 3, grass: 4, deadTree: 2 }, [
     "dry",
@@ -110,7 +121,8 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
   ]),
   D("cloudForest", "Cloud forest", "#2d6b4a", 30, 130, 160, { deciduous: 4, palm: 1, swamp: 1 }, [
     "forest",
-    "mountain"
+    "mountain",
+    "tropical"
   ]),
   D("heathMoorland", "Heath & moorland", "#7a8f4a", 10, 80, 60, { grass: 6, deadTree: 1 }, ["grassland", "wetland"]),
   D(
@@ -137,7 +149,7 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
     85,
     110,
     { acacia: 5, deciduous: 2, deadTree: 2 },
-    ["forest", "dry"]
+    ["forest", "dry", "tropical"]
   ),
   D("borealPeatland", "Boreal peatland & muskeg", "#5a6b4a", 3, 1200, 40, { swamp: 4, grass: 3, conifer: 1 }, [
     "wetland",
