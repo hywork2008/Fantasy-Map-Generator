@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   auditNutrition,
   CHEESE_KG_PER_UNIT,
+  CHEESE_RECIPE_MILK_UNITS,
   DAILY_CALORIC_NEED_KCAL,
   DAILY_PROTEIN_NEED_G,
   getAnnualNutritionNeed,
@@ -92,6 +93,19 @@ describe("nutritionAudit (2026-08-07, docs/plan/food-nutrition-audit.md)", () =>
       const { kcal } = getCheeseNutrition(1);
       expect(kcal).toBeCloseTo(CHEESE_KG_PER_UNIT * 4000, 5);
     });
+
+    it(
+      "mass-balances against Cheese's own recipe (found 2026-08-07, user caught it by hand): the real " +
+        "milk that goes into one Cheese unit's worth of the recipe must reduce to the same real kg that " +
+        "unit is defined to represent — not an independently-picked, inconsistent number",
+      () => {
+        const milkInputLiters = CHEESE_RECIPE_MILK_UNITS * MILK_LITERS_PER_UNIT; // 3 * 4 = 12 L
+        const cheeseOutputKg = milkInputLiters / MILK_LITERS_PER_CHEESE_KG; // 12 / 10 = 1.2 kg
+        expect(CHEESE_KG_PER_UNIT).toBeCloseTo(cheeseOutputKg, 10);
+        // The old, inconsistent hardcoded value (40kg) must not silently come back.
+        expect(CHEESE_KG_PER_UNIT).toBeLessThan(2);
+      }
+    );
   });
 
   describe("auditNutrition (combined report)", () => {

@@ -17,11 +17,15 @@
  * - **Tier 2 (Cheese/Milk, a new design decision, not a discovery)**: `dairy.ts`'s
  *   `MILK_YIELD_PER_HEAD_PER_MONTH` was tuned purely to keep the Milk market stock from overflowing
  *   (Phase N), with no real-liters-per-cow grounding, and no Good in the catalog has an established
- *   real mass/volume per unit ("wain"/"jug"/etc. are flavor labels only). `MILK_LITERS_PER_UNIT` and
- *   `CHEESE_KG_PER_UNIT` below are therefore a **new, first-cut convention introduced by this module**
- *   (§9.3 policy: order-of-magnitude placeholder, calibration TBD), not a value read out of existing
- *   game data. Treat Tier 2's output as "does the current dairy chain even plausibly help," not as a
- *   precise mass-balance.
+ *   real mass/volume per unit ("wain"/"jug"/etc. are flavor labels only). `MILK_LITERS_PER_UNIT` below
+ *   is therefore a **new, first-cut convention introduced by this module** (§9.3 policy: order-of-
+ *   magnitude placeholder, calibration TBD), not a value read out of existing game data. Once that one
+ *   choice is made, though, `CHEESE_KG_PER_UNIT` is NOT a second independent guess — it's derived from
+ *   `MILK_LITERS_PER_UNIT` through Cheese's own recipe ratio (`{ Milk: 3, ... }`,
+ *   goods-generator.ts) and the real milk→cheese conversion rate, so the two stay mass-balance
+ *   consistent with each other (a first cut had them picked independently — 4 L/jug and a flat 40kg/
+ *   wain — which silently implied 12 L of milk yields 40kg of cheese, ~33x too much; found
+ *   2026-08-07 when the user checked the two numbers against the recipe by hand).
  */
 
 import { STAPLE_NEED_KG_PER_PERSON_YEAR } from "./agriculturalLandUse";
@@ -55,12 +59,28 @@ export const CHEESE_PROTEIN_G_PER_KG = 250;
 export const MILK_LITERS_PER_CHEESE_KG = 10;
 
 /**
- * New convention (this module, not pre-existing game data): how many real liters/kilograms one
- * Milk/Cheese Good "unit" ("jug"/"wain") represents. Picked as plausible everyday-object/cart-load
- * quantities, not derived from any other game constant — there was nothing to derive them from.
+ * New convention (this module, not pre-existing game data): how many real liters one Milk Good
+ * "unit" ("jug") represents. Picked as a plausible everyday-jug quantity — there was nothing to
+ * derive it from (see module doc-comment).
  */
 export const MILK_LITERS_PER_UNIT = 4;
-export const CHEESE_KG_PER_UNIT = 40;
+
+/**
+ * Milk units consumed per Cheese unit in Cheese's own recipe (goods-generator.ts: all four of its
+ * recipe variants read `{ Milk: 3, ... }`) — duplicated here as a named constant, not re-derived
+ * from GOODS_DATA, to avoid this calibration-only module depending on the live catalog.
+ */
+export const CHEESE_RECIPE_MILK_UNITS = 3;
+
+/**
+ * `CHEESE_KG_PER_UNIT` must NOT be picked independently of `MILK_LITERS_PER_UNIT` — Cheese's own
+ * recipe fixes the ratio (3 Milk units in, 1 Cheese unit out), so the real mass on both sides of
+ * that recipe has to obey the same `MILK_LITERS_PER_CHEESE_KG` conversion or the recipe is
+ * internally inconsistent (found 2026-08-07: an earlier hardcoded 40kg was ~33x too heavy for what
+ * 3 Milk units at 4 L each — 12 L, ~1.2kg of cheese — actually reduces to). Derived, not a second
+ * independent guess.
+ */
+export const CHEESE_KG_PER_UNIT = (CHEESE_RECIPE_MILK_UNITS * MILK_LITERS_PER_UNIT) / MILK_LITERS_PER_CHEESE_KG;
 
 export interface AnnualNutritionNeed {
   readonly kcal: number;
