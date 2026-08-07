@@ -143,8 +143,15 @@ registerSimulationSystem({
 registerSimulationSystem({
   id: "wilderness-ecology.tick",
   phase: "politics",
-  reads: ["map.politics", "simulation.cells", "simulation.states"],
-  writes: ["simulation.cells", "simulation.states"],
+  // advanceWildernessEcology() reads/writes pack.monsters (power recovery, dead-monster removal)
+  // and prunes their pack.markers (pruneDeadMonsterMarkers()) and reads pack.dungeons as danger
+  // sources — all three are map.annotations-owned (dataFieldOwnership.ts). Declaring only
+  // simulation.cells/simulation.states let a live monster-marker prune's topic
+  // (wildernessEcology.ts's `markersOrMonstersChanged` branch) reach `writer.markChanged()`
+  // undeclared, throwing "topic 'map.annotations' is not in the system's declared writes" and
+  // aborting the whole Advance Time batch (found 2026-08-08 via live Advance Year testing).
+  reads: ["map.politics", "map.annotations", "simulation.cells", "simulation.states"],
+  writes: ["simulation.cells", "simulation.states", "map.annotations"],
   cadence: { every: 1 },
   profileLabel: "wildernessEcology",
   run: (context, writer) => {
