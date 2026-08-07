@@ -11,6 +11,7 @@ import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
 import { getGrapeHarvestOutput } from "./viticulture";
+import { getWoolOutput } from "./woolProduction";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;
@@ -196,6 +197,16 @@ export function getRuralProductionContributions(
   if (milkGood && isGoodEnabled(milkGood) && !isMineSuppliedGoodName(milkGood.name)) {
     const amount = getMilkOutput(cellId);
     if (amount > 0) contributions.push({ goodId: milkGood.i, amount: amount * getModifiers(milkGood, cellId) });
+  }
+
+  // Wool (docs/plan/fauna-biome-realism.md's Wool/Sheep investigation, 2026-08-08): local
+  // Sheep-headcount-driven shearing yield, mirroring Milk above — see woolProduction.ts's module
+  // doc-comment. Cloth stays a regular burg-craft recipe good (`recipes: [{ Wool: 1 }, ...]`,
+  // goods-generator.ts), unchanged.
+  const woolGood = getGoods().find(good => good.name === "Wool");
+  if (woolGood && isGoodEnabled(woolGood) && !isMineSuppliedGoodName(woolGood.name)) {
+    const amount = getWoolOutput(cellId);
+    if (amount > 0) contributions.push({ goodId: woolGood.i, amount: amount * getModifiers(woolGood, cellId) });
   }
 
   const bonusGoodId = getGoodCellColumn()[cellId];

@@ -600,8 +600,16 @@ export const GOODS_DATA: GoodData[] = [
     biomeOutputByTag: { cold: 0.03, forest: 0.02, wetland: 0.02 }
   },
   {
+    // `food` added 2026-08-08 (real-map report: Sheep collapsing to near-zero within a year despite
+    // selling well) — Sheep already carries `demandCoverage: { food: 1 }` below (mutton) and is
+    // handled identically to Cattle/Goats/Pig everywhere that reads it, but was the only one of the
+    // four missing "food" from its own `tags`. That mismatch mattered in two places: faunaPopulation.ts's
+    // §4.2/§4.5 wrongly treated Sheep as a non-food species and subjected it to the non-food demand-
+    // absorption carrying-capacity cap (meant for genuinely unsellable surpluses like Cats/Dogs), and
+    // production-utils.ts's seasonal-harvest curve (getSeasonalFoodProductionMultiplier) skipped it.
+    // See docs/plan/fauna-biome-realism.md's Wool/Sheep investigation.
     name: "Sheep",
-    tags: ["clothing", "liveAnimal"],
+    tags: ["food", "clothing", "liveAnimal"],
     icon: "good-sheep",
     color: "#53b574",
     value: 1,
@@ -1512,6 +1520,21 @@ export const GOODS_DATA: GoodData[] = [
   // manufacturing has an actual import-raw/export-finished trade loop instead of consuming the
   // live-animal Good directly (see docs discussion on medieval wool/flax trade).
   {
+    // Renewable, cell-local shearing yield (woolProduction.ts's getWoolOutput(), wired into
+    // production-utils.ts's getRuralProductionContributions() the same way Milk is) — driven by
+    // this cell's own live Sheep headcount, never consuming/culling it. Replaces the earlier
+    // `recipes: [{ Sheep: 1 }]` (found 2026-08-08: that modeled "make 1 Wool" as "slaughter 1
+    // Sheep" 1:1, the same treatment Leather correctly uses for Cattle/Game/Horses/Camels — but
+    // wool is sheared, not slaughtered. Worse, it put "buy Sheep to make Wool" in direct
+    // competition with Sheep's own `demandCoverage.food`-driven retail sale inside the SAME
+    // per-burg production-decision slot every cycle; food's larger DEMAND_TARGET_FACTORS weight
+    // meant Wool essentially never won that comparison — 0 stock/0 sales over a full year on a real
+    // map despite ample Sheep supply. Mirroring dairy.ts's Milk pattern removes the competition
+    // entirely: Wool is now a byproduct of the standing herd, produced whether or not any Sheep are
+    // also sold as food that month. Cloth (goods-generator.ts, below) stays an ordinary burg-craft
+    // recipe good consuming this — see dairy.ts's module doc-comment for why that half of the
+    // pattern (Milk/Wool direct, Cheese/Cloth recipe-based) keeps craft employment and guild
+    // participation intact. See docs/plan/fauna-biome-realism.md's Wool/Sheep investigation.
     name: "Wool",
     tags: ["clothing"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
@@ -1519,7 +1542,6 @@ export const GOODS_DATA: GoodData[] = [
     color: "#f2e9d8",
     value: 2,
     chance: 0,
-    recipes: [{ Sheep: 1 }],
     unit: "fleece"
   },
   {
