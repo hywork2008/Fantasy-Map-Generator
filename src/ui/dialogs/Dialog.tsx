@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { closeAllDialogs } from "./dialogService";
 import { useDraggable } from "./useDraggable";
@@ -13,6 +13,8 @@ export interface DialogProps {
   buttons?: Array<{ label: string; onClick: () => void; disabled?: boolean }>;
   /** Whether to show the titlebar control that closes every open dialog. */
   showCloseAllDialogsButton?: boolean;
+  /** Keep the titlebar at its opening position when the dialog content changes height. */
+  anchorTitlebarOnOpen?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -24,6 +26,7 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
   buttons,
   showCloseAllDialogsButton = true,
+  anchorTitlebarOnOpen = false,
   className = "",
   style
 }) => {
@@ -34,6 +37,18 @@ export const Dialog: React.FC<DialogProps> = ({
   // cycle (see handleMinimize below).
   const preMinimizeHeightRef = useRef<string | null>(null);
 
+  const anchorTitlebar = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || titlebarAnchored) return;
+
+    const { top } = container.getBoundingClientRect();
+    const offsetY = Number.parseFloat(getComputedStyle(container).getPropertyValue("--dialog-offset-y")) || 0;
+    // The default transform centers the whole dialog. Preserve the titlebar's
+    // current visual position before switching to the top-anchored transform.
+    container.style.setProperty("--dialog-top", `${top - offsetY}px`);
+    setTitlebarAnchored(true);
+  }, [containerRef, titlebarAnchored]);
+
   useEffect(() => {
     if (isOpen) {
       bringToFront();
@@ -41,17 +56,15 @@ export const Dialog: React.FC<DialogProps> = ({
     }
   }, [isOpen, bringToFront]);
 
+  // Some editors replace their body with tabs of very different heights. Anchor
+  // before paint so changing tabs never moves their draggable titlebar.
+  useLayoutEffect(() => {
+    if (isOpen && anchorTitlebarOnOpen) anchorTitlebar();
+  }, [anchorTitlebar, anchorTitlebarOnOpen, isOpen]);
+
   const handleMinimize = useCallback(() => {
     const container = containerRef.current;
-    if (container && !titlebarAnchored) {
-      const { top } = container.getBoundingClientRect();
-      const offsetY = Number.parseFloat(getComputedStyle(container).getPropertyValue("--dialog-offset-y")) || 0;
-      // The default vertical transform centers the dialog. Convert its current
-      // visual position into a top-anchored one once, so later height changes
-      // (minimize, restore, or content reflow) cannot move the titlebar.
-      container.style.setProperty("--dialog-top", `${top - offsetY}px`);
-      setTitlebarAnchored(true);
-    }
+    if (container && !titlebarAnchored) anchorTitlebar();
     if (container && !minimized) {
       // Lock the width so the titlebar doesn't reflow when content is removed.
       const computedStyle = getComputedStyle(container);
@@ -74,7 +87,7 @@ export const Dialog: React.FC<DialogProps> = ({
       container.style.height = preMinimizeHeightRef.current;
     }
     setMinimized(currentMinimized => !currentMinimized);
-  }, [containerRef, minimized, titlebarAnchored]);
+  }, [anchorTitlebar, containerRef, minimized, titlebarAnchored]);
 
   const dialogElement = (
     <div

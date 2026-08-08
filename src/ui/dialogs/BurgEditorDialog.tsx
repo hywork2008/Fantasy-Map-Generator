@@ -85,7 +85,7 @@ export const BurgEditorDialog: React.FC = () => {
   const ActiveExtensionComponent = editorTabs.find(tab => tab.id === activeTab)?.component;
 
   return (
-    <Dialog isOpen={isOpen} title="Edit Burg" onClose={() => closeDialog("burgEditor")}>
+    <Dialog isOpen={isOpen} title="Edit Burg" onClose={() => closeDialog("burgEditor")} anchorTitlebarOnOpen>
       {editorTabs.length > 0 && <BurgEditorTabBar tabs={editorTabs} activeTab={activeTab} onSelect={setActiveTab} />}
       {activeTab === "overview" ? (
         <div id="burgBody">

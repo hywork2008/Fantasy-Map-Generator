@@ -29,8 +29,8 @@
     cursor: move;
   }
 
-  /* After the first minimize, Dialog stores the titlebar's visual top in
-     --dialog-top. This makes later content-height changes position-neutral. */
+  /* Dialog stores the titlebar's visual top in --dialog-top when it needs
+     position-neutral content reflow (for example, minimize or tab changes). */
   &.titlebar-anchored {
     transform: translate(-50%, 0) translate(var(--dialog-offset-x), var(--dialog-offset-y));
   }
