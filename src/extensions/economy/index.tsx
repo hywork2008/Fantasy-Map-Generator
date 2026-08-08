@@ -169,6 +169,7 @@ import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds } from "./store/goodsDisplaySelection";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
+import { BurgEditorGoodsTab } from "./ui/components/BurgEditorGoodsTab";
 import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
 import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { BurgEditorWaterTab } from "./ui/components/BurgEditorWaterTab";
@@ -1159,6 +1160,13 @@ export function init(api: ExtensionAPI): void {
     editorId: "burgEditor",
     label: "Inns",
     component: BurgEditorInnsTab
+  });
+  api.registerEditorTab({
+    id: "burg-goods",
+    extensionId: ECONOMY_EXTENSION_ID,
+    editorId: "burgEditor",
+    label: "Goods",
+    component: BurgEditorGoodsTab
   });
   api.registerEditorTab({
     id: "burg-water",

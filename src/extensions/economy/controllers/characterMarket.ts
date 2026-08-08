@@ -23,12 +23,34 @@ export interface CharacterMarketRow {
   playerUnits: number;
 }
 
+/** A good currently catalogued for retail at a particular burg. */
+export interface BurgMarketRow {
+  goodId: number;
+  goodName: string;
+  goodIcon: string;
+  tags: readonly string[];
+  unit: string;
+  retailLotSize: number;
+  merchantId: number | null;
+  merchantName: string;
+  availableStock: number;
+  buyPrice: number;
+  sellPrice: number;
+}
+
 export interface CharacterMarketSnapshot {
   characterName: string;
   wealth: number;
   burgName: string;
   marketName: string;
   rows: CharacterMarketRow[];
+}
+
+/** Read-only retail catalogue for a burg's local market shelves. */
+export interface BurgMarketSnapshot {
+  burgName: string;
+  marketName: string;
+  rows: BurgMarketRow[];
 }
 
 export type CharacterMarketMerchantFilter = number | "unassigned" | null;
@@ -67,16 +89,13 @@ export function openCharacterMarket(characterId: number): boolean {
   return true;
 }
 
-export function getCharacterMarketSnapshot(characterId: number | null): CharacterMarketSnapshot | null {
-  if (characterId === null) return null;
+export function getBurgMarketSnapshot(burgId: number): BurgMarketSnapshot | null {
   const { pack } = getWorldContext();
-  const character = pack.characters?.find(candidate => candidate.i === characterId && !candidate.dead);
-  const burg = character?.location === undefined ? undefined : pack.burgs[character.location];
-  if (!character || !burg || burg.removed || !burg.market) return null;
+  const burg = pack.burgs[burgId];
+  if (!burg || burg.removed || !burg.market) return null;
+
   const market = getMarkets().find(candidate => candidate.i === burg.market);
   if (!market) return null;
-  const burgId = burg.i;
-  if (burgId === undefined) return null;
 
   reconcileRetailInventory();
   syncMarketMerchantPortfolios();
@@ -101,17 +120,37 @@ export function getCharacterMarketSnapshot(characterId: number | null): Characte
         merchantName: merchantName ?? "Unassigned",
         availableStock: floorToRetailLot(getBurgTradeableGoodStock(burgId, market.i, good.i), retailLotSize),
         buyPrice: Markets.retailBuyPrice(market.goods[good.i].price, burgId, market.i, good.i),
-        sellPrice: Markets.retailSellPrice(market.goods[good.i].price, burgId, market.i, good.i),
-        playerUnits: floorToRetailLot(character.inventory?.[good.i] ?? 0, retailLotSize)
+        sellPrice: Markets.retailSellPrice(market.goods[good.i].price, burgId, market.i, good.i)
       };
     })
     .sort((a, b) => a.goodName.localeCompare(b.goodName));
 
   return {
+    burgName: burg.name ?? `Burg ${burgId}`,
+    marketName: market.name ?? `Market ${market.i}`,
+    rows
+  };
+}
+
+export function getCharacterMarketSnapshot(characterId: number | null): CharacterMarketSnapshot | null {
+  if (characterId === null) return null;
+  const { pack } = getWorldContext();
+  const character = pack.characters?.find(candidate => candidate.i === characterId && !candidate.dead);
+  const burg = character?.location === undefined ? undefined : pack.burgs[character.location];
+  if (!character || !burg || burg.removed || burg.i === undefined) return null;
+  const burgId = burg.i;
+  const burgMarket = getBurgMarketSnapshot(burgId);
+  if (!burgMarket) return null;
+  const rows = burgMarket.rows.map(row => ({
+    ...row,
+    playerUnits: floorToRetailLot(character.inventory?.[row.goodId] ?? 0, row.retailLotSize)
+  }));
+
+  return {
     characterName: character.name,
     wealth: character.wealth ?? 0,
-    burgName: burg.name ?? `Burg ${character.location}`,
-    marketName: market.name ?? `Market ${market.i}`,
+    burgName: burgMarket.burgName,
+    marketName: burgMarket.marketName,
     rows
   };
 }
