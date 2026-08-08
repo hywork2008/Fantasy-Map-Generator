@@ -176,7 +176,7 @@ describe("webgl style extractors", () => {
         const burgIconStyle = getBurgIconStyle(worldContext, viewContext);
         const labelStyle = getLabelStyle(worldContext, viewContext);
 
-        expect([...burgIconStyle.visibleGroups]).toEqual(["town", "city"]);
+        expect([...burgIconStyle.visibleGroups]).toEqual([]);
         expect(burgIconStyle.burgIcons.city).toEqual({
           fill: "#123456",
           opacity: 0.5,
@@ -198,6 +198,22 @@ describe("webgl style extractors", () => {
         expect(labelStyle.burgLabels.town).toMatchObject({ fill: "#654321", opacity: 0.6, size: 5, dy: -0.8 });
       }
     );
+  });
+
+  it("exposes burg icons and labels only after their shared zoom threshold", () => {
+    const worldContext = createWorldContext();
+
+    const lowZoom = { scale: 1 } as unknown as ViewContext;
+    expect([...getBurgIconStyle(worldContext, lowZoom).visibleGroups]).toEqual([]);
+    expect([...getLabelStyle(worldContext, lowZoom).visibleBurgGroups]).toEqual([]);
+
+    const cityZoom = { scale: 1.5 } as unknown as ViewContext;
+    expect([...getBurgIconStyle(worldContext, cityZoom).visibleGroups]).toEqual(["city"]);
+    expect([...getLabelStyle(worldContext, cityZoom).visibleBurgGroups]).toEqual(["city"]);
+
+    const townZoom = { scale: 2.5 } as unknown as ViewContext;
+    expect([...getBurgIconStyle(worldContext, townZoom).visibleGroups]).toEqual(["town", "city"]);
+    expect([...getLabelStyle(worldContext, townZoom).visibleBurgGroups]).toEqual(["town", "city"]);
   });
 
   it("reads font-family and the halo color out of a text-shadow style string", () => {

@@ -54,6 +54,7 @@ import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
+import { getBurgGroupMinZoom } from "./renderers/burgZoom";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { refreshLabeledContourLabels, refreshVisibleLabeledContourPaths } from "./renderers/draw-heightmap";
 import {
@@ -683,19 +684,8 @@ export function invokeActiveZooming() {
     viewContext.coastline.select("#sea_island").attr("filter", filter);
   }
 
-  const burgGroups = worldContext.options.burgs?.groups || [];
-  const maxBurgOrder = Math.max(...(burgGroups as BurgGroup[]).map((g: BurgGroup) => g.order), 1);
-  const getScaleThreshold = (groupId: string) => {
-    const group = (burgGroups as BurgGroup[]).find(g => g.name === groupId);
-    if (!group) return 0;
-    if (typeof group.minZoom === "number" && Number.isFinite(group.minZoom)) return group.minZoom;
-    // Higher order = more important (capital=9) = visible at lower zoom levels
-    // Lower order = less important (hamlet=1) = visible only at high zoom
-    const invertedOrder = maxBurgOrder - group.order + 1;
-    return invertedOrder === 1 ? 1.5 : invertedOrder * 2 - 1.5;
-  };
-
-  const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
+  const burgGroups = (worldContext.options.burgs?.groups || []) as BurgGroup[];
+  const isBurgGroupHidden = (groupId: string) => scale < getBurgGroupMinZoom(groupId, burgGroups);
   const isLabelGroupExcludedByVisibleBurgGroup = (groupId: string) =>
     (LABEL_GROUP_EXCLUSIONS[groupId] ?? []).some(
       burgGroupId => burgGroups.some(group => group.name === burgGroupId) && !isBurgGroupHidden(burgGroupId)

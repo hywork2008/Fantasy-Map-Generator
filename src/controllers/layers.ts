@@ -321,6 +321,11 @@ export function handleLayersPresetChange(preset: string): void {
     const shouldBeOn = layers.includes(l.id);
     if (shouldBeOn !== isOn) toggleLayerById(l.id);
   });
+
+  // Toggles are applied one by one. Re-evaluate zoom-dependent burg groups only
+  // after all target layers are enabled, otherwise Labels can retain the hidden
+  // state from the preceding Pure landmass preset.
+  document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
 }
 
 export function savePreset(): void {
@@ -1022,7 +1027,9 @@ export function toggleLabels(event?: MouseEvent): void {
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     setLayerVisibility("toggleLabels", true);
-    if (view.labels.selectAll("text").size() === 0) drawLabels();
+    // A preset can hide existing SVG text without clearing it. Re-rendering
+    // reapplies the current zoom's visibility to those retained burg labels.
+    drawLabels();
     if (event && isCtrlClick(event)) editStyle("labels");
   } else {
     if (event && isCtrlClick(event)) {

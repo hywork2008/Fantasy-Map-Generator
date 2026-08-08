@@ -1143,7 +1143,7 @@ describe("deck.gl data adapters", () => {
   it("adds active burg icons as a deck.gl icon layer", () => {
     const worldContext = createWorldContext();
     worldContext.pack.burgs = [{ i: 1, cell: 0, x: 5, y: 5, name: "Northburg", group: "town", port: 1 }];
-    const viewContext = { focusScope: null } as ViewContext;
+    const viewContext = { focusScope: null, scale: 2.5 } as ViewContext;
     useLayerState.getState().setAllActiveLayers({ toggleBurgIcons: true });
 
     const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
@@ -1155,6 +1155,31 @@ describe("deck.gl data adapters", () => {
       "fmg-webgl-burg-icons"
     ]);
     expect(layers.find(layer => layer.id === "fmg-webgl-burg-icons")?.props.data).toHaveLength(2);
+  });
+
+  it("filters WebGL burg icons and labels by their zoom threshold", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.burgs = [
+      { i: 1, cell: 0, x: 5, y: 5, name: "Town", group: "town" },
+      { i: 2, cell: 1, x: 8, y: 5, name: "City", group: "city" }
+    ];
+    const viewContext = { focusScope: null, scale: 1.5 } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleBurgIcons: true, toggleLabels: true });
+
+    const getGroupsForLayer = (layerId: string): string[] => {
+      const layer = buildDeckLayers(worldContext, viewContext, appServices)
+        .filter(Boolean)
+        .find(candidate => candidate.id === layerId);
+      const data = layer?.props.data as unknown as Array<{ group: string }>;
+      return data.map(datum => datum.group);
+    };
+
+    expect(getGroupsForLayer("fmg-webgl-burg-icons")).toEqual(["city"]);
+    expect(getGroupsForLayer("fmg-webgl-labels")).toEqual(["city"]);
+
+    viewContext.scale = 2.5;
+    expect(getGroupsForLayer("fmg-webgl-burg-icons")).toEqual(["town", "city"]);
+    expect(getGroupsForLayer("fmg-webgl-labels")).toEqual(["town", "city"]);
   });
 
   it("adds active markers as deck.gl pin and icon layers", () => {

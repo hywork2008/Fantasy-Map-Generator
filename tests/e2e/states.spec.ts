@@ -157,4 +157,32 @@ test.describe("States", () => {
     await expect(villageIcons).not.toHaveClass(/hidden/);
     await expect(villageLabels).not.toHaveClass(/hidden/);
   });
+
+  test("restores burg icon and label zoom visibility after the landmass preset", async ({ page }) => {
+    const cityIcons = page.locator("#burgIcons #city");
+    const cityLabels = page.locator("#burgLabels #city");
+
+    if (!(await isOptionsMenuOpen(page))) await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#layersPreset").selectOption("landmass");
+    await expect.poll(() => isLayerOn(page, "toggleBurgIcons")).toBe(false);
+    await zoomToMapCenter(page, 2.5);
+
+    await page.locator("#toggleBurgIcons").click();
+    await page.locator("#toggleLabels").click();
+
+    await expect(cityIcons).not.toHaveClass(/hidden/);
+    await expect(cityLabels).not.toHaveClass(/hidden/);
+    await expect(cityIcons.locator("use:not(.hidden)")).not.toHaveCount(0);
+    await expect(cityLabels.locator("text:not(.hidden)")).not.toHaveCount(0);
+
+    await page.locator("#layersPreset").selectOption("political");
+    await zoomToMapCenter(page, 1);
+    await zoomToMapCenter(page, 2.5);
+
+    await expect(cityIcons).not.toHaveClass(/hidden/);
+    await expect(cityLabels).not.toHaveClass(/hidden/);
+    await expect(cityIcons.locator("use:not(.hidden)")).not.toHaveCount(0);
+    await expect(cityLabels.locator("text:not(.hidden)")).not.toHaveCount(0);
+  });
 });

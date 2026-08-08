@@ -4,6 +4,7 @@ import type { WorldContext } from "../../context/worldContext";
 import { getPresentationStyle, getPresentationStyleRecord, presentationData } from "../../runtime/presentationData";
 import { useOptionsState } from "../../store/optionsState";
 import { dampenBurgLabelSize, dampenStateLabelSize } from "../../utils/labelZoomScale";
+import { isBurgGroupVisible } from "../burgZoom";
 import {
   colorToRgba,
   type DeckBurgIconStyle,
@@ -187,7 +188,7 @@ export function getEmblemStyle(_viewContext?: Readonly<ViewContext>): {
 
 export function getBurgIconStyle(
   worldContext: Readonly<WorldContext>,
-  _viewContext?: Readonly<ViewContext>
+  viewContext?: Readonly<ViewContext>
 ): {
   burgIcons: Record<string, DeckBurgIconStyle>;
   anchors: Record<string, DeckBurgIconStyle>;
@@ -199,7 +200,7 @@ export function getBurgIconStyle(
   const visibleGroups = new Set<string>();
 
   for (const group of groups) {
-    visibleGroups.add(group.name);
+    if (isBurgGroupVisible(group.name, groups, viewContext?.scale ?? 1)) visibleGroups.add(group.name);
     const burgSelector = `#burgIcons > g#${group.name}`;
     burgIcons[group.name] = {
       ...readBurgIconGroupStyle(burgSelector, {
@@ -225,7 +226,7 @@ export function getBurgIconStyle(
 
   burgIcons.town ??= { fill: "#3e3e4b", opacity: 1, size: 4, icon: "#icon-circle" };
   anchors.town ??= { fill: "#ffffff", opacity: 1, size: 1, icon: "#icon-anchor" };
-  if (!visibleGroups.size) visibleGroups.add("town");
+  if (!groups.length) visibleGroups.add("town");
   return { burgIcons, anchors, visibleGroups };
 }
 
@@ -258,7 +259,9 @@ export function getLabelStyle(
   const visibleBurgGroups = new Set<string>();
 
   for (const group of worldContext.options.burgs?.groups ?? []) {
-    visibleBurgGroups.add(group.name);
+    if (isBurgGroupVisible(group.name, worldContext.options.burgs?.groups ?? [], scale)) {
+      visibleBurgGroups.add(group.name);
+    }
     const style = readLabelStyle(`#burgLabels > g#${group.name}`, {
       fill: "#3e3e4b",
       opacity: 1,
@@ -281,7 +284,7 @@ export function getLabelStyle(
     fontFamily: "Almendra SC",
     haloColor: "white"
   };
-  if (!visibleBurgGroups.size) visibleBurgGroups.add("town");
+  if (!worldContext.options.burgs?.groups?.length) visibleBurgGroups.add("town");
   return { state, burgLabels, visibleBurgGroups };
 }
 
