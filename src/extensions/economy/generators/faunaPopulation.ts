@@ -17,6 +17,14 @@
  *     Phase 1/2 interim proxy below — see husbandry.ts's module doc-comment for the scope split.
  * Non-food domesticated species (Cats, Horses, Camels, Elephants, Dogs) get an additional
  * demand-absorption ceiling (§4.5) so an unsellable surplus slows breeding instead of piling up.
+ * That ceiling is capped from two sides (found 2026-08-08, user real-map report: Horses/Camels/
+ * Cats/Dogs collapsing to exactly 0 headcount within a single year): the market stock-flow signal
+ * alone reads as "no demand" for a species nobody ever buys-and-removes from a market shelf, even
+ * when it's actually in heavy use off-market (a standing cavalry mount, a merchant's own draft
+ * team, a granary's resident cat). `getRealNonMarketDemand()` adds a floor sized from those
+ * already-simulated real uses instead of inventing new ones, and `MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION`
+ * backstops every non-food species so a quiet market shrinks a herd toward a small residual
+ * population instead of erasing it outright in one annual update.
  *
  * Gated by `options.ruralEcosystemDetail` (§11): "simplified" makes every exported draw function
  * a pass-through to the caller's already-computed "desired" amount (Phase 1's uncapped, labour/
@@ -35,6 +43,7 @@ import type { BiomesData } from "../../../types/WorldState";
 import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import {
+  getCaravans,
   getCultivatedArea,
   getFaunaPopulationLastSettledYear,
   getGoods,
@@ -95,6 +104,28 @@ export const DOMESTICATED_CAPACITY_MONTHS_PROXY = 24;
 
 const NON_FOOD_DEMAND_QUARTERS_TRACKED = 4;
 const NON_FOOD_DEMAND_BUFFER = 1.2;
+
+/**
+ * Floor on a non-food species' demand-absorption capacity, as a fraction of its land/rate-based
+ * raw ceiling — applied regardless of what the market stock-flow signal (§4.5) or
+ * `getRealNonMarketDemand()` below read this quarter. Without this, a species with genuinely zero
+ * recorded demand hits `advanceCohortsOneYear()`'s `carryingCapacity <= 0` hard-zero rule and is
+ * wiped out completely within a single annual update (found 2026-08-08). A quiet market should
+ * shrink a herd toward a small residual population, not erase it — placeholder value, §9.3 policy.
+ */
+export const MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION = 0.05;
+
+/**
+ * Ambient per-real-person demand floor for species nothing in the Goods catalog consumes as a
+ * recipe ingredient or a military unit type (§4.5 extension, 2026-08-08) — Cats/Dogs are "kept"
+ * (granary pest control, watch/guard duty) rather than bought-and-removed from a market shelf, so
+ * the pure market stock-flow signal always reads them as undemanded. Placeholder order-of-magnitude
+ * estimates (§9.3 policy: relative ordering matters more than the exact figure) — Cats slightly
+ * more ubiquitous than working Dogs. Multiplied against real population (population points x
+ * `populationRate`, mirroring husbandry.ts's `HUSBANDRY_LAND_HECTARES_PER_PERSON` conversion).
+ */
+export const AMBIENT_CATS_DEMAND_PER_PERSON = 0.01;
+export const AMBIENT_DOGS_DEMAND_PER_PERSON = 0.008;
 
 /** Fraction of a freshly-discovered species' carrying capacity it starts at, split young/breeding/old. */
 const INITIAL_STOCK_FRACTION_OF_CAPACITY = 0.6;
@@ -228,21 +259,111 @@ function getDemandHistoryKey(marketId: number, goodId: number): string {
 }
 
 /**
- * 0..1+ ceiling on a non-food species' capacity derived from how much of it the local market has
- * actually absorbed over the last few quarters (§4.5), so an unsellable surplus slows breeding
- * instead of piling up. Simplification: applied identically to every cell feeding the same
- * market rather than distributed proportionally across them — conservative (each cell alone could
- * reach the market's full cap) but avoids a separate per-market aggregation pass. Returns +Infinity
- * (uncapped) until at least one quarter of consumption history exists, so a fresh market doesn't
- * instantly starve a species nobody has had a chance to buy yet.
+ * Standing headcount in `stateId`'s "mounted" regiments — military-generator.ts's `buildRegiment()`
+ * tags a regiment's `type` as `dominantUnitType(units)`, "mounted" when most of its strength rides.
+ * `regiment.a` is that regiment's total headcount (`sumUnits(units)`). Real, already-simulated
+ * demand for Horses/Camels (§4.5 extension, 2026-08-08): a standing cavalry force needs at least
+ * this many live mounts, whether or not any of them are ever bought/sold through a market.
+ */
+function getStateMountedHeadcount(stateId: number): number {
+  if (!stateId) return 0;
+  const regiments = getWorldContext().pack.states?.[stateId]?.military;
+  if (!regiments?.length) return 0;
+  let total = 0;
+  for (const regiment of regiments) if (regiment.type === "mounted") total += regiment.a ?? 0;
+  return total;
+}
+
+/** True when `stateId`'s culture is Nomadic (same `CultureType` this file's `getCellCultureType()`
+ * reads elsewhere). This game has no separate camel-cavalry unit type, so a state's whole mounted
+ * headcount is attributed to whichever species its culture would plausibly field: Nomadic states
+ * ride Camels, everyone else rides Horses — mirrors husbandry.ts's own "nomadic" pasture-tag
+ * precedent for the same distinction. */
+function isNomadicState(stateId: number): boolean {
+  if (!stateId) return false;
+  const cultureId = getWorldContext().pack.states?.[stateId]?.culture;
+  return cultureId !== undefined && getWorldContext().pack.cultures?.[cultureId]?.type === "Nomadic";
+}
+
+/**
+ * World count of caravans currently drafted by `draftAnimalId`, averaged evenly across every
+ * market (caravanMovement.ts's `DRAFT_ANIMAL_TYPES`; "horse" is every caravan's draft animal today
+ * — this system has no camel-drafted caravan yet). Real demand for Horses (§4.5 extension,
+ * 2026-08-08): merchants use their own draft teams directly rather than selling them, so the
+ * market stock-flow signal never sees this use. Averaged rather than attributed per-caravan-origin
+ * because `Caravan` carries no home-market field precise enough to localize it — the same
+ * "applied identically to every cell feeding the same market" simplification this function's
+ * caller already documents for the stock-flow signal itself.
+ */
+function getCaravanDraftAnimalDemandPerMarket(draftAnimalId: string): number {
+  const markets = getMarkets();
+  if (!markets.length) return 0;
+  let count = 0;
+  for (const caravan of getCaravans()) if (caravan.draftAnimalId === draftAnimalId) count++;
+  return count / markets.length;
+}
+
+/** Real population at `cellId` (population points x `populationRate`) — mirrors husbandry.ts's
+ * `calculateDesiredPastureAreaHectares()` conversion, reused here for the same "raw `cells.pop` is
+ * a population POINT, not a headcount" reason documented on `HUSBANDRY_LAND_HECTARES_PER_PERSON`. */
+function getRealPopulation(cellId: number): number {
+  const world = getWorldContext();
+  const populationPoints = Math.max(0, world.pack.cells.pop[cellId] ?? 0);
+  return populationPoints * Math.max(1, world.populationRate || 1);
+}
+
+/**
+ * Real (non-market-resale) demand for a non-food liveAnimal good — layered on top of the market
+ * stock-flow signal below because some species are consumed through USE, not sale, which never
+ * shows up as a market "sell" event (§4.5 extension, found 2026-08-08 via a real-map report of
+ * Horses/Camels/Cats/Dogs collapsing to exactly 0 headcount within a year). Every term here reads
+ * data this codebase already simulates — no new game systems invented:
+ *   - Horses/Camels: standing military mounts (`getStateMountedHeadcount`) split by culture
+ *     (`isNomadicState`), plus merchants' own draft teams for Horses (`getCaravanDraftAnimalDemandPerMarket`).
+ *   - Cats/Dogs: nothing in the Goods catalog consumes either as a recipe ingredient or a military
+ *     unit type, so their demand is entirely ambient (`getAmbientSettlementDemand` below).
+ *   - Elephants and everyone else: no real-use signal exists in this codebase today (no war-
+ *     elephant unit, no forestry-labour draw) — left at 0; `MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION`
+ *     is their only floor until such a use is actually modeled (AGENTS.md: build for what exists).
+ */
+export function getRealNonMarketDemand(cellId: number, good: Good): number {
+  switch (good.name) {
+    case "Horses":
+    case "Camels": {
+      const stateId = getWorldContext().pack.cells.state?.[cellId] ?? 0;
+      const nomadic = isNomadicState(stateId);
+      const wantsThisSpecies = good.name === "Camels" ? nomadic : !nomadic;
+      const mountDemand = wantsThisSpecies ? getStateMountedHeadcount(stateId) : 0;
+      const caravanDemand = good.name === "Horses" ? getCaravanDraftAnimalDemandPerMarket("horse") : 0;
+      return mountDemand + caravanDemand;
+    }
+    case "Cats":
+      return getRealPopulation(cellId) * AMBIENT_CATS_DEMAND_PER_PERSON;
+    case "Dogs":
+      return getRealPopulation(cellId) * AMBIENT_DOGS_DEMAND_PER_PERSON;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * 0..1+ ceiling on a non-food species' capacity, the greater of two independent demand signals
+ * (§4.5): how much of it the local market has actually absorbed over the last few quarters, and
+ * `getRealNonMarketDemand()`'s off-market real uses (military mounts, draft teams, ambient
+ * settlement upkeep) the market stock-flow signal can't see. Simplification: applied identically to
+ * every cell feeding the same market rather than distributed proportionally across them —
+ * conservative (each cell alone could reach the market's full cap) but avoids a separate per-market
+ * aggregation pass. Returns +Infinity (uncapped) until at least one quarter of consumption history
+ * exists, so a fresh market doesn't instantly starve a species nobody has had a chance to buy yet.
  */
 function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number {
+  const realDemand = getRealNonMarketDemand(cellId, good) * NON_FOOD_DEMAND_BUFFER;
   const marketId = getMarketCellColumn()[cellId];
   if (!marketId) return Number.POSITIVE_INFINITY;
   const history = getOrCreateNonFoodFaunaDemandHistory()?.[getDemandHistoryKey(marketId, good.i)];
   if (!history?.length) return Number.POSITIVE_INFINITY;
   const average = history.reduce((sum, value) => sum + value, 0) / history.length;
-  return average * NON_FOOD_DEMAND_BUFFER;
+  return Math.max(realDemand, average * NON_FOOD_DEMAND_BUFFER);
 }
 
 /**
@@ -260,7 +381,10 @@ export function getDomesticatedCarryingCapacity(cellId: number, good: Good, flat
     ? getGrazedCarryingCapacity(cellId, good)
     : Math.max(0, flatRateAmount) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
   if (good.tags.includes("food")) return rawCapacity;
-  return Math.min(rawCapacity, getNonFoodDemandAbsorptionCapacity(cellId, good));
+
+  const demandCapacity = getNonFoodDemandAbsorptionCapacity(cellId, good);
+  const minFloor = rawCapacity * MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION;
+  return Math.min(rawCapacity, Math.max(demandCapacity, minFloor));
 }
 
 // ---- Age-selective culling (§4.4) ----

@@ -9,22 +9,27 @@ import {
   getOrCreateNonFoodFaunaDemandSnapshot,
   getOrCreateNonFoodFaunaProductionSnapshot,
   initEconomyContext,
+  setCaravans,
   setCultivatedArea,
   setGoods,
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
 import {
+  AMBIENT_CATS_DEMAND_PER_PERSON,
+  AMBIENT_DOGS_DEMAND_PER_PERSON,
   clearFaunaPopulation,
   DOMESTICATED_CAPACITY_MONTHS_PROXY,
   drawDomesticatedFaunaOfftake,
   drawWildFaunaOfftake,
   getDomesticatedCarryingCapacity,
   getDomesticatedCullSelectivity,
+  getRealNonMarketDemand,
   getRuralEcosystemDetail,
   getWildCarryingCapacity,
   getWildCullSelectivity,
   hasWildGameHabitat,
+  MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION,
   previewDomesticatedFaunaOfftake,
   previewWildFaunaOfftake,
   recordQuarterlyNonFoodDemand,
@@ -72,6 +77,61 @@ const CATS_GOOD = {
   color: "#fff",
   chance: 0,
   biomeOutputByTag: { arable: 0.005 },
+  demandCoverage: {}
+};
+
+const DOGS_GOOD = {
+  i: 5,
+  name: "Dogs",
+  value: 4,
+  tags: ["liveAnimal", "herding"],
+  unit: "head",
+  icon: "icon",
+  color: "#fff",
+  chance: 0,
+  biomeOutputByTag: { arable: 0.005 },
+  demandCoverage: {}
+};
+
+const HORSES_GOOD = {
+  i: 6,
+  name: "Horses",
+  value: 5,
+  tags: ["supply", "military", "draft", "liveAnimal"],
+  unit: "head",
+  icon: "icon",
+  color: "#fff",
+  chance: 0,
+  biomeOutputByTag: { grassland: 0.05 },
+  demandCoverage: {}
+};
+
+const CAMELS_GOOD = {
+  i: 7,
+  name: "Camels",
+  value: 5,
+  tags: ["supply", "military", "liveAnimal"],
+  unit: "head",
+  icon: "icon",
+  color: "#fff",
+  chance: 0,
+  biomeOutputByTag: { dry: 0.05 },
+  demandCoverage: {}
+};
+
+// Not covered by any getRealNonMarketDemand() branch — falls through to `default: return 0`, used
+// to test the generic demand-absorption-history/floor mechanics in isolation from the
+// species-specific real-use terms (military mounts, draft teams, ambient settlement upkeep).
+const ELEPHANTS_GOOD = {
+  i: 8,
+  name: "Elephants",
+  value: 6,
+  tags: ["supply", "military", "liveAnimal"],
+  unit: "head",
+  icon: "icon",
+  color: "#fff",
+  chance: 0,
+  biomeOutputByTag: { forest: 0.01 },
   demandCoverage: {}
 };
 
@@ -372,17 +432,103 @@ describe("faunaPopulation", () => {
       );
     });
 
-    it("caps non-food species by the demand-absorption history once it exists", () => {
+    it("caps non-food species by the demand-absorption history once it exists, down to the floor", () => {
       forestCellWorld();
       setMarketCellColumn(new Uint16Array([1]));
 
       const flatRate = 10; // rawCapacity = 10 * 24 = 240, comfortably above any demand cap below
       const rawCapacity = flatRate * DOMESTICATED_CAPACITY_MONTHS_PROXY;
-      expect(getDomesticatedCarryingCapacity(0, CATS_GOOD as never, flatRate)).toBeCloseTo(rawCapacity, 5);
+      expect(getDomesticatedCarryingCapacity(0, ELEPHANTS_GOOD as never, flatRate)).toBeCloseTo(rawCapacity, 5);
 
       const historyTable = getOrCreateNonFoodFaunaDemandHistory()!;
-      historyTable[`1:${CATS_GOOD.i}`] = [1, 1, 1, 1]; // average 1 x 1.2 buffer = 1.2 cap
-      expect(getDomesticatedCarryingCapacity(0, CATS_GOOD as never, flatRate)).toBeCloseTo(1.2, 5);
+      // average 1 x 1.2 buffer = 1.2 raw cap — but MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION (5% of
+      // rawCapacity = 12) now backstops it: a quiet market shrinks the herd, it doesn't erase it.
+      historyTable[`1:${ELEPHANTS_GOOD.i}`] = [1, 1, 1, 1];
+      expect(getDomesticatedCarryingCapacity(0, ELEPHANTS_GOOD as never, flatRate)).toBeCloseTo(
+        rawCapacity * MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION,
+        5
+      );
+
+      // A genuinely strong market (average well above the floor, still below rawCapacity) wins
+      // over both the floor and the earlier weak-history figure.
+      historyTable[`1:${ELEPHANTS_GOOD.i}`] = [100, 100, 100, 100];
+      expect(getDomesticatedCarryingCapacity(0, ELEPHANTS_GOOD as never, flatRate)).toBeCloseTo(100 * 1.2, 5);
+    });
+
+    it("never lets a fully-undemanded non-food species' capacity collapse below the floor", () => {
+      forestCellWorld();
+      setMarketCellColumn(new Uint16Array([1]));
+
+      const flatRate = 10;
+      const rawCapacity = flatRate * DOMESTICATED_CAPACITY_MONTHS_PROXY;
+      const historyTable = getOrCreateNonFoodFaunaDemandHistory()!;
+      historyTable[`1:${ELEPHANTS_GOOD.i}`] = [0, 0, 0, 0]; // nobody bought any, 4 quarters running
+
+      expect(getDomesticatedCarryingCapacity(0, ELEPHANTS_GOOD as never, flatRate)).toBeCloseTo(
+        rawCapacity * MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION,
+        5
+      );
+    });
+  });
+
+  describe("getRealNonMarketDemand", () => {
+    it("is 0 for a species with no modeled real (off-market) use, e.g. Elephants", () => {
+      forestCellWorld();
+      expect(getRealNonMarketDemand(0, ELEPHANTS_GOOD as never)).toBe(0);
+    });
+
+    it("scales Cats/Dogs ambient demand with real population, Cats higher than Dogs", () => {
+      forestCellWorld(); // pop = 50 population points, populationRate unset -> real population 50
+      expect(getRealNonMarketDemand(0, CATS_GOOD as never)).toBeCloseTo(50 * AMBIENT_CATS_DEMAND_PER_PERSON, 5);
+      expect(getRealNonMarketDemand(0, DOGS_GOOD as never)).toBeCloseTo(50 * AMBIENT_DOGS_DEMAND_PER_PERSON, 5);
+      expect(getRealNonMarketDemand(0, CATS_GOOD as never)).toBeGreaterThan(
+        getRealNonMarketDemand(0, DOGS_GOOD as never)
+      );
+    });
+
+    it("attributes a non-Nomadic state's mounted regiment headcount to Horses, not Camels", () => {
+      forestCellWorld();
+      worldContext.pack.cells.state = new Uint16Array([1]);
+      worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
+      worldContext.pack.states = [
+        {},
+        {
+          i: 1,
+          culture: 0,
+          military: [
+            { type: "mounted", a: 300 },
+            { type: "melee", a: 900 } // non-mounted headcount must not count toward mount demand
+          ]
+        }
+      ] as never;
+
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBeGreaterThanOrEqual(300);
+      expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(0);
+    });
+
+    it("attributes a Nomadic state's mounted regiment headcount to Camels, not Horses", () => {
+      forestCellWorld();
+      worldContext.pack.cells.state = new Uint16Array([1]);
+      worldContext.pack.cultures = [{ i: 0, type: "Nomadic" }] as never;
+      worldContext.pack.states = [{}, { i: 1, culture: 0, military: [{ type: "mounted", a: 300 }] }] as never;
+
+      expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(300);
+      // Horses can still pick up caravan-draft demand (world-average, independent of culture), but
+      // none is registered here since no caravans exist in this fixture.
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(0);
+    });
+
+    it("adds caravan draft-animal usage to Horses' demand, world-averaged across markets", () => {
+      forestCellWorld();
+      setMarkets([{ i: 1 }, { i: 2 }] as never); // 2 markets
+      setCaravans([
+        { i: 1, draftAnimalId: "horse" },
+        { i: 2, draftAnimalId: "horse" },
+        { i: 3, draftAnimalId: "ox" } // not a horse -> excluded
+      ] as never);
+
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBeCloseTo(2 / 2, 5); // 2 horse-caravans / 2 markets
+      expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(0); // no camel-drafted caravans exist in this system
     });
   });
 
