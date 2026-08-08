@@ -26,6 +26,7 @@ import { getGoodsEditorTableState, setGoodsEditorTableState } from "../store/goo
 import { setGoodsProducersDialogState } from "../store/goodsProducersDialogState";
 import { setGoodsStockDialogState } from "../store/goodsStockDialogState";
 import { setGoodsTagsDialogState } from "../store/goodsTagsDialogState";
+import { csvDocument } from "./economyCsv";
 import { DistributionEditor } from "./goods-distribution-editor";
 
 const viewbox = () => getViewContext().viewbox;
@@ -342,8 +343,30 @@ export function downloadGoodsData(): void {
   const production = getProduction();
   const stockData = getAllStockData();
 
-  let data =
-    "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Trade Weight,Trade Bulk,Rarity,Distance Premium,Time Value Trend,Durability,Loss Risk,Cells,Produced,Stock\n";
+  const cumulativeMarketIntake = getOrCreateCumulativeMarketIntake();
+  const headers = [
+    "Id",
+    "Good",
+    "Color",
+    "Type",
+    "Tags",
+    "Value",
+    "Demand Coverage",
+    "Chance",
+    "Model",
+    "Trade Weight",
+    "Trade Bulk",
+    "Rarity",
+    "Distance Premium",
+    "Time Value Trend",
+    "Durability",
+    "Loss Risk",
+    "Cells",
+    "Produced",
+    "Stock",
+    "Cumulative Market Intake"
+  ];
+  const rows: Array<Array<string | number>> = [];
 
   for (const good of getGoods()) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean).join(";");
@@ -358,10 +381,31 @@ export function downloadGoodsData(): void {
 
     const trade = good.trade ?? getDefaultGoodTradeProfile(good);
 
-    data += `${good.i},${good.name},${good.color},${types},${tags},${good.value},${demandCoverage},${good.chance ?? ""},${good.distribution ?? ""},${trade.weight},${trade.bulk},${trade.rarity},${trade.distancePremium},${trade.timeValueTrend},${trade.durability},${trade.lossRisk},${cells},${produced},${stock}\n`;
+    rows.push([
+      good.i,
+      good.name,
+      good.color,
+      types,
+      tags,
+      good.value,
+      demandCoverage,
+      good.chance ?? "",
+      good.distribution ?? "",
+      trade.weight,
+      trade.bulk,
+      trade.rarity,
+      trade.distancePremium,
+      trade.timeValueTrend,
+      trade.durability,
+      trade.lossRisk,
+      cells,
+      produced,
+      stock,
+      rn(cumulativeMarketIntake?.[good.i] ?? 0, 2)
+    ]);
   }
 
-  downloadFile(data, `${getFileName("Goods")}.csv`);
+  downloadFile(csvDocument(headers, rows), `${getFileName("Goods")}.csv`);
 }
 
 export function toggleDisplayedGood(goodId: number, show: boolean): void {

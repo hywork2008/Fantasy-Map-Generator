@@ -10,6 +10,7 @@ import {
   WINE_TARGETS
 } from "./foodLots";
 import { getMarketRuralPopulation } from "./foodProduction";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
 
 const TRACKED_GOODS = new Set(["Milk", "Cheese", "Grapes", "Raisins", "Wine"]);
@@ -124,6 +125,15 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
   const available = Math.max(0, marketGood?.stock ?? 0);
   const consumed = Math.min(available, demand);
   if (marketGood) marketGood.stock = Math.max(0, marketGood.stock - consumed);
+  if (consumed > 0) {
+    recordGoodFlow({
+      direction: "sink",
+      category: "householdFood",
+      goodId: good.i,
+      units: consumed,
+      marketId: market.i
+    });
+  }
   ledger.householdConsumption += consumed;
   ledger.unmetDemand += Math.max(0, demand - consumed);
   if (goodName === "Wine" && consumed > 0 && market.returnableContainerLedger) {
@@ -155,6 +165,7 @@ export function settleFoodProcessingHouseholds(): void {
       if (remaining <= 0) continue;
       market.goods[good.i].stock = 0;
       ledger.spoilage += remaining;
+      recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: remaining, marketId: market.i });
     }
   }
 }

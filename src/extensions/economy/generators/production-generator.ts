@@ -581,7 +581,8 @@ export class ProductionModule {
           burg: state.burg,
           good: Goods.get(ingredientId)!,
           units: fromMarket,
-          budget: remainingBudget
+          budget: remainingBudget,
+          flow: { category: "recipeInput", guildDomain: domain, relatedGoodId: good.i }
         });
         if (!deal || deal.units < fromMarket - 0.01) {
           // Null deal: no stock or no budget left at all. Partial deal: budget ran out mid-purchase
@@ -826,7 +827,7 @@ export class ProductionModule {
         if (budget <= 0.01) break;
 
         const units = shortage / candidate.coverageWeight;
-        const deal = Markets.buy({ burg, good: candidate.good, units, budget });
+        const deal = Markets.buy({ burg, good: candidate.good, units, budget, flow: { category: "burgDemand" } });
         if (!deal) continue;
 
         records.push({ dealId: deal.i });

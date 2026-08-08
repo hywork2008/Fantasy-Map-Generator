@@ -33,7 +33,9 @@ import { recordFoodMarketIntake } from "./foodProcessingLedger";
 import { getDepletedCells } from "./forestDepletion";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
+import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
+import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
 import {
   computeMarketGoodFlowBudget,
@@ -170,36 +172,50 @@ export class MarketsModule {
     if (!good || !marketGood || !isGoodEnabled(good)) return "missingGood";
 
     marketGood.stock = rn(marketGood.stock + 1, 2);
+    recordGoodFlow({ direction: "source", category: "burgCraft", goodId: good.i, units: 1, marketId });
     return "fulfilled";
   }
 
   /** Adds material extracted by a mine before monthly market-price calculation. */
-  addMineSupply(marketId: number, goodId: number, amount: number): number {
+  addMineSupply(
+    marketId: number,
+    goodId: number,
+    amount: number,
+    category: "mineSupply" | "smelterSupply" = "mineSupply"
+  ): number {
     const market = this.get(marketId);
     const good = Goods.get(goodId);
     if (!market || !good || !isGoodEnabled(good) || amount <= 0) return 0;
     const supplied = rn(amount, 4);
     const marketGood = this.getMarketGood(market, good);
     marketGood.stock = rn(marketGood.stock + supplied, 4);
+    recordGoodFlow({ direction: "source", category, goodId, units: supplied, marketId });
     return supplied;
   }
 
   /** Adds refined material from a smelter before monthly market-price calculation. */
   addSmelterSupply(marketId: number, goodId: number, amount: number): number {
-    return this.addMineSupply(marketId, goodId, amount);
+    return this.addMineSupply(marketId, goodId, amount, "smelterSupply");
   }
 
   /**
    * Smelters consume a bounded share of local Ore stock so markets keep material
    * available for trade while refining capacity is developing.
    */
-  consumeForSmelting(marketId: number, goodId: number, requestedUnits: number, stockShare: number): number {
+  consumeForSmelting(
+    marketId: number,
+    goodId: number,
+    requestedUnits: number,
+    stockShare: number,
+    category: "smelting" | "construction" = "smelting"
+  ): number {
     const market = this.get(marketId);
     const marketGood = market?.goods[goodId];
     if (!marketGood || requestedUnits <= 0 || stockShare <= 0) return 0;
     const consumed = rn(Math.min(requestedUnits, marketGood.stock * Math.min(1, stockShare)), 4);
     if (consumed <= 0) return 0;
     marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
+    recordGoodFlow({ direction: "sink", category, goodId, units: consumed, marketId });
     return consumed;
   }
 
@@ -210,7 +226,7 @@ export class MarketsModule {
    * production input the same way smelting consumes ore, not as capital spending.
    */
   consumeForConstruction(marketId: number, goodId: number, requestedUnits: number, stockShare: number): number {
-    return this.consumeForSmelting(marketId, goodId, requestedUnits, stockShare);
+    return this.consumeForSmelting(marketId, goodId, requestedUnits, stockShare, "construction");
   }
 
   /**
@@ -225,6 +241,7 @@ export class MarketsModule {
     const consumed = rn(Math.min(requestedUnits, marketGood.stock * 0.2), 4);
     if (consumed <= 0) return 0;
     marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
+    recordGoodFlow({ direction: "sink", category: "minting", goodId, units: consumed, marketId });
     return consumed;
   }
 
@@ -240,6 +257,7 @@ export class MarketsModule {
     const consumed = rn(Math.min(requestedUnits, marketGood.stock / 3), 4);
     if (consumed <= 0) return 0;
     marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
+    recordGoodFlow({ direction: "sink", category: "military", goodId, units: consumed, marketId });
     return consumed;
   }
 
@@ -273,6 +291,7 @@ export class MarketsModule {
 
     const cost = rn(units * price, 2);
     marketGood.stock = rn(Math.max(0, marketGood.stock - units), 4);
+    recordGoodFlow({ direction: "sink", category: "marketInvestment", goodId, units, marketId });
     return { units, cost };
   }
 
@@ -599,6 +618,14 @@ export class MarketsModule {
 
     const marketGood = this.getMarketGood(market, good);
     marketGood.stock = rn(marketGood.stock + resolvedAmount, 2);
+    recordGoodFlow({
+      direction: "source",
+      category: "ruralHarvest",
+      goodId,
+      units: resolvedAmount,
+      marketId,
+      burgId: collectionBurgId || undefined
+    });
     recordFoodMarketIntake(market, good.name, resolvedAmount);
     if (collectionBurgId) addWholesaleGoodStock(collectionBurgId, marketId, goodId, resolvedAmount);
 
@@ -864,12 +891,18 @@ export class MarketsModule {
     burg,
     good,
     units,
-    budget = Infinity
+    budget = Infinity,
+    flow
   }: {
     burg: Burg;
     good: Good;
     units: number;
     budget?: number;
+    flow?: {
+      category: GoodFlowCategory;
+      guildDomain?: ReturnType<typeof getCraftDomainForGood>;
+      relatedGoodId?: number;
+    };
   }): Deal | null {
     if (!isGoodEnabled(good)) return null;
     const market = this.get(burg.market);
@@ -896,6 +929,16 @@ export class MarketsModule {
     deals.push(deal);
 
     marketGood.stock = rn(Math.max(0, marketGood.stock - actualUnits), 2);
+    recordGoodFlow({
+      direction: "sink",
+      category: flow?.category ?? "burgDemand",
+      goodId: good.i,
+      units: actualUnits,
+      marketId: market.i,
+      burgId: burg.i,
+      guildDomain: flow?.guildDomain ?? undefined,
+      relatedGoodId: flow?.relatedGoodId
+    });
     marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
     return deal;
   }
@@ -909,6 +952,15 @@ export class MarketsModule {
     const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
     const tax = rn(units * price * taxRate, 2);
     marketGood.stock = rn(marketGood.stock + units, 2);
+    recordGoodFlow({
+      direction: "source",
+      category: "burgCraft",
+      goodId: good.i,
+      units,
+      marketId: market.i,
+      burgId: burg.i,
+      guildDomain: getCraftDomainForGood(good.name) ?? undefined
+    });
     recordFoodMarketIntake(market, good.name, units);
     // A burg's automatic production reaches its own collection/wholesale depot first.
     // Market.goods remains the canonical market-wide total; this records its physical location.
@@ -988,6 +1040,7 @@ export class MarketsModule {
     for (const { good, amount, stock } of required) {
       stock.stock = rn(Math.max(0, stock.stock - amount), 2);
       stock.price = rn(this.applyMarketPressure(good.value, stock.price, amount), 2);
+      recordGoodFlow({ direction: "sink", category: "shipbuilding", goodId: good.i, units: amount, marketId });
     }
 
     return { status: "fulfilled" };

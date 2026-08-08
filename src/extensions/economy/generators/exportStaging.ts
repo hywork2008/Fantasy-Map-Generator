@@ -19,6 +19,7 @@ import {
   setNextExportStagingLotId
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
 import type { ExportStagingLot } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -106,6 +107,13 @@ export class ExportStagingModule {
     }
 
     row.stock = rn(Math.max(0, row.stock - units), 2);
+    recordGoodFlow({
+      direction: "sink",
+      category: "exportDeparture",
+      goodId: input.goodId,
+      units,
+      marketId: input.marketId
+    });
 
     const lots = [...getExportStagingLots()];
     const existing = findMergeTarget(lots, { ...input, unitCost });

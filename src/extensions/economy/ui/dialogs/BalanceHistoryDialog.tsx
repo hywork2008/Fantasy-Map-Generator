@@ -1,7 +1,12 @@
 import type React from "react";
 import { useRef } from "react";
 import { closeDialog, Dialog, TableDialogLayout, useDialogState, VirtualTableBody } from "../../../hostUi";
-import { clearBalanceHistory, downloadBalanceHistoryCsv } from "../../controllers/balance-history";
+import {
+  clearBalanceHistory,
+  downloadBalanceHistoryCsv,
+  downloadGoodsBalanceHistoryCsv,
+  downloadGoodsFlowAttributionCsv
+} from "../../controllers/balance-history";
 import { useBalanceHistoryState } from "../../store/balanceHistoryState";
 
 function formatNumber(value: number): string {
@@ -22,6 +27,7 @@ function formatPercent(ratio: number): string {
 export const BalanceHistoryDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("balanceHistory"));
   const snapshots = useBalanceHistoryState(state => state.snapshots);
+  const intervalCount = useBalanceHistoryState(state => state.intervals.length);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +39,16 @@ export const BalanceHistoryDialog: React.FC = () => {
       className="fmg-dialog--table"
       buttons={[
         { label: "Download CSV", onClick: downloadBalanceHistoryCsv, disabled: snapshots.length === 0 },
+        {
+          label: "Download Goods Balance CSV",
+          onClick: downloadGoodsBalanceHistoryCsv,
+          disabled: intervalCount === 0
+        },
+        {
+          label: "Download Flow Attribution CSV",
+          onClick: downloadGoodsFlowAttributionCsv,
+          disabled: intervalCount === 0
+        },
         { label: "Clear History", onClick: clearBalanceHistory, disabled: snapshots.length === 0 }
       ]}
     >
@@ -40,9 +56,9 @@ export const BalanceHistoryDialog: React.FC = () => {
         bodyRef={parentRef}
         summary={
           <div className="dim" style={{ fontSize: "0.9em" }}>
-            One row per map generation and per completed Advance Day/Month/Year action. "Download CSV" includes every
-            tracked Good's stock and Fauna species' headcount as extra columns — this table only shows the headline
-            totals.
+            One row per map generation and per completed Advance Day/Month/Year action. "Download Goods Balance CSV"
+            exports stock changes and supply/consumption categories per Good; "Download Flow Attribution CSV" adds
+            market, burg, guild domain, and recipe-output attribution.
           </div>
         }
       >

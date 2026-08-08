@@ -34,6 +34,7 @@ import {
 } from "./foodCoLoad";
 import { recordFoodDeliveredExport } from "./foodProcessingLedger";
 import type { Good } from "./goods-generator";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import { utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -865,6 +866,13 @@ export class CaravansModule {
                 good.stock = rn(good.stock + item.units, 2);
                 const goodDefinition = getGoods().find(candidate => candidate.i === item.goodId);
                 if (goodDefinition) recordFoodDeliveredExport(buyerMarket, goodDefinition.name, item.units);
+                recordGoodFlow({
+                  direction: "source",
+                  category: "importArrival",
+                  goodId: item.goodId,
+                  units: item.units,
+                  marketId: buyerMarket.i
+                });
                 stockChanged = true;
               }
             }

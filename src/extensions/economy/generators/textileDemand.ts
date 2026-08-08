@@ -1,6 +1,7 @@
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getGoods, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market, TextileLedger } from "./marketTypes";
 
 export const PEOPLE_PER_TEXTILE_MARKET_LOT = 1_000;
@@ -106,6 +107,15 @@ export function settleTextileHouseholdDemand(): void {
     const consumed = Math.min(profile.monthlyDemand, Math.max(0, row?.stock ?? 0));
     const unmetDemand = Math.max(0, profile.monthlyDemand - consumed);
     if (row) row.stock = rn(Math.max(0, row.stock - consumed), 2);
+    if (consumed > 0) {
+      recordGoodFlow({
+        direction: "sink",
+        category: "householdTextiles",
+        goodId: garments.i,
+        units: consumed,
+        marketId: market.i
+      });
+    }
 
     market.textileLedger = {
       ...previous,
