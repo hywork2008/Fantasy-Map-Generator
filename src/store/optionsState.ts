@@ -6,7 +6,7 @@ import {
   resolveRacePersonNameMapping
 } from "../data/racePersonNameConfig";
 import type { BiomeRegionProfile } from "../types/biomeRegion";
-import type { ConflictAutonomy, InitialSettlementPattern } from "../types/WorldState";
+import type { ConflictAutonomy, EconomyStartMode, InitialSettlementPattern } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 import { DEFAULT_GOLD_TO_SILVER_RATE, DEFAULT_SILVER_TO_COPPER_RATE } from "../utils/currency";
 
@@ -107,6 +107,8 @@ export interface OptionsState {
    * formula — a performance escape hatch for large maps once cohort updates get expensive.
    */
   ruralEcosystemDetail: "detailed" | "simplified";
+  /** Economy initial-capital and maintenance preset, applied when generating a new map. */
+  economyStartMode: EconomyStartMode;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
   /** Display-only denomination: silver pieces represented by one gold piece. */
@@ -314,6 +316,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   oikoumeneLandShare: 0.45,
   biomeRegionProfile: "global",
   ruralEcosystemDetail: "detailed",
+  economyStartMode: "balanced",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
   goldToSilverRate: DEFAULT_GOLD_TO_SILVER_RATE,

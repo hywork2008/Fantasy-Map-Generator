@@ -207,6 +207,27 @@ export const GenerationSettingsTab: React.FC = () => {
           <tr>
             <th colSpan={4}>2. Climate and waterways</th>
           </tr>
+          <tr data-tip="Starting capital and ordinary upkeep for Economy. Balanced is the default pre-gunpowder setting: cities begin able to function, while routine administration and market maintenance absorb most ordinary revenue. Generate a new map to apply.">
+            <td>
+              <LockIconButton id="economyStartMode" />
+            </td>
+            <th>
+              <label htmlFor="economyStartMode">Economy start</label>
+            </th>
+            <td colSpan={2}>
+              <select
+                id="economyStartMode"
+                value={options.economyStartMode}
+                onChange={e =>
+                  updateOptionAndLock("economyStartMode", e.target.value as typeof options.economyStartMode)
+                }
+              >
+                <option value="provisioned">Provisioned (fast start)</option>
+                <option value="balanced">Balanced (ordinary medieval)</option>
+                <option value="subsistence">Subsistence (minimal surplus)</option>
+              </select>
+            </td>
+          </tr>
           <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Apply on next map generation.">
             <td>
               <LockIconButton id="biomeRegionProfile" />

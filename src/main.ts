@@ -1025,6 +1025,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
+  worldContext.options.economyStartMode = useOptionsState.getState().economyStartMode;
 
   if (shouldRegenerateGrid(worldContext.grid, worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)) {
     Object.keys(worldContext.grid).forEach(k => {

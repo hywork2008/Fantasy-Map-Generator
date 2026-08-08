@@ -5,6 +5,7 @@ import { getAcademyBonus } from "./academyKnowledge";
 import { applyCharacterLivingCosts } from "./characterLivingCosts";
 import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
 import { applyAllDomainFiscalPolicies, getStateDomainPollTaxMultiplier } from "./domainFiscalPolicy";
+import { getEconomyStartProfile } from "./economyStartMode";
 import { applyFiscalEvents } from "./fiscalEvents";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
@@ -130,11 +131,23 @@ export class TaxesModule {
       const rawDomesticIncome = pollTaxRevenue + voyageKept;
       // Credit L2 first so multi-ledger household purse (L2→L1) can draw this cycle's revenue.
       state.treasury = rn((state.treasury || 0) + rawDomesticIncome, 2);
+      // Courts, scribes, tax farmers, messengers, and routine local administration consume
+      // ordinary peace-time income before it becomes discretionary Treasury growth. This is
+      // deliberately a real cash sink, not a cosmetic cap; a State that cannot cover it has
+      // less cash for its departments and military in the same cycle.
+      const profile = getEconomyStartProfile(this.worldContext.options);
+      const administrativeUpkeep = rn(rawDomesticIncome * profile.stateAdministrativeUpkeepShare, 2);
+      if (administrativeUpkeep > 0) {
+        state.treasury = rn(Math.max(0, (state.treasury || 0) - administrativeUpkeep), 2);
+      }
       // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.
       const mix = applyFormRevenueMix(state, rawDomesticIncome);
       // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
       const events = applyFiscalEvents(state, mix.adjustedDomesticIncome);
-      const budgetIncome = rn(mix.adjustedDomesticIncome * events.incomeScale, 2);
+      const budgetIncome = rn(
+        mix.adjustedDomesticIncome * (1 - profile.stateAdministrativeUpkeepShare) * events.incomeScale,
+        2
+      );
       // PR-7: AI war footing sync from diplomacy (unless player-locked), then court cost.
       syncWarFootingFromDiplomacy(state);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).

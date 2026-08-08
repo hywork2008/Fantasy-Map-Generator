@@ -7,6 +7,7 @@
 
 import { rn } from "../../hostUtils";
 import { getMarkets, getWorldContext } from "../economyContext";
+import { getEconomyStartProfile } from "./economyStartMode";
 import type { Market, MarketTreasury } from "./marketTypes";
 
 /** Soft profit realized when export cargo arrives (fraction of locked capital). */
@@ -14,9 +15,6 @@ export const TRADE_ARRIVAL_PROFIT_RATE = 0.08;
 /** Loss write-off: unlock this fraction of locked capital after bandit loss (rest is destroyed). */
 export const TRADE_LOSS_RECOVERY_RATE = 0.15;
 
-const TRADE_CAPITAL_MIN_SHARE = 0.25;
-const TRADE_CAPITAL_SHARE_SPAN = 0.55;
-const STARTING_BURG_TREASURY_PER_POPULATION = 20;
 const UNIT_EPSILON = 0.000001;
 
 function emptyTreasury(): MarketTreasury {
@@ -30,11 +28,12 @@ function emptyTreasury(): MarketTreasury {
 
 function burgTreasurySum(market: Market): number {
   const burgs = getWorldContext().pack.burgs ?? [];
+  const profile = getEconomyStartProfile(getWorldContext().options);
   let sum = 0;
   for (const burg of burgs) {
     if (!burg.i || burg.removed || burg.market !== market.i) continue;
     if (!burg.treasury) {
-      burg.treasury = rn((burg.population ?? 0) * STARTING_BURG_TREASURY_PER_POPULATION, 2);
+      burg.treasury = rn((burg.population ?? 0) * profile.burgTreasuryPerPopulation, 2);
     }
     sum += Math.max(0, burg.treasury ?? 0);
   }
@@ -50,10 +49,13 @@ function normalizeTreasury(treasury: MarketTreasury): MarketTreasury {
 export class MerchantTradeCapitalModule {
   /** Ensure marketTreasury exists and trade capital fields are seeded when missing. */
   ensureTradeCapital(market: Market): MarketTreasury {
+    const profile = getEconomyStartProfile(getWorldContext().options);
+    const [minimumTreasuryShare, maximumTreasuryShare] = profile.marketTreasuryShare;
+    const [minimumTradeShare, maximumTradeShare] = profile.tradeCapitalShare;
     if (!market.marketTreasury) {
       const sum = burgTreasurySum(market);
-      const grainShare = 0.5 + Math.random() * 0.5;
-      const tradeShare = TRADE_CAPITAL_MIN_SHARE + Math.random() * TRADE_CAPITAL_SHARE_SPAN;
+      const grainShare = minimumTreasuryShare + Math.random() * (maximumTreasuryShare - minimumTreasuryShare);
+      const tradeShare = minimumTradeShare + Math.random() * (maximumTradeShare - minimumTradeShare);
       market.marketTreasury = {
         balance: rn(sum * grainShare, 2),
         ruralGrainPayable: 0,
@@ -68,7 +70,7 @@ export class MerchantTradeCapitalModule {
     if (treasury.tradeWorkingCapital === undefined || treasury.tradeWorkingCapital <= 0) {
       // Legacy saves / food-only bootstrap: invent trade capital from burg scale without debiting burgs.
       const sum = burgTreasurySum(market);
-      const tradeShare = TRADE_CAPITAL_MIN_SHARE + Math.random() * TRADE_CAPITAL_SHARE_SPAN;
+      const tradeShare = minimumTradeShare + Math.random() * (maximumTradeShare - minimumTradeShare);
       treasury.tradeWorkingCapital = rn(Math.max(sum * tradeShare, treasury.balance * 0.4), 2);
       treasury.tradeCapitalLocked = treasury.tradeCapitalLocked ?? 0;
     }

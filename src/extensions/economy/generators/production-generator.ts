@@ -45,6 +45,7 @@ import {
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
+import { settleMarketMaintenance } from "./marketMaintenance";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -275,6 +276,7 @@ export class ProductionModule {
     measureTickStep("production:globalTrade", () => Markets.runGlobalTrade());
     measureTickStep("production:spawnCaravans", () => Caravans.spawnFromDeals(getDeals()));
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
+    measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
     measureTickStep("production:syncLedgers", () => {
       syncBurgMarketLedgers();
 

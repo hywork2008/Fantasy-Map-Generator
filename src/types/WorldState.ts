@@ -23,6 +23,9 @@ export type ConflictAutonomy = "autonomous" | "playerDirected";
  */
 export type InitialSettlementPattern = "frontier" | "marches" | "scattered" | "standard" | "dense";
 
+/** Economic starting conditions for a newly generated map. */
+export type EconomyStartMode = "provisioned" | "balanced" | "subsistence";
+
 /**
  * Runtime biome table. Semantic identity is `keys` / `definitionsByKey`;
  * parallel arrays are derived views for dense indexing (code = array index).
@@ -103,6 +106,8 @@ export interface WorldOptions {
    * Undefined preserves legacy maps as "detailed".
    */
   ruralEcosystemDetail?: "detailed" | "simplified";
+  /** Missing values identify legacy maps and retain the former provisioned setup. */
+  economyStartMode?: EconomyStartMode;
   /**
    * Sea-route topology selected for this map. Persisted so loading a saved map
    * does not replace a user-selected legacy network with the augmented one.

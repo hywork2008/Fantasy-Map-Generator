@@ -929,6 +929,11 @@ export class MarketsModule {
     deals.push(deal);
 
     marketGood.stock = rn(Math.max(0, marketGood.stock - actualUnits), 2);
+    // A Burg purchase is the Market's cash receipt. Without this counterpart, a Market
+    // could pay producers but never replenish the purchasing power required next cycle.
+    const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
+    treasury.balance = rn(treasury.balance + actualUnits * unitPrice, 2);
+    market.marketTreasury = treasury;
     recordGoodFlow({
       direction: "sink",
       category: flow?.category ?? "burgDemand",
@@ -950,7 +955,15 @@ export class MarketsModule {
 
     const marketGood = this.getMarketGood(market, good);
     const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
+    const grossRevenue = rn(units * price, 2);
+    const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
+    // General-goods sales are actual wholesale purchases. A Market cannot create a
+    // producer's revenue merely by accepting inventory: it needs cash on hand first.
+    const maintenanceReach = 0.25 + 0.75 * (market.maintenanceCondition ?? 1);
+    if (treasury.balance * maintenanceReach + 0.001 < grossRevenue) return null;
     const tax = rn(units * price * taxRate, 2);
+    treasury.balance = rn(Math.max(0, treasury.balance - grossRevenue), 2);
+    market.marketTreasury = treasury;
     marketGood.stock = rn(marketGood.stock + units, 2);
     recordGoodFlow({
       direction: "source",

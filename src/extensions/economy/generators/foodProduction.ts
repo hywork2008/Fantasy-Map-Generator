@@ -10,6 +10,7 @@ import {
   getMarkets,
   getWorldContext
 } from "../economyContext";
+import { getEconomyStartProfile } from "./economyStartMode";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
@@ -53,19 +54,6 @@ const EXPORT_RESERVE_MONTHS = 3;
 const IMPORT_TARGET_MONTHS = 6;
 /** Initial-map/first-enable seed: months of annual demand held in Age0 and in Age1 each. */
 const INITIAL_STOCK_MONTHS_PER_BUCKET = 3;
-/** Deterministic initial merchant capital as a fraction of the market's burgs' combined treasury. */
-const INITIAL_TREASURY_MIN_SHARE = 0.5;
-const INITIAL_TREASURY_SHARE_SPAN = 0.5;
-/**
- * Starting working capital per raw population point, seeded once so a fresh Burg can afford a
- * few cycles of manufacturing ingredients before it earns its own market revenue (see
- * docs/temp/profits.md and executeManufacture's budget cap in production-generator.ts). Placeholder
- * magnitude — not yet balance-tuned. Exported for reuse as guildTreasury.ts's population-scaled
- * floor under getComfortableTreasuryLevel() (docs/plan/burg-treasury-equilibrium.md §3.3) — the
- * same "how much working capital does a Burg of this size need" question, just asked again for the
- * upper bound instead of the initial seed.
- */
-export const STARTING_BURG_TREASURY_PER_POPULATION = 20;
 /** Days of a burg's own staple-food need kept on hand locally, independent of the Market pool. */
 export const BURG_TARGET_RESERVE_DAYS = 10;
 
@@ -183,6 +171,7 @@ export class FoodProductionModule {
     const stapleFoodGood = getStapleFoodGood();
     const startingPrice = stapleFoodGood?.value ?? 1;
     const dailyNeedPerPerson = GROSS_FOOD_NEED / 365.2425;
+    const economyProfile = getEconomyStartProfile(this.worldContext.options);
 
     for (const market of markets) {
       if (market.foodLedger) continue;
@@ -210,15 +199,17 @@ export class FoodProductionModule {
       // to 0 as well.
       for (const burg of marketBurgs) {
         if (!burg.treasury) {
-          burg.treasury = rn((burg.population ?? 0) * STARTING_BURG_TREASURY_PER_POPULATION, 2);
+          burg.treasury = rn((burg.population ?? 0) * economyProfile.burgTreasuryPerPopulation, 2);
         }
       }
 
       const burgTreasurySum = marketBurgs.reduce((sum, b) => sum + Math.max(0, b.treasury ?? 0), 0);
-      const treasuryShare = INITIAL_TREASURY_MIN_SHARE + Math.random() * INITIAL_TREASURY_SHARE_SPAN;
+      const [minimumTreasuryShare, maximumTreasuryShare] = economyProfile.marketTreasuryShare;
+      const treasuryShare = minimumTreasuryShare + Math.random() * (maximumTreasuryShare - minimumTreasuryShare);
       // Trade working capital is a separate merchant-company pool (not debited from burg treasuries),
       // seeded as if the house already traded before the map opened (Phase D).
-      const tradeShare = 0.25 + Math.random() * 0.55;
+      const [minimumTradeShare, maximumTradeShare] = economyProfile.tradeCapitalShare;
+      const tradeShare = minimumTradeShare + Math.random() * (maximumTradeShare - minimumTradeShare);
       market.marketTreasury = {
         balance: rn(burgTreasurySum * treasuryShare, 2),
         ruralGrainPayable: 0,

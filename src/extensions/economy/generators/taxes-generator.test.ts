@@ -28,6 +28,7 @@ describe("TaxesModule", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     taxesModule = new TaxesModule();
+    worldContext.options = {} as typeof worldContext.options;
     worldContext.pack = {
       states: [],
       burgs: [],
@@ -103,6 +104,23 @@ describe("TaxesModule", () => {
   });
 
   describe("collectTaxes()", () => {
+    it("uses balanced-mode ordinary administration before income can accumulate as Treasury", () => {
+      worldContext.options = { economyStartMode: "balanced" } as typeof worldContext.options;
+      const state: State = {
+        i: 1,
+        salesTax: 0,
+        pollTax: 1,
+        rural: 1,
+        urban: 0,
+        treasury: 0
+      } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+
+      taxesModule.collectTaxes();
+
+      expect(state.treasury || 0).toBeLessThan(0.5);
+    });
+
     it("credits deal.tax from burg-sell deals to the seller's state treasury", () => {
       const state1: State = { i: 1, salesTax: 0.2, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];

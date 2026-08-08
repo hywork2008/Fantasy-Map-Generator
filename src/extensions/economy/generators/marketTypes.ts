@@ -23,6 +23,8 @@ export interface Market {
   foodLedger?: FoodLedger;
   /** Working capital of the market manager's merchant company; separate from Burg/State treasury. */
   marketTreasury?: MarketTreasury;
+  /** 0..1 funding condition of ordinary stalls, warehouse, docks, and route administration. */
+  maintenanceCondition?: number;
   /** Merchant export-warehouse security from 0 (unsafe) to 100 (secure). Seeded at 50; no effects yet. */
   warehouseSecurity?: number;
   /** Merchant export-warehouse sanitation from 0 (unsanitary) to 100 (sanitary). Seeded at 50; no effects yet. */

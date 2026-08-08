@@ -83,7 +83,8 @@ describe("MarketsModule", () => {
         i: 1,
         centerBurgId: 1,
         color: "#ff0000",
-        goods: { 0: { stock: 100, price: 10 } }
+        goods: { 0: { stock: 100, price: 10 } },
+        marketTreasury: { balance: 0, ruralGrainPayable: 0 }
       };
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market1];
@@ -96,6 +97,7 @@ describe("MarketsModule", () => {
       expect(deal!.price).toBe(11);
       expect(deal!.units * deal!.price).toBeLessThanOrEqual(15);
       expect(market1.goods[0].stock).toBeCloseTo(100 - 1.36, 2);
+      expect(market1.marketTreasury?.balance).toBeCloseTo(deal!.units * deal!.price, 2);
     });
 
     it("buy() should return null if units floor below 0.01 due to low budget", () => {
@@ -635,7 +637,8 @@ describe("MarketsModule", () => {
         i: 1,
         centerBurgId: 1,
         color: "#ff0000",
-        goods: { 0: { stock: 0, price: 10 } }
+        goods: { 0: { stock: 0, price: 10 } },
+        marketTreasury: { balance: 100, ruralGrainPayable: 0 }
       };
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market1];
@@ -651,8 +654,27 @@ describe("MarketsModule", () => {
       expect(deal).not.toBeNull();
       expect(deal!.tax).toBeGreaterThan(0);
       expect(deal!.tax).toBeCloseTo(deal!.units * deal!.price * 0.2, 2);
+      expect(market1.marketTreasury?.balance).toBe(55);
       expect(getBurgWholesaleInventories()).toEqual([{ burgId: 1, marketId: 1, goods: { 0: 5 } }]);
       expect(validateRetailInventory()).toEqual([]);
+    });
+
+    it("does not credit a Burg sale when the Market cannot pay for it", () => {
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 0, price: 10 } },
+        marketTreasury: { balance: 44.99, ruralGrainPayable: 0 }
+      };
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market, market];
+      setMarkets([market]);
+      const burg: Burg = { i: 1, market: 1 } as unknown as Burg;
+
+      expect(marketsModule.sell({ burg, good: getGoods()[0], units: 5, taxRate: 0 })).toBeNull();
+      expect(market.goods[0].stock).toBe(0);
+      expect(market.marketTreasury?.balance).toBe(44.99);
     });
 
     it("sync() should rebuild the id index so get() resolves markets after a load", () => {

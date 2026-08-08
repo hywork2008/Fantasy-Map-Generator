@@ -484,6 +484,7 @@ export function applyStoredOptions(): void {
     "initialSettlementPattern",
     "oikoumeneLandShare",
     "biomeRegionProfile",
+    "economyStartMode",
     "enclosureCalculationMode",
     "manors",
     "religionsNumber",

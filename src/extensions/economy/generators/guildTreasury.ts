@@ -10,7 +10,7 @@ import {
   setGuildKnowledgeStocks
 } from "../economyContext";
 import { backPayCycles, GUILD_MASTER_STIPEND } from "./characterStipends";
-import { STARTING_BURG_TREASURY_PER_POPULATION } from "./foodProduction";
+import { getEconomyStartProfile } from "./economyStartMode";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import { Markets } from "./markets-generator";
 
@@ -46,25 +46,18 @@ export const GUILD_PAYOUT_RATE = 0.15;
  * buffer. Resolves the design doc's open "快適水準" question by using product — a recent-earnings
  * figure — as the basis rather than population alone. Placeholder — not yet balance-tuned.
  */
-export const COMFORTABLE_TREASURY_MULTIPLIER = 4;
-/**
- * Share of a Burg's annual treasury surplus above its comfortable level routed to its Market's
- * shared treasury; the remainder goes to its State's treasury (§3.3). Placeholder — not yet
- * balance-tuned.
- */
-export const MARKET_SHARE = 0.5;
 
 /**
- * A Burg's comfortable working-capital level: COMFORTABLE_TREASURY_MULTIPLIER cycles of its current
- * product, floored by a population-scaled minimum (STARTING_BURG_TREASURY_PER_POPULATION, the same
- * constant used to seed a fresh Burg's starting treasury) so a Burg with zero recent product isn't
- * treated as permanently "in surplus" the instant it holds any treasury at all — it still gets a
- * population-sized cushion to try to restart production with (docs/plan/
+ * A Burg's comfortable working-capital level: profile-defined cycles of its current product,
+ * floored by the profile's population-scaled initial working capital. A Burg with zero recent
+ * product is therefore not treated as permanently "in surplus" the instant it holds any treasury —
+ * it still gets a population-sized cushion to try to restart production with (docs/plan/
  * burg-treasury-equilibrium.md §3.3).
  */
 export function getComfortableTreasuryLevel(burg: Burg): number {
-  const populationFloor = (burg.population ?? 0) * STARTING_BURG_TREASURY_PER_POPULATION;
-  const productBased = (burg.product ?? 0) * COMFORTABLE_TREASURY_MULTIPLIER;
+  const profile = getEconomyStartProfile(getWorldContext().options);
+  const populationFloor = (burg.population ?? 0) * profile.burgTreasuryPerPopulation;
+  const productBased = (burg.product ?? 0) * profile.comfortableTreasuryMultiplier;
   return Math.max(populationFloor, productBased);
 }
 
@@ -100,7 +93,9 @@ export class GuildTreasuryModule {
    * from their seated Burg. Fires once per master, not a recurring subsidy.
    */
   seedNewGuildWorkingCapital(burgId: number, domain: CraftKnowledgeDomain): void {
-    const cycles = backPayCycles();
+    const profile = getEconomyStartProfile(getWorldContext().options);
+    const cycles = rn(backPayCycles() * profile.guildBootstrapMultiplier, 2);
+    if (cycles <= 0) return;
     this.creditGuildTreasury(burgId, domain, GUILD_MASTER_STIPEND * cycles);
 
     const materialName = NEW_GUILD_STARTER_MATERIAL[domain];
@@ -173,7 +168,8 @@ export class GuildTreasuryModule {
       if (surplus <= 0.01) continue;
 
       burg.treasury = rn(comfortable, 2);
-      const marketShare = rn(surplus * MARKET_SHARE, 2);
+      const profile = getEconomyStartProfile(getWorldContext().options);
+      const marketShare = rn(surplus * (1 - profile.stateRemittanceShare), 2);
       const stateShare = rn(surplus - marketShare, 2);
 
       const market = Markets.get(burg.market);
