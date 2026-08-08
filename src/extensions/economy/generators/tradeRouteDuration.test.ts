@@ -158,6 +158,20 @@ describe("trade route duration and viability", () => {
     expect(isGoodTradePermitted({ ...ship, seaOnly: false }, 1, [{ type: "land" }])).toBe(true);
   });
 
+  it("keeps raw milk in its producing market for same-month settlement", () => {
+    const milk = {
+      i: 1,
+      name: "Milk",
+      value: 10,
+      tags: ["food", "freshFood"],
+      unit: "1,000 L dairy lot",
+      icon: "milk",
+      color: "#fff"
+    };
+
+    expect(isGoodTradePermitted(milk, 1, [{ type: "land" }])).toBe(false);
+  });
+
   it("subtracts daily caravan maintenance before applying the minimum-profit threshold", () => {
     expect(getCaravanMaintenanceCost(8)).toBe(4);
     expect(getNetTradeProfit(1, 4, 8)).toBe(0);

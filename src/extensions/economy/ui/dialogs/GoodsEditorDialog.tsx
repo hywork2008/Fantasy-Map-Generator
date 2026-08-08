@@ -19,7 +19,7 @@ import {
   removeGood,
   requestGoodsRegeneration,
   requestProductionRegeneration,
-  resetGoodsCumulativeSales,
+  resetGoodsCumulativeMarketIntake,
   toggleAllDisplayed,
   toggleDisplayedGood,
   togglePercentageMode,
@@ -43,7 +43,7 @@ export const GoodsEditorDialog: React.FC = () => {
     goods,
     totalProduced,
     totalStock,
-    totalCumulativeSales,
+    totalCumulativeMarketIntake,
     displayedCount,
     isPercentageMode,
     hasTagFilter,
@@ -169,13 +169,13 @@ export const GoodsEditorDialog: React.FC = () => {
                       tip="Total units in stock across all markets and burg inventories. Click to sort"
                     />
                     <SortableHeader
-                      field="cumulativeSales"
-                      label="Sales"
+                      field="cumulativeMarketIntake"
+                      label="Intake"
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Cumulative units placed into markets — burg craft output plus rural/biome harvest — since generation or the last reset. Click to sort"
+                      tip="Cumulative market intake, not retail sales: burg craft output plus rural/biome harvest since generation or the last reset. Click to sort"
                     />
                     <SortableHeader
                       field="resourceCells"
@@ -220,9 +220,9 @@ export const GoodsEditorDialog: React.FC = () => {
                 const displayedStock = isPercentageMode
                   ? `${rn(totalStock ? (good.stock / totalStock) * 100 : 0, 2)}%`
                   : String(good.stock);
-                const displayedCumulativeSales = isPercentageMode
-                  ? `${rn(totalCumulativeSales ? (good.cumulativeSales / totalCumulativeSales) * 100 : 0, 2)}%`
-                  : String(good.cumulativeSales);
+                const displayedCumulativeMarketIntake = isPercentageMode
+                  ? `${rn(totalCumulativeMarketIntake ? (good.cumulativeMarketIntake / totalCumulativeMarketIntake) * 100 : 0, 2)}%`
+                  : String(good.cumulativeMarketIntake);
                 const priceTip = good.unitFlavor?.itemsPerUnit
                   ? t("economy.goodsUnitFlavor.batch", {
                       count: good.unitFlavor.itemsPerUnit,
@@ -245,7 +245,7 @@ export const GoodsEditorDialog: React.FC = () => {
                     data-baseprice={good.basePrice}
                     data-produced={good.produced}
                     data-stock={good.stock}
-                    data-cumulative-sales={good.cumulativeSales}
+                    data-cumulative-market-intake={good.cumulativeMarketIntake}
                     data-resource-cells={good.resourceCells}
                     data-production-per-thousand={good.productionPerThousand}
                     data-type={good.types.join(",")}
@@ -322,10 +322,10 @@ export const GoodsEditorDialog: React.FC = () => {
                           <div className="d-inline-block">⛁</div>
                         </td>
                         <td
-                          data-tip="Cumulative units placed into markets — burg craft output plus rural/biome harvest — since generation or the last reset"
+                          data-tip="Cumulative market intake, not retail sales: burg craft output plus rural/biome harvest since generation or the last reset"
                           className="goodCumulativeSales"
                         >
-                          {displayedCumulativeSales}
+                          {displayedCumulativeMarketIntake}
                         </td>
                         <td
                           data-tip="Current assigned resource cells. In Phase 0, this is a placement count, not a mineral deposit or reserve count"
@@ -380,7 +380,7 @@ export const GoodsEditorDialog: React.FC = () => {
             Stock:<span id="goodsStock">{totalStock}</span>
           </div>
           <div data-tip="Total units placed into markets — burg craft output plus rural/biome harvest — since generation or the last reset">
-            Sales:<span id="goodsCumulativeSales">{totalCumulativeSales}</span>
+            Market intake:<span id="goodsCumulativeMarketIntake">{totalCumulativeMarketIntake}</span>
           </div>
         </div>
 
@@ -449,10 +449,10 @@ export const GoodsEditorDialog: React.FC = () => {
           />
           <button
             type="button"
-            id="goodsResetCumulativeSales"
-            data-tip="Reset the cumulative sales counter for every good"
+            id="goodsResetCumulativeMarketIntake"
+            data-tip="Reset the cumulative market-intake counter for every good"
             className={`icon-ccw hide${isAssignMode ? " hidden" : ""}`}
-            onClick={resetGoodsCumulativeSales}
+            onClick={resetGoodsCumulativeMarketIntake}
           />
           <button
             type="button"

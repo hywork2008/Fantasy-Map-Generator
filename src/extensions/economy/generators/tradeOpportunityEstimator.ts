@@ -8,6 +8,8 @@ export const CARAVAN_DAILY_MAINTENANCE_COST = 0.5;
 export const VALUE_DENSITY_BASE_MAX_DAYS = 12;
 export const VALUE_DENSITY_MULTIPLIER = 4;
 export const PERISHABLE_MAX_TRADE_DAYS = 10;
+/** Raw milk is settled inside its producing market in the same monthly cycle. */
+const NON_TRANSPORTABLE_FRESH_GOODS = new Set(["Milk"]);
 /**
  * Sea-leg cap for dry-stored staples (grain), distinct from PERISHABLE_MAX_TRADE_DAYS (which
  * governs genuinely fast-rotting fresh food like Fish/Game). Grounded in bulk grain-by-sea
@@ -179,6 +181,7 @@ export function isGoodTradePermitted(
   routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
   routeMaxTemperatureC?: number
 ): boolean {
+  if (NON_TRANSPORTABLE_FRESH_GOODS.has(good.name)) return false;
   if (
     !Number.isFinite(durationDays) ||
     durationDays > getGoodMaxTradeDurationDays(good, routeSegments, routeMaxTemperatureC)

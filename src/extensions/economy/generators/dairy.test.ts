@@ -13,6 +13,7 @@ import { getMilkOutput } from "./dairy";
 describe("dairy (Milk -> Cheese, 2026-08-07 docs/plan/fauna-biome-realism.md §3 Phase J/K/N)", () => {
   beforeEach(() => {
     simulationContext.extensions = {};
+    simulationContext.currentMonth = 5;
     initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
   });
 
@@ -38,21 +39,20 @@ describe("dairy (Milk -> Cheese, 2026-08-07 docs/plan/fauna-biome-realism.md §3
 
     it("scales with local Cattle headcount and the husbandry labour-sufficiency ratio", () => {
       const table = getOrCreateFaunaStockTable()!;
-      table["0:Cattle"] = { young: 100, breeding: 300, old: 100 }; // 500 head
+      table["0:Cattle"] = { young: 100, breeding: 300, old: 100 }; // breeding cohort only
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([5])); // workerFactor 0.5
-      // 500 head * 0.01 (Cattle yield/head/month) * 0.5 (workerFactor) = 2.5
-      expect(getMilkOutput(0)).toBeCloseTo(2.5, 5);
+      expect(getMilkOutput(0)).toBeCloseTo(3.515625, 5);
     });
 
     it("sums contributions across Cattle, Sheep, and Goats co-located at the same cell", () => {
       const table = getOrCreateFaunaStockTable()!;
-      table["0:Cattle"] = { young: 0, breeding: 200, old: 0 }; // 200 * 0.01 = 2
-      table["0:Sheep"] = { young: 0, breeding: 1000, old: 0 }; // 1000 * 0.003 = 3
-      table["0:Goats"] = { young: 0, breeding: 400, old: 0 }; // 400 * 0.004 = 1.6
+      table["0:Cattle"] = { young: 0, breeding: 200, old: 0 };
+      table["0:Sheep"] = { young: 0, breeding: 1000, old: 0 };
+      table["0:Goats"] = { young: 0, breeding: 400, old: 0 };
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([10])); // full coverage, workerFactor 1
-      expect(getMilkOutput(0)).toBeCloseTo(2 + 3 + 1.6, 5);
+      expect(getMilkOutput(0)).toBeCloseTo(11.015625, 5);
     });
 
     it("ignores non-dairy grazed species (Horses/Camels) even when present at the same cell", () => {

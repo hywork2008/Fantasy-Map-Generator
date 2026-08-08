@@ -29,6 +29,7 @@ import {
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
+import { recordFoodMarketIntake } from "./foodProcessingLedger";
 import { getDepletedCells } from "./forestDepletion";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
@@ -598,6 +599,7 @@ export class MarketsModule {
 
     const marketGood = this.getMarketGood(market, good);
     marketGood.stock = rn(marketGood.stock + resolvedAmount, 2);
+    recordFoodMarketIntake(market, good.name, resolvedAmount);
     if (collectionBurgId) addWholesaleGoodStock(collectionBurgId, marketId, goodId, resolvedAmount);
 
     // 2026-08-08 (docs/temp/0807-alcoholic.md): rural/biome-produced goods (Grapes, Milk, Fish, Game,
@@ -907,6 +909,7 @@ export class MarketsModule {
     const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
     const tax = rn(units * price * taxRate, 2);
     marketGood.stock = rn(marketGood.stock + units, 2);
+    recordFoodMarketIntake(market, good.name, units);
     // A burg's automatic production reaches its own collection/wholesale depot first.
     // Market.goods remains the canonical market-wide total; this records its physical location.
     addWholesaleGoodStock(burg.i!, market.i, good.i, units);

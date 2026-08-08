@@ -32,6 +32,7 @@ import {
   settleFoodCoLoadOnLoss,
   tryCoLoadFoodOntoCaravan
 } from "./foodCoLoad";
+import { recordFoodDeliveredExport } from "./foodProcessingLedger";
 import type { Good } from "./goods-generator";
 import { utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
@@ -862,6 +863,8 @@ export class CaravansModule {
               const good = buyerMarket.goods[item.goodId];
               if (good) {
                 good.stock = rn(good.stock + item.units, 2);
+                const goodDefinition = getGoods().find(candidate => candidate.i === item.goodId);
+                if (goodDefinition) recordFoodDeliveredExport(buyerMarket, goodDefinition.name, item.units);
                 stockChanged = true;
               }
             }

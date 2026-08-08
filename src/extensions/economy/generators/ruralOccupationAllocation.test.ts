@@ -118,14 +118,13 @@ describe("ruralOccupationAllocation", () => {
     // Hunting is no longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase A) —
     // it now claims its fixed floor from ANY habitable biome first: min(6, max(3, 6*0.01)) = 3,
     // leaving only 3 of the 6-adult budget for viticulture.
-    // ceiling = 5,000 * terrainShare(0.9) * scrub(0.5) = 2,250 ha; desiredArea = min(2250, 140*0.5) = 70 ha;
-    // required = 70 * 20 / 140 = 10; only 3 of that is staffed after hunting's claim.
+    // desiredArea = min(2250, 140*0.04) = 5.6 ha; required = 0.8, so it is fully staffed.
     expect(result.huntingWorkers[0]).toBeCloseTo(3, 5);
-    expect(result.viticultureWorkers[0]).toBeCloseTo(3, 5);
-    expect(result.viticultureRequiredWorkers[0]).toBeCloseTo(10, 5);
-    expect(result.ruralReleasePressure[0]).toBeCloseTo(0, 5);
+    expect(result.viticultureWorkers[0]).toBeCloseTo(0.8, 5);
+    expect(result.viticultureRequiredWorkers[0]).toBeCloseTo(0.8, 5);
+    expect(result.ruralReleasePressure[0]).toBeCloseTo(2.2, 5);
     persist(result);
-    expect(getViticultureWorkerFactor(0)).toBeCloseTo(0.3, 5);
+    expect(getViticultureWorkerFactor(0)).toBeCloseTo(1, 5);
   });
 
   it("splits a water-held Fish slot's required workers across its land neighbors", () => {
@@ -181,11 +180,11 @@ describe("ruralOccupationAllocation", () => {
 
     // Hunting is no longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase A) —
     // it claims its fixed floor first: min(8, max(3, 8*0.01)) = 3, leaving 5. Viticulture (Grapes,
-    // value 2) is offered next and consumes the rest of the budget (required 10 > 5) before fishing
+    // value 2) is offered next and needs 0.8 workers before fishing
     // (value 1) gets anything, even though both are eligible at cell 0.
     expect(result.huntingWorkers[0]).toBeCloseTo(3, 5);
-    expect(result.viticultureWorkers[0]).toBeCloseTo(5, 5);
-    expect(result.fishingWorkers[1]).toBeCloseTo(0, 5);
+    expect(result.viticultureWorkers[0]).toBeCloseTo(0.8, 5);
+    expect(result.fishingWorkers[1]).toBeCloseTo(4.2, 5);
     expect(result.ruralReleasePressure[0]).toBeCloseTo(0, 5);
   });
 

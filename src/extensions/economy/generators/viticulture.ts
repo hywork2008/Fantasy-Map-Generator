@@ -69,7 +69,10 @@ const VINEYARD_BIOME_TAG_CEILING: Partial<Record<BiomeTag, number>> = {
  * the order of a few hectares per cell rather than a few thousand, rounding `requiredWorkers` down to
  * near-zero and starving Grapes/Wine of any labour allocation.
  */
-const VINEYARD_AREA_HECTARES_PER_PERSON = 0.5;
+// 0.04 ha × 360 kg/ha/year ≈ 14.4 kg/person/year. This covers the explicit regional Wine,
+// fresh-Grape, and Raisin targets with a modest processing/spoilage margin; the former 0.5 ha
+// contract produced about 180 kg/person/year and guaranteed structural surplus.
+const VINEYARD_AREA_HECTARES_PER_PERSON = 0.04;
 /** Grape yield, `Grapes`-unit output per hectare per month at full staffing. */
 export const GRAPE_YIELD_PER_HECTARE_PER_MONTH = 0.03;
 /**

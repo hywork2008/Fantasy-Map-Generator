@@ -27,6 +27,13 @@ import {
 } from "./constructionEmployment";
 import { smoothCraftWorkers } from "./craftEmployment";
 import { ExportStaging } from "./exportStaging";
+import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
+import {
+  getFoodProcessingProductionHeadroom,
+  recordFoodProcessingConsumption,
+  recordWineCaskFilling,
+  settleFoodProcessingHouseholds
+} from "./foodProcessingLedger";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { getGuildBonus } from "./guildKnowledge";
@@ -274,6 +281,7 @@ export class ProductionModule {
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
       settleTextileHouseholdDemand();
+      settleFoodProcessingHouseholds();
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
       recordFlowCycleEnd();
@@ -534,6 +542,10 @@ export class ProductionModule {
     if (good.name === "Garments") {
       actualYield = Math.min(actualYield, getGarmentProductionHeadroom(state.market, state.inventory[good.i] || 0));
     }
+    actualYield = Math.min(
+      actualYield,
+      getFoodProcessingProductionHeadroom(state.market, good.name, state.inventory[good.i] || 0)
+    );
 
     // Cap production by what the Burg can actually afford. Without this, ingredient purchases below
     // had no budget check (Markets.buy() defaults to an unlimited budget) and a Burg could keep
@@ -594,11 +606,19 @@ export class ProductionModule {
       }
       recipe.push({ goodId: ingredientId, units: rn(amount, 2) });
 
+      const ingredient = Goods.get(ingredientId);
+      if (ingredient) recordFoodProcessingConsumption(state.market, ingredient.name, amount);
+
       state.inventory[ingredientId] = Math.max(0, (state.inventory[ingredientId] || 0) - fromInventory);
       this.addDemandCoverage(state.demandCoverage, ingredientId, -fromInventory, index.demandCoverageByGood);
     }
 
     state.inventory[good.i] = (state.inventory[good.i] || 0) + produced;
+
+    if (good.name === "Wine") {
+      const barrelIngredient = ingredients.find(ingredient => Goods.get(ingredient.goodId)?.name === "Barrels");
+      recordWineCaskFilling(state.market, produced, produced * (barrelIngredient?.amount ?? 0));
+    }
 
     this.addDemandCoverage(state.demandCoverage, good.i, produced, index.demandCoverageByGood);
 
@@ -887,7 +907,10 @@ export class ProductionModule {
     const outQuote = Markets.quoteMarket(state.market, recipe.good.i);
     const sellValue = (outQuote.sellPrice || recipe.good.value) * modifier;
     const ingredientCost = marketCostTotal / actualUnits;
-    const projectedGain = (sellValue - ingredientCost) * demandEffect.multiplier;
+    const salesTaxRate = this.getSalesTax(state.burg);
+    const postTaxSellValue = sellValue * (1 - salesTaxRate);
+    if (!hasViableFoodProcessingMargin(recipe.good.name, sellValue, ingredientCost, salesTaxRate)) return null;
+    const projectedGain = (postTaxSellValue - ingredientCost) * demandEffect.multiplier;
     const score = projectedGain;
 
     return {

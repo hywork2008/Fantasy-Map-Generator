@@ -41,6 +41,10 @@ export interface Market {
   agTechStock?: number;
   /** Household clothing demand and consumption, separate from wholesale market intake. */
   textileLedger?: TextileLedger;
+  /** Physical intake, household use, processing and spoilage for dairy and vine foods. */
+  foodProcessingLedger?: FoodProcessingLedger;
+  /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */
+  returnableContainerLedger?: ReturnableContainerLedger;
 }
 
 export interface TextileLedger {
@@ -61,6 +65,34 @@ export interface TextileLedger {
   /** Cumulative unmet household demand since market creation or map generation. */
   cumulativeUnmetDemand: number;
 }
+
+export type FoodProcessingGoodLedger = {
+  /** Quantity entering this market's retail pool; intake is not a retail sale. */
+  marketIntake: number;
+  /** Quantity purchased by households from this market. */
+  householdConsumption: number;
+  /** Quantity taken as a recipe input by a local processor. */
+  processingConsumption: number;
+  /** Quantity discarded after its shelf-life window. */
+  spoilage: number;
+  /** Quantity received at another market, not merely booked for export. */
+  deliveredExport: number;
+  /** Household demand that could not be met this cycle. */
+  unmetDemand: number;
+};
+
+export type FoodProcessingLedger = Partial<
+  Record<"Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine", FoodProcessingGoodLedger>
+>;
+
+export type ReturnableContainerLedger = {
+  /** Filled 200 L wine casks currently outside the cooper's empty-cask pool. */
+  wineCasksInService: number;
+  /** Casks returned after Wine is consumed locally. */
+  cumulativeWineCaskReturns: number;
+  /** New casks/repair material consumed through the Wine recipe. */
+  cumulativeWineCaskReplacement: number;
+};
 
 export interface MarketTreasury {
   /** Liquid purchasing power used to pay rural Grain producers. */

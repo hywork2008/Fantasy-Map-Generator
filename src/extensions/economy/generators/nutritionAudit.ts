@@ -29,6 +29,12 @@
  */
 
 import { STAPLE_NEED_KG_PER_PERSON_YEAR } from "./agriculturalLandUse";
+import {
+  KILOGRAMS_PER_CHEESE_LOT,
+  LITERS_PER_MILK_LOT,
+  MILK_LITERS_PER_CHEESE_KILOGRAM,
+  MILK_LOTS_PER_CHEESE_LOT
+} from "./foodLots";
 
 // ---- Real-world nutrition reference values ----
 
@@ -56,21 +62,21 @@ export const MILK_PROTEIN_G_PER_LITER = 33;
 export const CHEESE_KCAL_PER_KG = 4000;
 export const CHEESE_PROTEIN_G_PER_KG = 250;
 /** Real dairying: roughly 10 L of milk reduces to 1 kg of hard cheese. */
-export const MILK_LITERS_PER_CHEESE_KG = 10;
+export const MILK_LITERS_PER_CHEESE_KG = MILK_LITERS_PER_CHEESE_KILOGRAM;
 
 /**
  * New convention (this module, not pre-existing game data): how many real liters one Milk Good
  * "unit" ("jug") represents. Picked as a plausible everyday-jug quantity — there was nothing to
  * derive it from (see module doc-comment).
  */
-export const MILK_LITERS_PER_UNIT = 4;
+export const MILK_LITERS_PER_UNIT = LITERS_PER_MILK_LOT;
 
 /**
  * Milk units consumed per Cheese unit in Cheese's own recipe (goods-generator.ts: all four of its
  * recipe variants read `{ Milk: 3, ... }`) — duplicated here as a named constant, not re-derived
  * from GOODS_DATA, to avoid this calibration-only module depending on the live catalog.
  */
-export const CHEESE_RECIPE_MILK_UNITS = 3;
+export const CHEESE_RECIPE_MILK_UNITS = MILK_LOTS_PER_CHEESE_LOT;
 
 /**
  * `CHEESE_KG_PER_UNIT` must NOT be picked independently of `MILK_LITERS_PER_UNIT` — Cheese's own
@@ -80,7 +86,7 @@ export const CHEESE_RECIPE_MILK_UNITS = 3;
  * 3 Milk units at 4 L each — 12 L, ~1.2kg of cheese — actually reduces to). Derived, not a second
  * independent guess.
  */
-export const CHEESE_KG_PER_UNIT = (CHEESE_RECIPE_MILK_UNITS * MILK_LITERS_PER_UNIT) / MILK_LITERS_PER_CHEESE_KG;
+export const CHEESE_KG_PER_UNIT = KILOGRAMS_PER_CHEESE_LOT;
 
 export interface AnnualNutritionNeed {
   readonly kcal: number;

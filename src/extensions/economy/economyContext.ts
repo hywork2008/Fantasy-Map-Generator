@@ -1488,7 +1488,7 @@ export function getOrCreateViticultureAllocationShares(): Record<string, number>
 }
 
 /**
- * Sparse goodId → cumulative units ever placed into a market for sale, owned by the economy slice.
+ * Sparse goodId → cumulative units ever placed into a market, owned by the economy slice.
  * Two independent event sources feed it, both in markets-generator.ts: Markets.sell() (a Burg selling
  * its own craft-manufactured output — the production-generator.ts:594 call site, matching
  * production-overview.ts's own "sold" deal-kind naming) and addRuralOutput() (a cell's rural/biome
@@ -1499,10 +1499,10 @@ export function getOrCreateViticultureAllocationShares(): Record<string, number>
  * consumed just as continuously, sat at ~0. Unlike `production` (economyTotals.ts's getProduction(), a
  * per-cycle snapshot recomputed fresh every time) and `deals` (wiped every production cycle for UI
  * history — see getDeals()'s doc-comment), this accumulates across the whole session and is only ever
- * cleared explicitly (resetCumulativeGoodsSales(), the Goods Editor's reset button). Returns null when
+ * cleared explicitly (resetCumulativeMarketIntake(), the Goods Editor's reset button). Returns null when
  * the extension API / simulation context is not available.
  */
-export function getOrCreateCumulativeGoodsSales(): Record<number, number> | null {
+export function getOrCreateCumulativeMarketIntake(): Record<number, number> | null {
   const slice = getEconomySlice();
   if (!slice) return null;
   const existing = slice.cumulativeGoodsSales;
@@ -1514,16 +1514,21 @@ export function getOrCreateCumulativeGoodsSales(): Record<number, number> | null
   return table;
 }
 
-/** Zeroes every good's cumulative-sales counter (getOrCreateCumulativeGoodsSales()) in place. */
-export function resetCumulativeGoodsSales(): void {
-  const table = getOrCreateCumulativeGoodsSales();
+/** Zeroes every good's cumulative market-intake counter in place. */
+export function resetCumulativeMarketIntake(): void {
+  const table = getOrCreateCumulativeMarketIntake();
   if (!table) return;
   for (const goodId of Object.keys(table)) delete table[Number(goodId)];
 }
 
+/** @deprecated Intake includes rural harvest and is not necessarily a retail sale. */
+export const getOrCreateCumulativeGoodsSales = getOrCreateCumulativeMarketIntake;
+/** @deprecated Use resetCumulativeMarketIntake. */
+export const resetCumulativeGoodsSales = resetCumulativeMarketIntake;
+
 /**
  * Sparse "marketId:goodId" → cumulative units ever placed into THAT market's stock, owned by the
- * economy slice. Same two event sources as getOrCreateCumulativeGoodsSales() (Markets.sell() and
+ * economy slice. Same two event sources as getOrCreateCumulativeMarketIntake() (Markets.sell() and
  * addRuralOutput() in markets-generator.ts), just market-scoped instead of world-wide. Lets a
  * per-market consumer recover how much actually flowed INTO a market between two points in time,
  * not just where its stock number happened to net out to — see

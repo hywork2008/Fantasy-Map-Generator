@@ -6,6 +6,7 @@ import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
 import { TIME } from "../../hostUtils";
 import { getGoodCellColumn, getGoods, getWorldContext, setGoodCellColumn, setGoods } from "../economyContext";
+import { GRAPES_LOTS_PER_RAISINS_LOT, GRAPES_LOTS_PER_WINE_LOT, MILK_LOTS_PER_CHEESE_LOT } from "./foodLots";
 import {
   DEMAND_PRIORITY,
   type DemandCategory,
@@ -334,9 +335,10 @@ export const GOODS_DATA: GoodData[] = [
     // its { Honey: 1 } alternative instead — an acceptable, market-rational shift, not a regression.
     value: 8,
     chance: 0,
-    recipes: [{ Grapes: 2, Barrels: 1 }],
-    unit: "barrel",
-    demandCoverage: { food: 0.5, luxury: 0.5 },
+    // One 200 L cask uses 260 kg of grapes. Barrels are returnable containers; 0.08 is the
+    // replacement/repair allowance per filling, not a claim that a cask is discarded each time.
+    recipes: [{ Grapes: GRAPES_LOTS_PER_WINE_LOT, Barrels: 0.08 }],
+    unit: "200 L cask",
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
   },
   {
@@ -1250,8 +1252,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#f5f0e6",
     value: 1,
     chance: 0,
-    unit: "jug",
-    demandCoverage: { food: 1 }
+    unit: "1,000 L dairy lot"
   },
   {
     // Real cheesemaking curdles Milk with an acid (Salt-brined whey/Vinegar, already modeled below)
@@ -1304,16 +1305,15 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food"],
     icon: "good-cheese",
     color: "#f5e1a4",
-    value: 5,
+    value: 14,
     chance: 0,
     recipes: [
-      { Milk: 3, Salt: 0.25 },
-      { Milk: 3, Vinegar: 0.25 },
-      { Milk: 3, Rennet: 0.1 },
-      { Milk: 3, Ash: 0.15 }
+      { Milk: MILK_LOTS_PER_CHEESE_LOT, Salt: 0.25 },
+      { Milk: MILK_LOTS_PER_CHEESE_LOT, Vinegar: 0.25 },
+      { Milk: MILK_LOTS_PER_CHEESE_LOT, Rennet: 0.1 },
+      { Milk: MILK_LOTS_PER_CHEESE_LOT, Ash: 0.15 }
     ],
-    unit: "wain",
-    demandCoverage: { food: 1 }
+    unit: "1,000 kg cheese lot"
   },
   {
     // A second-stage processing good — smoking a finished Cheese for extended shelf life and flavor,
@@ -1327,7 +1327,7 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#c68642",
-    value: 9,
+    value: 20,
     chance: 0,
     recipes: [{ Cheese: 1, Wood: 0.5 }],
     unit: "wain",
@@ -1854,8 +1854,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 2,
     chance: 3,
     distribution: 'biome(6) || biomeTag("scrub") || (biome(4) && random(50) && river())',
-    unit: "basket",
-    demandCoverage: { food: 1 },
+    unit: "1,000 kg grape lot",
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
   },
   {
@@ -1869,9 +1868,8 @@ export const GOODS_DATA: GoodData[] = [
     // { Grapes: 2 } costs 2*2 = 4 — value 5 keeps a modest margin instead of breaking even.
     value: 5,
     chance: 0,
-    recipes: [{ Grapes: 2 }],
-    unit: "bag",
-    demandCoverage: { food: 0.8 }
+    recipes: [{ Grapes: GRAPES_LOTS_PER_RAISINS_LOT }],
+    unit: "250 kg raisins lot"
   }
 ];
 
@@ -2354,7 +2352,7 @@ export function migrateRaisinsGood(): boolean {
   const raisins = Goods.getDefaultGood("Raisins");
   if (!raisins) throw new Error("Raisins must be present in the shipped goods catalogue");
   raisins.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
-  raisins.recipes = [{ [grapes.i]: 2 }]; // this save's actual Grapes id, not the shipped catalogue's
+  raisins.recipes = [{ [grapes.i]: GRAPES_LOTS_PER_RAISINS_LOT }]; // this save's actual Grapes id, not the shipped catalogue's
   goods.push(raisins);
   return true;
 }
@@ -2374,11 +2372,83 @@ export function migrateWineRecipe(): boolean {
   const barrels = goods.find(good => good.name === "Barrels");
   if (!grapes || !barrels) return false;
 
-  wine.recipes = [{ [grapes.i]: 2, [barrels.i]: 1 }];
+  wine.recipes = [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT, [barrels.i]: 0.08 }];
   wine.chance = 0;
   delete wine.distribution;
   delete wine.biomeOutputByTag;
   return true;
+}
+
+/**
+ * Normalizes pre-contract food goods after loading an older catalogue. Market stocks are retained
+ * as abstract market lots: their earlier physical labels were not stable enough to support a
+ * defensible mass conversion, while replacing them would fabricate or destroy stored food.
+ */
+export function migrateFoodProcessingLotContracts(): boolean {
+  const goods = getGoods();
+  const milk = goods.find(good => good.name === "Milk");
+  const cheese = goods.find(good => good.name === "Cheese");
+  const grapes = goods.find(good => good.name === "Grapes");
+  const raisins = goods.find(good => good.name === "Raisins");
+  const wine = goods.find(good => good.name === "Wine");
+  const barrels = goods.find(good => good.name === "Barrels");
+  let changed = false;
+
+  if (milk && (milk.unit !== "1,000 L dairy lot" || milk.value !== 1 || milk.demandCoverage)) {
+    milk.unit = "1,000 L dairy lot";
+    milk.value = 1;
+    delete milk.demandCoverage;
+    changed = true;
+  }
+  if (grapes && (grapes.unit !== "1,000 kg grape lot" || grapes.demandCoverage)) {
+    grapes.unit = "1,000 kg grape lot";
+    delete grapes.demandCoverage;
+    changed = true;
+  }
+  if (cheese && milk) {
+    const recipes = ["Salt", "Vinegar", "Rennet", "Ash"]
+      .map(name => goods.find(good => good.name === name))
+      .filter((ingredient): ingredient is Good => Boolean(ingredient))
+      .map(ingredient => ({
+        [milk.i]: MILK_LOTS_PER_CHEESE_LOT,
+        [ingredient.i]: ingredient.name === "Rennet" ? 0.1 : ingredient.name === "Ash" ? 0.15 : 0.25
+      }));
+    if (
+      cheese.unit !== "1,000 kg cheese lot" ||
+      cheese.value !== 14 ||
+      JSON.stringify(cheese.recipes) !== JSON.stringify(recipes) ||
+      cheese.demandCoverage
+    ) {
+      cheese.unit = "1,000 kg cheese lot";
+      cheese.value = 14;
+      cheese.recipes = recipes;
+      delete cheese.demandCoverage;
+      changed = true;
+    }
+  }
+  if (raisins && grapes) {
+    const recipes = [{ [grapes.i]: GRAPES_LOTS_PER_RAISINS_LOT }];
+    if (
+      raisins.unit !== "250 kg raisins lot" ||
+      JSON.stringify(raisins.recipes) !== JSON.stringify(recipes) ||
+      raisins.demandCoverage
+    ) {
+      raisins.unit = "250 kg raisins lot";
+      raisins.recipes = recipes;
+      delete raisins.demandCoverage;
+      changed = true;
+    }
+  }
+  if (wine && grapes && barrels) {
+    const recipes = [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT, [barrels.i]: 0.08 }];
+    if (wine.unit !== "200 L cask" || wine.value !== 8 || JSON.stringify(wine.recipes) !== JSON.stringify(recipes)) {
+      wine.unit = "200 L cask";
+      wine.value = 8;
+      wine.recipes = recipes;
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 /** Adds the liveAnimal tag to shipped living animals in catalogues saved before the tag existed. */

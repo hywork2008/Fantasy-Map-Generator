@@ -5,10 +5,10 @@ import {
   getApi,
   getGoodCellColumn,
   getGoods,
-  getOrCreateCumulativeGoodsSales,
+  getOrCreateCumulativeMarketIntake,
   getViewContext,
   getWorldContext,
-  resetCumulativeGoodsSales
+  resetCumulativeMarketIntake
 } from "../economyContext";
 import { getAllStockData, getProduction, getTotalPopulation } from "../generators/economyTotals";
 import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
@@ -69,7 +69,7 @@ export function goodsEditorAddLines(): void {
   const stockData = getAllStockData();
   const cellsByGood = getCellsByGood();
   const totalPopulation = getTotalPopulation();
-  const cumulativeSalesTable = getOrCreateCumulativeGoodsSales();
+  const cumulativeMarketIntakeTable = getOrCreateCumulativeMarketIntake();
 
   const enabledGoods = getGoods().filter(isGoodEnabled);
   const goods = enabledGoods.map(good => {
@@ -87,7 +87,7 @@ export function goodsEditorAddLines(): void {
     const marketsStocking = (stockData[good.i]?.sources ?? []).filter(source => source.type === "market").length;
     const producedTip = `Total good production: ${produced}⚒. Cells: ${rn(goodProduction.cell, 2)}⚒. Burgs: ${rn(goodProduction.burg, 2)}⚒. Market territories: ${marketProduction}⚒ across ${marketsProducing} markets`;
     const stockTip = `Total stock in all markets and burg inventories: ${stock} units. Markets: ${marketStock} units across ${marketsStocking} markets`;
-    const cumulativeSales = rn(cumulativeSalesTable?.[good.i] ?? 0);
+    const cumulativeMarketIntake = rn(cumulativeMarketIntakeTable?.[good.i] ?? 0);
     const isTagVisible = visibleTags.size === 0 || (good.tags?.some(tag => visibleTags.has(tag)) ?? false);
 
     return {
@@ -104,7 +104,7 @@ export function goodsEditorAddLines(): void {
       producedTip,
       stock,
       stockTip,
-      cumulativeSales,
+      cumulativeMarketIntake,
       resourceCells: cellsByGood[good.i] ?? 0,
       productionPerThousand: rn(totalPopulation > 0 ? (produced / totalPopulation) * 1000 : 0, 2),
       basePrice: good.value,
@@ -120,7 +120,7 @@ export function goodsEditorAddLines(): void {
       .reduce((sum, v) => sum + v, 0)
   );
   const totalStock = rn(Object.values(stockData).reduce((sum, d) => sum + d.total, 0));
-  const totalCumulativeSales = rn(goods.reduce((sum, good) => sum + good.cumulativeSales, 0));
+  const totalCumulativeMarketIntake = rn(goods.reduce((sum, good) => sum + good.cumulativeMarketIntake, 0));
 
   const { sortBy, sortOrder } = getGoodsEditorTableState();
   const sortedGoods = goods.sort((a, b) => {
@@ -129,7 +129,7 @@ export function goodsEditorAddLines(): void {
     else if (sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
     else if (sortBy === "produced") cmp = a.produced - b.produced;
     else if (sortBy === "stock") cmp = a.stock - b.stock;
-    else if (sortBy === "cumulativeSales") cmp = a.cumulativeSales - b.cumulativeSales;
+    else if (sortBy === "cumulativeMarketIntake") cmp = a.cumulativeMarketIntake - b.cumulativeMarketIntake;
     else if (sortBy === "resourceCells") cmp = a.resourceCells - b.resourceCells;
     else if (sortBy === "productionPerThousand") cmp = a.productionPerThousand - b.productionPerThousand;
     else if (sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
@@ -141,7 +141,7 @@ export function goodsEditorAddLines(): void {
     goods: sortedGoods,
     totalProduced,
     totalStock,
-    totalCumulativeSales,
+    totalCumulativeMarketIntake,
     displayedCount: goods.filter(good => getDisplayedGoodIds().has(good.i)).length,
     isPercentageMode: false,
     hasTagFilter: visibleTags.size > 0,
@@ -166,7 +166,7 @@ export function toggleSortBy(column: string): void {
     else if (state.sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
     else if (state.sortBy === "produced") cmp = a.produced - b.produced;
     else if (state.sortBy === "stock") cmp = a.stock - b.stock;
-    else if (state.sortBy === "cumulativeSales") cmp = a.cumulativeSales - b.cumulativeSales;
+    else if (state.sortBy === "cumulativeMarketIntake") cmp = a.cumulativeMarketIntake - b.cumulativeMarketIntake;
     else if (state.sortBy === "resourceCells") cmp = a.resourceCells - b.resourceCells;
     else if (state.sortBy === "productionPerThousand") cmp = a.productionPerThousand - b.productionPerThousand;
     else if (state.sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
@@ -258,14 +258,14 @@ export function goodsRestoreDefaults(): void {
   });
 }
 
-export function resetGoodsCumulativeSales(): void {
+export function resetGoodsCumulativeMarketIntake(): void {
   confirmationDialog({
-    title: "Reset cumulative sales",
+    title: "Reset cumulative market intake",
     message:
-      "Are you sure you want to reset the cumulative sales counter for every good? <br>This action cannot be reverted",
+      "Are you sure you want to reset the cumulative market-intake counter for every good? <br>This action cannot be reverted",
     confirm: "Reset",
     onConfirm: () => {
-      resetCumulativeGoodsSales();
+      resetCumulativeMarketIntake();
       goodsEditorAddLines();
     }
   });

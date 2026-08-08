@@ -87,6 +87,7 @@ import {
   Goods,
   getDefaultGoodTradeProfile,
   isGoodEnabled,
+  migrateFoodProcessingLotContracts,
   migrateGrapesGood,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
@@ -1584,6 +1585,7 @@ export function init(api: ExtensionAPI): void {
         const migratedGrapes = migrateGrapesGood();
         const migratedRaisins = migrateRaisinsGood();
         const migratedWineRecipe = migrateWineRecipe();
+        const migratedFoodLots = migrateFoodProcessingLotContracts();
         const migratedLiveAnimalTags = migrateLiveAnimalTags();
         if (
           migratedLegacyMetals ||
@@ -1592,6 +1594,7 @@ export function init(api: ExtensionAPI): void {
           migratedGrapes ||
           migratedRaisins ||
           migratedWineRecipe ||
+          migratedFoodLots ||
           migratedLiveAnimalTags
         ) {
           Goods.sync();
@@ -1778,6 +1781,7 @@ export function init(api: ExtensionAPI): void {
     const migratedGrapes = migrateGrapesGood();
     const migratedRaisins = migrateRaisinsGood();
     const migratedWineRecipe = migrateWineRecipe();
+    const migratedFoodLots = migrateFoodProcessingLotContracts();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
     if (
       migratedLegacyMetals ||
@@ -1786,6 +1790,7 @@ export function init(api: ExtensionAPI): void {
       migratedGrapes ||
       migratedRaisins ||
       migratedWineRecipe ||
+      migratedFoodLots ||
       migratedLiveAnimalTags
     ) {
       Goods.sync();
@@ -2335,6 +2340,7 @@ export function init(api: ExtensionAPI): void {
     const migratedGrapes = migrateGrapesGood();
     const migratedRaisins = migrateRaisinsGood();
     const migratedWineRecipe = migrateWineRecipe();
+    const migratedFoodLots = migrateFoodProcessingLotContracts();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
     if (
       migratedLegacyMetals ||
@@ -2343,6 +2349,7 @@ export function init(api: ExtensionAPI): void {
       migratedGrapes ||
       migratedRaisins ||
       migratedWineRecipe ||
+      migratedFoodLots ||
       migratedLiveAnimalTags
     ) {
       Goods.sync();

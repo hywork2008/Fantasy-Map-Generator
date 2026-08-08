@@ -83,10 +83,9 @@ describe("viticulture", () => {
     it("computes required workers from the population-bounded desired vineyard area", () => {
       scrubCellWorld(140);
       setGoods([GRAPES_GOOD] as never);
-      // ceiling = 5,000 * terrainShare(0.9) * scrub(0.5) = 2,250 ha; desiredArea = min(2250, 140*0.5) = 70 ha;
-      // required = 70 * 20 / 140 = 10.
+      // desiredArea = min(2250, 140*0.04) = 5.6 ha; required = 5.6 * 20 / 140 = 0.8.
       const demand = calculateViticultureDemand(worldContext, 0);
-      expect(demand.requiredWorkers).toBeCloseTo(10, 5);
+      expect(demand.requiredWorkers).toBeCloseTo(0.8, 5);
       expect(demand.value).toBeCloseTo(2, 5);
     });
 
@@ -122,10 +121,10 @@ describe("viticulture", () => {
 
     it("scales the desired vineyard area by the viticulture worker factor", () => {
       scrubCellWorld(140);
-      // desiredArea = 70 ha (see calculateViticultureDemand test above).
+      // desiredArea = 5.6 ha (see calculateViticultureDemand test above).
       setViticultureRequiredWorkers(new Float32Array([10]));
       setViticultureWorkers(new Float32Array([5])); // workerFactor 0.5
-      expect(getVineyardAreaUsedHectares(0)).toBeCloseTo(35, 5);
+      expect(getVineyardAreaUsedHectares(0)).toBeCloseTo(2.8, 5);
     });
   });
 
@@ -138,8 +137,8 @@ describe("viticulture", () => {
     it("multiplies the used vineyard area by the grape yield per hectare", () => {
       scrubCellWorld(140);
       setViticultureRequiredWorkers(new Float32Array([10]));
-      setViticultureWorkers(new Float32Array([10])); // full coverage -> areaUsed = 70 ha
-      expect(getGrapeHarvestOutput(0)).toBeCloseTo(70 * GRAPE_YIELD_PER_HECTARE_PER_MONTH, 5);
+      setViticultureWorkers(new Float32Array([10])); // full coverage -> areaUsed = 5.6 ha
+      expect(getGrapeHarvestOutput(0)).toBeCloseTo(5.6 * GRAPE_YIELD_PER_HECTARE_PER_MONTH, 5);
     });
 
     it("applies a river yield bonus when the cell has one", () => {
@@ -147,7 +146,7 @@ describe("viticulture", () => {
       (worldContext.pack.cells as unknown as { r: Uint8Array }).r = new Uint8Array([1]);
       setViticultureRequiredWorkers(new Float32Array([10]));
       setViticultureWorkers(new Float32Array([10]));
-      expect(getGrapeHarvestOutput(0)).toBeCloseTo(70 * GRAPE_YIELD_PER_HECTARE_PER_MONTH * 1.1, 5);
+      expect(getGrapeHarvestOutput(0)).toBeCloseTo(5.6 * GRAPE_YIELD_PER_HECTARE_PER_MONTH * 1.1, 5);
     });
   });
 });

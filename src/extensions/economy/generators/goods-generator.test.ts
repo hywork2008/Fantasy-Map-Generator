@@ -13,6 +13,7 @@ import {
 import {
   GoodsModule,
   isGoodEnabled,
+  migrateFoodProcessingLotContracts,
   migrateGrapesGood,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
@@ -283,7 +284,7 @@ describe("GoodsModule", () => {
     goodsModule.restoreDefaults();
 
     const grapes = getGoods().find(good => good.name === "Grapes");
-    expect(grapes).toMatchObject({ unit: "basket", tags: expect.arrayContaining(["food", "freshFood"]) });
+    expect(grapes).toMatchObject({ unit: "1,000 kg grape lot", tags: expect.arrayContaining(["food", "freshFood"]) });
     expect(grapes?.biomeOutputByTag).toBeUndefined();
     expect(grapes?.biomeOutput).toBeUndefined();
   });
@@ -296,14 +297,14 @@ describe("GoodsModule", () => {
     const barrels = getGoods().find(good => good.name === "Barrels");
     expect(wine?.biomeOutputByTag).toBeUndefined();
     expect(wine?.distribution).toBeUndefined();
-    expect(wine?.recipes).toEqual([{ [grapes!.i]: 2, [barrels!.i]: 1 }]);
+    expect(wine?.recipes).toEqual([{ [grapes!.i]: 0.26, [barrels!.i]: 0.08 }]);
   });
 
   it("adds Grapes once to catalogues saved before Phase 4", () => {
     setGoods([{ i: 7, name: "Legacy good", tags: [], value: 1, unit: "unit", icon: "legacy", color: "#000000" }]);
 
     expect(migrateGrapesGood()).toBe(true);
-    expect(getGoods().find(good => good.name === "Grapes")).toMatchObject({ i: 8, unit: "basket" });
+    expect(getGoods().find(good => good.name === "Grapes")).toMatchObject({ i: 8, unit: "1,000 kg grape lot" });
     expect(migrateGrapesGood()).toBe(false);
   });
 
@@ -321,7 +322,7 @@ describe("GoodsModule", () => {
 
     expect(migrateRaisinsGood()).toBe(true);
     const raisins = getGoods().find(good => good.name === "Raisins");
-    expect(raisins).toMatchObject({ i: 9, unit: "bag", recipes: [{ 8: 2 }] });
+    expect(raisins).toMatchObject({ i: 9, unit: "250 kg raisins lot", recipes: [{ 8: 1 }] });
     expect(migrateRaisinsGood()).toBe(false);
   });
 
@@ -365,10 +366,37 @@ describe("GoodsModule", () => {
 
     expect(migrateWineRecipe()).toBe(true);
     const wine = getGoods().find(good => good.name === "Wine");
-    expect(wine).toMatchObject({ recipes: [{ 8: 2, 9: 1 }], chance: 0 });
+    expect(wine).toMatchObject({ recipes: [{ 8: 0.26, 9: 0.08 }], chance: 0 });
     expect(wine?.distribution).toBeUndefined();
     expect(wine?.biomeOutputByTag).toBeUndefined();
     expect(migrateWineRecipe()).toBe(false); // already has recipes now
+  });
+
+  it("normalizes legacy food-processing lots without changing their Good ids", () => {
+    goodsModule.restoreDefaults();
+    const milk = getGoods().find(good => good.name === "Milk")!;
+    const cheese = getGoods().find(good => good.name === "Cheese")!;
+    const grapes = getGoods().find(good => good.name === "Grapes")!;
+    const raisins = getGoods().find(good => good.name === "Raisins")!;
+    const wine = getGoods().find(good => good.name === "Wine")!;
+    const originalIds = [milk.i, cheese.i, grapes.i, raisins.i, wine.i];
+    milk.unit = "jug";
+    milk.value = 0.1;
+    cheese.unit = "wheel";
+    cheese.value = 5;
+    grapes.unit = "basket";
+    raisins.unit = "bag";
+    wine.unit = "barrel";
+    wine.value = 5;
+
+    expect(migrateFoodProcessingLotContracts()).toBe(true);
+    expect([milk.i, cheese.i, grapes.i, raisins.i, wine.i]).toEqual(originalIds);
+    expect(milk).toMatchObject({ unit: "1,000 L dairy lot", value: 1 });
+    expect(cheese).toMatchObject({ unit: "1,000 kg cheese lot", value: 14 });
+    expect(grapes.unit).toBe("1,000 kg grape lot");
+    expect(raisins.unit).toBe("250 kg raisins lot");
+    expect(wine).toMatchObject({ unit: "200 L cask", value: 8 });
+    expect(migrateFoodProcessingLotContracts()).toBe(false);
   });
 
   it("backfills liveAnimal only for shipped living animals in old catalogues", () => {

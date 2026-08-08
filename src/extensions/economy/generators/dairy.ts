@@ -13,18 +13,14 @@
  *   - `getMilkOutput()` (this file) computes Milk the exact same way Phase J computed Cheese: from
  *     *this cell's own* dairy-species headcount only, gated by `getHusbandryWorkerFactor()`. It is
  *     wired into production-utils.ts's `getRuralProductionContributions()` as a Grapes-style
- *     special case, so Milk enters the regular market/goods system as a real, tradeable-in-principle
- *     Good rather than staying purely internal.
- *   - `Milk` is tagged `freshFood` (goods-generator.ts) so tradeOpportunityEstimator.ts's existing
- *     day-cap logic (1-2 days in warm/hot climates — no refrigeration) makes long-haul caravan
- *     trade uneconomical/impermissible in practice, without inventing a new "never tradeable" flag.
- *     This does NOT achieve exact-cell locality the way Phase J's direct computation did — a
- *     burg's regional Market pools rural production from its whole territory, so Cheese can still be
- *     made anywhere within the *same market region* as the herd, not only the exact cell — but that
- *     is the deliberate trade-off the user asked for: Cheese goes back through the standard
- *     Market-purchase recipe (`{ Milk: 3, Salt: 0.25 }` / `{ Milk: 3, Vinegar: 0.25 }`,
- *     goods-generator.ts) precisely so Salt/Vinegar producers elsewhere have a real reason to ship
- *     into the dairy region, and so Cheese-making burgs get ordinary craft employment again
+ *     special case, so Milk enters the regular market/goods system as a physical Good rather than
+ *     staying purely internal.
+ *   - Raw Milk is settled within its producing Market during the same monthly cycle and cannot be
+ *     loaded onto a caravan. A burg's regional Market still pools rural production from its whole
+ *     territory, so Cheese may be made anywhere within the same market region as the herd, not only
+ *     in the exact cell. Cheese uses the standard Market-purchase recipe (`{ Milk: 10, Salt: 0.25 }`
+ *     and alternatives) so preservation inputs can still travel into dairy regions and cheese-making
+ *     burgs receive ordinary craft employment again
  *     (production-generator.ts's `productiveGoods` loop, `craftWorkersByBurg` accounting).
  *   - Guild-domain participation (docs/plan/knowledge-guild-system.md's `CRAFT_DOMAIN_BY_GOOD_NAME`)
  *     is deliberately left unmapped for Cheese, matching that system's own stated policy — "plain
@@ -33,41 +29,38 @@
  *     was asked for this session.
  */
 
-import { getOrCreateFaunaStockTable } from "../economyContext";
+import { getOrCreateFaunaStockTable, getSimulationMonth } from "../economyContext";
+import { LITERS_PER_MILK_LOT } from "./foodLots";
 import { getHusbandryWorkerFactor } from "./husbandry";
 
 /**
- * Milk yield per head per month, by dairy species — order-of-magnitude placeholder (§9.3 policy:
- * relative ordering matters more than exact values). Cattle give the most milk per head, then
- * Goats, then Sheep, roughly matching real dairy yield ordering.
- *
- * Cut ~15x from Phase K's original rates (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase N)
- * — those were tuned only to keep Cheese's total output "roughly the same order of magnitude" as
- * Phase J's direct-computation figures, without checking against how much Milk a pasture-sized herd
- * would actually produce. Per-hectare, the old rates (density × yield) landed at 0.075-0.15
- * Milk/ha/month across all three species — internally consistent, but multiplied by the thousands
- * of hectares a large cell's pasture ceiling can hold, real-map testing showed Milk stock reaching
- * >1,000,000 map-wide within 5 years while total Cheese produced (even after Phase M's preservation-
- * priority fix) stayed in the low hundreds — under 0.03% of supply ever got used. Even with Phase N's
- * new Rennet/Ash coagulant recipes below giving Cheese-making more independent raw-material paths,
- * demand-side additions alone can't meaningfully dent a stockpile growing that fast — the supply rate
- * itself was the primary problem. This cut is a first empirical pass (verified via Playwright to
- * bring multi-year Milk accumulation down to a tractable, still-growing-but-plausible range), not a
- * mathematically derived figure — recalibrate further if it still runs away or now starves Cheese.
+ * Annual litres per lactating female. The model uses the breeding cohort as a proxy for the adult
+ * herd, then applies a female/lactation share and an eight-month Central-European milk season.
+ * Cattle give the most milk, followed by Goats and Sheep.
  */
-const MILK_YIELD_PER_HEAD_PER_MONTH: Record<string, number> = {
-  Cattle: 0.01,
-  Goats: 0.004,
-  Sheep: 0.003
+const ANNUAL_LITERS_PER_LACTATING_FEMALE: Record<string, number> = {
+  Cattle: 500,
+  Goats: 150,
+  Sheep: 75
 };
 
+/** Breeding cohorts include both sexes and not every adult is in lactation simultaneously. */
+const LACTATING_SHARE_OF_BREEDING_COHORT = 0.375;
+
 /** `cellId:speciesKey`-keyed lookup, mirroring husbandry.ts's `getDogsHeadcount` precedent. */
-function getLocalHeadcount(cellId: number, speciesKey: string): number {
+function getLocalBreedingHeadcount(cellId: number, speciesKey: string): number {
   const table = getOrCreateFaunaStockTable();
   if (!table) return 0;
   const cohorts = table[`${cellId}:${speciesKey}`];
   if (!cohorts) return 0;
-  return cohorts.young + cohorts.breeding + cohorts.old;
+  return cohorts.breeding;
+}
+
+function lactationMonths(): number {
+  // Central-European baseline: spring to autumn. A detailed temperature/hemisphere calendar can
+  // replace this seam later without changing the physical lot contract.
+  const month = getSimulationMonth();
+  return month >= 3 && month <= 10 ? 8 : 0;
 }
 
 /**
@@ -77,9 +70,14 @@ function getLocalHeadcount(cellId: number, speciesKey: string): number {
  * for free).
  */
 export function getMilkOutput(cellId: number): number {
+  const activeMonths = lactationMonths();
+  if (!activeMonths) return 0;
   let rawYield = 0;
-  for (const [species, yieldPerHead] of Object.entries(MILK_YIELD_PER_HEAD_PER_MONTH)) {
-    rawYield += getLocalHeadcount(cellId, species) * yieldPerHead;
+  for (const [species, annualLiters] of Object.entries(ANNUAL_LITERS_PER_LACTATING_FEMALE)) {
+    rawYield +=
+      (getLocalBreedingHeadcount(cellId, species) * LACTATING_SHARE_OF_BREEDING_COHORT * annualLiters) /
+      activeMonths /
+      LITERS_PER_MILK_LOT;
   }
   if (rawYield <= 0) return 0;
   return rawYield * getHusbandryWorkerFactor(cellId);
