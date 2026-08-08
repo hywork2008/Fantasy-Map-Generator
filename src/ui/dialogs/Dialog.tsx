@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { closeAllDialogs } from "./dialogService";
 import { useDraggable } from "./useDraggable";
@@ -30,6 +30,9 @@ export const Dialog: React.FC<DialogProps> = ({
   const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".titlebar" });
   const [minimized, setMinimized] = useState(false);
   const [titlebarAnchored, setTitlebarAnchored] = useState(false);
+  // Remembers a resize-handle-driven inline height across a minimize/restore
+  // cycle (see handleMinimize below).
+  const preMinimizeHeightRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +60,18 @@ export const Dialog: React.FC<DialogProps> = ({
         Number.parseFloat(computedStyle.borderLeftWidth) + Number.parseFloat(computedStyle.borderRightWidth);
       const cssWidth = computedStyle.boxSizing === "border-box" ? width : width - horizontalBorders;
       container.style.width = `${cssWidth}px`;
+
+      // The resize handle (useDraggable) may have set an inline height while
+      // the dialog was open. That inline height outlives the content unmount
+      // below, so without clearing it the container keeps its resized height
+      // — an empty frame with only a titlebar inside it — instead of
+      // collapsing to fit the titlebar. Remember it so restoring can bring
+      // the resized size back.
+      preMinimizeHeightRef.current = container.style.height || null;
+      container.style.height = "";
+    } else if (container && minimized && preMinimizeHeightRef.current) {
+      // Restoring: reapply the height that was active before minimizing.
+      container.style.height = preMinimizeHeightRef.current;
     }
     setMinimized(currentMinimized => !currentMinimized);
   }, [containerRef, minimized, titlebarAnchored]);
