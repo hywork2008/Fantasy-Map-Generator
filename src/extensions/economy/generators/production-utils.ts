@@ -2,10 +2,18 @@ import { sum } from "d3";
 import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
-import { getGoodCellColumn, getGoods, getSimulationMonth, getWorldContext } from "../economyContext";
+import {
+  getCultivableArea,
+  getCultivatedArea,
+  getFoodPotential,
+  getGoodCellColumn,
+  getGoods,
+  getSimulationMonth,
+  getWorldContext
+} from "../economyContext";
 import { getMilkOutput } from "./dairy";
 import { drawDomesticatedFaunaOfftake, previewDomesticatedFaunaOfftake } from "./faunaPopulation";
-import { getDepletionFactor } from "./forestDepletion";
+import { getForestStockMultiplier } from "./forestStock";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
@@ -63,10 +71,10 @@ export function getModifiers(good: Good, cellId: number): number {
   return modifier;
 }
 
-/** Wood is the only good whose local supply is depleted by Shipbuilding's logging ticks. */
-function getDepletionMultiplier(good: Good, cellId: number): number {
+/** Wood supply is proportional to the cell's single standing-timber stock. */
+function getForestStockProductionMultiplier(good: Good, cellId: number): number {
   if (good.name !== "Wood") return 1;
-  return 1 - getDepletionFactor(cellId);
+  return getForestStockMultiplier(cellId);
 }
 
 /**
@@ -124,7 +132,7 @@ export function getRuralCellPopulation(cellId: number): number {
 }
 
 /**
- * Returns the pre-season, pre-depletion quantities for this cell. The market
+ * Returns the pre-season quantities for this cell. The market
  * production index uses these stable contributions to aggregate rural output
  * once per topology/goods change, then applies time-varying factors at settlement.
  *
@@ -236,9 +244,54 @@ export function getCellProduction(
   for (const contribution of getRuralProductionContributions(cellId, biomeProduction, options)) {
     const good = Goods.get(contribution.goodId);
     if (!good) continue;
-    const multiplier = getDepletionMultiplier(good, cellId) * getSeasonalProductionMultiplier(good, cellId);
+    // Grain is owned by Food Ledger land-use calculations. Its biome output is
+    // retained only as a catalog compatibility value and must not make an intact
+    // forest look like an active grain field on the Goods layer.
+    if (good.tags.includes("stapleFood")) continue;
+    const multiplier = getForestStockProductionMultiplier(good, cellId) * getSeasonalProductionMultiplier(good, cellId);
     add(contribution.goodId, contribution.amount * multiplier);
   }
 
+  const stapleFoodGood = getGoods().find(good => good.tags.includes("stapleFood"));
+  const stapleOutput = stapleFoodGood ? getCellStapleFoodProduction(cellId) : 0;
+  if (stapleFoodGood && stapleOutput > 0) {
+    // Grain is the cell's active field output. Do not round it to the generic
+    // two-decimal goods precision: sparse inhabited cells can produce a small
+    // but real amount, and the Goods layer must retain their local food color.
+    produced[stapleFoodGood.i] = (produced[stapleFoodGood.i] || 0) + stapleOutput;
+  }
+
   return produced;
+}
+
+/**
+ * Returns a cell's actual annual staple output using the same active-field
+ * coverage calculation as FoodProduction's market Food Ledger. `cultivatedArea`
+ * means a field is already planted and maintained; labour columns describe the
+ * labour it requires for migration/employment, rather than cancelling the
+ * field's production when city residents are counted in its food demand.
+ * A missing agriculture slice intentionally produces zero: the renderer must
+ * not fall back to the old biome-only Grain preview.
+ */
+export function getCellStapleFoodProduction(cellId: number): number {
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  const cultivableArea = getCultivableArea();
+  const cultivatedArea = getCultivatedArea();
+  const foodPotential = getFoodPotential();
+  const cellCount = cells?.i?.length ?? 0;
+  if (
+    cellId < 0 ||
+    cellId >= cellCount ||
+    cultivableArea.length !== cellCount ||
+    cultivatedArea.length !== cellCount ||
+    foodPotential.length !== cellCount
+  )
+    return 0;
+
+  const cultivable = Math.max(0, cultivableArea[cellId] ?? 0);
+  const cultivated = Math.max(0, cultivatedArea[cellId] ?? 0);
+  const landCoverage = cultivable > 0 ? Math.min(1, cultivated / cultivable) : 0;
+  const stateId = cells.state?.[cellId] ?? 0;
+  return Math.max(0, foodPotential[cellId] * landCoverage * foodStressProductionMultiplier(stateId));
 }

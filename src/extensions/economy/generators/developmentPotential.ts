@@ -1,4 +1,4 @@
-import { Burgs, type WorldContext } from "../../hostCore";
+import { Burgs, useOptionsState, type WorldContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
   clearSettlementDevelopmentLastEvaluatedYear,
@@ -36,7 +36,7 @@ import {
   setViticultureWorkers,
   setYieldPerArea
 } from "../economyContext";
-import { calculateAgriculturalLandProfile } from "./agriculturalLandUse";
+import { calculateAgriculturalLandProfile, reconcileForestClearanceForAgriculture } from "./agriculturalLandUse";
 import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
 
 /**
@@ -103,7 +103,14 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    const agriculture = calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell);
+    const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
+    reconcileForestClearanceForAgriculture(world, agTechStockByCell, stateProductivityByCell, demandOptions);
+    const agriculture = calculateAgriculturalLandProfile(
+      world,
+      agTechStockByCell,
+      stateProductivityByCell,
+      demandOptions
+    );
     const settlementDevelopmentPotential = calculateSettlementDevelopmentPotential(world, getMineralDeposits());
     const occupations = this.storeAgriculture(world, agriculture);
     setSettlementDevelopmentPotential(settlementDevelopmentPotential);
@@ -151,7 +158,12 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    this.storeAgriculture(world, calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell));
+    const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
+    reconcileForestClearanceForAgriculture(world, agTechStockByCell, stateProductivityByCell, demandOptions);
+    this.storeAgriculture(
+      world,
+      calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell, demandOptions)
+    );
     return true;
   }
 

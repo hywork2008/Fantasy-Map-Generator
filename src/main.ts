@@ -32,6 +32,7 @@ import { dangerSuitabilityMultiplier } from "./generators/dangerExpandPolicy";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
 import { Dungeons } from "./generators/dungeons-generator";
 import { Features } from "./generators/features";
+import { initializeForestStock } from "./generators/forestStock";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
@@ -1140,6 +1141,10 @@ function getGenerationStages(): Array<() => Promise<void>> {
       // High Fantasy dungeon sites (boss + treasure); after markers so icons share the layer.
       Dungeons.generate(worldContext, { year: useOptionsState.getState().year });
       Zones.generate(worldContext, viewContext, appServices, state);
+      // The graph's compatibility adapters are already installed by reGraph().
+      // Seed the simulation-owned timber stock only after Biomes has assigned
+      // each cell's static forest capacity and settlement generation has finished.
+      initializeForestStock(worldContext.pack.cells);
       initSimulationClock();
       bindSimulationBurgState(worldContext, simulationContext);
       bindSimulationStateState(worldContext, simulationContext);
@@ -1887,8 +1892,14 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
 }, 250);
 
 export function undraw() {
+  // SVG canvas-backed layers live inside foreignObject.fmc and are not covered
+  // by the historical shape-only selector below. Clear deck.gl as well so the
+  // old Economy Goods polygons cannot survive while a new map is being staged.
+  DeckGlRenderer.clear(viewContext);
   viewContext.viewbox
-    .selectAll("path, circle, polygon, line, text, use, #texture > image, #zones > g, #armies > g, #ruler > g")
+    .selectAll(
+      "path, circle, polygon, line, text, use, foreignObject.fmc, #texture > image, #zones > g, #armies > g, #ruler > g"
+    )
     .remove();
   viewContext.defs
     .node()!

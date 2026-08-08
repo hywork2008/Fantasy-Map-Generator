@@ -47,6 +47,16 @@ export interface MarketOverviewTransportOrderRow {
   blockedReason?: "insufficientTreasury" | "budgetLimit" | "missingMaterials" | "missingCraftWorkers";
 }
 
+export interface MarketOverviewFoodLedger {
+  localProduction: number;
+  quarterlyNeed: number;
+  importedFood: number;
+  importSharePercent: number;
+  reserveGap: number;
+  stock: number;
+  stockMonths: number;
+}
+
 interface MarketOverviewOwner {
   coaId: string;
   name: string;
@@ -79,6 +89,7 @@ interface MarketOverviewState {
   exportStagingValue: number;
   merchantOrganizationName: string;
   sailScheduleLabel: string;
+  foodLedger: MarketOverviewFoodLedger | null;
 }
 
 export const useMarketOverviewState = create<MarketOverviewState>(() => ({
@@ -104,7 +115,8 @@ export const useMarketOverviewState = create<MarketOverviewState>(() => ({
   exportStagingUnits: 0,
   exportStagingValue: 0,
   merchantOrganizationName: "",
-  sailScheduleLabel: ""
+  sailScheduleLabel: "",
+  foodLedger: null
 }));
 
 export const getMarketOverviewState = useMarketOverviewState.getState;

@@ -1,15 +1,17 @@
 import type { Burg, BurgEconomySummary } from "../hostTypes";
 import { formatPrice, rn } from "../hostUtils";
-import { getBasicEmploymentSummary, getConstructionOperations, getWorldContext } from "./economyContext";
+import { getBasicEmploymentSummary, getConstructionOperations, getMarkets, getWorldContext } from "./economyContext";
 import {
   formatEmploymentCompositionSummary,
   getBurgEmploymentComposition
 } from "./generators/burgEmploymentComposition";
 import { getHousingLedgerSnapshot } from "./generators/constructionEmployment";
 import { formatConstructionJobPosting, getConstructionJobPosting } from "./generators/constructionJobPostings";
+import { getFoodLedgerSummary } from "./generators/foodLedgerSummary";
 import { Goods } from "./generators/goods-generator";
 import { getInnFacilitiesForBurg, getInnFacilityTotals } from "./generators/innFacilities";
 import { Production } from "./generators/production-generator";
+import { getCellStapleFoodProduction } from "./generators/production-utils";
 import { getBurgSettlementValue } from "./generators/settlementValuation";
 import { formatExpectedBirthsLowerBound, formatPregnantHeadcount } from "./generators/urbanPregnancy";
 import {
@@ -36,10 +38,9 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     : "none";
 
   const wealth = getBurgProductPerThousandResidents(burg);
-  const baseCapacity = burg.demographics?.capacity ?? 0;
-  const effectiveCapacity = burg.demographics?.effectiveCapacity ?? baseCapacity;
-  const importedSupport = Math.max(0, effectiveCapacity - baseCapacity);
-  const foodImportDependency = burg.population && burg.population > 0 ? (importedSupport / burg.population) * 100 : 0;
+  const market = burg.market ? getMarkets().find(candidate => candidate.i === burg.market) : undefined;
+  const foodLedger = getFoodLedgerSummary(market?.foodLedger);
+  const cellGrainProduction = getCellStapleFoodProduction(burg.cell);
 
   const employmentSummary = getBasicEmploymentSummary().find(record => record.burgId === burgId);
   const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
@@ -59,7 +60,13 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     production,
     wealth: formatPrice(wealth),
     treasury: formatPrice(burg.treasury || 0),
-    foodImportDependency: `${rn(foodImportDependency, 1)}%`,
+    cellGrainProduction: `${rn(cellGrainProduction, 2)} / year`,
+    marketGrainProduction: foodLedger ? `${rn(foodLedger.localProduction, 2)} / quarter` : "—",
+    marketFoodImports: foodLedger
+      ? `${rn(foodLedger.importedFood, 2)} (${rn(foodLedger.importShare * 100, 1)}% of need)`
+      : "—",
+    marketFoodReserveGap: foodLedger ? `${rn(foodLedger.reserveGap, 2)}` : "—",
+    marketFoodStock: foodLedger ? `${rn(foodLedger.stock, 2)} (${rn(foodLedger.stockMonths, 1)} months)` : "—",
     basicEmploymentDemand: employmentSummary ? `${rn(employmentSummary.basicEmploymentDemand, 1)}` : "—",
     serviceEmploymentDemand: employmentSummary ? `${rn(employmentSummary.serviceEmploymentDemand, 1)}` : "—",
     dwellings: housing ? `${rn(housing.dwellingStock, 1)} / ${housing.requiredDwellings}` : "—",

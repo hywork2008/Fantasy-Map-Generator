@@ -19,6 +19,8 @@ export interface SimulationCellColumns {
   femaleAdults: Float32Array;
   elders: Float32Array;
   danger: Uint8Array;
+  /** Standing forest coverage / timber stock, 0..pack.cells.forestCover. */
+  forestStock: Float32Array;
 }
 
 /** Values that evolve for a settlement after its map definition is generated. */
@@ -340,7 +342,8 @@ export const simulationContext: SimulationContext = {
     maleAdults: new Float32Array(),
     femaleAdults: new Float32Array(),
     elders: new Float32Array(),
-    danger: new Uint8Array()
+    danger: new Uint8Array(),
+    forestStock: new Float32Array()
   },
   burgs: {},
   states: {},

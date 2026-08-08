@@ -1,3 +1,4 @@
+import { harvestForestStock } from "../../../generators/forestStock";
 import type { WorldContext } from "../../hostCore";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 
@@ -67,6 +68,15 @@ export interface AgriculturalLandProfile {
 }
 
 /**
+ * Standard maps reserve fields for the burg population in the same cell as well as rural
+ * residents. Megacity mode alone relaxes this local self-sufficiency rule so Food Ledger imports
+ * can sustain a city whose own cell has no Grain production.
+ */
+export interface AgriculturalDemandOptions {
+  readonly includeUrbanFoodDemand?: boolean;
+}
+
+/**
  * Calculates agriculture independently of `cells.capacity` on a per-cell basis.
  * It never reads population or carrying capacity while deriving environmental
  * production potential; those values are consumed only by current cultivation.
@@ -81,7 +91,8 @@ export interface AgriculturalLandProfile {
 export function calculateAgriculturalLandProfile(
   world: Readonly<WorldContext>,
   agTechStockByCell?: Float32Array,
-  stateProductivityByCell?: Float32Array
+  stateProductivityByCell?: Float32Array,
+  demandOptions: AgriculturalDemandOptions = {}
 ): AgriculturalLandProfile {
   const cells = world.pack.cells;
   const count = cells?.i?.length ?? 0;
@@ -122,17 +133,16 @@ export function calculateAgriculturalLandProfile(
     const area = cultivableArea[cellId];
     if (area <= 0) continue;
 
-    const biomeTags = world.biomesData.tags?.[cells.biomeCode[cellId] ?? 0] ?? [];
-    const hasDraftAnimal = biomeTags.some(tag => DRAFT_CAPABLE_BIOME_TAGS.includes(tag));
-    const rawAgTechStock = agTechStockByCell?.[cellId] ?? 0;
-    const effectiveAgTech = rawAgTechStock * (hasDraftAnimal ? 1 : AGTECH_NO_DRAFT_EFFECT_SHARE);
+    const effectiveAgTech = getEffectiveAgTech(world, cellId, agTechStockByCell);
     const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
 
-    const yieldKgPerHa =
-      BASE_NET_YIELD_KG_PER_SOWN_HECTARE *
-      relativeYield[cellId] *
-      (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech) *
-      (1 + STATE_YIELD_BONUS_MAX * stateProductivity);
+    const yieldKgPerHa = calculateYieldKgPerHectare(
+      world,
+      cellId,
+      effectiveAgTech,
+      stateProductivity,
+      relativeYield[cellId]
+    );
     yieldPerArea[cellId] = yieldKgPerHa;
 
     const supported = supportedPeople(area, yieldKgPerHa);
@@ -141,7 +151,12 @@ export function calculateAgriculturalLandProfile(
 
     const effectiveLaborDaysPerHectare = LABOUR_DAYS_PER_HECTARE * (1 - AGTECH_LABOR_SAVINGS_MAX * effectiveAgTech);
 
-    const currentPeople = Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
+    const currentPeople = getCellFoodDemandPeople(
+      world,
+      cellId,
+      populationRate,
+      demandOptions.includeUrbanFoodDemand !== false
+    );
     const requiredArea = requiredFieldAreaHectares(currentPeople, yieldKgPerHa);
     // A modest crop reserve is represented by keeping ten percent more area in
     // cultivation when land exists; it does not make more land available.
@@ -177,6 +192,78 @@ export function requiredFieldAreaHectares(people: number, yieldKgPerHa: number):
   return (
     (people * STAPLE_NEED_KG_PER_PERSON_YEAR) / (EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK * yieldKgPerHa * ANNUAL_SOWN_SHARE)
   );
+}
+
+/**
+ * Opens enough forest for each cell's resident population to maintain its initial (or newly
+ * increased) grain field requirement. This is the only path from population demand to permanent
+ * clearing: Wood production harvests the same stock, but does not itself create a field target.
+ *
+ * The map starts after this historical clearing has already happened, so the removed timber is not
+ * inserted into an economy market inventory. Later annual calls make additional clearing as local
+ * population grows. Standard maps include the burg population in this local field target;
+ * Megacity mode is the only explicit opt-out and relies on the Food Ledger/import network instead.
+ */
+export function reconcileForestClearanceForAgriculture(
+  world: WorldContext,
+  agTechStockByCell?: Float32Array,
+  stateProductivityByCell?: Float32Array,
+  demandOptions: AgriculturalDemandOptions = {}
+): boolean {
+  const cells = world.pack.cells;
+  if (!cells.forestStock || cells.forestStock.length !== cells.i.length) return false;
+
+  const populationRate = Math.max(1, world.populationRate || 1);
+  let changed = false;
+
+  for (const cellId of cells.i) {
+    const constraints = getCroplandConstraints(world, cellId);
+    if (!constraints || constraints.terrainAndBiomeCeiling <= 0) continue;
+
+    const effectiveAgTech = getEffectiveAgTech(world, cellId, agTechStockByCell);
+    const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
+    const yieldKgPerHa = calculateYieldKgPerHectare(world, cellId, effectiveAgTech, stateProductivity);
+    const residentPeople = getCellFoodDemandPeople(
+      world,
+      cellId,
+      populationRate,
+      demandOptions.includeUrbanFoodDemand !== false
+    );
+    // Keep the same ten-percent reserve represented by calculateAgriculturalLandProfile.
+    const targetCultivatedArea = Math.min(
+      constraints.terrainAndBiomeCeiling,
+      requiredFieldAreaHectares(residentPeople, yieldKgPerHa) * 1.1
+    );
+    if (targetCultivatedArea <= 0) continue;
+
+    const forestCapacity = getForestCapacityForCell(cells, cellId, constraints.biomeTags);
+    const standingForestCover = Math.max(0, Math.min(forestCapacity, cells.forestStock[cellId] ?? forestCapacity));
+    const openLandArea = constraints.physicalHectares * (1 - standingForestCover);
+    const additionalOpenArea = targetCultivatedArea - openLandArea;
+    if (additionalOpenArea <= 0) continue;
+
+    const harvestedCoverage = harvestForestStock(cells, cellId, additionalOpenArea / constraints.physicalHectares);
+    changed ||= harvestedCoverage > 0;
+  }
+
+  return changed;
+}
+
+function getCellFoodDemandPeople(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  populationRate: number,
+  includeUrbanFoodDemand: boolean
+): number {
+  const cells = world.pack.cells;
+  const ruralPeople = Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
+  if (!includeUrbanFoodDemand) return ruralPeople;
+
+  const burgId = cells.burg?.[cellId] ?? 0;
+  const burg = burgId ? world.pack.burgs?.[burgId] : undefined;
+  const urbanization = Math.max(0, world.urbanization ?? 1);
+  const urbanPeople = burg && !burg.removed ? Math.max(0, burg.population ?? 0) * populationRate * urbanization : 0;
+  return ruralPeople + urbanPeople;
 }
 
 function supportedPeople(cultivableHectares: number, yieldKgPerHa: number): number {
@@ -223,27 +310,75 @@ export function calculateBurgBuiltAreaHectares(world: Readonly<WorldContext>, ce
 
 function calculateCultivableAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const cells = world.pack.cells;
+  const constraints = getCroplandConstraints(world, cellId);
+  if (!constraints) return 0;
+  // `forestCover` is potential forest capacity, while forestStock is the only
+  // mutable standing-timber value. Opening a forest therefore expands the area
+  // that can be farmed; no second "cleared land" approximation is stored.
+  const forestCapacity = getForestCapacityForCell(cells, cellId, constraints.biomeTags);
+  const standingForestCover = Math.max(0, Math.min(forestCapacity, cells.forestStock?.[cellId] ?? forestCapacity));
+  const openLandArea = constraints.physicalHectares * (1 - standingForestCover);
+  return Math.min(constraints.terrainAndBiomeCeiling, openLandArea);
+}
+
+function getCroplandConstraints(
+  world: Readonly<WorldContext>,
+  cellId: number
+): {
+  readonly physicalHectares: number;
+  readonly terrainAndBiomeCeiling: number;
+  readonly biomeTags: readonly string[];
+} | null {
+  const cells = world.pack.cells;
   const physicalHectares = calculatePhysicalAreaHectares(world, cellId);
-  if (physicalHectares <= 0) return 0;
+  if (physicalHectares <= 0) return null;
 
   const height = cells.h[cellId] ?? 0;
   const biomeCode = cells.biomeCode[cellId] ?? 0;
   const habitability = Math.max(0, world.biomesData.habitability[biomeCode] ?? 0);
-  if (habitability <= 0) return 0;
-  const tags = world.biomesData.tags?.[biomeCode] ?? [];
+  if (habitability <= 0) return null;
+  const biomeTags = world.biomesData.tags?.[biomeCode] ?? [];
   const terrainShare = calculateTerrainWorkableShare(height);
-  const biomeCeiling = tags.includes("wetland")
+  const biomeCeiling = biomeTags.includes("wetland")
     ? 0.35
-    : tags.includes("desert")
+    : biomeTags.includes("desert")
       ? 0.2
-      : tags.includes("mountain")
+      : biomeTags.includes("mountain")
         ? 0.3
-        : tags.includes("grassland") || tags.includes("arable")
+        : biomeTags.includes("grassland") || biomeTags.includes("arable")
           ? 0.8
           : 0.7;
-  const forestCover = Math.max(0, Math.min(1, cells.forestCover?.[cellId] ?? (tags.includes("forest") ? 0.7 : 0)));
-  const forestClearanceCeiling = 1 - forestCover * 0.25;
-  return physicalHectares * terrainShare * biomeCeiling * forestClearanceCeiling;
+  return { physicalHectares, terrainAndBiomeCeiling: physicalHectares * terrainShare * biomeCeiling, biomeTags };
+}
+
+function getForestCapacityForCell(
+  cells: WorldContext["pack"]["cells"],
+  cellId: number,
+  biomeTags: readonly string[]
+): number {
+  return Math.max(0, Math.min(1, cells.forestCover?.[cellId] ?? (biomeTags.includes("forest") ? 0.7 : 0)));
+}
+
+function getEffectiveAgTech(world: Readonly<WorldContext>, cellId: number, agTechStockByCell?: Float32Array): number {
+  const biomeTags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
+  const hasDraftAnimal = biomeTags.some(tag => DRAFT_CAPABLE_BIOME_TAGS.includes(tag));
+  const rawAgTechStock = agTechStockByCell?.[cellId] ?? 0;
+  return rawAgTechStock * (hasDraftAnimal ? 1 : AGTECH_NO_DRAFT_EFFECT_SHARE);
+}
+
+function calculateYieldKgPerHectare(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  effectiveAgTech: number,
+  stateProductivity: number,
+  climateYield = calculateClimateYield(world, cellId)
+): number {
+  return (
+    BASE_NET_YIELD_KG_PER_SOWN_HECTARE *
+    climateYield *
+    (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech) *
+    (1 + STATE_YIELD_BONUS_MAX * stateProductivity)
+  );
 }
 
 function calculateClimateYield(world: Readonly<WorldContext>, cellId: number): number {

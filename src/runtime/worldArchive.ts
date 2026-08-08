@@ -430,6 +430,43 @@ function migrateBiomeCatalog(world: unknown): void {
   }
 }
 
+/**
+ * Replaces Economy's former sparse `forestDepletion` coefficient with the
+ * host-owned dense forestStock column. A pre-stock archive is interpreted as
+ * fully forested except for its recorded depletion; later saves retain only
+ * the one canonical timber state.
+ */
+function migrateForestDepletionToForestStock(document: unknown): void {
+  if (!isRecord(document) || !isRecord(document.world) || !isRecord(document.simulation)) return;
+  const world = document.world;
+  const simulation = document.simulation;
+  if (!isRecord(world.pack) || !isRecord(world.pack.cells) || !isRecord(simulation.extensions)) return;
+
+  const economy = simulation.extensions.economy;
+  if (!isRecord(economy) || economy.forestDepletion === undefined) return;
+
+  const cells = world.pack.cells;
+  const capacity = cells.forestCover;
+  if (capacity instanceof Float32Array && capacity.length > 0) {
+    const simulationCells: Record<string, unknown> = isRecord(simulation.cells) ? simulation.cells : {};
+    if (!isRecord(simulation.cells)) simulation.cells = simulationCells;
+    const stock =
+      simulationCells.forestStock instanceof Float32Array ? simulationCells.forestStock : new Float32Array(capacity);
+    if (!(simulationCells.forestStock instanceof Float32Array)) {
+      simulationCells.forestStock = stock;
+    }
+    if (isRecord(economy.forestDepletion)) {
+      for (const [rawCellId, rawDepletion] of Object.entries(economy.forestDepletion)) {
+        const cellId = Number(rawCellId);
+        if (!Number.isInteger(cellId) || cellId < 0 || cellId >= stock.length || !isFiniteNumber(rawDepletion))
+          continue;
+        stock[cellId] = Math.max(0, capacity[cellId] * (1 - Math.max(0, Math.min(0.9, rawDepletion))));
+      }
+    }
+  }
+  delete economy.forestDepletion;
+}
+
 function parseTypedArrayDescriptor(value: unknown): TypedArrayDescriptor {
   if (!isRecord(value) || typeof value.path !== "string" || typeof value.type !== "string") {
     throw new Error("Invalid typed-array descriptor");
@@ -1034,6 +1071,7 @@ export class ChunkedWorldCodecAdapter implements WorldArchiveCodec {
     };
     migrateWorldOptions((document as { world: unknown }).world);
     migrateBiomeCatalog((document as { world: unknown }).world);
+    migrateForestDepletionToForestStock(document);
     assertValidWorldDocument(document);
     return { stage: "decoded", document };
   }
@@ -1087,6 +1125,7 @@ function decodeLegacyText(bytes: Uint8Array): string {
  */
 export const worldMigrationPipeline: WorldMigrationPipeline = {
   async migrate(staged) {
+    migrateForestDepletionToForestStock(staged.document);
     const demoted = await demoteUnregisteredExtensionSlices(staged.document);
     const promoted = promoteRegisteredOpaqueChunks(demoted);
     return { stage: "migrated", document: promoted };

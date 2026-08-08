@@ -57,9 +57,16 @@ export interface PackedGraphCells {
   nearshoreHabitat: TypedArray;
   /**
    * Optional attribute layers (Phase 4). Climate biome stays separate.
-   * forestCover 0..1; other columns use catalog-local codes from biomeAttributes types.
+   * `forestCover` is the cell's potential forest capacity (0..1); the live
+   * amount of standing timber is exposed as simulation-owned `forestStock`.
+   * Other columns use catalog-local codes from biomeAttributes types.
    */
   forestCover?: Float32Array;
+  /**
+   * Live standing forest stock, 0..forestCover. The array is owned by
+   * SimulationContext and exposed here only as a compatibility adapter.
+   */
+  forestStock?: Float32Array;
   forestCondition?: TypedArray;
   canopy?: TypedArray;
   landCover?: TypedArray;

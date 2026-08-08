@@ -1,4 +1,3 @@
-import { isForestBiome } from "../../../data/biomeCatalog";
 import { evaluateHarborElevation } from "../../../generators/harborSiteConditions";
 import { normalizeHeightExponent } from "../../../utils/height";
 import { useOptionsState } from "../../hostCore";
@@ -7,8 +6,10 @@ import { getWorldContext } from "../shipbuildingContext";
 
 export interface ShipyardCandidate {
   burgId: number;
-  /** Share of the burg's neighboring cells that are forest biome, 0..1. */
+  /** Share of the burg's neighboring cells occupied by standing forest, 0..1. */
   forestRatio: number;
+  /** Neighboring forest cell from which the shipyard takes timber. */
+  loggingCellId: number;
 }
 
 const MIN_FOREST_RATIO = 0.3;
@@ -27,7 +28,7 @@ const MIN_FOREST_RATIO = 0.3;
  * (cells.haven) directly, which is never resolved through a drain chain.
  */
 export function computeShipyardCandidates(): ShipyardCandidate[] {
-  const { pack, biomesData } = getWorldContext();
+  const { pack } = getWorldContext();
   if (!pack.burgs) return [];
 
   const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
@@ -47,11 +48,21 @@ export function computeShipyardCandidates(): ShipyardCandidate[] {
     const neighbors = pack.cells.c[burg.cell] ?? [];
     if (neighbors.length === 0) continue;
 
-    const forestNeighborCount = neighbors.filter(n => isForestBiome(biomesData, pack.cells.biomeCode[n])).length;
-    const forestRatio = forestNeighborCount / neighbors.length;
+    let loggingCellId = burg.cell;
+    let richestForest = 0;
+    const forestRatio =
+      neighbors.reduce((sum, cellId) => {
+        const capacity = pack.cells.forestCover?.[cellId] ?? 0;
+        const stock = Math.max(0, Math.min(capacity, pack.cells.forestStock?.[cellId] ?? capacity));
+        if (stock > richestForest) {
+          richestForest = stock;
+          loggingCellId = cellId;
+        }
+        return sum + stock;
+      }, 0) / neighbors.length;
 
     if (forestRatio >= MIN_FOREST_RATIO) {
-      candidates.push({ burgId: burg.i, forestRatio: rn(forestRatio, 2) });
+      candidates.push({ burgId: burg.i, forestRatio: rn(forestRatio, 2), loggingCellId });
     }
   }
 

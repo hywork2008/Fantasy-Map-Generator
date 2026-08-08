@@ -93,6 +93,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   simulation("pack.cells.femaleAdults", "simulation.cells", "cell.id"),
   simulation("pack.cells.elders", "simulation.cells", "cell.id"),
   simulation("pack.cells.danger", "simulation.cells", "cell.id"),
+  simulation("pack.cells.forestStock", "simulation.cells", "cell.id"),
   simulation("pack.cells.wildLand", "simulation.cells", "cell.id"),
 
   map("pack.features", "map.topology", "feature.id", ["cell.id", "vertex.id"], "cascade"),
@@ -164,7 +165,6 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   extension("simulation.extensions.economy.good", "economy", "cell.id"),
   extension("simulation.extensions.economy.market", "economy", "cell.id"),
   extension("simulation.extensions.economy.productionByBurg", "economy", "burg.id"),
-  extension("simulation.extensions.economy.forestDepletion", "economy", "cell.id"),
   extension("simulation.extensions.nobility.rulerIdByState", "nobility", "state.id"),
   extension("simulation.extensions.nobility.conflictAuthorizationsByState", "nobility", "state.id"),
   extension("simulation.extensions.nobility.voyageIntelBonus", "nobility", "state.id"),

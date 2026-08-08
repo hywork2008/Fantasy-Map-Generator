@@ -16,6 +16,7 @@ import {
   getMerchantName,
   syncBurgMarketLedgers
 } from "../generators/burgMarketLedgers";
+import { getFoodLedgerSummary } from "../generators/foodLedgerSummary";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { TransportAssetOrder } from "../generators/marketTypes";
@@ -192,6 +193,7 @@ export function refreshMarketOverview(): void {
   const exportStagingUnits = stagingLots.reduce((sum, lot) => sum + lot.units, 0);
   const exportStagingValue = stagingLots.reduce((sum, lot) => sum + lot.units * lot.unitCost, 0);
   const organization = getMerchantOrganizations().find(org => org.homeMarketId === market.i);
+  const foodLedger = getFoodLedgerSummary(market.foodLedger);
 
   setMarketOverviewState({
     marketId: market.i,
@@ -218,7 +220,18 @@ export function refreshMarketOverview(): void {
     exportStagingUnits: rn(exportStagingUnits, 2),
     exportStagingValue: rn(exportStagingValue, 2),
     merchantOrganizationName: organization?.name ?? "",
-    sailScheduleLabel: `Days ${TradeLogisticsSettings.getOptions().sailDays.join(" / ")} each month`
+    sailScheduleLabel: `Days ${TradeLogisticsSettings.getOptions().sailDays.join(" / ")} each month`,
+    foodLedger: foodLedger
+      ? {
+          localProduction: rn(foodLedger.localProduction, 2),
+          quarterlyNeed: rn(foodLedger.quarterlyNeed, 2),
+          importedFood: rn(foodLedger.importedFood, 2),
+          importSharePercent: rn(foodLedger.importShare * 100, 1),
+          reserveGap: rn(foodLedger.reserveGap, 2),
+          stock: rn(foodLedger.stock, 2),
+          stockMonths: rn(foodLedger.stockMonths, 1)
+        }
+      : null
   });
 }
 

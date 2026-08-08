@@ -2,7 +2,15 @@ import type { SimulationCellColumns, SimulationContext } from "../context/simula
 import type { WorldContext } from "../context/worldContext";
 import type { PackedGraphCells } from "../types/PackedGraph";
 
-type LegacyCellColumn = "pop" | "capacity" | "children" | "maleAdults" | "femaleAdults" | "elders" | "danger";
+type LegacyCellColumn =
+  | "pop"
+  | "capacity"
+  | "children"
+  | "maleAdults"
+  | "femaleAdults"
+  | "elders"
+  | "danger"
+  | "forestStock";
 type DynamicColumn = Float32Array | Uint8Array;
 
 type DynamicColumnDefinition = {
@@ -23,7 +31,8 @@ export const SIMULATION_CELL_COLUMN_DEFINITIONS: readonly DynamicColumnDefinitio
   { legacyField: "maleAdults", simulationField: "maleAdults", create: length => new Float32Array(length) },
   { legacyField: "femaleAdults", simulationField: "femaleAdults", create: length => new Float32Array(length) },
   { legacyField: "elders", simulationField: "elders", create: length => new Float32Array(length) },
-  { legacyField: "danger", simulationField: "danger", create: length => new Uint8Array(length) }
+  { legacyField: "danger", simulationField: "danger", create: length => new Uint8Array(length) },
+  { legacyField: "forestStock", simulationField: "forestStock", create: length => new Float32Array(length) }
 ];
 
 function isCompatibleColumn(
@@ -53,7 +62,8 @@ function createEmptySimulationColumns(): SimulationCellColumns {
     maleAdults: new Float32Array(),
     femaleAdults: new Float32Array(),
     elders: new Float32Array(),
-    danger: new Uint8Array()
+    danger: new Uint8Array(),
+    forestStock: new Float32Array()
   };
 }
 
@@ -80,11 +90,26 @@ export function bindSimulationCellColumns(world: WorldContext, simulation: Simul
   for (const definition of SIMULATION_CELL_COLUMN_DEFINITIONS) {
     const legacyValue = readLegacyColumn(cells, definition.legacyField);
     const simulationValue = simulationColumns[definition.simulationField];
+    const isNewForestStock =
+      definition.legacyField === "forestStock" &&
+      !isCompatibleColumn(legacyValue, length, definition.create) &&
+      !isCompatibleColumn(simulationValue, length, definition.create);
     const next = isCompatibleColumn(legacyValue, length, definition.create)
       ? legacyValue
       : isCompatibleColumn(simulationValue, length, definition.create)
         ? simulationValue
         : definition.create(length);
+
+    // Archives written before forestStock existed have the static capacity but
+    // no live timber column. Treat them as intact forest instead of silently
+    // turning every historical forest cell into bare land on load.
+    if (isNewForestStock) {
+      const stock = next as Float32Array;
+      const capacity = cells.forestCover;
+      for (let cellId = 0; cellId < length; cellId++) {
+        stock[cellId] = Math.max(0, Math.min(1, capacity?.[cellId] ?? 0));
+      }
+    }
 
     simulationColumns[definition.simulationField] = next;
     Object.defineProperty(cells, definition.legacyField, {

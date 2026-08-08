@@ -259,10 +259,34 @@ export const BurgEditorDialog: React.FC = () => {
                     <span id="burgTreasury">{burgData.treasury}</span>
                   </td>
                 </tr>
-                <tr data-tip="Share of the current burg population that its imported food capacity could support.">
+                <tr data-tip="Annual Grain output from rural fields in this burg's own map cell. A zero here matches the absence of Grain color on the Goods layer.">
+                  <th scope="row">Cell Grain</th>
+                  <td>
+                    <span id="burgCellGrainProduction">{burgData.cellGrainProduction}</span>
+                  </td>
+                </tr>
+                <tr data-tip="Current-quarter Grain production from all rural cells assigned to this burg's Market territory.">
+                  <th scope="row">Market Grain</th>
+                  <td>
+                    <span id="burgMarketGrainProduction">{burgData.marketGrainProduction}</span>
+                  </td>
+                </tr>
+                <tr data-tip="Food physically delivered from another Market this quarter. This is not inferred from population capacity.">
                   <th scope="row">Food imports</th>
                   <td>
-                    <span id="burgFoodImportDependency">{burgData.foodImportDependency}</span>
+                    <span id="burgMarketFoodImports">{burgData.marketFoodImports}</span>
+                  </td>
+                </tr>
+                <tr data-tip="Requested food-reserve replenishment that did not arrive this quarter. It is a reserve gap, not an immediate starvation count.">
+                  <th scope="row">Food reserve gap</th>
+                  <td>
+                    <span id="burgMarketFoodReserveGap">{burgData.marketFoodReserveGap}</span>
+                  </td>
+                </tr>
+                <tr data-tip="Food currently held in this burg's Market, expressed in ledger units and months of the Market's current demand.">
+                  <th scope="row">Market food stock</th>
+                  <td>
+                    <span id="burgMarketFoodStock">{burgData.marketFoodStock}</span>
                   </td>
                 </tr>
                 <tr data-tip="Basic employment (administration, mining, smelting, trade) that earns income from outside the burg, in adult-worker points. Drives population growth in Megacity mode.">

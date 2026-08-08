@@ -111,7 +111,7 @@ describe("FoodProduction", () => {
     expect(market1.marketTreasury.ruralGrainPayable).toBeGreaterThan(0);
   });
 
-  it("uses cultivated area and farm labour coverage when agricultural columns are available", () => {
+  it("uses active cultivated area when agricultural columns are available", () => {
     mockWorldContext = {
       populationRate: 1000,
       urbanization: 1,
@@ -138,8 +138,9 @@ describe("FoodProduction", () => {
 
     FoodProduction.generateQuarterlyLedger(0);
 
-    // Two available adults cover half of four required agricultural adults.
-    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(1075, 3);
+    // Cultivated area records maintained fields. The labour requirement feeds
+    // employment/migration calculations and does not suppress this local crop.
+    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(2150, 3);
   });
 
   it("scales production down by the cell's state food stress instead of a permanent capacity cut", () => {
@@ -173,11 +174,11 @@ describe("FoodProduction", () => {
 
     FoodProduction.generateQuarterlyLedger(0);
 
-    // Same inputs as the unstressed case above (which yields 1075), reduced by
+    // Same inputs as the unstressed case above (which yields 2150), reduced by
     // foodStressProductionMultiplier's 1 - 0.65 * 0.5 = 0.675 factor. Unlike the old
     // capacity-scar mechanism, this leaves cells.capacity untouched and recovers as soon
     // as foodStress falls, instead of a permanent cut.
-    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(1075 * 0.675, 1);
+    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(2150 * 0.675, 1);
   });
 
   it("keeps the quarterly food allocation uniform at the equator", () => {

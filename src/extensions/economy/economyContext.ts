@@ -1356,23 +1356,6 @@ export function setMarketCellColumn(column: Uint16Array): void {
 }
 
 /**
- * Sparse cellId → forest depletion factor [0, 0.9], owned by the economy slice.
- * Returns null when the extension API / simulation context is not available
- * (unit tests may use a module fallback in forestDepletion.ts).
- */
-export function getOrCreateForestDepletionTable(): Record<number, number> | null {
-  const slice = getEconomySlice();
-  if (!slice) return null;
-  const existing = slice.forestDepletion;
-  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
-    return existing as Record<number, number>;
-  }
-  const table: Record<number, number> = {};
-  slice.forestDepletion = table;
-  return table;
-}
-
-/**
  * Sparse "marketId:collectionBurgId:goodId" → banked-catch accumulator, owned by the
  * economy slice. Used by liveAnimalCatch.ts to turn liveAnimal-tagged goods' continuous
  * rural production rate into lumpy integer catches instead of a fractional trickle.

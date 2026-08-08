@@ -4,6 +4,7 @@ import {
   AGTECH_NO_DRAFT_EFFECT_SHARE,
   AGTECH_YIELD_BONUS_MAX,
   calculateAgriculturalLandProfile,
+  reconcileForestClearanceForAgriculture,
   STATE_YIELD_BONUS_MAX
 } from "./agriculturalLandUse";
 
@@ -49,20 +50,76 @@ describe("agricultural land use", () => {
     expect(profile.foodPotential[0]).toBeLessThan(profile.foodPotential[1]);
   });
 
-  it("keeps environmental potential stable when only current population changes", () => {
+  it("makes newly opened forest land available to cultivation from the same forest stock", () => {
     const world = createWorld();
-    const before = calculateAgriculturalLandProfile(world);
+    world.pack.cells.forestStock = new Float32Array([0.9, 0]);
+    const intact = calculateAgriculturalLandProfile(world);
+
+    world.pack.cells.forestStock[0] = 0.45; // half of the potential forest cover has been opened
+    const opened = calculateAgriculturalLandProfile(world);
+
+    expect(opened.cultivableArea[0]).toBeGreaterThan(intact.cultivableArea[0]);
+    expect(opened.cultivatedArea[0]).toBeGreaterThanOrEqual(intact.cultivatedArea[0]);
+  });
+
+  it("opens initial forest land from residents' grain requirement before calculating cultivated area", () => {
+    const world = createWorld();
+    world.pack.cells.forestStock = new Float32Array([0.9, 0]);
+    // 40 people in cell 0 need about 50 ha including the ten-percent reserve,
+    // while intact forest initially leaves only 10 ha open.
     world.pack.cells.pop[0] = 4;
     world.pack.cells.maleAdults[0] = 2;
     world.pack.cells.femaleAdults[0] = 2;
+
+    const before = calculateAgriculturalLandProfile(world);
+    const changed = reconcileForestClearanceForAgriculture(world);
+    const after = calculateAgriculturalLandProfile(world);
+
+    expect(changed).toBe(true);
+    expect(world.pack.cells.forestStock[0]).toBeLessThan(0.9);
+    expect(after.cultivableArea[0]).toBeGreaterThan(before.cultivableArea[0]);
+    expect(after.cultivatedArea[0]).toBeCloseTo(after.cultivableArea[0], 4);
+    expect(after.cultivableArea[0]).toBeGreaterThanOrEqual(after.cultivatedArea[0]);
+  });
+
+  it("reserves local Grain fields for a burg's residents except in Megacity mode", () => {
+    const normalWorld = createWorld();
+    normalWorld.pack.cells.forestStock = new Float32Array([0.9, 0]);
+    normalWorld.pack.cells.burg = new Uint16Array([1, 0]);
+    normalWorld.pack.burgs = [undefined, { i: 1, cell: 0, population: 3, removed: false }] as never;
+
+    const megacityWorld = createWorld();
+    megacityWorld.pack.cells.forestStock = new Float32Array([0.9, 0]);
+    megacityWorld.pack.cells.burg = new Uint16Array([1, 0]);
+    megacityWorld.pack.burgs = [undefined, { i: 1, cell: 0, population: 3, removed: false }] as never;
+
+    reconcileForestClearanceForAgriculture(normalWorld);
+    reconcileForestClearanceForAgriculture(megacityWorld, undefined, undefined, { includeUrbanFoodDemand: false });
+
+    const normalProfile = calculateAgriculturalLandProfile(normalWorld);
+    const megacityProfile = calculateAgriculturalLandProfile(megacityWorld, undefined, undefined, {
+      includeUrbanFoodDemand: false
+    });
+    expect(normalWorld.pack.cells.forestStock[0]).toBeLessThan(megacityWorld.pack.cells.forestStock[0]);
+    expect(normalProfile.cultivatedArea[0]).toBeGreaterThan(megacityProfile.cultivatedArea[0]);
+  });
+
+  it("keeps environmental potential stable when only current population changes", () => {
+    const world = createWorld();
+    const before = calculateAgriculturalLandProfile(world);
+    // Cell 1 is naturally open, so this assertion isolates the population →
+    // active-field relationship from the forest-stock opening ceiling.
+    world.pack.cells.pop[1] = 4;
+    world.pack.cells.maleAdults[1] = 2;
+    world.pack.cells.femaleAdults[1] = 2;
     const after = calculateAgriculturalLandProfile(world);
 
     expect(after.cultivableArea).toEqual(before.cultivableArea);
     expect(after.yieldPerArea).toEqual(before.yieldPerArea);
     expect(after.foodPotential).toEqual(before.foodPotential);
     expect(after.ruralFoodCapacity).toEqual(before.ruralFoodCapacity);
-    expect(after.cultivatedArea[0]).toBeGreaterThan(before.cultivatedArea[0]);
-    expect(after.farmLaborRequired[0]).toBeGreaterThan(before.farmLaborRequired[0]);
+    expect(after.cultivatedArea[1]).toBeGreaterThan(before.cultivatedArea[1]);
+    expect(after.farmLaborRequired[1]).toBeGreaterThan(before.farmLaborRequired[1]);
   });
 
   it("matches the no-argument call when agTechStockByCell is omitted (back-compat)", () => {

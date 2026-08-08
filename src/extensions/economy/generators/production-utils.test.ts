@@ -6,20 +6,22 @@ import {
   clearEconomyContext,
   getOrCreateFaunaStockTable,
   initEconomyContext,
+  setCultivableArea,
   setCultivatedArea,
+  setFarmLaborRequired,
+  setFoodPotential,
   setGoodCellColumn,
   setGoods,
   setHuntingWorkers
 } from "../economyContext";
-import { clearForestDepletion, registerLogHarvest } from "./forestDepletion";
+import { registerLogHarvest } from "./forestStock";
 import { Goods } from "./goods-generator";
 import { getCellProduction } from "./production-utils";
 import { GAME_YIELD_PER_HUNTER_PER_MONTH } from "./ruralOccupationAllocation";
 
-describe("getCellProduction depletion integration", () => {
+describe("getCellProduction forest-stock integration", () => {
   afterEach(() => {
     clearEconomyContext();
-    clearForestDepletion();
     simulationContext.extensions = {};
   });
 
@@ -66,7 +68,9 @@ describe("getCellProduction depletion integration", () => {
         good: new Uint16Array([0]),
         pop: [10],
         h: new Uint8Array([50]),
-        c: [[]]
+        c: [[]],
+        forestCover: new Float32Array([1]),
+        forestStock: new Float32Array([1])
       }
     } as unknown as PackedGraph;
     // Economy-owned fields live on the simulation slice when simulationContext is live.
@@ -87,10 +91,10 @@ describe("getCellProduction depletion integration", () => {
     expect(before[0]).toBeGreaterThan(0);
     expect(before[1]).toBeGreaterThan(0);
 
-    registerLogHarvest(0, 20); // amount=20 -> depletion delta 20*0.05=1.0, capped at MAX_DEPLETION=0.9
+    registerLogHarvest(0, 2500); // 2,500 Wood units remove half of standing forest coverage
     const after = getCellProduction(0, biomeProduction);
 
-    expect(after[0]).toBeCloseTo(before[0] * 0.1, 5);
+    expect(after[0]).toBeCloseTo(before[0] * 0.5, 5);
     expect(after[1]).toBe(before[1]);
   });
 
@@ -190,6 +194,104 @@ describe("getCellProduction seasonal food output", () => {
     const autumnOutput = getCellProduction(0, biomeProduction)[0];
 
     expect(autumnOutput).toBeLessThan(summerOutput * 1.5);
+  });
+});
+
+describe("getCellProduction staple-food land-use output", () => {
+  afterEach(() => {
+    clearEconomyContext();
+  });
+
+  it("renders Grain only from active cultivated land, not its forest biome rate", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    const grain = {
+      i: 0,
+      name: "Grain",
+      value: 1,
+      tags: ["food", "stapleFood"],
+      unit: "bushel",
+      icon: "icon",
+      color: "#fff",
+      distribution: "1",
+      recipes: [],
+      demandCoverage: {}
+    };
+    worldContext.pack = {
+      goods: [grain],
+      cultures: [],
+      burgs: [],
+      zones: [],
+      cells: {
+        i: new Uint16Array([0]),
+        biomeCode: new Uint8Array([6]),
+        culture: new Uint16Array([0]),
+        state: new Uint16Array([0]),
+        religion: new Uint16Array([0]),
+        burg: new Uint16Array([0]),
+        good: new Uint16Array([0]),
+        pop: new Float32Array([10]),
+        maleAdults: new Float32Array([1]),
+        femaleAdults: new Float32Array([1]),
+        h: new Uint8Array([50]),
+        c: [[]]
+      }
+    } as unknown as PackedGraph;
+    setGoods([grain] as never);
+    Goods.sync();
+    setCultivableArea(new Float32Array([20]));
+    setCultivatedArea(new Float32Array([10]));
+    setFarmLaborRequired(new Float32Array([2]));
+    setFoodPotential(new Float32Array([100]));
+
+    const cultivatedOutput = getCellProduction(0, { 6: [{ goodId: grain.i, production: 99 }] })[grain.i];
+    expect(cultivatedOutput).toBe(50);
+
+    setCultivatedArea(new Float32Array([0]));
+    expect(getCellProduction(0, { 6: [{ goodId: grain.i, production: 99 }] })[grain.i]).toBeUndefined();
+  });
+
+  it("keeps Grain visible for a cultivated inhabited cell when adult columns lag behind", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    const grain = {
+      i: 0,
+      name: "Grain",
+      value: 1,
+      tags: ["food", "stapleFood"],
+      unit: "bushel",
+      icon: "icon",
+      color: "#fff",
+      distribution: "1",
+      recipes: [],
+      demandCoverage: {}
+    };
+    worldContext.pack = {
+      goods: [grain],
+      cultures: [],
+      burgs: [],
+      zones: [],
+      cells: {
+        i: new Uint16Array([0]),
+        biomeCode: new Uint8Array([6]),
+        culture: new Uint16Array([0]),
+        state: new Uint16Array([0]),
+        religion: new Uint16Array([0]),
+        burg: new Uint16Array([0]),
+        good: new Uint16Array([0]),
+        pop: new Float32Array([10]),
+        maleAdults: new Float32Array([0]),
+        femaleAdults: new Float32Array([0]),
+        h: new Uint8Array([50]),
+        c: [[]]
+      }
+    } as unknown as PackedGraph;
+    setGoods([grain] as never);
+    Goods.sync();
+    setCultivableArea(new Float32Array([20]));
+    setCultivatedArea(new Float32Array([10]));
+    setFarmLaborRequired(new Float32Array([2]));
+    setFoodPotential(new Float32Array([100]));
+
+    expect(getCellProduction(0, {})[grain.i]).toBe(50);
   });
 });
 

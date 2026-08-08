@@ -179,9 +179,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(staged.document.simulation.frontier.cellStages).toEqual(new Uint8Array([1, 0]));
     expect(staged.document.simulation.frontier.projects[0]?.stateId).toBe(1);
     expect(staged.document.simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 2, femaleAdults: 3 });
-    expect(
-      (staged.document.simulation.extensions.economy as { forestDepletion: Record<string, number> }).forestDepletion
-    ).toEqual({ 0: 0.4, 1: 0.1 });
+    expect((staged.document.simulation.extensions.economy as Record<string, unknown>).forestDepletion).toBeUndefined();
     expect(
       (staged.document.simulation.extensions.nobility as { voyageIntelBonus: Record<string, number> }).voyageIntelBonus
     ).toEqual({ "1:2": 5 });

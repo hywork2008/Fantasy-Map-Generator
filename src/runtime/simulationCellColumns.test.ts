@@ -16,7 +16,8 @@ function createWorld(): WorldContext {
         maleAdults: new Float32Array([3, 6]),
         femaleAdults: new Float32Array([2, 4]),
         elders: new Float32Array([1, 2]),
-        danger: new Uint8Array([1, 2])
+        danger: new Uint8Array([1, 2]),
+        forestStock: new Float32Array([0.8, 0.4])
       }
     },
     grid: {},
@@ -52,7 +53,8 @@ function createSimulation(): SimulationContext {
       maleAdults: new Float32Array(),
       femaleAdults: new Float32Array(),
       elders: new Float32Array(),
-      danger: new Uint8Array()
+      danger: new Uint8Array(),
+      forestStock: new Float32Array()
     },
     intelligence: {},
     strategicGoals: {}
@@ -68,6 +70,7 @@ describe("SimulationData cell-column compatibility adapter", () => {
 
     expect(simulation.cells.population).toEqual(new Float32Array([10, 20]));
     expect(simulation.cells.danger).toEqual(new Uint8Array([1, 2]));
+    expect(simulation.cells.forestStock).toEqual(new Float32Array([0.8, 0.4]));
     expect(Object.getOwnPropertyDescriptor(world.pack.cells, "pop")?.get).toBeTypeOf("function");
 
     const nextPopulation = new Float32Array([11, 21]);
@@ -89,8 +92,11 @@ describe("SimulationData cell-column compatibility adapter", () => {
 
     expect(Object.hasOwn(document.world.pack.cells, "pop")).toBe(false);
     expect(Object.hasOwn(document.world.pack.cells, "danger")).toBe(false);
+    expect(Object.hasOwn(document.world.pack.cells, "forestStock")).toBe(false);
     expect(Array.from(document.simulation.cells.population)).toEqual([10, 20]);
     expect(Array.from(document.simulation.cells.danger)).toEqual([1, 2]);
+    expect(document.simulation.cells.forestStock[0]).toBeCloseTo(0.8, 6);
+    expect(document.simulation.cells.forestStock[1]).toBeCloseTo(0.4, 6);
 
     bindSimulationCellColumns(document.world, document.simulation);
     expect(document.world.pack.cells.pop).toBe(document.simulation.cells.population);
@@ -105,5 +111,17 @@ describe("SimulationData cell-column compatibility adapter", () => {
 
     expect(Array.from(simulation.cells.population)).toEqual([10, 20]);
     expect(world.pack.cells.pop).toBe(simulation.cells.population);
+  });
+
+  it("seeds forest stock from capacity when an older archive has no live forest column", () => {
+    const world = createWorld();
+    delete (world.pack.cells as Partial<typeof world.pack.cells>).forestStock;
+    world.pack.cells.forestCover = new Float32Array([0.8, 0.4]);
+    const simulation = createSimulation();
+
+    bindSimulationCellColumns(world, simulation);
+
+    expect(simulation.cells.forestStock[0]).toBeCloseTo(0.8, 6);
+    expect(simulation.cells.forestStock[1]).toBeCloseTo(0.4, 6);
   });
 });

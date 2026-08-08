@@ -108,6 +108,15 @@ export const CellInfoDialog: React.FC = () => {
             <td>{info.biome}</td>
           </tr>
           <tr>
+            <th
+              scope="row"
+              data-tip="Share of this cell's potential forest that is currently open after timber harvest or conversion to human use"
+            >
+              Forest clearance
+            </th>
+            <td>{info.forestClearance}</td>
+          </tr>
+          <tr>
             <th scope="row" data-tip="Coastal habitat attribute (beach, rock, flat, dune)">
               Coastal habitat
             </th>

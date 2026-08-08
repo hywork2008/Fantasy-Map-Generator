@@ -30,7 +30,7 @@ import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers"
 import { CaravanMovement } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
 import { recordFoodMarketIntake } from "./foodProcessingLedger";
-import { getDepletedCells } from "./forestDepletion";
+import { harvestWood } from "./forestStock";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
 import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
@@ -467,14 +467,15 @@ export class MarketsModule {
     const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
     const woodAdjustments: RuralTotalsByMarket = new Map();
 
-    for (const [cellId, depletion] of getDepletedCells()) {
-      for (const contribution of index.woodByCell.get(cellId) ?? []) {
+    for (const [cellId, contributions] of index.woodByCell) {
+      for (const contribution of contributions) {
+        const harvestedWood = harvestWood(cellId, contribution.amount);
         this.addRuralGoodTotal(
           woodAdjustments,
           contribution.marketId,
           contribution.collectionBurgId,
           contribution.goodId,
-          -contribution.amount * depletion
+          harvestedWood - contribution.amount
         );
       }
     }

@@ -338,21 +338,6 @@ function validateCharactersSlice(slice: Record<string, unknown>): void {
   assertOptionalArrayField(slice, "characters", "characters");
 }
 
-function assertSparseNumberRecord(value: unknown, name: string, options?: { max?: number; min?: number }): void {
-  assertRecord(value, name);
-  const min = options?.min ?? Number.NEGATIVE_INFINITY;
-  const max = options?.max ?? Number.POSITIVE_INFINITY;
-  for (const [rawId, entry] of Object.entries(value)) {
-    const id = Number(rawId);
-    if (!Number.isInteger(id) || id < 0 || String(id) !== rawId) {
-      throw new Error(`Archive ${name} has invalid key ${rawId}`);
-    }
-    if (typeof entry !== "number" || !Number.isFinite(entry) || entry < min || entry > max) {
-      throw new Error(`Archive ${name}.${rawId} must be a finite number in range`);
-    }
-  }
-}
-
 function validateEconomySlice(slice: Record<string, unknown>, world: WorldContext): void {
   for (const field of [
     "goods",
@@ -469,20 +454,6 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
       assertArray(production, `simulation.extensions.economy.productionByBurg.${burgId}`);
     }
   }
-  if (slice.forestDepletion !== undefined) {
-    assertSparseNumberRecord(slice.forestDepletion, "simulation.extensions.economy.forestDepletion", {
-      min: 0,
-      max: 0.9
-    });
-    if (cellCount !== undefined) {
-      for (const rawId of Object.keys(slice.forestDepletion as Record<string, unknown>)) {
-        const cellId = Number(rawId);
-        if (cellId >= cellCount) {
-          throw new Error(`Archive simulation.extensions.economy.forestDepletion references missing cell ${rawId}`);
-        }
-      }
-    }
-  }
 }
 
 function validateNobilitySlice(slice: Record<string, unknown>, world: WorldContext): void {
@@ -522,9 +493,6 @@ function validateShipbuildingSlice(slice: Record<string, unknown>): void {
 }
 
 function collectEconomyCoreReferences(slice: Record<string, unknown>): readonly CoreReference[] {
-  // forestDepletion is sparse by pack cell index; cell topology is validated on
-  // archive load rather than through the core-entity delete policy (cells are not
-  // CoreEntityKind targets for restrict/orphan delete).
   return [
     ...collectEntityReferences(slice.productionByBurg, "burg"),
     ...collectEntityReferences(slice.innFacilities, "burg", "orphan"),

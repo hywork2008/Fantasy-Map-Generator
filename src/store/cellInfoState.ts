@@ -16,6 +16,8 @@ export interface CellInfoData {
   depth: string;
   temp: string;
   biome: string;
+  /** Derived from potential forest capacity and the live standing-timber stock. */
+  forestClearance: string;
   coastalHabitat: string;
   nearshoreHabitat: string;
   /** Ocean current direction in degrees, or "n/a" off open ocean. See `grid.cells.currentAngle`. */
@@ -56,6 +58,7 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   depth: "0",
   temp: "0",
   biome: "n/a",
+  forestClearance: "n/a",
   coastalHabitat: "none",
   nearshoreHabitat: "none",
   currentDirection: "n/a",

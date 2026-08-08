@@ -80,6 +80,7 @@ export const MarketOverviewDialog: React.FC = () => {
   const exportStagingValue = useMarketOverviewState(state => state.exportStagingValue);
   const merchantOrganizationName = useMarketOverviewState(state => state.merchantOrganizationName);
   const sailScheduleLabel = useMarketOverviewState(state => state.sailScheduleLabel);
+  const foodLedger = useMarketOverviewState(state => state.foodLedger);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets">("goods");
   const [transportBlueprintId, setTransportBlueprintId] = React.useState<TransportAssetOrder["blueprintId"]>("cart");
@@ -248,6 +249,26 @@ export const MarketOverviewDialog: React.FC = () => {
           </div>
           <div data-tip="Regular commercial sail days; full holds may leave earlier">{sailScheduleLabel}</div>
         </div>
+
+        {foodLedger && (
+          <div className="totalLine" id="marketOverviewFoodLedger">
+            <div data-tip="Current-quarter Grain production from rural fields in this Market territory">
+              Local Grain: {foodLedger.localProduction} / quarter
+            </div>
+            <div data-tip="Rural and urban Food Ledger consumption required this quarter">
+              Food need: {foodLedger.quarterlyNeed} / quarter
+            </div>
+            <div data-tip="Food physically delivered from other Markets this quarter, not a population-capacity estimate">
+              Imported: {foodLedger.importedFood} ({foodLedger.importSharePercent}% of need)
+            </div>
+            <div data-tip="Requested reserve replenishment that was not delivered this quarter; this is not an immediate starvation count">
+              Reserve gap: {foodLedger.reserveGap}
+            </div>
+            <div data-tip="Food held in the three Food Ledger stock-age buckets">
+              Food stock: {foodLedger.stock} ({foodLedger.stockMonths} months)
+            </div>
+          </div>
+        )}
 
         <div className="tab d-flex">
           <button

@@ -3,7 +3,6 @@ import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
 import {
   getCultivableArea,
   getCultivatedArea,
-  getFarmLaborRequired,
   getFoodPotential,
   getGoods,
   getMarketCellColumn,
@@ -288,12 +287,10 @@ export class FoodProductionModule {
     const urbanization = this.worldContext.urbanization ?? 1;
     const cultivableArea = getCultivableArea();
     const cultivatedArea = getCultivatedArea();
-    const farmLaborRequired = getFarmLaborRequired();
     const foodPotential = getFoodPotential();
     const hasAgriculturalLandUse =
       cultivableArea.length === pack.cells.i.length &&
       cultivatedArea.length === pack.cells.i.length &&
-      farmLaborRequired.length === pack.cells.i.length &&
       foodPotential.length === pack.cells.i.length;
 
     const safeQuarterIndex = Math.max(0, Math.min(3, Math.floor(quarterIndex % 4)));
@@ -316,13 +313,12 @@ export class FoodProductionModule {
         const stateId = pack.cells.state?.[cellId] ?? 0;
         const productivityModifier = foodStressProductionMultiplier(stateId);
         if (hasAgriculturalLandUse) {
-          const availableAdults =
-            Math.max(0, pack.cells.maleAdults?.[cellId] ?? 0) + Math.max(0, pack.cells.femaleAdults?.[cellId] ?? 0);
-          const requiredAdults = Math.max(0, farmLaborRequired[cellId] ?? 0);
-          const labourCoverage = requiredAdults > 0 ? minmax(availableAdults / requiredAdults, 0, 1) : 0;
           const landCoverage =
             cultivableArea[cellId] > 0 ? minmax(cultivatedArea[cellId] / cultivableArea[cellId], 0, 1) : 0;
-          annualFoodProduced += foodPotential[cellId] * landCoverage * labourCoverage * productivityModifier;
+          // cultivatedArea is the active, maintained field area. Farm-labour
+          // columns are used by the employment model, but are not a second
+          // production gate: ordinary burg cells reserve their own fields too.
+          annualFoodProduced += foodPotential[cellId] * landCoverage * productivityModifier;
         } else {
           // Compatibility path for tests and maps created before the agricultural
           // columns exist. New economy generation always takes the land-use path.

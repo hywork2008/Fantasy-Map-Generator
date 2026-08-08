@@ -11,7 +11,7 @@
 | 概念 | 意味 | 人口との関係 |
 | --- | --- | --- |
 | `cells.capacity` | 居住する農村人口の基礎的な上限 | 食料生産の直接入力ではない |
-| `cultivableArea` | 地形・森林・水域・気候から決まる耕作可能面積 | 静的な環境派生値 |
+| `cultivableArea` | 地形・水域・気候の上限と、現在開いている土地から決まる耕作可能面積 | `forestStock` の増減で変化する導出値 |
 | `cultivatedArea` | 現在、実際に作付・維持されている面積 | 労働力・市場需要・開墾によって変化する |
 | `yieldPerArea` | 作付面積当たりの食料収量 | 気候、水利、技術、災害で変化する |
 | `foodPotential` | 全耕作可能面積を十分な労働力で耕したときの上限 | 人口からは導かない |
@@ -55,7 +55,6 @@ actualFoodProduced = foodPotential
                    × stateAgriculturalProductivity
                    × cellAgriculturalModifier
                    × cultivatedAreaCoverage
-                   × laborCoverage
 ```
 
 - `stateAgriculturalProductivity`: 技術、統治制度、治安、灌漑投資による**国家単位**の動的生産性。v1は全Stateで`1.0`とし、後続の技術・統治システムが更新する。
@@ -64,7 +63,7 @@ actualFoodProduced = foodPotential
 - **2026-07-31 追記**: `cellAgriculturalModifier`のうち「Tools(鉄製農具)普及・役畜」由来の技術要因は[rural-agtech-investment.md](../plan/rural-agtech-investment.md)で実装した。ただし同設計は`yieldPerArea`側の乗数（§3.1式の`baseAgriculturalTechnology`相当）として`agriculturalLandUse.ts`内に直接織り込む形を取り、本節が定義する`actualFoodProduced`側の別係数としては実装しない（二重計上を避けるため）。
 - **2026-07-31 追記(Phase 2)**: `stateAgriculturalProductivity`のうち「技術・灌漑投資」要因も同設計の§6.1で実装した(同じく`yieldPerArea`側の乗数として)。「統治制度」要因は未実装、「治安」要因は既存の`foodStressProductionMultiplier(stateId)`が担う。
 - `cultivatedAreaCoverage = cultivatedArea / cultivableArea`: 開墾可能な全面積のうち、当期に実際に作付けている割合。
-- `laborCoverage = min(1, farmLaborAllocated / farmLaborRequired)`: §4.1で定義する労働充足率。面積・国家・局地係数と独立に、労働力不足だけで生産を減衰させる。
+- `farmLaborRequired` は、作付面積を維持するために必要な成人数を示し、雇用・移住の計算に使う。`cultivatedArea` はすでに維持されている畑を表すため、Goods 表示および Food Ledger で労働力による二重の生産減衰は行わない。
 
 `waterAccessFactor`（`yieldPerArea`側）と`cellAgriculturalModifier`の「水利」、`stateAgriculturalProductivity`の「灌漑投資」は同じ言葉を使うが指す層が異なり、二重計上ではない。`waterAccessFactor`は河川流量・湖沼・沿岸低地など**地形が持つ自然な水アクセス**であり、`foodPotential`に一度だけ焼き込まれるセル固定値である。`cellAgriculturalModifier`の水利は、灌漑用水路・堤防など**そのセルに実在する人工インフラの状態**（戦禍による破壊、開墾による新設など）を表す動的値である。`stateAgriculturalProductivity`の灌漑投資は、特定セルの設備ではなく**State全体の技術・統治能力としての灌漑政策水準**を表す動的値である。したがって「自然条件（静的・foodPotential側）」「セル単位の設備状態（動的）」「国家単位の政策水準（動的）」の3層は互いに独立した入力であり、同じ物理的水利を重複して数えているわけではない。
 
@@ -143,31 +142,43 @@ maxCroplandHa = cellAreaHa
 
 initialCultivatedHa = min(
   maxCroplandHa,
-  requiredFieldHa(currentRuralPeople + committedUrbanDemand) × 1.10
+  requiredFieldHa(localFoodPeople) × 1.10
 )
 ```
 
 `terrainCroplandShare` は水域、急斜面、極端な高地を除く割合である。`biomeCroplandCeiling` は森林・湿地・乾燥地により異なる開墾上限である。森林被覆は初期開墾の費用・速度を上げるが、発展可能性を永久にゼロにはしない。
 
-- `initialCultivatedHa / maxCroplandHa` が初期開墾率となる。
-- 現在の Phase 2 基盤では `committedUrbanDemand = 0` とし、セル自身の農村人口と10%の予備だけを作付へ反映する。Market の確定輸出・都市需要をこの項へ渡すのは、在庫契約を導入する次の段階である。
+- 地図生成時と年次更新時には、`cells.pop × populationRate` から必要な穀物量、必要作付面積を順に計算し、`initialCultivatedHa` を置けるだけの開放地になるまで `forestStock` を減らす。これにより、森林が完全に残る (`clearance = 0%`) セルが最初から Grain を生産する状態を作らない。
+- `initialCultivatedHa / maxCroplandHa` は農地利用率であり、森林開墾率そのものではない。森林開墾率は `1 - forestStock / forestCover` として導出する。森林以外の自然開放地があるため、両者は一般には一致しない。
+- 生成時に取り除かれた木材は地図開始前の歴史的な開墾として扱い、市場の Wood 在庫には追加しない。開始後の伐採は通常どおり Wood 供給と同じ `forestStock` を減らす。
+- 通常モードでは `localFoodPeople = currentRuralPeople + currentUrbanPeople` とする。Burg の都市人口も同じセルの Grain 畑で支えるため、都市を持つ通常セルには Grain 生産が存在する。
+- `ruralUrbanMigration = "megacity"` のときだけ `localFoodPeople = currentRuralPeople` とし、都市人口をセル内の作付面積から外す。このモードだけが、周辺 Market や市場間輸入で支えられる、Grain 色のない大都市を許す。
 - 低い比率は、将来の人口増加や輸出に対する開墾余地を意味する。
 - 高い比率は、余剰人口の都市移住、土地劣化、食料不足への脆弱性を意味する。
 - `requiredFieldHa > maxCroplandHa` は、開墾率では解決できない赤信号であり、収量改善・輸入・人口減少のいずれかが必要である。
 
 この値は `foodPotential` と混同しない。`foodPotential` は `maxCroplandHa` を十分な労働力で耕した場合の生産上限、`cultivatedArea` は当年の市場需要に応じて実際に使う面積である。
 
+### 3.3.1 食料の表示と診断
+
+- Goods レイヤーの Grain は `biomeOutputByTag` の候補表示ではなく、`cultivatedArea` と `foodPotential` から得るセル自身の実生産を表示する。通常モードでは、人口がある土地セルは自給用の作付を持つため、Grain の着色範囲は Population レイヤーの居住セルと一致する。都市人口も同じセルの農地需要に含むため、Grain 色がない都市セルは発生しない。Megacity モードでは都市人口だけを持つセルの畑からの Grain 出力を省略し、Market・輸入に依存する都市を許す。
+- Burg Editor の `Cell Grain` はそのセルの年次出力、`Market Grain` はその burg が所属する Market 圏全体の当四半期出力を示す。前者が 0 でも後者が正なら、都市は同じ Market 圏内の別セルの農村に支えられている。
+- `Food imports` は当四半期に**他 Market から物理的に到着した量**と、Market 全体の当四半期需要に対する比率である。都市の有効収容力から逆算する値ではない。
+- `Food reserve gap` は目標備蓄を満たすために要求したが到着しなかった量であり、即時の飢餓人数ではない。`Market food stock` は年齢別在庫の合計と、現在需要で何か月支えられるかを示す。
+
 ### 3.4 森林と耕作可能面積
 
-森林は土地を永続的に不毛にするのではなく、初期時点で田畑に使われていない面積として扱う。
+森林は土地を永続的に不毛にするのではなく、立木が占めるあいだは田畑に使えない面積として扱う。
 
 ```text
-initialCroplandShare = clamp(0.10, 0.95, 1 - 0.85 × forestCover)
+openLandHa = cellAreaHa × (1 - standingForestCover)
+cultivableAreaHa = min(maxCroplandHa, openLandHa)
 ```
 
-- 森林被覆 90% のセルでも、初期耕地を約 15% 残す。河畔・集落周辺の小規模耕地を表すためである。
-- 将来追加する `clearedLand` は森林を開墾して `cultivableArea` を増やす動的状態とする。静的な `forestCover` だけで、森林地帯の発展可能性を永久に封じない。
-- 湿地・氾濫林など排水条件を表せるバイオームは、v1 では低い `initialCroplandShare` で表す。土壌排水や水田作は別の農業技術モデルができるまで導入しない。
+- 開始時の畑は固定比率で残さない。住民が必要とする穀物から必要な作付面積を求め、そのぶんだけ `forestStock` を開く。河畔・集落周辺など元から開いた土地があれば、先にその面積を使う。
+- `forestCover` は気候・地域が持つ**潜在森林容量**、`simulation.cells.forestStock` は現に立っている木材量である。開墾面積は `forestCover - forestStock`、開墾率はその潜在容量に対する比率として導出する。`clearedLand` のような別の近似列は持たない。
+- Wood の採取と造船用伐採は同じ `forestStock` を減らす。耕作地として利用されていない伐採跡だけが森林回復の対象となるため、静的な `forestCover` だけで森林地帯の発展可能性を永久に封じない一方、現役の畑が自動的に森林へ戻ることもない。
+- 湿地・氾濫林など排水条件を表せるバイオームは、v1 では低い `biomeCroplandCeiling` で表す。土壌排水や水田作は別の農業技術モデルができるまで導入しない。
 
 ### 3.5 気温と降水
 
@@ -198,13 +209,12 @@ FAO ECOCROP は、作物生産性に温度と年間降水量の最小・最大�
 
 ```text
 farmLaborRequired = cultivatedArea × laborDaysPerArea / workableDaysPerAdult
-laborCoverage = min(1, farmLaborAllocated / farmLaborRequired)
-foodProduced = cultivatedArea × yieldPerArea × foodProductivityModifier × laborCoverage
+foodProduced = cultivatedArea × yieldPerArea × foodProductivityModifier
 ```
 
 - `laborDaysPerArea`: 播種、除草、収穫、脱穀、維持に必要な年間労働日。技術・作物・水利による補正対象である。
 - `workableDaysPerAdult`: 当該時代設定で農業へ投入できる成人一人当たりの年間労働日。
-- `farmLaborAllocated`: 農村の成人のうち、農業に実際に割り当てた人数。子供・高齢者は含めない。
+- `farmLaborAllocated`: 将来の明示的な雇用配分で使う予約値。現行では `cultivatedArea` を「維持済み」として記録するため、生産量を二重に減らす係数にはしない。
 - `cultivatedArea`: 地図の最大面積ではなく、当期に作付・維持する面積。市場需要、在庫目標、利用可能な労働者、開墾状態から決める。
 
 したがって、人口が増えても耕作面積が増えなければ必要な農業人数は増えない。逆に、輸出契約・都市需要・開墾で作付面積を増やせば、人口を農村に残す必要が生じる。

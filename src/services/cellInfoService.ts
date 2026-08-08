@@ -1,5 +1,6 @@
 import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
+import { getForestClearingRate } from "../generators/forestStock";
 import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
 import { useCellInfoState } from "../store/cellInfoState";
 import { useOptionsState } from "../store/optionsState";
@@ -52,6 +53,14 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     danger: cells.danger ? String(cells.danger[i]) : "n/a",
     feature: f ? `${worldContext.pack.features[f].group} (${f})` : "n/a",
     biome: worldContext.biomesData.name[cells.biomeCode[i]],
+    forestClearance:
+      cells.h[i] < 20
+        ? "n/a"
+        : !cells.forestCover
+          ? "unavailable"
+          : cells.forestCover[i] <= 0
+            ? "not forested"
+            : `${Math.round(getForestClearingRate(cells, i) * 100)}%`,
     coastalHabitat: getCoastalHabitatDefinition(cells.coastalHabitat?.[i] ?? 0).label,
     nearshoreHabitat: getNearshoreHabitatDefinition(cells.nearshoreHabitat?.[i] ?? 0).label,
     currentDirection: isOceanCell ? `${worldContext.grid.cells.currentAngle?.[g] ?? 0}°` : "n/a",

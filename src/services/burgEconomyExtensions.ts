@@ -2,8 +2,16 @@ export interface BurgEconomySummary {
   production: string;
   wealth: string;
   treasury: string;
-  /** Human-readable share of the burg's residents supported by imported food. */
-  foodImportDependency: string;
+  /** Current annual Grain output from the burg's own cell. */
+  cellGrainProduction: string;
+  /** Current quarter's total Grain production across the burg's Market territory. */
+  marketGrainProduction: string;
+  /** Food physically delivered from other markets this quarter, as a share of market need. */
+  marketFoodImports: string;
+  /** Undelivered part of the Market's requested food reserve replenishment. */
+  marketFoodReserveGap: string;
+  /** Food held by the Market, expressed in ledger units and months of demand. */
+  marketFoodStock: string;
   /**
    * Basic (administration + mining + smelting + trade) and derived service employment demand,
    * in adult-worker points (docs/plan/urban-employment-demand.md §3.1/§3.5). "—" when the

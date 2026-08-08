@@ -79,7 +79,7 @@ import {
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
-import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
+import { registerLogHarvest, tickForestRegrowth } from "./generators/forestStock";
 import {
   type Good,
   Goods,
@@ -1073,7 +1073,6 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         setGoodCellColumn(new Uint16Array(world.pack.cells.i.length));
         setMarketCellColumn(new Uint16Array(world.pack.cells.i.length));
       }
-      clearForestDepletion();
       clearLiveAnimalCatchAccumulators();
       clearFaunaPopulation();
       clearViticultureAllocationShares();
@@ -1822,8 +1821,7 @@ export function init(api: ExtensionAPI): void {
   _logHarvestedHandler = e => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const { cellId, amount } = (e as CustomEvent).detail as { cellId: number; amount: number };
-    registerLogHarvest(cellId, amount);
-    markProductionDirty();
+    if (registerLogHarvest(cellId, amount)) markProductionDirty();
   };
   document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
 
@@ -2512,7 +2510,6 @@ export function cleanup(api: ExtensionAPI): void {
   clearVoyageIncome();
   clearStrategicProcurementExpenses();
   clearTreasuryAllocationSnapshots();
-  clearForestDepletion();
   clearLiveAnimalCatchAccumulators();
   clearFaunaPopulation();
   clearViticultureAllocationShares();

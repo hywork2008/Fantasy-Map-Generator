@@ -26,7 +26,11 @@ export interface BurgData {
   production: string;
   wealth: string;
   treasury: string;
-  foodImportDependency: string;
+  cellGrainProduction: string;
+  marketGrainProduction: string;
+  marketFoodImports: string;
+  marketFoodReserveGap: string;
+  marketFoodStock: string;
   basicEmploymentDemand: string;
   serviceEmploymentDemand: string;
   dwellings: string;
