@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-08
+
+- docs/plan/guilds/textiles.md
+
 2026-08-07
 
 - docs/plan/balance-history-export.md

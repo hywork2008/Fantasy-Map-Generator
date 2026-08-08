@@ -134,21 +134,21 @@ Wine: value = 5 old🟡(SP)/barrel
 1. 日用品を単数形で読んだ時の小売価格が破綻し、妥当なバッチ表示と値の組合せが必要なこと(Bread)。
 2. 基準値で `output.value < Σ(input.amount × input.value)` となり、通常価格では製造するほど損をすること。
 
-2番目を全46加工品・全110代替レシピに適用した。100経路は非赤字、10経路が赤字だった。以下は実装で同時に適用する修正であり、単位フレーバーとは異なり経済計算へ影響する。
+2番目を既定の全加工レシピに適用した。以下は実装で同時に適用する修正であり、単位フレーバーとは異なり経済計算へ影響する。
 
 | 完成品 | 現行の赤字経路 (基準原料費) | 設計上の修正 | 修正後の最小利幅 |
 | --- | --- | --- | ---: |
 | Tar (2) | Resin ×0.75 (4.5) | `Tar.value: 2 → 5` | 0.5 |
 | Leather (6) | Horses ×1 (10), Camels ×1 (12) | 馬を`0.5`、駱駝を`0.25`にする | 1 |
-| Cloth (5) | Silk ×0.5 (8) | Silk を`0.25`にする | 1 |
-| Garments (12) | Linen ×1 + Dyes ×0.5 + Alum ×0.25 (12.25) | Linen を`0.75`にする | 0.75 |
+| Cloth (5) | Silk ×0.5 (8) | Silk 経路を廃止し、日用品用の Wool/Hemp/Cotton だけにする。`Cloth.value: 5 → 6` | 4 (Wool/Cotton 経路) |
+| Garments (12) | Linen ×1 + Dyes ×0.5 + Alum ×0.25 (12.25) | 平民向けの `Garments` は未染色 Cloth/Linen（または毛皮付き）にする。Dyes/Alum 経路を廃止 | 3 (毛皮付き経路) |
 | Preserved food (5) | Cattle ×1 + Salt ×1 (8)、Cattle ×1 + Vinegar ×0.5 (7) | 両経路の Cattle を`0.25`にする | 0 |
 | Vinegar (4) | Wine ×1 (5) | `Vinegar.value: 4 → 5` | 0 |
 | Beer (3) | Honey ×0.5 + Barrels ×1 (4) | `Beer.value: 3 → 4` | 0 |
 | Tallow (2) | Cattle ×0.5 (2.5) | Cattle を`0.4`にする | 0 |
 | Flour / Bread | Bread だけを下げると Flour ×1 (2) を下回る | `Flour.value: 2 → 1.5`、`Bread.value: 3 → 2` | 0.5 |
 
-利幅0の Vinegar・Beer・Tallow は、原料の変質/副産物化を表すために許容する下限である。労務・需給による市場価格上振れはこの基準値の外で発生する。上表の変更を適用すれば、全110経路が基準値で非赤字となり、これ以外の値・レシピ変更は不要である。
+利幅0の Vinegar・Beer・Tallow は、原料の変質/副産物化を表すために許容する下限である。労務・需給による市場価格上振れはこの基準値の外で発生する。上表の変更後、既定の全加工経路は基準値で非赤字である（`goods-generator.test.ts` が検証する）。
 
 ## 全111品目の unit / value 監査記録
 
@@ -165,7 +165,7 @@ Wine: value = 5 old🟡(SP)/barrel
 | bag | Salt (3), Dyes (8), Sugarcane (4), Tea (10), Tobacco (8) | cargo |
 | chest | Dates (7), Incense (12), Spices (18) | cargo |
 | bale | Fodder (1), Peat (2), Cotton (2) | cargo |
-| bolt | Silk (16), Cloth (5), Linen (6) | cargo |
+| bolt | Silk (16), Cloth (6), Linen (6) | cargo |
 | sack | Volcanic Ash (3), Lime (2), Flour (2), Alum (9) | cargo |
 | roll | Leather (6) | cargo |
 | set | Garments (12), Sails (8), Harnesses (10), Tools (14), Arms (24) | cargo / equipment set |
@@ -214,7 +214,7 @@ Wine: value = 5 old🟡(SP)/barrel
 
 ## 実装内容 (2026-08-01)
 
-1. `GOODS_DATA` に「全Goods監査」の9行の値・レシピ修正を適用し、Breadを含むすべての既定加工経路を基準原料費以上にした。
+1. `GOODS_DATA` に「全Goods監査」の値・レシピ修正を適用し、Breadを含むすべての既定加工経路を基準原料費以上にした。2026-08-08 には Cloth の Silk 代替経路と Garments の Dyes/Alum 経路を廃止し、平民衣料を一般繊維・未染色布に分けた。
 2. `goodsUnitFlavor.ts` を新設し、Boots/Breadの20個バッチとWine/Beerの独立した1CP小売参照を定義した。`Good` 型・市場・生産・交易コードは変更していない。
 3. `GoodsEditorDialog` の既定・未編集Goodsの価格ツールチップにのみ、i18nされたフレーバー文言を表示する。カタログ定義と完全一致しない編集済み・新規Goodsには表示しない。
 4. `GOODS_DATA` を復元するユニットテストに、全レシピの基準原料費が完成品値を超えないことを検証する回帰テストを追加した。

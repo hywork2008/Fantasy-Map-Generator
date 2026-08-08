@@ -832,9 +832,12 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-cloth",
     color: "#e8e69c",
-    value: 5,
+    // A bolt of everyday woven cloth. Wool, hemp and cotton are the common-fibre alternatives;
+    // Silk remains a separate luxury textile rather than an input that can be downgraded into
+    // common cloth. The value leaves a craft margin over the dearest ordinary fibre (Wool/Cotton).
+    value: 6,
     chance: 0,
-    recipes: [{ Wool: 1 }, { Hemp: 1 }, { Silk: 0.25 }, { Cotton: 1 }],
+    recipes: [{ Wool: 1 }, { Hemp: 1 }, { Cotton: 1 }],
     unit: "bolt",
     demandCoverage: { utilities: 0.2 }
   },
@@ -846,11 +849,11 @@ export const GOODS_DATA: GoodData[] = [
     color: "#bd21ec",
     value: 12,
     chance: 0,
-    recipes: [
-      { Cloth: 1, Dyes: 0.5, Alum: 0.25 },
-      { Linen: 0.75, Dyes: 0.5, Alum: 0.25 },
-      { Cloth: 0.5, Furs: 1 }
-    ],
+    // Utility demand represents ordinary clothing: an undyed wool/cotton/hemp cloth or linen
+    // garment. Dyed apparel belongs with luxury consumption rather than making every household's
+    // replacement clothing depend on expensive dye and alum. Silk remains an independently traded
+    // luxury good and is used directly by high-status character loadouts and luxury crafts.
+    recipes: [{ Cloth: 1 }, { Linen: 0.75 }, { Cloth: 0.5, Furs: 1 }],
     unit: "set",
     demandCoverage: { utilities: 1 }
   },

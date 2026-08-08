@@ -13,7 +13,7 @@
  * comparison. Computing Wool directly from the live Sheep headcount (like Milk from Cattle/Sheep/
  * Goats) removes the competition: Wool is now a byproduct of the standing herd, produced every
  * month regardless of whether any Sheep are also sold as food that month. Cloth
- * (`recipes: [{ Wool: 1 }, { Hemp: 1 }, { Silk: 0.25 }, { Cotton: 1 }]`, goods-generator.ts) is
+ * (`recipes: [{ Wool: 1 }, { Hemp: 1 }, { Cotton: 1 }]`, goods-generator.ts) is
  * unchanged — it still recipe-consumes Wool off the market the same way it always has.
  */
 

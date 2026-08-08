@@ -127,6 +127,21 @@ describe("GoodsModule", () => {
     }
   });
 
+  it("keeps common clothing on ordinary fibres and reserves silk for luxury goods", () => {
+    goodsModule.restoreDefaults();
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const cloth = byName.get("Cloth");
+    const garments = byName.get("Garments");
+    const silk = byName.get("Silk");
+    const linen = byName.get("Linen");
+    const furs = byName.get("Furs");
+    if (!cloth || !garments || !silk || !linen || !furs) throw new Error("Missing default textile goods");
+
+    expect(cloth).toMatchObject({ value: 6, recipes: expect.any(Array) });
+    expect(garments.recipes).toEqual([{ [cloth.i]: 1 }, { [linen.i]: 0.75 }, { [cloth.i]: 0.5, [furs.i]: 1 }]);
+    expect(cloth.recipes?.some(recipe => Object.hasOwn(recipe, silk.i))).toBe(false);
+  });
+
   it("defines display-only batch and tavern references without changing Goods", () => {
     expect(getDefaultGoodsUnitFlavor("Boots")).toEqual({ itemsPerUnit: 20, itemNoun: "pairs" });
     expect(getDefaultGoodsUnitFlavor("Bread")).toEqual({ itemsPerUnit: 20, itemNoun: "loaves" });
