@@ -14,7 +14,7 @@ Food Ledger（stapleFood/Grain限定）では、同じ`balance`と`ruralGrainPay
 | --- | --- | --- | --- |
 | 農村セル → Market（stapleFood以外の一般Goods） | `Markets.collectRuralProduction()`がセル産出を直接`market.goods[goodId].stock`へ加算する | 農村、生産者、Marketのいずれにも支払・収益を記帳しない | 現状は物量供給だけ。農村への代金は未実装 |
 | 農村セル → Market（Food Ledger, stapleFood限定） | `FoodProductionModule`の四半期生産が`foodStockAge0`へ加算される | `settleFarmgatePayment()`が`marketTreasury.balance`から仕入原価を支払い、不足分を`ruralGrainPayable`として計上する。都市小売収入から`ruralGrainPayable`への優先返済も実装済み | 実装済み。marketTreasury.balanceは実在する運転資金であり、農村への穀物代金支払いが機能している |
-| Burg製造 → Market | `Markets.sell()`が在庫を増やし`Deal`を作る | `marketTreasury.balance`が仕入額以上の時だけ実行し、売価を残高から減らす。Burgは税引後売価を受け取り、税はStateへ | 都市の売上にはMarketの支払者が必要 |
+| Burg製造 → Market | `Markets.sell()`が在庫を増やし`Deal`を作る | 生産開始前にMarketの利用可能資金を人口比（小村の最低重み付き）で各Burgへ予約する。その枠内で`marketTreasury.balance`から仕入額を払い、Burgは税引後売価、Stateは税を受け取る | 生産順にかかわらず都市規模に応じた仕入機会を持つ |
 | Market → Burg消費・原料 | `Markets.buy()`が市場在庫を減らし`Deal`を作る | 呼び出し側が`burg.treasury`を減らし、購入額を`marketTreasury.balance`へ加算する | 購入者の支出が次回の仕入原資へ戻る |
 | Market → Market一般交易 | `runGlobalTrade()`が輸出元在庫を減らし、Caravan到着時に輸入元在庫を増やす | `Deal`に価格・税・維持費は記録するが、両Market間の現金移転はしない | 物資輸送と価格評価はあるが、決済なし |
 | Food Ledger市場間輸入（FoodShipment） | `resolveFoodImportNetwork()`は抽象的な四半期フローと到達量を計算する | 金額・残高を更新しない。現時点では輸出元の一般在庫も減らさず、到達量で都市の有効収容力を補正する | 農村⇄Marketの決済（上記）とは別に、市場間の輸送・決済はまだ未実装 |

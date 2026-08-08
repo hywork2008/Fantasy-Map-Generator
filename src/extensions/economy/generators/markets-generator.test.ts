@@ -665,7 +665,7 @@ describe("MarketsModule", () => {
         centerBurgId: 1,
         color: "#ff0000",
         goods: { 0: { stock: 0, price: 10 } },
-        marketTreasury: { balance: 44.99, ruralGrainPayable: 0 }
+        marketTreasury: { balance: 0, ruralGrainPayable: 0 }
       };
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market, market];
@@ -674,7 +674,27 @@ describe("MarketsModule", () => {
 
       expect(marketsModule.sell({ burg, good: getGoods()[0], units: 5, taxRate: 0 })).toBeNull();
       expect(market.goods[0].stock).toBe(0);
-      expect(market.marketTreasury?.balance).toBe(44.99);
+      expect(market.marketTreasury?.balance).toBe(0);
+    });
+
+    it("limits a Burg sale to its reserved Market purchase budget", () => {
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 0, price: 10 } },
+        marketTreasury: { balance: 100, ruralGrainPayable: 0 }
+      };
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market, market];
+      setMarkets([market]);
+      const burg: Burg = { i: 1, market: 1 } as unknown as Burg;
+
+      const deal = marketsModule.sell({ burg, good: getGoods()[0], units: 5, taxRate: 0, budget: 18 });
+
+      expect(deal?.units).toBe(2);
+      expect(market.goods[0].stock).toBe(2);
+      expect(market.marketTreasury?.balance).toBe(82);
     });
 
     it("sync() should rebuild the id index so get() resolves markets after a load", () => {

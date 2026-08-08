@@ -948,36 +948,52 @@ export class MarketsModule {
     return deal;
   }
 
-  sell({ burg, good, units, taxRate }: { burg: Burg; good: Good; units: number; taxRate: number }): Deal | null {
+  sell({
+    burg,
+    good,
+    units,
+    taxRate,
+    budget = Infinity
+  }: {
+    burg: Burg;
+    good: Good;
+    units: number;
+    taxRate: number;
+    /** Producer-purchase cash reserved for this Burg in the current production cycle. */
+    budget?: number;
+  }): Deal | null {
     if (!isGoodEnabled(good)) return null;
     const market = this.get(burg.market);
     if (!market || units <= 0) return null;
 
     const marketGood = this.getMarketGood(market, good);
     const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
-    const grossRevenue = rn(units * price, 2);
     const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
     // General-goods sales are actual wholesale purchases. A Market cannot create a
     // producer's revenue merely by accepting inventory: it needs cash on hand first.
+    // `budget` additionally prevents an earlier Burg from consuming another Burg's
+    // population-weighted share of that cash.
     const maintenanceReach = 0.25 + 0.75 * (market.maintenanceCondition ?? 1);
-    if (treasury.balance * maintenanceReach + 0.001 < grossRevenue) return null;
-    const tax = rn(units * price * taxRate, 2);
+    const actualUnits = rn(Math.min(units, budget / price, (treasury.balance * maintenanceReach) / price), 2);
+    if (actualUnits < 0.01) return null;
+    const grossRevenue = rn(actualUnits * price, 2);
+    const tax = rn(actualUnits * price * taxRate, 2);
     treasury.balance = rn(Math.max(0, treasury.balance - grossRevenue), 2);
     market.marketTreasury = treasury;
-    marketGood.stock = rn(marketGood.stock + units, 2);
+    marketGood.stock = rn(marketGood.stock + actualUnits, 2);
     recordGoodFlow({
       direction: "source",
       category: "burgCraft",
       goodId: good.i,
-      units,
+      units: actualUnits,
       marketId: market.i,
       burgId: burg.i,
       guildDomain: getCraftDomainForGood(good.name) ?? undefined
     });
-    recordFoodMarketIntake(market, good.name, units);
+    recordFoodMarketIntake(market, good.name, actualUnits);
     // A burg's automatic production reaches its own collection/wholesale depot first.
     // Market.goods remains the canonical market-wide total; this records its physical location.
-    addWholesaleGoodStock(burg.i!, market.i, good.i, units);
+    addWholesaleGoodStock(burg.i!, market.i, good.i, actualUnits);
 
     const deals = getDeals();
     const deal: Deal = {
@@ -987,13 +1003,13 @@ export class MarketsModule {
       buyer: market.i,
       buyerType: "market",
       good: good.i,
-      units: rn(units, 2),
+      units: actualUnits,
       price,
       tax
     };
     deals.push(deal);
 
-    marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -units), 2);
+    marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -actualUnits), 2);
 
     // Cumulative-sales counter for the Goods Editor (docs/temp/0807-alcoholic.md's Balance History
     // investigation surfaced the need for a session-long "units sold" figure distinct from the
@@ -1001,7 +1017,7 @@ export class MarketsModule {
     // explicitly reset. addRuralOutput() below records the same counter for rural/biome-produced goods,
     // which never reach the market through this burg-manufacture path.
     const salesTable = getOrCreateCumulativeGoodsSales();
-    if (salesTable) salesTable[good.i] = rn((salesTable[good.i] ?? 0) + units, 2);
+    if (salesTable) salesTable[good.i] = rn((salesTable[good.i] ?? 0) + actualUnits, 2);
 
     // Market-scoped counterpart of the above, keyed "marketId:goodId" — see
     // getOrCreateMarketGoodProductionTotals()'s doc-comment for the consumer (faunaPopulation.ts's
@@ -1009,7 +1025,7 @@ export class MarketsModule {
     const marketProductionTable = getOrCreateMarketGoodProductionTotals();
     if (marketProductionTable) {
       const key = `${market.i}:${good.i}`;
-      marketProductionTable[key] = rn((marketProductionTable[key] ?? 0) + units, 2);
+      marketProductionTable[key] = rn((marketProductionTable[key] ?? 0) + actualUnits, 2);
     }
 
     return deal;

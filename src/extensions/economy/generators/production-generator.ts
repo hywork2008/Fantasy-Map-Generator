@@ -46,6 +46,7 @@ import {
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
 import { settleMarketMaintenance } from "./marketMaintenance";
+import { allocateMarketProcurementBudgets } from "./marketProcurementBudget";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -214,6 +215,10 @@ export class ProductionModule {
     const craftDomainWorkersByKey = new Map(
       getCraftDomainEmploymentRecords().map(record => [craftDomainKey(record.burgId, record.domain), record.workers])
     );
+    // Purchase budgets must exist before the Burg loop; otherwise first-cycle production
+    // would still depend on whichever Burg happens to run first after a legacy load.
+    measureTickStep("production:merchantPurchaseCapital", () => MerchantTradeCapital.ensureAllMarkets());
+    const saleBudgetByBurg = allocateMarketProcurementBudgets(sortedBurgs, getMarkets());
 
     return {
       index,
@@ -221,7 +226,8 @@ export class ProductionModule {
       strategicLaborMarketById,
       constructionOperationByBurg,
       craftWorkersByBurg,
-      craftDomainWorkersByKey
+      craftDomainWorkersByKey,
+      saleBudgetByBurg
     };
   }
 
@@ -254,7 +260,7 @@ export class ProductionModule {
     // as the craft employment smoothing above.
     advanceViticultureAllocationShares(burg.i, market);
 
-    const phaseRevenue = this.sellInventoryToMarket(state);
+    const phaseRevenue = this.sellInventoryToMarket(state, cycle.saleBudgetByBurg);
     burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
     burg.product = rn(Math.max(0, phaseRevenue - state.ingredientCosts), 2);
     // Gives a treasury=0 Burg with no local resource a recovery chance even without new product
@@ -631,9 +637,10 @@ export class ProductionModule {
     state.records.push(record);
   }
 
-  private sellInventoryToMarket(state: BurgProductionState): number {
+  private sellInventoryToMarket(state: BurgProductionState, saleBudgetByBurg: ReadonlyMap<number, number>): number {
     let phaseRevenue = 0;
     const taxRate = this.getSalesTax(state.burg);
+    let remainingBudget = saleBudgetByBurg.get(state.burg.i!) ?? 0;
 
     for (const goodIdStr in state.inventory) {
       const goodId = +goodIdStr;
@@ -642,8 +649,10 @@ export class ProductionModule {
 
       const good = Goods.get(goodId);
       if (!good || !isGoodEnabled(good)) continue;
-      const deal = Markets.sell({ burg: state.burg, good, units, taxRate });
+      const deal = Markets.sell({ burg: state.burg, good, units, taxRate, budget: remainingBudget });
       if (!deal) continue;
+
+      remainingBudget = rn(Math.max(0, remainingBudget - deal.units * deal.price), 2);
 
       const grossRevenue = deal.units * deal.price;
       const taxAmount = deal.tax ?? grossRevenue * taxRate;
@@ -1219,6 +1228,8 @@ type ProductionCycle = {
   craftWorkersByBurg: Map<number, number>;
   /** Same as craftWorkersByBurg, but keyed by `craftDomainKey(burgId, domain)` (docs/plan/knowledge-guild-system.md §9 Phase 2). */
   craftDomainWorkersByKey: Map<string, number>;
+  /** Market cash reserved for each Burg's own sales before production order begins. */
+  saleBudgetByBurg: ReadonlyMap<number, number>;
 };
 
 /** `${burgId}:${domain}` key into craftDomainWorkersByKey / craftDomainEmploymentRecords. */
