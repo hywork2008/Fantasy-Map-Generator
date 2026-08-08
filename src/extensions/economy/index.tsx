@@ -27,7 +27,6 @@ import {
   getCaravans,
   getGoodCellColumn,
   getGoods,
-  getInnFacilities,
   getMarketCellColumn,
   getMarkets,
   getMilitaryResourceLedgers,
@@ -35,7 +34,6 @@ import {
   getMintLedgers,
   getSmelterOperations,
   getTradeSecurityLedgers,
-  getUrbanWaterSystems,
   getWorldContext,
   initEconomyContext,
   setBurgMarketLedgers,
@@ -1534,8 +1532,6 @@ export function init(api: ExtensionAPI): void {
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[ECONOMY_EXTENSION_ID];
     const wasEnabled = prevState.enabledExtensions[ECONOMY_EXTENSION_ID];
-    const worldContext = getWorldContext(); // live reference, same object as host
-
     if (isEnabled && !wasEnabled) {
       api.addLayers(economyLayers);
       api.registerWebglLayers(ECONOMY_EXTENSION_ID, economyWebglLayerSpec);
@@ -1550,82 +1546,10 @@ export function init(api: ExtensionAPI): void {
       registerOverviewColumns(api);
       // Demography birth floor: pregnancy due sets a lower bound on urban births (PR-P2).
       registerUrbanPregnancyBirthFloor();
-      // Generate economy if it's completely missing
-      if (!getGoods().length) {
-        if (
-          worldContext.pack.cells?.i &&
-          (!getGoodCellColumn().length || getGoodCellColumn().length !== worldContext.pack.cells.i.length)
-        ) {
-          setGoodCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
-          setMarketCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
-        }
-        MineralResources.generate();
-        // Goods before DevelopmentPotential — see the matching comment at the main generation
-        // call site above (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase B follow-up).
-        Goods.generate();
-        DevelopmentPotential.generate();
-        Markets.generate();
-        // See the matching comment at the main generation call site — seeds fauna stock immediately
-        // instead of leaving it to lazily appear cell-by-cell on first hunting/husbandry draw.
-        updateAnnualFaunaCohorts();
-        InnFacilities.generate();
-        InnStays.clear();
-        UrbanWater.generate();
-        MineOperations.generate();
-        SmelterOperations.generate();
-        QuarryOperations.generate();
-        VolcanicAshOperations.generate();
-        ConstructionOperations.generate();
-        Minting.generate();
-        MilitaryResources.generate();
-        TradeSecurity.generate();
-        Taxes.defineTaxRates();
-        FoodProduction.seedFoodLedgerBootstrap();
-        Production.produce();
-        Taxes.collectTaxes();
-        synchronizePlayerCommerce();
-        rebuildCullJobPostings({ clearAll: true });
-        rebuildEscortJobPostings({ clearAll: true });
-      } else {
-        const migratedLegacyMetals = migrateLegacyOreIngotGoods();
-        const migratedLiveCats = migrateLiveCatsGood();
-        const migratedLiveDogs = migrateLiveDogsGood();
-        const migratedGrapes = migrateGrapesGood();
-        const migratedRaisins = migrateRaisinsGood();
-        const migratedWineRecipe = migrateWineRecipe();
-        const migratedFoodLots = migrateFoodProcessingLotContracts();
-        const migratedLiveAnimalTags = migrateLiveAnimalTags();
-        if (
-          migratedLegacyMetals ||
-          migratedLiveCats ||
-          migratedLiveDogs ||
-          migratedGrapes ||
-          migratedRaisins ||
-          migratedWineRecipe ||
-          migratedFoodLots ||
-          migratedLiveAnimalTags
-        ) {
-          Goods.sync();
-          Markets.initializeMarketPrices();
-        }
-        if (getMarkets().length) {
-          if (!getSmelterOperations().length) SmelterOperations.generate();
-          if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
-          syncMarketManagers();
-          syncBurgMarketLedgers();
-          synchronizePlayerCommerce();
-          FoodProduction.seedFoodLedgerBootstrap();
-        }
-        if (!getInnFacilities().length) {
-          InnFacilities.generate();
-          InnStays.clear();
-        }
-        if (!getUrbanWaterSystems().length) {
-          UrbanWater.generate();
-        }
-        rebuildCullJobPostings();
-        rebuildEscortJobPostings();
-      }
+      // Data generation is deliberately deferred. During core map generation the
+      // coordinator will run this task after the map is complete; for a live map
+      // it runs only Economy's task, without resetting unrelated extensions.
+      api.requestMapReadyTask("economy.initialization");
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
       economyLayers.forEach(l => {

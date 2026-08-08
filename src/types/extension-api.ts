@@ -224,6 +224,8 @@ export interface ExtensionAPI {
    * Use this for expensive extension data generation instead of blocking fmg:generate-post-core.
    */
   registerMapReadyTask(task: MapReadyTask): () => void;
+  /** Queue this extension's map-ready task after a live toggle on an already completed map. */
+  requestMapReadyTask(taskId: string): void;
 
   // ── Layer preset management ──────────────────────────────────────────────
   /** Register a named preset with a human-readable label and a list of layer toggle ids. */

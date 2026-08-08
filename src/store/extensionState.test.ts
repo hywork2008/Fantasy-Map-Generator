@@ -23,16 +23,14 @@ describe("extension state", () => {
     ]);
   });
 
-  it("does not enable an extension while staged map generation is open", () => {
+  it("allows an extension to be enabled while staged map generation is open", () => {
     useExtensionState
       .getState()
       .registerExtension({ id: extensionId, name: "Generation lock test", description: "Test extension" }, false);
-    generationProgressStore.getState().beginStage(0);
+    generationProgressStore.getState().beginStage(0, true);
 
-    expect(useExtensionState.getState().toggleExtension(extensionId, true)).toBe(false);
-    expect(useExtensionState.getState().enabledExtensions[extensionId]).toBe(false);
-    expect(useExtensionState.getState().toggleError).toBe(
-      "Extensions cannot be changed while map generation is in progress."
-    );
+    expect(useExtensionState.getState().toggleExtension(extensionId, true)).toBe(true);
+    expect(useExtensionState.getState().enabledExtensions[extensionId]).toBe(true);
+    expect(useExtensionState.getState().toggleError).toBeNull();
   });
 });

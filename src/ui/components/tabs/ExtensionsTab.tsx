@@ -26,9 +26,6 @@ export const ExtensionsTab: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const refreshRequestRef = useRef(0);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
-  const canConfigureInitialMap = useGenerationProgressState(
-    state => state.isOpen && !state.isGenerating && state.isInitialGeneration
-  );
   const generationLockMessage = "Extensions cannot be changed while map generation is in progress.";
 
   // Merge DB records with zustand-registered extensions to build full list
@@ -100,10 +97,6 @@ export const ExtensionsTab: React.FC = () => {
   };
 
   const handleToggle = async (id: string, isCurrentlyEnabled: boolean, isBuiltin: boolean) => {
-    if (isMapGenerationInProgress) {
-      setError(generationLockMessage);
-      return;
-    }
     const nextState = !isCurrentlyEnabled;
     // The store owns the dependency validation (required-on-enable, required-by-others-on-disable);
     // the UI only reacts to whether the toggle was allowed.
@@ -176,25 +169,14 @@ export const ExtensionsTab: React.FC = () => {
                     m.dependencies?.some(d => d.id === meta.id && d.required)
                 );
                 const canDisable = !blockingDependent;
-                const disabled =
-                  (isMapGenerationInProgress && !canConfigureInitialMap) || (isEnabled ? !canDisable : !canEnable);
-                const toggleTitle = isMapGenerationInProgress
-                  ? canConfigureInitialMap
-                    ? isEnabled
-                      ? canDisable
-                        ? "Disable extension"
-                        : `Cannot disable: required by ${blockingDependent?.name}`
-                      : canEnable
-                        ? "Enable extension"
-                        : "Missing required dependencies"
-                    : generationLockMessage
-                  : isEnabled
-                    ? canDisable
-                      ? "Disable extension"
-                      : `Cannot disable: required by ${blockingDependent?.name}`
-                    : canEnable
-                      ? "Enable extension"
-                      : "Missing required dependencies";
+                const disabled = isEnabled ? !canDisable : !canEnable;
+                const toggleTitle = isEnabled
+                  ? canDisable
+                    ? "Disable extension"
+                    : `Cannot disable: required by ${blockingDependent?.name}`
+                  : canEnable
+                    ? "Enable extension"
+                    : "Missing required dependencies";
 
                 return (
                   <tr key={meta.id} style={{ background: isEnabled ? "var(--bg-light)" : "transparent" }}>

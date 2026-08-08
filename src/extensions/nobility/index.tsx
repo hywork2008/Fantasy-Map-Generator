@@ -178,19 +178,10 @@ export function init(api: ExtensionAPI): void {
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[NOBILITY_EXTENSION_ID];
     const wasEnabled = prevState.enabledExtensions[NOBILITY_EXTENSION_ID];
-    const worldContext = getWorldContext();
-
     if (isEnabled && !wasEnabled) {
-      if (!worldContext.pack.characters || worldContext.pack.characters.length === 0) {
-        api.dispatchExtensionCommand({
-          extensionId: NOBILITY_EXTENSION_ID,
-          name: "regenerate",
-          payload: { mode: "bootstrap" }
-        });
-      } else {
-        // Roster already exists (e.g. re-enable mid-session) — pick a focus character.
-        selectRandomPlayerCharacter();
-      }
+      // Character creation depends on complete burg and state data. The task is
+      // automatically run after core generation, or queued immediately for a live map.
+      api.requestMapReadyTask("nobility.initialization");
     } else if (!isEnabled && wasEnabled) {
       clearPlayerTravel();
       clearPlayerCharacterSelection();

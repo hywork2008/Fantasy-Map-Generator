@@ -281,7 +281,7 @@ export function init(api: ExtensionAPI): void {
     if (isEnabled && !wasEnabled) {
       api.addLayers(shipbuildingLayers);
       publishMerchantHullSnapshot();
-      if (getWorldContext().pack.burgs?.length) recomputeAndMaybeDraw(api);
+      api.requestMapReadyTask("shipbuilding.initialization");
     } else if (!isEnabled && wasEnabled) {
       if (api.layerIsOn("toggleShipyards")) api.toggleLayerById("toggleShipyards");
       api.removeLayers(shipbuildingLayers.map(l => l.id));

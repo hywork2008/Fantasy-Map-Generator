@@ -48,13 +48,15 @@ test("keeps generation settings available and exposes first-map setup controls",
   await expect(page.getByRole("button", { name: "Generation", exact: true })).toBeEnabled();
   await expect(page.getByRole("button", { name: "UI", exact: true })).toBeEnabled();
   await expect(page.locator("#loadButton")).toBeEnabled();
-  await expect(page.locator("#optionsTabContent th")).toHaveText([
+  for (const stageLabel of [
     "1. Landscape outline",
     "2. Climate and waterways",
     "3. Cultures and settlements",
     "4. Realms and routes",
     "5. Finish the world"
-  ]);
+  ]) {
+    await expect(page.locator("#optionsTabContent th").filter({ hasText: stageLabel })).toBeVisible();
+  }
 
   await page.locator("#templateInputContainer").click();
   await expect(page.getByRole("heading", { name: "Heightmap templates", exact: true })).toBeVisible();
@@ -82,6 +84,14 @@ test("keeps generation settings available and exposes first-map setup controls",
   await expect(page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "Toggle Nobility & Characters extension" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "Toggle Shipbuilding extension" })).toBeVisible();
+
+  const charactersToggle = page.getByRole("checkbox", { name: "Toggle Characters extension" });
+  const economyToggle = page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" });
+  await charactersToggle.check();
+  await economyToggle.check();
+  await expect(charactersToggle).toBeChecked();
+  await expect(economyToggle).toBeChecked();
+  await expect(page.getByText("Extensions cannot be changed while map generation is in progress.")).toHaveCount(0);
 
   await page.locator("#loadButton").click();
   await expect(page.getByText("Load Map", { exact: true })).toBeVisible();
