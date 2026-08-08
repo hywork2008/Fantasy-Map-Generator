@@ -68,7 +68,11 @@ export class TaxesModule {
     return getWorldContext();
   }
 
-  /** Seeds salesTax/pollTax/treasury for any non-neutral state that doesn't have rates yet. Idempotent — never overwrites an already-set or user-edited rate. */
+  /**
+   * Seeds salesTax, pollTax, and a start-mode public reserve for any non-neutral
+   * State that does not have rates yet. Idempotent — never overwrites an already-set
+   * or user-edited rate / treasury.
+   */
   defineTaxRates(): void {
     for (const state of this.worldContext.pack.states) {
       if (!state.i || state.salesTax !== undefined) continue;
@@ -76,7 +80,9 @@ export class TaxesModule {
       const { salesTax, pollTax } = DEFAULT_TAX_BY_FORM[state.form || ""] || DEFAULT_TAX;
       state.salesTax = rn(gauss(salesTax, salesTax * 0.15, salesTax * 0.5, salesTax * 1.5, 4), 2);
       state.pollTax = rn(gauss(pollTax, pollTax * 0.15, pollTax * 0.5, pollTax * 1.5, 4), 2);
-      state.treasury = 0;
+      const population = (state.rural || 0) + (state.urban || 0);
+      const profile = getEconomyStartProfile(this.worldContext.options);
+      state.treasury = rn(population * profile.stateTreasuryPerPopulation, 2);
     }
   }
 

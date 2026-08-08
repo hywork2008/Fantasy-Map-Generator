@@ -13,6 +13,7 @@ describe("economy start profiles", () => {
 
     expect(balanced.burgTreasuryPerPopulation).toBeLessThan(provisioned.burgTreasuryPerPopulation);
     expect(subsistence.burgTreasuryPerPopulation).toBeLessThan(balanced.burgTreasuryPerPopulation);
+    expect(balanced.stateTreasuryPerPopulation).toBeGreaterThan(0);
     expect(balanced.stateAdministrativeUpkeepShare).toBeGreaterThan(0);
     expect(subsistence.stateRemittanceShare).toBeLessThan(balanced.stateRemittanceShare);
   });

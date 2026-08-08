@@ -6,6 +6,8 @@ export const DEFAULT_NEW_MAP_ECONOMY_START_MODE: EconomyStartMode = "balanced";
 export interface EconomyStartProfile {
   /** Initial Burg working cash per population point. */
   burgTreasuryPerPopulation: number;
+  /** Initial public State reserve per population point. */
+  stateTreasuryPerPopulation: number;
   /** Initial liquid Market cash as a share of local Burg working cash. */
   marketTreasuryShare: readonly [number, number];
   /** Initial inter-market merchant capital as a share of local Burg working cash. */
@@ -26,6 +28,7 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
   // Compatibility profile for old saves and players who want the previous fast start.
   provisioned: {
     burgTreasuryPerPopulation: 20,
+    stateTreasuryPerPopulation: 0,
     marketTreasuryShare: [0.5, 1],
     tradeCapitalShare: [0.25, 0.8],
     guildBootstrapMultiplier: 1,
@@ -37,6 +40,7 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
   // A normal pre-gunpowder polity: ordinary revenues mostly keep institutions running.
   balanced: {
     burgTreasuryPerPopulation: 5,
+    stateTreasuryPerPopulation: 0.5,
     marketTreasuryShare: [0.25, 0.5],
     tradeCapitalShare: [0.1, 0.3],
     guildBootstrapMultiplier: 0.35,
@@ -48,6 +52,7 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
   // Cities can feed themselves from seeded staple reserves, but have almost no spare capital.
   subsistence: {
     burgTreasuryPerPopulation: 1,
+    stateTreasuryPerPopulation: 0.05,
     marketTreasuryShare: [0.05, 0.15],
     tradeCapitalShare: [0.02, 0.08],
     guildBootstrapMultiplier: 0,
