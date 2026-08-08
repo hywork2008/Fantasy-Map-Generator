@@ -7,6 +7,7 @@ import {
   KILOGRAMS_PER_RAISINS_LOT,
   LITERS_PER_MILK_LOT,
   LITERS_PER_WINE_LOT,
+  MILK_LOTS_PER_CHEESE_LOT,
   WINE_TARGETS
 } from "./foodLots";
 import { getMarketRuralPopulation } from "./foodProduction";
@@ -14,6 +15,14 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
 
 const TRACKED_GOODS = new Set(["Milk", "Cheese", "Grapes", "Raisins", "Wine"]);
+
+/** Cheese can hold for a year, unlike the same-month Milk/Grapes retail pools. */
+export const CHEESE_RESERVE_MONTHS = 12;
+/**
+ * A bounded share of locally surplus Milk is worth preserving as Cheese. The stock ceiling below
+ * prevents this from inventing an unlimited export sink when a dairy market has no buyers.
+ */
+export const CHEESE_SURPLUS_MILK_CONVERSION_SHARE = 0.25;
 
 function emptyGoodLedger(): FoodProcessingGoodLedger {
   return {
@@ -101,9 +110,9 @@ function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
 }
 
 /**
- * Processing preserves food, but it must not create an unbounded stockpile merely because a
- * recipe is profitable. Three months of projected household demand gives artisans time to work
- * ahead of seasonal harvest while leaving no artificial export sink.
+ * Processing must not create an unbounded stockpile merely because a recipe is profitable.
+ * Raisins and Wine are held to three months of demand. Cheese is a cheap, durable protein: a
+ * one-year reserve may absorb a bounded share of local Milk that would otherwise spoil.
  */
 export function getFoodProcessingProductionHeadroom(
   market: Market,
@@ -114,7 +123,18 @@ export function getFoodProcessingProductionHeadroom(
   const good = getGoods().find(candidate => candidate.name === goodName);
   if (!good) return 0;
   const marketStock = Math.max(0, market.goods[good.i]?.stock ?? 0);
-  return Math.max(0, getMonthlyHouseholdDemand(market, goodName) * 3 - marketStock - Math.max(0, privateInventory));
+  const heldStock = marketStock + Math.max(0, privateInventory);
+  const householdHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, goodName) * 3 - heldStock);
+  if (goodName !== "Cheese") return householdHeadroom;
+
+  const milk = getGoods().find(candidate => candidate.name === "Milk");
+  const milkStock = milk ? Math.max(0, market.goods[milk.i]?.stock ?? 0) : 0;
+  const milkHouseholdDemand = getMonthlyHouseholdDemand(market, "Milk");
+  const surplusMilk = Math.max(0, milkStock - milkHouseholdDemand);
+  const surplusCheeseHeadroom = (surplusMilk * CHEESE_SURPLUS_MILK_CONVERSION_SHARE) / MILK_LOTS_PER_CHEESE_LOT;
+  const reserveHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, "Cheese") * CHEESE_RESERVE_MONTHS - heldStock);
+
+  return Math.max(householdHeadroom, Math.min(surplusCheeseHeadroom, reserveHeadroom));
 }
 
 function drawHouseholdDemand(market: Market, goodName: string, demand: number): void {

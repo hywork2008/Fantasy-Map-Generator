@@ -23,7 +23,11 @@ export const GRAPES_LOTS_PER_WINE_LOT = (LITERS_PER_WINE_LOT * 1.3) / KILOGRAMS_
 export const GRAPES_LOTS_PER_RAISINS_LOT = KILOGRAMS_PER_RAISINS_LOT / (KILOGRAMS_PER_GRAPES_LOT * 0.25);
 
 export const DAIRY_TARGETS = {
-  cheeseKilogramsPerPersonYear: 5,
+  /**
+   * Cheese is the affordable, durable animal-protein complement to grain: a substantial dietary
+   * staple rather than the former luxury-sized 5 kg annual ration.
+   */
+  cheeseKilogramsPerPersonYear: 25,
   freshMilkLitersPerPersonYear: 20
 } as const;
 

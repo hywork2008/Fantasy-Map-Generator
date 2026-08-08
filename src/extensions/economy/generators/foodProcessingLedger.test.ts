@@ -32,6 +32,7 @@ vi.mock("../economyContext", () => ({
 vi.mock("./foodProduction", () => ({ getMarketRuralPopulation: () => 0 }));
 
 import {
+  CHEESE_RESERVE_MONTHS,
   getFoodProcessingProductionHeadroom,
   recordFoodDeliveredExport,
   recordFoodMarketIntake,
@@ -69,7 +70,7 @@ describe("foodProcessingLedger", () => {
     expect(market.foodProcessingLedger!.Cheese).toMatchObject({ marketIntake: 0.75, deliveredExport: 0.75 });
   });
 
-  it("limits preserved-food output to three months of household demand", () => {
+  it("limits non-dairy preserved-food output to three months of household demand", () => {
     recordFoodMarketIntake(market, "Grapes", 1);
 
     const headroom = getFoodProcessingProductionHeadroom(market, "Wine", 0);
@@ -77,6 +78,19 @@ describe("foodProcessingLedger", () => {
 
     market.goods[5].stock += headroom;
     expect(getFoodProcessingProductionHeadroom(market, "Wine", 0)).toBe(0);
+  });
+
+  it("turns part of same-market Milk surplus into a one-year Cheese reserve", () => {
+    market.goods[1].stock = 500;
+    market.goods[2].stock = 0;
+
+    const headroom = getFoodProcessingProductionHeadroom(market, "Cheese", 0);
+    // 1,000 residents consume 1.67 Milk lots/month; 25% of the remainder is eligible for
+    // conversion at 10 Milk lots per Cheese lot. This is far above the household-only target.
+    expect(headroom).toBeCloseTo((500 - 20 / 12) * 0.25 * 0.1, 4);
+
+    market.goods[2].stock = (25 / 12) * CHEESE_RESERVE_MONTHS;
+    expect(getFoodProcessingProductionHeadroom(market, "Cheese", 0)).toBe(0);
   });
 
   it("keeps initial, one-year, and five-year food snapshots bounded in deterministic market scenarios", () => {
