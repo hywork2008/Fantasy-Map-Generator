@@ -29,7 +29,15 @@ export interface GoodTradeProfile {
   lossRisk: TradeScale;
 }
 
-export const DEMAND_PRIORITY = ["food", "utilities", "construction", "military", "hunting", "luxury"] as const;
+export const DEMAND_PRIORITY = [
+  "food",
+  "utilities",
+  "clothing",
+  "construction",
+  "military",
+  "hunting",
+  "luxury"
+] as const;
 export type DemandCategory = (typeof DEMAND_PRIORITY)[number];
 
 export interface Good {

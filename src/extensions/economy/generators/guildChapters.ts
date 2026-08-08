@@ -11,6 +11,7 @@ import {
 import { buildGuildChapterSuitabilityContext, scoreGuildChapterSuitability } from "./guildChapterSuitability";
 import type { GuildChapter } from "./guildChapterTypes";
 import { CRAFT_KNOWLEDGE_DOMAINS, type CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { isTextileGuildWorkViable } from "./textileDemand";
 
 export const MAX_CHAPTERS_PER_BURG = 4;
 export const CHAPTER_FOUND_THRESHOLD = 0.35;
@@ -73,6 +74,10 @@ function addBestChapter(
     if (candidate.score < CHAPTER_FOUND_THRESHOLD) return false;
     if (chapters.some(chapter => chapter.burgId === candidate.burgId && chapter.domain === domain)) continue;
     if (chapterCountAtBurg(chapters, candidate.burgId) >= MAX_CHAPTERS_PER_BURG) continue;
+    // A textile hall represents paid craft work, not a capital-city decoration. It is founded only
+    // where the immediately available fibre/cloth and the next three months of household orders can
+    // support at least the two-person minimum without seeding synthetic materials.
+    if (domain === "textiles" && !isTextileGuildWorkViable(candidate.burgId)) continue;
     chapters.push({
       burgId: candidate.burgId,
       domain,

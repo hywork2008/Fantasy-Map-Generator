@@ -137,8 +137,14 @@ describe("GoodsModule", () => {
     const furs = byName.get("Furs");
     if (!cloth || !garments || !silk || !linen || !furs) throw new Error("Missing default textile goods");
 
-    expect(cloth).toMatchObject({ value: 6, recipes: expect.any(Array) });
+    expect(cloth).toMatchObject({ value: 15, unit: "wardrobe bolt", recipes: expect.any(Array) });
+    expect(cloth.recipes).toEqual([
+      { [byName.get("Wool")!.i]: 6 },
+      { [byName.get("Hemp")!.i]: 6 },
+      { [byName.get("Cotton")!.i]: 6 }
+    ]);
     expect(garments.recipes).toEqual([{ [cloth.i]: 1 }, { [linen.i]: 0.75 }, { [cloth.i]: 0.5, [furs.i]: 1 }]);
+    expect(garments).toMatchObject({ value: 20, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
     expect(cloth.recipes?.some(recipe => Object.hasOwn(recipe, silk.i))).toBe(false);
   });
 

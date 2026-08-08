@@ -22,6 +22,9 @@ export { DEMAND_PRIORITY } from "./goodsGeneratorTypes";
 export const DEMAND_TARGET_FACTORS: Record<DemandCategory, number> = {
   food: 0.2,
   utilities: 0.15,
+  // One complete common wardrobe is replaced every four years. Production cycles are monthly,
+  // so one normalized population lot requires 1 / (4 * 12) garment lots per cycle.
+  clothing: 1 / 48,
   construction: 0.1,
   military: 0.08,
   hunting: 0.05,
@@ -30,6 +33,7 @@ export const DEMAND_TARGET_FACTORS: Record<DemandCategory, number> = {
 export const DEMAND_CATEGORY_ICONS: Record<DemandCategory, string> = {
   food: "🍖",
   utilities: "🛠️",
+  clothing: "🧥",
   construction: "🧱",
   military: "🛡️",
   hunting: "🎯",
@@ -832,14 +836,13 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-cloth",
     color: "#e8e69c",
-    // A bolt of everyday woven cloth. Wool, hemp and cotton are the common-fibre alternatives;
-    // Silk remains a separate luxury textile rather than an input that can be downgraded into
-    // common cloth. The value leaves a craft margin over the dearest ordinary fibre (Wool/Cotton).
-    value: 6,
+    // A market lot of everyday woven cloth, sufficient for 1,000 common wardrobe sets. The six
+    // fibre lots represent the five-to-ten fleece range adopted for the textile balance model.
+    // Silk remains a luxury textile rather than an input that can be downgraded into common cloth.
+    value: 15,
     chance: 0,
-    recipes: [{ Wool: 1 }, { Hemp: 1 }, { Cotton: 1 }],
-    unit: "bolt",
-    demandCoverage: { utilities: 0.2 }
+    recipes: [{ Wool: 6 }, { Hemp: 6 }, { Cotton: 6 }],
+    unit: "wardrobe bolt"
   },
   {
     name: "Garments",
@@ -847,15 +850,15 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-garments",
     color: "#bd21ec",
-    value: 12,
+    value: 20,
     chance: 0,
     // Utility demand represents ordinary clothing: an undyed wool/cotton/hemp cloth or linen
     // garment. Dyed apparel belongs with luxury consumption rather than making every household's
     // replacement clothing depend on expensive dye and alum. Silk remains an independently traded
     // luxury good and is used directly by high-status character loadouts and luxury crafts.
     recipes: [{ Cloth: 1 }, { Linen: 0.75 }, { Cloth: 0.5, Furs: 1 }],
-    unit: "set",
-    demandCoverage: { utilities: 1 }
+    unit: "wardrobe lot",
+    demandCoverage: { clothing: 1 }
   },
   {
     name: "Ceramics",
@@ -966,7 +969,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["naval"],
     icon: "good-sails",
     color: "#ffffff",
-    value: 8,
+    // Cloth is now a 1,000-person wardrobe-fibre lot (value 15), so a sail lot must remain above
+    // its ordinary-cloth recipe cost as well as its linen alternative.
+    value: 18,
     chance: 0,
     recipes: [{ Cloth: 1 }, { Linen: 1 }],
     unit: "set",
@@ -1765,7 +1770,7 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["luxury", "gift", "art"],
     icon: "good-unknown",
     color: "#6b3fa0",
-    value: 28,
+    value: 45,
     chance: 0,
     recipes: [
       { Cloth: 2, Dyes: 1 },

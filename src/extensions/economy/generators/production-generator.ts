@@ -68,6 +68,7 @@ import {
   getStrategicProductionDemandByGood,
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
+import { getGarmentProductionHeadroom, settleTextileHouseholdDemand } from "./textileDemand";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
 import { advanceViticultureAllocationShares, getViticultureAllocationMultiplier } from "./viticultureAllocation";
@@ -270,6 +271,10 @@ export class ProductionModule {
     measureTickStep("production:syncLedgers", () => {
       syncBurgMarketLedgers();
 
+      // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
+      // market-wide (urban + rural) replacement demand after this cycle's production and trade.
+      settleTextileHouseholdDemand();
+
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
       recordFlowCycleEnd();
       // After enough flow samples, grow land fleets toward measured annual export slots.
@@ -293,11 +298,16 @@ export class ProductionModule {
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {
     for (const burg of sortedBurgs) {
       if (!burg.i || burg.removed || !burg.market) continue;
+      const demandTargets = getDemandTargets(burg.population || 0);
+      // Clothing is consumed by the textile household ledger below, which includes rural residents
+      // and avoids charging a city Burg treasury for the whole market's countryside.
+      const clothingIndex = DEMAND_PRIORITY.indexOf("clothing");
+      if (clothingIndex >= 0) demandTargets[clothingIndex] = 0;
       this.fillDemandFromMarket({
         burg,
         demandCoverageByGood: index.demandCoverageByGood,
         demandGoodsByCategory: index.demandGoodsByCategory,
-        demandTargets: getDemandTargets(burg.population || 0),
+        demandTargets,
         records: getBurgProductionRecords(burg)
       });
     }
@@ -520,6 +530,10 @@ export class ProductionModule {
   ): void {
     const { good, ingredients, maxYield, ingredientCostPerUnit } = decision.action;
     let actualYield = Math.min(workerFraction, maxYield);
+
+    if (good.name === "Garments") {
+      actualYield = Math.min(actualYield, getGarmentProductionHeadroom(state.market, state.inventory[good.i] || 0));
+    }
 
     // Cap production by what the Burg can actually afford. Without this, ingredient purchases below
     // had no budget check (Markets.buy() defaults to an unlimited budget) and a Burg could keep

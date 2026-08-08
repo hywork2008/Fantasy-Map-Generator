@@ -20,11 +20,15 @@
 import { getOrCreateFaunaStockTable } from "../economyContext";
 import { getHusbandryWorkerFactor } from "./husbandry";
 
+/** One Wool market unit is a bale of one thousand annual-fleece equivalents. */
+export const FLEECES_PER_WOOL_MARKET_LOT = 1_000;
+
 /**
  * Fleece yield per head per month — order-of-magnitude placeholder (§9.3 policy: relative
  * ordering/scale matters more than the exact value here). A sheep is realistically sheared once a
  * year for one fleece; spread over 12 months as a smoothed trickle the same way Milk is, ~1
- * fleece/head/year ≈ 0.08/month.
+ * fleece/head/year ≈ 0.08/month. Output is then converted to the same 1,000-person market lot
+ * used by Cloth and Garments, instead of injecting raw individual fleeces into abstract markets.
  */
 const WOOL_YIELD_PER_HEAD_PER_MONTH: Record<string, number> = {
   Sheep: 0.08
@@ -53,5 +57,5 @@ export function getWoolOutput(cellId: number): number {
     rawYield += getLocalHeadcount(cellId, species) * yieldPerHead;
   }
   if (rawYield <= 0) return 0;
-  return rawYield * getHusbandryWorkerFactor(cellId);
+  return (rawYield * getHusbandryWorkerFactor(cellId)) / FLEECES_PER_WOOL_MARKET_LOT;
 }

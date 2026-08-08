@@ -41,8 +41,8 @@ describe("woolProduction (Wool -> Cloth, 2026-08-08 docs/plan/fauna-biome-realis
       table["0:Sheep"] = { young: 200, breeding: 600, old: 200 }; // 1000 head
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([5])); // workerFactor 0.5
-      // 1000 head * 0.08 (Sheep fleece yield/head/month) * 0.5 (workerFactor) = 40
-      expect(getWoolOutput(0)).toBeCloseTo(40, 5);
+      // 1000 head * 0.08 fleece/head/month * 0.5 worker factor / 1000 fleeces per market lot = 0.04.
+      expect(getWoolOutput(0)).toBeCloseTo(0.04, 5);
     });
 
     it("does not cull the herd — read-only like getMilkOutput", () => {

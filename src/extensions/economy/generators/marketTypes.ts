@@ -39,6 +39,27 @@ export interface Market {
    * See docs/plan/rural-agtech-investment.md §3.2-3.3.
    */
   agTechStock?: number;
+  /** Household clothing demand and consumption, separate from wholesale market intake. */
+  textileLedger?: TextileLedger;
+}
+
+export interface TextileLedger {
+  /** Real residents served by this market, divided into 1,000-person clothing lots. */
+  populationLots: number;
+  /** Temperature-derived multiplier for outerwear and replacement needs. */
+  climateMultiplier: number;
+  /** Full-year Garments demand in 1,000-person wardrobe lots. */
+  annualDemand: number;
+  /** This production cycle's household demand. */
+  monthlyDemand: number;
+  /** Garments removed from market stock by households this cycle. */
+  householdConsumption: number;
+  /** Household demand that could not be met from market stock this cycle. */
+  unmetDemand: number;
+  /** Cumulative household consumption since market creation or map generation. */
+  cumulativeHouseholdConsumption: number;
+  /** Cumulative unmet household demand since market creation or map generation. */
+  cumulativeUnmetDemand: number;
 }
 
 export interface MarketTreasury {

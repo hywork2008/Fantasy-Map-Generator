@@ -45,6 +45,7 @@ import { isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
+import { getMarketTextileDemandProfile } from "./textileDemand";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import {
   estimateSpeculativeTrade,
@@ -681,6 +682,7 @@ export class MarketsModule {
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
     const populationByMarket = this.calculatePopulationByMarket();
+    const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
 
     for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
@@ -691,7 +693,13 @@ export class MarketsModule {
         const marketGood = this.getMarketGood(market, good);
         const consumerDemand = consumerDemandFactors[good.i] || 0;
         const industrialDemand = industrialDemandFactors[good.i] || 0;
-        const demand = population * (consumerDemand + industrialDemand);
+        const demand = this.calculateGoodDemand(
+          good,
+          population,
+          textilePopulationByMarket[market.i] || population,
+          consumerDemand,
+          industrialDemand
+        );
         const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         marketGood.price = rn(good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR), 2);
       }
@@ -725,7 +733,13 @@ export class MarketsModule {
 
         const consumerDemand = consumerDemandFactors[good.i] || 0;
         const industrialDemand = industrialDemandFactors[good.i] || 0;
-        const demand = population * (consumerDemand + industrialDemand);
+        const demand = this.calculateGoodDemand(
+          good,
+          population,
+          textilePopulationByMarket[market.i] || population,
+          consumerDemand,
+          industrialDemand
+        );
         const supplyRatio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
 
@@ -981,6 +995,7 @@ export class MarketsModule {
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const populationByMarket = this.calculatePopulationByMarket();
+    const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
 
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const TRADE_RESERVE_FACTOR = FLOW_TRADE_RESERVE_FACTOR;
@@ -1005,7 +1020,13 @@ export class MarketsModule {
 
       for (const market of getMarkets()) {
         const population = populationByMarket[market.i] || 0;
-        const demand = population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0));
+        const demand = this.calculateGoodDemand(
+          good,
+          population,
+          textilePopulationByMarket[market.i] || population,
+          consumerDemandFactors[good.i] || 0,
+          industrialDemandFactors[good.i] || 0
+        );
         const reserve = demand * (1 + TRADE_RESERVE_FACTOR);
         safetyReserves[market.i] = reserve;
 
@@ -1553,6 +1574,31 @@ export class MarketsModule {
       populationByMarket[burg.market] += burg.population;
     }
     return populationByMarket;
+  }
+
+  /** Actual residents in thousand-person wardrobe lots, including every rural market cell. */
+  private calculateTextilePopulationByMarket(): number[] {
+    const populationByMarket: number[] = [];
+    for (const market of getMarkets())
+      populationByMarket[market.i] = getMarketTextileDemandProfile(market.i).populationLots;
+    return populationByMarket;
+  }
+
+  /**
+   * Ordinary consumer categories retain the established urban population-point scale. Clothing is
+   * the exception: its four-year replacement demand is calculated from real urban and rural people
+   * in textileDemand.ts, then normalized back to thousand-person market lots.
+   */
+  private calculateGoodDemand(
+    good: Good,
+    urbanPopulation: number,
+    textilePopulation: number,
+    consumerDemand: number,
+    industrialDemand: number
+  ): number {
+    const clothingFactor = good.demandCoverage?.clothing ? DEMAND_TARGET_FACTORS.clothing : 0;
+    const nonClothingConsumerDemand = Math.max(0, consumerDemand - clothingFactor);
+    return urbanPopulation * (nonClothingConsumerDemand + industrialDemand) + textilePopulation * clothingFactor;
   }
 }
 
