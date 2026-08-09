@@ -107,9 +107,16 @@ export function getGlobalQuarterlyFoodWeights({
   ];
 }
 
-/** The single Good (Grain in v1) that Food Ledger production/consumption/pricing owns. */
+/**
+ * The single aggregate commodity that Food Ledger production/consumption/pricing owns. Crop
+ * goods carry the local diet and are deliberately not separate ledgers; Grain remains the
+ * shared store-of-calories and trade-price representation.
+ */
 export function getStapleFoodGood(): Good | undefined {
-  return getGoods().find(good => good.tags?.includes("stapleFood"));
+  return (
+    getGoods().find(good => good.name === "Grain" && good.tags?.includes("stapleFood")) ??
+    getGoods().find(good => good.tags?.includes("stapleFood"))
+  );
 }
 
 function emptyFoodLedger(): FoodLedger {

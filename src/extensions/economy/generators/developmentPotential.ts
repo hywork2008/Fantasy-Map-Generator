@@ -6,6 +6,8 @@ import {
   getCultivatedArea,
   getFarmLaborRequired,
   getFoodPotential,
+  getGoods,
+  getIrrigationSalinity,
   getMarketCellColumn,
   getMarkets,
   getMigratableAdults,
@@ -15,6 +17,7 @@ import {
   getSettlementDevelopmentLastEvaluatedYear,
   getSettlementDevelopmentPotential,
   getSimulationYear,
+  getSoilFertility,
   getStateAgriculturalProductivity,
   getWorldContext,
   getYieldPerArea,
@@ -27,16 +30,24 @@ import {
   setHuntingWorkers,
   setHusbandryRequiredWorkers,
   setHusbandryWorkers,
+  setIrrigationSalinity,
   setMigratableAdults,
   setRuralFoodCapacity,
   setRuralReleasePressure,
   setSettlementDevelopmentLastEvaluatedYear,
   setSettlementDevelopmentPotential,
+  setSoilFertility,
   setViticultureRequiredWorkers,
   setViticultureWorkers,
   setYieldPerArea
 } from "../economyContext";
-import { calculateAgriculturalLandProfile, reconcileForestClearanceForAgriculture } from "./agriculturalLandUse";
+import {
+  type AgriculturalConditions,
+  advanceAgriculturalSoils,
+  calculateAgriculturalLandProfile,
+  reconcileForestClearanceForAgriculture
+} from "./agriculturalLandUse";
+import { isGoodEnabled } from "./goods-generator";
 import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
 
 /**
@@ -104,12 +115,20 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
-    reconcileForestClearanceForAgriculture(world, agTechStockByCell, stateProductivityByCell, demandOptions);
+    const conditions = this.getAgriculturalConditions(world.pack.cells.i.length);
+    reconcileForestClearanceForAgriculture(
+      world,
+      agTechStockByCell,
+      stateProductivityByCell,
+      demandOptions,
+      conditions
+    );
     const agriculture = calculateAgriculturalLandProfile(
       world,
       agTechStockByCell,
       stateProductivityByCell,
-      demandOptions
+      demandOptions,
+      conditions
     );
     const settlementDevelopmentPotential = calculateSettlementDevelopmentPotential(world, getMineralDeposits());
     const occupations = this.storeAgriculture(world, agriculture);
@@ -140,6 +159,8 @@ export class DevelopmentPotentialModule {
     setFarmLaborRequired(new Float32Array());
     setMigratableAdults(new Float32Array());
     setRuralReleasePressure(new Float32Array());
+    setSoilFertility(new Float32Array());
+    setIrrigationSalinity(new Float32Array());
     setHuntingWorkers(new Float32Array());
     setFishingWorkers(new Float32Array());
     setFishingRequiredWorkers(new Float32Array());
@@ -159,10 +180,17 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
-    reconcileForestClearanceForAgriculture(world, agTechStockByCell, stateProductivityByCell, demandOptions);
+    const conditions = this.advanceSoilConditions(world.pack.cells.i.length);
+    reconcileForestClearanceForAgriculture(
+      world,
+      agTechStockByCell,
+      stateProductivityByCell,
+      demandOptions,
+      conditions
+    );
     this.storeAgriculture(
       world,
-      calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell, demandOptions)
+      calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell, demandOptions, conditions)
     );
     return true;
   }
@@ -209,6 +237,39 @@ export class DevelopmentPotentialModule {
     setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
     setRuralReleasePressure(occupations.ruralReleasePressure);
     return occupations;
+  }
+
+  private getAgriculturalConditions(cellCount: number): AgriculturalConditions {
+    const existingFertility = getSoilFertility();
+    const existingSalinity = getIrrigationSalinity();
+    if (existingFertility.length !== cellCount) {
+      const fertility = new Float32Array(cellCount);
+      fertility.fill(1);
+      setSoilFertility(fertility);
+    }
+    if (existingSalinity.length !== cellCount) setIrrigationSalinity(new Float32Array(cellCount));
+    return {
+      cropGoods: getGoods().filter(good => Boolean(good.crop) && isGoodEnabled(good)),
+      soilFertilityByCell: getSoilFertility(),
+      irrigationSalinityByCell: getIrrigationSalinity()
+    };
+  }
+
+  private advanceSoilConditions(cellCount: number): AgriculturalConditions {
+    const conditions = this.getAgriculturalConditions(cellCount);
+    const next = advanceAgriculturalSoils(
+      getWorldContext(),
+      conditions.cropGoods ?? [],
+      conditions.soilFertilityByCell,
+      conditions.irrigationSalinityByCell
+    );
+    setSoilFertility(next.soilFertility);
+    setIrrigationSalinity(next.irrigationSalinity);
+    return {
+      ...conditions,
+      soilFertilityByCell: next.soilFertility,
+      irrigationSalinityByCell: next.irrigationSalinity
+    };
   }
 }
 

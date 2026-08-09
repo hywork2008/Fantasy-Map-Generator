@@ -29,6 +29,22 @@ export interface GoodTradeProfile {
   lossRisk: TradeScale;
 }
 
+export type CropKind = "cereal" | "tuber" | "legume";
+export type SoilType = "alluvial" | "clay" | "humus" | "loam" | "sandy" | "thin";
+
+/**
+ * Environmental requirements and field role for a staple crop. Temperature and precipitation
+ * use the map's existing annual climate proxy units, not real-world millimetres.
+ */
+export interface CropProfile {
+  kind: CropKind;
+  /** Net edible output relative to the shared agricultural baseline. */
+  yieldMultiplier: number;
+  temperature: { min: number; idealMin: number; idealMax: number; max: number };
+  precipitation: { min: number; idealMin: number; idealMax: number; max: number };
+  soils: readonly SoilType[];
+}
+
 export const DEMAND_PRIORITY = [
   "food",
   "utilities",
@@ -71,6 +87,8 @@ export interface Good {
   // effects
   demandCoverage?: Partial<Record<DemandCategory, number>>;
   trade?: GoodTradeProfile;
+  /** Present for field crops whose local output is allocated from active farmland. */
+  crop?: CropProfile;
   /** Missing only on legacy or user-created catalogue entries; callers must use the migration fallback. */
   cargo?: GoodCargoProfile;
 

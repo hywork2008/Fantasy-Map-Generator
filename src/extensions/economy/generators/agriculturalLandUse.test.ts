@@ -3,10 +3,13 @@ import type { WorldContext } from "../../hostCore";
 import {
   AGTECH_NO_DRAFT_EFFECT_SHARE,
   AGTECH_YIELD_BONUS_MAX,
+  advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
+  getCropMix,
   reconcileForestClearanceForAgriculture,
   STATE_YIELD_BONUS_MAX
 } from "./agriculturalLandUse";
+import type { Good } from "./goods-generator";
 
 function createWorld(): WorldContext {
   return {
@@ -39,6 +42,25 @@ function createWorld(): WorldContext {
       burgs: []
     }
   } as unknown as WorldContext;
+}
+
+function cropGood(i: number, name: string, kind: NonNullable<Good["crop"]>["kind"]): Good {
+  return {
+    i,
+    name,
+    tags: ["food", "stapleFood", "crop", kind],
+    value: 1,
+    unit: "wain",
+    icon: "good-grain",
+    color: "#ffffff",
+    crop: {
+      kind,
+      yieldMultiplier: 1,
+      temperature: { min: -2, idealMin: 5, idealMax: 20, max: 30 },
+      precipitation: { min: 8, idealMin: 20, idealMax: 60, max: 85 },
+      soils: ["loam", "alluvial", "sandy", "humus", "clay", "thin"]
+    }
+  };
 }
 
 describe("agricultural land use", () => {
@@ -178,5 +200,31 @@ describe("agricultural land use", () => {
     // AgTech's effectiveLaborDaysPerHectare), but farmLaborRequired still falls indirectly:
     // higher yield means less cultivatedArea is needed to feed the same population.
     expect(withStateOnly.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
+  });
+
+  it("uses a three-field cereal, legume, and root-crop mix without an initial soil penalty", () => {
+    const world = createWorld();
+    const crops = [cropGood(1, "Wheat", "cereal"), cropGood(2, "Peas", "legume"), cropGood(3, "Turnips", "tuber")];
+    const mix = getCropMix(world, 1, crops);
+
+    expect(mix.reduce((sum, entry) => sum + entry.share, 0)).toBeCloseTo(1, 6);
+    expect(mix.find(entry => entry.good.name === "Wheat")?.share).toBeCloseTo(0.65, 6);
+
+    const next = advanceAgriculturalSoils(world, crops, new Float32Array([1, 1]), new Float32Array(2));
+    expect(next.soilFertility[1]).toBeGreaterThanOrEqual(1);
+  });
+
+  it("depletes soil under continuous cereal cultivation and accumulates salt in irrigated desert fields", () => {
+    const world = createWorld();
+    const cerealOnly = [cropGood(1, "Wheat", "cereal")];
+    const exhausted = advanceAgriculturalSoils(world, cerealOnly, new Float32Array([1, 1]), new Float32Array(2));
+    expect(exhausted.soilFertility[1]).toBeLessThan(1);
+
+    world.biomesData.tags = [["desert"], ["forest"]];
+    world.pack.cells.biomeCode = new Uint8Array([0, 1]);
+    world.pack.cells.r = new Uint16Array([1, 0]);
+    world.grid.cells.prec = new Uint8Array([5, 45]);
+    const salted = advanceAgriculturalSoils(world, cerealOnly, new Float32Array([1, 1]), new Float32Array(2));
+    expect(salted.irrigationSalinity[0]).toBeGreaterThan(0);
   });
 });

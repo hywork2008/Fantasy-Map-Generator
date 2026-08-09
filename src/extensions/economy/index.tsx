@@ -92,6 +92,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateRaisinsGood,
+  migrateStapleCropGoods,
   migrateWineRecipe
 } from "./generators/goods-generator";
 import { GuildChapters } from "./generators/guildChapters";
@@ -1705,12 +1706,12 @@ export function init(api: ExtensionAPI): void {
   // newly added Ingots/Cats begin at zero stock (no duplicated wealth).
   _worldLoadedHandler = () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-    DevelopmentPotential.generate();
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedGrapes = migrateGrapesGood();
     const migratedRaisins = migrateRaisinsGood();
+    const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
     const migratedFoodLots = migrateFoodProcessingLotContracts();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
@@ -1720,6 +1721,7 @@ export function init(api: ExtensionAPI): void {
       migratedLiveDogs ||
       migratedGrapes ||
       migratedRaisins ||
+      migratedStapleCrops ||
       migratedWineRecipe ||
       migratedFoodLots ||
       migratedLiveAnimalTags
@@ -1727,6 +1729,9 @@ export function init(api: ExtensionAPI): void {
       Goods.sync();
       Markets.initializeMarketPrices();
     }
+    // Run after the crop migration so a loaded map immediately receives crop-specific climate,
+    // soil, and field-output columns rather than waiting for its next annual tick.
+    DevelopmentPotential.generate();
     if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
     // Rebuild cull / escort boards when empty or only invalid targets remain after load.
@@ -2269,6 +2274,7 @@ export function init(api: ExtensionAPI): void {
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedGrapes = migrateGrapesGood();
     const migratedRaisins = migrateRaisinsGood();
+    const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
     const migratedFoodLots = migrateFoodProcessingLotContracts();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
@@ -2278,6 +2284,7 @@ export function init(api: ExtensionAPI): void {
       migratedLiveDogs ||
       migratedGrapes ||
       migratedRaisins ||
+      migratedStapleCrops ||
       migratedWineRecipe ||
       migratedFoodLots ||
       migratedLiveAnimalTags

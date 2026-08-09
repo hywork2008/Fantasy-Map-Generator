@@ -1,6 +1,7 @@
 import { harvestForestStock } from "../../../generators/forestStock";
 import type { WorldContext } from "../../hostCore";
 import { GROSS_FOOD_NEED } from "./foodConstants";
+import type { Good, SoilType } from "./goods-generator";
 
 export const STAPLE_NEED_KG_PER_PERSON_YEAR = 200;
 export const EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK = 0.65;
@@ -42,6 +43,23 @@ export const URBAN_AREA_HECTARES_PER_POPULATION_POINT = 0.02;
  * helps crops grow but doesn't reduce any individual farmer's labor.
  */
 export const STATE_YIELD_BONUS_MAX = 0.15;
+const MIN_SOIL_FERTILITY = 0.55;
+const MAX_SOIL_FERTILITY = 1.1;
+
+export interface CropMixEntry {
+  readonly good: Good;
+  readonly share: number;
+  readonly suitability: number;
+}
+
+export interface AgriculturalConditions {
+  /** Staple crops available to the world. Omit for legacy/test callers' generic-Grain behavior. */
+  readonly cropGoods?: readonly Good[];
+  /** Persistent, cell-local soil organic fertility; 1 is the three-field baseline. */
+  readonly soilFertilityByCell?: Float32Array;
+  /** Persistent salt loading from irrigation; 0 is clean soil, 1 is severely saline. */
+  readonly irrigationSalinityByCell?: Float32Array;
+}
 
 export interface AgriculturalLandProfile {
   /** Maximum area that can become cropland under current terrain and biome constraints, in ha. */
@@ -92,7 +110,8 @@ export function calculateAgriculturalLandProfile(
   world: Readonly<WorldContext>,
   agTechStockByCell?: Float32Array,
   stateProductivityByCell?: Float32Array,
-  demandOptions: AgriculturalDemandOptions = {}
+  demandOptions: AgriculturalDemandOptions = {},
+  conditions: AgriculturalConditions = {}
 ): AgriculturalLandProfile {
   const cells = world.pack.cells;
   const count = cells?.i?.length ?? 0;
@@ -125,7 +144,7 @@ export function calculateAgriculturalLandProfile(
     cultivableArea[cellId] = area;
     if (area <= 0) continue;
 
-    const climateYield = calculateClimateYield(world, cellId);
+    const climateYield = calculateClimateYield(world, cellId, conditions);
     relativeYield[cellId] = climateYield;
   }
 
@@ -141,7 +160,8 @@ export function calculateAgriculturalLandProfile(
       cellId,
       effectiveAgTech,
       stateProductivity,
-      relativeYield[cellId]
+      relativeYield[cellId],
+      conditions
     );
     yieldPerArea[cellId] = yieldKgPerHa;
 
@@ -208,7 +228,8 @@ export function reconcileForestClearanceForAgriculture(
   world: WorldContext,
   agTechStockByCell?: Float32Array,
   stateProductivityByCell?: Float32Array,
-  demandOptions: AgriculturalDemandOptions = {}
+  demandOptions: AgriculturalDemandOptions = {},
+  conditions: AgriculturalConditions = {}
 ): boolean {
   const cells = world.pack.cells;
   if (!cells.forestStock || cells.forestStock.length !== cells.i.length) return false;
@@ -222,7 +243,14 @@ export function reconcileForestClearanceForAgriculture(
 
     const effectiveAgTech = getEffectiveAgTech(world, cellId, agTechStockByCell);
     const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
-    const yieldKgPerHa = calculateYieldKgPerHectare(world, cellId, effectiveAgTech, stateProductivity);
+    const yieldKgPerHa = calculateYieldKgPerHectare(
+      world,
+      cellId,
+      effectiveAgTech,
+      stateProductivity,
+      undefined,
+      conditions
+    );
     const residentPeople = getCellFoodDemandPeople(
       world,
       cellId,
@@ -371,17 +399,134 @@ function calculateYieldKgPerHectare(
   cellId: number,
   effectiveAgTech: number,
   stateProductivity: number,
-  climateYield = calculateClimateYield(world, cellId)
+  climateYield: number | undefined = undefined,
+  conditions: AgriculturalConditions = {}
 ): number {
+  const effectiveClimateYield = climateYield ?? calculateClimateYield(world, cellId, conditions);
   return (
     BASE_NET_YIELD_KG_PER_SOWN_HECTARE *
-    climateYield *
+    effectiveClimateYield *
     (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech) *
     (1 + STATE_YIELD_BONUS_MAX * stateProductivity)
   );
 }
 
-function calculateClimateYield(world: Readonly<WorldContext>, cellId: number): number {
+/**
+ * Allocates an active field between cereals, pulses, and roots. The default 65/20/15 split
+ * represents a three-field system: cereal winter/spring fields, a legume/green-manure field,
+ * and a small root-crop share. Where a group cannot grow, suitable crops absorb its land; that
+ * makes continuous cereal production possible and lets the annual soil update model its cost.
+ */
+export function getCropMix(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  cropGoods: readonly Good[]
+): readonly CropMixEntry[] {
+  const candidates = cropGoods
+    .filter(good => good.crop)
+    .map(good => ({ good, suitability: getCropSuitability(world, cellId, good) }))
+    .filter(candidate => candidate.suitability > 0.1);
+  if (!candidates.length) return [];
+
+  const desiredShares: Record<NonNullable<Good["crop"]>["kind"], number> = {
+    cereal: 0.65,
+    legume: 0.2,
+    tuber: 0.15
+  };
+  const groups = new Map<NonNullable<Good["crop"]>["kind"], typeof candidates>();
+  for (const candidate of candidates) {
+    const kind = candidate.good.crop!.kind;
+    const group = groups.get(kind) ?? [];
+    group.push(candidate);
+    groups.set(kind, group);
+  }
+
+  const availableDesired = Array.from(groups.keys()).reduce((sum, kind) => sum + desiredShares[kind], 0);
+  const entries: CropMixEntry[] = [];
+  for (const [kind, group] of groups) {
+    const groupWeight = desiredShares[kind] / availableDesired;
+    const totalSuitability = group.reduce((sum, candidate) => sum + candidate.suitability, 0);
+    for (const candidate of group) {
+      entries.push({
+        good: candidate.good,
+        suitability: candidate.suitability,
+        share: groupWeight * (candidate.suitability / totalSuitability)
+      });
+    }
+  }
+  return entries;
+}
+
+/** Returns 0..1 crop suitability from the catalogued climate range and the cell's soil class. */
+export function getCropSuitability(world: Readonly<WorldContext>, cellId: number, good: Good): number {
+  const crop = good.crop;
+  if (!crop) return 0;
+  const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
+  const temperature = world.grid?.cells.temp?.[gridCellId] ?? 12;
+  const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
+  const soil = getCellSoilType(world, cellId);
+  const soilFactor = crop.soils.includes(soil) ? 1 : 0.55;
+  return (
+    rangeSuitability(temperature, crop.temperature) * rangeSuitability(precipitation, crop.precipitation) * soilFactor
+  );
+}
+
+export function getCellSoilType(world: Readonly<WorldContext>, cellId: number): SoilType {
+  const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
+  if (world.pack.cells.r[cellId]) return "alluvial";
+  if (tags.includes("wetland")) return "clay";
+  if (tags.includes("forest")) return "humus";
+  if (tags.includes("desert")) return "sandy";
+  if (tags.includes("mountain")) return "thin";
+  return "loam";
+}
+
+/** Applies one annual crop cycle to the persistent soil columns, without mutating world data. */
+export function advanceAgriculturalSoils(
+  world: Readonly<WorldContext>,
+  cropGoods: readonly Good[],
+  currentFertility: Float32Array | undefined,
+  currentSalinity: Float32Array | undefined
+): { soilFertility: Float32Array; irrigationSalinity: Float32Array } {
+  const count = world.pack.cells.i.length;
+  const soilFertility = new Float32Array(count);
+  const irrigationSalinity = new Float32Array(count);
+
+  for (const cellId of world.pack.cells.i) {
+    const previousFertility = currentFertility?.[cellId] || 1;
+    const previousSalinity = currentSalinity?.[cellId] || 0;
+    const mix = getCropMix(world, cellId, cropGoods);
+    const cerealShare = mix
+      .filter(entry => entry.good.crop?.kind === "cereal")
+      .reduce((sum, entry) => sum + entry.share, 0);
+    const legumeShare = mix
+      .filter(entry => entry.good.crop?.kind === "legume")
+      .reduce((sum, entry) => sum + entry.share, 0);
+    // Up to two cereal fields out of three are the normal rotation and do not exhaust soil.
+    const exhaustion = Math.max(0, cerealShare - 0.67) * 0.08;
+    const restoration = legumeShare * 0.025;
+    soilFertility[cellId] = Math.max(
+      MIN_SOIL_FERTILITY,
+      Math.min(MAX_SOIL_FERTILITY, previousFertility - exhaustion + restoration)
+    );
+
+    const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
+    const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
+    const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
+    const irrigatedDesert = tags.includes("desert") && Boolean(world.pack.cells.r[cellId]);
+    const saltAccumulation = irrigatedDesert ? 0.014 * Math.max(0, 1 - precipitation / 20) : 0;
+    const leaching = precipitation >= 20 ? 0.05 : precipitation >= 10 ? 0.015 : 0;
+    irrigationSalinity[cellId] = Math.max(0, Math.min(1, previousSalinity + saltAccumulation - leaching));
+  }
+
+  return { soilFertility, irrigationSalinity };
+}
+
+function calculateClimateYield(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  conditions: AgriculturalConditions = {}
+): number {
   const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
   const temperature = world.grid?.cells.temp?.[gridCellId] ?? 12;
   const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
@@ -405,6 +550,27 @@ function calculateClimateYield(world: Readonly<WorldContext>, cellId: number): n
         : precipitation < 60
           ? 0.75 + ((precipitation - 20) / 40) * 0.25
           : 1;
+  const cropMix = conditions.cropGoods ? getCropMix(world, cellId, conditions.cropGoods) : [];
+  const cropFactor = cropMix.length
+    ? cropMix.reduce((sum, entry) => sum + entry.share * entry.suitability * (entry.good.crop?.yieldMultiplier ?? 1), 0)
+    : 1;
+  const fertility = conditions.soilFertilityByCell?.[cellId] ?? 1;
+  const salinity = conditions.irrigationSalinityByCell?.[cellId] ?? 0;
+  const soilFertilityFactor = Math.max(0.7, 1 - (1 - fertility) * 0.5);
+  const salinityFactor = Math.max(0.35, 1 - salinity * 0.65);
   const waterAccess = world.pack.cells.r[cellId] ? 1.08 : 1;
-  return Math.max(0, temperatureFactor * precipitationFactor * waterAccess);
+  return Math.max(
+    0,
+    temperatureFactor * precipitationFactor * cropFactor * soilFertilityFactor * salinityFactor * waterAccess
+  );
+}
+
+function rangeSuitability(
+  value: number,
+  range: { min: number; idealMin: number; idealMax: number; max: number }
+): number {
+  if (value <= range.min || value >= range.max) return 0;
+  if (value >= range.idealMin && value <= range.idealMax) return 1;
+  if (value < range.idealMin) return (value - range.min) / (range.idealMin - range.min);
+  return (range.max - value) / (range.max - range.idealMax);
 }

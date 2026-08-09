@@ -20,6 +20,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateRaisinsGood,
+  migrateStapleCropGoods,
   migrateWineRecipe
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
@@ -278,6 +279,19 @@ describe("GoodsModule", () => {
     expect(migrateLiveDogsGood()).toBe(true);
     expect(getGoods().find(good => good.name === "Dogs")).toMatchObject({ i: 8, unit: "head" });
     expect(migrateLiveDogsGood()).toBe(false);
+  });
+
+  it("adds the crop-level staple catalogue once to older saves without replacing Grain", () => {
+    setGoods([
+      { i: 7, name: "Grain", tags: ["food", "stapleFood"], value: 1, unit: "wain", icon: "grain", color: "#fff" }
+    ]);
+
+    expect(migrateStapleCropGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Wheat")?.crop?.kind).toBe("cereal");
+    expect(getGoods().find(good => good.name === "Peas")?.crop?.kind).toBe("legume");
+    expect(getGoods().find(good => good.name === "Turnips")?.crop?.kind).toBe("tuber");
+    expect(getGoods().find(good => good.name === "Grain")?.i).toBe(7);
+    expect(migrateStapleCropGoods()).toBe(false);
   });
 
   it("defines Grapes as a harvested good with no biomeOutputByTag (docs/plan/biome-goods-producer-ecosystem.md §5.3)", () => {

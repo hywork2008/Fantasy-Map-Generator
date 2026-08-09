@@ -91,6 +91,8 @@ let _cultivatedAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _farmLaborRequiredFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _soilFertilityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _irrigationSalinityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _huntingWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _fishingWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -129,6 +131,8 @@ export function clearEconomyContext(): void {
   _farmLaborRequiredFallback = new Float32Array();
   _migratableAdultsFallback = new Float32Array();
   _ruralReleasePressureFallback = new Float32Array();
+  _soilFertilityFallback = new Float32Array();
+  _irrigationSalinityFallback = new Float32Array();
   _settlementDevelopmentPotentialFallback = new Float32Array();
   _huntingWorkersFallback = new Float32Array();
   _fishingWorkersFallback = new Float32Array();
@@ -402,6 +406,24 @@ export function getRuralReleasePressure(): Float32Array<ArrayBufferLike> {
 export function setRuralReleasePressure(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("ruralReleasePressure", value, next => {
     _ruralReleasePressureFallback = next;
+  });
+}
+
+/** Dynamic field condition columns. A value of 1 fertility / 0 salinity is the fresh-map baseline. */
+export function getSoilFertility(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("soilFertility", _soilFertilityFallback);
+}
+export function setSoilFertility(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("soilFertility", value, next => {
+    _soilFertilityFallback = next;
+  });
+}
+export function getIrrigationSalinity(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("irrigationSalinity", _irrigationSalinityFallback);
+}
+export function setIrrigationSalinity(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("irrigationSalinity", value, next => {
+    _irrigationSalinityFallback = next;
   });
 }
 

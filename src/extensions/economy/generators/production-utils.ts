@@ -11,6 +11,7 @@ import {
   getSimulationMonth,
   getWorldContext
 } from "../economyContext";
+import { getCropMix } from "./agriculturalLandUse";
 import { getMilkOutput } from "./dairy";
 import { drawDomesticatedFaunaOfftake, previewDomesticatedFaunaOfftake } from "./faunaPopulation";
 import { getForestStockMultiplier } from "./forestStock";
@@ -252,13 +253,19 @@ export function getCellProduction(
     add(contribution.goodId, contribution.amount * multiplier);
   }
 
-  const stapleFoodGood = getGoods().find(good => good.tags.includes("stapleFood"));
-  const stapleOutput = stapleFoodGood ? getCellStapleFoodProduction(cellId) : 0;
-  if (stapleFoodGood && stapleOutput > 0) {
-    // Grain is the cell's active field output. Do not round it to the generic
-    // two-decimal goods precision: sparse inhabited cells can produce a small
-    // but real amount, and the Goods layer must retain their local food color.
-    produced[stapleFoodGood.i] = (produced[stapleFoodGood.i] || 0) + stapleOutput;
+  const cropGoods = getGoods().filter(good => good.crop && isGoodEnabled(good));
+  const cropMix = getCropMix(getWorldContext(), cellId, cropGoods);
+  const stapleOutput = getCellStapleFoodProduction(cellId);
+  if (cropMix.length && stapleOutput > 0) {
+    // The Food Ledger still settles this same total through its aggregate Grain commodity.
+    // These separate entries are the crop-level local diet shown by the Goods layer/tooltips.
+    for (const entry of cropMix) produced[entry.good.i] = (produced[entry.good.i] || 0) + stapleOutput * entry.share;
+  } else {
+    const stapleFoodGood = getGoods().find(good => good.tags.includes("stapleFood"));
+    if (stapleFoodGood && stapleOutput > 0) {
+      // Legacy catalogues without crop profiles retain the aggregate Grain display.
+      produced[stapleFoodGood.i] = (produced[stapleFoodGood.i] || 0) + stapleOutput;
+    }
   }
 
   return produced;

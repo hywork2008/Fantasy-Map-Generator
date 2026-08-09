@@ -17,7 +17,15 @@ import {
 } from "./goodsGeneratorTypes";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
 
-export type { DemandCategory, Good, GoodTradeProfile, WarEconomyType } from "./goodsGeneratorTypes";
+export type {
+  CropKind,
+  CropProfile,
+  DemandCategory,
+  Good,
+  GoodTradeProfile,
+  SoilType,
+  WarEconomyType
+} from "./goodsGeneratorTypes";
 export { DEMAND_PRIORITY } from "./goodsGeneratorTypes";
 
 export const DEMAND_TARGET_FACTORS: Record<DemandCategory, number> = {
@@ -239,6 +247,213 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { River: 1.2, Lake: 1.2, Nomadic: 0.5 } },
     biomeOutputByTag: { arable: 0.08, forest: 0.05 }
+  },
+  // Grain remains the Food Ledger's aggregate staple commodity. The crop goods below are the
+  // local diet: their shares are calculated from active farmland, climate, and soil rather than
+  // from the old random biome-product placement.
+  {
+    name: "Wheat",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "cereal"],
+    icon: "good-grain",
+    color: "#e6c56c",
+    value: 1.2,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "cereal",
+      yieldMultiplier: 1.05,
+      temperature: { min: 2, idealMin: 8, idealMax: 18, max: 24 },
+      precipitation: { min: 18, idealMin: 30, idealMax: 60, max: 80 },
+      soils: ["loam", "alluvial", "clay"]
+    }
+  },
+  {
+    name: "Rye",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "cereal"],
+    icon: "good-grain",
+    color: "#9dba60",
+    value: 0.9,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "cereal",
+      yieldMultiplier: 0.82,
+      temperature: { min: -2, idealMin: 4, idealMax: 14, max: 21 },
+      precipitation: { min: 12, idealMin: 24, idealMax: 55, max: 75 },
+      soils: ["loam", "sandy", "thin"]
+    }
+  },
+  {
+    name: "Barley",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "cereal"],
+    icon: "good-grain",
+    color: "#d9ae4d",
+    value: 0.9,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "cereal",
+      yieldMultiplier: 0.88,
+      temperature: { min: -2, idealMin: 5, idealMax: 16, max: 23 },
+      precipitation: { min: 10, idealMin: 20, idealMax: 50, max: 70 },
+      soils: ["loam", "alluvial", "sandy"]
+    }
+  },
+  {
+    name: "Oats",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "cereal"],
+    icon: "good-grain",
+    color: "#b9bd8d",
+    value: 0.85,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "cereal",
+      yieldMultiplier: 0.8,
+      temperature: { min: 0, idealMin: 6, idealMax: 16, max: 21 },
+      precipitation: { min: 20, idealMin: 35, idealMax: 70, max: 90 },
+      soils: ["humus", "loam", "clay"]
+    }
+  },
+  {
+    name: "Millet",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "cereal"],
+    icon: "good-grain",
+    color: "#d7c35d",
+    value: 0.8,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "cereal",
+      yieldMultiplier: 0.78,
+      temperature: { min: 10, idealMin: 16, idealMax: 27, max: 34 },
+      precipitation: { min: 7, idealMin: 15, idealMax: 42, max: 62 },
+      soils: ["loam", "sandy", "alluvial"]
+    }
+  },
+  {
+    name: "Buckwheat",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "cereal"],
+    icon: "good-grain",
+    color: "#806f61",
+    value: 0.95,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "cereal",
+      yieldMultiplier: 0.72,
+      temperature: { min: 2, idealMin: 9, idealMax: 18, max: 25 },
+      precipitation: { min: 15, idealMin: 28, idealMax: 60, max: 80 },
+      soils: ["thin", "sandy", "loam"]
+    }
+  },
+  {
+    name: "Peas",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "legume"],
+    icon: "good-grain",
+    color: "#76a757",
+    value: 1.1,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "legume",
+      yieldMultiplier: 0.74,
+      temperature: { min: 1, idealMin: 7, idealMax: 18, max: 23 },
+      precipitation: { min: 15, idealMin: 28, idealMax: 62, max: 82 },
+      soils: ["loam", "alluvial", "clay"]
+    }
+  },
+  {
+    name: "Broad Beans",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "legume"],
+    icon: "good-grain",
+    color: "#b1a56b",
+    value: 1.05,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "legume",
+      yieldMultiplier: 0.78,
+      temperature: { min: 3, idealMin: 8, idealMax: 18, max: 23 },
+      precipitation: { min: 18, idealMin: 30, idealMax: 65, max: 85 },
+      soils: ["clay", "loam", "alluvial"]
+    }
+  },
+  {
+    name: "Lentils",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "legume"],
+    icon: "good-grain",
+    color: "#b58d54",
+    value: 1.05,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "legume",
+      yieldMultiplier: 0.7,
+      temperature: { min: 6, idealMin: 13, idealMax: 24, max: 30 },
+      precipitation: { min: 6, idealMin: 14, idealMax: 38, max: 55 },
+      soils: ["sandy", "loam", "thin"]
+    }
+  },
+  {
+    name: "Chickpeas",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "legume"],
+    icon: "good-grain",
+    color: "#d3c16a",
+    value: 1.1,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "legume",
+      yieldMultiplier: 0.72,
+      temperature: { min: 8, idealMin: 16, idealMax: 27, max: 33 },
+      precipitation: { min: 5, idealMin: 12, idealMax: 34, max: 50 },
+      soils: ["sandy", "loam", "alluvial"]
+    }
+  },
+  {
+    name: "Turnips",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "tuber"],
+    icon: "good-grain",
+    color: "#e7d7b7",
+    value: 0.8,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "tuber",
+      yieldMultiplier: 0.9,
+      temperature: { min: -1, idealMin: 5, idealMax: 16, max: 22 },
+      precipitation: { min: 18, idealMin: 30, idealMax: 70, max: 90 },
+      soils: ["loam", "sandy", "humus"]
+    }
+  },
+  {
+    name: "Potatoes",
+    warEconomyType: "essential",
+    tags: ["food", "stapleFood", "crop", "tuber", "postMedieval"],
+    icon: "good-grain",
+    color: "#caa56c",
+    value: 0.9,
+    chance: 0,
+    unit: "wain",
+    crop: {
+      kind: "tuber",
+      yieldMultiplier: 1.15,
+      temperature: { min: 3, idealMin: 8, idealMax: 18, max: 24 },
+      precipitation: { min: 20, idealMin: 35, idealMax: 70, max: 90 },
+      soils: ["loam", "sandy", "humus"]
+    }
   },
   {
     name: "Cattle",
@@ -2323,6 +2538,27 @@ export function migrateLiveDogsGood(): boolean {
   dogs.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   goods.push(dogs);
   return true;
+}
+
+/**
+ * Adds the crop-level staple catalogue to older saves without altering their aggregate Grain
+ * stock. Field output is calculated locally and Food Ledger accounting remains on Grain, so no
+ * market inventory needs to be fabricated during this migration.
+ */
+export function migrateStapleCropGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+
+  for (const shippedCrop of GOODS_DATA.filter(good => good.crop)) {
+    if (goods.some(good => good.name === shippedCrop.name)) continue;
+    const crop = Goods.getDefaultGood(shippedCrop.name);
+    if (!crop) throw new Error(`${shippedCrop.name} must be present in the shipped goods catalogue`);
+    crop.i = nextId++;
+    goods.push(crop);
+    changed = true;
+  }
+  return changed;
 }
 
 /**
