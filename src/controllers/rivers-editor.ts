@@ -1,6 +1,7 @@
 import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { removeRivers } from "../renderers/draw-rivers";
 import { patchRiver, removeRiver, replaceRiverGeometry } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
@@ -50,6 +51,8 @@ function updateRiverData(): void {
   r.length = rn(GenerationPipeline.Rivers.getApproximateLength(points.map(([x, y]) => [x, y])) / 2, 2);
   const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${unit}`;
 
+  refreshRiverHydrology(r, worldContext);
+
   const { cells: riverCells, discharge, widthFactor, sourceWidth } = r;
   const meanderedPoints = GenerationPipeline.Rivers.addMeandering(riverCells);
   r.width = GenerationPipeline.Rivers.getWidth(
@@ -72,6 +75,8 @@ function updateRiverData(): void {
       discharge: `${r.discharge} m³/s`,
       sourceWidth: r.sourceWidth,
       widthFactor: r.widthFactor,
+      sourceElevation: r.sourceElevation ?? 0,
+      sourceWaterTemperature: r.sourceWaterTemperature ?? 0,
       lengthUI,
       widthUI
     });
@@ -213,6 +218,18 @@ export const riverEditorActions = {
     const r = getRiver();
     if (!r) return;
     if (patchRiver({ riverId: r.i, widthFactor: factor })) redrawRiver();
+  },
+
+  changeSourceElevation: (elevation: number): void => {
+    const r = getRiver();
+    if (!r || !Number.isFinite(elevation)) return;
+    if (patchRiver({ riverId: r.i, sourceElevation: elevation })) updateRiverData();
+  },
+
+  changeSourceWaterTemperature: (temperature: number): void => {
+    const r = getRiver();
+    if (!r || !Number.isFinite(temperature)) return;
+    if (patchRiver({ riverId: r.i, sourceWaterTemperature: temperature })) updateRiverData();
   },
 
   createRiver: (): void => {

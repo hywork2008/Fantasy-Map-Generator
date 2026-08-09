@@ -68,6 +68,21 @@ export const CellInfoDialog: React.FC = () => {
             <td>{info.river}</td>
           </tr>
           <tr>
+            <th scope="row" data-tip="Estimated river-surface velocity from the source elevation and river length">
+              River flow speed
+            </th>
+            <td>{info.riverSurfaceVelocity}</td>
+          </tr>
+          <tr>
+            <th
+              scope="row"
+              data-tip="Estimated river-surface water temperature; downstream water mixes toward local air temperature"
+            >
+              River water temperature
+            </th>
+            <td>{info.riverWaterTemperature}</td>
+          </tr>
+          <tr>
             <th scope="row">Population</th>
             <td>{info.population}</td>
           </tr>

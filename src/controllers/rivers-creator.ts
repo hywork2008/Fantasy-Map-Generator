@@ -1,5 +1,6 @@
 import { pointer } from "d3";
 import type { WorldContext } from "../context/worldContext";
+import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { createRiverCommand, setRiverFlux } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -104,23 +105,23 @@ export function addRiver(): void {
   const name = GenerationPipeline.Rivers.getName(mouth);
   const basin = GenerationPipeline.Rivers.getBasin(parent);
 
-  const commit = createRiverCommand({
-    river: {
-      i: riverId,
-      source,
-      mouth,
-      discharge,
-      length,
-      width,
-      widthFactor,
-      sourceWidth,
-      parent,
-      cells: [...riverCells],
-      basin,
-      name,
-      type: "River"
-    }
-  });
+  const river = {
+    i: riverId,
+    source,
+    mouth,
+    discharge,
+    length,
+    width,
+    widthFactor,
+    sourceWidth,
+    parent,
+    cells: [...riverCells],
+    basin,
+    name,
+    type: "River"
+  };
+  refreshRiverHydrology(river, worldContext);
+  const commit = createRiverCommand({ river });
   if (!commit) return;
   const id = `river${riverId}`;
 

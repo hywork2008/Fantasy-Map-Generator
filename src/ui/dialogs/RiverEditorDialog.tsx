@@ -8,8 +8,20 @@ import { closeDialog } from "./dialogService";
 
 export const RiverEditorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("riverEditor"));
-  const { name, type, parent, parentOptions, basin, discharge, lengthUI, widthUI, sourceWidth, widthFactor } =
-    useRiverEditorState();
+  const {
+    name,
+    type,
+    parent,
+    parentOptions,
+    basin,
+    discharge,
+    lengthUI,
+    widthUI,
+    sourceWidth,
+    widthFactor,
+    sourceElevation,
+    sourceWaterTemperature
+  } = useRiverEditorState();
 
   return (
     <Dialog isOpen={isOpen} title="River Editor" onClose={() => closeDialog("riverEditor")}>
@@ -94,6 +106,33 @@ export const RiverEditorDialog: React.FC = () => {
             value={sourceWidth}
             onChange={e => riverEditorActions.changeSourceWidth(Number(e.target.value))}
           />
+        </div>
+
+        <div data-tip="Source elevation above sea level. Higher, shorter rivers have faster estimated flow.">
+          <div className="label">Source elevation:</div>
+          <input
+            id="riverSourceElevation"
+            type="number"
+            min="0"
+            step="1"
+            value={sourceElevation}
+            onChange={e => riverEditorActions.changeSourceElevation(Number(e.target.value))}
+          />
+          <span className="input-unit">m</span>
+        </div>
+
+        <div data-tip="Water temperature at the uppermost river cell. Downstream cells gradually mix toward local air temperature.">
+          <div className="label">Source water temperature:</div>
+          <input
+            id="riverSourceWaterTemperature"
+            type="number"
+            min="-50"
+            max="60"
+            step=".1"
+            value={sourceWaterTemperature}
+            onChange={e => riverEditorActions.changeSourceWaterTemperature(Number(e.target.value))}
+          />
+          <span className="input-unit">°C</span>
         </div>
 
         <div data-tip="River width multiplier. Default value is 1">

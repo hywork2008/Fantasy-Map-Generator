@@ -17,6 +17,7 @@ import {
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { OceanCurrents } from "../generators/oceanCurrents";
+import { refreshAllRiverHydrology } from "../generators/riverHydrology";
 import { Routes } from "../generators/routes-generator";
 import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
@@ -240,6 +241,13 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // from the replacement grid before the immediate WebGL redraw below, so a
     // previously generated map cannot leave its sea texture over this map.
     OceanLayers();
+
+    // Archives created before river hydrology stored source conditions have no
+    // derived per-cell surface data. Backfill it once the validated world is live.
+    legacyMutation(() => {
+      refreshAllRiverHydrology(worldContext);
+      return { result: undefined, topics: ["map.networks"] };
+    });
 
     // Archives created before the generation-mode field was introduced have no
     // reliable indication of which algorithm produced their routes. Preserve
@@ -662,6 +670,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   worldContext.pack.cells.fl = Uint16Array.from(data[20].split(","), Number);
   worldContext.pack.cells.pop = Float32Array.from(data[21].split(","), Number);
   worldContext.pack.cells.r = Uint16Array.from(data[22].split(","), Number);
+  refreshAllRiverHydrology(worldContext);
   // data[23] had deprecated cells.road
   worldContext.pack.cells.s = Uint16Array.from(data[24].split(","), Number);
   worldContext.pack.cells.state = Uint16Array.from(data[25].split(","), Number);

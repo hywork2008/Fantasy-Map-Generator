@@ -7,6 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { isNomadicBiome } from "../data/biomeCatalog";
+import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { applyInitialSettlementPattern } from "../generators/settlementPattern";
 import { runTimeSimulation } from "../generators/timeEngine";
 import { assignWildLandTags } from "../generators/wildLandTags";
@@ -1262,11 +1263,12 @@ function addRiverOnClick(event: MouseEvent): void {
     river.discharge = discharge;
     river.width = width;
     river.cells = riverCells;
+    refreshRiverHydrology(river, worldContext);
   } else {
     const basin = GenerationPipeline.Rivers.getBasin(parent);
     const name = GenerationPipeline.Rivers.getName(mouth);
     const type = GenerationPipeline.Rivers.getType({ i: riverId, length, parent });
-    packRivers.push({
+    const createdRiver: River = {
       i: riverId,
       source,
       mouth,
@@ -1280,7 +1282,9 @@ function addRiverOnClick(event: MouseEvent): void {
       basin,
       name,
       type
-    });
+    };
+    refreshRiverHydrology(createdRiver, worldContext);
+    packRivers.push(createdRiver);
   }
 
   const path = GenerationPipeline.Rivers.getRiverPath(meanderedPoints, widthFactor, sourceWidth);

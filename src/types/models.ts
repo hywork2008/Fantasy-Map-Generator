@@ -484,10 +484,26 @@ export interface River {
   width: number;
   widthFactor: number;
   sourceWidth: number;
+  /** User-controlled source height above sea level, in metres. */
+  sourceElevation?: number;
+  /** User-controlled temperature at the uppermost river cell, in degrees Celsius. */
+  sourceWaterTemperature?: number;
+  /**
+   * Derived surface conditions keyed by packed-cell id. Values are deterministic
+   * estimates, not a full hydraulic simulation.
+   */
+  cellHydrology?: Record<number, RiverCellHydrology>;
   name: string;
   type: string;
   cells: number[];
   points?: Point[];
+}
+
+export interface RiverCellHydrology {
+  /** Estimated surface-flow velocity in metres per second. */
+  surfaceVelocity: number;
+  /** Estimated surface-water temperature in degrees Celsius. */
+  waterTemperature: number;
 }
 
 export interface Route {

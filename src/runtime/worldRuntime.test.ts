@@ -969,7 +969,15 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
 
     const commit = await runtime.dispatch({
       type: "river.patch",
-      payload: { riverId: 2, name: "New Child", parentId: 1, sourceWidth: 2, widthFactor: 1.5 }
+      payload: {
+        riverId: 2,
+        name: "New Child",
+        parentId: 1,
+        sourceWidth: 2,
+        widthFactor: 1.5,
+        sourceElevation: 1200,
+        sourceWaterTemperature: 7
+      }
     });
 
     expect(world.pack.rivers[1]).toMatchObject({
@@ -977,7 +985,9 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       parent: 1,
       basin: 1,
       sourceWidth: 2,
-      widthFactor: 1.5
+      widthFactor: 1.5,
+      sourceElevation: 1200,
+      sourceWaterTemperature: 7
     });
     expect(commit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
   });
@@ -1090,7 +1100,10 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     const createCommit = await runtime.dispatch({ type: "river.create", payload: { river } });
     const fluxCommit = await runtime.dispatch({ type: "river.setFlux", payload: { cellId: 2, value: 8 } });
 
-    expect(world.pack.rivers).toEqual([river]);
+    expect(world.pack.rivers).toMatchObject([river]);
+    expect(world.pack.rivers[0].sourceElevation).toBeGreaterThanOrEqual(0);
+    expect(world.pack.rivers[0].sourceWaterTemperature).toBe(0);
+    expect(world.pack.rivers[0].cellHydrology).toBeDefined();
     expect(Array.from(world.pack.cells.r)).toEqual([1, 9, 1]);
     expect(world.pack.cells.fl[2]).toBe(8);
     expect(createCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);

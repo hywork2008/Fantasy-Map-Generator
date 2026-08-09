@@ -2,6 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
 import { getForestClearingRate } from "../generators/forestStock";
 import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
+import { getRiverCellHydrology } from "../generators/riverHydrology";
 import { getCellSubsistenceCapacity, getLivelihoodKind } from "../generators/subsistenceCapacity";
 import { useCellInfoState } from "../store/cellInfoState";
 import { useOptionsState } from "../store/optionsState";
@@ -22,6 +23,9 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
 
   const f = cells.f[i];
   const isOceanCell = f > 0 && worldContext.pack.features[f]?.type === "ocean";
+  const riverId = cells.h[i] >= 20 ? cells.r[i] : 0;
+  const river = riverId ? worldContext.pack.rivers.find(candidate => candidate.i === riverId) : undefined;
+  const riverHydrology = getRiverCellHydrology(river, i);
 
   useCellInfoState.getState().updateInfo({
     cell: String(i),
@@ -38,7 +42,9 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     depth: getDepth(worldContext.pack.features[f], point),
     temp: convertTemperature(worldContext.grid.cells.temp[g]),
     prec: cells.h[i] >= 20 ? getFriendlyPrecipitation(i) : "n/a",
-    river: cells.h[i] >= 20 && cells.r[i] ? getRiverInfo(cells.r[i]) : "no",
+    river: riverId ? getRiverInfo(riverId) : "no",
+    riverSurfaceVelocity: riverHydrology ? `${riverHydrology.surfaceVelocity} m/s` : "n/a",
+    riverWaterTemperature: riverHydrology ? convertTemperature(riverHydrology.waterTemperature) : "n/a",
     state:
       cells.h[i] >= 20
         ? cells.state?.[i]

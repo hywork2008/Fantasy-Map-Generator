@@ -17,6 +17,8 @@ export interface RiverEditorState {
   widthUI: string;
   sourceWidth: number;
   widthFactor: number;
+  sourceElevation: number;
+  sourceWaterTemperature: number;
 
   // Actions to update the store
   setRiverData: (data: Partial<Omit<RiverEditorState, "setRiverData">>) => void;
@@ -33,6 +35,8 @@ export const useRiverEditorState = create<RiverEditorState>(set => ({
   widthUI: "",
   sourceWidth: 0,
   widthFactor: 1,
+  sourceElevation: 0,
+  sourceWaterTemperature: 0,
 
   setRiverData: data => set(state => ({ ...state, ...data }))
 }));

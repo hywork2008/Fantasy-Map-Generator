@@ -1,6 +1,7 @@
 import { restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
+import { refreshRiverHydrology } from "../generators/riverHydrology";
 import type { Grid } from "../types/Grid";
 import {
   CULTURE_TYPES,
@@ -510,6 +511,8 @@ export interface RiverPatchRequest {
   readonly parentId?: number;
   readonly sourceWidth?: number;
   readonly widthFactor?: number;
+  readonly sourceElevation?: number;
+  readonly sourceWaterTemperature?: number;
 }
 
 export interface PatchRiverCommand {
@@ -2006,6 +2009,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private patchRiver(request: RiverPatchRequest): LegacyMutationOutcome<void> {
     const river = this.findRiver(request.riverId);
     let changed = false;
+    let hydrologyChanged = false;
     if (request.name !== undefined && river.name !== request.name) {
       river.name = request.name;
       changed = true;
@@ -2041,6 +2045,27 @@ class LegacyWorldRuntime implements WorldRuntime {
         changed = true;
       }
     }
+    if (request.sourceElevation !== undefined) {
+      if (!Number.isFinite(request.sourceElevation) || request.sourceElevation < 0) {
+        throw new Error("river.patch requires a non-negative finite source elevation");
+      }
+      if (river.sourceElevation !== request.sourceElevation) {
+        river.sourceElevation = request.sourceElevation;
+        changed = true;
+        hydrologyChanged = true;
+      }
+    }
+    if (request.sourceWaterTemperature !== undefined) {
+      if (!Number.isFinite(request.sourceWaterTemperature)) {
+        throw new Error("river.patch requires a finite source water temperature");
+      }
+      if (river.sourceWaterTemperature !== request.sourceWaterTemperature) {
+        river.sourceWaterTemperature = request.sourceWaterTemperature;
+        changed = true;
+        hydrologyChanged = true;
+      }
+    }
+    if (hydrologyChanged) refreshRiverHydrology(river, this.world);
     return { result: undefined, topics: changed ? ["map.networks"] : [] };
   }
 
@@ -2083,6 +2108,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     for (const cellId of nextCells) this.world.pack.cells.r[cellId] = river.i;
     river.points = points;
     river.cells = cellIds;
+    refreshRiverHydrology(river, this.world);
     return { result: undefined, topics: ["map.networks"] };
   }
 
@@ -2108,6 +2134,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     }
 
     const created = structuredClone(river);
+    refreshRiverHydrology(created, this.world);
     this.world.pack.rivers.push(created);
     for (const cellId of created.cells) {
       if (!this.world.pack.cells.r[cellId]) this.world.pack.cells.r[cellId] = created.i;

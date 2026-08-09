@@ -15,6 +15,10 @@ export interface CellInfoData {
   feature: string;
   prec: string;
   river: string;
+  /** Estimated river-surface velocity at this cell, or "n/a" when no river passes through it. */
+  riverSurfaceVelocity: string;
+  /** Estimated river-surface temperature at this cell, or "n/a" when no river passes through it. */
+  riverWaterTemperature: string;
   population: string;
   /** Dominant food strategy used for rural carrying capacity. */
   livelihood: string;
@@ -66,6 +70,8 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   feature: "n/a",
   prec: "0",
   river: "no",
+  riverSurfaceVelocity: "n/a",
+  riverWaterTemperature: "n/a",
   population: "0",
   livelihood: "n/a",
   subsistenceCapacity: "n/a",

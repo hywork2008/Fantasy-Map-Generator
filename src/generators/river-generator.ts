@@ -14,6 +14,7 @@ import { each, rn, round, rw } from "../utils";
 import { TIME, WARN } from "../utils/debug";
 import { Lakes } from "./lakes";
 import { Names } from "./names-generator";
+import { refreshRiverHydrology } from "./riverHydrology";
 import type { Point } from "./voronoi";
 
 export interface RiverBankGeometry {
@@ -240,7 +241,7 @@ class RiverModule {
           })
         );
 
-        pack.rivers.push({
+        const river = {
           i: riverId,
           source,
           mouth,
@@ -251,7 +252,9 @@ class RiverModule {
           sourceWidth,
           parent,
           cells: riverCells
-        } as River);
+        } as River;
+        refreshRiverHydrology(river, this.worldContext);
+        pack.rivers.push(river);
       }
     };
 
