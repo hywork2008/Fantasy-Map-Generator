@@ -16,3 +16,4 @@
 .playwright-cli/
 temp/
 docs/temp/
+.playwright-mcp/
