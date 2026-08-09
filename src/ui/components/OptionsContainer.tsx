@@ -29,8 +29,8 @@ export const OptionsContainer: React.FC = () => {
     useViewState();
   const uiSize = useOptionsState(state => state.uiSize);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
-  const canConfigureInitialMap = useGenerationProgressState(
-    state => state.isOpen && !state.isGenerating && state.isInitialGeneration
+  const canConfigureLandscapeReview = useGenerationProgressState(
+    state => state.isOpen && !state.isGenerating && state.currentStage === 0
   );
   const isMapReadyTaskRunning = useMapReadyTaskState(state => state.isRunning);
   // Every visible part of the compact tab bar is a button, so permit it to
@@ -95,7 +95,7 @@ export const OptionsContainer: React.FC = () => {
               data-tip={
                 isMapGenerationInProgress &&
                 tab.id !== "optionsTab" &&
-                !(canConfigureInitialMap && tab.id === "extensionsTab")
+                !(canConfigureLandscapeReview && tab.id === "extensionsTab")
                   ? "Unavailable while building a map"
                   : isMapReadyTaskRunning && tab.id === "toolsTab"
                     ? "Unavailable while extension data is being prepared"
@@ -106,7 +106,7 @@ export const OptionsContainer: React.FC = () => {
               disabled={
                 (isMapGenerationInProgress &&
                   tab.id !== "optionsTab" &&
-                  !(canConfigureInitialMap && tab.id === "extensionsTab")) ||
+                  !(canConfigureLandscapeReview && tab.id === "extensionsTab")) ||
                 (isMapReadyTaskRunning && tab.id === "toolsTab")
               }
               type="button"

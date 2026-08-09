@@ -96,4 +96,15 @@ test.describe("Map loading", () => {
 
     expect(filterCriticalErrors(errors)).toEqual([]);
   });
+
+  test("keeps UI and Extensions available while starting a new map from a loaded map", async ({ page }) => {
+    await loadMapFile(page, "demo.map", "svg");
+
+    await page.getByRole("button", { name: "New Map", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Landscape outline", exact: true })).toBeVisible();
+
+    await expect(page.locator("#extensionsTab")).toBeEnabled();
+    await page.locator("#optionsTab").click();
+    await expect(page.getByRole("button", { name: "UI", exact: true })).toBeEnabled();
+  });
 });
