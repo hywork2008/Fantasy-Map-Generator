@@ -1182,6 +1182,38 @@ describe("deck.gl data adapters", () => {
     expect(getGroupsForLayer("fmg-webgl-labels")).toEqual(["town", "city"]);
   });
 
+  it("rebuilds burg icons and labels on zoom when a revisionProjection is active", () => {
+    // Regression: topic-revision signatures previously omitted zoom-dependent visibleGroups, so
+    // the empty projection from the initial scale=1 frame was cached for the whole session.
+    const worldContext = createWorldContext();
+    worldContext.pack.burgs = [
+      { i: 1, cell: 0, x: 5, y: 5, name: "Town", group: "town" },
+      { i: 2, cell: 1, x: 8, y: 5, name: "City", group: "city" }
+    ];
+    const viewContext = { focusScope: null, scale: 1 } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleBurgIcons: true, toggleLabels: true });
+    const revisionProjection = {
+      revision: 1,
+      topicRevisions: { "map.settlements": 1, "presentation.styles": 1, "map.topology": 1, "map.politics": 1 }
+    };
+
+    const dataLen = (scale: number, layerId: string): number => {
+      viewContext.scale = scale;
+      const layer = buildDeckLayers(worldContext, viewContext, appServices, { revisionProjection })
+        .filter(Boolean)
+        .find(candidate => candidate.id === layerId);
+      const data = layer?.props.data as unknown as unknown[] | undefined;
+      return data?.length ?? -1;
+    };
+
+    expect(dataLen(1, "fmg-webgl-burg-icons")).toBe(0);
+    expect(dataLen(1, "fmg-webgl-labels")).toBe(0);
+    expect(dataLen(1.5, "fmg-webgl-burg-icons")).toBe(1);
+    expect(dataLen(1.5, "fmg-webgl-labels")).toBe(1);
+    expect(dataLen(2.5, "fmg-webgl-burg-icons")).toBe(2);
+    expect(dataLen(2.5, "fmg-webgl-labels")).toBe(2);
+  });
+
   it("adds active markers as deck.gl pin and icon layers", () => {
     const worldContext = createWorldContext();
     worldContext.pack.markers = [{ i: 1, type: "volcano", icon: "🌋", cell: 0, x: 5, y: 5 }];

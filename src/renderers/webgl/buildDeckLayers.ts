@@ -1663,21 +1663,28 @@ function buildLayerSignatures(
       `${scope}|${emblemsSignature(pack.states, pack.provinces, pack.burgs)}|${emblemStyleSignature(styles.emblemStyle)}|icons:${getEmblemIconCacheVersion()}`,
     `icons:${getEmblemIconCacheVersion()}`
   );
+  // Zoom-dependent style (visibleGroups / dampened sizes) must live in volatileKey: when a
+  // revisionProjection is present, getWebglTopicRevisionSignature ignores the legacy compute()
+  // string and only hashes topic revisions + volatileKey. Without style there, the empty
+  // burg/label projection built at scale=1 (all groups below minZoom) is cached forever and
+  // zooming never reveals icons or labels — the hybrid-mode "Icons/Labels on but empty" bug.
+  const burgIconStyleKey = burgIconStyleSignature(styles.burgIconStyle);
+  const labelStyleKey = labelStyleSignature(styles.labelStyle);
+  const markerStyleKey = markerStyleSignature(styles.markerStyle);
   setIfActive(
     "burgIcons",
     "toggleBurgIcons",
     ["map.settlements", "presentation.styles"],
-    () =>
-      `${scope}|${burgIconsSignature(pack.burgs)}|${burgIconStyleSignature(styles.burgIconStyle)}|icons:${getBurgIconRasterCacheVersion()}`,
-    `icons:${getBurgIconRasterCacheVersion()}`
+    () => `${scope}|${burgIconsSignature(pack.burgs)}|${burgIconStyleKey}|icons:${getBurgIconRasterCacheVersion()}`,
+    `icons:${getBurgIconRasterCacheVersion()}|${burgIconStyleKey}`
   );
   setIfActive(
     "markers",
     "toggleMarkers",
     ["map.annotations", "presentation.styles"],
     () =>
-      `${scope}|${markersSignature(pack.markers)}|${markerStyleSignature(styles.markerStyle)}|failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}`,
-    `failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}`
+      `${scope}|${markersSignature(pack.markers)}|${markerStyleKey}|failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}`,
+    `failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}|${markerStyleKey}`
   );
   setIfActive(
     "military",
@@ -1701,7 +1708,8 @@ function buildLayerSignatures(
     // states() (cell membership + color) is included because state label rotation is approximated
     // from each state's cell geometry (computeStateOrientationAngles in deckDataAdapters.ts) — a
     // border edit that doesn't move `state.pole`/`center` would otherwise leave a stale angle.
-    () => `${scope}|${labelsSignature(pack.states, pack.burgs)}|${states()}|${labelStyleSignature(styles.labelStyle)}`
+    () => `${scope}|${labelsSignature(pack.states, pack.burgs)}|${states()}|${labelStyleKey}`,
+    labelStyleKey
   );
   setIfActive("cells", "toggleCells", ["map.topology"], () => geometry());
   setIfActive(
