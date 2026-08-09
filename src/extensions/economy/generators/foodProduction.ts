@@ -228,13 +228,19 @@ export class FoodProductionModule {
       const annualDemand = urbanPopulation * GROSS_FOOD_NEED;
       const bucketSeed = rn(annualDemand * (INITIAL_STOCK_MONTHS_PER_BUCKET / 12), 2);
       const farmgateCost = rn(startingPrice * FARMGATE_PRICE_SHARE, 2);
+      const initialStock = bucketSeed * 2;
+      const exportReserve = annualDemand * (EXPORT_RESERVE_MONTHS / 12);
+      const importTarget = annualDemand * (IMPORT_TARGET_MONTHS / 12);
 
       market.foodLedger = {
         ...emptyFoodLedger(),
         foodStockAge0: bucketSeed,
         foodStockAge1: bucketSeed,
         foodStockAge0UnitCost: farmgateCost,
-        foodStockAge1UnitCost: farmgateCost
+        foodStockAge1UnitCost: farmgateCost,
+        exportable: rn(Math.max(0, initialStock - exportReserve), 2),
+        importNeed: rn(Math.max(0, importTarget - initialStock), 2),
+        targetStock: rn(importTarget, 2)
       };
       if (wheatGood) {
         const wheat = getStapleCropInventory(market.foodLedger, wheatGood.i);
@@ -273,7 +279,9 @@ export class FoodProductionModule {
       }
 
       if (stapleFoodGood) {
-        market.goods[stapleFoodGood.i] = { stock: 0, price: startingPrice };
+        // Grain remains a Food Ledger summary for overview/price displays. Player-facing
+        // trade resolves the named crop lots above instead of this aggregate projection.
+        market.goods[stapleFoodGood.i] = { stock: market.foodLedger.exportable, price: startingPrice };
       }
     }
   }

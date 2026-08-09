@@ -5,7 +5,9 @@ import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { floorToRetailLot, getRetailLotSize } from "../generators/goodsTradeLots";
 import { Markets } from "../generators/markets-generator";
 import { getMerchantPortfolio, syncMarketMerchantPortfolios } from "../generators/merchantPortfolios";
+import { migrateLegacyPlayerGrainInventory } from "../generators/playerCommerce";
 import { getBurgTradeableGoodStock, reconcileRetailInventory } from "../generators/retailInventory";
+import { getTradeableStapleCropUnits } from "../generators/stapleCropInventory";
 import { setCharacterMarketCharacterId, useCharacterMarketState } from "../store/characterMarketState";
 
 export interface CharacterMarketRow {
@@ -75,6 +77,7 @@ export function filterCharacterMarketRows(
 }
 
 export function openCharacterMarket(characterId: number): boolean {
+  migrateLegacyPlayerGrainInventory();
   const character = getWorldContext().pack.characters?.find(
     candidate => candidate.i === characterId && !candidate.dead
   );
@@ -99,13 +102,23 @@ export function getBurgMarketSnapshot(burgId: number): BurgMarketSnapshot | null
 
   reconcileRetailInventory();
   syncMarketMerchantPortfolios();
-  const rows = Object.keys(market.goods)
+  const marketGoodIds = new Set(Object.keys(market.goods).map(Number));
+  const ledgerCropIds = Object.keys(market.foodLedger?.stapleCropInventories ?? {}).map(Number);
+  for (const goodId of ledgerCropIds) marketGoodIds.add(goodId);
+
+  const rows = [...marketGoodIds]
     .map(Number)
     .map(goodId => Goods.get(goodId))
-    .filter((good): good is NonNullable<typeof good> => Boolean(good && isGoodEnabled(good)))
+    .filter((good): good is NonNullable<typeof good> =>
+      Boolean(good && isGoodEnabled(good) && !good.tags.includes("stapleFood"))
+    )
     .map(good => {
       const retailLotSize = getRetailLotSize(good);
       const merchant = getMerchantPortfolio(market.i, good);
+      const ledgerBackedStock =
+        good.tags.includes("stapleCrop") && market.foodLedger
+          ? getTradeableStapleCropUnits(market.foodLedger, good.i)
+          : null;
       const merchantName = merchant
         ? pack.characters?.find(candidate => candidate.i === merchant.merchantId)?.name
         : undefined;
@@ -118,9 +131,12 @@ export function getBurgMarketSnapshot(burgId: number): BurgMarketSnapshot | null
         retailLotSize,
         merchantId: merchant?.merchantId ?? null,
         merchantName: merchantName ?? "Unassigned",
-        availableStock: floorToRetailLot(getBurgTradeableGoodStock(burgId, market.i, good.i), retailLotSize),
-        buyPrice: Markets.retailBuyPrice(market.goods[good.i].price, burgId, market.i, good.i),
-        sellPrice: Markets.retailSellPrice(market.goods[good.i].price, burgId, market.i, good.i)
+        availableStock: floorToRetailLot(
+          ledgerBackedStock ?? getBurgTradeableGoodStock(burgId, market.i, good.i),
+          retailLotSize
+        ),
+        buyPrice: Markets.retailBuyPrice(market.goods[good.i]?.price ?? good.value, burgId, market.i, good.i),
+        sellPrice: Markets.retailSellPrice(market.goods[good.i]?.price ?? good.value, burgId, market.i, good.i)
       };
     })
     .sort((a, b) => a.goodName.localeCompare(b.goodName));

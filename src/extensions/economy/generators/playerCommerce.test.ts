@@ -3,9 +3,11 @@ import { clearCharactersContext, initCharactersContext } from "../../characters/
 import type { Character } from "../../characters/characterTypes";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { getCharacterMarketSnapshot } from "../controllers/characterMarket";
 import {
   clearEconomyContext,
   getCharacterInventoryCostBases,
+  getMarkets,
   getMerchantGoodSalesLedgers,
   initEconomyContext,
   setGoods,
@@ -14,7 +16,7 @@ import {
 import { Goods } from "./goods-generator";
 import type { Market } from "./marketTypes";
 import { syncMarketMerchantPortfolios } from "./merchantPortfolios";
-import { executePlayerMarketTrade, quotePlayerMarketTrade } from "./playerCommerce";
+import { executePlayerMarketTrade, migrateLegacyPlayerGrainInventory, quotePlayerMarketTrade } from "./playerCommerce";
 import { planRetailReplenishment, reconcileRetailInventory, validateRetailInventory } from "./retailInventory";
 
 function character(i: number, name: string, wealth: number, location?: number): Character {
@@ -137,5 +139,92 @@ describe("player commerce", () => {
 
     expect(worldContext.pack.characters![0].inventory).toEqual({ 1: 1 });
     expect(getCharacterInventoryCostBases()).toEqual([{ characterId: 1, goodId: 1, units: 1, averageUnitCost: 12.1 }]);
+  });
+
+  it("sells the named staple crop from the Food Ledger instead of its Grain summary", () => {
+    setGoods([
+      {
+        i: 1,
+        name: "Grain",
+        value: 1,
+        tags: ["food", "stapleFood"],
+        unit: "wain",
+        icon: "🌾",
+        color: "#fff"
+      },
+      {
+        i: 2,
+        name: "Wheat",
+        value: 1,
+        tags: ["food", "stapleCrop", "crop", "cereal"],
+        unit: "wain",
+        icon: "🌾",
+        color: "#f5d76e"
+      }
+    ]);
+    Goods.sync();
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#fff",
+        managerCharacterId: 2,
+        goods: { 1: { stock: 5, price: 1 } },
+        foodLedger: {
+          foodProduced: 0,
+          ruralNeed: 0,
+          urbanNeed: 0,
+          exportable: 5,
+          importNeed: 0,
+          targetStock: 0,
+          satisfiedImport: 0,
+          importCapacityBonus: 0,
+          foodStockAge0: 5,
+          foodStockAge1: 5,
+          foodStockAge2: 0,
+          foodStockAge0UnitCost: 0.8,
+          foodStockAge1UnitCost: 0.8,
+          foodStockAge2UnitCost: 0,
+          storageOverflow: 0,
+          stapleCropInventories: {
+            2: { age0: 5, age1: 5, age2: 0, age0UnitCost: 0.8, age1UnitCost: 0.8, age2UnitCost: 0, overflow: 0 }
+          },
+          ruralFoodStressQuarters: 0,
+          urbanFoodStressQuarters: 0,
+          ruralSevereDeficitQuarters: 0,
+          urbanSevereDeficitQuarters: 0
+        },
+        marketTreasury: { balance: 0, ruralGrainPayable: 0 }
+      }
+    ]);
+    syncMarketMerchantPortfolios();
+
+    const snapshot = getCharacterMarketSnapshot(1);
+    expect(snapshot?.rows.map(row => row.goodName)).toEqual(["Wheat"]);
+    expect(snapshot?.rows[0]?.availableStock).toBe(5);
+    expect(quotePlayerMarketTrade({ characterId: 1, goodId: 1, units: 1, direction: "buy" })).toMatchObject({
+      ok: false,
+      message: "Grain is a food-ledger summary; buy a named staple crop instead."
+    });
+
+    const purchase = executePlayerMarketTrade({ characterId: 1, goodId: 2, units: 2, direction: "buy" });
+    const market = getMarkets()[0]!;
+    expect(purchase.ok).toBe(true);
+    expect(worldContext.pack.characters?.[0]?.inventory).toEqual({ 2: 2 });
+    expect(market.foodLedger?.stapleCropInventories?.[2]).toMatchObject({ age0: 5, age1: 3 });
+    expect(market.foodLedger).toMatchObject({ foodStockAge0: 5, foodStockAge1: 3, exportable: 3 });
+    expect(market.goods[1]?.stock).toBe(3);
+  });
+
+  it("migrates an existing player Grain holding to Wheat", () => {
+    setGoods([
+      { i: 1, name: "Grain", value: 1, tags: ["food", "stapleFood"], unit: "wain", icon: "🌾", color: "#fff" },
+      { i: 2, name: "Wheat", value: 1, tags: ["food", "stapleCrop"], unit: "wain", icon: "🌾", color: "#f5d76e" }
+    ]);
+    Goods.sync();
+    worldContext.pack.characters![0]!.inventory = { 1: 3 };
+
+    expect(migrateLegacyPlayerGrainInventory()).toBe(true);
+    expect(worldContext.pack.characters![0]!.inventory).toEqual({ 2: 3 });
   });
 });
