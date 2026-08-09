@@ -1,20 +1,13 @@
 import { rn } from "../../hostUtils";
 import type { FoodLedger } from "./marketTypes";
+import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 /**
  * One physical crop's aged Market stock. Amounts are expressed in the shared
  * wheat-equivalent food unit for nutrition, but the `goodId` is never merged
  * with another crop: Wheat, Rye, and Barley remain separate trade lots.
  */
-export interface StapleCropInventory {
-  age0: number;
-  age1: number;
-  age2: number;
-  age0UnitCost: number;
-  age1UnitCost: number;
-  age2UnitCost: number;
-  overflow: number;
-}
+export type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 function emptyInventory(): StapleCropInventory {
   return { age0: 0, age1: 0, age2: 0, age0UnitCost: 0, age1UnitCost: 0, age2UnitCost: 0, overflow: 0 };

@@ -1,3 +1,5 @@
+import type { StapleCropInventory } from "./stapleCropInventoryTypes";
+
 export interface Market {
   i: number;
   centerBurgId: number;
@@ -138,7 +140,7 @@ export interface FoodLedger {
   /** Cumulative staple food aged/capped out of the ledger with no export sink yet (v1: recorded only, not consumed). */
   storageOverflow: number;
   /** Physical, non-mixed crop lots. Aggregate fields above are a compatibility summary only. */
-  stapleCropInventories?: Record<number, import("./stapleCropInventory").StapleCropInventory>;
+  stapleCropInventories?: Record<number, StapleCropInventory>;
   /** Consecutive quarters the rural population's food need went unmet by >=5%. Reset below 5%. */
   ruralFoodStressQuarters: number;
   /** Consecutive quarters the urban population's food need went unmet by >=5%. Reset below 5%. */

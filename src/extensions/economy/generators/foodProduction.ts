@@ -154,19 +154,6 @@ function emptyFoodLedger(): FoodLedger {
   };
 }
 
-/** Actual rural people (population points × populationRate) attributed to a market's cells. */
-export function getMarketRuralPopulation(worldContext: ReturnType<typeof getWorldContext>, marketId: number): number {
-  const pack = worldContext.pack;
-  const marketCellColumn = getMarketCellColumn();
-  const populationRate = worldContext.populationRate ?? 1000;
-  let ruralPopulation = 0;
-  for (const cellId of pack.cells.i) {
-    if (marketCellColumn[cellId] !== marketId || pack.cells.h[cellId] < 20) continue;
-    ruralPopulation += pack.cells.pop[cellId] * populationRate;
-  }
-  return ruralPopulation;
-}
-
 export class FoodProductionModule {
   private get worldContext() {
     return getWorldContext();

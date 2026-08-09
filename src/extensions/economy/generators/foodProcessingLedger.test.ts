@@ -29,7 +29,7 @@ vi.mock("../economyContext", () => ({
     pack: { burgs: [{ i: 1, market: 1, population: 1 }] }
   })
 }));
-vi.mock("./foodProduction", () => ({ getMarketRuralPopulation: () => 0 }));
+vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => 0 }));
 
 import {
   CHEESE_RESERVE_MONTHS,

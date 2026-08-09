@@ -10,8 +10,8 @@ import {
   MILK_LOTS_PER_CHEESE_LOT,
   WINE_TARGETS
 } from "./foodLots";
-import { getMarketRuralPopulation } from "./foodProduction";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { getMarketRuralPopulation } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
 
 const TRACKED_GOODS = new Set(["Milk", "Cheese", "Grapes", "Raisins", "Wine"]);
