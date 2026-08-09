@@ -6,6 +6,7 @@ import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { getCharacterMarketSnapshot } from "../controllers/characterMarket";
 import {
   clearEconomyContext,
+  getBurgRetailInventories,
   getCharacterInventoryCostBases,
   getMarkets,
   getMerchantGoodSalesLedgers,
@@ -13,6 +14,7 @@ import {
   setGoods,
   setMarkets
 } from "../economyContext";
+import { getAllStockData } from "./economyTotals";
 import { Goods } from "./goods-generator";
 import type { Market } from "./marketTypes";
 import { syncMarketMerchantPortfolios } from "./merchantPortfolios";
@@ -169,7 +171,8 @@ describe("player commerce", () => {
         centerBurgId: 1,
         color: "#fff",
         managerCharacterId: 2,
-        goods: { 1: { stock: 5, price: 1 } },
+        // Simulate a Grain cache from before the latest Food Ledger settlement.
+        goods: { 1: { stock: 5.4, price: 1 } },
         foodLedger: {
           foodProduced: 0,
           ruralNeed: 0,
@@ -202,6 +205,8 @@ describe("player commerce", () => {
     const snapshot = getCharacterMarketSnapshot(1);
     expect(snapshot?.rows.map(row => row.goodName)).toEqual(["Wheat"]);
     expect(snapshot?.rows[0]?.availableStock).toBe(5);
+    expect(getAllStockData()[1]).toMatchObject({ total: 5 });
+    expect(getAllStockData()[2]).toMatchObject({ total: 5 });
     expect(quotePlayerMarketTrade({ characterId: 1, goodId: 1, units: 1, direction: "buy" })).toMatchObject({
       ok: false,
       message: "Grain is a food-ledger summary; buy a named staple crop instead."
@@ -214,6 +219,15 @@ describe("player commerce", () => {
     expect(market.foodLedger?.stapleCropInventories?.[2]).toMatchObject({ age0: 5, age1: 3 });
     expect(market.foodLedger).toMatchObject({ foodStockAge0: 5, foodStockAge1: 3, exportable: 3 });
     expect(market.goods[1]?.stock).toBe(3);
+    expect(getBurgRetailInventories().every(inventory => inventory.goods[1] === undefined)).toBe(true);
+    expect(getAllStockData()[1]).toMatchObject({
+      total: 3,
+      sources: [expect.objectContaining({ type: "market", id: 1, stock: 3 })]
+    });
+    expect(getAllStockData()[2]).toMatchObject({
+      total: 3,
+      sources: [expect.objectContaining({ type: "market", id: 1, stock: 3 })]
+    });
   });
 
   it("migrates an existing player Grain holding to Wheat", () => {

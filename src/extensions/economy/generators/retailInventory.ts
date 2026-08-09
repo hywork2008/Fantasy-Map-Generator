@@ -202,9 +202,13 @@ function nonNegative(value: number): number {
 }
 
 function marketGoodsIds(market: Market): number[] {
-  return Object.keys(market.goods)
-    .map(Number)
-    .filter(goodId => Number.isInteger(goodId));
+  return (
+    Object.keys(market.goods)
+      .map(Number)
+      // Grain is the Food Ledger's aggregate availability view, not a physical
+      // retail product. Named staple crops own the real trade lots.
+      .filter(goodId => Number.isInteger(goodId) && !Goods.get(goodId)?.tags.includes("stapleFood"))
+  );
 }
 
 /**

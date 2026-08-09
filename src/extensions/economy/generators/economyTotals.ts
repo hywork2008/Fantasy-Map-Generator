@@ -20,6 +20,7 @@ import { Goods, isGoodEnabled } from "./goods-generator";
 import { Production } from "./production-generator";
 import { getCellProduction } from "./production-utils";
 import { reconcileRetailInventory } from "./retailInventory";
+import { getTradeableStapleCropUnits } from "./stapleCropInventory";
 
 export type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
 
@@ -40,10 +41,46 @@ export function getAllStockData(): Record<number, { total: number; sources: Stoc
   reconcileRetailInventory();
 
   for (const market of getMarkets()) {
+    const center = getWorldContext().pack.burgs[market.centerBurgId];
+    const addMarketSource = (goodId: number, stock: number): void => {
+      if (!result[goodId] || !(stock > 0)) return;
+      result[goodId].total += stock;
+      result[goodId].sources.push({
+        name: market.name || center?.name || `Market ${market.i}`,
+        type: "market",
+        x: center?.x ?? 0,
+        y: center?.y ?? 0,
+        id: market.i,
+        stock: rn(stock, 2)
+      });
+    };
+
     for (const [goodIdStr, { stock }] of Object.entries(market.goods)) {
       const goodId = +goodIdStr;
       if (!result[goodId] || stock <= 0) continue;
+      const good = Goods.get(goodId);
+      if (good?.tags.includes("stapleFood")) {
+        // Grain is a derived Food Ledger view. Read the ledger rather than a
+        // persisted market.goods cache, which can be stale between settlements.
+        const ledgerStock = market.foodLedger
+          ? rn(Math.max(0, market.foodLedger.exportable) + Math.max(0, market.foodLedger.storageOverflow), 2)
+          : stock;
+        addMarketSource(goodId, ledgerStock);
+        continue;
+      }
+      // Named crop lots are owned by the Food Ledger below, not market.goods.
+      if (good?.tags.includes("stapleCrop") && market.foodLedger?.stapleCropInventories?.[goodId]) continue;
       result[goodId].total += stock;
+    }
+
+    const ledger = market.foodLedger;
+    if (!ledger) continue;
+    for (const goodIdStr of Object.keys(ledger.stapleCropInventories ?? {})) {
+      const goodId = Number(goodIdStr);
+      const good = Goods.get(goodId);
+      if (!good?.tags.includes("stapleCrop")) continue;
+      const stock = getTradeableStapleCropUnits(ledger, goodId);
+      if (stock !== null) addMarketSource(goodId, stock);
     }
   }
 
