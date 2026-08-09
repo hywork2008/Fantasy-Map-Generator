@@ -88,6 +88,7 @@ let _cultivableAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _yieldPerAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _ruralFoodCapacityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _cultivatedAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _ruralHouseholdFoodStockFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _farmLaborRequiredFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -128,6 +129,7 @@ export function clearEconomyContext(): void {
   _yieldPerAreaFallback = new Float32Array();
   _ruralFoodCapacityFallback = new Float32Array();
   _cultivatedAreaFallback = new Float32Array();
+  _ruralHouseholdFoodStockFallback = new Float32Array();
   _farmLaborRequiredFallback = new Float32Array();
   _migratableAdultsFallback = new Float32Array();
   _ruralReleasePressureFallback = new Float32Array();
@@ -382,6 +384,16 @@ export function getCultivatedArea(): Float32Array<ArrayBufferLike> {
 export function setCultivatedArea(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("cultivatedArea", value, next => {
     _cultivatedAreaFallback = next;
+  });
+}
+
+/** Staple food held by rural households, aggregated per cell in annual food units. */
+export function getRuralHouseholdFoodStock(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("ruralHouseholdFoodStock", _ruralHouseholdFoodStockFallback);
+}
+export function setRuralHouseholdFoodStock(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("ruralHouseholdFoodStock", value, next => {
+    _ruralHouseholdFoodStockFallback = next;
   });
 }
 export function getFarmLaborRequired(): Float32Array<ArrayBufferLike> {

@@ -44,13 +44,13 @@ describe("getFoodLedgerSummary", () => {
 
     expect(summary).toMatchObject({
       localProduction: 40,
-      quarterlyNeed: 50,
+      quarterlyNeed: 20,
       importedFood: 10,
-      importShare: 0.2,
+      importShare: 0.5,
       reserveGap: 15,
       stock: 30
     });
-    expect(summary?.stockMonths).toBeCloseTo(1.8);
+    expect(summary?.stockMonths).toBeCloseTo(4.5);
   });
 
   it("returns null until a Market has initialized its Food Ledger", () => {

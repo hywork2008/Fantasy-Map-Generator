@@ -63,22 +63,21 @@ describe("Food Ledger lifecycle (integration)", () => {
       zones: [],
       markets: [],
       cells: {
-        i: [1],
-        biomeCode: new Uint8Array([0, 4]),
-        culture: new Uint16Array([0, 0]),
-        state: new Uint16Array([0, 0]),
-        religion: new Uint16Array([0, 0]),
-        burg: new Uint16Array([0, 0]),
-        good: new Uint16Array([0, 0]),
-        market: Uint16Array.from([0, 1]),
-        pop: [0, 40],
-        h: new Uint8Array([0, 50]),
-        capacity: [0, 80],
-        c: [[], []],
-        p: [
-          [0, 0],
-          [0, 40]
-        ]
+        i: [0],
+        biomeCode: new Uint8Array([4]),
+        culture: new Uint16Array([0]),
+        state: new Uint16Array([0]),
+        religion: new Uint16Array([0]),
+        burg: new Uint16Array([0]),
+        good: new Uint16Array([0]),
+        market: Uint16Array.from([1]),
+        pop: [40],
+        h: new Uint8Array([50]),
+        // Enough cultivated capacity to retain annual household provisions,
+        // feed the burg, and still leave a tradable rural surplus.
+        capacity: [160],
+        c: [[]],
+        p: [[0, 40]]
       }
     } as unknown as PackedGraph;
 

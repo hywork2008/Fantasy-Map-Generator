@@ -5,14 +5,22 @@ vi.mock("../economyContext", () => ({
   getMarkets: vi.fn(),
   getMarketCellColumn: vi.fn(),
   getSimulationMonth: vi.fn(),
-  getGoods: vi.fn(() => [])
+  getGoods: vi.fn(() => []),
+  getRuralHouseholdFoodStock: vi.fn(() => new Float32Array())
 }));
 
 vi.mock("./innStays", () => ({
   getTemporaryLodgerPopulationPointsByBurg: vi.fn(() => new Map())
 }));
 
-import { getGoods, getMarketCellColumn, getMarkets, getSimulationMonth, getWorldContext } from "../economyContext";
+import {
+  getGoods,
+  getMarketCellColumn,
+  getMarkets,
+  getRuralHouseholdFoodStock,
+  getSimulationMonth,
+  getWorldContext
+} from "../economyContext";
 import { settleMonthlyFoodConsumption } from "./foodLedgerConsumption";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
@@ -105,6 +113,28 @@ describe("settleMonthlyFoodConsumption", () => {
     expect(ledger.foodStockAge2).toBe(0);
     expect(ledger.foodStockAge1).toBeCloseTo(2.83, 1);
     expect(ledger.foodStockAge0).toBe(5);
+  });
+
+  it("consumes a rural cell's private provisions before it draws the Market ledger", () => {
+    mockWorldContext.pack.cells = { i: [0], h: [25], pop: [200] };
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1]));
+    const householdStock = new Float32Array([10]);
+    vi.mocked(getRuralHouseholdFoodStock).mockReturnValue(householdStock);
+
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: {},
+      foodLedger: makeLedger({ foodStockAge0: 15 })
+    } as Market;
+    setMarket(market);
+
+    settleMonthlyFoodConsumption();
+
+    // Monthly need is 200 × 0.43 / 12 = 7.166..., fully covered privately.
+    expect(householdStock[0]).toBeCloseTo(2.83, 1);
+    expect(market.foodLedger!.foodStockAge0).toBe(15);
   });
 
   it("does not top up a burg's reserve that is already at or above its target", () => {

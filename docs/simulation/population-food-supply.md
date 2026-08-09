@@ -283,6 +283,24 @@ v1では収穫期の季節雇用や、一時的な都市から農村への出稼
 - 赤道付近または赤道・極地の温度差がない設定では均等配分のままになる。
 - 高緯度かつ温度勾配が大きいほど、第3四半期（南半球では第1四半期）へわずかに供給が寄る。
 - 年間の`foodPotential`、需要、農業労働力は変えない。変わるのは年間生産を四半期へ割り振る時期だけである。
+
+### 5.1 農村世帯の私的食料在庫
+
+農村で収穫された主食を、収穫と同時に全量 Market 在庫へ移してはならない。各セルは個々の世帯を詳細化しない集約値`ruralHouseholdFoodStock[cell]`を持ち、通常は住民一年分の`GROSS_FOOD_NEED`を私的な食料庫として保持する。これは Market の在庫でも、取引可能な Grain でもない。
+
+```text
+harvest = cultivatedArea × yieldPerArea × productivityModifier × seasonalWeight
+householdTarget = ruralPeople × GROSS_FOOD_NEED × 1 year
+householdRetained = min(harvest, max(0, householdTarget - householdStock))
+marketWholesale = harvest - householdRetained
+```
+
+- 月次の農村消費はまずセルの`householdStock`から引き、尽きた不足分だけを所属 Market の Food Ledger から引く。したがって凶作時も Market 備蓄・輸入・飢饉判定は救済経路として残る。
+- Market へ入る`marketWholesale`だけが農家への farmgate 決済と Market の Grain 在庫に入る。自家消費分を売買・決済してはならない。
+- 新規生成および旧セーブ移行では、農村世帯在庫を一年分で一度だけ初期化する。以後は保存される可変状態であり、`foodPotential`のような再生成キャッシュではない。
+- Market の通常備蓄目標は都市・宿泊者の需要を基準とする。農村の通常消費は私的在庫で充足されるため、農村全員の一年分を Market に重複備蓄しない。
+
+人口規模はこの在庫総量と耕作・多様化の余地に効かせる。豊凶の平均収量を人口だけで上げる倍率には使わない。小規模なセルでは作物多様性の不足などによる局地的な振れ幅を大きくできるが、広域の天候ショックそのものは人口で相殺しない。
 - `DEFAULT_QUARTERLY_WEIGHTS`は、旧セーブや不完全な地理・気候設定の後方互換フォールバックとする。
 
 これは市場別・作物別の収穫暦を導入する前の共通下地である。将来は同じインターフェースのまま、生産地の緯度・作物・技術による市場別重みへ置き換える。

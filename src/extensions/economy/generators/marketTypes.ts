@@ -111,7 +111,9 @@ export interface MarketTreasury {
 }
 
 export interface FoodLedger {
+  /** Current quarter's Grain physically sold by rural households into this Market. */
   foodProduced: number;
+  /** Total rural staple requirement this quarter, including food met from household stores. */
   ruralNeed: number;
   urbanNeed: number;
   exportable: number;

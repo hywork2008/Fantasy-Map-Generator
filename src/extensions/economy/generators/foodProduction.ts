@@ -7,7 +7,9 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
-  getWorldContext
+  getRuralHouseholdFoodStock,
+  getWorldContext,
+  setRuralHouseholdFoodStock
 } from "../economyContext";
 import { getEconomyStartProfile } from "./economyStartMode";
 import { GROSS_FOOD_NEED } from "./foodConstants";
@@ -55,6 +57,8 @@ const IMPORT_TARGET_MONTHS = 6;
 const INITIAL_STOCK_MONTHS_PER_BUCKET = 3;
 /** Days of a burg's own staple-food need kept on hand locally, independent of the Market pool. */
 export const BURG_TARGET_RESERVE_DAYS = 10;
+/** Rural households retain this many years of their own staple need before selling Grain. */
+export const RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS = 1;
 
 function isFiniteNumber(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value);
@@ -162,6 +166,29 @@ export class FoodProductionModule {
   }
 
   /**
+   * Creates the cell-level aggregate of household larders. This is deliberately
+   * not one record per family: all households in a cell share the same food
+   * accounting boundary while keeping their provisions outside Market stock.
+   */
+  private seedRuralHouseholdFoodStock(reset: boolean): void {
+    const { cells } = this.worldContext.pack;
+    const cellCount = cells?.i?.length ?? 0;
+    if (!cellCount) return;
+
+    const existing = getRuralHouseholdFoodStock();
+    if (!reset && existing.length === cellCount) return;
+
+    const populationRate = this.worldContext.populationRate ?? 1000;
+    const stock = new Float32Array(cellCount);
+    for (const cellId of cells.i) {
+      if (cellId < 0 || cellId >= stock.length || cells.h[cellId] < 20) continue;
+      const people = Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
+      stock[cellId] = people * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
+    }
+    setRuralHouseholdFoodStock(stock);
+  }
+
+  /**
    * One-time seed for a market with no Food Ledger yet: initial bucketed stock, initial merchant
    * capital, and each of its burgs' local food reserve. Called from generation-time hooks (fresh
    * map, first economy enable, legacy-save migration) — never inferred from field absence inside
@@ -179,16 +206,20 @@ export class FoodProductionModule {
     const dailyNeedPerPerson = GROSS_FOOD_NEED / 365.2425;
     const economyProfile = getEconomyStartProfile(this.worldContext.options);
 
+    // A newly generated world gets one year of private rural provisions just
+    // like it gets its initial Market stock. Existing saves preserve this
+    // mutable stock; old saves without it are migrated once at this boundary.
+    this.seedRuralHouseholdFoodStock(markets.every(market => !market.foodLedger));
+
     for (const market of markets) {
       if (market.foodLedger) continue;
 
       const marketBurgs = pack.burgs.filter(b => b.i && !b.removed && b.market === market.i);
-      const ruralPopulation = getMarketRuralPopulation(this.worldContext, market.i);
       const urbanPopulation = marketBurgs.reduce(
         (sum, b) => sum + (b.population ?? 0) * populationRate * urbanization,
         0
       );
-      const annualDemand = (ruralPopulation + urbanPopulation) * GROSS_FOOD_NEED;
+      const annualDemand = urbanPopulation * GROSS_FOOD_NEED;
       const bucketSeed = rn(annualDemand * (INITIAL_STOCK_MONTHS_PER_BUCKET / 12), 2);
       const farmgateCost = rn(startingPrice * FARMGATE_PRICE_SHARE, 2);
 
@@ -295,10 +326,13 @@ export class FoodProductionModule {
     const cultivableArea = getCultivableArea();
     const cultivatedArea = getCultivatedArea();
     const foodPotential = getFoodPotential();
+    this.seedRuralHouseholdFoodStock(false);
+    const ruralHouseholdFoodStock = getRuralHouseholdFoodStock();
     const hasAgriculturalLandUse =
       cultivableArea.length === pack.cells.i.length &&
       cultivatedArea.length === pack.cells.i.length &&
       foodPotential.length === pack.cells.i.length;
+    const hasRuralHouseholdFoodStock = ruralHouseholdFoodStock.length === pack.cells.i.length;
 
     const safeQuarterIndex = Math.max(0, Math.min(3, Math.floor(quarterIndex % 4)));
     const quarterlyWeights = getGlobalQuarterlyFoodWeights({
@@ -310,7 +344,7 @@ export class FoodProductionModule {
 
     for (const market of markets) {
       let ruralPopulation = 0;
-      let annualFoodProduced = 0;
+      let annualMarketFoodIntake = 0;
 
       for (const cellId of pack.cells.i) {
         if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
@@ -319,21 +353,38 @@ export class FoodProductionModule {
         ruralPopulation += rural;
         const stateId = pack.cells.state?.[cellId] ?? 0;
         const productivityModifier = foodStressProductionMultiplier(stateId);
+        let annualHarvest = 0;
         if (hasAgriculturalLandUse) {
           const landCoverage =
             cultivableArea[cellId] > 0 ? minmax(cultivatedArea[cellId] / cultivableArea[cellId], 0, 1) : 0;
           // cultivatedArea is the active, maintained field area. Farm-labour
           // columns are used by the employment model, but are not a second
           // production gate: ordinary burg cells reserve their own fields too.
-          annualFoodProduced += foodPotential[cellId] * landCoverage * productivityModifier;
+          annualHarvest = foodPotential[cellId] * landCoverage * productivityModifier;
         } else {
           // Compatibility path for tests and maps created before the agricultural
           // columns exist. New economy generation always takes the land-use path.
           const capacity = pack.cells.capacity[cellId] * populationRate;
           const saturation = capacity > 0 ? rural / capacity : 0;
           const cultivation = minmax(0.25 + 0.75 * saturation, 0.25, 1);
-          annualFoodProduced += capacity * GROSS_FOOD_NEED * cultivation * productivityModifier;
+          annualHarvest = capacity * GROSS_FOOD_NEED * cultivation * productivityModifier;
         }
+
+        const harvest = annualHarvest * quarterWeight;
+        const hasCellHouseholdFoodStock =
+          hasRuralHouseholdFoodStock && cellId >= 0 && cellId < ruralHouseholdFoodStock.length;
+        if (!hasCellHouseholdFoodStock) {
+          // Kept only for malformed legacy callers that have not gone through
+          // the bootstrap migration. Normal maps always retain household stock.
+          annualMarketFoodIntake += harvest;
+          continue;
+        }
+
+        const householdTarget = rural * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
+        const householdShortfall = Math.max(0, householdTarget - ruralHouseholdFoodStock[cellId]);
+        const retainedByHouseholds = Math.min(harvest, householdShortfall);
+        ruralHouseholdFoodStock[cellId] += retainedByHouseholds;
+        annualMarketFoodIntake += harvest - retainedByHouseholds;
       }
 
       const urbanPopulation = pack.burgs
@@ -342,9 +393,12 @@ export class FoodProductionModule {
 
       const annualRuralNeed = ruralPopulation * GROSS_FOOD_NEED;
       const annualUrbanNeed = urbanPopulation * GROSS_FOOD_NEED;
-      const annualDemand = annualRuralNeed + annualUrbanNeed;
+      // Rural households normally eat their private provisions. Market stock
+      // therefore targets urban demand; rural shortages draw from it later in
+      // settleMonthlyFoodConsumption.
+      const annualDemand = annualUrbanNeed;
 
-      const foodProduced = rn(annualFoodProduced * quarterWeight, 2);
+      const foodProduced = rn(annualMarketFoodIntake, 2);
       const ruralNeed = rn(annualRuralNeed * 0.25, 2);
       const urbanNeed = rn(annualUrbanNeed * 0.25, 2);
 

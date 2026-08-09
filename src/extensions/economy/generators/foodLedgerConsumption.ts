@@ -1,8 +1,14 @@
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
-import { getMarkets, getSimulationMonth, getWorldContext } from "../economyContext";
+import {
+  getMarketCellColumn,
+  getMarkets,
+  getRuralHouseholdFoodStock,
+  getSimulationMonth,
+  getWorldContext
+} from "../economyContext";
 import { GROSS_FOOD_NEED } from "./foodConstants";
-import { BURG_TARGET_RESERVE_DAYS, getMarketRuralPopulation, getStapleFoodGood } from "./foodProduction";
+import { BURG_TARGET_RESERVE_DAYS, getStapleFoodGood } from "./foodProduction";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
 
@@ -83,6 +89,40 @@ function drawTemporaryLodgerMonthlyNeed(
   return { satisfied: drawFromLedgerFifo(ledger, monthlyNeed), needed: rn(monthlyNeed, 2) };
 }
 
+/**
+ * Rural residents consume their cell's aggregate household provisions first.
+ * Only the part their larder cannot cover is drawn from the Market's common
+ * food ledger, preserving that ledger as a fallback rather than a compulsory
+ * intermediary for every farm family's harvest.
+ */
+function drawRuralMonthlyNeed(
+  marketId: number,
+  ledger: FoodLedger,
+  populationRate: number
+): { satisfied: number; needed: number } {
+  const worldContext = getWorldContext();
+  const { cells } = worldContext.pack;
+  const householdStock = getRuralHouseholdFoodStock();
+  const marketCellColumn = getMarketCellColumn();
+  const hasHouseholdStock = householdStock.length === cells.i.length;
+  let satisfied = 0;
+  let needed = 0;
+
+  for (const cellId of cells.i) {
+    if (marketCellColumn[cellId] !== marketId || cells.h[cellId] < 20) continue;
+    const monthlyNeed = (Math.max(0, cells.pop[cellId] ?? 0) * populationRate * GROSS_FOOD_NEED) / 12;
+    needed += monthlyNeed;
+
+    const hasCellHouseholdStock = hasHouseholdStock && cellId >= 0 && cellId < householdStock.length;
+    const fromHousehold = hasCellHouseholdStock ? Math.min(Math.max(0, householdStock[cellId] ?? 0), monthlyNeed) : 0;
+    if (hasCellHouseholdStock) householdStock[cellId] = rn(Math.max(0, householdStock[cellId] - fromHousehold), 2);
+    const fromMarket = drawFromLedgerFifo(ledger, monthlyNeed - fromHousehold);
+    satisfied += fromHousehold + fromMarket;
+  }
+
+  return { satisfied: rn(satisfied, 2), needed: rn(needed, 2) };
+}
+
 function updateStressCounters(ledger: FoodLedger, ruralShortfallRate: number, urbanShortfallRate: number): void {
   ledger.ruralFoodStressQuarters = ruralShortfallRate >= STRESS_THRESHOLD ? ledger.ruralFoodStressQuarters + 1 : 0;
   ledger.urbanFoodStressQuarters = urbanShortfallRate >= STRESS_THRESHOLD ? ledger.urbanFoodStressQuarters + 1 : 0;
@@ -93,8 +133,8 @@ function updateStressCounters(ledger: FoodLedger, ruralShortfallRate: number, ur
 }
 
 /**
- * Monthly Food Ledger settlement: tops up each burg's local reserve, draws rural/urban need
- * (oldest stock first), prices Grain, and routes urban retail revenue to the market's treasury.
+ * Monthly Food Ledger settlement: tops up each burg's local reserve, settles rural household
+ * provisions before Market fallback, prices Grain, and routes urban retail revenue to the market's treasury.
  * Called once per month from the "production.settle" command, after `Production.produce()`.
  */
 export function settleMonthlyFoodConsumption(): void {
@@ -116,21 +156,14 @@ export function settleMonthlyFoodConsumption(): void {
     const marketBurgs = pack.burgs.filter(b => b.i && !b.removed && b.market === market.i);
     for (const burg of marketBurgs) topUpBurgFoodReserve(burg, ledger, populationRate, urbanization);
 
-    const ruralPopulation = getMarketRuralPopulation(worldContext, market.i);
-    const ruralMonthlyNeed = rn((ruralPopulation * GROSS_FOOD_NEED) / 12, 2);
-    const ruralDrawn = drawFromLedgerFifo(ledger, ruralMonthlyNeed);
+    const ruralSettlement = drawRuralMonthlyNeed(market.i, ledger, populationRate);
+    const ruralMonthlyNeed = ruralSettlement.needed;
+    const ruralDrawn = ruralSettlement.satisfied;
 
     let urbanMonthlyNeed = 0;
     let urbanDrawn = 0;
     let urbanRevenue = 0;
-    const retailPrice = settleGrainPrice(
-      ledger,
-      ruralPopulation,
-      marketBurgs,
-      temporaryLodgersByBurg,
-      populationRate,
-      urbanization
-    );
+    const retailPrice = settleGrainPrice(ledger, marketBurgs, temporaryLodgersByBurg, populationRate, urbanization);
 
     for (const burg of marketBurgs) {
       const burgId = burg.i ?? 0;
@@ -185,7 +218,6 @@ export function settleMonthlyFoodConsumption(): void {
  */
 function settleGrainPrice(
   ledger: FoodLedger,
-  ruralPopulation: number,
   marketBurgs: Burg[],
   temporaryLodgersByBurg: ReadonlyMap<number, number>,
   populationRate: number,
@@ -200,7 +232,9 @@ function settleGrainPrice(
       sum + ((burg.population ?? 0) + (temporaryLodgersByBurg.get(burg.i ?? 0) ?? 0)) * populationRate * urbanization,
     0
   );
-  const annualDemand = (ruralPopulation + urbanPopulation) * GROSS_FOOD_NEED;
+  // Rural households have their own cell-level provisions. Market price is
+  // driven by the demand that normally buys from the Market: burgs and lodgers.
+  const annualDemand = urbanPopulation * GROSS_FOOD_NEED;
   const positionInQuarter = ((getSimulationMonth() - 1) % 3) + 1; // 1, 2, or 3
   const monthsRemainingInQuarter = 4 - positionInQuarter; // includes the current month
   const expectedRemainingDemand = (annualDemand / 12) * monthsRemainingInQuarter;
