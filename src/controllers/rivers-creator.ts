@@ -28,7 +28,7 @@ export function createRiver(): void {
   cellsWasForced = !layerIsOn("toggleCells");
   if (cellsWasForced) toggleCells();
 
-  tip("Click to add river point, click again to remove", true);
+  tip("Click to add river point, click again to remove. The higher end becomes the source", true);
   view.debug.append("g").attr("id", "controlCells");
   view.viewbox.style("cursor", "crosshair");
   interactionManager.setClickHandler(onCellClick);
@@ -72,13 +72,14 @@ export function createRiver(): void {
 }
 
 export function addRiver(): void {
-  const riverCells = useRiverCreatorStore.getState().riverCells;
+  const selectedRiverCells = useRiverCreatorStore.getState().riverCells;
   const { rivers, cells } = worldContext.pack;
-  if (riverCells.length < 2) {
+  if (selectedRiverCells.length < 2) {
     tip("Add at least 2 cells", false, "error");
     return;
   }
 
+  const riverCells = GenerationPipeline.Rivers.orientRiverCellsDownhill(selectedRiverCells);
   const riverId = GenerationPipeline.Rivers.getNextId(rivers);
   const parent = cells.r[last(riverCells)] || riverId;
 

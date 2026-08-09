@@ -24,14 +24,27 @@ export function refreshRiverHydrology(
   const sourceCell = river.source;
   const sourceHeight = packedCells?.h?.[sourceCell] ?? 20;
   const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const sourceFeature = world.pack.features?.[packedCells?.f?.[sourceCell] ?? 0];
+  const sourceElevationHeight =
+    sourceFeature?.type === "lake" && Number.isFinite(sourceFeature.height) ? sourceFeature.height : sourceHeight;
   const sourceGridCell = packedCells?.g?.[sourceCell];
   const sourceAirTemperature = sourceGridCell === undefined ? 0 : (world.grid?.cells?.temp?.[sourceGridCell] ?? 0);
+  const sourceTemperature =
+    sourceFeature?.type === "lake" && Number.isFinite(sourceFeature.temp) ? sourceFeature.temp : sourceAirTemperature;
 
-  if (!isFiniteNonNegative(river.sourceElevation)) {
-    river.sourceElevation = rn(heightToMeters(sourceHeight, heightExponent), 1);
+  const elevatedLakeSource = sourceFeature?.type === "lake" && sourceElevationHeight >= 20;
+  const isLegacyLakeSourceAtSeaLevel =
+    river.sourceElevationMode === undefined && elevatedLakeSource && river.sourceElevation === 0;
+  if (
+    !isFiniteNonNegative(river.sourceElevation) ||
+    river.sourceElevationMode === "auto" ||
+    isLegacyLakeSourceAtSeaLevel
+  ) {
+    river.sourceElevation = rn(heightToMeters(sourceElevationHeight, heightExponent), 1);
+    river.sourceElevationMode = "auto";
   }
   if (!Number.isFinite(river.sourceWaterTemperature)) {
-    river.sourceWaterTemperature = sourceAirTemperature;
+    river.sourceWaterTemperature = sourceTemperature;
   }
 
   const sourceElevation = river.sourceElevation ?? 0;

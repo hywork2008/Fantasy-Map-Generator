@@ -2054,6 +2054,10 @@ class LegacyWorldRuntime implements WorldRuntime {
         changed = true;
         hydrologyChanged = true;
       }
+      if (river.sourceElevationMode !== "manual") {
+        river.sourceElevationMode = "manual";
+        changed = true;
+      }
     }
     if (request.sourceWaterTemperature !== undefined) {
       if (!Number.isFinite(request.sourceWaterTemperature)) {

@@ -441,6 +441,21 @@ class RiverModule {
     return meandered as [number, number, number][];
   }
 
+  /**
+   * Keep manually-created river geometry in the same upstream-to-downstream
+   * order used by generated rivers. Equal-elevation endpoints retain the
+   * editor's click order because terrain alone cannot determine their flow.
+   */
+  orientRiverCellsDownhill(riverCells: number[]): number[] {
+    const { h } = this.worldContext.pack.cells;
+    const landCells = riverCells.filter(cellId => cellId >= 0 && cellId < h.length);
+    if (landCells.length < 2) return [...riverCells];
+
+    const firstCell = landCells[0];
+    const lastCell = landCells.at(-1) as number;
+    return h[firstCell] < h[lastCell] ? [...riverCells].reverse() : [...riverCells];
+  }
+
   getRiverPoints(riverCells: number[], riverPoints: [number, number][] | null) {
     const { pack } = this.worldContext;
     if (riverPoints) return riverPoints;

@@ -34,6 +34,29 @@ describe("RiverModule helpers", () => {
     });
   });
 
+  describe("orientRiverCellsDownhill", () => {
+    it("reverses a manually-selected river whose higher endpoint was clicked last", () => {
+      setCells({});
+      worldContext.pack.cells.h = [20, 26, 32] as unknown as PackedGraph["cells"]["h"];
+
+      expect(Rivers.orientRiverCellsDownhill([0, 1, 2])).toEqual([2, 1, 0]);
+    });
+
+    it("keeps the selected order when the first endpoint is already higher", () => {
+      setCells({});
+      worldContext.pack.cells.h = [32, 26, 20] as unknown as PackedGraph["cells"]["h"];
+
+      expect(Rivers.orientRiverCellsDownhill([0, 1, 2])).toEqual([0, 1, 2]);
+    });
+
+    it("keeps the selected order when endpoint elevations are equal", () => {
+      setCells({});
+      worldContext.pack.cells.h = [24, 22, 24] as unknown as PackedGraph["cells"]["h"];
+
+      expect(Rivers.orientRiverCellsDownhill([0, 1, 2])).toEqual([0, 1, 2]);
+    });
+  });
+
   describe("resolveDrainFeature", () => {
     it("returns the ocean feature id when river drains into the sea", () => {
       // cell 5 is the river-bearing land cell; cell 6 is the sea cell at the mouth

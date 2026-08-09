@@ -486,6 +486,8 @@ export interface River {
   sourceWidth: number;
   /** User-controlled source height above sea level, in metres. */
   sourceElevation?: number;
+  /** Whether the source elevation follows terrain automatically or was entered in the editor. */
+  sourceElevationMode?: "auto" | "manual";
   /** User-controlled temperature at the uppermost river cell, in degrees Celsius. */
   sourceWaterTemperature?: number;
   /**

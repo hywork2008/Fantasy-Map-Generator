@@ -101,4 +101,39 @@ describe("river hydrology", () => {
     expect(getRiverCellHydrology(river, 2)?.waterTemperature).toBeGreaterThan(4);
     expect(getRiverCellHydrology(river, 2)?.waterTemperature).toBeLessThan(20);
   });
+
+  it("uses the lake surface for a lake outlet's source elevation and temperature", () => {
+    const world = createWorld();
+    world.pack.cells.h = new Uint8Array([10, 40, 20]);
+    world.pack.cells.f = new Uint16Array([1, 0, 0]);
+    world.pack.features = [
+      { i: 0, type: "ocean" },
+      { i: 1, type: "lake", height: 45, temp: 7 }
+    ] as unknown as WorldContext["pack"]["features"];
+    const river = createRiver();
+    river.sourceElevation = 0;
+    delete river.sourceWaterTemperature;
+
+    refreshRiverHydrology(river, world);
+
+    expect(river.sourceElevation).toBeGreaterThan(0);
+    expect(river.sourceWaterTemperature).toBe(7);
+  });
+
+  it("keeps a manually entered source elevation for a lake outlet", () => {
+    const world = createWorld();
+    world.pack.cells.h = new Uint8Array([10, 40, 20]);
+    world.pack.cells.f = new Uint16Array([1, 0, 0]);
+    world.pack.features = [
+      { i: 0, type: "ocean" },
+      { i: 1, type: "lake", height: 45, temp: 7 }
+    ] as unknown as WorldContext["pack"]["features"];
+    const river = createRiver();
+    river.sourceElevation = 0;
+    river.sourceElevationMode = "manual";
+
+    refreshRiverHydrology(river, world);
+
+    expect(river.sourceElevation).toBe(0);
+  });
 });
