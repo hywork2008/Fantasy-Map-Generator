@@ -1,10 +1,11 @@
-import { Burgs, useOptionsState, type WorldContext } from "../../hostCore";
+import { Burgs, getFourCourseRotationEffect, useOptionsState, type WorldContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
   clearSettlementDevelopmentLastEvaluatedYear,
   getCultivableArea,
   getCultivatedArea,
   getFarmLaborRequired,
+  getFloweringForageArea,
   getFoodPotential,
   getGoods,
   getIrrigationSalinity,
@@ -26,6 +27,7 @@ import {
   setFarmLaborRequired,
   setFishingRequiredWorkers,
   setFishingWorkers,
+  setFloweringForageArea,
   setFoodPotential,
   setHuntingWorkers,
   setHusbandryRequiredWorkers,
@@ -90,6 +92,21 @@ function resolveStateProductivityByCell(cells: WorldContext["pack"]["cells"]): F
   return stockByCell;
 }
 
+/** Resolves state-level four-course adoption once, keeping land-use calculations context-free. */
+function resolveFourCourseRotationByCell(cells: WorldContext["pack"]["cells"]): Float32Array {
+  const cellCount = cells?.i?.length ?? 0;
+  const effectByCell = new Float32Array(cellCount);
+  const stateColumn = cells?.state;
+  if (!stateColumn) return effectByCell;
+
+  for (let cellId = 0; cellId < cellCount; cellId++) {
+    const stateId = stateColumn[cellId];
+    if (!stateId) continue;
+    effectByCell[cellId] = getFourCourseRotationEffect(stateId);
+  }
+  return effectByCell;
+}
+
 const LAND_HEIGHT = 20;
 
 export interface DevelopmentPotentials {
@@ -98,6 +115,7 @@ export interface DevelopmentPotentials {
   readonly yieldPerArea: Float32Array;
   readonly ruralFoodCapacity: Float32Array;
   readonly cultivatedArea: Float32Array;
+  readonly floweringForageArea: Float32Array;
   readonly farmLaborRequired: Float32Array;
   readonly migratableAdults: Float32Array;
   readonly ruralReleasePressure: Float32Array;
@@ -115,7 +133,7 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
-    const conditions = this.getAgriculturalConditions(world.pack.cells.i.length);
+    const conditions = this.getAgriculturalConditions(world);
     reconcileForestClearanceForAgriculture(
       world,
       agTechStockByCell,
@@ -143,6 +161,7 @@ export class DevelopmentPotentialModule {
       yieldPerArea: getYieldPerArea(),
       ruralFoodCapacity: getRuralFoodCapacity(),
       cultivatedArea: getCultivatedArea(),
+      floweringForageArea: getFloweringForageArea(),
       farmLaborRequired: getFarmLaborRequired(),
       migratableAdults: getMigratableAdults(),
       ruralReleasePressure: getRuralReleasePressure(),
@@ -156,6 +175,7 @@ export class DevelopmentPotentialModule {
     setYieldPerArea(new Float32Array());
     setRuralFoodCapacity(new Float32Array());
     setCultivatedArea(new Float32Array());
+    setFloweringForageArea(new Float32Array());
     setFarmLaborRequired(new Float32Array());
     setMigratableAdults(new Float32Array());
     setRuralReleasePressure(new Float32Array());
@@ -180,7 +200,7 @@ export class DevelopmentPotentialModule {
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
     const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
-    const conditions = this.advanceSoilConditions(world.pack.cells.i.length);
+    const conditions = this.advanceSoilConditions(world);
     reconcileForestClearanceForAgriculture(
       world,
       agTechStockByCell,
@@ -220,6 +240,7 @@ export class DevelopmentPotentialModule {
     setYieldPerArea(agriculture.yieldPerArea);
     setRuralFoodCapacity(agriculture.ruralFoodCapacity);
     setCultivatedArea(agriculture.cultivatedArea);
+    setFloweringForageArea(agriculture.floweringForageArea);
     setFarmLaborRequired(agriculture.farmLaborRequired);
     setMigratableAdults(agriculture.migratableAdults);
 
@@ -239,7 +260,8 @@ export class DevelopmentPotentialModule {
     return occupations;
   }
 
-  private getAgriculturalConditions(cellCount: number): AgriculturalConditions {
+  private getAgriculturalConditions(world: Readonly<WorldContext>): AgriculturalConditions {
+    const cellCount = world.pack.cells.i.length;
     const existingFertility = getSoilFertility();
     const existingSalinity = getIrrigationSalinity();
     if (existingFertility.length !== cellCount) {
@@ -251,17 +273,19 @@ export class DevelopmentPotentialModule {
     return {
       cropGoods: getGoods().filter(good => Boolean(good.crop) && isGoodEnabled(good)),
       soilFertilityByCell: getSoilFertility(),
-      irrigationSalinityByCell: getIrrigationSalinity()
+      irrigationSalinityByCell: getIrrigationSalinity(),
+      fourCourseRotationByCell: resolveFourCourseRotationByCell(world.pack.cells)
     };
   }
 
-  private advanceSoilConditions(cellCount: number): AgriculturalConditions {
-    const conditions = this.getAgriculturalConditions(cellCount);
+  private advanceSoilConditions(world: Readonly<WorldContext>): AgriculturalConditions {
+    const conditions = this.getAgriculturalConditions(world);
     const next = advanceAgriculturalSoils(
-      getWorldContext(),
+      world,
       conditions.cropGoods ?? [],
       conditions.soilFertilityByCell,
-      conditions.irrigationSalinityByCell
+      conditions.irrigationSalinityByCell,
+      conditions
     );
     setSoilFertility(next.soilFertility);
     setIrrigationSalinity(next.irrigationSalinity);

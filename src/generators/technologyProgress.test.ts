@@ -3,6 +3,7 @@ import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { TECHNOLOGY_DEFINITIONS } from "./technologyDefinitions";
 import {
+  getFourCourseRotationEffect,
   getGunpowderDemandTechMultiplier,
   getMaxShipClassTierForState,
   getTechnologyStage,
@@ -102,6 +103,19 @@ describe("technologyProgress", () => {
     expect(settleTechnologyAnnual(1200)).toBe(true);
     expect(settleTechnologyAnnual(1200)).toBe(false);
     expect(settleTechnologyAnnual(1201)).toBe(true);
+  });
+
+  it("defines four-course rotation as a late agricultural technology and exposes staged uptake", () => {
+    const definition = TECHNOLOGY_DEFINITIONS.find(def => def.id === "fourCourseRotation");
+    expect(definition).toMatchObject({ era: 1, prerequisites: ["threeFieldAgriculture", "ironToolsAndDraftAnimals"] });
+
+    setTechnologyProgressForTests([
+      { technologyId: "fourCourseRotation", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+      { technologyId: "fourCourseRotation", scope: "state", ownerId: 2, stage: "diffused", diffusion: 1 }
+    ]);
+    expect(getFourCourseRotationEffect(1)).toBeCloseTo(0.35);
+    expect(getFourCourseRotationEffect(2)).toBe(1);
+    expect(getFourCourseRotationEffect(3)).toBe(0);
   });
 
   it("advances improvedMining when mine and metallurgy signals are present", () => {

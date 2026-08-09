@@ -124,6 +124,18 @@ export function getMaxShipClassTierForState(stateId: number): number {
   return 0;
 }
 
+/**
+ * Local uptake of four-course rotation. Demonstration represents a limited trial,
+ * while adoption and diffusion make the clover ley part of the normal field plan.
+ */
+export function getFourCourseRotationEffect(stateId: number): number {
+  const stage = getTechnologyStage("fourCourseRotation", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
 /** Seed start-profile technologies for every live political state. */
 export function seedTechnologyStartProfile(year = simulationContext.currentYear): void {
   const tech = ensureTechnologyState();

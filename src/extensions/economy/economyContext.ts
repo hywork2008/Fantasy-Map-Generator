@@ -88,6 +88,7 @@ let _cultivableAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _yieldPerAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _ruralFoodCapacityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _cultivatedAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _floweringForageAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _ruralHouseholdFoodStockFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _farmLaborRequiredFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -129,6 +130,7 @@ export function clearEconomyContext(): void {
   _yieldPerAreaFallback = new Float32Array();
   _ruralFoodCapacityFallback = new Float32Array();
   _cultivatedAreaFallback = new Float32Array();
+  _floweringForageAreaFallback = new Float32Array();
   _ruralHouseholdFoodStockFallback = new Float32Array();
   _farmLaborRequiredFallback = new Float32Array();
   _migratableAdultsFallback = new Float32Array();
@@ -384,6 +386,16 @@ export function getCultivatedArea(): Float32Array<ArrayBufferLike> {
 export function setCultivatedArea(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("cultivatedArea", value, next => {
     _cultivatedAreaFallback = next;
+  });
+}
+
+/** Clover-ley area created by four-course rotation, keyed by cell id. */
+export function getFloweringForageArea(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("floweringForageArea", _floweringForageAreaFallback);
+}
+export function setFloweringForageArea(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("floweringForageArea", value, next => {
+    _floweringForageAreaFallback = next;
   });
 }
 

@@ -5,6 +5,7 @@ import {
   AGTECH_YIELD_BONUS_MAX,
   advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
+  FOUR_COURSE_CLOVER_LEY_SHARE,
   getCropMix,
   reconcileForestClearanceForAgriculture,
   STATE_YIELD_BONUS_MAX
@@ -200,6 +201,31 @@ describe("agricultural land use", () => {
     // AgTech's effectiveLaborDaysPerHectare), but farmLaborRequired still falls indirectly:
     // higher yield means less cultivatedArea is needed to feed the same population.
     expect(withStateOnly.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
+  });
+
+  it("turns adopted four-course rotation into clover forage, yield, labour, and fertility effects", () => {
+    const world = createWorld();
+    const crops = [cropGood(1, "Wheat", "cereal"), cropGood(2, "Peas", "legume")];
+    const baseline = calculateAgriculturalLandProfile(world, undefined, undefined, {}, { cropGoods: crops });
+    const fourCourseConditions = {
+      cropGoods: crops,
+      fourCourseRotationByCell: new Float32Array([0, 1])
+    };
+    const rotated = calculateAgriculturalLandProfile(world, undefined, undefined, {}, fourCourseConditions);
+
+    expect(rotated.yieldPerArea[1]).toBeGreaterThan(baseline.yieldPerArea[1]);
+    expect(rotated.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
+    expect(rotated.floweringForageArea[1]).toBeCloseTo(rotated.cultivatedArea[1] * FOUR_COURSE_CLOVER_LEY_SHARE, 5);
+
+    const baselineSoil = advanceAgriculturalSoils(world, crops, new Float32Array([1, 1]), new Float32Array(2));
+    const rotatedSoil = advanceAgriculturalSoils(
+      world,
+      crops,
+      new Float32Array([1, 1]),
+      new Float32Array(2),
+      fourCourseConditions
+    );
+    expect(rotatedSoil.soilFertility[1]).toBeGreaterThan(baselineSoil.soilFertility[1]);
   });
 
   it("selects one culture-weighted staple and one legume for a three-field plan without an initial soil penalty", () => {

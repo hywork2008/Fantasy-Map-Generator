@@ -45,6 +45,14 @@ export const URBAN_AREA_HECTARES_PER_POPULATION_POINT = 0.02;
  * helps crops grow but doesn't reduce any individual farmer's labor.
  */
 export const STATE_YIELD_BONUS_MAX = 0.15;
+/** Maximum crop-yield gain from replacing fallow with a clover-and-fodder course. */
+export const FOUR_COURSE_YIELD_BONUS_MAX = 0.12;
+/** Better fodder and a planned rotation reduce labour for the staple-field share. */
+export const FOUR_COURSE_LABOR_SAVINGS_MAX = 0.08;
+/** One course in the four-year plan is represented as a clover ley. */
+export const FOUR_COURSE_CLOVER_LEY_SHARE = 0.25;
+/** Extra organic-fertility recovery supplied by the clover ley and its livestock cycle. */
+export const FOUR_COURSE_SOIL_RESTORATION_BONUS = 0.015;
 const MIN_SOIL_FERTILITY = 0.55;
 const MAX_SOIL_FERTILITY = 1.1;
 
@@ -61,6 +69,8 @@ export interface AgriculturalConditions {
   readonly soilFertilityByCell?: Float32Array;
   /** Persistent salt loading from irrigation; 0 is clean soil, 1 is severely saline. */
   readonly irrigationSalinityByCell?: Float32Array;
+  /** State technology adoption resolved to cells by DevelopmentPotential. */
+  readonly fourCourseRotationByCell?: Float32Array;
 }
 
 export interface AgriculturalLandProfile {
@@ -74,6 +84,8 @@ export interface AgriculturalLandProfile {
   readonly ruralFoodCapacity: Float32Array;
   /** Current planted and maintained field area, in ha. */
   readonly cultivatedArea: Float32Array;
+  /** Flowering clover-ley area within cultivated land, in ha; future apiaries can use it as a nectar source. */
+  readonly floweringForageArea: Float32Array;
   /** Adult rural labour required for the current field area, in rural population points. */
   readonly farmLaborRequired: Float32Array;
   /** Adults that can leave after farm labour's safety margin, in rural population points. */
@@ -122,6 +134,7 @@ export function calculateAgriculturalLandProfile(
   const foodPotential = new Float32Array(count);
   const ruralFoodCapacity = new Float32Array(count);
   const cultivatedArea = new Float32Array(count);
+  const floweringForageArea = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
   const ruralReleasePressure = new Float32Array(count);
@@ -132,6 +145,7 @@ export function calculateAgriculturalLandProfile(
       foodPotential,
       ruralFoodCapacity,
       cultivatedArea,
+      floweringForageArea,
       farmLaborRequired,
       migratableAdults,
       ruralReleasePressure
@@ -156,6 +170,7 @@ export function calculateAgriculturalLandProfile(
 
     const effectiveAgTech = getEffectiveAgTech(world, cellId, agTechStockByCell);
     const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
+    const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
 
     const yieldKgPerHa = calculateYieldKgPerHectare(
       world,
@@ -184,7 +199,11 @@ export function calculateAgriculturalLandProfile(
     // cultivation when land exists; it does not make more land available.
     const currentArea = Math.min(area, requiredArea * 1.1);
     cultivatedArea[cellId] = currentArea;
-    const requiredAdults = (currentArea * effectiveLaborDaysPerHectare) / WORKABLE_DAYS_PER_ADULT;
+    floweringForageArea[cellId] =
+      currentArea * FOUR_COURSE_CLOVER_LEY_SHARE * fourCourseRotation * getCloverSuitability(world, cellId);
+    const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
+    const requiredAdults =
+      (currentArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT;
     const requiredAdultPoints = requiredAdults / populationRate;
     farmLaborRequired[cellId] = requiredAdultPoints;
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
@@ -192,7 +211,8 @@ export function calculateAgriculturalLandProfile(
 
     // minimumFood = localConsumption + committedExport; committedExport isn't tracked yet (0),
     // so this uses the bare pre-buffer requiredArea rather than the 1.1x-buffered currentArea.
-    const minimumFarmAdults = (requiredArea * effectiveLaborDaysPerHectare) / WORKABLE_DAYS_PER_ADULT;
+    const minimumFarmAdults =
+      (requiredArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT;
     const minimumFarmAdultPoints = minimumFarmAdults / populationRate;
     ruralReleasePressure[cellId] = Math.max(0, ruralAdults - minimumFarmAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
   }
@@ -203,6 +223,7 @@ export function calculateAgriculturalLandProfile(
     foodPotential,
     ruralFoodCapacity,
     cultivatedArea,
+    floweringForageArea,
     farmLaborRequired,
     migratableAdults,
     ruralReleasePressure
@@ -409,8 +430,29 @@ function calculateYieldKgPerHectare(
     BASE_NET_YIELD_KG_PER_SOWN_HECTARE *
     effectiveClimateYield *
     (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech) *
-    (1 + STATE_YIELD_BONUS_MAX * stateProductivity)
+    (1 + STATE_YIELD_BONUS_MAX * stateProductivity) *
+    (1 + FOUR_COURSE_YIELD_BONUS_MAX * (conditions.fourCourseRotationByCell?.[cellId] ?? 0))
   );
+}
+
+function getCloverSuitability(world: Readonly<WorldContext>, cellId: number): number {
+  const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
+  const temperature = world.grid?.cells.temp?.[gridCellId] ?? 12;
+  const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
+  return (
+    rangeSuitability(temperature, { min: 0, idealMin: 10, idealMax: 22, max: 30 }) *
+    rangeSuitability(precipitation, { min: 15, idealMin: 30, idealMax: 70, max: 90 })
+  );
+}
+
+function rangeSuitability(
+  value: number,
+  range: { readonly min: number; readonly idealMin: number; readonly idealMax: number; readonly max: number }
+): number {
+  if (value <= range.min || value >= range.max) return 0;
+  if (value >= range.idealMin && value <= range.idealMax) return 1;
+  if (value < range.idealMin) return (value - range.min) / (range.idealMin - range.min);
+  return (range.max - value) / (range.max - range.idealMax);
 }
 
 const CULTURE_CROP_PREFERENCES: Record<CultureType, Partial<Record<string, number>>> = {
@@ -533,7 +575,8 @@ export function advanceAgriculturalSoils(
   world: Readonly<WorldContext>,
   cropGoods: readonly Good[],
   currentFertility: Float32Array | undefined,
-  currentSalinity: Float32Array | undefined
+  currentSalinity: Float32Array | undefined,
+  conditions: AgriculturalConditions = {}
 ): { soilFertility: Float32Array; irrigationSalinity: Float32Array } {
   const count = world.pack.cells.i.length;
   const soilFertility = new Float32Array(count);
@@ -552,7 +595,8 @@ export function advanceAgriculturalSoils(
     // A main-crop / legume pair is the normal three-field rotation. Only a cell that cannot
     // sustain its companion legume is forced into continuous main-crop cultivation.
     const exhaustion = Math.max(0, mainCropShare - MAIN_CROP_SHARE_WITH_LEGUME) * 0.08;
-    const restoration = legumeShare * 0.025;
+    const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
+    const restoration = legumeShare * 0.025 + fourCourseRotation * FOUR_COURSE_SOIL_RESTORATION_BONUS;
     soilFertility[cellId] = Math.max(
       MIN_SOIL_FERTILITY,
       Math.min(MAX_SOIL_FERTILITY, previousFertility - exhaustion + restoration)

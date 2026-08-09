@@ -104,6 +104,16 @@ const START_PROFILE: readonly TechnologyDefinition[] = [
 /** Stage 1: late-medieval knowledge accumulation (no gunpowder unlock). */
 const ERA_1: readonly TechnologyDefinition[] = [
   {
+    id: "fourCourseRotation",
+    label: "Four-course rotation",
+    era: 1,
+    scope: "state",
+    prerequisites: ["threeFieldAgriculture", "ironToolsAndDraftAnimals"],
+    known: { min: { urbanPopulation: 8, treasury: 15 } },
+    demonstrated: { min: { urbanPopulation: 12, treasury: 30 } },
+    adopted: { min: { urbanPopulation: 20, treasury: 60, administration: 0.15 } }
+  },
+  {
     id: "improvedMining",
     label: "Improved mining",
     era: 1,
