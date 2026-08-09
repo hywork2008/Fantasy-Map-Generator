@@ -96,13 +96,14 @@ export function createViewLayers(): void {
     null,
     undefined
   >;
+  const temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
+
+  const coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
+  // Routes stay above the coastline so their SVG strokes receive clicks where the two overlap.
   const routes = viewbox.append("g").attr("id", "routes") as Selection<SVGGElement, unknown, null, undefined>;
   const roads = routes.append("g").attr("id", "roads") as Selection<SVGGElement, unknown, null, undefined>;
   const trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
-  const temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
-
-  const coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
   const ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
   const prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
     SVGGElement,
@@ -378,6 +379,18 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
   const temperature = viewbox.select("#temperature") as Selection<SVGGElement, unknown, null, undefined>;
   const danger = viewbox.select("#danger") as Selection<SVGGElement, unknown, null, undefined>;
   const coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
+  // Keep older saved maps consistent with the startup stack. Coastline has a deliberately wide
+  // transparent hit stroke, so routes need to follow it in DOM order to remain directly editable.
+  const coastlineNode = coastline.node();
+  const routesNode = routes.node();
+  if (
+    coastlineNode &&
+    routesNode &&
+    coastlineNode.parentNode === routesNode.parentNode &&
+    coastlineNode.nextSibling !== routesNode
+  ) {
+    coastlineNode.parentNode?.insertBefore(routesNode, coastlineNode.nextSibling);
+  }
   const prec = viewbox.select("#prec") as Selection<SVGGElement, unknown, null, undefined>;
   const population = viewbox.select("#population") as Selection<SVGGElement, unknown, null, undefined>;
   const emblems = viewbox.select("#emblems") as Selection<SVGGElement, unknown, null, undefined>;

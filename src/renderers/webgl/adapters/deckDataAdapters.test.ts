@@ -940,8 +940,8 @@ describe("deck.gl data adapters", () => {
       "fmg-webgl-background",
       "fmg-webgl-land",
       "fmg-webgl-biomes",
-      "fmg-webgl-routes",
-      "fmg-webgl-coastline"
+      "fmg-webgl-coastline",
+      "fmg-webgl-routes"
     ]);
     expect(layers.every(layer => layer.props.visible !== false)).toBe(true);
   });
@@ -1017,8 +1017,8 @@ describe("deck.gl data adapters", () => {
     expect(layers.map(layer => layer.id)).toEqual([
       "fmg-webgl-background",
       "fmg-webgl-land",
-      "fmg-webgl-routes",
-      "fmg-webgl-coastline"
+      "fmg-webgl-coastline",
+      "fmg-webgl-routes"
     ]);
   });
 

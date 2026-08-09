@@ -940,11 +940,8 @@ export function buildDeckLayers(
     );
   }
 
-  for (const layer of WEBGL_PATH_LAYERS) {
-    if (!activeLayers[layer.toggle]) continue;
-    // viewMesh renders routes as terrain-following Three.js lines rather than baking them into
-    // the flat terrain bitmap, where they would remain painted onto the surface.
-    if (layer.id === "routes" && options.includeRoutes === false) continue;
+  const addPathLayer = (layer: (typeof WEBGL_PATH_LAYERS)[number]): void => {
+    if (!activeLayers[layer.toggle]) return;
     layers.push(
       createDashedPathLayer({
         id: `fmg-webgl-${layer.id}`,
@@ -970,6 +967,13 @@ export function buildDeckLayers(
         pickable: true
       })
     );
+  };
+
+  for (const layer of WEBGL_PATH_LAYERS) {
+    // Render routes separately after the coastline. This gives route picking and visual stacking
+    // the same precedence as SVG mode without moving cells, grids, or borders above the coastline.
+    if (layer.id === "routes") continue;
+    addPathLayer(layer);
   }
 
   layers.push(
@@ -997,8 +1001,13 @@ export function buildDeckLayers(
     })
   );
 
-  // Pushed after rivers/borders/routes/coastline (and before labels) to match the SVG renderer's
-  // stacking order, where #emblems and #icons are appended after #coastline and before #labels
+  const routesLayer = WEBGL_PATH_LAYERS.find(layer => layer.id === "routes");
+  // viewMesh renders routes as terrain-following Three.js lines rather than baking them into
+  // the flat terrain bitmap, where they would remain painted onto the surface.
+  if (routesLayer && options.includeRoutes !== false) addPathLayer(routesLayer);
+
+  // Pushed after rivers/borders/coastline/routes (and before labels) to match the SVG renderer's
+  // stacking order, where #emblems and #icons are appended after #routes and before #labels
   // in initViewLayers.ts.
   if (activeLayers.toggleEmblems) {
     layers.push(
