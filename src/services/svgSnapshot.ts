@@ -50,7 +50,11 @@ export async function withOffscreenSvgExport<T>(produce: (exportRoot: SVGSVGElem
   exportRoot.style.position = "fixed";
   exportRoot.style.left = "-100000px";
   exportRoot.style.top = "0";
-  exportRoot.style.visibility = "hidden";
+  // Keep visibility:visible (not hidden): paintSvgMapLayers → drawStateLabels measures
+  // getBBox / getTotalLength / getComputedTextLength. Hidden SVG roots yield zero geometry and
+  // produce empty/broken state labels in mesh/full-map exports. Off-screen left offset is enough
+  // to avoid a visible flash; pointer-events:none blocks interaction.
+  exportRoot.style.visibility = "visible";
   exportRoot.style.pointerEvents = "none";
   document.body.appendChild(exportRoot);
 

@@ -503,7 +503,9 @@ function syncWebglManagedSvgLayerVisibility(): void {
 export function turnButtonOff(el: string): void {
   useLayerState.getState().toggleLayer(el, false);
   getCurrentPreset();
-  schedule3dUpdate(el === "toggleBurgIcons" || el === "toggleRoutes");
+  // Icons/routes rebuild 3D scene objects; Labels only re-bakes the terrain texture (flat labels).
+  if (el === "toggleBurgIcons" || el === "toggleRoutes") schedule3dUpdate(true);
+  else if (el === "toggleLabels") schedule3dUpdate(false);
   scheduleWebglUpdate();
 }
 
@@ -516,7 +518,8 @@ export function turnButtonOn(el: string): void {
   // ensures a manual click always makes the layer visible regardless of that history.
   setLayerVisibility(el, true);
   getCurrentPreset();
-  schedule3dUpdate(el === "toggleBurgIcons" || el === "toggleRoutes");
+  if (el === "toggleBurgIcons" || el === "toggleRoutes") schedule3dUpdate(true);
+  else if (el === "toggleLabels") schedule3dUpdate(false);
   scheduleWebglUpdate();
 }
 
@@ -1039,6 +1042,10 @@ export function toggleLabels(event?: MouseEvent): void {
     turnButtonOff("toggleLabels");
     setLayerVisibility("toggleLabels", false);
   }
+  // Map Labels only filters burg sprites when Options3d "Show 3D labels" is already on.
+  if (ThreeDRenderer.options.isOn && ThreeDRenderer.options.labels3d) {
+    ThreeDRenderer.syncLabelsFromMapLayers();
+  }
 }
 
 export function toggleBurgIcons(event?: MouseEvent): void {
@@ -1345,6 +1352,8 @@ function schedule3dUpdate(rebuildSceneObjects = false) {
     else ThreeDRenderer.updateTerrainTexture();
   });
 }
+
+// turnButtonOn/Off pass the layer id so settlement overlays rebuild in viewMesh.
 
 /** Queues a terrain-texture refresh without rebuilding viewMesh scene objects. */
 export function schedule3dTerrainUpdate(): void {

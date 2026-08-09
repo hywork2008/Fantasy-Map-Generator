@@ -55,6 +55,43 @@ export function normalizeMapExportCloneStyles(cloneEl: SVGSVGElement): void {
   cloneEl.style.pointerEvents = "auto";
 }
 
+/**
+ * Clears 2D zoom-culling / layer-hide state so a mesh full-map raster includes painted content.
+ * Also restores `font-size` from `data-size` so dampened zoom styles do not shrink labels into
+ * invisibility on the overview-scale 3D terrain texture.
+ */
+function unhideSvgExportSubtree(
+  clone: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+  rootSelector: string
+): void {
+  const root = clone.select(rootSelector);
+  if (root.empty()) return;
+
+  root
+    .classed("hidden", false)
+    .classed("fmg-layer-hidden", false)
+    .attr("display", null)
+    .style("display", null)
+    .style("visibility", null);
+
+  root.selectAll(".hidden").classed("hidden", false);
+  root.selectAll(".fmg-layer-hidden").classed("fmg-layer-hidden", false);
+
+  root.selectAll<Element, unknown>("*").each(function () {
+    if (!(this instanceof SVGElement || this instanceof HTMLElement)) return;
+    if (this.style.display === "none") this.style.display = "";
+    if (this.style.visibility === "hidden") this.style.visibility = "";
+    if (this.hasAttribute("display") && this.getAttribute("display") === "none") {
+      this.removeAttribute("display");
+    }
+    // Zoom dampening rewrites font-size; data-size holds the authoring size used for full-map bake.
+    const dataSize = this.getAttribute("data-size");
+    if (dataSize && Number(dataSize) > 0) {
+      this.setAttribute("font-size", dataSize);
+    }
+  });
+}
+
 // ─── Image exports ────────────────────────────────────────────────────────────
 
 export async function exportToSvg(): Promise<void> {
@@ -232,7 +269,14 @@ function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, qualityArgume
 
 interface GetMapURLOptions {
   debug?: boolean;
+  /** Strip state/burg text labels from the export. */
   noLabels?: boolean;
+  /**
+   * Strip burg icon/anchor glyphs. Historically bundled into `noLabels` for mesh textures;
+   * kept separate so 3D terrain can bake map Labels without also baking SVG Icons (3D uses
+   * low-poly icons instead).
+   */
+  noIcons?: boolean;
   noWater?: boolean;
   noScaleBar?: boolean;
   noIce?: boolean;
@@ -256,6 +300,8 @@ async function getMapURLFromSvg(type: string, options: GetMapURLOptions = {}): P
   const {
     debug = false,
     noLabels = false,
+    // Default: when callers only pass noLabels (legacy mesh path), also strip icons.
+    noIcons = noLabels,
     noWater = false,
     noScaleBar = false,
     noIce = false,
@@ -304,7 +350,17 @@ async function getMapURLFromSvg(type: string, options: GetMapURLOptions = {}): P
   if (noLabels) {
     clone.select("#labels #states")?.remove();
     clone.select("#labels #burgLabels")?.remove();
+  } else if (type === "mesh") {
+    // 2D zoom culling marks out-of-range burg/state label groups with .hidden (and may have
+    // inlined display:none). A full-map 3D terrain bake must show Labels-layer content regardless
+    // of the current 2D zoom, otherwise the mesh texture looks unlabeled.
+    unhideSvgExportSubtree(clone, "#labels");
+  }
+  if (noIcons) {
     clone.select("#icons #burgIcons")?.remove();
+    clone.select("#icons #anchors")?.remove();
+  } else if (type === "mesh") {
+    unhideSvgExportSubtree(clone, "#icons");
   }
   if (noWater) {
     clone.select("#oceanBase").attr("opacity", 0);

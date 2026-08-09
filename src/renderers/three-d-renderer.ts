@@ -53,7 +53,7 @@ import {
   type DeckPath,
   type LowPolyBurgShape
 } from "./webgl/adapters/deckDataAdapters";
-import { getBurgIconStyle, getPathDashStyles, getPathPaintStyles } from "./webgl/webglStyleExtractors";
+import { getBurgIconStyle, getLabelStyle, getPathDashStyles, getPathPaintStyles } from "./webgl/webglStyleExtractors";
 
 interface ThreeDOptions {
   scale: number;
@@ -146,6 +146,12 @@ const ROUTE_SURFACE_CLEARANCE = 0.75;
 const ICONS_PER_FRAME = 24;
 const ROUTES_PER_FRAME = 12;
 const PORT_BURG_LIFT_MULTIPLIER = 3;
+/**
+ * 2D map zoom gates hide most burg groups at the default scale (capital ≥ 1.5, town ≥ 4.5, …).
+ * The viewMesh camera is a whole-map overview that does not change `viewContext.scale`, so reuse
+ * a high effective scale so settlements appear when Icons/Labels are on without requiring a 2D zoom.
+ */
+const THREE_D_SETTLEMENT_VISIBILITY_SCALE = 8;
 
 /**
  * Resolves a water vertex to its visual surface height. The grid feature is
@@ -345,7 +351,16 @@ class ThreeDModule {
       this.deleteFloatingRoutes();
       this.scheduleTerrainOverlays();
       this.updateTerrainTexture();
+      // Map Labels layer alone must not force 3D labels — only Options3d "Show 3D labels".
+      if (this.options.labels3d && !this.isSatelliteTerrainMode()) this.createLabels();
+      else this.clearLabelSprites();
     }
+  }
+
+  /** Icon styles for viewMesh: ignore low 2D zoom so settlement markers are visible on the overview. */
+  private get3dBurgIconStyle(): ReturnType<typeof getBurgIconStyle> {
+    const scale = Math.max(viewContext.scale || 1, THREE_D_SETTLEMENT_VISIBILITY_SCALE);
+    return getBurgIconStyle(worldContext, { ...viewContext, scale });
   }
 
   /** Refreshes only the terrain bitmap; layer toggles must not rebuild every 3D burg icon batch. */
@@ -373,6 +388,9 @@ class ThreeDModule {
     this.setErosionBuildPending(false);
     this.cancelTerrainOverlayBuild();
     cancelAnimationFrame(this.animationFrame);
+    this.deleteLabels();
+    this.deleteLowPolyBurgIcons();
+    this.deleteFloatingRoutes();
     if (this.texture) this.texture.dispose();
     if (this.geometry) this.geometry.dispose();
     if (this.material) this.material.dispose();
@@ -384,9 +402,6 @@ class ThreeDModule {
     this.stopWaterAnimation();
     this.erosionBakeActive = false;
     this.erosionBakeData = null;
-    this.deleteLabels();
-    this.deleteLowPolyBurgIcons();
-    this.deleteFloatingRoutes();
 
     // WebGPURenderer's dispose() already frees its internal render lists; there is no public
     // `renderLists` accessor to call separately (unlike WebGLRenderer).
@@ -477,22 +492,32 @@ class ThreeDModule {
 
     if (this.options.labels3d && !this.isSatelliteTerrainMode()) {
       this.invalidateLabelVisibilityCache();
-      if (!this.labels.length) {
-        this.createLabels();
-      } else {
-        this.setLabelsVisibility(true);
-        this.doWorkOnRender();
-      }
+      // Always rebuild so style/layer changes while labels were off are picked up. Safe now that
+      // Sprite shared geometry is never disposed (see clearLabelSprites).
+      this.createLabels();
     } else {
-      this.setLabelsVisibility(false);
+      this.clearLabelSprites();
     }
 
-    // Make label toggle feel immediate; texture refresh can happen afterward if required.
+    // Make label toggle feel immediate. Map Labels-layer flat texture is independent of this
+    // option and is not re-baked here.
     this.render();
+  }
 
-    if (this.shouldRefreshTextureAfterLabelsToggle()) {
-      this.update();
+  /**
+   * Rebuilds 3D labels when the map Labels layer changes while Options3d "Show 3D labels" is on
+   * (burg sprites follow the map layer; state sprites stay when 3D labels is enabled).
+   */
+  syncLabelsFromMapLayers(): void {
+    if (!this.options.isOn || this.isSatelliteTerrainMode()) return;
+    if (!this.options.labels3d) {
+      this.clearLabelSprites();
+      this.render();
+      return;
     }
+    this.invalidateLabelVisibilityCache();
+    this.createLabels();
+    this.render();
   }
 
   /** Shows only the floating low-poly scene objects against the existing dark scene background. */
@@ -571,11 +596,6 @@ class ThreeDModule {
     const beamVisible = this.options.sceneOnly && this.options.nightscapeBeamEnabled;
     if (this.nightscapeBeamLight) this.nightscapeBeamLight.visible = beamVisible;
     if (beamVisible) this.updateNightscapeBeam();
-  }
-
-  private shouldRefreshTextureAfterLabelsToggle(): boolean {
-    // Mesh labels are sprites and never baked into the WebGL terrain texture.
-    return false;
   }
 
   toggle3dSubdivision(): void {
@@ -765,15 +785,31 @@ class ThreeDModule {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Unable to create the 3D label canvas");
 
-    context.font = `${size * quality}px ${font}`;
-    canvas.width = Math.max(1, Math.ceil(context.measureText(text).width));
-    canvas.height = Math.max(1, Math.ceil(size * quality * 1.25));
-    // Setting canvas dimensions resets its 2D context state, including the font.
-    context.font = `${size * quality}px ${font}`;
-    context.fillStyle = color;
-    context.fillText(text, 0, size * quality);
+    // WebGPU adapters commonly cap 2D textures at 8192px; long state names at high quality
+    // (font px = size * quality) can exceed that and invalidate the entire render pass.
+    const MAX_LABEL_TEXTURE_EDGE = 2048;
+    let effectiveQuality = Math.max(1, quality);
+    let fontPx = size * effectiveQuality;
+    context.font = `${fontPx}px ${font}`;
+    let textWidth = Math.max(1, Math.ceil(context.measureText(text).width));
+    let textHeight = Math.max(1, Math.ceil(fontPx * 1.25));
+    if (textWidth > MAX_LABEL_TEXTURE_EDGE || textHeight > MAX_LABEL_TEXTURE_EDGE) {
+      const scale = Math.min(MAX_LABEL_TEXTURE_EDGE / textWidth, MAX_LABEL_TEXTURE_EDGE / textHeight, 1);
+      effectiveQuality = Math.max(1, Math.floor(effectiveQuality * scale));
+      fontPx = size * effectiveQuality;
+      context.font = `${fontPx}px ${font}`;
+      textWidth = Math.max(1, Math.ceil(context.measureText(text).width));
+      textHeight = Math.max(1, Math.ceil(fontPx * 1.25));
+    }
 
-    return this.textureToSprite(canvas, canvas.width / quality, canvas.height / quality);
+    canvas.width = Math.min(MAX_LABEL_TEXTURE_EDGE, textWidth);
+    canvas.height = Math.min(MAX_LABEL_TEXTURE_EDGE, textHeight);
+    // Setting canvas dimensions resets its 2D context state, including the font.
+    context.font = `${fontPx}px ${font}`;
+    context.fillStyle = color;
+    context.fillText(text, 0, fontPx);
+
+    return this.textureToSprite(canvas, canvas.width / effectiveQuality, canvas.height / effectiveQuality);
   }
 
   private get3dCoords(baseX: number, baseY: number): [number, number, number] {
@@ -864,11 +900,7 @@ class ThreeDModule {
       return;
     }
 
-    const symbols = buildLowPolyBurgSymbols(
-      worldContext,
-      viewContext.focusScope,
-      getBurgIconStyle(worldContext, viewContext)
-    );
+    const symbols = buildLowPolyBurgSymbols(worldContext, viewContext.focusScope, this.get3dBurgIconStyle());
     const largestPopulation = Math.max(
       1,
       ...symbols
@@ -1347,27 +1379,28 @@ class ThreeDModule {
   }
 
   private createLabels(): void {
-    this.labelBuildToken += 1;
-    const buildToken = this.labelBuildToken;
-    if (this.labelsBuildFrame !== null) {
-      cancelAnimationFrame(this.labelsBuildFrame);
-      this.labelsBuildFrame = null;
-    }
+    this.clearLabelSprites();
+    if (!this.options.labels3d || this.isSatelliteTerrainMode() || !this.scene) return;
 
+    const buildToken = this.labelBuildToken;
     this.raycaster = new THREE.Raycaster();
     this.raycaster.set(new THREE.Vector3(0, 1000, 0), new THREE.Vector3(0, -1, 0));
 
     const states = viewContext.viewbox.select("#labels #states");
+    // Use the real 2D map scale for which burg groups are "in view" for labels — not the
+    // elevated 3D icon scale — so far overview does not flood the scene with every town name.
+    const labelStyle = getLabelStyle(worldContext, viewContext);
 
     const stateOptions = {
-      font: states.attr("font-family"),
-      size: +states.attr("data-size") / 2,
-      color: states.attr("fill"),
+      font: states.attr("font-family") || labelStyle.state.fontFamily || "Almendra SC",
+      size: (+states.attr("data-size") || labelStyle.state.size * 2) / 2,
+      color: states.attr("fill") || labelStyle.state.fill || "#3e3e4b",
       elevation: 20,
-      quality: 80
+      quality: 40
     };
 
-    const labelsLayerOn = layerIsOn("toggleLabels");
+    // Options3d master switch is on; map Labels layer further gates burg names (state labels always).
+    const includeBurgLabels = layerIsOn("toggleLabels");
 
     const getBurgLabelOptions = (burg: {
       group?: string;
@@ -1380,16 +1413,26 @@ class ThreeDModule {
       quality: number;
     } | null => {
       if (!burg.group) return null;
+      // Respect 2D zoom thresholds so far view does not show every settlement label.
+      if (!labelStyle.visibleBurgGroups.has(burg.group)) return null;
 
       const labelGroup = viewContext.burgLabels.select(`#${burg.group}`);
-      if (labelGroup.empty()) return null;
+      if (!labelGroup.empty()) {
+        const font = labelGroup.attr("font-family") || "Arial";
+        const size = +labelGroup.attr("data-size") || 10;
+        const color = labelGroup.attr("fill") || "#000";
+        return { font, size, color, elevation: Math.max(5, size * 0.5), quality: 24 };
+      }
 
-      const font = labelGroup.attr("font-family") || "Arial";
-      const size = +labelGroup.attr("data-size") || 10;
-      const color = labelGroup.attr("fill") || "#000";
-
-      const elevation = Math.max(5, size * 0.5);
-      return { font, size, color, elevation, quality: 40 };
+      const style = labelStyle.burgLabels[burg.group] ?? labelStyle.burgLabels.town;
+      if (!style) return null;
+      return {
+        font: style.fontFamily || "Almendra SC",
+        size: style.size || 4,
+        color: style.fill || "#3e3e4b",
+        elevation: Math.max(5, (style.size || 4) * 0.5),
+        quality: 24
+      };
     };
 
     let burgIndex = 1;
@@ -1446,17 +1489,16 @@ class ThreeDModule {
         const burg = worldContext.pack.burgs[burgIndex++];
         if (burg.removed) continue;
 
-        const burgOptions = getBurgLabelOptions(burg);
-        if (!burgOptions) continue;
-
-        const [x, y, z] = this.get3dCoords(burg.x, burg.y);
-
-        if (labelsLayerOn) {
-          const burgSprite = this.createTextLabel({ text: burg.name ?? "", ...burgOptions }) as LabelSprite;
-          burgSprite.position.set(x, y + burgOptions.elevation, z);
-          burgSprite.size = burgOptions.size;
-          this.labels.push(burgSprite);
-          this.scene.add(burgSprite);
+        if (includeBurgLabels) {
+          const burgOptions = getBurgLabelOptions(burg);
+          if (burgOptions) {
+            const [x, y, z] = this.get3dCoords(burg.x, burg.y);
+            const burgSprite = this.createTextLabel({ text: burg.name ?? "", ...burgOptions }) as LabelSprite;
+            burgSprite.position.set(x, y + burgOptions.elevation, z);
+            burgSprite.size = burgOptions.size;
+            this.labels.push(burgSprite);
+            this.scene.add(burgSprite);
+          }
         }
 
         processed = true;
@@ -1469,11 +1511,8 @@ class ThreeDModule {
         return;
       }
 
-      if (labelsLayerOn) {
-        this.labelsBuildFrame = requestAnimationFrame(processStatesChunk);
-      } else {
-        this.labelsBuildFrame = null;
-      }
+      // State labels always when "Show 3D labels" is on (independent of map Labels for burgs).
+      this.labelsBuildFrame = requestAnimationFrame(processStatesChunk);
     };
 
     flushFrame();
@@ -1496,37 +1535,79 @@ class ThreeDModule {
     };
   }
 
-  private deleteLabels(): void {
+  private orphanedLabelResources: Array<{
+    map: THREE.Texture | null;
+    material: THREE.Material;
+  }> = [];
+  private labelDisposeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Removes label sprites from the scene. GPU textures/materials are disposed later so WebGPU does
+   * not submit command buffers that still reference destroyed resources (rapid Show 3D labels
+   * toggles previously hit "Buffer used in submit while destroyed").
+   *
+   * IMPORTANT: never dispose `sprite.geometry` — Three.js Sprites all share one module-level
+   * BufferGeometry. Disposing it permanently breaks every subsequent Sprite (and any still
+   * referenced by an in-flight WebGPU command buffer).
+   */
+  private clearLabelSprites(): void {
     this.labelBuildToken += 1;
     if (this.labelsBuildFrame !== null) {
       cancelAnimationFrame(this.labelsBuildFrame);
       this.labelsBuildFrame = null;
     }
 
-    this.raycaster = undefined;
-
-    const disposedMaterials = new Set<THREE.Material>();
-    const disposedGeometries = new Set<THREE.BufferGeometry>();
-    const disposeMaterial = (material: THREE.Material): void => {
-      if (disposedMaterials.has(material)) return;
-      disposedMaterials.add(material);
-      material.dispose();
-    };
-    const disposeGeometry = (geometry: THREE.BufferGeometry): void => {
-      if (disposedGeometries.has(geometry)) return;
-      disposedGeometries.add(geometry);
-      geometry.dispose();
-    };
-
-    for (const m of this.labels) {
-      this.scene!.remove(m);
-      (m.material as THREE.SpriteMaterial).map?.dispose();
-      disposeMaterial(m.material as THREE.Material);
-      disposeGeometry(m.geometry as THREE.BufferGeometry);
-    }
+    const doomed = this.labels;
     this.labels = [];
+    if (!doomed.length) return;
 
-    this.deleteLowPolyBurgIcons(disposeMaterial, disposeGeometry);
+    for (const m of doomed) {
+      this.scene?.remove(m);
+      m.visible = false;
+      const material = m.material as THREE.SpriteMaterial;
+      this.orphanedLabelResources.push({
+        map: material.map,
+        material
+      });
+      // Detach texture reference so a later dispose of the map is not double-held by the material
+      // while we wait — material.dispose() still owns the GPU binding until flush.
+      material.map = null;
+    }
+
+    this.scheduleOrphanedLabelDisposal();
+  }
+
+  private scheduleOrphanedLabelDisposal(): void {
+    if (this.labelDisposeTimer !== null) return;
+    // Long enough that any in-flight WebGPU render/submit from animate()/toggle has completed.
+    this.labelDisposeTimer = setTimeout(() => {
+      this.labelDisposeTimer = null;
+      this.flushOrphanedLabelResources();
+    }, 750);
+  }
+
+  private flushOrphanedLabelResources(): void {
+    const batch = this.orphanedLabelResources;
+    this.orphanedLabelResources = [];
+    for (const resource of batch) {
+      try {
+        resource.map?.dispose();
+        resource.material.dispose();
+      } catch {
+        // Ignore double-dispose races if the renderer was torn down mid-timeout.
+      }
+    }
+  }
+
+  private deleteLabels(): void {
+    this.clearLabelSprites();
+    if (this.labelDisposeTimer !== null) {
+      clearTimeout(this.labelDisposeTimer);
+      this.labelDisposeTimer = null;
+    }
+    this.flushOrphanedLabelResources();
+    this.raycaster = undefined;
+    this.deleteLowPolyBurgIcons();
   }
 
   private deleteLowPolyBurgIcons(
@@ -1571,11 +1652,21 @@ class ThreeDModule {
     // wrong GPU output, reproducing with or without the mask extension in the render). Going
     // through the browser's native SVG rasterization instead sidesteps that path entirely and is
     // pixel-correct by construction, matching what viewGlobe already relies on.
-    // Labels/burg icons are separate 3D scene objects (sprites, instanced mesh); routes are
-    // separate floating 3D lines. Baking any of them into the terrain texture too would duplicate
-    // them on screen.
-    const mapUrl = await getMapURL("mesh", { fullMap: true, noLabels: true, noRoutes: true, noScaleBar: true });
-    const maxDimension = Math.min(this.options.resolutionScale, 8192);
+    // Map Labels bake flat into the terrain bitmap when the Labels layer is on (independent of
+    // Options3d "Show 3D labels", which adds floating sprites). Icons stay out of the bake —
+    // viewMesh draws low-poly 3D icons instead. Routes are floating 3D lines.
+    const labelsLayerOn = layerIsOn("toggleLabels");
+    const mapUrl = await getMapURL("mesh", {
+      fullMap: true,
+      // Labels layer → flat terrain texture. Independent of Options3d "Show 3D labels" sprites.
+      noLabels: !labelsLayerOn,
+      // Icons stay as low-poly 3D meshes (never bake SVG icons into the terrain bitmap).
+      noIcons: true,
+      noRoutes: true,
+      noScaleBar: true
+    });
+    // Floor resolution so a stale store value of 1 does not produce a 1×1 blank texture.
+    const maxDimension = Math.max(512, Math.min(this.options.resolutionScale || 2048, 8192));
     const aspect = worldContext.graphWidth / worldContext.graphHeight;
     const width = aspect >= 1 ? maxDimension : Math.round(maxDimension * aspect);
     const height = aspect >= 1 ? Math.round(maxDimension / aspect) : maxDimension;
@@ -2089,13 +2180,14 @@ class ThreeDModule {
     prev.qz = cameraQuat.z;
     prev.qw = cameraQuat.w;
 
+    // Distance band: hide labels that are camera-stuck (too close) or unreadably small (too far).
+    // Use a wide max so the default orbit (≈640 units from origin) still keeps state labels visible.
     for (let i = 0; i < this.labels.length; i++) {
       const label = this.labels[i];
       const distSq = label.position.distanceToSquared(cameraPos);
-      const maxDist = 100 * label.size;
-      const minDist = label.size * 6;
-      const isVisible = distSq < maxDist * maxDist && distSq > minDist * minDist;
-      label.visible = isVisible;
+      const maxDist = Math.max(2500, 200 * label.size);
+      const minDist = Math.max(8, label.size * 3);
+      label.visible = distSq < maxDist * maxDist && distSq > minDist * minDist;
     }
   }
 
@@ -2249,6 +2341,8 @@ interface ThreeDAPI {
   setSun: (x: number, y: number, z: number) => void;
   setRotation: (speed: number) => void;
   toggleLabels: () => void;
+  /** Rebuild/hide 3D label sprites from map Labels layer + Options3d labels3d. */
+  syncLabelsFromMapLayers: () => void;
   toggleNightscape: () => void;
   setNightscapeBeamEnabled: (enabled: boolean) => void;
   setNightscapeBeamReversed: (reversed: boolean) => void;
