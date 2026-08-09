@@ -394,27 +394,30 @@ export class FoodProductionModule {
         }
 
         const harvest = annualHarvest * quarterWeight;
+        const cropMix = getCropMix(this.worldContext, cellId, cropGoods);
+        // A modern catalogue must not turn an unsuitable field into anonymous
+        // Grain. Legacy catalogues without crop profiles retain the aggregate
+        // Food Ledger behavior until they are migrated.
+        if (cropGoods.length > 0 && !cropMix.length) continue;
+
         const hasCellHouseholdFoodStock =
           hasRuralHouseholdFoodStock && cellId >= 0 && cellId < ruralHouseholdFoodStock.length;
+        let wholesale = harvest;
         if (!hasCellHouseholdFoodStock) {
           // Kept only for malformed legacy callers that have not gone through
           // the bootstrap migration. Normal maps always retain household stock.
-          annualMarketFoodIntake += harvest;
-          continue;
+        } else {
+          const householdTarget = rural * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
+          const householdShortfall = Math.max(0, householdTarget - ruralHouseholdFoodStock[cellId]);
+          const retainedByHouseholds = Math.min(harvest, householdShortfall);
+          ruralHouseholdFoodStock[cellId] += retainedByHouseholds;
+          wholesale -= retainedByHouseholds;
         }
-
-        const householdTarget = rural * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
-        const householdShortfall = Math.max(0, householdTarget - ruralHouseholdFoodStock[cellId]);
-        const retainedByHouseholds = Math.min(harvest, householdShortfall);
-        ruralHouseholdFoodStock[cellId] += retainedByHouseholds;
-        const wholesale = harvest - retainedByHouseholds;
         annualMarketFoodIntake += wholesale;
 
-        // Food Ledger keeps the wheat-equivalent nutritional accounting for
-        // now, while Market inventory retains the actual crop identity. This
-        // is the first seam of the Grain migration: Beer and Liquor buy Wheat,
-        // Rye, or Barley rather than an anonymous staple item.
-        for (const entry of getCropMix(this.worldContext, cellId, cropGoods)) {
+        // Food Ledger keeps wheat-equivalent nutrition, while every unit also
+        // retains a real crop identity for consumption and player trade.
+        for (const entry of cropMix) {
           cropWholesale.set(entry.good.i, (cropWholesale.get(entry.good.i) ?? 0) + wholesale * entry.share);
         }
       }

@@ -141,7 +141,7 @@ function updateStressCounters(ledger: FoodLedger, ruralShortfallRate: number, ur
  * provisions before Market fallback, prices Grain, and routes urban retail revenue to the market's treasury.
  * Called once per month from the "production.settle" command, after `Production.produce()`.
  */
-export function settleMonthlyFoodConsumption(): void {
+export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMonth()): void {
   const worldContext = getWorldContext();
   const { pack } = worldContext;
   if (!pack.burgs) return;
@@ -150,8 +150,7 @@ export function settleMonthlyFoodConsumption(): void {
   const urbanization = worldContext.urbanization ?? 1;
   const temporaryLodgersByBurg = getTemporaryLodgerPopulationPointsByBurg();
   const stapleFoodGood = getStapleFoodGood();
-  const simulationMonth = getSimulationMonth();
-  const isQuarterEnd = simulationMonth % 3 === 0;
+  const isQuarterEnd = settlementMonth % 3 === 0;
 
   for (const market of getMarkets()) {
     const ledger = market.foodLedger;
@@ -167,7 +166,14 @@ export function settleMonthlyFoodConsumption(): void {
     let urbanMonthlyNeed = 0;
     let urbanDrawn = 0;
     let urbanRevenue = 0;
-    const retailPrice = settleGrainPrice(ledger, marketBurgs, temporaryLodgersByBurg, populationRate, urbanization);
+    const retailPrice = settleGrainPrice(
+      ledger,
+      marketBurgs,
+      temporaryLodgersByBurg,
+      populationRate,
+      urbanization,
+      settlementMonth
+    );
 
     for (const burg of marketBurgs) {
       const burgId = burg.i ?? 0;
@@ -190,12 +196,17 @@ export function settleMonthlyFoodConsumption(): void {
 
     settleUrbanRevenue(market, urbanRevenue);
 
+    // exportable is a current surplus, not a quarterly snapshot. Monthly
+    // household consumption must reduce it before Goods Editor or Trade reads it.
+    const remainingStock = Math.max(0, ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2);
+    ledger.exportable = rn(Math.max(0, remainingStock - Math.max(0, ledger.urbanNeed)), 2);
+
     if (isQuarterEnd) {
       const totalUnmetNeed = Math.max(0, ruralMonthlyNeed - ruralDrawn) + Math.max(0, urbanMonthlyNeed - urbanDrawn);
       const totalNeed = ruralMonthlyNeed + urbanMonthlyNeed;
       if (totalNeed > 0 && totalUnmetNeed > 0) {
         const commonShortfallRate = minmax(totalUnmetNeed / totalNeed, 0, 1);
-        const jitter = getShortfallJitter(market.i, simulationMonth);
+        const jitter = getShortfallJitter(market.i, settlementMonth);
         const ruralShortfallRate = minmax(commonShortfallRate * jitter, 0, 1);
         const ruralUnmet = ruralMonthlyNeed * ruralShortfallRate;
         const urbanShortfallRate =
@@ -209,6 +220,7 @@ export function settleMonthlyFoodConsumption(): void {
     if (stapleFoodGood) {
       const marketGood = market.goods[stapleFoodGood.i] ?? { stock: 0, price: retailPrice };
       marketGood.price = rn(retailPrice, 2);
+      marketGood.stock = rn(ledger.exportable + Math.max(0, ledger.storageOverflow), 2);
       market.goods[stapleFoodGood.i] = marketGood;
     }
   }
@@ -225,7 +237,8 @@ function settleGrainPrice(
   marketBurgs: Burg[],
   temporaryLodgersByBurg: ReadonlyMap<number, number>,
   populationRate: number,
-  urbanization: number
+  urbanization: number,
+  simulationMonth: number
 ): number {
   const stapleFoodGood = getStapleFoodGood();
   const basePrice = stapleFoodGood?.value ?? 1;
@@ -239,7 +252,7 @@ function settleGrainPrice(
   // Rural households have their own cell-level provisions. Market price is
   // driven by the demand that normally buys from the Market: burgs and lodgers.
   const annualDemand = urbanPopulation * GROSS_FOOD_NEED;
-  const positionInQuarter = ((getSimulationMonth() - 1) % 3) + 1; // 1, 2, or 3
+  const positionInQuarter = ((simulationMonth - 1) % 3) + 1; // 1, 2, or 3
   const monthsRemainingInQuarter = 4 - positionInQuarter; // includes the current month
   const expectedRemainingDemand = (annualDemand / 12) * monthsRemainingInQuarter;
   // This quarter's production already landed at the quarter boundary (see foodProduction.ts),

@@ -805,11 +805,21 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
         throw new Error("Economy must be enabled to settle production");
       }
-      if (value !== undefined) throw new Error("economy.production.settle does not accept a payload");
+      const skipFoodConsumption =
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value) &&
+        Object.keys(value).length === 1 &&
+        (value as Record<string, unknown>).skipFoodConsumption === true;
+      if (value !== undefined && !skipFoodConsumption) {
+        throw new Error("economy.production.settle does not accept a payload");
+      }
 
       measureTickStep("production:produce", () => Production.produce());
       measureTickStep("production:innStays", () => InnStays.settleMonthly());
-      measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
+      if (!skipFoodConsumption) {
+        measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
+      }
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
       measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
@@ -1779,17 +1789,18 @@ export function init(api: ExtensionAPI): void {
   let productionDirty = false;
   let productionSettlementsDue = 0;
   let productionSettlementScheduled = false;
+  let foodSettlementsAlreadyApplied = 0;
 
   const markProductionDirty = () => {
     productionDirty = true;
   };
 
-  const runOneProductionSettlement = () => {
+  const runOneProductionSettlement = (skipFoodConsumption = false) => {
     measureTickStep("production:settle", () => {
       const commit = api.dispatchExtensionCommand({
         extensionId: ECONOMY_EXTENSION_ID,
         name: "production.settle",
-        payload: undefined
+        payload: skipFoodConsumption ? { skipFoodConsumption: true } : undefined
       });
       if (!commit) return;
       if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
@@ -1807,12 +1818,15 @@ export function init(api: ExtensionAPI): void {
       // economy dirty: it is what accrues ordinary rural/urban output and demand.
       // When only dirty (no monthly due), one settle is enough to absorb producer
       // changes; when N months are due, run N full produce/tax cycles.
-      const times = Math.max(productionSettlementsDue, productionDirty ? 1 : 0);
+      const dueSettlements = productionSettlementsDue;
+      const times = Math.max(dueSettlements, productionDirty ? 1 : 0);
+      const settlementsWithFoodAlreadyApplied = Math.min(dueSettlements, foodSettlementsAlreadyApplied);
       if (times === 0) return;
       productionSettlementsDue = 0;
       productionDirty = false;
+      foodSettlementsAlreadyApplied -= settlementsWithFoodAlreadyApplied;
 
-      for (let i = 0; i < times; i++) runOneProductionSettlement();
+      for (let i = 0; i < times; i++) runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied);
     });
   };
 
@@ -2054,29 +2068,6 @@ export function init(api: ExtensionAPI): void {
       // Trade animation redraw is owned by registerDrawLayerHook after extension.economy
       // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
 
-      daysSinceLastQuarterlyUpdate += effectiveDays;
-      if (daysSinceLastQuarterlyUpdate >= 90) {
-        const quartersPassed = Math.floor(daysSinceLastQuarterlyUpdate / 90);
-        daysSinceLastQuarterlyUpdate %= 90;
-        measureTickStep("economy:quarterlyFood", () => {
-          for (let i = 0; i < quartersPassed; i++) {
-            currentQuarterIndex = (currentQuarterIndex + 1) % 4;
-            FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
-            // generateQuarterlyLedger's applyImportCapacity() unconditionally overwrites
-            // effectiveCapacity with baseCapacity + importBonus, which is >= baseCapacity and so
-            // silently undoes the buildingStock-derived ceiling below baseCapacity that
-            // constrainEffectiveCapacity() set at the last annual reconcile (docs/plan/
-            // urban-construction-industry.md §7.2 "effectiveCapacity統合"). Re-clamping here,
-            // every quarter, keeps the construction ceiling in force between annual reconciles
-            // instead of only for the brief window right after one.
-            ConstructionOperations.constrainEffectiveCapacity();
-            UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
-            // Non-food liveAnimal demand-absorption history (§4.5) — one sample per quarter passed.
-            recordQuarterlyNonFoodDemand();
-          }
-        });
-      }
-
       measureTickStep("economy:warIntensity", () => {
         // Check which states are at war
         const states = getWorldContext().pack.states;
@@ -2126,8 +2117,6 @@ export function init(api: ExtensionAPI): void {
           }
         }
       });
-
-      daysSinceLastProduction += effectiveDays;
 
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
       let settledAdultsFromMobility = 0;
@@ -2218,10 +2207,46 @@ export function init(api: ExtensionAPI): void {
         }
       });
 
-      if (daysSinceLastProduction >= 30) {
-        const monthsDue = Math.floor(daysSinceLastProduction / 30);
-        daysSinceLastProduction %= 30;
-        productionSettlementsDue += monthsDue;
+      const monthsDue = Math.floor((daysSinceLastProduction + effectiveDays) / 30);
+      const firstSettlementMonth = (((api.simulationContext.currentMonth - monthsDue) % 12) + 12) % 12;
+      let elapsedDays = 0;
+      let settledMonths = 0;
+      let foodSettlementsThisTick = 0;
+      measureTickStep("economy:foodCalendar", () => {
+        while (elapsedDays < effectiveDays) {
+          const daysUntilMonthlySettlement = 30 - daysSinceLastProduction;
+          const daysUntilQuarterlyHarvest = 90 - daysSinceLastQuarterlyUpdate;
+          const step = Math.min(effectiveDays - elapsedDays, daysUntilMonthlySettlement, daysUntilQuarterlyHarvest);
+          daysSinceLastProduction += step;
+          daysSinceLastQuarterlyUpdate += step;
+          elapsedDays += step;
+
+          // On a shared boundary, households finish the month before the new
+          // quarter's harvest arrives. This preserves the same order for Advance
+          // Day, Month, and Year rather than overfilling storage first.
+          if (daysSinceLastProduction >= 30) {
+            daysSinceLastProduction -= 30;
+            const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
+            settleMonthlyFoodConsumption(settlementMonth);
+            settledMonths++;
+            foodSettlementsThisTick++;
+          }
+          if (daysSinceLastQuarterlyUpdate >= 90) {
+            daysSinceLastQuarterlyUpdate -= 90;
+            currentQuarterIndex = (currentQuarterIndex + 1) % 4;
+            FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
+            // A quarterly import update may raise capacity above a construction
+            // ceiling, so retain the existing post-harvest re-clamp.
+            ConstructionOperations.constrainEffectiveCapacity();
+            UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
+            recordQuarterlyNonFoodDemand();
+          }
+        }
+      });
+
+      if (settledMonths > 0) {
+        productionSettlementsDue += settledMonths;
+        foodSettlementsAlreadyApplied += foodSettlementsThisTick;
         // Queue after all synchronous simulation systems have run, so logging events from
         // Shipbuilding (same tick, economy phase after this system by lexical id) are included.
         scheduleProductionSettlement();

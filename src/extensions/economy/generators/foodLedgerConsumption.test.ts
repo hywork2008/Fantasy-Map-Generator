@@ -245,6 +245,29 @@ describe("settleMonthlyFoodConsumption", () => {
     expect(market.goods[stapleGood.i].price).toBeCloseTo(2.0, 5);
   });
 
+  it("refreshes Grain's debug stock from the post-consumption Food Ledger", () => {
+    const stapleGood = {
+      i: 1,
+      name: "Grain",
+      tags: ["food", "stapleFood"],
+      value: 1
+    } as ReturnType<typeof getGoods>[number];
+    vi.mocked(getGoods).mockReturnValue([stapleGood]);
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: { 1: { stock: 999, price: 1 } },
+      foodLedger: makeLedger({ foodStockAge0: 100, urbanNeed: 20, exportable: 999 })
+    } as Market;
+    setMarket(market);
+
+    settleMonthlyFoodConsumption(3);
+
+    expect(market.foodLedger?.exportable).toBe(80);
+    expect(market.goods[1]?.stock).toBe(80);
+  });
+
   it("only updates the stress counters at the end of a calendar quarter", () => {
     mockWorldContext.pack.burgs = [{ i: 1, market: 1, removed: false, population: 100_000, foodReserve: 0 } as any];
     const market = {

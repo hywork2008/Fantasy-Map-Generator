@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import { worldContext } from "../../hostCore";
 import { DEFAULT_QUARTERLY_WEIGHTS, FoodProduction, getGlobalQuarterlyFoodWeights } from "./foodProduction";
+import type { Good } from "./goodsGeneratorTypes";
 
 // Mock economy context
 vi.mock("../economyContext", () => ({
@@ -21,6 +23,7 @@ import {
   getCultivatedArea,
   getFarmLaborRequired,
   getFoodPotential,
+  getGoods,
   getMarketCellColumn,
   getMarkets,
   getRuralHouseholdFoodStock,
@@ -183,6 +186,39 @@ describe("FoodProduction", () => {
     // harvest is 5, so 0.3 refills the larder and only 4.7 reaches the Market.
     expect(ruralHouseholdFoodStock[0]).toBeCloseTo(4.3, 4);
     expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(4.7, 4);
+  });
+
+  it("does not create anonymous Grain when no catalogued crop is viable", () => {
+    const grain: Good = {
+      i: 1,
+      name: "Grain",
+      tags: ["food", "stapleFood"],
+      value: 1,
+      unit: "wain",
+      icon: "grain",
+      color: "#fff"
+    };
+    const wheat: Good = {
+      i: 2,
+      name: "Wheat",
+      tags: ["food", "crop", "stapleCrop"],
+      value: 1,
+      unit: "wain",
+      icon: "wheat",
+      color: "#fff",
+      crop: STAPLE_CROP_PROFILES.Wheat
+    };
+    vi.mocked(getGoods).mockReturnValue([grain, wheat]);
+    mockWorldContext.grid = { cells: { temp: new Float32Array([30, 30, 30, 30]), prec: new Float32Array(4) } };
+    mockWorldContext.biomesData = { tags: [[]] };
+    mockWorldContext.pack.cells.g = new Uint16Array([0, 1, 2, 3]);
+    mockWorldContext.pack.cells.biomeCode = new Uint8Array([0, 0, 0, 0]);
+    mockWorldContext.pack.cells.r = new Uint16Array(4);
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    expect(mockWorldContext.pack.markets[0].foodLedger.foodProduced).toBe(0);
+    expect(mockWorldContext.pack.markets[0].foodLedger.stapleCropInventories).toBeUndefined();
   });
 
   it("scales production down by the cell's state food stress instead of a permanent capacity cut", () => {
