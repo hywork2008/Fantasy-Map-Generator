@@ -1,5 +1,6 @@
 import { harvestForestStock } from "../../../generators/forestStock";
 import type { WorldContext } from "../../hostCore";
+import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
 
@@ -411,11 +412,23 @@ function calculateYieldKgPerHectare(
   );
 }
 
+const CULTURE_CROP_PREFERENCES: Record<CultureType, Partial<Record<string, number>>> = {
+  Generic: { Wheat: 1.35, Barley: 1.15, Peas: 1.25, "Broad Beans": 1.15 },
+  Hunting: { Oats: 1.35, Buckwheat: 1.45, Turnips: 1.2, Peas: 1.2 },
+  Highland: { Rye: 1.5, Oats: 1.25, Buckwheat: 1.4, Peas: 1.2 },
+  River: { Wheat: 1.45, Barley: 1.2, "Broad Beans": 1.4, Peas: 1.2 },
+  Lake: { Oats: 1.4, Barley: 1.2, Peas: 1.4, "Broad Beans": 1.25 },
+  Naval: { Wheat: 1.3, Barley: 1.25, Peas: 1.3, "Broad Beans": 1.2 },
+  Nomadic: { Millet: 1.65, Barley: 1.2, Lentils: 1.4, Chickpeas: 1.4 }
+};
+
+const MAIN_CROP_SHARE_WITH_LEGUME = 2 / 3;
+
 /**
- * Allocates an active field between cereals, pulses, and roots. The default 65/20/15 split
- * represents a three-field system: cereal winter/spring fields, a legume/green-manure field,
- * and a small root-crop share. Where a group cannot grow, suitable crops absorb its land; that
- * makes continuous cereal production possible and lets the annual soil update model its cost.
+ * Returns the cell's crop plan: exactly one cereal/root staple and one legume whenever the
+ * environment permits both. The culture type only ranks viable candidates; it never makes a
+ * climate-incompatible crop grow. Shares are a representation of the rotation plan, not a claim
+ * that every field contains both crops in the same season.
  */
 export function getCropMix(
   world: Readonly<WorldContext>,
@@ -428,33 +441,67 @@ export function getCropMix(
     .filter(candidate => candidate.suitability > 0.1);
   if (!candidates.length) return [];
 
-  const desiredShares: Record<NonNullable<Good["crop"]>["kind"], number> = {
-    cereal: 0.65,
-    legume: 0.2,
-    tuber: 0.15
-  };
-  const groups = new Map<NonNullable<Good["crop"]>["kind"], typeof candidates>();
-  for (const candidate of candidates) {
-    const kind = candidate.good.crop!.kind;
-    const group = groups.get(kind) ?? [];
-    group.push(candidate);
-    groups.set(kind, group);
-  }
+  const cultureType = getCellCultureType(world, cellId);
+  const mainCrop = selectCrop(
+    candidates.filter(candidate => candidate.good.crop!.kind !== "legume"),
+    cultureType,
+    cellId,
+    17
+  );
+  const legume = selectCrop(
+    candidates.filter(candidate => candidate.good.crop!.kind === "legume"),
+    cultureType,
+    cellId,
+    31
+  );
+  if (!mainCrop && !legume) return [];
+  if (!mainCrop) return [{ ...legume!, share: 1 }];
+  if (!legume) return [{ ...mainCrop, share: 1 }];
 
-  const availableDesired = Array.from(groups.keys()).reduce((sum, kind) => sum + desiredShares[kind], 0);
-  const entries: CropMixEntry[] = [];
-  for (const [kind, group] of groups) {
-    const groupWeight = desiredShares[kind] / availableDesired;
-    const totalSuitability = group.reduce((sum, candidate) => sum + candidate.suitability, 0);
-    for (const candidate of group) {
-      entries.push({
-        good: candidate.good,
-        suitability: candidate.suitability,
-        share: groupWeight * (candidate.suitability / totalSuitability)
-      });
-    }
-  }
-  return entries;
+  return [
+    { ...mainCrop, share: MAIN_CROP_SHARE_WITH_LEGUME },
+    { ...legume, share: 1 - MAIN_CROP_SHARE_WITH_LEGUME }
+  ];
+}
+
+function selectCrop(
+  candidates: readonly Omit<CropMixEntry, "share">[],
+  cultureType: CultureType,
+  cellId: number,
+  salt: number
+): Omit<CropMixEntry, "share"> | null {
+  if (!candidates.length) return null;
+  const preferences = CULTURE_CROP_PREFERENCES[cultureType];
+  return candidates.reduce<Omit<CropMixEntry, "share"> | null>((selected, candidate) => {
+    if (!selected) return candidate;
+    const candidateScore = getCropSelectionScore(candidate, preferences, cellId, salt);
+    const selectedScore = getCropSelectionScore(selected, preferences, cellId, salt);
+    return candidateScore > selectedScore ? candidate : selected;
+  }, null);
+}
+
+function getCropSelectionScore(
+  candidate: Omit<CropMixEntry, "share">,
+  preferences: Partial<Record<string, number>>,
+  cellId: number,
+  salt: number
+): number {
+  const culturalWeight = preferences[candidate.good.name] ?? 1;
+  // A stable, small local variation prevents every equally suited cell in one culture from
+  // displaying the same crop while keeping the result deterministic across redraws and saves.
+  const variation = 0.93 + stableCropNoise(cellId, candidate.good.i, salt) * 0.14;
+  return candidate.suitability * culturalWeight * variation;
+}
+
+function stableCropNoise(cellId: number, goodId: number, salt: number): number {
+  let hash = (cellId + 1) * 374761393 + (goodId + 1) * 668265263 + salt * 1442695041;
+  hash = (hash ^ (hash >>> 13)) * 1274126177;
+  return ((hash ^ (hash >>> 16)) >>> 0) / 0xffffffff;
+}
+
+function getCellCultureType(world: Readonly<WorldContext>, cellId: number): CultureType {
+  const cultureId = world.pack.cells.culture?.[cellId] ?? 0;
+  return world.pack.cultures?.[cultureId]?.type ?? DEFAULT_CULTURE_TYPE;
 }
 
 /** Returns 0..1 crop suitability from the catalogued climate range and the cell's soil class. */
@@ -496,14 +543,15 @@ export function advanceAgriculturalSoils(
     const previousFertility = currentFertility?.[cellId] || 1;
     const previousSalinity = currentSalinity?.[cellId] || 0;
     const mix = getCropMix(world, cellId, cropGoods);
-    const cerealShare = mix
-      .filter(entry => entry.good.crop?.kind === "cereal")
+    const mainCropShare = mix
+      .filter(entry => entry.good.crop?.kind !== "legume")
       .reduce((sum, entry) => sum + entry.share, 0);
     const legumeShare = mix
       .filter(entry => entry.good.crop?.kind === "legume")
       .reduce((sum, entry) => sum + entry.share, 0);
-    // Up to two cereal fields out of three are the normal rotation and do not exhaust soil.
-    const exhaustion = Math.max(0, cerealShare - 0.67) * 0.08;
+    // A main-crop / legume pair is the normal three-field rotation. Only a cell that cannot
+    // sustain its companion legume is forced into continuous main-crop cultivation.
+    const exhaustion = Math.max(0, mainCropShare - MAIN_CROP_SHARE_WITH_LEGUME) * 0.08;
     const restoration = legumeShare * 0.025;
     soilFertility[cellId] = Math.max(
       MIN_SOIL_FERTILITY,

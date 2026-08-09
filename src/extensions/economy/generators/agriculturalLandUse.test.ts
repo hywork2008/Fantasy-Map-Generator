@@ -202,16 +202,35 @@ describe("agricultural land use", () => {
     expect(withStateOnly.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
   });
 
-  it("uses a three-field cereal, legume, and root-crop mix without an initial soil penalty", () => {
+  it("selects one culture-weighted staple and one legume for a three-field plan without an initial soil penalty", () => {
     const world = createWorld();
     const crops = [cropGood(1, "Wheat", "cereal"), cropGood(2, "Peas", "legume"), cropGood(3, "Turnips", "tuber")];
     const mix = getCropMix(world, 1, crops);
 
-    expect(mix.reduce((sum, entry) => sum + entry.share, 0)).toBeCloseTo(1, 6);
-    expect(mix.find(entry => entry.good.name === "Wheat")?.share).toBeCloseTo(0.65, 6);
+    expect(mix).toHaveLength(2);
+    expect(mix.filter(entry => entry.good.crop?.kind === "legume")).toHaveLength(1);
+    expect(mix.filter(entry => entry.good.crop?.kind !== "legume")).toHaveLength(1);
+    expect(mix.find(entry => entry.good.name === "Wheat")?.share).toBeCloseTo(2 / 3, 6);
+    expect(mix.find(entry => entry.good.name === "Peas")?.share).toBeCloseTo(1 / 3, 6);
 
     const next = advanceAgriculturalSoils(world, crops, new Float32Array([1, 1]), new Float32Array(2));
     expect(next.soilFertility[1]).toBeGreaterThanOrEqual(1);
+  });
+
+  it("uses culture to choose among crops that are equally viable in the same cell", () => {
+    const world = createWorld();
+    world.pack.cells.culture = new Uint16Array([1, 1]);
+    world.pack.cultures = [undefined, { i: 1, type: "Nomadic" }] as never;
+    const crops = [
+      cropGood(1, "Wheat", "cereal"),
+      cropGood(2, "Millet", "cereal"),
+      cropGood(3, "Peas", "legume"),
+      cropGood(4, "Lentils", "legume")
+    ];
+
+    const mix = getCropMix(world, 1, crops);
+    expect(mix.find(entry => entry.good.crop?.kind !== "legume")?.good.name).toBe("Millet");
+    expect(mix.find(entry => entry.good.crop?.kind === "legume")?.good.name).toBe("Lentils");
   });
 
   it("depletes soil under continuous cereal cultivation and accumulates salt in irrigated desert fields", () => {
