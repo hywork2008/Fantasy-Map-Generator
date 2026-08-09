@@ -38,7 +38,7 @@ describe("resolveFoodImportNetwork", () => {
     vi.mocked(getBurgMarketLedger).mockReturnValue(undefined);
     vi.mocked(TradeSecurity.getBanditRiskPerDay).mockReturnValue(0);
     vi.mocked(Markets.customerBuyPrice).mockImplementation(price => price);
-    vi.mocked(getGoods).mockReturnValue([{ i: 1, name: "Grain", tags: ["food"], value: 1 }]);
+    vi.mocked(getGoods).mockReturnValue([{ i: 1, name: "Wheat", tags: ["food", "stapleCrop"], value: 1 }]);
   });
 
   it("uses finite surplus once, applies transit loss, and raises only the importing burg capacity", () => {
@@ -46,7 +46,7 @@ describe("resolveFoodImportNetwork", () => {
       i: 1,
       centerBurgId: 1,
       color: "",
-      goods: { 1: { stock: 0, price: 1 } },
+      goods: { 1: { stock: 100, price: 1 } },
       foodLedger: {
         foodProduced: 0,
         ruralNeed: 0,

@@ -22,6 +22,8 @@ const QUARTERS_PER_YEAR = 4;
 export interface FoodFlowEdge {
   fromMarketId: number;
   toMarketId: number;
+  /** Actual crop carried by this shipment; never the retired aggregate Grain good. */
+  goodId: number;
   /** Food loaded at the supplying market, before transit losses. */
   volume: number;
   travelDays: number;
@@ -64,7 +66,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
     return lastFoodFlows;
   }
 
-  const foodGood = getGoods().find(good => good.tags?.includes("food"));
+  const wheatGood = getGoods().find(good => good.name === "Wheat");
   const landGraph = buildLandRouteGraph(pack, {
     month: worldContext.options.month ?? 1,
     mapCoordinates: worldContext.mapCoordinates,
@@ -78,7 +80,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
 
   const importers = markets
     .filter(market => (market.foodLedger?.importNeed ?? 0) > 0)
-    .sort((left, right) => getImportPriority(right, foodGood?.i) - getImportPriority(left, foodGood?.i));
+    .sort((left, right) => getImportPriority(right, wheatGood?.i) - getImportPriority(left, wheatGood?.i));
   const flows: FoodFlowEdge[] = [];
 
   for (const importer of importers) {
@@ -95,6 +97,8 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       if (remainingNeed <= 0) break;
       const available = remainingExport.get(supplier.i) ?? 0;
       if (available <= 0) continue;
+      const exportedCrop = getExportCropGoodId(supplier);
+      if (exportedCrop === null) continue;
 
       const securityRisk = getSecurityRisk(importer, route.travelDays);
       const spoilageDecay = Math.exp(-route.travelDays / FOOD_SPOILAGE_HALF_LIFE_DAYS);
@@ -112,6 +116,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       flows.push({
         fromMarketId: supplier.i,
         toMarketId: importer.i,
+        goodId: exportedCrop,
         volume: rn(volume, 2),
         travelDays: route.travelDays,
         spoilageDecay: rn(spoilageDecay, 4),
@@ -125,6 +130,16 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
 
   lastFoodFlows = flows;
   return lastFoodFlows;
+}
+
+/** Chooses the largest actual staple-crop lot available for export. */
+function getExportCropGoodId(market: Market): number | null {
+  const candidates = getGoods()
+    .filter(good => good.tags.includes("stapleCrop"))
+    .map(good => ({ goodId: good.i, stock: market.goods[good.i]?.stock ?? 0 }))
+    .filter(candidate => candidate.stock > 0)
+    .sort((left, right) => right.stock - left.stock || left.goodId - right.goodId);
+  return candidates[0]?.goodId ?? null;
 }
 
 /** Restores normal carrying capacity when the economy is disabled or has no viable routes. */

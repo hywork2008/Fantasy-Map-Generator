@@ -249,13 +249,12 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { River: 1.2, Lake: 1.2, Nomadic: 0.5 } },
     biomeOutputByTag: { arable: 0.08, forest: 0.05 }
   },
-  // Grain remains the Food Ledger's aggregate staple commodity. The crop goods below are the
-  // local diet: their shares are calculated from active farmland, climate, and soil rather than
-  // from the old random biome-product placement.
+  // Staple crops are physical Goods. Their shares are calculated from active
+  // farmland, climate, and soil rather than random biome-product placement.
   {
     name: "Wheat",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "cereal"],
+    tags: ["food", "crop", "stapleCrop", "cereal"],
     icon: "good-grain",
     color: "#e6c56c",
     value: 1.2,
@@ -266,7 +265,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Rye",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "cereal"],
+    tags: ["food", "crop", "stapleCrop", "cereal"],
     icon: "good-grain",
     color: "#9dba60",
     value: 0.9,
@@ -277,7 +276,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Barley",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "cereal"],
+    tags: ["food", "crop", "stapleCrop", "cereal"],
     icon: "good-grain",
     color: "#d9ae4d",
     value: 0.9,
@@ -288,7 +287,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Oats",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "cereal"],
+    tags: ["food", "crop", "stapleCrop", "cereal"],
     icon: "good-grain",
     color: "#b9bd8d",
     value: 0.85,
@@ -299,7 +298,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Millet",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "cereal"],
+    tags: ["food", "crop", "stapleCrop", "cereal"],
     icon: "good-grain",
     color: "#d7c35d",
     value: 0.8,
@@ -310,7 +309,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Buckwheat",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "cereal"],
+    tags: ["food", "crop", "stapleCrop", "cereal"],
     icon: "good-grain",
     color: "#806f61",
     value: 0.95,
@@ -321,7 +320,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Peas",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "legume"],
+    tags: ["food", "crop", "stapleCrop", "legume"],
     icon: "good-grain",
     color: "#76a757",
     value: 1.1,
@@ -332,7 +331,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Broad Beans",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "legume"],
+    tags: ["food", "crop", "stapleCrop", "legume"],
     icon: "good-grain",
     color: "#b1a56b",
     value: 1.05,
@@ -343,7 +342,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Lentils",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "legume"],
+    tags: ["food", "crop", "stapleCrop", "legume"],
     icon: "good-grain",
     color: "#b58d54",
     value: 1.05,
@@ -354,7 +353,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Chickpeas",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "legume"],
+    tags: ["food", "crop", "stapleCrop", "legume"],
     icon: "good-grain",
     color: "#d3c16a",
     value: 1.1,
@@ -365,7 +364,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Turnips",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "tuber"],
+    tags: ["food", "crop", "stapleCrop", "tuber"],
     icon: "good-grain",
     color: "#e7d7b7",
     value: 0.8,
@@ -376,7 +375,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Potatoes",
     warEconomyType: "essential",
-    tags: ["food", "stapleFood", "crop", "tuber", "postMedieval"],
+    tags: ["food", "crop", "stapleCrop", "tuber", "postMedieval"],
     icon: "good-grain",
     color: "#caa56c",
     value: 0.9,
@@ -1497,7 +1496,12 @@ export const GOODS_DATA: GoodData[] = [
     value: 4,
     chance: 0,
     recipes: [
-      { Grain: 1, Barrels: 1 },
+      // Beer may use locally traded cereal crops. It must never consume the
+      // Food Ledger's abstract staple-equivalent accounting unit.
+      { Barley: 1, Barrels: 1 },
+      { Wheat: 1, Barrels: 1 },
+      { Rye: 1, Barrels: 1 },
+      { Oats: 1, Barrels: 1 },
       { Honey: 0.5, Barrels: 1 }
     ],
     unit: "barrel",
@@ -1511,11 +1515,17 @@ export const GOODS_DATA: GoodData[] = [
     value: 12,
     chance: 0,
     recipes: [
-      { Grain: 2, Wood: 1, Barrels: 0.5 },
+      { Wheat: 2, Wood: 1, Barrels: 0.5 },
+      { Rye: 2, Wood: 1, Barrels: 0.5 },
+      { Barley: 2, Wood: 1, Barrels: 0.5 },
       { Wine: 1, Wood: 1, Barrels: 0.5 },
-      { Grain: 2, Wood: 1, Ceramics: 0.25 },
+      { Wheat: 2, Wood: 1, Ceramics: 0.25 },
+      { Rye: 2, Wood: 1, Ceramics: 0.25 },
+      { Barley: 2, Wood: 1, Ceramics: 0.25 },
       { Wine: 1, Wood: 1, Ceramics: 0.25 },
-      { Grain: 2, Wood: 1, Glass: 0.25 },
+      { Wheat: 2, Wood: 1, Glass: 0.25 },
+      { Rye: 2, Wood: 1, Glass: 0.25 },
+      { Barley: 2, Wood: 1, Glass: 0.25 },
       { Wine: 1, Wood: 1, Glass: 0.25 }
     ],
     unit: "vessel",

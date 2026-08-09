@@ -105,8 +105,8 @@ describe("foodCoLoad caravan integration", () => {
     setGoods([
       {
         i: 1,
-        name: "Grain",
-        tags: ["food", "stapleFood"],
+        name: "Wheat",
+        tags: ["food", "stapleCrop", "crop", "cereal"],
         value: 2,
         color: "#cc0",
         icon: "grain",

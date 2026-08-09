@@ -11,6 +11,7 @@ import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, getStapleFoodGood } from "./foodProduction";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
+import { drawStapleCropFood } from "./stapleCropInventory";
 
 const STRESS_THRESHOLD = 0.05;
 const SEVERE_DEFICIT_THRESHOLD = 0.1;
@@ -34,6 +35,9 @@ function getShortfallJitter(marketId: number, month: number): number {
 /** Draws up to `amount` from the ledger's stock, oldest bucket first. Returns the amount actually drawn. */
 function drawFromLedgerFifo(ledger: FoodLedger, amount: number): number {
   if (amount <= 0) return 0;
+  if (ledger.stapleCropInventories && Object.keys(ledger.stapleCropInventories).length) {
+    return drawStapleCropFood(ledger, amount);
+  }
   let remaining = amount;
 
   const fromAge2 = Math.min(ledger.foodStockAge2, remaining);

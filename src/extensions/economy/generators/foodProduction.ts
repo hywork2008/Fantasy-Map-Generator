@@ -11,12 +11,14 @@ import {
   getWorldContext,
   setRuralHouseholdFoodStock
 } from "../economyContext";
+import { getCropMix } from "./agriculturalLandUse";
 import { getEconomyStartProfile } from "./economyStartMode";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
 import type { FoodLedger, Market } from "./marketTypes";
 import { markRetailInventoryDirty } from "./retailInventory";
+import { creditStapleCropHarvest, getStapleCropInventory, migrateLegacyGrainInventory } from "./stapleCropInventory";
 
 export { GROSS_FOOD_NEED } from "./foodConstants";
 
@@ -202,6 +204,7 @@ export class FoodProductionModule {
     const populationRate = this.worldContext.populationRate ?? 1000;
     const urbanization = this.worldContext.urbanization ?? 1;
     const stapleFoodGood = getStapleFoodGood();
+    const wheatGood = getGoods().find(good => good.name === "Wheat");
     const startingPrice = stapleFoodGood?.value ?? 1;
     const dailyNeedPerPerson = GROSS_FOOD_NEED / 365.2425;
     const economyProfile = getEconomyStartProfile(this.worldContext.options);
@@ -212,7 +215,10 @@ export class FoodProductionModule {
     this.seedRuralHouseholdFoodStock(markets.every(market => !market.foodLedger));
 
     for (const market of markets) {
-      if (market.foodLedger) continue;
+      if (market.foodLedger) {
+        if (wheatGood) migrateLegacyGrainInventory(market.foodLedger, wheatGood.i);
+        continue;
+      }
 
       const marketBurgs = pack.burgs.filter(b => b.i && !b.removed && b.market === market.i);
       const urbanPopulation = marketBurgs.reduce(
@@ -230,6 +236,13 @@ export class FoodProductionModule {
         foodStockAge0UnitCost: farmgateCost,
         foodStockAge1UnitCost: farmgateCost
       };
+      if (wheatGood) {
+        const wheat = getStapleCropInventory(market.foodLedger, wheatGood.i);
+        wheat.age0 = bucketSeed;
+        wheat.age1 = bucketSeed;
+        wheat.age0UnitCost = farmgateCost;
+        wheat.age1UnitCost = farmgateCost;
+      }
 
       // Seed each Burg's own working capital first: burgTreasurySum below would otherwise always be
       // 0 on a fresh map (no production cycle has run yet), collapsing the Market's derived capital
@@ -341,10 +354,12 @@ export class FoodProductionModule {
     });
     const quarterWeight = quarterlyWeights[safeQuarterIndex];
     const stapleFoodGood = getStapleFoodGood();
+    const cropGoods = getGoods().filter(good => Boolean(good.crop));
 
     for (const market of markets) {
       let ruralPopulation = 0;
       let annualMarketFoodIntake = 0;
+      const cropWholesale = new Map<number, number>();
 
       for (const cellId of pack.cells.i) {
         if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
@@ -384,7 +399,16 @@ export class FoodProductionModule {
         const householdShortfall = Math.max(0, householdTarget - ruralHouseholdFoodStock[cellId]);
         const retainedByHouseholds = Math.min(harvest, householdShortfall);
         ruralHouseholdFoodStock[cellId] += retainedByHouseholds;
-        annualMarketFoodIntake += harvest - retainedByHouseholds;
+        const wholesale = harvest - retainedByHouseholds;
+        annualMarketFoodIntake += wholesale;
+
+        // Food Ledger keeps the wheat-equivalent nutritional accounting for
+        // now, while Market inventory retains the actual crop identity. This
+        // is the first seam of the Grain migration: Beer and Liquor buy Wheat,
+        // Rye, or Barley rather than an anonymous staple item.
+        for (const entry of getCropMix(this.worldContext, cellId, cropGoods)) {
+          cropWholesale.set(entry.good.i, (cropWholesale.get(entry.good.i) ?? 0) + wholesale * entry.share);
+        }
       }
 
       const urbanPopulation = pack.burgs
@@ -411,6 +435,16 @@ export class FoodProductionModule {
       this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost);
       this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost);
       this.applyStorageCap(ledger, annualDemand);
+
+      for (const [goodId, amount] of cropWholesale) {
+        if (amount <= 0) continue;
+        const good = cropGoods.find(candidate => candidate.i === goodId);
+        if (!good) continue;
+        const marketGood = market.goods[goodId] ?? { stock: 0, price: good.value };
+        marketGood.stock = rn(marketGood.stock + amount, 2);
+        market.goods[goodId] = marketGood;
+        creditStapleCropHarvest(ledger, goodId, amount, farmgateUnitCost);
+      }
 
       const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
       const exportReserve = annualDemand * (EXPORT_RESERVE_MONTHS / 12);

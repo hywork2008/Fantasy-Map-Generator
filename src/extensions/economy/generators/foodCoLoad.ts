@@ -11,9 +11,8 @@
  */
 
 import { rn } from "../../hostUtils";
-import { getMarkets } from "../economyContext";
+import { getGoods, getMarkets } from "../economyContext";
 import { FOOD_SPOILAGE_HALF_LIFE_DAYS } from "./foodImportNetwork";
-import { getStapleFoodGood } from "./foodProduction";
 import type { Caravan, FoodLedger, Market } from "./marketTypes";
 import { markRetailInventoryDirty } from "./retailInventory";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
@@ -200,9 +199,6 @@ export function tryCoLoadFoodOntoCaravan(caravan: Caravan, options?: { distanceS
   if (caravan.sellerType !== "market" || caravan.buyerType !== "market") return 0;
   if (caravan.state !== "loading" && caravan.state !== "transit") return 0;
 
-  const staple = getStapleFoodGood();
-  if (!staple) return 0;
-
   // Already carrying food co-load — top up same payload row if free space remains.
   const planned =
     caravan.loading?.plannedCapacitySlots ??
@@ -218,6 +214,8 @@ export function tryCoLoadFoodOntoCaravan(caravan: Caravan, options?: { distanceS
   const exporter = markets.find(market => market.i === caravan.seller);
   const importer = markets.find(market => market.i === caravan.buyer);
   if (!exporter?.foodLedger || !importer?.foodLedger) return 0;
+  const staple = getExportCrop(exporter);
+  if (!staple) return 0;
 
   const cargoSlotsPerUnit = getGoodCargoSlotsPerUnit(staple);
   const unitsWanted = computeFoodCoLoadUnits({
@@ -230,8 +228,9 @@ export function tryCoLoadFoodOntoCaravan(caravan: Caravan, options?: { distanceS
 
   const drawn = drawFoodForExport(exporter.foodLedger, unitsWanted);
   if (drawn.units <= UNIT_EPSILON) return 0;
-
-  syncStapleFoodMarketStock(exporter, staple.i, staple.value);
+  const exporterStock = exporter.goods[staple.i] ?? { stock: 0, price: staple.value };
+  exporterStock.stock = rn(Math.max(0, exporterStock.stock - drawn.units), 2);
+  exporter.goods[staple.i] = exporterStock;
 
   const value = rn(drawn.units * drawn.unitCost, 2);
   const existing = caravan.payload.find(item => item.isFoodCoLoad && item.goodId === staple.i);
@@ -276,19 +275,22 @@ export function tryCoLoadFoodOntoCaravan(caravan: Caravan, options?: { distanceS
 /** Return food co-load cargo to the exporter ledger (cancel thin / abort). */
 export function restoreFoodCoLoadToOrigin(caravan: Caravan): void {
   if (caravan.sellerType !== "market") return;
-  const staple = getStapleFoodGood();
-  if (!staple) return;
   const exporter = getMarkets().find(market => market.i === caravan.seller);
   if (!exporter?.foodLedger) return;
 
   for (const item of caravan.payload) {
-    if (!item.isFoodCoLoad || item.goodId !== staple.i || item.units <= UNIT_EPSILON) continue;
+    if (!item.isFoodCoLoad || item.units <= UNIT_EPSILON) continue;
     returnFoodExportToLedger(exporter.foodLedger, item.units, item.unitCost ?? 0);
+    const good = getGoods().find(candidate => candidate.i === item.goodId);
+    if (good) {
+      const marketGood = exporter.goods[good.i] ?? { stock: 0, price: good.value };
+      marketGood.stock = rn(marketGood.stock + item.units, 2);
+      exporter.goods[good.i] = marketGood;
+    }
     item.units = 0;
     item.value = 0;
   }
 
-  syncStapleFoodMarketStock(exporter, staple.i, staple.value);
   caravan.payload = caravan.payload.filter(item => !(item.isFoodCoLoad && item.units <= UNIT_EPSILON));
   caravan.units = rn(
     caravan.payload.reduce((sum, item) => sum + item.units, 0),
@@ -306,8 +308,6 @@ export function restoreFoodCoLoadToOrigin(caravan: Caravan): void {
  */
 export function settleFoodCoLoadOnArrival(caravan: Caravan, distanceScale: number): number {
   if (caravan.buyerType !== "market") return 0;
-  const staple = getStapleFoodGood();
-  if (!staple) return 0;
   const importer = getMarkets().find(market => market.i === caravan.buyer);
   if (!importer) return 0;
   if (!importer.foodLedger) return 0;
@@ -317,10 +317,16 @@ export function settleFoodCoLoadOnArrival(caravan: Caravan, distanceScale: numbe
   let deliveredTotal = 0;
 
   for (const item of caravan.payload) {
-    if (!item.isFoodCoLoad || item.goodId !== staple.i || item.units <= UNIT_EPSILON) continue;
+    if (!item.isFoodCoLoad || item.units <= UNIT_EPSILON) continue;
     const delivered = rn(item.units * deliveredShare, 2);
     if (delivered > UNIT_EPSILON) {
       receiveFoodImport(importer.foodLedger, delivered, item.unitCost ?? 0);
+      const good = getGoods().find(candidate => candidate.i === item.goodId);
+      if (good) {
+        const marketGood = importer.goods[good.i] ?? { stock: 0, price: good.value };
+        marketGood.stock = rn(marketGood.stock + delivered, 2);
+        importer.goods[good.i] = marketGood;
+      }
       deliveredTotal += delivered;
     }
     item.units = 0;
@@ -328,8 +334,17 @@ export function settleFoodCoLoadOnArrival(caravan: Caravan, distanceScale: numbe
   }
 
   caravan.payload = caravan.payload.filter(item => !(item.isFoodCoLoad && item.units <= UNIT_EPSILON));
-  syncStapleFoodMarketStock(importer, staple.i, staple.value);
   return rn(deliveredTotal, 2);
+}
+
+/** Selects one physical staple-crop lot for a co-loaded food shipment. */
+function getExportCrop(market: Market) {
+  const candidates = getGoods()
+    .filter(good => good.tags.includes("stapleCrop"))
+    .map(good => ({ good, stock: market.goods[good.i]?.stock ?? 0 }))
+    .filter(candidate => candidate.stock > UNIT_EPSILON)
+    .sort((left, right) => right.stock - left.stock || left.good.i - right.good.i);
+  return candidates[0]?.good;
 }
 
 /** Food already left the exporter; loss writes off cargo (no destination credit). */
