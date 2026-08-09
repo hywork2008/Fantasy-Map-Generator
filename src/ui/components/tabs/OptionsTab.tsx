@@ -1,6 +1,8 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { culturesSetUsesFrontierSettlement } from "../../../generators/threatProfiles";
 import { useGenerationProgressState } from "../../../store/generationProgressState";
+import { useOptionsState } from "../../../store/optionsState";
 import { DangerSettingsTab } from "./options/DangerSettingsTab";
 import { GenerationSettingsTab } from "./options/GenerationSettingsTab";
 import { SimulationSettingsTab } from "./options/SimulationSettingsTab";
@@ -14,6 +16,9 @@ export const OptionsTab: React.FC = () => {
   const canConfigureInitialMap = useGenerationProgressState(
     state => state.isOpen && !state.isGenerating && state.isInitialGeneration
   );
+  const culturesSet = useOptionsState(state => state.culturesSet);
+  const canConfigureDanger =
+    !isMapGenerationInProgress || (canConfigureInitialMap && culturesSetUsesFrontierSettlement(culturesSet));
 
   useEffect(() => {
     if (isMapGenerationInProgress) setActiveSubTab("generation");
@@ -48,7 +53,7 @@ export const OptionsTab: React.FC = () => {
         <button
           className={`options${activeSubTab === "danger" ? " active" : ""}`}
           onClick={() => setActiveSubTab("danger")}
-          disabled={isMapGenerationInProgress}
+          disabled={!canConfigureDanger}
           type="button"
         >
           Danger

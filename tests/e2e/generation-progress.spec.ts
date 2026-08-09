@@ -35,6 +35,18 @@ test("shows the generated landscape before map completion", async ({ page }) => 
   await expect.poll(() => pageErrors).toEqual([]);
 });
 
+test("enables Danger settings during initial review for fantasy culture sets", async ({ page }) => {
+  await page.goto("/?seed=fantasy-danger-settings&width=1280&height=720");
+
+  const dangerTab = page.getByRole("button", { name: "Danger", exact: true });
+  await expect(dangerTab).toBeDisabled();
+
+  await page.locator("#culturesSet").selectOption("highFantasy");
+  await expect(dangerTab).toBeEnabled();
+  await dangerTab.click();
+  await expect(page.getByText("Danger settings:", { exact: true })).toBeVisible();
+});
+
 test("keeps generation settings available and exposes first-map setup controls", async ({ page }) => {
   await page.goto("/?seed=generation-settings&width=1280&height=720");
 
