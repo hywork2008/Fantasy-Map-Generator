@@ -16,6 +16,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
+import { isStateInActiveConflict } from "./activeConflict";
 import { recordDeaths } from "./populationLossTracker";
 
 /** Peacetime under-arms target as a share of total people. */
@@ -46,8 +47,6 @@ export const HOME_PROVINCE_LEVY_BONUS = 3;
 export const WOUNDED_RETURN_RATE = 0.1;
 /** Quality assigned to brand-new recruits (1 = veteran standing army). */
 export const GREEN_RECRUIT_QUALITY = 0.55;
-/** foodStress (0..1.5) contribution to draft efficiency penalty at max stress. */
-export const FOOD_STRESS_DRAFT_PENALTY = 0.45;
 /** supplyStrain (0..1) contribution to draft efficiency penalty at max strain. */
 export const SUPPLY_STRAIN_DRAFT_PENALTY = 0.4;
 /** How much draft efficiency also shrinks physical max levy. */
@@ -287,13 +286,13 @@ export function addCivilianMalePeople(
   return added;
 }
 
+/** Whether diplomacy currently marks this state as hostile to another state. */
 export function stateHasEnemy(state: State): boolean {
-  const dip = state.diplomacy;
-  if (!dip) return false;
-  for (let i = 0; i < dip.length; i++) {
-    if (dip[i] === "Enemy") return true;
-  }
-  return false;
+  return state.diplomacy?.includes("Enemy") ?? false;
+}
+
+export function stateHasActiveConflict(state: State): boolean {
+  return isStateInActiveConflict(state.i);
 }
 
 /** Hostile estimated power from intelligence (Nobility); 0 if unavailable. */
@@ -309,39 +308,36 @@ function hostilePowerFromIntel(state: State): number {
 }
 
 /**
- * "At war" is defined solely by Enemy diplomacy (see stateHasEnemy) — state.alert is a static,
- * generation-time political-tension scalar (manually editable in Military Overview), not a live
- * war signal, and treating it as one left aggressive-but-peaceful states permanently pinned to
- * wartime mobilization targets with demobilization never kicking in.
+ * Active conflict is policy-aware; historical Enemy relations and state.alert are not live war
+ * signals, so they cannot pin a peaceful state to wartime mobilisation targets.
  */
 export function getTargetMobilizationRatio(state: State): number {
-  if (!stateHasEnemy(state)) return PEACE_TARGET_MOBILIZATION;
+  if (!stateHasActiveConflict(state)) return PEACE_TARGET_MOBILIZATION;
   const outnumbered = hostilePowerFromIntel(state) > currentLandTroops(state);
   return outnumbered ? WAR_TARGET_MOBILIZATION : (PEACE_TARGET_MOBILIZATION + WAR_TARGET_MOBILIZATION) / 2;
 }
 
 export function getMaxLevyRate(state: State): number {
   let base: number;
-  if (!stateHasEnemy(state)) {
+  if (!stateHasActiveConflict(state)) {
     base = MAX_LEVY_OF_MALE_ADULTS;
   } else if (hostilePowerFromIntel(state) > currentLandTroops(state)) {
     base = WAR_MAX_LEVY_OF_MALE_ADULTS;
   } else {
     base = (MAX_LEVY_OF_MALE_ADULTS + WAR_MAX_LEVY_OF_MALE_ADULTS) / 2;
   }
-  // Supply/food stress trims how hard a state can push its male pool
+  // Supply strain trims how hard a state can push its male pool.
   const eff = getDraftEfficiency(state);
   return base * (1 - DRAFT_EFFICIENCY_ON_MAX_LEVY * (1 - eff));
 }
 
 /**
  * 0..1 how well the state can equip and feed new levies.
- * Combines foodStress (agriculture) and supplyStrain (Economy war logistics when set).
+ * Derived from Economy's wartime supply logistics.
  */
 export function getDraftEfficiency(state: State): number {
-  const food = Math.min(1, (state.foodStress ?? 0) / 1.5);
   const supply = Math.min(1, Math.max(0, state.supplyStrain ?? 0));
-  const penalty = FOOD_STRESS_DRAFT_PENALTY * food + SUPPLY_STRAIN_DRAFT_PENALTY * supply;
+  const penalty = SUPPLY_STRAIN_DRAFT_PENALTY * supply;
   return Math.max(0.15, 1 - penalty);
 }
 
@@ -355,7 +351,7 @@ export function regimentQualityMultiplier(regiment: MilitaryRegiment): number {
 
 /**
  * Effective troop ceiling: min(population policy target, male physical cap including men already under arms).
- * Policy target is also scaled by draft efficiency (harder to *raise* ceilings under famine/war strain).
+ * Policy target is also scaled by draft efficiency (harder to *raise* ceilings under supply strain).
  */
 export function effectiveTroopTarget(
   pack: PackedGraph,
@@ -438,7 +434,7 @@ export function tickManpower(
 
     const target = effectiveTroopTarget(pack, state, populationRate);
     let capacity = currentLandCapacity(state);
-    const atWar = stateHasEnemy(state);
+    const atWar = stateHasActiveConflict(state);
 
     if (capacity < target) {
       const growth = (target - capacity) * ANNUAL_DRAFT_SHARE * deltaYears;

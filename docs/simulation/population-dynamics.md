@@ -36,7 +36,6 @@ FMGのコアエンジンがバイオームや地形から算出する初期人�
 
 > **実装済み連携**: 兵力台帳（民間男 ↔ 在営）・徴兵/補充・戦死者 Overview 集計は
 > `docs/plan/military/manpower-ecosystem.md` と `src/generators/manpower.ts`。  
-> 春／秋の戦争→食料不足→餓死は同ドキュメント §18（`foodStress` / `agriculturalStress.ts`）。  
 > 生成時の戦傷（`applyHistoricalWarScars`）は民間 male に加え、manpower ON 時は陸上連隊も同率で縮小する。
 
 ### 3.3 出生と自然死（ロジスティック成長）

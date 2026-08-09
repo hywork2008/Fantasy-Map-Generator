@@ -130,7 +130,6 @@ describe("timeEngine simulation system registration (P2-7)", () => {
     useOptionsState.setState({
       simDemographics: false,
       simManpower: false,
-      simAgriculture: false,
       simMilitaryRecovery: false
     });
     const generate = vi.spyOn(Routes, "generate").mockImplementation(() => {});

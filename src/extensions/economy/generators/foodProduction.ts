@@ -1,4 +1,3 @@
-import { foodStressProductionMultiplier } from "../../hostCore";
 import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
 import {
   getCultivableArea,
@@ -380,8 +379,6 @@ export class FoodProductionModule {
 
         const rural = pack.cells.pop[cellId] * populationRate;
         ruralPopulation += rural;
-        const stateId = pack.cells.state?.[cellId] ?? 0;
-        const productivityModifier = foodStressProductionMultiplier(stateId);
         let annualHarvest = 0;
         if (hasAgriculturalLandUse) {
           const landCoverage =
@@ -389,14 +386,14 @@ export class FoodProductionModule {
           // cultivatedArea is the active, maintained field area. Farm-labour
           // columns are used by the employment model, but are not a second
           // production gate: ordinary burg cells reserve their own fields too.
-          annualHarvest = foodPotential[cellId] * landCoverage * productivityModifier;
+          annualHarvest = foodPotential[cellId] * landCoverage;
         } else {
           // Compatibility path for tests and maps created before the agricultural
           // columns exist. New economy generation always takes the land-use path.
           const capacity = pack.cells.capacity[cellId] * populationRate;
           const saturation = capacity > 0 ? rural / capacity : 0;
           const cultivation = minmax(0.25 + 0.75 * saturation, 0.25, 1);
-          annualHarvest = capacity * GROSS_FOOD_NEED * cultivation * productivityModifier;
+          annualHarvest = capacity * GROSS_FOOD_NEED * cultivation;
         }
 
         const harvest = annualHarvest * quarterWeight;

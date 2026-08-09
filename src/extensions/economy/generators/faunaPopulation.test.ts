@@ -374,7 +374,6 @@ describe("faunaPopulation", () => {
     it("weights wild selectivity toward selective for a Hunting culture at peacetime", () => {
       forestCellWorld();
       worldContext.pack.cultures = [{ i: 0, type: "Hunting" }] as never;
-      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
       const huntingSelectivity = getWildCullSelectivity(0);
 
       worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
@@ -383,35 +382,15 @@ describe("faunaPopulation", () => {
       expect(huntingSelectivity).toBeGreaterThan(genericSelectivity);
     });
 
-    it("pulls wild selectivity toward indiscriminate under food-stress crisis", () => {
+    it("defaults domesticated culling to selective", () => {
       forestCellWorld();
-      worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
-      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
-      const peacetime = getWildCullSelectivity(0);
-
-      worldContext.pack.states = [{ i: 0, foodStress: 1.5 }] as never; // max stress
-      const crisis = getWildCullSelectivity(0);
-
-      expect(crisis).toBeLessThan(peacetime);
-    });
-
-    it("defaults domesticated culling to selective, still pulled by crisis", () => {
-      forestCellWorld();
-      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
-      const peacetime = getDomesticatedCullSelectivity(0);
-      expect(peacetime).toBeGreaterThan(0.5);
-
-      worldContext.pack.states = [{ i: 0, foodStress: 1.5 }] as never;
-      const crisis = getDomesticatedCullSelectivity(0);
-      expect(crisis).toBeLessThan(peacetime);
+      expect(getDomesticatedCullSelectivity(0)).toBeGreaterThan(0.5);
     });
 
     it("draws from old-then-breeding-then-young preferentially when selectivity is high", () => {
       forestCellWorld();
       worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
       worldContext.pack.cultures = [{ i: 0, type: "Hunting" }] as never; // high selectivity
-      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
-
       const table = getOrCreateFaunaStockTable()!;
       table[`0:${WILD_SPECIES_KEY}`] = { young: 10, breeding: 10, old: 10 };
 

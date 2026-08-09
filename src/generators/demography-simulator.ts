@@ -2,7 +2,6 @@ import type { SimulationContext } from "../context/simulationContext";
 import { simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
-import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { getBirthFloorProvider } from "./birthModifiers";
 import { Burgs } from "./burgs-generator";
 import {
@@ -57,7 +56,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
   if (deltaYears <= 0) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
 
-  const { demographicBirthRate, demographicChildMortalityRate, simAgriculture } = useOptionsState.getState();
+  const { demographicBirthRate, demographicChildMortalityRate } = useOptionsState.getState();
   const baseGrowthRate = demographicBirthRate;
   const populationRate = worldContext.populationRate || 1;
   /** Batch natural/famine point losses per state, convert once to people. */
@@ -228,11 +227,6 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     burg.demographics.femaleAdults = femaleAdults;
     burg.demographics.elders = elders;
     burg.population = newPop;
-  }
-
-  // Food disruption from fighting in planting/harvest seasons (records famine deaths itself)
-  if (simAgriculture) {
-    applyFoodStressToDemographics(pack, deltaYears);
   }
 
   // Burgs are service centres, not a direct rendering of every populated cell.

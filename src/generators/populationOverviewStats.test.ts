@@ -51,8 +51,7 @@ function makePack(): PackedGraph {
     culture: 1,
     coa: null,
     color: "#f00",
-    military: [regiment],
-    foodStress: 0.4
+    military: [regiment]
   };
   return {
     cells,
@@ -79,7 +78,6 @@ describe("collectLivingStatsByState", () => {
     expect(r.civilianFemale).toBeCloseTo(38_000); // 23+12+3
     expect(r.elders).toBeCloseTo(23_000); // 15+7+1
     expect(r.mobilizationPct).toBeCloseTo((1000 / 161_000) * 100, 5);
-    expect(r.foodStress).toBeCloseTo(0.4);
     // adult male % includes under arms
     const adultMalePct = ((35_000 + 1000) / (35_000 + 1000 + 38_000)) * 100;
     expect(r.adultMalePct).toBeCloseTo(adultMalePct, 5);

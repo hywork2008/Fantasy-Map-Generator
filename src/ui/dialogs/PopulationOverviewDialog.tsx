@@ -335,15 +335,6 @@ export const PopulationOverviewDialog: React.FC = () => {
                     tip="Adult male share including under arms (low ≈ widow skew)"
                   />
                   <SortableHeader
-                    label="Food"
-                    field="foodStress"
-                    sortBy={sortBy}
-                    sortOrder={sortOrder}
-                    onSort={toggleSortBy}
-                    numeric
-                    tip="Agricultural food stress 0–1.5 from spring/autumn war disruption"
-                  />
-                  <SortableHeader
                     label="Supply"
                     field="supplyStrain"
                     sortBy={sortBy}
@@ -359,7 +350,7 @@ export const PopulationOverviewDialog: React.FC = () => {
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="How well the state can equip/feed new levies (food + supply)"
+                    tip="How well the state can equip and supply new levies"
                   />
                   <SortableHeader
                     label="Qual"
@@ -400,7 +391,6 @@ export const PopulationOverviewDialog: React.FC = () => {
                     <td className="total">{fmt(r.elders)}</td>
                     <td className="total">{fmtPct(r.mobilizationPct)}</td>
                     <td className="total">{fmtPct(r.adultMalePct)}</td>
-                    <td className="total">{rn(r.foodStress, 2)}</td>
                     <td className="total">{rn(r.supplyStrain, 2)}</td>
                     <td className="total">{fmtPct(r.draftEfficiency * 100)}</td>
                     <td className="total">{rn(r.meanQuality, 2)}</td>

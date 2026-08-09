@@ -1,7 +1,6 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
-import { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../../hostCore";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,
@@ -483,11 +482,10 @@ export class MarketsModule {
     this.applyRuralTotals(index.standard);
 
     for (const [marketId, totalsByState] of index.food) {
-      for (const [stateId, totalsByCollectionBurg] of totalsByState) {
-        const multiplier = foodStressProductionMultiplier(stateId);
+      for (const totalsByCollectionBurg of totalsByState.values()) {
         for (const [collectionBurgId, totals] of totalsByCollectionBurg) {
           for (const [goodId, monthlyTotals] of totals) {
-            this.addRuralOutput(marketId, collectionBurgId, goodId, monthlyTotals[monthIndex] * multiplier);
+            this.addRuralOutput(marketId, collectionBurgId, goodId, monthlyTotals[monthIndex]);
           }
         }
       }
@@ -1503,14 +1501,9 @@ export class MarketsModule {
       return 1;
     }
 
-    const burg = this.worldContext.pack.burgs[burgId];
-    const stateId = burg?.state ?? 0;
-    const isFoodRelated = good.tags?.includes("food") || good.warEconomyType === "essential";
-    const foodStressMod = isFoodRelated ? foodStressPriceMultiplier(stateId) : 1;
-
     const intensity = ledger.warIntensity || 0;
     if (intensity === 0) {
-      return foodStressMod;
+      return 1;
     }
 
     const durationTicks = ledger.warDurationTicks || 0;
@@ -1523,7 +1516,7 @@ export class MarketsModule {
     }
 
     if (!warType) {
-      return foodStressMod;
+      return 1;
     }
 
     let baseMultiplier = 0;
@@ -1543,12 +1536,11 @@ export class MarketsModule {
         return luxuryMod; // food stress does not apply to luxuries
       }
       default:
-        return foodStressMod;
+        return 1;
     }
 
     const warMod = 1 + baseMultiplier * intensity * (1 + durationFactor);
-    // essential (and food-tagged goods using essential) get agricultural shock on top of war heat
-    return warType === "essential" || good.tags?.includes("food") ? warMod * foodStressMod : warMod;
+    return warMod;
   }
 
   customerBuyPrice(midPrice: number, burgId?: number, goodId?: number): number {

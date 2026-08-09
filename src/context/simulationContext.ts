@@ -43,11 +43,6 @@ export interface StateSimulationState {
   tributeRate?: number;
   tributePaid?: number;
   manpowerReconciled?: boolean;
-  foodStress?: number;
-  plantingExposure?: number;
-  harvestExposure?: number;
-  agricultureCarryOver?: number;
-  agricultureYear?: number;
   supplyStrain?: number;
   foodStock?: number;
 }

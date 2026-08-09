@@ -187,20 +187,6 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
-          <tr data-tip="Spring/autumn war hurts planting/harvest → foodStress → famine deaths and (with Economy) food prices/production">
-            <td />
-            <td>
-              <label htmlFor="simAgriculture">Agriculture / famine</label>
-            </td>
-            <td colSpan={2}>
-              <input
-                id="simAgriculture"
-                type="checkbox"
-                checked={options.simAgriculture}
-                onChange={e => updateOption("simAgriculture", e.target.checked)}
-              />
-            </td>
-          </tr>
           <tr data-tip="Independent: each settlement grows toward its own capacity via births only, no deliberate labor movement. Megacity: rural cells also release labor-safety-margined surplus adults once a year toward nearby cities (requires Economy enabled).">
             <td />
             <td>

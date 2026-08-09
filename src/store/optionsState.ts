@@ -123,8 +123,6 @@ export interface OptionsState {
   simDemographics: boolean;
   /** Male civilian ↔ under-arms ledger, draft/fill/demobilize, combat loss bookkeeping. */
   simManpower: boolean;
-  /** Spring/autumn war → foodStress → famine deaths (+ Economy multipliers when enabled). */
-  simAgriculture: boolean;
   /** Regiment a→t recovery / dead-regiment cleanup (uses manpower pool when simManpower). */
   simMilitaryRecovery: boolean;
   /**
@@ -323,7 +321,6 @@ export const useOptionsState = create<OptionsState>(set => ({
   silverToCopperRate: DEFAULT_SILVER_TO_COPPER_RATE,
   simDemographics: true,
   simManpower: true,
-  simAgriculture: true,
   simMilitaryRecovery: true,
   ruralUrbanMigration: "independent",
   femaleLevyEnabled: false,

@@ -1985,7 +1985,7 @@ export const GOODS_DATA: GoodData[] = [
     // farms) found a trained handler+dogs team musters up to 2,000 sheep or 500 cattle, replacing at
     // least one full-time stockperson. Not yet wired to that mechanic; today Dogs is a live good like
     // Cats, produced/traded/stocked but with no active consumer.
-    tags: ["liveAnimal", "herding"],
+    tags: ["liveAnimal", "herding", "hunting"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#a97142",

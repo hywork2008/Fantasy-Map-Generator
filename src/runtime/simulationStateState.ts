@@ -19,11 +19,6 @@ export const SIMULATION_STATE_FIELDS: readonly StateSimulationField[] = [
   "tributeRate",
   "tributePaid",
   "manpowerReconciled",
-  "foodStress",
-  "plantingExposure",
-  "harvestExposure",
-  "agricultureCarryOver",
-  "agricultureYear",
   "supplyStrain",
   "foodStock"
 ];

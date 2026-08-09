@@ -44,7 +44,6 @@ function installMinimalWorld(): void {
   useOptionsState.setState({
     simDemographics: false,
     simManpower: false,
-    simAgriculture: false,
     simMilitaryRecovery: false
   });
 

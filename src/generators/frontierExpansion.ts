@@ -188,7 +188,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
   }
 
   for (const state of world.pack.states ?? []) {
-    if (!state?.i || state.removed || isAtWar(state) || hasSeriousFoodStress(state.foodStress)) continue;
+    if (!state?.i || state.removed || isAtWar(state)) continue;
 
     const slots = getFrontierProjectSlots(state.i, cells);
     let activeProjects = getActiveProjectCount(frontier, state.i);
@@ -428,7 +428,7 @@ function getFrontierApplicantPoolTotal(frontier: FrontierSimulationState, stateI
 }
 
 function getStateStartBlocker(
-  state: { treasury?: number; foodStress?: number; diplomacy?: unknown },
+  state: { treasury?: number; diplomacy?: unknown },
   simulation: SimulationContext,
   stateId: number,
   cells: WorldContext["pack"]["cells"],
@@ -438,7 +438,6 @@ function getStateStartBlocker(
   const slots = getFrontierProjectSlots(stateId, cells);
   if (activeProjects >= slots) return `All ${slots} frontier slots are active`;
   if (isAtWar(state)) return "At war";
-  if (hasSeriousFoodStress(state.foodStress)) return "Severe food stress";
   const priorBudget = simulation.frontier.budgetByState[stateId] ?? 0;
   const requiredReserve = (activeProjects + 1) * (TREASURY_RESERVE + SETUP_COST);
   if (priorBudget < requiredReserve) return `Treasury reserve ${priorBudget.toFixed(0)} / ${requiredReserve}`;
@@ -623,10 +622,6 @@ function getFrontierSector(
 
 function isAtWar(state: { diplomacy?: unknown } | undefined): boolean {
   return Array.isArray(state?.diplomacy) && state.diplomacy.includes("Enemy");
-}
-
-function hasSeriousFoodStress(foodStress: number | undefined): boolean {
-  return typeof foodStress === "number" && foodStress >= 0.75;
 }
 
 function consumeFood(state: { foodStock?: number }, amount: number): void {

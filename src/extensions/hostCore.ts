@@ -4,7 +4,7 @@ export type { IntelligenceReport, StrategicGoal } from "../context/simulationCon
 export { addFrontierApplicants, simulationContext } from "../context/simulationContext";
 export type { WorldContext } from "../context/worldContext";
 export { worldContext } from "../context/worldContext";
-export { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../generators/agriculturalStress";
+export { isStateInActiveConflict } from "../generators/activeConflict";
 export { Burgs } from "../generators/burgs-generator";
 export { getBurgDemographics, getCellDemographics, setCellDemographics } from "../generators/demographicTransfer";
 export { applyDemographicCasualties, CHILD_COHORT_YEARS } from "../generators/demography-simulator";
@@ -21,6 +21,7 @@ export {
   isManpowerSimEnabled,
   PEACE_TARGET_MOBILIZATION,
   regimentQualityMultiplier,
+  stateHasActiveConflict,
   stateHasEnemy,
   WAR_TARGET_MOBILIZATION
 } from "../generators/manpower";

@@ -26,8 +26,7 @@ describe("simulateDemographics birth floor (PR-P2)", () => {
   beforeEach(() => {
     useOptionsState.setState({
       demographicBirthRate: 0.25,
-      demographicChildMortalityRate: 0,
-      simAgriculture: false
+      demographicChildMortalityRate: 0
     });
     worldContext.populationRate = 1;
     worldContext.pack = {

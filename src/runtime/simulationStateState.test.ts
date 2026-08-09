@@ -24,7 +24,6 @@ function createWorld(): WorldContext {
           salesTax: 0.12,
           pollTax: 0.04,
           treasury: 90,
-          foodStress: 0.5,
           manpowerReconciled: true
         }
       ]
@@ -58,7 +57,7 @@ describe("simulation state compatibility adapter", () => {
 
     bindSimulationStateState(world, simulation);
 
-    expect(simulation.states[1]).toMatchObject({ treasury: 90, foodStress: 0.5, manpowerReconciled: true });
+    expect(simulation.states[1]).toMatchObject({ treasury: 90, manpowerReconciled: true });
     expect(Object.getOwnPropertyDescriptor(world.pack.states[1], "treasury")?.get).toBeTypeOf("function");
 
     world.pack.states[1].treasury = 125;
@@ -89,7 +88,7 @@ describe("simulation state compatibility adapter", () => {
     bindSimulationStateState(world, simulation);
 
     expect(simulation.states[1].treasury).toBe(90);
-    expect(world.pack.states[1].foodStress).toBe(0.5);
+    expect(world.pack.states[1].treasury).toBe(90);
   });
 
   it("projects a new or replaced state record without rebinding the full map", () => {

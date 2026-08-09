@@ -32,13 +32,11 @@ export interface StateLivingStats {
    * High values ≈ male-heavy (garrison/draft); low ≈ widow-skewed.
    */
   adultMalePct: number;
-  /** Current food disruption 0–~1.5 if present on state. */
-  foodStress: number;
   /** 0..1 wartime supply strain (Economy warIntensity rollup). */
   supplyStrain: number;
   /** Mean land regiment quality 0..1 when recruit quality is tracked. */
   meanQuality: number;
-  /** Draft efficiency 0..1 (food + supply). */
+  /** Draft efficiency 0..1 from wartime supply strain. */
   draftEfficiency: number;
 }
 
@@ -132,7 +130,6 @@ export function collectLivingStatsByState(
       elders,
       mobilizationPct,
       adultMalePct,
-      foodStress: state.foodStress ?? 0,
       supplyStrain: state.supplyStrain ?? 0,
       meanQuality: qN > 0 ? qSum / qN : 1,
       draftEfficiency: getDraftEfficiency(state)

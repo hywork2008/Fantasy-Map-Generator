@@ -61,7 +61,7 @@ actualFoodProduced = foodPotential
 - `cellAgriculturalModifier`: 開墾、水利、土壌疲弊、局地災害による**セル単位**の動的生産性。v1は全セルで`1.0`とする。
 - 実装では両者の積を`foodProductivityModifier[cell]`として持てる。`foodPotential`自身は人口・国家技術で正規化しない。
 - **2026-07-31 追記**: `cellAgriculturalModifier`のうち「Tools(鉄製農具)普及・役畜」由来の技術要因は[rural-agtech-investment.md](../plan/rural-agtech-investment.md)で実装した。ただし同設計は`yieldPerArea`側の乗数（§3.1式の`baseAgriculturalTechnology`相当）として`agriculturalLandUse.ts`内に直接織り込む形を取り、本節が定義する`actualFoodProduced`側の別係数としては実装しない（二重計上を避けるため）。
-- **2026-07-31 追記(Phase 2)**: `stateAgriculturalProductivity`のうち「技術・灌漑投資」要因も同設計の§6.1で実装した(同じく`yieldPerArea`側の乗数として)。「統治制度」要因は未実装、「治安」要因は既存の`foodStressProductionMultiplier(stateId)`が担う。
+- **2026-07-31 追記(Phase 2)**: `stateAgriculturalProductivity`のうち「技術・灌漑投資」要因も同設計の§6.1で実装した(同じく`yieldPerArea`側の乗数として)。「統治制度」要因は未実装。
 - `cultivatedAreaCoverage = cultivatedArea / cultivableArea`: 開墾可能な全面積のうち、当期に実際に作付けている割合。
 - `farmLaborRequired` は、作付面積を維持するために必要な成人数を示し、雇用・移住の計算に使う。`cultivatedArea` はすでに維持されている畑を表すため、Goods 表示および Food Ledger で労働力による二重の生産減衰は行わない。
 
@@ -69,9 +69,7 @@ actualFoodProduced = foodPotential
 
 国家係数は各期にセルの現在の領有Stateから読む。領土移転後は次期の生産から新しい国家係数を適用するが、征服前から残る灌漑・開墾・土壌改良などはState係数に含めず、将来の`cellAgriculturalModifier`として保持する。
 
-戦争期の播種・収穫妨害から得る既存State `foodStress`は、`cells.capacity`やBurg容量を恒久的に削らず、翌年の国家生産性へ`max(0.15, 1 - 0.65 × foodStress)`として一時的に掛ける。恒久的な荒廃は将来のセル局地係数に分離する。
-
-Food Ledgerが有効な間は、同じ`foodStress`から既存のState一括飢餓死亡を別に適用しない。Food Ledgerが農村・都市別の実不足から死亡を一度だけ算出し、既存の人口損失集計へ`famine`として記録する。Population OverviewはState別、無所属は無所属枠へ集計し、文化別の死亡統計は追加しない。economy無効時は従来の直接処理を維持する。
+戦時は、生産量を一律に減らしたり State 単位の飢餓死亡を加えたりしない。実際に進行中の紛争だけが市場の戦時係数を通じて食料価格を上昇させる。恒久的な荒廃を扱う場合は、将来のセル局地係数に分離する。
 
 Food Ledgerの飢餓死亡総数は、文化ごとの食料配分規範を表す`FamineMortalityWeights`で子供・男女成人・高齢者へ割り振る。未設定文化は子供`1.3`、男女成人各`1.0`、高齢者`1.2`を既定の相対比とし、居住地の実際の年齢構成で正規化する。これにより、文化によって子供または老人を優先する配給を後から設定できる。文化はこの内部配分にだけ使い、死亡統計は文化別に保持しない。
 

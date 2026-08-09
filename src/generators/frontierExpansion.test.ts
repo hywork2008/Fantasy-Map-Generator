@@ -38,7 +38,7 @@ function createWorld(treasury = 100): WorldContext {
         burg: new Uint16Array([0, 0]),
         routes: { 0: { 1: 0 }, 1: { 0: 0 } }
       },
-      states: [{ i: 0 }, { i: 1, treasury, foodStress: 0, removed: false }],
+      states: [{ i: 0 }, { i: 1, treasury, removed: false }],
       burgs: [],
       provinces: [0]
     }
@@ -132,18 +132,6 @@ describe("Frontier Expansion Phase 3", () => {
     expect(world.pack.cells.pop[1]).toBe(0);
     expect(world.pack.cells.state[1]).toBe(0);
     expect(world.pack.cells.province[1]).toBe(0);
-  });
-
-  it("does not start a project during severe food stress", () => {
-    const world = createWorld();
-    world.pack.states[1]!.foodStress = 0.75;
-    const simulation = createSimulation(100);
-
-    const result = advance(world, simulation);
-
-    expect(result.established).toEqual([]);
-    expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.wilderness);
-    expect(world.pack.cells.pop[0]).toBe(100);
   });
 
   it("uses local carrying capacity when the economy market snapshot reports no food stock", () => {

@@ -40,7 +40,6 @@
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import type { BiomeTag } from "../../../types/biome";
 import type { BiomesData } from "../../../types/WorldState";
-import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import {
   getCaravans,
@@ -135,11 +134,8 @@ const MIN_SELECTIVITY = 0.1;
 /** Wild culling selectivity (§4.4): Hunting culture is a trained professional class. */
 const HUNTING_CULTURE_SELECTIVITY_PEACETIME = 0.9;
 const GENERAL_CULTURE_SELECTIVITY_PEACETIME = 0.6;
-const HUNTING_CULTURE_CRISIS_PULL = 0.3;
-const GENERAL_CULTURE_CRISIS_PULL = 0.6;
 /** Domesticated culling selectivity (§4.4): routine husbandry culls old/unproductive stock first. */
 const DOMESTICATED_SELECTIVITY_PEACETIME = 0.85;
-const DOMESTICATED_CRISIS_PULL = 0.5;
 
 interface FaunaSpeciesProfile {
   /** Young produced per breeding individual per year, before the logistic carrying-capacity cap. */
@@ -397,25 +393,17 @@ function getCellCultureType(cellId: number): string {
   return (burgId ? world.pack.burgs?.[burgId]?.type : world.pack.cultures?.[cultureId]?.type) ?? DEFAULT_CULTURE_TYPE;
 }
 
-function getCrisisStress(cellId: number): number {
-  const stateId = getWorldContext().pack.cells.state?.[cellId] ?? 0;
-  return 1 - foodStressProductionMultiplier(stateId);
-}
-
 /** 0 (fully indiscriminate) .. 1 (fully old-first-selective) draw weighting for wild hunting. */
 export function getWildCullSelectivity(cellId: number): number {
   const isHunting = getCellCultureType(cellId) === "Hunting";
   const base = isHunting ? HUNTING_CULTURE_SELECTIVITY_PEACETIME : GENERAL_CULTURE_SELECTIVITY_PEACETIME;
-  const crisisPull = isHunting ? HUNTING_CULTURE_CRISIS_PULL : GENERAL_CULTURE_CRISIS_PULL;
-  return Math.max(MIN_SELECTIVITY, base - getCrisisStress(cellId) * crisisPull);
+  return Math.max(MIN_SELECTIVITY, base);
 }
 
 /** Same idea for domesticated herds — routine husbandry defaults more selective than wild hunting. */
 export function getDomesticatedCullSelectivity(cellId: number): number {
-  return Math.max(
-    MIN_SELECTIVITY,
-    DOMESTICATED_SELECTIVITY_PEACETIME - getCrisisStress(cellId) * DOMESTICATED_CRISIS_PULL
-  );
+  void cellId;
+  return Math.max(MIN_SELECTIVITY, DOMESTICATED_SELECTIVITY_PEACETIME);
 }
 
 /**

@@ -29,7 +29,6 @@ import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
-import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
 import { advanceDungeonEcology } from "./dungeonEcology";
 import { advanceFrontierExpansion } from "./frontierExpansion";
@@ -650,20 +649,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   // Rolling death tallies (Population Overview) — advance clock before deaths are recorded this tick
   advancePopulationLossClock(effectiveDeltaDays);
 
-  // 1) Agricultural calendar (spring/autumn war exposure → foodStress on year roll)
-  if (sim.simAgriculture && worldContext.pack?.states) {
-    topics.push("simulation.cells", "simulation.states");
-    measureTickStep("core:agriculturalStress", () =>
-      tickAgriculturalCalendar(
-        worldContext.pack,
-        effectiveDeltaDays,
-        simulationContext.currentYear,
-        simulationContext.currentMonth
-      )
-    );
-  }
-
-  // 2) Demographics (aging/births + optional famine from foodStress)
+  // 1) Demographics (aging, births, migration, and carrying-capacity losses)
   let result: DemographicsSimulationResult = {
     bordersChanged: false,
     newBurgsAdded: false,

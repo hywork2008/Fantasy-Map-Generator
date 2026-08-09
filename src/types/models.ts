@@ -838,26 +838,13 @@ export interface State {
    */
   domainPollTaxMultiplier?: number;
 
-  // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
+  // ── Manpower simulation ──
   /**
    * True after initial under-arms headcount has been deducted from civilian maleAdults
    * so troops are not double-counted in the population pyramid.
    */
   manpowerReconciled?: boolean;
-  /** 0..~1.5 food disruption from fighting in planting/harvest seasons. */
-  foodStress?: number;
-  /** In-year spring war exposure (day-weighted, seasonality-scaled). */
-  plantingExposure?: number;
-  /** In-year autumn war exposure. */
-  harvestExposure?: number;
-  /** Carry-over fraction of last year's foodStress into the next year. */
-  agricultureCarryOver?: number;
-  /** Calendar year the exposure buffers belong to. */
-  agricultureYear?: number;
-  /**
-   * 0..1 wartime supply strain (Economy warIntensity / food logistics).
-   * Core derives draft/recovery penalties from this + foodStress when set.
-   */
+  /** 0..1 wartime supply strain (Economy warIntensity / food logistics). */
   supplyStrain?: number;
   /**
    * Raw-score-unit aggregate stock of food-tagged goods reachable by this state (Economy

@@ -1,7 +1,7 @@
 import type { DataTopic } from "../../runtime/worldRuntime";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
-import { useOptionsState } from "../hostCore";
+import { isStateInActiveConflict, useOptionsState } from "../hostCore";
 import {
   isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
@@ -2069,12 +2069,12 @@ export function init(api: ExtensionAPI): void {
       // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
 
       measureTickStep("economy:warIntensity", () => {
-        // Check which states are at war
+        // Only conflicts that are currently progressing affect the wartime economy.
         const states = getWorldContext().pack.states;
         const statesAtWar = new Set<number>();
         if (states) {
           for (const state of states) {
-            if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
+            if (!state.removed && isStateInActiveConflict(state.i)) {
               statesAtWar.add(state.i);
             }
           }

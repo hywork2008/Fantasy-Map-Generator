@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
@@ -14,6 +15,7 @@ import {
   regimentQualityMultiplier,
   removeCivilianMalePeople,
   scaleLandMilitary,
+  stateHasActiveConflict,
   sumCivilianMalePeople,
   tickManpower
 } from "./manpower";
@@ -88,6 +90,9 @@ describe("manpower ledger", () => {
     worldContext.populationRate = 1000;
     worldContext.urbanization = 2;
     worldContext.pack = makePack();
+    worldContext.options = { conflictAutonomy: "playerDirected" } as typeof worldContext.options;
+    simulationContext.extensions = {};
+    simulationContext.strategicGoals = {};
   });
 
   it("sums civilian males as people across rural and urban populations", () => {
@@ -188,15 +193,30 @@ describe("manpower ledger", () => {
     expect(assertManpowerInvariant(pack, 1, 1000)).toBe(false);
   });
 
-  it("getDraftEfficiency falls with foodStress and supplyStrain", () => {
+  it("getDraftEfficiency falls with supplyStrain", () => {
     const pack = worldContext.pack as PackedGraph;
     const state = pack.states[1];
-    state.foodStress = 0;
     state.supplyStrain = 0;
     expect(getDraftEfficiency(state)).toBeCloseTo(1, 5);
-    state.foodStress = 1.5;
     state.supplyStrain = 1;
-    expect(getDraftEfficiency(state)).toBeLessThan(0.3);
+    expect(getDraftEfficiency(state)).toBeCloseTo(0.6, 5);
+  });
+
+  it("does not mobilize for a diplomatic Enemy relation until the player authorizes the conflict", () => {
+    const pack = worldContext.pack as PackedGraph;
+    const state = pack.states[1];
+    state.diplomacy![2] = "Enemy";
+
+    expect(stateHasActiveConflict(state)).toBe(false);
+
+    simulationContext.extensions = {
+      nobility: {
+        conflictAuthorizationsByState: {
+          1: { 2: { origin: "player" } }
+        }
+      }
+    };
+    expect(stateHasActiveConflict(state)).toBe(true);
   });
 
   it("fillRegimentFromManpower dilutes quality with green recruits", () => {
