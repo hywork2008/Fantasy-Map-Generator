@@ -5,7 +5,11 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { getHeightmapTemplateWeights, getInitialSettlementPatternPreset } from "../data";
+import {
+  getHeightmapTemplateWeights,
+  getInitialSettlementPatternPreset,
+  INITIAL_SETTLEMENT_PATTERN_PRESETS
+} from "../data";
 import { parseRacePersonNameMapping, resolveRacePersonNameMapping } from "../data/racePersonNameConfig";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
@@ -25,6 +29,7 @@ import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
 import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "../store/optionsState";
 import type { Burg, Culture, Province, State } from "../types/models";
+import type { InitialSettlementPattern } from "../types/WorldState";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { isValidCanvasDimension, isValidCanvasSize, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
@@ -638,6 +643,7 @@ export function randomizeOptions(): void {
   if (randomize || !locked("cultures"))
     useOptionsState.getState().setOptions({ cultures: Math.round(gauss(12, 3, 5, 30)) });
   if (randomize || !locked("culturesSet")) randomizeCultureSet();
+  randomizeInitialSettlementOptions(randomize);
 
   if (randomize || !locked("temperatureEquator")) worldContext.options.temperatureEquator = gauss(25, 7, 20, 35, 0);
   if (randomize || !locked("temperatureNorthPole"))
@@ -675,6 +681,35 @@ function randomizeCultureSet(): void {
   const chosen = rw(sets);
   useOptionsState.getState().setOption("culturesSet", chosen);
   changeCultureSet();
+}
+
+/**
+ * Culture-set defaults are applied before this step. Re-select settlement options
+ * afterwards so an unlocked High/Dark Fantasy result does not permanently pin
+ * subsequent landscapes to Marches and its 45% land share.
+ */
+function randomizeInitialSettlementOptions(randomize: boolean): void {
+  const shouldRandomizePattern = randomize || !locked("initialSettlementPattern");
+  const shouldRandomizeLandShare = randomize || !locked("oikoumeneLandShare");
+  if (!shouldRandomizePattern && !shouldRandomizeLandShare) return;
+
+  const options = useOptionsState.getState();
+  const initialSettlementPattern = shouldRandomizePattern
+    ? randomInitialSettlementPattern()
+    : options.initialSettlementPattern;
+  const oikoumeneLandShare = shouldRandomizeLandShare
+    ? getInitialSettlementPatternPreset(initialSettlementPattern).settledFootprint
+    : options.oikoumeneLandShare;
+
+  options.setOptions({ initialSettlementPattern, oikoumeneLandShare });
+}
+
+function randomInitialSettlementPattern(): InitialSettlementPattern {
+  const patternWeights = Object.fromEntries(INITIAL_SETTLEMENT_PATTERN_PRESETS.map(({ id }) => [id, 1])) as Record<
+    InitialSettlementPattern,
+    number
+  >;
+  return rw(patternWeights) as InitialSettlementPattern;
 }
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
