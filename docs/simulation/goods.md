@@ -17,6 +17,8 @@ GOODS_DATA の編集 UI（Goods Editor）が存在する。マップ生成時に
 
 作物別の Goods 出力は地図レイヤーとツールチップで表示する。市場の Food Ledger はこれらの合計を引き続き Grain として扱うため、作物を増やしても備蓄・飢饉・輸入の会計を二重計上しない。Potatoes には `postMedieval` タグを付けており、史実のヨーロッパには中世末ではなく16世紀以降に導入された点を明示している。
 
+Cell Info の `Pin cell` を使うと、カーソル移動中もそのセルの気温・降水量を固定できる。Economy 有効時の `Crop climate` 行から開く Crop climate guide は、個別作物の詳細と全作物比較を切り替えられる。淡色の帯は生育可能な `min–max`、濃色の帯は最適な `idealMin–idealMax`、橙色の印は固定セルの値を示す。
+
 ## 生きた猫（実装済み）
 
 `Cats` は `unit: "head"`、タグ `liveAnimal` / `pestControl` を持つ生きた交易品である。農耕地・草地から少量が供給され、長距離取引には不向きな小型・壊れやすい生体貨物として扱う。倉庫のネズミ抑制へ接続する将来仕様は[治安・衛生](civic-conditions.md)を参照。

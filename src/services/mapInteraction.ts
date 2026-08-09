@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
+import { useCellInfoState } from "../store/cellInfoState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { useToastStore } from "../store/toastStore";
 import type { WebglPickCandidatesDetail, WebglPickDetail } from "../types/webglPicking";
@@ -67,7 +68,7 @@ export function handleMouseMove(this: Element, event: MouseEvent): void {
 
   if (isDialogVisible("cellInfo")) {
     const cellInfoEl = document.getElementById("cellInfo") as HTMLElement | null;
-    if (cellInfoEl) updateCellInfo(point, i, gridCell);
+    if (cellInfoEl && !useCellInfoState.getState().isPinned) updateCellInfo(point, i, gridCell);
   }
 }
 

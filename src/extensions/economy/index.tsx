@@ -176,6 +176,7 @@ import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab
 import { BalanceHistoryDialog } from "./ui/dialogs/BalanceHistoryDialog";
 import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
 import { CouncilSessionDialog } from "./ui/dialogs/CouncilSessionDialog";
+import { CropClimateDialog } from "./ui/dialogs/CropClimateDialog";
 import { DebtNegotiationDialog } from "./ui/dialogs/DebtNegotiationDialog";
 import { DomainPollDetailDialog } from "./ui/dialogs/DomainPollDetailDialog";
 import { EmploymentOverviewDialog } from "./ui/dialogs/EmploymentOverviewDialog";
@@ -383,6 +384,16 @@ function registerOverviewColumns(api: ExtensionAPI): void {
   api.registerCellInfoRow({ id: "cellProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Cell Production" });
   api.registerCellInfoRow({ id: "burgProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Burg Production" });
   api.registerCellInfoRow({ id: "fauna", extensionId: ECONOMY_EXTENSION_ID, label: "Fauna" });
+  api.registerCellInfoRow({
+    id: "cropClimate",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Crop climate",
+    action: {
+      label: "Open guide",
+      tip: "Compare the pinned Cell Info temperature and precipitation with crop requirements",
+      onClick: () => api.openDialog("cropClimate")
+    }
+  });
 }
 
 function unregisterOverviewColumns(api: ExtensionAPI): void {
@@ -402,6 +413,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
   api.unregisterCellInfoRow("cellProduction");
   api.unregisterCellInfoRow("burgProduction");
   api.unregisterCellInfoRow("fauna");
+  api.unregisterCellInfoRow("cropClimate");
 }
 
 let _unsubscribe: (() => void) | null = null;
@@ -1183,6 +1195,7 @@ export function init(api: ExtensionAPI): void {
 
   // Register Economy Dialogs
   api.registerDialog({ id: "GoodsEditorDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsEditorDialog });
+  api.registerDialog({ id: "cropClimate", extensionId: ECONOMY_EXTENSION_ID, component: CropClimateDialog });
   api.registerDialog({
     id: "GoodsDistributionEditorDialog",
     extensionId: ECONOMY_EXTENSION_ID,

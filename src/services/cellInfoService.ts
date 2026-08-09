@@ -24,6 +24,9 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
 
   useCellInfoState.getState().updateInfo({
     cell: String(i),
+    cellId: i,
+    temperature: worldContext.grid.cells.temp[g] ?? null,
+    precipitation: worldContext.grid.cells.prec[g] ?? null,
     x: pointX,
     y: pointY,
     lat: toDMS(getLatitude(+pointY, worldContext.mapCoordinates, worldContext.graphHeight, 4), "lat"),

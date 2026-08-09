@@ -1,0 +1,205 @@
+.crop-climate-dialog {
+  min-width: 33rem;
+  max-width: 46rem;
+}
+
+.crop-climate-dialog__cell-summary {
+  display: flex;
+  gap: 0.65rem;
+  align-items: baseline;
+  padding: 0.45rem 0.6rem;
+  border-left: 3px solid #3e7086;
+  background: linear-gradient(90deg, rgb(62 112 134 / 16%), transparent);
+  font-size: 0.82rem;
+}
+
+.crop-climate-dialog__cell-summary span {
+  margin-right: auto;
+  color: var(--text-light, #777);
+}
+
+.crop-climate-tabs,
+.crop-climate-compare__controls {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.85rem 0 0.65rem;
+}
+
+.crop-climate-tabs button,
+.crop-climate-compare__controls button,
+.cell-info-actions button,
+.cell-info-row-action {
+  border: 1px solid rgb(76 92 96 / 45%);
+  border-radius: 2px;
+  background: rgb(255 255 255 / 45%);
+  padding: 0.28rem 0.55rem;
+  color: inherit;
+  cursor: pointer;
+}
+
+.crop-climate-tabs button.pressed,
+.crop-climate-compare__controls button.pressed,
+.cell-info-actions button.pressed {
+  border-color: #3e7086;
+  background: #3e7086;
+  color: #fff;
+}
+
+.crop-climate-select {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+.crop-climate-select select {
+  flex: 1;
+  max-width: 18rem;
+}
+
+.crop-climate-detail__heading {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.crop-climate-detail__heading h3,
+.crop-climate-detail__heading p {
+  margin: 0;
+}
+
+.crop-climate-detail__heading p,
+.crop-climate-compare__hint {
+  color: var(--text-light, #777);
+  font-size: 0.8rem;
+}
+
+.crop-climate-detail__swatch {
+  width: 0.8rem;
+  height: 2rem;
+  border: 1px solid rgb(0 0 0 / 20%);
+}
+
+.crop-climate-metric {
+  margin: 0.85rem 0;
+}
+
+.crop-climate-metric__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.82rem;
+}
+
+.crop-climate-metric__label span {
+  color: var(--text-light, #777);
+}
+
+.crop-climate-range {
+  position: relative;
+  height: 1.4rem;
+  margin: 0.2rem 0;
+}
+
+.crop-climate-range__line,
+.crop-climate-range__viable,
+.crop-climate-range__ideal {
+  position: absolute;
+  top: 0.58rem;
+  height: 0.28rem;
+}
+
+.crop-climate-range__line {
+  right: 0;
+  left: 0;
+  background: repeating-linear-gradient(90deg, #a8afb0 0 1px, transparent 1px 8px);
+}
+
+.crop-climate-range__viable {
+  background: #a8c4a0;
+}
+
+.crop-climate-range__ideal {
+  background: #3f7861;
+  box-shadow: 0 0 0 1px rgb(25 67 51 / 35%);
+}
+
+.crop-climate-range__cell-marker {
+  position: absolute;
+  top: 0.08rem;
+  width: 1px;
+  height: 1.26rem;
+  background: #be5d38;
+}
+
+.crop-climate-range__cell-marker span {
+  position: absolute;
+  top: -0.08rem;
+  left: -0.18rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  transform: rotate(45deg);
+  background: #be5d38;
+}
+
+.crop-climate-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-light, #777);
+  font-size: 0.72rem;
+}
+
+.crop-climate-compare__hint {
+  margin: 0 0 0.45rem;
+}
+
+.crop-climate-compare__rows {
+  margin-top: 0.3rem;
+}
+
+.crop-climate-compare__row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(13rem, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.crop-climate-compare__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.crop-climate-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+  font-size: 0.75rem;
+  color: var(--text-light, #777);
+}
+
+.crop-climate-legend i {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.35rem;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+}
+
+.crop-climate-legend__viable { background: #a8c4a0; }
+.crop-climate-legend__ideal { background: #3f7861; }
+.crop-climate-legend__marker { width: 2px !important; height: 0.8rem !important; background: #be5d38; }
+
+.crop-climate-dialog__empty { margin: 1rem 0; color: var(--text-light, #777); }
+
+.cell-info-actions { display: flex; justify-content: flex-end; margin-bottom: 0.35rem; }
+.cell-info-row-action { margin-left: 0.55rem; font-size: 0.75rem; }
+
+@media (width <= 640px) {
+  .crop-climate-dialog { min-width: min(33rem, calc(100vw - 1.5rem)); }
+  .crop-climate-dialog__cell-summary { flex-wrap: wrap; }
+  .crop-climate-dialog__cell-summary span { flex-basis: 100%; }
+}

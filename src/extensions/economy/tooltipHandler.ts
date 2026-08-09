@@ -78,6 +78,15 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
   const marketCellColumn = getMarketCellColumn();
   const extra: Record<string, string> = {};
 
+  const world = getWorldContext();
+  const gridCellId = world.pack.cells.g?.[i] ?? i;
+  const temperature = world.grid.cells.temp?.[gridCellId];
+  const precipitation = world.grid.cells.prec?.[gridCellId];
+  extra.cropClimate =
+    Number.isFinite(temperature) && Number.isFinite(precipitation)
+      ? `${temperature}° · precipitation ${precipitation}`
+      : "n/a";
+
   extra.good = goodCellColumn[i] ? `${Goods.get(goodCellColumn[i])?.name ?? "unknown"} (${goodCellColumn[i]})` : "no";
 
   const marketId = marketCellColumn[i];

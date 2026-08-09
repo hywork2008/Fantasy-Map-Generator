@@ -96,6 +96,7 @@ export interface CellInfoRow {
   id: string;
   extensionId: string;
   label: string;
+  action?: { label: string; tip?: string; onClick: () => void };
 }
 
 export interface ExtensionStyleProps {

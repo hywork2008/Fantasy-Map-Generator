@@ -12,6 +12,19 @@ export const CellInfoDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")}>
+      <div className="cell-info-actions">
+        <button
+          type="button"
+          className={info.isPinned ? "pressed" : undefined}
+          aria-pressed={info.isPinned}
+          data-tip={
+            info.isPinned ? "Follow the cursor with Cell Info" : "Keep this cell's details while moving the cursor"
+          }
+          onClick={info.togglePinned}
+        >
+          {info.isPinned ? "Follow cursor" : "Pin cell"}
+        </button>
+      </div>
       <table id="cellInfo" className="fmg-table">
         <tbody>
           <tr>
@@ -155,7 +168,19 @@ export const CellInfoDialog: React.FC = () => {
           {cellInfoRows.map(row => (
             <tr key={row.id}>
               <th scope="row">{row.label}</th>
-              <td>{info.extra[row.id] ?? "n/a"}</td>
+              <td>
+                {info.extra[row.id] ?? "n/a"}
+                {row.action && (
+                  <button
+                    type="button"
+                    className="cell-info-row-action"
+                    data-tip={row.action.tip}
+                    onClick={row.action.onClick}
+                  >
+                    {row.action.label}
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

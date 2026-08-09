@@ -2,6 +2,10 @@ import { create } from "zustand";
 
 export interface CellInfoData {
   cell: string;
+  /** Raw packed-cell id and climate values for tools that need model units, not display formatting. */
+  cellId: number | null;
+  temperature: number | null;
+  precipitation: number | null;
   x: string;
   y: string;
   lat: string;
@@ -40,10 +44,15 @@ export interface CellInfoData {
 
 interface CellInfoState extends CellInfoData {
   updateInfo: (data: Partial<CellInfoData>) => void;
+  isPinned: boolean;
+  togglePinned: () => void;
 }
 
 export const useCellInfoState = create<CellInfoState>(set => ({
   cell: "",
+  cellId: null,
+  temperature: null,
+  precipitation: null,
   x: "",
   y: "",
   lat: "",
@@ -72,6 +81,8 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   burg: "n/a",
   danger: "n/a",
   extra: {},
+  isPinned: false,
+  togglePinned: () => set(state => ({ isPinned: !state.isPinned })),
   updateInfo: ({ extra, ...data }) =>
     set(state => ({ ...state, ...data, extra: extra ? { ...state.extra, ...extra } : state.extra }))
 }));
