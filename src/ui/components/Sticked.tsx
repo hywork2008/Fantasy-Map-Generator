@@ -1,15 +1,24 @@
 import type React from "react";
-import { resetZoom } from "../../actions";
+import { useTranslation } from "react-i18next";
 import { regeneratePrompt, showExportPane, showLoadPane, showSavePane } from "../../controllers/options";
+import { useDialogState } from "../../store/dialogState";
 import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useMapReadyTaskState } from "../../store/mapReadyTaskState";
 
 export const Sticked: React.FC = () => {
+  const { t } = useTranslation();
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   const canConfigureInitialMap = useGenerationProgressState(
     state => state.isOpen && !state.isGenerating && state.isInitialGeneration
   );
   const isMapReadyTaskRunning = useMapReadyTaskState(state => state.isRunning);
+  const openDialogs = useDialogState(state => state.openDialogs);
+
+  const triggerToolAction = (eventName: string) => {
+    document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: eventName } }));
+  };
+
+  const toolsUnavailable = isMapGenerationInProgress || isMapReadyTaskRunning;
 
   return (
     <div id="sticked">
@@ -52,13 +61,31 @@ export const Sticked: React.FC = () => {
       </button>
       <button
         type="button"
-        id="zoomReset"
-        data-tip="Reset map zoom"
-        data-shortcut="0 (zero)"
-        onClick={() => resetZoom(1000)}
-        disabled={isMapGenerationInProgress}
+        id="optionsReset"
+        data-tip={t("uiSettings.resetDefaultsTip")}
+        onClick={() => document.dispatchEvent(new CustomEvent("react-cleanup-data"))}
       >
-        Reset Zoom
+        {t("uiSettings.resetDefaults")}
+      </button>
+      <button
+        type="button"
+        id="stickedCellsButton"
+        data-tip="Click to open Cell details view"
+        className={openDialogs.has("cellInfo") ? "pressed" : undefined}
+        onClick={() => triggerToolAction("overviewCellsButton")}
+        disabled={toolsUnavailable}
+      >
+        Cells
+      </button>
+      <button
+        type="button"
+        id="stickedAdvanceTimeButton"
+        data-tip="Click to open the Advance Time dialog and step the world's simulation clock forward by years, months, or days"
+        className={openDialogs.has("advanceTime") ? "pressed" : undefined}
+        onClick={() => triggerToolAction("openAdvanceTimeDialog")}
+        disabled={toolsUnavailable}
+      >
+        Advance Time
       </button>
     </div>
   );

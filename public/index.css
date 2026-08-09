@@ -504,6 +504,10 @@ input[type="color"] {
   display: flex;
 }
 
+#sticked button.pressed {
+  background-color: var(--header);
+}
+
 #exitCustomization {
   right: 10px;
   bottom: 10px;

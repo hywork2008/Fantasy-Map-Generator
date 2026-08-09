@@ -513,14 +513,6 @@ export const UiSettingsTab: React.FC = () => {
         >
           {t("uiSettings.configureWorld")}
         </button>
-        <button
-          type="button"
-          id="optionsReset"
-          data-tip={t("uiSettings.resetDefaultsTip")}
-          onClick={() => document.dispatchEvent(new CustomEvent("react-cleanup-data"))}
-        >
-          {t("uiSettings.resetDefaults")}
-        </button>
       </div>
     </div>
   );

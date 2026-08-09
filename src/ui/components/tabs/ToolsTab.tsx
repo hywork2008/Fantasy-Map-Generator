@@ -427,14 +427,6 @@ export const ToolsTab: React.FC = () => {
       <div className="separator">Show</div>
       <div className="grid">
         <button
-          data-tip="Click to open Cell details view"
-          type="button"
-          className={openDialogs.has("cellInfo") ? "pressed" : undefined}
-          onClick={() => triggerEvent("overviewCellsButton")}
-        >
-          Cells
-        </button>
-        <button
           data-tip="Click to open Charts to overview cells data"
           type="button"
           className={openDialogs.has("chartsOverview") ? "pressed" : undefined}
@@ -469,27 +461,21 @@ export const ToolsTab: React.FC = () => {
           </button>
         )}
       </div>
-      <div className="separator">Simulation</div>
-      <div className="grid">
-        <button
-          data-tip="Click to open the Advance Time dialog and step the world's simulation clock forward by years, months, or days"
-          type="button"
-          className={openDialogs.has("advanceTime") ? "pressed" : undefined}
-          onClick={() => triggerEvent("openAdvanceTimeDialog")}
-        >
-          Advance Time
-        </button>
-        {isFrontierMap && (
-          <button
-            data-tip="Click to open the Frontier operations dialog (outposts, viable candidates, and blocked expansion)"
-            type="button"
-            className={openDialogs.has("frontierOperations") ? "pressed" : undefined}
-            onClick={() => triggerEvent("openFrontierOperationsDialog")}
-          >
-            Frontier Operations
-          </button>
-        )}
-      </div>
+      {isFrontierMap && (
+        <>
+          <div className="separator">Simulation</div>
+          <div className="grid">
+            <button
+              data-tip="Click to open the Frontier operations dialog (outposts, viable candidates, and blocked expansion)"
+              type="button"
+              className={openDialogs.has("frontierOperations") ? "pressed" : undefined}
+              onClick={() => triggerEvent("openFrontierOperationsDialog")}
+            >
+              Frontier Operations
+            </button>
+          </div>
+        </>
+      )}
       <div className="separator">Create</div>
       <div className="grid">
         <button
