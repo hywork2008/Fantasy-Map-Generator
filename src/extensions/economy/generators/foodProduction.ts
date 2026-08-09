@@ -18,7 +18,13 @@ import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
 import type { FoodLedger, Market } from "./marketTypes";
 import { markRetailInventoryDirty } from "./retailInventory";
-import { creditStapleCropHarvest, getStapleCropInventory, migrateLegacyGrainInventory } from "./stapleCropInventory";
+import {
+  advanceStapleCropInventoryQuarterly,
+  applyStapleCropStorageCap,
+  getStapleCropInventory,
+  migrateLegacyGrainInventory,
+  refreshLegacyFoodLedgerTotals
+} from "./stapleCropInventory";
 
 export { GROSS_FOOD_NEED } from "./foodConstants";
 
@@ -442,19 +448,37 @@ export class FoodProductionModule {
 
       const previousPrice = stapleFoodGood ? (market.goods[stapleFoodGood.i]?.price ?? stapleFoodGood.value) : 1;
       const farmgateUnitCost = rn(previousPrice * FARMGATE_PRICE_SHARE, 2);
-
-      this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost);
       this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost);
-      this.applyStorageCap(ledger, annualDemand);
 
-      for (const [goodId, amount] of cropWholesale) {
-        if (amount <= 0) continue;
-        const good = cropGoods.find(candidate => candidate.i === goodId);
-        if (!good) continue;
-        const marketGood = market.goods[goodId] ?? { stock: 0, price: good.value };
-        marketGood.stock = rn(marketGood.stock + amount, 2);
-        market.goods[goodId] = marketGood;
-        creditStapleCropHarvest(ledger, goodId, amount, farmgateUnitCost);
+      // A market with catalogued, cell-suitable crops ages and caps stock per named crop (Wheat,
+      // Rye, Barley, ...) so each one's own bucket-and-overflow bookkeeping stays real — rather
+      // than only the shared aggregate buckets, which used to leave every crop's own age1/age2/
+      // overflow frozen at whatever the initial migration seeded (usually nothing), permanently
+      // hiding real, unconsumed stock from the player-facing tradeable-stock view. Legacy maps/
+      // tests with no crop catalogue keep the original aggregate-only path.
+      const trackedCropGoodIds = new Set<number>([
+        ...Object.keys(ledger.stapleCropInventories ?? {}).map(Number),
+        ...cropWholesale.keys()
+      ]);
+      if (trackedCropGoodIds.size > 0) {
+        for (const goodId of trackedCropGoodIds) {
+          const inventory = getStapleCropInventory(ledger, goodId);
+          advanceStapleCropInventoryQuarterly(inventory, cropWholesale.get(goodId) ?? 0, farmgateUnitCost);
+        }
+        applyStapleCropStorageCap(ledger, annualDemand * (STORAGE_CAP_MONTHS / 12));
+        refreshLegacyFoodLedgerTotals(ledger);
+
+        for (const [goodId, amount] of cropWholesale) {
+          if (amount <= 0) continue;
+          const good = cropGoods.find(candidate => candidate.i === goodId);
+          if (!good) continue;
+          const marketGood = market.goods[goodId] ?? { stock: 0, price: good.value };
+          marketGood.stock = rn(marketGood.stock + amount, 2);
+          market.goods[goodId] = marketGood;
+        }
+      } else {
+        this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost);
+        this.applyStorageCap(ledger, annualDemand);
       }
 
       const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;

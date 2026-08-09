@@ -76,7 +76,9 @@ describe("foodCoLoad pure helpers", () => {
       exportable: 12
     });
 
-    const drawn = drawFoodForExport(ledger, 8);
+    // goodId is irrelevant here: this ledger has no stapleCropInventories, so every helper falls
+    // back to the legacy aggregate-only bucket set regardless of which crop id is passed.
+    const drawn = drawFoodForExport(ledger, 1, 8);
     expect(drawn.units).toBe(8);
     expect(ledger.foodStockAge2).toBe(0);
     expect(ledger.foodStockAge1).toBe(2);
@@ -84,14 +86,14 @@ describe("foodCoLoad pure helpers", () => {
     // 5*1 + 3*2 = 11 → unitCost 11/8
     expect(drawn.unitCost).toBeCloseTo(11 / 8);
 
-    returnFoodExportToLedger(ledger, 8, drawn.unitCost);
+    returnFoodExportToLedger(ledger, 1, 8, drawn.unitCost);
     expect(ledger.exportable).toBe(12);
     expect(ledger.foodStockAge0).toBeCloseTo(18);
   });
 
   it("receives import into age0 and reduces import need", () => {
     const ledger = emptyLedger({ foodStockAge0: 2, foodStockAge0UnitCost: 1, importNeed: 10 });
-    receiveFoodImport(ledger, 4, 2);
+    receiveFoodImport(ledger, 1, 4, 2);
     expect(ledger.foodStockAge0).toBe(6);
     expect(ledger.foodStockAge0UnitCost).toBeCloseTo((2 * 1 + 4 * 2) / 6);
     expect(ledger.importNeed).toBe(6);

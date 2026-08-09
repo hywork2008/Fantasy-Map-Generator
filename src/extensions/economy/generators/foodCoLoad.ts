@@ -15,6 +15,12 @@ import { getGoods, getMarkets } from "../economyContext";
 import { FOOD_SPOILAGE_HALF_LIFE_DAYS } from "./foodImportNetwork";
 import type { Caravan, FoodLedger, Market } from "./marketTypes";
 import { markRetailInventoryDirty } from "./retailInventory";
+import {
+  creditStapleCropHarvest,
+  drawStapleCropForTransport,
+  getTradeableStapleCropUnits,
+  refreshLegacyFoodLedgerTotals
+} from "./stapleCropInventory";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
@@ -69,9 +75,14 @@ export function foodDeliveredShare(travelDays: number, halfLifeDays: number = FO
 
 /**
  * Draw staple food for export from oldest buckets first (FIFO), capped by `exportable`.
- * Mutates the ledger in place.
+ * Mutates the ledger in place. When `goodId` names a market-tracked staple crop, the draw comes
+ * from that crop's own age0-2 buckets (see drawStapleCropForTransport()) so a caravan physically
+ * moves the same crop identity it is loaded with; markets with no per-crop tracking yet (legacy
+ * aggregate-only Food Ledgers) fall back to the shared bucket set below.
  */
-export function drawFoodForExport(ledger: FoodLedger, amount: number): FoodDrawResult {
+export function drawFoodForExport(ledger: FoodLedger, goodId: number, amount: number): FoodDrawResult {
+  if (ledger.stapleCropInventories?.[goodId]) return drawStapleCropForTransport(ledger, goodId, amount);
+
   const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
   const maxDraw = Math.min(Math.max(0, amount), Math.max(0, ledger.exportable), totalStock);
   if (maxDraw <= UNIT_EPSILON) return { units: 0, unitCost: 0 };
@@ -138,7 +149,7 @@ export function drawFoodForExport(ledger: FoodLedger, amount: number): FoodDrawR
   return { units: drawn, unitCost };
 }
 
-/** Credit staple food into Age0 with weighted-average unit cost (stock only). */
+/** Credit staple food into Age0 with weighted-average unit cost (aggregate-only ledgers). */
 export function creditFoodStockAge0(ledger: FoodLedger, units: number, unitCost: number): void {
   if (!(units > UNIT_EPSILON)) return;
   const prev = ledger.foodStockAge0;
@@ -148,17 +159,33 @@ export function creditFoodStockAge0(ledger: FoodLedger, units: number, unitCost:
   ledger.foodStockAge0UnitCost = next > UNIT_EPSILON ? rn((prev * prevCost + units * unitCost) / next, 2) : 0;
 }
 
-/** Credit arrived staple food into Age0 and reduce import need. */
-export function receiveFoodImport(ledger: FoodLedger, units: number, unitCost: number): void {
+/**
+ * Credits staple food into a market's newest bucket. When `goodId` names a market-tracked crop,
+ * the credit lands in that crop's own age0 (and the aggregate mirror is resynced from every
+ * crop's real totals) so an imported/returned shipment keeps its physical crop identity instead
+ * of silently becoming generic, untracked aggregate stock that the next quarterly settlement
+ * would overwrite. Falls back to the aggregate-only bucket for legacy Food Ledgers.
+ */
+function creditStapleFood(ledger: FoodLedger, goodId: number, units: number, unitCost: number): void {
+  if (ledger.stapleCropInventories?.[goodId]) {
+    creditStapleCropHarvest(ledger, goodId, units, unitCost);
+    refreshLegacyFoodLedgerTotals(ledger);
+    return;
+  }
   creditFoodStockAge0(ledger, units, unitCost);
+}
+
+/** Credit arrived staple food into Age0 and reduce import need. */
+export function receiveFoodImport(ledger: FoodLedger, goodId: number, units: number, unitCost: number): void {
+  creditStapleFood(ledger, goodId, units, unitCost);
   if (!(units > UNIT_EPSILON)) return;
   ledger.importNeed = rn(Math.max(0, ledger.importNeed - units), 2);
   ledger.satisfiedImport = rn((ledger.satisfiedImport ?? 0) + units, 2);
 }
 
 /** Return cancelled export cargo to Age0 and restore exportable. */
-export function returnFoodExportToLedger(ledger: FoodLedger, units: number, unitCost: number): void {
-  creditFoodStockAge0(ledger, units, unitCost);
+export function returnFoodExportToLedger(ledger: FoodLedger, goodId: number, units: number, unitCost: number): void {
+  creditStapleFood(ledger, goodId, units, unitCost);
   if (!(units > UNIT_EPSILON)) return;
   ledger.exportable = rn(ledger.exportable + units, 2);
 }
@@ -226,7 +253,7 @@ export function tryCoLoadFoodOntoCaravan(caravan: Caravan, options?: { distanceS
   });
   if (unitsWanted <= UNIT_EPSILON) return 0;
 
-  const drawn = drawFoodForExport(exporter.foodLedger, unitsWanted);
+  const drawn = drawFoodForExport(exporter.foodLedger, staple.i, unitsWanted);
   if (drawn.units <= UNIT_EPSILON) return 0;
   const exporterStock = exporter.goods[staple.i] ?? { stock: 0, price: staple.value };
   exporterStock.stock = rn(Math.max(0, exporterStock.stock - drawn.units), 2);
@@ -280,7 +307,7 @@ export function restoreFoodCoLoadToOrigin(caravan: Caravan): void {
 
   for (const item of caravan.payload) {
     if (!item.isFoodCoLoad || item.units <= UNIT_EPSILON) continue;
-    returnFoodExportToLedger(exporter.foodLedger, item.units, item.unitCost ?? 0);
+    returnFoodExportToLedger(exporter.foodLedger, item.goodId, item.units, item.unitCost ?? 0);
     const good = getGoods().find(candidate => candidate.i === item.goodId);
     if (good) {
       const marketGood = exporter.goods[good.i] ?? { stock: 0, price: good.value };
@@ -320,7 +347,7 @@ export function settleFoodCoLoadOnArrival(caravan: Caravan, distanceScale: numbe
     if (!item.isFoodCoLoad || item.units <= UNIT_EPSILON) continue;
     const delivered = rn(item.units * deliveredShare, 2);
     if (delivered > UNIT_EPSILON) {
-      receiveFoodImport(importer.foodLedger, delivered, item.unitCost ?? 0);
+      receiveFoodImport(importer.foodLedger, item.goodId, delivered, item.unitCost ?? 0);
       const good = getGoods().find(candidate => candidate.i === item.goodId);
       if (good) {
         const marketGood = importer.goods[good.i] ?? { stock: 0, price: good.value };
@@ -339,9 +366,16 @@ export function settleFoodCoLoadOnArrival(caravan: Caravan, distanceScale: numbe
 
 /** Selects one physical staple-crop lot for a co-loaded food shipment. */
 function getExportCrop(market: Market) {
+  const ledger = market.foodLedger;
   const candidates = getGoods()
     .filter(good => good.tags.includes("stapleCrop"))
-    .map(good => ({ good, stock: market.goods[good.i]?.stock ?? 0 }))
+    .map(good => ({
+      good,
+      // Prefer the real tradeable amount for a market-tracked crop; market.goods[...].stock is
+      // only a write-only production accumulator for crops the Food Ledger already owns, so
+      // ranking by it can pick a crop that looks large but has nothing left to actually load.
+      stock: (ledger ? getTradeableStapleCropUnits(ledger, good.i) : null) ?? market.goods[good.i]?.stock ?? 0
+    }))
     .filter(candidate => candidate.stock > UNIT_EPSILON)
     .sort((left, right) => right.stock - left.stock || left.good.i - right.good.i);
   return candidates[0]?.good;
