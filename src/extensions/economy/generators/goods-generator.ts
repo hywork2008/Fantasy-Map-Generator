@@ -2,6 +2,7 @@ import Alea from "alea";
 import { color, shuffler } from "d3";
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import { getCoastalHabitatKey, getNearshoreHabitatKey } from "../../../data/coastalHabitatCatalog";
+import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
 import { TIME } from "../../hostUtils";
@@ -260,13 +261,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 1.2,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "cereal",
-      yieldMultiplier: 1.05,
-      temperature: { min: 2, idealMin: 8, idealMax: 18, max: 24 },
-      precipitation: { min: 18, idealMin: 30, idealMax: 60, max: 80 },
-      soils: ["loam", "alluvial", "clay"]
-    }
+    crop: STAPLE_CROP_PROFILES.Wheat
   },
   {
     name: "Rye",
@@ -277,13 +272,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 0.9,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "cereal",
-      yieldMultiplier: 0.82,
-      temperature: { min: -2, idealMin: 4, idealMax: 14, max: 21 },
-      precipitation: { min: 12, idealMin: 24, idealMax: 55, max: 75 },
-      soils: ["loam", "sandy", "thin"]
-    }
+    crop: STAPLE_CROP_PROFILES.Rye
   },
   {
     name: "Barley",
@@ -294,13 +283,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 0.9,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "cereal",
-      yieldMultiplier: 0.88,
-      temperature: { min: -2, idealMin: 5, idealMax: 16, max: 23 },
-      precipitation: { min: 10, idealMin: 20, idealMax: 50, max: 70 },
-      soils: ["loam", "alluvial", "sandy"]
-    }
+    crop: STAPLE_CROP_PROFILES.Barley
   },
   {
     name: "Oats",
@@ -311,13 +294,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 0.85,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "cereal",
-      yieldMultiplier: 0.8,
-      temperature: { min: 0, idealMin: 6, idealMax: 16, max: 21 },
-      precipitation: { min: 20, idealMin: 35, idealMax: 70, max: 90 },
-      soils: ["humus", "loam", "clay"]
-    }
+    crop: STAPLE_CROP_PROFILES.Oats
   },
   {
     name: "Millet",
@@ -328,13 +305,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 0.8,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "cereal",
-      yieldMultiplier: 0.78,
-      temperature: { min: 10, idealMin: 16, idealMax: 27, max: 34 },
-      precipitation: { min: 7, idealMin: 15, idealMax: 42, max: 62 },
-      soils: ["loam", "sandy", "alluvial"]
-    }
+    crop: STAPLE_CROP_PROFILES.Millet
   },
   {
     name: "Buckwheat",
@@ -345,13 +316,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 0.95,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "cereal",
-      yieldMultiplier: 0.72,
-      temperature: { min: 2, idealMin: 9, idealMax: 18, max: 25 },
-      precipitation: { min: 15, idealMin: 28, idealMax: 60, max: 80 },
-      soils: ["thin", "sandy", "loam"]
-    }
+    crop: STAPLE_CROP_PROFILES.Buckwheat
   },
   {
     name: "Peas",
@@ -362,13 +327,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 1.1,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "legume",
-      yieldMultiplier: 0.74,
-      temperature: { min: 1, idealMin: 7, idealMax: 18, max: 23 },
-      precipitation: { min: 15, idealMin: 28, idealMax: 62, max: 82 },
-      soils: ["loam", "alluvial", "clay"]
-    }
+    crop: STAPLE_CROP_PROFILES.Peas
   },
   {
     name: "Broad Beans",
@@ -379,13 +338,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 1.05,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "legume",
-      yieldMultiplier: 0.78,
-      temperature: { min: 3, idealMin: 8, idealMax: 18, max: 23 },
-      precipitation: { min: 18, idealMin: 30, idealMax: 65, max: 85 },
-      soils: ["clay", "loam", "alluvial"]
-    }
+    crop: STAPLE_CROP_PROFILES["Broad Beans"]
   },
   {
     name: "Lentils",
@@ -396,13 +349,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 1.05,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "legume",
-      yieldMultiplier: 0.7,
-      temperature: { min: 6, idealMin: 13, idealMax: 24, max: 30 },
-      precipitation: { min: 6, idealMin: 14, idealMax: 38, max: 55 },
-      soils: ["sandy", "loam", "thin"]
-    }
+    crop: STAPLE_CROP_PROFILES.Lentils
   },
   {
     name: "Chickpeas",
@@ -413,13 +360,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 1.1,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "legume",
-      yieldMultiplier: 0.72,
-      temperature: { min: 8, idealMin: 16, idealMax: 27, max: 33 },
-      precipitation: { min: 5, idealMin: 12, idealMax: 34, max: 50 },
-      soils: ["sandy", "loam", "alluvial"]
-    }
+    crop: STAPLE_CROP_PROFILES.Chickpeas
   },
   {
     name: "Turnips",
@@ -430,13 +371,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 0.8,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "tuber",
-      yieldMultiplier: 0.9,
-      temperature: { min: -1, idealMin: 5, idealMax: 16, max: 22 },
-      precipitation: { min: 18, idealMin: 30, idealMax: 70, max: 90 },
-      soils: ["loam", "sandy", "humus"]
-    }
+    crop: STAPLE_CROP_PROFILES.Turnips
   },
   {
     name: "Potatoes",
@@ -447,13 +382,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 0.9,
     chance: 0,
     unit: "wain",
-    crop: {
-      kind: "tuber",
-      yieldMultiplier: 1.15,
-      temperature: { min: 3, idealMin: 8, idealMax: 18, max: 24 },
-      precipitation: { min: 20, idealMin: 35, idealMax: 70, max: 90 },
-      soils: ["loam", "sandy", "humus"]
-    }
+    crop: STAPLE_CROP_PROFILES.Potatoes
   },
   {
     name: "Cattle",

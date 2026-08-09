@@ -2,6 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
 import { getForestClearingRate } from "../generators/forestStock";
 import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
+import { getCellSubsistenceCapacity, getLivelihoodKind } from "../generators/subsistenceCapacity";
 import { useCellInfoState } from "../store/cellInfoState";
 import { useOptionsState } from "../store/optionsState";
 import { usePopulationOverviewState } from "../store/populationOverviewState";
@@ -52,6 +53,10 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
       ? `${worldContext.pack.religions[cells.religion[i]].name} (${cells.religion[i]})`
       : "no",
     population: getFriendlyPopulation(i),
+    livelihood: cells.livelihood ? getLivelihoodKind(cells.livelihood[i]) : "legacy map",
+    subsistenceCapacity: cells.subsistenceCapacity
+      ? si(getCellSubsistenceCapacity(cells, i) * worldContext.populationRate)
+      : "legacy map",
     burg: cells.burg?.[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no",
     danger: cells.danger ? String(cells.danger[i]) : "n/a",
     feature: f ? `${worldContext.pack.features[f].group} (${f})` : "n/a",

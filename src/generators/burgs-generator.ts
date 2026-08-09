@@ -40,6 +40,7 @@ import { getInitialPolityCapitalCount, selectInitialPolityCapitalNodes } from ".
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
+import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 import type { Point } from "./voronoi";
 
 const MAX_STRATEGIC_CITADEL_BONUS = 0.5;
@@ -719,6 +720,11 @@ class BurgModule {
     const { pack } = this.worldContext;
     const cellId = burg.cell;
     let population = pack.cells.s[cellId] / 5;
+    const terrainCapacity = pack.cells.capacity[cellId] ?? 0;
+    const localFoodCapacity = getCellSubsistenceCapacity(pack.cells, cellId);
+    // Cities begin as service centres of their local rural base. Trade can raise
+    // their effective capacity later, but a food-poor cell must not start dense.
+    if (terrainCapacity > 0) population *= localFoodCapacity / terrainCapacity;
     if (burg.capital) population *= 1.5;
     const connectivityRate = Routes.getConnectivityRate(cellId);
     if (connectivityRate) population *= connectivityRate;

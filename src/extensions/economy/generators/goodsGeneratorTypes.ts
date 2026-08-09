@@ -1,3 +1,4 @@
+import type { StapleCropKind, StapleCropProfile, StapleSoilType } from "../../../data/stapleCrops";
 import type { BiomeTag } from "../../../types/biome";
 import type { CultureType } from "../../hostTypes";
 
@@ -29,21 +30,14 @@ export interface GoodTradeProfile {
   lossRisk: TradeScale;
 }
 
-export type CropKind = "cereal" | "tuber" | "legume";
-export type SoilType = "alluvial" | "clay" | "humus" | "loam" | "sandy" | "thin";
+export type CropKind = StapleCropKind;
+export type SoilType = StapleSoilType;
 
 /**
  * Environmental requirements and field role for a staple crop. Temperature and precipitation
  * use the map's existing annual climate proxy units, not real-world millimetres.
  */
-export interface CropProfile {
-  kind: CropKind;
-  /** Net edible output relative to the shared agricultural baseline. */
-  yieldMultiplier: number;
-  temperature: { min: number; idealMin: number; idealMax: number; max: number };
-  precipitation: { min: number; idealMin: number; idealMax: number; max: number };
-  soils: readonly SoilType[];
-}
+export type CropProfile = StapleCropProfile;
 
 export const DEMAND_PRIORITY = [
   "food",

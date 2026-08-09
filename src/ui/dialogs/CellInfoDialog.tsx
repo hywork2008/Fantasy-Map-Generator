@@ -72,6 +72,21 @@ export const CellInfoDialog: React.FC = () => {
             <td>{info.population}</td>
           </tr>
           <tr>
+            <th scope="row" data-tip="Dominant local food strategy used to limit rural population growth">
+              Livelihood
+            </th>
+            <td>{info.livelihood}</td>
+          </tr>
+          <tr>
+            <th
+              scope="row"
+              data-tip="Local rural population support before imported food; terrain capacity remains a separate upper ceiling"
+            >
+              Local food capacity
+            </th>
+            <td>{info.subsistenceCapacity}</td>
+          </tr>
+          <tr>
             <th scope="row">Elevation</th>
             <td>{info.elevation}</td>
           </tr>

@@ -7,12 +7,14 @@ import {
   type SettlementClimate,
   type SettlementFoundationCells
 } from "./settlementFoundation";
+import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 export interface SettlementPatternCells {
   readonly i: ArrayLike<number>;
   readonly c?: readonly (readonly number[])[];
   readonly s: ArrayLike<number>;
   readonly capacity: ArrayLike<number>;
+  readonly subsistenceCapacity?: ArrayLike<number>;
   readonly h?: ArrayLike<number>;
   readonly pop: MutableNumberColumn;
   readonly children: MutableNumberColumn;
@@ -78,7 +80,7 @@ export function applyInitialSettlementPattern(
 
   for (let index = 0; index < cells.i.length; index++) {
     const id = cells.i[index];
-    const capacity = cells.capacity[id] ?? 0;
+    const capacity = getCellSubsistenceCapacity(cells, id);
     if ((cells.s[id] ?? 0) <= 0 || capacity <= 0) continue;
     totalCapacity += capacity;
     const [x, y] = cells.p?.[id] ?? [id, 0];

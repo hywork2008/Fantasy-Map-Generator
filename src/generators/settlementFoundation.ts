@@ -8,6 +8,7 @@ import type {
 import type { InitialSettlementPattern } from "../types/WorldState";
 import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { createInitialPopulationCohorts } from "./initialPopulationCohorts";
+import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 type MutableNumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
 
@@ -17,6 +18,7 @@ export interface SettlementFoundationCells {
   readonly c: readonly (readonly number[])[];
   readonly s: ArrayLike<number>;
   readonly capacity: ArrayLike<number>;
+  readonly subsistenceCapacity?: ArrayLike<number>;
   readonly h: ArrayLike<number>;
   readonly p: readonly (readonly [number, number])[];
   readonly r?: ArrayLike<number>;
@@ -141,7 +143,7 @@ function collectSites(
 
   for (let index = 0; index < cells.i.length; index++) {
     const id = cells.i[index];
-    const capacity = cells.capacity[id] ?? 0;
+    const capacity = getCellSubsistenceCapacity(cells, id);
     // rankCells already zeroed uninhabitable / zero-habitability land.
     if ((cells.s[id] ?? 0) <= 0 || capacity <= 0 || (cells.h[id] ?? 0) < 20) continue;
 

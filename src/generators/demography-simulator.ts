@@ -13,6 +13,7 @@ import {
 } from "./demographicTransfer";
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
+import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 /**
  * Assumed span (years) of the "children" cohort bin before aging into adulthood. Shared with
@@ -72,7 +73,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     if (pack.cells.pop[i] <= 0) continue;
 
     const stateId = pack.cells.state[i];
-    const capacity = pack.cells.capacity[i];
+    const capacity = getCellSubsistenceCapacity(pack.cells, i);
     let children = pack.cells.children[i];
     let maleAdults = pack.cells.maleAdults[i];
     let femaleAdults = pack.cells.femaleAdults[i];
@@ -113,7 +114,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       for (const n of neighbors) {
         if (pack.cells.h[n] < 20 || pack.cells.s[n] <= 0) continue; // must be habitable land
 
-        const nCapacity = pack.cells.capacity[n];
+        const nCapacity = getCellSubsistenceCapacity(pack.cells, n);
         const nPop = pack.cells.pop[n];
         if (nPop >= nCapacity) continue; // must have room
 

@@ -88,6 +88,10 @@ export interface PackedGraphCells {
    */
   wildLand?: TypedArray;
   capacity: TypedArray; // cell population carrying capacity
+  /** Food-derived rural capacity; lower than `capacity` where subsistence is sparse. */
+  subsistenceCapacity?: Float32Array;
+  /** Dominant livelihood code from `subsistenceCapacity.ts`; 0 means no stable local subsistence. */
+  livelihood?: Uint8Array;
   children: TypedArray; // cell children pop
   maleAdults: TypedArray; // cell male adults pop
   femaleAdults: TypedArray; // cell female adults pop

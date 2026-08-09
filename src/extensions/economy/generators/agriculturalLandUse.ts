@@ -1,3 +1,4 @@
+import { getStapleCropSuitability } from "../../../data/stapleCrops";
 import { harvestForestStock } from "../../../generators/forestStock";
 import type { WorldContext } from "../../hostCore";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
@@ -512,10 +513,9 @@ export function getCropSuitability(world: Readonly<WorldContext>, cellId: number
   const temperature = world.grid?.cells.temp?.[gridCellId] ?? 12;
   const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
   const soil = getCellSoilType(world, cellId);
-  const soilFactor = crop.soils.includes(soil) ? 1 : 0.55;
-  return (
-    rangeSuitability(temperature, crop.temperature) * rangeSuitability(precipitation, crop.precipitation) * soilFactor
-  );
+  const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
+  const irrigated = Boolean(world.pack.cells.r[cellId]) && tags.includes("desert");
+  return getStapleCropSuitability(crop, temperature, precipitation, soil, irrigated);
 }
 
 export function getCellSoilType(world: Readonly<WorldContext>, cellId: number): SoilType {
@@ -611,14 +611,4 @@ function calculateClimateYield(
     0,
     temperatureFactor * precipitationFactor * cropFactor * soilFertilityFactor * salinityFactor * waterAccess
   );
-}
-
-function rangeSuitability(
-  value: number,
-  range: { min: number; idealMin: number; idealMax: number; max: number }
-): number {
-  if (value <= range.min || value >= range.max) return 0;
-  if (value >= range.idealMin && value <= range.idealMax) return 1;
-  if (value < range.idealMin) return (value - range.min) / (range.idealMin - range.min);
-  return (range.max - value) / (range.max - range.idealMax);
 }

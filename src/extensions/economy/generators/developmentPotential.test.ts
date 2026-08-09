@@ -59,4 +59,15 @@ describe("development potential", () => {
     expect(potential[1]).toBeGreaterThan(10);
     expect(potential[2]).toBeGreaterThan(potential[1] - 6);
   });
+
+  it("keeps non-agricultural settlements viable but lowers their development ceiling", () => {
+    const world = createWorld();
+    const baseline = calculateSettlementDevelopmentPotential(world, []);
+    world.pack.cells.subsistenceCapacity = new Float32Array([0, 12, 3]);
+
+    const potential = calculateSettlementDevelopmentPotential(world, []);
+
+    expect(potential[2]).toBeGreaterThan(0);
+    expect(potential[2]).toBeLessThan(baseline[2]);
+  });
 });

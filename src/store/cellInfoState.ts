@@ -16,6 +16,10 @@ export interface CellInfoData {
   prec: string;
   river: string;
   population: string;
+  /** Dominant food strategy used for rural carrying capacity. */
+  livelihood: string;
+  /** Local rural capacity after food availability, before any imports. */
+  subsistenceCapacity: string;
   elevation: string;
   depth: string;
   temp: string;
@@ -63,6 +67,8 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   prec: "0",
   river: "no",
   population: "0",
+  livelihood: "n/a",
+  subsistenceCapacity: "n/a",
   elevation: "0",
   depth: "0",
   temp: "0",

@@ -113,7 +113,7 @@ export const PopulationRenderer: IRenderer = {
         cellIds: cells.i,
         pop: cells.pop,
         area: cells.area,
-        capacity: cells.capacity,
+        capacity: cells.subsistenceCapacity ?? cells.capacity,
         height: cells.h,
         burgs,
         populationRate: worldContext.populationRate,

@@ -297,8 +297,17 @@ export function calculateSettlementDevelopmentPotential(
   for (const cellId of cells.i) {
     if (cells.h[cellId] < LAND_HEIGHT) continue;
     const routeConnections = Object.keys(cells.routes?.[cellId] ?? {}).length;
-    potential[cellId] =
+    const locationAdvantage =
       routeConnections * 2 + (cells.r[cellId] ? 3 : 0) + (cells.conf[cellId] ? 2 : 0) + (cells.harbor[cellId] ? 4 : 0);
+    const terrainCapacity = cells.capacity[cellId] ?? 0;
+    const localFoodCapacity = cells.subsistenceCapacity?.[cellId];
+    // Sparse pastoral, fishing, and foraging regions can still develop a port
+    // or crossroads, but their smaller food surplus limits sustained growth.
+    const subsistenceFactor =
+      localFoodCapacity === undefined || terrainCapacity <= 0
+        ? 1
+        : 0.2 + 0.8 * Math.min(1, Math.max(0, localFoodCapacity / terrainCapacity));
+    potential[cellId] = locationAdvantage * subsistenceFactor;
   }
 
   for (const deposit of mineralDeposits) {

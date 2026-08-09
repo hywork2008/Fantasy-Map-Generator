@@ -47,6 +47,7 @@ import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
 import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
+import { generateSubsistenceCapacity } from "./generators/subsistenceCapacity";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
 import { establishVassalage } from "./generators/vassalage";
@@ -1093,6 +1094,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
       const state = getWorldState();
       Threats.generate(worldContext, viewContext, appServices, state);
       rankCells();
+      generateSubsistenceCapacity(worldContext);
       Cultures.generate(worldContext, viewContext, appServices, state);
       Cultures.expand(state);
       const optionsSnap = useOptionsState.getState();
