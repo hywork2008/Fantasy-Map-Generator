@@ -69,6 +69,10 @@ export const GoodsEditorDialog: React.FC = () => {
   };
 
   const parentRef = React.useRef<HTMLDivElement>(null);
+  // VirtualTableBody measures every supplied row. Supplying tag-filtered rows
+  // with `display: none` makes their zero-height measurements persist across
+  // filter changes, so the visible range depends on the order of tag choices.
+  const visibleGoods = goods.filter(good => good.isTagVisible);
 
   return (
     <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose} className="fmg-dialog--table">
@@ -210,7 +214,7 @@ export const GoodsEditorDialog: React.FC = () => {
               </tr>
             </thead>
             <VirtualTableBody
-              items={goods}
+              items={visibleGoods}
               scrollElementRef={parentRef}
               renderRow={good => {
                 const localizedName = t(`economy.goods.names.${good.name}`, { defaultValue: good.name });
@@ -238,7 +242,7 @@ export const GoodsEditorDialog: React.FC = () => {
                 return (
                   <tr
                     key={good.i}
-                    className={`states goods${good.isTagVisible ? "" : " hidden"}${isAssignMode && selectedAssignGoodId === good.i ? " selected" : ""}`}
+                    className={`states goods${isAssignMode && selectedAssignGoodId === good.i ? " selected" : ""}`}
                     data-id={good.i}
                     data-name={good.name}
                     data-color={good.color}

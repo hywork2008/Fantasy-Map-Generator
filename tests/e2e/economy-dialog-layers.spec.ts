@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { isLayerOn, waitForMapLoad } from "./helpers/fmg-helpers";
 
+async function applyGoodsTagFilter(page: import("@playwright/test").Page): Promise<void> {
+  const tagFilterDialog = page.locator(".fmg-dialog").filter({ has: page.locator("#goodsTagsContainer") });
+  await tagFilterDialog.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect(tagFilterDialog).toBeHidden();
+}
+
 test.describe("Economy dialog layers", () => {
   test.beforeEach(async ({ context, page }) => {
     await context.clearCookies();
@@ -54,4 +60,31 @@ test.describe("Economy dialog layers", () => {
       await expect.poll(() => isLayerOn(page, editor.layerId)).toBe(false);
     });
   }
+
+  test("keeps all matching goods visible when tag choices change", async ({ page }) => {
+    await page.locator('button[data-tip="Click to open Goods Editor (Shortcut: Shift + G)"]').click();
+    await expect(page.locator("#goodsEditorContainer")).toBeVisible();
+
+    await page.locator("#goodsTagsFilter").click();
+    await page.getByRole("checkbox", { name: "stapleCrop", exact: true }).check();
+    await applyGoodsTagFilter(page);
+    await expect(page.locator("#goodsBody tr[data-id]")).toHaveCount(12);
+
+    await page.locator("#goodsTagsFilter").click();
+    await page.getByRole("checkbox", { name: "stapleCrop", exact: true }).uncheck();
+    await page.getByRole("checkbox", { name: "stapleFood", exact: true }).check();
+    await applyGoodsTagFilter(page);
+    await expect(page.locator("#goodsBody tr[data-id]")).toHaveCount(1);
+
+    await page.locator("#goodsTagsFilter").click();
+    await page.getByRole("checkbox", { name: "stapleFood", exact: true }).uncheck();
+    await page.getByRole("checkbox", { name: "stapleCrop", exact: true }).check();
+    await applyGoodsTagFilter(page);
+    await expect(page.locator("#goodsBody tr[data-id]")).toHaveCount(12);
+
+    await page.locator("#goodsTagsFilter").click();
+    await page.getByRole("checkbox", { name: "stapleFood", exact: true }).check();
+    await applyGoodsTagFilter(page);
+    await expect(page.locator("#goodsBody tr[data-id]")).toHaveCount(13);
+  });
 });
