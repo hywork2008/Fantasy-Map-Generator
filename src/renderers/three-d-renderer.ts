@@ -1587,6 +1587,10 @@ class ThreeDModule {
     await new Promise<void>((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
+        // Opaque backdrop so any residual transparent SVG pixels do not composite with the
+        // WebGPU clear colour (black) and read as a nightscape-like void.
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
         resolve();
       };
@@ -1599,6 +1603,7 @@ class ThreeDModule {
     // while leaving the globe's at the default caused the two to decode differently and rendered
     // the mesh view's terrain noticeably darker than the globe/standard SVG view.
     const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
     if (this.Renderer) texture.anisotropy = this.Renderer.getMaxAnisotropy();
     return texture;
   }

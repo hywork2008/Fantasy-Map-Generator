@@ -44,6 +44,12 @@ input[type="radio"] {
   pointer-events: none;
 }
 
+/* Fullscreen 3D scene (viewMesh / viewGlobe). Above #map (z-index: 2) so MapControls receive
+   pointer events even if a hybrid offscreen-export race briefly leaves the SVG interactive. */
+#canvas3d {
+  z-index: 3;
+}
+
 #zoomLevelIndicator {
   position: fixed;
   left: 16px;

@@ -3,6 +3,7 @@ import { bindViewLayersFromSvg } from "../initViewLayers";
 import { projectPresentationToSvg } from "../renderers/presentationProjection";
 import { applyHybridLayerPolicy } from "../renderers/webgl/hybridLayerPolicy";
 import { presentationData } from "../runtime/presentationData";
+import { reassertFullscreen3dMapOwnership } from "../store/viewModeState";
 import { paintSvgMapLayers } from "./svgPaintRegistry";
 
 const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
@@ -16,6 +17,10 @@ const OFFSCREEN_ATTR = "data-fmg-offscreen-export";
  * The live `#map` is detached only while the export root owns document IDs so
  * renderers that call `getElementById` resolve against the offscreen tree. The
  * hybrid WebGL canvas sibling stays mounted and visible.
+ *
+ * Fullscreen 3D (viewMesh/viewGlobe) may call this for terrain textures. While the export
+ * clone owns `id="map"`, any hide styles applied via getElementById stick to the clone and
+ * are discarded on restore — `reassertFullscreen3dMapOwnership` re-locks the live root.
  */
 export async function withOffscreenSvgExport<T>(produce: (exportRoot: SVGSVGElement) => T | Promise<T>): Promise<T> {
   const liveRoot = document.getElementById("map");
@@ -32,6 +37,10 @@ export async function withOffscreenSvgExport<T>(produce: (exportRoot: SVGSVGElem
   const liveParent = liveRoot.parentNode;
   const liveNext = liveRoot.nextSibling;
   const storedRenderMode = localStorage.getItem("fmg-render-mode");
+  // Preserve ownership styles across detach/reinsert. enter3dView locks the live node; the
+  // temporary export clone must not inherit those as "already applied to #map".
+  const liveVisibility = liveRoot.style.visibility;
+  const livePointerEvents = liveRoot.style.pointerEvents;
 
   liveRoot.remove();
 
@@ -60,6 +69,11 @@ export async function withOffscreenSvgExport<T>(produce: (exportRoot: SVGSVGElem
     viewContext.renderMode = previousMode;
     exportRoot.remove();
 
+    // Restore the pre-export ownership styles first, then reassert if 3D is still active
+    // (covers the case where enter3dView's hide landed on the export clone mid-flight).
+    liveRoot.style.visibility = liveVisibility;
+    liveRoot.style.pointerEvents = livePointerEvents;
+
     if (liveParent) {
       liveParent.insertBefore(liveRoot, liveNext);
     } else {
@@ -76,6 +90,8 @@ export async function withOffscreenSvgExport<T>(produce: (exportRoot: SVGSVGElem
     } else {
       localStorage.removeItem("fmg-render-mode");
     }
+
+    reassertFullscreen3dMapOwnership(viewContext.webglCanvas);
   }
 }
 

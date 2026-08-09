@@ -24,6 +24,7 @@ import { viewContext } from "../context/viewContext";
 import { bindViewLayersFromSvg } from "../initViewLayers";
 import { projectPresentationToSvg } from "../renderers/presentationProjection";
 import { applyHybridLayerPolicy } from "../renderers/webgl/hybridLayerPolicy";
+import { useViewModeState } from "../store/viewModeState";
 import { paintSvgMapLayers } from "./svgPaintRegistry";
 import { withOffscreenSvgExport } from "./svgSnapshot";
 
@@ -44,12 +45,14 @@ describe("withOffscreenSvgExport (P2-13)", () => {
     viewContext.renderMode = "webglHybrid";
     localStorage.setItem("fmg-render-mode", "webglHybrid");
     document.body.classList.add("fmg-webgl-hybrid");
+    useViewModeState.getState().setActiveViewMode("viewStandard");
     vi.clearAllMocks();
   });
 
   afterEach(() => {
     document.body.innerHTML = "";
     localStorage.clear();
+    useViewModeState.getState().setActiveViewMode("viewStandard");
   });
 
   it("does not call setRenderMode or change the stored render-mode preference", async () => {
@@ -116,5 +119,27 @@ describe("withOffscreenSvgExport (P2-13)", () => {
     expect(document.getElementById("map")).toBe(live);
     expect(viewContext.renderMode).toBe("webglHybrid");
     expect(localStorage.getItem("fmg-render-mode")).toBe("webglHybrid");
+  });
+
+  it("re-locks the live #map after export when a fullscreen 3D view is active", async () => {
+    const live = installLiveMap();
+    live.style.visibility = "hidden";
+    live.style.pointerEvents = "none";
+    useViewModeState.getState().setActiveViewMode("viewMesh");
+
+    // Simulate enter3dView mistakenly styling the export clone (the race under fix): while produce
+    // runs, document.getElementById("map") is the clone — hide styles would stick to it only.
+    await withOffscreenSvgExport(root => {
+      root.style.visibility = "hidden";
+      root.style.pointerEvents = "none";
+      // Clobber live styles as if they were never applied to the live node.
+      live.style.visibility = "visible";
+      live.style.pointerEvents = "auto";
+      return undefined;
+    });
+
+    expect(document.getElementById("map")).toBe(live);
+    expect(live.style.visibility).toBe("hidden");
+    expect(live.style.pointerEvents).toBe("none");
   });
 });

@@ -37,6 +37,24 @@ function getResolutionValue(explicitResolution?: number): number {
   return +(resolutionInput?.value ?? "") || 1;
 }
 
+/**
+ * Strip offscreen-parking styles that withOffscreenSvgExport applies to the temporary #map
+ * clone (position:fixed; left:-100000px; visibility:hidden). Those attributes must never reach
+ * a serialized SVG blob used as an image source — browsers honour left:-100000px on the root
+ * and rasterize an empty frame.
+ */
+export function normalizeMapExportCloneStyles(cloneEl: SVGSVGElement): void {
+  cloneEl.removeAttribute("data-fmg-offscreen-export");
+  cloneEl.style.position = "static";
+  cloneEl.style.left = "auto";
+  cloneEl.style.top = "auto";
+  cloneEl.style.right = "auto";
+  cloneEl.style.bottom = "auto";
+  cloneEl.style.transform = "none";
+  cloneEl.style.visibility = "visible";
+  cloneEl.style.pointerEvents = "auto";
+}
+
 // ─── Image exports ────────────────────────────────────────────────────────────
 
 export async function exportToSvg(): Promise<void> {
@@ -248,8 +266,12 @@ async function getMapURLFromSvg(type: string, options: GetMapURLOptions = {}): P
 
   const cloneEl = view.svg.node()!.cloneNode(true) as SVGSVGElement;
   cloneEl.id = "fantasyMap";
-  cloneEl.style.visibility = "visible";
-  cloneEl.style.pointerEvents = "auto";
+  // Hybrid full-map capture paints an offscreen root that is parked with
+  // position:fixed; left:-100000px (see withOffscreenSvgExport). cloneNode copies those
+  // inline styles. If they remain on the serialized blob used as <img src>, the SVG
+  // viewport is shifted off-frame and rasterizes to an empty/transparent image — which
+  // makes 3D viewMesh terrain pure black under webglHybrid.
+  normalizeMapExportCloneStyles(cloneEl);
   // <foreignObject class="fmc"> elements wrap canvas layers; they cannot be
   // serialized to SVG and cause canvas taint when drawn via drawImage().
   // We convert their canvases to data URIs and replace them with <image> elements in the clone.

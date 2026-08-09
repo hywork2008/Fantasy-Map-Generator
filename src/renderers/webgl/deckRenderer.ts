@@ -3,6 +3,7 @@ import type { AppServices } from "../../context/appServices";
 import { type ViewContext, viewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import { worldRuntime } from "../../runtime/worldRuntime";
+import { is3DViewActive } from "../../store/viewModeState";
 import type {
   WebglDragDetail,
   WebglDragKind,
@@ -509,6 +510,8 @@ function dispatchDragEvent(
 }
 
 function handlePointerDown(event: PointerEvent): void {
+  // Fullscreen 3D owns the screen; hybrid pick/drag must not compete with MapControls.
+  if (is3DViewActive()) return;
   if (eventTargetsHybridSvgOverlay(event)) return;
   if (!activePickingViewContext || activeDrag || !hasWebglDragTarget()) return;
   // A single nearest pick (pickObject) is not enough here: at the drag target's own position
@@ -531,6 +534,13 @@ function handlePointerDown(event: PointerEvent): void {
 }
 
 function handlePointerMove(event: PointerEvent): void {
+  if (is3DViewActive()) {
+    if (lastHoverPickId !== null) {
+      lastHoverPickId = null;
+      document.dispatchEvent(new CustomEvent<WebglPickDetail | null>("fmg:webgl-map-hover", { detail: null }));
+    }
+    return;
+  }
   if (!activePickingViewContext) return;
 
   if (activeDrag) {
@@ -561,6 +571,13 @@ function handlePointerMove(event: PointerEvent): void {
 }
 
 function handlePointerUp(event: PointerEvent): void {
+  if (is3DViewActive()) {
+    // Cancel any drag that started before 3D took ownership; never open mapPickChooser.
+    if (activeDrag) {
+      activeDrag = null;
+    }
+    return;
+  }
   if (!activePickingViewContext) return;
 
   if (activeDrag) {

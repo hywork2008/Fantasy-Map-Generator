@@ -6,17 +6,33 @@ import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { use3DOptionsStore } from "../store/options3dStore";
-import { useViewModeState } from "../store/viewModeState";
+import {
+  is3DViewActive,
+  lockMapForFullscreen3d,
+  unlockMapFromFullscreen3d,
+  useViewModeState
+} from "../store/viewModeState";
 import { closeDialog, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { fitContent } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById } from "../utils/nodeUtils";
 import { editBurg } from "./burg-editor";
 
+/** Invalidates in-flight enter3dView work when the user switches modes mid-init. */
+let enter3dGeneration = 0;
+
 function getRequiredElementById<T extends Element>(id: string): T {
   const element = getElementById<T>(id);
   if (!element) throw new Error(`Element #${id} is not found`);
   return element;
+}
+
+function getLiveMapElement(): SVGSVGElement | null {
+  const mapEl = document.getElementById("map");
+  if (!(mapEl instanceof SVGSVGElement)) return null;
+  // Offscreen export clones use the same id while detached work runs; never treat them as live.
+  if (mapEl.hasAttribute("data-fmg-offscreen-export")) return null;
+  return mapEl;
 }
 
 document.addEventListener("fmg:3d-burg-select", event => {
@@ -49,37 +65,43 @@ export function changeViewMode(event: MouseEvent): void {
 
   if (!pressed && button.id !== "viewStandard") {
     useViewModeState.getState().setActiveViewMode(button.id);
-    enter3dView(button.id);
+    void enter3dView(button.id);
   }
 }
 
 export function enterStandardView(): void {
+  // Cancel any in-flight enter3dView (WebGPU init / mesh texture) before it can re-hide the map.
+  enter3dGeneration++;
   useViewModeState.getState().setActiveViewMode("viewStandard");
 
   const canvas3d = getElementById<HTMLCanvasElement>("canvas3d");
-  if (!canvas3d) return;
-  ThreeDRenderer.stop();
-  DeckGlRenderer.resume(worldContext, viewContext, appServices);
-  canvas3d.remove();
+  if (canvas3d) {
+    ThreeDRenderer.stop();
+    DeckGlRenderer.resume(worldContext, viewContext, appServices);
+    canvas3d.remove();
+  } else if (ThreeDRenderer.options.isOn) {
+    // create() finished enough to mark isOn but canvas was not mounted yet (aborted mid-await).
+    ThreeDRenderer.stop();
+    DeckGlRenderer.resume(worldContext, viewContext, appServices);
+  }
 
-  const mapEl = getElementById<SVGSVGElement>("map");
-  if (mapEl) {
-    mapEl.style.visibility = "visible";
-    mapEl.style.pointerEvents = "auto";
-  }
-  if (viewContext.webglCanvas) {
-    viewContext.webglCanvas.style.visibility = "";
-    viewContext.webglCanvas.style.pointerEvents = "";
-  }
+  // Always restore 2D ownership — even when canvas3d was never inserted (race with create()).
+  unlockMapFromFullscreen3d(getLiveMapElement() ?? getElementById<SVGSVGElement>("map"), viewContext.webglCanvas);
 
   if (isDialogOpen("options3d")) closeDialog("options3d");
   if (isDialogOpen("preview3d")) closeDialog("preview3d");
 }
 
 async function enter3dView(type: string): Promise<void> {
+  const generation = ++enter3dGeneration;
   const canvas = document.createElement("canvas");
   canvas.id = "canvas3d";
   canvas.dataset.type = type;
+
+  const isFullscreen3d = type === "viewMesh" || type === "viewGlobe";
+  // Hold the live map node before any await. Hybrid full-map texture capture swaps a temporary
+  // clone into document under id=map; hide/show must never target that clone.
+  const liveMapEl = isFullscreen3d ? getLiveMapElement() : null;
 
   if (type === "heightmap3DView") {
     canvas.width =
@@ -90,8 +112,18 @@ async function enter3dView(type: string): Promise<void> {
     canvas.width = view.svgWidth;
     canvas.height = view.svgHeight;
     canvas.style.position = "absolute";
+    // Above #map (z-index: 2) and #webglMapCanvas (z-index: 1) so MapControls receive events even
+    // if a race briefly leaves the SVG interactive.
+    canvas.style.zIndex = "3";
     canvas.style.display = "none";
     canvas.style.pointerEvents = "auto";
+  }
+
+  // Lock the 2D stack before await create(). WebGPURenderer.init() and the queued mesh texture
+  // path (withOffscreenSvgExport) both yield; locking first keeps hybrid SVG pick/hit-testing off
+  // for the entire init window.
+  if (isFullscreen3d) {
+    lockMapForFullscreen3d(liveMapEl, viewContext.webglCanvas);
   }
 
   const isSatelliteTerrain =
@@ -102,8 +134,26 @@ async function enter3dView(type: string): Promise<void> {
   if (isSatelliteTerrain) DeckGlRenderer.suspend(viewContext);
 
   const started = await ThreeDRenderer.create(canvas, type);
+
+  // User left 3D (or started another enter) while WebGPU init / create was in flight.
+  if (generation !== enter3dGeneration || useViewModeState.getState().activeViewMode !== type) {
+    if (started) {
+      ThreeDRenderer.stop();
+      DeckGlRenderer.resume(worldContext, viewContext, appServices);
+    } else if (isSatelliteTerrain) {
+      DeckGlRenderer.resume(worldContext, viewContext, appServices);
+    }
+    if (!is3DViewActive()) {
+      unlockMapFromFullscreen3d(liveMapEl ?? getLiveMapElement(), viewContext.webglCanvas);
+    }
+    return;
+  }
+
   if (!started && isSatelliteTerrain) DeckGlRenderer.resume(worldContext, viewContext, appServices);
-  if (!started) return;
+  if (!started) {
+    if (isFullscreen3d) unlockMapFromFullscreen3d(liveMapEl ?? getLiveMapElement(), viewContext.webglCanvas);
+    return;
+  }
 
   canvas.style.display = "block";
   canvas.onmouseenter = () => {
@@ -125,18 +175,9 @@ async function enter3dView(type: string): Promise<void> {
     const optionsContainer = getElementById<HTMLElement>("optionsContainer");
     if (optionsContainer) optionsContainer.parentNode?.insertBefore(canvas, optionsContainer);
 
-    // Hide SVG
-    const mapEl = getElementById<SVGSVGElement>("map");
-    if (mapEl) {
-      mapEl.style.visibility = "hidden";
-      mapEl.style.pointerEvents = "none";
-    }
-    if (viewContext.webglCanvas) {
-      // Keep the deck instance alive while 3D owns a second WebGL context. This avoids a costly
-      // rebuild when returning to Standard view and prevents its canvas showing behind canvas3d.
-      viewContext.webglCanvas.style.visibility = "hidden";
-      viewContext.webglCanvas.style.pointerEvents = "none";
-    }
+    // Re-apply on the live node held before create. getElementById("map") mid-export would hit the
+    // offscreen clone; reassertFullscreen3dMapOwnership also runs after export reinserts live root.
+    lockMapForFullscreen3d(liveMapEl ?? getLiveMapElement(), viewContext.webglCanvas);
 
     if (typeof EditorBus.unselect === "function") EditorBus.unselect();
   }
