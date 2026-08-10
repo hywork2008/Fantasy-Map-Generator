@@ -73,6 +73,7 @@ export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
 const CARAVAN_VOLUME_HALF_LIFE_DAYS = 60;
 const CARAVAN_VOLUME_DECAY_RATE = Math.LN2 / CARAVAN_VOLUME_HALF_LIFE_DAYS;
 const UNIT_EPSILON = 0.000001;
+const ARRIVAL_DISTANCE_EPSILON_KM = 0.001;
 
 function payloadUsedSlots(caravan: Pick<Caravan, "payload">): number {
   return caravan.payload.reduce((sum, item) => {
@@ -577,6 +578,19 @@ function advanceCaravan(
   }
 }
 
+/**
+ * Travel legs are the authoritative movement plan after departure. Their measured terminal
+ * distance can differ slightly from route geometry used for `totalDistance`, especially on
+ * grade-split land legs. Never strand a caravan at 100%/ETA 0 on that rounding difference.
+ */
+function hasCaravanArrived(caravan: Caravan): boolean {
+  const terminalDistance = caravan.travelLegs?.[caravan.travelLegs.length - 1]?.endKm;
+  if (terminalDistance !== undefined && terminalDistance > 0) {
+    return caravan.currentDistance + ARRIVAL_DISTANCE_EPSILON_KM >= terminalDistance;
+  }
+  return caravan.currentDistance + ARRIVAL_DISTANCE_EPSILON_KM >= caravan.totalDistance;
+}
+
 function resolveBakeContext(month: number): {
   movement: CaravanMovementSettings;
   heights: ArrayLike<number> | null;
@@ -988,7 +1002,9 @@ export class CaravansModule {
         }
       }
 
-      if (caravan.currentDistance >= caravan.totalDistance) {
+      if (hasCaravanArrived(caravan)) {
+        // Keep detail/render progress coherent until this terminal row is removed below.
+        caravan.currentDistance = Math.max(caravan.currentDistance, caravan.totalDistance);
         caravan.state = "arrived";
         MerchantTransportAssets.settleCaravan(caravan, "arrived");
         settlePayloadCapital(caravan, "arrived");

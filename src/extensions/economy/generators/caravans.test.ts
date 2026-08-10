@@ -471,6 +471,33 @@ describe("caravan arrival volume tracking", () => {
 
     expect(getMarkets()[0].caravanArrivalVolume ?? 0).toBeLessThan(40);
   });
+
+  it("arrives when baked travel legs finish just short of the route geometry distance", () => {
+    setCaravans([
+      {
+        i: 7,
+        seller: 0,
+        sellerType: "burg",
+        buyer: 1,
+        buyerType: "market",
+        payload: [],
+        units: 2,
+        value: 0,
+        draftAnimalId: "horse",
+        routeSegments: [],
+        totalDistance: 45,
+        // Simulates a grade-split leg's accumulated floating-point terminal distance.
+        currentDistance: 44.9995,
+        travelLegs: [{ endKm: 44.9995, speedKmPerDay: 32 }],
+        state: "transit"
+      } as Caravan
+    ]);
+
+    const result = Caravans.tick(1);
+
+    expect(result.arrived).toHaveLength(1);
+    expect(getCaravans()).toEqual([]);
+  });
 });
 
 describe("bakeCaravanTravelLegs", () => {
