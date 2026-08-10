@@ -67,6 +67,11 @@ import type {
 import { QuarryOperations } from "./quarryOperations";
 import { SmelterOperations } from "./smelterOperations";
 import {
+  getSmithingProductProgram,
+  SMITHING_PRODUCT_GOOD_NAMES,
+  type SmithingProductProgram
+} from "./smithingProductProgram";
+import {
   getStrategicLaborProductivity,
   getStrategicOccupation,
   type LaborMarket,
@@ -401,6 +406,13 @@ export class ProductionModule {
     const demandTargets = getDemandTargets(population);
     const demandCoverage = this.calculateDemandCoverage(inventory, index.demandCoverageByGood);
     const records: ProductionRecord[] = [];
+    const smithingProgramByGood = new Map<string, SmithingProductProgram>();
+    if (burg.i) {
+      for (const goodName of SMITHING_PRODUCT_GOOD_NAMES) {
+        const program = getSmithingProductProgram(burg.i, goodName);
+        if (program) smithingProgramByGood.set(goodName, program);
+      }
+    }
 
     const good = Goods.get(getGoodCellColumn()[burg.cell]);
     if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name)) {
@@ -432,6 +444,7 @@ export class ProductionModule {
       records,
       ingredientCosts: 0,
       activeGoalGoodId: null,
+      smithingProgramByGood,
       strategicLaborMarket,
       strategicDemandByGood: getStrategicProductionDemandByGood(getStrategicProcurementOrders(), market.i)
     };
@@ -547,7 +560,7 @@ export class ProductionModule {
     decision: ProductionDecision,
     workerFraction: number
   ): void {
-    const { good, ingredients, maxYield, ingredientCostPerUnit } = decision.action;
+    const { good, ingredients, maxYield, ingredientCostPerUnit, smithingProgram } = decision.action;
     let actualYield = Math.min(workerFraction, maxYield);
 
     if (good.name === "Garments") {
@@ -573,7 +586,14 @@ export class ProductionModule {
     // efficiency multiplier alongside culture — docs/plan/knowledge-guild-system.md §6, §9 Phase 2.
     const domain = getCraftDomainForGood(good.name);
     const guildBonus = domain && state.burg.i ? getGuildBonus(state.burg.i, domain) : 1;
-    const produced = rn(actualYield * cultureModifier * guildBonus * decision.laborProductivity, 2);
+    const produced = rn(
+      actualYield *
+        cultureModifier *
+        guildBonus *
+        decision.laborProductivity *
+        (smithingProgram?.outputMultiplier ?? 1),
+      2
+    );
     if (!produced) return;
 
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
@@ -636,6 +656,7 @@ export class ProductionModule {
 
     const record: MfgRecord = { goodId: good.i, units: produced, recipe };
     if (cultureModifier !== 1) record.cultureModifier = cultureModifier;
+    if (smithingProgram) record.smithingProgram = smithingProgram;
     if (DEBUG.production) record.candidates = decision.candidates;
     state.records.push(record);
   }
@@ -919,8 +940,9 @@ export class ProductionModule {
     }
 
     const modifier = getModifiers(recipe.good, state.burg.cell);
+    const smithingProgram = state.smithingProgramByGood.get(recipe.good.name) ?? null;
     const outQuote = Markets.quoteMarket(state.market, recipe.good.i);
-    const sellValue = (outQuote.sellPrice || recipe.good.value) * modifier;
+    const sellValue = (outQuote.sellPrice || recipe.good.value) * modifier * (smithingProgram?.outputMultiplier ?? 1);
     const ingredientCost = marketCostTotal / actualUnits;
     const salesTaxRate = this.getSalesTax(state.burg);
     const postTaxSellValue = sellValue * (1 - salesTaxRate);
@@ -933,7 +955,8 @@ export class ProductionModule {
         good: recipe.good,
         ingredients: recipe.ingredients,
         maxYield,
-        ingredientCostPerUnit: ingredientCost
+        ingredientCostPerUnit: ingredientCost,
+        smithingProgram
       },
       candidate: {
         goodId: recipe.good.i,
@@ -966,8 +989,9 @@ export class ProductionModule {
     path[good.i] = true;
 
     const modifier = getModifiers(good, state.burg.cell);
+    const smithingProgram = state.smithingProgramByGood.get(good.name) ?? null;
     const sellQuote = Markets.quoteMarket(state.market, good.i);
-    const sellValuePerUnit = (sellQuote.sellPrice || good.value) * modifier;
+    const sellValuePerUnit = (sellQuote.sellPrice || good.value) * modifier * (smithingProgram?.outputMultiplier ?? 1);
     const totalProjectedGain = sellValuePerUnit * targetUnits * demandEffect.multiplier;
 
     const recipeList = index.recipesByOutput[good.i];
@@ -1194,6 +1218,8 @@ type PlannedAction = {
   maxYield: number;
   /** Estimated market cost per unit yielded, used to cap actualYield by the Burg's treasury at execution time. */
   ingredientCostPerUnit: number;
+  /** Direct master supervision for the initial forged-goods vertical slice. */
+  smithingProgram: SmithingProductProgram | null;
 };
 
 type Recipe = { good: Good; ingredients: Ingredient[] };
@@ -1266,6 +1292,8 @@ type BurgProductionState = {
   records: ProductionRecord[];
   ingredientCosts: number;
   activeGoalGoodId: number | null;
+  /** Resolved once per Burg so production candidate ranking does not repeatedly scan characters. */
+  smithingProgramByGood: ReadonlyMap<string, SmithingProductProgram>;
   strategicDemandByGood: ReadonlyMap<number, StrategicProductionDemand>;
   strategicLaborMarket: LaborMarket | undefined;
 };

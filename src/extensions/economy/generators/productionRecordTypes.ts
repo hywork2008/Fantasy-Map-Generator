@@ -27,6 +27,13 @@ export type MfgRecord = {
   units: number;
   recipe: ProductionRecipeEntry[];
   cultureModifier?: number; // omitted when 1
+  /** Present only for a master-supervised Tools, Arms, or Harnesses production run. */
+  smithingProgram?: {
+    masterCharacterId: number;
+    proficiency: number;
+    techniques: readonly string[];
+    outputMultiplier: number;
+  };
   candidates?: readonly ProductionCandidate[]; // recorded only when DEBUG.production is on
 };
 

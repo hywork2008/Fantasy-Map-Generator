@@ -2,7 +2,7 @@
 
 ## 状態
 
-**提案段階 — 未実装**（2026-08-03）
+**Phase A・B 実装済み、製品接続は鍛冶の初期スライスから進行中**（2026-08-10）
 
 本書は、[知識・技術蓄積システム](./knowledge-guild-system.md)が扱う都市・国家・組織の知識と、個々の職人・武人の能力を接続するための設計である。
 
@@ -247,7 +247,11 @@ interface CharacterDomainSkill {
 1. `blacksmithing` を導入し、現行 metallurgy の親方・弟子に限定してレコードを作る。
 2. 現行 `engineering` を初期 `blacksmithing` と適性 Tier のシードに用いる。
 3. 師弟の年次成長式を、親方の `blacksmithing` と GuildKnowledgeStock に置き換える。
-4. 親方が担当する高級品生産だけへ、熟練・技法の品質補正を接続する。
+4. [x] 親方が担当する高級品生産だけへ、熟練・技法の品質補正を接続する。
+   `smithingProductProgram.ts` は `Tools` / `Arms` / `Harnesses` を対象に、親方の熟練と
+   `heatTreatment`、さらに Arms の `patternWelding` を製造効率へ反映する。市場の Good は
+   まだ品質別に分かれていないため、これは失敗・再加工の減少として扱い、製造記録には担当親方と
+   適用倍率を残す。
 5. 既存の GuildKnowledgeStock の成長・減衰ルールは変更しない。
 
 ### Phase B: 技法と継承
