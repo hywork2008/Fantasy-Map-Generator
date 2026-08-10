@@ -1,16 +1,11 @@
-import {
-  applyCharacterBackstory,
-  getSolidarity,
-  seedRelationsWithPeers,
-  setSolidarity
-} from "../../characters/backstoryProfile";
+import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
 import { rollApprenticeAge } from "../../characters/raceAge";
 import { isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import type { Burg } from "../../hostTypes";
-import { P, rand } from "../../hostUtils";
+import { P } from "../../hostUtils";
 import {
   getGuildKnowledgeStocks,
   getGuildSuccessionLastSettledYear,
@@ -23,6 +18,10 @@ import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import { applyMasterlessGuildPenalty } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import { settleGuildMasterEstate } from "./guildMasterAssets";
+import {
+  seedMasterApprenticeTasteRelationship,
+  settleMasterApprenticeTasteRelationships
+} from "./guildRelationshipSettlement";
 import {
   advanceBlacksmithingTechniqueLeads,
   discardIndividualSkills,
@@ -180,24 +179,6 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
   return character;
 }
 
-/**
- * Master–apprentice pairs live and work together daily. After general peer seeding, nudge any
- * still-missing edge toward a mild positive bias so "good bond → pocket money" can fire without
- * forcing every pair to be bonded. Existing edges (including cool/hostile ones) are left alone.
- */
-function ensureMasterApprenticeContactBond(master: Character, apprentice: Character): void {
-  if (master.dead || apprentice.dead || master.i === apprentice.i) return;
-
-  // Only fill sparse missing edges — do not overwrite a sour relationship that peer seeding set.
-  if (getSolidarity(master, apprentice.i) === 0) {
-    // Bias positive but leave room below the collegial (20) pocket-money threshold.
-    setSolidarity(master, apprentice.i, rand(8, 48));
-  }
-  if (getSolidarity(apprentice, master.i) === 0) {
-    setSolidarity(apprentice, master.i, rand(8, 48));
-  }
-}
-
 function createApprentice(
   characters: Character[],
   burgId: number,
@@ -229,7 +210,7 @@ function createApprentice(
   characters.push(character);
   seedRelationsWithPeers(character, characters);
   const master = characters.find(c => c.i === masterId);
-  if (master) ensureMasterApprenticeContactBond(master, character);
+  if (master) seedMasterApprenticeTasteRelationship(master, character, domain);
   finalizeCharacterSocietyForPeer(character, characters, {
     stateNames: {},
     currentYear: getSimulationYear()
@@ -370,6 +351,7 @@ function processGuildSuccession(
   // Enemy-dedicated burgs (goblin etc.) never run peaceful craft guilds.
   if (!master) return false;
 
+  settleMasterApprenticeTasteRelationships(master, findApprentices(characters, master.i, burgId, domain), domain);
   growApprentices(characters, master, burgId, domain, chance);
   maybeSpawnApprentice(characters, master, burgId, domain);
   return createdNewMaster;

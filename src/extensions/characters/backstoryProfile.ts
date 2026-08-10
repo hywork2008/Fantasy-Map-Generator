@@ -41,6 +41,7 @@ import {
 } from "./cultureFormPacks";
 import { seedCharacterLoadout } from "./loadoutSeed";
 import { applyBackgroundSkillBias, syncCk3AbilityProfileSkills } from "./skillGeneration";
+import { assessTasteRelationship, projectTasteRelationshipDelta } from "./tasteRelationship";
 
 // ---------------------------------------------------------------------------
 // Relation score helpers (solidarity = political; favor = romantic only)
@@ -1736,6 +1737,17 @@ function isSycophantProfile(p: Character["personality"]): boolean {
   return p.greed >= 65 && p.guile >= 65 && p.sociability >= 65;
 }
 
+const FIRST_CONTACT_TASTE_IDS = ["company", "salon", "solitude", "flattery", "debate", "gossip", "ceremony"];
+
+function getInitialCounterpartTraits(from: Character, to: Character, toClass: CharacterRoleClass): string[] {
+  const traits: string[] = [];
+  if (isMilitaryRole(to)) traits.push("soldiers");
+  if (from.culture !== to.culture) traits.push("foreigners");
+  if (toClass === "merchant") traits.push("merchants");
+  if (isNobleStratum(to.backstory?.origin.socialStratum)) traits.push("nobles");
+  return traits;
+}
+
 /**
  * Personality-driven political regard from `from` toward `to`.
  * Same-regime peers get mild institutional solidarity, then power rivalry and
@@ -1900,23 +1912,17 @@ export function computeInitialSolidarity(from: Character, to: Character): number
     score -= rand(20, 45);
   }
 
-  // Taste frictions
-  if (from.backstory?.tastes.some(t => t.id === "soldiers" && t.polarity === "dislike") && isMilitaryRole(to)) {
-    score -= rand(10, 25);
-  }
-  if (
-    from.backstory?.tastes.some(t => t.id === "foreigners" && t.polarity === "dislike") &&
-    from.culture !== to.culture
-  ) {
-    score -= rand(10, 25);
-  }
-  if (from.backstory?.tastes.some(t => t.id === "merchants" && t.polarity === "dislike") && toClass === "merchant") {
-    score -= rand(8, 22);
-  }
-  if (from.backstory?.tastes.some(t => t.id === "nobles" && t.polarity === "dislike")) {
-    const stratum = to.backstory?.origin.socialStratum;
-    if (stratum === "royal" || stratum === "high_noble" || stratum === "minor_noble") score -= rand(8, 20);
-  }
+  const tasteAssessment = assessTasteRelationship(from, to, {
+    situation: "firstContact",
+    exposedTasteIds: FIRST_CONTACT_TASTE_IDS,
+    exposure: 0.35,
+    counterpartTraits: getInitialCounterpartTraits(from, to, toClass)
+  });
+  score += projectTasteRelationshipDelta(tasteAssessment, {
+    maxPositive: 8,
+    maxNegative: 12,
+    currentScore: score
+  });
 
   return clampRelation(score);
 }

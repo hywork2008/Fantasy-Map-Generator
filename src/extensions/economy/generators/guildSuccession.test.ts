@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getSolidarity } from "../../characters/backstoryProfile";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import "../../characters/types";
@@ -81,6 +82,11 @@ describe("GuildSuccessionModule", () => {
     // A freshly-created master's engineering skill always rolls >=40 (createPerson's primarySkill
     // bias), so it also immediately takes on an apprentice the same year.
     expect(master && worldContext.pack.characters.some(c => isApprenticeOf(c, master.i))).toBe(true);
+    if (!master) throw new Error("Expected a newly seeded guild master");
+    const apprentice = worldContext.pack.characters.find(c => isApprenticeOf(c, master.i));
+    if (!apprentice) throw new Error("Expected the newly seeded master to have an apprentice");
+    expect(getSolidarity(master, apprentice.i)).not.toBe(0);
+    expect(getSolidarity(apprentice, master.i)).not.toBe(0);
   });
 
   it("keeps the existing master instead of creating a second one on the following year", () => {
