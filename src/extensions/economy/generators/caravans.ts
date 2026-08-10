@@ -136,13 +136,18 @@ function sameRouteBundle(
 function appendPayloadFromManifest(
   caravan: Caravan,
   manifest: { items: { deal: Deal; units: number; cargoSlotsPerUnit: number }[] }
-): void {
+): number {
   let totalUnits = caravan.units;
   let totalValue = caravan.value;
+  let addedSlots = 0;
   for (const item of manifest.items) {
     let units = item.units;
     let lockedCapital = 0;
     let freshnessAgeDays: number | undefined;
+    const good = getGoods().find(candidate => candidate.i === item.deal.good);
+    // selectRouteCargo normally prevents this. Keep this boundary fail-closed so a stale
+    // manifest, strategic caller, or user-edited catalogue cannot put raw food on a caravan.
+    if (!good || isFreshFoodGood(good)) continue;
     // Prefer export-warehouse take when the deal (or pseudo-deal) is backed by a staging lot.
     if (item.deal.stagingLotId !== undefined) {
       const taken = ExportStaging.takeFromLot(item.deal.stagingLotId, item.units);
@@ -160,6 +165,7 @@ function appendPayloadFromManifest(
     const value = item.deal.price * units;
     totalUnits += units;
     totalValue += value;
+    addedSlots += units * item.cargoSlotsPerUnit;
     const existing = caravan.payload.find(
       entry =>
         entry.dealId === item.deal.i && entry.goodId === item.deal.good && entry.stagingLotId === item.deal.stagingLotId
@@ -187,6 +193,7 @@ function appendPayloadFromManifest(
   }
   caravan.units = rn(totalUnits, 2);
   caravan.value = rn(totalValue, 2);
+  return addedSlots;
 }
 
 /** Return loading cargo to the exporter market retail stock when a thin hold is cancelled. */
@@ -268,6 +275,13 @@ function refreshLoadingPolicy(caravan: Caravan): void {
 
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {
   if (caravan.state !== "loading" || !caravan.loading) return "waiting";
+
+  // Defensive cleanup before co-load/departure also prevents one-tick display of raw fresh cargo
+  // restored from a save or passed through an obsolete caller.
+  if (discardFreshPayload(caravan) && !caravan.payload.length) {
+    caravan.state = "lost";
+    return "cancelled";
+  }
 
   refreshLoadingPolicy(caravan);
 
@@ -820,7 +834,10 @@ export class CaravansModule {
               freeSlots
             );
             if (topUp?.items.length) {
-              appendPayloadFromManifest(existingLoading, topUp);
+              const addedSlots = appendPayloadFromManifest(existingLoading, topUp);
+              // A rejected/stale manifest must not re-enter this branch with exactly the same
+              // deals. Without this progress guard, generation can spin forever on one O/D pair.
+              if (addedSlots <= UNIT_EPSILON) break;
               if (existingLoading.transportAllocations) {
                 for (const allocation of existingLoading.transportAllocations) {
                   allocation.usedSlots = payloadUsedSlots(existingLoading);
@@ -891,8 +908,8 @@ export class CaravansModule {
             nextSailDay: nextScheduledSailDay(dayOfMonth, logistics.sailDays)
           }
         };
-        appendPayloadFromManifest(caravan, manifest);
-        if (!caravan.payload.length) break;
+        const addedSlots = appendPayloadFromManifest(caravan, manifest);
+        if (addedSlots <= UNIT_EPSILON || !caravan.payload.length) break;
         getCaravans().push(caravan);
 
         // Immediate depart when the first load already meets the fill target (common for large deals).

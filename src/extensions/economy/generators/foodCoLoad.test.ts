@@ -106,6 +106,16 @@ describe("foodCoLoad caravan integration", () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     setGoods([
       {
+        i: 0,
+        name: "Grapes",
+        // Deliberately malformed legacy/custom tags: this must still never be used as ballast.
+        tags: ["food", "freshFood", "stapleCrop"],
+        value: 2,
+        color: "#936",
+        icon: "grapes",
+        cargo: { cargoSlotsPerUnit: 1, handlingClass: "fragile" }
+      } as never,
+      {
         i: 1,
         name: "Wheat",
         tags: ["food", "stapleCrop", "crop", "cereal"],
@@ -122,7 +132,7 @@ describe("foodCoLoad caravan integration", () => {
         i: 1,
         centerBurgId: 1,
         color: "#000",
-        goods: { 1: { stock: 50, price: 2 } },
+        goods: { 0: { stock: 500, price: 2 }, 1: { stock: 50, price: 2 } },
         foodLedger: emptyLedger({
           foodStockAge0: 40,
           foodStockAge0UnitCost: 1.5,
@@ -200,6 +210,7 @@ describe("foodCoLoad caravan integration", () => {
 
     const food = caravan.payload.find(item => item.isFoodCoLoad);
     expect(food).toBeDefined();
+    expect(food!.goodId).toBe(1);
     expect(food!.units).toBe(loaded);
     expect(food!.cargoSlotsPerUnit).toBe(2);
     expect(food!.isFoodCoLoad).toBe(true);

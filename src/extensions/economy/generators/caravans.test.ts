@@ -254,6 +254,28 @@ describe("caravan loading accumulation", () => {
     expect(getCaravans()[0].departReason).toBe("depart-local");
   });
 
+  it("terminates an O/D loading pass when a stale manifest contributes no cargo", () => {
+    // A Good missing from the current catalogue cannot be packed. The important invariant is
+    // that spawnFromDeals returns rather than repeatedly retrying the same no-progress manifest.
+    setDeals([
+      {
+        i: 99,
+        seller: 0,
+        sellerType: "market",
+        buyer: 1,
+        buyerType: "market",
+        good: 999,
+        units: 2,
+        remainingUnits: 2,
+        price: 50,
+        tax: 0
+      }
+    ]);
+
+    expect(() => Caravans.spawnFromDeals(getDeals())).not.toThrow();
+    expect(getCaravans()).toEqual([]);
+  });
+
   it("keeps export warehouse lots across deal wipes until loaded", () => {
     ExportStaging.bookFromRetail({
       marketId: 0,
@@ -387,6 +409,58 @@ describe("caravan arrival volume tracking", () => {
     ]);
 
     const result = Caravans.tick(2);
+
+    expect(result.lost).toHaveLength(1);
+    expect(getCaravans()).toEqual([]);
+  });
+
+  it("removes raw fresh cargo from a restored loading caravan before it can depart", () => {
+    worldContext.pack.goods = [
+      {
+        i: 0,
+        name: "Grapes",
+        value: 2,
+        tags: ["food"],
+        unit: "1,000 kg grape lot",
+        icon: "grapes",
+        color: "#963e48"
+      } as Good
+    ];
+    setCaravans([
+      {
+        i: 1,
+        seller: 0,
+        sellerType: "market",
+        buyer: 1,
+        buyerType: "market",
+        payload: [{ goodId: 0, dealId: 1, units: 2, value: 4 }],
+        units: 2,
+        value: 4,
+        draftAnimalId: "horse",
+        routeSegments: [
+          {
+            type: "land",
+            points: [
+              [0, 0],
+              [164, 0]
+            ]
+          }
+        ],
+        totalDistance: 164,
+        currentDistance: 0,
+        travelLegs: [{ endKm: 164, speedKmPerDay: 32 }],
+        state: "loading",
+        loading: {
+          waitedDays: 0,
+          maxWaitDays: 2,
+          targetUtilization: 0.55,
+          minSailUtilization: 0.2,
+          plannedCapacitySlots: 36
+        }
+      } as Caravan
+    ]);
+
+    const result = Caravans.tick(1);
 
     expect(result.lost).toHaveLength(1);
     expect(getCaravans()).toEqual([]);

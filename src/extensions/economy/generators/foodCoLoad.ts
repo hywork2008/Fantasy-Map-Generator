@@ -13,6 +13,7 @@
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
 import { FOOD_SPOILAGE_HALF_LIFE_DAYS } from "./foodImportNetwork";
+import { isFreshFoodGood } from "./goods-generator";
 import type { Caravan, FoodLedger, Market } from "./marketTypes";
 import { markRetailInventoryDirty } from "./retailInventory";
 import {
@@ -368,7 +369,9 @@ export function settleFoodCoLoadOnArrival(caravan: Caravan, distanceScale: numbe
 function getExportCrop(market: Market) {
   const ledger = market.foodLedger;
   const candidates = getGoods()
-    .filter(good => good.tags.includes("stapleCrop"))
+    // Co-load represents dry staple ballast. Raw foods must remain local even if a legacy or
+    // user-edited catalogue accidentally also marks one as a staple crop.
+    .filter(good => good.tags.includes("stapleCrop") && !isFreshFoodGood(good))
     .map(good => ({
       good,
       // Prefer the real tradeable amount for a market-tracked crop; market.goods[...].stock is
