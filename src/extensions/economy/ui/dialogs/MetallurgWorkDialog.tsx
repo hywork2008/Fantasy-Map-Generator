@@ -44,86 +44,88 @@ export const MetallurgWorkDialog: React.FC = () => {
       isOpen={isOpen}
       title="Metallurg Work"
       onClose={() => closeDialog("metallurgWorkOverview")}
-      className="fmg-dialog--table"
+      className="fmg-dialog--table fmg-dialog--metallurg-work"
     >
-      <div id="metallurgWorkOverviewSummary" className="totalLine">
-        <span data-tip="Total unfinished work units in the Metallurg queue">Queued work: {queuedWork}</span>
-        {" · "}
-        <span data-tip="Work waiting on at least one predicted material shortage">Blocked work: {blockedWork}</span>
-        {" · "}
-        <span data-tip="Market-and-material combinations projected to run short">
-          Material shortages: {shortageCount}
-        </span>
-      </div>
-
-      <section aria-labelledby="metallurgWorkOrdersHeading">
-        <h3 id="metallurgWorkOrdersHeading">Work queue</h3>
-        <div ref={ordersRef} id="metallurgWorkOrders" className="table">
-          <table className="fmg-table">
-            <thead className="header">
-              <tr>
-                <th>Owner</th>
-                <th>Work</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Units</th>
-                <th>Work</th>
-                <th>Materials</th>
-              </tr>
-            </thead>
-            {orders.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={7}>No Metallurg work is planned yet</td>
-                </tr>
-              </tbody>
-            ) : (
-              <VirtualTableBody items={orders} scrollElementRef={ordersRef} renderRow={renderWorkOrderRow} />
-            )}
-          </table>
+      <div className="metallurg-work-dialog">
+        <div id="metallurgWorkOverviewSummary" className="totalLine">
+          <span data-tip="Total unfinished work units in the Metallurg queue">Queued work: {queuedWork}</span>
+          {" · "}
+          <span data-tip="Work waiting on at least one predicted material shortage">Blocked work: {blockedWork}</span>
+          {" · "}
+          <span data-tip="Market-and-material combinations projected to run short">
+            Material shortages: {shortageCount}
+          </span>
         </div>
-      </section>
 
-      <section aria-labelledby="metallurgMaterialForecastHeading">
-        <h3 id="metallurgMaterialForecastHeading">Material forecast</h3>
-        <div ref={materialsRef} id="metallurgMaterialForecast" className="table">
-          <table className="fmg-table">
-            <thead className="header">
-              <tr>
-                <th>Market</th>
-                <th>Material</th>
-                <th>Required</th>
-                <th>Stock</th>
-                <th data-tip="Matching material already travelling to this market">Inbound</th>
-                <th data-tip="Additional units that should be produced locally or purchased">To procure</th>
-                <th>Orders</th>
-              </tr>
-            </thead>
-            {materials.length === 0 ? (
-              <tbody>
+        <section className="metallurg-work-dialog__section" aria-labelledby="metallurgWorkOrdersHeading">
+          <h3 id="metallurgWorkOrdersHeading">Work queue</h3>
+          <div ref={ordersRef} id="metallurgWorkOrders" className="table">
+            <table className="fmg-table">
+              <thead className="header">
                 <tr>
-                  <td colSpan={7}>No material requirements are queued</td>
+                  <th>Owner</th>
+                  <th>Work</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Units</th>
+                  <th>Work</th>
+                  <th>Materials</th>
                 </tr>
-              </tbody>
-            ) : (
-              <VirtualTableBody
-                items={materials}
-                scrollElementRef={materialsRef}
-                renderRow={renderMaterialForecastRow}
-              />
-            )}
-          </table>
-        </div>
-      </section>
+              </thead>
+              {orders.length === 0 ? (
+                <tbody>
+                  <tr>
+                    <td colSpan={7}>No Metallurg work is planned yet</td>
+                  </tr>
+                </tbody>
+              ) : (
+                <VirtualTableBody items={orders} scrollElementRef={ordersRef} renderRow={renderWorkOrderRow} />
+              )}
+            </table>
+          </div>
+        </section>
 
-      <div className="footer">
-        <button
-          type="button"
-          id="metallurgWorkOverviewRefresh"
-          data-tip="Refresh the Metallurg work and material forecasts"
-          className="icon-cw"
-          onClick={refreshMetallurgWorkOverview}
-        />
+        <section className="metallurg-work-dialog__section" aria-labelledby="metallurgMaterialForecastHeading">
+          <h3 id="metallurgMaterialForecastHeading">Material forecast</h3>
+          <div ref={materialsRef} id="metallurgMaterialForecast" className="table">
+            <table className="fmg-table">
+              <thead className="header">
+                <tr>
+                  <th>Market</th>
+                  <th>Material</th>
+                  <th>Required</th>
+                  <th>Stock</th>
+                  <th data-tip="Matching material already travelling to this market">Inbound</th>
+                  <th data-tip="Additional units that should be produced locally or purchased">To procure</th>
+                  <th>Orders</th>
+                </tr>
+              </thead>
+              {materials.length === 0 ? (
+                <tbody>
+                  <tr>
+                    <td colSpan={7}>No material requirements are queued</td>
+                  </tr>
+                </tbody>
+              ) : (
+                <VirtualTableBody
+                  items={materials}
+                  scrollElementRef={materialsRef}
+                  renderRow={renderMaterialForecastRow}
+                />
+              )}
+            </table>
+          </div>
+        </section>
+
+        <div className="footer">
+          <button
+            type="button"
+            id="metallurgWorkOverviewRefresh"
+            data-tip="Refresh the Metallurg work and material forecasts"
+            className="icon-cw"
+            onClick={refreshMetallurgWorkOverview}
+          />
+        </div>
       </div>
     </Dialog>
   );

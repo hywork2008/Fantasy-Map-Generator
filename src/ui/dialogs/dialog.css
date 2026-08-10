@@ -128,6 +128,32 @@
   flex-shrink: 0;
 }
 
+/* Metallurg Work: two linked ledgers must remain inspectable on first open.
+   The outer dialog is a single table-layout child; each ledger owns its own
+   scroll region so neither table is pushed below the resize handle. */
+.fmg-dialog--metallurg-work {
+  width: min(68rem, calc(100vw - 2rem));
+  height: min(42rem, 75vh);
+}
+
+.metallurg-work-dialog {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.metallurg-work-dialog__section {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.metallurg-work-dialog__section > h3 {
+  flex-shrink: 0;
+}
+
 .population-overview-dialog {
   width: min(56em, calc(100vw - 2rem));
 }
