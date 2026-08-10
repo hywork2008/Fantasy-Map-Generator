@@ -2,7 +2,7 @@ import { type Point, useOptionsState } from "../../hostCore";
 import { openDialog } from "../../hostUi";
 import { minmax, rn } from "../../hostUtils";
 
-import { getApi, getMarketById, getMarkets, getMerchantOrganizations, getWorldContext } from "../economyContext";
+import { getApi, getMarketById, getMerchantOrganizations, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Caravan, TradeRouteSegment } from "../generators/marketTypes";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
@@ -18,10 +18,9 @@ export function open(caravan: Caravan): void {
 
   activeCaravan = caravan;
 
-  const markets = getMarkets();
   const { burgs } = getWorldContext().pack;
-  const sellerMarket = caravan.sellerType === "market" ? markets[caravan.seller] : null;
-  const buyerMarket = caravan.buyerType === "market" ? markets[caravan.buyer] : null;
+  const sellerMarket = caravan.sellerType === "market" ? getMarketById(caravan.seller) : null;
+  const buyerMarket = caravan.buyerType === "market" ? getMarketById(caravan.buyer) : null;
 
   const startBurg =
     caravan.sellerType === "burg" ? burgs[caravan.seller] : sellerMarket ? burgs[sellerMarket.centerBurgId] : null;
@@ -59,10 +58,8 @@ function tradeDetailsAddLines(): void {
 
   const caravan = activeCaravan;
   const { burgs } = getWorldContext().pack;
-  const markets = getMarkets();
-
-  const sellerMarket = caravan.sellerType === "market" ? markets[caravan.seller] : null;
-  const buyerMarket = caravan.buyerType === "market" ? markets[caravan.buyer] : null;
+  const sellerMarket = caravan.sellerType === "market" ? getMarketById(caravan.seller) : null;
+  const buyerMarket = caravan.buyerType === "market" ? getMarketById(caravan.buyer) : null;
 
   const from =
     caravan.sellerType === "burg" ? burgs[caravan.seller] : sellerMarket ? burgs[sellerMarket.centerBurgId] : null;

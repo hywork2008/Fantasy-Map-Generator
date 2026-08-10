@@ -3,7 +3,7 @@ import type { MerchantRoutePreference } from "../../../../services/routeGrade";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
-import { getCaravans, getMarkets, getWorldContext } from "../../economyContext";
+import { getCaravans, getMarketById, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import { getCaravanTravelTime } from "../../generators/caravans";
 import { Goods } from "../../generators/goods-generator";
@@ -105,13 +105,11 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
   const world = getWorldContext();
   const burgs = world?.pack?.burgs ?? [];
-  const markets = getMarkets();
-
   const rows = React.useMemo(() => {
     return caravans.map(c => {
       let sourceBurgName = "Unknown";
       if (c.sellerType === "market") {
-        const m = markets[c.seller];
+        const m = getMarketById(c.seller);
         if (m && burgs[m.centerBurgId]) sourceBurgName = burgs[m.centerBurgId].name ?? "Unknown";
       } else {
         if (burgs[c.seller]) sourceBurgName = burgs[c.seller].name ?? "Unknown";
@@ -119,7 +117,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
       let targetBurgName = "Unknown";
       if (c.buyerType === "market") {
-        const m = markets[c.buyer];
+        const m = getMarketById(c.buyer);
         if (m && burgs[m.centerBurgId]) targetBurgName = burgs[m.centerBurgId].name ?? "Unknown";
       } else {
         if (burgs[c.buyer]) targetBurgName = burgs[c.buyer].name ?? "Unknown";
@@ -179,8 +177,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         value: c.value
       };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caravans, world.distanceScale, world, markets, burgs]);
+  }, [caravans, world.distanceScale, world, burgs]);
 
   const sortedRows = React.useMemo(() => {
     return [...rows].sort((a, b) => {

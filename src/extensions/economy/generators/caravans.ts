@@ -7,6 +7,7 @@ import {
   getDeals,
   getExportStagingLots,
   getGoods,
+  getMarketById,
   getMarkets,
   getMerchantOrganizations,
   getNextCaravanId,
@@ -610,7 +611,6 @@ export class CaravansModule {
     // for the map's lifetime.
     let nextId = this.ensureNextCaravanId();
 
-    const markets = getMarkets();
     const burgs = world.pack.burgs;
     if (!burgs) return;
 
@@ -646,7 +646,7 @@ export class CaravansModule {
     for (const bundle of bundles.values()) {
       let startBurgId: number;
       if (bundle.sellerType === "market") {
-        const m = markets[bundle.seller] ?? markets.find(market => market.i === bundle.seller);
+        const m = getMarketById(bundle.seller);
         if (!m) continue;
         startBurgId = m.centerBurgId;
       } else {
@@ -655,7 +655,7 @@ export class CaravansModule {
 
       let endBurgId: number;
       if (bundle.buyerType === "market") {
-        const m = markets[bundle.buyer] ?? markets.find(market => market.i === bundle.buyer);
+        const m = getMarketById(bundle.buyer);
         if (!m) continue;
         endBurgId = m.centerBurgId;
       } else {

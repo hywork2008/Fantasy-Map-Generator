@@ -1,5 +1,5 @@
 import type { ExtensionMapPickHandler } from "../../../types/extension-api";
-import { getApi, getCaravans, getGoodCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import { getApi, getCaravans, getGoodCellColumn, getMarketById, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 
 const GOODS_CELL_ID = /^economy-goods-cell-(\d+)-(\d+)$/;
@@ -14,8 +14,8 @@ export const economyMapPickHandler: ExtensionMapPickHandler = {
       const caravanId = Number(caravanIdMatch[1]);
       const caravan = getCaravans().find(c => c.i === caravanId);
       if (caravan) {
-        const fromMarket = getMarkets()[caravan.seller];
-        const toMarket = getMarkets()[caravan.buyer];
+        const fromMarket = caravan.sellerType === "market" ? getMarketById(caravan.seller) : undefined;
+        const toMarket = caravan.buyerType === "market" ? getMarketById(caravan.buyer) : undefined;
 
         let fromName = `Market ${caravan.seller}`;
         if (caravan.sellerType === "market" && fromMarket) {
@@ -87,7 +87,7 @@ function getMarketId(id: string): number | null {
 }
 
 function getMarketName(marketId: number): string {
-  const market = getMarkets()[marketId];
+  const market = getMarketById(marketId);
   if (!market) return `Market ${marketId}`;
   return market.name ?? getWorldContext().pack.burgs[market.centerBurgId]?.name ?? `Market ${marketId}`;
 }

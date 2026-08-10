@@ -11,6 +11,7 @@ import {
   getCaravans,
   getGoodCellColumn,
   getGoods,
+  getMarketById,
   getMarketCellColumn,
   getMarkets,
   getMineOperations,
@@ -202,7 +203,7 @@ function buildMarketAreaPolygons(): ExtensionWebglPolygonDatum[] {
   for (const cellId of worldContext.pack.cells.i) {
     const marketId = marketCellColumn[cellId];
     if (!marketId) continue;
-    const market = markets[marketId];
+    const market = getMarketById(marketId);
     const polygon = getCellPolygon(cellId);
     if (!market || !polygon) continue;
     polygons.push({
