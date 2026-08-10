@@ -1,6 +1,12 @@
 import React from "react";
 import { closeDialog, Dialog, useCellInfoState, useDialogState } from "../../../hostUi";
-import { getGoods } from "../../economyContext";
+import {
+  getGoods,
+  getIrrigatedArea,
+  getIrrigationDeliveredWater,
+  getIrrigationWaterStress,
+  getRiverResidualFlow
+} from "../../economyContext";
 import type { CropProfile, Good } from "../../generators/goods-generator";
 import "./cropClimateDialog.css";
 
@@ -222,6 +228,46 @@ const CropComparison: React.FC<{
   );
 };
 
+const IrrigationSummary: React.FC<{ cellId: number | null; precipitation: number | null }> = ({
+  cellId,
+  precipitation
+}) => {
+  if (cellId === null) return null;
+  const irrigatedArea = getIrrigatedArea()[cellId] ?? 0;
+  const deliveredWater = getIrrigationDeliveredWater()[cellId] ?? 0;
+  const waterStress = getIrrigationWaterStress()[cellId] ?? 0;
+  const residualFlow = getRiverResidualFlow()[cellId] ?? 0;
+  const supplement = irrigatedArea > 0 ? deliveredWater / irrigatedArea : 0;
+  const effectivePrecipitation = precipitation === null ? null : precipitation + supplement;
+
+  return (
+    <section className="crop-climate-irrigation" aria-label="Irrigation water balance">
+      <div className="crop-climate-irrigation__heading">
+        <span>Field water balance</span>
+        <strong>{irrigatedArea > 0 ? `${irrigatedArea.toFixed(1)} ha irrigated` : "Rain-fed"}</strong>
+      </div>
+      <div className="crop-climate-irrigation__ledger">
+        <span>
+          Rain <b>{precipitation === null ? "n/a" : precipitation}</b>
+        </span>
+        <span>
+          Canal <b>{irrigatedArea > 0 ? `+${supplement.toFixed(1)}` : "—"}</b>
+        </span>
+        <span>
+          Field <b>{effectivePrecipitation === null ? "n/a" : effectivePrecipitation.toFixed(1)}</b>
+        </span>
+      </div>
+      <p>
+        {irrigatedArea > 0
+          ? `${(waterStress * 100).toFixed(1)}% of requested irrigation is unmet · downstream flow ${residualFlow.toFixed(1)}`
+          : residualFlow > 0
+            ? `No irrigation works · downstream flow ${residualFlow.toFixed(1)}`
+            : "No allocated river water at this cell"}
+      </p>
+    </section>
+  );
+};
+
 export const CropClimateDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("cropClimate"));
   const { cellId, temperature, precipitation } = useCellInfoState();
@@ -248,6 +294,7 @@ export const CropClimateDialog: React.FC = () => {
         <strong>{temperature === null ? "Temperature n/a" : `${temperature}°`}</strong>
         <strong>{precipitation === null ? "Precipitation n/a" : `Precipitation ${precipitation}`}</strong>
       </div>
+      <IrrigationSummary cellId={cellId} precipitation={precipitation} />
       {!crops.length ? (
         <p className="crop-climate-dialog__empty">No crop goods are available in this catalogue.</p>
       ) : (

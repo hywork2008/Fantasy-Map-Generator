@@ -199,7 +199,7 @@ Field drainage   ─► salinity leaching / waterlogging only
 
 1. Economy slice と `IrrigationWorks` を追加する。
 2. `AgriculturalConditions` に area-weighted irrigation result を接続し、`desert && river` の無量特例と河川 +8% 収量補正を廃止する。
-3. 気候ダイアログと Cell Info に、雨量、補填量、灌漑面積、水ストレス、取水後残流量を表示する（未実装）。
+3. 気候ダイアログと Cell Info に、雨量、補填量、灌漑面積、水ストレス、取水後残流量を表示する（実装済み）。
 
 ### Phase 3: 年次投資・塩害・人口（初回実装済み）
 

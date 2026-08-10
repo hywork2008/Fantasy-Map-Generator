@@ -2,7 +2,15 @@ import * as d3 from "d3";
 import { tip } from "../hostServices";
 import { useCellInfoState } from "../hostUi";
 import { rn } from "../hostUtils";
-import { getGoodCellColumn, getMarketCellColumn, getWorldContext } from "./economyContext";
+import {
+  getGoodCellColumn,
+  getIrrigatedArea,
+  getIrrigationDeliveredWater,
+  getIrrigationWaterStress,
+  getMarketCellColumn,
+  getRiverResidualFlow,
+  getWorldContext
+} from "./economyContext";
 import { getBurgMarketLedger, getDominantMerchant, getMerchantName } from "./generators/burgMarketLedgers";
 import { getCellFaunaHeadcounts } from "./generators/faunaPopulation";
 import { Goods } from "./generators/goods-generator";
@@ -86,6 +94,16 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
     Number.isFinite(temperature) && Number.isFinite(precipitation)
       ? `${temperature}° · precipitation ${precipitation}`
       : "n/a";
+
+  const irrigatedArea = getIrrigatedArea()[i] ?? 0;
+  const deliveredWater = getIrrigationDeliveredWater()[i] ?? 0;
+  const irrigationSupplement = irrigatedArea > 0 ? deliveredWater / irrigatedArea : 0;
+  const waterStress = getIrrigationWaterStress()[i] ?? 0;
+  const residualFlow = getRiverResidualFlow()[i] ?? 0;
+  extra.irrigatedArea = irrigatedArea > 0 ? `${rn(irrigatedArea, 1)} ha` : "none";
+  extra.irrigationSupplement = irrigatedArea > 0 ? `+${rn(irrigationSupplement, 1)} precipitation` : "none";
+  extra.irrigationWaterStress = irrigatedArea > 0 ? `${rn(waterStress * 100, 1)}% unmet` : "n/a";
+  extra.riverResidualFlow = residualFlow > 0 ? `${rn(residualFlow, 1)} annual water` : "n/a";
 
   extra.good = goodCellColumn[i] ? `${Goods.get(goodCellColumn[i])?.name ?? "unknown"} (${goodCellColumn[i]})` : "no";
 

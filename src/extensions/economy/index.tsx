@@ -384,6 +384,18 @@ function registerOverviewColumns(api: ExtensionAPI): void {
   api.registerCellInfoRow({ id: "cellProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Cell Production" });
   api.registerCellInfoRow({ id: "burgProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Burg Production" });
   api.registerCellInfoRow({ id: "fauna", extensionId: ECONOMY_EXTENSION_ID, label: "Fauna" });
+  api.registerCellInfoRow({ id: "irrigatedArea", extensionId: ECONOMY_EXTENSION_ID, label: "Irrigated area" });
+  api.registerCellInfoRow({
+    id: "irrigationSupplement",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Irrigation supplement"
+  });
+  api.registerCellInfoRow({
+    id: "irrigationWaterStress",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Irrigation water stress"
+  });
+  api.registerCellInfoRow({ id: "riverResidualFlow", extensionId: ECONOMY_EXTENSION_ID, label: "River residual flow" });
   api.registerCellInfoRow({
     id: "cropClimate",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -413,6 +425,10 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
   api.unregisterCellInfoRow("cellProduction");
   api.unregisterCellInfoRow("burgProduction");
   api.unregisterCellInfoRow("fauna");
+  api.unregisterCellInfoRow("irrigatedArea");
+  api.unregisterCellInfoRow("irrigationSupplement");
+  api.unregisterCellInfoRow("irrigationWaterStress");
+  api.unregisterCellInfoRow("riverResidualFlow");
   api.unregisterCellInfoRow("cropClimate");
 }
 

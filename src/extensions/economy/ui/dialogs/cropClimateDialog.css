@@ -18,6 +18,49 @@
   color: var(--text-light, #777);
 }
 
+.crop-climate-irrigation {
+  margin-top: 0.55rem;
+  border: 1px solid rgb(62 112 134 / 35%);
+  border-left: 3px solid #3e7086;
+  background: linear-gradient(90deg, rgb(62 112 134 / 12%), rgb(126 160 112 / 8%));
+  padding: 0.48rem 0.6rem;
+}
+
+.crop-climate-irrigation__heading,
+.crop-climate-irrigation__ledger {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.crop-climate-irrigation__heading {
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
+.crop-climate-irrigation__heading span,
+.crop-climate-irrigation p {
+  color: var(--text-light, #777);
+}
+
+.crop-climate-irrigation__ledger {
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 1px dashed rgb(62 112 134 / 35%);
+  font-size: 0.82rem;
+}
+
+.crop-climate-irrigation__ledger span:not(:last-child)::after {
+  content: "→";
+  margin-left: 0.55rem;
+  color: #3e7086;
+}
+
+.crop-climate-irrigation p {
+  margin: 0.35rem 0 0;
+  font-size: 0.74rem;
+}
+
 .crop-climate-tabs,
 .crop-climate-compare__controls {
   display: flex;
@@ -202,4 +245,6 @@
   .crop-climate-dialog { min-width: min(33rem, calc(100vw - 1.5rem)); }
   .crop-climate-dialog__cell-summary { flex-wrap: wrap; }
   .crop-climate-dialog__cell-summary span { flex-basis: 100%; }
+  .crop-climate-irrigation__ledger { flex-wrap: wrap; }
+  .crop-climate-irrigation__ledger span::after { display: none; }
 }
