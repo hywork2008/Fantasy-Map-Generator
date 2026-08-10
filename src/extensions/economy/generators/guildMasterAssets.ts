@@ -2,8 +2,12 @@ import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import type { GuildKnowledgeStock } from "./guildKnowledgeTypes";
 
-/** A successor inherits the working estate, while private heirs outside the named roster receive the rest. */
-export const GUILD_MASTER_SUCCESSOR_ESTATE_SHARE = 0.75;
+/**
+ * A successor receives only the portable working kit needed to continue the trade. The bulk of a
+ * deceased master's private estate belongs to their family; family members are aggregate data at
+ * present, so that share leaves the named-character ledger as private-heir distribution.
+ */
+export const GUILD_MASTER_SUCCESSOR_ESTATE_SHARE = 0.25;
 /** With no trained successor, the guild reclaims some workshop tools and working capital. */
 export const GUILD_MASTER_GUILD_REVERSION_SHARE = 0.3;
 /** A newly appointed master can draw a small, one-time cash float from an already funded guild. */
@@ -19,7 +23,8 @@ export interface GuildMasterEstateSettlement {
 
 /**
  * Settles a deceased master's personal estate exactly once during succession. Guild treasury is
- * institutional capital and is never inherited directly; only `Character.wealth` moves here.
+ * institutional capital and is never inherited directly. A trained successor receives a small
+ * working-estate share; the remainder is reserved for the deceased's private heirs.
  */
 export function settleGuildMasterEstate(
   deceasedMaster: Character,

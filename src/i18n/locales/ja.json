@@ -149,6 +149,34 @@
     "roles": "役職",
     "pastTitles": "過去の称号",
     "skills": "技能",
+    "craftSkills": "職能技術",
+    "craftSkillsHint": "実地の仕事と訓練で修めた専門技術です。人物の基礎能力値とは別に記録されます。",
+    "craftSkillDiscipline": "職種",
+    "craftSkillProficiency": "熟練度",
+    "craftSkillAptitude": "適性",
+    "craftSkillTechniques": "習得技法",
+    "craftSkillLastPracticed": "最終実践",
+    "craftSkillLastPracticedValue": "{{year}}年",
+    "craftSkillNone": "記録なし",
+    "craftSkillReconstructionLead": "{{technique}}（復元 {{progress}}%）",
+    "noCraftSkills": "この人物には職能技術の記録がありません。",
+    "craftSkillDomainNames": {
+      "blacksmithing": "鍛冶",
+      "smelting": "製錬",
+      "weaving": "織布",
+      "tailoring": "仕立て"
+    },
+    "craftSkillAptitudeNames": {
+      "poor": "低い",
+      "ordinary": "標準",
+      "promising": "有望",
+      "gifted": "才能あり",
+      "exceptional": "卓越"
+    },
+    "craftTechniqueNames": {
+      "heatTreatment": "熱処理",
+      "patternWelding": "模様鍛接"
+    },
     "personality": "性格",
     "inventory": "所持品",
     "loadout": "装備",

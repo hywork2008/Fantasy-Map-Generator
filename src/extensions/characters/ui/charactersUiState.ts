@@ -6,6 +6,7 @@ export type CharactersTab = "overview" | "stats";
 /** Requested tab inside Character Details (consumed once when the dialog opens). */
 export type CharacterDetailsTabRequest =
   | "skills"
+  | "craftSkills"
   | "personality"
   | "loadout"
   | "inventory"

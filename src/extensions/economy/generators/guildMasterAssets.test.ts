@@ -16,7 +16,7 @@ function guild(treasury: number): GuildKnowledgeStock {
 }
 
 describe("guild master assets", () => {
-  it("passes a deceased master's working estate to their living successor without touching guild capital", () => {
+  it("reserves most of a deceased master's private estate for heirs and passes only a working share to a successor", () => {
     const deceased = character(20, true);
     const successor = character(0);
     const stock = guild(50);
@@ -24,9 +24,9 @@ describe("guild master assets", () => {
     const settlement = settleGuildMasterEstate(deceased, successor, stock);
 
     expect(deceased.wealth).toBe(0);
-    expect(successor.wealth).toBe(15);
+    expect(successor.wealth).toBe(5);
     expect(stock.treasury).toBe(50);
-    expect(settlement).toEqual({ inheritedBySuccessor: 15, revertedToGuild: 0, dispersedToPrivateHeirs: 5 });
+    expect(settlement).toEqual({ inheritedBySuccessor: 5, revertedToGuild: 0, dispersedToPrivateHeirs: 15 });
   });
 
   it("returns a portion of an unclaimed estate to the guild and removes the deceased purse", () => {

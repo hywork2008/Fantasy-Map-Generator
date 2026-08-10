@@ -49,8 +49,23 @@ type CharacterInventoryRow = Readonly<{
   units: number;
   averageUnitCost: number | null;
 }>;
+type CraftTechniqueLeadSnapshot = Readonly<{
+  technique: string;
+  progress: number;
+}>;
+type CraftSkillSnapshot = Readonly<{
+  characterId: number;
+  domain: string;
+  proficiency: number;
+  aptitude: string;
+  techniques: readonly string[];
+  lastPracticedYear?: number;
+  reconstructionLeads?: readonly CraftTechniqueLeadSnapshot[];
+}>;
+const CRAFT_SKILL_DOMAINS = ["blacksmithing", "smelting", "weaving", "tailoring"] as const;
 type CharacterDetailsTab =
   | "skills"
+  | "craftSkills"
   | "personality"
   | "loadout"
   | "inventory"
@@ -120,6 +135,41 @@ function isInventoryCostBasis(value: unknown): value is EconomyInventoryCostBasi
     typeof basis.units === "number" &&
     typeof basis.averageUnitCost === "number"
   );
+}
+
+function isCraftTechniqueLead(value: unknown): value is CraftTechniqueLeadSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const lead = value as Record<string, unknown>;
+  return typeof lead.technique === "string" && typeof lead.progress === "number";
+}
+
+function isCraftSkill(value: unknown): value is CraftSkillSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const skill = value as Record<string, unknown>;
+  return (
+    typeof skill.characterId === "number" &&
+    typeof skill.domain === "string" &&
+    typeof skill.proficiency === "number" &&
+    typeof skill.aptitude === "string" &&
+    Array.isArray(skill.techniques) &&
+    skill.techniques.every(technique => typeof technique === "string") &&
+    (skill.lastPracticedYear === undefined || typeof skill.lastPracticedYear === "number") &&
+    (skill.reconstructionLeads === undefined ||
+      (Array.isArray(skill.reconstructionLeads) && skill.reconstructionLeads.every(isCraftTechniqueLead)))
+  );
+}
+
+/** Reads Economy-owned practical skills without coupling Characters to the Economy module graph. */
+function getEconomyCraftSkills(characterId: number): CraftSkillSnapshot[] {
+  const economy = getApi().simulationContext?.extensions?.economy;
+  if (!economy || typeof economy !== "object") return [];
+  const skills = (economy as Record<string, unknown>).individualSkills;
+  if (!Array.isArray(skills)) return [];
+  return skills
+    .filter(isCraftSkill)
+    .filter(
+      skill => skill.characterId === characterId && (CRAFT_SKILL_DOMAINS as readonly string[]).includes(skill.domain)
+    );
 }
 
 function getEconomyInventoryRows(character: Character): CharacterInventoryRow[] {
@@ -217,6 +267,7 @@ export const CharacterDetailsDialog: React.FC = () => {
 
   const character = characters.find(c => c.i === selectedCharacterId);
   const inventoryRows = character ? getEconomyInventoryRows(character) : [];
+  const craftSkills = character ? getEconomyCraftSkills(character.i) : [];
   const goodsCatalog = useMemo(() => {
     const economy = getApi().simulationContext?.extensions?.economy;
     const slice = economy && typeof economy === "object" ? (economy as Record<string, unknown>) : null;
@@ -930,6 +981,13 @@ export const CharacterDetailsDialog: React.FC = () => {
           </button>
           <button
             type="button"
+            className={`options ${activeTab === "craftSkills" ? "active" : ""}`}
+            onClick={() => setActiveTab("craftSkills")}
+          >
+            {t("characters.craftSkills")}
+          </button>
+          <button
+            type="button"
             className={`options ${activeTab === "personality" ? "active" : ""}`}
             onClick={() => setActiveTab("personality")}
           >
@@ -992,6 +1050,58 @@ export const CharacterDetailsDialog: React.FC = () => {
               />
             ) : (
               <p>{t("characters.noSkills")}</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === "craftSkills" && (
+          <div>
+            <p style={{ color: "#adb5bd", fontSize: "0.9em", marginTop: 0 }}>{t("characters.craftSkillsHint")}</p>
+            {craftSkills.length ? (
+              <table className="fmg-table character-details__table">
+                <thead>
+                  <tr>
+                    <th>{t("characters.craftSkillDiscipline")}</th>
+                    <th>{t("characters.craftSkillProficiency")}</th>
+                    <th>{t("characters.craftSkillAptitude")}</th>
+                    <th>{t("characters.craftSkillTechniques")}</th>
+                    <th>{t("characters.craftSkillLastPracticed")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {craftSkills.map(skill => {
+                    const techniques = skill.techniques.map(technique =>
+                      t(`characters.craftTechniqueNames.${technique}`, { defaultValue: technique })
+                    );
+                    const leads = (skill.reconstructionLeads ?? []).map(lead => {
+                      const technique = t(`characters.craftTechniqueNames.${lead.technique}`, {
+                        defaultValue: lead.technique
+                      });
+                      return t("characters.craftSkillReconstructionLead", {
+                        technique,
+                        progress: Math.round(lead.progress * 100)
+                      });
+                    });
+                    return (
+                      <tr key={`${skill.characterId}-${skill.domain}`}>
+                        <td>{t(`characters.craftSkillDomainNames.${skill.domain}`, { defaultValue: skill.domain })}</td>
+                        <td>{Math.round(skill.proficiency)}</td>
+                        <td>
+                          {t(`characters.craftSkillAptitudeNames.${skill.aptitude}`, { defaultValue: skill.aptitude })}
+                        </td>
+                        <td>{[...techniques, ...leads].join(", ") || t("characters.craftSkillNone")}</td>
+                        <td>
+                          {skill.lastPracticedYear === undefined
+                            ? t("characters.notAvailable")
+                            : t("characters.craftSkillLastPracticedValue", { year: skill.lastPracticedYear })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <p>{t("characters.noCraftSkills")}</p>
             )}
           </div>
         )}

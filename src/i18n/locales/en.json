@@ -149,6 +149,34 @@
     "roles": "Roles",
     "pastTitles": "Past Titles",
     "skills": "Skills",
+    "craftSkills": "Craft Skills",
+    "craftSkillsHint": "Practical disciplines learned through work and training. These are separate from the character's broad ability scores.",
+    "craftSkillDiscipline": "Discipline",
+    "craftSkillProficiency": "Proficiency",
+    "craftSkillAptitude": "Aptitude",
+    "craftSkillTechniques": "Techniques",
+    "craftSkillLastPracticed": "Last practiced",
+    "craftSkillLastPracticedValue": "Year {{year}}",
+    "craftSkillNone": "None recorded",
+    "craftSkillReconstructionLead": "{{technique}} (reconstruction {{progress}}%)",
+    "noCraftSkills": "No practical craft skills are recorded for this character.",
+    "craftSkillDomainNames": {
+      "blacksmithing": "Blacksmithing",
+      "smelting": "Smelting",
+      "weaving": "Weaving",
+      "tailoring": "Tailoring"
+    },
+    "craftSkillAptitudeNames": {
+      "poor": "Poor",
+      "ordinary": "Ordinary",
+      "promising": "Promising",
+      "gifted": "Gifted",
+      "exceptional": "Exceptional"
+    },
+    "craftTechniqueNames": {
+      "heatTreatment": "Heat treatment",
+      "patternWelding": "Pattern welding"
+    },
     "personality": "Personality",
     "inventory": "Inventory",
     "loadout": "Loadout",
