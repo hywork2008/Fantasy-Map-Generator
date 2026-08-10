@@ -68,9 +68,11 @@ import { QuarryOperations } from "./quarryOperations";
 import { SmelterOperations } from "./smelterOperations";
 import {
   getSmithingProductProgram,
+  isSmithingWorkshopProductGood,
   SMITHING_PRODUCT_GOOD_NAMES,
   type SmithingProductProgram
 } from "./smithingProductProgram";
+import { SmithingWorkshopAccounting } from "./smithingWorkshopLedger";
 import {
   getStrategicLaborProductivity,
   getStrategicOccupation,
@@ -169,6 +171,7 @@ export class ProductionModule {
 
     // A0 flow diagnostics: retail stock before rural/burg production this cycle.
     beginFlowCycleCapture();
+    SmithingWorkshopAccounting.beginProductionCycle();
 
     measureTickStep("production:rural", () => Markets.collectRuralProduction());
     measureTickStep("production:minesSmelters", () => {
@@ -629,10 +632,12 @@ export class ProductionModule {
     }
 
     const recipe: ProductionRecipeEntry[] = [];
+    let materialCost = 0;
     for (const { ingredientId, amount, fromInventory, deal } of plans) {
       if (deal) {
         state.records.push({ dealId: deal.i });
         const marketCost = deal.units * deal.price;
+        materialCost += marketCost;
         state.ingredientCosts += marketCost;
         state.burg.treasury = rn((state.burg.treasury || 0) - marketCost, 2);
       }
@@ -659,6 +664,17 @@ export class ProductionModule {
     if (smithingProgram) record.smithingProgram = smithingProgram;
     if (DEBUG.production) record.candidates = decision.candidates;
     state.records.push(record);
+
+    if (state.burg.i && isSmithingWorkshopProductGood(good.name)) {
+      SmithingWorkshopAccounting.recordProduction({
+        burgId: state.burg.i,
+        goodId: good.i,
+        materials: recipe,
+        materialCost,
+        unitsProduced: produced,
+        masterCharacterId: smithingProgram?.masterCharacterId ?? null
+      });
+    }
   }
 
   private sellInventoryToMarket(state: BurgProductionState, saleBudgetByBurg: ReadonlyMap<number, number>): number {
@@ -691,14 +707,18 @@ export class ProductionModule {
       // captured alongside its price in initializeMarketPrices() (markets-generator.ts). Goods with
       // no guild domain (local-resource bonuses, unmapped goods) stay entirely burg.treasury, as before.
       const domain = state.burg.i ? getCraftDomainForGood(good.name) : null;
+      let guildShare = 0;
       if (domain && revenue > 0) {
         const unitCost = state.market.goods[goodId]?.costBasis ?? 0;
         const margin = Math.max(0, revenue - unitCost * deal.units);
-        const guildShare = rn(margin * GUILD_PROFIT_SHARE, 2);
+        guildShare = rn(margin * GUILD_PROFIT_SHARE, 2);
         GuildTreasury.creditGuildTreasury(state.burg.i!, domain, guildShare);
         phaseRevenue += revenue - guildShare;
       } else {
         phaseRevenue += revenue;
+      }
+      if (state.burg.i && isSmithingWorkshopProductGood(good.name)) {
+        SmithingWorkshopAccounting.recordSale(state.burg.i, good.i, deal.units, revenue, guildShare);
       }
       state.records.push({ dealId: deal.i });
     }

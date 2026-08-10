@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CharacterDomainSkill } from "./individualSkillTypes";
-import { getSmithingProductProgramForSkill } from "./smithingProductProgram";
+import { getSmithingProductProgramForSkill, SMITHING_PRODUCT_CATALOG } from "./smithingProductProgram";
 
 function skill(proficiency: number, techniques: CharacterDomainSkill["techniques"] = []): CharacterDomainSkill {
   return {
@@ -13,6 +13,20 @@ function skill(proficiency: number, techniques: CharacterDomainSkill["techniques
 }
 
 describe("smithing product program", () => {
+  it("catalogues every initial smithing product family with an explicit demand sink", () => {
+    expect(SMITHING_PRODUCT_CATALOG).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          goodNames: ["Tools"],
+          demandSinks: ["agriculture", "extractiveIndustry", "construction"]
+        }),
+        expect.objectContaining({ goodNames: ["Harnesses"], demandSinks: ["transport"] }),
+        expect.objectContaining({ goodNames: ["Arms"], demandSinks: ["military"] }),
+        expect.objectContaining({ goodNames: ["Arrows", "Bullets"], demandSinks: ["military"] })
+      ])
+    );
+  });
+
   it("does not grant an individual efficiency bonus before a master reaches practical competence", () => {
     expect(getSmithingProductProgramForSkill("Tools", skill(40)).outputMultiplier).toBe(1);
   });

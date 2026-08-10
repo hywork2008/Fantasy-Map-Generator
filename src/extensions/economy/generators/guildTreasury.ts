@@ -96,8 +96,9 @@ export class GuildTreasuryModule {
    */
   seedNewGuildWorkingCapital(burgId: number, domain: CraftKnowledgeDomain): void {
     const profile = getEconomyStartProfile(getWorldContext().options);
-    const cycles = rn(backPayCycles() * profile.guildBootstrapMultiplier, 2);
-    if (cycles <= 0) return;
+    // A guild master must always begin with both workshop working capital and a personal purse;
+    // a custom start profile may reduce the multiplier but cannot reduce this bootstrap to zero.
+    const cycles = Math.max(1, rn(backPayCycles() * profile.guildBootstrapMultiplier, 2));
     this.creditGuildTreasury(burgId, domain, GUILD_MASTER_STIPEND * cycles);
 
     const guild = getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain);

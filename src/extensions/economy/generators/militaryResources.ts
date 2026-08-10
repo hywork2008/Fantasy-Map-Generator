@@ -30,6 +30,8 @@ const ARCHER_ARROWS_PER_HEAD = 0.05;
 // directly — ARTILLERY_LEAD_PER_GUN above still draws raw Lead Ingot for artillery's own
 // grapeshot/lining use, which Bullets doesn't cover. Uncalibrated.
 const FIREARM_BULLETS_PER_HEAD = 0.012;
+/** Replacement weapons and personal protection for every active troop. */
+const ARMS_PER_HEAD = 0.01;
 
 /** Settles state military material demand against its principal market. */
 export class MilitaryResourcesModule {
@@ -67,11 +69,11 @@ export class MilitaryResourcesModule {
       ledger.unmetDemand = {};
       if (!ledger.supplyMarketId) continue;
 
-      // Fodder and arrows are settled regardless of era; iron/lead/gunpowder/bullets only apply
-      // once firearms/artillery exist.
+      // Fodder, arms, and arrows are settled regardless of era; iron/lead/gunpowder/bullets only
+      // apply once firearms/artillery exist.
       const resources = gunpowderEraEnabled
-        ? (["fodder", "arrows", "iron", "lead", "gunpowder", "bullets"] as const)
-        : (["fodder", "arrows"] as const);
+        ? (["fodder", "arms", "arrows", "iron", "lead", "gunpowder", "bullets"] as const)
+        : (["fodder", "arms", "arrows"] as const);
 
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
@@ -101,9 +103,11 @@ export class MilitaryResourcesModule {
     let firearms = 0;
     let mounted = 0;
     let archers = 0;
+    let troops = 0;
     for (const regiment of state.military || []) {
       for (const [unitName, rawCount] of Object.entries(regiment.u || {})) {
         const count = rawCount / populationRate;
+        troops += count;
         if (this.isArtillery(unitName)) artillery += count;
         else if (this.isFirearm(unitName)) firearms += count;
         if (isMountedUnit(unitName)) mounted += count;
@@ -116,6 +120,8 @@ export class MilitaryResourcesModule {
     if (fodder > 0) demand.fodder = fodder;
     const arrows = rn(archers * ARCHER_ARROWS_PER_HEAD, 4);
     if (arrows > 0) demand.arrows = arrows;
+    const arms = rn(troops * ARMS_PER_HEAD, 4);
+    if (arms > 0) demand.arms = arms;
 
     if (!gunpowderEraEnabled) return demand;
 

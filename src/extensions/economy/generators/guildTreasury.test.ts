@@ -72,6 +72,29 @@ describe("GuildTreasuryModule", () => {
       expect(entry.treasury).toBeLessThanOrEqual(GUILD_MASTER_STIPEND * 10);
     });
 
+    it("funds a newly appointed master's personal starting assets from the same guild bootstrap", () => {
+      const master = {
+        i: 11,
+        wealth: 0,
+        roles: [
+          {
+            source: "economy",
+            kind: "guildMaster",
+            entityType: "burg",
+            entityId: 1,
+            domain: "metallurgy",
+            label: "Guild Master"
+          }
+        ]
+      };
+      worldContext.pack.characters = [master] as PackedGraph["characters"];
+
+      GuildTreasury.seedNewGuildWorkingCapital(1, "metallurgy");
+
+      expect(master.wealth).toBeGreaterThan(0);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBeGreaterThan(0);
+    });
+
     it("tops up the home Burg's market with a few cycles' worth of the domain's starter material", () => {
       GuildTreasury.seedNewGuildWorkingCapital(1, "metallurgy");
 

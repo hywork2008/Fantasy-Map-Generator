@@ -6,6 +6,7 @@ export const MILITARY_RESOURCES = [
   "sulfur",
   "coal",
   "fodder",
+  "arms",
   "arrows",
   "bullets"
 ] as const;

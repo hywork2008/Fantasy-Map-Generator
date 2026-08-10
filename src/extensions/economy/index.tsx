@@ -45,7 +45,8 @@ import {
   setGuildChaptersLastSettledYear,
   setIndividualSkills,
   setMarketCellColumn,
-  setMarkets
+  setMarkets,
+  setSmithingWorkshopLedgers
 } from "./economyContext";
 import { AcademyKnowledge } from "./generators/academyKnowledge";
 import { AgTechInvestment } from "./generators/agTechInvestment";
@@ -1122,6 +1123,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       setGuildChapters([]);
       setGuildChaptersLastSettledYear(null);
       setIndividualSkills([]);
+      setSmithingWorkshopLedgers([]);
       return { changed: true };
     }
   });
@@ -1716,6 +1718,14 @@ export function init(api: ExtensionAPI): void {
           });
           if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
           Taxes.collectTaxes();
+          // Production has now observed this map's real metallurgy practitioners. Bootstrap the
+          // first guild masters immediately rather than waiting for the player's first Advance
+          // Time action; GuildTreasury then gives every new master both workshop capital and a
+          // personal starting purse in this same generation transaction.
+          GuildKnowledge.settleAnnual();
+          for (const { burgId, domain } of GuildSuccession.settleAnnual()) {
+            GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
+          }
           synchronizePlayerCommerce();
           GuildChapters.seedAfterGenerate();
           InnFacilities.generate();

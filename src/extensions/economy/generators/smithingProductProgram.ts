@@ -3,13 +3,40 @@ import { findMaster } from "./guildSuccession";
 import { getIndividualSkill } from "./individualSkillMastery";
 import type { BlacksmithingTechnique, CharacterDomainSkill } from "./individualSkillTypes";
 
+export type SmithingDemandSink = "agriculture" | "extractiveIndustry" | "construction" | "transport" | "military";
+
 /**
- * The initial, master-supervised products for the blacksmithing vertical slice.
- * Other metallurgy outputs (alloys, cast shot) stay on the ordinary guild path:
- * their distinct practical skills have not been introduced yet.
+ * Catalogue for the first blacksmithing economy vertical slice. A single market Good may serve
+ * more than one public/private demand sink; `Tools`, for example, are farm implements, mine and
+ * smelter tooling, and construction hardware until those are differentiated into separate Goods.
  */
-export const SMITHING_PRODUCT_GOOD_NAMES = ["Tools", "Arms", "Harnesses"] as const;
+export const SMITHING_PRODUCT_CATALOG = [
+  {
+    id: "toolsAndHardware",
+    goodNames: ["Tools"] as const,
+    demandSinks: ["agriculture", "extractiveIndustry", "construction"] as const
+  },
+  {
+    id: "transportFittings",
+    goodNames: ["Harnesses"] as const,
+    demandSinks: ["transport"] as const
+  },
+  {
+    id: "armsAndArmor",
+    goodNames: ["Arms"] as const,
+    demandSinks: ["military"] as const
+  },
+  {
+    id: "ammunition",
+    goodNames: ["Arrows", "Bullets"] as const,
+    demandSinks: ["military"] as const
+  }
+] as const;
+
+export const SMITHING_PRODUCT_GOOD_NAMES = ["Tools", "Harnesses", "Arms", "Bullets"] as const;
 export type SmithingProductGoodName = (typeof SMITHING_PRODUCT_GOOD_NAMES)[number];
+const MASTER_SUPERVISED_SMITHING_PRODUCT_GOOD_NAMES = ["Tools", "Harnesses", "Arms"] as const;
+type MasterSupervisedSmithingProductGoodName = (typeof MASTER_SUPERVISED_SMITHING_PRODUCT_GOOD_NAMES)[number];
 
 /** Maximum efficiency contribution from practical proficiency alone. */
 const PROFICIENCY_OUTPUT_BONUS_MAX = 0.06;
@@ -26,8 +53,14 @@ export interface SmithingProductProgram {
   outputMultiplier: number;
 }
 
-function isSmithingProductGoodName(goodName: string): goodName is SmithingProductGoodName {
+export function isSmithingWorkshopProductGood(goodName: string): boolean {
   return (SMITHING_PRODUCT_GOOD_NAMES as readonly string[]).includes(goodName);
+}
+
+function isMasterSupervisedSmithingProductGoodName(
+  goodName: string
+): goodName is MasterSupervisedSmithingProductGoodName {
+  return (MASTER_SUPERVISED_SMITHING_PRODUCT_GOOD_NAMES as readonly string[]).includes(goodName);
 }
 
 function hasTechnique(skill: CharacterDomainSkill, technique: BlacksmithingTechnique): boolean {
@@ -40,7 +73,7 @@ function hasTechnique(skill: CharacterDomainSkill, technique: BlacksmithingTechn
  * fewer failed pieces and less rework rather than changing a market Good's price in place.
  */
 export function getSmithingProductProgramForSkill(
-  goodName: SmithingProductGoodName,
+  goodName: MasterSupervisedSmithingProductGoodName,
   skill: CharacterDomainSkill
 ): SmithingProductProgram {
   const proficiencyProgress = Math.max(0, Math.min(1, (skill.proficiency - 40) / 60));
@@ -64,7 +97,7 @@ export function getSmithingProductProgramForSkill(
  * guild master: guild knowledge remains useful after a death, but this individual bonus does not.
  */
 export function getSmithingProductProgram(burgId: number, goodName: string): SmithingProductProgram | null {
-  if (!isSmithingProductGoodName(goodName)) return null;
+  if (!isMasterSupervisedSmithingProductGoodName(goodName)) return null;
 
   const master = findMaster(getWorldContext().pack.characters ?? [], burgId, "metallurgy");
   if (!master || master.dead) return null;

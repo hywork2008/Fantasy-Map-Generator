@@ -66,6 +66,7 @@ import type {
 } from "./generators/retailInventoryTypes";
 import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmployment";
 import type { SmelterOperation } from "./generators/smelterOperationsTypes";
+import type { SmithingWorkshopLedger } from "./generators/smithingWorkshopLedgerTypes";
 import type { StateSecretStock } from "./generators/stateSecretTypes";
 import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
@@ -1380,6 +1381,14 @@ export function getGuildKnowledgeStocks(): GuildKnowledgeStock[] {
 }
 export function setGuildKnowledgeStocks(stocks: readonly GuildKnowledgeStock[]): void {
   setSliceArray("guildKnowledgeStocks", stocks);
+}
+
+/** Current-cycle material, sales, profit, and master-wage records for metallurgy workshops. */
+export function getSmithingWorkshopLedgers(): SmithingWorkshopLedger[] {
+  return getSliceArray<SmithingWorkshopLedger>("smithingWorkshopLedgers");
+}
+export function setSmithingWorkshopLedgers(ledgers: readonly SmithingWorkshopLedger[]): void {
+  setSliceArray("smithingWorkshopLedgers", ledgers);
 }
 
 /** Formal guild halls, distinct from practitioner-driven GuildKnowledgeStock entries. */

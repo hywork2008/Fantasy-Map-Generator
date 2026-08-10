@@ -9,6 +9,7 @@ import { getRulerId } from "../../nobility/nobilityContext";
 import { getGuildKnowledgeStocks, getMarkets, getWorldContext, setGuildKnowledgeStocks } from "../economyContext";
 import { findApprentices, findMaster } from "./guildSuccession";
 import { raceHoardBonus } from "./raceWealthBias";
+import { SmithingWorkshopAccounting } from "./smithingWorkshopLedger";
 import {
   DEPARTMENT_BY_PRIMARY_SKILL,
   findLivingOfficeHolder,
@@ -212,6 +213,9 @@ export function payGuildStipends(): void {
     if (masterAmount > 0) {
       entry.treasury = rn(entry.treasury - masterAmount, 2);
       master.wealth = rn((master.wealth || 0) + masterAmount, 2);
+      if (entry.domain === "metallurgy") {
+        SmithingWorkshopAccounting.recordMasterWage(entry.burgId, master.i, masterAmount);
+      }
       changed = true;
     }
 
