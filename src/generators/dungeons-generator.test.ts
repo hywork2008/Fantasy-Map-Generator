@@ -53,7 +53,7 @@ function createWorld(cellCount = 40): WorldContext {
 
 describe("Dungeons.generate", () => {
   beforeEach(() => {
-    useOptionsState.setState({ culturesSet: "highFantasy", year: 100, threatCalculation: "max" });
+    useOptionsState.setState({ culturesSet: "highFantasy", dangerEnabled: true, year: 100, threatCalculation: "max" });
   });
 
   it("places only on land and within maxActive for highFantasy", () => {

@@ -52,7 +52,7 @@ const alwaysSpawnRng = {
 
 describe("advanceDungeonEcology", () => {
   beforeEach(() => {
-    useOptionsState.setState({ culturesSet: "highFantasy", year: 100, threatCalculation: "max" });
+    useOptionsState.setState({ culturesSet: "highFantasy", dangerEnabled: true, year: 100, threatCalculation: "max" });
     resetDungeonEcologyGate();
   });
 

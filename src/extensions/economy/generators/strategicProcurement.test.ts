@@ -38,6 +38,7 @@ function setupWorld({ treasury = 100, sourceStateId = 1 }: { treasury?: number; 
   worldContext.options = { month: 1, gunpowderEraEnabled: true } as typeof worldContext.options;
   worldContext.pack = {
     goods: [
+      { i: 0, name: "None", value: 0, tags: [], unit: "pile", icon: "", color: "" } as Good,
       {
         i: 1,
         name: "Wood",
@@ -45,7 +46,9 @@ function setupWorld({ treasury = 100, sourceStateId = 1 }: { treasury?: number; 
         tags: ["construction"],
         unit: "pile",
         icon: "wood",
-        color: "#663"
+        color: "#663",
+        // Fleet seeding uses tradeable catalogue goods to establish physical land capacity.
+        distribution: 'biomeTag("forest")'
       } as Good
     ],
     markets: [destination, source],

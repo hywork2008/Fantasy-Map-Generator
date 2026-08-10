@@ -80,7 +80,7 @@ describe("assignOfficers", () => {
   });
 
   it("creates a new Commander for a land regiment when the assignment roll succeeds", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0); // P(0.35) -> 0 < 0.35 -> always assign
+    vi.spyOn(Math, "random").mockReturnValue(0.3); // P(0.35) -> 0.3 < 0.35 -> always assign
 
     const fieldArmy = makeRegiment({ i: 1, state: 1, n: 0 });
 
@@ -103,7 +103,7 @@ describe("assignOfficers", () => {
   });
 
   it("creates a new Admiral for a naval regiment (n > 0) when the assignment roll succeeds", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
 
     const fleet = makeRegiment({ i: 1, state: 1, n: 5 });
 
@@ -143,7 +143,7 @@ describe("assignOfficers", () => {
   });
 
   it("leaves a regiment's living, titled commander untouched on a repeated call", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
 
     const fieldArmy = makeRegiment({ i: 1, state: 1 });
     worldContext.pack = {
@@ -164,7 +164,7 @@ describe("assignOfficers", () => {
   });
 
   it("backfills a vacancy left by a dead commander", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
 
     const fieldArmy = makeRegiment({ i: 1, state: 1, commanderId: 9 });
     const deadOfficer = {

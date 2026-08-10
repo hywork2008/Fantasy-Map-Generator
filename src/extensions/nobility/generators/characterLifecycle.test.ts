@@ -63,7 +63,7 @@ describe("Characters (nobility characterLifecycle)", () => {
     worldContext.pack.cultures = [
       { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
       // Culture name is independent; race drives female_only policy
-      { i: 1, name: "Thermodons", base: 0, shield: "boeotian", race: 2 }
+      { i: 1, name: "Thermodons", base: 0, shield: "boeotian", race: 2, monoRacial: true }
     ] as never;
     worldContext.pack.states = [
       { i: 0, name: "Neutrals" },
