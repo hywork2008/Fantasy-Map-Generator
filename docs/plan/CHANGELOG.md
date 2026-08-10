@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-10
+
+- docs/plan/river-water-allocation.md
+
 2026-08-08
 
 - docs/plan/guilds/textiles.md

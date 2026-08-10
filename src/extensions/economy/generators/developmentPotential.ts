@@ -1,13 +1,22 @@
-import { Burgs, getFourCourseRotationEffect, useOptionsState, type WorldContext } from "../../hostCore";
+import {
+  Burgs,
+  getFourCourseRotationEffect,
+  reconcileSubsistenceCapacityFromFood,
+  useOptionsState,
+  type WorldContext
+} from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
   clearSettlementDevelopmentLastEvaluatedYear,
   getCultivableArea,
   getCultivatedArea,
   getFarmLaborRequired,
+  getFieldDrainage,
   getFloweringForageArea,
   getFoodPotential,
   getGoods,
+  getIrrigationConveyanceEfficiency,
+  getIrrigationDevelopment,
   getIrrigationSalinity,
   getMarketCellColumn,
   getMarkets,
@@ -25,15 +34,23 @@ import {
   setCultivableArea,
   setCultivatedArea,
   setFarmLaborRequired,
+  setFieldDrainage,
   setFishingRequiredWorkers,
   setFishingWorkers,
+  setFloodProtection,
   setFloweringForageArea,
   setFoodPotential,
   setHuntingWorkers,
   setHusbandryRequiredWorkers,
   setHusbandryWorkers,
+  setIrrigatedArea,
+  setIrrigationConveyanceEfficiency,
+  setIrrigationDeliveredWater,
+  setIrrigationDevelopment,
   setIrrigationSalinity,
+  setIrrigationWaterStress,
   setMigratableAdults,
+  setRiverResidualFlow,
   setRuralFoodCapacity,
   setRuralReleasePressure,
   setSettlementDevelopmentLastEvaluatedYear,
@@ -45,6 +62,7 @@ import {
 } from "../economyContext";
 import {
   type AgriculturalConditions,
+  type AgriculturalLandProfile,
   advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
   reconcileForestClearanceForAgriculture
@@ -181,6 +199,14 @@ export class DevelopmentPotentialModule {
     setRuralReleasePressure(new Float32Array());
     setSoilFertility(new Float32Array());
     setIrrigationSalinity(new Float32Array());
+    setIrrigationDevelopment(new Float32Array());
+    setIrrigationConveyanceEfficiency(new Float32Array());
+    setIrrigatedArea(new Float32Array());
+    setIrrigationDeliveredWater(new Float32Array());
+    setIrrigationWaterStress(new Float32Array());
+    setRiverResidualFlow(new Float32Array());
+    setFieldDrainage(new Float32Array());
+    setFloodProtection(new Float32Array());
     setHuntingWorkers(new Float32Array());
     setFishingWorkers(new Float32Array());
     setFishingRequiredWorkers(new Float32Array());
@@ -231,10 +257,7 @@ export class DevelopmentPotentialModule {
     return changed;
   }
 
-  private storeAgriculture(
-    world: Readonly<WorldContext>,
-    agriculture: Omit<DevelopmentPotentials, "settlementDevelopmentPotential">
-  ): RuralOccupationAllocation {
+  private storeAgriculture(world: WorldContext, agriculture: AgriculturalLandProfile): RuralOccupationAllocation {
     setFoodPotential(agriculture.foodPotential);
     setCultivableArea(agriculture.cultivableArea);
     setYieldPerArea(agriculture.yieldPerArea);
@@ -243,6 +266,11 @@ export class DevelopmentPotentialModule {
     setFloweringForageArea(agriculture.floweringForageArea);
     setFarmLaborRequired(agriculture.farmLaborRequired);
     setMigratableAdults(agriculture.migratableAdults);
+    setIrrigatedArea(agriculture.irrigation.irrigatedAreaHa);
+    setIrrigationDeliveredWater(agriculture.irrigation.irrigationDeliveredWater);
+    setIrrigationWaterStress(agriculture.irrigation.irrigationWaterStress);
+    setRiverResidualFlow(agriculture.irrigation.residualFlowByCell);
+    reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.ruralFoodCapacity);
 
     // Rural Occupation Allocator (docs/plan/biome-goods-producer-ecosystem.md §3) claims hunting/
     // fishing/viticulture labour out of migratableAdults before anything is released toward urban
@@ -270,11 +298,19 @@ export class DevelopmentPotentialModule {
       setSoilFertility(fertility);
     }
     if (existingSalinity.length !== cellCount) setIrrigationSalinity(new Float32Array(cellCount));
+    if (getIrrigationDevelopment().length !== cellCount) setIrrigationDevelopment(new Float32Array(cellCount));
+    if (getIrrigationConveyanceEfficiency().length !== cellCount) {
+      setIrrigationConveyanceEfficiency(new Float32Array(cellCount));
+    }
+    if (getFieldDrainage().length !== cellCount) setFieldDrainage(new Float32Array(cellCount));
     return {
       cropGoods: getGoods().filter(good => Boolean(good.crop) && isGoodEnabled(good)),
       soilFertilityByCell: getSoilFertility(),
       irrigationSalinityByCell: getIrrigationSalinity(),
-      fourCourseRotationByCell: resolveFourCourseRotationByCell(world.pack.cells)
+      fourCourseRotationByCell: resolveFourCourseRotationByCell(world.pack.cells),
+      irrigationDevelopmentByCell: getIrrigationDevelopment(),
+      irrigationConveyanceEfficiencyByCell: getIrrigationConveyanceEfficiency(),
+      fieldDrainageByCell: getFieldDrainage()
     };
   }
 

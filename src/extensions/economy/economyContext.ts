@@ -95,6 +95,14 @@ let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array(
 let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _soilFertilityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _irrigationSalinityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _irrigationDevelopmentFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _irrigationConveyanceEfficiencyFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _irrigatedAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _irrigationDeliveredWaterFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _irrigationWaterStressFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _riverResidualFlowFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _floodProtectionFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _fieldDrainageFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _huntingWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _fishingWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -137,6 +145,14 @@ export function clearEconomyContext(): void {
   _ruralReleasePressureFallback = new Float32Array();
   _soilFertilityFallback = new Float32Array();
   _irrigationSalinityFallback = new Float32Array();
+  _irrigationDevelopmentFallback = new Float32Array();
+  _irrigationConveyanceEfficiencyFallback = new Float32Array();
+  _irrigatedAreaFallback = new Float32Array();
+  _irrigationDeliveredWaterFallback = new Float32Array();
+  _irrigationWaterStressFallback = new Float32Array();
+  _riverResidualFlowFallback = new Float32Array();
+  _floodProtectionFallback = new Float32Array();
+  _fieldDrainageFallback = new Float32Array();
   _settlementDevelopmentPotentialFallback = new Float32Array();
   _huntingWorkersFallback = new Float32Array();
   _fishingWorkersFallback = new Float32Array();
@@ -448,6 +464,72 @@ export function getIrrigationSalinity(): Float32Array<ArrayBufferLike> {
 export function setIrrigationSalinity(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("irrigationSalinity", value, next => {
     _irrigationSalinityFallback = next;
+  });
+}
+
+/** Irrigation, flood protection, and field drainage intentionally remain independent investments. */
+export function getIrrigationDevelopment(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("irrigationDevelopment", _irrigationDevelopmentFallback);
+}
+export function setIrrigationDevelopment(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("irrigationDevelopment", value, next => {
+    _irrigationDevelopmentFallback = next;
+  });
+}
+export function getIrrigationConveyanceEfficiency(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("irrigationConveyanceEfficiency", _irrigationConveyanceEfficiencyFallback);
+}
+export function setIrrigationConveyanceEfficiency(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("irrigationConveyanceEfficiency", value, next => {
+    _irrigationConveyanceEfficiencyFallback = next;
+  });
+}
+export function getIrrigatedArea(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("irrigatedArea", _irrigatedAreaFallback);
+}
+export function setIrrigatedArea(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("irrigatedArea", value, next => {
+    _irrigatedAreaFallback = next;
+  });
+}
+export function getIrrigationDeliveredWater(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("irrigationDeliveredWater", _irrigationDeliveredWaterFallback);
+}
+export function setIrrigationDeliveredWater(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("irrigationDeliveredWater", value, next => {
+    _irrigationDeliveredWaterFallback = next;
+  });
+}
+export function getIrrigationWaterStress(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("irrigationWaterStress", _irrigationWaterStressFallback);
+}
+export function setIrrigationWaterStress(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("irrigationWaterStress", value, next => {
+    _irrigationWaterStressFallback = next;
+  });
+}
+export function getRiverResidualFlow(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("riverResidualFlow", _riverResidualFlowFallback);
+}
+export function setRiverResidualFlow(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("riverResidualFlow", value, next => {
+    _riverResidualFlowFallback = next;
+  });
+}
+export function getFloodProtection(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("floodProtection", _floodProtectionFallback);
+}
+export function setFloodProtection(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("floodProtection", value, next => {
+    _floodProtectionFallback = next;
+  });
+}
+export function getFieldDrainage(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("fieldDrainage", _fieldDrainageFallback);
+}
+export function setFieldDrainage(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("fieldDrainage", value, next => {
+    _fieldDrainageFallback = next;
   });
 }
 

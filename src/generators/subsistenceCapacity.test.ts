@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
-import { generateSubsistenceCapacity, getLivelihoodKind } from "./subsistenceCapacity";
+import {
+  generateSubsistenceCapacity,
+  getLivelihoodKind,
+  reconcileSubsistenceCapacityFromFood
+} from "./subsistenceCapacity";
 
 function createWorld(): WorldContext {
   return {
@@ -63,5 +67,17 @@ describe("generateSubsistenceCapacity", () => {
     applyInitialSettlementPattern(cells, "standard", 0.5);
     expect(cells.pop[0]).toBeCloseTo(50, 5);
     expect(cells.pop[1]).toBeCloseTo(10, 5);
+  });
+
+  it("adds annual agricultural food capacity without erasing non-agricultural livelihoods", () => {
+    const cells = {
+      capacity: new Float32Array([100, 100]),
+      subsistenceCapacity: new Float32Array([20, 35]),
+      subsistenceNonAgriculturalCapacity: new Float32Array([20, 35])
+    };
+
+    reconcileSubsistenceCapacityFromFood(cells, new Float32Array([70, 90]));
+
+    expect(Array.from(cells.subsistenceCapacity)).toEqual([90, 100]);
   });
 });

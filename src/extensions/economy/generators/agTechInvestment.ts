@@ -2,13 +2,20 @@ import { rn } from "../../hostUtils";
 import {
   getAgTechLastSettledYear,
   getCultivatedArea,
+  getFieldDrainage,
+  getFloodProtection,
   getGoods,
+  getIrrigationDevelopment,
   getMarketCellColumn,
   getMarkets,
   getSimulationYear,
   getStateAgriculturalProductivity,
   getWorldContext,
   setAgTechLastSettledYear,
+  setFieldDrainage,
+  setFloodProtection,
+  setIrrigationConveyanceEfficiency,
+  setIrrigationDevelopment,
   setStateAgriculturalProductivity
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
@@ -18,8 +25,8 @@ import { Markets } from "./markets-generator";
  * Rural technology investment: Markets spend from their own treasury to buy Tools (the existing
  * Iron Ore -> Iron Ingot -> Tools chain's end product) for their cultivated land, building up a
  * saturating adoption stock that feeds cellAgriculturalModifier in agriculturalLandUse.ts.
- * States separately fund a slower, State-treasury-financed layer (stateAgriculturalProductivity,
- * §6.1) modeling public infrastructure (roads, irrigation) rather than individual farm tools.
+ * States separately fund a slower, State-treasury-financed layer (stateAgriculturalProductivity)
+ * and water works. Water works persist in independent irrigation, flood-protection, and field-drainage columns.
  * See docs/plan/rural-agtech-investment.md.
  */
 
@@ -116,6 +123,7 @@ export class AgTechInvestmentModule {
     const stockByState = getStateAgriculturalProductivity();
     const nextStockByState =
       stockByState.length >= states.length ? stockByState.slice() : new Float32Array(states.length);
+    const coverageByState = new Float32Array(states.length);
 
     for (const state of states) {
       if (!state?.i || state.removed) continue;
@@ -142,6 +150,7 @@ export class AgTechInvestmentModule {
       }
 
       const coverageThisYear = requestedTotal > 0 ? Math.min(1, purchasedTotal / requestedTotal) : 0;
+      coverageByState[state.i] = coverageThisYear;
       nextStockByState[state.i] = rn(
         previousStock * (1 - STATE_ADOPTION_RATE) + coverageThisYear * STATE_ADOPTION_RATE,
         4
@@ -149,6 +158,41 @@ export class AgTechInvestmentModule {
     }
 
     setStateAgriculturalProductivity(nextStockByState);
+    this.settleWaterWorks(coverageByState);
+  }
+
+  /**
+   * The initial public-works budget is settled with the State's infrastructure purchase, but its
+   * effects are stored independently. Future policy can fund these columns with distinct budgets
+   * without changing agriculture's water-allocation interface.
+   */
+  private settleWaterWorks(coverageByState: Float32Array): void {
+    const cells = this.worldContext.pack.cells;
+    const count = cells.i.length;
+    const irrigation = getIrrigationDevelopment();
+    const drainage = getFieldDrainage();
+    const floodProtection = getFloodProtection();
+    const nextIrrigation = irrigation.length === count ? irrigation.slice() : new Float32Array(count);
+    const nextDrainage = drainage.length === count ? drainage.slice() : new Float32Array(count);
+    const nextFloodProtection = floodProtection.length === count ? floodProtection.slice() : new Float32Array(count);
+    const conveyance = new Float32Array(count);
+
+    for (const cellId of cells.i) {
+      const stateId = cells.state?.[cellId] ?? 0;
+      const coverage = coverageByState[stateId] ?? 0;
+      const hasRiverAccess =
+        Boolean(cells.r?.[cellId]) || (cells.c?.[cellId] ?? []).some(neighbor => Boolean(cells.r?.[neighbor]));
+      const irrigationTarget = hasRiverAccess ? coverage : 0;
+      nextIrrigation[cellId] = rn(nextIrrigation[cellId]! * 0.9 + irrigationTarget * 0.1, 4);
+      nextDrainage[cellId] = rn(nextDrainage[cellId]! * 0.9 + coverage * 0.06, 4);
+      nextFloodProtection[cellId] = rn(nextFloodProtection[cellId]! * 0.9 + coverage * 0.07, 4);
+      conveyance[cellId] = rn(0.35 + nextIrrigation[cellId]! * 0.5, 4);
+    }
+
+    setIrrigationDevelopment(nextIrrigation);
+    setIrrigationConveyanceEfficiency(conveyance);
+    setFieldDrainage(nextDrainage);
+    setFloodProtection(nextFloodProtection);
   }
 }
 

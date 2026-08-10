@@ -121,13 +121,16 @@ export function getStapleCropSuitability(
   temperature: number,
   precipitation: number,
   soil: StapleSoilType,
-  irrigated = false
+  irrigationSupplement: number | boolean = 0
 ): number {
-  // Irrigation makes a dry river cell viable, but it does not turn it into an
-  // ideal rain-fed field. Salinity is applied separately by the annual soil model.
-  const effectivePrecipitation = irrigated
-    ? Math.max(precipitation, profile.precipitation.idealMin * 0.8)
-    : precipitation;
+  // Boolean true remains a compatibility adapter for old callers. New callers
+  // pass the actual delivered rainfall-equivalent supplement.
+  const effectivePrecipitation =
+    typeof irrigationSupplement === "number"
+      ? precipitation + Math.max(0, irrigationSupplement)
+      : irrigationSupplement
+        ? Math.max(precipitation, profile.precipitation.idealMin * 0.8)
+        : precipitation;
   const soilFactor = profile.soils.includes(soil) ? 1 : 0.55;
   return (
     rangeSuitability(temperature, profile.temperature) *

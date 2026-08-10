@@ -3,6 +3,7 @@ import type { WorldContext } from "../../hostCore";
 import {
   AGTECH_NO_DRAFT_EFFECT_SHARE,
   AGTECH_YIELD_BONUS_MAX,
+  type AgriculturalConditions,
   advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
   FOUR_COURSE_CLOVER_LEY_SHARE,
@@ -259,7 +260,38 @@ describe("agricultural land use", () => {
     expect(mix.find(entry => entry.good.crop?.kind === "legume")?.good.name).toBe("Lentils");
   });
 
-  it("depletes soil under continuous cereal cultivation and accumulates salt in irrigated desert fields", () => {
+  it("uses actual river allocation to irrigate dry cropland instead of river presence alone", () => {
+    const world = createWorld();
+    world.biomesData.tags = [["desert"], ["forest"]];
+    world.biomesData.habitability = [80, 80];
+    world.pack.cells.biomeCode = new Uint8Array([0, 1]);
+    world.pack.cells.r = new Uint16Array([1, 0]);
+    world.pack.cells.fl = new Uint16Array([100, 0]);
+    world.pack.cells.riverDownstream = new Int32Array([-1, -1]);
+    world.pack.cells.forestCover = new Float32Array([0, 0]);
+    world.grid.cells.prec = new Uint8Array([5, 45]);
+    const crops = [cropGood(1, "Wheat", "cereal"), cropGood(2, "Peas", "legume")];
+
+    const rainFed = calculateAgriculturalLandProfile(world, undefined, undefined, {}, { cropGoods: crops });
+    const irrigated = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        cropGoods: crops,
+        irrigationDevelopmentByCell: new Float32Array([1, 0]),
+        irrigationConveyanceEfficiencyByCell: new Float32Array([0.9, 0])
+      }
+    );
+
+    expect(rainFed.foodPotential[0]).toBe(0);
+    expect(irrigated.irrigation.irrigatedAreaHa[0]).toBeGreaterThan(0);
+    expect(irrigated.foodPotential[0]).toBeGreaterThan(rainFed.foodPotential[0]);
+    expect(irrigated.irrigation.residualFlowByCell[0]).toBeLessThan(100 * 30);
+  });
+
+  it("depletes soil under continuous cereal cultivation and accumulates salt only when dry fields receive irrigation", () => {
     const world = createWorld();
     const cerealOnly = [cropGood(1, "Wheat", "cereal")];
     const exhausted = advanceAgriculturalSoils(world, cerealOnly, new Float32Array([1, 1]), new Float32Array(2));
@@ -269,7 +301,26 @@ describe("agricultural land use", () => {
     world.pack.cells.biomeCode = new Uint8Array([0, 1]);
     world.pack.cells.r = new Uint16Array([1, 0]);
     world.grid.cells.prec = new Uint8Array([5, 45]);
-    const salted = advanceAgriculturalSoils(world, cerealOnly, new Float32Array([1, 1]), new Float32Array(2));
+    const rainFed = advanceAgriculturalSoils(world, cerealOnly, new Float32Array([1, 1]), new Float32Array(2));
+    expect(rainFed.irrigationSalinity[0]).toBe(0);
+
+    const irrigation: AgriculturalConditions["irrigation"] = {
+      irrigatedAreaHa: new Float32Array([0.1, 0]),
+      irrigationSupplement: new Float32Array([15, 0]),
+      irrigationDeliveredWater: new Float32Array([1.5, 0]),
+      irrigationWaterStress: new Float32Array(2),
+      residualFlowByCell: new Float32Array(2),
+      allocation: {
+        status: "complete",
+        allocations: [],
+        residualFlowByCell: new Float32Array(2),
+        withdrawnFlowByCell: new Float32Array(2),
+        diagnostics: []
+      }
+    };
+    const salted = advanceAgriculturalSoils(world, cerealOnly, new Float32Array([1, 1]), new Float32Array(2), {
+      irrigation
+    });
     expect(salted.irrigationSalinity[0]).toBeGreaterThan(0);
   });
 });

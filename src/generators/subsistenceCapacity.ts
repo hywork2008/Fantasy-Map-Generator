@@ -25,6 +25,7 @@ export function getLivelihoodKind(code: number | undefined): LivelihoodKind {
 type CapacityColumns = {
   readonly capacity: ArrayLike<number>;
   readonly subsistenceCapacity?: ArrayLike<number>;
+  readonly subsistenceNonAgriculturalCapacity?: ArrayLike<number>;
 };
 
 /**
@@ -38,6 +39,30 @@ export function getCellSubsistenceCapacity(cells: CapacityColumns, cellId: numbe
 }
 
 /**
+ * Applies the Economy's independently calculated agricultural food capacity without making the
+ * host depend on the Economy extension. Non-agricultural livelihoods remain available underneath.
+ */
+export function reconcileSubsistenceCapacityFromFood(
+  cells: {
+    readonly capacity: ArrayLike<number>;
+    subsistenceCapacity?: Float32Array;
+    readonly subsistenceNonAgriculturalCapacity?: Float32Array;
+  },
+  agriculturalFoodCapacity: ArrayLike<number>
+): void {
+  const target = cells.subsistenceCapacity;
+  if (!target || target.length !== agriculturalFoodCapacity.length) return;
+  for (let cellId = 0; cellId < target.length; cellId++) {
+    const terrainCapacity = Math.max(0, cells.capacity[cellId] ?? 0);
+    // Legacy maps have no separated baseline. Retain their historical local capacity instead of
+    // erasing fishing and pastoral livelihoods when the Economy extension is first enabled.
+    const nonAgricultural = Math.max(0, cells.subsistenceNonAgriculturalCapacity?.[cellId] ?? target[cellId] ?? 0);
+    const agriculture = Math.max(0, agriculturalFoodCapacity[cellId] ?? 0);
+    target[cellId] = Math.min(terrainCapacity, nonAgricultural + agriculture);
+  }
+}
+
+/**
  * Builds the food-derived rural capacity used by initial settlement and annual
  * rural demography. Agriculture can approach the terrain ceiling; fishing,
  * pastoralism, and foraging support lower densities instead of being erased.
@@ -46,6 +71,7 @@ export function generateSubsistenceCapacity(world: WorldContext): void {
   const cells = world.pack.cells;
   const count = cells.i.length;
   const subsistenceCapacity = new Float32Array(count);
+  const subsistenceNonAgriculturalCapacity = new Float32Array(count);
   const livelihood = new Uint8Array(count);
 
   for (const cellId of cells.i) {
@@ -56,21 +82,21 @@ export function generateSubsistenceCapacity(world: WorldContext): void {
     const temperature = world.grid.cells.temp[cells.g[cellId] ?? cellId] ?? 12;
     const precipitation = world.grid.cells.prec[cells.g[cellId] ?? cellId] ?? 45;
     const soil = getCellSoil(tags, Boolean(cells.r[cellId]));
-    const agriculture = getAgricultureSupport(temperature, precipitation, soil, tags, Boolean(cells.r[cellId]));
+    const agriculture = getAgricultureSupport(temperature, precipitation, soil, tags);
     const fishing = getFishingSupport(cells, cellId, tags);
     const pastoral = getPastoralSupport(temperature, tags);
     const foraging = getForagingSupport(temperature, tags);
     const supports = [agriculture, fishing, pastoral, foraging];
-    const totalSupport = Math.min(
-      1,
-      supports.reduce((sum, value) => sum + value, 0)
-    );
+    const nonAgriculturalSupport = Math.min(1, fishing + pastoral + foraging);
+    const totalSupport = Math.min(1, agriculture + nonAgriculturalSupport);
 
     subsistenceCapacity[cellId] = terrainCapacity * totalSupport;
+    subsistenceNonAgriculturalCapacity[cellId] = terrainCapacity * nonAgriculturalSupport;
     livelihood[cellId] = getLivelihoodCode(supports);
   }
 
   cells.subsistenceCapacity = subsistenceCapacity;
+  cells.subsistenceNonAgriculturalCapacity = subsistenceNonAgriculturalCapacity;
   cells.livelihood = livelihood;
 }
 
@@ -78,14 +104,12 @@ function getAgricultureSupport(
   temperature: number,
   precipitation: number,
   soil: StapleSoilType,
-  tags: readonly string[],
-  hasRiver: boolean
+  tags: readonly string[]
 ): number {
-  const irrigated = hasRiver && tags.includes("desert");
-  if (tags.includes("desert") && !irrigated) return 0;
-  const main = bestCropSuitability("cereal", temperature, precipitation, soil, irrigated);
-  const root = bestCropSuitability("tuber", temperature, precipitation, soil, irrigated);
-  const legume = bestCropSuitability("legume", temperature, precipitation, soil, irrigated);
+  if (tags.includes("desert")) return 0;
+  const main = bestCropSuitability("cereal", temperature, precipitation, soil);
+  const root = bestCropSuitability("tuber", temperature, precipitation, soil);
+  const legume = bestCropSuitability("legume", temperature, precipitation, soil);
   const staple = Math.max(main, root);
 
   // A staple and a legume represent the normal rotation. A lone staple is
@@ -100,13 +124,12 @@ function bestCropSuitability(
   kind: StapleCropKind,
   temperature: number,
   precipitation: number,
-  soil: StapleSoilType,
-  irrigated: boolean
+  soil: StapleSoilType
 ): number {
   let best = 0;
   for (const crop of STAPLE_CROP_LIST) {
     if (crop.kind !== kind) continue;
-    best = Math.max(best, getStapleCropSuitability(crop, temperature, precipitation, soil, irrigated));
+    best = Math.max(best, getStapleCropSuitability(crop, temperature, precipitation, soil));
   }
   return best;
 }

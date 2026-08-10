@@ -32,6 +32,8 @@ export interface PackedGraphCells {
   /** Terrain type */
   t: TypedArray; // cell terrain types
   r: TypedArray; // river id passing through cell
+  /** Next land river cell downstream, or -1 at a mouth / terminal reach. */
+  riverDownstream?: Int32Array;
   f: TypedArray; // feature id occupying cell
   fl: TypedArray; // flux presence in cell
   s: TypedArray; // cell suitability
@@ -90,6 +92,8 @@ export interface PackedGraphCells {
   capacity: TypedArray; // cell population carrying capacity
   /** Food-derived rural capacity; lower than `capacity` where subsistence is sparse. */
   subsistenceCapacity?: Float32Array;
+  /** Baseline fishing, pastoral, and foraging capacity, before agricultural food is reconciled annually. */
+  subsistenceNonAgriculturalCapacity?: Float32Array;
   /** Dominant livelihood code from `subsistenceCapacity.ts`; 0 means no stable local subsistence. */
   livelihood?: Uint8Array;
   children: TypedArray; // cell children pop

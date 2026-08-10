@@ -30,8 +30,16 @@ export { Names } from "../generators/names-generator";
 export { getDeathsByState, recordDeaths, resetPopulationLossTracker } from "../generators/populationLossTracker";
 export { advanceAllRegimentMovement, isOccupiedHomeBurg } from "../generators/regimentMovement";
 export { buildRiverNavigationGraph, findDownstreamRiverPath } from "../generators/riverNavigationGraph";
+export type {
+  RiverIntake,
+  RiverWaterAllocation,
+  RiverWaterAllocationPolicy,
+  RiverWithdrawal
+} from "../generators/riverWaterAllocation";
+export { allocateRiverWater, compileRiverWaterNetwork } from "../generators/riverWaterAllocation";
 export { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../generators/seaRouteGraph";
 export { States } from "../generators/states-generator";
+export { reconcileSubsistenceCapacityFromFood } from "../generators/subsistenceCapacity";
 export { getFourCourseRotationEffect } from "../generators/technologyProgress";
 export type { Point } from "../generators/voronoi";
 export { BordersRenderer } from "../renderers/draw-borders";

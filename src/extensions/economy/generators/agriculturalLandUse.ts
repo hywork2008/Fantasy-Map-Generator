@@ -1,6 +1,12 @@
 import { getStapleCropSuitability } from "../../../data/stapleCrops";
 import { harvestForestStock } from "../../../generators/forestStock";
-import type { WorldContext } from "../../hostCore";
+import {
+  allocateRiverWater,
+  compileRiverWaterNetwork,
+  type RiverWaterAllocation,
+  type RiverWithdrawal,
+  type WorldContext
+} from "../../hostCore";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
@@ -53,6 +59,9 @@ export const FOUR_COURSE_LABOR_SAVINGS_MAX = 0.08;
 export const FOUR_COURSE_CLOVER_LEY_SHARE = 0.25;
 /** Extra organic-fertility recovery supplied by the clover ley and its livestock cycle. */
 export const FOUR_COURSE_SOIL_RESTORATION_BONUS = 0.015;
+/** Relative annual water supplied by one generated river-flux unit. Calibration is intentionally map-relative. */
+export const IRRIGATION_ANNUAL_WATER_PER_FLUX = 30;
+export const RIVER_ENVIRONMENTAL_FLOW_RESERVE = 0.55;
 const MIN_SOIL_FERTILITY = 0.55;
 const MAX_SOIL_FERTILITY = 1.1;
 
@@ -71,6 +80,24 @@ export interface AgriculturalConditions {
   readonly irrigationSalinityByCell?: Float32Array;
   /** State technology adoption resolved to cells by DevelopmentPotential. */
   readonly fourCourseRotationByCell?: Float32Array;
+  /** 0..1 command-area and canal-maintenance development. */
+  readonly irrigationDevelopmentByCell?: Float32Array;
+  /** 0..1 share of diverted water that reaches fields. */
+  readonly irrigationConveyanceEfficiencyByCell?: Float32Array;
+  /** Separate from irrigation: controls salt leaching and waterlogging only. */
+  readonly fieldDrainageByCell?: Float32Array;
+  /** Resolved once per agricultural pass; callers may provide a cached annual result. */
+  readonly irrigation?: RiverIrrigationResults;
+}
+
+export interface RiverIrrigationResults {
+  readonly irrigatedAreaHa: Float32Array;
+  /** Rainfall-equivalent water delivered over the irrigated portion of a cell. */
+  readonly irrigationSupplement: Float32Array;
+  readonly irrigationDeliveredWater: Float32Array;
+  readonly irrigationWaterStress: Float32Array;
+  readonly residualFlowByCell: Float32Array;
+  readonly allocation: RiverWaterAllocation;
 }
 
 export interface AgriculturalLandProfile {
@@ -97,6 +124,7 @@ export interface AgriculturalLandProfile {
    * See docs/plan/megacity-food-import-economy.md §4.1 `ruralReleasePressure`.
    */
   readonly ruralReleasePressure: Float32Array;
+  readonly irrigation: RiverIrrigationResults;
 }
 
 /**
@@ -138,6 +166,7 @@ export function calculateAgriculturalLandProfile(
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
   const ruralReleasePressure = new Float32Array(count);
+  const emptyIrrigation = createEmptyRiverIrrigationResults(count);
   if (!count) {
     return {
       cultivableArea,
@@ -148,21 +177,27 @@ export function calculateAgriculturalLandProfile(
       floweringForageArea,
       farmLaborRequired,
       migratableAdults,
-      ruralReleasePressure
+      ruralReleasePressure,
+      irrigation: emptyIrrigation
     };
   }
 
-  const relativeYield = new Float32Array(count);
   const populationRate = Math.max(1, world.populationRate || 1);
 
   for (const cellId of cells.i) {
     const area = calculateCultivableAreaHectares(world, cellId);
     cultivableArea[cellId] = area;
-    if (area <= 0) continue;
-
-    const climateYield = calculateClimateYield(world, cellId, conditions);
-    relativeYield[cellId] = climateYield;
   }
+
+  const irrigation =
+    conditions.irrigation ??
+    calculateRiverIrrigationResults(
+      world,
+      conditions.cropGoods ?? [],
+      cultivableArea,
+      conditions.irrigationDevelopmentByCell,
+      conditions.irrigationConveyanceEfficiencyByCell
+    );
 
   for (const cellId of cells.i) {
     const area = cultivableArea[cellId];
@@ -177,8 +212,8 @@ export function calculateAgriculturalLandProfile(
       cellId,
       effectiveAgTech,
       stateProductivity,
-      relativeYield[cellId],
-      conditions
+      { ...conditions, irrigation },
+      area
     );
     yieldPerArea[cellId] = yieldKgPerHa;
 
@@ -226,7 +261,8 @@ export function calculateAgriculturalLandProfile(
     floweringForageArea,
     farmLaborRequired,
     migratableAdults,
-    ruralReleasePressure
+    ruralReleasePressure,
+    irrigation
   };
 }
 
@@ -266,14 +302,7 @@ export function reconcileForestClearanceForAgriculture(
 
     const effectiveAgTech = getEffectiveAgTech(world, cellId, agTechStockByCell);
     const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
-    const yieldKgPerHa = calculateYieldKgPerHectare(
-      world,
-      cellId,
-      effectiveAgTech,
-      stateProductivity,
-      undefined,
-      conditions
-    );
+    const yieldKgPerHa = calculateYieldKgPerHectare(world, cellId, effectiveAgTech, stateProductivity, conditions);
     const residentPeople = getCellFoodDemandPeople(
       world,
       cellId,
@@ -422,10 +451,10 @@ function calculateYieldKgPerHectare(
   cellId: number,
   effectiveAgTech: number,
   stateProductivity: number,
-  climateYield: number | undefined = undefined,
-  conditions: AgriculturalConditions = {}
+  conditions: AgriculturalConditions = {},
+  cultivableArea?: number
 ): number {
-  const effectiveClimateYield = climateYield ?? calculateClimateYield(world, cellId, conditions);
+  const effectiveClimateYield = calculateClimateYield(world, cellId, conditions, cultivableArea);
   return (
     BASE_NET_YIELD_KG_PER_SOWN_HECTARE *
     effectiveClimateYield *
@@ -476,11 +505,12 @@ const MAIN_CROP_SHARE_WITH_LEGUME = 2 / 3;
 export function getCropMix(
   world: Readonly<WorldContext>,
   cellId: number,
-  cropGoods: readonly Good[]
+  cropGoods: readonly Good[],
+  conditions: AgriculturalConditions = {}
 ): readonly CropMixEntry[] {
   const candidates = cropGoods
     .filter(good => good.crop)
-    .map(good => ({ good, suitability: getCropSuitability(world, cellId, good) }))
+    .map(good => ({ good, suitability: getCropSuitability(world, cellId, good, conditions) }))
     .filter(candidate => candidate.suitability > 0.1);
   if (!candidates.length) return [];
 
@@ -548,16 +578,140 @@ function getCellCultureType(world: Readonly<WorldContext>, cellId: number): Cult
 }
 
 /** Returns 0..1 crop suitability from the catalogued climate range and the cell's soil class. */
-export function getCropSuitability(world: Readonly<WorldContext>, cellId: number, good: Good): number {
+export function getCropSuitability(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  good: Good,
+  conditions: AgriculturalConditions = {}
+): number {
   const crop = good.crop;
   if (!crop) return 0;
   const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
   const temperature = world.grid?.cells.temp?.[gridCellId] ?? 12;
   const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
   const soil = getCellSoilType(world, cellId);
-  const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
-  const irrigated = Boolean(world.pack.cells.r[cellId]) && tags.includes("desert");
-  return getStapleCropSuitability(crop, temperature, precipitation, soil, irrigated);
+  const irrigationSupplement = conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
+  return getStapleCropSuitability(crop, temperature, precipitation, soil, irrigationSupplement);
+}
+
+/**
+ * Resolves cell-level irrigation from the whole year's requests in one pass.
+ * It is intentionally crop/market-neutral once the demand list has been built.
+ */
+export function calculateRiverIrrigationResults(
+  world: Readonly<WorldContext>,
+  cropGoods: readonly Good[],
+  cultivableArea: Float32Array,
+  irrigationDevelopmentByCell?: Float32Array,
+  conveyanceEfficiencyByCell?: Float32Array
+): RiverIrrigationResults {
+  const count = world.pack.cells.i.length;
+  const empty = createEmptyRiverIrrigationResults(count);
+  if (!irrigationDevelopmentByCell?.length || !cropGoods.length) return empty;
+
+  const network = compileRiverWaterNetwork({
+    pack: world.pack,
+    annualWaterPerFlux: IRRIGATION_ANNUAL_WATER_PER_FLUX
+  });
+  const demands: RiverWithdrawal[] = [];
+  const commandAreaByCell = new Float32Array(count);
+  const deficitByCell = new Float32Array(count);
+
+  for (const cellId of world.pack.cells.i) {
+    const development = clamp01(irrigationDevelopmentByCell[cellId] ?? 0);
+    const area = cultivableArea[cellId] ?? 0;
+    const intake = network.intakeByFieldCell[cellId];
+    if (development <= 0 || area <= 0 || !intake) continue;
+
+    const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
+    const rainfall = world.grid.cells.prec?.[gridCellId] ?? 45;
+    const target = getCropWaterTarget(world, cellId, cropGoods, rainfall);
+    const deficit = Math.max(0, target - rainfall);
+    const commandArea = area * development;
+    if (deficit <= 0 || commandArea <= 0) continue;
+
+    const efficiency = clamp(conveyanceEfficiencyByCell?.[cellId] ?? 0.35 + development * 0.5, 0.1, 0.95);
+    const requestedDelivered = commandArea * deficit;
+    demands.push({
+      id: `irrigation:${cellId}`,
+      intake,
+      beneficiaryCellId: cellId,
+      requestedWithdrawal: requestedDelivered / efficiency,
+      maximumWithdrawal: requestedDelivered / efficiency,
+      conveyanceEfficiency: efficiency,
+      priority: 100
+    });
+    commandAreaByCell[cellId] = commandArea;
+    deficitByCell[cellId] = deficit;
+  }
+
+  const allocation = allocateRiverWater(network, demands, {
+    environmentalFlowReserve: RIVER_ENVIRONMENTAL_FLOW_RESERVE
+  });
+  const irrigatedAreaHa = new Float32Array(count);
+  const irrigationSupplement = new Float32Array(count);
+  const irrigationDeliveredWater = new Float32Array(count);
+  const irrigationWaterStress = new Float32Array(count);
+  for (const result of allocation.allocations) {
+    const cellId = result.beneficiaryCellId;
+    const deficit = deficitByCell[cellId] ?? 0;
+    const commandArea = commandAreaByCell[cellId] ?? 0;
+    if (deficit <= 0 || commandArea <= 0) continue;
+    const delivered = Math.max(0, result.deliveredWater);
+    const irrigatedArea = Math.min(commandArea, delivered / deficit);
+    irrigatedAreaHa[cellId] = irrigatedArea;
+    irrigationSupplement[cellId] = irrigatedArea > 0 ? delivered / irrigatedArea : 0;
+    irrigationDeliveredWater[cellId] = delivered;
+    irrigationWaterStress[cellId] = Math.max(
+      0,
+      Math.min(1, result.unmetWater / Math.max(result.requestedWithdrawal, 1e-6))
+    );
+  }
+
+  return {
+    irrigatedAreaHa,
+    irrigationSupplement,
+    irrigationDeliveredWater,
+    irrigationWaterStress,
+    residualFlowByCell: allocation.residualFlowByCell,
+    allocation
+  };
+}
+
+function createEmptyRiverIrrigationResults(count: number): RiverIrrigationResults {
+  const allocation: RiverWaterAllocation = {
+    status: "complete",
+    allocations: [],
+    residualFlowByCell: new Float32Array(count),
+    withdrawnFlowByCell: new Float32Array(count),
+    diagnostics: []
+  };
+  return {
+    irrigatedAreaHa: new Float32Array(count),
+    irrigationSupplement: new Float32Array(count),
+    irrigationDeliveredWater: new Float32Array(count),
+    irrigationWaterStress: new Float32Array(count),
+    residualFlowByCell: allocation.residualFlowByCell,
+    allocation
+  };
+}
+
+function getCropWaterTarget(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  cropGoods: readonly Good[],
+  rainfall: number
+): number {
+  const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
+  const temperature = world.grid.cells.temp?.[gridCellId] ?? 12;
+  const soil = getCellSoilType(world, cellId);
+  const candidates = cropGoods
+    .map(good => good.crop)
+    .filter((crop): crop is NonNullable<Good["crop"]> => Boolean(crop))
+    .filter(crop => getStapleCropSuitability(crop, temperature, crop.precipitation.idealMin, soil) > 0.1)
+    .map(crop => crop.precipitation.idealMin)
+    .filter(target => target > rainfall);
+  return candidates.length ? Math.min(...candidates) : rainfall;
 }
 
 export function getCellSoilType(world: Readonly<WorldContext>, cellId: number): SoilType {
@@ -585,7 +739,7 @@ export function advanceAgriculturalSoils(
   for (const cellId of world.pack.cells.i) {
     const previousFertility = currentFertility?.[cellId] || 1;
     const previousSalinity = currentSalinity?.[cellId] || 0;
-    const mix = getCropMix(world, cellId, cropGoods);
+    const mix = getCropMix(world, cellId, cropGoods, conditions);
     const mainCropShare = mix
       .filter(entry => entry.good.crop?.kind !== "legume")
       .reduce((sum, entry) => sum + entry.share, 0);
@@ -604,10 +758,22 @@ export function advanceAgriculturalSoils(
 
     const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
     const precipitation = world.grid?.cells.prec?.[gridCellId] ?? 45;
-    const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
-    const irrigatedDesert = tags.includes("desert") && Boolean(world.pack.cells.r[cellId]);
-    const saltAccumulation = irrigatedDesert ? 0.014 * Math.max(0, 1 - precipitation / 20) : 0;
-    const leaching = precipitation >= 20 ? 0.05 : precipitation >= 10 ? 0.015 : 0;
+    const irrigationSupplement = conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
+    const irrigationShare = Math.min(
+      1,
+      (conditions.irrigation?.irrigatedAreaHa[cellId] ?? 0) /
+        Math.max(calculateCultivableAreaHectares(world, cellId), 1e-6)
+    );
+    const drainage = clamp01(conditions.fieldDrainageByCell?.[cellId] ?? 0);
+    const saltAccumulation =
+      irrigationShare > 0
+        ? 0.014 *
+          irrigationShare *
+          Math.min(1, irrigationSupplement / 20) *
+          Math.max(0, 1 - precipitation / 20) *
+          (1 - drainage * 0.75)
+        : 0;
+    const leaching = (precipitation >= 20 ? 0.05 : precipitation >= 10 ? 0.015 : 0) + drainage * 0.03;
     irrigationSalinity[cellId] = Math.max(0, Math.min(1, previousSalinity + saltAccumulation - leaching));
   }
 
@@ -617,7 +783,8 @@ export function advanceAgriculturalSoils(
 function calculateClimateYield(
   world: Readonly<WorldContext>,
   cellId: number,
-  conditions: AgriculturalConditions = {}
+  conditions: AgriculturalConditions = {},
+  cultivableArea = calculateCultivableAreaHectares(world, cellId)
 ): number {
   const gridCellId = world.pack.cells.g?.[cellId] ?? cellId;
   const temperature = world.grid?.cells.temp?.[gridCellId] ?? 12;
@@ -634,25 +801,45 @@ function calculateClimateYield(
             : temperature <= 28
               ? 1 - ((temperature - 18) / 10) * 0.35
               : 0.3;
-  const precipitationFactor =
-    precipitation < 8
-      ? 0
-      : precipitation < 20
-        ? 0.4 + ((precipitation - 8) / 12) * 0.35
-        : precipitation < 60
-          ? 0.75 + ((precipitation - 20) / 40) * 0.25
-          : 1;
-  const cropMix = conditions.cropGoods ? getCropMix(world, cellId, conditions.cropGoods) : [];
-  const cropFactor = cropMix.length
-    ? cropMix.reduce((sum, entry) => sum + entry.share * entry.suitability * (entry.good.crop?.yieldMultiplier ?? 1), 0)
+  const precipitationFactor = getPrecipitationFactor(precipitation);
+  const irrigationSupplement = conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
+  const irrigatedShare = Math.min(
+    1,
+    (conditions.irrigation?.irrigatedAreaHa[cellId] ?? 0) / Math.max(cultivableArea, 1e-6)
+  );
+  const irrigatedPrecipitationFactor = getPrecipitationFactor(precipitation + irrigationSupplement);
+  const areaWeightedPrecipitationFactor =
+    precipitationFactor * (1 - irrigatedShare) + irrigatedPrecipitationFactor * irrigatedShare;
+  const cropMix = conditions.cropGoods ? getCropMix(world, cellId, conditions.cropGoods, conditions) : [];
+  const cropFactor = conditions.cropGoods
+    ? cropMix.length
+      ? cropMix.reduce(
+          (sum, entry) => sum + entry.share * entry.suitability * (entry.good.crop?.yieldMultiplier ?? 1),
+          0
+        )
+      : 0
     : 1;
   const fertility = conditions.soilFertilityByCell?.[cellId] ?? 1;
   const salinity = conditions.irrigationSalinityByCell?.[cellId] ?? 0;
   const soilFertilityFactor = Math.max(0.7, 1 - (1 - fertility) * 0.5);
   const salinityFactor = Math.max(0.35, 1 - salinity * 0.65);
-  const waterAccess = world.pack.cells.r[cellId] ? 1.08 : 1;
   return Math.max(
     0,
-    temperatureFactor * precipitationFactor * cropFactor * soilFertilityFactor * salinityFactor * waterAccess
+    temperatureFactor * areaWeightedPrecipitationFactor * cropFactor * soilFertilityFactor * salinityFactor
   );
+}
+
+function getPrecipitationFactor(precipitation: number): number {
+  if (precipitation < 8) return 0;
+  if (precipitation < 20) return 0.4 + ((precipitation - 8) / 12) * 0.35;
+  if (precipitation < 60) return 0.75 + ((precipitation - 20) / 40) * 0.25;
+  return 1;
+}
+
+function clamp01(value: number): number {
+  return clamp(value, 0, 1);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

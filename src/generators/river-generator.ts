@@ -15,6 +15,7 @@ import { TIME, WARN } from "../utils/debug";
 import { Lakes } from "./lakes";
 import { Names } from "./names-generator";
 import { refreshRiverHydrology } from "./riverHydrology";
+import { buildRiverDownstream } from "./riverWaterAllocation";
 import type { Point } from "./voronoi";
 
 export interface RiverBankGeometry {
@@ -299,6 +300,7 @@ class RiverModule {
     this.resolveDepressions(h);
     drainWater();
     defineRivers();
+    cells.riverDownstream = buildRiverDownstream(cells, pack.rivers);
 
     calculateConfluenceFlux();
     Lakes.cleanupLakeData();
