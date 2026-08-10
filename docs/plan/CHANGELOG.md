@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-11
+
+- docs/plan/guilds/relations.md
+
 2026-08-10
 
 - docs/plan/river-water-allocation.md
