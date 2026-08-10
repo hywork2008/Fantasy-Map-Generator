@@ -34,7 +34,7 @@ import {
   tryCoLoadFoodOntoCaravan
 } from "./foodCoLoad";
 import { recordFoodDeliveredExport } from "./foodProcessingLedger";
-import type { Good } from "./goods-generator";
+import { type Good, isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
@@ -52,14 +52,17 @@ import {
   getCaravanMaintenanceCost,
   getRouteMaxTemperatureC,
   isGoodTradePermitted,
+  isGoodTradePermittedForShipment,
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import {
   decideSailDeparture,
+  isLocalLandRoute,
   maxWaitDaysForRoute,
   nextScheduledSailDay,
+  routeHasWater,
   sailDecisionFromReason
 } from "./tradeSailSchedule";
 import { TradeSecurity } from "./tradeSecurity";
@@ -76,6 +79,41 @@ function payloadUsedSlots(caravan: Pick<Caravan, "payload">): number {
     const slotsPerUnit = item.cargoSlotsPerUnit ?? 1;
     return sum + item.units * slotsPerUnit;
   }, 0);
+}
+
+/** Removes raw fresh cargo from an existing loading or transit caravan. */
+function discardFreshPayload(caravan: Caravan): boolean {
+  let changed = false;
+  const surviving = caravan.payload.filter(item => {
+    const good = getGoods().find(candidate => candidate.i === item.goodId);
+    if (!good || !isFreshFoodGood(good)) return true;
+    // No raw fresh cargo may remain on an existing loading/transit caravan after this rule
+    // ships. It must be consumed or preserved at its origin instead.
+    changed = true;
+    if (caravan.sellerType === "market" && (item.lockedCapital ?? 0) > UNIT_EPSILON) {
+      MerchantTradeCapital.settleLoss(caravan.seller, item.lockedCapital ?? 0);
+    }
+    recordGoodFlow({
+      direction: "sink",
+      category: "spoilage",
+      goodId: item.goodId,
+      units: item.units,
+      marketId: caravan.sellerType === "market" ? caravan.seller : undefined
+    });
+    return false;
+  });
+  if (!changed) return false;
+
+  caravan.payload = surviving;
+  caravan.units = rn(
+    surviving.reduce((sum, item) => sum + item.units, 0),
+    2
+  );
+  caravan.value = rn(
+    surviving.reduce((sum, item) => sum + item.value, 0),
+    2
+  );
+  return true;
 }
 
 function resolveMerchantOrganizationId(dispatcherMarketId: number | null | undefined): number | undefined {
@@ -104,11 +142,13 @@ function appendPayloadFromManifest(
   for (const item of manifest.items) {
     let units = item.units;
     let lockedCapital = 0;
+    let freshnessAgeDays: number | undefined;
     // Prefer export-warehouse take when the deal (or pseudo-deal) is backed by a staging lot.
     if (item.deal.stagingLotId !== undefined) {
       const taken = ExportStaging.takeFromLot(item.deal.stagingLotId, item.units);
       units = taken.units;
       lockedCapital = taken.lockedCapital;
+      freshnessAgeDays = taken.freshnessAgeDays;
       if (units <= UNIT_EPSILON) continue;
       item.deal.remainingUnits = Math.max(0, (item.deal.remainingUnits ?? item.deal.units) - units);
     } else {
@@ -128,6 +168,9 @@ function appendPayloadFromManifest(
       existing.units += units;
       existing.value += value;
       existing.lockedCapital = (existing.lockedCapital ?? 0) + lockedCapital;
+      if (freshnessAgeDays !== undefined) {
+        existing.freshnessAgeDays = Math.max(existing.freshnessAgeDays ?? 0, freshnessAgeDays);
+      }
     } else {
       caravan.payload.push({
         goodId: item.deal.good,
@@ -137,7 +180,8 @@ function appendPayloadFromManifest(
         cargoSlotsPerUnit: item.cargoSlotsPerUnit,
         strategicProcurementOrderId: item.deal.strategicProcurementOrderId,
         stagingLotId: item.deal.stagingLotId,
-        lockedCapital: lockedCapital > UNIT_EPSILON ? lockedCapital : undefined
+        lockedCapital: lockedCapital > UNIT_EPSILON ? lockedCapital : undefined,
+        freshnessAgeDays
       });
     }
   }
@@ -204,8 +248,28 @@ type RouteBundle = {
   deals: Deal[];
 };
 
+/** Bring persisted loading rows in line with the current route-aware commercial policy. */
+function refreshLoadingPolicy(caravan: Caravan): void {
+  if (caravan.state !== "loading" || !caravan.loading) return;
+  const logistics = TradeLogisticsSettings.getOptions();
+  caravan.loading.maxWaitDays = maxWaitDaysForRoute(caravan.routeSegments, caravan.totalDistance, {
+    maxWaitDaysLand: logistics.maxWaitDaysLand,
+    maxWaitDaysSea: logistics.maxWaitDaysSea,
+    maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
+    shortSeaDistanceKm: logistics.shortSeaDistanceKm
+  });
+
+  // Carts have no sailing calendar. Clear stale fields from saves made before this distinction.
+  if (!routeHasWater(caravan.routeSegments)) {
+    caravan.loading.sailScheduleDays = undefined;
+    caravan.loading.nextSailDay = undefined;
+  }
+}
+
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {
   if (caravan.state !== "loading" || !caravan.loading) return "waiting";
+
+  refreshLoadingPolicy(caravan);
 
   // Co-load staple food into free space first so it counts toward sail utilization
   // (historical ballast / bulk grain riding with higher-value general cargo).
@@ -216,9 +280,16 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   const util = utilizationOf(usedSlots, planned);
   const dayOfMonth = getSimulationDay();
   const logistics = TradeLogisticsSettings.getOptions();
-  const sailDays = caravan.loading.sailScheduleDays?.length ? caravan.loading.sailScheduleDays : logistics.sailDays;
-  caravan.loading.nextSailDay = nextScheduledSailDay(dayOfMonth, sailDays);
-  caravan.loading.sailScheduleDays = [...sailDays];
+  const waterRoute = routeHasWater(caravan.routeSegments);
+  const sailDays = waterRoute
+    ? caravan.loading.sailScheduleDays?.length
+      ? caravan.loading.sailScheduleDays
+      : logistics.sailDays
+    : [];
+  if (waterRoute) {
+    caravan.loading.nextSailDay = nextScheduledSailDay(dayOfMonth, sailDays);
+    caravan.loading.sailScheduleDays = [...sailDays];
+  }
 
   const reason = decideSailDeparture({
     utilization: util,
@@ -228,6 +299,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
     maxWaitDays: caravan.loading.maxWaitDays,
     dayOfMonth,
     sailDays,
+    immediateDispatch: isLocalLandRoute(caravan.routeSegments, caravan.totalDistance),
     unitEpsilon: UNIT_EPSILON
   });
   const decision = sailDecisionFromReason(reason);
@@ -515,6 +587,26 @@ export class CaravansModule {
     return computed;
   }
 
+  /** Clears raw fresh cargo from saved/in-memory caravans immediately after a rule or map reload. */
+  discardFreshCargo(): void {
+    ExportStaging.expireFreshLots(1);
+    const remaining: Caravan[] = [];
+    for (const caravan of getCaravans()) {
+      const changed = discardFreshPayload(caravan);
+      if (!changed || caravan.payload.length) {
+        remaining.push(caravan);
+        continue;
+      }
+      if (caravan.state === "transit") MerchantTransportAssets.settleCaravan(caravan, "lost");
+    }
+    setCaravans(remaining);
+  }
+
+  /** Applies the current wait and dispatch policy to loading rows restored from a saved map. */
+  refreshLoadingPolicies(): void {
+    for (const caravan of getCaravans()) refreshLoadingPolicy(caravan);
+  }
+
   /**
    * Creates a state-funded procurement caravan from an already-priced Deal. Unlike
    * generic deal spawning, this path receives the route selected by procurement so
@@ -541,6 +633,9 @@ export class CaravansModule {
       world
     );
     const good = getGoods()[deal.good];
+    const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
+    const routeMaxTemperatureC = getRouteMaxTemperatureC(routeSegments, world.pack.cells?.g, world.grid.cells?.temp);
+    if (!good || !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC)) return null;
     const cargoSlots = good ? deal.units * getGoodCargoSlotsPerUnit(good) : 0;
     const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(deal);
     if (dispatcherMarketId === null) return null;
@@ -680,7 +775,21 @@ export class CaravansModule {
 
       const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
       const maintenanceCost = getCaravanMaintenanceCost(durationDays);
-      const transportedDeals = selectRouteCargo(bundle.deals, getGoods(), durationDays, maintenanceCost, routeSegments);
+      const logistics = TradeLogisticsSettings.getOptions();
+      const maxLoadingWaitDays = maxWaitDaysForRoute(routeSegments, distance, {
+        maxWaitDaysLand: logistics.maxWaitDaysLand,
+        maxWaitDaysSea: logistics.maxWaitDaysSea,
+        maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
+        shortSeaDistanceKm: logistics.shortSeaDistanceKm
+      });
+      const transportedDeals = selectRouteCargo(
+        bundle.deals,
+        getGoods(),
+        durationDays,
+        maxLoadingWaitDays,
+        maintenanceCost,
+        routeSegments
+      );
       if (!transportedDeals.length) continue;
 
       const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(bundle);
@@ -732,8 +841,9 @@ export class CaravansModule {
         );
         if (!manifest?.items.length) break;
 
-        // Accumulate toward one ready vehicle / hull's bottleneck capacity.
-        const plannedCapacitySlots = maxCapacitySlots;
+        // The manifest has already selected the smallest suitable vehicle. Using the fleet's
+        // largest capacity here made a small cart load wait for a wagon-sized hold.
+        const plannedCapacitySlots = getManifestCapacitySlots(manifest.allocations);
 
         const bake = resolveBakeContext(getSimulationMonth());
         const travelLegs = bakeCaravanTravelLegs(
@@ -748,7 +858,6 @@ export class CaravansModule {
         );
 
         const dayOfMonth = getSimulationDay();
-        const logistics = TradeLogisticsSettings.getOptions();
         const caravan: Caravan = {
           i: nextId++,
           seller: bundle.seller,
@@ -774,12 +883,7 @@ export class CaravansModule {
           departReason: "waiting",
           loading: {
             waitedDays: 0,
-            maxWaitDays: maxWaitDaysForRoute(routeSegments, distance, {
-              maxWaitDaysLand: logistics.maxWaitDaysLand,
-              maxWaitDaysSea: logistics.maxWaitDaysSea,
-              maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
-              shortSeaDistanceKm: logistics.shortSeaDistanceKm
-            }),
+            maxWaitDays: maxLoadingWaitDays,
             targetUtilization: logistics.targetUtilization,
             minSailUtilization: logistics.minSailUtilization,
             plannedCapacitySlots,
@@ -804,6 +908,7 @@ export class CaravansModule {
     const markets = getMarkets();
     decayCaravanArrivalVolume(markets, deltaDays);
     MerchantTransportAssets.recoverMaintenance(deltaDays);
+    ExportStaging.expireFreshLots(deltaDays);
 
     const caravans = getCaravans();
     if (!caravans.length) return { arrived: [], lost: [] };
@@ -816,6 +921,16 @@ export class CaravansModule {
     // Advance accumulation clocks and attempt scheduled / full-enough departures.
     for (const caravan of caravans) {
       if (caravan.state !== "loading" || !caravan.loading) continue;
+      const cargoSpoiled = discardFreshPayload(caravan);
+      if (cargoSpoiled && !caravan.payload.length) {
+        caravan.state = "lost";
+        lost.push(caravan);
+        continue;
+      }
+      if (caravan.transportAllocations) {
+        for (const allocation of caravan.transportAllocations) allocation.usedSlots = payloadUsedSlots(caravan);
+      }
+      refreshLoadingPolicy(caravan);
       caravan.loading.waitedDays += deltaDays;
       const outcome = tryDepartLoadingCaravan(caravan);
       if (outcome === "cancelled") lost.push(caravan);
@@ -823,6 +938,14 @@ export class CaravansModule {
 
     for (const caravan of caravans) {
       if (caravan.state !== "transit") continue;
+
+      const cargoSpoiled = discardFreshPayload(caravan);
+      if (cargoSpoiled && !caravan.payload.length) {
+        caravan.state = "lost";
+        MerchantTransportAssets.settleCaravan(caravan, "lost");
+        lost.push(caravan);
+        continue;
+      }
 
       advanceCaravan(caravan, deltaDays, world.distanceScale, month, movement);
 
@@ -912,6 +1035,7 @@ function selectRouteCargo(
   deals: Deal[],
   goods: Good[],
   durationDays: number,
+  maxLoadingWaitDays: number,
   maintenanceCost: number,
   routeSegments: readonly TradeRouteSegment[]
 ): Deal[] {
@@ -919,7 +1043,10 @@ function selectRouteCargo(
   const routeMaxTemperatureC = getRouteMaxTemperatureC(routeSegments, world.pack.cells?.g, world.grid.cells?.temp);
   const eligible = deals.filter(deal => {
     const good = goods[deal.good];
-    return Boolean(good && isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC));
+    return Boolean(
+      good &&
+        isGoodTradePermittedForShipment(good, durationDays, maxLoadingWaitDays, routeSegments, routeMaxTemperatureC)
+    );
   });
   if (!eligible.length) return [];
 

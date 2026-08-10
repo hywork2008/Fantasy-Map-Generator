@@ -10,6 +10,7 @@ import {
   MILK_LOTS_PER_CHEESE_LOT,
   WINE_TARGETS
 } from "./foodLots";
+import { isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getMarketRuralPopulation } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
@@ -185,6 +186,17 @@ export function settleFoodProcessingHouseholds(): void {
       if (remaining <= 0) continue;
       market.goods[good.i].stock = 0;
       ledger.spoilage += remaining;
+      recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: remaining, marketId: market.i });
+    }
+
+    // Raw fish/meat/shellfish shares the no-cold-chain lifecycle even though these goods do not
+    // have the specialised Milk/Grapes household ledger. Preserve this tag-driven path so future
+    // fresh goods cannot silently become permanent market stock.
+    for (const good of getGoods()) {
+      if (!isFreshFoodGood(good) || good.name === "Milk" || good.name === "Grapes") continue;
+      const remaining = Math.max(0, market.goods[good.i]?.stock ?? 0);
+      if (remaining <= 0) continue;
+      market.goods[good.i].stock = 0;
       recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: remaining, marketId: market.i });
     }
   }

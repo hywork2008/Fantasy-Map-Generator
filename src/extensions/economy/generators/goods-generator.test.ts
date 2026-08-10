@@ -14,6 +14,7 @@ import {
   GoodsModule,
   isGoodEnabled,
   migrateFoodProcessingLotContracts,
+  migrateFreshFoodTags,
   migrateGrapesGood,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
@@ -425,6 +426,28 @@ describe("GoodsModule", () => {
     expect(getGoods()[1].tags).not.toContain("liveAnimal");
     expect(getGoods()[2].tags).not.toContain("liveAnimal");
     expect(migrateLiveAnimalTags()).toBe(false);
+  });
+
+  it("backfills the no-cold-chain tag for old raw-food catalogues without changing Whales", () => {
+    setGoods([
+      { i: 1, name: "Game", tags: ["food"], value: 2, unit: "wain", icon: "good-game", color: "#c38a8a" },
+      { i: 2, name: "Fish", tags: ["food", "aquatic"], value: 1, unit: "wain", icon: "good-fish", color: "#7fcdff" },
+      {
+        i: 3,
+        name: "Whales",
+        tags: ["food", "aquatic", "fuel"],
+        value: 3,
+        unit: "barrel",
+        icon: "good-whales",
+        color: "#7fcdff"
+      }
+    ]);
+
+    expect(migrateFreshFoodTags()).toBe(true);
+    expect(getGoods()[0].tags).toContain("freshFood");
+    expect(getGoods()[1].tags).toContain("freshFood");
+    expect(getGoods()[2].tags).not.toContain("freshFood");
+    expect(migrateFreshFoodTags()).toBe(false);
   });
 
   it("exposes coastal and nearshore habitat predicates to Goods distributions", () => {

@@ -18,6 +18,14 @@ import {
 } from "./goodsGeneratorTypes";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
 
+/** Raw, un-refrigerated foods introduced before the `freshFood` catalogue tag existed. */
+const FRESH_FOOD_GOOD_NAMES = new Set(["Fish", "Game", "Milk", "Shellfish", "Grapes"]);
+
+/** Compatibility fallback for active legacy maps that have not been reloaded for tag migration. */
+export function isFreshFoodGood(good: Pick<Good, "name" | "tags">): boolean {
+  return good.tags.includes("freshFood") || FRESH_FOOD_GOOD_NAMES.has(good.name);
+}
+
 export type {
   CropKind,
   CropProfile,
@@ -2632,6 +2640,17 @@ export function migrateLiveAnimalTags(): boolean {
   for (const good of getGoods()) {
     if (!LIVE_ANIMAL_GOOD_NAMES.has(good.name) || good.tags.includes("liveAnimal")) continue;
     good.tags.push("liveAnimal");
+    changed = true;
+  }
+  return changed;
+}
+
+/** Adds the common no-cold-chain tag to pre-tag saved catalogues without changing their ids or stock. */
+export function migrateFreshFoodTags(): boolean {
+  let changed = false;
+  for (const good of getGoods()) {
+    if (!FRESH_FOOD_GOOD_NAMES.has(good.name) || good.tags.includes("freshFood")) continue;
+    good.tags.push("freshFood");
     changed = true;
   }
   return changed;

@@ -86,6 +86,7 @@ import {
   getDefaultGoodTradeProfile,
   isGoodEnabled,
   migrateFoodProcessingLotContracts,
+  migrateFreshFoodTags,
   migrateGrapesGood,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
@@ -1753,7 +1754,10 @@ export function init(api: ExtensionAPI): void {
     const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
     const migratedFoodLots = migrateFoodProcessingLotContracts();
+    const migratedFreshFoodTags = migrateFreshFoodTags();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
+    Caravans.discardFreshCargo();
+    Caravans.refreshLoadingPolicies();
     if (
       migratedLegacyMetals ||
       migratedLiveCats ||
@@ -1763,6 +1767,7 @@ export function init(api: ExtensionAPI): void {
       migratedStapleCrops ||
       migratedWineRecipe ||
       migratedFoodLots ||
+      migratedFreshFoodTags ||
       migratedLiveAnimalTags
     ) {
       Goods.sync();
@@ -2331,7 +2336,10 @@ export function init(api: ExtensionAPI): void {
     const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
     const migratedFoodLots = migrateFoodProcessingLotContracts();
+    const migratedFreshFoodTags = migrateFreshFoodTags();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
+    Caravans.discardFreshCargo();
+    Caravans.refreshLoadingPolicies();
     if (
       migratedLegacyMetals ||
       migratedLiveCats ||
@@ -2341,6 +2349,7 @@ export function init(api: ExtensionAPI): void {
       migratedStapleCrops ||
       migratedWineRecipe ||
       migratedFoodLots ||
+      migratedFreshFoodTags ||
       migratedLiveAnimalTags
     ) {
       Goods.sync();

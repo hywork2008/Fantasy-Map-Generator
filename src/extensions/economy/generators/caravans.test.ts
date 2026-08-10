@@ -192,8 +192,8 @@ describe("caravan loading accumulation", () => {
     expect(getExportStagingLots()).toHaveLength(0); // moved onto the loading caravan
 
     const originStockBefore = getMarkets()[0].goods[0].stock;
-    // Exceed land max wait (14 days) with a thin hold → cancel and restore exporter stock.
-    const result = Caravans.tick(15);
+    // Exceed the road-caravan max wait (2 days) with a thin hold → cancel and restore exporter stock.
+    const result = Caravans.tick(3);
 
     expect(result.lost.length).toBeGreaterThanOrEqual(1);
     expect(getCaravans()).toEqual([]);
@@ -219,6 +219,39 @@ describe("caravan loading accumulation", () => {
     expect(shipments[0].units).toBeGreaterThanOrEqual(40);
     // Cargo left the warehouse when placed on the shipment.
     expect(getExportStagingLots().reduce((sum, entry) => sum + entry.units, 0)).toBeLessThan(1);
+  });
+
+  it("sends a short road consignment immediately instead of waiting to fill a hold", () => {
+    vi.spyOn(TradeAnimation, "findRoutePath").mockReturnValue({
+      points: [
+        [0, 0],
+        [64, 0]
+      ],
+      segments: [
+        {
+          type: "land",
+          points: [
+            [0, 0],
+            [64, 0]
+          ]
+        }
+      ]
+    });
+    const lot = ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 2,
+      unitCost: 50,
+      requireCapital: false
+    });
+    expect(lot).not.toBeNull();
+
+    Caravans.spawnFromDeals([]);
+
+    expect(getCaravans()).toHaveLength(1);
+    expect(getCaravans()[0].state).toBe("transit");
+    expect(getCaravans()[0].departReason).toBe("depart-local");
   });
 
   it("keeps export warehouse lots across deal wipes until loaded", () => {
@@ -310,6 +343,53 @@ describe("caravan arrival volume tracking", () => {
     Caravans.tick(1);
 
     expect(getMarkets()[0].caravanArrivalVolume ?? 0).toBeGreaterThan(40);
+  });
+
+  it("discards hot fresh cargo that outlasts its shelf-life in transit", () => {
+    worldContext.grid = { cells: { temp: [24] } } as typeof worldContext.grid;
+    worldContext.pack.goods = [
+      {
+        i: 0,
+        name: "Grapes",
+        value: 2,
+        tags: ["food", "freshFood"],
+        unit: "1,000 kg grape lot",
+        icon: "grapes",
+        color: "#963e48"
+      } as Good
+    ];
+    worldContext.pack.cells = { g: [0] } as typeof worldContext.pack.cells;
+    setCaravans([
+      {
+        i: 1,
+        seller: 0,
+        sellerType: "market",
+        buyer: 1,
+        buyerType: "market",
+        payload: [{ goodId: 0, dealId: 1, units: 2, value: 4, freshnessAgeDays: 0 }],
+        units: 2,
+        value: 4,
+        draftAnimalId: "horse",
+        routeSegments: [
+          {
+            type: "land",
+            points: [
+              [0, 0, 0],
+              [100, 0, 0]
+            ]
+          }
+        ],
+        totalDistance: 100,
+        currentDistance: 0,
+        travelLegs: [{ endKm: 100, speedKmPerDay: 1 }],
+        state: "transit"
+      } as Caravan
+    ]);
+
+    const result = Caravans.tick(2);
+
+    expect(result.lost).toHaveLength(1);
+    expect(getCaravans()).toEqual([]);
   });
 
   it("decays volume toward zero even when no caravans are in transit", () => {

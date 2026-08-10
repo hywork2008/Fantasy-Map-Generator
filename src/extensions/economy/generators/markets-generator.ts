@@ -49,6 +49,7 @@ import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } 
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
 import { getMarketTextileDemandProfile } from "./textileDemand";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
+import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 import {
   estimateSpeculativeTrade,
   getCaravanMaintenanceCost,
@@ -57,11 +58,12 @@ import {
   getRouteMaxTemperatureC,
   getTradeAccountingPeriodDays,
   getTransportCost,
-  isGoodTradePermitted,
+  isGoodTradePermittedForShipment,
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
+import { maxWaitDaysForRoute } from "./tradeSailSchedule";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
 const PRICE_FLOOR_FACTOR = 0.25;
@@ -133,6 +135,17 @@ export type { Deal, Market } from "./marketTypes";
 export class MarketsModule {
   private get worldContext() {
     return getWorldContext();
+  }
+
+  /** Worst-case commercial loading wait, included in fresh cargo's shelf-life check. */
+  private getExpectedLoadingWaitDays(route: Pick<MarketTradeRoute, "segments" | "distanceKm">): number {
+    const logistics = TradeLogisticsSettings.getOptions();
+    return maxWaitDaysForRoute(route.segments, route.distanceKm, {
+      maxWaitDaysLand: logistics.maxWaitDaysLand,
+      maxWaitDaysSea: logistics.maxWaitDaysSea,
+      maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
+      shortSeaDistanceKm: logistics.shortSeaDistanceKm
+    });
   }
 
   private getSalesTax(burg: { state?: number }): number {
@@ -1145,7 +1158,13 @@ export class MarketsModule {
             const route = routes[importer.market.i];
             if (
               !route ||
-              !isGoodTradePermitted(good, route.durationDays, route.segments, route.maxTemperatureC) ||
+              !isGoodTradePermittedForShipment(
+                good,
+                route.durationDays,
+                this.getExpectedLoadingWaitDays(route),
+                route.segments,
+                route.maxTemperatureC
+              ) ||
               !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
             ) {
               continue;
@@ -1326,7 +1345,13 @@ export class MarketsModule {
         const route = routes[importer.i];
         if (
           !route ||
-          !isGoodTradePermitted(good, route.durationDays, route.segments, route.maxTemperatureC) ||
+          !isGoodTradePermittedForShipment(
+            good,
+            route.durationDays,
+            this.getExpectedLoadingWaitDays(route),
+            route.segments,
+            route.maxTemperatureC
+          ) ||
           !isMarketTradePermitted(exporter, importer, route.durationDays)
         ) {
           continue;

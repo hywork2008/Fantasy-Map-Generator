@@ -199,6 +199,8 @@ export type ExportStagingLot = {
   durationDays?: number;
   maintenanceCost?: number;
   taxPerUnit?: number;
+  /** Days since this fresh cargo left the origin market. Omitted for durable/legacy cargo. */
+  freshnessAgeDays?: number;
 };
 
 export type TransportAllocation = {
@@ -340,6 +342,8 @@ export interface Caravan {
     isFoodCoLoad?: boolean;
     /** Farmgate / draw unit cost for food co-load settlement. */
     unitCost?: number;
+    /** Days since this fresh cargo left the origin market. Omitted for durable/legacy cargo. */
+    freshnessAgeDays?: number;
   }[];
   units: number; // total units
   value: number; // total payload value
@@ -370,7 +374,7 @@ export interface Caravan {
   loading?: CaravanLoadingState;
   /**
    * Why this shipment left (or was cancelled). Set when leaving loading / cancel-thin.
-   * Values: depart-full | depart-schedule | depart-overdue | cancelled-thin
+   * Values: depart-full | depart-local | depart-schedule | depart-overdue | cancelled-thin
    */
-  departReason?: "depart-full" | "depart-schedule" | "depart-overdue" | "cancelled-thin" | "waiting";
+  departReason?: "depart-full" | "depart-local" | "depart-schedule" | "depart-overdue" | "cancelled-thin" | "waiting";
 }

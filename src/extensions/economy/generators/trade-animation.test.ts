@@ -31,19 +31,26 @@ function makePack(
     [10, 0],
     [20, 0],
     [30, 0]
-  ]
+  ],
+  portCells: readonly number[] = []
 ) {
   return {
     cells: {
       h: [20, 20, 10, 10],
-      burg: [0, 0, 0, 0],
+      burg: points.map((_, index) => index + 1),
       p: points,
       routes: cellRoutes
     },
     burgs: [
       null,
-      { i: 1, name: "Alpha", cell: 0, x: 0, y: 0, port: 0 },
-      { i: 2, name: "Beta", cell: 1, x: 10, y: 0, port: 0 }
+      ...points.map(([x, y], index) => ({
+        i: index + 1,
+        name: `Burg ${index}`,
+        cell: index,
+        x,
+        y,
+        port: portCells.includes(index) ? 1 : 0
+      }))
     ],
     routes: routeData,
     deals: []
@@ -107,7 +114,8 @@ describe("findRoutePath", () => {
         [15, 0],
         [0, 20],
         [30, 0]
-      ]
+      ],
+      [0, 3]
     ) as unknown as PackedGraph;
 
     const result = ta.findRoutePath(0, 3);
@@ -139,7 +147,8 @@ describe("findRoutePath", () => {
         [100, 0],
         [10, 0],
         [200, 0]
-      ]
+      ],
+      [2, 3]
     ) as unknown as PackedGraph;
 
     const result = ta.findRoutePath(0, 3);
@@ -177,7 +186,7 @@ describe("findRoutePath", () => {
   });
 
   it("uses a navigable river only in its downstream direction", () => {
-    const pack = makePack();
+    const pack = makePack({}, [], undefined, [0, 2]);
     pack.cells.r = [1, 1, 1, 0];
     pack.cells.fl = [100, 100, 100, 0];
     pack.cells.enclosure = [0, 0, 0, 0];
@@ -186,5 +195,16 @@ describe("findRoutePath", () => {
 
     expect(ta.findRoutePath(0, 2)?.segments.map(segment => segment.type)).toEqual(["river"]);
     expect(ta.findRoutePath(2, 0)).toBeNull();
+  });
+
+  it("does not board a river at an unported burg", () => {
+    const pack = makePack();
+    pack.cells.r = [1, 1, 1, 0];
+    pack.cells.fl = [100, 100, 100, 0];
+    pack.cells.enclosure = [0, 0, 0, 0];
+    (pack as { rivers?: unknown[] }).rivers = [{ i: 1, cells: [0, 1, 2] }];
+    worldContext.pack = pack as unknown as PackedGraph;
+
+    expect(ta.findRoutePath(0, 2)).toBeNull();
   });
 });

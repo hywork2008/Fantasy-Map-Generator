@@ -35,7 +35,7 @@ import {
   settleFoodProcessingHouseholds
 } from "./foodProcessingLedger";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
+import { DEMAND_PRIORITY, Goods, getDemandTargets, isFreshFoodGood, isGoodEnabled } from "./goods-generator";
 import { getGuildBonus } from "./guildKnowledge";
 import {
   CRAFT_KNOWLEDGE_DOMAINS,
@@ -340,7 +340,10 @@ export class ProductionModule {
       good =>
         good.tags.includes("food") &&
         recipesByOutput[good.i]!.some(recipe =>
-          recipe.ingredients.some(ingredient => Goods.get(ingredient.goodId)?.tags.includes("freshFood"))
+          recipe.ingredients.some(ingredient => {
+            const ingredientGood = Goods.get(ingredient.goodId);
+            return ingredientGood ? isFreshFoodGood(ingredientGood) : false;
+          })
         )
     );
     // 2026-08-08 (docs/temp/0807-alcoholic.md): a preservation good's first-claim priority below is

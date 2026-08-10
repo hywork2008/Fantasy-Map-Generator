@@ -10,18 +10,20 @@ const market: Market = {
     2: { stock: 2, price: 1 },
     3: { stock: 1, price: 1 },
     4: { stock: 1, price: 1 },
-    5: { stock: 1, price: 1 }
+    5: { stock: 1, price: 1 },
+    6: { stock: 4, price: 1 }
   }
 };
 
 vi.mock("../economyContext", () => ({
   getMarkets: () => [market],
   getGoods: () => [
-    { i: 1, name: "Milk" },
-    { i: 2, name: "Cheese" },
-    { i: 3, name: "Grapes" },
-    { i: 4, name: "Raisins" },
-    { i: 5, name: "Wine" }
+    { i: 1, name: "Milk", tags: ["food", "freshFood"] },
+    { i: 2, name: "Cheese", tags: ["food"] },
+    { i: 3, name: "Grapes", tags: ["food", "freshFood"] },
+    { i: 4, name: "Raisins", tags: ["food"] },
+    { i: 5, name: "Wine", tags: ["food"] },
+    { i: 6, name: "Game", tags: ["food", "freshFood"] }
   ],
   getWorldContext: () => ({
     populationRate: 1_000,
@@ -48,6 +50,7 @@ describe("foodProcessingLedger", () => {
     market.goods[3].stock = 1;
     market.goods[4].stock = 1;
     market.goods[5].stock = 1;
+    market.goods[6].stock = 4;
     market.foodProcessingLedger = undefined;
     market.returnableContainerLedger = undefined;
   });
@@ -68,6 +71,12 @@ describe("foodProcessingLedger", () => {
     recordFoodDeliveredExport(market, "Cheese", 0.75);
 
     expect(market.foodProcessingLedger!.Cheese).toMatchObject({ marketIntake: 0.75, deliveredExport: 0.75 });
+  });
+
+  it("spoils unprocessed fresh meat that is not covered by the specialised dairy/grape ledger", () => {
+    settleFoodProcessingHouseholds();
+
+    expect(market.goods[6].stock).toBe(0);
   });
 
   it("limits non-dairy preserved-food output to three months of household demand", () => {

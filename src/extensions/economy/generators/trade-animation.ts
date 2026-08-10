@@ -157,6 +157,7 @@ export class TradeAnimationModule {
     const queue = new FlatQueue<number>();
     for (const edge of this.getOutgoingEdges(startCell, cellRoutes, isSeaRoute, riverGraph)) {
       if (seaOnly && edge.type !== "sea") continue;
+      if (!this.canUseWaterAtEndpoint(startCell, edge.toCell, edge.type, startCell, endCell)) continue;
       const cost = this.getEdgeTravelDays(startCell, edge.toCell, edge.routeId, edge.type, undefined, routeById);
       const state = edge.toCell * 3 + this.getModeIndex(edge.type);
       if (cost < distArr[state]) {
@@ -178,6 +179,8 @@ export class TradeAnimationModule {
 
       for (const edge of this.getOutgoingEdges(cell, cellRoutes, isSeaRoute, riverGraph)) {
         if (seaOnly && edge.type !== "sea") continue;
+        if (!this.canUseWaterAtEndpoint(cell, edge.toCell, edge.type, startCell, endCell)) continue;
+        if (previousType !== edge.type && !this.canTransferModesAt(cell)) continue;
         const edgeCost = this.getEdgeTravelDays(cell, edge.toCell, edge.routeId, edge.type, previousType, routeById);
         const newCost = cost + edgeCost;
         const nextState = edge.toCell * 3 + this.getModeIndex(edge.type);
@@ -206,6 +209,30 @@ export class TradeAnimationModule {
     }
     for (const edge of riverGraph.getOutgoing(cell)) edges.push({ toCell: edge.toCellId, type: "river" });
     return edges;
+  }
+
+  /** Water legs may start/end and transfer only at burgs marked as ports. */
+  private canUseWaterAtEndpoint(
+    fromCell: number,
+    toCell: number,
+    type: RouteSegmentType,
+    startCell: number,
+    endCell: number
+  ): boolean {
+    if (type === "land") return true;
+    if (fromCell === startCell && !this.isPortCell(fromCell)) return false;
+    if (toCell === endCell && !this.isPortCell(toCell)) return false;
+    return true;
+  }
+
+  private canTransferModesAt(cell: number): boolean {
+    return this.isPortCell(cell);
+  }
+
+  private isPortCell(cell: number): boolean {
+    const world = getWorldContext();
+    const burgId = world.pack.cells.burg[cell];
+    return Boolean(burgId && world.pack.burgs[burgId]?.port);
   }
 
   private getModeIndex(type: RouteSegmentType): number {

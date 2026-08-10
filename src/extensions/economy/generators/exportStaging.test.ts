@@ -23,6 +23,18 @@ const HEAD_GOOD = {
   recipes: []
 };
 
+const FRESH_GRAPES = {
+  i: 7,
+  name: "Grapes",
+  value: 2,
+  tags: ["food", "freshFood"],
+  unit: "1,000 kg grape lot",
+  icon: "",
+  color: "",
+  distribution: "1",
+  recipes: []
+};
+
 describe("ExportStaging warehouse", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
@@ -207,5 +219,23 @@ describe("ExportStaging warehouse", () => {
     expect(lot).not.toBeNull();
     expect(lot!.units).toBeCloseTo(2);
     expect(market.goods[0].stock).toBeCloseTo(48);
+  });
+
+  it("expires fresh cargo left in the export warehouse", () => {
+    worldContext.pack.goods = [FRESH_GRAPES];
+    const origin = getMarketById(1)!;
+    origin.goods[FRESH_GRAPES.i] = { stock: 5, price: 2 };
+    const lot = ExportStaging.bookFromRetail({
+      marketId: 1,
+      destinationMarketId: 2,
+      goodId: FRESH_GRAPES.i,
+      units: 5,
+      unitCost: 2,
+      requireCapital: false
+    });
+
+    expect(lot?.freshnessAgeDays).toBe(0);
+    expect(ExportStaging.expireFreshLots(11)).toBeCloseTo(5);
+    expect(getExportStagingLots()).toHaveLength(0);
   });
 });

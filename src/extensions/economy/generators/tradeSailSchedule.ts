@@ -23,6 +23,9 @@ export const DEFAULT_MAX_WAIT_DAYS_SHORT_SEA = 2;
 /** Water-only routes at or under this length (km) use the short-sea wait. */
 export const SHORT_SEA_DISTANCE_KM = 120;
 
+/** Local road consignments leave with the next available cart instead of accumulating as a ship hold. */
+export const LOCAL_LAND_DISPATCH_DISTANCE_KM = 96;
+
 export {
   DEFAULT_MAX_WAIT_DAYS_LAND,
   DEFAULT_MAX_WAIT_DAYS_SEA,
@@ -69,6 +72,16 @@ export function routeHasLand(routeSegments: readonly TradeRouteSegment[]): boole
   return routeSegments.some(segment => segment.type === "land");
 }
 
+/** A short route using roads alone is served as a local cart run, not a scheduled sailing. */
+export function isLocalLandRoute(routeSegments: readonly TradeRouteSegment[], distanceKm: number): boolean {
+  return (
+    routeHasLand(routeSegments) &&
+    !routeHasWater(routeSegments) &&
+    distanceKm > 0 &&
+    distanceKm <= LOCAL_LAND_DISPATCH_DISTANCE_KM
+  );
+}
+
 /**
  * Loading wait before a thin shipment cancels or sails overdue.
  * Water-only short hops use a short lake/coastal muster.
@@ -93,7 +106,13 @@ export function maxWaitDaysForRoute(
 }
 
 /** Diagnostic sail / cancel reasons shown in Trade Details and Active Caravans. */
-export type SailDecisionReason = "depart-full" | "depart-schedule" | "depart-overdue" | "waiting" | "cancelled-thin";
+export type SailDecisionReason =
+  | "depart-full"
+  | "depart-local"
+  | "depart-schedule"
+  | "depart-overdue"
+  | "waiting"
+  | "cancelled-thin";
 
 export type SailDecision = "depart" | "waiting" | "cancelled";
 
@@ -107,6 +126,8 @@ export function formatSailDecisionReason(reason: SailDecisionReason | undefined)
   switch (reason) {
     case "depart-full":
       return "Full hold";
+    case "depart-local":
+      return "Local cart dispatch";
     case "depart-schedule":
       return "Scheduled sail day";
     case "depart-overdue":
@@ -135,6 +156,8 @@ export function decideSailDeparture(input: {
   maxWaitDays: number;
   dayOfMonth: number;
   sailDays?: readonly number[];
+  /** Local road carriers leave as soon as cargo is ready; calendar sailings do not apply. */
+  immediateDispatch?: boolean;
   unitEpsilon?: number;
 }): SailDecisionReason {
   const eps = input.unitEpsilon ?? 0.000001;
@@ -143,6 +166,7 @@ export function decideSailDeparture(input: {
   const waitExpired = input.waitedDays + eps >= input.maxWaitDays;
   const sailDay = isScheduledSailDay(input.dayOfMonth, input.sailDays ?? SCHEDULED_SAIL_DAYS);
 
+  if (input.immediateDispatch) return "depart-local";
   if (fullEnough) return "depart-full";
   if (minFill && sailDay) return "depart-schedule";
   if (minFill && waitExpired) return "depart-overdue";

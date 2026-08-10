@@ -18,7 +18,7 @@ import {
   setExportWarehouseSeeded,
   setNextExportStagingLotId
 } from "../economyContext";
-import { isGoodEnabled } from "./goods-generator";
+import { isFreshFoodGood, isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
 import type { ExportStagingLot } from "./marketTypes";
@@ -53,6 +53,7 @@ export type BookExportStagingInput = {
 export type TakeFromLotResult = {
   units: number;
   lockedCapital: number;
+  freshnessAgeDays?: number;
 };
 
 function ensureNextLotId(): number {
@@ -142,7 +143,11 @@ export class ExportStagingModule {
       distance: input.distance,
       durationDays: input.durationDays,
       maintenanceCost: input.maintenanceCost,
-      taxPerUnit: input.taxPerUnit
+      taxPerUnit: input.taxPerUnit,
+      freshnessAgeDays: (() => {
+        const good = getGoods().find(candidate => candidate.i === input.goodId);
+        return good && isFreshFoodGood(good) ? 0 : undefined;
+      })()
     };
     lots.push(lot);
     setExportStagingLots(lots);
@@ -175,7 +180,7 @@ export class ExportStagingModule {
     lot.units = rn(Math.max(0, lot.units - taken), 2);
     lot.lockedCapital = rn(Math.max(0, (lot.lockedCapital ?? 0) - capitalShare), 2);
     setExportStagingLots(lot.units <= UNIT_EPSILON ? lots.filter(entry => entry.id !== lotId) : lots);
-    return { units: taken, lockedCapital: capitalShare };
+    return { units: taken, lockedCapital: capitalShare, freshnessAgeDays: lot.freshnessAgeDays };
   }
 
   returnUnitsToRetail(marketId: number, goodId: number, units: number): void {
@@ -214,6 +219,39 @@ export class ExportStagingModule {
     setNextExportStagingLotId(1);
   }
 
+  /**
+   * Fresh cargo is never valid export inventory. Clear any legacy/persisted lots before they
+   * can be displayed as a loading trade.
+   */
+  expireFreshLots(deltaDays: number): number {
+    if (!(deltaDays > 0)) return 0;
+    let spoiledUnits = 0;
+    const remaining: ExportStagingLot[] = [];
+    for (const lot of getExportStagingLots()) {
+      const good = getGoods().find(candidate => candidate.i === lot.goodId);
+      if (!good || !isFreshFoodGood(good)) {
+        remaining.push(lot);
+        continue;
+      }
+      // Fresh goods are never valid export inventory. This also clears warehouse lots created
+      // before the no-raw-fresh-trade rule was introduced.
+      lot.freshnessAgeDays = (lot.freshnessAgeDays ?? 0) + deltaDays;
+      spoiledUnits += lot.units;
+      if ((lot.lockedCapital ?? 0) > UNIT_EPSILON) {
+        MerchantTradeCapital.settleLoss(lot.marketId, lot.lockedCapital ?? 0);
+      }
+      recordGoodFlow({
+        direction: "sink",
+        category: "spoilage",
+        goodId: lot.goodId,
+        units: lot.units,
+        marketId: lot.marketId
+      });
+    }
+    setExportStagingLots(remaining);
+    return spoiledUnits;
+  }
+
   clear(): void {
     setExportStagingLots([]);
     setNextExportStagingLotId(1);
@@ -234,7 +272,8 @@ export class ExportStagingModule {
 
     MerchantTradeCapital.ensureAllMarkets();
     const goods = getGoods().filter(
-      good => good && isGoodEnabled(good) && !good.tags.includes("stapleFood") && good.value > 0
+      good =>
+        good && isGoodEnabled(good) && !good.tags.includes("stapleFood") && !isFreshFoodGood(good) && good.value > 0
     );
     if (!goods.length) {
       setExportWarehouseSeeded(true);

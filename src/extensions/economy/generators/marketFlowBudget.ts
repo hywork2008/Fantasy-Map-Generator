@@ -19,7 +19,8 @@ export const TRADE_RESERVE_FACTOR = 0.2;
 /** Default commercial sail fill targets (Phase B departure policy). */
 export const DEFAULT_TARGET_UTILIZATION = 0.55;
 export const DEFAULT_MIN_SAIL_UTILIZATION = 0.2;
-export const DEFAULT_MAX_WAIT_DAYS_LAND = 14;
+/** Road carriers operate on a daily cadence; holding local cartloads for half a month stalls trade. */
+export const DEFAULT_MAX_WAIT_DAYS_LAND = 2;
 export const DEFAULT_MAX_WAIT_DAYS_SEA = 10;
 
 export type GoodsTradeAffinity = "localBulk" | "tradeStaple" | "luxury" | "military";

@@ -1,4 +1,4 @@
-import { type Good, type GoodTradeProfile, getDefaultGoodTradeProfile } from "./goods-generator";
+import { type Good, type GoodTradeProfile, getDefaultGoodTradeProfile, isFreshFoodGood } from "./goods-generator";
 import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
@@ -8,8 +8,6 @@ export const CARAVAN_DAILY_MAINTENANCE_COST = 0.5;
 export const VALUE_DENSITY_BASE_MAX_DAYS = 12;
 export const VALUE_DENSITY_MULTIPLIER = 4;
 export const PERISHABLE_MAX_TRADE_DAYS = 10;
-/** Raw milk is settled inside its producing market in the same monthly cycle. */
-const NON_TRANSPORTABLE_FRESH_GOODS = new Set(["Milk"]);
 /**
  * Sea-leg cap for dry-stored staples (grain), distinct from PERISHABLE_MAX_TRADE_DAYS (which
  * governs genuinely fast-rotting fresh food like Fish/Game). Grounded in bulk grain-by-sea
@@ -39,8 +37,9 @@ export const STAPLE_FOOD_SEA_MAX_TRADE_DAYS = 30;
  *   at ambient warmth spoils within about a day without preservation (salting/drying/smoking,
  *   which are separate processed goods, not this good).
  * Route temperature is unavailable when a route carries no cell ids (e.g. the trade-opportunities
- * dialog's graph-distance estimate); callers pass `undefined` in that case and this falls back to
- * the same flat PERISHABLE_MAX_TRADE_DAYS cap other perishables use, rather than guessing hot.
+ * dialog's graph-distance estimate); callers pass `undefined` in that case and the rule fails
+ * closed to the one-day hot-climate limit. Treating unknown exposure as a cool cellar used to let
+ * legacy `[x, y]` caravan routes carry raw food for up to ten days.
  */
 export const FRESH_FOOD_COLD_MAX_TEMP_C = 10;
 export const FRESH_FOOD_COOL_MAX_TEMP_C = 20;
@@ -143,7 +142,7 @@ export function getRouteMaxTemperatureC(
 }
 
 function getFreshFoodMaxTradeDays(routeMaxTemperatureC: number | undefined): number {
-  if (routeMaxTemperatureC === undefined) return PERISHABLE_MAX_TRADE_DAYS;
+  if (routeMaxTemperatureC === undefined) return FRESH_FOOD_HOT_MAX_TRADE_DAYS;
   if (routeMaxTemperatureC <= FRESH_FOOD_COLD_MAX_TEMP_C) return PERISHABLE_MAX_TRADE_DAYS;
   if (routeMaxTemperatureC <= FRESH_FOOD_COOL_MAX_TEMP_C) return FRESH_FOOD_COOL_MAX_TRADE_DAYS;
   return FRESH_FOOD_HOT_MAX_TRADE_DAYS;
@@ -168,7 +167,7 @@ export function getGoodMaxTradeDurationDays(
     return hasSeaLeg ? STAPLE_FOOD_SEA_MAX_TRADE_DAYS : Number.POSITIVE_INFINITY;
   }
 
-  if (good.tags.includes("freshFood")) {
+  if (isFreshFoodGood(good)) {
     return Math.min(densityLimit, getFreshFoodMaxTradeDays(routeMaxTemperatureC));
   }
 
@@ -181,7 +180,10 @@ export function isGoodTradePermitted(
   routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
   routeMaxTemperatureC?: number
 ): boolean {
-  if (NON_TRANSPORTABLE_FRESH_GOODS.has(good.name)) return false;
+  // This economy has neither refrigeration nor a retail delivery model that can sell a raw
+  // cargo on its arrival day. Fresh goods must therefore be consumed or processed locally;
+  // only their preserved recipes are eligible for inter-market caravan trade.
+  if (isFreshFoodGood(good)) return false;
   if (
     !Number.isFinite(durationDays) ||
     durationDays > getGoodMaxTradeDurationDays(good, routeSegments, routeMaxTemperatureC)
@@ -192,6 +194,22 @@ export function isGoodTradePermitted(
     (Boolean(routeSegments?.length) &&
       routeSegments?.every(segment => segment.type === "water" || segment.type === "sea") === true)
   );
+}
+
+/**
+ * Fresh cargo starts ageing as soon as a merchant reserves it, not only once its caravan moves.
+ * Reserve enough of its route-specific shelf-life for the longest permitted loading wait.
+ * Other goods retain the existing route-duration-only economic rule.
+ */
+export function isGoodTradePermittedForShipment(
+  good: Good,
+  durationDays: number,
+  maxLoadingWaitDays: number,
+  routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
+  routeMaxTemperatureC?: number
+): boolean {
+  const elapsedDays = isFreshFoodGood(good) ? durationDays + Math.max(0, maxLoadingWaitDays) : durationDays;
+  return isGoodTradePermitted(good, elapsedDays, routeSegments, routeMaxTemperatureC);
 }
 
 export function getCaravanMaintenanceCost(durationDays: number): number {

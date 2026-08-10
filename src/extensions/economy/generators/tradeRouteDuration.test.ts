@@ -7,7 +7,8 @@ import {
   getCaravanMaintenanceCost,
   getGoodMaxTradeDurationDays,
   getNetTradeProfit,
-  isGoodTradePermitted
+  isGoodTradePermitted,
+  isGoodTradePermittedForShipment
 } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, calculateRouteDurationFromDistances } from "./tradeRouteDuration";
 
@@ -170,6 +171,49 @@ describe("trade route duration and viability", () => {
     };
 
     expect(isGoodTradePermitted(milk, 1, [{ type: "land" }])).toBe(false);
+  });
+
+  it("does not reserve hot fresh cargo when loading could outlast its one-day shelf-life", () => {
+    const grapes = {
+      i: 1,
+      name: "Grapes",
+      value: 2,
+      tags: ["food", "freshFood"],
+      unit: "1,000 kg grape lot",
+      icon: "grapes",
+      color: "#963e48"
+    };
+
+    expect(isGoodTradePermitted(grapes, 1, [{ type: "land" }], 24)).toBe(false);
+    expect(isGoodTradePermittedForShipment(grapes, 1, 10, [{ type: "land" }], 24)).toBe(false);
+  });
+
+  it("fails closed for fresh cargo when a legacy route has no temperature cells", () => {
+    const game = {
+      i: 1,
+      name: "Game",
+      value: 2,
+      tags: ["food", "freshFood"],
+      unit: "wain",
+      icon: "game",
+      color: "#c38a8a"
+    };
+
+    expect(isGoodTradePermitted(game, 2, [{ type: "land" }])).toBe(false);
+  });
+
+  it("blocks a pre-migration Game catalogue entry even before its freshFood tag is restored", () => {
+    const legacyGame = {
+      i: 1,
+      name: "Game",
+      value: 2,
+      tags: ["food"],
+      unit: "wain",
+      icon: "game",
+      color: "#c38a8a"
+    };
+
+    expect(isGoodTradePermitted(legacyGame, 1, [{ type: "land" }], 10)).toBe(false);
   });
 
   it("subtracts daily caravan maintenance before applying the minimum-profit threshold", () => {

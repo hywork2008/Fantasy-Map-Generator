@@ -7,6 +7,7 @@ import {
   daysUntilNextSailDay,
   decideSailDeparture,
   formatSailDecisionReason,
+  isLocalLandRoute,
   isScheduledSailDay,
   maxWaitDaysForRoute,
   nextScheduledSailDay,
@@ -81,6 +82,23 @@ describe("trade sail schedule", () => {
         shortSeaDistanceKm: 80
       })
     ).toBe(3);
+  });
+
+  it("identifies short road-only routes as immediate local cart dispatches", () => {
+    expect(isLocalLandRoute(LAND, 64)).toBe(true);
+    expect(isLocalLandRoute(LAND, 120)).toBe(false);
+    expect(isLocalLandRoute(MIXED, 64)).toBe(false);
+    expect(
+      decideSailDeparture({
+        utilization: 0.01,
+        targetUtilization: 0.55,
+        minSailUtilization: 0.2,
+        waitedDays: 0,
+        maxWaitDays: 2,
+        dayOfMonth: 5,
+        immediateDispatch: true
+      })
+    ).toBe("depart-local");
   });
 
   it("returns diagnostic depart reasons", () => {
