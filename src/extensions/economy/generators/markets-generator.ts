@@ -274,6 +274,28 @@ export class MarketsModule {
   }
 
   /**
+   * Delivers finished Goods to an accepted Metallurg work order. It shares the armory's
+   * conservative stock cap so an order cannot drain the market before civilian demand and trade.
+   * The caller selects the accounting category: state armories are military; urban Tool work is
+   * ordinary Burg demand.
+   */
+  consumeForMetallurg(
+    marketId: number,
+    goodId: number,
+    requestedUnits: number,
+    category: "military" | "burgDemand"
+  ): number {
+    const market = this.get(marketId);
+    const marketGood = market?.goods[goodId];
+    if (!marketGood || requestedUnits <= 0) return 0;
+    const consumed = rn(Math.min(requestedUnits, marketGood.stock / 3), 4);
+    if (consumed <= 0) return 0;
+    marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
+    recordGoodFlow({ direction: "sink", category, goodId, units: consumed, marketId });
+    return consumed;
+  }
+
+  /**
    * Buys up to `requestedUnits` of a Good from local market stock at the going customer price,
    * capped by both available stock and `budget`. Unlike consumeForSmelting/consumeForMilitary
    * (free draws recorded elsewhere), this spends real money and reports the cost so the caller

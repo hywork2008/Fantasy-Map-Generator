@@ -69,8 +69,8 @@ export class MilitaryResourcesModule {
       ledger.unmetDemand = {};
       if (!ledger.supplyMarketId) continue;
 
-      // Fodder, arms, and arrows are settled regardless of era; iron/lead/gunpowder/bullets only
-      // apply once firearms/artillery exist.
+      // Finished Arms, Arrows, and Bullets are fulfilled through Metallurg work orders after
+      // generic production runs. This ledger keeps only direct operational material draws.
       const resources = gunpowderEraEnabled
         ? (["fodder", "arms", "arrows", "iron", "lead", "gunpowder", "bullets"] as const)
         : (["fodder", "arms", "arrows"] as const);
@@ -78,12 +78,31 @@ export class MilitaryResourcesModule {
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
         if (requested <= 0) continue;
+        if (resource === "arms" || resource === "arrows" || resource === "bullets") {
+          ledger.lastConsumed[resource] = 0;
+          ledger.unmetDemand[resource] = requested;
+          continue;
+        }
         const good = goodsByName.get(resource === "iron" || resource === "lead" ? `${resource} ingot` : resource);
         const supplied = good ? Markets.consumeForMilitary(ledger.supplyMarketId, good.i, requested) : 0;
         ledger.lastConsumed[resource] = supplied;
         ledger.unmetDemand[resource] = rn(Math.max(0, requested - supplied), 4);
       }
     }
+  }
+
+  /** Records a completed Metallurg delivery against this month's state equipment demand. */
+  recordFinishedGoodsDelivery(stateId: number, goodName: string, units: number): void {
+    if (!(units > 0)) return;
+    const resource = ({ Arms: "arms", Arrows: "arrows", Bullets: "bullets" } as const)[goodName];
+    if (!resource) return;
+    const ledger = getMilitaryResourceLedgers().find(candidate => candidate.stateId === stateId);
+    if (!ledger) return;
+    const delivered = rn((ledger.lastConsumed[resource] ?? 0) + units, 4);
+    ledger.lastConsumed[resource] = delivered;
+    const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
+    ledger.unmetDemand[resource] = rn(Math.max(0, requested - delivered), 4);
+    setMilitaryResourceLedgers(getMilitaryResourceLedgers());
   }
 
   private getSupplyMarketId(stateId: number): number | null {

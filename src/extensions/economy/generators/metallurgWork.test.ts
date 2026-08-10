@@ -3,13 +3,17 @@ import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getMarkets,
   getMetallurgAssetLedgers,
   getMetallurgMaterialForecasts,
   getMetallurgWorkOrders,
   initEconomyContext,
+  setCaravans,
   setGoods,
   setMarkets
 } from "../economyContext";
+import { Markets } from "./markets-generator";
+import type { Caravan } from "./marketTypes";
 import { MetallurgWork } from "./metallurgWork";
 
 describe("MetallurgWorkModule", () => {
@@ -168,6 +172,27 @@ describe("MetallurgWorkModule", () => {
     );
   });
 
+  it("subtracts actual inbound merchant cargo from the material purchase recommendation", () => {
+    MetallurgWork.generate();
+    setCaravans([
+      {
+        i: 9,
+        seller: 2,
+        sellerType: "market",
+        buyer: 1,
+        buyerType: "market",
+        payload: [{ goodId: 1, dealId: 9, units: 2, value: 6 }],
+        state: "transit"
+      } as Caravan
+    ]);
+
+    MetallurgWork.settleMonthly();
+
+    const iron = getMetallurgMaterialForecasts().find(forecast => forecast.marketId === 1 && forecast.goodId === 1);
+    expect(iron).toMatchObject({ inboundUnits: 2 });
+    expect(iron?.projectedShortage).toBeLessThan(iron?.requiredUnits ?? 0);
+  });
+
   it("turns population and force growth into one additional new-build order on the next month", () => {
     MetallurgWork.generate();
     MetallurgWork.settleMonthly();
@@ -183,5 +208,25 @@ describe("MetallurgWorkModule", () => {
         expect.objectContaining({ ownerKind: "burg", productGoodId: 6, kind: "newBuild", requestedUnits: 6.25 })
       ])
     );
+  });
+
+  it("settles finished market goods into work orders and clears the matching maintenance backlog", () => {
+    MetallurgWork.generate();
+    MetallurgWork.settleMonthly();
+    getMarkets()[0].goods[4] = { stock: 3, price: 24 };
+    Markets.sync();
+
+    expect(MetallurgWork.fulfillFromMarkets()).toBe(true);
+
+    const armsRepair = getMetallurgWorkOrders().find(
+      order => order.ownerKind === "state" && order.productGoodId === 4 && order.kind === "maintenance"
+    );
+    expect(armsRepair).toMatchObject({ status: "completed" });
+    expect(getMarkets()[0].goods[4].stock).toBeLessThan(3);
+    expect(
+      getMetallurgAssetLedgers().find(
+        asset => asset.ownerKind === "state" && asset.ownerId === 1 && asset.productGoodId === 4
+      )?.maintenanceBacklogWork
+    ).toBe(0);
   });
 });

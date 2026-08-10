@@ -1,6 +1,7 @@
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
+  getCaravans,
   getGoods,
   getMarkets,
   getMetallurgAssetLedgers,
@@ -16,6 +17,7 @@ import {
   setMetallurgWorkOrders
 } from "../economyContext";
 import type { Good } from "./goodsGeneratorTypes";
+import { Markets } from "./markets-generator";
 import type {
   MetallurgAssetLedger,
   MetallurgMaterialForecast,
@@ -23,6 +25,7 @@ import type {
   MetallurgWorkOrder,
   MetallurgWorkOrderKind
 } from "./metallurgWorkTypes";
+import { MilitaryResources } from "./militaryResources";
 
 export interface MetallurgProductionDemand {
   goodId: number;
@@ -155,8 +158,9 @@ function syncOrderMaterials(order: MetallurgWorkOrder, good: Good, units: number
 }
 
 /**
- * Demand-only phase of the Metallurg flow. It is intentionally side-effect free with respect to
- * market stock and generic production: its output is a planning queue and material forecast.
+ * Demand-planning phase of the Metallurg flow. It does not reserve raw materials itself: generic
+ * production owns ingredient purchasing, while actual incoming merchant cargo is included in the
+ * material forecast as an observable purchase/transport commitment.
  */
 export class MetallurgWorkModule {
   generate(): void {
@@ -386,6 +390,64 @@ export class MetallurgWorkModule {
     return demandByGood;
   }
 
+  /**
+   * Transfers finished market Goods into open orders after generic production has run. This is
+   * the single completion path for Arms, Arrows, and Bullets; MilitaryResources therefore only
+   * consumes their non-forge operational inputs and cannot double-consume finished equipment.
+   */
+  fulfillFromMarkets(): boolean {
+    const orders = getMetallurgWorkOrders();
+    const assets = getMetallurgAssetLedgers();
+    const assetsByKey = new Map(
+      assets.map(asset => [ownerKey(asset.ownerKind, asset.ownerId, asset.productGoodId), asset])
+    );
+    let changed = false;
+
+    for (const order of orders.toSorted((left, right) => {
+      const leftPriority = left.ownerKind === "state" ? 1 : 0;
+      const rightPriority = right.ownerKind === "state" ? 1 : 0;
+      return rightPriority - leftPriority || left.id - right.id;
+    })) {
+      if (order.status === "completed") continue;
+      const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
+      if (outstandingUnits <= 0.001) continue;
+      const delivered = Markets.consumeForMetallurg(
+        order.destinationMarketId,
+        order.productGoodId,
+        outstandingUnits,
+        order.ownerKind === "state" ? "military" : "burgDemand"
+      );
+      if (!(delivered > 0)) continue;
+
+      const workPerUnit = order.requestedUnits > 0 ? order.plannedWork / order.requestedUnits : 0;
+      order.completedUnits = rn(Math.min(order.requestedUnits, order.completedUnits + delivered), 4);
+      order.completedWork = rn(Math.min(order.plannedWork, order.completedWork + delivered * workPerUnit), 4);
+      order.status = order.completedUnits >= order.requestedUnits - 0.001 ? "completed" : "inProgress";
+      order.updatedMonth = currentMonthIndex();
+
+      const asset = assetsByKey.get(ownerKey(order.ownerKind, order.ownerId, order.productGoodId));
+      if (asset) {
+        if (order.kind === "newBuild" || order.kind === "replacement") {
+          asset.serviceableUnits = rn(Math.min(asset.targetUnits, asset.serviceableUnits + delivered), 4);
+        }
+        if (order.kind === "maintenance") {
+          asset.maintenanceBacklogWork = rn(Math.max(0, asset.maintenanceBacklogWork - delivered * workPerUnit), 4);
+        }
+      }
+      if (order.ownerKind === "state") {
+        const good = getGoods().find(candidate => candidate.i === order.productGoodId);
+        if (good) MilitaryResources.recordFinishedGoodsDelivery(order.ownerId, good.name, delivered);
+      }
+      changed = true;
+    }
+
+    if (changed) {
+      setMetallurgWorkOrders(orders);
+      setMetallurgAssetLedgers(assets);
+    }
+    return changed;
+  }
+
   private getMarketByState(): Map<number, number> {
     const candidates = new Map<number, Array<{ marketId: number; population: number }>>();
     for (const market of getMarkets()) {
@@ -410,6 +472,14 @@ export class MetallurgWorkModule {
   ): MetallurgMaterialForecast[] {
     const forecasts = new Map<string, MetallurgMaterialForecast>();
     const marketById = new Map(getMarkets().map(market => [market.i, market]));
+    const inboundByMarketAndGood = new Map<string, number>();
+    for (const caravan of getCaravans()) {
+      if (caravan.state !== "transit" || caravan.buyerType !== "market") continue;
+      for (const payload of caravan.payload) {
+        const key = `${caravan.buyer}:${payload.goodId}`;
+        inboundByMarketAndGood.set(key, (inboundByMarketAndGood.get(key) ?? 0) + payload.units);
+      }
+    }
     for (const order of orders) {
       if (order.status === "completed") continue;
       for (const material of order.materials) {
@@ -428,14 +498,17 @@ export class MetallurgWorkModule {
           goodId: material.goodId,
           requiredUnits: rn(material.units, 4),
           availableMarketStock: rn(stock, 4),
-          inboundUnits: 0,
+          inboundUnits: rn(inboundByMarketAndGood.get(key) ?? 0, 4),
           projectedShortage: 0,
           workOrderIds: [order.id]
         });
       }
     }
     for (const forecast of forecasts.values()) {
-      forecast.projectedShortage = rn(Math.max(0, forecast.requiredUnits - forecast.availableMarketStock), 4);
+      forecast.projectedShortage = rn(
+        Math.max(0, forecast.requiredUnits - forecast.availableMarketStock - forecast.inboundUnits),
+        4
+      );
     }
     return Array.from(forecasts.values()).toSorted(
       (left, right) => left.marketId - right.marketId || left.goodId - right.goodId

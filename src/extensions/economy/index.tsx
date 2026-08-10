@@ -837,8 +837,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
 
       measureTickStep("production:produce", () => Production.produce());
-      // Phase 1 is a planning-only ledger: it sees the month's settled stocks but does not
-      // consume finished Goods or materials until the fulfillment phase is introduced.
+      // Completed forge Goods are transferred from market stock to the queue before the next
+      // planning pass refreshes maintenance and consumable demand.
+      measureTickStep("production:metallurgFulfillment", () => MetallurgWork.fulfillFromMarkets());
       measureTickStep("production:metallurgWork", () => MetallurgWork.settleMonthly());
       measureTickStep("production:innStays", () => InnStays.settleMonthly());
       if (!skipFoodConsumption) {
@@ -896,6 +897,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         Production.produce();
         Taxes.collectTaxes();
         if (value.target === "economy") MetallurgWork.generate();
+        else MetallurgWork.fulfillFromMarkets();
         MetallurgWork.settleMonthly();
       }
       if (value.target === "economy") GuildChapters.seedAfterGenerate();

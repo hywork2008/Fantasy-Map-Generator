@@ -94,8 +94,8 @@ export const MetallurgWorkDialog: React.FC = () => {
                 <th>Material</th>
                 <th>Required</th>
                 <th>Stock</th>
-                <th>Inbound</th>
-                <th>Shortage</th>
+                <th data-tip="Matching material already travelling to this market">Inbound</th>
+                <th data-tip="Additional units that should be produced locally or purchased">To procure</th>
                 <th>Orders</th>
               </tr>
             </thead>

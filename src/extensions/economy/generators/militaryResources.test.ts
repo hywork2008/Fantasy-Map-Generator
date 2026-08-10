@@ -56,7 +56,7 @@ describe("MilitaryResourcesModule", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("consumes arms, iron, gunpowder and bullets (not raw lead) for firearms, while artillery still draws lead directly", () => {
+  it("keeps finished arms and bullets for Metallurg fulfillment, while consuming direct artillery and powder inputs", () => {
     MilitaryResources.generate();
     MilitaryResources.settleMonthly();
 
@@ -71,13 +71,13 @@ describe("MilitaryResourcesModule", () => {
     // 12 artillery pieces only — firearms' lead use now lives in Bullets, not this field.
     expect(ledger.annualDemand.lead).toBeCloseTo(0.36, 4);
     expect(ledger.lastConsumed.lead).toBeGreaterThan(0);
-    expect(ledger.lastConsumed.arms).toBeGreaterThan(0);
-    expect(ledger.lastConsumed.bullets).toBeGreaterThan(0);
+    expect(ledger.lastConsumed.arms).toBe(0);
+    expect(ledger.lastConsumed.bullets).toBe(0);
     expect(getMarkets()[0].goods[1].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[2].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[3].stock).toBeLessThan(10);
-    expect(getMarkets()[0].goods[4].stock).toBeLessThan(10);
-    expect(getMarkets()[0].goods[5].stock).toBeLessThan(10);
+    expect(getMarkets()[0].goods[4].stock).toBe(10);
+    expect(getMarkets()[0].goods[5].stock).toBe(10);
   });
 
   it("reduces gunpowder-chain demand by the state's pyrotechnics state-secret stock", () => {
@@ -106,7 +106,7 @@ describe("MilitaryResourcesModule", () => {
     expect(getMarkets()[0].goods[2].stock).toBe(10);
     expect(getMarkets()[0].goods[3].stock).toBe(10);
     expect(getMarkets()[0].goods[4].stock).toBe(10);
-    expect(getMarkets()[0].goods[5].stock).toBeLessThan(10);
+    expect(getMarkets()[0].goods[5].stock).toBe(10);
   });
 
   it("consumes fodder for mounted units even when the gunpowder era is disabled", () => {
@@ -136,7 +136,7 @@ describe("MilitaryResourcesModule", () => {
     expect(getMarkets()[0].goods[4].stock).toBeLessThan(10);
   });
 
-  it("consumes arrows for archer units even when the gunpowder era is disabled", () => {
+  it("exposes arrow demand for Metallurg fulfillment even when the gunpowder era is disabled", () => {
     worldContext.options.gunpowderEraEnabled = false;
     worldContext.pack.states[1].military = [
       { i: 1, u: { archers: 25 } }
@@ -162,7 +162,7 @@ describe("MilitaryResourcesModule", () => {
     const ledger = getMilitaryResourceLedgers()[0];
     expect(ledger.annualDemand.arrows).toBeGreaterThan(0);
     expect(ledger.annualDemand.bullets).toBeUndefined();
-    expect(ledger.lastConsumed.arrows).toBeGreaterThan(0);
-    expect(getMarkets()[0].goods[5].stock).toBeLessThan(10);
+    expect(ledger.lastConsumed.arrows).toBe(0);
+    expect(getMarkets()[0].goods[5].stock).toBe(10);
   });
 });

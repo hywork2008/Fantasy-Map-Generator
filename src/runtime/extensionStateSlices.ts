@@ -53,6 +53,15 @@ export const EXTENSION_SLICE_DEFINITIONS: readonly ExtensionSliceDefinition[] = 
   { extensionId: "economy", legacyTarget: "pack", legacyField: "mintLedgers", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "militaryResourceLedgers", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "tradeSecurityLedgers", defaultValue: () => [] },
+  { extensionId: "economy", legacyTarget: "pack", legacyField: "metallurgAssetLedgers", defaultValue: () => [] },
+  { extensionId: "economy", legacyTarget: "pack", legacyField: "metallurgWorkOrders", defaultValue: () => [] },
+  { extensionId: "economy", legacyTarget: "pack", legacyField: "metallurgMaterialForecasts", defaultValue: () => [] },
+  {
+    extensionId: "economy",
+    legacyTarget: "pack",
+    legacyField: "nextMetallurgWorkOrderId",
+    defaultValue: () => 0
+  },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "innFacilities", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "urbanWaterSystems", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "cells", legacyField: "good", defaultValue: () => new Uint16Array() },
@@ -357,6 +366,9 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "mintLedgers",
     "militaryResourceLedgers",
     "tradeSecurityLedgers",
+    "metallurgAssetLedgers",
+    "metallurgWorkOrders",
+    "metallurgMaterialForecasts",
     "guildChapters",
     "individualSkills",
     // Threat cull hire board (docs/plan/player-threat-cull-jobs.md PR-2) — stricter than
