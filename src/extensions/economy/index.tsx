@@ -29,6 +29,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMetallurgAssetLedgers,
   getMilitaryResourceLedgers,
   getMineOperations,
   getMintLedgers,
@@ -113,6 +114,7 @@ import { MartialIndividualMastery } from "./generators/martialIndividualMastery"
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { clearMarketMerchantPortfolios, syncMarketMerchantPortfolios } from "./generators/merchantPortfolios";
 import { MerchantTransportAssets } from "./generators/merchantTransportAssets";
+import { MetallurgWork } from "./generators/metallurgWork";
 import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
@@ -193,6 +195,7 @@ import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
 import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog";
 import { MarketsOverviewDialog } from "./ui/dialogs/MarketsOverviewDialog";
 import { MarketTradeOpportunitiesDialog } from "./ui/dialogs/MarketTradeOpportunitiesDialog";
+import { MetallurgWorkDialog } from "./ui/dialogs/MetallurgWorkDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
@@ -834,6 +837,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
 
       measureTickStep("production:produce", () => Production.produce());
+      // Phase 1 is a planning-only ledger: it sees the month's settled stocks but does not
+      // consume finished Goods or materials until the fulfillment phase is introduced.
+      measureTickStep("production:metallurgWork", () => MetallurgWork.settleMonthly());
       measureTickStep("production:innStays", () => InnStays.settleMonthly());
       if (!skipFoodConsumption) {
         measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
@@ -889,6 +895,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         FoodProduction.seedFoodLedgerBootstrap();
         Production.produce();
         Taxes.collectTaxes();
+        if (value.target === "economy") MetallurgWork.generate();
+        MetallurgWork.settleMonthly();
       }
       if (value.target === "economy") GuildChapters.seedAfterGenerate();
       synchronizePlayerCommerce();
@@ -1124,6 +1132,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       setGuildChaptersLastSettledYear(null);
       setIndividualSkills([]);
       setSmithingWorkshopLedgers([]);
+      MetallurgWork.clear();
       return { changed: true };
     }
   });
@@ -1134,6 +1143,8 @@ function refreshEconomyForGunpowderEraData(): void {
   Markets.generate(true);
   MilitaryResources.generate();
   Production.produce();
+  MetallurgWork.generate();
+  MetallurgWork.settleMonthly();
   synchronizePlayerCommerce();
   const caravans = getCaravans();
   if (caravans.length) {
@@ -1288,6 +1299,11 @@ export function init(api: ExtensionAPI): void {
     id: "GuildOverviewDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: GuildOverviewDialog
+  });
+  api.registerDialog({
+    id: "MetallurgWorkDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: MetallurgWorkDialog
   });
   api.registerDialog({
     id: "TreasuryOverviewDialog",
@@ -1470,6 +1486,21 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-metallurg-work",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Metallurg",
+    dialogId: "metallurgWorkOverview",
+    tooltip: "Open Metallurg work queue and material-shortage forecast",
+    onClick: () => {
+      document.dispatchEvent(
+        new CustomEvent("react-tool-action", { detail: { action: "metallurgWorkOverviewButton" } })
+      );
+    }
+  });
+
+  api.registerAction({
     id: "economy-edit-treasury",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -1558,6 +1589,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("editTradeAnimationButton", () => toggleEditorDialog("tradeAnimationEditor", "toggleTrade"));
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
+  api.registerToolAction("metallurgWorkOverviewButton", () => toggleEditorDialog("metallurgWorkOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
   api.registerToolAction("balanceHistoryButton", () => toggleEditorDialog("balanceHistory", null));
   api.registerToolAction("debtNegotiationButton", () => toggleEditorDialog("debtNegotiation", null));
@@ -1620,6 +1652,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("tradeAnimationEditor");
       api.closeDialog("employmentOverview");
       api.closeDialog("guildOverview");
+      api.closeDialog("metallurgWorkOverview");
       api.closeDialog("treasuryOverview");
       api.closeDialog("debtNegotiation");
       api.closeDialog("councilSession");
@@ -1660,6 +1693,10 @@ export function init(api: ExtensionAPI): void {
         syncBurgMarketLedgers();
         synchronizePlayerCommerce();
         FoodProduction.seedFoodLedgerBootstrap();
+        if (!getMetallurgAssetLedgers().length) {
+          MetallurgWork.generate();
+          MetallurgWork.settleMonthly();
+        }
       }
     }
   }
@@ -1718,6 +1755,8 @@ export function init(api: ExtensionAPI): void {
           });
           if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
           Taxes.collectTaxes();
+          MetallurgWork.generate();
+          MetallurgWork.settleMonthly();
           // Production has now observed this map's real metallurgy practitioners. Bootstrap the
           // first guild masters immediately rather than waiting for the player's first Advance
           // Time action; GuildTreasury then gives every new master both workshop capital and a
@@ -1788,6 +1827,10 @@ export function init(api: ExtensionAPI): void {
     DevelopmentPotential.generate();
     if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+    if (!getMetallurgAssetLedgers().length) {
+      MetallurgWork.generate();
+      MetallurgWork.settleMonthly();
+    }
     // Rebuild cull / escort boards when empty or only invalid targets remain after load.
     rebuildCullJobPostings();
     rebuildEscortJobPostings();
@@ -2621,6 +2664,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("burgProductionOverview");
   api.unregisterToolAction("employmentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
+  api.unregisterToolAction("metallurgWorkOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
   api.unregisterToolAction("balanceHistoryButton");
   api.unregisterToolAction("debtNegotiationButton");

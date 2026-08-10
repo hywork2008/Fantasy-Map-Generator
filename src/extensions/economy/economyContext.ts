@@ -45,6 +45,11 @@ import type {
 } from "./generators/marketTypes";
 import type { MartialDisciplineStock } from "./generators/martialDisciplineTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
+import type {
+  MetallurgAssetLedger,
+  MetallurgMaterialForecast,
+  MetallurgWorkOrder
+} from "./generators/metallurgWorkTypes";
 import type { MilitaryResourceLedger } from "./generators/militaryResourcesTypes";
 import type {
   MineOperation,
@@ -1389,6 +1394,32 @@ export function getSmithingWorkshopLedgers(): SmithingWorkshopLedger[] {
 }
 export function setSmithingWorkshopLedgers(ledgers: readonly SmithingWorkshopLedger[]): void {
   setSliceArray("smithingWorkshopLedgers", ledgers);
+}
+
+/** Demand-only Metallurg planning state. Fulfillment remains in the generic production flow for now. */
+export function getMetallurgAssetLedgers(): MetallurgAssetLedger[] {
+  return getSliceArray<MetallurgAssetLedger>("metallurgAssetLedgers");
+}
+export function setMetallurgAssetLedgers(ledgers: readonly MetallurgAssetLedger[]): void {
+  setSliceArray("metallurgAssetLedgers", ledgers);
+}
+export function getMetallurgWorkOrders(): MetallurgWorkOrder[] {
+  return getSliceArray<MetallurgWorkOrder>("metallurgWorkOrders");
+}
+export function setMetallurgWorkOrders(orders: readonly MetallurgWorkOrder[]): void {
+  setSliceArray("metallurgWorkOrders", orders);
+}
+export function getMetallurgMaterialForecasts(): MetallurgMaterialForecast[] {
+  return getSliceArray<MetallurgMaterialForecast>("metallurgMaterialForecasts");
+}
+export function setMetallurgMaterialForecasts(forecasts: readonly MetallurgMaterialForecast[]): void {
+  setSliceArray("metallurgMaterialForecasts", forecasts);
+}
+export function getMetallurgNextWorkOrderId(): number {
+  return getSliceNumber("nextMetallurgWorkOrderId");
+}
+export function setMetallurgNextWorkOrderId(id: number): void {
+  setSliceNumber("nextMetallurgWorkOrderId", id);
 }
 
 /** Formal guild halls, distinct from practitioner-driven GuildKnowledgeStock entries. */
