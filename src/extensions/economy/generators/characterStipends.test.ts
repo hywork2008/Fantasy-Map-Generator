@@ -199,6 +199,30 @@ describe("characterStipends", () => {
       expect(getGuildKnowledgeStocks()[0].treasury).toBe(rn(10_000 - GUILD_MASTER_STIPEND - apprenticeAmount, 2));
     });
 
+    it("does not pay a deceased master before the annual succession pass replaces them", () => {
+      const deceasedMaster = makeCharacter({
+        i: 40,
+        dead: true,
+        roles: [
+          {
+            source: "economy",
+            kind: "guildMaster",
+            entityType: "burg",
+            entityId: 1,
+            domain: "metallurgy",
+            label: "Guild Master"
+          }
+        ]
+      });
+      worldContext.pack.characters = [deceasedMaster];
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 10 }]);
+
+      payGuildStipends();
+
+      expect(deceasedMaster.wealth).toBe(0);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBe(10);
+    });
+
     it("pays the master but withholds apprentice pocket money when the bond is cool", () => {
       const master = makeCharacter({
         i: 40,

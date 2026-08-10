@@ -247,6 +247,7 @@ describe("GuildSuccessionModule", () => {
       family: { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 },
       appearance: 50,
       prestige: 50,
+      wealth: 20,
       pastTitles: [],
       location: 1,
       roles: [
@@ -266,6 +267,7 @@ describe("GuildSuccessionModule", () => {
       name: "Apprentice",
       age: 20,
       dead: false,
+      wealth: 0,
       skills: { ...master.skills, engineering: 30 },
       roles: [
         {
@@ -302,6 +304,8 @@ describe("GuildSuccessionModule", () => {
 
     expect(isMaster(apprentice)).toBe(true);
     expect(master.roles?.every(role => role.endYear !== undefined)).toBe(true);
+    expect(master.wealth).toBe(0);
+    expect(apprentice.wealth).toBe(15);
     expect(getIndividualSkill(apprentice.i)?.techniques).toEqual([]);
     expect(getIndividualSkill(apprentice.i)?.reconstructionLeads).toEqual([
       expect.objectContaining({ technique: "heatTreatment", progress: expect.any(Number) })

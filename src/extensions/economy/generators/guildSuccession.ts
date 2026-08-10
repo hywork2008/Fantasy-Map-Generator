@@ -16,11 +16,13 @@ import {
   getGuildSuccessionLastSettledYear,
   getSimulationYear,
   getWorldContext,
+  setGuildKnowledgeStocks,
   setGuildSuccessionLastSettledYear
 } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import { applyMasterlessGuildPenalty } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { settleGuildMasterEstate } from "./guildMasterAssets";
 import {
   advanceBlacksmithingTechniqueLeads,
   discardIndividualSkills,
@@ -112,12 +114,22 @@ function cultureAllowsGuildCharacters(cultureId: number): boolean {
   return !isEnemyDedicatedRaceKey(pack.races?.[raceId]?.key);
 }
 
-export function findMaster(
+function findMasterRoleHolder(
   characters: Character[],
   burgId: number,
   domain: CraftKnowledgeDomain
 ): Character | undefined {
   return characters.find(c => c.roles?.some(role => isMasterRole(role, burgId, domain) && role.endYear === undefined));
+}
+
+/** Finds the living master eligible for pay, product supervision, and ordinary guild work. */
+export function findMaster(
+  characters: Character[],
+  burgId: number,
+  domain: CraftKnowledgeDomain
+): Character | undefined {
+  const holder = findMasterRoleHolder(characters, burgId, domain);
+  return holder?.dead ? undefined : holder;
 }
 
 export function findApprentices(
@@ -264,6 +276,12 @@ function handleMasterDeath(
 
   const apprentices = findApprentices(characters, master.i, burgId, domain);
   const successor = apprentices.find(apprentice => !apprentice.dead);
+  const guild = getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain);
+
+  // The guild treasury stays institutional capital. Only the dead person's private wealth follows
+  // the trained successor, or partially reverts to the guild when there is none.
+  const estateSettlement = settleGuildMasterEstate(master, successor, guild);
+  if (estateSettlement.revertedToGuild > 0) setGuildKnowledgeStocks(getGuildKnowledgeStocks());
 
   if (successor) {
     if (domain === "metallurgy") {
@@ -337,7 +355,7 @@ function processGuildSuccession(
   year: number,
   chance: (probability: number) => boolean
 ): boolean {
-  let master = findMaster(characters, burgId, domain);
+  let master = findMasterRoleHolder(characters, burgId, domain);
 
   if (master?.dead) {
     handleMasterDeath(characters, master, burgId, domain, year);

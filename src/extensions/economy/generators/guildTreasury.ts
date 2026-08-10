@@ -12,6 +12,8 @@ import {
 import { backPayCycles, GUILD_MASTER_STIPEND } from "./characterStipends";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { seedGuildMasterStartingAssets } from "./guildMasterAssets";
+import { findMaster } from "./guildSuccession";
 import { Markets } from "./markets-generator";
 
 /**
@@ -97,6 +99,12 @@ export class GuildTreasuryModule {
     const cycles = rn(backPayCycles() * profile.guildBootstrapMultiplier, 2);
     if (cycles <= 0) return;
     this.creditGuildTreasury(burgId, domain, GUILD_MASTER_STIPEND * cycles);
+
+    const guild = getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain);
+    const master = findMaster(getWorldContext().pack.characters ?? [], burgId, domain);
+    if (guild && master && seedGuildMasterStartingAssets(master, guild) > 0) {
+      setGuildKnowledgeStocks(getGuildKnowledgeStocks());
+    }
 
     const materialName = NEW_GUILD_STARTER_MATERIAL[domain];
     if (!materialName) return;
