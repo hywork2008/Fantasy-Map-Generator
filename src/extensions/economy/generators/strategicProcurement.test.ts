@@ -128,6 +128,26 @@ describe("StrategicProcurementModule", () => {
     expect(procurement.getOrders()[0].priorityCycles).toBe(2);
   });
 
+  it("keeps Metallurg shortages in a separate procurement order from shipbuilding", () => {
+    setupWorld();
+
+    procurement.handleShipbuildingDemand(demand);
+    procurement.handleMetallurgMaterialDemand({
+      stateId: 1,
+      destinationMarketId: 1,
+      goodId: 1,
+      requestedUnits: 0.2
+    });
+
+    expect(procurement.getOrders()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ purpose: "shipbuilding" }),
+        expect.objectContaining({ purpose: "metallurg", requestedUnits: 0.2 })
+      ])
+    );
+    expect(procurement.getOrders()).toHaveLength(2);
+  });
+
   it("records a foreign-policy block when only an Enemy source can supply the material", () => {
     setupWorld({ sourceStateId: 2 });
 

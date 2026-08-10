@@ -367,6 +367,12 @@ export class MetallurgWorkModule {
     return getMetallurgMaterialForecasts();
   }
 
+  /** Re-reads stock and live cargo without creating another month's worth of work. */
+  refreshMaterialForecasts(): void {
+    const goodsById = new Map(getGoods().map(good => [good.i, good]));
+    setMetallurgMaterialForecasts(this.buildMaterialForecasts(getMetallurgWorkOrders(), goodsById));
+  }
+
   /**
    * Converts unfinished local orders into the same demand signal used by strategic production.
    * This is deliberately a read-only adapter: generic production still owns worker allocation,

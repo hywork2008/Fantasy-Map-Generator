@@ -29,7 +29,11 @@ import {
   type StrategicGoodsPolicy,
   type StrategicProcurementCandidate
 } from "./strategicProcurementPolicy";
-import type { ProcurementOrder, ProcurementOrderBlockedReason } from "./strategicProcurementTypes";
+import type {
+  ProcurementOrder,
+  ProcurementOrderBlockedReason,
+  ProcurementOrderPurpose
+} from "./strategicProcurementTypes";
 import { registerStrategicProcurementExpense } from "./taxes-generator";
 import { getTransportCost } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
@@ -38,8 +42,17 @@ import { TradeRoutePlanner } from "./tradeRoutePlanner";
 export type {
   ProcurementOrder,
   ProcurementOrderBlockedReason,
+  ProcurementOrderPurpose,
   ProcurementOrderStatus
 } from "./strategicProcurementTypes";
+
+/** A material shortage from the Metallurg queue, funded by the market's governing State. */
+export interface MetallurgMaterialProcurementDemand {
+  stateId: number;
+  destinationMarketId: number;
+  goodId: number;
+  requestedUnits: number;
+}
 
 interface ProcurementRoute {
   segments: TradeRouteSegment[];
@@ -61,6 +74,10 @@ const DEFAULT_POLICY: Omit<StrategicGoodsPolicy, "stateId" | "goodIds"> = {
 const SUPPLIER_SAFETY_RESERVE_FACTOR = 0.2;
 const EPSILON = 0.000001;
 
+function hasPurpose(order: ProcurementOrder, purpose: ProcurementOrderPurpose): boolean {
+  return (order.purpose ?? "shipbuilding") === purpose;
+}
+
 export class StrategicProcurementModule {
   private get worldContext() {
     return getWorldContext();
@@ -78,7 +95,10 @@ export class StrategicProcurementModule {
       const matchingOrders = good
         ? this.getOrders().filter(
             order =>
-              order.stateId === stateId && order.destinationMarketId === destinationMarketId && order.goodId === good.i
+              order.stateId === stateId &&
+              order.destinationMarketId === destinationMarketId &&
+              order.goodId === good.i &&
+              hasPurpose(order, "shipbuilding")
           )
         : [];
       const inTransitOrders = matchingOrders.filter(order => order.status === "inTransit");
@@ -127,9 +147,34 @@ export class StrategicProcurementModule {
       if (!(annualDemand > 0)) continue;
       const good = goods.find(candidate => candidate.name === name);
       if (!good || !policy.goodIds.includes(good.i)) continue;
-      this.refreshOpenOrderPriority(demand.stateId, demand.destinationMarketId, good.i);
+      this.refreshOpenOrderPriority(demand.stateId, demand.destinationMarketId, good.i, "shipbuilding");
       this.procureToReserve({ stateId: demand.stateId, destination, good, annualDemand, policy });
     }
+  }
+
+  /**
+   * Converts an outstanding Metallurg material shortage into its own state-funded purchase order.
+   * It shares routes and caravans with other public procurement, but never coalesces with
+   * shipbuilding orders, so both queues retain their own reason and priority history.
+   */
+  handleMetallurgMaterialDemand(demand: MetallurgMaterialProcurementDemand): void {
+    if (!(demand.requestedUnits > EPSILON)) return;
+    const { pack } = this.worldContext;
+    const state = pack.states[demand.stateId];
+    const destination = getMarketById(demand.destinationMarketId);
+    const good = getGoods().find(candidate => candidate.i === demand.goodId);
+    if (!state || state.removed || !destination || !good) return;
+
+    const policy = this.getOrCreatePolicy(demand.stateId, [good.i]);
+    this.refreshOpenOrderPriority(demand.stateId, destination.i, good.i, "metallurg");
+    this.procureExactUnits({
+      stateId: demand.stateId,
+      destination,
+      good,
+      requestedUnits: demand.requestedUnits,
+      policy,
+      purpose: "metallurg"
+    });
   }
 
   reconcileCaravans(arrived: readonly Caravan[], lost: readonly Caravan[]): void {
@@ -176,17 +221,68 @@ export class StrategicProcurementModule {
     if (!destination.goods[good.i]) destination.goods[good.i] = { stock: 0, price: good.value };
     const destinationStock = destination.goods[good.i].stock;
     const targetStock = annualDemand * (policy.targetReserveDays / 365);
-    const assignedUnits = this.getOrders()
+    const assignedUnits = this.getAssignedUnits(stateId, destination.i, good.i, "shipbuilding");
+    const remainingUnits = targetStock - destinationStock - assignedUnits;
+    if (remainingUnits <= EPSILON) return;
+
+    this.procureUnits({ stateId, destination, good, requestedUnits: remainingUnits, policy, purpose: "shipbuilding" });
+  }
+
+  private procureExactUnits({
+    stateId,
+    destination,
+    good,
+    requestedUnits,
+    policy,
+    purpose
+  }: {
+    stateId: number;
+    destination: Market;
+    good: Good;
+    requestedUnits: number;
+    policy: StrategicGoodsPolicy;
+    purpose: ProcurementOrderPurpose;
+  }): void {
+    const assignedUnits = this.getAssignedUnits(stateId, destination.i, good.i, purpose);
+    const remainingUnits = requestedUnits - assignedUnits;
+    if (remainingUnits <= EPSILON) return;
+    this.procureUnits({ stateId, destination, good, requestedUnits: remainingUnits, policy, purpose });
+  }
+
+  private getAssignedUnits(
+    stateId: number,
+    destinationMarketId: number,
+    goodId: number,
+    purpose: ProcurementOrderPurpose
+  ): number {
+    return this.getOrders()
       .filter(
         order =>
           order.stateId === stateId &&
-          order.destinationMarketId === destination.i &&
-          order.goodId === good.i &&
+          order.destinationMarketId === destinationMarketId &&
+          order.goodId === goodId &&
+          hasPurpose(order, purpose) &&
           (order.status === "open" || order.status === "assigned" || order.status === "inTransit")
       )
       .reduce((sum, order) => sum + Math.max(0, order.requestedUnits - order.fulfilledUnits), 0);
-    let remainingUnits = targetStock - destinationStock - assignedUnits;
-    if (remainingUnits <= EPSILON) return;
+  }
+
+  private procureUnits({
+    stateId,
+    destination,
+    good,
+    requestedUnits,
+    policy,
+    purpose
+  }: {
+    stateId: number;
+    destination: Market;
+    good: Good;
+    requestedUnits: number;
+    policy: StrategicGoodsPolicy;
+    purpose: ProcurementOrderPurpose;
+  }): void {
+    let remainingUnits = requestedUnits;
 
     const candidates = this.buildCandidates(destination, good, policy);
     const ranked = rankStrategicProcurementCandidates(candidates, policy.foreignProcurement) as CandidateWithRoute[];
@@ -196,7 +292,8 @@ export class StrategicProcurementModule {
         destinationMarketId: destination.i,
         goodId: good.i,
         requestedUnits: remainingUnits,
-        reason: this.getBlockedReason(candidates, policy.foreignProcurement)
+        reason: this.getBlockedReason(candidates, policy.foreignProcurement),
+        purpose
       });
       return;
     }
@@ -211,7 +308,8 @@ export class StrategicProcurementModule {
         goodId: good.i,
         requestedUnits: units,
         maxLandedUnitPrice: candidate.landedUnitPrice,
-        sourceMarketId: candidate.sourceMarketId
+        sourceMarketId: candidate.sourceMarketId,
+        purpose
       });
 
       const treasury = this.worldContext.pack.states[stateId]?.treasury ?? 0;
@@ -238,7 +336,8 @@ export class StrategicProcurementModule {
         good,
         units,
         landedUnitPrice: candidate.landedUnitPrice,
-        order
+        order,
+        purpose
       });
       const caravan = Caravans.spawnStrategicProcurement(deal, candidate.route.segments);
       if (!caravan) {
@@ -266,7 +365,8 @@ export class StrategicProcurementModule {
         destinationMarketId: destination.i,
         goodId: good.i,
         requestedUnits: remainingUnits,
-        reason: remainingBlockedReason ?? "noDomesticSupply"
+        reason: remainingBlockedReason ?? "noDomesticSupply",
+        purpose
       });
     }
   }
@@ -352,12 +452,18 @@ export class StrategicProcurementModule {
     return created;
   }
 
-  private refreshOpenOrderPriority(stateId: number, destinationMarketId: number, goodId: number): void {
+  private refreshOpenOrderPriority(
+    stateId: number,
+    destinationMarketId: number,
+    goodId: number,
+    purpose: ProcurementOrderPurpose
+  ): void {
     for (const order of this.getOrders()) {
       if (
         order.stateId !== stateId ||
         order.destinationMarketId !== destinationMarketId ||
         order.goodId !== goodId ||
+        !hasPurpose(order, purpose) ||
         (order.status !== "open" &&
           order.status !== "assigned" &&
           order.status !== "inTransit" &&
@@ -374,19 +480,22 @@ export class StrategicProcurementModule {
     destinationMarketId,
     goodId,
     requestedUnits,
-    reason
+    reason,
+    purpose
   }: {
     stateId: number;
     destinationMarketId: number;
     goodId: number;
     requestedUnits: number;
     reason: ProcurementOrderBlockedReason;
+    purpose: ProcurementOrderPurpose;
   }): ProcurementOrder {
     const existing = this.getOrders().find(
       order =>
         order.stateId === stateId &&
         order.destinationMarketId === destinationMarketId &&
         order.goodId === goodId &&
+        hasPurpose(order, purpose) &&
         order.status === "blocked"
     );
     if (existing) {
@@ -401,7 +510,8 @@ export class StrategicProcurementModule {
       goodId,
       requestedUnits: rn(Math.max(0, requestedUnits), 2),
       maxLandedUnitPrice: 0,
-      blockedReason: reason
+      blockedReason: reason,
+      purpose
     });
     order.status = "blocked";
     return order;
@@ -413,7 +523,8 @@ export class StrategicProcurementModule {
     good,
     units,
     landedUnitPrice,
-    order
+    order,
+    purpose
   }: {
     source: Market;
     destination: Market;
@@ -421,6 +532,7 @@ export class StrategicProcurementModule {
     units: number;
     landedUnitPrice: number;
     order: ProcurementOrder;
+    purpose: ProcurementOrderPurpose;
   }): Deal {
     const sourceBurg = this.worldContext.pack.burgs[source.centerBurgId];
     const salesTax = sourceBurg?.state ? (this.worldContext.pack.states[sourceBurg.state]?.salesTax ?? 0) : 0;
@@ -435,7 +547,7 @@ export class StrategicProcurementModule {
       units: rn(units, 2),
       price: rn(landedUnitPrice, 2),
       tax: rn(source.goods[good.i].price * salesTax * units, 2),
-      purpose: "strategicProcurement",
+      purpose: purpose === "metallurg" ? "metallurgProcurement" : "strategicProcurement",
       payerStateId: order.stateId,
       strategicProcurementOrderId: order.id
     };

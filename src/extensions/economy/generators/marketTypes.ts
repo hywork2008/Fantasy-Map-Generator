@@ -170,8 +170,8 @@ export interface Deal {
   spawned?: boolean;
   /** Links a market↔market deal to its export-warehouse lot (Phase C). */
   stagingLotId?: number;
-  /** Purpose metadata is only set for state-funded strategic procurement. */
-  purpose?: "strategicProcurement";
+  /** Purpose metadata is only set for state-funded material procurement. */
+  purpose?: "strategicProcurement" | "metallurgProcurement";
   payerStateId?: number;
   strategicProcurementOrderId?: number;
 }

@@ -841,6 +841,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       // planning pass refreshes maintenance and consumable demand.
       measureTickStep("production:metallurgFulfillment", () => MetallurgWork.fulfillFromMarkets());
       measureTickStep("production:metallurgWork", () => MetallurgWork.settleMonthly());
+      measureTickStep("production:metallurgProcurement", requestMetallurgMaterials);
+      measureTickStep("production:metallurgForecast", () => MetallurgWork.refreshMaterialForecasts());
       measureTickStep("production:innStays", () => InnStays.settleMonthly());
       if (!skipFoodConsumption) {
         measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
@@ -899,6 +901,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         if (value.target === "economy") MetallurgWork.generate();
         else MetallurgWork.fulfillFromMarkets();
         MetallurgWork.settleMonthly();
+        requestMetallurgMaterials();
+        MetallurgWork.refreshMaterialForecasts();
       }
       if (value.target === "economy") GuildChapters.seedAfterGenerate();
       synchronizePlayerCommerce();
@@ -1140,6 +1144,27 @@ function registerEconomyCommands(api: ExtensionAPI): void {
   });
 }
 
+/**
+ * Sends only the remaining material gap to public procurement. The destination market's State
+ * pays the price; independent Burgs remain visible as shortages until they join a State market.
+ */
+function requestMetallurgMaterials(): void {
+  const burgs = getWorldContext().pack.burgs;
+  const marketsById = new Map(getMarkets().map(market => [market.i, market]));
+  for (const forecast of MetallurgWork.getMaterialForecasts()) {
+    if (!(forecast.projectedShortage > 0)) continue;
+    const market = marketsById.get(forecast.marketId);
+    const stateId = market ? burgs[market.centerBurgId]?.state : undefined;
+    if (!stateId) continue;
+    StrategicProcurement.handleMetallurgMaterialDemand({
+      stateId,
+      destinationMarketId: forecast.marketId,
+      goodId: forecast.goodId,
+      requestedUnits: forecast.projectedShortage
+    });
+  }
+}
+
 function refreshEconomyForGunpowderEraData(): void {
   Goods.generate();
   Markets.generate(true);
@@ -1147,6 +1172,8 @@ function refreshEconomyForGunpowderEraData(): void {
   Production.produce();
   MetallurgWork.generate();
   MetallurgWork.settleMonthly();
+  requestMetallurgMaterials();
+  MetallurgWork.refreshMaterialForecasts();
   synchronizePlayerCommerce();
   const caravans = getCaravans();
   if (caravans.length) {
