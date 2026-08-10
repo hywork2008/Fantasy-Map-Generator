@@ -7,20 +7,27 @@
 
 という組み合わせの見習いは退職しやすい。
 
-以下との組み合わせもオプションとして含めても良い。※「含めても良い」はAIへのプロンプトとしては微妙なので、どうすべきか、というのを適用前にしっかり方針を定める。
+以下はオプションとして上記のダニング＝クルーガー効果より薄く影響させる。
 
 - Rationalityが低い
+  - 間違った方向へ進む力
 - Boldnessが高い
+  - 間違った方向へ進む力
 - Energyが高い
+  - 間違った方向へ進む力
 - Greedが高い
+  - もっと高い評価が得られる筈という欲
 - Zealが高い
+  - 自己評価の高さを盲信する
+  - Zealというパラメーターとの目的整合性が低いので薄く影響。
 - Vengefulnessが高い
+  - 評価の低さを恨む
 - Honorが低い
   - 体面を気にしないので「あの見習いは根気が無い」「あそこのギルドは見習いがすぐ辞める」など。
 
 好き・嫌いも師弟関係に影響を与え、相性が悪いと退職しやすい。相性が悪ければ悪いほど辞めるまでの期間が短くなるが、見習いが他に生計を立てる手段が無ければ耐える事もあり得る。
 
-弟子はEngineeringが天才的な高さで無い限りPrestigeは0に近く設定する。
+弟子はEngineeringが天才的な高さで無い限りPrestige(名誉)は0に近く設定する。技術力が高ければ神童扱いで評価は高いという扱い。
 
 職人キャラクターは同じギルド内や商人キャラクターと知己を得やすい。
 軍用品を作っている鍛冶師は軍人と知己を得やすい。
@@ -180,3 +187,67 @@ Module の Interface をテスト面にする。乱数を使わないため、�
 - Guild adapter は同年に二度 settle しても二重加算せず、既存の hostile な edge を無条件の正値で覆わない。
 
 これらを Characters 側の `tasteRelationship.test.ts`、Guild 側の `guildRelationshipSettlement.test.ts` に分ける。前者は Economy fixture を不要にし、後者だけが年次 cadence と師弟 Role の結線を検証する。
+
+## Guild apprentice lifecycle v1
+
+嗜好評価以外の要求は、人物の気分を扱う Characters と、雇用を終える Economy の seam を越えないよう、以下の順で扱う。v1 は metallurgy の師弟だけに適用する。ほかの CraftKnowledgeDomain が実装された時は同じ Module を再利用する。
+
+### Apprentice prestige
+
+`createApprentice` の直後に、生成時のランダムな prestige を上書きする。
+
+| Engineering | 初期 prestige | 意味 |
+| --- | --- | --- |
+| 1–89 | 1–5 | 見習いは未証明で、職業上の社会的名誉を持たない |
+| 90–99 | 10–46 | 「神童」として都市で話題になる |
+| 100 | 50 | 既に広く知られた天才。親方と同じ評価ではない |
+
+実践 `proficiency` は後から育つため、初期 prestige の唯一の例外判定には使わない。これにより「Engineering が高ければ即有名」という要件と、技能習得の遅い実践値を二重計上しない。
+
+### Annual departure assessment
+
+新規 Module: `guildApprenticeLifecycle.ts`。`assessApprenticeDeparture(master, apprentice)` は pure な `ApprenticeDepartureAssessment` を返し、退職を直接実行しない。
+
+```text
+pressure =
+  0.34 × overconfidence(confidence − engineering)
+  + 0.32 × strainedMentorship(min(master→apprentice, apprentice→master))
+  + 0.02..0.05 × optional personality terms
+
+annualChance = pressure × (0.20 + 0.80 × financialMobility)
+```
+
+- ダニング＝クルーガー型（低 Engineering・高 Confidence）が主因である。
+- Rationality の低さ、Boldness / Energy / Greed / Zeal / Vengefulness の高さ、Honor の低さは合計しても主因を上回らない薄い補助項である。
+- `financialMobility` は named character の `wealth / 2 SP` を 0..1 にクランプする。貧しい見習いは不満を抱いても未知の生計に移れず、退職確率が最低 20% 係数まで抑えられる。
+- 相互 `solidarity` の低い方だけを使う。一方だけが我慢している関係も離職圧になる。
+- pressure が 0.12 未満なら退職抽選を行わない。通常の若者を無作為に離職させないための下限である。
+
+年次順序は **嗜好 drift → departure assessment → skill growth → recruitment**。`GuildSuccession` の既存の year guard が同じ年の二重抽選を防ぐ。
+
+抽選に当たった見習いは `guildApprentice` Role のみを `endYear` と `reason` 付きで終了する。Character と個人技能 record は消去しない。これは将来の別ギルド採用、雇われ職人、野盗化、死亡を別の employment / life-event Module が選べるようにするためである。v1 は「退職後に無所属として Burg に残る」までを実装する。
+
+### Replacement recruitment and master standing
+
+永続の `guildReputation` フィールドは v1 では追加しない。現時点で観測できる実績から、次の派生値を **master standing** と定義する。
+
+```text
+standing = 0.65 × practical proficiency
+         + 0.25 × aptitude tier
+         + 0.10 × public prestige
+```
+
+空席への年次応募確率は、`0.08 + 0.45 × log-normalized burg population + 0.40 × standing` を 0..1 にクランプする。新設ギルドだけは最初の一人を必ず確保し、技術ストックのある都市が人手ゼロで永久に始まらないようにする。以後の補充はこの抽選を通るため、人口が多く親方が有能な都市ほど辞めた弟子を早く補充する。
+
+`standing` は派生値なので、将来に贈答・不正・受注失敗などの独立した評判履歴を導入しても競合しない。その時点で初めて `GuildReputation` を Economy slice に保存し、上式の第四項として加える。
+
+### Deferred: social network and relocation
+
+次の二つは入力データと状態遷移がまだ不足するため、v1 の年次師弟処理には混ぜない。
+
+| 要求 | 必要な設計 | 実装開始条件 |
+| --- | --- | --- |
+| 同 Guild の職人・商人、軍需鍛冶師と軍人の知己 | Economy/Nobility が contact candidate を列挙し、`sharedWork` の exposed Taste context を Taste Relationship Module に渡す。`solidarity` を全人物総当たりで生成しない。 | 軍需の生産プログラムが「どの親方が軍用品を作ったか」を恒久 record として持つ時 |
+| 高評価の master が首都へ移る | `(burgId, domain)` の Master Role、`GuildKnowledgeStock`、`GuildChapter`、家族の `homeBurgId` を一つの transaction で更新する。stock を本人と共に移動させない。 | GuildChapter 間の vacancy / invitation と、移転後の旧 Guild の後継選出を同時に扱える時 |
+
+この二つを先に Role の直接書換えで実装すると、GuildKnowledgeStock の都市帰属、家族所在地、旧弟子の `organizationId` が分裂するため禁止する。

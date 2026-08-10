@@ -13,6 +13,7 @@ import {
   setIndividualSkills
 } from "../economyContext";
 import { getGuildBonus } from "./guildKnowledge";
+import { GUILD_MASTER_SUCCESSOR_ESTATE_SHARE } from "./guildMasterAssets";
 import { GuildSuccession } from "./guildSuccession";
 import { getIndividualSkill } from "./individualSkillMastery";
 
@@ -34,6 +35,51 @@ function isApprenticeOf(character: Character, masterId: number, burgId = 1): boo
       role.organizationId === masterId &&
       !role.endYear
   );
+}
+
+function guildCharacter(i: number, engineering: number, confidence = 50): Character {
+  return {
+    i,
+    name: `Guild character ${i}`,
+    age: 30,
+    gender: "male",
+    culture: 0,
+    titles: [],
+    affinities: {},
+    marriages: [],
+    state: 1,
+    skills: {
+      artistry: 50,
+      diplomacy: 50,
+      engineering,
+      geography: 50,
+      intrigue: 50,
+      learning: 50,
+      martial: 50,
+      prowess: 50,
+      stewardship: 50
+    },
+    personality: {
+      boldness: 50,
+      compassion: 50,
+      greed: 50,
+      honor: 50,
+      rationality: 50,
+      sociability: 50,
+      vengefulness: 50,
+      zeal: 50,
+      energy: 50,
+      piety: 50,
+      guile: 50,
+      confidence
+    },
+    family: { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 },
+    appearance: 50,
+    prestige: 10,
+    wealth: 0,
+    pastTitles: [],
+    location: 1
+  };
 }
 
 describe("GuildSuccessionModule", () => {
@@ -130,6 +176,50 @@ describe("GuildSuccessionModule", () => {
     const master = worldContext.pack.characters.find(c => isMaster(c))!;
     const apprentices = worldContext.pack.characters.filter(c => isApprenticeOf(c, master.i));
     expect(apprentices.length).toBeLessThanOrEqual(2);
+  });
+
+  it("ends a dissatisfied apprentice role and allows a replacement in the annual settlement", () => {
+    const master = guildCharacter(1, 80);
+    master.roles = [
+      {
+        source: "economy",
+        kind: MASTER_ROLE_KIND,
+        entityType: "burg",
+        entityId: 1,
+        domain: "metallurgy",
+        label: "Guild Master"
+      }
+    ];
+    const apprentice = guildCharacter(2, 10, 100);
+    apprentice.wealth = 2;
+    apprentice.roles = [
+      {
+        source: "economy",
+        kind: APPRENTICE_ROLE_KIND,
+        entityType: "burg",
+        entityId: 1,
+        domain: "metallurgy",
+        organizationId: master.i,
+        label: "Guild Apprentice"
+      }
+    ];
+    worldContext.pack.characters = [master, apprentice];
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
+    setIndividualSkills([
+      { characterId: master.i, domain: "blacksmithing", proficiency: 80, aptitude: "gifted", techniques: [] },
+      { characterId: apprentice.i, domain: "blacksmithing", proficiency: 10, aptitude: "ordinary", techniques: [] }
+    ]);
+
+    GuildSuccession.settleAnnual(() => true);
+
+    const endedRole = apprentice.roles?.find(role => role.kind === APPRENTICE_ROLE_KIND);
+    expect(endedRole?.endYear).toBe(500);
+    expect(endedRole?.reason).toContain("Apprenticeship resignation");
+    expect(
+      worldContext.pack.characters.some(
+        character => isApprenticeOf(character, master.i) && character.i !== apprentice.i
+      )
+    ).toBe(true);
   });
 
   it("migrates practical blacksmithing from engineering and grows it through guild training", () => {
@@ -311,7 +401,7 @@ describe("GuildSuccessionModule", () => {
     expect(isMaster(apprentice)).toBe(true);
     expect(master.roles?.every(role => role.endYear !== undefined)).toBe(true);
     expect(master.wealth).toBe(0);
-    expect(apprentice.wealth).toBe(15);
+    expect(apprentice.wealth).toBe(20 * GUILD_MASTER_SUCCESSOR_ESTATE_SHARE);
     expect(getIndividualSkill(apprentice.i)?.techniques).toEqual([]);
     expect(getIndividualSkill(apprentice.i)?.reconstructionLeads).toEqual([
       expect.objectContaining({ technique: "heatTreatment", progress: expect.any(Number) })

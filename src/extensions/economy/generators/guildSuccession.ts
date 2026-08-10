@@ -15,6 +15,12 @@ import {
   setGuildSuccessionLastSettledYear
 } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
+import {
+  assessApprenticeDeparture,
+  getApprenticeRecruitmentChance,
+  getGuildMasterStanding,
+  getInitialApprenticePrestige
+} from "./guildApprenticeLifecycle";
 import { applyMasterlessGuildPenalty } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import { settleGuildMasterEstate } from "./guildMasterAssets";
@@ -206,6 +212,7 @@ function createApprentice(
     birthBurgId: burg?.i,
     capitalBurgId: burg?.state !== undefined ? pack.states?.[burg.state]?.capital : undefined
   });
+  character.prestige = getInitialApprenticePrestige(character.skills.engineering);
 
   characters.push(character);
   seedRelationsWithPeers(character, characters);
@@ -317,15 +324,45 @@ function maybeSpawnApprentice(
   characters: Character[],
   master: Character,
   burgId: number,
-  domain: CraftKnowledgeDomain
+  domain: CraftKnowledgeDomain,
+  chance: (probability: number) => boolean,
+  forceInitialApprentice: boolean
 ): void {
   if (domain !== "metallurgy" || master.dead) return;
-  if (ensureBlacksmithingSkill(master, "master").proficiency < MASTER_APPRENTICE_ELIGIBLE_SKILL) return;
+  const masterSkill = ensureBlacksmithingSkill(master, "master");
+  if (masterSkill.proficiency < MASTER_APPRENTICE_ELIGIBLE_SKILL) return;
 
   const apprenticeCount = findApprentices(characters, master.i, burgId, domain).length;
   if (apprenticeCount >= MAX_APPRENTICES_PER_MASTER) return;
 
+  const burg = getWorldContext().pack.burgs[burgId] as Burg | undefined;
+  const recruitmentChance = getApprenticeRecruitmentChance(
+    burg?.population,
+    getGuildMasterStanding(master, masterSkill)
+  );
+  if (!forceInitialApprentice && !chance(recruitmentChance)) return;
+
   createApprentice(characters, burgId, domain, master.i);
+}
+
+function settleApprenticeDepartures(
+  apprentices: readonly Character[],
+  master: Character,
+  burgId: number,
+  domain: CraftKnowledgeDomain,
+  year: number,
+  chance: (probability: number) => boolean
+): void {
+  for (const apprentice of apprentices) {
+    const assessment = assessApprenticeDeparture(master, apprentice);
+    if (!(assessment.annualChance > 0) || !chance(assessment.annualChance)) continue;
+    const role = apprentice.roles?.find(
+      candidate => isApprenticeRole(candidate, burgId, domain) && candidate.endYear === undefined
+    );
+    if (!role) continue;
+    role.endYear = year;
+    role.reason = `Apprenticeship resignation: ${assessment.reasons.join(", ")}`;
+  }
 }
 
 /** Returns true when this call established a brand-new master (not a reused/succeeded one). */
@@ -351,9 +388,11 @@ function processGuildSuccession(
   // Enemy-dedicated burgs (goblin etc.) never run peaceful craft guilds.
   if (!master) return false;
 
-  settleMasterApprenticeTasteRelationships(master, findApprentices(characters, master.i, burgId, domain), domain);
+  const apprentices = findApprentices(characters, master.i, burgId, domain);
+  settleMasterApprenticeTasteRelationships(master, apprentices, domain);
+  settleApprenticeDepartures(apprentices, master, burgId, domain, year, chance);
   growApprentices(characters, master, burgId, domain, chance);
-  maybeSpawnApprentice(characters, master, burgId, domain);
+  maybeSpawnApprentice(characters, master, burgId, domain, chance, createdNewMaster);
   return createdNewMaster;
 }
 
