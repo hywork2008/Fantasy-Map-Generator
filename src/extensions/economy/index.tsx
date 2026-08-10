@@ -1519,9 +1519,9 @@ export function init(api: ExtensionAPI): void {
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
     section: "edit",
-    label: "Metallurg",
+    label: "Metallurg work",
     dialogId: "metallurgWorkOverview",
-    tooltip: "Open Metallurg work queue and material-shortage forecast",
+    tooltip: "Open the Metallurg work queue, material forecast, and procurement status",
     onClick: () => {
       document.dispatchEvent(
         new CustomEvent("react-tool-action", { detail: { action: "metallurgWorkOverviewButton" } })
