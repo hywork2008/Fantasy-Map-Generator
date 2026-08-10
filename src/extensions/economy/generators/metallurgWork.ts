@@ -24,6 +24,13 @@ import type {
   MetallurgWorkOrderKind
 } from "./metallurgWorkTypes";
 
+export interface MetallurgProductionDemand {
+  goodId: number;
+  outstandingUnits: number;
+  /** Maintenance and military replenishment remain visible without monopolizing normal demand. */
+  priorityCycles: number;
+}
+
 export type {
   MetallurgAssetLedger,
   MetallurgMaterialForecast,
@@ -354,6 +361,29 @@ export class MetallurgWorkModule {
 
   getMaterialForecasts(): readonly MetallurgMaterialForecast[] {
     return getMetallurgMaterialForecasts();
+  }
+
+  /**
+   * Converts unfinished local orders into the same demand signal used by strategic production.
+   * This is deliberately a read-only adapter: generic production still owns worker allocation,
+   * recipes, ingredient purchasing, and finished-Good market delivery.
+   */
+  getProductionDemandByGood(marketId: number): ReadonlyMap<number, MetallurgProductionDemand> {
+    const demandByGood = new Map<number, MetallurgProductionDemand>();
+    for (const order of getMetallurgWorkOrders()) {
+      if (order.destinationMarketId !== marketId || order.status === "completed") continue;
+      const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
+      if (outstandingUnits <= 0.001) continue;
+      const priorityCycles = order.kind === "maintenance" || order.ownerKind === "state" ? 2 : 1;
+      const existing = demandByGood.get(order.productGoodId);
+      if (existing) {
+        existing.outstandingUnits += outstandingUnits;
+        existing.priorityCycles = Math.max(existing.priorityCycles, priorityCycles);
+      } else {
+        demandByGood.set(order.productGoodId, { goodId: order.productGoodId, outstandingUnits, priorityCycles });
+      }
+    }
+    return demandByGood;
   }
 
   private getMarketByState(): Map<number, number> {

@@ -160,6 +160,12 @@ describe("MetallurgWorkModule", () => {
       ])
     );
     expect(getMetallurgMaterialForecasts().some(forecast => forecast.projectedShortage > 0)).toBe(true);
+    expect(Array.from(MetallurgWork.getProductionDemandByGood(1).values())).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ goodId: 4, priorityCycles: 2 }),
+        expect.objectContaining({ goodId: 7, priorityCycles: 2 })
+      ])
+    );
   });
 
   it("turns population and force growth into one additional new-build order on the next month", () => {

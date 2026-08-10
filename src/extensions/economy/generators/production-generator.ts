@@ -51,6 +51,7 @@ import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { MetallurgWork } from "./metallurgWork";
 import { MilitaryResources } from "./militaryResources";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
@@ -449,8 +450,26 @@ export class ProductionModule {
       activeGoalGoodId: null,
       smithingProgramByGood,
       strategicLaborMarket,
-      strategicDemandByGood: getStrategicProductionDemandByGood(getStrategicProcurementOrders(), market.i)
+      strategicDemandByGood: this.getCombinedStrategicDemand(market.i)
     };
+  }
+
+  /**
+   * Public Metallurg orders and import procurement share one production-priority seam. Generic
+   * production remains the sole owner of worker allocation, recipes, and material purchasing.
+   */
+  private getCombinedStrategicDemand(marketId: number): ReadonlyMap<number, StrategicProductionDemand> {
+    const combined = new Map(getStrategicProductionDemandByGood(getStrategicProcurementOrders(), marketId));
+    for (const demand of MetallurgWork.getProductionDemandByGood(marketId).values()) {
+      const existing = combined.get(demand.goodId);
+      if (existing) {
+        existing.outstandingUnits += demand.outstandingUnits;
+        existing.priorityCycles = Math.max(existing.priorityCycles, demand.priorityCycles);
+      } else {
+        combined.set(demand.goodId, { ...demand });
+      }
+    }
+    return combined;
   }
 
   /**
