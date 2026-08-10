@@ -17,6 +17,8 @@ export interface CellInfoData {
   river: string;
   /** Estimated river-surface velocity at this cell, or "n/a" when no river passes through it. */
   riverSurfaceVelocity: string;
+  /** Estimated river-channel depth at this cell, or "n/a" when no river passes through it. */
+  riverWaterDepth: string;
   /** Estimated river-surface temperature at this cell, or "n/a" when no river passes through it. */
   riverWaterTemperature: string;
   population: string;
@@ -71,6 +73,7 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   prec: "0",
   river: "no",
   riverSurfaceVelocity: "n/a",
+  riverWaterDepth: "n/a",
   riverWaterTemperature: "n/a",
   population: "0",
   livelihood: "n/a",

@@ -782,7 +782,7 @@ export function saveGeoJsonRivers(): void {
       sourceWidth: number;
       sourceElevation?: number;
       sourceWaterTemperature?: number;
-      cellHydrology?: Record<number, { surfaceVelocity: number; waterTemperature: number }>;
+      cellHydrology?: Record<number, { surfaceVelocity: number; waterDepth: number; waterTemperature: number }>;
       discharge: number;
       name: string;
       type: string;

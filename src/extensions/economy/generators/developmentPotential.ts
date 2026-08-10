@@ -1,5 +1,7 @@
 import {
+  applyRiverResidualFlows,
   Burgs,
+  clearRiverResidualFlows,
   getFourCourseRotationEffect,
   reconcileSubsistenceCapacityFromFood,
   useOptionsState,
@@ -65,6 +67,7 @@ import {
   type AgriculturalLandProfile,
   advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
+  IRRIGATION_ANNUAL_WATER_PER_FLUX,
   reconcileForestClearanceForAgriculture
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
@@ -188,6 +191,7 @@ export class DevelopmentPotentialModule {
   }
 
   clear(): void {
+    clearRiverResidualFlows(getWorldContext());
     setFoodPotential(new Float32Array());
     setCultivableArea(new Float32Array());
     setYieldPerArea(new Float32Array());
@@ -270,6 +274,10 @@ export class DevelopmentPotentialModule {
     setIrrigationDeliveredWater(agriculture.irrigation.irrigationDeliveredWater);
     setIrrigationWaterStress(agriculture.irrigation.irrigationWaterStress);
     setRiverResidualFlow(agriculture.irrigation.residualFlowByCell);
+    applyRiverResidualFlows(world, {
+      residualFlowByCell: agriculture.irrigation.residualFlowByCell,
+      annualWaterPerFlux: IRRIGATION_ANNUAL_WATER_PER_FLUX
+    });
     reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.ruralFoodCapacity);
 
     // Rural Occupation Allocator (docs/plan/biome-goods-producer-ecosystem.md §3) claims hunting/

@@ -7,6 +7,20 @@ import { rn } from "../utils/numberUtils";
 const MIN_RIVER_LENGTH_KM = 0.01;
 const MIN_VELOCITY_MPS = 0.1;
 const MAX_VELOCITY_MPS = 12;
+const MEAN_TO_SURFACE_VELOCITY_RATIO = 0.8;
+const RIVER_DEPTH_CALIBRATION_FACTOR = 1;
+const MAX_DEPTH_MULTIPLIER_FROM_MOUTH = 1.5;
+const residualFlowOptionsByRiver = new WeakMap<River, RiverHydrologyOptions>();
+
+export interface RiverHydrologyOptions {
+  /**
+   * Post-withdrawal flow in a shared annual unit. When it contains river flow,
+   * it replaces the natural generator flux for depth estimation only.
+   */
+  readonly residualFlowByCell?: Float32Array<ArrayBufferLike>;
+  /** Converts one generator flux unit into the residual flow's annual unit. */
+  readonly annualWaterPerFlux?: number;
+}
 
 /**
  * Populate river source conditions and per-cell surface values.
@@ -18,8 +32,10 @@ const MAX_VELOCITY_MPS = 12;
  */
 export function refreshRiverHydrology(
   river: River,
-  world: Pick<WorldContext, "pack" | "grid" | "distanceScale">
+  world: Pick<WorldContext, "pack" | "grid" | "distanceScale">,
+  options: RiverHydrologyOptions = {}
 ): void {
+  const effectiveOptions = options.residualFlowByCell ? options : (residualFlowOptionsByRiver.get(river) ?? options);
   const packedCells = world.pack.cells;
   const sourceCell = river.source;
   const sourceHeight = packedCells?.h?.[sourceCell] ?? 20;
@@ -63,17 +79,49 @@ export function refreshRiverHydrology(
   const sourceWidth = Math.max(river.sourceWidth, 0.05);
   const mouthWidth = Math.max(river.width, sourceWidth);
   const finalIndex = Math.max(uniqueCells.length - 1, 1);
+  const residualFlowByCell = effectiveOptions.residualFlowByCell;
+  const hasResidualFlow = hasUsableResidualFlow(residualFlowByCell, effectiveOptions.annualWaterPerFlux);
+  const mouthGradient = Math.max(0.00002, baseGradient * 0.45);
+  const mouthSurfaceVelocity = getSurfaceVelocity({
+    localGradient: mouthGradient,
+    dischargeFactor,
+    sourceWidth,
+    channelWidth: mouthWidth
+  });
+  const mouthFlow = hasResidualFlow ? (residualFlowByCell[river.mouth] ?? 0) : river.discharge;
+  const maximumWaterDepth =
+    estimateWaterDepth({
+      river,
+      channelWidth: mouthWidth,
+      surfaceVelocity: mouthSurfaceVelocity,
+      distanceScale: world.distanceScale,
+      naturalFlow: mouthFlow,
+      residualFlow: hasResidualFlow ? mouthFlow : undefined,
+      annualWaterPerFlux: hasResidualFlow ? effectiveOptions.annualWaterPerFlux : undefined
+    }) * MAX_DEPTH_MULTIPLIER_FROM_MOUTH;
 
   uniqueCells.forEach((cellId, index) => {
     const progress = index / finalIndex;
     const localGradient = Math.max(0.00002, baseGradient * (1 - progress * 0.55));
-    const channelWidth = sourceWidth + (mouthWidth - sourceWidth) * progress;
-    const widthSlowdown = clamp(Math.sqrt(sourceWidth / channelWidth), 0.25, 1);
-    const surfaceVelocity = clamp(
-      MIN_VELOCITY_MPS + Math.sqrt(localGradient) * 9 * dischargeFactor * widthSlowdown,
-      MIN_VELOCITY_MPS,
-      MAX_VELOCITY_MPS
-    );
+    const naturalFlow = packedCells?.fl?.[cellId] ?? river.discharge;
+    const channelWidth = getChannelWidth({
+      sourceWidth,
+      mouthWidth,
+      progress,
+      localFlow: naturalFlow,
+      mouthFlow: river.discharge
+    });
+    const surfaceVelocity = getSurfaceVelocity({ localGradient, dischargeFactor, sourceWidth, channelWidth });
+    const estimatedWaterDepth = estimateWaterDepth({
+      river,
+      channelWidth,
+      surfaceVelocity,
+      distanceScale: world.distanceScale,
+      naturalFlow,
+      residualFlow: hasResidualFlow ? residualFlowByCell[cellId] : undefined,
+      annualWaterPerFlux: effectiveOptions.annualWaterPerFlux
+    });
+    const waterDepth = rn(Math.min(estimatedWaterDepth, maximumWaterDepth), 2);
     const gridCell = packedCells?.g?.[cellId];
     const ambientTemperature =
       gridCell === undefined ? sourceWaterTemperature : (world.grid?.cells?.temp?.[gridCell] ?? sourceWaterTemperature);
@@ -81,6 +129,7 @@ export function refreshRiverHydrology(
 
     cellHydrology[cellId] = {
       surfaceVelocity: rn(surfaceVelocity, 2),
+      waterDepth,
       waterTemperature: rn(sourceWaterTemperature * (1 - ambientMix) + ambientTemperature * ambientMix, 1)
     };
   });
@@ -94,10 +143,119 @@ export function getRiverCellHydrology(river: River | undefined, cellId: number):
 }
 
 /** Backfill source settings and derived values after loading a legacy map. */
-export function refreshAllRiverHydrology(world: Pick<WorldContext, "pack" | "grid" | "distanceScale">): void {
+export function refreshAllRiverHydrology(
+  world: Pick<WorldContext, "pack" | "grid" | "distanceScale">,
+  options: RiverHydrologyOptions = {}
+): void {
   world.pack.rivers.forEach(river => {
+    refreshRiverHydrology(river, world, options);
+  });
+}
+
+/** Applies economy-owned residual flows without serializing simulation-only water withdrawals into the map. */
+export function applyRiverResidualFlows(
+  world: Pick<WorldContext, "pack" | "grid" | "distanceScale">,
+  options: RiverHydrologyOptions
+): void {
+  world.pack.rivers.forEach(river => {
+    if (hasUsableResidualFlow(options.residualFlowByCell, options.annualWaterPerFlux)) {
+      residualFlowOptionsByRiver.set(river, options);
+    } else {
+      residualFlowOptionsByRiver.delete(river);
+    }
+    refreshRiverHydrology(river, world, options);
+  });
+}
+
+/** Removes economy-owned residual flows and restores depths estimated from natural flow. */
+export function clearRiverResidualFlows(world: Pick<WorldContext, "pack" | "grid" | "distanceScale">): void {
+  world.pack.rivers.forEach(river => {
+    residualFlowOptionsByRiver.delete(river);
     refreshRiverHydrology(river, world);
   });
+}
+
+/**
+ * A confluence can add most of a river's discharge in one cell. The visual
+ * path grows by accumulated flux, so depth estimation must do the same rather
+ * than retaining the narrow width implied by a tributary's path position.
+ */
+function getChannelWidth({
+  sourceWidth,
+  mouthWidth,
+  progress,
+  localFlow,
+  mouthFlow
+}: {
+  readonly sourceWidth: number;
+  readonly mouthWidth: number;
+  readonly progress: number;
+  readonly localFlow: number;
+  readonly mouthFlow: number;
+}): number {
+  const pathWidth = sourceWidth + (mouthWidth - sourceWidth) * progress;
+  const flowFraction = clamp(localFlow / Math.max(mouthFlow, localFlow, 1), 0, 1);
+  const flowWidth = sourceWidth + (mouthWidth - sourceWidth) * flowFraction;
+  return Math.max(pathWidth, flowWidth);
+}
+
+function getSurfaceVelocity({
+  localGradient,
+  dischargeFactor,
+  sourceWidth,
+  channelWidth
+}: {
+  readonly localGradient: number;
+  readonly dischargeFactor: number;
+  readonly sourceWidth: number;
+  readonly channelWidth: number;
+}): number {
+  const widthSlowdown = clamp(Math.sqrt(sourceWidth / channelWidth), 0.25, 1);
+  return clamp(
+    MIN_VELOCITY_MPS + Math.sqrt(localGradient) * 9 * dischargeFactor * widthSlowdown,
+    MIN_VELOCITY_MPS,
+    MAX_VELOCITY_MPS
+  );
+}
+
+function estimateWaterDepth({
+  river,
+  channelWidth,
+  surfaceVelocity,
+  distanceScale,
+  naturalFlow,
+  residualFlow,
+  annualWaterPerFlux
+}: {
+  readonly river: River;
+  readonly channelWidth: number;
+  readonly surfaceVelocity: number;
+  readonly distanceScale: number;
+  readonly naturalFlow: number | undefined;
+  readonly residualFlow: number | undefined;
+  readonly annualWaterPerFlux: number | undefined;
+}): number {
+  const effectiveFlow =
+    typeof residualFlow === "number" && Number.isFinite(residualFlow) && annualWaterPerFlux && annualWaterPerFlux > 0
+      ? Math.max(0, residualFlow) / annualWaterPerFlux
+      : Math.max(0, naturalFlow ?? river.discharge ?? 0);
+  const widthMetres = Math.max(channelWidth * Math.max(distanceScale || 1, 0.001) * 1000, 0.1);
+  const meanVelocity = Math.max(surfaceVelocity * MEAN_TO_SURFACE_VELOCITY_RATIO, MIN_VELOCITY_MPS);
+  const depth = (effectiveFlow * RIVER_DEPTH_CALIBRATION_FACTOR) / (widthMetres * meanVelocity);
+  return rn(Math.max(0, depth), 2);
+}
+
+function hasUsableResidualFlow(
+  residualFlowByCell: Float32Array<ArrayBufferLike> | undefined,
+  annualWaterPerFlux: number | undefined
+): residualFlowByCell is Float32Array<ArrayBufferLike> {
+  if (!residualFlowByCell?.length) return false;
+  return (
+    typeof annualWaterPerFlux === "number" &&
+    Number.isFinite(annualWaterPerFlux) &&
+    annualWaterPerFlux > 0 &&
+    residualFlowByCell.some(flow => Number.isFinite(flow) && flow > 0)
+  );
 }
 
 function clamp(value: number, min: number, max: number): number {

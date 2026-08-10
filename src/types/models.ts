@@ -504,6 +504,8 @@ export interface River {
 export interface RiverCellHydrology {
   /** Estimated surface-flow velocity in metres per second. */
   surfaceVelocity: number;
+  /** Estimated channel depth in metres. This is a display estimate, not terrain data. */
+  waterDepth: number;
   /** Estimated surface-water temperature in degrees Celsius. */
   waterTemperature: number;
 }

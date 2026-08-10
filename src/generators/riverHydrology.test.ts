@@ -3,7 +3,7 @@ import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { River } from "../types/models";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
-import { getRiverCellHydrology, refreshRiverHydrology } from "./riverHydrology";
+import { applyRiverResidualFlows, getRiverCellHydrology, refreshRiverHydrology } from "./riverHydrology";
 
 function createWorld(): Pick<WorldContext, "pack" | "grid" | "distanceScale"> {
   return {
@@ -12,7 +12,8 @@ function createWorld(): Pick<WorldContext, "pack" | "grid" | "distanceScale"> {
       cells: {
         i: new Uint16Array([0, 1, 2]),
         h: new Uint8Array([55, 40, 25]),
-        g: new Uint16Array([0, 1, 2])
+        g: new Uint16Array([0, 1, 2]),
+        fl: new Float32Array([300, 300, 300])
       },
       rivers: []
     },
@@ -91,6 +92,52 @@ describe("river hydrology", () => {
     const wideMouthSpeed = getRiverCellHydrology(river, river.mouth)?.surfaceVelocity ?? 0;
 
     expect(wideMouthSpeed).toBeLessThan(narrowMouthSpeed);
+  });
+
+  it("uses residual flow directly to reduce estimated depth after withdrawals", () => {
+    const world = createWorld();
+    const river = createRiver();
+
+    refreshRiverHydrology(river, world);
+    const naturalDepth = getRiverCellHydrology(river, river.source)?.waterDepth ?? 0;
+
+    const residualFlowByCell = new Float32Array([3000, 3000, 3000]);
+    refreshRiverHydrology(river, world, { residualFlowByCell, annualWaterPerFlux: 30 });
+    const residualDepth = getRiverCellHydrology(river, river.source)?.waterDepth ?? 0;
+
+    expect(residualDepth).toBeLessThan(naturalDepth);
+    expect(residualDepth).toBeGreaterThan(0);
+  });
+
+  it("widens and caps depth when a confluence adds its downstream flow", () => {
+    const world = createWorld();
+    world.pack.cells.fl = new Float32Array([50, 1000, 1000]);
+    const river = createRiver();
+    river.discharge = 1000;
+    river.sourceWidth = 0.05;
+    river.width = 0.5;
+
+    refreshRiverHydrology(river, world);
+
+    const confluenceDepth = getRiverCellHydrology(river, 1)?.waterDepth ?? 0;
+    const mouthDepth = getRiverCellHydrology(river, river.mouth)?.waterDepth ?? 0;
+    expect(confluenceDepth).toBeLessThanOrEqual(mouthDepth * 1.5);
+  });
+
+  it("keeps an applied residual flow when an editor refreshes river hydrology", () => {
+    const world = createWorld();
+    const river = createRiver();
+    world.pack.rivers.push(river);
+
+    applyRiverResidualFlows(world, {
+      residualFlowByCell: new Float32Array([3000, 3000, 3000]),
+      annualWaterPerFlux: 30
+    });
+    const residualDepth = getRiverCellHydrology(river, river.source)?.waterDepth;
+
+    refreshRiverHydrology(river, world);
+
+    expect(getRiverCellHydrology(river, river.source)?.waterDepth).toBe(residualDepth);
   });
 
   it("keeps the source temperature at the headwater and mixes downstream toward local temperature", () => {

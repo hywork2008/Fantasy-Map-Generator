@@ -76,6 +76,15 @@ export const CellInfoDialog: React.FC = () => {
           <tr>
             <th
               scope="row"
+              data-tip="Estimated channel depth from local flow, channel width, and mean velocity; irrigation withdrawals reduce it"
+            >
+              River water depth
+            </th>
+            <td>{info.riverWaterDepth}</td>
+          </tr>
+          <tr>
+            <th
+              scope="row"
               data-tip="Estimated river-surface water temperature; downstream water mixes toward local air temperature"
             >
               River water temperature

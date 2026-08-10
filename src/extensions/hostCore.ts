@@ -29,6 +29,7 @@ export { Military } from "../generators/military-generator";
 export { Names } from "../generators/names-generator";
 export { getDeathsByState, recordDeaths, resetPopulationLossTracker } from "../generators/populationLossTracker";
 export { advanceAllRegimentMovement, isOccupiedHomeBurg } from "../generators/regimentMovement";
+export { applyRiverResidualFlows, clearRiverResidualFlows } from "../generators/riverHydrology";
 export { buildRiverNavigationGraph, findDownstreamRiverPath } from "../generators/riverNavigationGraph";
 export type {
   RiverIntake,

@@ -44,6 +44,7 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     prec: cells.h[i] >= 20 ? getFriendlyPrecipitation(i) : "n/a",
     river: riverId ? getRiverInfo(riverId) : "no",
     riverSurfaceVelocity: riverHydrology ? `${riverHydrology.surfaceVelocity} m/s` : "n/a",
+    riverWaterDepth: riverHydrology ? `${riverHydrology.waterDepth} m` : "n/a",
     riverWaterTemperature: riverHydrology ? convertTemperature(riverHydrology.waterTemperature) : "n/a",
     state:
       cells.h[i] >= 20
