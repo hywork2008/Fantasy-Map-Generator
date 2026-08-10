@@ -12,6 +12,17 @@ export const CHARACTER_ROLE_CLASS_FILTERS: readonly CharacterRoleClass[] = [
   "ordinary"
 ] as const;
 
+/** Guild-specific entries in Characters Overview's Title / Role filter. */
+export const GUILD_ROLE_FILTERS = ["guildMember", "guildMaster", "guildApprentice"] as const;
+export type GuildRoleFilter = (typeof GUILD_ROLE_FILTERS)[number];
+export type CharacterOverviewRoleFilter = CharacterRoleClass | GuildRoleFilter;
+
+/** Keeps the standard social-role classes and the current guild-role views in one dropdown. */
+export const CHARACTER_OVERVIEW_ROLE_FILTERS: readonly CharacterOverviewRoleFilter[] = [
+  ...CHARACTER_ROLE_CLASS_FILTERS,
+  ...GUILD_ROLE_FILTERS
+];
+
 const TITLE_KEY_BY_ENGLISH: Readonly<Record<string, string>> = {
   King: "king",
   Queen: "queen",
@@ -135,4 +146,12 @@ export function getCharacterRoleLabel(role: Pick<CharacterRole, "kind" | "label"
  */
 export function getCharacterRoleClassLabel(roleClass: CharacterRoleClass): string {
   return i18n.t(`characters.roleClassNames.${roleClass}`);
+}
+
+/** Localized label for every current Characters Overview Title / Role filter option. */
+export function getCharacterOverviewRoleFilterLabel(filter: CharacterOverviewRoleFilter): string {
+  if (filter === "guildMember" || filter === "guildMaster" || filter === "guildApprentice") {
+    return i18n.t(`characters.roleFilterNames.${filter}`);
+  }
+  return getCharacterRoleClassLabel(filter);
 }

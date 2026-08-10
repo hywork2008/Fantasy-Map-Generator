@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { CharacterRoleClass } from "../characterTypes";
+import type { CharacterOverviewRoleFilter } from "../utils/characterLabels";
 
 export type SortOrder = "asc" | "desc";
 export type CharactersTab = "overview" | "stats";
@@ -30,7 +30,7 @@ interface CharactersUiState {
    * Semantic title/role class filter (King/Emperor/Khan all share `"ruler"`).
    * `null` means all classes.
    */
-  filterRoleClass: CharacterRoleClass | null;
+  filterRoleClass: CharacterOverviewRoleFilter | null;
   activeTab: CharactersTab;
   /**
    * One-shot request to open Character Details on a specific inner tab (e.g. loadout from PC Prepare).
@@ -50,7 +50,7 @@ interface CharactersUiState {
   toggleSortBy: (field: string) => void;
   setSearchText: (text: string) => void;
   setFilterStateId: (id: number | null) => void;
-  setFilterRoleClass: (roleClass: CharacterRoleClass | null) => void;
+  setFilterRoleClass: (roleClass: CharacterOverviewRoleFilter | null) => void;
   setActiveTab: (tab: CharactersTab) => void;
   requestDetailsTab: (tab: CharacterDetailsTabRequest | null) => void;
   consumePendingDetailsTab: () => CharacterDetailsTabRequest | null;

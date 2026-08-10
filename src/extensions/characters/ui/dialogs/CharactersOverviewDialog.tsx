@@ -4,9 +4,12 @@ import { useTranslation } from "react-i18next";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
 import { getCharacters, getWorldContext } from "../../charactersContext";
-import type { CharacterRoleClass } from "../../characterTypes";
 import { filterAndSortCharacters, isFantasyCulturesSet } from "../../controllers/characters-overview";
-import { CHARACTER_ROLE_CLASS_FILTERS, getCharacterRoleClassLabel } from "../../utils/characterLabels";
+import {
+  CHARACTER_OVERVIEW_ROLE_FILTERS,
+  type CharacterOverviewRoleFilter,
+  getCharacterOverviewRoleFilterLabel
+} from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { CharactersStatsTable } from "../components/tables/CharactersStatsTable";
 import { CharactersTable } from "../components/tables/CharactersTable";
@@ -236,7 +239,7 @@ export const CharactersOverviewDialog: React.FC = () => {
           <label
             htmlFor="charactersFilterRoleClass"
             style={{ marginLeft: "10px" }}
-            data-tip="Filter by title/role class. Kings, emperors, and other sovereign titles share State Ruler."
+            data-tip="Filter by title/role class, or by an active Guild Master or Guild Apprentice role."
           >
             Title/Role:{" "}
             <select
@@ -244,13 +247,13 @@ export const CharactersOverviewDialog: React.FC = () => {
               value={filterRoleClass ?? ""}
               onChange={e => {
                 const value = e.target.value;
-                setFilterRoleClass(value ? (value as CharacterRoleClass) : null);
+                setFilterRoleClass(value ? (value as CharacterOverviewRoleFilter) : null);
               }}
             >
               <option value="">all</option>
-              {CHARACTER_ROLE_CLASS_FILTERS.map(roleClass => (
-                <option key={roleClass} value={roleClass}>
-                  {getCharacterRoleClassLabel(roleClass)}
+              {CHARACTER_OVERVIEW_ROLE_FILTERS.map(roleFilter => (
+                <option key={roleFilter} value={roleFilter}>
+                  {getCharacterOverviewRoleFilterLabel(roleFilter)}
                 </option>
               ))}
             </select>

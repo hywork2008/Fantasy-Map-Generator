@@ -3,7 +3,12 @@ import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";
 import { useCharactersUiState } from "../ui/charactersUiState";
-import { getCharacterRoleLabel, getCharacterTitleLabel } from "../utils/characterLabels";
+import {
+  type CharacterOverviewRoleFilter,
+  type GuildRoleFilter,
+  getCharacterRoleLabel,
+  getCharacterTitleLabel
+} from "../utils/characterLabels";
 
 /** Culture sets where non-human races are first-class and worth a dedicated Race column. */
 export { FANTASY_CULTURE_SETS, isFantasyCulturesSet };
@@ -49,8 +54,8 @@ export function filterAndSortCharacters(
   options: {
     searchText: string;
     filterStateId: number;
-    /** When set, keep only characters whose inferred role class matches. */
-    filterRoleClass?: CharacterRoleClass | null;
+    /** When set, keep only characters whose social class or active guild role matches. */
+    filterRoleClass?: CharacterOverviewRoleFilter | null;
     sortBy: string;
     sortOrder: "asc" | "desc";
     races?: readonly Pick<Race, "i" | "name" | "removed">[] | null;
@@ -66,6 +71,13 @@ export function filterAndSortCharacters(
     races = null,
     cultures = null
   } = options;
+
+  const matchesGuildRoleFilter = (character: Character, filter: GuildRoleFilter): boolean =>
+    (character.roles ?? []).some(role => {
+      if (role.source !== "economy" || role.endYear !== undefined) return false;
+      if (filter === "guildMember") return role.kind === "guildMaster" || role.kind === "guildApprentice";
+      return role.kind === filter;
+    });
 
   // 1. Map to row data
   let rows: CharacterRowData[] = characters.map(c => {
@@ -88,9 +100,17 @@ export function filterAndSortCharacters(
     rows = rows.filter(r => r.stateId === filterStateId);
   }
 
-  // 3. Filter by semantic title/role class (groups King/Emperor/etc. as rulers)
+  // 3. Filter by semantic title/role class (groups King/Emperor/etc. as rulers) or active guild role.
   if (filterRoleClass) {
-    rows = rows.filter(r => r.roleClass === filterRoleClass);
+    if (
+      filterRoleClass === "guildMember" ||
+      filterRoleClass === "guildMaster" ||
+      filterRoleClass === "guildApprentice"
+    ) {
+      rows = rows.filter(row => matchesGuildRoleFilter(row.c, filterRoleClass));
+    } else {
+      rows = rows.filter(row => row.roleClass === filterRoleClass);
+    }
   }
 
   // 4. Filter by search text

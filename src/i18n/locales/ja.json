@@ -541,6 +541,11 @@
       "religious": "聖職者",
       "merchant": "商人",
       "ordinary": "その他"
+    },
+    "roleFilterNames": {
+      "guildMember": "ギルド所属者",
+      "guildMaster": "ギルド親方",
+      "guildApprentice": "ギルド見習い"
     }
   },
   "economy": {

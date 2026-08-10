@@ -541,6 +541,11 @@
       "religious": "Religious",
       "merchant": "Merchant",
       "ordinary": "Other"
+    },
+    "roleFilterNames": {
+      "guildMember": "Guild Member",
+      "guildMaster": "Guild Master",
+      "guildApprentice": "Guild Apprentice"
     }
   },
   "economy": {

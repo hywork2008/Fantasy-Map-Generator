@@ -217,6 +217,56 @@ describe("filterAndSortCharacters role class filter", () => {
     expect(merchants.map(r => r.c.name)).toEqual(["Guildmaster Ren"]);
   });
 
+  it("filters current guild members, masters, and apprentices without including former guild roles", () => {
+    const guildCharacters = [
+      ...characters,
+      baseCharacter({
+        i: 7,
+        name: "Apprentice Iri",
+        roles: [
+          {
+            source: "economy",
+            kind: "guildApprentice",
+            entityType: "burg",
+            entityId: 1,
+            label: "Guild Apprentice"
+          }
+        ]
+      }),
+      baseCharacter({
+        i: 8,
+        name: "Former Master",
+        roles: [
+          {
+            source: "economy",
+            kind: "guildMaster",
+            entityType: "burg",
+            entityId: 1,
+            label: "Guild Master",
+            endYear: 100
+          }
+        ]
+      })
+    ];
+    const options = {
+      searchText: "",
+      filterStateId: -1,
+      sortBy: "name",
+      sortOrder: "asc" as const
+    };
+
+    const members = filterAndSortCharacters(guildCharacters, states, { ...options, filterRoleClass: "guildMember" });
+    const masters = filterAndSortCharacters(guildCharacters, states, { ...options, filterRoleClass: "guildMaster" });
+    const apprentices = filterAndSortCharacters(guildCharacters, states, {
+      ...options,
+      filterRoleClass: "guildApprentice"
+    });
+
+    expect(members.map(row => row.c.name)).toEqual(["Apprentice Iri", "Guildmaster Ren"]);
+    expect(masters.map(row => row.c.name)).toEqual(["Guildmaster Ren"]);
+    expect(apprentices.map(row => row.c.name)).toEqual(["Apprentice Iri"]);
+  });
+
   it("combines role class filter with state filter", () => {
     const rows = filterAndSortCharacters(characters, states, {
       searchText: "",
