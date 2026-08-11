@@ -12,7 +12,8 @@ import {
   GRAPE_TARGETS,
   GRAPES_LOTS_PER_RAISINS_LOT,
   GRAPES_LOTS_PER_WINE_LOT,
-  MILK_LOTS_PER_CHEESE_LOT
+  MILK_LOTS_PER_CHEESE_LOT,
+  POMACE_SHARE_OF_PRESSED_GRAPE_MASS
 } from "./foodLots";
 import {
   DEMAND_PRIORITY,
@@ -101,7 +102,15 @@ export function isGoodEnabled(good: Pick<Good, "name">): boolean {
   return !GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase());
 }
 
-type GoodData = Omit<Good, "i"> & { recipes?: Record<string, number>[] };
+type GoodData = Omit<Good, "i" | "recipes" | "byproducts"> & {
+  recipes?: Record<string, number>[];
+  byproducts?: (Record<string, number> | undefined)[];
+};
+
+/** Matches Ash's dedicated Wood-burning recipe for processes that fully burn their fuel. */
+const ASH_YIELD_PER_WOOD_FULL_COMBUSTION = 1;
+/** Charcoal and tar kilns retain most of the Wood as a useful product, leaving little ash. */
+const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
 const shipGoodValue = (shipClassId: string): number => {
   const shipClass = shipClassById.get(shipClassId);
@@ -528,8 +537,19 @@ export const GOODS_DATA: GoodData[] = [
     // One 200 L cask uses 260 kg of grapes. Barrels are returnable containers; 0.08 is the
     // replacement/repair allowance per filling, not a claim that a cask is discarded each time.
     recipes: [{ Grapes: GRAPES_LOTS_PER_WINE_LOT, Barrels: 0.08 }],
+    byproducts: [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }],
     unit: "200 L cask",
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
+  },
+  {
+    name: "Pomace",
+    tags: ["food"],
+    icon: "good-unknown",
+    color: "#7a5c3e",
+    value: 0.5,
+    chance: 0,
+    unit: "1,000 kg pomace lot",
+    demandCoverage: {}
   },
   {
     name: "Olives",
@@ -836,7 +856,8 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: { utilities: 0.4, military: 0.1 },
     multipliers: { cultureType: { Hunting: 1.2 } },
-    recipes: [{ Wood: 1 }, { Resin: 0.75 }]
+    recipes: [{ Wood: 1 }, { Resin: 0.75 }],
+    byproducts: [{ Ash: ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]
   },
   {
     name: "Sulfur",
@@ -873,7 +894,8 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     unit: "wain",
     demandCoverage: { utilities: 0.5 },
-    recipes: [{ Wood: 1.5 }]
+    recipes: [{ Wood: 1.5 }],
+    byproducts: [{ Ash: 1.5 * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]
   },
   {
     name: "Oil",
@@ -973,6 +995,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     // Clay body + Wood firing fuel; manufacture pulls Clay/Wood via the recipe pipeline.
     recipes: [{ Clay: 1, Wood: 0.1 }],
+    byproducts: [{ Ash: 0.1 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }],
     unit: "wain",
     demandCoverage: { construction: 1 },
     multipliers: { cultureType: { River: 1.3, Lake: 1.3 } }
@@ -1414,6 +1437,20 @@ export const GOODS_DATA: GoodData[] = [
       { Pig: 1, Vinegar: 0.5 },
       { Fish: 1, Wood: 1 }
     ],
+    byproducts: [
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { Ash: ASH_YIELD_PER_WOOD_FULL_COMBUSTION }
+    ],
     unit: "wain",
     demandCoverage: { food: 1 }
   },
@@ -1547,6 +1584,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 20,
     chance: 0,
     recipes: [{ Cheese: 1, Wood: 0.5 }],
+    byproducts: [{ Ash: 0.5 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }],
     unit: "wain",
     demandCoverage: { food: 0.5, luxury: 0.5 }
   },
@@ -1586,6 +1624,17 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: {}
   },
   {
+    name: "Pomace Wine",
+    tags: ["food", "beverage"],
+    icon: "good-unknown",
+    color: "#b08968",
+    value: 2,
+    chance: 0,
+    recipes: [{ Pomace: 1.2, Barrels: 0.08 }],
+    unit: "200 L cask",
+    demandCoverage: { food: 0.15 }
+  },
+  {
     name: "Liquor",
     tags: ["food", "luxury"],
     icon: "good-liquor",
@@ -1604,8 +1653,12 @@ export const GOODS_DATA: GoodData[] = [
       { Wheat: 2, Wood: 1, Glass: 0.25 },
       { Rye: 2, Wood: 1, Glass: 0.25 },
       { Barley: 2, Wood: 1, Glass: 0.25 },
-      { Wine: 1, Wood: 1, Glass: 0.25 }
+      { Wine: 1, Wood: 1, Glass: 0.25 },
+      { Pomace: 1.5, Wood: 1, Barrels: 0.5 },
+      { Pomace: 1.5, Wood: 1, Ceramics: 0.25 },
+      { Pomace: 1.5, Wood: 1, Glass: 0.25 }
     ],
+    byproducts: Array.from({ length: 15 }, () => ({ Ash: ASH_YIELD_PER_WOOD_FULL_COMBUSTION })),
     unit: "vessel",
     demandCoverage: { luxury: 1 }
   },
@@ -2517,13 +2570,27 @@ export class GoodsModule {
       });
     }
 
+    let byproducts: Good["byproducts"];
+    if ("byproducts" in good && good.byproducts) {
+      byproducts = good.byproducts.map(entry => {
+        if (!entry) return undefined;
+        const resolved = Object.entries(entry).map(([key, value]) => {
+          const i = GOODS_DATA.findIndex(candidate => candidate.name === key);
+          if (i === -1) throw new Error(`Unknown byproduct ${key} in good ${good.name}`);
+          return [i + 1, value];
+        });
+        return Object.fromEntries(resolved);
+      });
+    }
+
     const trade = good.trade ?? getDefaultGoodTradeProfile(good);
     return {
       i: index + 1,
       ...good,
       trade,
       cargo: good.cargo ?? getDefaultGoodCargoProfile({ ...good, trade }),
-      ...(recipes && { recipes })
+      ...(recipes && { recipes }),
+      ...(byproducts && { byproducts })
     };
   });
 }
@@ -2646,6 +2713,108 @@ export function migrateWineRecipe(): boolean {
   delete wine.distribution;
   delete wine.biomeOutputByTag;
   return true;
+}
+
+/**
+ * Adds wine-pressing residues and their low-cost beverage path to existing catalogues, then
+ * attaches the new multi-output recipe data using this save's own Good ids.
+ */
+export function migratePomaceDistillationGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+
+  for (const name of ["Pomace", "Pomace Wine"]) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+
+  const byName = new Map(goods.map(good => [good.name, good]));
+  const recipeFromNames = (ingredients: Readonly<Record<string, number>>): Record<number, number> | null => {
+    const resolved: Record<number, number> = {};
+    for (const [name, amount] of Object.entries(ingredients)) {
+      const ingredient = byName.get(name);
+      if (!ingredient) return null;
+      resolved[ingredient.i] = amount;
+    }
+    return resolved;
+  };
+  const setRecipes = (name: string, recipes: Readonly<Record<string, number>>[]): void => {
+    const good = byName.get(name);
+    const resolved = recipes.map(recipeFromNames);
+    if (!good || resolved.some(recipe => recipe === null)) return;
+    const recipesById = resolved.filter((recipe): recipe is Record<number, number> => recipe !== null);
+    if (JSON.stringify(good.recipes) === JSON.stringify(recipesById)) return;
+    good.recipes = recipesById;
+    changed = true;
+  };
+  const setByproducts = (name: string, entries: (Readonly<Record<string, number>> | undefined)[]): void => {
+    const good = byName.get(name);
+    const resolved: (Record<number, number> | undefined)[] = [];
+    for (const entry of entries) {
+      if (!entry) {
+        resolved.push(undefined);
+        continue;
+      }
+      const recipe = recipeFromNames(entry);
+      if (!recipe) return;
+      resolved.push(recipe);
+    }
+    if (!good) return;
+    if (JSON.stringify(good.byproducts) === JSON.stringify(resolved)) return;
+    good.byproducts = resolved;
+    changed = true;
+  };
+
+  setByproducts("Wine", [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }]);
+  setRecipes("Pomace Wine", [{ Pomace: 1.2, Barrels: 0.08 }]);
+  setByproducts("Brick", [{ Ash: 0.1 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }]);
+  setByproducts("Coal", [{ Ash: 1.5 * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]);
+  setByproducts("Preserved food", [
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    { Ash: ASH_YIELD_PER_WOOD_FULL_COMBUSTION }
+  ]);
+  setByproducts("Smoked Cheese", [{ Ash: 0.5 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }]);
+  setByproducts("Tar", [{ Ash: ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]);
+
+  const liquorRecipes: Readonly<Record<string, number>>[] = [
+    { Wheat: 2, Wood: 1, Barrels: 0.5 },
+    { Rye: 2, Wood: 1, Barrels: 0.5 },
+    { Barley: 2, Wood: 1, Barrels: 0.5 },
+    { Wine: 1, Wood: 1, Barrels: 0.5 },
+    { Wheat: 2, Wood: 1, Ceramics: 0.25 },
+    { Rye: 2, Wood: 1, Ceramics: 0.25 },
+    { Barley: 2, Wood: 1, Ceramics: 0.25 },
+    { Wine: 1, Wood: 1, Ceramics: 0.25 },
+    { Wheat: 2, Wood: 1, Glass: 0.25 },
+    { Rye: 2, Wood: 1, Glass: 0.25 },
+    { Barley: 2, Wood: 1, Glass: 0.25 },
+    { Wine: 1, Wood: 1, Glass: 0.25 },
+    { Pomace: 1.5, Wood: 1, Barrels: 0.5 },
+    { Pomace: 1.5, Wood: 1, Ceramics: 0.25 },
+    { Pomace: 1.5, Wood: 1, Glass: 0.25 }
+  ];
+  setRecipes("Liquor", liquorRecipes);
+  setByproducts(
+    "Liquor",
+    Array.from({ length: liquorRecipes.length }, () => ({ Ash: 1 }))
+  );
+
+  return changed;
 }
 
 /**

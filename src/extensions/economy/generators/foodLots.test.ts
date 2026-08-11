@@ -8,7 +8,8 @@ import {
   LITERS_PER_MILK_LOT,
   LITERS_PER_WINE_LOT,
   MILK_LITERS_PER_CHEESE_KILOGRAM,
-  MILK_LOTS_PER_CHEESE_LOT
+  MILK_LOTS_PER_CHEESE_LOT,
+  POMACE_SHARE_OF_PRESSED_GRAPE_MASS
 } from "./foodLots";
 
 describe("food market-lot contracts", () => {
@@ -20,6 +21,7 @@ describe("food market-lot contracts", () => {
 
   it("defines Wine and Raisins from a physical Grape lot", () => {
     expect(GRAPES_LOTS_PER_WINE_LOT * KILOGRAMS_PER_GRAPES_LOT).toBeCloseTo(LITERS_PER_WINE_LOT * 1.3, 8);
+    expect(POMACE_SHARE_OF_PRESSED_GRAPE_MASS).toBeCloseTo(0.22, 8);
     expect(GRAPES_LOTS_PER_RAISINS_LOT * KILOGRAMS_PER_GRAPES_LOT * 0.25).toBe(KILOGRAMS_PER_RAISINS_LOT);
   });
 });

@@ -77,7 +77,8 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Glass: "glassware",
   Paper: "printing",
   Ink: "printing",
-  Books: "printing"
+  Books: "printing",
+  Liquor: "instruments"
 };
 
 /** null when the Good has no guild-craft domain (unmapped recipe good, or a raw resource). */

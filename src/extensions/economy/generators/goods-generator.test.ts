@@ -21,6 +21,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateStapleCropGoods,
   migrateWineRecipe
@@ -332,7 +333,9 @@ describe("GoodsModule", () => {
     const barrels = getGoods().find(good => good.name === "Barrels");
     expect(wine?.biomeOutputByTag).toBeUndefined();
     expect(wine?.distribution).toBeUndefined();
+    const pomace = getGoods().find(good => good.name === "Pomace");
     expect(wine?.recipes).toEqual([{ [grapes!.i]: 0.26, [barrels!.i]: 0.08 }]);
+    expect(wine?.byproducts).toEqual([{ [pomace!.i]: 0.0572 }]);
   });
 
   it("adds Grapes once to catalogues saved before Phase 4", () => {
@@ -359,6 +362,30 @@ describe("GoodsModule", () => {
     const raisins = getGoods().find(good => good.name === "Raisins");
     expect(raisins).toMatchObject({ i: 9, unit: "250 kg raisins lot", recipes: [{ 8: 1 }] });
     expect(migrateRaisinsGood()).toBe(false);
+  });
+
+  it("adds Pomace goods and upgrades combustion and distillation byproducts for old catalogues", () => {
+    goodsModule.restoreDefaults();
+    const preservedIds = new Map(getGoods().map(good => [good.name, good.i]));
+    setGoods(getGoods().filter(good => good.name !== "Pomace" && good.name !== "Pomace Wine"));
+
+    const wine = getGoods().find(good => good.name === "Wine")!;
+    const liquor = getGoods().find(good => good.name === "Liquor")!;
+    delete wine.byproducts;
+    delete liquor.byproducts;
+    liquor.recipes = liquor.recipes?.slice(0, 12);
+
+    expect(migratePomaceDistillationGoods()).toBe(true);
+    const pomace = getGoods().find(good => good.name === "Pomace")!;
+    const pomaceWine = getGoods().find(good => good.name === "Pomace Wine")!;
+    const ash = getGoods().find(good => good.name === "Ash")!;
+    const upgradedLiquor = getGoods().find(good => good.name === "Liquor")!;
+    expect(pomace.i).toBeGreaterThan(Math.max(...preservedIds.values()));
+    expect(pomaceWine.recipes).toEqual([{ [pomace.i]: 1.2, [preservedIds.get("Barrels")!]: 0.08 }]);
+    expect(getGoods().find(good => good.name === "Wine")?.byproducts).toEqual([{ [pomace.i]: 0.0572 }]);
+    expect(upgradedLiquor.recipes).toHaveLength(15);
+    expect(upgradedLiquor.byproducts).toEqual(Array.from({ length: 15 }, () => ({ [ash.i]: 1 })));
+    expect(migratePomaceDistillationGoods()).toBe(false);
   });
 
   it("does not upgrade Wine's recipe until Grapes and Barrels both exist in the save", () => {

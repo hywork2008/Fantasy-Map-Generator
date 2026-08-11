@@ -67,6 +67,8 @@ export interface Good {
    */
   biomeOutputByTag?: Partial<Record<BiomeTag, number>>;
   recipes?: Record<number, number>[];
+  /** Outputs produced alongside the recipe at the matching array index. */
+  byproducts?: (Record<number, number> | undefined)[];
 
   // multipliers; absent or 1 = no effect; 0 = fully suppressed
   multipliers?: {

@@ -164,6 +164,16 @@ const ERA_1: readonly TechnologyDefinition[] = [
     adopted: { min: { printing: 0.4, administration: 0.4, urbanPopulation: 18 } }
   },
   {
+    id: "distillation",
+    label: "Alembic distillation",
+    era: 1,
+    scope: "state",
+    prerequisites: ["basicMetallurgy", "recordReplication"],
+    known: { min: { metallurgy: 0.15, printing: 0.1 } },
+    demonstrated: { min: { metallurgy: 0.25, printing: 0.2, treasury: 20 } },
+    adopted: { min: { metallurgy: 0.35, printing: 0.3, treasury: 40, urbanPopulation: 10 } }
+  },
+  {
     id: "mathAstronomyGeography",
     label: "Mathematics, astronomy, geography",
     era: 1,

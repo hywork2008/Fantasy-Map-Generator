@@ -7,6 +7,7 @@ import {
   getGunpowderDemandTechMultiplier,
   getMaxShipClassTierForState,
   getTechnologyStage,
+  isDistillationKnown,
   resetTechnologyProgress,
   seedTechnologyStartProfile,
   setTechnologyProgressForTests,
@@ -116,6 +117,21 @@ describe("technologyProgress", () => {
     expect(getFourCourseRotationEffect(1)).toBeCloseTo(0.35);
     expect(getFourCourseRotationEffect(2)).toBe(1);
     expect(getFourCourseRotationEffect(3)).toBe(0);
+  });
+
+  it("unlocks distillation only once a state reaches the known stage", () => {
+    const definition = TECHNOLOGY_DEFINITIONS.find(def => def.id === "distillation");
+    expect(definition).toMatchObject({
+      era: 1,
+      prerequisites: ["basicMetallurgy", "recordReplication"]
+    });
+    expect(isDistillationKnown(1)).toBe(false);
+
+    setTechnologyProgressForTests([
+      { technologyId: "distillation", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
+    ]);
+    expect(isDistillationKnown(1)).toBe(true);
+    expect(isDistillationKnown(2)).toBe(false);
   });
 
   it("advances improvedMining when mine and metallurgy signals are present", () => {

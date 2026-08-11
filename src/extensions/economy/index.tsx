@@ -94,6 +94,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateStapleCropGoods,
   migrateWineRecipe
@@ -1876,6 +1877,7 @@ export function init(api: ExtensionAPI): void {
     const migratedRaisins = migrateRaisinsGood();
     const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
+    const migratedPomaceDistillation = migratePomaceDistillationGoods();
     const migratedFoodLots = migrateFoodProcessingLotContracts();
     const migratedFreshFoodTags = migrateFreshFoodTags();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
@@ -1889,6 +1891,7 @@ export function init(api: ExtensionAPI): void {
       migratedRaisins ||
       migratedStapleCrops ||
       migratedWineRecipe ||
+      migratedPomaceDistillation ||
       migratedFoodLots ||
       migratedFreshFoodTags ||
       migratedLiveAnimalTags
@@ -2466,6 +2469,7 @@ export function init(api: ExtensionAPI): void {
     const migratedRaisins = migrateRaisinsGood();
     const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
+    const migratedPomaceDistillation = migratePomaceDistillationGoods();
     const migratedFoodLots = migrateFoodProcessingLotContracts();
     const migratedFreshFoodTags = migrateFreshFoodTags();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
@@ -2479,6 +2483,7 @@ export function init(api: ExtensionAPI): void {
       migratedRaisins ||
       migratedStapleCrops ||
       migratedWineRecipe ||
+      migratedPomaceDistillation ||
       migratedFoodLots ||
       migratedFreshFoodTags ||
       migratedLiveAnimalTags

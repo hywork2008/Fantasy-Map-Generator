@@ -20,6 +20,8 @@ export const MILK_LOTS_PER_CHEESE_LOT =
 
 /** Approximate pressed-grape input for one 200 L cask of wine. */
 export const GRAPES_LOTS_PER_WINE_LOT = (LITERS_PER_WINE_LOT * 1.3) / KILOGRAMS_PER_GRAPES_LOT;
+/** Pressing leaves roughly 22% of the crushed grape mass as skins, seeds, and stems. */
+export const POMACE_SHARE_OF_PRESSED_GRAPE_MASS = 0.22;
 /** Drying removes roughly three quarters of grape mass. */
 export const GRAPES_LOTS_PER_RAISINS_LOT = KILOGRAMS_PER_RAISINS_LOT / (KILOGRAMS_PER_GRAPES_LOT * 0.25);
 

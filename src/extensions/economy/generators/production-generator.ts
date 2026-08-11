@@ -1,3 +1,4 @@
+import { isDistillationKnown } from "../../../generators/technologyProgress";
 import type { Burg } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, rn, TIME } from "../../hostUtils";
 import {
@@ -106,6 +107,15 @@ export type {
 } from "./productionRecordTypes";
 
 const BONUS_URBAN_PRODUCTION = 1;
+
+const STATE_TECH_GATED_GOODS: Readonly<Record<string, (stateId: number) => boolean>> = {
+  Liquor: isDistillationKnown
+};
+
+/** State-scoped technology availability for otherwise globally registered manufactured goods. */
+export function isGoodManufacturableInState(good: Pick<Good, "name">, stateId: number): boolean {
+  return STATE_TECH_GATED_GOODS[good.name]?.(stateId) ?? true;
+}
 
 export class ProductionModule {
   private get worldContext() {
@@ -598,7 +608,7 @@ export class ProductionModule {
     decision: ProductionDecision,
     workerFraction: number
   ): void {
-    const { good, ingredients, maxYield, ingredientCostPerUnit, smithingProgram } = decision.action;
+    const { good, ingredients, byproducts, maxYield, ingredientCostPerUnit, smithingProgram } = decision.action;
     let actualYield = Math.min(workerFraction, maxYield);
 
     if (good.name === "Garments") {
@@ -687,6 +697,16 @@ export class ProductionModule {
 
     state.inventory[good.i] = (state.inventory[good.i] || 0) + produced;
 
+    const producedByproducts: ProductionRecipeEntry[] = [];
+    for (const byproduct of byproducts) {
+      // Byproducts follow consumed input (actualYield), not master/guild-enhanced sale output.
+      const units = rn(actualYield * byproduct.amount, 2);
+      if (units <= 0) continue;
+      state.inventory[byproduct.goodId] = (state.inventory[byproduct.goodId] || 0) + units;
+      this.addDemandCoverage(state.demandCoverage, byproduct.goodId, units, index.demandCoverageByGood);
+      producedByproducts.push({ goodId: byproduct.goodId, units });
+    }
+
     if (good.name === "Wine" || good.name === "Beer") {
       const barrelIngredient = ingredients.find(ingredient => Goods.get(ingredient.goodId)?.name === "Barrels");
       const replacementCasks = produced * (barrelIngredient?.amount ?? 0);
@@ -697,6 +717,7 @@ export class ProductionModule {
     this.addDemandCoverage(state.demandCoverage, good.i, produced, index.demandCoverageByGood);
 
     const record: MfgRecord = { goodId: good.i, units: produced, recipe };
+    if (producedByproducts.length) record.byproducts = producedByproducts;
     if (cultureModifier !== 1) record.cultureModifier = cultureModifier;
     if (smithingProgram) record.smithingProgram = smithingProgram;
     if (DEBUG.production) record.candidates = decision.candidates;
@@ -1011,6 +1032,7 @@ export class ProductionModule {
       action: {
         good: recipe.good,
         ingredients: recipe.ingredients,
+        byproducts: recipe.byproducts,
         maxYield,
         ingredientCostPerUnit: ingredientCost,
         smithingProgram
@@ -1025,6 +1047,7 @@ export class ProductionModule {
         demandMultiplier: demandEffect.multiplier,
         score,
         ingredients: recipe.ingredients,
+        byproducts: recipe.byproducts,
         goalGoodId
       }
     };
@@ -1186,6 +1209,7 @@ export class ProductionModule {
     let chosenGoal: GoalActionPlan | null = null;
     let activeGoal: GoalActionPlan | null = null;
     for (const good of candidateGoods) {
+      if (!isGoodManufacturableInState(good, state.burg.state || 0)) continue;
       const populationDemandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood);
       const strategicDemandMultiplier = getStrategicDemandMultiplier(
         state.strategicDemandByGood.get(good.i),
@@ -1235,7 +1259,7 @@ export class ProductionModule {
     const recipes: Recipe[] = [];
     for (const good of goods) {
       if (!good.recipes?.length) continue;
-      for (const recipe of good.recipes) {
+      for (const [recipeIndex, recipe] of good.recipes.entries()) {
         const entries = Object.entries(recipe).map(([goodId, amount]) => ({
           goodId: +goodId,
           amount
@@ -1249,7 +1273,13 @@ export class ProductionModule {
         ) {
           continue;
         }
-        recipes.push({ good, ingredients: entries });
+        const byproducts = Object.entries(good.byproducts?.[recipeIndex] ?? {})
+          .map(([goodId, amount]) => ({ goodId: +goodId, amount }))
+          .filter(entry => {
+            const byproduct = Goods.get(entry.goodId);
+            return Boolean(byproduct && isGoodEnabled(byproduct));
+          });
+        recipes.push({ good, ingredients: entries, byproducts });
       }
     }
     return recipes;
@@ -1272,6 +1302,7 @@ export const isMfgRecord = (record: ProductionRecord): record is MfgRecord => "r
 type PlannedAction = {
   good: Good;
   ingredients: Ingredient[];
+  byproducts: Ingredient[];
   maxYield: number;
   /** Estimated market cost per unit yielded, used to cap actualYield by the Burg's treasury at execution time. */
   ingredientCostPerUnit: number;
@@ -1279,7 +1310,7 @@ type PlannedAction = {
   smithingProgram: SmithingProductProgram | null;
 };
 
-type Recipe = { good: Good; ingredients: Ingredient[] };
+type Recipe = { good: Good; ingredients: Ingredient[]; byproducts: Ingredient[] };
 
 type ProductionIndex = {
   goods: Good[];

@@ -108,6 +108,11 @@ export function getGunpowderDemandTechMultiplier(stateId: number): number {
   return 1.4;
 }
 
+/** Whether a state has the minimum technical knowledge to produce distilled liquor. */
+export function isDistillationKnown(stateId: number): boolean {
+  return isTechnologyAtLeast("distillation", stateId, "known");
+}
+
 /**
  * Highest ship class tier (0 sloop / 1 caravel / 2 galleon) allowed by the tech graph.
  * Tech points still apply separately in Shipbuilding.

@@ -12,6 +12,7 @@ export type ProductionCandidate = {
   demandMultiplier: number;
   score: number;
   ingredients: readonly Ingredient[];
+  byproducts: readonly Ingredient[];
   goalGoodId?: number;
   isPreparation?: boolean;
   gainPerWorker?: number; // set for prep candidates: goal projected gain per worker (demand-weighted)
@@ -26,6 +27,8 @@ export type MfgRecord = {
   goodId: number;
   units: number;
   recipe: ProductionRecipeEntry[];
+  /** Outputs created alongside the primary manufactured good. */
+  byproducts?: ProductionRecipeEntry[];
   cultureModifier?: number; // omitted when 1
   /** Present only for a master-supervised Tools, Arms, or Harnesses production run. */
   smithingProgram?: {
