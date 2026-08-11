@@ -12,7 +12,7 @@ import {
   setAllowedCharacterRaceKeys,
   setSelectedAbilityPresetId
 } from "./charactersContext";
-import { setInitialPlayerCharacter } from "./controllers/playerCharacter";
+import { selectRandomPlayerCharacter, setInitialPlayerCharacter } from "./controllers/playerCharacter";
 import { usePlayerCharacterState } from "./store/playerCharacterState";
 
 describe("characterPopulation", () => {
@@ -121,6 +121,34 @@ describe("characterPopulation", () => {
     expect(setInitialPlayerCharacter(additional!.i)).toBe(false);
     expect(usePlayerCharacterState.getState().playerCharacterId).toBe(first!.i);
     expect(additional?.roles).toBeUndefined();
+  });
+
+  it("can select a different living character from the player panel", () => {
+    const first = createPlayerCharacter({
+      name: "Aster",
+      burgId: 1,
+      cultureId: 1,
+      raceId: 1,
+      age: 31,
+      gender: "female",
+      abilityValues: {}
+    });
+    const second = createPlayerCharacter({
+      name: "Beren",
+      burgId: 1,
+      cultureId: 1,
+      raceId: 1,
+      age: 28,
+      gender: "male",
+      abilityValues: {},
+      isPlayerCharacter: false
+    });
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(setInitialPlayerCharacter(first!.i)).toBe(true);
+
+    expect(selectRandomPlayerCharacter({ excludeCurrent: true })).toBe(second!.i);
+    expect(usePlayerCharacterState.getState().playerCharacterId).toBe(second!.i);
   });
 
   it("uses the Characters-wide ability system for a new player character", () => {

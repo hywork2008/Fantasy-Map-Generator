@@ -23,6 +23,18 @@ export function setInitialPlayerCharacter(characterId: number): boolean {
   return setPlayerCharacter(characterId);
 }
 
+/** Select another living character at random for the Characters-owned player panel. */
+export function selectRandomPlayerCharacter(options?: { excludeCurrent?: boolean }): number | null {
+  const currentId = usePlayerCharacterState.getState().playerCharacterId;
+  let candidates = getCharacters().filter(character => !character.dead);
+  if (options?.excludeCurrent && currentId !== null && candidates.length > 1) {
+    candidates = candidates.filter(character => character.i !== currentId);
+  }
+  const character = candidates[Math.floor(Math.random() * candidates.length)];
+  if (!character) return null;
+  return setPlayerCharacter(character.i) ? character.i : null;
+}
+
 /** Clear the current player-character focus and any in-progress travel state. */
 export function clearPlayerCharacterSelection(): void {
   usePlayerCharacterState.getState().clear();

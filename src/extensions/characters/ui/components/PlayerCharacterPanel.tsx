@@ -1,7 +1,8 @@
 import type React from "react";
 import { useMemo } from "react";
-import { Dialog, openDialog } from "../../../hostUi";
-import { getCharacters, getWorldContext } from "../../charactersContext";
+import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
+import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
+import { selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
@@ -37,17 +38,51 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   const handleCreate = (): void => openDialog("playerCharacter");
 
+  const handleSelectRandomCharacter = (): void => {
+    const selectedId = selectRandomPlayerCharacter({ excludeCurrent: true });
+    if (selectedId !== null && isDialogOpen("characterDetails")) {
+      openCharacterDetails(selectedId);
+    }
+  };
+
+  const handleZoomToLocation = (): void => {
+    if (!location) return;
+    getApi().zoomTo(location.x, location.y, 20, 2000);
+  };
+
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
       {character && !character.dead ? (
         <>
           <div className="pcp-content">
-            <h2 className="pcp-name">{character.name}</h2>
+            <div className="pcp-name-row">
+              <h2 className="pcp-name">{character.name}</h2>
+              <button
+                type="button"
+                className="icon-cw"
+                data-tip="Select a different random character"
+                aria-label="Select a different random character"
+                onClick={handleSelectRandomCharacter}
+              />
+            </div>
             <dl className="pcp-fields">
               <dt>Role</dt>
               <dd>{characterPosition(character)}</dd>
               <dt>Location</dt>
-              <dd>{location?.name ?? "Unknown"}</dd>
+              <dd className="pcp-location" title={location?.name ?? "Unknown"}>
+                {location ? (
+                  <>
+                    <span
+                      data-tip="Click to zoom into view"
+                      className="icon-dot-circled pointer"
+                      onClick={handleZoomToLocation}
+                    />
+                    <span className="pcp-location-label">{location.name}</span>
+                  </>
+                ) : (
+                  "Unknown"
+                )}
+              </dd>
               <dt>Age</dt>
               <dd>{character.age}</dd>
               <dt>Wealth</dt>
