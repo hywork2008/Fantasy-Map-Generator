@@ -154,6 +154,32 @@
   flex-shrink: 0;
 }
 
+/* Minerals Overview: resource coverage answers availability at a glance, while
+   the deposit ledger keeps individual sites inspectable without forcing a long map-wide table. */
+.fmg-dialog--minerals-overview {
+  width: min(72rem, calc(100vw - 2rem));
+  height: min(46rem, 75vh);
+}
+
+.mineral-overview-dialog {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mineral-overview-dialog__section {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mineral-overview-dialog__section > h3,
+.mineral-overview-dialog__section > .note {
+  flex-shrink: 0;
+}
+
 .population-overview-dialog {
   width: min(56em, calc(100vw - 2rem));
 }

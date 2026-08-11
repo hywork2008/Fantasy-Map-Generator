@@ -196,6 +196,7 @@ import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog"
 import { MarketsOverviewDialog } from "./ui/dialogs/MarketsOverviewDialog";
 import { MarketTradeOpportunitiesDialog } from "./ui/dialogs/MarketTradeOpportunitiesDialog";
 import { MetallurgWorkDialog } from "./ui/dialogs/MetallurgWorkDialog";
+import { MineralOverviewDialog } from "./ui/dialogs/MineralOverviewDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
@@ -1335,6 +1336,11 @@ export function init(api: ExtensionAPI): void {
     component: MetallurgWorkDialog
   });
   api.registerDialog({
+    id: "MineralOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: MineralOverviewDialog
+  });
+  api.registerDialog({
     id: "TreasuryOverviewDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: TreasuryOverviewDialog
@@ -1530,6 +1536,19 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-minerals-overview",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Minerals",
+    dialogId: "mineralOverview",
+    tooltip: "Open Minerals Overview — deposits, mine status, reserves, capacity, and output by resource",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "mineralOverviewButton" } }));
+    }
+  });
+
+  api.registerAction({
     id: "economy-edit-treasury",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -1619,6 +1638,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
   api.registerToolAction("metallurgWorkOverviewButton", () => toggleEditorDialog("metallurgWorkOverview", null));
+  api.registerToolAction("mineralOverviewButton", () => toggleEditorDialog("mineralOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
   api.registerToolAction("balanceHistoryButton", () => toggleEditorDialog("balanceHistory", null));
   api.registerToolAction("debtNegotiationButton", () => toggleEditorDialog("debtNegotiation", null));
@@ -2694,6 +2714,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("employmentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
   api.unregisterToolAction("metallurgWorkOverviewButton");
+  api.unregisterToolAction("mineralOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
   api.unregisterToolAction("balanceHistoryButton");
   api.unregisterToolAction("debtNegotiationButton");
