@@ -2055,7 +2055,7 @@ export const GOODS_DATA: GoodData[] = [
     // to drive its own production with), purely a map-flavor label now.
     name: "Grapes",
     tags: ["food", "freshFood"],
-    icon: "good-unknown",
+    icon: "good-wine",
     color: "#963e48",
     value: 2,
     chance: 3,
@@ -2073,7 +2073,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Raisins",
     tags: ["food", "preservative", "preservedFood"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
-    icon: "good-unknown",
+    icon: "good-wine",
     color: "#6b4423",
     // { Grapes: 2 } costs 2*2 = 4 — value 5 keeps a modest margin instead of breaking even.
     value: 5,
