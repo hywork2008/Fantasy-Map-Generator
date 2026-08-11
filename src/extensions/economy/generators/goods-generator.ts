@@ -514,7 +514,7 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "luxury",
     // Grape-growing cells use Wine as their commercial output after the local Raisins reserve is
     // full. It is intentionally not `preservedFood`: Wine must never displace emergency food stores.
-    tags: ["food", "luxury", "grapeWine"],
+    tags: ["drink", "food", "luxury", "grapeWine"],
     icon: "good-wine",
     color: "#963e48",
     // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8, back when the recipe below was
@@ -1605,7 +1605,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Beer",
-    tags: ["food", "beverage"],
+    tags: ["drink", "food", "beverage"],
     icon: "good-beer",
     color: "#fbb117",
     value: 4,
@@ -1625,7 +1625,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Pomace Wine",
-    tags: ["food", "beverage"],
+    tags: ["drink", "food", "beverage"],
     icon: "good-unknown",
     color: "#b08968",
     value: 2,
@@ -1636,7 +1636,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Liquor",
-    tags: ["food", "luxury"],
+    tags: ["drink", "food", "luxury"],
     icon: "good-liquor",
     color: "#8a0303",
     value: 12,
