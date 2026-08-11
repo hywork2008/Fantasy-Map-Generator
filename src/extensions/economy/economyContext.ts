@@ -70,6 +70,7 @@ import type {
   MerchantGoodSalesLedger,
   PlayerMarketTransaction
 } from "./generators/retailInventoryTypes";
+import type { SaltShipment, Saltworks, StateSaltLedger } from "./generators/saltLogisticsTypes";
 import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmployment";
 import type { SmelterOperation } from "./generators/smelterOperationsTypes";
 import type { SmithingWorkshopLedger } from "./generators/smithingWorkshopLedgerTypes";
@@ -1148,6 +1149,26 @@ export function getQuarryOperations(): QuarryOperation[] {
 }
 export function setQuarryOperations(operations: readonly QuarryOperation[]): void {
   setSliceArray("quarryOperations", operations);
+}
+
+/** State-owned salt sources and their latest monthly allocation records. */
+export function getSaltworks(): Saltworks[] {
+  return getSliceArray<Saltworks>("saltworks");
+}
+export function setSaltworks(operations: readonly Saltworks[]): void {
+  setSliceArray("saltworks", operations);
+}
+export function getSaltShipments(): SaltShipment[] {
+  return getSliceArray<SaltShipment>("saltShipments");
+}
+export function setSaltShipments(shipments: readonly SaltShipment[]): void {
+  setSliceArray("saltShipments", shipments);
+}
+export function getStateSaltLedgers(): StateSaltLedger[] {
+  return getSliceArray<StateSaltLedger>("stateSaltLedgers");
+}
+export function setStateSaltLedgers(ledgers: readonly StateSaltLedger[]): void {
+  setSliceArray("stateSaltLedgers", ledgers);
 }
 
 /** Burg-anchored construction industry (docs/plan/urban-construction-industry.md §3.3, Phase 2). */

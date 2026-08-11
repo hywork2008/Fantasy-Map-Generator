@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-12
+
+- docs/simulation/salt-logistics.md
+
 2026-08-11
 
 - docs/plan/guilds/relations.md

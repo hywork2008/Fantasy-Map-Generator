@@ -1,0 +1,44 @@
+/**
+ * State-operated source of Salt. Capacity and output use the Salt Good's `bag` unit.
+ * A bag is normalized to 60 kg; see saltLogistics.ts and docs/simulation/salt-logistics.md.
+ */
+export interface Saltworks {
+  i: number;
+  stateId: number;
+  /** Market where the works deposits its wholesale output. */
+  marketId: number;
+  /** Cell containing the pan, brine well, or rock-salt working. */
+  cellId: number;
+  kind: "saltPan" | "brineWell" | "rockSaltMine";
+  /** Sustainable output target, including the national operating reserve. */
+  annualCapacityBags: number;
+  /** Output actually placed on the origin market during the latest production month. */
+  monthlyOutputBags: number;
+  active: boolean;
+}
+
+/** A completed domestic wholesale shipment from a state saltworks to a city market. */
+export interface SaltShipment {
+  stateId: number;
+  saltworksId: number;
+  fromMarketId: number;
+  toMarketId: number;
+  bags: number;
+  /** Map-space travel estimate used by diagnostics until physical merchant caravans take this cargo. */
+  travelDays: number;
+  /** Destination retail price at the moment of delivery. */
+  unitPrice: number;
+}
+
+/** Current-month population requirement and fulfillment for one state. */
+export interface StateSaltLedger {
+  stateId: number;
+  population: number;
+  monthlyProvisionBags: number;
+  monthlyHouseholdDemandBags: number;
+  monthlyOutputBags: number;
+  monthlyDeliveredBags: number;
+  monthlyHouseholdSalesBags: number;
+  monthlyUnmetHouseholdBags: number;
+  saltworksIds: number[];
+}

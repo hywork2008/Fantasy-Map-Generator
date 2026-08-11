@@ -16,6 +16,7 @@ import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/
 import { getDefaultGoodsUnitFlavor } from "../generators/goodsUnitFlavor";
 import { Markets } from "../generators/markets-generator";
 import { Production } from "../generators/production-generator";
+import { SaltLogistics } from "../generators/saltLogistics";
 import { drawGoods } from "../renderers/draw-goods";
 import {
   getDisplayedGoodIds,
@@ -60,6 +61,7 @@ function refreshEditor(): void {
 function regenerateEconomyForGood(goodId: number): void {
   Goods.regeneratePlacement(goodId);
   Markets.generate(true);
+  SaltLogistics.generate();
   Production.produce();
   refreshEditor();
 }
@@ -264,6 +266,7 @@ export function goodsRestoreDefaults(): void {
       Goods.restoreDefaults();
       Goods.generate();
       Markets.generate(true);
+      SaltLogistics.generate();
       Production.produce();
       refreshEditor();
     }

@@ -69,6 +69,7 @@ import type {
   ProductionRecord
 } from "./productionRecordTypes";
 import { QuarryOperations } from "./quarryOperations";
+import { SaltLogistics } from "./saltLogistics";
 import { SmelterOperations } from "./smelterOperations";
 import {
   getSmithingProductProgram,
@@ -187,6 +188,9 @@ export class ProductionModule {
       VolcanicAshOperations.produceMonth();
       ConstructionOperations.produceMonth();
     });
+    // Salt is neither generic rural output nor a discretionary utilities demand. State saltworks
+    // produce, wholesale-dispatch, and retail household supply it before processors price recipes.
+    measureTickStep("production:saltLogistics", () => SaltLogistics.settleMonth());
     measureTickStep("production:monthlyLedgers", () => {
       Minting.settleMonthly();
       MilitaryResources.settleMonthly();

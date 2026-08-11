@@ -129,6 +129,7 @@ import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
 import { clearRetailInventory, planRetailReplenishment, tickRetailInventory } from "./generators/retailInventory";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
+import { SaltLogistics } from "./generators/saltLogistics";
 import { getBurgSettlementValue, getStateSettlementValue } from "./generators/settlementValuation";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
@@ -882,7 +883,10 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         // stock hadn't been created yet instead of leaving it to appear lazily on first draw.
         updateAnnualFaunaCohorts();
       }
-      if (value.target === "economy" || value.target === "markets") Markets.generate(true);
+      if (value.target === "economy" || value.target === "markets") {
+        Markets.generate(true);
+        SaltLogistics.generate();
+      }
       if (value.target === "economy") {
         InnFacilities.generate();
         InnStays.clear();
@@ -1108,6 +1112,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       MineOperations.clear();
       SmelterOperations.clear();
       QuarryOperations.clear();
+      SaltLogistics.clear();
       VolcanicAshOperations.clear();
       ConstructionOperations.clear();
       InnFacilities.clear();
@@ -1177,6 +1182,7 @@ function requestMetallurgMaterials(): void {
 function refreshEconomyForGunpowderEraData(): void {
   Goods.generate();
   Markets.generate(true);
+  SaltLogistics.generate();
   MilitaryResources.generate();
   Production.produce();
   MetallurgWork.generate();
@@ -1794,6 +1800,7 @@ export function init(api: ExtensionAPI): void {
           Goods.generate();
           DevelopmentPotential.generate();
           Markets.generate();
+          SaltLogistics.generate();
           // Seed every eligible cell's fauna stock now rather than waiting for the first annual
           // tick (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase G): without this, a stock
           // entry only gets created lazily on that cell's first hunting/husbandry draw, so cells

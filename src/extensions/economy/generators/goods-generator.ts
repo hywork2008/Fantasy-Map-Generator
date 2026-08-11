@@ -562,24 +562,16 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-salt",
     color: "#E5E4E5",
     value: 3,
-    chance: 3,
+    // Salt is supplied only by the state saltworks network. Keeping it out of the ordinary
+    // per-cell bonus-good roll prevents climate-independent salt appearing in every market.
+    chance: 0,
     distribution:
       'coastalHabitat("tidalFlat") || shore(1) && type("salt", "dry") || biomeTag("desert") && random(70) || biomeTag("wetland") && nth(10)',
     unit: "bag",
-    demandCoverage: { utilities: 1 },
-    multipliers: { cultureType: { Naval: 1.2 } },
-    // `biomeOutput: { 1: 0.1, 2: 0.1 }` (hotDesert/coldDesert numeric codes only) -> tag-based
-    // 2026-08-07 (docs/plan/fauna-biome-realism.md §3 Phase L): the same "distribution says broader
-    // than biomeOutput allows" mismatch already found and fixed for Cattle/Elephants/Camels this
-    // session. This good's own `distribution` above rolls tidal flats/salt shores/desert(70%)/
-    // wetland(10%) — desert dominant, wetland a minor secondary source (matches real coastal
-    // salt-panning being a real but smaller supplement to desert/mine salt) — but the actual economic
-    // production (this field) only ever fired in desert biomes, leaving Salt structurally undersupplied
-    // everywhere else (including every coastal/wetland region the flavor text implies should produce
-    // some). `shore(1)`/`coastalHabitat("tidalFlat")` are geographic, not biome-based, so they can't be
-    // expressed here at all (no cell-adjacency term exists in resolveBiomeOutputRate) — true
-    // distance-from-sea salt economics stay a placeholder gap, not fully closed by this fix.
-    biomeOutputByTag: { desert: 0.1, wetland: 0.015 }
+    demandCoverage: {},
+    multipliers: { cultureType: { Naval: 1.2 } }
+    // Siting predicates are retained as flavour/candidate hints. Actual capacity, household
+    // demand, and city delivery are settled by saltLogistics.ts, not rural biome production.
   },
   {
     name: "Dates",
