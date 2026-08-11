@@ -3,6 +3,9 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getOrCreateCumulativeMarketIntake,
+  getOrCreateMarketGoodProductionTotals,
+  getSaltShipments,
   getSaltworks,
   getWorldContext,
   setSaltShipments,
@@ -26,6 +29,9 @@ export const SALT_PROVISION_KILOGRAMS_PER_PERSON_YEAR =
 
 const SALTWORK_ANNUAL_CAPACITY_BAGS = 900;
 const SALTWORK_OPERATING_RESERVE = 1.15;
+/** City markets keep a small physical reserve without turning Salt into an infinite stockpile. */
+const SALT_MARKET_RESERVE_MONTHS = 3;
+const PRODUCTION_CYCLE_DAYS = 30;
 
 type MarketDemand = {
   market: Market;
@@ -127,6 +133,41 @@ function marketTravelDays(from: Market, to: Market): number {
   return Math.max(1, Math.round(distance / 20));
 }
 
+function addSaltMarketOutput(market: Market, saltGoodId: number, bags: number): void {
+  if (bags <= 0) return;
+  const cumulativeIntake = getOrCreateCumulativeMarketIntake();
+  if (cumulativeIntake) cumulativeIntake[saltGoodId] = rn((cumulativeIntake[saltGoodId] ?? 0) + bags, 2);
+  const marketProduction = getOrCreateMarketGoodProductionTotals();
+  if (marketProduction) {
+    const key = `${market.i}:${saltGoodId}`;
+    marketProduction[key] = rn((marketProduction[key] ?? 0) + bags, 2);
+  }
+}
+
+function advanceShipments(
+  shipments: readonly SaltShipment[],
+  marketsById: ReadonlyMap<number, Market>,
+  saltGoodId: number,
+  defaultPrice: number
+): { inTransit: SaltShipment[]; delivered: SaltShipment[] } {
+  const inTransit: SaltShipment[] = [];
+  const delivered: SaltShipment[] = [];
+  for (const shipment of shipments) {
+    if (shipment.status !== "inTransit") continue;
+    const remainingDays = Math.max(0, shipment.remainingDays - PRODUCTION_CYCLE_DAYS);
+    if (remainingDays > 0) {
+      inTransit.push({ ...shipment, remainingDays });
+      continue;
+    }
+    const destination = marketsById.get(shipment.toMarketId);
+    if (!destination) continue;
+    const destinationGood = getMarketGood(destination, saltGoodId, defaultPrice);
+    destinationGood.stock = rn(destinationGood.stock + shipment.bags, 4);
+    delivered.push({ ...shipment, remainingDays: 0, status: "delivered", unitPrice: destinationGood.price });
+  }
+  return { inTransit, delivered };
+}
+
 /** State-owned saltworks replace Salt's former biome-scatter production. */
 export class SaltLogisticsModule {
   generate(): void {
@@ -176,67 +217,130 @@ export class SaltLogisticsModule {
     setStateSaltLedgers([]);
   }
 
-  /** Produces domestic Salt, dispatches it to state markets, then records household retail sales. */
+  /**
+   * Advances merchant cargo, dispatches only the stock each market can absorb, and records household sales.
+   * Saltworks keep enough capacity for preservation demand, but do not turn unused theoretical capacity into
+   * physical stock: the next batch is made only after household sales or recipe inputs create room for it.
+   */
   settleMonth(): void {
     const salt = getSaltGood();
     if (!salt) return;
 
     const marketsById = new Map(getMarkets().map(market => [market.i, market]));
     const operations = getSaltworks();
+    const advanced = advanceShipments(getSaltShipments(), marketsById, salt.i, salt.value);
+    const shipments: SaltShipment[] = [...advanced.inTransit, ...advanced.delivered];
+    let nextShipmentId = shipments.reduce((maximum, shipment) => Math.max(maximum, shipment.i), 0) + 1;
+    const remainingCapacityBySaltworksId = new Map(
+      operations.map(operation => [operation.i, Math.max(0, operation.annualCapacityBags / 12)])
+    );
+
     for (const operation of operations) {
       operation.monthlyOutputBags = 0;
-      if (!operation.active) continue;
-      const market = marketsById.get(operation.marketId);
-      if (!market) continue;
-      const output = Math.max(0, operation.annualCapacityBags / 12);
-      const marketGood = getMarketGood(market, salt.i, salt.value);
-      marketGood.stock = rn(marketGood.stock + output, 4);
-      operation.monthlyOutputBags = rn(output, 4);
-      recordGoodFlow({
-        direction: "source",
-        category: "mineSupply",
-        goodId: salt.i,
-        units: output,
-        marketId: market.i
-      });
     }
 
-    const shipments: SaltShipment[] = [];
     const ledgers: StateSaltLedger[] = [];
     const stateIds = [...new Set(operations.map(operation => operation.stateId))].sort((a, b) => a - b);
     for (const stateId of stateIds) {
       const stateOperations = operations.filter(operation => operation.active && operation.stateId === stateId);
       const demands = stateMarketDemands(stateId);
-      let delivered = 0;
+      const demandByMarketId = new Map(demands.map(demand => [demand.market.i, demand]));
+      const inboundBagsByMarketId = new Map<number, number>();
+      for (const shipment of shipments) {
+        if (shipment.status !== "inTransit" || shipment.stateId !== stateId) continue;
+        inboundBagsByMarketId.set(
+          shipment.toMarketId,
+          (inboundBagsByMarketId.get(shipment.toMarketId) ?? 0) + shipment.bags
+        );
+      }
+
+      let dispatched = 0;
       let householdSales = 0;
       let unmetHousehold = 0;
 
       for (const demand of demands) {
-        let remaining = demand.provisionBags;
+        const destinationGood = getMarketGood(demand.market, salt.i, salt.value);
+        const reserveBags = demand.provisionBags * SALT_MARKET_RESERVE_MONTHS;
+        const inboundBags = inboundBagsByMarketId.get(demand.market.i) ?? 0;
+        let remaining = Math.max(0, demand.householdBags + reserveBags - destinationGood.stock - inboundBags);
+
+        // First release historical surplus. A source market retains its own reserve, so rebalancing old
+        // stock cannot starve the city that hosts a saltworks.
         for (const operation of stateOperations) {
           if (remaining <= 0) break;
           const source = marketsById.get(operation.marketId);
           if (!source) continue;
           const sourceGood = getMarketGood(source, salt.i, salt.value);
-          const bags = Math.min(remaining, Math.max(0, sourceGood.stock));
+          const sourceReserve = demandByMarketId.get(source.i)?.provisionBags ?? 0;
+          const bags = Math.min(remaining, Math.max(0, sourceGood.stock - sourceReserve * SALT_MARKET_RESERVE_MONTHS));
           if (bags <= 0) continue;
           sourceGood.stock = rn(sourceGood.stock - bags, 4);
-          const destinationGood = getMarketGood(demand.market, salt.i, salt.value);
-          destinationGood.stock = rn(destinationGood.stock + bags, 4);
           remaining -= bags;
-          delivered += bags;
-          shipments.push({
+          dispatched += bags;
+          const travelDays = marketTravelDays(source, demand.market);
+          const shipment: SaltShipment = {
+            i: nextShipmentId++,
             stateId,
             saltworksId: operation.i,
             fromMarketId: source.i,
             toMarketId: demand.market.i,
             bags: rn(bags, 4),
-            travelDays: marketTravelDays(source, demand.market),
+            travelDays,
+            remainingDays: travelDays,
+            status: travelDays === 0 ? "delivered" : "inTransit",
             unitPrice: destinationGood.price
-          });
+          };
+          if (shipment.status === "delivered") destinationGood.stock = rn(destinationGood.stock + bags, 4);
+          else {
+            inboundBagsByMarketId.set(demand.market.i, (inboundBagsByMarketId.get(demand.market.i) ?? 0) + bags);
+          }
+          shipments.push(shipment);
         }
 
-        const destinationGood = getMarketGood(demand.market, salt.i, salt.value);
+        // Make only the shortfall that existing domestic stock could not cover, limited by each
+        // saltwork's sustainable monthly capacity. This is what prevents unused preservation capacity
+        // from accumulating indefinitely at the origin market.
+        for (const operation of stateOperations) {
+          if (remaining <= 0) break;
+          const source = marketsById.get(operation.marketId);
+          if (!source) continue;
+          const remainingCapacity = remainingCapacityBySaltworksId.get(operation.i) ?? 0;
+          const output = Math.min(remaining, remainingCapacity);
+          if (output <= 0) continue;
+          const sourceGood = getMarketGood(source, salt.i, salt.value);
+          sourceGood.stock = rn(sourceGood.stock + output, 4);
+          operation.monthlyOutputBags = rn(operation.monthlyOutputBags + output, 4);
+          addSaltMarketOutput(source, salt.i, output);
+          recordGoodFlow({
+            direction: "source",
+            category: "mineSupply",
+            goodId: salt.i,
+            units: output,
+            marketId: source.i
+          });
+
+          sourceGood.stock = rn(sourceGood.stock - output, 4);
+          remainingCapacityBySaltworksId.set(operation.i, Math.max(0, remainingCapacity - output));
+          remaining -= output;
+          dispatched += output;
+          const travelDays = marketTravelDays(source, demand.market);
+          const shipment: SaltShipment = {
+            i: nextShipmentId++,
+            stateId,
+            saltworksId: operation.i,
+            fromMarketId: source.i,
+            toMarketId: demand.market.i,
+            bags: rn(output, 4),
+            travelDays,
+            remainingDays: travelDays,
+            status: travelDays === 0 ? "delivered" : "inTransit",
+            unitPrice: destinationGood.price
+          };
+          if (shipment.status === "delivered") destinationGood.stock = rn(destinationGood.stock + output, 4);
+          else inboundBagsByMarketId.set(demand.market.i, (inboundBagsByMarketId.get(demand.market.i) ?? 0) + output);
+          shipments.push(shipment);
+        }
+
         const sold = Math.min(demand.householdBags, Math.max(0, destinationGood.stock));
         destinationGood.stock = rn(destinationGood.stock - sold, 4);
         householdSales += sold;
@@ -253,6 +357,12 @@ export class SaltLogisticsModule {
       }
 
       const population = demands.reduce((sum, demand) => sum + demand.population, 0);
+      const delivered = shipments
+        .filter(shipment => shipment.status === "delivered" && shipment.stateId === stateId)
+        .reduce((sum, shipment) => sum + shipment.bags, 0);
+      const inTransit = shipments
+        .filter(shipment => shipment.status === "inTransit" && shipment.stateId === stateId)
+        .reduce((sum, shipment) => sum + shipment.bags, 0);
       ledgers.push({
         stateId,
         population: rn(population, 0),
@@ -268,9 +378,11 @@ export class SaltLogisticsModule {
           stateOperations.reduce((sum, operation) => sum + operation.monthlyOutputBags, 0),
           4
         ),
+        monthlyDispatchedBags: rn(dispatched, 4),
         monthlyDeliveredBags: rn(delivered, 4),
         monthlyHouseholdSalesBags: rn(householdSales, 4),
         monthlyUnmetHouseholdBags: rn(unmetHousehold, 4),
+        inTransitBags: rn(inTransit, 4),
         saltworksIds: stateOperations.map(operation => operation.i)
       });
     }

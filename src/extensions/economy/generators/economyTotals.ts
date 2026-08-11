@@ -14,6 +14,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getSaltworks,
   getWorldContext
 } from "../economyContext";
 import { Goods, isGoodEnabled } from "./goods-generator";
@@ -24,7 +25,7 @@ import { getTradeableStapleCropUnits } from "./stapleCropInventory";
 
 export type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
 
-export type GoodProduction = { burg: number; cell: number; market: Record<number, number> };
+export type GoodProduction = { burg: number; cell: number; industrial: number; market: Record<number, number> };
 
 /**
  * Every enabled Good's current world-wide stock, broken down by where it physically sits
@@ -132,8 +133,8 @@ export function getAllStockData(): Record<number, { total: number; sources: Stoc
  */
 export function getProduction(): Record<number, GoodProduction> {
   const production: Record<number, GoodProduction> = {};
-  const addProduction = (goodId: number, amount: number, type: "burg" | "cell", marketId?: number) => {
-    if (!production[goodId]) production[goodId] = { burg: 0, cell: 0, market: {} };
+  const addProduction = (goodId: number, amount: number, type: "burg" | "cell" | "industrial", marketId?: number) => {
+    if (!production[goodId]) production[goodId] = { burg: 0, cell: 0, industrial: 0, market: {} };
     production[goodId][type] += amount;
     if (marketId) production[goodId].market[marketId] = (production[goodId].market[marketId] ?? 0) + amount;
   };
@@ -152,6 +153,14 @@ export function getProduction(): Record<number, GoodProduction> {
     const produced = Production.getBurgProduction(burg);
     for (const goodId in produced) {
       addProduction(Number(goodId), produced[goodId] || 0, "burg", burg.market);
+    }
+  }
+
+  const saltGood = getGoods().find(good => good.name === "Salt" && isGoodEnabled(good));
+  if (saltGood) {
+    for (const saltworks of getSaltworks()) {
+      if (!saltworks.active || saltworks.monthlyOutputBags <= 0) continue;
+      addProduction(saltGood.i, saltworks.monthlyOutputBags, "industrial", saltworks.marketId);
     }
   }
 

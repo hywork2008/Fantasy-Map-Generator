@@ -4,13 +4,15 @@ import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
   getMarkets,
+  getOrCreateCumulativeMarketIntake,
   getSaltShipments,
   getSaltworks,
   getStateSaltLedgers,
   initEconomyContext,
   setGoods,
   setMarketCellColumn,
-  setMarkets
+  setMarkets,
+  setSaltShipments
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -58,7 +60,7 @@ function setUpWorld(): void {
 
 describe("SaltLogisticsModule", () => {
   beforeEach(() => {
-    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    initEconomyContext({ worldContext, simulationContext: { extensions: {} } } as unknown as ExtensionAPI);
     setUpWorld();
   });
   afterEach(() => clearEconomyContext());
@@ -82,6 +84,7 @@ describe("SaltLogisticsModule", () => {
     expect(ledgers.every(ledger => ledger.monthlyUnmetHouseholdBags === 0)).toBe(true);
     expect(getMarkets().every(market => (market.goods[1]?.stock ?? 0) > 0)).toBe(true);
     expect(getSaltShipments()).toHaveLength(2);
+    expect(getOrCreateCumulativeMarketIntake()?.[1] ?? 0).toBeGreaterThan(0);
   });
 
   it("does not make one state pay another state's household requirement", () => {
@@ -98,5 +101,49 @@ describe("SaltLogisticsModule", () => {
     const expectedHouseholdBags =
       ((10_000 + 10_000) * SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR) / SALT_KILOGRAMS_PER_BAG / 12;
     expect(getStateSaltLedgers()[0].monthlyHouseholdSalesBags).toBeCloseTo(expectedHouseholdBags, 3);
+  });
+
+  it("keeps cargo in transit until its travel time elapses", () => {
+    SaltLogistics.generate();
+    setSaltShipments([
+      {
+        i: 99,
+        stateId: 1,
+        saltworksId: 1,
+        fromMarketId: 1,
+        toMarketId: 1,
+        bags: 2,
+        travelDays: 35,
+        remainingDays: 35,
+        status: "inTransit",
+        unitPrice: 3
+      }
+    ]);
+
+    SaltLogistics.settleMonth();
+    expect(getSaltShipments().find(shipment => shipment.i === 99)).toMatchObject({
+      status: "inTransit",
+      remainingDays: 5
+    });
+
+    SaltLogistics.settleMonth();
+    expect(getSaltShipments().find(shipment => shipment.i === 99)).toMatchObject({
+      status: "delivered",
+      remainingDays: 0
+    });
+  });
+
+  it("caps stock at the market reserve while output continues to replace household sales", () => {
+    SaltLogistics.generate();
+    for (let month = 0; month < 6; month++) SaltLogistics.settleMonth();
+    const initialStock = getMarkets().reduce((sum, market) => sum + (market.goods[1]?.stock ?? 0), 0);
+    const initialOutput = getOrCreateCumulativeMarketIntake()?.[1] ?? 0;
+
+    for (let month = 0; month < 24; month++) SaltLogistics.settleMonth();
+
+    const finalStock = getMarkets().reduce((sum, market) => sum + (market.goods[1]?.stock ?? 0), 0);
+    const finalOutput = getOrCreateCumulativeMarketIntake()?.[1] ?? 0;
+    expect(finalStock).toBeCloseTo(initialStock, 2);
+    expect(finalOutput).toBeGreaterThan(initialOutput);
   });
 });

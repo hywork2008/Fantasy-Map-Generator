@@ -94,8 +94,8 @@ export function goodsEditorAddLines(): void {
   const enabledGoods = getGoods().filter(isGoodEnabled);
   const goods = enabledGoods.map(good => {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
-    const goodProduction = production[good.i] ?? { burg: 0, cell: 0, market: {} };
-    const produced = rn(goodProduction.burg + goodProduction.cell);
+    const goodProduction = production[good.i] ?? { burg: 0, cell: 0, industrial: 0, market: {} };
+    const produced = rn(goodProduction.burg + goodProduction.cell + goodProduction.industrial);
     const stock = rn(stockData[good.i]?.total ?? 0);
     const marketProduction = rn(Object.values(goodProduction.market).reduce((sum, amount) => sum + amount, 0));
     const marketsProducing = Object.values(goodProduction.market).filter(amount => amount > 0).length;
@@ -105,7 +105,7 @@ export function goodsEditorAddLines(): void {
         .reduce((sum, source) => sum + source.stock, 0)
     );
     const marketsStocking = (stockData[good.i]?.sources ?? []).filter(source => source.type === "market").length;
-    const producedTip = `Projected current production capacity, not realised output: ${produced}⚒. Cells: ${rn(goodProduction.cell, 2)}⚒. Burgs: ${rn(goodProduction.burg, 2)}⚒. Market territories: ${marketProduction}⚒ across ${marketsProducing} markets`;
+    const producedTip = `Projected current production capacity, not realised output: ${produced}⚒. Cells: ${rn(goodProduction.cell, 2)}⚒. Burgs: ${rn(goodProduction.burg, 2)}⚒. Industrial sites: ${rn(goodProduction.industrial, 2)}⚒. Market territories: ${marketProduction}⚒ across ${marketsProducing} markets`;
     const stockTip = `Total stock in all markets and burg inventories: ${stock} units. Markets: ${marketStock} units across ${marketsStocking} markets`;
     const cumulativeMarketIntake = rn(cumulativeMarketIntakeTable?.[good.i] ?? 0);
     const foodFlow = cumulativeCellFoodFlows?.[good.i];
@@ -393,8 +393,8 @@ export function downloadGoodsData(): void {
       .map(([k, v]) => `${k}:${v}`)
       .join(";");
     const cells = cellsByGood[good.i] || 0;
-    const goodProduction = production[good.i] || { burg: 0, cell: 0 };
-    const produced = rn(goodProduction.burg + goodProduction.cell);
+    const goodProduction = production[good.i] || { burg: 0, cell: 0, industrial: 0 };
+    const produced = rn(goodProduction.burg + goodProduction.cell + goodProduction.industrial);
     const stock = stockData[good.i]?.total ?? 0;
 
     const trade = good.trade ?? getDefaultGoodTradeProfile(good);

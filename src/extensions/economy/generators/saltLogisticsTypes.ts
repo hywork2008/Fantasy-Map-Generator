@@ -17,15 +17,20 @@ export interface Saltworks {
   active: boolean;
 }
 
-/** A completed domestic wholesale shipment from a state saltworks to a city market. */
+/** A domestic wholesale shipment from a state saltworks to a city market. */
 export interface SaltShipment {
+  i: number;
   stateId: number;
   saltworksId: number;
   fromMarketId: number;
   toMarketId: number;
+  /** Physical cargo currently travelling or delivered during the latest settlement. */
   bags: number;
-  /** Map-space travel estimate used by diagnostics until physical merchant caravans take this cargo. */
+  /** Map-space travel estimate used by the state wholesale carrier. */
   travelDays: number;
+  /** Remaining transit time; zero only after arrival. */
+  remainingDays: number;
+  status: "inTransit" | "delivered";
   /** Destination retail price at the moment of delivery. */
   unitPrice: number;
 }
@@ -37,8 +42,10 @@ export interface StateSaltLedger {
   monthlyProvisionBags: number;
   monthlyHouseholdDemandBags: number;
   monthlyOutputBags: number;
+  monthlyDispatchedBags: number;
   monthlyDeliveredBags: number;
   monthlyHouseholdSalesBags: number;
   monthlyUnmetHouseholdBags: number;
+  inTransitBags: number;
   saltworksIds: number[];
 }
