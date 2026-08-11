@@ -48,8 +48,8 @@ export const useGoodsEditorTableState = create<GoodsEditorTableState>(() => ({
   hasTagFilter: false,
   isAssignMode: false,
   selectedAssignGoodId: null,
-  sortBy: "name",
-  sortOrder: "asc"
+  sortBy: "isDisplayed",
+  sortOrder: "desc"
 }));
 
 export const getGoodsEditorTableState = useGoodsEditorTableState.getState;

@@ -35,6 +35,56 @@ describe("goodsEditorAddLines", () => {
           icon: "good-gunpowder",
           color: "#222222",
           distribution: "true"
+        },
+        {
+          i: 3,
+          name: "Cheese",
+          tags: [],
+          value: 1,
+          unit: "unit",
+          icon: "good-cheese",
+          color: "#f5deb3",
+          distribution: "true"
+        },
+        {
+          i: 4,
+          name: "Milk",
+          tags: [],
+          value: 1,
+          unit: "unit",
+          icon: "good-milk",
+          color: "#ffffff",
+          distribution: "true"
+        },
+        {
+          i: 5,
+          name: "Grapes",
+          tags: [],
+          value: 1,
+          unit: "unit",
+          icon: "good-grapes",
+          color: "#6f2da8",
+          distribution: "true"
+        },
+        {
+          i: 6,
+          name: "Raisins",
+          tags: [],
+          value: 1,
+          unit: "unit",
+          icon: "good-raisins",
+          color: "#5c4033",
+          distribution: "true"
+        },
+        {
+          i: 7,
+          name: "Wine",
+          tags: [],
+          value: 1,
+          unit: "unit",
+          icon: "good-wine",
+          color: "#722f37",
+          distribution: "true"
         }
       ],
       markets: []
@@ -49,8 +99,8 @@ describe("goodsEditorAddLines", () => {
       hasTagFilter: false,
       isAssignMode: false,
       selectedAssignGoodId: null,
-      sortBy: "name",
-      sortOrder: "asc"
+      sortBy: "isDisplayed",
+      sortOrder: "desc"
     });
   });
 
@@ -62,25 +112,35 @@ describe("goodsEditorAddLines", () => {
     expect(() => goodsEditorAddLines()).not.toThrow();
 
     expect(getGoodsEditorTableState()).toMatchObject({
-      goods: [expect.objectContaining({ i: 1, name: "Wood", stock: 0 })],
       totalStock: 0
     });
+    expect(getGoodsEditorTableState().goods).toContainEqual(expect.objectContaining({ i: 1, name: "Wood", stock: 0 }));
   });
 
   it("exposes placement and per-capita production diagnostics for goods", () => {
     goodsEditorAddLines();
 
-    expect(getGoodsEditorTableState().goods[0]).toMatchObject({
+    expect(getGoodsEditorTableState().goods.find(good => good.name === "Wood")).toMatchObject({
       resourceCells: 0,
       productionPerThousand: 0
     });
   });
 
-  it("keeps the map selection empty after the default Wood selection is disabled", () => {
-    expect(getDisplayedGoodIds()).toEqual(new Set([1]));
+  it("selects the default food-production goods and sorts them above unchecked goods", () => {
+    goodsEditorAddLines();
+
+    expect(getDisplayedGoodIds()).toEqual(new Set([3, 4, 5, 6, 7]));
+    expect(getGoodsEditorTableState().goods.map(good => good.isDisplayed)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]);
 
     setGoodDisplayed(1, false);
 
-    expect(getDisplayedGoodIds()).toEqual(new Set());
+    expect(getDisplayedGoodIds()).toEqual(new Set([3, 4, 5, 6, 7]));
   });
 });

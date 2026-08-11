@@ -22,7 +22,7 @@ import {
   setAllGoodsDisplayed,
   setGoodDisplayed
 } from "../store/goodsDisplaySelection";
-import { getGoodsEditorTableState, setGoodsEditorTableState } from "../store/goodsEditorTableState";
+import { type GoodTableRow, getGoodsEditorTableState, setGoodsEditorTableState } from "../store/goodsEditorTableState";
 import { setGoodsProducersDialogState } from "../store/goodsProducersDialogState";
 import { setGoodsStockDialogState } from "../store/goodsStockDialogState";
 import { setGoodsTagsDialogState } from "../store/goodsTagsDialogState";
@@ -34,6 +34,20 @@ const worldContext = () => getWorldContext();
 
 const visibleTags = new Set<string>();
 let cellsWasForced = false;
+
+function compareGoodsBySort(a: GoodTableRow, b: GoodTableRow, sortBy: string): number {
+  if (sortBy === "isDisplayed") return Number(a.isDisplayed) - Number(b.isDisplayed);
+  if (sortBy === "name") return a.name.localeCompare(b.name);
+  if (sortBy === "type") return a.types.join(",").localeCompare(b.types.join(","));
+  if (sortBy === "produced") return a.produced - b.produced;
+  if (sortBy === "stock") return a.stock - b.stock;
+  if (sortBy === "cumulativeMarketIntake") return a.cumulativeMarketIntake - b.cumulativeMarketIntake;
+  if (sortBy === "resourceCells") return a.resourceCells - b.resourceCells;
+  if (sortBy === "productionPerThousand") return a.productionPerThousand - b.productionPerThousand;
+  if (sortBy === "baseprice") return a.basePrice - b.basePrice;
+
+  return 0;
+}
 
 function refreshEditor(): void {
   goodsEditorAddLines();
@@ -125,17 +139,8 @@ export function goodsEditorAddLines(): void {
 
   const { sortBy, sortOrder } = getGoodsEditorTableState();
   const sortedGoods = goods.sort((a, b) => {
-    let cmp = 0;
-    if (sortBy === "name") cmp = a.name.localeCompare(b.name);
-    else if (sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
-    else if (sortBy === "produced") cmp = a.produced - b.produced;
-    else if (sortBy === "stock") cmp = a.stock - b.stock;
-    else if (sortBy === "cumulativeMarketIntake") cmp = a.cumulativeMarketIntake - b.cumulativeMarketIntake;
-    else if (sortBy === "resourceCells") cmp = a.resourceCells - b.resourceCells;
-    else if (sortBy === "productionPerThousand") cmp = a.productionPerThousand - b.productionPerThousand;
-    else if (sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
-
-    return sortOrder === "asc" ? cmp : -cmp;
+    const comparison = compareGoodsBySort(a, b, sortBy);
+    return sortOrder === "asc" ? comparison : -comparison;
   });
 
   setGoodsEditorTableState({
@@ -162,17 +167,8 @@ export function toggleSortBy(column: string): void {
   // Re-sort current goods and update state without regenerating everything
   const state = getGoodsEditorTableState();
   const sortedGoods = [...state.goods].sort((a, b) => {
-    let cmp = 0;
-    if (state.sortBy === "name") cmp = a.name.localeCompare(b.name);
-    else if (state.sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
-    else if (state.sortBy === "produced") cmp = a.produced - b.produced;
-    else if (state.sortBy === "stock") cmp = a.stock - b.stock;
-    else if (state.sortBy === "cumulativeMarketIntake") cmp = a.cumulativeMarketIntake - b.cumulativeMarketIntake;
-    else if (state.sortBy === "resourceCells") cmp = a.resourceCells - b.resourceCells;
-    else if (state.sortBy === "productionPerThousand") cmp = a.productionPerThousand - b.productionPerThousand;
-    else if (state.sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
-
-    return state.sortOrder === "asc" ? cmp : -cmp;
+    const comparison = compareGoodsBySort(a, b, state.sortBy);
+    return state.sortOrder === "asc" ? comparison : -comparison;
   });
   setGoodsEditorTableState({ goods: sortedGoods });
 }

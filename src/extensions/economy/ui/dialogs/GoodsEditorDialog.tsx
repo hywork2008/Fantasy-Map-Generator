@@ -125,19 +125,15 @@ export const GoodsEditorDialog: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <th>
-                      <input
-                        type="checkbox"
-                        data-tip="Show or hide all goods on the Goods map"
-                        className="native"
-                        id="goodsDisplayAll"
-                        checked={goods.length > 0 && displayedCount === goods.length}
-                        ref={el => {
-                          if (el) el.indeterminate = displayedCount > 0 && displayedCount < goods.length;
-                        }}
-                        onChange={e => toggleAllDisplayed(e.target.checked)}
-                      />
-                    </th>
+                    <SortableHeader
+                      field="isDisplayed"
+                      label="Display"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Click to sort by whether the good is displayed on the Goods map"
+                    />
                     <SortableHeader
                       field="name"
                       label="Name"
@@ -389,6 +385,17 @@ export const GoodsEditorDialog: React.FC = () => {
         </div>
 
         <div id="goodsBottom" className="footer">
+          <input
+            type="checkbox"
+            data-tip="Show or hide all goods on the Goods map"
+            className={`native hide${isAssignMode ? " hidden" : ""}`}
+            id="goodsDisplayAll"
+            checked={goods.length > 0 && displayedCount === goods.length}
+            ref={el => {
+              if (el) el.indeterminate = displayedCount > 0 && displayedCount < goods.length;
+            }}
+            onChange={e => toggleAllDisplayed(e.target.checked)}
+          />
           <button
             type="button"
             id="goodsEditorRefresh"
