@@ -44,11 +44,6 @@ function getSaltGood() {
   return getGoods().find(good => good.name === "Salt" && isGoodEnabled(good));
 }
 
-function getMarketStateId(market: Market): number {
-  const burg = getWorldContext().pack.burgs[market.centerBurgId];
-  return burg?.removed ? 0 : (burg?.state ?? 0);
-}
-
 function stateMarketDemands(stateId: number): MarketDemand[] {
   const world = getWorldContext();
   const markets = getMarkets();
@@ -92,10 +87,31 @@ function stateMarketDemands(stateId: number): MarketDemand[] {
 
 function getSaltworkKind(cellId: number): Saltworks["kind"] {
   const cells = getWorldContext().pack.cells;
-  const coastal = (cells.c[cellId] ?? []).some(neighbor => cells.h[neighbor] < 20);
-  if (coastal) return "saltPan";
+  if (hasSaltSourceWaterAccess(cellId)) return "saltPan";
   if ((cells.h[cellId] ?? 0) >= 50) return "rockSaltMine";
   return "brineWell";
+}
+
+/** True only for a sea shore or a shore of a feature classified by the host as a salt lake. */
+function hasSaltSourceWaterAccess(cellId: number): boolean {
+  const { pack } = getWorldContext();
+  for (const neighbor of pack.cells.c[cellId] ?? []) {
+    if (pack.cells.h[neighbor] >= 20) continue;
+    const feature = pack.features?.[pack.cells.f?.[neighbor] ?? 0];
+    // Older imported maps can lack feature metadata. Their only water body is treated as sea so
+    // saved coastal states do not lose their established saltworks during migration.
+    if (!feature) return true;
+    if (feature.type === "ocean") return true;
+    if (feature.type === "lake" && feature.group === "salt") return true;
+  }
+  return false;
+}
+
+function stateHasSaltSourceWaterAccess(stateId: number): boolean {
+  const { cells } = getWorldContext().pack;
+  return cells.i.some(
+    cellId => cells.state[cellId] === stateId && cells.h[cellId] >= 20 && hasSaltSourceWaterAccess(cellId)
+  );
 }
 
 function stateCandidateCells(stateId: number): number[] {
@@ -106,6 +122,7 @@ function stateCandidateCells(stateId: number): number[] {
   for (const cellId of world.pack.cells.i) {
     if (world.pack.cells.h[cellId] < 20 || world.pack.cells.state[cellId] !== stateId) continue;
     if (!marketIds.has(marketColumn[cellId])) continue;
+    if (!hasSaltSourceWaterAccess(cellId)) continue;
     const kind = getSaltworkKind(cellId);
     const score = kind === "saltPan" ? 3 : kind === "rockSaltMine" ? 2 : 1;
     candidates.push({ cellId, score });
@@ -144,6 +161,14 @@ function addSaltMarketOutput(market: Market, saltGoodId: number, bags: number): 
   }
 }
 
+function getShipmentImporterStateId(shipment: SaltShipment): number {
+  return shipment.importerStateId ?? shipment.stateId ?? 0;
+}
+
+function getShipmentExporterStateId(shipment: SaltShipment): number {
+  return shipment.exporterStateId ?? shipment.stateId ?? 0;
+}
+
 function advanceShipments(
   shipments: readonly SaltShipment[],
   marketsById: ReadonlyMap<number, Market>,
@@ -173,19 +198,54 @@ export class SaltLogisticsModule {
   generate(): void {
     const operations: Saltworks[] = [];
     const states = getWorldContext().pack.states ?? [];
+    const demandsByStateId = new Map<number, MarketDemand[]>();
     for (const state of states) {
       if (!state?.i || state.removed) continue;
       const demands = stateMarketDemands(state.i);
+      if (demands.length) demandsByStateId.set(state.i, demands);
+    }
+    const producerStateIds = [...demandsByStateId.keys()].filter(stateHasSaltSourceWaterAccess);
+    const annualCapacityNeedByProducerId = new Map<number, number>();
+    for (const stateId of producerStateIds) {
+      const annualNeed = (demandsByStateId.get(stateId) ?? []).reduce(
+        (sum, demand) => sum + demand.provisionBags * 12,
+        0
+      );
+      annualCapacityNeedByProducerId.set(stateId, annualNeed);
+    }
+    // A landlocked state's entire normal provision is contracted to the nearest salt-producing
+    // country at generation time. The receiving state's works therefore have real export capacity,
+    // rather than silently manufacturing only their own domestic ration.
+    for (const [stateId, demands] of demandsByStateId) {
+      if (producerStateIds.includes(stateId)) continue;
       const annualNeed = demands.reduce((sum, demand) => sum + demand.provisionBags * 12, 0);
+      const destination = demands[0]?.market;
+      if (!destination || annualNeed <= 0) continue;
+      const supplierStateId = producerStateIds
+        .map(candidateStateId => ({
+          stateId: candidateStateId,
+          market: demandsByStateId.get(candidateStateId)?.[0]?.market
+        }))
+        .filter((candidate): candidate is { stateId: number; market: Market } => candidate.market !== undefined)
+        .toSorted(
+          (left, right) =>
+            marketTravelDays(left.market, destination) - marketTravelDays(right.market, destination) ||
+            left.stateId - right.stateId
+        )[0]?.stateId;
+      if (supplierStateId === undefined) continue;
+      annualCapacityNeedByProducerId.set(
+        supplierStateId,
+        (annualCapacityNeedByProducerId.get(supplierStateId) ?? 0) + annualNeed
+      );
+    }
+
+    for (const stateId of producerStateIds) {
+      const demands = demandsByStateId.get(stateId) ?? [];
+      const annualNeed = annualCapacityNeedByProducerId.get(stateId) ?? 0;
       if (annualNeed <= 0) continue;
 
-      const candidates = stateCandidateCells(state.i);
-      const fallbackCell = getMarkets().find(market => getMarketStateId(market) === state.i)?.centerBurgId;
-      const cells = candidates.length
-        ? candidates
-        : fallbackCell === undefined
-          ? []
-          : [getWorldContext().pack.burgs[fallbackCell]?.cell];
+      const candidates = stateCandidateCells(stateId);
+      const cells = candidates;
       const validCells = cells.filter((cellId): cellId is number => Number.isInteger(cellId));
       if (!validCells.length) continue;
 
@@ -196,7 +256,7 @@ export class SaltLogisticsModule {
         const marketId = getMarketCellColumn()[cellId] || demands[0].market.i;
         operations.push({
           i: operations.length + 1,
-          stateId: state.i,
+          stateId,
           marketId,
           cellId,
           kind: getSaltworkKind(cellId),
@@ -240,14 +300,34 @@ export class SaltLogisticsModule {
     }
 
     const ledgers: StateSaltLedger[] = [];
-    const stateIds = [...new Set(operations.map(operation => operation.stateId))].sort((a, b) => a - b);
+    const demandsByStateId = new Map<number, MarketDemand[]>();
+    const marketReserveBagsById = new Map<number, number>();
+    for (const state of getWorldContext().pack.states ?? []) {
+      if (!state?.i || state.removed) continue;
+      const demands = stateMarketDemands(state.i);
+      if (!demands.length) continue;
+      demandsByStateId.set(state.i, demands);
+      for (const demand of demands) {
+        marketReserveBagsById.set(
+          demand.market.i,
+          (marketReserveBagsById.get(demand.market.i) ?? 0) + demand.provisionBags * SALT_MARKET_RESERVE_MONTHS
+        );
+      }
+    }
+    // Secure each salt-producing state's domestic reserve before landlocked buyers enter the same
+    // merchant pool. This makes foreign Salt an actual surplus purchase rather than an implicit levy.
+    const stateIds = [...demandsByStateId.keys()].sort((left, right) => {
+      const leftProduces = operations.some(operation => operation.active && operation.stateId === left);
+      const rightProduces = operations.some(operation => operation.active && operation.stateId === right);
+      return Number(rightProduces) - Number(leftProduces) || left - right;
+    });
+    const dispatchedShipmentIds = new Set<number>();
     for (const stateId of stateIds) {
       const stateOperations = operations.filter(operation => operation.active && operation.stateId === stateId);
-      const demands = stateMarketDemands(stateId);
-      const demandByMarketId = new Map(demands.map(demand => [demand.market.i, demand]));
+      const demands = demandsByStateId.get(stateId) ?? [];
       const inboundBagsByMarketId = new Map<number, number>();
       for (const shipment of shipments) {
-        if (shipment.status !== "inTransit" || shipment.stateId !== stateId) continue;
+        if (shipment.status !== "inTransit" || getShipmentImporterStateId(shipment) !== stateId) continue;
         inboundBagsByMarketId.set(
           shipment.toMarketId,
           (inboundBagsByMarketId.get(shipment.toMarketId) ?? 0) + shipment.bags
@@ -263,16 +343,28 @@ export class SaltLogisticsModule {
         const reserveBags = demand.provisionBags * SALT_MARKET_RESERVE_MONTHS;
         const inboundBags = inboundBagsByMarketId.get(demand.market.i) ?? 0;
         let remaining = Math.max(0, demand.householdBags + reserveBags - destinationGood.stock - inboundBags);
+        const supplierOperations = (
+          stateOperations.length
+            ? stateOperations
+            : operations.filter(operation => operation.active && operation.stateId !== stateId)
+        ).toSorted((left, right) => {
+          const leftMarket = marketsById.get(left.marketId);
+          const rightMarket = marketsById.get(right.marketId);
+          return (
+            marketTravelDays(leftMarket ?? demand.market, demand.market) -
+              marketTravelDays(rightMarket ?? demand.market, demand.market) || left.i - right.i
+          );
+        });
 
         // First release historical surplus. A source market retains its own reserve, so rebalancing old
-        // stock cannot starve the city that hosts a saltworks.
-        for (const operation of stateOperations) {
+        // stock cannot starve the city that hosts a saltworks or export a producer state's ration.
+        for (const operation of supplierOperations) {
           if (remaining <= 0) break;
           const source = marketsById.get(operation.marketId);
           if (!source) continue;
           const sourceGood = getMarketGood(source, salt.i, salt.value);
-          const sourceReserve = demandByMarketId.get(source.i)?.provisionBags ?? 0;
-          const bags = Math.min(remaining, Math.max(0, sourceGood.stock - sourceReserve * SALT_MARKET_RESERVE_MONTHS));
+          const sourceReserve = marketReserveBagsById.get(source.i) ?? 0;
+          const bags = Math.min(remaining, Math.max(0, sourceGood.stock - sourceReserve));
           if (bags <= 0) continue;
           sourceGood.stock = rn(sourceGood.stock - bags, 4);
           remaining -= bags;
@@ -280,7 +372,8 @@ export class SaltLogisticsModule {
           const travelDays = marketTravelDays(source, demand.market);
           const shipment: SaltShipment = {
             i: nextShipmentId++,
-            stateId,
+            exporterStateId: operation.stateId,
+            importerStateId: stateId,
             saltworksId: operation.i,
             fromMarketId: source.i,
             toMarketId: demand.market.i,
@@ -295,12 +388,13 @@ export class SaltLogisticsModule {
             inboundBagsByMarketId.set(demand.market.i, (inboundBagsByMarketId.get(demand.market.i) ?? 0) + bags);
           }
           shipments.push(shipment);
+          dispatchedShipmentIds.add(shipment.i);
         }
 
         // Make only the shortfall that existing domestic stock could not cover, limited by each
         // saltwork's sustainable monthly capacity. This is what prevents unused preservation capacity
         // from accumulating indefinitely at the origin market.
-        for (const operation of stateOperations) {
+        for (const operation of supplierOperations) {
           if (remaining <= 0) break;
           const source = marketsById.get(operation.marketId);
           if (!source) continue;
@@ -326,7 +420,8 @@ export class SaltLogisticsModule {
           const travelDays = marketTravelDays(source, demand.market);
           const shipment: SaltShipment = {
             i: nextShipmentId++,
-            stateId,
+            exporterStateId: operation.stateId,
+            importerStateId: stateId,
             saltworksId: operation.i,
             fromMarketId: source.i,
             toMarketId: demand.market.i,
@@ -339,6 +434,7 @@ export class SaltLogisticsModule {
           if (shipment.status === "delivered") destinationGood.stock = rn(destinationGood.stock + output, 4);
           else inboundBagsByMarketId.set(demand.market.i, (inboundBagsByMarketId.get(demand.market.i) ?? 0) + output);
           shipments.push(shipment);
+          dispatchedShipmentIds.add(shipment.i);
         }
 
         const sold = Math.min(demand.householdBags, Math.max(0, destinationGood.stock));
@@ -358,10 +454,10 @@ export class SaltLogisticsModule {
 
       const population = demands.reduce((sum, demand) => sum + demand.population, 0);
       const delivered = shipments
-        .filter(shipment => shipment.status === "delivered" && shipment.stateId === stateId)
+        .filter(shipment => shipment.status === "delivered" && getShipmentImporterStateId(shipment) === stateId)
         .reduce((sum, shipment) => sum + shipment.bags, 0);
       const inTransit = shipments
-        .filter(shipment => shipment.status === "inTransit" && shipment.stateId === stateId)
+        .filter(shipment => shipment.status === "inTransit" && getShipmentImporterStateId(shipment) === stateId)
         .reduce((sum, shipment) => sum + shipment.bags, 0);
       ledgers.push({
         stateId,
@@ -380,14 +476,74 @@ export class SaltLogisticsModule {
         ),
         monthlyDispatchedBags: rn(dispatched, 4),
         monthlyDeliveredBags: rn(delivered, 4),
+        monthlyImportedBags: rn(
+          shipments
+            .filter(
+              shipment =>
+                dispatchedShipmentIds.has(shipment.i) &&
+                getShipmentImporterStateId(shipment) === stateId &&
+                getShipmentExporterStateId(shipment) !== stateId
+            )
+            .reduce((sum, shipment) => sum + shipment.bags, 0),
+          4
+        ),
+        monthlyExportedBags: rn(
+          shipments
+            .filter(
+              shipment =>
+                dispatchedShipmentIds.has(shipment.i) &&
+                getShipmentExporterStateId(shipment) === stateId &&
+                getShipmentImporterStateId(shipment) !== stateId
+            )
+            .reduce((sum, shipment) => sum + shipment.bags, 0),
+          4
+        ),
         monthlyHouseholdSalesBags: rn(householdSales, 4),
         monthlyUnmetHouseholdBags: rn(unmetHousehold, 4),
         inTransitBags: rn(inTransit, 4),
         saltworksIds: stateOperations.map(operation => operation.i)
       });
     }
+    for (const ledger of ledgers) {
+      ledger.monthlyOutputBags = rn(
+        operations
+          .filter(operation => operation.active && operation.stateId === ledger.stateId)
+          .reduce((sum, operation) => sum + operation.monthlyOutputBags, 0),
+        4
+      );
+      ledger.monthlyDispatchedBags = rn(
+        shipments
+          .filter(
+            shipment => dispatchedShipmentIds.has(shipment.i) && getShipmentExporterStateId(shipment) === ledger.stateId
+          )
+          .reduce((sum, shipment) => sum + shipment.bags, 0),
+        4
+      );
+      ledger.monthlyImportedBags = rn(
+        shipments
+          .filter(
+            shipment =>
+              dispatchedShipmentIds.has(shipment.i) &&
+              getShipmentImporterStateId(shipment) === ledger.stateId &&
+              getShipmentExporterStateId(shipment) !== ledger.stateId
+          )
+          .reduce((sum, shipment) => sum + shipment.bags, 0),
+        4
+      );
+      ledger.monthlyExportedBags = rn(
+        shipments
+          .filter(
+            shipment =>
+              dispatchedShipmentIds.has(shipment.i) &&
+              getShipmentExporterStateId(shipment) === ledger.stateId &&
+              getShipmentImporterStateId(shipment) !== ledger.stateId
+          )
+          .reduce((sum, shipment) => sum + shipment.bags, 0),
+        4
+      );
+    }
     setSaltShipments(shipments);
-    setStateSaltLedgers(ledgers);
+    setStateSaltLedgers(ledgers.toSorted((left, right) => left.stateId - right.stateId));
   }
 }
 

@@ -17,10 +17,15 @@ export interface Saltworks {
   active: boolean;
 }
 
-/** A domestic wholesale shipment from a state saltworks to a city market. */
+/** A wholesale shipment from a state saltworks to a city market. */
 export interface SaltShipment {
   i: number;
-  stateId: number;
+  /** Compatibility field for shipments saved before exporter/importer states were split. */
+  stateId?: number;
+  /** State that owns the saltworks and receives the wholesale proceeds. */
+  exporterStateId: number;
+  /** State whose city market ordered the cargo. */
+  importerStateId: number;
   saltworksId: number;
   fromMarketId: number;
   toMarketId: number;
@@ -44,6 +49,8 @@ export interface StateSaltLedger {
   monthlyOutputBags: number;
   monthlyDispatchedBags: number;
   monthlyDeliveredBags: number;
+  monthlyImportedBags: number;
+  monthlyExportedBags: number;
   monthlyHouseholdSalesBags: number;
   monthlyUnmetHouseholdBags: number;
   inTransitBags: number;

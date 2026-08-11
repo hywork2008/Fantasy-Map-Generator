@@ -31,18 +31,21 @@ function setUpWorld(): void {
       { i: 2, name: "South", capital: 2 }
     ],
     cells: {
-      i: [0, 1],
+      i: [0, 1, 2],
       p: [
         [0, 0],
-        [80, 0]
+        [80, 0],
+        [40, 20]
       ],
-      h: Uint8Array.from([35, 55]),
-      c: [[1], [0]],
-      r: Uint16Array.from([0, 0]),
-      state: Uint16Array.from([1, 2]),
-      pop: Uint16Array.from([10, 20]),
+      h: Uint8Array.from([35, 55, 10]),
+      c: [[2], [2], [0, 1]],
+      r: Uint16Array.from([0, 0, 0]),
+      f: Uint16Array.from([0, 0, 1]),
+      state: Uint16Array.from([1, 2, 0]),
+      pop: Uint16Array.from([10, 20, 0]),
       routes: {}
-    }
+    },
+    features: [null, { i: 1, type: "ocean" }]
   } as unknown as PackedGraph;
   worldContext.populationRate = 1000;
   worldContext.urbanization = 1;
@@ -53,7 +56,7 @@ function setUpWorld(): void {
     { i: 1, centerBurgId: 1, color: "#111", goods: {} },
     { i: 2, centerBurgId: 2, color: "#222", goods: {} }
   ]);
-  setMarketCellColumn(Uint16Array.from([1, 2]));
+  setMarketCellColumn(Uint16Array.from([1, 2, 0]));
   Goods.sync();
   Markets.sync();
 }
@@ -95,12 +98,32 @@ describe("SaltLogisticsModule", () => {
       getMarkets().map(market => [market.i, worldContext.pack.burgs[market.centerBurgId].state])
     );
     for (const shipment of getSaltShipments()) {
-      expect(stateByMarket.get(shipment.fromMarketId)).toBe(shipment.stateId);
-      expect(stateByMarket.get(shipment.toMarketId)).toBe(shipment.stateId);
+      expect(stateByMarket.get(shipment.fromMarketId)).toBe(shipment.exporterStateId);
+      expect(stateByMarket.get(shipment.toMarketId)).toBe(shipment.importerStateId);
     }
     const expectedHouseholdBags =
       ((10_000 + 10_000) * SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR) / SALT_KILOGRAMS_PER_BAG / 12;
     expect(getStateSaltLedgers()[0].monthlyHouseholdSalesBags).toBeCloseTo(expectedHouseholdBags, 3);
+  });
+
+  it("stops landlocked production and supplies the country through a foreign market shipment", () => {
+    // State 2 now touches State 1 but no sea or salt-lake water cell.
+    worldContext.pack.cells.c[1] = [0];
+    worldContext.pack.cells.c[2] = [0];
+
+    SaltLogistics.generate();
+    expect(getSaltworks().map(operation => operation.stateId)).toEqual([1]);
+
+    SaltLogistics.settleMonth();
+    SaltLogistics.settleMonth();
+
+    const importShipment = getSaltShipments().find(
+      shipment => shipment.exporterStateId === 1 && shipment.importerStateId === 2
+    );
+    expect(importShipment).toMatchObject({ fromMarketId: 1, toMarketId: 2, status: "inTransit" });
+    const importerLedger = getStateSaltLedgers().find(ledger => ledger.stateId === 2);
+    expect(importerLedger).toMatchObject({ monthlyOutputBags: 0 });
+    expect(importerLedger?.monthlyImportedBags ?? 0).toBeGreaterThan(0);
   });
 
   it("keeps cargo in transit until its travel time elapses", () => {
@@ -108,7 +131,8 @@ describe("SaltLogisticsModule", () => {
     setSaltShipments([
       {
         i: 99,
-        stateId: 1,
+        exporterStateId: 1,
+        importerStateId: 1,
         saltworksId: 1,
         fromMarketId: 1,
         toMarketId: 1,
