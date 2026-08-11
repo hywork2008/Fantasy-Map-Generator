@@ -508,17 +508,21 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "luxury", "grapeWine"],
     icon: "good-wine",
     color: "#963e48",
-    // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8. The old value 6 was chosen only
-    // to *clear* { Grapes: 2, Barrels: 1 }'s ingredient cost (2*2 + 1*2 = 6) — a zero-margin recipe by
-    // construction. production-generator.ts's makeProductionDecision() rejects any candidate whose
-    // projectedGain <= 0, and Wine gets no exemption from that guard just because it's in
-    // preservationGoods' first-claim-on-labour set (Phase M) — a zero-margin baseline meant Wine's
-    // projectedGain sat at ~0 and routinely dipped negative on live market prices, so Wine was never
-    // actually produced despite the priority queue access (confirmed via Balance History export: Grapes
-    // piled up ~20x over a year while Wine fell from 4 to 0). value 8 gives a ~33% margin over the same
-    // recipe cost, matching Beer's { Grain: 1, Barrels: 1 } margin ratio (value 4 vs cost 3). Vinegar's
-    // { Wine: 1 } recipe (below) now costs more than Vinegar's own value, so Vinegar-making will favor
-    // its { Honey: 1 } alternative instead — an acceptable, market-rational shift, not a regression.
+    // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8, back when the recipe below was
+    // still { Grapes: 2, Barrels: 1 } (cost 2*2 + 1*2 = 6) — a zero-margin recipe by construction that
+    // left production-generator.ts's makeProductionDecision() rejecting Wine outright (projectedGain
+    // sat at ~0 and routinely dipped negative on live market prices; Grapes piled up ~20x over a year
+    // while Wine fell from 4 to 0). value 8 was tuned to give a ~33% margin over that cost, matching
+    // Beer's { Grain: 1, Barrels: 1 } margin ratio (value 4 vs cost 3).
+    // 2026-08-12 correction: that recipe cost basis is stale. A later change (commit 209d59f3,
+    // docs/simulation/salt-logistics.md-era food-processing work) replaced the recipe with the
+    // GRAPES_LOTS_PER_WINE_LOT-based one below (cost = 0.26*2 + 0.08*2 = 0.68) without touching this
+    // value or this comment, so the *actual* current margin is ~1076%, not ~33%. Left at 8 anyway:
+    // Wine's value is also the pricing anchor for Vinegar's { Wine: 0.75 } leg and Liquor's Wine-based
+    // recipes below, and for Wine's own luxury/trade classification — lowering it to match the cheaper
+    // recipe would ripple into those the same way the original comment above warned about. If Wine's
+    // production dominance ever needs correcting, prefer adjusting the Grapes/Barrels recipe ratio
+    // (as Vinegar's own fix below did) over re-deriving this value from raw ingredient cost.
     value: 8,
     chance: 0,
     // One 200 L cask uses 260 kg of grapes. Barrels are returnable containers; 0.08 is the
@@ -1357,16 +1361,23 @@ export const GOODS_DATA: GoodData[] = [
     color: "#34861b",
     value: 55,
     chance: 0,
+    // Ivory's own value (35) is high enough that a full 1-unit share made the two Ivory legs below
+    // cost exactly 55 (1*35 + 0.5*40, or 1*35 + 1*20) — precisely equal to Jewelry's own value. Since
+    // Jewelry isn't in foodProcessingEconomics.ts's FOOD_PROCESSING_GOODS margin-allowance set,
+    // production-generator.ts's hasViableFoodProcessingMargin() requires saleValue strictly greater
+    // than ingredientCost, so both legs were mathematically dead recipes (never selected, same failure
+    // mode Wine hit pre-546dba34). Halved to 0.5 (still a generous "half a tusk per piece" ratio) to
+    // bring their cost down to 37.5, a ~47% margin in line with the other legs' 37.5–53% range.
     recipes: [
       { Gemstones: 1, "Gold Ingot": 0.5 },
       { Pearls: 1, "Gold Ingot": 0.5 },
       { Amber: 2, "Gold Ingot": 0.5 },
-      { Ivory: 1, "Gold Ingot": 0.5 },
+      { Ivory: 0.5, "Gold Ingot": 0.5 },
       { Coral: 1, "Gold Ingot": 0.5 },
       { Gemstones: 1, "Silver Ingot": 1 },
       { Pearls: 1, "Silver Ingot": 1 },
       { Amber: 2, "Silver Ingot": 1 },
-      { Ivory: 1, "Silver Ingot": 1 },
+      { Ivory: 0.5, "Silver Ingot": 1 },
       { Coral: 1, "Silver Ingot": 1 }
     ],
     unit: "piece",
@@ -1377,7 +1388,17 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "preservedFood"],
     icon: "good-salted-fish",
     color: "#c2b280",
-    value: 5,
+    // Bumped from 5 to 6 (2026-08-12, docs/simulation/salt-logistics.md value audit): at 5, five of
+    // the recipes below (Shellfish/Game/Pig + Salt, Game/Pig + Vinegar) cost exactly 5 — Shellfish/
+    // Game/Pig are all value 2, and Salt/0.5*Vinegar are both value 3, so 2+3=5 ties this good's own
+    // value on the nose. Preserved food isn't in foodProcessingEconomics.ts's FOOD_PROCESSING_GOODS
+    // margin-allowance set, so production-generator.ts's hasViableFoodProcessingMargin() requires
+    // saleValue strictly greater than ingredientCost; an exact tie made those five legs mathematically
+    // dead recipes (never selected, same failure mode Wine hit pre-546dba34) regardless of local Salt
+    // supply — silently defeating salt-logistics.md §5's premise that surplus Salt feeds this recipe.
+    // +1 gives every leg a positive margin (20%–200%) without disturbing Salt's own value, which is
+    // anchored to the bag/kg conversion documented in salt-logistics.md.
+    value: 6,
     chance: 0,
     recipes: [
       { Fish: 1, Salt: 1 },
@@ -1406,11 +1427,17 @@ export const GOODS_DATA: GoodData[] = [
     // below was reduced from 1 to 0.75 (8 * 0.75 = 6) to keep clearing this unchanged value instead of
     // bumping Vinegar's value itself — which would ripple into Cheese/Preserved food's own { Vinegar }
     // recipe legs (both price off Vinegar's value transitively) the same way the original comment on
-    // Wine warned about. Left at breakeven deliberately, same as Wine pre-fix: Vinegar's real margin
-    // comes from its { Honey: 1 } leg (cost 4, healthy margin), not from converting valuable Wine.
+    // Wine warned about.
+    // 2026-08-12 correction: "left at breakeven deliberately, same as Wine pre-fix" was the wrong
+    // mental model. hasViableFoodProcessingMargin()'s strict saleValue > ingredientCost check doesn't
+    // make an exact-tie recipe merely *lose* to the { Honey: 1 } alternative — it makes it categorically
+    // unselectable (a market with plentiful Wine but no Honey could never produce Vinegar at all), the
+    // same structural bug this test file's margin regression test now catches for Preserved food/
+    // Jewelry. Reduced 0.75 -> 0.7 (cost 5.6, ~7% margin) instead of touching Vinegar's own value, to
+    // keep the Wine leg alive as a fallback while staying clearly worse than Honey's ~50% margin.
     value: 6,
     chance: 0,
-    recipes: [{ Wine: 0.75 }, { Honey: 1 }],
+    recipes: [{ Wine: 0.7 }, { Honey: 1 }],
     unit: "barrel",
     demandCoverage: { utilities: 0.5 }
   },
@@ -1472,7 +1499,12 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#b8b8b0",
-    value: 1,
+    // 2026-08-12 (goods-generator.test.ts margin regression test): was 1, tying { Wood: 1 }'s cost of
+    // 1 exactly — burning Wood into Ash added no priceable value, so the recipe was mathematically dead
+    // per hasViableFoodProcessingMargin()'s strict saleValue > ingredientCost check (same failure class
+    // as Preserved food/Jewelry/Vinegar above). Raised to 1.5 for a 50% margin, matching Flour's own
+    // { Grain: 1 } -> value 1.5 single-ingredient-burn pattern below.
+    value: 1.5,
     chance: 0,
     recipes: [{ Wood: 1 }],
     unit: "sack",
@@ -1524,7 +1556,10 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#f0e2b6",
-    value: 1,
+    // 2026-08-12 (goods-generator.test.ts margin regression test): was 1, tying { Chicken: 1 }'s cost
+    // of 1 exactly — same dead-recipe failure class as Ash/Preserved food/Jewelry/Vinegar above. Raised
+    // to 1.5 for a 50% margin, matching Flour's/Ash's own single-ingredient-conversion pattern.
+    value: 1.5,
     chance: 0,
     recipes: [{ Chicken: 1 }],
     unit: "basket",
@@ -1796,7 +1831,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e8d9b8",
     value: 2,
     chance: 0,
-    recipes: [{ Cattle: 0.4 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
+    // Cattle leg reduced 0.4 -> 0.3 (2026-08-12, goods-generator.test.ts margin regression test):
+    // Cattle's own value (5) made { Cattle: 0.4 } cost exactly 2 — this good's own value — the same
+    // dead-recipe tie found in Preserved food/Jewelry/Vinegar/Ash/Egg above. 0.3 costs 1.5, a 33%
+    // margin matching the Goats leg's own 1.5-cost/33% margin, without touching Tallow's shared value
+    // (Candles/Soap below both price their own { Tallow } legs off it).
+    recipes: [{ Cattle: 0.3 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
   },
@@ -2067,7 +2107,13 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-wine",
     color: "#6b4423",
-    // { Grapes: 2 } costs 2*2 = 4 — value 5 keeps a modest margin instead of breaking even.
+    // Originally { Grapes: 2 } costing 2*2 = 4 — value 5 kept a modest margin instead of breaking
+    // even. 2026-08-12 correction: that recipe is stale. Commit 209d59f3 (docs/simulation/
+    // salt-logistics.md-era food-processing work) replaced it with the GRAPES_LOTS_PER_RAISINS_LOT-
+    // based one below (= 1, not 2), so the actual current cost is 1*2 = 2 and the real margin is
+    // ~150%, not the "modest" margin this value was originally tuned for. Left at 5: nothing downstream
+    // prices off Raisins' value the way Vinegar/Liquor/Cheese price off Wine's, so there is no
+    // rippling reason not to retune this if Raisins' production weight ever needs correcting.
     value: 5,
     chance: 0,
     recipes: [{ Grapes: GRAPES_LOTS_PER_RAISINS_LOT }],

@@ -10,6 +10,7 @@ import {
   setGoodCellColumn,
   setGoods
 } from "../economyContext";
+import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   GoodsModule,
   isGoodEnabled,
@@ -112,7 +113,21 @@ describe("GoodsModule", () => {
     expect(getGoods().find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
   });
 
-  it("keeps every default manufacturing recipe at or above its ingredient cost", () => {
+  it("keeps every default manufacturing recipe above production-generator's own viability margin", () => {
+    // Regression guard for the Preserved food / Jewelry bug class (docs/simulation/salt-logistics.md
+    // value audit, 2026-08-12): a recipe whose ingredient cost merely ties its output's value (rather
+    // than staying strictly below it) is not "break-even and fine" — production-generator.ts's
+    // hasViableFoodProcessingMargin() rejects it outright (via buildImmediateManufactureCandidate()'s
+    // `if (!hasViableFoodProcessingMargin(...)) return null;` guard), so that recipe alternative is
+    // mathematically dead and can never actually be selected, no matter how much of its ingredients a
+    // market holds. The previous version of this test used `toBeLessThanOrEqual`, which let an exact
+    // tie (e.g. Shellfish(2) + Salt(3) = 5 == Preserved food's old value of 5) pass silently. Reusing
+    // the real gate here — instead of a hand-rolled `<`/`<=` comparison — keeps this test honest if
+    // that gate's rule (e.g. the FOOD_PROCESSING_GOODS 10% margin allowance) ever changes.
+    //
+    // salesTaxRate is fixed at 0, the most lenient case a live burg can ever see: a state's sales tax
+    // only makes a marginal recipe *harder* to clear, never easier, so a recipe that fails here is
+    // guaranteed dead in every real game state regardless of tax policy.
     goodsModule.restoreDefaults();
     const goodsById = new Map(getGoods().map(good => [good.i, good]));
 
@@ -123,9 +138,14 @@ describe("GoodsModule", () => {
           if (!ingredient) throw new Error(`Unknown ingredient ${goodId} in ${good.name}`);
           return sum + ingredient.value * amount;
         }, 0);
-        expect(ingredientCost, `${good.name} recipe must not be sold below ingredient cost`).toBeLessThanOrEqual(
-          good.value
-        );
+        const recipeLabel = Object.entries(recipe)
+          .map(([goodId, amount]) => `${goodsById.get(Number(goodId))?.name ?? goodId}:${amount}`)
+          .join(", ");
+
+        expect(
+          hasViableFoodProcessingMargin(good.name, good.value, ingredientCost, 0),
+          `${good.name} recipe { ${recipeLabel} } costs ${ingredientCost} against a value of ${good.value} — no viable production margin`
+        ).toBe(true);
       }
     }
   });
