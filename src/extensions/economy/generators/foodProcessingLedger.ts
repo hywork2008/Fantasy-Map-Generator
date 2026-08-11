@@ -1,4 +1,4 @@
-import { getGoods, getMarkets, getWorldContext } from "../economyContext";
+import { getGoods, getMarkets, getWorldContext, recordCumulativeCellFoodProcessing } from "../economyContext";
 import {
   DAIRY_TARGETS,
   GRAPE_TARGETS,
@@ -29,6 +29,7 @@ function emptyGoodLedger(): FoodProcessingGoodLedger {
   return {
     marketIntake: 0,
     householdConsumption: 0,
+    localHouseholdConsumptionThisCycle: 0,
     processingConsumption: 0,
     spoilage: 0,
     deliveredExport: 0,
@@ -62,7 +63,10 @@ export function recordFoodDeliveredExport(market: Market, goodName: string, unit
 /** Called by the manufacturing path after recipe ingredients have actually been acquired. */
 export function recordFoodProcessingConsumption(market: Market, goodName: string, units: number): void {
   const ledger = getGoodLedger(market, goodName);
-  if (ledger && units > 0) ledger.processingConsumption += units;
+  if (!ledger || units <= 0) return;
+  ledger.processingConsumption += units;
+  const good = getGoods().find(candidate => candidate.name === goodName);
+  if (good) recordCumulativeCellFoodProcessing(good.i, units);
 }
 
 /**
@@ -74,6 +78,7 @@ export function recordCellFoodHouseholdConsumption(market: Market, goodName: str
   const ledger = getGoodLedger(market, goodName);
   if (!ledger || units <= 0) return;
   ledger.householdConsumption += units;
+  ledger.localHouseholdConsumptionThisCycle = (ledger.localHouseholdConsumptionThisCycle ?? 0) + units;
 }
 
 export function recordWineCaskFilling(market: Market, wineLots: number, replacementCasks: number): void {
@@ -156,7 +161,7 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
   const marketGood = market.goods[good.i];
   // Source-cell household use has already been recorded before the production cycle reaches this
   // market-level settlement. Only the remaining demand may draw from Market stock.
-  const remainingDemand = Math.max(0, demand - ledger.householdConsumption);
+  const remainingDemand = Math.max(0, demand - (ledger.localHouseholdConsumptionThisCycle ?? 0));
   const available = Math.max(0, marketGood?.stock ?? 0);
   const consumed = Math.min(available, remainingDemand);
   if (marketGood) marketGood.stock = Math.max(0, marketGood.stock - consumed);
@@ -212,6 +217,13 @@ export function settleFoodProcessingHouseholds(): void {
       if (remaining <= 0) continue;
       market.goods[good.i].stock = 0;
       recordGoodFlow({ direction: "sink", category: "spoilage", goodId: good.i, units: remaining, marketId: market.i });
+    }
+
+    // This field coordinates the source-cell phase with this cycle's Market demand draw. The
+    // cumulative householdConsumption field is intentionally retained for diagnostics, but must
+    // never suppress household demand in later cycles.
+    for (const ledger of Object.values(market.foodProcessingLedger ?? {})) {
+      ledger.localHouseholdConsumptionThisCycle = 0;
     }
   }
 }

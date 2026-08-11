@@ -75,6 +75,8 @@ export type FoodProcessingGoodLedger = {
   marketIntake: number;
   /** Quantity purchased by households from this market. */
   householdConsumption: number;
+  /** Source-cell fresh food already eaten by households during the current production cycle. */
+  localHouseholdConsumptionThisCycle: number;
   /** Quantity taken as a recipe input by a local processor. */
   processingConsumption: number;
   /** Quantity discarded after its shelf-life window. */

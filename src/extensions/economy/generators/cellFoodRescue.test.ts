@@ -7,6 +7,7 @@ const milk: CellFreshFoodInput = {
   harvestedUnits: 30,
   householdDemandUnits: 2,
   preservationLaborPerUnit: 0.1,
+  emergencyReserveDemandUnits: 0,
   reservePath: { outputGoodId: 2, inputPerOutput: 10 },
   commercialPath: { outputGoodId: 2, inputPerOutput: 10 },
   exportDemandUnits: 5,
@@ -22,6 +23,7 @@ describe("planCellFoodRescue", () => {
     // may become Cheese for a real commercial request, rather than trapping all output locally.
     expect(outcome.eatenFreshUnits).toBe(2);
     expect(outcome.reserveInputUnits).toBe(6);
+    expect(outcome.reserveOutputUnits).toBeCloseTo(0.6);
     expect(outcome.exportOutputUnits).toBeCloseTo(2.2);
     expect(plan.nextReserve[1]).toBe(6);
     expect(plan.processingLaborUsed).toBeCloseTo(2.8);
@@ -35,6 +37,33 @@ describe("planCellFoodRescue", () => {
     expect(outcome.producedUnits).toBe(152);
     expect(plan.processingLaborUsed).toBe(15);
     expect(outcome.exportOutputUnits).toBe(15);
+  });
+
+  it("limits raw milk access to five percent of the realised dairy harvest", () => {
+    const plan = planCellFoodRescue(
+      [{ ...milk, harvestedUnits: 1_000, exportDemandUnits: 1_000, maxFreshHouseholdShare: 0.05 }],
+      { 1: 6 },
+      100
+    );
+    const [outcome] = plan.outcomes;
+
+    expect(outcome.eatenFreshUnits).toBe(2);
+    expect(outcome.exportOutputUnits).toBe(15);
+    expect(outcome.eatenFreshUnits / outcome.producedUnits).toBeLessThanOrEqual(0.05);
+  });
+
+  it("keeps Cheese reserves out of normal rural meals until staple food is stressed", () => {
+    const normalPlan = planCellFoodRescue([{ ...milk, harvestedUnits: 0 }], { 1: 6 }, 100);
+    const emergencyPlan = planCellFoodRescue(
+      [{ ...milk, harvestedUnits: 0, emergencyReserveDemandUnits: 2 }],
+      { 1: 6 },
+      100
+    );
+
+    expect(normalPlan.outcomes[0].eatenFreshUnits).toBe(0);
+    expect(normalPlan.nextReserve[1]).toBe(6);
+    expect(emergencyPlan.outcomes[0].eatenFreshUnits).toBe(2);
+    expect(emergencyPlan.nextReserve[1]).toBe(4);
   });
 
   it("can keep raisins for the local reserve while selling commercial grapes as wine", () => {

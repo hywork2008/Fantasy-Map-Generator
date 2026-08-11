@@ -31,6 +31,7 @@ const LEGACY_FRESH_FOOD_PROFILES: Readonly<Record<string, NonNullable<Good["fres
   Game: { householdDemandPerPopulationMonth: 0.2, preservationLaborPerUnit: 0.1 },
   Milk: {
     householdDemandPerPopulationMonth: DAIRY_TARGETS.freshMilkLitersPerPersonYear / 12,
+    maxFreshHouseholdShare: 0.05,
     preservationLaborPerUnit: 0.08
   },
   Shellfish: { householdDemandPerPopulationMonth: 0.15, preservationLaborPerUnit: 0.1 },
@@ -1440,6 +1441,9 @@ export const GOODS_DATA: GoodData[] = [
     unit: "1,000 L dairy lot",
     freshFood: {
       householdDemandPerPopulationMonth: DAIRY_TARGETS.freshMilkLitersPerPersonYear / 12,
+      // In dispersed dairy households, only a small source-side share can be drunk before souring.
+      // The rest is deliberately planned for Cheese rather than treated as town-wide fresh milk.
+      maxFreshHouseholdShare: 0.05,
       preservationLaborPerUnit: 0.08
     }
   },

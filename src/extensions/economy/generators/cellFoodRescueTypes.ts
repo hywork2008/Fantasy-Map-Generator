@@ -9,6 +9,10 @@ export type CellFreshFoodInput = {
   sourceGoodId: number;
   harvestedUnits: number;
   householdDemandUnits: number;
+  /** Limits direct fresh consumption where only households at the source can safely receive it. */
+  maxFreshHouseholdShare?: number;
+  /** Shelf-stable reserve drawn only when the staple-food system reports a local food emergency. */
+  emergencyReserveDemandUnits: number;
   preservationLaborPerUnit: number;
   /** Shelf-stable output used only to restore the source cell's food reserve. */
   reservePath: CellFoodPreservationPath | null;
@@ -28,6 +32,8 @@ export type CellFreshFoodOutcome = {
   producedUnits: number;
   eatenFreshUnits: number;
   reserveInputUnits: number;
+  /** Shelf-stable food output held in the source cell's private reserve, not Market stock. */
+  reserveOutputUnits: number;
   exportOutputUnits: number;
   spoiledForMissingSuppliesUnits: number;
 };

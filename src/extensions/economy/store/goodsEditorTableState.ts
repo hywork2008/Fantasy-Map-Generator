@@ -16,6 +16,10 @@ export interface GoodTableRow {
   stock: number;
   stockTip: string;
   cumulativeMarketIntake: number;
+  actualOutput: number;
+  freshHarvested: number;
+  foodProcessingInput: number;
+  foodFlowTip: string;
   resourceCells: number;
   productionPerThousand: number;
   basePrice: number;
@@ -29,6 +33,7 @@ interface GoodsEditorTableState {
   totalProduced: number;
   totalStock: number;
   totalCumulativeMarketIntake: number;
+  totalActualOutput: number;
   displayedCount: number;
   isPercentageMode: boolean;
   hasTagFilter: boolean;
@@ -43,6 +48,7 @@ export const useGoodsEditorTableState = create<GoodsEditorTableState>(() => ({
   totalProduced: 0,
   totalStock: 0,
   totalCumulativeMarketIntake: 0,
+  totalActualOutput: 0,
   displayedCount: 0,
   isPercentageMode: false,
   hasTagFilter: false,

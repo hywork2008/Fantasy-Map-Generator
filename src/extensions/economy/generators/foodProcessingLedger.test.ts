@@ -25,6 +25,7 @@ vi.mock("../economyContext", () => ({
     { i: 5, name: "Wine", tags: ["food"] },
     { i: 6, name: "Game", tags: ["food", "freshFood"] }
   ],
+  recordCumulativeCellFoodProcessing: () => undefined,
   getWorldContext: () => ({
     populationRate: 1_000,
     urbanization: 1,
@@ -36,6 +37,7 @@ vi.mock("./marketPopulation", () => ({ getMarketRuralPopulation: () => 0 }));
 import {
   CHEESE_RESERVE_MONTHS,
   getFoodProcessingProductionHeadroom,
+  recordCellFoodHouseholdConsumption,
   recordFoodDeliveredExport,
   recordFoodMarketIntake,
   recordFoodProcessingConsumption,
@@ -71,6 +73,19 @@ describe("foodProcessingLedger", () => {
     recordFoodDeliveredExport(market, "Cheese", 0.75);
 
     expect(market.foodProcessingLedger!.Cheese).toMatchObject({ marketIntake: 0.75, deliveredExport: 0.75 });
+  });
+
+  it("applies source-cell consumption only to the current household settlement", () => {
+    recordCellFoodHouseholdConsumption(market, "Milk", 1);
+    settleFoodProcessingHouseholds();
+
+    expect(market.foodProcessingLedger!.Milk!.localHouseholdConsumptionThisCycle).toBe(0);
+    const consumedAfterFirstCycle = market.foodProcessingLedger!.Milk!.householdConsumption;
+
+    market.goods[1].stock = 3;
+    settleFoodProcessingHouseholds();
+
+    expect(market.foodProcessingLedger!.Milk!.householdConsumption).toBeGreaterThan(consumedAfterFirstCycle);
   });
 
   it("spoils unprocessed fresh meat that is not covered by the specialised dairy/grape ledger", () => {

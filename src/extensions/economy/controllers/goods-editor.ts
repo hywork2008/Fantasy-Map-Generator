@@ -5,6 +5,7 @@ import {
   getApi,
   getGoodCellColumn,
   getGoods,
+  getOrCreateCumulativeCellFoodFlows,
   getOrCreateCumulativeMarketIntake,
   getViewContext,
   getWorldContext,
@@ -42,6 +43,7 @@ function compareGoodsBySort(a: GoodTableRow, b: GoodTableRow, sortBy: string): n
   if (sortBy === "produced") return a.produced - b.produced;
   if (sortBy === "stock") return a.stock - b.stock;
   if (sortBy === "cumulativeMarketIntake") return a.cumulativeMarketIntake - b.cumulativeMarketIntake;
+  if (sortBy === "actualOutput") return a.actualOutput - b.actualOutput;
   if (sortBy === "resourceCells") return a.resourceCells - b.resourceCells;
   if (sortBy === "productionPerThousand") return a.productionPerThousand - b.productionPerThousand;
   if (sortBy === "baseprice") return a.basePrice - b.basePrice;
@@ -85,6 +87,7 @@ export function goodsEditorAddLines(): void {
   const cellsByGood = getCellsByGood();
   const totalPopulation = getTotalPopulation();
   const cumulativeMarketIntakeTable = getOrCreateCumulativeMarketIntake();
+  const cumulativeCellFoodFlows = getOrCreateCumulativeCellFoodFlows();
 
   const enabledGoods = getGoods().filter(isGoodEnabled);
   const goods = enabledGoods.map(good => {
@@ -100,9 +103,15 @@ export function goodsEditorAddLines(): void {
         .reduce((sum, source) => sum + source.stock, 0)
     );
     const marketsStocking = (stockData[good.i]?.sources ?? []).filter(source => source.type === "market").length;
-    const producedTip = `Total good production: ${produced}⚒. Cells: ${rn(goodProduction.cell, 2)}⚒. Burgs: ${rn(goodProduction.burg, 2)}⚒. Market territories: ${marketProduction}⚒ across ${marketsProducing} markets`;
+    const producedTip = `Projected current production capacity, not realised output: ${produced}⚒. Cells: ${rn(goodProduction.cell, 2)}⚒. Burgs: ${rn(goodProduction.burg, 2)}⚒. Market territories: ${marketProduction}⚒ across ${marketsProducing} markets`;
     const stockTip = `Total stock in all markets and burg inventories: ${stock} units. Markets: ${marketStock} units across ${marketsStocking} markets`;
     const cumulativeMarketIntake = rn(cumulativeMarketIntakeTable?.[good.i] ?? 0);
+    const foodFlow = cumulativeCellFoodFlows?.[good.i];
+    const privateReserveOutput = rn(foodFlow?.privateReserveOutput ?? 0);
+    const actualOutput = rn(cumulativeMarketIntake + privateReserveOutput);
+    const freshHarvested = rn(foodFlow?.harvested ?? 0);
+    const foodProcessingInput = rn(foodFlow?.processed ?? 0);
+    const foodFlowTip = `Realised fresh-food flow since generation or the last Market Output reset. Harvested: ${freshHarvested} raw units. Processed: ${foodProcessingInput} raw units used for preservation or manufacture. Values are only recorded for fresh food and its processing inputs.`;
     const isTagVisible = visibleTags.size === 0 || (good.tags?.some(tag => visibleTags.has(tag)) ?? false);
 
     return {
@@ -120,6 +129,10 @@ export function goodsEditorAddLines(): void {
       stock,
       stockTip,
       cumulativeMarketIntake,
+      actualOutput,
+      freshHarvested,
+      foodProcessingInput,
+      foodFlowTip,
       resourceCells: cellsByGood[good.i] ?? 0,
       productionPerThousand: rn(totalPopulation > 0 ? (produced / totalPopulation) * 1000 : 0, 2),
       basePrice: good.value,
@@ -136,6 +149,7 @@ export function goodsEditorAddLines(): void {
   );
   const totalStock = rn(Object.values(stockData).reduce((sum, d) => sum + d.total, 0));
   const totalCumulativeMarketIntake = rn(goods.reduce((sum, good) => sum + good.cumulativeMarketIntake, 0));
+  const totalActualOutput = rn(goods.reduce((sum, good) => sum + good.actualOutput, 0));
 
   const { sortBy, sortOrder } = getGoodsEditorTableState();
   const sortedGoods = goods.sort((a, b) => {
@@ -148,6 +162,7 @@ export function goodsEditorAddLines(): void {
     totalProduced,
     totalStock,
     totalCumulativeMarketIntake,
+    totalActualOutput,
     displayedCount: goods.filter(good => getDisplayedGoodIds().has(good.i)).length,
     isPercentageMode: false,
     hasTagFilter: visibleTags.size > 0,
@@ -340,6 +355,7 @@ export function downloadGoodsData(): void {
   const stockData = getAllStockData();
 
   const cumulativeMarketIntake = getOrCreateCumulativeMarketIntake();
+  const cumulativeCellFoodFlows = getOrCreateCumulativeCellFoodFlows();
   const headers = [
     "Id",
     "Good",
@@ -358,9 +374,12 @@ export function downloadGoodsData(): void {
     "Durability",
     "Loss Risk",
     "Cells",
-    "Produced",
+    "Projected Production",
     "Stock",
-    "Cumulative Market Intake"
+    "Cumulative Market Output",
+    "Actual Output",
+    "Fresh Harvested",
+    "Food Processing Input"
   ];
   const rows: Array<Array<string | number>> = [];
 
@@ -397,7 +416,10 @@ export function downloadGoodsData(): void {
       cells,
       produced,
       stock,
-      rn(cumulativeMarketIntake?.[good.i] ?? 0, 2)
+      rn(cumulativeMarketIntake?.[good.i] ?? 0, 2),
+      rn((cumulativeMarketIntake?.[good.i] ?? 0) + (cumulativeCellFoodFlows?.[good.i]?.privateReserveOutput ?? 0), 2),
+      rn(cumulativeCellFoodFlows?.[good.i]?.harvested ?? 0, 2),
+      rn(cumulativeCellFoodFlows?.[good.i]?.processed ?? 0, 2)
     ]);
   }
 

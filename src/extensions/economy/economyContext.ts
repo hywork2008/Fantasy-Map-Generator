@@ -1685,14 +1685,71 @@ export function getOrCreateCumulativeMarketIntake(): Record<number, number> | nu
 /** Zeroes every good's cumulative market-intake counter in place. */
 export function resetCumulativeMarketIntake(): void {
   const table = getOrCreateCumulativeMarketIntake();
-  if (!table) return;
-  for (const goodId of Object.keys(table)) delete table[Number(goodId)];
+  if (table) {
+    for (const goodId of Object.keys(table)) delete table[Number(goodId)];
+  }
+  const foodFlows = getOrCreateCumulativeCellFoodFlows();
+  if (foodFlows) {
+    for (const goodId of Object.keys(foodFlows)) delete foodFlows[Number(goodId)];
+  }
 }
 
 /** @deprecated Intake includes rural harvest and is not necessarily a retail sale. */
 export const getOrCreateCumulativeGoodsSales = getOrCreateCumulativeMarketIntake;
 /** @deprecated Use resetCumulativeMarketIntake. */
 export const resetCumulativeGoodsSales = resetCumulativeMarketIntake;
+
+export type CumulativeCellFoodFlow = {
+  /** Fresh units actually harvested in source cells, before local consumption or processing. */
+  harvested: number;
+  /** Fresh units actually used as preservation or manufacturing inputs. */
+  processed: number;
+  /** Shelf-stable output made for a source cell's private reserve, not placed into Market stock. */
+  privateReserveOutput: number;
+};
+
+/**
+ * Per-good realised fresh-food flow, separate from Market intake and from the editor's projected
+ * production estimate. It is reset alongside the Goods Editor's cumulative Market-output counter.
+ */
+export function getOrCreateCumulativeCellFoodFlows(): Record<number, CumulativeCellFoodFlow> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.cumulativeCellFoodFlows;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<number, CumulativeCellFoodFlow>;
+  }
+  const flows: Record<number, CumulativeCellFoodFlow> = {};
+  slice.cumulativeCellFoodFlows = flows;
+  return flows;
+}
+
+export function recordCumulativeCellFoodHarvest(goodId: number, units: number): void {
+  if (!Number.isFinite(units) || units <= 0) return;
+  const flows = getOrCreateCumulativeCellFoodFlows();
+  if (!flows) return;
+  const flow = flows[goodId] ?? { harvested: 0, processed: 0, privateReserveOutput: 0 };
+  flow.harvested += units;
+  flows[goodId] = flow;
+}
+
+export function recordCumulativeCellFoodProcessing(goodId: number, units: number): void {
+  if (!Number.isFinite(units) || units <= 0) return;
+  const flows = getOrCreateCumulativeCellFoodFlows();
+  if (!flows) return;
+  const flow = flows[goodId] ?? { harvested: 0, processed: 0, privateReserveOutput: 0 };
+  flow.processed += units;
+  flows[goodId] = flow;
+}
+
+export function recordCumulativeCellFoodReserveOutput(goodId: number, units: number): void {
+  if (!Number.isFinite(units) || units <= 0) return;
+  const flows = getOrCreateCumulativeCellFoodFlows();
+  if (!flows) return;
+  const flow = flows[goodId] ?? { harvested: 0, processed: 0, privateReserveOutput: 0 };
+  flow.privateReserveOutput = (flow.privateReserveOutput ?? 0) + units;
+  flows[goodId] = flow;
+}
 
 /**
  * Sparse "marketId:goodId" → cumulative units ever placed into THAT market's stock, owned by the

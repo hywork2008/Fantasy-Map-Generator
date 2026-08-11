@@ -44,6 +44,7 @@ export const GoodsEditorDialog: React.FC = () => {
     totalProduced,
     totalStock,
     totalCumulativeMarketIntake,
+    totalActualOutput,
     displayedCount,
     isPercentageMode,
     hasTagFilter,
@@ -152,12 +153,12 @@ export const GoodsEditorDialog: React.FC = () => {
                     />
                     <SortableHeader
                       field="produced"
-                      label="Produced"
+                      label="Potential"
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Total production units aggregated from cells and burgs. Click to sort"
+                      tip="Projected current capacity from cells and burgs, not realised production. Click to sort"
                     />
                     <SortableHeader
                       field="stock"
@@ -170,13 +171,28 @@ export const GoodsEditorDialog: React.FC = () => {
                     />
                     <SortableHeader
                       field="cumulativeMarketIntake"
-                      label="Intake"
+                      label="Market Output"
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Cumulative market intake, not retail sales: burg craft output plus rural/biome harvest since generation or the last reset. Click to sort"
+                      tip="Realised local output placed into Market stock, not retail sales: burg craft output plus rural/biome output since generation or the last reset. Click to sort"
                     />
+                    <SortableHeader
+                      field="actualOutput"
+                      label="Actual Output"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Recorded output: Market Output plus shelf-stable food made for source-cell private reserves. Click to sort"
+                    />
+                    <th
+                      data-tip="Fresh-food flow since generation or the last Market Output reset. H is raw harvest in source cells; P is raw food used for preservation or manufacture."
+                      className="sortable number"
+                    >
+                      Food Flow (H / P)
+                    </th>
                     <SortableHeader
                       field="resourceCells"
                       label="Cells"
@@ -223,6 +239,9 @@ export const GoodsEditorDialog: React.FC = () => {
                 const displayedCumulativeMarketIntake = isPercentageMode
                   ? `${rn(totalCumulativeMarketIntake ? (good.cumulativeMarketIntake / totalCumulativeMarketIntake) * 100 : 0, 2)}%`
                   : String(good.cumulativeMarketIntake);
+                const displayedActualFoodOutput = isPercentageMode
+                  ? `${rn(totalActualOutput ? (good.actualOutput / totalActualOutput) * 100 : 0, 2)}%`
+                  : String(good.actualOutput);
                 const priceTip = good.unitFlavor?.itemsPerUnit
                   ? t("economy.goodsUnitFlavor.batch", {
                       count: good.unitFlavor.itemsPerUnit,
@@ -246,6 +265,7 @@ export const GoodsEditorDialog: React.FC = () => {
                     data-produced={good.produced}
                     data-stock={good.stock}
                     data-cumulative-market-intake={good.cumulativeMarketIntake}
+                    data-actual-output={good.actualOutput}
                     data-resource-cells={good.resourceCells}
                     data-production-per-thousand={good.productionPerThousand}
                     data-type={good.types.join(",")}
@@ -322,10 +342,20 @@ export const GoodsEditorDialog: React.FC = () => {
                           <div className="d-inline-block">⛁</div>
                         </td>
                         <td
-                          data-tip="Cumulative market intake, not retail sales: burg craft output plus rural/biome harvest since generation or the last reset"
+                          data-tip="Realised local output placed into Market stock, not retail sales: burg craft output plus rural/biome output since generation or the last reset"
                           className="goodCumulativeSales"
                         >
                           {displayedCumulativeMarketIntake}
+                        </td>
+                        <td
+                          data-tip="Recorded output: Market Output plus shelf-stable food made for source-cell private reserves"
+                          className="goodActualOutput"
+                        >
+                          {displayedActualFoodOutput}
+                        </td>
+                        <td data-tip={good.foodFlowTip} className="goodFoodFlow">
+                          <div>H {good.freshHarvested}</div>
+                          <div>P {good.foodProcessingInput}</div>
                         </td>
                         <td
                           data-tip="Current assigned resource cells. In Phase 0, this is a placement count, not a mineral deposit or reserve count"
@@ -373,14 +403,14 @@ export const GoodsEditorDialog: React.FC = () => {
           <div data-tip="Number of goods (displayed / total)">
             Goods:<span id="goodsDisplayed">{displayedCount}</span> of <span id="goodsNumber">{goods.length}</span>
           </div>
-          <div data-tip="Total amount of goods produced by all cells and burgs">
-            Produced:<span id="goodsProduced">{totalProduced}</span>
+          <div data-tip="Total projected production capacity across all cells and burgs; this is not realised output">
+            Potential:<span id="goodsProduced">{totalProduced}</span>
           </div>
           <div data-tip="Total units in stock across all markets and burg inventories">
             Stock:<span id="goodsStock">{totalStock}</span>
           </div>
-          <div data-tip="Total units placed into markets — burg craft output plus rural/biome harvest — since generation or the last reset">
-            Market intake:<span id="goodsCumulativeMarketIntake">{totalCumulativeMarketIntake}</span>
+          <div data-tip="Total realised local output placed into markets — burg craft output plus rural/biome output — since generation or the last reset">
+            Market output:<span id="goodsCumulativeMarketIntake">{totalCumulativeMarketIntake}</span>
           </div>
         </div>
 

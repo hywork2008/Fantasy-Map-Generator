@@ -21,6 +21,8 @@ import {
   getSimulationMonth,
   getSimulationYear,
   getWorldContext,
+  recordCumulativeCellFoodHarvest,
+  recordCumulativeCellFoodReserveOutput,
   setDeals,
   setMarketCellColumn,
   setMarkets,
@@ -715,6 +717,11 @@ export class MarketsModule {
           sourceGoodId: sourceGood.i,
           harvestedUnits: entry.monthlyUnits[monthIndex] ?? 0,
           householdDemandUnits: residentWorkforce * freshFoodProfile.householdDemandPerPopulationMonth,
+          maxFreshHouseholdShare: freshFoodProfile.maxFreshHouseholdShare,
+          emergencyReserveDemandUnits:
+            (market.foodLedger?.ruralFoodStressQuarters ?? 0) > 0
+              ? residentWorkforce * freshFoodProfile.householdDemandPerPopulationMonth
+              : 0,
           preservationLaborPerUnit: freshFoodProfile.preservationLaborPerUnit,
           reservePath,
           commercialPath,
@@ -736,9 +743,16 @@ export class MarketsModule {
         const market = entry ? this.marketById[entry.marketId] : undefined;
         if (!entry || !sourceGood || !market) continue;
 
+        // The planner deliberately leaves unhandled potential unproduced. H therefore records
+        // only the actual harvest that was eaten, preserved, sold, or (only when supplies fail) spoiled.
+        recordCumulativeCellFoodHarvest(sourceGood.i, outcome.producedUnits);
         recordCellFoodHouseholdConsumption(market, sourceGood.name, outcome.eatenFreshUnits);
         if (outcome.reserveInputUnits > 0) {
           recordFoodProcessingConsumption(market, sourceGood.name, outcome.reserveInputUnits);
+        }
+        const reservePath = this.getCellFoodReservePath(sourceGood);
+        if (reservePath && outcome.reserveOutputUnits > 0) {
+          recordCumulativeCellFoodReserveOutput(reservePath.outputGoodId, outcome.reserveOutputUnits);
         }
         if (outcome.spoiledForMissingSuppliesUnits > 0) {
           recordGoodFlow({

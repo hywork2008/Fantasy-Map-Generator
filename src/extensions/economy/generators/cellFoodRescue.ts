@@ -21,6 +21,10 @@ function positive(value: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
+function unitInterval(value: number | undefined): number {
+  return value === undefined || !Number.isFinite(value) ? 1 : Math.min(1, Math.max(0, value));
+}
+
 /**
  * Plans one cell's food flow before any raw fresh good is put into a Market. The plan never
  * invents an "unharvested potential" record: units outside the plan simply were not produced.
@@ -42,21 +46,37 @@ export function planCellFoodRescue(
     const harvested = positive(input.harvestedUnits);
     const householdDemand = positive(input.householdDemandUnits);
     const reserveBefore = positive(nextReserve[input.sourceGoodId]);
-    const eatenFresh = Math.min(harvested, householdDemand);
-    const householdGap = Math.max(0, householdDemand - eatenFresh);
-    const reserveConsumed = Math.min(reserveBefore, householdGap);
-    const reserveAfterConsumption = reserveBefore - reserveConsumed;
-    const freshRemaining = Math.max(0, harvested - eatenFresh);
-    const reserveTarget = householdDemand * CELL_FOOD_RESERVE_MONTHS;
-    const reserveInputNeeded = Math.max(0, reserveTarget - reserveAfterConsumption);
     const laborPerUnit = positive(input.preservationLaborPerUnit);
-    const capacityByLabor = laborPerUnit > 0 ? laborRemaining / laborPerUnit : freshRemaining;
-    const preservationCapacity = Math.max(0, Math.min(freshRemaining, capacityByLabor));
-    const reserveInputUnits = Math.min(preservationCapacity, reserveInputNeeded);
-    const commercialInputCapacity = Math.max(0, preservationCapacity - reserveInputUnits);
+    const capacityByLabor = laborPerUnit > 0 ? laborRemaining / laborPerUnit : harvested;
+    const maximumPreservationCapacity = Math.max(0, Math.min(harvested, capacityByLabor));
+    const reserveTarget = householdDemand * CELL_FOOD_RESERVE_MONTHS;
+    const emergencyReserveDemand = positive(input.emergencyReserveDemandUnits);
+    // Estimate planned processing first, so a source-only fresh-access share constrains actual
+    // harvest rather than the much larger unhandled production potential.
+    const reserveInputNeededWithoutFresh = Math.max(
+      0,
+      reserveTarget - Math.max(0, reserveBefore - emergencyReserveDemand)
+    );
     const commercialInputPerOutput = positive(input.commercialPath?.inputPerOutput ?? 0);
     const requestedCommercialInput =
       commercialInputPerOutput > 0 ? positive(input.exportDemandUnits) * commercialInputPerOutput : 0;
+    const plannedProcessingInput = Math.min(
+      maximumPreservationCapacity,
+      reserveInputNeededWithoutFresh + requestedCommercialInput
+    );
+    const freshShare = unitInterval(input.maxFreshHouseholdShare);
+    const maxFreshByProcessing =
+      freshShare < 1 ? (plannedProcessingInput * freshShare) / Math.max(1 - freshShare, Number.EPSILON) : harvested;
+    const eatenFresh = Math.min(harvested, householdDemand, maxFreshByProcessing);
+    // A Cheese reserve is famine insurance, not a second daily dairy ration. Grain and legumes
+    // feed rural households in normal months; the caller opens this draw only after staple-food stress.
+    const reserveConsumed = Math.min(reserveBefore, emergencyReserveDemand);
+    const reserveAfterConsumption = reserveBefore - reserveConsumed;
+    const freshRemaining = Math.max(0, harvested - eatenFresh);
+    const reserveInputNeeded = Math.max(0, reserveTarget - reserveAfterConsumption);
+    const preservationCapacity = Math.max(0, Math.min(freshRemaining, maximumPreservationCapacity));
+    const reserveInputUnits = Math.min(preservationCapacity, reserveInputNeeded);
+    const commercialInputCapacity = Math.max(0, preservationCapacity - reserveInputUnits);
     const commercialInputUnits = Math.min(commercialInputCapacity, requestedCommercialInput);
     const processedInputUnits = reserveInputUnits + commercialInputUnits;
     const laborUsed = processedInputUnits * laborPerUnit;
@@ -68,6 +88,8 @@ export function planCellFoodRescue(
     const spoiledForMissingSuppliesUnits =
       (canPreserve ? 0 : reserveInputUnits) + (canMakeCommercialOutput ? 0 : commercialInputUnits);
     const effectiveReserveInput = canPreserve ? reserveInputUnits : 0;
+    const reserveInputPerOutput = positive(input.reservePath?.inputPerOutput ?? 0);
+    const reserveOutputUnits = reserveInputPerOutput > 0 ? effectiveReserveInput / reserveInputPerOutput : 0;
     const exportOutputUnits =
       canMakeCommercialOutput && commercialInputPerOutput > 0 ? commercialInputUnits / commercialInputPerOutput : 0;
     nextReserve[input.sourceGoodId] = reserveAfterConsumption + effectiveReserveInput;
@@ -77,6 +99,7 @@ export function planCellFoodRescue(
       producedUnits: eatenFresh + processedInputUnits,
       eatenFreshUnits: eatenFresh + reserveConsumed,
       reserveInputUnits: effectiveReserveInput,
+      reserveOutputUnits,
       exportOutputUnits,
       spoiledForMissingSuppliesUnits
     });
