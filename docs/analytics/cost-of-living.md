@@ -2,73 +2,100 @@
 
 ## 概要
 
-`src/ui/components/tabs/CustomAboutContent.tsx` の About タブに、この世界の住人が生きていくのにおよそどれくらいの硬貨が必要かという「生活費の目安」を追加した(`about.costOfLiving*` キー、`src/i18n/locales/en.json` / `ja.json`)。
+`src/ui/components/tabs/CustomAboutContent.tsx` の About タブには、この世界の住人が生きていくのにおよそどれくらいの硬貨が必要かという「生活費の目安」がある（`about.costOfLiving*` キー、`src/i18n/locales/en.json` / `ja.json`）。これはゲームプレイに影響する新しいメカニクスではなく、既存のシミュレーション定数から導いた**世界観説明用のフレーバーテキスト**である。
 
-これはゲームプレイに影響する新しいメカニクスではなく、既存のシミュレーション定数から導いた**世界観説明用のフレーバーテキスト**である。本ドキュメントは、その数値がどの定数・計算式から、どういう仮定を足して導かれたかを記録する。
+本セッションで、物理的な主食は `Grain` ではなく Wheat、Rye、Barley 等の `stapleCrop` Goods として扱う移行を始めた。この変更は「食料量」の計算をなくすものではない。人口が必要とする量は引き続き一つの共通単位で数え、在庫・流通・プレイヤー取引では作物名を失わない、という責務分離である。
+
+したがって、About タブに表示している既存の金額は**現時点では変更していない**。ただし、その説明文の「Grain を市場で買う」は実物取引の説明としては既に古く、現在は下記の暫定互換層を指している。このドキュメントは現在の根拠と、`Grain` 廃止時に必要な再計算を区別して記録する。
 
 ## 前提: 内部金額は銀貨基準、画面では3額面の硬貨表示
 
-`formatPrice()` は商品価格・国庫残高(`burg.treasury` / `state.treasury`)・個人の所持金(`Character.wealth`)を、金貨🟡・銀貨⚪・銅貨🟤の内訳として表示する。内部の数値は従来どおり銀貨(SP)基準で保存され、通貨ごとに別の換算や為替は存在しない。既定値では金貨1枚=銀貨12枚、銀貨1枚=銅貨12枚であり、Options → Simulation Settingsで表示レートを変更できる。
+`formatPrice()` は商品価格・国庫残高（`burg.treasury` / `state.treasury`）・個人の所持金（`Character.wealth`）を、金貨🟡・銀貨⚪・銅貨🟤の内訳として表示する。内部の数値は従来どおり銀貨（SP）基準で保存され、通貨ごとに別の換算や為替は存在しない。既定値では金貨1枚=銀貨12枚、銀貨1枚=銅貨12枚であり、Options → Simulation Settings で表示レートを変更できる。
+
+## 主食移行後の責務分離
+
+| 層 | 現在の扱い | 生活費への意味 |
+|---|---|---|
+| 人口の食料需要 | `GROSS_FOOD_NEED` による共通の**小麦換算食料単位** | 人一人あたりの必要量 `0.43` は変わらない。これは Wheat の商品ロット数ではなく、各作物を合算できる栄養・食料量の単位である。 |
+| 生産・在庫・輸送 | `FoodLedger.stapleCropInventories` に作物 ID ごとの年齢別在庫を持つ。気候・土壌・耕地から得た `getCropMix()` が作物別の収穫を決める。 | 同じ 0.43 単位でも、Wheat、Rye、Barley 等を混ぜずに保管・売買する。生活費の説明で「Grain という実物を買う」とは言えない。 |
+| `Grain` (`stapleFood`) | Food Ledger の市場に出せる余剰と基準価格を既存 UI・旧セーブ向けに写す暫定の互換 Goods。プレイヤーは購入できず、`market.goods[Grain]` も実在ロットではない。 | 既存の価格計算と About 文言の `1 SP/wain` は現在この投影値を参照している。実在する作物の市場価格を表すものではない。 |
+| 個別作物のカタログ価格 | Wheat `1.2`、Rye/Barley/Potatoes `0.9`、Oats `0.85`、Millet/Turnips `0.8` 等の `Good.value`。 | 現在の Food Ledger の小売・farmgate価格にはまだ接続していない。個別価格を生活費へ直接掛ける段階ではない。 |
+
+`Grain` は新規の一般生産からは除外され、Food Ledger の要約表示として同期される。旧セーブの集計在庫とプレイヤー所持の `Grain` は、一括移行時に Wheat に寄せる互換経路がある。一方、農村世帯の私的備蓄はまだセルごとの合計量であり、作物別の世帯在庫ではない。このため、現行実装を「全ての食料会計が完全に個別作物化済み」とは表現しない。
 
 ## 使用した実在の定数
 
-| 定数 | 値 | 出典 | 意味 |
-|---|---|---|---|
-| `GROSS_FOOD_NEED` | 0.43 | `src/extensions/economy/generators/foodConstants.ts:2` | 住人一人が一年生きるのに必要な食料量(Grain換算の抽象単位、rural/urban共通)。`foodProduction.ts:343-344` の `annualRuralNeed` / `annualUrbanNeed` で人口に乗算され、Food Ledgerの需給計算に使われる実際のゲームバランス定数。 |
-| Grainの基準価格 | `value: 1`(銀貨1枚/wain) | `src/extensions/economy/generators/goods-generator.ts:224-229` | Grainという商品(`unit: "wain"`)の小売基準価格。市場状況で変動するが、起点は銀貨1枚/wain。 |
-| `FARMGATE_PRICE_SHARE` | 0.8 | `src/extensions/economy/generators/foodProduction.ts:46` | 農家の直売(farmgate)価格は小売価格の80%であるという係数。`foodProduction.ts:197`, `:355` で使用。 |
-| `STARTING_BURG_TREASURY_PER_POPULATION` | 20 | `src/extensions/economy/generators/foodProduction.ts:67` | Burg生成時、`burg.population`(実人口ではなく生成スコア)1につき銀貨20枚を初期国庫として与える係数(`foodProduction.ts:212`)。 |
-| `BACK_PAY_CYCLES_MIN` / `MAX` | 6 / 18 | `src/extensions/economy/generators/characterStipends.ts:155-156` | `seedMissingCharacterWealth()` が、まだ俸給を受け取っていないキャラクターに「6〜18サイクル分の後払い」相当の初期所持金をでっち上げる際の倍率レンジ(`docs/plan/state-treasury-department-budget.md` §7項目8)。ゲーム側が「数年分の貯蓄」を通常の所持金スケールとして扱っている前例。 |
+| 定数 | 現在の値 | 出典 | 意味 |
+|---|---:|---|---|
+| `GROSS_FOOD_NEED` | `0.43` | `src/extensions/economy/generators/foodConstants.ts` | 住人一人が一年生きるのに必要な小麦換算食料量。rural / urban 共通で、Food Ledger の需給計算に使われる。以前の「Grain 換算」という説明はこの共通単位を指していた。 |
+| `Grain` の暫定基準価格 | `value: 1` SP/wain | `src/extensions/economy/generators/goods-generator.ts` | 実物商品ではなく、現行 Food Ledger が価格を決めるための互換上の基準値。`getStapleFoodGood()` と月次精算が参照する。 |
+| Wheat のカタログ価格 | `value: 1.2` SP/wain | `src/extensions/economy/generators/goods-generator.ts` | 物理的な作物のうち、将来の主食価格基準に置く予定の Wheat の値。現時点では Food Ledger 価格の直接の入力ではない。 |
+| `FARMGATE_PRICE_SHARE` | `0.8` | `src/extensions/economy/generators/foodProduction.ts` | 農家の卸値を基準小売価格の80%とする係数。現在は暫定 `Grain` 基準価格に掛ける。 |
+| `STARTING_BURG_TREASURY_PER_POPULATION` 相当の開始値 | Economy start profile により決定（既定値 `20`） | `src/extensions/economy/generators/economyStartMode.ts` | Burg 初期国庫の人口スコア当たり係数。住宅価格の世界観上の参照点であり、主食移行の影響を受けない。 |
+| `BACK_PAY_CYCLES_MIN` / `MAX` | `6` / `18` | `src/extensions/economy/generators/characterStipends.ts` | 初期 Character 所持金を数サイクル分の後払いとして置く倍率。主食移行の影響を受けない。 |
 
-## 存在しない/仮定で補った要素
+## 存在しない／仮定で補った要素
 
 コードベースに以下の定数は**存在しない**。About タブの数値は、これらについては外部からの仮定を明示的に足して概算した。
 
-- **一人当たり食料需要のrural/urban差**: `GROSS_FOOD_NEED` はrural/urban同一値であり、都市住民が食料以外に負担する諸経費(小売マージン、住居費以外の雑費)はシミュレートされていない。都市住民の生活費は「同じ食料需要 + 小売価格・諸経費分の上振れ」という定性的な仮定でレンジを広げただけで、専用の乗数定数はない。
-- **世帯人数**: `Character.family` は系譜(配偶者・子供の人数)を持つが、「平均世帯サイズ」という定数はゲーム内に存在しない。4〜5人という一般的な前近代世帯の目安値を外部から採用した。
-- **住宅価格**: 住宅の売買・賃貸を扱うメカニクスは未実装であり、価格定数も存在しない(`docs/simulation/goods.md` に建材に関する未実装ブレインストームのメモがあるのみ)。目安値は上記の `STARTING_BURG_TREASURY_PER_POPULATION = 20` を「この世界の金銭スケールにおける1住民あたりの元手」の参照点として流用し、その前後(±50%程度)を住宅価格帯とした。ゲームが計算した価格ではない。
+- **作物ごとの栄養価・換算率**: 個別作物の在庫量は小麦換算食料単位で保持されるが、Wheat、豆類、根菜の栄養差を別の係数で表す実装はまだない。
+- **作物別の消費比率・食費**: 都市住民がどの作物をどの価格で買うか、また家庭の私的備蓄をどの作物から食べるかは未実装である。したがって、個別 Goods の `value` から現在の生活費を機械的には導けない。
+- **一人当たり食料需要の rural / urban 差**: `GROSS_FOOD_NEED` は rural / urban 同一値であり、都市住民が食料以外に負担する小売マージン、住居費以外の雑費はシミュレートされていない。都市住民の生活費は「同じ食料需要 + 小売価格・諸経費分の上振れ」という定性的な仮定でレンジを広げただけで、専用の乗数定数はない。
+- **世帯人数**: `Character.family` は系譜（配偶者・子供の人数）を持つが、「平均世帯サイズ」という定数はゲーム内に存在しない。4〜5人という一般的な前近代世帯の目安値を外部から採用した。
+- **住宅価格**: 住宅の売買・賃貸を扱うメカニクスは未実装であり、価格定数も存在しない。目安値は開始時の Burg 国庫係数を「この世界の金銭スケールにおける一住民あたりの元手」の参照点として流用した推測値である。
 
-## 計算方法
+## 現在の計算方法
 
-### 農民(農村住民)一人の最低生存費 — 約0.3〜0.4銀貨/年
+### 農民（農村住民）一人の最低生存費 — 約0.3〜0.4銀貨／年
 
 ```text
-GROSS_FOOD_NEED(0.43) × Grain単価(0.8〜1.0銀貨/wain, farmgate〜小売)
+GROSS_FOOD_NEED(0.43) × 暫定主食基準価格(0.8〜1.0 SP/wain, farmgate〜小売)
   = 0.43 × 0.8 ≈ 0.34
   = 0.43 × 1.0 = 0.43
-→ 約0.3〜0.4銀貨/年(丸め、既定レートでは銅貨4〜5枚)
+→ 約0.3〜0.4 SP／年（丸め、既定レートでは銅貨4〜5枚）
 ```
 
-農村住民は自給・farmgate価格に近い前提。
+ここで使う `0.8〜1.0` は、物理的に Wheat を0.8〜1.0 wain買うという意味ではない。現行 Food Ledger の暫定基準価格 `Grain.value = 1` と、その farmgate 比率から得た貨幣スケールである。農村住民は通常、まず市場外の自家備蓄を消費するため、これは家計から毎年必ず支払われる購入費ではなく、生存に必要な食料を貨幣に換算した下限目安でもある。
 
-### 都市住民一人の生活費 — 約0.4〜0.8銀貨/年
+### 都市住民一人の生活費 — 約0.4〜0.8銀貨／年
 
-同じ `GROSS_FOOD_NEED` を小売価格で購入し、食料以外の諸経費分を上乗せするという定性的な仮定で、農民の目安のおよそ1〜2倍のレンジを取った。専用の乗数はなく、目安として幅を持たせている。
+同じ `GROSS_FOOD_NEED` を現行の暫定小売価格で購入し、食料以外の諸経費分を上乗せするという定性的な仮定で、農民の目安のおよそ1〜2倍のレンジを取った。個別作物の小売価格・消費比率は未実装なので、この範囲は作物価格の加重平均ではない。
 
-### 4〜5人家族の生活費 — 約2〜4銀貨/年
+### 4〜5人家族の生活費 — 約2〜4銀貨／年
 
 ```text
-一人当たり生活費(下限側 約0.4〜0.5、農民〜都市住民の中間) × 世帯人数(4〜5人、外部仮定)
+一人当たり生活費（下限側 約0.4〜0.5、農民〜都市住民の中間）× 世帯人数（4〜5人、外部仮定）
   ≈ 0.5 × 4 = 2.0
   ≈ 0.8 × 5 = 4.0
-→ 約2〜4銀貨/年
+→ 約2〜4 SP／年
 ```
 
 ### 質素な住宅一軒 — 約10〜30銀貨
 
 ```text
-STARTING_BURG_TREASURY_PER_POPULATION(20) を「一住民あたりの元手」の参照点とし、
-その前後 ±50% を住宅価格帯の目安とした。
-→ 約10〜30銀貨
+開始時の Burg 国庫係数（既定の人口スコア当たり 20 SP）を
+「一住民あたりの元手」の参照点とし、その前後 ±50% を住宅価格帯の目安とした。
+→ 約10〜30 SP
 ```
 
-`BACK_PAY_CYCLES_MIN〜MAX`(6〜18)がキャラクターの初期所持金として「数年分の貯蓄」を通常スケールとして扱っている前例とも整合する(数年〜十数年分の生活費に相当するオーダー)。
+`BACK_PAY_CYCLES_MIN〜MAX`（6〜18）が Character の初期所持金として「数年分の貯蓄」を通常スケールとして扱っている前例とも整合する（数年〜十数年分の生活費に相当するオーダー）。
+
+## `Grain` 廃止を完了する際の影響
+
+最終的に `Grain` / `stapleFood` をカタログ・価格精算・表示から削除し、Wheat を計算上の主食基準にする場合、現在の生活費根拠はそのまま使えない。少なくとも次の変更を同じ実装単位で行い、この文書と About の翻訳キーを更新する。
+
+1. `getStapleFoodGood()`、farmgate 決済、月次小売価格を Wheat 基準（または明示的な「小麦換算基準価格」設定）へ置き換える。
+2. 価格が Wheat の現行 `value: 1.2` をそのまま使うなら、農民の機械的下限は `0.43 × (1.2 × 0.8〜1.2) = 約0.41〜0.52 SP/年` になる。したがって、既存の「0.3〜0.4 SP」「銅貨4〜5枚」という About 表示は再計算が必要である。
+3. Rye、Barley、豆類、根菜について、Wheat と同一の小麦換算量・価格を使うのか、栄養換算率と作物別の市場価格を導入するのかを決める。後者なら、地域ごとの作物構成で生活費も変動するようになる。
+4. 私的備蓄、Food Ledger、輸送中の貨物、旧セーブの所持品を作物 ID 付きで一貫させる。`Grain` を Wheat に移すのは移行時だけであり、新規生産・取引で再生成してはならない。
+
+上記を実施するまでは、`Grain` を「通貨価値の恒久的な基準商品」と記述しない。現在は**Food Ledger の共通食料単位と価格計算を後方互換に保つための一時的な投影**である。
 
 ## 位置づけと注意点
 
 - About タブの数値は**世界観説明用**であり、UI 文言そのものは引き続き flavor である。
-- ただし Character 個人の `wealth` については、`characterLivingCosts.ts` が生産サイクルごとに生活費 sink を適用する（`Taxes.collectTaxes()` の俸給支払いの後）。役職別の lifestyle 額と wealth 連動の status upkeep は [character-wealth-balance.md](./character-wealth-balance.md) を正とする。About の「農民 0.3〜0.4 銀/年」は人口マクロの食料需要からの概算であり、個人 sink の `LIVING_COST_BY_TIER` とは別系統（スケールは近いが 1:1 ではない）。
-- 農民/都市住民/家族の3項目は実在の定数(`GROSS_FOOD_NEED`, Grain価格, `FARMGATE_PRICE_SHARE`)から機械的に導けるが、住宅価格の1項目だけは既存の金銭スケールに合わせた**推測値**であることを明記しておく。将来、住宅購入メカニクスを実装する場合はこの目安値をそのまま採用せず、実装時に改めて設計すること。
+- Character 個人の `wealth` には `characterLivingCosts.ts` が生産サイクルごとに生活費 sink を適用する。役職別の lifestyle 額と wealth 連動の status upkeep は [character-wealth-balance.md](./character-wealth-balance.md) を正とする。About の食料換算額とは別系統であり、1:1 ではない。
+- 農民・都市住民・家族の3項目は `GROSS_FOOD_NEED` と現行の暫定主食基準価格から導く概算である。住宅価格だけは既存の金銭スケールに合わせた推測値である。
 
 ## 商品ロットと小売の参照値
 
@@ -78,9 +105,6 @@ Wine と Beer は樽の卸売価格を杯数で割らない。酒場での一杯
 
 ## 今後の課題
 
-- 都市住民の諸経費や世帯人数について専用の定数がなく、目安値の幅がやや恣意的。将来的にurban専用の生活費定数を追加する場合は、ここに記載した目安値との整合を確認すること。
-- 住宅価格の目安は `STARTING_BURG_TREASURY_PER_POPULATION` からの類推に過ぎない。住宅購入/賃貸メカニクスが実装された際は、このドキュメントと `CustomAboutContent.tsx` の翻訳キーを実装後の実際の価格帯に合わせて更新する必要がある。
-
-src/extensions/economy/generators/goods-generator.ts
-src/ui/components/tabs/CustomAboutContent.tsx
-src/i18n/locales/ja.json
+- `Grain` 廃止の実装時に、About の `costOfLivingIntro` / `Peasant` / `Urban` / `Family` の英日翻訳を、Wheat 基準または地域の作物構成を反映する文言・金額へ同時に更新する。
+- 都市住民の諸経費、世帯人数、作物ごとの栄養価・消費比率に専用定数がない。個別作物の価格を生活費へ接続するなら、これらを先に設計する必要がある。
+- 住宅価格の目安は開始時の国庫係数からの類推に過ぎない。住宅購入／賃貸メカニクスが実装された際は、このドキュメントと `CustomAboutContent.tsx` の翻訳キーを実装後の実際の価格帯に合わせて更新する。
