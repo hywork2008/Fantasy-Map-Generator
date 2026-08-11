@@ -102,6 +102,11 @@ import { GuildChapters } from "./generators/guildChapters";
 import { GuildKnowledge } from "./generators/guildKnowledge";
 import { GuildSuccession } from "./generators/guildSuccession";
 import { GuildTreasury } from "./generators/guildTreasury";
+import {
+  getForestRegrowthMultiplier,
+  settleAnnualColdClimateKnowledge,
+  settleMonthlyHeating
+} from "./generators/heating";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
 import { InnStays } from "./generators/innStays";
@@ -838,6 +843,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
 
       measureTickStep("production:produce", () => Production.produce());
+      measureTickStep("production:householdHeating", () => settleMonthlyHeating());
       // Completed forge Goods are transferred from market stock to the queue before the next
       // planning pass refreshes maintenance and consumable demand.
       measureTickStep("production:metallurgFulfillment", () => MetallurgWork.fulfillFromMarkets());
@@ -1803,6 +1809,7 @@ export function init(api: ExtensionAPI): void {
             onProgress: (done, total) => context.reportProgress(total ? done / total : 1)
           });
           if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+          settleMonthlyHeating();
           Taxes.collectTaxes();
           MetallurgWork.generate();
           MetallurgWork.settleMonthly();
@@ -2276,6 +2283,10 @@ export function init(api: ExtensionAPI): void {
         // Inn facilities use the same local builders and Wood/Stone/Brick market stock as
         // construction, but settle through their own non-dwelling work orders.
         InnFacilities.settleAnnual();
+        // Cold-climate knowledge advances from accumulated local heating exposure before
+        // health is recalculated, so new insulation/hearth techniques affect future fuel use
+        // while this year's coal smoke remains visible in the civic health score.
+        settleAnnualColdClimateKnowledge();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
         urbanWaterChanged = UrbanWater.settleAnnual();
@@ -2319,7 +2330,7 @@ export function init(api: ExtensionAPI): void {
       });
 
       measureTickStep("economy:forestProspect", () => {
-        const forestChanged = tickForestRegrowth(effectiveDeltaYears);
+        const forestChanged = tickForestRegrowth(effectiveDeltaYears, getForestRegrowthMultiplier);
         if (forestChanged) markProductionDirty();
 
         daysSinceLastProspecting += effectiveDays;

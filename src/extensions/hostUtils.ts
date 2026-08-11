@@ -30,5 +30,6 @@ export {
   getSeason,
   getSeasonalAmplitude,
   getSeasonalityStrength,
+  getSeasonalTemperatureOffset,
   type Season
 } from "../utils/seasonUtils";

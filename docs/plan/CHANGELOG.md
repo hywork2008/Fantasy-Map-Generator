@@ -3,6 +3,7 @@
 2026-08-11
 
 - docs/plan/guilds/relations.md
+- docs/simulation/heating-and-cold-climate-technology.md
 
 2026-08-10
 

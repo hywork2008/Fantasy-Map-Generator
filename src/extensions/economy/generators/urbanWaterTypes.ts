@@ -113,6 +113,8 @@ export type UrbanWaterSystem = {
   pigToiletPractice: number;
   upstreamPollutionImport: number;
   downstreamPollutionExport: number;
+  /** Household coal-smoke exposure from the market heating ledger (0..1). */
+  coalSmokeExposure: number;
   healthPressure: number;
   localMixedIntakeOutfall: boolean;
 

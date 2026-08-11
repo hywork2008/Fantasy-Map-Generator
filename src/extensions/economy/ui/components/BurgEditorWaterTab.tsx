@@ -168,7 +168,11 @@ export const BurgEditorWaterTab: FC = () => {
               <th scope="row">Downstream export</th>
               <td>{pct(system.downstreamPollutionExport)}</td>
             </tr>
-            <tr data-tip="Disease pressure from contamination, organic load, and scavenging risk. Reserved for a future epidemic system.">
+            <tr data-tip="Indoor smoke exposure from Coal used as a household heating fallback in this market territory.">
+              <th scope="row">Coal smoke exposure</th>
+              <td>{pct(system.coalSmokeExposure ?? 0)}</td>
+            </tr>
+            <tr data-tip="Disease pressure from water contamination, organic load, scavenging risk, and household coal smoke. Reserved for a future epidemic system.">
               <th scope="row">Health pressure</th>
               <td>{pct(system.healthPressure)}</td>
             </tr>

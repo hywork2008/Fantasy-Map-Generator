@@ -321,6 +321,7 @@ export function healthPressureFromSanitation(args: {
   scavengingRisk: number;
   upstreamPollutionImport: number;
   drinkingWaterSecurity: number;
+  coalSmokeExposure?: number;
 }): number {
   const {
     waterContamination,
@@ -328,7 +329,8 @@ export function healthPressureFromSanitation(args: {
     organicStreetLoad,
     scavengingRisk,
     upstreamPollutionImport,
-    drinkingWaterSecurity
+    drinkingWaterSecurity,
+    coalSmokeExposure = 0
   } = args;
   return clamp01(
     waterContamination * 0.35 +
@@ -336,7 +338,8 @@ export function healthPressureFromSanitation(args: {
       organicStreetLoad * 0.15 +
       scavengingRisk * 0.12 +
       upstreamPollutionImport * 0.2 -
-      drinkingWaterSecurity * 0.15
+      drinkingWaterSecurity * 0.15 +
+      clamp01(coalSmokeExposure) * 0.22
   );
 }
 

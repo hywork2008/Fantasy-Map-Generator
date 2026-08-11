@@ -63,7 +63,8 @@ export function regrowForestStock(
   cells: PackedGraphCells,
   cellId: number,
   deltaYears: number,
-  protectedOpenCoverage = 0
+  protectedOpenCoverage = 0,
+  regrowthMultiplier = 1
 ): boolean {
   const stock = cells.forestStock;
   if (!stock || deltaYears <= 0 || !Number.isFinite(deltaYears)) return false;
@@ -72,7 +73,8 @@ export function regrowForestStock(
 
   const recoverableCeiling = Math.max(0, capacity - clamp01(protectedOpenCoverage));
   const current = Math.max(0, Math.min(recoverableCeiling, stock[cellId] ?? capacity));
-  const next = Math.min(recoverableCeiling, current + capacity * FOREST_REGROWTH_PER_YEAR * deltaYears);
+  const multiplier = Number.isFinite(regrowthMultiplier) ? Math.max(0, regrowthMultiplier) : 1;
+  const next = Math.min(recoverableCeiling, current + capacity * FOREST_REGROWTH_PER_YEAR * deltaYears * multiplier);
   if (next <= current) return false;
   stock[cellId] = next;
   return true;

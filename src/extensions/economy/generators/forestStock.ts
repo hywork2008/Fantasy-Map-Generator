@@ -51,7 +51,7 @@ export function getForestStockMultiplier(cellId: number): number {
  * Restores only unoccupied forest. Active crop area is protected from regrowth,
  * so a felled field remains open while a disused logging scar slowly closes.
  */
-export function tickForestRegrowth(deltaYears: number): boolean {
+export function tickForestRegrowth(deltaYears: number, getRegrowthMultiplier?: (cellId: number) => number): boolean {
   const cells = getLiveCells();
   if (!cells || deltaYears <= 0 || !Number.isFinite(deltaYears)) return false;
 
@@ -64,7 +64,13 @@ export function tickForestRegrowth(deltaYears: number): boolean {
       physicalArea > 0 && cultivatedArea.length === cells.i.length
         ? Math.max(0, Math.min(1, cultivatedArea[cellId] / physicalArea))
         : 0;
-    changed ||= regrowForestStock(cells, cellId, deltaYears, protectedOpenCoverage);
+    changed ||= regrowForestStock(
+      cells,
+      cellId,
+      deltaYears,
+      protectedOpenCoverage,
+      getRegrowthMultiplier?.(cellId) ?? 1
+    );
   }
   return changed;
 }

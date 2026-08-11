@@ -21,6 +21,7 @@ export type GoodFlowCategory =
   | "importArrival"
   | "householdFood"
   | "householdTextiles"
+  | "householdHeating"
   | "recipeInput"
   | "construction"
   | "smelting"
@@ -78,6 +79,7 @@ export interface GoodBalanceInterval {
   readonly importArrival: number;
   readonly householdFood: number;
   readonly householdTextiles: number;
+  readonly householdHeating: number;
   readonly recipeInput: number;
   readonly construction: number;
   readonly smelting: number;
@@ -211,6 +213,7 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         importArrival: categoryTotal(flows, "importArrival", good.i),
         householdFood: categoryTotal(flows, "householdFood", good.i),
         householdTextiles: categoryTotal(flows, "householdTextiles", good.i),
+        householdHeating: categoryTotal(flows, "householdHeating", good.i),
         recipeInput: categoryTotal(flows, "recipeInput", good.i),
         construction: categoryTotal(flows, "construction", good.i),
         smelting: categoryTotal(flows, "smelting", good.i),

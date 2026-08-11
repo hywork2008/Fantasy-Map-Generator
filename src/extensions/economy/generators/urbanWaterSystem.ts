@@ -801,6 +801,8 @@ export function computeUrbanWaterSystem(args: {
       people
     }) * Math.max(0.15, treatmentFactor)
   );
+  const coalSmokeExposure =
+    getMarkets().find(market => market.i === burg.market)?.heatingLedger?.coalSmokeExposure ?? 0;
 
   const healthPressure = healthPressureFromSanitation({
     waterContamination,
@@ -808,7 +810,8 @@ export function computeUrbanWaterSystem(args: {
     organicStreetLoad: organic.organicStreetLoad,
     scavengingRisk: organic.scavengingRisk,
     upstreamPollutionImport,
-    drinkingWaterSecurity
+    drinkingWaterSecurity,
+    coalSmokeExposure
   });
 
   const signals = evaluateWaterDemandSignals({
@@ -864,6 +867,7 @@ export function computeUrbanWaterSystem(args: {
     pigToiletPractice: organic.pigToiletPractice,
     upstreamPollutionImport: rn(upstreamPollutionImport, 4),
     downstreamPollutionExport: rn(exportLoad, 4),
+    coalSmokeExposure: rn(coalSmokeExposure, 4),
     healthPressure: rn(healthPressure, 4),
     localMixedIntakeOutfall: mixedLocal,
     waterLifting: rn(waterLifting, 4),
@@ -955,6 +959,7 @@ function systemDefaults(
     pigToiletPractice: 0,
     upstreamPollutionImport: 0,
     downstreamPollutionExport: 0,
+    coalSmokeExposure: 0,
     healthPressure: 0.3,
     localMixedIntakeOutfall: false,
     waterLifting: 0,

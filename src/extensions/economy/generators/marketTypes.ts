@@ -45,6 +45,8 @@ export interface Market {
   agTechStock?: number;
   /** Household clothing demand and consumption, separate from wholesale market intake. */
   textileLedger?: TextileLedger;
+  /** Household fuel use and cold-climate technical knowledge for this market territory. */
+  heatingLedger?: HeatingLedger;
   /** Physical intake, household use, processing and spoilage for dairy, vine, and ale goods. */
   foodProcessingLedger?: FoodProcessingLedger;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */
@@ -68,6 +70,40 @@ export interface TextileLedger {
   cumulativeHouseholdConsumption: number;
   /** Cumulative unmet household demand since market creation or map generation. */
   cumulativeUnmetDemand: number;
+}
+
+/**
+ * Market-territory heating ledger. Fuel quantities are normalized market-Good units;
+ * the three knowledge stocks are 0..1 saturating adoption measures.
+ */
+export interface HeatingLedger {
+  /** Population served, in 1,000-person lots. */
+  populationLots: number;
+  /** Current month’s population-weighted outdoor temperature, including seasonal offset. */
+  effectiveTemperature: number;
+  /** Fuel heat required before stock availability is considered. */
+  heatingDemand: number;
+  /** Wood is the preferred household fuel. */
+  woodConsumption: number;
+  /** Coal fills the part of the heating requirement Wood cannot cover. */
+  coalConsumption: number;
+  /** Heating requirement that neither fuel could satisfy. */
+  unmetHeating: number;
+  /** 0..1 household coal-smoke exposure; feeds the burg health-pressure calculation. */
+  coalSmokeExposure: number;
+  /** Accumulates months with meaningful cold exposure and decays slowly outside cold conditions. */
+  coldExposureMonths: number;
+  /** Managed-forestry knowledge; improves regrowth around this market territory. */
+  forestryKnowledge: number;
+  /** Stove/hearth and fuel-management knowledge; reduces fuel needed for a given heat output. */
+  heatingTechnology: number;
+  /** Building-envelope knowledge; reduces household heat loss. */
+  insulationTechnology: number;
+  /** Calendar year in which the three knowledge stocks were last advanced. */
+  lastKnowledgeYear?: number;
+  cumulativeWoodConsumption: number;
+  cumulativeCoalConsumption: number;
+  cumulativeUnmetHeating: number;
 }
 
 export type FoodProcessingGoodLedger = {
