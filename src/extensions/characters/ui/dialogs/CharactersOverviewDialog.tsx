@@ -3,8 +3,9 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
-import { getCharacters, getWorldContext } from "../../charactersContext";
+import { getCharacters, getSelectedAbilityPreset, getWorldContext } from "../../charactersContext";
 import { filterAndSortCharacters, isFantasyCulturesSet } from "../../controllers/characters-overview";
+import { getAbilityValue } from "../../personFactory";
 import {
   CHARACTER_OVERVIEW_ROLE_FILTERS,
   type CharacterOverviewRoleFilter,
@@ -41,6 +42,8 @@ export const CharactersOverviewDialog: React.FC = () => {
   const states = worldContext.pack.states ?? [];
   const races = worldContext.pack.races ?? [];
   const cultures = worldContext.pack.cultures ?? [];
+  const abilityPreset = getSelectedAbilityPreset();
+  const showFamily = abilityPreset.id === "ck3e";
 
   const sortedStates = useMemo(() => {
     return states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -85,29 +88,8 @@ export const CharactersOverviewDialog: React.FC = () => {
       "State",
       "Wealth",
       ...(showRace ? ["Race"] : []),
-      "Marital Status",
-      "Children",
-      "Artistry",
-      "Diplomacy",
-      "Engineering",
-      "Geography",
-      "Intrigue",
-      "Learning",
-      "Martial",
-      "Prowess",
-      "Stewardship",
-      "Boldness",
-      "Compassion",
-      "Confidence",
-      "Energy",
-      "Greed",
-      "Guile",
-      "Honor",
-      "Piety",
-      "Rationality",
-      "Sociability",
-      "Vengefulness",
-      "Zeal"
+      ...(showFamily ? ["Marital Status", "Children"] : []),
+      ...abilityPreset.stats.map(stat => stat.label)
     ];
 
     const escapeCsv = (val: unknown) => {
@@ -127,29 +109,8 @@ export const CharactersOverviewDialog: React.FC = () => {
         row.stateName,
         c.wealth ?? 0,
         ...(showRace ? [row.raceName] : []),
-        (c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried",
-        c.family?.children ?? 0,
-        c.skills?.artistry ?? 0,
-        c.skills?.diplomacy ?? 0,
-        c.skills?.engineering ?? 0,
-        c.skills?.geography ?? 0,
-        c.skills?.intrigue ?? 0,
-        c.skills?.learning ?? 0,
-        c.skills?.martial ?? 0,
-        c.skills?.prowess ?? 0,
-        c.skills?.stewardship ?? 0,
-        c.personality?.boldness ?? 0,
-        c.personality?.compassion ?? 0,
-        c.personality?.confidence ?? 0,
-        c.personality?.energy ?? 0,
-        c.personality?.greed ?? 0,
-        c.personality?.guile ?? 0,
-        c.personality?.honor ?? 0,
-        c.personality?.piety ?? 0,
-        c.personality?.rationality ?? 0,
-        c.personality?.sociability ?? 0,
-        c.personality?.vengefulness ?? 0,
-        c.personality?.zeal ?? 0
+        ...(showFamily ? [(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried", c.family?.children ?? 0] : []),
+        ...abilityPreset.stats.map(stat => getAbilityValue(c, stat.key) ?? stat.default)
       ]
         .map(escapeCsv)
         .join(",");
@@ -199,6 +160,7 @@ export const CharactersOverviewDialog: React.FC = () => {
             onSort={toggleSortBy}
             onCharacterClick={handleCharacterClick}
             showRace={showRace}
+            showFamily={showFamily}
           />
         ) : (
           <CharactersStatsTable
@@ -207,6 +169,7 @@ export const CharactersOverviewDialog: React.FC = () => {
             sortOrder={sortOrder}
             onSort={toggleSortBy}
             onCharacterClick={handleCharacterClick}
+            abilityPreset={abilityPreset}
           />
         )}
 

@@ -2,6 +2,7 @@ import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../../data/raceCi
 import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";
+import { getAbilityValue } from "../personFactory";
 import { useCharactersUiState } from "../ui/charactersUiState";
 import {
   type CharacterOverviewRoleFilter,
@@ -137,6 +138,31 @@ export function filterAndSortCharacters(
   rows.sort((a, b) => {
     let result = 0;
     switch (sortBy) {
+      case "ability:artistry":
+      case "ability:diplomacy":
+      case "ability:engineering":
+      case "ability:geography":
+      case "ability:intrigue":
+      case "ability:learning":
+      case "ability:martial":
+      case "ability:prowess":
+      case "ability:stewardship":
+      case "ability:boldness":
+      case "ability:compassion":
+      case "ability:confidence":
+      case "ability:energy":
+      case "ability:greed":
+      case "ability:guile":
+      case "ability:honor":
+      case "ability:piety":
+      case "ability:rationality":
+      case "ability:sociability":
+      case "ability:vengefulness":
+      case "ability:zeal": {
+        const key = sortBy.slice("ability:".length);
+        result = (getAbilityValue(a.c, key) ?? 0) - (getAbilityValue(b.c, key) ?? 0);
+        break;
+      }
       case "name":
         result = a.c.name.localeCompare(b.c.name);
         break;
@@ -202,7 +228,10 @@ export function filterAndSortCharacters(
           (b.c.personality?.[sortBy as keyof typeof b.c.personality] ?? 0);
         break;
       default:
-        result = 0;
+        if (sortBy.startsWith("ability:")) {
+          const key = sortBy.slice("ability:".length);
+          result = (getAbilityValue(a.c, key) ?? 0) - (getAbilityValue(b.c, key) ?? 0);
+        } else result = 0;
     }
 
     if (result === 0) {

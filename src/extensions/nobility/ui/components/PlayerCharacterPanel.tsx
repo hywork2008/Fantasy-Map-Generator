@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PREP_TEMPLATES, type PrepTemplateId } from "../../../characters/adventurerTemplates";
+import { usePlayerCharacterState } from "../../../characters/store/playerCharacterState";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { openCharacterMarket } from "../../../economy/controllers/characterMarket";
 import { getCullCooldowns, getEscortCooldowns } from "../../../economy/economyContext";
@@ -58,7 +59,6 @@ import { formatPrice } from "../../../hostUtils";
 import { buildPlayerCharacterSummary, selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
 import { isSvgRenderMode, togglePlayerMoveMode } from "../../controllers/playerCharacterTravel";
 import { getApi, getWorldContext } from "../../nobilityContext";
-import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import "./playerCharacterPanel.css";
 
 const ECONOMY_EXTENSION_ID = "economy";

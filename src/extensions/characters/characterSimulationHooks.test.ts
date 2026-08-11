@@ -114,6 +114,29 @@ describe("getWarDriveModifiers", () => {
     expect(mods.forceRequirementMultiplier).toBeLessThan(1);
     expect(mods.initialTensionBonus).toBeGreaterThan(0);
   });
+
+  it("does not evaluate D&D characters with CK3 political rules", () => {
+    const dndCharacter = baseCharacter({
+      i: 1,
+      name: "D&D character",
+      abilityProfile: { presetId: "dnd5e", values: { STR: 16, DEX: 12, CON: 14, INT: 10, WIS: 11, CHA: 13 } },
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }]
+    });
+
+    expect(getEffectivePatriotism(dndCharacter)).toBe(0);
+    expect(getWarDriveModifiers(dndCharacter, { isCornered: false, historicallyOwn: false })).toEqual({
+      forceRequirementMultiplier: 1,
+      initialTensionBonus: 0,
+      tensionSpeedMultiplier: 1,
+      justification: "border_expansion"
+    });
+    expect(evaluateDynasticMarriage(dndCharacter, undefined)).toEqual({
+      accept: false,
+      weight: 0,
+      reason: "non_ck3_character"
+    });
+    expect(applyCharacterCorruption([dndCharacter], 10)).toEqual([]);
+  });
 });
 
 describe("evaluateDynasticMarriage", () => {

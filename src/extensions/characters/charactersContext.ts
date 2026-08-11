@@ -6,7 +6,9 @@
  * module instances when the extension is loaded via a blob URL.
  */
 
+import { RACE_DEFINITIONS } from "../../data/races";
 import type { ExtensionAPI } from "../../types/extension-api";
+import type { Race } from "../../types/models";
 import { ck3Preset, dnd5ePreset } from "./abilityPresets";
 import type { AbilityPreset, Character } from "./characterTypes";
 import {
@@ -23,6 +25,13 @@ const _presets = new Map<string, AbilityPreset>([
   [ck3Preset.id, ck3Preset],
   [dnd5ePreset.id, dnd5ePreset]
 ]);
+
+const DEFAULT_ABILITY_PRESET_ID = ck3Preset.id;
+let _fallbackAbilityPresetId = DEFAULT_ABILITY_PRESET_ID;
+const DEFAULT_ALLOWED_CHARACTER_RACE_KEYS = RACE_DEFINITIONS.filter(race => race.key !== "unknown").map(
+  race => race.key
+);
+let _fallbackAllowedCharacterRaceKeys = [...DEFAULT_ALLOWED_CHARACTER_RACE_KEYS];
 
 export function initCharactersContext(api: ExtensionAPI): void {
   _api = api;
@@ -100,6 +109,95 @@ export function getAbilityPreset(id: string): AbilityPreset | undefined {
 
 export function listAbilityPresets(): AbilityPreset[] {
   return Array.from(_presets.values());
+}
+
+/** Extension-wide ability system used for newly created characters and character UI. */
+export function getSelectedAbilityPresetId(): string {
+  if (!_api) return _fallbackAbilityPresetId;
+  const slice = getApi().simulationContext?.extensions?.characters as Record<string, unknown> | undefined;
+  const stored = slice?.abilityPresetId;
+  if (typeof stored === "string" && _presets.has(stored)) return stored;
+  return _fallbackAbilityPresetId;
+}
+
+export function getSelectedAbilityPreset(): AbilityPreset {
+  return getAbilityPreset(getSelectedAbilityPresetId()) ?? ck3Preset;
+}
+
+/**
+ * Set the single ability system for the Characters extension. Existing characters
+ * keep their stored profiles; all Characters views immediately use the new schema.
+ */
+export function setSelectedAbilityPresetId(id: string): boolean {
+  if (!_presets.has(id)) return false;
+  _fallbackAbilityPresetId = id;
+  const extensions = getApi().simulationContext?.extensions;
+  if (extensions) {
+    let slice = extensions.characters;
+    if (!slice) {
+      slice = {};
+      extensions.characters = slice;
+    }
+    const settings = slice as Record<string, unknown>;
+    settings.abilityPresetId = id;
+  }
+  return true;
+}
+
+/** Race keys that may be selected for new characters or generated for new NPCs. */
+export function getAllowedCharacterRaceKeys(): readonly string[] {
+  if (!_api) return _fallbackAllowedCharacterRaceKeys;
+  const slice = getApi().simulationContext?.extensions?.characters as Record<string, unknown> | undefined;
+  const stored = slice?.allowedRaceKeys;
+  if (!Array.isArray(stored)) return _fallbackAllowedCharacterRaceKeys;
+
+  const selected = new Set(stored.filter((key): key is string => typeof key === "string"));
+  const valid = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => selected.has(key));
+  return valid.length ? valid : _fallbackAllowedCharacterRaceKeys;
+}
+
+/** Persist the extension-wide race roster. At least one playable race must remain enabled. */
+export function setAllowedCharacterRaceKeys(keys: Iterable<string>): boolean {
+  const selected = new Set(keys);
+  const valid = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => selected.has(key));
+  if (!valid.length) return false;
+
+  _fallbackAllowedCharacterRaceKeys = valid;
+  const extensions = getApi().simulationContext?.extensions;
+  if (extensions) {
+    let slice = extensions.characters;
+    if (!slice) {
+      slice = {};
+      extensions.characters = slice;
+    }
+    slice.allowedRaceKeys = [...valid];
+  }
+  return true;
+}
+
+/** Whether a race is enabled for new character creation and NPC appearance. */
+export function isCharacterRaceAllowed(race: Pick<Race, "key"> | undefined): boolean {
+  return race !== undefined && getAllowedCharacterRaceKeys().includes(race.key);
+}
+
+/** Filter live map races to the extension-wide character roster. */
+export function filterAllowedCharacterRaces(races: readonly Race[]): Race[] {
+  const allowed = new Set(getAllowedCharacterRaceKeys());
+  return races.filter(race => race.i > 0 && !race.removed && allowed.has(race.key));
+}
+
+/**
+ * Keep all generated characters inside the configured roster. Human is preferred
+ * as the fallback when enabled; otherwise use the first enabled live race.
+ */
+export function resolveAllowedCharacterRaceId(raceId: number, races: readonly Race[] | null | undefined): number {
+  if (!races?.length) return raceId;
+  const allowed = new Set(getAllowedCharacterRaceKeys());
+  const requested = races.find(race => race.i === raceId);
+  if (requested && !requested.removed && allowed.has(requested.key)) return requested.i;
+
+  const human = races.find(race => race.key === "human" && !race.removed && allowed.has(race.key));
+  return human?.i ?? races.find(race => race.i > 0 && !race.removed && allowed.has(race.key))?.i ?? raceId;
 }
 
 /**

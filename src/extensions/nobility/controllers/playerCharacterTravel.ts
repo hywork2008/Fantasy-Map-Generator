@@ -1,4 +1,5 @@
 import { pointer } from "d3";
+import { usePlayerCharacterState } from "../../characters/store/playerCharacterState";
 import type { TradeRouteSegment } from "../../economy/generators/marketTypes";
 import { TradeAnimation } from "../../economy/generators/trade-animation";
 import { calculateRouteDurationDays } from "../../economy/generators/tradeRouteDuration";
@@ -6,7 +7,6 @@ import { clearMainTip, tip } from "../../hostServices";
 import { openConfirm } from "../../hostUi";
 import { findCell } from "../../hostUtils";
 import { getApi, getWorldContext } from "../nobilityContext";
-import { usePlayerCharacterState } from "../store/playerCharacterState";
 
 export interface TravelEstimate {
   sourceBurgId: number;

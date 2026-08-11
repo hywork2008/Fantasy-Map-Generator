@@ -464,16 +464,6 @@
   }
 }
 
-#charactersOverviewContainer {
-  table {
-
-    td,
-    th {
-      max-width: 1em;
-    }
-  }
-}
-
 #marketsOverviewBody {
   min-width: 470px;
 }

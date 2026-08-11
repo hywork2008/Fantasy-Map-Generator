@@ -5,6 +5,7 @@ import { clearCharacters } from "./advanceAge";
 import { applyPrepTemplateLoadout, PREP_TEMPLATES, type PrepTemplateId } from "./adventurerTemplates";
 import { clearCharactersContext, getCharacters, initCharactersContext } from "./charactersContext";
 import type { CharacterLoadout, CharacterSkills, LoadoutSlotId } from "./characterTypes";
+import { clearPlayerCharacterSelection } from "./controllers/playerCharacter";
 import {
   equipFromInventory,
   isLoadoutSlotId,
@@ -15,8 +16,10 @@ import {
 } from "./loadoutEquip";
 import { buildLoadoutGoodsCatalog, FALLBACK_LOADOUT_GOOD_IDS, type NamedGoodRef } from "./loadoutSeed";
 import { BurgEditorCharactersTab } from "./ui/components/BurgEditorCharactersTab";
+import { PlayerCharacterPanel } from "./ui/components/PlayerCharacterPanel";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
+import { PlayerCharacterDialog } from "./ui/dialogs/PlayerCharacterDialog";
 
 export const CHARACTERS_EXTENSION_ID = "characters";
 
@@ -271,6 +274,20 @@ export function init(api: ExtensionAPI): void {
     component: CharacterDetailsDialog
   });
 
+  api.registerDialog({
+    id: "PlayerCharacterDialog",
+    extensionId: CHARACTERS_EXTENSION_ID,
+    component: PlayerCharacterDialog
+  });
+
+  // Always-visible top-right player focus. It is owned by Characters so it is
+  // available without Nobility or other simulation extensions.
+  api.registerDialog({
+    id: "PlayerCharacterPanel",
+    extensionId: CHARACTERS_EXTENSION_ID,
+    component: PlayerCharacterPanel
+  });
+
   api.registerAction({
     id: "characters-view-characters",
     extensionId: CHARACTERS_EXTENSION_ID,
@@ -289,6 +306,42 @@ export function init(api: ExtensionAPI): void {
     else api.openDialog("charactersOverview");
   });
 
+  api.registerAction({
+    id: "characters-create-player",
+    extensionId: CHARACTERS_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    dialogId: "playerCharacter",
+    label: "Player Character",
+    tooltip: "Create a named player character with a race and skills",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "createPlayerCharacter" } }));
+    }
+  });
+
+  api.registerToolAction("createPlayerCharacter", () => {
+    if (api.isDialogOpen("playerCharacter")) api.closeDialog("playerCharacter");
+    else api.openDialog("playerCharacter");
+  });
+
+  api.registerAction({
+    id: "characters-settings",
+    extensionId: CHARACTERS_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    dialogId: "racePersonNames",
+    label: "Character Settings",
+    tooltip: "Configure the ability system and races available to new characters",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "charactersSettings" } }));
+    }
+  });
+
+  api.registerToolAction("charactersSettings", () => {
+    if (api.isDialogOpen("racePersonNames")) api.closeDialog("racePersonNames");
+    else api.openDialog("racePersonNames");
+  });
+
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[CHARACTERS_EXTENSION_ID];
     const wasEnabled = prevState.enabledExtensions[CHARACTERS_EXTENSION_ID];
@@ -296,6 +349,8 @@ export function init(api: ExtensionAPI): void {
     if (!isEnabled && wasEnabled) {
       api.closeDialog("charactersOverview");
       api.closeDialog("characterDetails");
+      api.closeDialog("playerCharacter");
+      clearPlayerCharacterSelection();
       api.dispatchExtensionCommand({ extensionId: CHARACTERS_EXTENSION_ID, name: "clear", payload: undefined });
     }
   });
@@ -317,7 +372,11 @@ export function cleanup(api: ExtensionAPI): void {
 
   api.closeDialog("charactersOverview");
   api.closeDialog("characterDetails");
+  api.closeDialog("playerCharacter");
+  clearPlayerCharacterSelection();
   api.unregisterToolAction("viewCharacters");
+  api.unregisterToolAction("createPlayerCharacter");
+  api.unregisterToolAction("charactersSettings");
   api.unregisterExtension(CHARACTERS_EXTENSION_ID);
   clearCharactersContext();
 }

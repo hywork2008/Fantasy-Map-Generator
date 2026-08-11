@@ -374,15 +374,15 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Assign person-name cultural spheres to races (e.g. Dark Elf → Mesopotamian). Opens a dialog so Generation stays short. Applies on the next map generation.">
+          <tr data-tip="Configure race name spheres, the character ability system, and races available to new characters. Opens a dialog so Generation stays short.">
             <td>
               <IconButton
-                data-tip="Open race person-name sphere mapping"
+                data-tip="Open race and character settings"
                 icon="icon-book"
                 onClick={() => openDialog("racePersonNames")}
               />
             </td>
-            <th>Race person names</th>
+            <th>Race & character settings</th>
             <td colSpan={2}>
               <button type="button" className="button" onClick={() => openDialog("racePersonNames")}>
                 Configure…

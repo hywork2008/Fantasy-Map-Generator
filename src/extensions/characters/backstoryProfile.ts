@@ -31,6 +31,7 @@ import type {
   SolidarityBand,
   TastePolarity
 } from "./characterTypes";
+import { isCk3Character } from "./characterTypes";
 import {
   applyFormCommitmentBoost,
   applyFormRaisedInMultiplier,
@@ -1446,6 +1447,7 @@ function buildOrigin(
  * Safe to call after titles, roles, and location are assigned.
  */
 export function applyCharacterBackstory(character: Character, options: ApplyBackstoryOptions = {}): void {
+  if (!isCk3Character(character)) return;
   if (options.onlyIfMissing && character.backstory) return;
 
   // Skill background bias is one-shot: re-running this would stack deltas.
@@ -2025,6 +2027,7 @@ function trySeedRomanticFavorPair(a: Character, b: Character): void {
 
 /** Seed solidarity (and sparse romantic favor) for same-state pairs. */
 export function seedCharacterRelations(characters: Character[]): void {
+  characters = characters.filter(isCk3Character);
   const living = characters.filter(c => !c.dead);
   const byState = new Map<number, Character[]>();
   for (const c of living) {
@@ -2050,6 +2053,8 @@ export const seedCharacterFavor = seedCharacterRelations;
 
 /** When a single character is added later, seed relations against same-state peers. */
 export function seedRelationsWithPeers(character: Character, allCharacters: Character[]): void {
+  if (!isCk3Character(character)) return;
+  allCharacters = allCharacters.filter(isCk3Character);
   if (character.dead) return;
   for (const other of allCharacters) {
     if (other.dead || other.i === character.i || other.state !== character.state) continue;

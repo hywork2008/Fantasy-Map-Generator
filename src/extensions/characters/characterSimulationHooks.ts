@@ -6,7 +6,7 @@
  */
 import { attractiveness, isSameRace } from "./appearance";
 import { adjustSolidarity, getFavor, getSolidarity, offerGift } from "./backstoryProfile";
-import type { Character, CommitmentKind } from "./characterTypes";
+import { type Character, type CommitmentKind, isCk3Character } from "./characterTypes";
 
 // ---------------------------------------------------------------------------
 // Derived patriotism (no stored field — orientation from Commitment + honor)
@@ -17,6 +17,8 @@ import type { Character, CommitmentKind } from "./characterTypes";
  * state / people / liege. Used as a soft AI bias, not a new personality roll.
  */
 export function getEffectivePatriotism(character: Character): number {
+  if (!isCk3Character(character)) return 0;
+
   const p = character.personality;
   const primary = character.backstory?.commitment.primary.kind;
   const secondary = character.backstory?.commitment.secondary?.kind;
@@ -64,21 +66,21 @@ export interface WarDriveModifiers {
 }
 
 export function getWarDriveModifiers(ruler: Character | undefined, context: WarDriveContext): WarDriveModifiers {
+  if (!ruler || !isCk3Character(ruler)) {
+    return {
+      forceRequirementMultiplier: 1,
+      initialTensionBonus: 0,
+      tensionSpeedMultiplier: 1,
+      justification: context.historicallyOwn ? "reconquest" : "border_expansion"
+    };
+  }
+
   if (context.isCornered) {
     return {
       forceRequirementMultiplier: 1,
       initialTensionBonus: 0,
       tensionSpeedMultiplier: 1,
       justification: "overwhelming_force_crush"
-    };
-  }
-
-  if (!ruler) {
-    return {
-      forceRequirementMultiplier: 1,
-      initialTensionBonus: 0,
-      tensionSpeedMultiplier: 1,
-      justification: context.historicallyOwn ? "reconquest" : "border_expansion"
     };
   }
 
@@ -175,6 +177,10 @@ export function evaluateDynasticMarriage(
   otherRuler: Character | undefined,
   options: { otherStatePrestige?: number } = {}
 ): MarriageEvaluation {
+  if (!isCk3Character(ruler) || (otherRuler !== undefined && !isCk3Character(otherRuler))) {
+    return { accept: false, weight: 0, reason: "non_ck3_character" };
+  }
+
   const p = ruler.personality;
   const primary = ruler.backstory?.commitment.primary.kind;
   let weight = 0.5;
@@ -272,6 +278,7 @@ export function applyCharacterCorruption(characters: Character[], deltaYears: nu
   // Group living titled state officers by state
   const byState = new Map<number, Character[]>();
   for (const c of characters) {
+    if (!isCk3Character(c)) continue;
     if (c.dead) continue;
     const stateTitles = c.titles.filter(t => t.entityType === "state");
     if (!stateTitles.length) continue;

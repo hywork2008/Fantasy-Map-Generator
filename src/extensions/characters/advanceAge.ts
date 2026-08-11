@@ -14,7 +14,7 @@ import {
   hasCharactersContext,
   replaceCharacters
 } from "./charactersContext";
-import type { Character, CharacterRoleClass, CharacterSkills } from "./characterTypes";
+import { type Character, type CharacterRoleClass, type CharacterSkills, isCk3Character } from "./characterTypes";
 import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
 /** Physical decline sets in past this age for short-lived (human-scale) races only. */
@@ -107,6 +107,7 @@ export function advanceCharacterAging(deltaYears: number): void {
 
   for (const character of characters) {
     if (character.dead) continue;
+    const usesCk3Systems = isCk3Character(character);
 
     const oldAge = character.age;
     const newAge = Math.round(oldAge + deltaYears);
@@ -138,7 +139,7 @@ export function advanceCharacterAging(deltaYears: number): void {
         character.appearance = Math.max(1, character.appearance - appearanceDecline);
       }
     }
-    if (prowessDecline > 0) {
+    if (usesCk3Systems && prowessDecline > 0) {
       character.skills.prowess = Math.max(1, character.skills.prowess - prowessDecline);
       if (character.abilityProfile?.presetId === "ck3e") {
         character.abilityProfile.values.prowess = character.skills.prowess;
@@ -157,7 +158,7 @@ export function advanceCharacterAging(deltaYears: number): void {
       character.deathYear = getCurrentYear();
 
       let baseReason = diseaseDeathReason(character) ?? "Deceased";
-      if (character.titles.length > 0) {
+      if (usesCk3Systems && character.titles.length > 0) {
         if (character.personality.sociability < 30 && P(0.005 * deltaYears)) {
           baseReason = "Assassinated";
         } else if (character.personality.boldness > 80 && P(0.005 * deltaYears)) {
@@ -179,7 +180,7 @@ export function advanceCharacterAging(deltaYears: number): void {
     const profile = resolveRaceAgeProfile(raceId);
     const maturity = getRaceMaturityAge(raceId);
     const youngAdultCap = scaleHumanAgeToRace(25, profile);
-    if (newAge <= youngAdultCap && deltaYears > 0) {
+    if (usesCk3Systems && newAge <= youngAdultCap && deltaYears > 0) {
       const growthMax = newAge <= maturity ? rand(3, 8) : rand(0, 2);
       const growth = Math.floor(growthMax * deltaYears);
       if (growth > 0) {

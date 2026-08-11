@@ -345,6 +345,15 @@ function validateInnStayLedgers(value: unknown, world: WorldContext): void {
 
 function validateCharactersSlice(slice: Record<string, unknown>): void {
   assertOptionalArrayField(slice, "characters", "characters");
+  if (slice.abilityPresetId !== undefined && typeof slice.abilityPresetId !== "string") {
+    throw new Error("simulation.extensions.characters.abilityPresetId must be a string");
+  }
+  if (slice.allowedRaceKeys !== undefined) {
+    assertArray(slice.allowedRaceKeys, "simulation.extensions.characters.allowedRaceKeys");
+    if (!(slice.allowedRaceKeys as unknown[]).every(key => typeof key === "string")) {
+      throw new Error("simulation.extensions.characters.allowedRaceKeys must contain only strings");
+    }
+  }
 }
 
 function validateEconomySlice(slice: Record<string, unknown>, world: WorldContext): void {

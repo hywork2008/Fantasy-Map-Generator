@@ -1,6 +1,11 @@
 import { rand } from "../hostUtils";
 import type { AbilityPreset } from "./characterTypes";
 
+/** D&D 5e ability modifier for an ability score (e.g. 16 → +3, 9 → -1). */
+export function getDnd5eAbilityModifier(score: number): number {
+  return Math.floor((score - 10) / 2);
+}
+
 /**
  * Built-in default preset — wraps the existing 9 CharacterSkills + 12 CharacterPersonality
  * fields (already CK3-flavored) as an AbilityPreset so they participate in the same pluggable
