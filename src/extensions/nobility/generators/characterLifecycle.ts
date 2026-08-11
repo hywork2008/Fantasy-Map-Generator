@@ -10,7 +10,8 @@ import {
   resolveCorruptionEvents,
   tryCourtBribe
 } from "../../characters/characterSimulationHooks";
-import type { Character, CharacterSkills } from "../../characters/characterTypes";
+import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
+import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
 import {
@@ -106,6 +107,13 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   Math.random = Alea(options.randomSeed ?? worldContext.seed);
 
   const { pack } = worldContext;
+  if (getSelectedAbilityPresetId() !== "ck3e") {
+    clearStateRulerIds();
+    pack.dynasties = [];
+    pack.characters = (pack.characters ?? []).filter(character => !isCk3Character(character));
+    TIME && console.timeEnd("generateCharacters");
+    return;
+  }
   clearStateRulerIds();
   const characters: Character[] = [...preserveNonPoliticalCharacters(pack.characters)];
   pack.dynasties = [];

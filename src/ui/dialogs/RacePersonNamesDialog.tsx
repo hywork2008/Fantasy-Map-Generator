@@ -9,6 +9,15 @@ import {
   resolveRacePersonNameMapping,
   sphereLabel
 } from "../../data/racePersonNameConfig";
+import {
+  getAllowedCharacterRaceKeys,
+  getSelectedAbilityPresetId,
+  hasCharactersContext,
+  listAbilityPresets,
+  setAllowedCharacterRaceKeys,
+  setSelectedAbilityPresetId
+} from "../../extensions/characters/charactersContext";
+import { useCharactersUiState } from "../../extensions/characters/ui/charactersUiState";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import type { RaceKey } from "../../types/models";
@@ -36,9 +45,20 @@ export const RacePersonNamesDialog: React.FC = () => {
   const [draft, setDraft] = useState<Record<string, RacePersonNameSphereConfig>>(() =>
     resolveRacePersonNameMapping(stored)
   );
+  const charactersReady = hasCharactersContext();
+  const presets = charactersReady ? listAbilityPresets() : [];
+  const [abilityPresetId, setAbilityPresetId] = useState(() => (charactersReady ? getSelectedAbilityPresetId() : ""));
+  const [allowedRaceKeys, setAllowedRaceKeys] = useState<Set<string>>(
+    () => new Set(charactersReady ? getAllowedCharacterRaceKeys() : [])
+  );
 
   useEffect(() => {
-    if (isOpen) setDraft(resolveRacePersonNameMapping(useOptionsState.getState().racePersonNameSpheres));
+    if (!isOpen) return;
+    setDraft(resolveRacePersonNameMapping(useOptionsState.getState().racePersonNameSpheres));
+    if (hasCharactersContext()) {
+      setAbilityPresetId(getSelectedAbilityPresetId());
+      setAllowedRaceKeys(new Set(getAllowedCharacterRaceKeys()));
+    }
   }, [isOpen]);
 
   const summary = useMemo(() => {
@@ -72,6 +92,11 @@ export const RacePersonNamesDialog: React.FC = () => {
   };
 
   const handleSave = () => {
+    if (charactersReady) {
+      if (!setSelectedAbilityPresetId(abilityPresetId)) return;
+      if (!setAllowedCharacterRaceKeys(allowedRaceKeys)) return;
+      useCharactersUiState.getState().bumpRefreshToken();
+    }
     const mapping: RacePersonNameMapping = {};
     for (const [key, cfg] of Object.entries(draft)) {
       mapping[key] = {
@@ -87,19 +112,51 @@ export const RacePersonNamesDialog: React.FC = () => {
     setDraft(resolveRacePersonNameMapping(DEFAULT_RACE_PERSON_NAME_SPHERES));
   };
 
+  const toggleAllowedRace = (key: string): void => {
+    setAllowedRaceKeys(current => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        if (next.size === 1) return current;
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   return (
     <Dialog
       isOpen={isOpen}
-      title="Race person names"
+      title="Race & character settings"
       onClose={() => closeDialog("racePersonNames")}
       style={{ minWidth: "32em", maxWidth: "42em" }}
       buttons={[
-        { label: "Reset defaults", onClick: handleReset },
+        { label: "Reset name defaults", onClick: handleReset },
         { label: "Cancel", onClick: () => closeDialog("racePersonNames") },
         { label: "Save", onClick: handleSave }
       ]}
     >
       <div data-tip="Assign a cultural name sphere to each race. Long-lived races use CC0 mythic/ancient names from that sphere only.">
+        {charactersReady ? (
+          <label
+            htmlFor="charactersAbilitySystem"
+            style={{ display: "flex", alignItems: "center", gap: "0.5em", marginBottom: "0.75em" }}
+          >
+            Ability system
+            <select
+              id="charactersAbilitySystem"
+              value={abilityPresetId}
+              onChange={event => setAbilityPresetId(event.target.value)}
+            >
+              {presets.map(preset => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <p style={{ marginTop: 0 }}>
           Choose which <strong>person-name sphere</strong> each race uses when generating High/Dark Fantasy cultures.
           Place names still use the culture namesbase. Changes apply on the next map generation (or regenerate
@@ -110,6 +167,14 @@ export const RacePersonNamesDialog: React.FC = () => {
           <thead>
             <tr>
               <th style={{ textAlign: "left" }}>Race</th>
+              {charactersReady ? (
+                <th
+                  style={{ textAlign: "left" }}
+                  data-tip="Enabled races may be selected for new characters and generated for new residents or NPCs"
+                >
+                  Available
+                </th>
+              ) : null}
               <th style={{ textAlign: "left" }} data-tip="Used for the first culture of this race">
                 Primary sphere
               </th>
@@ -127,6 +192,17 @@ export const RacePersonNamesDialog: React.FC = () => {
               return (
                 <tr key={race.key}>
                   <td style={{ padding: "0.25em 0.4em 0.25em 0" }}>{race.name}</td>
+                  {charactersReady ? (
+                    <td style={{ padding: "0.25em 0.4em" }}>
+                      <input
+                        type="checkbox"
+                        checked={allowedRaceKeys.has(race.key)}
+                        disabled={allowedRaceKeys.has(race.key) && allowedRaceKeys.size === 1}
+                        onChange={() => toggleAllowedRace(race.key)}
+                        aria-label={`${race.name} available for characters`}
+                      />
+                    </td>
+                  ) : null}
                   <td style={{ padding: "0.25em 0.4em" }}>
                     <select
                       value={sphereSelectValue(cfg.primary)}

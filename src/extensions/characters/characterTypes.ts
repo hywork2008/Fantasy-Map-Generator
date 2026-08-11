@@ -103,6 +103,11 @@ export interface AbilityProfile {
   values: Record<string, number>;
 }
 
+/** True when this character participates in CK3-specific skill, personality, and court systems. */
+export function isCk3Character(character: Pick<Character, "abilityProfile">): boolean {
+  return (character.abilityProfile?.presetId ?? "ck3e") === "ck3e";
+}
+
 /** Birth social stratum — see docs/plan/characters/backstory-profile.md §3. */
 export type SocialStratum =
   | "royal"
@@ -361,12 +366,11 @@ export interface Character {
   skills: CharacterSkills;
   personality: CharacterPersonality;
   /**
-   * Pluggable ability-score profile, always populated at creation. For the default "ck3e"
-   * preset this is just `skills`+`personality` merged into one flat map (no extra RNG draw);
-   * for any other registered preset (e.g. "dnd5e") it holds that preset's own rolled values.
-   * `skills`/`personality` remain the source of truth for existing political logic — this
-   * field exists so future NPC extensions can read/display an arbitrary preset without the
-   * Character schema growing a new fixed field per game system.
+   * Ability-score profile from the Characters extension's current global ability
+   * system at the time this character was created. For "ck3e" this is just
+   * `skills`+`personality` merged into one flat map; other systems store their
+   * own rolled values. Fixed skills/personality remain the source of truth for
+   * existing political logic.
    */
   abilityProfile?: AbilityProfile;
   family: CharacterFamily;

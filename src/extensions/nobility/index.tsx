@@ -3,6 +3,7 @@ import "./types"; // activate module augmentation for PackedGraph/State
 import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { advanceCharacterHealth } from "../characters/characterHealth";
+import { getSelectedAbilityPresetId } from "../characters/charactersContext";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
 import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
@@ -17,11 +18,7 @@ import {
   mayAdvanceAutonomousConflict,
   startPlayerConflict
 } from "./conflictDirector";
-import {
-  clearPlayerCharacterSelection,
-  refreshPlayerCharacterSelection,
-  selectRandomPlayerCharacter
-} from "./controllers/playerCharacter";
+import { refreshPlayerCharacterSelection } from "./controllers/playerCharacter";
 import { clearPlayerTravel, requestTravelToBurg, tickPlayerTravel } from "./controllers/playerCharacterTravel";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
@@ -36,7 +33,6 @@ import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
 import { clearNobilityContext, getApi, getWorldContext, initNobilityContext } from "./nobilityContext";
 import { resolveCharacterRegenerationSeed } from "./resolveCharacterRegenerationSeed";
-import { PlayerCharacterPanel } from "./ui/components/PlayerCharacterPanel";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 
 export const NOBILITY_EXTENSION_ID = "nobility";
@@ -69,6 +65,11 @@ function isNobilityRegenerationRequest(value: unknown): value is NobilityRegener
 
 function regenerateNobilityData(mode: NobilityRegenerationMode, randomSeed?: string | number): void {
   Characters.generate(randomSeed !== undefined ? { randomSeed } : {});
+  if (getSelectedAbilityPresetId() !== "ck3e") {
+    refreshPlayerCharacterSelection();
+    refreshCharactersOverviewIfOpen(getApi().isDialogOpen("charactersOverview"));
+    return;
+  }
   applyAffinitiesToDiplomacy();
   applyPersonalityToCapitalGuard();
   if (mode === "full") {
@@ -82,8 +83,9 @@ function regenerateNobilityData(mode: NobilityRegenerationMode, randomSeed?: str
   // §7 item 8). Only ever touches characters still at wealth=0, so re-running this on every
   // regenerate is safe.
   seedMissingCharacterWealth();
-  // Government roster was rebuilt — re-roll the focus character for the player HUD.
-  selectRandomPlayerCharacter();
+  // Government rebuilds must not replace a living player character created by
+  // Characters. When none is focused, the controller picks a political focus.
+  refreshPlayerCharacterSelection();
   // Overview reads pack via getCharacters() on render; bump so an open dialog refreshes.
   refreshCharactersOverviewIfOpen(getApi().isDialogOpen("charactersOverview"));
 }
@@ -123,14 +125,6 @@ export function init(api: ExtensionAPI): void {
     editorId: "statesEditor",
     label: "Personality",
     component: StatesEditorPersonalityTab
-  });
-
-  // Always-visible top-right HUD (not a modal). Mounted while the extension is enabled
-  // via DialogsContainer's extension-dialog filter.
-  api.registerDialog({
-    id: "PlayerCharacterPanel",
-    extensionId: NOBILITY_EXTENSION_ID,
-    component: PlayerCharacterPanel
   });
 
   api.registerAction({
@@ -184,8 +178,7 @@ export function init(api: ExtensionAPI): void {
       api.requestMapReadyTask("nobility.initialization");
     } else if (!isEnabled && wasEnabled) {
       clearPlayerTravel();
-      clearPlayerCharacterSelection();
-      api.dispatchExtensionCommand({ extensionId: CHARACTERS_EXTENSION_ID, name: "clear", payload: undefined });
+      Characters.clear();
     }
   });
 
@@ -308,6 +301,11 @@ export function init(api: ExtensionAPI): void {
       // sees any fresh affliction (see characterHealth.ts's diseaseDeathRiskFor()).
       advanceCharacterHealth(effectiveDeltaYears);
       advanceCharacterAging(effectiveDeltaYears);
+      if (getSelectedAbilityPresetId() !== "ck3e") {
+        // D&D characters have no CK3 court attributes or political-AI participation.
+        tickPlayerTravel(deltaDays);
+        return;
+      }
       Characters.processResignationsAndSuccessions(effectiveDeltaYears);
       // Phase D: greed/commitment-driven skimming and court bribes.
       Characters.processCharacterCorruption(effectiveDeltaYears);
@@ -371,7 +369,6 @@ export function init(api: ExtensionAPI): void {
 
 export function cleanup(api: ExtensionAPI): void {
   clearPlayerTravel();
-  clearPlayerCharacterSelection();
   api.unregisterToolAction("travelPlayerCharacterToBurg");
   if (_unsubscribe) {
     _unsubscribe();

@@ -14,6 +14,8 @@ export interface CharactersTableProps {
   onCharacterClick: (characterId: number) => void;
   /** Fantasy culture sets only — show Race after Wealth. */
   showRace?: boolean;
+  /** CK3 only — show the age-derived Family and Children columns. */
+  showFamily?: boolean;
 }
 
 export const CharactersTable: React.FC<CharactersTableProps> = ({
@@ -22,7 +24,8 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
   sortOrder,
   onSort,
   onCharacterClick,
-  showRace = false
+  showRace = false,
+  showFamily = true
 }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -36,7 +39,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
   const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
   const paddingBottom =
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
-  const colSpan = showRace ? 11 : 10;
+  const colSpan = 8 + Number(showRace) + (showFamily ? 2 : 0);
 
   function SortHeader({
     field,
@@ -75,8 +78,8 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
             <SortHeader field="wealth" label="Wealth" numeric width="6em" />
             {showRace && <SortHeader field="race" label="Race" width="7em" />}
             <SortHeader field="gender" label="Gender" width="6em" />
-            <SortHeader field="maritalStatus" label="Family" width="7em" />
-            <SortHeader field="children" label="Children" numeric width="5em" />
+            {showFamily ? <SortHeader field="maritalStatus" label="Family" width="7em" /> : null}
+            {showFamily ? <SortHeader field="children" label="Children" numeric width="5em" /> : null}
             <SortHeader field="title" label="Title / Role" width="10em" />
             <SortHeader field="state" label="State" width="10em" />
           </tr>
@@ -129,8 +132,8 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
                     </td>
                     {showRace && <td>{raceName}</td>}
                     <td>{c.gender}</td>
-                    <td>{(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried"}</td>
-                    <td style={{ textAlign: "right" }}>{c.family?.children ?? 0}</td>
+                    {showFamily ? <td>{(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried"}</td> : null}
+                    {showFamily ? <td style={{ textAlign: "right" }}>{c.family?.children ?? 0}</td> : null}
                     <td>{title}</td>
                     <td>{stateName}</td>
                   </tr>

@@ -11,7 +11,12 @@ import { canAppearInMixedCourt } from "../../data/raceCivicStance";
 import { HUMAN_RACE_ID, UNKNOWN_RACE_ID } from "../../data/races";
 import type { Culture, Race, State, StateRacialComposition } from "../../types/models";
 import { P } from "../hostUtils";
-import { getWorldContext, hasCharactersContext } from "./charactersContext";
+import {
+  getWorldContext,
+  hasCharactersContext,
+  isCharacterRaceAllowed,
+  resolveAllowedCharacterRaceId
+} from "./charactersContext";
 import { isEnemyDedicatedRaceKey } from "./raceSkillBias";
 
 /** Weighted pick among positive weights keyed by id. */
@@ -106,7 +111,7 @@ export function sampleRaceIdForState(
   const composition = resolveStateRacialComposition(state, culture);
   if (composition === "mono") {
     const hostId = majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
-    return resolveRaceIdWithBoundServitor(hostId, options?.roleClass, races);
+    return resolveAllowedCharacterRaceId(resolveRaceIdWithBoundServitor(hostId, options?.roleClass, races), races);
   }
 
   if (!races?.length) return majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
@@ -114,6 +119,7 @@ export function sampleRaceIdForState(
   const weights: Record<number, number> = {};
   for (const race of races) {
     if (!race || race.removed || race.i === UNKNOWN_RACE_ID) continue;
+    if (!isCharacterRaceAllowed(race)) continue;
     // Bound thralls and enemy colonies never staff free mixed courts.
     if (isEnemyDedicatedRaceKey(race.key)) continue;
     if (isBoundServitorRaceKey(race.key)) continue;
@@ -125,7 +131,7 @@ export function sampleRaceIdForState(
     if (race.i === majorityRace) w *= 2.8; // cultural majority in mixed realms
     weights[race.i] = Math.max(0.05, w);
   }
-  if (!Object.keys(weights).length) return majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
+  if (!Object.keys(weights).length) return resolveAllowedCharacterRaceId(majorityRace, races);
   return pickWeightedId(weights);
 }
 

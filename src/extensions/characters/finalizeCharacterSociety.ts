@@ -5,7 +5,7 @@
 
 import { seedBondsForCharacter, seedCharacterBonds } from "./characterBonds";
 import { resolveCultureTypeForLoadout, resolveLoadoutGoodsCatalog } from "./charactersContext";
-import type { Character, Dynasty } from "./characterTypes";
+import { type Character, type Dynasty, isCk3Character } from "./characterTypes";
 import { assignDynasties } from "./dynastyGenerator";
 import { applyCharacterHooks } from "./flavorHooks";
 import { normalizeCharacterLoadoutInPlace, seedCharacterLoadout } from "./loadoutSeed";
@@ -24,10 +24,11 @@ export function finalizeCharacterSociety(
   characters: Character[],
   context: FinalizeSocietyContext
 ): FinalizeSocietyResult {
-  const dynasties = assignDynasties(characters, { stateNames: context.stateNames });
-  seedCharacterBonds(characters, context.currentYear);
+  const ck3Characters = characters.filter(isCk3Character);
+  const dynasties = assignDynasties(ck3Characters, { stateNames: context.stateNames });
+  seedCharacterBonds(ck3Characters, context.currentYear);
   const catalog = resolveLoadoutGoodsCatalog();
-  for (const character of characters) {
+  for (const character of ck3Characters) {
     if (character.dead) continue;
     // Idempotent attire backfill (covers peers / legacy saves without loadout).
     seedCharacterLoadout(character, {
@@ -50,6 +51,8 @@ export function finalizeCharacterSocietyForPeer(
   allCharacters: Character[],
   context: FinalizeSocietyContext
 ): void {
+  if (!isCk3Character(character)) return;
+  allCharacters = allCharacters.filter(isCk3Character);
   seedBondsForCharacter(character, allCharacters, context.currentYear);
   if (!character.dead) {
     seedCharacterLoadout(character, {

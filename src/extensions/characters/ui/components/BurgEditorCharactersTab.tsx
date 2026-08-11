@@ -1,5 +1,8 @@
 import type { FC } from "react";
+import { useState } from "react";
+import { useOptionsState } from "../../../hostCore";
 import { openDialog, useBurgEditorState } from "../../../hostUi";
+import { generateBurgResidents } from "../../characterPopulation";
 import { getCharacters } from "../../charactersContext";
 import type { Character } from "../../characterTypes";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
@@ -25,6 +28,8 @@ function getOccupation(character: Character): string {
 /** Character roster for the burg currently open in the host's Edit Burg dialog. */
 export const BurgEditorCharactersTab: FC = () => {
   const burgId = useBurgEditorState(state => state.burgData?.id);
+  const culturesSet = useOptionsState(state => state.culturesSet);
+  const [count, setCount] = useState(5);
   // Characters mutate in place during simulation; this subscription keeps the tab current.
   useCharactersUiState(state => state.refreshToken);
   const openCharacterDetails = useCharactersUiState(state => state.openCharacterDetails);
@@ -35,41 +40,64 @@ export const BurgEditorCharactersTab: FC = () => {
     openDialog("characterDetails");
   };
 
-  if (!residents.length) {
-    return (
-      <div id="burgCharactersTab" role="status">
-        No characters are currently staying in this burg.
-      </div>
-    );
-  }
+  const handleGenerateResidents = (): void => {
+    if (burgId === undefined) return;
+    const created = generateBurgResidents({
+      burgId,
+      count,
+      isFantasy: culturesSet.toLowerCase().includes("fantasy")
+    });
+    if (created.length) useCharactersUiState.getState().bumpRefreshToken();
+  };
 
   return (
     <div id="burgCharactersTab">
-      <table id="burgCharactersTable" className="fmg-table">
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Occupation</th>
-          </tr>
-        </thead>
-        <tbody>
-          {residents.map(character => (
-            <tr key={character.i}>
-              <td>
-                <button
-                  type="button"
-                  className="link"
-                  data-tip="Open Character Details"
-                  onClick={() => handleCharacterClick(character.i)}
-                >
-                  {character.name}
-                </button>
-              </td>
-              <td>{getOccupation(character)}</td>
+      <div style={{ alignItems: "end", display: "flex", gap: 8, marginBottom: 8 }}>
+        <label htmlFor="burgResidentCount">
+          Generate residents
+          <input
+            id="burgResidentCount"
+            type="number"
+            min="1"
+            max="100"
+            value={count}
+            onChange={event => setCount(Math.max(1, Math.min(100, Math.floor(Number(event.target.value) || 1))))}
+            style={{ marginLeft: 5, width: 58 }}
+          />
+        </label>
+        <button type="button" onClick={handleGenerateResidents} disabled={burgId === undefined}>
+          Generate
+        </button>
+      </div>
+      {residents.length ? (
+        <table id="burgCharactersTable" className="fmg-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Occupation</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {residents.map(character => (
+              <tr key={character.i}>
+                <td>
+                  <button
+                    type="button"
+                    className="link"
+                    data-tip="Open Character Details"
+                    onClick={() => handleCharacterClick(character.i)}
+                  >
+                    {character.name}
+                  </button>
+                </td>
+                <td>{getOccupation(character)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div role="status">No characters are currently staying in this burg.</div>
+      )}
     </div>
   );
 };

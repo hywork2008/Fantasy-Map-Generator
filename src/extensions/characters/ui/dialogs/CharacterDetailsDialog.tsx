@@ -3,17 +3,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
-import { setPlayerCharacter } from "../../../nobility/controllers/playerCharacter";
-import { hasNobilityContext } from "../../../nobility/nobilityContext";
-import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
+import { dnd5ePreset, getDnd5eAbilityModifier } from "../../abilityPresets";
 import { attractiveness } from "../../appearance";
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
 import { getCharacterHealth, HEALTH_FULL } from "../../characterHealth";
-import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
+import { getApi, getCharacters, getSelectedAbilityPreset, getWorldContext } from "../../charactersContext";
 import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
 import { resolveCharacterRaceName } from "../../controllers/characters-overview";
+import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
+import { getAbilityValue } from "../../personFactory";
+import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
@@ -64,7 +65,9 @@ type CraftSkillSnapshot = Readonly<{
 }>;
 const CRAFT_SKILL_DOMAINS = ["blacksmithing", "smelting", "weaving", "tailoring"] as const;
 type CharacterDetailsTab =
+  | "profile"
   | "skills"
+  | "dnd5e"
   | "craftSkills"
   | "personality"
   | "loadout"
@@ -278,6 +281,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   }, [worldContext.pack]);
   const goodById = useMemo(() => new Map(goodsCatalog.map(good => [good.i, good])), [goodsCatalog]);
   const hasStateAffinitiesTab = character ? inferRoleClass(character) === "ruler" : false;
+  const hasDnd5eTab = getSelectedAbilityPreset().id === dnd5ePreset.id;
 
   const dispatchLoadoutCommand = (name: string, payload: Record<string, unknown>): boolean => {
     setEquipError(null);
@@ -317,10 +321,12 @@ export const CharacterDetailsDialog: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeTab === "stateAffinities" && !hasStateAffinitiesTab) {
+    if (hasDnd5eTab && activeTab !== "dnd5e") {
+      setActiveTab("dnd5e");
+    } else if ((!hasDnd5eTab && activeTab === "dnd5e") || (activeTab === "stateAffinities" && !hasStateAffinitiesTab)) {
       setActiveTab("skills");
     }
-  }, [activeTab, hasStateAffinitiesTab]);
+  }, [activeTab, hasDnd5eTab, hasStateAffinitiesTab]);
 
   if (!isOpen || !character) {
     return null;
@@ -329,9 +335,8 @@ export const CharacterDetailsDialog: React.FC = () => {
   const canGoBack = detailsHistoryIndex > 0;
   const canGoForward = detailsHistoryIndex >= 0 && detailsHistoryIndex < detailsHistory.length - 1;
 
-  const nobilityAvailable = hasNobilityContext();
   const isCurrentPlayer = playerCharacterId === character.i;
-  const canSetAsPlayer = nobilityAvailable && !character.dead && !isCurrentPlayer;
+  const canSetAsPlayer = !character.dead && !isCurrentPlayer;
 
   // Player-viewpoint beauty: observer = focus PC, subject = this sheet (hidden for self / no PC).
   const playerCharacter =
@@ -472,6 +477,159 @@ export const CharacterDetailsDialog: React.FC = () => {
       })
     : null;
 
+  const characterProfileContent = (
+    <table className="fmg-table fmg-property-table character-details__table">
+      <tbody>
+        <tr>
+          <th style={{ width: "120px", padding: "4px 0" }}>{t("characters.status")}</th>
+          <td>
+            {character.dead ? (
+              <span style={{ color: "#ff6b6b", fontWeight: "bold" }}>{statusText}</span>
+            ) : (
+              <span style={{ color: "#51cf66", fontWeight: "bold" }}>{statusText}</span>
+            )}
+          </td>
+        </tr>
+        {!character.dead ? (
+          <tr>
+            <th style={{ padding: "4px 0" }} data-tip={t("characters.healthTip")}>
+              {t("characters.health")}
+            </th>
+            <td>
+              {healthValue}/{HEALTH_FULL}
+              {sickStatusText ? (
+                <span style={{ color: "#ffa94d", fontSize: "0.85em", marginLeft: 6 }}>({sickStatusText})</span>
+              ) : null}
+            </td>
+          </tr>
+        ) : null}
+        <tr>
+          <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceTip")}>
+            {t("characters.appearance")}
+          </th>
+          <td>
+            {character.appearance ?? t("characters.notAvailable")}
+            <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
+              ({t("characters.appearanceSameRaceHint")})
+            </span>
+          </td>
+        </tr>
+        {viewFromPlayer && appearanceToYouKindKey ? (
+          <tr>
+            <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceToYouTip")}>
+              {t("characters.appearanceToYou")}
+            </th>
+            <td>
+              {viewFromPlayer.score}
+              <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
+                ({t(`characters.${appearanceToYouKindKey}`)})
+              </span>
+              <div style={{ color: "#868e96", fontSize: "0.85em", marginTop: 2, lineHeight: 1.35 }}>
+                {viewFromPlayer.reaction}
+              </div>
+            </td>
+          </tr>
+        ) : null}
+        {looks ? (
+          <tr>
+            <th style={{ padding: "4px 0", verticalAlign: "top" }} data-tip={t("characters.looksTip")}>
+              {t("characters.looks")}
+            </th>
+            <td style={{ fontSize: "0.9em", lineHeight: 1.45 }}>
+              {t("characters.looksStature")}: {looks.stature}
+              <br />
+              {t("characters.looksBuild")}: {looks.build}
+              <br />
+              {t("characters.looksSymmetry")}: {looks.symmetry}
+              <br />
+              {t("characters.looksRefinement")}: {looks.refinement}
+              <br />
+              {t("characters.looksVitality")}: {looks.vitality}
+              <br />
+              {t("characters.looksOrnament")}: {looks.ornament}
+            </td>
+          </tr>
+        ) : null}
+        <tr>
+          <th style={{ padding: "4px 0" }}>{t("characters.prestige")}</th>
+          <td>{character.prestige ?? t("characters.notAvailable")}</td>
+        </tr>
+        {character.family ? (
+          <tr>
+            <th style={{ padding: "4px 0" }}>{t("characters.family")}</th>
+            <td>
+              {t("characters.familySummary", {
+                maritalStatus: character.family.spouses > 0 ? t("characters.married") : t("characters.unmarried"),
+                spouses: character.family.spouses,
+                children: character.family.children,
+                grandchildren: character.family.grandchildren,
+                greatGrandchildren:
+                  character.family.greatGrandchildren > 0
+                    ? t("characters.greatGrandchildren", { count: character.family.greatGrandchildren })
+                    : ""
+              })}
+            </td>
+          </tr>
+        ) : null}
+        {character.titles.length > 0 ? (
+          <tr>
+            <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.titles")}</th>
+            <td>
+              <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
+                {character.titles.map(titleHolding => (
+                  <li key={`${titleHolding.entityType}-${titleHolding.entityId}-${titleHolding.title}`}>
+                    {t("characters.titleOf", {
+                      title: getCharacterTitleLabel(titleHolding.title),
+                      entity: getTitleEntityName(titleHolding)
+                    })}{" "}
+                    {titleHolding.landed ? t("characters.landed") : ""}{" "}
+                    {titleHolding.startYear ? t("characters.since", { year: titleHolding.startYear }) : ""}
+                  </li>
+                ))}
+              </ul>
+            </td>
+          </tr>
+        ) : null}
+        {character.roles?.length ? (
+          <tr>
+            <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.roles")}</th>
+            <td>
+              <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
+                {character.roles.map(role => (
+                  <li key={`${role.source}-${role.kind}-${role.entityType}-${role.entityId}`}>
+                    {getCharacterRoleLabel(role)}: {getRoleEntityName(role)}
+                  </li>
+                ))}
+              </ul>
+            </td>
+          </tr>
+        ) : null}
+        {character.pastTitles.length > 0 ? (
+          <tr>
+            <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.pastTitles")}</th>
+            <td>
+              <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
+                {character.pastTitles.map((titleHolding, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Past titles can be identical
+                  <li key={`past-${index}`}>
+                    {t("characters.titleOf", {
+                      title: getCharacterTitleLabel(titleHolding.title),
+                      entity: getTitleEntityName(titleHolding)
+                    })}{" "}
+                    ({titleHolding.startYear ?? "?"} - {titleHolding.endYear ?? "?"})
+                    {titleHolding.reason ? (
+                      <span style={{ color: "#adb5bd", fontStyle: "italic" }}> - {titleHolding.reason}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </td>
+          </tr>
+        ) : null}
+      </tbody>
+    </table>
+  );
+
   const downloadCSV = () => {
     if (!character) return;
 
@@ -508,7 +666,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`${t("characters.wealth")}, ${character.wealth ?? 0}`);
 
     // Family
-    if (character.family) {
+    if (!hasDnd5eTab && character.family) {
       rows.push(t("characters.family"));
       rows.push(`${t("characters.spouses")}, ${character.family.spouses}`);
       rows.push(`${t("characters.children")}, ${character.family.children}`);
@@ -518,8 +676,15 @@ export const CharacterDetailsDialog: React.FC = () => {
       }
     }
 
-    // Skills
-    if (character.skills) {
+    // Ability system
+    if (hasDnd5eTab) {
+      rows.push(t("characters.dnd5e"));
+      for (const stat of dnd5ePreset.stats) {
+        const score = getAbilityValue(character, stat.key) ?? stat.default;
+        const modifier = getDnd5eAbilityModifier(score);
+        rows.push(`${stat.label} (${stat.key}), ${score}, ${modifier >= 0 ? `+${modifier}` : modifier}`);
+      }
+    } else {
       rows.push(t("characters.skills"));
       rows.push(`${t("characters.artistry")}, ${character.skills.artistry}`);
       rows.push(`${t("characters.diplomacy")}, ${character.skills.diplomacy}`);
@@ -530,10 +695,6 @@ export const CharacterDetailsDialog: React.FC = () => {
       rows.push(`${t("characters.martial")}, ${character.skills.martial}`);
       rows.push(`${t("characters.prowess")}, ${character.skills.prowess}`);
       rows.push(`${t("characters.stewardship")}, ${character.skills.stewardship}`);
-    }
-
-    // Personality
-    if (character.personality) {
       rows.push(t("characters.personality"));
       rows.push(`${t("characters.boldness")}, ${character.personality.boldness}`);
       rows.push(`${t("characters.compassion")}, ${character.personality.compassion}`);
@@ -792,86 +953,12 @@ export const CharacterDetailsDialog: React.FC = () => {
               <td>{t(`characters.${character.gender}`)}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>{t("characters.status")}</th>
-              <td>
-                {character.dead ? (
-                  <span style={{ color: "#ff6b6b", fontWeight: "bold" }}>{statusText}</span>
-                ) : (
-                  <span style={{ color: "#51cf66", fontWeight: "bold" }}>{statusText}</span>
-                )}
-              </td>
-            </tr>
-            {!character.dead && (
-              <tr>
-                <th style={{ padding: "4px 0" }} data-tip={t("characters.healthTip")}>
-                  {t("characters.health")}
-                </th>
-                <td>
-                  {healthValue}/{HEALTH_FULL}
-                  {sickStatusText && (
-                    <span style={{ color: "#ffa94d", fontSize: "0.85em", marginLeft: 6 }}>({sickStatusText})</span>
-                  )}
-                </td>
-              </tr>
-            )}
-            <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.culture")}</th>
               <td>{cultureName}</td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.race")}</th>
               <td>{raceName}</td>
-            </tr>
-            <tr>
-              <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceTip")}>
-                {t("characters.appearance")}
-              </th>
-              <td>
-                {character.appearance ?? t("characters.notAvailable")}
-                <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
-                  ({t("characters.appearanceSameRaceHint")})
-                </span>
-              </td>
-            </tr>
-            {viewFromPlayer && appearanceToYouKindKey && (
-              <tr>
-                <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceToYouTip")}>
-                  {t("characters.appearanceToYou")}
-                </th>
-                <td>
-                  {viewFromPlayer.score}
-                  <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
-                    ({t(`characters.${appearanceToYouKindKey}`)})
-                  </span>
-                  <div style={{ color: "#868e96", fontSize: "0.85em", marginTop: 2, lineHeight: 1.35 }}>
-                    {viewFromPlayer.reaction}
-                  </div>
-                </td>
-              </tr>
-            )}
-            {looks && (
-              <tr>
-                <th style={{ padding: "4px 0", verticalAlign: "top" }} data-tip={t("characters.looksTip")}>
-                  {t("characters.looks")}
-                </th>
-                <td style={{ fontSize: "0.9em", lineHeight: 1.45 }}>
-                  {t("characters.looksStature")}: {looks.stature}
-                  <br />
-                  {t("characters.looksBuild")}: {looks.build}
-                  <br />
-                  {t("characters.looksSymmetry")}: {looks.symmetry}
-                  <br />
-                  {t("characters.looksRefinement")}: {looks.refinement}
-                  <br />
-                  {t("characters.looksVitality")}: {looks.vitality}
-                  <br />
-                  {t("characters.looksOrnament")}: {looks.ornament}
-                </td>
-              </tr>
-            )}
-            <tr>
-              <th style={{ padding: "4px 0" }}>{t("characters.prestige")}</th>
-              <td>{character.prestige ?? t("characters.notAvailable")}</td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }} data-tip={t("characters.wealthTip")}>
@@ -896,141 +983,90 @@ export const CharacterDetailsDialog: React.FC = () => {
                 {locationStr}
               </td>
             </tr>
-            {character.family && (
-              <tr>
-                <th style={{ padding: "4px 0" }}>{t("characters.family")}</th>
-                <td>
-                  {t("characters.familySummary", {
-                    maritalStatus: character.family.spouses > 0 ? t("characters.married") : t("characters.unmarried"),
-                    spouses: character.family.spouses,
-                    children: character.family.children,
-                    grandchildren: character.family.grandchildren,
-                    greatGrandchildren:
-                      character.family.greatGrandchildren > 0
-                        ? t("characters.greatGrandchildren", { count: character.family.greatGrandchildren })
-                        : ""
-                  })}
-                </td>
-              </tr>
-            )}
-            {character.titles && character.titles.length > 0 && (
-              <tr>
-                <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.titles")}</th>
-                <td>
-                  <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
-                    {character.titles.map(titleHolding => (
-                      <li key={`${titleHolding.entityType}-${titleHolding.entityId}-${titleHolding.title}`}>
-                        {t("characters.titleOf", {
-                          title: getCharacterTitleLabel(titleHolding.title),
-                          entity: getTitleEntityName(titleHolding)
-                        })}{" "}
-                        {titleHolding.landed ? t("characters.landed") : ""}{" "}
-                        {titleHolding.startYear ? t("characters.since", { year: titleHolding.startYear }) : ""}
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              </tr>
-            )}
-            {character.roles && character.roles.length > 0 && (
-              <tr>
-                <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.roles")}</th>
-                <td>
-                  <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
-                    {character.roles.map(role => (
-                      <li key={`${role.source}-${role.kind}-${role.entityType}-${role.entityId}`}>
-                        {getCharacterRoleLabel(role)}: {getRoleEntityName(role)}
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              </tr>
-            )}
-            {character.pastTitles && character.pastTitles.length > 0 && (
-              <tr>
-                <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.pastTitles")}</th>
-                <td>
-                  <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
-                    {character.pastTitles.map((titleHolding, idx) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: Past titles can be identical
-                      <li key={`past-${idx}`}>
-                        {t("characters.titleOf", {
-                          title: getCharacterTitleLabel(titleHolding.title),
-                          entity: getTitleEntityName(titleHolding)
-                        })}{" "}
-                        ({titleHolding.startYear ?? "?"} - {titleHolding.endYear ?? "?"})
-                        {titleHolding.reason ? (
-                          <span style={{ color: "#adb5bd", fontStyle: "italic" }}> - {titleHolding.reason}</span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
 
         <div className="tab" style={{ display: "flex", flexShrink: 0, marginTop: "10px" }}>
-          <button
-            type="button"
-            className={`options ${activeTab === "skills" ? "active" : ""}`}
-            onClick={() => setActiveTab("skills")}
-          >
-            {t("characters.skills")}
-          </button>
-          <button
-            type="button"
-            className={`options ${activeTab === "craftSkills" ? "active" : ""}`}
-            onClick={() => setActiveTab("craftSkills")}
-          >
-            {t("characters.craftSkills")}
-          </button>
-          <button
-            type="button"
-            className={`options ${activeTab === "personality" ? "active" : ""}`}
-            onClick={() => setActiveTab("personality")}
-          >
-            {t("characters.personality")}
-          </button>
-          <button
-            type="button"
-            className={`options ${activeTab === "loadout" ? "active" : ""}`}
-            onClick={() => setActiveTab("loadout")}
-          >
-            {t("characters.loadout")}
-          </button>
-          <button
-            type="button"
-            className={`options ${activeTab === "inventory" ? "active" : ""}`}
-            onClick={() => setActiveTab("inventory")}
-          >
-            {t("characters.inventory")}
-          </button>
-          <button
-            type="button"
-            className={`options ${activeTab === "backstory" ? "active" : ""}`}
-            onClick={() => setActiveTab("backstory")}
-          >
-            {t("characters.backstory")}
-          </button>
-          <button
-            type="button"
-            className={`options ${activeTab === "relationships" ? "active" : ""}`}
-            onClick={() => setActiveTab("relationships")}
-          >
-            {t("characters.relationships")}
-          </button>
-          {hasStateAffinitiesTab && (
+          {hasDnd5eTab ? (
             <button
               type="button"
-              className={`options ${activeTab === "stateAffinities" ? "active" : ""}`}
-              onClick={() => setActiveTab("stateAffinities")}
+              className={`options ${activeTab === "dnd5e" ? "active" : ""}`}
+              onClick={() => setActiveTab("dnd5e")}
             >
-              {t("characters.stateAffinities")}
+              {t("characters.dnd5e")}
             </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={`options ${activeTab === "profile" ? "active" : ""}`}
+                onClick={() => setActiveTab("profile")}
+              >
+                {t("characters.profile")}
+              </button>
+              <button
+                type="button"
+                className={`options ${activeTab === "skills" ? "active" : ""}`}
+                onClick={() => setActiveTab("skills")}
+              >
+                {t("characters.skills")}
+              </button>
+              <button
+                type="button"
+                className={`options ${activeTab === "craftSkills" ? "active" : ""}`}
+                onClick={() => setActiveTab("craftSkills")}
+              >
+                {t("characters.craftSkills")}
+              </button>
+              <button
+                type="button"
+                className={`options ${activeTab === "personality" ? "active" : ""}`}
+                onClick={() => setActiveTab("personality")}
+              >
+                {t("characters.personality")}
+              </button>
+              <button
+                type="button"
+                className={`options ${activeTab === "loadout" ? "active" : ""}`}
+                onClick={() => setActiveTab("loadout")}
+              >
+                {t("characters.loadout")}
+              </button>
+              <button
+                type="button"
+                className={`options ${activeTab === "inventory" ? "active" : ""}`}
+                onClick={() => setActiveTab("inventory")}
+              >
+                {t("characters.inventory")}
+              </button>
+              <button
+                type="button"
+                className={`options ${activeTab === "backstory" ? "active" : ""}`}
+                onClick={() => setActiveTab("backstory")}
+              >
+                {t("characters.backstory")}
+              </button>
+              <button
+                type="button"
+                className={`options ${activeTab === "relationships" ? "active" : ""}`}
+                onClick={() => setActiveTab("relationships")}
+              >
+                {t("characters.relationships")}
+              </button>
+              {hasStateAffinitiesTab ? (
+                <button
+                  type="button"
+                  className={`options ${activeTab === "stateAffinities" ? "active" : ""}`}
+                  onClick={() => setActiveTab("stateAffinities")}
+                >
+                  {t("characters.stateAffinities")}
+                </button>
+              ) : null}
+            </>
           )}
         </div>
+
+        {!hasDnd5eTab && activeTab === "profile" ? <div>{characterProfileContent}</div> : null}
 
         {activeTab === "skills" && (
           <div>
@@ -1053,6 +1089,36 @@ export const CharacterDetailsDialog: React.FC = () => {
             )}
           </div>
         )}
+
+        {hasDnd5eTab && activeTab === "dnd5e" ? (
+          <div>
+            <h4>{t("characters.dnd5e")}</h4>
+            <table className="fmg-table character-details__table">
+              <thead>
+                <tr>
+                  <th>{t("characters.ability")}</th>
+                  <th>{t("characters.abilityScore")}</th>
+                  <th>{t("characters.abilityModifier")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dnd5ePreset.stats.map(stat => {
+                  const score = getAbilityValue(character, stat.key) ?? stat.default;
+                  const modifier = getDnd5eAbilityModifier(score);
+                  return (
+                    <tr key={stat.key}>
+                      <th scope="row">
+                        {stat.label} ({stat.key})
+                      </th>
+                      <td>{score}</td>
+                      <td>{modifier >= 0 ? `+${modifier}` : modifier}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
 
         {activeTab === "craftSkills" && (
           <div>

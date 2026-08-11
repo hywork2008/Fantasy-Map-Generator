@@ -1,8 +1,8 @@
 import type { Character, TitleHolding } from "../../characters/characterTypes";
+import { usePlayerCharacterState } from "../../characters/store/playerCharacterState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../characters/utils/characterLabels";
 import type { Burg, Province, State } from "../../hostTypes";
 import { getWorldContext } from "../nobilityContext";
-import { usePlayerCharacterState } from "../store/playerCharacterState";
 
 const FIELD_COMMAND_TITLES = new Set(["Commander", "Admiral"]);
 

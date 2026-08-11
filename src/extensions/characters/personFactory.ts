@@ -8,7 +8,13 @@ import { gauss, P, rand } from "../hostUtils";
 import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
 import { rollLooksForRace } from "./appearance";
 import { HEALTH_FULL } from "./characterHealth";
-import { getAbilityPreset, getWorldContext, hasCharactersContext } from "./charactersContext";
+import {
+  getAbilityPreset,
+  getSelectedAbilityPresetId,
+  getWorldContext,
+  hasCharactersContext,
+  resolveAllowedCharacterRaceId
+} from "./charactersContext";
 import type {
   AbilityProfile,
   Character,
@@ -96,8 +102,6 @@ export interface CreatePersonOptions {
    * Drives looks, fertility, gender policy, and Character.race.
    */
   raceOverride?: number;
-  /** Ability preset id to roll into `abilityProfile` in addition to the mandatory skills/personality. Defaults to "ck3e" (no extra roll — same values, merged). */
-  presetId?: string;
 }
 
 /**
@@ -388,7 +392,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     marriageExpectation = "ordinary"
   } = options;
   const isReligiousRole = options.isReligiousRole ?? false;
-  const presetId = options.presetId ?? "ck3e";
+  const presetId = getSelectedAbilityPresetId();
+  const usesCk3Systems = presetId === "ck3e";
   // Religious roles without an explicit class still get learning-oriented skill means.
   const skillRoleClass: CharacterRoleClass | undefined = roleClass ?? (isReligiousRole ? "religious" : undefined);
 
@@ -421,15 +426,11 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   if (isEnemyDedicatedRaceKey(peekRaceKey) && !isEnemyDedicatedRole(skillRoleClass, primarySkill)) {
     race = HUMAN_RACE_ID;
   }
+  race = resolveAllowedCharacterRaceId(race, packRaces);
   // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
   const gender: Gender = resolvePersonGender(cultureId, genderOverride, race);
   // Ages scale with race maturity + lifespan (elves are not rolled as 28–65 year “adults”).
   const age = ageOverride !== undefined ? ageOverride : rollDefaultAdultAge(race);
-
-  const guile = rand(1, 100);
-  const piety = isReligiousRole ? rand(60, 100) : rand(1, 100);
-  // Religious figures are typically zealous, unless they are highly guileful (deceitful)
-  const zeal = isReligiousRole && guile < 70 ? rand(50, 100) : rand(1, 100);
 
   // Long-lived races (elf, dwarf, …) take no human mid-life age penalties on looks/prowess.
   const raceLifespan = (() => {
@@ -443,7 +444,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   const declineThreshold = skipAgePenalty ? Number.POSITIVE_INFINITY : DECLINE_AGE_THRESHOLD;
   const { looks, appearance } = rollLooksForRace(race, age, declineThreshold);
 
-  // Occupation / office / race-biased gaussians (not uniform 1–100) — see skillGeneration.ts.
+  // CK3-specific occupation, personality, and minor-development rolls do not
+  // exist on D&D characters. Their values live exclusively in abilityProfile.
   const raceDef = (() => {
     try {
       return getRaceById(getWorldContext().pack.races, race);
@@ -451,62 +453,72 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
       return undefined;
     }
   })();
-  const skills = rollCharacterSkills({
-    primarySkill,
-    roleClass: skillRoleClass,
-    raceKey: raceDef?.key,
-    lifespan: raceDef?.lifespan ?? raceLifespan
-  });
+  const skills = {} as CharacterSkills;
+  const personality = {} as CharacterPersonality;
+  if (usesCk3Systems) {
+    const guile = rand(1, 100);
+    const piety = isReligiousRole ? rand(60, 100) : rand(1, 100);
+    // Religious figures are typically zealous, unless they are highly guileful (deceitful)
+    const zeal = isReligiousRole && guile < 70 ? rand(50, 100) : rand(1, 100);
+    Object.assign(
+      skills,
+      rollCharacterSkills({
+        primarySkill,
+        roleClass: skillRoleClass,
+        raceKey: raceDef?.key,
+        lifespan: raceDef?.lifespan ?? raceLifespan
+      })
+    );
 
-  // Physical decline for personal combat ability past peak age (human-scale races only).
-  // Career soldiers / martial primaries use half the civilian rate (see advanceAge.ts).
-  if (!skipAgePenalty && age > DECLINE_AGE_THRESHOLD) {
-    const prowessRate = prowessDeclineRateForCreation(skillRoleClass, primarySkill);
-    skills.prowess = Math.max(1, skills.prowess - Math.floor((age - DECLINE_AGE_THRESHOLD) * prowessRate));
-  }
-
-  // If character is a minor (below race maturity), drastically reduce base stats.
-  // They will grow over time in advanceCharacterAging.
-  if (isRaceMinor(age, race)) {
-    const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
-    const ageFactor = Math.max(0.05, age / maturity);
-    for (const key of Object.keys(skills) as (keyof CharacterSkills)[]) {
-      skills[key] = Math.max(1, Math.floor(skills[key] * ageFactor));
+    // Physical decline for personal combat ability past peak age (human-scale races only).
+    // Career soldiers / martial primaries use half the civilian rate (see advanceAge.ts).
+    if (!skipAgePenalty && age > DECLINE_AGE_THRESHOLD) {
+      const prowessRate = prowessDeclineRateForCreation(skillRoleClass, primarySkill);
+      skills.prowess = Math.max(1, skills.prowess - Math.floor((age - DECLINE_AGE_THRESHOLD) * prowessRate));
     }
-  }
 
-  const avgSkill = Math.round(
-    (skills.artistry +
-      skills.diplomacy +
-      skills.engineering +
-      skills.geography +
-      skills.intrigue +
-      skills.learning +
-      skills.martial +
-      skills.prowess +
-      skills.stewardship) /
-      9
-  );
+    // If character is a minor (below race maturity), drastically reduce base stats.
+    // They will grow over time in advanceCharacterAging.
+    if (isRaceMinor(age, race)) {
+      const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
+      const ageFactor = Math.max(0.05, age / maturity);
+      for (const key of Object.keys(skills) as (keyof CharacterSkills)[]) {
+        skills[key] = Math.max(1, Math.floor(skills[key] * ageFactor));
+      }
+    }
 
-  // Confidence: based on average skill with a ±20 random variance (race bias applied below).
-  const confidence = Math.max(1, Math.min(100, avgSkill + rand(-20, 20)));
+    const avgSkill = Math.round(
+      (skills.artistry +
+        skills.diplomacy +
+        skills.engineering +
+        skills.geography +
+        skills.intrigue +
+        skills.learning +
+        skills.martial +
+        skills.prowess +
+        skills.stewardship) /
+        9
+    );
+    const confidence = Math.max(1, Math.min(100, avgSkill + rand(-20, 20)));
+    Object.assign(
+      personality,
+      rollCharacterPersonality({
+        raceKey: raceDef?.key,
+        lifespan: raceDef?.lifespan ?? raceLifespan,
+        presets: { zeal, piety, guile, confidence }
+      })
+    );
 
-  // Species personality medians (elf: lower boldness/greed/vengefulness, …).
-  const personality: CharacterPersonality = rollCharacterPersonality({
-    raceKey: raceDef?.key,
-    lifespan: raceDef?.lifespan ?? raceLifespan,
-    presets: { zeal, piety, guile, confidence }
-  });
-
-  // If character is a minor, neutralize personality towards 50 so babies don't act like evil masterminds.
-  // They will slowly drift towards extremes in advanceCharacterAging.
-  if (isRaceMinor(age, race)) {
-    const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
-    const ageFactor = Math.max(0.1, age / maturity);
-    for (const key of Object.keys(personality) as (keyof CharacterPersonality)[]) {
-      if (key === "confidence") continue; // Handled differently
-      const val = (personality as unknown as Record<string, number>)[key as string];
-      (personality as unknown as Record<string, number>)[key as string] = Math.round(50 + (val - 50) * ageFactor);
+    // If character is a minor, neutralize personality towards 50 so babies don't act like evil masterminds.
+    // They will slowly drift towards extremes in advanceCharacterAging.
+    if (isRaceMinor(age, race)) {
+      const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
+      const ageFactor = Math.max(0.1, age / maturity);
+      for (const key of Object.keys(personality) as (keyof CharacterPersonality)[]) {
+        if (key === "confidence") continue; // Handled differently
+        const value = (personality as unknown as Record<string, number>)[key as string];
+        (personality as unknown as Record<string, number>)[key as string] = Math.round(50 + (value - 50) * ageFactor);
+      }
     }
   }
 
@@ -545,7 +557,10 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     marriages: [],
     skills,
     personality,
-    family: generateFamily(age, gender, formName, marriageExpectation, isReligiousRole, race),
+    // D&D characters do not receive a CK3-style age-derived household roll.
+    family: usesCk3Systems
+      ? generateFamily(age, gender, formName, marriageExpectation, isReligiousRole, race)
+      : { ...EMPTY_FAMILY, spouseIds: [], childIds: [] },
     pastTitles: [],
     state: homeStateId,
     // New characters start in full health; characterHealth.ts's tick pass takes over from here.
