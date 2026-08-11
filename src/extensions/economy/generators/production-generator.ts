@@ -20,6 +20,7 @@ import {
 } from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
+import { CELL_FOOD_PRESERVATION_LABOR_SHARE } from "./cellFoodRescue";
 import {
   type ConstructionOperation,
   ConstructionOperations,
@@ -508,13 +509,16 @@ export class ProductionModule {
     const maxSteps = Math.max(0, Math.ceil(state.population));
     let step = 0;
 
-    // Phase 1: preservation goods and their direct craft ingredients only, re-evaluated every step —
-    // this candidate set is small (a handful of Goods), so the reevalEvery batching phase 2 needs for
-    // its much larger productiveGoods list isn't worth the staleness here.
+    // Phase 1: preservation goods and their direct craft ingredients only. This protects the rare
+    // case of fresh cargo already in a Burg's market, but is intentionally capped: food safety is a
+    // bounded reserve target, not permission to move the entire urban workforce away from valuable
+    // construction, military, or luxury work. Cell-local fresh harvests use cellFoodRescue instead.
     if (index.priorityGoods.length) {
       state.activeGoalGoodId = null;
-      for (; step < maxSteps; step++) {
-        const workersLeft = state.population - workersUsed;
+      const priorityWorkCap = state.population * CELL_FOOD_PRESERVATION_LABOR_SHARE;
+      let priorityWorkUsed = 0;
+      for (; step < maxSteps && priorityWorkUsed < priorityWorkCap - 1e-9; step++) {
+        const workersLeft = Math.min(state.population - workersUsed, priorityWorkCap - priorityWorkUsed);
         const workerFraction = Math.min(1, workersLeft);
         if (workerFraction <= 1e-9) break;
 
@@ -533,6 +537,7 @@ export class ProductionModule {
 
         this.executeManufacture(state, index, decision, workerFraction);
         workersUsed += workerFraction;
+        priorityWorkUsed += workerFraction;
 
         const domain = getCraftDomainForGood(decision.action.good.name);
         if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);

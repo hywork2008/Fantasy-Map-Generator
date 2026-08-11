@@ -7,7 +7,13 @@ import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
 import { TIME } from "../../hostUtils";
 import { getGoodCellColumn, getGoods, getWorldContext, setGoodCellColumn, setGoods } from "../economyContext";
-import { GRAPES_LOTS_PER_RAISINS_LOT, GRAPES_LOTS_PER_WINE_LOT, MILK_LOTS_PER_CHEESE_LOT } from "./foodLots";
+import {
+  DAIRY_TARGETS,
+  GRAPE_TARGETS,
+  GRAPES_LOTS_PER_RAISINS_LOT,
+  GRAPES_LOTS_PER_WINE_LOT,
+  MILK_LOTS_PER_CHEESE_LOT
+} from "./foodLots";
 import {
   DEMAND_PRIORITY,
   type DemandCategory,
@@ -20,10 +26,34 @@ import { getDefaultGoodCargoProfile } from "./tradeCargo";
 
 /** Raw, un-refrigerated foods introduced before the `freshFood` catalogue tag existed. */
 const FRESH_FOOD_GOOD_NAMES = new Set(["Fish", "Game", "Milk", "Shellfish", "Grapes"]);
+const LEGACY_FRESH_FOOD_PROFILES: Readonly<Record<string, NonNullable<Good["freshFood"]>>> = {
+  Fish: { householdDemandPerPopulationMonth: 0.25, preservationLaborPerUnit: 0.08 },
+  Game: { householdDemandPerPopulationMonth: 0.2, preservationLaborPerUnit: 0.1 },
+  Milk: {
+    householdDemandPerPopulationMonth: DAIRY_TARGETS.freshMilkLitersPerPersonYear / 12,
+    preservationLaborPerUnit: 0.08
+  },
+  Shellfish: { householdDemandPerPopulationMonth: 0.15, preservationLaborPerUnit: 0.1 },
+  Grapes: {
+    householdDemandPerPopulationMonth: GRAPE_TARGETS.freshKilogramsPerPersonYear / 12,
+    preservationLaborPerUnit: 0.06
+  }
+};
+const LEGACY_PRESERVED_FOOD_NAMES = new Set(["Cheese", "Raisins", "Preserved food", "Stockfish"]);
 
 /** Compatibility fallback for active legacy maps that have not been reloaded for tag migration. */
 export function isFreshFoodGood(good: Pick<Good, "name" | "tags">): boolean {
   return good.tags.includes("freshFood") || FRESH_FOOD_GOOD_NAMES.has(good.name);
+}
+
+/** New catalogues declare this inline; the name fallback keeps existing saved maps compatible. */
+export function getFreshFoodProfile(good: Pick<Good, "name" | "freshFood">): Good["freshFood"] | null {
+  return good.freshFood ?? LEGACY_FRESH_FOOD_PROFILES[good.name] ?? null;
+}
+
+/** Shelf-stable outputs that may leave the source cell after its local reserve is filled. */
+export function isPreservedFoodGood(good: Pick<Good, "name" | "tags">): boolean {
+  return good.tags.includes("preservedFood") || LEGACY_PRESERVED_FOOD_NAMES.has(good.name);
 }
 
 export type {
@@ -431,6 +461,7 @@ export const GOODS_DATA: GoodData[] = [
     distribution:
       'nearshoreHabitat("rockyReef", "coralReef", "seagrassMeadow") || shore(-1) && type("ocean", "freshwater", "salt")',
     unit: "wain",
+    freshFood: { householdDemandPerPopulationMonth: 0.25, preservationLaborPerUnit: 0.08 },
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { River: 1.4, Lake: 1.4, Naval: 1.4, Nomadic: 0.2 } }
   },
@@ -444,6 +475,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 3,
     distribution: 'biomeTag("forest")',
     unit: "wain",
+    freshFood: { householdDemandPerPopulationMonth: 0.2, preservationLaborPerUnit: 0.1 },
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Naval: 0.6, Nomadic: 1.4, Hunting: 2 } },
     // No longer forest-only (2026-08-07, docs/plan/fauna-biome-realism.md §2.2/§3 Phase A): every
@@ -470,7 +502,9 @@ export const GOODS_DATA: GoodData[] = [
     // recipe/craft pipeline, same as Beer from Grain. viticulture.ts sizes Grapes' harvest instead.
     name: "Wine",
     warEconomyType: "luxury",
-    tags: ["food", "luxury"],
+    // Grape-growing cells use Wine as their commercial output after the local Raisins reserve is
+    // full. It is intentionally not `preservedFood`: Wine must never displace emergency food stores.
+    tags: ["food", "luxury", "grapeWine"],
     icon: "good-wine",
     color: "#963e48",
     // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8. The old value 6 was chosen only
@@ -1347,7 +1381,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Preserved food",
-    tags: ["food"],
+    tags: ["food", "preservedFood"],
     icon: "good-salted-fish",
     color: "#c2b280",
     value: 5,
@@ -1403,7 +1437,11 @@ export const GOODS_DATA: GoodData[] = [
     color: "#f5f0e6",
     value: 1,
     chance: 0,
-    unit: "1,000 L dairy lot"
+    unit: "1,000 L dairy lot",
+    freshFood: {
+      householdDemandPerPopulationMonth: DAIRY_TARGETS.freshMilkLitersPerPersonYear / 12,
+      preservationLaborPerUnit: 0.08
+    }
   },
   {
     // Real cheesemaking curdles Milk with an acid (Salt-brined whey/Vinegar, already modeled below)
@@ -1453,7 +1491,7 @@ export const GOODS_DATA: GoodData[] = [
     // isn't bottlenecked behind a single scarce coagulant good — four independent raw-material paths
     // now compete for the same Milk surplus instead of one.
     name: "Cheese",
-    tags: ["food"],
+    tags: ["food", "preservedFood"],
     icon: "good-cheese",
     color: "#f5e1a4",
     value: 14,
@@ -1629,6 +1667,7 @@ export const GOODS_DATA: GoodData[] = [
     distribution:
       'coastalHabitat("rockyIntertidal", "tidalFlat") || nearshoreHabitat("rockyReef", "coralReef", "seagrassMeadow")',
     unit: "basket",
+    freshFood: { householdDemandPerPopulationMonth: 0.15, preservationLaborPerUnit: 0.1 },
     demandCoverage: { food: 0.8 }
   },
   {
@@ -1872,7 +1911,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Stockfish",
     warEconomyType: "essential",
-    tags: ["food", "preservative"],
+    tags: ["food", "preservative", "preservedFood"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#c9b896",
@@ -2017,13 +2056,17 @@ export const GOODS_DATA: GoodData[] = [
     chance: 3,
     distribution: 'biome(6) || biomeTag("scrub") || (biome(4) && random(50) && river())',
     unit: "1,000 kg grape lot",
+    freshFood: {
+      householdDemandPerPopulationMonth: GRAPE_TARGETS.freshKilogramsPerPersonYear / 12,
+      preservationLaborPerUnit: 0.06
+    },
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
   },
   {
     // Dried grapes — a preserved good like Stockfish, produced by the existing generic recipe/craft
     // pipeline (production-generator.ts's runWorkerLoop) with zero new processing-stage code.
     name: "Raisins",
-    tags: ["food", "preservative"],
+    tags: ["food", "preservative", "preservedFood"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#6b4423",

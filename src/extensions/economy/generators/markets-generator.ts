@@ -15,6 +15,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getOrCreateCellFoodReserves,
   getOrCreateCumulativeGoodsSales,
   getOrCreateMarketGoodProductionTotals,
   getSimulationMonth,
@@ -27,11 +28,25 @@ import {
 } from "../economyContext";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
+import { planCellFoodRescue } from "./cellFoodRescue";
+import type { CellFreshFoodInput } from "./cellFoodRescueTypes";
 import { ExportStaging } from "./exportStaging";
-import { recordFoodMarketIntake } from "./foodProcessingLedger";
+import {
+  recordCellFoodHouseholdConsumption,
+  recordFoodMarketIntake,
+  recordFoodProcessingConsumption
+} from "./foodProcessingLedger";
 import { harvestWood } from "./forestStock";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
+import {
+  DEMAND_PRIORITY,
+  DEMAND_TARGET_FACTORS,
+  GOODS_DATA,
+  Goods,
+  getFreshFoodProfile,
+  isGoodEnabled,
+  isPreservedFoodGood
+} from "./goods-generator";
 import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
@@ -45,7 +60,11 @@ import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
+import {
+  getRuralCellPopulation,
+  getRuralProductionContributions,
+  getSeasonalFoodProductionMultiplier
+} from "./production-utils";
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
 import { getMarketTextileDemandProfile } from "./textileDemand";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
@@ -89,12 +108,20 @@ type RuralTotalsByMarket = Map<number, Map<number, MarketGoodTotals>>;
 /** State → collection Burg (0 when none exists) → Good → monthly units. */
 type FoodTotalsByState = Map<number, Map<number, Map<number, number[]>>>;
 type WoodContribution = { marketId: number; collectionBurgId: number; goodId: number; amount: number };
+type FreshFoodContribution = {
+  cellId: number;
+  marketId: number;
+  collectionBurgId: number;
+  goodId: number;
+  monthlyUnits: number[];
+};
 type RuralProductionIndex = {
   populationSnapshotPeriod: string;
   standard: RuralTotalsByMarket;
   food: Map<number, FoodTotalsByState>;
   wood: RuralTotalsByMarket;
   woodByCell: Map<number, WoodContribution[]>;
+  freshFood: FreshFoodContribution[];
 };
 
 function getMarketDistanceMapUnits(source: Pick<Burg, "x" | "y">, target: Pick<Burg, "x" | "y">): number {
@@ -516,6 +543,8 @@ export class MarketsModule {
 
     this.applyRuralTotals(index.standard);
 
+    this.settleCellFreshFood(index.freshFood, monthIndex);
+
     for (const [marketId, totalsByState] of index.food) {
       for (const totalsByCollectionBurg of totalsByState.values()) {
         for (const [collectionBurgId, totals] of totalsByCollectionBurg) {
@@ -563,7 +592,8 @@ export class MarketsModule {
       standard: new Map(),
       food: new Map(),
       wood: new Map(),
-      woodByCell: new Map()
+      woodByCell: new Map(),
+      freshFood: []
     };
     const { cells } = this.worldContext.pack;
     const markets = getMarkets();
@@ -589,6 +619,20 @@ export class MarketsModule {
           const entries = index.woodByCell.get(cellId) ?? [];
           entries.push({ marketId, collectionBurgId, goodId: good.i, amount: contribution.amount });
           index.woodByCell.set(cellId, entries);
+          continue;
+        }
+
+        if (getFreshFoodProfile(good)) {
+          index.freshFood.push({
+            cellId,
+            marketId,
+            collectionBurgId,
+            goodId: good.i,
+            monthlyUnits: Array.from(
+              { length: 12 },
+              (_, monthIndex) => contribution.amount * getSeasonalFoodProductionMultiplier(good, cellId, monthIndex + 1)
+            )
+          });
           continue;
         }
 
@@ -634,6 +678,140 @@ export class MarketsModule {
         for (const [goodId, amount] of totals) this.addRuralOutput(marketId, collectionBurgId, goodId, amount);
       }
     }
+  }
+
+  /**
+   * Fresh food is a cell-local activity. It is consumed or preserved before reaching the Market;
+   * only shelf-stable output above the cell's own reserve becomes normal commercial stock.
+   */
+  private settleCellFreshFood(entries: readonly FreshFoodContribution[], monthIndex: number): void {
+    const entriesByCell = new Map<number, FreshFoodContribution[]>();
+    for (const entry of entries) {
+      const units = entry.monthlyUnits[monthIndex] ?? 0;
+      if (units <= 0) continue;
+      const group = entriesByCell.get(entry.cellId) ?? [];
+      group.push(entry);
+      entriesByCell.set(entry.cellId, group);
+    }
+
+    const reserves = getOrCreateCellFoodReserves();
+    for (const [cellId, cellEntries] of entriesByCell) {
+      const residentWorkforce = getRuralCellPopulation(cellId);
+      const inputs: CellFreshFoodInput[] = [];
+      const marketBySourceGood = new Map<number, FreshFoodContribution>();
+
+      for (const entry of cellEntries) {
+        const sourceGood = Goods.get(entry.goodId);
+        const freshFoodProfile = sourceGood ? getFreshFoodProfile(sourceGood) : null;
+        if (!sourceGood || !freshFoodProfile) continue;
+        const reservePath = this.getCellFoodReservePath(sourceGood);
+        const commercialPath = this.getCellFoodCommercialPath(sourceGood, reservePath);
+        const market = this.marketById[entry.marketId];
+        if (!market) continue;
+        const exportDemandUnits = commercialPath
+          ? this.getCellPreservedFoodExportDemand(market, commercialPath.outputGoodId, residentWorkforce)
+          : 0;
+        inputs.push({
+          sourceGoodId: sourceGood.i,
+          harvestedUnits: entry.monthlyUnits[monthIndex] ?? 0,
+          householdDemandUnits: residentWorkforce * freshFoodProfile.householdDemandPerPopulationMonth,
+          preservationLaborPerUnit: freshFoodProfile.preservationLaborPerUnit,
+          reservePath,
+          commercialPath,
+          exportDemandUnits,
+          // Food-preservation supplies are reserved ahead of all non-food work. A future local
+          // disaster/siege system may set this false; the planner then records the sole valid spoilage path.
+          preservationSuppliesAvailable: reservePath !== null && commercialPath !== null
+        });
+        marketBySourceGood.set(sourceGood.i, entry);
+      }
+
+      if (!inputs.length) continue;
+      const plan = planCellFoodRescue(inputs, reserves?.[cellId] ?? {}, residentWorkforce);
+      if (reserves) reserves[cellId] = plan.nextReserve;
+
+      for (const outcome of plan.outcomes) {
+        const entry = marketBySourceGood.get(outcome.sourceGoodId);
+        const sourceGood = Goods.get(outcome.sourceGoodId);
+        const market = entry ? this.marketById[entry.marketId] : undefined;
+        if (!entry || !sourceGood || !market) continue;
+
+        recordCellFoodHouseholdConsumption(market, sourceGood.name, outcome.eatenFreshUnits);
+        if (outcome.reserveInputUnits > 0) {
+          recordFoodProcessingConsumption(market, sourceGood.name, outcome.reserveInputUnits);
+        }
+        if (outcome.spoiledForMissingSuppliesUnits > 0) {
+          recordGoodFlow({
+            direction: "sink",
+            category: "spoilage",
+            goodId: sourceGood.i,
+            units: outcome.spoiledForMissingSuppliesUnits,
+            marketId: market.i,
+            burgId: entry.collectionBurgId || undefined
+          });
+        }
+
+        const commercialPath = this.getCellFoodCommercialPath(sourceGood, this.getCellFoodReservePath(sourceGood));
+        if (!commercialPath || outcome.exportOutputUnits <= 0) continue;
+        recordFoodProcessingConsumption(
+          market,
+          sourceGood.name,
+          outcome.exportOutputUnits * commercialPath.inputPerOutput
+        );
+        this.addRuralOutput(
+          entry.marketId,
+          entry.collectionBurgId,
+          commercialPath.outputGoodId,
+          outcome.exportOutputUnits
+        );
+      }
+    }
+  }
+
+  private getCellFoodReservePath(sourceGood: Good): { outputGoodId: number; inputPerOutput: number } | null {
+    return this.getCellFoodPath(sourceGood, outputGood => isPreservedFoodGood(outputGood));
+  }
+
+  private getCellFoodCommercialPath(
+    sourceGood: Good,
+    reservePath: { outputGoodId: number; inputPerOutput: number } | null
+  ): { outputGoodId: number; inputPerOutput: number } | null {
+    // Grapes exist primarily for wine. Raisins remain the source-cell reserve, while this tagged
+    // commercial path sends every post-reserve grape lot toward Wine instead of treating raisins
+    // as an unlimited export sink.
+    const grapeWinePath = this.getCellFoodPath(sourceGood, outputGood => outputGood.tags.includes("grapeWine"));
+    return grapeWinePath ?? reservePath;
+  }
+
+  private getCellFoodPath(
+    sourceGood: Good,
+    acceptsOutput: (outputGood: Good) => boolean
+  ): { outputGoodId: number; inputPerOutput: number } | null {
+    let selected: { outputGoodId: number; inputPerOutput: number; value: number } | null = null;
+    for (const outputGood of getGoods()) {
+      if (!isGoodEnabled(outputGood) || !acceptsOutput(outputGood)) continue;
+      for (const recipe of outputGood.recipes ?? []) {
+        const inputPerOutput = recipe[sourceGood.i];
+        if (!inputPerOutput || inputPerOutput <= 0) continue;
+        if (!selected || outputGood.value > selected.value) {
+          selected = { outputGoodId: outputGood.i, inputPerOutput, value: outputGood.value };
+        }
+      }
+    }
+    return selected ? { outputGoodId: selected.outputGoodId, inputPerOutput: selected.inputPerOutput } : null;
+  }
+
+  /**
+   * Commercial food is deliberately modest: safety reserves are filled first, then a price signal
+   * may request a small export batch. This prevents a cell from assigning its whole population to
+   * preservation while still allowing Cheese, Raisins and preserved meat/fish into the market.
+   */
+  private getCellPreservedFoodExportDemand(market: Market, goodId: number, residentWorkforce: number): number {
+    const good = Goods.get(goodId);
+    if (!good || residentWorkforce <= 0) return 0;
+    const marketGood = this.getMarketGood(market, good);
+    const pricePressure = Math.max(0.25, (marketGood.price || good.value) / Math.max(good.value, 0.001) - 0.75);
+    return residentWorkforce * 0.1 * Math.min(1, pricePressure);
   }
 
   private addRuralOutput(marketId: number, collectionBurgId: number, goodId: number, amount: number): void {

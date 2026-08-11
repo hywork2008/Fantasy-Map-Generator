@@ -83,6 +83,16 @@ export interface Good {
   trade?: GoodTradeProfile;
   /** Present for field crops whose local output is allocated from active farmland. */
   crop?: CropProfile;
+  /**
+   * Cell-local handling rules for foods that cannot safely enter the general market as raw stock.
+   * Rates use the map's population-point unit (normally one point = 1,000 residents).
+   */
+  freshFood?: {
+    /** Fresh units a cell's residents normally consume in one production month. */
+    householdDemandPerPopulationMonth: number;
+    /** Cell-resident work required to preserve one raw unit after household distribution. */
+    preservationLaborPerUnit: number;
+  };
   /** Missing only on legacy or user-created catalogue entries; callers must use the migration fallback. */
   cargo?: GoodCargoProfile;
 

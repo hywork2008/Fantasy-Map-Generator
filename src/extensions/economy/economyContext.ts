@@ -12,6 +12,7 @@ import { addFrontierApplicants as addFrontierApplicantsToPool } from "../hostCor
 import type { AcademyKnowledgeStock } from "./generators/academyKnowledgeTypes";
 import type { AdministrationEmploymentRecord } from "./generators/administrationEmployment";
 import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
+import type { CellFoodReserve } from "./generators/cellFoodRescueTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
@@ -1558,6 +1559,22 @@ export function getOrCreateFaunaStockTable(): Record<string, FaunaCohorts> | nul
   const table: Record<string, FaunaCohorts> = {};
   slice.faunaStock = table;
   return table;
+}
+
+/**
+ * Cell-local preserved-food reserves, expressed as raw-fresh equivalents. Fresh food never enters
+ * the Market pool; only preservation output above this reserve is allowed into normal trade.
+ */
+export function getOrCreateCellFoodReserves(): Record<number, CellFoodReserve> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.cellFoodReserves;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<number, CellFoodReserve>;
+  }
+  const reserves: Record<number, CellFoodReserve> = {};
+  slice.cellFoodReserves = reserves;
+  return reserves;
 }
 
 /**

@@ -65,6 +65,17 @@ export function recordFoodProcessingConsumption(market: Market, goodName: string
   if (ledger && units > 0) ledger.processingConsumption += units;
 }
 
+/**
+ * Fresh food is now consumed at its source cell before it can enter a Market. Keep that physical
+ * household use visible in the existing market-level diagnostics without putting raw stock into
+ * the market pool.
+ */
+export function recordCellFoodHouseholdConsumption(market: Market, goodName: string, units: number): void {
+  const ledger = getGoodLedger(market, goodName);
+  if (!ledger || units <= 0) return;
+  ledger.householdConsumption += units;
+}
+
 export function recordWineCaskFilling(market: Market, wineLots: number, replacementCasks: number): void {
   if (wineLots <= 0) return;
   const containers = market.returnableContainerLedger ?? {
@@ -143,8 +154,11 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
   const ledger = getGoodLedger(market, goodName);
   if (!good || !ledger || demand <= 0) return;
   const marketGood = market.goods[good.i];
+  // Source-cell household use has already been recorded before the production cycle reaches this
+  // market-level settlement. Only the remaining demand may draw from Market stock.
+  const remainingDemand = Math.max(0, demand - ledger.householdConsumption);
   const available = Math.max(0, marketGood?.stock ?? 0);
-  const consumed = Math.min(available, demand);
+  const consumed = Math.min(available, remainingDemand);
   if (marketGood) marketGood.stock = Math.max(0, marketGood.stock - consumed);
   if (consumed > 0) {
     recordGoodFlow({
@@ -156,7 +170,7 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
     });
   }
   ledger.householdConsumption += consumed;
-  ledger.unmetDemand += Math.max(0, demand - consumed);
+  ledger.unmetDemand += Math.max(0, remainingDemand - consumed);
   if (goodName === "Wine" && consumed > 0 && market.returnableContainerLedger) {
     const containers = market.returnableContainerLedger;
     const returned = Math.min(containers.wineCasksInService, consumed);
