@@ -394,7 +394,10 @@ describe("GoodsModule", () => {
     const grapes = getGoods().find(good => good.name === "Grapes")!;
     const raisins = getGoods().find(good => good.name === "Raisins")!;
     const wine = getGoods().find(good => good.name === "Wine")!;
-    const originalIds = [milk.i, cheese.i, grapes.i, raisins.i, wine.i];
+    const beer = getGoods().find(good => good.name === "Beer")!;
+    const barrels = getGoods().find(good => good.name === "Barrels")!;
+    const barley = getGoods().find(good => good.name === "Barley")!;
+    const originalIds = [milk.i, cheese.i, grapes.i, raisins.i, wine.i, beer.i];
     milk.unit = "jug";
     milk.value = 0.1;
     cheese.unit = "wheel";
@@ -403,14 +406,24 @@ describe("GoodsModule", () => {
     raisins.unit = "bag";
     wine.unit = "barrel";
     wine.value = 5;
+    beer.unit = "barrel";
+    beer.tags = ["food"];
+    beer.demandCoverage = { food: 1 };
+    beer.recipes = [{ [barley.i]: 1, [barrels.i]: 1 }];
 
     expect(migrateFoodProcessingLotContracts()).toBe(true);
-    expect([milk.i, cheese.i, grapes.i, raisins.i, wine.i]).toEqual(originalIds);
+    expect([milk.i, cheese.i, grapes.i, raisins.i, wine.i, beer.i]).toEqual(originalIds);
     expect(milk).toMatchObject({ unit: "1,000 L dairy lot", value: 1 });
     expect(cheese).toMatchObject({ unit: "1,000 kg cheese lot", value: 14 });
     expect(grapes.unit).toBe("1,000 kg grape lot");
     expect(raisins.unit).toBe("250 kg raisins lot");
     expect(wine).toMatchObject({ unit: "200 L cask", value: 8 });
+    expect(beer).toMatchObject({
+      unit: "200 L ale cask",
+      tags: expect.arrayContaining(["food", "beverage"]),
+      demandCoverage: {},
+      recipes: expect.arrayContaining([{ [barley.i]: 1, [barrels.i]: 0.08 }])
+    });
     expect(migrateFoodProcessingLotContracts()).toBe(false);
   });
 

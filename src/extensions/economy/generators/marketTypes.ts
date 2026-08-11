@@ -45,7 +45,7 @@ export interface Market {
   agTechStock?: number;
   /** Household clothing demand and consumption, separate from wholesale market intake. */
   textileLedger?: TextileLedger;
-  /** Physical intake, household use, processing and spoilage for dairy and vine foods. */
+  /** Physical intake, household use, processing and spoilage for dairy, vine, and ale goods. */
   foodProcessingLedger?: FoodProcessingLedger;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */
   returnableContainerLedger?: ReturnableContainerLedger;
@@ -85,10 +85,16 @@ export type FoodProcessingGoodLedger = {
   deliveredExport: number;
   /** Household demand that could not be met this cycle. */
   unmetDemand: number;
+  /** Beer only: ordinary household demand before unsafe-water substitution is applied. */
+  baselineHouseholdDemand?: number;
+  /** Beer only: demand added because drinking water is unsafe or insecure. */
+  waterSafetyDemand?: number;
+  /** Beer only: weighted 0..1 drinking-water risk behind waterSafetyDemand. */
+  drinkingWaterRisk?: number;
 };
 
 export type FoodProcessingLedger = Partial<
-  Record<"Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine", FoodProcessingGoodLedger>
+  Record<"Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine" | "Beer", FoodProcessingGoodLedger>
 >;
 
 export type ReturnableContainerLedger = {
@@ -98,6 +104,12 @@ export type ReturnableContainerLedger = {
   cumulativeWineCaskReturns: number;
   /** New casks/repair material consumed through the Wine recipe. */
   cumulativeWineCaskReplacement: number;
+  /** Filled 200 L ale casks currently outside the cooper's empty-cask pool. */
+  beerCasksInService: number;
+  /** Casks returned after Beer is consumed locally. */
+  cumulativeBeerCaskReturns: number;
+  /** New casks/repair material consumed through the Beer recipe. */
+  cumulativeBeerCaskReplacement: number;
 };
 
 export interface MarketTreasury {

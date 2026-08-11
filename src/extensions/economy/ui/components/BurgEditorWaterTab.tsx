@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import { useBurgEditorState } from "../../../hostUi";
 import { rn } from "../../../hostUtils";
+import { getAleDemandMultiplier, getAleWaterRisk } from "../../generators/aleDemand";
 import {
   culturalHygieneProfile,
   formatUrbanWaterSummary,
@@ -58,6 +59,8 @@ export const BurgEditorWaterTab: FC = () => {
 
   const profile = culturalHygieneProfile(cultureType);
   const civicScore = sanitationScoreFromSystem(system);
+  const aleWaterRisk = getAleWaterRisk(system);
+  const aleDemandBonus = getAleDemandMultiplier(aleWaterRisk) - 1;
   const topCleansing = [...CLEANSING_MATERIALS]
     .map(key => ({ key, weight: profile.cleansing[key] }))
     .sort((a, b) => b.weight - a.weight)
@@ -77,6 +80,10 @@ export const BurgEditorWaterTab: FC = () => {
       </p>
       <p data-tip="Host civic score written to burg.sanitation (0 worst – 100 best).">
         Civic sanitation score: <strong id="burgWaterCivicScore">{civicScore}</strong> / 100
+      </p>
+      <p data-tip="Unsafe or insecure drinking water raises local small-ale demand by up to 50%. This does not reduce the city's sanitation or disease pressure.">
+        Daily ale demand adjustment: <strong id="burgWaterAleDemandAdjustment">+{pct(aleDemandBonus)}</strong>{" "}
+        (drinking-water risk {pct(aleWaterRisk)})
       </p>
 
       <div className="table" style={{ overflow: "auto" }}>
@@ -206,6 +213,12 @@ export const BurgEditorWaterTab: FC = () => {
             <tr>
               <th scope="row">Drinking-water security</th>
               <td>{pct(system.drinkingWaterSecurity)}</td>
+            </tr>
+            <tr data-tip="Uses water contamination (70%) and insecure drinking water (30%). It raises small-ale demand, without treating ale as a cure for poor sanitation.">
+              <th scope="row">Ale demand from water risk</th>
+              <td>
+                +{pct(aleDemandBonus)} (risk {pct(aleWaterRisk)})
+              </td>
             </tr>
             <tr>
               <th scope="row">Service / craft water</th>

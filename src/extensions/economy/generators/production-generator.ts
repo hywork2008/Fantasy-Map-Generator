@@ -31,8 +31,10 @@ import { ExportStaging } from "./exportStaging";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   getFoodProcessingProductionHeadroom,
+  recordBeerCaskFilling,
   recordFoodProcessingConsumption,
   recordWineCaskFilling,
+  refreshAleHouseholdDemand,
   settleFoodProcessingHouseholds
 } from "./foodProcessingLedger";
 import type { DemandCategory, Good } from "./goods-generator";
@@ -193,6 +195,7 @@ export class ProductionModule {
     measureTickStep("production:pricesAndLabor", () => {
       Markets.initializeMarketPrices();
       TransportAssetOrders.beginProductionCycle();
+      refreshAleHouseholdDemand();
     });
 
     // stapleFood (Grain) production and Burg demand are owned by the Food Ledger's own
@@ -386,7 +389,11 @@ export class ProductionModule {
           );
         })
     );
-    const priorityGoods = [...preservationGoods, ...preservationIngredientGoods];
+    // Beer has a bounded household-demand headroom, so daily-beverage priority cannot produce an
+    // export stockpile. It needs this early pass because staple Grain otherwise already satisfies
+    // generic food demand before a brewer can be selected.
+    const dailyBeverageGoods = productiveGoods.filter(good => good.name === "Beer");
+    const priorityGoods = [...preservationGoods, ...preservationIngredientGoods, ...dailyBeverageGoods];
 
     return {
       goods,
@@ -676,9 +683,11 @@ export class ProductionModule {
 
     state.inventory[good.i] = (state.inventory[good.i] || 0) + produced;
 
-    if (good.name === "Wine") {
+    if (good.name === "Wine" || good.name === "Beer") {
       const barrelIngredient = ingredients.find(ingredient => Goods.get(ingredient.goodId)?.name === "Barrels");
-      recordWineCaskFilling(state.market, produced, produced * (barrelIngredient?.amount ?? 0));
+      const replacementCasks = produced * (barrelIngredient?.amount ?? 0);
+      if (good.name === "Wine") recordWineCaskFilling(state.market, produced, replacementCasks);
+      else recordBeerCaskFilling(state.market, produced, replacementCasks);
     }
 
     this.addDemandCoverage(state.demandCoverage, good.i, produced, index.demandCoverageByGood);

@@ -1540,7 +1540,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Beer",
-    tags: ["food"],
+    tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#fbb117",
     value: 4,
@@ -1548,14 +1548,15 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [
       // Beer may use locally traded cereal crops. It must never consume the
       // Food Ledger's abstract staple-equivalent accounting unit.
-      { Barley: 1, Barrels: 1 },
-      { Wheat: 1, Barrels: 1 },
-      { Rye: 1, Barrels: 1 },
-      { Oats: 1, Barrels: 1 },
-      { Honey: 0.5, Barrels: 1 }
+      { Barley: 1, Barrels: 0.08 },
+      { Wheat: 1, Barrels: 0.08 },
+      { Rye: 1, Barrels: 0.08 },
+      { Oats: 1, Barrels: 0.08 }
     ],
-    unit: "barrel",
-    demandCoverage: { food: 1 }
+    // Casks circulate back to coopers; the recipe consumes only replacement/repair material.
+    // Honey drinks belong to a future Mead/Braggot luxury good, not ordinary small ale.
+    unit: "200 L ale cask",
+    demandCoverage: {}
   },
   {
     name: "Liquor",
@@ -2675,6 +2676,26 @@ export function migrateFoodProcessingLotContracts(): boolean {
       wine.unit = "200 L cask";
       wine.value = 8;
       wine.recipes = recipes;
+      changed = true;
+    }
+  }
+  const beer = goods.find(good => good.name === "Beer");
+  if (beer && barrels) {
+    const recipes = ["Barley", "Wheat", "Rye", "Oats"]
+      .map(name => goods.find(good => good.name === name))
+      .filter((ingredient): ingredient is Good => Boolean(ingredient))
+      .map(ingredient => ({ [ingredient.i]: 1, [barrels.i]: 0.08 }));
+    const hasBeverageTag = beer.tags.includes("beverage");
+    if (
+      beer.unit !== "200 L ale cask" ||
+      JSON.stringify(beer.recipes) !== JSON.stringify(recipes) ||
+      JSON.stringify(beer.demandCoverage ?? {}) !== "{}" ||
+      !hasBeverageTag
+    ) {
+      beer.unit = "200 L ale cask";
+      beer.recipes = recipes;
+      beer.demandCoverage = {};
+      if (!hasBeverageTag) beer.tags.push("beverage");
       changed = true;
     }
   }

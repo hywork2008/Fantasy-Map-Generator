@@ -9,6 +9,7 @@
 export const LITERS_PER_MILK_LOT = 1_000;
 export const KILOGRAMS_PER_CHEESE_LOT = 1_000;
 export const KILOGRAMS_PER_GRAPES_LOT = 1_000;
+export const LITERS_PER_BEER_LOT = 200;
 export const LITERS_PER_WINE_LOT = 200;
 export const KILOGRAMS_PER_RAISINS_LOT = 250;
 
@@ -35,6 +36,15 @@ export const WINE_TARGETS = {
   /** Wine-country residents; this is not a claim that all medieval Germans drank this amount. */
   regionalLitersPerAdultYear: 8,
   importedLitersPerAdultYear: 1,
+  adultShare: 0.65
+} as const;
+
+export const ALE_TARGETS = {
+  /**
+   * A conservative baseline for a general medieval-fantasy simulation. Water safety can add up
+   * to 50%; this is a recurring drink demand, not a second allocation of staple-food calories.
+   */
+  baselineLitersPerAdultYear: 48,
   adultShare: 0.65
 } as const;
 

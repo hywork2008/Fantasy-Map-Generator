@@ -1,10 +1,19 @@
-import { getGoods, getMarkets, getWorldContext, recordCumulativeCellFoodProcessing } from "../economyContext";
 import {
+  getGoods,
+  getMarkets,
+  getUrbanWaterSystems,
+  getWorldContext,
+  recordCumulativeCellFoodProcessing
+} from "../economyContext";
+import { getAleDemandMultiplier, getAleSanitationFallbackRisk, getAleWaterRisk } from "./aleDemand";
+import {
+  ALE_TARGETS,
   DAIRY_TARGETS,
   GRAPE_TARGETS,
   KILOGRAMS_PER_CHEESE_LOT,
   KILOGRAMS_PER_GRAPES_LOT,
   KILOGRAMS_PER_RAISINS_LOT,
+  LITERS_PER_BEER_LOT,
   LITERS_PER_MILK_LOT,
   LITERS_PER_WINE_LOT,
   MILK_LOTS_PER_CHEESE_LOT,
@@ -15,7 +24,17 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getMarketRuralPopulation } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
 
-const TRACKED_GOODS = new Set(["Milk", "Cheese", "Grapes", "Raisins", "Wine"]);
+const TRACKED_GOODS = new Set(["Milk", "Cheese", "Grapes", "Raisins", "Wine", "Beer"]);
+const BEER_RESERVE_MONTHS = 1;
+
+export type AleDemandSnapshot = {
+  baselineDemand: number;
+  waterSafetyDemand: number;
+  monthlyDemand: number;
+  drinkingWaterRisk: number;
+};
+
+const aleDemandByMarket = new Map<number, AleDemandSnapshot>();
 
 /** Cheese can hold for a year, unlike the same-month Milk/Grapes retail pools. */
 export const CHEESE_RESERVE_MONTHS = 12;
@@ -86,10 +105,39 @@ export function recordWineCaskFilling(market: Market, wineLots: number, replacem
   const containers = market.returnableContainerLedger ?? {
     wineCasksInService: 0,
     cumulativeWineCaskReturns: 0,
-    cumulativeWineCaskReplacement: 0
+    cumulativeWineCaskReplacement: 0,
+    beerCasksInService: 0,
+    cumulativeBeerCaskReturns: 0,
+    cumulativeBeerCaskReplacement: 0
   };
+  // Saved maps created before Beer joined this ledger have only the wine fields.
+  containers.beerCasksInService ??= 0;
+  containers.cumulativeBeerCaskReturns ??= 0;
+  containers.cumulativeBeerCaskReplacement ??= 0;
   containers.wineCasksInService += wineLots;
   containers.cumulativeWineCaskReplacement += Math.max(0, replacementCasks);
+  market.returnableContainerLedger = containers;
+}
+
+export function recordBeerCaskFilling(market: Market, beerLots: number, replacementCasks: number): void {
+  if (beerLots <= 0) return;
+  const containers = market.returnableContainerLedger ?? {
+    wineCasksInService: 0,
+    cumulativeWineCaskReturns: 0,
+    cumulativeWineCaskReplacement: 0,
+    beerCasksInService: 0,
+    cumulativeBeerCaskReturns: 0,
+    cumulativeBeerCaskReplacement: 0
+  };
+  // Saves created before this contract lack Beer fields, while a Beer-only market may lack Wine fields.
+  containers.wineCasksInService ??= 0;
+  containers.cumulativeWineCaskReturns ??= 0;
+  containers.cumulativeWineCaskReplacement ??= 0;
+  containers.beerCasksInService ??= 0;
+  containers.cumulativeBeerCaskReturns ??= 0;
+  containers.cumulativeBeerCaskReplacement ??= 0;
+  containers.beerCasksInService += beerLots;
+  containers.cumulativeBeerCaskReplacement += Math.max(0, replacementCasks);
   market.returnableContainerLedger = containers;
 }
 
@@ -100,6 +148,56 @@ function getMarketPeople(market: Market): number {
     return total + (burg.population ?? 0) * Math.max(1, world.populationRate || 1) * (world.urbanization ?? 1);
   }, 0);
   return urban + getMarketRuralPopulation(world, market.i);
+}
+
+function getBurgPeople(population: number | undefined): number {
+  const world = getWorldContext();
+  return (population ?? 0) * Math.max(1, world.populationRate || 1) * (world.urbanization ?? 1);
+}
+
+function calculateAleDemand(market: Market): AleDemandSnapshot {
+  const world = getWorldContext();
+  const systemsByBurgId = new Map(getUrbanWaterSystems().map(system => [system.burgId, system]));
+  const totalPeople = getMarketPeople(market);
+  let urbanPeople = 0;
+  let urbanBaselineDemand = 0;
+  let waterSafetyDemand = 0;
+  let riskWeightedPeople = 0;
+
+  for (const burg of world.pack.burgs) {
+    if (!burg.i || burg.removed || burg.market !== market.i) continue;
+    const people = getBurgPeople(burg.population);
+    if (people <= 0) continue;
+    const baselineDemand =
+      (people * ALE_TARGETS.adultShare * ALE_TARGETS.baselineLitersPerAdultYear) / 12 / LITERS_PER_BEER_LOT;
+    const system = systemsByBurgId.get(burg.i);
+    const waterRisk = system ? getAleWaterRisk(system) : getAleSanitationFallbackRisk(burg.sanitation);
+    urbanPeople += people;
+    urbanBaselineDemand += baselineDemand;
+    waterSafetyDemand += baselineDemand * (getAleDemandMultiplier(waterRisk) - 1);
+    riskWeightedPeople += people * waterRisk;
+  }
+
+  const ruralPeople = Math.max(0, totalPeople - urbanPeople);
+  const ruralBaselineDemand =
+    (ruralPeople * ALE_TARGETS.adultShare * ALE_TARGETS.baselineLitersPerAdultYear) / 12 / LITERS_PER_BEER_LOT;
+  const baselineDemand = urbanBaselineDemand + ruralBaselineDemand;
+  return {
+    baselineDemand,
+    waterSafetyDemand,
+    monthlyDemand: baselineDemand + waterSafetyDemand,
+    drinkingWaterRisk: urbanPeople > 0 ? riskWeightedPeople / urbanPeople : 0
+  };
+}
+
+/** Rebuilt once before the Burg production loop, avoiding repeated water-system scans per recipe candidate. */
+export function refreshAleHouseholdDemand(): void {
+  aleDemandByMarket.clear();
+  for (const market of getMarkets()) aleDemandByMarket.set(market.i, calculateAleDemand(market));
+}
+
+export function getAleDemandSnapshot(market: Market): AleDemandSnapshot {
+  return aleDemandByMarket.get(market.i) ?? calculateAleDemand(market);
 }
 
 function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
@@ -121,6 +219,8 @@ function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
           : WINE_TARGETS.importedLitersPerAdultYear;
       return (people * WINE_TARGETS.adultShare * wineLiters) / 12 / LITERS_PER_WINE_LOT;
     }
+    case "Beer":
+      return getAleDemandSnapshot(market).monthlyDemand;
     default:
       return 0;
   }
@@ -128,7 +228,8 @@ function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
 
 /**
  * Processing must not create an unbounded stockpile merely because a recipe is profitable.
- * Raisins and Wine are held to three months of demand. Cheese is a cheap, durable protein: a
+ * Raisins and Wine are held to three months of demand. Beer is a short-turnover daily beverage
+ * held to one month. Cheese is a cheap, durable protein: a
  * one-year reserve may absorb a bounded share of local Milk that would otherwise spoil.
  */
 export function getFoodProcessingProductionHeadroom(
@@ -136,12 +237,15 @@ export function getFoodProcessingProductionHeadroom(
   goodName: string,
   privateInventory: number
 ): number {
-  if (goodName !== "Cheese" && goodName !== "Raisins" && goodName !== "Wine") return Number.POSITIVE_INFINITY;
+  if (goodName !== "Beer" && goodName !== "Cheese" && goodName !== "Raisins" && goodName !== "Wine") {
+    return Number.POSITIVE_INFINITY;
+  }
   const good = getGoods().find(candidate => candidate.name === goodName);
   if (!good) return 0;
   const marketStock = Math.max(0, market.goods[good.i]?.stock ?? 0);
   const heldStock = marketStock + Math.max(0, privateInventory);
-  const householdHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, goodName) * 3 - heldStock);
+  const reserveMonths = goodName === "Beer" ? BEER_RESERVE_MONTHS : 3;
+  const householdHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, goodName) * reserveMonths - heldStock);
   if (goodName !== "Cheese") return householdHeadroom;
 
   const milk = getGoods().find(candidate => candidate.name === "Milk");
@@ -182,6 +286,12 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
     containers.wineCasksInService -= returned;
     containers.cumulativeWineCaskReturns += returned;
   }
+  if (goodName === "Beer" && consumed > 0 && market.returnableContainerLedger) {
+    const containers = market.returnableContainerLedger;
+    const returned = Math.min(containers.beerCasksInService ?? 0, consumed);
+    containers.beerCasksInService = (containers.beerCasksInService ?? 0) - returned;
+    containers.cumulativeBeerCaskReturns = (containers.cumulativeBeerCaskReturns ?? 0) + returned;
+  }
 }
 
 /**
@@ -196,6 +306,14 @@ export function settleFoodProcessingHouseholds(): void {
     drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"));
     drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"));
     drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"));
+    const aleDemand = getAleDemandSnapshot(market);
+    const beerLedger = getGoodLedger(market, "Beer");
+    if (beerLedger) {
+      beerLedger.baselineHouseholdDemand = aleDemand.baselineDemand;
+      beerLedger.waterSafetyDemand = aleDemand.waterSafetyDemand;
+      beerLedger.drinkingWaterRisk = aleDemand.drinkingWaterRisk;
+    }
+    drawHouseholdDemand(market, "Beer", aleDemand.monthlyDemand);
 
     for (const name of ["Milk", "Grapes"] as const) {
       const good = getGoods().find(candidate => candidate.name === name);
