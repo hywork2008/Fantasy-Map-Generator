@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
 import { createEmptyTechnologySimulationState } from "../../../generators/technologyTypes";
 import { worldContext } from "../../hostCore";
-import type { ExtensionAPI } from "../../hostTypes";
+import type { Burg, ExtensionAPI } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setGoods } from "../economyContext";
 import type { Good } from "./goods-generator";
 import { isGoodManufacturableInState, ProductionModule } from "./production-generator";
@@ -103,6 +103,22 @@ describe("ProductionModule byproducts", () => {
     expect(state.records.find((record): record is MfgRecord => "recipe" in record)?.byproducts).toEqual([
       { goodId: 4, units: 0.1 }
     ]);
+  });
+
+  it("credits byproducts to getBurgProduction alongside the primary manufactured good", () => {
+    // Regression guard: tooltips, the burg economy summary, economyTotals.ts's world/state
+    // production totals (Goods editor table, Balance History), and the Goods map layer all read
+    // this method as "everything this burg produced" — a byproduct silently missing from it (while
+    // still landing in state.inventory) makes a real, market-affecting good invisible to the player.
+    const production = new ProductionModule();
+    const burg = {
+      i: 1,
+      production: [
+        { goodId: 3, units: 1, recipe: [], byproducts: [{ goodId: 4, units: 0.1 }] } satisfies MfgRecord
+      ] as ProductionRecord[]
+    } as unknown as Burg;
+
+    expect(production.getBurgProduction(burg)).toEqual({ 3: 1, 4: 0.1 });
   });
 
   it("blocks Liquor until the burg's state knows distillation", () => {

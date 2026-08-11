@@ -1291,6 +1291,16 @@ export class ProductionModule {
     for (const record of getBurgProductionRecords(burg)) {
       if (isDealRecord(record)) continue;
       produced[record.goodId] = rn((produced[record.goodId] || 0) + record.units, 2);
+      // Byproducts (e.g. Ash from a Brick/Liquor kiln, Pomace from Wine pressing) are real output
+      // credited to state.inventory in executeManufacture() alongside the primary good — without
+      // this, every reader of getBurgProduction() (tooltips, burg economy summary, world production
+      // totals in economyTotals.ts, the Goods map layer, the Goods editor's top-producers list)
+      // silently reports zero for a byproduct-only producer.
+      if (isMfgRecord(record) && record.byproducts) {
+        for (const byproduct of record.byproducts) {
+          produced[byproduct.goodId] = rn((produced[byproduct.goodId] || 0) + byproduct.units, 2);
+        }
+      }
     }
     return produced;
   }
