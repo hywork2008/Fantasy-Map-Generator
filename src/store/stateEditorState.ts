@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type StateEditorTab = "overview" | "provinces" | "burgs";
+export type StateEditorTab = "overview" | "provinces" | "burgs" | string;
 
 export interface StateEditorState {
   stateId: number;

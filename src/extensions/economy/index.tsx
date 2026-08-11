@@ -133,6 +133,7 @@ import { getBurgSettlementValue, getStateSettlementValue } from "./generators/se
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
+import { clearStateFiscalReports } from "./generators/stateFiscalReport";
 import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import {
@@ -181,6 +182,7 @@ import { BurgEditorGoodsTab } from "./ui/components/BurgEditorGoodsTab";
 import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
 import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { BurgEditorWaterTab } from "./ui/components/BurgEditorWaterTab";
+import { StateFiscalReportTab } from "./ui/components/StateFiscalReportTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { BalanceHistoryDialog } from "./ui/dialogs/BalanceHistoryDialog";
 import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
@@ -1241,6 +1243,13 @@ export function init(api: ExtensionAPI): void {
     component: StatesEditorTreasuryTab
   });
   api.registerEditorTab({
+    id: "state-fiscal-report",
+    extensionId: ECONOMY_EXTENSION_ID,
+    editorId: "stateEditor",
+    label: "Fiscal report",
+    component: StateFiscalReportTab
+  });
+  api.registerEditorTab({
     id: "burg-inns",
     extensionId: ECONOMY_EXTENSION_ID,
     editorId: "burgEditor",
@@ -1769,6 +1778,7 @@ export function init(api: ExtensionAPI): void {
           clearVoyageIncome();
           clearStrategicProcurementExpenses();
           clearTreasuryAllocationSnapshots();
+          clearStateFiscalReports();
           StrategicProcurement.clear();
           TradeAnimation.clearRouteCache();
           MineralResources.generate();
@@ -1851,6 +1861,7 @@ export function init(api: ExtensionAPI): void {
   // newly added Ingots/Cats begin at zero stock (no duplicated wealth).
   _worldLoadedHandler = () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    clearStateFiscalReports();
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();

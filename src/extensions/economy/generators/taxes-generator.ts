@@ -11,6 +11,7 @@ import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
 import { applyFormRevenueMix } from "./revenueMix";
+import { recordStateFiscalReport } from "./stateFiscalReport";
 import { applyTradeSanctionToIncome, refreshTradeSanctions } from "./tradeSanctions";
 import { allocateTreasury, payMilitaryUpkeep } from "./treasuryAllocation";
 import { applyWarFootingPoliticalCost, syncWarFootingFromDiplomacy } from "./warFooting";
@@ -100,6 +101,11 @@ export class TaxesModule {
     TIME && console.time("collectTaxes");
     const { states, burgs } = this.worldContext.pack;
     const deals = getDeals();
+    const openingTreasuryByState = new Map<number, number>();
+    const salesTaxByState = new Map<number, number>();
+    for (const state of states) {
+      if (state?.i) openingTreasuryByState.set(state.i, state.treasury || 0);
+    }
 
     // PR-15: reset trade-sanction counters and refresh multipliers from prior-cycle FX default.
     for (const state of states) {
@@ -117,6 +123,7 @@ export class TaxesModule {
       // PR-15: foreign-debt sanctions haircut deal-tax receipts.
       const keptTax = applyTradeSanctionToIncome(state, deal.tax);
       state.treasury = rn((state.treasury || 0) + keptTax, 2);
+      salesTaxByState.set(sellerStateId, rn((salesTaxByState.get(sellerStateId) ?? 0) + keptTax, 2));
     }
 
     for (const state of states) {
@@ -158,19 +165,56 @@ export class TaxesModule {
       syncWarFootingFromDiplomacy(state);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).
       // War footing reweights department shares (PR-6) when state.warFooting is set.
-      allocateTreasury(state, budgetIncome);
+      const allocation = allocateTreasury(state, budgetIncome);
       applyWarFootingPoliticalCost(state);
       // Troop upkeep: L3a.marshalcy first, then L2 remainder (multi-ledger PR-5). Need is
       // recomputed here so it matches the same military snapshot collectTaxes already used.
-      payMilitaryUpkeep(state, militaryUpkeep);
+      const militarySpend = payMilitaryUpkeep(state, militaryUpkeep);
       // Strategic procurement stays an L2-only expense for now (not a marshalcy institutional line).
+      let paidProcurement = 0;
       if (procurementExpense > 0) {
+        paidProcurement = Math.min(procurementExpense, state.treasury || 0);
         state.treasury = rn(Math.max(0, (state.treasury || 0) - procurementExpense), 2);
       }
 
       // Province lords are paid from their own seated Burg's treasury, not state.treasury
       // (docs/plan/state-treasury-department-budget.md §7 item 7) — no deduction here.
       payProvinceLordStipends(state);
+
+      const openingTreasury = openingTreasuryByState.get(state.i) ?? 0;
+      const income = {
+        salesTax: salesTaxByState.get(state.i) ?? 0,
+        pollTax: pollTaxRevenue,
+        voyageIncome: voyageKept,
+        wartimeSubsidy: mix.wartimeSubsidy,
+        publicDebtIssued: events.debtIssued,
+        foreignDebtIssued: events.foreignDebtIssued
+      };
+      const expenses = {
+        administrativeUpkeep,
+        councilClawback: mix.adjustedDomesticIncome * (1 - events.incomeScale),
+        taxFarmLeak: events.taxFarmLeak,
+        publicDebtInterest: events.debtInterestPaid,
+        publicDebtRepaid: events.debtRepaid,
+        foreignDebtInterest: events.foreignDebtInterest,
+        householdTransfer: allocation.householdPurseCredit,
+        departmentTransfer: allocation.departmentBalancesCredit,
+        militaryUpkeep: militarySpend.fromTreasury,
+        strategicProcurement: paidProcurement,
+        titheTransfer: mix.titheToEcclesiastica,
+        plunderTransfer: mix.plunderToRuler
+      };
+      const incomeTotal = Object.values(income).reduce((sum, value) => sum + value, 0);
+      const expenseTotal = Object.values(expenses).reduce((sum, value) => sum + value, 0);
+      const closingTreasury = state.treasury || 0;
+      const unclassified = rn(closingTreasury - openingTreasury - incomeTotal + expenseTotal, 2);
+      recordStateFiscalReport({
+        stateId: state.i,
+        openingTreasury,
+        closingTreasury,
+        income: { ...income, unclassifiedIncome: unclassified > 0 ? unclassified : 0 },
+        expenses: { ...expenses, unclassified: unclassified < 0 ? -unclassified : 0 }
+      });
     }
     // PR-7 domain policies (extract / fortify) after all province lord stipends this cycle.
     applyAllDomainFiscalPolicies();

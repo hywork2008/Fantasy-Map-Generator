@@ -12,6 +12,7 @@ import { Burgs } from "../../generators/burgs-generator";
 import { legacyMutation, patchBurg } from "../../runtime/worldRuntime";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
+import { type ExtensionEditorTab, getEnabledEditorTabs, useExtensionState } from "../../store/extensionState";
 import { type StateEditorTab, setStateEditorState, useStateEditorState } from "../../store/stateEditorState";
 import { si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
@@ -27,9 +28,49 @@ const TABS: { id: StateEditorTab; label: string }[] = [
   { id: "burgs", label: "Burgs" }
 ];
 
+const StateEditorTabBar: React.FC<{
+  tabs: readonly ExtensionEditorTab[];
+  activeTab: string;
+  onSelect: (tabId: string) => void;
+}> = ({ tabs, activeTab, onSelect }) => (
+  <div className="tab-row d-flex" role="tablist" aria-label="State editor sections">
+    {TABS.map(tab => (
+      <button
+        key={tab.id}
+        type="button"
+        role="tab"
+        aria-selected={activeTab === tab.id}
+        className={activeTab === tab.id ? "pressed" : ""}
+        onClick={() => onSelect(tab.id)}
+      >
+        {tab.label}
+      </button>
+    ))}
+    {tabs.map(tab => (
+      <button
+        key={tab.id}
+        id={`stateEditorTab-${tab.id}`}
+        type="button"
+        role="tab"
+        aria-selected={activeTab === tab.id}
+        className={activeTab === tab.id ? "pressed" : ""}
+        onClick={() => onSelect(tab.id)}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+);
+
 export const StateEditorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("stateEditor"));
   const { stateId, activeTab } = useStateEditorState();
+  const allEditorTabs = useExtensionState(state => state.editorTabs);
+  const enabledExtensions = useExtensionState(state => state.enabledExtensions);
+  const editorTabs = useMemo(
+    () => getEnabledEditorTabs(allEditorTabs, enabledExtensions, "stateEditor"),
+    [allEditorTabs, enabledExtensions]
+  );
   const [refreshTick, setRefreshTick] = useState(0);
   const refresh = () => setRefreshTick(t => t + 1);
 
@@ -139,6 +180,7 @@ export const StateEditorDialog: React.FC = () => {
   if (!isOpen || !stateRow) return null;
 
   const areaUnit = getAreaUnit();
+  const ActiveExtensionComponent = editorTabs.find(tab => tab.id === activeTab)?.component;
 
   return (
     <Dialog
@@ -150,18 +192,11 @@ export const StateEditorDialog: React.FC = () => {
       <TableDialogLayout
         className="state-editor-dialog"
         header={
-          <div className="tab-row d-flex">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                className={activeTab === tab.id ? "pressed" : ""}
-                onClick={() => setStateEditorState({ activeTab: tab.id })}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <StateEditorTabBar
+            tabs={editorTabs}
+            activeTab={activeTab}
+            onSelect={tabId => setStateEditorState({ activeTab: tabId })}
+          />
         }
         footer={
           activeTab === "overview" ? (
@@ -270,6 +305,7 @@ export const StateEditorDialog: React.FC = () => {
             </table>
           </div>
         )}
+        {ActiveExtensionComponent && <ActiveExtensionComponent />}
 
         {activeTab === "provinces" && (
           <ProvincesTable
