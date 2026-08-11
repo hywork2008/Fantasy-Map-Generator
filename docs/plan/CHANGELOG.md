@@ -2,6 +2,7 @@
 
 2026-08-12
 
+- docs/plan/wine-pomace-distillation.md
 - docs/simulation/salt-logistics.md
 
 2026-08-11
