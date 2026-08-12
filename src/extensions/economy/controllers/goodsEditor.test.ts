@@ -38,22 +38,22 @@ describe("goodsEditorAddLines", () => {
         },
         {
           i: 3,
-          name: "Cheese",
+          name: "Figs",
           tags: [],
           value: 1,
           unit: "unit",
-          icon: "good-cheese",
-          color: "#f5deb3",
+          icon: "good-unknown",
+          color: "#74503f",
           distribution: "true"
         },
         {
           i: 4,
-          name: "Milk",
+          name: "Lemons",
           tags: [],
           value: 1,
           unit: "unit",
-          icon: "good-milk",
-          color: "#ffffff",
+          icon: "good-unknown",
+          color: "#d9c94b",
           distribution: "true"
         },
         {
@@ -68,22 +68,22 @@ describe("goodsEditorAddLines", () => {
         },
         {
           i: 6,
-          name: "Raisins",
+          name: "Pears",
           tags: [],
           value: 1,
           unit: "unit",
-          icon: "good-raisins",
-          color: "#5c4033",
+          icon: "good-unknown",
+          color: "#b8b947",
           distribution: "true"
         },
         {
           i: 7,
-          name: "Wine",
+          name: "Plums",
           tags: [],
           value: 1,
           unit: "unit",
-          icon: "good-wine",
-          color: "#722f37",
+          icon: "good-unknown",
+          color: "#6b407b",
           distribution: "true"
         }
       ],
