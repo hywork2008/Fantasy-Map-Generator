@@ -28,7 +28,7 @@ export const EARTH_DEFAULT_MAP_SIZE = 12.9;
 export const EARTH_TEMPERATURE_PRESET = {
   equator: 27,
   northPole: -18,
-  southPole: -50
+  southPole: -18
 } as const;
 
 /**
