@@ -287,3 +287,40 @@ describe("createPerson bound servitors (wyrmkin under draconic)", () => {
     expect(ruler.race).toBe(draconic);
   });
 });
+
+describe("createPerson fantasy race appearance", () => {
+  afterEach(() => clearCharactersContext());
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    const races = createDefaultRaces();
+    const demon = races.find(race => race.key === "demon")!;
+    const beastfolk = races.find(race => race.key === "beastfolk")!;
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
+        { i: 1, name: "Infernal Court", base: 1, shield: "heater", race: demon.i },
+        { i: 2, name: "Wildfolk", base: 1, shield: "heater", race: beastfolk.i }
+      ],
+      nameBases: []
+    } as unknown as PackedGraph;
+  });
+
+  it("persists a selected horn animal or animal ancestry on automatically created characters", () => {
+    const demon = createPerson(0, 1, { homeStateId: 1 });
+    const beastfolk = createPerson(1, 2, { homeStateId: 1 });
+
+    expect(demon.raceAppearance?.kind).toBe("demon");
+    expect(beastfolk.raceAppearance?.kind).toBe("beastfolk");
+    if (demon.raceAppearance?.kind === "demon") {
+      expect(["antelope", "bison", "buffalo", "gazelle", "goat", "ibex", "oryx", "ram", "yak"]).toContain(
+        demon.raceAppearance.hornAnimal
+      );
+    }
+    if (beastfolk.raceAppearance?.kind === "beastfolk") {
+      expect(beastfolk.raceAppearance.furryScale).toBeGreaterThanOrEqual(1);
+      expect(beastfolk.raceAppearance.furryScale).toBeLessThanOrEqual(10);
+    }
+  });
+});

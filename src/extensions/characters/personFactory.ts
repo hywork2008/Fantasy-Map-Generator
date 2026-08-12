@@ -1,6 +1,13 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
 import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "../../data/raceBoundServitors";
-import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../../data/races";
+import {
+  DEFAULT_RACE_KEY,
+  getRaceById,
+  HUMAN_RACE_ID,
+  raceIdByKey,
+  rollCharacterRaceAppearance,
+  UNKNOWN_RACE_ID
+} from "../../data/races";
 import type { RaceFertility } from "../../types/models";
 import { Names } from "../hostCore";
 import type { CharacterGenderMode } from "../hostTypes";
@@ -453,6 +460,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
       return undefined;
     }
   })();
+  const raceAppearance = rollCharacterRaceAppearance(raceDef, rand);
   const skills = {} as CharacterSkills;
   const personality = {} as CharacterPersonality;
   if (usesCk3Systems) {
@@ -549,6 +557,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     culture: cultureId,
     race,
     looks,
+    ...(raceAppearance ? { raceAppearance } : {}),
     appearance,
     prestige: rand(1, 100),
     wealth: 0,

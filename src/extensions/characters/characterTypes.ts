@@ -1,7 +1,7 @@
-import type { AppearanceAxes } from "../../types/models";
+import type { AppearanceAxes, CharacterRaceAppearance } from "../../types/models";
 
 export type Gender = "male" | "female";
-export type { AppearanceAxes, AppearanceAxisId } from "../../types/models";
+export type { AppearanceAxes, AppearanceAxisId, CharacterRaceAppearance } from "../../types/models";
 
 export interface TitleHolding {
   /** Gender-resolved display title, e.g. "King", "Prime Minister", "Khan". */
@@ -379,6 +379,8 @@ export interface Character {
    * `attractiveness()` / docs/world/help/races-beauty-and-pairing.md.
    */
   looks?: AppearanceAxes;
+  /** Race-specific physical traits rolled at creation, such as Demon horns or Beastfolk ancestry. */
+  raceAppearance?: CharacterRaceAppearance;
   /**
    * Cached same-race attractiveness (own race ideal of own looks): how striking
    * this person is *among their people*. Not a universal beauty rank.

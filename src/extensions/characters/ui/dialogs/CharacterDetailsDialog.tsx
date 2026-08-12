@@ -418,6 +418,15 @@ export const CharacterDetailsDialog: React.FC = () => {
   // Prefer shared resolver: Wildlands/Unknown (race 0) displays as Human, not catalog "Unknown".
   const raceName = resolveCharacterRaceName(character, races, cultures);
   const looks = character.looks;
+  const raceAppearanceText =
+    character.raceAppearance?.kind === "demon"
+      ? t("characters.demonHorns", { animal: character.raceAppearance.hornAnimal })
+      : character.raceAppearance?.kind === "beastfolk"
+        ? t("characters.beastfolkAppearance", {
+            animal: character.raceAppearance.animal,
+            furryScale: character.raceAppearance.furryScale
+          })
+        : undefined;
 
   const getAffinityText = (score: number) => {
     if (score >= 50) return t("characters.friendly");
@@ -648,6 +657,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     }
     rows.push(`${t("characters.culture")}, ${cultureName}`);
     rows.push(`${t("characters.race")}, ${raceName}`);
+    if (raceAppearanceText) rows.push(`${t("characters.raceAppearance")}, ${raceAppearanceText}`);
     rows.push(`${t("characters.location")}, ${locationStr}`);
     rows.push(
       `${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")} (${t("characters.appearanceSameRaceHint")})`
@@ -960,6 +970,12 @@ export const CharacterDetailsDialog: React.FC = () => {
               <th style={{ padding: "4px 0" }}>{t("characters.race")}</th>
               <td>{raceName}</td>
             </tr>
+            {raceAppearanceText ? (
+              <tr>
+                <th style={{ padding: "4px 0" }}>{t("characters.raceAppearance")}</th>
+                <td>{raceAppearanceText}</td>
+              </tr>
+            ) : null}
             <tr>
               <th style={{ padding: "4px 0" }} data-tip={t("characters.wealthTip")}>
                 {t("characters.wealth")}

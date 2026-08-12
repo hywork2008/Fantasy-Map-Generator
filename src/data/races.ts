@@ -24,8 +24,10 @@
 import type {
   AppearanceAxes,
   CharacterGenderMode,
+  CharacterRaceAppearance,
   Race,
   RaceBeautyIdeal,
+  RaceCharacterAppearance,
   RaceFertility,
   RaceKey
 } from "../types/models";
@@ -39,6 +41,7 @@ export interface RaceDefinition {
   looksBaseline: AppearanceAxes;
   beautyIdeal: RaceBeautyIdeal;
   fertility: RaceFertility;
+  characterAppearance?: RaceCharacterAppearance;
 }
 
 const humanLooks: AppearanceAxes = {
@@ -273,6 +276,67 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
       litterMean: 1.2,
       litterMax: 3
     }
+  },
+  {
+    // Appended to preserve the ids of all races that existed in older saves.
+    key: "demon",
+    name: "Demon",
+    lifespan: 180,
+    maxLifespan: 3000,
+    looksBaseline: { stature: 55, build: 58, symmetry: 55, refinement: 52, vitality: 68, ornament: 72 },
+    beautyIdeal: {
+      weights: { ornament: 1.3, vitality: 1.0, symmetry: 0.7, stature: 0.5, build: 0.4, refinement: 0.2 }
+    },
+    // Human-shaped folk with one animal-inspired pair of horns per character.
+    characterAppearance: {
+      kind: "demon",
+      hornAnimals: ["antelope", "bison", "buffalo", "gazelle", "goat", "ibex", "oryx", "ram", "yak"]
+    },
+    fertility: {
+      fertilityStart: 24,
+      fertilityEnd: 110,
+      interbirthYears: 12,
+      litterMean: 1.0,
+      litterMax: 2
+    }
+  },
+  {
+    key: "beastfolk",
+    name: "Beastfolk",
+    lifespan: 40,
+    maxLifespan: 60,
+    looksBaseline: { stature: 52, build: 57, symmetry: 50, refinement: 46, vitality: 68, ornament: 65 },
+    beautyIdeal: {
+      weights: { vitality: 1.2, ornament: 1.0, build: 0.6, stature: 0.4, symmetry: 0.3, refinement: 0.1 }
+    },
+    // 1 is almost human with animal ears/tail; 10 is a fully animal-like biped.
+    characterAppearance: {
+      kind: "beastfolk",
+      animals: [
+        "bear",
+        "cat",
+        "cattle",
+        "deer",
+        "dog",
+        "fox",
+        "goat",
+        "hare",
+        "horse",
+        "lion",
+        "otter",
+        "raccoon",
+        "tiger",
+        "wolf"
+      ],
+      furryScale: { min: 1, max: 10 }
+    },
+    fertility: {
+      fertilityStart: 12,
+      fertilityEnd: 30,
+      interbirthYears: 2,
+      litterMean: 2.4,
+      litterMax: 4
+    }
   }
 ] as const;
 
@@ -299,7 +363,8 @@ function definitionToRace(def: RaceDefinition, i: number): Race {
     maxLifespan: def.maxLifespan,
     looksBaseline: { ...def.looksBaseline },
     beautyIdeal: { weights: { ...def.beautyIdeal.weights } },
-    fertility: { ...def.fertility }
+    fertility: { ...def.fertility },
+    ...(def.characterAppearance ? { characterAppearance: cloneCharacterAppearance(def.characterAppearance) } : {})
   };
   if (def.characterGender) race.characterGender = def.characterGender;
   return race;
@@ -314,7 +379,8 @@ export function applyCatalogLifespanDefaults(race: Race): Race {
  * Backfill / refresh catalog-derived race fields for older saves.
  * Built-in keys always re-sync lifespan + fertility from the current catalog so
  * balance patches (e.g. god-line giant deep time) apply without New Map.
- * Looks / beauty ideals only fill when missing (no race appearance editor yet).
+ * Looks, beauty ideals, and character appearance options only fill when missing
+ * (no race appearance editor yet).
  */
 export function applyCatalogRaceDefaults(race: Race): Race {
   const def = RACE_DEFINITIONS.find(d => d.key === race.key);
@@ -332,6 +398,9 @@ export function applyCatalogRaceDefaults(race: Race): Race {
   }
   if (!race.looksBaseline && def) race.looksBaseline = { ...def.looksBaseline };
   if (!race.beautyIdeal && def) race.beautyIdeal = { weights: { ...def.beautyIdeal.weights } };
+  if (!race.characterAppearance && def?.characterAppearance) {
+    race.characterAppearance = cloneCharacterAppearance(def.characterAppearance);
+  }
   if (!race.fertility) race.fertility = { ...DEFAULT_RACE_FERTILITY };
   return race;
 }
@@ -389,4 +458,36 @@ export function getRaceBeautyIdeal(races: readonly Race[] | undefined, raceId: n
   if (race?.beautyIdeal) return race.beautyIdeal;
   const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
   return def ? { weights: { ...def.beautyIdeal.weights } } : humanIdeal;
+}
+
+/**
+ * Roll a character's race-specific fantasy appearance from the catalogued options.
+ * `randomInt` is injected so callers share their seeded world-generation RNG.
+ */
+export function rollCharacterRaceAppearance(
+  race: Pick<Race, "characterAppearance"> | undefined,
+  randomInt: (min: number, max: number) => number
+): CharacterRaceAppearance | undefined {
+  const appearance = race?.characterAppearance;
+  if (!appearance) return undefined;
+
+  if (appearance.kind === "demon") {
+    const hornAnimal = appearance.hornAnimals[randomInt(0, appearance.hornAnimals.length - 1)];
+    return hornAnimal ? { kind: "demon", hornAnimal } : undefined;
+  }
+
+  const animal = appearance.animals[randomInt(0, appearance.animals.length - 1)];
+  if (!animal) return undefined;
+  const min = Math.max(1, Math.ceil(appearance.furryScale.min));
+  const max = Math.max(min, Math.min(10, Math.floor(appearance.furryScale.max)));
+  return { kind: "beastfolk", animal, furryScale: randomInt(min, max) };
+}
+
+function cloneCharacterAppearance(appearance: RaceCharacterAppearance): RaceCharacterAppearance {
+  if (appearance.kind === "demon") return { kind: "demon", hornAnimals: [...appearance.hornAnimals] };
+  return {
+    kind: "beastfolk",
+    animals: [...appearance.animals],
+    furryScale: { ...appearance.furryScale }
+  };
 }

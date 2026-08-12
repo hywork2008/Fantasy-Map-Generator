@@ -157,59 +157,21 @@ const DEFAULT_PRESET_LABELS: Record<string, string> = {
 
 function getDefaultPresets(): Record<string, string[]> {
   return {
-    political: [
-      "toggleBorders",
-      "toggleBurgIcons",
-      "toggleIce",
-      "toggleLabels",
-      "toggleRivers",
-      "toggleRoutes",
-      "toggleScaleBar",
-      "toggleStates",
-      "toggleVignette"
-    ],
-    cultural: [
-      "toggleBorders",
-      "toggleBurgIcons",
-      "toggleCultures",
-      "toggleLabels",
-      "toggleRivers",
-      "toggleRoutes",
-      "toggleScaleBar",
-      "toggleVignette"
-    ],
-    religions: [
-      "toggleBorders",
-      "toggleBurgIcons",
-      "toggleLabels",
-      "toggleReligions",
-      "toggleRivers",
-      "toggleRoutes",
-      "toggleScaleBar",
-      "toggleVignette"
-    ],
-    provinces: [
-      "toggleBorders",
-      "toggleBurgIcons",
-      "toggleProvinces",
-      "toggleRivers",
-      "toggleScaleBar",
-      "toggleVignette"
-    ],
-    biomes: ["toggleBiomes", "toggleIce", "toggleRivers", "toggleScaleBar", "toggleVignette"],
+    political: ["toggleBorders", "toggleBurgIcons", "toggleLabels", "toggleRivers", "toggleRoutes", "toggleStates"],
+    cultural: ["toggleBorders", "toggleBurgIcons", "toggleCultures", "toggleLabels", "toggleRivers", "toggleRoutes"],
+    religions: ["toggleBorders", "toggleBurgIcons", "toggleLabels", "toggleReligions", "toggleRivers", "toggleRoutes"],
+    provinces: ["toggleBorders", "toggleBurgIcons", "toggleProvinces", "toggleRivers"],
+    biomes: ["toggleBiomes", "toggleIce", "toggleRivers"],
     heightmap: ["toggleHeight", "toggleRivers"],
-    physical: ["toggleCoordinates", "toggleHeight", "toggleIce", "toggleRivers", "toggleScaleBar", "toggleVignette"],
+    physical: ["toggleCoordinates", "toggleHeight", "toggleIce", "toggleRivers"],
     poi: [
       "toggleBorders",
       "toggleBurgIcons",
       "toggleFrontierForts",
       "toggleHeight",
-      "toggleIce",
       "toggleMarkers",
       "toggleRivers",
-      "toggleRoutes",
-      "toggleScaleBar",
-      "toggleVignette"
+      "toggleRoutes"
     ],
     military: [
       "toggleBorders",
@@ -219,21 +181,9 @@ function getDefaultPresets(): Record<string, string[]> {
       "toggleMilitary",
       "toggleRivers",
       "toggleRoutes",
-      "toggleScaleBar",
-      "toggleStates",
-      "toggleVignette"
+      "toggleStates"
     ],
-    emblems: [
-      "toggleBorders",
-      "toggleBurgIcons",
-      "toggleIce",
-      "toggleEmblems",
-      "toggleRivers",
-      "toggleRoutes",
-      "toggleScaleBar",
-      "toggleStates",
-      "toggleVignette"
-    ],
+    emblems: ["toggleEmblems", "toggleRivers", "toggleStates"],
     landmass: ["toggleScaleBar"]
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultRaces, RACE_DEFINITIONS, raceIdByKey } from "./races";
+import { createDefaultRaces, RACE_DEFINITIONS, raceIdByKey, rollCharacterRaceAppearance } from "./races";
 
 describe("races catalog", () => {
   it("builds a fixed-id table with Unknown at 0 and Human at 1", () => {
@@ -43,6 +43,21 @@ describe("races catalog", () => {
       expect(race.fertility?.interbirthYears).toBeGreaterThan(0);
       expect(race.fertility!.litterMax).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it("defines randomized Demon horns and Beastfolk animal ancestry with furry scale 1–10", () => {
+    const races = createDefaultRaces();
+    const demon = races.find(race => race.key === "demon")!;
+    const beastfolk = races.find(race => race.key === "beastfolk")!;
+
+    expect(demon.characterAppearance?.kind).toBe("demon");
+    expect(beastfolk.characterAppearance?.kind).toBe("beastfolk");
+
+    const demonAppearance = rollCharacterRaceAppearance(demon, min => min);
+    const beastfolkAppearance = rollCharacterRaceAppearance(beastfolk, (_min, max) => max);
+
+    expect(demonAppearance).toEqual({ kind: "demon", hornAnimal: "antelope" });
+    expect(beastfolkAppearance).toEqual({ kind: "beastfolk", animal: "wolf", furryScale: 10 });
   });
 
   it("resolves race keys to stable ids", () => {

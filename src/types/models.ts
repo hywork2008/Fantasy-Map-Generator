@@ -29,6 +29,8 @@ export type RaceKey =
   | "orc"
   | "giant"
   | "draconic"
+  | "demon"
+  | "beastfolk"
   /** Bound servitors of draconic realms — no free polities (see raceBoundServitors). */
   | "wyrmkin"
   | "arachnid"
@@ -67,6 +69,43 @@ export interface RaceFertility {
   litterMax: number;
 }
 
+/** A horned animal whose horn shape can be inherited by a Demon character. */
+export type DemonHornAnimal = "antelope" | "bison" | "buffalo" | "gazelle" | "goat" | "ibex" | "oryx" | "ram" | "yak";
+
+/** Animal ancestry available to Beastfolk characters. */
+export type BeastfolkAnimal =
+  | "bear"
+  | "cat"
+  | "cattle"
+  | "deer"
+  | "dog"
+  | "fox"
+  | "goat"
+  | "hare"
+  | "horse"
+  | "lion"
+  | "otter"
+  | "raccoon"
+  | "tiger"
+  | "wolf";
+
+/** Race-level configuration for character-specific fantasy appearance rolls. */
+export type RaceCharacterAppearance =
+  | {
+      kind: "demon";
+      hornAnimals: readonly DemonHornAnimal[];
+    }
+  | {
+      kind: "beastfolk";
+      animals: readonly BeastfolkAnimal[];
+      furryScale: { min: number; max: number };
+    };
+
+/** A character's generated fantasy appearance, selected from their race configuration. */
+export type CharacterRaceAppearance =
+  | { kind: "demon"; hornAnimal: DemonHornAnimal }
+  | { kind: "beastfolk"; animal: BeastfolkAnimal; furryScale: number };
+
 /**
  * Species / folk traits, independent of culture (language, names, expansion).
  * Index 0 is "Unknown" (Wildlands / unset).
@@ -97,6 +136,8 @@ export interface Race {
   beautyIdeal?: RaceBeautyIdeal;
   /** Reproductive biology defaults. */
   fertility?: RaceFertility;
+  /** Character-level fantasy appearance options (for example Demon horns). */
+  characterAppearance?: RaceCharacterAppearance;
   lock?: boolean;
   removed?: boolean;
 }
