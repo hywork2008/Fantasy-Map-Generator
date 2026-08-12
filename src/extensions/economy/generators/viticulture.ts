@@ -6,11 +6,19 @@
  */
 
 import {
+  classifyAgriculturalClimateZone,
+  classifySeasonRegion,
+  getCropCalendar,
+  type MonthlyWeights,
+  SEASON_REGION_PROFILES
+} from "../../../data/cropCalendars";
+import {
   getPerennialCropSuitability,
   PERENNIAL_CROP_PROFILES,
   type PerennialCropProfile
 } from "../../../data/perennialCrops";
 import type { WorldContext } from "../../hostCore";
+import { getLatitude } from "../../hostUtils";
 import {
   getCultivatedArea,
   getGoods,
@@ -29,7 +37,6 @@ import {
 } from "./agriculturalLandUse";
 import { type Good, isGoodEnabled } from "./goods-generator";
 import { getPastureAreaUsedHectares } from "./husbandry";
-import { getCropLabourWeight } from "./production-utils";
 
 export const GRAPE_YIELD_PER_HECTARE_PER_MONTH = PERENNIAL_CROP_PROFILES.Grapes.yieldLotsPerHectarePerMonth;
 
@@ -42,8 +49,8 @@ export interface ViticultureDemand {
 export function getPerennialMonthlyLabourDays(cellId: number, month: number): number {
   const world = getWorldContext();
   return getPerennialCropMix(world, cellId).reduce((total, entry) => {
-    const weight = getCropLabourWeight(entry.good, cellId, month);
-    return total + entry.areaHectares * entry.profile.laborDaysPerHectare * (weight ?? 1 / 12);
+    const weight = getPerennialMonthlyLaborWeights(world, cellId, [entry])[month];
+    return total + entry.areaHectares * entry.profile.laborDaysPerHectare * weight;
   }, 0);
 }
 
@@ -137,6 +144,42 @@ export function calculateViticultureDemand(world: Readonly<WorldContext>, cellId
       mix.reduce((total, entry) => total + entry.areaHectares, 0)
     );
   return { requiredWorkers, value };
+}
+
+/** Normalized orchard/vineyard work distribution for the cell's selected perennial crop. */
+export function getPerennialMonthlyLaborWeights(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  mix = getPerennialCropMix(world, cellId)
+): MonthlyWeights {
+  if (!mix.length)
+    return [1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12];
+  const cells = world.pack.cells;
+  const point = cells.p?.[cellId];
+  const gridCellId = cells.g?.[cellId] ?? cellId;
+  if (!point || gridCellId < 0) {
+    return [1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12];
+  }
+  const region = classifySeasonRegion(getLatitude(point[1], world.mapCoordinates, world.graphHeight));
+  const zone = classifyAgriculturalClimateZone({
+    annualTemperatureC: world.grid.cells.temp?.[gridCellId] ?? 12,
+    annualPrecipitation: world.grid.cells.prec?.[gridCellId] ?? 45,
+    irrigated: (getIrrigatedArea()[cellId] ?? 0) > 0
+  });
+  const weighted = Array.from({ length: 12 }, () => 0);
+  const totalAnnualDays = mix.reduce(
+    (total, entry) => total + entry.areaHectares * entry.profile.laborDaysPerHectare,
+    0
+  );
+  for (const entry of mix) {
+    const share = (entry.areaHectares * entry.profile.laborDaysPerHectare) / Math.max(1e-6, totalAnnualDays);
+    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, entry.profile.calendar);
+    for (let month = 0; month < 12; month++) weighted[month] += share * calendar.labourWeights[month];
+  }
+  const total = weighted.reduce((sum, value) => sum + value, 0);
+  if (!(total > 0))
+    return [1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12, 1 / 12];
+  return weighted.map(value => value / total) as unknown as MonthlyWeights;
 }
 
 export function getViticultureWorkerFactor(cellId: number): number {

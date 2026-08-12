@@ -24,6 +24,8 @@ export const ANNUAL_SOWN_SHARE = 0.67;
 export const BASE_NET_YIELD_KG_PER_SOWN_HECTARE = 450;
 export const LABOUR_DAYS_PER_HECTARE = 30;
 export const WORKABLE_DAYS_PER_ADULT = 140;
+/** Calendar capacity used by the shared rural labour allocator. */
+export const WORKABLE_DAYS_PER_ADULT_PER_MONTH = WORKABLE_DAYS_PER_ADULT / 12;
 export const FARM_LABOUR_SAFETY_MARGIN = 1.15;
 
 /**
@@ -122,6 +124,10 @@ export interface AgriculturalLandProfile {
   readonly floweringForageArea: Float32Array;
   /** Adult rural labour required for the current field area, in rural population points. */
   readonly farmLaborRequired: Float32Array;
+  /** Current staple-field work requirement, indexed as `cellId * 12 + month`, in real work-days. */
+  readonly cropLaborDaysByMonth: Float32Array;
+  /** Bare-subsistence staple-field work requirement, indexed as `cellId * 12 + month`, in real work-days. */
+  readonly minimumCropLaborDaysByMonth: Float32Array;
   /** Adults that can leave after farm labour's safety margin, in rural population points. */
   readonly migratableAdults: Float32Array;
   /**
@@ -171,6 +177,8 @@ export function calculateAgriculturalLandProfile(
   const cultivatedArea = new Float32Array(count);
   const floweringForageArea = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
+  const cropLaborDaysByMonth = new Float32Array(count * 12);
+  const minimumCropLaborDaysByMonth = new Float32Array(count * 12);
   const migratableAdults = new Float32Array(count);
   const ruralReleasePressure = new Float32Array(count);
   const emptyIrrigation = createEmptyRiverIrrigationResults(count);
@@ -183,6 +191,8 @@ export function calculateAgriculturalLandProfile(
       cultivatedArea,
       floweringForageArea,
       farmLaborRequired,
+      cropLaborDaysByMonth,
+      minimumCropLaborDaysByMonth,
       migratableAdults,
       ruralReleasePressure,
       irrigation: emptyIrrigation
@@ -244,15 +254,24 @@ export function calculateAgriculturalLandProfile(
     floweringForageArea[cellId] =
       currentArea * FOUR_COURSE_CLOVER_LEY_SHARE * fourCourseRotation * getCloverSuitability(world, cellId);
     const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
-    const labourPeakFactor = getCropLabourPeakFactor(
+    const annualLaborDaysPerHectare = effectiveLaborDaysPerHectare * fourCourseLaborMultiplier;
+    const currentMonthlyLaborDays = getCropMonthlyLabourDays(
       world,
       cellId,
       conditions,
-      irrigation.irrigatedAreaHa[cellId] ?? 0
+      irrigation.irrigatedAreaHa[cellId] ?? 0,
+      currentArea * annualLaborDaysPerHectare
     );
-    const requiredAdults =
-      ((currentArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT) *
-      labourPeakFactor;
+    const minimumMonthlyLaborDays = getCropMonthlyLabourDays(
+      world,
+      cellId,
+      conditions,
+      irrigation.irrigatedAreaHa[cellId] ?? 0,
+      requiredArea * annualLaborDaysPerHectare
+    );
+    cropLaborDaysByMonth.set(currentMonthlyLaborDays, cellId * 12);
+    minimumCropLaborDaysByMonth.set(minimumMonthlyLaborDays, cellId * 12);
+    const requiredAdults = getMonthlyPeakRequiredAdults(currentMonthlyLaborDays);
     const requiredAdultPoints = requiredAdults / populationRate;
     farmLaborRequired[cellId] = requiredAdultPoints;
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
@@ -260,9 +279,7 @@ export function calculateAgriculturalLandProfile(
 
     // minimumFood = localConsumption + committedExport; committedExport isn't tracked yet (0),
     // so this uses the bare pre-buffer requiredArea rather than the 1.1x-buffered currentArea.
-    const minimumFarmAdults =
-      ((requiredArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT) *
-      labourPeakFactor;
+    const minimumFarmAdults = getMonthlyPeakRequiredAdults(minimumMonthlyLaborDays);
     const minimumFarmAdultPoints = minimumFarmAdults / populationRate;
     ruralReleasePressure[cellId] = Math.max(0, ruralAdults - minimumFarmAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
   }
@@ -275,6 +292,8 @@ export function calculateAgriculturalLandProfile(
     cultivatedArea,
     floweringForageArea,
     farmLaborRequired,
+    cropLaborDaysByMonth,
+    minimumCropLaborDaysByMonth,
     migratableAdults,
     ruralReleasePressure,
     irrigation
@@ -557,20 +576,32 @@ export function getCropMix(
  * month. The crop plan remains a rotation representation, so shares are aggregated before the
  * peak is selected. Legacy callers without a crop catalogue retain the former annual factor.
  */
-function getCropLabourPeakFactor(
+function getCropMonthlyLabourDays(
   world: Readonly<WorldContext>,
   cellId: number,
   conditions: AgriculturalConditions,
-  irrigatedArea: number
-): number {
+  irrigatedArea: number,
+  annualLaborDays: number
+): Float32Array {
+  const monthlyDays = new Float32Array(12);
+  if (annualLaborDays <= 0) return monthlyDays;
   const cropGoods = conditions.cropGoods;
-  if (!cropGoods?.length) return 1;
+  if (!cropGoods?.length) {
+    monthlyDays.fill(annualLaborDays / 12);
+    return monthlyDays;
+  }
   const mix = getCropMix(world, cellId, cropGoods, conditions);
-  if (!mix.length) return 1;
+  if (!mix.length) {
+    monthlyDays.fill(annualLaborDays / 12);
+    return monthlyDays;
+  }
   const cells = world.pack.cells;
   const point = cells.p?.[cellId];
   const gridCellId = cells.g?.[cellId] ?? cellId;
-  if (!point || gridCellId < 0) return 1;
+  if (!point || gridCellId < 0) {
+    monthlyDays.fill(annualLaborDays / 12);
+    return monthlyDays;
+  }
   const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
   const temperature = world.grid.cells.temp?.[gridCellId] ?? 12;
   const precipitation = world.grid.cells.prec?.[gridCellId] ?? 45;
@@ -580,14 +611,17 @@ function getCropLabourPeakFactor(
     annualPrecipitation: precipitation,
     irrigated: irrigatedArea > 0
   });
-  const monthlyWeights = Array.from({ length: 12 }, () => 0);
   for (const entry of mix) {
     const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, entry.good.crop!.calendar);
-    for (let month = 0; month < 12; month++) monthlyWeights[month] += entry.share * calendar.labourWeights[month];
+    for (let month = 0; month < 12; month++) {
+      monthlyDays[month] += annualLaborDays * entry.share * calendar.labourWeights[month];
+    }
   }
-  // A 1/12 monthly weight equals the existing annual-FTE baseline. Never reduce that baseline:
-  // non-seasonal or incomplete profiles must not create accidental labour savings.
-  return Math.max(1, ...monthlyWeights.map(weight => weight * 12));
+  return monthlyDays;
+}
+
+function getMonthlyPeakRequiredAdults(monthlyLaborDays: Float32Array): number {
+  return Math.max(0, ...monthlyLaborDays.map(days => days / WORKABLE_DAYS_PER_ADULT_PER_MONTH));
 }
 
 function selectCrop(

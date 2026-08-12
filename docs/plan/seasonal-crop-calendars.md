@@ -2,7 +2,7 @@
 
 ## 状態
 
-初期実装済み（2026-08-12）。共有の `src/data/cropCalendars.ts` が、少数の季節地域・農業気候ゾーン・作物・必要なコホートから月次収穫／労働重みを生成する。Food Ledger は月次収穫へ移行し、通常の市場供給、果樹、農地の移住余力も同じ暦を参照する。保存済みセル列と季節雇用市場は後続段階とする。
+月次暦と共通農村労働配分を実装済み（2026-08-12）。共有の `src/data/cropCalendars.ts` が、少数の季節地域・農業気候ゾーン・作物・必要なコホートから月次収穫／労働重みを生成する。Food Ledger は月次収穫へ移行し、通常の市場供給、果樹、農地の移住余力も同じ暦を参照する。主食・狩猟・漁撈・果樹・牧畜の月別要求は同一の常住成人プールへ合算され、未充足分を `seasonalLaborShortage[cellId * 12 + month]` として保持する。保存済みの気候分類列と、道路・賃金を使う季節雇用市場は後続段階とする。
 
 ## 背景と結論
 
@@ -241,7 +241,7 @@ FAO Crop Calendar は 100 以上の作物・50 以上の国について播種・
 2. **主食の月次化**: **実装済み**。`FoodProduction.generateMonthlyLedger(month)` が毎月の収穫を投入し、旧3バケットを三か月帯として維持して9か月保存上限を互換維持する。旧 `getGlobalQuarterlyFoodWeights()` は旧呼出元と既存テスト用の互換 API として残るが、Food Ledger の新経路は参照しない。
 3. **通常商品との統合**: **実装済み**。`getSeasonalFoodProductionMultiplier()` は名称互換を保ちつつ作物・永年作物の暦重みだけへ委譲する。家畜・魚・加工品に作物用秋ピークは掛からない。
 4. **永年作物の暦と再校正**: **実装済み（初期値）**。`PerennialCropProfile.calendar` と月次の果樹労働日計算を追加した。史料に基づく品種・地域別再校正は継続課題である。
-5. **牧畜と労働暦**: **部分実装**。主食は月次作物暦のピークから `farmLaborRequired`、`migratableAdults`、`ruralReleasePressure` を算出する。家畜 profile は通年世話重みと季節イベント月を公開したが、家畜・果樹・漁撈を一つの常住成人プールへ完全に再配分する allocator は後続とする。
+5. **牧畜と労働暦**: **実装済み（季節雇用を除く）**。`calculateAgriculturalLandProfile()` は主食の実作業日をセル×月で返し、Rural Occupation Allocator は主食・狩猟・漁撈・果樹・牧畜を同じ月次容量へ合算する。配分後の月次ピークから `farmLaborRequired`、`migratableAdults`、`ruralReleasePressure` を一度だけ再計算し、希望する全作業と残留成人との差を `seasonalLaborShortage` として残す。牧畜は通年世話の 80% と種別ごとの二つの季節イベントに 20% を置く初期暫定値であり、史料に基づく再校正は継続課題である。
 
 季節雇用は本計画の後続依存計画とする。道路、距離、賃金、都市の余剰を使い、`seasonalShortage` を短期契約で埋める。その実装までは、不足を隠れた生産ボーナスで相殺しない。
 
