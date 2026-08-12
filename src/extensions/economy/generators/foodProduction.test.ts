@@ -118,6 +118,21 @@ describe("FoodProduction", () => {
     expect(market1.marketTreasury.ruralGrainPayable).toBeGreaterThan(0);
   });
 
+  it("adds harvest monthly while retaining the legacy three-month ageing bands", () => {
+    FoodProduction.generateMonthlyLedger(1);
+    const january = mockWorldContext.pack.markets[0].foodLedger.foodProduced;
+    FoodProduction.generateMonthlyLedger(2);
+    const february = mockWorldContext.pack.markets[0].foodLedger.foodProduced;
+
+    // This legacy fixture has no crop catalogue, so its compatibility fallback is uniform.
+    // The important lifecycle property is that each month enters stock rather than waiting for
+    // a shared quarterly harvest.
+    expect(january).toBeGreaterThan(0);
+    expect(february).toBeCloseTo(january, 5);
+    expect(mockWorldContext.pack.markets[0].foodLedger.foodStockAge0).toBeGreaterThan(january);
+    expect(mockWorldContext.pack.markets[0].foodLedger.foodStockAge1).toBe(0);
+  });
+
   it("uses active cultivated area when agricultural columns are available", () => {
     mockWorldContext = {
       populationRate: 1000,

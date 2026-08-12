@@ -2154,7 +2154,6 @@ export function init(api: ExtensionAPI): void {
   // shipyard's forest should eventually recover even if the extension is disabled
   // afterward. Harmless no-op while nothing has ever been depleted.
   let daysSinceLastProduction = 0;
-  let daysSinceLastQuarterlyUpdate = 0;
   let currentQuarterIndex = 0;
   // Without this, mine reserves only ever go down (docs/plan/mineral-resource-circulation-fixes.md
   // Fix 2): roads/ports built during Advance Time never translate into newly accessible deposits
@@ -2376,10 +2375,8 @@ export function init(api: ExtensionAPI): void {
       measureTickStep("economy:foodCalendar", () => {
         while (elapsedDays < effectiveDays) {
           const daysUntilMonthlySettlement = 30 - daysSinceLastProduction;
-          const daysUntilQuarterlyHarvest = 90 - daysSinceLastQuarterlyUpdate;
-          const step = Math.min(effectiveDays - elapsedDays, daysUntilMonthlySettlement, daysUntilQuarterlyHarvest);
+          const step = Math.min(effectiveDays - elapsedDays, daysUntilMonthlySettlement);
           daysSinceLastProduction += step;
-          daysSinceLastQuarterlyUpdate += step;
           elapsedDays += step;
 
           // On a shared boundary, households finish the month before the new
@@ -2389,18 +2386,17 @@ export function init(api: ExtensionAPI): void {
             daysSinceLastProduction -= 30;
             const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
             settleMonthlyFoodConsumption(settlementMonth);
+            FoodProduction.generateMonthlyLedger(settlementMonth);
             settledMonths++;
             foodSettlementsThisTick++;
-          }
-          if (daysSinceLastQuarterlyUpdate >= 90) {
-            daysSinceLastQuarterlyUpdate -= 90;
-            currentQuarterIndex = (currentQuarterIndex + 1) % 4;
-            FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
-            // A quarterly import update may raise capacity above a construction
-            // ceiling, so retain the existing post-harvest re-clamp.
-            ConstructionOperations.constrainEffectiveCapacity();
-            UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
-            recordQuarterlyNonFoodDemand();
+            if (settlementMonth % 3 === 0) {
+              currentQuarterIndex = (currentQuarterIndex + 1) % 4;
+              // A quarterly import update may raise capacity above a construction
+              // ceiling, so retain the existing post-harvest re-clamp.
+              ConstructionOperations.constrainEffectiveCapacity();
+              UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
+              recordQuarterlyNonFoodDemand();
+            }
           }
         }
       });

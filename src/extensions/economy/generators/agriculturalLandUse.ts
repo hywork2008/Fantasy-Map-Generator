@@ -1,3 +1,9 @@
+import {
+  classifyAgriculturalClimateZone,
+  classifySeasonRegion,
+  getCropCalendar,
+  SEASON_REGION_PROFILES
+} from "../../../data/cropCalendars";
 import { getStapleCropSuitability } from "../../../data/stapleCrops";
 import { harvestForestStock } from "../../../generators/forestStock";
 import {
@@ -8,6 +14,7 @@ import {
   type WorldContext
 } from "../../hostCore";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
+import { getLatitude } from "../../hostUtils";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
 
@@ -237,8 +244,15 @@ export function calculateAgriculturalLandProfile(
     floweringForageArea[cellId] =
       currentArea * FOUR_COURSE_CLOVER_LEY_SHARE * fourCourseRotation * getCloverSuitability(world, cellId);
     const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
+    const labourPeakFactor = getCropLabourPeakFactor(
+      world,
+      cellId,
+      conditions,
+      irrigation.irrigatedAreaHa[cellId] ?? 0
+    );
     const requiredAdults =
-      (currentArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT;
+      ((currentArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT) *
+      labourPeakFactor;
     const requiredAdultPoints = requiredAdults / populationRate;
     farmLaborRequired[cellId] = requiredAdultPoints;
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
@@ -247,7 +261,8 @@ export function calculateAgriculturalLandProfile(
     // minimumFood = localConsumption + committedExport; committedExport isn't tracked yet (0),
     // so this uses the bare pre-buffer requiredArea rather than the 1.1x-buffered currentArea.
     const minimumFarmAdults =
-      (requiredArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT;
+      ((requiredArea * effectiveLaborDaysPerHectare * fourCourseLaborMultiplier) / WORKABLE_DAYS_PER_ADULT) *
+      labourPeakFactor;
     const minimumFarmAdultPoints = minimumFarmAdults / populationRate;
     ruralReleasePressure[cellId] = Math.max(0, ruralAdults - minimumFarmAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
   }
@@ -535,6 +550,44 @@ export function getCropMix(
     { ...mainCrop, share: MAIN_CROP_SHARE_WITH_LEGUME },
     { ...legume, share: 1 - MAIN_CROP_SHARE_WITH_LEGUME }
   ];
+}
+
+/**
+ * Converts annual field labour into the resident workforce required in its busiest calendar
+ * month. The crop plan remains a rotation representation, so shares are aggregated before the
+ * peak is selected. Legacy callers without a crop catalogue retain the former annual factor.
+ */
+function getCropLabourPeakFactor(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  conditions: AgriculturalConditions,
+  irrigatedArea: number
+): number {
+  const cropGoods = conditions.cropGoods;
+  if (!cropGoods?.length) return 1;
+  const mix = getCropMix(world, cellId, cropGoods, conditions);
+  if (!mix.length) return 1;
+  const cells = world.pack.cells;
+  const point = cells.p?.[cellId];
+  const gridCellId = cells.g?.[cellId] ?? cellId;
+  if (!point || gridCellId < 0) return 1;
+  const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
+  const temperature = world.grid.cells.temp?.[gridCellId] ?? 12;
+  const precipitation = world.grid.cells.prec?.[gridCellId] ?? 45;
+  const region = classifySeasonRegion(latitude);
+  const zone = classifyAgriculturalClimateZone({
+    annualTemperatureC: temperature,
+    annualPrecipitation: precipitation,
+    irrigated: irrigatedArea > 0
+  });
+  const monthlyWeights = Array.from({ length: 12 }, () => 0);
+  for (const entry of mix) {
+    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, entry.good.crop!.calendar);
+    for (let month = 0; month < 12; month++) monthlyWeights[month] += entry.share * calendar.labourWeights[month];
+  }
+  // A 1/12 monthly weight equals the existing annual-FTE baseline. Never reduce that baseline:
+  // non-seasonal or incomplete profiles must not create accidental labour savings.
+  return Math.max(1, ...monthlyWeights.map(weight => weight * 12));
 }
 
 function selectCrop(

@@ -1,3 +1,4 @@
+import type { CropCalendarProfile } from "./cropCalendars";
 import type { ClimateRange, StapleSoilType } from "./stapleCrops";
 
 /**
@@ -20,7 +21,39 @@ export interface PerennialCropProfile {
   readonly laborDaysPerHectare: number;
   /** Market lots harvested from one fully staffed hectare in a month. */
   readonly yieldLotsPerHectarePerMonth: number;
+  /** One annual harvest, plus pruning and maintenance labour distributed by month. */
+  readonly calendar: CropCalendarProfile;
 }
+
+const VINE_CALENDAR = {
+  annualCycleDays: 365,
+  turnaroundDays: 0,
+  minimumGrowingTemperatureC: 5,
+  harvestWindows: [{ startAfterPlantingDays: 240, durationDays: 45 }],
+  labourByStage: { establishment: 0.2, maintenance: 0.45, harvestAndProcessing: 0.35 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 1
+} as const satisfies CropCalendarProfile;
+
+const MEDITERRANEAN_ORCHARD_CALENDAR = {
+  annualCycleDays: 365,
+  turnaroundDays: 0,
+  minimumGrowingTemperatureC: 5,
+  harvestWindows: [{ startAfterPlantingDays: 285, durationDays: 60 }],
+  labourByStage: { establishment: 0.2, maintenance: 0.35, harvestAndProcessing: 0.45 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 1
+} as const satisfies CropCalendarProfile;
+
+const TEMPERATE_ORCHARD_CALENDAR = {
+  annualCycleDays: 365,
+  turnaroundDays: 0,
+  minimumGrowingTemperatureC: 6,
+  harvestWindows: [{ startAfterPlantingDays: 240, durationDays: 45 }],
+  labourByStage: { establishment: 0.25, maintenance: 0.4, harvestAndProcessing: 0.35 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 1
+} as const satisfies CropCalendarProfile;
 
 /**
  * The precipitation axis uses FMG's existing annual precipitation proxy, not
@@ -36,7 +69,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.5,
     areaHectaresPerPerson: 0.04,
     laborDaysPerHectare: 20,
-    yieldLotsPerHectarePerMonth: 0.03
+    yieldLotsPerHectarePerMonth: 0.03,
+    calendar: VINE_CALENDAR
   },
   Olives: {
     kind: "orchard",
@@ -46,7 +80,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.35,
     areaHectaresPerPerson: 0.018,
     laborDaysPerHectare: 16,
-    yieldLotsPerHectarePerMonth: 0.018
+    yieldLotsPerHectarePerMonth: 0.018,
+    calendar: MEDITERRANEAN_ORCHARD_CALENDAR
   },
   Apples: {
     kind: "orchard",
@@ -56,7 +91,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.3,
     areaHectaresPerPerson: 0.02,
     laborDaysPerHectare: 24,
-    yieldLotsPerHectarePerMonth: 0.04
+    yieldLotsPerHectarePerMonth: 0.04,
+    calendar: TEMPERATE_ORCHARD_CALENDAR
   },
   Pears: {
     kind: "orchard",
@@ -66,7 +102,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.24,
     areaHectaresPerPerson: 0.014,
     laborDaysPerHectare: 22,
-    yieldLotsPerHectarePerMonth: 0.032
+    yieldLotsPerHectarePerMonth: 0.032,
+    calendar: TEMPERATE_ORCHARD_CALENDAR
   },
   Plums: {
     kind: "orchard",
@@ -76,7 +113,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.2,
     areaHectaresPerPerson: 0.012,
     laborDaysPerHectare: 22,
-    yieldLotsPerHectarePerMonth: 0.03
+    yieldLotsPerHectarePerMonth: 0.03,
+    calendar: TEMPERATE_ORCHARD_CALENDAR
   },
   Figs: {
     kind: "orchard",
@@ -86,7 +124,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.22,
     areaHectaresPerPerson: 0.012,
     laborDaysPerHectare: 18,
-    yieldLotsPerHectarePerMonth: 0.028
+    yieldLotsPerHectarePerMonth: 0.028,
+    calendar: MEDITERRANEAN_ORCHARD_CALENDAR
   },
   Lemons: {
     kind: "orchard",
@@ -96,7 +135,8 @@ export const PERENNIAL_CROP_PROFILES = {
     maximumLandShare: 0.18,
     areaHectaresPerPerson: 0.008,
     laborDaysPerHectare: 26,
-    yieldLotsPerHectarePerMonth: 0.025
+    yieldLotsPerHectarePerMonth: 0.025,
+    calendar: MEDITERRANEAN_ORCHARD_CALENDAR
   }
 } as const satisfies Record<string, PerennialCropProfile>;
 

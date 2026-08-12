@@ -29,12 +29,22 @@ import {
 } from "./agriculturalLandUse";
 import { type Good, isGoodEnabled } from "./goods-generator";
 import { getPastureAreaUsedHectares } from "./husbandry";
+import { getCropLabourWeight } from "./production-utils";
 
 export const GRAPE_YIELD_PER_HECTARE_PER_MONTH = PERENNIAL_CROP_PROFILES.Grapes.yieldLotsPerHectarePerMonth;
 
 export interface ViticultureDemand {
   readonly requiredWorkers: number;
   readonly value: number;
+}
+
+/** Monthly orchard/vineyard labour, in adult work-days, before worker allocation. */
+export function getPerennialMonthlyLabourDays(cellId: number, month: number): number {
+  const world = getWorldContext();
+  return getPerennialCropMix(world, cellId).reduce((total, entry) => {
+    const weight = getCropLabourWeight(entry.good, cellId, month);
+    return total + entry.areaHectares * entry.profile.laborDaysPerHectare * (weight ?? 1 / 12);
+  }, 0);
 }
 
 export interface PerennialCropMixEntry {

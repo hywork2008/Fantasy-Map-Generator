@@ -1,3 +1,5 @@
+import type { CropCalendarProfile } from "./cropCalendars";
+
 /**
  * Climate and soil requirements shared by initial settlement and the economy
  * extension. These are deliberately host data: initial population is placed
@@ -13,6 +15,8 @@ export interface StapleCropProfile {
   readonly temperature: ClimateRange;
   readonly precipitation: ClimateRange;
   readonly soils: readonly StapleSoilType[];
+  /** Shared month-by-month planting, harvest, and labour profile. */
+  readonly calendar: CropCalendarProfile;
 }
 
 export interface ClimateRange {
@@ -21,6 +25,46 @@ export interface ClimateRange {
   readonly idealMax: number;
   readonly max: number;
 }
+
+const COOL_CEREAL_CALENDAR = {
+  annualCycleDays: 240,
+  turnaroundDays: 30,
+  minimumGrowingTemperatureC: 3,
+  harvestWindows: [{ startAfterPlantingDays: 210, durationDays: 30 }],
+  labourByStage: { establishment: 0.2, maintenance: 0.25, harvestAndProcessing: 0.55 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 1
+} as const satisfies CropCalendarProfile;
+
+const WARM_CEREAL_CALENDAR = {
+  annualCycleDays: 120,
+  turnaroundDays: 30,
+  minimumGrowingTemperatureC: 10,
+  harvestWindows: [{ startAfterPlantingDays: 105, durationDays: 30 }],
+  labourByStage: { establishment: 0.22, maintenance: 0.28, harvestAndProcessing: 0.5 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 2
+} as const satisfies CropCalendarProfile;
+
+const LEGUME_CALENDAR = {
+  annualCycleDays: 150,
+  turnaroundDays: 30,
+  minimumGrowingTemperatureC: 5,
+  harvestWindows: [{ startAfterPlantingDays: 135, durationDays: 30 }],
+  labourByStage: { establishment: 0.22, maintenance: 0.28, harvestAndProcessing: 0.5 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 2
+} as const satisfies CropCalendarProfile;
+
+const ROOT_CALENDAR = {
+  annualCycleDays: 150,
+  turnaroundDays: 30,
+  minimumGrowingTemperatureC: 2,
+  harvestWindows: [{ startAfterPlantingDays: 135, durationDays: 45 }],
+  labourByStage: { establishment: 0.2, maintenance: 0.3, harvestAndProcessing: 0.5 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 2
+} as const satisfies CropCalendarProfile;
 
 /**
  * Main medieval staples and companion legumes. Potatoes remain available to
@@ -32,84 +76,96 @@ export const STAPLE_CROP_PROFILES = {
     yieldMultiplier: 1.05,
     temperature: { min: 2, idealMin: 8, idealMax: 18, max: 24 },
     precipitation: { min: 18, idealMin: 30, idealMax: 60, max: 80 },
-    soils: ["loam", "alluvial", "clay"]
+    soils: ["loam", "alluvial", "clay"],
+    calendar: COOL_CEREAL_CALENDAR
   },
   Rye: {
     kind: "cereal",
     yieldMultiplier: 0.82,
     temperature: { min: -2, idealMin: 4, idealMax: 14, max: 21 },
     precipitation: { min: 12, idealMin: 24, idealMax: 55, max: 75 },
-    soils: ["loam", "sandy", "thin"]
+    soils: ["loam", "sandy", "thin"],
+    calendar: COOL_CEREAL_CALENDAR
   },
   Barley: {
     kind: "cereal",
     yieldMultiplier: 0.88,
     temperature: { min: -2, idealMin: 5, idealMax: 16, max: 23 },
     precipitation: { min: 10, idealMin: 20, idealMax: 50, max: 70 },
-    soils: ["loam", "alluvial", "sandy"]
+    soils: ["loam", "alluvial", "sandy"],
+    calendar: COOL_CEREAL_CALENDAR
   },
   Oats: {
     kind: "cereal",
     yieldMultiplier: 0.8,
     temperature: { min: 0, idealMin: 6, idealMax: 16, max: 21 },
     precipitation: { min: 20, idealMin: 35, idealMax: 70, max: 90 },
-    soils: ["humus", "loam", "clay"]
+    soils: ["humus", "loam", "clay"],
+    calendar: COOL_CEREAL_CALENDAR
   },
   Millet: {
     kind: "cereal",
     yieldMultiplier: 0.78,
     temperature: { min: 10, idealMin: 16, idealMax: 27, max: 34 },
     precipitation: { min: 7, idealMin: 15, idealMax: 42, max: 62 },
-    soils: ["loam", "sandy", "alluvial"]
+    soils: ["loam", "sandy", "alluvial"],
+    calendar: WARM_CEREAL_CALENDAR
   },
   Buckwheat: {
     kind: "cereal",
     yieldMultiplier: 0.72,
     temperature: { min: 2, idealMin: 9, idealMax: 18, max: 25 },
     precipitation: { min: 15, idealMin: 28, idealMax: 60, max: 80 },
-    soils: ["thin", "sandy", "loam"]
+    soils: ["thin", "sandy", "loam"],
+    calendar: COOL_CEREAL_CALENDAR
   },
   Peas: {
     kind: "legume",
     yieldMultiplier: 0.74,
     temperature: { min: 1, idealMin: 7, idealMax: 18, max: 23 },
     precipitation: { min: 15, idealMin: 28, idealMax: 62, max: 82 },
-    soils: ["loam", "alluvial", "clay"]
+    soils: ["loam", "alluvial", "clay"],
+    calendar: LEGUME_CALENDAR
   },
   "Broad Beans": {
     kind: "legume",
     yieldMultiplier: 0.78,
     temperature: { min: 3, idealMin: 8, idealMax: 18, max: 23 },
     precipitation: { min: 18, idealMin: 30, idealMax: 65, max: 85 },
-    soils: ["clay", "loam", "alluvial"]
+    soils: ["clay", "loam", "alluvial"],
+    calendar: LEGUME_CALENDAR
   },
   Lentils: {
     kind: "legume",
     yieldMultiplier: 0.7,
     temperature: { min: 6, idealMin: 13, idealMax: 24, max: 30 },
     precipitation: { min: 6, idealMin: 14, idealMax: 38, max: 55 },
-    soils: ["sandy", "loam", "thin"]
+    soils: ["sandy", "loam", "thin"],
+    calendar: LEGUME_CALENDAR
   },
   Chickpeas: {
     kind: "legume",
     yieldMultiplier: 0.72,
     temperature: { min: 8, idealMin: 16, idealMax: 27, max: 33 },
     precipitation: { min: 5, idealMin: 12, idealMax: 34, max: 50 },
-    soils: ["sandy", "loam", "alluvial"]
+    soils: ["sandy", "loam", "alluvial"],
+    calendar: LEGUME_CALENDAR
   },
   Turnips: {
     kind: "tuber",
     yieldMultiplier: 0.9,
     temperature: { min: -1, idealMin: 5, idealMax: 16, max: 22 },
     precipitation: { min: 18, idealMin: 30, idealMax: 70, max: 90 },
-    soils: ["loam", "sandy", "humus"]
+    soils: ["loam", "sandy", "humus"],
+    calendar: ROOT_CALENDAR
   },
   Potatoes: {
     kind: "tuber",
     yieldMultiplier: 1.15,
     temperature: { min: 3, idealMin: 8, idealMax: 18, max: 24 },
     precipitation: { min: 20, idealMin: 35, idealMax: 70, max: 90 },
-    soils: ["loam", "sandy", "humus"]
+    soils: ["loam", "sandy", "humus"],
+    calendar: ROOT_CALENDAR
   }
 } as const satisfies Record<string, StapleCropProfile>;
 

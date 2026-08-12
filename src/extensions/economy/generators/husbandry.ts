@@ -126,20 +126,80 @@ const STOCKING_DENSITY_PER_HECTARE: Record<string, number> = {
 };
 const DEFAULT_STOCKING_DENSITY_PER_HECTARE = 0.5;
 
-interface HusbandrySpeciesProfile {
+export interface HusbandrySpeciesProfile {
   /** Heads one full-time herder can manage without dogs (§10.3, user-confirmed 2026-08-06). */
   readonly baselineHeadsPerHerder: number;
   /** Multiplier at full working-dog coverage (Arnott et al. 2014's reported ceiling where available). */
   readonly dogMultiplier: number;
+  /** Routine care is year-round; annual special tasks create the seasonal peak. */
+  readonly routineCareMonthlyWeights: readonly [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number
+  ];
+  readonly seasonalEventMonths: readonly number[];
 }
 
+const ROUTINE_CARE_MONTHLY_WEIGHTS = [
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12
+] as const;
+
 const HUSBANDRY_SPECIES_PROFILES: Record<string, HusbandrySpeciesProfile> = {
-  Sheep: { baselineHeadsPerHerder: 200, dogMultiplier: 10 }, // 200 * 10 = 2,000, matches Arnott's sheep ceiling
-  Goats: { baselineHeadsPerHerder: 180, dogMultiplier: 10 }, // flocking browser, same multiplier class as Sheep
-  Cattle: { baselineHeadsPerHerder: 60, dogMultiplier: 8 }, // 60 * 8 = 480, ~matches Arnott's 500-head cattle ceiling
-  Horses: { baselineHeadsPerHerder: 40, dogMultiplier: 8 }, // needs more individual attention than cattle
-  Camels: { baselineHeadsPerHerder: 50, dogMultiplier: 8 }
+  Sheep: {
+    baselineHeadsPerHerder: 200,
+    dogMultiplier: 10,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [5, 9]
+  }, // 200 * 10 = 2,000, matches Arnott's sheep ceiling
+  Goats: {
+    baselineHeadsPerHerder: 180,
+    dogMultiplier: 10,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [5, 9]
+  }, // flocking browser, same multiplier class as Sheep
+  Cattle: {
+    baselineHeadsPerHerder: 60,
+    dogMultiplier: 8,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [4, 10]
+  }, // 60 * 8 = 480, ~matches Arnott's 500-head cattle ceiling
+  Horses: {
+    baselineHeadsPerHerder: 40,
+    dogMultiplier: 8,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [4, 10]
+  }, // needs more individual attention than cattle
+  Camels: {
+    baselineHeadsPerHerder: 50,
+    dogMultiplier: 8,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [3, 9]
+  }
 };
+
+export function getHusbandrySpeciesProfile(goodName: string): HusbandrySpeciesProfile | undefined {
+  return HUSBANDRY_SPECIES_PROFILES[goodName];
+}
 
 /** Working dogs needed per herder for "full" dog-team coverage — a secondary sizing knob (typical
  * sheepdog operations run 2-4 dogs per musterer), not the headline capacity number from §10.3. */

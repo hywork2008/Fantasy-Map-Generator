@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { WorldContext } from "../../hostCore";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
@@ -148,7 +149,8 @@ describe("getCellProduction seasonal food output", () => {
           color: "#fff",
           distribution: "1",
           recipes: [],
-          demandCoverage: {}
+          demandCoverage: {},
+          crop: STAPLE_CROP_PROFILES.Wheat
         }
       ],
       cultures: [],
@@ -167,33 +169,34 @@ describe("getCellProduction seasonal food output", () => {
         p: [[0, y]]
       }
     } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([45]) } } as WorldContext["grid"];
     Goods.sync();
   };
 
-  it("produces far more grain in autumn (harvest) than in summer at high latitude", () => {
+  it("uses the crop calendar's single harvest rather than a generic autumn curve", () => {
     const biomeProduction = { 6: [{ goodId: 0, production: 1 }] };
     const y = 5.56; // latitude ~80N -> near-full seasonality strength
 
-    setUpWithMonth(7, y); // July -> summer at this latitude
-    const summerOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(7, y);
+    const preHarvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    setUpWithMonth(10, y); // October -> autumn at this latitude
-    const autumnOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(8, y);
+    const harvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    expect(autumnOutput).toBeGreaterThan(summerOutput * 5);
+    expect(harvestOutput).toBeGreaterThan(preHarvestOutput * 5);
   });
 
-  it("produces nearly flat grain output year-round near the equator", () => {
+  it("does not make a seasonal cereal continuous merely because it is near the equator", () => {
     const biomeProduction = { 6: [{ goodId: 0, production: 1 }] };
     const y = 48.89; // latitude ~2N -> seasonality strength near 0
 
-    setUpWithMonth(7, y); // July -> summer at this latitude
-    const summerOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(7, y);
+    const preHarvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    setUpWithMonth(10, y); // October -> autumn at this latitude
-    const autumnOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(8, y);
+    const harvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    expect(autumnOutput).toBeLessThan(summerOutput * 1.5);
+    expect(harvestOutput).toBeGreaterThan(preHarvestOutput * 5);
   });
 });
 
