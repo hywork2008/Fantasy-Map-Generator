@@ -2,7 +2,7 @@
 
 ## 状態
 
-**未実装(設計のみ)**。2026-07-31、`executeManufacture`の原料購入無予算バグ修正([production-generator.ts](../../src/extensions/economy/generators/production-generator.ts)、`Markets.buy`に`budget`未指定だった箇所)の副作用として本設計の必要性が判明した。バグ修正自体(治療の下限保証・初期シード)は実装済み。本ドキュメントはその先——治療の**上限側**の設計。
+**実装済み**(2026-08-13確認: 本文書は当時「未実装(設計のみ)」と記していたが、[guildTreasury.ts](../../src/extensions/economy/generators/guildTreasury.ts)にPhase A〜C(§3.1〜3.3)全てが実装済みであることを[civil-administration-burg-state-split.md](./civil-administration-burg-state-split.md)の調査時に確認した——`GUILD_PROFIT_SHARE`/`GUILD_PAYOUT_RATE`定数、`settleAnnual()`のMarket/State上納ロジックとも本文書の値・設計に一致する。ドキュメントが実装に追いついていなかった一例)。2026-07-31、`executeManufacture`の原料購入無予算バグ修正([production-generator.ts](../../src/extensions/economy/generators/production-generator.ts)、`Markets.buy`に`budget`未指定だった箇所)の副作用として本設計の必要性が判明した。バグ修正自体(治療の下限保証・初期シード)は実装済み。本ドキュメントはその先——治療の**上限側**の設計。
 
 ## 背景・問題
 

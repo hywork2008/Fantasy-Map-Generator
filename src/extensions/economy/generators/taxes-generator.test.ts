@@ -8,7 +8,7 @@ import {
   setDeals,
   setMarkets
 } from "../economyContext";
-import { getStateFiscalReportState } from "../store/stateFiscalReportState";
+import { getStateFiscalReportState, type StateFiscalReport } from "../store/stateFiscalReportState";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import {
@@ -18,6 +18,20 @@ import {
   registerVoyageIncome,
   TaxesModule
 } from "./taxes-generator";
+
+/** civilAdministration.ts (PR-18) splits the former single administrativeUpkeep expense into 5 keys. */
+const CIVIL_ADMINISTRATION_EXPENSE_KEYS = [
+  "courts",
+  "scribesNotaries",
+  "taxFarmers",
+  "messengers",
+  "routineLocalAdministration"
+] as const;
+
+function sumCivilAdministrationExpenses(report: StateFiscalReport | undefined): number {
+  if (!report) return 0;
+  return CIVIL_ADMINISTRATION_EXPENSE_KEYS.reduce((sum, key) => sum + (report.expenses[key] ?? 0), 0);
+}
 
 describe("TaxesModule", () => {
   let taxesModule: TaxesModule;
@@ -373,13 +387,13 @@ describe("TaxesModule", () => {
         taxesModule.collectTaxes();
 
         const report = getStateFiscalReportState().reports.at(-1);
-        expect(report?.expenses.administrativeUpkeep ?? 0).toBe(0);
+        expect(sumCivilAdministrationExpenses(report)).toBe(0);
       });
 
       it("raises administrative upkeep and shrinks poll-tax collection when fully neglected", () => {
         const state = makeState(0);
         worldContext.pack.states = [{ i: 0 } as unknown as State, state];
-        worldContext.pack.burgs = [];
+        worldContext.pack.burgs = []; // no burgs to absorb any share — full amount stays with the state
         setDeals([]);
 
         taxesModule.collectTaxes();
@@ -389,8 +403,9 @@ describe("TaxesModule", () => {
         // pollTax revenue is 85% of the fully-funded case (population 100 × pollTax 1).
         expect(report?.income.pollTax).toBeCloseTo(100 * 0.85, 5);
         // administrativeUpkeepShare rises from 0 (provisioned profile default) to
-        // STEWARDSHIP_UPKEEP_PENALTY_MAX_SHARE_POINTS (0.05) at full shortfall.
-        expect(report?.expenses.administrativeUpkeep).toBeCloseTo((report?.income.pollTax ?? 0) * 0.05, 5);
+        // STEWARDSHIP_UPKEEP_PENALTY_MAX_SHARE_POINTS (0.05) at full shortfall. civilAdministration.ts
+        // (PR-18) splits this total into 5 named components, unchanged in sum with no burgs present.
+        expect(sumCivilAdministrationExpenses(report)).toBeCloseTo((report?.income.pollTax ?? 0) * 0.05, 5);
       });
     });
   });

@@ -15,6 +15,8 @@
 
 **PR-17h実装時の判断**: 設計時点でreligions-generator.tsに動的な宗教/カルト伸長のtickフックが存在しないことを実装直前に再確認した（`timeEngine.ts`に該当フックなし）。新規のカルト伸長シミュレーションを1から構築するのは本PRのスコープを大きく超えるため、Marshalcy/Chancery/Stewardshipで確立済みの「蓄積スコア→councilSupport系の既存ゲートに接続」パターンを流用する形に縮退した。カルト伸長そのものの実装は引き続き将来PRの課題として残る。
 
+**続き（PR-18）**: 部門予算(このPR-17系)は`administrativeUpkeepShare`控除後に残った所得のみを対象にしていたが、その控除自体——単一の不透明な"Civil administration"行——が国家財政で最大の支出だった（既定モードで所得の88%）。内訳分解とBurg/State按分の設計・実装は[civil-administration-burg-state-split.md](./civil-administration-burg-state-split.md)を参照。
+
 ## 背景・目的
 
 `docs/simulation/economy-market-accounting-audit.md`が扱う市場会計の整備、州人口比例の初期資金付与（2f65972b）に続き、`StateFiscalReportTab`（[StateFiscalReportTab.tsx](../../src/extensions/economy/ui/components/StateFiscalReportTab.tsx)）で四半期ごとの国家収支を可視化できるようになった。それでもなお赤字が解消しない州が残るため、赤字解消のプレイ上の選択肢がどれだけあるかを調査した。

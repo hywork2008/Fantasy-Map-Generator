@@ -28,7 +28,14 @@ const INCOME_LABELS: Readonly<Record<string, string>> = {
 };
 
 const EXPENSE_LABELS: Readonly<Record<string, string>> = {
-  administrativeUpkeep: "Civil administration",
+  // civilAdministration.ts: former single "Civil administration" total, split into 5 named
+  // components (docs/plan/civil-administration-burg-state-split.md). Local-flavored ones already
+  // net out whatever this state's own burgs absorbed — this is what state.treasury actually paid.
+  courts: "Civil administration — courts",
+  scribesNotaries: "Civil administration — scribes & notaries",
+  taxFarmers: "Civil administration — tax farmers",
+  messengers: "Civil administration — messengers & couriers",
+  routineLocalAdministration: "Civil administration — routine local administration",
   councilClawback: "Council revenue refusal",
   taxFarmLeak: "Tax farming",
   publicDebtInterest: "Public debt interest",

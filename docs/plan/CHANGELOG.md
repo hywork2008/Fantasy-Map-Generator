@@ -2,6 +2,7 @@
 
 2026-08-13
 
+- docs/plan/civil-administration-burg-state-split.md
 - docs/plan/department-budget-spending-effects.md
 
 2026-08-12

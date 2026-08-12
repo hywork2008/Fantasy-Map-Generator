@@ -5,6 +5,7 @@ import { getAcademyBonus } from "./academyKnowledge";
 import { updateDiplomaticReliability } from "./chanceryDiplomacy";
 import { applyCharacterLivingCosts } from "./characterLivingCosts";
 import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
+import { applyCivilAdministrationUpkeep } from "./civilAdministration";
 import { applyAllDomainFiscalPolicies, getStateDomainPollTaxMultiplier } from "./domainFiscalPolicy";
 import { updateReligiousUnrest } from "./ecclesiasticaUnrest";
 import { getEconomyStartProfile } from "./economyStartMode";
@@ -180,10 +181,15 @@ export class TaxesModule {
         STEWARDSHIP_UPKEEP_SHARE_CEILING,
         profile.stateAdministrativeUpkeepShare + stewardshipShortfall * STEWARDSHIP_UPKEEP_PENALTY_MAX_SHARE_POINTS
       );
-      const administrativeUpkeep = rn(rawDomesticIncome * administrativeUpkeepShare, 2);
-      if (administrativeUpkeep > 0) {
-        state.treasury = rn(Math.max(0, (state.treasury || 0) - administrativeUpkeep), 2);
-      }
+      const administrativeUpkeepTotal = rn(rawDomesticIncome * administrativeUpkeepShare, 2);
+      // civilAdministration.ts (docs/plan/civil-administration-burg-state-split.md): splits the
+      // total into 5 named components and re-attributes the locally-flavored ones to the state's
+      // own burgs (cash-limited there), instead of the old single opaque state.treasury deduction.
+      // Does not change administrativeUpkeepShare or budgetIncome below — the department-sizing
+      // math stays keyed to the original flat-percentage model; the state simply keeps more real
+      // cash whenever its burgs absorb part of the cost, which shows up as treasury growth rather
+      // than a bigger nominal department budget.
+      const civilAdministration = applyCivilAdministrationUpkeep(state, administrativeUpkeepTotal, burgs);
       // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.
       const mix = applyFormRevenueMix(state, rawDomesticIncome);
       // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
@@ -225,7 +231,15 @@ export class TaxesModule {
         departmentBalanceRemit: allocation.departmentBalanceRemit
       };
       const expenses = {
-        administrativeUpkeep,
+        // civilAdministration.ts: administrativeUpkeep's former single total, split into 5 named
+        // components (docs/plan/civil-administration-burg-state-split.md). Only the
+        // state.treasury-side amounts appear here — courts/scribesNotaries/taxFarmers/
+        // routineLocalAdministration are already net of whatever the state's own burgs absorbed.
+        courts: civilAdministration.courts,
+        scribesNotaries: civilAdministration.scribesNotaries,
+        taxFarmers: civilAdministration.taxFarmers,
+        messengers: civilAdministration.messengers,
+        routineLocalAdministration: civilAdministration.routineLocalAdministration,
         councilClawback: mix.adjustedDomesticIncome * (1 - events.incomeScale),
         taxFarmLeak: events.taxFarmLeak,
         publicDebtInterest: events.debtInterestPaid,
