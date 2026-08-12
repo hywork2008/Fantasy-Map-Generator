@@ -276,6 +276,7 @@ export const DEFAULT_UNIT_OPTIONS = {
 /** Default world-scale values reset by the Units Editor. */
 export const DEFAULT_WORLD_SCALE_OPTIONS = {
   populationRate: 1000,
+  /** Recalibrated from the generated map's Earth-relative extent. */
   distanceScale: 3,
   urbanization: 1,
   urbanDensity: 10
@@ -347,8 +348,8 @@ export const useOptionsState = create<OptionsState>(set => ({
   dangerRarity1Power: 5,
   dangerRarity1Type: "Beast",
 
-  mapSize: 100,
-  latitude: 50,
+  mapSize: 12.9,
+  latitude: 0,
   longitude: 50,
   prec: 100,
 

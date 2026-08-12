@@ -1,10 +1,12 @@
 import { create } from "zustand";
+import { EARTH_AXIAL_TILT_DEG, EARTH_DEFAULT_MAP_SIZE, EARTH_TEMPERATURE_PRESET } from "../data/earthConfig";
 
 interface WorldConfiguratorFormState {
   // Temperature settings
   temperatureEquator: number;
   temperatureNorthPole: number;
   temperatureSouthPole: number;
+  axialTilt: number;
 
   // Map configuration
   mapSize: number;
@@ -16,6 +18,7 @@ interface WorldConfiguratorFormState {
   setTemperatureEquator: (value: number) => void;
   setTemperatureNorthPole: (value: number) => void;
   setTemperatureSouthPole: (value: number) => void;
+  setAxialTilt: (value: number) => void;
 
   // Actions - Map Configuration
   setMapSize: (value: number) => void;
@@ -28,6 +31,7 @@ interface WorldConfiguratorFormState {
     equator: number,
     northPole: number,
     southPole: number,
+    axialTilt: number,
     mapSize: number,
     latitude: number,
     longitude: number,
@@ -39,6 +43,7 @@ interface WorldConfiguratorFormState {
     temperatureEquator: number;
     temperatureNorthPole: number;
     temperatureSouthPole: number;
+    axialTilt: number;
     mapSize: number;
     latitude: number;
     longitude: number;
@@ -47,10 +52,11 @@ interface WorldConfiguratorFormState {
 }
 
 export const useWorldConfiguratorFormStore = create<WorldConfiguratorFormState>((set, get) => ({
-  temperatureEquator: 10,
-  temperatureNorthPole: -10,
-  temperatureSouthPole: -10,
-  mapSize: 100,
+  temperatureEquator: EARTH_TEMPERATURE_PRESET.equator,
+  temperatureNorthPole: EARTH_TEMPERATURE_PRESET.northPole,
+  temperatureSouthPole: EARTH_TEMPERATURE_PRESET.southPole,
+  axialTilt: EARTH_AXIAL_TILT_DEG,
+  mapSize: EARTH_DEFAULT_MAP_SIZE,
   latitude: 0,
   longitude: 0,
   prec: 0.5,
@@ -65,6 +71,10 @@ export const useWorldConfiguratorFormStore = create<WorldConfiguratorFormState>(
 
   setTemperatureSouthPole: (value: number) => {
     set({ temperatureSouthPole: value });
+  },
+
+  setAxialTilt: (value: number) => {
+    set({ axialTilt: value });
   },
 
   setMapSize: (value: number) => {
@@ -83,11 +93,12 @@ export const useWorldConfiguratorFormStore = create<WorldConfiguratorFormState>(
     set({ prec: value });
   },
 
-  syncFromWorldContext: (equator, northPole, southPole, mapSize, latitude, longitude, prec) => {
+  syncFromWorldContext: (equator, northPole, southPole, axialTilt, mapSize, latitude, longitude, prec) => {
     set({
       temperatureEquator: equator,
       temperatureNorthPole: northPole,
       temperatureSouthPole: southPole,
+      axialTilt,
       mapSize,
       latitude,
       longitude,
@@ -101,6 +112,7 @@ export const useWorldConfiguratorFormStore = create<WorldConfiguratorFormState>(
       temperatureEquator: state.temperatureEquator,
       temperatureNorthPole: state.temperatureNorthPole,
       temperatureSouthPole: state.temperatureSouthPole,
+      axialTilt: state.axialTilt,
       mapSize: state.mapSize,
       latitude: state.latitude,
       longitude: state.longitude,

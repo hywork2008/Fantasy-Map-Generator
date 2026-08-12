@@ -61,6 +61,11 @@ export interface WorldOptions {
   temperatureEquator: number;
   temperatureNorthPole: number;
   temperatureSouthPole: number;
+  /**
+   * Axial tilt (obliquity) in degrees, driving the seasonal temperature swing
+   * (`src/utils/seasonUtils.ts`). Defaults to `EARTH_AXIAL_TILT_DEG` (23.5°).
+   */
+  axialTilt: number;
   stateLabelsMode: "auto" | "short" | "full";
   showBurgPreview: boolean;
   burgs: { groups: BurgGroup[] };

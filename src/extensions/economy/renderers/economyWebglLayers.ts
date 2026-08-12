@@ -150,9 +150,10 @@ export function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): Ext
   for (const cellId of worldContext.pack.cells.i) {
     const goodId = goodCellColumn[cellId];
     if (!goodId || !displayedGoods.has(goodId)) continue;
+    const good = Goods.get(goodId);
+    if (!good || good.perennialCrop) continue;
     const id = `economy-goods-cell-${cellId}-${goodId}`;
     if (productionPolygonIds.has(id)) continue;
-    const good = Goods.get(goodId);
     const polygon = getCellPolygon(cellId);
     if (!good || !polygon) continue;
     polygons.push({
@@ -176,7 +177,7 @@ function buildGoodsSourceSymbols(displayedGoods: ReadonlySet<number>): Extension
     if (!goodId || !displayedGoods.has(goodId)) continue;
     const good = Goods.get(goodId);
     const position = worldContext.pack.cells.p[cellId];
-    if (!good || !position) continue;
+    if (!good || good.perennialCrop || !position) continue;
     const color = colorToRgba(good.color);
     symbols.push({
       id: `economy-goods-source-${cellId}`,

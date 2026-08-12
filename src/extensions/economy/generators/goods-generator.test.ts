@@ -21,6 +21,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migratePerennialFruitGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
@@ -317,11 +318,152 @@ describe("GoodsModule", () => {
     expect(migrateStapleCropGoods()).toBe(false);
   });
 
+  it("replaces legacy staple rainfall bands in an existing catalogue", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Wheat",
+        tags: ["food", "stapleFood"],
+        value: 1,
+        unit: "wain",
+        icon: "grain",
+        color: "#fff",
+        crop: {
+          kind: "cereal",
+          yieldMultiplier: 1.05,
+          temperature: { min: 2, idealMin: 8, idealMax: 18, max: 24 },
+          precipitation: { min: 18, idealMin: 30, idealMax: 60, max: 80 },
+          soils: ["loam", "alluvial", "clay"]
+        }
+      }
+    ]);
+
+    expect(migrateStapleCropGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Wheat")?.crop?.precipitation).toEqual({
+      min: 3,
+      idealMin: 7.5,
+      idealMax: 9,
+      max: 16
+    });
+    expect(migrateStapleCropGoods()).toBe(false);
+  });
+
+  it("migrates orchard goods and replaces legacy olive biome production", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Olives",
+        tags: ["food"],
+        value: 3,
+        unit: "barrel",
+        icon: "good-olives",
+        color: "#BDBD7D",
+        chance: 3,
+        distribution: 'biomeTag("scrub")',
+        biomeOutputByTag: { scrub: 0.15, arable: 0.05 }
+      }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    const olives = getGoods().find(good => good.name === "Olives");
+    expect(olives?.perennialCrop?.kind).toBe("orchard");
+    expect(olives?.biomeOutputByTag).toBeUndefined();
+    expect(olives?.distribution).toBeUndefined();
+    expect(olives?.chance).toBe(0);
+    expect(getGoods().map(good => good.name)).toEqual(
+      expect.arrayContaining(["Apples", "Pears", "Plums", "Figs", "Lemons", "Dried Fruits"])
+    );
+    const driedFruits = getGoods().find(good => good.name === "Dried Fruits");
+    expect(driedFruits?.recipes).toHaveLength(4);
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
+  it("migrates Dates from biome output to the climate-driven date-palm profile", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Dates",
+        tags: ["food"],
+        value: 7,
+        unit: "chest",
+        icon: "good-dates",
+        color: "#dbb2a3",
+        chance: 2,
+        distribution: "biome(1)",
+        biomeOutput: { 1: 0.1 }
+      }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    const dates = getGoods().find(good => good.name === "Dates");
+    expect(dates).toMatchObject({
+      chance: 0,
+      perennialCrop: {
+        kind: "orchard",
+        temperature: { min: 10, idealMin: 26, idealMax: 45, max: 52 },
+        precipitation: { min: 1, idealMin: 2, idealMax: 3, max: 4 }
+      }
+    });
+    expect(dates?.biomeOutput).toBeUndefined();
+    expect(dates?.distribution).toBeUndefined();
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
+  it("adds cider and perry with recipes using the saved catalogue's fruit and barrel ids", () => {
+    setGoods([
+      { i: 7, name: "Apples", tags: ["food"], value: 2.2, unit: "lot", icon: "", color: "" },
+      { i: 11, name: "Pears", tags: ["food"], value: 2.4, unit: "lot", icon: "", color: "" },
+      { i: 19, name: "Barrels", tags: [], value: 2, unit: "barrel", icon: "", color: "" }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Cider")?.recipes).toEqual([{ 7: 0.3, 19: 0.08 }]);
+    expect(getGoods().find(good => good.name === "Perry")?.recipes).toEqual([{ 11: 0.3, 19: 0.08 }]);
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
+  it("replaces legacy perennial rainfall bands in an existing catalogue", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Lemons",
+        tags: ["food", "fruit", "freshFood", "perennialCrop"],
+        value: 3.2,
+        unit: "1,000 kg lemon lot",
+        icon: "good-unknown",
+        color: "#d9c94b",
+        perennialCrop: {
+          kind: "orchard",
+          temperature: { min: 12, idealMin: 15, idealMax: 28, max: 36 },
+          precipitation: { min: 30, idealMin: 100, idealMax: 150, max: 220 },
+          soils: ["loam", "sandy", "alluvial"],
+          maximumLandShare: 0.18,
+          areaHectaresPerPerson: 0.008,
+          laborDaysPerHectare: 26,
+          yieldLotsPerHectarePerMonth: 0.025
+        }
+      }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Lemons")?.perennialCrop?.precipitation).toEqual({
+      min: 3,
+      idealMin: 10,
+      idealMax: 23,
+      max: 40
+    });
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
   it("defines Grapes as a harvested good with no biomeOutputByTag (docs/plan/biome-goods-producer-ecosystem.md §5.3)", () => {
     goodsModule.restoreDefaults();
 
     const grapes = getGoods().find(good => good.name === "Grapes");
-    expect(grapes).toMatchObject({ unit: "1,000 kg grape lot", tags: expect.arrayContaining(["food", "freshFood"]) });
+    expect(grapes).toMatchObject({
+      unit: "1,000 kg grape lot",
+      tags: expect.arrayContaining(["food", "freshFood", "perennialCrop"]),
+      perennialCrop: { kind: "vine" }
+    });
     expect(grapes?.biomeOutputByTag).toBeUndefined();
     expect(grapes?.biomeOutput).toBeUndefined();
   });

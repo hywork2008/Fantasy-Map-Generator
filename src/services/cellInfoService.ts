@@ -13,7 +13,7 @@ import { getArea, getAreaUnit } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
 import { depthToMeters, heightToMeters } from "../utils/height";
 import { rn } from "../utils/numberUtils";
-import { convertTemperature, si } from "../utils/unitUtils";
+import { convertTemperature, formatAnnualPrecipitation, si } from "../utils/unitUtils";
 import { tooltipExtensions } from "./tooltipExtensions";
 
 export function updateCellInfo(point: [number, number], i: number, g: number): void {
@@ -169,7 +169,7 @@ export function getHeight(h: number, abs?: string): string {
   return `${rn(height * unitRatio)} ${unit}`;
 }
 export function getPrecipitation(prec: number): string {
-  return `${prec * 100} mm`;
+  return formatAnnualPrecipitation(prec);
 }
 /**
  * `grid.cells.currentSpeed` has no physical unit — it's an arbitrary 0-255 output scale from the

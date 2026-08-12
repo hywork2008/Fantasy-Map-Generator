@@ -101,6 +101,7 @@ let _ruralHouseholdFoodStockFallback: Float32Array<ArrayBufferLike> = new Float3
 let _farmLaborRequiredFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _seasonalLaborShortageFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _soilFertilityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _irrigationSalinityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _irrigationDevelopmentFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -151,6 +152,7 @@ export function clearEconomyContext(): void {
   _farmLaborRequiredFallback = new Float32Array();
   _migratableAdultsFallback = new Float32Array();
   _ruralReleasePressureFallback = new Float32Array();
+  _seasonalLaborShortageFallback = new Float32Array();
   _soilFertilityFallback = new Float32Array();
   _irrigationSalinityFallback = new Float32Array();
   _irrigationDevelopmentFallback = new Float32Array();
@@ -454,6 +456,15 @@ export function getRuralReleasePressure(): Float32Array<ArrayBufferLike> {
 export function setRuralReleasePressure(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("ruralReleasePressure", value, next => {
     _ruralReleasePressureFallback = next;
+  });
+}
+/** Monthly unmet rural work demand, flattened as `cellId * 12 + month` in real work-days. */
+export function getSeasonalLaborShortage(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("seasonalLaborShortage", _seasonalLaborShortageFallback);
+}
+export function setSeasonalLaborShortage(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("seasonalLaborShortage", value, next => {
+    _seasonalLaborShortageFallback = next;
   });
 }
 

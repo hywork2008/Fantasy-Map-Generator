@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
+import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { WorldContext } from "../../hostCore";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
@@ -12,7 +14,9 @@ import {
   setFoodPotential,
   setGoodCellColumn,
   setGoods,
-  setHuntingWorkers
+  setHuntingWorkers,
+  setViticultureRequiredWorkers,
+  setViticultureWorkers
 } from "../economyContext";
 import { registerLogHarvest } from "./forestStock";
 import { Goods } from "./goods-generator";
@@ -148,7 +152,8 @@ describe("getCellProduction seasonal food output", () => {
           color: "#fff",
           distribution: "1",
           recipes: [],
-          demandCoverage: {}
+          demandCoverage: {},
+          crop: STAPLE_CROP_PROFILES.Wheat
         }
       ],
       cultures: [],
@@ -167,33 +172,92 @@ describe("getCellProduction seasonal food output", () => {
         p: [[0, y]]
       }
     } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([45]) } } as WorldContext["grid"];
     Goods.sync();
   };
 
-  it("produces far more grain in autumn (harvest) than in summer at high latitude", () => {
+  it("uses the crop calendar's single harvest rather than a generic autumn curve", () => {
     const biomeProduction = { 6: [{ goodId: 0, production: 1 }] };
     const y = 5.56; // latitude ~80N -> near-full seasonality strength
 
-    setUpWithMonth(7, y); // July -> summer at this latitude
-    const summerOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(7, y);
+    const preHarvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    setUpWithMonth(10, y); // October -> autumn at this latitude
-    const autumnOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(8, y);
+    const harvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    expect(autumnOutput).toBeGreaterThan(summerOutput * 5);
+    expect(harvestOutput).toBeGreaterThan(preHarvestOutput * 5);
   });
 
-  it("produces nearly flat grain output year-round near the equator", () => {
+  it("does not make a seasonal cereal continuous merely because it is near the equator", () => {
     const biomeProduction = { 6: [{ goodId: 0, production: 1 }] };
     const y = 48.89; // latitude ~2N -> seasonality strength near 0
 
-    setUpWithMonth(7, y); // July -> summer at this latitude
-    const summerOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(7, y);
+    const preHarvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    setUpWithMonth(10, y); // October -> autumn at this latitude
-    const autumnOutput = getCellProduction(0, biomeProduction)[0];
+    setUpWithMonth(8, y);
+    const harvestOutput = getCellProduction(0, biomeProduction)[0];
 
-    expect(autumnOutput).toBeLessThan(summerOutput * 1.5);
+    expect(harvestOutput).toBeGreaterThan(preHarvestOutput * 5);
+  });
+
+  it("renders a climate-suitable orchard in its annual harvest window", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    const apples = {
+      i: 8,
+      name: "Apples",
+      value: 2.2,
+      tags: ["food", "fruit", "freshFood", "perennialCrop"],
+      unit: "lot",
+      icon: "icon",
+      color: "#fff",
+      chance: 0,
+      perennialCrop: PERENNIAL_CROP_PROFILES.Apples,
+      demandCoverage: {}
+    };
+    worldContext.mapCoordinates = { latN: 90, latT: 180 };
+    worldContext.graphHeight = 100;
+    worldContext.distanceScale = 1;
+    worldContext.options = { month: 9 } as WorldContext["options"];
+    worldContext.pack = {
+      goods: [apples],
+      cultures: [],
+      burgs: [],
+      zones: [],
+      cells: {
+        i: new Uint16Array([0]),
+        biomeCode: new Uint8Array([6]),
+        culture: new Uint16Array([0]),
+        state: new Uint16Array([0]),
+        religion: new Uint16Array([0]),
+        burg: new Uint16Array([0]),
+        good: new Uint16Array([0]),
+        pop: new Float32Array([100]),
+        h: new Uint8Array([50]),
+        area: new Float32Array([50]),
+        c: [[]],
+        p: [[0, 20]]
+      }
+    } as unknown as PackedGraph;
+    worldContext.biomesData = {
+      habitability: [0, 0, 0, 0, 0, 0, 100],
+      tags: [[], [], [], [], [], [], ["arable"]]
+    } as never;
+    worldContext.grid = { cells: { temp: new Int8Array([18]), prec: new Uint8Array([12]) } } as WorldContext["grid"];
+    setGoods([apples] as never);
+    setGoodCellColumn(new Uint16Array([0]));
+    setCultivatedArea(new Float32Array([0]));
+    setViticultureRequiredWorkers(new Float32Array([1]));
+    setViticultureWorkers(new Float32Array([1]));
+    Goods.sync();
+
+    const harvestOutput = getCellProduction(0, {})[apples.i] ?? 0;
+    worldContext.options = { month: 1 } as WorldContext["options"];
+    const dormantOutput = getCellProduction(0, {})[apples.i] ?? 0;
+
+    expect(harvestOutput).toBeGreaterThan(0);
+    expect(dormantOutput).toBe(0);
   });
 });
 

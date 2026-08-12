@@ -55,6 +55,18 @@ describe("household heating", () => {
     simulationContext.extensions = {};
   });
 
+  it("prefers the shared grid.cells.seasonalTemp over recomputing its own seasonal offset", () => {
+    installMarket(-10, 100, 100);
+    // A deliberately distinguishable value: neither the annual-average base temp (-10) nor
+    // anything a fresh getSeasonalTemperatureOffset() computation on this fixture (no
+    // pack.cells.p, so it falls back to baseTemperature) could produce.
+    worldContext.grid.cells.seasonalTemp = Int8Array.from([5]);
+
+    settleMonthlyHeating();
+
+    expect(getMarkets()[0].heatingLedger?.effectiveTemperature).toBe(5);
+  });
+
   it("draws substantially more Wood in a cold market than in a warm one", () => {
     installMarket(-10, 100, 100);
     settleMonthlyHeating();

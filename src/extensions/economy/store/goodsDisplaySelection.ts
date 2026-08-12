@@ -4,7 +4,8 @@ import { isGoodEnabled } from "../generators/goods-generator";
 let selectedGoodIds = new Set<number>();
 let hasExplicitSelection = false;
 
-const DEFAULT_DISPLAYED_GOOD_NAMES = new Set(["Cheese", "Grapes", "Milk", "Pomace Wine", "Raisins", "Wine"]);
+// "Cheese", "Grapes", "Milk", "Pomace Wine", "Raisins", "Wine"
+const DEFAULT_DISPLAYED_GOOD_NAMES = new Set(["Apples", "Figs", "Grapes", "Lemons", "Pears", "Plums"]);
 
 function getDefaultSelection(): ReadonlySet<number> {
   return new Set(

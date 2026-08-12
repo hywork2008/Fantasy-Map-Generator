@@ -1,3 +1,4 @@
+import type { PerennialCropProfile } from "../../../data/perennialCrops";
 import type { StapleCropKind, StapleCropProfile, StapleSoilType } from "../../../data/stapleCrops";
 import type { BiomeTag } from "../../../types/biome";
 import type { CultureType } from "../../hostTypes";
@@ -85,6 +86,8 @@ export interface Good {
   trade?: GoodTradeProfile;
   /** Present for field crops whose local output is allocated from active farmland. */
   crop?: CropProfile;
+  /** Present for orchards and vines allocated from perennial horticultural land. */
+  perennialCrop?: PerennialCropProfile;
   /**
    * Cell-local handling rules for foods that cannot safely enter the general market as raw stock.
    * Rates use the map's population-point unit (normally one point = 1,000 residents).

@@ -2,6 +2,10 @@
 
 2026-08-12
 
+- docs/plan/perennial-fruit-crops.md
+- docs/plan/seasonal-crop-calendars.md
+- docs/plan/seasonal-temperature-variation.md
+- docs/plan/staple-crop-climate.md
 - docs/plan/wine-pomace-distillation.md
 - docs/simulation/salt-logistics.md
 

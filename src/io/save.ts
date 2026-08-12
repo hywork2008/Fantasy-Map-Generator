@@ -127,7 +127,8 @@ function prepareMapDataFromSvg(): string {
     +options.rescaleLabels,
     worldContext.urbanDensity,
     options.longitude,
-    options.growthRate
+    options.growthRate,
+    "geographic-latitude-v1"
   ].join("|");
   const coords = JSON.stringify(worldContext.mapCoordinates);
   const biomes = [

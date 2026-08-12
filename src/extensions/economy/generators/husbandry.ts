@@ -63,6 +63,7 @@
  */
 
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
+import type { MonthlyWeights } from "../../../data/cropCalendars";
 import type { BiomeTag } from "../../../types/biome";
 import type { WorldContext } from "../../hostCore";
 import {
@@ -126,20 +127,87 @@ const STOCKING_DENSITY_PER_HECTARE: Record<string, number> = {
 };
 const DEFAULT_STOCKING_DENSITY_PER_HECTARE = 0.5;
 
-interface HusbandrySpeciesProfile {
+export interface HusbandrySpeciesProfile {
   /** Heads one full-time herder can manage without dogs (§10.3, user-confirmed 2026-08-06). */
   readonly baselineHeadsPerHerder: number;
   /** Multiplier at full working-dog coverage (Arnott et al. 2014's reported ceiling where available). */
   readonly dogMultiplier: number;
+  /** Routine care is year-round; annual special tasks create the seasonal peak. */
+  readonly routineCareMonthlyWeights: readonly [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number
+  ];
+  readonly seasonalEventMonths: readonly number[];
+  /** Share of annual herding work reserved for shearing, calving, movement, and winter-feed events. */
+  readonly seasonalEventLaborShare: number;
 }
 
+const ROUTINE_CARE_MONTHLY_WEIGHTS = [
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12
+] as const;
+
 const HUSBANDRY_SPECIES_PROFILES: Record<string, HusbandrySpeciesProfile> = {
-  Sheep: { baselineHeadsPerHerder: 200, dogMultiplier: 10 }, // 200 * 10 = 2,000, matches Arnott's sheep ceiling
-  Goats: { baselineHeadsPerHerder: 180, dogMultiplier: 10 }, // flocking browser, same multiplier class as Sheep
-  Cattle: { baselineHeadsPerHerder: 60, dogMultiplier: 8 }, // 60 * 8 = 480, ~matches Arnott's 500-head cattle ceiling
-  Horses: { baselineHeadsPerHerder: 40, dogMultiplier: 8 }, // needs more individual attention than cattle
-  Camels: { baselineHeadsPerHerder: 50, dogMultiplier: 8 }
+  Sheep: {
+    baselineHeadsPerHerder: 200,
+    dogMultiplier: 10,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [5, 9],
+    seasonalEventLaborShare: 0.2
+  }, // 200 * 10 = 2,000, matches Arnott's sheep ceiling
+  Goats: {
+    baselineHeadsPerHerder: 180,
+    dogMultiplier: 10,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [5, 9],
+    seasonalEventLaborShare: 0.2
+  }, // flocking browser, same multiplier class as Sheep
+  Cattle: {
+    baselineHeadsPerHerder: 60,
+    dogMultiplier: 8,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [4, 10],
+    seasonalEventLaborShare: 0.2
+  }, // 60 * 8 = 480, ~matches Arnott's 500-head cattle ceiling
+  Horses: {
+    baselineHeadsPerHerder: 40,
+    dogMultiplier: 8,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [4, 10],
+    seasonalEventLaborShare: 0.2
+  }, // needs more individual attention than cattle
+  Camels: {
+    baselineHeadsPerHerder: 50,
+    dogMultiplier: 8,
+    routineCareMonthlyWeights: ROUTINE_CARE_MONTHLY_WEIGHTS,
+    seasonalEventMonths: [3, 9],
+    seasonalEventLaborShare: 0.2
+  }
 };
+
+export function getHusbandrySpeciesProfile(goodName: string): HusbandrySpeciesProfile | undefined {
+  return HUSBANDRY_SPECIES_PROFILES[goodName];
+}
 
 /** Working dogs needed per herder for "full" dog-team coverage — a secondary sizing knob (typical
  * sheepdog operations run 2-4 dogs per musterer), not the headline capacity number from §10.3. */
@@ -158,6 +226,8 @@ export interface HusbandryDemand {
   readonly requiredWorkers: number;
   /** Land-capacity-weighted average good.value, for the greedy allocator's value-ranking (§3.1). */
   readonly value: number;
+  /** Normalized distribution of this cell's annual herding work, when the cell has a herd. */
+  readonly monthlyLaborWeights?: MonthlyWeights;
 }
 
 /**
@@ -252,13 +322,38 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
     dogsNeededForFullCoverage > 0 ? Math.min(1, getDogsHeadcount(cellId) / dogsNeededForFullCoverage) : 0;
 
   let requiredWorkers = 0;
+  const weightedMonthlyLabor = Array.from({ length: 12 }, () => 0);
   for (const { landCapacity, profile } of perGoodDemand) {
     const effectiveHeadsPerHerder =
       profile.baselineHeadsPerHerder * (1 + (profile.dogMultiplier - 1) * dogCoverageFraction);
-    requiredWorkers += landCapacity / effectiveHeadsPerHerder;
+    const speciesWorkers = landCapacity / effectiveHeadsPerHerder;
+    requiredWorkers += speciesWorkers;
+    const weights = getHusbandryMonthlyLaborWeights(profile);
+    for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += speciesWorkers * weights[month];
   }
 
-  return { requiredWorkers, value: weightedValue / totalLandCapacity };
+  return {
+    requiredWorkers,
+    value: weightedValue / totalLandCapacity,
+    monthlyLaborWeights: normalizeMonthlyWeights(weightedMonthlyLabor)
+  };
+}
+
+function getHusbandryMonthlyLaborWeights(profile: HusbandrySpeciesProfile): MonthlyWeights {
+  const weights = Array.from({ length: 12 }, (_, month) => {
+    return profile.routineCareMonthlyWeights[month] * (1 - profile.seasonalEventLaborShare);
+  });
+  const eventShare = profile.seasonalEventMonths.length
+    ? profile.seasonalEventLaborShare / profile.seasonalEventMonths.length
+    : 0;
+  for (const month of profile.seasonalEventMonths) weights[month % 12] += eventShare;
+  return normalizeMonthlyWeights(weights);
+}
+
+function normalizeMonthlyWeights(weights: readonly number[]): MonthlyWeights {
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  if (!(total > 0)) return ROUTINE_CARE_MONTHLY_WEIGHTS;
+  return weights.map(value => value / total) as unknown as MonthlyWeights;
 }
 
 /** 0..1 labour-sufficiency ratio gating grazed-species output at `cellId` (mirrors getViticultureWorkerFactor). */

@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import polylabel from "polylabel";
 import { worldContext } from "../context/worldContext";
+import { getEarthPathDistance } from "../data/earthConfig";
 import { Routes } from "../generators/routes-generator";
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -191,9 +192,9 @@ class Ruler extends Measurer {
   }
 
   updateLabel(): void {
-    const length = this.getLength();
     const distUnit = useOptionsState.getState().distanceUnit;
-    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
+    const distance = getEarthPathDistance(worldContext, this.points) ?? this.getLength() * worldContext.distanceScale;
+    const text = `${rn(distance)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
@@ -291,9 +292,10 @@ class Opisometer extends Measurer {
   }
 
   updateLabel(): void {
-    const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
     const distUnit = useOptionsState.getState().distanceUnit;
-    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
+    const fallbackLength = this.el.select<SVGPathElement>("path").node()!.getTotalLength() * worldContext.distanceScale;
+    const distance = getEarthPathDistance(worldContext, this.points) ?? fallbackLength;
+    const text = `${rn(distance)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }
@@ -410,9 +412,10 @@ class RouteOpisometer extends Measurer {
   }
 
   updateLabel(): void {
-    const length = this.el.select<SVGPathElement>("path").node()!.getTotalLength();
     const distUnit = useOptionsState.getState().distanceUnit;
-    const text = `${rn(length * worldContext.distanceScale)} ${distUnit}`;
+    const fallbackLength = this.el.select<SVGPathElement>("path").node()!.getTotalLength() * worldContext.distanceScale;
+    const distance = getEarthPathDistance(worldContext, this.points) ?? fallbackLength;
+    const text = `${rn(distance)} ${distUnit}`;
     const [x, y] = last(this.points);
     MeasurersRenderer.updateLabel(this.el, text, x, y);
   }

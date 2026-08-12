@@ -26,6 +26,7 @@ import {
   getMineralDeposits,
   getRuralFoodCapacity,
   getRuralReleasePressure,
+  getSeasonalLaborShortage,
   getSettlementDevelopmentLastEvaluatedYear,
   getSettlementDevelopmentPotential,
   getSimulationYear,
@@ -55,6 +56,7 @@ import {
   setRiverResidualFlow,
   setRuralFoodCapacity,
   setRuralReleasePressure,
+  setSeasonalLaborShortage,
   setSettlementDevelopmentLastEvaluatedYear,
   setSettlementDevelopmentPotential,
   setSoilFertility,
@@ -140,6 +142,8 @@ export interface DevelopmentPotentials {
   readonly farmLaborRequired: Float32Array;
   readonly migratableAdults: Float32Array;
   readonly ruralReleasePressure: Float32Array;
+  /** Monthly unmet work demand, flattened as `cellId * 12 + month`. */
+  readonly seasonalLaborShortage: Float32Array;
   readonly settlementDevelopmentPotential: Float32Array;
 }
 
@@ -172,7 +176,14 @@ export class DevelopmentPotentialModule {
     const settlementDevelopmentPotential = calculateSettlementDevelopmentPotential(world, getMineralDeposits());
     const occupations = this.storeAgriculture(world, agriculture);
     setSettlementDevelopmentPotential(settlementDevelopmentPotential);
-    return { ...agriculture, ruralReleasePressure: occupations.ruralReleasePressure, settlementDevelopmentPotential };
+    return {
+      ...agriculture,
+      farmLaborRequired: occupations.farmLaborRequired,
+      migratableAdults: occupations.migratableAdults,
+      ruralReleasePressure: occupations.ruralReleasePressure,
+      seasonalLaborShortage: occupations.seasonalLaborShortage,
+      settlementDevelopmentPotential
+    };
   }
 
   getPotentials(): DevelopmentPotentials {
@@ -186,6 +197,7 @@ export class DevelopmentPotentialModule {
       farmLaborRequired: getFarmLaborRequired(),
       migratableAdults: getMigratableAdults(),
       ruralReleasePressure: getRuralReleasePressure(),
+      seasonalLaborShortage: getSeasonalLaborShortage(),
       settlementDevelopmentPotential: getSettlementDevelopmentPotential()
     };
   }
@@ -201,6 +213,7 @@ export class DevelopmentPotentialModule {
     setFarmLaborRequired(new Float32Array());
     setMigratableAdults(new Float32Array());
     setRuralReleasePressure(new Float32Array());
+    setSeasonalLaborShortage(new Float32Array());
     setSoilFertility(new Float32Array());
     setIrrigationSalinity(new Float32Array());
     setIrrigationDevelopment(new Float32Array());
@@ -268,8 +281,6 @@ export class DevelopmentPotentialModule {
     setRuralFoodCapacity(agriculture.ruralFoodCapacity);
     setCultivatedArea(agriculture.cultivatedArea);
     setFloweringForageArea(agriculture.floweringForageArea);
-    setFarmLaborRequired(agriculture.farmLaborRequired);
-    setMigratableAdults(agriculture.migratableAdults);
     setIrrigatedArea(agriculture.irrigation.irrigatedAreaHa);
     setIrrigationDeliveredWater(agriculture.irrigation.irrigationDeliveredWater);
     setIrrigationWaterStress(agriculture.irrigation.irrigationWaterStress);
@@ -280,11 +291,9 @@ export class DevelopmentPotentialModule {
     });
     reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.ruralFoodCapacity);
 
-    // Rural Occupation Allocator (docs/plan/biome-goods-producer-ecosystem.md §3) claims hunting/
-    // fishing/viticulture labour out of migratableAdults before anything is released toward urban
-    // migration, so the persisted ruralReleasePressure is the post-claim residual, not
-    // agriculture's own occupation-unaware figure (§2.2's "triple claim" problem).
-    const occupations = allocateRuralOccupations(world, agriculture.migratableAdults);
+    // The calendar allocator combines staple fields and all resident rural occupations before it
+    // derives migration surplus, so these columns are not a second annual deduction from Grain.
+    const occupations = allocateRuralOccupations(world, agriculture);
     setHuntingWorkers(occupations.huntingWorkers);
     setFishingWorkers(occupations.fishingWorkers);
     setFishingRequiredWorkers(occupations.fishingRequiredWorkers);
@@ -292,7 +301,10 @@ export class DevelopmentPotentialModule {
     setViticultureRequiredWorkers(occupations.viticultureRequiredWorkers);
     setHusbandryWorkers(occupations.husbandryWorkers);
     setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
+    setFarmLaborRequired(occupations.farmLaborRequired);
+    setMigratableAdults(occupations.migratableAdults);
     setRuralReleasePressure(occupations.ruralReleasePressure);
+    setSeasonalLaborShortage(occupations.seasonalLaborShortage);
     return occupations;
   }
 

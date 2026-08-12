@@ -1,26 +1,22 @@
 /**
  * Rural Occupation Allocator — docs/plan/biome-goods-producer-ecosystem.md §3.
  *
- * Grain already claims farm labour out of a cell's adults via agriculturalLandUse.ts, leaving
- * `migratableAdults` as the post-Grain surplus. Before this module existed, that same surplus was
- * *also* implicitly assumed available in full by two unrelated things: the flat
- * population x biomeOutputByTag rate that drives Game/Wine (production-utils.ts), and
- * ruralLaborRelease.ts's urban migration release. Neither knew about the other, so a cell's
- * labour was being claimed three times over (§2.2's "triple claim" problem).
+ * The production path receives a staple-field monthly work plan from agriculturalLandUse.ts,
+ * adds hunting, fishing, orchard, and herd work to the same resident capacity, and only then
+ * derives migration surplus. This prevents a cell's annual average surplus from being spent by
+ * two jobs that collide in its harvest month.
  *
- * This module resolves that by claiming a single ordered slice of `migratableAdults` per cell:
- *   1. Grain (already done upstream, not repeated here)
- *   2. Hunting's fixed subsistence claim (§5.1) — small and non-competing, taken first
- *   3. Fishing, viticulture, and husbandry (§5.2-§5.4 harvest stages), competing for the remainder
- *      in a simple greedy pass ordered by unit value (mineOperations.ts's workerFactor pattern)
- *   4. Whatever is left becomes `ruralReleasePressure`, which ruralLaborRelease.ts consumes.
+ * Hunting keeps its small subsistence claim first. Fishing, viticulture, and husbandry then
+ * compete in value order, but each is capped by every month's remaining capacity. The allocator
+ * retains a legacy post-staple-surplus entry point for focused callers while production uses the
+ * calendar path.
  *
  * Husbandry (§5.4, Phase 3) and viticulture (§5.3, Phase 4) own their own area/labour demand
  * calculations in husbandry.ts/viticulture.ts — `calculateHusbandryDemand`/`calculateViticultureDemand`
  * aggregate a cell's requirement into one candidate each; this module only runs the greedy pass and
  * persists the result. Fishing's bonus-good model (below) is the one candidate still computed inline.
  *
- * `migratableAdults` unit bug (2026-08-07, docs/plan/fauna-biome-realism.md §2.5/§3 Phase E) —
+ * Legacy `migratableAdults` unit note (2026-08-07, docs/plan/fauna-biome-realism.md §2.5/§3 Phase E) —
  * `agriculturalLandUse.ts`'s `migratableAdults` is expressed in *rural population points* (the same
  * unit as `cells.pop`/`cells.maleAdults`/`cells.femaleAdults`, self-consistent with what
  * `ruralLaborRelease.ts` compares it against). This module's candidates, however, are all sized in
@@ -49,11 +45,17 @@ import {
   getGoods,
   getHuntingWorkers
 } from "../economyContext";
+import {
+  type AgriculturalLandProfile,
+  FARM_LABOUR_SAFETY_MARGIN,
+  WORKABLE_DAYS_PER_ADULT,
+  WORKABLE_DAYS_PER_ADULT_PER_MONTH
+} from "./agriculturalLandUse";
 import { drawWildFaunaOfftake, hasWildGameHabitat, previewWildFaunaOfftake } from "./faunaPopulation";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateHusbandryDemand } from "./husbandry";
-import { calculateViticultureDemand } from "./viticulture";
+import { calculateViticultureDemand, getPerennialMonthlyLaborWeights } from "./viticulture";
 
 // ---- Placeholder constants (§9.3 — calibration TBD alongside the rest of this ecosystem) ----
 
@@ -110,9 +112,20 @@ export interface RuralOccupationAllocation {
   /** Assigned/required husbandry workers (§5.4), keyed by the (land) producing cell. */
   readonly husbandryWorkers: Float32Array;
   readonly husbandryRequiredWorkers: Float32Array;
+  /** Peak common rural workload after allocated occupations, in population points. */
+  readonly farmLaborRequired: Float32Array;
+  /** Adults available for migration after the common monthly peak and safety margin. */
+  readonly migratableAdults: Float32Array;
+  /** Work-days that would need seasonal hires after the safe migration release, `cellId * 12 + month`. */
+  readonly seasonalLaborShortage: Float32Array;
   /** Residual after Grain + hunting + fishing + viticulture + husbandry claims; feeds ruralLaborRelease.ts. */
   readonly ruralReleasePressure: Float32Array;
 }
+
+type RuralLaborPlan = Pick<
+  AgriculturalLandProfile,
+  "cropLaborDaysByMonth" | "minimumCropLaborDaysByMonth" | "farmLaborRequired" | "migratableAdults"
+>;
 
 function getHuntingSubsistenceClaim(availableAdults: number): number {
   if (availableAdults <= 0) return 0;
@@ -180,6 +193,19 @@ function collectFishingOffers(
  */
 export function allocateRuralOccupations(
   world: Readonly<WorldContext>,
+  laborPlan: RuralLaborPlan | Float32Array
+): RuralOccupationAllocation {
+  return laborPlan instanceof Float32Array
+    ? allocateRuralOccupationsFromSurplus(world, laborPlan)
+    : allocateRuralOccupationsFromCalendar(world, laborPlan);
+}
+
+/**
+ * Compatibility path for direct callers/tests that still supply the old post-staple surplus.
+ * Production uses `allocateRuralOccupationsFromCalendar` through the public dispatcher above.
+ */
+function allocateRuralOccupationsFromSurplus(
+  world: Readonly<WorldContext>,
   migratableAdults: Float32Array
 ): RuralOccupationAllocation {
   const cells = world.pack.cells;
@@ -191,6 +217,8 @@ export function allocateRuralOccupations(
   const viticultureRequiredWorkers = new Float32Array(count);
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
+  const farmLaborRequired = new Float32Array(count);
+  const seasonalLaborShortage = new Float32Array(count * 12);
   const ruralReleasePressure = new Float32Array(count);
   if (!count || migratableAdults.length !== count) {
     return {
@@ -201,6 +229,9 @@ export function allocateRuralOccupations(
       viticultureRequiredWorkers,
       husbandryWorkers,
       husbandryRequiredWorkers,
+      farmLaborRequired,
+      migratableAdults,
+      seasonalLaborShortage,
       ruralReleasePressure
     };
   }
@@ -279,8 +310,206 @@ export function allocateRuralOccupations(
     viticultureRequiredWorkers,
     husbandryWorkers,
     husbandryRequiredWorkers,
+    farmLaborRequired,
+    migratableAdults,
+    seasonalLaborShortage,
     ruralReleasePressure
   };
+}
+
+const UNIFORM_MONTHLY_WEIGHTS = [
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12,
+  1 / 12
+] as const;
+
+interface MonthlyLaborCandidate {
+  readonly kind: "viticulture" | "fishing" | "husbandry";
+  readonly requiredWorkers: number;
+  readonly value: number;
+  readonly monthlyWeights: readonly number[];
+  readonly holderId?: number;
+}
+
+/**
+ * Production path: staple fields, routine rural occupations, and seasonal work all consume the
+ * same month-by-month resident capacity before migration surplus is calculated.
+ */
+function allocateRuralOccupationsFromCalendar(
+  world: Readonly<WorldContext>,
+  laborPlan: RuralLaborPlan
+): RuralOccupationAllocation {
+  const cells = world.pack.cells;
+  const count = cells?.i?.length ?? 0;
+  const huntingWorkers = new Float32Array(count);
+  const fishingWorkers = new Float32Array(count);
+  const fishingRequiredWorkers = new Float32Array(count);
+  const viticultureWorkers = new Float32Array(count);
+  const viticultureRequiredWorkers = new Float32Array(count);
+  const husbandryWorkers = new Float32Array(count);
+  const husbandryRequiredWorkers = new Float32Array(count);
+  const farmLaborRequired = new Float32Array(count);
+  const migratableAdults = new Float32Array(count);
+  const seasonalLaborShortage = new Float32Array(count * 12);
+  const ruralReleasePressure = new Float32Array(count);
+  if (
+    !count ||
+    laborPlan.cropLaborDaysByMonth.length !== count * 12 ||
+    laborPlan.minimumCropLaborDaysByMonth.length !== count * 12
+  ) {
+    return allocateRuralOccupationsFromSurplus(world, laborPlan.migratableAdults);
+  }
+
+  const goodsByName = new Map(getGoods().map(good => [good.name, good]));
+  const fishGood = goodsByName.get("Fish");
+  const fishOffersByLandCell =
+    fishGood && isGoodEnabled(fishGood) ? collectFishingOffers(world, fishGood.i, fishingRequiredWorkers) : new Map();
+  const populationRate = Math.max(1, world.populationRate || 1);
+
+  for (const cellId of cells.i) {
+    if (cells.h[cellId] < 20) continue;
+    const ruralAdultPoints =
+      Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+    const residentAdults = ruralAdultPoints * populationRate;
+    const currentDays = copyMonthlyDays(laborPlan.cropLaborDaysByMonth, cellId);
+    const minimumDays = copyMonthlyDays(laborPlan.minimumCropLaborDaysByMonth, cellId);
+    const desiredDays = currentDays.slice();
+    const huntingRequired = hasWildGameHabitat(cellId) ? getHuntingSubsistenceClaim(residentAdults) : 0;
+    addWorkerDays(desiredDays, huntingRequired, UNIFORM_MONTHLY_WEIGHTS);
+    const huntingFactor = getMaximumAssignableFactor(
+      currentDays,
+      huntingRequired,
+      UNIFORM_MONTHLY_WEIGHTS,
+      residentAdults
+    );
+    const assignedHunting = huntingRequired * huntingFactor;
+    huntingWorkers[cellId] = assignedHunting;
+    addWorkerDays(currentDays, assignedHunting, UNIFORM_MONTHLY_WEIGHTS);
+    addWorkerDays(minimumDays, assignedHunting, UNIFORM_MONTHLY_WEIGHTS);
+
+    const candidates: MonthlyLaborCandidate[] = [];
+    const viticultureDemand = calculateViticultureDemand(world, cellId);
+    viticultureRequiredWorkers[cellId] = viticultureDemand.requiredWorkers;
+    if (viticultureDemand.requiredWorkers > 0) {
+      candidates.push({
+        kind: "viticulture",
+        requiredWorkers: viticultureDemand.requiredWorkers,
+        value: viticultureDemand.value,
+        monthlyWeights: getPerennialMonthlyLaborWeights(world, cellId)
+      });
+    }
+    for (const offer of fishOffersByLandCell.get(cellId) ?? []) {
+      if (offer.share > 0) {
+        candidates.push({
+          kind: "fishing",
+          requiredWorkers: offer.share,
+          value: fishGood!.value,
+          monthlyWeights: UNIFORM_MONTHLY_WEIGHTS,
+          holderId: offer.holderId
+        });
+      }
+    }
+    const husbandryDemand = calculateHusbandryDemand(world, cellId);
+    husbandryRequiredWorkers[cellId] = husbandryDemand.requiredWorkers;
+    if (husbandryDemand.requiredWorkers > 0) {
+      candidates.push({
+        kind: "husbandry",
+        requiredWorkers: husbandryDemand.requiredWorkers,
+        value: husbandryDemand.value,
+        monthlyWeights: husbandryDemand.monthlyLaborWeights ?? UNIFORM_MONTHLY_WEIGHTS
+      });
+    }
+
+    for (const candidate of candidates) addWorkerDays(desiredDays, candidate.requiredWorkers, candidate.monthlyWeights);
+    candidates.sort((a, b) => b.value - a.value);
+    for (const candidate of candidates) {
+      const factor = getMaximumAssignableFactor(
+        currentDays,
+        candidate.requiredWorkers,
+        candidate.monthlyWeights,
+        residentAdults
+      );
+      const assigned = candidate.requiredWorkers * factor;
+      if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assigned;
+      else if (candidate.kind === "husbandry") husbandryWorkers[cellId] += assigned;
+      else fishingWorkers[candidate.holderId!] += assigned;
+      addWorkerDays(currentDays, assigned, candidate.monthlyWeights);
+      addWorkerDays(minimumDays, assigned, candidate.monthlyWeights);
+    }
+
+    const peakCurrentAdults = getPeakRequiredAdults(currentDays);
+    const peakMinimumAdults = getPeakRequiredAdults(minimumDays);
+    farmLaborRequired[cellId] = peakCurrentAdults / populationRate;
+    migratableAdults[cellId] = Math.max(
+      0,
+      ruralAdultPoints - (peakCurrentAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+    );
+    ruralReleasePressure[cellId] = Math.max(
+      0,
+      ruralAdultPoints - (peakMinimumAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+    );
+
+    const adultsAfterMigration = Math.max(0, residentAdults - migratableAdults[cellId] * populationRate);
+    for (let month = 0; month < 12; month++) {
+      seasonalLaborShortage[cellId * 12 + month] = Math.max(
+        0,
+        desiredDays[month] - adultsAfterMigration * WORKABLE_DAYS_PER_ADULT_PER_MONTH
+      );
+    }
+  }
+
+  return {
+    huntingWorkers,
+    fishingWorkers,
+    fishingRequiredWorkers,
+    viticultureWorkers,
+    viticultureRequiredWorkers,
+    husbandryWorkers,
+    husbandryRequiredWorkers,
+    farmLaborRequired,
+    migratableAdults,
+    seasonalLaborShortage,
+    ruralReleasePressure
+  };
+}
+
+function copyMonthlyDays(source: Float32Array, cellId: number): number[] {
+  return Array.from(source.subarray(cellId * 12, cellId * 12 + 12));
+}
+
+function addWorkerDays(target: number[], workers: number, monthlyWeights: readonly number[]): void {
+  const annualDays = Math.max(0, workers) * WORKABLE_DAYS_PER_ADULT;
+  for (let month = 0; month < 12; month++) target[month] += annualDays * (monthlyWeights[month] ?? 0);
+}
+
+function getMaximumAssignableFactor(
+  existingDays: readonly number[],
+  requiredWorkers: number,
+  monthlyWeights: readonly number[],
+  residentAdults: number
+): number {
+  if (requiredWorkers <= 0 || residentAdults <= 0) return 0;
+  let factor = 1;
+  for (let month = 0; month < 12; month++) {
+    const candidateDays = requiredWorkers * WORKABLE_DAYS_PER_ADULT * (monthlyWeights[month] ?? 0);
+    if (candidateDays <= 0) continue;
+    const availableDays = Math.max(0, residentAdults * WORKABLE_DAYS_PER_ADULT_PER_MONTH - existingDays[month]);
+    factor = Math.min(factor, availableDays / candidateDays);
+  }
+  return Math.max(0, Math.min(1, factor));
+}
+
+function getPeakRequiredAdults(monthlyDays: readonly number[]): number {
+  return Math.max(0, ...monthlyDays.map(days => days / WORKABLE_DAYS_PER_ADULT_PER_MONTH));
 }
 
 // ---- Consumption side: read the persisted allocation to gate Game/Fish (production-utils.ts) ----

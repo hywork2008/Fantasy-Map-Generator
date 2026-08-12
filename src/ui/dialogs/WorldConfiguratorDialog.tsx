@@ -2,13 +2,15 @@ import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, sca
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
+import { unitsEditorActions } from "../../controllers/units-editor";
 import { updateClimateDuringStagedGeneration, updateWorld } from "../../controllers/world-configurator";
+import { getEarthDistanceScale } from "../../data/earthConfig";
 import { useDialogState } from "../../store/dialogState";
 import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useOptionsState } from "../../store/optionsState";
 import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorFormStore";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
-import { lock } from "../../utils/domUtils";
+import { lock, locked } from "../../utils/domUtils";
 import { LockIconButton } from "../components/LockIconButton";
 import { syncRangeProgressInElement } from "../rangeInputStyles";
 import { Dialog } from "./Dialog";
@@ -31,6 +33,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
   const temperatureEquator = useWorldConfiguratorFormStore(state => state.temperatureEquator);
   const temperatureNorthPole = useWorldConfiguratorFormStore(state => state.temperatureNorthPole);
   const temperatureSouthPole = useWorldConfiguratorFormStore(state => state.temperatureSouthPole);
+  const axialTilt = useWorldConfiguratorFormStore(state => state.axialTilt);
   const mapSize = useOptionsState(s => s.mapSize);
   const latitude = useOptionsState(s => s.latitude);
   const longitude = useOptionsState(s => s.longitude);
@@ -40,12 +43,13 @@ export const WorldConfiguratorDialog: React.FC = () => {
       { id: "temperatureEquatorOutput", value: temperatureEquator },
       { id: "temperatureNorthPoleOutput", value: temperatureNorthPole },
       { id: "temperatureSouthPoleOutput", value: temperatureSouthPole },
+      { id: "axialTiltOutput", value: axialTilt },
       { id: "mapSizeOutput", value: mapSize },
       { id: "latitudeOutput", value: latitude },
       { id: "longitudeOutput", value: longitude },
       { id: "precOutput", value: prec }
     ],
-    [latitude, longitude, mapSize, prec, temperatureEquator, temperatureNorthPole, temperatureSouthPole]
+    [axialTilt, latitude, longitude, mapSize, prec, temperatureEquator, temperatureNorthPole, temperatureSouthPole]
   );
 
   // Compute temperature conversions for display
@@ -79,24 +83,8 @@ export const WorldConfiguratorDialog: React.FC = () => {
     globe.select("#grad-90").attr("stop-color", getColor((tSP - tMin) / tDelta));
   }, []);
 
-  // Compute display values for globe statistics
-  const globeStats = useMemo(() => {
-    const size = mapSize;
-    const eqD = ((worldContext.graphHeight / 2) * 100) / size;
-    const unit = useOptionsState.getState().distanceUnit;
-    const eqD2 = eqD * 2;
-    const meridianInUnit = eqD2 * worldContext.distanceScale;
-    const meridian = toKilometer(meridianInUnit, unit);
-
-    return {
-      mapSizeText: `${worldContext.graphWidth}x${worldContext.graphHeight}`,
-      mapSizeFriendly: `${rn(worldContext.graphWidth * worldContext.distanceScale)}x${rn(worldContext.graphHeight * worldContext.distanceScale)} ${unit}`,
-      meridianLength: rn(eqD2),
-      meridianLengthFriendly: `${rn(meridianInUnit)} ${unit}`,
-      meridianLengthEarth: meridian ? ` = ${rn(meridian / 200)}%🌏` : "",
-      mapCoordinates: `${lat(worldContext.mapCoordinates.latN!)} ${Math.abs(rn(worldContext.mapCoordinates.lonW!))}°W; ${lat(worldContext.mapCoordinates.latS!)} ${rn(worldContext.mapCoordinates.lonE!)}°E`
-    };
-  }, [mapSize]);
+  // Derive globe statistics from the current world state on every render.
+  const globeStats = getGlobeStats();
 
   const updateGlobePosition = useCallback(() => {
     if (!globeRef.current) return;
@@ -146,6 +134,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
         worldContext.options.temperatureEquator,
         worldContext.options.temperatureNorthPole,
         worldContext.options.temperatureSouthPole,
+        worldContext.options.axialTilt,
         useOptionsState.getState().mapSize,
         useOptionsState.getState().latitude,
         useOptionsState.getState().longitude,
@@ -197,11 +186,16 @@ export const WorldConfiguratorDialog: React.FC = () => {
       worldContext.options.temperatureSouthPole = val;
       formStore.setTemperatureSouthPole(val);
       updateGlobeTemperature();
+    } else if (stored === "axialTilt") {
+      worldContext.options.axialTilt = val;
+      formStore.setAxialTilt(val);
     } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude" || stored === "prec") {
       useOptionsState.getState().setOption(stored, val);
       // Also sync to form store
-      if (stored === "mapSize") formStore.setMapSize(val);
-      else if (stored === "latitude") formStore.setLatitude(val);
+      if (stored === "mapSize") {
+        formStore.setMapSize(val);
+        syncEarthDistanceScale(val);
+      } else if (stored === "latitude") formStore.setLatitude(val);
       else if (stored === "longitude") formStore.setLongitude(val);
       else if (stored === "prec") formStore.setPrec(val);
 
@@ -248,14 +242,25 @@ export const WorldConfiguratorDialog: React.FC = () => {
     if (needsUpdate) applyWorldUpdate();
   }
 
-  function applyWorldPreset(size: number, latShift: number): void {
+  function applyWorldPreset(size: number, centerLatitude: number): void {
     useOptionsState.getState().setOption("mapSize", size);
-    useOptionsState.getState().setOption("latitude", latShift);
+    useOptionsState.getState().setOption("latitude", centerLatitude);
     useWorldConfiguratorFormStore.getState().setMapSize(size);
-    useWorldConfiguratorFormStore.getState().setLatitude(latShift);
+    useWorldConfiguratorFormStore.getState().setLatitude(centerLatitude);
+    syncEarthDistanceScale(size);
+    // Preset buttons update the same coordinates as the inputs, so redraw the
+    // globe selection immediately instead of waiting for a later input event.
+    updateGlobePosition();
     lock("mapSize");
     lock("latitude");
     if (autoChange) applyWorldUpdate();
+  }
+
+  function syncEarthDistanceScale(mapSize: number): void {
+    if (locked("distanceScale")) return;
+    const distanceScale = getEarthDistanceScale(mapSize, worldContext.graphWidth);
+    useOptionsState.getState().setOption("distanceScale", distanceScale);
+    unitsEditorActions.changeDistanceScale(distanceScale);
   }
 
   return (
@@ -351,8 +356,35 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 </label>
               </div>
               <div>
+                <LockIconButton id="axialTilt" />
+                <label data-tip="Set the world's axial tilt (obliquity). 0° means no seasons; larger values widen the seasonal temperature swing">
+                  <i>Axial tilt:</i>
+                  <input
+                    id="axialTiltInput"
+                    data-stored="axialTilt"
+                    type="number"
+                    min={0}
+                    max={90}
+                    step="0.1"
+                    value={axialTilt}
+                    onChange={handleControlsChange}
+                  />
+                  °
+                  <input
+                    id="axialTiltOutput"
+                    data-stored="axialTilt"
+                    type="range"
+                    min={0}
+                    max={90}
+                    step="0.1"
+                    value={axialTilt}
+                    onChange={handleControlsChange}
+                  />
+                </label>
+              </div>
+              <div>
                 <LockIconButton id="mapSize" />
-                <label data-tip="Set map size relative to the world size">
+                <label data-tip="Set map width as a share of Earth's equatorial circumference">
                   <i>Map size:</i>
                   <input
                     id="mapSizeInput"
@@ -379,31 +411,32 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </div>
               <div>
                 <LockIconButton id="latitude" />
-                <label data-tip="Set a North-South map shift, set to 50 to make map center lie on Equator">
-                  <i>Latitudes:</i>
+                <label data-tip="Set the map's central latitude: North Pole is 90°, Equator is 0°, and South Pole is -90°">
+                  <i>Latitude:</i>
                   <input
                     id="latitudeInput"
                     data-stored="latitude"
                     type="number"
-                    min={0}
-                    max={100}
+                    min={-90}
+                    max={90}
                     step="0.1"
                     value={latitude}
                     onChange={handleControlsChange}
                   />
+                  °
                   <br />
-                  <i>N</i>
+                  <i>-90°</i>
                   <input
                     id="latitudeOutput"
                     data-stored="latitude"
                     type="range"
-                    min={0}
-                    max={100}
+                    min={-90}
+                    max={90}
                     step="0.1"
                     value={latitude}
                     onChange={handleControlsChange}
                   />
-                  <i>S</i>
+                  <i>90°</i>
                 </label>
               </div>
               <div>
@@ -436,7 +469,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 </label>
               </div>
               <div>
-                <label data-tip="Set precipitation - water amount clouds can bring. Defines rivers and biomes generation. Keep around 100% for default generation">
+                <label data-tip="Set global atmospheric moisture. 100% is the standard climate; higher values produce wetter maps. This is a 0–255 map proxy, not millimetres of annual rainfall.">
                   <LockIconButton id="prec" />
                   <i>Precipitation:</i>
                   <input id="precInput" data-stored="prec" type="number" value={prec} onChange={handleControlsChange} />
@@ -577,7 +610,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               type="button"
               id="wcWholeWorld"
               data-tip="Click to set map size to cover the whole world"
-              onClick={() => applyWorldPreset(100, 50)}
+              onClick={() => applyWorldPreset(100, 0)}
             >
               Whole world
             </button>
@@ -585,7 +618,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               type="button"
               id="wcNorthern"
               data-tip="Click to set map size to cover the Northern latitudes"
-              onClick={() => applyWorldPreset(33, 25)}
+              onClick={() => applyWorldPreset(12.9, 38.5)}
             >
               Northern
             </button>
@@ -593,7 +626,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               type="button"
               id="wcTropical"
               data-tip="Click to set map size to cover the Tropical latitudes"
-              onClick={() => applyWorldPreset(33, 50)}
+              onClick={() => applyWorldPreset(12.9, 0)}
             >
               Tropical
             </button>
@@ -601,7 +634,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               type="button"
               id="wcSouthern"
               data-tip="Click to set map size to cover the Southern latitudes"
-              onClick={() => applyWorldPreset(33, 75)}
+              onClick={() => applyWorldPreset(12.9, -38.5)}
             >
               Southern
             </button>
@@ -628,6 +661,22 @@ export const WorldConfiguratorDialog: React.FC = () => {
     </Dialog>
   );
 };
+
+function getGlobeStats() {
+  const unit = useOptionsState.getState().distanceUnit;
+  const { latT } = worldContext.mapCoordinates;
+  const meridianInUnit = latT ? (worldContext.graphHeight * worldContext.distanceScale * 180) / latT : 0;
+  const meridian = toKilometer(meridianInUnit, unit);
+
+  return {
+    mapSizeText: `${worldContext.graphWidth}x${worldContext.graphHeight}`,
+    mapSizeFriendly: `${rn(worldContext.graphWidth * worldContext.distanceScale)}x${rn(worldContext.graphHeight * worldContext.distanceScale)} ${unit}`,
+    meridianLength: rn(meridianInUnit / worldContext.distanceScale),
+    meridianLengthFriendly: `${rn(meridianInUnit)} ${unit}`,
+    meridianLengthEarth: meridian ? ` = ${rn(meridian / 200)}%🌏` : "",
+    mapCoordinates: `${lat(worldContext.mapCoordinates.latN!)} ${Math.abs(rn(worldContext.mapCoordinates.lonW!))}°W; ${lat(worldContext.mapCoordinates.latS!)} ${rn(worldContext.mapCoordinates.lonE!)}°E`
+  };
+}
 
 function toKilometer(v: number, unit: string): number {
   if (unit === "km") return v;

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -13,6 +14,7 @@ import {
   calculateViticultureDemand,
   GRAPE_YIELD_PER_HECTARE_PER_MONTH,
   getGrapeHarvestOutput,
+  getPerennialCropMix,
   getVineyardAreaUsedHectares,
   getViticultureWorkerFactor
 } from "./viticulture";
@@ -27,6 +29,48 @@ const GRAPES_GOOD = {
   color: "#fff",
   chance: 3,
   demandCoverage: {}
+};
+
+const OLIVES_GOOD = {
+  i: 2,
+  name: "Olives",
+  value: 3,
+  tags: ["food", "perennialCrop"],
+  unit: "barrel",
+  icon: "good-olives",
+  color: "#BDBD7D",
+  perennialCrop: {
+    kind: "orchard" as const,
+    temperature: { min: 5, idealMin: 20, idealMax: 34, max: 40 },
+    precipitation: { min: 2, idealMin: 4, idealMax: 7, max: 12 },
+    soils: ["loam", "sandy", "thin", "alluvial"],
+    maximumLandShare: 0.35,
+    areaHectaresPerPerson: 0.018,
+    laborDaysPerHectare: 16,
+    yieldLotsPerHectarePerMonth: 0.018
+  }
+};
+
+const HIGH_VALUE_FIGS_GOOD = {
+  i: 3,
+  name: "Figs",
+  value: 100,
+  tags: ["food", "perennialCrop"],
+  unit: "basket",
+  icon: "good-figs",
+  color: "#8E5B44",
+  perennialCrop: PERENNIAL_CROP_PROFILES.Figs
+};
+
+const DATES_GOOD = {
+  i: 4,
+  name: "Dates",
+  value: 7,
+  tags: ["food", "perennialCrop"],
+  unit: "chest",
+  icon: "good-dates",
+  color: "#dbb2a3",
+  perennialCrop: PERENNIAL_CROP_PROFILES.Dates
 };
 
 function biomesData(tagsByCode: Record<number, string[]>) {
@@ -52,6 +96,7 @@ function scrubCellWorld(population = 140): void {
   } as unknown as PackedGraph;
   worldContext.distanceScale = 1;
   worldContext.biomesData = biomesData({ 1: ["scrub"] }) as never;
+  worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([8]) } } as never;
   setCultivatedArea(new Float32Array([0]));
 }
 
@@ -73,9 +118,38 @@ describe("viticulture", () => {
       expect(calculateViticultureDemand(worldContext, 0)).toEqual({ requiredWorkers: 0, value: 0 });
     });
 
-    it("returns zero demand outside a vineyard-suitable biome tag", () => {
+    it("places olives by warm, dry climate even in a non-scrub biome", () => {
       scrubCellWorld();
-      worldContext.biomesData = biomesData({ 1: ["forest"] }) as never; // no VINEYARD_BIOME_TAG_CEILING entry
+      worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
+      worldContext.grid = { cells: { temp: new Int8Array([25]), prec: new Uint8Array([5]) } } as never;
+      setGoods([OLIVES_GOOD] as never);
+
+      expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Olives");
+    });
+
+    it("places dates by hot, arid climate rather than the legacy biome", () => {
+      scrubCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
+      worldContext.grid = { cells: { temp: new Int8Array([32]), prec: new Uint8Array([2]) } } as never;
+      setGoods([DATES_GOOD] as never);
+
+      expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Dates");
+    });
+
+    it("selects the crop with stronger cold and drought reserves, not the higher-value good", () => {
+      scrubCellWorld();
+      // Both crops are in their optimum bands. Olives retain a much larger
+      // lower-rainfall reserve than figs at this climate point.
+      worldContext.grid = { cells: { temp: new Int8Array([20]), prec: new Uint8Array([7]) } } as never;
+      setGoods([OLIVES_GOOD, HIGH_VALUE_FIGS_GOOD] as never);
+
+      expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Olives");
+    });
+
+    it("uses climate rather than the legacy vineyard biome tag", () => {
+      scrubCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
+      worldContext.grid = { cells: { temp: new Int8Array([0]), prec: new Uint8Array([45]) } } as never;
       setGoods([GRAPES_GOOD] as never);
       expect(calculateViticultureDemand(worldContext, 0)).toEqual({ requiredWorkers: 0, value: 0 });
     });
@@ -121,6 +195,7 @@ describe("viticulture", () => {
 
     it("scales the desired vineyard area by the viticulture worker factor", () => {
       scrubCellWorld(140);
+      setGoods([GRAPES_GOOD] as never);
       // desiredArea = 5.6 ha (see calculateViticultureDemand test above).
       setViticultureRequiredWorkers(new Float32Array([10]));
       setViticultureWorkers(new Float32Array([5])); // workerFactor 0.5
@@ -136,6 +211,7 @@ describe("viticulture", () => {
 
     it("multiplies the used vineyard area by the grape yield per hectare", () => {
       scrubCellWorld(140);
+      setGoods([GRAPES_GOOD] as never);
       setViticultureRequiredWorkers(new Float32Array([10]));
       setViticultureWorkers(new Float32Array([10])); // full coverage -> areaUsed = 5.6 ha
       expect(getGrapeHarvestOutput(0)).toBeCloseTo(5.6 * GRAPE_YIELD_PER_HECTARE_PER_MONTH, 5);
@@ -143,6 +219,7 @@ describe("viticulture", () => {
 
     it("applies a river yield bonus when the cell has one", () => {
       scrubCellWorld(140);
+      setGoods([GRAPES_GOOD] as never);
       (worldContext.pack.cells as unknown as { r: Uint8Array }).r = new Uint8Array([1]);
       setViticultureRequiredWorkers(new Float32Array([10]));
       setViticultureWorkers(new Float32Array([10]));

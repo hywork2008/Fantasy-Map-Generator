@@ -2,6 +2,7 @@ import Alea from "alea";
 import { color, shuffler } from "d3";
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import { getCoastalHabitatKey, getNearshoreHabitatKey } from "../../../data/coastalHabitatCatalog";
+import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
@@ -113,6 +114,8 @@ const ASH_YIELD_PER_WOOD_FULL_COMBUSTION = 1;
 const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
 const CHARCOAL_WOOD_PER_UNIT = 1.5;
 const POTASH_ASH_PER_UNIT = 1.5;
+/** One 200 L cask of cider or perry uses about 300 kg of pressed orchard fruit. */
+const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = 0.3;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
 const shipGoodValue = (shipClassId: string): number => {
   const shipClass = shipClassById.get(shipClassId);
@@ -516,7 +519,7 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "luxury",
     // Grape-growing cells use Wine as their commercial output after the local Raisins reserve is
     // full. It is intentionally not `preservedFood`: Wine must never displace emergency food stores.
-    tags: ["drink", "food", "luxury", "grapeWine"],
+    tags: ["food", "luxury", "grapeWine", "beverage"],
     icon: "good-wine",
     color: "#963e48",
     // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8, back when the recipe below was
@@ -556,16 +559,15 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Olives",
     warEconomyType: "essential",
-    tags: ["food"],
+    tags: ["food", "perennialCrop"],
     icon: "good-olives",
     color: "#BDBD7D",
     value: 3,
-    chance: 3,
-    distribution: 'biomeTag("scrub") || biome(6) || (biome(4) && random(50) && river())',
+    chance: 0,
     unit: "barrel",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Generic: 0.8, Nomadic: 0.5 } },
-    biomeOutputByTag: { scrub: 0.15, arable: 0.05 }
+    perennialCrop: PERENNIAL_CROP_PROFILES.Olives
   },
   {
     name: "Honey",
@@ -602,16 +604,18 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Dates",
     warEconomyType: "essential",
-    tags: ["food"],
+    // Date palms use the same climate/land/labour path as orchards. They are
+    // not a biome resource: dry heat plus irrigation can be suitable even
+    // where the visible biome is not the legacy biome #1.
+    tags: ["food", "fruit", "perennialCrop"],
     icon: "good-dates",
     color: "#dbb2a3",
     value: 7,
-    chance: 2,
-    distribution: "biome(1)",
+    chance: 0,
     unit: "chest",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Hunting: 0.8, Highland: 0.8 } },
-    biomeOutput: { 1: 0.1 }
+    perennialCrop: PERENNIAL_CROP_PROFILES.Dates
   },
   {
     name: "Horses",
@@ -1623,7 +1627,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Beer",
-    tags: ["drink", "food", "beverage"],
+    tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#fbb117",
     value: 4,
@@ -1642,8 +1646,33 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: {}
   },
   {
+    // Cider and perry ferment pressed apple or pear juice directly. They do
+    // not use Pomace, which represents the grape skins and seeds left after
+    // wine pressing and has its own low-cost secondary beverage path.
+    name: "Cider",
+    tags: ["food", "beverage"],
+    icon: "good-beer",
+    color: "#d99a32",
+    value: 4,
+    chance: 0,
+    recipes: [{ Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: 0.08 }],
+    unit: "200 L cider cask",
+    demandCoverage: {}
+  },
+  {
+    name: "Perry",
+    tags: ["food", "beverage"],
+    icon: "good-beer",
+    color: "#d7b84a",
+    value: 4.5,
+    chance: 0,
+    recipes: [{ Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: 0.08 }],
+    unit: "200 L perry cask",
+    demandCoverage: {}
+  },
+  {
     name: "Pomace Wine",
-    tags: ["drink", "food", "beverage"],
+    tags: ["food", "beverage"],
     icon: "good-wine",
     color: "#b08968",
     value: 2,
@@ -1654,7 +1683,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Liquor",
-    tags: ["drink", "food", "luxury"],
+    tags: ["food", "luxury", "beverage"],
     icon: "good-liquor",
     color: "#8a0303",
     value: 12,
@@ -2171,18 +2200,83 @@ export const GOODS_DATA: GoodData[] = [
     // kept only for the cosmetic one-time per-cell "bonus good" placement (same condition Wine used
     // to drive its own production with), purely a map-flavor label now.
     name: "Grapes",
-    tags: ["food", "freshFood"],
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
     icon: "good-wine",
     color: "#963e48",
     value: 2,
-    chance: 3,
-    distribution: 'biome(6) || biomeTag("scrub") || (biome(4) && random(50) && river())',
+    chance: 0,
     unit: "1,000 kg grape lot",
     freshFood: {
       householdDemandPerPopulationMonth: GRAPE_TARGETS.freshKilogramsPerPersonYear / 12,
       preservationLaborPerUnit: 0.06
     },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Grapes,
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
+  },
+  {
+    name: "Apples",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#bf4d3f",
+    value: 2.2,
+    chance: 0,
+    unit: "1,000 kg apple lot",
+    freshFood: { householdDemandPerPopulationMonth: 6 / 12 / 1000, preservationLaborPerUnit: 0.05 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Apples
+  },
+  {
+    name: "Pears",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#b8b947",
+    value: 2.4,
+    chance: 0,
+    unit: "1,000 kg pear lot",
+    freshFood: { householdDemandPerPopulationMonth: 3 / 12 / 1000, preservationLaborPerUnit: 0.055 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Pears
+  },
+  {
+    name: "Plums",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#6b407b",
+    value: 2.6,
+    chance: 0,
+    unit: "1,000 kg plum lot",
+    freshFood: { householdDemandPerPopulationMonth: 2 / 12 / 1000, preservationLaborPerUnit: 0.06 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Plums
+  },
+  {
+    name: "Figs",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#74503f",
+    value: 3,
+    chance: 0,
+    unit: "1,000 kg fig lot",
+    freshFood: { householdDemandPerPopulationMonth: 2 / 12 / 1000, preservationLaborPerUnit: 0.05 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Figs
+  },
+  {
+    name: "Lemons",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#d9c94b",
+    value: 3.2,
+    chance: 0,
+    unit: "1,000 kg lemon lot",
+    freshFood: { householdDemandPerPopulationMonth: 1 / 12 / 1000, preservationLaborPerUnit: 0.045 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Lemons
+  },
+  {
+    name: "Dried Fruits",
+    tags: ["food", "preservative", "preservedFood"],
+    icon: "good-unknown",
+    color: "#965c35",
+    value: 14,
+    chance: 0,
+    recipes: [{ Apples: 4 }, { Pears: 4 }, { Plums: 4 }, { Figs: 4 }],
+    unit: "250 kg dried-fruit lot"
   },
   {
     // Dried grapes — a preserved good like Stockfish, produced by the existing generic recipe/craft
@@ -2714,11 +2808,109 @@ export function migrateStapleCropGoods(): boolean {
   let changed = false;
 
   for (const shippedCrop of GOODS_DATA.filter(good => good.crop)) {
-    if (goods.some(good => good.name === shippedCrop.name)) continue;
-    const crop = Goods.getDefaultGood(shippedCrop.name);
-    if (!crop) throw new Error(`${shippedCrop.name} must be present in the shipped goods catalogue`);
-    crop.i = nextId++;
-    goods.push(crop);
+    const existing = goods.find(good => good.name === shippedCrop.name);
+    if (!existing) {
+      const crop = Goods.getDefaultGood(shippedCrop.name);
+      if (!crop) throw new Error(`${shippedCrop.name} must be present in the shipped goods catalogue`);
+      crop.i = nextId++;
+      goods.push(crop);
+      changed = true;
+      continue;
+    }
+    if (JSON.stringify(existing.crop) !== JSON.stringify(shippedCrop.crop)) {
+      // Replace the legacy relative precipitation profile with the canonical
+      // physical 100 mm proxy profile used by the climate guide and suitability checks.
+      existing.crop = shippedCrop.crop;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/**
+ * Adds orchard goods to catalogues created before perennial horticulture and
+ * upgrades Olives and Dates from legacy biome production to the climate-driven path.
+ * Recipes use the saved catalogue's ids, never the shipped default ids.
+ */
+export function migratePerennialFruitGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+
+  for (const shipped of GOODS_DATA.filter(
+    good => good.perennialCrop || ["Dried Fruits", "Cider", "Perry"].includes(good.name)
+  )) {
+    const existing = goods.find(good => good.name === shipped.name);
+    if (!existing) {
+      const added = Goods.getDefaultGood(shipped.name);
+      if (!added) throw new Error(`${shipped.name} must be present in the shipped goods catalogue`);
+      added.i = nextId++;
+      goods.push(added);
+      changed = true;
+      continue;
+    }
+    if (shipped.perennialCrop && JSON.stringify(existing.perennialCrop) !== JSON.stringify(shipped.perennialCrop)) {
+      // The early orchard release stored rainfall bands calibrated to the old
+      // relative scale. Canonicalize saved profiles so their climate checks
+      // use the same 100 mm proxy-to-display contract as new catalogues.
+      existing.perennialCrop = shipped.perennialCrop;
+      changed = true;
+    }
+    if (shipped.perennialCrop && !existing.tags.includes("perennialCrop")) {
+      existing.tags.push("perennialCrop");
+      changed = true;
+    }
+    if (existing.name === "Olives" || existing.name === "Grapes" || existing.name === "Dates") {
+      if (existing.biomeOutput || existing.biomeOutputByTag) {
+        delete existing.biomeOutput;
+        delete existing.biomeOutputByTag;
+        changed = true;
+      }
+      if (existing.distribution || existing.chance) {
+        delete existing.distribution;
+        existing.chance = 0;
+        const goodColumn = getGoodCellColumn();
+        for (const cellId of getWorldContext().pack.cells.i) {
+          if (goodColumn[cellId] === existing.i) goodColumn[cellId] = 0;
+        }
+        changed = true;
+      }
+    }
+  }
+
+  const driedFruits = goods.find(good => good.name === "Dried Fruits");
+  if (driedFruits) {
+    const recipes = ["Apples", "Pears", "Plums", "Figs"]
+      .map(name => goods.find(good => good.name === name))
+      .filter((good): good is Good => Boolean(good))
+      .map(good => ({ [good.i]: 4 }));
+    if (JSON.stringify(driedFruits.recipes) !== JSON.stringify(recipes)) {
+      driedFruits.recipes = recipes;
+      changed = true;
+    }
+  }
+
+  const barrels = goods.find(good => good.name === "Barrels");
+  for (const [beverageName, fruitName] of [
+    ["Cider", "Apples"],
+    ["Perry", "Pears"]
+  ] as const) {
+    const beverage = goods.find(good => good.name === beverageName);
+    const fruit = goods.find(good => good.name === fruitName);
+    if (!beverage) continue;
+    if (!fruit || !barrels) {
+      // Do not retain a shipped-catalogue recipe with foreign Good ids when a
+      // deliberately minimal legacy catalogue lacks an input. A later pass
+      // rebuilds it once the required input has been restored.
+      if (beverage.recipes) {
+        delete beverage.recipes;
+        changed = true;
+      }
+      continue;
+    }
+    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, [barrels.i]: 0.08 }];
+    if (JSON.stringify(beverage.recipes) === JSON.stringify(recipes)) continue;
+    beverage.recipes = recipes;
     changed = true;
   }
   return changed;

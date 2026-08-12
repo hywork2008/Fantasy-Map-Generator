@@ -1,12 +1,21 @@
 import { sum } from "d3";
+import {
+  type CropCalendar,
+  classifyAgriculturalClimateZone,
+  classifySeasonRegion,
+  getCropCalendar,
+  type PlantingCohort,
+  SEASON_REGION_PROFILES
+} from "../../../data/cropCalendars";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
-import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
+import { getLatitude, rn } from "../../hostUtils";
 import {
   getCultivableArea,
   getCultivatedArea,
   getFoodPotential,
   getGoodCellColumn,
   getGoods,
+  getIrrigatedArea,
   getSimulationMonth,
   getWorldContext
 } from "../economyContext";
@@ -18,7 +27,7 @@ import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
-import { getGrapeHarvestOutput } from "./viticulture";
+import { getPerennialHarvestOutputs } from "./viticulture";
 import { getWoolOutput } from "./woolProduction";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
@@ -77,41 +86,59 @@ function getForestStockProductionMultiplier(good: Good, cellId: number): number 
   return getForestStockMultiplier(cellId);
 }
 
-/**
- * Per-season output multiplier for food-tagged goods (Grain, etc.) at full latitudinal
- * seasonality (high latitudes), modeling a real annual harvest cycle instead of a flat
- * year-round trickle: most of the year's yield lands at once in autumn, with fields largely
- * dormant the rest of the year. Averages to exactly 1 across the four seasons, so annual total
- * food production at high latitude is unchanged from the old always-1x baseline — only its
- * distribution across the year changes. This is what makes grain cheap right after harvest and
- * expensive in the lean season before the next one: the existing demand/stock price formula in
- * markets-generator.ts reacts to the resulting stock swing with no separate price-modifier code
- * needed (see docs/simulation/seasons.md).
- */
-const SEASONAL_FOOD_PRODUCTION_MULTIPLIER: Record<Season, number> = {
-  spring: 0.3,
-  summer: 0.3,
-  autumn: 3.0,
-  winter: 0.4
-};
+const cropCalendarCache = new Map<string, CropCalendar>();
+
+function getCalendarForGood(good: Good, cellId: number): CropCalendar | null {
+  const profile = good.crop?.calendar ?? good.perennialCrop?.calendar;
+  if (!profile) return null;
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  const point = cells.p[cellId];
+  const gridCellId = cells.g?.[cellId] ?? cellId;
+  if (!point || gridCellId < 0) return null;
+  const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
+  const temperature = world.grid.cells.temp?.[gridCellId] ?? 12;
+  const precipitation = world.grid.cells.prec?.[gridCellId] ?? 45;
+  const irrigated = (getIrrigatedArea()[cellId] ?? 0) > 0;
+  const region = classifySeasonRegion(latitude);
+  const zone = classifyAgriculturalClimateZone({
+    annualTemperatureC: temperature,
+    annualPrecipitation: precipitation,
+    irrigated
+  });
+  const cohort: PlantingCohort | undefined = profile.allowsPlantingCohorts
+    ? ((cellId % 3) as PlantingCohort)
+    : undefined;
+  const key = `${region}:${zone.id}:${good.i}:${cohort ?? "none"}`;
+  const cached = cropCalendarCache.get(key);
+  if (cached) return cached;
+  const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, profile, cohort);
+  cropCalendarCache.set(key, calendar);
+  return calendar;
+}
+
+/** Month weight for a crop or perennial harvest. Non-crops return null. */
+export function getCropHarvestWeight(good: Good, cellId: number, month: number): number | null {
+  const calendar = getCalendarForGood(good, cellId);
+  if (!calendar) return null;
+  return calendar.harvestWeights[Math.max(0, Math.min(11, Math.floor(month - 1)))] ?? 0;
+}
+
+/** Month weight for a crop or perennial labour requirement. Non-crops return null. */
+export function getCropLabourWeight(good: Good, cellId: number, month: number): number | null {
+  const calendar = getCalendarForGood(good, cellId);
+  if (!calendar) return null;
+  return calendar.labourWeights[Math.max(0, Math.min(11, Math.floor(month - 1)))] ?? 0;
+}
 
 /**
- * Blends the full-swing multiplier above toward a flat 1x baseline as latitude approaches the
- * equator (getSeasonalityStrength -> 0), since near-equatorial climates don't have the
- * temperate single-autumn-harvest cycle the table models. The blend is linear in the deviation
- * from 1, so the four-season average stays exactly 1 at every latitude, not just at the poles.
+ * Compatibility multiplier for production paths that express a good's amount as one normal
+ * month. Crop calendars are annual weights, hence the ×12 preserves annual output. Livestock,
+ * fish, and processed food deliberately remain outside crop harvest seasonality.
  */
 export function getSeasonalFoodProductionMultiplier(good: Good, cellId: number, month: number): number {
-  if (!good.tags.includes("food")) return 1;
-
-  const worldContext = getWorldContext();
-  const point = worldContext.pack.cells.p[cellId];
-  if (!point) return 1;
-
-  const latitude = getLatitude(point[1], worldContext.mapCoordinates, worldContext.graphHeight);
-  const season = getSeason(latitude, month);
-  const strength = getSeasonalityStrength(latitude);
-  return 1 + (SEASONAL_FOOD_PRODUCTION_MULTIPLIER[season] - 1) * strength;
+  const weight = getCropHarvestWeight(good, cellId, month);
+  return weight === null ? 1 : weight * 12;
 }
 
 function getSeasonalProductionMultiplier(good: Good, cellId: number): number {
@@ -187,13 +214,12 @@ export function getRuralProductionContributions(
     contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
   }
 
-  // Grapes (§5.3, Phase 4): area/labour-gated harvest (viticulture.ts), not a population x
-  // biomeOutputByTag rate — it carries no biomeOutputByTag at all, so it never appears in
-  // `biomeProduction` above. Mirrors Game's special-casing but as its own top-level lookup.
-  const grapesGood = getGoods().find(good => good.name === "Grapes");
-  if (grapesGood && isGoodEnabled(grapesGood) && !isMineSuppliedGoodName(grapesGood.name)) {
-    const amount = getGrapeHarvestOutput(cellId);
-    if (amount > 0) contributions.push({ goodId: grapesGood.i, amount: amount * getModifiers(grapesGood, cellId) });
+  // Vines and orchards are climate-, land-, and labour-gated. They intentionally carry no
+  // biomeOutputByTag, so an olive grove cannot appear merely because a cell is scrubland.
+  for (const output of getPerennialHarvestOutputs(cellId)) {
+    const good = Goods.get(output.goodId);
+    if (!good || !isGoodEnabled(good) || isMineSuppliedGoodName(good.name) || output.amount <= 0) continue;
+    contributions.push({ goodId: output.goodId, amount: output.amount * getModifiers(good, cellId) });
   }
 
   // Milk (docs/plan/fauna-biome-realism.md §3 Phase K): local dairy-headcount-driven harvest,
@@ -220,7 +246,13 @@ export function getRuralProductionContributions(
   const bonusGoodId = getGoodCellColumn()[cellId];
   if (bonusGoodId) {
     const good = Goods.get(bonusGoodId);
-    if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name) && good.name !== "Salt") {
+    if (
+      good &&
+      !good.perennialCrop &&
+      isGoodEnabled(good) &&
+      !isMineSuppliedGoodName(good.name) &&
+      good.name !== "Salt"
+    ) {
       let bonus = Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
       if (good.name === "Fish") bonus *= getFishingWorkerFactor(cellId);
       contributions.push({ goodId: bonusGoodId, amount: bonus * getModifiers(good, cellId) });

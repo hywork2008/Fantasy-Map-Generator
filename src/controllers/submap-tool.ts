@@ -65,9 +65,7 @@ function recalculateMapSize(x0: number, y0: number): void {
 
   const latT = worldContext.mapCoordinates.latT! / view.scale;
   const latN = getLatitude(y0, worldContext.mapCoordinates, worldContext.graphHeight);
-  let latShift = (90 - latN) / (180 - latT);
-  if (!Number.isFinite(latShift) || Number.isNaN(latShift)) latShift = 0.5;
-  const newLat = rn(latShift * 100, 2);
+  const newLat = rn(latN - latT / 2, 2);
   options.setOption("latitude", newLat);
 
   const lotT = worldContext.mapCoordinates.lonT! / view.scale;

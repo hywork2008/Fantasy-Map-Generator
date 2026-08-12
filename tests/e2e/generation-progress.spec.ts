@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { collectPageErrors, filterCriticalErrors, waitForMapGeneration } from "./helpers/fmg-helpers";
+import {
+  collectPageErrors,
+  filterCriticalErrors,
+  getMapCanvasSize,
+  getMapCoordinates,
+  getMapDistanceScale,
+  waitForMapGeneration
+} from "./helpers/fmg-helpers";
 
 async function getCoastlineSignature(page: import("@playwright/test").Page): Promise<string> {
   return page.locator("#featurePaths path").evaluateAll(paths =>
@@ -271,6 +278,70 @@ test("applies climate configuration when the climate stage is regenerated", asyn
   await updateWorld.click();
   await expect(page.locator("#biomes path").first()).toBeAttached();
   await expect.poll(() => pageErrors).toEqual([]);
+});
+
+test("updates the globe selection when applying a World Configurator preset", async ({ page }) => {
+  await page.goto("/?seed=world-configurator-presets&width=1280&height=720");
+
+  const buildMap = page.locator(".generation-progress-dialog");
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Climate and waterways");
+  await buildMap.getByRole("button", { name: "Open World Configurator", exact: true }).click();
+
+  const configurator = page.locator("#worldConfiguratorContainer");
+  const mapSizeInput = configurator.locator("#mapSizeInput");
+  const latitudeInput = configurator.locator("#latitudeInput");
+  const globeArea = configurator.locator("#globeArea");
+  await expect(mapSizeInput).toHaveValue("12.9");
+  await expect(latitudeInput).toHaveAttribute("min", "-90");
+  await expect(latitudeInput).toHaveAttribute("max", "90");
+  expect(Number(await latitudeInput.inputValue())).toBeGreaterThanOrEqual(-90);
+  expect(Number(await latitudeInput.inputValue())).toBeLessThanOrEqual(90);
+  await expect(configurator.locator("#temperatureEquatorInput")).toHaveValue("27");
+  await expect(configurator.locator("#temperatureNorthPoleInput")).toHaveValue("-18");
+  await expect(configurator.locator("#temperatureSouthPoleInput")).toHaveValue("-50");
+  const axialTiltInput = configurator.locator("#axialTiltInput");
+  await expect(axialTiltInput).toHaveValue("23.5");
+  await expect(axialTiltInput).toHaveAttribute("min", "0");
+  await expect(axialTiltInput).toHaveAttribute("max", "90");
+
+  const initialCoordinates = await getMapCoordinates(page);
+  const { width: graphWidth } = await getMapCanvasSize(page);
+  const distanceScale = await getMapDistanceScale(page);
+  expect(Math.abs((graphWidth * distanceScale * 360) / initialCoordinates.lonT! - 40_075)).toBeLessThan(100);
+
+  await mapSizeInput.fill("100");
+  await expect(mapSizeInput).toHaveValue("100");
+
+  const wholeWorldPath = await globeArea.getAttribute("d");
+  expect(wholeWorldPath).toBeTruthy();
+
+  let northernPath = "";
+  let northernScaleBarLabels = "";
+  for (const [preset, expectedLatitude] of [
+    ["Northern", 38.5],
+    ["Tropical", 0],
+    ["Southern", -38.5]
+  ] as const) {
+    await configurator.getByRole("button", { name: preset, exact: true }).click();
+    await expect(mapSizeInput).toHaveValue("12.9");
+    await expect(latitudeInput).toHaveValue(String(expectedLatitude));
+    const coordinates = await getMapCoordinates(page);
+    expect(coordinates.latT).toBe(26.1);
+    expect((coordinates.latN! + coordinates.latS!) / 2).toBeCloseTo(expectedLatitude, 0);
+    await expect.poll(() => globeArea.getAttribute("d")).not.toBe(wholeWorldPath);
+    if (preset === "Northern") {
+      northernPath = (await globeArea.getAttribute("d")) ?? "";
+      northernScaleBarLabels = (await page.locator("#scaleBarContent").allTextContents()).join("|");
+    }
+    if (preset === "Tropical") {
+      expect((await page.locator("#scaleBarContent").allTextContents()).join("|")).not.toBe(northernScaleBarLabels);
+    }
+  }
+
+  await configurator.getByRole("button", { name: "Whole world", exact: true }).click();
+  await expect(mapSizeInput).toHaveValue("100");
+  await expect.poll(() => globeArea.getAttribute("d")).not.toBe(northernPath);
 });
 
 test("preserves a newly generated landscape when climate is regenerated", async ({ page }) => {

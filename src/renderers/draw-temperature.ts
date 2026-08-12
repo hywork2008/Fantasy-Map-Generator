@@ -43,14 +43,18 @@ export const drawTemperature = (
 
   const { cells, vertices } = grid;
   const n = cells.i.length;
+  // seasonalTemp (temp + this month's seasonal offset) is preferred once the live simulation
+  // clock has produced it; falls back to the generation-time annual average otherwise (no
+  // simulation started yet, or an older save loaded before this field existed).
+  const temp = cells.seasonalTemp ?? cells.temp;
 
   const checkedCells = new Uint8Array(n);
   const addToChecked = (cellId: number) => {
     checkedCells[cellId] = 1;
   };
 
-  const minTemp = Number(min(cells.temp)) || 0;
-  const maxTemp = Number(max(cells.temp)) || 0;
+  const minTemp = Number(min(temp)) || 0;
+  const maxTemp = Number(max(temp)) || 0;
   const step = Math.max(Math.round(Math.abs(minTemp - maxTemp) / 5), 1);
 
   const isolines = range(minTemp + step, maxTemp, step);
@@ -58,14 +62,14 @@ export const drawTemperature = (
   const labels: [number, number, number][] = []; // store label coordinates
 
   for (const cellId of cells.i) {
-    const t = cells.temp[cellId];
+    const t = temp[cellId];
     if (checkedCells[cellId] || !isolines.includes(t) || !isGridCellInScope(focusScope, cellId)) continue;
 
     const startingVertex = findStart(cellId, t);
     if (!startingVertex) continue;
     checkedCells[cellId] = 1;
 
-    const ofSameType = (cellId: number) => cells.temp[cellId] >= t;
+    const ofSameType = (cellId: number) => temp[cellId] >= t;
     const chain = connectVertices({
       vertices,
       startingVertex,
@@ -116,7 +120,7 @@ export const drawTemperature = (
   // find cell with temp < isotherm and find vertex to start path detection
   function findStart(i: number, t: number): number | undefined {
     if (cells.b[i]) return cells.v[i].find((v: number) => vertices.c[v].some((c: number) => c >= n)); // map border cell
-    return cells.v[i][cells.c[i].findIndex((c: number) => cells.temp[c] < t || !cells.temp[c])];
+    return cells.v[i][cells.c[i].findIndex((c: number) => temp[c] < t || !temp[c])];
   }
 
   function addLabel(points: [number, number][], t: number): void {

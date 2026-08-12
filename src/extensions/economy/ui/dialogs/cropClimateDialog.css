@@ -118,6 +118,12 @@
   font-size: 0.8rem;
 }
 
+.crop-climate-metric__status {
+  margin: 0.28rem 0 0;
+  color: var(--text-light, #777);
+  font-size: 0.76rem;
+}
+
 .crop-climate-detail__swatch {
   width: 0.8rem;
   height: 2rem;

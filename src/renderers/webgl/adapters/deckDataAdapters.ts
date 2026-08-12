@@ -609,9 +609,13 @@ export function buildTemperaturePolygons(
   const tMax = 50;
   const tMin = -50;
   const delta = tMax - tMin;
+  // seasonalTemp (temp + this month's seasonal offset) is preferred once the live simulation
+  // clock has produced it; it falls back to the generation-time annual average otherwise (no
+  // simulation started yet, or an older save loaded before this field existed).
+  const temperatures = grid.cells.seasonalTemp ?? grid.cells.temp;
 
   return buildGridCellPolygons(worldContext, focusScope, "temperature", cellId => {
-    const temp = grid.cells.temp?.[cellId] ?? 0;
+    const temp = temperatures?.[cellId] ?? 0;
     const tNormalized = 1 - (temp - tMin) / delta;
     const hexColor = interpolateSpectral(Math.max(0, Math.min(1, tNormalized)));
     return colorToRgba(hexColor, "#999999", opacity);

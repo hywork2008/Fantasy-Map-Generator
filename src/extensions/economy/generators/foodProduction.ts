@@ -16,10 +16,12 @@ import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
 import type { FoodLedger, Market } from "./marketTypes";
+import { getCropHarvestWeight } from "./production-utils";
 import { markRetailInventoryDirty } from "./retailInventory";
 import {
   advanceStapleCropInventoryQuarterly,
   applyStapleCropStorageCap,
+  creditStapleCropHarvest,
   getStapleCropInventory,
   migrateLegacyGrainInventory,
   refreshLegacyFoodLedgerTotals
@@ -327,7 +329,25 @@ export class FoodProductionModule {
     market.marketTreasury = treasury;
   }
 
+  /**
+   * Compatibility entry point for old saves and focused callers. New simulation ticks use the
+   * monthly method below; both paths share the same producer calendars.
+   */
   generateQuarterlyLedger(quarterIndex: number) {
+    const safeQuarterIndex = Math.max(0, Math.min(3, Math.floor(quarterIndex % 4)));
+    this.generateLedger([safeQuarterIndex * 3 + 1, safeQuarterIndex * 3 + 2, safeQuarterIndex * 3 + 3], 3, true);
+  }
+
+  /** Adds one month's crop-specific harvest after that month's consumption settlement. */
+  generateMonthlyLedger(month: number) {
+    const safeMonth = Math.max(1, Math.min(12, Math.floor(month)));
+    // Age buckets retain their three-month bands for save compatibility; only the final month of
+    // each band advances them. Harvest itself is credited every month, so price and stock now
+    // follow monthly calendars without shrinking the legacy nine-month storage horizon.
+    this.generateLedger([safeMonth], 1, safeMonth % 3 === 0);
+  }
+
+  private generateLedger(months: readonly number[], periodMonths: number, advanceAgeBuckets: boolean): void {
     const pack = this.worldContext.pack;
     const markets = getMarkets();
     const marketCellColumn = getMarketCellColumn();
@@ -347,12 +367,6 @@ export class FoodProductionModule {
       foodPotential.length === pack.cells.i.length;
     const hasRuralHouseholdFoodStock = ruralHouseholdFoodStock.length === pack.cells.i.length;
 
-    const safeQuarterIndex = Math.max(0, Math.min(3, Math.floor(quarterIndex % 4)));
-    const quarterlyWeights = getGlobalQuarterlyFoodWeights({
-      mapCoordinates: this.worldContext.mapCoordinates,
-      climate: this.worldContext.options
-    });
-    const quarterWeight = quarterlyWeights[safeQuarterIndex];
     const stapleFoodGood = getStapleFoodGood();
     const cropGoods = getGoods().filter(good => Boolean(good.crop));
 
@@ -383,12 +397,25 @@ export class FoodProductionModule {
           annualHarvest = capacity * GROSS_FOOD_NEED * cultivation;
         }
 
-        const harvest = annualHarvest * quarterWeight;
         const cropMix = getCropMix(this.worldContext, cellId, cropGoods);
         // A modern catalogue must not turn an unsuitable field into anonymous
         // Grain. Legacy catalogues without crop profiles retain the aggregate
         // Food Ledger behavior until they are migrated.
         if (cropGoods.length > 0 && !cropMix.length) continue;
+
+        // Crop mix entries are annual shares. Their shared crop calendars determine when that
+        // annual field output reaches this Market, so a northern Wheat cell and an equatorial
+        // irrigated Millet cell no longer inherit one global quarterly profile.
+        const harvestWeight = cropMix.length
+          ? cropMix.reduce((total, entry) => {
+              const periodShare = months.reduce(
+                (sum, harvestMonth) => sum + (getCropHarvestWeight(entry.good, cellId, harvestMonth) ?? 0),
+                0
+              );
+              return total + entry.share * periodShare;
+            }, 0)
+          : periodMonths / 12;
+        const harvest = annualHarvest * harvestWeight;
 
         const hasCellHouseholdFoodStock =
           hasRuralHouseholdFoodStock && cellId >= 0 && cellId < ruralHouseholdFoodStock.length;
@@ -424,8 +451,8 @@ export class FoodProductionModule {
       const annualDemand = annualUrbanNeed;
 
       const foodProduced = rn(annualMarketFoodIntake, 2);
-      const ruralNeed = rn(annualRuralNeed * 0.25, 2);
-      const urbanNeed = rn(annualUrbanNeed * 0.25, 2);
+      const ruralNeed = rn((annualRuralNeed * periodMonths) / 12, 2);
+      const urbanNeed = rn((annualUrbanNeed * periodMonths) / 12, 2);
 
       if (!market.foodLedger) market.foodLedger = emptyFoodLedger();
       const ledger = market.foodLedger;
@@ -447,7 +474,9 @@ export class FoodProductionModule {
       if (trackedCropGoodIds.size > 0) {
         for (const goodId of trackedCropGoodIds) {
           const inventory = getStapleCropInventory(ledger, goodId);
-          advanceStapleCropInventoryQuarterly(inventory, cropWholesale.get(goodId) ?? 0, farmgateUnitCost);
+          const produced = cropWholesale.get(goodId) ?? 0;
+          if (advanceAgeBuckets) advanceStapleCropInventoryQuarterly(inventory, produced, farmgateUnitCost);
+          else creditStapleCropHarvest(ledger, goodId, produced, farmgateUnitCost);
         }
         applyStapleCropStorageCap(ledger, annualDemand * (STORAGE_CAP_MONTHS / 12));
         refreshLegacyFoodLedgerTotals(ledger);
@@ -461,7 +490,8 @@ export class FoodProductionModule {
           market.goods[goodId] = marketGood;
         }
       } else {
-        this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost);
+        if (advanceAgeBuckets) this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost);
+        else this.creditAggregateHarvest(ledger, foodProduced, farmgateUnitCost);
         this.applyStorageCap(ledger, annualDemand);
       }
 
@@ -486,6 +516,14 @@ export class FoodProductionModule {
     }
 
     resolveFoodImportNetwork(this.worldContext);
+  }
+
+  private creditAggregateHarvest(ledger: FoodLedger, units: number, unitCost: number): void {
+    if (!(units > 0)) return;
+    const previous = Math.max(0, ledger.foodStockAge0);
+    const next = previous + units;
+    ledger.foodStockAge0 = rn(next, 2);
+    ledger.foodStockAge0UnitCost = rn((previous * ledger.foodStockAge0UnitCost + units * unitCost) / next, 2);
   }
 }
 

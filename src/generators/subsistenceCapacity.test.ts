@@ -11,7 +11,7 @@ function createWorld(): WorldContext {
     grid: {
       cells: {
         temp: new Int8Array([14, -10, -6, -10, 8]),
-        prec: new Uint8Array([45, 8, 4, 35, 4])
+        prec: new Uint8Array([8, 8, 4, 35, 30])
       }
     },
     pack: {

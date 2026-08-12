@@ -10,6 +10,7 @@ import {
   getInitialSettlementPatternPreset,
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../data";
+import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import { parseRacePersonNameMapping, resolveRacePersonNameMapping } from "../data/racePersonNameConfig";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
@@ -558,6 +559,19 @@ export function applyStoredOptions(): void {
       loadedOptions.oikoumeneLandShare = 0.45;
     }
   }
+  const latitudeCoordinateVersionKey = "latitudeCoordinateVersion";
+  if (localStorage.getItem(latitudeCoordinateVersionKey) !== "1") {
+    if (typeof loadedOptions.latitude === "number") {
+      // loadedOptions.mapSize (if persisted) was already parsed by the loop above, so use
+      // it to reconstruct the legacy latitude span instead of assuming a zero-size map.
+      const legacyMapSize = typeof loadedOptions.mapSize === "number" ? loadedOptions.mapSize : undefined;
+      const geographicLatitude = convertLegacyLatitudeToGeographic(loadedOptions.latitude, legacyMapSize);
+      loadedOptions.latitude = geographicLatitude;
+      localStorage.setItem("latitude", String(geographicLatitude));
+    }
+    localStorage.setItem(latitudeCoordinateVersionKey, "1");
+  }
+
   optionsStore.setOptions(loadedOptions);
 
   // Remove stale heightExponent values that are outside the valid slider range (1–5).
@@ -580,6 +594,7 @@ export function applyStoredOptions(): void {
   if (stored("temperatureEquator")) worldContext.options.temperatureEquator = +stored("temperatureEquator")!;
   if (stored("temperatureNorthPole")) worldContext.options.temperatureNorthPole = +stored("temperatureNorthPole")!;
   if (stored("temperatureSouthPole")) worldContext.options.temperatureSouthPole = +stored("temperatureSouthPole")!;
+  if (stored("axialTilt")) worldContext.options.axialTilt = +stored("axialTilt")!;
   if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
   if (stored("gunpowderEraEnabled")) {
     worldContext.options.gunpowderEraEnabled = stored("gunpowderEraEnabled") === "true";
@@ -644,19 +659,6 @@ export function randomizeOptions(): void {
     useOptionsState.getState().setOptions({ cultures: Math.round(gauss(12, 3, 5, 30)) });
   if (randomize || !locked("culturesSet")) randomizeCultureSet();
   randomizeInitialSettlementOptions(randomize);
-
-  if (randomize || !locked("temperatureEquator")) worldContext.options.temperatureEquator = gauss(25, 7, 20, 35, 0);
-  if (randomize || !locked("temperatureNorthPole"))
-    worldContext.options.temperatureNorthPole = gauss(-25, 7, -40, 10, 0);
-  if (randomize || !locked("temperatureSouthPole"))
-    worldContext.options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
-  if (randomize || !locked("prec")) useOptionsState.getState().setOption("prec", Math.round(gauss(100, 40, 5, 500)));
-
-  if (randomize || !locked("distanceScale")) {
-    const dsv = gauss(3, 1, 1, 5);
-    useOptionsState.getState().setOption("distanceScale", dsv);
-    worldContext.distanceScale = dsv;
-  }
 
   generateEra();
 }

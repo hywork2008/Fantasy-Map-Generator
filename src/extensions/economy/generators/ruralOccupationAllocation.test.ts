@@ -96,6 +96,41 @@ describe("ruralOccupationAllocation", () => {
     expect(result.ruralReleasePressure[0]).toBeCloseTo(2, 5);
   });
 
+  it("combines a staple peak and routine fishing before calculating migration and records the unmet peak", () => {
+    worldContext.pack = {
+      cells: {
+        i: new Uint16Array([0]),
+        h: new Uint8Array([30]),
+        biomeCode: new Uint8Array([0]),
+        pop: new Float32Array([20]),
+        maleAdults: new Float32Array([2]),
+        femaleAdults: new Float32Array([0]),
+        c: [[]]
+      }
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [[]], habitability: [0] } as never;
+    setGoods([FISH_GOOD] as never);
+    setGoodCellColumn(new Uint16Array([1]));
+    const cropLaborDaysByMonth = new Float32Array(12);
+    cropLaborDaysByMonth[6] = 140 / 12; // one resident adult's cereal harvest month
+
+    const result = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth,
+      minimumCropLaborDaysByMonth: cropLaborDaysByMonth.slice(),
+      farmLaborRequired: new Float32Array([1]),
+      migratableAdults: new Float32Array([1])
+    });
+
+    // The fish crew can only take the remaining month-7 capacity. The annual surplus argument
+    // supplied by the legacy path is deliberately ignored by the calendar path.
+    expect(result.fishingRequiredWorkers[0]).toBeCloseTo(30, 5);
+    expect(result.fishingWorkers[0]).toBeCloseTo(1, 5);
+    expect(result.farmLaborRequired[0]).toBeCloseTo(2, 5);
+    expect(result.migratableAdults[0]).toBe(0);
+    expect(result.seasonalLaborShortage[6]).toBeGreaterThan(0);
+  });
+
   it("gates Grapes' harvest by the assigned/required viticulture workerFactor", () => {
     worldContext.pack = {
       cells: {
@@ -109,6 +144,7 @@ describe("ruralOccupationAllocation", () => {
     } as unknown as PackedGraph;
     worldContext.distanceScale = 1;
     worldContext.biomesData = biomesData({ 1: ["scrub"] }) as never;
+    worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([8]) } } as never;
     setGoods([GRAPES_GOOD] as never);
     setGoodCellColumn(new Uint16Array([0]));
 
@@ -172,6 +208,7 @@ describe("ruralOccupationAllocation", () => {
     } as unknown as PackedGraph;
     worldContext.distanceScale = 1;
     worldContext.biomesData = biomesData({ 1: ["scrub"], 0: [] }) as never;
+    worldContext.grid = { cells: { temp: new Int8Array([12, 12]), prec: new Uint8Array([8, 8]) } } as never;
     setGoods([FISH_GOOD, GRAPES_GOOD] as never);
     setGoodCellColumn(new Uint16Array([0, 1])); // cell 1 (water) holds the Fish slot
 

@@ -178,6 +178,81 @@ export async function getMapCanvasSize(page: Page): Promise<MapCanvasSize> {
   return page.evaluate(() => ({ width: window.fmg.world.graphWidth, height: window.fmg.world.graphHeight }));
 }
 
+/** Read the geographical extent currently assigned to the generated map. */
+export async function getMapCoordinates(page: Page): Promise<{
+  latT: number;
+  latN: number;
+  latS: number;
+  lonT: number;
+  lonW: number;
+  lonE: number;
+}> {
+  return page.evaluate(() => window.fmg.world.mapCoordinates);
+}
+
+/** Read the map's active real-world distance calibration. */
+export async function getMapDistanceScale(page: Page): Promise<number> {
+  return page.evaluate(() => window.fmg.world.distanceScale);
+}
+
+/** Read precipitation proxy values for the current land cells in stable grid-cell order. */
+export async function getLandPrecipitation(page: Page): Promise<number[]> {
+  return page.evaluate(() => {
+    const cells = window.fmg.world.grid.cells;
+    const values: number[] = [];
+    for (const cellId of cells.i) {
+      if ((cells.h[cellId] ?? 0) >= 20) values.push(cells.prec[cellId] ?? 0);
+    }
+    return values;
+  });
+}
+
+/** Read the live simulation calendar (year/month/day). */
+export async function getSimulationClock(
+  page: Page
+): Promise<{ currentYear: number; currentMonth: number; currentDay: number }> {
+  return page.evaluate(() => {
+    const { currentYear, currentMonth, currentDay } = window.fmg.simulation;
+    return { currentYear, currentMonth, currentDay };
+  });
+}
+
+/** Advance the live simulation clock by whole years via the public actions API. */
+export async function advanceSimulationYears(page: Page, years: number): Promise<void> {
+  await page.evaluate(y => window.fmg.actions.advanceTime(y), years);
+}
+
+/** Read the generation-time annual-average temperature grid (never live-season-adjusted). */
+export async function getGridAnnualAverageTemp(page: Page): Promise<number[]> {
+  return page.evaluate(() => Array.from(window.fmg.world.grid.cells.temp));
+}
+
+/** Read the live, seasonally-adjusted temperature grid, or null if not yet computed. */
+export async function getGridSeasonalTemp(page: Page): Promise<number[] | null> {
+  return page.evaluate(() => {
+    const seasonalTemp = window.fmg.world.grid.cells.seasonalTemp;
+    return seasonalTemp ? Array.from(seasonalTemp) : null;
+  });
+}
+
+/** Wait until a World Configurator climate update has changed the land precipitation field. */
+export async function waitForLandPrecipitationChange(page: Page, previous: readonly number[]): Promise<void> {
+  await page.waitForFunction(
+    prior => {
+      const cells = window.fmg.world.grid.cells;
+      let index = 0;
+      for (const cellId of cells.i) {
+        if ((cells.h[cellId] ?? 0) < 20) continue;
+        if ((cells.prec[cellId] ?? 0) !== prior[index]) return true;
+        index++;
+      }
+      return index !== prior.length;
+    },
+    previous,
+    { timeout: 10000 }
+  );
+}
+
 /** Read the sea-route topology currently persisted with the loaded map. */
 export async function getSeaRouteGenerationMode(page: Page): Promise<"legacy" | "augmented" | undefined> {
   return page.evaluate(() => {
