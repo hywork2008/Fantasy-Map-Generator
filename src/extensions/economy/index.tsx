@@ -94,6 +94,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migratePerennialFruitGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
@@ -1875,6 +1876,7 @@ export function init(api: ExtensionAPI): void {
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedGrapes = migrateGrapesGood();
+    const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
     const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
@@ -1890,6 +1892,7 @@ export function init(api: ExtensionAPI): void {
       migratedLiveCats ||
       migratedLiveDogs ||
       migratedGrapes ||
+      migratedPerennialFruits ||
       migratedRaisins ||
       migratedStapleCrops ||
       migratedWineRecipe ||
@@ -2469,6 +2472,7 @@ export function init(api: ExtensionAPI): void {
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedGrapes = migrateGrapesGood();
+    const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
     const migratedStapleCrops = migrateStapleCropGoods();
     const migratedWineRecipe = migrateWineRecipe();
@@ -2484,6 +2488,7 @@ export function init(api: ExtensionAPI): void {
       migratedLiveCats ||
       migratedLiveDogs ||
       migratedGrapes ||
+      migratedPerennialFruits ||
       migratedRaisins ||
       migratedStapleCrops ||
       migratedWineRecipe ||

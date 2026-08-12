@@ -21,6 +21,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migratePerennialFruitGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
@@ -317,11 +318,45 @@ describe("GoodsModule", () => {
     expect(migrateStapleCropGoods()).toBe(false);
   });
 
+  it("migrates orchard goods and replaces legacy olive biome production", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Olives",
+        tags: ["food"],
+        value: 3,
+        unit: "barrel",
+        icon: "good-olives",
+        color: "#BDBD7D",
+        chance: 3,
+        distribution: 'biomeTag("scrub")',
+        biomeOutputByTag: { scrub: 0.15, arable: 0.05 }
+      }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    const olives = getGoods().find(good => good.name === "Olives");
+    expect(olives?.perennialCrop?.kind).toBe("orchard");
+    expect(olives?.biomeOutputByTag).toBeUndefined();
+    expect(olives?.distribution).toBeUndefined();
+    expect(olives?.chance).toBe(0);
+    expect(getGoods().map(good => good.name)).toEqual(
+      expect.arrayContaining(["Apples", "Pears", "Plums", "Figs", "Lemons", "Dried Fruits"])
+    );
+    const driedFruits = getGoods().find(good => good.name === "Dried Fruits");
+    expect(driedFruits?.recipes).toHaveLength(4);
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
   it("defines Grapes as a harvested good with no biomeOutputByTag (docs/plan/biome-goods-producer-ecosystem.md §5.3)", () => {
     goodsModule.restoreDefaults();
 
     const grapes = getGoods().find(good => good.name === "Grapes");
-    expect(grapes).toMatchObject({ unit: "1,000 kg grape lot", tags: expect.arrayContaining(["food", "freshFood"]) });
+    expect(grapes).toMatchObject({
+      unit: "1,000 kg grape lot",
+      tags: expect.arrayContaining(["food", "freshFood", "perennialCrop"]),
+      perennialCrop: { kind: "vine" }
+    });
     expect(grapes?.biomeOutputByTag).toBeUndefined();
     expect(grapes?.biomeOutput).toBeUndefined();
   });

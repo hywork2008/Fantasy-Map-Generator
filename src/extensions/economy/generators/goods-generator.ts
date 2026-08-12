@@ -2,6 +2,7 @@ import Alea from "alea";
 import { color, shuffler } from "d3";
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import { getCoastalHabitatKey, getNearshoreHabitatKey } from "../../../data/coastalHabitatCatalog";
+import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
@@ -556,16 +557,15 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Olives",
     warEconomyType: "essential",
-    tags: ["food"],
+    tags: ["food", "perennialCrop"],
     icon: "good-olives",
     color: "#BDBD7D",
     value: 3,
-    chance: 3,
-    distribution: 'biomeTag("scrub") || biome(6) || (biome(4) && random(50) && river())',
+    chance: 0,
     unit: "barrel",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Generic: 0.8, Nomadic: 0.5 } },
-    biomeOutputByTag: { scrub: 0.15, arable: 0.05 }
+    perennialCrop: PERENNIAL_CROP_PROFILES.Olives
   },
   {
     name: "Honey",
@@ -2171,7 +2171,7 @@ export const GOODS_DATA: GoodData[] = [
     // kept only for the cosmetic one-time per-cell "bonus good" placement (same condition Wine used
     // to drive its own production with), purely a map-flavor label now.
     name: "Grapes",
-    tags: ["food", "freshFood"],
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
     icon: "good-wine",
     color: "#963e48",
     value: 2,
@@ -2182,7 +2182,73 @@ export const GOODS_DATA: GoodData[] = [
       householdDemandPerPopulationMonth: GRAPE_TARGETS.freshKilogramsPerPersonYear / 12,
       preservationLaborPerUnit: 0.06
     },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Grapes,
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
+  },
+  {
+    name: "Apples",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#bf4d3f",
+    value: 2.2,
+    chance: 0,
+    unit: "1,000 kg apple lot",
+    freshFood: { householdDemandPerPopulationMonth: 6 / 12 / 1000, preservationLaborPerUnit: 0.05 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Apples
+  },
+  {
+    name: "Pears",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#b8b947",
+    value: 2.4,
+    chance: 0,
+    unit: "1,000 kg pear lot",
+    freshFood: { householdDemandPerPopulationMonth: 3 / 12 / 1000, preservationLaborPerUnit: 0.055 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Pears
+  },
+  {
+    name: "Plums",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#6b407b",
+    value: 2.6,
+    chance: 0,
+    unit: "1,000 kg plum lot",
+    freshFood: { householdDemandPerPopulationMonth: 2 / 12 / 1000, preservationLaborPerUnit: 0.06 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Plums
+  },
+  {
+    name: "Figs",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#74503f",
+    value: 3,
+    chance: 0,
+    unit: "1,000 kg fig lot",
+    freshFood: { householdDemandPerPopulationMonth: 2 / 12 / 1000, preservationLaborPerUnit: 0.05 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Figs
+  },
+  {
+    name: "Lemons",
+    tags: ["food", "fruit", "freshFood", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#d9c94b",
+    value: 3.2,
+    chance: 0,
+    unit: "1,000 kg lemon lot",
+    freshFood: { householdDemandPerPopulationMonth: 1 / 12 / 1000, preservationLaborPerUnit: 0.045 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Lemons
+  },
+  {
+    name: "Dried Fruits",
+    tags: ["food", "preservative", "preservedFood"],
+    icon: "good-unknown",
+    color: "#965c35",
+    value: 14,
+    chance: 0,
+    recipes: [{ Apples: 4 }, { Pears: 4 }, { Plums: 4 }, { Figs: 4 }],
+    unit: "250 kg dried-fruit lot"
   },
   {
     // Dried grapes — a preserved good like Stockfish, produced by the existing generic recipe/craft
@@ -2720,6 +2786,62 @@ export function migrateStapleCropGoods(): boolean {
     crop.i = nextId++;
     goods.push(crop);
     changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Adds orchard goods to catalogues created before perennial horticulture and
+ * upgrades Olives from legacy biome production to the climate-driven path.
+ * Recipes use the saved catalogue's ids, never the shipped default ids.
+ */
+export function migratePerennialFruitGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+
+  for (const shipped of GOODS_DATA.filter(good => good.perennialCrop || good.name === "Dried Fruits")) {
+    const existing = goods.find(good => good.name === shipped.name);
+    if (!existing) {
+      const added = Goods.getDefaultGood(shipped.name);
+      if (!added) throw new Error(`${shipped.name} must be present in the shipped goods catalogue`);
+      added.i = nextId++;
+      goods.push(added);
+      changed = true;
+      continue;
+    }
+    if (shipped.perennialCrop && !existing.perennialCrop) {
+      existing.perennialCrop = shipped.perennialCrop;
+      changed = true;
+    }
+    if (shipped.perennialCrop && !existing.tags.includes("perennialCrop")) {
+      existing.tags.push("perennialCrop");
+      changed = true;
+    }
+    if (existing.name === "Olives") {
+      if (existing.biomeOutput || existing.biomeOutputByTag) {
+        delete existing.biomeOutput;
+        delete existing.biomeOutputByTag;
+        changed = true;
+      }
+      if (existing.distribution || existing.chance) {
+        delete existing.distribution;
+        existing.chance = 0;
+        changed = true;
+      }
+    }
+  }
+
+  const driedFruits = goods.find(good => good.name === "Dried Fruits");
+  if (driedFruits) {
+    const recipes = ["Apples", "Pears", "Plums", "Figs"]
+      .map(name => goods.find(good => good.name === name))
+      .filter((good): good is Good => Boolean(good))
+      .map(good => ({ [good.i]: 4 }));
+    if (JSON.stringify(driedFruits.recipes) !== JSON.stringify(recipes)) {
+      driedFruits.recipes = recipes;
+      changed = true;
+    }
   }
   return changed;
 }

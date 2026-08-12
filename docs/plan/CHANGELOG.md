@@ -2,6 +2,7 @@
 
 2026-08-12
 
+- docs/plan/perennial-fruit-crops.md
 - docs/plan/wine-pomace-distillation.md
 - docs/simulation/salt-logistics.md
 

@@ -18,7 +18,7 @@ import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
-import { getGrapeHarvestOutput } from "./viticulture";
+import { getPerennialHarvestOutputs } from "./viticulture";
 import { getWoolOutput } from "./woolProduction";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
@@ -187,13 +187,12 @@ export function getRuralProductionContributions(
     contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
   }
 
-  // Grapes (§5.3, Phase 4): area/labour-gated harvest (viticulture.ts), not a population x
-  // biomeOutputByTag rate — it carries no biomeOutputByTag at all, so it never appears in
-  // `biomeProduction` above. Mirrors Game's special-casing but as its own top-level lookup.
-  const grapesGood = getGoods().find(good => good.name === "Grapes");
-  if (grapesGood && isGoodEnabled(grapesGood) && !isMineSuppliedGoodName(grapesGood.name)) {
-    const amount = getGrapeHarvestOutput(cellId);
-    if (amount > 0) contributions.push({ goodId: grapesGood.i, amount: amount * getModifiers(grapesGood, cellId) });
+  // Vines and orchards are climate-, land-, and labour-gated. They intentionally carry no
+  // biomeOutputByTag, so an olive grove cannot appear merely because a cell is scrubland.
+  for (const output of getPerennialHarvestOutputs(cellId)) {
+    const good = Goods.get(output.goodId);
+    if (!good || !isGoodEnabled(good) || isMineSuppliedGoodName(good.name) || output.amount <= 0) continue;
+    contributions.push({ goodId: output.goodId, amount: output.amount * getModifiers(good, cellId) });
   }
 
   // Milk (docs/plan/fauna-biome-realism.md §3 Phase K): local dairy-headcount-driven harvest,

@@ -7,24 +7,31 @@ import {
   getIrrigationWaterStress,
   getRiverResidualFlow
 } from "../../economyContext";
-import type { CropProfile, Good } from "../../generators/goods-generator";
+import type { Good } from "../../generators/goods-generator";
 import "./cropClimateDialog.css";
 
 type ClimateMetric = "temperature" | "precipitation";
 type DialogTab = "detail" | "compare";
+type ClimateCropProfile = NonNullable<Good["crop"]> | NonNullable<Good["perennialCrop"]>;
 
 const METRIC_LABEL: Record<ClimateMetric, string> = {
   temperature: "Temperature",
   precipitation: "Precipitation"
 };
 
-function getRange(crop: CropProfile, metric: ClimateMetric) {
+function getClimateProfile(good: Good): ClimateCropProfile | undefined {
+  return good.crop ?? good.perennialCrop;
+}
+
+function getRange(crop: ClimateCropProfile, metric: ClimateMetric) {
   return crop[metric];
 }
 
 function getDomain(crops: readonly Good[], metric: ClimateMetric, cellValue: number | null): [number, number] {
   const values = crops.flatMap(good => {
-    const range = getRange(good.crop!, metric);
+    const profile = getClimateProfile(good);
+    if (!profile) return [];
+    const range = getRange(profile, metric);
     return [range.min, range.max];
   });
   if (cellValue !== null) values.push(cellValue);
@@ -40,7 +47,7 @@ function rangePosition(value: number, domain: readonly [number, number]): number
 }
 
 const ClimateRangeBar: React.FC<{
-  crop: CropProfile;
+  crop: ClimateCropProfile;
   metric: ClimateMetric;
   domain: readonly [number, number];
   cellValue: number | null;
@@ -91,10 +98,19 @@ const CropDetail: React.FC<{
   cellPrecipitation: number | null;
   crops: readonly Good[];
 }> = ({ good, cellTemperature, cellPrecipitation, crops }) => {
-  const crop = good.crop!;
+  const crop = getClimateProfile(good)!;
   const temperatureDomain = getDomain(crops, "temperature", cellTemperature);
   const precipitationDomain = getDomain(crops, "precipitation", cellPrecipitation);
-  const kindLabel = crop.kind === "cereal" ? "Cereal" : crop.kind === "legume" ? "Legume" : "Root crop";
+  const kindLabel =
+    crop.kind === "cereal"
+      ? "Cereal"
+      : crop.kind === "legume"
+        ? "Legume"
+        : crop.kind === "tuber"
+          ? "Root crop"
+          : crop.kind === "vine"
+            ? "Vine"
+            : "Orchard fruit";
 
   return (
     <section className="crop-climate-detail">
@@ -140,7 +156,7 @@ const CropDetail: React.FC<{
 };
 
 const ClimateMetricPanel: React.FC<{
-  crop: CropProfile;
+  crop: ClimateCropProfile;
   metric: ClimateMetric;
   domain: readonly [number, number];
   cellValue: number | null;
@@ -201,7 +217,7 @@ const CropComparison: React.FC<{
               {good.name}
             </span>
             <ClimateRangeBar
-              crop={good.crop!}
+              crop={getClimateProfile(good)!}
               metric={metric}
               domain={domain}
               cellValue={cellValue}
@@ -271,7 +287,7 @@ const IrrigationSummary: React.FC<{ cellId: number | null; precipitation: number
 export const CropClimateDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("cropClimate"));
   const { cellId, temperature, precipitation } = useCellInfoState();
-  const crops = getGoods().filter(good => Boolean(good.crop));
+  const crops = getGoods().filter(good => Boolean(getClimateProfile(good)));
   const [tab, setTab] = React.useState<DialogTab>("detail");
   const [metric, setMetric] = React.useState<ClimateMetric>("temperature");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);

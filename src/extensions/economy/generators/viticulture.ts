@@ -1,35 +1,21 @@
 /**
- * Viticulture — docs/plan/biome-goods-producer-ecosystem.md §5.3 (Phase 4).
- *
- * Grain-style area/yield/labour harvest model for Grapes, replacing Phase 1's population x rate
- * "viticulture" allocator candidate that used to size Wine directly (production-utils.ts's old
- * `if (good.name === "Wine") amount *= getViticultureWorkerFactor(cellId)` branch). Wine and
- * Raisins are now pure Burg-craft recipe goods (`{ Grapes, Barrels }` / `{ Grapes }`) consuming
- * harvested Grapes through the existing generic runWorkerLoop + craft-sector pipeline — no new
- * processing-stage code is needed for them (§5.3's "加工段階" note, mirroring Fish->Stockfish's
- * "zero new work" precedent — see §0's 2026-08-06 §5.2 事実誤認訂正 entry).
- *
- * `getViticultureWorkerFactor()` / `viticultureWorkers` / `viticultureRequiredWorkers`
- * (economyContext.ts) keep their Phase 1 names — only what feeds them (this module's area/labour
- * model, instead of a flat population x biomeOutputByTag rate) and what they gate (Grapes, instead
- * of Wine directly in production-utils.ts) change. This module now owns `getViticultureWorkerFactor`
- * itself (moved out of ruralOccupationAllocation.ts), mirroring husbandry.ts's precedent of owning
- * its own workerFactor getter since it needs it internally too.
- *
- * Unlike husbandry.ts's carrying capacity (a standing headcount ceiling), Grapes is a pure monthly
- * flow with no separate stock — so there's no analog of husbandry's "capacity" layer here, only a
- * labour-gated harvest rate. The vineyard's land-suitability ceiling is real
- * (calculateVineyardCeilingAreaHectares), but how much of it a settlement actually tries to work is
- * bounded by a population-scaled "desired area" (mirroring Grain's cultivableArea-vs-cultivatedArea
- * split) — without this second bound, a large vineyard-suitable cell with a tiny population would
- * demand an unrealistically huge workforce untethered from any actual local demand for grapes.
+ * Perennial horticulture. The historic filename and public viticulture exports
+ * remain because the economy slice already persists the associated labour
+ * columns under those names. Vines and orchards now share one climate-first,
+ * land- and labour-gated production path.
  */
 
-import type { BiomeTag } from "../../../types/biome";
+import {
+  getPerennialCropSuitability,
+  PERENNIAL_CROP_PROFILES,
+  type PerennialCropProfile
+} from "../../../data/perennialCrops";
 import type { WorldContext } from "../../hostCore";
 import {
   getCultivatedArea,
   getGoods,
+  getIrrigatedArea,
+  getIrrigationDeliveredWater,
   getViticultureRequiredWorkers,
   getViticultureWorkers,
   getWorldContext
@@ -38,128 +24,141 @@ import {
   calculateBurgBuiltAreaHectares,
   calculatePhysicalAreaHectares,
   calculateTerrainWorkableShare,
+  getCellSoilType,
   WORKABLE_DAYS_PER_ADULT
 } from "./agriculturalLandUse";
-import { isGoodEnabled } from "./goods-generator";
+import { type Good, isGoodEnabled } from "./goods-generator";
+import { getPastureAreaUsedHectares } from "./husbandry";
 
-// ---- Placeholder constants (calibration TBD, §9.3 policy) ----
-
-/**
- * Vineyard land-suitability ceiling by biome tag. `scrub` is the Mediterranean-climate proxy
- * (Wine's pre-Phase-4 distribution's primary `biomeTag("scrub")` clause); arable/grassland are
- * minor secondary support (its `biome(4) && random(50) && river()` clause). Narrower than Grain's
- * own ceiling table (§5.3: "稀少な土地利用という前提") and, unlike husbandry.ts's pasture, has no
- * marginal default fallback — grapes need real climate suitability, not "any leftover land."
- */
-const VINEYARD_BIOME_TAG_CEILING: Partial<Record<BiomeTag, number>> = {
-  scrub: 0.5,
-  arable: 0.15,
-  grassland: 0.1
-};
-
-/**
- * Hectares of vineyard one REAL resident's worth of local demand (consumption + tradeable surplus)
- * could realistically keep worked — mirrors Grain's population-driven requiredArea, since Grapes has
- * no staple-food need equation to derive one from directly. Per actual person, not per raw `cells.pop`
- * unit — see husbandry.ts's `HUSBANDRY_LAND_HECTARES_PER_PERSON` doc-comment for the population-point
- * vs. real-person distinction this mirrors. Confirmed 2026-08-07 via the same
- * `docs/plan/fauna-biome-realism.md` labour-scarcity investigation that this module has the identical
- * bug husbandry.ts did: `cells.pop[cellId]` is a "population point" (`populationRate` was 1000 on a
- * real generated map, `cells.pop` typically 1-20 per cell), so a raw-point-based desiredArea was on
- * the order of a few hectares per cell rather than a few thousand, rounding `requiredWorkers` down to
- * near-zero and starving Grapes/Wine of any labour allocation.
- */
-// 0.04 ha × 360 kg/ha/year ≈ 14.4 kg/person/year. This covers the explicit regional Wine,
-// fresh-Grape, and Raisin targets with a modest processing/spoilage margin; the former 0.5 ha
-// contract produced about 180 kg/person/year and guaranteed structural surplus.
-const VINEYARD_AREA_HECTARES_PER_PERSON = 0.04;
-/** Grape yield, `Grapes`-unit output per hectare per month at full staffing. */
-export const GRAPE_YIELD_PER_HECTARE_PER_MONTH = 0.03;
-/**
- * Labour days per hectare for grape-growing — lower than Grain's LABOUR_DAYS_PER_HECTARE(30):
- * fruit crops don't concentrate annual labour the way grain's plant/harvest cycle does (§5.3).
- */
-export const VINEYARD_LABOUR_DAYS_PER_HECTARE = 20;
-/** River-adjacent vineyards get a modest yield bonus, echoing the old distribution's `river()` clause. */
-const RIVER_YIELD_BONUS = 1.1;
+export const GRAPE_YIELD_PER_HECTARE_PER_MONTH = PERENNIAL_CROP_PROFILES.Grapes.yieldLotsPerHectarePerMonth;
 
 export interface ViticultureDemand {
   readonly requiredWorkers: number;
   readonly value: number;
 }
 
-function calculateVineyardCeilingAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
+export interface PerennialCropMixEntry {
+  readonly good: Good;
+  readonly profile: PerennialCropProfile;
+  readonly suitability: number;
+  readonly areaHectares: number;
+}
+
+function getPerennialProfile(good: Good): PerennialCropProfile | undefined {
+  // The name fallback lets pre-migration Grapes participate as soon as the
+  // feature is loaded, and preserves compatibility with focused unit fixtures.
+  return good.perennialCrop ?? PERENNIAL_CROP_PROFILES[good.name as keyof typeof PERENNIAL_CROP_PROFILES];
+}
+
+function getPerennialCandidates(world: Readonly<WorldContext>, cellId: number): PerennialCropMixEntry[] {
   const cells = world.pack.cells;
-  const physicalHectares = calculatePhysicalAreaHectares(world, cellId);
-  if (physicalHectares <= 0) return 0;
-
+  if ((cells.h[cellId] ?? 0) < 20) return [];
   const biomeCode = cells.biomeCode[cellId] ?? 0;
-  const habitability = Math.max(0, world.biomesData.habitability[biomeCode] ?? 0);
-  if (habitability <= 0) return 0;
+  if ((world.biomesData.habitability?.[biomeCode] ?? 0) <= 0) return [];
 
-  const cultivated = getCultivatedArea()[cellId] ?? 0;
-  const burgArea = calculateBurgBuiltAreaHectares(world, cellId);
-  const unclaimedArea = Math.max(0, physicalHectares - cultivated - burgArea);
-  if (unclaimedArea <= 0) return 0;
-
-  const tags = world.biomesData.tags?.[biomeCode] ?? [];
-  const ceiling = tags.reduce((max, tag) => Math.max(max, VINEYARD_BIOME_TAG_CEILING[tag] ?? 0), 0);
-  if (ceiling <= 0) return 0;
+  const gridCellId = cells.g?.[cellId] ?? cellId;
+  const temperature = world.grid?.cells?.temp?.[gridCellId] ?? 12;
+  const precipitation = world.grid?.cells?.prec?.[gridCellId] ?? 45;
+  const soil = getCellSoilType(world, cellId);
+  const irrigatedArea = getIrrigatedArea()[cellId] ?? 0;
+  const irrigationSupplement = irrigatedArea > 0 ? (getIrrigationDeliveredWater()[cellId] ?? 0) / irrigatedArea : 0;
+  const physicalHectares = calculatePhysicalAreaHectares(world, cellId);
+  const unclaimedArea = Math.max(
+    0,
+    physicalHectares -
+      (getCultivatedArea()[cellId] ?? 0) -
+      getPastureAreaUsedHectares(cellId) -
+      calculateBurgBuiltAreaHectares(world, cellId)
+  );
+  if (unclaimedArea <= 0) return [];
 
   const terrainShare = calculateTerrainWorkableShare(cells.h[cellId] ?? 0);
-  return unclaimedArea * terrainShare * ceiling;
-}
+  const realPopulation = Math.max(0, cells.pop[cellId] ?? 0) * Math.max(1, world.populationRate || 1);
+  if (realPopulation <= 0) return [];
 
-/** The land-suitability ceiling clamped by population-scaled local demand (see module doc-comment). */
-function calculateDesiredVineyardAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
-  const ceiling = calculateVineyardCeilingAreaHectares(world, cellId);
-  if (ceiling <= 0) return 0;
-  const populationPoints = Math.max(0, world.pack.cells.pop[cellId] ?? 0);
-  const realPopulation = populationPoints * Math.max(1, world.populationRate || 1);
-  return Math.min(ceiling, realPopulation * VINEYARD_AREA_HECTARES_PER_PERSON);
+  const candidates: PerennialCropMixEntry[] = [];
+  for (const good of getGoods()) {
+    if (!isGoodEnabled(good)) continue;
+    const profile = getPerennialProfile(good);
+    if (!profile) continue;
+    const suitability = getPerennialCropSuitability(profile, temperature, precipitation, soil, irrigationSupplement);
+    if (suitability <= 0.1) continue;
+    const ceiling = unclaimedArea * terrainShare * profile.maximumLandShare * suitability;
+    const desired = Math.min(ceiling, realPopulation * profile.areaHectaresPerPerson);
+    if (desired > 0) candidates.push({ good, profile, suitability, areaHectares: desired });
+  }
+  return candidates;
 }
 
 /**
- * Grape-growing labour demand at `cellId` — called from ruralOccupationAllocation.ts's per-cell
- * greedy loop, where `world` is already in scope.
+ * One dominant perennial crop represents a cell's managed orchard/vineyard.
+ * This avoids overlapping every climate-compatible orchard on the same land;
+ * a stable tiny tie-break keeps neighbouring viable regions varied.
  */
+export function getPerennialCropMix(world: Readonly<WorldContext>, cellId: number): readonly PerennialCropMixEntry[] {
+  const candidates = getPerennialCandidates(world, cellId);
+  if (!candidates.length) return [];
+  const selected = candidates.slice(1).reduce<PerennialCropMixEntry>((best, candidate) => {
+    const candidateScore =
+      candidate.suitability * candidate.good.value + stablePerennialNoise(cellId, candidate.good.i);
+    const bestScore = best.suitability * best.good.value + stablePerennialNoise(cellId, best.good.i);
+    return candidateScore > bestScore ? candidate : best;
+  }, candidates[0]);
+  return [selected];
+}
+
+function stablePerennialNoise(cellId: number, goodId: number): number {
+  let hash = (cellId + 1) * 1103515245 + (goodId + 1) * 12345;
+  hash = (hash ^ (hash >>> 16)) * 2246822519;
+  return (((hash ^ (hash >>> 13)) >>> 0) / 0xffffffff) * 0.02;
+}
+
 export function calculateViticultureDemand(world: Readonly<WorldContext>, cellId: number): ViticultureDemand {
-  const grapesGood = getGoods().find(good => good.name === "Grapes");
-  if (!grapesGood || !isGoodEnabled(grapesGood)) return { requiredWorkers: 0, value: 0 };
-
-  const desiredArea = calculateDesiredVineyardAreaHectares(world, cellId);
-  if (desiredArea <= 0) return { requiredWorkers: 0, value: 0 };
-
-  const requiredWorkers = (desiredArea * VINEYARD_LABOUR_DAYS_PER_HECTARE) / WORKABLE_DAYS_PER_ADULT;
-  return { requiredWorkers, value: grapesGood.value };
+  const mix = getPerennialCropMix(world, cellId);
+  if (!mix.length) return { requiredWorkers: 0, value: 0 };
+  const requiredWorkers = mix.reduce(
+    (total, entry) => total + (entry.areaHectares * entry.profile.laborDaysPerHectare) / WORKABLE_DAYS_PER_ADULT,
+    0
+  );
+  const value =
+    mix.reduce((total, entry) => total + entry.good.value * entry.areaHectares, 0) /
+    Math.max(
+      1e-6,
+      mix.reduce((total, entry) => total + entry.areaHectares, 0)
+    );
+  return { requiredWorkers, value };
 }
 
-/**
- * 0..1 labour-sufficiency ratio gating Grapes' harvest at `cellId` (Phase 1's Wine-gating function,
- * moved here and repurposed — husbandry.ts's getHusbandryWorkerFactor is the sibling pattern).
- */
 export function getViticultureWorkerFactor(cellId: number): number {
   const required = getViticultureRequiredWorkers()[cellId] ?? 0;
   if (required <= 0) return 0;
-  const assigned = getViticultureWorkers()[cellId] ?? 0;
-  return Math.min(1, assigned / required);
+  return Math.min(1, (getViticultureWorkers()[cellId] ?? 0) / required);
 }
 
-/**
- * Actual vineyard footprint at `cellId`: the population-bounded desired area scaled by labour
- * sufficiency. Used by faunaPopulation.ts's wildHabitatArea subtraction (§4.2).
- */
+/** Total orchard and vineyard area currently maintained at this cell. */
 export function getVineyardAreaUsedHectares(cellId: number): number {
-  const world = getWorldContext();
-  const desiredArea = calculateDesiredVineyardAreaHectares(world, cellId);
-  if (desiredArea <= 0) return 0;
-  return desiredArea * getViticultureWorkerFactor(cellId);
+  const mix = getPerennialCropMix(getWorldContext(), cellId);
+  return mix.reduce((total, entry) => total + entry.areaHectares, 0) * getViticultureWorkerFactor(cellId);
 }
 
-/** Grapes' monthly harvest output (pre-modifier) at `cellId`. */
+export function getPerennialHarvestOutputs(cellId: number): readonly { goodId: number; amount: number }[] {
+  const workerFactor = getViticultureWorkerFactor(cellId);
+  if (workerFactor <= 0) return [];
+  const world = getWorldContext();
+  return getPerennialCropMix(world, cellId).map(entry => {
+    // Retain the established minor river bonus for vineyards only; it is a
+    // yield modifier, never a climate or biome eligibility shortcut.
+    const riverBonus = entry.good.name === "Grapes" && world.pack.cells.r?.[cellId] ? 1.1 : 1;
+    return {
+      goodId: entry.good.i,
+      amount: entry.areaHectares * workerFactor * entry.profile.yieldLotsPerHectarePerMonth * riverBonus
+    };
+  });
+}
+
+/** Compatibility wrapper retained for callers and tests that display grapes specifically. */
 export function getGrapeHarvestOutput(cellId: number): number {
-  const areaUsed = getVineyardAreaUsedHectares(cellId);
-  if (areaUsed <= 0) return 0;
-  const river = getWorldContext().pack.cells.r?.[cellId] ? RIVER_YIELD_BONUS : 1;
-  return areaUsed * GRAPE_YIELD_PER_HECTARE_PER_MONTH * river;
+  const grapes = getGoods().find(good => good.name === "Grapes");
+  if (!grapes) return 0;
+  return getPerennialHarvestOutputs(cellId).find(output => output.goodId === grapes.i)?.amount ?? 0;
 }

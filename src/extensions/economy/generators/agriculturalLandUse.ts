@@ -716,7 +716,7 @@ function getCropWaterTarget(
 
 export function getCellSoilType(world: Readonly<WorldContext>, cellId: number): SoilType {
   const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
-  if (world.pack.cells.r[cellId]) return "alluvial";
+  if (world.pack.cells.r?.[cellId]) return "alluvial";
   if (tags.includes("wetland")) return "clay";
   if (tags.includes("forest")) return "humus";
   if (tags.includes("desert")) return "sandy";
