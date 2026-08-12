@@ -43,6 +43,8 @@
 
 ## 3. 農業と穀物価格の季節サイクル（`src/extensions/economy/`）
 
+> **移行予定（2026-08-12）**: この節の `food` タグ一律の季節曲線は現在の暫定実装である。主食 Food Ledger の地図全体四半期補正とは別系統であり、果樹・家畜まで同じ秋収穫曲線を受け得る。両者を、赤道横断地図にも対応する少数の季節地域とセルの農業気候ゾーン別・作物別・必要な作付コホート別の月次作物暦へ統合する。セル別の月次気候再計算は行わず、`seasonRegion × zone × crop × cohort` の暦キャッシュを参照する。詳細は [季節別作物暦・農繁期・混合農業労働](../plan/seasonal-crop-calendars.md) を参照。
+
 戦時の影響は、生産量や一律の飢餓死亡ではなく、実際に進行中の紛争による市場の食料価格上昇として扱う。
 
 - `src/extensions/economy/generators/production-utils.ts` の `getCellProduction()` 内、既存の

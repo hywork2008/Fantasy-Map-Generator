@@ -34,6 +34,12 @@ ECOCROP is appropriate as a first-pass source because its records include minimu
 
 Adding monthly climate, chilling hours, late-frost damage, and seasonal rain timing is explicitly out of scope for this pass.
 
+## Follow-up: seasonal harvest and labour calibration
+
+The present `laborDaysPerHectare` values are annual placeholders. They do not yet distinguish pruning, irrigation, canopy management, harvest, drying, or pressing, and they must not be read as a verified medieval labour ratio. The first orchard pass deliberately keeps annual output stable while climate placement is verified.
+
+The follow-up is specified in [季節別作物暦・農繁期・混合農業労働](seasonal-crop-calendars.md). It will give each perennial crop an evidence-backed monthly harvest window and labour profile, keep perennial crops at one harvest per year unless a crop-specific source supports more, and combine those monthly demands with husbandry rather than applying a universal labour-sharing discount. Until then, the annual values remain compatibility parameters, not historical claims.
+
 ## Architecture
 
 `PerennialCropProfile` is separate from `StapleCropProfile`.
