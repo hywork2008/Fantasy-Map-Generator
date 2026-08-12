@@ -253,6 +253,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
     useOptionsState.getState().setOption("latitude", latShift);
     useWorldConfiguratorFormStore.getState().setMapSize(size);
     useWorldConfiguratorFormStore.getState().setLatitude(latShift);
+    // Preset buttons update the same coordinates as the inputs, so redraw the
+    // globe selection immediately instead of waiting for a later input event.
+    updateGlobePosition();
     lock("mapSize");
     lock("latitude");
     if (autoChange) applyWorldUpdate();

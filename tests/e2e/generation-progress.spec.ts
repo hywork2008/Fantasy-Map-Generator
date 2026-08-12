@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { collectPageErrors, filterCriticalErrors, waitForMapGeneration } from "./helpers/fmg-helpers";
+import { collectPageErrors, filterCriticalErrors, getMapCoordinates, waitForMapGeneration } from "./helpers/fmg-helpers";
 
 async function getCoastlineSignature(page: import("@playwright/test").Page): Promise<string> {
   return page.locator("#featurePaths path").evaluateAll(paths =>
@@ -271,6 +271,37 @@ test("applies climate configuration when the climate stage is regenerated", asyn
   await updateWorld.click();
   await expect(page.locator("#biomes path").first()).toBeAttached();
   await expect.poll(() => pageErrors).toEqual([]);
+});
+
+test("updates the globe selection when applying a World Configurator preset", async ({ page }) => {
+  await page.goto("/?seed=world-configurator-presets&width=1280&height=720");
+
+  const buildMap = page.locator(".generation-progress-dialog");
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Climate and waterways");
+  await buildMap.getByRole("button", { name: "Open World Configurator", exact: true }).click();
+
+  const configurator = page.locator("#worldConfiguratorContainer");
+  const mapSizeInput = configurator.locator("#mapSizeInput");
+  const globeArea = configurator.locator("#globeArea");
+  await mapSizeInput.fill("100");
+  await expect(mapSizeInput).toHaveValue("100");
+
+  const wholeWorldPath = await globeArea.getAttribute("d");
+  expect(wholeWorldPath).toBeTruthy();
+
+  let northernPath = "";
+  for (const preset of ["Northern", "Tropical", "Southern"]) {
+    await configurator.getByRole("button", { name: preset, exact: true }).click();
+    await expect(mapSizeInput).toHaveValue("33");
+    expect((await getMapCoordinates(page)).latT).toBe(59.4);
+    await expect.poll(() => globeArea.getAttribute("d")).not.toBe(wholeWorldPath);
+    if (preset === "Northern") northernPath = (await globeArea.getAttribute("d")) ?? "";
+  }
+
+  await configurator.getByRole("button", { name: "Whole world", exact: true }).click();
+  await expect(mapSizeInput).toHaveValue("100");
+  await expect.poll(() => globeArea.getAttribute("d")).not.toBe(northernPath);
 });
 
 test("preserves a newly generated landscape when climate is regenerated", async ({ page }) => {

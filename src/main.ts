@@ -371,6 +371,11 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     viewContext.legend.node()?.addEventListener("click", () => EditorBus.clearLegend());
   }
 
+  // World Configurator is available during staged generation, before
+  // checkLoadParameters resolves. Register this handler first so coordinate
+  // changes update both the map data and the globe preview at that point.
+  registerWorldRecalculateHandler();
+
   if (!location.hostname) {
     openAlert(
       `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`,
@@ -385,30 +390,6 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
   initTourPromptButton();
   document.addEventListener("fmg:regenerate-map", (e: Event) => {
     regenerateMap((e as CustomEvent<{ seed?: string } | undefined>).detail);
-  });
-  document.addEventListener("fmg:world-recalculate", (e: Event) => {
-    const { coords, temps, prec, currents, biomes } = (
-      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; currents?: boolean; biomes?: boolean }>
-    ).detail;
-    if (coords) calculateMapCoordinates();
-    if (temps) calculateTemperatures();
-    if (prec) generatePrecipitation();
-    if (currents) {
-      // Live recompute (not a full generation): use the lower iteration tier for responsiveness
-      // (see FluidSolverConstants.ITERATIONS_LIVE_RECOMPUTE).
-      OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState(), "live");
-      Features.applyOceanCurrentEnclosure();
-    }
-    if (biomes) {
-      legacyMutation(() => {
-        Biomes.define(getWorldState());
-        return { result: undefined, topics: ["map.physical"] };
-      });
-
-      if (viewContext.renderMap && viewContext.renderMode === "svg" && layerIsOn("toggleBiomes")) {
-        BiomesRenderer.render(worldContext, viewContext, appServices);
-      }
-    }
   });
   document.addEventListener("fmg:invoke-active-zooming", invokeActiveZooming);
   document.addEventListener("fmg:fit-map-view", fitMapView);
@@ -432,6 +413,33 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (!viewContext.renderMap) return;
     fitMapToScreen();
     fitMapView();
+  });
+}
+
+function registerWorldRecalculateHandler(): void {
+  document.addEventListener("fmg:world-recalculate", (e: Event) => {
+    const { coords, temps, prec, currents, biomes } = (
+      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; currents?: boolean; biomes?: boolean }>
+    ).detail;
+    if (coords) calculateMapCoordinates();
+    if (temps) calculateTemperatures();
+    if (prec) generatePrecipitation();
+    if (currents) {
+      // Live recompute (not a full generation): use the lower iteration tier for responsiveness
+      // (see FluidSolverConstants.ITERATIONS_LIVE_RECOMPUTE).
+      OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState(), "live");
+      Features.applyOceanCurrentEnclosure();
+    }
+    if (biomes) {
+      legacyMutation(() => {
+        Biomes.define(getWorldState());
+        return { result: undefined, topics: ["map.physical"] };
+      });
+
+      if (viewContext.renderMap && viewContext.renderMode === "svg" && layerIsOn("toggleBiomes")) {
+        BiomesRenderer.render(worldContext, viewContext, appServices);
+      }
+    }
   });
 }
 

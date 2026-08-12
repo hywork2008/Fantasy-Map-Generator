@@ -178,6 +178,18 @@ export async function getMapCanvasSize(page: Page): Promise<MapCanvasSize> {
   return page.evaluate(() => ({ width: window.fmg.world.graphWidth, height: window.fmg.world.graphHeight }));
 }
 
+/** Read the geographical extent currently assigned to the generated map. */
+export async function getMapCoordinates(page: Page): Promise<{
+  latT: number;
+  latN: number;
+  latS: number;
+  lonT: number;
+  lonW: number;
+  lonE: number;
+}> {
+  return page.evaluate(() => window.fmg.world.mapCoordinates);
+}
+
 /** Read precipitation proxy values for the current land cells in stable grid-cell order. */
 export async function getLandPrecipitation(page: Page): Promise<number[]> {
   return page.evaluate(() => {
