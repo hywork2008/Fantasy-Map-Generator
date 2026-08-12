@@ -178,6 +178,36 @@ export async function getMapCanvasSize(page: Page): Promise<MapCanvasSize> {
   return page.evaluate(() => ({ width: window.fmg.world.graphWidth, height: window.fmg.world.graphHeight }));
 }
 
+/** Read precipitation proxy values for the current land cells in stable grid-cell order. */
+export async function getLandPrecipitation(page: Page): Promise<number[]> {
+  return page.evaluate(() => {
+    const cells = window.fmg.world.grid.cells;
+    const values: number[] = [];
+    for (const cellId of cells.i) {
+      if ((cells.h[cellId] ?? 0) >= 20) values.push(cells.prec[cellId] ?? 0);
+    }
+    return values;
+  });
+}
+
+/** Wait until a World Configurator climate update has changed the land precipitation field. */
+export async function waitForLandPrecipitationChange(page: Page, previous: readonly number[]): Promise<void> {
+  await page.waitForFunction(
+    prior => {
+      const cells = window.fmg.world.grid.cells;
+      let index = 0;
+      for (const cellId of cells.i) {
+        if ((cells.h[cellId] ?? 0) < 20) continue;
+        if ((cells.prec[cellId] ?? 0) !== prior[index]) return true;
+        index++;
+      }
+      return index !== prior.length;
+    },
+    previous,
+    { timeout: 10000 }
+  );
+}
+
 /** Read the sea-route topology currently persisted with the loaded map. */
 export async function getSeaRouteGenerationMode(page: Page): Promise<"legacy" | "augmented" | undefined> {
   return page.evaluate(() => {

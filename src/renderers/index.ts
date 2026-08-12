@@ -17,7 +17,12 @@ export { IceRenderer, redrawGlacier, redrawIceberg } from "./draw-ice";
 export { appendMarkerToLayer, drawMarker, getPin, MarkersRenderer } from "./draw-markers";
 export { drawRegiment, drawRegiments, MilitaryRenderer, moveRegiment } from "./draw-military";
 export { animatePopulationTurnOff, animatePopulationTurnOn, PopulationRenderer } from "./draw-population";
-export { animatePrecipitationTurnOff, animatePrecipitationTurnOn, PrecipitationRenderer } from "./draw-precipitation";
+export {
+  animatePrecipitationTurnOff,
+  animatePrecipitationTurnOn,
+  drawPrecipitationWindDirections,
+  PrecipitationRenderer
+} from "./draw-precipitation";
 export { ProvincesRenderer } from "./draw-provinces";
 export { ReliefIconsRenderer } from "./draw-relief-icons";
 export { ReligionsRenderer } from "./draw-religions";

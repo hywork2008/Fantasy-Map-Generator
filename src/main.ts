@@ -41,6 +41,7 @@ import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
 import { Names } from "./generators/names-generator";
 import { OceanCurrents } from "./generators/oceanCurrents";
+import { generateAnnualPrecipitation } from "./generators/precipitationModel";
 import { Provinces } from "./generators/provinces-generator";
 import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
@@ -67,6 +68,7 @@ import {
   CoordinatesRenderer,
   CulturesRenderer,
   drawCalendar,
+  drawPrecipitationWindDirections,
   drawScaleBar,
   FeaturesRenderer,
   fitScaleBar,
@@ -1552,149 +1554,23 @@ export function generatePrecipitation() {
   TIME && console.time("generatePrecipitation");
   viewContext.prec.selectAll("*").remove();
   const { cells: gridCells, cellsX, cellsY } = worldContext.grid;
-  gridCells.prec = new Uint8Array(gridCells.i.length);
-
   const { points: pointsOpt } = useOptionsState.getState();
   const cellsNumberModifier = ((pointsOpt === 4 ? 10000 : pointsOpt * 2500) / 10000) ** 0.25;
-  const precInputModifier = useOptionsState.getState().prec / 100;
-  const modifier = cellsNumberModifier * precInputModifier;
-
-  const westerly: [number, number, number][] = [];
-  const easterly: [number, number, number][] = [];
-  let southerly = 0;
-  let northerly = 0;
-
-  const latitudeModifier = [4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 3, 3, 2, 2, 1, 1, 1, 0.5];
-  const MAX_PASSABLE_ELEVATION = 85;
-
-  const { mapCoordinates } = worldContext;
-  d3.range(0, gridCells.i.length, cellsX).forEach((c: number, i: number) => {
-    const lat = mapCoordinates.latN! - (i / cellsY) * mapCoordinates.latT!;
-    const latBand = ((Math.abs(lat) - 1) / 5) | 0;
-    const latMod = latitudeModifier[latBand];
-    const windTier = (Math.abs(lat - 89) / 30) | 0;
-    const { isWest, isEast, isNorth, isSouth } = getWindDirections(windTier);
-
-    if (isWest) westerly.push([c, latMod, windTier]);
-    if (isEast) easterly.push([c + cellsX - 1, latMod, windTier]);
-    if (isNorth) northerly++;
-    if (isSouth) southerly++;
+  const model = generateAnnualPrecipitation({
+    cellsX,
+    cellsY,
+    elevations: gridCells.h,
+    temperatures: gridCells.temp,
+    latN: worldContext.mapCoordinates.latN ?? 0,
+    latS: worldContext.mapCoordinates.latS ?? 0,
+    latT: worldContext.mapCoordinates.latT ?? 0,
+    winds: options.winds,
+    resolutionModifier: cellsNumberModifier,
+    precipitationPercent: useOptionsState.getState().prec,
+    randomInteger: rand
   });
-
-  if (westerly.length) passWind(westerly, 120 * modifier, 1, cellsX);
-  if (easterly.length) passWind(easterly, 120 * modifier, -1, cellsX);
-
-  const vertT = southerly + northerly;
-  if (northerly) {
-    const bandN = ((Math.abs(mapCoordinates.latN!) - 1) / 5) | 0;
-    const latModN = (mapCoordinates.latT! > 60 ? d3.mean(latitudeModifier) : latitudeModifier[bandN]) ?? 0;
-    const maxPrecN = (northerly / vertT) * 60 * modifier * latModN;
-    passWind(d3.range(0, cellsX, 1), maxPrecN, cellsX, cellsY);
-  }
-
-  if (southerly) {
-    const bandS = ((Math.abs(mapCoordinates.latS!) - 1) / 5) | 0;
-    const latModS = (mapCoordinates.latT! > 60 ? d3.mean(latitudeModifier) : latitudeModifier[bandS]) ?? 0;
-    const maxPrecS = (southerly / vertT) * 60 * modifier * latModS;
-    passWind(d3.range(gridCells.i.length - cellsX, gridCells.i.length, 1), maxPrecS, -cellsX, cellsY);
-  }
-
-  function getWindDirections(tier: number) {
-    const angle = options.winds[tier as 0 | 1 | 2 | 3 | 4 | 5];
-
-    const isWest = angle > 40 && angle < 140;
-    const isEast = angle > 220 && angle < 320;
-    const isNorth = angle > 100 && angle < 260;
-    const isSouth = angle > 280 || angle < 80;
-
-    return { isWest, isEast, isNorth, isSouth };
-  }
-
-  function passWind(source: number[] | [number, number, number][], maxPrec: number, next: number, steps: number) {
-    const maxPrecInit = maxPrec;
-
-    for (let first of source) {
-      if (Array.isArray(first)) {
-        maxPrec = Math.min(maxPrecInit * first[1], 255);
-        first = first[0];
-      }
-
-      let humidity = maxPrec - gridCells.h[first as number];
-      if (humidity <= 0) continue;
-
-      for (let s = 0, current = first as number; s < steps; s++, current += next) {
-        if (gridCells.temp[current] < -5) continue;
-
-        if (gridCells.h[current] < 20) {
-          if (gridCells.h[current + next] >= 20) {
-            gridCells.prec[current + next] += Math.max(humidity / rand(10, 20), 1);
-          } else {
-            humidity = Math.min(humidity + 5 * modifier, maxPrec);
-            gridCells.prec[current] += 5 * modifier;
-          }
-          continue;
-        }
-
-        const isPassable = gridCells.h[current + next] <= MAX_PASSABLE_ELEVATION;
-        const precipitation = isPassable ? getPrecipitation(humidity, current, next) : humidity;
-        gridCells.prec[current] += precipitation;
-        const evaporation = precipitation > 1.5 ? 1 : 0;
-        humidity = isPassable ? minmax(humidity - precipitation + evaporation, 0, maxPrec) : 0;
-      }
-    }
-  }
-
-  function getPrecipitation(humidity: number, i: number, n: number) {
-    const normalLoss = Math.max(humidity / (10 * modifier), 1);
-    const diff = Math.max(gridCells.h[i + n] - gridCells.h[i], 0);
-    const mod = (gridCells.h[i + n] / 70) ** 2;
-    return minmax(normalLoss + diff * mod, 1, humidity);
-  }
-
-  void (function drawWindDirection() {
-    const wind = viewContext.prec.append("g").attr("id", "wind");
-
-    d3.range(0, 6).forEach((t: number) => {
-      if (westerly.length > 1) {
-        const west = westerly.filter(w => w[2] === t);
-        if (west && west.length > 3) {
-          const from = west[0][0];
-          const to = west[west.length - 1][0];
-          const y = (worldContext.grid.points[from][1] + worldContext.grid.points[to][1]) / 2;
-          wind.append("text").attr("text-rendering", "optimizeSpeed").attr("x", 20).attr("y", y).text("⇉");
-        }
-      }
-      if (easterly.length > 1) {
-        const east = easterly.filter(w => w[2] === t);
-        if (east && east.length > 3) {
-          const from = east[0][0];
-          const to = east[east.length - 1][0];
-          const y = (worldContext.grid.points[from][1] + worldContext.grid.points[to][1]) / 2;
-          wind
-            .append("text")
-            .attr("text-rendering", "optimizeSpeed")
-            .attr("x", worldContext.graphWidth - 52)
-            .attr("y", y)
-            .text("⇇");
-        }
-      }
-    });
-
-    if (northerly)
-      wind
-        .append("text")
-        .attr("text-rendering", "optimizeSpeed")
-        .attr("x", worldContext.graphWidth / 2)
-        .attr("y", 42)
-        .text("⇊");
-    if (southerly)
-      wind
-        .append("text")
-        .attr("text-rendering", "optimizeSpeed")
-        .attr("x", worldContext.graphWidth / 2)
-        .attr("y", worldContext.graphHeight - 20)
-        .text("⇈");
-  })();
+  gridCells.prec = model.precipitation;
+  drawPrecipitationWindDirections(worldContext, viewContext, model.windDirections);
 
   TIME && console.timeEnd("generatePrecipitation");
 }

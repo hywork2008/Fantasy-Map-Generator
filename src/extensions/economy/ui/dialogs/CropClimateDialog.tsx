@@ -46,6 +46,20 @@ function rangePosition(value: number, domain: readonly [number, number]): number
   return Math.max(0, Math.min(100, ((value - min) / Math.max(1, max - min)) * 100));
 }
 
+function getSelectedCellClimateStatus(
+  crop: ClimateCropProfile,
+  metric: ClimateMetric,
+  cellValue: number | null
+): string | null {
+  if (cellValue === null) return null;
+  const range = getRange(crop, metric);
+  const label = metric === "precipitation" ? "Rainfall" : "Temperature";
+  if (cellValue <= range.min) return `${label} is below the viable range.`;
+  if (cellValue >= range.max) return `${label} is above the viable range.`;
+  if (cellValue >= range.idealMin && cellValue <= range.idealMax) return `${label} is in the ideal range.`;
+  return `${label} is viable, but outside the ideal range.`;
+}
+
 const ClimateRangeBar: React.FC<{
   crop: ClimateCropProfile;
   metric: ClimateMetric;
@@ -163,6 +177,7 @@ const ClimateMetricPanel: React.FC<{
   label: string;
 }> = ({ crop, metric, domain, cellValue, label }) => {
   const range = getRange(crop, metric);
+  const selectedCellStatus = getSelectedCellClimateStatus(crop, metric, cellValue);
   return (
     <section className="crop-climate-metric">
       <div className="crop-climate-metric__label" id={`${label.replaceAll(" ", "-")}-label`}>
@@ -179,6 +194,7 @@ const ClimateMetricPanel: React.FC<{
         labelledBy={`${label.replaceAll(" ", "-")}-label`}
       />
       <MetricScale domain={domain} metric={metric} />
+      {selectedCellStatus ? <p className="crop-climate-metric__status">{selectedCellStatus}</p> : null}
     </section>
   );
 };

@@ -436,7 +436,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 </label>
               </div>
               <div>
-                <label data-tip="Set precipitation - water amount clouds can bring. Defines rivers and biomes generation. Keep around 100% for default generation">
+                <label data-tip="Set global atmospheric moisture. 100% is the standard climate; higher values produce wetter maps. This is a 0–255 map proxy, not millimetres of annual rainfall.">
                   <LockIconButton id="prec" />
                   <i>Precipitation:</i>
                   <input id="precInput" data-stored="prec" type="number" value={prec} onChange={handleControlsChange} />

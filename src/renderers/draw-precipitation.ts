@@ -2,6 +2,7 @@ import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers, FocusFields, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { PrecipitationWindDirections } from "../generators/precipitationModel";
 import { useOptionsState } from "../store/optionsState";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
@@ -50,6 +51,53 @@ export const PrecipitationRenderer: IRenderer = {
     viewContext.prec.selectAll("circle").remove();
   }
 };
+
+/** Draws the wind annotations produced by the pure precipitation model. */
+export function drawPrecipitationWindDirections(
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<EnvironmentLayers>,
+  windDirections: PrecipitationWindDirections
+): void {
+  const wind = viewContext.prec.append("g").attr("id", "wind");
+
+  for (let tier = 0; tier < 6; tier++) {
+    const west = windDirections.westerly.filter(source => source.windTier === tier);
+    if (west.length > 3) {
+      const first = west[0].cellId;
+      const last = west[west.length - 1].cellId;
+      const y = (worldContext.grid.points[first][1] + worldContext.grid.points[last][1]) / 2;
+      wind.append("text").attr("text-rendering", "optimizeSpeed").attr("x", 20).attr("y", y).text("⇉");
+    }
+
+    const east = windDirections.easterly.filter(source => source.windTier === tier);
+    if (east.length > 3) {
+      const first = east[0].cellId;
+      const last = east[east.length - 1].cellId;
+      const y = (worldContext.grid.points[first][1] + worldContext.grid.points[last][1]) / 2;
+      wind
+        .append("text")
+        .attr("text-rendering", "optimizeSpeed")
+        .attr("x", worldContext.graphWidth - 52)
+        .attr("y", y)
+        .text("⇇");
+    }
+  }
+
+  if (windDirections.northerly)
+    wind
+      .append("text")
+      .attr("text-rendering", "optimizeSpeed")
+      .attr("x", worldContext.graphWidth / 2)
+      .attr("y", 42)
+      .text("⇊");
+  if (windDirections.southerly)
+    wind
+      .append("text")
+      .attr("text-rendering", "optimizeSpeed")
+      .attr("x", worldContext.graphWidth / 2)
+      .attr("y", worldContext.graphHeight - 20)
+      .text("⇈");
+}
 
 export function animatePrecipitationTurnOn(
   worldContext: Readonly<WorldContext>,
