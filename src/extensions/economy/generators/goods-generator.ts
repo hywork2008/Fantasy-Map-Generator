@@ -1626,7 +1626,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Pomace Wine",
     tags: ["drink", "food", "beverage"],
-    icon: "good-unknown",
+    icon: "good-wine",
     color: "#b08968",
     value: 2,
     chance: 0,
