@@ -111,6 +111,8 @@ type GoodData = Omit<Good, "i" | "recipes" | "byproducts"> & {
 const ASH_YIELD_PER_WOOD_FULL_COMBUSTION = 1;
 /** Charcoal and tar kilns retain most of the Wood as a useful product, leaving little ash. */
 const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
+const CHARCOAL_WOOD_PER_UNIT = 1.5;
+const POTASH_ASH_PER_UNIT = 1.5;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
 const shipGoodValue = (shipClassId: string): number => {
   const shipClass = shipClassById.get(shipClassId);
@@ -887,15 +889,31 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Coal",
     warEconomyType: "strategic",
-    tags: ["fuel"],
+    // Coal is a mined fuel mineral. Charcoal, below, is the forest-derived fuel used by
+    // medieval smelting and smithing; keeping the two separate prevents Wood from creating
+    // mineral Coal out of thin air.
+    tags: ["fuel", "mineral"],
     icon: "good-coal",
     color: "#5a6a75",
     value: 2,
     chance: 0,
     unit: "wain",
-    demandCoverage: { utilities: 0.5 },
-    recipes: [{ Wood: 1.5 }],
-    byproducts: [{ Ash: 1.5 * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]
+    demandCoverage: { utilities: 0.5 }
+  },
+  {
+    // Charcoal is a deliberately carbonized Wood fuel. It powers medieval furnaces and
+    // smithies, while its production keeps their fuel demand coupled to standing forests.
+    name: "Charcoal",
+    warEconomyType: "strategic",
+    tags: ["fuel"],
+    icon: "good-coal",
+    color: "#343434",
+    value: 3,
+    chance: 0,
+    recipes: [{ Wood: CHARCOAL_WOOD_PER_UNIT }],
+    byproducts: [{ Ash: CHARCOAL_WOOD_PER_UNIT * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }],
+    unit: "sack",
+    demandCoverage: { utilities: 0.5 }
   },
   {
     name: "Oil",
@@ -1272,8 +1290,8 @@ export const GOODS_DATA: GoodData[] = [
     value: 8,
     chance: 0,
     recipes: [
-      { "Copper Ingot": 0.5, Coal: 1 },
-      { "Tin Ingot": 0.5, Coal: 1 }
+      { "Copper Ingot": 0.5, Charcoal: 1 },
+      { "Tin Ingot": 0.5, Charcoal: 1 }
     ],
     unit: "wagon",
     multipliers: { cultureType: { Highland: 1.2 } }
@@ -1287,8 +1305,8 @@ export const GOODS_DATA: GoodData[] = [
     value: 14,
     chance: 0,
     recipes: [
-      { "Iron Ingot": 0.5, Coal: 1 },
-      { Bronze: 0.5, Coal: 1 }
+      { "Iron Ingot": 0.5, Charcoal: 1 },
+      { Bronze: 0.5, Charcoal: 1 }
     ],
     unit: "set",
     demandCoverage: { utilities: 1 }
@@ -1302,8 +1320,8 @@ export const GOODS_DATA: GoodData[] = [
     value: 24,
     chance: 0,
     recipes: [
-      { "Iron Ingot": 0.5, Coal: 1, Leather: 0.5 },
-      { Bronze: 0.5, Coal: 1, Leather: 0.5 }
+      { "Iron Ingot": 0.5, Charcoal: 1, Leather: 0.5 },
+      { Bronze: 0.5, Charcoal: 1, Leather: 0.5 }
     ],
     unit: "set",
     demandCoverage: { military: 1 }
@@ -1331,7 +1349,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#b0c4de",
     value: 12,
     chance: 0,
-    recipes: [{ Saltpeter: 0.5, Sulfur: 0.25, Coal: 0.5 }],
+    recipes: [{ Saltpeter: 0.5, Sulfur: 0.25, Charcoal: 0.5 }],
     unit: "barrel",
     demandCoverage: { military: 2 }
   },
@@ -1359,8 +1377,8 @@ export const GOODS_DATA: GoodData[] = [
     value: 70,
     chance: 0,
     recipes: [
-      { "Iron Ingot": 2, Coal: 1 },
-      { Bronze: 1, Coal: 1 }
+      { "Iron Ingot": 2, Charcoal: 1 },
+      { Bronze: 1, Charcoal: 1 }
     ],
     unit: "cannon",
     demandCoverage: { military: 1 }
@@ -1967,9 +1985,23 @@ export const GOODS_DATA: GoodData[] = [
     color: "#c9c2a6",
     value: 3,
     chance: 0,
-    recipes: [{ Wood: 2 }],
+    // Refining the soluble alkali from Wood ash makes a compact, durable industrial input
+    // suitable for long-distance glass and soap trade.
+    recipes: [{ Ash: POTASH_ASH_PER_UNIT }],
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
+  },
+  {
+    // A bulky, low-value smelter residue. It is locally useful as fill or aggregate, but is
+    // intentionally not a source of Wood ash or a primary long-distance export.
+    name: "Slag",
+    tags: ["construction", "industrialWaste"],
+    icon: "good-stone",
+    color: "#4f4a45",
+    value: 0.5,
+    chance: 0,
+    unit: "wain",
+    demandCoverage: { construction: 0.1 }
   },
   {
     name: "Ivory",
@@ -2245,6 +2277,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Sulfur: tradeProfile(3, 3, 4, 2, 0, 4, 2),
   Saltpeter: tradeProfile(3, 3, 4, 2, 0, 4, 2),
   Coal: tradeProfile(5, 4, 2, 0, 0, 5, 2),
+  Charcoal: tradeProfile(4, 3, 2, 0, 0, 4, 2),
   Oil: tradeProfile(3, 3, 2, 1, 0, 4, 2),
   Mahogany: tradeProfile(4, 5, 5, 3, 0, 4, 2),
   Whales: tradeProfile(4, 4, 2, 0, -2, 1, 5),
@@ -2307,7 +2340,9 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Bread: tradeProfile(3, 3, 1, -2, -2, 1, 4),
   Timber: tradeProfile(4, 5, 2, 0, 0, 4, 2),
   Alum: tradeProfile(3, 3, 4, 2, 0, 5, 1),
-  Potash: tradeProfile(4, 4, 2, 0, 0, 4, 2),
+  Ash: tradeProfile(5, 5, 1, -2, 0, 3, 2),
+  Potash: tradeProfile(2, 2, 3, 2, 0, 5, 1),
+  Slag: tradeProfile(5, 5, 1, -2, 0, 5, 1),
   Ivory: tradeProfile(1, 1, 5, 3, 0, 5, 2),
   Coral: tradeProfile(1, 1, 4, 3, 0, 4, 2),
   Stockfish: tradeProfile(3, 3, 2, 1, 0, 4, 2),
@@ -2744,6 +2779,81 @@ export function migrateWineRecipe(): boolean {
 }
 
 /**
+ * Splits mined Coal from forest-made Charcoal in older catalogues, upgrades Potash to an Ash
+ * refinement, and appends the smelter's Slag output without fabricating any market stock.
+ */
+export function migrateSmeltingFuelAndAshGoods(): boolean {
+  const goods = getGoods();
+  const wood = goods.find(good => good.name === "Wood");
+  const ash = goods.find(good => good.name === "Ash");
+  const coal = goods.find(good => good.name === "Coal");
+  const potash = goods.find(good => good.name === "Potash");
+  if (!wood || !ash || !coal || !potash) return false;
+
+  let changed = false;
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let charcoal = goods.find(good => good.name === "Charcoal");
+  if (!charcoal) {
+    charcoal = Goods.getDefaultGood("Charcoal");
+    if (!charcoal) throw new Error("Charcoal must be present in the shipped goods catalogue");
+    charcoal.i = nextId++;
+    charcoal.recipes = [{ [wood.i]: CHARCOAL_WOOD_PER_UNIT }];
+    charcoal.byproducts = [{ [ash.i]: CHARCOAL_WOOD_PER_UNIT * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }];
+    goods.push(charcoal);
+    changed = true;
+  }
+
+  if (!goods.some(good => good.name === "Slag")) {
+    const slag = Goods.getDefaultGood("Slag");
+    if (!slag) throw new Error("Slag must be present in the shipped goods catalogue");
+    slag.i = nextId++;
+    goods.push(slag);
+    changed = true;
+  }
+
+  const coalTags = new Set(coal.tags);
+  coalTags.add("fuel");
+  coalTags.add("mineral");
+  const upgradedCoalTags = [...coalTags];
+  if (JSON.stringify(coal.tags) !== JSON.stringify(upgradedCoalTags)) {
+    coal.tags = upgradedCoalTags;
+    changed = true;
+  }
+  if (coal.recipes || coal.byproducts) {
+    delete coal.recipes;
+    delete coal.byproducts;
+    changed = true;
+  }
+
+  const potashRecipe = [{ [ash.i]: POTASH_ASH_PER_UNIT }];
+  if (JSON.stringify(potash.recipes) !== JSON.stringify(potashRecipe)) {
+    potash.recipes = potashRecipe;
+    changed = true;
+  }
+  for (const good of [ash, potash]) {
+    const trade = getDefaultGoodTradeProfile(good);
+    if (JSON.stringify(good.trade) === JSON.stringify(trade)) continue;
+    good.trade = trade;
+    changed = true;
+  }
+
+  for (const good of goods) {
+    if (!good.recipes?.some(recipe => Object.hasOwn(recipe, coal.i))) continue;
+    good.recipes = good.recipes.map(recipe => {
+      if (!Object.hasOwn(recipe, coal.i)) return recipe;
+      const upgradedRecipe = { ...recipe };
+      const coalAmount = upgradedRecipe[coal.i];
+      delete upgradedRecipe[coal.i];
+      upgradedRecipe[charcoal.i] = (upgradedRecipe[charcoal.i] ?? 0) + coalAmount;
+      return upgradedRecipe;
+    });
+    changed = true;
+  }
+
+  return changed;
+}
+
+/**
  * Adds wine-pressing residues and their low-cost beverage path to existing catalogues, then
  * attaches the new multi-output recipe data using this save's own Good ids.
  */
@@ -2801,7 +2911,7 @@ export function migratePomaceDistillationGoods(): boolean {
   setByproducts("Wine", [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }]);
   setRecipes("Pomace Wine", [{ Pomace: 1.2, Barrels: 0.08 }]);
   setByproducts("Brick", [{ Ash: 0.1 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }]);
-  setByproducts("Coal", [{ Ash: 1.5 * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]);
+  setByproducts("Charcoal", [{ Ash: CHARCOAL_WOOD_PER_UNIT * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]);
   setByproducts("Preserved food", [
     undefined,
     undefined,

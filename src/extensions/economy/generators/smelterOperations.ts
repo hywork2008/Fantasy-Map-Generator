@@ -19,6 +19,12 @@ export type { SmelterOperation } from "./smelterOperationsTypes";
 const DEFAULT_SMELTING_YIELD = 0.8;
 const DEFAULT_SECURITY_INVESTMENT = 0;
 const MARKET_SMELTING_STOCK_SHARE = 0.5;
+/** Medieval ore reduction requires charcoal both as furnace fuel and as the reducing agent. */
+const CHARCOAL_PER_ORE_UNIT = 1;
+/** Gangue and furnace waste retained locally after each unit of ore is processed. */
+const SLAG_PER_ORE_UNIT = 0.25;
+const CHARCOAL_GOOD_NAME = "charcoal";
+const SLAG_GOOD_NAME = "slag";
 const BASE_THEFT_RISK = 0.008;
 const SECURITY_UPKEEP_BASE = 0.1;
 const SECURITY_UPKEEP_PER_ANNUAL_TON = 0.01;
@@ -112,6 +118,10 @@ export class SmelterOperationsModule {
       const totalAnnualOreCapacity = this.getAnnualCapacity(oreYields);
       if (!totalAnnualOreCapacity) continue;
 
+      const charcoal = goodsByName.get(CHARCOAL_GOOD_NAME);
+      if (!charcoal || !isGoodEnabled(charcoal)) continue;
+      const slag = goodsByName.get(SLAG_GOOD_NAME);
+
       const workerFactor = Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter));
       // toolsInvestmentStock (IndustrialTechInvestment.settleAnnual()) applies as its own
       // multiplier, independent of the prospect()-derived `technology` — docs/plan/rural-agtech-investment.md §6.2.
@@ -133,7 +143,13 @@ export class SmelterOperationsModule {
         const ingot = goodsByName.get(getIngotGoodName(commodity));
         if (!ore || !ingot || !isGoodEnabled(ore) || !isGoodEnabled(ingot)) continue;
 
-        const capacityShare = monthlyCapacity * (yieldInfo.annualCapacityTons / totalAnnualOreCapacity);
+        const market = Markets.get(smelter.marketId);
+        const availableCharcoal = market?.goods[charcoal.i]?.stock ?? 0;
+        const charcoalBoundCapacity = (availableCharcoal * MARKET_SMELTING_STOCK_SHARE) / CHARCOAL_PER_ORE_UNIT;
+        const capacityShare = Math.min(
+          monthlyCapacity * (yieldInfo.annualCapacityTons / totalAnnualOreCapacity),
+          charcoalBoundCapacity
+        );
         const oreConsumed = Markets.consumeForSmelting(
           smelter.marketId,
           ore.i,
@@ -141,10 +157,24 @@ export class SmelterOperationsModule {
           MARKET_SMELTING_STOCK_SHARE
         );
         if (!oreConsumed) continue;
+
+        // Ore is only drawn after the available Charcoal reserve has bounded capacity above, so
+        // this second market draw is exact and prevents a fuel-free Ingot from being created.
+        const charcoalConsumed = Markets.consumeForSmelting(
+          smelter.marketId,
+          charcoal.i,
+          oreConsumed * CHARCOAL_PER_ORE_UNIT,
+          MARKET_SMELTING_STOCK_SHARE
+        );
+        if (charcoalConsumed < oreConsumed * CHARCOAL_PER_ORE_UNIT - 0.0001) continue;
+
         const refinedIngots = oreConsumed * smelter.smeltingYield;
         const theftLoss = this.rollTheft(smelter, deposit.accessibility, refinedIngots, effectiveSecurity);
         const deliveredIngots = Math.max(0, refinedIngots - theftLoss);
         if (deliveredIngots > 0) Markets.addSmelterSupply(smelter.marketId, ingot.i, deliveredIngots);
+        if (slag && isGoodEnabled(slag)) {
+          Markets.addSmelterSupply(smelter.marketId, slag.i, oreConsumed * SLAG_PER_ORE_UNIT);
+        }
       }
     }
   }

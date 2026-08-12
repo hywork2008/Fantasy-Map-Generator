@@ -23,6 +23,7 @@ import {
   migrateLiveDogsGood,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
+  migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
   migrateWineRecipe
 } from "./goods-generator";
@@ -197,7 +198,7 @@ describe("GoodsModule", () => {
       expect.objectContaining({
         [byName.get("Saltpeter")!.i]: 0.5,
         [sulfur!.i]: 0.25,
-        [byName.get("Coal")!.i]: 0.5
+        [byName.get("Charcoal")!.i]: 0.5
       })
     );
   });
@@ -386,6 +387,43 @@ describe("GoodsModule", () => {
     expect(upgradedLiquor.recipes).toHaveLength(15);
     expect(upgradedLiquor.byproducts).toEqual(Array.from({ length: 15 }, () => ({ [ash.i]: 1 })));
     expect(migratePomaceDistillationGoods()).toBe(false);
+  });
+
+  it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {
+    goodsModule.restoreDefaults();
+    const wood = getGoods().find(good => good.name === "Wood")!;
+    const ash = getGoods().find(good => good.name === "Ash")!;
+    const coal = getGoods().find(good => good.name === "Coal")!;
+    const potash = getGoods().find(good => good.name === "Potash")!;
+    const tools = getGoods().find(good => good.name === "Tools")!;
+    const charcoal = getGoods().find(good => good.name === "Charcoal")!;
+
+    setGoods(
+      getGoods()
+        .filter(good => good.name !== "Charcoal" && good.name !== "Slag")
+        .map(good => {
+          if (good.i === coal.i) return { ...good, recipes: [{ [wood.i]: 1.5 }], byproducts: [{ [ash.i]: 0.225 }] };
+          if (good.i === potash.i) return { ...good, recipes: [{ [wood.i]: 2 }] };
+          if (good.i === tools.i) return { ...good, recipes: [{ [coal.i]: 1 }] };
+          return good;
+        })
+    );
+
+    expect(migrateSmeltingFuelAndAshGoods()).toBe(true);
+    const upgradedCoal = getGoods().find(good => good.name === "Coal")!;
+    const upgradedCharcoal = getGoods().find(good => good.name === "Charcoal")!;
+    const upgradedSlag = getGoods().find(good => good.name === "Slag")!;
+    const upgradedPotash = getGoods().find(good => good.name === "Potash")!;
+    const upgradedTools = getGoods().find(good => good.name === "Tools")!;
+
+    expect(upgradedCoal.recipes).toBeUndefined();
+    expect(upgradedCoal.byproducts).toBeUndefined();
+    expect(upgradedCharcoal.recipes).toEqual([{ [wood.i]: 1.5 }]);
+    expect(upgradedCharcoal.byproducts?.[0]?.[ash.i]).toBeCloseTo(0.225, 8);
+    expect(upgradedPotash.recipes).toEqual([{ [ash.i]: 1.5 }]);
+    expect(upgradedTools.recipes).toEqual([{ [upgradedCharcoal.i]: 1 }]);
+    expect(upgradedSlag.i).toBeGreaterThan(charcoal.i);
+    expect(migrateSmeltingFuelAndAshGoods()).toBe(false);
   });
 
   it("does not upgrade Wine's recipe until Grapes and Barrels both exist in the save", () => {

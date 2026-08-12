@@ -36,7 +36,7 @@ describe("MetallurgWorkModule", () => {
     } as unknown as PackedGraph;
     setGoods([
       { i: 1, name: "Iron Ingot", tags: ["metal"], value: 3, unit: "ton", icon: "iron", color: "#777" },
-      { i: 2, name: "Coal", tags: ["fuel"], value: 1, unit: "pile", icon: "coal", color: "#333" },
+      { i: 2, name: "Charcoal", tags: ["fuel"], value: 1, unit: "pile", icon: "coal", color: "#333" },
       { i: 3, name: "Leather", tags: ["material"], value: 2, unit: "hide", icon: "leather", color: "#654" },
       {
         i: 4,

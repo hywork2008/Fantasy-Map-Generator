@@ -46,9 +46,12 @@ describe("SmelterOperationsModule", () => {
     setGoods([
       { i: 1, name: "Iron Ore", tags: ["ore"], value: 2, unit: "wagon", icon: "iron", color: "#777" },
       { i: 2, name: "Iron Ingot", tags: ["ingot"], value: 4, unit: "wagon", icon: "iron", color: "#777" },
-      { i: 3, name: "Coal", tags: ["mineral"], value: 1, unit: "wagon", icon: "coal", color: "#333" }
+      { i: 3, name: "Charcoal", tags: ["fuel"], value: 3, unit: "sack", icon: "coal", color: "#333" },
+      { i: 4, name: "Slag", tags: ["industrialWaste"], value: 0.5, unit: "wain", icon: "slag", color: "#444" }
     ]);
-    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 20, price: 2 } } }]);
+    setMarkets([
+      { i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 20, price: 2 }, 3: { stock: 20, price: 3 } } }
+    ]);
     setMineralDeposits([
       {
         i: 1,
@@ -89,7 +92,7 @@ describe("SmelterOperationsModule", () => {
     vi.restoreAllMocks();
   });
 
-  it("places a smelter at the neighboring river-and-forest site, then refines bounded Ore stock", () => {
+  it("places a smelter at the neighboring river-and-forest site, then consumes Charcoal to refine Ore and produce Slag", () => {
     SmelterOperations.generate();
 
     expect(getSmelterOperations()).toEqual([
@@ -111,6 +114,19 @@ describe("SmelterOperationsModule", () => {
 
     expect(getMarkets()[0].goods[1].stock).toBe(10);
     expect(getMarkets()[0].goods[2].stock).toBe(8);
+    expect(getMarkets()[0].goods[3].stock).toBe(10);
+    expect(getMarkets()[0].goods[4].stock).toBe(2.5);
+  });
+
+  it("does not refine Ore without an available Charcoal reserve", () => {
+    getMarkets()[0].goods[3].stock = 0;
+    SmelterOperations.generate();
+
+    SmelterOperations.produceMonth();
+
+    expect(getMarkets()[0].goods[1].stock).toBe(20);
+    expect(getMarkets()[0].goods[2]).toBeUndefined();
+    expect(getMarkets()[0].goods[4]).toBeUndefined();
   });
 
   it("does not create a smelter for mines that produce only unsmelted fuel minerals", () => {
