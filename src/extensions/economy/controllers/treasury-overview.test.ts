@@ -75,6 +75,37 @@ describe("refreshTreasuryOverview", () => {
     expect(rows[0].id).toBe(1);
   });
 
+  it("surfaces per-department service level and budget multiplier (PR-17b/17c/17e)", () => {
+    const state = {
+      i: 1,
+      form: "Theocracy",
+      diplomacy: [],
+      name: "Holyrealm",
+      treasury: 100000,
+      departmentBudgetMultiplier: { chancery: 0.7 }
+    } as unknown as State;
+    worldContext.pack = { states: [undefined, state] } as unknown as PackedGraph;
+
+    allocateTreasury(state, 1000);
+    refreshTreasuryOverview();
+
+    const row = getTreasuryOverviewState().rows.find(r => r.id === 1);
+    // Fully-funded first cycle → EWMA stays at the healthy default (1) for every department.
+    expect(row).toMatchObject({
+      chanceryServiceLevel: 1,
+      stewardshipServiceLevel: 1,
+      spymasteryServiceLevel: 1,
+      ecclesiasticaServiceLevel: 1,
+      chanceryBudgetMultiplier: 0.7,
+      stewardshipBudgetMultiplier: 1,
+      spymasteryBudgetMultiplier: 1,
+      ecclesiasticaBudgetMultiplier: 1,
+      departmentBalanceRemit: 0,
+      diplomaticReliability: 100, // PR-17g default until chanceryDiplomacy.ts's updateDiplomaticReliability() runs
+      religiousUnrest: 0 // PR-17h default until ecclesiasticaUnrest.ts's updateReligiousUnrest() runs
+    });
+  });
+
   it("skips a snapshot whose State has since been removed", () => {
     const state = { i: 1, form: "Monarchy", diplomacy: [], name: "Testland", removed: true } as unknown as State;
     worldContext.pack = { states: [undefined, state] } as unknown as PackedGraph;

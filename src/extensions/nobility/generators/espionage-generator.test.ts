@@ -140,4 +140,54 @@ describe("EspionageGenerator + voyage intel (docs/plan/ships.md 航海訓練・�
 
     expect(simulationContext.intelligence[1][2].accuracyLevel).toBe("unknown");
   });
+
+  describe("Spymastery service level effect (PR-17d)", () => {
+    function makeObserverAndTarget(observerDepartmentServiceLevel?: State["departmentServiceLevel"]): {
+      observer: State;
+      target: State;
+    } {
+      const observer: State = {
+        i: 1,
+        departmentServiceLevel: observerDepartmentServiceLevel
+      } as unknown as State;
+      const target: State = { i: 2, rulerId: 99 } as unknown as State;
+      worldContext.pack = {
+        states: [{} as unknown as State, observer, target],
+        characters: [
+          makeCharacter({
+            i: 50,
+            state: 1,
+            titles: [{ title: "Spymaster", landed: false, entityType: "state", entityId: 1 }],
+            skills: { ...makeCharacter({}).skills, intrigue: 20 }
+          }),
+          makeCharacter({
+            i: 99,
+            state: 2,
+            skills: { ...makeCharacter({}).skills, intrigue: 15 },
+            personality: { ...makeCharacter({}).personality, guile: 12, boldness: 50, confidence: 50 }
+          })
+        ]
+      } as unknown as PackedGraph;
+      return { observer, target };
+    }
+
+    it("stays at full effectiveness when departmentServiceLevel is undefined (Economy disabled — unchanged pre-PR-17d behavior)", () => {
+      makeObserverAndTarget(undefined);
+
+      espionage.generate();
+
+      // observerIntrigue = 20×1.5 + 5 + 5 = 40; targetIntrigue = 5×1.5 + 15 + 12 = 34.5; diff 5.5 → accurate.
+      expect(simulationContext.intelligence[1][2].accuracyLevel).toBe("accurate");
+    });
+
+    it("blunts intrigue-gathering enough to flip an accurate reading to a deceived one when Spymastery is fully neglected", () => {
+      makeObserverAndTarget({ chancery: 1, stewardship: 1, spymastery: 0, ecclesiastica: 1 });
+
+      espionage.generate();
+
+      // effectiveness floors at 0.4 → observerIntrigue 40×0.4 = 16; diff 16 − 34.5 = −18.5 → deception branch,
+      // target boldness/confidence both 50 (neither cautious nor bold) → general deception → "unknown".
+      expect(simulationContext.intelligence[1][2].accuracyLevel).toBe("unknown");
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { improveRelation, worsenRelation } from "./diplomacyRelations";
 import type { ForeignLoan } from "./foreignDebt";
 import { FOREIGN_DEBT_BASE_INTEREST, refreshForeignDebtTotalIfPresent } from "./foreignDebt";
 
@@ -9,8 +10,8 @@ import { FOREIGN_DEBT_BASE_INTEREST, refreshForeignDebtTotalIfPresent } from "./
  *
  * Missed foreign-interest coupons accrue a streak per loan. After the threshold the loan is
  * flagged in default and bilateral diplomacy with that creditor steps down the friendliness
- * ladder. Clearing full interest for a cycle reduces the streak; full principal clearance can
- * nudge relations back up one step.
+ * ladder (diplomacyRelations.ts). Clearing full interest for a cycle reduces the streak; full
+ * principal clearance can nudge relations back up one step.
  */
 
 /** Consecutive underpaid foreign coupons before a loan is "in default" with that creditor. */
@@ -19,24 +20,6 @@ export const FOREIGN_DEBT_DEFAULT_STREAK = 2;
 /** Extra interest premium while a foreign loan is in default. */
 export const FOREIGN_DEBT_DEFAULT_RATE_PENALTY = 0.4;
 
-const DIPLOMACY_DOWNGRADE: Record<string, string> = {
-  Ally: "Friendly",
-  Friendly: "Neutral",
-  Neutral: "Suspicion",
-  Suspicion: "Rival",
-  Rival: "Enemy",
-  Vassal: "Suspicion",
-  Suzerain: "Rival"
-};
-
-const DIPLOMACY_UPGRADE: Record<string, string> = {
-  Enemy: "Rival",
-  Rival: "Suspicion",
-  Suspicion: "Neutral",
-  Neutral: "Friendly",
-  Friendly: "Ally"
-};
-
 export interface ForeignDebtDiplomacyResult {
   interestPaid: number;
   principalRepaid: number;
@@ -44,54 +27,6 @@ export interface ForeignDebtDiplomacyResult {
   enteredDefaultWith: number[];
   diplomacyWorsened: { creditorStateId: number; from: string; to: string }[];
   diplomacyImproved: { creditorStateId: number; from: string; to: string }[];
-}
-
-function readRelation(from: State, toId: number): string {
-  const raw = from.diplomacy?.[toId];
-  return typeof raw === "string" ? raw : "Neutral";
-}
-
-function writeBilateralRelation(a: State, b: State, rel: string): void {
-  if (!a.i || !b.i) return;
-  a.diplomacy = Array.isArray(a.diplomacy) ? [...a.diplomacy] : [];
-  b.diplomacy = Array.isArray(b.diplomacy) ? [...b.diplomacy] : [];
-  // Ensure sparse arrays can hold the index.
-  while (a.diplomacy.length <= b.i) a.diplomacy.push("Unknown");
-  while (b.diplomacy.length <= a.i) b.diplomacy.push("Unknown");
-  a.diplomacy[b.i] = rel;
-  // Mirror common pairs.
-  if (
-    rel === "Enemy" ||
-    rel === "Ally" ||
-    rel === "Friendly" ||
-    rel === "Neutral" ||
-    rel === "Suspicion" ||
-    rel === "Rival"
-  ) {
-    b.diplomacy[a.i] = rel;
-  } else if (rel === "Vassal") {
-    b.diplomacy[a.i] = "Suzerain";
-  } else if (rel === "Suzerain") {
-    b.diplomacy[a.i] = "Vassal";
-  }
-}
-
-function worsenRelation(borrower: State, creditor: State): { from: string; to: string } | null {
-  const from = readRelation(borrower, creditor.i!);
-  const to = DIPLOMACY_DOWNGRADE[from];
-  if (!to || to === from) return null;
-  writeBilateralRelation(borrower, creditor, to);
-  return { from, to };
-}
-
-function improveRelation(borrower: State, creditor: State): { from: string; to: string } | null {
-  const from = readRelation(borrower, creditor.i!);
-  // Do not auto-heal Enemy (that would end wars too cheaply).
-  if (from === "Enemy") return null;
-  const to = DIPLOMACY_UPGRADE[from];
-  if (!to || to === from) return null;
-  writeBilateralRelation(borrower, creditor, to);
-  return { from, to };
 }
 
 /**

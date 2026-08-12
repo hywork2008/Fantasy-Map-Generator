@@ -657,6 +657,34 @@ export interface State {
     spymastery: number;
     ecclesiastica: number;
   };
+  /**
+   * 0..1 EWMA gauge of how well-funded each non-marshalcy department has *been* recently
+   * (liquidity scale, not an objective Need like Marshalcy's). Undefined until Economy's
+   * allocateTreasury() has run at least once; reads as 1 (healthy) via
+   * treasuryAllocation.ts's ensureDepartmentServiceLevel(). Downstream effects (e.g.
+   * Stewardship → administrative-upkeep in taxes-generator.ts) read this with a 1-cycle lag.
+   * docs/plan/department-budget-spending-effects.md §3/PR-17b.
+   */
+  departmentServiceLevel?: {
+    chancery: number;
+    stewardship: number;
+    spymastery: number;
+    ecclesiastica: number;
+  };
+  /**
+   * Player policy lever (PR-17c): per-department multiplier (0.5-1.5) on top of the form
+   * baseline share, Chancery/Stewardship/Spymastery/Ecclesiastica only — Marshalcy already has
+   * War Footing, Household has its own living-cost texture. Missing key = 1 (unchanged from
+   * baseline). A value below 1 is a deliberate spending cut: the freed share is not
+   * redistributed to other departments, so it stays in state.treasury as real savings.
+   * docs/plan/department-budget-spending-effects.md §4.
+   */
+  departmentBudgetMultiplier?: {
+    chancery?: number;
+    stewardship?: number;
+    spymastery?: number;
+    ecclesiastica?: number;
+  };
   /** Fraction of population-equivalent grain paid to the suzerain each generation (Vassal states only). */
   tributeRate?: number;
   /** Computed grain-equivalent tribute amount paid to the suzerain (Vassal states only). */
@@ -886,12 +914,19 @@ export interface State {
   };
   /**
    * PR-11 thin budget-line approvals (support thresholds + PR-12 faction votes). Refreshed each tax cycle.
+   * PR-17f adds the 4 department-budget-cut lines (docs/plan/department-budget-spending-effects.md
+   * §4): gates a player's departmentBudgetMultiplier < 1 for that department —
+   * applyDepartmentBudgetOverride() reverts an unapproved cut to baseline (1.0) for the cycle.
    */
   councilApprovals?: {
     debtIssue: boolean;
     warFooting: boolean;
     extraordinaryTax: boolean;
     militaryExpansion: boolean;
+    cutChancery: boolean;
+    cutStewardship: boolean;
+    cutSpymastery: boolean;
+    cutEcclesiastica: boolean;
   };
   /** PR-8: whether the last wartime assembly vetoed part of revenue. */
   councilLastFailed?: boolean;
@@ -905,6 +940,22 @@ export interface State {
    * PR-12 domain-levy → poll-tax collection multiplier applied last collectTaxes (≈0.9–1.13).
    */
   domainPollTaxMultiplier?: number;
+  /**
+   * PR-17g — 0..100 accumulated diplomatic reputation, driven by Chancery's departmentServiceLevel
+   * (recovers while well-funded, decays while neglected — same accumulate/decay shape as
+   * militaryDiscontent, mirrored rather than inverted: high is good here). Undefined reads as 100
+   * (healthy) until Economy's chanceryDiplomacy.ts has run at least once.
+   * docs/plan/department-budget-spending-effects.md §3.4.
+   */
+  diplomaticReliability?: number;
+  /**
+   * PR-17h — 0..100 accumulated religious unrest, driven by Ecclesiastica's departmentServiceLevel
+   * (grows while neglected — Theocracy faster, decays while well-funded). Feeds a councilSupport
+   * penalty above RELIGIOUS_UNREST_SUPPORT_PENALTY_FLOOR (ecclesiasticaUnrest.ts), which in turn
+   * gates debt issuance, war footing, and every department-budget cut (PR-17f).
+   * docs/plan/department-budget-spending-effects.md §3.3.
+   */
+  religiousUnrest?: number;
 
   // ── Manpower simulation ──
   /**

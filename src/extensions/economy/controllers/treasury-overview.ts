@@ -82,7 +82,18 @@ export function refreshTreasuryOverview(): void {
       chancery: snapshot.chancery,
       stewardship: snapshot.stewardship,
       spymastery: snapshot.spymastery,
-      ecclesiastica: snapshot.ecclesiastica
+      ecclesiastica: snapshot.ecclesiastica,
+      chanceryServiceLevel: rn(state.departmentServiceLevel?.chancery ?? 1, 3),
+      stewardshipServiceLevel: rn(state.departmentServiceLevel?.stewardship ?? 1, 3),
+      spymasteryServiceLevel: rn(state.departmentServiceLevel?.spymastery ?? 1, 3),
+      ecclesiasticaServiceLevel: rn(state.departmentServiceLevel?.ecclesiastica ?? 1, 3),
+      chanceryBudgetMultiplier: rn(state.departmentBudgetMultiplier?.chancery ?? 1, 2),
+      stewardshipBudgetMultiplier: rn(state.departmentBudgetMultiplier?.stewardship ?? 1, 2),
+      spymasteryBudgetMultiplier: rn(state.departmentBudgetMultiplier?.spymastery ?? 1, 2),
+      ecclesiasticaBudgetMultiplier: rn(state.departmentBudgetMultiplier?.ecclesiastica ?? 1, 2),
+      departmentBalanceRemit: rn(snapshot.departmentBalanceRemit, 2),
+      diplomaticReliability: rn(state.diplomaticReliability ?? 100, 1),
+      religiousUnrest: rn(state.religiousUnrest || 0, 1)
     });
   }
 

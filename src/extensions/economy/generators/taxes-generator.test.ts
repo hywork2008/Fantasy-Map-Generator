@@ -8,6 +8,7 @@ import {
   setDeals,
   setMarkets
 } from "../economyContext";
+import { getStateFiscalReportState } from "../store/stateFiscalReportState";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import {
@@ -314,8 +315,10 @@ describe("TaxesModule", () => {
       expect(state1.treasury).toBe(0);
 
       taxesModule.collectTaxes();
-      // +100 again; HH 10; procurement buffer empty
-      expect(state1.householdPurse).toBe(10);
+      // +100 again; HH ~10; procurement buffer empty. Very slightly under 10 (PR-17b): cycle 1
+      // left Stewardship's departmentServiceLevel a hair below 1, and that one-cycle-lagged
+      // shortfall trims this cycle's administration bonus by the same hair.
+      expect(state1.householdPurse).toBe(9.98);
       expect(state1.treasury).toBe(0);
     });
 
@@ -341,6 +344,54 @@ describe("TaxesModule", () => {
       expect(state1.householdPurse).toBe(5);
       expect(state1.treasury).toBe(0);
       expect(state1.departmentBalances?.marshalcy).toBeCloseTo(15.47, 1);
+    });
+
+    describe("Stewardship service level effect on administration (PR-17b)", () => {
+      function makeState(stewardshipServiceLevel: number): State {
+        return {
+          i: 1,
+          form: "Monarchy",
+          salesTax: 0,
+          pollTax: 1,
+          rural: 100,
+          urban: 0,
+          departmentServiceLevel: {
+            chancery: 1,
+            stewardship: stewardshipServiceLevel,
+            spymastery: 1,
+            ecclesiastica: 1
+          }
+        } as unknown as State;
+      }
+
+      it("charges no extra administrative upkeep and no tax-efficiency penalty when fully funded", () => {
+        const state = makeState(1);
+        worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+        worldContext.pack.burgs = [];
+        setDeals([]);
+
+        taxesModule.collectTaxes();
+
+        const report = getStateFiscalReportState().reports.at(-1);
+        expect(report?.expenses.administrativeUpkeep ?? 0).toBe(0);
+      });
+
+      it("raises administrative upkeep and shrinks poll-tax collection when fully neglected", () => {
+        const state = makeState(0);
+        worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+        worldContext.pack.burgs = [];
+        setDeals([]);
+
+        taxesModule.collectTaxes();
+
+        const report = getStateFiscalReportState().reports.at(-1);
+        // administrationBonus shrinks by STEWARDSHIP_TAX_EFFICIENCY_PENALTY_MAX (0.15) →
+        // pollTax revenue is 85% of the fully-funded case (population 100 × pollTax 1).
+        expect(report?.income.pollTax).toBeCloseTo(100 * 0.85, 5);
+        // administrativeUpkeepShare rises from 0 (provisioned profile default) to
+        // STEWARDSHIP_UPKEEP_PENALTY_MAX_SHARE_POINTS (0.05) at full shortfall.
+        expect(report?.expenses.administrativeUpkeep).toBeCloseTo((report?.income.pollTax ?? 0) * 0.05, 5);
+      });
     });
   });
 });

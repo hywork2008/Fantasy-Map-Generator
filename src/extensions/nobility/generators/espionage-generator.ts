@@ -1,5 +1,23 @@
 import { appServices, type IntelligenceReport, simulationContext } from "../../hostCore";
+import type { State } from "../../hostTypes";
 import { getRulerId, getWorldContext } from "../nobilityContext";
+
+/**
+ * PR-17d (docs/plan/department-budget-spending-effects.md §3.2) — Spymastery funding effect.
+ * Reads Economy's `state.departmentServiceLevel.spymastery` (0..1, EWMA-smoothed liquidity
+ * gauge; treasuryAllocation.ts) directly off the shared State object rather than importing from
+ * the economy extension — extensions communicate through shared `pack` fields, not cross-module
+ * imports (AGENTS.md §7.3). When Economy is disabled, or has never run allocateTreasury() yet,
+ * the field is undefined and espionage stays at full effectiveness — unchanged pre-PR-17d
+ * behavior, so this extension remains fully usable without Economy enabled.
+ */
+const SPYMASTERY_EFFECTIVENESS_FLOOR = 0.4;
+
+function getSpymasteryEffectiveness(state: State): number {
+  const level = state.departmentServiceLevel?.spymastery;
+  if (level === undefined) return 1;
+  return SPYMASTERY_EFFECTIVENESS_FLOOR + (1 - SPYMASTERY_EFFECTIVENESS_FLOOR) * Math.max(0, Math.min(1, level));
+}
 
 // Cumulative intrigue bonus one state's ships gather on another by spying while
 // disguised as merchants on trade voyages (Shipbuilding extension,
@@ -75,10 +93,14 @@ export class EspionageGenerator {
           )
       );
 
+      // PR-17d: a neglected Spymastery blunts intrigue-gathering rather than blacking it out
+      // entirely (SPYMASTERY_EFFECTIVENESS_FLOOR) — the office still runs on old contacts.
+      const spymasteryEffectiveness = getSpymasteryEffectiveness(observer);
       const observerIntrigue =
-        (observerSpymaster?.skills.intrigue ?? 5) * 1.5 +
-        (observerRuler?.skills.intrigue ?? 5) +
-        (observerRuler?.personality.guile ?? 5);
+        ((observerSpymaster?.skills.intrigue ?? 5) * 1.5 +
+          (observerRuler?.skills.intrigue ?? 5) +
+          (observerRuler?.personality.guile ?? 5)) *
+        spymasteryEffectiveness;
 
       for (const target of states) {
         if (observer.i === target.i) continue;

@@ -23,6 +23,7 @@ const INCOME_LABELS: Readonly<Record<string, string>> = {
   wartimeSubsidy: "Wartime subsidy",
   publicDebtIssued: "Public debt issued",
   foreignDebtIssued: "Foreign debt issued",
+  departmentBalanceRemit: "Department balance remit (over cap)",
   unclassifiedIncome: "Other treasury movement"
 };
 
@@ -34,7 +35,11 @@ const EXPENSE_LABELS: Readonly<Record<string, string>> = {
   publicDebtRepaid: "Public debt repayment",
   foreignDebtInterest: "Foreign debt interest",
   householdTransfer: "Household purse transfer",
-  departmentTransfer: "Department funding transfer",
+  marshalcyTransfer: "Marshalcy funding transfer",
+  chanceryTransfer: "Chancery funding transfer",
+  stewardshipTransfer: "Stewardship funding transfer",
+  spymasteryTransfer: "Spymastery funding transfer",
+  ecclesiasticaTransfer: "Ecclesiastica funding transfer",
   militaryUpkeep: "Military upkeep from treasury",
   strategicProcurement: "Strategic procurement",
   titheTransfer: "Ecclesiastical tithe transfer",

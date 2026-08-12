@@ -79,6 +79,33 @@ export interface TreasuryOverviewRow {
   stewardship: number;
   spymastery: number;
   ecclesiastica: number;
+  /**
+   * PR-17b — smoothed 0..1 liquidity-based service level per non-marshalcy department.
+   * 1 = fully funded recently, 0 = the treasury could not afford it. Feeds real gameplay effects
+   * (e.g. Stewardship → administrative upkeep/tax efficiency, PR-17b; Spymastery → espionage
+   * effectiveness, PR-17d). docs/plan/department-budget-spending-effects.md §3.
+   */
+  chanceryServiceLevel: number;
+  stewardshipServiceLevel: number;
+  spymasteryServiceLevel: number;
+  ecclesiasticaServiceLevel: number;
+  /** PR-17c — player's per-department budget multiplier, 1 = unchanged from form baseline. */
+  chanceryBudgetMultiplier: number;
+  stewardshipBudgetMultiplier: number;
+  spymasteryBudgetMultiplier: number;
+  ecclesiasticaBudgetMultiplier: number;
+  /** PR-17a — cash remitted L3a → L2 this cycle because a non-marshalcy balance hit its cap. */
+  departmentBalanceRemit: number;
+  /**
+   * PR-17g — 0..100 accumulated diplomatic reputation driven by Chancery's service level; below
+   * 30 risks straining an existing alliance. docs/plan/department-budget-spending-effects.md §3.4.
+   */
+  diplomaticReliability: number;
+  /**
+   * PR-17h — 0..100 accumulated religious unrest driven by Ecclesiastica's service level; above
+   * 40 costs assembly support (councilAssembly.ts). docs/plan/department-budget-spending-effects.md §3.3.
+   */
+  religiousUnrest: number;
 }
 
 interface TreasuryOverviewState {

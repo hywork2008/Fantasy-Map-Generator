@@ -19,6 +19,15 @@ export interface CouncilBudgetApprovals {
   extraordinaryTax: boolean;
   /** Future hook: large military expansion spends. */
   militaryExpansion: boolean;
+  /**
+   * PR-17f — department-budget-cut lines (docs/plan/department-budget-spending-effects.md §4).
+   * Gates a player's departmentBudgetMultiplier < 1 for that department; a boost (> 1) never
+   * needs approval. See treasuryAllocation.ts's applyDepartmentBudgetOverride().
+   */
+  cutChancery: boolean;
+  cutStewardship: boolean;
+  cutSpymastery: boolean;
+  cutEcclesiastica: boolean;
   support: number;
 }
 
@@ -26,7 +35,14 @@ export const COUNCIL_LINE_THRESHOLDS = {
   debtIssue: 45,
   warFootingPeacetime: 40,
   extraordinaryTax: 55,
-  militaryExpansion: 50
+  militaryExpansion: 50,
+  // PR-17f — support floor before a department-budget cut is even put to a faction vote.
+  // Spymastery is lowest (§ the "most palatable cut" note in councilVotes.ts), Ecclesiastica
+  // highest (touches legitimacy, especially for Theocracy).
+  cutChancery: 30,
+  cutStewardship: 30,
+  cutSpymastery: 25,
+  cutEcclesiastica: 40
 } as const;
 
 function lineClearsSupport(line: CouncilBudgetLine, support: number, atWar: boolean): boolean {
@@ -39,6 +55,14 @@ function lineClearsSupport(line: CouncilBudgetLine, support: number, atWar: bool
       return atWar && support >= COUNCIL_LINE_THRESHOLDS.extraordinaryTax;
     case "militaryExpansion":
       return support >= COUNCIL_LINE_THRESHOLDS.militaryExpansion;
+    case "cutChancery":
+      return support >= COUNCIL_LINE_THRESHOLDS.cutChancery;
+    case "cutStewardship":
+      return support >= COUNCIL_LINE_THRESHOLDS.cutStewardship;
+    case "cutSpymastery":
+      return support >= COUNCIL_LINE_THRESHOLDS.cutSpymastery;
+    case "cutEcclesiastica":
+      return support >= COUNCIL_LINE_THRESHOLDS.cutEcclesiastica;
     default:
       return false;
   }
@@ -57,6 +81,10 @@ export function getCouncilBudgetApprovals(state: State): CouncilBudgetApprovals 
   const voteWar = simulateCouncilVote(state, "warFooting");
   const voteTax = simulateCouncilVote(state, "extraordinaryTax");
   const voteMil = simulateCouncilVote(state, "militaryExpansion");
+  const voteCutChancery = simulateCouncilVote(state, "cutChancery");
+  const voteCutStewardship = simulateCouncilVote(state, "cutStewardship");
+  const voteCutSpymastery = simulateCouncilVote(state, "cutSpymastery");
+  const voteCutEcclesiastica = simulateCouncilVote(state, "cutEcclesiastica");
 
   return {
     support,
@@ -64,7 +92,11 @@ export function getCouncilBudgetApprovals(state: State): CouncilBudgetApprovals 
     // At war, war footing is a military necessity the assembly rarely blocks.
     warFooting: atWar || (lineClearsSupport("warFooting", support, atWar) && voteWar.passed),
     extraordinaryTax: lineClearsSupport("extraordinaryTax", support, atWar) && voteTax.passed,
-    militaryExpansion: lineClearsSupport("militaryExpansion", support, atWar) && voteMil.passed
+    militaryExpansion: lineClearsSupport("militaryExpansion", support, atWar) && voteMil.passed,
+    cutChancery: lineClearsSupport("cutChancery", support, atWar) && voteCutChancery.passed,
+    cutStewardship: lineClearsSupport("cutStewardship", support, atWar) && voteCutStewardship.passed,
+    cutSpymastery: lineClearsSupport("cutSpymastery", support, atWar) && voteCutSpymastery.passed,
+    cutEcclesiastica: lineClearsSupport("cutEcclesiastica", support, atWar) && voteCutEcclesiastica.passed
   };
 }
 
@@ -79,7 +111,11 @@ export function refreshCouncilBudgetApprovals(state: State): CouncilBudgetApprov
     debtIssue: approvals.debtIssue,
     warFooting: approvals.warFooting,
     extraordinaryTax: approvals.extraordinaryTax,
-    militaryExpansion: approvals.militaryExpansion
+    militaryExpansion: approvals.militaryExpansion,
+    cutChancery: approvals.cutChancery,
+    cutStewardship: approvals.cutStewardship,
+    cutSpymastery: approvals.cutSpymastery,
+    cutEcclesiastica: approvals.cutEcclesiastica
   };
   return approvals;
 }

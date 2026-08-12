@@ -2,7 +2,18 @@
 
 ## 状態
 
-**設計案。未実装。** [multi-ledger-fiscal-architecture.md](./multi-ledger-fiscal-architecture.md) PR-1〜PR-15完了後に残った§9のリスク「部門に金が溜まりゲームが緩む（将来の部門支出・年度リセット・L2への還流）」と、[state-treasury-department-budget.md](./state-treasury-department-budget.md) §8「未着手」項目4（軍事以外の部門支出の俸給以外のゲーム内効果）に対応する後続PR。本文書はその2箇所からリンクされる。
+**PR-17a〜17h 全実装済み。** [multi-ledger-fiscal-architecture.md](./multi-ledger-fiscal-architecture.md) PR-1〜PR-15完了後に残った§9のリスク「部門に金が溜まりゲームが緩む（将来の部門支出・年度リセット・L2への還流）」と、[state-treasury-department-budget.md](./state-treasury-department-budget.md) §8「未着手」項目4（軍事以外の部門支出の俸給以外のゲーム内効果）に対応する後続PR。本文書はその2箇所からリンクされる。
+
+- ✅ PR-17a: `capDepartmentBalances()`（treasuryAllocation.ts）——非marshalcy部門残高を`nominal×DEPARTMENT_BALANCE_CAP_CYCLES`（6）で頭打ちし、超過分を`state.treasury`へ還流。Fiscal Reportの`departmentBalanceRemit`収入行で可視化。
+- ✅ PR-17b: `departmentServiceLevel`（0..1、EWMA平滑化）——`creditDepartmentBalances`のpro-rata流動性スケールから算出し、Stewardshipの値が次サイクルの`administrativeUpkeepShare`/`administrationBonus`（taxes-generator.ts）を実際に動かす。1サイクル遅延で反映。
+- ✅ PR-17c: `applyDepartmentBudgetOverride()` + `state.departmentBudgetMultiplier`（Chancery/Stewardship/Spymastery/Ecclesiastica、0.5〜1.5）——[StatesEditorTreasuryTab.tsx](../../src/extensions/economy/ui/components/StatesEditorTreasuryTab.tsx)に%入力UIを追加。**再正規化しない**——削った分は他部門へ回らずtreasuryに残る（§4参照）。
+- ✅ PR-17d: `departmentServiceLevel.spymastery`をnobility拡張の`espionage-generator.ts`の`observerIntrigue`へ接続（floor 0.4）。拡張間はimportではなく共有`State`フィールド越しに疎結合。
+- ✅ PR-17e: `departmentTransfer`を5部門別`expenses`行へ分解（Fiscal Report）、Treasury Overviewに部門別Svc%・削減承認状況・`departmentBalanceRemit`列を追加。
+- ✅ PR-17f: `cutChancery`/`cutStewardship`/`cutSpymastery`/`cutEcclesiastica`の4議会承認ラインを追加。未承認の削減は`applyDepartmentBudgetOverride()`がそのサイクルbaselineへ差し戻す（ブーストは常に無条件）。UIに"(blocked)"表示。
+- ✅ PR-17g: `state.diplomaticReliability`（Chancery駆動）——閾値割れで既存の同盟を1段階格下げ。`foreignDebtDiplomacy.ts`から`diplomacyRelations.ts`へ共有元帳ロジックを抽出して再利用。
+- ✅ PR-17h: `state.religiousUnrest`（Ecclesiastica駆動、Theocracyは1.5倍速）——**実装時にスコープを縮退**（下記参照）。新規カルト伸長シミュレーションは作らず、`councilAssembly.ts`の`getCouncilSupport()`へペナルティとして接続。結果として debtIssue/warFooting/全4削減ラインの承認が軒並み通りにくくなる、既存インフラ再利用の一般化された帰結にした。
+
+**PR-17h実装時の判断**: 設計時点でreligions-generator.tsに動的な宗教/カルト伸長のtickフックが存在しないことを実装直前に再確認した（`timeEngine.ts`に該当フックなし）。新規のカルト伸長シミュレーションを1から構築するのは本PRのスコープを大きく超えるため、Marshalcy/Chancery/Stewardshipで確立済みの「蓄積スコア→councilSupport系の既存ゲートに接続」パターンを流用する形に縮退した。カルト伸長そのものの実装は引き続き将来PRの課題として残る。
 
 ## 背景・目的
 
@@ -140,25 +151,25 @@ UIは[StatesEditorTreasuryTab.tsx](../../src/extensions/economy/ui/components/St
 
 ## 7. 実装計画（PR分割）
 
-| PR | 内容 | 前提 |
-| :--- | :--- | :--- |
-| PR-17a | Stage 0: departmentBalances死蔵キャップ・treasury還流 | なし |
-| PR-17b | 家宰府→徴税効率（`administrativeUpkeep`/`administrationBonus`接続、`departmentServiceLevel.stewardship`新設） | PR-17a |
-| PR-17c | 部門予算プレイヤーレバー（`departmentBudgetMultiplier`、`applyDepartmentBudgetOverride`、UIスライダー） | PR-17b（効果が無いと削る意味がない） |
-| PR-17d | 諜報府→espionage資金源（nobility拡張への課金ゲート追加） | PR-17c |
-| PR-17e | 調査UI拡張（Fiscal Report内訳展開、Treasury Overview部門列） | PR-17b以降、随時 |
-| PR-17f | 議会承認ラインへの部門削減接続（councilBudget/councilVotes拡張） | PR-17c |
-| PR-17g | 尚書院→外交信頼性（`diplomaticReliability`新設、外交AI整合性検証） | PR-17c |
-| PR-17h | 教会庁→宗教的正統性・カルト圧力（`religiousUnrest`新設、religions-generator.tsとの接続方式は別途調査） | PR-17c |
+| PR | 内容 | 前提 | 状態 |
+| :--- | :--- | :--- | :--- |
+| PR-17a | Stage 0: departmentBalances死蔵キャップ・treasury還流 | なし | ✅ |
+| PR-17b | 家宰府→徴税効率（`administrativeUpkeep`/`administrationBonus`接続、`departmentServiceLevel.stewardship`新設） | PR-17a | ✅ |
+| PR-17c | 部門予算プレイヤーレバー（`departmentBudgetMultiplier`、`applyDepartmentBudgetOverride`、UI）——設計時の「スライダー」は実装時に既存の`StatesEditorTreasuryTab`の%入力パターンへ統一 | PR-17b（効果が無いと削る意味がない） | ✅ |
+| PR-17d | 諜報府→espionage資金源（`departmentServiceLevel.spymastery`をespionage-generator.tsの`observerIntrigue`に接続、floor 0.4） | PR-17c | ✅ |
+| PR-17e | 調査UI拡張（`departmentTransfer`を5部門別`expenses`行に分解、Treasury Overviewに部門別Svc%列+Dept Remit列を追加） | PR-17b以降、随時 | ✅ |
+| PR-17f | 議会承認ラインへの部門削減接続（`cutChancery`/`cutStewardship`/`cutSpymastery`/`cutEcclesiastica`の4ライン追加、`applyDepartmentBudgetOverride`が未承認の削減をそのサイクルはbaselineへ差し戻す。StatesEditorTreasuryTabに"(blocked)"表示） | PR-17c | ✅ |
+| PR-17g | 尚書院→外交信頼性（`state.diplomaticReliability`新設、`chanceryDiplomacy.ts`。閾値割れで既存の同盟関係を1段階格下げ。共通元帳`diplomacyRelations.ts`をforeignDebtDiplomacy.tsから抽出して再利用） | PR-17c | ✅ |
+| PR-17h | 教会庁→宗教的正統性・カルト圧力——実装時にスコープを縮退（§8参照）。`state.religiousUnrest`新設、Theocracyは1.5倍速で蓄積、`councilAssembly.ts`の`getCouncilSupport()`へペナルティとして接続。結果、debtIssue/warFooting/全4削減ラインが軒並み通りにくくなる | PR-17c | ✅ |
 
 ---
 
 ## 8. 非目的
 
-- 教会庁の宗教シミュレーション（カルト伸長速度の具体的な数式化）そのものの詳細設計——PR-17hの前に別途調査が必要
+- 教会庁のカルト伸長シミュレーション（cells/religionsの動的な勢力拡大）そのものの実装——religions-generator.tsにtickフックが存在しないため本PR群のスコープ外のまま。PR-17hは`religiousUnrest`→`councilSupport`ペナルティという縮退実装に留め、cull伸長そのものは将来PRの課題として明示的に残す
 - 部門予算削減の政治的帰結（議会否決後に何が起きるか）の詳細——`state-treasury-department-budget.md`§8が既に「不満蓄積閾値超過後の具体的な政治的帰結はフェーズ2」としてクーデター機構と合わせて保留しており、本文書もそれを踏襲する
 - Burg単位（市政府）の予算配分効果——本設計はState単位の`departmentBalances`のみ
-- `departmentBudgetMultiplier`の具体的な可動域（0.5〜1.5は仮値）・各部門の逼迫閾値の数値調整——実プレイでのバランス確認が必要
+- `departmentBudgetMultiplier`の具体的な可動域（0.5〜1.5は仮値）・各部門の逼迫閾値・`religiousUnrest`/`diplomaticReliability`の蓄積レート/ペナルティ係数の数値調整——実プレイでのバランス確認が必要
 
 ---
 

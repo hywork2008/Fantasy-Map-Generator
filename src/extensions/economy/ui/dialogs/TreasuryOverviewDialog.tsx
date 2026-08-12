@@ -444,12 +444,75 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 numeric
                 tip="Nominal department Budget this cycle"
               />
+              <SortableHeader
+                field="chanceryServiceLevel"
+                label="Chancery Svc"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-17b: smoothed 0-100% liquidity-based service level. Below ~80% starts costing real gameplay effects for this department (e.g. Spymastery → espionage effectiveness, Stewardship → tax efficiency)"
+              />
+              <SortableHeader
+                field="stewardshipServiceLevel"
+                label="Stewardship Svc"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-17b: smoothed 0-100% liquidity-based service level — drives administrative upkeep/tax efficiency in taxes-generator.ts, one cycle lagged"
+              />
+              <SortableHeader
+                field="spymasteryServiceLevel"
+                label="Spymastery Svc"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-17b/17d: smoothed 0-100% liquidity-based service level — drives this state's espionage/intrigue effectiveness (floor 40%)"
+              />
+              <SortableHeader
+                field="ecclesiasticaServiceLevel"
+                label="Ecclesiastica Svc"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-17b: smoothed 0-100% liquidity-based service level for Ecclesiastica"
+              />
+              <SortableHeader
+                field="departmentBalanceRemit"
+                label="Dept Remit"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-17a: cash remitted L3a → L2 this cycle because a non-marshalcy department balance exceeded its cap (6× nominal budget) — the office simply could not spend it fast enough"
+              />
+              <SortableHeader
+                field="diplomaticReliability"
+                label="Diplo Reliability"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-17g: 0-100 accumulated diplomatic reputation driven by Chancery's service level. Below 30, sustained neglect risks straining an existing alliance"
+              />
+              <SortableHeader
+                field="religiousUnrest"
+                label="Religious Unrest"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-17h: 0-100 accumulated unrest driven by Ecclesiastica's service level (Theocracy accumulates 1.5× faster). Above 40 it costs assembly support, gating debt issuance, war footing, and every department-budget cut"
+              />
             </tr>
           </thead>
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={37}>
+                <td colSpan={44}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -514,5 +577,22 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td>{row.stewardship.toFixed(2)}</td>
     <td>{row.spymastery.toFixed(2)}</td>
     <td>{row.ecclesiastica.toFixed(2)}</td>
+    <td data-tip={`Budget multiplier ×${row.chanceryBudgetMultiplier.toFixed(2)}`}>
+      {(row.chanceryServiceLevel * 100).toFixed(0)}%
+    </td>
+    <td data-tip={`Budget multiplier ×${row.stewardshipBudgetMultiplier.toFixed(2)}`}>
+      {(row.stewardshipServiceLevel * 100).toFixed(0)}%
+    </td>
+    <td data-tip={`Budget multiplier ×${row.spymasteryBudgetMultiplier.toFixed(2)}`}>
+      {(row.spymasteryServiceLevel * 100).toFixed(0)}%
+    </td>
+    <td data-tip={`Budget multiplier ×${row.ecclesiasticaBudgetMultiplier.toFixed(2)}`}>
+      {(row.ecclesiasticaServiceLevel * 100).toFixed(0)}%
+    </td>
+    <td data-tip="Cash remitted back to public treasury this cycle (over-cap department balance)">
+      {row.departmentBalanceRemit > 0 ? row.departmentBalanceRemit.toFixed(2) : "—"}
+    </td>
+    <td data-tip="Below 30 risks straining an existing alliance">{row.diplomaticReliability.toFixed(0)}</td>
+    <td data-tip="Above 40 costs assembly support">{row.religiousUnrest.toFixed(0)}</td>
   </tr>
 );

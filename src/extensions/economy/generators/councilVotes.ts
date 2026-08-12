@@ -19,7 +19,18 @@ import { isWarFootingActive } from "./warFooting";
 
 export type CouncilFaction = "court" | "merchants" | "military" | "clergy";
 
-export type CouncilBudgetLine = "debtIssue" | "warFooting" | "extraordinaryTax" | "militaryExpansion";
+export type CouncilBudgetLine =
+  | "debtIssue"
+  | "warFooting"
+  | "extraordinaryTax"
+  | "militaryExpansion"
+  // PR-17f (docs/plan/department-budget-spending-effects.md §4) — department-budget-cut lines.
+  // Gates a player's departmentBudgetMultiplier < 1 for that department, not the department
+  // itself existing — voting "no" simply keeps the baseline share, it never blocks a boost (>1).
+  | "cutChancery"
+  | "cutStewardship"
+  | "cutSpymastery"
+  | "cutEcclesiastica";
 
 export interface CouncilFactionShares {
   court: number;
@@ -148,6 +159,41 @@ export function factionYesLean(
       if (faction === "court") return 0.55;
       if (faction === "merchants") return 0.3;
       if (faction === "clergy") return 0.4;
+      return 0.5;
+    }
+    // PR-17f: each faction's stake in the department being cut, not war/debt posture.
+    case "cutChancery": {
+      // Diplomacy/law — merchants need it for trade treaties, court runs it day to day.
+      if (faction === "merchants") return 0.25;
+      if (faction === "court") return 0.35;
+      if (faction === "military") return 0.55;
+      if (faction === "clergy") return 0.5;
+      return 0.5;
+    }
+    case "cutStewardship": {
+      // Administration/tax collection — the faction everyone's commerce and logistics run on.
+      if (faction === "merchants") return 0.15;
+      if (faction === "court") return 0.2;
+      if (faction === "military") return 0.35;
+      if (faction === "clergy") return 0.4;
+      return 0.5;
+    }
+    case "cutSpymastery": {
+      // The most politically palatable cut — merchants/clergy are more often surveilled by
+      // it than protected, so its absence is not universally feared like the others.
+      if (faction === "military") return 0.4;
+      if (faction === "court") return 0.35;
+      if (faction === "merchants") return 0.55;
+      if (faction === "clergy") return 0.55;
+      return 0.5;
+    }
+    case "cutEcclesiastica": {
+      // Clergy defends its own budget hardest; court's stake scales with how central religion
+      // is to the regime's legitimacy (Theocracy far more than the other forms).
+      if (faction === "clergy") return 0.05;
+      if (faction === "court") return state.form === "Theocracy" ? 0.1 : 0.4;
+      if (faction === "military") return 0.55;
+      if (faction === "merchants") return 0.55;
       return 0.5;
     }
     default:

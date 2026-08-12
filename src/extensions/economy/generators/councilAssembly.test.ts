@@ -106,6 +106,15 @@ describe("councilAssembly (PR-8)", () => {
     expect(canCouncilApproveDebtIssue(anarchy)).toBe(false);
   });
 
+  it("subtracts a religious-unrest penalty only above the floor (PR-17h)", () => {
+    const calm = { i: 1, form: "Republic", religiousUnrest: 40 } as unknown as State; // at the floor, no penalty
+    const unrestful = { i: 2, form: "Republic", religiousUnrest: 90 } as unknown as State; // 50 over floor × 0.2 = 10
+    worldContext.pack = { characters: [], states: [undefined, calm, unrestful] } as unknown as PackedGraph;
+
+    expect(getCouncilSupport(calm).support).toBe(COUNCIL_BASE_SUPPORT_BY_FORM.Republic);
+    expect(getCouncilSupport(unrestful).support).toBe(38); // 48 base − 10 penalty
+  });
+
   it("includes the living ruler at half weight", () => {
     const ruler = makePerson({
       i: 1,

@@ -64,4 +64,30 @@ describe("councilVotes (PR-12)", () => {
     expect(vote.factionDetails.map(d => d.faction).sort()).toEqual(["clergy", "court", "merchants", "military"].sort());
     expect(vote.factionDetails.every(d => d.share > 0 && d.lean >= 0 && d.lean <= 1)).toBe(true);
   });
+
+  describe("department-budget-cut lines (PR-17f)", () => {
+    it("clergy resists cutting Ecclesiastica far harder than any other faction resists its own cut line", () => {
+      const state = { i: 1, form: "Monarchy", councilSupport: 50, diplomacy: [] } as unknown as State;
+      const vote = simulateCouncilVote(state, "cutEcclesiastica");
+      const clergyLean = vote.factionDetails.find(d => d.faction === "clergy")?.lean;
+      expect(clergyLean).toBe(0.05);
+    });
+
+    it("gives cutting Ecclesiastica a lower yes-share for a Theocracy than for a Monarchy (legitimacy stakes)", () => {
+      const theocracy = { i: 1, form: "Theocracy", councilSupport: 50, diplomacy: [] } as unknown as State;
+      const monarchy = { i: 1, form: "Monarchy", councilSupport: 50, diplomacy: [] } as unknown as State;
+      const theocracyYes = simulateCouncilVote(theocracy, "cutEcclesiastica").yesShare;
+      const monarchyYes = simulateCouncilVote(monarchy, "cutEcclesiastica").yesShare;
+      expect(theocracyYes).toBeLessThan(monarchyYes);
+    });
+
+    it("makes cutting Spymastery the most politically palatable department cut", () => {
+      const state = { i: 1, form: "Monarchy", councilSupport: 50, diplomacy: [] } as unknown as State;
+      const spymasteryYes = simulateCouncilVote(state, "cutSpymastery").yesShare;
+      const stewardshipYes = simulateCouncilVote(state, "cutStewardship").yesShare;
+      const chanceryYes = simulateCouncilVote(state, "cutChancery").yesShare;
+      expect(spymasteryYes).toBeGreaterThan(stewardshipYes);
+      expect(spymasteryYes).toBeGreaterThan(chanceryYes);
+    });
+  });
 });

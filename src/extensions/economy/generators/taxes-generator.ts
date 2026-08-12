@@ -2,9 +2,11 @@ import type { Burg } from "../../hostTypes";
 import { gauss, rn, TIME } from "../../hostUtils";
 import { getDeals, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { updateDiplomaticReliability } from "./chanceryDiplomacy";
 import { applyCharacterLivingCosts } from "./characterLivingCosts";
 import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
 import { applyAllDomainFiscalPolicies, getStateDomainPollTaxMultiplier } from "./domainFiscalPolicy";
+import { updateReligiousUnrest } from "./ecclesiasticaUnrest";
 import { getEconomyStartProfile } from "./economyStartMode";
 import { applyFiscalEvents } from "./fiscalEvents";
 import { Markets } from "./markets-generator";
@@ -36,6 +38,21 @@ const DEFAULT_TAX_BY_FORM: Record<string, TaxBases> = {
   Anarchy: { salesTax: 0, pollTax: 0 }
 };
 const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;
+
+/**
+ * PR-17b (docs/plan/department-budget-spending-effects.md §3.1) — Stewardship's funding effect.
+ * A fully-neglected Stewardship (departmentServiceLevel.stewardship sustained at 0) raises
+ * effective administrative upkeep by up to this many share-points and shrinks the administration
+ * tax-efficiency bonus by up to this fraction. Kept small relative to economyStartMode.ts's
+ * stateAdministrativeUpkeepShare (already 0.88-0.95 in the realistic/subsistence profiles) so a
+ * starved Stewardship erodes a state further without being able to push upkeep past
+ * STEWARDSHIP_UPKEEP_SHARE_CEILING on its own. Deliberately lagged one cycle — this cycle's
+ * allocateTreasury() call (later in collectTaxes()) updates departmentServiceLevel for *next*
+ * cycle, so today's neglect cannot be undone by a same-cycle "spend more" reaction.
+ */
+const STEWARDSHIP_UPKEEP_PENALTY_MAX_SHARE_POINTS = 0.05;
+const STEWARDSHIP_UPKEEP_SHARE_CEILING = 0.98;
+const STEWARDSHIP_TAX_EFFICIENCY_PENALTY_MAX = 0.15;
 
 // Gold from Shipbuilding's trade-voyage ships (fmg:shipbuilding-voyage-income), buffered
 // here until the next collectTaxes()/foldBufferedStateIncome() fold-in — mirrors how `deals`
@@ -132,9 +149,16 @@ export class TaxesModule {
       const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
       const procurementExpense = _strategicProcurementExpenseByState.get(state.i) ?? 0;
       const militaryUpkeep = getStateMilitaryUpkeep(state);
+      // PR-17b: last cycle's Stewardship service level (this cycle's allocateTreasury() call,
+      // below, updates it for next cycle — see the constants' doc comment for the lag rationale).
+      const stewardshipServiceLevel = state.departmentServiceLevel?.stewardship ?? 1;
+      const stewardshipShortfall = Math.max(0, 1 - stewardshipServiceLevel);
       // Better-staffed notaries/judges/clerks at the capital collect the household levy more
       // completely (less unrecorded evasion) — docs/plan/knowledge-guild-system.md §9 Phase 3.
-      const administrationBonus = getAcademyBonus(state.capital ?? 0, "administration");
+      // A neglected Stewardship erodes this same efficiency (PR-17b).
+      const administrationBonus =
+        getAcademyBonus(state.capital ?? 0, "administration") *
+        (1 - stewardshipShortfall * STEWARDSHIP_TAX_EFFICIENCY_PENALTY_MAX);
       // PR-12: domain levy intensity across province seats scales poll-tax collection.
       const domainPollMult = getStateDomainPollTaxMultiplier(state);
       state.domainPollTaxMultiplier = domainPollMult;
@@ -147,9 +171,16 @@ export class TaxesModule {
       // Courts, scribes, tax farmers, messengers, and routine local administration consume
       // ordinary peace-time income before it becomes discretionary Treasury growth. This is
       // deliberately a real cash sink, not a cosmetic cap; a State that cannot cover it has
-      // less cash for its departments and military in the same cycle.
+      // less cash for its departments and military in the same cycle. PR-17b: a neglected
+      // Stewardship raises this share (clamped below STEWARDSHIP_UPKEEP_SHARE_CEILING) — a
+      // starved civil service collects revenue less cleanly and administration itself gets
+      // costlier, not cheaper.
       const profile = getEconomyStartProfile(this.worldContext.options);
-      const administrativeUpkeep = rn(rawDomesticIncome * profile.stateAdministrativeUpkeepShare, 2);
+      const administrativeUpkeepShare = Math.min(
+        STEWARDSHIP_UPKEEP_SHARE_CEILING,
+        profile.stateAdministrativeUpkeepShare + stewardshipShortfall * STEWARDSHIP_UPKEEP_PENALTY_MAX_SHARE_POINTS
+      );
+      const administrativeUpkeep = rn(rawDomesticIncome * administrativeUpkeepShare, 2);
       if (administrativeUpkeep > 0) {
         state.treasury = rn(Math.max(0, (state.treasury || 0) - administrativeUpkeep), 2);
       }
@@ -157,15 +188,16 @@ export class TaxesModule {
       const mix = applyFormRevenueMix(state, rawDomesticIncome);
       // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
       const events = applyFiscalEvents(state, mix.adjustedDomesticIncome);
-      const budgetIncome = rn(
-        mix.adjustedDomesticIncome * (1 - profile.stateAdministrativeUpkeepShare) * events.incomeScale,
-        2
-      );
+      const budgetIncome = rn(mix.adjustedDomesticIncome * (1 - administrativeUpkeepShare) * events.incomeScale, 2);
       // PR-7: AI war footing sync from diplomacy (unless player-locked), then court cost.
       syncWarFootingFromDiplomacy(state);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).
       // War footing reweights department shares (PR-6) when state.warFooting is set.
       const allocation = allocateTreasury(state, budgetIncome);
+      // PR-17g: Chancery's freshly-updated service level feeds diplomatic reliability this cycle.
+      updateDiplomaticReliability(state);
+      // PR-17h: Ecclesiastica's freshly-updated service level feeds religious unrest this cycle.
+      updateReligiousUnrest(state);
       applyWarFootingPoliticalCost(state);
       // Troop upkeep: L3a.marshalcy first, then L2 remainder (multi-ledger PR-5). Need is
       // recomputed here so it matches the same military snapshot collectTaxes already used.
@@ -188,7 +220,9 @@ export class TaxesModule {
         voyageIncome: voyageKept,
         wartimeSubsidy: mix.wartimeSubsidy,
         publicDebtIssued: events.debtIssued,
-        foreignDebtIssued: events.foreignDebtIssued
+        foreignDebtIssued: events.foreignDebtIssued,
+        // PR-17a: overflow remitted L3a → L2 when a non-marshalcy department balance hit its cap.
+        departmentBalanceRemit: allocation.departmentBalanceRemit
       };
       const expenses = {
         administrativeUpkeep,
@@ -198,7 +232,14 @@ export class TaxesModule {
         publicDebtRepaid: events.debtRepaid,
         foreignDebtInterest: events.foreignDebtInterest,
         householdTransfer: allocation.householdPurseCredit,
-        departmentTransfer: allocation.departmentBalancesCredit,
+        // PR-17e: departmentTransfer's single combined total split into a per-department
+        // breakdown (docs/plan/department-budget-spending-effects.md §5) — sums to what
+        // departmentBalancesCredit reported before this PR.
+        marshalcyTransfer: allocation.departmentActualCredit.marshalcy,
+        chanceryTransfer: allocation.departmentActualCredit.chancery,
+        stewardshipTransfer: allocation.departmentActualCredit.stewardship,
+        spymasteryTransfer: allocation.departmentActualCredit.spymastery,
+        ecclesiasticaTransfer: allocation.departmentActualCredit.ecclesiastica,
         militaryUpkeep: militarySpend.fromTreasury,
         strategicProcurement: paidProcurement,
         titheTransfer: mix.titheToEcclesiastica,

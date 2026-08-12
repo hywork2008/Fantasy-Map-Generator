@@ -11,6 +11,8 @@ import {
   CENTRAL_OFFICE_STIPEND_CAP,
   CENTRAL_OFFICE_STIPEND_FLOOR,
   clearTreasuryAllocationSnapshots,
+  DEPARTMENT_BUDGET_MULTIPLIER_MAX,
+  DEPARTMENT_BUDGET_MULTIPLIER_MIN,
   drawFromMarshalcyThenTreasury,
   ensureDepartmentBalances,
   FIELD_COMMANDER_STIPEND_FLOOR,
@@ -544,6 +546,329 @@ describe("treasuryAllocation", () => {
 
       expect(allocation.fieldCommanderStipendsPaid).toBe(0);
       expect(commander.wealth).toBe(0);
+    });
+  });
+
+  describe("capDepartmentBalances() / departmentBalanceRemit (PR-17a)", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [] } as unknown as PackedGraph;
+    });
+
+    it("caps a non-marshalcy department balance at nominal × CAP_CYCLES and remits the excess to state.treasury", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        departmentBalances: { marshalcy: 0, chancery: 5000, stewardship: 0, spymastery: 0, ecclesiastica: 0 }
+      } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      // Chancery nominal this cycle = 1000 × 0.15 = 150; cap = 150 × 6 = 900.
+      // Pre-existing 5000 + this cycle's 150 credit = 5150, over cap by 4250.
+      expect(allocation.departmentBalanceRemit).toBe(4250);
+      expect(state.departmentBalances?.chancery).toBe(900);
+      expect(state.treasury).toBe(4250);
+    });
+
+    it("does not cap the marshalcy balance (actively drawn down by upkeep, not dead weight)", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        departmentBalances: { marshalcy: 5000, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0 }
+      } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.departmentBalanceRemit).toBe(0);
+      expect(state.departmentBalances?.marshalcy).toBe(rn(5000 + 350, 2));
+    });
+
+    it("leaves an existing balance untouched when this cycle's nominal budget is 0 (no income to anchor the cap to)", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 0,
+        departmentBalances: { marshalcy: 0, chancery: 5000, stewardship: 0, spymastery: 0, ecclesiastica: 0 }
+      } as unknown as State;
+
+      const allocation = allocateTreasury(state, 0);
+
+      expect(allocation.departmentBalanceRemit).toBe(0);
+      expect(state.departmentBalances?.chancery).toBe(5000);
+      expect(state.treasury).toBe(0);
+    });
+  });
+
+  describe("applyDepartmentBudgetOverride() / departmentBudgetMultiplier (PR-17c)", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [] } as unknown as PackedGraph;
+    });
+
+    it("cuts a department's nominal budget without redistributing the freed share to marshalcy or other departments", () => {
+      const state = {
+        i: 1,
+        form: "Theocracy",
+        diplomacy: [],
+        departmentBudgetMultiplier: { ecclesiastica: 0.5 }
+      } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.ecclesiastica).toBe(240); // 1000 × 0.48 × 0.5, halved from the unmodified 480
+      expect(allocation.marshalcy).toBe(150); // untouched — no compensating boost
+      expect(allocation.chancery).toBe(120);
+      expect(allocation.stewardship).toBe(120);
+      expect(allocation.spymastery).toBe(50);
+    });
+
+    it("clamps an out-of-range multiplier to [DEPARTMENT_BUDGET_MULTIPLIER_MIN, MAX]", () => {
+      const state = {
+        i: 1,
+        form: "Theocracy",
+        diplomacy: [],
+        departmentBudgetMultiplier: { ecclesiastica: 5, chancery: 0.01 }
+      } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.ecclesiastica).toBe(rn(1000 * 0.48 * DEPARTMENT_BUDGET_MULTIPLIER_MAX, 2));
+      expect(allocation.chancery).toBe(rn(1000 * 0.12 * DEPARTMENT_BUDGET_MULTIPLIER_MIN, 2));
+    });
+
+    it("never touches marshalcy or household — only Chancery/Stewardship/Spymastery/Ecclesiastica are adjustable", () => {
+      const state = {
+        i: 1,
+        form: "Theocracy",
+        diplomacy: [],
+        // Only the 4 adjustable keys exist on the type; marshalcy/household have no lever here.
+        departmentBudgetMultiplier: { chancery: 0.5, stewardship: 0.5, spymastery: 0.5, ecclesiastica: 0.5 }
+      } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.marshalcy).toBe(150); // unaffected by any non-marshalcy cut
+    });
+
+    it("leaves the freed share unspent in state.treasury as real savings, not redistributed elsewhere", () => {
+      const cutState = {
+        i: 1,
+        form: "Theocracy",
+        diplomacy: [],
+        treasury: 1000,
+        departmentBudgetMultiplier: { ecclesiastica: 0.5 }
+      } as unknown as State;
+      const baselineState = { i: 1, form: "Theocracy", diplomacy: [], treasury: 1000 } as unknown as State;
+
+      allocateTreasury(cutState, 1000);
+      allocateTreasury(baselineState, 1000);
+
+      expect(baselineState.treasury).toBe(0); // fully committed away, as before this PR
+      expect(cutState.treasury).toBe(240); // exactly the freed ecclesiastica share (480 − 240)
+    });
+
+    it("is a no-op when departmentBudgetMultiplier is unset (existing states/saves unaffected)", () => {
+      const state = { i: 1, form: "Theocracy", diplomacy: [] } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.ecclesiastica).toBe(480);
+    });
+
+    describe("council approval gate (PR-17f)", () => {
+      function makeApprovals(overrides: Partial<NonNullable<State["councilApprovals"]>> = {}) {
+        return {
+          debtIssue: true,
+          warFooting: true,
+          extraordinaryTax: true,
+          militaryExpansion: true,
+          cutChancery: true,
+          cutStewardship: true,
+          cutSpymastery: true,
+          cutEcclesiastica: true,
+          ...overrides
+        };
+      }
+
+      it("blocks a cut (reverts to baseline) when the department's council line is not approved", () => {
+        const state = {
+          i: 1,
+          form: "Theocracy",
+          diplomacy: [],
+          departmentBudgetMultiplier: { ecclesiastica: 0.5 },
+          councilApprovals: makeApprovals({ cutEcclesiastica: false })
+        } as unknown as State;
+
+        const allocation = allocateTreasury(state, 1000);
+
+        expect(allocation.ecclesiastica).toBe(480); // unmodified baseline — the cut did not go through
+      });
+
+      it("applies a cut once the department's council line is approved", () => {
+        const state = {
+          i: 1,
+          form: "Theocracy",
+          diplomacy: [],
+          departmentBudgetMultiplier: { ecclesiastica: 0.5 },
+          councilApprovals: makeApprovals({ cutEcclesiastica: true })
+        } as unknown as State;
+
+        const allocation = allocateTreasury(state, 1000);
+
+        expect(allocation.ecclesiastica).toBe(240);
+      });
+
+      it("never gates a boost (multiplier ≥ 1) regardless of council approval", () => {
+        const state = {
+          i: 1,
+          form: "Theocracy",
+          diplomacy: [],
+          departmentBudgetMultiplier: { ecclesiastica: 1.5 },
+          councilApprovals: makeApprovals({ cutEcclesiastica: false })
+        } as unknown as State;
+
+        const allocation = allocateTreasury(state, 1000);
+
+        expect(allocation.ecclesiastica).toBe(720); // 480 × 1.5, unaffected by the (irrelevant) cut line
+      });
+
+      it("defaults to permissive when no council snapshot exists yet (pre-PR-17f behavior preserved)", () => {
+        const state = {
+          i: 1,
+          form: "Theocracy",
+          diplomacy: [],
+          departmentBudgetMultiplier: { ecclesiastica: 0.5 }
+          // councilApprovals intentionally omitted
+        } as unknown as State;
+
+        const allocation = allocateTreasury(state, 1000);
+
+        expect(allocation.ecclesiastica).toBe(240);
+      });
+    });
+  });
+
+  describe("departmentServiceLevel (PR-17b)", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [] } as unknown as PackedGraph;
+    });
+
+    it("stays at the healthy default (1) while the treasury fully covers household + department budgets", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [], treasury: 100000 } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.departmentServiceLevel).toEqual({
+        chancery: 1,
+        stewardship: 1,
+        spymastery: 1,
+        ecclesiastica: 1
+      });
+      expect(state.departmentServiceLevel).toEqual(allocation.departmentServiceLevel);
+    });
+
+    it("smooths (EWMA) toward 0 across consecutive cycles where the treasury cannot afford any department credit", () => {
+      // Household alone (250) exceeds a 100 treasury, so creditDepartmentBalances sees 0
+      // available and departmentBalancesCredit is 0 every cycle — deptFundingScale = 0.
+      const state = { i: 1, form: "Monarchy", diplomacy: [], treasury: 100 } as unknown as State;
+
+      allocateTreasury(state, 1000);
+      expect(state.departmentServiceLevel?.chancery).toBe(0.75); // 1 + (0 − 1) × 0.25
+
+      state.treasury = 100; // caller re-credits a thin cycle's income before the next call
+      allocateTreasury(state, 1000);
+      expect(state.departmentServiceLevel?.chancery).toBe(0.5625); // 0.75 + (0 − 0.75) × 0.25
+
+      // Monotonically decreasing while starved, and never negative.
+      state.treasury = 100;
+      allocateTreasury(state, 1000);
+      expect(state.departmentServiceLevel?.chancery).toBeLessThan(0.5625);
+      expect(state.departmentServiceLevel?.chancery).toBeGreaterThan(0);
+      // The uniform pro-rata scale applies identically to all 4 non-marshalcy departments.
+      expect(state.departmentServiceLevel?.stewardship).toBe(state.departmentServiceLevel?.chancery);
+      expect(state.departmentServiceLevel?.spymastery).toBe(state.departmentServiceLevel?.chancery);
+      expect(state.departmentServiceLevel?.ecclesiastica).toBe(state.departmentServiceLevel?.chancery);
+    });
+
+    it("does not update departmentServiceLevel when this cycle's domestic income is 0 (no data to anchor the scale to)", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 0,
+        departmentServiceLevel: { chancery: 0.4, stewardship: 0.4, spymastery: 0.4, ecclesiastica: 0.4 }
+      } as unknown as State;
+
+      // income 0 → desiredDeptTotal 0 → deptFundingScale defaults to 1 (no penalty applied),
+      // which the EWMA still nudges the stored level toward.
+      allocateTreasury(state, 0);
+
+      expect(state.departmentServiceLevel?.chancery).toBe(0.55); // 0.4 + (1 − 0.4) × 0.25
+    });
+  });
+
+  describe("departmentActualCredit (PR-17e)", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [] } as unknown as PackedGraph;
+    });
+
+    it("equals the nominal per-department budget when the treasury fully covers this cycle's credit", () => {
+      const state = { i: 1, form: "Theocracy", diplomacy: [], treasury: 100000 } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.departmentActualCredit).toEqual({
+        marshalcy: 150,
+        chancery: 120,
+        stewardship: 120,
+        spymastery: 50,
+        ecclesiastica: 480
+      });
+    });
+
+    it("scales every department's actual credit by the same pro-rata factor when the treasury is short, and sums to departmentBalancesCredit", () => {
+      // Household (80) + 460 of the 920 desired department total = 540 available.
+      const state = { i: 1, form: "Theocracy", diplomacy: [], treasury: 540 } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.departmentActualCredit).toEqual({
+        marshalcy: 75,
+        chancery: 60,
+        stewardship: 60,
+        spymastery: 25,
+        ecclesiastica: 240
+      });
+      const sum = Object.values(allocation.departmentActualCredit).reduce((total, value) => total + value, 0);
+      expect(sum).toBe(allocation.departmentBalancesCredit);
     });
   });
 

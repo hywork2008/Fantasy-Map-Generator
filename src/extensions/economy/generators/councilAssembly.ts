@@ -3,6 +3,7 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getRulerId } from "../../nobility/nobilityContext";
+import { getReligiousUnrestSupportPenalty } from "./ecclesiasticaUnrest";
 import { findLivingOfficeHolder } from "./treasuryAllocation";
 
 /**
@@ -38,7 +39,7 @@ export interface CouncilSupportBreakdown {
  * Living officers with high honor/rationality raise support; low values drag it down.
  */
 export function getCouncilSupport(
-  state: Pick<State, "i" | "form" | "debtCoupSupportPenalty">
+  state: Pick<State, "i" | "form" | "debtCoupSupportPenalty" | "religiousUnrest">
 ): CouncilSupportBreakdown {
   const form = state.form || "Monarchy";
   const formBase = COUNCIL_BASE_SUPPORT_BY_FORM[form] ?? COUNCIL_BASE_SUPPORT_BY_FORM.Monarchy;
@@ -90,7 +91,14 @@ export function getCouncilSupport(
     notes.push(`Debt coup-risk support penalty −${coupPenalty}.`);
   }
 
-  const support = rn(Math.max(0, Math.min(100, formBase + officerBonus - coupPenalty)), 1);
+  // PR-17h: sustained Ecclesiastica neglect (religiousUnrest, ecclesiasticaUnrest.ts) bleeds
+  // into general assembly confidence, not just religion-specific lines.
+  const religiousUnrestPenalty = getReligiousUnrestSupportPenalty(state);
+  if (religiousUnrestPenalty > 0) {
+    notes.push(`Religious unrest support penalty −${religiousUnrestPenalty}.`);
+  }
+
+  const support = rn(Math.max(0, Math.min(100, formBase + officerBonus - coupPenalty - religiousUnrestPenalty)), 1);
   return { support, formBase, officerBonus, officerCount, notes };
 }
 

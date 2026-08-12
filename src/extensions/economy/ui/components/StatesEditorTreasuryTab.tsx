@@ -1,8 +1,75 @@
 import type React from "react";
 import { useMemo, useState } from "react";
+import type { State } from "../../../hostTypes";
 import { formatPrice, rn } from "../../../hostUtils";
 import { getTradeSecurityLedgers, getWorldContext } from "../../economyContext";
 import { TradeSecurity } from "../../generators/tradeSecurity";
+import {
+  clampDepartmentBudgetMultiplier,
+  DEPARTMENT_BUDGET_MULTIPLIER_MAX,
+  DEPARTMENT_BUDGET_MULTIPLIER_MIN,
+  type NonMarshalcyDepartmentKey
+} from "../../generators/treasuryAllocation";
+
+/** PR-17f — maps each adjustable department to its council budget-cut line. */
+const COUNCIL_CUT_LINE_BY_DEPARTMENT: Record<NonMarshalcyDepartmentKey, keyof NonNullable<State["councilApprovals"]>> =
+  {
+    chancery: "cutChancery",
+    stewardship: "cutStewardship",
+    spymastery: "cutSpymastery",
+    ecclesiastica: "cutEcclesiastica"
+  };
+
+/**
+ * PR-17c (docs/plan/department-budget-spending-effects.md §4) — one editable department-budget
+ * multiplier cell. Below 100% is a deliberate cut: the freed share is not redistributed to other
+ * departments (applyDepartmentBudgetOverride), so it stays in the treasury as real savings —
+ * traded for a lower departmentServiceLevel (PR-17b) next cycle.
+ *
+ * PR-17f: a cut (below 100%) additionally needs its council budget line approved — an
+ * unapproved cut is silently reverted to baseline inside applyDepartmentBudgetOverride() each
+ * cycle, so this cell shows "(blocked)" rather than leaving that invisible to the player.
+ */
+const DepartmentBudgetCell: React.FC<{
+  state: State;
+  department: NonMarshalcyDepartmentKey;
+  label: string;
+  onChange: () => void;
+}> = ({ state, department, label, onChange }) => {
+  const current = state.departmentBudgetMultiplier?.[department] ?? 1;
+  const isCut = current < 1;
+  const cutLine = COUNCIL_CUT_LINE_BY_DEPARTMENT[department];
+  // Undefined councilApprovals (no tax cycle run yet) is treated as permissive elsewhere
+  // (isDepartmentCutApproved), so it is not flagged as blocked here either.
+  const isBlocked = isCut && state.councilApprovals !== undefined && !state.councilApprovals[cutLine];
+  return (
+    <td>
+      <input
+        type="number"
+        min={DEPARTMENT_BUDGET_MULTIPLIER_MIN * 100}
+        max={DEPARTMENT_BUDGET_MULTIPLIER_MAX * 100}
+        step="5"
+        data-tip={
+          isBlocked
+            ? `${label} cut blocked — the assembly has not approved this cut. It stays at the baseline budget this cycle; edit the % and wait for support to shift, or try again next cycle.`
+            : `${label} budget, as a % of this state's governance-form baseline. Below 100% frees that cash as real treasury savings instead of spending it — traded for a lower ${label.toLowerCase()} service level next cycle, and needs assembly approval to take effect.`
+        }
+        style={{ width: "4.5em", ...(isBlocked ? { borderColor: "#b33", color: "#b33" } : undefined) }}
+        value={rn(current * 100, 0)}
+        onChange={e => {
+          const pct = Number(e.target.value);
+          if (!Number.isFinite(pct)) return;
+          state.departmentBudgetMultiplier = {
+            ...state.departmentBudgetMultiplier,
+            [department]: clampDepartmentBudgetMultiplier(pct / 100)
+          };
+          onChange();
+        }}
+      />{" "}
+      %{isBlocked && <span style={{ color: "#b33" }}> (blocked)</span>}
+    </td>
+  );
+};
 
 export const StatesEditorTreasuryTab: React.FC = () => {
   const worldContext = getWorldContext();
@@ -92,12 +159,24 @@ export const StatesEditorTreasuryTab: React.FC = () => {
             </th>
             <th data-tip="Security upkeep paid during the current production month">Upkeep</th>
             <th data-tip="Caravans lost while travelling to this state during the current production month">Lost</th>
+            <th data-tip="Chancery (diplomacy/law) budget as a % of baseline — a deliberate cut lever, not redistributed elsewhere">
+              Chancery
+            </th>
+            <th data-tip="Stewardship (administration/tax collection) budget as a % of baseline — a deliberate cut lever, not redistributed elsewhere">
+              Stewardship
+            </th>
+            <th data-tip="Spymastery (intelligence) budget as a % of baseline — a deliberate cut lever, not redistributed elsewhere">
+              Spymastery
+            </th>
+            <th data-tip="Ecclesiastica (religious patronage) budget as a % of baseline — a deliberate cut lever, not redistributed elsewhere">
+              Ecclesiastica
+            </th>
           </tr>
         </thead>
         <tbody>
           {sortedStates.length === 0 ? (
             <tr>
-              <td colSpan={9}>No states found</td>
+              <td colSpan={13}>No states found</td>
             </tr>
           ) : (
             sortedStates.map(s => {
@@ -172,6 +251,15 @@ export const StatesEditorTreasuryTab: React.FC = () => {
                   </td>
                   <td>{formatPrice(tradeSecurity?.monthlyUpkeepPaid ?? 0)}</td>
                   <td>{tradeSecurity?.lastCaravansLost ?? 0}</td>
+                  <DepartmentBudgetCell state={s} department="chancery" label="Chancery" onChange={rerender} />
+                  <DepartmentBudgetCell state={s} department="stewardship" label="Stewardship" onChange={rerender} />
+                  <DepartmentBudgetCell state={s} department="spymastery" label="Spymastery" onChange={rerender} />
+                  <DepartmentBudgetCell
+                    state={s}
+                    department="ecclesiastica"
+                    label="Ecclesiastica"
+                    onChange={rerender}
+                  />
                 </tr>
               );
             })

@@ -113,6 +113,79 @@ export function getHouseholdStipendRate(state: Pick<State, "form">): number {
   return getDepartmentBaselineAllocation(state).household;
 }
 
+/** Player-adjustable multiplier range for a non-marshalcy department's share (PR-17c). */
+export const DEPARTMENT_BUDGET_MULTIPLIER_MIN = 0.5;
+export const DEPARTMENT_BUDGET_MULTIPLIER_MAX = 1.5;
+
+export function clampDepartmentBudgetMultiplier(value: number): number {
+  return Math.max(DEPARTMENT_BUDGET_MULTIPLIER_MIN, Math.min(DEPARTMENT_BUDGET_MULTIPLIER_MAX, value));
+}
+
+/**
+ * PR-17c (docs/plan/department-budget-spending-effects.md §4) — apply the player's per-department
+ * override multiplier on top of the form+personality+war-footing baseline. Only
+ * Chancery/Stewardship/Spymastery/Ecclesiastica are adjustable — Marshalcy already has War
+ * Footing as its policy lever, and Household is the ruler's personal/court budget with its own
+ * texture (characterLivingCosts.ts), not a "department" in this sense.
+ *
+ * Deliberately NOT renormalized back to sum 1 — unlike the personality/war-footing reweighting
+ * above it, a player cut's freed share is not redistributed to other departments. It simply goes
+ * unallocated, so `state.treasury` genuinely retains more cash this cycle (visible next cycle as
+ * a lower departmentServiceLevel for the cut department via PR-17b). That is the entire point of
+ * the lever: trade a department's service level for real treasury savings, not a bigger slice
+ * elsewhere. A multiplier above 1 mainly fills that department's L3a balance faster and hits
+ * PR-17a's cap (and remits back to L2) sooner — departmentServiceLevel itself is clamped to 1,
+ * so over-funding does not raise it past "fully funded."
+ *
+ * PR-17f: a genuine cut (multiplier < 1) additionally needs its council budget line approved
+ * (docs/plan/department-budget-spending-effects.md §4) — see isDepartmentCutApproved(). A boost
+ * (multiplier ≥ 1) never needs approval; only spending less is politically contestable.
+ */
+export function applyDepartmentBudgetOverride(
+  baseline: DepartmentBaselineAllocation,
+  state: Pick<State, "departmentBudgetMultiplier" | "councilApprovals">
+): DepartmentBaselineAllocation {
+  const multipliers = state.departmentBudgetMultiplier;
+  if (!multipliers) return { ...baseline };
+
+  const next: DepartmentBaselineAllocation = { ...baseline };
+  for (const key of NON_MARSHALCY_DEPARTMENT_KEYS) {
+    const raw = multipliers[key];
+    if (raw === undefined) continue;
+    const clamped = clampDepartmentBudgetMultiplier(raw);
+    if (clamped < 1 && !isDepartmentCutApproved(state, key)) continue;
+    next[key] = rn(Math.max(0, next[key] * clamped), 4);
+  }
+  return next;
+}
+
+/**
+ * PR-17f — whether the assembly currently approves a cut to this department's budget.
+ * Reads the persisted per-cycle snapshot (`state.councilApprovals`, refreshed by
+ * councilBudget.ts's refreshCouncilBudgetApprovals() inside every collectTaxes() cycle via
+ * fiscalEvents.ts, which always runs before allocateTreasury()). Missing snapshot (e.g. Economy
+ * has never run a full tax cycle yet, or a test calls allocateTreasury() in isolation) defaults
+ * to permissive — pre-PR-17f behavior — rather than recomputing live like isCouncilLineApproved()
+ * does for user-initiated actions: a standing budget policy should reflect the last settled
+ * political mood, not force a fresh (and here, unnecessary) vote simulation on every read.
+ */
+function isDepartmentCutApproved(state: Pick<State, "councilApprovals">, key: NonMarshalcyDepartmentKey): boolean {
+  const approvals = state.councilApprovals;
+  if (!approvals) return true;
+  switch (key) {
+    case "chancery":
+      return approvals.cutChancery;
+    case "stewardship":
+      return approvals.cutStewardship;
+    case "spymastery":
+      return approvals.cutSpymastery;
+    case "ecclesiastica":
+      return approvals.cutEcclesiastica;
+    default:
+      return true;
+  }
+}
+
 function isVassalState(state: Pick<State, "diplomacy">): boolean {
   const diplomacy = state.diplomacy;
   if (!diplomacy) return false;
@@ -368,6 +441,105 @@ export function creditDepartmentBalances(state: State, nominal: DepartmentBalanc
   return moved;
 }
 
+/** The 4 departments PR-17a's balance cap and PR-17b's service level apply to (Marshalcy excluded). */
+export type NonMarshalcyDepartmentKey = Exclude<DepartmentBalanceKey, "marshalcy">;
+
+export const NON_MARSHALCY_DEPARTMENT_KEYS: readonly NonMarshalcyDepartmentKey[] = [
+  "chancery",
+  "stewardship",
+  "spymastery",
+  "ecclesiastica"
+] as const;
+
+/**
+ * PR-17a (docs/plan/department-budget-spending-effects.md §6) — non-marshalcy department
+ * balances (Chancery/Stewardship/Spymastery/Ecclesiastica) have no spending sink beyond
+ * payCentralOfficeStipends' 12% personal-stipend share, so without a cap they accumulate
+ * forever with zero further gameplay effect. Marshalcy is deliberately exempt: it is actively
+ * drawn down every cycle by troop upkeep and field-commander pay (payMilitaryUpkeep /
+ * payFieldCommanderStipends), so an unbounded balance there is a real war chest, not dead
+ * weight.
+ */
+export const DEPARTMENT_BALANCE_CAP_CYCLES = 6;
+
+/**
+ * Caps each non-marshalcy department balance at this cycle's nominal budget × CAP_CYCLES,
+ * remitting any excess back to L2 `state.treasury` — framed as "the office cannot spend faster
+ * than this," not a penalty; the cash is never destroyed. Skips a department whose nominal
+ * budget this cycle is 0 (no income to anchor the cap to) rather than stripping an existing
+ * balance down to nothing. Returns the total amount remitted.
+ */
+export function capDepartmentBalances(state: State, nominal: DepartmentBalances): number {
+  const balances = ensureDepartmentBalances(state);
+  let remitted = 0;
+  for (const key of NON_MARSHALCY_DEPARTMENT_KEYS) {
+    const nominalBudget = nominal[key] || 0;
+    if (!(nominalBudget > 0)) continue;
+    const cap = rn(nominalBudget * DEPARTMENT_BALANCE_CAP_CYCLES, 2);
+    const current = balances[key] || 0;
+    if (current <= cap) continue;
+    const excess = rn(current - cap, 2);
+    balances[key] = cap;
+    remitted = rn(remitted + excess, 2);
+  }
+  if (remitted > 0) {
+    state.treasury = rn((state.treasury || 0) + remitted, 2);
+  }
+  return remitted;
+}
+
+/**
+ * PR-17b (docs/plan/department-budget-spending-effects.md §3.1) — non-marshalcy service level:
+ * a 0..1 gauge of how well-funded Chancery/Stewardship/Spymastery/Ecclesiastica have *been*
+ * recently. Unlike Marshalcy, these departments have no objective "Need" to compare against, so
+ * the reference is liquidity itself — how much of this cycle's intended department spend the
+ * treasury could actually afford (creditDepartmentBalances' pro-rata scale, shared across all
+ * non-marshalcy departments since that scale is applied uniformly). 1 = fully funded, 0 = the
+ * treasury could not afford any of it. Unset (old saves, or a state that has never run
+ * allocateTreasury) reads as 1 (healthy) via ensureDepartmentServiceLevel.
+ */
+export type DepartmentServiceLevel = Record<NonMarshalcyDepartmentKey, number>;
+
+export function emptyDepartmentServiceLevel(): DepartmentServiceLevel {
+  return { chancery: 1, stewardship: 1, spymastery: 1, ecclesiastica: 1 };
+}
+
+/** Ensure `state.departmentServiceLevel` exists, defaulting missing keys to 1 (healthy). */
+export function ensureDepartmentServiceLevel(state: State): DepartmentServiceLevel {
+  if (!state.departmentServiceLevel) {
+    state.departmentServiceLevel = emptyDepartmentServiceLevel();
+  } else {
+    for (const key of NON_MARSHALCY_DEPARTMENT_KEYS) {
+      if (state.departmentServiceLevel[key] === undefined) state.departmentServiceLevel[key] = 1;
+    }
+  }
+  return state.departmentServiceLevel;
+}
+
+/**
+ * How fast departmentServiceLevel tracks this cycle's liquidity scale. Smoothed (EWMA) rather
+ * than instantaneous so a single thin cycle (e.g. a one-off war spend) does not immediately tank
+ * administrative effectiveness — only sustained underfunding does. Mirrors the accumulate/decay
+ * framing already used for militaryDiscontent, at a comparable cadence.
+ */
+export const DEPARTMENT_SERVICE_LEVEL_SMOOTHING = 0.25;
+
+/**
+ * EWMA-updates every non-marshalcy department's service level toward `instantScale` (this
+ * cycle's liquidity scale, clamped to 0..1). Called once per allocateTreasury() cycle; downstream
+ * consumers (e.g. taxes-generator.ts's Stewardship → administrative-upkeep link) read the
+ * smoothed per-key value from `state.departmentServiceLevel`, not this function's return alone.
+ */
+export function updateDepartmentServiceLevel(state: State, instantScale: number): DepartmentServiceLevel {
+  const level = ensureDepartmentServiceLevel(state);
+  const clamped = Math.max(0, Math.min(1, instantScale));
+  for (const key of NON_MARSHALCY_DEPARTMENT_KEYS) {
+    const previous = level[key] ?? 1;
+    level[key] = rn(previous + (clamped - previous) * DEPARTMENT_SERVICE_LEVEL_SMOOTHING, 4);
+  }
+  return level;
+}
+
 /**
  * Pays each living central office holder a personal stipend from L3a departmentBalances
  * (not from L2). Vacant offices leave L3a balances parked. Nominal breakdown figures stay
@@ -537,6 +709,14 @@ export interface TreasuryAllocationBreakdown {
    */
   departmentBalancesCredit: number;
   /**
+   * PR-17e — per-department breakdown of departmentBalancesCredit (nominal[key] ×
+   * deptFundingScale, the same pro-rata scale creditDepartmentBalances applies uniformly to
+   * every key). Sums to departmentBalancesCredit (modulo per-key rounding). Lets Fiscal
+   * Report/Treasury Overview show which department actually absorbed a liquidity shortfall,
+   * instead of only the combined total. docs/plan/department-budget-spending-effects.md §5.
+   */
+  departmentActualCredit: DepartmentBalances;
+  /**
    * Personal office stipends paid this cycle from L3a → Character.wealth (not an L2 deduction).
    * Vacant offices contribute 0; their L3a share stays parked.
    */
@@ -546,6 +726,14 @@ export interface TreasuryAllocationBreakdown {
    * may be less than the uncapped stipend sum when both purses are empty.
    */
   fieldCommanderStipendsPaid: number;
+  /**
+   * PR-17a — cash remitted L3a → L2 this cycle because a non-marshalcy department balance
+   * exceeded DEPARTMENT_BALANCE_CAP_CYCLES × its nominal budget. 0 when no department was over
+   * cap. See capDepartmentBalances().
+   */
+  departmentBalanceRemit: number;
+  /** PR-17b — smoothed 0..1 service level per non-marshalcy department after this cycle. */
+  departmentServiceLevel: DepartmentServiceLevel;
 }
 
 export interface TreasuryAllocationSnapshot extends TreasuryAllocationBreakdown {
@@ -583,7 +771,10 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
   // PR-7: ruler personality nudges household/marshalcy before war footing.
   const personalityBaseline = applyRulerPersonalityToBaseline(formBaseline, state);
   // PR-6: war footing reweights department shares before any cash moves.
-  const baseline = applyWarFootingToBaseline(personalityBaseline, state);
+  const warFootingBaseline = applyWarFootingToBaseline(personalityBaseline, state);
+  // PR-17c: player's deliberate per-department cut/boost — NOT renormalized, unlike the two
+  // reweighting steps above (see applyDepartmentBudgetOverride's doc comment).
+  const baseline = applyDepartmentBudgetOverride(warFootingBaseline, state);
 
   const marshalcyBudget = rn(income * baseline.marshalcy * getMilitaryStructuralMultiplier(state), 2);
   const need = getStateMilitaryUpkeep(state);
@@ -610,6 +801,18 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
     ecclesiastica
   };
   const departmentBalancesCredit = creditDepartmentBalances(state, nominalDepartments);
+  // PR-17b: liquidity scale this cycle (creditDepartmentBalances applies the same pro-rata
+  // scale to every key, marshalcy included, when L2 is short) feeds departmentServiceLevel.
+  const desiredDeptTotal = rn(marshalcyBudget + chancery + stewardship + spymastery + ecclesiastica, 2);
+  const deptFundingScale = desiredDeptTotal > 0 ? Math.min(1, rn(departmentBalancesCredit / desiredDeptTotal, 4)) : 1;
+  const departmentServiceLevel = updateDepartmentServiceLevel(state, deptFundingScale);
+  const departmentActualCredit: DepartmentBalances = {
+    marshalcy: rn(marshalcyBudget * deptFundingScale, 2),
+    chancery: rn(chancery * deptFundingScale, 2),
+    stewardship: rn(stewardship * deptFundingScale, 2),
+    spymastery: rn(spymastery * deptFundingScale, 2),
+    ecclesiastica: rn(ecclesiastica * deptFundingScale, 2)
+  };
 
   const breakdown: TreasuryAllocationBreakdown = {
     household,
@@ -622,11 +825,16 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
     ecclesiastica,
     militaryFundingRatio: fundingRatio,
     departmentBalancesCredit,
+    departmentActualCredit,
     officeStipendsPaid: 0,
-    fieldCommanderStipendsPaid: 0
+    fieldCommanderStipendsPaid: 0,
+    departmentBalanceRemit: 0,
+    departmentServiceLevel
   };
   breakdown.officeStipendsPaid = payCentralOfficeStipends(state, breakdown);
   breakdown.fieldCommanderStipendsPaid = payFieldCommanderStipends(state);
+  // PR-17a: cap non-marshalcy balances after this cycle's stipends, remitting overflow to L2.
+  breakdown.departmentBalanceRemit = capDepartmentBalances(state, nominalDepartments);
 
   if (state.i) _snapshotByState.set(state.i, { stateId: state.i, domesticIncome: income, ...breakdown });
 
