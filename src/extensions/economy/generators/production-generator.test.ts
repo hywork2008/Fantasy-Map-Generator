@@ -4,15 +4,20 @@ import { createEmptyTechnologySimulationState } from "../../../generators/techno
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setGoods } from "../economyContext";
-import type { Good } from "./goods-generator";
-import { isGoodManufacturableInState, ProductionModule } from "./production-generator";
+import { type Good, Goods } from "./goods-generator";
+import type { Market } from "./marketTypes";
+import {
+  isGoodManufacturableInState,
+  ProductionModule,
+  settlePomaceWineMarketProcessing
+} from "./production-generator";
 import type { MfgRecord, ProductionRecord } from "./productionRecordTypes";
 
 type ManufactureHarness = {
   executeManufacture(
     state: {
       burg: { i: number; cell: number; treasury: number };
-      market: { goods: unknown[] };
+      market: { i: number; goods: Record<number, { stock: number; price: number }> };
       inventory: number[];
       demandCoverage: number[];
       records: ProductionRecord[];
@@ -50,6 +55,7 @@ describe("ProductionModule byproducts", () => {
       { i: 4, name: "Ash", tags: [], value: 1.5, unit: "sack", icon: "", color: "" },
       { i: 5, name: "Liquor", tags: [], value: 12, unit: "vessel", icon: "", color: "" }
     ]);
+    Goods.sync();
   });
 
   afterEach(() => {
@@ -65,7 +71,7 @@ describe("ProductionModule byproducts", () => {
     ] as Good[];
     const state = {
       burg: { i: 1, cell: 0, treasury: 0 },
-      market: { goods: [] },
+      market: { i: 1, goods: {} },
       inventory: [0, 1, 0.1],
       demandCoverage: [],
       records: [] as ProductionRecord[],
@@ -99,7 +105,7 @@ describe("ProductionModule byproducts", () => {
     );
 
     expect(state.inventory[3]).toBe(1);
-    expect(state.inventory[4]).toBe(0.1);
+    expect(state.market.goods[4].stock).toBe(0.1);
     expect(state.records.find((record): record is MfgRecord => "recipe" in record)?.byproducts).toEqual([
       { goodId: 4, units: 0.1 }
     ]);
@@ -128,5 +134,36 @@ describe("ProductionModule byproducts", () => {
       { technologyId: "distillation", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
     ];
     expect(isGoodManufacturableInState(liquor, 1)).toBe(true);
+  });
+
+  it("settles accumulated Pomace into Pomace Wine at the market recipe ratio", () => {
+    const pomace = { i: 1, name: "Pomace", tags: ["food"], value: 0.5, unit: "lot", icon: "", color: "" };
+    const barrels = { i: 2, name: "Barrels", tags: [], value: 2, unit: "barrel", icon: "", color: "" };
+    const pomaceWine = {
+      i: 3,
+      name: "Pomace Wine",
+      tags: ["food", "beverage"],
+      value: 2,
+      unit: "cask",
+      icon: "",
+      color: "",
+      recipes: [{ 1: 1.2, 2: 0.08 }]
+    };
+    const goods = [pomace, barrels, pomaceWine] as Good[];
+    setGoods(goods);
+    Goods.sync();
+
+    const market = {
+      i: 1,
+      goods: {
+        1: { stock: 63.6, price: 0.5 },
+        2: { stock: 5, price: 2 }
+      }
+    } as Market;
+
+    expect(settlePomaceWineMarketProcessing(market)).toBe(53);
+    expect(market.goods[1].stock).toBe(0);
+    expect(market.goods[2].stock).toBeCloseTo(0.76, 8);
+    expect(market.goods[3].stock).toBe(53);
   });
 });

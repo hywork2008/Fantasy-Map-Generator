@@ -93,6 +93,22 @@ const LAPLACE_PRICE_SMOOTHING = 5;
 const MARKET_PRESSURE_FACTOR = 0.01;
 const MARKET_MARGIN = 0.1;
 
+/** Returns the outputs accompanying a cell-local recipe conversion. */
+export function getCommercialRecipeByproducts(
+  outputGood: Pick<Good, "recipes" | "byproducts">,
+  sourceGoodId: number,
+  sourceInputPerOutput: number,
+  outputUnits: number
+): { goodId: number; units: number }[] {
+  if (outputUnits <= 0 || !outputGood.recipes?.length || !outputGood.byproducts?.length) return [];
+  const recipeIndex = outputGood.recipes.findIndex(recipe => recipe[sourceGoodId] === sourceInputPerOutput);
+  if (recipeIndex < 0) return [];
+  return Object.entries(outputGood.byproducts[recipeIndex] ?? {}).map(([goodId, amount]) => ({
+    goodId: +goodId,
+    units: outputUnits * amount
+  }));
+}
+
 interface MarketTradeRoute {
   distance: number;
   distanceKm: number;
@@ -778,7 +794,40 @@ export class MarketsModule {
           commercialPath.outputGoodId,
           outcome.exportOutputUnits
         );
+        this.addCommercialRecipeByproducts(
+          entry.marketId,
+          entry.collectionBurgId,
+          sourceGood,
+          commercialPath.outputGoodId,
+          commercialPath.inputPerOutput,
+          outcome.exportOutputUnits
+        );
       }
+    }
+  }
+
+  /**
+   * Cell-local preservation can place recipe outputs (notably Grapes → Wine) directly into a
+   * market. Mirror the generic manufacturing engine's m:n contract here so those direct outputs
+   * also retain their residue instead of silently discarding it.
+   */
+  private addCommercialRecipeByproducts(
+    marketId: number,
+    collectionBurgId: number,
+    sourceGood: Good,
+    outputGoodId: number,
+    sourceInputPerOutput: number,
+    outputUnits: number
+  ): void {
+    const outputGood = Goods.get(outputGoodId);
+    if (!outputGood) return;
+    for (const byproduct of getCommercialRecipeByproducts(
+      outputGood,
+      sourceGood.i,
+      sourceInputPerOutput,
+      outputUnits
+    )) {
+      this.addRuralOutput(marketId, collectionBurgId, byproduct.goodId, byproduct.units);
     }
   }
 

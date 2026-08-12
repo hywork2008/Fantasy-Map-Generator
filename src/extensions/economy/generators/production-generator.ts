@@ -10,6 +10,8 @@ import {
   getGoodCellColumn,
   getGoods,
   getMarkets,
+  getOrCreateCumulativeGoodsSales,
+  getOrCreateMarketGoodProductionTotals,
   getStrategicLaborMarkets,
   getStrategicProcurementOrders,
   getWorldContext,
@@ -33,6 +35,7 @@ import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
   getFoodProcessingProductionHeadroom,
   recordBeerCaskFilling,
+  recordFoodMarketIntake,
   recordFoodProcessingConsumption,
   recordWineCaskFilling,
   refreshAleHouseholdDemand,
@@ -40,6 +43,7 @@ import {
 } from "./foodProcessingLedger";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isFreshFoodGood, isGoodEnabled } from "./goods-generator";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getGuildBonus } from "./guildKnowledge";
 import {
   CRAFT_KNOWLEDGE_DOMAINS,
@@ -115,6 +119,61 @@ const STATE_TECH_GATED_GOODS: Readonly<Record<string, (stateId: number) => boole
 /** State-scoped technology availability for otherwise globally registered manufactured goods. */
 export function isGoodManufacturableInState(good: Pick<Good, "name">, stateId: number): boolean {
   return STATE_TECH_GATED_GOODS[good.name]?.(stateId) ?? true;
+}
+
+/** Converts accumulated wine-press residue into Pomace Wine at the local market. */
+export function settlePomaceWineMarketProcessing(market: Market): number {
+  const pomace = getGoods().find(good => good.name === "Pomace");
+  const barrels = getGoods().find(good => good.name === "Barrels");
+  const pomaceWine = getGoods().find(good => good.name === "Pomace Wine");
+  if (!pomace || !barrels || !pomaceWine || !isGoodEnabled(pomaceWine)) return 0;
+
+  const recipe = pomaceWine.recipes?.find(candidate => candidate[pomace.i] && candidate[barrels.i]);
+  if (!recipe) return 0;
+  const pomacePerCask = recipe[pomace.i];
+  const barrelsPerCask = recipe[barrels.i];
+  const pomaceStock = market.goods[pomace.i]?.stock ?? 0;
+  const barrelStock = market.goods[barrels.i]?.stock ?? 0;
+  const casks = rn(Math.min(pomaceStock / pomacePerCask, barrelStock / barrelsPerCask), 2);
+  if (casks <= 0) return 0;
+
+  market.goods[pomace.i].stock = rn(Math.max(0, pomaceStock - casks * pomacePerCask), 2);
+  market.goods[barrels.i].stock = rn(Math.max(0, barrelStock - casks * barrelsPerCask), 2);
+  const output = market.goods[pomaceWine.i] ?? { stock: 0, price: pomaceWine.value };
+  market.goods[pomaceWine.i] = output;
+  output.stock = rn(output.stock + casks, 2);
+
+  for (const [good, units] of [
+    [pomace, casks * pomacePerCask],
+    [barrels, casks * barrelsPerCask]
+  ] as const) {
+    recordGoodFlow({
+      direction: "sink",
+      category: "recipeInput",
+      goodId: good.i,
+      units,
+      marketId: market.i,
+      relatedGoodId: pomaceWine.i
+    });
+    recordFoodProcessingConsumption(market, good.name, units);
+  }
+  recordGoodFlow({
+    direction: "source",
+    category: "burgCraft",
+    goodId: pomaceWine.i,
+    units: casks,
+    marketId: market.i
+  });
+  recordFoodMarketIntake(market, pomaceWine.name, casks);
+
+  const marketIntake = getOrCreateCumulativeGoodsSales();
+  if (marketIntake) marketIntake[pomaceWine.i] = rn((marketIntake[pomaceWine.i] ?? 0) + casks, 2);
+  const marketProduction = getOrCreateMarketGoodProductionTotals();
+  if (marketProduction) {
+    const key = `${market.i}:${pomaceWine.i}`;
+    marketProduction[key] = rn((marketProduction[key] ?? 0) + casks, 2);
+  }
+  return casks;
 }
 
 export class ProductionModule {
@@ -306,6 +365,9 @@ export class ProductionModule {
       ExportStaging.seedInheritedExportWarehouseIfNeeded();
     });
 
+    measureTickStep("production:pomaceWine", () => {
+      for (const market of getMarkets()) settlePomaceWineMarketProcessing(market);
+    });
     measureTickStep("production:globalTrade", () => Markets.runGlobalTrade());
     measureTickStep("production:spawnCaravans", () => Caravans.spawnFromDeals(getDeals()));
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
@@ -702,8 +764,9 @@ export class ProductionModule {
       // Byproducts follow consumed input (actualYield), not master/guild-enhanced sale output.
       const units = rn(actualYield * byproduct.amount, 2);
       if (units <= 0) continue;
-      state.inventory[byproduct.goodId] = (state.inventory[byproduct.goodId] || 0) + units;
-      this.addDemandCoverage(state.demandCoverage, byproduct.goodId, units, index.demandCoverageByGood);
+      const byproductGood = Goods.get(byproduct.goodId);
+      if (!byproductGood) continue;
+      this.depositByproductInMarket(state, byproductGood, units);
       producedByproducts.push({ goodId: byproduct.goodId, units });
     }
 
@@ -732,6 +795,34 @@ export class ProductionModule {
         unitsProduced: produced,
         masterCharacterId: smithingProgram?.masterCharacterId ?? null
       });
+    }
+  }
+
+  /** Places unavoidable manufacturing residue directly into the local market, without a sale. */
+  private depositByproductInMarket(
+    state: Pick<BurgProductionState, "burg" | "market">,
+    good: Good,
+    units: number
+  ): void {
+    const marketGood = state.market.goods[good.i] ?? { stock: 0, price: good.value };
+    state.market.goods[good.i] = marketGood;
+    marketGood.stock = rn(marketGood.stock + units, 2);
+    recordGoodFlow({
+      direction: "source",
+      category: "burgCraft",
+      goodId: good.i,
+      units,
+      marketId: state.market.i,
+      burgId: state.burg.i
+    });
+    recordFoodMarketIntake(state.market, good.name, units);
+
+    const marketIntake = getOrCreateCumulativeGoodsSales();
+    if (marketIntake) marketIntake[good.i] = rn((marketIntake[good.i] ?? 0) + units, 2);
+    const marketProduction = getOrCreateMarketGoodProductionTotals();
+    if (marketProduction) {
+      const key = `${state.market.i}:${good.i}`;
+      marketProduction[key] = rn((marketProduction[key] ?? 0) + units, 2);
     }
   }
 

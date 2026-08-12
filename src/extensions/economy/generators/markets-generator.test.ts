@@ -13,7 +13,7 @@ import {
   setMarkets
 } from "../economyContext";
 import { Goods } from "./goods-generator";
-import { MarketsModule } from "./markets-generator";
+import { getCommercialRecipeByproducts, MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import { validateRetailInventory } from "./retailInventory";
 
@@ -37,6 +37,15 @@ vi.mock("./production-utils", () => ({
 }));
 
 describe("MarketsModule", () => {
+  it("keeps Wine pomace when cell-local grape processing supplies a market directly", () => {
+    const wine = {
+      recipes: [{ 7: 0.26, 8: 0.08 }],
+      byproducts: [{ 9: 0.0572 }]
+    };
+
+    expect(getCommercialRecipeByproducts(wine, 7, 0.26, 411.24)).toEqual([{ goodId: 9, units: 23.522928 }]);
+  });
+
   describe("buy logic and budget constraints", () => {
     let marketsModule: MarketsModule;
     afterEach(() => {

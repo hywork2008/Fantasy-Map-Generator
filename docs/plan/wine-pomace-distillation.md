@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計のみ・未実装**（2026-08-12）
+**設計 → 実装着手**（2026-08-12 設計、同日中に §1〜§4 のコア部分が実装され staged。詳細は §1.5 参照）
 
 参照:
 
@@ -106,6 +106,36 @@ for (const byproduct of ingredients_と同じ経路で受け取ったbyproducts)
 
 - `buildProductionIndex` の `preservationGoods` / `preservationIngredientGoods` 判定（Wine の一点依存 Barrels を優先枠に入れる仕組み）は ingredients ベースのままで良い。副産物 Pomace は Wine の「入力」ではなく「出力」なので、この優先枠のロジックには影響しない・変更不要。
 - 既存レシピは全て `byproducts` フィールドを持たないため、この変更はゼロ・マイグレーションの追加のみ。
+
+### 1.5 見落とし: `Good.recipes` の実行経路は1つではない
+
+**初版のこのドキュメントは、`production-generator.ts` の `executeManufacture()`（Burg の worker loop による通常製造）だけを「レシピ実行エンジン」として扱っており、これが唯一の実行経路であるという誤った前提に基づいていた。**
+
+実際には `markets-generator.ts` の `settleCellFreshFood()` が、Grapes のような `freshFood` 品目をセル単位で処理し、`getCellFoodCommercialPath()`（`grapeWine` タグ＝Wine を優先して選ぶ）経由で `Good.recipes` を直接参照し、`addRuralOutput()` で市場在庫へ加算する——**Burg の worker loop を一切経由しない、独立した第二のレシピ消費経路**である。実際の Wine 生産量の大半はこちらの cell 直販経路を通っており、§1.3 の byproducts ループを `executeManufacture()` にしか実装しなければ、Wine だけが増えて Pomace が生成されないバグになる（実際に発生した）。
+
+対応: `markets-generator.ts` に `executeManufacture()` と同型の byproducts 解決・付与ロジックを追加する。
+
+```ts
+/** Returns the outputs accompanying a cell-local recipe conversion. */
+export function getCommercialRecipeByproducts(
+  outputGood: Pick<Good, "recipes" | "byproducts">,
+  sourceGoodId: number,
+  sourceInputPerOutput: number,
+  outputUnits: number
+): { goodId: number; units: number }[] {
+  if (outputUnits <= 0 || !outputGood.recipes?.length || !outputGood.byproducts?.length) return [];
+  const recipeIndex = outputGood.recipes.findIndex(recipe => recipe[sourceGoodId] === sourceInputPerOutput);
+  if (recipeIndex < 0) return [];
+  return Object.entries(outputGood.byproducts[recipeIndex] ?? {}).map(([goodId, amount]) => ({
+    goodId: +goodId,
+    units: outputUnits * amount
+  }));
+}
+```
+
+`settleCellFreshFood()` が `addRuralOutput(marketId, collectionBurgId, commercialPath.outputGoodId, outcome.exportOutputUnits)` を呼ぶ箇所の直後に、同じ引数で `getCommercialRecipeByproducts()` を呼び、得られた各副産物にも `addRuralOutput()` を適用する（`addCommercialRecipeByproducts()` としてラップ）。
+
+**教訓（後続の m:n 化タスクへの一般化）**: あるフィールド（ここでは `Good.recipes`）に新しい意味（byproducts）を追加するとき、「そのフィールドを読んでいる箇所」を実行系全体で洗い出さずに主要な1箇所だけを直すと、生成物の一部の経路だけが新仕様に追従し、残りは黙って旧仕様のまま動き続ける——症状は「特定の Good だけ増え方がおかしい」という形で遅れて表面化する。今回は経済拡張内で `.recipes` を参照する全箇所（`merchantTransportAssets.ts`, `metallurgWork.ts`, `goodsBalanceLedger.ts`, `tradeOpportunityEstimator.ts`, `marketFlowDiagnostics.ts`, `goods-editor.ts`）を洗い直し、他はいずれも表示分類・調達見積もり用の読み取り専用参照であり、実行経路はこの2箇所（`production-generator.ts` / `markets-generator.ts`）のみであることを確認した。
 
 ---
 
@@ -307,14 +337,18 @@ Liquor: "instruments"
 4. `productionRecordTypes.ts`: `MfgRecord.byproducts?: ProductionRecipeEntry[]` 追加。
 5. `production-generator.ts`:
    - `Recipe` 型・`ProductionCandidate`/`ProductionDecision.action` 系型に `byproducts: Ingredient[]` を配線。
-   - `buildRecipesArray()` で byproducts を構築（無効な副産物は個別に無視、レシピ自体は失活させない）。
+   - `buildRecipesArray()` で byproducts を構築(無効な副産物は個別に無視、レシピ自体は失活させない)。
    - `executeManufacture()` に副産物付与ループを追加。
    - `STATE_TECH_GATED_GOODS`（Liquor → distillation）による Burg 単位のフィルタを候補生成箇所に追加。
-6. `technologyDefinitions.ts`: `distillation` ノードを `ERA_1` に追加。
-7. `technologyProgress.ts`: `isDistillationKnown(stateId)` 追加。
-8. テスト:
+6. `markets-generator.ts`（§1.5 — 初版で欠落していた第二の実行経路。実装必須）:
+   - `getCommercialRecipeByproducts()` を追加し、cell 直販経路（`getCellFoodCommercialPath()` が選んだレシピ）から byproducts を解決する。
+   - `settleCellFreshFood()` が `addRuralOutput()` で主産物（Wine 等）を市場へ計上する箇所の直後に `addCommercialRecipeByproducts()` を呼び、副産物（Pomace 等）も同じ市場へ計上する。
+7. `technologyDefinitions.ts`: `distillation` ノードを `ERA_1` に追加。
+8. `technologyProgress.ts`: `isDistillationKnown(stateId)` 追加。
+9. テスト:
    - `goods-generator.test.ts` の利幅回帰テスト（`hasViableFoodProcessingMargin` 系）に Pomace Wine / Pomace 系 Liquor レシピを追加し、"dead recipe"（コスト＝価値の同値）にならないことを確認。Pomace Wine が僅差の場合は `foodProcessingEconomics.ts` の `FOOD_PROCESSING_GOODS` への追加も検討する。
-   - `production-generator.ts` 向けに、副産物が主産物と同時に `state.inventory` へ計上されることを検証する単体テストを追加（Brick 生産 → Ash 在庫増加、など）。
+   - `production-generator.ts` 向けに、副産物が主産物と同時に市場在庫へ計上されることを検証する単体テストを追加（Brick 生産 → Ash 在庫増加、など）。
+   - `markets-generator.ts` 向けに、cell 直販経路（Grapes → Wine）でも Pomace が同時に計上されることを検証する単体テスト（`getCommercialRecipeByproducts()` の直接テスト）を追加 — production-generator 側のテストだけでは §1.5 のバグを検知できない。
    - `technologyProgress.test.ts` に `distillation` ノードの stage 遷移テストを追加。
    - Liquor が `distillation < known` の State では一切生産されないことを検証する回帰テストを追加（Gunpowder の `isGoodEnabled` テストと同型）。
 
