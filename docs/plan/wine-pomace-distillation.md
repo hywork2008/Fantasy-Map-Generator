@@ -11,7 +11,7 @@
 - [docs/plan/technology-development-roadmap.md](./technology-development-roadmap.md) — 技術グラフの実装済み契約（`TechnologyDefinition` / `TechnologyStage` / era 0–3）
 - [docs/data/recipe-guild-skill-inference.csv](../data/recipe-guild-skill-inference.csv) 34行目 — Liquor に「Distillers' guild / distilling」を提案済み（未反映）
 - [docs/plan/data/medieval-european-disciplines.csv](./data/medieval-european-disciplines.csv) 59行目 — Distillation を Alchemist/Apothecary/Vintner の技能として記録
-- `src/extensions/economy/generators/goods-generator.ts`（GOODS_DATA, Wine/Ash/Brick/Coal/Preserved food/Smoked Cheese/Tar/Liquor の各定義）
+- `src/extensions/economy/generators/goods-generator.ts`（GOODS_DATA, Wine/Ash/Brick/Charcoal/Preserved food/Smoked Cheese/Tar/Liquor の各定義）
 - `src/extensions/economy/generators/production-generator.ts`（`executeManufacture` のレシピ実行）
 - `src/generators/technologyDefinitions.ts` / `technologyProgress.ts`（技術ノードと State ゲート）
 
@@ -26,7 +26,7 @@
 | Good | 現在のレシピ | Wood の役割 |
 | --- | --- | --- |
 | Brick | `{ Clay: 1, Wood: 0.1 }` | 粘土の窯焼成 |
-| Coal | `{ Wood: 1.5 }` | 木炭化（本プロジェクトの現行 Coal は鉱物石炭ではなく木炭の代用— §5 参照） |
+| Charcoal | `{ Wood: 1.5 }` | 木炭化。中世の精錬・鍛冶用燃料と還元材 |
 | Preserved food | 12レシピ中1つ `{ Fish: 1, Wood: 1 }` | 燻製・乾燥 |
 | Smoked Cheese | `{ Cheese: 1, Wood: 0.5 }` | 燻製 |
 | Tar | `{ Wood: 1 }`（もう1レシピは `{ Resin: 0.75 }`） | 乾留（タール窯） |
@@ -161,13 +161,13 @@ const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
 | Good | 対象レシピ | 追加する byproducts | 根拠 |
 | --- | --- | --- | --- |
 | Brick | `{ Clay: 1, Wood: 0.1 }` | `{ Ash: 0.1 }` | 窯焼成は燃料を完全燃焼させる |
-| Coal | `{ Wood: 1.5 }` | `{ Ash: 0.225 }` | 木炭化＝部分乾留（低収率） |
+| Charcoal | `{ Wood: 1.5 }` | `{ Ash: 0.225 }` | 木炭化＝部分乾留（低収率） |
 | Preserved food | 12番目 `{ Fish: 1, Wood: 1 }` のみ | `{ Ash: 1 }` | 燻製・乾燥は燃料を完全燃焼させる。他11レシピ（Salt/Vinegar系）は対象外 |
 | Smoked Cheese | `{ Cheese: 1, Wood: 0.5 }` | `{ Ash: 0.5 }` | 燻製は完全燃焼 |
 | Tar | `{ Wood: 1 }` のみ（`{ Resin: 0.75 }` は対象外） | `{ Ash: 0.15 }` | タール窯も部分乾留（低収率） |
 | Liquor | 全15レシピ（§4 で Pomace 系3種追加後）— 全て `Wood: 1` を含む | 各 `{ Ash: 1 }` | 蒸留器の加熱は完全燃焼 |
 
-Ash 自身の `{ Wood: 1 }` レシピは変更しない。副産物 Ash は原材料費ゼロで市場に供給されるため、`makeProductionDecision` の利益比較上、Brick/Coal/Smoked Cheese/Liquor が盛んな集落では Ash 専用レシピが自然に選ばれにくくなる——これはコード変更なしで生じる意図した創発効果であり、既存の Ash 専用レシピを削除する必要はない（燃焼系産業を持たない集落のフォールバック兼、史実の「灰焼き」という独立職業の再現として残す）。
+Ash 自身の `{ Wood: 1 }` レシピは変更しない。副産物 Ash は原材料費ゼロで市場に供給されるため、`makeProductionDecision` の利益比較上、Brick/Charcoal/Smoked Cheese/Liquor が盛んな集落では Ash 専用レシピが自然に選ばれにくくなる——これはコード変更なしで生じる意図した創発効果であり、既存の Ash 専用レシピを削除する必要はない（燃焼系産業を持たない集落のフォールバック兼、史実の「灰焼き」という独立職業の再現として残す）。
 
 ---
 
@@ -381,4 +381,4 @@ Liquor: "instruments"
 
 - wine.md 第3段階（堆肥・家畜飼料としてのポマース再利用）は本設計に含めない。Pomace が Pomace Wine / Liquor いずれの需要にも吸収されず市場に滞留した場合の「最終処分先」として、将来 Fodder や土壌肥沃度システムに接続する余地を残す。
 - Pomace Wine 専用の世帯消費台帳（`WINE_TARGETS`/`ALE_TARGETS` 相当）。
-- Coal の実体を「木炭」から「採掘される鉱物石炭」へ分離する件（technology-development-roadmap.md Phase 4「石炭利用の拡大」で扱う想定、本設計は現行 Coal＝木炭という暗黙の抽象化を前提に Ash 副産物を接続するのみ）。
+- ~~Coal の実体を「木炭」から「採掘される鉱物石炭」へ分離する件~~ — 実装済み。`Coal` は採掘される鉱物石炭、`Charcoal` は `Wood` から作る木炭として分離した。中世の精錬所は Charcoal を消費し、Coal を直接の代替燃料にはしない。前工業化以後の `Coal → Coke` は [mineral-smelting-security-system.md](./mineral-smelting-security-system.md#22-燃料副産物の時代区分phase-e実装済み) の将来候補として扱う。

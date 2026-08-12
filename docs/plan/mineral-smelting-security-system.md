@@ -2,7 +2,8 @@
 
 ## 状態
 
-Phase A〜D 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行・精錬所・精錬所盗難・街道警備）。
+Phase A〜E 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行・精錬所・精錬所盗難・街道警備・
+木炭／石炭の分離と精錬燃料の実需化）。
 `docs/plan/mineral-resource-system.md`(鉱物資源システム)の続編であり、
 同ドキュメント §12「未決定事項」の「個別 Ore Good を Phase 2 から導入するか、精錬済み金属相当の
 まま進めるか」に対して、本書は **導入する** という決定を行う。
@@ -25,7 +26,8 @@ Phase A〜D 実装済み（Ore/Ingot のカタログ分離・既存セーブ移�
 - 鉱山サイト・精錬サイト・交易路のそれぞれ異なる脆弱性に治安・盗難リスクを結びつける
 
 対象は精錬工程が意味を持つ6品目: Iron / Copper / Tin / Lead / Silver / Gold。
-Coal / Saltpeter / Sulfur は燃料・火薬原料のままで Ingot 段階を持たない。
+Coal / Saltpeter / Sulfur は燃料・火薬原料のままで Ingot 段階を持たない。ここでいう `Coal` は
+鉱山から採掘される**鉱物石炭**であり、Wood から作る木炭とは別 Good である。
 
 ---
 
@@ -58,7 +60,35 @@ export type FuelMineralCommodity = (typeof FUEL_MINERAL_COMMODITIES)[number];
 (鉱石はMineOperation由来、インゴットはSmelterOperation由来であり、どちらも人口比例の自然
 生産の対象外であるべきため)。
 
-### 2.2 SmelterOperation
+### 2.2 燃料・副産物の時代区分（Phase E、実装済み）
+
+中世ヨーロッパを主な時代背景とする現行シミュレーションでは、鉱石を炉で還元する精錬の標準燃料を
+`Charcoal`（木炭）とする。木炭は高温を得る燃料であると同時に還元材でもあり、鉄鉱石の製錬では
+18 世紀まで木炭が基本だったとする史料整理とも整合する
+([Historic England: *Pre-industrial Ironworks*](https://historicengland.org.uk/images-books/publications/iha-preindustrial-ironworks/heag221-pre-industrial-ironworks/))。
+一方、石炭は中世にも暖房・鍛冶・窯業などで地域的に使われたが、硫黄などの不純物を含む生の石炭を
+中世標準の鉱石還元炉へそのまま代入しない。コークスによる製鉄の定着は近世以後の技術段階として
+扱う ([Historic England: *Archaeometallurgy*](https://historicengland.org.uk/images-books/publications/archaeometallurgy-guidelines-best-practice/heag003-archaeometallurgy-guidelines/),
+[Oxford Economic History](https://academic.oup.com/ej/article/131/635/1135/5955447))。
+
+| Good | 現行の役割 | 市場・森林との関係 |
+|---|---|---|
+| `Wood` | 森林から得る原料・一般燃料 | 農村の Wood 供給は `harvestWood()` を通じて `forestStock` を減らす。|
+| `Charcoal` | `Wood: 1.5 → Charcoal`。中世の精錬・鍛冶・黒色火薬の炭素源 | 市場で売買され、精錬所は実在庫を消費する。したがって精錬需要は木炭生産を介して伐採圧力になる。|
+| `Coal` | 鉱山が供給する鉱物石炭 | Wood レシピを持たない。暖房などの燃料需要と、近世以後のコークス化の原料に使う拡張余地を残す。|
+| `Ash` | Wood の燃焼・木炭化の副産物 | かさばる低価値の地域財。`Ash: 1.5 → Potash` の原料であり、精錬所が市場へ直接出荷する副産物ではない。|
+| `Potash` | 灰から精製するアルカリ | ガラス・石鹸向けの、灰より高密度で長距離交易に向く中間財。|
+| `Slag` | `Ore → Ingot` の際に出る脈石・炉滓 | 低価値の地域的な埋め戻し・骨材。精錬所が市場へ供給するが、長距離輸出を主目的にしない。|
+
+`fuelAccess` は、精錬所を森林に近い場所へ選ぶための立地・能力係数であり、単独では Wood を消費しない。
+物量上の燃料制約は Charcoal の市場在庫で表す。農村の Wood 採取が `forestStock` を減らし、Charcoal
+生産を経由して精錬を支えるため、森林の減少は燃料供給を通じて精錬能力へ圧力をかける。なお現在の
+`fuelAccess` 値そのものは、伐採後の `forestStock` に応じて毎月再計算するモデルではない。
+
+将来、時代が前工業化へ進んだ場合だけ `Coal → Coke` と `Coke + Ore → Ingot + Slag` を追加候補とする。
+これは生石炭を Charcoal の単純な代替品にせず、炭田・輸送・炉・技術を要件にするためである。
+
+### 2.3 SmelterOperation
 
 `MineOperation`(`mineralResources.ts:81-92`)と対になる新しい型。
 
@@ -112,9 +142,12 @@ Markets.initializeMarketPrices()
 
 `SmelterOperations.produceMonth()` は `Markets.consumeForMint()`/`consumeForMilitary()`
 (`markets-generator.ts:143-166`)と同じ「市場在庫の一定割合を上限に消費する」パターンを再利用し、
-処理量の上限は `waterPower × fuelAccess × technology`(`MineOperation.produceMonth()` の
-`extractionFactor` と同型の合成)で制限する。産出した Ingot は `Markets.addMineSupply()` 相当の
-関数(命名は `addSmelterSupply()` などに改める)で市場在庫へ加える。
+処理量は `waterPower × fuelAccess × technology` に、労働者・工具投資・Metallurgy guild の補正を
+掛けた能力で制限する。さらに市場内の Charcoal 在庫の一定割合を上限とし、Ore と同量の Charcoal を
+同時に `Markets.consumeForSmelting()` で消費する。Charcoal がなければ精錬は停止する。
+
+Ore 1 単位につき `smeltingYield`（初期値 0.8）の Ingot と、0.25 の `Slag` を市場へ加える。盗難判定は
+Ingot にだけ適用し、Slag と市場に残る既存在庫は盗難対象にしない。
 
 ---
 
@@ -244,6 +277,11 @@ export interface TradeSecurityLedger {
   - [x] `TradeSecurityLedger` 新設(State単位)
   - [x] `caravans.ts` の `banditRiskPerDay` 拡張
   - [x] States Editor のTreasuryタブでの投資水準UI
+- [x] **Phase E**: 木炭・石炭・灰の分離と燃料実需化
+  - [x] `Coal` を鉱物石炭、`Charcoal` を `Wood` 由来の木炭として分離
+  - [x] 精錬所を `Ore + Charcoal → Ingot + Slag` とし、Charcoal の市場在庫を実際に消費
+  - [x] `Ash → Potash` を追加し、Ash を精錬所の市場向け副産物にしない
+  - [x] 旧セーブの Coal レシピ・関連レシピ・取引プロファイルを移行
 
 ---
 
