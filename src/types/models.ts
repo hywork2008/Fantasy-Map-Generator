@@ -339,6 +339,13 @@ export interface Culture {
    * @deprecated Prefer race.characterGender. Still read as a fallback for pre-split maps.
    */
   characterGender?: CharacterGenderMode;
+  /**
+   * How much this culture's people value learning/scholarship, 0..1. Rolled once at generation
+   * from a per-CultureType prior (docs/plan/great-library.md KD-2) and persisted so it stays
+   * stable across saves. Read via `getCultureKnowledgeValue()` (src/utils/cultureKnowledgeValue.ts)
+   * rather than directly, so legacy saves without this field fall back to the type's prior.
+   */
+  knowledgeValue?: number;
 }
 
 export interface PackedGraphFeature {

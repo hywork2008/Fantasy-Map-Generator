@@ -16,6 +16,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openAlert } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
+import { rollCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
@@ -1254,6 +1255,11 @@ class CulturesModule {
         }
 
         c.i = newId;
+        // Locked cultures kept from a previous generation/save may predate this trait
+        // (docs/plan/great-library.md PR1 generation-coverage checklist) — hydrate it in place.
+        if (typeof c.knowledgeValue !== "number" || !Number.isFinite(c.knowledgeValue)) {
+          c.knowledgeValue = rollCultureKnowledgeValue(c.type);
+        }
         return;
       }
 
@@ -1267,6 +1273,7 @@ class CulturesModule {
       delete c.sort;
       c.color = colors[i];
       c.type = defineCultureType(center);
+      c.knowledgeValue = rollCultureKnowledgeValue(c.type);
       c.expansionism = defineCultureExpansionism(c.type);
       c.origins = [0];
       c.code = abbreviate(c.name, codes);
@@ -1285,7 +1292,8 @@ class CulturesModule {
       origins: [null],
       shield: "round",
       race: UNKNOWN_RACE_ID,
-      raceKey: "unknown"
+      raceKey: "unknown",
+      knowledgeValue: rollCultureKnowledgeValue(undefined)
     });
 
     // make sure all bases exist in nameBases

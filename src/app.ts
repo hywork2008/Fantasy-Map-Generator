@@ -41,13 +41,14 @@ import {
 } from "./renderers/webgl/extensionWebglLayerRegistry";
 import { registerMapReadyTask, requestMapReadyTask } from "./runtime/mapReadyTaskCoordinator";
 import { initRenderCoordinator } from "./runtime/renderCoordinator";
-import { dispatchExtensionCommand, worldRuntime } from "./runtime/worldRuntime";
+import { createMarker, dispatchExtensionCommand, worldRuntime } from "./runtime/worldRuntime";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "./services/burgSiteDescriptor";
 import {
   registerExtensionMapPickHandler,
   unregisterExtensionMapPickHandler
 } from "./services/extensionMapPickHandlers";
+import { applyMapMarkerPatch, markerNoteId, nextMarkerId } from "./services/mapMarkerApi";
 import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
 import { tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
@@ -176,6 +177,33 @@ function buildExtensionAPI(): ExtensionAPI {
     requestWebglRender: scheduleWebglUpdate,
     registerMapPickHandler: registerExtensionMapPickHandler,
     unregisterMapPickHandler: unregisterExtensionMapPickHandler,
+
+    createMapMarker: input => {
+      const markerI = nextMarkerId(worldContext.pack.markers);
+      const noteId = markerNoteId(markerI);
+      try {
+        const commit = createMarker({
+          marker: { ...input.marker, i: markerI },
+          note: { id: noteId, name: input.note.name, legend: input.note.legend }
+        });
+        if (!commit) return null;
+      } catch {
+        // Duplicate id / invalid cell — reject instead of throwing into caller code.
+        return null;
+      }
+      scheduleWebglUpdate();
+      return { markerId: markerI, noteId };
+    },
+    updateMapMarker: (markerId, patch) => {
+      const marker = worldContext.pack.markers.find(candidate => candidate.i === markerId);
+      if (!marker) return false;
+
+      const note = worldContext.notes.find(candidate => candidate.id === markerNoteId(markerId));
+      applyMapMarkerPatch(marker, note, patch);
+
+      scheduleWebglUpdate();
+      return true;
+    },
 
     openRichDialog,
     openDialog: (id, config) => openDialog(id, config),

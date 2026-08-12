@@ -1,5 +1,6 @@
 import { isEconomyContextReady } from "../economyContext";
 import { applyConquestDisruptionToAcademies } from "./academyKnowledge";
+import { applyGreatLibraryConquestDisruption } from "./greatLibrary";
 import { applyConquestDisruptionToGuilds } from "./guildKnowledge";
 
 /**
@@ -21,4 +22,8 @@ export function applyConquestDisruption(burgId: number): void {
 
   applyConquestDisruptionToGuilds(burgId);
   applyConquestDisruptionToAcademies(burgId);
+  // docs/plan/great-library.md §征服・占領 — one-shot progress/endowment penalty plus a chance of
+  // outright ruin. Burg-scoped like the two calls above; the project's stateId (patron) does not
+  // change, so it registers as "occupied" in GreatLibrary.settleAnnual() going forward.
+  applyGreatLibraryConquestDisruption(burgId);
 }

@@ -42,6 +42,7 @@ import type {
 } from "../store/extensionState";
 import type { LayerConfig } from "../store/layerState";
 import type { OpenDialogConfig, RichDialogOptions } from "../ui/dialogs/dialogService";
+import type { Marker } from "./models";
 import type { WebglPickDetail } from "./webglPicking";
 
 export interface TooltipExtensionHooks {
@@ -276,6 +277,28 @@ export interface ExtensionAPI {
   registerMapPickHandler(extensionId: string, handler: ExtensionMapPickHandler): void;
   /** Remove a previously registered WebGL map pick handler. */
   unregisterMapPickHandler(extensionId: string): void;
+
+  // ── Map annotations (markers + notes) ───────────────────────────────────
+  /**
+   * Creates a `pack.markers` entry plus its paired note in one step, same shape as the host's own
+   * `worldRuntime.createMarker()` (docs/plan/great-library.md §Marker作成経路). The caller supplies
+   * every `Marker` field except `i` — the host allocates the id and derives `note.id = "marker" +
+   * i` itself, so callers never invent or collide on marker/note ids. Calls
+   * `requestWebglRender()` internally on success. Returns null if marker creation fails (e.g. an
+   * invalid cell).
+   */
+  createMapMarker(input: {
+    marker: Omit<Marker, "i">;
+    note: { name: string; legend: string };
+  }): { markerId: number; noteId: string } | null;
+  /**
+   * Patches an existing marker's fields and/or its paired note's name/legend in place. Returns
+   * false if no marker with this id exists. Calls `requestWebglRender()` internally on success.
+   */
+  updateMapMarker(
+    markerId: number,
+    patch: Partial<Omit<Marker, "i">> & { noteName?: string; noteLegend?: string }
+  ): boolean;
 
   // ── Dialog service ───────────────────────────────────────────────────────
   openRichDialog(options: RichDialogOptions): void;

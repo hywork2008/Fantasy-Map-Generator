@@ -42,6 +42,9 @@ import {
   setDeals,
   setGoodCellColumn,
   setGoods,
+  setGreatLibraryLastSettledYear,
+  setGreatLibraryNextId,
+  setGreatLibraryProjects,
   setGuildChapters,
   setGuildChaptersLastSettledYear,
   setIndividualSkills,
@@ -101,6 +104,7 @@ import {
   migrateStapleCropGoods,
   migrateWineRecipe
 } from "./generators/goods-generator";
+import { GreatLibrary } from "./generators/greatLibrary";
 import { GuildChapters } from "./generators/guildChapters";
 import { GuildKnowledge } from "./generators/guildKnowledge";
 import { GuildSuccession } from "./generators/guildSuccession";
@@ -200,6 +204,7 @@ import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
 import { GoodsProducersDialog } from "./ui/dialogs/GoodsProducersDialog";
 import { GoodsStockDialog } from "./ui/dialogs/GoodsStockDialog";
 import { GoodsTagsFilterDialog } from "./ui/dialogs/GoodsTagsFilterDialog";
+import { GreatLibraryOverviewDialog } from "./ui/dialogs/GreatLibraryOverviewDialog";
 import { GuildOverviewDialog } from "./ui/dialogs/GuildOverviewDialog";
 import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
 import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
@@ -1153,6 +1158,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       StrategicProcurement.clear();
       setGuildChapters([]);
       setGuildChaptersLastSettledYear(null);
+      setGreatLibraryProjects([]);
+      setGreatLibraryLastSettledYear(null);
+      setGreatLibraryNextId(1);
       setIndividualSkills([]);
       setSmithingWorkshopLedgers([]);
       MetallurgWork.clear();
@@ -1363,6 +1371,11 @@ export function init(api: ExtensionAPI): void {
     id: "MineralOverviewDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: MineralOverviewDialog
+  });
+  api.registerDialog({
+    id: "GreatLibraryOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GreatLibraryOverviewDialog
   });
   api.registerDialog({
     id: "TreasuryOverviewDialog",
@@ -1586,6 +1599,21 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-great-library",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Great Library",
+    dialogId: "greatLibraryOverview",
+    tooltip: "Open Great Library Overview — royal-patronage library projects and per-State start eligibility",
+    onClick: () => {
+      document.dispatchEvent(
+        new CustomEvent("react-tool-action", { detail: { action: "greatLibraryOverviewButton" } })
+      );
+    }
+  });
+
+  api.registerAction({
     id: "economy-edit-balance-history",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -1664,6 +1692,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("metallurgWorkOverviewButton", () => toggleEditorDialog("metallurgWorkOverview", null));
   api.registerToolAction("mineralOverviewButton", () => toggleEditorDialog("mineralOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
+  api.registerToolAction("greatLibraryOverviewButton", () => toggleEditorDialog("greatLibraryOverview", null));
   api.registerToolAction("balanceHistoryButton", () => toggleEditorDialog("balanceHistory", null));
   api.registerToolAction("debtNegotiationButton", () => toggleEditorDialog("debtNegotiation", null));
   api.registerToolAction("councilSessionButton", () => toggleEditorDialog("councilSession", null));
@@ -1727,6 +1756,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("guildOverview");
       api.closeDialog("metallurgWorkOverview");
       api.closeDialog("treasuryOverview");
+      api.closeDialog("greatLibraryOverview");
       api.closeDialog("debtNegotiation");
       api.closeDialog("councilSession");
       api.closeDialog("domainPollDetail");
@@ -2337,6 +2367,10 @@ export function init(api: ExtensionAPI): void {
         // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
         // simulation year.
         AcademyKnowledge.settleAnnual();
+        // Spends state.treasury before StateSecretKnowledge below sees it, deliberately
+        // (docs/plan/great-library.md 年次フロー: "威信を火薬より先に請求"). No ordering dependency on
+        // reconcileAnnualBasicEmploymentWorkers() — reads state.treasury/diplomacy/ruler directly.
+        GreatLibrary.settleAnnual(context.rng);
         // No ordering dependency on reconcileAnnualBasicEmploymentWorkers() (unlike Guild/Academy
         // above) — it reads MilitaryResourceLedger and state.treasury, not a headcount reconciliation
         // output. Self-gates to once per simulation year (docs/plan/knowledge-guild-system.md §9 Phase 4).
@@ -2756,6 +2790,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("metallurgWorkOverviewButton");
   api.unregisterToolAction("mineralOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
+  api.unregisterToolAction("greatLibraryOverviewButton");
   api.unregisterToolAction("balanceHistoryButton");
   api.unregisterToolAction("debtNegotiationButton");
   api.unregisterToolAction("councilSessionButton");

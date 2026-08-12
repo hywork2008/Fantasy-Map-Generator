@@ -5,7 +5,7 @@
 | 文書 | `docs/plan/great-library.md` |
 | 著者 | (AI design pass; maintainers TBD) |
 | 日付 | 2026-08-02 |
-| 改訂 | 2026-08-02 r4（Theocracy: valuesKnowledge に piety 項） |
+| 改訂 | 2026-08-13 r5（ギルド/技術蓄積システム側の進展を現状監査に反映: tick順修正、GuildChapters・個人技能熟練レイヤーを追記。設計判断そのものは無変更） |
 | 状態 | **Draft** |
 | 関連 | [knowledge-guild-system.md](./knowledge-guild-system.md)、[states-personality.md](./states-personality.md)、[state-treasury-department-budget.md](./state-treasury-department-budget.md)、[urban-construction-industry.md](./urban-construction-industry.md)、[shipbuilding.md](./shipbuilding.md) |
 
@@ -38,7 +38,9 @@
 | アカデミー | `SCHOLARLY_KNOWLEDGE_DOMAINS = ["administration"]` のみ。`naturalPhilosophy` 未配線 | `academyKnowledgeTypes.ts` |
 | Academy settle | 頭数 EWMA、`ACADEMY_SATURATION_WORKERS = 8`、`ACADEMY_ADOPTION_RATE = 0.15`、`ACADEMY_DECAY_RATE = 0.15`、`ACADEMY_BONUS_MAX = 0.2`、征服 `ACADEMY_CONQUEST_DISRUPTION_PENALTY = 0.4` | `academyKnowledge.ts` |
 | StateSecret 支出 | `STATE_SECRET_BUDGET_SHARE_OF_TREASURY = 0.05`、`STATE_SECRET_TARGET_ANNUAL_SPEND = 20`（満カバレッジに treasury ≥ 400 が必要） | `stateSecretKnowledge.ts` |
-| Tick 順 | GuildKnowledge → GuildSuccession → AcademyKnowledge → StateSecretKnowledge → MartialDisciplineKnowledge → GuildTreasury | `economy/index.tsx` |
+| Tick 順（2026-08-13 再監査で修正） | `GuildKnowledge → GuildChapters → GuildSuccession → AcademyKnowledge → StateSecretKnowledge → MartialDisciplineKnowledge → MartialIndividualMastery → GuildTreasury`。2026-08-02 設計時点から `GuildChapters`（GuildKnowledge直後）と `MartialIndividualMastery`（MartialDisciplineKnowledge直後）が新規挿入された。**Academy↔StateSecret の隣接関係（GreatLibrary の挿入点）は不変** | `economy/index.tsx` |
+| 個人技能熟練レイヤー（2026-08-13 追記・新設） | Guild層に人物単位の熟練度が追加された: `individualSkillMastery.ts`（`CharacterDomainSkill`、domain=blacksmithing/smelting/weaving/tailoring/swordsmanship/archery/horsemanship）、`martialIndividualMastery.ts`（named commander の swordsmanship/archery、`MartialDisciplineKnowledge`直後にtick）。**scholarly domain（administration/naturalPhilosophy）には個人熟練レイヤーが存在しない**——Academy 層は本設計時点と同じ頭数集計 EWMA のみで、KD-3/PR4 の前提に影響なし | `individualSkillTypes.ts`、`individualSkillMastery.ts`、`martialIndividualMastery.ts` |
+| masonry ギルド知識の消費先（2026-08-13 追記） | `GuildKnowledgeStock(domain="masonry")` が `urbanWaterSystem.ts` / `innFacilities.ts` / `urbanWaterTech.ts` の建設効率へ接続済み（本設計時点は未接続だった）。KD-6/較正表の「masonry 乗数は v1 で入れない」判断はそのまま維持するが、将来 stretch で接続する際の実装済み前例として記録 | `urbanWaterSystem.ts` |
 | 統治者 | `getRulerId(state)`（nobilityContext）。Characters: `skills.learning`、personality、`CommitmentKind` に scholarship 無し | `nobilityContext.ts`、`characterTypes.ts` |
 | Economy→Nobility/Characters | 既存: `treasuryAllocation.ts` が `getRulerId`、`guildSuccession.ts` が Character 型 | 同上 |
 | Characters ガード | `hasCharactersContext()` | `charactersContext.ts` |
@@ -416,6 +418,8 @@ stateDiagram-v2
 - サイト征服: 除去
 
 ### 年次フロー (`settleAnnual`)
+
+**現状再監査（2026-08-13）**: `economy/index.tsx` の実際の並びは `GuildKnowledge → GuildChapters → GuildSuccession → AcademyKnowledge → StateSecretKnowledge → MartialDisciplineKnowledge → MartialIndividualMastery → GuildTreasury`（2026-08-02 の設計時点から `GuildChapters` と `MartialIndividualMastery` が増設）。**Academy → StateSecret の隣接関係は変わっていない**ため、以下の挿入方針はそのまま有効:
 
 順序（**確定**）:
 
@@ -920,6 +924,10 @@ v1 では過剰。将来 extract 可。
 - `worldRuntime.ts` — `createMarker`
 - `localDefense.ts` / `conquestDisruption.ts` — conquest hook
 - `goods-editor.ts` — Economy からの `requestWebglRender` 先例
+- `guildChapters.ts` / `guildChapterSuitability.ts` — 2026-08 増設、Tick 順 GuildKnowledge直後
+- `individualSkillMastery.ts` / `individualSkillTypes.ts` — 2026-08 増設、Guild層の人物単位熟練レイヤー（scholarly domain 対象外）
+- `martialIndividualMastery.ts` — 2026-08 増設、Tick 順 MartialDisciplineKnowledge直後
+- `urbanWaterSystem.ts` — masonry ギルド知識の実装済みボーナス消費先（2026-08 接続）
 
 ---
 
@@ -955,3 +963,12 @@ v1 では過剰。将来 extract 可。
 - 判定: `state.form === "Theocracy"` または `formName` ∈ Theocracy / Holy State / Bishopric（`characterLifecycle.isReligiousForm` の form 枝のみ）。
 - Theocracy 式: `0.30·rat + 0.15·piety + 0.25·aff + 0.20·zeal·aff + 0.10·greedInv`。
 - ボーダーライン表に Theocracy pass/fail 行を追加。Open Question #2 を解決済みに更新。
+
+## Revision Summary（文書 r5）
+
+コード再監査（2026-08-13、r4 執筆から約10日分のギルド/技術蓄積システム側コミットを確認）。**設計判断（KD-1〜KD-7）に変更なし**——挿入点・定数・ゲート式はすべて再検証済みで現行コードと整合。陳腐化していたのは「現状監査」節の事実記述のみ:
+
+- **Tick 順を修正**: `GuildKnowledge → GuildSuccession → AcademyKnowledge → …` は古い。実際は `GuildKnowledge → GuildChapters → GuildSuccession → AcademyKnowledge → StateSecretKnowledge → MartialDisciplineKnowledge → MartialIndividualMastery → GuildTreasury`（`GuildChapters`・`MartialIndividualMastery` が新規挿入）。GreatLibrary の挿入点（Academy↔StateSecret間）はこの2件の影響を受けず、KD-1/PR3 の方針は無修正で有効。
+- **個人技能熟練レイヤーを現状監査に追記**: `individualSkillMastery.ts`（Guild: blacksmithing/smelting/weaving/tailoring/swordsmanship/archery/horsemanship）と `martialIndividualMastery.ts`（named commander）が新設された。scholarly domain（administration/naturalPhilosophy）には同種のレイヤーが無く、KD-3 raw skill 読み取り方針・PR4 の naturalPhilosophy 設計に影響なしと確認。
+- **masonry ギルド知識の接続を追記**: `GuildKnowledgeStock(domain="masonry")` が `urbanWaterSystem.ts` 等の建設効率へ接続済みになった。KD-6/較正表の「masonry 乗数は v1 で入れない」という non-goal 判断はそのまま維持（変更不要）だが、将来接続時の実装済み前例として記録した。
+- その他の監査項目（Academy定数、StateSecret定数、`getRulerId`/`hasCharactersContext`/`getCharacters`ガード、`CommitmentKind`一覧、`CultureType`7種、personality フィールド、`isReligiousForm`、`titleTable`、`SHIPYARD_BUILD_POINTS_PER_YEAR`、`WEBGL_MANAGED_SVG_LAYER_IDS`、`createMapMarker`/`updateMapMarker`未実装、`economyContext` slice パターン、`applyConquestDisruption`フック、`printing`/`Books`ドメイン、knowledge-guild-system.md Phase 8 未確定）はすべて現行コードと再照合し、変更なしを確認。

@@ -180,6 +180,41 @@
   flex-shrink: 0;
 }
 
+/* Great Library Overview: active projects and per-State start eligibility, same two-section
+   shape as Minerals Overview above (docs/plan/great-library.md PR6). */
+.fmg-dialog--great-library-overview {
+  width: min(64rem, calc(100vw - 2rem));
+  height: min(42rem, 75vh);
+}
+
+.great-library-overview-dialog {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.great-library-overview-dialog__section {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.great-library-overview-dialog__section > h3,
+.great-library-overview-dialog__section > .note {
+  flex-shrink: 0;
+}
+
+.great-library-gate {
+  opacity: 0.6;
+}
+
+.great-library-gate--ok {
+  opacity: 1;
+  color: #2e8b57;
+}
+
 .population-overview-dialog {
   width: min(56em, calc(100vw - 2rem));
 }

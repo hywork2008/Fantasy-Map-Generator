@@ -24,6 +24,7 @@ import type {
 } from "./generators/escortHireTypes";
 import type { FaunaCohorts } from "./generators/faunaPopulationTypes";
 import type { Good } from "./generators/goodsGeneratorTypes";
+import type { GreatLibraryProject } from "./generators/greatLibraryTypes";
 import type { GuildChapter } from "./generators/guildChapterTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
 import type { CharacterDomainSkill } from "./generators/individualSkillTypes";
@@ -134,6 +135,7 @@ let _burgTreasuryLastSettledYearFallback: number | null = null;
 let _innFacilitiesLastSettledYearFallback: number | null = null;
 let _urbanWaterLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
+let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -185,6 +187,7 @@ export function clearEconomyContext(): void {
   _innFacilitiesLastSettledYearFallback = null;
   _urbanWaterLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
+  _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -1477,6 +1480,42 @@ export function getAcademyKnowledgeStocks(): AcademyKnowledgeStock[] {
 }
 export function setAcademyKnowledgeStocks(stocks: readonly AcademyKnowledgeStock[]): void {
   setSliceArray("academyKnowledgeStocks", stocks);
+}
+
+/** One State's royal-patronage library project, at most one active (non-"ruined") per State (docs/plan/great-library.md Persistence). */
+export function getGreatLibraryProjects(): GreatLibraryProject[] {
+  return getSliceArray<GreatLibraryProject>("greatLibraryProjects");
+}
+export function setGreatLibraryProjects(projects: readonly GreatLibraryProject[]): void {
+  setSliceArray("greatLibraryProjects", projects);
+}
+
+/** Once-per-year guard for GreatLibrary.settleAnnual() (docs/plan/great-library.md 年次フロー). */
+export function getGreatLibraryLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.greatLibraryLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _greatLibraryLastSettledYearFallback;
+}
+export function setGreatLibraryLastSettledYear(year: number | null): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    if (year === null) delete slice.greatLibraryLastSettledYear;
+    else slice.greatLibraryLastSettledYear = year;
+    return;
+  }
+  _greatLibraryLastSettledYearFallback = year;
+}
+
+/** Monotonic id allocator for new GreatLibraryProject records; starts at 1 (docs/plan/great-library.md Persistence). */
+export function getGreatLibraryNextId(): number {
+  const value = getSliceNumber("greatLibraryNextId");
+  return value > 0 ? value : 1;
+}
+export function setGreatLibraryNextId(id: number): void {
+  setSliceNumber("greatLibraryNextId", id);
 }
 
 /** State-scoped national-secret technique stocks, one entry per (stateId, domain) (docs/plan/knowledge-guild-system.md §6, §9 Phase 4). */
