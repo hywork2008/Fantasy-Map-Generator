@@ -1,9 +1,11 @@
 # Seasons: 季節シミュレーション仕様
 
-本ドキュメントは、地軸傾斜（23.5°、地球相当）と緯度から導かれる春夏秋冬の季節サイクルと、それが
-農業生産・穀物価格・冬季の道路閉鎖・海流の4つのゲームプレイ要素へどう波及するかをまとめた仕様書です。
+本ドキュメントは、地軸傾斜（`WorldOptions.axialTilt`、World Configuratorで設定可能・デフォルト23.5°=地球相当）
+と緯度から導かれる春夏秋冬の季節サイクルと、それが地図の気温表示・農業生産・穀物価格・冬季の道路閉鎖・海流の
+5つのゲームプレイ要素へどう波及するかをまとめた仕様書です。
 `docs/simulation/advance-time.md` の年/月/日クロック（`src/generators/timeEngine.ts`）を基盤としており、
 季節そのものは新しい時計を持たず、既存の `simulationContext.currentMonth`/`currentDay` から都度導出されます。
+設計の経緯・判断根拠は `docs/plan/seasonal-temperature-variation.md` を参照してください。
 
 ## 0. 設計方針
 
@@ -24,10 +26,10 @@
 | :--- | :--- |
 | `isLeapYear(year)` / `getDaysInMonth(year, month)` | グレゴリオ暦のうるう年・月日数計算。元は `timeEngine.ts` にあったが、この機能追加時にこちらへ移動し、`timeEngine.ts` が import する形にした（重い方のモジュールが軽い方に依存する、正しい依存方向にするため）。 |
 | `getDayOfYear(year, month, day)` | 1月1日を1とする通日。 |
-| `getSolarDeclinationDeg(dayOfYear)` | 太陽赤緯の近似式 `-23.5° * cos(360/365 * (day+10))`。北半球の夏至（day≈172）付近で+23.5、冬至（day≈355）付近で-23.5になる。 |
-| `getSeasonalAmplitude(latitudeDeg, climate)` | 緯度ごとの季節による気温振れ幅（°C）。赤道で0、極で最大になる `sin(\|latitude\|)` 型。振れ幅の大きさはマップ自身の `temperatureEquator`/`temperatureNorthPole`/`temperatureSouthPole` の差から算出するため、ユーザーが設定した気候と整合する（新規の無関係な定数を追加していない）。 |
+| `getSolarDeclinationDeg(dayOfYear, axialTiltDeg = EARTH_AXIAL_TILT_DEG)` | 太陽赤緯の近似式 `-axialTiltDeg * cos(360/365 * (day+10))`。北半球の夏至（day≈172）付近で+axialTiltDeg、冬至（day≈355）付近で-axialTiltDegになる。`axialTiltDeg` は省略時 `src/data/earthConfig.ts` の `EARTH_AXIAL_TILT_DEG`（23.5）。 |
+| `getSeasonalAmplitude(latitudeDeg, climate)` | 緯度ごとの季節による気温振れ幅（°C）。赤道で0、極で最大になる `sin(\|latitude\|)` 型。振れ幅の大きさはマップ自身の `temperatureEquator`/`temperatureNorthPole`/`temperatureSouthPole` の差から算出するため、ユーザーが設定した気候と整合する（新規の無関係な定数を追加していない）。地軸傾斜には依存しない（傾斜による倍率は `getSeasonalTemperatureOffset` 側で掛ける）。 |
 | `getSeasonalityStrength(latitudeDeg)` | `[0,1]` に正規化された緯度別季節強度。赤道で0（一年中ほぼ一定の気候）、極で1（最大の季節差）になる、気候設定に依存しない `sin(\|latitude\|)` のみの関数。`getSeasonalAmplitude` が気温オフセット用に気候差でスケールされるのに対し、こちらは食料生産など「季節性そのものの強さ」を緯度だけでブレンドしたい消費者向け。 |
-| `getSeasonalTemperatureOffset(latitudeDeg, year, month, day, climate)` | `grid.cells.temp`（生成時に一度だけ計算される年間平均気温、`src/main.ts` の `calculateTemperatures()`）に**足し合わせる**用の符号付きオフセット。既存の静的な `temp` 配列自体は書き換えない。現状このオフセットを実際に読み取っている消費者はまだいない（将来、季節による気温表示や氷結演出を追加する際のためのビルディングブロックとして用意）。 |
+| `getSeasonalTemperatureOffset(latitudeDeg, year, month, day, climate, axialTiltDeg = EARTH_AXIAL_TILT_DEG)` | `grid.cells.temp`（生成時に一度だけ計算される年間平均気温、`src/main.ts` の `calculateTemperatures()`）に**足し合わせる**用の符号付きオフセット。既存の静的な `temp` 配列自体は書き換えない。振幅を `sin(axialTiltDeg)/sin(EARTH_AXIAL_TILT_DEG)` でスケールする（0°で常に0=無季節、23.5°で1倍、傾斜が大きいほど拡大）。この倍率は太陽赤緯からの単純な比率計算（`declination/axialTiltDeg`）だと`axialTiltDeg`が式の中で完全に相殺されて傾斜角の大きさが一切効かなくなるため、意図的に日付位相（`-cos(...)`、傾斜非依存）と振幅倍率（`sin`比、傾斜依存）を分離して実装している。実際の消費者は §3 を参照。 |
 | `getSeason(latitudeDeg, month): "spring" \| "summer" \| "autumn" \| "winter"` | 北半球基準の気象学的3か月区切り（12-2月=冬、3-5月=春、6-8月=夏、9-11月=秋）を、南半球（`latitudeDeg < 0`）では反転させる。連続的な太陽赤緯ではなく離散的な4区分にしているのは、農業・道路の各ロジックが「今は冬か」という単純な判定を必要とするため。 |
 | `getCurrentDirection(month): 1 \| -1` | 海流の季節反転を表す**単一のグローバルな**東西バイアス（緯度帯別ではない）。+1=春夏（東向きが順風）、-1=秋冬（西向きが順風）。ユーザーの要望どおりの単純な全域反転モデルで、実際の貿易風のような緯度帯別の複雑さは意図的にスコープ外にしている。 |
 
@@ -41,7 +43,41 @@
 - **経済・道路・海流の各ロジックはこのフィールドを読んではいけない**。マップが両半球にまたがる場合、
   代表緯度の季節と実際のセル/市場の季節が食い違うため。各消費者は自分の緯度で `getSeason()` を呼ぶこと。
 
-## 3. 農業と穀物価格の季節サイクル（`src/extensions/economy/`）
+## 3. 地図全体の実効気温: `grid.cells.seasonalTemp`（`src/generators/seasonalClimate.ts`）
+
+> **実装済み（2026-08-12）**。設計判断の詳細・検討過程は [地軸傾斜ベースの季節気温変動 計画](../plan/seasonal-temperature-variation.md) を参照。
+
+- 地軸傾斜は `WorldOptions.axialTilt`（World Configurator で設定可能・`#axialTiltInput`、デフォルト
+  `EARTH_AXIAL_TILT_DEG = 23.5`、`src/data/earthConfig.ts`）としてマップごとに保持・ロック・セーブされる。
+- `grid.cells.temp`（年間平均、生成時に一度だけ計算、`dataFieldOwnership.ts` で `map.physical` 所有）は
+  書き換えない。代わりに `grid.cells.seasonalTemp`（`simulation.cells` 所有）へ
+  `temp + getSeasonalTemperatureOffset(latitude, year, month, day, climate, axialTilt)` を保持する。
+- **月次の自己ゲート**: `SimulationSystem.cadence.every` は「暦月」ではなく「`advanceTime()` 呼び出し回数」
+  を数える（1日ずつ進める連続再生も、1年分を一括で進めるバルクジャンプも同じ1tick）ため、月次相当の粒度
+  には使えない。`advanceSeasonalClimate()` は毎tick呼ばれる（`cadence: { every: 1 }`）が、内部で
+  `simulationContext.lastSeasonalTempBucket`（`year*12+month`）を比較し、月が変わっていなければ即
+  `return`（`writer.markChanged` を呼ばない）。`technology.tick`/`settleTechnologyAnnual()` の年次自己ゲート
+  パターンを月次に踏襲したもの。
+- `seasonal-climate.tick` は新設の `"environment"` フェーズに登録され、`simulationPhases`
+  （`clock → environment → population → economy → politics → military → finalize`）の順序により
+  `"economy"` フェーズより必ず先に毎tick実行される。同一tick内で経済系（`heating.ts` 等）が常に最新の
+  `seasonalTemp` を読めることが保証される。
+- 初回計算は生成完了直後（`main.ts`、`initSimulationClock()` の直後）と `.map` 形式のレガシーマップ
+  ロード直後（`io/load.ts`）に無条件で1回呼ばれる。`.fmg` アーカイブロードは `grid`/`simulationContext`
+  を丸ごと `structuredClone` した状態を復元する仕組み（`worldRuntime.ts` の `world.replace`）のため、
+  保存時点で既に整合していた `seasonalTemp`/`lastSeasonalTempBucket` の組がそのまま復元され、
+  別途の再計算呼び出しは不要（`.map` ロードのような明示的な呼び出しを追加していない）。
+- **表示**: WebGL（`buildTemperaturePolygons`、`buildDeckLayers.ts` の `"temperature"` レイヤー）と
+  SVG（`draw-temperature.ts`）はいずれも `seasonalTemp ?? temp` を読む（未計算時・旧セーブ読み込み時は
+  年間平均にフォールバック）。WebGLは `"simulation.cells"` トピックの変更で `renderCoordinator.ts` が
+  自動的に再描画チェックをスケジュールする。**SVG側にはtick駆動の自動再描画経路を追加していない**
+  （population/dangerなど他のセルヒートマップ系レイヤーと同じ扱いで、レイヤーをトグルした時点の値を表示する）。
+- **`economy` 拡張との統合**: `heating.ts` の `getCellEffectiveTemperature()` は共有の `grid.cells.seasonalTemp`
+  を優先して読み、独自の `getSeasonalTemperatureOffset()` 再計算は値が無い場合のフォールバックとしてのみ残す
+  （重複計算の解消）。`foodProduction.ts` は季節オフセットではなく `getSeasonalAmplitude` と
+  月次作物暦（[seasonal-crop-calendars.md](../plan/seasonal-crop-calendars.md)、次節）を使うため対象外。
+
+## 4. 農業と穀物価格の季節サイクル（`src/extensions/economy/`）
 
 > **実装済み（2026-08-12）**: `food` タグ一律の秋曲線は廃止した。作物・永年作物は、少数の季節地域、セルの農業気候ゾーン、作物、必要な作付コホートによる月次作物暦を使う。Food Ledger と通常市場供給は同じ暦を参照し、家畜・魚・加工品へ作物用の収穫曲線は掛けない。セル別の月次気候再計算は行わず、`seasonRegion × zone × crop × cohort` の暦キャッシュを参照する。詳細は [季節別作物暦・農繁期・混合農業労働](../plan/seasonal-crop-calendars.md) を参照。
 
@@ -72,7 +108,7 @@
   （`markets-generator.ts:706-714`、`getWarPriceModifier()` と同じ読み取り時オーバーレイのパターン）に
   季節価格モディファイアを追加する拡張余地を残してある。
 
-## 4. 冬季の道路閉鎖（`src/generators/landRouteGraph.ts`）
+## 5. 冬季の道路閉鎖（`src/generators/landRouteGraph.ts`）
 
 - `buildLandRouteGraph(pack, seasonal?)` の第2引数（`SeasonalRouteContext = { month, mapCoordinates, graphHeight }`）
   を省略すると常時開通（旧挙動）のまま。`regimentMovement.ts` の `advanceAllRegimentMovement()` が
@@ -91,7 +127,7 @@
   「行軍中に足止めされる」を実装する場合は `advanceAlongPath()` のループ内で区間ごとの通行可否を
   都度チェックする改修が別途必要（本仕様では未実装）。
 
-## 5. 海流の季節反転（`src/generators/regimentMovement.ts`）
+## 6. 海流の季節反転（`src/generators/regimentMovement.ts`）
 
 - **`seaRouteGraph.ts` の辺の重みではなく、`advanceAlongPath()` の予算消費ロジックに直接実装している。**
   理由: `seaRouteGraph.ts` に保存された距離は経路の**選択**（`findSeaRoutePath`）にしか使われず、
@@ -111,11 +147,16 @@
   有利な航路を好むようにする副次的改善）や、`tradeOpportunityEstimator.ts` の海上輸送コストへの季節反映は
   将来の拡張候補として未着手。
 
-## 6. テスト
+## 7. テスト
 
 | ファイル | 内容 |
 | :--- | :--- |
-| `src/utils/seasonUtils.test.ts` | 通日計算・太陽赤緯・季節振れ幅・`getSeasonalityStrength`（赤道0/極1）・`getSeason`/`getCurrentDirection` の南北半球反転。 |
+| `src/utils/seasonUtils.test.ts` | 通日計算・太陽赤緯・季節振れ幅・`getSeasonalityStrength`（赤道0/極1）・`getSeason`/`getCurrentDirection` の南北半球反転。地軸傾斜0°で振幅0、23.5°が省略時デフォルトと一致、傾斜が大きいほど振幅が拡大することも確認。 |
+| `src/generators/seasonalClimate.test.ts` | 月バケット変更検知（同月内は再計算しない・月またぎ/バルクジャンプで再計算する）、`temp` を書き換えないこと、南北半球での符号反転、傾斜0°で全セル無変化になることを確認。 |
+| `src/generators/timeEngine.systems.test.ts` | `seasonal-climate.tick` が `"environment"` フェーズに登録されていることを確認。 |
+| `src/renderers/webgl/adapters/deckDataAdapters.test.ts` | `buildTemperaturePolygons` が `seasonalTemp` 未計算時は年間平均にフォールバックし、計算済みなら優先して読むことを確認。 |
+| `src/extensions/economy/generators/heating.test.ts` | `getCellEffectiveTemperature()` が共有の `grid.cells.seasonalTemp` を独自再計算より優先することを確認。 |
+| `tests/e2e/seasonal-temperature.spec.ts` | 実ブラウザでのSVG/WebGL両レンダラーでの気温レイヤー描画と、「Advance Month」操作による月次再計算を確認するE2Eテスト。 |
 | `src/extensions/economy/generators/production-utils.test.ts` | 高緯度（~80°）では秋の穀物生産量が夏の5倍を超えること、赤道付近（~2°）では夏秋の差が1.5倍未満に収まる（ほぼフラット）ことを確認。 |
 | `src/extensions/economy/generators/seasonalPricing.integration.test.ts` | 実際の `collectRuralProduction()`/`initializeMarketPrices()` を24か月分回し、収穫直後（12月）が端境期（8月）より安値になることを確認するend-to-endテスト。 |
 | `src/generators/landRouteGraph.test.ts` | 冬季に高緯度・高標高区間がグラフから除外され、夏季・季節指定なしでは開通したままであることを確認。 |

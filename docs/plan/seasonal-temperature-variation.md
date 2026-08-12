@@ -2,7 +2,7 @@
 
 ## 状態
 
-**Phase 0〜3実装完了(2026-08-12)。** 月次推奨・SVGリアルタイム反映不要の方針でユーザー承認済み。フェーズ4(economy拡張の重複計算解消・ドキュメント更新)は未着手・任意。
+**Phase 0〜4実装完了(2026-08-12)。** 月次推奨・SVGリアルタイム反映不要の方針でユーザー承認済み。
 
 - **Phase 0(地軸傾斜の設定追加): 完了。** `EARTH_AXIAL_TILT_DEG`(`src/data/earthConfig.ts`)・`WorldOptions.axialTilt`・生成時デフォルト・World Configurator UI(`#axialTiltInput`)・lock永続化・旧セーブへの後方互換フォールバックを実装。
 - **Phase 1(季節計算コアの修正): 完了。** `getSeasonalTemperatureOffset`/`getSolarDeclinationDeg` に `axialTiltDeg` 引数を追加し、判断2の通り振幅が `sin(axialTiltDeg)/sin(23.5°)` でスケールするよう式を直した(旧式は傾斜角が完全に相殺されて無効だった)。`heating.ts` の呼び出しにも `world.options.axialTilt` を渡すよう更新。
@@ -11,7 +11,9 @@
 
 検証: `tsc --noEmit`/`biome`/`madge` は全てクリーン。単体テスト(`seasonUtils.test.ts`・`seasonalClimate.test.ts`・`timeEngine.systems.test.ts`・`deckDataAdapters.test.ts`)を追加、全パス。全体 `vitest run` は本セッション開始前から存在する無関係な3件の既知失敗(i18n商品名・goodsEditor・seasonalPricing.integration)のみで新規リグレッションなし。新規e2e `tests/e2e/seasonal-temperature.spec.ts`(SVG描画・WebGL描画・実際に「Advance Month」ボタンを押しての月次再計算)を3件とも実ブラウザで確認済み。
 
-既存の `src/utils/seasonUtils.ts` に地軸傾斜・太陽赤緯・季節振幅・気温オフセット計算のコアはすでに実装されていたが、コアの気温グリッド(`worldContext.grid.cells.temp`)にも地図の気温レイヤー表示にも一切接続されていなかった(このセッションで接続した)。`economy` 拡張(デフォルト無効)の `heating.ts` は今回 `axialTilt` を渡すよう更新したが、まだ独自に `getSeasonalTemperatureOffset` を再計算している(Phase 4で `grid.cells.seasonalTemp` の読み取りに統合可能)。
+既存の `src/utils/seasonUtils.ts` に地軸傾斜・太陽赤緯・季節振幅・気温オフセット計算のコアはすでに実装されていたが、コアの気温グリッド(`worldContext.grid.cells.temp`)にも地図の気温レイヤー表示にも一切接続されていなかった(このセッションで接続した)。
+
+- **Phase 4(economy拡張との統合・ドキュメント更新): 完了。** `heating.ts` の `getCellEffectiveTemperature()` を共有の `grid.cells.seasonalTemp` 優先読み取りに変更し、独自の `getSeasonalTemperatureOffset()` 再計算は未計算時のみのフォールバックとした(重複計算の解消)。テストを1件追加。`docs/simulation/seasons.md` に新規第3節を追加し、「消費者はまだいない」という陳腐化した記述を修正、テスト一覧も更新した。
 
 ## 背景・現状分析
 

@@ -74,6 +74,15 @@ function getCellEffectiveTemperature(cellId: number): number | null {
   const baseTemperature = world.grid.cells.temp?.[gridCellId];
   if (!Number.isFinite(baseTemperature)) return null;
 
+  // Prefer the shared, already-computed seasonal grid (src/generators/seasonalClimate.ts).
+  // Its "environment"-phase tick system always runs before this "economy"-phase settlement
+  // within the same tick (see simulationPhases in src/generators/simulationSystem.ts), so it
+  // is always fresh — reading it here avoids recomputing the same offset a second time.
+  // Recomputing independently below is only a fallback for maps/saves where it hasn't been
+  // computed yet.
+  const sharedSeasonalTemperature = world.grid.cells.seasonalTemp?.[gridCellId];
+  if (Number.isFinite(sharedSeasonalTemperature)) return sharedSeasonalTemperature as number;
+
   const point = world.pack.cells.p?.[cellId];
   if (!point) return baseTemperature;
   const latitude = getLatitude(point[1], world.mapCoordinates, world.graphHeight);
