@@ -1,4 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  classifyAgriculturalClimateZone,
+  classifySeasonRegion,
+  getCropCalendar,
+  SEASON_REGION_PROFILES
+} from "../../../data/cropCalendars";
+import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, getGoods, getMarkets, initEconomyContext, setMarkets } from "../economyContext";
@@ -7,14 +14,19 @@ import { MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
 
 /**
- * End-to-end validation of the design's core claim (docs/simulation/seasons.md,
- * see the plan's Phase 2 risk note): that a seasonal rural-output multiplier for
- * food-tagged goods, combined with the EXISTING demand/stock price formula in
- * initializeMarketPrices(), is sufficient on its own to make grain cheap right
- * after the autumn harvest and expensive in the lean season before the next one
- * -- with no separate seasonal price-modifier code required.
+ * End-to-end validation of the design's core claim (docs/simulation/seasons.md §4, see the
+ * plan's Phase 2 risk note): that a per-crop monthly harvest calendar, combined with the
+ * EXISTING demand/stock price formula in initializeMarketPrices(), is sufficient on its own to
+ * make a staple crop cheap right after its harvest month and expensive in the lean month right
+ * before it -- with no separate seasonal price-modifier code required.
+ *
+ * 2026-08-13: rewritten for the crop-calendar model (production-utils.ts's getCalendarForGood)
+ * that replaced the old flat "food"-tag autumn curve. Seasonality now only applies to goods with
+ * a `crop`/`perennialCrop` calendar profile (docs/simulation/seasons.md §4), so the fixture below
+ * models a staple cereal (Wheat's real STAPLE_CROP_PROFILES entry) instead of a generic
+ * "food"-tagged good -- a plain "food" tag with no calendar is intentionally flat year-round now.
  */
-describe("seasonal grain price cycle (integration)", () => {
+describe("seasonal staple-crop price cycle (integration)", () => {
   let marketsModule: MarketsModule;
 
   beforeEach(() => {
@@ -32,20 +44,29 @@ describe("seasonal grain price cycle (integration)", () => {
       name: ["Marine", "Hot desert", "Cold desert", "Savanna", "Grassland", "Tropical forest", "Temperate forest"],
       tags: [[], [], [], [], [], ["forest"], ["forest"]]
     } as unknown as typeof worldContext.biomesData;
+    // getCalendarForGood (production-utils.ts) classifies the cell's agricultural climate zone
+    // from grid.cells.temp/prec -- 10C / 45 (x100mm scale) lands it in "temperate-rainfed-single".
+    worldContext.grid = {
+      cells: {
+        temp: new Int8Array([10]),
+        prec: [45]
+      }
+    } as unknown as typeof worldContext.grid;
     worldContext.pack = {
       goods: [
         {
           i: 0,
-          name: "Grain",
+          name: "Wheat",
           value: 1,
-          tags: ["food"],
-          unit: "bushel",
+          tags: ["food", "crop", "stapleCrop", "cereal"],
+          unit: "wain",
           icon: "icon",
           color: "#fff",
           distribution: "1",
           recipes: [],
           demandCoverage: { food: 1 },
-          biomeOutput: { 6: 0.5 }
+          biomeOutput: { 6: 0.5 },
+          crop: STAPLE_CROP_PROFILES.Wheat
         }
       ],
       cultures: [],
@@ -57,6 +78,7 @@ describe("seasonal grain price cycle (integration)", () => {
       markets: [],
       cells: {
         i: [0],
+        g: Uint16Array.from([0]), // packed cell 0 -> grid cell 0, matching the single-cell grid above
         biomeCode: new Uint8Array([6]),
         culture: new Uint16Array([0]),
         state: new Uint16Array([0]),
@@ -72,7 +94,10 @@ describe("seasonal grain price cycle (integration)", () => {
     } as unknown as PackedGraph;
     Goods.sync();
 
-    const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
+    // Pre-seed the good's market entry: unlike the old flat "food" curve, the crop calendar
+    // produces nothing in most months (see harvestWeights below), so addRuralOutput()'s lazy
+    // stock/price creation wouldn't run until the first harvest month if left to `{}`.
+    const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: { 0: { stock: 0, price: 1 } } };
     setMarkets([market1]);
     // biome-ignore lint/complexity/useLiteralKeys: private access for testing
     marketsModule["marketById"] = [undefined as unknown as Market, market1];
@@ -82,7 +107,7 @@ describe("seasonal grain price cycle (integration)", () => {
     clearEconomyContext();
   });
 
-  it("cycles grain stock/price seasonally: cheapest right after harvest, priciest right before it", () => {
+  it("cycles staple-crop stock/price seasonally: cheapest right after harvest, priciest right before it", () => {
     const goodId = getGoods()[0].i;
     const monthlyDemandUnits = 100 * 0.2; // burg population(100) * DEMAND_TARGET_FACTORS.food(0.2)
     const priceByMonth: number[] = [];
@@ -103,14 +128,22 @@ describe("seasonal grain price cycle (integration)", () => {
     }
 
     // Settle into the second simulated year (index 12-23) so the stock/price series has
-    // stabilized past the arbitrary starting-stock transient of year one. Autumn (Sep-Nov)
-    // is a 3-month harvest-multiplier window, so stock/price move monotonically across it:
-    // August is the leanest month right before the harvest window opens, December is right
-    // after it closes (3 straight months of harvest-boosted stock behind it).
+    // stabilized past the arbitrary starting-stock transient of year one. year2[k] is the price
+    // for calendar month k+1 (Jan=0 .. Dec=11), matching cropCalendars.ts's MonthlyWeights index.
     const year2 = priceByMonth.slice(12, 24);
-    const augustPrice = year2[7]; // month 8: leanest month, right before harvest
-    const decemberPrice = year2[11]; // month 12: right after 3 months of harvest surplus
 
-    expect(decemberPrice).toBeLessThan(augustPrice);
+    // Derive the expected harvest month directly from the same crop-calendar module the
+    // production code (getCalendarForGood, production-utils.ts) calls, instead of hardcoding a
+    // month here that could silently drift out of sync with cropCalendars.ts/stapleCrops.ts.
+    const region = classifySeasonRegion(18); // matches the cell's latitude computed above
+    const zone = classifyAgriculturalClimateZone({ annualTemperatureC: 10, annualPrecipitation: 45, irrigated: false });
+    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, STAPLE_CROP_PROFILES.Wheat.calendar);
+    const harvestMonthIndex = calendar.harvestWeights.indexOf(Math.max(...calendar.harvestWeights));
+    const leanMonthIndex = (harvestMonthIndex + 11) % 12; // the month right before harvest reopens
+
+    const harvestPrice = year2[harvestMonthIndex];
+    const leanPrice = year2[leanMonthIndex];
+
+    expect(harvestPrice).toBeLessThan(leanPrice);
   });
 });
