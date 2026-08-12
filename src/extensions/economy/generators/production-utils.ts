@@ -246,7 +246,13 @@ export function getRuralProductionContributions(
   const bonusGoodId = getGoodCellColumn()[cellId];
   if (bonusGoodId) {
     const good = Goods.get(bonusGoodId);
-    if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name) && good.name !== "Salt") {
+    if (
+      good &&
+      !good.perennialCrop &&
+      isGoodEnabled(good) &&
+      !isMineSuppliedGoodName(good.name) &&
+      good.name !== "Salt"
+    ) {
       let bonus = Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
       if (good.name === "Fish") bonus *= getFishingWorkerFactor(cellId);
       contributions.push({ goodId: bonusGoodId, amount: bonus * getModifiers(good, cellId) });

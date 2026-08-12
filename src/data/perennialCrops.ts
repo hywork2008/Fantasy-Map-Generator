@@ -28,6 +28,7 @@ export interface PerennialCropProfile {
 const VINE_CALENDAR = {
   annualCycleDays: 365,
   turnaroundDays: 0,
+  isPerennial: true,
   minimumGrowingTemperatureC: 5,
   harvestWindows: [{ startAfterPlantingDays: 240, durationDays: 45 }],
   labourByStage: { establishment: 0.2, maintenance: 0.45, harvestAndProcessing: 0.35 },
@@ -38,6 +39,7 @@ const VINE_CALENDAR = {
 const MEDITERRANEAN_ORCHARD_CALENDAR = {
   annualCycleDays: 365,
   turnaroundDays: 0,
+  isPerennial: true,
   minimumGrowingTemperatureC: 5,
   harvestWindows: [{ startAfterPlantingDays: 285, durationDays: 60 }],
   labourByStage: { establishment: 0.2, maintenance: 0.35, harvestAndProcessing: 0.45 },
@@ -48,6 +50,7 @@ const MEDITERRANEAN_ORCHARD_CALENDAR = {
 const TEMPERATE_ORCHARD_CALENDAR = {
   annualCycleDays: 365,
   turnaroundDays: 0,
+  isPerennial: true,
   minimumGrowingTemperatureC: 6,
   harvestWindows: [{ startAfterPlantingDays: 240, durationDays: 45 }],
   labourByStage: { establishment: 0.25, maintenance: 0.4, harvestAndProcessing: 0.35 },

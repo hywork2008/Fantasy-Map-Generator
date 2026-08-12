@@ -55,6 +55,8 @@ export interface HarvestWindow {
 export interface CropCalendarProfile {
   readonly annualCycleDays: number;
   readonly turnaroundDays: number;
+  /** A standing vine or tree uses an annual harvest window, not a 13-month planting cycle. */
+  readonly isPerennial?: boolean;
   readonly minimumGrowingTemperatureC: number;
   readonly harvestWindows: readonly HarvestWindow[];
   readonly labourByStage: {
@@ -93,6 +95,10 @@ export interface CropCalendar {
 
 const NORTH_TEMPERATURE_OFFSETS: MonthlyValues = [-8, -7, -4, 0, 4, 7, 8, 7, 4, 0, -4, -7];
 const EQUATORIAL_TEMPERATURE_OFFSETS: MonthlyValues = [0, 0.5, 1, 0.5, 0, -0.5, -1, -0.5, 0, 0.5, 1, 0.5];
+// `grid.cells.prec` uses a 100 mm scale. Crop-specific rainfall profiles already determine
+// whether rain-fed cultivation is suitable, so this shared gate represents only true aridity
+// below the lowest supported rain-fed crop minimum (200 mm/year).
+const WATER_LIMITED_ANNUAL_PRECIPITATION = 2;
 
 function rotateHalfYear(values: MonthlyValues): MonthlyValues {
   return [
@@ -130,7 +136,11 @@ export function classifyAgriculturalClimateZone(input: {
   irrigated: boolean;
 }): AgriculturalClimateZone {
   const { annualTemperatureC, annualPrecipitation, irrigated } = input;
-  const waterRegime = irrigated ? "irrigated" : annualPrecipitation < 18 ? "waterLimited" : "rainfed";
+  const waterRegime = irrigated
+    ? "irrigated"
+    : annualPrecipitation >= WATER_LIMITED_ANNUAL_PRECIPITATION
+      ? "rainfed"
+      : "waterLimited";
   if (annualTemperatureC < 5) {
     return {
       id: "cold-rainfed-single",
@@ -262,6 +272,7 @@ export function getCropCalendar(
   }
 
   const run = longestCyclicRun(growable);
+  if (profile.isPerennial) return getPerennialCalendar(run, growableMonths, profile);
   const cycleMonths = Math.ceil((profile.annualCycleDays + profile.turnaroundDays) / 30);
   if (run.length < cycleMonths)
     return { harvestWeights: zeroWeights(), labourWeights: zeroWeights(), growableMonths, cropCycles: 0 };
@@ -294,5 +305,34 @@ export function getCropCalendar(
     labourWeights: rotate(labourWeights, cohortShift),
     growableMonths,
     cropCycles: cycles
+  };
+}
+
+function getPerennialCalendar(
+  run: { start: number; length: number },
+  growableMonths: MonthlyFlags,
+  profile: CropCalendarProfile
+): CropCalendar {
+  if (!run.length) {
+    return { harvestWeights: zeroWeights(), labourWeights: zeroWeights(), growableMonths, cropCycles: 0 };
+  }
+  const harvest = Array.from({ length: 12 }, () => 0);
+  const labour = Array.from({ length: 12 }, () => profile.labourByStage.maintenance / 12);
+  // A perennial has no annual planting. This stage represents dormant-season pruning, training,
+  // and replacement work at the beginning of its viable season.
+  labour[run.start] += profile.labourByStage.establishment;
+  for (const window of profile.harvestWindows) {
+    const harvestMonth = (run.start + Math.floor(window.startAfterPlantingDays / 30)) % 12;
+    addWindow(harvest, harvestMonth, window.durationDays);
+    const harvestMonths = Math.max(1, Math.ceil(window.durationDays / 30));
+    for (let offset = 0; offset < harvestMonths; offset++) {
+      labour[(harvestMonth + offset) % 12] += profile.labourByStage.harvestAndProcessing / harvestMonths;
+    }
+  }
+  return {
+    harvestWeights: normalize(harvest),
+    labourWeights: normalize(labour),
+    growableMonths,
+    cropCycles: 1
   };
 }

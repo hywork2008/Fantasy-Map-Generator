@@ -5,6 +5,7 @@ import {
   getCropCalendar,
   SEASON_REGION_PROFILES
 } from "./cropCalendars";
+import { PERENNIAL_CROP_PROFILES } from "./perennialCrops";
 
 const annualCrop: CropCalendarProfile = {
   annualCycleDays: 120,
@@ -44,5 +45,17 @@ describe("crop calendars", () => {
     const late = getCropCalendar(SEASON_REGION_PROFILES.equatorial, zone, annualCrop, 2);
     expect(late.harvestWeights).not.toEqual(base.harvestWeights);
     expect(late.harvestWeights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1);
+  });
+
+  it("gives a perennial orchard one annual harvest instead of requiring a 13-month planting cycle", () => {
+    const calendar = getCropCalendar(
+      SEASON_REGION_PROFILES.north,
+      classifyAgriculturalClimateZone({ annualTemperatureC: 18, annualPrecipitation: 12, irrigated: false }),
+      PERENNIAL_CROP_PROFILES.Apples.calendar
+    );
+
+    expect(calendar.cropCycles).toBe(1);
+    expect(calendar.harvestWeights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1);
+    expect(calendar.harvestWeights.some(weight => weight > 0)).toBe(true);
   });
 });

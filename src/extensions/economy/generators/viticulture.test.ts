@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -48,6 +49,17 @@ const OLIVES_GOOD = {
     laborDaysPerHectare: 16,
     yieldLotsPerHectarePerMonth: 0.018
   }
+};
+
+const HIGH_VALUE_FIGS_GOOD = {
+  i: 3,
+  name: "Figs",
+  value: 100,
+  tags: ["food", "perennialCrop"],
+  unit: "basket",
+  icon: "good-figs",
+  color: "#8E5B44",
+  perennialCrop: PERENNIAL_CROP_PROFILES.Figs
 };
 
 function biomesData(tagsByCode: Record<number, string[]>) {
@@ -100,6 +112,16 @@ describe("viticulture", () => {
       worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
       worldContext.grid = { cells: { temp: new Int8Array([25]), prec: new Uint8Array([5]) } } as never;
       setGoods([OLIVES_GOOD] as never);
+
+      expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Olives");
+    });
+
+    it("selects the crop with stronger cold and drought reserves, not the higher-value good", () => {
+      scrubCellWorld();
+      // Both crops are in their optimum bands. Olives retain a much larger
+      // lower-rainfall reserve than figs at this climate point.
+      worldContext.grid = { cells: { temp: new Int8Array([20]), prec: new Uint8Array([7]) } } as never;
+      setGoods([OLIVES_GOOD, HIGH_VALUE_FIGS_GOOD] as never);
 
       expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Olives");
     });

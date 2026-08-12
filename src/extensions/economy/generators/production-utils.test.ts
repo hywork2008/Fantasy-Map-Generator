@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { WorldContext } from "../../hostCore";
 import { simulationContext, worldContext } from "../../hostCore";
@@ -13,7 +14,9 @@ import {
   setFoodPotential,
   setGoodCellColumn,
   setGoods,
-  setHuntingWorkers
+  setHuntingWorkers,
+  setViticultureRequiredWorkers,
+  setViticultureWorkers
 } from "../economyContext";
 import { registerLogHarvest } from "./forestStock";
 import { Goods } from "./goods-generator";
@@ -197,6 +200,64 @@ describe("getCellProduction seasonal food output", () => {
     const harvestOutput = getCellProduction(0, biomeProduction)[0];
 
     expect(harvestOutput).toBeGreaterThan(preHarvestOutput * 5);
+  });
+
+  it("renders a climate-suitable orchard in its annual harvest window", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    const apples = {
+      i: 8,
+      name: "Apples",
+      value: 2.2,
+      tags: ["food", "fruit", "freshFood", "perennialCrop"],
+      unit: "lot",
+      icon: "icon",
+      color: "#fff",
+      chance: 0,
+      perennialCrop: PERENNIAL_CROP_PROFILES.Apples,
+      demandCoverage: {}
+    };
+    worldContext.mapCoordinates = { latN: 90, latT: 180 };
+    worldContext.graphHeight = 100;
+    worldContext.distanceScale = 1;
+    worldContext.options = { month: 9 } as WorldContext["options"];
+    worldContext.pack = {
+      goods: [apples],
+      cultures: [],
+      burgs: [],
+      zones: [],
+      cells: {
+        i: new Uint16Array([0]),
+        biomeCode: new Uint8Array([6]),
+        culture: new Uint16Array([0]),
+        state: new Uint16Array([0]),
+        religion: new Uint16Array([0]),
+        burg: new Uint16Array([0]),
+        good: new Uint16Array([0]),
+        pop: new Float32Array([100]),
+        h: new Uint8Array([50]),
+        area: new Float32Array([50]),
+        c: [[]],
+        p: [[0, 20]]
+      }
+    } as unknown as PackedGraph;
+    worldContext.biomesData = {
+      habitability: [0, 0, 0, 0, 0, 0, 100],
+      tags: [[], [], [], [], [], [], ["arable"]]
+    } as never;
+    worldContext.grid = { cells: { temp: new Int8Array([18]), prec: new Uint8Array([12]) } } as WorldContext["grid"];
+    setGoods([apples] as never);
+    setGoodCellColumn(new Uint16Array([0]));
+    setCultivatedArea(new Float32Array([0]));
+    setViticultureRequiredWorkers(new Float32Array([1]));
+    setViticultureWorkers(new Float32Array([1]));
+    Goods.sync();
+
+    const harvestOutput = getCellProduction(0, {})[apples.i] ?? 0;
+    worldContext.options = { month: 1 } as WorldContext["options"];
+    const dormantOutput = getCellProduction(0, {})[apples.i] ?? 0;
+
+    expect(harvestOutput).toBeGreaterThan(0);
+    expect(dormantOutput).toBe(0);
   });
 });
 

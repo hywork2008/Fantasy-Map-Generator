@@ -144,6 +144,7 @@ describe("ruralOccupationAllocation", () => {
     } as unknown as PackedGraph;
     worldContext.distanceScale = 1;
     worldContext.biomesData = biomesData({ 1: ["scrub"] }) as never;
+    worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([8]) } } as never;
     setGoods([GRAPES_GOOD] as never);
     setGoodCellColumn(new Uint16Array([0]));
 
@@ -207,6 +208,7 @@ describe("ruralOccupationAllocation", () => {
     } as unknown as PackedGraph;
     worldContext.distanceScale = 1;
     worldContext.biomesData = biomesData({ 1: ["scrub"], 0: [] }) as never;
+    worldContext.grid = { cells: { temp: new Int8Array([12, 12]), prec: new Uint8Array([8, 8]) } } as never;
     setGoods([FISH_GOOD, GRAPES_GOOD] as never);
     setGoodCellColumn(new Uint16Array([0, 1])); // cell 1 (water) holds the Fish slot
 

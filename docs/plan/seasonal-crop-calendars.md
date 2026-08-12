@@ -140,7 +140,7 @@ calendar = getCalendar(seasonRegionProfile, zoneId, cropProfile, plantingCohort)
 
 ### 2. 年一作・二期作・継続収穫
 
-1. `seasonRegionProfile.monthlyTemperatureOffsets` と `zone.referenceAnnualTemperatureC`、作物の `minimumGrowingTemperatureC` から `growableMonths: MonthlyFlags` を一度だけ導出する。`waterRegime` が `waterLimited` の場合は灌漑対応 profile 以外を生育不可とする。現行ワールドには月降水がないため、水分は全月共通の保守的な可否であり、雨季を推測しない。この配列の連続区間（年境界をまたぐ場合を含む）が生育可能期間である。
+1. `seasonRegionProfile.monthlyTemperatureOffsets` と `zone.referenceAnnualTemperatureC`、作物の `minimumGrowingTemperatureC` から `growableMonths: MonthlyFlags` を一度だけ導出する。`waterRegime` が `waterLimited` の場合は灌漑対応 profile 以外を生育不可とする。`waterLimited` は全カタログの雨水栽培下限を下回る真の乾燥だけを表し、各作物の通常の降水適性は個別 profile が判定する。現行ワールドには月降水がないため、水分は全月共通の保守的な可否であり、雨季を推測しない。この配列の連続区間（年境界をまたぐ場合を含む）が生育可能期間である。
 2. `annualCycleDays + turnaroundDays` を満たす最も適した播種月を選ぶ。
 3. 同じ年に、二つの非重複サイクルが `2 × (annualCycleDays + turnaroundDays)` を満たし、かつ profile と zone の双方が二期作を許す時だけ二期作とする。
 4. 継続収穫は `canProduceContinuously` の作物だけに限定し、`allowsContinuousGrowth` が真で全月が `growableMonths` であるゾーンだけで月次収穫を平坦化する。既存カタログの穀物・豆・根菜・永年果樹に無根拠に付与しない。

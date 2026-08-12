@@ -97,7 +97,14 @@ function drawGoodsCellsCanvas(
     }, new Map<number, number>());
 
     const resourceGoodId = goodCellColumn[cellId];
-    if (resourceGoodId && displayedGoods.has(resourceGoodId) && !filteredProduced.has(resourceGoodId)) {
+    const resourceGood = resourceGoodId ? Goods.get(resourceGoodId) : undefined;
+    if (
+      resourceGoodId &&
+      resourceGood &&
+      !resourceGood.perennialCrop &&
+      displayedGoods.has(resourceGoodId) &&
+      !filteredProduced.has(resourceGoodId)
+    ) {
       resourceOnlyCells.set(cellId, resourceGoodId);
     }
 
@@ -178,7 +185,7 @@ function buildGoodsIconsContent(displayedGoods: ReadonlySet<number>): string {
     const goodId = goodCellColumn[cellId];
     if (!goodId || !displayedGoods.has(goodId)) continue;
     const good = Goods.get(goodId);
-    if (!good) continue;
+    if (!good || good.perennialCrop) continue;
 
     const [x, y] = getWorldContext().pack.cells.p[cellId];
     const stroke = Goods.getStroke(good.color);

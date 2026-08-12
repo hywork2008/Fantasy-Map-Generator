@@ -2175,8 +2175,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-wine",
     color: "#963e48",
     value: 2,
-    chance: 3,
-    distribution: 'biome(6) || biomeTag("scrub") || (biome(4) && random(50) && river())',
+    chance: 0,
     unit: "1,000 kg grape lot",
     freshFood: {
       householdDemandPerPopulationMonth: GRAPE_TARGETS.freshKilogramsPerPersonYear / 12,
@@ -2830,7 +2829,7 @@ export function migratePerennialFruitGoods(): boolean {
       existing.tags.push("perennialCrop");
       changed = true;
     }
-    if (existing.name === "Olives") {
+    if (existing.name === "Olives" || existing.name === "Grapes") {
       if (existing.biomeOutput || existing.biomeOutputByTag) {
         delete existing.biomeOutput;
         delete existing.biomeOutputByTag;
@@ -2839,6 +2838,10 @@ export function migratePerennialFruitGoods(): boolean {
       if (existing.distribution || existing.chance) {
         delete existing.distribution;
         existing.chance = 0;
+        const goodColumn = getGoodCellColumn();
+        for (const cellId of getWorldContext().pack.cells.i) {
+          if (goodColumn[cellId] === existing.i) goodColumn[cellId] = 0;
+        }
         changed = true;
       }
     }

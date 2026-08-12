@@ -58,6 +58,13 @@ export interface PerennialCropMixEntry {
   readonly good: Good;
   readonly profile: PerennialCropProfile;
   readonly suitability: number;
+  /**
+   * Distance from the lower viable climate bound, normalized to the crop's
+   * complete viable range. These reserves make cold- and drought-tolerant
+   * choices win when several crops are otherwise equally well suited.
+   */
+  readonly coldReserve: number;
+  readonly waterReserve: number;
   readonly areaHectares: number;
 }
 
@@ -102,9 +109,55 @@ function getPerennialCandidates(world: Readonly<WorldContext>, cellId: number): 
     if (suitability <= 0.1) continue;
     const ceiling = unclaimedArea * terrainShare * profile.maximumLandShare * suitability;
     const desired = Math.min(ceiling, realPopulation * profile.areaHectaresPerPerson);
-    if (desired > 0) candidates.push({ good, profile, suitability, areaHectares: desired });
+    if (desired > 0) {
+      const effectivePrecipitation = precipitation + Math.max(0, irrigationSupplement);
+      candidates.push({
+        good,
+        profile,
+        suitability,
+        coldReserve: getLowerBoundReserve(temperature, profile.temperature.min, profile.temperature.max),
+        waterReserve: getLowerBoundReserve(
+          effectivePrecipitation,
+          profile.precipitation.min,
+          profile.precipitation.max
+        ),
+        areaHectares: desired
+      });
+    }
   }
   return candidates;
+}
+
+/**
+ * Climate suitability rules out heat- or water-excess cases first. This
+ * reserve then measures how far a viable crop is from failure through cold or
+ * drought, without treating a higher market value as a planting preference.
+ */
+function getLowerBoundReserve(value: number, minimum: number, maximum: number): number {
+  return Math.max(0, Math.min(1, (value - minimum) / Math.max(1e-6, maximum - minimum)));
+}
+
+function selectBetterPerennialCandidate(
+  candidate: PerennialCropMixEntry,
+  best: PerennialCropMixEntry,
+  cellId: number
+): PerennialCropMixEntry {
+  // Suitability has the first say: a crop outside its optimum range must not
+  // beat an optimum crop merely because it is farther from its lower bound.
+  if (candidate.suitability !== best.suitability) return candidate.suitability > best.suitability ? candidate : best;
+
+  const candidateLimitingReserve = Math.min(candidate.coldReserve, candidate.waterReserve);
+  const bestLimitingReserve = Math.min(best.coldReserve, best.waterReserve);
+  // Within equally suitable climates, favor the stronger limiting reserve,
+  // then the overall reserve. Noise only resolves genuine local ties.
+  if (candidateLimitingReserve !== bestLimitingReserve)
+    return candidateLimitingReserve > bestLimitingReserve ? candidate : best;
+
+  const candidateMeanReserve = (candidate.coldReserve + candidate.waterReserve) / 2;
+  const bestMeanReserve = (best.coldReserve + best.waterReserve) / 2;
+  if (candidateMeanReserve !== bestMeanReserve) return candidateMeanReserve > bestMeanReserve ? candidate : best;
+
+  return stablePerennialNoise(cellId, candidate.good.i) > stablePerennialNoise(cellId, best.good.i) ? candidate : best;
 }
 
 /**
@@ -115,12 +168,12 @@ function getPerennialCandidates(world: Readonly<WorldContext>, cellId: number): 
 export function getPerennialCropMix(world: Readonly<WorldContext>, cellId: number): readonly PerennialCropMixEntry[] {
   const candidates = getPerennialCandidates(world, cellId);
   if (!candidates.length) return [];
-  const selected = candidates.slice(1).reduce<PerennialCropMixEntry>((best, candidate) => {
-    const candidateScore =
-      candidate.suitability * candidate.good.value + stablePerennialNoise(cellId, candidate.good.i);
-    const bestScore = best.suitability * best.good.value + stablePerennialNoise(cellId, best.good.i);
-    return candidateScore > bestScore ? candidate : best;
-  }, candidates[0]);
+  const selected = candidates
+    .slice(1)
+    .reduce<PerennialCropMixEntry>(
+      (best, candidate) => selectBetterPerennialCandidate(candidate, best, cellId),
+      candidates[0]
+    );
   return [selected];
 }
 
