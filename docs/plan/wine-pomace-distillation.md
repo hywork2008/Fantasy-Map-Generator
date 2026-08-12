@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計 → 実装着手**（2026-08-12 設計、同日中に §1〜§4 のコア部分が実装され staged。詳細は §1.5 参照）
+**実装完了**（2026-08-12 設計 → 同日中に §1〜§5 全件・§6 チェックリスト全項目を実装。詳細は §1.5/§1.6/§8 参照）
 
 参照:
 
@@ -355,7 +355,29 @@ Liquor: "instruments"
    - `technologyProgress.test.ts` に `distillation` ノードの stage 遷移テストを追加。
    - Liquor が `distillation < known` の State では一切生産されないことを検証する回帰テストを追加（Gunpowder の `isGoodEnabled` テストと同型）。
 
-## 7. スコープ外（将来検討）
+## 7. 実装完了確認（2026-08-12）
+
+`git status` / ソース監査の結果、§1〜§5 と §6 チェックリストの1〜9は全て実装済みだった（Ash 副産物、Pomace/Pomace Wine 財、Liquor の Pomace 系レシピと distillation ゲート、guild domain の任意ポリッシュを含む）。旧セーブ向けの移行関数 `migratePomaceDistillationGoods()`（`goods-generator.ts`）も実装・テスト済みで、チェックリストには無かった項目として追加で見つかった。
+
+その上で唯一残っていたギャップが i18n ロケールファイルだった: `src/i18n/goodsNames.test.ts` が `GOODS_DATA` の全 Good 名と `en.json`/`ja.json` の `economy.goods.names` の完全一致を強制しており、`Pomace` / `Pomace Wine` の翻訳エントリが欠落してテストが red だった（実装チェックリストにこの i18n 契約の存在自体を記載していなかったための見落とし）。
+
+対応: `src/i18n/locales/en.json` / `ja.json` の `economy.goods.names`（アルファベット順）に `"Pig"` と `"Potash"` の間として追加。
+
+```json
+"Pomace": "Pomace",       // en
+"Pomace Wine": "Pomace Wine",
+
+"Pomace": "搾りかす",       // ja
+"Pomace Wine": "ポマースワイン",
+```
+
+技術ノード（`distillation`）のラベルはロケール契約の対象外（`TECHNOLOGY_DEFINITIONS` を全件突き合わせる i18n テストは存在しない）のため対応不要と確認済み。
+
+検証: `npx tsc --noEmit` エラーなし、`npx vitest run src/`（332ファイル / 2402テスト pass、6 skip）、`npx madge --circular` 循環依存なし。
+
+---
+
+## 8. スコープ外（将来検討）
 
 - wine.md 第3段階（堆肥・家畜飼料としてのポマース再利用）は本設計に含めない。Pomace が Pomace Wine / Liquor いずれの需要にも吸収されず市場に滞留した場合の「最終処分先」として、将来 Fodder や土壌肥沃度システムに接続する余地を残す。
 - Pomace Wine 専用の世帯消費台帳（`WINE_TARGETS`/`ALE_TARGETS` 相当）。
