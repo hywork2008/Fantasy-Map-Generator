@@ -18,13 +18,13 @@ The initial catalogue is deliberately compact:
 | Figs | Mediterranean and warm-temperate fruit, fresh or dried | [FAO ECOCROP: *Ficus carica*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1071): 4–38 / 16–26°C; 300–2700 / 700–1500 mm |
 | Lemons | Southern citrus and culinary/preserving fruit | [FAO ECOCROP: *Citrus limon*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=714): 12–36 / 15–28°C; 300–4000 / 1000–2300 mm |
 | Olives | Mediterranean fruit and oil input | [FAO ECOCROP: *Olea europaea*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1553): 5–40 / 20–34°C; 200–1200 / 400–700 mm |
-| Grapes | Existing vine crop; wine and raisins | Existing vineyard model, now moved to this shared climate-first path |
+| Grapes | Existing vine crop; wine and raisins | [FAO ECOCROP: *Vitis vinifera*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=2160): 10–38 / 18–30°C; 400–1200 / 700–850 mm |
 
 ECOCROP is appropriate as a first-pass source because its records include minimum/maximum temperature, annual precipitation, soil texture, drainage, and related ecological constraints. It is a broad screening database rather than a cultivar model, so it must not be treated as a simulation of chill hours, frost timing, or monthly rainfall distribution. [FAO describes those limits and fields here](https://www.fao.org/geospatial/data-and-tools/data-portals/ecocrop/).
 
 ## Climate scale
 
-`grid.cells.temp` is degrees Celsius, while `grid.cells.prec` is FMG's annual precipitation proxy (0–255), not millimetres. `src/data/perennialCrops.ts` therefore contains calibrated proxy ranges rather than asserting a direct mm conversion. Calibration preserves the existing staple-crop climate scale and uses the FAO absolute/optimal bands for relative ordering:
+`grid.cells.temp` is degrees Celsius, while `grid.cells.prec` is FMG's annual precipitation proxy (0–255). One proxy unit represents `100 mm` of annual precipitation. Every `PerennialCropProfile.precipitation` boundary is the corresponding FAO annual-rainfall value divided by 100, so Cell Info, Crop climate guide, and the suitability calculation share one physical unit. The model therefore preserves these relative climate characteristics:
 
 - olives remain comparatively drought tolerant;
 - apples, pears, and plums favour wetter temperate cells;

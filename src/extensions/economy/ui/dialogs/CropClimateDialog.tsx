@@ -1,5 +1,6 @@
 import React from "react";
 import { closeDialog, Dialog, useCellInfoState, useDialogState } from "../../../hostUi";
+import { formatAnnualPrecipitation } from "../../../hostUtils";
 import {
   getGoods,
   getIrrigatedArea,
@@ -16,7 +17,7 @@ type ClimateCropProfile = NonNullable<Good["crop"]> | NonNullable<Good["perennia
 
 const METRIC_LABEL: Record<ClimateMetric, string> = {
   temperature: "Temperature",
-  precipitation: "Precipitation"
+  precipitation: "Annual precipitation"
 };
 
 function getClimateProfile(good: Good): ClimateCropProfile | undefined {
@@ -28,6 +29,15 @@ function getRange(crop: ClimateCropProfile, metric: ClimateMetric) {
 }
 
 function getDomain(crops: readonly Good[], metric: ClimateMetric, cellValue: number | null): [number, number] {
+  if (metric === "precipitation") {
+    let maximumCropPrecipitation = 0;
+    for (const good of crops) {
+      const profile = getClimateProfile(good);
+      if (profile) maximumCropPrecipitation = Math.max(maximumCropPrecipitation, profile.precipitation.max);
+    }
+    return [0, maximumCropPrecipitation > 0 ? maximumCropPrecipitation * 1.1 : 1];
+  }
+
   const values = crops.flatMap(good => {
     const profile = getClimateProfile(good);
     if (!profile) return [];
@@ -35,15 +45,23 @@ function getDomain(crops: readonly Good[], metric: ClimateMetric, cellValue: num
     return [range.min, range.max];
   });
   if (cellValue !== null) values.push(cellValue);
-  const rawMin = Math.min(...values, metric === "temperature" ? -5 : 0);
-  const rawMax = Math.max(...values, metric === "temperature" ? 30 : 80);
-  const padding = metric === "temperature" ? 3 : 8;
+  const rawMin = Math.min(...values, -5);
+  const rawMax = Math.max(...values, 30);
+  const padding = 3;
   return [Math.floor((rawMin - padding) / 5) * 5, Math.ceil((rawMax + padding) / 5) * 5];
 }
 
 function rangePosition(value: number, domain: readonly [number, number]): number {
   const [min, max] = domain;
   return Math.max(0, Math.min(100, ((value - min) / Math.max(1, max - min)) * 100));
+}
+
+function formatClimateValue(metric: ClimateMetric, value: number, decimals = 0): string {
+  return metric === "precipitation" ? formatAnnualPrecipitation(value, decimals) : `${value}°`;
+}
+
+function formatClimateRange(metric: ClimateMetric, minimum: number, maximum: number): string {
+  return `${formatClimateValue(metric, minimum)}–${formatClimateValue(metric, maximum)}`;
 }
 
 function getSelectedCellClimateStatus(
@@ -79,7 +97,7 @@ const ClimateRangeBar: React.FC<{
       className="crop-climate-range"
       role="img"
       aria-labelledby={labelledBy}
-      aria-label={`${METRIC_LABEL[metric]}: viable ${range.min}–${range.max}, ideal ${range.idealMin}–${range.idealMax}`}
+      aria-label={`${METRIC_LABEL[metric]}: viable ${formatClimateRange(metric, range.min, range.max)}, ideal ${formatClimateRange(metric, range.idealMin, range.idealMax)}`}
     >
       <span className="crop-climate-range__line" />
       <span className="crop-climate-range__viable" style={{ left: `${min}%`, width: `${max - min}%` }} />
@@ -95,14 +113,8 @@ const ClimateRangeBar: React.FC<{
 
 const MetricScale: React.FC<{ domain: readonly [number, number]; metric: ClimateMetric }> = ({ domain, metric }) => (
   <div className="crop-climate-scale" aria-hidden="true">
-    <span>
-      {domain[0]}
-      {metric === "temperature" ? "°" : ""}
-    </span>
-    <span>
-      {domain[1]}
-      {metric === "temperature" ? "°" : ""}
-    </span>
+    <span>{formatClimateValue(metric, domain[0])}</span>
+    <span>{formatClimateValue(metric, domain[1])}</span>
   </div>
 );
 
@@ -183,7 +195,8 @@ const ClimateMetricPanel: React.FC<{
       <div className="crop-climate-metric__label" id={`${label.replaceAll(" ", "-")}-label`}>
         <strong>{METRIC_LABEL[metric]}</strong>
         <span>
-          viable {range.min}–{range.max} · ideal {range.idealMin}–{range.idealMax}
+          viable {formatClimateRange(metric, range.min, range.max)} · ideal{" "}
+          {formatClimateRange(metric, range.idealMin, range.idealMax)}
         </span>
       </div>
       <ClimateRangeBar
@@ -280,13 +293,13 @@ const IrrigationSummary: React.FC<{ cellId: number | null; precipitation: number
       </div>
       <div className="crop-climate-irrigation__ledger">
         <span>
-          Rain <b>{precipitation === null ? "n/a" : precipitation}</b>
+          Rain <b>{precipitation === null ? "n/a" : formatAnnualPrecipitation(precipitation)}</b>
         </span>
         <span>
-          Canal <b>{irrigatedArea > 0 ? `+${supplement.toFixed(1)}` : "—"}</b>
+          Canal <b>{irrigatedArea > 0 ? `+${formatAnnualPrecipitation(supplement, 1)}` : "—"}</b>
         </span>
         <span>
-          Field <b>{effectivePrecipitation === null ? "n/a" : effectivePrecipitation.toFixed(1)}</b>
+          Field <b>{effectivePrecipitation === null ? "n/a" : formatAnnualPrecipitation(effectivePrecipitation, 1)}</b>
         </span>
       </div>
       <p>
@@ -324,7 +337,11 @@ export const CropClimateDialog: React.FC = () => {
       <div className="crop-climate-dialog__cell-summary">
         <span>Selected cell {cellId === null ? "not set" : `#${cellId}`}</span>
         <strong>{temperature === null ? "Temperature n/a" : `${temperature}°`}</strong>
-        <strong>{precipitation === null ? "Precipitation n/a" : `Precipitation ${precipitation}`}</strong>
+        <strong>
+          {precipitation === null
+            ? "Annual precipitation n/a"
+            : `Annual precipitation ${formatAnnualPrecipitation(precipitation)}`}
+        </strong>
       </div>
       <IrrigationSummary cellId={cellId} precipitation={precipitation} />
       {!crops.length ? (

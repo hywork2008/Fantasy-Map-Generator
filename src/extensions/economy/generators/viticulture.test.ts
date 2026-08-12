@@ -41,7 +41,7 @@ const OLIVES_GOOD = {
   perennialCrop: {
     kind: "orchard" as const,
     temperature: { min: 5, idealMin: 20, idealMax: 34, max: 40 },
-    precipitation: { min: 20, idealMin: 40, idealMax: 70, max: 120 },
+    precipitation: { min: 2, idealMin: 4, idealMax: 7, max: 12 },
     soils: ["loam", "sandy", "thin", "alluvial"],
     maximumLandShare: 0.35,
     areaHectaresPerPerson: 0.018,
@@ -73,7 +73,7 @@ function scrubCellWorld(population = 140): void {
   } as unknown as PackedGraph;
   worldContext.distanceScale = 1;
   worldContext.biomesData = biomesData({ 1: ["scrub"] }) as never;
-  worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([45]) } } as never;
+  worldContext.grid = { cells: { temp: new Int8Array([12]), prec: new Uint8Array([8]) } } as never;
   setCultivatedArea(new Float32Array([0]));
 }
 
@@ -98,7 +98,7 @@ describe("viticulture", () => {
     it("places olives by warm, dry climate even in a non-scrub biome", () => {
       scrubCellWorld();
       worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
-      worldContext.grid = { cells: { temp: new Int8Array([25]), prec: new Uint8Array([50]) } } as never;
+      worldContext.grid = { cells: { temp: new Int8Array([25]), prec: new Uint8Array([5]) } } as never;
       setGoods([OLIVES_GOOD] as never);
 
       expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Olives");

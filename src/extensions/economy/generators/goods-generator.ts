@@ -2780,12 +2780,21 @@ export function migrateStapleCropGoods(): boolean {
   let changed = false;
 
   for (const shippedCrop of GOODS_DATA.filter(good => good.crop)) {
-    if (goods.some(good => good.name === shippedCrop.name)) continue;
-    const crop = Goods.getDefaultGood(shippedCrop.name);
-    if (!crop) throw new Error(`${shippedCrop.name} must be present in the shipped goods catalogue`);
-    crop.i = nextId++;
-    goods.push(crop);
-    changed = true;
+    const existing = goods.find(good => good.name === shippedCrop.name);
+    if (!existing) {
+      const crop = Goods.getDefaultGood(shippedCrop.name);
+      if (!crop) throw new Error(`${shippedCrop.name} must be present in the shipped goods catalogue`);
+      crop.i = nextId++;
+      goods.push(crop);
+      changed = true;
+      continue;
+    }
+    if (JSON.stringify(existing.crop) !== JSON.stringify(shippedCrop.crop)) {
+      // Replace the legacy relative precipitation profile with the canonical
+      // physical 100 mm proxy profile used by the climate guide and suitability checks.
+      existing.crop = shippedCrop.crop;
+      changed = true;
+    }
   }
   return changed;
 }
@@ -2810,7 +2819,10 @@ export function migratePerennialFruitGoods(): boolean {
       changed = true;
       continue;
     }
-    if (shipped.perennialCrop && !existing.perennialCrop) {
+    if (shipped.perennialCrop && JSON.stringify(existing.perennialCrop) !== JSON.stringify(shipped.perennialCrop)) {
+      // The early orchard release stored rainfall bands calibrated to the old
+      // relative scale. Canonicalize saved profiles so their climate checks
+      // use the same 100 mm proxy-to-display contract as new catalogues.
       existing.perennialCrop = shipped.perennialCrop;
       changed = true;
     }

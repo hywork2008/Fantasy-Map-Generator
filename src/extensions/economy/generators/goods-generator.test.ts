@@ -318,6 +318,36 @@ describe("GoodsModule", () => {
     expect(migrateStapleCropGoods()).toBe(false);
   });
 
+  it("replaces legacy staple rainfall bands in an existing catalogue", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Wheat",
+        tags: ["food", "stapleFood"],
+        value: 1,
+        unit: "wain",
+        icon: "grain",
+        color: "#fff",
+        crop: {
+          kind: "cereal",
+          yieldMultiplier: 1.05,
+          temperature: { min: 2, idealMin: 8, idealMax: 18, max: 24 },
+          precipitation: { min: 18, idealMin: 30, idealMax: 60, max: 80 },
+          soils: ["loam", "alluvial", "clay"]
+        }
+      }
+    ]);
+
+    expect(migrateStapleCropGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Wheat")?.crop?.precipitation).toEqual({
+      min: 3,
+      idealMin: 7.5,
+      idealMax: 9,
+      max: 16
+    });
+    expect(migrateStapleCropGoods()).toBe(false);
+  });
+
   it("migrates orchard goods and replaces legacy olive biome production", () => {
     setGoods([
       {
@@ -345,6 +375,39 @@ describe("GoodsModule", () => {
     );
     const driedFruits = getGoods().find(good => good.name === "Dried Fruits");
     expect(driedFruits?.recipes).toHaveLength(4);
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
+  it("replaces legacy perennial rainfall bands in an existing catalogue", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Lemons",
+        tags: ["food", "fruit", "freshFood", "perennialCrop"],
+        value: 3.2,
+        unit: "1,000 kg lemon lot",
+        icon: "good-unknown",
+        color: "#d9c94b",
+        perennialCrop: {
+          kind: "orchard",
+          temperature: { min: 12, idealMin: 15, idealMax: 28, max: 36 },
+          precipitation: { min: 30, idealMin: 100, idealMax: 150, max: 220 },
+          soils: ["loam", "sandy", "alluvial"],
+          maximumLandShare: 0.18,
+          areaHectaresPerPerson: 0.008,
+          laborDaysPerHectare: 26,
+          yieldLotsPerHectarePerMonth: 0.025
+        }
+      }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Lemons")?.perennialCrop?.precipitation).toEqual({
+      min: 3,
+      idealMin: 10,
+      idealMax: 23,
+      max: 40
+    });
     expect(migratePerennialFruitGoods()).toBe(false);
   });
 

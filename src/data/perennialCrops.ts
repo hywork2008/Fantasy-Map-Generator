@@ -56,15 +56,16 @@ const TEMPERATE_ORCHARD_CALENDAR = {
 } as const satisfies CropCalendarProfile;
 
 /**
- * The precipitation axis uses FMG's existing annual precipitation proxy, not
- * millimetres. Values were calibrated from the FAO ECOCROP absolute/optimal
- * annual-rainfall bands documented in `docs/plan/perennial-fruit-crops.md`.
+ * `grid.cells.prec` stores annual precipitation in a 100 mm proxy scale.
+ * These boundaries are the FAO ECOCROP annual-rainfall bands divided by 100,
+ * so suitability calculations and user-facing millimetre labels use the same
+ * physical scale. Sources are documented in `docs/plan/perennial-fruit-crops.md`.
  */
 export const PERENNIAL_CROP_PROFILES = {
   Grapes: {
     kind: "vine",
     temperature: { min: 5, idealMin: 10, idealMax: 25, max: 34 },
-    precipitation: { min: 20, idealMin: 40, idealMax: 80, max: 120 },
+    precipitation: { min: 4, idealMin: 7, idealMax: 8.5, max: 12 },
     soils: ["loam", "alluvial", "sandy", "thin"],
     maximumLandShare: 0.5,
     areaHectaresPerPerson: 0.04,
@@ -75,7 +76,7 @@ export const PERENNIAL_CROP_PROFILES = {
   Olives: {
     kind: "orchard",
     temperature: { min: 5, idealMin: 20, idealMax: 34, max: 40 },
-    precipitation: { min: 20, idealMin: 40, idealMax: 70, max: 120 },
+    precipitation: { min: 2, idealMin: 4, idealMax: 7, max: 12 },
     soils: ["loam", "sandy", "thin", "alluvial"],
     maximumLandShare: 0.35,
     areaHectaresPerPerson: 0.018,
@@ -86,7 +87,7 @@ export const PERENNIAL_CROP_PROFILES = {
   Apples: {
     kind: "orchard",
     temperature: { min: 8, idealMin: 14, idealMax: 27, max: 33 },
-    precipitation: { min: 50, idealMin: 70, idealMax: 100, max: 160 },
+    precipitation: { min: 5, idealMin: 7, idealMax: 25, max: 32 },
     soils: ["loam", "humus", "alluvial"],
     maximumLandShare: 0.3,
     areaHectaresPerPerson: 0.02,
@@ -97,7 +98,7 @@ export const PERENNIAL_CROP_PROFILES = {
   Pears: {
     kind: "orchard",
     temperature: { min: 10, idealMin: 20, idealMax: 32, max: 37 },
-    precipitation: { min: 40, idealMin: 60, idealMax: 90, max: 140 },
+    precipitation: { min: 4, idealMin: 6, idealMax: 9, max: 21 },
     soils: ["loam", "clay", "alluvial"],
     maximumLandShare: 0.24,
     areaHectaresPerPerson: 0.014,
@@ -108,7 +109,7 @@ export const PERENNIAL_CROP_PROFILES = {
   Plums: {
     kind: "orchard",
     temperature: { min: 6, idealMin: 18, idealMax: 33, max: 36 },
-    precipitation: { min: 60, idealMin: 90, idealMax: 120, max: 150 },
+    precipitation: { min: 6, idealMin: 9, idealMax: 15, max: 18 },
     soils: ["loam", "clay", "alluvial"],
     maximumLandShare: 0.2,
     areaHectaresPerPerson: 0.012,
@@ -119,7 +120,7 @@ export const PERENNIAL_CROP_PROFILES = {
   Figs: {
     kind: "orchard",
     temperature: { min: 4, idealMin: 16, idealMax: 26, max: 38 },
-    precipitation: { min: 30, idealMin: 70, idealMax: 110, max: 180 },
+    precipitation: { min: 3, idealMin: 7, idealMax: 15, max: 27 },
     soils: ["loam", "sandy", "thin", "alluvial"],
     maximumLandShare: 0.22,
     areaHectaresPerPerson: 0.012,
@@ -130,7 +131,7 @@ export const PERENNIAL_CROP_PROFILES = {
   Lemons: {
     kind: "orchard",
     temperature: { min: 12, idealMin: 15, idealMax: 28, max: 36 },
-    precipitation: { min: 30, idealMin: 100, idealMax: 150, max: 220 },
+    precipitation: { min: 3, idealMin: 10, idealMax: 23, max: 40 },
     soils: ["loam", "sandy", "alluvial"],
     maximumLandShare: 0.18,
     areaHectaresPerPerson: 0.008,

@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { useOptionsState } from "../store/optionsState";
 import { DEFAULT_CURRENCY_RATES } from "./currency";
-import { formatCoinage, formatPrice, toCoinage } from "./unitUtils";
+import {
+  formatAnnualPrecipitation,
+  formatCoinage,
+  formatPrice,
+  precipitationProxyToMillimeters,
+  toCoinage
+} from "./unitUtils";
 
 const DEFAULT_GOLD_TO_SILVER_RATE = DEFAULT_CURRENCY_RATES.goldToSilverRate;
 const DEFAULT_SILVER_TO_COPPER_RATE = DEFAULT_CURRENCY_RATES.silverToCopperRate;
@@ -54,5 +60,13 @@ describe("formatCoinage", () => {
   it("uses the live Options rate settings through formatPrice", () => {
     useOptionsState.setState({ goldToSilverRate: 10, silverToCopperRate: 5 });
     expect(formatPrice(12.4)).toBe("🟡1 ⚪2 🟤2");
+  });
+});
+
+describe("annual precipitation display", () => {
+  it("uses the shared proxy-to-millimetre calibration", () => {
+    expect(precipitationProxyToMillimeters(56)).toBe(5600);
+    expect(formatAnnualPrecipitation(56)).toBe("5600 mm");
+    expect(formatAnnualPrecipitation(12.345, 1)).toBe("1234.5 mm");
   });
 });

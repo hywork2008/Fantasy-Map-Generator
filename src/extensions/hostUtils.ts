@@ -5,6 +5,7 @@ export {
   findAllCellsInRadius,
   findCell,
   findClosestCell,
+  formatAnnualPrecipitation,
   formatPrice,
   gauss,
   getIsolines,
@@ -13,6 +14,7 @@ export {
   list,
   minmax,
   normalize,
+  precipitationProxyToMillimeters,
   rn,
   si,
   unique

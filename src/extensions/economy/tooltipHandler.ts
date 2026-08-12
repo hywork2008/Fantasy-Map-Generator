@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 import { tip } from "../hostServices";
 import { useCellInfoState } from "../hostUi";
-import { rn } from "../hostUtils";
+import { formatAnnualPrecipitation, rn } from "../hostUtils";
 import {
   getGoodCellColumn,
   getIrrigatedArea,
@@ -92,7 +92,7 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
   const precipitation = world.grid.cells.prec?.[gridCellId];
   extra.cropClimate =
     Number.isFinite(temperature) && Number.isFinite(precipitation)
-      ? `${temperature}° · precipitation ${precipitation}`
+      ? `${temperature}° · annual precipitation ${formatAnnualPrecipitation(precipitation)}`
       : "n/a";
 
   const irrigatedArea = getIrrigatedArea()[i] ?? 0;
@@ -101,7 +101,8 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
   const waterStress = getIrrigationWaterStress()[i] ?? 0;
   const residualFlow = getRiverResidualFlow()[i] ?? 0;
   extra.irrigatedArea = irrigatedArea > 0 ? `${rn(irrigatedArea, 1)} ha` : "none";
-  extra.irrigationSupplement = irrigatedArea > 0 ? `+${rn(irrigationSupplement, 1)} precipitation` : "none";
+  extra.irrigationSupplement =
+    irrigatedArea > 0 ? `+${formatAnnualPrecipitation(irrigationSupplement, 1)} annual precipitation` : "none";
   extra.irrigationWaterStress = irrigatedArea > 0 ? `${rn(waterStress * 100, 1)}% unmet` : "n/a";
   extra.riverResidualFlow = residualFlow > 0 ? `${rn(residualFlow, 1)} annual water` : "n/a";
 
