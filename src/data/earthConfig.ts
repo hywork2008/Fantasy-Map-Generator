@@ -32,6 +32,14 @@ export const EARTH_TEMPERATURE_PRESET = {
 } as const;
 
 /**
+ * Earth's axial tilt (obliquity), in degrees. Default value for the World Configurator's
+ * `axialTilt` option, which drives the seasonal temperature swing (see
+ * `src/utils/seasonUtils.ts`'s `getSeasonalTemperatureOffset`). 0° means no seasons at all;
+ * larger values widen the seasonal swing at a given latitude.
+ */
+export const EARTH_AXIAL_TILT_DEG = 23.5;
+
+/**
  * Converts an Earth-relative map extent to kilometres per map pixel.
  *
  * `mapSize` represents the equatorial-width share, so the map's full width is

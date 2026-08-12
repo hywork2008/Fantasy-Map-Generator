@@ -8,6 +8,15 @@ export type GridCells = Cells & {
   t: TypedArray;
   f: TypedArray;
   temp: Int8Array;
+  /**
+   * Live "current effective temperature": `temp` plus the seasonal offset for the world's
+   * configured axial tilt and the current simulation calendar date (see
+   * `src/generators/seasonalClimate.ts`'s `updateSeasonalTemperature()`). Recomputed once per
+   * calendar month, not every day (see docs/plan/seasonal-temperature-variation.md). `temp`
+   * itself is never rewritten — it stays the generation-time annual average. Absent until the
+   * first recompute runs (once per generation, right after `initSimulationClock()`).
+   */
+  seasonalTemp?: Int8Array;
   prec: TypedArray | number[];
   /**
    * Ocean current direction in degrees (0-359, standard math convention: 0 = +X axis,

@@ -1606,9 +1606,12 @@ function buildLayerSignatures(
   setIfActive(
     "temperature",
     "toggleTemperature",
-    ["map.topology", "map.physical", "presentation.styles"],
+    // simulation.cells: grid.cells.seasonalTemp is recomputed monthly by seasonal-climate.tick
+    // (src/generators/seasonalClimate.ts) and marks that topic — see
+    // docs/plan/seasonal-temperature-variation.md.
+    ["map.topology", "map.physical", "simulation.cells", "presentation.styles"],
     () =>
-      `${geometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.temp)}|op:${styles.cellLayerOpacities.temperature}`
+      `${geometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.seasonalTemp ?? grid.cells?.temp)}|op:${styles.cellLayerOpacities.temperature}`
   );
   setIfActive(
     "population",

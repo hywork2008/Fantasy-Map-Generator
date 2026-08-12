@@ -1,5 +1,6 @@
 import { heightmapTemplates } from "./data";
 import {
+  EARTH_AXIAL_TILT_DEG,
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_TEMPERATURE_PRESET,
   getEarthDistanceScale,
@@ -52,6 +53,7 @@ import { Provinces } from "./generators/provinces-generator";
 import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
+import { advanceSeasonalClimate } from "./generators/seasonalClimate";
 import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
 import { generateSubsistenceCapacity } from "./generators/subsistenceCapacity";
@@ -206,6 +208,7 @@ const options = {
   temperatureEquator: EARTH_TEMPERATURE_PRESET.equator,
   temperatureNorthPole: EARTH_TEMPERATURE_PRESET.northPole,
   temperatureSouthPole: EARTH_TEMPERATURE_PRESET.southPole,
+  axialTilt: EARTH_AXIAL_TILT_DEG,
   stateLabelsMode: "auto",
   showBurgPreview: true,
   // Phase 0 compatibility baseline. Phase 1 makes this drive settlement placement.
@@ -1164,6 +1167,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
       // each cell's static forest capacity and settlement generation has finished.
       initializeForestStock(worldContext.pack.cells);
       initSimulationClock();
+      advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
       bindSimulationBurgState(worldContext, simulationContext);
       bindSimulationStateState(worldContext, simulationContext);
       bindSimulationMilitaryState(worldContext, simulationContext);

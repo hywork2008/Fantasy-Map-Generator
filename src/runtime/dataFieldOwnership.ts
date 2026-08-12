@@ -69,6 +69,9 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   map("grid.features", "map.topology", "feature.id", [], "cascade"),
   map("grid.cells.{h,t,f}", "map.physical", "grid-cell.id"),
   map("grid.cells.{temp,prec}", "map.physical", "grid-cell.id"),
+  // seasonalTemp is a derived live value (temp + this month's seasonal offset), recomputed by
+  // seasonal-climate.tick — simulation-owned, unlike its map-owned temp/prec siblings above.
+  simulation("grid.cells.seasonalTemp", "simulation.cells", "grid-cell.id"),
 
   map("pack.cells.{i,c,v,p,b,q,g,area}", "map.topology", "cell.id"),
   map("pack.vertices.{i,c,v,x,y,p}", "map.topology", "vertex.id"),

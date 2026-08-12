@@ -33,6 +33,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
   const temperatureEquator = useWorldConfiguratorFormStore(state => state.temperatureEquator);
   const temperatureNorthPole = useWorldConfiguratorFormStore(state => state.temperatureNorthPole);
   const temperatureSouthPole = useWorldConfiguratorFormStore(state => state.temperatureSouthPole);
+  const axialTilt = useWorldConfiguratorFormStore(state => state.axialTilt);
   const mapSize = useOptionsState(s => s.mapSize);
   const latitude = useOptionsState(s => s.latitude);
   const longitude = useOptionsState(s => s.longitude);
@@ -42,12 +43,13 @@ export const WorldConfiguratorDialog: React.FC = () => {
       { id: "temperatureEquatorOutput", value: temperatureEquator },
       { id: "temperatureNorthPoleOutput", value: temperatureNorthPole },
       { id: "temperatureSouthPoleOutput", value: temperatureSouthPole },
+      { id: "axialTiltOutput", value: axialTilt },
       { id: "mapSizeOutput", value: mapSize },
       { id: "latitudeOutput", value: latitude },
       { id: "longitudeOutput", value: longitude },
       { id: "precOutput", value: prec }
     ],
-    [latitude, longitude, mapSize, prec, temperatureEquator, temperatureNorthPole, temperatureSouthPole]
+    [axialTilt, latitude, longitude, mapSize, prec, temperatureEquator, temperatureNorthPole, temperatureSouthPole]
   );
 
   // Compute temperature conversions for display
@@ -132,6 +134,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
         worldContext.options.temperatureEquator,
         worldContext.options.temperatureNorthPole,
         worldContext.options.temperatureSouthPole,
+        worldContext.options.axialTilt,
         useOptionsState.getState().mapSize,
         useOptionsState.getState().latitude,
         useOptionsState.getState().longitude,
@@ -183,6 +186,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
       worldContext.options.temperatureSouthPole = val;
       formStore.setTemperatureSouthPole(val);
       updateGlobeTemperature();
+    } else if (stored === "axialTilt") {
+      worldContext.options.axialTilt = val;
+      formStore.setAxialTilt(val);
     } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude" || stored === "prec") {
       useOptionsState.getState().setOption(stored, val);
       // Also sync to form store
@@ -345,6 +351,33 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={-50}
                     max={50}
                     value={temperatureSouthPole}
+                    onChange={handleControlsChange}
+                  />
+                </label>
+              </div>
+              <div>
+                <LockIconButton id="axialTilt" />
+                <label data-tip="Set the world's axial tilt (obliquity). 0° means no seasons; larger values widen the seasonal temperature swing">
+                  <i>Axial tilt:</i>
+                  <input
+                    id="axialTiltInput"
+                    data-stored="axialTilt"
+                    type="number"
+                    min={0}
+                    max={90}
+                    step="0.1"
+                    value={axialTilt}
+                    onChange={handleControlsChange}
+                  />
+                  °
+                  <input
+                    id="axialTiltOutput"
+                    data-stored="axialTilt"
+                    type="range"
+                    min={0}
+                    max={90}
+                    step="0.1"
+                    value={axialTilt}
                     onChange={handleControlsChange}
                   />
                 </label>

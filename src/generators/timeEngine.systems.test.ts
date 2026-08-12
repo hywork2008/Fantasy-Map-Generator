@@ -49,6 +49,11 @@ describe("timeEngine simulation system registration (P2-7)", () => {
     expect(militaryIndex).toBeGreaterThan(economyIndex);
   });
 
+  it("registers the built-in seasonal-climate.tick system in the environment phase", () => {
+    const ids = listRegisteredSimulationSystemIds();
+    expect(ids).toContain("seasonal-climate.tick");
+  });
+
   it("registerTimeTickHook remains a politics-phase compatibility wrapper", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const calls: string[] = [];

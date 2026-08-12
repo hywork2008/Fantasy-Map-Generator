@@ -300,6 +300,10 @@ test("updates the globe selection when applying a World Configurator preset", as
   await expect(configurator.locator("#temperatureEquatorInput")).toHaveValue("27");
   await expect(configurator.locator("#temperatureNorthPoleInput")).toHaveValue("-18");
   await expect(configurator.locator("#temperatureSouthPoleInput")).toHaveValue("-50");
+  const axialTiltInput = configurator.locator("#axialTiltInput");
+  await expect(axialTiltInput).toHaveValue("23.5");
+  await expect(axialTiltInput).toHaveAttribute("min", "0");
+  await expect(axialTiltInput).toHaveAttribute("max", "90");
 
   const initialCoordinates = await getMapCoordinates(page);
   const { width: graphWidth } = await getMapCanvasSize(page);

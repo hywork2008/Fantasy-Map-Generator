@@ -207,6 +207,34 @@ export async function getLandPrecipitation(page: Page): Promise<number[]> {
   });
 }
 
+/** Read the live simulation calendar (year/month/day). */
+export async function getSimulationClock(
+  page: Page
+): Promise<{ currentYear: number; currentMonth: number; currentDay: number }> {
+  return page.evaluate(() => {
+    const { currentYear, currentMonth, currentDay } = window.fmg.simulation;
+    return { currentYear, currentMonth, currentDay };
+  });
+}
+
+/** Advance the live simulation clock by whole years via the public actions API. */
+export async function advanceSimulationYears(page: Page, years: number): Promise<void> {
+  await page.evaluate(y => window.fmg.actions.advanceTime(y), years);
+}
+
+/** Read the generation-time annual-average temperature grid (never live-season-adjusted). */
+export async function getGridAnnualAverageTemp(page: Page): Promise<number[]> {
+  return page.evaluate(() => Array.from(window.fmg.world.grid.cells.temp));
+}
+
+/** Read the live, seasonally-adjusted temperature grid, or null if not yet computed. */
+export async function getGridSeasonalTemp(page: Page): Promise<number[] | null> {
+  return page.evaluate(() => {
+    const seasonalTemp = window.fmg.world.grid.cells.seasonalTemp;
+    return seasonalTemp ? Array.from(seasonalTemp) : null;
+  });
+}
+
 /** Wait until a World Configurator climate update has changed the land precipitation field. */
 export async function waitForLandPrecipitationChange(page: Page, previous: readonly number[]): Promise<void> {
   await page.waitForFunction(

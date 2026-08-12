@@ -56,6 +56,11 @@ describe("getSolarDeclinationDeg", () => {
   it("crosses zero near the equinoxes (day ~80)", () => {
     expect(Math.abs(getSolarDeclinationDeg(80))).toBeLessThan(2);
   });
+
+  it("scales with an explicit axialTiltDeg argument", () => {
+    expect(getSolarDeclinationDeg(172, 45)).toBeCloseTo(45, 0);
+    expect(getSolarDeclinationDeg(172, 0)).toBeCloseTo(0, 5);
+  });
 });
 
 const climate = { temperatureEquator: 27, temperatureNorthPole: -30, temperatureSouthPole: -15 };
@@ -114,6 +119,26 @@ describe("getSeasonalTemperatureOffset", () => {
     const north = getSeasonalTemperatureOffset(60, 2023, 6, 21, climate);
     const south = getSeasonalTemperatureOffset(-60, 2023, 6, 21, climate);
     expect(south).toBeCloseTo(-north, 5);
+  });
+
+  it("is zero for any date/latitude when axial tilt is 0° (no seasons without a tilted axis)", () => {
+    expect(getSeasonalTemperatureOffset(60, 2023, 6, 21, climate, 0)).toBeCloseTo(0, 10);
+    expect(getSeasonalTemperatureOffset(60, 2023, 12, 21, climate, 0)).toBeCloseTo(0, 10);
+    expect(getSeasonalTemperatureOffset(-60, 2023, 6, 21, climate, 0)).toBeCloseTo(0, 10);
+  });
+
+  it("matches the default (omitted) axialTiltDeg at Earth's own 23.5° tilt", () => {
+    const withDefault = getSeasonalTemperatureOffset(60, 2023, 6, 21, climate);
+    const withExplicitEarthTilt = getSeasonalTemperatureOffset(60, 2023, 6, 21, climate, 23.5);
+    expect(withExplicitEarthTilt).toBeCloseTo(withDefault, 10);
+  });
+
+  it("grows in magnitude as axial tilt increases beyond Earth's own", () => {
+    const earthTilt = Math.abs(getSeasonalTemperatureOffset(60, 2023, 6, 21, climate, 23.5));
+    const higherTilt = Math.abs(getSeasonalTemperatureOffset(60, 2023, 6, 21, climate, 45));
+    const evenHigherTilt = Math.abs(getSeasonalTemperatureOffset(60, 2023, 6, 21, climate, 90));
+    expect(higherTilt).toBeGreaterThan(earthTilt);
+    expect(evenHigherTilt).toBeGreaterThan(higherTilt);
   });
 });
 

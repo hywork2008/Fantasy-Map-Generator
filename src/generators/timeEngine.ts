@@ -37,6 +37,7 @@ import { Military } from "./military-generator";
 import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
 import { advancePortDevelopment } from "./portDevelopment";
 import { advanceAllRegimentMovement } from "./regimentMovement";
+import { advanceSeasonalClimate } from "./seasonalClimate";
 import { createSimulationSystemRegistry, type SimulationStepContext, type SimulationSystem } from "./simulationSystem";
 import { seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
@@ -116,6 +117,24 @@ export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writ
 export function registerSimulationSystem(system: SimulationSystem): () => void {
   return timeTickSystems.register(system);
 }
+
+// Live seasonal climate. Self-gates to once per calendar month inside
+// advanceSeasonalClimate() (SimulationSystem.cadence counts advanceTime() calls, not
+// calendar months — see docs/plan/seasonal-temperature-variation.md). Runs in the
+// "environment" phase so any later-phase system in the same tick could read the current
+// month's grid.cells.seasonalTemp if it ever needs to.
+registerSimulationSystem({
+  id: "seasonal-climate.tick",
+  phase: "environment",
+  reads: ["map.physical", "simulation.cells"],
+  writes: ["simulation.cells"],
+  cadence: { every: 1 },
+  profileLabel: "seasonalClimate",
+  run: (_context, writer) => {
+    const result = advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
+    if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
 
 // Frontier projects are host-owned politics work. The module's annual guard
 // keeps this registered daily system cheap while making Advance Day/Month/Year

@@ -594,6 +594,7 @@ export function applyStoredOptions(): void {
   if (stored("temperatureEquator")) worldContext.options.temperatureEquator = +stored("temperatureEquator")!;
   if (stored("temperatureNorthPole")) worldContext.options.temperatureNorthPole = +stored("temperatureNorthPole")!;
   if (stored("temperatureSouthPole")) worldContext.options.temperatureSouthPole = +stored("temperatureSouthPole")!;
+  if (stored("axialTilt")) worldContext.options.axialTilt = +stored("axialTilt")!;
   if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
   if (stored("gunpowderEraEnabled")) {
     worldContext.options.gunpowderEraEnabled = stored("gunpowderEraEnabled") === "true";

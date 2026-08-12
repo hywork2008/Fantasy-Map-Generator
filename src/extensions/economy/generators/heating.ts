@@ -84,7 +84,8 @@ function getCellEffectiveTemperature(cellId: number): number | null {
       getSimulationYear(),
       getSimulationMonth(),
       getSimulationDay(),
-      getClimateOptions()
+      getClimateOptions(),
+      world.options.axialTilt
     )
   );
 }

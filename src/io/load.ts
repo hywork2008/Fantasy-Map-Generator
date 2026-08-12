@@ -6,7 +6,7 @@ import { worldContext } from "../context/worldContext";
 import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
-import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
+import { convertLegacyLatitudeToGeographic, EARTH_AXIAL_TILT_DEG } from "../data/earthConfig";
 import {
   applyCatalogRaceDefaults,
   createDefaultRaces,
@@ -20,6 +20,7 @@ import { Features } from "../generators/features";
 import { OceanCurrents } from "../generators/oceanCurrents";
 import { refreshAllRiverHydrology } from "../generators/riverHydrology";
 import { Routes } from "../generators/routes-generator";
+import { advanceSeasonalClimate } from "../generators/seasonalClimate";
 import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
@@ -539,6 +540,10 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
 
     useOptionsState.getState().setOptions(updates);
     if (settings[19]) worldContext.options = JSON.parse(settings[19]);
+    // Older saves predate the axialTilt option; fall back to Earth's own tilt.
+    if (typeof worldContext.options.axialTilt !== "number" || !Number.isFinite(worldContext.options.axialTilt)) {
+      worldContext.options.axialTilt = EARTH_AXIAL_TILT_DEG;
+    }
     worldContext.options.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
     worldContext.options.initialSettlementPattern = normalizeInitialSettlementPattern(
       worldContext.options.initialSettlementPattern
@@ -761,6 +766,11 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   // the previous map is still installed leaves cellStages at the wrong length
   // and prevents the staged document from passing archive validation.
   initSimulationClock();
+  // Legacy .map saves predate grid.cells.seasonalTemp; compute it once for the
+  // freshly-loaded calendar month. (.fmg archive loads restore an already-consistent
+  // seasonalTemp/lastSeasonalTempBucket pair via the generic world.replace snapshot, so
+  // they need no equivalent call here.)
+  advanceSeasonalClimate({ world: worldContext, simulation: simulationContext });
 
   // data integrity checks (DOM-free; marker SVG id fixes run in applyLegacyMapView)
   {

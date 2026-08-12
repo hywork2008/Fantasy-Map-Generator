@@ -271,6 +271,14 @@ export interface SimulationContext {
    */
   worldSeason: Season;
   /**
+   * Calendar bucket (`currentYear * 12 + (currentMonth - 1)`) at which
+   * `grid.cells.seasonalTemp` was last recomputed by `seasonal-climate.tick`
+   * (`src/generators/seasonalClimate.ts`). `null` before the first computation. Not
+   * meaningfully persisted across save/load — a mismatch (including `undefined` from an
+   * older archive) simply forces one recompute, which is the desired behavior.
+   */
+  lastSeasonalTempBucket: number | null;
+  /**
    * Persistable simulation PRNG stream. Independent of map-generation `Math.random`
    * and of incidental UI randomness. Written on each simulation commit and restored
    * from `.fmg` archives so mid-session save/load keeps the same stream position.
@@ -328,6 +336,7 @@ export const simulationContext: SimulationContext = {
   era: "",
   tickCount: 0,
   worldSeason: "spring",
+  lastSeasonalTempBucket: null,
   // Placeholder until initRng()/bindSimulationRng() installs a seeded stream.
   rng: { algorithm: "alea-0.9", seed: "", state: [0, 0, 0, 1], streams: {} },
   cells: {

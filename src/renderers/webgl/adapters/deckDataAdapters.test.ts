@@ -34,7 +34,8 @@ import {
   buildPrecipitationSymbols,
   buildRiverPolygons,
   buildRoutePaths,
-  buildStatePolygons
+  buildStatePolygons,
+  buildTemperaturePolygons
 } from "./deckDataAdapters";
 
 vi.mock("../emojiIconCache", async importOriginal => {
@@ -215,6 +216,26 @@ describe("deck.gl data adapters", () => {
         fillColor: [0, 61, 255, 255]
       })
     ]);
+  });
+
+  it("colors temperature polygons from the annual-average temp when seasonalTemp is absent", () => {
+    const worldContext = createWorldContext();
+
+    expect(worldContext.grid.cells.seasonalTemp).toBeUndefined();
+    expect(buildTemperaturePolygons(worldContext, null)).toHaveLength(2);
+  });
+
+  it("prefers seasonalTemp over the annual-average temp once it has been computed", () => {
+    const worldContext = createWorldContext();
+    const withoutSeasonal = buildTemperaturePolygons(worldContext, null);
+
+    // A cell that's actually near the opposite end of the color scale under seasonalTemp
+    // than under the annual-average temp should produce a visibly different fill color.
+    worldContext.grid.cells.seasonalTemp = new Int8Array([-40, 40]);
+    const withSeasonal = buildTemperaturePolygons(worldContext, null);
+
+    expect(withSeasonal[0].fillColor).not.toEqual(withoutSeasonal[0].fillColor);
+    expect(withSeasonal[1].fillColor).not.toEqual(withoutSeasonal[1].fillColor);
   });
 
   it("builds ocean-current intensity polygons covering every ocean cell, including calm ones the path mode would skip", () => {

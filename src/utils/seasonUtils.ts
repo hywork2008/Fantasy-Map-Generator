@@ -8,13 +8,14 @@
  *
  * This module must stay a leaf: no imports from context/, generators/, or extensions/, so
  * it can be safely imported from any layer (Generator, Renderer, extension sub-modules)
- * without pulling in unrelated module graphs or risking circular dependencies.
+ * without pulling in unrelated module graphs or risking circular dependencies. `src/data/`
+ * is a lower-level leaf itself (no imports of its own), so importing Earth reference
+ * constants from there does not violate this constraint.
  */
 
-export type Season = "spring" | "summer" | "autumn" | "winter";
+import { EARTH_AXIAL_TILT_DEG } from "../data/earthConfig";
 
-/** Earth-like axial tilt in degrees, driving the solar-declination seasonal swing. */
-const AXIAL_TILT_DEG = 23.5;
+export type Season = "spring" | "summer" | "autumn" | "winter";
 
 /** Fraction of the map's configured equator-to-pole temperature gradient realized as a seasonal swing. */
 const SEASONAL_AMPLITUDE_FACTOR = 0.5;
@@ -36,14 +37,19 @@ export function getDayOfYear(year: number, month: number, day: number): number {
   return days;
 }
 
+/** Orbital phase angle (radians) for the given day-of-year, independent of axial tilt. */
+function getSolarPhaseAngleRad(dayOfYear: number): number {
+  return (360 / 365) * (dayOfYear + 10) * (Math.PI / 180);
+}
+
 /**
- * Solar declination in degrees for the given day-of-year, using the standard approximation
- * `-tilt * cos(360/365 * (dayOfYear + 10))`. Positive values mean the sun is over the
- * northern hemisphere (northern summer / southern winter); peaks near day 172 (~June 21).
+ * Solar declination in degrees for the given day-of-year and axial tilt, using the standard
+ * approximation `-tilt * cos(360/365 * (dayOfYear + 10))`. Positive values mean the sun is
+ * over the northern hemisphere (northern summer / southern winter); peaks near day 172
+ * (~June 21). `axialTiltDeg` defaults to Earth's own tilt (`EARTH_AXIAL_TILT_DEG`).
  */
-export function getSolarDeclinationDeg(dayOfYear: number): number {
-  const angleDeg = (360 / 365) * (dayOfYear + 10);
-  return -AXIAL_TILT_DEG * Math.cos(angleDeg * (Math.PI / 180));
+export function getSolarDeclinationDeg(dayOfYear: number, axialTiltDeg: number = EARTH_AXIAL_TILT_DEG): number {
+  return -axialTiltDeg * Math.cos(getSolarPhaseAngleRad(dayOfYear));
 }
 
 /** The subset of WorldOptions this module needs, kept narrow to avoid importing context types. */
@@ -80,18 +86,28 @@ export function getSeasonalityStrength(latitudeDeg: number): number {
 /**
  * Signed °C offset to layer on top of (never mutate) the static annual-average
  * grid.cells.temp value for a cell at the given latitude and calendar date.
+ *
+ * `axialTiltDeg` (defaults to Earth's own tilt) scales the swing's *magnitude*:
+ * `sin(axialTiltDeg) / sin(EARTH_AXIAL_TILT_DEG)` is 0 at 0° (no axial tilt → no seasons at
+ * all), exactly 1 at the default 23.5° (reproduces this function's original behavior), and
+ * grows toward higher tilts. The day-of-year phase (`-cos(...)`, in [-1, 1]) is computed
+ * independently of tilt via `getSolarPhaseAngleRad` — deliberately *not* derived by dividing
+ * `getSolarDeclinationDeg()`'s output by `axialTiltDeg`, since that division degenerates to
+ * 0/0 when `axialTiltDeg` is 0.
  */
 export function getSeasonalTemperatureOffset(
   latitudeDeg: number,
   year: number,
   month: number,
   day: number,
-  climate: SeasonalClimateOptions
+  climate: SeasonalClimateOptions,
+  axialTiltDeg: number = EARTH_AXIAL_TILT_DEG
 ): number {
-  const declination = getSolarDeclinationDeg(getDayOfYear(year, month, day));
+  const phase = -Math.cos(getSolarPhaseAngleRad(getDayOfYear(year, month, day)));
   const amplitude = getSeasonalAmplitude(latitudeDeg, climate);
+  const tiltScale = Math.sin(axialTiltDeg * (Math.PI / 180)) / Math.sin(EARTH_AXIAL_TILT_DEG * (Math.PI / 180));
   const hemisphereSign = latitudeDeg >= 0 ? 1 : -1;
-  return amplitude * hemisphereSign * (declination / AXIAL_TILT_DEG);
+  return amplitude * tiltScale * hemisphereSign * phase;
 }
 
 /** Northern-hemisphere meteorological season per calendar month (index 0 = January). */
