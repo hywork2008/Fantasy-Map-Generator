@@ -604,16 +604,18 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Dates",
     warEconomyType: "essential",
-    tags: ["food"],
+    // Date palms use the same climate/land/labour path as orchards. They are
+    // not a biome resource: dry heat plus irrigation can be suitable even
+    // where the visible biome is not the legacy biome #1.
+    tags: ["food", "fruit", "perennialCrop"],
     icon: "good-dates",
     color: "#dbb2a3",
     value: 7,
-    chance: 2,
-    distribution: "biome(1)",
+    chance: 0,
     unit: "chest",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Hunting: 0.8, Highland: 0.8 } },
-    biomeOutput: { 1: 0.1 }
+    perennialCrop: PERENNIAL_CROP_PROFILES.Dates
   },
   {
     name: "Horses",
@@ -2827,7 +2829,7 @@ export function migrateStapleCropGoods(): boolean {
 
 /**
  * Adds orchard goods to catalogues created before perennial horticulture and
- * upgrades Olives from legacy biome production to the climate-driven path.
+ * upgrades Olives and Dates from legacy biome production to the climate-driven path.
  * Recipes use the saved catalogue's ids, never the shipped default ids.
  */
 export function migratePerennialFruitGoods(): boolean {
@@ -2858,7 +2860,7 @@ export function migratePerennialFruitGoods(): boolean {
       existing.tags.push("perennialCrop");
       changed = true;
     }
-    if (existing.name === "Olives" || existing.name === "Grapes") {
+    if (existing.name === "Olives" || existing.name === "Grapes" || existing.name === "Dates") {
       if (existing.biomeOutput || existing.biomeOutputByTag) {
         delete existing.biomeOutput;
         delete existing.biomeOutputByTag;

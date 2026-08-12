@@ -58,6 +58,17 @@ const TEMPERATE_ORCHARD_CALENDAR = {
   maximumCropsPerYear: 1
 } as const satisfies CropCalendarProfile;
 
+const DATE_PALM_CALENDAR = {
+  annualCycleDays: 365,
+  turnaroundDays: 0,
+  isPerennial: true,
+  minimumGrowingTemperatureC: 7,
+  harvestWindows: [{ startAfterPlantingDays: 270, durationDays: 60 }],
+  labourByStage: { establishment: 0.2, maintenance: 0.4, harvestAndProcessing: 0.4 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 1
+} as const satisfies CropCalendarProfile;
+
 /**
  * `grid.cells.prec` stores annual precipitation in a 100 mm proxy scale.
  * These boundaries are the FAO ECOCROP annual-rainfall bands divided by 100,
@@ -86,6 +97,17 @@ export const PERENNIAL_CROP_PROFILES = {
     laborDaysPerHectare: 16,
     yieldLotsPerHectarePerMonth: 0.018,
     calendar: MEDITERRANEAN_ORCHARD_CALENDAR
+  },
+  Dates: {
+    kind: "orchard",
+    temperature: { min: 10, idealMin: 26, idealMax: 45, max: 52 },
+    precipitation: { min: 1, idealMin: 2, idealMax: 3, max: 4 },
+    soils: ["loam", "sandy", "alluvial"],
+    maximumLandShare: 0.25,
+    areaHectaresPerPerson: 0.015,
+    laborDaysPerHectare: 25,
+    yieldLotsPerHectarePerMonth: 0.04,
+    calendar: DATE_PALM_CALENDAR
   },
   Apples: {
     kind: "orchard",

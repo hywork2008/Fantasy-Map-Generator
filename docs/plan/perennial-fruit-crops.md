@@ -17,6 +17,7 @@ The initial catalogue is deliberately compact:
 | Plums | Temperate fruit, including drying into prunes | [FAO ECOCROP: *Prunus domestica*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=16203): 6–36 / 18–33°C; 600–1800 / 900–1500 mm |
 | Figs | Mediterranean and warm-temperate fruit, fresh or dried | [FAO ECOCROP: *Ficus carica*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1071): 4–38 / 16–26°C; 300–2700 / 700–1500 mm |
 | Lemons | Southern citrus and culinary/preserving fruit | [FAO ECOCROP: *Citrus limon*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=714): 12–36 / 15–28°C; 300–4000 / 1000–2300 mm |
+| Dates | Hot-arid orchard fruit; dried food and long-distance trade | [FAO ECOCROP: *Phoenix dactylifera*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1673): 10–52 / 26–45°C; 100–400 / 200–300 mm |
 | Olives | Mediterranean fruit and oil input | [FAO ECOCROP: *Olea europaea*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1553): 5–40 / 20–34°C; 200–1200 / 400–700 mm |
 | Grapes | Existing vine crop; wine and raisins | [FAO ECOCROP: *Vitis vinifera*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=2160): 10–38 / 18–30°C; 400–1200 / 700–850 mm |
 
@@ -30,6 +31,7 @@ ECOCROP is appropriate as a first-pass source because its records include minimu
 - apples, pears, and plums favour wetter temperate cells;
 - figs cover warm, moderately dry to moderately wet cells;
 - lemons require frost-free warm cells and generally more water;
+- dates require very hot, arid cells; irrigation contributes to their effective water availability;
 - irrigation augments the precipitation suitability value just as it does for staple crops.
 
 Adding monthly climate, chilling hours, late-frost damage, and seasonal rain timing is explicitly out of scope for this pass.
@@ -54,7 +56,7 @@ This keeps the renderer pure: production is resolved by generators and no render
 
 ## Goods and food handling
 
-- Apples, Pears, Plums, Figs, and Lemons are fresh foods produced at orchards.
+- Apples, Pears, Plums, Figs, Lemons, and Dates are orchard outputs. Dates remain shelf-stable food rather than `freshFood`.
 - Plums and Figs (and surplus Apples/Pears) use the shared `Dried Fruits` preserved-food recipe; the existing cell-local fresh-food planner fills local reserves before commercial output.
 - Apples and Pears also have direct commercial recipes for `Cider` and `Perry`. Both use 300 kg of fruit plus a circulating-cask repair allowance to fill a 200 L cask.
 - Grapes retain their more valuable Wine commercial path and Raisins reserve path.
@@ -71,7 +73,7 @@ Plum alcohol is not included. A later English tradition of plum jerkum exists, b
 
 ## Save migration and verification
 
-`migratePerennialFruitGoods()` appends missing orchard goods, Cider, and Perry with new IDs, sets profiles on existing Grapes and Olives, removes olive biome-output and random biome-placement fields, and rebuilds `Dried Fruits`, Cider, and Perry recipes from the loaded catalogue's actual IDs. It never changes existing Olive stock or recipes that consume Olives.
+`migratePerennialFruitGoods()` appends missing orchard goods, Cider, and Perry with new IDs, sets profiles on existing Grapes, Olives, and Dates, removes olive/date biome-output and random biome-placement fields, and rebuilds `Dried Fruits`, Cider, and Perry recipes from the loaded catalogue's actual IDs. It never changes existing Olive or Date stock, or recipes that consume them.
 
 Verification covers:
 

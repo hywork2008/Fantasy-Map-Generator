@@ -62,6 +62,17 @@ const HIGH_VALUE_FIGS_GOOD = {
   perennialCrop: PERENNIAL_CROP_PROFILES.Figs
 };
 
+const DATES_GOOD = {
+  i: 4,
+  name: "Dates",
+  value: 7,
+  tags: ["food", "perennialCrop"],
+  unit: "chest",
+  icon: "good-dates",
+  color: "#dbb2a3",
+  perennialCrop: PERENNIAL_CROP_PROFILES.Dates
+};
+
 function biomesData(tagsByCode: Record<number, string[]>) {
   const maxCode = Math.max(...Object.keys(tagsByCode).map(Number));
   const tags: string[][] = [];
@@ -114,6 +125,15 @@ describe("viticulture", () => {
       setGoods([OLIVES_GOOD] as never);
 
       expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Olives");
+    });
+
+    it("places dates by hot, arid climate rather than the legacy biome", () => {
+      scrubCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
+      worldContext.grid = { cells: { temp: new Int8Array([32]), prec: new Uint8Array([2]) } } as never;
+      setGoods([DATES_GOOD] as never);
+
+      expect(getPerennialCropMix(worldContext, 0)[0]?.good.name).toBe("Dates");
     });
 
     it("selects the crop with stronger cold and drought reserves, not the higher-value good", () => {

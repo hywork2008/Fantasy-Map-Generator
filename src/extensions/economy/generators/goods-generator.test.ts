@@ -378,6 +378,37 @@ describe("GoodsModule", () => {
     expect(migratePerennialFruitGoods()).toBe(false);
   });
 
+  it("migrates Dates from biome output to the climate-driven date-palm profile", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Dates",
+        tags: ["food"],
+        value: 7,
+        unit: "chest",
+        icon: "good-dates",
+        color: "#dbb2a3",
+        chance: 2,
+        distribution: "biome(1)",
+        biomeOutput: { 1: 0.1 }
+      }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    const dates = getGoods().find(good => good.name === "Dates");
+    expect(dates).toMatchObject({
+      chance: 0,
+      perennialCrop: {
+        kind: "orchard",
+        temperature: { min: 10, idealMin: 26, idealMax: 45, max: 52 },
+        precipitation: { min: 1, idealMin: 2, idealMax: 3, max: 4 }
+      }
+    });
+    expect(dates?.biomeOutput).toBeUndefined();
+    expect(dates?.distribution).toBeUndefined();
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
   it("adds cider and perry with recipes using the saved catalogue's fruit and barrel ids", () => {
     setGoods([
       { i: 7, name: "Apples", tags: ["food"], value: 2.2, unit: "lot", icon: "", color: "" },
