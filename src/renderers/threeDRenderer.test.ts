@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
-import { getWaterSurfaceHeight } from "./three-d-renderer";
+import { getNightscapeRouteGlowWidthScale, getWaterSurfaceHeight } from "./three-d-renderer";
 
 function createWaterWorld(gridFeatureType: "ocean" | "lake", packedLakeHeight = 20): WorldContext {
   return {
@@ -44,5 +44,18 @@ describe("getWaterSurfaceHeight", () => {
     const world = createWaterWorld("lake", 35);
 
     expect(getWaterSurfaceHeight(world, 0, new Map([[0, 0]]))).toBe(35);
+  });
+});
+
+describe("getNightscapeRouteGlowWidthScale", () => {
+  it("widens trails and sea routes to the Nightscape road width only", () => {
+    expect(getNightscapeRouteGlowWidthScale({ group: "roads", width: 1.1 })).toBe(1);
+    expect(getNightscapeRouteGlowWidthScale({ group: "trails", width: 0.65 })).toBeCloseTo(1.1 / 0.65);
+    expect(getNightscapeRouteGlowWidthScale({ group: "searoutes", width: 0.7 })).toBeCloseTo(1.1 / 0.7);
+  });
+
+  it("leaves unknown and invalid-width route data unchanged", () => {
+    expect(getNightscapeRouteGlowWidthScale({ group: "custom", width: 0.5 })).toBe(1);
+    expect(getNightscapeRouteGlowWidthScale({ group: "trails", width: 0 })).toBe(1);
   });
 });

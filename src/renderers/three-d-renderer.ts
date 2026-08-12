@@ -121,6 +121,21 @@ interface RouteLineBatch {
   opacity: number;
   dashSize: number;
   gapSize: number;
+  /** Scale for Nightscape's screen-space glow line widths. */
+  glowWidthScale: number;
+}
+
+/** The 2D/WebGL path width used by roads, the brightest reference route type. */
+const NIGHTSCAPE_REFERENCE_ROUTE_WIDTH = 1.1;
+
+/**
+ * In Nightscape, make trails and sea routes as wide as roads without changing the SVG or
+ * canvas renderers. The larger additive glow halo makes these secondary route types legible
+ * alongside roads on the dark terrain.
+ */
+export function getNightscapeRouteGlowWidthScale(route: Pick<DeckPath, "group" | "width">): number {
+  if ((route.group !== "trails" && route.group !== "searoutes") || route.width <= 0) return 1;
+  return NIGHTSCAPE_REFERENCE_ROUTE_WIDTH / route.width;
 }
 
 interface IconBatchBuild {
@@ -1126,10 +1141,11 @@ class ThreeDModule {
       const [dashRatio = 0, gapRatio = 0] = route.dashArray ?? [];
       const dashSize = dashRatio * route.width;
       const gapSize = gapRatio * route.width;
-      const key = `${dashSize.toFixed(3)}|${gapSize.toFixed(3)}|${red}|${green}|${blue}|${alpha}`;
+      const glowWidthScale = getNightscapeRouteGlowWidthScale(route);
+      const key = `${dashSize.toFixed(3)}|${gapSize.toFixed(3)}|${glowWidthScale.toFixed(3)}|${red}|${green}|${blue}|${alpha}`;
       let batch = batches.get(key);
       if (!batch) {
-        batch = { positions: [], colors: [], opacity: alpha / 255, dashSize, gapSize };
+        batch = { positions: [], colors: [], opacity: alpha / 255, dashSize, gapSize, glowWidthScale };
         batches.set(key, batch);
       }
 
@@ -1253,8 +1269,8 @@ class ThreeDModule {
       scene.add(line);
     };
 
-    addPass(5.5, batch.opacity * 0.22, 1);
-    addPass(1.4, Math.min(1, batch.opacity * 1.8), 2);
+    addPass(5.5 * batch.glowWidthScale, batch.opacity * 0.22, 1);
+    addPass(1.4 * batch.glowWidthScale, Math.min(1, batch.opacity * 1.8), 2);
   }
 
   /**

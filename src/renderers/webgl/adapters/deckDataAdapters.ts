@@ -1331,6 +1331,7 @@ export function buildRoutePaths(
         width,
         kind: "route" as const,
         cellId: route.cells?.[0] ?? null,
+        group: route.group,
         dashArray: getNormalizedDashArray(dashArray, width)
       }
     ];
