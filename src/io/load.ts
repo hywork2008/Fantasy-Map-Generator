@@ -6,6 +6,7 @@ import { worldContext } from "../context/worldContext";
 import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
+import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
   applyCatalogRaceDefaults,
   createDefaultRaces,
@@ -525,7 +526,15 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
       worldContext.urbanization = +settings[13];
     }
     if (settings[14]) updates.mapSize = minmax(+settings[14], 1, 100);
-    if (settings[15]) updates.latitude = minmax(+settings[15], 0, 100);
+    if (settings[15] !== undefined && settings[15] !== "") {
+      const isGeographicLatitude = settings[27] === "geographic-latitude-v1";
+      // Convert the old 0–100 north/south shift, reconstructing the legacy latitude span
+      // from the save's own mapSize rather than assuming a zero-size map. Newer saves
+      // declare their geographic central latitude explicitly in settings[27].
+      updates.latitude = isGeographicLatitude
+        ? minmax(+settings[15], -90, 90)
+        : convertLegacyLatitudeToGeographic(+settings[15], updates.mapSize);
+    }
     if (settings[18]) updates.prec = +settings[18];
 
     useOptionsState.getState().setOptions(updates);

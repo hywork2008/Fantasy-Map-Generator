@@ -190,6 +190,11 @@ export async function getMapCoordinates(page: Page): Promise<{
   return page.evaluate(() => window.fmg.world.mapCoordinates);
 }
 
+/** Read the map's active real-world distance calibration. */
+export async function getMapDistanceScale(page: Page): Promise<number> {
+  return page.evaluate(() => window.fmg.world.distanceScale);
+}
+
 /** Read precipitation proxy values for the current land cells in stable grid-cell order. */
 export async function getLandPrecipitation(page: Page): Promise<number[]> {
   return page.evaluate(() => {

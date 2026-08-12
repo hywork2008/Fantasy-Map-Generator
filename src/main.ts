@@ -1,4 +1,10 @@
 import { heightmapTemplates } from "./data";
+import {
+  EARTH_DEFAULT_MAP_SIZE,
+  EARTH_TEMPERATURE_PRESET,
+  getEarthDistanceScale,
+  getEarthMapLatitudeSpan
+} from "./data/earthConfig";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
@@ -197,9 +203,9 @@ viewContext.customization = 0;
 const options = {
   pinNotes: false,
   winds: [225, 45, 225, 315, 135, 315],
-  temperatureEquator: 27,
-  temperatureNorthPole: -30,
-  temperatureSouthPole: -15,
+  temperatureEquator: EARTH_TEMPERATURE_PRESET.equator,
+  temperatureNorthPole: EARTH_TEMPERATURE_PRESET.northPole,
+  temperatureSouthPole: EARTH_TEMPERATURE_PRESET.southPole,
   stateLabelsMode: "auto",
   showBurgPreview: true,
   // Phase 0 compatibility baseline. Phase 1 makes this drive settlement placement.
@@ -1431,76 +1437,48 @@ export function openNearSeaLakes() {
 // ─── Map size and coordinates ──────────────────────────────────────────────
 
 function defineMapSize() {
-  const [size, latitude, longitude] = getSizeAndLatitude();
   const randomize = new URL(window.location.href).searchParams.get("options") === "default";
+  const options = useOptionsState.getState();
   const updates: Partial<OptionsState> = {};
-  if (randomize || !locked("mapSize")) updates.mapSize = size;
-  if (randomize || !locked("latitude")) updates.latitude = latitude;
-  if (randomize || !locked("longitude")) updates.longitude = longitude;
-  if (Object.keys(updates).length > 0) useOptionsState.getState().setOptions(updates);
-
-  function getSizeAndLatitude(): [number, number, number] {
-    const template = useOptionsState.getState().template;
-
-    if (template === "africa-centric") return [45, 53, 38];
-    if (template === "arabia") return [20, 35, 35];
-    if (template === "atlantics") return [42, 23, 65];
-    if (template === "britain") return [7, 20, 51.3];
-    if (template === "caribbean") return [15, 40, 74.8];
-    if (template === "east-asia") return [11, 28, 9.4];
-    if (template === "eurasia") return [38, 19, 27];
-    if (template === "europe") return [20, 16, 44.8];
-    if (template === "europe-accented") return [14, 22, 44.8];
-    if (template === "europe-and-central-asia") return [25, 10, 39.5];
-    if (template === "europe-central") return [11, 22, 46.4];
-    if (template === "europe-north") return [7, 18, 48.9];
-    if (template === "greenland") return [22, 7, 55.8];
-    if (template === "hellenica") return [8, 27, 43.5];
-    if (template === "iceland") return [2, 15, 55.3];
-    if (template === "indian-ocean") return [45, 55, 14];
-    if (template === "mediterranean-sea") return [10, 29, 45.8];
-    if (template === "middle-east") return [8, 31, 34.4];
-    if (template === "north-america") return [37, 17, 87];
-    if (template === "us-centric") return [66, 27, 100];
-    if (template === "us-mainland") return [16, 30, 77.5];
-    if (template === "world") return [78, 27, 40];
-    if (template === "world-from-pacific") return [75, 32, 30];
-
-    const part = worldContext.grid.features.some(f => f.land && f.border);
-    const max = part ? 80 : 100;
-    const lat = () => gauss(P(0.5) ? 40 : 60, 20, 25, 75);
-
-    if (!part) {
-      if (template === "pangea") return [100, 50, 50];
-      if (template === "shattered" && P(0.7)) return [100, 50, 50];
-      if (template === "continents" && P(0.5)) return [100, 50, 50];
-      if (template === "archipelago" && P(0.35)) return [100, 50, 50];
-      if (template === "highIsland" && P(0.25)) return [100, 50, 50];
-      if (template === "lowIsland" && P(0.1)) return [100, 50, 50];
-    }
-
-    if (template === "pangea") return [gauss(70, 20, 30, max), lat(), 50];
-    if (template === "volcano") return [gauss(20, 20, 10, max), lat(), 50];
-    if (template === "mediterranean") return [gauss(25, 30, 15, 80), lat(), 50];
-    if (template === "peninsula") return [gauss(15, 15, 5, 80), lat(), 50];
-    if (template === "isthmus") return [gauss(15, 20, 3, 80), lat(), 50];
-    if (template === "atoll") return [gauss(3, 2, 1, 5, 1), lat(), 50];
-
-    return [gauss(30, 20, 15, max), lat(), 50];
+  if (randomize || !locked("mapSize")) updates.mapSize = EARTH_DEFAULT_MAP_SIZE;
+  if (randomize || !locked("latitude")) {
+    const latT = getEarthMapLatitudeSpan(
+      updates.mapSize ?? options.mapSize,
+      worldContext.graphWidth,
+      worldContext.graphHeight
+    );
+    const maxCenterLatitude = 90 - latT / 2;
+    // Bias toward temperate latitudes rather than drawing uniformly across the full
+    // range: a uniform draw makes near-polar (icy, low-habitability) random maps
+    // disproportionately common now that the Earth-realistic pole temperatures
+    // (EARTH_TEMPERATURE_PRESET) are asymmetric and quite cold.
+    const hemisphereSign = P(0.5) ? 1 : -1;
+    const temperateBound = Math.min(70, maxCenterLatitude);
+    const magnitude = gauss(40, 20, 0, temperateBound);
+    updates.latitude = rn(hemisphereSign * magnitude, 1);
   }
+  if (randomize || !locked("longitude")) updates.longitude = rn(Math.random() * 100, 1);
+  if (randomize || !locked("distanceScale")) {
+    const mapSize = updates.mapSize ?? options.mapSize;
+    const distanceScale = getEarthDistanceScale(mapSize, worldContext.graphWidth);
+    updates.distanceScale = distanceScale;
+    worldContext.distanceScale = distanceScale;
+  }
+  if (Object.keys(updates).length > 0) useOptionsState.getState().setOptions(updates);
 }
 
 export function calculateMapCoordinates() {
   const options = useOptionsState.getState();
   const sizeFraction = options.mapSize / 100;
-  const latShift = options.latitude / 100;
   const lonShift = options.longitude / 100;
 
-  const latT = rn(sizeFraction * 180, 1);
-  const latN = rn(90 - (180 - latT) * latShift, 1);
+  const lonT = rn(sizeFraction * 360, 1);
+  const latT = rn(getEarthMapLatitudeSpan(options.mapSize, worldContext.graphWidth, worldContext.graphHeight), 1);
+  const maxCenterLatitude = 90 - latT / 2;
+  const centerLatitude = minmax(options.latitude, -maxCenterLatitude, maxCenterLatitude);
+  const latN = rn(centerLatitude + latT / 2, 1);
   const latS = rn(latN - latT, 1);
 
-  const lonT = rn(Math.min((worldContext.graphWidth / worldContext.graphHeight) * latT, 360), 1);
   const lonE = rn(180 - (360 - lonT) * lonShift, 1);
   const lonW = rn(lonE - lonT, 1);
   worldContext.mapCoordinates = { latT, latN, latS, lonT, lonW, lonE };

@@ -3,6 +3,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { getEarthDistanceScale } from "../data/earthConfig";
 
 import { drawTemperature } from "../renderers";
 import { refreshLabeledContourLabels } from "../renderers/draw-heightmap";
@@ -61,6 +62,7 @@ export const unitsEditorActions = {
     worldContext.distanceScale = value;
     renderScaleBar();
     calculateFriendlyGridSize();
+    rulers.draw();
   },
 
   changeHeightUnit(_value: string): void {
@@ -111,10 +113,12 @@ export const unitsEditorActions = {
 
   restoreDefaultUnits(): void {
     const options = useOptionsState.getState();
-    worldContext.distanceScale = DEFAULT_WORLD_SCALE_OPTIONS.distanceScale;
+    const distanceScale = getEarthDistanceScale(options.mapSize, worldContext.graphWidth);
+    worldContext.distanceScale = distanceScale;
 
     options.setOptions({
       ...DEFAULT_WORLD_SCALE_OPTIONS,
+      distanceScale,
       ...DEFAULT_UNIT_OPTIONS
     });
 
@@ -133,6 +137,7 @@ export const unitsEditorActions = {
     localStorage.removeItem("urbanDensity");
 
     calculateFriendlyGridSize();
+    rulers.draw();
     document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, biomes: true } }));
     renderScaleBar();
     refreshHeightLabels();

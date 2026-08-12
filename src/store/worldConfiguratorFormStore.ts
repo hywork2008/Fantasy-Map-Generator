@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { EARTH_DEFAULT_MAP_SIZE, EARTH_TEMPERATURE_PRESET } from "../data/earthConfig";
 
 interface WorldConfiguratorFormState {
   // Temperature settings
@@ -47,10 +48,10 @@ interface WorldConfiguratorFormState {
 }
 
 export const useWorldConfiguratorFormStore = create<WorldConfiguratorFormState>((set, get) => ({
-  temperatureEquator: 10,
-  temperatureNorthPole: -10,
-  temperatureSouthPole: -10,
-  mapSize: 100,
+  temperatureEquator: EARTH_TEMPERATURE_PRESET.equator,
+  temperatureNorthPole: EARTH_TEMPERATURE_PRESET.northPole,
+  temperatureSouthPole: EARTH_TEMPERATURE_PRESET.southPole,
+  mapSize: EARTH_DEFAULT_MAP_SIZE,
   latitude: 0,
   longitude: 0,
   prec: 0.5,

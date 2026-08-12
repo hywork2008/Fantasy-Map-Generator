@@ -2,6 +2,7 @@ import { range } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { getEarthDistanceBetweenMapPoints } from "../data/earthConfig";
 import { useOptionsState } from "../store/optionsState";
 import { rn } from "../utils";
 
@@ -15,12 +16,12 @@ export const drawScaleBar = (
   scaleLevel: number
 ): void => {
   if (!scaleBar.size() || scaleBar.style("display") === "none") return;
-  const { distanceScale } = worldContext;
+  const distanceScale = getScaleBarDistanceScale(worldContext, scaleBar);
 
   const unit = useOptionsState.getState().distanceUnit;
   const size = +scaleBar.attr("data-bar-size");
 
-  const length = getLength(worldContext, scaleBar, scaleLevel);
+  const length = getLength(distanceScale, scaleBar, scaleLevel);
   scaleBar.select("#scaleBarContent").remove(); // redraw content every time
   const content = scaleBar.append("g").attr("id", "scaleBarContent");
 
@@ -91,9 +92,8 @@ export const drawScaleBar = (
   }
 };
 
-function getLength(_worldContext: Readonly<WorldContext>, _scaleBar: ScaleBarSelection, scaleLevel: number): number {
+function getLength(distanceScale: number, _scaleBar: ScaleBarSelection, scaleLevel: number): number {
   const init = 100;
-  const { distanceScale } = _worldContext;
 
   const size = +_scaleBar.attr("data-bar-size");
   let val = (init * size * distanceScale) / scaleLevel; // bar length in distance unit
@@ -106,6 +106,16 @@ function getLength(_worldContext: Readonly<WorldContext>, _scaleBar: ScaleBarSel
   else val = rn(val); // round to 1
   const length = (val * scaleLevel) / distanceScale; // actual length in pixels on this scale
   return length;
+}
+
+/**
+ * Scale-bar distances are local east-west distances at its displayed latitude.
+ * This avoids treating a kilometre near a pole as equal to one at the equator.
+ */
+function getScaleBarDistanceScale(worldContext: Readonly<WorldContext>, scaleBar: ScaleBarSelection): number {
+  const posY = +scaleBar.attr("data-y") || 99;
+  const y = (worldContext.graphHeight * posY) / 100;
+  return getEarthDistanceBetweenMapPoints(worldContext, [0, y], [1, y]) ?? worldContext.distanceScale;
 }
 
 export const fitScaleBar = (
