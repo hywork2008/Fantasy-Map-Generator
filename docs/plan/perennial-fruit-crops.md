@@ -56,13 +56,22 @@ This keeps the renderer pure: production is resolved by generators and no render
 
 - Apples, Pears, Plums, Figs, and Lemons are fresh foods produced at orchards.
 - Plums and Figs (and surplus Apples/Pears) use the shared `Dried Fruits` preserved-food recipe; the existing cell-local fresh-food planner fills local reserves before commercial output.
+- Apples and Pears also have direct commercial recipes for `Cider` and `Perry`. Both use 300 kg of fruit plus a circulating-cask repair allowance to fill a 200 L cask.
 - Grapes retain their more valuable Wine commercial path and Raisins reserve path.
 - Olives remain a non-fresh `Olives → Oil` input; existing oil, soap, and other recipes stay valid.
 - Neither fruit nor olive output enters the staple Food Ledger. They are diet, trade, and processing goods, not a new source of Grain-equivalent subsistence calories.
 
+### Cider, perry, and pomace
+
+The added alcoholic recipes are intentionally limited to apples and pears. A collection of British primary and secondary material contains cider/perry evidence from about 1130 onward, including harvesting, crushing, pressing, fermentation, and containers. [Angotti, *Cider and Perry in Britain To 1700*](https://books.google.com/books/about/Cider_and_Perry_in_Britain_To_1700.html?id=93xwuAEACAAJ). A University College London study of medieval settlement also identifies apples and pears grown for cider and perry. [*Medieval Settlement and Society*](https://discovery.ucl.ac.uk/id/eprint/10103030/). The relevant production model is therefore `Apples → Cider` and `Pears → Perry`, with a barrel allowance.
+
+`Pomace` remains grape-only: it is the skins and seeds left by Wine pressing, not the juice used to make cider or perry. The existing `Pomace → Pomace Wine` recipe represents a lower-value second use of that grape residue. No generic fruit-pomace alcohol recipe is added: it would incorrectly imply that apple/pear press cake, rather than their fermented juice, is the normal beverage input. The late-sixteenth-century English description explicitly distinguishes apple cider and pear perry as fruits that are ground and pressed; it is useful corroboration of the process, but is not used as the medieval date evidence. [Harrison, *Description of England*](https://famineanddearth.exeter.ac.uk/displayhtml.html?id=fp_00168_en_thedescriptionofengland).
+
+Plum alcohol is not included. A later English tradition of plum jerkum exists, but the available evidence does not establish it as a major medieval-European orchard-processing path at the same confidence as cider and perry. Figs, lemons, and olives likewise retain their documented fresh/dried, culinary, or oil roles in this scope.
+
 ## Save migration and verification
 
-`migratePerennialFruitGoods()` appends missing orchard goods with new IDs, sets profiles on existing Grapes and Olives, removes olive biome-output and random biome-placement fields, and rebuilds `Dried Fruits` recipes from the loaded catalogue's actual IDs. It never changes existing Olive stock or recipes that consume Olives.
+`migratePerennialFruitGoods()` appends missing orchard goods, Cider, and Perry with new IDs, sets profiles on existing Grapes and Olives, removes olive biome-output and random biome-placement fields, and rebuilds `Dried Fruits`, Cider, and Perry recipes from the loaded catalogue's actual IDs. It never changes existing Olive stock or recipes that consume Olives.
 
 Verification covers:
 

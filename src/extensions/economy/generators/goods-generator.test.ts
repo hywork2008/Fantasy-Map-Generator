@@ -378,6 +378,19 @@ describe("GoodsModule", () => {
     expect(migratePerennialFruitGoods()).toBe(false);
   });
 
+  it("adds cider and perry with recipes using the saved catalogue's fruit and barrel ids", () => {
+    setGoods([
+      { i: 7, name: "Apples", tags: ["food"], value: 2.2, unit: "lot", icon: "", color: "" },
+      { i: 11, name: "Pears", tags: ["food"], value: 2.4, unit: "lot", icon: "", color: "" },
+      { i: 19, name: "Barrels", tags: [], value: 2, unit: "barrel", icon: "", color: "" }
+    ]);
+
+    expect(migratePerennialFruitGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Cider")?.recipes).toEqual([{ 7: 0.3, 19: 0.08 }]);
+    expect(getGoods().find(good => good.name === "Perry")?.recipes).toEqual([{ 11: 0.3, 19: 0.08 }]);
+    expect(migratePerennialFruitGoods()).toBe(false);
+  });
+
   it("replaces legacy perennial rainfall bands in an existing catalogue", () => {
     setGoods([
       {

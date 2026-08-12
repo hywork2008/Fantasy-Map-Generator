@@ -114,6 +114,8 @@ const ASH_YIELD_PER_WOOD_FULL_COMBUSTION = 1;
 const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
 const CHARCOAL_WOOD_PER_UNIT = 1.5;
 const POTASH_ASH_PER_UNIT = 1.5;
+/** One 200 L cask of cider or perry uses about 300 kg of pressed orchard fruit. */
+const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = 0.3;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
 const shipGoodValue = (shipClassId: string): number => {
   const shipClass = shipClassById.get(shipClassId);
@@ -517,7 +519,7 @@ export const GOODS_DATA: GoodData[] = [
     warEconomyType: "luxury",
     // Grape-growing cells use Wine as their commercial output after the local Raisins reserve is
     // full. It is intentionally not `preservedFood`: Wine must never displace emergency food stores.
-    tags: ["drink", "food", "luxury", "grapeWine"],
+    tags: ["food", "luxury", "grapeWine", "beverage"],
     icon: "good-wine",
     color: "#963e48",
     // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8, back when the recipe below was
@@ -1623,7 +1625,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Beer",
-    tags: ["drink", "food", "beverage"],
+    tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#fbb117",
     value: 4,
@@ -1642,8 +1644,33 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: {}
   },
   {
+    // Cider and perry ferment pressed apple or pear juice directly. They do
+    // not use Pomace, which represents the grape skins and seeds left after
+    // wine pressing and has its own low-cost secondary beverage path.
+    name: "Cider",
+    tags: ["food", "beverage"],
+    icon: "good-beer",
+    color: "#d99a32",
+    value: 4,
+    chance: 0,
+    recipes: [{ Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: 0.08 }],
+    unit: "200 L cider cask",
+    demandCoverage: {}
+  },
+  {
+    name: "Perry",
+    tags: ["food", "beverage"],
+    icon: "good-beer",
+    color: "#d7b84a",
+    value: 4.5,
+    chance: 0,
+    recipes: [{ Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: 0.08 }],
+    unit: "200 L perry cask",
+    demandCoverage: {}
+  },
+  {
     name: "Pomace Wine",
-    tags: ["drink", "food", "beverage"],
+    tags: ["food", "beverage"],
     icon: "good-wine",
     color: "#b08968",
     value: 2,
@@ -1654,7 +1681,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Liquor",
-    tags: ["drink", "food", "luxury"],
+    tags: ["food", "luxury", "beverage"],
     icon: "good-liquor",
     color: "#8a0303",
     value: 12,
@@ -2808,7 +2835,9 @@ export function migratePerennialFruitGoods(): boolean {
   let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   let changed = false;
 
-  for (const shipped of GOODS_DATA.filter(good => good.perennialCrop || good.name === "Dried Fruits")) {
+  for (const shipped of GOODS_DATA.filter(
+    good => good.perennialCrop || ["Dried Fruits", "Cider", "Perry"].includes(good.name)
+  )) {
     const existing = goods.find(good => good.name === shipped.name);
     if (!existing) {
       const added = Goods.getDefaultGood(shipped.name);
@@ -2857,6 +2886,30 @@ export function migratePerennialFruitGoods(): boolean {
       driedFruits.recipes = recipes;
       changed = true;
     }
+  }
+
+  const barrels = goods.find(good => good.name === "Barrels");
+  for (const [beverageName, fruitName] of [
+    ["Cider", "Apples"],
+    ["Perry", "Pears"]
+  ] as const) {
+    const beverage = goods.find(good => good.name === beverageName);
+    const fruit = goods.find(good => good.name === fruitName);
+    if (!beverage) continue;
+    if (!fruit || !barrels) {
+      // Do not retain a shipped-catalogue recipe with foreign Good ids when a
+      // deliberately minimal legacy catalogue lacks an input. A later pass
+      // rebuilds it once the required input has been restored.
+      if (beverage.recipes) {
+        delete beverage.recipes;
+        changed = true;
+      }
+      continue;
+    }
+    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, [barrels.i]: 0.08 }];
+    if (JSON.stringify(beverage.recipes) === JSON.stringify(recipes)) continue;
+    beverage.recipes = recipes;
+    changed = true;
   }
   return changed;
 }
