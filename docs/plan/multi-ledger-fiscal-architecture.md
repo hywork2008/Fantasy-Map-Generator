@@ -14,6 +14,7 @@
 | [character-wealth-balance.md](../analytics/character-wealth-balance.md) | 個人俸給梯子と生活費 sink |
 | [burg-treasury-equilibrium.md](./burg-treasury-equilibrium.md) | Burg/Market/Guild プール、政体上納は将来課題 |
 | [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) | 形態別史実（本設計の根拠） |
+| [department-budget-spending-effects.md](./department-budget-spending-effects.md) | §9「部門に金が溜まりゲームが緩む」の解消策（**PR-17**、L3a departmentBalancesへのゲーム内効果接続・削減レバー） |
 
 ---
 
@@ -488,6 +489,19 @@ Lord personal: ZZZ
 - 通商制裁の関税レイヤ可視化  
 - 正統性戦争の地図イベント / 反乱軍  
 - 債券格付機関キャラクター  
+
+### PR-17 — 部門支出のゲーム内効果・削減レバー（設計案、詳細は別紙）
+
+§9 のリスク「部門に金が溜まりゲームが緩む」に対応。Marshalcy 以外の 4 部門（Chancery/Stewardship/Spymastery/Ecclesiastica）は現状 `payCentralOfficeStipends()` の官職個人給以外に出口がなく、L3a に恒久的に死蔵される。詳細設計・PR 分割は [department-budget-spending-effects.md](./department-budget-spending-effects.md) を参照。
+
+- ☐ PR-17a: departmentBalances 死蔵キャップ・L2 への還流
+- ☐ PR-17b: 家宰府 → 徴税効率／行政維持コストへの接続
+- ☐ PR-17c: 部門予算プレイヤー override レバー（スライダー UI）
+- ☐ PR-17d: 諜報府 → nobility 拡張 espionage 資金源
+- ☐ PR-17e: 調査 UI 拡張（Fiscal Report 内訳展開・Treasury Overview 部門列）
+- ☐ PR-17f: 議会承認ラインへの部門予算削減接続
+- ☐ PR-17g: 尚書院 → 外交同盟の信頼性
+- ☐ PR-17h: 教会庁 → 宗教的正統性・カルト圧力（新規シミュレーション軸）
 
 ---
 

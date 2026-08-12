@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-13
+
+- docs/plan/department-budget-spending-effects.md
+
 2026-08-12
 
 - docs/plan/perennial-fruit-crops.md
