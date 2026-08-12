@@ -42,7 +42,14 @@ import {
   settleFoodProcessingHouseholds
 } from "./foodProcessingLedger";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, Goods, getDemandTargets, isFreshFoodGood, isGoodEnabled } from "./goods-generator";
+import {
+  DEMAND_PRIORITY,
+  expandRecipeByproducts,
+  Goods,
+  getDemandTargets,
+  isFreshFoodGood,
+  isGoodEnabled
+} from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getGuildBonus } from "./guildKnowledge";
 import {
@@ -1364,12 +1371,14 @@ export class ProductionModule {
         ) {
           continue;
         }
-        const byproducts = Object.entries(good.byproducts?.[recipeIndex] ?? {})
-          .map(([goodId, amount]) => ({ goodId: +goodId, amount }))
+        // Unscaled (multiplier 1): executeManufacture multiplies by actualYield at execution time,
+        // same as it does for `entries` above.
+        const byproducts = expandRecipeByproducts(good.byproducts, recipeIndex)
           .filter(entry => {
             const byproduct = Goods.get(entry.goodId);
             return Boolean(byproduct && isGoodEnabled(byproduct));
-          });
+          })
+          .map(entry => ({ goodId: entry.goodId, amount: entry.units }));
         recipes.push({ good, ingredients: entries, byproducts });
       }
     }

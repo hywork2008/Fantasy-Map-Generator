@@ -2597,6 +2597,34 @@ export class GoodsModule {
 
 export const Goods = new GoodsModule();
 
+/**
+ * Converts one recipe alternative's `byproducts[recipeIndex]` record into a flat `{goodId, units}`
+ * list, scaled by `perUnitMultiplier`.
+ *
+ * Deliberately pure — it does not check whether a byproduct Good exists or is enabled under the
+ * current era settings. Every call site already resolves/deposits the byproduct Good itself right
+ * after calling this (production-generator.ts's `buildRecipesArray` via `Goods.get` +
+ * `isGoodEnabled`; markets-generator.ts's `addRuralOutput` via its own `isGoodEnabled` guard), so
+ * baking a second enablement check in here would add a hidden dependency on the live `Goods`
+ * registry without changing the outcome. Extracted so both execution paths for `Good.recipes`
+ * share this one list-building step instead of hand-rolling it independently — that duplication is
+ * how the cell-local commercial path's Pomace byproduct went missing for a while after Wine's
+ * byproduct was added (docs/plan/wine-pomace-distillation.md §1.5). `perUnitMultiplier` lets a
+ * caller either pre-scale by an already-known output quantity (the commercial path, which resolves
+ * units immediately) or leave the raw per-unit rate for a caller that scales later (the worker
+ * loop, which multiplies by `actualYield` at execution time).
+ */
+export function expandRecipeByproducts(
+  byproducts: Good["byproducts"],
+  recipeIndex: number,
+  perUnitMultiplier = 1
+): { goodId: number; units: number }[] {
+  return Object.entries(byproducts?.[recipeIndex] ?? {}).map(([goodId, amount]) => ({
+    goodId: +goodId,
+    units: amount * perUnitMultiplier
+  }));
+}
+
 const LIVE_ANIMAL_GOOD_NAMES = new Set([
   "Cattle",
   "Horses",

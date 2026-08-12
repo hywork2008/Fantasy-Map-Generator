@@ -43,6 +43,7 @@ import type { DemandCategory, Good } from "./goods-generator";
 import {
   DEMAND_PRIORITY,
   DEMAND_TARGET_FACTORS,
+  expandRecipeByproducts,
   GOODS_DATA,
   Goods,
   getFreshFoodProfile,
@@ -103,10 +104,7 @@ export function getCommercialRecipeByproducts(
   if (outputUnits <= 0 || !outputGood.recipes?.length || !outputGood.byproducts?.length) return [];
   const recipeIndex = outputGood.recipes.findIndex(recipe => recipe[sourceGoodId] === sourceInputPerOutput);
   if (recipeIndex < 0) return [];
-  return Object.entries(outputGood.byproducts[recipeIndex] ?? {}).map(([goodId, amount]) => ({
-    goodId: +goodId,
-    units: outputUnits * amount
-  }));
+  return expandRecipeByproducts(outputGood.byproducts, recipeIndex, outputUnits);
 }
 
 interface MarketTradeRoute {

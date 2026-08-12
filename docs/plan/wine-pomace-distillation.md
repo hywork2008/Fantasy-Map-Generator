@@ -113,29 +113,32 @@ for (const byproduct of ingredients_と同じ経路で受け取ったbyproducts)
 
 実際には `markets-generator.ts` の `settleCellFreshFood()` が、Grapes のような `freshFood` 品目をセル単位で処理し、`getCellFoodCommercialPath()`（`grapeWine` タグ＝Wine を優先して選ぶ）経由で `Good.recipes` を直接参照し、`addRuralOutput()` で市場在庫へ加算する——**Burg の worker loop を一切経由しない、独立した第二のレシピ消費経路**である。実際の Wine 生産量の大半はこちらの cell 直販経路を通っており、§1.3 の byproducts ループを `executeManufacture()` にしか実装しなければ、Wine だけが増えて Pomace が生成されないバグになる（実際に発生した）。
 
-対応: `markets-generator.ts` に `executeManufacture()` と同型の byproducts 解決・付与ロジックを追加する。
+対応: `markets-generator.ts` に `executeManufacture()` と同型の byproducts 解決・付与ロジックを追加する（`getCommercialRecipeByproducts()` / `addCommercialRecipeByproducts()`。実装は §1.6 の共有ヘルパーを介する形に整理済み）。`settleCellFreshFood()` が `addRuralOutput(marketId, collectionBurgId, commercialPath.outputGoodId, outcome.exportOutputUnits)` を呼ぶ箇所の直後に、同じ引数で `getCommercialRecipeByproducts()` を呼び、得られた各副産物にも `addRuralOutput()` を適用する。
+
+**教訓（後続の m:n 化タスクへの一般化）**: あるフィールド（ここでは `Good.recipes`）に新しい意味（byproducts）を追加するとき、「そのフィールドを読んでいる箇所」を実行系全体で洗い出さずに主要な1箇所だけを直すと、生成物の一部の経路だけが新仕様に追従し、残りは黙って旧仕様のまま動き続ける——症状は「特定の Good だけ増え方がおかしい」という形で遅れて表面化する。今回は経済拡張内で `.recipes` を参照する全箇所（`merchantTransportAssets.ts`, `metallurgWork.ts`, `goodsBalanceLedger.ts`, `tradeOpportunityEstimator.ts`, `marketFlowDiagnostics.ts`, `goods-editor.ts`）を洗い直し、他はいずれも表示分類・調達見積もり用の読み取り専用参照であり、実行経路はこの2箇所（`production-generator.ts` / `markets-generator.ts`）のみであることを確認した。
+
+### 1.6 実装済み: 共有ヘルパー `expandRecipeByproducts()`（2026-08-12）
+
+§1.5 の2経路は、修正直後の時点でもそれぞれ「`byproducts[recipeIndex]` レコードを `{goodId, units}` リストへ展開する」処理を独自に手書きしていた——`production-generator.ts::buildRecipesArray()` と `markets-generator.ts::getCommercialRecipeByproducts()` の変換部分だけを見比べると同じロジックの2重実装であり、同じクラスのバグ（片方だけ新仕様に追従し他方が古いまま残る）を再発させうる状態だった。
+
+これを `goods-generator.ts` の `expandRecipeByproducts(byproducts, recipeIndex, perUnitMultiplier)` に一本化した:
 
 ```ts
-/** Returns the outputs accompanying a cell-local recipe conversion. */
-export function getCommercialRecipeByproducts(
-  outputGood: Pick<Good, "recipes" | "byproducts">,
-  sourceGoodId: number,
-  sourceInputPerOutput: number,
-  outputUnits: number
+export function expandRecipeByproducts(
+  byproducts: Good["byproducts"],
+  recipeIndex: number,
+  perUnitMultiplier = 1
 ): { goodId: number; units: number }[] {
-  if (outputUnits <= 0 || !outputGood.recipes?.length || !outputGood.byproducts?.length) return [];
-  const recipeIndex = outputGood.recipes.findIndex(recipe => recipe[sourceGoodId] === sourceInputPerOutput);
-  if (recipeIndex < 0) return [];
-  return Object.entries(outputGood.byproducts[recipeIndex] ?? {}).map(([goodId, amount]) => ({
+  return Object.entries(byproducts?.[recipeIndex] ?? {}).map(([goodId, amount]) => ({
     goodId: +goodId,
-    units: outputUnits * amount
+    units: amount * perUnitMultiplier
   }));
 }
 ```
 
-`settleCellFreshFood()` が `addRuralOutput(marketId, collectionBurgId, commercialPath.outputGoodId, outcome.exportOutputUnits)` を呼ぶ箇所の直後に、同じ引数で `getCommercialRecipeByproducts()` を呼び、得られた各副産物にも `addRuralOutput()` を適用する（`addCommercialRecipeByproducts()` としてラップ）。
+**当初案からの修正点**: 提案段階では `Goods.get` + `isGoodEnabled` による無効財フィルタも含めて共有する案だったが、実装時に `markets-generator.test.ts` の既存テスト（`getCommercialRecipeByproducts` を `Goods` レジストリ未セットアップの状態で素の `{recipes, byproducts}` オブジェクトのみで直接呼ぶ）を壊すことが判明した。加えて、機能的にも `markets-generator.ts` 側は元々フィルタ無しで安全だった——呼び出し先の `addRuralOutput()` が独自に `isGoodEnabled` ガードを持つため、無効な財はそこで弾かれる。そのため `expandRecipeByproducts()` は `Goods`/`isGoodEnabled` に依存しない純粋関数のままとし、フィルタ判定は各呼び出し側（`production-generator.ts` は `Goods.get` + `isGoodEnabled` で明示的に、`markets-generator.ts` は `addRuralOutput()` 経由で暗黙的に）に残した。重複していた「レコード→リスト変換」だけを1箇所にまとめ、各経路が元々持っていた安全策・挙動・既存テストは変更していない。
 
-**教訓（後続の m:n 化タスクへの一般化）**: あるフィールド（ここでは `Good.recipes`）に新しい意味（byproducts）を追加するとき、「そのフィールドを読んでいる箇所」を実行系全体で洗い出さずに主要な1箇所だけを直すと、生成物の一部の経路だけが新仕様に追従し、残りは黙って旧仕様のまま動き続ける——症状は「特定の Good だけ増え方がおかしい」という形で遅れて表面化する。今回は経済拡張内で `.recipes` を参照する全箇所（`merchantTransportAssets.ts`, `metallurgWork.ts`, `goodsBalanceLedger.ts`, `tradeOpportunityEstimator.ts`, `marketFlowDiagnostics.ts`, `goods-editor.ts`）を洗い直し、他はいずれも表示分類・調達見積もり用の読み取り専用参照であり、実行経路はこの2箇所（`production-generator.ts` / `markets-generator.ts`）のみであることを確認した。
+検証: `npx tsc --noEmit` エラーなし、`npx vitest run src/extensions/economy/`（159ファイル / 1060テスト）全 pass、`npx biome check` エラーなし、`npx madge --circular` 循環依存なし。
 
 ---
 
