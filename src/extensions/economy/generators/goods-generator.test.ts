@@ -197,9 +197,9 @@ describe("GoodsModule", () => {
     expect(sulfur?.trade).toBeDefined();
     expect(gunpowder?.recipes).toContainEqual(
       expect.objectContaining({
-        [byName.get("Saltpeter")!.i]: 0.5,
-        [sulfur!.i]: 0.25,
-        [byName.get("Charcoal")!.i]: 0.5
+        [byName.get("Saltpeter")!.i]: 0.75,
+        [sulfur!.i]: 0.1,
+        [byName.get("Charcoal")!.i]: 0.15
       })
     );
   });

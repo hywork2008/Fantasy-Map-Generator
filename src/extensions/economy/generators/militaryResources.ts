@@ -164,9 +164,14 @@ export class MilitaryResourcesModule {
     // cycle. Artillery's own lead use (grapeshot/lining) is unrelated to small-arm Bullets, so
     // it's still drawn directly below.
     demand.lead = rn(artillery * ARTILLERY_LEAD_PER_GUN, 4);
-    demand.saltpeter = rn(gunpowder * 0.5, 4);
-    demand.sulfur = rn(gunpowder * 0.25, 4);
-    demand.coal = rn(gunpowder * 0.5, 4);
+    // Mirrors Gunpowder's own recipe ratio in goods-generator.ts (75% Saltpeter / 10% Sulfur /
+    // 15% Charcoal, the historical "corned powder" composition) — kept as a literal duplicate
+    // here because this ledger reports the raw-material breakdown behind Gunpowder demand for
+    // display purposes without drawing a second time on the market (see comment above). "coal"
+    // is this ledger's field name for that Charcoal share, not the separate mined-fuel Coal Good.
+    demand.saltpeter = rn(gunpowder * 0.75, 4);
+    demand.sulfur = rn(gunpowder * 0.1, 4);
+    demand.coal = rn(gunpowder * 0.15, 4);
 
     // Firearm units carry a personal firearm (Muskets, a finished Good distinct from Gunpowder/
     // Bullets above — see goods-generator.ts) instead of the generic melee Arms set. Move their

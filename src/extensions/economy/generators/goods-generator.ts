@@ -1413,13 +1413,24 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Gunpowder",
+    // Recipe is a literal composition-by-weight for one "barrel", not an arbitrary cost bundle
+    // like most other Goods recipes: 75% Saltpeter / 10% Sulfur / 15% Charcoal is the classic
+    // "corned powder" ratio (Wikipedia's "Gunpowder" article cites the same figures) that
+    // European powder-makers had already converged on by the Age of Exploration (~1450-1600,
+    // this catalogue's default historicalPeriod — see technologyProgress.ts's
+    // GUNPOWDER_ERA2_START_STAGE_BY_PERIOD, which seeds "cornedPowder" as already demonstrated
+    // by this period) and which then endured essentially unchanged into the 19th century. The
+    // previous 0.5/0.25/0.5 (40/20/40) split under-weighted Saltpeter relative to even the
+    // earliest medieval hand-cannon formulas and doesn't correspond to any historical batch.
+    // When Gunpowder's tech chain grows further stages toward modern smokeless propellants, add
+    // period/stage-gated recipe variants here rather than re-tuning this baseline in place.
     warEconomyType: "military",
     tags: ["military"],
     icon: "good-gunpowder",
     color: "#b0c4de",
     value: 12,
     chance: 0,
-    recipes: [{ Saltpeter: 0.5, Sulfur: 0.25, Charcoal: 0.5 }],
+    recipes: [{ Saltpeter: 0.75, Sulfur: 0.1, Charcoal: 0.15 }],
     unit: "barrel",
     demandCoverage: { military: 2 }
   },
