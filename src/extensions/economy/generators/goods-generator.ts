@@ -1472,6 +1472,9 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [{ "Iron Ingot": 1, Charcoal: 1, Wood: 0.5 }],
     unit: "piece",
+    // Economy production is aggregated by market, so one trade lot represents a small batch
+    // of firearms rather than an indivisible real-world musket.
+    retailLotSize: 0.01,
     // Personal firearms are state-procured equipment, not a generic Burg demand good.
     demandCoverage: {}
   },
@@ -1495,6 +1498,8 @@ export const GOODS_DATA: GoodData[] = [
       { Bronze: 1, Charcoal: 1 }
     ],
     unit: "cannon",
+    // As with Muskets, market production represents an aggregate of foundry output.
+    retailLotSize: 0.01,
     // Cannon are state-owned capital equipment. State Metallurg work orders model their
     // procurement and maintenance; ordinary Burg population demand must not create civilian
     // artillery purchases that crowd out the firearm supply chain.

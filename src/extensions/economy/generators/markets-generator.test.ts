@@ -10,11 +10,13 @@ import {
   getMarketCellColumn,
   getMarkets,
   initEconomyContext,
-  setMarkets
+  setMarkets,
+  setMetallurgWorkOrders
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { getCommercialRecipeByproducts, MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
+import type { MetallurgWorkOrder } from "./metallurgWorkTypes";
 import { validateRetailInventory } from "./retailInventory";
 
 vi.mock("./goods-generator", async importOriginal => {
@@ -168,6 +170,64 @@ describe("MarketsModule", () => {
       // Goods remain in transit until the spawned caravan reaches the importer.
       expect(market2.goods[0].stock).toBe(0);
       expect(market1.goods[0].stock).toBeLessThan(100);
+    });
+
+    it("routes finished armory goods to a market with an outstanding State order", () => {
+      Object.assign(getGoods()[0], {
+        name: "Artillery",
+        tags: ["military"],
+        unit: "cannon",
+        retailLotSize: 0.01,
+        demandCoverage: {}
+      });
+      Goods.sync();
+
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 1, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 200 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 0, market: 1, state: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 0, market: 2, state: 2 } as unknown as Burg;
+      const order: MetallurgWorkOrder = {
+        id: 1,
+        ownerKind: "state",
+        ownerId: 2,
+        destinationMarketId: 2,
+        productGoodId: 0,
+        kind: "newBuild",
+        recipeIndex: 0,
+        requestedUnits: 0.2,
+        completedUnits: 0,
+        plannedWork: 0.2,
+        completedWork: 0,
+        materials: [],
+        status: "queued",
+        createdMonth: 0,
+        updatedMonth: 0
+      };
+
+      setMarkets([market1, market2]);
+      setMetallurgWorkOrders([order]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market2];
+
+      marketsModule.runGlobalTrade();
+
+      const deal = getDeals().find(
+        candidate => candidate.good === 0 && candidate.seller === 1 && candidate.buyer === 2
+      );
+      expect(deal).toBeDefined();
+      expect(deal!.units).toBeCloseTo(0.24, 6);
+      expect(market1.goods[0].stock).toBeCloseTo(0.76, 6);
     });
 
     it("runGlobalTrade() should round liveAnimal ('head'-unit) goods to a whole-unit deal instead of fractioning them", () => {

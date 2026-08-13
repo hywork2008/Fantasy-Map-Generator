@@ -15,6 +15,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMetallurgWorkOrders,
   getOrCreateCellFoodReserves,
   getOrCreateCumulativeGoodsSales,
   getOrCreateMarketGoodProductionTotals,
@@ -163,6 +164,8 @@ interface MarketTradeOpportunity {
   durationDays: number;
   maintenanceCost: number;
   routeSegments: TradeRouteSegment[];
+  /** A State Metallurg order funds this route even when its commercial margin is small. */
+  stateProcurement: boolean;
   targetSalePrice?: number;
 }
 
@@ -179,6 +182,8 @@ interface GlobalTradeContext {
   goods: Good[];
   consumerDemandFactors: number[];
   industrialDemandFactors: number[];
+  /** Unfinished State armory orders, indexed by destination market then finished Good. */
+  strategicDemandByMarket: Map<number, Map<number, number>>;
   populationByMarket: number[];
   textilePopulationByMarket: number[];
   mapDiagonal: number;
@@ -1365,6 +1370,7 @@ export class MarketsModule {
     const goods = getGoods().filter(isGoodEnabled);
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
+    const strategicDemandByMarket = this.collectOutstandingStateMetallurgDemand(goods);
     const populationByMarket = this.calculatePopulationByMarket();
     const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
@@ -1374,12 +1380,57 @@ export class MarketsModule {
       goods,
       consumerDemandFactors,
       industrialDemandFactors,
+      strategicDemandByMarket,
       populationByMarket,
       textilePopulationByMarket,
       mapDiagonal,
       tradeReserveFactor: FLOW_TRADE_RESERVE_FACTOR,
       travelRoutes
     };
+  }
+
+  /**
+   * State armories place their equipment orders through MetallurgWork rather than population
+   * demand. Treat an open order as finished-Good demand at its destination market so a surplus
+   * produced elsewhere can reach the armory instead of remaining stranded at its source.
+   */
+  private collectOutstandingStateMetallurgDemand(goods: readonly Good[]): Map<number, Map<number, number>> {
+    const enabledGoodIds = new Set(goods.map(good => good.i));
+    const demandByMarket = new Map<number, Map<number, number>>();
+
+    for (const order of getMetallurgWorkOrders()) {
+      if (order.ownerKind !== "state" || order.status === "completed" || !enabledGoodIds.has(order.productGoodId)) {
+        continue;
+      }
+
+      const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
+      if (outstandingUnits <= 0) continue;
+
+      const demandByGood = demandByMarket.get(order.destinationMarketId) ?? new Map<number, number>();
+      demandByGood.set(order.productGoodId, (demandByGood.get(order.productGoodId) || 0) + outstandingUnits);
+      demandByMarket.set(order.destinationMarketId, demandByGood);
+    }
+
+    return demandByMarket;
+  }
+
+  private getStrategicFinishedGoodDemand(ctx: GlobalTradeContext, marketId: number, goodId: number): number {
+    return ctx.strategicDemandByMarket.get(marketId)?.get(goodId) || 0;
+  }
+
+  private calculateMarketTradeDemand(
+    good: Good,
+    marketId: number,
+    population: number,
+    textilePopulation: number,
+    consumerDemandFactor: number,
+    industrialDemandFactor: number,
+    ctx: GlobalTradeContext
+  ): number {
+    return (
+      this.calculateGoodDemand(good, population, textilePopulation, consumerDemandFactor, industrialDemandFactor) +
+      this.getStrategicFinishedGoodDemand(ctx, marketId, good.i)
+    );
   }
 
   /**
@@ -1417,12 +1468,14 @@ export class MarketsModule {
 
     for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
-      const demand = this.calculateGoodDemand(
+      const demand = this.calculateMarketTradeDemand(
         good,
+        market.i,
         population,
         textilePopulationByMarket[market.i] || population,
         consumerDemandFactors[good.i] || 0,
-        industrialDemandFactors[good.i] || 0
+        industrialDemandFactors[good.i] || 0,
+        ctx
       );
       const reserve = demand * (1 + tradeReserveFactor);
 
@@ -1488,7 +1541,8 @@ export class MarketsModule {
             distanceKm: route.distanceKm,
             durationDays: route.durationDays,
             maintenanceCost: getCaravanMaintenanceCost(route.durationDays),
-            routeSegments: route.segments
+            routeSegments: route.segments,
+            stateProcurement: this.getStrategicFinishedGoodDemand(ctx, importer.market.i, good.i) > 0
           });
         }
       }
@@ -1526,12 +1580,27 @@ export class MarketsModule {
    */
   private resolveViableGlobalTradeRoutes(
     routeMarginalProfit: Map<string, number>,
-    routeMaintenanceCost: Map<string, number>
+    routeMaintenanceCost: Map<string, number>,
+    opportunitiesByGood: ReadonlyMap<number, readonly MarketTradeOpportunity[]>
   ): Set<string> {
+    const stateProcurementRoutes = new Set<string>();
+    for (const opportunities of opportunitiesByGood.values()) {
+      for (const opportunity of opportunities) {
+        if (opportunity.stateProcurement) {
+          stateProcurementRoutes.add(tradeRouteKey(opportunity.exporter.i, opportunity.importer.i));
+        }
+      }
+    }
+
     const viableRoutes = new Set<string>();
     for (const [key, marginalProfit] of routeMarginalProfit) {
       const maintenanceCost = routeMaintenanceCost.get(key) || 0;
-      if (marginalProfit - maintenanceCost >= MIN_TRADE_PROFIT) viableRoutes.add(key);
+      // A State armory order is a committed procurement, not optional merchant speculation.
+      // It underwrites one caravan even when a small initial artillery batch cannot alone cover
+      // the commercial maintenance threshold; other goods can still share that same trip.
+      if (stateProcurementRoutes.has(key) || marginalProfit - maintenanceCost >= MIN_TRADE_PROFIT) {
+        viableRoutes.add(key);
+      }
     }
     return viableRoutes;
   }
@@ -1569,7 +1638,8 @@ export class MarketsModule {
       if (opportunity.targetSalePrice === undefined) {
         const population = populationByMarket[opportunity.exporter.i] || 0;
         const cycleDemand =
-          population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0));
+          population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0)) +
+          this.getStrategicFinishedGoodDemand(ctx, opportunity.exporter.i, good.i);
         const flowBudget = computeMarketGoodFlowBudget({
           marketId: opportunity.exporter.i,
           goodId: good.i,
@@ -1620,7 +1690,10 @@ export class MarketsModule {
         distance: deal.distance,
         durationDays: deal.durationDays,
         maintenanceCost: deal.maintenanceCost,
-        taxPerUnit: opportunity.exporterTaxPerUnit
+        taxPerUnit: opportunity.exporterTaxPerUnit,
+        // State procurement underwrites its own committed shipment; it must not be blocked by
+        // the exporting market's optional merchant working-capital pool.
+        requireCapital: !opportunity.stateProcurement
       });
       if (!lot) continue;
       deal.stagingLotId = lot.id;
@@ -1649,7 +1722,11 @@ export class MarketsModule {
       );
     }
 
-    const viableRoutes = this.resolveViableGlobalTradeRoutes(routeMarginalProfit, routeMaintenanceCost);
+    const viableRoutes = this.resolveViableGlobalTradeRoutes(
+      routeMarginalProfit,
+      routeMaintenanceCost,
+      opportunitiesByGood
+    );
 
     for (const good of ctx.goods) {
       this.emitGlobalTradeDealsForGood(good, ctx, opportunitiesByGood, viableRoutes);
@@ -1684,7 +1761,11 @@ export class MarketsModule {
     );
     if (!collected) return false;
 
-    const viableRoutes = this.resolveViableGlobalTradeRoutes(routeMarginalProfit, routeMaintenanceCost);
+    const viableRoutes = this.resolveViableGlobalTradeRoutes(
+      routeMarginalProfit,
+      routeMaintenanceCost,
+      opportunitiesByGood
+    );
 
     return runBatchedYielding(
       ctx.goods,
@@ -1770,6 +1851,7 @@ export class MarketsModule {
           durationDays: route.durationDays,
           maintenanceCost: estimate.maintenanceCost,
           routeSegments: route.segments,
+          stateProcurement: false,
           targetSalePrice: estimate.sellPrice
         });
       }

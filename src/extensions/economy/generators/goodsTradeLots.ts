@@ -21,7 +21,8 @@ export function getRetailLotSize(good: Pick<Good, "retailLotSize" | "unit" | "ca
 /**
  * Minimum quantity eligible for a market-to-market shipment. Military-tagged Goods may travel
  * in their retail lot so scarce ammunition and its strategic inputs are not blocked below the
- * general 0.1-unit trade threshold. Discrete Goods (such as Muskets) still resolve to one unit.
+ * general 0.1-unit trade threshold. A Good may explicitly use an aggregate retail lot even when
+ * its display unit would otherwise be indivisible.
  */
 export function getMarketTradeMinimumUnits(good: Pick<Good, "tags" | "retailLotSize" | "unit" | "cargo">): number {
   return good.tags.includes("military") ? getRetailLotSize(good) : DEFAULT_MARKET_TRADE_MINIMUM_UNITS;
