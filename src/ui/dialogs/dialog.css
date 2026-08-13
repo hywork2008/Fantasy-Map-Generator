@@ -415,6 +415,24 @@
 
 /* ── Dialog-specific overrides ─────────────────────────────────────────────── */
 
+/* CellInfo: the extension-supplied rows (Cell Production, Burg Production,
+   Fauna) hold variable-length lists that otherwise stretch #cellInfo's
+   shrink-to-fit table width every time the cursor moves to a new cell,
+   shoving the dialog sideways. Fix the dialog width and let those long
+   values wrap instead of forcing the table wider. */
+.fmg-dialog--cell-info {
+  width: min(26rem, calc(100vw - 2rem));
+}
+
+#cellInfo {
+  width: 100%;
+}
+
+#cellInfo td {
+  white-space: normal;
+  word-break: break-word;
+}
+
 /* Markers Overview: filter input row between .table and .totalLine */
 #markersSearchRow {
   flex-shrink: 0;

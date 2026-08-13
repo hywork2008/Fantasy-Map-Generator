@@ -11,7 +11,7 @@ export const CellInfoDialog: React.FC = () => {
   const cellInfoRows = useExtensionState(state => state.cellInfoRows);
 
   return (
-    <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")}>
+    <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")} className="fmg-dialog--cell-info">
       <div className="cell-info-actions">
         <button
           type="button"
