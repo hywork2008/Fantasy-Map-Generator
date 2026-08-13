@@ -15,10 +15,18 @@ import {
 } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 
-function installMinimalWorld(opts: { gunpowder?: boolean } = {}): void {
+function installMinimalWorld(
+  opts: {
+    gunpowder?: boolean;
+    historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
+  } = {}
+): void {
   worldContext.options = {
     ...(worldContext.options ?? {}),
     gunpowderEraEnabled: opts.gunpowder ?? false,
+    // Explicitly reset (not just spread from a possibly-stale previous test) so no test can leak
+    // historicalPeriod into the next one that doesn't set it.
+    historicalPeriod: opts.historicalPeriod,
     year: 1200
   } as typeof worldContext.options;
   worldContext.pack = {
@@ -97,6 +105,49 @@ describe("technologyProgress", () => {
     for (const id of gunpowderIds) {
       expect(simulationContext.technology.progress.some(p => p.technologyId === id && p.ownerId === 1)).toBe(false);
     }
+  });
+
+  it("seeds gunpowder-chain technologies at a period-appropriate starting stage instead of always locked", () => {
+    // earlyMedieval/highMedieval: unchanged, still locked even with the world gate on.
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "earlyMedieval" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("blackPowder", 1)).toBe("locked");
+    expect(getTechnologyStage("massFirearms", 1)).toBe("locked");
+
+    // lateMedieval: known — the recipe exists and is documented, but still rare/unrefined.
+    resetTechnologyProgress();
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "lateMedieval" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("blackPowder", 1)).toBe("known");
+    // Later-chain nodes (cornedPowder, massFirearms) get the same period floor.
+    expect(getTechnologyStage("massFirearms", 1)).toBe("known");
+
+    // ageOfExploration (default period): demonstrated — established, widely circulated knowledge;
+    // a state still has to invest to reach "adopted" mass production.
+    resetTechnologyProgress();
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "ageOfExploration" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("blackPowder", 1)).toBe("demonstrated");
+    expect(getTechnologyStage("massFirearms", 1)).toBe("demonstrated");
+
+    // A non-gunpowder technology is unaffected by historicalPeriod either way.
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused");
+  });
+
+  it("keeps a period-seeded gunpowder stage after annual evaluation instead of resetting it", () => {
+    // A "known"-seeded stage (rank 1) is below advanceStage()'s "does not re-evaluate downward"
+    // cutoff (startStage >= "adopted", rank 3), so settleTechnologyAnnual() still evaluates it
+    // every year and could advance it further given the right signals — the period seed only
+    // raises the floor, it never hard-locks a state at that stage the way an "adopted"/"diffused"
+    // startStage would (see the early-return this test's minimal fixture doesn't attempt to clear
+    // blackPowder's own prerequisite chain — highTempFurnace/recordReplication — so the concrete
+    // behavior verified here is simpler: the seed isn't wiped back to "locked" by the settle pass).
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "lateMedieval" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("blackPowder", 1)).toBe("known");
+
+    settleTechnologyAnnual(1200);
+    expect(getTechnologyStage("blackPowder", 1)).toBe("known");
   });
 
   it("self-gates annual evaluation to once per year", () => {

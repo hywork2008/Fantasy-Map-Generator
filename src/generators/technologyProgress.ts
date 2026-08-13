@@ -141,12 +141,58 @@ export function getFourCourseRotationEffect(stateId: number): number {
   return 0;
 }
 
+type HistoricalPeriod = NonNullable<typeof worldContext.options.historicalPeriod>;
+
+/**
+ * Gunpowder-chain technologies (ERA_2, technologyDefinitions.ts) all ship with no `startStage` of
+ * their own — every state begins "locked" and must organically climb known -> demonstrated ->
+ * adopted via settleTechnologyAnnual()/advanceStage(), regardless of the map's historicalPeriod.
+ * That means picking "Age of Exploration" never gave states credit for gunpowder chemistry and
+ * cannon-founding already being established, widely known science by ~1450-1600 — a state started
+ * exactly as ignorant of it as an earlyMedieval one. This only raises the starting FLOOR:
+ * advanceStage() never regresses a stage (see its own comment), so a seeded "known"/"demonstrated"
+ * start still lets a well-run state climb further toward "adopted"/"diffused" through play; it
+ * just stops re-deriving the same secrecy premise from scratch on every map regardless of period.
+ * - earlyMedieval / highMedieval: unchanged ("locked") — gunpowder weapons predate neither period
+ *   in most real timelines; if gunpowderEraEnabled is manually turned on this early, it should
+ *   still feel like a freshly invented, closely guarded curiosity.
+ * - lateMedieval (~1300-1450): "known" — hand cannons and early bombards existed and were
+ *   documented, but remained rare, crude, and far from standardized.
+ * - ageOfExploration (~1450-1600, the default period): "demonstrated" — corned powder and cast
+ *   bronze/iron cannon-founding were proven, widely circulated knowledge across Western Europe by
+ *   this point; a state still has to invest to reach "adopted" (efficient mass production).
+ */
+const GUNPOWDER_ERA2_START_STAGE_BY_PERIOD: Readonly<Partial<Record<HistoricalPeriod, TechnologyStage>>> = {
+  lateMedieval: "known",
+  ageOfExploration: "demonstrated"
+};
+const GUNPOWDER_ERA2_TECHNOLOGY_IDS: ReadonlySet<string> = new Set([
+  "blackPowder",
+  "cornedPowder",
+  "cannonFoundry",
+  "artilleryTactics",
+  "massFirearms",
+  "gunpowderFortification"
+]);
+
+function resolveStartStage(
+  def: TechnologyDefinition,
+  period: HistoricalPeriod | undefined
+): TechnologyStage | undefined {
+  if (GUNPOWDER_ERA2_TECHNOLOGY_IDS.has(def.id)) {
+    const override = period && GUNPOWDER_ERA2_START_STAGE_BY_PERIOD[period];
+    if (override) return override;
+  }
+  return def.startStage;
+}
+
 /** Seed start-profile technologies for every live political state. */
 export function seedTechnologyStartProfile(year = simulationContext.currentYear): void {
   const tech = ensureTechnologyState();
   const gates = worldGates();
   const active = getActiveTechnologyDefinitions(gates);
   const states = worldContext.pack?.states ?? [];
+  const period = worldContext.options?.historicalPeriod;
   const byKey = new Map(tech.progress.map(p => [progressKey(p.technologyId, p.scope, p.ownerId), p]));
 
   for (const state of states) {
@@ -155,7 +201,7 @@ export function seedTechnologyStartProfile(year = simulationContext.currentYear)
       if (def.scope !== "state") continue;
       const key = progressKey(def.id, "state", state.i);
       if (byKey.has(key)) continue;
-      const start = def.startStage;
+      const start = resolveStartStage(def, period);
       if (!start || start === "locked") {
         byKey.set(key, {
           technologyId: def.id,
