@@ -29,6 +29,22 @@ export function measureTickStep<T>(label: string, fn: () => T): T {
   return result;
 }
 
+/**
+ * Same as measureTickStep(), for an async step (e.g. one of the "*Incrementally" economy-
+ * generation entry points that yield to the browser between batches). The recorded duration
+ * spans the full awaited call, including any yields, so it reflects the effective wall-clock
+ * cost a caller actually waited through — not just the synchronous dispatch time a plain
+ * measureTickStep(label, () => asyncFn()) would capture.
+ */
+export async function measureTickStepAsync<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  if (!TIME) return fn();
+
+  const start = performance.now();
+  const result = await fn();
+  record(label, performance.now() - start);
+  return result;
+}
+
 function record(label: string, elapsedMs: number): void {
   const entry = _entries.get(label) ?? { label, calls: 0, totalMs: 0, lastMs: 0, maxMs: 0 };
   entry.calls += 1;

@@ -14,6 +14,7 @@ import {
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { getRetailLotSize } from "./goodsTradeLots";
+import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import type { Market } from "./marketTypes";
 import type {
   BurgRetailInventory,
@@ -510,6 +511,46 @@ export function planRetailReplenishment(markets: readonly Market[] = getMarkets(
   // Full prune only when planning the whole map (monthly / enable). Partial daily
   // delivery plans leave orphan cleanup to the next full pass.
   if (markets.length >= allMarkets.length) pruneEmptyRows(burgsByMarket);
+}
+
+/**
+ * Same reconcile + replenish work as reconcileRetailInventory() followed by
+ * planRetailReplenishment() (identical per-market output — both call ensurePositions() and
+ * planGoodReplenishment() for every market), but yields to the browser between markets so a
+ * newly generated map's initial retail-replenishment plan doesn't block the main thread for its
+ * whole cost in one block. Used only by the "Preparing economy" Map Ready task (economy/
+ * index.tsx) — every other caller (Advance Time, player-facing quotes, tests) keeps calling the
+ * synchronous reconcileRetailInventory()/planRetailReplenishment() directly, since they need an
+ * immediately-consistent result. Returns false if cancelled before completion.
+ */
+export async function planRetailReplenishmentIncrementally(
+  markets: readonly Market[] = getMarkets(),
+  tick = currentTick(),
+  options: IncrementalBatchOptions = {}
+): Promise<boolean> {
+  const allMarkets = getMarkets();
+  const isFullPass = markets.length >= allMarkets.length;
+  const burgsByMarket = buildBurgsByMarket();
+  if (isFullPass) pruneEmptyRows(burgsByMarket);
+  const marketIdSet = isFullPass ? undefined : new Set(markets.map(market => market.i));
+  const totals = buildPhysicalTotals(marketIdSet);
+
+  const completed = await runBatchedYielding(
+    markets,
+    market => {
+      ensurePositions(market, tick, burgsByMarket, totals);
+      for (const goodId of marketGoodsIds(market)) planGoodReplenishment(market, goodId, tick, burgsByMarket);
+    },
+    options
+  );
+  if (!completed) return false;
+
+  setBurgRetailInventories(getBurgRetailInventories());
+  setBurgWholesaleInventories(getBurgWholesaleInventories());
+  setMarketShipments(getMarketShipments());
+  acknowledgeReconciledMarkets(markets, allMarkets);
+  if (isFullPass) pruneEmptyRows(burgsByMarket);
+  return true;
 }
 
 /**

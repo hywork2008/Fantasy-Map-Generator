@@ -17,7 +17,7 @@ import {
   useTimeSimulationState,
   useUiPreferencesState
 } from "../hostUi";
-import { formatPrice, measureTickStep, rn, si, TIME } from "../hostUtils";
+import { formatPrice, measureTickStep, measureTickStepAsync, rn, si, TIME } from "../hostUtils";
 import { getBurgEconomySummary } from "./burgEconomySummary";
 import { recordAdvanceBalanceSnapshot, recordInitialBalanceSnapshot } from "./controllers/balance-history";
 import { economyStyleConfig } from "./EconomyStyleConfig";
@@ -114,6 +114,7 @@ import {
   settleAnnualColdClimateKnowledge,
   settleMonthlyHeating
 } from "./generators/heating";
+import type { IncrementalBatchOptions } from "./generators/incrementalBatching";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
 import { InnStays } from "./generators/innStays";
@@ -134,7 +135,12 @@ import { Minting } from "./generators/minting";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
-import { clearRetailInventory, planRetailReplenishment, tickRetailInventory } from "./generators/retailInventory";
+import {
+  clearRetailInventory,
+  planRetailReplenishment,
+  planRetailReplenishmentIncrementally,
+  tickRetailInventory
+} from "./generators/retailInventory";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { SaltLogistics } from "./generators/saltLogistics";
 import { getBurgSettlementValue, getStateSettlementValue } from "./generators/settlementValuation";
@@ -632,6 +638,21 @@ function synchronizePlayerCommerce(): void {
   measureTickStep("production:merchantPortfolios", () => syncMarketMerchantPortfolios());
   // planRetailReplenishment already reconciles once; do not call reconcile separately.
   measureTickStep("production:planRetail", () => planRetailReplenishment());
+}
+
+/**
+ * Same refresh as synchronizePlayerCommerce() (identical output — planRetailReplenishment's
+ * cost dwarfs syncMarketMerchantPortfolios' in every profiled run), but awaits
+ * planRetailReplenishmentIncrementally() so the browser stays responsive between market
+ * batches. Used only by the "Preparing economy" Map Ready task's initial pass — every other
+ * caller (job board / market / goods edit handlers, "economy.production.settle") keeps calling
+ * the synchronous synchronizePlayerCommerce(), since they need an immediately-consistent result.
+ */
+async function synchronizePlayerCommerceIncrementally(options: IncrementalBatchOptions): Promise<boolean> {
+  measureTickStep("production:merchantPortfolios", () => syncMarketMerchantPortfolios());
+  return measureTickStepAsync("production:planRetail", () =>
+    planRetailReplenishmentIncrementally(undefined, undefined, options)
+  );
 }
 
 function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
@@ -1854,11 +1875,22 @@ export function init(api: ExtensionAPI): void {
           TradeSecurity.generate();
           Taxes.defineTaxRates();
           FoodProduction.seedFoodLedgerBootstrap();
+          const isCancelled = () => !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID);
+          // A user-controlled preference (Options > Generation, "Skip trade route generation")
+          // defers Markets.runGlobalTrade()/Caravans.spawnFromDeals() — the data the Trade
+          // layer/animation draws from — until requested via Tools > Economy > Regenerate >
+          // Production (registered below as "economy-regenerate-production", which always calls
+          // the synchronous Production.produce() regardless of this preference). Everything else
+          // generates as usual; only the trade-matching pass is deferred, since profiling showed
+          // it's the one chunk of this task that's purely about Trade-layer output a fresh map
+          // rarely needs to see immediately.
+          const skipGlobalTrade = useUiPreferencesState.getState().economySkipTradeOnGenerate;
           const completed = await Production.produceIncrementally({
-            isCancelled: () => !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID),
-            onProgress: (done, total) => context.reportProgress(total ? done / total : 1)
+            isCancelled,
+            onProgress: (done, total) => context.reportProgress(total ? done / total : 1),
+            skipGlobalTrade
           });
-          if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+          if (!completed || isCancelled()) return;
           settleMonthlyHeating();
           Taxes.collectTaxes();
           MetallurgWork.generate();
@@ -1871,7 +1903,8 @@ export function init(api: ExtensionAPI): void {
           for (const { burgId, domain } of GuildSuccession.settleAnnual()) {
             GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
           }
-          synchronizePlayerCommerce();
+          const commerceSynced = await synchronizePlayerCommerceIncrementally({ isCancelled });
+          if (!commerceSynced || isCancelled()) return;
           GuildChapters.seedAfterGenerate();
           InnFacilities.generate();
           InnStays.clear();

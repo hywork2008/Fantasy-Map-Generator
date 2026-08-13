@@ -6,6 +6,7 @@ import {
 } from "../../../../data";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
+import { useUiPreferencesState } from "../../../../store/uiPreferencesState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { lock } from "../../../../utils/domUtils";
 import { openDialog } from "../../../dialogs/dialogService";
@@ -14,6 +15,8 @@ import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
+  const skipTradeOnGenerate = useUiPreferencesState(state => state.economySkipTradeOnGenerate);
+  const setSkipTradeOnGenerate = useUiPreferencesState(state => state.setEconomySkipTradeOnGenerate);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   // Generation is merely paused for stage review (including the initial map's review
   // flow), not actively computing a stage — safe to redirect it to a new seed instead
@@ -226,6 +229,20 @@ export const GenerationSettingsTab: React.FC = () => {
                 <option value="balanced">Balanced (ordinary medieval)</option>
                 <option value="subsistence">Subsistence (minimal surplus)</option>
               </select>
+            </td>
+          </tr>
+          <tr data-tip="Defers global trade-route matching and caravan spawning (the Trade layer/animation's data) when preparing a freshly generated map's economy, so the map stays interactive sooner. Re-run it later from Tools > Economy > Regenerate > Production. This is a standing preference, not locked per generation.">
+            <td></td>
+            <th>
+              <label htmlFor="economySkipTradeOnGenerate">Skip trade route generation</label>
+            </th>
+            <td colSpan={2}>
+              <input
+                id="economySkipTradeOnGenerate"
+                type="checkbox"
+                checked={skipTradeOnGenerate}
+                onChange={e => setSkipTradeOnGenerate(e.target.checked)}
+              />
             </td>
           </tr>
           <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Apply on next map generation.">

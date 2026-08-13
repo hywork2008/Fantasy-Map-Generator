@@ -1,6 +1,6 @@
 import { isDistillationKnown } from "../../../generators/technologyProgress";
 import type { Burg } from "../../hostTypes";
-import { DEBUG, ERROR, measureTickStep, rn, TIME } from "../../hostUtils";
+import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
 import {
   getBurgProductionRecords,
   getConstructionOperations,
@@ -214,7 +214,8 @@ export class ProductionModule {
   async produceIncrementally({
     isCancelled = () => false,
     onProgress = () => undefined,
-    frameBudgetMs = 8
+    frameBudgetMs = 8,
+    skipGlobalTrade = false
   }: IncrementalProductionOptions = {}): Promise<boolean> {
     TIME && console.time("generateProduction");
     try {
@@ -236,8 +237,7 @@ export class ProductionModule {
       }
 
       if (isCancelled()) return false;
-      this.finishProductionCycle(cycle);
-      return true;
+      return await this.finishProductionCycleIncrementally(cycle, { isCancelled, frameBudgetMs, skipGlobalTrade });
     } finally {
       TIME && console.timeEnd("generateProduction");
     }
@@ -405,6 +405,77 @@ export class ProductionModule {
       }
       setCraftDomainEmploymentRecords(craftDomainEmploymentRecords);
     });
+  }
+
+  /**
+   * Same steps as finishProductionCycle(), but the two steps that dominate its cost on a large
+   * map — global trade matching and caravan spawning — run through their yielding
+   * "Incrementally" counterparts (Markets.runGlobalTradeIncrementally() /
+   * Caravans.spawnFromDealsIncrementally()) so the browser stays responsive between batches.
+   * `skipGlobalTrade` lets the "Preparing economy" task defer trade-route generation entirely
+   * for this cycle (see IncrementalProductionOptions). Used only by produceIncrementally() —
+   * the synchronous produce() (Advance Time, regenerate, editor actions) always calls
+   * finishProductionCycle() and always computes trade. Returns false if cancelled before
+   * completion.
+   */
+  private async finishProductionCycleIncrementally(
+    cycle: ProductionCycle,
+    { isCancelled = () => false, frameBudgetMs = 8, skipGlobalTrade = false }: IncrementalProductionOptions
+  ): Promise<boolean> {
+    // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
+    // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
+    measureTickStep("production:merchantPrep", () => {
+      MerchantTradeCapital.ensureAllMarkets();
+      ExportStaging.seedInheritedExportWarehouseIfNeeded();
+    });
+
+    measureTickStep("production:pomaceWine", () => {
+      for (const market of getMarkets()) settlePomaceWineMarketProcessing(market);
+    });
+
+    if (!skipGlobalTrade) {
+      const tradeCompleted = await measureTickStepAsync("production:globalTrade", () =>
+        Markets.runGlobalTradeIncrementally({ isCancelled, frameBudgetMs })
+      );
+      if (!tradeCompleted) return false;
+
+      const caravansCompleted = await measureTickStepAsync("production:spawnCaravans", () =>
+        Caravans.spawnFromDealsIncrementally(getDeals(), { isCancelled, frameBudgetMs })
+      );
+      if (!caravansCompleted) return false;
+    }
+
+    if (isCancelled()) return false;
+
+    measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
+    measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
+    measureTickStep("production:syncLedgers", () => {
+      syncBurgMarketLedgers();
+
+      // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
+      // market-wide (urban + rural) replacement demand after this cycle's production and trade.
+      settleTextileHouseholdDemand();
+      settleFoodProcessingHouseholds();
+
+      // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
+      recordFlowCycleEnd();
+      // After enough flow samples, grow land fleets toward measured annual export slots.
+      MerchantTransportAssets.topUpFleetsFromExportDemand();
+
+      const craftEmploymentRecords = Array.from(cycle.craftWorkersByBurg.entries())
+        .filter(([, workers]) => workers > 0)
+        .map(([burgId, workers]) => ({ burgId, workers }));
+      setCraftEmploymentRecords(craftEmploymentRecords);
+
+      const craftDomainEmploymentRecords: CraftDomainEmploymentRecord[] = [];
+      for (const [key, workers] of cycle.craftDomainWorkersByKey) {
+        if (workers <= 0) continue;
+        const [burgId, domain] = parseCraftDomainKey(key);
+        craftDomainEmploymentRecords.push({ burgId, domain, workers });
+      }
+      setCraftDomainEmploymentRecords(craftDomainEmploymentRecords);
+    });
+    return true;
   }
 
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {
@@ -1478,6 +1549,14 @@ type IncrementalProductionOptions = {
   isCancelled?: () => boolean;
   onProgress?: (completed: number, total: number) => void;
   frameBudgetMs?: number;
+  /**
+   * Skips global trade matching and caravan spawning for this cycle (Markets.runGlobalTrade /
+   * Caravans.spawnFromDeals — the data the Trade layer/animation draws from). Used only by the
+   * initial "Preparing economy" Map Ready task when the user has opted to defer trade-route
+   * generation until requested; the "economy.production.settle" / regenerate commands never set
+   * this, so Advance Time and manual regeneration always compute trade normally.
+   */
+  skipGlobalTrade?: boolean;
 };
 
 type BurgProductionState = {

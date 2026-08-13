@@ -1,5 +1,5 @@
 export { measureGenerationStep } from "../generators/generationProfiler";
-export { measureTickStep } from "../generators/tickProfiler";
+export { measureTickStep, measureTickStepAsync } from "../generators/tickProfiler";
 export {
   convertTemperature,
   findAllCellsInRadius,

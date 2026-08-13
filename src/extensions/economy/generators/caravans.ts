@@ -36,6 +36,7 @@ import {
 import { recordFoodDeliveredExport } from "./foodProcessingLedger";
 import { type Good, isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -720,23 +721,11 @@ export class CaravansModule {
   }
 
   /**
-   * Loads commercial cargo into `loading` caravans.
-   * Market↔market cargo is taken from the export warehouse (staging lots), which survives
-   * production-cycle deal wipes. Burg↔market deals still come from the deals array.
+   * Bundles deals sharing an exporter/importer pair — the unit a caravan/route is planned
+   * against. Shared by spawnFromDeals() and spawnFromDealsIncrementally() so both loop over
+   * the exact same bundles, either synchronously or in yielded batches.
    */
-  spawnFromDeals(deals: Deal[]) {
-    const world = getWorldContext();
-    // tick() below filters arrived/lost caravans out of the caravans slice, so deriving
-    // nextId from Math.max over that live array would eventually reuse a completed caravan's
-    // id. The SVG renderer's d3 join is keyed on caravan.i, and a reused id makes it treat an
-    // unrelated new caravan as a continuation of the old one, animating a huge jump between
-    // their positions. A counter stored independently of the filtered array keeps ids unique
-    // for the map's lifetime.
-    let nextId = this.ensureNextCaravanId();
-
-    const burgs = world.pack.burgs;
-    if (!burgs) return;
-
+  private buildDealBundles(deals: Deal[]): RouteBundle[] {
     type RouteKey = `${number}-${string}-${number}-${string}`;
     const bundles = new Map<RouteKey, RouteBundle>();
 
@@ -766,172 +755,233 @@ export class CaravansModule {
       addToBundle(deal);
     }
 
-    for (const bundle of bundles.values()) {
-      let startBurgId: number;
-      if (bundle.sellerType === "market") {
-        const m = getMarketById(bundle.seller);
-        if (!m) continue;
-        startBurgId = m.centerBurgId;
-      } else {
-        startBurgId = bundle.seller;
-      }
+    return Array.from(bundles.values());
+  }
 
-      let endBurgId: number;
-      if (bundle.buyerType === "market") {
-        const m = getMarketById(bundle.buyer);
-        if (!m) continue;
-        endBurgId = m.centerBurgId;
-      } else {
-        endBurgId = bundle.buyer;
-      }
+  /**
+   * Plans and spawns every `loading` caravan for one route bundle (pathfinding, cargo manifest,
+   * fleet-capacity loop). Returns the next unused caravan id, threaded through the caller's
+   * per-map counter across bundles — see spawnFromDeals()'s nextId comment.
+   */
+  private spawnCaravansForBundle(bundle: RouteBundle, world: WorldContext, nextId: number): number {
+    const burgs = world.pack.burgs;
+    if (!burgs) return nextId;
 
-      const startBurg = burgs[startBurgId];
-      const endBurg = burgs[endBurgId];
+    let startBurgId: number;
+    if (bundle.sellerType === "market") {
+      const m = getMarketById(bundle.seller);
+      if (!m) return nextId;
+      startBurgId = m.centerBurgId;
+    } else {
+      startBurgId = bundle.seller;
+    }
 
-      if (!startBurg || !endBurg || startBurg.i === endBurg.i) continue;
+    let endBurgId: number;
+    if (bundle.buyerType === "market") {
+      const m = getMarketById(bundle.buyer);
+      if (!m) return nextId;
+      endBurgId = m.centerBurgId;
+    } else {
+      endBurgId = bundle.buyer;
+    }
 
-      const routePath = TradeRoutePlanner.findRoutePath(startBurg.cell, endBurg.cell);
-      if (!routePath || routePath.segments.length === 0) continue;
+    const startBurg = burgs[startBurgId];
+    const endBurg = burgs[endBurgId];
 
-      const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
-        type: segment.type,
-        // Preserve cell ids for grade-aware duration (Phase 1).
-        points: segment.points.map(toTradeRoutePoint)
-      }));
-      const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
-      if (distance <= 0) continue;
+    if (!startBurg || !endBurg || startBurg.i === endBurg.i) return nextId;
 
-      const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
-      const maintenanceCost = getCaravanMaintenanceCost(durationDays);
-      const logistics = TradeLogisticsSettings.getOptions();
-      const maxLoadingWaitDays = maxWaitDaysForRoute(routeSegments, distance, {
-        maxWaitDaysLand: logistics.maxWaitDaysLand,
-        maxWaitDaysSea: logistics.maxWaitDaysSea,
-        maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
-        shortSeaDistanceKm: logistics.shortSeaDistanceKm
-      });
-      const transportedDeals = selectRouteCargo(
-        bundle.deals,
-        getGoods(),
-        durationDays,
-        maxLoadingWaitDays,
-        maintenanceCost,
-        routeSegments
+    const routePath = TradeRoutePlanner.findRoutePath(startBurg.cell, endBurg.cell);
+    if (!routePath || routePath.segments.length === 0) return nextId;
+
+    const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
+      type: segment.type,
+      // Preserve cell ids for grade-aware duration (Phase 1).
+      points: segment.points.map(toTradeRoutePoint)
+    }));
+    const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
+    if (distance <= 0) return nextId;
+
+    const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
+    const maintenanceCost = getCaravanMaintenanceCost(durationDays);
+    const logistics = TradeLogisticsSettings.getOptions();
+    const maxLoadingWaitDays = maxWaitDaysForRoute(routeSegments, distance, {
+      maxWaitDaysLand: logistics.maxWaitDaysLand,
+      maxWaitDaysSea: logistics.maxWaitDaysSea,
+      maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
+      shortSeaDistanceKm: logistics.shortSeaDistanceKm
+    });
+    const transportedDeals = selectRouteCargo(
+      bundle.deals,
+      getGoods(),
+      durationDays,
+      maxLoadingWaitDays,
+      maintenanceCost,
+      routeSegments
+    );
+    if (!transportedDeals.length) return nextId;
+
+    const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(bundle);
+    if (dispatcherMarketId === null) return nextId;
+
+    // Commercial shipments accumulate in `loading` without reserving fleet assets. Assets are
+    // reserved only at departure so a half-empty hold does not lock a cart or hull for weeks.
+    while (true) {
+      const maxCapacitySlots = MerchantTransportAssets.getLargestAvailableRouteCapacity(
+        dispatcherMarketId,
+        routeSegments,
+        DEFAULT_DRAFT_ANIMAL_ID
       );
-      if (!transportedDeals.length) continue;
+      if (maxCapacitySlots === 0) break;
 
-      const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(bundle);
-      if (dispatcherMarketId === null) continue;
-
-      // Commercial shipments accumulate in `loading` without reserving fleet assets. Assets are
-      // reserved only at departure so a half-empty hold does not lock a cart or hull for weeks.
-      while (true) {
-        const maxCapacitySlots = MerchantTransportAssets.getLargestAvailableRouteCapacity(
-          dispatcherMarketId,
-          routeSegments,
-          DEFAULT_DRAFT_ANIMAL_ID
-        );
-        if (maxCapacitySlots === 0) break;
-
-        // Prefer topping up an existing loading caravan on the same O/D before opening a new one.
-        const existingLoading = getCaravans().find(
-          caravan => caravan.state === "loading" && sameRouteBundle(caravan, bundle)
-        );
-        if (existingLoading?.loading) {
-          const freeSlots = existingLoading.loading.plannedCapacitySlots - payloadUsedSlots(existingLoading);
-          if (freeSlots > UNIT_EPSILON) {
-            const [topUp] = buildCargoManifests(
-              transportedDeals,
-              getGoods(),
-              routeSegments,
-              DEFAULT_DRAFT_ANIMAL_ID,
-              freeSlots
-            );
-            if (topUp?.items.length) {
-              const addedSlots = appendPayloadFromManifest(existingLoading, topUp);
-              // A rejected/stale manifest must not re-enter this branch with exactly the same
-              // deals. Without this progress guard, generation can spin forever on one O/D pair.
-              if (addedSlots <= UNIT_EPSILON) break;
-              if (existingLoading.transportAllocations) {
-                for (const allocation of existingLoading.transportAllocations) {
-                  allocation.usedSlots = payloadUsedSlots(existingLoading);
-                }
+      // Prefer topping up an existing loading caravan on the same O/D before opening a new one.
+      const existingLoading = getCaravans().find(
+        caravan => caravan.state === "loading" && sameRouteBundle(caravan, bundle)
+      );
+      if (existingLoading?.loading) {
+        const freeSlots = existingLoading.loading.plannedCapacitySlots - payloadUsedSlots(existingLoading);
+        if (freeSlots > UNIT_EPSILON) {
+          const [topUp] = buildCargoManifests(
+            transportedDeals,
+            getGoods(),
+            routeSegments,
+            DEFAULT_DRAFT_ANIMAL_ID,
+            freeSlots
+          );
+          if (topUp?.items.length) {
+            const addedSlots = appendPayloadFromManifest(existingLoading, topUp);
+            // A rejected/stale manifest must not re-enter this branch with exactly the same
+            // deals. Without this progress guard, generation can spin forever on one O/D pair.
+            if (addedSlots <= UNIT_EPSILON) break;
+            if (existingLoading.transportAllocations) {
+              for (const allocation of existingLoading.transportAllocations) {
+                allocation.usedSlots = payloadUsedSlots(existingLoading);
               }
-              tryDepartLoadingCaravan(existingLoading);
-              continue;
             }
+            tryDepartLoadingCaravan(existingLoading);
+            continue;
           }
         }
-
-        const [manifest] = buildCargoManifests(
-          transportedDeals,
-          getGoods(),
-          routeSegments,
-          DEFAULT_DRAFT_ANIMAL_ID,
-          maxCapacitySlots
-        );
-        if (!manifest?.items.length) break;
-
-        // The manifest has already selected the smallest suitable vehicle. Using the fleet's
-        // largest capacity here made a small cart load wait for a wagon-sized hold.
-        const plannedCapacitySlots = getManifestCapacitySlots(manifest.allocations);
-
-        const bake = resolveBakeContext(getSimulationMonth());
-        const travelLegs = bakeCaravanTravelLegs(
-          routeSegments,
-          world.distanceScale,
-          DEFAULT_DRAFT_ANIMAL_ID,
-          bake.movement,
-          bake.month,
-          bake.heights,
-          bake.heightExponent,
-          world
-        );
-
-        const dayOfMonth = getSimulationDay();
-        const caravan: Caravan = {
-          i: nextId++,
-          seller: bundle.seller,
-          sellerType: bundle.sellerType,
-          buyer: bundle.buyer,
-          buyerType: bundle.buyerType,
-          payload: [],
-          units: 0,
-          value: 0,
-          merchantOrganizationId: resolveMerchantOrganizationId(dispatcherMarketId),
-          draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
-          // Planned abstract allocations for UI; real assets attach at depart.
-          transportAllocations: manifest.allocations.map(allocation => ({
-            ...allocation,
-            usedSlots: manifest.usedSlots
-          })),
-          transportDispatcherMarketId: dispatcherMarketId,
-          routeSegments,
-          totalDistance: distance,
-          currentDistance: 0,
-          travelLegs,
-          state: "loading",
-          departReason: "waiting",
-          loading: {
-            waitedDays: 0,
-            maxWaitDays: maxLoadingWaitDays,
-            targetUtilization: logistics.targetUtilization,
-            minSailUtilization: logistics.minSailUtilization,
-            plannedCapacitySlots,
-            sailScheduleDays: [...logistics.sailDays],
-            nextSailDay: nextScheduledSailDay(dayOfMonth, logistics.sailDays)
-          }
-        };
-        const addedSlots = appendPayloadFromManifest(caravan, manifest);
-        if (addedSlots <= UNIT_EPSILON || !caravan.payload.length) break;
-        getCaravans().push(caravan);
-
-        // Immediate depart when the first load already meets the fill target (common for large deals).
-        tryDepartLoadingCaravan(caravan);
       }
+
+      const [manifest] = buildCargoManifests(
+        transportedDeals,
+        getGoods(),
+        routeSegments,
+        DEFAULT_DRAFT_ANIMAL_ID,
+        maxCapacitySlots
+      );
+      if (!manifest?.items.length) break;
+
+      // The manifest has already selected the smallest suitable vehicle. Using the fleet's
+      // largest capacity here made a small cart load wait for a wagon-sized hold.
+      const plannedCapacitySlots = getManifestCapacitySlots(manifest.allocations);
+
+      const bake = resolveBakeContext(getSimulationMonth());
+      const travelLegs = bakeCaravanTravelLegs(
+        routeSegments,
+        world.distanceScale,
+        DEFAULT_DRAFT_ANIMAL_ID,
+        bake.movement,
+        bake.month,
+        bake.heights,
+        bake.heightExponent,
+        world
+      );
+
+      const dayOfMonth = getSimulationDay();
+      const caravan: Caravan = {
+        i: nextId++,
+        seller: bundle.seller,
+        sellerType: bundle.sellerType,
+        buyer: bundle.buyer,
+        buyerType: bundle.buyerType,
+        payload: [],
+        units: 0,
+        value: 0,
+        merchantOrganizationId: resolveMerchantOrganizationId(dispatcherMarketId),
+        draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
+        // Planned abstract allocations for UI; real assets attach at depart.
+        transportAllocations: manifest.allocations.map(allocation => ({
+          ...allocation,
+          usedSlots: manifest.usedSlots
+        })),
+        transportDispatcherMarketId: dispatcherMarketId,
+        routeSegments,
+        totalDistance: distance,
+        currentDistance: 0,
+        travelLegs,
+        state: "loading",
+        departReason: "waiting",
+        loading: {
+          waitedDays: 0,
+          maxWaitDays: maxLoadingWaitDays,
+          targetUtilization: logistics.targetUtilization,
+          minSailUtilization: logistics.minSailUtilization,
+          plannedCapacitySlots,
+          sailScheduleDays: [...logistics.sailDays],
+          nextSailDay: nextScheduledSailDay(dayOfMonth, logistics.sailDays)
+        }
+      };
+      const addedSlots = appendPayloadFromManifest(caravan, manifest);
+      if (addedSlots <= UNIT_EPSILON || !caravan.payload.length) break;
+      getCaravans().push(caravan);
+
+      // Immediate depart when the first load already meets the fill target (common for large deals).
+      tryDepartLoadingCaravan(caravan);
+    }
+
+    return nextId;
+  }
+
+  /**
+   * Loads commercial cargo into `loading` caravans.
+   * Market↔market cargo is taken from the export warehouse (staging lots), which survives
+   * production-cycle deal wipes. Burg↔market deals still come from the deals array.
+   */
+  spawnFromDeals(deals: Deal[]) {
+    const world = getWorldContext();
+    // tick() below filters arrived/lost caravans out of the caravans slice, so deriving
+    // nextId from Math.max over that live array would eventually reuse a completed caravan's
+    // id. The SVG renderer's d3 join is keyed on caravan.i, and a reused id makes it treat an
+    // unrelated new caravan as a continuation of the old one, animating a huge jump between
+    // their positions. A counter stored independently of the filtered array keeps ids unique
+    // for the map's lifetime.
+    let nextId = this.ensureNextCaravanId();
+
+    if (!world.pack.burgs) return;
+
+    for (const bundle of this.buildDealBundles(deals)) {
+      nextId = this.spawnCaravansForBundle(bundle, world, nextId);
     }
 
     setNextCaravanId(nextId);
+  }
+
+  /**
+   * Same bundling + per-bundle spawn as spawnFromDeals() (identical output — both call
+   * buildDealBundles()/spawnCaravansForBundle()), but yields to the browser between bundles so
+   * a newly generated map's initial caravan spawn doesn't block the main thread for its whole
+   * cost in one block. Used only by the "Preparing economy" Map Ready task (economy/index.tsx)
+   * — every other caller keeps using the synchronous spawnFromDeals(). Returns false if
+   * cancelled before completion.
+   */
+  async spawnFromDealsIncrementally(deals: Deal[], options: IncrementalBatchOptions = {}): Promise<boolean> {
+    const world = getWorldContext();
+    let nextId = this.ensureNextCaravanId();
+
+    if (!world.pack.burgs) return true;
+
+    const bundles = this.buildDealBundles(deals);
+    const completed = await runBatchedYielding(
+      bundles,
+      bundle => {
+        nextId = this.spawnCaravansForBundle(bundle, world, nextId);
+      },
+      options
+    );
+
+    setNextCaravanId(nextId);
+    return completed;
   }
 
   tick(deltaDays: number): CaravanTickResult {

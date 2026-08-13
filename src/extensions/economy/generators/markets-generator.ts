@@ -53,6 +53,7 @@ import {
 import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
+import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
 import {
   computeMarketGoodFlowBudget,
@@ -171,6 +172,19 @@ interface MarketTradeOpportunity {
  */
 function tradeRouteKey(exporterId: number, importerId: number): string {
   return `${exporterId}-${importerId}`;
+}
+
+/** Shared setup computed once per runGlobalTrade()/runGlobalTradeIncrementally() pass. */
+interface GlobalTradeContext {
+  goods: Good[];
+  consumerDemandFactors: number[];
+  industrialDemandFactors: number[];
+  populationByMarket: number[];
+  textilePopulationByMarket: number[];
+  mapDiagonal: number;
+  tradeReserveFactor: number;
+  minUnit: number;
+  travelRoutes: MarketTradeRoutes;
 }
 
 export type { Deal, Market } from "./marketTypes";
@@ -1348,233 +1362,336 @@ export class MarketsModule {
     return { status: "fulfilled" };
   }
 
-  runGlobalTrade(): void {
+  private buildGlobalTradeContext(): GlobalTradeContext {
     const goods = getGoods().filter(isGoodEnabled);
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const populationByMarket = this.calculatePopulationByMarket();
     const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
-
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
-    const TRADE_RESERVE_FACTOR = FLOW_TRADE_RESERVE_FACTOR;
-    const MIN_UNIT = 0.1;
     const travelRoutes = this.getCachedMarketTradeRoutes();
 
-    // Pass 1: collect every good's candidate opportunities without gating on whether that
-    // single good alone would justify a dedicated trip. A shared caravan/route only pays
-    // maintenanceCost once, so admission is decided per-route (pass 2) after every good
-    // sharing that exporter/importer pair is known — a high-value good can fund the trip
-    // while cheaper goods ride along for their own positive-but-thin margin.
-    const opportunitiesByGood = new Map<number, MarketTradeOpportunity[]>();
-    const routeMarginalProfit = new Map<string, number>();
-    const routeMaintenanceCost = new Map<string, number>();
+    return {
+      goods,
+      consumerDemandFactors,
+      industrialDemandFactors,
+      populationByMarket,
+      textilePopulationByMarket,
+      mapDiagonal,
+      tradeReserveFactor: FLOW_TRADE_RESERVE_FACTOR,
+      minUnit: 0.1,
+      travelRoutes
+    };
+  }
 
-    for (const good of goods) {
-      if (!good.distribution && !good.recipes?.length) continue;
+  /**
+   * Pass 1 (per good): collect this good's candidate trade opportunities without gating on
+   * whether the good alone would justify a dedicated trip — a shared caravan/route only pays
+   * maintenanceCost once, so admission is decided per-route (pass 2) after every good sharing
+   * that exporter/importer pair is known. A high-value good can fund the trip while cheaper
+   * goods ride along for their own positive-but-thin margin. Mutates `opportunitiesByGood` /
+   * `routeMarginalProfit` / `routeMaintenanceCost` in place so runGlobalTrade() and
+   * runGlobalTradeIncrementally() can share this exact per-good logic while looping over
+   * `ctx.goods` either synchronously or in yielded batches.
+   */
+  private collectGlobalTradeOpportunitiesForGood(
+    good: Good,
+    ctx: GlobalTradeContext,
+    opportunitiesByGood: Map<number, MarketTradeOpportunity[]>,
+    routeMarginalProfit: Map<string, number>,
+    routeMaintenanceCost: Map<string, number>
+  ): void {
+    if (!good.distribution && !good.recipes?.length) return;
 
-      const safetyReserves: number[] = [];
-      const exporters: { market: Market; reserve: number }[] = [];
-      const importers: { market: Market; reserve: number }[] = [];
+    const {
+      consumerDemandFactors,
+      industrialDemandFactors,
+      populationByMarket,
+      textilePopulationByMarket,
+      mapDiagonal,
+      tradeReserveFactor,
+      minUnit,
+      travelRoutes
+    } = ctx;
 
-      for (const market of getMarkets()) {
-        const population = populationByMarket[market.i] || 0;
-        const demand = this.calculateGoodDemand(
-          good,
-          population,
-          textilePopulationByMarket[market.i] || population,
-          consumerDemandFactors[good.i] || 0,
-          industrialDemandFactors[good.i] || 0
-        );
-        const reserve = demand * (1 + TRADE_RESERVE_FACTOR);
-        safetyReserves[market.i] = reserve;
+    const exporters: { market: Market; reserve: number }[] = [];
+    const importers: { market: Market; reserve: number }[] = [];
 
-        const marketGood = this.getMarketGood(market, good);
-        if (marketGood.stock > reserve) {
-          exporters.push({ market, reserve });
-        } else if (marketGood.stock < reserve) {
-          importers.push({ market, reserve });
-        }
-      }
+    for (const market of getMarkets()) {
+      const population = populationByMarket[market.i] || 0;
+      const demand = this.calculateGoodDemand(
+        good,
+        population,
+        textilePopulationByMarket[market.i] || population,
+        consumerDemandFactors[good.i] || 0,
+        industrialDemandFactors[good.i] || 0
+      );
+      const reserve = demand * (1 + tradeReserveFactor);
 
-      const opportunities: MarketTradeOpportunity[] = [];
-
-      if (exporters.length && importers.length) {
-        for (const exporter of exporters) {
-          const routes = travelRoutes[exporter.market.i];
-          if (!routes) continue;
-
-          const exporterGood = this.getMarketGood(exporter.market, good);
-          const available = Math.max(0, exporterGood.stock - exporter.reserve);
-          if (available < MIN_UNIT) continue;
-
-          const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
-          const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
-
-          for (const importer of importers) {
-            const importerGood = this.getMarketGood(importer.market, good);
-            const needed = Math.max(0, importer.reserve - importerGood.stock);
-            const units = Math.min(available, needed);
-            if (units < MIN_UNIT) continue;
-
-            const route = routes[importer.market.i];
-            if (
-              !route ||
-              !isGoodTradePermittedForShipment(
-                good,
-                route.durationDays,
-                this.getExpectedLoadingWaitDays(route),
-                route.segments,
-                route.maxTemperatureC
-              ) ||
-              !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
-            ) {
-              continue;
-            }
-
-            const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
-            const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
-            if (unitProfit <= 0) continue;
-            const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
-
-            opportunities.push({
-              exporter: exporter.market,
-              importer: importer.market,
-              reserveExporter: exporter.reserve,
-              reserveImporter: importer.reserve,
-              transportCost,
-              exporterTaxPerUnit,
-              units,
-              unitProfit,
-              totalProfit,
-              distance: route.distance,
-              distanceKm: route.distanceKm,
-              durationDays: route.durationDays,
-              maintenanceCost: getCaravanMaintenanceCost(route.durationDays),
-              routeSegments: route.segments
-            });
-          }
-        }
-      }
-
-      if (!opportunities.length) {
-        this.addSpeculativeGlobalTradeOpportunities({
-          good,
-          populationByMarket,
-          travelRoutes,
-          mapDiagonal,
-          opportunities
-        });
-      }
-
-      opportunities.sort((a, b) => b.totalProfit - a.totalProfit || b.units - a.units);
-      opportunitiesByGood.set(good.i, opportunities);
-
-      for (const opportunity of opportunities) {
-        const key = tradeRouteKey(opportunity.exporter.i, opportunity.importer.i);
-        // totalProfit is already net of this route's maintenanceCost; add it back once per
-        // candidate so goods sharing a route can be summed before the fixed cost is deducted.
-        const marginalProfit = opportunity.totalProfit + opportunity.maintenanceCost;
-        routeMarginalProfit.set(key, (routeMarginalProfit.get(key) || 0) + marginalProfit);
-        routeMaintenanceCost.set(key, opportunity.maintenanceCost);
+      const marketGood = this.getMarketGood(market, good);
+      if (marketGood.stock > reserve) {
+        exporters.push({ market, reserve });
+      } else if (marketGood.stock < reserve) {
+        importers.push({ market, reserve });
       }
     }
 
-    // Pass 2: a route "launches" once the combined margin of every good crossing it clears
-    // the route's one-time maintenanceCost. Once launched, every candidate on that route rides
-    // along regardless of whether its own margin alone would have cleared the bar.
+    const opportunities: MarketTradeOpportunity[] = [];
+
+    if (exporters.length && importers.length) {
+      for (const exporter of exporters) {
+        const routes = travelRoutes[exporter.market.i];
+        if (!routes) continue;
+
+        const exporterGood = this.getMarketGood(exporter.market, good);
+        const available = Math.max(0, exporterGood.stock - exporter.reserve);
+        if (available < minUnit) continue;
+
+        const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
+        const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+
+        for (const importer of importers) {
+          const importerGood = this.getMarketGood(importer.market, good);
+          const needed = Math.max(0, importer.reserve - importerGood.stock);
+          const units = Math.min(available, needed);
+          if (units < minUnit) continue;
+
+          const route = routes[importer.market.i];
+          if (
+            !route ||
+            !isGoodTradePermittedForShipment(
+              good,
+              route.durationDays,
+              this.getExpectedLoadingWaitDays(route),
+              route.segments,
+              route.maxTemperatureC
+            ) ||
+            !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
+          ) {
+            continue;
+          }
+
+          const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
+          const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
+          if (unitProfit <= 0) continue;
+          const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
+
+          opportunities.push({
+            exporter: exporter.market,
+            importer: importer.market,
+            reserveExporter: exporter.reserve,
+            reserveImporter: importer.reserve,
+            transportCost,
+            exporterTaxPerUnit,
+            units,
+            unitProfit,
+            totalProfit,
+            distance: route.distance,
+            distanceKm: route.distanceKm,
+            durationDays: route.durationDays,
+            maintenanceCost: getCaravanMaintenanceCost(route.durationDays),
+            routeSegments: route.segments
+          });
+        }
+      }
+    }
+
+    if (!opportunities.length) {
+      this.addSpeculativeGlobalTradeOpportunities({
+        good,
+        populationByMarket,
+        travelRoutes,
+        mapDiagonal,
+        opportunities
+      });
+    }
+
+    opportunities.sort((a, b) => b.totalProfit - a.totalProfit || b.units - a.units);
+    opportunitiesByGood.set(good.i, opportunities);
+
+    for (const opportunity of opportunities) {
+      const key = tradeRouteKey(opportunity.exporter.i, opportunity.importer.i);
+      // totalProfit is already net of this route's maintenanceCost; add it back once per
+      // candidate so goods sharing a route can be summed before the fixed cost is deducted.
+      const marginalProfit = opportunity.totalProfit + opportunity.maintenanceCost;
+      routeMarginalProfit.set(key, (routeMarginalProfit.get(key) || 0) + marginalProfit);
+      routeMaintenanceCost.set(key, opportunity.maintenanceCost);
+    }
+  }
+
+  /**
+   * Pass 2: a route "launches" once the combined margin of every good crossing it clears
+   * the route's one-time maintenanceCost. Once launched, every candidate on that route rides
+   * along regardless of whether its own margin alone would have cleared the bar. Cheap relative
+   * to passes 1/3 (bounded by distinct route pairs, not goods × markets), so neither
+   * runGlobalTrade() nor runGlobalTradeIncrementally() batches this one.
+   */
+  private resolveViableGlobalTradeRoutes(
+    routeMarginalProfit: Map<string, number>,
+    routeMaintenanceCost: Map<string, number>
+  ): Set<string> {
     const viableRoutes = new Set<string>();
     for (const [key, marginalProfit] of routeMarginalProfit) {
       const maintenanceCost = routeMaintenanceCost.get(key) || 0;
       if (marginalProfit - maintenanceCost >= MIN_TRADE_PROFIT) viableRoutes.add(key);
     }
+    return viableRoutes;
+  }
 
-    // Pass 3: emit deals and apply price/stock effects, good by good, exactly as before —
-    // only the admission gate (route viability instead of per-good totalProfit) changed.
-    for (const good of goods) {
-      const opportunities = opportunitiesByGood.get(good.i);
-      if (!opportunities?.length) continue;
+  /**
+   * Pass 3 (per good): emit deals and apply price/stock effects — only the admission gate
+   * (route viability instead of per-good totalProfit) differs from a naive per-good cutoff.
+   */
+  private emitGlobalTradeDealsForGood(
+    good: Good,
+    ctx: GlobalTradeContext,
+    opportunitiesByGood: Map<number, MarketTradeOpportunity[]>,
+    viableRoutes: Set<string>
+  ): void {
+    const opportunities = opportunitiesByGood.get(good.i);
+    if (!opportunities?.length) return;
 
-      const importerStockAdjustments = new Map<number, number>();
+    const { consumerDemandFactors, industrialDemandFactors, populationByMarket, tradeReserveFactor, minUnit } = ctx;
+    const importerStockAdjustments = new Map<number, number>();
 
-      for (const opportunity of opportunities) {
-        if (!viableRoutes.has(tradeRouteKey(opportunity.exporter.i, opportunity.importer.i))) continue;
+    for (const opportunity of opportunities) {
+      if (!viableRoutes.has(tradeRouteKey(opportunity.exporter.i, opportunity.importer.i))) continue;
 
-        const exporterGood = this.getMarketGood(opportunity.exporter, good);
-        const importerGood = this.getMarketGood(opportunity.importer, good);
+      const exporterGood = this.getMarketGood(opportunity.exporter, good);
+      const importerGood = this.getMarketGood(opportunity.importer, good);
 
-        const available = Math.max(0, exporterGood.stock - opportunity.reserveExporter);
-        const importerAdj = importerStockAdjustments.get(opportunity.importer.i) || 0;
-        const needed = Math.max(0, opportunity.reserveImporter - (importerGood.stock + importerAdj));
-        // Soft export budget for natural surplus trades: keep target months-of-cover in retail.
-        // Speculative opportunities (targetSalePrice set) keep the classic available/needed clamp —
-        // they already use a different reserve definition and would otherwise be zeroed by cover.
-        let units = Math.min(available, needed);
-        if (opportunity.targetSalePrice === undefined) {
-          const population = populationByMarket[opportunity.exporter.i] || 0;
-          const cycleDemand =
-            population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0));
-          const flowBudget = computeMarketGoodFlowBudget({
-            marketId: opportunity.exporter.i,
-            goodId: good.i,
-            stock: exporterGood.stock,
-            cycleDemand,
-            monthsOfCover: getDefaultMonthsOfCover(good),
-            cargoSlotsPerUnit: getGoodCargoSlotsPerUnit(good),
-            tradeReserveFactor: TRADE_RESERVE_FACTOR
-          });
-          units = Math.min(units, flowBudget.exportBudget);
-        }
-        // Indivisible units ("head" livestock, ships, etc. — see INDIVISIBLE_UNITS in
-        // goodsTradeLots.ts) must not fraction across a caravan trip either: a market can't
-        // wholesale 0.4 of a live animal any more than a player can retail-buy one.
-        units = floorToRetailLot(units, getRetailLotSize(good));
-        if (units < MIN_UNIT) continue;
-
-        const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
-        const targetSalePrice = opportunity.targetSalePrice ?? importerGood.price;
-        if (targetSalePrice - landedCost <= 0) continue;
-
-        const deals = getDeals();
-        const deal: Deal = {
-          i: deals.length,
-          seller: opportunity.exporter.i,
-          sellerType: "market",
-          buyer: opportunity.importer.i,
-          buyerType: "market",
-          good: good.i,
-          units,
-          remainingUnits: units,
-          price: landedCost,
-          tax: opportunity.exporterTaxPerUnit * units,
-          distance: rn(opportunity.distanceKm, 2),
-          durationDays: opportunity.durationDays,
-          maintenanceCost: rn(opportunity.maintenanceCost, 2),
-          accountingPeriodDays: getTradeAccountingPeriodDays(opportunity.durationDays)
-        };
-
-        // Retail → export warehouse (single stock deduct). Caravan load takes from the lot later.
-        const lot = ExportStaging.bookFromRetail({
+      const available = Math.max(0, exporterGood.stock - opportunity.reserveExporter);
+      const importerAdj = importerStockAdjustments.get(opportunity.importer.i) || 0;
+      const needed = Math.max(0, opportunity.reserveImporter - (importerGood.stock + importerAdj));
+      // Soft export budget for natural surplus trades: keep target months-of-cover in retail.
+      // Speculative opportunities (targetSalePrice set) keep the classic available/needed clamp —
+      // they already use a different reserve definition and would otherwise be zeroed by cover.
+      let units = Math.min(available, needed);
+      if (opportunity.targetSalePrice === undefined) {
+        const population = populationByMarket[opportunity.exporter.i] || 0;
+        const cycleDemand =
+          population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0));
+        const flowBudget = computeMarketGoodFlowBudget({
           marketId: opportunity.exporter.i,
-          destinationMarketId: opportunity.importer.i,
           goodId: good.i,
-          units,
-          unitCost: landedCost,
-          dealId: deal.i,
-          distance: deal.distance,
-          durationDays: deal.durationDays,
-          maintenanceCost: deal.maintenanceCost,
-          taxPerUnit: opportunity.exporterTaxPerUnit
+          stock: exporterGood.stock,
+          cycleDemand,
+          monthsOfCover: getDefaultMonthsOfCover(good),
+          cargoSlotsPerUnit: getGoodCargoSlotsPerUnit(good),
+          tradeReserveFactor
         });
-        if (!lot) continue;
-        deal.stagingLotId = lot.id;
-        deals.push(deal);
-
-        exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
-        importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
-        importerStockAdjustments.set(opportunity.importer.i, importerAdj + units);
-        // Note: importerGood.stock is NO LONGER instantly increased. Caravans physically transport it.
+        units = Math.min(units, flowBudget.exportBudget);
       }
+      // Indivisible units ("head" livestock, ships, etc. — see INDIVISIBLE_UNITS in
+      // goodsTradeLots.ts) must not fraction across a caravan trip either: a market can't
+      // wholesale 0.4 of a live animal any more than a player can retail-buy one.
+      units = floorToRetailLot(units, getRetailLotSize(good));
+      if (units < minUnit) continue;
+
+      const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
+      const targetSalePrice = opportunity.targetSalePrice ?? importerGood.price;
+      if (targetSalePrice - landedCost <= 0) continue;
+
+      const deals = getDeals();
+      const deal: Deal = {
+        i: deals.length,
+        seller: opportunity.exporter.i,
+        sellerType: "market",
+        buyer: opportunity.importer.i,
+        buyerType: "market",
+        good: good.i,
+        units,
+        remainingUnits: units,
+        price: landedCost,
+        tax: opportunity.exporterTaxPerUnit * units,
+        distance: rn(opportunity.distanceKm, 2),
+        durationDays: opportunity.durationDays,
+        maintenanceCost: rn(opportunity.maintenanceCost, 2),
+        accountingPeriodDays: getTradeAccountingPeriodDays(opportunity.durationDays)
+      };
+
+      // Retail → export warehouse (single stock deduct). Caravan load takes from the lot later.
+      const lot = ExportStaging.bookFromRetail({
+        marketId: opportunity.exporter.i,
+        destinationMarketId: opportunity.importer.i,
+        goodId: good.i,
+        units,
+        unitCost: landedCost,
+        dealId: deal.i,
+        distance: deal.distance,
+        durationDays: deal.durationDays,
+        maintenanceCost: deal.maintenanceCost,
+        taxPerUnit: opportunity.exporterTaxPerUnit
+      });
+      if (!lot) continue;
+      deal.stagingLotId = lot.id;
+      deals.push(deal);
+
+      exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
+      importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
+      importerStockAdjustments.set(opportunity.importer.i, importerAdj + units);
+      // Note: importerGood.stock is NO LONGER instantly increased. Caravans physically transport it.
     }
+  }
+
+  runGlobalTrade(): void {
+    const ctx = this.buildGlobalTradeContext();
+    const opportunitiesByGood = new Map<number, MarketTradeOpportunity[]>();
+    const routeMarginalProfit = new Map<string, number>();
+    const routeMaintenanceCost = new Map<string, number>();
+
+    for (const good of ctx.goods) {
+      this.collectGlobalTradeOpportunitiesForGood(
+        good,
+        ctx,
+        opportunitiesByGood,
+        routeMarginalProfit,
+        routeMaintenanceCost
+      );
+    }
+
+    const viableRoutes = this.resolveViableGlobalTradeRoutes(routeMarginalProfit, routeMaintenanceCost);
+
+    for (const good of ctx.goods) {
+      this.emitGlobalTradeDealsForGood(good, ctx, opportunitiesByGood, viableRoutes);
+    }
+  }
+
+  /**
+   * Same trade-matching pass as runGlobalTrade() (identical output — both loop over `ctx.goods`
+   * calling the same per-good helpers), but yields to the browser between good-sized batches so
+   * a newly generated map's initial trade pass doesn't block the main thread for its whole cost
+   * in one block. Used only by the "Preparing economy" Map Ready task (economy/index.tsx) —
+   * every other caller (Advance Time, the "regenerate" extension command, tests) keeps using the
+   * synchronous runGlobalTrade(). Returns false if cancelled before completion.
+   */
+  async runGlobalTradeIncrementally(options: IncrementalBatchOptions = {}): Promise<boolean> {
+    const ctx = this.buildGlobalTradeContext();
+    const opportunitiesByGood = new Map<number, MarketTradeOpportunity[]>();
+    const routeMarginalProfit = new Map<string, number>();
+    const routeMaintenanceCost = new Map<string, number>();
+
+    const collected = await runBatchedYielding(
+      ctx.goods,
+      good =>
+        this.collectGlobalTradeOpportunitiesForGood(
+          good,
+          ctx,
+          opportunitiesByGood,
+          routeMarginalProfit,
+          routeMaintenanceCost
+        ),
+      options
+    );
+    if (!collected) return false;
+
+    const viableRoutes = this.resolveViableGlobalTradeRoutes(routeMarginalProfit, routeMaintenanceCost);
+
+    return runBatchedYielding(
+      ctx.goods,
+      good => this.emitGlobalTradeDealsForGood(good, ctx, opportunitiesByGood, viableRoutes),
+      options
+    );
   }
 
   private addSpeculativeGlobalTradeOpportunities({

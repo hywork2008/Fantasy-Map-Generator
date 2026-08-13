@@ -237,9 +237,18 @@ Shipbuilding が有効な場合は Economy の後に候補港・港湾能力を�
 
 この warm-up は新規地図時のみで、treasury を支出せず、Caravan や Procurement Order も作らない。既に最初の Production pass が置いた在庫は減らさない。従ってこれは商会やキャラクターへの配布ではなく、造船を開始できるようにする Market 在庫の補完である。
 
+#### 3.2.1 Preparing economy の応答性: yield 化と Trade route 生成スキップ（実装済み）
+
+実測（2026-08-13, `docs/map-initialization-process.md` 執筆時点の live profiling）では、疎らな入植パターン・小規模マップでは `generateEconomy` 合計は 400〜550ms 程度だが、Standard 入植パターン・現実的な burg 数（375 burgs 規模）では **6 秒超**に達し、うち `Markets.runGlobalTrade()` + `Caravans.spawnFromDeals()`（Trade レイヤー/アニメーションが描画するデータ）だけで全体の 3 割前後、`planRetailReplenishment()`（小売補充計画、交易固有ではない）が単独で最大の割合を占めることが確認された。これを受けて、Worker 化（§3.3）とは別に、既存の `produceIncrementally()` の burg バッチ yield パターンを他の重い O(n) ループにも広げる形で対応した。
+
+- **yield 化**: `Markets.runGlobalTradeIncrementally()`（good 単位でバッチ yield）、`Caravans.spawnFromDealsIncrementally()`（route bundle 単位）、`planRetailReplenishmentIncrementally()`（market 単位）を追加。共通の `runBatchedYielding()`（`src/extensions/economy/generators/incrementalBatching.ts`）を使い、`requestAnimationFrame` へ定期的に制御を返す。同期版（`runGlobalTrade()` / `spawnFromDeals()` / `planRetailReplenishment()` / `Production.produce()`）は Advance Time・「regenerate」コマンド・エディタ操作向けにそのまま残る — 呼び出し契約は変更していない。`Production.produceIncrementally()` は内部で `finishProductionCycleIncrementally()`（新設の private メソッド）を呼び、この 3 つの Incrementally 版を使う。
+- **Trade route 生成スキップ**: Options > Generation タブに「Skip trade route generation」チェックボックス（`useUiPreferencesState.economySkipTradeOnGenerate`、`fmg-ui-preferences` に永続化）を追加。ON の場合、初回の Preparing economy task が `Markets.runGlobalTradeIncrementally()` / `Caravans.spawnFromDealsIncrementally()` を丸ごとスキップする（`Production.produceIncrementally({ skipGlobalTrade: true })`）。Burg↔Market のローカルな売買（`produceForBurg()` 内の `Markets.buy()`/`sell()`）や Deal は影響を受けず、スキップされるのは Market↔Market の広域交易マッチングと、それに伴う Caravan 生成（Trade レイヤー/アニメーションのデータ源）だけである。後から `Tools > Economy > Regenerate > Production`（`economy-regenerate-production`、内部的には同期版 `Production.produce()` を呼ぶ）で通常どおり再生成できる。
+
+いずれも Map Ready task の orchestration レベル（`economy/index.tsx` の `run()` 内、および `Production.produceIncrementally()`/`finishProductionCycleIncrementally()`）での対応であり、§3.3 が想定する「Worker への computation 移譲」そのものではない — メインスレッド上のまま、より細かく `requestAnimationFrame` へ制御を返すだけである。数秒規模の重いマップで UI 応答性を改善する低リスクな緩和策として位置づけられ、§3.3 の Worker 化を不要にするものではない。
+
 ### 3.3 将来の `Preparing economy` Worker 化
 
-> **設計予定。現時点では未実装。** 現在の Economy task はメインスレッドで live の `WorldContext` / `SimulationContext` を直接更新する。特に `Production.produceIncrementally()` は UI を固めないよう burg batch ごとに `requestAnimationFrame` へ制御を返すが、Goods・Markets・鉱物/施設の初期化などは同期的である。Worker 化では、これらを単に `new Worker()` 内から既存 generator として呼び出してはならない。
+> **設計予定。現時点では未実装。** §3.2.1 の yield 化により Preparing economy 実行中も `requestAnimationFrame` 単位でメインスレッドへ制御は戻るが、それでも全処理はメインスレッド上で行われる — 真に別スレッドで並行実行されるわけではない。現在の Economy task はメインスレッドで live の `WorldContext` / `SimulationContext` を直接更新する。特に `Production.produceIncrementally()` は UI を固めないよう burg batch ごとに `requestAnimationFrame` へ制御を返すが、Goods・Markets・鉱物/施設の初期化などは同期的である。Worker 化では、これらを単に `new Worker()` 内から既存 generator として呼び出してはならない。
 
 目的は、コア地図が描画された後も UI 操作を受け付けたまま Economy 初期化を実行し、完了時だけ整合した経済状態を公開することである。そのため Worker は live context の共有所有者ではなく、**不変入力から結果を計算する data plane** とする。
 
