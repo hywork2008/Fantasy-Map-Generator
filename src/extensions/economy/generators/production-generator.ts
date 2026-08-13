@@ -98,6 +98,7 @@ import {
 } from "./strategicLaborMarkets";
 import {
   getStrategicDemandMultiplier,
+  getStrategicLaborAllocationWeight,
   getStrategicProductionDemandByGood,
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
@@ -717,7 +718,9 @@ export class ProductionModule {
     // Phase 1b: goods with outstanding Metallurg/strategic-procurement demand (state armories'
     // Arms/Muskets/Harnesses/Artillery/Arrows/Bullets orders, Shipbuilding's material orders) get
     // their own guaranteed labor share too, split proportionally to each good's own outstanding
-    // backlog. Each good is planned via a single-candidate makeProductionDecision call — never
+    // backlog. The allocation caps each backlog's weight before splitting this reserve, so an
+    // oversized Tools queue cannot absorb the firearm goods' share. Each good is planned via a
+    // single-candidate makeProductionDecision call — never
     // ranked against its siblings — which is the actual fix: Phase 2's single-winner-per-step
     // ranking always favors whichever tracked good has the best intrinsic profit margin (e.g.
     // Muskets, ~370% margin over its Iron/Charcoal/Wood cost) and starves every other one
@@ -729,19 +732,21 @@ export class ProductionModule {
     // other for the same production slot, not just nudge the ranking further.
     if (state.strategicDemandByGood.size) {
       const strategicGoods = index.productiveGoods.filter(good => state.strategicDemandByGood.has(good.i));
-      const totalOutstanding = strategicGoods.reduce(
-        (total, good) => total + (state.strategicDemandByGood.get(good.i)?.outstandingUnits ?? 0),
-        0
-      );
-      if (strategicGoods.length && totalOutstanding > 0) {
+      const totalStrategicWeight = strategicGoods.reduce((total, good) => {
+        const demand = state.strategicDemandByGood.get(good.i);
+        return total + (demand ? getStrategicLaborAllocationWeight(demand) : 0);
+      }, 0);
+      if (strategicGoods.length && totalStrategicWeight > 0) {
         const strategicWorkCap = state.population * STRATEGIC_PRIORITY_LABOR_SHARE;
         let strategicWorkUsed = 0;
 
         for (const good of strategicGoods) {
           if (step >= maxSteps || strategicWorkUsed >= strategicWorkCap - 1e-9) break;
-          const outstandingUnits = state.strategicDemandByGood.get(good.i)?.outstandingUnits ?? 0;
+          const demand = state.strategicDemandByGood.get(good.i);
+          if (!demand) continue;
+          const strategicWeight = getStrategicLaborAllocationWeight(demand);
           const share = Math.min(
-            strategicWorkCap * (outstandingUnits / totalOutstanding),
+            strategicWorkCap * (strategicWeight / totalStrategicWeight),
             strategicWorkCap - strategicWorkUsed
           );
           let shareUsed = 0;

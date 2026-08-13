@@ -63,6 +63,16 @@ export function getStrategicDemandMultiplier(
   return 1 + outstandingPriority + continuityPriority;
 }
 
+/**
+ * Caps a single strategic backlog's share of the reserved manufacturing labor. This keeps a
+ * malformed or very large order from starving other independently-required strategic goods.
+ */
+export function getStrategicLaborAllocationWeight(demand: StrategicProductionDemand): number {
+  const outstandingPriority = Math.min(MAX_OUTSTANDING_UNITS_PRIORITY, Math.max(0, demand.outstandingUnits));
+  const continuityPriority = Math.min(MAX_CONTINUITY_PRIORITY, Math.max(0, demand.priorityCycles - 1) * 0.1);
+  return outstandingPriority * (1 + continuityPriority);
+}
+
 function isProductionRelevantOrder(order: ProcurementOrder, marketId: number): boolean {
   if (order.status === "inTransit") return order.sourceMarketId === marketId;
 

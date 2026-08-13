@@ -1460,6 +1460,13 @@ export function getMetallurgNextWorkOrderId(): number {
 export function setMetallurgNextWorkOrderId(id: number): void {
   setSliceNumber("nextMetallurgWorkOrderId", id);
 }
+/** Version marker for one-time Metallurg work-queue migrations in persisted saves. */
+export function getMetallurgToolsUnitScaleVersion(): number {
+  return getSliceNumber("metallurgToolsUnitScaleVersion");
+}
+export function setMetallurgToolsUnitScaleVersion(version: number): void {
+  setSliceNumber("metallurgToolsUnitScaleVersion", version);
+}
 
 /** Formal guild halls, distinct from practitioner-driven GuildKnowledgeStock entries. */
 export function getGuildChapters(): GuildChapter[] {

@@ -8,6 +8,7 @@ import {
   getMetallurgAssetLedgers,
   getMetallurgMaterialForecasts,
   getMetallurgNextWorkOrderId,
+  getMetallurgToolsUnitScaleVersion,
   getMetallurgWorkOrders,
   getSimulationMonth,
   getSimulationYear,
@@ -15,6 +16,7 @@ import {
   setMetallurgAssetLedgers,
   setMetallurgMaterialForecasts,
   setMetallurgNextWorkOrderId,
+  setMetallurgToolsUnitScaleVersion,
   setMetallurgWorkOrders
 } from "../economyContext";
 import type { Good } from "./goodsGeneratorTypes";
@@ -50,6 +52,7 @@ const HOUSEHOLD_PEOPLE = 4;
 const TOOLS_PER_HOUSEHOLD = 0.25;
 const DURABLE_MAINTENANCE_RATE = 0.006;
 const MILITARY_MAINTENANCE_RATE = 0.008;
+const TOOLS_UNIT_SCALE_VERSION = 1;
 
 type ProductPlan = {
   goodName: string;
@@ -135,6 +138,15 @@ function stateForcePlans(state: State): ProductPlan[] {
       kind: "consumable",
       workPerUnit: 0.1,
       materialMultiplier: 1
+    },
+    {
+      // Keep Gunpowder's order size aligned with MilitaryResources' technology and state-secret
+      // modifiers instead of duplicating its demand formula here.
+      goodName: "Gunpowder",
+      units: (MilitaryResources.getAnnualDemandForState(state.i).gunpowder ?? 0) / MONTHS_PER_YEAR,
+      kind: "consumable",
+      workPerUnit: 0.3,
+      materialMultiplier: 1
     }
   ];
   return plans.filter(plan => plan.units > 0);
@@ -146,7 +158,7 @@ function burgToolsPlan(burg: Burg): ProductPlan | null {
     Math.max(0, burg.population || 0) *
     Math.max(0, getWorldContext().populationRate || 0) *
     Math.max(0, getWorldContext().urbanization || 0);
-  const units = (people / HOUSEHOLD_PEOPLE) * TOOLS_PER_HOUSEHOLD;
+  const units = (economicUnitCount(people) / HOUSEHOLD_PEOPLE) * TOOLS_PER_HOUSEHOLD;
   return units > 0 ? { goodName: "Tools", units, kind: "newBuild", workPerUnit: 0.8, materialMultiplier: 1 } : null;
 }
 
@@ -209,6 +221,7 @@ export class MetallurgWorkModule {
     setMetallurgWorkOrders([]);
     setMetallurgMaterialForecasts([]);
     setMetallurgNextWorkOrderId(1);
+    setMetallurgToolsUnitScaleVersion(TOOLS_UNIT_SCALE_VERSION);
   }
 
   clear(): void {
@@ -216,6 +229,76 @@ export class MetallurgWorkModule {
     setMetallurgWorkOrders([]);
     setMetallurgMaterialForecasts([]);
     setMetallurgNextWorkOrderId(0);
+    setMetallurgToolsUnitScaleVersion(TOOLS_UNIT_SCALE_VERSION);
+  }
+
+  /**
+   * Removes the populationRate-inflated burg Tools backlog created by versions that counted
+   * population in display people rather than economic units. Existing military work is retained.
+   */
+  migrateLegacyToolsUnitScale(): boolean {
+    if (getMetallurgToolsUnitScaleVersion() >= TOOLS_UNIT_SCALE_VERSION) return false;
+
+    const tools = getGoods().find(good => good.name === "Tools");
+    if (!tools) {
+      setMetallurgToolsUnitScaleVersion(TOOLS_UNIT_SCALE_VERSION);
+      return false;
+    }
+
+    const month = currentMonthIndex();
+    const oldAssets = getMetallurgAssetLedgers();
+    const oldOrders = getMetallurgWorkOrders();
+    const legacyAssets = new Map(
+      oldAssets
+        .filter(asset => asset.ownerKind === "burg" && asset.productGoodId === tools.i)
+        .map(asset => [asset.ownerId, asset])
+    );
+    const nextAssets = oldAssets.filter(asset => !(asset.ownerKind === "burg" && asset.productGoodId === tools.i));
+    let changed = legacyAssets.size > 0;
+    const rebuiltBurgIds = new Set<number>();
+
+    for (const burg of getWorldContext().pack.burgs) {
+      const plan = burgToolsPlan(burg);
+      if (!plan || !burg.i) continue;
+      const previous = legacyAssets.get(burg.i);
+      nextAssets.push({
+        ownerKind: "burg",
+        ownerId: burg.i,
+        productGoodId: tools.i,
+        targetUnits: rn(plan.units, 4),
+        // The retired units were already treated as delivered, so retain only the valid amount.
+        serviceableUnits: rn(Math.min(plan.units, previous?.serviceableUnits ?? plan.units), 4),
+        maintenanceBacklogWork: 0,
+        lastSettledMonth: month - 1
+      });
+      rebuiltBurgIds.add(burg.i);
+      changed ||= previous !== undefined;
+    }
+
+    for (const previous of legacyAssets.values()) {
+      if (rebuiltBurgIds.has(previous.ownerId)) continue;
+      // Older archives can omit burg.population. Their existing target used the same erroneous
+      // populationRate multiplier, so divide that persisted target to recover the valid scale.
+      const targetUnits = rn(economicUnitCount(previous.targetUnits), 4);
+      nextAssets.push({
+        ...previous,
+        targetUnits,
+        serviceableUnits: rn(Math.min(targetUnits, economicUnitCount(previous.serviceableUnits)), 4),
+        maintenanceBacklogWork: 0,
+        lastSettledMonth: month - 1
+      });
+    }
+
+    const nextOrders = oldOrders.filter(order => !(order.ownerKind === "burg" && order.productGoodId === tools.i));
+    changed ||= nextOrders.length !== oldOrders.length;
+    if (changed) {
+      setMetallurgAssetLedgers(nextAssets);
+      setMetallurgWorkOrders(nextOrders);
+      const goodsById = new Map(getGoods().map(good => [good.i, good]));
+      setMetallurgMaterialForecasts(this.buildMaterialForecasts(nextOrders, goodsById));
+    }
+    setMetallurgToolsUnitScaleVersion(TOOLS_UNIT_SCALE_VERSION);
+    return changed;
   }
 
   /** Reconciles one month of new demand and leaves fulfillment for Phase 2. */
@@ -402,7 +485,7 @@ export class MetallurgWorkModule {
 
   /**
    * Transfers finished market Goods into open orders after generic production has run. This is
-   * the single completion path for Arms, Arrows, and Bullets; MilitaryResources therefore only
+   * the single completion path for Arms, Arrows, Gunpowder, Bullets, and Muskets; MilitaryResources therefore only
    * consumes their non-forge operational inputs and cannot double-consume finished equipment.
    */
   fulfillFromMarkets(): boolean {

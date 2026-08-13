@@ -56,7 +56,7 @@ describe("MilitaryResourcesModule", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("keeps finished arms and bullets for Metallurg fulfillment, while consuming direct artillery and powder inputs", () => {
+  it("keeps finished arms, powder, and bullets for Metallurg fulfillment, while consuming direct artillery inputs", () => {
     MilitaryResources.generate();
     MilitaryResources.settleMonthly();
 
@@ -75,11 +75,12 @@ describe("MilitaryResourcesModule", () => {
     expect(ledger.annualDemand.muskets).toBeCloseTo(0.3, 4);
     expect(ledger.lastConsumed.lead).toBeGreaterThan(0);
     expect(ledger.lastConsumed.arms).toBe(0);
+    expect(ledger.lastConsumed.gunpowder).toBe(0);
     expect(ledger.lastConsumed.bullets).toBe(0);
     expect(ledger.lastConsumed.muskets).toBe(0);
     expect(getMarkets()[0].goods[1].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[2].stock).toBeLessThan(10);
-    expect(getMarkets()[0].goods[3].stock).toBeLessThan(10);
+    expect(getMarkets()[0].goods[3].stock).toBe(10);
     expect(getMarkets()[0].goods[4].stock).toBe(10);
     expect(getMarkets()[0].goods[5].stock).toBe(10);
   });
@@ -98,6 +99,18 @@ describe("MilitaryResourcesModule", () => {
     // STATE_SECRET_BONUS_MAX = 0.3 at stock = 1 cuts gunpowder-chain demand by 30%.
     expect(ledger.annualDemand.gunpowder).toBeCloseTo(baselineGunpowder * 0.7, 4);
     expect(ledger.annualDemand.saltpeter).toBeCloseTo(baselineSaltpeter * 0.7, 4);
+  });
+
+  it("credits a fulfilled Gunpowder work order against the current military demand", () => {
+    MilitaryResources.generate();
+    MilitaryResources.settleMonthly();
+    const requested = (getMilitaryResourceLedgers()[0].annualDemand.gunpowder ?? 0) / 12;
+
+    MilitaryResources.recordFinishedGoodsDelivery(1, "Gunpowder", requested);
+
+    const ledger = getMilitaryResourceLedgers()[0];
+    expect(ledger.lastConsumed.gunpowder).toBeCloseTo(requested, 4);
+    expect(ledger.unmetDemand.gunpowder).toBe(0);
   });
 
   it("does not create gunpowder-era demand when the era is disabled", () => {

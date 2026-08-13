@@ -1828,8 +1828,11 @@ export function init(api: ExtensionAPI): void {
         syncBurgMarketLedgers();
         synchronizePlayerCommerce();
         FoodProduction.seedFoodLedgerBootstrap();
+        const migratedMetallurgTools = MetallurgWork.migrateLegacyToolsUnitScale();
         if (!getMetallurgAssetLedgers().length) {
           MetallurgWork.generate();
+          MetallurgWork.settleMonthly();
+        } else if (migratedMetallurgTools) {
           MetallurgWork.settleMonthly();
         }
       }
@@ -1984,8 +1987,11 @@ export function init(api: ExtensionAPI): void {
     DevelopmentPotential.generate();
     if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+    const migratedMetallurgTools = MetallurgWork.migrateLegacyToolsUnitScale();
     if (!getMetallurgAssetLedgers().length) {
       MetallurgWork.generate();
+      MetallurgWork.settleMonthly();
+    } else if (migratedMetallurgTools) {
       MetallurgWork.settleMonthly();
     }
     // Rebuild cull / escort boards when empty or only invalid targets remain after load.

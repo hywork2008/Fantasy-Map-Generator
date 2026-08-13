@@ -10,7 +10,9 @@ import {
   initEconomyContext,
   setCaravans,
   setGoods,
-  setMarkets
+  setMarkets,
+  setMetallurgAssetLedgers,
+  setMetallurgToolsUnitScaleVersion
 } from "../economyContext";
 import { Markets } from "./markets-generator";
 import type { Caravan } from "./marketTypes";
@@ -97,6 +99,16 @@ describe("MetallurgWorkModule", () => {
         icon: "musket",
         color: "#5a3d2b",
         recipes: [{ 1: 1, 2: 1 }]
+      },
+      {
+        i: 10,
+        name: "Gunpowder",
+        tags: ["military"],
+        value: 4,
+        unit: "barrel",
+        icon: "gunpowder",
+        color: "#333",
+        recipes: [{ 2: 1 }]
       }
     ]);
     setMarkets([
@@ -149,6 +161,65 @@ describe("MetallurgWorkModule", () => {
     expect(getMetallurgWorkOrders()).toEqual([]);
   });
 
+  it("normalizes burg Tools demand by populationRate", () => {
+    worldContext.populationRate = 1000;
+
+    MetallurgWork.generate();
+
+    expect(getMetallurgAssetLedgers()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ownerKind: "burg",
+          ownerId: 1,
+          productGoodId: 6,
+          targetUnits: 6.25,
+          serviceableUnits: 6.25
+        })
+      ])
+    );
+  });
+
+  it("migrates a legacy populationRate-inflated Tools asset when the saved burg omits population", () => {
+    worldContext.populationRate = 1000;
+    setMetallurgAssetLedgers([
+      {
+        ownerKind: "state",
+        ownerId: 1,
+        productGoodId: 4,
+        targetUnits: 30,
+        serviceableUnits: 30,
+        maintenanceBacklogWork: 0,
+        lastSettledMonth: 6000
+      },
+      {
+        ownerKind: "burg",
+        ownerId: 1,
+        productGoodId: 6,
+        targetUnits: 6250,
+        serviceableUnits: 6250,
+        maintenanceBacklogWork: 30,
+        lastSettledMonth: 6000
+      }
+    ]);
+    worldContext.pack.burgs[1].population = undefined;
+    setMetallurgToolsUnitScaleVersion(0);
+
+    expect(MetallurgWork.migrateLegacyToolsUnitScale()).toBe(true);
+    expect(getMetallurgAssetLedgers()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 4, targetUnits: 30 }),
+        expect.objectContaining({
+          ownerKind: "burg",
+          ownerId: 1,
+          productGoodId: 6,
+          targetUnits: 6.25,
+          serviceableUnits: 6.25,
+          maintenanceBacklogWork: 0
+        })
+      ])
+    );
+  });
+
   it("creates recurring military and urban maintenance plus material shortages once per month", () => {
     MetallurgWork.generate();
 
@@ -171,6 +242,13 @@ describe("MetallurgWorkModule", () => {
           status: "waitingMaterials"
         }),
         expect.objectContaining({
+          ownerKind: "state",
+          productGoodId: 10,
+          kind: "consumable",
+          requestedUnits: expect.any(Number),
+          status: "waitingMaterials"
+        }),
+        expect.objectContaining({
           ownerKind: "burg",
           productGoodId: 6,
           kind: "maintenance",
@@ -178,6 +256,10 @@ describe("MetallurgWorkModule", () => {
         })
       ])
     );
+    expect(
+      orders.find(order => order.ownerKind === "state" && order.productGoodId === 10 && order.kind === "consumable")
+        ?.requestedUnits
+    ).toBeGreaterThan(0);
     expect(getMetallurgMaterialForecasts()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ marketId: 1, goodId: 1, projectedShortage: expect.any(Number) })

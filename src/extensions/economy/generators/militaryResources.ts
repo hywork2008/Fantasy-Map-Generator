@@ -70,7 +70,7 @@ export class MilitaryResourcesModule {
       ledger.unmetDemand = {};
       if (!ledger.supplyMarketId) continue;
 
-      // Finished Arms, Arrows, Bullets, and Muskets are fulfilled through Metallurg work orders
+      // Finished Arms, Arrows, Gunpowder, Bullets, and Muskets are fulfilled through Metallurg work orders
       // after generic production runs. This ledger keeps only direct operational material draws.
       const resources = gunpowderEraEnabled
         ? (["fodder", "arms", "arrows", "iron", "lead", "gunpowder", "bullets", "muskets"] as const)
@@ -79,7 +79,13 @@ export class MilitaryResourcesModule {
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
         if (requested <= 0) continue;
-        if (resource === "arms" || resource === "arrows" || resource === "bullets" || resource === "muskets") {
+        if (
+          resource === "arms" ||
+          resource === "arrows" ||
+          resource === "gunpowder" ||
+          resource === "bullets" ||
+          resource === "muskets"
+        ) {
           ledger.lastConsumed[resource] = 0;
           ledger.unmetDemand[resource] = requested;
           continue;
@@ -95,7 +101,15 @@ export class MilitaryResourcesModule {
   /** Records a completed Metallurg delivery against this month's state equipment demand. */
   recordFinishedGoodsDelivery(stateId: number, goodName: string, units: number): void {
     if (!(units > 0)) return;
-    const resource = ({ Arms: "arms", Arrows: "arrows", Bullets: "bullets", Muskets: "muskets" } as const)[goodName];
+    const resource = (
+      {
+        Arms: "arms",
+        Arrows: "arrows",
+        Gunpowder: "gunpowder",
+        Bullets: "bullets",
+        Muskets: "muskets"
+      } as const
+    )[goodName];
     if (!resource) return;
     const ledger = getMilitaryResourceLedgers().find(candidate => candidate.stateId === stateId);
     if (!ledger) return;
@@ -112,6 +126,11 @@ export class MilitaryResourcesModule {
       .filter(candidate => burgs[candidate.centerBurgId]?.state === stateId)
       .sort((a, b) => (burgs[b.centerBurgId]?.population ?? 0) - (burgs[a.centerBurgId]?.population ?? 0))[0];
     return market?.i ?? null;
+  }
+
+  /** Shared source of truth for Metallurg's finished military-Good work orders. */
+  getAnnualDemandForState(stateId: number): Readonly<ResourceAmounts> {
+    return this.getAnnualDemand(stateId, getWorldContext().options.gunpowderEraEnabled !== false);
   }
 
   private getAnnualDemand(stateId: number, gunpowderEraEnabled: boolean): ResourceAmounts {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ProcurementOrder } from "./strategicProcurement";
-import { getStrategicDemandMultiplier, getStrategicProductionDemandByGood } from "./strategicProductionDemand";
+import {
+  getStrategicDemandMultiplier,
+  getStrategicLaborAllocationWeight,
+  getStrategicProductionDemandByGood
+} from "./strategicProductionDemand";
 
 function order(overrides: Partial<ProcurementOrder> = {}): ProcurementOrder {
   return {
@@ -51,5 +55,13 @@ describe("strategic production demand", () => {
     expect(getStrategicDemandMultiplier(continuing, false)).toBeGreaterThan(
       getStrategicDemandMultiplier(initial, false)
     );
+  });
+
+  it("caps one oversized backlog so it cannot monopolize strategic labor", () => {
+    const tools = { goodId: 6, outstandingUnits: 18_000, priorityCycles: 1 };
+    const muskets = { goodId: 9, outstandingUnits: 6, priorityCycles: 2 };
+
+    expect(getStrategicLaborAllocationWeight(tools)).toBe(2);
+    expect(getStrategicLaborAllocationWeight(muskets)).toBeGreaterThan(getStrategicLaborAllocationWeight(tools));
   });
 });
