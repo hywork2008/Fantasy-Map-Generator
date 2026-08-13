@@ -96,6 +96,11 @@ export interface WorldOptions {
    * addendum).
    */
   gunpowderEraEnabled?: boolean;
+  /**
+   * Generation option: begin Muskets and Artillery without pre-existing serviceable equipment.
+   * Undefined preserves the legacy, fully equipped starting-force behavior.
+   */
+  initialFirearmsUnstocked?: boolean;
   /** Historical-technology backdrop selected in Generation Settings. Undefined preserves legacy maps as "highMedieval". */
   historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
   /**

@@ -1052,6 +1052,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   applyGraphSize();
   randomizeOptions();
   worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
+  worldContext.options.initialFirearmsUnstocked = useOptionsState.getState().initialFirearmsUnstocked;
   worldContext.options.historicalPeriod = useOptionsState.getState().historicalPeriod;
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;

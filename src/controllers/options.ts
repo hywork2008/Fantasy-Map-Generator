@@ -517,7 +517,8 @@ export function applyStoredOptions(): void {
     "radarChartColor",
     "transparency",
     // This setting is stored by the legacy control without a React lock button.
-    "gunpowderEraEnabled"
+    "gunpowderEraEnabled",
+    "initialFirearmsUnstocked"
   ] as const satisfies readonly (keyof Omit<OptionsState, "setOption" | "setOptions">)[];
 
   type PersistedOptionKey = (typeof persistedOptionKeys)[number];
@@ -536,7 +537,12 @@ export function applyStoredOptions(): void {
     if (key.slice(0, 5) === "style") applyOption(getElementById<HTMLSelectElement>("stylePreset")!, key, key.slice(5));
 
     if (isPersistedOptionKey(key)) {
-      const parsedValue = key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
+      const parsedValue =
+        key === "gunpowderEraEnabled" || key === "initialFirearmsUnstocked"
+          ? value === "true"
+          : Number.isNaN(+value)
+            ? value
+            : +value;
       (loadedOptions as Record<PersistedOptionKey, string | number | boolean>)[key] = parsedValue;
     }
   }
@@ -602,6 +608,9 @@ export function applyStoredOptions(): void {
   if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
   if (stored("gunpowderEraEnabled")) {
     worldContext.options.gunpowderEraEnabled = stored("gunpowderEraEnabled") === "true";
+  }
+  if (stored("initialFirearmsUnstocked")) {
+    worldContext.options.initialFirearmsUnstocked = stored("initialFirearmsUnstocked") === "true";
   }
   // Race → person-name spheres: always-persisted JSON (not a simple lock string).
   if (stored("racePersonNameSpheres")) {

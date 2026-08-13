@@ -95,6 +95,11 @@ function isArtillery(unitName: string): boolean {
   return unitName.toLowerCase() === "artillery";
 }
 
+function shouldSeedStateAsset(plan: Pick<ProductPlan, "goodName">): boolean {
+  if (!getWorldContext().options.initialFirearmsUnstocked) return true;
+  return plan.goodName !== "Muskets" && plan.goodName !== "Artillery";
+}
+
 function isMounted(unitName: string): boolean {
   const configured = getWorldContext().options.military?.find(unit => unit.name === unitName);
   return configured?.type === "mounted" || /cavalry|knight|horse/.test(unitName.toLowerCase());
@@ -195,7 +200,7 @@ export class MetallurgWorkModule {
           ownerId: state.i,
           productGoodId: good.i,
           targetUnits: rn(plan.units, 4),
-          serviceableUnits: rn(plan.units, 4),
+          serviceableUnits: shouldSeedStateAsset(plan) ? rn(plan.units, 4) : 0,
           maintenanceBacklogWork: 0,
           lastSettledMonth: month - 1
         });

@@ -94,6 +94,11 @@ export interface OptionsState {
    * flip off in Military Options to restore the original gunpowder-free default.
    */
   gunpowderEraEnabled: boolean;
+  /**
+   * New maps normally treat existing firearm units as already equipped. Enable this to begin
+   * Muskets and Artillery at zero serviceable units and procure them through the economy.
+   */
+  initialFirearmsUnstocked: boolean;
   initialPopulationSaturation: number;
   /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
   initialSettlementPattern: InitialSettlementPattern;
@@ -340,6 +345,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   oceanCurrentRenderMode: "path",
   militaryHierarchy: "simple",
   gunpowderEraEnabled: true,
+  initialFirearmsUnstocked: false,
   initialPopulationSaturation: 60,
   initialSettlementPattern: "standard",
   oikoumeneLandShare: 0.45,

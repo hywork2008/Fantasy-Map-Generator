@@ -3,6 +3,7 @@ import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getGoods,
   getMarkets,
   getMetallurgAssetLedgers,
   getMetallurgMaterialForecasts,
@@ -159,6 +160,53 @@ describe("MetallurgWorkModule", () => {
       ])
     );
     expect(getMetallurgWorkOrders()).toEqual([]);
+  });
+
+  it("starts firearm equipment at zero and creates state procurement orders when configured", () => {
+    worldContext.options.initialFirearmsUnstocked = true;
+    worldContext.pack.states[1].military = [{ i: 1, u: { cavalry: 10, archers: 20, musketeers: 30, artillery: 2 } }];
+    setGoods([
+      ...getGoods(),
+      {
+        i: 11,
+        name: "Artillery",
+        tags: ["military"],
+        value: 120,
+        unit: "cannon",
+        icon: "good-artillery",
+        color: "#cd7f32",
+        recipes: [{ 1: 2, 2: 1 }]
+      }
+    ]);
+
+    MetallurgWork.generate();
+    MetallurgWork.settleMonthly();
+
+    expect(getMetallurgAssetLedgers()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 4, serviceableUnits: 32 }),
+        expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 9, serviceableUnits: 0 }),
+        expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 11, serviceableUnits: 0 })
+      ])
+    );
+    expect(getMetallurgWorkOrders()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ownerKind: "state",
+          ownerId: 1,
+          productGoodId: 9,
+          kind: "newBuild",
+          requestedUnits: 30
+        }),
+        expect.objectContaining({
+          ownerKind: "state",
+          ownerId: 1,
+          productGoodId: 11,
+          kind: "newBuild",
+          requestedUnits: 2
+        })
+      ])
+    );
   });
 
   it("normalizes burg Tools demand by populationRate", () => {

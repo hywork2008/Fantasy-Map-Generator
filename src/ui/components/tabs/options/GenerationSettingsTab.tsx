@@ -735,6 +735,24 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="New maps normally treat existing musketeer and artillery units as already equipped. Enable this to start their firearm equipment at zero and require state procurement through the economy.">
+            <td>
+              <LockIconButton id="initialFirearmsUnstocked" />
+            </td>
+            <th>
+              <label htmlFor="initialFirearmsUnstocked">Start firearms unstocked</label>
+            </th>
+            <td>
+              <input
+                id="initialFirearmsUnstocked"
+                type="checkbox"
+                checked={options.initialFirearmsUnstocked}
+                onChange={event => updateOptionAndLock("initialFirearmsUnstocked", event.target.checked)}
+              />
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select state labels mode: display short or full names">
             <td>
               <LockIconButton id="stateLabelsMode" />
