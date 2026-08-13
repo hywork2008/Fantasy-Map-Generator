@@ -119,6 +119,15 @@ export type {
 
 const BONUS_URBAN_PRODUCTION = 1;
 
+/**
+ * Guaranteed labor share for goods with outstanding Metallurg/strategic-procurement demand
+ * (state armories' Arms/Muskets/Harnesses/Artillery/Arrows/Bullets orders, Shipbuilding's
+ * material orders) — see runWorkerLoop()'s "Phase 1b" for the starvation bug this fixes. Same
+ * 15% share as CELL_FOOD_PRESERVATION_LABOR_SHARE, kept as its own constant because the two
+ * carve-outs protect different things and are free to diverge later.
+ */
+const STRATEGIC_PRIORITY_LABOR_SHARE = 0.15;
+
 const STATE_TECH_GATED_GOODS: Readonly<Record<string, (stateId: number) => boolean>> = {
   Liquor: isDistillationKnown
 };
@@ -705,8 +714,71 @@ export class ProductionModule {
       }
     }
 
+    // Phase 1b: goods with outstanding Metallurg/strategic-procurement demand (state armories'
+    // Arms/Muskets/Harnesses/Artillery/Arrows/Bullets orders, Shipbuilding's material orders) get
+    // their own guaranteed labor share too, split proportionally to each good's own outstanding
+    // backlog. Each good is planned via a single-candidate makeProductionDecision call — never
+    // ranked against its siblings — which is the actual fix: Phase 2's single-winner-per-step
+    // ranking always favors whichever tracked good has the best intrinsic profit margin (e.g.
+    // Muskets, ~370% margin over its Iron/Charcoal/Wood cost) and starves every other one
+    // completely (e.g. Bullets, ~100% margin) even when both are individually profitable and
+    // materials are abundant. Confirmed via a direct production run: Bullets' normalizedGain
+    // stayed positive but ~18x below Muskets', so Bullets never won a single Phase-2 iteration
+    // across 3 simulated months. getStrategicDemandMultiplier()'s own boost caps at 4.5x, which
+    // cannot close an 18x margin gap either — the fix has to stop pitting these goods against each
+    // other for the same production slot, not just nudge the ranking further.
+    if (state.strategicDemandByGood.size) {
+      const strategicGoods = index.productiveGoods.filter(good => state.strategicDemandByGood.has(good.i));
+      const totalOutstanding = strategicGoods.reduce(
+        (total, good) => total + (state.strategicDemandByGood.get(good.i)?.outstandingUnits ?? 0),
+        0
+      );
+      if (strategicGoods.length && totalOutstanding > 0) {
+        const strategicWorkCap = state.population * STRATEGIC_PRIORITY_LABOR_SHARE;
+        let strategicWorkUsed = 0;
+
+        for (const good of strategicGoods) {
+          if (step >= maxSteps || strategicWorkUsed >= strategicWorkCap - 1e-9) break;
+          const outstandingUnits = state.strategicDemandByGood.get(good.i)?.outstandingUnits ?? 0;
+          const share = Math.min(
+            strategicWorkCap * (outstandingUnits / totalOutstanding),
+            strategicWorkCap - strategicWorkUsed
+          );
+          let shareUsed = 0;
+          state.activeGoalGoodId = null;
+
+          for (; step < maxSteps && shareUsed < share - 1e-9; step++) {
+            const workersLeft = Math.min(state.population - workersUsed, share - shareUsed);
+            const workerFraction = Math.min(1, workersLeft);
+            if (workerFraction <= 1e-9) break;
+
+            const decision = this.makeProductionDecision(
+              index,
+              state,
+              state.demandTargets,
+              state.demandCoverage,
+              state.activeGoalGoodId,
+              workersLeft,
+              workerFraction,
+              [good]
+            );
+            if (!decision) break; // Not profitable (or infeasible) this cycle — move to the next good.
+            state.activeGoalGoodId = decision.goalGoodId;
+
+            this.executeManufacture(state, index, decision, workerFraction);
+            workersUsed += workerFraction;
+            strategicWorkUsed += workerFraction;
+            shareUsed += workerFraction;
+
+            const domain = getCraftDomainForGood(decision.action.good.name);
+            if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);
+          }
+        }
+      }
+    }
+
     // Phase 2: the normal profit-ranked loop over every productive Good, for whatever labour
-    // phase 1 didn't use. Fresh sticky/active-goal state so phase 1's preservation pick doesn't
+    // phases 1/1b didn't use. Fresh sticky/active-goal state so the earlier phases' picks don't
     // bias phase 2's full-candidate ranking.
     state.activeGoalGoodId = null;
     // Full good-ranking is O(productiveGoods); re-rank every few worker-units instead of
