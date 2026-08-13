@@ -123,7 +123,6 @@ class HeightmapModule {
   addHill(count: string, height: string, rangeX: string, rangeY: string): void {
     const addOneHill = () => {
       if (!this.heights || !this.grid) return;
-      const change = new Uint8Array(this.heights.length);
       let limit = 0;
       let start: number;
       const h = lim(getNumberInRange(height));
@@ -138,21 +137,9 @@ class HeightmapModule {
         this.heights[start] + h > HeightThreshold.HILL_MAX_HEIGHT &&
         limit < HeightmapConstants.PLACEMENT_ITER_LIMIT
       );
-      change[start] = h;
-      const queue = [start];
-      while (queue.length) {
-        const q = queue.shift() as number;
 
-        for (const c of this.grid!.cells.c[q]) {
-          if (change[c]) continue;
-          change[c] =
-            change[q] ** this.blobPower *
-            (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN);
-          if (change[c] > 1) queue.push(c);
-        }
-      }
-
-      this.heights = this.heights.map((h, i) => lim(h + change[i]));
+      const change = this.floodFillDecay(start, h);
+      this.heights = this.heights.map((hh, i) => lim(hh + change[i]));
       this.registerVolcanoCandidate(desiredHillCount, h, start, change);
     };
 
@@ -160,6 +147,30 @@ class HeightmapModule {
     for (let i = 0; i < desiredHillCount; i++) {
       addOneHill();
     }
+  }
+
+  /**
+   * Radial flood-fill decay from `seedCell`, exactly matching the falloff addOneHill has always
+   * used (same blobPower-driven exponential decay + per-cell jitter) — extracted so a synthetic
+   * volcano candidate (registerFallbackVolcanoCandidate, not backed by a real Hill call) decays
+   * with the same organic shape a real Hill placement would have produced.
+   */
+  private floodFillDecay(seedCell: number, seedValue: number): Uint8Array {
+    if (!this.heights || !this.grid) return new Uint8Array(0);
+    const change = new Uint8Array(this.heights.length);
+    change[seedCell] = lim(seedValue);
+    const queue = [seedCell];
+    while (queue.length) {
+      const q = queue.shift() as number;
+      for (const c of this.grid.cells.c[q]) {
+        if (change[c]) continue;
+        change[c] =
+          change[q] ** this.blobPower *
+          (Math.random() * HeightmapConstants.JITTER_RANGE + HeightmapConstants.JITTER_MIN);
+        if (change[c] > 1) queue.push(c);
+      }
+    }
+    return change;
   }
 
   /**
@@ -187,6 +198,42 @@ class HeightmapModule {
     const active = Math.random() * 100 < this.volcanoActiveChance;
     if (!becomesVolcano) return;
 
+    this.pendingVolcanoes.push({ peakCell, active, change });
+  }
+
+  /**
+   * Called once, after every template step has run, only when registerVolcanoCandidate() never
+   * found a single-dominant-Hill peak anywhere in the whole template (the common case — most
+   * heightmap templates build their mountains from many stacked Hill/Range calls and never
+   * produce that signature; see registerVolcanoCandidate). Without this fallback, "Volcanism
+   * chance" silently did nothing on the majority of templates: 100% could still place zero
+   * volcanoes depending purely on which template the seed happened to pick, which made the
+   * option's behavior look arbitrary from seed to seed. Falls back to the map's single tallest
+   * land cell — decayed with the same falloff shape a real Hill placement would have — so every
+   * template has exactly one candidate to roll against volcanismChance/volcanoActiveChance, and
+   * 0%/100% behave the same (none/one volcano) regardless of template.
+   */
+  private registerFallbackVolcanoCandidate(): void {
+    if (!this.heights || !this.grid) return;
+
+    let peakCell = -1;
+    let peakHeight = -1;
+    for (let cellId = 0; cellId < this.heights.length; cellId++) {
+      if (this.heights[cellId] > peakHeight) {
+        peakHeight = this.heights[cellId];
+        peakCell = cellId;
+      }
+    }
+    if (peakCell < 0 || peakHeight < VolcanoConstants.FALLBACK_MIN_PEAK_HEIGHT) return;
+
+    // Same fixed-draw-count reasoning as registerVolcanoCandidate — though by this point
+    // (after every template step) nothing downstream reads Math.random() anymore, so it no
+    // longer matters for reshuffling other terrain; kept identical for consistency.
+    const becomesVolcano = Math.random() * 100 < this.volcanismChance;
+    const active = Math.random() * 100 < this.volcanoActiveChance;
+    if (!becomesVolcano) return;
+
+    const change = this.floodFillDecay(peakCell, peakHeight);
     this.pendingVolcanoes.push({ peakCell, active, change });
   }
 
@@ -721,6 +768,7 @@ class HeightmapModule {
       this.addStep(...(elements as [Tool, string, string, string, string]));
     }
 
+    if (!this.pendingVolcanoes.length) this.registerFallbackVolcanoCandidate();
     this.finalizeVolcanoes();
     return this.heights;
   }

@@ -518,7 +518,20 @@ export const VolcanoConstants = {
    * (lava-filled) summit below the water line — that fate is reserved for dormant volcanoes,
    * whose summit is deliberately carved into a crater lake instead.
    */
-  ACTIVE_FLOOR_MARGIN: 15
+  ACTIVE_FLOOR_MARGIN: 15,
+
+  /**
+   * Minimum height for the *fallback* volcano candidate: the map's single tallest land cell,
+   * used only when no template step ever placed a qualifying single-dominant-Hill peak (see
+   * MIN_PEAK_HEIGHT). Most heightmap templates build their mountains from many stacked Hill/
+   * Range calls and never produce that signature, so without this fallback "Volcanism chance"
+   * silently did nothing on the majority of templates — 100% would still place no volcano at
+   * all, depending purely on which template the seed happened to pick. Kept well below
+   * MIN_PEAK_HEIGHT (most templates' global peak still clears this, even ones that never reach
+   * MIN_PEAK_HEIGHT in a single placement) so the option behaves consistently — 100% means a
+   * volcano, 0% means none — across every template, not just the few with a singular peak.
+   */
+  FALLBACK_MIN_PEAK_HEIGHT: 65
 } as const;
 
 // ---------------------------------------------------------------------------
