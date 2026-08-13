@@ -218,6 +218,7 @@ import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog"
 import { MarketsOverviewDialog } from "./ui/dialogs/MarketsOverviewDialog";
 import { MarketTradeOpportunitiesDialog } from "./ui/dialogs/MarketTradeOpportunitiesDialog";
 import { MetallurgWorkDialog } from "./ui/dialogs/MetallurgWorkDialog";
+import { MilitarySuppliesOverviewDialog } from "./ui/dialogs/MilitarySuppliesOverviewDialog";
 import { MineralOverviewDialog } from "./ui/dialogs/MineralOverviewDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
@@ -1359,6 +1360,11 @@ export function init(api: ExtensionAPI): void {
   });
   api.registerDialog({ id: "MarketDealsDialog", extensionId: ECONOMY_EXTENSION_ID, component: MarketDealsDialog });
   api.registerDialog({
+    id: "MilitarySuppliesOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: MilitarySuppliesOverviewDialog
+  });
+  api.registerDialog({
     id: "MarketTradeOpportunitiesDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: MarketTradeOpportunitiesDialog
@@ -1605,6 +1611,21 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-military-supplies-overview",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Military supplies",
+    dialogId: "militarySuppliesOverview",
+    tooltip: "Open military equipment and latest supply deliveries by state",
+    onClick: () => {
+      document.dispatchEvent(
+        new CustomEvent("react-tool-action", { detail: { action: "militarySuppliesOverviewButton" } })
+      );
+    }
+  });
+
+  api.registerAction({
     id: "economy-minerals-overview",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -1722,6 +1743,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
   api.registerToolAction("metallurgWorkOverviewButton", () => toggleEditorDialog("metallurgWorkOverview", null));
+  api.registerToolAction("militarySuppliesOverviewButton", () => toggleEditorDialog("militarySuppliesOverview", null));
   api.registerToolAction("mineralOverviewButton", () => toggleEditorDialog("mineralOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
   api.registerToolAction("greatLibraryOverviewButton", () => toggleEditorDialog("greatLibraryOverview", null));
@@ -1787,6 +1809,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("employmentOverview");
       api.closeDialog("guildOverview");
       api.closeDialog("metallurgWorkOverview");
+      api.closeDialog("militarySuppliesOverview");
       api.closeDialog("treasuryOverview");
       api.closeDialog("greatLibraryOverview");
       api.closeDialog("debtNegotiation");
@@ -2838,6 +2861,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("employmentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
   api.unregisterToolAction("metallurgWorkOverviewButton");
+  api.unregisterToolAction("militarySuppliesOverviewButton");
   api.unregisterToolAction("mineralOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
   api.unregisterToolAction("greatLibraryOverviewButton");
