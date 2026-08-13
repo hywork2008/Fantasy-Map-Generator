@@ -20,10 +20,12 @@ export interface OptionsState {
   year: number;
   era: string;
   /**
-   * Historical-technology backdrop for goods/military gating. Default "highMedieval" targets
-   * ~1100-1300 Europe (pre-gunpowder) for fantasy-setting consistency.
+   * Historical-technology backdrop for water/sanitation tech ceilings and other period-flavored
+   * generation choices (docs/plan/guns-era.md). Default "ageOfExploration" (~1450-1600 Europe)
+   * — gunpowder-era Goods/military units are independently controlled by `gunpowderEraEnabled`
+   * below and default enabled, so this period no longer needs to precede gunpowder content.
    */
-  historicalPeriod: "earlyMedieval" | "highMedieval" | "lateMedieval";
+  historicalPeriod: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
   template: string;
   /** Restricts unlocked random heightmap selection by the templates' mean land coverage. */
   templateRandomization: HeightmapTemplateRandomization;
@@ -85,7 +87,12 @@ export interface OptionsState {
    * gone. Read live each movement tick by regimentMovement.ts, not a generation-time-only setting.
    */
   militaryHierarchy: "simple" | "dynamic";
-  /** Default for newly generated maps; saved maps retain their value in WorldOptions. */
+  /**
+   * Default for newly generated maps; saved maps retain their value in WorldOptions.
+   * Defaults `true` (docs/plan/guns-era.md 2026-08-14 addendum) so Gunpowder/Artillery/Sulfur/
+   * Bullets and the "artillery" military unit are visible and producing out of the box —
+   * flip off in Military Options to restore the original gunpowder-free default.
+   */
   gunpowderEraEnabled: boolean;
   initialPopulationSaturation: number;
   /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
@@ -313,7 +320,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   mapName: "",
   year: 100,
   era: "Era",
-  historicalPeriod: "highMedieval",
+  historicalPeriod: "ageOfExploration",
   template: "highIsland",
   templateRandomization: "all",
   cultures: 12,
@@ -332,7 +339,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   enclosureCalculationMode: "oceanCurrentsAmbient",
   oceanCurrentRenderMode: "path",
   militaryHierarchy: "simple",
-  gunpowderEraEnabled: false,
+  gunpowderEraEnabled: true,
   initialPopulationSaturation: 60,
   initialSettlementPattern: "standard",
   oikoumeneLandShare: 0.45,

@@ -130,3 +130,14 @@ const goods = (worldContext().pack.goods ?? [])
 2. **Military Options** を開き、大砲（Artillery）の行がテーブルに存在しないことを確認する。
 3. **Goods Editor** を開き、大砲・火薬の Goods がテーブルに表示されていないことを確認する。
 4. マップ上の交易アニメーションで大砲や火薬を積載した馬車（Caravans）が生成されていないことを確認する。
+
+---
+
+## 4. 2026-08-14 追記: デフォルトを有効化（デバッグ用）
+
+火薬時代の商品（Sulfur/Gunpowder/Artillery/Bullets）の生産・流通サイクルをデバッグしやすくするため、ユーザーの明示的な指示で本節の無効化ロジック自体は残したまま、**既定値のみ**を反転した。§1「デフォルト状態を無効」の決定は撤回する。
+
+- [optionsState.ts](../../src/store/optionsState.ts): `gunpowderEraEnabled` の既定値を `false` → `true`。
+- [military-generator.ts](../../src/generators/military-generator.ts) `getDefaultOptions()`: `artillery` ユニット定義から個別の `enabled: false` を削除（`gunpowderEraEnabled` とは独立した第二のハードコード無効化だったため、フラグを true にしただけでは大砲部隊が編成されなかった）。
+- Options → Generation の **Historical period** に `Age of Exploration (c. 1450-1600)` を追加し、既定値に設定（[optionsState.ts](../../src/store/optionsState.ts)、[GenerationSettingsTab.tsx](../../src/ui/components/tabs/options/GenerationSettingsTab.tsx)）。この設定は水利/衛生技術の上限（[urbanWaterTech.ts](../../src/extensions/economy/generators/urbanWaterTech.ts) `waterTechCeilings()`）にのみ影響し、`gunpowderEraEnabled` とは独立している — 旧ツールチップの「gunpowder is off by default before Late Medieval」という記述は実装上そのような連動が存在しなかったため削除した。
+- 無効化ロジック自体（`isGoodEnabled()`、`GUNPOWDER_ERA_GOODS`、Military Options の非表示フィルタ等）は削除していない。**Military Options** ダイアログで "Enable gunpowder era" のチェックを外せば、§1 の元の挙動（大砲・火薬関連 Goods を完全に非表示にする騎士の時代）にいつでも戻せる。

@@ -956,6 +956,9 @@ class MilitaryModule {
         separate: 0
       },
       {
+        // enabled: false removed 2026-08-14 (docs/plan/guns-era.md addendum) — artillery is now
+        // gated solely by options.gunpowderEraEnabled (default true), not a second hardcoded
+        // per-unit disable. Toggle "Enable gunpowder era" off in Military Options to hide it again.
         icon: "💣",
         name: "artillery",
         rural: 0,
@@ -963,8 +966,7 @@ class MilitaryModule {
         crew: 8,
         power: 12,
         type: "machinery",
-        separate: 0,
-        enabled: false
+        separate: 0
       },
       {
         icon: "🌊",

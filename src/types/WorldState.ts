@@ -90,10 +90,14 @@ export interface WorldOptions {
   era?: string;
   /** Abbreviated era name; derived from era */
   eraShort?: string;
-  /** Whether gunpowder-era military units and goods are available. Undefined preserves legacy maps' enabled behavior. */
+  /**
+   * Whether gunpowder-era military units and goods are available. Undefined preserves legacy
+   * maps' enabled behavior. Defaults `true` for new maps (docs/plan/guns-era.md 2026-08-14
+   * addendum).
+   */
   gunpowderEraEnabled?: boolean;
   /** Historical-technology backdrop selected in Generation Settings. Undefined preserves legacy maps as "highMedieval". */
-  historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval";
+  historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
   /**
    * Persisted generation distribution policy. Archives created before frontier
    * expansion normalize this to "standard" during archive migration.

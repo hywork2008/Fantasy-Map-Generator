@@ -953,7 +953,8 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     worldContext.options.historicalPeriod = (e as CustomEvent).detail.period as
       | "earlyMedieval"
       | "highMedieval"
-      | "lateMedieval";
+      | "lateMedieval"
+      | "ageOfExploration";
   });
 
   document.addEventListener("react-change-state-labels-mode", (e: Event) => {

@@ -17,7 +17,7 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-export type HistoricalPeriod = "earlyMedieval" | "highMedieval" | "lateMedieval";
+export type HistoricalPeriod = "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
 
 /** Soft ceilings by generation backdrop — industrial sanitary engineering is not free in 1200. */
 export function waterTechCeilings(period: HistoricalPeriod | string | undefined): WaterTechStocks {
@@ -26,6 +26,10 @@ export function waterTechCeilings(period: HistoricalPeriod | string | undefined)
       return { waterLifting: 0.35, municipalSanitation: 0.35, sanitaryEngineering: 0 };
     case "lateMedieval":
       return { waterLifting: 0.75, municipalSanitation: 0.7, sanitaryEngineering: 0.28 };
+    // Follows lateMedieval chronologically (~1450-1600) — a modest step up rather than a new
+    // tier, since sanitary engineering stays pre-industrial throughout this period.
+    case "ageOfExploration":
+      return { waterLifting: 0.85, municipalSanitation: 0.78, sanitaryEngineering: 0.4 };
     case "highMedieval":
     default:
       return { waterLifting: 0.55, municipalSanitation: 0.55, sanitaryEngineering: 0.08 };
