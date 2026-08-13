@@ -51,7 +51,7 @@ import {
   isPreservedFoodGood
 } from "./goods-generator";
 import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
-import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
+import { floorToRetailLot, getMarketTradeMinimumUnits, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
@@ -183,7 +183,6 @@ interface GlobalTradeContext {
   textilePopulationByMarket: number[];
   mapDiagonal: number;
   tradeReserveFactor: number;
-  minUnit: number;
   travelRoutes: MarketTradeRoutes;
 }
 
@@ -1379,7 +1378,6 @@ export class MarketsModule {
       textilePopulationByMarket,
       mapDiagonal,
       tradeReserveFactor: FLOW_TRADE_RESERVE_FACTOR,
-      minUnit: 0.1,
       travelRoutes
     };
   }
@@ -1410,9 +1408,9 @@ export class MarketsModule {
       textilePopulationByMarket,
       mapDiagonal,
       tradeReserveFactor,
-      minUnit,
       travelRoutes
     } = ctx;
+    const minUnit = getMarketTradeMinimumUnits(good);
 
     const exporters: { market: Market; reserve: number }[] = [];
     const importers: { market: Market; reserve: number }[] = [];
@@ -1551,7 +1549,8 @@ export class MarketsModule {
     const opportunities = opportunitiesByGood.get(good.i);
     if (!opportunities?.length) return;
 
-    const { consumerDemandFactors, industrialDemandFactors, populationByMarket, tradeReserveFactor, minUnit } = ctx;
+    const { consumerDemandFactors, industrialDemandFactors, populationByMarket, tradeReserveFactor } = ctx;
+    const minUnit = getMarketTradeMinimumUnits(good);
     const importerStockAdjustments = new Map<number, number>();
 
     for (const opportunity of opportunities) {
@@ -1713,7 +1712,7 @@ export class MarketsModule {
       if (!routes) continue;
 
       const exporterGood = this.getMarketGood(exporter, good);
-      if (exporterGood.stock < 0.1) continue;
+      if (exporterGood.stock < getMarketTradeMinimumUnits(good)) continue;
 
       const exporterCenter = this.worldContext.pack.burgs[exporter.centerBurgId];
       const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;

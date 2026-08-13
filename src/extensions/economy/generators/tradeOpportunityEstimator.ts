@@ -1,4 +1,5 @@
 import { type Good, type GoodTradeProfile, getDefaultGoodTradeProfile, isFreshFoodGood } from "./goods-generator";
+import { getMarketTradeMinimumUnits } from "./goodsTradeLots";
 import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
@@ -240,7 +241,8 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
     durationDays: suppliedDurationDays,
     routeMaxTemperatureC
   } = input;
-  if (sourceGood.stock < 0.1) return null;
+  const minimumTradeUnits = getMarketTradeMinimumUnits(good);
+  if (sourceGood.stock < minimumTradeUnits) return null;
 
   const durationDays =
     suppliedDurationDays ??
@@ -282,7 +284,7 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
 
   const targetCapacity = Math.max(1, targetReserve * 0.5, sourceGood.stock * 0.1);
   const maxUnits = roundUnits(Math.min(sourceGood.stock * 0.25, targetCapacity));
-  if (maxUnits < 0.1) return null;
+  if (maxUnits < minimumTradeUnits) return null;
 
   const maintenanceCost = getCaravanMaintenanceCost(durationDays);
   const totalProfit = getNetTradeProfit(unitProfit, maxUnits, durationDays);

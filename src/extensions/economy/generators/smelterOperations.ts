@@ -34,10 +34,14 @@ const FRONTIER_SETTLEMENT = 2;
 const FRONTIER_INCORPORATED = 3;
 /** How much toolsInvestmentStock=1 (IndustrialTechInvestment) raises processingFactor. */
 const SMELTER_TECH_BONUS_MAX = 0.3;
-/** Base headcount a smelter needs even at minimal throughput (furnace tending, hauling). */
-const REQUIRED_WORKERS_BASE = 4;
-/** Additional headcount per annual tonne of ore capacity to run at full processingFactor (calibration TBD). */
-const REQUIRED_WORKERS_PER_ANNUAL_TON = 0.05;
+/** Base workforce points for furnace tending, hauling, and charcoal handling. */
+const REQUIRED_WORKERS_BASE = 0.5;
+/**
+ * Additional workforce points per annual tonne of geological capacity. Deposit capacity is far
+ * larger than a single small burg's initial labour pool, so this must stay below mine staffing
+ * scale or unprocessed Ore permanently accumulates while Ingots remain unavailable.
+ */
+const REQUIRED_WORKERS_PER_ANNUAL_TON = 0.0025;
 
 /**
  * Headcount needed to run a smelter's processing at full capacity. Reused by

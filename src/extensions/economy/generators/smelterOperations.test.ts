@@ -13,7 +13,7 @@ import {
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
-import { SmelterOperations } from "./smelterOperations";
+import { getSmelterRequiredWorkers, SmelterOperations } from "./smelterOperations";
 
 describe("SmelterOperationsModule", () => {
   beforeEach(() => {
@@ -116,6 +116,11 @@ describe("SmelterOperationsModule", () => {
     expect(getMarkets()[0].goods[2].stock).toBe(8);
     expect(getMarkets()[0].goods[3].stock).toBe(10);
     expect(getMarkets()[0].goods[4].stock).toBe(2.5);
+  });
+
+  it("uses a practical workforce target for high-capacity deposits in small burgs", () => {
+    expect(getSmelterRequiredWorkers({ annualCapacityTons: 120 })).toBeCloseTo(0.8, 5);
+    expect(getSmelterRequiredWorkers({ annualCapacityTons: 900 })).toBeCloseTo(2.75, 5);
   });
 
   it("does not refine Ore without an available Charcoal reserve", () => {

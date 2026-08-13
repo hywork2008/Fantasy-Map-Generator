@@ -1432,7 +1432,10 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [{ Saltpeter: 0.75, Sulfur: 0.1, Charcoal: 0.15 }],
     unit: "barrel",
-    demandCoverage: { military: 2 }
+    // State arsenals procure powder through Metallurg work orders. Letting every Burg's
+    // population-proportional military demand buy it first strands tiny local batches and
+    // prevents the state supply chain from accumulating tradeable stock.
+    demandCoverage: {}
   },
   {
     name: "Bullets",
@@ -1447,7 +1450,9 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [{ "Lead Ingot": 1 }],
     unit: "pouch",
-    demandCoverage: { military: 0.6, hunting: 0.4 }
+    // Military consumption is fulfilled by state work orders; civilian hunters remain a
+    // legitimate retail sink for ammunition.
+    demandCoverage: { hunting: 0.4 }
   },
   {
     name: "Muskets",
@@ -1467,7 +1472,8 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [{ "Iron Ingot": 1, Charcoal: 1, Wood: 0.5 }],
     unit: "piece",
-    demandCoverage: { military: 1 }
+    // Personal firearms are state-procured equipment, not a generic Burg demand good.
+    demandCoverage: {}
   },
   {
     name: "Artillery",

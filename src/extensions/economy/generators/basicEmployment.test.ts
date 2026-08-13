@@ -138,13 +138,92 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
 
     reconcileAnnualBasicEmploymentWorkers();
 
-    // Mine's annual step (max(1, 34*0.25)=8.5) is fully available (desired=min(34,10)=10),
-    // leaving 1.5 adults for the smelter, whose own step (max(1, 10*0.25)=2.5) easily covers it.
+    // Refining is allocated first. Its practical target is 0.8 workforce points for a 120-tonne
+    // deposit; mining then receives its 8.5-point annual staffing step from the remaining adults.
     const mine = getMineOperations()[0];
     const smelter = getSmelterOperations()[0];
     expect(mine.workers).toBeCloseTo(8.5, 5);
-    expect(smelter.workers).toBeCloseTo(1.5, 5);
-    expect(mine.workers + smelter.workers).toBeCloseTo(10, 5);
+    expect(smelter.workers).toBeCloseTo(0.8, 5);
+    expect(mine.workers + smelter.workers).toBeCloseTo(9.3, 5);
+  });
+
+  it("uses adults from the whole market when a resource site belongs to a tiny burg", () => {
+    worldContext.pack = {
+      burgs: [
+        undefined,
+        {
+          i: 1,
+          cell: 0,
+          x: 0,
+          y: 0,
+          market: 1,
+          demographics: { maleAdults: 0.05, femaleAdults: 0.05, capacity: 1, children: 0, elders: 0 }
+        },
+        {
+          i: 2,
+          cell: 1,
+          x: 1,
+          y: 0,
+          market: 1,
+          demographics: { maleAdults: 5, femaleAdults: 5, capacity: 12, children: 0, elders: 0 }
+        }
+      ]
+    } as unknown as PackedGraph;
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "bandedIron",
+        primaryCommodity: "iron",
+        commodities: ["iron"],
+        yields: [{ commodity: "iron", reserveTons: 100, annualCapacityTons: 120 }],
+        richness: 5,
+        depth: "surface",
+        accessibility: 1,
+        discovered: true,
+        exhausted: false
+      }
+    ]);
+    setMineOperations([
+      {
+        i: 1,
+        depositId: 1,
+        burgId: 1,
+        marketId: 1,
+        workers: 0,
+        technology: 1,
+        drainage: 1,
+        fuelAccess: 1,
+        annualOutputTons: {},
+        active: true
+      }
+    ]);
+    setSmelterOperations([
+      {
+        i: 1,
+        depositId: 1,
+        cell: 0,
+        burgId: 1,
+        marketId: 1,
+        waterPower: 1,
+        fuelAccess: 1,
+        technology: 1,
+        smeltingYield: 0.8,
+        annualCapacityTons: 120,
+        workers: 0,
+        securityInvestment: 0,
+        lastSecurityUpkeep: 0,
+        lastTheftLoss: 0,
+        lastTheftRisk: 0,
+        active: true
+      }
+    ]);
+
+    reconcileAnnualBasicEmploymentWorkers();
+
+    expect(getSmelterOperations()[0].workers).toBeCloseTo(0.8, 5);
+    expect(getMineOperations()[0].workers).toBeCloseTo(8.5, 5);
   });
 
   it("leaves inactive operations untouched", () => {

@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { floorToRetailLot, formatRetailQuantity, getRetailLotSize, isRetailLotQuantity } from "./goodsTradeLots";
+import {
+  floorToRetailLot,
+  formatRetailQuantity,
+  getMarketTradeMinimumUnits,
+  getRetailLotSize,
+  isRetailLotQuantity
+} from "./goodsTradeLots";
 
 describe("retail trade lots", () => {
+  it("permits military-tagged divisible goods to trade at their retail lot", () => {
+    expect(getMarketTradeMinimumUnits({ tags: ["military"], unit: "barrel" })).toBe(0.01);
+    expect(getMarketTradeMinimumUnits({ tags: ["military"], unit: "piece" })).toBe(1);
+    expect(getMarketTradeMinimumUnits({ tags: ["food"], unit: "barrel" })).toBe(0.1);
+  });
+
   it("does not advertise a fractional animal as an available whole animal", () => {
     const lotSize = getRetailLotSize({ unit: "head" });
 

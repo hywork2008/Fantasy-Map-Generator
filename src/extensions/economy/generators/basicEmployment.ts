@@ -1,4 +1,5 @@
 import { getBurgDemographics, useOptionsState } from "../../hostCore";
+import type { Burg } from "../../hostTypes";
 import {
   getAdministrationEmployment,
   getConstructionOperations,
@@ -45,16 +46,22 @@ interface BasicEmploymentSlot {
   setWorkers: (value: number) => void;
 }
 
+interface MarketWorkforceSlot extends BasicEmploymentSlot {
+  burgId: number;
+}
+
 /**
  * Annual, Burg-anchored reconciliation of basic-industry employment: state administration
  * (docs/plan/urban-employment-demand.md §3.4, Phase 3), mining/smelting (§3.2, Phase 1), and
  * quarrying/construction (docs/plan/urban-construction-industry.md §3.2-3.3, Phase 1-2). Each
- * slot's `workers` is a subset of its Burg's current adult population (§0 design decision) — it
- * never writes `burg.population`/`demographics`. Within a shared Burg, administration is
+ * slot's `workers` is a subset of its available adult workforce (§0 design decision) — it never
+ * writes `burg.population`/`demographics`. Within a shared Burg, administration is
  * allocated first (a state's capital needs governing regardless of whether it also sits on a
- * mineral deposit), then mines, then smelters (a smelter with no ore supply has nothing to
- * process), then quarries, then Volcanic Ash works, then construction (masons, then
- * carpenters). No cross-Burg or cross-industry share cap is applied (§5.1 decision 2).
+ * mineral deposit), then quarries, then Volcanic Ash works, then construction (masons, then
+ * carpenters). Mines and smelters retain a physical owner Burg but draw from every adult in their
+ * market's Burgs: a resource site near a hamlet must not leave a well-populated market unable to
+ * staff its industry. Within that shared market pool, smelters are allocated before mines so Ore
+ * buffers can become downstream Ingots. No cross-market share cap is applied (§5.1 decision 2).
  *
  * Also aggregates each Burg's `basicEmploymentDemand` and derives `serviceEmploymentDemand`
  * (§3.5) from it, into `basicEmploymentSummary` (Phase 4). Market-anchored `"trade"`
@@ -74,6 +81,7 @@ interface BasicEmploymentSlot {
  */
 export function reconcileAnnualBasicEmploymentWorkers(): void {
   const slotsByBurg = new Map<number, BasicEmploymentSlot[]>();
+  const marketWorkforceSlots = new Map<number, MarketWorkforceSlot[]>();
   const burgs = getWorldContext().pack.burgs;
 
   const previousAdministrationByBurg = new Map(getAdministrationEmployment().map(record => [record.burgId, record]));
@@ -98,27 +106,32 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     });
   }
 
-  const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
-  for (const mine of getMineOperations()) {
-    if (!mine.active || !mine.burgId) continue;
-    const deposit = depositsById.get(mine.depositId);
-    if (!deposit) continue;
-    pushSlot(slotsByBurg, mine.burgId, {
-      requiredWorkers: getMineRequiredWorkers(deposit),
-      getWorkers: () => mine.workers,
-      setWorkers: value => {
-        mine.workers = value;
-      }
-    });
-  }
-
+  // Resource operations retain their physical site, but their labor comes from the whole market.
+  // Refining precedes extraction because an Ore buffer is useful while a zero-worker smelter
+  // blocks every downstream metal Good.
   for (const smelter of getSmelterOperations()) {
-    if (!smelter.active || !smelter.burgId) continue;
-    pushSlot(slotsByBurg, smelter.burgId, {
+    if (!smelter.active || !smelter.burgId || !smelter.marketId) continue;
+    pushMarketWorkforceSlot(marketWorkforceSlots, smelter.marketId, {
+      burgId: smelter.burgId,
       requiredWorkers: getSmelterRequiredWorkers(smelter),
       getWorkers: () => smelter.workers,
       setWorkers: value => {
         smelter.workers = value;
+      }
+    });
+  }
+
+  const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
+  for (const mine of getMineOperations()) {
+    if (!mine.active || !mine.burgId || !mine.marketId) continue;
+    const deposit = depositsById.get(mine.depositId);
+    if (!deposit) continue;
+    pushMarketWorkforceSlot(marketWorkforceSlots, mine.marketId, {
+      burgId: mine.burgId,
+      requiredWorkers: getMineRequiredWorkers(deposit),
+      getWorkers: () => mine.workers,
+      setWorkers: value => {
+        mine.workers = value;
       }
     });
   }
@@ -184,36 +197,35 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
   const strategicIndustryWorkersByBurg = getStrategicIndustryWorkersByBurg();
   const craftWorkersByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
 
+  const localWorkersByBurg = new Map<number, number>();
+  for (const [burgId, slots] of slotsByBurg) {
+    const burg = burgs[burgId];
+    if (!burg) continue;
+    localWorkersByBurg.set(burgId, reconcileSlots(slots, getAdults(burg)));
+  }
+
+  const marketWorkersByBurg = new Map<number, number>();
+  for (const [marketId, slots] of marketWorkforceSlots) {
+    const availableAdults = getMarketAdults(marketId, burgs, localWorkersByBurg);
+    reconcileSlots(slots, availableAdults);
+    for (const slot of slots) {
+      marketWorkersByBurg.set(slot.burgId, (marketWorkersByBurg.get(slot.burgId) ?? 0) + slot.getWorkers());
+    }
+  }
+
   const summaryBurgIds = new Set<number>([
-    ...slotsByBurg.keys(),
+    ...localWorkersByBurg.keys(),
+    ...marketWorkersByBurg.keys(),
     ...tradeWorkersByBurg.keys(),
     ...strategicIndustryWorkersByBurg.keys(),
     ...craftWorkersByBurg.keys()
   ]);
   const summaryRecords: BasicEmploymentSummaryRecord[] = [];
   for (const burgId of summaryBurgIds) {
-    const burg = burgs[burgId];
-    if (!burg) continue;
-
-    const slots = slotsByBurg.get(burgId);
-    if (slots) {
-      const demographics = getBurgDemographics(burg);
-      let remainingAdults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
-
-      for (const slot of slots) {
-        const desiredWorkers = Math.min(slot.requiredWorkers, remainingAdults);
-        const maxChange = Math.max(MIN_ANNUAL_WORKER_CHANGE, slot.requiredWorkers * MAX_ANNUAL_WORKER_CHANGE_SHARE);
-        const change = clamp(desiredWorkers - slot.getWorkers(), -maxChange, maxChange);
-        const nextWorkers = Math.max(0, slot.getWorkers() + change);
-
-        slot.setWorkers(nextWorkers);
-        remainingAdults = Math.max(0, remainingAdults - nextWorkers);
-      }
-    }
-
-    const burgAnchoredDemand = slots?.reduce((sum, slot) => sum + slot.getWorkers(), 0) ?? 0;
+    if (!burgs[burgId]) continue;
     const basicEmploymentDemand =
-      burgAnchoredDemand +
+      (localWorkersByBurg.get(burgId) ?? 0) +
+      (marketWorkersByBurg.get(burgId) ?? 0) +
       (tradeWorkersByBurg.get(burgId) ?? 0) +
       (strategicIndustryWorkersByBurg.get(burgId) ?? 0) +
       (craftWorkersByBurg.get(burgId) ?? 0);
@@ -274,6 +286,46 @@ function pushSlot(map: Map<number, BasicEmploymentSlot[]>, burgId: number, slot:
   const slots = map.get(burgId);
   if (slots) slots.push(slot);
   else map.set(burgId, [slot]);
+}
+
+function pushMarketWorkforceSlot(
+  map: Map<number, MarketWorkforceSlot[]>,
+  marketId: number,
+  slot: MarketWorkforceSlot
+): void {
+  const slots = map.get(marketId);
+  if (slots) slots.push(slot);
+  else map.set(marketId, [slot]);
+}
+
+function getAdults(burg: Pick<Burg, "demographics">): number {
+  const demographics = getBurgDemographics(burg);
+  return Math.max(0, demographics.maleAdults + demographics.femaleAdults);
+}
+
+function getMarketAdults(
+  marketId: number,
+  burgs: readonly (Burg | undefined)[],
+  localWorkersByBurg: ReadonlyMap<number, number>
+): number {
+  return burgs.reduce((sum, burg) => {
+    if (!burg?.i || burg.removed || burg.market !== marketId) return sum;
+    return sum + Math.max(0, getAdults(burg) - (localWorkersByBurg.get(burg.i) ?? 0));
+  }, 0);
+}
+
+function reconcileSlots(slots: readonly BasicEmploymentSlot[], availableAdults: number): number {
+  let remainingAdults = availableAdults;
+  for (const slot of slots) {
+    const desiredWorkers = Math.min(slot.requiredWorkers, remainingAdults);
+    const maxChange = Math.max(MIN_ANNUAL_WORKER_CHANGE, slot.requiredWorkers * MAX_ANNUAL_WORKER_CHANGE_SHARE);
+    const change = clamp(desiredWorkers - slot.getWorkers(), -maxChange, maxChange);
+    const nextWorkers = Math.max(0, slot.getWorkers() + change);
+
+    slot.setWorkers(nextWorkers);
+    remainingAdults = Math.max(0, remainingAdults - nextWorkers);
+  }
+  return slots.reduce((sum, slot) => sum + slot.getWorkers(), 0);
 }
 
 function clamp(value: number, min: number, max: number): number {
