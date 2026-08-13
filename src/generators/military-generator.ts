@@ -928,8 +928,12 @@ class MilitaryModule {
       {
         icon: "⚔️",
         name: "infantry",
-        rural: 0.25,
-        urban: 0.2,
+        // Rural/urban cut from the pre-Muskets 0.25/0.2 (40%/40% moved to "musketeers" below):
+        // Age of Exploration levies were already substantially pike-and-shot, not pure melee.
+        // See "musketeers" below — the split keeps the combined melee+firearm recruitment pool
+        // (and therefore total army size) unchanged, it only reallocates the mix.
+        rural: 0.15,
+        urban: 0.12,
         crew: 1,
         power: 1,
         type: "melee",
@@ -940,6 +944,21 @@ class MilitaryModule {
         name: "archers",
         rural: 0.12,
         urban: 0.2,
+        crew: 1,
+        power: 1,
+        type: "ranged",
+        separate: 0
+      },
+      {
+        // enabled: false intentionally omitted, same as artillery above — gated solely by
+        // options.gunpowderEraEnabled via isGunpowderEraMilitaryUnit() (gunpowderEra.ts), which
+        // matches this unit by name. This is the only unit that draws Muskets/Bullets/Gunpowder
+        // demand (see militaryResources.ts's isFirearm() / metallurgWork.ts's isFirearm() and
+        // stateForcePlans()) — without it, those Goods had no consumer and sat at ~zero demand.
+        icon: "🔫",
+        name: "musketeers",
+        rural: 0.1,
+        urban: 0.08,
         crew: 1,
         power: 1,
         type: "ranged",

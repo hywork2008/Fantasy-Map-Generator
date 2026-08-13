@@ -1,4 +1,5 @@
 import { getGunpowderDemandTechMultiplier } from "../../../generators/technologyProgress";
+import { isFirearmMilitaryUnitName } from "../../../utils/gunpowderEra";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -192,7 +193,7 @@ export class MilitaryResourcesModule {
   }
 
   private isFirearm(unitName: string): boolean {
-    return /arquebus|musketeer|musket|firearm|handgun|gunner/.test(unitName.toLowerCase());
+    return isFirearmMilitaryUnitName(unitName);
   }
 
   private isArcher(unitName: string): boolean {

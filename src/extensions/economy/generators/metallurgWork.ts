@@ -1,3 +1,4 @@
+import { isFirearmMilitaryUnitName } from "../../../utils/gunpowderEra";
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -84,7 +85,7 @@ function isArcher(unitName: string): boolean {
 }
 
 function isFirearm(unitName: string): boolean {
-  return /arquebus|musketeer|musket|firearm|handgun|gunner/.test(unitName.toLowerCase());
+  return isFirearmMilitaryUnitName(unitName);
 }
 
 function isArtillery(unitName: string): boolean {
