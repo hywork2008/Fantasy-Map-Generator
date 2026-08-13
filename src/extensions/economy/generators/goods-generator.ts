@@ -95,7 +95,7 @@ export function getDemandTargets(population: number): number[] {
   return DEMAND_PRIORITY.map(category => population * DEMAND_TARGET_FACTORS[category]);
 }
 
-const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery", "bullets"]);
+const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery", "bullets", "muskets"]);
 
 /** Returns whether a good is available under the current world's era settings. */
 export function isGoodEnabled(good: Pick<Good, "name">): boolean {
@@ -1409,6 +1409,23 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { military: 0.6, hunting: 0.4 }
   },
   {
+    name: "Muskets",
+    // Gunpowder-era good (see GUNPOWDER_ERA_GOODS above): the personal firearm itself, distinct
+    // from Gunpowder (propellant) and Bullets (shot) above and from Artillery (the crew-served
+    // heavy gun) below. Background "military" demand only — like Boots or Bronze, it isn't drawn
+    // per-head by MilitaryResourceLedger/MetallurgWork's state force plans (militaryResources.ts,
+    // metallurgWork.ts), which still cover firearm units' equipment through the generic Arms plan.
+    warEconomyType: "military",
+    tags: ["military"],
+    icon: "good-musket",
+    color: "#5a3d2b",
+    value: 30,
+    chance: 0,
+    recipes: [{ "Iron Ingot": 1, Charcoal: 1, Wood: 0.5 }],
+    unit: "piece",
+    demandCoverage: { military: 1 }
+  },
+  {
     name: "Artillery",
     warEconomyType: "military",
     tags: ["military"],
@@ -2439,6 +2456,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Arrows: tradeProfile(2, 2, 2, 1, 0, 3, 3),
   Gunpowder: tradeProfile(3, 3, 4, 2, 0, 2, 5),
   Bullets: tradeProfile(2, 1, 3, 1, 0, 4, 3),
+  Muskets: tradeProfile(3, 3, 4, 2, 0, 5, 3),
   Artillery: tradeProfile(5, 5, 4, 1, 0, 5, 3),
   Coins: tradeProfile(2, 1, 5, 3, 0, 5, 3),
   Jewelry: tradeProfile(1, 1, 5, 3, 0, 4, 3),
