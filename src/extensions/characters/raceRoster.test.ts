@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { createDefaultRaces } from "../../data/races";
+import { worldContext } from "../hostCore";
+import type { ExtensionAPI } from "../hostTypes";
+import { clearCharactersContext, initCharactersContext, setAllowedCharacterRaceKeys } from "./charactersContext";
 import {
   raceCharacterDensity,
   sampleRaceIdForState,
@@ -96,6 +99,26 @@ describe("sampleRaceIdForState", () => {
     ).toBe(arachnid);
   });
 
+  it("forces mono for a non-diplomatic-core majority even when racialComposition is stale 'mixed'", () => {
+    // Regression: a state can be left with a cached "mixed" racialComposition from before its
+    // culture's race was reassigned (e.g. via the Cultures Editor) to a non-diplomatic-core race
+    // such as Demon or Beastfolk. Mixed courts only ever seat human/elf/dwarf minorities, so a
+    // stale "mixed" flag would silently exclude the actual majority race from every roll.
+    const races = createDefaultRaces();
+    const demon = races.find(r => r.key === "demon")!.i;
+    const beastfolk = races.find(r => r.key === "beastfolk")!.i;
+    for (const majority of [demon, beastfolk]) {
+      for (let i = 0; i < 20; i++) {
+        const id = sampleRaceIdForState(
+          { culture: 1, racialComposition: "mixed" },
+          { race: majority, monoRacial: false },
+          races
+        );
+        expect(id).toBe(majority);
+      }
+    }
+  });
+
   it("staffs draconic mono merchants as wyrmkin, rulers as draconic", () => {
     const races = createDefaultRaces();
     const draconic = races.find(r => r.key === "draconic")!.i;
@@ -110,5 +133,73 @@ describe("sampleRaceIdForState", () => {
         roleClass: "ruler"
       })
     ).toBe(draconic);
+  });
+
+  describe("with a restricted character race allow-list", () => {
+    afterEach(() => {
+      // Reset the module-level fallback allow-list so later tests (in this file or others sharing
+      // the same worker) see the full default roster again, not the restricted set this test used.
+      setAllowedCharacterRaceKeys(
+        createDefaultRaces()
+          .filter(race => race.i > 0)
+          .map(race => race.key)
+      );
+      clearCharactersContext();
+    });
+
+    it("distributes fairly across all allowed substitutes instead of always the lowest catalog id", () => {
+      // Regression: Race & character settings restricted to {Demon, Beastfolk} only, with a
+      // mono state whose culture race (e.g. human) isn't in that allow-list. Before the fix,
+      // resolveAllowedCharacterRaceId's fallback always picked the first allowed race by
+      // catalog id (Demon, i=12) and Beastfolk (i=13) could never be produced this way at all —
+      // "enable Demon + Beastfolk, only Demon characters ever get created".
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      const races = createDefaultRaces();
+      const human = races.find(r => r.key === "human")!.i;
+      const demon = races.find(r => r.key === "demon")!.i;
+      const beastfolk = races.find(r => r.key === "beastfolk")!.i;
+      expect(setAllowedCharacterRaceKeys(["demon", "beastfolk"])).toBe(true);
+
+      const seen = new Set<number>();
+      for (let i = 0; i < 60; i++) {
+        const id = sampleRaceIdForState(
+          { culture: 1, racialComposition: "mono" },
+          { race: human, monoRacial: true },
+          races
+        );
+        expect([demon, beastfolk]).toContain(id);
+        seen.add(id);
+      }
+      expect(seen.has(demon)).toBe(true);
+      expect(seen.has(beastfolk)).toBe(true);
+    });
+
+    it("does not let human silently absorb every substitution when enabled alongside other races", () => {
+      // Regression: allow-list {Human, Demon, Beastfolk}, with elf (disallowed) as the culture's
+      // real race. Before this fix, resolveAllowedCharacterRaceId special-cased "prefer human
+      // when enabled" and returned it unconditionally — Demon/Beastfolk, though enabled, could
+      // never actually be produced as long as Human stayed enabled too.
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      const races = createDefaultRaces();
+      const elf = races.find(r => r.key === "elf")!.i;
+      const human = races.find(r => r.key === "human")!.i;
+      const demon = races.find(r => r.key === "demon")!.i;
+      const beastfolk = races.find(r => r.key === "beastfolk")!.i;
+      expect(setAllowedCharacterRaceKeys(["human", "demon", "beastfolk"])).toBe(true);
+
+      const seen = new Set<number>();
+      for (let i = 0; i < 90; i++) {
+        const id = sampleRaceIdForState(
+          { culture: 1, racialComposition: "mono" },
+          { race: elf, monoRacial: true },
+          races
+        );
+        expect([human, demon, beastfolk]).toContain(id);
+        seen.add(id);
+      }
+      expect(seen.has(human)).toBe(true);
+      expect(seen.has(demon)).toBe(true);
+      expect(seen.has(beastfolk)).toBe(true);
+    });
   });
 });

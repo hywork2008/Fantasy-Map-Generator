@@ -124,7 +124,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
 
   for (const state of states) {
     const culture = pack.cultures?.[state.culture];
-    ensureStateRacialComposition(state, culture);
+    ensureStateRacialComposition(state, culture, pack.races);
     const density = densityForState(state, pack);
 
     const rulerIds = resolvePersonCultureAndRace(state, pack);

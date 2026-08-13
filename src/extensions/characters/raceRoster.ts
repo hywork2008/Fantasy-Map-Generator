@@ -7,7 +7,7 @@
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
 import { isBoundServitorRaceKey, resolveRaceIdWithBoundServitor } from "../../data/raceBoundServitors";
-import { canAppearInMixedCourt } from "../../data/raceCivicStance";
+import { canAppearInMixedCourt, isDiplomaticCoreRaceKey } from "../../data/raceCivicStance";
 import { HUMAN_RACE_ID, UNKNOWN_RACE_ID } from "../../data/races";
 import type { Culture, Race, State, StateRacialComposition } from "../../types/models";
 import { P } from "../hostUtils";
@@ -62,10 +62,29 @@ export function isMonoRacialCulture(culture: Pick<Culture, "monoRacial"> | undef
   return !!culture?.monoRacial;
 }
 
+/**
+ * Mixed courts are diplomatic-core (human/elf/dwarf) cosmopolitan realms only (see module doc).
+ * A culture whose *current* race is not diplomatic-core must never resolve to "mixed" — even if
+ * `state.racialComposition` was cached as "mixed" from an earlier culture race (e.g. before a
+ * Cultures Editor reassignment to Demon/Beastfolk/other non-core races), or a stale save. Otherwise
+ * sampleRaceIdForState's mixed-court weighting silently excludes the actual majority race entirely
+ * (it only seats diplomatic-core minorities), and the state never gets named characters of its own race.
+ */
+function isDiplomaticCoreMajority(
+  culture: Pick<Culture, "race"> | null | undefined,
+  races: readonly Race[] | undefined | null
+): boolean {
+  if (!races?.length || culture?.race === undefined) return true; // can't verify — don't force mono
+  const raceKey = races.find(r => r.i === culture.race)?.key;
+  return raceKey === undefined || isDiplomaticCoreRaceKey(raceKey);
+}
+
 export function resolveStateRacialComposition(
   state: Pick<State, "racialComposition" | "culture">,
-  culture?: Pick<Culture, "monoRacial"> | null
+  culture?: Pick<Culture, "race" | "monoRacial"> | null,
+  races?: readonly Race[] | null
 ): StateRacialComposition {
+  if (!isDiplomaticCoreMajority(culture, races)) return "mono";
   if (state.racialComposition === "mono" || state.racialComposition === "mixed") {
     return state.racialComposition;
   }
@@ -73,8 +92,12 @@ export function resolveStateRacialComposition(
 }
 
 /** Persist composition on the state object from its culture (call at character gen). */
-export function ensureStateRacialComposition(state: State, culture?: Culture | null): StateRacialComposition {
-  const composition = resolveStateRacialComposition(state, culture);
+export function ensureStateRacialComposition(
+  state: State,
+  culture?: Culture | null,
+  races?: readonly Race[] | null
+): StateRacialComposition {
+  const composition = resolveStateRacialComposition(state, culture, races);
   state.racialComposition = composition;
   return composition;
 }
@@ -108,7 +131,7 @@ export function sampleRaceIdForState(
   options?: { roleClass?: string }
 ): number {
   const majorityRace = culture?.race ?? HUMAN_RACE_ID;
-  const composition = resolveStateRacialComposition(state, culture);
+  const composition = resolveStateRacialComposition(state, culture, races);
   if (composition === "mono") {
     const hostId = majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
     return resolveAllowedCharacterRaceId(resolveRaceIdWithBoundServitor(hostId, options?.roleClass, races), races);
@@ -161,7 +184,7 @@ export function resolvePersonCultureAndRace(
 ): { cultureId: number; raceId: number } {
   const culture = pack.cultures?.[state.culture];
   const raceId = sampleRaceIdForState(state, culture, pack.races, options);
-  const composition = resolveStateRacialComposition(state, culture);
+  const composition = resolveStateRacialComposition(state, culture, pack.races);
   if (composition === "mono") {
     // Bound servitors keep the host culture for names/language.
     return { cultureId: state.culture, raceId };
@@ -189,7 +212,7 @@ export function densityForState(
   const race = pack.races?.[raceId];
   // Mixed polities use human-scale full courts even if majority is long-lived
   // (multi-folk staff fill seats). Mono long-lived courts stay thin.
-  const composition = resolveStateRacialComposition(state, culture);
+  const composition = resolveStateRacialComposition(state, culture, pack.races);
   if (composition === "mixed") {
     return Math.max(0.85, raceCharacterDensity(race));
   }

@@ -187,8 +187,16 @@ export function filterAllowedCharacterRaces(races: readonly Race[]): Race[] {
 }
 
 /**
- * Keep all generated characters inside the configured roster. Human is preferred
- * as the fallback when enabled; otherwise use the first enabled live race.
+ * Keep all generated characters inside the configured roster. When the requested race isn't
+ * allowed, substitute uniformly at random among *all* other currently-enabled live races —
+ * including human, with no special preference for it.
+ *
+ * Deliberately not "prefer human when enabled": human is virtually always left enabled (it's
+ * the default core race), so a hard human-first rule would mean every disallowed race's
+ * characters collapse onto human alone and any other race the user enabled alongside it — e.g.
+ * a roster of {Human, Demon, Beastfolk} — would never actually appear as a substitute. Every
+ * enabled race needs an equal shot at being picked, not just the first found or a hardcoded
+ * favorite.
  */
 export function resolveAllowedCharacterRaceId(raceId: number, races: readonly Race[] | null | undefined): number {
   if (!races?.length) return raceId;
@@ -196,8 +204,9 @@ export function resolveAllowedCharacterRaceId(raceId: number, races: readonly Ra
   const requested = races.find(race => race.i === raceId);
   if (requested && !requested.removed && allowed.has(requested.key)) return requested.i;
 
-  const human = races.find(race => race.key === "human" && !race.removed && allowed.has(race.key));
-  return human?.i ?? races.find(race => race.i > 0 && !race.removed && allowed.has(race.key))?.i ?? raceId;
+  const candidates = filterAllowedCharacterRaces(races);
+  if (!candidates.length) return raceId;
+  return candidates[Math.floor(Math.random() * candidates.length)]!.i;
 }
 
 /**
