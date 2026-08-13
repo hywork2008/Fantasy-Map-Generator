@@ -136,6 +136,54 @@ registerSimulationSystem({
   }
 });
 
+/**
+ * Loop-reduction Phase 1 (docs/plan/advance-time-loop-reduction.md): the manpower ledger
+ * (draft/demobilize/wastage in manpower.ts) is pure linear rate math — every constant there is a
+ * "fraction of X per year" scaled by deltaYears, with no probability rolls or reaction/detection
+ * logic — so applying several accumulated days' worth of deltaYears in one call is (within
+ * floating-point rounding) equivalent to applying each day's tiny slice separately. It used to run
+ * unconditionally every simulated day (~11ms/day, ~4s/year on a 711-burg map — see
+ * docs/analytics/advance-year-performance.md), the single largest non-self-gated per-day cost.
+ *
+ * `SimulationCadence.every` counts `advanceTime()` calls, not calendar days (a bulk one-year jump
+ * and a single-day step both count as one tick — see docs/plan/seasonal-temperature-variation.md),
+ * so it cannot express "once a week" by itself. Self-gating on an accumulated-day counter inside
+ * `run()` — the same pattern economy's `daysSinceLastProduction` already uses
+ * (src/extensions/economy/index.tsx) — is what makes this calendar-accurate regardless of how many
+ * days a single tick represents. This changes nothing about how many `simulation.stepDay` commits
+ * happen, so P2-5's "Advance Day×N == Advance Month×1" invariant is untouched; only how often the
+ * manpower body actually executes does.
+ */
+const MANPOWER_GATE_DAYS = 7;
+let manpowerDaysAccumulated = 0;
+
+registerSimulationSystem({
+  id: "manpower.tick",
+  phase: "population",
+  reads: ["simulation.cells", "simulation.states", "simulation.military"],
+  writes: ["simulation.states", "simulation.military"],
+  cadence: { every: 1 },
+  profileLabel: "core:manpower",
+  run: (context, writer) => {
+    const sim = useOptionsState.getState();
+    if (!sim.simManpower || !worldContext.pack?.states) {
+      // Drop any partial accumulation so re-enabling later doesn't apply a surprise multi-day
+      // lump built up while the ledger was off.
+      manpowerDaysAccumulated = 0;
+      return;
+    }
+
+    const { years, months, days } = context.delta;
+    manpowerDaysAccumulated += years * DAYS_PER_YEAR + months * DAYS_PER_MONTH + days;
+    if (manpowerDaysAccumulated < MANPOWER_GATE_DAYS) return;
+
+    const dueDeltaYears = manpowerDaysAccumulated / DAYS_PER_YEAR;
+    manpowerDaysAccumulated = 0;
+    tickManpower(worldContext.pack, dueDeltaYears, worldContext.populationRate);
+    writer.markChanged("simulation.states", "simulation.military");
+  }
+});
+
 // Frontier projects are host-owned politics work. The module's annual guard
 // keeps this registered daily system cheap while making Advance Day/Month/Year
 // share identical calendar-boundary semantics.
@@ -693,13 +741,9 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     if (portDevelopments.some(development => development.routeAdded)) topics.push("map.networks");
   }
 
-  // 3) Manpower ledger: draft capacity + fill/demobilize from civilian males
-  if (sim.simManpower && worldContext.pack?.states) {
-    topics.push("simulation.states", "simulation.military");
-    measureTickStep("core:manpower", () =>
-      tickManpower(worldContext.pack, effectiveDeltaYears, worldContext.populationRate)
-    );
-  }
+  // 3) Manpower ledger: now owned by the "manpower.tick" SimulationSystem registered near the top
+  // of this file — self-gated on an accumulated-day counter instead of running unconditionally
+  // every day (docs/plan/advance-time-loop-reduction.md Phase 1).
 
   const systemContextBase = {
     tick: simulationContext.tickCount,

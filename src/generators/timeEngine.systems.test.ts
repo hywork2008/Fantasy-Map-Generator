@@ -148,4 +148,102 @@ describe("timeEngine simulation system registration (P2-7)", () => {
       generate.mockRestore();
     }
   });
+
+  it("registers the built-in manpower.tick system in the population phase", () => {
+    const ids = listRegisteredSimulationSystemIds();
+    expect(ids).toContain("manpower.tick");
+  });
+
+  it("manpower.tick self-gates on an accumulated-day counter instead of running every stepDaySimulation call (docs/plan/advance-time-loop-reduction.md Phase 1)", () => {
+    worldContext.seed = "manpower-gate";
+    worldContext.options = { year: 1000, month: 1, day: 1, era: "Test" } as never;
+    worldContext.nameBases = [];
+    worldContext.biomesData = { habitability: [0] } as never;
+    worldContext.notes = [];
+    worldContext.grid = {} as never;
+    worldContext.mapCoordinates = { latN: 40, latS: 20 } as never;
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 2;
+
+    const regiment = {
+      i: 0,
+      t: 100,
+      a: 100,
+      s: 1,
+      cell: 1,
+      x: 1,
+      y: 1,
+      bx: 1,
+      by: 1,
+      u: { infantry: 100 },
+      n: 0,
+      type: "melee",
+      state: 1,
+      name: "Test"
+    };
+    const state = {
+      i: 1,
+      name: "A",
+      expansionism: 1,
+      capital: 1,
+      type: "Generic",
+      center: 1,
+      culture: 1,
+      coa: null,
+      rural: 800,
+      urban: 200,
+      military: [regiment],
+      diplomacy: []
+    };
+    worldContext.pack = {
+      states: [{ i: 0, diplomacy: [] }, state],
+      burgs: [],
+      routes: [],
+      cells: {
+        i: [0, 1, 2],
+        state: [0, 1, 1],
+        province: [0, 5, 9],
+        pop: [0, 100, 50],
+        maleAdults: new Float32Array([0, 22, 11]),
+        femaleAdults: new Float32Array([0, 23, 12]),
+        children: new Float32Array([0, 40, 20]),
+        elders: new Float32Array([0, 15, 7]),
+        h: new Uint8Array([25, 25, 25]),
+        f: new Uint16Array([1, 1, 1]),
+        c: [[], [], []],
+        p: [
+          [0, 0],
+          [1, 1],
+          [2, 2]
+        ]
+      }
+    } as never;
+
+    simulationContext.currentYear = 1000;
+    simulationContext.currentMonth = 1;
+    simulationContext.currentDay = 1;
+    simulationContext.tickCount = 0;
+    simulationContext.frontier = createEmptyFrontierSimulationState();
+    simulationContext.populationLoss = { simDay: 0, history: [] };
+    simulationContext.intelligence = {};
+    simulationContext.strategicGoals = {};
+    simulationContext.navalTechBonus = {};
+    initRng("manpower-gate");
+    useOptionsState.setState({
+      simDemographics: false,
+      simManpower: true,
+      simMilitaryRecovery: false
+    });
+
+    // Regiment starts well under its ~1% peacetime population target, so tickManpower's growth
+    // branch (ANNUAL_DRAFT_SHARE × deltaYears) raises r.t on every call it actually runs — a
+    // no-op day is therefore directly observable as "r.t unchanged".
+    for (let day = 0; day < 6; day++) {
+      stepDaySimulation();
+      expect(regiment.t).toBe(100);
+    }
+
+    stepDaySimulation(); // 7th day: accumulator crosses MANPOWER_GATE_DAYS, tickManpower runs once
+    expect(regiment.t).toBeGreaterThan(100);
+  });
 });

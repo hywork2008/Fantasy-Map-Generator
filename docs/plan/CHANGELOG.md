@@ -2,6 +2,7 @@
 
 2026-08-13
 
+- docs/plan/advance-time-loop-reduction.md
 - docs/plan/civil-administration-burg-state-split.md
 - docs/plan/department-budget-spending-effects.md
 

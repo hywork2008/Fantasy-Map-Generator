@@ -147,6 +147,36 @@ describe("manpower ledger", () => {
     expect(r.t).toBeGreaterThan(100);
   });
 
+  it("batching a week's worth of deltaYears into one call matches seven separate daily calls closely (docs/plan/advance-time-loop-reduction.md Phase 1)", () => {
+    // tickManpower's growth branch is pure Euler integration of a gap-closing rate
+    // (ANNUAL_DRAFT_SHARE × deltaYears, no probability rolls, no rounding thresholds), so seven
+    // tiny daily steps and one accumulated weekly step should land within a fraction of a
+    // percent of each other. This is the numeric-safety assumption manpower.tick's day-accumulator
+    // self-gate (src/generators/timeEngine.ts) relies on.
+    const DAYS_PER_YEAR = 365.2425;
+    const dailyDeltaYears = 1 / DAYS_PER_YEAR;
+    const weeklyDeltaYears = 7 / DAYS_PER_YEAR;
+
+    const dailyPack = makePack();
+    const dailyRegiment = dailyPack.states[1].military![0];
+    dailyRegiment.a = 100;
+    dailyRegiment.t = 100;
+    dailyRegiment.u = { infantry: 100 };
+    for (let day = 0; day < 7; day++) {
+      tickManpower(dailyPack, dailyDeltaYears, 1000);
+    }
+
+    const weeklyPack = makePack();
+    const weeklyRegiment = weeklyPack.states[1].military![0];
+    weeklyRegiment.a = 100;
+    weeklyRegiment.t = 100;
+    weeklyRegiment.u = { infantry: 100 };
+    tickManpower(weeklyPack, weeklyDeltaYears, 1000);
+
+    expect(weeklyRegiment.t).toBeGreaterThan(100);
+    expect(weeklyRegiment.t / dailyRegiment.t).toBeCloseTo(1, 2); // within ~0.5%
+  });
+
   it("effectiveTroopTarget is capped by male stock", () => {
     const pack = worldContext.pack as PackedGraph;
     const state = pack.states[1];
