@@ -191,6 +191,7 @@ describe("GoodsModule", () => {
     const gunpowder = byName.get("Gunpowder");
     const bullets = byName.get("Bullets");
     const muskets = byName.get("Muskets");
+    const artillery = byName.get("Artillery");
 
     expect(leadOre?.tags).toEqual(expect.arrayContaining(["ore", "mineral"]));
     expect(leadOre?.trade?.distancePremium).toBeLessThan(leadIngot!.trade!.distancePremium);
@@ -207,6 +208,7 @@ describe("GoodsModule", () => {
     expect(gunpowder?.demandCoverage).toEqual({});
     expect(bullets?.demandCoverage).toEqual({ hunting: 0.4 });
     expect(muskets?.demandCoverage).toEqual({});
+    expect(artillery?.demandCoverage).toEqual({});
   });
 
   it("prices the gunpowder-chain goods higher in earlier, less mature historicalPeriods", () => {

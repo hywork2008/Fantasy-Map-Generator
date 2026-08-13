@@ -1495,7 +1495,10 @@ export const GOODS_DATA: GoodData[] = [
       { Bronze: 1, Charcoal: 1 }
     ],
     unit: "cannon",
-    demandCoverage: { military: 1 }
+    // Cannon are state-owned capital equipment. State Metallurg work orders model their
+    // procurement and maintenance; ordinary Burg population demand must not create civilian
+    // artillery purchases that crowd out the firearm supply chain.
+    demandCoverage: {}
   },
   {
     name: "Coins",
