@@ -134,6 +134,24 @@ describe("SmelterOperationsModule", () => {
     expect(getMarkets()[0].goods[4]).toBeUndefined();
   });
 
+  it("requests a State-funded Charcoal reserve at an iron smelter serving military Ingot demand", () => {
+    getMarkets()[0].goods[3].stock = 0;
+    SmelterOperations.generate();
+
+    expect(
+      SmelterOperations.getStateMilitaryFuelDemands([{ stateId: 1, ingotGoodId: 2, requestedIngotUnits: 4 }])
+    ).toEqual([
+      {
+        stateId: 1,
+        destinationMarketId: 1,
+        goodId: 3,
+        // Four Ingots require five Ore at 80% yield. The smelter retains half its market stock,
+        // so it needs ten Charcoal available to consume those five Ore.
+        requestedUnits: 10
+      }
+    ]);
+  });
+
   it("does not create a smelter for mines that produce only unsmelted fuel minerals", () => {
     setMineralDeposits([
       {

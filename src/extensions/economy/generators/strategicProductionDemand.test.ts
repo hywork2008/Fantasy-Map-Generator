@@ -47,6 +47,12 @@ describe("strategic production demand", () => {
     expect(demand.size).toBe(0);
   });
 
+  it("marks local Metallurg procurement as State-funded production", () => {
+    const demand = getStrategicProductionDemandByGood([order({ purpose: "metallurg" })], 10);
+
+    expect(demand.get(7)).toMatchObject({ stateFunded: true });
+  });
+
   it("defers strategic priority while population demand is unfulfilled and then rewards continuity", () => {
     const initial = { goodId: 7, outstandingUnits: 0.4, priorityCycles: 1 };
     const continuing = { ...initial, priorityCycles: 8 };

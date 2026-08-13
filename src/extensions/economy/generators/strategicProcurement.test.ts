@@ -151,6 +151,30 @@ describe("StrategicProcurementModule", () => {
     expect(procurement.getOrders()).toHaveLength(2);
   });
 
+  it("retains one blocked Metallurg order when the same route repeatedly cannot spawn", () => {
+    setupWorld();
+    vi.spyOn(Caravans, "spawnStrategicProcurement").mockReturnValue(null);
+    const metallurgyDemand = {
+      stateId: 1,
+      destinationMarketId: 1,
+      goodId: 1,
+      requestedUnits: 0.2
+    };
+
+    procurement.handleMetallurgMaterialDemand(metallurgyDemand);
+    procurement.handleMetallurgMaterialDemand(metallurgyDemand);
+
+    expect(procurement.getOrders()).toEqual([
+      expect.objectContaining({
+        purpose: "metallurg",
+        status: "blocked",
+        blockedReason: "noRoute",
+        requestedUnits: 0.2,
+        priorityCycles: 2
+      })
+    ]);
+  });
+
   it("records a foreign-policy block when only an Enemy source can supply the material", () => {
     setupWorld({ sourceStateId: 2 });
 

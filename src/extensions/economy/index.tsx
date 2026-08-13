@@ -1203,23 +1203,40 @@ function registerEconomyCommands(api: ExtensionAPI): void {
 }
 
 /**
- * Sends only the remaining material gap to public procurement. The destination market's State
- * pays the price; independent Burgs remain visible as shortages until they join a State market.
+ * Sends only State military Metallurg material gaps to public procurement. Burg tool shortages
+ * remain local: they must not consume State funds or flood the procurement queue.
  */
 function requestMetallurgMaterials(): void {
   const burgs = getWorldContext().pack.burgs;
   const marketsById = new Map(getMarkets().map(market => [market.i, market]));
-  for (const forecast of MetallurgWork.getMaterialForecasts()) {
-    if (!(forecast.projectedShortage > 0)) continue;
+  const materialDemands = MetallurgWork.getStateMaterialForecasts().flatMap(forecast => {
+    if (!(forecast.projectedShortage > 0)) return [];
     const market = marketsById.get(forecast.marketId);
     const stateId = market ? burgs[market.centerBurgId]?.state : undefined;
-    if (!stateId) continue;
-    StrategicProcurement.handleMetallurgMaterialDemand({
-      stateId,
-      destinationMarketId: forecast.marketId,
-      goodId: forecast.goodId,
-      requestedUnits: forecast.projectedShortage
-    });
+    if (!stateId) return [];
+    return [
+      {
+        stateId,
+        destinationMarketId: forecast.marketId,
+        goodId: forecast.goodId,
+        requestedUnits: forecast.projectedShortage
+      }
+    ];
+  });
+  // Smelters run before Burg manufacturing in the next production cycle. Give their local markets
+  // a Charcoal reserve now, so State military Ingot demand can pull Ore through the refinery rather
+  // than waiting forever for a finished Ingot route from a fuel-starved mining district.
+  const smelterFuelDemands = SmelterOperations.getStateMilitaryFuelDemands(
+    materialDemands.map(demand => ({
+      stateId: demand.stateId,
+      ingotGoodId: demand.goodId,
+      requestedIngotUnits: demand.requestedUnits
+    }))
+  );
+  const demands = [...materialDemands, ...smelterFuelDemands];
+  StrategicProcurement.pruneBlockedMetallurgOrders(demands);
+  for (const demand of demands) {
+    StrategicProcurement.handleMetallurgMaterialDemand(demand);
   }
 }
 

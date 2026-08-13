@@ -316,10 +316,18 @@ describe("MetallurgWorkModule", () => {
     expect(getMetallurgMaterialForecasts().some(forecast => forecast.projectedShortage > 0)).toBe(true);
     expect(Array.from(MetallurgWork.getProductionDemandByGood(1).values())).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ goodId: 4, priorityCycles: 2 }),
-        expect.objectContaining({ goodId: 7, priorityCycles: 2 })
+        expect.objectContaining({ goodId: 4, priorityCycles: 2, stateFunded: true }),
+        expect.objectContaining({ goodId: 7, priorityCycles: 2, stateFunded: true })
       ])
     );
+    const ordersById = new Map(orders.map(order => [order.id, order]));
+    expect(
+      MetallurgWork.getStateMaterialForecasts().every(forecast =>
+        forecast.workOrderIds.every(orderId => {
+          return ordersById.get(orderId)?.ownerKind === "state";
+        })
+      )
+    ).toBe(true);
   });
 
   it("subtracts actual inbound merchant cargo from the material purchase recommendation", () => {

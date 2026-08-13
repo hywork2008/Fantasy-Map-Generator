@@ -35,6 +35,8 @@ export interface MetallurgProductionDemand {
   outstandingUnits: number;
   /** Maintenance and military replenishment remain visible without monopolizing normal demand. */
   priorityCycles: number;
+  /** State military orders use the State treasury for recipe inputs, not an empty capital Burg. */
+  stateFunded: boolean;
 }
 
 export type {
@@ -459,6 +461,18 @@ export class MetallurgWorkModule {
     return getMetallurgMaterialForecasts();
   }
 
+  /**
+   * Forecasts only unfinished State military work. Local Burg tool maintenance remains visible in
+   * the overview, but it must not create taxpayer-funded strategic procurement orders.
+   */
+  getStateMaterialForecasts(): readonly MetallurgMaterialForecast[] {
+    const goodsById = new Map(getGoods().map(good => [good.i, good]));
+    const stateOrders = getMetallurgWorkOrders().filter(
+      order => order.ownerKind === "state" && order.status !== "completed"
+    );
+    return this.buildMaterialForecasts(stateOrders, goodsById);
+  }
+
   /** Re-reads stock and live cargo without creating another month's worth of work. */
   refreshMaterialForecasts(): void {
     const goodsById = new Map(getGoods().map(good => [good.i, good]));
@@ -481,8 +495,14 @@ export class MetallurgWorkModule {
       if (existing) {
         existing.outstandingUnits += outstandingUnits;
         existing.priorityCycles = Math.max(existing.priorityCycles, priorityCycles);
+        existing.stateFunded ||= order.ownerKind === "state";
       } else {
-        demandByGood.set(order.productGoodId, { goodId: order.productGoodId, outstandingUnits, priorityCycles });
+        demandByGood.set(order.productGoodId, {
+          goodId: order.productGoodId,
+          outstandingUnits,
+          priorityCycles,
+          stateFunded: order.ownerKind === "state"
+        });
       }
     }
     return demandByGood;

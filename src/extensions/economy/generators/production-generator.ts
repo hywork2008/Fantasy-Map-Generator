@@ -1,5 +1,5 @@
 import { isDistillationKnown } from "../../../generators/technologyProgress";
-import type { Burg } from "../../hostTypes";
+import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
 import {
   getBurgProductionRecords,
@@ -637,6 +637,7 @@ export class ProductionModule {
       if (existing) {
         existing.outstandingUnits += demand.outstandingUnits;
         existing.priorityCycles = Math.max(existing.priorityCycles, demand.priorityCycles);
+        existing.stateFunded ||= demand.stateFunded;
       } else {
         combined.set(demand.goodId, { ...demand });
       }
@@ -827,6 +828,8 @@ export class ProductionModule {
   ): void {
     const { good, ingredients, byproducts, maxYield, ingredientCostPerUnit, smithingProgram } = decision.action;
     let actualYield = Math.min(workerFraction, maxYield);
+    const fundingState = this.getStateMilitaryManufacturingFund(state, decision.goalGoodId);
+    const availableFunds = fundingState?.treasury ?? state.burg.treasury ?? 0;
 
     if (good.name === "Garments") {
       actualYield = Math.min(actualYield, getGarmentProductionHeadroom(state.market, state.inventory[good.i] || 0));
@@ -841,7 +844,7 @@ export class ProductionModule {
     // manufacturing at a loss indefinitely, sinking burg.treasury unboundedly negative — mirrors the
     // budget cap fillDemandFromMarket already applies to demand-fulfillment purchases.
     if (ingredientCostPerUnit > 0) {
-      const affordableYield = Math.max(0, state.burg.treasury || 0) / ingredientCostPerUnit;
+      const affordableYield = Math.max(0, availableFunds) / ingredientCostPerUnit;
       actualYield = Math.min(actualYield, affordableYield);
     }
     if (actualYield <= 0.001) return;
@@ -864,7 +867,7 @@ export class ProductionModule {
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
     type Plan = { ingredientId: number; amount: number; fromInventory: number; deal: Deal | null };
     const plans: Plan[] = [];
-    let remainingBudget = Math.max(0, state.burg.treasury || 0);
+    let remainingBudget = Math.max(0, availableFunds);
     for (const ingredient of ingredients) {
       const ingredientId = ingredient.goodId;
       const amount = actualYield * ingredient.amount;
@@ -901,7 +904,8 @@ export class ProductionModule {
         const marketCost = deal.units * deal.price;
         materialCost += marketCost;
         state.ingredientCosts += marketCost;
-        state.burg.treasury = rn((state.burg.treasury || 0) - marketCost, 2);
+        if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - marketCost), 2);
+        else state.burg.treasury = rn((state.burg.treasury || 0) - marketCost, 2);
       }
       recipe.push({ goodId: ingredientId, units: rn(amount, 2) });
 
@@ -951,6 +955,18 @@ export class ProductionModule {
         masterCharacterId: smithingProgram?.masterCharacterId ?? null
       });
     }
+  }
+
+  /** A State pays only for its own military Metallurg order manufactured in one of its Burgs. */
+  private getStateMilitaryManufacturingFund(
+    state: Pick<BurgProductionState, "burg" | "strategicDemandByGood">,
+    goalGoodId: number | null
+  ): State | undefined {
+    if (goalGoodId === null || !state.strategicDemandByGood.get(goalGoodId)?.stateFunded || !state.burg.state) {
+      return undefined;
+    }
+    const fundingState = getWorldContext().pack.states[state.burg.state];
+    return fundingState && !fundingState.removed ? fundingState : undefined;
   }
 
   /** Places unavoidable manufacturing residue directly into the local market, without a sale. */

@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
 import { createEmptyTechnologySimulationState } from "../../../generators/technologyTypes";
 import { worldContext } from "../../hostCore";
-import type { Burg, ExtensionAPI } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setGoods } from "../economyContext";
+import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
+import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
 import { type Good, Goods } from "./goods-generator";
+import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import {
   isGoodManufacturableInState,
@@ -16,7 +17,7 @@ import type { MfgRecord, ProductionRecord } from "./productionRecordTypes";
 type ManufactureHarness = {
   executeManufacture(
     state: {
-      burg: { i: number; cell: number; treasury: number };
+      burg: { i: number; cell: number; treasury: number; state?: number; market?: number };
       market: { i: number; goods: Record<number, { stock: number; price: number }> };
       inventory: number[];
       demandCoverage: number[];
@@ -24,7 +25,7 @@ type ManufactureHarness = {
       ingredientCosts: number;
       smithingProgramByGood: Map<string, never>;
       strategicLaborMarket: undefined;
-      strategicDemandByGood: ReadonlyMap<number, never>;
+      strategicDemandByGood: ReadonlyMap<number, { stateFunded?: boolean }>;
     },
     index: { demandCoverageByGood: number[][] },
     decision: {
@@ -125,6 +126,58 @@ describe("ProductionModule byproducts", () => {
     } as unknown as Burg;
 
     expect(production.getBurgProduction(burg)).toEqual({ 3: 1, 4: 0.1 });
+  });
+
+  it("uses the State treasury for material purchases of State military work", () => {
+    const market: Market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#111",
+      goods: { 1: { stock: 2, price: 1 } }
+    };
+    const stateTreasury = 10;
+    worldContext.pack = {
+      burgs: [{ i: 0 } as Burg, { i: 1, cell: 0, state: 1, market: 1, treasury: 0 } as Burg],
+      states: [{ i: 0 } as State, { i: 1, treasury: stateTreasury } as State],
+      markets: [market]
+    } as unknown as PackedGraph;
+    setMarkets([market]);
+    Markets.sync();
+    const state = {
+      burg: worldContext.pack.burgs[1] as { i: number; cell: number; treasury: number; state: number; market: number },
+      market,
+      inventory: [],
+      demandCoverage: [],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: undefined,
+      strategicDemandByGood: new Map([[3, { stateFunded: true }]])
+    };
+    const production = new ProductionModule() as unknown as ManufactureHarness;
+
+    production.executeManufacture(
+      state,
+      { demandCoverageByGood: [] },
+      {
+        action: {
+          good: Goods.get(3)!,
+          ingredients: [{ goodId: 1, amount: 1 }],
+          byproducts: [],
+          maxYield: 1,
+          ingredientCostPerUnit: 1,
+          smithingProgram: null
+        },
+        candidates: [],
+        goalGoodId: 3,
+        laborProductivity: 1
+      },
+      1
+    );
+
+    expect(state.inventory[3]).toBe(1);
+    expect(worldContext.pack.burgs[1].treasury).toBe(0);
+    expect(worldContext.pack.states[1].treasury).toBeLessThan(stateTreasury);
   });
 
   it("blocks Liquor until the burg's state knows distillation", () => {

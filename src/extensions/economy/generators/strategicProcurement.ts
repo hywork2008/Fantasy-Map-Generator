@@ -177,6 +177,55 @@ export class StrategicProcurementModule {
     });
   }
 
+  /**
+   * Removes blocked Metallurg requests that no longer belong to an unfinished State order and
+   * collapses historical retries to one request per State, market, and material. Burg tool
+   * maintenance deliberately has no public-procurement budget, so retaining its old blocked
+   * requests would both misstate military demand and keep save files needlessly large.
+   */
+  pruneBlockedMetallurgOrders(demands: readonly MetallurgMaterialProcurementDemand[]): void {
+    const activeDemandKeys = new Set(
+      demands.map(demand => this.getOrderKey(demand.stateId, demand.destinationMarketId, demand.goodId, "metallurg"))
+    );
+    const retainedOrders: ProcurementOrder[] = [];
+    const blockedByKey = new Map<string, ProcurementOrder>();
+    let changed = false;
+
+    for (const order of this.getOrders()) {
+      if (!hasPurpose(order, "metallurg") || order.status !== "blocked") {
+        retainedOrders.push(order);
+        continue;
+      }
+
+      const key = this.getOrderKey(order.stateId, order.destinationMarketId, order.goodId, "metallurg");
+      if (!activeDemandKeys.has(key)) {
+        changed = true;
+        continue;
+      }
+
+      const existing = blockedByKey.get(key);
+      if (!existing) {
+        blockedByKey.set(key, order);
+        retainedOrders.push(order);
+        continue;
+      }
+
+      // Keep the newest blocked record, carrying forward the largest request and its history.
+      const kept = existing.id > order.id ? existing : order;
+      const discarded = kept === existing ? order : existing;
+      kept.requestedUnits = rn(Math.max(kept.requestedUnits, discarded.requestedUnits), 2);
+      kept.priorityCycles = Math.max(kept.priorityCycles ?? 1, discarded.priorityCycles ?? 1);
+      if (kept === order) {
+        const index = retainedOrders.indexOf(existing);
+        retainedOrders[index] = order;
+        blockedByKey.set(key, order);
+      }
+      changed = true;
+    }
+
+    if (changed) setStrategicProcurementOrders(retainedOrders);
+  }
+
   reconcileCaravans(arrived: readonly Caravan[], lost: readonly Caravan[]): void {
     const orders = this.getOrders();
     for (const caravan of arrived) this.reconcileCaravan(caravan, orders, "fulfilled");
@@ -243,6 +292,7 @@ export class StrategicProcurementModule {
     policy: StrategicGoodsPolicy;
     purpose: ProcurementOrderPurpose;
   }): void {
+    this.consolidateBlockedOrder(stateId, destination.i, good.i, purpose);
     const assignedUnits = this.getAssignedUnits(stateId, destination.i, good.i, purpose);
     const remainingUnits = requestedUnits - assignedUnits;
     if (remainingUnits <= EPSILON) return;
@@ -315,8 +365,7 @@ export class StrategicProcurementModule {
       const treasury = this.worldContext.pack.states[stateId]?.treasury ?? 0;
       const totalCost = candidate.landedUnitPrice * units;
       if (treasury + EPSILON < totalCost) {
-        order.status = "blocked";
-        order.blockedReason = "insufficientTreasury";
+        this.discardOrder(order.id);
         remainingBlockedReason = "insufficientTreasury";
         break;
       }
@@ -324,8 +373,7 @@ export class StrategicProcurementModule {
       const source = getMarketById(candidate.sourceMarketId);
       const sourceGood = source?.goods[good.i];
       if (!source || !sourceGood || sourceGood.stock + EPSILON < units) {
-        order.status = "blocked";
-        order.blockedReason = "noDomesticSupply";
+        this.discardOrder(order.id);
         remainingBlockedReason = "noDomesticSupply";
         continue;
       }
@@ -342,8 +390,8 @@ export class StrategicProcurementModule {
       const caravan = Caravans.spawnStrategicProcurement(deal, candidate.route.segments);
       if (!caravan) {
         getDeals().pop();
-        order.status = "blocked";
-        order.blockedReason = "noRoute";
+        this.discardOrder(order.id);
+        remainingBlockedReason = "noRoute";
         continue;
       }
 
@@ -490,14 +538,7 @@ export class StrategicProcurementModule {
     reason: ProcurementOrderBlockedReason;
     purpose: ProcurementOrderPurpose;
   }): ProcurementOrder {
-    const existing = this.getOrders().find(
-      order =>
-        order.stateId === stateId &&
-        order.destinationMarketId === destinationMarketId &&
-        order.goodId === goodId &&
-        hasPurpose(order, purpose) &&
-        order.status === "blocked"
-    );
+    const existing = this.consolidateBlockedOrder(stateId, destinationMarketId, goodId, purpose);
     if (existing) {
       existing.requestedUnits = rn(Math.max(0, requestedUnits), 2);
       existing.blockedReason = reason;
@@ -515,6 +556,48 @@ export class StrategicProcurementModule {
     });
     order.status = "blocked";
     return order;
+  }
+
+  private getOrderKey(
+    stateId: number,
+    destinationMarketId: number,
+    goodId: number,
+    purpose: ProcurementOrderPurpose
+  ): string {
+    return `${stateId}:${destinationMarketId}:${goodId}:${purpose}`;
+  }
+
+  /** Returns the single retained blocked order for a demand tuple, if one exists. */
+  private consolidateBlockedOrder(
+    stateId: number,
+    destinationMarketId: number,
+    goodId: number,
+    purpose: ProcurementOrderPurpose
+  ): ProcurementOrder | undefined {
+    const matches = this.getOrders().filter(
+      order =>
+        order.stateId === stateId &&
+        order.destinationMarketId === destinationMarketId &&
+        order.goodId === goodId &&
+        hasPurpose(order, purpose) &&
+        order.status === "blocked"
+    );
+    if (!matches.length) return undefined;
+
+    const retained = matches.toSorted((left, right) => right.id - left.id)[0];
+    if (matches.length === 1) return retained;
+
+    for (const order of matches) {
+      if (order === retained) continue;
+      retained.requestedUnits = rn(Math.max(retained.requestedUnits, order.requestedUnits), 2);
+      retained.priorityCycles = Math.max(retained.priorityCycles ?? 1, order.priorityCycles ?? 1);
+    }
+    setStrategicProcurementOrders(this.getOrders().filter(order => !matches.includes(order) || order === retained));
+    return retained;
+  }
+
+  private discardOrder(orderId: number): void {
+    setStrategicProcurementOrders(this.getOrders().filter(order => order.id !== orderId));
   }
 
   private createDeal({

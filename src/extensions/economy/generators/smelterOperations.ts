@@ -2,6 +2,7 @@ import { rn } from "../../hostUtils";
 import {
   getApi,
   getGoods,
+  getMarkets,
   getMineOperations,
   getMineralDeposits,
   getSmelterOperations,
@@ -42,6 +43,21 @@ const REQUIRED_WORKERS_BASE = 0.5;
  * scale or unprocessed Ore permanently accumulates while Ingots remain unavailable.
  */
 const REQUIRED_WORKERS_PER_ANNUAL_TON = 0.0025;
+
+/** An unfinished State military order that needs a particular refined Ingot. */
+export interface StateMilitaryIngotShortage {
+  stateId: number;
+  ingotGoodId: number;
+  requestedIngotUnits: number;
+}
+
+/** Charcoal that must be available at a specific State-owned smelter market. */
+export interface SmelterFuelProcurementDemand {
+  stateId: number;
+  destinationMarketId: number;
+  goodId: number;
+  requestedUnits: number;
+}
 
 /**
  * Headcount needed to run a smelter's processing at full capacity. Reused by
@@ -99,6 +115,88 @@ export class SmelterOperationsModule {
     setSmelterOperations([]);
   }
 
+  /**
+   * Converts State military Ingot shortages into local Charcoal reserve targets at the smelters
+   * that can refine the corresponding Ore. This is intentionally demand-limited: an idle iron
+   * district receives fuel for the current military gap, not an arbitrary fill of its geological
+   * capacity. The reserve accounts for `MARKET_SMELTING_STOCK_SHARE`, which keeps half of a
+   * market's fuel stock available to ordinary users while the furnace operates.
+   */
+  getStateMilitaryFuelDemands(
+    shortages: readonly StateMilitaryIngotShortage[]
+  ): readonly SmelterFuelProcurementDemand[] {
+    const goodsById = new Map(getGoods().map(good => [good.i, good]));
+    const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+    const charcoal = getGoods().find(good => good.name.toLowerCase() === CHARCOAL_GOOD_NAME);
+    if (!charcoal) return [];
+
+    const shortagesByCommodity = new Map<string, number>();
+    for (const shortage of shortages) {
+      if (!(shortage.requestedIngotUnits > 0)) continue;
+      const ingot = goodsById.get(shortage.ingotGoodId);
+      const commodity = ingot && this.getCommodityForIngot(ingot.name);
+      if (!commodity) continue;
+      const key = `${shortage.stateId}:${commodity}`;
+      shortagesByCommodity.set(key, (shortagesByCommodity.get(key) ?? 0) + shortage.requestedIngotUnits);
+    }
+
+    const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
+    const marketsById = new Map(getMarkets().map(market => [market.i, market]));
+    const requiredOreByMarket = new Map<number, { stateId: number; units: number }>();
+    const { burgs } = getWorldContext().pack;
+
+    for (const [key, requestedIngotUnits] of shortagesByCommodity) {
+      const separator = key.indexOf(":");
+      const stateId = Number(key.slice(0, separator));
+      const commodity = key.slice(separator + 1) as OreCommodity;
+      const ore = goodsByName.get(`${commodity} ore`);
+      if (!ore) continue;
+      const eligibleSmelters = getSmelterOperations().flatMap(smelter => {
+        const deposit = depositsById.get(smelter.depositId);
+        const market = marketsById.get(smelter.marketId);
+        const yieldInfo = deposit?.yields.find(yieldCandidate => yieldCandidate.commodity === commodity);
+        if (
+          !smelter.active ||
+          !deposit ||
+          !market ||
+          !yieldInfo ||
+          burgs[smelter.burgId]?.state !== stateId ||
+          !((market.goods[ore.i]?.stock ?? 0) > 0)
+        ) {
+          return [];
+        }
+        const monthlyOreCapacity = this.getMonthlyOreCapacity(smelter, deposit, yieldInfo);
+        return monthlyOreCapacity > 0 ? [{ smelter, monthlyOreCapacity }] : [];
+      });
+      const totalOreCapacity = eligibleSmelters.reduce((sum, entry) => sum + entry.monthlyOreCapacity, 0);
+      if (!(totalOreCapacity > 0)) continue;
+
+      const weightedYield =
+        eligibleSmelters.reduce((sum, entry) => sum + entry.monthlyOreCapacity * entry.smelter.smeltingYield, 0) /
+        totalOreCapacity;
+      const oreNeeded = requestedIngotUnits / Math.max(0.0001, weightedYield);
+      const plannedOre = Math.min(oreNeeded, totalOreCapacity);
+      for (const entry of eligibleSmelters) {
+        const allocatedOre = plannedOre * (entry.monthlyOreCapacity / totalOreCapacity);
+        const existing = requiredOreByMarket.get(entry.smelter.marketId);
+        if (existing) existing.units += allocatedOre;
+        else requiredOreByMarket.set(entry.smelter.marketId, { stateId, units: allocatedOre });
+      }
+    }
+
+    return Array.from(requiredOreByMarket, ([destinationMarketId, requirement]) => {
+      const market = marketsById.get(destinationMarketId)!;
+      const availableFuel = market.goods[charcoal.i]?.stock ?? 0;
+      const targetFuelStock = (requirement.units * CHARCOAL_PER_ORE_UNIT) / MARKET_SMELTING_STOCK_SHARE;
+      return {
+        stateId: requirement.stateId,
+        destinationMarketId,
+        goodId: charcoal.i,
+        requestedUnits: Math.max(0, targetFuelStock - availableFuel)
+      };
+    }).filter(demand => demand.requestedUnits > 0.0001);
+  }
+
   /** Converts each metal Ore's retained local-market stock into its matching Ingot. */
   produceMonth(): void {
     const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
@@ -126,17 +224,7 @@ export class SmelterOperationsModule {
       if (!charcoal || !isGoodEnabled(charcoal)) continue;
       const slag = goodsByName.get(SLAG_GOOD_NAME);
 
-      const workerFactor = Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter));
-      // toolsInvestmentStock (IndustrialTechInvestment.settleAnnual()) applies as its own
-      // multiplier, independent of the prospect()-derived `technology` — docs/plan/rural-agtech-investment.md §6.2.
-      const investmentBonus = 1 + SMELTER_TECH_BONUS_MAX * (smelter.toolsInvestmentStock ?? 0);
-      // The Burg's Metallurgy guild technique (GuildKnowledge.settleAnnual()) applies as a third,
-      // independent multiplier — docs/plan/knowledge-guild-system.md §6, §9 Phase 1.
-      const guildBonus = getGuildBonus(smelter.burgId, "metallurgy");
-      const processingFactor = Math.min(
-        1,
-        smelter.waterPower * smelter.fuelAccess * smelter.technology * investmentBonus * guildBonus * workerFactor
-      );
+      const processingFactor = this.getProcessingFactor(smelter);
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
 
@@ -257,6 +345,42 @@ export class SmelterOperationsModule {
 
   private clampUnit(value: number): number {
     return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+  }
+
+  private getMonthlyOreCapacity(
+    smelter: SmelterOperation,
+    deposit: { yields: readonly { commodity: string; annualCapacityTons: number }[] },
+    yieldInfo: { annualCapacityTons: number }
+  ): number {
+    const totalAnnualOreCapacity = this.getAnnualCapacity(
+      deposit.yields.filter(candidate => this.isOreCommodity(candidate.commodity))
+    );
+    if (!(totalAnnualOreCapacity > 0)) return 0;
+    return (
+      (smelter.annualCapacityTons *
+        this.getProcessingFactor(smelter) *
+        (yieldInfo.annualCapacityTons / totalAnnualOreCapacity)) /
+      12
+    );
+  }
+
+  private getProcessingFactor(smelter: SmelterOperation): number {
+    const workerFactor = Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter));
+    // toolsInvestmentStock (IndustrialTechInvestment.settleAnnual()) applies as its own
+    // multiplier, independent of the prospect()-derived `technology` — docs/plan/rural-agtech-investment.md §6.2.
+    const investmentBonus = 1 + SMELTER_TECH_BONUS_MAX * (smelter.toolsInvestmentStock ?? 0);
+    // The Burg's Metallurgy guild technique (GuildKnowledge.settleAnnual()) applies as a third,
+    // independent multiplier — docs/plan/knowledge-guild-system.md §6, §9 Phase 1.
+    const guildBonus = getGuildBonus(smelter.burgId, "metallurgy");
+    return Math.min(
+      1,
+      smelter.waterPower * smelter.fuelAccess * smelter.technology * investmentBonus * guildBonus * workerFactor
+    );
+  }
+
+  private getCommodityForIngot(ingotName: string): OreCommodity | undefined {
+    const normalized = ingotName.toLowerCase();
+    return ORE_COMMODITIES.find(commodity => getIngotGoodName(commodity) === normalized);
   }
 
   private hasMetalOre(yields: readonly { commodity: string }[]): boolean {

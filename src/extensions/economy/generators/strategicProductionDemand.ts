@@ -4,6 +4,8 @@ export interface StrategicProductionDemand {
   goodId: number;
   outstandingUnits: number;
   priorityCycles: number;
+  /** Set for Metallurg State orders whose recipe purchases are paid by the State treasury. */
+  stateFunded?: boolean;
 }
 
 const MAX_OUTSTANDING_UNITS_PRIORITY = 2;
@@ -33,14 +35,17 @@ export function getStrategicProductionDemandByGood(
     if (existing) {
       existing.outstandingUnits += outstandingUnits;
       existing.priorityCycles = Math.max(existing.priorityCycles, order.priorityCycles ?? 1);
+      if (order.purpose === "metallurg" && order.status !== "inTransit") existing.stateFunded = true;
       continue;
     }
 
-    demandByGood.set(order.goodId, {
+    const demand: StrategicProductionDemand = {
       goodId: order.goodId,
       outstandingUnits,
       priorityCycles: order.priorityCycles ?? 1
-    });
+    };
+    if (order.purpose === "metallurg" && order.status !== "inTransit") demand.stateFunded = true;
+    demandByGood.set(order.goodId, demand);
   }
 
   return demandByGood;
