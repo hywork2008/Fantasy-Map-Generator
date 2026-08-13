@@ -186,13 +186,15 @@ export const GenerationSettingsTab: React.FC = () => {
           </tr>
 
           <tr data-tip="When Heightmap is unlocked, limit random selection to templates with the selected average land or ocean coverage">
-            <td></td>
+            <td>
+              <LockIconButton id="templateRandomization" />
+            </td>
             <th>Random heightmap pool</th>
             <td colSpan={2}>
               <select
                 value={options.templateRandomization}
                 onChange={e =>
-                  updateOption("templateRandomization", e.target.value as typeof options.templateRandomization)
+                  updateOptionAndLock("templateRandomization", e.target.value as typeof options.templateRandomization)
                 }
               >
                 <option value="all">All templates</option>
