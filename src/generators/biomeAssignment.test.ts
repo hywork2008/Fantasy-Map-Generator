@@ -17,7 +17,9 @@ const base = {
   coastDistance: 3,
   neighborOcean: false,
   x: 100,
-  y: 100
+  y: 100,
+  volcanic: 0,
+  volcanicActive: false
 };
 
 describe("biomeAssignment", () => {
@@ -36,13 +38,13 @@ describe("biomeAssignment", () => {
 
     const alpine = classifySpecialBiome(
       { ...base, temperature: temp, height: line + 5, moisture: 12 },
-      { profile: "global", seed: 1 }
+      { profile: "global", seed: 1, volcanicSoilStrength: 50 }
     );
     expect(alpine).toBe("alpineTundra");
 
     const montane = classifySpecialBiome(
       { ...base, temperature: temp, height: Math.max(50, line - 8), moisture: 16 },
-      { profile: "mountainRealm", seed: 1 }
+      { profile: "mountainRealm", seed: 1, volcanicSoilStrength: 50 }
     );
     expect(montane).toBe("montaneForest");
   });
@@ -57,7 +59,7 @@ describe("biomeAssignment", () => {
         coastDistance: 1,
         neighborOcean: true
       },
-      { profile: "tropicalRiverBasin", seed: 1 }
+      { profile: "tropicalRiverBasin", seed: 1, volcanicSoilStrength: 50 }
     );
     expect(key).toBe("mangrove");
   });
@@ -72,7 +74,7 @@ describe("biomeAssignment", () => {
         flux: 80,
         height: 28
       },
-      { profile: "global", seed: 1 }
+      { profile: "global", seed: 1, volcanicSoilStrength: 50 }
     );
     expect(key).toBe("floodedForest");
   });
@@ -94,7 +96,7 @@ describe("biomeAssignment", () => {
               x,
               y
             },
-            { profile: "medievalEurope", seed: 42 }
+            { profile: "medievalEurope", seed: 42, volcanicSoilStrength: 50 }
           );
           expect(key).toBe("centralEuropeanGreatForest");
           found = true;
@@ -119,7 +121,7 @@ describe("biomeAssignment", () => {
             x,
             y
           },
-          { profile: "mediterranean", seed: 7 }
+          { profile: "mediterranean", seed: 7, volcanicSoilStrength: 50 }
         );
         if (key === "mediterraneanWoodlandScrub") {
           hit = key;
@@ -144,7 +146,7 @@ describe("biomeAssignment", () => {
             x,
             y
           },
-          { profile: "medievalEurope", seed: 11 }
+          { profile: "medievalEurope", seed: 11, volcanicSoilStrength: 50 }
         );
         if (key === "coldSteppe") {
           hit = key;
@@ -169,7 +171,7 @@ describe("biomeAssignment", () => {
             x,
             y
           },
-          { profile: "tropicalRiverBasin", seed: 3 }
+          { profile: "tropicalRiverBasin", seed: 3, volcanicSoilStrength: 50 }
         );
         if (key === "tropicalDryForest") {
           hit = key;
@@ -194,7 +196,7 @@ describe("biomeAssignment", () => {
             x,
             y
           },
-          { profile: "global", seed: 5 }
+          { profile: "global", seed: 5, volcanicSoilStrength: 50 }
         );
         if (key === "borealPeatland") {
           hit = key;
@@ -207,7 +209,7 @@ describe("biomeAssignment", () => {
     if (!hit) {
       hit = classifySpecialBiome(
         { ...base, temperature: 1, moisture: 28, height: 26, x: 0, y: 0 },
-        { profile: "global", seed: 1 }
+        { profile: "global", seed: 1, volcanicSoilStrength: 50 }
       );
     }
     expect(hit).toBe("borealPeatland");
@@ -216,8 +218,38 @@ describe("biomeAssignment", () => {
   it("does not place tropical dry forest under medievalEurope", () => {
     const key = classifySpecialBiome(
       { ...base, temperature: 24, moisture: 16, height: 30, x: 100, y: 100 },
-      { profile: "medievalEurope", seed: 3 }
+      { profile: "medievalEurope", seed: 3, volcanicSoilStrength: 50 }
     );
     expect(key).not.toBe("tropicalDryForest");
+  });
+
+  it("classifies a tagged volcano's crater/lava core over every other special biome", () => {
+    const dormant = classifySpecialBiome(
+      { ...base, volcanic: 0.9, volcanicActive: false },
+      { profile: "global", seed: 1, volcanicSoilStrength: 50 }
+    );
+    expect(dormant).toBe("volcanicBarrens");
+
+    const active = classifySpecialBiome(
+      { ...base, volcanic: 0.9, volcanicActive: true },
+      { profile: "global", seed: 1, volcanicSoilStrength: 50 }
+    );
+    expect(active).toBe("lavaField");
+  });
+
+  it("keeps a snow-capped volcano as glacier rather than the barren/lava override", () => {
+    const key = classifySpecialBiome(
+      { ...base, temperature: -10, height: 90, volcanic: 0.95, volcanicActive: true },
+      { profile: "global", seed: 1, volcanicSoilStrength: 50 }
+    );
+    expect(key).toBe("glacier");
+  });
+
+  it("widens the volcanicSoil ring as volcanicSoilStrength increases", () => {
+    const midIntensity = { ...base, volcanic: 0.4 };
+    const weak = classifySpecialBiome(midIntensity, { profile: "global", seed: 1, volcanicSoilStrength: 0 });
+    const strong = classifySpecialBiome(midIntensity, { profile: "global", seed: 1, volcanicSoilStrength: 100 });
+    expect(weak).not.toBe("volcanicSoil");
+    expect(strong).toBe("volcanicSoil");
   });
 });

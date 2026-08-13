@@ -214,6 +214,7 @@ const options = {
   // Phase 0 compatibility baseline. Phase 1 makes this drive settlement placement.
   initialSettlementPattern: "standard" as const,
   biomeRegionProfile: "global" as const,
+  volcanicSoilStrength: 50,
   ruralEcosystemDetail: "detailed" as const,
   burgs: {
     groups: (safeParseJSON(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
@@ -441,6 +442,16 @@ function registerWorldRecalculateHandler(): void {
     }
     if (biomes) {
       legacyMutation(() => {
+        // worldContext.options is a snapshot taken once at generation start
+        // (prepareGenerationStage()) and otherwise left stale — unlike heightExponent, which
+        // every reader pulls live from useOptionsState. Biomes.define() reads
+        // biomeRegionProfile/volcanicSoilStrength off worldContext.options, so a live
+        // recompute must re-sync those two fields first or the option change (e.g. from the
+        // Generation Settings tab, editable after the map already exists) has no visible effect
+        // until the next full generation.
+        const liveOptions = useOptionsState.getState();
+        worldContext.options.biomeRegionProfile = liveOptions.biomeRegionProfile;
+        worldContext.options.volcanicSoilStrength = liveOptions.volcanicSoilStrength;
         Biomes.define(getWorldState());
         return { result: undefined, topics: ["map.physical"] };
       });
@@ -1045,6 +1056,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
+  worldContext.options.volcanicSoilStrength = useOptionsState.getState().volcanicSoilStrength;
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
   worldContext.options.economyStartMode = useOptionsState.getState().economyStartMode;
 

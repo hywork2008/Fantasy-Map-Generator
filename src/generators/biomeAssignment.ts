@@ -3,9 +3,10 @@
  * Returns BiomeKey only — never hard-coded numeric codes.
  */
 
-import { BiomeConstants, HeightThreshold } from "../data/constants";
+import { BiomeConstants, HeightThreshold, VolcanoConstants } from "../data/constants";
 import type { StandardBiomeKey } from "../types/biome";
 import type { BiomeRegionProfile } from "../types/biomeRegion";
+import { minmax } from "../utils";
 
 export interface CellBiomeClimate {
   readonly moisture: number;
@@ -18,11 +19,39 @@ export interface CellBiomeClimate {
   readonly neighborOcean: boolean;
   readonly x: number;
   readonly y: number;
+  /**
+   * 0..1 volcanic intensity tagged by HeightmapModule.finalizeVolcanoes (heightmap-generator.ts)
+   * — peak/crater = 1, decaying outward with the tagged Hill's own falloff shape. 0 for every
+   * cell untouched by a tagged volcano.
+   */
+  readonly volcanic: number;
+  /**
+   * True only where `volcanic` belongs to a volcano rolled "active" (molten `lavaField` core)
+   * rather than dormant (`volcanicBarrens` cone whose summit was carved into a crater lake).
+   * Meaningless when `volcanic` is below VolcanoConstants.CORE_MIN_INTENSITY.
+   */
+  readonly volcanicActive: boolean;
 }
 
 export interface AssignmentOptions {
   readonly profile: BiomeRegionProfile;
   readonly seed: number;
+  /**
+   * options.volcanicSoilStrength (0-100). Controls how far down a tagged volcano's flank the
+   * fertile `volcanicSoil` override reaches before yielding to the ordinary climate matrix —
+   * see volcanicSoilThreshold() below.
+   */
+  readonly volcanicSoilStrength: number;
+}
+
+/**
+ * Widest `volcanicSoil` ring (lowest intensity admitted) at strength = 100; narrowest
+ * (collapses to almost nothing) at strength = 0. See VolcanoConstants for the two endpoints.
+ */
+export function volcanicSoilThreshold(strengthPercent: number): number {
+  const strength = minmax(strengthPercent, 0, 100) / 100;
+  const { SOIL_MIN_INTENSITY_AT_ZERO_STRENGTH: narrow, SOIL_MIN_INTENSITY_AT_MAX_STRENGTH: wide } = VolcanoConstants;
+  return narrow - strength * (narrow - wide);
 }
 
 /** Low-frequency spatial noise in [0, 1) for regional masks. */
@@ -202,6 +231,15 @@ export function classifySpecialBiome(c: CellBiomeClimate, options: AssignmentOpt
 
   // 2. Perennial snow/ice — not mere cold lowland tundra
   if (isPerennialSnowIce(c.temperature, c.height)) return "glacier";
+
+  // 2a. Volcanic terrain (heightmap-tagged; see HeightmapModule.finalizeVolcanoes). A snow-capped
+  // volcano already resolved to "glacier" above, so this only fires on ice-free peaks/flanks.
+  // Takes priority over every other special biome below — a tagged volcano is a stronger,
+  // rarer signal than the generic climate/elevation heuristics it would otherwise fall through to.
+  if (c.volcanic >= VolcanoConstants.CORE_MIN_INTENSITY) {
+    return c.volcanicActive ? "lavaField" : "volcanicBarrens";
+  }
+  if (c.volcanic >= volcanicSoilThreshold(options.volcanicSoilStrength)) return "volcanicSoil";
 
   // 3. Mangrove
   if (isMangroveCandidate(c)) {

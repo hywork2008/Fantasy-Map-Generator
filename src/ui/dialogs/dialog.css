@@ -475,6 +475,31 @@
   td {
     white-space: nowrap;
   }
+
+  /* A plain, unstyled <input> defaults to a fixed browser width (~20 characters)
+     regardless of its cell's actual column width — wider than most narrow columns
+     (State, Group, …), so it silently overflows into the next cell. Constrain it
+     to the cell it's actually in. */
+  td > input:not([type="checkbox"]):not([type="radio"]) {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  /* Icon + input/label pairs inside a cell (e.g. burg name, population). The flex
+     wrapper MUST be a child of the <td>, never the <td> itself — `display: flex`
+     directly on a table cell drops it out of the table's column-width and
+     row-height algorithm, letting the cell collapse to a few px while its content
+     overflows into neighboring columns. */
+  td > .d-flex {
+    align-items: center;
+    gap: 0.25em;
+
+    input {
+      flex: 1;
+      min-width: 0;
+      width: 100%;
+    }
+  }
 }
 
 .fmg-property-table {

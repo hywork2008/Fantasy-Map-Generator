@@ -7,13 +7,24 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { heightmapTemplates } from "../data";
-import { HeightmapConstants, HeightThreshold } from "../data/constants";
+import { HeightmapConstants, HeightThreshold, VolcanoConstants } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
 import type { Grid } from "../types/Grid";
 import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
+
+/** A single-Hill placement tagged as a volcano, awaiting HeightmapModule.finalizeVolcanoes(). */
+interface PendingVolcano {
+  /** Grid cell id of the hill's seed/summit cell. */
+  peakCell: number;
+  /** Rolled "active" (magma core) vs. dormant (bare cone / crater lake) — see volcanoActiveChance. */
+  active: boolean;
+  /** The Hill call's own flood-fill decay field, captured before any later template step
+   * (Smooth/Mask/Multiply/further Hills) can blur it — see finalizeVolcanoes(). */
+  change: Uint8Array;
+}
 
 class HeightmapModule {
   worldContext: WorldContext = worldContext;
@@ -23,6 +34,12 @@ class HeightmapModule {
   heights: Uint8Array | null = null;
   blobPower: number = 0;
   linePower: number = 0;
+  /** Options → Generation "Volcanism chance" / "Active volcano chance" (0-100), snapshotted
+   * once per setGraph() so a mid-generation options change can't affect an in-flight run. */
+  private volcanismChance: number = 0;
+  private volcanoActiveChance: number = 0;
+  /** Hills tagged as volcanoes during this template run, resolved by finalizeVolcanoes(). */
+  private pendingVolcanoes: PendingVolcano[] = [];
 
   private clearData() {
     this.heights = null;
@@ -90,6 +107,17 @@ class HeightmapModule {
     this.blobPower = this.getBlobPower(cellsDesired);
     this.linePower = this.getLinePower(cellsDesired);
     this.grid = graph;
+    const options = useOptionsState.getState();
+    this.volcanismChance = options.volcanismChance;
+    this.volcanoActiveChance = options.volcanoActiveChance;
+    this.pendingVolcanoes = [];
+    // Always start from a clean slate, even when `graph`/`graph.cells` is the SAME object
+    // reused from a prior run (main.ts's prepareGenerationStage only deletes `cells.h` when
+    // reusing the grid, not cells.volcanic/volcanicActive). Without this, re-rolling with
+    // volcanismChance lowered (or 0) left the previous run's volcano tags stranded on cells
+    // finalizeVolcanoes() never revisits this time — the old volcano would never disappear.
+    cells.volcanic = new Float32Array(this.heights.length);
+    cells.volcanicActive = new Uint8Array(this.heights.length);
   }
 
   addHill(count: string, height: string, rangeX: string, rangeY: string): void {
@@ -125,12 +153,83 @@ class HeightmapModule {
       }
 
       this.heights = this.heights.map((h, i) => lim(h + change[i]));
+      this.registerVolcanoCandidate(desiredHillCount, h, start, change);
     };
 
     const desiredHillCount = getNumberInRange(count);
     for (let i = 0; i < desiredHillCount; i++) {
       addOneHill();
     }
+  }
+
+  /**
+   * A single, dominant Hill placement (count === 1, peak height >= VolcanoConstants.MIN_PEAK_
+   * HEIGHT) is the heightmap's own signature for an isolated volcanic cone rather than a
+   * stacked mountain range — templates that build ranges from many smaller Hill/Range calls
+   * never reach this height in one placement. Deciding this at generation time (from the
+   * operation's own parameters) instead of post-hoc from the final absolute height avoids
+   * misclassifying an ordinary peak that merely ended up tall after several hills stacked.
+   * Only queues the candidate; the actual crater carve / grid.cells.volcanic write happens in
+   * finalizeVolcanoes(), after every remaining template step (Smooth/Mask/Multiply/further
+   * Hills) has run — otherwise those could blur a sharp crater dip back into its surroundings.
+   */
+  private registerVolcanoCandidate(hillCount: number, peakHeight: number, peakCell: number, change: Uint8Array): void {
+    if (hillCount !== 1 || peakHeight < VolcanoConstants.MIN_PEAK_HEIGHT) return;
+
+    // Both rolls always happen — never short-circuited by the outcome of the first — so a
+    // qualifying Hill call consumes exactly the same two Math.random() draws regardless of
+    // volcanismChance/volcanoActiveChance's values. Every later template step (further Hills,
+    // Smooth, Mask, Range prominences, ...) draws from the same seeded Math.random stream, so
+    // if the draw count here depended on the outcome, changing either slider would silently
+    // reshuffle all the *other* terrain too (any cell touched after this point in the
+    // sequence) — not just where volcanoes are tagged.
+    const becomesVolcano = Math.random() * 100 < this.volcanismChance;
+    const active = Math.random() * 100 < this.volcanoActiveChance;
+    if (!becomesVolcano) return;
+
+    this.pendingVolcanoes.push({ peakCell, active, change });
+  }
+
+  /**
+   * Resolves every Hill placement queued by registerVolcanoCandidate() once the whole template
+   * has finished running. Writes grid.cells.volcanic/volcanicActive directly (this.grid is the
+   * same object as worldContext.grid — see setGraph()), mirroring how biomes.ts/draw-relief-
+   * icons.ts already read grid.cells.temp/prec through the pack.cells.g back-reference rather
+   * than a pack-local copy.
+   *
+   * Dormant volcanoes get their summit carved to HeightThreshold.WATER_MAX_HEIGHT - 1: the
+   * exact same "gridCells.h[i] = 19" trick main.ts's addLakesInDeepDepressions() uses, so the
+   * standard Features.markupGrid() pass that runs right after HeightmapGenerator.generate()
+   * discovers it as an ordinary enclosed lake — no separate lake-creation code needed, the same
+   * mechanism that already turns a template's Pit depressions into lakes. Active volcanoes keep
+   * their height (molten, not a hole) and only get a shallow cosmetic caldera notch.
+   */
+  private finalizeVolcanoes(): void {
+    if (!this.heights || !this.grid || !this.pendingVolcanoes.length) return;
+    // setGraph() always allocates these fresh for the current run — see its comment.
+    const volcanic = this.grid.cells.volcanic!;
+    const volcanicActive = this.grid.cells.volcanicActive!;
+
+    for (const { peakCell, active, change } of this.pendingVolcanoes) {
+      const peakChange = change[peakCell] || 1;
+      for (let cellId = 0; cellId < change.length; cellId++) {
+        if (!change[cellId]) continue;
+        const intensity = Math.min(1, change[cellId] / peakChange);
+        if (intensity > volcanic[cellId]) volcanic[cellId] = intensity;
+        if (active && intensity >= VolcanoConstants.CORE_MIN_INTENSITY) volcanicActive[cellId] = 1;
+      }
+
+      if (active) {
+        this.heights[peakCell] = Math.max(
+          HeightThreshold.WATER_MAX_HEIGHT + VolcanoConstants.ACTIVE_FLOOR_MARGIN,
+          this.heights[peakCell] - VolcanoConstants.ACTIVE_CALDERA_DEPTH
+        );
+      } else {
+        this.heights[peakCell] = HeightThreshold.WATER_MAX_HEIGHT - 1;
+      }
+    }
+
+    this.pendingVolcanoes = [];
   }
 
   addPit(count: string, height: string, rangeX: string, rangeY: string): void {
@@ -622,6 +721,7 @@ class HeightmapModule {
       this.addStep(...(elements as [Tool, string, string, string, string]));
     }
 
+    this.finalizeVolcanoes();
     return this.heights;
   }
 

@@ -100,6 +100,29 @@ export interface OptionsState {
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
   /**
+   * Chance (0-100%) that a single, dominant Hill placement during heightmap generation
+   * (count === 1, rolled height >= VolcanoConstants.MIN_PEAK_HEIGHT — see data/constants.ts)
+   * becomes a tagged volcanic peak instead of an ordinary mountain. Checked once per qualifying
+   * Hill call; most maps end up with only a handful of eligible calls, so even a high value
+   * rarely produces more than a few volcanoes. 0 disables volcano tagging entirely.
+   */
+  volcanismChance: number;
+  /**
+   * Of the volcanic peaks actually rolled (see volcanismChance), the % flagged "active"
+   * (molten `lavaField` crater) rather than dormant (bare `volcanicBarrens` cone whose summit
+   * is carved into a crater lake). Read once per tagged volcano at generation time.
+   */
+  volcanoActiveChance: number;
+  /**
+   * How aggressively the fertile `volcanicSoil` ring around a volcano's flanks overrides the
+   * ordinary climate biome, 0-100. 0 collapses the ring into the barren crater biome only; 100
+   * extends it far down the flank. Read by biome assignment (see biomeAssignment.ts's
+   * volcanicSoilThreshold) whenever Biomes.define() runs — a new map generation, or the Biomes
+   * Editor's recalculate action — unlike volcanismChance/volcanoActiveChance it doesn't require
+   * a new heightmap, since it only rescales an already-tagged per-cell intensity value.
+   */
+  volcanicSoilStrength: number;
+  /**
    * Fauna population stock model detail level (docs/plan/biome-goods-producer-ecosystem.md §11).
    * "detailed" (default) runs the annual fauna cohort/breeding/carrying-capacity model that gates
    * Game and liveAnimal-tagged goods by a real per-cell headcount. "simplified" skips that model
@@ -314,6 +337,9 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialSettlementPattern: "standard",
   oikoumeneLandShare: 0.45,
   biomeRegionProfile: "global",
+  volcanismChance: 30,
+  volcanoActiveChance: 25,
+  volcanicSoilStrength: 50,
   ruralEcosystemDetail: "detailed",
   economyStartMode: "balanced",
   demographicBirthRate: 0.25,

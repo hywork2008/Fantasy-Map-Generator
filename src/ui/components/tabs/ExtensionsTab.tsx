@@ -9,6 +9,12 @@ import {
 import { extensionDB } from "../../../extensions/extensionDB";
 import { type ExtensionDependency, useExtensionState } from "../../../store/extensionState";
 import { useGenerationProgressState } from "../../../store/generationProgressState";
+import { useUiPreferencesState } from "../../../store/uiPreferencesState";
+
+/** Matches economy/index.tsx's ECONOMY_EXTENSION_ID. Kept as a literal here (rather than an
+ * import) so this generic host component doesn't pull in the economy extension's module graph
+ * just to key one row-specific settings snippet. */
+const ECONOMY_EXTENSION_ID = "economy";
 
 interface InstalledMeta {
   id: string;
@@ -27,6 +33,8 @@ export const ExtensionsTab: React.FC = () => {
   const refreshRequestRef = useRef(0);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   const generationLockMessage = "Extensions cannot be changed while map generation is in progress.";
+  const skipTradeOnGenerate = useUiPreferencesState(state => state.economySkipTradeOnGenerate);
+  const setSkipTradeOnGenerate = useUiPreferencesState(state => state.setEconomySkipTradeOnGenerate);
 
   // Merge DB records with zustand-registered extensions to build full list
   const refreshInstalledMeta = useCallback(async () => {
@@ -239,7 +247,22 @@ export const ExtensionsTab: React.FC = () => {
                       })}
                     </td>
 
-                    <td style={{ whiteSpace: "normal" }}>{desc}</td>
+                    <td style={{ whiteSpace: "normal" }}>
+                      {desc}
+                      {meta.id === ECONOMY_EXTENSION_ID && isEnabled && (
+                        <label
+                          style={{ display: "block", marginTop: "4px", fontWeight: "normal" }}
+                          title="Defers global trade-route matching and caravan spawning (the Trade layer/animation's data) when preparing a freshly generated map's economy, so the map stays interactive sooner. Re-run it later from Tools > Economy > Regenerate > Production. This is a standing preference, not locked per generation."
+                        >
+                          <input
+                            type="checkbox"
+                            checked={skipTradeOnGenerate}
+                            onChange={e => setSkipTradeOnGenerate(e.target.checked)}
+                          />{" "}
+                          Skip trade route generation
+                        </label>
+                      )}
+                    </td>
 
                     <td>
                       {/* Uninstall — only for dynamic (non-builtin) extensions */}

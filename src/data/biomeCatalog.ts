@@ -154,6 +154,19 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
   D("borealPeatland", "Boreal peatland & muskeg", "#5a6b4a", 3, 1200, 40, { swamp: 4, grass: 3, conifer: 1 }, [
     "wetland",
     "cold"
+  ]),
+  // Volcanic terrain (docs/plan/urban-construction-industry.md §"火山" brainstorm) — tagged during
+  // heightmap generation (HeightmapModule.finalizeVolcanoes, VolcanoConstants) rather than guessed
+  // post-hoc from absolute height, so only genuinely isolated dominant peaks qualify.
+  D("volcanicBarrens", "Volcanic barrens", "#4a4640", 3, 260, 6, { vulcan: 2, deadTree: 1 }, [
+    "dry",
+    "mountain",
+    "volcanic"
+  ]),
+  D("lavaField", "Lava field", "#5c1f12", 0, 5000, 0, { vulcan: 3 }, ["dry", "mountain", "volcanic"]),
+  D("volcanicSoil", "Volcanic soil", "#4a3728", 55, 60, 140, { grass: 5, deciduous: 3, acacia: 1 }, [
+    "arable",
+    "volcanic"
   ])
 ];
 

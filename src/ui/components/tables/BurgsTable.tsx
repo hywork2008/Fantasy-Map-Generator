@@ -103,13 +103,15 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                 onMouseEnter={() => burgHighlightOn(b.i!)}
                 onMouseLeave={() => burgHighlightOff()}
               >
-                <td className="d-flex">
-                  <IconButton
-                    data-tip="Click to zoom into view"
-                    className="icon-dot-circled pointer"
-                    onClick={() => zoomIntoBurg(b.i!)}
-                  />
-                  <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
+                <td>
+                  <div className="d-flex">
+                    <IconButton
+                      data-tip="Click to zoom into view"
+                      className="icon-dot-circled pointer"
+                      onClick={() => zoomIntoBurg(b.i!)}
+                    />
+                    <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
+                  </div>
                 </td>
                 {showProvinceColumn && (
                   <td>
@@ -127,9 +129,11 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                 <td>
                   <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
                 </td>
-                <td className="d-flex">
-                  <span data-tip="Burg population" className="icon-male" />
-                  <input data-tip="Burg population" value={si(population)} disabled readOnly />
+                <td>
+                  <div className="d-flex">
+                    <span data-tip="Burg population" className="icon-male" />
+                    <input data-tip="Burg population" value={si(population)} disabled readOnly />
+                  </div>
                 </td>
                 {overviewColumns.map(column => (
                   <td key={column.id} className={column.onClick ? "pointer" : undefined}>

@@ -41,6 +41,20 @@ export type GridCells = Cells & {
    * Mirrors `temp` for land and lake cells, which carry no current.
    */
   waterTemp: Int8Array;
+  /**
+   * Volcanic intensity, 0..1 (peak = 1, decaying outward with the tagged Hill's own falloff
+   * shape). Written once by HeightmapModule.finalizeVolcanoes() (heightmap-generator.ts) for
+   * any single, dominant Hill placement rolled as a volcano (see VolcanoConstants,
+   * data/constants.ts). Absent (undefined) for maps generated before this feature existed, or
+   * wherever no volcano was rolled — treat as 0 via `grid.cells.volcanic?.[i] ?? 0`.
+   */
+  volcanic?: Float32Array;
+  /**
+   * 1 for cells belonging to a volcano rolled "active" (magma core) rather than dormant (bare
+   * cone / crater lake) — see options.volcanoActiveChance. Only meaningful where `volcanic` is
+   * at or above VolcanoConstants.CORE_MIN_INTENSITY; 0/undefined elsewhere.
+   */
+  volcanicActive?: Uint8Array;
 };
 
 export interface Grid {

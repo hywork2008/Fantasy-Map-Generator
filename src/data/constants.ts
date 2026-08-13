@@ -11,6 +11,7 @@
  *   - BiomeConstants   : biome classification thresholds
  *   - FeatureSizeRatio : ocean/sea/continent/island minimum size ratios
  *   - HeightmapConstants : heightmap algorithm parameters
+ *   - VolcanoConstants : volcano tagging (heightmap generation ↔ biome assignment)
  *   - TemperatureRenderer : draw-temperature renderer constants
  */
 
@@ -469,6 +470,55 @@ export const HeightmapConstants = {
    * Must be negative; cells further from land are assigned values down to this limit.
    */
   DEEP_WATER_LIMIT: -10
+} as const;
+
+// ---------------------------------------------------------------------------
+// Volcano tagging constants (heightmap generation ↔ biome assignment)
+// ---------------------------------------------------------------------------
+
+/**
+ * Shared between HeightmapModule (src/generators/heightmap-generator.ts, where a volcano is
+ * first tagged) and biomeAssignment.ts (where the tag becomes a biome) so both sides agree on
+ * what "this is a volcano" and "this is the crater core" mean.
+ */
+export const VolcanoConstants = {
+  /**
+   * Minimum rolled height for a single (`count === 1`) Hill placement to be eligible as a
+   * volcanic-cone candidate. Only a genuinely singular, dominant peak reaches this in one
+   * placement — templates that build mountain ranges from many smaller Hill/Range calls never
+   * do (see the dedicated "Volcano" template and the few "twin dramatic peak" lines elsewhere
+   * in heightmap-templates.ts).
+   */
+  MIN_PEAK_HEIGHT: 82,
+
+  /**
+   * Volcanic intensity (0..1, peak = 1) at and above which a cell is the barren crater/lava
+   * core (`volcanicBarrens` / `lavaField`) rather than the fertile flank ring
+   * (`volcanicSoil`). Not user-tunable — this is the "unmistakably a volcano" core identity;
+   * only the flank ring's reach is (see options.volcanicSoilStrength).
+   */
+  CORE_MIN_INTENSITY: 0.75,
+
+  /** Widest volcanicSoil ring (lowest intensity threshold admitted), at options.volcanicSoilStrength = 100. */
+  SOIL_MIN_INTENSITY_AT_MAX_STRENGTH: 0.28,
+
+  /** Narrowest volcanicSoil ring — collapses to almost nothing — at options.volcanicSoilStrength = 0. */
+  SOIL_MIN_INTENSITY_AT_ZERO_STRENGTH: 0.72,
+
+  /**
+   * Cosmetic caldera notch carved into an *active* volcano's summit. Purely a height dent for
+   * the contour/relief rendering — the "molten crater" read comes from the lavaField biome
+   * override, not from this dip, so it deliberately stays shallow.
+   */
+  ACTIVE_CALDERA_DEPTH: 6,
+
+  /**
+   * Floor for an active volcano's caldera dip, expressed as a margin above
+   * HeightThreshold.WATER_MAX_HEIGHT. Keeps the notch from ever accidentally sinking an active
+   * (lava-filled) summit below the water line — that fate is reserved for dormant volcanoes,
+   * whose summit is deliberately carved into a crater lake instead.
+   */
+  ACTIVE_FLOOR_MARGIN: 15
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,6 @@ import {
 } from "../../../../data";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
-import { useUiPreferencesState } from "../../../../store/uiPreferencesState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { lock } from "../../../../utils/domUtils";
 import { openDialog } from "../../../dialogs/dialogService";
@@ -15,8 +14,6 @@ import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
-  const skipTradeOnGenerate = useUiPreferencesState(state => state.economySkipTradeOnGenerate);
-  const setSkipTradeOnGenerate = useUiPreferencesState(state => state.setEconomySkipTradeOnGenerate);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   // Generation is merely paused for stage review (including the initial map's review
   // flow), not actively computing a stage — safe to redirect it to a new seed instead
@@ -231,21 +228,7 @@ export const GenerationSettingsTab: React.FC = () => {
               </select>
             </td>
           </tr>
-          <tr data-tip="Defers global trade-route matching and caravan spawning (the Trade layer/animation's data) when preparing a freshly generated map's economy, so the map stays interactive sooner. Re-run it later from Tools > Economy > Regenerate > Production. This is a standing preference, not locked per generation.">
-            <td></td>
-            <th>
-              <label htmlFor="economySkipTradeOnGenerate">Skip trade route generation</label>
-            </th>
-            <td colSpan={2}>
-              <input
-                id="economySkipTradeOnGenerate"
-                type="checkbox"
-                checked={skipTradeOnGenerate}
-                onChange={e => setSkipTradeOnGenerate(e.target.checked)}
-              />
-            </td>
-          </tr>
-          <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Apply on next map generation.">
+          <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Applies immediately, no regenerate needed.">
             <td>
               <LockIconButton id="biomeRegionProfile" />
             </td>
@@ -262,6 +245,13 @@ export const GenerationSettingsTab: React.FC = () => {
                     biomeRegionProfile: e.target.value as typeof options.biomeRegionProfile
                   });
                   lock("biomeRegionProfile");
+                  document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { biomes: true } }));
+                  // While paused for stage review, the visible map is a separate SVG preview
+                  // (main.ts's renderGenerationReviewPreview) that only redraws on this event —
+                  // fmg:world-recalculate's own render call targets the normal live map and is a
+                  // no-op during that preview. A no-op when no review is paused (see main.ts's
+                  // fmg:render-generation-review listener), so safe to always dispatch.
+                  document.dispatchEvent(new CustomEvent("fmg:render-generation-review"));
                 }}
               >
                 <option value="global">Global (default mix)</option>
@@ -270,6 +260,56 @@ export const GenerationSettingsTab: React.FC = () => {
                 <option value="tropicalRiverBasin">Tropical river basin</option>
                 <option value="mountainRealm">Mountain realm</option>
               </select>
+            </td>
+          </tr>
+
+          <tr data-tip="Chance that a single, dominant mountain peak becomes a tagged volcano (distinct barren/lava biome, auto-selected volcano icon) instead of an ordinary summit, decided while the heightmap itself is built. Checked once per qualifying peak, so even 100% rarely produces more than a handful of volcanoes on one map. 0 disables volcano tagging entirely. Unlike Biome region/Volcanic soil strength below, this decides where volcanoes sit on the terrain, so it needs the heightmap re-rolled to apply: press Regenerate climate and waterways during stage review (it re-runs Landscape first, same seed), Generate another landscape, or generate a new map. The rest of the terrain stays exactly as it was — only volcano tagging changes.">
+            <td>
+              <LockIconButton id="volcanismChance" />
+            </td>
+            <th>Volcanism chance %</th>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="100"
+                value={options.volcanismChance}
+                onChange={v => updateOptionAndLock("volcanismChance", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip="Of the volcanoes actually generated, the share that are active — a molten crater (Lava field biome) — rather than dormant, whose summit is instead carved into a crater lake (Volcanic barrens biome around it). Decided alongside heightmap generation, same as Volcanism chance — press Regenerate climate and waterways during stage review, Generate another landscape, or generate a new map to apply.">
+            <td>
+              <LockIconButton id="volcanoActiveChance" />
+            </td>
+            <th>Active volcano chance %</th>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="100"
+                value={options.volcanoActiveChance}
+                onChange={v => updateOptionAndLock("volcanoActiveChance", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip="How far the fertile Volcanic soil biome ring extends down an already-tagged volcano's flanks before yielding to the ordinary climate biome. 0 keeps only the barren crater; 100 spreads rich farmland far down the slope. Only rescales an existing per-cell intensity value, so — unlike the two options above — this applies immediately, no regenerate needed.">
+            <td>
+              <LockIconButton id="volcanicSoilStrength" />
+            </td>
+            <th>Volcanic soil strength %</th>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="100"
+                value={options.volcanicSoilStrength}
+                onChange={v => {
+                  updateOptionAndLock("volcanicSoilStrength", Number(v));
+                  document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { biomes: true } }));
+                  // See the Biome region handler above — needed while paused for stage review.
+                  document.dispatchEvent(new CustomEvent("fmg:render-generation-review"));
+                }}
+              />
             </td>
           </tr>
 

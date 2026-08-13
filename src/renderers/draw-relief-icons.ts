@@ -2,6 +2,7 @@ import { extent, polygonContains } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { EnvironmentLayers, FocusFields } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { VolcanoConstants } from "../data/constants";
 import { getPackPolygon, minmax, poissonDiscSampler, rand, rn } from "../utils";
 import { TIME } from "../utils/debug";
 import { isCellInScope } from "./core/focusScope";
@@ -85,8 +86,21 @@ export const ReliefIconsRenderer: IRenderer = {
 
       function getReliefIcon(cellIndex: number, h: number): [string, number] {
         const { pack, grid } = worldContext;
-        const temp = grid.cells.temp[pack.cells.g[cellIndex]];
-        const type = h > 70 && temp < 0 ? "mountSnow" : h > 70 ? "mount" : "hill";
+        const gridCellId = pack.cells.g[cellIndex];
+        const temp = grid.cells.temp[gridCellId];
+        const volcanic = grid.cells.volcanic?.[gridCellId] ?? 0;
+        // Snow/ice takes priority (matches classifySpecialBiome's glacier-before-volcanic
+        // order) so a snow-capped volcano still reads as a snow peak, not a bare cone icon —
+        // the previously-orphaned #relief-vulcan-* sprites (ReliefEditorDialog.tsx) finally get
+        // auto-selected here, for both dormant (volcanicBarrens) and active (lavaField) peaks.
+        const type =
+          h > 70 && temp < 0
+            ? "mountSnow"
+            : volcanic >= VolcanoConstants.CORE_MIN_INTENSITY
+              ? "vulcan"
+              : h > 70
+                ? "mount"
+                : "hill";
         const iconSize = h > 70 ? (h - 45) * mod : minmax((h - 40) * mod, 3, 6);
         return [getIcon(type), iconSize];
       }
@@ -117,6 +131,8 @@ export const ReliefIconsRenderer: IRenderer = {
           return rand(2, 7);
         case "mountSnow":
           return rand(1, 6);
+        case "vulcan":
+          return rand(1, 3);
         case "hill":
           return rand(2, 5);
         case "conifer":

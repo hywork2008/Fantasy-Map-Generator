@@ -38,7 +38,7 @@ class BiomesModule {
     TIME && console.time("defineBiomes");
 
     const { fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference, t: coastDist, p: points } = pack.cells;
-    const { temp, prec } = grid.cells;
+    const { temp, prec, volcanic: gridVolcanic, volcanicActive: gridVolcanicActive } = grid.cells;
     const n = pack.cells.i.length;
     pack.cells.biomeCode = new Uint8Array(n);
     const habitats = ensureCoastalHabitatColumns(n, pack.cells);
@@ -50,7 +50,8 @@ class BiomesModule {
     );
     const assignmentOptions: AssignmentOptions = {
       profile,
-      seed: Number.parseInt(String(seed ?? this.worldContext.seed ?? "0"), 10) || 1
+      seed: Number.parseInt(String(seed ?? this.worldContext.seed ?? "0"), 10) || 1,
+      volcanicSoilStrength: options?.volcanicSoilStrength ?? this.worldContext.options?.volcanicSoilStrength ?? 50
     };
 
     const calculateMoisture = (cellId: number) => {
@@ -87,7 +88,9 @@ class BiomesModule {
         coastDistance: coastDist?.[cellId] ?? 0,
         neighborOcean: height >= this.MIN_LAND_HEIGHT ? hasOceanNeighbor(cellId) : false,
         x,
-        y
+        y,
+        volcanic: gridVolcanic?.[gridReference[cellId]] ?? 0,
+        volcanicActive: Boolean(gridVolcanicActive?.[gridReference[cellId]])
       };
       pack.cells.biomeCode[cellId] = this.resolveBiomeCode(climate, assignmentOptions);
     }
@@ -145,9 +148,11 @@ class BiomesModule {
         coastDistance: height < HeightThreshold.WATER_MAX_HEIGHT ? -1 : 2,
         neighborOcean: false,
         x: 0,
-        y: 0
+        y: 0,
+        volcanic: 0,
+        volcanicActive: false
       },
-      { profile, seed: 1 }
+      { profile, seed: 1, volcanicSoilStrength: this.worldContext.options?.volcanicSoilStrength ?? 50 }
     );
   }
 }

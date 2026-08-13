@@ -22,7 +22,7 @@ import {
 describe("biomeCatalog", () => {
   it("defines every STANDARD_BIOME_KEYS entry exactly once", () => {
     expect(STANDARD_BIOME_DEFINITIONS).toHaveLength(STANDARD_BIOME_KEYS.length);
-    expect(STANDARD_BIOME_COUNT).toBe(26);
+    expect(STANDARD_BIOME_COUNT).toBe(29);
     const keys = STANDARD_BIOME_DEFINITIONS.map(d => d.key);
     expect(new Set(keys).size).toBe(keys.length);
     for (const key of STANDARD_BIOME_KEYS) {

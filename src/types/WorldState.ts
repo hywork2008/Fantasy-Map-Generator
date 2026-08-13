@@ -105,6 +105,13 @@ export interface WorldOptions {
    */
   biomeRegionProfile?: BiomeRegionProfile;
   /**
+   * How aggressively the fertile `volcanicSoil` biome ring overrides the ordinary climate
+   * biome around a tagged volcano's flanks (Options → Generation "Volcanic soil strength",
+   * 0-100). Undefined preserves legacy maps' behavior (defaults to 50 — see biomeAssignment.ts's
+   * volcanicSoilThreshold).
+   */
+  volcanicSoilStrength?: number;
+  /**
    * Fauna population stock model detail level (docs/plan/biome-goods-producer-ecosystem.md §11).
    * "detailed" (default) runs the fauna cohort/carrying-capacity model (Phase 2+); "simplified"
    * skips it and keeps Game/liveAnimal output on the cheaper Phase 1 uncapped-rate formula.

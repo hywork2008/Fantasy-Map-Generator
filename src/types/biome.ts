@@ -26,7 +26,10 @@ export const BIOME_TAGS = [
   // a tropical rainforest from a temperate deciduous forest, which goods like Elephants need
   // (savanna/tropical forest range only; a bare "forest" tag was leaking them into every temperate/
   // cold forest biome too). See biomeCatalog.ts's STANDARD_BIOME_DEFINITIONS for which biomes carry it.
-  "tropical"
+  "tropical",
+  // Volcanic terrain (barren crater/lava rock or fertile ash-soil flank), orthogonal to
+  // "mountain"/"arable" — see biomeAssignment.ts's classifySpecialBiome volcanic branch.
+  "volcanic"
 ] as const;
 
 export type BiomeTag = (typeof BIOME_TAGS)[number];
@@ -59,7 +62,11 @@ export const STANDARD_BIOME_KEYS = [
   // Phase 5
   "coldSteppe",
   "tropicalDryForest",
-  "borealPeatland"
+  "borealPeatland",
+  // Volcanic terrain: barren crater/lava core, and the fertile ash-soil flank ring around it.
+  "volcanicBarrens",
+  "lavaField",
+  "volcanicSoil"
 ] as const;
 
 export type StandardBiomeKey = (typeof STANDARD_BIOME_KEYS)[number];

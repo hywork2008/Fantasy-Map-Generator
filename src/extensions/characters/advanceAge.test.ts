@@ -89,6 +89,11 @@ describe("advanceCharacterAging", () => {
         age: 34,
         appearance: 80,
         skills: { prowess: 80 } as never,
+        // A real character always carries personality data — the mortality roll below reads it
+        // (sociability/boldness) when deciding a death reason for titled characters. Values kept
+        // well inside the "neither assassinated nor slain" band so this test's outcome doesn't
+        // depend on which death reason (if any) got picked.
+        personality: { sociability: 50, boldness: 50 } as never,
         titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
       } as never
     ];
