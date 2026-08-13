@@ -253,6 +253,27 @@ describe("GoodsModule", () => {
     }
   });
 
+  it("defines Pumice as a rurally-gathered volcanic good and Obsidian/Sulfur as mine-operation-only (docs/plan/volcanic-biome-goods.md §3.2-3.3)", () => {
+    goodsModule.restoreDefaults();
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+
+    const pumice = byName.get("Pumice");
+    expect(pumice).toMatchObject({
+      tags: expect.arrayContaining(["mineral"]),
+      chance: 0,
+      biomeOutputByTag: { volcanic: expect.any(Number) }
+    });
+
+    for (const name of ["Obsidian", "Sulfur", "Volcanic Ash"]) {
+      const good = byName.get(name);
+      expect(good, name).toBeDefined();
+      expect(good?.biomeOutput, name).toBeUndefined();
+      expect(good?.biomeOutputByTag, name).toBeUndefined();
+      expect(good?.chance, name).toBe(0);
+    }
+  });
+
   it("defines Cats as a live, locally produced pest-control good", () => {
     goodsModule.restoreDefaults();
 

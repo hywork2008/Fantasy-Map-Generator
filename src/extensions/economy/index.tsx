@@ -178,7 +178,7 @@ import {
 } from "./generators/urbanPregnancy";
 import { getUrbanWaterSystemForBurg, sanitationScoreFromSystem, UrbanWater } from "./generators/urbanWaterSystem";
 import { clearViticultureAllocationShares } from "./generators/viticultureAllocation";
-import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
+import { VolcanicOperations } from "./generators/volcanicOperations";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import {
@@ -937,8 +937,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       // §3.2, decision D3) but regenerate together with the other physical extraction sites.
       if (value.target === "economy" || value.target === "minerals") QuarryOperations.generate();
       // Depends on MineralResources' "volcanic" GeologicalProvinceKind cells, regenerated just
-      // above under the same target gate (docs/plan/urban-construction-industry.md §3.4).
-      if (value.target === "economy" || value.target === "minerals") VolcanicAshOperations.generate();
+      // above under the same target gate (docs/plan/urban-construction-industry.md §3.4,
+      // docs/plan/volcanic-biome-goods.md §3.3).
+      if (value.target === "economy" || value.target === "minerals") VolcanicOperations.generate();
       // Construction depends on QuarryOperations' hasQuarryAccess snapshot, so it regenerates
       // right after (docs/plan/urban-construction-industry.md §3.3).
       if (value.target === "economy" || value.target === "minerals") ConstructionOperations.generate();
@@ -1152,7 +1153,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       SmelterOperations.clear();
       QuarryOperations.clear();
       SaltLogistics.clear();
-      VolcanicAshOperations.clear();
+      VolcanicOperations.clear();
       ConstructionOperations.clear();
       InnFacilities.clear();
       InnStays.clear();
@@ -1878,7 +1879,7 @@ export function init(api: ExtensionAPI): void {
           MineOperations.generate();
           SmelterOperations.generate();
           QuarryOperations.generate();
-          VolcanicAshOperations.generate();
+          VolcanicOperations.generate();
           ConstructionOperations.generate();
           Minting.generate();
           MilitaryResources.generate();

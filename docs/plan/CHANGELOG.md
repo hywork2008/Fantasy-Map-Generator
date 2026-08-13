@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-14
+
+- docs/plan/volcanic-biome-goods.md
+
 2026-08-13
 
 - docs/plan/advance-time-loop-reduction.md

@@ -8,7 +8,7 @@ import {
   getMineOperations,
   getQuarryOperations,
   getSmelterOperations,
-  getVolcanicAshOperations,
+  getVolcanicOperations,
   getWorldContext
 } from "../economyContext";
 import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "../generators/basicEmployment";
@@ -110,7 +110,7 @@ export function refreshEmploymentOverview(): void {
 }
 
 /**
- * Sums masonry/carpentry, quarrying, and Volcanic Ash extraction per Burg.
+ * Sums masonry/carpentry, quarrying, and volcanic works extraction (Ash/Sulfur/Obsidian) per Burg.
  */
 function getConstructionEmploymentByBurg(): Map<number, number> {
   const sums = new Map<number, number>();
@@ -123,9 +123,9 @@ function getConstructionEmploymentByBurg(): Map<number, number> {
     if (!quarry.active || !quarry.burgId) continue;
     sums.set(quarry.burgId, (sums.get(quarry.burgId) ?? 0) + quarry.quarryWorkers);
   }
-  for (const ashWorks of getVolcanicAshOperations()) {
-    if (!ashWorks.active || !ashWorks.burgId) continue;
-    sums.set(ashWorks.burgId, (sums.get(ashWorks.burgId) ?? 0) + ashWorks.ashWorkers);
+  for (const volcanicWorks of getVolcanicOperations()) {
+    if (!volcanicWorks.active || !volcanicWorks.burgId) continue;
+    sums.set(volcanicWorks.burgId, (sums.get(volcanicWorks.burgId) ?? 0) + volcanicWorks.volcanicWorkers);
   }
   return sums;
 }

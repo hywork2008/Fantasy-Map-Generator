@@ -105,7 +105,7 @@ import { getGarmentProductionHeadroom, settleTextileHouseholdDemand } from "./te
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
 import { advanceViticultureAllocationShares, getViticultureAllocationMultiplier } from "./viticultureAllocation";
-import { VolcanicAshOperations } from "./volcanicAshOperations";
+import { VolcanicOperations } from "./volcanicOperations";
 
 export type {
   DealRecord,
@@ -261,7 +261,7 @@ export class ProductionModule {
     });
     measureTickStep("production:quarryAshConstruction", () => {
       QuarryOperations.produceMonth();
-      VolcanicAshOperations.produceMonth();
+      VolcanicOperations.produceMonth();
       ConstructionOperations.produceMonth();
     });
     // Salt is neither generic rural output nor a discretionary utilities demand. State saltworks

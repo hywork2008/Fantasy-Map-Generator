@@ -89,7 +89,7 @@ import type { TradeSecurityLedger } from "./generators/tradeSecurityTypes";
 import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntakeTypes";
 import type { UrbanPregnancyRecord } from "./generators/urbanPregnancyTypes";
 import type { UrbanWaterSystem } from "./generators/urbanWaterTypes";
-import type { VolcanicAshOperation } from "./generators/volcanicAshOperationsTypes";
+import type { VolcanicOperation } from "./generators/volcanicOperationsTypes";
 
 let _api: ExtensionAPI | null = null;
 let _foodPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -1402,12 +1402,15 @@ export function setUrbanPregnancy(records: readonly UrbanPregnancyRecord[]): voi
   setSliceArray("urbanPregnancy", records);
 }
 
-/** Burg-anchored Volcanic Ash sites (docs/plan/urban-construction-industry.md §3.4, Phase 3). */
-export function getVolcanicAshOperations(): VolcanicAshOperation[] {
-  return getSliceArray<VolcanicAshOperation>("volcanicAshOperations");
+/**
+ * Burg-anchored volcanic works sites, yielding Volcanic Ash/Sulfur/Obsidian from one shared
+ * workforce (docs/plan/urban-construction-industry.md §3.4, docs/plan/volcanic-biome-goods.md §3.3).
+ */
+export function getVolcanicOperations(): VolcanicOperation[] {
+  return getSliceArray<VolcanicOperation>("volcanicOperations");
 }
-export function setVolcanicAshOperations(operations: readonly VolcanicAshOperation[]): void {
-  setSliceArray("volcanicAshOperations", operations);
+export function setVolcanicOperations(operations: readonly VolcanicOperation[]): void {
+  setSliceArray("volcanicOperations", operations);
 }
 export function getSmelterOperations(): SmelterOperation[] {
   return getSliceArray<SmelterOperation>("smelterOperations");

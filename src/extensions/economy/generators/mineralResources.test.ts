@@ -67,6 +67,42 @@ describe("MineralResourcesModule", () => {
     );
   });
 
+  it("never classifies a province as volcanic without a real volcanic-tagged biome (old height+hash heuristic removed)", () => {
+    // Same fixture as the top-level beforeEach: height cycles include 76 (>=75) on 1/5 of cells,
+    // which the old independent hash-roll heuristic would sometimes tag "volcanic". cells.biomeCode
+    // is absent here, so classifyProvince() now has no volcanic signal at all (docs/plan/
+    // volcanic-biome-goods.md §3.1) and must never produce a "volcanic" province.
+    MineralResources.generate();
+
+    // The "volcanic" province entry always exists (PROVINCE_ORDER is a fixed list), but its
+    // cell set must stay empty when no cell carries a real volcanic biome tag.
+    expect(getMineralGeologicalProvinces().find(province => province.kind === "volcanic")?.cells).toEqual([]);
+  });
+
+  it("classifies a cell into the volcanic province from its real biome tag, independent of height", () => {
+    const cells = Array.from({ length: 10 }, (_, i) => i);
+    worldContext.seed = "volcano-tag-test";
+    worldContext.pack = {
+      cells: {
+        i: cells,
+        // Cell 0 is a low, non-mountain height (25) that would otherwise land in "basin"/"carbonate".
+        h: Uint8Array.from(cells, cell => (cell === 0 ? 25 : [76, 61, 43, 32, 26][cell % 5])),
+        r: Uint16Array.from(cells, () => 0),
+        // Cell 0 = lavaField (code 1, tagged "volcanic"); every other cell = grassland (code 0).
+        biomeCode: Uint8Array.from(cells, cell => (cell === 0 ? 1 : 0))
+      }
+    } as unknown as PackedGraph;
+    worldContext.biomesData = {
+      keys: ["grassland", "lavaField"],
+      tags: [[], ["dry", "mountain", "volcanic"]]
+    } as unknown as typeof worldContext.biomesData;
+
+    MineralResources.generate();
+
+    const volcanicProvince = getMineralGeologicalProvinces().find(province => province.kind === "volcanic");
+    expect(volcanicProvince?.cells).toEqual([0]);
+  });
+
   it("keeps scaling district count with land area well past the old 40-district cap", () => {
     // Regression for docs/plan/mineral-resource-circulation-fixes.md Fix 1: districtCount
     // used to be Math.min(40, ...), so any map with >4,400 land cells produced exactly 40

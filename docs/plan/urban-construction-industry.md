@@ -147,6 +147,8 @@ export interface ConstructionOperation {
 
 ### 3.4 Phase 3: 火山地質とローマン・コンクリート技術投資
 
+> **2026-08-14 追記**: 本節が書かれた時点では「ヒートマップ生成後にセル単位の火山フラグが残らない」ため、標高+低確率ハッシュの代替ヒューリスティックで `"volcanic"` プロヴィンスを近似していた。その後の火山バイオーム実装（`volcanicBarrens`/`lavaField`/`volcanicSoil`、`heightmap-generator.ts`の`finalizeVolcanoes()`）でこの前提は解消済み。本物のバイオームタグへの再接続、および`Sulfur`の第二供給源・`Pumice`/`Obsidian`の新設は[volcanic-biome-goods.md](./volcanic-biome-goods.md)を参照。
+
 ```ts
 // mineralResources.ts の GeologicalProvinceKind に "volcanic" を追加
 export type GeologicalProvinceKind =

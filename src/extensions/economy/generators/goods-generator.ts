@@ -872,12 +872,29 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-sulfur",
     color: "#e4d64b",
     value: 5,
-    // Cell placement comes from MineralDeposit/MineOperation (mineralResources.ts), rendered
-    // on the mineralDeposits layer, not from this legacy chance/distribution scatter — see Fix 3
-    // in docs/plan/mineral-resource-circulation-fixes.md.
+    // Cell placement comes from MineralDeposit/MineOperation (mineralResources.ts, "evaporite"
+    // districts on "basin" provinces), rendered on the mineralDeposits layer, not from this
+    // legacy chance/distribution scatter — see Fix 3 in docs/plan/mineral-resource-circulation-
+    // fixes.md. VolcanicOperations (docs/plan/volcanic-biome-goods.md §3.3) adds a second,
+    // independent volcanic-fumarole source directly into market stock; the same "one Good, two
+    // supply sites" arrangement Stone/Marble already use alongside QuarryOperations.
     chance: 0,
     unit: "barrel",
     demandCoverage: {}
+  },
+  {
+    // Volcanic glass formed by rapidly cooled lava — only the active "lavaField" core of a
+    // volcano, not its dormant crater or fertile flank. Mine-operation-only, like Volcanic Ash;
+    // see VolcanicOperations (docs/plan/volcanic-biome-goods.md §3.3).
+    name: "Obsidian",
+    warEconomyType: "luxury",
+    tags: ["mineral", "luxury"],
+    icon: "good-gemstones",
+    color: "#1c1a1f",
+    value: 12,
+    chance: 0,
+    unit: "shard",
+    demandCoverage: { luxury: 0.4 }
   },
   {
     name: "Saltpeter",
@@ -1030,10 +1047,29 @@ export const GOODS_DATA: GoodData[] = [
     color: "#5a4d47",
     value: 3,
     // Cell placement comes from the "volcanic" GeologicalProvinceKind (mineralResources.ts) via
-    // VolcanicAshOperations, not from this legacy chance/distribution scatter — same pattern as
-    // Iron Ore (see the comment above). docs/plan/urban-construction-industry.md §3.4.
+    // VolcanicOperations, not from this legacy chance/distribution scatter — same pattern as
+    // Iron Ore (see the comment above). docs/plan/urban-construction-industry.md §3.4,
+    // docs/plan/volcanic-biome-goods.md §3.3.
     chance: 0,
     unit: "sack"
+  },
+  {
+    // Loose pumice/tephra gravel gathered by hand from a volcano's flank — unlike Volcanic Ash
+    // (a proper Burg-anchored mining site, §3.3), this is ordinary rural gathering, so it uses
+    // the same biomeOutputByTag mechanism as Furs/Sheep/etc. instead of a mine operation.
+    // "volcanic" tags volcanicBarrens/lavaField/volcanicSoil alike, but getRuralCellPopulation()
+    // scales with habitability (0 / 3 / 55 respectively), so real output concentrates on the
+    // populated volcanicSoil ring almost by construction — docs/plan/volcanic-biome-goods.md §3.2.
+    name: "Pumice",
+    warEconomyType: "luxury",
+    tags: ["mineral", "construction"],
+    icon: "good-sand",
+    color: "#c9c3b8",
+    value: 1,
+    chance: 0,
+    unit: "sack",
+    demandCoverage: { construction: 0.3 },
+    biomeOutputByTag: { volcanic: 0.05 }
   },
   {
     name: "White sand",

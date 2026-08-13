@@ -9,7 +9,7 @@ import {
   getQuarryOperations,
   getSmelterOperations,
   getStrategicLaborMarkets,
-  getVolcanicAshOperations,
+  getVolcanicOperations,
   getWorldContext,
   setAdministrationEmployment,
   setBasicEmploymentSummary
@@ -27,7 +27,7 @@ import { getQuarryRequiredWorkers } from "./quarryOperations";
 import { type BasicEmploymentSummaryRecord, buildBasicEmploymentSummary } from "./serviceEmployment";
 import { getSmelterRequiredWorkers } from "./smelterOperations";
 import { STRATEGIC_OCCUPATIONS, type StrategicOccupation } from "./strategicLaborMarketsTypes";
-import { getVolcanicAshRequiredWorkers } from "./volcanicAshOperations";
+import { getVolcanicRequiredWorkers } from "./volcanicOperations";
 
 /** The non-`"trade"` strategic occupations (§2.3) — raw-material supply for shipbuilding and general Wood, e.g. forestry (§3.8, Phase 7). */
 const STRATEGIC_INDUSTRY_OCCUPATIONS: readonly StrategicOccupation[] = STRATEGIC_OCCUPATIONS.filter(
@@ -134,13 +134,13 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     });
   }
 
-  for (const ashWorks of getVolcanicAshOperations()) {
-    if (!ashWorks.active || !ashWorks.burgId) continue;
-    pushSlot(slotsByBurg, ashWorks.burgId, {
-      requiredWorkers: getVolcanicAshRequiredWorkers(ashWorks),
-      getWorkers: () => ashWorks.ashWorkers,
+  for (const volcanicWorks of getVolcanicOperations()) {
+    if (!volcanicWorks.active || !volcanicWorks.burgId) continue;
+    pushSlot(slotsByBurg, volcanicWorks.burgId, {
+      requiredWorkers: getVolcanicRequiredWorkers(volcanicWorks),
+      getWorkers: () => volcanicWorks.volcanicWorkers,
       setWorkers: value => {
-        ashWorks.ashWorkers = value;
+        volcanicWorks.volcanicWorkers = value;
       }
     });
   }

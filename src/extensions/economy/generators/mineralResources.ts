@@ -1,3 +1,4 @@
+import { biomeHasTag } from "../../../data/biomeCatalog";
 import {
   getMineralDeposits,
   getMineralDistricts,
@@ -107,9 +108,12 @@ const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
 ];
 
 /**
- * Phase-1 deterministic pseudo-geology. It deliberately reads no biome data:
- * terrain height, drainage and map seed are the only inputs until a future
- * tectonic model replaces this approximation.
+ * Phase-1 deterministic pseudo-geology. Terrain height, drainage and map seed remain the only
+ * inputs for every province kind except "volcanic" — see classifyProvince()'s volcanic branch
+ * (docs/plan/volcanic-biome-goods.md §3.1). That one exception deliberately does read biome
+ * data (a cell's "volcanic" BiomeTag), because it is now a real, generator-placed signal
+ * (HeightmapModule.finalizeVolcanoes → biomeAssignment.ts's volcanicBarrens/lavaField/
+ * volcanicSoil) rather than a guess. A future tectonic model would replace the rest.
  */
 export class MineralResourcesModule {
   generate(): void {
@@ -214,15 +218,22 @@ export class MineralResourcesModule {
   }
 
   private classifyProvince(seed: string, cellId: number): GeologicalProvinceKind {
-    const cells = getWorldContext().pack.cells;
+    const world = getWorldContext();
+    const cells = world.pack.cells;
     const height = cells.h[cellId] ?? 0;
     const regional = this.hash(seed, "province", Math.floor(cellId / 23));
+    // Real volcano signal (docs/plan/volcanic-biome-goods.md §3.1), checked first: a cell
+    // whose assigned biome carries the "volcanic" tag (volcanicBarrens/lavaField/volcanicSoil)
+    // was actually placed by HeightmapModule.finalizeVolcanoes + biomeAssignment.ts, not
+    // guessed from height. Replaces the old independent "height>=75 && 6% hash" heuristic,
+    // which predated any per-cell volcanic flag and had no relationship to real volcanoes.
+    // Guarded for cells.biomeCode/biomesData.tags being absent (pre-biome-assignment state,
+    // or older test fixtures) — falls through to the height bands below in that case.
+    const biomeCode = cells.biomeCode?.[cellId];
+    if (biomeCode !== undefined && world.biomesData.tags && biomeHasTag(world.biomesData, biomeCode, "volcanic")) {
+      return "volcanic";
+    }
     if (cells.r[cellId] && height >= 20 && height < 48) return "placer";
-    // Deliberately rare (low probability, very high elevation only) so Volcanic Ash stays a
-    // scarce, advanced-technology resource rather than a common one — docs/plan/
-    // urban-construction-industry.md §3.4. Checked before the height>=70 branch below so it
-    // only skims a small slice of the very highest cells, not the whole granite/orogen band.
-    if (height >= 75 && this.hash(seed, "volcanic", cellId) < 0.06) return "volcanic";
     if (height >= 70) return regional < 0.36 ? "granite" : "orogen";
     if (height >= 53) return regional < 0.3 ? "granite" : regional < 0.7 ? "orogen" : "shield";
     if (height >= 38) return regional < 0.42 ? "carbonate" : regional < 0.72 ? "shield" : "basin";

@@ -9,7 +9,7 @@ import {
   getQuarryOperations,
   getSmelterOperations,
   getUrbanPregnancy,
-  getVolcanicAshOperations,
+  getVolcanicOperations,
   getWorldContext
 } from "../economyContext";
 import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "./basicEmployment";
@@ -116,8 +116,8 @@ export function getBurgEmploymentComposition(burgId: number): BurgEmploymentComp
   for (const quarry of getQuarryOperations()) {
     if (quarry.active && quarry.burgId === burgId) quarrying += quarry.quarryWorkers;
   }
-  for (const ash of getVolcanicAshOperations()) {
-    if (ash.active && ash.burgId === burgId) quarrying += ash.ashWorkers;
+  for (const volcanicWorks of getVolcanicOperations()) {
+    if (volcanicWorks.active && volcanicWorks.burgId === burgId) quarrying += volcanicWorks.volcanicWorkers;
   }
   let construction = 0;
   for (const operation of getConstructionOperations()) {
