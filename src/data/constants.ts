@@ -526,12 +526,19 @@ export const VolcanoConstants = {
    * MIN_PEAK_HEIGHT). Most heightmap templates build their mountains from many stacked Hill/
    * Range calls and never produce that signature, so without this fallback "Volcanism chance"
    * silently did nothing on the majority of templates — 100% would still place no volcano at
-   * all, depending purely on which template the seed happened to pick. Kept well below
-   * MIN_PEAK_HEIGHT (most templates' global peak still clears this, even ones that never reach
-   * MIN_PEAK_HEIGHT in a single placement) so the option behaves consistently — 100% means a
-   * volcano, 0% means none — across every template, not just the few with a singular peak.
+   * all, depending purely on which template the seed happened to pick.
+   *
+   * Deliberately just above HeightThreshold.WATER_MAX_HEIGHT (land starts at 20) rather than
+   * some "dramatic mountain" cutoff: geologically, a volcano isn't defined by height — a
+   * freshly-emerged vent that has barely broken the surface (a nascent seamount, a Surtsey-like
+   * eruption island) is still a volcano, just one that hasn't built up its cone yet. Any land at
+   * all is eligible, so "Volcanism chance" behaves the same — 100% means a volcano, 0% means
+   * none — on every template, including low-relief ones like "atoll" that never place a single
+   * dramatic peak. floodFillDecay's falloff naturally scales the tagged footprint down with a
+   * low seed height, so a barely-emerged vent gets a correspondingly small volcanic/soil ring
+   * rather than an oversized one.
    */
-  FALLBACK_MIN_PEAK_HEIGHT: 65
+  FALLBACK_MIN_PEAK_HEIGHT: HeightThreshold.WATER_MAX_HEIGHT + 2
 } as const;
 
 // ---------------------------------------------------------------------------

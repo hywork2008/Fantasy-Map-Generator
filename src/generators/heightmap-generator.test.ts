@@ -12,10 +12,10 @@ import { HeightmapGenerator } from "./heightmap-generator";
  * Regression coverage for the volcano-tagging guarantee (docs/plan brainstorm, see
  * finalizeVolcanoes/registerFallbackVolcanoCandidate): volcanismChance = 100 must tag a volcano
  * on every template whose generated terrain has a peak at or above
- * VolcanoConstants.FALLBACK_MIN_PEAK_HEIGHT, and volcanismChance = 0 must tag none, for every
- * template — not just the few whose Hill calls happen to match the single-dominant-peak
- * signature. A template whose peak never clears the threshold (e.g. "atoll", a genuinely
- * low-relief ring with no real mountain) is the one documented exception, not a bug.
+ * VolcanoConstants.FALLBACK_MIN_PEAK_HEIGHT (just above the land line — a freshly-emerged vent
+ * that hasn't built up its cone yet is still academically a volcano), and volcanismChance = 0
+ * must tag none, for every template — not just the few whose Hill calls happen to match the
+ * single-dominant-peak signature.
  */
 // points: 1 (2500 cells) instead of the default 10K — this test drives full grid + heightmap
 // generation dozens of times (seeds × templates × 2 chance levels); cell count doesn't change
@@ -56,6 +56,15 @@ describe("HeightmapGenerator volcano tagging", () => {
       }
     }
   }, 20000);
+
+  it("tags a low-relief 'atoll' template's peak too (regression: seed 98948141 previously had none)", async () => {
+    // atoll's tallest point for this seed is only 32 — comfortably above land (20) but nowhere
+    // near a "dramatic mountain". Before FALLBACK_MIN_PEAK_HEIGHT was lowered to just above the
+    // land line, this seed/template combination silently produced no volcano at 100% chance.
+    const grid = await generateHeights("98948141", "atoll", 100);
+    expect(Math.max(...(grid.cells.h as unknown as number[]))).toBeLessThan(40);
+    expect(grid.cells.volcanic?.some(v => v >= VolcanoConstants.CORE_MIN_INTENSITY)).toBe(true);
+  });
 
   it("clears stale volcano tags when re-generating the same grid object with chance lowered to 0", async () => {
     // Mirrors main.ts's prepareGenerationStage(): reusing the same Grid instance across a
