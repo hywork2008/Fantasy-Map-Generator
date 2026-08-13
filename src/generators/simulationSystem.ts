@@ -40,6 +40,17 @@ export interface SimulationStepContext {
    * system so existing callers stay isolated from other systems.
    */
   readonly rng: RNGService;
+  /**
+   * True when this day is one of several days inside a single multi-day top-level advance
+   * (Advance Week/Month/Year, or any multi-day `window.fmg.actions.advanceTime()` call) — false
+   * for a lone Advance Day / single `simulation.stepDay` step, however it was invoked. Set from
+   * the day-batch bracket in timeEngine.ts (`enterDayBatch(totalDays)`), which every multi-day
+   * entry point (UI rAF loop, public bulk `advanceTime`, headless `runDaily`) already goes
+   * through for its rollback-snapshot amortization — see docs/plan/advance-time-loop-reduction.md
+   * Phase 1b. Intended for systems that want to skip expensive, purely-cosmetic-at-this-timescale
+   * per-day resolution during a large fast-forward without changing daily-granularity behavior.
+   */
+  readonly isBulkAdvance: boolean;
 }
 
 /**

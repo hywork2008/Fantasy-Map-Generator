@@ -28,6 +28,7 @@ import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
+import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
 import { advanceDungeonEcology } from "./dungeonEcology";
@@ -432,7 +433,7 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   if (totalDays <= 0) return;
 
   // Batch the rollback snapshot across the whole run instead of once per day.
-  enterDayBatch();
+  enterDayBatch(totalDays);
   let failed = false;
   try {
     for (let i = 0; i < totalDays; i++) {
@@ -529,18 +530,34 @@ function restoreDaySnapshot(snapshot: DaySnapshot): void {
 let activeDayBatchSnapshot: DaySnapshot | null = null;
 let dayBatchDepth = 0;
 let dayBatchCommittedDays = 0;
+/** How many calendar days the outermost active batch spans; 1 outside any batch. */
+let activeDayBatchTotalDays = 1;
 
-function enterDayBatch(): void {
+function enterDayBatch(totalDays = 1): void {
   dayBatchDepth++;
   if (dayBatchDepth === 1) {
     activeDayBatchSnapshot = takeDaySnapshot();
     dayBatchCommittedDays = 0;
+    activeDayBatchTotalDays = totalDays;
   }
 }
 
 function exitDayBatch(): void {
   dayBatchDepth = Math.max(0, dayBatchDepth - 1);
-  if (dayBatchDepth === 0) activeDayBatchSnapshot = null;
+  if (dayBatchDepth === 0) {
+    activeDayBatchSnapshot = null;
+    activeDayBatchTotalDays = 1;
+  }
+}
+
+/**
+ * True while inside a multi-day batch (Advance Week/Month/Year, or any multi-day
+ * `advanceTime`/`runDaily` call) — false for a lone single-day step. See
+ * `SimulationStepContext.isBulkAdvance`'s doc comment (docs/plan/advance-time-loop-reduction.md
+ * Phase 1b) for what this is for.
+ */
+function isBulkTimeAdvance(): boolean {
+  return dayBatchDepth > 0 && activeDayBatchTotalDays > 1;
 }
 
 function exitDayBatchAfterFailure(): void {
@@ -745,9 +762,11 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   // of this file — self-gated on an accumulated-day counter instead of running unconditionally
   // every day (docs/plan/advance-time-loop-reduction.md Phase 1).
 
+  const bulkAdvance = isBulkTimeAdvance();
   const systemContextBase = {
     tick: simulationContext.tickCount,
-    delta: { years: deltaYears, months: deltaMonths, days: deltaDays }
+    delta: { years: deltaYears, months: deltaMonths, days: deltaDays },
+    isBulkAdvance: bulkAdvance
   };
   const executedSystems = timeTickSystems.run(
     // Placeholder rng is replaced per system inside runWithSystemRng.
@@ -781,6 +800,14 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
       if (sim.simMilitaryRecovery) {
         Military.updateDynamic(worldContext, effectiveDeltaYears);
       }
+      // Loop-reduction Phase 1b (docs/plan/advance-time-loop-reduction.md): during a multi-day
+      // fast-forward under player-directed conflict policy, the user is explicitly not resolving
+      // turn-by-turn warfare, so regiments do not need to move/react for those days — this also
+      // skips advanceAllRegimentMovement's route-graph rebuild, the dominant cost of this block.
+      // Advance Day (isBulkAdvance === false) and autonomous-policy maps are unaffected.
+      const skipMovement =
+        bulkAdvance && normalizeConflictAutonomy(worldContext.options.conflictAutonomy) === "playerDirected";
+      if (skipMovement) return;
       const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
       if (regimentsMoved) topics.push("simulation.military");
     });
@@ -821,7 +848,7 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
   // Batch the rollback snapshot across the whole rAF run instead of once per
   // frame/day — the chunked stepping below reuses this shared snapshot while
   // the batch is active.
-  enterDayBatch();
+  enterDayBatch(totalDays);
 
   const loop = () => {
     const currentState = useTimeSimulationState.getState();

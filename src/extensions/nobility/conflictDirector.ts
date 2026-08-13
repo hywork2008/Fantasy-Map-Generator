@@ -43,6 +43,21 @@ export function mayAdvanceAnyConflict(): boolean {
   return getWorldContext().pack.states.some(state => Object.keys(getConflictAuthorizations(state)).length > 0);
 }
 
+/**
+ * Loop-reduction Phase 1b (docs/plan/advance-time-loop-reduction.md): true when a multi-day
+ * fast-forward should skip turn-by-turn conflict resolution (march orders, siege/skirmish
+ * resolution, regiment movement) entirely for the days it spans.
+ *
+ * Only applies under player-directed conflict policy — the player is understood to resolve
+ * warfare interactively one day at a time, so a deliberate multi-day advance (Advance
+ * Week/Month/Year) means "I am not fighting a war right now." Autonomous-policy maps are never
+ * suppressed: the political AI needs continuous daily resolution regardless of how many days a
+ * single top-level advance spans, or its wars would silently stall during any fast-forward.
+ */
+export function shouldSuppressConflictAdvance(isBulkAdvance: boolean): boolean {
+  return isBulkAdvance && !mayAdvanceAutonomousConflict();
+}
+
 export function isPlayerConflictAuthorized(attackerStateId: number, defenderStateId: number): boolean {
   const attacker = getWorldContext().pack.states[attackerStateId];
   return attacker ? getConflictAuthorizations(attacker)[defenderStateId]?.origin === "player" : false;

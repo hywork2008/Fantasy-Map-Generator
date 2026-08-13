@@ -51,8 +51,14 @@ export function registerDayStepObserver(
 }
 
 export interface DayBatchController {
-  /** Start (or extend, if already active) amortizing the rollback snapshot across a run. */
-  enter(): void;
+  /**
+   * Start (or extend, if already active) amortizing the rollback snapshot across a run.
+   * `totalDays` (default 1) records how many calendar days this top-level advance spans, so
+   * registered systems can distinguish a lone single-day step from a genuine multi-day
+   * fast-forward via `SimulationStepContext.isBulkAdvance` — see
+   * docs/plan/advance-time-loop-reduction.md Phase 1b.
+   */
+  enter(totalDays?: number): void;
   /** End one level of batching on a clean run; releases the shared snapshot once outermost. */
   exit(): void;
   /**
@@ -101,7 +107,7 @@ export function runDaily(days: number, options: DailyRunOptions = {}): DailyRunR
   let completed = 0;
   let failed = false;
 
-  dayBatchController?.enter();
+  dayBatchController?.enter(totalDays);
   try {
     for (let i = 0; i < totalDays; i++) {
       if (options.shouldStop?.()) {

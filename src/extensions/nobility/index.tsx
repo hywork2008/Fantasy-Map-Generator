@@ -16,6 +16,7 @@ import {
   endPlayerConflict,
   mayAdvanceAnyConflict,
   mayAdvanceAutonomousConflict,
+  shouldSuppressConflictAdvance,
   startPlayerConflict
 } from "./conflictDirector";
 import { refreshPlayerCharacterSelection } from "./controllers/playerCharacter";
@@ -314,7 +315,16 @@ export function init(api: ExtensionAPI): void {
       // Consume in-flight player travel days; location updates on arrival.
       tickPlayerTravel(deltaDays);
 
-      const canAdvanceConflict = mayAdvanceAnyConflict();
+      // Loop-reduction Phase 1b (docs/plan/advance-time-loop-reduction.md): a multi-day
+      // fast-forward (Advance Week/Month/Year, isBulkAdvance) under player-directed conflict
+      // policy means the player is explicitly not resolving turn-by-turn warfare right now —
+      // armies do not need to plan, besiege, skirmish, or move for those days. Confirmed with
+      // the user (2026-08-13) as an intentional divergence from day-by-day stepping: Advance Day
+      // always resolves military in full; Advance Week/Month/Year skips it while
+      // conflictAutonomy is "playerDirected". Autonomous-policy maps are unaffected — the
+      // political AI needs continuous resolution regardless of batch size.
+      const suppressConflictAdvance = shouldSuppressConflictAdvance(context.isBulkAdvance);
+      const canAdvanceConflict = mayAdvanceAnyConflict() && !suppressConflictAdvance;
       if (api.simulationContext.currentDay === 1) {
         // Frontier governance is a separate choice from war planning: rulers
         // spend on recovery and border works before choosing fresh campaigns.
@@ -340,18 +350,21 @@ export function init(api: ExtensionAPI): void {
 
       // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
       // bordersChanged — armies keep advancing toward their destination continuously rather than
-      // teleporting instantly when borders change.
+      // teleporting instantly when borders change. Skipped entirely when suppressConflictAdvance
+      // (also avoids advanceAllRegimentMovement's route-graph rebuild, its dominant cost).
       let marchCaptureOccurred = false;
-      const regimentsMoved = advanceAllRegimentMovement(
-        api.worldContext.pack,
-        api.worldContext,
-        effectiveDeltaYears,
-        (r, cell) => {
-          if (!canAdvanceConflict) return;
-          if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
-        },
-        canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
-      );
+      const regimentsMoved = suppressConflictAdvance
+        ? false
+        : advanceAllRegimentMovement(
+            api.worldContext.pack,
+            api.worldContext,
+            effectiveDeltaYears,
+            (r, cell) => {
+              if (!canAdvanceConflict) return;
+              if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
+            },
+            canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
+          );
 
       const settlementsChanged = bordersChanged || marchCaptureOccurred;
       const militaryChanged = settlementsChanged || regimentsMoved;

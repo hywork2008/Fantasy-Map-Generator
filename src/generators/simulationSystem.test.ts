@@ -7,7 +7,8 @@ const stubRng = createRNGService(() => 0.5);
 const stubContext = (tick: number): SimulationStepContext => ({
   tick,
   delta: { years: 0, months: 0, days: 1 },
-  rng: stubRng
+  rng: stubRng,
+  isBulkAdvance: false
 });
 
 function system(

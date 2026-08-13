@@ -9,6 +9,7 @@ import {
   mayAdvanceAnyConflict,
   mayAdvanceAutonomousConflict,
   mayAdvanceConflict,
+  shouldSuppressConflictAdvance,
   startPlayerConflict
 } from "./conflictDirector";
 import { clearNobilityContext, initNobilityContext } from "./nobilityContext";
@@ -37,6 +38,19 @@ describe("conflictDirector", () => {
     worldContext.options = { conflictAutonomy: "autonomous" } as never;
     expect(getConflictAutonomy()).toBe("autonomous");
     expect(mayAdvanceAutonomousConflict()).toBe(true);
+  });
+
+  it("shouldSuppressConflictAdvance: suppresses only a bulk multi-day advance under player-directed policy (docs/plan/advance-time-loop-reduction.md Phase 1b)", () => {
+    worldContext.options = { conflictAutonomy: "playerDirected" } as never;
+    expect(shouldSuppressConflictAdvance(true)).toBe(true);
+    // A lone Advance Day step always resolves military in full, even player-directed.
+    expect(shouldSuppressConflictAdvance(false)).toBe(false);
+  });
+
+  it("shouldSuppressConflictAdvance: never suppresses under autonomous policy, bulk or not", () => {
+    worldContext.options = { conflictAutonomy: "autonomous" } as never;
+    expect(shouldSuppressConflictAdvance(true)).toBe(false);
+    expect(shouldSuppressConflictAdvance(false)).toBe(false);
   });
 
   it("clears AI siege goals and only their matching march orders in player-directed mode", () => {

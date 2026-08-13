@@ -2,20 +2,21 @@
 
 ## 状態
 
-**Phase 1a（`core:manpower`の経過日数カウンタ化）実装完了(2026-08-13)。** Phase 1bおよび2〜3は未着手。
+**Phase 1a・Phase 1b ともに実装完了(2026-08-13)。** Phase 2〜3は未着手。
 
 - ユーザー要望「Advance Month は Day×30、Advance Year は Day×365 の代わりに、Month は1回・Year は12回(Month単位)か1回にまとめてループ回数を減らしたい」への回答として、実際のコード・過去の設計決定を調査し、「できること」「できないこと」を切り分けた(2026-08-13)。
-- Phase 1実装着手時、`core:militaryFallback`側の詳細読み込みで当初の想定(下記2.5節「フォールバック経路には反応/索敵ロジックは無い」)が誤りだったことが判明。`advanceAllRegimentMovement`はフォールバック経路でもNobility側と同じ`applyReactionMarchOrder`を呼んでおり、索敵/反応ロジックを持つ。また`Military.updateDynamic`は死亡連隊のクリーンアップと回復レートを同一ガード内で行っており、素朴にまとめて間引くと「死んだ連隊が最大1週間残り続ける」という見た目の副作用が出ることも判明した。そのため**`core:militaryFallback`はPhase 1の対象から外し、Phase 1bとして再設計が必要な項目に格下げした**(詳細は3節)。
-- 結果として今回実装したのは**`core:manpower`のみ**(Phase 1a)。安全性の根拠通り純粋な線形レート計算であることをソースで確認済みで、実装後の実測でも副作用は確認されていない。
-- 検証: `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npm run build` すべてクリーン。既存テスト2584件全てグリーン(回帰なし)。新規characterization test 3件追加(`manpower.test.ts`に数値等価性テスト、`timeEngine.systems.test.ts`に登録確認+ゲート発火のend-to-endテスト)。`npm run perf:advance-year -- --seed=phase1-verify --extensions=characters,economy`で実測: `core:manpower`は366回中294.1ms(avg 0.804ms/call)——実装前の実測値(711burgマップで4008ms/366回、avg 11.0ms/call、`docs/analytics/advance-year-performance.md`)から**約93%削減**(マップ規模が異なる比較のため参考値)。既存の`core:militaryFallback`(1999.4ms/366回、未変更)には影響なし。
+- **Phase 1a**: `core:manpower`を経過日数カウンタで自己ゲート化。詳細は3節Phase 1a。実測で約93%削減を確認。
+- Phase 1a実装着手時、`core:militaryFallback`側の詳細読み込みで当初の想定(下記2.5節「フォールバック経路には反応/索敵ロジックは無い」)が誤りだったことが判明。`advanceAllRegimentMovement`はフォールバック経路でもNobility側と同じ`applyReactionMarchOrder`を呼んでおり、索敵/反応ロジックを持つ。また`Military.updateDynamic`は死亡連隊のクリーンアップと回復レートを同一ガード内で行っており、素朴にまとめて間引くと「死んだ連隊が最大1週間残り続ける」という見た目の副作用が出ることも判明した。そのため**`core:militaryFallback`は当初のPhase 1スコープから外し、Phase 1bとして再設計待ちにした**。
+- **Phase 1b**: ユーザーから明確な設計方針の指示を受けて実装。「Conflict autonomy が Player-directed の場合、まとめて時間を進める(bulk advance)ときはターン制の細かい戦争をするつもりが無いので、軍隊の動きが一切無くても良い」(ユーザー、2026-08-13)。この指示により、当初懸念していた「間引き」ではなく「(条件付きで)丸ごとスキップ」という、より単純かつ効果の大きい設計を採用できた。詳細は3節Phase 1b。
+- 検証: `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npm run build` すべてクリーン。既存テスト全てグリーン(回帰なし、2584→2587件)。Phase 1a: 新規characterization test 3件(`manpower.test.ts`数値等価性、`timeEngine.systems.test.ts`登録確認+ゲート発火end-to-end)。実測: `core:manpower`が366回中294.1ms(avg 0.804ms/call)——実装前の実測値(711burgマップで4008ms/366回、avg 11.0ms/call、`docs/analytics/advance-year-performance.md`)から約93%削減(マップ規模が異なる参考値)。Phase 1b: 新規テスト3件(`conflictDirector.test.ts`に`shouldSuppressConflictAdvance`の純粋ロジックテスト2件、`timeEngine.systems.test.ts`に`SimulationStepContext.isBulkAdvance`配線テスト1件)。
 
 ## TL;DR
 
 - **トップレベルの「1回のAdvance Month操作＝1回の内部処理呼び出し」化は非推奨。** 2026-07-20（commit `156910fe6`, P2-5）に、まさにこれと同じ「月/年をまとめて1コミットで処理するbulk経路」を**意図的に廃止**し、「暦日1日＝1コミット」に統一した経緯がある（`docs/plan/unite-data-and-map.md` §6.2、`docs/reviews/unite-data-and-map-remediation.md`）。理由はUIの日次ループとpublic API(`window.fmg.actions.advanceTime`)とで tickCount・RNG消費・hook回数・四半期処理が食い違っていたため。これを戻すと「Advance Dayを30回押す」と「Advance Monthを1回押す」が同じ結果にならなくなる、という現在保証されている不変条件を壊す。
 - **しかし実際に計測すると、Advance Month/Yearの「重い処理」の大半はすでに月次・年次境界ちょうどにしか実行されていない**（2026-08-03のP0/P1最適化で経過日数カウンタ方式に変更済み）。「Day×30」という体感は正しいが、それは「30回重い処理をしている」のではなく「365回のループの中に、まだ自己ゲートされていない軽くない処理（core:manpower ~11ms/日、core:militaryFallback ~7ms/日）が挟まっている」ことが主因。
-- **できること・実装済み（Phase 1a）**: `core:manpower`を、既存の経済拡張と同じ「経過日数カウンタで自己ゲート」パターンに変換した。ループ回数（tickCount・コミット数）は変えず、この処理だけを実質「週1回」に間引く。数学的にほぼ同値（レート×deltaYearsの線形計算のみで、確率ロールに依存しない）。実測で約93%削減を確認済み（詳細は上記「状態」節）。
-- **当初「できる」と見込んだが実装時に「要再設計」へ格下げ（Phase 1b、未実装）**: `core:militaryFallback`（`Military.updateDynamic` + `advanceAllRegimentMovement`）。ソースを詳細に読み直した結果、フォールバック経路もNobility側と同じ索敵/反応ロジック（`applyReactionMarchOrder`）と死亡連隊クリーンアップを持つことが判明し、素朴な間引きは行動の変化（盲目行進・ゾンビ連隊の残留）を招くと分かった。詳細は3節Phase 1b。
-- **できないこと（対象外）**: Nobility拡張の軍事解決（`localSkirmish.ts`）は「1日ごとの緩やかな消耗ロール」を明示的な設計として持ち、月/年単位に潰すと戦争のペース・結果そのものが変わる。連隊の反応/索敵も呼び出しの先頭でしか再評価されないため、粒度を落とすと「盲目行進」が発生する。これらは性能最適化ではなくゲームデザインの変更になるため、本計画の対象外とする。
+- **できること・実装済み（Phase 1a）**: `core:manpower`を、既存の経済拡張と同じ「経過日数カウンタで自己ゲート」パターンに変換した。ループ回数（tickCount・コミット数）は変えず、この処理だけを実質「週1回」に間引く。数学的にほぼ同値（レート×deltaYearsの線形計算のみで、確率ロールに依存しない）。実測で約93%削減を確認済み。
+- **できること・実装済み（Phase 1b）**: `core:militaryFallback`と`nobility.tick`の両方で、conflictAutonomyが`playerDirected`かつ多日バッチ（Advance Week/Month/Year等）のとき、連隊の移動・反応・攻城・小競り合いの解決を丸ごとスキップする。ユーザー自身がこの挙動差（Advance Dayなら通常どおり、まとめて進めるときは軍事解決を一切行わない）を明示的に許容・指示したため、Phase 1aのような「間引き」ではなくシンプルな条件付きスキップとして実装した。`conflictAutonomy`が`autonomous`のマップは影響を受けない（AIは継続解決が必要なため）。
+- **できないこと（対象外のまま）**: `autonomous`ポリシー下でのNobility軍事解決（`localSkirmish.ts`）は「1日ごとの緩やかな消耗ロール」を明示的な設計として持ち、月/年単位に潰すと戦争のペース・結果そのものが変わる。これは性能最適化ではなくゲームデザインの変更になるため、本計画の対象外のまま。
 
 ---
 
@@ -172,19 +173,35 @@ registerSimulationSystem({
    - `timeEngine.systems.test.ts`「manpower.tick self-gates on an accumulated-day counter...」— `stepDaySimulation()`を6回呼んでも連隊容量が変化せず、7回目で初めて変化することをend-to-endで固定。
 4. `npm run perf:advance-year -- --seed=phase1-verify --extensions=characters,economy`実測（4844cells/344burgsマップ）: `core:manpower`は366回中294.1ms合計（avg 0.804ms/call）。実装前の実測基準（711burgsマップで4008ms/366回、avg 11.0ms/call、`docs/analytics/advance-year-performance.md`）と比較して概ね93%の削減（マップ規模が異なるため参考値）。同じ実行内の`core:militaryFallback`（1999.4ms/366回、Phase 1bでは未変更）には影響が無いことも確認。
 
-### Phase 1b（未実装・要再設計）— core:militaryFallbackの扱い
+### Phase 1b（実装済み・2026-08-13）— 多日バッチ×player-directedで軍事解決を丸ごとスキップ
 
-当初「Phase 1と同じパターンをそのまま適用できる」と見込んでいたが、実装着手時のソース再読で以下2点が判明し、単純な間引きは見送った:
+**当初の想定と何が変わったか**: 元々は「Phase 1aと同じ間引きパターンを`core:militaryFallback`にも適用する」計画だったが、着手時のソース再読で(a)fallback経路もNobility側と同じ索敵/反応ロジック（`applyReactionMarchOrder`）を持つこと、(b)死亡連隊クリーンアップと回復レートが`Military.updateDynamic()`の同一ガード内にあり分割が必要なことが判明し（2.5節）、素朴な間引きは「盲目行進」「ゾンビ連隊」という副作用を招くと分かった。
 
-1. **索敵/反応ロジックがfallback経路にも存在する**（2.5節）。`advanceAllRegimentMovement()`はNobility tickとcore fallbackの両方から呼ばれる同一実装で、`applyReactionMarchOrder`による索敵/反応はfallback経路でも動く。まとめて間引くと「盲目行進」が発生し、Nobility無効時の連隊の振る舞いが変わる。
-2. **死亡連隊クリーンアップと回復レートが同一ガード内にある**。[`military-generator.ts:1061-1120`](../../src/generators/military-generator.ts)の`updateDynamic()`は`if (!useOptionsState.getState().simMilitaryRecovery) return;`という単一の早期returnの後で、死亡連隊（`r.a <= 0`）の削除と回復レート計算の両方を行う。素朴に間引くと「全滅した連隊が最大1週間、見た目上マップに残り続ける」という副作用が出る。
+その後ユーザーから明確な設計方針の指示を受けた:
 
-再設計する場合の方向性（未着手）:
+> Conflict autonomyがPlayer-directedかつ、まとめて時間を進めたい時はターン制の細かい戦争をするつもりは無いので軍隊の動きは一切無くても良いです。
 
-- `military-generator.ts`の`updateDynamic()`を「死亡連隊クリーンアップ（軽量・毎日実行のまま）」と「回復レート計算（線形・間引き可能）」に分割する。
-- `advanceAllRegimentMovement`の移動距離自体はまとめて処理できる設計だが（`advanceAlongPath`が多セル対応）、索敵/反応の再評価頻度を落とすかどうかは性能とゲームプレイの明確なトレードオフになるため、実装前にユーザーとすり合わせが必要。
+これにより「間引いて数値精度を保つ」から「特定条件下で丸ごとスキップしてよい」への方針転換ができ、2.3〜2.5節で挙げた懸念（盲目行進・スナップショット判定・死亡連隊クリーンアップのタイミング）が一括で無効化された——動かない/戦わないなら、それらの懸念はそもそも発生しない。
 
-Phase 1aで得られた削減（~93%減、Economy ON時のAdvance Year全体で見ると大きな割合を占める`core:manpower`分）だけでも実用上意味のある改善であり、Phase 1bは独立した後続タスクとして扱う。
+**実装内容**:
+
+1. **`isBulkAdvance`フラグの新設**（[simulationSystem.ts](../../src/generators/simulationSystem.ts)の`SimulationStepContext`、[timeEngine.ts](../../src/generators/timeEngine.ts)）: 「今日は複数日にまたがる1回のトップレベル進行（Advance Week/Month/Yearや複数日の`advanceTime`/`runDaily`呼び出し）の一部か、それとも単発のAdvance Day/`stepDaySimulation`か」を表す。既存の`enterDayBatch()`/`exitDayBatch()`（day-batchスナップショット機構、Phase 1a以前から存在）を`enterDayBatch(totalDays)`に拡張し、そのバッチが何日分かを保持することで実現。UI（`runTimeSimulation`）・public bulk API（`advanceTime`）・headless（`runDaily`/`advance`、`simulationRunner.ts`の`DayBatchController.enter(totalDays)`）の全経路が同じ仕組みを通るため、一貫して判定できる。単発の`stepDaySimulation()`/`stepDay()`は常に`false`。
+2. **`shouldSuppressConflictAdvance(isBulkAdvance)`**（[conflictDirector.ts](../../src/extensions/nobility/conflictDirector.ts)）: `isBulkAdvance && !mayAdvanceAutonomousConflict()`——多日バッチかつconflictAutonomyが`playerDirected`のときだけ`true`。
+3. **`nobility.tick`**（[nobility/index.tsx](../../src/extensions/nobility/index.tsx)）: `canAdvanceConflict`に`&& !suppressConflictAdvance`を合成。これにより`StrategicPlanner.evaluatePlans/generate/advanceTension`・`LocalSkirmish.resolve`・攻城目標の取得・略奪/奪還コールバックが既存の`canAdvanceConflict`ガード経由で連鎖的に止まる。さらに`advanceAllRegimentMovement()`の呼び出し自体も`suppressConflictAdvance`のとき丸ごとスキップ（`regimentsMoved = false`）——これにより最もコストの大きい経路グラフ再構築（`buildSeaRouteGraph`/`buildLandRouteGraph`/`analyzeFrontiers`等）も回避できる。`Military.updateDynamic`（回復・死亡連隊クリーンアップ）は変更せず毎日実行のまま。
+4. **`core:militaryFallback`**（[timeEngine.ts](../../src/generators/timeEngine.ts)）: 同じ条件（`bulkAdvance && normalizeConflictAutonomy(worldContext.options.conflictAutonomy) === "playerDirected"`）で`advanceAllRegimentMovement()`をスキップ。`Military.updateDynamic`は変更なし。Nobility無効時は`conflictAutonomy`はNobility固有の概念ではなくコアオプション（`worldContext.options.conflictAutonomy`、デフォルト`playerDirected`）なので、拡張の有無に関わらず同じ判定式が使える。
+
+**`autonomous`ポリシーは無影響**: `mayAdvanceAutonomousConflict()`が`true`を返す間は`suppressConflictAdvance`が常に`false`になるため、AIが自律的に戦争を行うモードでは日次と同じ完全な解決が多日バッチでも継続する。
+
+**P2-5不変条件との関係**: この変更は「Advance Day×N == Advance Month×1」という不変条件に、意図的かつ限定的な例外を導入する——ただし対象はNobility/military-fallbackの軍事解決パイプラインのみで、tickCount・RNGストリーム消費・経済/人口/技術等の他の全システムの挙動は一切変わらない。ユーザー自身がこの差異を明示的に許容・指示しているため、P2-5が守ろうとした「UIパス非依存の決定性」の趣旨（テスト再現性・セーブロード整合性）を損なわない範囲の、オプション駆動の意図的な仕様差として扱う。
+
+**検証（実施済み）**:
+
+1. `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npm run build` — 全てクリーン。
+2. 既存テストスイート全体 — 全てグリーン、回帰なし。
+3. 新規テスト:
+   - `conflictDirector.test.ts`: `shouldSuppressConflictAdvance`が`playerDirected`×bulkのときのみ`true`を返し、`autonomous`では常に`false`であることを固定。
+   - `timeEngine.systems.test.ts`: `stepDaySimulation()`単発では`isBulkAdvance===false`、`runDaily(3)`の3日間は`isBulkAdvance===true`であることをプローブシステムでend-to-end固定。
+4. 深い統合テスト（実際に連隊が「移動しない」ことを行軍中の連隊で検証するテスト）は、`advanceAllRegimentMovement`が既存の進軍命令（`r.path`）を前提とし、最小フィクスチャでは索敵/駐屯/前線ロジックが命令をそもそも生成しないため確実な検証が難しく、見送った。代わりに上記2点（フラグ配線の正しさ・純粋な条件判定ロジックの正しさ）とコードレビューで足りるロジックの単純さ（1行の早期return×2箇所）で品質を担保している。
 
 ### Phase 2（中リスク・要事前計測）— ループ自体の固定オーバーヘッド削減
 
@@ -205,12 +222,11 @@ Phase 1後に改めて`perf:advance-year`で内訳を取り、「ループその
 | 項目 | 可否 | 理由 |
 | :--- | :--- | :--- |
 | `core:manpower`を経過日数カウンタで間引く | ✅ **実装済み（Phase 1a）** | 線形レート計算のみ、確率ロール無し。実測で約93%削減 |
-| `core:militaryFallback`（Nobility無効時のみ）を間引く | 🔶 要再設計（Phase 1b、未実装） | 索敵/反応ロジックと死亡連隊クリーンアップが絡むと判明、単純な間引きは行動変化を招く |
+| `core:militaryFallback`/`nobility.tick`の軍事解決を多日バッチ×player-directedで丸ごとスキップ | ✅ **実装済み（Phase 1b）** | ユーザーが明示的にこの挙動差を許容・指示。autonomousポリシーは無影響 |
 | ループの固定オーバーヘッドを削る | 🔶 部分的にできる（Phase 2、未着手） | 効果未計測、優先度は要再評価 |
-| `stepDaySimulation`の呼び出し回数自体を月/年単位に減らす | ❌ 非推奨 | P2-5で意図的に廃止した経緯があり、Advance Day×30==Advance Month×1の不変条件・RNG決定性を壊す |
-| Nobility軍事解決（skirmish/siege）の粒度を落とす | ❌ 対象外 | 「日次の緩やかな消耗」が明示的なゲームデザイン、性能問題ではない |
-| Nobility月初ゲート（`currentDay===1`）をそのまま月/年バッチに使う | ❌ 壊れる | スナップショット判定であり経過日数カウンタ方式に作り替えが必要 |
-| 連隊の反応/索敵の粒度を落とす | ❌ 対象外/要再設計 | 「盲目行進」が発生し軍の振る舞いが変わる（Nobility tickだけでなくfallback経路でも同様、2.5節） |
+| `stepDaySimulation`の呼び出し回数自体を月/年単位に減らす | ❌ 非推奨 | P2-5で意図的に廃止した経緯があり、Advance Day×30==Advance Month×1の不変条件・RNG決定性を壊す（Phase 1bは軍事解決に限定した例外——ユーザー承認済み） |
+| `autonomous`ポリシー下のNobility軍事解決（skirmish/siege）の粒度を落とす | ❌ 対象外 | 「日次の緩やかな消耗」が明示的なゲームデザイン、性能問題ではない。AIは継続解決が必要 |
+| Nobility月初ゲート（`currentDay===1`）をそのまま月/年バッチに使う | ❌ 壊れる | スナップショット判定であり経過日数カウンタ方式に作り替えが必要（Phase 1bはこのガード自体は変更せず、`canAdvanceConflict`を経由する分岐だけを止めている） |
 | 別建ての非対話Fast-Forwardコマンドを新設する | 🔶 将来検討 | 公式の設計方針に沿う形なら可能。既存ボタンとは別インターフェースが必須（Phase 3、別計画） |
 
 ---
@@ -219,6 +235,6 @@ Phase 1後に改めて`perf:advance-year`で内訳を取り、「ループその
 
 1. ~~Phase 1aの実装: `core:manpower`を`registerSimulationSystem()`化し、経過日数カウンタ自己ゲートを実装。~~ **完了（2026-08-13）**
 2. ~~characterization testを追加してPhase 1aの数値等価性を固定。~~ **完了**
-3. Phase 1b: `military-generator.ts`の`updateDynamic()`を死亡連隊クリーンアップ（毎日維持）と回復レート計算（間引き候補）に分割する設計を別途詰める。着手前にユーザーとすり合わせ。
-4. Phase 2着手要否はPhase 1a適用後の実運用での体感・追加計測を見て判断。
+3. ~~Phase 1b: conflictAutonomy=playerDirected×多日バッチで軍事解決を丸ごとスキップ。~~ **完了（2026-08-13、ユーザー指示に基づく設計）**
+4. Phase 2着手要否はPhase 1a/1b適用後の実運用での体感・追加計測を見て判断。
 5. Phase 3（Fast-Forward専用パス）はユーザーから明確な要望が出た場合にのみ、別途ミニ計画を立てる。
