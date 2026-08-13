@@ -307,8 +307,18 @@ export const economyLayers: LayerConfig[] = [
 /**
  * Formats an internal silver-piece amount as a compact numeric string (no coin emojis).
  * Display-only — CSV export uses getValue() raw numbers instead.
+ *
+ * si()'s own rounding (0 decimals below 1000) reads a genuinely small-but-nonzero Burg/State
+ * treasury as literal "0" in Overview tables — a real gap in practice, since a struggling Burg
+ * commonly sits in the sub-1 to low-single-digit sp range (confirmed by a live 711-burg check,
+ * 2026-08-13: e.g. treasury 0.25, 0.36, 0.46 all round-displayed as "0"). Show real precision
+ * below 100sp, where a whole-number silver piece is a coarse unit; keep si()'s K/M notation for
+ * the large end where sub-sp precision is noise.
  */
 function formatSilverAmount(value: number): string {
+  const magnitude = Math.abs(value);
+  if (magnitude < 10) return rn(value, 2).toString();
+  if (magnitude < 100) return rn(value, 1).toString();
   return si(value);
 }
 

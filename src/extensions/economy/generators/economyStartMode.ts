@@ -38,9 +38,22 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
     marketMaintenancePerPopulation: 0
   },
   // A normal pre-gunpowder polity: ordinary revenues mostly keep institutions running.
+  //
+  // burgTreasuryPerPopulation/stateTreasuryPerPopulation raised 5→15 / 0.5→1.5 (2026-08-13,
+  // docs/plan/burg-treasury-equilibrium.md "2026-08-13 追加調整"): this constant is BOTH the
+  // one-time starting seed AND getComfortableTreasuryLevel()'s population floor (guildTreasury.ts),
+  // so a fresh, not-yet-producing Burg previously started exactly AT its own "comfortable"
+  // ceiling — zero headroom before the very first cycle's civil-administration deduction (however
+  // small) flagged it as "struggling". A live 711-burg/16-state check on this exact profile
+  // (2026-08-13) confirmed the practical effect: zero-treasury Burgs grew from 95 to 254 (13%→36%)
+  // over a single simulated month, even though the richest Burg tripled its own treasury
+  // (53.68→158.9sp) in the same month — the seed gave no cushion to the struggling majority while
+  // the thriving minority compounded freely. 3x gives every Burg/State real runway to reach its
+  // first production cycle before any shortfall-driven rescue is even attempted, without touching
+  // any income/expense formula.
   balanced: {
-    burgTreasuryPerPopulation: 5,
-    stateTreasuryPerPopulation: 0.5,
+    burgTreasuryPerPopulation: 15,
+    stateTreasuryPerPopulation: 1.5,
     marketTreasuryShare: [0.25, 0.5],
     tradeCapitalShare: [0.1, 0.3],
     guildBootstrapMultiplier: 0.35,

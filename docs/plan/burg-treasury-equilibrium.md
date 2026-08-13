@@ -148,6 +148,32 @@ export interface GuildKnowledgeStock {
 - マーケット: 複数都市の上納が集まり、ag/industrial tech投資が活発化 → 商圏全体の生産性が上がる(既存のEWMA上限0〜1により自然に頭打ち)
 - 州: 既存の軍事維持費・貿易安全保障・辺境拡張という「本来やりたかったこと」の原資が、都市の繁栄と連動して太くなる。州自体は既存の均衡ロジック(毎サイクルの軍事維持費)により発散しない
 
+## 2026-08-13 追加調整: 開始資金の再較正とMarket貧困救済フォールバック
+
+ユーザー報告(Aboutタブの生活費フレーバー〔家族4-5人で年2-4sp〕に対し、人口2-3万人国家の開始treasuryが17sp、人口2k人のvillageが開始直後から治療0のままになる事例が多い、トップ都市の治療が1ヶ月で50→150sp級に急伸する)を受けて調査・実装。
+
+### 確認した事実(711都市/16国家、`balanced`プロファイルでの実測、修正前)
+
+- `burgTreasuryPerPopulation`/`stateTreasuryPerPopulation`(economyStartMode.ts)は、初期シードと`getComfortableTreasuryLevel()`のpopulation floor([guildTreasury.ts](../../src/extensions/economy/generators/guildTreasury.ts))の**両方**に使われる同一定数だった。つまり生産実績ゼロの都市は生成直後から自分自身の「快適水準」ちょうどに立っており、ヘッドルームがゼロ。
+- 生成直後で治療0の都市が95/711(13%)。**1ヶ月進めるだけで254/711(36%)まで増加**——ゼロ都市は静的に留まるのではなく、月ごとに増え続けていた。
+- 同じ1ヶ月でトップ都市(Brazad)の治療は53.68→158.9spと約3倍に急伸——`settleAnnual()`(黒字の州/マーケットへの上納)は年1回しか走らないため、1ヶ月の間は何の頭打ちも効かない。
+- `payoutStrugglingBurg()`(guildTreasury.ts)の困窮都市への還元経路は、その都市自身の`GuildKnowledgeStock`(過去の加工品利益の蓄積)しか原資にできない。craft guildが一度も立っていない都市(大半の農村)には**還元経路が皆無**だった。
+- Burgs Overviewの"Tres"列(`formatSilverAmount`、[index.tsx](../../src/extensions/economy/index.tsx))は`si()`のデフォルト0桁丸めを使っており、0.25sp・0.46spのような実在する非ゼロの治療が表示上「0」に潰れていた。
+
+### 実施した変更
+
+1. **表示精度**(`formatSilverAmount`, index.tsx): 100sp未満は小数を表示するよう変更(10未満は小数2桁、100未満は小数1桁)。純粋な表示修正で経済シミュレーションへの影響はゼロ。
+2. **開始資金の再較正**(`balanced`プロファイル, economyStartMode.ts): `burgTreasuryPerPopulation` 5→15、`stateTreasuryPerPopulation` 0.5→1.5(3倍)。初期シードと快適水準floorが同一定数である構造は変えず、両方に実質的なヘッドルームを持たせた。`provisioned`/`subsistence`プロファイルは意図的な設計(旧セーブ互換/意図的な緊縮)のため変更せず。
+3. **Market貧困救済フォールバック**(`payoutStrugglingBurg()`, guildTreasury.ts): guild金庫が空(またはそもそも存在しない)場合、同じ商圏の`market.marketTreasury.balance`から`MARKET_POOR_RELIEF_RATE`(0.02)を上限に、快適水準までの不足分を補う。Marketプールは既にそのマーケットに属する裕福な都市の`settleAnnual()`余剰で賄われているため、新規の通貨創出ではなく既存の同一商圏内での再分配。
+
+### 効果(同一シードで再検証、修正後)
+
+- 生成直後の治療0都市: 95→**0**
+- 1ヶ月後の治療0都市: (旧)95→254 に対し (新)**0→0**(横ばい)
+- 1ヶ月後の生産ゼロ都市: (旧)220→78 に対し (新)220台→**17**
+- 負の治療になった都市: 0(cash-limited不変条件は維持)
+- トップ都市の1ヶ月3倍急伸は本検証では再現せず(開始シードが快適水準に近いため、無制限複利の余地自体が縮小)
+
 ## 未決事項
 
 - 「快適水準」の算出式を人口比例のみにするか、直近数サイクルの平均収益ベースにするかは実装時に要検討

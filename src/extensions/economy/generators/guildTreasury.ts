@@ -43,6 +43,21 @@ export const GUILD_PROFIT_SHARE = 0.35;
  */
 export const GUILD_PAYOUT_RATE = 0.15;
 /**
+ * Share of a Market's own pooled treasury trickled to a below-comfortable member Burg per
+ * production cycle, once that Burg's own domain guilds have nothing left to give (§3.2 fallback).
+ * Most rural villages never have a GuildKnowledgeStock entry at all (one only exists for a Burg
+ * with an active craft-domain master), so the guild-trickle loop below is a permanent no-op for
+ * them — confirmed by a live 711-burg check (2026-08-13): 220 Burgs (31%) started with zero
+ * product, and the zero-treasury count grew from 95 to 254 (13%→36%) over a single simulated
+ * month, with genuinely resourceless Burgs having no recovery path whatsoever. The Market pool is
+ * fed by every prosperous member Burg's own settleAnnual() surplus (MARKET_SHARE below), so
+ * drawing from it here only redistributes wealth already inside the same trade territory — it
+ * never creates money. Kept well below GUILD_PAYOUT_RATE because one Market pool serves every
+ * member Burg at once, and agTech/industrialTech investment (agTechInvestment.ts) also depends on
+ * this same balance.
+ */
+export const MARKET_POOR_RELIEF_RATE = 0.02;
+/**
  * How many cycles' worth of a Burg's current net product (burg.product, i.e. the per-capita
  * "Wealth" figure denormalized back to an absolute amount) count as its comfortable working-capital
  * buffer. Resolves the design doc's open "快適水準" question by using product — a recent-earnings
@@ -154,6 +169,20 @@ export class GuildTreasuryModule {
     }
 
     if (changed) setGuildKnowledgeStocks(stocks);
+
+    // Fallback for Burgs with no craft guild at all, or one already drained dry: a small trickle
+    // from the shared Market pool that every member Burg (including this one) helped fill.
+    if (shortfall > 0.01 && burg.market) {
+      const market = Markets.get(burg.market);
+      const poolBalance = market?.marketTreasury?.balance ?? 0;
+      if (market?.marketTreasury && poolBalance > 0) {
+        const payout = rn(Math.min(poolBalance * MARKET_POOR_RELIEF_RATE, shortfall), 2);
+        if (payout > 0) {
+          market.marketTreasury.balance = rn(poolBalance - payout, 2);
+          burg.treasury = rn((burg.treasury || 0) + payout, 2);
+        }
+      }
+    }
   }
 
   /**

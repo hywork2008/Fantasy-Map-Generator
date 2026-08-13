@@ -130,4 +130,120 @@ describe("GuildTreasuryModule", () => {
       expect(worldContext.pack.markets?.[0]?.goods[BRONZE_ID]?.stock ?? 0).toBe(0);
     });
   });
+
+  describe("payoutStrugglingBurg()", () => {
+    // comfortable level = population(2) * balanced profile's burgTreasuryPerPopulation(15) = 30
+    // (economyStartMode.ts) — no GuildKnowledgeStock is seeded in these tests, so the guild-trickle
+    // loop is always a no-op and only the Market-pool fallback (§ new) can react.
+    beforeEach(() => {
+      worldContext.options = { economyStartMode: "balanced" } as typeof worldContext.options;
+    });
+
+    it("pulls a capped share from the Market pool when the Burg has no guild treasury of its own", () => {
+      const burg = {
+        i: 1,
+        cell: 0,
+        x: 0,
+        y: 0,
+        market: 1,
+        population: 2,
+        treasury: 1
+      } as unknown as PackedGraph["burgs"][number];
+      worldContext.pack.burgs = [undefined, burg] as unknown as PackedGraph["burgs"];
+      setMarkets([
+        {
+          i: 1,
+          centerBurgId: 1,
+          color: "#111",
+          goods: {},
+          marketTreasury: { balance: 100, ruralGrainPayable: 0 }
+        }
+      ]);
+      Markets.sync();
+
+      GuildTreasury.payoutStrugglingBurg(burg);
+
+      // shortfall (29) exceeds the pool cap (100 * MARKET_POOR_RELIEF_RATE 0.02 = 2), so the payout
+      // is capped by the pool share, not the shortfall.
+      expect(burg.treasury).toBe(3);
+      expect(Markets.get(1)?.marketTreasury?.balance).toBe(98);
+    });
+
+    it("caps the payout at the Burg's shortfall, never overshooting the comfortable level", () => {
+      const burg = {
+        i: 1,
+        cell: 0,
+        x: 0,
+        y: 0,
+        market: 1,
+        population: 2,
+        treasury: 29.5
+      } as unknown as PackedGraph["burgs"][number];
+      worldContext.pack.burgs = [undefined, burg] as unknown as PackedGraph["burgs"];
+      setMarkets([
+        {
+          i: 1,
+          centerBurgId: 1,
+          color: "#111",
+          goods: {},
+          marketTreasury: { balance: 100, ruralGrainPayable: 0 }
+        }
+      ]);
+      Markets.sync();
+
+      GuildTreasury.payoutStrugglingBurg(burg);
+
+      expect(burg.treasury).toBe(30);
+      expect(Markets.get(1)?.marketTreasury?.balance).toBe(99.5);
+    });
+
+    it("leaves the Market pool untouched once the Burg is already at or above its comfortable level", () => {
+      const burg = {
+        i: 1,
+        cell: 0,
+        x: 0,
+        y: 0,
+        market: 1,
+        population: 2,
+        treasury: 30
+      } as unknown as PackedGraph["burgs"][number];
+      worldContext.pack.burgs = [undefined, burg] as unknown as PackedGraph["burgs"];
+      setMarkets([
+        {
+          i: 1,
+          centerBurgId: 1,
+          color: "#111",
+          goods: {},
+          marketTreasury: { balance: 100, ruralGrainPayable: 0 }
+        }
+      ]);
+      Markets.sync();
+
+      GuildTreasury.payoutStrugglingBurg(burg);
+
+      expect(burg.treasury).toBe(30);
+      expect(Markets.get(1)?.marketTreasury?.balance).toBe(100);
+    });
+
+    it("does nothing when the Market pool itself is empty", () => {
+      const burg = {
+        i: 1,
+        cell: 0,
+        x: 0,
+        y: 0,
+        market: 1,
+        population: 2,
+        treasury: 1
+      } as unknown as PackedGraph["burgs"][number];
+      worldContext.pack.burgs = [undefined, burg] as unknown as PackedGraph["burgs"];
+      setMarkets([
+        { i: 1, centerBurgId: 1, color: "#111", goods: {}, marketTreasury: { balance: 0, ruralGrainPayable: 0 } }
+      ]);
+      Markets.sync();
+
+      GuildTreasury.payoutStrugglingBurg(burg);
+
+      expect(burg.treasury).toBe(1);
+    });
+  });
 });
