@@ -8,7 +8,8 @@ export const MILITARY_RESOURCES = [
   "fodder",
   "arms",
   "arrows",
-  "bullets"
+  "bullets",
+  "muskets"
 ] as const;
 export type MilitaryResource = (typeof MILITARY_RESOURCES)[number];
 

@@ -115,7 +115,10 @@ function stateForcePlans(state: State): ProductPlan[] {
   }
 
   const plans: ProductPlan[] = [
-    { goodName: "Arms", units: troops, kind: "newBuild", workPerUnit: 1, materialMultiplier: 1 },
+    // Firearm units carry Muskets (below) instead of the generic Arms set — see
+    // militaryResources.ts's matching arms/muskets demand split.
+    { goodName: "Arms", units: troops - firearms, kind: "newBuild", workPerUnit: 1, materialMultiplier: 1 },
+    { goodName: "Muskets", units: firearms, kind: "newBuild", workPerUnit: 1.3, materialMultiplier: 1 },
     { goodName: "Harnesses", units: mounted, kind: "newBuild", workPerUnit: 0.7, materialMultiplier: 1 },
     { goodName: "Artillery", units: artillery, kind: "newBuild", workPerUnit: 8, materialMultiplier: 1 },
     {

@@ -70,9 +70,13 @@ describe("MilitaryResourcesModule", () => {
     expect(ledger.annualDemand.coal).toBeGreaterThan(0);
     // 12 artillery pieces only — firearms' lead use now lives in Bullets, not this field.
     expect(ledger.annualDemand.lead).toBeCloseTo(0.36, 4);
+    // 30 musketeers draw Muskets instead of Arms; Arms covers only the 12 artillery crews.
+    expect(ledger.annualDemand.arms).toBeCloseTo(0.12, 4);
+    expect(ledger.annualDemand.muskets).toBeCloseTo(0.3, 4);
     expect(ledger.lastConsumed.lead).toBeGreaterThan(0);
     expect(ledger.lastConsumed.arms).toBe(0);
     expect(ledger.lastConsumed.bullets).toBe(0);
+    expect(ledger.lastConsumed.muskets).toBe(0);
     expect(getMarkets()[0].goods[1].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[2].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[3].stock).toBeLessThan(10);

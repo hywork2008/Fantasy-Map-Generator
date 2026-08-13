@@ -87,6 +87,16 @@ describe("MetallurgWorkModule", () => {
         icon: "bullets",
         color: "#555",
         recipes: [{ 1: 1 }]
+      },
+      {
+        i: 9,
+        name: "Muskets",
+        tags: ["military"],
+        value: 30,
+        unit: "piece",
+        icon: "musket",
+        color: "#5a3d2b",
+        recipes: [{ 1: 1, 2: 1 }]
       }
     ]);
     setMarkets([
@@ -110,12 +120,22 @@ describe("MetallurgWorkModule", () => {
 
     expect(getMetallurgAssetLedgers()).toEqual(
       expect.arrayContaining([
+        // Arms now covers only the non-firearm troops (cavalry 10 + archers 20); the 30
+        // musketeers draw the dedicated Muskets plan below instead (militaryResources.ts's
+        // matching arms/muskets demand split).
         expect.objectContaining({
           ownerKind: "state",
           ownerId: 1,
           productGoodId: 4,
-          targetUnits: 60,
-          serviceableUnits: 60
+          targetUnits: 30,
+          serviceableUnits: 30
+        }),
+        expect.objectContaining({
+          ownerKind: "state",
+          ownerId: 1,
+          productGoodId: 9,
+          targetUnits: 30,
+          serviceableUnits: 30
         }),
         expect.objectContaining({
           ownerKind: "burg",
@@ -204,7 +224,9 @@ describe("MetallurgWorkModule", () => {
 
     expect(getMetallurgWorkOrders()).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ ownerKind: "state", productGoodId: 4, kind: "newBuild", requestedUnits: 10 }),
+        // Cavalry (10) and archers (20) didn't grow, so Arms' target is unchanged; the new
+        // musketeers (30 -> 40) show up as a Muskets newBuild order instead (productGoodId 9).
+        expect.objectContaining({ ownerKind: "state", productGoodId: 9, kind: "newBuild", requestedUnits: 10 }),
         expect.objectContaining({ ownerKind: "burg", productGoodId: 6, kind: "newBuild", requestedUnits: 6.25 })
       ])
     );

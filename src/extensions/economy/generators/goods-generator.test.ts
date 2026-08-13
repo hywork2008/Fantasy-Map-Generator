@@ -204,6 +204,33 @@ describe("GoodsModule", () => {
     );
   });
 
+  it("prices the gunpowder-chain goods higher in earlier, less mature historicalPeriods", () => {
+    worldContext.options = { gunpowderEraEnabled: true } as typeof worldContext.options;
+    goodsModule.restoreDefaults();
+    const baseline = new Map(getGoods().map(good => [good.name, good.value]));
+
+    worldContext.options = {
+      gunpowderEraEnabled: true,
+      historicalPeriod: "earlyMedieval"
+    } as typeof worldContext.options;
+    goodsModule.restoreDefaults();
+    const earlyMedieval = new Map(getGoods().map(good => [good.name, good.value]));
+
+    // GUNPOWDER_ERA_GOODS (Muskets, Artillery, Gunpowder, Bullets, Sulfur) cost more as an
+    // immature, hand-forged technology in an earlier period than at the Age of Exploration
+    // baseline GOODS_DATA is calibrated for.
+    for (const name of ["Muskets", "Artillery", "Gunpowder", "Bullets", "Sulfur"]) {
+      expect(earlyMedieval.get(name)).toBeGreaterThan(baseline.get(name)!);
+    }
+    expect(earlyMedieval.get("Muskets")).toBeCloseTo(baseline.get("Muskets")! * 2.2, 2);
+
+    // Goods outside the gunpowder chain — including Saltpeter, which isn't in
+    // GUNPOWDER_ERA_GOODS — are unaffected by historicalPeriod.
+    expect(earlyMedieval.get("Arms")).toBe(baseline.get("Arms"));
+    expect(earlyMedieval.get("Saltpeter")).toBe(baseline.get("Saltpeter"));
+    expect(earlyMedieval.get("Wood")).toBe(baseline.get("Wood"));
+  });
+
   it("migrates legacy metal stock to Ore and appends zero-stock-ready Ingot definitions", () => {
     setGoods([
       { i: 2, name: "Iron", tags: ["ore"], value: 4, unit: "wagon", icon: "good-iron", color: "#5D686E" },

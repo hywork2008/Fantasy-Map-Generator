@@ -6,7 +6,7 @@ import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
-import { TIME } from "../../hostUtils";
+import { rn, TIME } from "../../hostUtils";
 import { getGoodCellColumn, getGoods, getWorldContext, setGoodCellColumn, setGoods } from "../economyContext";
 import {
   DAIRY_TARGETS,
@@ -101,6 +101,36 @@ const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery", "bullet
 export function isGoodEnabled(good: Pick<Good, "name">): boolean {
   if (getWorldContext().options.gunpowderEraEnabled !== false) return true;
   return !GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase());
+}
+
+/**
+ * One-time value multiplier applied to the gunpowder-chain Goods (GUNPOWDER_ERA_GOODS) when the
+ * default catalogue is (re)built for a new map — see Goods.restoreDefaults(). GOODS_DATA's own
+ * values are calibrated for "ageOfExploration" (the default historicalPeriod — see its doc
+ * comment in optionsState.ts): standardized casting and an established saltpeter/sulfur trade
+ * had brought unit costs down from their earlier, hand-forged/artisanal era. gunpowderEraEnabled
+ * and historicalPeriod are independent settings (AGENTS.md), so a map can legitimately field
+ * firearms in an earlier period; when it does, this treats them as a scarcer, less mature
+ * technology commanding a price premium instead of silently reusing Age-of-Exploration prices.
+ */
+type HistoricalPeriod = NonNullable<ReturnType<typeof getWorldContext>["options"]["historicalPeriod"]>;
+
+const GUNPOWDER_ERA_PRICE_MULTIPLIER: Readonly<Record<HistoricalPeriod, number>> = {
+  earlyMedieval: 2.2,
+  highMedieval: 1.8,
+  lateMedieval: 1.3,
+  ageOfExploration: 1
+};
+
+/** Mutates `goods` in place, scaling GUNPOWDER_ERA_GOODS values by the current historicalPeriod. */
+function applyHistoricalPeriodPricing(goods: Good[]): void {
+  const period = getWorldContext().options.historicalPeriod ?? "ageOfExploration";
+  const multiplier = GUNPOWDER_ERA_PRICE_MULTIPLIER[period] ?? 1;
+  if (multiplier === 1) return;
+  for (const good of goods) {
+    if (!GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase())) continue;
+    good.value = rn(good.value * multiplier, 2);
+  }
 }
 
 type GoodData = Omit<Good, "i" | "recipes" | "byproducts"> & {
@@ -1412,14 +1442,17 @@ export const GOODS_DATA: GoodData[] = [
     name: "Muskets",
     // Gunpowder-era good (see GUNPOWDER_ERA_GOODS above): the personal firearm itself, distinct
     // from Gunpowder (propellant) and Bullets (shot) above and from Artillery (the crew-served
-    // heavy gun) below. Background "military" demand only — like Boots or Bronze, it isn't drawn
-    // per-head by MilitaryResourceLedger/MetallurgWork's state force plans (militaryResources.ts,
-    // metallurgWork.ts), which still cover firearm units' equipment through the generic Arms plan.
+    // heavy gun) below. Firearm units draw this per head instead of the generic Arms set —
+    // see militaryResources.ts's arms/muskets demand split and metallurgWork.ts's matching
+    // stateForcePlans() entry, the same headcount-driven pipeline Artillery already uses below.
+    // Value calibrated ~1.5x Arms (24): a standardized flintlock cost meaningfully more than a
+    // sword by the Age of Exploration, but firearms were no longer the rare curiosity they were
+    // a century earlier (see GUNPOWDER_ERA_PRICE_MULTIPLIER for how much pricier they were then).
     warEconomyType: "military",
     tags: ["military"],
     icon: "good-musket",
     color: "#5a3d2b",
-    value: 30,
+    value: 35,
     chance: 0,
     recipes: [{ "Iron Ingot": 1, Charcoal: 1, Wood: 0.5 }],
     unit: "piece",
@@ -1427,11 +1460,18 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Artillery",
+    // Value bumped from an earlier 70 (2026-08): a cast cannon's cost was overwhelmingly in
+    // specialized founding/boring labor and tooling rather than raw material, historically
+    // putting a single quality gun's value well above a Musket. 120 sits above Sloop (80 — see
+    // shipGoodValue()), the smallest/cheapest hull, but comfortably below Caravel (200): a good
+    // cannon rivaled a small craft's value, but a proper ocean-going ship remained a much larger
+    // capital asset than any single gun. Full ordering: Arms 24 < Muskets 35 < Sloop 80 <
+    // Artillery 120 < Caravel 200 < Galleon 480 (previously Artillery 70 sat just under Sloop).
     warEconomyType: "military",
     tags: ["military"],
     icon: "good-artillery",
     color: "#cd7f32",
-    value: 70,
+    value: 120,
     chance: 0,
     recipes: [
       { "Iron Ingot": 2, Charcoal: 1 },
@@ -2653,7 +2693,9 @@ export class GoodsModule {
   }
 
   restoreDefaults() {
-    setGoods(structuredClone(this.defaultGoods));
+    const goods = structuredClone(this.defaultGoods);
+    applyHistoricalPeriodPricing(goods);
+    setGoods(goods);
     this.sync();
   }
 

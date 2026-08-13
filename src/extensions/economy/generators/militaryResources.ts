@@ -69,16 +69,16 @@ export class MilitaryResourcesModule {
       ledger.unmetDemand = {};
       if (!ledger.supplyMarketId) continue;
 
-      // Finished Arms, Arrows, and Bullets are fulfilled through Metallurg work orders after
-      // generic production runs. This ledger keeps only direct operational material draws.
+      // Finished Arms, Arrows, Bullets, and Muskets are fulfilled through Metallurg work orders
+      // after generic production runs. This ledger keeps only direct operational material draws.
       const resources = gunpowderEraEnabled
-        ? (["fodder", "arms", "arrows", "iron", "lead", "gunpowder", "bullets"] as const)
+        ? (["fodder", "arms", "arrows", "iron", "lead", "gunpowder", "bullets", "muskets"] as const)
         : (["fodder", "arms", "arrows"] as const);
 
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
         if (requested <= 0) continue;
-        if (resource === "arms" || resource === "arrows" || resource === "bullets") {
+        if (resource === "arms" || resource === "arrows" || resource === "bullets" || resource === "muskets") {
           ledger.lastConsumed[resource] = 0;
           ledger.unmetDemand[resource] = requested;
           continue;
@@ -94,7 +94,7 @@ export class MilitaryResourcesModule {
   /** Records a completed Metallurg delivery against this month's state equipment demand. */
   recordFinishedGoodsDelivery(stateId: number, goodName: string, units: number): void {
     if (!(units > 0)) return;
-    const resource = ({ Arms: "arms", Arrows: "arrows", Bullets: "bullets" } as const)[goodName];
+    const resource = ({ Arms: "arms", Arrows: "arrows", Bullets: "bullets", Muskets: "muskets" } as const)[goodName];
     if (!resource) return;
     const ledger = getMilitaryResourceLedgers().find(candidate => candidate.stateId === stateId);
     if (!ledger) return;
@@ -167,6 +167,18 @@ export class MilitaryResourcesModule {
     demand.saltpeter = rn(gunpowder * 0.5, 4);
     demand.sulfur = rn(gunpowder * 0.25, 4);
     demand.coal = rn(gunpowder * 0.5, 4);
+
+    // Firearm units carry a personal firearm (Muskets, a finished Good distinct from Gunpowder/
+    // Bullets above — see goods-generator.ts) instead of the generic melee Arms set. Move their
+    // share of the base Arms demand over once the era is active, so Muskets production tracks
+    // actual musketeer headcount the same way the Artillery plan above already tracks gun crews.
+    const muskets = rn(firearms * ARMS_PER_HEAD, 4);
+    if (muskets > 0) {
+      demand.muskets = muskets;
+      const meleeArms = rn((troops - firearms) * ARMS_PER_HEAD, 4);
+      if (meleeArms > 0) demand.arms = meleeArms;
+      else delete demand.arms;
+    }
     return demand;
   }
 
