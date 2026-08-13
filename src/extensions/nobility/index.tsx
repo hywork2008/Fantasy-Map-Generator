@@ -23,6 +23,7 @@ import { refreshPlayerCharacterSelection } from "./controllers/playerCharacter";
 import { clearPlayerTravel, requestTravelToBurg, tickPlayerTravel } from "./controllers/playerCharacterTravel";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
+import { pruneDeadCharactersAnnual } from "./generators/characterPruning";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { addVoyageIntel, clearVoyageIntel, Espionage } from "./generators/espionage-generator";
 import { tryRecaptureHomeBurg } from "./generators/homeRecapture";
@@ -302,6 +303,13 @@ export function init(api: ExtensionAPI): void {
       // sees any fresh affliction (see characterHealth.ts's diseaseDeathRiskFor()).
       advanceCharacterHealth(effectiveDeltaYears);
       advanceCharacterAging(effectiveDeltaYears);
+      // Annual maintenance, independent of ability preset: sweep long-dead characters nothing
+      // still references (see characterPruning.ts) so the roster — and the full-pack/simulation
+      // snapshot timeEngine.ts clones once per Advance action — doesn't grow without bound over
+      // a long session.
+      if (api.simulationContext.currentDay === 1 && api.simulationContext.currentMonth === 1) {
+        pruneDeadCharactersAnnual();
+      }
       if (getSelectedAbilityPresetId() !== "ck3e") {
         // D&D characters have no CK3 court attributes or political-AI participation.
         tickPlayerTravel(deltaDays);
