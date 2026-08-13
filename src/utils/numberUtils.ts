@@ -50,3 +50,45 @@ export const normalize = (val: number, min: number, max: number) => {
 export const lerp = (a: number, b: number, t: number) => {
   return a + (b - a) * t;
 };
+
+/**
+ * Rounds each value to a whole number so the parts sum to exactly `Math.round(total)`,
+ * using the largest-remainder method. Use this whenever a set of fractional parts (e.g.
+ * per-category breakdowns of a continuously-simulated count) and their total are displayed
+ * side by side — rounding each part independently makes the displayed parts fail to add up
+ * to the displayed total whenever the raw sum has drifted from `total` (accumulated
+ * floating-point error from repeated in-place scaling) or a part's fraction rounds the
+ * "wrong" way in isolation.
+ * @param values - The raw (possibly fractional) parts.
+ * @param total - The target sum the rounded parts must add up to.
+ * @returns Whole-number parts, same length/order as `values`, summing to `Math.round(total)`.
+ */
+export const integerizeToTotal = (values: number[], total: number): number[] => {
+  const target = Math.round(total);
+  const floors = values.map(v => Math.max(0, Math.floor(v)));
+  const remainders = values.map((v, i) => ({ i, r: v - Math.floor(v) }));
+  let diff = target - floors.reduce((s, v) => s + v, 0);
+  if (remainders.length === 0) return floors;
+
+  if (diff > 0) {
+    // Largest-remainder-first, round-robin so a diff bigger than values.length still
+    // resolves (spreads evenly instead of stopping after one pass).
+    remainders.sort((a, b) => b.r - a.r);
+    for (let k = 0; diff > 0; k++, diff--) floors[remainders[k % remainders.length].i]++;
+  } else if (diff < 0) {
+    remainders.sort((a, b) => a.r - b.r);
+    let stalled = 0;
+    for (let k = 0; diff < 0 && stalled < remainders.length; k++) {
+      const idx = remainders[k % remainders.length].i;
+      if (floors[idx] <= 0) {
+        stalled++;
+        continue;
+      }
+      floors[idx]--;
+      diff++;
+      stalled = 0;
+    }
+  }
+
+  return floors;
+};

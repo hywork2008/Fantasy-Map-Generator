@@ -1,4 +1,3 @@
-import { sum } from "d3";
 import React, { useEffect, useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import {
@@ -12,6 +11,7 @@ import { useDialogState } from "../../store/dialogState";
 import { useRegimentsOverviewState } from "../../store/regimentsOverviewState";
 import { capitalize, si } from "../../utils";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../../utils/gunpowderEra";
+import { integerizeToTotal } from "../../utils/numberUtils";
 import { FillBox } from "../components/FillBox";
 import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
@@ -101,8 +101,14 @@ export const RegimentsOverviewDialog: React.FC = () => {
       sumTotal += r.a;
       for (const u of military) sumUnits[u.name] = (sumUnits[u.name] ?? 0) + (r.u[u.name] ?? 0);
     }
+    // Same drift/rounding problem as the per-row cells (see integerizeToTotal usage in
+    // renderRow), aggregated across every displayed regiment for the footer line.
+    const integerUnitTotals = integerizeToTotal(
+      military.map(u => sumUnits[u.name] ?? 0),
+      sumTotal
+    );
 
-    return { rows: sorted, totals: { units: sumUnits, total: sumTotal } };
+    return { rows: sorted, totals: { units: sumUnits, total: sumTotal, integerUnits: integerUnitTotals } };
   }, [refreshCounter, filterStateId, sortBy, sortOrder, unitTypes]);
 
   // Manage add-regiment map interaction
@@ -133,8 +139,12 @@ export const RegimentsOverviewDialog: React.FC = () => {
     }
   }, [isOpen, addMode, setAddMode]);
 
-  const displayValue = (value: number, type: string): string => {
-    if (!percentageMode) return String(value);
+  // Percentage mode reads raw fractional values (accuracy matters more than sum-matching
+  // for a rounded percentage). Absolute mode is handled per-row in renderRow instead: unit
+  // counts are continuously-simulated floats (see src/generators/manpower.ts), so rounding
+  // each independently would both show decimals and let a row's unit columns fail to add up
+  // to its Total column — integerizeToTotal keeps them consistent.
+  const displayPercentage = (value: number, type: string): string => {
     const total = type === "total" ? totals.total : (totals.units[type] ?? 0);
     return total ? `${Math.round((value / total) * 100)}%` : "0%";
   };
@@ -211,49 +221,57 @@ export const RegimentsOverviewDialog: React.FC = () => {
             <VirtualTableBody
               items={rows}
               scrollElementRef={parentRef}
-              renderRow={({ stateId, stateName, stateFullName, stateColor, regiment: r }) => (
-                <tr
-                  key={`${stateId}-${r.i}`}
-                  className="states"
-                  data-id={r.i}
-                  data-s={stateId}
-                  data-state={stateName}
-                  data-name={r.name}
-                  data-total={r.a}
-                  onMouseEnter={() => regimentHighlightOn(stateId, r.i)}
-                  onMouseLeave={() => regimentHighlightOff(stateId, r.i)}
-                  onClick={() =>
-                    import("../../controllers/regiment-editor").then(m => m.editRegiment(`#regiment${stateId}-${r.i}`))
-                  }
-                >
-                  <td>
-                    <FillBox data-tip={stateFullName} fill={stateColor} disabled />
-                    <input data-tip={stateFullName} value={stateName} readOnly />
-                  </td>
-                  <td>
-                    {r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image")) ? (
-                      <img src={r.icon} data-tip="Regiment's emblem" alt="emblem" />
-                    ) : (
-                      <span data-tip="Regiment's emblem">{r.icon ?? ""}</span>
-                    )}
-                    <input data-tip="Regiment's name" value={r.name} readOnly />
-                  </td>
-                  {unitTypes.map(u => (
-                    <td key={u.name} data-type={u.name} data-tip={`${capitalize(u.name)} units number`}>
-                      {displayValue(r.u[u.name] ?? 0, u.name)}
+              renderRow={({ stateId, stateName, stateFullName, stateColor, regiment: r }) => {
+                const rawUnits = unitTypes.map(u => r.u[u.name] ?? 0);
+                // Integerize once per row so the displayed unit columns always sum to the
+                // displayed Total column, instead of each cell rounding independently.
+                const integerUnits = integerizeToTotal(rawUnits, r.a);
+                return (
+                  <tr
+                    key={`${stateId}-${r.i}`}
+                    className="states"
+                    data-id={r.i}
+                    data-s={stateId}
+                    data-state={stateName}
+                    data-name={r.name}
+                    data-total={Math.round(r.a)}
+                    onMouseEnter={() => regimentHighlightOn(stateId, r.i)}
+                    onMouseLeave={() => regimentHighlightOff(stateId, r.i)}
+                    onClick={() =>
+                      import("../../controllers/regiment-editor").then(m =>
+                        m.editRegiment(`#regiment${stateId}-${r.i}`)
+                      )
+                    }
+                  >
+                    <td>
+                      <FillBox data-tip={stateFullName} fill={stateColor} disabled />
+                      <input data-tip={stateFullName} value={stateName} readOnly />
                     </td>
-                  ))}
-                  <td data-type="total" data-tip="Total military personnel (not considering crew)">
-                    {displayValue(r.a, "total")}
-                  </td>
-                </tr>
-              )}
+                    <td>
+                      {r.icon && (r.icon.startsWith("http") || r.icon.startsWith("data:image")) ? (
+                        <img src={r.icon} data-tip="Regiment's emblem" alt="emblem" />
+                      ) : (
+                        <span data-tip="Regiment's emblem">{r.icon ?? ""}</span>
+                      )}
+                      <input data-tip="Regiment's name" value={r.name} readOnly />
+                    </td>
+                    {unitTypes.map((u, idx) => (
+                      <td key={u.name} data-type={u.name} data-tip={`${capitalize(u.name)} units number`}>
+                        {percentageMode ? displayPercentage(rawUnits[idx], u.name) : integerUnits[idx]}
+                      </td>
+                    ))}
+                    <td data-type="total" data-tip="Total military personnel (not considering crew)">
+                      {percentageMode ? displayPercentage(r.a, "total") : Math.round(r.a)}
+                    </td>
+                  </tr>
+                );
+              }}
             />
             <tfoot>
               <tr id="regimentsTotalLine" className="totalLine" data-tip="Total of all displayed regiments">
                 <td colSpan={2}>Regiments: {rows.length}</td>
-                {unitTypes.map(u => (
-                  <td key={u.name}>{si(sum(rows.map(({ regiment: r }) => r.u[u.name] ?? 0)))}</td>
+                {unitTypes.map((u, idx) => (
+                  <td key={u.name}>{si(totals.integerUnits[idx])}</td>
                 ))}
                 <td>{si(totals.total)}</td>
               </tr>
