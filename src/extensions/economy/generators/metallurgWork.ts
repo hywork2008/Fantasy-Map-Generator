@@ -85,10 +85,6 @@ function economicUnitCount(rawCount: number): number {
   return rawCount / Math.max(1, getWorldContext().populationRate || 1);
 }
 
-function isArcher(unitName: string): boolean {
-  return /archer|bowman|longbow|crossbow/.test(unitName.toLowerCase());
-}
-
 function isFirearm(unitName: string): boolean {
   return isFirearmMilitaryUnitName(unitName);
 }
@@ -111,7 +107,6 @@ function stateForcePlans(state: State): ProductPlan[] {
   let troops = 0;
   let mounted = 0;
   let artillery = 0;
-  let archers = 0;
   let firearms = 0;
 
   for (const regiment of state.military || []) {
@@ -120,7 +115,6 @@ function stateForcePlans(state: State): ProductPlan[] {
       troops += count;
       if (isMounted(unitName)) mounted += count;
       if (isArtillery(unitName)) artillery += count;
-      if (isArcher(unitName)) archers += count;
       if (isFirearm(unitName)) firearms += count;
     }
   }
@@ -134,14 +128,14 @@ function stateForcePlans(state: State): ProductPlan[] {
     { goodName: "Artillery", units: artillery, kind: "newBuild", workPerUnit: 8, materialMultiplier: 1 },
     {
       goodName: "Arrows",
-      units: (archers * 0.05) / MONTHS_PER_YEAR,
+      units: MilitaryResources.getConsumableStockpileGap(state.i, "arrows"),
       kind: "consumable",
       workPerUnit: 0.2,
       materialMultiplier: 1
     },
     {
       goodName: "Bullets",
-      units: (firearms * 0.012) / MONTHS_PER_YEAR,
+      units: MilitaryResources.getConsumableStockpileGap(state.i, "bullets"),
       kind: "consumable",
       workPerUnit: 0.1,
       materialMultiplier: 1
@@ -150,7 +144,7 @@ function stateForcePlans(state: State): ProductPlan[] {
       // Keep Gunpowder's order size aligned with MilitaryResources' technology and state-secret
       // modifiers instead of duplicating its demand formula here.
       goodName: "Gunpowder",
-      units: (MilitaryResources.getAnnualDemandForState(state.i).gunpowder ?? 0) / MONTHS_PER_YEAR,
+      units: MilitaryResources.getConsumableStockpileGap(state.i, "gunpowder"),
       kind: "consumable",
       workPerUnit: 0.3,
       materialMultiplier: 1
@@ -372,6 +366,29 @@ export class MetallurgWorkModule {
       ordersByKey.set(key, order);
     };
 
+    /** Keeps a consumable work order equal to the reserve gap instead of adding a new month forever. */
+    const synchronizeConsumableOrder = (
+      ownerId: number,
+      destinationMarketId: number,
+      plan: ProductPlan,
+      units: number
+    ) => {
+      const good = goodsByName.get(plan.goodName);
+      if (!good || destinationMarketId <= 0) return;
+      const key = orderKey("state", ownerId, good.i, plan.kind);
+      const existing = ordersByKey.get(key);
+      if (!existing) {
+        appendOrder("state", ownerId, destinationMarketId, plan, units, plan.materialMultiplier);
+        return;
+      }
+
+      const outstandingUnits = Math.max(0, units);
+      existing.requestedUnits = rn(existing.completedUnits + outstandingUnits, 4);
+      existing.plannedWork = rn(existing.completedWork + outstandingUnits * plan.workPerUnit, 4);
+      syncOrderMaterials(existing, good, outstandingUnits, plan.materialMultiplier);
+      existing.updatedMonth = month;
+    };
+
     for (const state of getWorldContext().pack.states) {
       if (!state?.i || state.removed) continue;
       const marketId = marketByState.get(state.i);
@@ -380,7 +397,7 @@ export class MetallurgWorkModule {
         const good = goodsByName.get(plan.goodName);
         if (!good) continue;
         if (plan.kind === "consumable") {
-          appendOrder("state", state.i, marketId, plan, plan.units, plan.materialMultiplier);
+          synchronizeConsumableOrder(state.i, marketId, plan, plan.units);
           continue;
         }
 

@@ -62,7 +62,8 @@ describe("refreshMilitarySuppliesOverview", () => {
         stateId: 1,
         supplyMarketId: 1,
         annualDemand: {},
-        lastConsumed: { arrows: 4.25, bullets: 2.5, gunpowder: 3.75 },
+        lastConsumed: {},
+        consumableStock: { arrows: 4.25, bullets: 2.5, gunpowder: 3.75 },
         unmetDemand: {}
       }
     ]);
@@ -70,7 +71,7 @@ describe("refreshMilitarySuppliesOverview", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("combines state equipment, latest consumable deliveries, and assigned mounts by state", () => {
+  it("combines State equipment, stockpiled consumables, and assigned mounts by state", () => {
     refreshMilitarySuppliesOverview();
 
     expect(getMilitarySuppliesOverviewState().rows).toEqual([

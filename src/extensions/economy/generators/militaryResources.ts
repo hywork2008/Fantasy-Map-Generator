@@ -10,13 +10,24 @@ import {
 } from "../economyContext";
 import { Markets } from "./markets-generator";
 import { isMountedUnit } from "./militaryLogistics";
-import { type MilitaryResource, type MilitaryResourceLedger, MOUNTED_FODDER_PER_HEAD } from "./militaryResourcesTypes";
+import {
+  type MilitaryConsumableResource,
+  type MilitaryResource,
+  type MilitaryResourceLedger,
+  MOUNTED_FODDER_PER_HEAD
+} from "./militaryResourcesTypes";
 import { getStateSecretMaterialMultiplier } from "./stateSecretKnowledge";
 
 export type { MilitaryResource, MilitaryResourceLedger } from "./militaryResourcesTypes";
 export { MILITARY_RESOURCES } from "./militaryResourcesTypes";
 
 type ResourceAmounts = Partial<Record<MilitaryResource, number>>;
+
+const STOCKPILED_RESOURCES = [
+  "arrows",
+  "gunpowder",
+  "bullets"
+] as const satisfies readonly MilitaryConsumableResource[];
 
 const MONTHS_PER_YEAR = 12;
 const ARTILLERY_IRON_PER_GUN = 0.04;
@@ -48,6 +59,8 @@ export class MilitaryResourcesModule {
         supplyMarketId: this.getSupplyMarketId(state.i),
         annualDemand: this.getAnnualDemand(state.i, gunpowderEraEnabled),
         lastConsumed: prior?.lastConsumed ?? {},
+        lastDelivered: prior?.lastDelivered ?? {},
+        consumableStock: prior?.consumableStock ?? {},
         unmetDemand: prior?.unmetDemand ?? {}
       });
     }
@@ -67,11 +80,13 @@ export class MilitaryResourcesModule {
       ledger.supplyMarketId = this.getSupplyMarketId(ledger.stateId);
       ledger.annualDemand = this.getAnnualDemand(ledger.stateId, gunpowderEraEnabled);
       ledger.lastConsumed = {};
+      ledger.lastDelivered = {};
+      ledger.consumableStock ??= {};
       ledger.unmetDemand = {};
       if (!ledger.supplyMarketId) continue;
 
-      // Finished Arms, Arrows, Gunpowder, Bullets, and Muskets are fulfilled through Metallurg work orders
-      // after generic production runs. This ledger keeps only direct operational material draws.
+      // Finished equipment and ammunition are fulfilled through Metallurg work orders after generic
+      // production runs. Ammunition is placed in persistent State stockpiles, not consumed in peacetime.
       const resources = gunpowderEraEnabled
         ? (["fodder", "arms", "arrows", "iron", "lead", "gunpowder", "bullets", "muskets"] as const)
         : (["fodder", "arms", "arrows"] as const);
@@ -79,13 +94,15 @@ export class MilitaryResourcesModule {
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
         if (requested <= 0) continue;
-        if (
-          resource === "arms" ||
-          resource === "arrows" ||
-          resource === "gunpowder" ||
-          resource === "bullets" ||
-          resource === "muskets"
-        ) {
+        if (this.isStockpiledResource(resource)) {
+          ledger.lastConsumed[resource] = 0;
+          ledger.unmetDemand[resource] = rn(
+            Math.max(0, (ledger.annualDemand[resource] ?? 0) - (ledger.consumableStock[resource] ?? 0)),
+            4
+          );
+          continue;
+        }
+        if (resource === "arms" || resource === "muskets") {
           ledger.lastConsumed[resource] = 0;
           ledger.unmetDemand[resource] = requested;
           continue;
@@ -98,26 +115,36 @@ export class MilitaryResourcesModule {
     }
   }
 
-  /** Records a completed Metallurg delivery against this month's state equipment demand. */
+  /** Records a completed Metallurg delivery into the State's persistent ammunition reserve. */
   recordFinishedGoodsDelivery(stateId: number, goodName: string, units: number): void {
     if (!(units > 0)) return;
     const resource = (
       {
-        Arms: "arms",
         Arrows: "arrows",
         Gunpowder: "gunpowder",
-        Bullets: "bullets",
-        Muskets: "muskets"
+        Bullets: "bullets"
       } as const
     )[goodName];
     if (!resource) return;
     const ledger = getMilitaryResourceLedgers().find(candidate => candidate.stateId === stateId);
     if (!ledger) return;
-    const delivered = rn((ledger.lastConsumed[resource] ?? 0) + units, 4);
-    ledger.lastConsumed[resource] = delivered;
-    const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
-    ledger.unmetDemand[resource] = rn(Math.max(0, requested - delivered), 4);
+    ledger.consumableStock ??= {};
+    ledger.lastDelivered ??= {};
+    ledger.consumableStock[resource] = rn((ledger.consumableStock[resource] ?? 0) + units, 4);
+    ledger.lastDelivered[resource] = rn((ledger.lastDelivered[resource] ?? 0) + units, 4);
+    ledger.unmetDemand[resource] = rn(
+      Math.max(0, (ledger.annualDemand[resource] ?? 0) - (ledger.consumableStock[resource] ?? 0)),
+      4
+    );
     setMilitaryResourceLedgers(getMilitaryResourceLedgers());
+  }
+
+  /** The amount still needed to reach a one-year peacetime reserve for one finished consumable. */
+  getConsumableStockpileGap(stateId: number, resource: MilitaryConsumableResource): number {
+    const annualDemand = this.getAnnualDemandForState(stateId)[resource] ?? 0;
+    const stock =
+      getMilitaryResourceLedgers().find(ledger => ledger.stateId === stateId)?.consumableStock?.[resource] ?? 0;
+    return rn(Math.max(0, annualDemand - stock), 4);
   }
 
   private getSupplyMarketId(stateId: number): number | null {
@@ -217,6 +244,10 @@ export class MilitaryResourcesModule {
 
   private isArcher(unitName: string): boolean {
     return /archer|bowman|longbow|crossbow/.test(unitName.toLowerCase());
+  }
+
+  private isStockpiledResource(resource: MilitaryResource): resource is MilitaryConsumableResource {
+    return (STOCKPILED_RESOURCES as readonly MilitaryResource[]).includes(resource);
   }
 }
 

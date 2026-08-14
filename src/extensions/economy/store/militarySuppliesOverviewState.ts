@@ -5,17 +5,17 @@ export interface MilitarySuppliesOverviewRow {
   stateName: string;
   /** Serviceable state-owned weapon sets. */
   arms: number;
-  /** Finished arrows delivered to the army in the latest production cycle. */
+  /** Finished arrows held in the State military stockpile. */
   arrows: number;
   /** Mounted troops assigned to military mounts (horses or camels). */
   mounts: number;
   /** Serviceable state-owned firearms. */
   muskets: number;
-  /** Finished bullets delivered to the army in the latest production cycle. */
+  /** Finished bullets held in the State military stockpile. */
   bullets: number;
   /** Serviceable state-owned cannon/artillery pieces. */
   artillery: number;
-  /** Finished gunpowder delivered to the army in the latest production cycle. */
+  /** Finished gunpowder held in the State military stockpile. */
   gunpowder: number;
 }
 

@@ -76,15 +76,15 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
             {" · "}
             <span data-tip="Serviceable cannon held by all states">Artillery: {format(totals.artillery)}</span>
             <br />
-            <span data-tip="Finished arrows delivered to all armies in the latest production cycle">
+            <span data-tip="Finished arrows held in all State military stockpiles">
               Arrows: {format(totals.arrows)}
             </span>
             {" · "}
-            <span data-tip="Finished bullets delivered to all armies in the latest production cycle">
+            <span data-tip="Finished bullets held in all State military stockpiles">
               Bullets: {format(totals.bullets)}
             </span>
             {" · "}
-            <span data-tip="Finished gunpowder delivered to all armies in the latest production cycle">
+            <span data-tip="Finished gunpowder held in all State military stockpiles">
               Gunpowder: {format(totals.gunpowder)}
             </span>
           </div>
@@ -100,9 +100,8 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
         }
       >
         <p className="note" style={{ marginTop: 0 }}>
-          Arms, muskets, and artillery are serviceable state equipment. Arrows, bullets, and gunpowder are finished
-          Goods delivered to each army in the latest production cycle. Mounts are horses or camels assigned to active
-          mounted units.
+          Arms, muskets, and artillery are serviceable State equipment. Arrows, bullets, and gunpowder are stockpiled
+          finished Goods available to the State's armies. Mounts are horses or camels assigned to active mounted units.
         </p>
         <table className="fmg-table">
           <thead className="header">
@@ -130,7 +129,7 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Finished arrows supplied during the latest production cycle"
+                tip="Finished arrows held in the State military stockpile"
               />
               <SortableHeader
                 field="mounts"
@@ -157,7 +156,7 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Finished bullets supplied during the latest production cycle"
+                tip="Finished bullets held in the State military stockpile"
               />
               <SortableHeader
                 field="artillery"
@@ -175,7 +174,7 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Finished gunpowder supplied during the latest production cycle"
+                tip="Finished gunpowder held in the State military stockpile"
               />
             </tr>
           </thead>

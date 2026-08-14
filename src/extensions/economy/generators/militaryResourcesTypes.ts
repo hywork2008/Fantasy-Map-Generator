@@ -23,6 +23,10 @@ export const MOUNTED_FODDER_PER_HEAD = 0.08;
 
 type ResourceAmounts = Partial<Record<MilitaryResource, number>>;
 
+/** Finished ammunition that a State owns and can expend only through an explicit military action. */
+export type MilitaryConsumableResource = "arrows" | "bullets" | "gunpowder";
+export type MilitaryConsumableStock = Partial<Record<MilitaryConsumableResource, number>>;
+
 /**
  * State demand for the materials consumed by artillery and firearm units.
  * Values use Economy Good units, rather than historical tonnes, so they can be
@@ -34,6 +38,10 @@ export interface MilitaryResourceLedger {
   annualDemand: ResourceAmounts;
   /** Direct inputs actually taken from the state market in the last production cycle. */
   lastConsumed: ResourceAmounts;
-  /** Demand not met by local market reserves in the last production cycle. */
+  /** Finished military supplies delivered during the last production cycle. */
+  lastDelivered?: MilitaryConsumableStock;
+  /** Persistent State-owned ammunition reserve. Older saves are migrated lazily as empty stock. */
+  consumableStock?: MilitaryConsumableStock;
+  /** Direct demand not met by a market, or the remaining consumable stockpile gap. */
   unmetDemand: ResourceAmounts;
 }

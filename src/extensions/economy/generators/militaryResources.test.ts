@@ -56,7 +56,7 @@ describe("MilitaryResourcesModule", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("keeps finished arms, powder, and bullets for Metallurg fulfillment, while consuming direct artillery inputs", () => {
+  it("keeps finished ammunition for Metallurg stockpiling, while consuming direct artillery inputs", () => {
     MilitaryResources.generate();
     MilitaryResources.settleMonthly();
 
@@ -78,6 +78,7 @@ describe("MilitaryResourcesModule", () => {
     expect(ledger.lastConsumed.gunpowder).toBe(0);
     expect(ledger.lastConsumed.bullets).toBe(0);
     expect(ledger.lastConsumed.muskets).toBe(0);
+    expect(ledger.consumableStock).toEqual({});
     expect(getMarkets()[0].goods[1].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[2].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[3].stock).toBe(10);
@@ -101,7 +102,7 @@ describe("MilitaryResourcesModule", () => {
     expect(ledger.annualDemand.saltpeter).toBeCloseTo(baselineSaltpeter * 0.7, 4);
   });
 
-  it("credits a fulfilled Gunpowder work order against the current military demand", () => {
+  it("adds a fulfilled Gunpowder work order to a persistent military stockpile", () => {
     MilitaryResources.generate();
     MilitaryResources.settleMonthly();
     const requested = (getMilitaryResourceLedgers()[0].annualDemand.gunpowder ?? 0) / 12;
@@ -109,8 +110,17 @@ describe("MilitaryResourcesModule", () => {
     MilitaryResources.recordFinishedGoodsDelivery(1, "Gunpowder", requested);
 
     const ledger = getMilitaryResourceLedgers()[0];
-    expect(ledger.lastConsumed.gunpowder).toBeCloseTo(requested, 4);
-    expect(ledger.unmetDemand.gunpowder).toBe(0);
+    expect(ledger.lastDelivered?.gunpowder).toBeCloseTo(requested, 4);
+    expect(ledger.consumableStock?.gunpowder).toBeCloseTo(requested, 4);
+    expect(MilitaryResources.getConsumableStockpileGap(1, "gunpowder")).toBeCloseTo(
+      (ledger.annualDemand.gunpowder ?? 0) - requested,
+      4
+    );
+
+    MilitaryResources.settleMonthly();
+
+    expect(getMilitaryResourceLedgers()[0].consumableStock?.gunpowder).toBeCloseTo(requested, 4);
+    expect(getMilitaryResourceLedgers()[0].lastDelivered).toEqual({});
   });
 
   it("does not create gunpowder-era demand when the era is disabled", () => {

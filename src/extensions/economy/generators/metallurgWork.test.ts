@@ -18,6 +18,7 @@ import {
 import { Markets } from "./markets-generator";
 import type { Caravan } from "./marketTypes";
 import { MetallurgWork } from "./metallurgWork";
+import { MilitaryResources } from "./militaryResources";
 
 describe("MetallurgWorkModule", () => {
   beforeEach(() => {
@@ -328,6 +329,27 @@ describe("MetallurgWorkModule", () => {
         })
       )
     ).toBe(true);
+  });
+
+  it("keeps consumable work equal to the stockpile gap instead of adding another full reserve each month", () => {
+    MilitaryResources.generate();
+    MetallurgWork.generate();
+    MetallurgWork.settleMonthly();
+    const bullets = getGoods().find(good => good.name === "Bullets")!;
+    const initialOrder = getMetallurgWorkOrders().find(
+      order => order.ownerKind === "state" && order.productGoodId === bullets.i && order.kind === "consumable"
+    )!;
+    const annualDemand = MilitaryResources.getAnnualDemandForState(1).bullets!;
+
+    MilitaryResources.recordFinishedGoodsDelivery(1, "Bullets", annualDemand / 2);
+    const originalYear = worldContext.options.year;
+    worldContext.options.year += 1;
+
+    expect(MetallurgWork.settleMonthly()).toBe(true);
+
+    const updatedOrder = getMetallurgWorkOrders().find(order => order.id === initialOrder.id)!;
+    expect(updatedOrder.requestedUnits - updatedOrder.completedUnits).toBeCloseTo(annualDemand / 2, 4);
+    worldContext.options.year = originalYear;
   });
 
   it("subtracts actual inbound merchant cargo from the material purchase recommendation", () => {
