@@ -42,6 +42,21 @@ test("shows the generated landscape before map completion", async ({ page }) => 
   await expect.poll(() => pageErrors).toEqual([]);
 });
 
+test("defers volcanic-soil biome updates until climate data exists", async ({ page }) => {
+  const pageErrors = collectPageErrors(page);
+  await page.goto("/?seed=volcanic-soil-landscape-review&width=1280&height=720");
+
+  await expect(page.getByRole("heading", { name: "Landscape outline", exact: true })).toBeVisible();
+  const generation = page.locator("#optionsTabContent");
+  await generation.locator("tr", { hasText: "Volcanism chance %" }).getByRole("spinbutton").fill("100");
+  await generation.locator("tr", { hasText: "Active volcano chance %" }).getByRole("spinbutton").fill("100");
+  await page.getByRole("button", { name: "Generate another landscape", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Landscape outline", exact: true })).toBeVisible();
+  await generation.locator("tr", { hasText: "Volcanic soil strength %" }).getByRole("spinbutton").fill("75");
+
+  await expect.poll(() => filterCriticalErrors(pageErrors)).toEqual([]);
+});
+
 test("enables Danger settings during initial review for fantasy culture sets", async ({ page }) => {
   await page.goto("/?seed=fantasy-danger-settings&width=1280&height=720");
 

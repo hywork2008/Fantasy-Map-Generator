@@ -442,17 +442,15 @@ function registerWorldRecalculateHandler(): void {
       Features.applyOceanCurrentEnclosure();
     }
     if (biomes) {
+      // Generation Settings stays available during the Landscape outline review, before
+      // temperature and precipitation are created. Keep the option snapshot current for the
+      // upcoming Climate stage, but defer biome assignment until its climate inputs exist.
+      const liveOptions = useOptionsState.getState();
+      worldContext.options.biomeRegionProfile = liveOptions.biomeRegionProfile;
+      worldContext.options.volcanicSoilStrength = liveOptions.volcanicSoilStrength;
+      if (!worldContext.grid.cells.temp || !worldContext.grid.cells.prec) return;
+
       legacyMutation(() => {
-        // worldContext.options is a snapshot taken once at generation start
-        // (prepareGenerationStage()) and otherwise left stale — unlike heightExponent, which
-        // every reader pulls live from useOptionsState. Biomes.define() reads
-        // biomeRegionProfile/volcanicSoilStrength off worldContext.options, so a live
-        // recompute must re-sync those two fields first or the option change (e.g. from the
-        // Generation Settings tab, editable after the map already exists) has no visible effect
-        // until the next full generation.
-        const liveOptions = useOptionsState.getState();
-        worldContext.options.biomeRegionProfile = liveOptions.biomeRegionProfile;
-        worldContext.options.volcanicSoilStrength = liveOptions.volcanicSoilStrength;
         Biomes.define(getWorldState());
         return { result: undefined, topics: ["map.physical"] };
       });
