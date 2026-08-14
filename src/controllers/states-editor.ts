@@ -4,6 +4,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { countIndependentBurgs } from "../generators/settlementOverviewStats";
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -169,6 +170,7 @@ export function computeStateRows(): {
   let totalArea = 0;
   let totalPopulation = 0;
   let totalBurgs = 0;
+  const independentBurgCount = countIndependentBurgs(worldContext.pack.burgs);
 
   const rows: StateRowData[] = [];
 
@@ -178,10 +180,13 @@ export function computeStateRows(): {
     const rural = (s.rural ?? 0) * worldContext.populationRate;
     const urban = (s.urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
     const population = rn(rural + urban);
+    // Neutrals is not a nation; collectStatistics leaves s.burgs at 0. Count
+    // independent towns for the editor row only — do not write back to pack.
+    const burgCount = s.i ? (s.burgs ?? 0) : independentBurgCount;
 
     totalArea += area;
     totalPopulation += population;
-    totalBurgs += s.burgs ?? 0;
+    totalBurgs += burgCount;
 
     const capitalName = s.i ? ((worldContext.pack.burgs as Burg[])[s.capital]?.name ?? "") : "";
     const cultureName = s.i ? ((worldContext.pack.cultures as Culture[])[s.culture]?.name ?? "") : "";
@@ -200,7 +205,7 @@ export function computeStateRows(): {
       capitalName,
       culture: s.culture,
       cultureName,
-      burgs: s.burgs ?? 0,
+      burgs: burgCount,
       area,
       population,
       type: s.type || "Generic",

@@ -314,11 +314,16 @@ export const StatesEditorContent: React.FC = () => {
                       <td className="hide numeric">
                         <div className="d-flex">
                           <IconButton
-                            data-tip="Click to overview state burgs"
+                            data-tip={
+                              isNeutral ? "Click to overview independent burgs" : "Click to overview state burgs"
+                            }
                             className="icon-dot-circled pointer hide"
-                            onClick={() => (isNeutral ? null : statesEditorActions.overviewBurgs(s.i))}
+                            onClick={() => statesEditorActions.overviewBurgs(s.i)}
                           />
-                          <span data-tip="Burgs count" className="stateBurgs hide">
+                          <span
+                            data-tip={isNeutral ? "Independent burgs on unclaimed land" : "Burgs count"}
+                            className="stateBurgs hide"
+                          >
                             {s.burgs}
                           </span>
                         </div>

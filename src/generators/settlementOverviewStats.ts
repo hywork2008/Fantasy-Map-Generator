@@ -10,6 +10,19 @@ export interface SettlementOverviewStats {
 }
 
 /**
+ * Burgs whose political owner is still unclaimed land (`burg.state === 0`).
+ * Display-only: never write this back onto `states[0].burgs`, which stays a
+ * national aggregate and must remain 0.
+ */
+export function countIndependentBurgs(burgs: PackedGraph["burgs"] | undefined): number {
+  let count = 0;
+  for (const burg of burgs ?? []) {
+    if (burg?.i && !burg.removed && !burg.state) count += 1;
+  }
+  return count;
+}
+
+/**
  * World-facing settlement measures that intentionally stay separate from the
  * state table's historical aggregate fields. This makes zero-owner cells
  * observable before Phase 2 changes political statistics.
