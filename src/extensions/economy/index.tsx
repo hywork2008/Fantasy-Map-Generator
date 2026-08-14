@@ -29,6 +29,8 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMerchantOrganizations,
+  getMerchantVesselOwnerships,
   getMetallurgAssetLedgers,
   getMilitaryResourceLedgers,
   getMineOperations,
@@ -132,6 +134,7 @@ import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
+import { getStateMountedCapacity } from "./generators/mountAvailability";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
@@ -177,6 +180,7 @@ import {
   unregisterUrbanPregnancyBirthFloor
 } from "./generators/urbanPregnancy";
 import { getUrbanWaterSystemForBurg, sanitationScoreFromSystem, UrbanWater } from "./generators/urbanWaterSystem";
+import { clearMerchantHullOwnerships, recordMerchantHullOwnership } from "./generators/vesselOwnership";
 import { clearViticultureAllocationShares } from "./generators/viticultureAllocation";
 import { VolcanicOperations } from "./generators/volcanicOperations";
 import { drawGoods } from "./renderers/draw-goods";
@@ -484,6 +488,9 @@ let _shipbuildingSurplusShipRequestHandler: ((e: Event) => void) | null = null;
 let _shipbuildingMerchantHullsSnapshotHandler: ((e: Event) => void) | null = null;
 let _shipbuildingMerchantHullChangedHandler: ((e: Event) => void) | null = null;
 let _shipbuildingMerchantHullsUnavailableHandler: (() => void) | null = null;
+let _mountedCapacityRequestHandler: ((e: Event) => void) | null = null;
+let _merchantOperatorSnapshotRequestHandler: ((e: Event) => void) | null = null;
+let _shipCompletedOwnershipHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
@@ -514,6 +521,40 @@ let _unregisterJobsResignEscortCommand: (() => void) | null = null;
 let _unregisterJobsCancelEscortCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
+
+function isMountedCapacityRequest(value: unknown): value is { stateId: number; capacity?: number; handled: boolean } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.stateId === "number" && typeof record.handled === "boolean";
+}
+
+function isMerchantOperatorSnapshotRequest(value: unknown): value is {
+  hulls: { id: number; burgId: number }[];
+  result?: Record<number, { ownerLabel: string; organizationName?: string; merchantNames: string[] }>;
+} {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    Array.isArray(record.hulls) &&
+    record.hulls.every(
+      hull =>
+        typeof hull === "object" &&
+        hull !== null &&
+        typeof (hull as Record<string, unknown>).id === "number" &&
+        typeof (hull as Record<string, unknown>).burgId === "number"
+    )
+  );
+}
+
+function isShipCompletedEvent(value: unknown): value is { hullId: number; burgId: number; owner: "state" | "market" } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.hullId === "number" &&
+    typeof record.burgId === "number" &&
+    (record.owner === "state" || record.owner === "market")
+  );
+}
 
 interface AssignGoodToCellRequest {
   readonly cellId: number;
@@ -1180,6 +1221,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       TransportAssetOrders.clear();
       setBurgMarketLedgers([]);
       clearMerchantOrganizations();
+      clearMerchantHullOwnerships();
       if (world.pack.cells?.i) {
         setGoodCellColumn(new Uint16Array(world.pack.cells.i.length));
         setMarketCellColumn(new Uint16Array(world.pack.cells.i.length));
@@ -1302,6 +1344,63 @@ export function init(api: ExtensionAPI): void {
     },
     false
   );
+
+  _mountedCapacityRequestHandler = event => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isMountedCapacityRequest(detail)) return;
+    const capacity = getStateMountedCapacity(detail.stateId);
+    if (capacity === undefined) return;
+    detail.capacity = capacity;
+    detail.handled = true;
+  };
+  document.addEventListener("fmg:economy-mounted-capacity-request", _mountedCapacityRequestHandler);
+
+  _merchantOperatorSnapshotRequestHandler = event => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isMerchantOperatorSnapshotRequest(detail)) return;
+    const { pack } = getWorldContext();
+    const marketByBurgId = new Map(getMarkets().map(market => [market.centerBurgId, market]));
+    const organizationByMarketId = new Map(
+      getMerchantOrganizations().map(organization => [organization.homeMarketId, organization])
+    );
+    const ledgerByBurgId = new Map(getBurgMarketLedgers().map(ledger => [ledger.burgId, ledger]));
+    const charactersById = new Map((pack.characters ?? []).map(character => [character.i, character]));
+    const ownershipByHullId = new Map(
+      getMerchantVesselOwnerships().map(ownership => [ownership.shipHullId, ownership])
+    );
+    const result: Record<number, { ownerLabel: string; organizationName?: string; merchantNames: string[] }> = {};
+
+    for (const hull of detail.hulls) {
+      const burgId = hull.burgId;
+      const market = marketByBurgId.get(burgId);
+      const organization = market ? organizationByMarketId.get(market.i) : undefined;
+      const merchantNames = (ledgerByBurgId.get(burgId)?.merchants ?? [])
+        .toSorted((left, right) => right.share - left.share)
+        .map(merchant => charactersById.get(merchant.characterId)?.name)
+        .filter((name): name is string => Boolean(name));
+      const ownership = ownershipByHullId.get(hull.id);
+      const ownerLabel =
+        ownership?.ownerKind === "merchantOrganization"
+          ? (getMerchantOrganizations().find(candidate => candidate.i === ownership.ownerId)?.name ??
+            "Unknown merchant organization")
+          : ownership?.ownerKind === "merchant"
+            ? (charactersById.get(ownership.ownerId)?.name ?? "Unknown merchant")
+            : (pack.burgs[burgId]?.name ?? "Unnamed market");
+      result[hull.id] = { ownerLabel, organizationName: organization?.name, merchantNames };
+    }
+    detail.result = result;
+  };
+  document.addEventListener("fmg:economy-merchant-operator-snapshot-request", _merchantOperatorSnapshotRequestHandler);
+
+  _shipCompletedOwnershipHandler = event => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isShipCompletedEvent(detail) || detail.owner !== "market") return;
+    recordMerchantHullOwnership(detail.hullId, detail.burgId);
+  };
+  document.addEventListener("fmg:shipbuilding-ship-completed", _shipCompletedOwnershipHandler);
 
   api.registerEditorTab({
     id: "states-treasury",
@@ -2193,6 +2292,7 @@ export function init(api: ExtensionAPI): void {
     const detail = (e as CustomEvent<unknown>).detail;
     if (!isShipbuildingMerchantHullsSnapshot(detail)) return;
     MerchantTransportAssets.reconcileMerchantHulls(detail.hulls);
+    for (const hull of detail.hulls) recordMerchantHullOwnership(hull.id, hull.ownerId);
   };
   document.addEventListener("fmg:shipbuilding-merchant-hulls-snapshot", _shipbuildingMerchantHullsSnapshotHandler);
 
@@ -2830,6 +2930,21 @@ export function cleanup(api: ExtensionAPI): void {
       _shipbuildingMerchantHullsUnavailableHandler
     );
     _shipbuildingMerchantHullsUnavailableHandler = null;
+  }
+  if (_mountedCapacityRequestHandler) {
+    document.removeEventListener("fmg:economy-mounted-capacity-request", _mountedCapacityRequestHandler);
+    _mountedCapacityRequestHandler = null;
+  }
+  if (_merchantOperatorSnapshotRequestHandler) {
+    document.removeEventListener(
+      "fmg:economy-merchant-operator-snapshot-request",
+      _merchantOperatorSnapshotRequestHandler
+    );
+    _merchantOperatorSnapshotRequestHandler = null;
+  }
+  if (_shipCompletedOwnershipHandler) {
+    document.removeEventListener("fmg:shipbuilding-ship-completed", _shipCompletedOwnershipHandler);
+    _shipCompletedOwnershipHandler = null;
   }
   if (_strategicProcurementDemandHandler) {
     document.removeEventListener("fmg:shipbuilding-strategic-procurement-demand", _strategicProcurementDemandHandler);

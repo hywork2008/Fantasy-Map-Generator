@@ -10,6 +10,7 @@ import {
   getHullsAtBurg,
   getInitialStateOwnedDemand,
   getQueueEntry,
+  getStateNavalCrewCapacity,
   getStateTechPoints,
   isStateAtWar,
   runShipyardTick,
@@ -67,6 +68,19 @@ describe("shipyardQueue", () => {
     runShipyardTick(candidates, burgs, [], 1, noSkill);
 
     expect(getQueueEntry(1)?.owner).toBe("state");
+  });
+
+  it("counts only completed, serviceable state hulls toward naval crew capacity", () => {
+    const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const allowMaterials = () => ({ status: "fulfilled" as const });
+
+    for (let i = 0; i < 5; i++) runShipyardTick(candidates, burgs, makeStates([{}]), 1, noSkill, allowMaterials);
+
+    expect(getStateNavalCrewCapacity(1)).toBe(100);
+    const hull = getHullsAtBurg(1)[0];
+    setHullStatus(hull.id, "maintenance");
+    expect(getStateNavalCrewCapacity(1)).toBe(0);
   });
 
   it("assigns a state-owned queue to a fortified (citadel) port even if not the capital", () => {

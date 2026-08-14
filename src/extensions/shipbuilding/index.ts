@@ -18,6 +18,11 @@ import {
   openShipyardsOverview,
   refreshShipyardsOverviewIfOpen
 } from "./controllers/shipyards-overview";
+import {
+  closeVesselAssetsOverview,
+  openVesselAssetsOverview,
+  refreshVesselAssetsOverviewIfOpen
+} from "./controllers/vessel-assets-overview";
 import { checkForeignInterference } from "./generators/foreignInterference";
 import { runLoggingTick } from "./generators/logging";
 import { computePortCapacity, type PortCapacity } from "./generators/portCapacity";
@@ -27,6 +32,7 @@ import {
   clearShipyardQueues,
   getHulls,
   getInitialStateOwnedDemand,
+  getStateNavalCrewCapacity,
   runShipyardTick,
   setHullStatus,
   setMerchantHullMaintenance
@@ -34,6 +40,7 @@ import {
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
 import { ShipyardsOverviewDialog } from "./ui/dialogs/ShipyardsOverviewDialog";
+import { VesselAssetsOverviewDialog } from "./ui/dialogs/VesselAssetsOverviewDialog";
 
 export const SHIPBUILDING_EXTENSION_ID = "shipbuilding";
 
@@ -58,6 +65,13 @@ let _unregisterTickSystem: (() => void) | null = null;
 let _merchantHullsRequestHandler: ((event: Event) => void) | null = null;
 let _merchantHullReservationRequestHandler: ((event: Event) => void) | null = null;
 let _merchantHullReleaseRequestHandler: ((event: Event) => void) | null = null;
+let _fleetCapacityRequestHandler: ((event: Event) => void) | null = null;
+
+function isFleetCapacityRequest(value: unknown): value is { stateId: number; capacity?: number; handled: boolean } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.stateId === "number" && typeof record.handled === "boolean";
+}
 
 function publishMerchantHullSnapshot(): void {
   document.dispatchEvent(
@@ -115,6 +129,16 @@ function recomputeAndMaybeDraw(api: ExtensionAPI): void {
 
 export function init(api: ExtensionAPI): void {
   initShipbuildingContext(api);
+
+  _fleetCapacityRequestHandler = event => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isFleetCapacityRequest(detail)) return;
+    const fleetCrew = getWorldContext().options.military?.find(unit => unit.name === "fleet")?.crew ?? 100;
+    detail.capacity = Math.floor(getStateNavalCrewCapacity(detail.stateId) / Math.max(1, fleetCrew));
+    detail.handled = true;
+  };
+  document.addEventListener("fmg:shipbuilding-fleet-capacity-request", _fleetCapacityRequestHandler);
 
   _merchantHullsRequestHandler = event => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
@@ -201,6 +225,11 @@ export function init(api: ExtensionAPI): void {
     extensionId: SHIPBUILDING_EXTENSION_ID,
     component: ShipyardsOverviewDialog
   });
+  api.registerDialog({
+    id: "VesselAssetsOverviewDialog",
+    extensionId: SHIPBUILDING_EXTENSION_ID,
+    component: VesselAssetsOverviewDialog
+  });
 
   api.registerAction({
     id: "shipbuilding-view-shipyards",
@@ -216,6 +245,19 @@ export function init(api: ExtensionAPI): void {
       } else {
         openShipyardsOverview(_candidates, _portCapacity, (x, y) => api.zoomTo(x, y, 8));
       }
+    }
+  });
+  api.registerAction({
+    id: "shipbuilding-view-vessel-assets",
+    extensionId: SHIPBUILDING_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Vessel assets",
+    dialogId: "VesselAssetsOverviewDialog",
+    tooltip: "View completed state and merchant vessels by owner, port, class, and status",
+    onClick: () => {
+      if (api.isDialogOpen("VesselAssetsOverviewDialog")) closeVesselAssetsOverview();
+      else openVesselAssetsOverview();
     }
   });
 
@@ -270,6 +312,7 @@ export function init(api: ExtensionAPI): void {
       // Layer redraw goes through RenderCoordinator + registerDrawLayerHook after
       // extension.* topics commit (P2-12). Overview is a dialog refresh, not a map draw.
       refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
+      refreshVesselAssetsOverviewIfOpen();
       writer.markChanged("extension.shipbuilding", "extension.economy", "extension.nobility");
     }
   });
@@ -288,6 +331,7 @@ export function init(api: ExtensionAPI): void {
       api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
       document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-unavailable"));
       closeShipyardsOverview();
+      closeVesselAssetsOverview();
     }
   });
 
@@ -335,6 +379,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.removeLayers(shipbuildingLayers.map(l => l.id));
   api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
   closeShipyardsOverview();
+  closeVesselAssetsOverview();
 
   _unregisterResetCommand?.();
   _unregisterResetCommand = null;
@@ -357,6 +402,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_merchantHullReleaseRequestHandler) {
     document.removeEventListener("fmg:shipbuilding-merchant-hull-release-request", _merchantHullReleaseRequestHandler);
     _merchantHullReleaseRequestHandler = null;
+  }
+  if (_fleetCapacityRequestHandler) {
+    document.removeEventListener("fmg:shipbuilding-fleet-capacity-request", _fleetCapacityRequestHandler);
+    _fleetCapacityRequestHandler = null;
   }
   clearShipbuildingContext();
 }

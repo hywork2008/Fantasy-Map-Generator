@@ -70,6 +70,14 @@ export function getHullsAtBurg(burgId: number): ShipHull[] {
   return Object.values(getShipbuildingRuntimeState().hulls).filter(h => h.homeBurgId === burgId);
 }
 
+/** Naval personnel that completed, non-maintenance state hulls can sustain. */
+export function getStateNavalCrewCapacity(stateId: number): number {
+  return getHulls().reduce((total, hull) => {
+    if (hull.owner !== "state" || hull.ownerId !== stateId || hull.status === "maintenance") return total;
+    return total + (getShipClass(hull.shipClassId)?.navalCrewCapacity ?? 0);
+  }, 0);
+}
+
 export function setHullStatus(hullId: number, status: ShipHullStatus): void {
   const hull = getShipbuildingRuntimeState().hulls[hullId];
   if (!hull) return;

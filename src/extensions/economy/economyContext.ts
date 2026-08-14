@@ -89,6 +89,7 @@ import type { TradeSecurityLedger } from "./generators/tradeSecurityTypes";
 import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntakeTypes";
 import type { UrbanPregnancyRecord } from "./generators/urbanPregnancyTypes";
 import type { UrbanWaterSystem } from "./generators/urbanWaterTypes";
+import type { MerchantVesselOwnership } from "./generators/vesselOwnershipTypes";
 import type { VolcanicOperation } from "./generators/volcanicOperationsTypes";
 
 let _api: ExtensionAPI | null = null;
@@ -1098,6 +1099,14 @@ export function getMerchantOrganizations(): MerchantOrganization[] {
 }
 export function setMerchantOrganizations(organizations: readonly MerchantOrganization[]): void {
   setSliceArray("merchantOrganizations", organizations);
+}
+
+/** Economic owners of completed merchant hulls; Shipbuilding keeps their physical state. */
+export function getMerchantVesselOwnerships(): MerchantVesselOwnership[] {
+  return getSliceArray<MerchantVesselOwnership>("merchantVesselOwnerships");
+}
+export function setMerchantVesselOwnerships(ownerships: readonly MerchantVesselOwnership[]): void {
+  setSliceArray("merchantVesselOwnerships", ownerships);
 }
 
 /** State-funded strategic procurement orders owned by the economy extension. */

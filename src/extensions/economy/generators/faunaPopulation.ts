@@ -263,10 +263,18 @@ function getDemandHistoryKey(marketId: number, goodId: number): string {
  */
 function getStateMountedHeadcount(stateId: number): number {
   if (!stateId) return 0;
-  const regiments = getWorldContext().pack.states?.[stateId]?.military;
+  const world = getWorldContext();
+  const regiments = world.pack.states?.[stateId]?.military;
   if (!regiments?.length) return 0;
+  const mountedUnitNames = new Set(
+    (world.options.military ?? []).filter(unit => unit.type === "mounted").map(unit => unit.name)
+  );
   let total = 0;
-  for (const regiment of regiments) if (regiment.type === "mounted") total += regiment.a ?? 0;
+  for (const regiment of regiments) {
+    for (const [unitName, amount] of Object.entries(regiment.u)) {
+      if (mountedUnitNames.has(unitName)) total += Math.max(0, amount);
+    }
+  }
   return total;
 }
 

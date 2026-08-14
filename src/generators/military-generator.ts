@@ -21,11 +21,14 @@ import {
   mergeFrontiers
 } from "./frontierAnalysis";
 import {
+  addCivilianMalePeople,
   effectiveTroopTarget,
   isManpowerSimEnabled,
   markStatesNeedManpowerReconcile,
-  reconcileAllStatesManpower
+  reconcileAllStatesManpower,
+  removeCivilianMalePeople
 } from "./manpower";
+import { constrainRegimentUnits, requestFleetCapacity, requestMountedCapacity } from "./militaryAssetCapacity";
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
 
@@ -869,6 +872,18 @@ class MilitaryModule {
 
       s.military = regiments;
 
+      const mountedUnitNames = new Set(military.filter(unit => unit.type === "mounted").map(unit => unit.name));
+      const mountedCapacity = requestMountedCapacity(s.i);
+      if (mountedCapacity !== undefined && mountedUnitNames.size) {
+        constrainRegimentUnits(s, mountedUnitNames, mountedCapacity);
+      }
+
+      const fleetUnitNames = new Set(military.filter(unit => unit.type === "naval").map(unit => unit.name));
+      const fleetCapacity = requestFleetCapacity(s.i);
+      if (fleetCapacity !== undefined && fleetUnitNames.size) {
+        constrainRegimentUnits(s, fleetUnitNames, fleetCapacity);
+      }
+
       // Physical positioning (marching toward a threatened frontier) is no longer done here —
       // see docs/plan/military-movement.md Phase 2 / src/generators/regimentMovement.ts. This
       // function only ever sets a regiment's *initial* spawn position (its recruitment anchor);
@@ -998,6 +1013,74 @@ class MilitaryModule {
         separate: 1
       }
     ];
+  }
+
+  /**
+   * Shipbuilding calls this indirectly through its completion event. Fleet units are outside the
+   * land-manpower ledger, so a newly completed state hull can activate an existing planned fleet
+   * establishment without rebuilding every land regiment.
+   */
+  refreshFleetCapacity(stateId: number): boolean {
+    const state = this.worldContext.pack.states[stateId];
+    if (!state?.i || state.removed || !state.military?.length) return false;
+    const fleetUnitNames = new Set(
+      (this.worldContext.options.military ?? []).filter(unit => unit.type === "naval").map(unit => unit.name)
+    );
+    const capacity = requestFleetCapacity(stateId);
+    if (capacity === undefined || !fleetUnitNames.size) return false;
+    const changed = constrainRegimentUnits(state, fleetUnitNames, capacity);
+    if (!changed) return false;
+
+    for (const regiment of state.military) {
+      regiment.icon = this.getEmblem(regiment);
+      regiment.name = this.getName(regiment, state.military);
+      this.generateNote(regiment, state);
+    }
+    return true;
+  }
+
+  /**
+   * Reconcile mounted establishments after Economy settles livestock. Unlike fleets, mounted
+   * soldiers are part of the civilian manpower ledger, so promotions and demobilizations move
+   * people through that ledger before the regiment totals are finalized.
+   */
+  refreshMountedCapacity(stateId: number): boolean {
+    const state = this.worldContext.pack.states[stateId];
+    if (!state?.i || state.removed || !state.military?.length) return false;
+    const mountedUnitNames = new Set(
+      (this.worldContext.options.military ?? []).filter(unit => unit.type === "mounted").map(unit => unit.name)
+    );
+    const capacity = requestMountedCapacity(stateId);
+    if (capacity === undefined || !mountedUnitNames.size) return false;
+
+    const current = state.military.reduce(
+      (total, regiment) =>
+        total + Array.from(mountedUnitNames).reduce((mounted, unitName) => mounted + (regiment.u[unitName] ?? 0), 0),
+      0
+    );
+    const maximumActive = isManpowerSimEnabled() && state.manpowerReconciled ? capacity : Math.min(capacity, current);
+    const changed = constrainRegimentUnits(state, mountedUnitNames, maximumActive);
+    const next = state.military.reduce(
+      (total, regiment) =>
+        total + Array.from(mountedUnitNames).reduce((mounted, unitName) => mounted + (regiment.u[unitName] ?? 0), 0),
+      0
+    );
+    const delta = next - current;
+
+    if (delta > 0 && isManpowerSimEnabled() && state.manpowerReconciled) {
+      const recruited = removeCivilianMalePeople(this.worldContext.pack, stateId, delta);
+      if (recruited + 1e-6 < delta) constrainRegimentUnits(state, mountedUnitNames, current + recruited);
+    } else if (delta < 0 && isManpowerSimEnabled() && state.manpowerReconciled) {
+      addCivilianMalePeople(this.worldContext.pack, stateId, -delta);
+    }
+
+    if (!changed) return false;
+    for (const regiment of state.military) {
+      regiment.icon = this.getEmblem(regiment);
+      regiment.name = this.getName(regiment, state.military);
+      this.generateNote(regiment, state);
+    }
+    return true;
   }
 
   getName(r: MilitaryRegiment, regiments: MilitaryRegiment[]) {
@@ -1141,6 +1224,19 @@ class MilitaryModule {
   }
 }
 export const Military = new MilitaryModule();
+
+document.addEventListener("fmg:shipbuilding-ship-completed", event => {
+  const detail = (event as CustomEvent<unknown>).detail;
+  if (typeof detail !== "object" || detail === null || Array.isArray(detail)) return;
+  const stateId = (detail as Record<string, unknown>).stateId;
+  if (typeof stateId === "number" && stateId > 0) Military.refreshFleetCapacity(stateId);
+});
+
+document.addEventListener("fmg:time-advance-completed", () => {
+  for (const state of worldContext.pack.states) {
+    if (state?.i && !state.removed) Military.refreshMountedCapacity(state.i);
+  }
+});
 
 function isFrontierExpansionPattern(pattern: WorldState["options"]["initialSettlementPattern"]): boolean {
   return pattern === "frontier" || pattern === "scattered";
