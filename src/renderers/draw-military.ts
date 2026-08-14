@@ -73,7 +73,7 @@ export const drawRegiments = (
 
   const g = army
     .selectAll("g")
-    .data(regiments)
+    .data(regiments.filter(regiment => regiment.a > 0))
     .enter()
     .append("g")
     .attr("id", d => `regiment${s}-${d.i}`)

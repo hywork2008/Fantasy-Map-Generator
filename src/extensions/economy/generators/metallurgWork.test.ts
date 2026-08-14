@@ -184,9 +184,16 @@ describe("MetallurgWorkModule", () => {
     MetallurgWork.generate();
     MetallurgWork.settleMonthly();
 
+    expect(worldContext.pack.states[1].military?.[0]).toMatchObject({
+      u: { cavalry: 10, archers: 20 },
+      plannedU: { musketeers: 30, artillery: 2 }
+    });
+
     expect(getMetallurgAssetLedgers()).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 4, serviceableUnits: 32 }),
+        // Unstocked artillery has neither a cannon nor an active crew yet, so it does not
+        // consume generic Arms until a cannon delivery activates the formation.
+        expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 4, serviceableUnits: 30 }),
         expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 9, serviceableUnits: 0 }),
         expect.objectContaining({ ownerKind: "state", ownerId: 1, productGoodId: 11, serviceableUnits: 0 })
       ])
@@ -458,6 +465,7 @@ describe("MetallurgWorkModule", () => {
         asset => asset.ownerKind === "state" && asset.ownerId === 1 && asset.productGoodId === muskets.i
       )?.serviceableUnits
     ).toBeGreaterThan(0);
+    expect(worldContext.pack.states[1].military?.[0]?.u.musketeers).toBeGreaterThan(0);
   });
 
   it("stages domestic military materials at the arsenal market before manufacture", () => {

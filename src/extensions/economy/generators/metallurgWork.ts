@@ -1,4 +1,5 @@
 import { isFirearmMilitaryUnitName } from "../../../utils/gunpowderEra";
+import { isManpowerSimEnabled, Military, removeCivilianMalePeople } from "../../hostCore";
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -105,7 +106,7 @@ function isMounted(unitName: string): boolean {
 }
 
 function stateForcePlans(state: State): ProductPlan[] {
-  let troops = 0;
+  let troopsNeedingArms = 0;
   let mounted = 0;
   let artillery = 0;
   let firearms = 0;
@@ -113,17 +114,28 @@ function stateForcePlans(state: State): ProductPlan[] {
   for (const regiment of state.military || []) {
     for (const [unitName, rawCount] of Object.entries(regiment.u || {})) {
       const count = economicUnitCount(rawCount);
-      troops += count;
       if (isMounted(unitName)) mounted += count;
+      if (isArtillery(unitName)) {
+        artillery += Math.max(count, economicUnitCount(regiment.plannedU?.[unitName] ?? 0));
+        troopsNeedingArms += count;
+      } else if (isFirearm(unitName)) {
+        firearms += Math.max(count, economicUnitCount(regiment.plannedU?.[unitName] ?? 0));
+      } else {
+        troopsNeedingArms += count;
+      }
+    }
+    for (const [unitName, rawCount] of Object.entries(regiment.plannedU ?? {})) {
+      if ((regiment.u[unitName] ?? 0) > 0) continue;
+      const count = economicUnitCount(rawCount);
       if (isArtillery(unitName)) artillery += count;
-      if (isFirearm(unitName)) firearms += count;
+      else if (isFirearm(unitName)) firearms += count;
     }
   }
 
   const plans: ProductPlan[] = [
-    // Firearm units carry Muskets (below) instead of the generic Arms set — see
-    // militaryResources.ts's matching arms/muskets demand split.
-    { goodName: "Arms", units: troops - firearms, kind: "newBuild", workPerUnit: 1, materialMultiplier: 1 },
+    // Firearm establishments carry Muskets (below) instead of generic Arms. Dormant crews do
+    // not draw Arms until the corresponding firearm or cannon has been delivered.
+    { goodName: "Arms", units: troopsNeedingArms, kind: "newBuild", workPerUnit: 1, materialMultiplier: 1 },
     { goodName: "Muskets", units: firearms, kind: "newBuild", workPerUnit: 1.3, materialMultiplier: 1 },
     { goodName: "Harnesses", units: mounted, kind: "newBuild", workPerUnit: 0.7, materialMultiplier: 1 },
     { goodName: "Artillery", units: artillery, kind: "newBuild", workPerUnit: 8, materialMultiplier: 1 },
@@ -182,6 +194,9 @@ function syncOrderMaterials(order: MetallurgWorkOrder, good: Good, units: number
  */
 export class MetallurgWorkModule {
   generate(): void {
+    // Generation can be requested directly by an extension command, without a preceding
+    // MilitaryResources.generate call, so make the transition idempotent at this seam.
+    MilitaryResources.unstockInitialFirearmForces();
     const goodsByName = new Map(getGoods().map(good => [good.name, good]));
     const assets: MetallurgAssetLedger[] = [];
     const month = currentMonthIndex();
@@ -679,9 +694,77 @@ export class MetallurgWorkModule {
       changed = true;
     }
 
+    const goodsById = new Map(getGoods().map(good => [good.i, good]));
+    for (const asset of assets) {
+      if (asset.ownerKind !== "state") continue;
+      const goodName = goodsById.get(asset.productGoodId)?.name;
+      if (goodName !== "Muskets" && goodName !== "Artillery") continue;
+      const activated = this.activateEquipmentGatedRegiments(asset.ownerId, goodName, asset.serviceableUnits);
+      changed ||= activated;
+    }
+
     if (changed) {
       setMetallurgWorkOrders(orders);
       setMetallurgAssetLedgers(assets);
+    }
+    return changed;
+  }
+
+  /**
+   * Assigns State-owned firearms to the dormant regiment slots created by
+   * `initialFirearmsUnstocked`. Equipment remains in the arsenal when no recruit can be drawn;
+   * a later monthly fulfillment pass retries the same assignment without placing another order.
+   */
+  private activateEquipmentGatedRegiments(
+    stateId: number,
+    goodName: "Muskets" | "Artillery",
+    serviceableUnits: number
+  ): boolean {
+    const world = getWorldContext();
+    const state = world.pack.states[stateId];
+    if (!state?.i || state.removed || !state.military?.length) return false;
+
+    const unitMatchesGood = goodName === "Muskets" ? isFirearm : isArtillery;
+    const populationRate = Math.max(1, world.populationRate || 1);
+    let equippedPeople = 0;
+    for (const regiment of state.military) {
+      for (const [unitName, rawCount] of Object.entries(regiment.u)) {
+        if (unitMatchesGood(unitName)) equippedPeople += rawCount;
+      }
+    }
+
+    let availablePeople = Math.max(0, serviceableUnits * populationRate - equippedPeople);
+    if (!(availablePeople > 0)) return false;
+
+    let changed = false;
+    for (const regiment of state.military) {
+      for (const [unitName, targetPeople] of Object.entries(regiment.plannedU ?? {})) {
+        if (!unitMatchesGood(unitName) || availablePeople <= 0) continue;
+        const activePeople = regiment.u[unitName] ?? 0;
+        const wantedPeople = Math.max(0, targetPeople - activePeople);
+        if (!(wantedPeople > 0)) continue;
+
+        const equipmentLimitedPeople = Math.min(wantedPeople, availablePeople);
+        const hasManpowerLedger = Boolean(world.pack.cells?.i?.length);
+        const recruitedPeople =
+          isManpowerSimEnabled() && hasManpowerLedger
+            ? removeCivilianMalePeople(world.pack, stateId, equipmentLimitedPeople, {
+                preferredProvince: regiment.homeProvince
+              })
+            : equipmentLimitedPeople;
+        if (!(recruitedPeople > 0)) continue;
+
+        regiment.u[unitName] = activePeople + recruitedPeople;
+        regiment.a += recruitedPeople;
+        regiment.t += recruitedPeople;
+        regiment.icon = Military.getEmblem(regiment);
+        if (world.pack.cells?.province && world.pack.provinces) {
+          regiment.name = Military.getName(regiment, state.military);
+          Military.generateNote(regiment, state);
+        }
+        availablePeople -= recruitedPeople;
+        changed = true;
+      }
     }
     return changed;
   }

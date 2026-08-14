@@ -18,9 +18,11 @@ export { advanceFrontierGovernance } from "../generators/frontierGovernance";
 export { buildLandRouteGraph, findLandRouteDistance } from "../generators/landRouteGraph";
 export {
   ANNUAL_DRAFT_SHARE,
+  addCivilianMalePeople,
   isManpowerSimEnabled,
   PEACE_TARGET_MOBILIZATION,
   regimentQualityMultiplier,
+  removeCivilianMalePeople,
   stateHasActiveConflict,
   stateHasEnemy,
   WAR_TARGET_MOBILIZATION

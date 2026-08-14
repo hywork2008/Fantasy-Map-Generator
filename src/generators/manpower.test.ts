@@ -6,6 +6,7 @@ import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import {
   assertManpowerInvariant,
+  currentLandCapacity,
   currentLandTroops,
   effectiveTroopTarget,
   fillRegimentFromManpower,
@@ -99,6 +100,22 @@ describe("manpower ledger", () => {
     const pack = worldContext.pack as PackedGraph;
     // rural: (22+11) × 1000, burg: 2.2 × 1000 × 2
     expect(sumCivilianMalePeople(pack, 1, 1000, 2)).toBeCloseTo(37400, 5);
+  });
+
+  it("counts equipment-gated establishments as capacity without treating them as troops under arms", () => {
+    const regiment = worldContext.pack.states[1].military![0];
+    regiment.a = 70;
+    regiment.t = 70;
+    regiment.u = { infantry: 70 };
+    regiment.plannedU = { musketeers: 30 };
+
+    expect(currentLandTroops(worldContext.pack.states[1])).toBe(70);
+    expect(currentLandCapacity(worldContext.pack.states[1])).toBe(100);
+
+    regiment.u.musketeers = 10;
+    regiment.a = 80;
+    regiment.t = 80;
+    expect(currentLandCapacity(worldContext.pack.states[1])).toBe(100);
   });
 
   it("reconcile deducts under-arms from civilians once", () => {

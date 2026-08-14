@@ -1,5 +1,6 @@
 import { getGunpowderDemandTechMultiplier } from "../../../generators/technologyProgress";
 import { isFirearmMilitaryUnitName } from "../../../utils/gunpowderEra";
+import { addCivilianMalePeople, isManpowerSimEnabled, Military } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -48,6 +49,7 @@ const ARMS_PER_HEAD = 0.01;
 /** Settles state military material demand against its principal market. */
 export class MilitaryResourcesModule {
   generate(): void {
+    this.unstockInitialFirearmForces();
     const previous = new Map(getMilitaryResourceLedgers().map(ledger => [ledger.stateId, ledger]));
     const ledgers: MilitaryResourceLedger[] = [];
     const gunpowderEraEnabled = getWorldContext().options.gunpowderEraEnabled !== false;
@@ -69,6 +71,48 @@ export class MilitaryResourcesModule {
 
   clear(): void {
     setMilitaryResourceLedgers([]);
+  }
+
+  /**
+   * Converts generated firearm formations into dormant establishments once, returning their
+   * already-reconciled soldiers to the civilian pool. The Economy later activates those exact
+   * slots as State armories receive Muskets or Artillery.
+   */
+  unstockInitialFirearmForces(): boolean {
+    const world = getWorldContext();
+    if (!world.options.initialFirearmsUnstocked) return false;
+
+    let changed = false;
+    for (const state of world.pack.states) {
+      if (!state?.i || state.removed) continue;
+      for (const regiment of state.military ?? []) {
+        let releasedTroops = 0;
+        const plannedU = { ...(regiment.plannedU ?? {}) };
+
+        for (const [unitName, rawCount] of Object.entries(regiment.u)) {
+          if ((!this.isFirearm(unitName) && !this.isArtillery(unitName)) || plannedU[unitName] !== undefined) {
+            continue;
+          }
+          plannedU[unitName] = rawCount;
+          delete regiment.u[unitName];
+          releasedTroops += rawCount;
+        }
+
+        if (!(releasedTroops > 0)) continue;
+        regiment.plannedU = plannedU;
+        regiment.a = Math.max(0, (regiment.a ?? releasedTroops) - releasedTroops);
+        regiment.t = Math.max(0, (regiment.t ?? releasedTroops) - releasedTroops);
+        regiment.icon = Military.getEmblem(regiment);
+        if (world.pack.cells?.province && world.pack.provinces) {
+          regiment.name = Military.getName(regiment, state.military ?? []);
+        }
+        if (isManpowerSimEnabled() && state.manpowerReconciled) {
+          addCivilianMalePeople(world.pack, state.i, releasedTroops, { preferredProvince: regiment.homeProvince });
+        }
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   /** Runs once per Economy production month, before workshops make replacement goods. */
@@ -189,6 +233,7 @@ export class MilitaryResourcesModule {
     const populationRate = getWorldContext().populationRate || 1;
     let artillery = 0;
     let firearms = 0;
+    let firearmEstablishment = 0;
     let mounted = 0;
     let archers = 0;
     let troops = 0;
@@ -200,6 +245,14 @@ export class MilitaryResourcesModule {
         else if (this.isFirearm(unitName)) firearms += count;
         if (isMountedUnit(unitName)) mounted += count;
         if (this.isArcher(unitName)) archers += count;
+      }
+      const firearmUnitNames = new Set([...Object.keys(regiment.u || {}), ...Object.keys(regiment.plannedU ?? {})]);
+      for (const unitName of firearmUnitNames) {
+        if (!this.isFirearm(unitName)) continue;
+        firearmEstablishment += Math.max(
+          (regiment.u[unitName] ?? 0) / populationRate,
+          (regiment.plannedU?.[unitName] ?? 0) / populationRate
+        );
       }
     }
 
@@ -243,10 +296,10 @@ export class MilitaryResourcesModule {
     demand.coal = rn(gunpowder * 0.15, 4);
 
     // Firearm units carry a personal firearm (Muskets, a finished Good distinct from Gunpowder/
-    // Bullets above — see goods-generator.ts) instead of the generic melee Arms set. Move their
-    // share of the base Arms demand over once the era is active, so Muskets production tracks
-    // actual musketeer headcount the same way the Artillery plan above already tracks gun crews.
-    const muskets = rn(firearms * ARMS_PER_HEAD, 4);
+    // Bullets above — see goods-generator.ts) instead of generic Arms. The procurement signal
+    // follows both active soldiers and dormant equipment-gated establishment slots, while
+    // Gunpowder and Bullets above remain tied to the active force only.
+    const muskets = rn(firearmEstablishment * ARMS_PER_HEAD, 4);
     if (muskets > 0) {
       demand.muskets = muskets;
       const meleeArms = rn((troops - firearms) * ARMS_PER_HEAD, 4);

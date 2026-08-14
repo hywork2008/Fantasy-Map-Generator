@@ -68,7 +68,13 @@ export function currentLandTroops(state: State): number {
 }
 
 export function currentLandCapacity(state: State): number {
-  return landRegiments(state).reduce((sum, r) => sum + r.t, 0);
+  return landRegiments(state).reduce((sum, r) => {
+    const dormantEquipmentGatedTroops = Object.entries(r.plannedU ?? {}).reduce(
+      (planned, [unitName, target]) => planned + Math.max(0, target - (r.u[unitName] ?? 0)),
+      0
+    );
+    return sum + r.t + dormantEquipmentGatedTroops;
+  }, 0);
 }
 
 /**

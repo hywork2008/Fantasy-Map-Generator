@@ -1015,6 +1015,11 @@ export interface MilitaryRegiment {
   bx: number;
   by: number;
   u: Record<string, number>;
+  /**
+   * Equipment-gated unit establishment. These soldiers are intended for this regiment but are
+   * not yet under arms; their equipment is procured by the Economy before they join `u`.
+   */
+  plannedU?: Record<string, number>;
   n: number;
   type: string;
   icon?: string;

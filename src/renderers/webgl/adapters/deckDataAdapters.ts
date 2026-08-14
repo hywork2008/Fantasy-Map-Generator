@@ -1645,6 +1645,7 @@ export function buildMilitaryRegimentSymbols(
   for (const state of worldContext.pack.states) {
     if (!state.i || state.removed || (focusScope && state.i !== focusScope.stateId)) continue;
     for (const regiment of state.military ?? []) {
+      if (!(regiment.a > 0)) continue;
       if (!isCellInScope(focusScope, regiment.cell)) continue;
       const size = Math.max(boxSize || 6, 1);
       const width = regiment.n ? size * 4 : size * 6;
@@ -1723,6 +1724,7 @@ export function buildMilitaryBoxPolygons(
     const sideColor = colorToRgba(darkerColor, "#666666", 0.9);
 
     for (const regiment of state.military ?? []) {
+      if (!(regiment.a > 0)) continue;
       if (!isCellInScope(focusScope, regiment.cell)) continue;
       const size = Math.max(boxSize || 6, 1);
       const width = regiment.n ? size * 4 : size * 6;
