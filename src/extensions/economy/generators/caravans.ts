@@ -38,7 +38,15 @@ import { type Good, isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { utilizationOf } from "./marketFlowBudget";
-import type { Caravan, Deal, ExportStagingLot, Market, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
+import type {
+  Caravan,
+  Deal,
+  ExportStagingLot,
+  Market,
+  TradeRoutePoint,
+  TradeRouteSegment,
+  TransportAllocation
+} from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { markRetailInventoryDirty } from "./retailInventory";
@@ -275,6 +283,97 @@ function refreshLoadingPolicy(caravan: Caravan): void {
   }
 }
 
+/**
+ * P0 finite sea fleet (docs/plan/vessel-itinerary-and-finite-trade-fleet.md):
+ * when Shipbuilding publishes merchant hulls, open-water segments may not sail on
+ * abstract capacity — a reservation must bind at least one shipHullId.
+ * Land/river durable assets already refuse departure without a reservation.
+ */
+function reservationHasShipHulls(reservation: ReturnType<typeof MerchantTransportAssets.reserve>): boolean {
+  if (!reservation) return false;
+  return reservation.reservation.allocations.some(
+    allocation => allocation.mode === "water" && (allocation.shipHullIds?.length ?? 0) > 0
+  );
+}
+
+function routeNeedsSeaHulls(routeSegments: readonly TradeRouteSegment[]): boolean {
+  return routeSegments.some(segment => segment.type === "water" || segment.type === "sea");
+}
+
+/** Whether a planned allocation + optional reservation may leave the loading berth. */
+function canDepartWithTransportAssets(
+  allocations: readonly TransportAllocation[],
+  reservation: ReturnType<typeof MerchantTransportAssets.reserve>,
+  routeSegments: readonly TradeRouteSegment[]
+): boolean {
+  const hasLandTransport = allocations.some(allocation => allocation.mode === "land" && allocation.unitCount > 0);
+  const hasRiverTransport = allocations.some(allocation => allocation.mode === "river" && allocation.unitCount > 0);
+  if (hasLandTransport && !reservation) return false;
+  if (hasRiverTransport && !reservation) return false;
+
+  const needsSeaHulls =
+    routeNeedsSeaHulls(routeSegments) ||
+    allocations.some(allocation => allocation.mode === "water" && allocation.usedSlots > UNIT_EPSILON);
+  if (needsSeaHulls && MerchantTransportAssets.isWaterAssetModeActive()) {
+    return reservationHasShipHulls(reservation);
+  }
+  return true;
+}
+
+function resolveEndpointBurgId(endpointType: "burg" | "market", endpointId: number): number | null {
+  if (endpointType === "burg") return endpointId;
+  const market = getMarketById(endpointId);
+  return market?.centerBurgId ?? null;
+}
+
+function caravanItinerary(caravan: Pick<Caravan, "seller" | "sellerType" | "buyer" | "buyerType">): {
+  originBurgId: number | null;
+  destinationBurgId: number | null;
+} {
+  return {
+    originBurgId: resolveEndpointBurgId(caravan.sellerType, caravan.seller),
+    destinationBurgId: resolveEndpointBurgId(caravan.buyerType, caravan.buyer)
+  };
+}
+
+/** Push live caravan progress onto Shipbuilding hull itineraries (finite fleet P1). */
+function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
+  const updates: {
+    hullId: number;
+    caravanId: number;
+    originBurgId: number | null;
+    destinationBurgId: number | null;
+    progress: number;
+    phase: "transit" | "loading";
+  }[] = [];
+
+  for (const caravan of caravans) {
+    if (caravan.state !== "transit" && caravan.state !== "loading") continue;
+    const hullIds = (caravan.transportAllocations ?? []).flatMap(allocation => allocation.shipHullIds ?? []);
+    if (!hullIds.length) continue;
+    const { originBurgId, destinationBurgId } = caravanItinerary(caravan);
+    const progress =
+      caravan.state === "loading"
+        ? 0
+        : caravan.totalDistance > 0
+          ? Math.max(0, Math.min(1, caravan.currentDistance / caravan.totalDistance))
+          : 0;
+    for (const hullId of hullIds) {
+      updates.push({
+        hullId,
+        caravanId: caravan.i,
+        originBurgId,
+        destinationBurgId,
+        progress,
+        phase: caravan.state === "loading" ? "loading" : "transit"
+      });
+    }
+  }
+
+  if (!updates.length) return;
+  document.dispatchEvent(new CustomEvent("fmg:economy-caravan-hull-positions", { detail: { updates } }));
+}
+
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {
   if (caravan.state !== "loading" || !caravan.loading) return "waiting";
 
@@ -342,9 +441,15 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
     caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
   if (dispatcherMarketId === null) return "waiting";
 
-  const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, caravan.i, allocations);
-  const hasLandTransport = allocations.some(allocation => allocation.mode === "land");
-  if (hasLandTransport && !reservation) return "waiting";
+  const reservation = MerchantTransportAssets.reserve(
+    dispatcherMarketId,
+    caravan.i,
+    allocations,
+    caravanItinerary(caravan)
+  );
+  if (!canDepartWithTransportAssets(allocations, reservation, caravan.routeSegments)) {
+    return "waiting";
+  }
 
   caravan.transportAllocations = reservation?.reservation.allocations ?? allocations;
   caravan.transportReservationId = reservation?.reservation.id;
@@ -678,9 +783,12 @@ export class CaravansModule {
     for (const allocation of transportAllocations) allocation.usedSlots = cargoSlots;
 
     const caravanId = this.ensureNextCaravanId();
-    const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, caravanId, transportAllocations);
-    const hasLandTransport = transportAllocations.some(allocation => allocation.mode === "land");
-    if (hasLandTransport && !reservation) return null;
+    const itinerary = {
+      originBurgId: resolveEndpointBurgId(deal.sellerType, deal.seller),
+      destinationBurgId: resolveEndpointBurgId(deal.buyerType, deal.buyer)
+    };
+    const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, caravanId, transportAllocations, itinerary);
+    if (!canDepartWithTransportAssets(transportAllocations, reservation, routeSegments)) return null;
 
     const caravan: Caravan = {
       i: caravanId,
@@ -1102,6 +1210,8 @@ export class CaravansModule {
 
     // Keep loading + transit; drop terminal arrived/lost (including cancelled thin loads).
     setCaravans(caravans.filter(c => c.state === "loading" || c.state === "transit"));
+    // Project remaining transit/loading progress onto bound Shipbuilding hulls.
+    publishCaravanHullPositions(getCaravans());
     return { arrived, lost };
   }
 }

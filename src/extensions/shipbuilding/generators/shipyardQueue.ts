@@ -22,10 +22,11 @@ import {
   type ShipClass
 } from "./shipClasses";
 import type { ShipyardCandidate } from "./shipyardCandidates";
-import type { ShipHull, ShipHullStatus, ShipyardOwner, ShipyardQueueEntry } from "./shipyardQueueTypes";
+import type { ShipHull, ShipHullDuty, ShipHullStatus, ShipyardOwner, ShipyardQueueEntry } from "./shipyardQueueTypes";
 
 export type {
   ShipHull,
+  ShipHullDuty,
   ShipHullStatus,
   ShipyardOwner,
   ShipyardQueueEntry,
@@ -85,11 +86,133 @@ export function setHullStatus(hullId: number, status: ShipHullStatus): void {
   if (hull.owner === "market") dispatchMerchantHullChanged(hull);
 }
 
+function applyDuty(hull: ShipHull, duty: ShipHullDuty | undefined): void {
+  hull.duty = duty;
+}
+
+/** Berth a merchant (or idle navy) hull at a port without starting a patrol. */
+export function berthHullAtPort(hullId: number, burgId: number): void {
+  const hull = getShipbuildingRuntimeState().hulls[hullId];
+  if (!hull) return;
+  hull.status = "docked";
+  hull.currentBurgId = burgId;
+  hull.nextBurgId = null;
+  hull.caravanId = null;
+  hull.routeProgress = 0;
+  applyDuty(hull, "idle");
+  hull.maintenanceDays = undefined;
+  if (hull.owner === "market") dispatchMerchantHullChanged(hull);
+}
+
+/**
+ * Bind merchant hulls to a cargo caravan (Economy reservation). Sets status cargo and
+ * itinerary for the sail leg. Phase 1 reserves only at departure, so duty is "cargo".
+ */
+export function reserveMerchantHullsForCargo(args: {
+  hullIds: readonly number[];
+  caravanId?: number;
+  originBurgId?: number | null;
+  destinationBurgId?: number | null;
+}): boolean {
+  const runtime = getShipbuildingRuntimeState();
+  const hulls = args.hullIds.map(id => runtime.hulls[id]);
+  if (hulls.some(hull => !hull || hull.owner !== "market" || (hull.status !== "docked" && hull.status !== "voyage"))) {
+    return false;
+  }
+
+  for (const hull of hulls) {
+    if (!hull) continue;
+    hull.status = "cargo";
+    hull.caravanId = args.caravanId ?? null;
+    hull.currentBurgId = null; // at sea for Phase 1 (reserve-at-depart)
+    hull.nextBurgId = args.destinationBurgId ?? null;
+    hull.routeProgress = 0;
+    applyDuty(hull, "cargo");
+    dispatchMerchantHullChanged(hull);
+  }
+  return true;
+}
+
+/** Release merchant hulls from cargo after arrival or loss. */
+export function releaseMerchantHullsFromCargo(args: {
+  hullIds: readonly number[];
+  outcome: "arrived" | "lost";
+  destinationBurgId?: number | null;
+}): boolean {
+  const runtime = getShipbuildingRuntimeState();
+  const hulls = args.hullIds.map(id => runtime.hulls[id]);
+  if (hulls.some(hull => !hull || hull.owner !== "market" || hull.status !== "cargo")) {
+    return false;
+  }
+
+  for (const hull of hulls) {
+    if (!hull) continue;
+    if (args.outcome === "lost") {
+      hull.maintenanceDays = 30;
+      hull.status = "maintenance";
+      hull.caravanId = null;
+      hull.nextBurgId = null;
+      hull.routeProgress = 0;
+      // Keep last known port if any; otherwise home.
+      if (hull.currentBurgId == null) {
+        hull.currentBurgId = args.destinationBurgId ?? hull.homeBurgId;
+      }
+      applyDuty(hull, undefined);
+      dispatchMerchantHullChanged(hull);
+      continue;
+    }
+
+    const berthId = args.destinationBurgId ?? hull.nextBurgId ?? hull.homeBurgId;
+    berthHullAtPort(hull.id, berthId);
+  }
+  return true;
+}
+
+/** Project Economy caravan progress onto bound merchant hulls. */
+export function applyCaravanHullPositions(
+  updates: readonly {
+    hullId: number;
+    caravanId: number;
+    originBurgId: number | null;
+    destinationBurgId: number | null;
+    progress: number;
+    phase: "transit" | "loading";
+  }[]
+): void {
+  const runtime = getShipbuildingRuntimeState();
+  for (const update of updates) {
+    const hull = runtime.hulls[update.hullId];
+    if (!hull || hull.owner !== "market") continue;
+    if (hull.status !== "cargo" && hull.status !== "docked") continue;
+
+    hull.caravanId = update.caravanId;
+    hull.nextBurgId = update.destinationBurgId;
+    hull.routeProgress = Math.max(0, Math.min(1, update.progress));
+    if (update.phase === "transit") {
+      hull.status = "cargo";
+      hull.currentBurgId = null;
+      applyDuty(hull, "cargo");
+    } else {
+      hull.currentBurgId = update.originBurgId;
+      applyDuty(hull, "loading");
+      if (hull.status !== "cargo") hull.status = "cargo";
+    }
+    dispatchMerchantHullChanged(hull);
+  }
+}
+
 export function setMerchantHullMaintenance(hullId: number, maintenanceDays: number): void {
   const hull = getShipbuildingRuntimeState().hulls[hullId];
   if (hull?.owner !== "market") return;
   hull.maintenanceDays = Math.max(0, maintenanceDays);
-  setHullStatus(hullId, hull.maintenanceDays > 0 ? "maintenance" : "voyage");
+  if (hull.maintenanceDays > 0) {
+    hull.status = "maintenance";
+    applyDuty(hull, undefined);
+    if (hull.owner === "market") dispatchMerchantHullChanged(hull);
+    return;
+  }
+  // Recovery: return to idle berth at last/home port (no abstract voyage income).
+  berthHullAtPort(hullId, hull.currentBurgId ?? hull.homeBurgId);
 }
 
 function dispatchMerchantHullChanged(hull: ShipHull): void {
@@ -100,7 +223,12 @@ function dispatchMerchantHullChanged(hull: ShipHull): void {
         shipClassId: hull.shipClassId,
         homeBurgId: hull.homeBurgId,
         ownerId: hull.ownerId,
-        status: hull.status
+        status: hull.status,
+        currentBurgId: hull.currentBurgId ?? null,
+        nextBurgId: hull.nextBurgId ?? null,
+        caravanId: hull.caravanId ?? null,
+        routeProgress: hull.routeProgress ?? 0,
+        duty: hull.duty
       }
     })
   );
@@ -213,17 +341,23 @@ export function registerCompletedHull(args: {
   const runtimeState = getShipbuildingRuntimeState();
   runtimeState.completedHulls[key] = (runtimeState.completedHulls[key] ?? 0) + 1;
 
-  // Wartime navies launch straight into a docked/mobilized state; everything else
-  // (peacetime navies and all merchant hulls) heads straight out to sea rather than
-  // sitting idle — see docs/plan/ships.md "航海訓練・偽装通商・諜報（暫定案）".
-  const staysDocked = owner === "state" && isStateAtWar(ownerId, states);
+  // Merchant hulls berth idle at their home port and wait for cargo (finite fleet P1).
+  // State navy: wartime docked/mobilized; peacetime patrol voyage for training/intel.
+  const isMerchant = owner === "market";
+  const staysDocked = isMerchant || (owner === "state" && isStateAtWar(ownerId, states));
+  const homeBurgId = burg.i!;
   const hull: ShipHull = {
     id: runtimeState.nextHullId++,
     shipClassId,
     owner,
     ownerId,
-    homeBurgId: burg.i!,
-    status: staysDocked ? "docked" : "voyage"
+    homeBurgId,
+    status: staysDocked ? "docked" : "voyage",
+    currentBurgId: staysDocked ? homeBurgId : null,
+    nextBurgId: null,
+    caravanId: null,
+    routeProgress: 0,
+    duty: isMerchant ? "idle" : staysDocked ? "idle" : "patrol"
   };
   runtimeState.hulls[hull.id] = hull;
 

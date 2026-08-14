@@ -85,27 +85,46 @@ function tradeDetailsAddLines(): void {
   });
   const reservation = MerchantTransportAssets.getReservation(caravan.transportReservationId);
   const dispatcherMarket = reservation ? getMarketById(reservation.dispatcherMarketId) : undefined;
-  const transportSummaries = (caravan.transportAllocations ?? []).map(allocation => ({
-    mode: allocation.mode,
-    transportName: allocation.transportName,
-    unitCount: allocation.unitCount,
-    usedSlots: rn(allocation.usedSlots, 2),
-    capacitySlots: rn(allocation.capacitySlots, 2),
-    freeSlots: rn(Math.max(0, allocation.capacitySlots - allocation.usedSlots), 2),
-    utilization: allocation.capacitySlots > 0 ? allocation.usedSlots / allocation.capacitySlots : 0,
-    assetSource:
-      reservation && (allocation.mode === "land" || allocation.mode === "river" || allocation.shipHullIds?.length)
-        ? [
-            dispatcherMarket?.name ?? `Market ${reservation.dispatcherMarketId}`,
-            ...(allocation.mode === "river" ? [`Transfers to ${buyerMarket?.name ?? to?.name ?? "destination"}`] : []),
-            ...(allocation.shipHullIds?.map(hullId => `Hull #${hullId}`) ?? [])
-          ].join(" — ")
-        : "Abstract allocation",
-    reservationState:
-      reservation && (allocation.mode === "land" || allocation.mode === "river" || allocation.shipHullIds?.length)
-        ? reservation.state
-        : undefined
-  }));
+  const routeProgressPct =
+    caravan.state === "transit" && caravan.totalDistance > 0
+      ? Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)
+      : null;
+  const transportSummaries = (caravan.transportAllocations ?? []).map(allocation => {
+    const hullLabels = (allocation.shipHullIds ?? []).map(hullId => {
+      if (caravan.state === "loading") {
+        return `Hull #${hullId} · loading at ${from?.name ?? "origin"}`;
+      }
+      if (routeProgressPct != null) {
+        return `Hull #${hullId} · at sea ${routeProgressPct}% · bound for ${to?.name ?? "destination"}`;
+      }
+      return `Hull #${hullId}`;
+    });
+    return {
+      mode: allocation.mode,
+      transportName: allocation.transportName,
+      unitCount: allocation.unitCount,
+      usedSlots: rn(allocation.usedSlots, 2),
+      capacitySlots: rn(allocation.capacitySlots, 2),
+      freeSlots: rn(Math.max(0, allocation.capacitySlots - allocation.usedSlots), 2),
+      utilization: allocation.capacitySlots > 0 ? allocation.usedSlots / allocation.capacitySlots : 0,
+      assetSource:
+        reservation && (allocation.mode === "land" || allocation.mode === "river" || allocation.shipHullIds?.length)
+          ? [
+              dispatcherMarket?.name ?? `Market ${reservation.dispatcherMarketId}`,
+              ...(allocation.mode === "river"
+                ? [`Transfers to ${buyerMarket?.name ?? to?.name ?? "destination"}`]
+                : []),
+              ...hullLabels
+            ].join(" — ")
+          : allocation.mode === "water"
+            ? "Abstract allocation (no Shipbuilding hull)"
+            : "Abstract allocation",
+      reservationState:
+        reservation && (allocation.mode === "land" || allocation.mode === "river" || allocation.shipHullIds?.length)
+          ? reservation.state
+          : undefined
+    };
+  });
 
   const distUnit = useOptionsState.getState().distanceUnit || "km";
 

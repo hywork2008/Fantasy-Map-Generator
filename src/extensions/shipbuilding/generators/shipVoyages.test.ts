@@ -106,18 +106,20 @@ describe("runVoyageTick", () => {
     expect(intelEvents[0].detail.amount).toBe(3);
   });
 
-  it("never gathers intel for a market-owned hull", () => {
+  it("never gathers intel or abstract voyage income for a market-owned hull", () => {
     const burgs = makeBurgs([{ i: 1, state: 1, capital: 0, citadel: 0 }]); // ordinary port -> market owner
     const states = makeStates([{ i: 1, diplomacy: ["Neutral", "Rival"] }]);
     const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
 
     runShipyardTick(candidates, burgs, states, 5, noSkill);
     expect(getHulls()[0].owner).toBe("market");
+    expect(getHulls()[0].status).toBe("docked");
 
     runVoyageTick(burgs, states, 1);
 
+    expect(getHulls()[0].status).toBe("docked");
     expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-intel")).toHaveLength(0);
-    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(1);
+    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(0);
   });
 
   it("does not claim voyage income while Economy has reserved a merchant hull for cargo", () => {

@@ -30,13 +30,14 @@ import { computePortCapacity, type PortCapacity } from "./generators/portCapacit
 import { runVoyageTick } from "./generators/shipVoyages";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
 import {
+  applyCaravanHullPositions,
   clearShipyardQueues,
   getHulls,
   getInitialStateOwnedDemand,
   getStateNavalCrewCapacity,
-  runShipyardTick,
-  setHullStatus,
-  setMerchantHullMaintenance
+  releaseMerchantHullsFromCargo,
+  reserveMerchantHullsForCargo,
+  runShipyardTick
 } from "./generators/shipyardQueue";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
@@ -66,6 +67,7 @@ let _unregisterTickSystem: (() => void) | null = null;
 let _merchantHullsRequestHandler: ((event: Event) => void) | null = null;
 let _merchantHullReservationRequestHandler: ((event: Event) => void) | null = null;
 let _merchantHullReleaseRequestHandler: ((event: Event) => void) | null = null;
+let _caravanHullPositionsHandler: ((event: Event) => void) | null = null;
 let _fleetCapacityRequestHandler: ((event: Event) => void) | null = null;
 
 function isFleetCapacityRequest(value: unknown): value is { stateId: number; capacity?: number; handled: boolean } {
@@ -85,7 +87,12 @@ function publishMerchantHullSnapshot(): void {
             shipClassId: hull.shipClassId,
             homeBurgId: hull.homeBurgId,
             ownerId: hull.ownerId,
-            status: hull.status
+            status: hull.status,
+            currentBurgId: hull.currentBurgId ?? null,
+            nextBurgId: hull.nextBurgId ?? null,
+            caravanId: hull.caravanId ?? null,
+            routeProgress: hull.routeProgress ?? 0,
+            duty: hull.duty
           }))
       }
     })
@@ -154,15 +161,14 @@ export function init(api: ExtensionAPI): void {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
     const detail = (event as CustomEvent<unknown>).detail;
     if (!isShipbuildingMerchantHullReservationRequest(detail)) return;
-    const hulls = detail.hullIds.map(id => getHulls().find(hull => hull.id === id));
-    if (hulls.some(hull => hull?.owner !== "market" || (hull.status !== "docked" && hull.status !== "voyage"))) {
-      detail.result = "unavailable";
-      return;
-    }
-    for (const hull of hulls) {
-      if (hull) setHullStatus(hull.id, "cargo");
-    }
-    detail.result = "fulfilled";
+    detail.result = reserveMerchantHullsForCargo({
+      hullIds: detail.hullIds,
+      caravanId: detail.caravanId,
+      originBurgId: detail.originBurgId,
+      destinationBurgId: detail.destinationBurgId
+    })
+      ? "fulfilled"
+      : "unavailable";
   };
   document.addEventListener(
     "fmg:shipbuilding-merchant-hull-reservation-request",
@@ -173,19 +179,52 @@ export function init(api: ExtensionAPI): void {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
     const detail = (event as CustomEvent<unknown>).detail;
     if (!isShipbuildingMerchantHullReleaseRequest(detail)) return;
-    const hulls = detail.hullIds.map(id => getHulls().find(hull => hull.id === id));
-    if (hulls.some(hull => hull?.owner !== "market" || hull.status !== "cargo")) {
-      detail.result = "unavailable";
+    if (detail.outcome === "lost") {
+      // releaseMerchantHullsFromCargo handles maintenance; keep path for batch validation.
+      detail.result = releaseMerchantHullsFromCargo({
+        hullIds: detail.hullIds,
+        outcome: "lost",
+        destinationBurgId: detail.destinationBurgId
+      })
+        ? "fulfilled"
+        : "unavailable";
       return;
     }
-    for (const hull of hulls) {
-      if (!hull) continue;
-      if (detail.outcome === "lost") setMerchantHullMaintenance(hull.id, 30);
-      else setHullStatus(hull.id, "voyage");
-    }
-    detail.result = "fulfilled";
+    detail.result = releaseMerchantHullsFromCargo({
+      hullIds: detail.hullIds,
+      outcome: "arrived",
+      destinationBurgId: detail.destinationBurgId
+    })
+      ? "fulfilled"
+      : "unavailable";
   };
   document.addEventListener("fmg:shipbuilding-merchant-hull-release-request", _merchantHullReleaseRequestHandler);
+
+  _caravanHullPositionsHandler = (event: Event) => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<{ updates?: unknown }>).detail;
+    if (!detail || !Array.isArray(detail.updates)) return;
+    const updates = detail.updates.filter(
+      (
+        u
+      ): u is {
+        hullId: number;
+        caravanId: number;
+        originBurgId: number | null;
+        destinationBurgId: number | null;
+        progress: number;
+        phase: "transit" | "loading";
+      } =>
+        Boolean(u) &&
+        typeof u === "object" &&
+        typeof (u as { hullId?: unknown }).hullId === "number" &&
+        typeof (u as { caravanId?: unknown }).caravanId === "number" &&
+        typeof (u as { progress?: unknown }).progress === "number" &&
+        ((u as { phase?: unknown }).phase === "transit" || (u as { phase?: unknown }).phase === "loading")
+    );
+    if (updates.length) applyCaravanHullPositions(updates);
+  };
+  document.addEventListener("fmg:economy-caravan-hull-positions", _caravanHullPositionsHandler);
 
   _unregisterResetCommand = api.registerExtensionCommand({
     extensionId: SHIPBUILDING_EXTENSION_ID,
@@ -411,6 +450,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_merchantHullReleaseRequestHandler) {
     document.removeEventListener("fmg:shipbuilding-merchant-hull-release-request", _merchantHullReleaseRequestHandler);
     _merchantHullReleaseRequestHandler = null;
+  }
+  if (_caravanHullPositionsHandler) {
+    document.removeEventListener("fmg:economy-caravan-hull-positions", _caravanHullPositionsHandler);
+    _caravanHullPositionsHandler = null;
   }
   if (_fleetCapacityRequestHandler) {
     document.removeEventListener("fmg:shipbuilding-fleet-capacity-request", _fleetCapacityRequestHandler);

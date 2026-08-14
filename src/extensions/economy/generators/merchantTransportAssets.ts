@@ -370,6 +370,11 @@ export class MerchantTransportAssetsModule {
     this.waterAssetModeActive = active;
   }
 
+  /** True while Shipbuilding has published a merchant-hull snapshot (finite sea fleet mode). */
+  isWaterAssetModeActive(): boolean {
+    return this.waterAssetModeActive;
+  }
+
   requestMerchantHullSnapshot(): void {
     const detail = { source: "economy" as const, handled: false };
     document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-request", { detail }));
@@ -386,7 +391,11 @@ export class MerchantTransportAssetsModule {
   reserve(
     dispatcherMarketId: number,
     caravanId: number,
-    allocations: readonly TransportAllocation[]
+    allocations: readonly TransportAllocation[],
+    itinerary?: {
+      originBurgId?: number | null;
+      destinationBurgId?: number | null;
+    }
   ): TransportReservationResult | null {
     if (!hasLandAllocation(allocations) && !hasWaterAllocation(allocations) && !hasRiverAllocation(allocations))
       return null;
@@ -421,7 +430,16 @@ export class MerchantTransportAssetsModule {
       ? [...allocations.filter(allocation => allocation.mode !== "water"), ...waterAllocations]
       : allocations.map(allocation => ({ ...allocation }));
     const hullIds = resolvedAllocations.flatMap(allocation => allocation.shipHullIds ?? []);
-    if (hullIds.length && !this.reserveShipbuildingHulls(hullIds)) return null;
+    if (
+      hullIds.length &&
+      !this.reserveShipbuildingHulls(hullIds, {
+        caravanId,
+        originBurgId: itinerary?.originBurgId,
+        destinationBurgId: itinerary?.destinationBurgId
+      })
+    ) {
+      return null;
+    }
 
     for (const { balance, allocation } of balances) {
       if (!balance) continue;
@@ -507,15 +525,37 @@ export class MerchantTransportAssetsModule {
     return resolved;
   }
 
-  private reserveShipbuildingHulls(hullIds: readonly number[]): boolean {
-    const detail = { hullIds, result: undefined as "fulfilled" | "unavailable" | undefined };
+  private reserveShipbuildingHulls(
+    hullIds: readonly number[],
+    itinerary?: {
+      caravanId?: number;
+      originBurgId?: number | null;
+      destinationBurgId?: number | null;
+    }
+  ): boolean {
+    const detail = {
+      hullIds,
+      caravanId: itinerary?.caravanId,
+      originBurgId: itinerary?.originBurgId,
+      destinationBurgId: itinerary?.destinationBurgId,
+      result: undefined as "fulfilled" | "unavailable" | undefined
+    };
     document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-reservation-request", { detail }));
     return detail.result === "fulfilled";
   }
 
-  private releaseShipbuildingHulls(hullIds: readonly number[], outcome: "arrived" | "lost"): void {
+  private releaseShipbuildingHulls(
+    hullIds: readonly number[],
+    outcome: "arrived" | "lost",
+    destinationBurgId?: number | null
+  ): void {
     if (!hullIds.length) return;
-    const detail = { hullIds, outcome, result: undefined as "fulfilled" | "unavailable" | undefined };
+    const detail = {
+      hullIds,
+      outcome,
+      destinationBurgId,
+      result: undefined as "fulfilled" | "unavailable" | undefined
+    };
     document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-release-request", { detail }));
   }
 
@@ -578,7 +618,12 @@ export class MerchantTransportAssetsModule {
       asset.state = "available";
       asset.reservationId = undefined;
     }
-    this.releaseShipbuildingHulls(hullIds, "arrived");
+    // Cancel returns the hull to its home port (no destination berth).
+    this.releaseShipbuildingHulls(
+      hullIds,
+      "arrived",
+      ledger.waterAssets.find(asset => hullIds.includes(asset.shipHullId))?.homeBurgId ?? null
+    );
     reservation.state = "cancelled";
   }
 
@@ -643,7 +688,13 @@ export class MerchantTransportAssetsModule {
       asset.state = outcome === "arrived" ? "available" : "maintenance";
       asset.reservationId = undefined;
     }
-    this.releaseShipbuildingHulls(hullIds, outcome);
+    const destinationBurgId =
+      caravan.buyerType === "burg" && typeof caravan.buyer === "number"
+        ? caravan.buyer
+        : caravan.buyerType === "market" && typeof caravan.buyer === "number"
+          ? (getMarketById(caravan.buyer)?.centerBurgId ?? null)
+          : null;
+    this.releaseShipbuildingHulls(hullIds, outcome, destinationBurgId);
     reservation.state = outcome === "arrived" ? "released" : "lost";
   }
 

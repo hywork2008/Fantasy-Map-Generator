@@ -1,7 +1,7 @@
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getShipClass } from "./shipClasses";
-import { getHulls, isStateAtWar, type ShipHull, setHullStatus } from "./shipyardQueue";
+import { berthHullAtPort, getHulls, isStateAtWar, type ShipHull, setHullStatus } from "./shipyardQueue";
 
 // Placeholder balance constants — see docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
 const GOLD_PER_BUILD_POINT_PER_YEAR = 4;
@@ -11,39 +11,56 @@ const INTEL_GAIN_PER_YEAR = 3;
 const RELATION_WATCH_PRIORITY = ["Enemy", "Rival", "Suspicion"];
 
 /**
- * Docked hulls not needed for war put to sea disguised as merchants — training crews,
- * earning gold, and (state-navy hulls only) gathering intelligence on a rival state —
- * instead of sitting idle filling up the port. Merchant-owned hulls have no war-recall
- * condition at all: they're civilian craft, always out trading once launched. See
- * docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）") for the full design.
+ * State-navy patrol / recall tick. Merchant hulls no longer earn abstract voyage gold —
+ * they wait idle in port and earn via Economy cargo deals
+ * (docs/plan/vessel-itinerary-and-finite-trade-fleet.md P1).
  */
 export function runVoyageTick(burgs: readonly Burg[], states: readonly State[], deltaYears: number): void {
   if (deltaYears <= 0) return;
 
   for (const hull of getHulls()) {
     if (hull.status === "cargo") continue;
+
     if (hull.status === "maintenance") {
       const remainingDays = Math.max(0, (hull.maintenanceDays ?? 0) - deltaYears * 365.2425);
       hull.maintenanceDays = remainingDays;
       if (remainingDays > 0) continue;
+      // Merchants return to an idle berth; navy resumes patrol below.
+      if (hull.owner === "market") {
+        berthHullAtPort(hull.id, hull.currentBurgId ?? hull.homeBurgId);
+        continue;
+      }
       setHullStatus(hull.id, "voyage");
+      hull.duty = "patrol";
+      hull.currentBurgId = null;
     }
-    // `state`/`ownerId` use 0 as the "no state" sentinel throughout this codebase
-    // (e.g. `determineOwner()` in shipyardQueue.ts), so falsy — not just undefined —
-    // means "no treasury to credit."
+
+    // Merchant ships: no abstract voyage income; do not auto-undock.
+    if (hull.owner === "market") continue;
+
     const stateId = resolveHullStateId(hull, burgs);
     const atWar = Boolean(stateId) && isStateAtWar(stateId!, states);
 
-    if (hull.owner === "state" && atWar) {
-      if (hull.status === "voyage") setHullStatus(hull.id, "docked");
-      continue; // recalled/mobilized for the war effort — no income, no intel, no berth freed
+    if (atWar) {
+      if (hull.status === "voyage") {
+        setHullStatus(hull.id, "docked");
+        hull.duty = "idle";
+        hull.currentBurgId = hull.homeBurgId;
+        hull.nextBurgId = null;
+        hull.routeProgress = 0;
+      }
+      continue; // mobilized — no income, no intel
     }
 
-    if (hull.status === "docked") setHullStatus(hull.id, "voyage");
-    if (!stateId) continue; // stateless free-city hull — no treasury to credit
+    if (hull.status === "docked") {
+      setHullStatus(hull.id, "voyage");
+      hull.duty = "patrol";
+      hull.currentBurgId = null;
+    }
+    if (!stateId) continue;
 
     dispatchVoyageIncome(hull, stateId, deltaYears);
-    if (hull.owner === "state") dispatchVoyageIntel(stateId, states, deltaYears);
+    dispatchVoyageIntel(stateId, states, deltaYears);
   }
 }
 

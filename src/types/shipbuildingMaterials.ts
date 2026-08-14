@@ -25,6 +25,12 @@ export interface ShipbuildingMerchantHullSnapshot {
   homeBurgId: number;
   ownerId: number;
   status: "docked" | "voyage" | "cargo" | "maintenance";
+  /** Optional itinerary fields (P1); older snapshots omit them. */
+  currentBurgId?: number | null;
+  nextBurgId?: number | null;
+  caravanId?: number | null;
+  routeProgress?: number;
+  duty?: "idle" | "loading" | "cargo" | "ballast" | "patrol";
 }
 
 /** Economy requests a fresh snapshot without importing Shipbuilding internals. */
@@ -41,6 +47,12 @@ export interface ShipbuildingMerchantHullsSnapshot {
 /** Mutable synchronous request to take one or more hulls out of Shipbuilding voyages. */
 export interface ShipbuildingMerchantHullReservationRequest {
   hullIds: readonly number[];
+  /** Economy Caravan binding this reservation (set when known). */
+  caravanId?: number;
+  /** Origin port burg for the cargo leg. */
+  originBurgId?: number | null;
+  /** Destination port burg for the cargo leg. */
+  destinationBurgId?: number | null;
   result?: "fulfilled" | "unavailable";
 }
 
@@ -48,7 +60,24 @@ export interface ShipbuildingMerchantHullReservationRequest {
 export interface ShipbuildingMerchantHullReleaseRequest {
   hullIds: readonly number[];
   outcome: "arrived" | "lost";
+  /** Arrival port when outcome is "arrived"; used to berth idle hulls. */
+  destinationBurgId?: number | null;
   result?: "fulfilled" | "unavailable";
+}
+
+/** Economy projects live caravan progress onto reserved merchant hulls each tick. */
+export interface EconomyCaravanHullPositionUpdate {
+  hullId: number;
+  caravanId: number;
+  originBurgId: number | null;
+  destinationBurgId: number | null;
+  /** 0..1 progress along the caravan route. */
+  progress: number;
+  phase: "transit" | "loading";
+}
+
+export interface EconomyCaravanHullPositionsDetail {
+  updates: readonly EconomyCaravanHullPositionUpdate[];
 }
 export const SHIP_GOOD_NAMES = ["Sloop", "Caravel", "Galleon"] as const;
 export type ShipGoodName = (typeof SHIP_GOOD_NAMES)[number];

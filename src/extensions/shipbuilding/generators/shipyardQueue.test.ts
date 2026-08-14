@@ -402,8 +402,10 @@ describe("shipyardQueue", () => {
     };
 
     // Tech points + technology-graph gate (oceanGoingHulls demonstrated) unlock Caravel.
+    // Keep market main-queue materials dry so we do not fill berths with idle hulls (P1)
+    // before the surplus stream is exercised.
     unlockOceanGoingHulls(1, "demonstrated");
-    runShipyardTick(candidates, burgs, [], 50, noSkill);
+    runShipyardTick(candidates, burgs, [], 50, noSkill, requestMaterials);
     runShipyardTick(
       candidates,
       burgs,
@@ -472,7 +474,8 @@ describe("shipyardQueue", () => {
     };
 
     // Sink half a Sloop's worth of progress (and materials) while Caravel is still locked.
-    runShipyardTick(candidates, burgs, [], 1, noSkill); // tech warm-up, doesn't touch the surplus stream
+    // Market materials stay dry so the main queue does not park idle hulls in the berths.
+    runShipyardTick(candidates, burgs, [], 1, noSkill, requestMaterials); // tech warm-up
     runShipyardTick(
       candidates,
       burgs,
@@ -490,7 +493,7 @@ describe("shipyardQueue", () => {
     // Cross the Caravel tech threshold via a plain (non-surplus) tick, then report a Sloop
     // already in stock (e.g. imported by trade) — exactly the condition that would otherwise
     // make the heuristic switch the in-progress hull to Caravel.
-    runShipyardTick(candidates, burgs, [], 50, noSkill);
+    runShipyardTick(candidates, burgs, [], 50, noSkill, requestMaterials);
     runShipyardTick(
       candidates,
       burgs,
@@ -534,7 +537,7 @@ describe("shipyardQueue", () => {
   });
 
   describe("hull lifecycle (docs/plan/ships.md 航海訓練・偽装通商・諜報)", () => {
-    it("launches a peacetime-completed market hull straight to voyage, occupying no berth", () => {
+    it("berths a peacetime-completed market hull idle at home (finite fleet P1)", () => {
       const burgs = makeBurgs([{ i: 1, state: 0 }]);
       const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
 
@@ -542,17 +545,29 @@ describe("shipyardQueue", () => {
 
       const hulls = getHullsAtBurg(1);
       expect(hulls).toHaveLength(1);
-      expect(hulls[0]).toMatchObject({ owner: "market", ownerId: 1, homeBurgId: 1, status: "voyage" });
+      expect(hulls[0]).toMatchObject({
+        owner: "market",
+        ownerId: 1,
+        homeBurgId: 1,
+        status: "docked",
+        duty: "idle",
+        currentBurgId: 1
+      });
     });
 
-    it("launches a peacetime-completed state hull straight to voyage as well", () => {
+    it("launches a peacetime-completed state hull on patrol voyage", () => {
       const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
       const states = makeStates([{ i: 1, diplomacy: [] }]);
       const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
 
       runShipyardTick(candidates, burgs, states, 5, noSkill);
 
-      expect(getHullsAtBurg(1)[0]).toMatchObject({ owner: "state", ownerId: 1, status: "voyage" });
+      expect(getHullsAtBurg(1)[0]).toMatchObject({
+        owner: "state",
+        ownerId: 1,
+        status: "voyage",
+        duty: "patrol"
+      });
     });
 
     it("keeps a wartime-completed state hull docked/mobilized", () => {

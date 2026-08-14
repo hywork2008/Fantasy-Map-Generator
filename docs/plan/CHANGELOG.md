@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-15
+
+- docs/plan/vessel-itinerary-and-finite-trade-fleet.md
+
 2026-08-14
 
 - docs/plan/mineral-resource-system.md

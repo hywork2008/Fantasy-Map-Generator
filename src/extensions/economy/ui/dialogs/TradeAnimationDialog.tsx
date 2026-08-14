@@ -16,7 +16,34 @@ import {
   TradeLogisticsSettings,
   type TradeLogisticsSettings as TradeLogisticsSettingsType
 } from "../../generators/tradeLogisticsSettings";
-import { formatSailDecisionReason } from "../../generators/tradeSailSchedule";
+import { formatSailDecisionReason, routeHasWater } from "../../generators/tradeSailSchedule";
+
+/** Finite-fleet P2: label concrete hulls, or explain abstract / waiting water capacity. */
+function formatCaravanVessels(caravan: Caravan): string {
+  const allocations = caravan.transportAllocations ?? [];
+  const hullParts: string[] = [];
+  for (const allocation of allocations) {
+    for (const hullId of allocation.shipHullIds ?? []) {
+      const className = allocation.transportName || allocation.transportId || "Ship";
+      hullParts.push(`Hull #${hullId} ${className}`);
+    }
+  }
+  if (hullParts.length) return hullParts.join(", ");
+
+  const needsSea =
+    routeHasWater(caravan.routeSegments ?? []) &&
+    (caravan.routeSegments ?? []).some(segment => segment.type === "water" || segment.type === "sea");
+  if (needsSea) {
+    if (caravan.state === "loading") return "Waiting for vessel";
+    return "Abstract (no Shipbuilding)";
+  }
+
+  const land = allocations.filter(a => a.mode === "land" || a.mode === "river");
+  if (land.length) {
+    return land.map(a => `${a.unitCount}× ${a.transportName || a.transportId}`).join(", ");
+  }
+  return "—";
+}
 
 const tabButtonStyle = (active: boolean): React.CSSProperties => ({
   padding: "4px 12px",
@@ -164,6 +191,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         statusLabel: c.state === "loading" ? "Loading" : "In transit",
         reasonLabel: formatSailDecisionReason(c.departReason),
         goodName,
+        vesselsLabel: formatCaravanVessels(c),
         sourceBurgName,
         targetBurgName,
         distance: Math.round(c.totalDistance),
@@ -215,6 +243,14 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
                 onSort={handleSort}
               />
               <SortableHeader field="goodName" label="Good" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader
+                field="vesselsLabel"
+                label="Vessels"
+                tip="Concrete Shipbuilding hulls when reserved; sea loads wait without a free vessel"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <SortableHeader
                 field="sourceBurgName"
                 label="From"
@@ -276,7 +312,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
           {sortedRows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={10}>No loading or in-transit caravans</td>
+                <td colSpan={11}>No loading or in-transit caravans</td>
               </tr>
             </tbody>
           ) : (
@@ -300,6 +336,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
                   <td>{row.statusLabel}</td>
                   <td>{row.reasonLabel}</td>
                   <td>{row.goodName}</td>
+                  <td>{row.vesselsLabel}</td>
                   <td>{row.sourceBurgName}</td>
                   <td>{row.targetBurgName}</td>
                   <td className="numeric">{`${row.distance} ${distanceUnit}`}</td>
