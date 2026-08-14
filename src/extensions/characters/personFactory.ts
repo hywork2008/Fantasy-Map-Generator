@@ -2,6 +2,7 @@ import { tryRollMythicPersonName } from "../../data/personNames";
 import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "../../data/raceBoundServitors";
 import {
   DEFAULT_RACE_KEY,
+  getRaceBeautyIdeal,
   getRaceById,
   HUMAN_RACE_ID,
   raceIdByKey,
@@ -9,11 +10,12 @@ import {
   UNKNOWN_RACE_ID
 } from "../../data/races";
 import type { RaceFertility } from "../../types/models";
+import { APPEARANCE_AXIS_IDS } from "../../types/models";
 import { Names } from "../hostCore";
 import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
 import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
-import { rollLooksForRace } from "./appearance";
+import { ownRaceAppearanceScore, rollLooksForRace } from "./appearance";
 import { HEALTH_FULL } from "./characterHealth";
 import {
   getAbilityPreset,
@@ -26,6 +28,7 @@ import type {
   AbilityProfile,
   Character,
   CharacterFamily,
+  CharacterGenerationBias,
   CharacterPersonality,
   CharacterRoleClass,
   CharacterSkills,
@@ -45,7 +48,8 @@ import {
   maleShareForRace,
   raceLateMarriageThresholds,
   raceUsesEpisodicPairing,
-  rollDefaultAdultAge
+  rollDefaultAdultAge,
+  rollYoungAdultAge
 } from "./raceAge";
 import { rollCharacterPersonality } from "./racePersonalityBias";
 import { isEnemyDedicatedRaceKey, isEnemyDedicatedRole } from "./raceSkillBias";
@@ -61,6 +65,78 @@ export const APPEARANCE_STDDEV = 15;
 /** Peak scalar sample (1–100) — used by tests and as a simple noise source. Prefer looks axes. */
 export function rollPeakAppearance(): number {
   return Math.max(1, Math.min(100, gauss(APPEARANCE_MEAN, APPEARANCE_STDDEV, 1, 100, 0)));
+}
+
+/**
+ * "Young & striking" generation bias tuning (Nobility's opt-in generationBias option).
+ *
+ * GENERATION_BIAS_MAJORITY_SHARE: P(male) under "youngMaleHeavy" (and P(female) under
+ * "youngFemaleHeavy", by symmetry) — many of one gender, few of the other, not an absolute lock,
+ * mirroring how FEUDAL_MALE_SHARE (0.9) already models a lopsided-but-not-total default.
+ *
+ * GENERATION_BIAS_APPEARANCE_BOOST: axis points forwarded to rollLooksForRace's appearanceBiasBoost.
+ * Each weighted axis's ideal-facing component shifts by ~this amount, and expandAppearanceScore
+ * multiplies raw shifts by APPEARANCE_SCORE_SPREAD (2.35) — so 12 points aims the Appearance median
+ * at roughly 50 + 12 * 2.35 ≈ 78 (clamped 1–100), a high median without flattening every roll to 100.
+ */
+export const GENERATION_BIAS_MAJORITY_SHARE = 0.85;
+export const GENERATION_BIAS_APPEARANCE_BOOST = 12;
+
+/**
+ * Hard cap on how many *living* characters may carry a perfect 100 Appearance score at once,
+ * regardless of map/roster size. 100 is meant to read as a rare, legendary outlier ("the fairest
+ * in the realm"), not a routine outcome of GENERATION_BIAS_APPEARANCE_BOOST's high median — see
+ * enforcePerfectAppearanceCap(), which callers run after every character creation.
+ */
+export const MAX_PERFECT_APPEARANCE_CHARACTERS = 3;
+
+/**
+ * Pushes a character's Appearance strictly below 100 by nudging their `looks` axes back off
+ * whichever race-ideal direction they're weighted towards, then recomputing the cached
+ * `appearance` score so the two stay consistent for attractiveness() callers. Bounded iteration
+ * count is a safety net, not a tuning knob — a handful of 3-point nudges is always enough to clear
+ * the ~21-raw-point margin expandAppearanceScore needs to reach 100.
+ */
+function nudgeLooksBelowPerfect(character: Character): void {
+  if (!character.looks) return;
+  const races = (() => {
+    try {
+      return getWorldContext().pack.races;
+    } catch {
+      return undefined;
+    }
+  })();
+  const raceId = character.race ?? HUMAN_RACE_ID;
+  const ideal = getRaceBeautyIdeal(races, raceId);
+  let guard = 0;
+  while (character.appearance >= 100 && guard < 25) {
+    for (const axis of APPEARANCE_AXIS_IDS) {
+      const weight = ideal.weights[axis];
+      if (!weight) continue;
+      character.looks[axis] =
+        weight > 0 ? Math.max(1, character.looks[axis] - 3) : Math.min(100, character.looks[axis] + 3);
+    }
+    character.appearance = ownRaceAppearanceScore(character.looks, raceId, races);
+    guard++;
+  }
+}
+
+/**
+ * Enforces MAX_PERFECT_APPEARANCE_CHARACTERS: if `character` rolled a perfect 100 Appearance but
+ * `priorRoster` (the rest of the living roster this character is joining — must exclude
+ * `character` itself) already holds the full budget of 100s, nudges `character` down to a still
+ * very high but non-perfect score instead. Call once per newly created character, right after
+ * createPerson() and before adding them to the roster the next character's call will see.
+ */
+export function enforcePerfectAppearanceCap(
+  character: Character,
+  priorRoster: readonly Pick<Character, "appearance" | "dead">[],
+  maxPerfect: number = MAX_PERFECT_APPEARANCE_CHARACTERS
+): void {
+  if (character.appearance < 100) return;
+  const existingPerfect = priorRoster.filter(c => !c.dead && c.appearance >= 100).length;
+  if (existingPerfect < maxPerfect) return;
+  nudgeLooksBelowPerfect(character);
 }
 
 /** How strongly a character's role encourages forming a household. */
@@ -109,6 +185,14 @@ export interface CreatePersonOptions {
    * Drives looks, fertility, gender policy, and Character.race.
    */
   raceOverride?: number;
+  /**
+   * Opt-in directorial skew — omit (or "none") for the existing fully-random rolls. When set,
+   * overrides age (young-adult band, even over a caller-supplied `ageOverride`), Appearance
+   * (high-median boost), and gender ratio (lopsided towards the named gender, unless the race has
+   * a hard `female_only` lore lock). Currently only passed by Nobility's character creation —
+   * see getCharacterGenerationBias() in src/extensions/nobility/nobilityContext.ts.
+   */
+  generationBias?: CharacterGenerationBias;
 }
 
 /**
@@ -157,17 +241,29 @@ export function getRaceCharacterGenderMode(cultureId: number, raceId?: number): 
 /**
  * Resolve gender for a new person:
  * 1. explicit `genderOverride`
- * 2. race / culture `characterGender` policy (`female_only` / `balanced` / `male_dominant`)
- * 3. default from typical lifespan — short-lived ≈ feudal male court bias; long-lived ≈
+ * 2. race lore lock — Amazones (`female_only`) is always female, even under a generationBias
+ *    request, for every createPerson path without genderOverride.
+ * 3. explicit `generationBias` request ("youngMaleHeavy" / "youngFemaleHeavy") — overrides the
+ *    race/culture `characterGender` policy and the lifespan default below with a lopsided ratio
+ *    favoring the named gender (GENERATION_BIAS_MAJORITY_SHARE).
+ * 4. race / culture `characterGender` policy (`balanced` / `male_dominant`)
+ * 5. default from typical lifespan — short-lived ≈ feudal male court bias; long-lived ≈
  *    parity with a slight female majority (lower reproductive time-tax + male protector deaths).
- *
- * Amazones (`female_only`) forces female for every createPerson path without genderOverride.
  */
-export function resolvePersonGender(cultureId: number, genderOverride?: Gender, raceId?: number): Gender {
+export function resolvePersonGender(
+  cultureId: number,
+  genderOverride?: Gender,
+  raceId?: number,
+  generationBias?: CharacterGenerationBias
+): Gender {
   if (genderOverride) return genderOverride;
 
   const mode = getRaceCharacterGenderMode(cultureId, raceId);
   if (mode === "female_only") return "female";
+
+  if (generationBias === "youngMaleHeavy") return P(GENERATION_BIAS_MAJORITY_SHARE) ? "male" : "female";
+  if (generationBias === "youngFemaleHeavy") return P(1 - GENERATION_BIAS_MAJORITY_SHARE) ? "male" : "female";
+
   if (mode === "balanced") return P(0.5) ? "male" : "female";
   if (mode === "male_dominant") return P(FEUDAL_MALE_SHARE) ? "male" : "female";
 
@@ -396,7 +492,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     genderOverride,
     raceOverride,
     homeStateId,
-    marriageExpectation = "ordinary"
+    marriageExpectation = "ordinary",
+    generationBias
   } = options;
   const isReligiousRole = options.isReligiousRole ?? false;
   const presetId = getSelectedAbilityPresetId();
@@ -435,9 +532,17 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   }
   race = resolveAllowedCharacterRaceId(race, packRaces);
   // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
-  const gender: Gender = resolvePersonGender(cultureId, genderOverride, race);
+  const gender: Gender = resolvePersonGender(cultureId, genderOverride, race, generationBias);
   // Ages scale with race maturity + lifespan (elves are not rolled as 28–65 year “adults”).
-  const age = ageOverride !== undefined ? ageOverride : rollDefaultAdultAge(race);
+  // A generationBias request always wins the age roll, even over a caller-supplied ageOverride
+  // (e.g. Nobility's rollOfficerAge/rollRulerAge/rollHereditaryHeirAge pre-rolls) — only Nobility
+  // ever passes generationBias, so this never surprises any other createPerson caller.
+  const isYoungBiased = generationBias === "youngMaleHeavy" || generationBias === "youngFemaleHeavy";
+  const age = isYoungBiased
+    ? rollYoungAdultAge(race)
+    : ageOverride !== undefined
+      ? ageOverride
+      : rollDefaultAdultAge(race);
 
   // Long-lived races (elf, dwarf, …) take no human mid-life age penalties on looks/prowess.
   const raceLifespan = (() => {
@@ -449,7 +554,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   })();
   const skipAgePenalty = raceIgnoresAgeDecline(raceLifespan);
   const declineThreshold = skipAgePenalty ? Number.POSITIVE_INFINITY : DECLINE_AGE_THRESHOLD;
-  const { looks, appearance } = rollLooksForRace(race, age, declineThreshold);
+  const appearanceBiasBoost = isYoungBiased ? GENERATION_BIAS_APPEARANCE_BOOST : 0;
+  const { looks, appearance } = rollLooksForRace(race, age, declineThreshold, appearanceBiasBoost);
 
   // CK3-specific occupation, personality, and minor-development rolls do not
   // exist on D&D characters. Their values live exclusively in abilityProfile.

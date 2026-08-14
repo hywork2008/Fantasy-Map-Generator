@@ -13,7 +13,7 @@ import {
 import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
-import { createPerson } from "../../characters/personFactory";
+import { createPerson, enforcePerfectAppearanceCap } from "../../characters/personFactory";
 import {
   careerStartAge,
   directChildAgeGap,
@@ -34,7 +34,13 @@ import { calculateCharacterTraits } from "../../characters/utils/personalityUtil
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
-import { getCurrentYear, getRulerId, getWorldContext, setRulerId } from "../nobilityContext";
+import {
+  getCharacterGenerationBias,
+  getCurrentYear,
+  getRulerId,
+  getWorldContext,
+  setRulerId
+} from "../nobilityContext";
 
 /** True when the state's culture race is enemy-dedicated (goblin warbands, etc.). */
 function stateIsEnemyDedicated(state: Pick<State, "culture">): boolean {
@@ -121,6 +127,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
 
   const currentYear = getCurrentYear();
   const states = pack.states.filter(s => s.i && !s.removed);
+  const generationBias = getCharacterGenerationBias();
 
   for (const state of states) {
     const culture = pack.cultures?.[state.culture];
@@ -134,8 +141,10 @@ function generate(options: { randomSeed?: string | number } = {}): void {
       marriageExpectation: "dynastic",
       isReligiousRole: isReligiousForm(state),
       roleClass: "ruler",
-      raceOverride: rulerIds.raceId
+      raceOverride: rulerIds.raceId,
+      generationBias
     });
+    enforcePerfectAppearanceCap(ruler, characters);
     ruler.location = state.capital;
     ruler.titles.push({
       title: resolveRulerTitle(state, ruler.gender),
@@ -177,8 +186,10 @@ function generate(options: { randomSeed?: string | number } = {}): void {
         primarySkill: office.primarySkill,
         isReligiousRole: religious,
         roleClass: officerRoleClass,
-        raceOverride: ids.raceId
+        raceOverride: ids.raceId,
+        generationBias
       });
+      enforcePerfectAppearanceCap(officer, characters);
       officer.location = state.capital;
       officer.titles.push({
         title: office.title,
@@ -314,8 +325,10 @@ function createOfficer(
     isReligiousRole: isReligiousForm(state, "martial"),
     ageOverride: rollOfficerAge(ids.raceId),
     roleClass: "commander",
-    raceOverride: ids.raceId
+    raceOverride: ids.raceId,
+    generationBias: getCharacterGenerationBias()
   });
+  enforcePerfectAppearanceCap(officer, pack.characters);
   officer.location = state.capital;
   officer.titles.push({
     title,
@@ -356,8 +369,10 @@ function createProvinceLord(
     isReligiousRole: isReligiousForm(state, "martial"),
     ageOverride: rollRulerAge(ids.raceId),
     roleClass: "province_lord",
-    raceOverride: ids.raceId
+    raceOverride: ids.raceId,
+    generationBias: getCharacterGenerationBias()
   });
+  enforcePerfectAppearanceCap(lord, pack.characters);
   lord.location = province.burg;
   lord.titles.push({
     title: resolveProvinceLordTitle(province, lord.gender),
@@ -557,6 +572,7 @@ function processSuccessions(): void {
   const { pack } = getWorldContext();
   const states = pack.states.filter(s => s.i && !s.removed);
   let nextId = Math.max(0, ...pack.characters.map(c => c.i)) + 1;
+  const generationBias = getCharacterGenerationBias();
 
   for (const state of states) {
     const livingStateChars = pack.characters.filter(
@@ -591,8 +607,10 @@ function processSuccessions(): void {
         isReligiousRole: isReligiousForm(state),
         ageOverride: heirAge,
         roleClass: "ruler",
-        raceOverride: heirIds.raceId
+        raceOverride: heirIds.raceId,
+        generationBias
       });
+      enforcePerfectAppearanceCap(heir, pack.characters);
 
       // Setup Heir relationships if possible
       if (currentRuler && isHereditary) {
@@ -735,8 +753,10 @@ function processSuccessions(): void {
         primarySkill: office.primarySkill,
         isReligiousRole: religious,
         roleClass: officerRoleClass,
-        raceOverride: ids.raceId
+        raceOverride: ids.raceId,
+        generationBias
       });
+      enforcePerfectAppearanceCap(officer, pack.characters);
       officer.location = state.capital;
       officer.titles.push({
         title: office.title,

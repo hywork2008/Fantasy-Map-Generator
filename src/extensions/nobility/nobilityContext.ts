@@ -6,8 +6,10 @@
  * module instances when the extension is loaded via a blob URL.
  */
 
+import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { State } from "../../types/models";
+import type { CharacterGenerationBias } from "../characters/characterTypes";
 import type { ConflictAuthorization } from "./types";
 
 let _api: ExtensionAPI | null = null;
@@ -32,6 +34,22 @@ export function getApi(): ExtensionAPI {
 
 export function getWorldContext() {
   return getApi().worldContext;
+}
+
+/**
+ * Standing user preference for skewing every character Nobility creates (see
+ * uiPreferencesState.ts's nobilityCharacterGenerationBias). Read directly from the Zustand store
+ * rather than threaded through every generator call — the setting is a stable, persisted UI
+ * preference, not per-call state, the same rationale economy/index.tsx uses for
+ * economySkipTradeOnGenerate. Falls back to "none" (fully random, unchanged behavior) when read
+ * without a mounted store (e.g. minimal test doubles).
+ */
+export function getCharacterGenerationBias(): CharacterGenerationBias {
+  try {
+    return useUiPreferencesState.getState().nobilityCharacterGenerationBias;
+  } catch {
+    return "none";
+  }
 }
 
 /**

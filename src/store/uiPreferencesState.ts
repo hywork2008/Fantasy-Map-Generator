@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+/**
+ * Kept as a standalone literal union (rather than importing the extension's
+ * CharacterGenerationBias type) so this host-level store never depends on `src/extensions/*` —
+ * see AGENTS.md's unidirectional State → Generator/Renderer/Editor layering. The extension re-uses
+ * the identical string values; see CharacterGenerationBias in src/extensions/characters/characterTypes.ts.
+ */
+type NobilityCharacterGenerationBias = "none" | "youngMaleHeavy" | "youngFemaleHeavy";
+
 type UiPreferencesState = {
   dontAskRegenerateFeature: boolean;
   setDontAskRegenerateFeature: (value: boolean) => void;
@@ -13,6 +21,16 @@ type UiPreferencesState = {
    */
   economySkipTradeOnGenerate: boolean;
   setEconomySkipTradeOnGenerate: (value: boolean) => void;
+  /**
+   * Standing directorial skew for every character the Nobility extension creates (rulers,
+   * central officers, field/fleet officers, province lords, and successions). "none" keeps the
+   * existing fully-random rolls. Read via getCharacterGenerationBias() in
+   * src/extensions/nobility/nobilityContext.ts, which personFactory.ts's createPerson() consumes
+   * to skew age, Appearance, and gender. See docs on CharacterGenerationBias for the exact effect
+   * of each mode.
+   */
+  nobilityCharacterGenerationBias: NobilityCharacterGenerationBias;
+  setNobilityCharacterGenerationBias: (value: NobilityCharacterGenerationBias) => void;
 };
 
 export const useUiPreferencesState = create<UiPreferencesState>()(
@@ -21,7 +39,10 @@ export const useUiPreferencesState = create<UiPreferencesState>()(
       dontAskRegenerateFeature: false,
       setDontAskRegenerateFeature: (value: boolean) => set({ dontAskRegenerateFeature: value }),
       economySkipTradeOnGenerate: false,
-      setEconomySkipTradeOnGenerate: (value: boolean) => set({ economySkipTradeOnGenerate: value })
+      setEconomySkipTradeOnGenerate: (value: boolean) => set({ economySkipTradeOnGenerate: value }),
+      nobilityCharacterGenerationBias: "none",
+      setNobilityCharacterGenerationBias: (value: NobilityCharacterGenerationBias) =>
+        set({ nobilityCharacterGenerationBias: value })
     }),
     { name: "fmg-ui-preferences" }
   )

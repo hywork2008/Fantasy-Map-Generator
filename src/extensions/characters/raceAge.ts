@@ -41,6 +41,10 @@ export const GENDER_EQUALITY_LIFESPAN_FULL = 500;
 export const HUMAN_DEFAULT_ADULT_MIN = 28;
 export const HUMAN_DEFAULT_ADULT_MAX = 65;
 
+/** "Young" generation-bias band in human years — freshly of age, well short of HUMAN_DEFAULT_ADULT_MIN. */
+export const HUMAN_YOUNG_ADULT_MIN = 18;
+export const HUMAN_YOUNG_ADULT_MAX = 30;
+
 /** Field / fleet officers. */
 export const HUMAN_OFFICER_MIN = 22;
 export const HUMAN_OFFICER_MAX = 60;
@@ -184,6 +188,11 @@ export function rollRaceAgeFromHumanBand(raceId: number | undefined, humanMin: n
 
 export function rollDefaultAdultAge(raceId: number | undefined): number {
   return rollRaceAgeFromHumanBand(raceId, HUMAN_DEFAULT_ADULT_MIN, HUMAN_DEFAULT_ADULT_MAX);
+}
+
+/** Young generation-bias age roll — see createPerson()'s generationBias handling in personFactory.ts. */
+export function rollYoungAdultAge(raceId: number | undefined): number {
+  return rollRaceAgeFromHumanBand(raceId, HUMAN_YOUNG_ADULT_MIN, HUMAN_YOUNG_ADULT_MAX);
 }
 
 export function rollOfficerAge(raceId: number | undefined): number {

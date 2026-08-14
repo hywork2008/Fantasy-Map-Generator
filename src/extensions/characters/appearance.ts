@@ -15,7 +15,7 @@
  * Lore: docs/world/help/races-beauty-and-pairing.md
  */
 import { getRaceBeautyIdeal, getRaceById, getRaceLooksBaseline, HUMAN_RACE_ID } from "../../data/races";
-import type { AppearanceAxes, AppearanceAxisId, Race, RaceKey } from "../../types/models";
+import type { AppearanceAxes, AppearanceAxisId, Race, RaceBeautyIdeal, RaceKey } from "../../types/models";
 import { APPEARANCE_AXIS_IDS } from "../../types/models";
 import { gauss } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
@@ -42,11 +42,27 @@ export const APPEARANCE_SCORE_CENTER = 50;
 export const LOOKS_VITALITY_DECLINE_PER_YEAR = 0.55;
 export const LOOKS_SOFT_DECLINE_PER_YEAR = 0.18;
 
-/** Peak looks noise around race baseline (before age decline). */
-export function rollPeakLooks(baseline: AppearanceAxes): AppearanceAxes {
+/**
+ * Peak looks noise around race baseline (before age decline).
+ *
+ * `biasBoost` (axis points, 0 = unbiased) shifts each weighted-ideal axis's gaussian mean towards
+ * whatever direction that axis's `idealWeights` entry favors (e.g. a race that prizes high
+ * `symmetry` gets its symmetry mean raised, one that prizes low `build` gets its build mean
+ * lowered). Axes the ideal doesn't weight are left at the plain baseline. Because every weighted
+ * axis's ideal-facing component moves by the same amount, the resulting raw ideal-match score
+ * (see rawLooksScoreAgainstIdeal) increases by ~biasBoost in expectation — see
+ * expandAppearanceScore for how that translates to the displayed Appearance score.
+ */
+export function rollPeakLooks(
+  baseline: AppearanceAxes,
+  biasBoost = 0,
+  idealWeights?: RaceBeautyIdeal["weights"]
+): AppearanceAxes {
   const out = {} as AppearanceAxes;
   for (const axis of APPEARANCE_AXIS_IDS) {
-    const mean = baseline[axis] ?? 50;
+    const weight = idealWeights?.[axis];
+    const direction = !weight ? 0 : weight > 0 ? 1 : -1;
+    const mean = (baseline[axis] ?? 50) + direction * biasBoost;
     out[axis] = Math.max(1, Math.min(100, gauss(mean, APPEARANCE_AXIS_STDDEV, 1, 100, 0)));
   }
   return out;
@@ -325,15 +341,21 @@ export function ownRaceAppearanceScore(looks: AppearanceAxes, raceId: number, ra
   return scoreLooksAgainstIdeal(looks, getRaceBeautyIdeal(list, raceId), getRaceLooksBaseline(list, raceId));
 }
 
-/** Roll peak looks for a race id and apply age decline; returns looks + appearance cache. */
+/**
+ * Roll peak looks for a race id and apply age decline; returns looks + appearance cache.
+ * `appearanceBiasBoost` (0 = unbiased default) forwards to rollPeakLooks — see there for how it
+ * pushes the resulting Appearance score upward (e.g. Nobility's "young & striking" generation bias).
+ */
 export function rollLooksForRace(
   raceId: number,
   age: number,
-  declineAgeThreshold: number
+  declineAgeThreshold: number,
+  appearanceBiasBoost = 0
 ): { looks: AppearanceAxes; appearance: number } {
   const races = hasCharactersContext() ? getWorldContext().pack.races : undefined;
   const baseline = getRaceLooksBaseline(races, raceId);
-  const peak = rollPeakLooks(baseline);
+  const ideal = getRaceBeautyIdeal(races, raceId);
+  const peak = rollPeakLooks(baseline, appearanceBiasBoost, ideal.weights);
   const looks = applyLooksAgeDecline(peak, age, declineAgeThreshold);
   const appearance = ownRaceAppearanceScore(looks, raceId, races);
   return { looks, appearance };

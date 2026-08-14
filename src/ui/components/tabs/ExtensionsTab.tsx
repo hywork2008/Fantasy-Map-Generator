@@ -15,6 +15,8 @@ import { useUiPreferencesState } from "../../../store/uiPreferencesState";
  * import) so this generic host component doesn't pull in the economy extension's module graph
  * just to key one row-specific settings snippet. */
 const ECONOMY_EXTENSION_ID = "economy";
+/** Matches nobility/index.tsx's NOBILITY_EXTENSION_ID. Kept as a literal for the same reason. */
+const NOBILITY_EXTENSION_ID = "nobility";
 
 interface InstalledMeta {
   id: string;
@@ -35,6 +37,8 @@ export const ExtensionsTab: React.FC = () => {
   const generationLockMessage = "Extensions cannot be changed while map generation is in progress.";
   const skipTradeOnGenerate = useUiPreferencesState(state => state.economySkipTradeOnGenerate);
   const setSkipTradeOnGenerate = useUiPreferencesState(state => state.setEconomySkipTradeOnGenerate);
+  const characterGenerationBias = useUiPreferencesState(state => state.nobilityCharacterGenerationBias);
+  const setCharacterGenerationBias = useUiPreferencesState(state => state.setNobilityCharacterGenerationBias);
 
   // Merge DB records with zustand-registered extensions to build full list
   const refreshInstalledMeta = useCallback(async () => {
@@ -260,6 +264,26 @@ export const ExtensionsTab: React.FC = () => {
                             onChange={e => setSkipTradeOnGenerate(e.target.checked)}
                           />{" "}
                           Skip trade route generation
+                        </label>
+                      )}
+                      {meta.id === NOBILITY_EXTENSION_ID && isEnabled && (
+                        <label
+                          style={{ display: "block", marginTop: "4px", fontWeight: "normal" }}
+                          title="Skews every character Nobility creates or replaces (rulers, central officers, field/fleet officers, province lords, and successions): young age, a high Appearance score, and a lopsided gender ratio favoring the chosen gender. A race with a hard gender lock (e.g. Amazones) is unaffected. This is a standing preference, applied to every future generation and succession — not a one-time reroll of the current roster."
+                        >
+                          Character generation bias:{" "}
+                          <select
+                            value={characterGenerationBias}
+                            onChange={e =>
+                              setCharacterGenerationBias(
+                                e.target.value as "none" | "youngMaleHeavy" | "youngFemaleHeavy"
+                              )
+                            }
+                          >
+                            <option value="none">Fully random (default)</option>
+                            <option value="youngMaleHeavy">Young &amp; striking — mostly male</option>
+                            <option value="youngFemaleHeavy">Young &amp; striking — mostly female</option>
+                          </select>
                         </label>
                       )}
                     </td>

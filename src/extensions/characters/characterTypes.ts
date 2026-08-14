@@ -3,6 +3,15 @@ import type { AppearanceAxes, CharacterRaceAppearance } from "../../types/models
 export type Gender = "male" | "female";
 export type { AppearanceAxes, AppearanceAxisId, CharacterRaceAppearance } from "../../types/models";
 
+/**
+ * Optional directorial skew applied at character creation, on top of the fully-random default.
+ * "none" preserves the normal race/culture-driven gender ratio, age, and looks rolls.
+ * "youngMaleHeavy" / "youngFemaleHeavy" push newly created characters towards a young age,
+ * a high Appearance score, and a lopsided gender ratio favoring the named gender.
+ * See createPerson() in personFactory.ts for where each axis is biased.
+ */
+export type CharacterGenerationBias = "none" | "youngMaleHeavy" | "youngFemaleHeavy";
+
 export interface TitleHolding {
   /** Gender-resolved display title, e.g. "King", "Prime Minister", "Khan". */
   title: string;
