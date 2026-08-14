@@ -222,6 +222,7 @@ import { MilitarySuppliesOverviewDialog } from "./ui/dialogs/MilitarySuppliesOve
 import { MineralOverviewDialog } from "./ui/dialogs/MineralOverviewDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
+import { StateEmploymentOverviewDialog } from "./ui/dialogs/StateEmploymentOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
 import { TreasuryOverviewDialog } from "./ui/dialogs/TreasuryOverviewDialog";
@@ -1413,6 +1414,11 @@ export function init(api: ExtensionAPI): void {
     component: EmploymentOverviewDialog
   });
   api.registerDialog({
+    id: "StateEmploymentOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: StateEmploymentOverviewDialog
+  });
+  api.registerDialog({
     id: "GuildOverviewDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: GuildOverviewDialog
@@ -1600,6 +1606,22 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-edit-state-employment",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "State employment",
+    dialogId: "stateEmploymentOverview",
+    tooltip:
+      "Click to open State Employment Overview — rural and urban labor, guild-artisan employment, and surplus/unemployment by State",
+    onClick: () => {
+      document.dispatchEvent(
+        new CustomEvent("react-tool-action", { detail: { action: "stateEmploymentOverviewButton" } })
+      );
+    }
+  });
+
+  api.registerAction({
     id: "economy-edit-guilds",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -1758,6 +1780,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("overviewMarketsButton", () => toggleEditorDialog("marketsOverview", "toggleMarketsLayer"));
   api.registerToolAction("editTradeAnimationButton", () => toggleEditorDialog("tradeAnimationEditor", "toggleTrade"));
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
+  api.registerToolAction("stateEmploymentOverviewButton", () => toggleEditorDialog("stateEmploymentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
   api.registerToolAction("metallurgWorkOverviewButton", () => toggleEditorDialog("metallurgWorkOverview", null));
   api.registerToolAction("militarySuppliesOverviewButton", () => toggleEditorDialog("militarySuppliesOverview", null));
@@ -1824,6 +1847,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("productionOverview");
       api.closeDialog("tradeAnimationEditor");
       api.closeDialog("employmentOverview");
+      api.closeDialog("stateEmploymentOverview");
       api.closeDialog("guildOverview");
       api.closeDialog("metallurgWorkOverview");
       api.closeDialog("militarySuppliesOverview");
@@ -2879,6 +2903,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("editTradeAnimationButton");
   api.unregisterToolAction("burgProductionOverview");
   api.unregisterToolAction("employmentOverviewButton");
+  api.unregisterToolAction("stateEmploymentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
   api.unregisterToolAction("metallurgWorkOverviewButton");
   api.unregisterToolAction("militarySuppliesOverviewButton");
