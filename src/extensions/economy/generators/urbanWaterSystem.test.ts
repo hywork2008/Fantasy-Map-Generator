@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { worldContext } from "../../hostCore";
+import { useOptionsState, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -805,5 +805,61 @@ describe("UrbanWater module", () => {
 
     expect(starved.lastMaintenanceCoverage).toBeLessThan(0.2);
     expect(recovered.lastMaintenanceCoverage).toBeGreaterThan(starved.lastMaintenanceCoverage);
+  });
+
+  describe("race water tech bias (Giant on Fantasy culture sets)", () => {
+    beforeEach(() => {
+      // Bind the river capital (burg 1) to a giant-race culture; leave the geography/masonry
+      // fixture otherwise unchanged so only the race/culturesSet gate differs between tests.
+      worldContext.pack.cultures = [
+        { i: 0, type: "Generic" },
+        { i: 1, type: "River", race: 1 }
+      ] as typeof worldContext.pack.cultures;
+      worldContext.pack.races = [
+        { i: 0, key: "unknown", name: "Unknown" },
+        { i: 1, key: "giant", name: "Giant" }
+      ] as typeof worldContext.pack.races;
+      worldContext.pack.burgs[1]!.culture = 1;
+      worldContext.options = { historicalPeriod: "earlyMedieval" } as typeof worldContext.options;
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "masonry", stock: 0.5, treasury: 0 }]);
+    });
+
+    afterEach(() => useOptionsState.setState({ culturesSet: "world" }));
+
+    function settleYears(count: number): void {
+      for (let i = 0; i < count; i++) {
+        setUrbanWaterLastSettledYear(999 - i);
+        UrbanWater.settleAnnual();
+      }
+    }
+
+    // Both trajectories eventually clear tier 4 in this fixture (institutional targets rise with
+    // tier regardless of race) — the point of the bias is to get there *faster* and to push
+    // waterLifting *past* the un-boosted period ceiling, not to be the only path that arrives.
+    const YEARS = 25;
+
+    it("pulls a giant river capital to tier 4 faster, and past the un-boosted early-medieval water-lifting ceiling", () => {
+      useOptionsState.setState({ culturesSet: "highFantasy" });
+      UrbanWater.generate();
+      settleYears(YEARS);
+
+      const giantCity = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(giantCity.tier).toBeGreaterThanOrEqual(4);
+      // earlyMedieval's un-boosted ceiling caps waterLifting at 0.35 — the bias should clear it.
+      expect(giantCity.waterLifting).toBeGreaterThan(0.35);
+    });
+
+    it("does not apply the bias outside Fantasy culture sets, even for the same giant-culture burg", () => {
+      useOptionsState.setState({ culturesSet: "world" });
+      UrbanWater.generate();
+      settleYears(YEARS);
+
+      // Same geography/masonry/population as the biased test above, over the same number of
+      // years: without the Fantasy-culture-set gate, this burg is still short of tier 4 and its
+      // waterLifting stays at or under the un-boosted ceiling.
+      const sameCity = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(sameCity.tier).toBeLessThan(4);
+      expect(sameCity.waterLifting).toBeLessThanOrEqual(0.35 + 0.0001);
+    });
   });
 });

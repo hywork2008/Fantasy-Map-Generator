@@ -5,8 +5,8 @@
  * but people should not inherit the Unknown race — prefer any real culture, then a
  * Human-majority culture on the map.
  */
-import { HUMAN_RACE_ID } from "../../../data/races";
-import type { Burg } from "../../hostTypes";
+import { getRaceById, HUMAN_RACE_ID } from "../../../data/races";
+import type { Burg, RaceKey } from "../../hostTypes";
 import { getWorldContext } from "../economyContext";
 
 /** First positive culture id among candidates, else 0. */
@@ -36,4 +36,12 @@ export function resolveBurgCulture(burg: Burg | undefined): number {
 
   const anyCulture = cultures.find(c => c && c.i > 0 && !c.removed);
   return anyCulture?.i ?? 0;
+}
+
+/** Species key for a burg's resolved culture (`raceWaterTechBias`, other race-conditioned effects). */
+export function raceKeyForBurg(burg: Burg | undefined): RaceKey | undefined {
+  const { pack } = getWorldContext();
+  const cultureId = resolveBurgCulture(burg);
+  const culture = pack.cultures?.[cultureId];
+  return getRaceById(pack.races, culture?.race)?.key;
 }

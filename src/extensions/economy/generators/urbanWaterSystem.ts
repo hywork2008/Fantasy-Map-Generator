@@ -13,6 +13,7 @@
  * Design: docs/plan/urban-water-and-sanitation-system.md §4–8, §11.
  */
 
+import { useOptionsState } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -30,6 +31,8 @@ import {
 import { getAcademyBonus } from "./academyKnowledge";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
+import { waterTechRaceBiasFor } from "./raceWaterTechBias";
+import { raceKeyForBurg } from "./resolveBurgCulture";
 import {
   cleaningTaxRevenue,
   evolveInstitutions,
@@ -1070,13 +1073,25 @@ export function settleBurgWaterInvestment(args: {
   // ── Phase 3 institutions ─────────────────────────────────────────────────
   const capitalId = burg.state ? (getWorldContext().pack.states[burg.state]?.capital ?? burg.i!) : burg.i!;
   const administrationBonus = getAcademyBonus(capitalId, "administration");
+
+  // Race-conditioned bias (Fantasy culture sets only) — see raceWaterTechBias.ts. This is a
+  // demand/gate bias applied on top of ordinary conditions, never a bypass of geography/scale
+  // gates: a burg with nowhere to drain still cannot build a sewer network.
+  const raceBias = waterTechRaceBiasFor(raceKeyForBurg(burg), useOptionsState.getState().culturesSet);
+  const effectiveUrgencyThreshold = WATER_PROJECT_URGENCY_THRESHOLD * (raceBias?.urgencyThresholdMultiplier ?? 1);
+
+  // Institutional head start feeds connectionPermitCoverage/dischargeRegulation targets only
+  // (institutionalTargets() clamps admin to [0.85, 1.35]) — deliberately NOT reused for
+  // maxInvestableTier()/canStartAdvancedProject()'s tier-5 gate (SANITARY_ENGINEERING_ADMIN_MIN),
+  // which stays purely earned.
+  const institutionsAdministrationBonus = administrationBonus + (raceBias?.administrationBonusBonus ?? 0);
   const institutions = evolveInstitutions({
     previous: system,
     tier: system.tier,
     contamination: system.waterContamination,
     sanitationBurden: system.sanitationBurden,
     demandUrgency,
-    administrationBonus
+    administrationBonus: institutionsAdministrationBonus
   });
 
   const taxRevenue = cleaningTaxRevenue({
@@ -1129,7 +1144,7 @@ export function settleBurgWaterInvestment(args: {
 
   // Prefer water-lifting works under drought when supply is weak and stock is low.
   const preferLifting =
-    droughtDemand >= WATER_PROJECT_URGENCY_THRESHOLD &&
+    droughtDemand >= effectiveUrgencyThreshold &&
     system.waterLifting < 0.45 &&
     system.serviceWaterCapacity < 0.55 &&
     canStartProject({
@@ -1153,13 +1168,13 @@ export function settleBurgWaterInvestment(args: {
     } else if (activeProject === "waterLiftingWorks" && system.waterLifting >= 0.85) {
       activeProject = null;
       upgradeProgress = 0;
-    } else if (demandUrgency < WATER_PROJECT_URGENCY_THRESHOLD * 0.5 && !preferLifting) {
+    } else if (demandUrgency < effectiveUrgencyThreshold * 0.5 && !preferLifting) {
       // freeze
     }
   } else if (preferLifting) {
     activeProject = "waterLiftingWorks";
     upgradeProgress = 0;
-  } else if (suggested && demandUrgency >= WATER_PROJECT_URGENCY_THRESHOLD) {
+  } else if (suggested && demandUrgency >= effectiveUrgencyThreshold) {
     if (
       canStartProject({
         project: suggested,
@@ -1181,8 +1196,8 @@ export function settleBurgWaterInvestment(args: {
 
   if (
     activeProject &&
-    (demandUrgency >= WATER_PROJECT_URGENCY_THRESHOLD * 0.45 ||
-      (activeProject === "waterLiftingWorks" && droughtDemand >= WATER_PROJECT_URGENCY_THRESHOLD * 0.4))
+    (demandUrgency >= effectiveUrgencyThreshold * 0.45 ||
+      (activeProject === "waterLiftingWorks" && droughtDemand >= effectiveUrgencyThreshold * 0.4))
   ) {
     const treasuryCost = projectTreasuryCost(activeProject, people);
     const liquidAfterMaint = Math.max(0, burg.treasury ?? 0);
@@ -1206,7 +1221,9 @@ export function settleBurgWaterInvestment(args: {
     );
 
     const laborFallback = activeProject === "openDitches" && !marketId ? 0.35 : 0.1;
-    const yearProgress = Math.max(cashProgress, laborFallback) * 0.55 + materialProgress * 0.45;
+    const yearProgress =
+      (Math.max(cashProgress, laborFallback) * 0.55 + materialProgress * 0.45) *
+      (raceBias?.constructionSpeedMultiplier ?? 1);
     const urgencyBoost = 0.85 + Math.max(demandUrgency, droughtDemand) * 0.3;
     upgradeProgress = clamp01(upgradeProgress + yearProgress * urgencyBoost);
 
@@ -1244,7 +1261,8 @@ export function settleBurgWaterInvestment(args: {
     cleaningTaxRate: institutions.cleaningTaxRate,
     administrationBonus,
     masonryStock,
-    liftingWorksProgress
+    liftingWorksProgress,
+    ceilingBonus: raceBias?.ceilingBonus
   });
 
   const completedUpgrade = tier > system.tier;

@@ -19,21 +19,35 @@ function clamp01(value: number): number {
 
 export type HistoricalPeriod = "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
 
+/** Additive raise to waterLifting/municipalSanitation only — see raceWaterTechBias.ts. */
+export type WaterTechCeilingBonus = { waterLifting: number; municipalSanitation: number };
+
 /** Soft ceilings by generation backdrop — industrial sanitary engineering is not free in 1200. */
-export function waterTechCeilings(period: HistoricalPeriod | string | undefined): WaterTechStocks {
-  switch (period) {
-    case "earlyMedieval":
-      return { waterLifting: 0.35, municipalSanitation: 0.35, sanitaryEngineering: 0 };
-    case "lateMedieval":
-      return { waterLifting: 0.75, municipalSanitation: 0.7, sanitaryEngineering: 0.28 };
-    // Follows lateMedieval chronologically (~1450-1600) — a modest step up rather than a new
-    // tier, since sanitary engineering stays pre-industrial throughout this period.
-    case "ageOfExploration":
-      return { waterLifting: 0.85, municipalSanitation: 0.78, sanitaryEngineering: 0.4 };
-    case "highMedieval":
-    default:
-      return { waterLifting: 0.55, municipalSanitation: 0.55, sanitaryEngineering: 0.08 };
-  }
+export function waterTechCeilings(
+  period: HistoricalPeriod | string | undefined,
+  ceilingBonus?: WaterTechCeilingBonus | null
+): WaterTechStocks {
+  const base = (() => {
+    switch (period) {
+      case "earlyMedieval":
+        return { waterLifting: 0.35, municipalSanitation: 0.35, sanitaryEngineering: 0 };
+      case "lateMedieval":
+        return { waterLifting: 0.75, municipalSanitation: 0.7, sanitaryEngineering: 0.28 };
+      // Follows lateMedieval chronologically (~1450-1600) — a modest step up rather than a new
+      // tier, since sanitary engineering stays pre-industrial throughout this period.
+      case "ageOfExploration":
+        return { waterLifting: 0.85, municipalSanitation: 0.78, sanitaryEngineering: 0.4 };
+      case "highMedieval":
+      default:
+        return { waterLifting: 0.55, municipalSanitation: 0.55, sanitaryEngineering: 0.08 };
+    }
+  })();
+  if (!ceilingBonus) return base;
+  return {
+    waterLifting: clamp01(base.waterLifting + ceilingBonus.waterLifting),
+    municipalSanitation: clamp01(base.municipalSanitation + ceilingBonus.municipalSanitation),
+    sanitaryEngineering: base.sanitaryEngineering
+  };
 }
 
 /** Thresholds for investing past covered culverts. */
@@ -180,9 +194,11 @@ export function evolveWaterTechStocks(args: {
   masonryStock: number;
   /** Extra progress from completing waterLiftingWorks this year. */
   liftingWorksProgress?: number;
+  /** Race-conditioned ceiling raise (Fantasy culture sets only) — see raceWaterTechBias.ts. */
+  ceilingBonus?: WaterTechCeilingBonus | null;
 }): WaterTechStocks {
   const rate = 0.18;
-  const ceiling = waterTechCeilings(args.period);
+  const ceiling = waterTechCeilings(args.period, args.ceilingBonus);
   const prev = args.previous ?? { waterLifting: 0, municipalSanitation: 0, sanitaryEngineering: 0 };
 
   const liftingTarget = clamp01(

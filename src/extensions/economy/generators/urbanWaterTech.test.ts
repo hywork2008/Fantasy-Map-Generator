@@ -69,6 +69,20 @@ describe("water tech ceilings and evolution", () => {
     );
   });
 
+  it("raises waterLifting/municipalSanitation ceilings from an additive bonus, leaving sanitaryEngineering alone", () => {
+    const base = waterTechCeilings("earlyMedieval");
+    const boosted = waterTechCeilings("earlyMedieval", { waterLifting: 0.3, municipalSanitation: 0.25 });
+    expect(boosted.waterLifting).toBeCloseTo(base.waterLifting + 0.3, 5);
+    expect(boosted.municipalSanitation).toBeCloseTo(base.municipalSanitation + 0.25, 5);
+    expect(boosted.sanitaryEngineering).toBe(base.sanitaryEngineering);
+  });
+
+  it("clamps a boosted ceiling to 1 rather than overshooting", () => {
+    const boosted = waterTechCeilings("ageOfExploration", { waterLifting: 0.5, municipalSanitation: 0.5 });
+    expect(boosted.waterLifting).toBeLessThanOrEqual(1);
+    expect(boosted.municipalSanitation).toBeLessThanOrEqual(1);
+  });
+
   it("grows water lifting under drought and river access", () => {
     const next = evolveWaterTechStocks({
       previous: { waterLifting: 0.1, municipalSanitation: 0.1, sanitaryEngineering: 0 },
@@ -86,6 +100,28 @@ describe("water tech ceilings and evolution", () => {
       liftingWorksProgress: 1
     });
     expect(next.waterLifting).toBeGreaterThan(0.1);
+  });
+
+  it("lets a ceilingBonus push waterLifting past the un-boosted period ceiling", () => {
+    const args = {
+      previous: { waterLifting: 0.32, municipalSanitation: 0.3, sanitaryEngineering: 0 },
+      period: "earlyMedieval" as const,
+      tier: 4 as const,
+      hasRiver: true,
+      droughtDemand: 0.6,
+      contamination: 0.3,
+      sanitationBurden: 0.3,
+      connectionPermitCoverage: 0.3,
+      dischargeRegulation: 0.3,
+      cleaningTaxRate: 0.02,
+      administrationBonus: 1.1,
+      masonryStock: 0.3
+    };
+    const unboosted = evolveWaterTechStocks(args);
+    const boosted = evolveWaterTechStocks({ ...args, ceilingBonus: { waterLifting: 0.3, municipalSanitation: 0.25 } });
+    // earlyMedieval ceiling (0.35) caps the unboosted run near its current stock; the bonus lets it climb further.
+    expect(unboosted.waterLifting).toBeLessThanOrEqual(0.35 + 0.0001);
+    expect(boosted.waterLifting).toBeGreaterThan(unboosted.waterLifting);
   });
 
   it("does not unlock tier 5 without sanitary engineering stock", () => {

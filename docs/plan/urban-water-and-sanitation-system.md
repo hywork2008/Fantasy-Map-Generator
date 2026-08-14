@@ -8,6 +8,7 @@
 - Phase 2: 需要シグナル駆動の公共事業、建設と維持の別予算、維持不足による劣化・詰まり。
 - Phase 3: 清掃税・接続許可・放流規制、有機廃棄物経路、寒冷地堆肥、取水/放流混在、河川汚染、`healthPressure`。
 - Phase 4: `waterLifting` / `municipalSanitation` / `sanitaryEngineering` の局所採用ストック（歴史時代の天井付き）、tier 4–5 事業、上下水分離、州間汚染補償と `state.alert` への外交圧。
+- Phase 5（`raceWaterTechBias.ts`）: Fantasy Cultures Set（`highFantasy`/`darkFantasy`）における Giant 種族への上下水道バイアス。§15 参照。
 
 フル技術グラフ（locked/known/demonstrated…）は [technology-development-roadmap.md](./technology-development-roadmap.md) 側の後続実装。Phase 4 のストックはその接続点。
 
@@ -498,7 +499,45 @@ interface UrbanWaterSystem {
 
 ---
 
-## 14. 設計上の参照
+## 15. 種族による例外: Giant の古代水利遺産
+
+**実装済み**（2026-08-14、`src/extensions/economy/generators/raceWaterTechBias.ts`）
+
+Fantasy Cultures Set（`highFantasy`/`darkFantasy`。判定は `isFantasyCulturesSet()`, `src/data/raceCivicStance.ts`）で Giant 種族の Burg は、古代ローマ相当（クロアカ・マキシマ級の被覆下水幹線＋導水路）の上下水道技術をあらかじめ持つ民族として扱う。`raceSkillBias.ts` の Giant 定義（`engineering: +8`、dwarf と同水準）と一貫させ、「神系種族が失われていない工学知識を保持している」という設定を反映する。
+
+### 15.1 フロア(絶対下限)ではなくバイアス(強い引き寄せ)
+
+検討の結果、`tier`/`waterLifting`/`municipalSanitation` を強制的に上書きする絶対フロア案は採用しなかった。理由:
+
+1. **物理的整合性が壊れる**: `hasDownstreamOutfall` は地形だけで決まるため、内陸・水源なしの Burg に tier 4(管理下水網)を強制すると「排水先のない下水網」という矛盾した状態になる。
+2. **既存の種族条件付けパターンと不整合**: `raceSkillBias.ts` / `racePersonalityBias.ts` / `raceWealthBias.ts` はいずれも「通常のロジックに下駄を履かせる」バイアス型であり、出力を強制上書きするフロア型はこのコードベースの慣習から外れる。
+3. 設計書 §5.3 の「衛生は人口への恒久的な万能バフにしない」という原則と、無条件フロアは衝突する。
+
+採用した設計は、**既存の需要駆動・地形駆動パイプラインを迂回せず、入力側に強いバイアスをかけて速く・確実に到達させる**方式である。河川/沿岸があり `people >= 1500`(`canStartAdvancedProject` の managedSewers ゲート)を満たす Giant の都市は、同条件の他種族より明確に早く tier 4 へ到達し(統合テストの固定フィクスチャでは約 20 年 vs 約 29 年 — 制度ストックのEWMA収束速度に依存するため実際の年数は状況次第)、以後は `waterLifting`/`municipalSanitation` の到達可能上限そのものが歴史時代天井を超えて引き上げられる(バイアスなしでは `Math.min(ceiling, …)` により天井を絶対に超えない)。一方、水源のない小規模な前哨拠点は対象外のままになる — これは意図した挙動である。
+
+### 15.2 バイアスの内容(`WaterTechRaceBias`)
+
+| フィールド | 効果 | 注入先 |
+| --- | --- | --- |
+| `ceilingBonus.waterLifting` (+0.3) / `ceilingBonus.municipalSanitation` (+0.25) | 歴史時代天井 (`waterTechCeilings()`) を加算で引き上げる。`sanitaryEngineering` は対象外 | `evolveWaterTechStocks()` |
+| `administrationBonusBonus` (+0.15) | `connectionPermitCoverage`/`dischargeRegulation` の目標値(`institutionalTargets()`)を押し上げる。tier 5 ゲート(`SANITARY_ENGINEERING_ADMIN_MIN`)には使わない | `evolveInstitutions()` 呼び出し時の `administrationBonus` のみ |
+| `urgencyThresholdMultiplier` (×0.6) | 公共事業を着手する `demandUrgency`/`droughtDemand` の閾値を下げ、危機的需要を待たず先回りで着工させる | `WATER_PROJECT_URGENCY_THRESHOLD` の全比較箇所 |
+| `constructionSpeedMultiplier` (×1.35) | 着工後の年次進捗を加速する(継承された工学技能) | `yearProgress`(建設進捗) |
+
+`sanitaryEngineering`(Tier 5・上下水分離)は一切バイアスしない — ローマは分流式下水も処理施設も持たなかったため、Tier 5 は他種族と同じく需要駆動で獲得する対象のままとする。
+
+判定は Burg が属する文化(`culture.race`)の種族単位で行う。Giant は `raceCivicStance.ts` 上で distant/mono-racial(=「国」と呼べる都市はほぼ全て Giant 文化)という前提のため、実質的に「Giant 国の都市」を広くカバーする。征服した非 Giant 文化の都市は対象外になる(意図的な既定挙動)。
+
+### 15.3 実装
+
+- `src/extensions/economy/generators/raceWaterTechBias.ts`: `RACE_WATER_TECH_BIAS` テーブルと `waterTechRaceBiasFor(raceKey, culturesSet)`。
+- `src/extensions/economy/generators/resolveBurgCulture.ts`: `raceKeyForBurg(burg)` — `culture.race` → `pack.races[].key` を解決。
+- `src/extensions/economy/generators/urbanWaterTech.ts`: `waterTechCeilings()` / `evolveWaterTechStocks()` に任意の `ceilingBonus` 引数を追加。
+- `src/extensions/economy/generators/urbanWaterSystem.ts`: `settleBurgWaterInvestment()` で `raceBias` を解決し、上表の4箇所へ注入。
+
+---
+
+## 16. 設計上の参照
 
 - [BMJ: *Toilet hygiene in the classical era*](https://www.bmj.com/content/345/bmj.e8287): 古典地中海の `pessoi`、紙・水・植物素材・木製の清掃具に関する比較的確かな概観。棒付き海綿の用途には別解釈があるため、本書では断定しない。
 - [University of Virginia: *Private Need, Public Order*](https://libraetd.lib.virginia.edu/public_view/mg74qm37v): 後期中世イングランド・スカンディナヴィアの都市衛生を、都市行政と住民の関係として扱う研究。
