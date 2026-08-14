@@ -306,31 +306,35 @@ export const MarketsOverviewDialog: React.FC = () => {
                         >
                           {m.managerName}
                         </td>
-                        <td className="marketCells" data-tip="Number of cells with no market" data-type="cells">
+                        <td className="marketCells numeric" data-tip="Number of cells with no market" data-type="cells">
                           {displayVal(m.cells, totals.cells)}
                         </td>
                         {!isManualMode && (
                           <>
-                            <td className="marketBurgs" data-tip="Number of burgs with no market" data-type="burgs">
+                            <td
+                              className="marketBurgs numeric"
+                              data-tip="Number of burgs with no market"
+                              data-type="burgs"
+                            >
                               {displayVal(m.burgs, totals.burgs)}
                             </td>
                             <td
-                              className="marketPopulation"
+                              className="marketPopulation numeric"
                               data-tip="Total population with no market"
                               data-type="population"
                             >
                               {displayPop(m.population, totals.population)}
                             </td>
-                            <td className="marketStock" data-type="stock">
+                            <td className="marketStock numeric" data-type="stock">
                               —
                             </td>
-                            <td className="marketSales" data-type="sales">
+                            <td className="marketSales numeric" data-type="sales">
                               —
                             </td>
-                            <td className="marketBuysCol" data-type="buys">
+                            <td className="marketBuysCol numeric" data-type="buys">
                               —
                             </td>
-                            <td className="marketValue" data-type="value">
+                            <td className="marketValue numeric" data-type="value">
                               —
                             </td>
                             <td />
@@ -383,36 +387,44 @@ export const MarketsOverviewDialog: React.FC = () => {
                       >
                         {m.managerName}
                       </td>
-                      <td className="marketCells" data-tip="Number of cells in market territory" data-type="cells">
+                      <td
+                        className="marketCells numeric"
+                        data-tip="Number of cells in market territory"
+                        data-type="cells"
+                      >
                         {displayVal(m.cells, totals.cells)}
                       </td>
                       {!isManualMode && (
                         <>
-                          <td className="marketBurgs" data-tip="Number of burgs in market territory" data-type="burgs">
+                          <td
+                            className="marketBurgs numeric"
+                            data-tip="Number of burgs in market territory"
+                            data-type="burgs"
+                          >
                             {displayVal(m.burgs, totals.burgs)}
                           </td>
                           <td
-                            className="marketPopulation"
+                            className="marketPopulation numeric"
                             data-tip="Total population in market territory"
                             data-type="population"
                           >
                             {displayPop(m.population, totals.population)}
                           </td>
                           <td
-                            className="marketStock"
+                            className="marketStock numeric"
                             data-tip="Total stock of all goods in this market"
                             data-type="stock"
                           >
                             {displayVal(m.stock, totals.stock)}
                           </td>
-                          <td className="marketSales" data-tip="Total gross sales revenue" data-type="sales">
+                          <td className="marketSales numeric" data-tip="Total gross sales revenue" data-type="sales">
                             {displayPrice(m.sales, totals.sales)}
                           </td>
-                          <td className="marketBuysCol" data-tip="Total purchase spending" data-type="buys">
+                          <td className="marketBuysCol numeric" data-tip="Total purchase spending" data-type="buys">
                             {displayPrice(m.buys, totals.buys)}
                           </td>
                           <td
-                            className="marketValue"
+                            className="marketValue numeric"
                             data-tip="Market value: net trading flow plus unsold inventory value minus tax"
                             data-type="value"
                           >

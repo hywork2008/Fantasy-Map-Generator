@@ -256,11 +256,20 @@ export const RegimentsOverviewDialog: React.FC = () => {
                       <input data-tip="Regiment's name" value={r.name} readOnly />
                     </td>
                     {unitTypes.map((u, idx) => (
-                      <td key={u.name} data-type={u.name} data-tip={`${capitalize(u.name)} units number`}>
+                      <td
+                        key={u.name}
+                        className="numeric"
+                        data-type={u.name}
+                        data-tip={`${capitalize(u.name)} units number`}
+                      >
                         {percentageMode ? displayPercentage(rawUnits[idx], u.name) : integerUnits[idx]}
                       </td>
                     ))}
-                    <td data-type="total" data-tip="Total military personnel (not considering crew)">
+                    <td
+                      className="numeric"
+                      data-type="total"
+                      data-tip="Total military personnel (not considering crew)"
+                    >
                       {percentageMode ? displayPercentage(r.a, "total") : Math.round(r.a)}
                     </td>
                   </tr>
@@ -271,9 +280,11 @@ export const RegimentsOverviewDialog: React.FC = () => {
               <tr id="regimentsTotalLine" className="totalLine" data-tip="Total of all displayed regiments">
                 <td colSpan={2}>Regiments: {rows.length}</td>
                 {unitTypes.map((u, idx) => (
-                  <td key={u.name}>{si(totals.integerUnits[idx])}</td>
+                  <td key={u.name} className="numeric">
+                    {si(totals.integerUnits[idx])}
+                  </td>
                 ))}
-                <td>{si(totals.total)}</td>
+                <td className="numeric">{si(totals.total)}</td>
               </tr>
             </tfoot>
           </table>

@@ -129,14 +129,14 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                 <td>
                   <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
                 </td>
-                <td>
+                <td className="numeric">
                   <div className="d-flex">
                     <span data-tip="Burg population" className="icon-male" />
                     <input data-tip="Burg population" value={si(population)} disabled readOnly />
                   </div>
                 </td>
                 {overviewColumns.map(column => (
-                  <td key={column.id} className={column.onClick ? "pointer" : undefined}>
+                  <td key={column.id} className={`numeric ${column.onClick ? "pointer" : ""}`.trim()}>
                     <input
                       data-tip={column.tip}
                       value={column.format(column.getValue(b))}

@@ -3,6 +3,7 @@
 2026-08-14
 
 - docs/plan/volcanic-biome-goods.md
+- docs/reviews/0814-table-header-data-alignment.md
 
 2026-08-13
 

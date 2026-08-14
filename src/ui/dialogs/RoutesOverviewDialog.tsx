@@ -243,7 +243,7 @@ export const RoutesOverviewDialog: React.FC = () => {
                     <td>
                       <div data-tip="Route group">{route.group}</div>
                     </td>
-                    <td>
+                    <td className="numeric">
                       <div data-tip="Route length">{lengthStr}</div>
                     </td>
                     <td>

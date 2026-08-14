@@ -534,65 +534,97 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
   <tr className="states" data-id={row.id} data-state={row.stateName}>
     <td data-tip={row.stateName}>{row.stateName}</td>
     <td>{row.form}</td>
-    <td data-tip="Public treasury (L2)">{row.publicTreasury.toFixed(2)}</td>
-    <td data-tip="Household purse (L1)">{row.householdPurse.toFixed(2)}</td>
-    <td data-tip="Ruler personal wealth (L0)">{row.rulerPersonal.toFixed(2)}</td>
-    <td>{row.domesticIncome.toFixed(2)}</td>
-    <td data-tip="Household stipend paid this cycle (L1→L0)">{row.household.toFixed(2)}</td>
-    <td>{row.officeStipendsPaid.toFixed(2)}</td>
-    <td data-tip="L3a department balances stock">{row.departmentBalancesStock.toFixed(2)}</td>
-    <td data-tip="Nominal department budgets sum this cycle">{row.nominalDepartments.toFixed(2)}</td>
-    <td>{row.marshalcy.toFixed(2)}</td>
-    <td>{row.militaryFundingRatio.toFixed(2)}</td>
-    <td>{row.militaryDiscontent.toFixed(1)}</td>
+    <td className="numeric" data-tip="Public treasury (L2)">
+      {row.publicTreasury.toFixed(2)}
+    </td>
+    <td className="numeric" data-tip="Household purse (L1)">
+      {row.householdPurse.toFixed(2)}
+    </td>
+    <td className="numeric" data-tip="Ruler personal wealth (L0)">
+      {row.rulerPersonal.toFixed(2)}
+    </td>
+    <td className="numeric">{row.domesticIncome.toFixed(2)}</td>
+    <td className="numeric" data-tip="Household stipend paid this cycle (L1→L0)">
+      {row.household.toFixed(2)}
+    </td>
+    <td className="numeric">{row.officeStipendsPaid.toFixed(2)}</td>
+    <td className="numeric" data-tip="L3a department balances stock">
+      {row.departmentBalancesStock.toFixed(2)}
+    </td>
+    <td className="numeric" data-tip="Nominal department budgets sum this cycle">
+      {row.nominalDepartments.toFixed(2)}
+    </td>
+    <td className="numeric">{row.marshalcy.toFixed(2)}</td>
+    <td className="numeric">{row.militaryFundingRatio.toFixed(2)}</td>
+    <td className="numeric">{row.militaryDiscontent.toFixed(1)}</td>
     <td data-tip={row.warFooting ? "War footing ON" : "War footing off"}>{row.warFooting ? "ON" : "—"}</td>
-    <td>{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
-    <td data-tip="Public debt principal">{row.publicDebt > 0 ? row.publicDebt.toFixed(2) : "—"}</td>
-    <td data-tip="Credit pool (moneylenders)">{row.creditPoolBalance > 0 ? row.creditPoolBalance.toFixed(2) : "—"}</td>
+    <td className="numeric">{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
+    <td className="numeric" data-tip="Public debt principal">
+      {row.publicDebt > 0 ? row.publicDebt.toFixed(2) : "—"}
+    </td>
+    <td className="numeric" data-tip="Credit pool (moneylenders)">
+      {row.creditPoolBalance > 0 ? row.creditPoolBalance.toFixed(2) : "—"}
+    </td>
     <td data-tip="Primary moneylender">{row.primaryMoneylenderName || "—"}</td>
-    <td data-tip="Debt interest rate">
+    <td className="numeric" data-tip="Debt interest rate">
       {row.debtInterestRate > 0 ? `${(row.debtInterestRate * 100).toFixed(2)}%` : "—"}
     </td>
     <td data-tip={row.debtInDefault ? "In default" : "Current"}>{row.debtInDefault ? "YES" : "—"}</td>
     <td data-tip={row.debtCoupRisk ? "Coup risk" : "No coup risk"}>{row.debtCoupRisk ? "YES" : "—"}</td>
-    <td data-tip="Assembly support">{row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}</td>
-    <td data-tip="Debt-issue vote yes">
+    <td className="numeric" data-tip="Assembly support">
+      {row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}
+    </td>
+    <td className="numeric" data-tip="Debt-issue vote yes">
       {row.councilLastDebtVoteYes > 0 ? `${(row.councilLastDebtVoteYes * 100).toFixed(0)}%` : "—"}
     </td>
-    <td data-tip="Last tax-farm leak">{row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}</td>
-    <td data-tip="Domain poll mult">
+    <td className="numeric" data-tip="Last tax-farm leak">
+      {row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}
+    </td>
+    <td className="numeric" data-tip="Domain poll mult">
       {row.domainPollTaxMultiplier !== 1 ? `×${row.domainPollTaxMultiplier.toFixed(2)}` : "—"}
     </td>
-    <td data-tip="Foreign debt">{row.foreignDebt > 0 ? row.foreignDebt.toFixed(2) : "—"}</td>
+    <td className="numeric" data-tip="Foreign debt">
+      {row.foreignDebt > 0 ? row.foreignDebt.toFixed(2) : "—"}
+    </td>
     <td data-tip={row.foreignDebtInDefault ? "Foreign default" : "Current"}>
       {row.foreignDebtInDefault ? "YES" : "—"}
     </td>
-    <td data-tip="Coup legitimacy">{row.coupLegitimacy > 0 ? row.coupLegitimacy.toFixed(0) : "—"}</td>
+    <td className="numeric" data-tip="Coup legitimacy">
+      {row.coupLegitimacy > 0 ? row.coupLegitimacy.toFixed(0) : "—"}
+    </td>
     <td data-tip={row.civilUnrest ? "Civil unrest" : "Stable"}>{row.civilUnrest ? "YES" : "—"}</td>
     <td data-tip={row.legitimacyWarActive ? "Legitimacy war" : "—"}>{row.legitimacyWarActive ? "YES" : "—"}</td>
     <td data-tip="Credit rating">{row.creditRating !== "—" ? row.creditRating : "—"}</td>
-    <td data-tip="Trade sanction mult">{row.tradeSanctionMult < 1 ? `×${row.tradeSanctionMult.toFixed(2)}` : "—"}</td>
-    <td data-tip="Council sessions">{row.councilSessionNumber > 0 ? row.councilSessionNumber : "—"}</td>
-    <td>{row.chancery.toFixed(2)}</td>
-    <td>{row.stewardship.toFixed(2)}</td>
-    <td>{row.spymastery.toFixed(2)}</td>
-    <td>{row.ecclesiastica.toFixed(2)}</td>
-    <td data-tip={`Budget multiplier ×${row.chanceryBudgetMultiplier.toFixed(2)}`}>
+    <td className="numeric" data-tip="Trade sanction mult">
+      {row.tradeSanctionMult < 1 ? `×${row.tradeSanctionMult.toFixed(2)}` : "—"}
+    </td>
+    <td className="numeric" data-tip="Council sessions">
+      {row.councilSessionNumber > 0 ? row.councilSessionNumber : "—"}
+    </td>
+    <td className="numeric">{row.chancery.toFixed(2)}</td>
+    <td className="numeric">{row.stewardship.toFixed(2)}</td>
+    <td className="numeric">{row.spymastery.toFixed(2)}</td>
+    <td className="numeric">{row.ecclesiastica.toFixed(2)}</td>
+    <td className="numeric" data-tip={`Budget multiplier ×${row.chanceryBudgetMultiplier.toFixed(2)}`}>
       {(row.chanceryServiceLevel * 100).toFixed(0)}%
     </td>
-    <td data-tip={`Budget multiplier ×${row.stewardshipBudgetMultiplier.toFixed(2)}`}>
+    <td className="numeric" data-tip={`Budget multiplier ×${row.stewardshipBudgetMultiplier.toFixed(2)}`}>
       {(row.stewardshipServiceLevel * 100).toFixed(0)}%
     </td>
-    <td data-tip={`Budget multiplier ×${row.spymasteryBudgetMultiplier.toFixed(2)}`}>
+    <td className="numeric" data-tip={`Budget multiplier ×${row.spymasteryBudgetMultiplier.toFixed(2)}`}>
       {(row.spymasteryServiceLevel * 100).toFixed(0)}%
     </td>
-    <td data-tip={`Budget multiplier ×${row.ecclesiasticaBudgetMultiplier.toFixed(2)}`}>
+    <td className="numeric" data-tip={`Budget multiplier ×${row.ecclesiasticaBudgetMultiplier.toFixed(2)}`}>
       {(row.ecclesiasticaServiceLevel * 100).toFixed(0)}%
     </td>
-    <td data-tip="Cash remitted back to public treasury this cycle (over-cap department balance)">
+    <td className="numeric" data-tip="Cash remitted back to public treasury this cycle (over-cap department balance)">
       {row.departmentBalanceRemit > 0 ? row.departmentBalanceRemit.toFixed(2) : "—"}
     </td>
-    <td data-tip="Below 30 risks straining an existing alliance">{row.diplomaticReliability.toFixed(0)}</td>
-    <td data-tip="Above 40 costs assembly support">{row.religiousUnrest.toFixed(0)}</td>
+    <td className="numeric" data-tip="Below 30 risks straining an existing alliance">
+      {row.diplomaticReliability.toFixed(0)}
+    </td>
+    <td className="numeric" data-tip="Above 40 costs assembly support">
+      {row.religiousUnrest.toFixed(0)}
+    </td>
   </tr>
 );

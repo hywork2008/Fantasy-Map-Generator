@@ -321,7 +321,7 @@ export const GoodsEditorDialog: React.FC = () => {
                       <>
                         <td
                           data-tip={`${good.producedTip}. Click to see burgs producing this good`}
-                          className="goodProduced pointer"
+                          className="goodProduced numeric pointer"
                           onClick={e => {
                             e.stopPropagation();
                             openProducersDialog(good.i);
@@ -332,7 +332,7 @@ export const GoodsEditorDialog: React.FC = () => {
                         </td>
                         <td
                           data-tip={`${good.stockTip}. Click to see breakdown by location`}
-                          className="goodStock pointer"
+                          className="goodStock numeric pointer"
                           onClick={e => {
                             e.stopPropagation();
                             openStockDialog(good.i);
@@ -343,33 +343,37 @@ export const GoodsEditorDialog: React.FC = () => {
                         </td>
                         <td
                           data-tip="Realised local output placed into Market stock, not retail sales: burg craft output plus rural/biome output since generation or the last reset"
-                          className="goodCumulativeSales"
+                          className="goodCumulativeSales numeric"
                         >
                           {displayedCumulativeMarketIntake}
                         </td>
                         <td
                           data-tip="Recorded output: Market Output plus shelf-stable food made for source-cell private reserves"
-                          className="goodActualOutput"
+                          className="goodActualOutput numeric"
                         >
                           {displayedActualFoodOutput}
                         </td>
-                        <td data-tip={good.foodFlowTip} className="goodFoodFlow">
+                        <td data-tip={good.foodFlowTip} className="goodFoodFlow numeric">
                           <div>H {good.freshHarvested}</div>
                           <div>P {good.foodProcessingInput}</div>
                         </td>
                         <td
                           data-tip="Current assigned resource cells. In Phase 0, this is a placement count, not a mineral deposit or reserve count"
-                          className="goodResourceCells"
+                          className="goodResourceCells numeric"
                         >
                           {good.resourceCells}
                         </td>
                         <td
                           data-tip="Current production per 1,000 actual residents. This is a diagnostic based on Economy units, not physical tonnes"
-                          className="goodProductionPerThousand"
+                          className="goodProductionPerThousand numeric"
                         >
                           {good.productionPerThousand}
                         </td>
-                        <td data-tip={priceTip} className="goodBasePrice pointer" onClick={e => e.stopPropagation()}>
+                        <td
+                          data-tip={priceTip}
+                          className="goodBasePrice numeric pointer"
+                          onClick={e => e.stopPropagation()}
+                        >
                           {formatPrice(good.basePrice)}
                         </td>
                         <td>

@@ -63,11 +63,17 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
                   <th>State</th>
                   <th>City</th>
                   <th>Phase</th>
-                  <th data-tip="Progress toward completion">Progress</th>
-                  <th data-tip="Cumulative treasury spend on this project">Spent</th>
-                  <th data-tip="Post-completion vitality (funds upkeep, decays without it)">Endowment</th>
-                  <th>Started</th>
-                  <th>Finished</th>
+                  <th className="numeric" data-tip="Progress toward completion">
+                    Progress
+                  </th>
+                  <th className="numeric" data-tip="Cumulative treasury spend on this project">
+                    Spent
+                  </th>
+                  <th className="numeric" data-tip="Post-completion vitality (funds upkeep, decays without it)">
+                    Endowment
+                  </th>
+                  <th className="numeric">Started</th>
+                  <th className="numeric">Finished</th>
                 </tr>
               </thead>
               {projects.length === 0 ? (
@@ -87,13 +93,15 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
                       <td>{row.stateName}</td>
                       <td>{row.burgName}</td>
                       <td>{row.phase}</td>
-                      <td>
+                      <td className="numeric">
                         {row.status === "ruined" ? "—" : `${Math.round((row.progress / row.buildPoints) * 100)}%`}
                       </td>
-                      <td>{Math.round(row.totalSpent)}</td>
-                      <td>{row.status === "completed" ? `${Math.round(row.endowment * 100)}%` : "—"}</td>
-                      <td>{row.startedYear}</td>
-                      <td>{row.completedYear ?? row.ruinedYear ?? "—"}</td>
+                      <td className="numeric">{Math.round(row.totalSpent)}</td>
+                      <td className="numeric">
+                        {row.status === "completed" ? `${Math.round(row.endowment * 100)}%` : "—"}
+                      </td>
+                      <td className="numeric">{row.startedYear}</td>
+                      <td className="numeric">{row.completedYear ?? row.ruinedYear ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -117,9 +125,13 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
                   <th data-tip={GATE_TIP.ruler}>Ruler</th>
                   <th data-tip={GATE_TIP.wealth}>Wealth</th>
                   <th data-tip={GATE_TIP.peace}>Peace</th>
-                  <th data-tip="Culture.knowledgeValue">Knowledge</th>
-                  <th data-tip="Ruler score (excellence x how much patronage values knowledge)">Ruler score</th>
-                  <th>Treasury</th>
+                  <th className="numeric" data-tip="Culture.knowledgeValue">
+                    Knowledge
+                  </th>
+                  <th className="numeric" data-tip="Ruler score (excellence x how much patronage values knowledge)">
+                    Ruler score
+                  </th>
+                  <th className="numeric">Treasury</th>
                 </tr>
               </thead>
               {eligibility.length === 0 ? (
@@ -145,9 +157,9 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
                       <td>
                         <GateMark ok={row.peaceOk} tip={GATE_TIP.peace} />
                       </td>
-                      <td>{row.knowledgeValue.toFixed(2)}</td>
-                      <td>{row.rulerScore.toFixed(2)}</td>
-                      <td>{Math.round(row.treasury)}</td>
+                      <td className="numeric">{row.knowledgeValue.toFixed(2)}</td>
+                      <td className="numeric">{row.rulerScore.toFixed(2)}</td>
+                      <td className="numeric">{Math.round(row.treasury)}</td>
                     </tr>
                   ))}
                 </tbody>

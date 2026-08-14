@@ -138,19 +138,19 @@ export const ZonesEditorContent: React.FC = () => {
                     onChange={e => zonesEditorActions.changeType(z.i, e.target.value)}
                   />
                 </td>
-                <td className="hide">
+                <td className="hide numeric">
                   <span className="icon-check-empty"></span>
                   <div className="stateCells" style={{ display: "inline-block" }}>
                     {state.isPercentageMode ? pct(z.cells, state.totalCells) : z.cells}
                   </div>
                 </td>
-                <td className="hide">
+                <td className="hide numeric">
                   <span className="icon-map-o"></span>
                   <div className="biomeArea" style={{ display: "inline-block" }}>
                     {state.isPercentageMode ? pct(z.area, state.totalArea) : `${si(z.area)} sq`}
                   </div>
                 </td>
-                <td className="hide pointer" onClick={() => zonesEditorActions.changePopulation(z.i)}>
+                <td className="hide numeric pointer" onClick={() => zonesEditorActions.changePopulation(z.i)}>
                   <span className="icon-male"></span>
                   <div className="zonePopulation" style={{ display: "inline-block" }}>
                     {state.isPercentageMode ? pct(z.population, state.totalPopulation) : si(z.population)}

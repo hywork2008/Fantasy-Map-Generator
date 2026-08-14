@@ -124,16 +124,16 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
                         {c.name}
                       </span>
                     </td>
-                    <td style={{ textAlign: "right" }}>{c.age}</td>
-                    <td style={{ textAlign: "right" }}>{c.appearance}</td>
-                    <td style={{ textAlign: "right" }}>{c.prestige}</td>
-                    <td style={{ textAlign: "right" }} data-tip="Personal wealth (held money)">
+                    <td className="numeric">{c.age}</td>
+                    <td className="numeric">{c.appearance}</td>
+                    <td className="numeric">{c.prestige}</td>
+                    <td className="numeric" data-tip="Personal wealth (held money)">
                       {formatPrice(c.wealth ?? 0)}
                     </td>
                     {showRace && <td>{raceName}</td>}
                     <td>{c.gender}</td>
                     {showFamily ? <td>{(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried"}</td> : null}
-                    {showFamily ? <td style={{ textAlign: "right" }}>{c.family?.children ?? 0}</td> : null}
+                    {showFamily ? <td className="numeric">{c.family?.children ?? 0}</td> : null}
                     <td>{title}</td>
                     <td>{stateName}</td>
                   </tr>

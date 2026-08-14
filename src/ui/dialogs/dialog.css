@@ -476,6 +476,24 @@
     white-space: nowrap;
   }
 
+  /* Column alignment contract: text columns left-align, numeric columns right-align
+     on both the header and the data so digits stack for comparison. Without this,
+     the UA default (th centers, td inherits left) makes header and data disagree on
+     every numeric column — see docs/reviews/0814-table-header-data-alignment.md.
+     `.sortable:not(.alphabetically)` matches SortableHeader's numeric <th> classing
+     (SortableHeader.tsx); `.numeric` is the matching convention row renderers must
+     apply to numeric <td>s, since a <td> carries no inherent column-type info. */
+  th,
+  td {
+    text-align: left;
+  }
+
+  th.sortable:not(.alphabetically),
+  th.numeric,
+  td.numeric {
+    text-align: right;
+  }
+
   /* A plain, unstyled <input> defaults to a fixed browser width (~20 characters)
      regardless of its cell's actual column width — wider than most narrow columns
      (State, Group, …), so it silently overflows into the next cell. Constrain it
@@ -483,6 +501,14 @@
   td > input:not([type="checkbox"]):not([type="radio"]) {
     box-sizing: border-box;
     width: 100%;
+  }
+
+  /* Several tables (BurgsTable, GoodsEditorDialog, …) display a numeric value through
+     a disabled/readOnly <input> rather than plain text, sometimes nested inside the
+     td > .d-flex wrapper above. text-align on the <td> alone doesn't reach into the
+     input's own value box, so numeric cells need it applied here too. */
+  td.numeric input:not([type="checkbox"]):not([type="radio"]) {
+    text-align: right;
   }
 
   /* Icon + input/label pairs inside a cell (e.g. burg name, population). The flex
@@ -499,6 +525,14 @@
       min-width: 0;
       width: 100%;
     }
+  }
+
+  /* Numeric icon+value pairs (e.g. burg count with a building icon) live inside the
+     td > .d-flex wrapper above, so `text-align: right` on td.numeric has no effect —
+     flex items ignore text-align. Push the group itself to the cell's right edge
+     instead, so it still lines up under a right-aligned numeric header. */
+  td.numeric > .d-flex {
+    justify-content: flex-end;
   }
 }
 

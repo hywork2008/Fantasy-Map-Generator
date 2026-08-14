@@ -160,7 +160,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
             <table className="fmg-table">
               <thead>
                 <tr>
-                  <th>#</th>
+                  <th className="numeric">#</th>
                   <th>Era & Year</th>
                   <th>From</th>
                   <th>To</th>
@@ -197,7 +197,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
                       onMouseEnter={() => isEvent && highlightHistoryArrow(row.event.id, row.event.from, row.event.to)}
                       onMouseLeave={() => isEvent && highlightHistoryArrow("")}
                     >
-                      <td>{isEvent ? row.number : ""}</td>
+                      <td className="numeric">{isEvent ? row.number : ""}</td>
                       <td>{isEvent ? `${(currentYear ?? 100) - row.event.yearsAgo} ${currentEraShort}` : "-"}</td>
                       <td>{isEvent ? worldContext.pack.states[row.event.from]?.name || row.event.from : "-"}</td>
                       <td>{isEvent ? worldContext.pack.states[row.event.to]?.name || row.event.to : "-"}</td>

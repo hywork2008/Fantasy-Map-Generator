@@ -251,17 +251,17 @@ export const RiversOverviewDialog: React.FC = () => {
                         {r.type}
                       </div>
                     </td>
-                    <td>
+                    <td className="numeric">
                       <div data-tip="River discharge (flux power)" className="biomeArea">
                         {`${r.discharge} m³/s`}
                       </div>
                     </td>
-                    <td>
+                    <td className="numeric">
                       <div data-tip="River length from source to mouth" className="biomeArea">
                         {`${rn(r.length * worldContext.distanceScale)} ${unit}`}
                       </div>
                     </td>
-                    <td>
+                    <td className="numeric">
                       <div data-tip="River mouth width" className="biomeArea">
                         {`${rn(r.width * worldContext.distanceScale, 3)} ${unit}`}
                       </div>

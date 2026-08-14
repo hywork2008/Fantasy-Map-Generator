@@ -379,21 +379,21 @@ export const PopulationOverviewDialog: React.FC = () => {
                       />
                       {r.name}
                     </td>
-                    <td className="total">{fmt(r.rural)}</td>
-                    <td className="total">{fmt(r.urban)}</td>
-                    <td className="total">{fmt(r.underArms)}</td>
-                    <td className="total">
+                    <td className="total numeric">{fmt(r.rural)}</td>
+                    <td className="total numeric">{fmt(r.urban)}</td>
+                    <td className="total numeric">{fmt(r.underArms)}</td>
+                    <td className="total numeric">
                       <strong>{fmt(r.total)}</strong>
                     </td>
-                    <td className="total">{fmt(r.children)}</td>
-                    <td className="total">{fmt(r.civilianMale)}</td>
-                    <td className="total">{fmt(r.civilianFemale)}</td>
-                    <td className="total">{fmt(r.elders)}</td>
-                    <td className="total">{fmtPct(r.mobilizationPct)}</td>
-                    <td className="total">{fmtPct(r.adultMalePct)}</td>
-                    <td className="total">{rn(r.supplyStrain, 2)}</td>
-                    <td className="total">{fmtPct(r.draftEfficiency * 100)}</td>
-                    <td className="total">{rn(r.meanQuality, 2)}</td>
+                    <td className="total numeric">{fmt(r.children)}</td>
+                    <td className="total numeric">{fmt(r.civilianMale)}</td>
+                    <td className="total numeric">{fmt(r.civilianFemale)}</td>
+                    <td className="total numeric">{fmt(r.elders)}</td>
+                    <td className="total numeric">{fmtPct(r.mobilizationPct)}</td>
+                    <td className="total numeric">{fmtPct(r.adultMalePct)}</td>
+                    <td className="total numeric">{rn(r.supplyStrain, 2)}</td>
+                    <td className="total numeric">{fmtPct(r.draftEfficiency * 100)}</td>
+                    <td className="total numeric">{rn(r.meanQuality, 2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -476,11 +476,11 @@ export const PopulationOverviewDialog: React.FC = () => {
                       />
                       {r.name}
                     </td>
-                    <td className="total">{fmt(r.combat)}</td>
-                    <td className="total">{fmt(r.famine)}</td>
-                    <td className="total">{fmt(r.natural)}</td>
-                    <td className="total">{fmt(r.other)}</td>
-                    <td className="total">
+                    <td className="total numeric">{fmt(r.combat)}</td>
+                    <td className="total numeric">{fmt(r.famine)}</td>
+                    <td className="total numeric">{fmt(r.natural)}</td>
+                    <td className="total numeric">{fmt(r.other)}</td>
+                    <td className="total numeric">
                       <strong>{fmt(r.total)}</strong>
                     </td>
                   </tr>

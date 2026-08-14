@@ -106,7 +106,7 @@ export const DiplomacyEditorContent: React.FC = () => {
                       </svg>
                     </td>
                     <td></td>
-                    <td>{si(s.totalForces)}</td>
+                    <td className="numeric">{si(s.totalForces)}</td>
                     <td>
                       <ConflictStatusBadge status="none" />
                     </td>
@@ -152,7 +152,9 @@ export const DiplomacyEditorContent: React.FC = () => {
                       {s.relation}
                     </IconButton>
                   </td>
-                  <td data-tip={`${s.name} total military forces`}>{si(s.totalForces)}</td>
+                  <td className="numeric" data-tip={`${s.name} total military forces`}>
+                    {si(s.totalForces)}
+                  </td>
                   <td>
                     <ConflictStatusBadge status={s.conflictStatus} />
                   </td>

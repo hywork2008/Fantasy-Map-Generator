@@ -311,7 +311,7 @@ export const StatesEditorContent: React.FC = () => {
                           ))}
                         </select>
                       </td>
-                      <td className="hide">
+                      <td className="hide numeric">
                         <div className="d-flex">
                           <IconButton
                             data-tip="Click to overview state burgs"
@@ -323,13 +323,13 @@ export const StatesEditorContent: React.FC = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="hide">
+                      <td className="hide numeric">
                         <span data-tip="State area" className="stateArea hide">
                           {areaText}
                         </span>
                       </td>
                       <td
-                        className="hide pointer"
+                        className="hide numeric pointer"
                         onClick={() => (isNeutral ? null : statesEditorActions.changePopulation(s.i))}
                       >
                         <span data-tip="State population" className="statePopulation pointer hide">
@@ -341,7 +341,7 @@ export const StatesEditorContent: React.FC = () => {
                         return (
                           <td
                             key={column.id}
-                            className={`hide${column.onClick ? " pointer" : ""}`}
+                            className={`hide numeric${column.onClick ? " pointer" : ""}`}
                             onClick={() => (isNeutral || !column.onClick ? null : column.onClick(state))}
                           >
                             {isNeutral ? null : (
@@ -369,7 +369,7 @@ export const StatesEditorContent: React.FC = () => {
                           </select>
                         )}
                       </td>
-                      <td className="hidden show hide">
+                      <td className="hidden show hide numeric">
                         {isNeutral ? null : (
                           <input
                             type="number"
@@ -383,7 +383,7 @@ export const StatesEditorContent: React.FC = () => {
                           />
                         )}
                       </td>
-                      <td className="hidden show hide">
+                      <td className="hidden show hide numeric">
                         <span data-tip="Cells count" className="stateCells hidden show hide">
                           {s.cells}
                         </span>

@@ -86,26 +86,67 @@ export const EmploymentOverviewDialog: React.FC = () => {
             <tr>
               <th data-tip="Burg name">Burg</th>
               <th data-tip="Owning state">State</th>
-              <th data-tip="Administration employment (state capitals only)">Admin</th>
-              <th data-tip="Mining employment">Mining</th>
-              <th data-tip="Smelting employment">Smelting</th>
-              <th data-tip="Trade employment from this Burg's Market">Trade</th>
-              <th data-tip="Strategic industry (forestry, sailmaking, rope, tar)">Industry</th>
-              <th data-tip="Craft/manufacturing from recipe production">Craft</th>
-              <th data-tip="Masonry/carpentry, quarrying, volcanic ash (anonymous filled)">Construction</th>
-              <th data-tip="Built permanent dwellings">Dwellings</th>
-              <th data-tip="Required dwellings (pop × rate / 4.5)">Need</th>
-              <th data-tip="Housing gap % still unbuilt">Gap %</th>
-              <th data-tip="Estimated new dwellings under construction (labor-limited)">Building</th>
-              <th data-tip="Hire-board open construction seats (macro hire leaves ~15% of demand open)">Jobs</th>
-              <th data-tip="Household care / domestic band (non-market adults, population points)">Care</th>
-              <th data-tip="Market labor force after household care">Market</th>
-              <th data-tip="Unassigned market adults (residual). Positive ⇒ room for more jobs">Residual</th>
-              <th data-tip="Market unemployment % among market labor force (care excluded)">u %</th>
+              <th className="numeric" data-tip="Administration employment (state capitals only)">
+                Admin
+              </th>
+              <th className="numeric" data-tip="Mining employment">
+                Mining
+              </th>
+              <th className="numeric" data-tip="Smelting employment">
+                Smelting
+              </th>
+              <th className="numeric" data-tip="Trade employment from this Burg's Market">
+                Trade
+              </th>
+              <th className="numeric" data-tip="Strategic industry (forestry, sailmaking, rope, tar)">
+                Industry
+              </th>
+              <th className="numeric" data-tip="Craft/manufacturing from recipe production">
+                Craft
+              </th>
+              <th className="numeric" data-tip="Masonry/carpentry, quarrying, volcanic ash (anonymous filled)">
+                Construction
+              </th>
+              <th className="numeric" data-tip="Built permanent dwellings">
+                Dwellings
+              </th>
+              <th className="numeric" data-tip="Required dwellings (pop × rate / 4.5)">
+                Need
+              </th>
+              <th className="numeric" data-tip="Housing gap % still unbuilt">
+                Gap %
+              </th>
+              <th className="numeric" data-tip="Estimated new dwellings under construction (labor-limited)">
+                Building
+              </th>
+              <th
+                className="numeric"
+                data-tip="Hire-board open construction seats (macro hire leaves ~15% of demand open)"
+              >
+                Jobs
+              </th>
+              <th className="numeric" data-tip="Household care / domestic band (non-market adults, population points)">
+                Care
+              </th>
+              <th className="numeric" data-tip="Market labor force after household care">
+                Market
+              </th>
+              <th className="numeric" data-tip="Unassigned market adults (residual). Positive ⇒ room for more jobs">
+                Residual
+              </th>
+              <th className="numeric" data-tip="Market unemployment % among market labor force (care excluded)">
+                u %
+              </th>
               <th data-tip="Suggested sector to expand when residual is high">Focus</th>
-              <th data-tip="basicEmploymentDemand (assigned seats + trade/craft attribution)">Basic</th>
-              <th data-tip="serviceEmploymentDemand ≈ basic × 1.5">Service</th>
-              <th data-tip="basic + service demand (urban labor intake driver in Megacity mode)">Total</th>
+              <th className="numeric" data-tip="basicEmploymentDemand (assigned seats + trade/craft attribution)">
+                Basic
+              </th>
+              <th className="numeric" data-tip="serviceEmploymentDemand ≈ basic × 1.5">
+                Service
+              </th>
+              <th className="numeric" data-tip="basic + service demand (urban labor intake driver in Megacity mode)">
+                Total
+              </th>
             </tr>
           </thead>
           {rows.length === 0 ? (
@@ -135,14 +176,15 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
       {row.isCapital && <i className="icon-star" data-tip="State capital" />} {row.burgName}
     </td>
     <td>{row.stateName}</td>
-    <td>{row.administration || ""}</td>
-    <td>{row.mining || ""}</td>
-    <td>{row.smelting || ""}</td>
-    <td>{row.trade || ""}</td>
-    <td>{row.strategicIndustry || ""}</td>
-    <td>{row.craft || ""}</td>
-    <td>{row.construction || ""}</td>
+    <td className="numeric">{row.administration || ""}</td>
+    <td className="numeric">{row.mining || ""}</td>
+    <td className="numeric">{row.smelting || ""}</td>
+    <td className="numeric">{row.trade || ""}</td>
+    <td className="numeric">{row.strategicIndustry || ""}</td>
+    <td className="numeric">{row.craft || ""}</td>
+    <td className="numeric">{row.construction || ""}</td>
     <td
+      className="numeric"
       data-tip={
         row.requiredDwellings > 0
           ? `${row.dwellings} built / ${row.requiredDwellings} required dwellings`
@@ -151,14 +193,20 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     >
       {row.requiredDwellings > 0 ? Math.round(row.dwellings) : ""}
     </td>
-    <td data-tip={row.requiredDwellings > 0 ? "Required permanent dwellings" : ""}>{row.requiredDwellings || ""}</td>
-    <td data-tip={row.requiredDwellings > 0 ? `${row.housingGapPct}% of required dwellings still unbuilt` : ""}>
+    <td className="numeric" data-tip={row.requiredDwellings > 0 ? "Required permanent dwellings" : ""}>
+      {row.requiredDwellings || ""}
+    </td>
+    <td
+      className="numeric"
+      data-tip={row.requiredDwellings > 0 ? `${row.housingGapPct}% of required dwellings still unbuilt` : ""}
+    >
       {row.requiredDwellings > 0 ? `${row.housingGapPct}%` : ""}
     </td>
-    <td data-tip={row.underConstruction > 0 ? "Est. dwellings under construction this year" : ""}>
+    <td className="numeric" data-tip={row.underConstruction > 0 ? "Est. dwellings under construction this year" : ""}>
       {row.underConstruction > 0 ? row.underConstruction : ""}
     </td>
     <td
+      className="numeric"
       data-tip={
         row.constructionJobsOpen > 0
           ? `${row.constructionJobsOpen} construction hire-board seat(s) open for applicants`
@@ -167,13 +215,14 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     >
       {row.constructionJobsOpen > 0 ? row.constructionJobsOpen : ""}
     </td>
-    <td data-tip={row.householdCare > 0 ? "Non-market household care band" : ""}>
+    <td className="numeric" data-tip={row.householdCare > 0 ? "Non-market household care band" : ""}>
       {row.householdCare > 0 ? row.householdCare : ""}
     </td>
-    <td data-tip={row.marketLaborForce > 0 ? "Adults available for market work" : ""}>
+    <td className="numeric" data-tip={row.marketLaborForce > 0 ? "Adults available for market work" : ""}>
       {row.marketLaborForce > 0 ? row.marketLaborForce : ""}
     </td>
     <td
+      className="numeric"
       data-tip={
         row.marketLaborForce > 0
           ? `Residual ${row.laborResidual} of ${row.marketLaborForce} market adults`
@@ -182,15 +231,15 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     >
       {row.marketLaborForce > 0 ? row.laborResidual : ""}
     </td>
-    <td data-tip={row.marketLaborForce > 0 ? "Market unemployment (care excluded)" : ""}>
+    <td className="numeric" data-tip={row.marketLaborForce > 0 ? "Market unemployment (care excluded)" : ""}>
       {row.marketLaborForce > 0 ? `${row.marketUnemploymentPct}%` : ""}
     </td>
     <td data-tip={row.employmentFocus !== "—" ? row.employmentFocus : ""}>
       {row.employmentFocus !== "—" ? row.employmentFocus : ""}
     </td>
-    <td>{row.basicEmploymentDemand || ""}</td>
-    <td>{row.serviceEmploymentDemand || ""}</td>
-    <td>
+    <td className="numeric">{row.basicEmploymentDemand || ""}</td>
+    <td className="numeric">{row.serviceEmploymentDemand || ""}</td>
+    <td className="numeric">
       <strong>{row.employmentDemand || ""}</strong>
     </td>
   </tr>

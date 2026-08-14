@@ -220,7 +220,7 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
                   )}
                   {showExtraColumns && (
                     <>
-                      <td>
+                      <td className="numeric">
                         <div className="d-flex">
                           <IconButton
                             data-tip="Click to overview province burgs"
@@ -232,7 +232,7 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td className="numeric">
                         <div className="d-flex">
                           <span data-tip="Province area" className="icon-map-o" />
                           <div data-tip="Province area" className="biomeArea">
@@ -240,7 +240,7 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
                           </div>
                         </div>
                       </td>
-                      <td className="pointer" onClick={() => provincesEditorActions.changePopulation(p.i)}>
+                      <td className="numeric pointer" onClick={() => provincesEditorActions.changePopulation(p.i)}>
                         <div className="d-flex">
                           <span data-tip={populationTip} className="icon-male" />
                           <div data-tip={populationTip} className="culturePopulation">

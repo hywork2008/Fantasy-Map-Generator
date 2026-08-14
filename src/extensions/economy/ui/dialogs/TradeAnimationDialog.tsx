@@ -302,13 +302,13 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
                   <td>{row.goodName}</td>
                   <td>{row.sourceBurgName}</td>
                   <td>{row.targetBurgName}</td>
-                  <td style={{ textAlign: "right" }}>{`${row.distance} ${distanceUnit}`}</td>
-                  <td style={{ textAlign: "right" }}>{`${row.progress.toFixed(0)}%`}</td>
-                  <td style={{ textAlign: "right" }}>
+                  <td className="numeric">{`${row.distance} ${distanceUnit}`}</td>
+                  <td className="numeric">{`${row.progress.toFixed(0)}%`}</td>
+                  <td className="numeric">
                     {Number.isFinite(row.remainingDays) ? `${row.remainingDays} / ${row.totalDays} days` : "—"}
                   </td>
-                  <td style={{ textAlign: "right" }}>{row.units}</td>
-                  <td style={{ textAlign: "right" }}>{formatPrice(row.value)}</td>
+                  <td className="numeric">{row.units}</td>
+                  <td className="numeric">{formatPrice(row.value)}</td>
                 </tr>
               )}
             />
@@ -523,13 +523,13 @@ const FlowReportTab: React.FC = () => {
                 <tr key={`${row.marketId}-${row.goodId}`} className="states">
                   <td>{row.marketName}</td>
                   <td>{row.goodName}</td>
-                  <td style={{ textAlign: "right" }}>{formatNum(row.annualProd)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNum(row.annualDemand)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNum(row.annualExport)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNum(row.annualImport)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNum(row.endStock)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNum(row.monthsCover)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNum(row.exportSlots)}</td>
+                  <td className="numeric">{formatNum(row.annualProd)}</td>
+                  <td className="numeric">{formatNum(row.annualDemand)}</td>
+                  <td className="numeric">{formatNum(row.annualExport)}</td>
+                  <td className="numeric">{formatNum(row.annualImport)}</td>
+                  <td className="numeric">{formatNum(row.endStock)}</td>
+                  <td className="numeric">{formatNum(row.monthsCover)}</td>
+                  <td className="numeric">{formatNum(row.exportSlots)}</td>
                 </tr>
               )}
             />

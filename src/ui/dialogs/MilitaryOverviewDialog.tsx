@@ -253,18 +253,23 @@ export const MilitaryOverviewDialog: React.FC = () => {
                     <input data-tip={l.fullName} value={l.name} readOnly />
                   </td>
                   {militaryOptions.map(u => (
-                    <td key={u.name} data-tip={`State ${u.name} units number`}>
+                    <td key={u.name} className="numeric" data-tip={`State ${u.name} units number`}>
                       {getDisplayValue(l.unitsData[u.name], totals.sumUnits[u.name])}
                     </td>
                   ))}
-                  <td data-tip="Total state military personnel (considering crew)">
+                  <td className="numeric" data-tip="Total state military personnel (considering crew)">
                     {getDisplayValueSi(l.total, totals.total)}
                   </td>
-                  <td data-tip="State population">{getDisplayValueSi(l.population, totals.sumPopulation)}</td>
-                  <td data-tip="Military personnel rate (% of state population). Depends on war alert">
+                  <td className="numeric" data-tip="State population">
+                    {getDisplayValueSi(l.population, totals.sumPopulation)}
+                  </td>
+                  <td
+                    className="numeric"
+                    data-tip="Military personnel rate (% of state population). Depends on war alert"
+                  >
                     {rn(l.rate, 2)}%
                   </td>
-                  <td>
+                  <td className="numeric">
                     <input
                       data-tip="War Alert. Editable modifier to military forces number, depends of political situation"
                       type="number"

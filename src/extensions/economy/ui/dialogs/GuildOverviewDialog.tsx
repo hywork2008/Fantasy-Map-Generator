@@ -284,8 +284,8 @@ const GuildRow: React.FC<{ row: GuildOverviewRow }> = ({ row }) => (
     <td>{row.stateName}</td>
     <td>{row.domain}</td>
     <td>{row.status === "chapter" ? "Chapter" : "Informal"}</td>
-    <td>{row.stock.toFixed(3)}</td>
-    <td>{row.bonus.toFixed(3)}</td>
-    <td>{row.treasury.toFixed(2)}</td>
+    <td className="numeric">{row.stock.toFixed(3)}</td>
+    <td className="numeric">{row.bonus.toFixed(3)}</td>
+    <td className="numeric">{row.treasury.toFixed(2)}</td>
   </tr>
 );

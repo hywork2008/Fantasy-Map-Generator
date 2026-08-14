@@ -147,7 +147,10 @@ export const StatesEditorPersonalityTab: React.FC = () => {
         onSort={handleSort}
         numeric
         tip={`Click to sort by ${tip}`}
-        style={{ fontSize: "0.85em", padding: "0 4px" }}
+        // Matches the color-coded, center-aligned stat <td> below (a dense abbreviated-label
+        // grid, not a left/right value table) — without this, the shared .sortable numeric CSS
+        // rule would right-align the header while the data stays centered.
+        style={{ fontSize: "0.85em", padding: "0 4px", textAlign: "center" }}
       />
     );
   }

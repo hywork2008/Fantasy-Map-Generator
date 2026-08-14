@@ -297,13 +297,13 @@ export const CulturesEditorDialog: React.FC = () => {
                         </select>
                       </div>
                     </td>
-                    <td className="hide">
+                    <td className="hide numeric">
                       <span data-tip="Cells count" className="icon-check-empty" />
                       <div data-tip="Cells count" className="cultureCells" style={{ display: "inline-block" }}>
                         {cellsText}
                       </div>
                     </td>
-                    <td className="hide">
+                    <td className="hide numeric">
                       <div className="d-flex">
                         <span
                           data-tip="Culture expansionism. Defines competitive size"
@@ -322,13 +322,13 @@ export const CulturesEditorDialog: React.FC = () => {
                         />
                       </div>
                     </td>
-                    <td className="hide">
+                    <td className="hide numeric">
                       <span data-tip="Culture area" />
                       <div data-tip="Culture area" className="cultureArea" style={{ display: "inline-block" }}>
                         {areaText}
                       </div>
                     </td>
-                    <td className="hide pointer" onClick={() => culturesEditorActions.changePopulation(c.i)}>
+                    <td className="hide numeric pointer" onClick={() => culturesEditorActions.changePopulation(c.i)}>
                       <span data-tip={populationTip} className="icon-male" />
                       <div data-tip={populationTip} className="culturePopulation" style={{ display: "inline-block" }}>
                         {popText}

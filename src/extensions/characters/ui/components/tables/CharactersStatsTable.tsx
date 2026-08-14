@@ -124,7 +124,11 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
           width: width ?? `${ABILITY_COLUMN_WIDTH_EM}em`,
           minWidth: width ?? `${ABILITY_COLUMN_WIDTH_EM}em`,
           fontSize: "0.85em",
-          padding: "0 4px"
+          padding: "0 4px",
+          // Matches the center-aligned stat <td> below (a dense abbreviated-label grid, not a
+          // left/right value table) — without this, the shared .sortable numeric CSS rule would
+          // right-align the header while the data stays centered.
+          textAlign: "center"
         }}
       />
     );

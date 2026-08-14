@@ -445,8 +445,8 @@ export const MarketOverviewDialog: React.FC = () => {
                       >
                         {row.topMerchantName}
                       </td>
-                      <td style={{ textAlign: "right" }}>{row.topShare.toFixed(1)}%</td>
-                      <td style={{ textAlign: "right" }}>{formatPrice(row.topRevenue)}</td>
+                      <td className="numeric">{row.topShare.toFixed(1)}%</td>
+                      <td className="numeric">{formatPrice(row.topRevenue)}</td>
                       <td>{row.rivals}</td>
                     </tr>
                   )}
@@ -463,13 +463,25 @@ export const MarketOverviewDialog: React.FC = () => {
                 <thead>
                   <tr className="header">
                     <th>Asset</th>
-                    <th data-tip="Cargo slots carried by one asset">Slots</th>
-                    <th data-tip="Assets ready for a new shipment">Available</th>
-                    <th data-tip="Assets allocated before departure">Reserved</th>
-                    <th data-tip="Assets currently travelling with cargo">In transit</th>
-                    <th data-tip="Assets recovering after a lost caravan">Maintenance</th>
-                    <th>Total</th>
-                    <th data-tip="Cargo slots ready for a new shipment">Ready slots</th>
+                    <th className="numeric" data-tip="Cargo slots carried by one asset">
+                      Slots
+                    </th>
+                    <th className="numeric" data-tip="Assets ready for a new shipment">
+                      Available
+                    </th>
+                    <th className="numeric" data-tip="Assets allocated before departure">
+                      Reserved
+                    </th>
+                    <th className="numeric" data-tip="Assets currently travelling with cargo">
+                      In transit
+                    </th>
+                    <th className="numeric" data-tip="Assets recovering after a lost caravan">
+                      Maintenance
+                    </th>
+                    <th className="numeric">Total</th>
+                    <th className="numeric" data-tip="Cargo slots ready for a new shipment">
+                      Ready slots
+                    </th>
                   </tr>
                 </thead>
                 {transportAssetRows.length === 0 ? (
@@ -485,13 +497,13 @@ export const MarketOverviewDialog: React.FC = () => {
                     renderRow={(row: MarketOverviewTransportAssetRow) => (
                       <tr key={row.assetId} className="states">
                         <td>{row.assetName}</td>
-                        <td style={{ textAlign: "right" }}>{row.cargoCapacitySlots}</td>
-                        <td style={{ textAlign: "right" }}>{row.available}</td>
-                        <td style={{ textAlign: "right" }}>{row.reserved}</td>
-                        <td style={{ textAlign: "right" }}>{row.inTransit}</td>
-                        <td style={{ textAlign: "right" }}>{row.maintenance}</td>
-                        <td style={{ textAlign: "right" }}>{row.total}</td>
-                        <td style={{ textAlign: "right" }}>{row.available * row.cargoCapacitySlots}</td>
+                        <td className="numeric">{row.cargoCapacitySlots}</td>
+                        <td className="numeric">{row.available}</td>
+                        <td className="numeric">{row.reserved}</td>
+                        <td className="numeric">{row.inTransit}</td>
+                        <td className="numeric">{row.maintenance}</td>
+                        <td className="numeric">{row.total}</td>
+                        <td className="numeric">{row.available * row.cargoCapacitySlots}</td>
                       </tr>
                     )}
                   />

@@ -247,7 +247,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                             />
                           </div>
                         </td>
-                        <td>
+                        <td className="numeric">
                           <div className="d-flex">
                             <span data-tip="Religion area" className="icon-map-o" />
                             <div data-tip="Religion area" className="religionArea">
@@ -255,7 +255,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="pointer" onClick={() => religionsEditorActions.changePopulation(r.i)}>
+                        <td className="numeric pointer" onClick={() => religionsEditorActions.changePopulation(r.i)}>
                           <div className="d-flex">
                             <span data-tip={populationTip} className="icon-male" />
                             <div data-tip={populationTip} className="religionPopulation">
@@ -277,7 +277,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                                   </span>
                                 </div>
                               </td>
-                              <td>
+                              <td className="numeric">
                                 <div className="d-flex">
                                   <span data-tip="Folk religions do not expand" className="icon-resize-full" />
                                   <input
@@ -310,7 +310,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                                   </select>
                                 </div>
                               </td>
-                              <td>
+                              <td className="numeric">
                                 <div className="d-flex">
                                   <span
                                     data-tip="Religion expansionism. Defines competitive size"
@@ -335,7 +335,7 @@ export const ReligionsEditorDialog: React.FC = () => {
                         ) : (
                           <>
                             <td></td>
-                            <td></td>
+                            <td className="numeric"></td>
                           </>
                         )}
                         <td>

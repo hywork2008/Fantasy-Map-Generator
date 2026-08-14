@@ -71,12 +71,24 @@ export const MineralOverviewDialog: React.FC = () => {
                 <tr>
                   <th>Resource</th>
                   <th data-tip="Active, idle, unprospected, exhausted, or absent">Supply status</th>
-                  <th data-tip="All generated deposits containing this resource">Deposits</th>
-                  <th data-tip="Deposits found by prospecting or an established mine">Known</th>
-                  <th data-tip="Mines currently supplying this resource">Mines</th>
-                  <th data-tip="Recoverable material remaining across all deposits (tons)">Reserves (t)</th>
-                  <th data-tip="Full potential annual extraction across all deposits (tons/year)">Capacity (t/y)</th>
-                  <th data-tip="Last annualized output recorded by active mines (tons/year)">Output (t/y)</th>
+                  <th className="numeric" data-tip="All generated deposits containing this resource">
+                    Deposits
+                  </th>
+                  <th className="numeric" data-tip="Deposits found by prospecting or an established mine">
+                    Known
+                  </th>
+                  <th className="numeric" data-tip="Mines currently supplying this resource">
+                    Mines
+                  </th>
+                  <th className="numeric" data-tip="Recoverable material remaining across all deposits (tons)">
+                    Reserves (t)
+                  </th>
+                  <th className="numeric" data-tip="Full potential annual extraction across all deposits (tons/year)">
+                    Capacity (t/y)
+                  </th>
+                  <th className="numeric" data-tip="Last annualized output recorded by active mines (tons/year)">
+                    Output (t/y)
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -93,17 +105,17 @@ export const MineralOverviewDialog: React.FC = () => {
             <table className="fmg-table">
               <thead className="header">
                 <tr>
-                  <th>ID</th>
+                  <th className="numeric">ID</th>
                   <th>Primary resource</th>
                   <th>Resources</th>
                   <th>District</th>
                   <th>Mine status</th>
                   <th>Settlement</th>
-                  <th>Depth</th>
-                  <th>Richness</th>
-                  <th>Reserves (t)</th>
-                  <th>Capacity (t/y)</th>
-                  <th>Output (t/y)</th>
+                  <th className="numeric">Depth</th>
+                  <th className="numeric">Richness</th>
+                  <th className="numeric">Reserves (t)</th>
+                  <th className="numeric">Capacity (t/y)</th>
+                  <th className="numeric">Output (t/y)</th>
                 </tr>
               </thead>
               {deposits.length === 0 ? (
@@ -136,29 +148,29 @@ const CommodityRow: React.FC<{ row: MineralCommodityOverviewRow }> = ({ row }) =
   <tr data-resource={row.commodity} data-status={row.status}>
     <td>{row.commodity}</td>
     <td data-tip={STATUS_TIP[row.status]}>{STATUS_LABEL[row.status]}</td>
-    <td>{row.depositCount}</td>
-    <td>{row.discoveredCount}</td>
-    <td>{row.activeMineCount}</td>
-    <td>{row.reserveTons}</td>
-    <td>{row.annualCapacityTons}</td>
-    <td>{row.annualOutputTons}</td>
+    <td className="numeric">{row.depositCount}</td>
+    <td className="numeric">{row.discoveredCount}</td>
+    <td className="numeric">{row.activeMineCount}</td>
+    <td className="numeric">{row.reserveTons}</td>
+    <td className="numeric">{row.annualCapacityTons}</td>
+    <td className="numeric">{row.annualOutputTons}</td>
   </tr>
 );
 
 function renderDepositRow(row: MineralDepositOverviewRow): React.ReactNode {
   return (
     <tr key={row.id} data-id={row.id} data-status={row.status} data-cell={row.cell}>
-      <td>{row.id}</td>
+      <td className="numeric">{row.id}</td>
       <td>{row.primaryCommodity}</td>
       <td>{row.commodities}</td>
       <td>{row.districtType}</td>
       <td data-tip={STATUS_TIP[row.status]}>{STATUS_LABEL[row.status]}</td>
       <td>{row.burgName}</td>
-      <td>{row.depth}</td>
-      <td>{row.richness}/5</td>
-      <td>{row.reserveTons}</td>
-      <td>{row.annualCapacityTons}</td>
-      <td>{row.annualOutputTons}</td>
+      <td className="numeric">{row.depth}</td>
+      <td className="numeric">{row.richness}/5</td>
+      <td className="numeric">{row.reserveTons}</td>
+      <td className="numeric">{row.annualCapacityTons}</td>
+      <td className="numeric">{row.annualOutputTons}</td>
     </tr>
   );
 }

@@ -172,13 +172,13 @@ export const ShipyardsOverviewDialog: React.FC = () => {
                   <td>{row.burgName}</td>
                   <td>{row.ownerLabel}</td>
                   <td>{row.shipClassName}</td>
-                  <td>{row.progressPct}%</td>
+                  <td className="numeric">{row.progressPct}%</td>
                   <td>{row.materialStatus}</td>
                   <td>{row.strategicMaterialSummary}</td>
                   <td>{row.procurementStatus}</td>
-                  <td>{row.completedHulls}</td>
+                  <td className="numeric">{row.completedHulls}</td>
                   <td>{row.portOccupancyLabel}</td>
-                  <td>{row.atSeaCount}</td>
+                  <td className="numeric">{row.atSeaCount}</td>
                 </tr>
               )}
             />

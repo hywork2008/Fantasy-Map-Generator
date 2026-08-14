@@ -189,17 +189,17 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
                   >
                     <td>{row.sourceMarketName}</td>
                     <td>{row.targetMarketName}</td>
-                    <td style={{ textAlign: "right" }}>{`${row.distance} ${distanceUnit}`}</td>
-                    <td style={{ textAlign: "right" }}>{`${row.landDistance} ${distanceUnit}`}</td>
-                    <td style={{ textAlign: "right" }}>{`${row.seaDistance} ${distanceUnit}`}</td>
-                    <td style={{ textAlign: "right" }}>{`${row.riverDistance} ${distanceUnit}`}</td>
-                    <td style={{ textAlign: "right" }}>{row.transferCount}</td>
-                    <td style={{ textAlign: "right" }}>{formatPrice(row.buyPrice)}</td>
-                    <td style={{ textAlign: "right" }}>{formatPrice(row.sellPrice)}</td>
-                    <td style={{ textAlign: "right" }}>{formatPrice(row.transportCost)}</td>
-                    <td style={{ textAlign: "right" }}>{formatPrice(row.unitProfit)}</td>
-                    <td style={{ textAlign: "right" }}>{row.maxUnits}</td>
-                    <td style={{ textAlign: "right" }}>{formatPrice(row.totalProfit)}</td>
+                    <td className="numeric">{`${row.distance} ${distanceUnit}`}</td>
+                    <td className="numeric">{`${row.landDistance} ${distanceUnit}`}</td>
+                    <td className="numeric">{`${row.seaDistance} ${distanceUnit}`}</td>
+                    <td className="numeric">{`${row.riverDistance} ${distanceUnit}`}</td>
+                    <td className="numeric">{row.transferCount}</td>
+                    <td className="numeric">{formatPrice(row.buyPrice)}</td>
+                    <td className="numeric">{formatPrice(row.sellPrice)}</td>
+                    <td className="numeric">{formatPrice(row.transportCost)}</td>
+                    <td className="numeric">{formatPrice(row.unitProfit)}</td>
+                    <td className="numeric">{row.maxUnits}</td>
+                    <td className="numeric">{formatPrice(row.totalProfit)}</td>
                   </tr>
                 )}
               />

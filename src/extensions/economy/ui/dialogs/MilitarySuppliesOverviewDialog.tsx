@@ -197,13 +197,13 @@ function renderRow(row: MilitarySuppliesOverviewRow): React.ReactNode {
   return (
     <tr key={row.stateId} data-state-id={row.stateId}>
       <td>{row.stateName}</td>
-      <td>{format(row.arms)}</td>
-      <td>{format(row.arrows)}</td>
-      <td>{format(row.mounts)}</td>
-      <td>{format(row.muskets)}</td>
-      <td>{format(row.bullets)}</td>
-      <td>{format(row.artillery)}</td>
-      <td>{format(row.gunpowder)}</td>
+      <td className="numeric">{format(row.arms)}</td>
+      <td className="numeric">{format(row.arrows)}</td>
+      <td className="numeric">{format(row.mounts)}</td>
+      <td className="numeric">{format(row.muskets)}</td>
+      <td className="numeric">{format(row.bullets)}</td>
+      <td className="numeric">{format(row.artillery)}</td>
+      <td className="numeric">{format(row.gunpowder)}</td>
     </tr>
   );
 }

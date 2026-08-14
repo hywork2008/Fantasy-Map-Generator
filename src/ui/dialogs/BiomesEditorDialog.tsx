@@ -177,7 +177,7 @@ export const BiomesEditorContent: React.FC = () => {
                     onBlur={e => biomesChangeName(row.i, e.target.value)}
                   />
                 </td>
-                <td>
+                <td className="numeric">
                   <span data-tip="Biome habitability percent" className={hc()} style={innerPtr}>
                     %
                   </span>
@@ -192,7 +192,7 @@ export const BiomesEditorContent: React.FC = () => {
                     onBlur={e => biomesChangeHabitability(row.i, e.target.value)}
                   />
                 </td>
-                <td>
+                <td className="numeric">
                   <span data-tip="Cells count" className={hc("icon-check-empty")} style={{ ...(innerPtr || {}) }} />
                   <div
                     data-tip="Cells count"
@@ -202,7 +202,7 @@ export const BiomesEditorContent: React.FC = () => {
                     {displayCells(row.cells)}
                   </div>
                 </td>
-                <td>
+                <td className="numeric">
                   <span data-tip="Biome area" className={hc("icon-map-o")} style={{ ...(innerPtr ?? {}) }} />
                   <div
                     data-tip="Biome area"
@@ -212,7 +212,7 @@ export const BiomesEditorContent: React.FC = () => {
                     {displayArea(row.area)}
                   </div>
                 </td>
-                <td>
+                <td className="numeric">
                   <span data-tip={row.populationTip} className={hc("icon-male")} style={{ ...(innerPtr || {}) }} />
                   <div
                     data-tip={row.populationTip}
