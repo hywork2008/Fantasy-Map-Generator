@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | P0 implemented (2026-08-15); P1–P4 remaining |
+| Status | P0–P1 implemented (2026-08-15); P2–P4 remaining |
 | 対象 | Shipbuilding `ShipHull`、Economy `Caravan` / `MerchantTransportAssets`、Vessel assets UI、Trade Animation UI |
 | 前提 | [merchant-transport-asset-ledger.md](merchant-transport-asset-ledger.md) F1–F3 実装済み、[shipbuilding-initial-fleet.md](shipbuilding-initial-fleet.md) 初期艦隊 seed 済み、[ships.md](ships.md) §4.5 voyage 実装済み |
 | 調査日 | 2026-08-14 |
@@ -350,13 +350,13 @@ UI
 - [x] テスト: 船体 0 で海上 loading が transit にならない / 船体 1 で同時 2 便が出ない / mode off では abstract 出航可。
 - [x] 受け入れ: 同時海上便 ≤ 予約可能な merchant hull 数（`canDepartWithTransportAssets`）。
 
-### P1 — 位置フィールドと到着後 idle
+### P1 — 位置フィールドと到着後 idle — 実装済み (2026-08-15)
 
-- [ ] `ShipHull` に itinerary フィールド。seed/complete で market 船は home で idle+docked。
-- [ ] 予約時 / 出航時 / 到着時 / 喪失時に位置・duty・caravanId を更新。
-- [ ] Economy が tick で位置投影 event を送る。
-- [ ] 商船の抽象 voyage 収入を停止（state patrol は維持）。
-- [ ] 単体テスト: 1 隻が A→B 貨物後 B で idle、再出航で再利用。
+- [x] `ShipHull` に itinerary フィールド。seed/complete で market 船は home で idle+docked。
+- [x] 予約時 / 到着時 / 喪失時に位置・duty・caravanId を更新（`reserveMerchantHullsForCargo` / `releaseMerchantHullsFromCargo`）。
+- [x] Economy が `Caravans.tick` 末に `fmg:economy-caravan-hull-positions` で位置投影。
+- [x] 商船の抽象 voyage 収入を停止（state patrol は維持）。
+- [x] 単体テスト: A→B 貨物後 destination で idle、再予約可（`shipHullItinerary.test.ts`）。
 
 ### P2 — Vessel assets / Trade Animation UI
 

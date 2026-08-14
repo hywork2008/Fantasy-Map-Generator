@@ -20,12 +20,17 @@ export interface SurplusShipyardQueueEntry extends Omit<ShipyardQueueEntry, "own
 export type ShipHullStatus = "docked" | "voyage" | "cargo" | "maintenance";
 
 /**
+ * Operational duty for itinerary display and income rules
+ * (docs/plan/vessel-itinerary-and-finite-trade-fleet.md P1).
+ */
+export type ShipHullDuty = "idle" | "loading" | "cargo" | "ballast" | "patrol";
+
+/**
  * A single completed hull. `ownerId` is a stateId for `owner: "state"` (navy hulls are
  * pooled at the state level, matching `_completedHulls`'s existing key scheme) or a
- * burgId for `owner: "market"`. `homeBurgId` is always the burg that built it — hulls
- * don't relocate to other ports in this model. `status` tracks whether it currently
- * occupies a port berth (`"docked"`) or is out on a trade/training voyage (`"voyage"`,
- * see `shipVoyages.ts` and docs/plan/ships.md "航海訓練・偽装通商・諜報（暫定案）").
+ * burgId for `owner: "market"`. `homeBurgId` is the ownership / home shipyard port.
+ * `currentBurgId` / `nextBurgId` track live position for finite trade fleets
+ * (docs/plan/vessel-itinerary-and-finite-trade-fleet.md).
  */
 export interface ShipHull {
   id: number;
@@ -36,4 +41,14 @@ export interface ShipHull {
   status: ShipHullStatus;
   /** Shipbuilding-owned recovery timer used after an Economy cargo loss. */
   maintenanceDays?: number;
+  /** Port the hull is currently berthed at; null while at sea. */
+  currentBurgId?: number | null;
+  /** Next port of call while on a cargo / ballast leg; null when idle. */
+  nextBurgId?: number | null;
+  /** Economy Caravan id while reserved for cargo; null otherwise. */
+  caravanId?: number | null;
+  /** 0..1 route progress projected from the bound Caravan. */
+  routeProgress?: number;
+  /** High-level duty label for UI and voyage-income gating. */
+  duty?: ShipHullDuty;
 }
