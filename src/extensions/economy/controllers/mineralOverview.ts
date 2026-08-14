@@ -10,6 +10,7 @@ import {
 import {
   type MineralCommodityOverviewRow,
   type MineralDepositOverviewRow,
+  type MineralOverviewStateOption,
   type MineralSupplyStatus,
   setMineralOverviewState
 } from "../store/mineralOverviewState";
@@ -25,19 +26,41 @@ export function open(): void {
   refreshMineralOverview();
 }
 
-export function refreshMineralOverview(): void {
+export function refreshMineralOverview(stateId: number | null = null): void {
   const world = getWorldContext();
+  const states = getStateOptions(world.pack.states);
+  const stateNameById = new Map(states.map(state => [state.id, state.name]));
+  const cellStates = world.pack.cells.state;
   const deposits = getMineralDeposits();
+  const filteredDeposits =
+    stateId === null ? deposits : deposits.filter(deposit => cellStates[deposit.cell] === stateId);
   const operationsByDeposit = new Map(getMineOperations().map(operation => [operation.depositId, operation]));
 
   const commodities = ALL_MINERAL_COMMODITIES.map(commodity =>
-    buildCommodityRow(commodity, deposits, operationsByDeposit)
+    buildCommodityRow(commodity, filteredDeposits, operationsByDeposit)
   );
-  const depositRows = deposits
-    .map(deposit => buildDepositRow(deposit, operationsByDeposit, world.pack.burgs))
+  const depositRows = filteredDeposits
+    .map(deposit =>
+      buildDepositRow(
+        deposit,
+        operationsByDeposit,
+        world.pack.burgs,
+        cellStates[deposit.cell],
+        stateNameById.get(cellStates[deposit.cell])
+      )
+    )
     .toSorted((left, right) => right.annualOutputTons - left.annualOutputTons || left.id - right.id);
 
-  setMineralOverviewState({ commodities, deposits: depositRows });
+  setMineralOverviewState({ commodities, deposits: depositRows, states });
+}
+
+function getStateOptions(
+  states: readonly { i: number; name: string; removed?: boolean }[]
+): MineralOverviewStateOption[] {
+  return states
+    .filter(state => state.i && !state.removed)
+    .map(state => ({ id: state.i, name: state.name || `State ${state.i}` }))
+    .toSorted((left, right) => left.name.localeCompare(right.name));
 }
 
 function buildCommodityRow(
@@ -77,7 +100,9 @@ function buildDepositRow(
     number,
     { active: boolean; burgId: number; annualOutputTons: Partial<Record<MineralCommodity, number>> }
   >,
-  burgs: readonly { i?: number; name?: string; removed?: boolean }[]
+  burgs: readonly { i?: number; name?: string; removed?: boolean }[],
+  stateId: number,
+  stateName: string | undefined
 ): MineralDepositOverviewRow {
   const operation = operationsByDeposit.get(deposit.i);
   const burg = operation?.burgId ? burgs[operation.burgId] : undefined;
@@ -95,6 +120,8 @@ function buildDepositRow(
   return {
     id: deposit.i,
     cell: deposit.cell,
+    stateId,
+    stateName: stateName ?? "Unclaimed",
     districtType: deposit.type,
     primaryCommodity: deposit.primaryCommodity,
     commodities: deposit.commodities.join(", "),

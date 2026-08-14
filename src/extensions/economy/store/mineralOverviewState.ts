@@ -13,9 +13,16 @@ export interface MineralCommodityOverviewRow {
   status: MineralSupplyStatus;
 }
 
+export interface MineralOverviewStateOption {
+  id: number;
+  name: string;
+}
+
 export interface MineralDepositOverviewRow {
   id: number;
   cell: number;
+  stateId: number;
+  stateName: string;
   districtType: string;
   primaryCommodity: string;
   commodities: string;
@@ -32,11 +39,13 @@ export interface MineralDepositOverviewRow {
 interface MineralOverviewState {
   commodities: MineralCommodityOverviewRow[];
   deposits: MineralDepositOverviewRow[];
+  states: MineralOverviewStateOption[];
 }
 
 export const useMineralOverviewState = create<MineralOverviewState>(() => ({
   commodities: [],
-  deposits: []
+  deposits: [],
+  states: []
 }));
 
 export const getMineralOverviewState = useMineralOverviewState.getState;

@@ -1,7 +1,7 @@
 import React from "react";
 
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
-import { open as openMineralOverview, refreshMineralOverview } from "../../controllers/mineralOverview";
+import { refreshMineralOverview } from "../../controllers/mineralOverview";
 import {
   type MineralCommodityOverviewRow,
   type MineralDepositOverviewRow,
@@ -29,12 +29,20 @@ export const MineralOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("mineralOverview"));
   const commodities = useMineralOverviewState(state => state.commodities);
   const deposits = useMineralOverviewState(state => state.deposits);
+  const states = useMineralOverviewState(state => state.states);
   const commodityRef = React.useRef<HTMLDivElement>(null);
   const depositRef = React.useRef<HTMLDivElement>(null);
+  const [selectedStateId, setSelectedStateId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
-    if (isOpen) setTimeout(() => openMineralOverview(), 0);
-  }, [isOpen]);
+    if (!isOpen) {
+      setSelectedStateId(null);
+      return;
+    }
+
+    const timer = window.setTimeout(() => refreshMineralOverview(selectedStateId), 0);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, selectedStateId]);
 
   const activeCount = commodities.filter(row => row.status === "active").length;
   const missingCount = commodities.filter(row => row.status === "absent" || row.status === "exhausted").length;
@@ -58,6 +66,26 @@ export const MineralOverviewDialog: React.FC = () => {
           </span>
           {" · "}
           <span data-tip="Mineral types with no remaining source on this map">Unavailable: {missingCount}</span>
+        </div>
+        <div className="d-flex header" id="mineralOverviewFilters">
+          <label
+            htmlFor="mineralOverviewFilterState"
+            data-tip="Filter deposits and resource totals by the State that contains each deposit"
+          >
+            State:
+            <select
+              id="mineralOverviewFilterState"
+              value={selectedStateId ?? ""}
+              onChange={event => setSelectedStateId(event.target.value === "" ? null : Number(event.target.value))}
+            >
+              <option value="">All states</option>
+              {states.map(state => (
+                <option key={state.id} value={state.id}>
+                  {state.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <section className="mineral-overview-dialog__section" aria-labelledby="mineralCoverageHeading">
           <h3 id="mineralCoverageHeading">Resource coverage</h3>
@@ -110,6 +138,7 @@ export const MineralOverviewDialog: React.FC = () => {
                   <th>Resources</th>
                   <th>District</th>
                   <th>Mine status</th>
+                  <th>State</th>
                   <th>Settlement</th>
                   <th className="numeric">Depth</th>
                   <th className="numeric">Richness</th>
@@ -121,7 +150,7 @@ export const MineralOverviewDialog: React.FC = () => {
               {deposits.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={11}>No mineral deposits have been generated yet</td>
+                    <td colSpan={12}>No mineral deposits match this State</td>
                   </tr>
                 </tbody>
               ) : (
@@ -136,7 +165,7 @@ export const MineralOverviewDialog: React.FC = () => {
             id="mineralOverviewRefresh"
             data-tip="Refresh mineral deposits, reserves, and mine output"
             className="icon-cw"
-            onClick={refreshMineralOverview}
+            onClick={() => refreshMineralOverview(selectedStateId)}
           />
         </div>
       </div>
@@ -159,12 +188,13 @@ const CommodityRow: React.FC<{ row: MineralCommodityOverviewRow }> = ({ row }) =
 
 function renderDepositRow(row: MineralDepositOverviewRow): React.ReactNode {
   return (
-    <tr key={row.id} data-id={row.id} data-status={row.status} data-cell={row.cell}>
+    <tr key={row.id} data-id={row.id} data-status={row.status} data-cell={row.cell} data-state-id={row.stateId}>
       <td className="numeric">{row.id}</td>
       <td>{row.primaryCommodity}</td>
       <td>{row.commodities}</td>
       <td>{row.districtType}</td>
       <td data-tip={STATUS_TIP[row.status]}>{STATUS_LABEL[row.status]}</td>
+      <td>{row.stateName}</td>
       <td>{row.burgName}</td>
       <td className="numeric">{row.depth}</td>
       <td className="numeric">{row.richness}/5</td>
