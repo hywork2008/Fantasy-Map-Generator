@@ -24,6 +24,7 @@ import {
   refreshVesselAssetsOverviewIfOpen
 } from "./controllers/vessel-assets-overview";
 import { checkForeignInterference } from "./generators/foreignInterference";
+import { seedInitialFleets } from "./generators/initialFleet";
 import { runLoggingTick } from "./generators/logging";
 import { computePortCapacity, type PortCapacity } from "./generators/portCapacity";
 import { runVoyageTick } from "./generators/shipVoyages";
@@ -351,9 +352,17 @@ export function init(api: ExtensionAPI): void {
         // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
         // state tied to the previous map's ids must not carry over.
         api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
-        publishMerchantHullSnapshot();
         recomputeAndMaybeDraw(api);
+      });
+
+      if (!context.isCurrent() || !api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+      measureGenerationStep("generateShipbuildingInitialFleet", () => {
+        // Port-owning states receive historically weighted starter hulls so Vessel assets
+        // is not empty at game start (docs/plan/shipbuilding-initial-fleet.md).
+        seedInitialFleets(_candidates, _portCapacity);
+        publishMerchantHullSnapshot();
         refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
+        refreshVesselAssetsOverviewIfOpen();
       });
 
       if (!context.isCurrent() || !api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;

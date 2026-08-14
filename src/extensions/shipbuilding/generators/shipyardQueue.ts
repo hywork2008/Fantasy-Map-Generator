@@ -195,7 +195,19 @@ export function getQueueEntry(burgId: number): ShipyardQueueEntry | undefined {
   return getShipbuildingRuntimeState().queues[burgId];
 }
 
-function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, states: readonly State[]): void {
+/**
+ * Register one completed hull into the runtime registry. Used by the build queue on
+ * completion and by map-generation initial fleet seeding (docs/plan/shipbuilding-initial-fleet.md).
+ */
+export function registerCompletedHull(args: {
+  burg: Burg;
+  owner: ShipHullOwner;
+  shipClassId: string;
+  states: readonly State[];
+  /** When false, skip `fmg:shipbuilding-ship-completed` (default true). */
+  emitCompletedEvent?: boolean;
+}): ShipHull {
+  const { burg, owner, shipClassId, states, emitCompletedEvent = true } = args;
   const ownerId = owner === "state" ? burg.state! : burg.i!;
   const key = completedHullKey(owner, ownerId, shipClassId);
   const runtimeState = getShipbuildingRuntimeState();
@@ -217,11 +229,19 @@ function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, sta
 
   if (hull.owner === "market") dispatchMerchantHullChanged(hull);
 
-  document.dispatchEvent(
-    new CustomEvent("fmg:shipbuilding-ship-completed", {
-      detail: { hullId: hull.id, burgId: burg.i, stateId: burg.state ?? null, owner, shipClassId }
-    })
-  );
+  if (emitCompletedEvent) {
+    document.dispatchEvent(
+      new CustomEvent("fmg:shipbuilding-ship-completed", {
+        detail: { hullId: hull.id, burgId: burg.i, stateId: burg.state ?? null, owner, shipClassId }
+      })
+    );
+  }
+
+  return hull;
+}
+
+function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, states: readonly State[]): void {
+  registerCompletedHull({ burg, owner, shipClassId, states });
 }
 
 /**

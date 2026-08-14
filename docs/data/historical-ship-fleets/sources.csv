@@ -1,0 +1,7 @@
+source_id,title,publisher_or_project,url,coverage,accessed,notes
+TNA-MED-NAVY,Medieval maritime personnel and ships,UK National Archives,https://www.nationalarchives.gov.uk/help-with-your-research/research-guides/medieval-maritime-personnel-and-ships/,English medieval navy administration,2026-08-14,Impressment dominant
+WIKI-MED-SHIPS,Medieval ships,Wikipedia,https://en.wikipedia.org/wiki/Medieval_ships,Ship types chronology,2026-08-14,""
+WIKI-VENETIAN-NAVY,Venetian navy,Wikipedia,https://en.wikipedia.org/wiki/Venetian_navy,Standing galley fleet and Arsenal,2026-08-14,State ownership exceptional
+GRESHAM-ELIZ-SHIPS,Elizabethan Merchant Ships and Shipbuilding (Ian Friel),Gresham College,https://www.gresham.ac.uk/sites/default/files/transcript/Elizabethan%20Merchant%20Ships%20and%20Shipbuilding.pdf,English surveys 1560/1577/1582,2026-08-14,Class mix for AoE
+WIKI-PORTUGUESE-INDIA,Portuguese India Armadas,Wikipedia,https://en.wikipedia.org/wiki/Portuguese_India_Armadas,India run ship counts,2026-08-14,""
+PROJECT-SHIP-CLASSES,FMG ship class catalogue,This repository,src/types/shipClasses.ts,Sloop/Caravel/Galleon tiers,2026-08-14,""

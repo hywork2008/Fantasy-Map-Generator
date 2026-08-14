@@ -120,8 +120,9 @@ getEffectiveSkill(characterId: number, skill: string): number
 9. **Phase 8**（実装済み）: Economy の市場在庫を唯一の資材源とする造船資材消費ゲート。Wood / Sails / Ropes / Tar が揃わない造船所は進捗を停止し、物流到着・生産・森林再生による供給回復後に再開する。詳細と残る E2E 回帰確認は [shipbuilding-material-consumption.md](shipbuilding-material-consumption.md)。
 10. **Phase 9**（計画中）: 敵対国を除外し、国内・近距離を優先する国家の戦略調達、需要駆動生産、集約型の職替え・設備投資。詳細は [shipbuilding-industrial-policy.md](shipbuilding-industrial-policy.md)。
 11. **Phase 10**（計画中）: Economy の `Ships` Good を船級別（Sloop/Caravel/Galleon）に分割し、陸路輸送を禁止（`seaOnly`）、造船所の余剰キャパシティから在庫を供給し、港の収容上限で生産を止める。既存 `owner: "state"/"market"` の `ShipHull` ライフサイクル（航海訓練・偽装通商・諜報）には触れない。詳細は [shipbuilding-ships-good-bridge.md](shipbuilding-ships-good-bridge.md)。
+12. **Phase 11**（実装済み）: マップ生成時に港持ち国家へ史実参考の初期艦隊を seed し、Vessel assets に所有者別・船級別で載せる。面積比例ではなく海洋ロール＋外れ値旗艦。詳細は [shipbuilding-initial-fleet.md](shipbuilding-initial-fleet.md)。根拠データは [docs/data/historical-ship-fleets/](../data/historical-ship-fleets/)。実装: `initialFleet.ts` / `initialFleetTables.ts`、`registerCompletedHull`、`shipbuilding.initialization` の `generateShipbuildingInitialFleet` ステップ。
 
-**Phase 0〜8 は実装済み。Phase 9・Phase 10 は計画中。Phase 8 の E2E 回帰確認も継続する。**
+**Phase 0〜8・Phase 11 は実装済み。Phase 9・Phase 10 は計画中。Phase 8 の E2E 回帰確認も継続する。**
 
 ---
 

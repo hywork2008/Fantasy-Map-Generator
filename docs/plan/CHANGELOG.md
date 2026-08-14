@@ -4,6 +4,7 @@
 
 - docs/plan/mineral-resource-system.md
 - docs/plan/mount-and-fleet-asset-constraints.md
+- docs/plan/shipbuilding-initial-fleet.md
 - docs/plan/steam-engine-knowledge-accumulation.md
 - docs/plan/steam-industrial-goods-and-technology-chain.md
 - docs/plan/volcanic-biome-goods.md

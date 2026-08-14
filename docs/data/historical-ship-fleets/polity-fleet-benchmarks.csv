@@ -1,0 +1,7 @@
+benchmark_id,historical_period,approx_year,polity_or_group,metric,value_low,value_high,unit,notes
+ENG-MERCHANT-14C,highMedieval,1340,Kingdom of England,merchant_seagoing_hulls,2000,3000,ships,Mostly small coasters
+ENG-HENRYV-ROYAL-PEAK,lateMedieval,1418,Kingdom of England,royal_fleet,30,40,ships,Peak Lancastrian royal fleet
+ENG-ELIZ-SURVEY-1582,ageOfExploration,1582,Kingdom of England,merchant_ships_10t_plus,1455,1455,ships,~83% under 80 tons
+HANSE-LUBECK-1400,lateMedieval,1400,Lübeck,city_merchant_fleet,100,140,ships,Top Hansa city scale
+POR-INDIA-ANNUAL,ageOfExploration,1520,Kingdom of Portugal,annual_india_armada,5,15,ships,Mostly large ocean hulls
+VEN-WAR-RESERVE-15C,lateMedieval,1450,Republic of Venice,war_galley_pool,50,150,ships,State-owned combat hulls

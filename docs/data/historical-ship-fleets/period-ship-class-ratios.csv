@@ -1,0 +1,5 @@
+historical_period,period_label,year_start,year_end,sloop_share,caravel_share,galleon_share,confidence,notes
+earlyMedieval,Early Medieval (c. 500-1000),500,1000,0.92,0.08,0.00,low,"Almost all small coasters. Galleon tier near zero."
+highMedieval,High Medieval (c. 1000-1300),1000,1300,0.80,0.18,0.02,medium,"Cog becomes northern workhorse. Large hulls scarce."
+lateMedieval,Late Medieval (c. 1300-1500),1300,1500,0.70,0.25,0.05,medium,"Hulks and early carracks appear."
+ageOfExploration,Age of Exploration (c. 1450-1600),1450,1600,0.75,0.18,0.07,medium-high,"English 1582 survey: ~83% under 80t."
