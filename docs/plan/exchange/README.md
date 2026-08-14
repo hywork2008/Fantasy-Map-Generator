@@ -12,6 +12,7 @@
 | [02-medieval-goods.md](02-medieval-goods.md) | 中世(〜15世紀)の主要交易品カタログ |
 | [03-early-modern-goods.md](03-early-modern-goods.md) | 近世(大航海時代〜18世紀)の主要交易品カタログ |
 | [04-goods-data-candidates.md](04-goods-data-candidates.md) | **GOODS_DATA 形式の新規エントリ具体案**(優先度付き・実装チェックリスト付き) |
+| [extra-european-trade-goods](../../data/extra-european-trade-goods/README.md) | 欧州緯度地図向け。中世後期〜現代の域外輸入品カタログ（気候ロック・既存 Good 対応・登録優先度） |
 
 史実の時代フレーバーとは別軸で、Culture set が `highFantasy` / `darkFantasy` のときに出したいジャンル・フレーバー品(ポーション、ミスリル、竜の鱗など)は [../fantasy-culture-set-goods.md](../fantasy-culture-set-goods.md) を参照。
 
