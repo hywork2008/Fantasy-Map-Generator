@@ -5,6 +5,7 @@ import { useViewState } from "../store";
 import { debounce } from "../utils";
 import { ExitCustomization } from "./components/ExitCustomization";
 import { FocusBanner } from "./components/FocusBanner";
+import { MapContextMenu } from "./components/MapContextMenu";
 import { MapReadyTaskStatus } from "./components/MapReadyTaskStatus";
 import { NotesBox } from "./components/NotesBox";
 import { OptionsContainer } from "./components/OptionsContainer";
@@ -27,6 +28,7 @@ export const App = () => {
   return (
     <div id="react-ui-container" onMouseMove={handleMouseMove}>
       <ToastContainer />
+      <MapContextMenu />
       <ZoomLevelIndicator />
       <MapReadyTaskStatus />
 

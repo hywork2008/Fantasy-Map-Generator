@@ -6,6 +6,7 @@ import { Routes } from "../generators/routes-generator";
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers, setRulers } from "../store/editorState";
+import { resetDistanceSession } from "../store/mapContextMenuState";
 import { useOptionsState } from "../store/optionsState";
 import { findCell, getSegmentId, last, parseTransform, rn, round, si } from "../utils";
 import { TIME } from "../utils/debug";
@@ -253,6 +254,7 @@ class Ruler extends Measurer {
   }
 
   removePoint(context: Ruler, pointId: number): void {
+    if (!canRemoveRulerPoint(context.points.length, pointId)) return;
     this.points.splice(pointId, 1);
     context.draw();
   }
@@ -498,13 +500,18 @@ export function createDefaultRuler(): void {
   }
 
   setRulers(new Rulers());
+  resetDistanceSession();
   rulers.create(Ruler, [leftmostVertex, rightmostVertex]);
 
   TIME && console.timeEnd("createDefaultRuler");
 }
 
-export type { Opisometer, Planimeter, RouteOpisometer, Ruler };
-export { Rulers };
+/** Linear rulers keep their start and end; only added midpoints can be clicked away. */
+export function canRemoveRulerPoint(pointCount: number, pointId: number): boolean {
+  return pointCount > 2 && pointId > 0 && pointId < pointCount - 1;
+}
+
+export { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers };
 
 // CustomEvent Listeners
 document.addEventListener("fmg:create-default-ruler", () => createDefaultRuler());

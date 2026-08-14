@@ -60,18 +60,19 @@ export const MeasurersRenderer = {
     for (let i = 0; i < points.length; i++) {
       const isEdge = i === 0 || i === points.length - 1;
       const [x, y] = points[i];
-      g.append("circle")
+      const circle = g
+        .append("circle")
         .attr("r", "1em")
         .attr("cx", x)
         .attr("cy", y)
-        .attr("class", isEdge ? "edge" : "control")
-        .on("click", () => callbacks.onPointClick(i))
-        .call(
-          d3
-            .drag<SVGCircleElement, unknown>()
-            .clickDistance(3)
-            .on("start", e => callbacks.onPointDragStart(i, e))
-        );
+        .attr("class", isEdge ? "edge" : "control");
+      if (!isEdge) circle.on("click", () => callbacks.onPointClick(i));
+      circle.call(
+        d3
+          .drag<SVGCircleElement, unknown>()
+          .clickDistance(3)
+          .on("start", e => callbacks.onPointDragStart(i, e))
+      );
     }
   },
 

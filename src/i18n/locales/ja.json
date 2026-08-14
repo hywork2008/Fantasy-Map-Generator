@@ -86,6 +86,12 @@
     "en": "英語",
     "ja": "日本語"
   },
+  "mapContextMenu": {
+    "label": "地図メニュー",
+    "distanceFromHere": "ここからの距離",
+    "distanceToHere": "ここまでの距離",
+    "distanceToHereDisabled": "先に「ここからの距離」で開始位置を指定してください"
+  },
   "characters": {
     "dialogTitle": "人物詳細：{{name}}",
     "downloadCsv": "CSV をダウンロード",

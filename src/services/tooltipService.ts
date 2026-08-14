@@ -202,7 +202,7 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     const tag = (e.target as SVGElement).tagName;
     const className = (e.target as SVGElement).getAttribute("class");
     if (tag === "circle" && className === "edge") {
-      tip("Drag to adjust. Hold Ctrl and drag to add a point. Click to remove the point");
+      tip("Drag to adjust. Hold Ctrl and drag to add a point");
       return;
     }
     if (tag === "circle" && className === "control") {

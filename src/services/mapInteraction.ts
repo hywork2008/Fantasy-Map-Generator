@@ -476,7 +476,7 @@ function positionPickChooser(chooser: HTMLDivElement, clientX: number, clientY: 
   chooser.style.top = `${Math.round(top)}px`;
 }
 
-function hidePickChooser(): void {
+export function hidePickChooser(): void {
   const chooser = document.getElementById(PICK_CHOOSER_ID);
   if (chooser) chooser.hidden = true;
   document.removeEventListener("keydown", handlePickChooserKeydown);

@@ -12,6 +12,7 @@ import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules, rulers, setRulers } from "../store/editorState";
+import { resetDistanceSession } from "../store/mapContextMenuState";
 import { DEFAULT_UNIT_OPTIONS, DEFAULT_WORLD_SCALE_OPTIONS, useOptionsState } from "../store/optionsState";
 import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
@@ -20,6 +21,7 @@ import { EditorBus } from "../utils/editorBus";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
 import { type UnitSystemId, unitSystemPresets } from "../utils/unitUtils";
 import { toggleRulers } from "./layers";
+import { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers } from "./measurers";
 import { calculateFriendlyGridSize } from "./style";
 
 let worldContext: WorldContext;
@@ -295,6 +297,7 @@ export const unitsEditorActions = {
         onConfirm: () => {
           rulers.undraw();
           setRulers(new Rulers());
+          resetDistanceSession();
         }
       }
     );

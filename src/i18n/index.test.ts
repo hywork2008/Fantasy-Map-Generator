@@ -17,6 +17,8 @@ describe("internationalization", () => {
     expect(i18n.t("uiSettings.language")).toBe("言語");
     expect(i18n.t("characters.dialogTitle", { name: "Ari" })).toBe("人物詳細：Ari");
     expect(i18n.t("economy.goods.names.Wood")).toBe("木材");
+    expect(i18n.t("mapContextMenu.distanceFromHere")).toBe("ここからの距離");
+    expect(i18n.t("mapContextMenu.distanceToHere")).toBe("ここまでの距離");
   });
 
   it("uses the requested default value for an untranslated key", () => {

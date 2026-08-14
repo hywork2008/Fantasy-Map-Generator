@@ -1,0 +1,41 @@
+.map-context-menu {
+  position: fixed;
+  z-index: 100000;
+  min-width: 12.75rem;
+  padding: 0.2rem 0;
+  overflow: hidden;
+  background: var(--bg-dialogs);
+  border: 1px solid var(--dark-solid);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  color: var(--dark-solid);
+  font: 13px Arial, sans-serif;
+}
+
+.map-context-menu__item {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.4rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-context-menu__item:hover:not(:disabled),
+.map-context-menu__item:focus-visible:not(:disabled) {
+  background: color-mix(in srgb, var(--dark-solid) 12%, transparent);
+  outline: none;
+}
+
+.map-context-menu__item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#ruler .distance-from-pending circle {
+  fill: #ffe566;
+  stroke: #4e5a69;
+  stroke-width: 0.5;
+}

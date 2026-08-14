@@ -284,7 +284,8 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     id: "toggleRulers",
     name: <>Rulers</>,
     shortcut: "=",
-    tooltip: "Rulers: click to toggle, drag to move, click on label to delete. Ctrl + click to edit layer style"
+    tooltip:
+      "Rulers: click to toggle, drag to move, click a midpoint to remove it, click the label to delete. Ctrl + click to edit layer style"
   },
   {
     id: "toggleScaleBar",
