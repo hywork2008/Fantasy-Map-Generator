@@ -128,4 +128,60 @@ describe("MineOperationsModule", () => {
     expect(getMineralDeposits()[0].discovered).toBe(true);
     expect(getMineOperations()[0]).toMatchObject({ technology: 1.1, drainage: 0.7, fuelAccess: 0.7 });
   });
+
+  it("commissions a trail to the network for a disconnected deposit instead of leaving it stuck at base accessibility", () => {
+    worldContext.pack = {
+      burgs: [{ i: 0 }, { i: 1, cell: 1, x: 10, y: 0, state: 1, market: 1, feature: 1 }],
+      cells: {
+        c: [[1], [0]],
+        h: Uint8Array.from([25, 25]),
+        r: Uint16Array.from([0, 0]),
+        biomeCode: [1, 1],
+        p: [
+          [0, 0],
+          [10, 0]
+        ],
+        burg: [0, 1],
+        f: [1, 1],
+        state: [1, 1],
+        routes: {}
+      },
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+    // Replacing worldContext.pack drops every economy slice beforeEach() set on the old pack
+    // object (goods/markets/columns all live on the economy slice, keyed off the current
+    // pack) — recreate what prospect() needs against the new fixture.
+    setGoods([{ i: 1, name: "Iron Ore", tags: ["ore"], value: 3, unit: "wagon", icon: "iron", color: "#777" }]);
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
+    setGoodCellColumn(new Uint16Array([0, 0]));
+    setMarketCellColumn(new Uint16Array([1, 1]));
+
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "polymetallicVein",
+        primaryCommodity: "iron",
+        commodities: ["iron"],
+        yields: [{ commodity: "iron", reserveTons: 100, annualCapacityTons: 120 }],
+        richness: 1,
+        depth: "surface",
+        accessibility: 0.35,
+        discovered: false,
+        exhausted: false
+      }
+    ]);
+
+    expect(worldContext.pack.cells.routes[0]).toBeUndefined();
+
+    const result = MineOperations.prospect();
+
+    expect(result.connected).toBe(1);
+    expect(worldContext.pack.cells.routes[0]).toBeDefined();
+    // base 0.35 + the newly commissioned route's 0.25 — no river/haven in this fixture.
+    expect(getMineralDeposits()[0].accessibility).toBeCloseTo(0.6, 5);
+    expect(getMineOperations()).toHaveLength(1);
+  });
 });

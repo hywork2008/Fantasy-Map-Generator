@@ -1,3 +1,4 @@
+import { Routes } from "../../../generators/routes-generator";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -65,19 +66,29 @@ export class MineOperationsModule {
    * Opens deposits that became reachable through roads, rivers, or ports after
    * initial generation. Deep deposits receive a modest technology and drainage
    * uplift instead of being treated as surface mines.
+   *
+   * A deposit's own cell rarely sits directly on a road/trail some unrelated
+   * State-network pass happened to draw through it, so before re-scoring
+   * accessibility this also commissions a supply trail to any undiscovered,
+   * still-unconnected deposit (docs/plan/mineral-resource-circulation-fixes.md
+   * Fix 2 gap) — see `ensureNetworkAccess()`.
    */
-  prospect(): { discovered: number; upgraded: number } {
+  prospect(): { discovered: number; upgraded: number; connected: number } {
     const marketById = new Set(getMarkets().map(market => market.i));
     const marketColumn = getMarketCellColumn();
     const operations = getMineOperations();
     const operationByDeposit = new Map(operations.map(operation => [operation.depositId, operation]));
     let discovered = 0;
     let upgraded = 0;
+    let connected = 0;
 
     for (const deposit of getMineralDeposits()) {
       if (deposit.exhausted) continue;
-      deposit.accessibility = this.getAccessibility(deposit.cell);
       const operation = operationByDeposit.get(deposit.i);
+
+      if (!operation && !deposit.discovered && this.ensureNetworkAccess(deposit)) connected += 1;
+
+      deposit.accessibility = this.getAccessibility(deposit.cell);
       if (operation) {
         if (deposit.depth !== "deep") continue;
         const updatedDrainage = this.getDrainage(deposit.depth, true);
@@ -102,7 +113,26 @@ export class MineOperationsModule {
     }
 
     setMineOperations(operations);
-    return { discovered, upgraded };
+    return { discovered, upgraded, connected };
+  }
+
+  /**
+   * Commissions a "trails" route from an inaccessible deposit's cell to the
+   * nearest already-connected cell or Burg, staying inside the deposit's own
+   * State (falls back to the unrestricted connector for unclaimed cells). A
+   * no-op when the cell is already on the route network, or when `pack` lacks
+   * adjacency data (minimal test fixtures). Returns true when a trail was added.
+   */
+  private ensureNetworkAccess(deposit: MineralDeposit): boolean {
+    const { cells } = getWorldContext().pack;
+    if (!cells.c) return false;
+
+    const alreadyConnected = Boolean(cells.routes?.[deposit.cell] && Object.keys(cells.routes[deposit.cell]).length);
+    if (alreadyConnected) return false;
+
+    const stateId = cells.state?.[deposit.cell] ?? 0;
+    const route = stateId ? Routes.connectFrontier(deposit.cell, stateId) : Routes.connect(deposit.cell);
+    return Boolean(route);
   }
 
   /** Settles one Economy production month and decrements recoverable reserves. */
