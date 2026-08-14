@@ -10,7 +10,10 @@ import { goodsEditorAddLines } from "./goods-editor";
 describe("goodsEditorAddLines", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
-    worldContext.options = { gunpowderEraEnabled: false } as typeof worldContext.options;
+    worldContext.options = {
+      gunpowderEraEnabled: false,
+      historicalPeriod: "earlyMedieval"
+    } as typeof worldContext.options;
     worldContext.pack = {
       cells: { i: [] },
       burgs: [],
@@ -38,7 +41,7 @@ describe("goodsEditorAddLines", () => {
         },
         {
           i: 3,
-          name: "Figs",
+          name: "Cheese",
           tags: [],
           value: 1,
           unit: "unit",
@@ -48,7 +51,7 @@ describe("goodsEditorAddLines", () => {
         },
         {
           i: 4,
-          name: "Lemons",
+          name: "Milk",
           tags: [],
           value: 1,
           unit: "unit",
@@ -68,7 +71,7 @@ describe("goodsEditorAddLines", () => {
         },
         {
           i: 6,
-          name: "Pears",
+          name: "Pomace Wine",
           tags: [],
           value: 1,
           unit: "unit",
@@ -78,7 +81,7 @@ describe("goodsEditorAddLines", () => {
         },
         {
           i: 7,
-          name: "Plums",
+          name: "Raisins",
           tags: [],
           value: 1,
           unit: "unit",
@@ -126,7 +129,7 @@ describe("goodsEditorAddLines", () => {
     });
   });
 
-  it("selects the default food-production goods and sorts them above unchecked goods", () => {
+  it("selects the Medieval-period default agricultural goods and sorts them above unchecked goods", () => {
     goodsEditorAddLines();
 
     expect(getDisplayedGoodIds()).toEqual(new Set([3, 4, 5, 6, 7]));
