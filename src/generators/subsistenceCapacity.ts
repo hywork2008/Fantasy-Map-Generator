@@ -114,9 +114,9 @@ function getAgricultureSupport(
 
   // A staple and a legume represent the normal rotation. A lone staple is
   // viable but deliberately receives a lower ceiling for soil exhaustion.
-  if (staple > 0.1 && legume > 0.1) return 0.16 + (staple * 0.67 + legume * 0.33) * 0.84;
-  if (staple > 0.1) return 0.08 + staple * 0.52;
-  if (legume > 0.1) return 0.05 + legume * 0.28;
+  if (staple > 0 && legume > 0) return 0.16 + (staple * 0.67 + legume * 0.33) * 0.84;
+  if (staple > 0) return 0.08 + staple * 0.52;
+  if (legume > 0) return 0.05 + legume * 0.28;
   return 0;
 }
 

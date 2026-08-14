@@ -8,7 +8,9 @@ import { getStapleCropSuitability } from "../../../data/stapleCrops";
 import { harvestForestStock } from "../../../generators/forestStock";
 import {
   allocateRiverWater,
+  CHILD_COHORT_YEARS,
   compileRiverWaterNetwork,
+  LIVELIHOOD_CODE,
   type RiverWaterAllocation,
   type RiverWithdrawal,
   type WorldContext
@@ -27,6 +29,20 @@ export const WORKABLE_DAYS_PER_ADULT = 140;
 /** Calendar capacity used by the shared rural labour allocator. */
 export const WORKABLE_DAYS_PER_ADULT_PER_MONTH = WORKABLE_DAYS_PER_ADULT / 12;
 export const FARM_LABOUR_SAFETY_MARGIN = 1.15;
+/**
+ * Local consumption plus a modest on-field reserve. This is the *floor* on cultivated area,
+ * not the target: remaining farmable adults expand fields up to labour- and land-affordable
+ * limits (docs/simulation/population-food-supply.md §4.2).
+ */
+export const SUBSISTENCE_FIELD_RESERVE = 1.1;
+/**
+ * Share of rural adults kept off the plough in megacity mode so hinterland cells can
+ * ship people *and* grain. Midpoint of the 30–40% dual-export calibration
+ * (docs/plan/megacity-food-import-economy.md, 2026-07-30). The remaining farmers still
+ * tend every hectare they can — food export grows with yield/land, not by cancelling
+ * the migrant pool.
+ */
+export const MEGACITY_LABOR_EXPORT_SHARE = 0.32;
 
 /**
  * Rural technology (Tools/plow) adoption bonus, driven by AgTechInvestment.settleAnnual().
@@ -131,6 +147,12 @@ export interface AgriculturalLandProfile {
   /** Adults that can leave after farm labour's safety margin, in rural population points. */
   readonly migratableAdults: Float32Array;
   /**
+   * Adults reserved *before* extra fields were sized (child→adult outflow, and in megacity
+   * the hinterland labour-export share). The occupation allocator must not spend this cohort
+   * on harvest peaks or mutual aid.
+   */
+  readonly reservedLaborExport: Float32Array;
+  /**
    * Adults beyond what the cell's *minimum* food plan (local consumption only; committed
    * exports are not yet tracked) needs to keep farming, in rural population points. Looser
    * than `migratableAdults` when the cell cultivates a reserve beyond bare subsistence.
@@ -147,6 +169,12 @@ export interface AgriculturalLandProfile {
  */
 export interface AgriculturalDemandOptions {
   readonly includeUrbanFoodDemand?: boolean;
+  /**
+   * Megacity hinterland: reserve `MEGACITY_LABOR_EXPORT_SHARE` of rural adults (at least
+   * this year's child→adult outflow) as urban-bound labour. Independent growth leaves
+   * only the outflow reserved and spends every other adult on fields.
+   */
+  readonly reserveLaborForUrbanExport?: boolean;
 }
 
 /**
@@ -180,6 +208,7 @@ export function calculateAgriculturalLandProfile(
   const cropLaborDaysByMonth = new Float32Array(count * 12);
   const minimumCropLaborDaysByMonth = new Float32Array(count * 12);
   const migratableAdults = new Float32Array(count);
+  const reservedLaborExport = new Float32Array(count);
   const ruralReleasePressure = new Float32Array(count);
   const emptyIrrigation = createEmptyRiverIrrigationResults(count);
   if (!count) {
@@ -194,6 +223,7 @@ export function calculateAgriculturalLandProfile(
       cropLaborDaysByMonth,
       minimumCropLaborDaysByMonth,
       migratableAdults,
+      reservedLaborExport,
       ruralReleasePressure,
       irrigation: emptyIrrigation
     };
@@ -247,14 +277,26 @@ export function calculateAgriculturalLandProfile(
       demandOptions.includeUrbanFoodDemand !== false
     );
     const requiredArea = requiredFieldAreaHectares(currentPeople, yieldKgPerHa);
-    // A modest crop reserve is represented by keeping ten percent more area in
-    // cultivation when land exists; it does not make more land available.
-    const currentArea = Math.min(area, requiredArea * 1.1);
+    const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+    const reservedLaborExportPoints = getReservedLaborExportPoints(
+      cells,
+      cellId,
+      demandOptions.reserveLaborForUrbanExport === true
+    );
+    const farmableAdults = Math.max(0, ruralAdults - reservedLaborExportPoints);
+    const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
+    const annualLaborDaysPerHectare = effectiveLaborDaysPerHectare * fourCourseLaborMultiplier;
+    const subsistenceArea = Math.min(area, requiredArea * SUBSISTENCE_FIELD_RESERVE);
+    const laborAffordableArea =
+      yieldKgPerHa > 0
+        ? getLaborAffordableAreaHectares(farmableAdults, populationRate, annualLaborDaysPerHectare, area)
+        : 0;
+    // Food first for the village, then the remaining *farmable* adults develop extra
+    // hectares for export. Megacity keeps a labour-export reserve out of farmable.
+    const currentArea = yieldKgPerHa > 0 ? Math.min(area, Math.max(subsistenceArea, laborAffordableArea)) : 0;
     cultivatedArea[cellId] = currentArea;
     floweringForageArea[cellId] =
       currentArea * FOUR_COURSE_CLOVER_LEY_SHARE * fourCourseRotation * getCloverSuitability(world, cellId);
-    const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
-    const annualLaborDaysPerHectare = effectiveLaborDaysPerHectare * fourCourseLaborMultiplier;
     const currentMonthlyLaborDays = getCropMonthlyLabourDays(
       world,
       cellId,
@@ -271,15 +313,23 @@ export function calculateAgriculturalLandProfile(
     );
     cropLaborDaysByMonth.set(currentMonthlyLaborDays, cellId * 12);
     minimumCropLaborDaysByMonth.set(minimumMonthlyLaborDays, cellId * 12);
-    const requiredAdults = getMonthlyPeakRequiredAdults(currentMonthlyLaborDays);
+    // Year-round resident farmers, not the harvest-month peak. Peak labour is a seasonal
+    // shortage for mutual aid; counting it here made employment swing from ~0% (no
+    // matching crop calendar) to well over 100% (concentrated harvest).
+    const requiredAdults = getAnnualRequiredAdults(currentMonthlyLaborDays);
     const requiredAdultPoints = requiredAdults / populationRate;
     farmLaborRequired[cellId] = requiredAdultPoints;
-    const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
-    migratableAdults[cellId] = Math.max(0, ruralAdults - requiredAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
+    reservedLaborExport[cellId] = reservedLaborExportPoints;
+    // Labour reserved before extra fields were sized stays migratable — extra planting
+    // must not cancel the urban-bound cohort (outflow, or the megacity export share).
+    migratableAdults[cellId] = Math.max(
+      reservedLaborExportPoints,
+      ruralAdults - requiredAdultPoints * FARM_LABOUR_SAFETY_MARGIN
+    );
 
     // minimumFood = localConsumption + committedExport; committedExport isn't tracked yet (0),
-    // so this uses the bare pre-buffer requiredArea rather than the 1.1x-buffered currentArea.
-    const minimumFarmAdults = getMonthlyPeakRequiredAdults(minimumMonthlyLaborDays);
+    // so this uses the bare pre-buffer requiredArea rather than the reserve-buffered currentArea.
+    const minimumFarmAdults = getAnnualRequiredAdults(minimumMonthlyLaborDays);
     const minimumFarmAdultPoints = minimumFarmAdults / populationRate;
     ruralReleasePressure[cellId] = Math.max(0, ruralAdults - minimumFarmAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
   }
@@ -295,6 +345,7 @@ export function calculateAgriculturalLandProfile(
     cropLaborDaysByMonth,
     minimumCropLaborDaysByMonth,
     migratableAdults,
+    reservedLaborExport,
     ruralReleasePressure,
     irrigation
   };
@@ -304,6 +355,49 @@ export function requiredFieldAreaHectares(people: number, yieldKgPerHa: number):
   if (people <= 0 || yieldKgPerHa <= 0) return 0;
   return (
     (people * STAPLE_NEED_KG_PER_PERSON_YEAR) / (EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK * yieldKgPerHa * ANNUAL_SOWN_SHARE)
+  );
+}
+
+/** Children→adult arrivals this year, in rural population points. */
+export function getReservedAdultOutflowPoints(cells: WorldContext["pack"]["cells"], cellId: number): number {
+  return Math.max(0, cells.children?.[cellId] ?? 0) / CHILD_COHORT_YEARS;
+}
+
+/**
+ * Adults that must not be absorbed into extra ploughing. Independent growth reserves
+ * only this year's child→adult outflow. Megacity also reserves the calibrated
+ * hinterland labour-export share so a cell can ship people and grain together.
+ */
+export function getReservedLaborExportPoints(
+  cells: WorldContext["pack"]["cells"],
+  cellId: number,
+  reserveLaborForUrbanExport: boolean
+): number {
+  const outflow = getReservedAdultOutflowPoints(cells, cellId);
+  if (!reserveLaborForUrbanExport) return outflow;
+  const livelihood = cells.livelihood?.[cellId] ?? 0;
+  // Highland foraging/herding cells have no grain surplus to trade for urban labour.
+  if (livelihood !== LIVELIHOOD_CODE.agriculture && livelihood !== LIVELIHOOD_CODE.none) return outflow;
+  const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+  return Math.max(outflow, ruralAdults * MEGACITY_LABOR_EXPORT_SHARE);
+}
+
+/**
+ * Hectares the remaining farmable adults can tend after the 15% safety margin.
+ * Uses the annual (year-round resident) capacity, not the harvest-month peak —
+ * harvest spikes are filled by household help and neighbour mutual aid.
+ */
+export function getLaborAffordableAreaHectares(
+  farmableAdultPoints: number,
+  populationRate: number,
+  annualLaborDaysPerHectare: number,
+  cultivableArea: number
+): number {
+  if (farmableAdultPoints <= 0 || annualLaborDaysPerHectare <= 0 || cultivableArea <= 0) return 0;
+  return Math.min(
+    cultivableArea,
+    (farmableAdultPoints * Math.max(1, populationRate) * WORKABLE_DAYS_PER_ADULT) /
+      (annualLaborDaysPerHectare * FARM_LABOUR_SAFETY_MARGIN)
   );
 }
 
@@ -343,10 +437,31 @@ export function reconcileForestClearanceForAgriculture(
       populationRate,
       demandOptions.includeUrbanFoodDemand !== false
     );
-    // Keep the same ten-percent reserve represented by calculateAgriculturalLandProfile.
+    const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+    const farmableAdults = Math.max(
+      0,
+      ruralAdults - getReservedLaborExportPoints(cells, cellId, demandOptions.reserveLaborForUrbanExport === true)
+    );
+    const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
+    const annualLaborDaysPerHectare =
+      LABOUR_DAYS_PER_HECTARE *
+      (1 - AGTECH_LABOR_SAVINGS_MAX * effectiveAgTech) *
+      (1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation);
+    const requiredArea = requiredFieldAreaHectares(residentPeople, yieldKgPerHa);
+    const subsistenceArea = requiredArea * SUBSISTENCE_FIELD_RESERVE;
+    const laborAffordableArea =
+      yieldKgPerHa > 0
+        ? getLaborAffordableAreaHectares(
+            farmableAdults,
+            populationRate,
+            annualLaborDaysPerHectare,
+            constraints.terrainAndBiomeCeiling
+          )
+        : 0;
+    // Open enough forest for the same food-first target calculateAgriculturalLandProfile will plant.
     const targetCultivatedArea = Math.min(
       constraints.terrainAndBiomeCeiling,
-      requiredFieldAreaHectares(residentPeople, yieldKgPerHa) * 1.1
+      Math.max(subsistenceArea, laborAffordableArea)
     );
     if (targetCultivatedArea <= 0) continue;
 
@@ -532,9 +647,10 @@ const MAIN_CROP_SHARE_WITH_LEGUME = 2 / 3;
 
 /**
  * Returns the cell's crop plan: exactly one cereal/root staple and one legume whenever the
- * environment permits both. The culture type only ranks viable candidates; it never makes a
- * climate-incompatible crop grow. Shares are a representation of the rotation plan, not a claim
- * that every field contains both crops in the same season.
+ * environment permits both. The culture type only ranks candidates that already fit this
+ * cell's temperature and rainfall; it never makes a too-cold or too-dry crop grow. Excess
+ * rain is a preference (rain-tolerant crops win), not an empty mix. Shares represent the
+ * rotation plan, not a claim that every field contains both crops in the same season.
  */
 export function getCropMix(
   world: Readonly<WorldContext>,
@@ -545,7 +661,7 @@ export function getCropMix(
   const candidates = cropGoods
     .filter(good => good.crop)
     .map(good => ({ good, suitability: getCropSuitability(world, cellId, good, conditions) }))
-    .filter(candidate => candidate.suitability > 0.1);
+    .filter(candidate => candidate.suitability > 0);
   if (!candidates.length) return [];
 
   const cultureType = getCellCultureType(world, cellId);
@@ -612,16 +728,25 @@ function getCropMonthlyLabourDays(
     irrigated: irrigatedArea > 0
   });
   for (const entry of mix) {
-    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, entry.good.crop!.calendar);
+    const calendarProfile = entry.good.crop?.calendar;
+    if (!calendarProfile) continue;
+    const calendar = getCropCalendar(SEASON_REGION_PROFILES[region], zone, calendarProfile);
     for (let month = 0; month < 12; month++) {
       monthlyDays[month] += annualLaborDays * entry.share * calendar.labourWeights[month];
     }
   }
+  // Too-short growing seasons return all-zero labour weights. Keep the annual work
+  // so employment does not collapse to "everyone surplus" on those cells.
+  const allocated = monthlyDays.reduce((sum, days) => sum + days, 0);
+  if (allocated <= 0) monthlyDays.fill(annualLaborDays / 12);
   return monthlyDays;
 }
 
-function getMonthlyPeakRequiredAdults(monthlyLaborDays: Float32Array): number {
-  return Math.max(0, ...monthlyLaborDays.map(days => days / WORKABLE_DAYS_PER_ADULT_PER_MONTH));
+/** Year-round resident adults implied by the month-by-month work plan. */
+export function getAnnualRequiredAdults(monthlyLaborDays: ArrayLike<number>): number {
+  let totalDays = 0;
+  for (let index = 0; index < monthlyLaborDays.length; index++) totalDays += monthlyLaborDays[index] ?? 0;
+  return totalDays / WORKABLE_DAYS_PER_ADULT;
 }
 
 function selectCrop(

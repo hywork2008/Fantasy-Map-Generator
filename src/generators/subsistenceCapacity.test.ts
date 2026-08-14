@@ -28,7 +28,7 @@ function createWorld(): WorldContext {
       }
     },
     biomesData: {
-      tags: [["arable"], ["cold"], ["grassland", "cold"], ["forest", "cold"], []]
+      tags: [["arable"], ["cold"], ["grassland", "cold"], ["forest", "cold"], ["desert"]]
     }
   } as unknown as WorldContext;
 }

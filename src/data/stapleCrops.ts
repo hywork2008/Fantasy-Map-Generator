@@ -178,6 +178,14 @@ export const STAPLE_CROP_PROFILES = {
 
 export const STAPLE_CROP_LIST = Object.values(STAPLE_CROP_PROFILES);
 
+/**
+ * Residual fitness once rainfall exceeds a crop's documented ECOCROP max.
+ * v1 does not model waterlogging as a hard ban (docs/simulation/population-food-supply.md §3.5;
+ * docs/plan/staple-crop-climate.md). Wet cells must still choose a rain-tolerant staple
+ * rather than an empty mix.
+ */
+export const WET_PRECIPITATION_RESIDUAL = 0.25;
+
 /** Returns climate-and-soil suitability on a 0–1 scale. */
 export function getStapleCropSuitability(
   profile: StapleCropProfile,
@@ -197,7 +205,7 @@ export function getStapleCropSuitability(
   const soilFactor = profile.soils.includes(soil) ? 1 : 0.55;
   return (
     rangeSuitability(temperature, profile.temperature) *
-    rangeSuitability(effectivePrecipitation, profile.precipitation) *
+    precipitationSuitability(effectivePrecipitation, profile.precipitation) *
     soilFactor
   );
 }
@@ -207,4 +215,13 @@ function rangeSuitability(value: number, range: ClimateRange): number {
   if (value >= range.idealMin && value <= range.idealMax) return 1;
   if (value < range.idealMin) return (value - range.min) / (range.idealMin - range.min);
   return (range.max - value) / (range.max - range.idealMax);
+}
+
+function precipitationSuitability(value: number, range: ClimateRange): number {
+  if (value <= range.min) return 0;
+  if (value < range.idealMin) return (value - range.min) / (range.idealMin - range.min);
+  if (value <= range.idealMax) return 1;
+  if (value < range.max) return (range.max - value) / (range.max - range.idealMax);
+  // Prefer the crop whose documented rain band reaches further into the wet side.
+  return WET_PRECIPITATION_RESIDUAL * (range.max / value);
 }

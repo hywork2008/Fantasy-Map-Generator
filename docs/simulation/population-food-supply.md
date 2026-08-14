@@ -245,6 +245,7 @@ cultivatedAreaTarget = laborAffordableCultivatedArea
 - `ruralReleasePressure`がある成人到達者は、都市の受入枠が直ちになくても村へ残さず、外部の職を探す`mobileAdultCohort`へ移す。都市に定着できなければ翌年の開拓・野盗・死亡／域外流出へ進む。
 - `cultivatedAreaTarget`は最低面積で止まらず、労働力で耕せる範囲まで拡大する。余剰はFood Ledgerの在庫、輸出、`storageOverflow`へ流れる。
 - 年次作付では、先に`sustainableAdultOutflow`と農村非農業者を労働力から予約する。残った常住成人で耕せる面積を`laborAffordableCultivatedArea`とする。したがって、成人到達分として許可された通常の都市流出は「可能な限り多く作る」方針によって取り消されない。
+- **2026-08-15 実装**: `calculateAgriculturalLandProfile()` は `requiredArea × 1.1` で打ち切らず、残った耕せる成人の `laborAffordableArea` まで作付する。独立成長では予約は `children / CHILD_COHORT_YEARS` のみ。Megacity ではさらに成人の 32%（`MEGACITY_LABOR_EXPORT_SHARE`、30〜40%校正の中央）を都市送りとして畑に入れず、残った農民だけで開墾可能な限り耕す。これにより後背地は「人」と「余剰穀物」を同時に都市へ出せる。収穫月の不足は隣村の相互扶助と子供・高齢者の世帯労働で埋める。雇用台帳の `farmLaborRequired` は収穫ピークではなく年次通年労働から求める。過湿でカタログ作物が全滅していたのは選択バグであり、湿ったセルは雨に強い作物（エンドウなど）を選ぶ。寒冷・高地で畑労働がほとんどないセルの住民は、当初から採集・牧畜・漁撈の自給容量で置かれている。彼らを「失業した農民」にせず、その生業を雇用として数え、Megacity の 32% 労働輸出予約も掛けない。人口の間引きは `subsistenceCapacity`（自給できない人を置かない）が担い、雇用台帳で二重に消さない。
 - `1.15`を分母へ入れるため、最大生産を選んでも農業労働の15%安全余力を残す。
 - v1では`ruralNonFarmWorkers = 0`とし、鉱山・伐採・運送などの農村非農業者を推定で控除しない。実際の資源事業や労働市場を導入してから、その事業が必要とする明示的な人数だけを控除する。
 - Marketの6か月目標在庫は輸入回復の目標であり、農民へ「そこまでしか作らない」と命じる生産上限ではない。

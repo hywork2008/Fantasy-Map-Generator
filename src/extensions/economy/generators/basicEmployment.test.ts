@@ -430,4 +430,18 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     expect(summary.basicEmploymentDemand).toBeCloseTo(1.25, 5);
     expect(summary.serviceEmploymentDemand).toBeCloseTo(1.25 * 1.5, 5);
   });
+
+  it("fills administration to the available-adult target on a fresh map instead of the 25% annual step", () => {
+    setBurgs({ maleAdults: 100, femaleAdults: 100 });
+    worldContext.pack.states = [
+      undefined,
+      { i: 1, name: "Test", capital: 1, burgs: 1, rural: 0, urban: 0, removed: false }
+    ] as unknown as PackedGraph["states"];
+
+    reconcileAnnualBasicEmploymentWorkers({ initial: true });
+
+    const [summary] = getBasicEmploymentSummary();
+    expect(summary.basicEmploymentDemand).toBeCloseTo(5, 5);
+    expect(summary.serviceEmploymentDemand).toBeCloseTo(7.5, 5);
+  });
 });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { simulationContext, worldContext } from "../../hostCore";
+import { LIVELIHOOD_CODE, simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -126,8 +126,10 @@ describe("ruralOccupationAllocation", () => {
     // supplied by the legacy path is deliberately ignored by the calendar path.
     expect(result.fishingRequiredWorkers[0]).toBeCloseTo(30, 5);
     expect(result.fishingWorkers[0]).toBeCloseTo(1, 5);
-    expect(result.farmLaborRequired[0]).toBeCloseTo(2, 5);
-    expect(result.migratableAdults[0]).toBe(0);
+    // Year-round residents: one cereal-harvest month (11.7 days) plus one fisher (140 days).
+    expect(result.farmLaborRequired[0]).toBeCloseTo((140 / 12 + 140) / 140, 5);
+    expect(result.migratableAdults[0]).toBeGreaterThan(0);
+    expect(result.migratableAdults[0]).toBeLessThan(2);
     expect(result.seasonalLaborShortage[6]).toBeGreaterThan(0);
   });
 
@@ -250,5 +252,73 @@ describe("ruralOccupationAllocation", () => {
 
     // huntingWorkers assigned = min(3, max(3, 3*0.01)) = 3 (population never enters this formula).
     expect(getHuntingGameOutput(0)).toBeCloseTo(3 * GAME_YIELD_PER_HUNTER_PER_MONTH, 5);
+  });
+
+  it("lets a slack neighbour absorb a same-state harvest shortage as mutual-aid employment", () => {
+    worldContext.pack = {
+      cells: {
+        i: new Uint16Array([0, 1]),
+        h: new Uint8Array([30, 30]),
+        biomeCode: new Uint8Array([0, 0]),
+        pop: new Float32Array([4, 4]),
+        maleAdults: new Float32Array([2, 2]),
+        femaleAdults: new Float32Array([0, 0]),
+        children: new Float32Array([0, 0]),
+        elders: new Float32Array([0, 0]),
+        state: new Uint16Array([1, 1]),
+        c: [[1], [0]]
+      }
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [[]], habitability: [0] } as never;
+    setGoods([] as never);
+    setGoodCellColumn(new Uint16Array([0, 0]));
+
+    const cropLaborDaysByMonth = new Float32Array(24);
+    cropLaborDaysByMonth[6] = 140; // cell 0 harvest needs ~12 resident adults
+    const minimumCropLaborDaysByMonth = new Float32Array(24);
+
+    const result = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth,
+      minimumCropLaborDaysByMonth,
+      farmLaborRequired: new Float32Array([2, 2]),
+      migratableAdults: new Float32Array([0, 2])
+    });
+
+    // Cell 1 had no staple work, so its two adults take the neighbour's harvest days.
+    expect(result.farmLaborRequired[1]).toBeGreaterThan(0);
+    expect(result.migratableAdults[1]).toBeLessThan(2);
+    expect(result.seasonalLaborShortage[6]).toBeLessThan(140);
+  });
+
+  it("counts leftover highland adults as subsistence workers instead of unemployed surplus", () => {
+    worldContext.pack = {
+      cells: {
+        i: new Uint16Array([0]),
+        h: new Uint8Array([30]),
+        biomeCode: new Uint8Array([0]),
+        pop: new Float32Array([4]),
+        maleAdults: new Float32Array([2]),
+        femaleAdults: new Float32Array([0]),
+        children: new Float32Array([0]),
+        elders: new Float32Array([0]),
+        livelihood: new Uint8Array([LIVELIHOOD_CODE.foraging]),
+        c: [[]]
+      }
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [[]], habitability: [0] } as never;
+    setGoods([] as never);
+    setGoodCellColumn(new Uint16Array([0]));
+
+    const result = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: new Float32Array(12),
+      minimumCropLaborDaysByMonth: new Float32Array(12),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([2])
+    });
+
+    expect(result.farmLaborRequired[0]).toBeCloseTo(2, 5);
+    expect(result.migratableAdults[0]).toBe(0);
   });
 });

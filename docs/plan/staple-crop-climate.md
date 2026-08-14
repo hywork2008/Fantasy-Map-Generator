@@ -27,3 +27,12 @@ used by Cell Info, Crop climate guide, perennial crops, and irrigation.
 The profiles are annual screening bands. They do not model growing-season rainfall,
 waterlogging duration, cultivar differences, or soil water retention; those belong
 to a future seasonal water-balance model.
+
+**v1 wet-side rule (2026-08-15)**: rainfall *below* `min` is still a hard fail (too dry).
+Rainfall *above* `max` is not. `population-food-supply.md` §3.5 already refuses a
+waterlogging penalty on the climate-yield curve, and generated `grid.cells.prec` is
+often 20–50 on habitable land — above Wheat's 16 and even Broad Beans' 26. A hard
+upper cutoff therefore emptied `getCropMix()` on whole maps and zeroed farm labour.
+Suitability now decays past `idealMax` and keeps a residual past `max` that prefers
+the crop whose documented band reaches further into the wet side, so a wet temperate
+cell grows peas rather than "no crop." Temperature min/max remain hard limits.

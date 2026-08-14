@@ -994,6 +994,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "production") {
         FoodProduction.seedFoodLedgerBootstrap();
         Production.produce();
+        reconcileAnnualBasicEmploymentWorkers({ initial: true });
         Taxes.collectTaxes();
         if (value.target === "economy") MetallurgWork.generate();
         else MetallurgWork.fulfillFromMarkets();
@@ -2103,6 +2104,10 @@ export function init(api: ExtensionAPI): void {
             skipGlobalTrade
           });
           if (!completed || isCancelled()) return;
+          // Fresh maps have mines/craft already staffed, but administration, construction, and
+          // the basic/service employment summary only exist after this reconcile. Use the
+          // initial path so a settled starting world is not 75% urban-unemployed on day one.
+          reconcileAnnualBasicEmploymentWorkers({ initial: true });
           settleMonthlyHeating();
           Taxes.collectTaxes();
           MetallurgWork.generate();

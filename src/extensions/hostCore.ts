@@ -42,7 +42,10 @@ export type {
 export { allocateRiverWater, compileRiverWaterNetwork } from "../generators/riverWaterAllocation";
 export { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../generators/seaRouteGraph";
 export { States } from "../generators/states-generator";
-export { reconcileSubsistenceCapacityFromFood } from "../generators/subsistenceCapacity";
+export {
+  LIVELIHOOD_CODE,
+  reconcileSubsistenceCapacityFromFood
+} from "../generators/subsistenceCapacity";
 export { getFourCourseRotationEffect } from "../generators/technologyProgress";
 export type { Point } from "../generators/voronoi";
 export { BordersRenderer } from "../renderers/draw-borders";

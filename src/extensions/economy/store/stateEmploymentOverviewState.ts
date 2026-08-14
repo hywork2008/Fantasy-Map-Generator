@@ -17,7 +17,10 @@ export interface StateEmploymentOverviewRow {
   viticultureWorkers: number;
   /** Husbandry headcount — informational "of which" breakdown of ruralEmployed. */
   husbandryWorkers: number;
-  /** Rural adults not needed for this year's farm/rural-occupation plan (migratableAdults). */
+  /**
+   * Rural adults left after food-first planting. Independent: reserved child→adult outflow.
+   * Megacity: hinterland labour-export pool (~32%) plus land-constrained leftover.
+   */
   ruralSurplus: number;
   /** Urban market labor force (adults after household-care band is excluded). */
   urbanPopulation: number;

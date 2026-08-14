@@ -73,7 +73,11 @@ function getSelectedCellClimateStatus(
   const range = getRange(crop, metric);
   const label = metric === "precipitation" ? "Rainfall" : "Temperature";
   if (cellValue <= range.min) return `${label} is below the viable range.`;
-  if (cellValue >= range.max) return `${label} is above the viable range.`;
+  if (cellValue >= range.max) {
+    return metric === "precipitation"
+      ? `${label} is wetter than the preferred range.`
+      : `${label} is above the viable range.`;
+  }
   if (cellValue >= range.idealMin && cellValue <= range.idealMax) return `${label} is in the ideal range.`;
   return `${label} is viable, but outside the ideal range.`;
 }

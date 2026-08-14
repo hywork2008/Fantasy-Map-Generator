@@ -627,6 +627,8 @@ interface PopulationMigration {
 
 **決定**: 各セルの`laborAffordableCultivatedArea`は、`min(cultivableArea, (ruralAdultWorkers - sustainableAdultOutflow - ruralNonFarmWorkers) × workableDaysPerAdult / (laborDaysPerArea × 1.15))`で求める。成人流出を先に予約し、分母の`1.15`で農業労働の15%安全余力を残した上で、残る労働力で耕せる面積まで作付する。
 
+**2026-08-15 追記（人と穀物の同時輸出）**: 独立成長では予約は`sustainableAdultOutflow`のみで、残りは畑へ回す（地元に残る成人の失業を食料労働へ吸収する）。Megacity ではそれに加え、農村成人の 32%（`MEGACITY_LABOR_EXPORT_SHARE`、30〜40%校正の中央）を都市送りプールとして畑に入れない。残った約 68% の農民が耕せるだけ後背地を開発する。収量・開墾が進むほど同じ農民から出る輸出穀物は増えるが、都市へ出す人数の原資は消えない。村の自給が 68% では足りない辺境セルだけ、自給を優先してプールを削る。
+
 **決定**: 各セルの`ruralReleasePressure`は、最低食料計画に必要な`minimumFarmAdults = minimumCultivatedArea × laborDaysPerArea × 1.15 / workableDaysPerAdult`を成人労働者から引いた正の余力とする。最大生産を理由に成人を農村へ縛らず、この余力と判定された成人到達者が通常の外部就業・開拓を目指せる。残った成人は、その後に可能な限り作付を広げて余剰を作る。
 
 **決定**: `ruralReleasePressure`がある成人到達者は、都市の受入枠が直ちになくても村へ残さず、外部の職を探す`mobileAdultCohort`へ移す。これは、最低限の農業に必要ない若年成人が、奉公、都市就業、開拓の場を村外へ探す状態を近似する。都市に定着できない集団は、既定どおり翌年に開拓申請、野盗、死亡・域外流出へ進む。

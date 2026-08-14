@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
 import type { WorldContext } from "../../hostCore";
 import {
   AGTECH_NO_DRAFT_EFFECT_SHARE,
@@ -8,6 +9,7 @@ import {
   calculateAgriculturalLandProfile,
   FOUR_COURSE_CLOVER_LEY_SHARE,
   getCropMix,
+  MEGACITY_LABOR_EXPORT_SHARE,
   reconcileForestClearanceForAgriculture,
   STATE_YIELD_BONUS_MAX
 } from "./agriculturalLandUse";
@@ -164,7 +166,9 @@ describe("agricultural land use", () => {
 
     const expectedYieldMultiplier = 1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE;
     expect(withAgTech.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * expectedYieldMultiplier, 4);
-    expect(withAgTech.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
+    // Tools save labour per hectare, so the same adults open more fields rather than sit idle.
+    expect(withAgTech.cultivatedArea[1]).toBeGreaterThan(baseline.cultivatedArea[1]);
+    expect(withAgTech.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 3);
 
     // Cell 0's agTechStockByCell entry is 0, so it is untouched by the other cell's investment.
     expect(withAgTech.yieldPerArea[0]).toBe(baseline.yieldPerArea[0]);
@@ -198,10 +202,10 @@ describe("agricultural land use", () => {
       (1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE) * (1 + STATE_YIELD_BONUS_MAX);
     expect(withStateOnly.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * stateBonusMultiplier, 4);
     expect(withBoth.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
-    // State-level infrastructure has no direct labor-savings multiplier (unlike market-level
-    // AgTech's effectiveLaborDaysPerHectare), but farmLaborRequired still falls indirectly:
-    // higher yield means less cultivatedArea is needed to feed the same population.
-    expect(withStateOnly.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
+    // State infrastructure raises yield only. Food-first planting already uses every farmable
+    // adult, so the same labour tends the same area and simply harvests more grain.
+    expect(withStateOnly.cultivatedArea[1]).toBeCloseTo(baseline.cultivatedArea[1], 4);
+    expect(withStateOnly.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 4);
   });
 
   it("turns adopted four-course rotation into clover forage, yield, labour, and fertility effects", () => {
@@ -215,7 +219,8 @@ describe("agricultural land use", () => {
     const rotated = calculateAgriculturalLandProfile(world, undefined, undefined, {}, fourCourseConditions);
 
     expect(rotated.yieldPerArea[1]).toBeGreaterThan(baseline.yieldPerArea[1]);
-    expect(rotated.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
+    expect(rotated.cultivatedArea[1]).toBeGreaterThan(baseline.cultivatedArea[1]);
+    expect(rotated.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 3);
     expect(rotated.floweringForageArea[1]).toBeCloseTo(rotated.cultivatedArea[1] * FOUR_COURSE_CLOVER_LEY_SHARE, 5);
 
     const baselineSoil = advanceAgriculturalSoils(world, crops, new Float32Array([1, 1]), new Float32Array(2));
@@ -322,5 +327,85 @@ describe("agricultural land use", () => {
       irrigation
     });
     expect(salted.irrigationSalinity[0]).toBeGreaterThan(0);
+  });
+
+  it("expands fields beyond the subsistence reserve when leftover adults can tend more land", () => {
+    const world = createWorld();
+    world.pack.cells.pop[1] = 1;
+    world.pack.cells.maleAdults[1] = 0.22;
+    world.pack.cells.femaleAdults[1] = 0.23;
+    const fewHands = calculateAgriculturalLandProfile(world);
+
+    world.pack.cells.maleAdults[1] = 2;
+    world.pack.cells.femaleAdults[1] = 2;
+    const manyHands = calculateAgriculturalLandProfile(world);
+
+    expect(manyHands.cultivatedArea[1]).toBeGreaterThan(fewHands.cultivatedArea[1]);
+    expect(manyHands.cultivatedArea[1]).toBeGreaterThan(fewHands.cultivatedArea[1] * 1.15);
+    expect(manyHands.farmLaborRequired[1]).toBeGreaterThan(fewHands.farmLaborRequired[1]);
+  });
+
+  it("reserves this year's child→adult arrivals so extra planting cannot cancel sustainable outflow", () => {
+    const world = createWorld();
+    world.pack.cells.pop[1] = 10;
+    world.pack.cells.maleAdults[1] = 2.2;
+    world.pack.cells.femaleAdults[1] = 2.3;
+    world.pack.cells.children = new Float32Array([0, 4.5]);
+    world.pack.cells.elders = new Float32Array([0, 1]);
+
+    const profile = calculateAgriculturalLandProfile(world);
+    // 4.5 children / 15 years = 0.3 population points reserved for urban-bound outflow.
+    expect(profile.migratableAdults[1]).toBeGreaterThanOrEqual(0.3 - 1e-6);
+    expect(profile.cultivatedArea[1]).toBeGreaterThan(0);
+  });
+
+  it("reserves the megacity labour-export share so hinterland cells can ship people and extra grain", () => {
+    const world = createWorld();
+    // Keep the cell labour-constrained (not land-constrained) so the 32% reserve
+    // actually changes planted area instead of both modes hitting the same ceiling.
+    world.pack.cells.pop[1] = 2;
+    world.pack.cells.maleAdults[1] = 0.45;
+    world.pack.cells.femaleAdults[1] = 0.45;
+    const ruralAdults = 0.9;
+
+    const independent = calculateAgriculturalLandProfile(world);
+    const megacity = calculateAgriculturalLandProfile(world, undefined, undefined, {
+      includeUrbanFoodDemand: false,
+      reserveLaborForUrbanExport: true
+    });
+
+    expect(megacity.migratableAdults[1]).toBeGreaterThanOrEqual(ruralAdults * MEGACITY_LABOR_EXPORT_SHARE - 1e-6);
+    expect(megacity.migratableAdults[1]).toBeGreaterThan(independent.migratableAdults[1]);
+    expect(megacity.cultivatedArea[1]).toBeLessThan(independent.cultivatedArea[1]);
+    expect(megacity.cultivatedArea[1]).toBeGreaterThan(0);
+  });
+
+  it("selects rain-tolerant staples and still employs adults on wet cells", () => {
+    const world = createWorld();
+    world.grid.cells.prec = new Uint8Array([45, 45]);
+    world.pack.cells.pop[1] = 2;
+    world.pack.cells.maleAdults[1] = 0.45;
+    world.pack.cells.femaleAdults[1] = 0.45;
+    const crops: Good[] = [
+      { ...cropGood(1, "Wheat", "cereal"), crop: { ...STAPLE_CROP_PROFILES.Wheat } },
+      { ...cropGood(2, "Peas", "legume"), crop: { ...STAPLE_CROP_PROFILES.Peas } }
+    ];
+
+    const mix = getCropMix(world, 1, crops);
+    expect(mix.length).toBeGreaterThan(0);
+    expect(mix.some(entry => entry.good.name === "Peas")).toBe(true);
+    expect(mix.find(entry => entry.good.name === "Peas")!.suitability).toBeGreaterThan(
+      mix.find(entry => entry.good.name === "Wheat")?.suitability ?? 0
+    );
+
+    const profile = calculateAgriculturalLandProfile(world, undefined, undefined, {}, { cropGoods: crops });
+    const ruralAdults = 0.9;
+    const surplusShare = profile.migratableAdults[1] / ruralAdults;
+
+    expect(profile.yieldPerArea[1]).toBeGreaterThan(0);
+    expect(profile.cultivatedArea[1]).toBeGreaterThan(0);
+    expect(profile.farmLaborRequired[1]).toBeGreaterThan(0);
+    expect(surplusShare).toBeLessThan(0.5);
+    expect(surplusShare).toBeGreaterThanOrEqual(0);
   });
 });

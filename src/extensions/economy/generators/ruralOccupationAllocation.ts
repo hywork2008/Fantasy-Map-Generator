@@ -37,7 +37,7 @@
  * since `ruralLaborRelease.ts` still expects population points to match `cells.maleAdults`/`femaleAdults`.
  */
 
-import type { WorldContext } from "../../hostCore";
+import { LIVELIHOOD_CODE, type WorldContext } from "../../hostCore";
 import {
   getFishingRequiredWorkers,
   getFishingWorkers,
@@ -48,6 +48,8 @@ import {
 import {
   type AgriculturalLandProfile,
   FARM_LABOUR_SAFETY_MARGIN,
+  getAnnualRequiredAdults,
+  getReservedAdultOutflowPoints,
   WORKABLE_DAYS_PER_ADULT,
   WORKABLE_DAYS_PER_ADULT_PER_MONTH
 } from "./agriculturalLandUse";
@@ -92,6 +94,14 @@ export const GAME_YIELD_PER_HUNTER_PER_MONTH = (GROSS_FOOD_NEED * HUNTER_SUBSIST
 export const FISHING_WORKERS_PER_UNIT_OUTPUT = 6;
 
 /**
+ * Harvest-month household helpers, as adult-equivalents. Children and elders are not in the
+ * adult labour force (so they do not change unemployment) but historically joined the
+ * reaping, binding, and preservation rush (boon work / Nachbarhilfe).
+ */
+export const HOUSEHOLD_HARVEST_CHILD_EQUIVALENT = 0.35;
+export const HOUSEHOLD_HARVEST_ELDER_EQUIVALENT = 0.4;
+
+/**
  * Local stand-ins for production-utils.ts's BONUS_RURAL_PRODUCTION/MAX_BONUS_PRODUCTION, kept as
  * separate constants rather than an import to avoid a production-utils.ts <->
  * ruralOccupationAllocation.ts import cycle (production-utils.ts calls into this module for the
@@ -125,7 +135,9 @@ export interface RuralOccupationAllocation {
 type RuralLaborPlan = Pick<
   AgriculturalLandProfile,
   "cropLaborDaysByMonth" | "minimumCropLaborDaysByMonth" | "farmLaborRequired" | "migratableAdults"
->;
+> & {
+  readonly reservedLaborExport?: Float32Array;
+};
 
 function getHuntingSubsistenceClaim(availableAdults: number): number {
   if (availableAdults <= 0) return 0;
@@ -361,6 +373,9 @@ function allocateRuralOccupationsFromCalendar(
   const migratableAdults = new Float32Array(count);
   const seasonalLaborShortage = new Float32Array(count * 12);
   const ruralReleasePressure = new Float32Array(count);
+  const currentDaysByCell = new Float32Array(count * 12);
+  const desiredDaysByCell = new Float32Array(count * 12);
+  const minimumDaysByCell = new Float32Array(count * 12);
   if (
     !count ||
     laborPlan.cropLaborDaysByMonth.length !== count * 12 ||
@@ -446,23 +461,58 @@ function allocateRuralOccupationsFromCalendar(
       addWorkerDays(minimumDays, assigned, candidate.monthlyWeights);
     }
 
-    const peakCurrentAdults = getPeakRequiredAdults(currentDays);
-    const peakMinimumAdults = getPeakRequiredAdults(minimumDays);
-    farmLaborRequired[cellId] = peakCurrentAdults / populationRate;
+    writeMonthlyDays(currentDaysByCell, cellId, currentDays);
+    writeMonthlyDays(desiredDaysByCell, cellId, desiredDays);
+    writeMonthlyDays(minimumDaysByCell, cellId, minimumDays);
+  }
+
+  const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell);
+
+  for (const cellId of cells.i) {
+    if (cells.h[cellId] < 20) continue;
+    const ruralAdultPoints =
+      Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+    const residentAdults = ruralAdultPoints * populationRate;
+    const reservedLaborExport = Math.max(
+      laborPlan.reservedLaborExport?.[cellId] ?? 0,
+      getReservedAdultOutflowPoints(cells, cellId)
+    );
+    const currentDays = copyStoredMonthlyDays(currentDaysByCell, cellId);
+    const desiredDays = copyStoredMonthlyDays(desiredDaysByCell, cellId);
+    const minimumDays = copyStoredMonthlyDays(minimumDaysByCell, cellId);
+    const annualCurrentAdults = getAnnualRequiredAdults(currentDays);
+    const annualMinimumAdults = getAnnualRequiredAdults(minimumDays);
+    farmLaborRequired[cellId] = annualCurrentAdults / populationRate;
+    // Honour the land-use reserve (outflow, or megacity's 32% labour export). Harvest
+    // mutual aid must not reclassify that cohort as year-round farm employment.
     migratableAdults[cellId] = Math.max(
-      0,
-      ruralAdultPoints - (peakCurrentAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+      reservedLaborExport,
+      ruralAdultPoints - (annualCurrentAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
     );
     ruralReleasePressure[cellId] = Math.max(
       0,
-      ruralAdultPoints - (peakMinimumAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+      ruralAdultPoints - (annualMinimumAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+    );
+
+    applySubsistenceLivelihoodEmployment(
+      cells.livelihood?.[cellId] ?? 0,
+      ruralAdultPoints,
+      getReservedAdultOutflowPoints(cells, cellId),
+      farmLaborRequired,
+      migratableAdults,
+      ruralReleasePressure,
+      cellId
     );
 
     const adultsAfterMigration = Math.max(0, residentAdults - migratableAdults[cellId] * populationRate);
+    const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate);
     for (let month = 0; month < 12; month++) {
       seasonalLaborShortage[cellId * 12 + month] = Math.max(
         0,
-        desiredDays[month] - adultsAfterMigration * WORKABLE_DAYS_PER_ADULT_PER_MONTH
+        desiredDays[month] -
+          adultsAfterMigration * WORKABLE_DAYS_PER_ADULT_PER_MONTH -
+          helperDays -
+          (aidReceivedByCell[cellId * 12 + month] ?? 0)
       );
     }
   }
@@ -484,6 +534,79 @@ function allocateRuralOccupationsFromCalendar(
 
 function copyMonthlyDays(source: Float32Array, cellId: number): number[] {
   return Array.from(source.subarray(cellId * 12, cellId * 12 + 12));
+}
+
+function writeMonthlyDays(target: Float32Array, cellId: number, days: readonly number[]): void {
+  target.set(days, cellId * 12);
+}
+
+function copyStoredMonthlyDays(source: Float32Array, cellId: number): number[] {
+  return copyMonthlyDays(source, cellId);
+}
+
+function getHouseholdHarvestHelperDays(
+  cells: WorldContext["pack"]["cells"],
+  cellId: number,
+  populationRate: number
+): number {
+  const children = Math.max(0, cells.children?.[cellId] ?? 0) * populationRate;
+  const elders = Math.max(0, cells.elders?.[cellId] ?? 0) * populationRate;
+  return (
+    (children * HOUSEHOLD_HARVEST_CHILD_EQUIVALENT + elders * HOUSEHOLD_HARVEST_ELDER_EQUIVALENT) *
+    WORKABLE_DAYS_PER_ADULT_PER_MONTH
+  );
+}
+
+/**
+ * Neighbour boon-work: a cell whose harvest/preservation month exceeds its own adults
+ * draws unused monthly capacity from adjacent same-state land cells. Helpers become
+ * employed (their currentDays rise) rather than remaining "unemployed surplus."
+ */
+function applyHarvestMutualAid(
+  world: Readonly<WorldContext>,
+  currentDaysByCell: Float32Array,
+  desiredDaysByCell: Float32Array
+): Float32Array {
+  const cells = world.pack.cells;
+  const aidReceivedByCell = new Float32Array(Math.max(0, cells?.i?.length ?? 0) * 12);
+  if (!cells?.i || !cells.c) return aidReceivedByCell;
+  const populationRate = Math.max(1, world.populationRate || 1);
+
+  for (let month = 0; month < 12; month++) {
+    const slack = new Float32Array(cells.i.length);
+    const shortage = new Float32Array(cells.i.length);
+    for (const cellId of cells.i) {
+      if ((cells.h[cellId] ?? 0) < 20) continue;
+      const ruralAdultPoints =
+        Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+      const capacity = ruralAdultPoints * populationRate * WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate);
+      const current = currentDaysByCell[cellId * 12 + month] ?? 0;
+      const desired = desiredDaysByCell[cellId * 12 + month] ?? 0;
+      slack[cellId] = Math.max(0, capacity - current);
+      shortage[cellId] = Math.max(0, desired - capacity - helperDays);
+    }
+
+    for (const cellId of cells.i) {
+      let remaining = shortage[cellId];
+      if (remaining <= 0) continue;
+      const stateId = cells.state?.[cellId] ?? 0;
+      if (!stateId) continue;
+      for (const neighborId of cells.c[cellId] ?? []) {
+        if (remaining <= 0) break;
+        if ((cells.h[neighborId] ?? 0) < 20) continue;
+        if ((cells.state?.[neighborId] ?? 0) !== stateId) continue;
+        const transfer = Math.min(remaining, slack[neighborId] ?? 0);
+        if (transfer <= 0) continue;
+        currentDaysByCell[neighborId * 12 + month] += transfer;
+        desiredDaysByCell[neighborId * 12 + month] += transfer;
+        aidReceivedByCell[cellId * 12 + month] += transfer;
+        slack[neighborId] -= transfer;
+        remaining -= transfer;
+      }
+    }
+  }
+  return aidReceivedByCell;
 }
 
 function addWorkerDays(target: number[], workers: number, monthlyWeights: readonly number[]): void {
@@ -508,8 +631,35 @@ function getMaximumAssignableFactor(
   return Math.max(0, Math.min(1, factor));
 }
 
-function getPeakRequiredAdults(monthlyDays: readonly number[]): number {
-  return Math.max(0, ...monthlyDays.map(days => days / WORKABLE_DAYS_PER_ADULT_PER_MONTH));
+/**
+ * Foraging, pastoral, and fishing cells were settled *because* those livelihoods can feed
+ * the residents. The leftover adults are those workers, not an unemployed farm surplus.
+ * Agricultural cells keep their export/migration reserve. Barren cells keep their surplus
+ * so a later thin-to-livelihood pass can remove people who should not live there.
+ */
+function applySubsistenceLivelihoodEmployment(
+  livelihood: number,
+  ruralAdultPoints: number,
+  reservedOutflow: number,
+  farmLaborRequired: Float32Array,
+  migratableAdults: Float32Array,
+  ruralReleasePressure: Float32Array,
+  cellId: number
+): void {
+  if (
+    livelihood !== LIVELIHOOD_CODE.foraging &&
+    livelihood !== LIVELIHOOD_CODE.pastoral &&
+    livelihood !== LIVELIHOOD_CODE.fishing &&
+    livelihood !== LIVELIHOOD_CODE.mixed
+  ) {
+    return;
+  }
+  const assigned = farmLaborRequired[cellId] ?? 0;
+  const leftover = Math.max(0, ruralAdultPoints - assigned - reservedOutflow);
+  if (leftover <= 0) return;
+  farmLaborRequired[cellId] = assigned + leftover;
+  migratableAdults[cellId] = reservedOutflow;
+  ruralReleasePressure[cellId] = reservedOutflow;
 }
 
 // ---- Consumption side: read the persisted allocation to gate Game/Fish (production-utils.ts) ----

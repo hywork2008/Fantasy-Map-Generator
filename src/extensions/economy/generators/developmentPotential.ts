@@ -157,7 +157,8 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
+    const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const demandOptions = { includeUrbanFoodDemand: !megacity, reserveLaborForUrbanExport: megacity };
     const conditions = this.getAgriculturalConditions(world);
     reconcileForestClearanceForAgriculture(
       world,
@@ -242,7 +243,8 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    const demandOptions = { includeUrbanFoodDemand: useOptionsState.getState().ruralUrbanMigration !== "megacity" };
+    const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const demandOptions = { includeUrbanFoodDemand: !megacity, reserveLaborForUrbanExport: megacity };
     const conditions = this.advanceSoilConditions(world);
     reconcileForestClearanceForAgriculture(
       world,

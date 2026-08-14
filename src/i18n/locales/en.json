@@ -730,7 +730,7 @@
     "stateEmploymentOverview": {
       "dialogTitle": "State Employment Overview",
       "refreshTip": "Refresh the State Employment Overview",
-      "note": "Rural columns come from the agricultural land-use ledger (staple crop labor plus hunting, fishing, viticulture, and husbandry); Urban columns come from each Burg's employment composition (household care already excluded from Urban pop.). Surplus is adults not currently assigned to any tracked occupation — not a separate worker pool, so it can undercount when a State has unmodeled labor.",
+      "note": "Rural columns come from the agricultural land-use ledger (staple crop labor plus hunting, fishing, viticulture, and husbandry). Independent growth spends leftover adults on extra fields after reserving this year's child→adult outflow. Megacity keeps ~32% of rural adults as an urban-bound pool while the rest develop as much hinterland as they can tend, so a cell can ship both people and grain. Harvest peaks draw household helpers and neighbour mutual aid. Urban columns exclude household care. Surplus is unassigned adults — outflow / the megacity migrant pool, not idle harvest hands.",
       "emptyState": "No State has recorded rural or urban demographics yet.",
       "summary": {
         "laborForce": "Labor force",
@@ -747,7 +747,7 @@
         "ruralPopulation": "Rural pop.",
         "ruralPopulationTip": "Rural adults (cells.maleAdults + femaleAdults) across the State's land cells",
         "ruralEmployed": "Farming",
-        "ruralEmployedTip": "Peak-month rural labor commitment: staple crop + hunting + fishing + viticulture + husbandry combined",
+        "ruralEmployedTip": "Year-round rural work: staple fields, hunting, fishing, viticulture, husbandry, and subsistence livelihoods (foraging/herding) that justified settlement",
         "hunting": "Hunting",
         "huntingTip": "Subsistence hunters (already counted within Farming's peak-month total)",
         "fishing": "Fishing",
@@ -757,7 +757,7 @@
         "husbandry": "Husb.",
         "husbandryTip": "Husbandry workers (already counted within Farming's peak-month total)",
         "ruralSurplus": "Rural surplus",
-        "ruralSurplusTip": "Rural adults not needed for this year's farm/rural-occupation plan (migratableAdults)",
+        "ruralSurplusTip": "Unassigned rural adults after food-first planting. Independent growth: reserved child→adult outflow. Megacity: the hinterland labour-export pool (~32%) plus any land-constrained leftover.",
         "urbanPopulation": "Urban pop.",
         "urbanPopulationTip": "Urban market labor force (adults after household-care band is excluded)",
         "administration": "Admin",
@@ -779,7 +779,7 @@
         "totalSurplus": "Total surplus",
         "totalSurplusTip": "Rural surplus + Urban surplus",
         "unemploymentPct": "u %",
-        "unemploymentPctTip": "Total surplus / Labor force — a rough State-wide unemployment rate"
+        "unemploymentPctTip": "Total surplus / Labor force. In Megacity this is mostly the hinterland migrant pool, not idle harvest hands."
       }
     }
   },

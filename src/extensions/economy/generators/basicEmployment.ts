@@ -79,7 +79,7 @@ interface MarketWorkforceSlot extends BasicEmploymentSlot {
  *
  * Call once per simulation year, gated the same way as `UrbanLaborIntake.updateAnnualState()`.
  */
-export function reconcileAnnualBasicEmploymentWorkers(): void {
+export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: boolean }): void {
   const slotsByBurg = new Map<number, BasicEmploymentSlot[]>();
   const marketWorkforceSlots = new Map<number, MarketWorkforceSlot[]>();
   const burgs = getWorldContext().pack.burgs;
@@ -201,13 +201,13 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
   for (const [burgId, slots] of slotsByBurg) {
     const burg = burgs[burgId];
     if (!burg) continue;
-    localWorkersByBurg.set(burgId, reconcileSlots(slots, getAdults(burg)));
+    localWorkersByBurg.set(burgId, reconcileSlots(slots, getAdults(burg), options?.initial === true));
   }
 
   const marketWorkersByBurg = new Map<number, number>();
   for (const [marketId, slots] of marketWorkforceSlots) {
     const availableAdults = getMarketAdults(marketId, burgs, localWorkersByBurg);
-    reconcileSlots(slots, availableAdults);
+    reconcileSlots(slots, availableAdults, options?.initial === true);
     for (const slot of slots) {
       marketWorkersByBurg.set(slot.burgId, (marketWorkersByBurg.get(slot.burgId) ?? 0) + slot.getWorkers());
     }
@@ -314,11 +314,13 @@ function getMarketAdults(
   }, 0);
 }
 
-function reconcileSlots(slots: readonly BasicEmploymentSlot[], availableAdults: number): number {
+function reconcileSlots(slots: readonly BasicEmploymentSlot[], availableAdults: number, initial = false): number {
   let remainingAdults = availableAdults;
   for (const slot of slots) {
     const desiredWorkers = Math.min(slot.requiredWorkers, remainingAdults);
-    const maxChange = Math.max(MIN_ANNUAL_WORKER_CHANGE, slot.requiredWorkers * MAX_ANNUAL_WORKER_CHANGE_SHARE);
+    const maxChange = initial
+      ? Number.POSITIVE_INFINITY
+      : Math.max(MIN_ANNUAL_WORKER_CHANGE, slot.requiredWorkers * MAX_ANNUAL_WORKER_CHANGE_SHARE);
     const change = clamp(desiredWorkers - slot.getWorkers(), -maxChange, maxChange);
     const nextWorkers = Math.max(0, slot.getWorkers() + change);
 
