@@ -190,7 +190,7 @@ import {
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
-import { getDisplayedGoodIds } from "./store/goodsDisplaySelection";
+import { getDisplayedGoodIds, resetDisplayedGoodSelection } from "./store/goodsDisplaySelection";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { BurgEditorGoodsTab } from "./ui/components/BurgEditorGoodsTab";
 import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
@@ -1895,6 +1895,9 @@ export function init(api: ExtensionAPI): void {
           clearStateFiscalReports();
           StrategicProcurement.clear();
           TradeAnimation.clearRouteCache();
+          // The previous map's Goods Editor checkbox selection must not carry over — the new
+          // map may have picked a different historicalPeriod, which changes the default set.
+          resetDisplayedGoodSelection();
           MineralResources.generate();
           // Goods before DevelopmentPotential (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase
           // B follow-up): DevelopmentPotential.generate() -> storeAgriculture() ->

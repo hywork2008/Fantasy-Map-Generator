@@ -120,4 +120,23 @@ describe("MineralResourcesModule", () => {
 
     expect(getMineralDistricts().length).toBeGreaterThan(40);
   });
+
+  it("tops up iron-bearing deposits to the state-scaled Generation option without changing their geology", () => {
+    const cells = Array.from({ length: 1000 }, (_, i) => i);
+    worldContext.options.ironDepositsPerState = 0.8;
+    worldContext.pack = {
+      cells: {
+        i: cells,
+        h: Uint8Array.from(cells, cell => [76, 61, 43, 32, 26][cell % 5]),
+        r: Uint16Array.from(cells, () => 0)
+      },
+      states: Array.from({ length: 11 }, (_, i) => ({ i, removed: false }))
+    } as unknown as PackedGraph;
+
+    MineralResources.generate();
+
+    const ironDeposits = getMineralDeposits().filter(deposit => deposit.commodities.includes("iron"));
+    expect(ironDeposits.length).toBeGreaterThanOrEqual(8);
+    expect(ironDeposits.every(deposit => deposit.type === "bandedIron" || deposit.type === "skarn")).toBe(true);
+  });
 });

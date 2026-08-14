@@ -89,3 +89,13 @@ export function setAllGoodsDisplayed(displayed: boolean): void {
       )
     : new Set();
 }
+
+/**
+ * Drops any explicit Goods Editor selection made on the previous map so a freshly generated
+ * map (which may have picked a different historicalPeriod) falls back to its own period default
+ * instead of carrying over the last map's checkbox state. Call once per new-map generation.
+ */
+export function resetDisplayedGoodSelection(): void {
+  selectedGoodIds = new Set();
+  hasExplicitSelection = false;
+}

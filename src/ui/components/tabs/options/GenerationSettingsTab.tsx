@@ -777,7 +777,25 @@ export const GenerationSettingsTab: React.FC = () => {
           </tr>
 
           <tr>
-            <th colSpan={4}>6. Rural economy</th>
+            <th colSpan={4}>6. Rural economy and resources</th>
+          </tr>
+          <tr data-tip="Minimum number of iron-bearing deposits generated per active state. The normal geological distribution remains unchanged; compatible iron deposits are added only if it would otherwise fall below this target. 0.40 is the balanced default, leaving iron as a tradable strategic resource. Generate a new map to apply.">
+            <td>
+              <LockIconButton id="ironDepositsPerState" />
+            </td>
+            <th>
+              <label htmlFor="ironDepositsPerState">Iron deposits / state</label>
+            </th>
+            <td colSpan={2}>
+              <SliderInput
+                id="ironDepositsPerState"
+                min="0.3"
+                max="0.8"
+                step="0.05"
+                value={options.ironDepositsPerState}
+                onChange={value => updateOptionAndLock("ironDepositsPerState", Number(value))}
+              />
+            </td>
           </tr>
           <tr data-tip="Detail level of the fauna population model backing Game and livestock production (docs/plan/biome-goods-producer-ecosystem.md). Detailed runs an annual per-cell wildlife/livestock cohort model (breeding, aging, age-selective culling, carrying capacity) that caps output by an actual headcount instead of an unlimited rate. Simplified skips that model and keeps the cheaper labour/rate-gated formula with no population ceiling — a performance option for large maps. Apply on next map generation.">
             <td>

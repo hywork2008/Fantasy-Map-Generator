@@ -60,10 +60,12 @@ export const OptionsTab: React.FC = () => {
         </button>
       </div>
 
-      {activeSubTab === "generation" && <GenerationSettingsTab />}
-      {activeSubTab === "ui" && <UiSettingsTab />}
-      {activeSubTab === "simulation" && <SimulationSettingsTab />}
-      {activeSubTab === "danger" && <DangerSettingsTab />}
+      <div className="options-subtab-panel">
+        {activeSubTab === "generation" && <GenerationSettingsTab />}
+        {activeSubTab === "ui" && <UiSettingsTab />}
+        {activeSubTab === "simulation" && <SimulationSettingsTab />}
+        {activeSubTab === "danger" && <DangerSettingsTab />}
+      </div>
     </div>
   );
 };

@@ -571,6 +571,28 @@ input[type="color"] {
   cursor: default;
 }
 
+/* Options has two independent navigation layers. Keep the Generation / UI /
+   Simulation / Danger row in sight while only the selected settings panel
+   scrolls; this prevents the growing Generation form from pushing its own
+   navigation out of reach. */
+#optionsTabContent {
+  display: flex !important;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+#optionsTabContent > .tab {
+  flex: 0 0 auto;
+}
+
+.options-subtab-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 #cellInfo {
   user-select: text;
 }

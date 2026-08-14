@@ -144,6 +144,8 @@ export interface OptionsState {
   ruralEcosystemDetail: "detailed" | "simplified";
   /** Economy initial-capital and maintenance preset, applied when generating a new map. */
   economyStartMode: EconomyStartMode;
+  /** Minimum iron-bearing mineral deposits per active state, applied when generating a new map. */
+  ironDepositsPerState: number;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
   /** Display-only denomination: silver pieces represented by one gold piece. */
@@ -355,6 +357,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   volcanicSoilStrength: 50,
   ruralEcosystemDetail: "detailed",
   economyStartMode: "balanced",
+  ironDepositsPerState: 0.4,
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
   goldToSilverRate: DEFAULT_GOLD_TO_SILVER_RATE,

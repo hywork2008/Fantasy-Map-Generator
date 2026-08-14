@@ -130,6 +130,11 @@ export interface WorldOptions {
   /** Missing values identify legacy maps and retain the former provisioned setup. */
   economyStartMode?: EconomyStartMode;
   /**
+   * Minimum iron-bearing deposits per active state, selected in Generation Settings.
+   * Undefined preserves the standard 0.40-deposits-per-state generation baseline.
+   */
+  ironDepositsPerState?: number;
+  /**
    * Sea-route topology selected for this map. Persisted so loading a saved map
    * does not replace a user-selected legacy network with the augmented one.
    */

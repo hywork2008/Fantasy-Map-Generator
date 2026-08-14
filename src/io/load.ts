@@ -575,6 +575,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     zustandUpdates.historicalPeriod = worldContext.options.historicalPeriod ?? "highMedieval";
     zustandUpdates.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
     zustandUpdates.initialSettlementPattern = worldContext.options.initialSettlementPattern;
+    zustandUpdates.ironDepositsPerState = worldContext.options.ironDepositsPerState ?? 0.4;
     useOptionsState.getState().setOptions(zustandUpdates);
   }
 

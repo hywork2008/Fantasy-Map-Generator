@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import { getDisplayedGoodIds, setGoodDisplayed } from "./goodsDisplaySelection";
+import { getDisplayedGoodIds, resetDisplayedGoodSelection, setGoodDisplayed } from "./goodsDisplaySelection";
 
 // Mirrors the defaults declared in goodsDisplaySelection.ts. Kept as literal name lists (rather
 // than importing the private consts) so the test fails loudly if either default set is edited.
@@ -105,5 +105,19 @@ describe("goodsDisplaySelection", () => {
     setGoodDisplayed(firstMedievalGood.i, true);
 
     expect(getDisplayedGoodIds()).toEqual(new Set([...AGE_OF_EXPLORATION_IDS, firstMedievalGood.i]));
+  });
+
+  it("drops a prior map's explicit selection on resetDisplayedGoodSelection and adopts the new map's period default", () => {
+    // Simulate the previous map: the user hand-picked goods under Age of Exploration.
+    setHistoricalPeriod("ageOfExploration");
+    const [firstMedievalGood] = GOODS.filter(good => MEDIEVAL_NAMES.includes(good.name));
+    setGoodDisplayed(firstMedievalGood.i, true);
+    expect(getDisplayedGoodIds()).toEqual(new Set([...AGE_OF_EXPLORATION_IDS, firstMedievalGood.i]));
+
+    // New map generation resets the selection before the new map's historicalPeriod is applied.
+    resetDisplayedGoodSelection();
+    setHistoricalPeriod("earlyMedieval");
+
+    expect(getDisplayedGoodIds()).toEqual(MEDIEVAL_IDS);
   });
 });

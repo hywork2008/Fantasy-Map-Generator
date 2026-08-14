@@ -216,6 +216,7 @@ const options = {
   biomeRegionProfile: "global" as const,
   volcanicSoilStrength: 50,
   ruralEcosystemDetail: "detailed" as const,
+  ironDepositsPerState: 0.4,
   burgs: {
     groups: (safeParseJSON(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
   }
@@ -1060,6 +1061,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.volcanicSoilStrength = useOptionsState.getState().volcanicSoilStrength;
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
   worldContext.options.economyStartMode = useOptionsState.getState().economyStartMode;
+  worldContext.options.ironDepositsPerState = useOptionsState.getState().ironDepositsPerState;
 
   if (shouldRegenerateGrid(worldContext.grid, worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)) {
     Object.keys(worldContext.grid).forEach(k => {

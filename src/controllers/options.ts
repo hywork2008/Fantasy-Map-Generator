@@ -495,6 +495,7 @@ export function applyStoredOptions(): void {
     "volcanoActiveChance",
     "volcanicSoilStrength",
     "economyStartMode",
+    "ironDepositsPerState",
     "enclosureCalculationMode",
     "manors",
     "religionsNumber",

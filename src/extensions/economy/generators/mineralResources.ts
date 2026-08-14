@@ -107,6 +107,11 @@ const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
   "volcanic"
 ];
 
+const DEFAULT_IRON_DEPOSITS_PER_STATE = 0.4;
+const MIN_IRON_DEPOSITS_PER_STATE = 0.3;
+const MAX_IRON_DEPOSITS_PER_STATE = 0.8;
+const MIN_IRON_DEPOSITS = 3;
+
 /**
  * Phase-1 deterministic pseudo-geology. Terrain height, drainage and map seed remain the only
  * inputs for every province kind except "volcanic" — see classifyProvince()'s volcanic branch
@@ -145,15 +150,13 @@ export class MineralResourcesModule {
     const districts: MineralDistrict[] = [];
     const deposits: MineralDeposit[] = [];
 
-    for (let ordinal = 0; ordinal < districtCount; ordinal++) {
-      const profile = this.pickProfile(ordinal, provinceByKind);
-      if (!profile) break;
+    const addDeposit = (profile: DistrictProfile, ordinal: number): boolean => {
       const provinceKind = profile.provinces.find(kind => provincePools.get(kind)?.length) ?? profile.provinces[0];
       const province = provinceByKind.get(provinceKind);
       const pool = provincePools.get(provinceKind);
-      if (!province || !pool) continue;
+      if (!province || !pool) return false;
       const cell = this.pickCell(seed, profile.type, ordinal, pool);
-      if (cell === null) continue;
+      if (cell === null) return false;
 
       const districtId = districts.length + 1;
       const depositId = deposits.length + 1;
@@ -185,6 +188,21 @@ export class MineralResourcesModule {
         depositIds: [depositId],
         richness
       });
+      return true;
+    };
+
+    for (let ordinal = 0; ordinal < districtCount; ordinal++) {
+      const profile = this.pickProfile(ordinal, provinceByKind);
+      if (!profile) break;
+      addDeposit(profile, ordinal);
+    }
+
+    const ironDepositTarget = this.getIronDepositTarget();
+    let ironDepositCount = deposits.filter(deposit => deposit.commodities.includes("iron")).length;
+    for (let ordinal = districtCount; ironDepositCount < ironDepositTarget; ordinal++) {
+      const profile = this.pickIronProfile(ordinal, provincePools);
+      if (!profile || !addDeposit(profile, ordinal)) break;
+      ironDepositCount += 1;
     }
 
     setMineralGeologicalProvinces(provinces);
@@ -250,6 +268,32 @@ export class MineralResourcesModule {
     if (!candidates.length) return null;
     const ordered = [...candidates].sort((a, b) => PROFILE_PRIORITY.indexOf(a.type) - PROFILE_PRIORITY.indexOf(b.type));
     return ordered[ordinal % ordered.length];
+  }
+
+  /**
+   * Selects only iron-bearing profiles for the state-scaled minimum, without placing
+   * deposits outside their geology. The normal land-area distribution always runs first.
+   */
+  private pickIronProfile(
+    ordinal: number,
+    provincePools: ReadonlyMap<GeologicalProvinceKind, readonly number[]>
+  ): DistrictProfile | null {
+    const candidates = DISTRICT_PROFILES.filter(
+      profile =>
+        profile.commodities.includes("iron") &&
+        profile.provinces.some(kind => (provincePools.get(kind)?.length ?? 0) > 0)
+    );
+    return candidates.length ? candidates[ordinal % candidates.length] : null;
+  }
+
+  /** Guarantees strategic iron availability without requiring every state to own a deposit. */
+  private getIronDepositTarget(): number {
+    const states = getWorldContext().pack.states ?? [];
+    const activeStateCount = states.filter(state => state?.i && !state.removed).length;
+    if (!activeStateCount) return 0;
+    const configured = getWorldContext().options.ironDepositsPerState ?? DEFAULT_IRON_DEPOSITS_PER_STATE;
+    const perState = Math.min(MAX_IRON_DEPOSITS_PER_STATE, Math.max(MIN_IRON_DEPOSITS_PER_STATE, configured));
+    return Math.max(MIN_IRON_DEPOSITS, Math.ceil(activeStateCount * perState));
   }
 
   /**

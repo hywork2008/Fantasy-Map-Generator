@@ -57,6 +57,34 @@ test("keeps the latest locked settlement and demographic settings after reload",
   );
 });
 
+test("keeps Options subtabs visible while long Generation settings scroll", async ({ page }) => {
+  await page.goto("/?seed=options-generation-scroll&width=1000&height=700");
+  await waitForMapLoad(page, "svg");
+  const menuToggle = page.locator("#optionsHide");
+  if ((await menuToggle.textContent())?.trim() === "►") await menuToggle.click();
+
+  const optionsContent = page.locator("#optionsTabContent");
+  const settingsPanel = optionsContent.locator(".options-subtab-panel");
+  const viewport = page.viewportSize();
+
+  await expect(settingsPanel).toBeVisible();
+  await expect(settingsPanel).toHaveCSS("overflow-y", "auto");
+  expect(await settingsPanel.evaluate(element => element.clientHeight)).toBeLessThanOrEqual(viewport!.height * 0.6);
+  expect(await settingsPanel.evaluate(element => element.scrollHeight)).toBeGreaterThan(
+    await settingsPanel.evaluate(element => element.clientHeight)
+  );
+
+  const panelBox = await settingsPanel.boundingBox();
+  expect(panelBox).not.toBeNull();
+  await settingsPanel.hover();
+  await page.mouse.wheel(0, panelBox!.height);
+  await expect.poll(() => settingsPanel.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+
+  for (const name of ["Generation", "UI", "Simulation", "Danger"]) {
+    await expect(optionsContent.getByRole("button", { name, exact: true })).toBeVisible();
+  }
+});
+
 test("moves and resizes the options panel using its tab bar and lower-right handle", async ({ page }) => {
   await page.goto("/?seed=options-panel-interactions&width=1000&height=700");
   await waitForMapLoad(page, "svg");
