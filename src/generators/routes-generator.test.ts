@@ -1019,10 +1019,12 @@ describe("land route elevation aversion (docs/plan/land-route-elevation-cost.md)
   });
 
   it("landRouteSlopeModifier penalizes climbs only", () => {
-    expect(landRouteSlopeModifier(40, 40)).toBe(1);
-    expect(landRouteSlopeModifier(50, 30)).toBe(1);
-    expect(landRouteSlopeModifier(25, 55)).toBeGreaterThan(1.5);
-    expect(landRouteSlopeModifier(25, 55, 1, 0)).toBe(1);
+    // grade is rise/run (fraction), matching services/routeGrade.ts's sampleEdgeGrade — not a
+    // raw height-index difference (docs/plan/land-route-elevation-cost.md wagon-plausibility fix).
+    expect(landRouteSlopeModifier(0)).toBe(1);
+    expect(landRouteSlopeModifier(-0.1)).toBe(1); // descending: no bonus or extra penalty
+    expect(landRouteSlopeModifier(0.2)).toBeGreaterThan(1.5); // above G_hard (15%)
+    expect(landRouteSlopeModifier(0.2, 1, 0)).toBe(1); // aversion 0 disables the term
   });
 
   it("peak multiplier is 1 at/under the local-ridge threshold and large on 1000 m-class cells", () => {
@@ -1031,7 +1033,45 @@ describe("land route elevation aversion (docs/plan/land-route-elevation-cost.md)
     expect(landRoutePeakMultiplier(55)).toBe(1);
     // h=70 ≈1227 m — hard peak (Nesia cell 5271).
     expect(landRoutePeakMultiplier(70)).toBeGreaterThan(20);
-    expect(landRouteTerrainMultiplier(43, 70)).toBeGreaterThan(landRouteTerrainMultiplier(43, 55) * 10);
+    // Same climb grade both times, so the gap is purely the absolute-height terms (elevation + peak).
+    expect(landRouteTerrainMultiplier(70, 0.15)).toBeGreaterThan(landRouteTerrainMultiplier(55, 0.15) * 10);
+  });
+
+  it("grades the same height jump as steep over a short hop but gentle over a long one", () => {
+    // Two independent 25→55 climbs sharing the same raw pack height jump, one crammed into a
+    // 1 map-unit hop (a cliff) and one spread over 50 map units (a gentle ramp). Before the
+    // wagon-plausibility fix the slope term only looked at the raw index Δh, so both hops would
+    // have cost the identical terrain multiplier regardless of how far apart the cells actually
+    // are — the point of grading real rise/run is that they must not.
+    setupHabitableBiomes();
+    worldContext.pack = {
+      cells: {
+        h: [25, 55, 25, 55],
+        p: [
+          [0, 0],
+          [1, 0],
+          [0, 10],
+          [50, 10]
+        ],
+        c: [[1], [0], [3], [2]],
+        biomeCode: [1, 1, 1, 1],
+        burg: [0, 0, 0, 0],
+        state: [1, 1, 1, 1],
+        f: [1, 1, 1, 1]
+      }
+    } as unknown as PackedGraph;
+    worldContext.distanceScale = 1;
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+
+    const steepHopCostPerUnit = getCost(0, 1) / 1;
+    const gentleHopCostPerUnit = getCost(2, 3) / 50;
+    expect(steepHopCostPerUnit).toBeGreaterThan(gentleHopCostPerUnit * 5);
   });
 
   it("prefers a longer lowland corridor over a short high ridge for elevationAware roads", () => {

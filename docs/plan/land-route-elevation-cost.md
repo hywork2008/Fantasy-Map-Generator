@@ -10,7 +10,7 @@
 - 探索本体: `findPath`（`src/utils/pathUtils.ts`）、呼び出しは `findPathSegments` / `generateMainRoads` / `generateTrails`
 - 中世ヨーロッパのイメージ（幹線は谷、峠は少数の必要動脈）: 本ドキュメント §1.3
 
-**実装状況**: **Phase 1 実装済み**（elevation/slope コスト、roads/trails 感度）。**再生成モード選択も実装済み**（`landRouteGenerationMode`: `elevationAware` | `legacy`、`seaRouteGenerationMode` と同様に Regenerate Routes ダイアログ・永続化・load 時再構築）。Phase 2（目視チューニング・Options スライダ）は任意・未着手。
+**実装状況**: **Phase 1 実装済み**（elevation/slope コスト、roads/trails 感度）。**再生成モード選択も実装済み**（`landRouteGenerationMode`: `elevationAware` | `legacy`、`seaRouteGenerationMode` と同様に Regenerate Routes ダイアログ・永続化・load 時再構築）。Phase 2（目視チューニング・Options スライダ）は任意・未着手。**追記（勾配の物理単位化）**: `slopeModifier` は生の height index Δh ではなく `src/services/routeGrade.ts` の `sampleEdgeGrade`（実勾配 %、`route-grade-movement.md` と同一定義）を再利用するよう改修済み。中世行商馬車の経路選択として妥当かというレビューを受けた修正で、詳細は §2.4 を参照。`elevationModifier` / `peakMultiplier` は引き続き絶対標高（生の `h`）ベースのまま（意図的な簡略化として維持、今回の変更対象外）。
 
 ---
 
@@ -207,6 +207,22 @@ slopeModifier = 1 + S * (dh / dhRef)^q     // dhRef 例: 8〜15, S 例: 2〜6
 
 Options UI への公開は **必須ではない**（Phase 2 任意）。
 
+### 2.4 勾配の物理単位化（実装済み・中世行商馬車としての妥当性レビュー由来）
+
+**問題**: `slopeModifier` の `dh = h[next] - h[current]` は pack height index（0–100）の差分であり、実メートルではない。`heightToMeters(h) = (h-18)^heightExponent` は凸関数なので、同じ index 差でも高標高帯ほど実際の登坂量が大きい（例: h 20→30 の Δ10 は実質 +約35 m、h 90→100 の同じ Δ10 は +約540 m）。つまり `slopeModifier` 単体は「このホップが実際にどれだけ急だったか」を測っておらず、旅行側 `route-grade-movement.md` が使う実勾配 %（`grade = riseM / (runKm×1000)`）とも尺度が噛み合わない。生成側が「短い尾根の許容できる近道」として敷いた道が、旅行側の `sampleEdgeGrade` にかけると `hardPass` / `wagonHard` 判定になり得るという整合性リスクがあった。
+
+**修正**（`src/generators/routes-generator.ts`）:
+
+- `landRouteSlopeModifier(grade, sensitivity, aversion)` に signature 変更。入力は raw Δh ではなく **実勾配（rise/run の比、符号付き）**。降り（`grade <= 0`）は従来通り無コスト。
+- 実勾配の算出は `src/services/routeGrade.ts` の `sampleEdgeGrade(current, next, run, { distanceScale, heightExponent, heights })` を**そのまま再利用**（式を複製しない）。`heightExponent` は `useOptionsState.getState().heightExponent`（military/burg 生成など他の generator と同じ取得パターン）。
+- 基準勾配は `DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard`（15%、旅行側の「馬打ち級」しきい値と同一定数）を参照。マジックナンバーの `LAND_ROUTE_SLOPE_DH_REF=12` は削除。
+- `landRouteTerrainMultiplier` は `(hFrom, hTo, …)` → `(hTo, grade, …)` に変更（`hFrom` は grade 計算側に吸収されたため不要に）。
+- `landRouteElevationModifier` / `landRoutePeakMultiplier`（絶対標高ベース、天候・路面・宿駅密度の代理指標として意図的な簡略化）は **変更していない**。厳密なメートル換算に揃えることも検討したが、`heightToMeters` が非線形なため index ベースの旧カーブを歪みなく再現できず、既存のプレイテスト済みチューニング（本ドキュメント §「生成オプション」の Nesia/Maria 実例）を壊すリスクの方が大きいと判断し、今回のスコープ外とした。
+
+**効果**: 同じ標高差でも、短距離で一気に登るホップ（急坂）は長距離でなだらかに登るホップより高コストになる（改修前は距離に関係なく同一コストだった）。生成側の「敷いてよい急さ」と旅行側の「馬に厳しい急さ」が同じ物理量（勾配 %）で比較できるようになった。
+
+**テスト**: `routes-generator.test.ts` の `landRouteSlopeModifier` / `landRouteTerrainMultiplier` 単体テストを新 signature に更新。同一標高差・異距離ホップで単位距離あたりコストが変わることを確認する回帰テストを追加（既存の低地回廊・峠必須の受け入れテストは無変更で green）。
+
 ---
 
 ## 3. 実装計画
@@ -294,7 +310,7 @@ Maria マップ検証: Doberedexau (h=32≈116m) → Zetaramizte (h=34≈147m) �
 1. 生成路が谷寄りになる → 「残った峠」が意味を持つ  
 2. [`route-grade-movement.md`](./route-grade-movement.md) の Phase 0（計測表示）→ Phase 1（旅行日数・商人の `preferSpeed` / `avoidHardPass`）  
 
-生成コストと旅行 grade は **式を共有しない**。必要なら「どちらも heightToMeters を使う」程度の util 共有に留める。
+生成コストと旅行 grade は当初「式を共有しない」方針だったが、§2.4 の改修で `slopeModifier` が `routeGrade.ts` の `sampleEdgeGrade` を再利用するよう変更された。共有しているのは登り勾配（rise/run）の算出とその基準値（`G_hard`）のみで、絶対標高ベースの `elevationModifier` / `peakMultiplier` と旅行側の速度・PassClass ロジックは従来通り独立。
 
 ---
 
@@ -371,16 +387,19 @@ Maria マップ検証: Doberedexau (h=32≈116m) → Zetaramizte (h=34≈147m) �
 - 峠が唯一の合理ルートなら接続 → **実装済（有限コスト）**  
 - 旅行時 grade / 商人選択 → **別ドキュメント**  
 
-チューニング用の現行定数（コードと同期）:
+チューニング用の現行定数（コードと同期。§「生成オプション: elevation aversion 係数」の Nesia 再チューニングと §2.4 の勾配物理単位化を反映した最新値）:
 
 | 定数 | 値 |
 | :--- | ---: |
 | `LAND_ROUTE_ELEVATION_H0` | 32 |
-| `LAND_ROUTE_ELEVATION_K` | 12 |
-| `LAND_ROUTE_ELEVATION_P` | 1.75 |
-| `LAND_ROUTE_SLOPE_S` | 4 |
-| `LAND_ROUTE_SLOPE_DH_REF` | 10 |
-| `LAND_ROUTE_SLOPE_Q` | 1.5 |
+| `LAND_ROUTE_HEIGHT_SOFT` | 1.2 |
+| `LAND_ROUTE_SLOPE_S` | 1.4 |
+| `LAND_ROUTE_SLOPE_Q` | 1.3 |
+| slope 基準勾配 | `DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard`（15%、`routeGrade.ts` 側と共有。旧 `LAND_ROUTE_SLOPE_DH_REF` は廃止） |
+| `LAND_ROUTE_PEAK_H0` | 55 |
+| `LAND_ROUTE_PEAK_K` | 20 |
+| `LAND_ROUTE_PEAK_REF` | 10 |
+| `LAND_ROUTE_PEAK_P` | 2.5 |
 | `LAND_ROUTE_TRAILS_SENSITIVITY` | 0.6 |
 
 未決（Phase 2）:

@@ -7,6 +7,8 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 
+import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
+import { useOptionsState } from "../store/optionsState";
 import type { Burg, LandRouteGenerationMode, Route, SeaRouteGenerationMode } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
@@ -23,6 +25,7 @@ import {
 } from "../utils";
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
+import { normalizeHeightExponent } from "../utils/height";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import type { Point } from "./voronoi";
@@ -48,7 +51,9 @@ const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
 };
 
 /**
- * Land-route pathfinding elevation aversion (docs/plan/land-route-elevation-cost.md §2.2).
+ * Land-route pathfinding elevation aversion (docs/plan/land-route-elevation-cost.md §2.2,
+ * revised per §"wagon-plausibility review" to grade the climb term in real terrain, not the
+ * raw pack height index — see `landRouteSlopeModifier`).
  *
  * Goals (default aversion = 1):
  * - Mild hills / short mid-ridge (~h 50, ~500 m) may stay if far shorter than a valley loop.
@@ -62,9 +67,8 @@ export type LandRouteMode = "roads" | "trails";
 /** Soft height bias starts above this pack height index (~116 m at exp 1.8). */
 const LAND_ROUTE_ELEVATION_H0 = 32;
 const LAND_ROUTE_HEIGHT_SOFT = 1.2;
-/** Climb (Δh) scale. */
+/** Climb (grade) scale — same shape as before, re-based onto a physical unit (see below). */
 const LAND_ROUTE_SLOPE_S = 1.4;
-const LAND_ROUTE_SLOPE_DH_REF = 12;
 const LAND_ROUTE_SLOPE_Q = 1.3;
 /**
  * Hard peak barrier starts strictly above this height. At heightExponent 1.8:
@@ -94,11 +98,27 @@ export function landRouteElevationModifier(h: number, sensitivity = 1, aversion 
   return 1 + LAND_ROUTE_HEIGHT_SOFT * sensitivity * aversion * base;
 }
 
-/** Climb-only slope multiplier (descents do not get a bonus or extra penalty). */
-export function landRouteSlopeModifier(hFrom: number, hTo: number, sensitivity = 1, aversion = 1): number {
-  const dh = Math.max(0, hTo - hFrom);
-  if (dh === 0) return 1;
-  return 1 + LAND_ROUTE_SLOPE_S * sensitivity * aversion * (dh / LAND_ROUTE_SLOPE_DH_REF) ** LAND_ROUTE_SLOPE_Q;
+/**
+ * Climb-only slope multiplier, driven by real grade (rise/run — the same `grade` quantity
+ * `sampleEdgeGrade()` computes for travel time in `src/services/routeGrade.ts`), not the raw
+ * pack height-index difference. `heightToMeters` is convex, so an equal index-Δh represents a
+ * far larger real climb at high altitude than at low altitude; keying the slope term to the raw
+ * index conflated "how much the abstract index changed" with "how hard this specific climb was"
+ * for a laden wagon. Grading it in real terrain also lets this term and the travel-side
+ * hardPass/wagonHard classification (`DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard`, 15%) agree on what
+ * counts as a rough climb, instead of a road being drawn through a hop the travel model then
+ * independently flags as too steep for a cart.
+ *
+ * `grade` is signed (positive = uphill); descents (`grade <= 0`) get no bonus or extra penalty —
+ * gravity assists a laden wagon downhill even though braking/control is a real, separate concern
+ * this model does not represent.
+ */
+export function landRouteSlopeModifier(grade: number, sensitivity = 1, aversion = 1): number {
+  if (grade <= 0) return 1;
+  return (
+    1 +
+    LAND_ROUTE_SLOPE_S * sensitivity * aversion * (grade / DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard) ** LAND_ROUTE_SLOPE_Q
+  );
 }
 
 /** Uncapped peak multiplier for heights above LAND_ROUTE_PEAK_H0. */
@@ -109,10 +129,10 @@ export function landRoutePeakMultiplier(hTo: number, sensitivity = 1, aversion =
 }
 
 /** Combined terrain multiplier (no low cap — high peaks may be arbitrarily expensive). */
-export function landRouteTerrainMultiplier(hFrom: number, hTo: number, sensitivity = 1, aversion = 1): number {
+export function landRouteTerrainMultiplier(hTo: number, grade: number, sensitivity = 1, aversion = 1): number {
   return (
     landRouteElevationModifier(hTo, sensitivity, aversion) *
-    landRouteSlopeModifier(hFrom, hTo, sensitivity, aversion) *
+    landRouteSlopeModifier(grade, sensitivity, aversion) *
     landRoutePeakMultiplier(hTo, sensitivity, aversion)
   );
 }
@@ -631,11 +651,15 @@ class RoutesModule {
      */
     landRouteGenerationMode?: LandRouteGenerationMode;
   }) {
-    const { pack, biomesData, grid } = this.worldContext;
+    const { pack, biomesData, grid, distanceScale } = this.worldContext;
     const sensitivity = landRouteSensitivity(landMode);
     const resolvedLandGenerationMode: LandRouteGenerationMode =
       landRouteGenerationMode ?? this.worldContext.options.landRouteGenerationMode ?? "elevationAware";
     const aversion = clampLandRouteElevationAversion(this.worldContext.options.landRouteElevationAversion);
+    // Shared with travel time (route-grade-movement.md): grade is rise/run in real terrain, not
+    // the raw pack height index, so a generated road's steepness and its later-computed travel
+    // difficulty agree on what "steep" means.
+    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
     const isNavigableRiverLeg = (current: number, next: number): boolean => {
       const riverIds = pack.cells.r as Uint16Array | number[] | undefined;
       const flux = pack.cells.fl as Uint16Array | number[] | undefined;
@@ -676,7 +700,12 @@ class RoutesModule {
       // (sum of squared lengths under-penalizes many short steps). Terrain mult is capped.
       // Aversion is set from Tools → Regenerate routes. See land-route-elevation-cost.md.
       const run = Math.hypot(x2 - x1, y2 - y1);
-      const terrain = landRouteTerrainMultiplier(pack.cells.h[current], pack.cells.h[next], sensitivity, aversion);
+      const { grade } = sampleEdgeGrade(current, next, run, {
+        distanceScale,
+        heightExponent,
+        heights: pack.cells.h
+      });
+      const terrain = landRouteTerrainMultiplier(pack.cells.h[next], grade, sensitivity, aversion);
       return run * habitabilityModifier * terrain * connectionModifier * burgModifier;
     }
 

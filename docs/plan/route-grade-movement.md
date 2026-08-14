@@ -24,7 +24,7 @@
 | 高低差の効き方 | **速度 / 所要日数**に反映する（effort） |
 | 馬は遅くなるだけか、峠を避けるか | **商人プレイ時にプレイヤーが選択可能**にする（後述 §2.4） |
 | 峠の危険（熊・山賊イメージ） | 将来の flavor / risk 候補。**今の段階ではモデルに入れない** |
-| routes 生成アルゴリズム | **旅行側 Phase 0–2 では触らない**。生成側の標高忌避は別計画 [`land-route-elevation-cost.md`](./land-route-elevation-cost.md) で進める（式は共有しない） |
+| routes 生成アルゴリズム | **旅行側 Phase 0–2 では触らない**。生成側の標高忌避は別計画 [`land-route-elevation-cost.md`](./land-route-elevation-cost.md) で進める（当初は式を共有しない方針だったが、同ドキュメント §2.4 で生成側の登り勾配コストが本ドキュメントの `sampleEdgeGrade` / `G_hard` を再利用するよう変更済み。速度・PassClass ロジック自体は引き続き旅行側専用） |
 | 軍隊への適用 | Phase 3（任意）。交易を先行 |
 | 全体スイッチ | `gradeEffectStrength = 0` で現行互換 |
 
