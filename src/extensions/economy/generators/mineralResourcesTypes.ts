@@ -56,6 +56,13 @@ export interface MineralDeposit {
   yields: MineralYield[];
   richness: number;
   depth: "surface" | "shallow" | "deep";
+  /**
+   * Persistent 0..1 groundwater ingress pressure derived at generation from annual
+   * precipitation and a river on the mine cell. Higher pressure increases the
+   * drainage needed to keep a deeper mine productive. Undefined legacy deposits
+   * retain the former no-hydrology behaviour until regenerated.
+   */
+  groundwaterPressure?: number;
   accessibility: number;
   discovered: boolean;
   exhausted: boolean;

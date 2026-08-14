@@ -176,6 +176,7 @@ export class MineralResourcesModule {
         yields,
         richness,
         depth,
+        groundwaterPressure: getGroundwaterPressureForCell(cell),
         accessibility: this.getAccessibility(cell),
         discovered: false,
         exhausted: false
@@ -366,3 +367,25 @@ export class MineralResourcesModule {
 }
 
 export const MineralResources = new MineralResourcesModule();
+
+/**
+ * Persistent local groundwater pressure for a mineral deposit.
+ *
+ * This deliberately models long-term recharge, not a monthly weather event: annual
+ * precipitation establishes the base pressure and a river crossing the mine cell adds
+ * a local ingress component. The fallback keeps legacy/minimal fixtures neutral.
+ */
+export function getGroundwaterPressureForCell(cell: number): number {
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  const gridCell = cells.g?.[cell] ?? cell;
+  const precipitation = world.grid?.cells?.prec?.[gridCell];
+  const rainfallRecharge = typeof precipitation === "number" ? clamp01((precipitation - 10) / 70) : 0;
+  const riverRecharge = cells.r?.[cell] ? 0.32 : 0;
+  const baselineRecharge = typeof precipitation === "number" ? 0.08 : 0;
+  return Math.round(clamp01(baselineRecharge + rainfallRecharge * 0.6 + riverRecharge) * 10000) / 10000;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}

@@ -15,7 +15,7 @@ import {
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
-import { MineOperations } from "./mineOperations";
+import { getMineDrainageFactor, getMineDrainageRequirement, MineOperations } from "./mineOperations";
 
 describe("MineOperationsModule", () => {
   beforeEach(() => {
@@ -127,6 +127,44 @@ describe("MineOperationsModule", () => {
     expect(result.discovered).toBe(1);
     expect(getMineralDeposits()[0].discovered).toBe(true);
     expect(getMineOperations()[0]).toMatchObject({ technology: 1.1, drainage: 0.7, fuelAccess: 0.7 });
+  });
+
+  it("reduces deep-mine output drainage in wet river cells while preserving legacy deposits", () => {
+    const dryLegacyDeposit = { depth: "deep" as const };
+    const wetRiverDeposit = { depth: "deep" as const, groundwaterPressure: 0.9 };
+    const operation = { drainage: 0.7 };
+
+    expect(getMineDrainageRequirement(dryLegacyDeposit)).toBe(1);
+    expect(getMineDrainageFactor(operation, dryLegacyDeposit)).toBeCloseTo(0.7, 5);
+    expect(getMineDrainageRequirement(wetRiverDeposit)).toBeGreaterThan(1);
+    expect(getMineDrainageFactor(operation, wetRiverDeposit)).toBeLessThan(0.7);
+  });
+
+  it("applies groundwater pressure to the monthly output of a deep mine", () => {
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "polymetallicVein",
+        primaryCommodity: "lead",
+        commodities: ["lead"],
+        yields: [{ commodity: "lead", reserveTons: 100, annualCapacityTons: 120 }],
+        richness: 1,
+        depth: "deep",
+        groundwaterPressure: 0.9,
+        accessibility: 1,
+        discovered: false,
+        exhausted: false
+      }
+    ]);
+
+    MineOperations.generate();
+    MineOperations.produceMonth();
+
+    // A dry deep mine's 0.5 drainage supplies 5 units/month from this 120/year deposit.
+    expect(getMarkets()[0].goods[1].stock).toBeGreaterThan(0);
+    expect(getMarkets()[0].goods[1].stock).toBeLessThan(5);
   });
 
   it("commissions a trail to the network for a disconnected deposit instead of leaving it stuck at base accessibility", () => {

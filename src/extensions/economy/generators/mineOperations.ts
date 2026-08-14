@@ -22,6 +22,12 @@ const REQUIRED_WORKERS_BASE = 4;
 /** Additional headcount per richness point (1..5) to run the deposit at full extractionFactor. */
 const REQUIRED_WORKERS_PER_RICHNESS = 6;
 
+const GROUNDWATER_DRAINAGE_PENALTY_BY_DEPTH: Record<MineralDeposit["depth"], number> = {
+  surface: 0.08,
+  shallow: 0.35,
+  deep: 0.75
+};
+
 /**
  * Headcount needed to run a deposit's extraction at full capacity. Reused by
  * `produceMonth()` (as `workerFactor`'s denominator) and by the annual Burg-anchored
@@ -29,6 +35,24 @@ const REQUIRED_WORKERS_PER_RICHNESS = 6;
  */
 export function getMineRequiredWorkers(deposit: Pick<MineralDeposit, "richness">): number {
   return REQUIRED_WORKERS_BASE + deposit.richness * REQUIRED_WORKERS_PER_RICHNESS;
+}
+
+/**
+ * Required drainage relative to the former depth-only baseline. A persistent
+ * groundwater pressure therefore matters most in deep workings, while an old save
+ * without the field continues to use exactly the former drainage factor.
+ */
+export function getMineDrainageRequirement(deposit: Pick<MineralDeposit, "depth" | "groundwaterPressure">): number {
+  const pressure = Math.max(0, Math.min(1, deposit.groundwaterPressure ?? 0));
+  return 1 + pressure * GROUNDWATER_DRAINAGE_PENALTY_BY_DEPTH[deposit.depth];
+}
+
+/** Effective drainage contribution to mine output after groundwater ingress. */
+export function getMineDrainageFactor(
+  operation: Pick<MineOperation, "drainage">,
+  deposit: Pick<MineralDeposit, "depth" | "groundwaterPressure">
+): number {
+  return Math.max(0, Math.min(1, operation.drainage / getMineDrainageRequirement(deposit)));
 }
 
 /** Creates accessible mines and settles their monthly output into market stock. */
@@ -158,7 +182,7 @@ export class MineOperationsModule {
           workerFactor *
             operation.technology *
             investmentBonus *
-            operation.drainage *
+            getMineDrainageFactor(operation, deposit) *
             operation.fuelAccess *
             deposit.accessibility
         )

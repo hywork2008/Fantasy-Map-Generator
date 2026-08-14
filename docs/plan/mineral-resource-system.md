@@ -278,6 +278,30 @@ export interface MintLedger {
 
 ## 8. 採掘と精錬
 
+### 8.1 地下水圧と排水必要量
+
+**実装済み（Phase 4 後の補完）**。鉱床生成時に、セルの年間降水量と河川の有無から
+`MineralDeposit.groundwaterPressure`（0..1）を決定論的に保存する。これは月ごとの雨や
+洪水を再現する値ではなく、帯水層への長期的な涵養と河川付近の浸水しやすさを表す。
+
+```text
+rainfallRecharge = clamp01((annualPrecipitation - 10) / 70)
+riverRecharge    = 0.32 if the mine cell has a river, otherwise 0
+groundwaterPressure = clamp01(0.08 + 0.60 × rainfallRecharge + riverRecharge)
+
+drainageFactor = operation.drainage /
+  (1 + groundwaterPressure × depthPenalty)
+
+depthPenalty = surface: 0.08, shallow: 0.35, deep: 0.75
+```
+
+- 降水量が未保存の旧マップ・最小テストデータは降雨由来の圧力を 0 として扱う。既存セーブの
+  鉱床には `groundwaterPressure` がないため、再生成するまで従来どおりの排水係数を保つ。
+- 河川は従来どおり輸送・到達性を改善する。同時にこの補正では坑内への水の流入を増やすため、
+  「輸送には便利だが排水は難しい」という立地上のトレードオフを持つ。
+- この値は埋蔵量や鉱区配置を変えない。深い坑ほど既存の `drainage` 能力が不足しやすくなり、
+  水力排水、将来の蒸気排水の需要シグナルになる。
+
 | 技術段階 | 採掘 | 主制約 | 解放される能力 |
 |---|---|---|---|
 | 露頭・砂鉱 | 露天掘り、パンニング、樋選鉱 | 季節、水流、浅部枯渇 | Gold / Tin 砂鉱、酸化鉱、表層鉄 |

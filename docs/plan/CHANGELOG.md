@@ -3,6 +3,7 @@
 2026-08-14
 
 - docs/plan/mineral-resource-system.md
+- docs/plan/steam-engine-knowledge-accumulation.md
 - docs/plan/volcanic-biome-goods.md
 - docs/reviews/0814-table-header-data-alignment.md
 

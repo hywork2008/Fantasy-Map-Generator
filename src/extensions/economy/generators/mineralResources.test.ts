@@ -8,7 +8,12 @@ import {
   getMineralGeologicalProvinces,
   initEconomyContext
 } from "../economyContext";
-import { getMinedGoodName, isMineSuppliedGoodName, MineralResources } from "./mineralResources";
+import {
+  getGroundwaterPressureForCell,
+  getMinedGoodName,
+  isMineSuppliedGoodName,
+  MineralResources
+} from "./mineralResources";
 
 describe("MineralResourcesModule", () => {
   beforeEach(() => {
@@ -51,6 +56,19 @@ describe("MineralResourcesModule", () => {
     expect(isMineSuppliedGoodName("Iron Ingot")).toBe(true);
     expect(isMineSuppliedGoodName("Coal")).toBe(true);
     expect(isMineSuppliedGoodName("Tools")).toBe(false);
+  });
+
+  it("derives greater groundwater pressure from rainfall and a river, without using it to relocate deposits", () => {
+    const priorGrid = worldContext.grid;
+    worldContext.pack.cells.g = Uint16Array.from([0, 1]);
+    worldContext.pack.cells.r = Uint16Array.from([0, 1]);
+    worldContext.grid = { cells: { prec: Uint8Array.from([15, 70]) } } as typeof worldContext.grid;
+
+    try {
+      expect(getGroundwaterPressureForCell(1)).toBeGreaterThan(getGroundwaterPressureForCell(0));
+    } finally {
+      worldContext.grid = priorGrid;
+    }
   });
 
   it("keeps tin in granite or placer districts and primarily pairs silver with lead", () => {
