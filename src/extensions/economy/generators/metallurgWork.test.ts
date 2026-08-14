@@ -13,7 +13,8 @@ import {
   setGoods,
   setMarkets,
   setMetallurgAssetLedgers,
-  setMetallurgToolsUnitScaleVersion
+  setMetallurgToolsUnitScaleVersion,
+  setMetallurgWorkOrders
 } from "../economyContext";
 import { Markets } from "./markets-generator";
 import type { Caravan } from "./marketTypes";
@@ -318,7 +319,10 @@ describe("MetallurgWorkModule", () => {
     expect(Array.from(MetallurgWork.getProductionDemandByGood(1).values())).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ goodId: 4, priorityCycles: 2, stateFunded: true }),
-        expect.objectContaining({ goodId: 7, priorityCycles: 2, stateFunded: true })
+        expect.objectContaining({ goodId: 7, priorityCycles: 2, stateFunded: true }),
+        // State military orders promote renewable inputs as well as finished equipment, so
+        // Charcoal can be remade after the first local reserve is consumed.
+        expect.objectContaining({ goodId: 2, priorityCycles: 2, stateFunded: true })
       ])
     );
     const ordersById = new Map(orders.map(order => [order.id, order]));
@@ -410,5 +414,101 @@ describe("MetallurgWorkModule", () => {
         asset => asset.ownerKind === "state" && asset.ownerId === 1 && asset.productGoodId === 4
       )?.maintenanceBacklogWork
     ).toBe(0);
+  });
+
+  it("aligns State orders with the military supply market and accepts finished Goods from another State market", () => {
+    worldContext.options.initialFirearmsUnstocked = true;
+    worldContext.pack.burgs.push({
+      i: 2,
+      cell: 1,
+      x: 10,
+      y: 10,
+      state: 1,
+      market: 2,
+      population: 200
+    });
+    setMarkets([
+      ...getMarkets(),
+      {
+        i: 2,
+        centerBurgId: 2,
+        color: "#222",
+        goods: {
+          1: { stock: 0.01, price: 3 },
+          2: { stock: 0.01, price: 1 }
+        }
+      }
+    ]);
+    MetallurgWork.generate();
+    MetallurgWork.settleMonthly();
+
+    const muskets = getGoods().find(good => good.name === "Muskets")!;
+    expect(
+      getMetallurgWorkOrders().filter(order => order.ownerKind === "state" && order.status !== "completed")
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ destinationMarketId: 2 })]));
+
+    // The selected supply market is 2, but this finished batch was made in the smaller State city.
+    getMarkets()[0].goods[muskets.i] = { stock: 6, price: muskets.value };
+    Markets.sync();
+    expect(MetallurgWork.fulfillFromMarkets()).toBe(true);
+
+    expect(getMarkets()[0].goods[muskets.i].stock).toBeLessThan(6);
+    expect(
+      getMetallurgAssetLedgers().find(
+        asset => asset.ownerKind === "state" && asset.ownerId === 1 && asset.productGoodId === muskets.i
+      )?.serviceableUnits
+    ).toBeGreaterThan(0);
+  });
+
+  it("stages domestic military materials at the arsenal market before manufacture", () => {
+    worldContext.pack.burgs.push({
+      i: 2,
+      cell: 1,
+      x: 10,
+      y: 10,
+      state: 1,
+      market: 2,
+      population: 80
+    });
+    setMarkets([
+      ...getMarkets(),
+      {
+        i: 2,
+        centerBurgId: 2,
+        color: "#222",
+        goods: {
+          1: { stock: 9, price: 3 },
+          2: { stock: 9, price: 1 }
+        }
+      }
+    ]);
+    setMetallurgWorkOrders([
+      {
+        id: 1,
+        ownerKind: "state",
+        ownerId: 1,
+        destinationMarketId: 1,
+        productGoodId: 9,
+        kind: "newBuild",
+        recipeIndex: 0,
+        requestedUnits: 3,
+        completedUnits: 0,
+        plannedWork: 3.9,
+        completedWork: 0,
+        materials: [
+          { goodId: 1, units: 3 },
+          { goodId: 2, units: 3 }
+        ],
+        status: "waitingMaterials",
+        createdMonth: 6000,
+        updatedMonth: 6000
+      }
+    ]);
+
+    expect(MetallurgWork.stageStateMilitaryMaterials()).toBe(true);
+    expect(getMarkets()[0].goods[1].stock).toBe(3);
+    expect(getMarkets()[0].goods[2].stock).toBe(3);
+    expect(getMarkets()[1].goods[1].stock).toBeCloseTo(6.01, 4);
+    expect(getMarkets()[1].goods[2].stock).toBeCloseTo(6.01, 4);
   });
 });

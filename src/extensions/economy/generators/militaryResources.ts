@@ -147,11 +147,33 @@ export class MilitaryResourcesModule {
     return rn(Math.max(0, annualDemand - stock), 4);
   }
 
-  private getSupplyMarketId(stateId: number): number | null {
+  /**
+   * Returns the State's canonical military supply market. Every military ledger, work order,
+   * and strategic-material forecast uses this selection. State-owned materials from other
+   * domestic markets are subsequently staged here by MetallurgWork before manufacture.
+   */
+  getSupplyMarketId(stateId: number): number | null {
     const burgs = getWorldContext().pack.burgs;
+    const goodsByName = new Map(getGoods().map(good => [good.name, good.i]));
+    const ironIngotId = goodsByName.get("Iron Ingot");
+    const charcoalId = goodsByName.get("Charcoal");
+    const musketId = goodsByName.get("Muskets");
     const market = getMarkets()
       .filter(candidate => burgs[candidate.centerBurgId]?.state === stateId)
-      .sort((a, b) => (burgs[b.centerBurgId]?.population ?? 0) - (burgs[a.centerBurgId]?.population ?? 0))[0];
+      .sort((a, b) => {
+        const score = (candidate: ReturnType<typeof getMarkets>[number]): number => {
+          const iron = ironIngotId === undefined ? 0 : (candidate.goods[ironIngotId]?.stock ?? 0);
+          const charcoal = charcoalId === undefined ? 0 : (candidate.goods[charcoalId]?.stock ?? 0);
+          const muskets = musketId === undefined ? 0 : (candidate.goods[musketId]?.stock ?? 0);
+          // A State arsenal must be colocated with a forge supply, not merely its largest town.
+          return Math.min(2, iron) * 3 + Math.min(2, charcoal) * 2 + Math.min(2, muskets) * 4;
+        };
+        return (
+          score(b) - score(a) ||
+          (burgs[b.centerBurgId]?.population ?? 0) - (burgs[a.centerBurgId]?.population ?? 0) ||
+          a.i - b.i
+        );
+      })[0];
     return market?.i ?? null;
   }
 

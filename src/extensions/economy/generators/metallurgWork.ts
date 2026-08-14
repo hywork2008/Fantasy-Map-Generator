@@ -19,6 +19,7 @@ import {
   setMetallurgToolsUnitScaleVersion,
   setMetallurgWorkOrders
 } from "../economyContext";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import { Markets } from "./markets-generator";
 import type {
@@ -306,11 +307,23 @@ export class MetallurgWorkModule {
   settleMonthly(): boolean {
     const month = currentMonthIndex();
     const assets = getMetallurgAssetLedgers();
-    if (assets.length && assets.every(asset => asset.lastSettledMonth >= month)) return false;
+    const existingOrders = getMetallurgWorkOrders();
+    const alignedOrders = existingOrders.map(order => {
+      if (order.ownerKind !== "state" || order.status === "completed") return order;
+      const supplyMarketId = MilitaryResources.getSupplyMarketId(order.ownerId);
+      if (!supplyMarketId || order.destinationMarketId === supplyMarketId) return order;
+      return { ...order, destinationMarketId: supplyMarketId, updatedMonth: month };
+    });
+    const ordersRetargeted = alignedOrders.some((order, index) => order !== existingOrders[index]);
+    if (ordersRetargeted) {
+      setMetallurgWorkOrders(alignedOrders);
+      const goodsById = new Map(getGoods().map(good => [good.i, good]));
+      setMetallurgMaterialForecasts(this.buildMaterialForecasts(alignedOrders, goodsById));
+    }
+    if (assets.length && assets.every(asset => asset.lastSettledMonth >= month)) return ordersRetargeted;
 
     const goodsByName = new Map(getGoods().map(good => [good.name, good]));
     const goodsById = new Map(getGoods().map(good => [good.i, good]));
-    const marketByState = this.getMarketByState();
     const marketByBurg = new Map(
       getWorldContext()
         .pack.burgs.filter(burg => burg?.i && burg.market)
@@ -320,7 +333,7 @@ export class MetallurgWorkModule {
       assets.map(asset => [ownerKey(asset.ownerKind, asset.ownerId, asset.productGoodId), asset])
     );
     const nextAssets = [...assets];
-    const orders = [...getMetallurgWorkOrders()];
+    const orders = [...alignedOrders];
     const ordersByKey = new Map(
       orders.map(order => [orderKey(order.ownerKind, order.ownerId, order.productGoodId, order.kind), order])
     );
@@ -391,7 +404,7 @@ export class MetallurgWorkModule {
 
     for (const state of getWorldContext().pack.states) {
       if (!state?.i || state.removed) continue;
-      const marketId = marketByState.get(state.i);
+      const marketId = MilitaryResources.getSupplyMarketId(state.i);
       if (!marketId) continue;
       for (const plan of stateForcePlans(state)) {
         const good = goodsByName.get(plan.goodName);
@@ -497,29 +510,124 @@ export class MetallurgWorkModule {
   }
 
   /**
+   * Moves a bounded share of domestic material stock to each State's arsenal market before
+   * workshops choose their recipes. A military order represents a State program, so leaving
+   * Iron Ingot at one domestic market and Charcoal at another must not permanently block it.
+   * Ordinary Burg work remains strictly local.
+   */
+  stageStateMilitaryMaterials(): boolean {
+    type MaterialDemand = { stateId: number; destinationMarketId: number; goodId: number; units: number };
+    const demands = new Map<string, MaterialDemand>();
+    for (const order of getMetallurgWorkOrders()) {
+      if (order.ownerKind !== "state" || order.status === "completed") continue;
+      const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
+      if (outstandingUnits <= 0.001) continue;
+      for (const material of order.materials) {
+        const key = `${order.ownerId}:${order.destinationMarketId}:${material.goodId}`;
+        const units = material.units * (outstandingUnits / Math.max(0.001, order.requestedUnits));
+        const existing = demands.get(key);
+        if (existing) existing.units += units;
+        else {
+          demands.set(key, {
+            stateId: order.ownerId,
+            destinationMarketId: order.destinationMarketId,
+            goodId: material.goodId,
+            units
+          });
+        }
+      }
+    }
+
+    const burgs = getWorldContext().pack.burgs;
+    let changed = false;
+    for (const demand of Array.from(demands.values()).toSorted(
+      (left, right) =>
+        left.stateId - right.stateId ||
+        left.destinationMarketId - right.destinationMarketId ||
+        left.goodId - right.goodId
+    )) {
+      // Economy state may be restored before Markets.sync() rebuilds its lookup cache.
+      const destination = getMarkets().find(market => market.i === demand.destinationMarketId);
+      if (!destination || burgs[destination.centerBurgId]?.state !== demand.stateId) continue;
+      let remaining = Math.max(0, demand.units - (destination.goods[demand.goodId]?.stock ?? 0));
+      if (remaining <= 0.001) continue;
+
+      const sources = getMarkets()
+        .filter(
+          source =>
+            source.i !== destination.i &&
+            burgs[source.centerBurgId]?.state === demand.stateId &&
+            (source.goods[demand.goodId]?.stock ?? 0) > 0.001
+        )
+        .toSorted(
+          (left, right) =>
+            (right.goods[demand.goodId]?.stock ?? 0) - (left.goods[demand.goodId]?.stock ?? 0) || left.i - right.i
+        );
+      for (const source of sources) {
+        if (remaining <= 0.001) break;
+        const sourceGood = source.goods[demand.goodId];
+        if (!sourceGood) continue;
+        const transferred = rn(Math.min(remaining, sourceGood.stock / 3), 4);
+        if (transferred <= 0) continue;
+        sourceGood.stock = rn(Math.max(0, sourceGood.stock - transferred), 4);
+        const destinationGood = destination.goods[demand.goodId] ?? { stock: 0, price: sourceGood.price };
+        destinationGood.stock = rn(destinationGood.stock + transferred, 4);
+        destination.goods[demand.goodId] = destinationGood;
+        recordGoodFlow({
+          direction: "transfer",
+          category: "military",
+          goodId: demand.goodId,
+          units: transferred,
+          marketId: source.i
+        });
+        recordGoodFlow({
+          direction: "transfer",
+          category: "military",
+          goodId: demand.goodId,
+          units: transferred,
+          marketId: destination.i
+        });
+        remaining -= transferred;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /**
    * Converts unfinished local orders into the same demand signal used by strategic production.
    * This is deliberately a read-only adapter: generic production still owns worker allocation,
    * recipes, ingredient purchasing, and finished-Good market delivery.
    */
   getProductionDemandByGood(marketId: number): ReadonlyMap<number, MetallurgProductionDemand> {
     const demandByGood = new Map<number, MetallurgProductionDemand>();
+    const addDemand = (goodId: number, units: number, priorityCycles: number, stateFunded: boolean): void => {
+      if (units <= 0.001) return;
+      const existing = demandByGood.get(goodId);
+      if (existing) {
+        existing.outstandingUnits += units;
+        existing.priorityCycles = Math.max(existing.priorityCycles, priorityCycles);
+        existing.stateFunded ||= stateFunded;
+        return;
+      }
+      demandByGood.set(goodId, { goodId, outstandingUnits: units, priorityCycles, stateFunded });
+    };
+
     for (const order of getMetallurgWorkOrders()) {
       if (order.destinationMarketId !== marketId || order.status === "completed") continue;
       const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
       if (outstandingUnits <= 0.001) continue;
       const priorityCycles = order.kind === "maintenance" || order.ownerKind === "state" ? 2 : 1;
-      const existing = demandByGood.get(order.productGoodId);
-      if (existing) {
-        existing.outstandingUnits += outstandingUnits;
-        existing.priorityCycles = Math.max(existing.priorityCycles, priorityCycles);
-        existing.stateFunded ||= order.ownerKind === "state";
-      } else {
-        demandByGood.set(order.productGoodId, {
-          goodId: order.productGoodId,
-          outstandingUnits,
-          priorityCycles,
-          stateFunded: order.ownerKind === "state"
-        });
+
+      const stateFunded = order.ownerKind === "state";
+      addDemand(order.productGoodId, outstandingUnits, priorityCycles, stateFunded);
+      if (stateFunded) {
+        const requestedUnits = Math.max(0.001, order.requestedUnits);
+        for (const material of order.materials) {
+          // A State armory must also create its renewable recipe inputs (especially Charcoal),
+          // rather than consuming an initial local stock and then leaving its final order stalled.
+          addDemand(material.goodId, material.units * (outstandingUnits / requestedUnits), priorityCycles, true);
+        }
       }
     }
     return demandByGood;
@@ -546,12 +654,7 @@ export class MetallurgWorkModule {
       if (order.status === "completed") continue;
       const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
       if (outstandingUnits <= 0.001) continue;
-      const delivered = Markets.consumeForMetallurg(
-        order.destinationMarketId,
-        order.productGoodId,
-        outstandingUnits,
-        order.ownerKind === "state" ? "military" : "burgDemand"
-      );
+      const delivered = this.consumeFinishedGoods(order, outstandingUnits);
       if (!(delivered > 0)) continue;
 
       const workPerUnit = order.requestedUnits > 0 ? order.plannedWork / order.requestedUnits : 0;
@@ -583,22 +686,31 @@ export class MetallurgWorkModule {
     return changed;
   }
 
-  private getMarketByState(): Map<number, number> {
-    const candidates = new Map<number, Array<{ marketId: number; population: number }>>();
-    for (const market of getMarkets()) {
-      const burg = getWorldContext().pack.burgs[market.centerBurgId];
-      if (!burg?.state) continue;
-      const list = candidates.get(burg.state) ?? [];
-      list.push({ marketId: market.i, population: burg.population ?? 0 });
-      candidates.set(burg.state, list);
-    }
-    return new Map(
-      Array.from(candidates, ([stateId, markets]) => [
-        stateId,
-        markets.toSorted((left, right) => right.population - left.population || left.marketId - right.marketId)[0]
-          .marketId
-      ])
+  /**
+   * State armories first draw from their canonical supply market, then directly appropriate
+   * the same finished Good from the State's other markets. This prevents a completed Musket
+   * from becoming unusable solely because it was made in another city of its owner State.
+   */
+  private consumeFinishedGoods(order: MetallurgWorkOrder, requestedUnits: number): number {
+    const category = order.ownerKind === "state" ? "military" : "burgDemand";
+    let delivered = Markets.consumeForMetallurg(
+      order.destinationMarketId,
+      order.productGoodId,
+      requestedUnits,
+      category
     );
+    if (order.ownerKind !== "state" || delivered >= requestedUnits - 0.001) return delivered;
+
+    const burgs = getWorldContext().pack.burgs;
+    const stateMarkets = getMarkets()
+      .filter(market => market.i !== order.destinationMarketId && burgs[market.centerBurgId]?.state === order.ownerId)
+      .toSorted((left, right) => left.i - right.i);
+    for (const market of stateMarkets) {
+      const remaining = requestedUnits - delivered;
+      if (remaining <= 0.001) break;
+      delivered += Markets.consumeForMetallurg(market.i, order.productGoodId, remaining, "military");
+    }
+    return rn(delivered, 4);
   }
 
   private buildMaterialForecasts(

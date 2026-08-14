@@ -282,6 +282,7 @@ export class ProductionModule {
       MilitaryResources.settleMonthly();
       TradeSecurity.settleMonthly();
     });
+    measureTickStep("production:militaryMaterialStaging", () => MetallurgWork.stageStateMilitaryMaterials());
     measureTickStep("production:pricesAndLabor", () => {
       Markets.initializeMarketPrices();
       TransportAssetOrders.beginProductionCycle();
