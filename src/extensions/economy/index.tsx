@@ -490,6 +490,7 @@ let _shipbuildingMerchantHullChangedHandler: ((e: Event) => void) | null = null;
 let _shipbuildingMerchantHullsUnavailableHandler: (() => void) | null = null;
 let _mountedCapacityRequestHandler: ((e: Event) => void) | null = null;
 let _merchantOperatorSnapshotRequestHandler: ((e: Event) => void) | null = null;
+let _caravanCargoSnapshotRequestHandler: ((e: Event) => void) | null = null;
 let _shipCompletedOwnershipHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
@@ -1393,6 +1394,37 @@ export function init(api: ExtensionAPI): void {
     detail.result = result;
   };
   document.addEventListener("fmg:economy-merchant-operator-snapshot-request", _merchantOperatorSnapshotRequestHandler);
+
+  // Shipbuilding Vessel assets asks for short cargo labels for bound caravan ids (P2).
+  _caravanCargoSnapshotRequestHandler = event => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<{ caravanIds?: unknown; result?: Record<number, { label: string }> }>).detail;
+    if (!detail || !Array.isArray(detail.caravanIds)) return;
+    const caravanById = new Map(getCaravans().map(caravan => [caravan.i, caravan]));
+    const result: Record<number, { label: string }> = {};
+    for (const rawId of detail.caravanIds) {
+      if (typeof rawId !== "number" || !Number.isInteger(rawId)) continue;
+      const caravan = caravanById.get(rawId);
+      if (!caravan) {
+        result[rawId] = { label: "not found" };
+        continue;
+      }
+      const payload = caravan.payload ?? [];
+      if (payload.length === 0) {
+        result[rawId] = { label: caravan.state === "loading" ? "loading (empty)" : "empty" };
+        continue;
+      }
+      if (payload.length === 1) {
+        const good = Goods.get(payload[0].goodId);
+        result[rawId] = { label: good?.name ?? `Good #${payload[0].goodId}` };
+        continue;
+      }
+      const first = Goods.get(payload[0].goodId)?.name ?? `Good #${payload[0].goodId}`;
+      result[rawId] = { label: `${first} +${payload.length - 1}` };
+    }
+    detail.result = result;
+  };
+  document.addEventListener("fmg:economy-caravan-cargo-snapshot-request", _caravanCargoSnapshotRequestHandler);
 
   _shipCompletedOwnershipHandler = event => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
@@ -2941,6 +2973,10 @@ export function cleanup(api: ExtensionAPI): void {
       _merchantOperatorSnapshotRequestHandler
     );
     _merchantOperatorSnapshotRequestHandler = null;
+  }
+  if (_caravanCargoSnapshotRequestHandler) {
+    document.removeEventListener("fmg:economy-caravan-cargo-snapshot-request", _caravanCargoSnapshotRequestHandler);
+    _caravanCargoSnapshotRequestHandler = null;
   }
   if (_shipCompletedOwnershipHandler) {
     document.removeEventListener("fmg:shipbuilding-ship-completed", _shipCompletedOwnershipHandler);

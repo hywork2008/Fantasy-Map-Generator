@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | P0–P1 implemented (2026-08-15); P2–P4 remaining |
+| Status | P0–P2 implemented (2026-08-15); P3–P4 remaining |
 | 対象 | Shipbuilding `ShipHull`、Economy `Caravan` / `MerchantTransportAssets`、Vessel assets UI、Trade Animation UI |
 | 前提 | [merchant-transport-asset-ledger.md](merchant-transport-asset-ledger.md) F1–F3 実装済み、[shipbuilding-initial-fleet.md](shipbuilding-initial-fleet.md) 初期艦隊 seed 済み、[ships.md](ships.md) §4.5 voyage 実装済み |
 | 調査日 | 2026-08-14 |
@@ -358,11 +358,12 @@ UI
 - [x] 商船の抽象 voyage 収入を停止（state patrol は維持）。
 - [x] 単体テスト: A→B 貨物後 destination で idle、再予約可（`shipHullItinerary.test.ts`）。
 
-### P2 — Vessel assets / Trade Animation UI
+### P2 — Vessel assets / Trade Animation UI — 実装済み (2026-08-15)
 
-- [ ] Vessel assets 個体行 + Location / Next / Caravan 列。
-- [ ] Trade Animation に Vessels 列、loading "Waiting for vessel"。
-- [ ] 手動確認チェックリスト。
+- [x] Vessel assets 個体行 + Hull # / Status / Location / Next port / Cargo·Caravan 列 + 上部サマリ。
+- [x] Trade Animation に Vessels 列（Hull # / Waiting for vessel / Abstract）。
+- [x] Trade Details の Hull 行に at-sea 進捗・bound-for を付与。
+- [ ] 手動確認（ブラウザで Vessel assets / Trade Animation を開く）。
 
 ### P3 — 効率運用の改善（ballast・予約タイミング）
 
