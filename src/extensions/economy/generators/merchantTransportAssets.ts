@@ -370,6 +370,11 @@ export class MerchantTransportAssetsModule {
     this.waterAssetModeActive = active;
   }
 
+  /** True while Shipbuilding has published a merchant-hull snapshot (finite sea fleet mode). */
+  isWaterAssetModeActive(): boolean {
+    return this.waterAssetModeActive;
+  }
+
   requestMerchantHullSnapshot(): void {
     const detail = { source: "economy" as const, handled: false };
     document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-request", { detail }));

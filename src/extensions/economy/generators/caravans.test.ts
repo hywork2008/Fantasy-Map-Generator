@@ -16,6 +16,7 @@ import { bakeCaravanTravelLegs, Caravans, getCaravanTravelTime } from "./caravan
 import { ExportStaging } from "./exportStaging";
 import type { Good } from "./goods-generator";
 import type { Caravan } from "./marketTypes";
+import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TradeAnimation } from "./trade-animation";
 
 describe("caravan viability", () => {
@@ -567,6 +568,141 @@ describe("bakeCaravanTravelLegs", () => {
       1
     );
     expect(legs[0].speedKmPerDay).toBeCloseTo(32, 5);
+  });
+});
+
+describe("finite sea fleet departure gate (P0)", () => {
+  const reservedHullIds: number[] = [];
+  const reserveHullListener = (event: Event) => {
+    const detail = (event as CustomEvent<{ hullIds: number[]; result?: string }>).detail;
+    reservedHullIds.push(...detail.hullIds);
+    detail.result = "fulfilled";
+  };
+
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.distanceScale = 1;
+    worldContext.pack = {
+      goods: [
+        {
+          i: 0,
+          name: "Silk",
+          value: 40,
+          tags: ["luxury"],
+          unit: "bolt",
+          icon: "silk",
+          color: "#f0f",
+          cargo: { cargoSlotsPerUnit: 1, handlingClass: "crated" }
+        } as Good
+      ],
+      markets: [
+        { i: 0, centerBurgId: 1, color: "#000", goods: { 0: { stock: 200, price: 50 } } },
+        { i: 1, centerBurgId: 2, color: "#111", goods: { 0: { stock: 0, price: 80 } } }
+      ],
+      burgs: [
+        { i: 0 } as Burg,
+        { i: 1, market: 0, cell: 1, x: 0, y: 0 } as Burg,
+        { i: 2, market: 1, cell: 2, x: 400, y: 0 } as Burg
+      ],
+      caravans: []
+    } as unknown as PackedGraph;
+    reservedHullIds.length = 0;
+    document.addEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHullListener);
+  });
+
+  afterEach(() => {
+    MerchantTransportAssets.clear();
+    document.removeEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHullListener);
+    setCaravans([]);
+    clearEconomyContext();
+  });
+
+  function seaLoadingCaravan(overrides: Partial<Caravan> = {}): Caravan {
+    return {
+      i: 1,
+      seller: 0,
+      sellerType: "market",
+      buyer: 1,
+      buyerType: "market",
+      payload: [{ goodId: 0, dealId: 1, units: 80, value: 4000, cargoSlotsPerUnit: 1 }],
+      units: 80,
+      value: 4000,
+      draftAnimalId: "horse",
+      transportDispatcherMarketId: 0,
+      routeSegments: [
+        {
+          type: "water",
+          points: [
+            [0, 0],
+            [400, 0]
+          ]
+        }
+      ],
+      totalDistance: 400,
+      currentDistance: 0,
+      travelLegs: [{ endKm: 400, speedKmPerDay: 40 }],
+      state: "loading",
+      departReason: "waiting",
+      loading: {
+        waitedDays: 30,
+        maxWaitDays: 14,
+        targetUtilization: 0.55,
+        minSailUtilization: 0.2,
+        plannedCapacitySlots: 100,
+        sailScheduleDays: [1, 10, 20],
+        nextSailDay: 1
+      },
+      ...overrides
+    } as Caravan;
+  }
+
+  it("keeps a full sea hold waiting when Shipbuilding water mode is on but no hull is available", () => {
+    // Publish empty snapshot → waterAssetModeActive true, zero merchant hulls.
+    MerchantTransportAssets.reconcileMerchantHulls([]);
+    setCaravans([seaLoadingCaravan()]);
+
+    Caravans.tick(1);
+
+    const caravan = getCaravans()[0];
+    expect(caravan?.state).toBe("loading");
+    expect(reservedHullIds).toEqual([]);
+  });
+
+  it("departs a sea hold with a concrete hull and refuses a second concurrent sea voyage", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 20, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+
+    setCaravans([
+      seaLoadingCaravan({ i: 1 }),
+      seaLoadingCaravan({
+        i: 2,
+        payload: [{ goodId: 0, dealId: 2, units: 80, value: 4000, cargoSlotsPerUnit: 1 }]
+      })
+    ]);
+
+    Caravans.tick(1);
+
+    const states = getCaravans()
+      .map(c => c.state)
+      .sort();
+    expect(states.filter(s => s === "transit")).toHaveLength(1);
+    expect(states.filter(s => s === "loading")).toHaveLength(1);
+
+    const transit = getCaravans().find(c => c.state === "transit");
+    expect(transit?.transportAllocations?.some(a => a.shipHullIds?.includes(20))).toBe(true);
+    expect(reservedHullIds).toEqual([20]);
+  });
+
+  it("still allows abstract sea departure when Shipbuilding water mode is inactive", () => {
+    MerchantTransportAssets.setWaterAssetModeActive(false);
+    setCaravans([seaLoadingCaravan()]);
+
+    Caravans.tick(1);
+
+    expect(getCaravans()[0]?.state).toBe("transit");
+    expect(getCaravans()[0]?.transportAllocations?.every(a => !a.shipHullIds?.length)).toBe(true);
+    expect(reservedHullIds).toEqual([]);
   });
 });
 

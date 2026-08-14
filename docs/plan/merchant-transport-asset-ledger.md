@@ -309,6 +309,9 @@ Caravan を直接選ばせない。注文の進捗・材料待ち・完成後の
 - Implemented: 一隻の Hull を二便へ予約できず、Shipbuilding の voyage/port tests が維持される。
 - 補足: Economy が予約した merchant hull は Shipbuilding で `cargo` 状態となり、到着時に `voyage`、喪失時に30日間の
   `maintenance` 状態へ遷移する。このため、貨物便と voyage income が同じ船体を同時に利用しない。
+- **未完了の運用ギャップ**: 水上専用ルートは reservation 失敗時でも abstract allocation で出航できる
+  （`caravans.ts` の land-only ゲート）。船体位置・次寄港地も未所持。有限艦隊としての航路運用は
+  [vessel-itinerary-and-finite-trade-fleet.md](vessel-itinerary-and-finite-trade-fleet.md) で計画する。
 
 ### Phase G1 — blueprint と simulation 補充 order
 
