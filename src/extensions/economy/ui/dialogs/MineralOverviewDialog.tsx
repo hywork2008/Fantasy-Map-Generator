@@ -3,6 +3,7 @@ import React from "react";
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { refreshMineralOverview } from "../../controllers/mineralOverview";
 import {
+  type MineralAccessStatus,
   type MineralCommodityOverviewRow,
   type MineralDepositOverviewRow,
   type MineralSupplyStatus,
@@ -23,6 +24,22 @@ const STATUS_TIP: Record<MineralSupplyStatus, string> = {
   unprospected: "The resource exists in the generated geology but has not been discovered by a mine operation.",
   exhausted: "Every generated deposit of this resource is exhausted.",
   absent: "This map generated no deposit containing this resource."
+};
+
+const ACCESS_LABEL: Record<MineralAccessStatus, string> = {
+  domestic: "Domestic",
+  importing: "Importing",
+  embargoed: "Embargoed",
+  noDomesticDeposit: "No domestic deposit",
+  developing: "Not operating"
+};
+
+const ACCESS_TIP: Record<MineralAccessStatus, string> = {
+  domestic: "At least one active mine in this State supplies the resource.",
+  importing: "A State-funded military-material procurement order is awaiting delivery.",
+  embargoed: "A military-material procurement order was blocked because only Enemy supply was available.",
+  noDomesticDeposit: "This State has no generated deposit containing this resource.",
+  developing: "The resource exists in this State, but no active mine currently supplies it."
 };
 
 export const MineralOverviewDialog: React.FC = () => {
@@ -99,6 +116,7 @@ export const MineralOverviewDialog: React.FC = () => {
                 <tr>
                   <th>Resource</th>
                   <th data-tip="Active, idle, unprospected, exhausted, or absent">Supply status</th>
+                  <th data-tip="Domestic supply, import in transit, embargo, or local access state">Access</th>
                   <th className="numeric" data-tip="All generated deposits containing this resource">
                     Deposits
                   </th>
@@ -177,6 +195,10 @@ const CommodityRow: React.FC<{ row: MineralCommodityOverviewRow }> = ({ row }) =
   <tr data-resource={row.commodity} data-status={row.status}>
     <td>{row.commodity}</td>
     <td data-tip={STATUS_TIP[row.status]}>{STATUS_LABEL[row.status]}</td>
+    <td data-tip={row.accessStatus ? ACCESS_TIP[row.accessStatus] : "Choose a State to inspect national access."}>
+      {row.accessStatus ? ACCESS_LABEL[row.accessStatus] : "—"}
+      {row.incomingUnits ? ` (${row.incomingUnits})` : ""}
+    </td>
     <td className="numeric">{row.depositCount}</td>
     <td className="numeric">{row.discoveredCount}</td>
     <td className="numeric">{row.activeMineCount}</td>

@@ -147,4 +147,45 @@ describe("refreshMineralOverview", () => {
       status: "absent"
     });
   });
+
+  it("shows an import in transit and an Enemy embargo for a State without an iron deposit", () => {
+    worldContext.pack.goods = [
+      { i: 10, name: "Iron Ingot" },
+      { i: 11, name: "Iron Ore" }
+    ] as PackedGraph["goods"];
+    setMineralDeposits([]);
+    setMineOperations([]);
+    worldContext.pack.strategicProcurementOrders = [
+      {
+        id: 1,
+        stateId: 1,
+        destinationMarketId: 1,
+        goodId: 10,
+        requestedUnits: 4,
+        fulfilledUnits: 0,
+        maxLandedUnitPrice: 10,
+        status: "inTransit",
+        purpose: "metallurg"
+      }
+    ];
+
+    refreshMineralOverview(1);
+
+    expect(getMineralOverviewState().commodities.find(row => row.commodity === "iron")).toMatchObject({
+      accessStatus: "importing",
+      incomingUnits: 4
+    });
+
+    worldContext.pack.strategicProcurementOrders[0] = {
+      ...worldContext.pack.strategicProcurementOrders[0],
+      status: "blocked",
+      blockedReason: "foreignPolicy"
+    };
+    refreshMineralOverview(1);
+
+    expect(getMineralOverviewState().commodities.find(row => row.commodity === "iron")).toMatchObject({
+      accessStatus: "embargoed",
+      incomingUnits: 0
+    });
+  });
 });

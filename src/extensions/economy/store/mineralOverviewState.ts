@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type MineralSupplyStatus = "active" | "idle" | "unprospected" | "exhausted" | "absent";
+export type MineralAccessStatus = "domestic" | "importing" | "embargoed" | "noDomesticDeposit" | "developing";
 
 export interface MineralCommodityOverviewRow {
   commodity: string;
@@ -11,6 +12,8 @@ export interface MineralCommodityOverviewRow {
   annualCapacityTons: number;
   annualOutputTons: number;
   status: MineralSupplyStatus;
+  accessStatus?: MineralAccessStatus;
+  incomingUnits?: number;
 }
 
 export interface MineralOverviewStateOption {

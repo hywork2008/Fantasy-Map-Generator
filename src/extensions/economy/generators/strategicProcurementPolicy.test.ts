@@ -22,24 +22,31 @@ describe("strategicProcurementPolicy", () => {
     expect(getMarketStateId({ centerBurgId: 99 }, burgs)).toBe(0);
   });
 
-  it("recognizes domestic, foreign, Enemy, and stateless market relationships", () => {
+  it("recognizes domestic, allied, neutral, Enemy, and stateless market relationships", () => {
     const destination = { centerBurgId: 1 };
+    const alliedStates = [
+      undefined,
+      { diplomacy: [undefined, "x", "Enemy", "Ally"] },
+      { diplomacy: [undefined, "Enemy", "x", "Neutral"] },
+      { diplomacy: [undefined, "Ally", "Neutral", "x"] }
+    ];
 
     expect(getStrategicMarketRelationship(destination, { centerBurgId: 2 }, burgs, states)).toBe("domestic");
     expect(getStrategicMarketRelationship(destination, { centerBurgId: 3 }, burgs, states)).toBe("enemy");
-    expect(getStrategicMarketRelationship(destination, { centerBurgId: 4 }, burgs, states)).toBe("foreign");
-    expect(getStrategicMarketRelationship(destination, { centerBurgId: 5 }, burgs, states)).toBe("foreign");
+    expect(getStrategicMarketRelationship(destination, { centerBurgId: 4 }, burgs, states)).toBe("neutral");
+    expect(getStrategicMarketRelationship(destination, { centerBurgId: 5 }, burgs, states)).toBe("neutral");
+    expect(getStrategicMarketRelationship(destination, { centerBurgId: 4 }, burgs, alliedStates)).toBe("ally");
   });
 
   it("prohibits Enemy strategic trade regardless of the foreign-procurement mode", () => {
     expect(isStrategicProcurementPermitted("enemy", "domesticOnly")).toBe(false);
     expect(isStrategicProcurementPermitted("enemy", "alliesAndNeutral")).toBe(false);
     expect(isStrategicProcurementPermitted("enemy", "unrestricted")).toBe(false);
-    expect(isStrategicProcurementPermitted("foreign", "domesticOnly")).toBe(false);
-    expect(isStrategicProcurementPermitted("foreign", "alliesAndNeutral")).toBe(true);
+    expect(isStrategicProcurementPermitted("neutral", "domesticOnly")).toBe(false);
+    expect(isStrategicProcurementPermitted("neutral", "alliesAndNeutral")).toBe(true);
   });
 
-  it("prefers domestic supply over a cheaper foreign source, then ranks domestic sources by landed price and duration", () => {
+  it("prefers domestic supply, then allied supply, then neutral supply", () => {
     const candidates: StrategicProcurementCandidate[] = [
       {
         sourceMarketId: 1,
@@ -52,8 +59,16 @@ describe("strategicProcurementPolicy", () => {
       {
         sourceMarketId: 2,
         sourceStateId: 3,
-        relationship: "foreign",
+        relationship: "neutral",
         landedUnitPrice: 2,
+        durationDays: 1,
+        availableUnits: 20
+      },
+      {
+        sourceMarketId: 5,
+        sourceStateId: 4,
+        relationship: "ally",
+        landedUnitPrice: 10,
         durationDays: 1,
         availableUnits: 20
       },
@@ -77,7 +92,7 @@ describe("strategicProcurementPolicy", () => {
 
     expect(
       rankStrategicProcurementCandidates(candidates, "alliesAndNeutral").map(candidate => candidate.sourceMarketId)
-    ).toEqual([4, 3, 2]);
+    ).toEqual([4, 3, 5, 2]);
   });
 
   it("lets unrestricted policy compare domestic and foreign candidates by landed price while retaining the Enemy embargo", () => {
@@ -93,7 +108,7 @@ describe("strategicProcurementPolicy", () => {
       {
         sourceMarketId: 2,
         sourceStateId: 3,
-        relationship: "foreign",
+        relationship: "neutral",
         landedUnitPrice: 4,
         durationDays: 5,
         availableUnits: 1

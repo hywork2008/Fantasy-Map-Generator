@@ -1,13 +1,21 @@
 import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
-import { getMineOperations, getMineralDeposits, getWorldContext } from "../economyContext";
+import {
+  getGoods,
+  getMineOperations,
+  getMineralDeposits,
+  getStrategicProcurementOrders,
+  getWorldContext
+} from "../economyContext";
 import {
   FUEL_MINERAL_COMMODITIES,
+  getIngotGoodName,
   type MineralCommodity,
   type MineralDeposit,
   ORE_COMMODITIES
 } from "../generators/mineralResources";
 import {
+  type MineralAccessStatus,
   type MineralCommodityOverviewRow,
   type MineralDepositOverviewRow,
   type MineralOverviewStateOption,
@@ -35,9 +43,13 @@ export function refreshMineralOverview(stateId: number | null = null): void {
   const filteredDeposits =
     stateId === null ? deposits : deposits.filter(deposit => cellStates[deposit.cell] === stateId);
   const operationsByDeposit = new Map(getMineOperations().map(operation => [operation.depositId, operation]));
+  const accessByCommodity =
+    stateId === null
+      ? new Map<MineralCommodity, { status: MineralAccessStatus; incomingUnits: number }>()
+      : getStateMineralAccess(stateId, filteredDeposits, operationsByDeposit);
 
   const commodities = ALL_MINERAL_COMMODITIES.map(commodity =>
-    buildCommodityRow(commodity, filteredDeposits, operationsByDeposit)
+    buildCommodityRow(commodity, filteredDeposits, operationsByDeposit, accessByCommodity.get(commodity))
   );
   const depositRows = filteredDeposits
     .map(deposit =>
@@ -69,7 +81,8 @@ function buildCommodityRow(
   operationsByDeposit: ReadonlyMap<
     number,
     { active: boolean; annualOutputTons: Partial<Record<MineralCommodity, number>> }
-  >
+  >,
+  access: { status: MineralAccessStatus; incomingUnits: number } | undefined
 ): MineralCommodityOverviewRow {
   const matchingDeposits = deposits.filter(deposit => deposit.commodities.includes(commodity));
   const discoveredCount = matchingDeposits.filter(deposit => deposit.discovered).length;
@@ -90,8 +103,60 @@ function buildCommodityRow(
     reserveTons: rn(reserveTons, 2),
     annualCapacityTons: rn(annualCapacityTons, 2),
     annualOutputTons: rn(annualOutputTons, 2),
-    status: getStatus(matchingDeposits.length, discoveredCount, activeMineCount, exhaustedCount)
+    status: getStatus(matchingDeposits.length, discoveredCount, activeMineCount, exhaustedCount),
+    accessStatus: access?.status,
+    incomingUnits: access?.incomingUnits
   };
+}
+
+function getStateMineralAccess(
+  stateId: number,
+  deposits: readonly MineralDeposit[],
+  operationsByDeposit: ReadonlyMap<
+    number,
+    { active: boolean; annualOutputTons: Partial<Record<MineralCommodity, number>> }
+  >
+): Map<MineralCommodity, { status: MineralAccessStatus; incomingUnits: number }> {
+  const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+  const orders = getStrategicProcurementOrders();
+  const access = new Map<MineralCommodity, { status: MineralAccessStatus; incomingUnits: number }>();
+
+  for (const commodity of ORE_COMMODITIES) {
+    const matchingDeposits = deposits.filter(deposit => deposit.commodities.includes(commodity));
+    const hasActiveMine = matchingDeposits.some(deposit => operationsByDeposit.get(deposit.i)?.active);
+    if (hasActiveMine) {
+      access.set(commodity, { status: "domestic", incomingUnits: 0 });
+      continue;
+    }
+
+    const ingot = goodsByName.get(getIngotGoodName(commodity));
+    const ore = goodsByName.get(`${commodity} ore`);
+    const matchingOrders = orders.filter(
+      order =>
+        order.stateId === stateId &&
+        (order.goodId === ingot?.i || order.goodId === ore?.i) &&
+        order.purpose === "metallurg"
+    );
+    const incomingUnits = rn(
+      matchingOrders
+        .filter(order => order.status === "open" || order.status === "assigned" || order.status === "inTransit")
+        .reduce((total, order) => total + Math.max(0, order.requestedUnits - order.fulfilledUnits), 0),
+      2
+    );
+    const embargoed = matchingOrders.some(
+      order => order.status === "blocked" && order.blockedReason === "foreignPolicy"
+    );
+    const status: MineralAccessStatus = embargoed
+      ? "embargoed"
+      : incomingUnits > 0
+        ? "importing"
+        : matchingDeposits.length === 0
+          ? "noDomesticDeposit"
+          : "developing";
+    access.set(commodity, { status, incomingUnits });
+  }
+
+  return access;
 }
 
 function buildDepositRow(
