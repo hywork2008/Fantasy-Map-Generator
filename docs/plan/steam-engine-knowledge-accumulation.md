@@ -12,6 +12,7 @@
 - [鉱物資源・鉱山・貨幣供給システム設計](./mineral-resource-system.md) §5, §8–10
 - [知識・技術蓄積システム](./knowledge-guild-system.md) §2–5
 - [個人熟練・才能・技法システム](./individual-skill-mastery-system.md) §3–6
+- [蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md): 初期蒸気機関の採用後に導入する中間財、資本財、容量サービスと後続技術の設計。
 
 ---
 
@@ -307,7 +308,7 @@ interface SteamInstallation {
 
 ### 後続 Phase
 
-`condensateEfficiency`、`rotarySteamPower`、機械紡績、蒸気輸送、鉄道は、初期ポンプの採用効果と Coal / Iron の供給増を観測してから別々に設計する。高圧ボイラーは `highPressureMetallurgy` と安全・検査制度を要求し、初期大気圧機関の単純な数値上位版にはしない。
+[蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md) が、`condensateEfficiency`、`rotarySteamPower`、機械紡績、蒸気輸送、鉄道から化学・電化までの Good・資本財・サービスの導入順序を定める。高圧ボイラーは `highPressureMetallurgy` と安全・検査制度を要求し、初期大気圧機関の単純な数値上位版にはしない。
 
 ## 10. 受け入れ条件とテスト
 

@@ -242,6 +242,12 @@ interface UrbanWaterSystem {
 
 下水は、自然流下できる限り、より早く・安く始められる。しかし、そのぶん排水先に問題を押し出すだけになりやすい。この非対称性を保つことで、古い都市が開放排水路や暗渠を持ちながら、近代的な上水・衛生下水を持たない状態を表現できる。
 
+### 6.2 蒸気揚水との接続
+
+`Municipal Steam Pumping` は、[蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md#34-第4群-蒸気揚水による上水道) が定める後期の接続先である。`Stationary Steam Engine`、Coal、Machine Parts は Economy の市場・運転入力とし、設置後の `Steam Waterworks`、取水量、貯水・配水先、`waterContamination`、維持状態と上水供給への効果は `UrbanWaterSystem` が所有する。
+
+この接続には `urbanWaterworks` と局所的な `waterLifting`、水源・取水権・配水網・維持予算を要求する。蒸気機関を保有する State が、これらを欠くすべての Burg に一律の給水ボーナスを得ることはない。揚水は水の量と到達高度を増やすだけで、汚染水を安全にせず、下水の自然流下能力・処理能力・上下水分離を置き換えない。
+
 ---
 
 ## 7. 所有・財政・政治
