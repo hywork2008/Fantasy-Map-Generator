@@ -1,9 +1,11 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { type DialogConfig, dialogStore } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 
 export const AlertDialog: React.FC<{ config: DialogConfig | null }> = ({ config }) => {
+  const { t } = useTranslation();
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,11 +34,11 @@ export const AlertDialog: React.FC<{ config: DialogConfig | null }> = ({ config 
   let buttons: Array<{ label: string; onClick: () => void; keepOpen?: boolean }> = [];
 
   if (config.type === "alert") {
-    buttons = [{ label: "OK", onClick: handleClose }];
+    buttons = [{ label: t("common.ok"), onClick: handleClose }];
   } else if (config.type === "confirm") {
     buttons = [
-      { label: config.cancel || "Cancel", onClick: handleCancel },
-      { label: config.confirm || "OK", onClick: handleConfirm }
+      { label: config.cancel || t("common.cancel"), onClick: handleCancel },
+      { label: config.confirm || t("common.ok"), onClick: handleConfirm }
     ];
   } else if (config.type === "rich") {
     if (config.buttons) {
@@ -58,14 +60,14 @@ export const AlertDialog: React.FC<{ config: DialogConfig | null }> = ({ config 
       }));
     } else {
       // Default to an OK button for rich dialogs if none specified
-      buttons = [{ label: "OK", onClick: handleClose }];
+      buttons = [{ label: t("common.ok"), onClick: handleClose }];
     }
   }
 
   return (
     <Dialog
       isOpen={true}
-      title={config.title || "Alert"}
+      title={config.title || t("dialogs.alert.title")}
       onClose={handleClose}
       buttons={buttons}
       className="alert-dialog"

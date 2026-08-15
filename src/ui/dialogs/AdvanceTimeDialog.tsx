@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { simulationContext } from "../../context/simulationContext";
 import { useDialogState } from "../../store/dialogState";
 import { useTimeSimulationState } from "../../store/timeSimulationState";
@@ -7,6 +8,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const AdvanceTimeDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("advanceTime"));
   const { isRunning, progress, totalDays, stopSimulation } = useTimeSimulationState();
 
@@ -37,19 +39,19 @@ export const AdvanceTimeDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Advance Time"
+      title={t("dialogs.titles.advanceTime")}
       onClose={() => closeDialog("advanceTime")}
       style={{ minWidth: "280px" }}
     >
       <div style={{ display: "grid", gap: "8px" }}>
-        <span data-tip="Current in-world year, month, day, and era">
+        <span data-tip={t("dialogs.advanceTime.clockTip")}>
           {simulationClock.currentYear} / {simulationClock.currentMonth} / {simulationClock.currentDay}{" "}
           {simulationClock.era}
         </span>
         {isRunning ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Simulating...</span>
+              <span>{t("dialogs.advanceTime.simulating")}</span>
               <span>{Math.floor((progress / totalDays) * 100)}%</span>
             </div>
             <progress value={progress} max={totalDays} style={{ width: "100%" }} />
@@ -58,7 +60,7 @@ export const AdvanceTimeDialog: React.FC = () => {
               onClick={stopSimulation}
               style={{ marginTop: "5px", background: "indianred", color: "white", flex: 1 }}
             >
-              Stop
+              {t("dialogs.advanceTime.stop")}
             </button>
           </div>
         ) : (
@@ -70,10 +72,10 @@ export const AdvanceTimeDialog: React.FC = () => {
                 step={1}
                 value={advanceYears}
                 onChange={e => setAdvanceYears(Number(e.target.value))}
-                data-tip="Years to advance"
+                data-tip={t("dialogs.advanceTime.yearsTip")}
               />
               <button
-                data-tip="Click to advance the world's simulation clock by a number of years"
+                data-tip={t("dialogs.advanceTime.advanceYearTip")}
                 type="button"
                 style={{ flex: 1 }}
                 onClick={() => {
@@ -84,7 +86,7 @@ export const AdvanceTimeDialog: React.FC = () => {
                   );
                 }}
               >
-                Advance Year
+                {t("dialogs.advanceTime.advanceYear")}
               </button>
             </div>
             <div style={{ display: "flex", gap: "5px" }}>
@@ -94,10 +96,10 @@ export const AdvanceTimeDialog: React.FC = () => {
                 step={1}
                 value={advanceMonths}
                 onChange={e => setAdvanceMonths(Number(e.target.value))}
-                data-tip="Months to advance"
+                data-tip={t("dialogs.advanceTime.monthsTip")}
               />
               <button
-                data-tip="Click to advance the world's simulation clock by a number of months"
+                data-tip={t("dialogs.advanceTime.advanceMonthTip")}
                 type="button"
                 style={{ flex: 1 }}
                 onClick={() => {
@@ -108,7 +110,7 @@ export const AdvanceTimeDialog: React.FC = () => {
                   );
                 }}
               >
-                Advance Month
+                {t("dialogs.advanceTime.advanceMonth")}
               </button>
             </div>
             <div style={{ display: "flex", gap: "5px" }}>
@@ -118,10 +120,10 @@ export const AdvanceTimeDialog: React.FC = () => {
                 step={1}
                 value={advanceDays}
                 onChange={e => setAdvanceDays(Number(e.target.value))}
-                data-tip="Days to advance"
+                data-tip={t("dialogs.advanceTime.daysTip")}
               />
               <button
-                data-tip="Click to advance the world's simulation clock by a number of days"
+                data-tip={t("dialogs.advanceTime.advanceDayTip")}
                 type="button"
                 style={{ flex: 1 }}
                 onClick={() => {
@@ -132,7 +134,7 @@ export const AdvanceTimeDialog: React.FC = () => {
                   );
                 }}
               >
-                Advance Day
+                {t("dialogs.advanceTime.advanceDay")}
               </button>
             </div>
           </>

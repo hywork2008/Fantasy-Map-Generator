@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { lakeEditorActions } from "../../controllers/lakes-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useLakeEditorState } from "../../store/lakeEditorState";
@@ -8,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const LakeEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("lakeEditor"));
   const lakeData = useLakeEditorState(state => state.lakeData);
   const groups = useLakeEditorState(state => state.groups);
@@ -17,7 +19,7 @@ export const LakeEditorDialog: React.FC = () => {
   if (!isOpen || !lakeData) return null;
 
   return (
-    <Dialog isOpen={isOpen} title="Edit Lake" onClose={() => closeDialog("lakeEditor")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.editLake")} onClose={() => closeDialog("lakeEditor")}>
       <div id="lakeBody">
         <div>
           <div className="label">Name:</div>

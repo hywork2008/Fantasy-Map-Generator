@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { simulationContext } from "../../context/simulationContext";
 import { regimentEditorActions } from "../../controllers/regiment-editor";
 import { tip } from "../../services/tooltipService";
@@ -8,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const RegimentEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const { isOpen, mode, name, isNaval, icon, units, stateId, regimentId } = useRegimentEditorState();
   const [activeTab, setActiveTab] = useState<"general" | "strategic">("general");
 
@@ -32,7 +34,7 @@ export const RegimentEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Regiment Editor"
+      title={t("dialogs.titles.regimentEditor")}
       onClose={() => closeDialog("regimentEditor")}
       className="overflow-hidden"
     >

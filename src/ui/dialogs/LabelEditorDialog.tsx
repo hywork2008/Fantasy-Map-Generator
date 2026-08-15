@@ -1,10 +1,12 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { closeLabelEditor, labelsEditorActions } from "../../controllers/labels-editor";
 import { useLabelsEditorState } from "../../store/labelsEditorState";
 import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const LabelEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const {
     isOpen,
     activeSection,
@@ -22,7 +24,7 @@ export const LabelEditorDialog: React.FC = () => {
   if (!isOpen) return null;
 
   return (
-    <Dialog isOpen={isOpen} title="Label Editor" onClose={closeLabelEditor}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.labelEditor")} onClose={closeLabelEditor}>
       {!isBasicGroup && (
         <>
           <button

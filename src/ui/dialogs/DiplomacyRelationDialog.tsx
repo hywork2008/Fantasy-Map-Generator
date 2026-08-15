@@ -1,11 +1,13 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { diplomacyEditorActions, relations } from "../../controllers/diplomacy-editor";
 import { setDiplomacyEditorState, useDiplomacyEditorState } from "../../store/diplomacyEditorState";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 
 export const DiplomacyRelationDialog: React.FC = () => {
+  const { t } = useTranslation();
   const { relationDialog, states } = useDiplomacyEditorState();
   const { isOpen, subjectId, objectId, currentRelation } = relationDialog;
 
@@ -61,7 +63,7 @@ export const DiplomacyRelationDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Change relations"
+      title={t("dialogs.titles.changeRelations")}
       onClose={closeRelationDialog}
       buttons={[
         { label: "Apply", onClick: handleApply },

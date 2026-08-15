@@ -1,9 +1,11 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { dialogStore, useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 
 export const PromptDialog: React.FC = () => {
+  const { t } = useTranslation();
   const config = useDialogState(state => state.promptConfig);
   const [value, setValue] = useState<string | number>("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -49,11 +51,11 @@ export const PromptDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="Prompt"
+      title={t("dialogs.prompt.title")}
       onClose={handleClose}
       buttons={[
-        { label: "Cancel", onClick: handleClose },
-        { label: "OK", onClick: handleConfirm }
+        { label: t("common.cancel"), onClick: handleClose },
+        { label: t("common.ok"), onClick: handleConfirm }
       ]}
     >
       <div>{config.message}</div>

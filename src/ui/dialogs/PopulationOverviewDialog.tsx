@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { type DeathWindow, deathWindowDays, getDeathsByState } from "../../generators/populationLossTracker";
 import { collectLivingStatsByState } from "../../generators/populationOverviewStats";
@@ -12,11 +13,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 import { TableDialogLayout } from "./TableDialogLayout";
 
-const WINDOW_OPTIONS: { id: DeathWindow; label: string }[] = [
-  { id: "day", label: "1 day" },
-  { id: "week", label: "1 week" },
-  { id: "month", label: "1 month" }
-];
+const WINDOW_OPTIONS: { id: DeathWindow }[] = [{ id: "day" }, { id: "week" }, { id: "month" }];
 
 function sortRows<T extends object>(rows: T[], sortBy: string, sortOrder: "asc" | "desc"): T[] {
   return [...rows].sort((a, b) => {
@@ -36,6 +33,7 @@ function sortRows<T extends object>(rows: T[], sortBy: string, sortOrder: "asc" 
  * can see how wars, famine, and demography shape each state.
  */
 export const PopulationOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("populationOverview"));
   const {
     activeTab,
@@ -156,7 +154,7 @@ export const PopulationOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Population Overview"
+      title={t("dialogs.titles.populationOverview")}
       onClose={() => closeDialog("populationOverview")}
       className="fmg-dialog--table population-overview-dialog"
     >
@@ -164,10 +162,7 @@ export const PopulationOverviewDialog: React.FC = () => {
         header={
           <>
             <p className="population-overview-dialog__description">
-              Vital statistics a ruler might consult when setting policy — and a designer can use to judge which losses
-              wars, famine, and demography actually inflict. Under arms are living men already drawn from the civilian
-              male pool when the manpower ledger is on. Combat deaths also feed the <strong>Combat Deaths</strong> map
-              layer (battlefield heatmap); its time window matches the Deaths tab selector below.
+              <Trans i18nKey="dialogs.population.description" />
             </p>
             <div className="population-overview-dialog__tabs">
               <button
@@ -175,14 +170,14 @@ export const PopulationOverviewDialog: React.FC = () => {
                 className={activeTab === "living" ? "buttonpressed" : undefined}
                 onClick={() => setActiveTab("living")}
               >
-                Living
+                {t("dialogs.population.living")}
               </button>
               <button
                 type="button"
                 className={activeTab === "deaths" ? "buttonpressed" : undefined}
                 onClick={() => setActiveTab("deaths")}
               >
-                Deaths
+                {t("dialogs.population.deaths")}
               </button>
             </div>
           </>
@@ -190,7 +185,7 @@ export const PopulationOverviewDialog: React.FC = () => {
         controls={
           activeTab === "deaths" ? (
             <div className="population-overview-dialog__period-controls">
-              <span>Period:</span>
+              <span>{t("dialogs.population.period")}</span>
               {WINDOW_OPTIONS.map(opt => (
                 <label key={opt.id}>
                   <input
@@ -199,12 +194,14 @@ export const PopulationOverviewDialog: React.FC = () => {
                     checked={deathWindow === opt.id}
                     onChange={() => setDeathWindow(opt.id)}
                   />
-                  {opt.label}
+                  {t(`dialogs.population.${opt.id}`)}
                 </label>
               ))}
               <span className="population-overview-dialog__period-note">
-                (last {deathWindowDays(deathWindow)} day{deathWindowDays(deathWindow) === 1 ? "" : "s"} of simulation
-                time)
+                {t("dialogs.population.periodNote", {
+                  count: deathWindowDays(deathWindow),
+                  days: deathWindowDays(deathWindow)
+                })}
               </span>
             </div>
           ) : undefined
@@ -212,25 +209,53 @@ export const PopulationOverviewDialog: React.FC = () => {
         summary={
           activeTab === "living" ? (
             <div className="population-overview-dialog__summary">
-              <strong>Total</strong>
-              <span>Rural: {fmt(livingTotals.rural)}</span>
-              <span>Urban: {fmt(livingTotals.urban)}</span>
-              <span>Under arms: {fmt(livingTotals.underArms)}</span>
-              <span>Population: {fmt(livingTotals.total)}</span>
-              <span>Governed population: {fmt(settlementTotals.governedPopulation)}</span>
-              <span>Unclaimed capacity: {fmt(settlementTotals.unclaimedCapacity)}</span>
-              <span>Unsettled capacity: {fmt(settlementTotals.unsettledCapacity)}</span>
-              <span>Mobilization: {fmtPct(worldMobilizationPct)}</span>
-              <span>Adult male: {fmtPct(worldAdultMalePct)}</span>
+              <strong>{t("common.total")}</strong>
+              <span>
+                {t("dialogs.population.rural")}: {fmt(livingTotals.rural)}
+              </span>
+              <span>
+                {t("dialogs.population.urban")}: {fmt(livingTotals.urban)}
+              </span>
+              <span>
+                {t("dialogs.population.underArms")}: {fmt(livingTotals.underArms)}
+              </span>
+              <span>
+                {t("dialogs.population.population")}: {fmt(livingTotals.total)}
+              </span>
+              <span>
+                {t("dialogs.population.governed")}: {fmt(settlementTotals.governedPopulation)}
+              </span>
+              <span>
+                {t("dialogs.population.unclaimed")}: {fmt(settlementTotals.unclaimedCapacity)}
+              </span>
+              <span>
+                {t("dialogs.population.unsettled")}: {fmt(settlementTotals.unsettledCapacity)}
+              </span>
+              <span>
+                {t("dialogs.population.mobilization")}: {fmtPct(worldMobilizationPct)}
+              </span>
+              <span>
+                {t("dialogs.population.adultMale")}: {fmtPct(worldAdultMalePct)}
+              </span>
             </div>
           ) : (
             <div className="population-overview-dialog__summary">
-              <strong>Total</strong>
-              <span>Combat: {fmt(deathTotals.combat)}</span>
-              <span>Famine: {fmt(deathTotals.famine)}</span>
-              <span>Natural: {fmt(deathTotals.natural)}</span>
-              <span>Other: {fmt(deathTotals.other)}</span>
-              <span>Deaths: {fmt(deathTotals.total)}</span>
+              <strong>{t("common.total")}</strong>
+              <span>
+                {t("dialogs.population.combat")}: {fmt(deathTotals.combat)}
+              </span>
+              <span>
+                {t("dialogs.population.famine")}: {fmt(deathTotals.famine)}
+              </span>
+              <span>
+                {t("dialogs.population.natural")}: {fmt(deathTotals.natural)}
+              </span>
+              <span>
+                {t("dialogs.population.other")}: {fmt(deathTotals.other)}
+              </span>
+              <span>
+                {t("dialogs.population.deathsTotal")}: {fmt(deathTotals.total)}
+              </span>
             </div>
           )
         }
@@ -241,50 +266,50 @@ export const PopulationOverviewDialog: React.FC = () => {
               <thead>
                 <tr>
                   <SortableHeader
-                    label="State"
+                    label={t("dialogs.population.state")}
                     field="name"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                   />
                   <SortableHeader
-                    label="Rural"
+                    label={t("dialogs.population.rural")}
                     field="rural"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Rural civilian population (display people)"
+                    tip={t("dialogs.population.ruralTip")}
                   />
                   <SortableHeader
-                    label="Urban"
+                    label={t("dialogs.population.urban")}
                     field="urban"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Urban civilian population (display people)"
+                    tip={t("dialogs.population.urbanTip")}
                   />
                   <SortableHeader
-                    label="Under arms"
+                    label={t("dialogs.population.underArms")}
                     field="underArms"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Land regiment headcount currently under arms"
+                    tip={t("dialogs.population.underArmsTip")}
                   />
                   <SortableHeader
-                    label="Total"
+                    label={t("common.total")}
                     field="total"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Rural + urban civilians + under arms"
+                    tip={t("dialogs.population.populationTip")}
                   />
                   <SortableHeader
-                    label="Children"
+                    label={t("dialogs.population.children")}
                     field="children"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
@@ -292,16 +317,16 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
-                    label="♂ Adults"
+                    label={t("dialogs.population.maleAdults")}
                     field="civilianMale"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Civilian adult males (not currently under arms)"
+                    tip={t("dialogs.population.maleAdultsTip")}
                   />
                   <SortableHeader
-                    label="♀ Adults"
+                    label={t("dialogs.population.femaleAdults")}
                     field="civilianFemale"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
@@ -309,7 +334,7 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
-                    label="Elders"
+                    label={t("dialogs.population.elders")}
                     field="elders"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
@@ -317,49 +342,49 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
-                    label="Mobil.%"
+                    label={t("dialogs.population.mobilPct")}
                     field="mobilizationPct"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Under arms / total living × 100"
+                    tip={t("dialogs.population.mobilPctTip")}
                   />
                   <SortableHeader
-                    label="♂% adults"
+                    label={t("dialogs.population.malePct")}
                     field="adultMalePct"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Adult male share including under arms (low ≈ widow skew)"
+                    tip={t("dialogs.population.malePctTip")}
                   />
                   <SortableHeader
-                    label="Supply"
+                    label={t("dialogs.population.supply")}
                     field="supplyStrain"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="0–1 wartime supply strain (Economy warIntensity when enabled)"
+                    tip={t("dialogs.population.supplyTip")}
                   />
                   <SortableHeader
-                    label="Draft%"
+                    label={t("dialogs.population.draft")}
                     field="draftEfficiency"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="How well the state can equip and supply new levies"
+                    tip={t("dialogs.population.draftTip")}
                   />
                   <SortableHeader
-                    label="Qual"
+                    label={t("dialogs.population.quality")}
                     field="meanQuality"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                     numeric
-                    tip="Mean land regiment quality (1=veteran, green recruits lower this)"
+                    tip={t("dialogs.population.qualityTip")}
                   />
                 </tr>
               </thead>
@@ -399,9 +424,7 @@ export const PopulationOverviewDialog: React.FC = () => {
               </tbody>
             </table>
             {livingRows.length === 0 && (
-              <p style={{ fontSize: "0.85em", opacity: 0.75, marginTop: "0.75em" }}>
-                No states to show. Generate a map first.
-              </p>
+              <p style={{ fontSize: "0.85em", opacity: 0.75, marginTop: "0.75em" }}>{t("dialogs.population.empty")}</p>
             )}
           </>
         )}
@@ -412,14 +435,14 @@ export const PopulationOverviewDialog: React.FC = () => {
               <thead>
                 <tr>
                   <SortableHeader
-                    label="State"
+                    label={t("dialogs.population.state")}
                     field="name"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onSort={toggleSortBy}
                   />
                   <SortableHeader
-                    label="Combat"
+                    label={t("dialogs.population.combat")}
                     field="combat"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
@@ -427,7 +450,7 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
-                    label="Famine"
+                    label={t("dialogs.population.famine")}
                     field="famine"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
@@ -435,7 +458,7 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
-                    label="Natural"
+                    label={t("dialogs.population.natural")}
                     field="natural"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
@@ -443,7 +466,7 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
-                    label="Other"
+                    label={t("dialogs.population.other")}
                     field="other"
                     sortBy={sortBy}
                     sortOrder={sortOrder}
@@ -451,7 +474,7 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
-                    label="Total"
+                    label={t("common.total")}
                     field="total"
                     sortBy={sortBy}
                     sortOrder={sortOrder}

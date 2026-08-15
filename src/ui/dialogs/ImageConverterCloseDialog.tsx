@@ -1,8 +1,10 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { imageConverterCloseStore, useImageConverterCloseState } from "../../store/heightmapDialogState";
 import { Dialog } from "./Dialog";
 
 export const ImageConverterCloseDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useImageConverterCloseState(s => s.isOpen);
   const { onComplete, onClose } = imageConverterCloseStore.getState();
 
@@ -11,7 +13,7 @@ export const ImageConverterCloseDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Close Image Converter"
+      title={t("dialogs.titles.imageConverterClose")}
       onClose={close}
       buttons={[
         { label: "Cancel", onClick: close },

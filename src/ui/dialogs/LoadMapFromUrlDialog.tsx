@@ -1,11 +1,13 @@
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { loadMapUrlDialogStore, useLoadMapUrlDialogState } from "../../store/loadMapUrlDialogState";
 import { Dialog } from "./Dialog";
 
 const URL_PATTERN = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-/]))?/;
 
 export const LoadMapFromUrlDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useLoadMapUrlDialogState(s => s.isOpen);
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
@@ -18,7 +20,7 @@ export const LoadMapFromUrlDialog: React.FC = () => {
 
   const load = () => {
     if (!URL_PATTERN.test(url)) {
-      setError("Please provide a valid URL");
+      setError(t("dialogs.load.invalidUrl"));
       return;
     }
     loadMapUrlDialogStore.getState().onLoad(url);
@@ -28,16 +30,16 @@ export const LoadMapFromUrlDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Load map from URL"
+      title={t("dialogs.titles.loadMapFromUrl")}
       onClose={close}
       buttons={[
-        { label: "Load", onClick: load },
-        { label: "Cancel", onClick: close }
+        { label: t("common.load"), onClick: load },
+        { label: t("common.cancel"), onClick: close }
       ]}
     >
       <div>
         <label>
-          Provide URL to map file:
+          {t("dialogs.load.fromUrlLabel")}
           <input
             type="url"
             value={url}
@@ -47,10 +49,7 @@ export const LoadMapFromUrlDialog: React.FC = () => {
         </label>
         {error && <div>{error}</div>}
         <p>
-          <i>
-            Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and
-            provide a direct link
-          </i>
+          <i>{t("dialogs.load.corsNote")}</i>
         </p>
       </div>
     </Dialog>

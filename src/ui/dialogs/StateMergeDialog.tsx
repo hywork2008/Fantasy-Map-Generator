@@ -1,11 +1,13 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { statesEditorActions } from "../../controllers/states-editor";
 import { useStatesEditorState } from "../../store/statesEditorState";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 
 export const StateMergeDialog: React.FC = () => {
+  const { t } = useTranslation();
   const mergeDialog = useStatesEditorState(state => state.mergeDialog);
   const [rulingStateId, setRulingStateId] = useState<number | null>(null);
   const [statesToMerge, setStatesToMerge] = useState<Set<number>>(new Set());
@@ -39,7 +41,7 @@ export const StateMergeDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="Merge states"
+      title={t("dialogs.titles.mergeStates")}
       onClose={handleClose}
       buttons={[
         { label: "Merge", onClick: handleApply },

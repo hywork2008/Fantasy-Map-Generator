@@ -1,5 +1,6 @@
 import { mean } from "d3";
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { getFileName, highlightElement } from "../../controllers/editors";
@@ -90,6 +91,7 @@ function toggleBasinsHightlight(): void {
 }
 
 export const RiversOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("riversOverview"));
   const { search, sortBy, sortOrder, refreshCounter, setSearch, toggleSortBy, refresh } = useRiversOverviewState();
   const unit = useOptionsState(s => s.distanceUnit);
@@ -168,7 +170,7 @@ export const RiversOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Rivers Overview"
+      title={t("dialogs.titles.riversOverview")}
       onClose={() => closeDialog("riversOverview")}
       className="fmg-dialog--table"
     >

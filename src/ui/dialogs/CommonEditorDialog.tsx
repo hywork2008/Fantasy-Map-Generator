@@ -1,11 +1,13 @@
 import type React from "react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { modules } from "../../store/editorState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 import type { EditorConfig } from "./editorRegistry";
 
 export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> = ({ id, config }) => {
+  const { t } = useTranslation();
   const { title, component: Component, moduleFlag, onClose, tableLayout, dialogHeight, dialogClassName } = config;
 
   // Cleanup when dialog is closed (either via X button or programmatic toggle)
@@ -29,7 +31,7 @@ export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> 
   return (
     <Dialog
       isOpen={true}
-      title={title}
+      title={t(`dialogs.editors.${id}`, { defaultValue: title })}
       onClose={handleClose}
       className={[tableLayout ? "fmg-dialog--table" : "", dialogClassName].filter(Boolean).join(" ")}
       style={dialogHeight ? { height: dialogHeight } : undefined}

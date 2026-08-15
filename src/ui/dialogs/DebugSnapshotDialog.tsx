@@ -1,11 +1,13 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useDebugSnapshotState } from "../../store/debugSnapshotState";
 import { useToastStore } from "../../store/toastStore";
 import { exportSnapshotsToAPI, restoreSnapshot } from "../../utils/aiDebugExporter";
 import { Dialog } from "./Dialog";
 
 export const DebugSnapshotDialog: React.FC = () => {
+  const { t } = useTranslation();
   const { snapshots, isOpen, setIsOpen, toggleLock, removeSnapshot, clearUnlocked } = useDebugSnapshotState();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [lastRestoredId, setLastRestoredId] = useState<number | null>(null);
@@ -53,7 +55,7 @@ export const DebugSnapshotDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="AI Debug Snapshots"
+      title={t("dialogs.titles.debugSnapshots")}
       onClose={() => setIsOpen(false)}
       style={{ width: "500px", maxWidth: "90vw" }}
       buttons={[

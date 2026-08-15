@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { provincesEditorActions, sortProvinceRows } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { ProvincesTable } from "../components/tables/ProvincesTable";
@@ -7,6 +8,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const ProvincesEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const {
     isOpen,
     filterState,
@@ -32,7 +34,7 @@ export const ProvincesEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Provinces Editor"
+      title={t("dialogs.titles.provincesEditor")}
       onClose={() => closeDialog("provincesEditor")}
       className="fmg-dialog--table"
     >

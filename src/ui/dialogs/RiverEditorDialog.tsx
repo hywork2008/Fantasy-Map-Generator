@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { riverEditorActions } from "../../controllers/rivers-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useRiverEditorState } from "../../store/riverEditorState";
@@ -7,6 +8,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const RiverEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("riverEditor"));
   const {
     name,
@@ -24,7 +26,7 @@ export const RiverEditorDialog: React.FC = () => {
   } = useRiverEditorState();
 
   return (
-    <Dialog isOpen={isOpen} title="River Editor" onClose={() => closeDialog("riverEditor")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.riverEditor")} onClose={() => closeDialog("riverEditor")}>
       <div id="riverBody">
         <div>
           <div className="label">Name:</div>

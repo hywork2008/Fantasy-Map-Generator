@@ -1,16 +1,18 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { closeIceEditor, iceEditorActions } from "../../controllers/ice-editor";
 import { useIceEditorState } from "../../store/iceEditorState";
 import { Dialog } from "./Dialog";
 
 export const IceEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const { isOpen, type, size, isAdding } = useIceEditorState();
 
   if (!isOpen) return null;
   const isIceberg = type === "Iceberg";
 
   return (
-    <Dialog isOpen={isOpen} title={`Edit ${type}`} onClose={closeIceEditor}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.editIce", { type })} onClose={closeIceEditor}>
       <button
         type="button"
         id="iceEditStyle"

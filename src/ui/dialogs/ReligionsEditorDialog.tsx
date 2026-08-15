@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { religionsEditorActions } from "../../controllers/religions-editor";
 import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
@@ -11,6 +12,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const ReligionsEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const {
     isOpen,
     sortBy,
@@ -75,7 +77,7 @@ export const ReligionsEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Religions Editor"
+      title={t("dialogs.titles.religionsEditor")}
       onClose={() => closeDialog("religionsEditor")}
       className="fmg-dialog--table"
     >

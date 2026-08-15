@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cellsDensityMap, getCellsDensityColor } from "../../controllers/options";
 import { applyTransformMap, getTransformPreviewDims, loadTransformPreview } from "../../controllers/transform-tool";
 import { useDialogState } from "../../store/dialogState";
@@ -11,6 +12,7 @@ import { closeAllDialogs, closeDialog } from "./dialogService";
 const EXP = 1.0965;
 
 export const TransformToolDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("transformTool"));
   const defaultPoints = useOptionsState(state => state.points);
 
@@ -97,7 +99,7 @@ export const TransformToolDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Transform Tool"
+      title={t("dialogs.titles.transformTool")}
       onClose={() => closeDialog("transformTool")}
       buttons={[
         { label: "Transform", onClick: handleTransform },

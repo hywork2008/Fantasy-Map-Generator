@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { confirmationDialog, downloadFile, getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRoutes } from "../../controllers/layers";
@@ -18,6 +19,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
 export const RoutesOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("routesOverview"));
   const { search, sortBy, sortOrder, refreshCounter, setSearch, toggleSortBy, refresh } = useRoutesOverviewState();
   const distanceUnit = useOptionsState(s => s.distanceUnit);
@@ -179,7 +181,7 @@ export const RoutesOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Routes Overview"
+      title={t("dialogs.titles.routesOverview")}
       onClose={() => closeDialog("routesOverview")}
       className="fmg-dialog--table"
     >

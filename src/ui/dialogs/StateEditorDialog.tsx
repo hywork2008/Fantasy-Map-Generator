@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { filterAndSortBurgs } from "../../controllers/burgs-overview";
 import { enterFocus } from "../../controllers/focus-view";
@@ -63,6 +64,7 @@ const StateEditorTabBar: React.FC<{
 );
 
 export const StateEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("stateEditor"));
   const { stateId, activeTab } = useStateEditorState();
   const allEditorTabs = useExtensionState(state => state.editorTabs);
@@ -185,7 +187,7 @@ export const StateEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={`Edit State: ${stateRow.name}`}
+      title={t("dialogs.titles.editState", { name: stateRow.name })}
       onClose={() => closeDialog("stateEditor")}
       className="fmg-dialog--table"
     >

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import {
   addRegimentOnMap,
@@ -18,6 +19,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const RegimentsOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("regimentsOverview"));
   const {
     sortBy,
@@ -180,7 +182,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Regiments Overview"
+      title={t("dialogs.titles.regimentsOverview")}
       className="fmg-dialog--table"
       onClose={() => closeDialog("regimentsOverview")}
     >

@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 // Need to import actions from heightmapEditor
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
@@ -8,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const BrushesPanelDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("brushesPanel"));
   const {
     brushMode,
@@ -30,7 +32,7 @@ export const BrushesPanelDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Brushes Panel" onClose={() => closeDialog("brushesPanel")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.brushesPanel")} onClose={() => closeDialog("brushesPanel")}>
       <div id="brushesPanelContainer">
         <div>
           <div id="brushesButtons" className="d-inline-block">

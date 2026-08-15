@@ -1,11 +1,13 @@
 import type React from "react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { exportToPngTiles } from "../../io/export";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 export const ExportToPngTilesDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("exportToPngTilesScreen"));
   const [tileCols, setTileCols] = useState(8);
   const [tileRows, setTileRows] = useState(8);
@@ -32,7 +34,7 @@ export const ExportToPngTilesDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Export to PNG tiles"
+      title={t("dialogs.titles.exportPngTiles")}
       onClose={() => closeDialog("exportToPngTilesScreen")}
       buttons={[
         {

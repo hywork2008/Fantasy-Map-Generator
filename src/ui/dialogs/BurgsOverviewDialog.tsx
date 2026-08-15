@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { editBurgGroups } from "../../controllers/burg-group-editor";
 import {
@@ -25,6 +26,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
 export const BurgsOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("burgsOverview"));
   const {
     sortBy,
@@ -177,7 +179,7 @@ export const BurgsOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Burgs Overview"
+      title={t("dialogs.titles.burgsOverview")}
       onClose={() => closeDialog("burgsOverview")}
       className="fmg-dialog--table"
     >

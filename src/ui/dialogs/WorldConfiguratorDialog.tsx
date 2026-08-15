@@ -1,6 +1,7 @@
 import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { unitsEditorActions } from "../../controllers/units-editor";
 import { updateClimateDuringStagedGeneration, updateWorld } from "../../controllers/world-configurator";
@@ -22,6 +23,7 @@ const debouncedWorldUpdates = {
 };
 
 export const WorldConfiguratorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("worldConfigurator"));
   const isClimateReview = useGenerationProgressState(
     state => state.isOpen && !state.isGenerating && !state.autoRun && state.currentStage === 1
@@ -266,7 +268,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="WorldConfigurator"
+      title={t("dialogs.titles.worldConfigurator")}
       className="fmg-dialog--world-configurator"
       onClose={() => closeDialog("worldConfigurator")}
     >

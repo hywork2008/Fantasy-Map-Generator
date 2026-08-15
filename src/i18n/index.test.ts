@@ -26,6 +26,10 @@ describe("internationalization", () => {
     expect(i18n.t("generationProgress.stages.landscape.title")).toBe("地形の輪郭");
     expect(i18n.t("layersTab.names.toggleBiomes")).toBe("バイオーム");
     expect(i18n.t("tools.edit")).toBe("編集");
+    expect(i18n.t("dialogs.titles.advanceTime")).toBe("時間を進める");
+    expect(i18n.t("dialogs.titles.cellInfo")).toBe("セル情報");
+    expect(i18n.t("dialogs.chrome.closeAll")).toBe("すべてのダイアログを閉じる");
+    expect(i18n.t("dialogs.regenerate.title", { feature: "国家" })).toBe("国家 を再生成");
   });
 
   it("keeps English and Japanese catalogs on the same keys", () => {

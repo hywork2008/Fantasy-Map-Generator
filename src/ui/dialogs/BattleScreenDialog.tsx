@@ -1,5 +1,6 @@
 import { sum } from "d3";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import {
   battleAction_addRegimentToSide,
@@ -271,6 +272,7 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
 // ── Regiment selector dialog ────────────────────────────────────────────────
 
 export const RegimentSelectorScreenDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("regimentSelectorScreen"));
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -315,7 +317,7 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Add regiment to the battle"
+      title={t("dialogs.titles.addRegimentToBattle")}
       onClose={() => {
         setSelected(new Set());
         closeDialog("regimentSelectorScreen");

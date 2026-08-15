@@ -1,10 +1,12 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { routesEditorActions } from "../../controllers/routes-editor";
 import { useRoutesEditorState } from "../../store/routesEditorState";
 import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const RoutesEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const {
     isOpen,
     isCreatorOpen,
@@ -21,7 +23,7 @@ export const RoutesEditorDialog: React.FC = () => {
 
   if (isOpen) {
     return (
-      <Dialog isOpen={isOpen} title="Edit Route" onClose={routesEditorActions.closeRouteEditor}>
+      <Dialog isOpen={isOpen} title={t("dialogs.titles.editRoute")} onClose={routesEditorActions.closeRouteEditor}>
         <div id="routeEditor" className="editor-body">
           <div className="editor-row">
             <label htmlFor="routeName">Name:</label>
@@ -143,7 +145,11 @@ export const RoutesEditorDialog: React.FC = () => {
 
   if (isCreatorOpen) {
     return (
-      <Dialog isOpen={isCreatorOpen} title="Create Route" onClose={routesEditorActions.closeRouteCreator}>
+      <Dialog
+        isOpen={isCreatorOpen}
+        title={t("dialogs.titles.createRoute")}
+        onClose={routesEditorActions.closeRouteCreator}
+      >
         <div id="routeCreator" className="editor-body">
           <div className="editor-row">
             <label htmlFor="routeCreatorGroupSelect">Group:</label>

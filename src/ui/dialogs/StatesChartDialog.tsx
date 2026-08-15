@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { stateHighlightById, stateHighlightOff } from "../../controllers/states-editor";
 import { useDialogState } from "../../store/dialogState";
@@ -16,6 +17,7 @@ type ChartType = "area" | "population" | "rural" | "urban" | "burgs";
 const DIALOG_ID = "statesChart";
 
 export const StatesChartDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(s => s.openDialogs.has(DIALOG_ID));
   const [chartType, setChartType] = useState<ChartType>("area");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,7 +136,7 @@ export const StatesChartDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="States bubble chart"
+      title={t("dialogs.titles.statesChart")}
       onClose={handleClose}
       buttons={[{ label: "Close", onClick: handleClose }]}
     >

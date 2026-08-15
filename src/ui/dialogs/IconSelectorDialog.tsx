@@ -1,13 +1,15 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const IconSelectorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("iconSelector"));
 
   return (
-    <Dialog isOpen={isOpen} title="Select icon" onClose={() => closeDialog("iconSelector")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.selectIcon")} onClose={() => closeDialog("iconSelector")}>
       <div>
         <b>Unicode emojis</b>
         <div>

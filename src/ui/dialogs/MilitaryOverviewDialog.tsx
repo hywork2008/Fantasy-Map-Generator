@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import {
@@ -20,6 +21,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const MilitaryOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("militaryOverview"));
   const { sortBy, sortOrder, percentageMode, refreshCounter, toggleSortBy, togglePercentageMode, refresh } =
     useMilitaryOverviewState();
@@ -169,7 +171,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Military Overview"
+      title={t("dialogs.titles.militaryOverview")}
       onClose={() => closeDialog("militaryOverview")}
       className="fmg-dialog--table"
     >

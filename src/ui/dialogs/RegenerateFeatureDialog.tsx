@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   regenerateFeatureDialogStore,
   useRegenerateFeatureDialogState
@@ -8,8 +9,10 @@ import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import { Dialog } from "./Dialog";
 
 export const RegenerateFeatureDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useRegenerateFeatureDialogState(s => s.isOpen);
   const featureName = useRegenerateFeatureDialogState(s => s.featureName);
+  const feature = t(`dialogs.features.${featureName}`, { defaultValue: featureName });
   const [dontAsk, setDontAsk] = useState(false);
 
   const close = () => {
@@ -26,23 +29,23 @@ export const RegenerateFeatureDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={`Regenerate ${featureName}`}
+      title={t("dialogs.regenerate.title", { feature })}
       onClose={close}
       buttons={[
-        { label: "Proceed", onClick: proceed },
-        { label: "Cancel", onClick: close }
+        { label: t("common.proceed"), onClick: proceed },
+        { label: t("common.cancel"), onClick: close }
       ]}
     >
       <p>
-        Regenerate will remove all the custom changes for the {featureName}.
+        {t("dialogs.regenerate.body", { feature })}
         <br />
         <br />
-        Are you sure you want to proceed?
+        {t("dialogs.regenerate.confirm")}
       </p>
       <div>
         <input id="dontAskAgain" type="checkbox" checked={dontAsk} onChange={e => setDontAsk(e.target.checked)} />
         <label htmlFor="dontAskAgain">
-          <i>do not ask again</i>
+          <i>{t("dialogs.regenerate.dontAsk")}</i>
         </label>
       </div>
     </Dialog>

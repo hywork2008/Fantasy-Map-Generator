@@ -1,11 +1,13 @@
 import type React from "react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { statesEditorActions } from "../../controllers/states-editor";
 import { useStatesEditorState } from "../../store/statesEditorState";
 import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const StateNameEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const nameEditor = useStatesEditorState(state => state.nameEditor);
 
   const handleAddFormClick = useCallback(() => {
@@ -31,11 +33,11 @@ export const StateNameEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="Change state name"
+      title={t("dialogs.titles.changeStateName")}
       onClose={statesEditorActions.nameEditorClose}
       buttons={[
-        { label: "Apply", onClick: statesEditorActions.nameEditorApply },
-        { label: "Cancel", onClick: statesEditorActions.nameEditorClose }
+        { label: t("common.apply"), onClick: statesEditorActions.nameEditorApply },
+        { label: t("common.cancel"), onClick: statesEditorActions.nameEditorClose }
       ]}
     >
       <div id="stateNameEditorContainer">

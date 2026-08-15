@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { burgEditorActions } from "../../controllers/burg-editor";
 import { showElementLockTip } from "../../services/tooltipService";
 import { useBurgEditorState } from "../../store/burgEditorState";
@@ -16,39 +17,43 @@ interface BurgEditorTabBarProps {
   onSelect: (tabId: string) => void;
 }
 
-const BurgEditorTabBar: React.FC<BurgEditorTabBarProps> = ({ tabs, activeTab, onSelect }) => (
-  <div
-    id="burgEditorTabs"
-    role="tablist"
-    aria-label="Burg editor sections"
-    style={{ display: "flex", borderBottom: "1px solid #555", marginBottom: "4px", fontSize: "1.1em" }}
-  >
-    <button
-      type="button"
-      role="tab"
-      aria-selected={activeTab === "overview"}
-      className={activeTab === "overview" ? "pressed" : ""}
-      onClick={() => onSelect("overview")}
+const BurgEditorTabBar: React.FC<BurgEditorTabBarProps> = ({ tabs, activeTab, onSelect }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      id="burgEditorTabs"
+      role="tablist"
+      aria-label={t("dialogs.burgEditor.tabsAria")}
+      style={{ display: "flex", borderBottom: "1px solid #555", marginBottom: "4px", fontSize: "1.1em" }}
     >
-      Overview
-    </button>
-    {tabs.map(tab => (
       <button
-        key={tab.id}
-        id={`burgEditorTab-${tab.id}`}
         type="button"
         role="tab"
-        aria-selected={activeTab === tab.id}
-        className={activeTab === tab.id ? "pressed" : ""}
-        onClick={() => onSelect(tab.id)}
+        aria-selected={activeTab === "overview"}
+        className={activeTab === "overview" ? "pressed" : ""}
+        onClick={() => onSelect("overview")}
       >
-        {tab.label}
+        {t("dialogs.burgEditor.overview")}
       </button>
-    ))}
-  </div>
-);
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          id={`burgEditorTab-${tab.id}`}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          className={activeTab === tab.id ? "pressed" : ""}
+          onClick={() => onSelect(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 export const BurgEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("burgEditor"));
   const burgData = useBurgEditorState(state => state.burgData);
   const groups = useBurgEditorState(state => state.groups);
@@ -85,7 +90,12 @@ export const BurgEditorDialog: React.FC = () => {
   const ActiveExtensionComponent = editorTabs.find(tab => tab.id === activeTab)?.component;
 
   return (
-    <Dialog isOpen={isOpen} title="Edit Burg" onClose={() => closeDialog("burgEditor")} anchorTitlebarOnOpen>
+    <Dialog
+      isOpen={isOpen}
+      title={t("dialogs.titles.editBurg")}
+      onClose={() => closeDialog("burgEditor")}
+      anchorTitlebarOnOpen
+    >
       {editorTabs.length > 0 && <BurgEditorTabBar tabs={editorTabs} activeTab={activeTab} onSelect={setActiveTab} />}
       {activeTab === "overview" ? (
         <div id="burgBody">
@@ -110,7 +120,7 @@ export const BurgEditorDialog: React.FC = () => {
                 </tr>
                 <tr data-tip="Type to rename the burg">
                   <th scope="row">
-                    <label htmlFor="burgName">Name:</label>
+                    <label htmlFor="burgName">{t("dialogs.burgEditor.name")}</label>
                   </th>
                   <td>
                     <input

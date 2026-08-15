@@ -1,5 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useDialogState } from "../../store/dialogState";
 import type { LandRouteGenerationMode, SeaRouteGenerationMode } from "../../types/models";
 import { Dialog } from "./Dialog";
@@ -48,6 +49,7 @@ function isCharacterRegenerationEntropy(value: string): value is CharacterRegene
 }
 
 export const RegenerateConfirmDialog: React.FC = () => {
+  const { t } = useTranslation();
   const config = useDialogState(s => s.dialogConfigs[DIALOG_ID]) as unknown as RegenerateConfirmConfig | undefined;
   const checkboxRef = useRef<HTMLInputElement>(null);
   const [seaRouteGenerationMode, setSeaRouteGenerationMode] = useState<SeaRouteGenerationMode>("augmented");
@@ -94,6 +96,7 @@ export const RegenerateConfirmDialog: React.FC = () => {
 
   if (!config) return null;
 
+  const feature = t(`dialogs.features.${config.featureName}`, { defaultValue: config.featureName });
   const showRouteModes =
     config.seaRouteGenerationMode !== undefined ||
     config.landRouteGenerationMode !== undefined ||
@@ -103,25 +106,25 @@ export const RegenerateConfirmDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title={`Regenerate ${config.featureName}`}
+      title={t("dialogs.regenerate.title", { feature })}
       onClose={handleCancel}
       buttons={[
-        { label: "Proceed", onClick: handleProceed },
-        { label: "Cancel", onClick: handleCancel }
+        { label: t("common.proceed"), onClick: handleProceed },
+        { label: t("common.cancel"), onClick: handleCancel }
       ]}
     >
       <div>
         <p>
-          Regenerate will remove all the custom changes for the {config.featureName}.
+          {t("dialogs.regenerate.body", { feature })}
           <br />
           <br />
-          Are you sure you want to proceed?
+          {t("dialogs.regenerate.confirm")}
         </p>
         {showRouteModes && (
           <div>
             {config.seaRouteGenerationMode !== undefined && (
               <div>
-                <label htmlFor="seaRouteGenerationMode">Sea route connections </label>
+                <label htmlFor="seaRouteGenerationMode">{t("dialogs.regenerate.seaRoutes")} </label>
                 <select
                   id="seaRouteGenerationMode"
                   value={seaRouteGenerationMode}
@@ -129,17 +132,15 @@ export const RegenerateConfirmDialog: React.FC = () => {
                     setSeaRouteGenerationMode(event.target.value === "augmented" ? "augmented" : "legacy")
                   }
                 >
-                  <option value="augmented">Improved coastal and nearby-port connections</option>
-                  <option value="legacy">Previous sparse network (Urquhart)</option>
+                  <option value="augmented">{t("dialogs.regenerate.seaAugmented")}</option>
+                  <option value="legacy">{t("dialogs.regenerate.seaLegacy")}</option>
                 </select>
-                <p>
-                  The improved mode restores nearby Delaunay connections and keeps a separate coastal port backbone.
-                </p>
+                <p>{t("dialogs.regenerate.seaNote")}</p>
               </div>
             )}
             {config.landRouteGenerationMode !== undefined && (
               <div>
-                <label htmlFor="landRouteGenerationMode">Land route pathfinding </label>
+                <label htmlFor="landRouteGenerationMode">{t("dialogs.regenerate.landRoutes")} </label>
                 <select
                   id="landRouteGenerationMode"
                   value={landRouteGenerationMode}
@@ -147,19 +148,16 @@ export const RegenerateConfirmDialog: React.FC = () => {
                     setLandRouteGenerationMode(event.target.value === "legacy" ? "legacy" : "elevationAware")
                   }
                 >
-                  <option value="elevationAware">Prefer valleys (elevation-aware)</option>
-                  <option value="legacy">Previous weaker height cost</option>
+                  <option value="elevationAware">{t("dialogs.regenerate.landElevation")}</option>
+                  <option value="legacy">{t("dialogs.regenerate.landLegacy")}</option>
                 </select>
-                <p>
-                  Elevation-aware mode prefers gentler climbs; mountain passes still connect when no lowland corridor
-                  exists. Tune the aversion slider below.
-                </p>
+                <p>{t("dialogs.regenerate.landNote")}</p>
               </div>
             )}
             {config.landRouteElevationAversion !== undefined && (
               <div>
                 <label htmlFor="landRouteElevationAversion">
-                  Route elevation aversion{" "}
+                  {t("dialogs.regenerate.elevationAversion")}{" "}
                   <output htmlFor="landRouteElevationAversion">
                     {landRouteGenerationMode === "legacy" ? "n/a" : landRouteElevationAversion.toFixed(1)}
                   </output>
@@ -174,17 +172,14 @@ export const RegenerateConfirmDialog: React.FC = () => {
                   disabled={landRouteGenerationMode === "legacy"}
                   onChange={event => setLandRouteElevationAversion(Number(event.target.value))}
                 />
-                <p>
-                  0 allows short ridge shortcuts (e.g. ~500&nbsp;m climbs between nearby burgs). 1 is the default.
-                  Higher values force longer valley detours. Sole passes still connect when no alternative exists.
-                </p>
+                <p>{t("dialogs.regenerate.elevationAversionNote")}</p>
               </div>
             )}
           </div>
         )}
         {showCharacterEntropy && (
           <div>
-            <label htmlFor="characterRegenerationEntropy">Random seed </label>
+            <label htmlFor="characterRegenerationEntropy">{t("dialogs.regenerate.randomSeed")} </label>
             <select
               id="characterRegenerationEntropy"
               value={characterEntropy}
@@ -193,21 +188,18 @@ export const RegenerateConfirmDialog: React.FC = () => {
                 if (isCharacterRegenerationEntropy(value)) setCharacterEntropy(value);
               }}
             >
-              <option value="mapSeed">Map seed (deterministic roster)</option>
-              <option value="mixTime">Mix map seed with current time</option>
-              <option value="random">Fresh random seed</option>
+              <option value="mapSeed">{t("dialogs.regenerate.seedMap")}</option>
+              <option value="mixTime">{t("dialogs.regenerate.seedMix")}</option>
+              <option value="random">{t("dialogs.regenerate.seedRandom")}</option>
             </select>
-            <p>
-              Map seed always rebuilds the same rulers and officers. Mix with time or use a fresh seed when you want a
-              different roster without regenerating the whole map.
-            </p>
+            <p>{t("dialogs.regenerate.seedNote")}</p>
           </div>
         )}
         {config.showDontAskAgain !== false && (
           <div>
             <input ref={checkboxRef} id="dontAskAgain" className="checkbox" type="checkbox" />
             <label htmlFor="dontAskAgain" className="checkbox-label dontAsk">
-              <i>do not ask again</i>
+              <i>{t("dialogs.regenerate.dontAsk")}</i>
             </label>
           </div>
         )}

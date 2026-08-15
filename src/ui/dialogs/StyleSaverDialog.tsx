@@ -1,16 +1,18 @@
 import type React from "react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { checkStyleName, downloadStylePreset, handleStyleFileLoad, saveStylePreset } from "../../controllers/style";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const StyleSaverDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("styleSaver"));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <Dialog isOpen={isOpen} title="StyleSaver" onClose={() => closeDialog("styleSaver")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.styleSaver")} onClose={() => closeDialog("styleSaver")}>
       <div id="styleSaverContainer">
         <div>
           <div id="styleSaverHeader">

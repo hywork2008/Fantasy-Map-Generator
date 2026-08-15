@@ -1,10 +1,12 @@
 import type React from "react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { tip } from "../../services/tooltipService";
 import { textureUrlDialogStore, useTextureUrlDialogState } from "../../store/textureUrlDialogState";
 import { Dialog } from "./Dialog";
 
 export const TextureUrlDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useTextureUrlDialogState(s => s.isOpen);
   const [url, setUrl] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,7 +42,7 @@ export const TextureUrlDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Load custom texture"
+      title={t("dialogs.titles.textureUrl")}
       onClose={close}
       buttons={[
         { label: "Apply", onClick: apply },

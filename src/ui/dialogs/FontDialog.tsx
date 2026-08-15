@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { addGoogleFont, addLocalFont, addWebFont, fonts } from "../../services/fonts";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
@@ -7,6 +8,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const FontDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("addFontDialog"));
   const [method, setMethod] = useState("googleFont");
   const [family, setFamily] = useState("");
@@ -33,7 +35,7 @@ export const FontDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Add custom font"
+      title={t("dialogs.titles.fontDialog")}
       onClose={() => closeDialog("addFontDialog")}
       buttons={[
         { label: "Add", onClick: handleAdd },

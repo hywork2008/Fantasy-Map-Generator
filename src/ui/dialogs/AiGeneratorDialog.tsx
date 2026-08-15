@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AI_MODELS, AI_PROVIDERS } from "../../controllers/ai-generator";
 import { tip } from "../../services/tooltipService";
 import { useAiGeneratorState } from "../../store/aiGeneratorState";
@@ -9,6 +10,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const AiGeneratorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("aiGenerator"));
   const {
     prompt,
@@ -84,7 +86,7 @@ export const AiGeneratorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="AI Text Generator"
+      title={t("dialogs.titles.aiGenerator")}
       onClose={() => closeDialog("aiGenerator")}
       buttons={[
         { label: "Generate", onClick: handleGenerate },

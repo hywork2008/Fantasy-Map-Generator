@@ -1,9 +1,11 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { loadErrorDialogStore, useLoadErrorDialogState } from "../../store/loadErrorDialogState";
 import { VERSION } from "../../versioning";
 import { Dialog } from "./Dialog";
 
 export const LoadErrorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useLoadErrorDialogState(s => s.isOpen);
   const errorText = useLoadErrorDialogState(s => s.errorText);
   const mapVersion = useLoadErrorDialogState(s => s.mapVersion);
@@ -14,41 +16,36 @@ export const LoadErrorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Loading error"
+      title={t("dialogs.titles.loadingError")}
       onClose={close}
       buttons={[
         {
-          label: "Clear cache",
+          label: t("dialogs.errors.clearCache"),
           onClick: () => {
             close();
             onClearCache();
           }
         },
         {
-          label: "Select file",
+          label: t("dialogs.errors.selectFile"),
           onClick: () => {
             close();
             onSelectFile();
           }
         },
         {
-          label: "New map",
+          label: t("dialogs.errors.newMap"),
           onClick: () => {
             close();
             onNewMap();
           }
         },
-        { label: "Cancel", onClick: close }
+        { label: t("common.cancel"), onClick: close }
       ]}
     >
       <div>
-        <p>
-          An error occurred while loading the map. Select a different file to load, generate a new random map or cancel
-          the loading.
-        </p>
-        <p>
-          Map version: {mapVersion}. Generator version: {VERSION}.
-        </p>
+        <p>{t("dialogs.errors.loadBody")}</p>
+        <p>{t("dialogs.errors.loadVersions", { mapVersion, generatorVersion: VERSION })}</p>
         <p id="errorBox">{errorText}</p>
       </div>
     </Dialog>

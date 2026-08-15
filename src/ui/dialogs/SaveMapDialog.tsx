@@ -1,34 +1,35 @@
 import type React from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { saveMap } from "../../io/save";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 
 export const SaveMapDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("saveMapData"));
   const closeDialog = useDialogState(state => state.closeDialog);
 
   return (
     <Dialog
       isOpen={isOpen}
-      title="Save map"
+      title={t("dialogs.titles.saveMap")}
       onClose={() => closeDialog("saveMapData")}
-      buttons={[{ label: "Close", onClick: () => closeDialog("saveMapData") }]}
+      buttons={[{ label: t("common.close"), onClick: () => closeDialog("saveMapData") }]}
     >
       <div>
-        <strong>Save map to</strong>
-        <button data-tip="Download map file to your local disk" type="button" onClick={() => saveMap("machine")}>
-          machine
+        <strong>{t("dialogs.save.saveTo")}</strong>
+        <button data-tip={t("dialogs.save.machineTip")} type="button" onClick={() => saveMap("machine")}>
+          {t("dialogs.save.machine")}
         </button>
-        <button type="button" data-tip="Save map file to your Dropbox" onClick={() => saveMap("dropbox")}>
-          dropbox
+        <button type="button" data-tip={t("dialogs.save.dropboxTip")} onClick={() => saveMap("dropbox")}>
+          {t("dialogs.save.dropbox")}
         </button>
-        <button type="button" data-tip="Save the project to browser storage only" onClick={() => saveMap("storage")}>
-          browser
+        <button type="button" data-tip={t("dialogs.save.browserTip")} onClick={() => saveMap("storage")}>
+          {t("dialogs.save.browser")}
         </button>
       </div>
       <p>
-        Maps are saved in <i>.map</i> format, that can be loaded back via the <i>Load</i> in menu. There is no way to
-        restore the progress if file is lost. Please keep old save files on your machine or cloud storage as backups.
+        <Trans i18nKey="dialogs.save.note" />
       </p>
     </Dialog>
   );

@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { exportToJson } from "../../controllers/export-json";
 import {
   exportToJpeg,
@@ -18,6 +19,7 @@ import { useOptionsState } from "../../store/optionsState";
 import { Dialog } from "./Dialog";
 
 export const ExportMapDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("exportMapData"));
   const closeDialog = useDialogState(state => state.closeDialog);
   const hideLabels = useOptionsState(state => state.hideLabels);
@@ -27,31 +29,27 @@ export const ExportMapDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Export map data"
+      title={t("dialogs.titles.exportMap")}
       onClose={() => closeDialog("exportMapData")}
-      buttons={[{ label: "Close", onClick: () => closeDialog("exportMapData") }]}
+      buttons={[{ label: t("common.close"), onClick: () => closeDialog("exportMapData") }]}
     >
       <div id="exportMapData">
-        <div>Download image</div>
+        <div>{t("dialogs.export.downloadImage")}</div>
         <div>
-          <button
-            type="button"
-            onClick={exportToSvg}
-            data-tip="Download the map as vector image (open directly in browser or Inkscape)"
-          >
+          <button type="button" onClick={exportToSvg} data-tip={t("dialogs.export.svgTip")}>
             .svg
           </button>
           <button
             type="button"
             onClick={() => exportToPng({ resolution: pngResolution })}
-            data-tip="Download visible part of the map as .png (lossless compressed)"
+            data-tip={t("dialogs.export.pngTip")}
           >
             .png
           </button>
           <button
             type="button"
             onClick={() => exportToJpeg({ resolution: pngResolution })}
-            data-tip="Download visible part of the map as .jpeg (lossy compressed) image"
+            data-tip={t("dialogs.export.jpegTip")}
           >
             .jpeg
           </button>
@@ -60,11 +58,11 @@ export const ExportMapDialog: React.FC = () => {
             onClick={() => {
               void exportToPngTiles();
             }}
-            data-tip="Split map into smaller png tiles and download as zip archive"
+            data-tip={t("dialogs.export.tilesTip")}
           >
-            tiles
+            {t("dialogs.export.tiles")}
           </button>
-          <span data-tip="Check to not allow system to automatically hide labels">
+          <span data-tip={t("dialogs.export.showLabelsTip")}>
             <input
               id="showLabels"
               className="checkbox"
@@ -76,12 +74,12 @@ export const ExportMapDialog: React.FC = () => {
               }}
             />
             <label htmlFor="showLabels" className="checkbox-label">
-              <i>show labels</i>
+              <i>{t("dialogs.export.showLabels")}</i>
             </label>
           </span>
         </div>
-        <div data-tip="Define scale of a saved png/jpeg image (e.g. 5x). Saving big images is slow and may cause a browser crash!">
-          PNG / JPEG scale:
+        <div data-tip={t("dialogs.export.scaleTip")}>
+          {t("dialogs.export.scale")}
           <input
             id="pngResolutionInput"
             data-stored="pngResolution"
@@ -101,60 +99,52 @@ export const ExportMapDialog: React.FC = () => {
             onChange={e => setPngResolution(Number(e.target.value))}
           />
         </div>
-        <p>Generator uses pop-up window to download files. Please ensure your browser does not block popups.</p>
-        <div>Export to GeoJSON</div>
+        <p>{t("dialogs.export.popupNote")}</p>
+        <div>{t("dialogs.export.geoJson")}</div>
         <div>
-          <button type="button" onClick={saveGeoJsonCells} data-tip="Download cells data in GeoJSON format">
-            cells
+          <button type="button" onClick={saveGeoJsonCells} data-tip={t("dialogs.export.cellsTip")}>
+            {t("dialogs.export.cells")}
           </button>
-          <button type="button" onClick={saveGeoJsonRoutes} data-tip="Download routes data in GeoJSON format">
-            routes
+          <button type="button" onClick={saveGeoJsonRoutes} data-tip={t("dialogs.export.routesTip")}>
+            {t("dialogs.export.routes")}
           </button>
-          <button type="button" onClick={saveGeoJsonRivers} data-tip="Download rivers data in GeoJSON format">
-            rivers
+          <button type="button" onClick={saveGeoJsonRivers} data-tip={t("dialogs.export.riversTip")}>
+            {t("dialogs.export.rivers")}
           </button>
-          <button type="button" onClick={saveGeoJsonMarkers} data-tip="Download markers data in GeoJSON format">
-            markers
+          <button type="button" onClick={saveGeoJsonMarkers} data-tip={t("dialogs.export.markersTip")}>
+            {t("dialogs.export.markers")}
           </button>
-          <button type="button" onClick={saveGeoJsonZones} data-tip="Download zones data in GeoJSON format">
-            zones
+          <button type="button" onClick={saveGeoJsonZones} data-tip={t("dialogs.export.zonesTip")}>
+            {t("dialogs.export.zones")}
           </button>
         </div>
         <p>
-          GeoJSON format is used in GIS tools such as QGIS. Check out{" "}
+          {t("dialogs.export.wikiLead")}{" "}
           <a
             href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/GIS-data-export"
             target="_blank"
             rel="noreferrer"
           >
-            wiki-page
+            {t("dialogs.export.wiki")}
           </a>{" "}
-          for guidance.
+          {t("dialogs.export.wikiTrail")}
         </p>
-        <div>Export To JSON</div>
+        <div>{t("dialogs.export.json")}</div>
         <div>
-          <button type="button" onClick={() => exportToJson("Full")} data-tip="Download full data in JSON">
-            full
+          <button type="button" onClick={() => exportToJson("Full")} data-tip={t("dialogs.export.fullTip")}>
+            {t("dialogs.export.full")}
           </button>
-          <button type="button" onClick={() => exportToJson("Minimal")} data-tip="Download minimal data in JSON">
-            minimal
+          <button type="button" onClick={() => exportToJson("Minimal")} data-tip={t("dialogs.export.minimalTip")}>
+            {t("dialogs.export.minimal")}
           </button>
-          <button
-            type="button"
-            onClick={() => exportToJson("PackCells")}
-            data-tip="Download map metadata and pack cells data in JSON"
-          >
-            pack cells
+          <button type="button" onClick={() => exportToJson("PackCells")} data-tip={t("dialogs.export.packCellsTip")}>
+            {t("dialogs.export.packCells")}
           </button>
-          <button
-            type="button"
-            onClick={() => exportToJson("GridCells")}
-            data-tip="Download map metadata and grid cells data in JSON"
-          >
-            grid cells
+          <button type="button" onClick={() => exportToJson("GridCells")} data-tip={t("dialogs.export.gridCellsTip")}>
+            {t("dialogs.export.gridCells")}
           </button>
         </div>
-        <p>Export in JSON format can be used as an API replacement.</p>
+        <p>{t("dialogs.export.jsonNote")}</p>
       </div>
     </Dialog>
   );

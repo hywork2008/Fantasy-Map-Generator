@@ -1,5 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { type NamesbaseAnalysisData, NamesbaseEditor, type ParseError } from "../../controllers/namesbase-editor";
 import { Names } from "../../generators/names-generator";
@@ -10,6 +11,7 @@ import { uploadFile } from "../../utils/editorHelpers";
 import { Dialog } from "./Dialog";
 
 const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: () => void }> = ({ data, onClose }) => {
+  const { t } = useTranslation();
   const getLengthQuality = () => {
     if (data.length < 30)
       return (
@@ -34,7 +36,7 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
   };
 
   return (
-    <Dialog isOpen={true} onClose={onClose} title="Data Analysis">
+    <Dialog isOpen={true} onClose={onClose} title={t("dialogs.titles.dataAnalysis")}>
       <div>
         <div data-tip="Number of names provided">
           Namesbase length: {data.length} {getLengthQuality()}
@@ -66,8 +68,9 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
   totalCount,
   onClose
 }) => {
+  const { t } = useTranslation();
   return (
-    <Dialog isOpen={true} onClose={onClose} title="Parsing error">
+    <Dialog isOpen={true} onClose={onClose} title={t("dialogs.titles.parsingError")}>
       <div>
         <p>
           <strong>

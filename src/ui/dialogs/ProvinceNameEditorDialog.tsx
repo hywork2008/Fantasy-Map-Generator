@@ -1,10 +1,12 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { provincesEditorActions } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const ProvinceNameEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const nameEditor = useProvincesEditorState(state => state.nameEditor);
 
   if (!nameEditor) return null;
@@ -14,7 +16,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="Province Name Editor"
+      title={t("dialogs.titles.provinceNameEditor")}
       onClose={provincesEditorActions.nameEditorClose}
       buttons={[
         { label: "Apply", onClick: provincesEditorActions.nameEditorApply },

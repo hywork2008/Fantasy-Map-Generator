@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { zoomTo } from "../../actions";
 import { worldContext } from "../../context/worldContext";
 import { updateMinimap } from "../../controllers/minimap";
@@ -36,6 +37,7 @@ const localStyle = `
 `;
 
 export const MinimapDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("minimap"));
   const { viewBox, transform, viewportX, viewportY, viewportWidth, viewportHeight } = useMinimapState();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -62,7 +64,7 @@ export const MinimapDialog: React.FC = () => {
   }
 
   return (
-    <Dialog isOpen={isOpen} title="Minimap" onClose={() => closeDialog("minimap")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.minimap")} onClose={() => closeDialog("minimap")}>
       <style>{localStyle}</style>
       <div id="minimapViewportWrap">
         <svg

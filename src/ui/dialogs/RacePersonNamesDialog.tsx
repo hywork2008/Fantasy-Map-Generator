@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   configurablePersonNameRaces,
   DEFAULT_RACE_PERSON_NAME_SPHERES,
@@ -38,6 +39,7 @@ function parseSphereSelectValue(raw: string): number | null {
 }
 
 export const RacePersonNamesDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("racePersonNames"));
   const stored = useOptionsState(s => s.racePersonNameSpheres);
   const setOption = useOptionsState(s => s.setOption);
@@ -128,7 +130,7 @@ export const RacePersonNamesDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Race & character settings"
+      title={t("dialogs.titles.racePersonNames")}
       onClose={() => closeDialog("racePersonNames")}
       style={{ minWidth: "32em", maxWidth: "42em" }}
       buttons={[

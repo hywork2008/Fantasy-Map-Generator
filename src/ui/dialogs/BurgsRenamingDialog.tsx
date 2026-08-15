@@ -1,8 +1,10 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { burgsRenamingDialogStore, useBurgsRenamingDialogState } from "../../store/burgsRenamingDialogState";
 import { Dialog } from "./Dialog";
 
 export const BurgsRenamingDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useBurgsRenamingDialogState(s => s.isOpen);
   const close = () => burgsRenamingDialogStore.getState().close();
 
@@ -17,7 +19,7 @@ export const BurgsRenamingDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Burgs bulk renaming"
+      title={t("dialogs.titles.burgsRenaming")}
       onClose={close}
       buttons={[
         { label: "Download", onClick: download },

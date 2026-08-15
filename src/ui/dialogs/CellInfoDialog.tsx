@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { useCellInfoState } from "../../store/cellInfoState";
 import { useDialogState } from "../../store/dialogState";
 import { useExtensionState } from "../../store/extensionState";
@@ -6,202 +7,185 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const CellInfoDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("cellInfo"));
   const info = useCellInfoState();
   const cellInfoRows = useExtensionState(state => state.cellInfoRows);
 
   return (
-    <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")} className="fmg-dialog--cell-info">
+    <Dialog
+      isOpen={isOpen}
+      title={t("dialogs.titles.cellInfo")}
+      onClose={() => closeDialog("cellInfo")}
+      className="fmg-dialog--cell-info"
+    >
       <div className="cell-info-actions">
         <button
           type="button"
           className={info.isPinned ? "pressed" : undefined}
           aria-pressed={info.isPinned}
-          data-tip={
-            info.isPinned ? "Follow the cursor with Cell Info" : "Keep this cell's details while moving the cursor"
-          }
+          data-tip={info.isPinned ? t("dialogs.cellInfo.followTip") : t("dialogs.cellInfo.pinTip")}
           onClick={info.togglePinned}
         >
-          {info.isPinned ? "Follow cursor" : "Pin cell"}
+          {info.isPinned ? t("dialogs.cellInfo.follow") : t("dialogs.cellInfo.pin")}
         </button>
       </div>
       <table id="cellInfo" className="fmg-table">
         <tbody>
           <tr>
-            <th scope="row">Cell</th>
+            <th scope="row">{t("dialogs.cellInfo.cell")}</th>
             <td>{info.cell}</td>
           </tr>
           <tr>
-            <th scope="row">X</th>
+            <th scope="row">{t("dialogs.cellInfo.x")}</th>
             <td>{info.x}</td>
           </tr>
           <tr>
-            <th scope="row">Y</th>
+            <th scope="row">{t("dialogs.cellInfo.y")}</th>
             <td>{info.y}</td>
           </tr>
           <tr>
-            <th scope="row">Latitude</th>
+            <th scope="row">{t("dialogs.cellInfo.latitude")}</th>
             <td>{info.lat}</td>
           </tr>
           <tr>
-            <th scope="row">Longitude</th>
+            <th scope="row">{t("dialogs.cellInfo.longitude")}</th>
             <td>{info.lon}</td>
           </tr>
           <tr>
-            <th scope="row">Geozone</th>
+            <th scope="row">{t("dialogs.cellInfo.geozone")}</th>
             <td>{info.geozone}</td>
           </tr>
           <tr>
-            <th scope="row">Area</th>
+            <th scope="row">{t("dialogs.cellInfo.area")}</th>
             <td>{info.area}</td>
           </tr>
           <tr>
-            <th scope="row">Type</th>
+            <th scope="row">{t("dialogs.cellInfo.type")}</th>
             <td>{info.feature}</td>
           </tr>
           <tr>
-            <th scope="row">Precipitation</th>
+            <th scope="row">{t("dialogs.cellInfo.precipitation")}</th>
             <td>{info.prec}</td>
           </tr>
           <tr>
-            <th scope="row">River</th>
+            <th scope="row">{t("dialogs.cellInfo.river")}</th>
             <td>{info.river}</td>
           </tr>
           <tr>
-            <th scope="row" data-tip="Estimated river-surface velocity from the source elevation and river length">
-              River flow speed
+            <th scope="row" data-tip={t("dialogs.cellInfo.riverFlowTip")}>
+              {t("dialogs.cellInfo.riverFlow")}
             </th>
             <td>{info.riverSurfaceVelocity}</td>
           </tr>
           <tr>
-            <th
-              scope="row"
-              data-tip="Estimated channel depth from local flow, channel width, and mean velocity; irrigation withdrawals reduce it"
-            >
-              River water depth
+            <th scope="row" data-tip={t("dialogs.cellInfo.riverDepthTip")}>
+              {t("dialogs.cellInfo.riverDepth")}
             </th>
             <td>{info.riverWaterDepth}</td>
           </tr>
           <tr>
-            <th
-              scope="row"
-              data-tip="Estimated river-surface water temperature; downstream water mixes toward local air temperature"
-            >
-              River water temperature
+            <th scope="row" data-tip={t("dialogs.cellInfo.riverTempTip")}>
+              {t("dialogs.cellInfo.riverTemp")}
             </th>
             <td>{info.riverWaterTemperature}</td>
           </tr>
           <tr>
-            <th scope="row">Population</th>
+            <th scope="row">{t("dialogs.cellInfo.population")}</th>
             <td>{info.population}</td>
           </tr>
           <tr>
-            <th scope="row" data-tip="Dominant local food strategy used to limit rural population growth">
-              Livelihood
+            <th scope="row" data-tip={t("dialogs.cellInfo.livelihoodTip")}>
+              {t("dialogs.cellInfo.livelihood")}
             </th>
             <td>{info.livelihood}</td>
           </tr>
           <tr>
-            <th
-              scope="row"
-              data-tip="Local rural population support before imported food; terrain capacity remains a separate upper ceiling"
-            >
-              Local food capacity
+            <th scope="row" data-tip={t("dialogs.cellInfo.localFoodTip")}>
+              {t("dialogs.cellInfo.localFood")}
             </th>
             <td>{info.subsistenceCapacity}</td>
           </tr>
           <tr>
-            <th scope="row">Elevation</th>
+            <th scope="row">{t("dialogs.cellInfo.elevation")}</th>
             <td>{info.elevation}</td>
           </tr>
           <tr>
-            <th scope="row">Depth</th>
+            <th scope="row">{t("dialogs.cellInfo.depth")}</th>
             <td>{info.depth}</td>
           </tr>
           <tr>
-            <th scope="row">Temperature</th>
+            <th scope="row">{t("dialogs.cellInfo.temperature")}</th>
             <td>{info.temp}</td>
           </tr>
           <tr>
-            <th
-              scope="row"
-              data-tip="Surface water temperature advected along the resolved current field; open ocean only"
-            >
-              Water temperature
+            <th scope="row" data-tip={t("dialogs.cellInfo.waterTempTip")}>
+              {t("dialogs.cellInfo.waterTemp")}
             </th>
             <td>{info.waterTemp}</td>
           </tr>
           <tr>
-            <th scope="row" data-tip="Ocean current direction in degrees; open ocean only">
-              Current direction
+            <th scope="row" data-tip={t("dialogs.cellInfo.currentDirectionTip")}>
+              {t("dialogs.cellInfo.currentDirection")}
             </th>
             <td>{info.currentDirection}</td>
           </tr>
           <tr>
-            <th
-              scope="row"
-              data-tip="Ocean current strength as a percentage of the solver's 0-255 output scale; open ocean only"
-            >
-              Current speed
+            <th scope="row" data-tip={t("dialogs.cellInfo.currentSpeedTip")}>
+              {t("dialogs.cellInfo.currentSpeed")}
             </th>
             <td>{info.currentSpeed}</td>
           </tr>
           <tr>
-            <th
-              scope="row"
-              data-tip="How enclosed/sheltered the water is, per Options → Generation → Enclosure calculation (0 = open, 100 = fully enclosed); water only"
-            >
-              Enclosure
+            <th scope="row" data-tip={t("dialogs.cellInfo.enclosureTip")}>
+              {t("dialogs.cellInfo.enclosure")}
             </th>
             <td>{info.enclosure}</td>
           </tr>
           <tr>
-            <th scope="row">Biome</th>
+            <th scope="row">{t("dialogs.cellInfo.biome")}</th>
             <td>{info.biome}</td>
           </tr>
           <tr>
-            <th
-              scope="row"
-              data-tip="Share of this cell's potential forest that is currently open after timber harvest or conversion to human use"
-            >
-              Forest clearance
+            <th scope="row" data-tip={t("dialogs.cellInfo.forestClearanceTip")}>
+              {t("dialogs.cellInfo.forestClearance")}
             </th>
             <td>{info.forestClearance}</td>
           </tr>
           <tr>
-            <th scope="row" data-tip="Coastal habitat attribute (beach, rock, flat, dune)">
-              Coastal habitat
+            <th scope="row" data-tip={t("dialogs.cellInfo.coastalHabitatTip")}>
+              {t("dialogs.cellInfo.coastalHabitat")}
             </th>
             <td>{info.coastalHabitat}</td>
           </tr>
           <tr>
-            <th scope="row" data-tip="Nearshore habitat attribute (reef, seagrass)">
-              Nearshore habitat
+            <th scope="row" data-tip={t("dialogs.cellInfo.nearshoreHabitatTip")}>
+              {t("dialogs.cellInfo.nearshoreHabitat")}
             </th>
             <td>{info.nearshoreHabitat}</td>
           </tr>
           <tr>
-            <th scope="row">State</th>
+            <th scope="row">{t("dialogs.cellInfo.state")}</th>
             <td>{info.state}</td>
           </tr>
           <tr>
-            <th scope="row">Province</th>
+            <th scope="row">{t("dialogs.cellInfo.province")}</th>
             <td>{info.province}</td>
           </tr>
           <tr>
-            <th scope="row">Culture</th>
+            <th scope="row">{t("dialogs.cellInfo.culture")}</th>
             <td>{info.culture}</td>
           </tr>
           <tr>
-            <th scope="row">Religion</th>
+            <th scope="row">{t("dialogs.cellInfo.religion")}</th>
             <td>{info.religion}</td>
           </tr>
           <tr>
-            <th scope="row">Burg</th>
+            <th scope="row">{t("dialogs.cellInfo.burg")}</th>
             <td>{info.burg}</td>
           </tr>
           <tr>
-            <th scope="row">Danger</th>
+            <th scope="row">{t("dialogs.cellInfo.danger")}</th>
             <td>{info.danger}</td>
           </tr>
           {cellInfoRows.map(row => (

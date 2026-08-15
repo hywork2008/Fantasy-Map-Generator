@@ -1,5 +1,6 @@
 import type React from "react";
 import { useRef } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { connectToDropbox, loadURL } from "../../controllers/options";
 import { createSharableDropboxLink, loadFromDropbox, quickLoad, uploadMap } from "../../io/load";
 import { useDialogState } from "../../store/dialogState";
@@ -8,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog, closeDialogs } from "./dialogService";
 
 export const LoadMapDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("loadMapData"));
   const isDropboxConnected = useLoadMapDialogState(state => state.isDropboxConnected);
   const isDropboxLoading = useLoadMapDialogState(state => state.isDropboxLoading);
@@ -38,7 +40,7 @@ export const LoadMapDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Load Map" onClose={() => closeDialog("loadMapData")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.loadMap")} onClose={() => closeDialog("loadMapData")}>
       <input
         ref={fileInputRef}
         id="mapToLoad"
@@ -48,41 +50,33 @@ export const LoadMapDialog: React.FC = () => {
         onChange={handleFileChange}
       />
       <div>
-        <strong>Load map from</strong>{" "}
-        <button
-          data-tip="Load map file (.map or .gz) from your local disk"
-          type="button"
-          onClick={handleLoadFromMachine}
-        >
-          machine
+        <strong>{t("dialogs.load.loadFrom")}</strong>{" "}
+        <button data-tip={t("dialogs.load.machineTip")} type="button" onClick={handleLoadFromMachine}>
+          {t("dialogs.load.machine")}
         </button>{" "}
-        <button
-          data-tip="Load map file (.map or .gz) file from URL. Note that the server should allow CORS"
-          type="button"
-          onClick={() => loadURL()}
-        >
-          URL
+        <button data-tip={t("dialogs.load.urlTip")} type="button" onClick={() => loadURL()}>
+          {t("dialogs.load.url")}
         </button>{" "}
-        <button type="button" data-tip="Load map from browser storage (if saved before)" onClick={() => quickLoad()}>
-          storage
+        <button type="button" data-tip={t("dialogs.load.storageTip")} onClick={() => quickLoad()}>
+          {t("dialogs.load.storage")}
         </button>
       </div>
 
       <p>
-        Click on <i>storage</i> to open the last saved map.
+        <Trans i18nKey="dialogs.load.storageHint" />
       </p>
 
       <div id="loadFromDropbox">
         <p>
-          Or load from your Dropbox account{" "}
+          {t("dialogs.load.dropboxIntro")}{" "}
           {!isDropboxConnected && (
             <button
               id="dropboxConnectButton"
-              data-tip="Connect your Dropbox account to be able to load maps from it"
+              data-tip={t("dialogs.load.connectTip")}
               type="button"
               onClick={() => connectToDropbox()}
             >
-              Connect
+              {t("common.connect")}
             </button>
           )}
         </p>
@@ -106,26 +100,20 @@ export const LoadMapDialog: React.FC = () => {
                 })
               : [
                   <option key="status" value="" disabled>
-                    {isDropboxLoading ? "Loading..." : (dropboxStatus ?? "Save files to Dropbox first")}
+                    {isDropboxLoading
+                      ? t("dialogs.load.loading")
+                      : (dropboxStatus ?? t("dialogs.load.saveToDropboxFirst"))}
                   </option>
                 ]}
           </select>
         )}
         {showDropboxButtons && (
           <div id="loadFromDropboxButtons">
-            <button
-              type="button"
-              data-tip="Load map file (.map or .gz) from your Dropbox"
-              onClick={() => loadFromDropbox()}
-            >
-              Load
+            <button type="button" data-tip={t("dialogs.load.loadFromDropboxTip")} onClick={() => loadFromDropbox()}>
+              {t("common.load")}
             </button>{" "}
-            <button
-              data-tip="Select file and create a link to share with your friends"
-              type="button"
-              onClick={() => createSharableDropboxLink()}
-            >
-              Share
+            <button data-tip={t("dialogs.load.shareTip")} type="button" onClick={() => createSharableDropboxLink()}>
+              {t("common.share")}
             </button>
           </div>
         )}
@@ -135,7 +123,7 @@ export const LoadMapDialog: React.FC = () => {
             <a id="sharableLink" href={sharableLinkUrl || "#"} target="_blank" rel="noreferrer">
               {sharableLinkLabel || " "}
             </a>
-            <i data-tip="Copy link to the clipboard" className="icon-clone pointer"></i>
+            <i data-tip={t("dialogs.load.copyLink")} className="icon-clone pointer"></i>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { useTranslation } from "react-i18next";
 import { closeAllDialogs } from "./dialogService";
 import { useDraggable } from "./useDraggable";
 import "./dialog.css";
@@ -30,6 +31,7 @@ export const Dialog: React.FC<DialogProps> = ({
   className = "",
   style
 }) => {
+  const { t } = useTranslation();
   const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".titlebar" });
   const [minimized, setMinimized] = useState(false);
   const [titlebarAnchored, setTitlebarAnchored] = useState(false);
@@ -103,8 +105,8 @@ export const Dialog: React.FC<DialogProps> = ({
             <button
               type="button"
               className="titlebar-btn"
-              aria-label="Close all dialogs"
-              title="Close all dialogs"
+              aria-label={t("dialogs.chrome.closeAll")}
+              title={t("dialogs.chrome.closeAll")}
               onClick={() => closeAllDialogs()}
             >
               ✕✕
@@ -113,14 +115,20 @@ export const Dialog: React.FC<DialogProps> = ({
           <button
             type="button"
             className="titlebar-btn"
-            aria-label={minimized ? "Restore" : "Minimize"}
-            title={minimized ? "Restore" : "Minimize"}
+            aria-label={minimized ? t("dialogs.chrome.restore") : t("dialogs.chrome.minimize")}
+            title={minimized ? t("dialogs.chrome.restore") : t("dialogs.chrome.minimize")}
             onClick={handleMinimize}
           >
             {minimized ? "▲" : "▼"}
           </button>
           {onClose && (
-            <button type="button" className="titlebar-btn" aria-label="Close" title="Close" onClick={onClose}>
+            <button
+              type="button"
+              className="titlebar-btn"
+              aria-label={t("dialogs.chrome.close")}
+              title={t("dialogs.chrome.close")}
+              onClick={onClose}
+            >
               ✕
             </button>
           )}

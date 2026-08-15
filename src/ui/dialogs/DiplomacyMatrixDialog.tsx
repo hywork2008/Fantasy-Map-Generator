@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { diplomacyEditorActions, type RelationKey, relations } from "../../controllers/diplomacy-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useDiplomacyEditorState } from "../../store/diplomacyEditorState";
@@ -6,6 +7,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const DiplomacyMatrixDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("diplomacyMatrix"));
   const matrix = useDiplomacyEditorState(state => state.matrix);
 
@@ -16,7 +18,7 @@ export const DiplomacyMatrixDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Diplomacy Matrix" onClose={() => closeDialog("diplomacyMatrix")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.diplomacyMatrix")} onClose={() => closeDialog("diplomacyMatrix")}>
       <div id="diplomacyMatrixBody" className="matrix-table">
         <table>
           <thead>

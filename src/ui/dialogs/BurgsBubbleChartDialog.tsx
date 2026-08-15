@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { zoomTo } from "../../actions";
 import { worldContext } from "../../context/worldContext";
 import { burgHighlightOff, burgHighlightOn } from "../../controllers/burg-highlight";
@@ -37,6 +38,7 @@ type GroupingType = "states" | "cultures" | "parent" | "provinces";
 const DIALOG_ID = "burgsBubbleChart";
 
 export const BurgsBubbleChartDialog: React.FC = () => {
+  const { t } = useTranslation();
   const config = useDialogState(s => s.dialogConfigs[DIALOG_ID]) as unknown as BurgsBubbleChartConfig | undefined;
   const [grouping, setGrouping] = useState<GroupingType>("states");
   const svgRef = useRef<d3.Selection<SVGSVGElement, unknown, HTMLElement, unknown> | null>(null);
@@ -212,7 +214,7 @@ export const BurgsBubbleChartDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="Burgs bubble chart"
+      title={t("dialogs.titles.burgsChart")}
       onClose={handleClose}
       buttons={[{ label: "Close", onClick: handleClose }]}
     >

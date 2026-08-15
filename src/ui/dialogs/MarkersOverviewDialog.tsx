@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { editMarker } from "../../controllers/markers-editor";
 import {
@@ -24,6 +25,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
 export const MarkersOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("markersOverview"));
   const {
     searchText,
@@ -99,7 +101,7 @@ export const MarkersOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Markers Overview"
+      title={t("dialogs.titles.markersOverview")}
       onClose={() => closeDialog("markersOverview")}
       className="fmg-dialog--table"
     >

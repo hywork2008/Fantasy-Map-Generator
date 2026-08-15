@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useColorPickerDialogState } from "../../store/colorPickerDialogState";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
@@ -13,6 +14,7 @@ function isHexColor(value: string): boolean {
 }
 
 export const ColorPickerDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("colorPicker"));
   const { fill, callback } = useColorPickerDialogState();
   const [hex, setHex] = useState(DEFAULT_COLOR);
@@ -33,7 +35,7 @@ export const ColorPickerDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Color Picker" onClose={() => closeDialog("colorPicker")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.colorPicker")} onClose={() => closeDialog("colorPicker")}>
       <div id="colorPickerBody">
         <div className="editor-row">
           <label htmlFor="colorPickerInput">Color:</label>

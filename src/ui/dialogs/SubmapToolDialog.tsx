@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cellsDensityMap, getCellsDensityColor } from "../../controllers/options";
 import { submapToolActions } from "../../controllers/submap-tool";
 import { useDialogState } from "../../store/dialogState";
@@ -8,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { closeAllDialogs, closeDialog } from "./dialogService";
 
 export const SubmapToolDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("submapTool"));
   const defaultPoints = useOptionsState(state => state.points);
 
@@ -33,7 +35,7 @@ export const SubmapToolDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Create a submap"
+      title={t("dialogs.titles.submap")}
       onClose={() => closeDialog("submapTool")}
       buttons={[
         { label: "Submap", onClick: handleGenerate },

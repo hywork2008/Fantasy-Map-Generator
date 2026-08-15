@@ -1,11 +1,13 @@
 import type React from "react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { dialogStore } from "../../store/dialogState";
 import { heightmapEditModeStore, useHeightmapEditModeState } from "../../store/heightmapDialogState";
 import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const HeightmapEditModeDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useHeightmapEditModeState(s => s.isOpen);
   const { onErase, onKeep, onRisk, onCancel } = heightmapEditModeStore.getState();
 
@@ -33,7 +35,7 @@ export const HeightmapEditModeDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Edit Heightmap"
+      title={t("dialogs.titles.editHeightmap")}
       onClose={() => handle(onCancel)}
       buttons={[
         { label: "Erase", onClick: () => handle(onErase) },

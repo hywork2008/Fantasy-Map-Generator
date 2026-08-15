@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { initHierarchyTree, updateTree } from "../../controllers/hierarchy-tree";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
@@ -98,6 +99,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
 };
 
 export const HierarchyTreeDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("hierarchyTree"));
   const {
     props,
@@ -125,7 +127,9 @@ export const HierarchyTreeDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={`${props.type.charAt(0).toUpperCase() + props.type.slice(1)} tree`}
+      title={t("dialogs.titles.hierarchyTree", {
+        type: props.type.charAt(0).toUpperCase() + props.type.slice(1)
+      })}
       onClose={() => closeDialog("hierarchyTree")}
     >
       <style>{localStyle}</style>

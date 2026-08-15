@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { type BuiltChart, buildChart, type ChartDataPoint } from "../../controllers/charts-overview";
 import { downloadFile, getFileName } from "../../controllers/editors";
@@ -96,6 +97,7 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
 };
 
 export const ChartsOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("chartsOverview"));
 
   const [entity, setEntity] = useState("states");
@@ -140,7 +142,12 @@ export const ChartsOverviewDialog: React.FC = () => {
   }
 
   return (
-    <Dialog isOpen={isOpen} title="Data Charts" onClose={handleClose} className="overflow-hidden d-flex">
+    <Dialog
+      isOpen={isOpen}
+      title={t("dialogs.titles.dataCharts")}
+      onClose={handleClose}
+      className="overflow-hidden d-flex"
+    >
       <div>
         <form
           onSubmit={e => {

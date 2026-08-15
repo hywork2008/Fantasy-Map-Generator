@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { culturesEditorActions } from "../../controllers/cultures-editor";
 import { COA } from "../../generators/emblem/generator";
 import { useCulturesEditorState } from "../../store/culturesEditorState";
@@ -19,6 +20,7 @@ const shapeOptions: string[] = Object.keys(COA.shields.types).flatMap(type =>
 );
 
 export const CulturesEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const {
     isOpen,
     sortBy,
@@ -124,7 +126,7 @@ export const CulturesEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Cultures Editor"
+      title={t("dialogs.titles.culturesEditor")}
       onClose={() => closeDialog("culturesEditor")}
       className="fmg-dialog--table"
     >

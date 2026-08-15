@@ -1,5 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { regenerateMarkers } from "../../controllers/tools";
 import { Markers } from "../../generators/markers-generator";
@@ -36,6 +37,7 @@ function getMarkerCount(type: string): number {
 }
 
 export const MarkerConfigDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(s => s.openDialogs.has(DIALOG_ID));
   const [rows, setRows] = useState<RowState[]>([]);
   const config = Markers.getConfig();
@@ -88,7 +90,7 @@ export const MarkerConfigDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="Markers generation settings"
+      title={t("dialogs.titles.markerConfig")}
       onClose={handleClose}
       buttons={[
         { label: "Regenerate", onClick: handleRegenerateAndRefresh },

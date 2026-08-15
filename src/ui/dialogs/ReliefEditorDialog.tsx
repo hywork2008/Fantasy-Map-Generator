@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { reliefEditorActions } from "../../controllers/relief-editor";
 import type { ReliefIconSet } from "../../store/reliefEditorState";
 import { useReliefEditorState } from "../../store/reliefEditorState";
@@ -104,6 +105,7 @@ const ICON_SETS: Record<ReliefIconSet, IconDef[]> = {
 };
 
 export const ReliefEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const { isOpen, mode, iconSet, size, radius, spacing, selectedIconType } = useReliefEditorState();
 
   if (!isOpen) return null;
@@ -111,7 +113,7 @@ export const ReliefEditorDialog: React.FC = () => {
   const icons = ICON_SETS[iconSet];
 
   return (
-    <Dialog isOpen={isOpen} title="Relief Editor" onClose={() => closeDialog("reliefEditor")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.reliefEditor")} onClose={() => closeDialog("reliefEditor")}>
       <div data-tip="Select mode of operation">
         <div className="reliefEditorLabel">Mode:</div>
         <button

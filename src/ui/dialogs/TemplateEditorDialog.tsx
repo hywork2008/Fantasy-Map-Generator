@@ -1,5 +1,6 @@
 import type React from "react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, type TemplateStep, useHeightmapEditorState } from "../../store/heightmapEditorState";
@@ -10,6 +11,7 @@ import { closeDialog } from "./dialogService";
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export const TemplateEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("templateEditor"));
   const { templateSteps, templateSelected, templateSeed, templateSeedLocked, canUndo, canRedo } =
     useHeightmapEditorState();
@@ -285,7 +287,7 @@ export const TemplateEditorDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Template Editor" onClose={() => closeDialog("templateEditor")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.templateEditor")} onClose={() => closeDialog("templateEditor")}>
       <div id="templateEditorContainer">
         <div>
           <div id="templateTop">

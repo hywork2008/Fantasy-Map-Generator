@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { filterAndSortBurgs } from "../../controllers/burgs-overview";
 import { enterFocus } from "../../controllers/focus-view";
@@ -27,6 +28,7 @@ const TABS: { id: ProvinceEditorTab; label: string }[] = [
 ];
 
 export const ProvinceEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("provinceEditor"));
   const { provinceId, activeTab } = useProvinceEditorState();
   const [refreshTick, setRefreshTick] = useState(0);
@@ -112,7 +114,7 @@ export const ProvinceEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={`Edit Province: ${provinceRow.name}`}
+      title={t("dialogs.titles.editProvince", { name: provinceRow.name })}
       onClose={() => closeDialog("provinceEditor")}
       className="fmg-dialog--table"
     >

@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { unitsEditorActions } from "../../controllers/units-editor";
 import { useOptionsState } from "../../store/optionsState";
 import { useUnitsEditorState } from "../../store/unitsEditorState";
@@ -9,6 +10,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog, openPrompt } from "./dialogService";
 
 export const UnitsEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const { isOpen, rulerMode } = useUnitsEditorState();
   const options = useOptionsState();
 
@@ -80,7 +82,7 @@ export const UnitsEditorDialog: React.FC = () => {
   const isCustomWeight = !["kg", "lb"].includes(options.weightUnit);
 
   return (
-    <Dialog isOpen={isOpen} title="Units Editor" onClose={() => closeDialog("unitsEditor")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.unitsEditor")} onClose={() => closeDialog("unitsEditor")}>
       <div id="unitsEditorContainer">
         <div>
           <table id="unitsBody">

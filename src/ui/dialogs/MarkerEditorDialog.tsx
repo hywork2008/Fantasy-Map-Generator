@@ -1,10 +1,12 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { closeMarkerEditor, markersEditorActions } from "../../controllers/markers-editor";
 import { showElementLockTip } from "../../services/tooltipService";
 import { useMarkersEditorState } from "../../store/markersEditorState";
 import { Dialog } from "./Dialog";
 
 export const MarkerEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const { isOpen, type, icon, iconSize, iconShiftX, iconShiftY, size, pin, fill, stroke, isLocked, isAdding } =
     useMarkersEditorState();
 
@@ -13,7 +15,7 @@ export const MarkerEditorDialog: React.FC = () => {
   const isExternal = icon.startsWith("http") || icon.startsWith("data:image");
 
   return (
-    <Dialog isOpen={isOpen} title="Marker Editor" onClose={closeMarkerEditor}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.markerEditor")} onClose={closeMarkerEditor}>
       <div id="markerBody">
         <div data-tip="Marker type. Style changes will apply to all markers of the same type. Leave blank if the marker is unique">
           <div className="label">Type:</div>

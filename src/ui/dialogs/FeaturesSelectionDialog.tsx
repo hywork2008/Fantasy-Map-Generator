@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog } from "./Dialog";
 
 const FEATURES = [
@@ -28,6 +29,7 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
   onApply,
   onClose
 }) => {
+  const { t } = useTranslation();
   const [values, setValues] = useState<FeaturesState>(() =>
     Object.fromEntries(FEATURES.map(f => [f.name, initial[f.name] as FeatureValue]))
   );
@@ -46,11 +48,11 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
   return (
     <Dialog
       isOpen={isOpen}
-      title="Limit group by features"
+      title={t("dialogs.titles.featuresSelection")}
       onClose={onClose}
       buttons={[
-        { label: "Apply", onClick: apply },
-        { label: "Cancel", onClick: onClose }
+        { label: t("common.apply"), onClick: apply },
+        { label: t("common.cancel"), onClick: onClose }
       ]}
     >
       <table className="fmg-table fmg-property-table">

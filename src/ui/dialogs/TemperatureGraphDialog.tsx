@@ -12,6 +12,7 @@ import {
 } from "d3";
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { convertTemperature, round } from "../../utils";
@@ -38,6 +39,7 @@ export interface TemperatureGraphConfig {
 const DIALOG_ID = "temperatureGraph";
 
 export const TemperatureGraphDialog: React.FC = () => {
+  const { t } = useTranslation();
   const config = useDialogState(s => s.dialogConfigs[DIALOG_ID]) as unknown as TemperatureGraphConfig | undefined;
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -162,7 +164,7 @@ export const TemperatureGraphDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title={`Average temperature in ${config.burgName}`}
+      title={t("dialogs.titles.temperatureGraph", { name: config.burgName })}
       onClose={handleClose}
       buttons={[{ label: "Close", onClick: handleClose }]}
     >

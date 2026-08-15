@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { zoomTo } from "../../actions";
 import { simulationContext } from "../../context/simulationContext";
 import { worldContext } from "../../context/worldContext";
@@ -25,6 +26,7 @@ type HistoryRow =
   | { kind: "event"; groupIdx: number; entryIdx: number; event: ChronicleEvent; number: number };
 
 export const DiplomacyHistoryDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDiplomacyHistoryDialogState(s => s.isOpen);
   const chronicle = useDiplomacyHistoryDialogState(s => s.chronicle);
   // Live calendar year — not Options generation year (P2-10).
@@ -134,7 +136,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Relations history"
+      title={t("dialogs.titles.diplomacyHistory")}
       onClose={close}
       buttons={[
         { label: "Save", onClick: save },

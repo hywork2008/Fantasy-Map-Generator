@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ThreeDRenderer } from "../../renderers/three-d-renderer";
 import { useDialogState } from "../../store/dialogState";
 import { use3DOptionsStore } from "../../store/options3dStore";
@@ -7,6 +8,7 @@ import { Dialog } from "./Dialog";
 import { closeDialog, openDialog } from "./dialogService";
 
 export const Options3dDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("options3d"));
   const options = use3DOptionsStore();
   const [isGlobe, setIsGlobe] = useState(false);
@@ -56,7 +58,7 @@ export const Options3dDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="3D Options" onClose={() => closeDialog("options3d")}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.options3d")} onClose={() => closeDialog("options3d")}>
       <div id="options3dContainer">
         <div>
           <div style={{ display: isGlobe ? "none" : "block" }}>

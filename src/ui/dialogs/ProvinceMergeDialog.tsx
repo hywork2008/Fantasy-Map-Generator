@@ -1,11 +1,13 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { provincesEditorActions } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
 import { FillBox } from "../components/FillBox";
 import { Dialog } from "./Dialog";
 
 export const ProvinceMergeDialog: React.FC = () => {
+  const { t } = useTranslation();
   const mergeDialog = useProvincesEditorState(state => state.mergeDialog);
   const [rulingProvinceId, setRulingProvinceId] = useState<number | null>(null);
   const [provincesToMerge, setProvincesToMerge] = useState<Set<number>>(new Set());
@@ -39,7 +41,7 @@ export const ProvinceMergeDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={true}
-      title="Merge provinces"
+      title={t("dialogs.titles.mergeProvinces")}
       onClose={handleClose}
       buttons={[
         { label: "Merge", onClick: handleApply },

@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { addRiver, closeRiverCreator, getCellFlux, setCellFlux } from "../../controllers/rivers-creator";
 import { useDialogState } from "../../store/dialogState";
 import { useRiverCreatorStore } from "../../store/riverCreatorStore";
@@ -6,6 +7,7 @@ import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const RiverCreatorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("riverCreator"));
   const riverCells = useRiverCreatorStore(state => state.riverCells);
   const removeCell = useRiverCreatorStore(state => state.removeCell);
@@ -15,7 +17,7 @@ export const RiverCreatorDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="River Creator" onClose={closeRiverCreator}>
+    <Dialog isOpen={isOpen} title={t("dialogs.titles.riverCreator")} onClose={closeRiverCreator}>
       <div id="riverCreatorBody" className="table">
         {riverCells.map(cell => (
           <div key={cell} data-cell={cell}>
