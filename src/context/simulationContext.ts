@@ -88,6 +88,10 @@ export interface FrontierProjectStatus {
 export interface FrontierProject {
   readonly cellId: number;
   readonly stateId: number;
+  /** Land projects require an administrative corridor; seaborne ones establish an overseas province and port. */
+  origin?: "land" | "seaborne";
+  /** Departure port for a seaborne expedition, retained for the operational ledger. */
+  sourcePortCellId?: number;
   stage: typeof FRONTIER_STAGE.outpost | typeof FRONTIER_STAGE.settlement;
   establishedYear: number;
   supportYears: number;
@@ -111,6 +115,8 @@ export interface FrontierSimulationState {
   stateCooldownUntilYear: Record<number, number>;
   /** State policy, infrastructure and relief spending for Phase 5 frontier governance. */
   governanceByState: Record<number, FrontierStateGovernance>;
+  /** Incorporated overseas harbour cells, retained as long-lived colonial frontiers. */
+  seaborneBeachheadsByState: Record<number, number[]>;
   /**
    * Population points (male/female adults) displaced by any system (e.g. Economy's rural
    * labour release) and aggregated by destination state, awaiting a new frontier project.
@@ -129,6 +135,7 @@ export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimul
     budgetByState: {},
     stateCooldownUntilYear: {},
     governanceByState: {},
+    seaborneBeachheadsByState: {},
     applicantPoolByState: {}
   };
 }

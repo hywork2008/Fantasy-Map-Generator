@@ -749,6 +749,20 @@ function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCou
       }
     }
   }
+  if (frontier.seaborneBeachheadsByState === undefined) frontier.seaborneBeachheadsByState = {};
+  if (!isRecord(frontier.seaborneBeachheadsByState)) {
+    throw new Error("Archive simulation.frontier.seaborneBeachheadsByState must be a record");
+  }
+  for (const [stateId, beachheads] of Object.entries(frontier.seaborneBeachheadsByState)) {
+    if (
+      !isPositiveInteger(Number(stateId)) ||
+      String(Number(stateId)) !== stateId ||
+      !Array.isArray(beachheads) ||
+      !beachheads.every(isFiniteNonNegativeInteger)
+    ) {
+      throw new Error(`Archive simulation.frontier.seaborneBeachheadsByState.${stateId} is invalid`);
+    }
+  }
   if (frontier.applicantPoolByState === undefined) frontier.applicantPoolByState = {};
   if (!isRecord(frontier.applicantPoolByState))
     throw new Error("Archive simulation.frontier.applicantPoolByState must be a record");

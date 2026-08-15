@@ -209,7 +209,14 @@ registerSimulationSystem({
   id: "frontier-expansion.tick",
   phase: "politics",
   reads: ["map.politics", "simulation.cells", "simulation.states"],
-  writes: ["simulation.cells", "simulation.states", "map.politics", "map.settlements"],
+  writes: [
+    "simulation.cells",
+    "simulation.states",
+    "simulation.burgs",
+    "map.politics",
+    "map.settlements",
+    "map.networks"
+  ],
   cadence: { every: 1 },
   profileLabel: "frontierExpansion",
   run: (context, writer) => {
@@ -218,6 +225,18 @@ registerSimulationSystem({
       simulation: simulationContext,
       rng: context.rng
     });
+    for (const incorporation of result.incorporations) {
+      if (incorporation.origin !== "seaborne" || incorporation.burgId === undefined) continue;
+      document.dispatchEvent(
+        new CustomEvent("fmg:settlement-promoted", {
+          detail: {
+            burgId: incorporation.burgId,
+            cellId: incorporation.settlementCellId,
+            stateId: incorporation.stateId
+          }
+        })
+      );
+    }
     if (result.topics.length) writer.markChanged(...result.topics);
   }
 });

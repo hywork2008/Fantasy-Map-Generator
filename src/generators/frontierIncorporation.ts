@@ -2,6 +2,7 @@ import { FRONTIER_STAGE, type FrontierSimulationState, type SimulationContext } 
 import type { WorldContext } from "../context/worldContext";
 import type { Province, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
+import { Burgs } from "./burgs-generator";
 import { canStateClaimCell } from "./dangerExpandPolicy";
 import { Provinces } from "./provinces-generator";
 import { States } from "./states-generator";
@@ -20,9 +21,14 @@ export interface FrontierIncorporationInput {
 export interface FrontierIncorporation {
   readonly settlementCellId: number;
   readonly stateId: number;
+  readonly origin: "land" | "seaborne";
   /** Newly claimed cells, including the settlement and its supply corridor. */
   readonly cellIds: readonly number[];
   readonly provinceId: number;
+  /** A seaborne incorporation establishes this harbour burg immediately. */
+  burgId?: number;
+  /** True when the new harbour opened a sea-route segment. */
+  routeAdded?: boolean;
 }
 
 export interface FrontierIncorporationResult {
@@ -44,7 +50,14 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
   for (const project of Object.values(frontier.projects)) {
     if (!isEligibleSettlement(project, frontier, cells, states, simulation.currentYear)) continue;
 
-    const corridor = findAdministrativeCorridor(cells, frontier, project.cellId, project.stateId);
+    const origin = project.origin ?? "land";
+    // A seaborne project has already demonstrated its supply corridor through
+    // its departure port. It forms an overseas province instead of fabricating
+    // a land connection across another State or open water.
+    const corridor =
+      origin === "seaborne"
+        ? [project.cellId]
+        : findAdministrativeCorridor(cells, frontier, project.cellId, project.stateId);
     if (!corridor) continue;
 
     const provinceId = getOrCreateAdministrativeProvince(world, project.stateId, project.cellId, corridor);
@@ -68,10 +81,17 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
       frontier.cellStages[cellId] = FRONTIER_STAGE.incorporated;
     }
 
+    if (origin === "seaborne") {
+      const beachheads = frontier.seaborneBeachheadsByState[project.stateId] ?? [];
+      if (!beachheads.includes(project.cellId)) beachheads.push(project.cellId);
+      frontier.seaborneBeachheadsByState[project.stateId] = beachheads;
+    }
+
     delete frontier.projects[project.cellId];
     incorporations.push({
       settlementCellId: project.cellId,
       stateId: project.stateId,
+      origin,
       cellIds: claimedCellIds,
       provinceId
     });
@@ -79,6 +99,14 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
 
   if (incorporations.length) {
     recomputePoliticalAggregates(world);
+    for (const incorporation of incorporations) {
+      if (incorporation.origin !== "seaborne" || cells.burg[incorporation.settlementCellId]) continue;
+      const point = cells.p?.[incorporation.settlementCellId];
+      if (!point) continue;
+      const founded = Burgs.add(point, { routeStateId: incorporation.stateId, developPort: true });
+      incorporation.burgId = founded.burgId;
+      incorporation.routeAdded = Boolean(founded.newRoute);
+    }
     assignWildLandTags(cells);
   }
   return { incorporations };

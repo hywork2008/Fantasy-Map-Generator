@@ -87,10 +87,13 @@ export function FrontierStatusPanel() {
           const nextStep =
             project.stage === FRONTIER_STAGE.outpost
               ? `${Math.max(0, 3 - project.supportYears)} supported year(s) to a settlement`
-              : "A connected supply trail and one further year are required for incorporation";
+              : project.origin === "seaborne"
+                ? "One further year establishes an overseas province, harbour, and sea route"
+                : "A connected supply trail and one further year are required for incorporation";
           return (
             <div key={project.cellId} style={{ padding: "5px", borderLeft: "3px solid #7c6948" }}>
               <strong>{state?.name ?? `State ${project.stateId}`}</strong> · cell {project.cellId} ·{" "}
+              {project.origin === "seaborne" ? "Seaborne " : ""}
               {STAGE_LABELS[project.stage]} · fronts {activeProjectCountByState[project.stateId] ?? 0}/{slots}
               <br />
               <small>
@@ -125,8 +128,8 @@ export function FrontierStatusPanel() {
               <small key={`${candidate.stateId}:${candidate.cellId}`} style={{ display: "block" }}>
                 {state?.name ?? `State ${candidate.stateId}`}: cell {candidate.cellId} from{" "}
                 {candidate.sourceCellIds.join(", ")} — {(candidate.colonists * world.populationRate).toFixed(0)} people;
-                {candidate.sector}; score {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve{" "}
-                {candidate.requiredReserve}
+                {candidate.origin === "seaborne" ? " seaborne expedition;" : ""} {candidate.sector}; score{" "}
+                {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve {candidate.requiredReserve}
               </small>
             );
           })}

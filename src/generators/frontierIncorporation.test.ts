@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createEmptyFrontierSimulationState,
   FRONTIER_STAGE,
   type SimulationContext
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { Burgs } from "./burgs-generator";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
 
 function createWorld(corridorConnected: boolean): WorldContext {
@@ -43,6 +44,7 @@ function createSimulation(): SimulationContext {
 }
 
 describe("frontier incorporation transaction", () => {
+  afterEach(() => vi.restoreAllMocks());
   it("claims only the land-connected corridor and refreshes State, Province, and neighbor aggregates", () => {
     const world = createWorld(true);
     const simulation = createSimulation();
@@ -78,5 +80,27 @@ describe("frontier incorporation transaction", () => {
     expect(incorporateEligibleFrontierSettlements({ world, simulation }).incorporations).toEqual([]);
     expect(world.pack.cells.state).toEqual(new Uint16Array([1, 0, 0, 2]));
     expect(simulation.frontier.projects[2]).toBeDefined();
+  });
+
+  it("incorporates a seaborne settlement as an overseas province and opens its harbour route", () => {
+    const world = createWorld(false);
+    world.pack.cells.p = [
+      [0, 0],
+      [10, 0],
+      [20, 0],
+      [30, 0]
+    ];
+    const simulation = createSimulation();
+    simulation.frontier.projects[2]!.origin = "seaborne";
+    const addBurg = vi.spyOn(Burgs, "add").mockReturnValue({ burgId: 7, newRoute: { i: 4 } } as never);
+
+    const result = incorporateEligibleFrontierSettlements({ world, simulation });
+
+    expect(result.incorporations).toEqual([
+      expect.objectContaining({ settlementCellId: 2, origin: "seaborne", burgId: 7, routeAdded: true })
+    ]);
+    expect(world.pack.cells.state[2]).toBe(1);
+    expect(simulation.frontier.seaborneBeachheadsByState[1]).toEqual([2]);
+    expect(addBurg).toHaveBeenCalledWith([20, 0], { routeStateId: 1, developPort: true });
   });
 });

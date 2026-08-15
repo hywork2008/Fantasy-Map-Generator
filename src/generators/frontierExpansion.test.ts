@@ -297,6 +297,100 @@ describe("Frontier Expansion Phase 3", () => {
     ]);
   });
 
+  it("dispatches a seaborne expedition to an unclaimed natural harbour after land expansion is closed", () => {
+    const world = createWorld();
+    world.options.frontierStartMode = "seaborne";
+    const cellIds = Array.from({ length: 16 }, (_, cellId) => cellId);
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: Uint16Array.from(cellIds),
+      c: cellIds.map(cellId => {
+        if (cellId === 1) return [3, 4];
+        if (cellId === 3) return [1];
+        if (cellId === 4) return [1, 5];
+        if (cellId > 4) return cellId === 15 ? [14] : [cellId - 1, cellId + 1];
+        return [];
+      }),
+      p: cellIds.map(cellId => [cellId * 10, 0] as [number, number]),
+      state: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 1 : 0)),
+      province: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 1 : 0)),
+      pop: Float32Array.from(cellIds, cellId => (cellId === 0 ? 100 : 0)),
+      capacity: Float32Array.from(cellIds, cellId => (cellId === 0 ? 100 : cellId === 1 ? 50 : 0)),
+      children: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      maleAdults: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      femaleAdults: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      elders: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      danger: Uint8Array.from(cellIds, cellId => (cellId === 1 ? 10 : 0)),
+      h: Uint8Array.from(cellIds, cellId => (cellId === 2 || cellId === 3 ? 0 : 30)),
+      s: Uint8Array.from(cellIds, cellId => (cellId === 2 || cellId === 3 ? 0 : 50)),
+      r: new Uint16Array(cellIds.length),
+      harbor: Uint8Array.from(cellIds, cellId => (cellId === 0 || cellId === 1 ? 1 : 0)),
+      haven: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 2 : cellId === 1 ? 3 : 0)),
+      f: Uint16Array.from(cellIds, cellId => (cellId === 2 || cellId === 3 ? 1 : 2)),
+      burg: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 1 : 0)),
+      conf: new Uint8Array(cellIds.length),
+      routes: Object.fromEntries(cellIds.map(cellId => [cellId, {}]))
+    };
+    world.pack.features = [0, { i: 1, type: "ocean", cells: 2 }, { i: 2, type: "island", cells: 20 }];
+    world.pack.burgs = [{ i: 0 }, { i: 1, state: 1, cell: 0, port: 1 }];
+    const simulation = createSimulation(100, 100, cellIds.length);
+
+    // The same beachhead is rejected while a foreign State is only two hops inland.
+    world.pack.cells.state[5] = 2;
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([]);
+    world.pack.cells.state[5] = 0;
+
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([
+      expect.objectContaining({ cellId: 1, origin: "seaborne", sourcePortCellId: 0 })
+    ]);
+
+    expect(advance(world, simulation).established).toEqual([1]);
+    expect(simulation.frontier.projects[1]).toEqual(
+      expect.objectContaining({ origin: "seaborne", sourcePortCellId: 0 })
+    );
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([]);
+  });
+
+  it("does not treat a one- or two-cell islet as an overseas colony destination", () => {
+    const world = createWorld();
+    world.options.frontierStartMode = "seaborne";
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2, 3]),
+      c: [[], [3], [1], [1]],
+      p: [
+        [0, 0],
+        [100, 0],
+        [0, 10],
+        [100, 10]
+      ],
+      state: new Uint16Array([1, 0, 0, 0]),
+      province: new Uint16Array([1, 0, 0, 0]),
+      pop: new Float32Array([100, 0, 0, 0]),
+      capacity: new Float32Array([100, 50, 0, 0]),
+      danger: new Uint8Array([0, 10, 0, 0]),
+      h: new Uint8Array([30, 30, 0, 0]),
+      s: new Uint8Array([50, 50, 0, 0]),
+      r: new Uint16Array([0, 0, 0, 0]),
+      harbor: new Uint8Array([1, 1, 0, 0]),
+      haven: new Uint16Array([2, 3, 0, 0]),
+      f: new Uint16Array([2, 3, 1, 1]),
+      burg: new Uint16Array([1, 0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {}, 3: {} }
+    };
+    world.pack.features = [
+      0,
+      { i: 1, type: "ocean", cells: 2 },
+      { i: 2, type: "island", cells: 20 },
+      { i: 3, type: "island", cells: 2 }
+    ];
+    world.pack.burgs = [{ i: 0 }, { i: 1, state: 1, cell: 0, port: 1 }];
+    const simulation = createSimulation(100, 100, 4);
+
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([]);
+  });
+
   it("does not re-evaluate a project twice in the same calendar year", () => {
     const world = createWorld();
     const simulation = createSimulation(100);
@@ -324,6 +418,23 @@ describe("Frontier Expansion Phase 3", () => {
     expect(world.pack.cells.maleAdults[1]).toBeCloseTo(3);
     expect(world.pack.cells.femaleAdults[1]).toBeCloseTo(3);
     expect(world.pack.cells.children[1]).toBe(0);
+    expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
+  });
+
+  it("ships capital-supported settlers to an incorporated overseas beachhead before its local population has surplus", () => {
+    const world = createWorld();
+    // The local beachhead has no surplus, but it still has a viable adjacent
+    // frontier cell. A funded annual convoy supplies the next expedition.
+    world.pack.cells.pop[0] = 65;
+    const simulation = createSimulation(100);
+    simulation.frontier.seaborneBeachheadsByState[1] = [0];
+
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([1]);
+    expect(world.pack.cells.pop[0]).toBe(65);
+    expect(world.pack.cells.pop[1]).toBeCloseTo(3);
+    expect(world.pack.states[1]?.treasury).toBe(88);
     expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
   });
 

@@ -1,4 +1,5 @@
 import {
+  addFrontierApplicants,
   createEmptyFrontierSimulationState,
   FRONTIER_STAGE,
   type FrontierProject,
@@ -7,11 +8,13 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
+import { allowsGeneratedSeaLanes } from "../utils/frontierStartMode";
 import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
+import { isTrueOceanHarborCell, isTrueOceanPortBurg } from "../utils/oceanPort";
 import type { RNGService } from "../utils/probabilityUtils";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
-import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
+import { type FrontierIncorporation, incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 import { allowsFrontierOutpost } from "./wildLandTags";
 
@@ -26,6 +29,17 @@ const SETUP_FOOD = 4;
 const MAX_FRONTIER_HOPS = 6;
 const SOURCE_RETENTION_RATIO = 0.65;
 const MAX_FRONTIER_PROJECT_SLOTS = 3;
+/** A one- or two-cell rock cannot sustain the harbour town and hinterland an overseas colony requires. */
+const MIN_SEABORNE_TARGET_LAND_CELLS = 8;
+/** Overseas colonization needs a quiet beachhead, not a shore already in another State's immediate reach. */
+const MIN_SEABORNE_FOREIGN_STATE_HOPS = 8;
+/** Count of accessible unclaimed land cells needed to make the port a viable expansion base. */
+const MIN_SEABORNE_HINTERLAND_CELLS = 12;
+const SEABORNE_HINTERLAND_SEARCH_HOPS = 12;
+/** Annual capital convoy: food, construction material, and escorted migrants for the active overseas frontier. */
+const SEABORNE_SUPPLY_COST = 4;
+const SEABORNE_SUPPLY_FOOD = 2;
+const SEABORNE_SUPPLY_COLONISTS = 3;
 const FRONTIER_SECTOR_NAMES = [
   "east",
   "south-east",
@@ -49,6 +63,8 @@ export interface FrontierExpansionResult {
   readonly abandoned: readonly number[];
   readonly settled: readonly number[];
   readonly incorporated: readonly number[];
+  /** Full incorporation transactions, including a completed overseas harbour if one was founded. */
+  readonly incorporations: readonly FrontierIncorporation[];
 }
 
 /** Read-only projection for the Tools panel; it never consumes simulation RNG. */
@@ -63,6 +79,10 @@ export interface FrontierCandidateSummary {
   readonly colonists: number;
   /** Geographic expansion sector relative to the State centre. */
   readonly sector: string;
+  /** Land expansion, or an expedition that founds an overseas harbour settlement. */
+  readonly origin: "land" | "seaborne";
+  /** Present only for seaborne expeditions. */
+  readonly sourcePortCellId?: number;
   readonly score: number;
   readonly setupCost: number;
   readonly requiredReserve: number;
@@ -84,7 +104,7 @@ export function getFrontierCandidateSummaries(
   const candidates: FrontierCandidateSummary[] = [];
   for (const state of states) {
     if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i, cells, state.center)) continue;
-    candidates.push(...getAvailableStateCandidates(state.i, cells, simulation.frontier, state.center));
+    candidates.push(...getAvailableStateCandidates(state.i, world, simulation.frontier, state.center));
   }
   return candidates.sort((a, b) => b.score - a.score || a.stateId - b.stateId || a.cellId - b.cellId).slice(0, 8);
 }
@@ -109,10 +129,14 @@ export function getFrontierCandidateBlockerSummaries(
       blockers.push({ stateId: state.i, reason: startBlocker });
       continue;
     }
-    const allCandidates = getStateCandidates(state.i, cells, simulation.frontier, state.center);
-    if (!getAvailableStateCandidates(state.i, cells, simulation.frontier, state.center).length) {
+    const allCandidates = getStateCandidates(state.i, world, simulation.frontier, state.center);
+    if (!getAvailableStateCandidates(state.i, world, simulation.frontier, state.center).length) {
       if (allCandidates.length) {
         blockers.push({ stateId: state.i, reason: "All viable sites are in active frontier sectors" });
+        continue;
+      }
+      if (!canOpenSeaborneBeachhead(state.i, cells, simulation.frontier)) {
+        blockers.push({ stateId: state.i, reason: "Existing overseas beachheads still have land to settle" });
         continue;
       }
       const available = getBestReachableColonistPool(state.i, cells, simulation.frontier);
@@ -133,6 +157,8 @@ type FrontierCandidate = {
   readonly contributions: readonly FrontierContribution[];
   readonly colonists: number;
   readonly sector: string;
+  readonly origin: "land" | "seaborne";
+  readonly sourcePortCellId?: number;
   readonly score: number;
 };
 
@@ -195,6 +221,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
   const abandoned: number[] = [];
   const settled: number[] = [];
   const incorporated: number[] = [];
+  let incorporations: readonly FrontierIncorporation[] = [];
 
   for (const project of Object.values(frontier.projects)) {
     const outcome = advanceProject(project, frontier, input, year);
@@ -213,14 +240,19 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
 
   const incorporation = incorporateEligibleFrontierSettlements(input);
   if (incorporation.incorporations.length) {
+    incorporations = incorporation.incorporations;
     for (const entry of incorporation.incorporations) incorporated.push(entry.settlementCellId);
     topics.add("simulation.states");
     topics.add("map.politics");
     topics.add("map.settlements");
+    if (incorporation.incorporations.some(entry => entry.burgId !== undefined)) topics.add("simulation.burgs");
+    if (incorporation.incorporations.some(entry => entry.routeAdded)) topics.add("map.networks");
   }
 
   for (const state of world.pack.states ?? []) {
     if (!state?.i || state.removed || isAtWar(state)) continue;
+
+    if (fundSeaborneBeachheadSupply(state.i, input, frontier)) topics.add("simulation.states");
 
     const slots = getFrontierProjectSlots(state.i, cells);
     let activeProjects = getActiveProjectCount(frontier, state.i);
@@ -233,6 +265,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       // Eligibility uses the pre-economy snapshot. Same-tick tax and upkeep must
       // not zero the reserve that was already known at this calendar boundary.
       if (priorBudget < requiredReserve) break;
+      if (hasActiveSeaborneProject(frontier, state.i)) break;
 
       // Re-evaluate after every transfer: no second project may spend the same
       // source-cell surplus claimed by the first one in this annual transaction.
@@ -248,6 +281,8 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       frontier.projects[candidate.cellId] = {
         cellId: candidate.cellId,
         stateId: state.i,
+        origin: candidate.origin,
+        sourcePortCellId: candidate.sourcePortCellId,
         stage: FRONTIER_STAGE.outpost,
         establishedYear: year,
         supportYears: 0,
@@ -262,7 +297,36 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
     }
   }
 
-  return { topics: [...topics], established, abandoned, settled, incorporated };
+  return { topics: [...topics], established, abandoned, settled, incorporated, incorporations };
+}
+
+/**
+ * A mature overseas harbour receives one annual convoy while it still has a
+ * local frontier. The treasury payment represents grain and construction
+ * materials; the escorted settlers enter the existing host-owned applicant
+ * pool, so normal project rules still choose the exact next cell and perform
+ * the population transfer transaction.
+ */
+function fundSeaborneBeachheadSupply(
+  stateId: number,
+  input: FrontierExpansionInput,
+  frontier: FrontierSimulationState
+): boolean {
+  const { cells, states } = input.world.pack;
+  const state = states[stateId];
+  if (!state || state.removed) return false;
+  const hasOpenBeachhead = (frontier.seaborneBeachheadsByState?.[stateId] ?? []).some(
+    cellId => cells.state[cellId] === stateId && hasReachableBeachheadFrontier(cells, frontier, cellId, stateId)
+  );
+  if (!hasOpenBeachhead) return false;
+
+  const priorBudget = resolvedFrontierBudget(frontier, stateId, state.treasury);
+  if (priorBudget < TREASURY_RESERVE + SETUP_COST + SEABORNE_SUPPLY_COST) return false;
+
+  state.treasury = Math.max(0, (state.treasury ?? 0) - SEABORNE_SUPPLY_COST);
+  consumeFood(state, SEABORNE_SUPPLY_FOOD);
+  addFrontierApplicants(frontier, stateId, SEABORNE_SUPPLY_COLONISTS / 2, SEABORNE_SUPPLY_COLONISTS / 2);
+  return true;
 }
 
 function advanceProject(
@@ -331,14 +395,15 @@ function selectCandidate(
   stateCenter: number | undefined,
   occupiedSectors: ReadonlySet<string>
 ): FrontierCandidate | null {
-  const { cells } = input.world.pack;
-  const candidates = getStateCandidates(stateId, cells, input.simulation.frontier, stateCenter)
+  const candidates = getStateCandidates(stateId, input.world, input.simulation.frontier, stateCenter)
     .filter(candidate => !occupiedSectors.has(candidate.sector))
     .map(candidate => ({
       cellId: candidate.cellId,
       contributions: candidate.contributions,
       colonists: candidate.colonists,
       sector: candidate.sector,
+      origin: candidate.origin,
+      sourcePortCellId: candidate.sourcePortCellId,
       score: candidate.score + input.rng.rand()
     }));
 
@@ -350,6 +415,21 @@ type InternalFrontierCandidateSummary = FrontierCandidateSummary & {
 };
 
 function getStateCandidates(
+  stateId: number,
+  world: WorldContext,
+  frontier: FrontierSimulationState,
+  stateCenter: number | undefined
+): readonly InternalFrontierCandidateSummary[] {
+  const { cells } = world.pack;
+  const landCandidates = getLandStateCandidates(stateId, cells, frontier, stateCenter);
+  // Overseas colonization is an escape from a closed land frontier, not a
+  // replacement for ordinary local settlement. A State first uses reachable
+  // wilderness on its present landmass; only then may an ocean-going port
+  // dispatch colonists to a different landmass on the same ocean.
+  return landCandidates.length ? landCandidates : getSeaborneStateCandidates(stateId, world, frontier, stateCenter);
+}
+
+function getLandStateCandidates(
   stateId: number,
   cells: WorldContext["pack"]["cells"],
   frontier: FrontierSimulationState,
@@ -407,6 +487,7 @@ function getStateCandidates(
       contributions,
       colonists,
       sector: getFrontierSector(cellId, stateCenter, cells),
+      origin: "land",
       score: scoreCandidate(cells, cellId, 0) - Math.min(...contributions.map(contribution => contribution.hops)) * 9,
       setupCost: SETUP_COST,
       requiredReserve: TREASURY_RESERVE + SETUP_COST
@@ -415,15 +496,181 @@ function getStateCandidates(
   return candidates;
 }
 
-function getAvailableStateCandidates(
+/**
+ * Finds a substantial coastal wilderness site reachable from one of the
+ * State's true ocean ports without assuming that a charted sea route already
+ * exists. It may be on the State's original island when foreign territory has
+ * cut its land frontier; the new settlement becomes the missing endpoint.
+ */
+function getSeaborneStateCandidates(
   stateId: number,
-  cells: WorldContext["pack"]["cells"],
+  world: WorldContext,
   frontier: FrontierSimulationState,
   stateCenter: number | undefined
 ): readonly InternalFrontierCandidateSummary[] {
+  const { pack } = world;
+  const { cells } = pack;
+  if (!allowsGeneratedSeaLanes(world.options)) return [];
+  // Saved maps from before coastal data existed cannot support a safe maritime
+  // site selection. Keep their established land-frontier behaviour unchanged.
+  if (!cells.f || !cells.haven || !cells.harbor || !cells.burg) return [];
+  if (!canOpenSeaborneBeachhead(stateId, cells, frontier)) return [];
+
+  const portsByOcean = new Map<number, number[]>();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.state !== stateId || !isTrueOceanPortBurg(burg, pack)) continue;
+    // isTrueOceanPortBurg guarantees this, but TypeScript cannot narrow an
+    // optional Burg field through that helper's boolean return type.
+    const oceanId = burg.port;
+    if (!oceanId) continue;
+    const ports = portsByOcean.get(oceanId) ?? [];
+    ports.push(burg.cell);
+    portsByOcean.set(oceanId, ports);
+  }
+  if (!portsByOcean.size) return [];
+
+  const contributions: FrontierContribution[] = [];
+  const poolAvailable = getFrontierApplicantPoolTotal(frontier, stateId);
+  if (poolAvailable > 0) contributions.push({ sourceCellId: -1, colonists: poolAvailable, hops: 0, isPool: true });
+  for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
+    if (cells.state[sourceCellId] !== stateId) continue;
+    const available = estimateSourceContribution(
+      cells.pop[sourceCellId] ?? 0,
+      getCellSubsistenceCapacity(cells, sourceCellId)
+    );
+    if (available > 0) contributions.push({ sourceCellId, colonists: available, hops: 0 });
+  }
+  if (!contributions.length) return [];
+
+  const candidates: InternalFrontierCandidateSummary[] = [];
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (!isEligibleTarget(cells, frontier, cellId) || cells.burg[cellId]) continue;
+    const targetLandCells = getSeaborneTargetLandCells(pack, cells.f[cellId]);
+    if (targetLandCells < MIN_SEABORNE_TARGET_LAND_CELLS) continue;
+    const hinterland = assessSeaborneHinterland(cells, cellId, stateId);
+    if (
+      hinterland.unclaimedLandCells < MIN_SEABORNE_HINTERLAND_CELLS ||
+      hinterland.nearestForeignStateHops < MIN_SEABORNE_FOREIGN_STATE_HOPS
+    ) {
+      continue;
+    }
+    if (!cells.harbor[cellId] || !isTrueOceanHarborCell(cellId, pack)) continue;
+    const haven = cells.haven[cellId];
+    if (!haven) continue;
+    const departurePorts = portsByOcean.get(cells.f[haven]);
+    if (!departurePorts?.length) continue;
+
+    const targetLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
+    let remaining = targetLimit;
+    const limitedContributions: FrontierContribution[] = [];
+    for (const contribution of [...contributions].sort(
+      (a, b) => b.colonists - a.colonists || a.sourceCellId - b.sourceCellId
+    )) {
+      if (remaining <= 0) break;
+      const colonists = Math.min(contribution.colonists, remaining);
+      if (colonists <= 0) continue;
+      limitedContributions.push({ ...contribution, colonists });
+      remaining -= colonists;
+    }
+    const colonists = limitedContributions.reduce((total, contribution) => total + contribution.colonists, 0);
+    if (colonists < MIN_COLONISTS) continue;
+
+    const sourcePortCellId = departurePorts
+      .slice()
+      .sort((a, b) => getCellDistance(cells, a, cellId) - getCellDistance(cells, b, cellId) || a - b)[0];
+    if (sourcePortCellId === undefined) continue;
+    const sourceCellIds = limitedContributions.filter(contribution => !contribution.isPool).map(c => c.sourceCellId);
+    const distance = getCellDistance(cells, sourcePortCellId, cellId);
+    candidates.push({
+      stateId,
+      cellId,
+      sourceCellId: sourceCellIds[0] ?? sourcePortCellId,
+      sourceCellIds,
+      contributions: limitedContributions,
+      colonists,
+      sector: `sea-${getFrontierSector(cellId, stateCenter, cells)}`,
+      origin: "seaborne",
+      sourcePortCellId,
+      // Prefer a colony with a real hinterland. Crossing distance is a soft
+      // support cost, never a reason to settle a barren nearby islet instead.
+      score:
+        scoreCandidate(cells, cellId, 0) +
+        getSeaborneHinterlandScore(targetLandCells) +
+        Math.min(36, hinterland.unclaimedLandCells * 2) -
+        distance / 250,
+      setupCost: SETUP_COST,
+      requiredReserve: TREASURY_RESERVE + SETUP_COST
+    });
+  }
+  return candidates;
+}
+
+function getCellDistance(cells: WorldContext["pack"]["cells"], first: number, second: number): number {
+  const firstPoint = cells.p?.[first];
+  const secondPoint = cells.p?.[second];
+  if (!firstPoint || !secondPoint) return 0;
+  return Math.hypot(secondPoint[0] - firstPoint[0], secondPoint[1] - firstPoint[1]);
+}
+
+function getSeaborneTargetLandCells(world: WorldContext["pack"], featureId: number): number {
+  const feature = world.features?.[featureId];
+  return feature?.type === "island" ? feature.cells : 0;
+}
+
+function getSeaborneHinterlandScore(landCells: number): number {
+  return Math.min(45, Math.log2(Math.max(1, landCells)) * 7);
+}
+
+function assessSeaborneHinterland(
+  cells: WorldContext["pack"]["cells"],
+  originCellId: number,
+  stateId: number
+): { unclaimedLandCells: number; nearestForeignStateHops: number } {
+  const queue: Array<{ cellId: number; hops: number }> = [{ cellId: originCellId, hops: 0 }];
+  const visited = new Set<number>([originCellId]);
+  let unclaimedLandCells = 0;
+  let nearestForeignStateHops = Infinity;
+
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || current.hops > SEABORNE_HINTERLAND_SEARCH_HOPS) continue;
+    if (cells.state[current.cellId] === 0) unclaimedLandCells++;
+    if (current.hops === SEABORNE_HINTERLAND_SEARCH_HOPS) continue;
+
+    for (const neighborId of cells.c[current.cellId] ?? []) {
+      if (cells.h[neighborId] < 20) continue;
+      const hops = current.hops + 1;
+      const owner = cells.state[neighborId];
+      if (owner && owner !== stateId) {
+        nearestForeignStateHops = Math.min(nearestForeignStateHops, hops);
+        continue;
+      }
+      // The colonial hinterland is land that can be settled from the new port.
+      // Do not route this estimate through a sponsoring State's separate realm.
+      if (owner === stateId || visited.has(neighborId)) continue;
+      visited.add(neighborId);
+      queue.push({ cellId: neighborId, hops });
+    }
+  }
+  return { unclaimedLandCells, nearestForeignStateHops };
+}
+
+function getAvailableStateCandidates(
+  stateId: number,
+  world: WorldContext,
+  frontier: FrontierSimulationState,
+  stateCenter: number | undefined
+): readonly InternalFrontierCandidateSummary[] {
+  const { cells } = world.pack;
   const occupiedSectors = getActiveProjectSectors(frontier, stateId, cells, stateCenter);
-  return getStateCandidates(stateId, cells, frontier, stateCenter).filter(
-    candidate => !occupiedSectors.has(candidate.sector)
+  const hasActiveOverseasProject = hasActiveSeaborneProject(frontier, stateId);
+  return getStateCandidates(stateId, world, frontier, stateCenter).filter(
+    candidate =>
+      !occupiedSectors.has(candidate.sector) &&
+      // A State funds and protects one beachhead until it is incorporated.
+      // This prevents a spare project slot from scattering colonies across
+      // nearby islands in the same few years.
+      !(hasActiveOverseasProject && candidate.origin === "seaborne")
   );
 }
 
@@ -602,7 +849,12 @@ function estimateSourceContribution(sourcePopulation: number, sourceCapacity: nu
 
 function ensureFrontierState(simulation: SimulationContext, cellCount: number): FrontierSimulationState {
   const frontier = simulation.frontier;
-  if (frontier.cellStages.length === cellCount) return frontier;
+  if (frontier.cellStages.length === cellCount) {
+    // Archives created before seaborne colonization need this sparse ledger
+    // added in place; replacing frontier would discard live projects.
+    frontier.seaborneBeachheadsByState ??= {};
+    return frontier;
+  }
   simulation.frontier = createEmptyFrontierSimulationState(cellCount);
   return simulation.frontier;
 }
@@ -624,6 +876,38 @@ export function getFrontierProjectSlots(stateId: number, cells: WorldContext["pa
 
 function getActiveProjectCount(frontier: FrontierSimulationState, stateId: number): number {
   return Object.values(frontier.projects).filter(project => project.stateId === stateId).length;
+}
+
+function hasActiveSeaborneProject(frontier: FrontierSimulationState, stateId: number): boolean {
+  return Object.values(frontier.projects).some(project => project.stateId === stateId && project.origin === "seaborne");
+}
+
+/**
+ * A new overseas landing is permitted only after every prior overseas harbour
+ * has exhausted its own immediately reachable frontier. This keeps a State
+ * focused on developing the colony it already founded instead of hopping from
+ * one contested coast to the next every few years.
+ */
+function canOpenSeaborneBeachhead(
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState
+): boolean {
+  const beachheads = frontier.seaborneBeachheadsByState?.[stateId] ?? [];
+  return beachheads
+    .filter(cellId => cells.state[cellId] === stateId)
+    .every(cellId => !hasReachableBeachheadFrontier(cells, frontier, cellId, stateId));
+}
+
+function hasReachableBeachheadFrontier(
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState,
+  beachheadCellId: number,
+  stateId: number
+): boolean {
+  return findReachableFrontier(cells, frontier, beachheadCellId, stateId).some(({ cellId }) =>
+    isEligibleTarget(cells, frontier, cellId)
+  );
 }
 
 function getActiveProjectSectors(
@@ -662,5 +946,5 @@ function consumeFood(state: { foodStock?: number }, amount: number): void {
 }
 
 function emptyResult(): FrontierExpansionResult {
-  return { topics: [], established: [], abandoned: [], settled: [], incorporated: [] };
+  return { topics: [], established: [], abandoned: [], settled: [], incorporated: [], incorporations: [] };
 }
