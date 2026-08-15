@@ -25,6 +25,7 @@ import {
   resetActiveMarketName
 } from "../../controllers/market-overview";
 import type { TransportAssetOrder } from "../../generators/marketTypes";
+import { TradeLogisticsSettings } from "../../generators/tradeLogisticsSettings";
 import {
   type MarketOverviewBurgMerchantRow,
   type MarketOverviewRow,
@@ -33,27 +34,36 @@ import {
   useMarketOverviewState
 } from "../../store/marketOverviewState";
 
-const TRANSPORT_ORDER_STATUS_LABELS: Record<MarketOverviewTransportOrderRow["status"], string> = {
-  queued: "Queued",
-  waitingMaterials: "Waiting",
-  building: "Building",
-  completed: "Completed",
-  cancelled: "Cancelled"
+const TRANSPORT_ORDER_STATUS_KEYS: Record<MarketOverviewTransportOrderRow["status"], string> = {
+  queued: "extensions.marketOverview.statusQueued",
+  waitingMaterials: "extensions.marketOverview.statusWaiting",
+  building: "extensions.marketOverview.statusBuilding",
+  completed: "extensions.marketOverview.statusCompleted",
+  cancelled: "extensions.marketOverview.statusCancelled"
 };
 
-const TRANSPORT_ORDER_BLOCKED_LABELS: Record<NonNullable<MarketOverviewTransportOrderRow["blockedReason"]>, string> = {
-  insufficientTreasury: "Market treasury is too low",
-  budgetLimit: "Material cost exceeds the order budget",
-  missingMaterials: "Required materials are not in stock",
-  missingCraftWorkers: "No matching craft workers are available"
+const TRANSPORT_ORDER_BLOCKED_KEYS: Record<NonNullable<MarketOverviewTransportOrderRow["blockedReason"]>, string> = {
+  insufficientTreasury: "extensions.marketOverview.blockedTreasury",
+  budgetLimit: "extensions.marketOverview.blockedBudget",
+  missingMaterials: "extensions.marketOverview.blockedMaterials",
+  missingCraftWorkers: "extensions.marketOverview.blockedWorkers"
+};
+
+const TRANSPORT_ASSET_NAME_KEYS: Record<string, string> = {
+  "pack-train": "extensions.marketOverview.assetPackTrain",
+  "Pack train": "extensions.marketOverview.assetPackTrain",
+  cart: "extensions.marketOverview.assetCart",
+  Cart: "extensions.marketOverview.assetCart",
+  wagon: "extensions.marketOverview.assetWagon",
+  Wagon: "extensions.marketOverview.assetWagon",
+  "river-barge": "extensions.marketOverview.assetRiverBarge",
+  "River barge": "extensions.marketOverview.assetRiverBarge"
 };
 
 const TRANSPORT_ASSET_BLUEPRINTS = getTransportAssetOrderBlueprints();
 
-function formatTransportBlueprintName(blueprintId: TransportAssetOrder["blueprintId"]): string {
-  if (blueprintId === "pack-train") return "Pack train";
-  if (blueprintId === "river-barge") return "River barge";
-  return `${blueprintId[0].toUpperCase()}${blueprintId.slice(1)}`;
+function transportAssetLabel(assetId: string, fallback: string, t: (key: string) => string): string {
+  return TRANSPORT_ASSET_NAME_KEYS[assetId] ? t(TRANSPORT_ASSET_NAME_KEYS[assetId]) : fallback;
 }
 
 export const MarketOverviewDialog: React.FC = () => {
@@ -81,7 +91,6 @@ export const MarketOverviewDialog: React.FC = () => {
   const exportStagingUnits = useMarketOverviewState(state => state.exportStagingUnits);
   const exportStagingValue = useMarketOverviewState(state => state.exportStagingValue);
   const merchantOrganizationName = useMarketOverviewState(state => state.merchantOrganizationName);
-  const sailScheduleLabel = useMarketOverviewState(state => state.sailScheduleLabel);
   const foodLedger = useMarketOverviewState(state => state.foodLedger);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets">("goods");
@@ -219,10 +228,10 @@ export const MarketOverviewDialog: React.FC = () => {
     >
       <div id="marketOverviewContainer">
         <div id="marketOverviewNameLine" className="d-flex header">
-          <div className="label">Name:</div>
+          <div className="label">{t("extensions.marketOverview.name")}</div>
           <input
             id="marketOverviewName"
-            data-tip="Type to rename the market. Clear the field to reset to the default name"
+            data-tip={t("extensions.marketOverview.nameTip")}
             autoCorrect="off"
             spellCheck={false}
             value={name}
@@ -231,7 +240,7 @@ export const MarketOverviewDialog: React.FC = () => {
           />
           <IconButton
             id="marketOverviewNameReset"
-            data-tip="Reset to the default name (center burg name)"
+            data-tip={t("extensions.marketOverview.nameResetTip")}
             className="icon-ccw pointer -3em"
             onClick={resetActiveMarketName}
           />
@@ -239,35 +248,53 @@ export const MarketOverviewDialog: React.FC = () => {
 
         <div className="totalLine" id="marketOverviewTradeLogistics">
           {merchantOrganizationName ? (
-            <div data-tip="Merchant company based at this market">{merchantOrganizationName}</div>
+            <div data-tip={t("extensions.marketOverview.companyTip")}>{merchantOrganizationName}</div>
           ) : null}
-          <div data-tip="Trade working capital available for export booking (not grain farmgate balance)">
-            Trade capital: {formatPrice(tradeCapitalAvailable)} free / {formatPrice(tradeWorkingCapital)} total
-            {tradeCapitalLocked > 0 ? ` (${formatPrice(tradeCapitalLocked)} locked)` : ""}
+          <div data-tip={t("extensions.marketOverview.tradeCapitalTip")}>
+            {t("extensions.marketOverview.tradeCapital", {
+              free: formatPrice(tradeCapitalAvailable),
+              total: formatPrice(tradeWorkingCapital)
+            })}
+            {tradeCapitalLocked > 0
+              ? t("extensions.marketOverview.tradeCapitalLocked", { locked: formatPrice(tradeCapitalLocked) })
+              : ""}
           </div>
-          <div data-tip="Goods already bought into the export warehouse, waiting to load">
-            Export warehouse: {exportStagingLotCount} lots · {exportStagingUnits} units ·{" "}
-            {formatPrice(exportStagingValue)}
+          <div data-tip={t("extensions.marketOverview.exportWarehouseTip")}>
+            {t("extensions.marketOverview.exportWarehouse", {
+              lots: exportStagingLotCount,
+              units: exportStagingUnits,
+              value: formatPrice(exportStagingValue)
+            })}
           </div>
-          <div data-tip="Regular commercial sail days; full holds may leave earlier">{sailScheduleLabel}</div>
+          <div data-tip={t("extensions.marketOverview.sailScheduleTip")}>
+            {t("extensions.marketOverview.sailSchedule", {
+              days: TradeLogisticsSettings.getOptions().sailDays.join(" / ")
+            })}
+          </div>
         </div>
 
         {foodLedger && (
           <div className="totalLine" id="marketOverviewFoodLedger">
-            <div data-tip="Current-quarter Grain production from rural fields in this Market territory">
-              Local Grain: {foodLedger.localProduction} / quarter
+            <div data-tip={t("extensions.marketOverview.localGrainTip")}>
+              {t("extensions.marketOverview.localGrain", { value: foodLedger.localProduction })}
             </div>
-            <div data-tip="Rural and urban Food Ledger consumption required this quarter">
-              Food need: {foodLedger.quarterlyNeed} / quarter
+            <div data-tip={t("extensions.marketOverview.foodNeedTip")}>
+              {t("extensions.marketOverview.foodNeed", { value: foodLedger.quarterlyNeed })}
             </div>
-            <div data-tip="Food physically delivered from other Markets this quarter, not a population-capacity estimate">
-              Imported: {foodLedger.importedFood} ({foodLedger.importSharePercent}% of need)
+            <div data-tip={t("extensions.marketOverview.importedTip")}>
+              {t("extensions.marketOverview.imported", {
+                value: foodLedger.importedFood,
+                pct: foodLedger.importSharePercent
+              })}
             </div>
-            <div data-tip="Requested reserve replenishment that was not delivered this quarter; this is not an immediate starvation count">
-              Reserve gap: {foodLedger.reserveGap}
+            <div data-tip={t("extensions.marketOverview.reserveGapTip")}>
+              {t("extensions.marketOverview.reserveGap", { value: foodLedger.reserveGap })}
             </div>
-            <div data-tip="Food held in the three Food Ledger stock-age buckets">
-              Food stock: {foodLedger.stock} ({foodLedger.stockMonths} months)
+            <div data-tip={t("extensions.marketOverview.foodStockTip")}>
+              {t("extensions.marketOverview.foodStock", {
+                value: foodLedger.stock,
+                months: foodLedger.stockMonths
+              })}
             </div>
           </div>
         )}
@@ -278,21 +305,21 @@ export const MarketOverviewDialog: React.FC = () => {
             className={`options ${activeTab === "goods" ? "active" : ""}`}
             onClick={() => setActiveTab("goods")}
           >
-            Goods
+            {t("extensions.marketOverview.tabGoods")}
           </button>
           <button
             type="button"
             className={`options ${activeTab === "burgMerchants" ? "active" : ""}`}
             onClick={() => setActiveTab("burgMerchants")}
           >
-            Burg merchants
+            {t("extensions.marketOverview.tabMerchants")}
           </button>
           <button
             type="button"
             className={`options ${activeTab === "transportAssets" ? "active" : ""}`}
             onClick={() => setActiveTab("transportAssets")}
           >
-            Transport assets
+            {t("extensions.marketOverview.tabTransport")}
           </button>
         </div>
 
@@ -309,16 +336,30 @@ export const MarketOverviewDialog: React.FC = () => {
                 <thead id="marketOverviewHeader">
                   <tr className="header">
                     <th />
-                    <SortHeaderGoods field="goodName" label="Good" tip="Click to sort by good" />
-                    <SortHeaderGoods field="stock" label="Stock" tip="Click to sort by stock" numeric />
-                    <SortHeaderGoods field="price" label="Price" tip="Click to sort by price" numeric />
+                    <SortHeaderGoods
+                      field="goodName"
+                      label={t("extensions.marketOverview.good")}
+                      tip={t("extensions.marketOverview.goodTip")}
+                    />
+                    <SortHeaderGoods
+                      field="stock"
+                      label={t("extensions.marketOverview.stock")}
+                      tip={t("extensions.marketOverview.stockTip")}
+                      numeric
+                    />
+                    <SortHeaderGoods
+                      field="price"
+                      label={t("extensions.marketOverview.price")}
+                      tip={t("extensions.marketOverview.priceTip")}
+                      numeric
+                    />
                   </tr>
                 </thead>
                 {rows.length === 0 ? (
                   <tbody>
                     <tr>
                       <td colSpan={4}>
-                        <span>No market goods available</span>
+                        <span>{t("extensions.marketOverview.emptyGoods")}</span>
                       </td>
                     </tr>
                   </tbody>
@@ -337,7 +378,7 @@ export const MarketOverviewDialog: React.FC = () => {
                         <td>
                           <svg
                             aria-label={row.goodName}
-                            data-tip="Good icon"
+                            data-tip={t("extensions.marketOverview.goodIcon")}
                             width="2em"
                             height="2em"
                             className="goodIcon"
@@ -346,13 +387,13 @@ export const MarketOverviewDialog: React.FC = () => {
                             <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
                           </svg>
                         </td>
-                        <td data-tip="Good name" className="goodName">
+                        <td data-tip={t("extensions.marketOverview.goodName")} className="goodName">
                           {row.goodName}
                         </td>
-                        <td data-tip="Good stock" className="marketGoodStock">
+                        <td data-tip={t("extensions.marketOverview.goodStock")} className="marketGoodStock">
                           {row.stock}
                         </td>
-                        <td data-tip="Good price" className="marketGoodPrice">
+                        <td data-tip={t("extensions.marketOverview.goodPrice")} className="marketGoodPrice">
                           {formatPrice(row.price)}
                         </td>
                       </tr>
@@ -363,21 +404,21 @@ export const MarketOverviewDialog: React.FC = () => {
             </div>
 
             <div id="marketOverviewSummary" className="totalLine">
-              <div>Cells: {cellsCount}</div>
-              <div>Burgs: {burgsCount}</div>
-              <div>Stock: {totalStock}</div>
-              <div data-tip="Rural iron-tool/plow adoption funded from this market's treasury (docs/plan/rural-agtech-investment.md)">
-                Ag Tech: {agTechStockPercent}%
+              <div>{t("extensions.marketOverview.cells", { count: cellsCount })}</div>
+              <div>{t("extensions.marketOverview.burgs", { count: burgsCount })}</div>
+              <div>{t("extensions.marketOverview.stockTotal", { count: totalStock })}</div>
+              <div data-tip={t("extensions.marketOverview.agTechTip")}>
+                {t("extensions.marketOverview.agTech", { pct: agTechStockPercent })}
               </div>
             </div>
             <div id="marketOverviewInfo">
               {owner && (
                 <>
                   <svg className="coaIcon" viewBox="0 0 200 200">
-                    <title>{`Coat of arms of ${owner.name}`}</title>
+                    <title>{t("extensions.marketOverview.coaTitle", { name: owner.name })}</title>
                     <use href={`#${owner.coaId}`} />
                   </svg>
-                  <b>Center State:</b> {owner.name}
+                  <b>{t("extensions.marketOverview.centerState")}</b> {owner.name}
                 </>
               )}
             </div>
@@ -396,31 +437,39 @@ export const MarketOverviewDialog: React.FC = () => {
               </colgroup>
               <thead>
                 <tr className="header">
-                  <SortHeaderMerchants field="burgName" label="Burg" tip="Burg inside this market territory" />
+                  <SortHeaderMerchants
+                    field="burgName"
+                    label={t("extensions.marketOverview.burg")}
+                    tip={t("extensions.marketOverview.burgTip")}
+                  />
                   <SortHeaderMerchants
                     field="topMerchantName"
-                    label="Top Merchant"
-                    tip="Merchant with the largest revenue share in this burg"
+                    label={t("extensions.marketOverview.topMerchant")}
+                    tip={t("extensions.marketOverview.topMerchantTip")}
                   />
                   <SortHeaderMerchants
                     field="topShare"
-                    label="Share"
-                    tip="Top merchant's share of this burg's market revenue"
+                    label={t("extensions.marketOverview.share")}
+                    tip={t("extensions.marketOverview.shareTip")}
                     numeric
                   />
                   <SortHeaderMerchants
                     field="topRevenue"
-                    label="Revenue"
-                    tip="Top merchant's revenue in this burg"
+                    label={t("extensions.marketOverview.revenue")}
+                    tip={t("extensions.marketOverview.revenueTip")}
                     numeric
                   />
-                  <SortHeaderMerchants field="rivals" label="Rivals" tip="Other merchants competing in this burg" />
+                  <SortHeaderMerchants
+                    field="rivals"
+                    label={t("extensions.marketOverview.rivals")}
+                    tip={t("extensions.marketOverview.rivalsTip")}
+                  />
                 </tr>
               </thead>
               {burgMerchantRows.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={5}>No burg merchants available</td>
+                    <td colSpan={5}>{t("extensions.marketOverview.emptyMerchants")}</td>
                   </tr>
                 </tbody>
               ) : (
@@ -434,7 +483,7 @@ export const MarketOverviewDialog: React.FC = () => {
                         className={row.topMerchantId !== undefined ? "pointer actionLink" : ""}
                         data-tip={
                           row.topMerchantId !== undefined
-                            ? "Merchant with the largest revenue share in this burg. Click to view details"
+                            ? t("extensions.marketOverview.topMerchantClickTip")
                             : undefined
                         }
                         onClick={e => {
@@ -464,32 +513,32 @@ export const MarketOverviewDialog: React.FC = () => {
               <table className="fmg-table">
                 <thead>
                   <tr className="header">
-                    <th>Asset</th>
-                    <th className="numeric" data-tip="Cargo slots carried by one asset">
-                      Slots
+                    <th>{t("extensions.marketOverview.asset")}</th>
+                    <th className="numeric" data-tip={t("extensions.marketOverview.slotsTip")}>
+                      {t("extensions.marketOverview.slots")}
                     </th>
-                    <th className="numeric" data-tip="Assets ready for a new shipment">
-                      Available
+                    <th className="numeric" data-tip={t("extensions.marketOverview.availableTip")}>
+                      {t("extensions.marketOverview.available")}
                     </th>
-                    <th className="numeric" data-tip="Assets allocated before departure">
-                      Reserved
+                    <th className="numeric" data-tip={t("extensions.marketOverview.reservedTip")}>
+                      {t("extensions.marketOverview.reserved")}
                     </th>
-                    <th className="numeric" data-tip="Assets currently travelling with cargo">
-                      In transit
+                    <th className="numeric" data-tip={t("extensions.marketOverview.inTransitTip")}>
+                      {t("extensions.marketOverview.inTransit")}
                     </th>
-                    <th className="numeric" data-tip="Assets recovering after a lost caravan">
-                      Maintenance
+                    <th className="numeric" data-tip={t("extensions.marketOverview.maintenanceTip")}>
+                      {t("extensions.marketOverview.maintenance")}
                     </th>
-                    <th className="numeric">Total</th>
-                    <th className="numeric" data-tip="Cargo slots ready for a new shipment">
-                      Ready slots
+                    <th className="numeric">{t("extensions.marketOverview.total")}</th>
+                    <th className="numeric" data-tip={t("extensions.marketOverview.readySlotsTip")}>
+                      {t("extensions.marketOverview.readySlots")}
                     </th>
                   </tr>
                 </thead>
                 {transportAssetRows.length === 0 ? (
                   <tbody>
                     <tr>
-                      <td colSpan={8}>No transport assets available</td>
+                      <td colSpan={8}>{t("extensions.marketOverview.emptyAssets")}</td>
                     </tr>
                   </tbody>
                 ) : (
@@ -498,7 +547,7 @@ export const MarketOverviewDialog: React.FC = () => {
                     scrollElementRef={transportAssetsRef}
                     renderRow={(row: MarketOverviewTransportAssetRow) => (
                       <tr key={row.assetId} className="states">
-                        <td>{row.assetName}</td>
+                        <td>{transportAssetLabel(row.assetId, row.assetName, t)}</td>
                         <td className="numeric">{row.cargoCapacitySlots}</td>
                         <td className="numeric">{row.available}</td>
                         <td className="numeric">{row.reserved}</td>
@@ -513,35 +562,35 @@ export const MarketOverviewDialog: React.FC = () => {
               </table>
             </div>
             <div className="totalLine">
-              <div data-tip="Total cargo capacity of this market's durable transport assets">
-                Fleet capacity: {transportCargoCapacitySlots} slots
+              <div data-tip={t("extensions.marketOverview.fleetCapacityTip")}>
+                {t("extensions.marketOverview.fleetCapacity", { slots: transportCargoCapacitySlots })}
               </div>
-              <div data-tip="Cargo slots ready for the next shipment">
-                Ready capacity: {transportReadyCapacitySlots} slots
+              <div data-tip={t("extensions.marketOverview.readyCapacityTip")}>
+                {t("extensions.marketOverview.readyCapacity", { slots: transportReadyCapacitySlots })}
               </div>
-              <div data-tip="Reserved or travelling capacity as a share of the durable transport fleet">
-                Fleet utilization: {transportUtilizationPercent}%
+              <div data-tip={t("extensions.marketOverview.fleetUtilTip")}>
+                {t("extensions.marketOverview.fleetUtil", { pct: transportUtilizationPercent })}
               </div>
             </div>
             <section id="marketOverviewTransportOrders" aria-labelledby="marketOverviewTransportOrdersHeading">
               <div className="header d-flex">
-                <b id="marketOverviewTransportOrdersHeading">Transport order ledger</b>
-                <span data-tip="Player orders are funded from this market's treasury and are scheduled before automatic replacements">
-                  Player orders take priority
+                <b id="marketOverviewTransportOrdersHeading">{t("extensions.marketOverview.orderLedger")}</b>
+                <span data-tip={t("extensions.marketOverview.playerPriorityTip")}>
+                  {t("extensions.marketOverview.playerPriority")}
                 </span>
               </div>
               {transportOrderRows.length === 0 ? (
-                <p>No transport orders are open for this market.</p>
+                <p>{t("extensions.marketOverview.emptyOrders")}</p>
               ) : (
                 <div className="table">
                   <table className="fmg-table">
                     <thead>
                       <tr className="header">
-                        <th>Order</th>
-                        <th>Materials</th>
-                        <th>Progress</th>
-                        <th>Budget</th>
-                        <th>Status</th>
+                        <th>{t("extensions.marketOverview.order")}</th>
+                        <th>{t("extensions.marketOverview.materials")}</th>
+                        <th>{t("extensions.marketOverview.progress")}</th>
+                        <th>{t("extensions.marketOverview.budget")}</th>
+                        <th>{t("extensions.marketOverview.status")}</th>
                         <th />
                       </tr>
                     </thead>
@@ -549,22 +598,41 @@ export const MarketOverviewDialog: React.FC = () => {
                       {transportOrderRows.map((row: MarketOverviewTransportOrderRow) => (
                         <tr key={row.id} className="states">
                           <td>
-                            {row.blueprintName} ×{row.quantity}
-                            <small>{row.requestedBy === "player" ? "Player order" : "Automatic replacement"}</small>
+                            {transportAssetLabel(row.blueprintName, row.blueprintName, t)} ×{row.quantity}
+                            <small>
+                              {row.requestedBy === "player"
+                                ? t("extensions.marketOverview.playerOrder")
+                                : t("extensions.marketOverview.autoReplacement")}
+                            </small>
                           </td>
                           <td>{row.materials}</td>
-                          <td data-tip={`${row.workPoints} of ${row.requiredWorkPoints} work points completed`}>
-                            {row.completedQuantity}/{row.quantity} complete · {row.progressPercent}%
+                          <td
+                            data-tip={t("extensions.marketOverview.progressTip", {
+                              done: row.workPoints,
+                              required: row.requiredWorkPoints
+                            })}
+                          >
+                            {t("extensions.marketOverview.progressCell", {
+                              done: row.completedQuantity,
+                              qty: row.quantity,
+                              pct: row.progressPercent
+                            })}
                           </td>
                           <td>
                             {row.budgetLimit === undefined ? "—" : formatPrice(row.budgetLimit)}
-                            {row.fundedAmount > 0 && <small>Funded: {formatPrice(row.fundedAmount)}</small>}
+                            {row.fundedAmount > 0 && (
+                              <small>
+                                {t("extensions.marketOverview.funded", { value: formatPrice(row.fundedAmount) })}
+                              </small>
+                            )}
                           </td>
                           <td
-                            data-tip={row.blockedReason ? TRANSPORT_ORDER_BLOCKED_LABELS[row.blockedReason] : undefined}
+                            data-tip={
+                              row.blockedReason ? t(TRANSPORT_ORDER_BLOCKED_KEYS[row.blockedReason]) : undefined
+                            }
                           >
-                            {TRANSPORT_ORDER_STATUS_LABELS[row.status]}
-                            {row.blockedReason && <small>{TRANSPORT_ORDER_BLOCKED_LABELS[row.blockedReason]}</small>}
+                            {t(TRANSPORT_ORDER_STATUS_KEYS[row.status])}
+                            {row.blockedReason && <small>{t(TRANSPORT_ORDER_BLOCKED_KEYS[row.blockedReason])}</small>}
                           </td>
                           <td>
                             {row.requestedBy === "player" &&
@@ -572,10 +640,10 @@ export const MarketOverviewDialog: React.FC = () => {
                             row.status !== "cancelled" ? (
                               <button
                                 type="button"
-                                data-tip="Cancel this order and return unconsumed materials to market stock"
+                                data-tip={t("extensions.marketOverview.cancelTip")}
                                 onClick={() => cancelTransportAssetOrder(row.id)}
                               >
-                                Cancel
+                                {t("extensions.marketOverview.cancel")}
                               </button>
                             ) : null}
                           </td>
@@ -586,13 +654,17 @@ export const MarketOverviewDialog: React.FC = () => {
                 </div>
               )}
               <form id="marketOverviewTransportOrderForm" onSubmit={handleTransportOrderSubmit}>
-                <div className="header">Order transport assets</div>
+                <div className="header">{t("extensions.marketOverview.orderForm")}</div>
                 <label>
-                  Market
-                  <input value={name || defaultName || "Selected market"} readOnly aria-readonly="true" />
+                  {t("extensions.marketOverview.market")}
+                  <input
+                    value={name || defaultName || t("extensions.marketOverview.selectedMarket")}
+                    readOnly
+                    aria-readonly="true"
+                  />
                 </label>
                 <label>
-                  Asset
+                  {t("extensions.marketOverview.asset")}
                   <select
                     value={transportBlueprintId}
                     onChange={event =>
@@ -601,13 +673,16 @@ export const MarketOverviewDialog: React.FC = () => {
                   >
                     {TRANSPORT_ASSET_BLUEPRINTS.map(blueprint => (
                       <option key={blueprint.id} value={blueprint.id}>
-                        {formatTransportBlueprintName(blueprint.id)} · {blueprint.cargoCapacitySlots} slots
+                        {t("extensions.marketOverview.blueprintSlots", {
+                          name: transportAssetLabel(blueprint.id, blueprint.id, t),
+                          slots: blueprint.cargoCapacitySlots
+                        })}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  Quantity
+                  {t("extensions.marketOverview.quantity")}
                   <input
                     type="number"
                     min="1"
@@ -618,7 +693,7 @@ export const MarketOverviewDialog: React.FC = () => {
                   />
                 </label>
                 <label>
-                  Budget limit
+                  {t("extensions.marketOverview.budgetLimit")}
                   <input
                     type="number"
                     min="0"
@@ -629,11 +704,8 @@ export const MarketOverviewDialog: React.FC = () => {
                     onChange={event => setTransportBudgetLimit(event.target.value)}
                   />
                 </label>
-                <button
-                  type="submit"
-                  data-tip="Reserve this market's materials and funds when the next production cycle begins"
-                >
-                  Place order
+                <button type="submit" data-tip={t("extensions.marketOverview.placeOrderTip")}>
+                  {t("extensions.marketOverview.placeOrder")}
                 </button>
               </form>
             </section>
@@ -644,28 +716,28 @@ export const MarketOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="marketOverviewRefresh"
-            data-tip="Refresh the Overview screen"
+            data-tip={t("extensions.marketOverview.refreshTip")}
             className="icon-cw"
             onClick={refreshMarketOverview}
           />
           <button
             type="button"
             id="marketOverviewOpenDeals"
-            data-tip="View market deals"
+            data-tip={t("extensions.marketOverview.dealsTip")}
             className="icon-list-bullet"
             onClick={openActiveMarketDeals}
           />
           <button
             type="button"
             id="marketOverviewTradeOpportunities"
-            data-tip="Find buy-low / sell-high routes across markets"
+            data-tip={t("extensions.marketOverview.opportunitiesTip")}
             className="icon-exchange"
             onClick={openTradeOpportunities}
           />
           <button
             type="button"
             id="marketOverviewExport"
-            data-tip="Save market deals data as a text file (.csv)"
+            data-tip={t("extensions.marketOverview.exportTip")}
             className="icon-download"
             onClick={downloadStockCsv}
           />

@@ -16,9 +16,16 @@ type ClimateMetric = "temperature" | "precipitation";
 type DialogTab = "detail" | "compare";
 type ClimateCropProfile = NonNullable<Good["crop"]> | NonNullable<Good["perennialCrop"]>;
 
-const METRIC_LABEL: Record<ClimateMetric, string> = {
-  temperature: "Temperature",
-  precipitation: "Annual precipitation"
+const METRIC_LABEL_KEY: Record<ClimateMetric, string> = {
+  temperature: "extensions.cropClimate.temperature",
+  precipitation: "extensions.cropClimate.precipitation"
+};
+
+const CROP_KIND_KEY: Record<string, string> = {
+  cereal: "extensions.cropClimate.kindCereal",
+  legume: "extensions.cropClimate.kindLegume",
+  tuber: "extensions.cropClimate.kindTuber",
+  vine: "extensions.cropClimate.kindVine"
 };
 
 function getClimateProfile(good: Good): ClimateCropProfile | undefined {
@@ -68,19 +75,25 @@ function formatClimateRange(metric: ClimateMetric, minimum: number, maximum: num
 function getSelectedCellClimateStatus(
   crop: ClimateCropProfile,
   metric: ClimateMetric,
-  cellValue: number | null
+  cellValue: number | null,
+  t: (key: string, options?: Record<string, string>) => string
 ): string | null {
   if (cellValue === null) return null;
   const range = getRange(crop, metric);
-  const label = metric === "precipitation" ? "Rainfall" : "Temperature";
-  if (cellValue <= range.min) return `${label} is below the viable range.`;
+  const label =
+    metric === "precipitation"
+      ? t("extensions.cropClimate.statusRainfall")
+      : t("extensions.cropClimate.statusTemperature");
+  if (cellValue <= range.min) return t("extensions.cropClimate.statusBelow", { label });
   if (cellValue >= range.max) {
     return metric === "precipitation"
-      ? `${label} is wetter than the preferred range.`
-      : `${label} is above the viable range.`;
+      ? t("extensions.cropClimate.statusWetter", { label })
+      : t("extensions.cropClimate.statusAbove", { label });
   }
-  if (cellValue >= range.idealMin && cellValue <= range.idealMax) return `${label} is in the ideal range.`;
-  return `${label} is viable, but outside the ideal range.`;
+  if (cellValue >= range.idealMin && cellValue <= range.idealMax) {
+    return t("extensions.cropClimate.statusIdeal", { label });
+  }
+  return t("extensions.cropClimate.statusViable", { label });
 }
 
 const ClimateRangeBar: React.FC<{
@@ -90,6 +103,7 @@ const ClimateRangeBar: React.FC<{
   cellValue: number | null;
   labelledBy: string;
 }> = ({ crop, metric, domain, cellValue, labelledBy }) => {
+  const { t } = useTranslation();
   const range = getRange(crop, metric);
   const min = rangePosition(range.min, domain);
   const max = rangePosition(range.max, domain);
@@ -102,7 +116,11 @@ const ClimateRangeBar: React.FC<{
       className="crop-climate-range"
       role="img"
       aria-labelledby={labelledBy}
-      aria-label={`${METRIC_LABEL[metric]}: viable ${formatClimateRange(metric, range.min, range.max)}, ideal ${formatClimateRange(metric, range.idealMin, range.idealMax)}`}
+      aria-label={t("extensions.cropClimate.viableIdealAria", {
+        metric: t(METRIC_LABEL_KEY[metric]),
+        viable: formatClimateRange(metric, range.min, range.max),
+        ideal: formatClimateRange(metric, range.idealMin, range.idealMax)
+      })}
     >
       <span className="crop-climate-range__line" />
       <span className="crop-climate-range__viable" style={{ left: `${min}%`, width: `${max - min}%` }} />
@@ -129,19 +147,11 @@ const CropDetail: React.FC<{
   cellPrecipitation: number | null;
   crops: readonly Good[];
 }> = ({ good, cellTemperature, cellPrecipitation, crops }) => {
+  const { t } = useTranslation();
   const crop = getClimateProfile(good)!;
   const temperatureDomain = getDomain(crops, "temperature", cellTemperature);
   const precipitationDomain = getDomain(crops, "precipitation", cellPrecipitation);
-  const kindLabel =
-    crop.kind === "cereal"
-      ? "Cereal"
-      : crop.kind === "legume"
-        ? "Legume"
-        : crop.kind === "tuber"
-          ? "Root crop"
-          : crop.kind === "vine"
-            ? "Vine"
-            : "Orchard fruit";
+  const kindLabel = t(CROP_KIND_KEY[crop.kind] ?? "extensions.cropClimate.kindOrchard");
 
   return (
     <section className="crop-climate-detail">
@@ -149,9 +159,7 @@ const CropDetail: React.FC<{
         <span className="crop-climate-detail__swatch" style={{ backgroundColor: good.color }} />
         <div>
           <h3>{good.name}</h3>
-          <p>
-            {kindLabel} · Best soils: {crop.soils.join(", ")}
-          </p>
+          <p>{t("extensions.cropClimate.bestSoils", { kind: kindLabel, soils: crop.soils.join(", ") })}</p>
         </div>
       </div>
       <ClimateMetricPanel
@@ -171,15 +179,15 @@ const CropDetail: React.FC<{
       <div className="crop-climate-legend">
         <span>
           <i className="crop-climate-legend__viable" />
-          Viable range
+          {t("extensions.cropClimate.viableRange")}
         </span>
         <span>
           <i className="crop-climate-legend__ideal" />
-          Ideal range
+          {t("extensions.cropClimate.idealRange")}
         </span>
         <span>
           <i className="crop-climate-legend__marker" />
-          Selected cell
+          {t("extensions.cropClimate.selectedCell")}
         </span>
       </div>
     </section>
@@ -193,15 +201,18 @@ const ClimateMetricPanel: React.FC<{
   cellValue: number | null;
   label: string;
 }> = ({ crop, metric, domain, cellValue, label }) => {
+  const { t } = useTranslation();
   const range = getRange(crop, metric);
-  const selectedCellStatus = getSelectedCellClimateStatus(crop, metric, cellValue);
+  const selectedCellStatus = getSelectedCellClimateStatus(crop, metric, cellValue, t);
   return (
     <section className="crop-climate-metric">
       <div className="crop-climate-metric__label" id={`${label.replaceAll(" ", "-")}-label`}>
-        <strong>{METRIC_LABEL[metric]}</strong>
+        <strong>{t(METRIC_LABEL_KEY[metric])}</strong>
         <span>
-          viable {formatClimateRange(metric, range.min, range.max)} · ideal{" "}
-          {formatClimateRange(metric, range.idealMin, range.idealMax)}
+          {t("extensions.cropClimate.viable", { range: formatClimateRange(metric, range.min, range.max) })} ·{" "}
+          {t("extensions.cropClimate.ideal", {
+            range: formatClimateRange(metric, range.idealMin, range.idealMax)
+          })}
         </span>
       </div>
       <ClimateRangeBar
@@ -224,11 +235,16 @@ const CropComparison: React.FC<{
   cellTemperature: number | null;
   cellPrecipitation: number | null;
 }> = ({ crops, metric, onMetricChange, cellTemperature, cellPrecipitation }) => {
+  const { t } = useTranslation();
   const cellValue = metric === "temperature" ? cellTemperature : cellPrecipitation;
   const domain = getDomain(crops, metric, cellValue);
   return (
     <section className="crop-climate-compare">
-      <div className="crop-climate-compare__controls" role="tablist" aria-label="Comparison metric">
+      <div
+        className="crop-climate-compare__controls"
+        role="tablist"
+        aria-label={t("extensions.cropClimate.compareMetricAria")}
+      >
         {(["temperature", "precipitation"] as const).map(candidate => (
           <button
             key={candidate}
@@ -238,11 +254,11 @@ const CropComparison: React.FC<{
             className={metric === candidate ? "pressed" : undefined}
             onClick={() => onMetricChange(candidate)}
           >
-            {METRIC_LABEL[candidate]}
+            {t(METRIC_LABEL_KEY[candidate])}
           </button>
         ))}
       </div>
-      <p className="crop-climate-compare__hint">Each marker shows the selected Cell Info climate value.</p>
+      <p className="crop-climate-compare__hint">{t("extensions.cropClimate.compareHint")}</p>
       <MetricScale domain={domain} metric={metric} />
       <div className="crop-climate-compare__rows">
         {crops.map(good => (
@@ -263,15 +279,15 @@ const CropComparison: React.FC<{
       <div className="crop-climate-legend">
         <span>
           <i className="crop-climate-legend__viable" />
-          Viable
+          {t("extensions.cropClimate.viableShort")}
         </span>
         <span>
           <i className="crop-climate-legend__ideal" />
-          Ideal
+          {t("extensions.cropClimate.idealShort")}
         </span>
         <span>
           <i className="crop-climate-legend__marker" />
-          Cell
+          {t("extensions.cropClimate.cell")}
         </span>
       </div>
     </section>
@@ -282,6 +298,7 @@ const IrrigationSummary: React.FC<{ cellId: number | null; precipitation: number
   cellId,
   precipitation
 }) => {
+  const { t } = useTranslation();
   if (cellId === null) return null;
   const irrigatedArea = getIrrigatedArea()[cellId] ?? 0;
   const deliveredWater = getIrrigationDeliveredWater()[cellId] ?? 0;
@@ -291,28 +308,42 @@ const IrrigationSummary: React.FC<{ cellId: number | null; precipitation: number
   const effectivePrecipitation = precipitation === null ? null : precipitation + supplement;
 
   return (
-    <section className="crop-climate-irrigation" aria-label="Irrigation water balance">
+    <section className="crop-climate-irrigation" aria-label={t("extensions.cropClimate.irrigationAria")}>
       <div className="crop-climate-irrigation__heading">
-        <span>Field water balance</span>
-        <strong>{irrigatedArea > 0 ? `${irrigatedArea.toFixed(1)} ha irrigated` : "Rain-fed"}</strong>
+        <span>{t("extensions.cropClimate.fieldWater")}</span>
+        <strong>
+          {irrigatedArea > 0
+            ? t("extensions.cropClimate.irrigated", { area: irrigatedArea.toFixed(1) })
+            : t("extensions.cropClimate.rainFed")}
+        </strong>
       </div>
       <div className="crop-climate-irrigation__ledger">
         <span>
-          Rain <b>{precipitation === null ? "n/a" : formatAnnualPrecipitation(precipitation)}</b>
+          {t("extensions.cropClimate.rain")}{" "}
+          <b>{precipitation === null ? t("extensions.cropClimate.na") : formatAnnualPrecipitation(precipitation)}</b>
         </span>
         <span>
-          Canal <b>{irrigatedArea > 0 ? `+${formatAnnualPrecipitation(supplement, 1)}` : "—"}</b>
+          {t("extensions.cropClimate.canal")}{" "}
+          <b>{irrigatedArea > 0 ? `+${formatAnnualPrecipitation(supplement, 1)}` : "—"}</b>
         </span>
         <span>
-          Field <b>{effectivePrecipitation === null ? "n/a" : formatAnnualPrecipitation(effectivePrecipitation, 1)}</b>
+          {t("extensions.cropClimate.field")}{" "}
+          <b>
+            {effectivePrecipitation === null
+              ? t("extensions.cropClimate.na")
+              : formatAnnualPrecipitation(effectivePrecipitation, 1)}
+          </b>
         </span>
       </div>
       <p>
         {irrigatedArea > 0
-          ? `${(waterStress * 100).toFixed(1)}% of requested irrigation is unmet · downstream flow ${residualFlow.toFixed(1)}`
+          ? t("extensions.cropClimate.unmet", {
+              pct: (waterStress * 100).toFixed(1),
+              flow: residualFlow.toFixed(1)
+            })
           : residualFlow > 0
-            ? `No irrigation works · downstream flow ${residualFlow.toFixed(1)}`
-            : "No allocated river water at this cell"}
+            ? t("extensions.cropClimate.noWorks", { flow: residualFlow.toFixed(1) })
+            : t("extensions.cropClimate.noRiver")}
       </p>
     </section>
   );

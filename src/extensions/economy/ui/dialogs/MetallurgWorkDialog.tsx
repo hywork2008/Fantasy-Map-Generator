@@ -12,18 +12,18 @@ import {
   useMetallurgWorkOverviewState
 } from "../../store/metallurgWorkOverviewState";
 
-const KIND_LABEL: Record<MetallurgWorkOrderRow["kind"], string> = {
-  newBuild: "NEW",
-  replacement: "REPLACE",
-  maintenance: "REPAIR",
-  consumable: "SUPPLY"
+const KIND_LABEL_KEY: Record<MetallurgWorkOrderRow["kind"], string> = {
+  newBuild: "extensions.metallurgWork.kindNew",
+  replacement: "extensions.metallurgWork.kindReplace",
+  maintenance: "extensions.metallurgWork.kindRepair",
+  consumable: "extensions.metallurgWork.kindSupply"
 };
 
-const STATUS_LABEL: Record<MetallurgWorkOrderRow["status"], string> = {
-  queued: "QUEUED",
-  waitingMaterials: "MATERIALS",
-  inProgress: "WORKING",
-  completed: "DONE"
+const STATUS_LABEL_KEY: Record<MetallurgWorkOrderRow["status"], string> = {
+  queued: "extensions.metallurgWork.statusQueued",
+  waitingMaterials: "extensions.metallurgWork.statusMaterials",
+  inProgress: "extensions.metallurgWork.statusWorking",
+  completed: "extensions.metallurgWork.statusDone"
 };
 
 export const MetallurgWorkDialog: React.FC = () => {
@@ -50,34 +50,38 @@ export const MetallurgWorkDialog: React.FC = () => {
     >
       <div className="metallurg-work-dialog">
         <div id="metallurgWorkOverviewSummary" className="totalLine">
-          <span data-tip="Total unfinished work units in the Metallurg queue">Queued work: {queuedWork}</span>
+          <span data-tip={t("extensions.metallurgWork.queuedTip")}>
+            {t("extensions.metallurgWork.queued", { value: queuedWork })}
+          </span>
           {" · "}
-          <span data-tip="Work waiting on at least one predicted material shortage">Blocked work: {blockedWork}</span>
+          <span data-tip={t("extensions.metallurgWork.blockedTip")}>
+            {t("extensions.metallurgWork.blocked", { value: blockedWork })}
+          </span>
           {" · "}
-          <span data-tip="Market-and-material combinations projected to run short">
-            Material shortages: {shortageCount}
+          <span data-tip={t("extensions.metallurgWork.shortagesTip")}>
+            {t("extensions.metallurgWork.shortages", { value: shortageCount })}
           </span>
         </div>
 
         <section className="metallurg-work-dialog__section" aria-labelledby="metallurgWorkOrdersHeading">
-          <h3 id="metallurgWorkOrdersHeading">Work queue</h3>
+          <h3 id="metallurgWorkOrdersHeading">{t("extensions.metallurgWork.queue")}</h3>
           <div ref={ordersRef} id="metallurgWorkOrders" className="table">
             <table className="fmg-table">
               <thead className="header">
                 <tr>
-                  <th>Owner</th>
-                  <th>Work</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Units</th>
-                  <th>Work</th>
-                  <th>Materials</th>
+                  <th>{t("extensions.metallurgWork.owner")}</th>
+                  <th>{t("extensions.metallurgWork.work")}</th>
+                  <th>{t("extensions.metallurgWork.type")}</th>
+                  <th>{t("extensions.metallurgWork.status")}</th>
+                  <th>{t("extensions.metallurgWork.units")}</th>
+                  <th>{t("extensions.metallurgWork.work")}</th>
+                  <th>{t("extensions.metallurgWork.materials")}</th>
                 </tr>
               </thead>
               {orders.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={7}>No Metallurg work is planned yet</td>
+                    <td colSpan={7}>{t("extensions.metallurgWork.emptyOrders")}</td>
                   </tr>
                 </tbody>
               ) : (
@@ -88,24 +92,24 @@ export const MetallurgWorkDialog: React.FC = () => {
         </section>
 
         <section className="metallurg-work-dialog__section" aria-labelledby="metallurgMaterialForecastHeading">
-          <h3 id="metallurgMaterialForecastHeading">Material forecast</h3>
+          <h3 id="metallurgMaterialForecastHeading">{t("extensions.metallurgWork.forecast")}</h3>
           <div ref={materialsRef} id="metallurgMaterialForecast" className="table">
             <table className="fmg-table">
               <thead className="header">
                 <tr>
-                  <th>Market</th>
-                  <th>Material</th>
-                  <th>Required</th>
-                  <th>Stock</th>
-                  <th data-tip="Matching material already travelling to this market">Inbound</th>
-                  <th data-tip="Additional units that should be produced locally or purchased">To procure</th>
-                  <th>Orders</th>
+                  <th>{t("extensions.metallurgWork.market")}</th>
+                  <th>{t("extensions.metallurgWork.material")}</th>
+                  <th>{t("extensions.metallurgWork.required")}</th>
+                  <th>{t("extensions.metallurgWork.stock")}</th>
+                  <th data-tip={t("extensions.metallurgWork.inboundTip")}>{t("extensions.metallurgWork.inbound")}</th>
+                  <th data-tip={t("extensions.metallurgWork.procureTip")}>{t("extensions.metallurgWork.procure")}</th>
+                  <th>{t("extensions.metallurgWork.orders")}</th>
                 </tr>
               </thead>
               {materials.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={7}>No material requirements are queued</td>
+                    <td colSpan={7}>{t("extensions.metallurgWork.emptyMaterials")}</td>
                   </tr>
                 </tbody>
               ) : (
@@ -123,7 +127,7 @@ export const MetallurgWorkDialog: React.FC = () => {
           <button
             type="button"
             id="metallurgWorkOverviewRefresh"
-            data-tip="Refresh the Metallurg work and material forecasts"
+            data-tip={t("extensions.metallurgWork.refreshTip")}
             className="icon-cw"
             onClick={refreshMetallurgWorkOverview}
           />
@@ -134,21 +138,30 @@ export const MetallurgWorkDialog: React.FC = () => {
 };
 
 function renderWorkOrderRow(order: MetallurgWorkOrderRow): React.ReactNode {
+  return <WorkOrderRow key={order.id} order={order} />;
+}
+
+const WorkOrderRow: React.FC<{ order: MetallurgWorkOrderRow }> = ({ order }) => {
+  const { t } = useTranslation();
   return (
-    <tr key={order.id} data-id={order.id} data-status={order.status}>
+    <tr data-id={order.id} data-status={order.status}>
       <td>{order.ownerName}</td>
       <td>{order.productName}</td>
-      <td>{KIND_LABEL[order.kind]}</td>
-      <td>{STATUS_LABEL[order.status]}</td>
+      <td>{t(KIND_LABEL_KEY[order.kind])}</td>
+      <td>{t(STATUS_LABEL_KEY[order.status])}</td>
       <td>{order.remainingUnits}</td>
       <td>{order.remainingWork}</td>
       <td>
-        <progress value={order.materialCoverage} max={1} aria-label={`${order.productName} material coverage`} />{" "}
+        <progress
+          value={order.materialCoverage}
+          max={1}
+          aria-label={t("extensions.metallurgWork.coverageAria", { name: order.productName })}
+        />{" "}
         {Math.round(order.materialCoverage * 100)}%
       </td>
     </tr>
   );
-}
+};
 
 function renderMaterialForecastRow(material: MetallurgMaterialForecastRow): React.ReactNode {
   return (

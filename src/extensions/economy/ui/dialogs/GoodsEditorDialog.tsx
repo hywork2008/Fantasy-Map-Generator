@@ -182,45 +182,42 @@ export const GoodsEditorDialog: React.FC = () => {
                     />
                     <SortableHeader
                       field="actualOutput"
-                      label="Actual Output"
+                      label={t("extensions.goodsEditor.actualOutput")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Recorded output: Market Output plus shelf-stable food made for source-cell private reserves. Click to sort"
+                      tip={t("extensions.goodsEditor.actualOutputTip")}
                     />
-                    <th
-                      data-tip="Fresh-food flow since generation or the last Market Output reset. H is raw harvest in source cells; P is raw food used for preservation or manufacture."
-                      className="sortable number"
-                    >
-                      Food Flow (H / P)
+                    <th data-tip={t("extensions.goodsEditor.foodFlowTip")} className="sortable number">
+                      {t("extensions.goodsEditor.foodFlow")}
                     </th>
                     <SortableHeader
                       field="resourceCells"
-                      label="Cells"
+                      label={t("extensions.goodsEditor.cells")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Cells assigned as this good's current resource location. These are not mineral reserves"
+                      tip={t("extensions.goodsEditor.cellsTip")}
                     />
                     <SortableHeader
                       field="productionPerThousand"
-                      label="/1k"
+                      label={t("extensions.goodsEditor.perK")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Production units per 1,000 actual residents; an initial supply diagnostic, not tonnes"
+                      tip={t("extensions.goodsEditor.perKTip")}
                     />
                     <SortableHeader
                       field="baseprice"
-                      label="Price"
+                      label={t("extensions.goodsEditor.price")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Base (initial) price. Click to sort"
+                      tip={t("extensions.goodsEditor.priceTip")}
                     />
                     <th />
                   </>
@@ -254,7 +251,7 @@ export const GoodsEditorDialog: React.FC = () => {
                     })
                   : good.unitFlavor?.retailReference
                     ? t("economy.goodsUnitFlavor.retail", good.unitFlavor.retailReference)
-                    : "Base (initial) price. Click to compare prices across markets";
+                    : t("extensions.goodsEditor.priceCompareTip");
 
                 return (
                   <tr
@@ -278,7 +275,7 @@ export const GoodsEditorDialog: React.FC = () => {
                       <td>
                         <svg
                           aria-label={localizedName}
-                          data-tip="Good icon"
+                          data-tip={t("extensions.goodsEditor.goodIcon")}
                           width="2em"
                           height="2em"
                           className="goodIcon"
@@ -291,7 +288,7 @@ export const GoodsEditorDialog: React.FC = () => {
                       <td>
                         <input
                           type="checkbox"
-                          data-tip="Toggle this good on the Goods map"
+                          data-tip={t("extensions.goodsEditor.toggleMapTip")}
                           className="native goodDisplayed"
                           checked={good.isDisplayed}
                           onChange={e => {
@@ -301,7 +298,7 @@ export const GoodsEditorDialog: React.FC = () => {
                         />
                         <svg
                           aria-label={localizedName}
-                          data-tip="Good icon"
+                          data-tip={t("extensions.goodsEditor.goodIcon")}
                           width="2em"
                           height="2em"
                           className="goodIcon"
@@ -311,10 +308,10 @@ export const GoodsEditorDialog: React.FC = () => {
                         </svg>
                       </td>
                     )}
-                    <td data-tip="Good name" className="goodName">
+                    <td data-tip={t("extensions.goodsEditor.goodName")} className="goodName">
                       {localizedName}
                     </td>
-                    <td data-tip="Good types" className="goodType">
+                    <td data-tip={t("extensions.goodsEditor.goodTypes")} className="goodType">
                       {good.types.map(t => (
                         <TypeBadge key={t} type={t} />
                       ))}
@@ -344,13 +341,13 @@ export const GoodsEditorDialog: React.FC = () => {
                           <div className="d-inline-block">⛁</div>
                         </td>
                         <td
-                          data-tip="Realised local output placed into Market stock, not retail sales: burg craft output plus rural/biome output since generation or the last reset"
+                          data-tip={t("extensions.goodsEditor.marketOutputCellTip")}
                           className="goodCumulativeSales numeric"
                         >
                           {displayedCumulativeMarketIntake}
                         </td>
                         <td
-                          data-tip="Recorded output: Market Output plus shelf-stable food made for source-cell private reserves"
+                          data-tip={t("extensions.goodsEditor.actualOutputCellTip")}
                           className="goodActualOutput numeric"
                         >
                           {displayedActualFoodOutput}
@@ -359,14 +356,11 @@ export const GoodsEditorDialog: React.FC = () => {
                           <div>H {good.freshHarvested}</div>
                           <div>P {good.foodProcessingInput}</div>
                         </td>
-                        <td
-                          data-tip="Current assigned resource cells. In Phase 0, this is a placement count, not a mineral deposit or reserve count"
-                          className="goodResourceCells numeric"
-                        >
+                        <td data-tip={t("extensions.goodsEditor.cellsCellTip")} className="goodResourceCells numeric">
                           {good.resourceCells}
                         </td>
                         <td
-                          data-tip="Current production per 1,000 actual residents. This is a diagnostic based on Economy units, not physical tonnes"
+                          data-tip={t("extensions.goodsEditor.perKCellTip")}
                           className="goodProductionPerThousand numeric"
                         >
                           {good.productionPerThousand}
@@ -380,7 +374,7 @@ export const GoodsEditorDialog: React.FC = () => {
                         </td>
                         <td>
                           <IconButton
-                            data-tip="Edit good distribution"
+                            data-tip={t("extensions.goodsEditor.editDist")}
                             className="icon-pencil goodEdit"
                             onClick={e => {
                               e.stopPropagation();
@@ -388,7 +382,7 @@ export const GoodsEditorDialog: React.FC = () => {
                             }}
                           />
                           <IconButton
-                            data-tip="Remove good"
+                            data-tip={t("extensions.goodsEditor.removeGood")}
                             className="icon-trash-empty goodRemove"
                             onClick={e => {
                               e.stopPropagation();
@@ -406,24 +400,29 @@ export const GoodsEditorDialog: React.FC = () => {
         </div>
 
         <div id="goodsFooter" className={`totalLine hide${isAssignMode ? " hidden" : ""}`}>
-          <div data-tip="Number of goods (displayed / total)">
-            Goods:<span id="goodsDisplayed">{displayedCount}</span> of <span id="goodsNumber">{goods.length}</span>
+          <div data-tip={t("extensions.goodsEditor.goodsCountTip")}>
+            {t("extensions.goodsEditor.goodsCount")}
+            <span id="goodsDisplayed">{displayedCount}</span> {t("extensions.goodsEditor.goodsCountOf")}{" "}
+            <span id="goodsNumber">{goods.length}</span>
           </div>
-          <div data-tip="Total projected production capacity across all cells and burgs; this is not realised output">
-            Potential:<span id="goodsProduced">{totalProduced}</span>
+          <div data-tip={t("extensions.goodsEditor.potentialTotalTip")}>
+            {t("extensions.goodsEditor.potentialTotal")}
+            <span id="goodsProduced">{totalProduced}</span>
           </div>
-          <div data-tip="Total units in stock across all markets and burg inventories">
-            Stock:<span id="goodsStock">{totalStock}</span>
+          <div data-tip={t("extensions.goodsEditor.stockTotalTip")}>
+            {t("extensions.goodsEditor.stockTotal")}
+            <span id="goodsStock">{totalStock}</span>
           </div>
-          <div data-tip="Total realised local output placed into markets — burg craft output plus rural/biome output — since generation or the last reset">
-            Market output:<span id="goodsCumulativeMarketIntake">{totalCumulativeMarketIntake}</span>
+          <div data-tip={t("extensions.goodsEditor.marketOutputTotalTip")}>
+            {t("extensions.goodsEditor.marketOutputTotal")}
+            <span id="goodsCumulativeMarketIntake">{totalCumulativeMarketIntake}</span>
           </div>
         </div>
 
         <div id="goodsBottom" className="footer">
           <input
             type="checkbox"
-            data-tip="Show or hide all goods on the Goods map"
+            data-tip={t("extensions.goodsEditor.toggleAllTip")}
             className={`native hide${isAssignMode ? " hidden" : ""}`}
             id="goodsDisplayAll"
             checked={goods.length > 0 && displayedCount === goods.length}
@@ -435,76 +434,76 @@ export const GoodsEditorDialog: React.FC = () => {
           <button
             type="button"
             id="goodsEditorRefresh"
-            data-tip="Refresh the Editor"
+            data-tip={t("extensions.goodsEditor.refreshTip")}
             className="icon-cw"
             onClick={goodsEditorAddLines}
           />
           <button
             type="button"
             id="goodsPercentage"
-            data-tip="Toggle percentage / absolute values display mode"
+            data-tip={t("extensions.goodsEditor.percentageTip")}
             className="icon-percent"
             onClick={togglePercentageMode}
           />
           <button
             type="button"
             id="goodsTagsFilter"
-            data-tip="Filter visible goods by tags"
+            data-tip={t("extensions.goodsEditor.filterTagsTip")}
             className={`icon-tags${hasTagFilter ? " active" : ""}`}
             onClick={openTagsVisibilityDialog}
           />
           <button
             type="button"
             id="goodsAssign"
-            data-tip="Manually assign goods to cells"
+            data-tip={t("extensions.goodsEditor.assignTip")}
             className={`icon-brush${isAssignMode ? " pressed" : ""}`}
             onClick={enterResourceAssignMode}
           />
           <button
             type="button"
             id="goodsAdd"
-            data-tip="Add a new good"
+            data-tip={t("extensions.goodsEditor.addTip")}
             className={`icon-plus hide${isAssignMode ? " hidden" : ""}`}
             onClick={addGood}
           />
           <button
             type="button"
             id="goodsRegenerateGoods"
-            data-tip="Regenerate bonus goods placement"
+            data-tip={t("extensions.goodsEditor.regenGoodsTip")}
             className={`icon-arrows-cw hide${isAssignMode ? " hidden" : ""}`}
             onClick={requestGoodsRegeneration}
           />
           <button
             type="button"
             id="goodsRegenerateProduction"
-            data-tip="Regenerate production and trade deals"
+            data-tip={t("extensions.goodsEditor.regenProductionTip")}
             className={`icon-retweet hide${isAssignMode ? " hidden" : ""}`}
             onClick={requestProductionRegeneration}
           />
           <button
             type="button"
             id="goodsChains"
-            data-tip="Show production chains graph"
+            data-tip={t("extensions.goodsEditor.chainsTip")}
             className={`icon-chart-line hide${isAssignMode ? " hidden" : ""}`}
           />
           <button
             type="button"
             id="goodsRestore"
-            data-tip="Restore default list and regenerate goods"
+            data-tip={t("extensions.goodsEditor.restoreTip")}
             className={`icon-history hide${isAssignMode ? " hidden" : ""}`}
             onClick={goodsRestoreDefaults}
           />
           <button
             type="button"
             id="goodsResetCumulativeMarketIntake"
-            data-tip="Reset the cumulative market-intake counter for every good"
+            data-tip={t("extensions.goodsEditor.resetIntakeTip")}
             className={`icon-ccw hide${isAssignMode ? " hidden" : ""}`}
             onClick={resetGoodsCumulativeMarketIntake}
           />
           <button
             type="button"
             id="goodsExport"
-            data-tip="Download goods-related data"
+            data-tip={t("extensions.goodsEditor.exportTip")}
             className={`icon-download hide${isAssignMode ? " hidden" : ""}`}
             onClick={downloadGoodsData}
           />

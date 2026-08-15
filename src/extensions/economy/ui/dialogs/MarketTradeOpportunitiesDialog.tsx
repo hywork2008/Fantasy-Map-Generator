@@ -59,8 +59,8 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
     >
       <div id="marketTradeOpportunitiesContainer">
         <div className="d-flex header">
-          <label htmlFor="marketTradeOpportunitiesSelect" data-tip="Select good to find buy-low / sell-high routes">
-            Good:
+          <label htmlFor="marketTradeOpportunitiesSelect" data-tip={t("extensions.tradeOpportunities.goodTip")}>
+            {t("extensions.tradeOpportunities.good")}
           </label>
           <select
             id="marketTradeOpportunitiesSelect"
@@ -80,102 +80,102 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
             <thead>
               <tr className="header">
                 <th
-                  data-tip="Market to buy from. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.buyAtTip")}
                   className={`sortable alphabetically ${getSortIcon("source", true)}`}
                   onClick={() => setSorting("source")}
                 >
-                  Buy at
+                  {t("extensions.tradeOpportunities.buyAt")}
                 </th>
                 <th
-                  data-tip="Market to sell to. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.sellAtTip")}
                   className={`sortable alphabetically ${getSortIcon("target", true)}`}
                   onClick={() => setSorting("target")}
                 >
-                  Sell at
+                  {t("extensions.tradeOpportunities.sellAt")}
                 </th>
                 <th
-                  data-tip="Estimated route distance between market centers. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.distanceTip")}
                   className={`sortable ${getSortIcon("distance")}`}
                   onClick={() => setSorting("distance")}
                 >
-                  Distance
+                  {t("extensions.tradeOpportunities.distance")}
                 </th>
                 <th
-                  data-tip="Land distance along the selected route. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.landTip")}
                   className={`sortable ${getSortIcon("landDistance")}`}
                   onClick={() => setSorting("landDistance")}
                 >
-                  Land
+                  {t("extensions.tradeOpportunities.land")}
                 </th>
                 <th
-                  data-tip="Sea distance along the selected route. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.seaTip")}
                   className={`sortable ${getSortIcon("seaDistance")}`}
                   onClick={() => setSorting("seaDistance")}
                 >
-                  Sea
+                  {t("extensions.tradeOpportunities.sea")}
                 </th>
                 <th
-                  data-tip="Downstream river distance along the selected route. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.riverTip")}
                   className={`sortable ${getSortIcon("riverDistance")}`}
                   onClick={() => setSorting("riverDistance")}
                 >
-                  River
+                  {t("extensions.tradeOpportunities.river")}
                 </th>
                 <th
-                  data-tip="Number of land/sea mode changes on the route. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.transfersTip")}
                   className={`sortable ${getSortIcon("transferCount")}`}
                   onClick={() => setSorting("transferCount")}
                 >
-                  Transfers
+                  {t("extensions.tradeOpportunities.transfers")}
                 </th>
                 <th
-                  data-tip="Price paid when buying from source market. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.buyTip")}
                   className={`sortable ${getSortIcon("buyPrice")}`}
                   onClick={() => setSorting("buyPrice")}
                 >
-                  Buy
+                  {t("extensions.tradeOpportunities.buy")}
                 </th>
                 <th
-                  data-tip="Price received when selling to target market. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.sellTip")}
                   className={`sortable ${getSortIcon("sellPrice")}`}
                   onClick={() => setSorting("sellPrice")}
                 >
-                  Sell
+                  {t("extensions.tradeOpportunities.sell")}
                 </th>
                 <th
-                  data-tip="Estimated transport cost per unit. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.costTip")}
                   className={`sortable ${getSortIcon("transportCost")}`}
                   onClick={() => setSorting("transportCost")}
                 >
-                  Cost
+                  {t("extensions.tradeOpportunities.cost")}
                 </th>
                 <th
-                  data-tip="Estimated profit per unit after transport. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.unitProfitTip")}
                   className={`sortable ${getSortIcon("unitProfit")}`}
                   onClick={() => setSorting("unitProfit")}
                 >
-                  Unit profit
+                  {t("extensions.tradeOpportunities.unitProfit")}
                 </th>
                 <th
-                  data-tip="Available units in source market. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.unitsTip")}
                   className={`sortable ${getSortIcon("maxUnits")}`}
                   onClick={() => setSorting("maxUnits")}
                 >
-                  Units
+                  {t("extensions.tradeOpportunities.units")}
                 </th>
                 <th
-                  data-tip="Estimated total profit using available source stock. Click to sort"
+                  data-tip={t("extensions.tradeOpportunities.totalTip")}
                   className={`sortable ${getSortIcon("totalProfit")}`}
                   onClick={() => setSorting("totalProfit")}
                 >
-                  Total
+                  {t("extensions.tradeOpportunities.total")}
                 </th>
               </tr>
             </thead>
             {sortedRows.length === 0 ? (
               <tbody>
                 <tr>
-                  <td colSpan={13}>No profitable routes for the selected good</td>
+                  <td colSpan={13}>{t("extensions.tradeOpportunities.empty")}</td>
                 </tr>
               </tbody>
             ) : (
@@ -210,21 +210,23 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
         </div>
 
         <div id="marketTradeOpportunitiesFooter" className="totalLine">
-          <div data-tip="Number of profitable routes shown">Routes: {rows.length}</div>
+          <div data-tip={t("extensions.tradeOpportunities.routesTip")}>
+            {t("extensions.tradeOpportunities.routes", { count: rows.length })}
+          </div>
         </div>
 
         <div id="marketTradeOpportunitiesBottom" className="footer">
           <button
             type="button"
             id="marketTradeOpportunitiesRefresh"
-            data-tip="Refresh opportunities"
+            data-tip={t("extensions.tradeOpportunities.refreshTip")}
             className="icon-cw"
             onClick={refresh}
           />
           <button
             type="button"
             id="marketTradeOpportunitiesExport"
-            data-tip="Save opportunities as a CSV file"
+            data-tip={t("extensions.tradeOpportunities.exportTip")}
             className="icon-download"
             onClick={downloadCsv}
           />

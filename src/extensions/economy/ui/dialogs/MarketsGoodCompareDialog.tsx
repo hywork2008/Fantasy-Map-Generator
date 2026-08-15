@@ -66,8 +66,8 @@ export const MarketsGoodCompareDialog: React.FC = () => {
     >
       <div id="marketsGoodCompareContainer">
         <div className="d-flex header">
-          <label htmlFor="marketsGoodCompareSelect" data-tip="Select good to compare stock across markets">
-            Good:
+          <label htmlFor="marketsGoodCompareSelect" data-tip={t("extensions.goodCompare.goodTip")}>
+            {t("extensions.goodCompare.good")}
           </label>
           <select
             id="marketsGoodCompareSelect"
@@ -99,25 +99,25 @@ export const MarketsGoodCompareDialog: React.FC = () => {
               <tr className="header">
                 <th />
                 <th
-                  data-tip="Market center burg name. Click to sort"
+                  data-tip={t("extensions.goodCompare.marketTip")}
                   className={`sortable alphabetically ${getSortIcon("market", true)}`}
                   onClick={() => setSorting("market")}
                 >
-                  Market
+                  {t("extensions.goodCompare.market")}
                 </th>
                 <th
-                  data-tip="Good stock in this market. Click to sort"
+                  data-tip={t("extensions.goodCompare.stockTip")}
                   className={`sortable ${getSortIcon("stock")}`}
                   onClick={() => setSorting("stock")}
                 >
-                  Stock
+                  {t("extensions.goodCompare.stock")}
                 </th>
                 <th
-                  data-tip="Price for this good. Click to sort"
+                  data-tip={t("extensions.goodCompare.priceTip")}
                   className={`sortable ${getSortIcon("price")}`}
                   onClick={() => setSorting("price")}
                 >
-                  Price
+                  {t("extensions.goodCompare.price")}
                 </th>
               </tr>
             </thead>
@@ -125,7 +125,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
               <tbody>
                 <tr>
                   <td colSpan={4}>
-                    <span>No market carries the selected good</span>
+                    <span>{t("extensions.goodCompare.empty")}</span>
                   </td>
                 </tr>
               </tbody>
@@ -143,7 +143,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
                     onClick={() => openMarketOverview(row.marketId)}
                   >
                     <td>
-                      <FillBox fill={row.marketColor} data-tip="Market color" />
+                      <FillBox fill={row.marketColor} data-tip={t("extensions.goodCompare.colorTip")} />
                     </td>
                     <td>{row.marketName}</td>
                     <td>{displayValue(row.stock, totalStock)}</td>
@@ -156,11 +156,13 @@ export const MarketsGoodCompareDialog: React.FC = () => {
         </div>
 
         <div id="marketsGoodCompareFooter" className="totalLine">
-          <div data-tip="Total stock of this good across all markets">
-            Total Stock:<span id="marketsGoodCompareFooterStock">{totalStock}</span>
+          <div data-tip={t("extensions.goodCompare.totalStockTip")}>
+            {t("extensions.goodCompare.totalStock")}
+            <span id="marketsGoodCompareFooterStock">{totalStock}</span>
           </div>
-          <div data-tip="Average price of this good across markets">
-            Avg Price:<span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
+          <div data-tip={t("extensions.goodCompare.avgPriceTip")}>
+            {t("extensions.goodCompare.avgPrice")}
+            <span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
           </div>
         </div>
 
@@ -168,21 +170,21 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           <button
             type="button"
             id="marketsGoodCompareRefresh"
-            data-tip="Refresh"
+            data-tip={t("extensions.goodCompare.refreshTip")}
             className="icon-cw"
             onClick={refresh}
           />
           <button
             type="button"
             id="marketsGoodComparePercentage"
-            data-tip="Toggle percentage / absolute values views"
+            data-tip={t("extensions.goodCompare.percentageTip")}
             className="icon-percent"
             onClick={togglePercentageMode}
           />
           <button
             type="button"
             id="marketsGoodCompareExport"
-            data-tip="Save data as a CSV file"
+            data-tip={t("extensions.goodCompare.exportTip")}
             className="icon-download"
             onClick={downloadCsv}
           />
