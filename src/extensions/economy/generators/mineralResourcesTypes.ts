@@ -12,6 +12,8 @@ export type MineralCommodity = OreCommodity | FuelMineralCommodity;
 export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer" | "volcanic";
 export type MineralDistrictType =
   | "bandedIron"
+  | "ironSand"
+  | "bogIron"
   | "porphyry"
   | "skarn"
   | "polymetallicVein"
@@ -23,11 +25,21 @@ export type MineralDistrictType =
   | "coalSeam"
   | "evaporite";
 
+/**
+ * A field sign used by State prospecting. Evidence is generated with the deposit
+ * but remains hidden until the survey succeeds; it is not a player-facing map layer.
+ */
+export type MineralSurveyEvidence = "ironOxideOutcrop" | "riverIronSand" | "bogIron" | "magneticAnomaly";
+
 export interface MineralYield {
   /** Recoverable ore reserve; MineOperation maps one tonne to one Economy Good unit. */
   commodity: MineralCommodity;
   reserveTons: number;
   annualCapacityTons: number;
+  /** Natural replenishment for renewable deposits such as bog iron. */
+  annualRechargeTons?: number;
+  /** Maximum standing reserve after natural replenishment. */
+  reserveCeilingTons?: number;
 }
 
 export interface MineralGeologicalProvince {
@@ -63,6 +75,10 @@ export interface MineralDeposit {
    * retain the former no-hydrology behaviour until regenerated.
    */
   groundwaterPressure?: number;
+  /** Historical field signs which determine how a survey party can find this deposit. */
+  surveyEvidence?: MineralSurveyEvidence[];
+  /** Primary iron deposit whose weathering or groundwater supplied this secondary site. */
+  secondarySourceDepositId?: number;
   accessibility: number;
   discovered: boolean;
   exhausted: boolean;

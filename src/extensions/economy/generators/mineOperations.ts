@@ -36,8 +36,15 @@ export interface StateProspectingResult {
   readonly discovered: boolean;
   readonly cellId?: number;
   readonly commodity?: MineralCommodity;
-  readonly method?: "riverPanning" | "geologicalSurvey";
+  readonly method?: SurveyMethod;
 }
+
+export type SurveyMethod =
+  | "riverPanning"
+  | "wetlandSurvey"
+  | "surfaceObservation"
+  | "magneticSurvey"
+  | "geologicalSurvey";
 
 const GROUNDWATER_DRAINAGE_PENALTY_BY_DEPTH: Record<MineralDeposit["depth"], number> = {
   surface: 0.08,
@@ -160,10 +167,11 @@ export class MineOperationsModule {
   /**
    * One State's annual survey. Unlike the legacy bulk `prospect()` command,
    * this is deliberately limited to land the survey party can plausibly reach
-   * from that State. Gold placers are favoured when the State already controls
-   * part of the same river, modelling inexpensive panning before an inland
-   * geological expedition. It reveals at most one site and never creates a
-   * mine or assigns political ownership.
+   * from that State. River-borne gold and iron are favoured when the State
+   * already controls part of the same river; shallow iron can also be found
+   * from oxidised outcrops, wetland signs, or (with strong Engineering) a
+   * magnetic anomaly. It reveals at most one site and never creates a mine
+   * or assigns political ownership.
    */
   prospectForState(input: StateProspectingInput): StateProspectingResult {
     const { cells } = getWorldContext().pack;
@@ -257,20 +265,51 @@ export class MineOperationsModule {
     input: StateProspectingInput
   ): SurveyCandidate | null {
     const { cells } = getWorldContext().pack;
-    const isGoldPlacer = deposit.type === "placer" && deposit.commodities.includes("gold");
+    const isRiverPannable =
+      (deposit.type === "placer" && deposit.commodities.includes("gold")) || deposit.type === "ironSand";
     const sameRiver = Boolean(cells.r?.[deposit.cell] && ownRiverIds.has(cells.r[deposit.cell]));
     const geography = clampSkill(input.geography);
     const engineering = clampSkill(input.engineering);
     const advantage = Math.max(-100, Math.min(100, input.surveyAdvantage));
 
-    if (isGoldPlacer && sameRiver) {
+    if (isRiverPannable && sameRiver) {
       return {
         deposit,
         method: "riverPanning",
-        score: 160 + geography * 1.2 + engineering * 0.25 + advantage * 0.2 - hops * 4,
+        score:
+          (deposit.type === "ironSand" ? 150 : 160) + geography * 1.2 + engineering * 0.25 + advantage * 0.2 - hops * 4,
         discoveryChance: Math.min(
           0.88,
           0.18 + geography * 0.005 + engineering * 0.0015 + Math.max(0, advantage) * 0.001
+        )
+      };
+    }
+
+    const evidence = new Set(deposit.surveyEvidence ?? []);
+    if (evidence.has("magneticAnomaly") && engineering >= 70) {
+      return {
+        deposit,
+        method: "magneticSurvey",
+        score: 155 + engineering * 1.05 + geography * 0.2 + advantage * 0.18 - hops * 4,
+        discoveryChance: Math.min(0.82, 0.1 + engineering * 0.006 + Math.max(0, advantage) * 0.0015)
+      };
+    }
+    if (evidence.has("ironOxideOutcrop")) {
+      return {
+        deposit,
+        method: "surfaceObservation",
+        score: 132 + engineering * 0.9 + geography * 0.3 + advantage * 0.16 - hops * 4,
+        discoveryChance: Math.min(0.76, 0.09 + engineering * 0.005 + geography * 0.001 + Math.max(0, advantage) * 0.001)
+      };
+    }
+    if (evidence.has("bogIron")) {
+      return {
+        deposit,
+        method: "wetlandSurvey",
+        score: 128 + geography * 0.85 + engineering * 0.45 + advantage * 0.16 - hops * 4,
+        discoveryChance: Math.min(
+          0.74,
+          0.08 + geography * 0.0045 + engineering * 0.002 + Math.max(0, advantage) * 0.001
         )
       };
     }
@@ -306,6 +345,8 @@ export class MineOperationsModule {
   produceMonth(): void {
     const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
     const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+
+    for (const deposit of depositsById.values()) this.replenishRenewableYields(deposit);
 
     for (const operation of getMineOperations()) {
       const deposit = depositsById.get(operation.depositId);
@@ -348,7 +389,9 @@ export class MineOperationsModule {
       }
 
       operation.annualOutputTons = annualOutput;
-      deposit.exhausted = deposit.yields.every(yieldInfo => yieldInfo.reserveTons <= 0);
+      deposit.exhausted = deposit.yields.every(
+        yieldInfo => yieldInfo.reserveTons <= 0 && !(yieldInfo.annualRechargeTons && yieldInfo.annualRechargeTons > 0)
+      );
       if (deposit.exhausted) operation.active = false;
     }
   }
@@ -402,6 +445,15 @@ export class MineOperationsModule {
     return developed ? 0.7 : 0.5;
   }
 
+  /** Restores renewable wetland iron gradually while respecting its standing-reserve ceiling. */
+  private replenishRenewableYields(deposit: MineralDeposit): void {
+    for (const yieldInfo of deposit.yields) {
+      if (!yieldInfo.annualRechargeTons || yieldInfo.annualRechargeTons <= 0) continue;
+      const ceiling = yieldInfo.reserveCeilingTons ?? Number.POSITIVE_INFINITY;
+      yieldInfo.reserveTons = Math.min(ceiling, rn(yieldInfo.reserveTons + yieldInfo.annualRechargeTons / 12, 4));
+    }
+  }
+
   private getAccessibility(cell: number): number {
     const cells = getWorldContext().pack.cells;
     const hasRiver = Boolean(cells.r[cell]);
@@ -413,7 +465,7 @@ export class MineOperationsModule {
 
 interface SurveyCandidate {
   readonly deposit: MineralDeposit;
-  readonly method: "riverPanning" | "geologicalSurvey";
+  readonly method: SurveyMethod;
   readonly score: number;
   readonly discoveryChance: number;
 }

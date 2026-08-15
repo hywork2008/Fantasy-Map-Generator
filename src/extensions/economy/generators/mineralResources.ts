@@ -16,6 +16,7 @@ import {
   type MineralDistrict,
   type MineralDistrictType,
   type MineralGeologicalProvince,
+  type MineralSurveyEvidence,
   type MineralYield,
   ORE_COMMODITIES,
   type OreCommodity
@@ -30,6 +31,7 @@ export type {
   MineralDistrict,
   MineralDistrictType,
   MineralGeologicalProvince,
+  MineralSurveyEvidence,
   MineralYield,
   OreCommodity
 } from "./mineralResourcesTypes";
@@ -111,6 +113,7 @@ const DEFAULT_IRON_DEPOSITS_PER_STATE = 0.4;
 const MIN_IRON_DEPOSITS_PER_STATE = 0.3;
 const MAX_IRON_DEPOSITS_PER_STATE = 0.8;
 const MIN_IRON_DEPOSITS = 3;
+const MAX_SECONDARY_IRON_SITES_PER_PRIMARY = 2;
 
 /**
  * Phase-1 deterministic pseudo-geology. Terrain height, drainage and map seed remain the only
@@ -177,6 +180,7 @@ export class MineralResourcesModule {
         richness,
         depth,
         groundwaterPressure: getGroundwaterPressureForCell(cell),
+        surveyEvidence: this.getSurveyEvidence(profile.type, commodities, depth, richness, seed, cell),
         accessibility: this.getAccessibility(cell),
         discovered: false,
         exhausted: false
@@ -205,6 +209,8 @@ export class MineralResourcesModule {
       if (!profile || !addDeposit(profile, ordinal)) break;
       ironDepositCount += 1;
     }
+
+    this.addSecondaryIronDeposits(seed, provinces, districts, deposits);
 
     setMineralGeologicalProvinces(provinces);
     setMineralDistricts(districts);
@@ -319,6 +325,150 @@ export class MineralResourcesModule {
   private getCommodities(profile: DistrictProfile, seed: string, cell: number): MineralCommodity[] {
     if (profile.type !== "placer") return [...profile.commodities];
     return this.hash(seed, "placer", cell) < 0.28 ? ["tin"] : ["gold"];
+  }
+
+  private getSurveyEvidence(
+    type: MineralDistrictType,
+    commodities: readonly MineralCommodity[],
+    depth: MineralDeposit["depth"],
+    richness: number,
+    seed: string,
+    cell: number
+  ): MineralSurveyEvidence[] | undefined {
+    if (!commodities.includes("iron")) return undefined;
+    const evidence: MineralSurveyEvidence[] = [];
+    if (depth !== "deep") evidence.push("ironOxideOutcrop");
+    if (type === "bandedIron" && richness >= 4 && this.hash(seed, "magnetic", cell) < 0.65) {
+      evidence.push("magneticAnomaly");
+    }
+    return evidence.length ? evidence : undefined;
+  }
+
+  /**
+   * Adds small, water-borne iron resources after primary deposits are placed.
+   * Iron sand appears downstream on the same river as a nearby primary deposit;
+   * bog iron occupies a low, wet cell in the same local drainage catchment.
+   */
+  private addSecondaryIronDeposits(
+    seed: string,
+    provinces: readonly MineralGeologicalProvince[],
+    districts: MineralDistrict[],
+    deposits: MineralDeposit[]
+  ): void {
+    const world = getWorldContext();
+    const { cells } = world.pack;
+    const primaryIronDeposits = deposits.filter(
+      deposit => deposit.commodities.includes("iron") && deposit.type !== "ironSand" && deposit.type !== "bogIron"
+    );
+    if (!primaryIronDeposits.length || !world.pack.rivers?.length) return;
+
+    const provinceByCell = new Map<number, number>();
+    for (const province of provinces) {
+      for (const cellId of province.cells) provinceByCell.set(cellId, province.i);
+    }
+    const usedCells = new Set(deposits.map(deposit => deposit.cell));
+    const nearbyIron = this.getNearbyIronSources(primaryIronDeposits, 8);
+    const addSecondary = (
+      type: "ironSand" | "bogIron",
+      cell: number,
+      source: MineralDeposit,
+      evidence: MineralSurveyEvidence,
+      richness: number
+    ): void => {
+      if (usedCells.has(cell) || cells.h[cell] < 20) return;
+      const provinceId = provinceByCell.get(cell) ?? provinceByCell.get(source.cell);
+      if (!provinceId) return;
+      const districtId = districts.length + 1;
+      const depositId = deposits.length + 1;
+      const capacityMultiplier = type === "ironSand" ? 0.16 : 0.1;
+      const capacity = Math.max(4, Math.round(180 * richness * capacityMultiplier));
+      const lifeYears = type === "ironSand" ? 45 : 3;
+      const reserveTons = capacity * lifeYears;
+      deposits.push({
+        i: depositId,
+        districtId,
+        cell,
+        type,
+        primaryCommodity: "iron",
+        commodities: ["iron"],
+        yields: [
+          {
+            commodity: "iron",
+            annualCapacityTons: capacity,
+            reserveTons,
+            ...(type === "bogIron"
+              ? { annualRechargeTons: Math.round(capacity * 0.6 * 100) / 100, reserveCeilingTons: reserveTons }
+              : {})
+          }
+        ],
+        richness,
+        depth: "surface",
+        groundwaterPressure: getGroundwaterPressureForCell(cell),
+        surveyEvidence: [evidence],
+        secondarySourceDepositId: source.i,
+        accessibility: this.getAccessibility(cell),
+        discovered: false,
+        exhausted: false
+      });
+      districts.push({ i: districtId, type, provinceId, cell, depositIds: [depositId], richness });
+      usedCells.add(cell);
+    };
+
+    let added = 0;
+    for (const river of world.pack.rivers) {
+      const riverCells = river.cells.filter(cell => cell >= 0 && cell < cells.i.length && cells.h[cell] >= 20);
+      if (riverCells.length < 3) continue;
+      const source = riverCells
+        .map((cell, index) => ({ cell, index, source: nearbyIron.get(cell) }))
+        .find(candidate => candidate.source !== undefined);
+      if (!source?.source) continue;
+      const downstream = riverCells.slice(source.index + 2);
+      const site = downstream.find(cell => !usedCells.has(cell) && this.hash(seed, "iron-sand", cell) < 0.45);
+      if (site !== undefined) {
+        addSecondary(
+          "ironSand",
+          site,
+          source.source,
+          "riverIronSand",
+          1 + Math.floor(this.hash(seed, "iron-sand-richness", site) * 2)
+        );
+        added += 1;
+      }
+      if (added >= primaryIronDeposits.length * MAX_SECONDARY_IRON_SITES_PER_PRIMARY) break;
+    }
+
+    for (const [cell, source] of nearbyIron) {
+      if (added >= primaryIronDeposits.length * MAX_SECONDARY_IRON_SITES_PER_PRIMARY) break;
+      if (usedCells.has(cell) || cells.h[cell] < 20 || cells.h[cell] >= 48 || !this.isWetlandCandidate(cell)) continue;
+      if (this.hash(seed, "bog-iron", cell) >= 0.16) continue;
+      addSecondary("bogIron", cell, source, "bogIron", 1 + Math.floor(this.hash(seed, "bog-iron-richness", cell) * 2));
+      added += 1;
+    }
+  }
+
+  /** Multi-source local catchment search, keeping secondary iron tied to a real primary source. */
+  private getNearbyIronSources(sources: readonly MineralDeposit[], maxHops: number): Map<number, MineralDeposit> {
+    const { cells } = getWorldContext().pack;
+    if (!cells.c) return new Map();
+    const result = new Map<number, MineralDeposit>();
+    const queue = sources.map(source => ({ cell: source.cell, source, hops: 0 }));
+    for (const entry of queue) result.set(entry.cell, entry.source);
+    for (let cursor = 0; cursor < queue.length; cursor++) {
+      const current = queue[cursor]!;
+      if (current.hops >= maxHops) continue;
+      for (const neighbor of cells.c[current.cell] ?? []) {
+        if (result.has(neighbor) || cells.h[neighbor] < 20) continue;
+        result.set(neighbor, current.source);
+        queue.push({ cell: neighbor, source: current.source, hops: current.hops + 1 });
+      }
+    }
+    return result;
+  }
+
+  private isWetlandCandidate(cell: number): boolean {
+    const { cells } = getWorldContext().pack;
+    if (cells.r?.[cell]) return true;
+    return (cells.c?.[cell] ?? []).some(neighbor => Boolean(cells.r?.[neighbor]));
   }
 
   private createYield(

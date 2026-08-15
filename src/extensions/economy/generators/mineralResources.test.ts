@@ -157,4 +157,30 @@ describe("MineralResourcesModule", () => {
     expect(ironDeposits.length).toBeGreaterThanOrEqual(8);
     expect(ironDeposits.every(deposit => deposit.type === "bandedIron" || deposit.type === "skarn")).toBe(true);
   });
+
+  it("generates river iron sand downstream from a reachable primary iron deposit", () => {
+    const cells = Array.from({ length: 50 }, (_, i) => i);
+    worldContext.pack = {
+      cells: {
+        i: cells,
+        h: Uint8Array.from(cells, () => 55),
+        r: Uint16Array.from(cells, () => 1),
+        c: cells.map(cell => [cell - 1, cell + 1].filter(neighbor => neighbor >= 0 && neighbor < cells.length))
+      },
+      rivers: [{ i: 1, cells }],
+      states: Array.from({ length: 6 }, (_, i) => ({ i, removed: false }))
+    } as unknown as PackedGraph;
+
+    MineralResources.generate();
+
+    const deposits = getMineralDeposits();
+    const ironSand = deposits.filter(deposit => deposit.type === "ironSand");
+    expect(ironSand).not.toHaveLength(0);
+    expect(ironSand.every(deposit => deposit.surveyEvidence?.includes("riverIronSand"))).toBe(true);
+    expect(
+      ironSand.every(deposit =>
+        deposits.some(source => source.i === deposit.secondarySourceDepositId && source.commodities.includes("iron"))
+      )
+    ).toBe(true);
+  });
 });
