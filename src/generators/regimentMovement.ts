@@ -1120,6 +1120,7 @@ export function advanceAllRegimentMovement(
     if (!state.i || state.removed || !state.military?.length) continue;
     const segments = frontiers.get(state.i) ?? [];
     const military = state.military;
+    const resourceClaim = getResourceGuardClaim(state.i, military, pack);
 
     // Phase 4 (dynamic hierarchy mode only): merge any detachment that has closed back in on its
     // parent, before this tick's reaction/march-order pass runs. Position is one tick stale (from
@@ -1150,7 +1151,28 @@ export function advanceAllRegimentMovement(
       if (r.isCapitalGuard) continue;
       if (freshlySplit.has(r)) continue; // already given its mission order + movement budget below, this same tick
 
-      if (r.n) {
+      if (resourceClaim?.guardRegimentId === r.i && !r.n && !isRegimentLockedForBattle(r)) {
+        if (r.cell === resourceClaim.cellId) {
+          resourceClaim.status = "guarding";
+          clearMarchOrder(r);
+          continue;
+        }
+        resourceClaim.status = "guardMarching";
+        planLandMarchOrder(r, resourceClaim.cellId, pack, landRouteGraph, worldContext);
+        // A resource reservation must not silently turn into an unauthorised
+        // march through another State. The off-road fallback is only acceptable
+        // through own or unclaimed land.
+        if (
+          r.path?.some(cellId => {
+            const owner = pack.cells.state[cellId];
+            return owner !== 0 && owner !== state.i;
+          })
+        ) {
+          clearMarchOrder(r);
+          resourceClaim.guardRegimentId = undefined;
+          resourceClaim.status = "discovered";
+        }
+      } else if (r.n) {
         ensureFleetMarchOrder(r, segments, pack, seaRouteGraph);
       } else if (hierarchyEnabled && r.parentId !== undefined) {
         // A live detachment: keep reacting to its own local threats independently; once it has
@@ -1215,4 +1237,38 @@ export function advanceAllRegimentMovement(
   }
 
   return anyMoved;
+}
+
+/**
+ * Assign one disposable land regiment to the oldest outstanding survey result.
+ * This is a guard order, not a claim: the usual Frontier incorporation remains
+ * the only path that changes political ownership.
+ */
+function getResourceGuardClaim(stateId: number, military: MilitaryRegiment[], pack: PackedGraph) {
+  const diplomacy = pack.states[stateId]?.diplomacy ?? [];
+  if (
+    diplomacy.some(
+      relation => relation === "Enemy" || (Array.isArray(relation) && relation.some(entry => entry === "Enemy"))
+    )
+  ) {
+    return undefined;
+  }
+  const claims = Object.values(simulationContext.frontier.resourceClaimsByCell)
+    .filter(claim => claim.stateId === stateId && claim.status !== "secured" && pack.cells.state[claim.cellId] === 0)
+    .sort((a, b) => a.discoveredYear - b.discoveredYear || a.cellId - b.cellId);
+  const claim = claims[0];
+  if (!claim) return undefined;
+
+  const assigned = claim.guardRegimentId === undefined ? undefined : military.find(r => r.i === claim.guardRegimentId);
+  if (assigned && !assigned.n && !assigned.isCapitalGuard && assigned.a > 0) return claim;
+
+  const guard = military
+    .filter(
+      regiment => !regiment.n && !regiment.isCapitalGuard && regiment.a > 0 && !isRegimentLockedForBattle(regiment)
+    )
+    .sort((a, b) => b.a - a.a || a.i - b.i)[0];
+  if (!guard) return undefined;
+  claim.guardRegimentId = guard.i;
+  claim.status = guard.cell === claim.cellId ? "guarding" : "guardMarching";
+  return claim;
 }

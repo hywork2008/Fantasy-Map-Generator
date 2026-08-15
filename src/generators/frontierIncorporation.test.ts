@@ -73,6 +73,23 @@ describe("frontier incorporation transaction", () => {
     expect(world.pack.cells.state[2]).toBe(1);
   });
 
+  it("secures a surveyed resource only when its frontier settlement is incorporated", () => {
+    const world = createWorld(true);
+    const simulation = createSimulation();
+    simulation.frontier.resourceClaimsByCell[2] = {
+      cellId: 2,
+      stateId: 1,
+      commodity: "gold",
+      discoveredYear: 100,
+      status: "guarding",
+      guardRegimentId: 4
+    };
+
+    incorporateEligibleFrontierSettlements({ world, simulation });
+
+    expect(simulation.frontier.resourceClaimsByCell[2]?.status).toBe("secured");
+  });
+
   it("leaves an otherwise eligible settlement unclaimed when no land corridor reaches its State", () => {
     const world = createWorld(false);
     const simulation = createSimulation();

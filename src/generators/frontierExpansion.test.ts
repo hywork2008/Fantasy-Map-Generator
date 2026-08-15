@@ -177,6 +177,50 @@ describe("Frontier Expansion Phase 3", () => {
     expect(simulation.frontier.cellStages[2]).toBe(FRONTIER_STAGE.outpost);
   });
 
+  it("pulls the next frontier outpost toward a discovered resource without claiming it early", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      p: [
+        [0, 0],
+        [1, 0],
+        [20, 0]
+      ],
+      c: [[1, 2], [0], [0]],
+      state: new Uint16Array([1, 0, 0]),
+      province: new Uint16Array([1, 0, 0]),
+      pop: new Float32Array([100, 0, 0]),
+      capacity: new Float32Array([100, 50, 50]),
+      children: new Float32Array([25, 0, 0]),
+      maleAdults: new Float32Array([25, 0, 0]),
+      femaleAdults: new Float32Array([25, 0, 0]),
+      elders: new Float32Array([25, 0, 0]),
+      danger: new Uint8Array([0, 10, 10]),
+      h: new Uint8Array([30, 30, 30]),
+      s: new Uint8Array([50, 50, 50]),
+      r: new Uint16Array([0, 0, 0]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+    simulation.frontier.resourceClaimsByCell[2] = {
+      cellId: 2,
+      stateId: 1,
+      commodity: "gold",
+      discoveredYear: 100,
+      status: "discovered"
+    };
+
+    const result = advance(world, simulation);
+
+    expect(result.established[0]).toBe(2);
+    expect(world.pack.cells.state[2]).toBe(0);
+    expect(simulation.frontier.resourceClaimsByCell[2]?.status).toBe("settling");
+  });
+
   it("pools several small local surpluses into one viable frontier expedition", () => {
     const world = createWorld();
     world.pack.cells = {

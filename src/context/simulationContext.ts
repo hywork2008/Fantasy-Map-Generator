@@ -92,12 +92,30 @@ export interface FrontierProject {
   origin?: "land" | "seaborne";
   /** Departure port for a seaborne expedition, retained for the operational ledger. */
   sourcePortCellId?: number;
+  /** A discovered mineral site this project is deliberately advancing toward. */
+  resourceClaimCellId?: number;
   stage: typeof FRONTIER_STAGE.outpost | typeof FRONTIER_STAGE.settlement;
   establishedYear: number;
   supportYears: number;
   failedSupportYears: number;
   /** Persisted explanation for the frontier panel and the next annual evaluation. */
   lastStatus?: FrontierProjectStatus;
+}
+
+export type FrontierResourceClaimStatus = "discovered" | "guardMarching" | "guarding" | "settling" | "secured";
+
+/**
+ * A survey result reserves strategic attention, never ownership. The ordinary
+ * Frontier incorporation transaction remains the sole writer of cells.state.
+ */
+export interface FrontierResourceClaim {
+  readonly cellId: number;
+  readonly stateId: number;
+  readonly commodity: string;
+  readonly discoveredYear: number;
+  status: FrontierResourceClaimStatus;
+  /** State-local regiment id assigned to keep the unclaimed site under watch. */
+  guardRegimentId?: number;
 }
 
 /**
@@ -117,6 +135,8 @@ export interface FrontierSimulationState {
   governanceByState: Record<number, FrontierStateGovernance>;
   /** Incorporated overseas harbour cells, retained as long-lived colonial frontiers. */
   seaborneBeachheadsByState: Record<number, number[]>;
+  /** Discovered, unclaimed deposits that should pull the next frontier project toward them. */
+  resourceClaimsByCell: Record<number, FrontierResourceClaim>;
   /**
    * Population points (male/female adults) displaced by any system (e.g. Economy's rural
    * labour release) and aggregated by destination state, awaiting a new frontier project.
@@ -136,8 +156,20 @@ export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimul
     stateCooldownUntilYear: {},
     governanceByState: {},
     seaborneBeachheadsByState: {},
+    resourceClaimsByCell: {},
     applicantPoolByState: {}
   };
+}
+
+/** Records an extension-reported survey result without granting territory. */
+export function recordFrontierResourceClaim(
+  frontier: FrontierSimulationState,
+  claim: Omit<FrontierResourceClaim, "status">
+): boolean {
+  const existing = frontier.resourceClaimsByCell[claim.cellId];
+  if (existing) return false;
+  frontier.resourceClaimsByCell[claim.cellId] = { ...claim, status: "discovered" };
+  return true;
 }
 
 /** Adds displaced colonists to a state's frontier applicant pool. Host-owned, extension-agnostic. */

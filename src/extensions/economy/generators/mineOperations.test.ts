@@ -74,6 +74,110 @@ describe("MineOperationsModule", () => {
     expect(getMarkets()[0].goods[2].stock).toBeGreaterThan(0);
   });
 
+  it("prefers river panning for a reachable placer-gold discovery", () => {
+    worldContext.pack = {
+      burgs: [],
+      cells: {
+        i: [0, 1, 2],
+        p: [
+          [0, 0],
+          [1, 0],
+          [2, 0]
+        ],
+        c: [[1], [0, 2], [1]],
+        h: Uint8Array.from([40, 40, 55]),
+        r: Uint16Array.from([7, 7, 0]),
+        state: Uint16Array.from([1, 0, 0])
+      }
+    } as unknown as PackedGraph;
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 1,
+        type: "placer",
+        primaryCommodity: "gold",
+        commodities: ["gold"],
+        yields: [{ commodity: "gold", reserveTons: 10, annualCapacityTons: 1 }],
+        richness: 2,
+        depth: "surface",
+        accessibility: 0.5,
+        discovered: false,
+        exhausted: false
+      },
+      {
+        i: 2,
+        districtId: 2,
+        cell: 2,
+        type: "bandedIron",
+        primaryCommodity: "iron",
+        commodities: ["iron"],
+        yields: [{ commodity: "iron", reserveTons: 100, annualCapacityTons: 10 }],
+        richness: 5,
+        depth: "deep",
+        accessibility: 0.5,
+        discovered: false,
+        exhausted: false
+      }
+    ]);
+
+    const result = MineOperations.prospectForState({
+      stateId: 1,
+      geography: 100,
+      engineering: 0,
+      surveyAdvantage: 0,
+      random: () => 0
+    });
+
+    expect(result).toMatchObject({ discovered: true, cellId: 1, commodity: "gold", method: "riverPanning" });
+    expect(getMineralDeposits()[0].discovered).toBe(true);
+    expect(getMineralDeposits()[1].discovered).toBe(false);
+  });
+
+  it("does not survey through another State's territory", () => {
+    worldContext.pack = {
+      burgs: [],
+      cells: {
+        i: [0, 1, 2],
+        p: [
+          [0, 0],
+          [1, 0],
+          [2, 0]
+        ],
+        c: [[1], [0, 2], [1]],
+        h: Uint8Array.from([40, 40, 40]),
+        r: Uint16Array.from([3, 3, 3]),
+        state: Uint16Array.from([1, 2, 0])
+      }
+    } as unknown as PackedGraph;
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 2,
+        type: "placer",
+        primaryCommodity: "gold",
+        commodities: ["gold"],
+        yields: [{ commodity: "gold", reserveTons: 10, annualCapacityTons: 1 }],
+        richness: 2,
+        depth: "surface",
+        accessibility: 0.5,
+        discovered: false,
+        exhausted: false
+      }
+    ]);
+
+    expect(
+      MineOperations.prospectForState({
+        stateId: 1,
+        geography: 100,
+        engineering: 100,
+        surveyAdvantage: 100,
+        random: () => 0
+      })
+    ).toEqual({ discovered: false });
+  });
+
   it("exhausts a deposit instead of supplying it indefinitely", () => {
     setMineralDeposits([
       {

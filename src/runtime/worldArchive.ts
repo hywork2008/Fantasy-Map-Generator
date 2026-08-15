@@ -763,6 +763,25 @@ function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCou
       throw new Error(`Archive simulation.frontier.seaborneBeachheadsByState.${stateId} is invalid`);
     }
   }
+  if (frontier.resourceClaimsByCell === undefined) frontier.resourceClaimsByCell = {};
+  if (!isRecord(frontier.resourceClaimsByCell)) {
+    throw new Error("Archive simulation.frontier.resourceClaimsByCell must be a record");
+  }
+  for (const [cellId, claim] of Object.entries(frontier.resourceClaimsByCell)) {
+    if (
+      !isFiniteNonNegativeInteger(Number(cellId)) ||
+      String(Number(cellId)) !== cellId ||
+      !isRecord(claim) ||
+      !isPositiveInteger(claim.stateId) ||
+      typeof claim.commodity !== "string" ||
+      !claim.commodity ||
+      !isFiniteNonNegativeInteger(claim.discoveredYear) ||
+      !["discovered", "guardMarching", "guarding", "settling", "secured"].includes(String(claim.status)) ||
+      (claim.guardRegimentId !== undefined && !isFiniteNonNegativeInteger(claim.guardRegimentId))
+    ) {
+      throw new Error(`Archive simulation.frontier.resourceClaimsByCell.${cellId} is invalid`);
+    }
+  }
   if (frontier.applicantPoolByState === undefined) frontier.applicantPoolByState = {};
   if (!isRecord(frontier.applicantPoolByState))
     throw new Error("Archive simulation.frontier.applicantPoolByState must be a record");

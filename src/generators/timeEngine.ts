@@ -2,6 +2,7 @@ import { appServices, restoreRngFromSimulation } from "../context/appServices";
 import {
   createEmptyFrontierSimulationState,
   createEmptyWildernessEcologyState,
+  recordFrontierResourceClaim,
   type SimulationContext,
   simulationContext
 } from "../context/simulationContext";
@@ -67,6 +68,42 @@ export type TimeTickHook = (
 const timeTickSystems = createSimulationSystemRegistry();
 let nextLegacyHookId = 0;
 const legacyHookIds: string[] = [];
+
+interface FrontierResourceDiscoveredEventDetail {
+  stateId: number;
+  cellId: number;
+  commodity: string;
+  discoveredYear: number;
+}
+
+/**
+ * Economy owns geological knowledge and emits this generic survey result. The
+ * host records only the strategic intent; it never assumes a discovery grants
+ * ownership before the normal Frontier incorporation transaction.
+ */
+document.addEventListener("fmg:frontier-resource-discovered", event => {
+  const detail = (event as CustomEvent<unknown>).detail;
+  if (!isFrontierResourceDiscoveredEventDetail(detail)) return;
+  recordFrontierResourceClaim(simulationContext.frontier, detail);
+});
+
+function isFrontierResourceDiscoveredEventDetail(value: unknown): value is FrontierResourceDiscoveredEventDetail {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.stateId === "number" &&
+    Number.isInteger(record.stateId) &&
+    record.stateId > 0 &&
+    typeof record.cellId === "number" &&
+    Number.isInteger(record.cellId) &&
+    record.cellId >= 0 &&
+    typeof record.commodity === "string" &&
+    record.commodity.length > 0 &&
+    typeof record.discoveredYear === "number" &&
+    Number.isInteger(record.discoveredYear) &&
+    record.discoveredYear >= 0
+  );
+}
 
 registerSimulationAdvanceHandler(({ deltaYears, deltaMonths, deltaDays }) =>
   advanceTimeMutation(deltaYears, deltaMonths, deltaDays)

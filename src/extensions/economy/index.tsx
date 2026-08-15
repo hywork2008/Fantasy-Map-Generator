@@ -1330,6 +1330,62 @@ function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
   api.requestWebglRender();
 }
 
+/**
+ * The Economy extension owns the hidden deposit list. It exposes discoveries to
+ * the host only as survey events, so Frontier can prefer the resulting route
+ * without learning every undiscovered deposit on the map.
+ */
+function runStateProspecting(api: ExtensionAPI, random: () => number): number {
+  const { states } = getWorldContext().pack;
+  const statesById = new Map((states ?? []).filter(state => state?.i).map(state => [state.i, state]));
+  let discoveries = 0;
+  for (const state of states ?? []) {
+    if (!state?.i || state.removed) continue;
+    const rulerId = getStateRulerId(state);
+    const geography = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "geography");
+    const engineering = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "engineering");
+    const rivalExpertise = Math.max(
+      0,
+      ...(state.neighbors ?? []).map(neighborId => {
+        const neighbor = statesById.get(neighborId);
+        const neighborRulerId = neighbor ? getStateRulerId(neighbor) : undefined;
+        if (neighborRulerId === undefined) return 0;
+        return (
+          (api.getEffectiveSkill(neighborRulerId, "geography") +
+            api.getEffectiveSkill(neighborRulerId, "engineering")) /
+          2
+        );
+      })
+    );
+    const result = MineOperations.prospectForState({
+      stateId: state.i,
+      geography,
+      engineering,
+      surveyAdvantage: (geography + engineering) / 2 - rivalExpertise,
+      random
+    });
+    if (!result.discovered || result.cellId === undefined || result.commodity === undefined) continue;
+    discoveries++;
+    document.dispatchEvent(
+      new CustomEvent("fmg:frontier-resource-discovered", {
+        detail: {
+          stateId: state.i,
+          cellId: result.cellId,
+          commodity: result.commodity,
+          discoveredYear: api.simulationContext.currentYear
+        }
+      })
+    );
+  }
+  return discoveries;
+}
+
+function getStateRulerId(state: unknown): number | undefined {
+  if (!state || typeof state !== "object") return undefined;
+  const rulerId = (state as Record<string, unknown>).rulerId;
+  return typeof rulerId === "number" && Number.isInteger(rulerId) && rulerId > 0 ? rulerId : undefined;
+}
+
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
   registerEconomyCommands(api);
@@ -2278,6 +2334,12 @@ export function init(api: ExtensionAPI): void {
     const { cellId, burgId } = event.detail;
     const assignedGoodId = Goods.assignBiomeProduct(cellId);
     const burg = getWorldContext().pack.burgs[burgId];
+    // A promoted frontier harbour must become an actual commercial centre, not
+    // merely borrow a market id. `addMarket` is idempotent for an existing
+    // centre; expanding territories afterwards gives the new market stock,
+    // demand, and a route-planning endpoint for genuine trade deals.
+    const createdMarket = burg ? Markets.addMarket(burgId) : null;
+    if (createdMarket) Markets.expandTerritories();
     if (burg) burg.market = getMarketCellColumn()[cellId] || 0;
 
     // A changed bonus product and a new urban worker both affect the next
@@ -2439,9 +2501,9 @@ export function init(api: ExtensionAPI): void {
   // afterward. Harmless no-op while nothing has ever been depleted.
   let daysSinceLastProduction = 0;
   let currentQuarterIndex = 0;
-  // Without this, mine reserves only ever go down (docs/plan/mineral-resource-circulation-fixes.md
-  // Fix 2): roads/ports built during Advance Time never translate into newly accessible deposits
-  // unless a user manually clicks the "Prospect mines" Tools action.
+  // Annual State-led surveys replace the former global, omniscient pass. A
+  // discovered unclaimed site is reported to Frontier; it is not mined until
+  // ordinary expansion has incorporated it into a market area.
   let daysSinceLastProspecting = 0;
   const PROSPECTING_INTERVAL_DAYS = 365;
   // Phase: economy. Lexical id `economy.tick` runs before `shipbuilding.tick` in the
@@ -2650,8 +2712,9 @@ export function init(api: ExtensionAPI): void {
         daysSinceLastProspecting += effectiveDays;
         if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
           daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
-          const result = MineOperations.prospect();
-          if (result.discovered) SmelterOperations.generate();
+          const discoveries = runStateProspecting(api, () => context.rng.rand());
+          const openedOperations = MineOperations.openDiscoveredAccessibleOperations();
+          if (discoveries || openedOperations) SmelterOperations.generate();
         }
       });
 

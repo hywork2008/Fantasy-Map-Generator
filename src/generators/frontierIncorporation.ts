@@ -79,6 +79,8 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
       cells.state[cellId] = project.stateId;
       cells.province[cellId] = provinceId;
       frontier.cellStages[cellId] = FRONTIER_STAGE.incorporated;
+      const claim = frontier.resourceClaimsByCell[cellId];
+      if (claim?.stateId === project.stateId) claim.status = "secured";
     }
 
     if (origin === "seaborne") {

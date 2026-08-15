@@ -83,6 +83,8 @@ export interface FrontierCandidateSummary {
   readonly origin: "land" | "seaborne";
   /** Present only for seaborne expeditions. */
   readonly sourcePortCellId?: number;
+  /** Discovered mineral site that this expedition advances toward. */
+  readonly resourceClaimCellId?: number;
   readonly score: number;
   readonly setupCost: number;
   readonly requiredReserve: number;
@@ -159,6 +161,7 @@ type FrontierCandidate = {
   readonly sector: string;
   readonly origin: "land" | "seaborne";
   readonly sourcePortCellId?: number;
+  readonly resourceClaimCellId?: number;
   readonly score: number;
 };
 
@@ -283,11 +286,16 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
         stateId: state.i,
         origin: candidate.origin,
         sourcePortCellId: candidate.sourcePortCellId,
+        resourceClaimCellId: candidate.resourceClaimCellId,
         stage: FRONTIER_STAGE.outpost,
         establishedYear: year,
         supportYears: 0,
         failedSupportYears: 0
       };
+      if (candidate.resourceClaimCellId === candidate.cellId) {
+        const claim = frontier.resourceClaimsByCell[candidate.cellId];
+        if (claim?.stateId === state.i) claim.status = "settling";
+      }
       occupiedSectors.add(candidate.sector);
       activeProjects++;
 
@@ -404,6 +412,7 @@ function selectCandidate(
       sector: candidate.sector,
       origin: candidate.origin,
       sourcePortCellId: candidate.sourcePortCellId,
+      resourceClaimCellId: candidate.resourceClaimCellId,
       score: candidate.score + input.rng.rand()
     }));
 
@@ -488,7 +497,11 @@ function getLandStateCandidates(
       colonists,
       sector: getFrontierSector(cellId, stateCenter, cells),
       origin: "land",
-      score: scoreCandidate(cells, cellId, 0) - Math.min(...contributions.map(contribution => contribution.hops)) * 9,
+      resourceClaimCellId: getNearestResourceClaimCell(stateId, cells, frontier, cellId),
+      score:
+        scoreCandidate(cells, cellId, 0) +
+        getResourceClaimPriority(stateId, cells, frontier, cellId) -
+        Math.min(...contributions.map(contribution => contribution.hops)) * 9,
       setupCost: SETUP_COST,
       requiredReserve: TREASURY_RESERVE + SETUP_COST
     });
@@ -781,6 +794,50 @@ function scoreCandidate(cells: WorldContext["pack"]["cells"], cellId: number, ra
     terrainPenalty +
     random
   );
+}
+
+/**
+ * A claim is survey knowledge, not ownership. It rewards the next reachable
+ * frontier cell that shortens the route to that discovery, retaining the
+ * ordinary incremental corridor and incorporation rules.
+ */
+function getResourceClaimPriority(
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState,
+  candidateCellId: number
+): number {
+  const claimCellId = getNearestResourceClaimCell(stateId, cells, frontier, candidateCellId);
+  if (claimCellId === undefined) return 0;
+  if (claimCellId === candidateCellId) return 180;
+  const candidatePoint = cells.p?.[candidateCellId];
+  const claimPoint = cells.p?.[claimCellId];
+  if (!candidatePoint || !claimPoint) return 0;
+  const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);
+  return Math.max(0, 110 - distance / 4);
+}
+
+function getNearestResourceClaimCell(
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState,
+  candidateCellId: number
+): number | undefined {
+  const candidatePoint = cells.p?.[candidateCellId];
+  if (!candidatePoint) return undefined;
+  let bestCellId: number | undefined;
+  let bestDistance = Infinity;
+  for (const claim of Object.values(frontier.resourceClaimsByCell)) {
+    if (claim.stateId !== stateId || claim.status === "secured" || cells.state[claim.cellId] !== 0) continue;
+    const claimPoint = cells.p?.[claim.cellId];
+    if (!claimPoint) continue;
+    const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);
+    if (distance < bestDistance || (distance === bestDistance && claim.cellId < (bestCellId ?? Infinity))) {
+      bestCellId = claim.cellId;
+      bestDistance = distance;
+    }
+  }
+  return bestCellId;
 }
 
 function transferColonists(

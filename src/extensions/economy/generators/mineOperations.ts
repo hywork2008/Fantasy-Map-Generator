@@ -21,6 +21,23 @@ const MINE_TECH_BONUS_MAX = 0.3;
 const REQUIRED_WORKERS_BASE = 4;
 /** Additional headcount per richness point (1..5) to run the deposit at full extractionFactor. */
 const REQUIRED_WORKERS_PER_RICHNESS = 6;
+const MAX_STATE_SURVEY_HOPS = 20;
+
+export interface StateProspectingInput {
+  readonly stateId: number;
+  readonly geography: number;
+  readonly engineering: number;
+  /** Positive when this State's survey expertise exceeds nearby competitors. */
+  readonly surveyAdvantage: number;
+  readonly random: () => number;
+}
+
+export interface StateProspectingResult {
+  readonly discovered: boolean;
+  readonly cellId?: number;
+  readonly commodity?: MineralCommodity;
+  readonly method?: "riverPanning" | "geologicalSurvey";
+}
 
 const GROUNDWATER_DRAINAGE_PENALTY_BY_DEPTH: Record<MineralDeposit["depth"], number> = {
   surface: 0.08,
@@ -138,6 +155,132 @@ export class MineOperationsModule {
 
     setMineOperations(operations);
     return { discovered, upgraded, connected };
+  }
+
+  /**
+   * One State's annual survey. Unlike the legacy bulk `prospect()` command,
+   * this is deliberately limited to land the survey party can plausibly reach
+   * from that State. Gold placers are favoured when the State already controls
+   * part of the same river, modelling inexpensive panning before an inland
+   * geological expedition. It reveals at most one site and never creates a
+   * mine or assigns political ownership.
+   */
+  prospectForState(input: StateProspectingInput): StateProspectingResult {
+    const { cells } = getWorldContext().pack;
+    if (!cells.c || !cells.state) return { discovered: false };
+    const reachable = this.getReachableSurveyCells(input.stateId);
+    if (!reachable.size) return { discovered: false };
+
+    const ownRiverIds = new Set<number>();
+    for (const cellId of cells.i) {
+      if (cells.state[cellId] !== input.stateId) continue;
+      const riverId = cells.r?.[cellId] ?? 0;
+      if (riverId) ownRiverIds.add(riverId);
+    }
+
+    const candidates = getMineralDeposits()
+      .filter(
+        deposit =>
+          !deposit.exhausted && !deposit.discovered && cells.state[deposit.cell] === 0 && reachable.has(deposit.cell)
+      )
+      .map(deposit =>
+        this.scoreStateSurveyCandidate(
+          deposit,
+          reachable.get(deposit.cell) ?? MAX_STATE_SURVEY_HOPS,
+          ownRiverIds,
+          input
+        )
+      )
+      .filter((candidate): candidate is SurveyCandidate => candidate !== null)
+      .sort((a, b) => b.score - a.score || a.deposit.i - b.deposit.i);
+    const candidate = candidates[0];
+    if (!candidate || input.random() > candidate.discoveryChance) return { discovered: false };
+
+    candidate.deposit.discovered = true;
+    return {
+      discovered: true,
+      cellId: candidate.deposit.cell,
+      commodity: candidate.deposit.primaryCommodity,
+      method: candidate.method
+    };
+  }
+
+  /** Opens only already-discovered deposits that have become part of a market area. */
+  openDiscoveredAccessibleOperations(): number {
+    const marketById = new Set(getMarkets().map(market => market.i));
+    const marketColumn = getMarketCellColumn();
+    const operations = getMineOperations();
+    const operationDepositIds = new Set(operations.map(operation => operation.depositId));
+    let opened = 0;
+    for (const deposit of getMineralDeposits()) {
+      if (!deposit.discovered || deposit.exhausted || operationDepositIds.has(deposit.i)) continue;
+      deposit.accessibility = this.getAccessibility(deposit.cell);
+      const marketId = marketColumn[deposit.cell] ?? 0;
+      if (deposit.accessibility < PROSPECTING_ACCESSIBILITY || !marketId || !marketById.has(marketId)) continue;
+      const burgId = this.findNearestBurgId(deposit.cell, marketId);
+      if (!burgId) continue;
+      operations.push(this.createOperation(operations.length + 1, deposit, burgId, marketId, true));
+      operationDepositIds.add(deposit.i);
+      opened++;
+    }
+    if (opened) setMineOperations(operations);
+    return opened;
+  }
+
+  private getReachableSurveyCells(stateId: number): Map<number, number> {
+    const { cells } = getWorldContext().pack;
+    const queue: Array<{ cellId: number; hops: number }> = [];
+    const reachable = new Map<number, number>();
+    for (const cellId of cells.i) {
+      if (cells.state[cellId] !== stateId || cells.h[cellId] < 20) continue;
+      reachable.set(cellId, 0);
+      queue.push({ cellId, hops: 0 });
+    }
+    for (let cursor = 0; cursor < queue.length; cursor++) {
+      const current = queue[cursor];
+      if (current.hops >= MAX_STATE_SURVEY_HOPS) continue;
+      for (const neighborId of cells.c[current.cellId] ?? []) {
+        if (reachable.has(neighborId) || cells.h[neighborId] < 20) continue;
+        const owner = cells.state[neighborId];
+        if (owner && owner !== stateId) continue;
+        reachable.set(neighborId, current.hops + 1);
+        queue.push({ cellId: neighborId, hops: current.hops + 1 });
+      }
+    }
+    return reachable;
+  }
+
+  private scoreStateSurveyCandidate(
+    deposit: MineralDeposit,
+    hops: number,
+    ownRiverIds: ReadonlySet<number>,
+    input: StateProspectingInput
+  ): SurveyCandidate | null {
+    const { cells } = getWorldContext().pack;
+    const isGoldPlacer = deposit.type === "placer" && deposit.commodities.includes("gold");
+    const sameRiver = Boolean(cells.r?.[deposit.cell] && ownRiverIds.has(cells.r[deposit.cell]));
+    const geography = clampSkill(input.geography);
+    const engineering = clampSkill(input.engineering);
+    const advantage = Math.max(-100, Math.min(100, input.surveyAdvantage));
+
+    if (isGoldPlacer && sameRiver) {
+      return {
+        deposit,
+        method: "riverPanning",
+        score: 160 + geography * 1.2 + engineering * 0.25 + advantage * 0.2 - hops * 4,
+        discoveryChance: Math.min(
+          0.88,
+          0.18 + geography * 0.005 + engineering * 0.0015 + Math.max(0, advantage) * 0.001
+        )
+      };
+    }
+
+    return {
+      deposit,
+      method: "geologicalSurvey",
+      score: 70 + engineering * 1.1 + geography * 0.35 + advantage * 0.15 + deposit.richness * 5 - hops * 4,
+      discoveryChance: Math.min(0.7, 0.05 + engineering * 0.004 + geography * 0.0015 + Math.max(0, advantage) * 0.001)
+    };
   }
 
   /**
@@ -266,6 +409,17 @@ export class MineOperationsModule {
     const hasHaven = Boolean(cells.haven?.[cell]);
     return Math.min(1, 0.35 + (hasRiver ? 0.15 : 0) + (hasRoute ? 0.25 : 0) + (hasHaven ? 0.15 : 0));
   }
+}
+
+interface SurveyCandidate {
+  readonly deposit: MineralDeposit;
+  readonly method: "riverPanning" | "geologicalSurvey";
+  readonly score: number;
+  readonly discoveryChance: number;
+}
+
+function clampSkill(skill: number): number {
+  return Number.isFinite(skill) ? Math.max(0, Math.min(100, skill)) : 0;
 }
 
 export const MineOperations = new MineOperationsModule();
