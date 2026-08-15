@@ -331,7 +331,10 @@ export const StatesEditorContent: React.FC = () => {
                         </div>
                       </td>
                       <td className="hide numeric">
-                        <span data-tip="State area" className="stateArea hide">
+                        <span
+                          data-tip={isNeutral ? "Independent burg cell area" : "State area"}
+                          className="stateArea hide"
+                        >
                           {areaText}
                         </span>
                       </td>
@@ -339,7 +342,10 @@ export const StatesEditorContent: React.FC = () => {
                         className="hide numeric pointer"
                         onClick={() => (isNeutral ? null : statesEditorActions.changePopulation(s.i))}
                       >
-                        <span data-tip="State population" className="statePopulation pointer hide">
+                        <span
+                          data-tip={isNeutral ? "Independent burg cell population" : "State population"}
+                          className="statePopulation pointer hide"
+                        >
                           {populationText}
                         </span>
                       </td>
@@ -391,7 +397,10 @@ export const StatesEditorContent: React.FC = () => {
                         )}
                       </td>
                       <td className="hidden show hide numeric">
-                        <span data-tip="Cells count" className="stateCells hidden show hide">
+                        <span
+                          data-tip={isNeutral ? "Independent burg cells" : "Cells count"}
+                          className="stateCells hidden show hide"
+                        >
                           {s.cells}
                         </span>
                       </td>

@@ -1,3 +1,4 @@
+import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 
 export interface SettlementOverviewStats {
@@ -9,6 +10,30 @@ export interface SettlementOverviewStats {
   governedPopulation: number;
 }
 
+/** Display-only Neutrals-row totals. Never write these back onto `states[0]`. */
+export interface IndependentBurgStats {
+  count: number;
+  cells: number;
+  /** Raw pack cell area (pass through `getArea()` before display). */
+  area: number;
+  /** Raw rural pop on independent burg cells (`cells.pop`). */
+  rural: number;
+  /** Raw urban pop of independent burgs (`burg.population`). */
+  urban: number;
+}
+
+const EMPTY_INDEPENDENT_BURG_STATS: IndependentBurgStats = {
+  count: 0,
+  cells: 0,
+  area: 0,
+  rural: 0,
+  urban: 0
+};
+
+function isIndependentBurg(burg: Burg | 0 | undefined): burg is Burg {
+  return !!(burg?.i && !burg.removed && !burg.state);
+}
+
 /**
  * Burgs whose political owner is still unclaimed land (`burg.state === 0`).
  * Display-only: never write this back onto `states[0].burgs`, which stays a
@@ -17,9 +42,37 @@ export interface SettlementOverviewStats {
 export function countIndependentBurgs(burgs: PackedGraph["burgs"] | undefined): number {
   let count = 0;
   for (const burg of burgs ?? []) {
-    if (burg?.i && !burg.removed && !burg.state) count += 1;
+    if (isIndependentBurg(burg)) count += 1;
   }
   return count;
+}
+
+/**
+ * Area and population of the cells those independent burgs sit on.
+ * Same rural/urban split as `States.collectStatistics`, restricted to burg
+ * cells so Neutrals does not absorb the rest of unclaimed wilderness.
+ */
+export function collectIndependentBurgStats(pack: PackedGraph | undefined): IndependentBurgStats {
+  if (!pack) return { ...EMPTY_INDEPENDENT_BURG_STATS };
+
+  const { burgs, cells } = pack;
+  let count = 0;
+  let area = 0;
+  let rural = 0;
+  let urban = 0;
+
+  for (const burg of burgs ?? []) {
+    if (!isIndependentBurg(burg)) continue;
+    count += 1;
+    const cellId = burg.cell;
+    if (cellId != null) {
+      area += cells?.area?.[cellId] ?? 0;
+      rural += cells?.pop?.[cellId] ?? 0;
+    }
+    urban += burg.population ?? 0;
+  }
+
+  return { count, cells: count, area, rural, urban };
 }
 
 /**

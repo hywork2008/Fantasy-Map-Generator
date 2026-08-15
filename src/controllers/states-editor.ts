@@ -4,7 +4,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { countIndependentBurgs } from "../generators/settlementOverviewStats";
+import { collectIndependentBurgStats } from "../generators/settlementOverviewStats";
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -170,19 +170,23 @@ export function computeStateRows(): {
   let totalArea = 0;
   let totalPopulation = 0;
   let totalBurgs = 0;
-  const independentBurgCount = countIndependentBurgs(worldContext.pack.burgs);
+  // Neutrals is not a nation; collectStatistics leaves states[0] at 0. Sum
+  // independent burg cells for the editor row only — do not write back to pack.
+  const independent = collectIndependentBurgStats(worldContext.pack);
 
   const rows: StateRowData[] = [];
 
   for (const s of worldContext.pack.states as State[]) {
     if (s.removed) continue;
-    const area = getArea(s.area ?? 0);
-    const rural = (s.rural ?? 0) * worldContext.populationRate;
-    const urban = (s.urban ?? 0) * worldContext.populationRate * worldContext.urbanization;
+    const isNeutral = !s.i;
+    const rawArea = isNeutral ? independent.area : (s.area ?? 0);
+    const rawRural = isNeutral ? independent.rural : (s.rural ?? 0);
+    const rawUrban = isNeutral ? independent.urban : (s.urban ?? 0);
+    const area = getArea(rawArea);
+    const rural = rawRural * worldContext.populationRate;
+    const urban = rawUrban * worldContext.populationRate * worldContext.urbanization;
     const population = rn(rural + urban);
-    // Neutrals is not a nation; collectStatistics leaves s.burgs at 0. Count
-    // independent towns for the editor row only — do not write back to pack.
-    const burgCount = s.i ? (s.burgs ?? 0) : independentBurgCount;
+    const burgCount = isNeutral ? independent.count : (s.burgs ?? 0);
 
     totalArea += area;
     totalPopulation += population;
@@ -210,7 +214,7 @@ export function computeStateRows(): {
       population,
       type: s.type || "Generic",
       expansionism: s.expansionism || 0,
-      cells: s.cells ?? 0,
+      cells: isNeutral ? independent.cells : (s.cells ?? 0),
       rural,
       urban,
       isLocked: !!s.lock
