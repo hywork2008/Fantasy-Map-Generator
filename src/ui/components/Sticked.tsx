@@ -25,39 +25,39 @@ export const Sticked: React.FC = () => {
       <button
         type="button"
         id="newMapButton"
-        data-tip="Generate a new map based on options"
+        data-tip={t("sticked.newMapTip")}
         data-shortcut="F2"
         onClick={() => regeneratePrompt()}
         disabled={isMapGenerationInProgress}
       >
-        New Map
+        {t("sticked.newMap")}
       </button>
       <button
         type="button"
         id="exportButton"
-        data-tip="Select format to download image or export map data"
+        data-tip={t("sticked.exportTip")}
         onClick={() => void showExportPane()}
         disabled={isMapGenerationInProgress || isMapReadyTaskRunning}
       >
-        Export
+        {t("sticked.export")}
       </button>
       <button
         type="button"
         id="saveButton"
-        data-tip="Save fully-functional map file"
+        data-tip={t("sticked.saveTip")}
         onClick={() => showSavePane()}
         disabled={isMapGenerationInProgress || isMapReadyTaskRunning}
       >
-        Save
+        {t("sticked.save")}
       </button>
       <button
         type="button"
         id="loadButton"
-        data-tip="Load fully-functional map (.map or .gz formats)"
+        data-tip={t("sticked.loadTip")}
         onClick={() => void showLoadPane()}
         disabled={isMapGenerationInProgress && !canConfigureInitialMap}
       >
-        Load
+        {t("sticked.load")}
       </button>
       <button
         type="button"
@@ -70,22 +70,22 @@ export const Sticked: React.FC = () => {
       <button
         type="button"
         id="stickedCellsButton"
-        data-tip="Click to open Cell details view"
+        data-tip={t("sticked.cellsTip")}
         className={openDialogs.has("cellInfo") ? "pressed" : undefined}
         onClick={() => triggerToolAction("overviewCellsButton")}
         disabled={toolsUnavailable}
       >
-        Cells
+        {t("sticked.cells")}
       </button>
       <button
         type="button"
         id="stickedAdvanceTimeButton"
-        data-tip="Click to open the Advance Time dialog and step the world's simulation clock forward by years, months, or days"
+        data-tip={t("sticked.advanceTimeTip")}
         className={openDialogs.has("advanceTime") ? "pressed" : undefined}
         onClick={() => triggerToolAction("openAdvanceTimeDialog")}
         disabled={toolsUnavailable}
       >
-        Advance Time
+        {t("sticked.advanceTime")}
       </button>
     </div>
   );

@@ -1,9 +1,60 @@
-import type React from "react";
+import { Fragment } from "react";
+import { useTranslation } from "react-i18next";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
 import { LockIconButton } from "../../LockIconButton";
 
-export const DangerSettingsTab: React.FC = () => {
+type RarityGroup = {
+  headingKey: "rarity5" | "rarity4" | "rarity3" | "rarity12";
+  rarityLabelKey: "rarityLabel5" | "rarityLabel4" | "rarityLabel3" | "rarityLabel12";
+  minKey: "dangerRarity5Min" | "dangerRarity4Min" | "dangerRarity3Min" | "dangerRarity1Min";
+  maxKey: "dangerRarity5Max" | "dangerRarity4Max" | "dangerRarity3Max" | "dangerRarity1Max";
+  powerKey: "dangerRarity5Power" | "dangerRarity4Power" | "dangerRarity3Power" | "dangerRarity1Power";
+  typeKey: "dangerRarity5Type" | "dangerRarity4Type" | "dangerRarity3Type" | "dangerRarity1Type";
+  spawnMax: number;
+};
+
+const RARITY_GROUPS: RarityGroup[] = [
+  {
+    headingKey: "rarity5",
+    rarityLabelKey: "rarityLabel5",
+    minKey: "dangerRarity5Min",
+    maxKey: "dangerRarity5Max",
+    powerKey: "dangerRarity5Power",
+    typeKey: "dangerRarity5Type",
+    spawnMax: 100
+  },
+  {
+    headingKey: "rarity4",
+    rarityLabelKey: "rarityLabel4",
+    minKey: "dangerRarity4Min",
+    maxKey: "dangerRarity4Max",
+    powerKey: "dangerRarity4Power",
+    typeKey: "dangerRarity4Type",
+    spawnMax: 100
+  },
+  {
+    headingKey: "rarity3",
+    rarityLabelKey: "rarityLabel3",
+    minKey: "dangerRarity3Min",
+    maxKey: "dangerRarity3Max",
+    powerKey: "dangerRarity3Power",
+    typeKey: "dangerRarity3Type",
+    spawnMax: 100
+  },
+  {
+    headingKey: "rarity12",
+    rarityLabelKey: "rarityLabel12",
+    minKey: "dangerRarity1Min",
+    maxKey: "dangerRarity1Max",
+    powerKey: "dangerRarity1Power",
+    typeKey: "dangerRarity1Type",
+    spawnMax: 1000
+  }
+];
+
+export const DangerSettingsTab = () => {
+  const { t } = useTranslation();
   const options = useOptionsState();
   const updateOption = options.setOption;
 
@@ -17,15 +68,15 @@ export const DangerSettingsTab: React.FC = () => {
 
   return (
     <div>
-      <p data-tip="Settings related to danger/threat generation">Danger settings:</p>
+      <p data-tip={t("dangerSettings.headingTip")}>{t("dangerSettings.heading")}</p>
       <table>
         <tbody>
-          <tr data-tip="Master switch for monsters, dungeon bosses, and the danger field they paint. On by default for High/Dark Fantasy culture sets. When off, wilderness carries no danger cost — states and the oikoumene can settle/claim land without the 'wilderness stays wild' constraint.">
+          <tr data-tip={t("dangerSettings.enableTip")}>
             <td>
               <LockIconButton id="dangerEnabled" />
             </td>
             <td>
-              <label htmlFor="dangerEnabled">Enable danger / threats</label>
+              <label htmlFor="dangerEnabled">{t("dangerSettings.enable")}</label>
             </td>
             <td colSpan={2}>
               <input
@@ -36,9 +87,9 @@ export const DangerSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
-          <tr data-tip="Smooth Contours blend neighboring threats into a density field. Cell Heatmap paints each cell only from its own danger value (0–255); color matches the cell tooltip.">
+          <tr data-tip={t("dangerSettings.renderingTip")}>
             <td></td>
-            <td>Danger rendering</td>
+            <td>{t("dangerSettings.rendering")}</td>
             <td>
               <select
                 id="dangerRenderingMode"
@@ -49,18 +100,18 @@ export const DangerSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-danger-rendering-mode"));
                 }}
               >
-                <option value="contour">Smooth Contours (blended)</option>
-                <option value="choropleth">Cell Heatmap (per-cell, default)</option>
+                <option value="contour">{t("dangerSettings.renderingContour")}</option>
+                <option value="choropleth">{t("dangerSettings.renderingHeatmap")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Select how Threat (Danger) level is calculated from monsters">
+          <tr data-tip={t("dangerSettings.threatCalculationTip")}>
             <td>
               <LockIconButton id="threatCalculation" />
             </td>
-            <td>Threat calculation</td>
+            <td>{t("dangerSettings.threatCalculation")}</td>
             <td>
               <select
                 id="threatCalculation"
@@ -72,241 +123,77 @@ export const DangerSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-threat-calculation"));
                 }}
               >
-                <option value="additive">Accumulative</option>
-                <option value="max">Highest Overlap (Max)</option>
-                <option value="nonlinear">Steep Decay (Non-linear, default)</option>
+                <option value="additive">{t("dangerSettings.threatAdditive")}</option>
+                <option value="max">{t("dangerSettings.threatMax")}</option>
+                <option value="nonlinear">{t("dangerSettings.threatNonlinear")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr>
-            <td colSpan={4} style={{ fontWeight: "bold", paddingTop: "10px" }}>
-              Rarity 5 Threats
-            </td>
-          </tr>
-          <tr data-tip="Number of Rarity 5 threats">
-            <td></td>
-            <td>Spawn Count</td>
-            <td>
-              <span data-tip="Minimal possible spawn">min</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="100"
-                value={options.dangerRarity5Min}
-                onChange={e => updateOption("dangerRarity5Min", Number(e.target.value))}
-              />
-              <span data-tip="Maximal possible spawn">max</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="100"
-                value={options.dangerRarity5Max}
-                onChange={e => updateOption("dangerRarity5Max", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Base power for Rarity 5 threats">
-            <td></td>
-            <td>Power</td>
-            <td>
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={options.dangerRarity5Power}
-                onChange={e => updateOption("dangerRarity5Power", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Type label for Rarity 5 threats">
-            <td></td>
-            <td>Type Name</td>
-            <td>
-              <input
-                type="text"
-                value={options.dangerRarity5Type}
-                onChange={e => updateOption("dangerRarity5Type", e.target.value)}
-              />
-            </td>
-            <td></td>
-          </tr>
-
-          <tr>
-            <td colSpan={4} style={{ fontWeight: "bold", paddingTop: "10px" }}>
-              Rarity 4 Threats
-            </td>
-          </tr>
-          <tr data-tip="Number of Rarity 4 threats">
-            <td></td>
-            <td>Spawn Count</td>
-            <td>
-              <span data-tip="Minimal possible spawn">min</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="100"
-                value={options.dangerRarity4Min}
-                onChange={e => updateOption("dangerRarity4Min", Number(e.target.value))}
-              />
-              <span data-tip="Maximal possible spawn">max</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="100"
-                value={options.dangerRarity4Max}
-                onChange={e => updateOption("dangerRarity4Max", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Base power for Rarity 4 threats">
-            <td></td>
-            <td>Power</td>
-            <td>
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={options.dangerRarity4Power}
-                onChange={e => updateOption("dangerRarity4Power", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Type label for Rarity 4 threats">
-            <td></td>
-            <td>Type Name</td>
-            <td>
-              <input
-                type="text"
-                value={options.dangerRarity4Type}
-                onChange={e => updateOption("dangerRarity4Type", e.target.value)}
-              />
-            </td>
-            <td></td>
-          </tr>
-
-          <tr>
-            <td colSpan={4} style={{ fontWeight: "bold", paddingTop: "10px" }}>
-              Rarity 3 Threats
-            </td>
-          </tr>
-          <tr data-tip="Number of Rarity 3 threats">
-            <td></td>
-            <td>Spawn Count</td>
-            <td>
-              <span data-tip="Minimal possible spawn">min</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="100"
-                value={options.dangerRarity3Min}
-                onChange={e => updateOption("dangerRarity3Min", Number(e.target.value))}
-              />
-              <span data-tip="Maximal possible spawn">max</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="100"
-                value={options.dangerRarity3Max}
-                onChange={e => updateOption("dangerRarity3Max", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Base power for Rarity 3 threats">
-            <td></td>
-            <td>Power</td>
-            <td>
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={options.dangerRarity3Power}
-                onChange={e => updateOption("dangerRarity3Power", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Type label for Rarity 3 threats">
-            <td></td>
-            <td>Type Name</td>
-            <td>
-              <input
-                type="text"
-                value={options.dangerRarity3Type}
-                onChange={e => updateOption("dangerRarity3Type", e.target.value)}
-              />
-            </td>
-            <td></td>
-          </tr>
-
-          <tr>
-            <td colSpan={4} style={{ fontWeight: "bold", paddingTop: "10px" }}>
-              Rarity 1-2 Threats
-            </td>
-          </tr>
-          <tr data-tip="Number of Rarity 1-2 threats">
-            <td></td>
-            <td>Spawn Count</td>
-            <td>
-              <span data-tip="Minimal possible spawn">min</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="1000"
-                value={options.dangerRarity1Min}
-                onChange={e => updateOption("dangerRarity1Min", Number(e.target.value))}
-              />
-              <span data-tip="Maximal possible spawn">max</span>
-              <input
-                className="paired"
-                type="number"
-                min="0"
-                max="1000"
-                value={options.dangerRarity1Max}
-                onChange={e => updateOption("dangerRarity1Max", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Base power for Rarity 1-2 threats">
-            <td></td>
-            <td>Power</td>
-            <td>
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={options.dangerRarity1Power}
-                onChange={e => updateOption("dangerRarity1Power", Number(e.target.value))}
-              />
-            </td>
-            <td></td>
-          </tr>
-          <tr data-tip="Type label for Rarity 1-2 threats">
-            <td></td>
-            <td>Type Name</td>
-            <td>
-              <input
-                type="text"
-                value={options.dangerRarity1Type}
-                onChange={e => updateOption("dangerRarity1Type", e.target.value)}
-              />
-            </td>
-            <td></td>
-          </tr>
+          {RARITY_GROUPS.map(group => {
+            const rarity = t(`dangerSettings.${group.rarityLabelKey}`);
+            return (
+              <Fragment key={group.headingKey}>
+                <tr>
+                  <td colSpan={4} style={{ fontWeight: "bold", paddingTop: "10px" }}>
+                    {t(`dangerSettings.${group.headingKey}`)}
+                  </td>
+                </tr>
+                <tr data-tip={t("dangerSettings.spawnCountTip", { rarity })}>
+                  <td></td>
+                  <td>{t("dangerSettings.spawnCount")}</td>
+                  <td>
+                    <span data-tip={t("dangerSettings.minSpawn")}>{t("common.min")}</span>
+                    <input
+                      className="paired"
+                      type="number"
+                      min="0"
+                      max={group.spawnMax}
+                      value={options[group.minKey]}
+                      onChange={e => updateOption(group.minKey, Number(e.target.value))}
+                    />
+                    <span data-tip={t("dangerSettings.maxSpawn")}>{t("common.max")}</span>
+                    <input
+                      className="paired"
+                      type="number"
+                      min="0"
+                      max={group.spawnMax}
+                      value={options[group.maxKey]}
+                      onChange={e => updateOption(group.maxKey, Number(e.target.value))}
+                    />
+                  </td>
+                  <td></td>
+                </tr>
+                <tr data-tip={t("dangerSettings.powerTip", { rarity })}>
+                  <td></td>
+                  <td>{t("dangerSettings.power")}</td>
+                  <td>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={options[group.powerKey]}
+                      onChange={e => updateOption(group.powerKey, Number(e.target.value))}
+                    />
+                  </td>
+                  <td></td>
+                </tr>
+                <tr data-tip={t("dangerSettings.typeNameTip", { rarity })}>
+                  <td></td>
+                  <td>{t("dangerSettings.typeName")}</td>
+                  <td>
+                    <input
+                      type="text"
+                      value={options[group.typeKey]}
+                      onChange={e => updateOption(group.typeKey, e.target.value)}
+                    />
+                  </td>
+                  <td></td>
+                </tr>
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -1,9 +1,11 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { UITour } from "../../../services/ui-tour";
 import { CustomAboutContent } from "./CustomAboutContent";
 import { UpstreamAboutContent } from "./UpstreamAboutContent";
 
 export const AboutTab: React.FC = () => {
+  const { t } = useTranslation();
   const startTour = () => {
     UITour.start();
   };
@@ -13,13 +15,8 @@ export const AboutTab: React.FC = () => {
   return (
     <div id="aboutContent" className="tabcontent d-block">
       <p>
-        <button
-          id="startTourButton"
-          onClick={startTour}
-          data-tip="Take an interactive tour of the map generator"
-          type="button"
-        >
-          &#9654; Take an Interactive Tour
+        <button id="startTourButton" onClick={startTour} data-tip={t("about.startTourTip")} type="button">
+          {t("about.startTour")}
         </button>
       </p>
 

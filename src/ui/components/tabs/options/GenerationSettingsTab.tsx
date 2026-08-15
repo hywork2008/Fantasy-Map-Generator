@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import {
   getInitialSettlementPatternPreset,
   heightmapLandmassThresholds,
@@ -13,6 +14,7 @@ import { IconButton } from "../../IconButton";
 import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
+  const { t } = useTranslation();
   const options = useOptionsState();
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   // Generation is merely paused for stage review (including the initial map's review
@@ -21,10 +23,8 @@ export const GenerationSettingsTab: React.FC = () => {
   const isGenerationPaused = useGenerationProgressState(state => state.isOpen && !state.isGenerating);
   const updateOption = options.setOption;
   const usesPolityDensity = options.initialSettlementPattern !== "standard";
-  const statesNumberLabel = usesPolityDensity ? "Polity density" : "States number";
-  const statesNumberTooltip = usesPolityDensity
-    ? "Define polity density for settlement-network maps"
-    : "Define the number of states for standard maps";
+  const statesNumberLabel = usesPolityDensity ? t("generation.polityDensity") : t("generation.statesNumber");
+  const statesNumberTooltip = usesPolityDensity ? t("generation.polityDensityTip") : t("generation.statesNumberTip");
 
   const updateOptionAndLock = <K extends keyof Omit<typeof options, "setOption" | "setOptions">>(
     key: K,
@@ -71,16 +71,18 @@ export const GenerationSettingsTab: React.FC = () => {
 
   return (
     <div>
-      <p data-tip="Map generation settings. Generate a new map to apply the settings">
-        Map settings (new map to apply):
-      </p>
+      <p data-tip={t("generation.headingTip")}>{t("generation.heading")}</p>
       <table id="generationSettingsTable">
         <tbody>
-          <tr data-tip="Set original map size on generation. It cannot be changed later. Always keep canvas size equal to your screen size or less.">
+          <tr data-tip={t("generation.canvasSizeTip")}>
             <td>
-              <IconButton data-tip="Restore default canvas size" icon="icon-ccw" onClick={handleRestoreDefaultSize} />
+              <IconButton
+                data-tip={t("generation.restoreCanvasSize")}
+                icon="icon-ccw"
+                onClick={handleRestoreDefaultSize}
+              />
             </td>
-            <th>Canvas size</th>
+            <th>{t("generation.canvasSize")}</th>
             <td>
               <input
                 id="mapWidthInput"
@@ -104,15 +106,11 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Map seed number. Press 'Enter' or click the play button to generate a new map with this seed">
+          <tr data-tip={t("generation.mapSeedTip")}>
             <td>
-              <i
-                data-tip="Show seed history to apply a previous seed"
-                id="optionsMapHistory"
-                className="icon-hourglass-1"
-              ></i>
+              <i data-tip={t("generation.showSeedHistory")} id="optionsMapHistory" className="icon-hourglass-1"></i>
             </td>
-            <th>Map seed</th>
+            <th>{t("generation.mapSeed")}</th>
             <td>
               <input
                 id="optionsSeed"
@@ -130,26 +128,22 @@ export const GenerationSettingsTab: React.FC = () => {
                 }}
               />
               <IconButton
-                data-tip="Generate a new map with this seed"
+                data-tip={t("generation.generateWithSeed")}
                 icon="icon-play"
                 disabled={isMapGenerationInProgress && !isGenerationPaused}
                 onClick={generateWithSeed}
               />
             </td>
             <td>
-              <i
-                data-tip="Copy map seed as URL. It will produce the same map only if options are default or the same"
-                id="optionsCopySeed"
-                className="icon-docs"
-              ></i>
+              <i data-tip={t("generation.copySeed")} id="optionsCopySeed" className="icon-docs"></i>
             </td>
           </tr>
 
-          <tr data-tip="Set number of points to be used for graph generation. Highly affects performance. 10K is the only recommended value">
+          <tr data-tip={t("generation.pointsNumberTip")}>
             <td>
               <LockIconButton id="points" />
             </td>
-            <th>Points number</th>
+            <th>{t("generation.pointsNumber")}</th>
             <td>
               <input
                 type="range"
@@ -167,13 +161,13 @@ export const GenerationSettingsTab: React.FC = () => {
           </tr>
 
           <tr>
-            <th colSpan={4}>1. Landscape outline</th>
+            <th colSpan={4}>{t("generation.sectionLandscape")}</th>
           </tr>
-          <tr data-tip="Select heightmap template to be used for map generation">
+          <tr data-tip={t("generation.heightmapTip")}>
             <td>
               <LockIconButton id="template" />
             </td>
-            <th>Heightmap</th>
+            <th>{t("generation.heightmap")}</th>
             <td
               id="templateInputContainer"
               className="pointer"
@@ -185,11 +179,11 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="When Heightmap is unlocked, limit random selection to templates with the selected average land or ocean coverage">
+          <tr data-tip={t("generation.randomHeightmapPoolTip")}>
             <td>
               <LockIconButton id="templateRandomization" />
             </td>
-            <th>Random heightmap pool</th>
+            <th>{t("generation.randomHeightmapPool")}</th>
             <td colSpan={2}>
               <select
                 value={options.templateRandomization}
@@ -197,24 +191,26 @@ export const GenerationSettingsTab: React.FC = () => {
                   updateOptionAndLock("templateRandomization", e.target.value as typeof options.templateRandomization)
                 }
               >
-                <option value="all">All templates</option>
-                <option value="landRich">Land-rich ({heightmapLandmassThresholds.landRichMinimum}%+ land)</option>
+                <option value="all">{t("generation.allTemplates")}</option>
+                <option value="landRich">
+                  {t("generation.landRich", { percent: heightmapLandmassThresholds.landRichMinimum })}
+                </option>
                 <option value="oceanRich">
-                  Ocean-rich ({100 - heightmapLandmassThresholds.oceanRichMaximum}%+ ocean)
+                  {t("generation.oceanRich", { percent: 100 - heightmapLandmassThresholds.oceanRichMaximum })}
                 </option>
               </select>
             </td>
           </tr>
 
           <tr>
-            <th colSpan={4}>2. Climate and waterways</th>
+            <th colSpan={4}>{t("generation.sectionClimate")}</th>
           </tr>
-          <tr data-tip="Starting capital and ordinary upkeep for Economy. Balanced is the default pre-gunpowder setting: cities begin able to function, while routine administration and market maintenance absorb most ordinary revenue. Generate a new map to apply.">
+          <tr data-tip={t("generation.economyStartTip")}>
             <td>
               <LockIconButton id="economyStartMode" />
             </td>
             <th>
-              <label htmlFor="economyStartMode">Economy start</label>
+              <label htmlFor="economyStartMode">{t("generation.economyStart")}</label>
             </th>
             <td colSpan={2}>
               <select
@@ -224,18 +220,18 @@ export const GenerationSettingsTab: React.FC = () => {
                   updateOptionAndLock("economyStartMode", e.target.value as typeof options.economyStartMode)
                 }
               >
-                <option value="provisioned">Provisioned (fast start)</option>
-                <option value="balanced">Balanced (ordinary medieval)</option>
-                <option value="subsistence">Subsistence (minimal surplus)</option>
+                <option value="provisioned">{t("generation.economyStartProvisioned")}</option>
+                <option value="balanced">{t("generation.economyStartBalanced")}</option>
+                <option value="subsistence">{t("generation.economyStartSubsistence")}</option>
               </select>
             </td>
           </tr>
-          <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Applies immediately, no regenerate needed.">
+          <tr data-tip={t("generation.biomeRegionTip")}>
             <td>
               <LockIconButton id="biomeRegionProfile" />
             </td>
             <th>
-              <label htmlFor="biomeRegionProfile">Biome region</label>
+              <label htmlFor="biomeRegionProfile">{t("generation.biomeRegion")}</label>
             </th>
             <td colSpan={2}>
               <select
@@ -256,20 +252,20 @@ export const GenerationSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("fmg:render-generation-review"));
                 }}
               >
-                <option value="global">Global (default mix)</option>
-                <option value="medievalEurope">Medieval Europe</option>
-                <option value="mediterranean">Mediterranean</option>
-                <option value="tropicalRiverBasin">Tropical river basin</option>
-                <option value="mountainRealm">Mountain realm</option>
+                <option value="global">{t("generation.biomeRegions.global")}</option>
+                <option value="medievalEurope">{t("generation.biomeRegions.medievalEurope")}</option>
+                <option value="mediterranean">{t("generation.biomeRegions.mediterranean")}</option>
+                <option value="tropicalRiverBasin">{t("generation.biomeRegions.tropicalRiverBasin")}</option>
+                <option value="mountainRealm">{t("generation.biomeRegions.mountainRealm")}</option>
               </select>
             </td>
           </tr>
 
-          <tr data-tip="Chance that a single, dominant mountain peak becomes a tagged volcano (distinct barren/lava biome, auto-selected volcano icon) instead of an ordinary summit, decided while the heightmap itself is built. Checked once per qualifying peak, so even 100% rarely produces more than a handful of volcanoes on one map. 0 disables volcano tagging entirely. Unlike Biome region/Volcanic soil strength below, this decides where volcanoes sit on the terrain, so it needs the heightmap re-rolled to apply: press Regenerate climate and waterways during stage review (it re-runs Landscape first, same seed), Generate another landscape, or generate a new map. The rest of the terrain stays exactly as it was — only volcano tagging changes.">
+          <tr data-tip={t("generation.volcanismChanceTip")}>
             <td>
               <LockIconButton id="volcanismChance" />
             </td>
-            <th>Volcanism chance %</th>
+            <th>{t("generation.volcanismChance")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -280,11 +276,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Of the volcanoes actually generated, the share that are active — a molten crater (Lava field biome) — rather than dormant, whose summit is instead carved into a crater lake (Volcanic barrens biome around it). Decided alongside heightmap generation, same as Volcanism chance — press Regenerate climate and waterways during stage review, Generate another landscape, or generate a new map to apply.">
+          <tr data-tip={t("generation.activeVolcanoChanceTip")}>
             <td>
               <LockIconButton id="volcanoActiveChance" />
             </td>
-            <th>Active volcano chance %</th>
+            <th>{t("generation.activeVolcanoChance")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -295,11 +291,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="How far the fertile Volcanic soil biome ring extends down an already-tagged volcano's flanks before yielding to the ordinary climate biome. 0 keeps only the barren crater; 100 spreads rich farmland far down the slope. Only rescales an existing per-cell intensity value, so — unlike the two options above — this applies immediately, no regenerate needed.">
+          <tr data-tip={t("generation.volcanicSoilStrengthTip")}>
             <td>
               <LockIconButton id="volcanicSoilStrength" />
             </td>
-            <th>Volcanic soil strength %</th>
+            <th>{t("generation.volcanicSoilStrength")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -315,12 +311,12 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="How harbor/mooring calmness (pack.cells.enclosure) is scored for ocean-connected water. Ocean Currents reads the resolved current speed at the shoreline itself — bends around headlands and funnels out of bays/straits, but almost every shore cell reads near-zero regardless of real shelter, so it saturates toward 100 close to the coast. Ocean Currents (Ambient) instead reads the current speed a short distance offshore, distinguishing a genuinely sheltered bay from an exposed open coastline — better for siting decisions like harbor placement. Both score every lake cell fully enclosed. Radius is the legacy fixed 6-hop land-blocked-ratio heuristic for all. Applies immediately, no regenerate needed.">
+          <tr data-tip={t("generation.enclosureCalculationTip")}>
             <td>
               <LockIconButton id="enclosureCalculationMode" />
             </td>
             <th>
-              <label htmlFor="enclosureCalculationMode">Enclosure calculation</label>
+              <label htmlFor="enclosureCalculationMode">{t("generation.enclosureCalculation")}</label>
             </th>
             <td colSpan={2}>
               <select
@@ -335,17 +331,17 @@ export const GenerationSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-enclosure-calculation"));
                 }}
               >
-                <option value="oceanCurrents">Ocean Currents (default)</option>
-                <option value="oceanCurrentsAmbient">Ocean Currents (Ambient)</option>
-                <option value="radius">Radius (shape only)</option>
+                <option value="oceanCurrents">{t("generation.enclosureOceanCurrents")}</option>
+                <option value="oceanCurrentsAmbient">{t("generation.enclosureOceanCurrentsAmbient")}</option>
+                <option value="radius">{t("generation.enclosureRadius")}</option>
               </select>
             </td>
           </tr>
 
-          <tr data-tip="How the Ocean Currents WebGL layer draws grid.cells.currentAngle/currentSpeed. Direction Lines draws a short arrow per cell, colored by water temperature — cells reading exactly 0 speed are skipped, so a calm patch looks like a gap. Intensity Shading instead fills every ocean cell by current speed alone (pale = calm, dark = strong), with full gapless coverage. Applies immediately, no regenerate needed.">
+          <tr data-tip={t("generation.oceanCurrentRenderingTip")}>
             <td></td>
             <th>
-              <label htmlFor="oceanCurrentRenderMode">Ocean current rendering</label>
+              <label htmlFor="oceanCurrentRenderMode">{t("generation.oceanCurrentRendering")}</label>
             </th>
             <td colSpan={2}>
               <select
@@ -357,21 +353,21 @@ export const GenerationSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-ocean-current-render-mode"));
                 }}
               >
-                <option value="path">Direction Lines (default)</option>
-                <option value="intensity">Intensity Shading</option>
+                <option value="path">{t("generation.oceanCurrentPath")}</option>
+                <option value="intensity">{t("generation.oceanCurrentIntensity")}</option>
               </select>
             </td>
           </tr>
 
           <tr>
-            <th colSpan={4}>3. Cultures and settlements</th>
+            <th colSpan={4}>{t("generation.sectionCultures")}</th>
           </tr>
 
-          <tr data-tip="Define how many Cultures should be generated">
+          <tr data-tip={t("generation.culturesNumberTip")}>
             <td>
               <LockIconButton id="cultures" />
             </td>
-            <th>Cultures number</th>
+            <th>{t("generation.culturesNumber")}</th>
             <td colSpan={2}>
               <input
                 type="range"
@@ -390,11 +386,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Select a set of cultures to be used for names and cultures generation">
+          <tr data-tip={t("generation.culturesSetTip")}>
             <td>
               <LockIconButton id="culturesSet" />
             </td>
-            <th>Cultures set</th>
+            <th>{t("generation.culturesSet")}</th>
             <td>
               <select
                 id="culturesSet"
@@ -405,55 +401,55 @@ export const GenerationSettingsTab: React.FC = () => {
                 }}
               >
                 <option value="world" data-max="32">
-                  All-world
+                  {t("generation.culturesSets.world")}
                 </option>
                 <option value="european" data-max="15">
-                  European
+                  {t("generation.culturesSets.european")}
                 </option>
                 <option value="oriental" data-max="13">
-                  Oriental
+                  {t("generation.culturesSets.oriental")}
                 </option>
                 <option value="english" data-max="10">
-                  English
+                  {t("generation.culturesSets.english")}
                 </option>
                 <option value="antique" data-max="10">
-                  Antique
+                  {t("generation.culturesSets.antique")}
                 </option>
                 <option value="highFantasy" data-max="17">
-                  High Fantasy
+                  {t("generation.culturesSets.highFantasy")}
                 </option>
                 <option value="darkFantasy" data-max="18">
-                  Dark Fantasy
+                  {t("generation.culturesSets.darkFantasy")}
                 </option>
                 <option value="random" data-max="100">
-                  Random
+                  {t("generation.culturesSets.random")}
                 </option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Configure race name spheres, the character ability system, and races available to new characters. Opens a dialog so Generation stays short.">
+          <tr data-tip={t("generation.raceSettingsTip")}>
             <td>
               <IconButton
-                data-tip="Open race and character settings"
+                data-tip={t("generation.openRaceSettings")}
                 icon="icon-book"
                 onClick={() => openDialog("racePersonNames")}
               />
             </td>
-            <th>Race & character settings</th>
+            <th>{t("generation.raceSettings")}</th>
             <td colSpan={2}>
               <button type="button" className="button" onClick={() => openDialog("racePersonNames")}>
-                Configure…
+                {t("common.configure")}
               </button>
             </td>
           </tr>
 
-          <tr data-tip="Determines how full the world is relative to its carrying capacity at the start. 100% means fully saturated, lower values allow for future demographic growth.">
+          <tr data-tip={t("generation.initialPopulationTip")}>
             <td>
               <LockIconButton id="initialPopulationSaturation" />
             </td>
-            <th>Initial population %</th>
+            <th>{t("generation.initialPopulation")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="10"
@@ -465,11 +461,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Choose whether initial people are spread across suitable land or concentrated around favorable settlement hubs. Selecting a preset also applies its recommended initial population percentage. Marches sits between Frontier and Scattered: several polity islands with wilderness/danger between them.">
+          <tr data-tip={t("generation.settlementPatternTip")}>
             <td>
               <LockIconButton id="initialSettlementPattern" />
             </td>
-            <th>Settlement pattern</th>
+            <th>{t("generation.settlementPattern")}</th>
             <td colSpan={2}>
               <select
                 value={options.initialSettlementPattern}
@@ -489,7 +485,7 @@ export const GenerationSettingsTab: React.FC = () => {
               >
                 {INITIAL_SETTLEMENT_PATTERN_PRESETS.map(preset => (
                   <option key={preset.id} value={preset.id}>
-                    {preset.label}
+                    {t(`generation.settlementPatterns.${preset.id}`, { defaultValue: preset.label })}
                   </option>
                 ))}
               </select>
@@ -497,7 +493,7 @@ export const GenerationSettingsTab: React.FC = () => {
           </tr>
 
           <tr
-            data-tip="Target share of suitable land capacity that becomes the oikoumene (settled / state-claimable core). Lower = more wilderness and shorter interstate borders; higher = larger realms. Ignored for Standard (full habitable fill). Fantasy defaults ~45%."
+            data-tip={t("generation.oikoumeneLandShareTip")}
             style={{
               display: options.initialSettlementPattern === "standard" ? "none" : undefined
             }}
@@ -505,7 +501,7 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="oikoumeneLandShare" />
             </td>
-            <th>Oikoumene land share %</th>
+            <th>{t("generation.oikoumeneLandShare")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="15"
@@ -517,11 +513,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Define a number of non-capital settlements to be placed (if enough suitable land exists)">
+          <tr data-tip={t("generation.burgsNumberTip")}>
             <td>
               <LockIconButton id="manors" />
             </td>
-            <th>Burgs number</th>
+            <th>{t("generation.burgsNumber")}</th>
             <td>
               <input
                 id="manorsInput"
@@ -534,12 +530,12 @@ export const GenerationSettingsTab: React.FC = () => {
               />
             </td>
             <td>
-              <output id="manorsOutput">{options.manors === 1000 ? "auto" : options.manors}</output>
+              <output id="manorsOutput">{options.manors === 1000 ? t("common.auto") : options.manors}</output>
             </td>
           </tr>
 
           <tr>
-            <th colSpan={4}>4. Realms and routes</th>
+            <th colSpan={4}>{t("generation.sectionRealms")}</th>
           </tr>
           <tr data-tip={statesNumberTooltip}>
             <td>
@@ -556,11 +552,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Define how much states and cultures can vary in size. Defines expansionism value">
+          <tr data-tip={t("generation.sizeVarietyTip")}>
             <td>
               <LockIconButton id="sizeVariety" />
             </td>
-            <th>Size variety</th>
+            <th>{t("generation.sizeVariety")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -572,11 +568,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Set state and cultures growth rate. Defines how many lands will stay neutral">
+          <tr data-tip={t("generation.growthRateTip")}>
             <td>
               <LockIconButton id="growthRate" />
             </td>
-            <th>Growth rate</th>
+            <th>{t("generation.growthRate")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0.1"
@@ -588,11 +584,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Set what share of eligible burgs in each state will become province centers. Higher values create more provinces">
+          <tr data-tip={t("generation.provincesRatioTip")}>
             <td>
               <LockIconButton id="provincesRatio" />
             </td>
-            <th>Provinces ratio</th>
+            <th>{t("generation.provincesRatio")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -603,11 +599,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Define how many times wars are generated to build relations history.">
+          <tr data-tip={t("generation.historyAttemptsTip")}>
             <td>
               <LockIconButton id="diplomacyHistoryAttempts" />
             </td>
-            <th>History attempts</th>
+            <th>{t("generation.historyAttempts")}</th>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -618,11 +614,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Define how many organized religions and cults should be generated. Cultures will have their own folk religions in any case">
+          <tr data-tip={t("generation.religionsNumberTip")}>
             <td>
               <LockIconButton id="religionsNumber" />
             </td>
-            <th>Religions number</th>
+            <th>{t("generation.religionsNumber")}</th>
             <td colSpan={2}>
               <SliderInput
                 id="religionsNumber"
@@ -635,13 +631,13 @@ export const GenerationSettingsTab: React.FC = () => {
           </tr>
 
           <tr>
-            <th colSpan={4}>5. Finish the world</th>
+            <th colSpan={4}>{t("generation.sectionFinish")}</th>
           </tr>
-          <tr data-tip="Define map name (will be used to name downloaded files)">
+          <tr data-tip={t("generation.mapNameTip")}>
             <td>
               <LockIconButton id="mapName" />
             </td>
-            <th>Map name</th>
+            <th>{t("generation.mapName")}</th>
             <td>
               <input
                 className="long"
@@ -654,7 +650,7 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
             <td>
               <i
-                data-tip="Regenerate map name"
+                data-tip={t("generation.regenerateMapName")}
                 className="icon-arrows-cw"
                 onClick={() => {
                   if (!isMapGenerationInProgress) {
@@ -665,11 +661,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Define current year and era name">
+          <tr data-tip={t("generation.yearAndEraTip")}>
             <td>
               <LockIconButton id="year" />
             </td>
-            <th>Year and era</th>
+            <th>{t("generation.yearAndEra")}</th>
             <td>
               <input
                 id="yearInput"
@@ -698,7 +694,7 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
             <td>
               <i
-                data-tip="Regenerate era"
+                data-tip={t("generation.regenerateEra")}
                 className="icon-arrows-cw"
                 onClick={() => {
                   if (!isMapGenerationInProgress) document.dispatchEvent(new CustomEvent("react-regenerate-era"));
@@ -707,11 +703,11 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Select the historical-technology backdrop. Drives water/sanitation tech ceilings and other period-flavored generation choices; gunpowder-era Goods/military units are controlled separately in Military Options.">
+          <tr data-tip={t("generation.historicalPeriodTip")}>
             <td>
               <LockIconButton id="historicalPeriod" />
             </td>
-            <th>Historical period</th>
+            <th>{t("generation.historicalPeriod")}</th>
             <td>
               <select
                 className="long"
@@ -726,21 +722,21 @@ export const GenerationSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-historical-period", { detail: { period } }));
                 }}
               >
-                <option value="earlyMedieval">Early Medieval (c. 500-1000)</option>
-                <option value="highMedieval">High Medieval (c. 1000-1300)</option>
-                <option value="lateMedieval">Late Medieval (c. 1300-1500)</option>
-                <option value="ageOfExploration">Age of Exploration (c. 1450-1600)</option>
+                <option value="earlyMedieval">{t("generation.periods.earlyMedieval")}</option>
+                <option value="highMedieval">{t("generation.periods.highMedieval")}</option>
+                <option value="lateMedieval">{t("generation.periods.lateMedieval")}</option>
+                <option value="ageOfExploration">{t("generation.periods.ageOfExploration")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="New maps normally treat existing musketeer and artillery units as already equipped. Enable this to start their firearm equipment at zero and require state procurement through the economy.">
+          <tr data-tip={t("generation.startFirearmsUnstockedTip")}>
             <td>
               <LockIconButton id="initialFirearmsUnstocked" />
             </td>
             <th>
-              <label htmlFor="initialFirearmsUnstocked">Start firearms unstocked</label>
+              <label htmlFor="initialFirearmsUnstocked">{t("generation.startFirearmsUnstocked")}</label>
             </th>
             <td>
               <input
@@ -753,11 +749,11 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Select state labels mode: display short or full names">
+          <tr data-tip={t("generation.stateLabelsTip")}>
             <td>
               <LockIconButton id="stateLabelsMode" />
             </td>
-            <th>State labels</th>
+            <th>{t("generation.stateLabels")}</th>
             <td>
               <select
                 value={options.stateLabelsMode}
@@ -768,23 +764,23 @@ export const GenerationSettingsTab: React.FC = () => {
                   );
                 }}
               >
-                <option value="auto">Auto</option>
-                <option value="short">Short names</option>
-                <option value="full">Full names</option>
+                <option value="auto">{t("generation.stateLabelsAuto")}</option>
+                <option value="short">{t("generation.stateLabelsShort")}</option>
+                <option value="full">{t("generation.stateLabelsFull")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
           <tr>
-            <th colSpan={4}>6. Rural economy and resources</th>
+            <th colSpan={4}>{t("generation.sectionRural")}</th>
           </tr>
-          <tr data-tip="Minimum number of iron-bearing deposits generated per active state. The normal geological distribution remains unchanged; compatible iron deposits are added only if it would otherwise fall below this target. 0.40 is the balanced default, leaving iron as a tradable strategic resource. Generate a new map to apply.">
+          <tr data-tip={t("generation.ironDepositsPerStateTip")}>
             <td>
               <LockIconButton id="ironDepositsPerState" />
             </td>
             <th>
-              <label htmlFor="ironDepositsPerState">Iron deposits / state</label>
+              <label htmlFor="ironDepositsPerState">{t("generation.ironDepositsPerState")}</label>
             </th>
             <td colSpan={2}>
               <SliderInput
@@ -797,12 +793,12 @@ export const GenerationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
-          <tr data-tip="Detail level of the fauna population model backing Game and livestock production (docs/plan/biome-goods-producer-ecosystem.md). Detailed runs an annual per-cell wildlife/livestock cohort model (breeding, aging, age-selective culling, carrying capacity) that caps output by an actual headcount instead of an unlimited rate. Simplified skips that model and keeps the cheaper labour/rate-gated formula with no population ceiling — a performance option for large maps. Apply on next map generation.">
+          <tr data-tip={t("generation.faunaPopulationModelTip")}>
             <td>
               <LockIconButton id="ruralEcosystemDetail" />
             </td>
             <th>
-              <label htmlFor="ruralEcosystemDetail">Fauna population model</label>
+              <label htmlFor="ruralEcosystemDetail">{t("generation.faunaPopulationModel")}</label>
             </th>
             <td colSpan={2}>
               <select
@@ -816,8 +812,8 @@ export const GenerationSettingsTab: React.FC = () => {
                   lock("ruralEcosystemDetail");
                 }}
               >
-                <option value="detailed">Detailed (fauna population model)</option>
-                <option value="simplified">Simplified (faster)</option>
+                <option value="detailed">{t("generation.faunaDetailed")}</option>
+                <option value="simplified">{t("generation.faunaSimplified")}</option>
               </select>
             </td>
           </tr>

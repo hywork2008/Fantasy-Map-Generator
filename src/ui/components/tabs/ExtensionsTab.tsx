@@ -1,5 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   disableDynamicExtension,
   enableDynamicExtension,
@@ -27,6 +28,7 @@ interface InstalledMeta {
 }
 
 export const ExtensionsTab: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const { extensions, enabledExtensions, toggleExtension, setExtensionMeta } = useExtensionState();
   const [installedMeta, setInstalledMeta] = useState<InstalledMeta[]>([]);
   const [installing, setInstalling] = useState(false);
@@ -34,7 +36,7 @@ export const ExtensionsTab: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const refreshRequestRef = useRef(0);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
-  const generationLockMessage = "Extensions cannot be changed while map generation is in progress.";
+  const generationLockMessage = t("extensionsTab.generationLock");
   const skipTradeOnGenerate = useUiPreferencesState(state => state.economySkipTradeOnGenerate);
   const setSkipTradeOnGenerate = useUiPreferencesState(state => state.setEconomySkipTradeOnGenerate);
   const characterGenerationBias = useUiPreferencesState(state => state.nobilityCharacterGenerationBias);
@@ -102,7 +104,7 @@ export const ExtensionsTab: React.FC = () => {
       await installExtensionFromZip(file);
       await refreshInstalledMeta();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error during installation");
+      setError(err instanceof Error ? err.message : t("extensionsTab.installError"));
     } finally {
       setInstalling(false);
     }
@@ -146,7 +148,7 @@ export const ExtensionsTab: React.FC = () => {
           disabled={installing || isMapGenerationInProgress}
           title={isMapGenerationInProgress ? generationLockMessage : undefined}
         >
-          {installing ? "Installing…" : "⊕ Install Extension (.zip)"}
+          {installing ? t("extensionsTab.installing") : t("extensionsTab.install")}
         </button>
         <input ref={fileInputRef} type="file" accept=".zip" className="d-none" onChange={handleFileChange} />
       </div>
@@ -155,23 +157,28 @@ export const ExtensionsTab: React.FC = () => {
 
       {/* Extension list */}
       {installedMeta.length === 0 ? (
-        <p>No extensions installed yet.</p>
+        <p>{t("extensionsTab.empty")}</p>
       ) : (
         <div className="table" style={{ maxHeight: "50vh", overflow: "auto" }}>
           <table className="fmg-table">
             <thead>
               <tr>
-                <th>Enabled</th>
-                <th>Extension</th>
-                <th>Dependencies</th>
-                <th>Description</th>
+                <th>{t("extensionsTab.enabled")}</th>
+                <th>{t("extensionsTab.extension")}</th>
+                <th>{t("extensionsTab.dependencies")}</th>
+                <th>{t("extensionsTab.description")}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {installedMeta.map(meta => {
                 const isEnabled = enabledExtensions[meta.id] ?? false;
-                const desc = extensions[meta.id]?.description;
+                const displayName = i18n.exists(`extensionsTab.names.${meta.id}`)
+                  ? t(`extensionsTab.names.${meta.id}`)
+                  : meta.name;
+                const desc = i18n.exists(`extensionsTab.descriptions.${meta.id}`)
+                  ? t(`extensionsTab.descriptions.${meta.id}`)
+                  : extensions[meta.id]?.description;
                 const missingReq = meta.dependencies?.filter(d => d.required && !enabledExtensions[d.id]);
                 const canEnable = !missingReq?.length;
                 const blockingDependent = installedMeta.find(
@@ -184,11 +191,11 @@ export const ExtensionsTab: React.FC = () => {
                 const disabled = isEnabled ? !canDisable : !canEnable;
                 const toggleTitle = isEnabled
                   ? canDisable
-                    ? "Disable extension"
-                    : `Cannot disable: required by ${blockingDependent?.name}`
+                    ? t("extensionsTab.disable")
+                    : t("extensionsTab.cannotDisable", { name: blockingDependent?.name })
                   : canEnable
-                    ? "Enable extension"
-                    : "Missing required dependencies";
+                    ? t("extensionsTab.enable")
+                    : t("extensionsTab.missingDependencies");
 
                 return (
                   <tr key={meta.id} style={{ background: isEnabled ? "var(--bg-light)" : "transparent" }}>
@@ -197,7 +204,7 @@ export const ExtensionsTab: React.FC = () => {
                       <label title={toggleTitle} style={{ position: "relative", display: "inline-block" }}>
                         <input
                           type="checkbox"
-                          aria-label={`Toggle ${meta.name} extension`}
+                          aria-label={t("extensionsTab.toggleAria", { name: displayName })}
                           checked={isEnabled}
                           disabled={disabled}
                           onChange={() => handleToggle(meta.id, isEnabled, meta.builtin)}
@@ -221,9 +228,9 @@ export const ExtensionsTab: React.FC = () => {
 
                     <td>
                       {/* Name + version */}
-                      <strong>{meta.name}</strong>{" "}
+                      <strong>{displayName}</strong>{" "}
                       <span style={{ background: meta.builtin ? "#e8e8e8" : "#ddeeff" }}>
-                        {meta.builtin ? "built-in" : `v${meta.version}`}
+                        {meta.builtin ? t("extensionsTab.builtIn") : `v${meta.version}`}
                       </span>
                     </td>
 
@@ -242,7 +249,7 @@ export const ExtensionsTab: React.FC = () => {
                           <span
                             key={dep.id}
                             style={{ color, marginRight: "6px" }}
-                            title={dep.required ? "Required" : "Optional"}
+                            title={dep.required ? t("extensionsTab.required") : t("extensionsTab.optional")}
                           >
                             {dep.id}
                             {dep.required ? "*" : ""}
@@ -256,22 +263,22 @@ export const ExtensionsTab: React.FC = () => {
                       {meta.id === ECONOMY_EXTENSION_ID && isEnabled && (
                         <label
                           style={{ display: "block", marginTop: "4px", fontWeight: "normal" }}
-                          title="Defers global trade-route matching and caravan spawning (the Trade layer/animation's data) when preparing a freshly generated map's economy, so the map stays interactive sooner. Re-run it later from Tools > Economy > Regenerate > Production. This is a standing preference, not locked per generation."
+                          title={t("extensionsTab.skipTradeTip")}
                         >
                           <input
                             type="checkbox"
                             checked={skipTradeOnGenerate}
                             onChange={e => setSkipTradeOnGenerate(e.target.checked)}
                           />{" "}
-                          Skip trade route generation
+                          {t("extensionsTab.skipTrade")}
                         </label>
                       )}
                       {meta.id === NOBILITY_EXTENSION_ID && isEnabled && (
                         <label
                           style={{ display: "block", marginTop: "4px", fontWeight: "normal" }}
-                          title="Skews every character Nobility creates or replaces (rulers, central officers, field/fleet officers, province lords, and successions): young age, a high Appearance score, and a lopsided gender ratio favoring the chosen gender. A race with a hard gender lock (e.g. Amazones) is unaffected. This is a standing preference, applied to every future generation and succession — not a one-time reroll of the current roster."
+                          title={t("extensionsTab.characterBiasTip")}
                         >
-                          Character generation bias:{" "}
+                          {t("extensionsTab.characterBias")}{" "}
                           <select
                             value={characterGenerationBias}
                             onChange={e =>
@@ -280,9 +287,9 @@ export const ExtensionsTab: React.FC = () => {
                               )
                             }
                           >
-                            <option value="none">Fully random (default)</option>
-                            <option value="youngMaleHeavy">Young &amp; striking — mostly male</option>
-                            <option value="youngFemaleHeavy">Young &amp; striking — mostly female</option>
+                            <option value="none">{t("extensionsTab.biasNone")}</option>
+                            <option value="youngMaleHeavy">{t("extensionsTab.biasYoungMale")}</option>
+                            <option value="youngFemaleHeavy">{t("extensionsTab.biasYoungFemale")}</option>
                           </select>
                         </label>
                       )}
@@ -294,7 +301,7 @@ export const ExtensionsTab: React.FC = () => {
                         <button
                           type="button"
                           className="options"
-                          title="Uninstall this extension"
+                          title={t("extensionsTab.uninstall")}
                           onClick={() => handleUninstall(meta.id)}
                           disabled={isMapGenerationInProgress}
                         >

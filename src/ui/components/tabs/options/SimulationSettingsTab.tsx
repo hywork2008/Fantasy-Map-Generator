@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
@@ -7,6 +8,7 @@ import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 
 export const SimulationSettingsTab: React.FC = () => {
+  const { t } = useTranslation();
   const options = useOptionsState();
   const updateOption = options.setOption;
 
@@ -26,14 +28,14 @@ export const SimulationSettingsTab: React.FC = () => {
 
   return (
     <div>
-      <p data-tip="Settings related to time advancement and demographics simulation">Simulation Settings:</p>
+      <p data-tip={t("simulation.headingTip")}>{t("simulation.heading")}</p>
       <table>
         <tbody>
-          <tr data-tip="Base birth rate per female adult per year at zero population density. Higher values mean faster demographic recovery and higher equilibrium limits.">
+          <tr data-tip={t("simulation.baseBirthRateTip")}>
             <td>
               <LockIconButton id="demographicBirthRate" />
             </td>
-            <td>Base Birth Rate</td>
+            <td>{t("simulation.baseBirthRate")}</td>
             <td colSpan={2}>
               <SliderInput
                 min="0.05"
@@ -45,11 +47,11 @@ export const SimulationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Child mortality rate. The percentage of children who die before reaching adulthood. A historically realistic rate is 20-40%. 0% causes rapid population spikes.">
+          <tr data-tip={t("simulation.childMortalityTip")}>
             <td>
               <LockIconButton id="demographicChildMortalityRate" />
             </td>
-            <td>Child Mortality %</td>
+            <td>{t("simulation.childMortality")}</td>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -61,9 +63,9 @@ export const SimulationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Autonomous lets rulers begin wars as time advances. Player-directed prevents automatic declarations, battles, and occupations while economic and demographic simulation continues.">
+          <tr data-tip={t("simulation.conflictAutonomyTip")}>
             <td />
-            <td>Conflict autonomy</td>
+            <td>{t("simulation.conflictAutonomy")}</td>
             <td colSpan={2}>
               <label>
                 <input
@@ -73,7 +75,7 @@ export const SimulationSettingsTab: React.FC = () => {
                   checked={options.conflictAutonomy === "autonomous"}
                   onChange={e => setConflictAutonomy(e.target.value)}
                 />{" "}
-                Autonomous
+                {t("simulation.autonomous")}
               </label>{" "}
               <label>
                 <input
@@ -83,16 +85,16 @@ export const SimulationSettingsTab: React.FC = () => {
                   checked={options.conflictAutonomy === "playerDirected"}
                   onChange={e => setConflictAutonomy(e.target.value)}
                 />{" "}
-                Player-directed
+                {t("simulation.playerDirected")}
               </label>
             </td>
           </tr>
 
-          <tr data-tip="Multiplier for how quickly autonomous wars mature. 1.0 is default (wars take roughly a generation to brew). 0.0 prevents autonomous escalation. 2.0 means frequent wars.">
+          <tr data-tip={t("simulation.warFrequencyTip")}>
             <td>
               <LockIconButton id="warFrequency" />
             </td>
-            <td>War Frequency</td>
+            <td>{t("simulation.warFrequency")}</td>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -106,17 +108,15 @@ export const SimulationSettingsTab: React.FC = () => {
 
           <tr>
             <td colSpan={4}>
-              <p data-tip="Display-only coin denominations. Internal prices, treasuries, and personal wealth remain stored as silver-piece values.">
-                Currency denominations:
-              </p>
+              <p data-tip={t("simulation.currencyHeadingTip")}>{t("simulation.currencyHeading")}</p>
             </td>
           </tr>
-          <tr data-tip="How many silver pieces equal one gold piece. This changes display only.">
+          <tr data-tip={t("simulation.goldToSilverTip")}>
             <td>
               <LockIconButton id="goldToSilverRate" />
             </td>
             <td>
-              <label htmlFor="goldToSilverRate">1 Gold Piece</label>
+              <label htmlFor="goldToSilverRate">{t("simulation.oneGoldPiece")}</label>
             </td>
             <td>
               ={" "}
@@ -129,14 +129,14 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={e => updateCurrencyRate("goldToSilverRate", e.target.value)}
               />
             </td>
-            <td>Silver Pieces</td>
+            <td>{t("simulation.silverPieces")}</td>
           </tr>
-          <tr data-tip="How many copper pieces equal one silver piece. This changes display only.">
+          <tr data-tip={t("simulation.silverToCopperTip")}>
             <td>
               <LockIconButton id="silverToCopperRate" />
             </td>
             <td>
-              <label htmlFor="silverToCopperRate">1 Silver Piece</label>
+              <label htmlFor="silverToCopperRate">{t("simulation.oneSilverPiece")}</label>
             </td>
             <td>
               ={" "}
@@ -149,20 +149,18 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={e => updateCurrencyRate("silverToCopperRate", e.target.value)}
               />
             </td>
-            <td>Copper Pieces</td>
+            <td>{t("simulation.copperPieces")}</td>
           </tr>
 
           <tr>
             <td colSpan={4}>
-              <p data-tip="Toggle advance-time subsystems. Day is the base unit (Month ≈ 30.5 days, Year ≈ 365). Turn off unused systems to speed up long runs.">
-                Advance-time systems (skip when off):
-              </p>
+              <p data-tip={t("simulation.systemsHeadingTip")}>{t("simulation.systemsHeading")}</p>
             </td>
           </tr>
-          <tr data-tip="Aging, births, migration, and overpopulation losses each advance tick">
+          <tr data-tip={t("simulation.demographicsTip")}>
             <td />
             <td>
-              <label htmlFor="simDemographics">Demographics</label>
+              <label htmlFor="simDemographics">{t("simulation.demographics")}</label>
             </td>
             <td colSpan={2}>
               <input
@@ -173,10 +171,10 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
-          <tr data-tip="Civilian adult males ↔ troops under arms: draft, refill, demobilize, and non-double-counted battle deaths">
+          <tr data-tip={t("simulation.manpowerLedgerTip")}>
             <td />
             <td>
-              <label htmlFor="simManpower">Manpower ledger</label>
+              <label htmlFor="simManpower">{t("simulation.manpowerLedger")}</label>
             </td>
             <td colSpan={2}>
               <input
@@ -187,10 +185,10 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
-          <tr data-tip="Independent: each settlement grows toward its own capacity via births only, no deliberate labor movement. Megacity: rural cells also release labor-safety-margined surplus adults once a year toward nearby cities (requires Economy enabled).">
+          <tr data-tip={t("simulation.settlementGrowthTip")}>
             <td />
             <td>
-              <label htmlFor="ruralUrbanMigration">Settlement growth</label>
+              <label htmlFor="ruralUrbanMigration">{t("simulation.settlementGrowth")}</label>
             </td>
             <td colSpan={2}>
               <select
@@ -198,15 +196,15 @@ export const SimulationSettingsTab: React.FC = () => {
                 value={options.ruralUrbanMigration}
                 onChange={e => updateOption("ruralUrbanMigration", e.target.value as "independent" | "megacity")}
               >
-                <option value="independent">Independent (no migration)</option>
-                <option value="megacity">Megacity (rural→urban migration)</option>
+                <option value="independent">{t("simulation.growthIndependent")}</option>
+                <option value="megacity">{t("simulation.growthMegacity")}</option>
               </select>
             </td>
           </tr>
-          <tr data-tip="Regiment reinforcement and cleanup of destroyed units (uses manpower pool when Manpower ledger is on)">
+          <tr data-tip={t("simulation.militaryRecoveryTip")}>
             <td />
             <td>
-              <label htmlFor="simMilitaryRecovery">Military recovery</label>
+              <label htmlFor="simMilitaryRecovery">{t("simulation.militaryRecovery")}</label>
             </td>
             <td colSpan={2}>
               <input
@@ -217,10 +215,10 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
-          <tr data-tip="New recruits dilute regiment quality; combat power scales with quality (green troops fight poorly)">
+          <tr data-tip={t("simulation.recruitQualityTip")}>
             <td />
             <td>
-              <label htmlFor="recruitQualityEnabled">Recruit quality</label>
+              <label htmlFor="recruitQualityEnabled">{t("simulation.recruitQuality")}</label>
             </td>
             <td colSpan={2}>
               <input
@@ -231,10 +229,10 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
-          <tr data-tip="When male adults are scarce, draft a limited share of adult females into under-arms (experimental)">
+          <tr data-tip={t("simulation.femaleLevyTip")}>
             <td />
             <td>
-              <label htmlFor="femaleLevyEnabled">Female levy</label>
+              <label htmlFor="femaleLevyEnabled">{t("simulation.femaleLevy")}</label>
             </td>
             <td colSpan={2}>
               <input

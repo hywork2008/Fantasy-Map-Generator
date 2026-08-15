@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { exitFocus } from "../../controllers/focus-view";
 import { useFocusViewState } from "../../store/focusViewState";
 import { IconButton } from "./IconButton";
 
 export const FocusBanner = () => {
+  const { t } = useTranslation();
   const { isActive, kind, label } = useFocusViewState();
 
   if (!isActive) return null;
@@ -25,10 +27,8 @@ export const FocusBanner = () => {
         color: "#fff"
       }}
     >
-      <span>
-        Focused on {kind}: {label}
-      </span>
-      <IconButton data-tip="Exit focus and show the whole map" className="icon-cancel pointer" onClick={exitFocus} />
+      <span>{t("focus.banner", { kind, label })}</span>
+      <IconButton data-tip={t("focus.exitTip")} className="icon-cancel pointer" onClick={exitFocus} />
     </div>
   );
 };

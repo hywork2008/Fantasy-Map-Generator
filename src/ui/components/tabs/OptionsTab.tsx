@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { culturesSetUsesFrontierSettlement } from "../../../generators/threatProfiles";
 import { useGenerationProgressState } from "../../../store/generationProgressState";
 import { useOptionsState } from "../../../store/optionsState";
@@ -11,6 +12,7 @@ import { UiSettingsTab } from "./options/UiSettingsTab";
 type OptionsSubTab = "generation" | "ui" | "simulation" | "danger";
 
 export const OptionsTab: React.FC = () => {
+  const { t } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<OptionsSubTab>("generation");
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   const canConfigureLandscapeReview = useGenerationProgressState(
@@ -32,7 +34,7 @@ export const OptionsTab: React.FC = () => {
           onClick={() => setActiveSubTab("generation")}
           type="button"
         >
-          Generation
+          {t("optionsTabs.generation")}
         </button>
         <button
           className={`options${activeSubTab === "ui" ? " active" : ""}`}
@@ -40,7 +42,7 @@ export const OptionsTab: React.FC = () => {
           disabled={isMapGenerationInProgress && !canConfigureLandscapeReview}
           type="button"
         >
-          UI
+          {t("optionsTabs.ui")}
         </button>
         <button
           className={`options${activeSubTab === "simulation" ? " active" : ""}`}
@@ -48,7 +50,7 @@ export const OptionsTab: React.FC = () => {
           disabled={isMapGenerationInProgress}
           type="button"
         >
-          Simulation
+          {t("optionsTabs.simulation")}
         </button>
         <button
           className={`options${activeSubTab === "danger" ? " active" : ""}`}
@@ -56,7 +58,7 @@ export const OptionsTab: React.FC = () => {
           disabled={!canConfigureDanger}
           type="button"
         >
-          Danger
+          {t("optionsTabs.danger")}
         </button>
       </div>
 

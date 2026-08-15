@@ -1,8 +1,10 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 
 export const ExitCustomization: React.FC = () => {
+  const { t } = useTranslation();
   const elRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,14 +38,14 @@ export const ExitCustomization: React.FC = () => {
 
   return (
     <div id="exitCustomization" ref={elRef} className="d-none">
-      <div data-tip="Drag to move the pane">
+      <div data-tip={t("exitCustomization.dragTip")}>
         <button
           type="button"
-          data-tip="Finalize the heightmap and exit the edit mode"
+          data-tip={t("exitCustomization.labelTip")}
           id="finalizeHeightmap"
           onClick={() => HeightmapEditorActions.finalizeHeightmap()}
         >
-          Exit Customization
+          {t("exitCustomization.label")}
         </button>
       </div>
     </div>

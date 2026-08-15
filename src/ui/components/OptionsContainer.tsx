@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { clearMainTip } from "../../services/tooltipService";
 import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useMapReadyTaskState } from "../../store/mapReadyTaskState";
@@ -16,15 +17,16 @@ import { StyleTab } from "./tabs/StyleTab";
 import { ToolsTab } from "./tabs/ToolsTab";
 
 const TABS = [
-  { id: "layersTab", label: "Layers", tip: "Click to change map layers" },
-  { id: "styleTab", label: "Style", tip: "Click to open style editor" },
-  { id: "optionsTab", label: "Options", tip: "Click to change generation and UI options" },
-  { id: "toolsTab", label: "Tools", tip: "Click to open tools menu" },
-  { id: "extensionsTab", label: "Exts", tip: "Click to manage extensions" },
-  { id: "aboutTab", label: "About", tip: "Click to see Generator info" }
+  { id: "layersTab", labelKey: "menu.layers", tipKey: "menu.layersTip" },
+  { id: "styleTab", labelKey: "menu.style", tipKey: "menu.styleTip" },
+  { id: "optionsTab", labelKey: "menu.options", tipKey: "menu.optionsTip" },
+  { id: "toolsTab", labelKey: "menu.tools", tipKey: "menu.toolsTip" },
+  { id: "extensionsTab", labelKey: "menu.extensions", tipKey: "menu.extensionsTip" },
+  { id: "aboutTab", labelKey: "menu.about", tipKey: "menu.aboutTip" }
 ] as const;
 
 export const OptionsContainer: React.FC = () => {
+  const { t } = useTranslation();
   const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu, isCustomizationMode, setCustomizationMode } =
     useViewState();
   const uiSize = useOptionsState(state => state.uiSize);
@@ -81,7 +83,7 @@ export const OptionsContainer: React.FC = () => {
         <div className="tab">
           <button
             id="optionsHide"
-            data-tip={isMenuOpen ? "Click to hide the Menu" : "Click to show the Menu"}
+            data-tip={isMenuOpen ? t("menu.hideMenu") : t("menu.showMenu")}
             className={`options${!isMenuOpen && showGlow ? " glow" : ""}`}
             onClick={handleToggle}
             type="button"
@@ -96,10 +98,10 @@ export const OptionsContainer: React.FC = () => {
                 isMapGenerationInProgress &&
                 tab.id !== "optionsTab" &&
                 !(canConfigureLandscapeReview && tab.id === "extensionsTab")
-                  ? "Unavailable while building a map"
+                  ? t("menu.unavailableWhileBuilding")
                   : isMapReadyTaskRunning && tab.id === "toolsTab"
-                    ? "Unavailable while extension data is being prepared"
-                    : tab.tip
+                    ? t("menu.unavailableWhilePreparing")
+                    : t(tab.tipKey)
               }
               className={`options ${activeMenu === tab.id ? "active" : ""}`}
               onClick={() => setActiveMenu(tab.id)}
@@ -111,7 +113,7 @@ export const OptionsContainer: React.FC = () => {
               }
               type="button"
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>

@@ -19,6 +19,28 @@ describe("internationalization", () => {
     expect(i18n.t("economy.goods.names.Wood")).toBe("木材");
     expect(i18n.t("mapContextMenu.distanceFromHere")).toBe("ここからの距離");
     expect(i18n.t("mapContextMenu.distanceToHere")).toBe("ここまでの距離");
+    expect(i18n.t("menu.layers")).toBe("レイヤー");
+    expect(i18n.t("sticked.newMap")).toBe("新しい地図");
+    expect(i18n.t("generation.settlementPattern")).toBe("集落パターン");
+    expect(i18n.t("generationProgress.generateEntireMap")).toBe("地図をすべて生成");
+    expect(i18n.t("generationProgress.stages.landscape.title")).toBe("地形の輪郭");
+    expect(i18n.t("layersTab.names.toggleBiomes")).toBe("バイオーム");
+    expect(i18n.t("tools.edit")).toBe("編集");
+  });
+
+  it("keeps English and Japanese catalogs on the same keys", () => {
+    const flatten = (value: unknown, prefix = ""): string[] => {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return Object.entries(value as Record<string, unknown>).flatMap(([key, nested]) =>
+          flatten(nested, prefix ? `${prefix}.${key}` : key)
+        );
+      }
+      return [prefix];
+    };
+
+    const englishKeys = flatten(i18n.getResourceBundle("en", "translation")).sort();
+    const japaneseKeys = flatten(i18n.getResourceBundle("ja", "translation")).sort();
+    expect(japaneseKeys).toEqual(englishKeys);
   });
 
   it("uses the requested default value for an untranslated key", () => {

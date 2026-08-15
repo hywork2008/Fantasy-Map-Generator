@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../../context/worldContext";
 import { useDebugSnapshotState } from "../../../store/debugSnapshotState";
 import { useDialogState } from "../../../store/dialogState";
@@ -279,6 +280,7 @@ const STATIC_REGENERATE_BUTTONS: StaticRegenerateButton[] = [
 ];
 
 export const ToolsTab: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const { actions: allActions, enabledExtensions } = useExtensionState();
   const openDialogs = useDialogState(state => state.openDialogs);
   const isHeightmapModeOpen = useHeightmapEditModeState(state => state.isOpen);
@@ -298,8 +300,8 @@ export const ToolsTab: React.FC = () => {
     ...STATIC_EDIT_BUTTONS.map(b => ({
       key: b.key,
       domId: b.domId,
-      label: b.label,
-      tooltip: b.tooltip,
+      label: t(`tools.editButtons.${b.key}.label`, { defaultValue: b.label }),
+      tooltip: t(`tools.editButtons.${b.key}.tooltip`, { defaultValue: b.tooltip }),
       dialogId: b.dialogId,
       onClick: () => triggerEvent(b.eventName)
     })),
@@ -311,16 +313,26 @@ export const ToolsTab: React.FC = () => {
       dialogId: a.dialogId,
       onClick: a.onClick
     }))
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  ].sort((a, b) => a.label.localeCompare(b.label, i18n.language));
 
   const allRegenerateButtons = [
     ...STATIC_REGENERATE_BUTTONS.map(b => ({
       key: b.key,
       domId: b.domId,
-      label: b.label,
-      tooltip: b.tooltip,
+      label: t(`tools.regenerateButtons.${b.key}.label`, { defaultValue: b.label }),
+      tooltip: t(`tools.regenerateButtons.${b.key}.tooltip`, { defaultValue: b.tooltip }),
       onClick: () => triggerEvent(b.eventName),
       config: b.config
+        ? {
+            ...b.config,
+            tooltip: t(
+              b.key === "markers"
+                ? "tools.regenerateButtons.markersConfig"
+                : "tools.regenerateButtons.reliefIconsConfig",
+              { defaultValue: b.config.tooltip }
+            )
+          }
+        : undefined
     })),
     ...regenerateActions.map(a => ({
       key: a.id,
@@ -330,11 +342,11 @@ export const ToolsTab: React.FC = () => {
       onClick: a.onClick,
       config: undefined as StaticRegenerateButton["config"] | undefined
     }))
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  ].sort((a, b) => a.label.localeCompare(b.label, i18n.language));
 
   return (
     <div id="toolsContent" className="tabcontent d-block">
-      <div className="separator">Edit</div>
+      <div className="separator">{t("tools.edit")}</div>
       <div className="grid">
         {allEditButtons.map(btn => (
           <button
@@ -357,7 +369,7 @@ export const ToolsTab: React.FC = () => {
           </button>
         ))}
       </div>
-      <div className="separator">Regenerate</div>
+      <div className="separator">{t("tools.regenerate")}</div>
       <div className="grid" id="regenerateFeature">
         {allRegenerateButtons.map(btn => {
           const config = btn.config;
@@ -381,118 +393,103 @@ export const ToolsTab: React.FC = () => {
           );
         })}
       </div>
-      <div className="separator">Add</div>
+      <div className="separator">{t("tools.add")}</div>
       <div className="grid" id="addFeature">
         <button
           id="addBurgTool"
-          data-tip="Click on map to place a burg. Hold Shift to add multiple"
+          data-tip={t("tools.addBurgTip")}
           type="button"
           onClick={() => triggerEvent("addBurgTool")}
         >
-          Burg
+          {t("tools.addBurg")}
         </button>
-        <button
-          id="addLabel"
-          data-tip="Click on map to place label. Hold Shift to add multiple"
-          type="button"
-          onClick={() => triggerEvent("addLabel")}
-        >
-          Label
+        <button id="addLabel" data-tip={t("tools.addLabelTip")} type="button" onClick={() => triggerEvent("addLabel")}>
+          {t("tools.addLabel")}
         </button>
         <button
           id="addMarker"
-          data-tip="Click on map to place a marker. Hold Shift to add multiple"
+          data-tip={t("tools.addMarkerTip")}
           type="button"
           onClick={() => triggerEvent("addMarker")}
         >
-          Marker
+          {t("tools.addMarker")}
         </button>
-        <button
-          id="addRiver"
-          data-tip="Click on map to place a river. Hold Shift to add multiple"
-          type="button"
-          onClick={() => triggerEvent("addRiver")}
-        >
-          River
+        <button id="addRiver" data-tip={t("tools.addRiverTip")} type="button" onClick={() => triggerEvent("addRiver")}>
+          {t("tools.addRiver")}
         </button>
-        <button
-          id="addRoute"
-          data-tip="Open route creation dialog"
-          type="button"
-          onClick={() => triggerEvent("addRoute")}
-        >
-          Route
+        <button id="addRoute" data-tip={t("tools.addRouteTip")} type="button" onClick={() => triggerEvent("addRoute")}>
+          {t("tools.addRoute")}
         </button>
       </div>
-      <div className="separator">Show</div>
+      <div className="separator">{t("tools.show")}</div>
       <div className="grid">
         <button
-          data-tip="Click to open Charts to overview cells data"
+          data-tip={t("tools.chartsTip")}
           type="button"
           className={openDialogs.has("chartsOverview") ? "pressed" : undefined}
           onClick={() => triggerEvent("overviewChartsButton")}
         >
-          Charts
+          {t("tools.charts")}
         </button>
         <button
-          data-tip="Click to open minimap overview. Click minimap to center view"
+          data-tip={t("tools.minimapTip")}
           type="button"
           className={openDialogs.has("minimap") ? "pressed" : undefined}
           onClick={() => triggerEvent("openMinimapButton")}
         >
-          Minimap
+          {t("tools.minimap")}
         </button>
         <button
-          data-tip="Click to open World Configurator (temperature, precipitation, etc.)"
+          data-tip={t("tools.worldTip")}
           type="button"
           className={openDialogs.has("worldConfigurator") ? "pressed" : undefined}
           onClick={() => triggerEvent("openWorldConfigurator")}
         >
-          World
+          {t("tools.world")}
         </button>
         {import.meta.env.DEV && (
           <button
-            data-tip="Open the AI Debug Snapshot manager to export generation history"
+            data-tip={t("tools.snapshotsTip")}
             type="button"
             onClick={() => useDebugSnapshotState.getState().setIsOpen(true)}
             style={{ marginTop: "4px" }}
           >
-            Snapshots
+            {t("tools.snapshots")}
           </button>
         )}
       </div>
       {isFrontierMap && (
         <>
-          <div className="separator">Simulation</div>
+          <div className="separator">{t("tools.simulation")}</div>
           <div className="grid">
             <button
-              data-tip="Click to open the Frontier operations dialog (outposts, viable candidates, and blocked expansion)"
+              data-tip={t("tools.frontierOperationsTip")}
               type="button"
               className={openDialogs.has("frontierOperations") ? "pressed" : undefined}
               onClick={() => triggerEvent("openFrontierOperationsDialog")}
             >
-              Frontier Operations
+              {t("tools.frontierOperations")}
             </button>
           </div>
         </>
       )}
-      <div className="separator">Create</div>
+      <div className="separator">{t("tools.create")}</div>
       <div className="grid">
         <button
-          data-tip="Click to generate a submap from the current viewport"
+          data-tip={t("tools.submapTip")}
           type="button"
           className={openDialogs.has("submapTool") ? "pressed" : undefined}
           onClick={() => triggerEvent("openSubmapTool")}
         >
-          Submap
+          {t("tools.submap")}
         </button>
         <button
-          data-tip="Click to transform the map"
+          data-tip={t("tools.transformTip")}
           type="button"
           className={openDialogs.has("transformTool") ? "pressed" : undefined}
           onClick={() => triggerEvent("openTransformTool")}
         >
-          Transform
+          {t("tools.transform")}
         </button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { setRenderMode } from "../../../actions";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
 import { changeViewMode } from "../../../controllers/viewMode";
@@ -8,6 +9,7 @@ import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/
 import { useViewModeState } from "../../../store/viewModeState";
 
 export const LayersTab: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, presetDisabled, reorderLayers } =
     useLayerState();
   const { activeViewMode } = useViewModeState();
@@ -67,11 +69,14 @@ export const LayersTab: React.FC = () => {
 
   return (
     <div id="layersContent" className="tabcontent d-block">
-      <div className="renderer-mode-control" data-tip="Use WebGL Hybrid rendering instead of classic SVG rendering">
+      <div className="renderer-mode-control" data-tip={t("layersTab.webglRenderingTip")}>
         <span id="webglRenderingLabel" className="renderer-mode-label">
-          WebGL rendering
+          {t("layersTab.webglRendering")}
         </span>
-        <label className="renderer-mode-switch" title={isWebglRendering ? "Use SVG rendering" : "Use WebGL rendering"}>
+        <label
+          className="renderer-mode-switch"
+          title={isWebglRendering ? t("layersTab.useSvg") : t("layersTab.useWebgl")}
+        >
           <input
             id="webglRenderingToggle"
             type="checkbox"
@@ -90,15 +95,15 @@ export const LayersTab: React.FC = () => {
           <span className="renderer-mode-switch-thumb" aria-hidden="true" />
         </label>
         <output className="renderer-mode-status" aria-live="polite">
-          {isWebglRendering ? "On" : "Off"}
+          {isWebglRendering ? t("common.on") : t("common.off")}
         </output>
       </div>
 
-      <p data-tip="Select a map layers preset" className="d-inline-block">
-        Layers preset:
+      <p data-tip={t("layersTab.presetTip")} className="d-inline-block">
+        {t("layersTab.preset")}
       </p>
       <select
-        data-tip="Select a map layers preset"
+        data-tip={t("layersTab.presetTip")}
         id="layersPreset"
         value={activePreset}
         disabled={presetDisabled || isMapGenerationInProgress}
@@ -106,20 +111,20 @@ export const LayersTab: React.FC = () => {
       >
         {Object.keys(presets).map(preset => (
           <option key={preset} value={preset} hidden={preset === "custom"}>
-            {presetLabels[preset] ?? preset}
+            {t(`layersTab.presets.${preset}`, { defaultValue: presetLabels[preset] ?? preset })}
           </option>
         ))}
         {/* If custom is active but not in presets, we still show it because it's the current value */}
         {isCustom && !presets.custom && (
           <option hidden value="custom">
-            {presetLabels.custom ?? "Custom (not saved)"}
+            {t("layersTab.presets.custom", { defaultValue: presetLabels.custom })}
           </option>
         )}
       </select>
 
       <button
         id="savePresetButton"
-        data-tip="Click to save displayed layers as a new preset"
+        data-tip={t("layersTab.savePresetTip")}
         className="icon-plus sideButton"
         style={{ display: isCustom ? "inline-block" : "none" }}
         onClick={() => savePreset()}
@@ -128,7 +133,7 @@ export const LayersTab: React.FC = () => {
       ></button>
       <button
         id="removePresetButton"
-        data-tip="Click to remove current custom preset"
+        data-tip={t("layersTab.removePresetTip")}
         className="icon-minus sideButton"
         style={{ display: isCustom ? "none" : "inline-block" }}
         onClick={() => removePreset()}
@@ -136,11 +141,8 @@ export const LayersTab: React.FC = () => {
         type="button"
       ></button>
 
-      <p>Displayed layers and layers order:</p>
-      <div
-        data-tip="Click to toggle a layer, drag to raise or lower a layer. Ctrl + click to edit layer style"
-        id="mapLayers"
-      >
+      <p>{t("layersTab.displayedLayers")}</p>
+      <div data-tip={t("layersTab.layersListTip")} id="mapLayers">
         {layers.map((layer, index) => {
           const isOn = activeLayers[layer.id];
           return (
@@ -148,7 +150,9 @@ export const LayersTab: React.FC = () => {
               key={layer.id}
               id={layer.id}
               type="button"
-              data-tip={layer.tooltip}
+              data-tip={
+                i18n.exists(`layersTab.tooltips.${layer.id}`) ? t(`layersTab.tooltips.${layer.id}`) : layer.tooltip
+              }
               data-shortcut={layer.shortcut}
               className={`${isOn ? "" : "buttonoff"} ${layer.isSolid ? "solid" : ""}`}
               disabled={isMapGenerationInProgress}
@@ -158,45 +162,45 @@ export const LayersTab: React.FC = () => {
               onDrop={e => handleDrop(e, index)}
               onClick={e => handleToggle(e, layer)}
             >
-              {layer.name}
+              {i18n.exists(`layersTab.names.${layer.id}`) ? t(`layersTab.names.${layer.id}`) : layer.name}
             </button>
           );
         })}
       </div>
-      <div className="tip">Click to toggle, drag to raise or lower the layer</div>
-      <div className="tip">Ctrl + click to edit layer style</div>
+      <div className="tip">{t("layersTab.toggleTip")}</div>
+      <div className="tip">{t("layersTab.styleTip")}</div>
 
-      <div id="viewMode" data-tip="Set view node">
-        <p>View mode:</p>
+      <div id="viewMode" data-tip={t("layersTab.viewModeTip")}>
+        <p>{t("layersTab.viewMode")}</p>
         <button
-          data-tip="Standard view mode that allows to edit the map"
+          data-tip={t("layersTab.standardTip")}
           id="viewStandard"
           className={activeViewMode === "viewStandard" ? "pressed" : ""}
           onClick={handleViewMode}
           disabled={isMapGenerationInProgress}
           type="button"
         >
-          Standard
+          {t("layersTab.standard")}
         </button>
         <button
-          data-tip="Map presentation in 3D scene. Works best for heightmap. Cannot be used for editing"
+          data-tip={t("layersTab.scene3dTip")}
           id="viewMesh"
           className={activeViewMode === "viewMesh" ? "pressed" : ""}
           onClick={handleViewMode}
           disabled={isMapGenerationInProgress}
           type="button"
         >
-          3D scene
+          {t("layersTab.scene3d")}
         </button>
         <button
-          data-tip="Project map on globe. Cannot be used for editing"
+          data-tip={t("layersTab.globeTip")}
           id="viewGlobe"
           className={activeViewMode === "viewGlobe" ? "pressed" : ""}
           onClick={handleViewMode}
           disabled={isMapGenerationInProgress}
           type="button"
         >
-          Globe
+          {t("layersTab.globe")}
         </button>
       </div>
     </div>

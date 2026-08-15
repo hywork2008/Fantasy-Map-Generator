@@ -1,4 +1,5 @@
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import {
   GENERATION_STAGES,
   generationProgressStore,
@@ -13,6 +14,7 @@ import { Dialog } from "./Dialog";
 import "./generationProgressDialog.css";
 
 export const GenerationProgressDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useGenerationProgressState(state => state.isOpen);
   const isGenerating = useGenerationProgressState(state => state.isGenerating);
   const currentStage = useGenerationProgressState(state => state.currentStage);
@@ -26,9 +28,9 @@ export const GenerationProgressDialog: React.FC = () => {
   const progress = ((completed + (isGenerating ? 0 : 1)) / GENERATION_STAGES.length) * 100;
   const stageRegenerationLabel =
     currentStage === 2
-      ? "Apply culture and settlement changes"
+      ? t("generationProgress.applyCultureChanges")
       : currentStage === 3
-        ? "Apply realm and route changes"
+        ? t("generationProgress.applyRealmChanges")
         : null;
 
   const handleReviewLayerToggle = (layerId: (typeof reviewProfile.layers)[number]["id"]) => {
@@ -60,20 +62,29 @@ export const GenerationProgressDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Build map" showCloseAllDialogsButton={false} className="generation-progress-dialog">
+    <Dialog
+      isOpen={isOpen}
+      title={t("generationProgress.title")}
+      showCloseAllDialogsButton={false}
+      className="generation-progress-dialog"
+    >
       <section className="generation-progress-dialog__content" aria-live="polite">
         <div className="generation-progress-dialog__heading">
           <span className="generation-progress-dialog__eyebrow">
-            WORLD FORGE · {currentStage + 1} / {GENERATION_STAGES.length}
+            {t("generationProgress.eyebrow", { current: currentStage + 1, total: GENERATION_STAGES.length })}
           </span>
-          <h2>{stage.title}</h2>
-          <p>{isGenerating ? "Generating this stage…" : stage.description}</p>
+          <h2>{t(`generationProgress.stages.${stage.id}.title`)}</h2>
+          <p>
+            {isGenerating
+              ? t("generationProgress.generatingStage")
+              : t(`generationProgress.stages.${stage.id}.description`)}
+          </p>
         </div>
 
         <div
           className="generation-progress-dialog__bar"
           role="progressbar"
-          aria-label="Map generation progress"
+          aria-label={t("generationProgress.progressAria")}
           aria-valuemin={0}
           aria-valuemax={GENERATION_STAGES.length}
           aria-valuenow={completed + (isGenerating ? 0 : 1)}
@@ -91,8 +102,12 @@ export const GenerationProgressDialog: React.FC = () => {
               >
                 <span aria-hidden="true">{state === "complete" ? "✓" : index + 1}</span>
                 <div>
-                  <strong>{item.title}</strong>
-                  {index === currentStage && <small>{isGenerating ? "Generating" : "Ready to review"}</small>}
+                  <strong>{t(`generationProgress.stages.${item.id}.title`)}</strong>
+                  {index === currentStage && (
+                    <small>
+                      {isGenerating ? t("generationProgress.generating") : t("generationProgress.readyToReview")}
+                    </small>
+                  )}
                 </div>
               </li>
             );
@@ -100,8 +115,8 @@ export const GenerationProgressDialog: React.FC = () => {
         </ol>
 
         {!isGenerating && !autoRun && (
-          <section className="generation-progress-dialog__review" aria-label="Review layers">
-            <span>Review layers</span>
+          <section className="generation-progress-dialog__review" aria-label={t("generationProgress.reviewLayers")}>
+            <span>{t("generationProgress.reviewLayers")}</span>
             <div className="generation-progress-dialog__review-controls">
               {reviewProfile.layers.map(layer => {
                 const isActive = reviewLayers.includes(layer.id);
@@ -113,7 +128,7 @@ export const GenerationProgressDialog: React.FC = () => {
                     className={isActive ? "generation-progress-dialog__review-layer--active" : undefined}
                     onClick={() => handleReviewLayerToggle(layer.id)}
                   >
-                    {layer.label}
+                    {t(`generationProgress.reviewLayerNames.${layer.id}`, { defaultValue: layer.label })}
                   </button>
                 );
               })}
@@ -122,11 +137,14 @@ export const GenerationProgressDialog: React.FC = () => {
         )}
 
         {currentStage === 1 && !isGenerating && !autoRun && (
-          <section className="generation-progress-dialog__climate-settings" aria-label="Climate settings">
-            <span>Climate inputs</span>
+          <section
+            className="generation-progress-dialog__climate-settings"
+            aria-label={t("generationProgress.climateSettings")}
+          >
+            <span>{t("generationProgress.climateInputs")}</span>
             <div className="generation-progress-dialog__climate-inputs">
               <div className="generation-progress-dialog__profile-field">
-                <label htmlFor="generationBiomeRegionProfile">Biome region</label>
+                <label htmlFor="generationBiomeRegionProfile">{t("generation.biomeRegion")}</label>
                 <span className="generation-progress-dialog__profile-control">
                   <select
                     id="generationBiomeRegionProfile"
@@ -134,25 +152,22 @@ export const GenerationProgressDialog: React.FC = () => {
                     value={biomeRegionProfile}
                     onChange={handleBiomeRegionChange}
                   >
-                    <option value="global">Global (default mix)</option>
-                    <option value="medievalEurope">Medieval Europe</option>
-                    <option value="mediterranean">Mediterranean</option>
-                    <option value="tropicalRiverBasin">Tropical river basin</option>
-                    <option value="mountainRealm">Mountain realm</option>
+                    <option value="global">{t("generation.biomeRegions.global")}</option>
+                    <option value="medievalEurope">{t("generation.biomeRegions.medievalEurope")}</option>
+                    <option value="mediterranean">{t("generation.biomeRegions.mediterranean")}</option>
+                    <option value="tropicalRiverBasin">{t("generation.biomeRegions.tropicalRiverBasin")}</option>
+                    <option value="mountainRealm">{t("generation.biomeRegions.mountainRealm")}</option>
                   </select>
                   <IconButton
                     className="generation-progress-dialog__profile-refresh"
                     icon="icon-cw"
-                    tooltip="Regenerate climate and waterways"
+                    tooltip={t("generationProgress.regenerateClimate")}
                     onClick={regenerateClimate}
                   />
                 </span>
               </div>
-              <label
-                htmlFor="generationHeightExponent"
-                data-tip="Higher values make altitude cool faster, changing temperature and biomes."
-              >
-                Altitude exponent
+              <label htmlFor="generationHeightExponent" data-tip={t("generationProgress.altitudeExponentTip")}>
+                {t("generationProgress.altitudeExponent")}
                 <span className="generation-progress-dialog__range-control">
                   <input
                     id="generationHeightExponent"
@@ -173,14 +188,17 @@ export const GenerationProgressDialog: React.FC = () => {
               className="generation-progress-dialog__world-configurator"
               onClick={openWorldConfigurator}
             >
-              Open World Configurator
+              {t("generationProgress.openWorldConfigurator")}
             </button>
           </section>
         )}
 
         {!isGenerating && !autoRun && (
           <div className="generation-progress-dialog__actions">
-            <nav className="generation-progress-dialog__step-actions" aria-label="Stage navigation">
+            <nav
+              className="generation-progress-dialog__step-actions"
+              aria-label={t("generationProgress.stageNavigation")}
+            >
               <div className="generation-progress-dialog__step-action--back">
                 {currentStage > 0 && (
                   <button
@@ -188,7 +206,7 @@ export const GenerationProgressDialog: React.FC = () => {
                     className="generation-progress-dialog__secondary"
                     onClick={() => generationProgressStore.getState().previous()}
                   >
-                    Return to previous stage
+                    {t("generationProgress.returnToPrevious")}
                   </button>
                 )}
               </div>
@@ -199,7 +217,7 @@ export const GenerationProgressDialog: React.FC = () => {
                     className="generation-progress-dialog__secondary"
                     onClick={() => generationProgressStore.getState().retryLandscape()}
                   >
-                    Generate another landscape
+                    {t("generationProgress.generateAnotherLandscape")}
                   </button>
                 )}
                 {stageRegenerationLabel && (
@@ -218,7 +236,9 @@ export const GenerationProgressDialog: React.FC = () => {
                   className="generation-progress-dialog__primary"
                   onClick={() => generationProgressStore.getState().next()}
                 >
-                  {currentStage === GENERATION_STAGES.length - 1 ? "Finish map" : "Continue"}
+                  {currentStage === GENERATION_STAGES.length - 1
+                    ? t("generationProgress.finishMap")
+                    : t("generationProgress.continue")}
                 </button>
               </div>
             </nav>
@@ -228,7 +248,7 @@ export const GenerationProgressDialog: React.FC = () => {
                 className="generation-progress-dialog__secondary"
                 onClick={() => generationProgressStore.getState().runAll()}
               >
-                Generate entire map
+                {t("generationProgress.generateEntireMap")}
               </button>
             </div>
           </div>

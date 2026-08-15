@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   addStylePreset,
   applyMapFilterButton,
@@ -17,6 +18,7 @@ import { STYLE_SUB_TAB_FIRST_ELEMENT, type StyleSubTab } from "./style/styleElem
 import { TerrainStylePanel } from "./style/TerrainStylePanel";
 
 export function StyleTab() {
+  const { t } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<StyleSubTab>("environment");
   const activePreset = useStyleState(state => state.activePreset);
   const systemPresets = useStyleState(state => state.systemPresets);
@@ -39,14 +41,11 @@ export function StyleTab() {
   return (
     <div id="styleContent" className="tabcontent d-block">
       {/* ─── Preset selector ─── */}
-      <p
-        data-tip="Select a style preset. State labels may required regeneration if font is changed"
-        className="d-inline-block"
-      >
-        Style preset:
+      <p data-tip={t("styleTab.presetTip")} className="d-inline-block">
+        {t("styleTab.preset")}
       </p>
       <select
-        data-tip="Select a style preset"
+        data-tip={t("styleTab.presetSelectTip")}
         id="stylePreset"
         value={activePreset}
         onChange={e => requestStylePresetChange(e.target.value)}
@@ -58,20 +57,20 @@ export function StyleTab() {
         ))}
         {customPresets.map(name => (
           <option key={CUSTOM_PRESET_PREFIX + name} value={CUSTOM_PRESET_PREFIX + name}>
-            {name} [custom]
+            {t("styleTab.customSuffix", { name })}
           </option>
         ))}
       </select>
       <button
         id="addStyleButton"
-        data-tip="Click to save current style as a new preset"
+        data-tip={t("styleTab.addPresetTip")}
         className="icon-plus sideButton d-inline-block"
         onClick={() => addStylePreset()}
         type="button"
       />
       <button
         id="removeStyleButton"
-        data-tip="Click to remove current custom style preset"
+        data-tip={t("styleTab.removePresetTip")}
         className="icon-minus sideButton"
         style={{ display: isSystemPreset ? "none" : "inline-block" }}
         onClick={() => requestRemoveStylePreset()}
@@ -86,7 +85,7 @@ export function StyleTab() {
             className={`options${activeSubTab === tab ? " active" : ""}`}
             onClick={() => handleSubTabChange(tab)}
           >
-            {tab}
+            {t(`styleTab.subTabs.${tab}`)}
           </button>
         ))}
       </div>
@@ -99,25 +98,25 @@ export function StyleTab() {
       {/* ─── Global map filters ─── */}
       <div
         id="mapFilters"
-        data-tip="Set a filter to be applied to the map in general"
+        data-tip={t("styleTab.filtersTip")}
         onClick={e => {
           const btn = (e.target as HTMLElement).closest("button");
           if (!btn) return;
           applyMapFilterButton(btn.id);
         }}
       >
-        <p>Toggle global filters:</p>
+        <p>{t("styleTab.filters")}</p>
         <button type="button" id="grayscale" className={activeMapFilter === "grayscale" ? "radio pressed" : "radio"}>
-          Grayscale
+          {t("styleTab.grayscale")}
         </button>
         <button type="button" id="sepia" className={activeMapFilter === "sepia" ? "radio pressed" : "radio"}>
-          Sepia
+          {t("styleTab.sepia")}
         </button>
         <button type="button" id="dingy" className={activeMapFilter === "dingy" ? "radio pressed" : "radio"}>
-          Dingy
+          {t("styleTab.dingy")}
         </button>
         <button type="button" id="tint" className={activeMapFilter === "tint" ? "radio pressed" : "radio"}>
-          Tint
+          {t("styleTab.tint")}
         </button>
       </div>
     </div>
