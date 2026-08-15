@@ -17,16 +17,46 @@ import {
   TradeLogisticsSettings,
   type TradeLogisticsSettings as TradeLogisticsSettingsType
 } from "../../generators/tradeLogisticsSettings";
-import { formatSailDecisionReason, routeHasWater } from "../../generators/tradeSailSchedule";
+import { routeHasWater } from "../../generators/tradeSailSchedule";
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+const TRANSPORT_NAME_KEYS: Record<string, string> = {
+  "pack-train": "extensions.marketOverview.assetPackTrain",
+  cart: "extensions.marketOverview.assetCart",
+  wagon: "extensions.marketOverview.assetWagon",
+  "river-barge": "extensions.marketOverview.assetRiverBarge"
+};
+
+const SAIL_REASON_KEYS: Record<string, string> = {
+  "depart-full": "extensions.tradeAnimation.reasonFull",
+  "depart-local": "extensions.tradeAnimation.reasonLocal",
+  "depart-schedule": "extensions.tradeAnimation.reasonSchedule",
+  "depart-overdue": "extensions.tradeAnimation.reasonOverdue",
+  "cancelled-thin": "extensions.tradeAnimation.reasonCancelled",
+  waiting: "extensions.tradeAnimation.reasonWaiting"
+};
+
+function localizeTransportName(id: string | undefined, fallback: string, t: Translate): string {
+  return id && TRANSPORT_NAME_KEYS[id] ? t(TRANSPORT_NAME_KEYS[id]) : fallback;
+}
+
+function localizeSailReason(reason: string | undefined, t: Translate): string {
+  return reason && SAIL_REASON_KEYS[reason] ? t(SAIL_REASON_KEYS[reason]) : "—";
+}
 
 /** Finite-fleet P2: label concrete hulls, or explain abstract / waiting water capacity. */
-function formatCaravanVessels(caravan: Caravan): string {
+function formatCaravanVessels(caravan: Caravan, t: Translate): string {
   const allocations = caravan.transportAllocations ?? [];
   const hullParts: string[] = [];
   for (const allocation of allocations) {
     for (const hullId of allocation.shipHullIds ?? []) {
-      const className = allocation.transportName || allocation.transportId || "Ship";
-      hullParts.push(`Hull #${hullId} ${className}`);
+      const className = localizeTransportName(
+        allocation.transportId,
+        allocation.transportName || allocation.transportId || t("extensions.tradeAnimation.ship"),
+        t
+      );
+      hullParts.push(t("extensions.tradeAnimation.hull", { id: hullId, className }));
     }
   }
   if (hullParts.length) return hullParts.join(", ");
@@ -35,13 +65,20 @@ function formatCaravanVessels(caravan: Caravan): string {
     routeHasWater(caravan.routeSegments ?? []) &&
     (caravan.routeSegments ?? []).some(segment => segment.type === "water" || segment.type === "sea");
   if (needsSea) {
-    if (caravan.state === "loading") return "Waiting for vessel";
-    return "Abstract (no Shipbuilding)";
+    if (caravan.state === "loading") return t("extensions.tradeAnimation.waitingVessel");
+    return t("extensions.tradeAnimation.abstract");
   }
 
   const land = allocations.filter(a => a.mode === "land" || a.mode === "river");
   if (land.length) {
-    return land.map(a => `${a.unitCount}× ${a.transportName || a.transportId}`).join(", ");
+    return land
+      .map(a =>
+        t("extensions.tradeAnimation.landUnits", {
+          count: a.unitCount,
+          name: localizeTransportName(a.transportId, a.transportName || a.transportId, t)
+        })
+      )
+      .join(", ");
   }
   return "—";
 }
@@ -78,17 +115,17 @@ export const TradeAnimationDialog: React.FC = () => {
             style={tabButtonStyle(activeTab === "caravans")}
             onClick={() => setActiveTab("caravans")}
           >
-            Active Caravans
+            {t("extensions.tradeAnimation.tabCaravans")}
           </button>
           <button type="button" style={tabButtonStyle(activeTab === "flow")} onClick={() => setActiveTab("flow")}>
-            Flow report
+            {t("extensions.tradeAnimation.tabFlow")}
           </button>
           <button
             type="button"
             style={tabButtonStyle(activeTab === "settings")}
             onClick={() => setActiveTab("settings")}
           >
-            Settings
+            {t("extensions.tradeAnimation.tabSettings")}
           </button>
         </div>
 
@@ -106,6 +143,7 @@ interface ActiveCaravansTabProps {
 }
 
 const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false }) => {
+  const { t } = useTranslation();
   const [caravans, setCaravans] = React.useState<Caravan[]>([]);
   const distanceUnit = useOptionsState(state => state.distanceUnit);
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -136,27 +174,28 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
   const burgs = world?.pack?.burgs ?? [];
   const rows = React.useMemo(() => {
     return caravans.map(c => {
-      let sourceBurgName = "Unknown";
+      const unknown = t("extensions.tradeAnimation.unknown");
+      let sourceBurgName = unknown;
       if (c.sellerType === "market") {
         const m = getMarketById(c.seller);
-        if (m && burgs[m.centerBurgId]) sourceBurgName = burgs[m.centerBurgId].name ?? "Unknown";
+        if (m && burgs[m.centerBurgId]) sourceBurgName = burgs[m.centerBurgId].name ?? unknown;
       } else {
-        if (burgs[c.seller]) sourceBurgName = burgs[c.seller].name ?? "Unknown";
+        if (burgs[c.seller]) sourceBurgName = burgs[c.seller].name ?? unknown;
       }
 
-      let targetBurgName = "Unknown";
+      let targetBurgName = unknown;
       if (c.buyerType === "market") {
         const m = getMarketById(c.buyer);
-        if (m && burgs[m.centerBurgId]) targetBurgName = burgs[m.centerBurgId].name ?? "Unknown";
+        if (m && burgs[m.centerBurgId]) targetBurgName = burgs[m.centerBurgId].name ?? unknown;
       } else {
-        if (burgs[c.buyer]) targetBurgName = burgs[c.buyer].name ?? "Unknown";
+        if (burgs[c.buyer]) targetBurgName = burgs[c.buyer].name ?? unknown;
       }
 
-      let goodName = "Mixed";
+      let goodName = t("extensions.tradeAnimation.mixed");
       if (c.payload && c.payload.length === 1) {
-        goodName = Goods.get(c.payload[0].goodId)?.name ?? "Unknown";
+        goodName = Goods.get(c.payload[0].goodId)?.name ?? unknown;
       } else if (c.payload && c.payload.length > 1) {
-        goodName = `Mixed (${c.payload.length})`;
+        goodName = t("extensions.tradeAnimation.mixedCount", { count: c.payload.length });
       }
       const progress =
         c.state === "loading" && c.loading
@@ -190,10 +229,11 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
       return {
         i: c.i,
         state: c.state,
-        statusLabel: c.state === "loading" ? "Loading" : "In transit",
-        reasonLabel: formatSailDecisionReason(c.departReason),
+        statusLabel:
+          c.state === "loading" ? t("extensions.tradeAnimation.loading") : t("extensions.tradeAnimation.inTransit"),
+        reasonLabel: localizeSailReason(c.departReason, t),
         goodName,
-        vesselsLabel: formatCaravanVessels(c),
+        vesselsLabel: formatCaravanVessels(c, t),
         sourceBurgName,
         targetBurgName,
         distance: Math.round(c.totalDistance),
@@ -207,7 +247,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         value: c.value
       };
     });
-  }, [caravans, world.distanceScale, world, burgs]);
+  }, [caravans, world.distanceScale, world, burgs, t]);
 
   const sortedRows = React.useMemo(() => {
     return [...rows].sort((a, b) => {
@@ -230,46 +270,52 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
             <tr className="header">
               <SortableHeader
                 field="statusLabel"
-                label="Status"
-                tip="Loading = accumulating at origin; In transit = on the route"
+                label={t("extensions.tradeAnimation.status")}
+                tip={t("extensions.tradeAnimation.statusTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
               <SortableHeader
                 field="reasonLabel"
-                label="Sail reason"
-                tip="Why the shipment is waiting, left, or was cancelled"
+                label={t("extensions.tradeAnimation.sailReason")}
+                tip={t("extensions.tradeAnimation.sailReasonTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
-              <SortableHeader field="goodName" label="Good" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader
+                field="goodName"
+                label={t("extensions.tradeAnimation.good")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <SortableHeader
                 field="vesselsLabel"
-                label="Vessels"
-                tip="Concrete Shipbuilding hulls when reserved; sea loads wait without a free vessel"
+                label={t("extensions.tradeAnimation.vessels")}
+                tip={t("extensions.tradeAnimation.vesselsTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
               <SortableHeader
                 field="sourceBurgName"
-                label="From"
+                label={t("extensions.tradeAnimation.from")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
               <SortableHeader
                 field="targetBurgName"
-                label="To"
+                label={t("extensions.tradeAnimation.to")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
               <SortableHeader
                 field="distance"
-                label="Distance"
+                label={t("extensions.tradeAnimation.distance")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -277,8 +323,8 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               />
               <SortableHeader
                 field="progress"
-                label="Progress"
-                tip="In transit: route progress. Loading: hold fill percent."
+                label={t("extensions.tradeAnimation.progress")}
+                tip={t("extensions.tradeAnimation.progressTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -286,8 +332,8 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               />
               <SortableHeader
                 field="remainingDays"
-                label="ETA"
-                tip="Estimated days remaining / total journey duration (transit only)"
+                label={t("extensions.tradeAnimation.eta")}
+                tip={t("extensions.tradeAnimation.etaTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -295,7 +341,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               />
               <SortableHeader
                 field="units"
-                label="Units"
+                label={t("extensions.tradeAnimation.units")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -303,7 +349,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               />
               <SortableHeader
                 field="value"
-                label="Value"
+                label={t("extensions.tradeAnimation.value")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -314,7 +360,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
           {sortedRows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={11}>No loading or in-transit caravans</td>
+                <td colSpan={11}>{t("extensions.tradeAnimation.empty")}</td>
               </tr>
             </tbody>
           ) : (
@@ -344,7 +390,12 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
                   <td className="numeric">{`${row.distance} ${distanceUnit}`}</td>
                   <td className="numeric">{`${row.progress.toFixed(0)}%`}</td>
                   <td className="numeric">
-                    {Number.isFinite(row.remainingDays) ? `${row.remainingDays} / ${row.totalDays} days` : "—"}
+                    {Number.isFinite(row.remainingDays)
+                      ? t("extensions.tradeAnimation.etaDays", {
+                          remaining: row.remainingDays,
+                          total: row.totalDays
+                        })
+                      : "—"}
                   </td>
                   <td className="numeric">{row.units}</td>
                   <td className="numeric">{formatPrice(row.value)}</td>
@@ -356,8 +407,11 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
       </div>
       <div className="totalLine">
         <div>
-          Shipments: {sortedRows.length} ({sortedRows.filter(row => row.state === "loading").length} loading /{" "}
-          {sortedRows.filter(row => row.state === "transit").length} in transit)
+          {t("extensions.tradeAnimation.shipments", {
+            total: sortedRows.length,
+            loading: sortedRows.filter(row => row.state === "loading").length,
+            transit: sortedRows.filter(row => row.state === "transit").length
+          })}
         </div>
       </div>
     </div>
@@ -377,6 +431,7 @@ function formatNum(value: number): string {
 }
 
 const FlowReportTab: React.FC = () => {
+  const { t } = useTranslation();
   const [summary, setSummary] = React.useState<FlowReportSummary>(() => getFlowReport());
   const [sortBy, setSortBy] = React.useState<keyof MarketGoodFlowReportRow>("exportSlots");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
@@ -445,29 +500,34 @@ const FlowReportTab: React.FC = () => {
           fontSize: "0.9em"
         }}
       >
-        <span data-tip="Production cycles recorded in the rolling year window (max 12)">
-          Cycles: {summary.cyclesRecorded}/{summary.targetCycles}
+        <span data-tip={t("extensions.tradeAnimation.cyclesTip")}>
+          {t("extensions.tradeAnimation.cycles", {
+            recorded: summary.cyclesRecorded,
+            target: summary.targetCycles
+          })}
         </span>
-        <span data-tip="Mean hold fill of loading + transit caravans across recorded cycles">
-          Mean util: {formatPct(summary.meanCaravanUtilization)}
+        <span data-tip={t("extensions.tradeAnimation.meanUtilTip")}>
+          {t("extensions.tradeAnimation.meanUtil", { value: formatPct(summary.meanCaravanUtilization) })}
         </span>
-        <span data-tip="Median hold fill across recorded cycles">
-          Median util: {formatPct(summary.medianCaravanUtilization)}
+        <span data-tip={t("extensions.tradeAnimation.medianUtilTip")}>
+          {t("extensions.tradeAnimation.medianUtil", { value: formatPct(summary.medianCaravanUtilization) })}
         </span>
-        <span data-tip="Share of caravans under 20% fill">&lt;20% fill: {formatPct(summary.shareUnder20pct)}</span>
-        <span data-tip="Sum of annualized export cargo slots from measured trade">
-          Annual export slots: {formatNum(summary.totalAnnualExportSlots)}
+        <span data-tip={t("extensions.tradeAnimation.under20Tip")}>
+          {t("extensions.tradeAnimation.under20", { value: formatPct(summary.shareUnder20pct) })}
         </span>
-        <button type="button" onClick={refresh} data-tip="Reload report from the latest production cycles">
-          Refresh
+        <span data-tip={t("extensions.tradeAnimation.annualSlotsTip")}>
+          {t("extensions.tradeAnimation.annualSlots", { value: formatNum(summary.totalAnnualExportSlots) })}
+        </span>
+        <button type="button" onClick={refresh} data-tip={t("extensions.tradeAnimation.refreshTip")}>
+          {t("extensions.tradeAnimation.refresh")}
         </button>
         <button
           type="button"
           onClick={() => downloadFlowReportCsv()}
-          data-tip="Download the full market×good flow table as CSV"
+          data-tip={t("extensions.tradeAnimation.downloadCsvTip")}
           disabled={summary.rows.length === 0}
         >
-          Download CSV
+          {t("extensions.tradeAnimation.downloadCsv")}
         </button>
       </div>
 
@@ -477,16 +537,22 @@ const FlowReportTab: React.FC = () => {
             <tr className="header">
               <SortableHeader
                 field="marketName"
-                label="Market"
+                label={t("extensions.tradeAnimation.market")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
-              <SortableHeader field="goodName" label="Good" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader
+                field="goodName"
+                label={t("extensions.tradeAnimation.good")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <SortableHeader
                 field="annualProd"
-                label="Ann. prod"
-                tip="Production scaled to 12 cycles from measured stock deltas + trade"
+                label={t("extensions.tradeAnimation.annProd")}
+                tip={t("extensions.tradeAnimation.annProdTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -494,7 +560,7 @@ const FlowReportTab: React.FC = () => {
               />
               <SortableHeader
                 field="annualDemand"
-                label="Ann. demand"
+                label={t("extensions.tradeAnimation.annDemand")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -502,8 +568,8 @@ const FlowReportTab: React.FC = () => {
               />
               <SortableHeader
                 field="annualExport"
-                label="Ann. export"
-                tip="Units booked as market→market export deals, annualized"
+                label={t("extensions.tradeAnimation.annExport")}
+                tip={t("extensions.tradeAnimation.annExportTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -511,7 +577,7 @@ const FlowReportTab: React.FC = () => {
               />
               <SortableHeader
                 field="annualImport"
-                label="Ann. import"
+                label={t("extensions.tradeAnimation.annImport")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -519,7 +585,7 @@ const FlowReportTab: React.FC = () => {
               />
               <SortableHeader
                 field="endStock"
-                label="Stock"
+                label={t("extensions.tradeAnimation.stock")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -527,8 +593,8 @@ const FlowReportTab: React.FC = () => {
               />
               <SortableHeader
                 field="monthsCover"
-                label="Mo cover"
-                tip="End stock ÷ mean cycle demand"
+                label={t("extensions.tradeAnimation.moCover")}
+                tip={t("extensions.tradeAnimation.moCoverTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -536,8 +602,8 @@ const FlowReportTab: React.FC = () => {
               />
               <SortableHeader
                 field="exportSlots"
-                label="Export slots"
-                tip="Annual export units × cargo slots per unit"
+                label={t("extensions.tradeAnimation.exportSlots")}
+                tip={t("extensions.tradeAnimation.exportSlotsTip")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -548,10 +614,7 @@ const FlowReportTab: React.FC = () => {
           {sortedRows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={9}>
-                  No flow samples yet. Advance time through at least one production cycle (~30 sim days) with Economy
-                  enabled.
-                </td>
+                <td colSpan={9}>{t("extensions.tradeAnimation.emptyFlow")}</td>
               </tr>
             </tbody>
           ) : (
@@ -577,8 +640,14 @@ const FlowReportTab: React.FC = () => {
       </div>
       <div className="totalLine">
         <div>
-          Rows: {sortedRows.length} market×good · annualized from {summary.cyclesRecorded} cycle
-          {summary.cyclesRecorded === 1 ? "" : "s"}
+          {t("extensions.tradeAnimation.rows", {
+            count: sortedRows.length,
+            cycles: summary.cyclesRecorded,
+            cycleWord:
+              summary.cyclesRecorded === 1
+                ? t("extensions.tradeAnimation.cycle")
+                : t("extensions.tradeAnimation.cyclesWord")
+          })}
         </div>
       </div>
     </div>
@@ -586,51 +655,57 @@ const FlowReportTab: React.FC = () => {
 };
 
 const SettingsTab: React.FC = () => {
+  const { t } = useTranslation();
   return (
     <div id="tradeAnimationEditorContainer" style={{ padding: "0.5rem" }}>
-      <div data-tip="Select which trade types to display">
-        <label htmlFor="tradeAnimationDisplayType">Display:</label>
+      <div data-tip={t("extensions.tradeAnimation.displayTip")}>
+        <label htmlFor="tradeAnimationDisplayType">{t("extensions.tradeAnimation.display")}</label>
         <select id="tradeAnimationDisplayType">
-          <option value="both">Both local and global</option>
-          <option value="local">Local only</option>
-          <option value="global">Global only</option>
+          <option value="both">{t("extensions.tradeAnimation.both")}</option>
+          <option value="local">{t("extensions.tradeAnimation.localOnly")}</option>
+          <option value="global">{t("extensions.tradeAnimation.globalOnly")}</option>
         </select>
       </div>
 
-      <div data-tip="Maximum number of trade markers animated simultaneously">
-        <label htmlFor="tradeAnimationConcurrent">Concurrent:</label>
+      <div data-tip={t("extensions.tradeAnimation.concurrentTip")}>
+        <label htmlFor="tradeAnimationConcurrent">{t("extensions.tradeAnimation.concurrent")}</label>
         <SliderInput id="tradeAnimationConcurrent" min="1" max="200" step="1" value="30" onChange={() => {}} />
       </div>
 
-      <div data-tip="Duration of a single trade journey in milliseconds">
-        <label htmlFor="tradeAnimationDuration">Duration (ms):</label>
+      <div data-tip={t("extensions.tradeAnimation.durationTip")}>
+        <label htmlFor="tradeAnimationDuration">{t("extensions.tradeAnimation.duration")}</label>
         <SliderInput id="tradeAnimationDuration" min="50" max="2000" step="10" value="250" onChange={() => {}} />
       </div>
 
-      <div data-tip="Multiplier applied to duration for overland segments (land is slower than sea)">
-        <label htmlFor="tradeAnimationLandModifier">Land modifier:</label>
+      <div data-tip={t("extensions.tradeAnimation.landModTip")}>
+        <label htmlFor="tradeAnimationLandModifier">{t("extensions.tradeAnimation.landMod")}</label>
         <SliderInput id="tradeAnimationLandModifier" min="1" max="20" step="1" value="5" onChange={() => {}} />
       </div>
 
-      <div data-tip="Pause duration at segment boundaries (ms)">
-        <label htmlFor="tradeAnimationSegmentPause">Segment pause (ms):</label>
+      <div data-tip={t("extensions.tradeAnimation.pauseTip")}>
+        <label htmlFor="tradeAnimationSegmentPause">{t("extensions.tradeAnimation.pause")}</label>
         <SliderInput id="tradeAnimationSegmentPause" min="0" max="5000" step="100" value="1000" onChange={() => {}} />
       </div>
 
-      <div data-tip="Size of trade markers in pixels">
-        <label htmlFor="tradeAnimationMarkerSize">Marker size:</label>
+      <div data-tip={t("extensions.tradeAnimation.markerTip")}>
+        <label htmlFor="tradeAnimationMarkerSize">{t("extensions.tradeAnimation.marker")}</label>
         <SliderInput id="tradeAnimationMarkerSize" min="1" max="20" step="1" value="4" onChange={() => {}} />
       </div>
 
       <div id="tradeAnimationBottom">
-        <button type="button" id="tradeAnimationApply" data-tip="Apply settings and restart animation">
-          Apply
+        <button type="button" id="tradeAnimationApply" data-tip={t("extensions.tradeAnimation.applyTip")}>
+          {t("extensions.tradeAnimation.apply")}
         </button>
-        <button type="button" id="tradeAnimationRestart" data-tip="Restart the animation" className="icon-cw" />
+        <button
+          type="button"
+          id="tradeAnimationRestart"
+          data-tip={t("extensions.tradeAnimation.restartTip")}
+          className="icon-cw"
+        />
         <button
           type="button"
           id="tradeAnimationStop"
-          data-tip="Stop the animation"
+          data-tip={t("extensions.tradeAnimation.stopTip")}
           className="icon-stop"
           style={{ marginLeft: "0.3em" }}
         />
@@ -643,6 +718,7 @@ const SettingsTab: React.FC = () => {
 };
 
 const LogisticsSettingsSection: React.FC = () => {
+  const { t } = useTranslation();
   const [logistics, setLogistics] = React.useState<TradeLogisticsSettingsType>(() => ({
     ...TradeLogisticsSettings.getOptions(),
     sailDays: [...TradeLogisticsSettings.getOptions().sailDays]
@@ -661,10 +737,10 @@ const LogisticsSettingsSection: React.FC = () => {
       id="tradeLogisticsSettings"
       style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #555" }}
     >
-      <div style={{ fontWeight: "bold", marginBottom: "0.25rem" }}>Logistics (loading &amp; sail)</div>
+      <div style={{ fontWeight: "bold", marginBottom: "0.25rem" }}>{t("extensions.tradeAnimation.logistics")}</div>
 
-      <div data-tip="Hold fill share that lets a shipment leave without waiting for the calendar">
-        <label htmlFor="logisticsTargetUtil">Target fill %:</label>
+      <div data-tip={t("extensions.tradeAnimation.targetFillTip")}>
+        <label htmlFor="logisticsTargetUtil">{t("extensions.tradeAnimation.targetFill")}</label>
         <SliderInput
           id="logisticsTargetUtil"
           min="20"
@@ -675,8 +751,8 @@ const LogisticsSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Minimum fill before a scheduled or overdue sail is allowed">
-        <label htmlFor="logisticsMinUtil">Min sail fill %:</label>
+      <div data-tip={t("extensions.tradeAnimation.minFillTip")}>
+        <label htmlFor="logisticsMinUtil">{t("extensions.tradeAnimation.minFill")}</label>
         <SliderInput
           id="logisticsMinUtil"
           min="5"
@@ -687,8 +763,8 @@ const LogisticsSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Days a land caravan may wait before overdue sail or cancel">
-        <label htmlFor="logisticsWaitLand">Max wait land (days):</label>
+      <div data-tip={t("extensions.tradeAnimation.waitLandTip")}>
+        <label htmlFor="logisticsWaitLand">{t("extensions.tradeAnimation.waitLand")}</label>
         <SliderInput
           id="logisticsWaitLand"
           min="1"
@@ -699,8 +775,8 @@ const LogisticsSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Days a sea/river shipment may wait before overdue sail or cancel">
-        <label htmlFor="logisticsWaitSea">Max wait sea (days):</label>
+      <div data-tip={t("extensions.tradeAnimation.waitSeaTip")}>
+        <label htmlFor="logisticsWaitSea">{t("extensions.tradeAnimation.waitSea")}</label>
         <SliderInput
           id="logisticsWaitSea"
           min="1"
@@ -711,8 +787,8 @@ const LogisticsSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Short water-only hops (lakes / coasts) use this shorter muster">
-        <label htmlFor="logisticsWaitShortSea">Max wait short sea (days):</label>
+      <div data-tip={t("extensions.tradeAnimation.waitShortTip")}>
+        <label htmlFor="logisticsWaitShortSea">{t("extensions.tradeAnimation.waitShort")}</label>
         <SliderInput
           id="logisticsWaitShortSea"
           min="1"
@@ -723,8 +799,8 @@ const LogisticsSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Water-only routes at or under this distance use the short-sea wait">
-        <label htmlFor="logisticsShortSeaKm">Short sea distance (km):</label>
+      <div data-tip={t("extensions.tradeAnimation.shortKmTip")}>
+        <label htmlFor="logisticsShortSeaKm">{t("extensions.tradeAnimation.shortKm")}</label>
         <SliderInput
           id="logisticsShortSeaKm"
           min="20"
@@ -735,8 +811,8 @@ const LogisticsSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Comma-separated calendar days of the month for regular sailings (1–28)">
-        <label htmlFor="logisticsSailDays">Sail days of month:</label>
+      <div data-tip={t("extensions.tradeAnimation.sailDaysTip")}>
+        <label htmlFor="logisticsSailDays">{t("extensions.tradeAnimation.sailDays")}</label>
         <input
           id="logisticsSailDays"
           type="text"
@@ -756,7 +832,7 @@ const LogisticsSettingsSection: React.FC = () => {
 
       <button
         type="button"
-        data-tip="Restore default fill targets, waits, and sail calendar"
+        data-tip={t("extensions.tradeAnimation.resetLogisticsTip")}
         onClick={() => {
           TradeLogisticsSettings.reset();
           const next = TradeLogisticsSettings.getOptions();
@@ -764,18 +840,21 @@ const LogisticsSettingsSection: React.FC = () => {
           setSailDaysText(next.sailDays.join(", "));
         }}
       >
-        Reset logistics defaults
+        {t("extensions.tradeAnimation.resetLogistics")}
       </button>
       <div style={{ opacity: 0.75, fontSize: "0.9em", marginTop: "0.35rem" }}>
-        Defaults: target {Math.round(DEFAULT_TRADE_LOGISTICS_SETTINGS.targetUtilization * 100)}% · min{" "}
-        {Math.round(DEFAULT_TRADE_LOGISTICS_SETTINGS.minSailUtilization * 100)}% · sail days{" "}
-        {DEFAULT_TRADE_LOGISTICS_SETTINGS.sailDays.join("/")}
+        {t("extensions.tradeAnimation.defaults", {
+          target: Math.round(DEFAULT_TRADE_LOGISTICS_SETTINGS.targetUtilization * 100),
+          min: Math.round(DEFAULT_TRADE_LOGISTICS_SETTINGS.minSailUtilization * 100),
+          days: DEFAULT_TRADE_LOGISTICS_SETTINGS.sailDays.join("/")
+        })}
       </div>
     </div>
   );
 };
 
 const MovementSettingsSection: React.FC = () => {
+  const { t } = useTranslation();
   const [movement, setMovement] = React.useState<CaravanMovementSettings>(() => ({ ...CaravanMovement.getOptions() }));
 
   const update = (partial: Partial<CaravanMovementSettings>) => {
@@ -791,10 +870,10 @@ const MovementSettingsSection: React.FC = () => {
       id="caravanMovementSettings"
       style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #555" }}
     >
-      <div style={{ fontWeight: "bold", marginBottom: "0.25rem" }}>Movement Speed</div>
+      <div style={{ fontWeight: "bold", marginBottom: "0.25rem" }}>{t("extensions.tradeAnimation.movement")}</div>
 
-      <div data-tip="Wagon/cart base pace on land, km per day">
-        <label htmlFor="caravanLandSpeed">Land (wagon):</label>
+      <div data-tip={t("extensions.tradeAnimation.landSpeedTip")}>
+        <label htmlFor="caravanLandSpeed">{t("extensions.tradeAnimation.landSpeed")}</label>
         <SliderInput
           id="caravanLandSpeed"
           min="5"
@@ -805,8 +884,8 @@ const MovementSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Ship base pace at sea, km per day">
-        <label htmlFor="caravanSeaSpeed">Sea (ship):</label>
+      <div data-tip={t("extensions.tradeAnimation.seaSpeedTip")}>
+        <label htmlFor="caravanSeaSpeed">{t("extensions.tradeAnimation.seaSpeed")}</label>
         <SliderInput
           id="caravanSeaSpeed"
           min="5"
@@ -817,8 +896,8 @@ const MovementSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="Seasonal tailwind/current speed swing applied to sea legs; 0% means no correction">
-        <label htmlFor="caravanSeaCurrentStrength">Seasonal current (%):</label>
+      <div data-tip={t("extensions.tradeAnimation.currentTip")}>
+        <label htmlFor="caravanSeaCurrentStrength">{t("extensions.tradeAnimation.current")}</label>
         <SliderInput
           id="caravanSeaCurrentStrength"
           min="0"
@@ -829,10 +908,10 @@ const MovementSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div style={{ fontWeight: "bold", margin: "0.75rem 0 0.25rem" }}>Elevation &amp; Passes</div>
+      <div style={{ fontWeight: "bold", margin: "0.75rem 0 0.25rem" }}>{t("extensions.tradeAnimation.elevation")}</div>
 
-      <div data-tip="How much slope slows land caravans. 0% = legacy flat-map travel time; 100% = full grade model">
-        <label htmlFor="caravanGradeEffectStrength">Grade effect (%):</label>
+      <div data-tip={t("extensions.tradeAnimation.gradeTip")}>
+        <label htmlFor="caravanGradeEffectStrength">{t("extensions.tradeAnimation.grade")}</label>
         <SliderInput
           id="caravanGradeEffectStrength"
           min="0"
@@ -843,16 +922,16 @@ const MovementSettingsSection: React.FC = () => {
         />
       </div>
 
-      <div data-tip="preferSpeed takes the fastest grade-aware path; avoidHardPass detours around horse-hard grades when a longer route exists">
-        <label htmlFor="caravanMerchantRoutePreference">Land route preference:</label>
+      <div data-tip={t("extensions.tradeAnimation.preferenceTip")}>
+        <label htmlFor="caravanMerchantRoutePreference">{t("extensions.tradeAnimation.preference")}</label>
         <select
           id="caravanMerchantRoutePreference"
           value={movement.merchantRoutePreference}
           onChange={e => update({ merchantRoutePreference: e.target.value as MerchantRoutePreference })}
           style={{ marginLeft: "0.35em" }}
         >
-          <option value="preferSpeed">Prefer speed (steep OK if shorter)</option>
-          <option value="avoidHardPass">Avoid hard passes (detour)</option>
+          <option value="preferSpeed">{t("extensions.tradeAnimation.preferSpeed")}</option>
+          <option value="avoidHardPass">{t("extensions.tradeAnimation.avoidHardPass")}</option>
         </select>
       </div>
     </div>

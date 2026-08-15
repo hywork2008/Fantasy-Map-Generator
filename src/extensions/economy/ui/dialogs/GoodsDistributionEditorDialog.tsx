@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 
 import {
@@ -61,23 +62,35 @@ function getOccurrenceKey(occurrences: Map<string, number>, signature: string): 
   return `${signature}:${occurrence}`;
 }
 
-function paramSignature(def: (typeof FN_DEFS)[number]): string {
-  switch (def.paramType) {
-    case "none":
-      return "";
-    case "biomes":
-      return "id, ...";
-    case "biomeTags":
-      return '"tag", ...';
-    case "shore":
-      return "ring, ...";
-    case "featureType":
-      return '"type", ...';
-    case "habitats":
-      return '"habitat", ...';
-    default:
-      return "value";
-  }
+const SHORE_LABEL_KEYS: Record<string, string> = {
+  "-2": "extensions.goodsDistribution.shore.n2",
+  "-1": "extensions.goodsDistribution.shore.n1",
+  "1": "extensions.goodsDistribution.shore.p1",
+  "2": "extensions.goodsDistribution.shore.p2"
+};
+
+const PARAM_SIGNATURE_KEYS: Record<string, string> = {
+  none: "extensions.goodsDistribution.paramNone",
+  biomes: "extensions.goodsDistribution.paramBiomes",
+  biomeTags: "extensions.goodsDistribution.paramTags",
+  shore: "extensions.goodsDistribution.paramShore",
+  featureType: "extensions.goodsDistribution.paramType",
+  habitats: "extensions.goodsDistribution.paramHabitats"
+};
+
+function fnText(
+  id: string,
+  field: "label" | "description" | "note" | "paramLabel",
+  fallback: string | undefined,
+  t: (key: string, options?: { defaultValue?: string }) => string
+): string {
+  return t(`extensions.goodsDistribution.fn.${id}.${field}`, { defaultValue: fallback ?? "" });
+}
+
+function paramSignature(def: (typeof FN_DEFS)[number], t: (key: string) => string): string {
+  return PARAM_SIGNATURE_KEYS[def.paramType]
+    ? t(PARAM_SIGNATURE_KEYS[def.paramType])
+    : t("extensions.goodsDistribution.paramValue");
 }
 
 const ConditionParams: React.FC<{
@@ -86,23 +99,25 @@ const ConditionParams: React.FC<{
   conditionIndex: number;
   biomes: BiomeOption[];
 }> = ({ condition, groupIndex, conditionIndex, biomes }) => {
+  const { t } = useTranslation();
   const def = FN_DEFS.find(item => item.id === condition.fnId);
   if (!def) return null;
 
   if (def.paramType === "none") {
-    return <div className="gde__params-empty">no parameters</div>;
+    return <div className="gde__params-empty">{t("extensions.goodsDistribution.noParams")}</div>;
   }
 
   if (def.paramType === "number") {
+    const paramLabel = fnText(def.id, "paramLabel", def.paramLabel, t);
     return (
       <div className="gde__params">
         <input
           type="number"
           value={condition.numberVal}
-          placeholder={def.paramLabel || "value"}
+          placeholder={paramLabel || t("extensions.goodsDistribution.paramValue")}
           onChange={event => setConditionNumberValue(groupIndex, conditionIndex, event.target.value)}
         />
-        {def.paramLabel && <div className="gde__params-label">{def.paramLabel}</div>}
+        {paramLabel && <div className="gde__params-label">{paramLabel}</div>}
       </div>
     );
   }
@@ -136,7 +151,7 @@ const ConditionParams: React.FC<{
       >
         {BIOME_TAG_OPTIONS.map(option => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {t(`extensions.goodsDistribution.biomeTag.${option.value}`, { defaultValue: option.label })}
           </option>
         ))}
       </select>
@@ -154,7 +169,7 @@ const ConditionParams: React.FC<{
       >
         {SHORE_OPTIONS.map(option => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {t(SHORE_LABEL_KEYS[option.value] ?? option.label, { defaultValue: option.label })}
           </option>
         ))}
       </select>
@@ -173,7 +188,7 @@ const ConditionParams: React.FC<{
       >
         {habitatOptions.map(option => (
           <option key={option.value} value={option.value}>
-            {option.label}
+            {t(`extensions.goodsDistribution.habitat.${option.value}`, { defaultValue: option.label })}
           </option>
         ))}
       </select>
@@ -190,7 +205,7 @@ const ConditionParams: React.FC<{
     >
       {FEATURE_TYPE_OPTIONS.map(option => (
         <option key={option.value} value={option.value}>
-          {option.label}
+          {t(`extensions.goodsDistribution.featureType.${option.value}`, { defaultValue: option.label })}
         </option>
       ))}
     </select>
@@ -198,6 +213,7 @@ const ConditionParams: React.FC<{
 };
 
 export const GoodsDistributionEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("goodsDistributionEditor"));
   const onApply = useDialogState(
     state =>
@@ -257,31 +273,34 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={dialogTitle}
+      title={
+        dialogTitle === "Distribution Editor"
+          ? t("extensions.goodsDistribution.title")
+          : dialogTitle.startsWith("Edit ")
+            ? t("extensions.goodsDistribution.editTitle", { name: dialogTitle.slice(5) })
+            : dialogTitle
+      }
       onClose={handleClose}
       className="goods-distribution-editor"
       buttons={[
-        { label: "Cancel", onClick: handleClose },
-        { label: "Apply", onClick: handleApply }
+        { label: t("common.cancel"), onClick: handleClose },
+        { label: t("common.apply"), onClick: handleApply }
       ]}
     >
       <div className="gde">
-        <div className="gde__intro">
-          Edit the good metadata and its raw resource distribution. Leave distribution empty for manufactured-only
-          goods.
-        </div>
+        <div className="gde__intro">{t("extensions.goodsDistribution.intro")}</div>
 
         <div className="gde__meta">
           <label>
-            <span>Name</span>
+            <span>{t("extensions.goodsDistribution.name")}</span>
             <input value={name} onChange={event => setDraftName(event.target.value)} />
           </label>
           <label>
-            <span>Color</span>
+            <span>{t("extensions.goodsDistribution.color")}</span>
             <input type="color" value={color} onChange={event => setDraftColor(event.target.value)} />
           </label>
           <label>
-            <span>Value</span>
+            <span>{t("extensions.goodsDistribution.value")}</span>
             <input
               type="number"
               min={0}
@@ -291,7 +310,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             />
           </label>
           <label>
-            <span>Chance (%)</span>
+            <span>{t("extensions.goodsDistribution.chance")}</span>
             <input
               type="number"
               min={0}
@@ -302,11 +321,11 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             />
           </label>
           <label>
-            <span>Unit</span>
+            <span>{t("extensions.goodsDistribution.unit")}</span>
             <input value={unit} onChange={event => setDraftUnit(event.target.value)} />
           </label>
           <label>
-            <span>Icon</span>
+            <span>{t("extensions.goodsDistribution.icon")}</span>
             <input list="goods-icon-options" value={icon} onChange={event => setDraftIcon(event.target.value)} />
             <datalist id="goods-icon-options">
               {iconOptions.map(option => (
@@ -315,11 +334,11 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             </datalist>
           </label>
           <label className="gde__meta-span2">
-            <span>Tags</span>
+            <span>{t("extensions.goodsDistribution.tags")}</span>
             <input
               value={tagsText}
               onChange={event => setDraftTagsText(event.target.value)}
-              placeholder="food, luxury, ore"
+              placeholder={t("extensions.goodsDistribution.tagsPlaceholder")}
             />
           </label>
         </div>
@@ -335,14 +354,16 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
 
                 return (
                   <React.Fragment key={groupKey}>
-                    {groupIndex > 0 && <div className="gde__or-sep">OR</div>}
+                    {groupIndex > 0 && <div className="gde__or-sep">{t("extensions.goodsDistribution.or")}</div>}
                     <div className="gde__group">
                       {group.map((condition, conditionIndex) => {
                         const def = FN_DEFS.find(item => item.id === condition.fnId);
                         const conditionKey = getOccurrenceKey(conditionOccurrences, serializeCondition(condition));
                         return (
                           <div key={conditionKey}>
-                            {conditionIndex > 0 && <div className="gde__and-sep">AND</div>}
+                            {conditionIndex > 0 && (
+                              <div className="gde__and-sep">{t("extensions.goodsDistribution.and")}</div>
+                            )}
                             <div className="gde__cond-row">
                               <label className="gde__not">
                                 <input
@@ -353,7 +374,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                                     setConditionNegate(groupIndex, conditionIndex, event.target.checked)
                                   }
                                 />
-                                NOT
+                                {t("extensions.goodsDistribution.not")}
                               </label>
                               <select
                                 value={condition.fnId}
@@ -361,7 +382,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                               >
                                 {FN_DEFS.map(option => (
                                   <option key={option.id} value={option.id}>
-                                    {option.label}
+                                    {fnText(option.id, "label", option.label, t)}
                                   </option>
                                 ))}
                               </select>
@@ -372,13 +393,15 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                                   conditionIndex={conditionIndex}
                                   biomes={biomes}
                                 />
-                                {def?.note && <div className="gde__params-note">{def.note}</div>}
+                                {def?.note && (
+                                  <div className="gde__params-note">{fnText(def.id, "note", def.note, t)}</div>
+                                )}
                               </div>
                               <button
                                 type="button"
                                 className="icon-trash-empty"
                                 onClick={() => removeCondition(groupIndex, conditionIndex)}
-                                aria-label="Remove condition"
+                                aria-label={t("extensions.goodsDistribution.removeCondition")}
                               />
                             </div>
                           </div>
@@ -386,14 +409,14 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                       })}
                       <div className="gde__group-footer">
                         <button type="button" onClick={() => addCondition(groupIndex)}>
-                          + Add condition
+                          {t("extensions.goodsDistribution.addCondition")}
                         </button>
                         {groups.length > 1 && (
                           <button
                             type="button"
                             className="icon-trash-empty"
                             onClick={() => removeGroup(groupIndex)}
-                            aria-label="Remove OR group"
+                            aria-label={t("extensions.goodsDistribution.removeGroup")}
                           />
                         )}
                       </div>
@@ -404,18 +427,18 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             })()}
 
             <button type="button" className="gde__add-or" onClick={addGroup}>
-              + Add OR group
+              {t("extensions.goodsDistribution.addOr")}
             </button>
 
             <div className="gde__output">
-              <div className="gde__output-title">Distribution</div>
+              <div className="gde__output-title">{t("extensions.goodsDistribution.distribution")}</div>
               <div className="gde__expression-row">
                 <textarea
                   className="gde__expression"
                   readOnly
                   rows={2}
                   value={expression}
-                  aria-label="Distribution expression"
+                  aria-label={t("extensions.goodsDistribution.expressionAria")}
                 />
                 <span className="gde__cell-count">{cellCountText}</span>
               </div>
@@ -424,16 +447,16 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
           </div>
 
           <aside className="gde__ref">
-            <div className="gde__ref-title">Function Reference</div>
+            <div className="gde__ref-title">{t("extensions.goodsDistribution.functionRef")}</div>
             {FN_DEFS.map(def => (
               <div key={def.id} className="gde__ref-card">
-                <code>{`${def.id}(${paramSignature(def)})`}</code>
-                <div className="gde__ref-desc">{def.description}</div>
-                {def.note && <div className="gde__ref-note">{def.note}</div>}
+                <code>{`${def.id}(${paramSignature(def, t)})`}</code>
+                <div className="gde__ref-desc">{fnText(def.id, "description", def.description, t)}</div>
+                {def.note && <div className="gde__ref-note">{fnText(def.id, "note", def.note, t)}</div>}
               </div>
             ))}
             <div className="gde__ref-card">
-              <div className="gde__ref-title">Biome options</div>
+              <div className="gde__ref-title">{t("extensions.goodsDistribution.biomeOptions")}</div>
               <div className="gde__biome-list">
                 {biomes.map(biome => (
                   <div key={biome.id} className="gde__biome-item">
