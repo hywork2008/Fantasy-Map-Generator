@@ -50,6 +50,7 @@ import { useUiPreferencesState } from "../store/uiPreferencesState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type {
   Burg,
+  InternationalRoutePolicy,
   LandRouteGenerationMode,
   Marker,
   Province,
@@ -237,6 +238,10 @@ document.addEventListener("react-tool-action", e => {
         button === "regenerateRoutes" ? (worldContext.options.landRouteGenerationMode ?? "elevationAware") : undefined,
       landRouteElevationAversion:
         button === "regenerateRoutes" ? (worldContext.options.landRouteElevationAversion ?? 1) : undefined,
+      internationalRoutePolicy:
+        button === "regenerateRoutes"
+          ? (worldContext.options.internationalRoutePolicy ?? "settlementDefault")
+          : undefined,
       onProceed: (dontAskAgain, routeModes) => {
         if (dontAskAgain) setDontAskRegenerateFeature(true);
         processFeatureRegeneration(null, button, routeModes);
@@ -280,7 +285,8 @@ function processFeatureRegeneration(
     regenerateRoutes(
       routeModes?.seaRouteGenerationMode ?? worldContext.options.seaRouteGenerationMode ?? "augmented",
       routeModes?.landRouteGenerationMode ?? worldContext.options.landRouteGenerationMode ?? "elevationAware",
-      routeModes?.landRouteElevationAversion ?? worldContext.options.landRouteElevationAversion ?? 1
+      routeModes?.landRouteElevationAversion ?? worldContext.options.landRouteElevationAversion ?? 1,
+      routeModes?.internationalRoutePolicy ?? worldContext.options.internationalRoutePolicy ?? "settlementDefault"
     );
     if (!layerIsOn("toggleRoutes")) toggleRoutes();
   } else if (button === "regenerateRivers") regenerateRivers();
@@ -329,9 +335,12 @@ export async function openEmblemEditor(): Promise<void> {
 function regenerateRoutes(
   seaRouteGenerationMode: SeaRouteGenerationMode = worldContext.options.seaRouteGenerationMode ?? "augmented",
   landRouteGenerationMode: LandRouteGenerationMode = worldContext.options.landRouteGenerationMode ?? "elevationAware",
-  landRouteElevationAversion: number = worldContext.options.landRouteElevationAversion ?? 1
+  landRouteElevationAversion: number = worldContext.options.landRouteElevationAversion ?? 1,
+  internationalRoutePolicy: InternationalRoutePolicy = worldContext.options.internationalRoutePolicy ??
+    "settlementDefault"
 ): void {
   worldContext.options.landRouteElevationAversion = landRouteElevationAversion;
+  worldContext.options.internationalRoutePolicy = internationalRoutePolicy;
   const locked = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));

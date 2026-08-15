@@ -160,6 +160,14 @@ export type FeatureType = "ocean" | "lake" | "island";
 export type SeaRouteGenerationMode = "legacy" | "augmented";
 
 /**
+ * Controls whether route generation may add cross-State connections.
+ * - settlementDefault preserves the historic behavior: only standard settlement maps add sparse international routes.
+ * - peacefulNeighbors additionally joins eligible adjacent States that are on good terms.
+ * - none suppresses automatic cross-State routes altogether.
+ */
+export type InternationalRoutePolicy = "settlementDefault" | "peacefulNeighbors" | "none";
+
+/**
  * Land-route Dijkstra cost model for roads/trails generation.
  * - elevationAware: stronger absolute-height + climb penalties (prefer valleys).
  * - legacy: previous weak heightModifier only (docs/plan/land-route-elevation-cost.md).

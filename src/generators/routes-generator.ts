@@ -9,7 +9,14 @@ import { worldContext } from "../context/worldContext";
 
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { useOptionsState } from "../store/optionsState";
-import type { Burg, LandRouteGenerationMode, Route, SeaRouteGenerationMode } from "../types/models";
+import type {
+  Burg,
+  InternationalRoutePolicy,
+  LandRouteGenerationMode,
+  Route,
+  SeaRouteGenerationMode,
+  State
+} from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import {
@@ -24,6 +31,7 @@ import {
   rw
 } from "../utils";
 import { TIME } from "../utils/debug";
+import type { RelationKey } from "../utils/diplomacyRelations";
 import { isLand } from "../utils/graphUtils";
 import { normalizeHeightExponent } from "../utils/height";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
@@ -42,6 +50,13 @@ const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").Curv
 };
 
 const MIN_PASSABLE_SEA_TEMP = -4;
+const PEACEFUL_ROUTE_RELATIONS: ReadonlySet<RelationKey> = new Set([
+  "Ally",
+  "Friendly",
+  "Neutral",
+  "Vassal",
+  "Suzerain"
+]);
 const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-1": 1, // coastline
   "-2": 1.8, // sea
@@ -481,8 +496,17 @@ class RoutesModule {
    * maps retain their historical international sea lanes; frontier settlement
    * patterns retain same-State access only.
    */
+  private getInternationalRoutePolicy(): InternationalRoutePolicy {
+    const policy = this.worldContext.options.internationalRoutePolicy;
+    if (policy === "none" || policy === "peacefulNeighbors" || policy === "settlementDefault") return policy;
+    return "settlementDefault";
+  }
+
   private allowsInternationalSeaRoutes(): boolean {
-    return this.worldContext.options.initialSettlementPattern === "standard";
+    return (
+      this.getInternationalRoutePolicy() === "settlementDefault" &&
+      this.worldContext.options.initialSettlementPattern === "standard"
+    );
   }
 
   /**
@@ -490,7 +514,60 @@ class RoutesModule {
    * trade / pilgrimage trails. They are not State-built capital roads.
    */
   private allowsInternationalTrails(): boolean {
-    return this.worldContext.options.initialSettlementPattern === "standard";
+    return (
+      this.getInternationalRoutePolicy() === "settlementDefault" &&
+      this.worldContext.options.initialSettlementPattern === "standard"
+    );
+  }
+
+  /** Returns each mutually neighboring State pair whose bilateral relation permits a route. */
+  private getPeacefulNeighborStatePairs(): [State, State][] {
+    if (this.getInternationalRoutePolicy() !== "peacefulNeighbors") return [];
+
+    const states = this.worldContext.pack.states ?? [];
+    const pairs: [State, State][] = [];
+    for (const state of states) {
+      if (!state.i || state.removed || !state.neighbors?.length) continue;
+      for (const neighborId of state.neighbors) {
+        const neighbor = states[neighborId];
+        if (!neighbor?.i || neighbor.removed || state.i >= neighbor.i) continue;
+        if (!neighbor.neighbors?.includes(state.i)) continue;
+        if (!this.hasPeacefulRouteRelation(state, neighbor)) continue;
+        pairs.push([state, neighbor]);
+      }
+    }
+    return pairs;
+  }
+
+  private hasPeacefulRouteRelation(from: State, to: State): boolean {
+    const forward = from.diplomacy?.[to.i];
+    const backward = to.diplomacy?.[from.i];
+    return (
+      typeof forward === "string" &&
+      typeof backward === "string" &&
+      PEACEFUL_ROUTE_RELATIONS.has(forward as RelationKey) &&
+      PEACEFUL_ROUTE_RELATIONS.has(backward as RelationKey)
+    );
+  }
+
+  private getSortedBurgPairs(
+    first: Burg[],
+    second: Burg[],
+    sharesFeature: (firstBurg: Burg, secondBurg: Burg) => boolean
+  ): Array<[Burg, Burg]> {
+    const pairs: Array<[Burg, Burg]> = [];
+    for (const firstBurg of first) {
+      for (const secondBurg of second) {
+        if (sharesFeature(firstBurg, secondBurg)) pairs.push([firstBurg, secondBurg]);
+      }
+    }
+    return pairs.toSorted(([firstA, secondA], [firstB, secondB]) => {
+      const distanceDelta =
+        distanceSquared([firstA.x, firstA.y], [secondA.x, secondA.y]) -
+        distanceSquared([firstB.x, firstB.y], [secondB.x, secondB.y]);
+      if (distanceDelta !== 0) return distanceDelta;
+      return (firstA.i ?? 0) - (firstB.i ?? 0) || (secondA.i ?? 0) - (secondB.i ?? 0);
+    });
   }
 
   /** Groups burgs by land / water feature without imposing a State boundary. */
@@ -966,6 +1043,46 @@ class RoutesModule {
     return internationalTrails;
   }
 
+  /**
+   * Adds one practical border crossing for every peaceful neighboring State pair on each shared land feature.
+   * This is deliberately pair-based instead of filtering a global Delaunay graph, so an ineligible neighboring
+   * State cannot consume the one candidate edge that would otherwise connect two eligible States.
+   */
+  private generatePeacefulNeighborTrails(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
+    const trails: Route[] = [];
+
+    for (const [firstState, secondState] of this.getPeacefulNeighborStatePairs()) {
+      const firstBurgs = pack.burgs.filter(burg => Boolean(burg?.i && !burg.removed && burg.state === firstState.i));
+      const secondBurgs = pack.burgs.filter(burg => Boolean(burg?.i && !burg.removed && burg.state === secondState.i));
+      const pairs = this.getSortedBurgPairs(firstBurgs, secondBurgs, (firstBurg, secondBurg) =>
+        Boolean(firstBurg.feature && firstBurg.feature === secondBurg.feature)
+      );
+      const connectedFeatures = new Set<number>();
+
+      for (const [from, to] of pairs) {
+        const feature = from.feature as number;
+        if (connectedFeatures.has(feature)) continue;
+        const segments = this.findPathSegments({
+          isWater: false,
+          connections,
+          start: from.cell,
+          exit: to.cell,
+          allowedStateIds: new Set([firstState.i, secondState.i]),
+          landMode: "trails"
+        });
+        if (!segments.length) continue;
+        for (const segment of segments) {
+          this.addConnections(segment, connections);
+          trails.push({ feature, cells: segment, international: true } as Route);
+        }
+        connectedFeatures.add(feature);
+      }
+    }
+
+    return trails;
+  }
+
   private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
@@ -1015,6 +1132,48 @@ class RoutesModule {
     }
 
     TIME && console.timeEnd("generateSeaRoutes");
+    return seaRoutes;
+  }
+
+  /** Adds one sea lane for every peaceful neighboring State pair sharing a navigable water feature. */
+  private generatePeacefulNeighborSeaRoutes(
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: SeaRouteGenerationMode
+  ) {
+    const { pack } = this.worldContext;
+    const seaRoutes: Route[] = [];
+
+    for (const [firstState, secondState] of this.getPeacefulNeighborStatePairs()) {
+      const firstPorts = pack.burgs.filter(burg =>
+        Boolean(burg?.i && !burg.removed && burg.state === firstState.i && burg.port && pack.cells.haven[burg.cell])
+      );
+      const secondPorts = pack.burgs.filter(burg =>
+        Boolean(burg?.i && !burg.removed && burg.state === secondState.i && burg.port && pack.cells.haven[burg.cell])
+      );
+      const pairs = this.getSortedBurgPairs(firstPorts, secondPorts, (firstPort, secondPort) =>
+        Boolean(firstPort.port && firstPort.port === secondPort.port)
+      );
+      const connectedFeatures = new Set<number>();
+
+      for (const [from, to] of pairs) {
+        const feature = from.port as number;
+        if (connectedFeatures.has(feature)) continue;
+        const segments = this.findPathSegments({
+          isWater: true,
+          connections,
+          start: from.cell,
+          exit: to.cell,
+          seaRouteGenerationMode
+        });
+        if (!segments.length) continue;
+        for (const segment of segments) {
+          this.addConnections(segment, connections);
+          seaRoutes.push({ feature, cells: segment, international: true } as Route);
+        }
+        connectedFeatures.add(feature);
+      }
+    }
+
     return seaRoutes;
   }
 
@@ -1151,6 +1310,7 @@ class RoutesModule {
         if (nextRoute.cells!.at(0) === thisRoute.cells!.at(-1)) {
           routesMerged++;
           thisRoute.cells = thisRoute.cells!.concat(nextRoute.cells!.slice(1));
+          if (nextRoute.international) thisRoute.international = true;
           nextRoute.merged = true;
         }
       }
@@ -1177,7 +1337,9 @@ class RoutesModule {
     const mainRoads = this.generateMainRoads(landConnections);
     const trails = this.generateTrails(landConnections);
     const internationalTrails = this.generateInternationalTrails(landConnections);
+    const peacefulNeighborTrails = this.generatePeacefulNeighborTrails(landConnections);
     const seaRoutes = this.generateSeaRoutes(waterConnections, seaRouteGenerationMode);
+    const peacefulNeighborSeaRoutes = this.generatePeacefulNeighborSeaRoutes(waterConnections, seaRouteGenerationMode);
     const riverRoutes = this.generateRiverRoutes();
     const pointsArray = this.preparePointsArray();
 
@@ -1193,16 +1355,21 @@ class RoutesModule {
       routes.push({ i: routes.length, group: "trails", feature, points, cells: cells! });
     }
 
-    for (const { feature, cells, merged } of this.mergeRoutes(internationalTrails)) {
+    for (const { feature, cells, merged } of this.mergeRoutes([...internationalTrails, ...peacefulNeighborTrails])) {
       if (merged) continue;
       const points = this.getPoints("trails", cells!, pointsArray);
       routes.push({ i: routes.length, group: "trails", feature, points, cells: cells!, international: true });
     }
 
-    for (const { feature, cells, merged } of this.mergeRoutes(seaRoutes)) {
+    for (const { feature, cells, merged, international } of this.mergeRoutes([
+      ...seaRoutes,
+      ...peacefulNeighborSeaRoutes
+    ])) {
       if (merged) continue;
       const points = this.getPoints("searoutes", cells!, pointsArray);
-      routes.push({ i: routes.length, group: "searoutes", feature, points, cells: cells! });
+      const route: Route = { i: routes.length, group: "searoutes", feature, points, cells: cells! };
+      if (international) route.international = true;
+      routes.push(route);
     }
 
     for (const riverRoute of riverRoutes) {

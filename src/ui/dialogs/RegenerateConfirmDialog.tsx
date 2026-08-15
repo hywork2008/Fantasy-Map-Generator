@@ -2,7 +2,7 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDialogState } from "../../store/dialogState";
-import type { LandRouteGenerationMode, SeaRouteGenerationMode } from "../../types/models";
+import type { InternationalRoutePolicy, LandRouteGenerationMode, SeaRouteGenerationMode } from "../../types/models";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -12,6 +12,7 @@ export interface RouteRegenerationModes {
   landRouteGenerationMode?: LandRouteGenerationMode;
   /** Strength of elevation/slope aversion for elevationAware land routes (0–3). */
   landRouteElevationAversion?: number;
+  internationalRoutePolicy?: InternationalRoutePolicy;
 }
 
 /**
@@ -34,6 +35,7 @@ export interface RegenerateConfirmConfig {
   seaRouteGenerationMode?: SeaRouteGenerationMode;
   landRouteGenerationMode?: LandRouteGenerationMode;
   landRouteElevationAversion?: number;
+  internationalRoutePolicy?: InternationalRoutePolicy;
   /**
    * When set (even to the default `"mapSeed"`), the Characters seed-policy selector is shown.
    * Presence of the field gates the UI — same pattern as the routes mode fields.
@@ -55,18 +57,22 @@ export const RegenerateConfirmDialog: React.FC = () => {
   const [seaRouteGenerationMode, setSeaRouteGenerationMode] = useState<SeaRouteGenerationMode>("augmented");
   const [landRouteGenerationMode, setLandRouteGenerationMode] = useState<LandRouteGenerationMode>("elevationAware");
   const [landRouteElevationAversion, setLandRouteElevationAversion] = useState(1);
+  const [internationalRoutePolicy, setInternationalRoutePolicy] =
+    useState<InternationalRoutePolicy>("settlementDefault");
   const [characterEntropy, setCharacterEntropy] = useState<CharacterRegenerationEntropy>("mapSeed");
 
   useEffect(() => {
     setSeaRouteGenerationMode(config?.seaRouteGenerationMode ?? "augmented");
     setLandRouteGenerationMode(config?.landRouteGenerationMode ?? "elevationAware");
     setLandRouteElevationAversion(config?.landRouteElevationAversion ?? 1);
+    setInternationalRoutePolicy(config?.internationalRoutePolicy ?? "settlementDefault");
     setCharacterEntropy(config?.characterEntropy ?? "mapSeed");
   }, [
     config?.seaRouteGenerationMode,
     config?.landRouteGenerationMode,
     config?.landRouteElevationAversion,
-    config?.characterEntropy
+    config?.characterEntropy,
+    config?.internationalRoutePolicy
   ]);
 
   const handleProceed = useCallback(() => {
@@ -75,7 +81,8 @@ export const RegenerateConfirmDialog: React.FC = () => {
     const showRouteModes =
       config?.seaRouteGenerationMode !== undefined ||
       config?.landRouteGenerationMode !== undefined ||
-      config?.landRouteElevationAversion !== undefined;
+      config?.landRouteElevationAversion !== undefined ||
+      config?.internationalRoutePolicy !== undefined;
     const showCharacterEntropy = config?.characterEntropy !== undefined;
     config?.onProceed(
       dontAsk,
@@ -86,11 +93,20 @@ export const RegenerateConfirmDialog: React.FC = () => {
               config?.landRouteGenerationMode !== undefined ? landRouteGenerationMode : undefined,
             landRouteElevationAversion:
               config?.landRouteElevationAversion !== undefined ? landRouteElevationAversion : undefined,
+            internationalRoutePolicy:
+              config?.internationalRoutePolicy !== undefined ? internationalRoutePolicy : undefined,
             characterEntropy: showCharacterEntropy ? characterEntropy : undefined
           }
         : undefined
     );
-  }, [config, seaRouteGenerationMode, landRouteGenerationMode, landRouteElevationAversion, characterEntropy]);
+  }, [
+    config,
+    seaRouteGenerationMode,
+    landRouteGenerationMode,
+    landRouteElevationAversion,
+    internationalRoutePolicy,
+    characterEntropy
+  ]);
 
   const handleCancel = useCallback(() => closeDialog(DIALOG_ID), []);
 
@@ -100,7 +116,8 @@ export const RegenerateConfirmDialog: React.FC = () => {
   const showRouteModes =
     config.seaRouteGenerationMode !== undefined ||
     config.landRouteGenerationMode !== undefined ||
-    config.landRouteElevationAversion !== undefined;
+    config.landRouteElevationAversion !== undefined ||
+    config.internationalRoutePolicy !== undefined;
   const showCharacterEntropy = config.characterEntropy !== undefined;
 
   return (
@@ -173,6 +190,26 @@ export const RegenerateConfirmDialog: React.FC = () => {
                   onChange={event => setLandRouteElevationAversion(Number(event.target.value))}
                 />
                 <p>{t("dialogs.regenerate.elevationAversionNote")}</p>
+              </div>
+            )}
+            {config.internationalRoutePolicy !== undefined && (
+              <div>
+                <label htmlFor="internationalRoutePolicy">{t("dialogs.regenerate.internationalRoutes")} </label>
+                <select
+                  id="internationalRoutePolicy"
+                  value={internationalRoutePolicy}
+                  onChange={event => {
+                    const value = event.target.value;
+                    if (value === "none" || value === "peacefulNeighbors" || value === "settlementDefault") {
+                      setInternationalRoutePolicy(value);
+                    }
+                  }}
+                >
+                  <option value="settlementDefault">{t("dialogs.regenerate.internationalDefault")}</option>
+                  <option value="peacefulNeighbors">{t("dialogs.regenerate.internationalPeaceful")}</option>
+                  <option value="none">{t("dialogs.regenerate.internationalNone")}</option>
+                </select>
+                <p>{t("dialogs.regenerate.internationalNote")}</p>
               </div>
             )}
           </div>
