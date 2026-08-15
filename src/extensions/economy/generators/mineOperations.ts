@@ -84,9 +84,15 @@ export class MineOperationsModule {
   generate(): void {
     const marketById = new Set(getMarkets().map(market => market.i));
     const marketColumn = getMarketCellColumn();
+    const { cells } = getWorldContext().pack;
+    const frontierMode = getWorldContext().options.initialSettlementPattern === "frontier";
     const operations: MineOperation[] = [];
 
     for (const deposit of getMineralDeposits()) {
+      // A market coverage polygon can extend well beyond the State that owns
+      // its centre. In Frontier mode that must not turn every remote, unclaimed
+      // deposit into an already-known mine during initial economy generation.
+      if (frontierMode && cells.state?.[deposit.cell] === 0) continue;
       const marketId = marketColumn[deposit.cell] ?? 0;
       if (
         deposit.exhausted ||

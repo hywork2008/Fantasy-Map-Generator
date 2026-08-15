@@ -8,8 +8,12 @@ import { Provinces } from "./provinces-generator";
 import { States } from "./states-generator";
 import { assignWildLandTags, isMonsterDomain } from "./wildLandTags";
 
-/** A supported outpost that still has residents may incorporate; 4 was higher than a typical transfer. */
-const MIN_SETTLEMENT_POPULATION = 1;
+/**
+ * Keep this aligned with frontierExpansion.ts's MIN_COLONISTS. A frontier
+ * expedition may legitimately establish with 0.5 population points; requiring
+ * 1 here stranded otherwise supported settlements below their own initial size.
+ */
+const MIN_SETTLEMENT_POPULATION = 0.5;
 const MIN_SETTLEMENT_SUPPORT_YEARS = 3;
 const MAX_ADMINISTRATIVE_CORRIDOR_HOPS = 8;
 

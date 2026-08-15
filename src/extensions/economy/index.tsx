@@ -1336,11 +1336,19 @@ function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
  * without learning every undiscovered deposit on the map.
  */
 function runStateProspecting(api: ExtensionAPI, random: () => number): number {
-  const { states } = getWorldContext().pack;
+  const world = getWorldContext();
+  const { states } = world.pack;
+  const frontierMode = world.options.initialSettlementPattern === "frontier";
+  const frontier = api.simulationContext.frontier;
   const statesById = new Map((states ?? []).filter(state => state?.i).map(state => [state.i, state]));
   let discoveries = 0;
   for (const state of states ?? []) {
     if (!state?.i || state.removed) continue;
+    // In Frontier mode, surveying is an expedition's reconnaissance phase,
+    // not an independent annual map reveal. One unresolved mineral objective
+    // or one active colony absorbs the State's expeditionary capacity until it
+    // is incorporated or abandoned.
+    if (frontierMode && !canStateStartFrontierSurvey(frontier, state.i)) continue;
     const rulerId = getStateRulerId(state);
     const geography = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "geography");
     const engineering = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "engineering");
@@ -1366,18 +1374,31 @@ function runStateProspecting(api: ExtensionAPI, random: () => number): number {
     });
     if (!result.discovered || result.cellId === undefined || result.commodity === undefined) continue;
     discoveries++;
-    document.dispatchEvent(
-      new CustomEvent("fmg:frontier-resource-discovered", {
-        detail: {
-          stateId: state.i,
-          cellId: result.cellId,
-          commodity: result.commodity,
-          discoveredYear: api.simulationContext.currentYear
-        }
-      })
-    );
+    if (frontierMode) {
+      document.dispatchEvent(
+        new CustomEvent("fmg:frontier-resource-discovered", {
+          detail: {
+            stateId: state.i,
+            cellId: result.cellId,
+            commodity: result.commodity,
+            discoveredYear: api.simulationContext.currentYear
+          }
+        })
+      );
+    }
   }
   return discoveries;
+}
+
+function canStateStartFrontierSurvey(
+  frontier: ExtensionAPI["simulationContext"]["frontier"],
+  stateId: number
+): boolean {
+  const hasActiveProject = Object.values(frontier.projects).some(project => project.stateId === stateId);
+  if (hasActiveProject) return false;
+  return !Object.values(frontier.resourceClaimsByCell).some(
+    claim => claim.stateId === stateId && claim.status !== "secured"
+  );
 }
 
 function getStateRulerId(state: unknown): number | undefined {

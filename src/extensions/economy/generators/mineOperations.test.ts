@@ -74,6 +74,36 @@ describe("MineOperationsModule", () => {
     expect(getMarkets()[0].goods[2].stock).toBeGreaterThan(0);
   });
 
+  it("keeps unclaimed deposits undiscovered when frontier market coverage reaches them", () => {
+    const previousPattern = worldContext.options.initialSettlementPattern;
+    worldContext.options.initialSettlementPattern = "frontier";
+    worldContext.pack.cells.state = Uint16Array.from([0]);
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "bandedIron",
+        primaryCommodity: "iron",
+        commodities: ["iron"],
+        yields: [{ commodity: "iron", reserveTons: 100, annualCapacityTons: 10 }],
+        richness: 2,
+        depth: "surface",
+        accessibility: 1,
+        discovered: false,
+        exhausted: false
+      }
+    ]);
+
+    try {
+      MineOperations.generate();
+      expect(getMineOperations()).toHaveLength(0);
+      expect(getMineralDeposits()[0].discovered).toBe(false);
+    } finally {
+      worldContext.options.initialSettlementPattern = previousPattern;
+    }
+  });
+
   it("prefers river panning for a reachable placer-gold discovery", () => {
     worldContext.pack = {
       burgs: [],
