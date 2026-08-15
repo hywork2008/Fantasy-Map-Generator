@@ -3,7 +3,7 @@
  * See docs/plan/shipbuilding-initial-fleet.md.
  */
 
-import { shouldSeedInitialFleets } from "../../../utils/frontierStartMode";
+import { isFrontierSeaborneLanding, shouldSeedInitialFleets } from "../../../utils/frontierStartMode";
 import { isTrueOceanPortBurg } from "../../../utils/oceanPort";
 import type { Burg, PackedGraph, State } from "../../hostTypes";
 import { getShipbuildingRuntimeState, getWorldContext } from "../shipbuildingContext";
@@ -192,6 +192,33 @@ function applyFlagshipOutlier(
   else if (next.caravel > 0) next.caravel--;
   // If we somehow had zero small/medium, keep total +1 (rare); clamp later not needed for guidelines.
   return next;
+}
+
+/** Crossing transports returned home; each colony keeps one boat, sometimes two. */
+export const SEABORNE_LANDING_REMNANT_MIN = 1;
+export const SEABORNE_LANDING_REMNANT_MAX = 2;
+
+/**
+ * Starter hulls for a Frontier seaborne landing. The immigrant fleet is
+ * off-map again; only a remnant stays with the beach-head.
+ */
+export function planSeaborneLandingRemnant(period: HistoricalPeriod, stateId: number): StateFleetPlan {
+  const keepSecond = unitHash(stateId, 0x51a1, period.length) < 0.45;
+  const total = keepSecond ? SEABORNE_LANDING_REMNANT_MAX : SEABORNE_LANDING_REMNANT_MIN;
+  const useCaravel = period === "lateMedieval" || period === "ageOfExploration";
+  const counts: ClassCounts = {
+    sloop: useCaravel ? Math.max(0, total - 1) : total,
+    caravel: useCaravel ? Math.min(1, total) : 0,
+    galleon: 0
+  };
+  return {
+    ...counts,
+    total,
+    stateHulls: total,
+    marketHulls: 0,
+    maxTechPointsRequired: counts.caravel > 0 ? SHIP_CLASS_TECH_POINTS.caravel : SHIP_CLASS_TECH_POINTS.sloop,
+    role: "minor_coastal"
+  };
 }
 
 export function planStateFleet(
@@ -384,12 +411,18 @@ export function seedInitialFleets(
     const state = states[stateId] as State | undefined;
     if (!state || (state as { removed?: boolean }).removed) continue;
 
-    const role = classifyMaritimeRole({
-      ports,
-      period,
-      forceOceanic: oceanicIds.has(stateId)
-    });
-    const plan = planStateFleet(period, role, ports.length, stateId);
+    const plan = isFrontierSeaborneLanding(options)
+      ? planSeaborneLandingRemnant(period, stateId)
+      : planStateFleet(
+          period,
+          classifyMaritimeRole({
+            ports,
+            period,
+            forceOceanic: oceanicIds.has(stateId)
+          }),
+          ports.length,
+          stateId
+        );
     if (plan.total === 0) continue;
 
     ensureTechFloor(stateId, plan.maxTechPointsRequired);

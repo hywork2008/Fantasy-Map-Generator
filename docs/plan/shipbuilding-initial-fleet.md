@@ -12,7 +12,9 @@
 ### 1.1 目的
 
 - 新規マップ開始時に、港を持つ国家が **空の艦隊** から始まらないようにする。
-- **例外:** Frontier の **陸地起源** (`frontierStartMode: "landOrigin"`) は船なしで始まる。配布しない。海上到来と他パターンは従来どおり真の海洋港へ配布する。仕様: [`docs/simulation/frontier-start-modes.md`](../simulation/frontier-start-modes.md)。
+- **例外:** Frontier の **陸地起源** (`frontierStartMode: "landOrigin"`) は船なしで始まる。配布しない。
+- **例外:** Frontier の **海上到来** は史実ガイドラインを使わない。移民船団は本国へ戻った想定で、各上陸国に **1–2 隻**（国家所有、大型なし）だけ残す。仕様: [`docs/simulation/frontier-start-modes.md`](../simulation/frontier-start-modes.md)。
+- 他パターンは従来どおり真の海洋港へ史実ガイドラインを配布する。
 - 配布結果は既存の `ShipHull` レジストリに載り、**Vessel assets**（`VesselAssetsOverviewDialog`）が所有者別に集計・表示する。
 - 配布量・船級比・国家/商家比は `historicalPeriod` と **海洋ロール**（港数・港の質中心。領土面積・総人口の単純比例ではない）に従う。
 - 史実どおり **外れ値**（小国の旗艦 1 隻、大国でも港が弱ければ Galleon 0）を許容する。

@@ -27,7 +27,7 @@ Shown only when Settlement pattern is **Frontier**. Other patterns ignore the fi
 | Mode | Story | Ships at start | Sea lanes at start |
 | :--- | :--- | :--- | :--- |
 | **Land origin** (default) | Humanity arose on this continent. Nobody has crossed an ocean yet. | None | None |
-| **Seaborne landing** | The starting states arrived from off-map and beached on a new land. | Yes, at true ocean ports | Yes, only between those ports |
+| **Seaborne landing** | The starting states arrived from off-map and beached on a new land. | **1–2 remnant boats per colony** (the crossing transports went home) | Yes, only between those ports |
 
 A shipyard is a *place that can build hulls* (ocean haven + timber). It is not a ship. A port is *geography* (a harbor). Neither implies a fleet.
 
@@ -49,6 +49,21 @@ Frontier's oikoumene used to open only 1–3 compact regions (`settlementRegionC
 | **Clustered** | Historical floor: `ceil(states / 5)` inside the 1–3 preset range | Several states may share one cluster |
 
 Spacing does not change Starting realm size, land-origin / seaborne rules, or oikoumene land share. It only decides whether those homelands sit on top of each other.
+
+---
+
+## 1.2 Seaborne remnant fleet
+
+A one-cell landing is not a maritime republic. The ordinary starter tables classify a capital-port as `regional_maritime` and, in Age of Exploration, give it **28 hulls**. Three such colonies were 84 ships against ~17k people.
+
+The crossing is over. Transports returned to the off-map homeland. Each landing state keeps **1 boat, sometimes 2**:
+
+- all `owner: "state"`
+- no galleons
+- early / high medieval: sloops
+- late medieval / age of exploration: one caravel (the ship they kept) and at most one sloop
+
+`planSeaborneLandingRemnant()` in `src/extensions/shipbuilding/generators/initialFleet.ts` owns this path. Other settlement patterns still use the historical guidelines.
 
 ---
 
@@ -138,7 +153,7 @@ A burg is a true ocean port only when:
 | Pattern / mode | Shipyard candidates | Seed hulls | Generated searoutes (sea + river-visual) |
 | :--- | :--- | :--- | :--- |
 | Frontier + land origin | Yes (geography) | No | No |
-| Frontier + seaborne | Yes (geography) | Yes, true ocean ports of starting states | Yes, true ocean ports only |
+| Frontier + seaborne | Yes (geography) | **1–2 remnant hulls per landing state**, all state-owned. The immigrant transports are assumed to have returned to the off-map homeland. Not the ordinary historical fleet tables (those would give ~28 ships to a one-port capital in Age of Exploration). | Yes, true ocean ports only |
 | Marches / scattered / standard / dense | Unchanged | Unchanged | Unchanged, but sea lanes still require a true ocean port (not a drain port) |
 
 River “searoutes” (`group: "searoutes"`, `navigation: "river"`) are visual river-trade lines. On land origin they are suppressed with the sea lanes: the player asked for no ships and the layer is the same `#searoutes` group. Directed river travel (`RiverNavigationGraph`) is a separate system and is not deleted.

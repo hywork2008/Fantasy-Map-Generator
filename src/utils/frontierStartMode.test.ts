@@ -6,6 +6,7 @@ import {
   frontierFoundationRegionFloor,
   frontierRegionCenterDistanceWeight,
   frontierStartLandFloors,
+  isFrontierSeaborneLanding,
   MIN_FRONTIER_START_LAND_CELLS,
   minFrontierStartLandCells,
   normalizeFrontierPolitySpacing,
@@ -68,6 +69,12 @@ describe("frontier sea-lane / fleet gate", () => {
     );
     expect(shouldSeedInitialFleets({ initialSettlementPattern: "marches", frontierStartMode: "landOrigin" })).toBe(
       true
+    );
+    expect(isFrontierSeaborneLanding({ initialSettlementPattern: "frontier", frontierStartMode: "seaborne" })).toBe(
+      true
+    );
+    expect(isFrontierSeaborneLanding({ initialSettlementPattern: "frontier", frontierStartMode: "landOrigin" })).toBe(
+      false
     );
   });
 });

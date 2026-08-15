@@ -76,3 +76,13 @@ export function shouldSeedInitialFleets(
   if (!options) return true;
   return allowsGeneratedSeaLanes(options);
 }
+
+/** Frontier colonies that arrived by ship and kept only a remnant of the crossing fleet. */
+export function isFrontierSeaborneLanding(
+  options: Pick<WorldOptions, "initialSettlementPattern" | "frontierStartMode"> | undefined
+): boolean {
+  return (
+    options?.initialSettlementPattern === "frontier" &&
+    normalizeFrontierStartMode(options.frontierStartMode) === "seaborne"
+  );
+}

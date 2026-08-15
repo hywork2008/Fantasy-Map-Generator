@@ -8,7 +8,9 @@ import {
   classifyMaritimeRole,
   collectOceanPortsByState,
   type OceanPortBurg,
+  planSeaborneLandingRemnant,
   planStateFleet,
+  SEABORNE_LANDING_REMNANT_MAX,
   seedInitialFleets,
   splitHullsByOwner,
   unitHash
@@ -75,6 +77,20 @@ describe("initialFleet pure helpers", () => {
         forceOceanic: true
       })
     ).toBe("oceanic_empire");
+  });
+
+  it("planSeaborneLandingRemnant keeps one or two state boats and no galleons", () => {
+    for (const period of ["earlyMedieval", "highMedieval", "lateMedieval", "ageOfExploration"] as const) {
+      const plan = planSeaborneLandingRemnant(period, 3);
+      expect(plan.total).toBeGreaterThanOrEqual(1);
+      expect(plan.total).toBeLessThanOrEqual(SEABORNE_LANDING_REMNANT_MAX);
+      expect(plan.stateHulls).toBe(plan.total);
+      expect(plan.marketHulls).toBe(0);
+      expect(plan.galleon).toBe(0);
+      expect(plan.sloop + plan.caravel).toBe(plan.total);
+    }
+    const late = planSeaborneLandingRemnant("ageOfExploration", 1);
+    expect(late.caravel).toBe(1);
   });
 
   it("planStateFleet matches guideline bases for highMedieval regional", () => {
@@ -271,6 +287,43 @@ describe("seedInitialFleets integration", () => {
     };
 
     expect(seedInitialFleets([], new Map())).toBeGreaterThan(0);
+  });
+
+  it("leaves only a 1–2 ship remnant per seaborne landing colony", () => {
+    installPack({
+      period: "ageOfExploration",
+      burgs: [
+        { i: 1, state: 1, capital: 1, citadel: 1, population: 8 },
+        { i: 2, state: 2, capital: 1, citadel: 1, population: 6 },
+        { i: 3, state: 3, capital: 1, citadel: 1, population: 5 }
+      ]
+    });
+    worldContext.pack.states = [
+      {} as State,
+      { i: 1, name: "A" } as State,
+      { i: 2, name: "B" } as State,
+      { i: 3, name: "C" } as State
+    ];
+    worldContext.options = {
+      ...(worldContext.options ?? {}),
+      historicalPeriod: "ageOfExploration",
+      initialSettlementPattern: "frontier",
+      frontierStartMode: "seaborne"
+    };
+
+    const seeded = seedInitialFleets([], new Map());
+    const hulls = getHulls();
+    expect(seeded).toBeGreaterThanOrEqual(3);
+    expect(seeded).toBeLessThanOrEqual(3 * SEABORNE_LANDING_REMNANT_MAX);
+    expect(hulls).toHaveLength(seeded);
+    expect(hulls.every(h => h.owner === "state")).toBe(true);
+    expect(hulls.every(h => h.shipClassId !== "galleon")).toBe(true);
+
+    const byState = new Map<number, number>();
+    for (const hull of hulls) {
+      byState.set(hull.ownerId, (byState.get(hull.ownerId) ?? 0) + 1);
+    }
+    expect([...byState.values()].every(count => count >= 1 && count <= SEABORNE_LANDING_REMNANT_MAX)).toBe(true);
   });
 
   it("skips states with no ocean ports", () => {
