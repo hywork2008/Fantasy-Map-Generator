@@ -7,6 +7,7 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
+import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
 import type { RNGService } from "../utils/probabilityUtils";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
@@ -78,7 +79,7 @@ export function getFrontierCandidateSummaries(
 ): readonly FrontierCandidateSummary[] {
   const cells = world.pack?.cells;
   const states = world.pack?.states;
-  if (!cells || !states || !isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  if (!cells || !states || !isFrontierExpansionPattern(world.options?.initialSettlementPattern)) return [];
   const candidates: FrontierCandidateSummary[] = [];
   for (const state of states) {
     if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i, cells, state.center)) continue;
@@ -98,7 +99,7 @@ export function getFrontierCandidateBlockerSummaries(
 ): readonly FrontierCandidateBlockerSummary[] {
   const cells = world.pack?.cells;
   const states = world.pack?.states;
-  if (!cells || !states || !isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  if (!cells || !states || !isFrontierExpansionPattern(world.options?.initialSettlementPattern)) return [];
   const blockers: FrontierCandidateBlockerSummary[] = [];
   for (const state of states) {
     if (!state?.i || state.removed) continue;
@@ -143,6 +144,36 @@ type FrontierContribution = {
 };
 
 /**
+ * Capture each state's live treasury as the next January's protected reserve.
+ * Must run before same-tick economy spending (population phase, or after
+ * generate-post-core economy init) so Advance Time does not evaluate the
+ * post-tax, post-upkeep remainder.
+ */
+export function snapshotFrontierBudgets(world: WorldContext, simulation: SimulationContext): boolean {
+  const cells = world.pack?.cells;
+  if (!cells || !isFrontierExpansionPattern(world.options?.initialSettlementPattern)) return false;
+  const frontier = ensureFrontierState(simulation, cells.i.length);
+  let changed = false;
+  for (const state of world.pack.states ?? []) {
+    if (!state?.i || state.removed) continue;
+    const next = Math.max(0, state.treasury ?? 0);
+    if (frontier.budgetByState[state.i] !== next) {
+      frontier.budgetByState[state.i] = next;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function resolvedFrontierBudget(
+  frontier: FrontierSimulationState,
+  stateId: number,
+  treasury: number | undefined
+): number {
+  return frontier.budgetByState[stateId] ?? Math.max(0, treasury ?? 0);
+}
+
+/**
  * Phase 3's annual, pre-incorporation expansion loop. It owns only unclaimed
  * cell stages and population transfers; changing `cells.state` is deliberately
  * reserved for the Phase 4 incorporation transaction.
@@ -150,7 +181,7 @@ type FrontierContribution = {
 export function advanceFrontierExpansion(input: FrontierExpansionInput): FrontierExpansionResult {
   const { world, simulation } = input;
   const cells = world.pack?.cells;
-  if (!cells || !isFrontierPattern(world.options?.initialSettlementPattern)) return emptyResult();
+  if (!cells || !isFrontierExpansionPattern(world.options?.initialSettlementPattern)) return emptyResult();
   if (simulation.currentMonth !== 1 || simulation.currentDay !== 1) return emptyResult();
 
   const frontier = ensureFrontierState(simulation, cells.i.length);
@@ -197,8 +228,10 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
 
     while (activeProjects < slots) {
       const requiredReserve = (activeProjects + 1) * (TREASURY_RESERVE + SETUP_COST);
-      const priorBudget = frontier.budgetByState[state.i] ?? 0;
-      if (priorBudget < requiredReserve || (state.treasury ?? 0) < SETUP_COST) break;
+      const priorBudget = resolvedFrontierBudget(frontier, state.i, state.treasury);
+      // Eligibility uses the pre-economy snapshot. Same-tick tax and upkeep must
+      // not zero the reserve that was already known at this calendar boundary.
+      if (priorBudget < requiredReserve) break;
 
       // Re-evaluate after every transfer: no second project may spend the same
       // source-cell surplus claimed by the first one in this annual transaction.
@@ -228,14 +261,6 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
     }
   }
 
-  // Capture after this year's decisions. Next January evaluates the treasury
-  // that was already known at this calendar boundary, never same-tick income.
-  for (const state of world.pack.states ?? []) {
-    if (!state?.i || state.removed) continue;
-    frontier.budgetByState[state.i] = Math.max(0, state.treasury ?? 0);
-  }
-  topics.add("simulation.states");
-
   return { topics: [...topics], established, abandoned, settled, incorporated };
 }
 
@@ -249,7 +274,7 @@ function advanceProject(
 
   const { cells } = input.world.pack;
   const state = input.world.pack.states?.[project.stateId];
-  const priorBudget = frontier.budgetByState[project.stateId] ?? 0;
+  const priorBudget = resolvedFrontierBudget(frontier, project.stateId, state?.treasury);
   const assessment = assessFrontierSupport(input.world, input.simulation, project, priorBudget, input.rng);
 
   if (!assessment.canSupport) {
@@ -438,10 +463,9 @@ function getStateStartBlocker(
   const slots = getFrontierProjectSlots(stateId, cells);
   if (activeProjects >= slots) return `All ${slots} frontier slots are active`;
   if (isAtWar(state)) return "At war";
-  const priorBudget = simulation.frontier.budgetByState[stateId] ?? 0;
+  const priorBudget = resolvedFrontierBudget(simulation.frontier, stateId, state.treasury);
   const requiredReserve = (activeProjects + 1) * (TREASURY_RESERVE + SETUP_COST);
   if (priorBudget < requiredReserve) return `Treasury reserve ${priorBudget.toFixed(0)} / ${requiredReserve}`;
-  if ((state.treasury ?? 0) < SETUP_COST) return `Setup funds ${(state.treasury ?? 0).toFixed(0)} / ${SETUP_COST}`;
   void stateCenter;
   return null;
 }
@@ -568,10 +592,6 @@ function ensureFrontierState(simulation: SimulationContext, cellCount: number): 
   if (frontier.cellStages.length === cellCount) return frontier;
   simulation.frontier = createEmptyFrontierSimulationState(cellCount);
   return simulation.frontier;
-}
-
-function isFrontierPattern(pattern: WorldContext["options"]["initialSettlementPattern"] | undefined): boolean {
-  return pattern === "frontier" || pattern === "scattered";
 }
 
 /**

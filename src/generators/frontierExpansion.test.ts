@@ -10,7 +10,8 @@ import {
   advanceFrontierExpansion,
   getFrontierCandidateBlockerSummaries,
   getFrontierCandidateSummaries,
-  getFrontierProjectSlots
+  getFrontierProjectSlots,
+  snapshotFrontierBudgets
 } from "./frontierExpansion";
 
 function createWorld(treasury = 100): WorldContext {
@@ -308,6 +309,37 @@ describe("Frontier Expansion Phase 3", () => {
     expect(world.pack.cells.pop[1]).toBeCloseTo(12.5);
     expect(world.pack.cells.pop[0]).toBeCloseTo(89.5);
     expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
+  });
+
+  it("founding uses the pre-economy snapshot even after same-tick treasury drain", () => {
+    const world = createWorld();
+    const simulation = createSimulation(100, 0);
+    expect(snapshotFrontierBudgets(world, simulation)).toBe(true);
+    expect(simulation.frontier.budgetByState[1]).toBe(100);
+
+    world.pack.states[1]!.treasury = 0;
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([1]);
+    expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.outpost);
+  });
+
+  it("expands on the marches settlement pattern", () => {
+    const world = createWorld();
+    world.options.initialSettlementPattern = "marches";
+    const simulation = createSimulation(100);
+
+    expect(advance(world, simulation).established).toEqual([1]);
+  });
+
+  it("does not recapture the post-economy remainder as next year's reserve", () => {
+    const world = createWorld();
+    const simulation = createSimulation(100, 80);
+    world.pack.states[1]!.treasury = 3;
+
+    advance(world, simulation);
+
+    expect(simulation.frontier.budgetByState[1]).toBe(80);
   });
 
   it("lists each state and target cell once when several source cells can fund it", () => {

@@ -82,13 +82,13 @@ export function assessFrontierSupport(
   const failureReasons: string[] = [];
 
   if (!state || state.removed) failureReasons.push("The sponsoring state no longer exists");
+  // Judge the calendar-boundary reserve, not the post-economy cash remaining
+  // after same-tick taxes and department upkeep.
   if (priorBudget < 12 + upkeep + recoveryCost) failureReasons.push("The state lacks its protected frontier reserve");
-  if ((state?.treasury ?? 0) < upkeep + recoveryCost)
-    failureReasons.push("The state treasury cannot fund support and recovery");
   if (capacity < population * 1.2) failureReasons.push("Local food capacity is too low for the settlement");
   if (danger > 150 + governance.investments.fort * 12)
     failureReasons.push("Local danger exceeds the fort and patrol cover");
-  if (disaster && recoveryCost > 0 && (state?.treasury ?? 0) < upkeep + recoveryCost) {
+  if (disaster && recoveryCost > 0 && priorBudget < 12 + upkeep + recoveryCost) {
     failureReasons.push(`${formatDisaster(disaster)} recovery cannot be funded`);
   }
 

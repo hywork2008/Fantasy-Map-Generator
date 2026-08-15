@@ -5,6 +5,7 @@ import { useDebugSnapshotState } from "../../../store/debugSnapshotState";
 import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
 import { useHeightmapEditModeState } from "../../../store/heightmapDialogState";
+import { isFrontierExpansionPattern } from "../../../utils/initialSettlementPattern";
 
 interface StaticEditButton {
   key: string;
@@ -287,10 +288,7 @@ export const ToolsTab: React.FC = () => {
   const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
   const editActions = actions.filter(a => a.section === "edit");
   const regenerateActions = actions.filter(a => a.section === "regenerate");
-  const isFrontierMap =
-    worldContext.options.initialSettlementPattern === "frontier" ||
-    worldContext.options.initialSettlementPattern === "marches" ||
-    worldContext.options.initialSettlementPattern === "scattered";
+  const isFrontierMap = isFrontierExpansionPattern(worldContext.options.initialSettlementPattern);
 
   const triggerEvent = (eventName: string) => {
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: eventName } }));

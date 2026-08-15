@@ -12,6 +12,7 @@ import type { WorldState } from "../types/WorldState";
 import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
+import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
 import { isRegimentLockedForBattle } from "./battleLock";
 import {
   analyzeFrontiers,
@@ -1237,7 +1238,3 @@ document.addEventListener("fmg:time-advance-completed", () => {
     if (state?.i && !state.removed) Military.refreshMountedCapacity(state.i);
   }
 });
-
-function isFrontierExpansionPattern(pattern: WorldState["options"]["initialSettlementPattern"]): boolean {
-  return pattern === "frontier" || pattern === "scattered";
-}

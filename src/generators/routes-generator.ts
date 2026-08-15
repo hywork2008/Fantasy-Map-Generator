@@ -1060,6 +1060,10 @@ class RoutesModule {
 
   /** Creates local low-grade trails for autonomous settlements without traversing State territory. */
   private generateAutonomousSettlementTrails(connections: Map<string, boolean>) {
+    // Non-standard map generation runs Routes once before States initializes cells.state.
+    // The second Routes pass, after State ownership is known, materializes these local networks.
+    if (!this.worldContext.pack.cells.state) return [];
+
     const trails: Route[] = [];
     const unclaimedOnly = new Set<number>();
 
@@ -1232,6 +1236,9 @@ class RoutesModule {
     seaRouteGenerationMode: SeaRouteGenerationMode
   ) {
     const { pack } = this.worldContext;
+    // Keep autonomous ports out of the pre-State route pass for the same reason as local trails.
+    if (!pack.cells.state) return [];
+
     const portsByFeature = new Map<number, Burg[]>();
     for (const burg of pack.burgs) {
       if (!burg?.i || burg.removed || burg.state || !burg.port || !pack.cells.haven[burg.cell]) continue;

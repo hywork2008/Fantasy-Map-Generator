@@ -14,6 +14,7 @@ import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, lerp, minmax } from "../utils";
 import { normalizeHeightExponent } from "../utils/height";
+import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
 import { getCurrentDirection } from "../utils/seasonUtils";
 import { isRegimentLockedForBattle } from "./battleLock";
 import {
@@ -534,10 +535,6 @@ function hasSupplyRouteToState(cells: PackedGraph["cells"], startCellId: number,
   }
 
   return false;
-}
-
-function isFrontierExpansionPattern(pattern: WorldContext["options"]["initialSettlementPattern"]): boolean {
-  return pattern === "frontier" || pattern === "scattered";
 }
 
 /** Ports redistributeGarrisons's old target-selection (pull toward the primary threatened frontier, proportional to its share of total threat, snapped onto owned land) into a march order instead of an instant reposition. */

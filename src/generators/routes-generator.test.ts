@@ -344,6 +344,9 @@ describe("RoutesModule settlement connections", () => {
 
     worldContext.pack.cells.state[1] = 1;
     expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
+
+    worldContext.pack.cells.state = undefined as unknown as typeof worldContext.pack.cells.state;
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
   });
 });
 

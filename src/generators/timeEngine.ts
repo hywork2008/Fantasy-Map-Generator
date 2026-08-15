@@ -32,7 +32,7 @@ import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
 import { advanceDungeonEcology } from "./dungeonEcology";
-import { advanceFrontierExpansion } from "./frontierExpansion";
+import { advanceFrontierExpansion, snapshotFrontierBudgets } from "./frontierExpansion";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
 import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
@@ -182,6 +182,23 @@ registerSimulationSystem({
     manpowerDaysAccumulated = 0;
     tickManpower(worldContext.pack, dueDeltaYears, worldContext.populationRate);
     writer.markChanged("simulation.states", "simulation.military");
+  }
+});
+
+// Snapshot last-settled treasury before the economy phase spends it. Frontier
+// expansion (politics) then evaluates that calendar-boundary reserve instead of
+// the post-upkeep remainder — otherwise a new map with Economy enabled never
+// meets the 20-point founding reserve.
+registerSimulationSystem({
+  id: "frontier-budget.snapshot",
+  phase: "population",
+  reads: ["simulation.states", "simulation.cells"],
+  writes: ["simulation.cells"],
+  cadence: { every: 1 },
+  profileLabel: "frontierBudgetSnapshot",
+  run: (_context, writer) => {
+    if (simulationContext.currentMonth !== 1 || simulationContext.currentDay !== 1) return;
+    if (snapshotFrontierBudgets(worldContext, simulationContext)) writer.markChanged("simulation.cells");
   }
 });
 
@@ -336,6 +353,13 @@ export function initSimulationClock(): void {
   seedTechnologyStartProfile(simulationContext.currentYear);
   resetPopulationLossTracker();
 }
+
+// Economy seeds state.treasury during map-ready tasks, after initSimulationClock.
+// Capture that opening reserve so the Tools panel and the first January
+// evaluation see the same calendar-boundary budget.
+document.addEventListener("fmg:map-ready-tasks-completed", () => {
+  snapshotFrontierBudgets(worldContext, simulationContext);
+});
 
 /**
  * Post-commit observers for one finished calendar day (or a reported delta).

@@ -8,6 +8,7 @@ import {
 } from "../../../generators/frontierExpansion";
 import { formatDisaster } from "../../../generators/frontierGovernance";
 import { getThreatCullProjectSummaries } from "../../../generators/wildernessEcology";
+import { isFrontierExpansionPattern } from "../../../utils/initialSettlementPattern";
 
 const STAGE_LABELS: Record<number, string> = {
   [FRONTIER_STAGE.wilderness]: "Wilderness",
@@ -43,10 +44,7 @@ export function FrontierStatusPanel() {
     counts[project.stateId] = (counts[project.stateId] ?? 0) + 1;
     return counts;
   }, {});
-  const isFrontierMap =
-    world.options.initialSettlementPattern === "frontier" ||
-    world.options.initialSettlementPattern === "marches" ||
-    world.options.initialSettlementPattern === "scattered";
+  const isFrontierMap = isFrontierExpansionPattern(world.options.initialSettlementPattern);
 
   if (!isFrontierMap && cullProjects.length === 0) return null;
 
