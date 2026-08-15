@@ -31,7 +31,7 @@ function installMinimalWorld(): void {
   } as never;
 
   // Disable core subsystems that need a full generated map; this suite is about
-  // the rAF chunking behavior, not demographics or manpower.
+  // the asynchronous chunking behavior, not demographics or manpower.
   useOptionsState.setState({
     simDemographics: false,
     simManpower: false,
@@ -51,8 +51,8 @@ function installMinimalWorld(): void {
 }
 
 /**
- * runTimeSimulation drives itself via requestAnimationFrame chunks; poll real
- * time for completion rather than fighting jsdom's rAF/fake-timer interplay.
+ * runTimeSimulation drives itself via asynchronous chunks; poll real
+ * time for completion rather than fighting jsdom timer/fake-timer interplay.
  */
 async function waitForSimulationToFinish(timeout = 2000): Promise<void> {
   await vi.waitFor(
@@ -175,12 +175,12 @@ describe("runTimeSimulation chunked stepping (P2-5 perf: fewer redraws per bulk 
     });
 
     const tickBefore = simulationContext.tickCount;
-    // The throw inside the rAF callback is uncaught by design (matches the
-    // pre-existing single-day behavior) and surfaces as a Node
-    // uncaughtException via jsdom's timer-based rAF polyfill rather than a
-    // browser window.onerror event. State (isRunning, rollback, catch-up
-    // commit) is already updated synchronously before the throw, so it's
-    // safe to remove this listener right after waitFor observes that.
+    // The throw inside the scheduled callback is uncaught by design (matches
+    // the pre-existing single-day behavior) and surfaces as a Node
+    // uncaughtException via jsdom's timer callback rather than a browser
+    // window.onerror event. State (isRunning, rollback, catch-up commit) is
+    // already updated synchronously before the throw, so it is safe to remove
+    // this listener right after waitFor observes that.
     const swallowExpectedError = (error: Error) => {
       if (error.message !== "boom in runTimeSimulation") throw error;
     };

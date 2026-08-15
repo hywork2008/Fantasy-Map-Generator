@@ -465,6 +465,36 @@ describe("Frontier Expansion Phase 3", () => {
     expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
   });
 
+  it("uses a state-wide applicant pool for a frontier reachable only from another owned cell", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      c: [[], [2], [1]],
+      state: new Uint16Array([1, 1, 0]),
+      province: new Uint16Array([1, 1, 0]),
+      pop: new Float32Array([65, 65, 0]),
+      capacity: new Float32Array([100, 100, 50]),
+      children: new Float32Array([16.25, 16.25, 0]),
+      maleAdults: new Float32Array([16.25, 16.25, 0]),
+      femaleAdults: new Float32Array([16.25, 16.25, 0]),
+      elders: new Float32Array([16.25, 16.25, 0]),
+      danger: new Uint8Array([0, 0, 10]),
+      h: new Uint8Array([30, 30, 30]),
+      s: new Uint8Array([50, 50, 50]),
+      r: new Uint16Array([0, 0, 1]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+    simulation.frontier.applicantPoolByState[1] = { maleAdults: 1, femaleAdults: 1 };
+
+    expect(advance(world, simulation).established).toEqual([2]);
+    expect(world.pack.cells.pop[2]).toBeCloseTo(2);
+  });
+
   it("ships capital-supported settlers to an incorporated overseas beachhead before its local population has surplus", () => {
     const world = createWorld();
     // The local beachhead has no surplus, but it still has a viable adjacent

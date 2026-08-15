@@ -446,7 +446,17 @@ function getLandStateCandidates(
 ): readonly InternalFrontierCandidateSummary[] {
   const contributionsByTarget = new Map<number, FrontierContribution[]>();
   const poolAvailable = getFrontierApplicantPoolTotal(frontier, stateId);
-  const pooledTargets = new Set<number>();
+
+  // The applicant pool is state-wide. The former source-cell loop searched from
+  // every owned cell whenever the pool was non-empty, including cells that had
+  // no local surplus. Once rural labour began feeding that pool this turned one
+  // annual frontier check into thousands of overlapping six-hop searches. Find
+  // the pool's reachable targets once with a multi-source traversal instead.
+  if (poolAvailable > 0) {
+    for (const { cellId } of findReachableFrontierFromState(cells, frontier, stateId)) {
+      contributionsByTarget.set(cellId, [{ sourceCellId: -1, colonists: poolAvailable, hops: 0, isPool: true }]);
+    }
+  }
 
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
@@ -454,18 +464,12 @@ function getLandStateCandidates(
       cells.pop[sourceCellId] ?? 0,
       getCellSubsistenceCapacity(cells, sourceCellId)
     );
-    if (available <= 0 && poolAvailable <= 0) continue;
+    if (available <= 0) continue;
 
     for (const { cellId, hops } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
       if (!isEligibleTarget(cells, frontier, cellId)) continue;
       const contributions = contributionsByTarget.get(cellId) ?? [];
-      if (available > 0) contributions.push({ sourceCellId, colonists: available, hops });
-      // The applicant pool is state-wide, not tied to this source cell — add it once per
-      // reachable target, ahead of live cells (hops: 0), so it drains before any village does.
-      if (poolAvailable > 0 && !pooledTargets.has(cellId)) {
-        contributions.push({ sourceCellId: -1, colonists: poolAvailable, hops: 0, isPool: true });
-        pooledTargets.add(cellId);
-      }
+      contributions.push({ sourceCellId, colonists: available, hops });
       contributionsByTarget.set(cellId, contributions);
     }
   }
@@ -558,6 +562,15 @@ function getSeaborneStateCandidates(
   const candidates: InternalFrontierCandidateSummary[] = [];
   for (let cellId = 0; cellId < cells.i.length; cellId++) {
     if (!isEligibleTarget(cells, frontier, cellId) || cells.burg[cellId]) continue;
+    // The hinterland assessment is a twelve-hop graph search. Most eligible
+    // wilderness cells cannot ever be an overseas landing site, so reject them
+    // using the constant-time harbour and ocean checks before doing that search.
+    if (!cells.harbor[cellId] || !isTrueOceanHarborCell(cellId, pack)) continue;
+    const haven = cells.haven[cellId];
+    if (!haven) continue;
+    const departurePorts = portsByOcean.get(cells.f[haven]);
+    if (!departurePorts?.length) continue;
+
     const targetLandCells = getSeaborneTargetLandCells(pack, cells.f[cellId]);
     if (targetLandCells < MIN_SEABORNE_TARGET_LAND_CELLS) continue;
     const hinterland = assessSeaborneHinterland(cells, cellId, stateId);
@@ -567,11 +580,6 @@ function getSeaborneStateCandidates(
     ) {
       continue;
     }
-    if (!cells.harbor[cellId] || !isTrueOceanHarborCell(cellId, pack)) continue;
-    const haven = cells.haven[cellId];
-    if (!haven) continue;
-    const departurePorts = portsByOcean.get(cells.f[haven]);
-    if (!departurePorts?.length) continue;
 
     const targetLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
     let remaining = targetLimit;
@@ -644,9 +652,9 @@ function assessSeaborneHinterland(
   let unclaimedLandCells = 0;
   let nearestForeignStateHops = Infinity;
 
-  while (queue.length) {
-    const current = queue.shift();
-    if (!current || current.hops > SEABORNE_HINTERLAND_SEARCH_HOPS) continue;
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const current = queue[cursor]!;
+    if (current.hops > SEABORNE_HINTERLAND_SEARCH_HOPS) continue;
     if (cells.state[current.cellId] === 0) unclaimedLandCells++;
     if (current.hops === SEABORNE_HINTERLAND_SEARCH_HOPS) continue;
 
@@ -694,19 +702,23 @@ function getBestReachableColonistPool(
 ): number {
   const poolAvailable = getFrontierApplicantPoolTotal(frontier, stateId);
   const pools = new Map<number, number>();
+  if (poolAvailable > 0) {
+    for (const { cellId } of findReachableFrontierFromState(cells, frontier, stateId)) {
+      if (!isEligibleTarget(cells, frontier, cellId)) continue;
+      pools.set(cellId, Math.min(getCellSubsistenceCapacity(cells, cellId) * 0.25, poolAvailable));
+    }
+  }
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
     const available = estimateSourceContribution(
       cells.pop[sourceCellId] ?? 0,
       getCellSubsistenceCapacity(cells, sourceCellId)
     );
-    if (available <= 0 && poolAvailable <= 0) continue;
+    if (available <= 0) continue;
     for (const { cellId } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
       if (!isEligibleTarget(cells, frontier, cellId)) continue;
-      // The pool is state-wide (not per-source-cell); seed each target with it once, then
-      // let every reaching source cell add its own live-cell contribution on top.
       const targetLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
-      const base = pools.has(cellId) ? (pools.get(cellId) ?? 0) : poolAvailable;
+      const base = pools.get(cellId) ?? 0;
       pools.set(cellId, Math.min(targetLimit, base + available));
     }
   }
@@ -747,9 +759,45 @@ function findReachableFrontier(
   const visited = new Set<number>([sourceCellId]);
   const candidates: Array<{ cellId: number; hops: number }> = [];
 
-  while (queue.length) {
-    const current = queue.shift();
-    if (!current || current.hops >= MAX_FRONTIER_HOPS) continue;
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const current = queue[cursor]!;
+    if (current.hops >= MAX_FRONTIER_HOPS) continue;
+    for (const cellId of cells.c[current.cellId] ?? []) {
+      if (visited.has(cellId) || !isTraversableFrontierCell(cells, stateId, cellId)) continue;
+      visited.add(cellId);
+      const hops = current.hops + 1;
+      if (isEligibleTarget(cells, frontier, cellId)) candidates.push({ cellId, hops });
+      queue.push({ cellId, hops });
+    }
+  }
+
+  return candidates;
+}
+
+/**
+ * Returns every eligible frontier cell reached from the State's territory,
+ * with the shortest hop count from any owned cell. This is used for a pooled
+ * migrant reserve: unlike a village contribution, the pool has no individual
+ * source cell and must not trigger one identical graph search per village.
+ */
+function findReachableFrontierFromState(
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState,
+  stateId: number
+): Array<{ cellId: number; hops: number }> {
+  const queue: Array<{ cellId: number; hops: number }> = [];
+  const visited = new Set<number>();
+  const candidates: Array<{ cellId: number; hops: number }> = [];
+
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (cells.state[cellId] !== stateId) continue;
+    visited.add(cellId);
+    queue.push({ cellId, hops: 0 });
+  }
+
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const current = queue[cursor]!;
+    if (current.hops >= MAX_FRONTIER_HOPS) continue;
     for (const cellId of cells.c[current.cellId] ?? []) {
       if (visited.has(cellId) || !isTraversableFrontierCell(cells, stateId, cellId)) continue;
       visited.add(cellId);

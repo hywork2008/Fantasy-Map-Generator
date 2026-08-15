@@ -51,10 +51,11 @@ const DAYS_PER_YEAR = 365.2425;
 const DAYS_PER_MONTH = DAYS_PER_YEAR / 12; // ≈ 30.436875
 
 /**
- * Per-frame budget for `runTimeSimulation`'s rAF loop, in wall-clock ms. Days
- * are stepped in a tight loop until either this budget or MAX_DAYS_PER_FRAME
- * is hit, then the frame yields (progress update, cancel check, one redraw).
- * Leaves headroom under the ~16.6ms frame for the browser's own paint work.
+ * Per-chunk budget for `runTimeSimulation`, in wall-clock ms. Days are stepped
+ * in a tight loop until either this budget or MAX_DAYS_PER_FRAME is hit, then
+ * the event loop yields for progress updates, cancellation, and redraw work.
+ * This leaves headroom under a normal interactive frame for the browser's own
+ * paint work without making simulation throughput depend on rAF cadence.
  */
 const FRAME_BUDGET_MS = 12;
 /** Safety cap on days-per-frame in case a day step is implausibly cheap. */
@@ -463,7 +464,7 @@ registerDayStepObserver(notifyAfterDayStep);
  * Fires once per completed top-level advance action — one `advanceTime()` call, or one full
  * `runTimeSimulation()` run (Tools tab Advance Day/Month/Year button) — regardless of how many
  * calendar days it expanded to internally. `notifyAfterDayStep`/`fmg:time-advanced` fires once per
- * *day* (or per rAF frame's chunk of days for the UI loop), which is too fine-grained for
+ * *day* (or per asynchronous UI chunk of days), which is too fine-grained for
  * listeners that want "the user's advance action is done" (e.g. Balance History's one-snapshot-
  * per-action capture, `src/extensions/economy/controllers/balance-history.ts`). Not dispatched on
  * a failed/thrown batch — see call sites.
@@ -925,12 +926,13 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
 
   let currentProgress = 0;
 
-  // Batch the rollback snapshot across the whole rAF run instead of once per
+  // Batch the rollback snapshot across the whole asynchronous run instead of once per
   // frame/day — the chunked stepping below reuses this shared snapshot while
   // the batch is active.
   enterDayBatch(totalDays);
 
   const loop = () => {
+    const chunkStartedAt = performance.now();
     const currentState = useTimeSimulationState.getState();
     if (currentState.stopRequested || currentProgress >= totalDays) {
       exitDayBatch();
@@ -944,22 +946,19 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       return;
     }
 
-    // Advance as many days as fit in one frame's time budget instead of one
-    // day per frame. RenderCoordinator already coalesces every commit that
-    // lands in the same animation frame into a single redraw (P1-2); stepping
-    // a whole chunk of days before yielding just gives it more than one
-    // commit per frame to coalesce, so Trade animation / Military icons /
-    // WebGL projection / 3D scene updates redraw once per chunk instead of
-    // once per day. notifyAfterDayStep's delta parameter already documents
-    // tolerance for a multi-day report, and no listener depends on deltaDays
-    // being exactly 1 (they just re-read current state on the event).
-    const frameStart = performance.now();
+    // Advance as many days as fit in one chunk instead of one day per task.
+    // RenderCoordinator already coalesces commits into a single animation-frame
+    // redraw (P1-2). Yielding through a timer rather than requestAnimationFrame
+    // keeps long advances progressing when SVG rendering, a background tab, or
+    // a temporarily busy compositor delays frames. notifyAfterDayStep's delta
+    // parameter already documents tolerance for a multi-day report, and no
+    // listener depends on deltaDays being exactly 1.
     let daysThisFrame = 0;
     try {
       while (
         currentProgress + daysThisFrame < totalDays &&
         daysThisFrame < MAX_DAYS_PER_FRAME &&
-        performance.now() - frameStart < FRAME_BUDGET_MS
+        performance.now() - chunkStartedAt < FRAME_BUDGET_MS
       ) {
         const commit = stepDaySimulation();
         if (!commit) break; // e.g. blocked by a concurrent world.generate dispatch.
@@ -979,8 +978,8 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
     if (daysThisFrame > 0) notifyAfterDayStep(0, 0, daysThisFrame);
     useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);
 
-    requestAnimationFrame(loop);
+    window.setTimeout(loop, 0);
   };
 
-  requestAnimationFrame(loop);
+  window.setTimeout(loop, 0);
 }
