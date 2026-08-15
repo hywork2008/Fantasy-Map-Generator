@@ -314,7 +314,7 @@ class UITourModule {
           popover: {
             title: "Export",
             description:
-              "Click Export to open the export dialog where you can download the map as an SVG, PNG, or JPEG image, split it into tiles, or export the world data as JSON.",
+              "Click Export to open the export dialog where you can download the map as an SVG, PNG, or JPEG image, split it into tiles, export the world data as JSON, or download the current generation options.",
             side: "top",
             onNextClick: () => {
               tour.moveNext();
@@ -330,7 +330,7 @@ class UITourModule {
           popover: {
             title: "Export Options",
             description:
-              "Download the map as a vector SVG, raster PNG or JPEG, or tiled PNG set. You can also export the full world data as JSON for use in other tools.",
+              "Download the map as a vector SVG, raster PNG or JPEG, or tiled PNG set. You can also export the full world data as JSON, or download the current generation options.",
             side: "top",
             onNextClick: () => {
               closeDialogs();

@@ -1791,7 +1791,11 @@
       "packCellsTip": "地図メタデータとパックセルを JSON でダウンロードします",
       "gridCells": "グリッドセル",
       "gridCellsTip": "地図メタデータとグリッドセルを JSON でダウンロードします",
-      "jsonNote": "JSON 書き出しは API の代わりにも使えます。"
+      "jsonNote": "JSON 書き出しは API の代わりにも使えます。",
+      "generationOptions": "生成オプションを書き出す",
+      "generationOptionsDownload": "ダウンロード",
+      "generationOptionsTip": "現在の地図生成オプションを JSON でダウンロードします",
+      "generationOptionsNote": "このファイルには地図生成に使うオプション（シード、ハイトマップ、文化、集落パターンなど）が含まれます。生成済みの世界データそのものは含まれません。"
     },
     "cellInfo": {
       "pin": "セルを固定",

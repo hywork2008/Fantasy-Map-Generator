@@ -1791,7 +1791,11 @@
       "packCellsTip": "Download map metadata and pack cells data in JSON",
       "gridCells": "grid cells",
       "gridCellsTip": "Download map metadata and grid cells data in JSON",
-      "jsonNote": "Export in JSON format can be used as an API replacement."
+      "jsonNote": "Export in JSON format can be used as an API replacement.",
+      "generationOptions": "Export generation options",
+      "generationOptionsDownload": "Download",
+      "generationOptionsTip": "Download the current map generation options as JSON",
+      "generationOptionsNote": "This file contains the Options values used to generate a map (seed, heightmap, cultures, settlement pattern, and related settings). It does not include the generated world itself."
     },
     "cellInfo": {
       "pin": "Pin cell",

@@ -13,6 +13,7 @@ import {
   saveGeoJsonRoutes,
   saveGeoJsonZones
 } from "../../io/export";
+import { exportGenerationOptions } from "../../io/exportGenerationOptions";
 import { invokeActiveZooming } from "../../main";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
@@ -145,6 +146,18 @@ export const ExportMapDialog: React.FC = () => {
           </button>
         </div>
         <p>{t("dialogs.export.jsonNote")}</p>
+        <div>{t("dialogs.export.generationOptions")}</div>
+        <div>
+          <button
+            type="button"
+            id="exportGenerationOptions"
+            onClick={exportGenerationOptions}
+            data-tip={t("dialogs.export.generationOptionsTip")}
+          >
+            {t("dialogs.export.generationOptionsDownload")}
+          </button>
+        </div>
+        <p>{t("dialogs.export.generationOptionsNote")}</p>
       </div>
     </Dialog>
   );

@@ -303,6 +303,9 @@ export interface OptionsState {
   setOptions: (updates: Partial<Omit<OptionsState, "setOption" | "setOptions">>) => void;
 }
 
+/** Serializable option values — the Zustand store minus action methods. */
+export type OptionsValues = Omit<OptionsState, "setOption" | "setOptions">;
+
 /** UI settings used when neither the store nor localStorage provides a user preference. */
 export const DEFAULT_UI_OPTIONS = {
   uiSize: 1,
@@ -339,6 +342,88 @@ export const DEFAULT_WORLD_SCALE_OPTIONS = {
   distanceScale: 3,
   urbanization: 1,
   urbanDensity: 10
+};
+
+/**
+ * Options that shape a newly generated map. UI chrome, zoom, units display,
+ * and render-mode preferences are excluded so a shared file can recreate the
+ * same world without dragging along a user's theme.
+ */
+export const GENERATION_OPTION_KEYS = [
+  "mapWidth",
+  "mapHeight",
+  "seed",
+  "points",
+  "mapName",
+  "year",
+  "era",
+  "historicalPeriod",
+  "template",
+  "templateRandomization",
+  "resolveDepressionsSteps",
+  "lakeElevationLimit",
+  "volcanismChance",
+  "volcanoActiveChance",
+  "volcanicSoilStrength",
+  "mapSize",
+  "latitude",
+  "longitude",
+  "prec",
+  "biomeRegionProfile",
+  "enclosureCalculationMode",
+  "cultures",
+  "culturesSet",
+  "racePersonNameSpheres",
+  "religionsNumber",
+  "emblemShape",
+  "statesNumber",
+  "provincesRatio",
+  "sizeVariety",
+  "growthRate",
+  "manors",
+  "stateLabelsMode",
+  "initialPopulationSaturation",
+  "initialSettlementPattern",
+  "oikoumeneLandShare",
+  "initialPolityRealmSize",
+  "frontierStartMode",
+  "frontierPolitySpacing",
+  "neutralRate",
+  "statesGrowthRate",
+  "diplomacyHistoryAttempts",
+  "conflictAutonomy",
+  "warFrequency",
+  "economyStartMode",
+  "ironDepositsPerState",
+  "ruralEcosystemDetail",
+  "gunpowderEraEnabled",
+  "initialFirearmsUnstocked",
+  "populationRate",
+  "distanceScale",
+  "urbanization",
+  "urbanDensity",
+  "dangerEnabled",
+  "threatCalculation",
+  "dangerRarity5Min",
+  "dangerRarity5Max",
+  "dangerRarity5Power",
+  "dangerRarity5Type",
+  "dangerRarity4Min",
+  "dangerRarity4Max",
+  "dangerRarity4Power",
+  "dangerRarity4Type",
+  "dangerRarity3Min",
+  "dangerRarity3Max",
+  "dangerRarity3Power",
+  "dangerRarity3Type",
+  "dangerRarity1Min",
+  "dangerRarity1Max",
+  "dangerRarity1Power",
+  "dangerRarity1Type"
+] as const satisfies readonly (keyof OptionsValues)[];
+
+export type GenerationOptions = {
+  [K in (typeof GENERATION_OPTION_KEYS)[number]]: OptionsValues[K];
 };
 
 export const useOptionsState = create<OptionsState>(set => ({
@@ -469,3 +554,8 @@ export const useOptionsState = create<OptionsState>(set => ({
     set(updates);
   }
 }));
+
+/** Snapshot of generation options from Zustand, suitable for JSON export. */
+export function getGenerationOptions(state: OptionsValues = useOptionsState.getState()): GenerationOptions {
+  return Object.fromEntries(GENERATION_OPTION_KEYS.map(key => [key, state[key]])) as GenerationOptions;
+}
