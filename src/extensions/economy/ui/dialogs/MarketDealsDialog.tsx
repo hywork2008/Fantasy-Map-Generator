@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { applySorting, formatPrice } from "../../../hostUtils";
 
@@ -10,6 +11,7 @@ import {
 import { type MarketDealRow, useMarketDealsState } from "../../store/marketDealsState";
 
 export const MarketDealsDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("marketDeals"));
   const rows = useMarketDealsState(state => state.rows);
   const dealsCount = useMarketDealsState(state => state.dealsCount);
@@ -25,7 +27,7 @@ export const MarketDealsDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Market Deals"
+      title={t("extensions.titles.marketDeals")}
       onClose={() => closeDialog("marketDeals")}
       className="fmg-dialog--table"
     >

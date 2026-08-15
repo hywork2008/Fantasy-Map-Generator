@@ -1919,5 +1919,303 @@
       "northPole": "北極：",
       "northPoleTip": "北極の年平均気温を設定します"
     }
+  },
+  "extensions": {
+    "actions": {
+      "economy-regenerate-economy": {
+        "label": "経済",
+        "tooltip": "現在の産物と市場から、市場領域・生産・取引・税を作り直します"
+      },
+      "economy-regenerate-currency": {
+        "label": "通貨",
+        "tooltip": "鉱物埋蔵は変えず、現在の市場から国家の造幣台帳を作り直します"
+      },
+      "economy-regenerate-minerals": {
+        "label": "鉱床",
+        "tooltip": "産物の配置は変えず、地質区・鉱床・到達可能な鉱山を再生成します"
+      },
+      "economy-prospect-mines": {
+        "label": "鉱山を探鉱",
+        "tooltip": "道路・河川・港の接続を再評価し、鉱床を発見して深鉱の排水を改善します"
+      },
+      "economy-regenerate-goods": {
+        "label": "産物",
+        "tooltip": "ボーナス産物の配置を再生成します"
+      },
+      "economy-regenerate-markets": {
+        "label": "市場",
+        "tooltip": "市場とその領域を再生成します"
+      },
+      "economy-regenerate-production": {
+        "label": "生産",
+        "tooltip": "生産と取引を再生成します"
+      },
+      "economy-edit-goods": {
+        "label": "産物",
+        "tooltip": "産物エディターを開きます（ショートカット: Shift + G）"
+      },
+      "economy-edit-markets": {
+        "label": "市場",
+        "tooltip": "市場概要を開きます"
+      },
+      "economy-edit-trade": {
+        "label": "交易",
+        "tooltip": "交易アニメーションエディターを開きます"
+      },
+      "economy-edit-employment": {
+        "label": "雇用",
+        "tooltip": "雇用概要を開きます — 都市ごとの基礎・サービス雇用需要"
+      },
+      "economy-edit-state-employment": {
+        "label": "国家の雇用",
+        "tooltip": "国家別雇用概要を開きます — 農村・都市労働、ギルド職人雇用、余剰／失業"
+      },
+      "economy-edit-guilds": {
+        "label": "ギルド",
+        "tooltip": "ギルド概要を開きます — 都市ごとの職人領域の技術と金庫"
+      },
+      "economy-metallurg-work": {
+        "label": "冶金作業",
+        "tooltip": "冶金作業の列、資材見通し、調達状況を開きます"
+      },
+      "economy-military-supplies-overview": {
+        "label": "軍需補給",
+        "tooltip": "国家ごとの軍装備と直近の補給を開きます"
+      },
+      "economy-minerals-overview": {
+        "label": "鉱物",
+        "tooltip": "鉱物概要を開きます — 鉱床、鉱山状態、埋蔵、能力、産出"
+      },
+      "economy-edit-treasury": {
+        "label": "国庫",
+        "tooltip": "国庫概要を開きます — 国家ごとの部門予算配分と軍事支出比"
+      },
+      "economy-great-library": {
+        "label": "大図書館",
+        "tooltip": "大図書館概要を開きます — 王室後援の図書館計画と国家ごとの開始資格"
+      },
+      "economy-edit-balance-history": {
+        "label": "バランス履歴",
+        "tooltip": "バランス履歴を開きます — 人口／産物／動物の時系列。生成と時間進行ごとに1行、CSV でダウンロードできます"
+      },
+      "economy-edit-debt-negotiation": {
+        "label": "債務条件",
+        "tooltip": "債務交渉を開きます — 指名銀行シンジケート、利率、派閥投票のスナップショット"
+      },
+      "economy-edit-council-session": {
+        "label": "評議会記録",
+        "tooltip": "評議会記録を開きます — 議会投票、拒否、債務、クーデター年代記"
+      },
+      "economy-edit-domain-poll": {
+        "label": "領内人頭税",
+        "tooltip": "領内人頭税の詳細を開きます — 都市ごとの国家人頭税への寄与"
+      },
+      "characters-view-characters": {
+        "label": "人物",
+        "tooltip": "生成された人物名簿を表示します"
+      },
+      "characters-create-player": {
+        "label": "プレイヤーキャラクター",
+        "tooltip": "種族と技能を持つ名前付きプレイヤーキャラクターを作ります"
+      },
+      "characters-settings": {
+        "label": "人物設定",
+        "tooltip": "新規人物に使える能力システムと種族を設定します"
+      },
+      "nobility-regenerate-characters": {
+        "label": "人物",
+        "tooltip": "統治者と官職を再生成します"
+      },
+      "shipbuilding-regenerate-shipyards": {
+        "label": "造船所",
+        "tooltip": "造船所候補の町を再計算します"
+      },
+      "shipbuilding-view-shipyards": {
+        "label": "造船所",
+        "tooltip": "すべての造船所、建造進捗、完成船体を表示します"
+      },
+      "shipbuilding-view-vessel-assets": {
+        "label": "船体資産",
+        "tooltip": "完成した国家船と商船を所有者・港・級・状態別に表示します"
+      }
+    },
+    "editorTabs": {
+      "burg-characters": "人物",
+      "states-personality": "性格",
+      "states-treasury": "国庫",
+      "state-fiscal-report": "財政報告",
+      "burg-inns": "宿",
+      "burg-goods": "産物",
+      "burg-water": "水",
+      "burg-guilds": "ギルド",
+      "overview": "概要",
+      "provinces": "州",
+      "burgs": "都市"
+    },
+    "cellInfo": {
+      "good": "産物",
+      "market": "市場",
+      "marketHolder": "市場の保有者",
+      "cellProduction": "セルの生産",
+      "burgProduction": "都市の生産",
+      "fauna": "動物",
+      "irrigatedArea": "灌漑面積",
+      "irrigationSupplement": "灌漑の補完",
+      "irrigationWaterStress": "灌漑の水ストレス",
+      "riverResidualFlow": "河川の残余流量",
+      "cropClimate": "作物気候"
+    },
+    "cellInfoActions": {
+      "cropClimate": "案内を開く",
+      "cropClimateTip": "固定したセル情報の気温と降水量を、作物の必要量と比べます"
+    },
+    "titles": {
+      "charactersOverview": "人物概要",
+      "characterMarket": "人物の市場",
+      "goodsEditor": "産物エディター",
+      "goodsStock": "{{name}} — 在庫",
+      "goodsProducers": "{{name}} — 生産者",
+      "cropClimate": "作物気候案内",
+      "marketsOverview": "市場概要",
+      "marketOverview": "市場詳細",
+      "marketDeals": "市場取引",
+      "tradeOpportunities": "交易機会",
+      "tradeDetails": "交易の詳細",
+      "tradeAnimation": "交易アニメーション",
+      "productionOverview": "生産概要",
+      "productionChains": "生産連鎖",
+      "employmentOverview": "雇用概要",
+      "guildOverview": "ギルド概要",
+      "treasuryOverview": "国庫概要",
+      "mineralsOverview": "鉱物概要",
+      "militarySupplies": "軍需補給概要",
+      "metallurgWork": "冶金作業",
+      "greatLibrary": "大図書館概要",
+      "balanceHistory": "バランス履歴",
+      "debtNegotiation": "債務交渉",
+      "councilSession": "評議会記録",
+      "domainPoll": "領内人頭税の詳細",
+      "compareGoodStock": "産物在庫を比較",
+      "filterByTags": "タグで絞り込む",
+      "shipyardsOverview": "造船所概要",
+      "vesselAssets": "船体資産"
+    },
+    "charactersOverview": {
+      "overview": "概要",
+      "stats": "能力と数値",
+      "filterTip": "フィルターをかけます",
+      "search": "検索：",
+      "searchTip": "名前、国家、称号、役割、性別で絞り込みます",
+      "state": "国家：",
+      "all": "すべて",
+      "neutral": "中立",
+      "titleRole": "称号／役割：",
+      "titleRoleTip": "称号・役割の区分、または現職のギルド長／ギルド徒弟で絞り込みます。",
+      "count": "人物：{{shown}} / {{total}}",
+      "countTip": "表示中の人物",
+      "exportCsv": "CSV を書き出す",
+      "name": "名前",
+      "age": "年齢",
+      "appearance": "容姿",
+      "prestige": "名声",
+      "wealth": "資産",
+      "race": "種族",
+      "gender": "性別",
+      "family": "家族",
+      "children": "子",
+      "title": "称号／役割",
+      "stateCol": "国家",
+      "empty": "人物が見つかりません",
+      "sortTip": "{{field}} で並べ替えます"
+    },
+    "playerCharacter": {
+      "titleFantasy": "ファンタジー人物を作る",
+      "titleCharacter": "人物を作る",
+      "introFirst": "カスタムのフォーカス人物を作ります。貴族拡張がなくても使え、あとから政治称号を足せます。",
+      "introAdditional": "追加の人物を作ります。今のプレイヤーキャラクターはそのままです。",
+      "currentSheet": "現在のシート：{{name}}",
+      "name": "名前",
+      "namePlaceholder": "空欄なら自動生成",
+      "homeBurg": "居住都市",
+      "culture": "文化",
+      "race": "種族",
+      "age": "年齢",
+      "gender": "性別",
+      "male": "男性",
+      "female": "女性",
+      "reroll": "振り直し",
+      "createPlayer": "プレイヤーキャラクターを作る",
+      "createCharacter": "人物を作る",
+      "errorMissing": "居住都市、文化、種族を選んでください。",
+      "errorCreate": "プレイヤーキャラクターを作れませんでした。"
+    },
+    "cropClimate": {
+      "cellUnset": "選択中のセルは未設定です",
+      "cellSet": "選択中のセル #{{id}}",
+      "temperatureNa": "気温 なし",
+      "precipNa": "年降水量 なし",
+      "precip": "年降水量 {{value}}",
+      "empty": "このカタログに作物産物がありません。",
+      "tabsAria": "作物気候案内の表示",
+      "details": "作物の詳細",
+      "compare": "作物を比較",
+      "crop": "作物"
+    },
+    "goodsEditor": {
+      "rawTip": "原料はバイオームの産出に基づき農村人口がセルで生産し、ボーナス資源が割り当てられたセルと都市でも生産されます",
+      "mfgTip": "製造品は都市で生産されます",
+      "name": "名前",
+      "nameTip": "産物名で並べ替えます",
+      "type": "種類",
+      "typeTip": "種類で並べ替えます",
+      "display": "表示",
+      "displayTip": "産物地図に表示するかどうかで並べ替えます",
+      "potential": "潜在",
+      "potentialTip": "セルと都市からの現在の見込能力であり、実現した生産ではありません。クリックで並べ替え",
+      "stock": "在庫",
+      "stockTip": "全市場と都市在庫の合計単位。クリックで並べ替え",
+      "marketOutput": "市場産出",
+      "marketOutputTip": "小売ではなく、市場在庫に入った実現産出です。都市の工芸と農村／バイオーム産出を、生成または前回リセットから積算します。クリックで並べ替え"
+    },
+    "goodsStock": {
+      "empty": "{{name}} の在庫は、どの市場・都市在庫にもありません。",
+      "location": "場所",
+      "units": "単位"
+    },
+    "goodsProducers": {
+      "empty": "{{name}} を生産した都市はありません。",
+      "burg": "都市",
+      "units": "単位"
+    },
+    "characterMarket": {
+      "empty": "この人物は、稼働中の市場がある都市にいません。",
+      "header": "{{character}} · {{burg}} · {{market}} · 資産: {{wealth}} · 産物: {{count}}",
+      "filterTip": "市場の産物を絞り込みます",
+      "tag": "タグ：",
+      "merchant": "商人：",
+      "all": "すべて",
+      "inStockOnly": "在庫ありのみ",
+      "unassigned": "未割当"
+    },
+    "shipyards": {
+      "empty": "稼働中の造船列はありません。",
+      "shipyard": "造船所",
+      "owner": "所有者",
+      "building": "建造中",
+      "progress": "進捗",
+      "materials": "資材",
+      "materialsTip": "建造はこの造船所の地元市場から木材、帆、綱、タールを消費します"
+    },
+    "vessels": {
+      "note": "1 行が 1 隻の船体です。所在と次港は有限艦隊の行程から来ます。市場の船体産物は別の販売在庫です。",
+      "fleet": "艦隊: {{total}} 隻 · 停泊 {{docked}} · 哨戒 {{voyage}} · 貨物 {{cargo}} · 整備 {{maintenance}}",
+      "navalCrew": " · 海軍乗員定員 {{capacity}}",
+      "empty": "完成した船体はありません。",
+      "hull": "船体番号",
+      "owner": "所有者",
+      "operator": "商会／商人",
+      "homePort": "母港",
+      "class": "級"
+    }
   }
 }

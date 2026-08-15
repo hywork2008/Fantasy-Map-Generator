@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -18,6 +19,7 @@ import {
 } from "../../store/marketTradeOpportunitiesState";
 
 export const MarketTradeOpportunitiesDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("marketTradeOpportunities"));
   const { options, selectedGoodId, sortBy, sortDirection, rows } = useMarketTradeOpportunitiesState();
   const distanceUnit = useOptionsState(state => state.distanceUnit);
@@ -48,7 +50,7 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Trade Opportunities"
+      title={t("extensions.titles.tradeOpportunities")}
       className="fmg-dialog--table"
       onClose={() => {
         closeDialog("marketTradeOpportunities");

@@ -1919,5 +1919,303 @@
       "northPole": "North Pole:",
       "northPoleTip": "Set the North Pole average yearly temperature"
     }
+  },
+  "extensions": {
+    "actions": {
+      "economy-regenerate-economy": {
+        "label": "Economy",
+        "tooltip": "Rebuild market territories, production, trade deals, and taxes from the current goods and markets"
+      },
+      "economy-regenerate-currency": {
+        "label": "Currency",
+        "tooltip": "Rebuild state mint ledgers from current markets without changing mineral reserves"
+      },
+      "economy-regenerate-minerals": {
+        "label": "Mineral deposits",
+        "tooltip": "Regenerate geological provinces, deposits, and their accessible mine operations without changing goods placement"
+      },
+      "economy-prospect-mines": {
+        "label": "Prospect mines",
+        "tooltip": "Re-evaluate road, river, and port access to discover deposits and improve deep-mine drainage"
+      },
+      "economy-regenerate-goods": {
+        "label": "Goods",
+        "tooltip": "Click to regenerate bonus goods placement"
+      },
+      "economy-regenerate-markets": {
+        "label": "Markets",
+        "tooltip": "Click to regenerate markets and their territories"
+      },
+      "economy-regenerate-production": {
+        "label": "Production",
+        "tooltip": "Click to regenerate production and trade deals"
+      },
+      "economy-edit-goods": {
+        "label": "Goods",
+        "tooltip": "Click to open Goods Editor (Shortcut: Shift + G)"
+      },
+      "economy-edit-markets": {
+        "label": "Markets",
+        "tooltip": "Click to open Markets Overview"
+      },
+      "economy-edit-trade": {
+        "label": "Trade",
+        "tooltip": "Click to open Trade Animation Editor"
+      },
+      "economy-edit-employment": {
+        "label": "Employment",
+        "tooltip": "Click to open Employment Overview — basic and service employment demand by Burg"
+      },
+      "economy-edit-state-employment": {
+        "label": "State employment",
+        "tooltip": "Click to open State Employment Overview — rural and urban labor, guild-artisan employment, and surplus/unemployment by State"
+      },
+      "economy-edit-guilds": {
+        "label": "Guilds",
+        "tooltip": "Click to open Guild Overview — craft-domain guild technique and treasury by Burg"
+      },
+      "economy-metallurg-work": {
+        "label": "Metallurg work",
+        "tooltip": "Open the Metallurg work queue, material forecast, and procurement status"
+      },
+      "economy-military-supplies-overview": {
+        "label": "Military supplies",
+        "tooltip": "Open military equipment and latest supply deliveries by state"
+      },
+      "economy-minerals-overview": {
+        "label": "Minerals",
+        "tooltip": "Open Minerals Overview — deposits, mine status, reserves, capacity, and output by resource"
+      },
+      "economy-edit-treasury": {
+        "label": "Treasury",
+        "tooltip": "Click to open Treasury Overview — department budget allocation and military funding ratio by State"
+      },
+      "economy-great-library": {
+        "label": "Great Library",
+        "tooltip": "Open Great Library Overview — royal-patronage library projects and per-State start eligibility"
+      },
+      "economy-edit-balance-history": {
+        "label": "Balance History",
+        "tooltip": "Click to open Balance History — Population/Goods/Fauna over time, one row per generation and Advance Time action, downloadable as CSV for balance tuning"
+      },
+      "economy-edit-debt-negotiation": {
+        "label": "Debt terms",
+        "tooltip": "Click to open Debt Negotiation — named Banker syndicate, rates, and faction vote snapshot"
+      },
+      "economy-edit-council-session": {
+        "label": "Council log",
+        "tooltip": "Click to open Council Session Log — assembly votes, vetoes, debt, and coup chronicle"
+      },
+      "economy-edit-domain-poll": {
+        "label": "Domain poll",
+        "tooltip": "Click to open Domain Poll Detail — per-burg levy contribution to state poll tax"
+      },
+      "characters-view-characters": {
+        "label": "Characters",
+        "tooltip": "Click to view the generated character roster"
+      },
+      "characters-create-player": {
+        "label": "Player Character",
+        "tooltip": "Create a named player character with a race and skills"
+      },
+      "characters-settings": {
+        "label": "Character Settings",
+        "tooltip": "Configure the ability system and races available to new characters"
+      },
+      "nobility-regenerate-characters": {
+        "label": "Characters",
+        "tooltip": "Click to regenerate rulers and government offices"
+      },
+      "shipbuilding-regenerate-shipyards": {
+        "label": "Shipyards",
+        "tooltip": "Click to recompute shipyard candidate towns"
+      },
+      "shipbuilding-view-shipyards": {
+        "label": "Shipyards",
+        "tooltip": "View all shipyards, their build progress, and completed hulls"
+      },
+      "shipbuilding-view-vessel-assets": {
+        "label": "Vessel assets",
+        "tooltip": "View completed state and merchant vessels by owner, port, class, and status"
+      }
+    },
+    "editorTabs": {
+      "burg-characters": "Characters",
+      "states-personality": "Personality",
+      "states-treasury": "Treasury",
+      "state-fiscal-report": "Fiscal report",
+      "burg-inns": "Inns",
+      "burg-goods": "Goods",
+      "burg-water": "Water",
+      "burg-guilds": "Guilds",
+      "overview": "Overview",
+      "provinces": "Provinces",
+      "burgs": "Burgs"
+    },
+    "cellInfo": {
+      "good": "Good",
+      "market": "Market",
+      "marketHolder": "Market Holder",
+      "cellProduction": "Cell Production",
+      "burgProduction": "Burg Production",
+      "fauna": "Fauna",
+      "irrigatedArea": "Irrigated area",
+      "irrigationSupplement": "Irrigation supplement",
+      "irrigationWaterStress": "Irrigation water stress",
+      "riverResidualFlow": "River residual flow",
+      "cropClimate": "Crop climate"
+    },
+    "cellInfoActions": {
+      "cropClimate": "Open guide",
+      "cropClimateTip": "Compare the pinned Cell Info temperature and precipitation with crop requirements"
+    },
+    "titles": {
+      "charactersOverview": "Characters Overview",
+      "characterMarket": "Character Market",
+      "goodsEditor": "Goods Editor",
+      "goodsStock": "{{name}} — Stock",
+      "goodsProducers": "{{name}} — Producers",
+      "cropClimate": "Crop climate guide",
+      "marketsOverview": "Markets Overview",
+      "marketOverview": "Market Overview",
+      "marketDeals": "Market Deals",
+      "tradeOpportunities": "Trade Opportunities",
+      "tradeDetails": "Trade Details",
+      "tradeAnimation": "Trade Animation",
+      "productionOverview": "Production Overview",
+      "productionChains": "Production Chains",
+      "employmentOverview": "Employment Overview",
+      "guildOverview": "Guild Overview",
+      "treasuryOverview": "Treasury Overview",
+      "mineralsOverview": "Minerals Overview",
+      "militarySupplies": "Military Supplies Overview",
+      "metallurgWork": "Metallurg Work",
+      "greatLibrary": "Great Library Overview",
+      "balanceHistory": "Balance History",
+      "debtNegotiation": "Debt Negotiation",
+      "councilSession": "Council Session Log",
+      "domainPoll": "Domain Poll Detail",
+      "compareGoodStock": "Compare Good Stock",
+      "filterByTags": "Filter by Tags",
+      "shipyardsOverview": "Shipyards Overview",
+      "vesselAssets": "Vessel assets"
+    },
+    "charactersOverview": {
+      "overview": "Overview",
+      "stats": "Capabilities & Stats",
+      "filterTip": "Apply a filter",
+      "search": "Search:",
+      "searchTip": "Filter by name, state, title, role, or gender",
+      "state": "State:",
+      "all": "all",
+      "neutral": "Neutral",
+      "titleRole": "Title/Role:",
+      "titleRoleTip": "Filter by title/role class, or by an active Guild Master or Guild Apprentice role.",
+      "count": "Characters: {{shown}} of {{total}}",
+      "countTip": "Characters displayed",
+      "exportCsv": "Export CSV",
+      "name": "Name",
+      "age": "Age",
+      "appearance": "App",
+      "prestige": "Pre",
+      "wealth": "Wealth",
+      "race": "Race",
+      "gender": "Gender",
+      "family": "Family",
+      "children": "Children",
+      "title": "Title / Role",
+      "stateCol": "State",
+      "empty": "No characters found",
+      "sortTip": "Click to sort by {{field}}"
+    },
+    "playerCharacter": {
+      "titleFantasy": "Create Fantasy character",
+      "titleCharacter": "Create Character",
+      "introFirst": "Create a custom focus character. They remain available without Nobility; political titles can be added later.",
+      "introAdditional": "Create an additional character. Your current player character will remain selected.",
+      "currentSheet": "Current sheet: {{name}}",
+      "name": "Name",
+      "namePlaceholder": "Generated if blank",
+      "homeBurg": "Home burg",
+      "culture": "Culture",
+      "race": "Race",
+      "age": "Age",
+      "gender": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "reroll": "Reroll",
+      "createPlayer": "Create player character",
+      "createCharacter": "Create character",
+      "errorMissing": "Choose a home burg, culture, and race.",
+      "errorCreate": "The player character could not be created."
+    },
+    "cropClimate": {
+      "cellUnset": "Selected cell not set",
+      "cellSet": "Selected cell #{{id}}",
+      "temperatureNa": "Temperature n/a",
+      "precipNa": "Annual precipitation n/a",
+      "precip": "Annual precipitation {{value}}",
+      "empty": "No crop goods are available in this catalogue.",
+      "tabsAria": "Crop climate guide view",
+      "details": "Crop details",
+      "compare": "Compare crops",
+      "crop": "Crop"
+    },
+    "goodsEditor": {
+      "rawTip": "Raw goods are produced by rural population in cells based on biome availability and in cells and burgs when bonus resource is assigned to cells",
+      "mfgTip": "Manufactured goods are produced in burgs",
+      "name": "Name",
+      "nameTip": "Click to sort by good name",
+      "type": "Type",
+      "typeTip": "Click to sort by type",
+      "display": "Display",
+      "displayTip": "Click to sort by whether the good is displayed on the Goods map",
+      "potential": "Potential",
+      "potentialTip": "Projected current capacity from cells and burgs, not realised production. Click to sort",
+      "stock": "Stock",
+      "stockTip": "Total units in stock across all markets and burg inventories. Click to sort",
+      "marketOutput": "Market Output",
+      "marketOutputTip": "Realised local output placed into Market stock, not retail sales: burg craft output plus rural/biome output since generation or the last reset. Click to sort"
+    },
+    "goodsStock": {
+      "empty": "No stock of {{name}} found in any market or burg inventory.",
+      "location": "Location",
+      "units": "Units"
+    },
+    "goodsProducers": {
+      "empty": "No burgs produced {{name}}.",
+      "burg": "Burg",
+      "units": "Units"
+    },
+    "characterMarket": {
+      "empty": "This character is not currently in a burg with an active market.",
+      "header": "{{character}} · {{burg}} · {{market}} · Wealth: {{wealth}} · Goods: {{count}}",
+      "filterTip": "Filter market goods",
+      "tag": "Tag:",
+      "merchant": "Merchant:",
+      "all": "all",
+      "inStockOnly": "In stock only",
+      "unassigned": "Unassigned"
+    },
+    "shipyards": {
+      "empty": "No active shipyard queues found.",
+      "shipyard": "Shipyard",
+      "owner": "Owner",
+      "building": "Building",
+      "progress": "Progress",
+      "materials": "Materials",
+      "materialsTip": "Construction consumes Wood, Sails, Ropes, and Tar from this shipyard's local market"
+    },
+    "vessels": {
+      "note": "One row per physical hull. Location and next port come from finite-fleet itineraries; market ship Goods are separate saleable inventory.",
+      "fleet": "Fleet: {{total}} hulls · Idle/docked {{docked}} · Patrol {{voyage}} · Cargo {{cargo}} · Maintenance {{maintenance}}",
+      "navalCrew": " · Naval crew capacity {{capacity}}",
+      "empty": "No completed vessels found.",
+      "hull": "Hull #",
+      "owner": "Owner",
+      "operator": "Merchant organization / merchants",
+      "homePort": "Home port",
+      "class": "Class"
+    }
   }
 }

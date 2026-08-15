@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import {
   closeDialog,
@@ -20,6 +21,7 @@ import {
 import { useMarketsOverviewState } from "../../store/marketsOverviewState";
 
 export const MarketsOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("marketsOverview"));
   const {
     markets,
@@ -146,7 +148,7 @@ export const MarketsOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Markets Overview"
+      title={t("extensions.titles.marketsOverview")}
       onClose={() => closeDialog("marketsOverview")}
       className="fmg-dialog--table"
     >

@@ -17,10 +17,15 @@ export const GoodsStockDialog: React.FC = () => {
   const localizedGoodName = t(`economy.goods.names.${goodName}`, { defaultValue: goodName });
 
   return (
-    <Dialog isOpen={isOpen} title={`${localizedGoodName} — Stock`} onClose={close} className="fmg-dialog--table">
+    <Dialog
+      isOpen={isOpen}
+      title={t("extensions.titles.goodsStock", { name: localizedGoodName })}
+      onClose={close}
+      className="fmg-dialog--table"
+    >
       <div id="goodsStockContainer">
         {sources.length === 0 ? (
-          <i>No stock of {localizedGoodName} found in any market or burg inventory.</i>
+          <i>{t("extensions.goodsStock.empty", { name: localizedGoodName })}</i>
         ) : (
           <div ref={parentRef} className="table">
             <table className="fmg-table">
@@ -32,8 +37,8 @@ export const GoodsStockDialog: React.FC = () => {
               <thead>
                 <tr className="header">
                   <th />
-                  <th>Location</th>
-                  <th>Units</th>
+                  <th>{t("extensions.goodsStock.location")}</th>
+                  <th>{t("extensions.goodsStock.units")}</th>
                 </tr>
               </thead>
               <VirtualTableBody

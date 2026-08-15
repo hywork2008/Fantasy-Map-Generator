@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import {
@@ -13,6 +14,7 @@ import { useCouncilSessionState } from "../../store/councilSessionState";
  * PR-13/14/15 — assembly chronicle, faction vote bars, and session replay scrubber.
  */
 export const CouncilSessionDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("councilSession"));
   const rows = useCouncilSessionState(state => state.rows);
   const selectedStateId = useCouncilSessionState(state => state.selectedStateId);
@@ -40,7 +42,7 @@ export const CouncilSessionDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Council Session Log"
+      title={t("extensions.titles.councilSession")}
       onClose={() => closeDialog("councilSession")}
       className="fmg-dialog--table"
     >

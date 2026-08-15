@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   closeDialog,
@@ -20,6 +21,7 @@ type SortField = keyof Pick<
 >;
 
 export const GuildOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("guildOverview"));
   const rawRows = useGuildOverviewState(state => state.rows);
 
@@ -89,7 +91,7 @@ export const GuildOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Guild Overview"
+      title={t("extensions.titles.guildOverview")}
       onClose={() => closeDialog("guildOverview")}
       className="fmg-dialog--table"
     >

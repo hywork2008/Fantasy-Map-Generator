@@ -190,17 +190,17 @@ export const CellInfoDialog: React.FC = () => {
           </tr>
           {cellInfoRows.map(row => (
             <tr key={row.id}>
-              <th scope="row">{row.label}</th>
+              <th scope="row">{t(`extensions.cellInfo.${row.id}`, { defaultValue: row.label })}</th>
               <td>
                 {info.extra[row.id] ?? "n/a"}
                 {row.action && (
                   <button
                     type="button"
                     className="cell-info-row-action"
-                    data-tip={row.action.tip}
+                    data-tip={t(`extensions.cellInfoActions.${row.id}Tip`, { defaultValue: row.action.tip })}
                     onClick={row.action.onClick}
                   >
-                    {row.action.label}
+                    {t(`extensions.cellInfoActions.${row.id}`, { defaultValue: row.action.label })}
                   </button>
                 )}
               </td>

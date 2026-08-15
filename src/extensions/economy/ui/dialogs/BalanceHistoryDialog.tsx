@@ -1,5 +1,6 @@
 import type React from "react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, TableDialogLayout, useDialogState, VirtualTableBody } from "../../../hostUi";
 import {
   clearBalanceHistory,
@@ -25,6 +26,7 @@ function formatPercent(ratio: number): string {
  * time in a spreadsheet.
  */
 export const BalanceHistoryDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("balanceHistory"));
   const snapshots = useBalanceHistoryState(state => state.snapshots);
   const intervalCount = useBalanceHistoryState(state => state.intervals.length);
@@ -34,7 +36,7 @@ export const BalanceHistoryDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Balance History"
+      title={t("extensions.titles.balanceHistory")}
       onClose={() => closeDialog("balanceHistory")}
       className="fmg-dialog--table"
       buttons={[

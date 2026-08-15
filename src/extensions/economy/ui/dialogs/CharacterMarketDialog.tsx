@@ -92,27 +92,32 @@ export const CharacterMarketDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Character Market"
+      title={t("extensions.titles.characterMarket")}
       onClose={() => closeDialog("characterMarket")}
       className="fmg-dialog--table"
     >
       {!snapshot ? (
-        <p>This character is not currently in a burg with an active market.</p>
+        <p>{t("extensions.characterMarket.empty")}</p>
       ) : (
         <div id="characterMarketContainer">
           <p className="header">
-            <b>{snapshot.characterName}</b> · {snapshot.burgName} · {snapshot.marketName} · Wealth:{" "}
-            {formatPrice(snapshot.wealth)} · Goods: {snapshot.rows.length}
+            {t("extensions.characterMarket.header", {
+              character: snapshot.characterName,
+              burg: snapshot.burgName,
+              market: snapshot.marketName,
+              wealth: formatPrice(snapshot.wealth),
+              count: snapshot.rows.length
+            })}
           </p>
-          <div id="characterMarketFilters" data-tip="Filter market goods" className="d-flex">
+          <div id="characterMarketFilters" data-tip={t("extensions.characterMarket.filterTip")} className="d-flex">
             <label htmlFor="characterMarketFilterTag">
-              Tag:
+              {t("extensions.characterMarket.tag")}
               <select
                 id="characterMarketFilterTag"
                 value={tagFilter ?? ""}
                 onChange={event => setTagFilter(event.target.value || null)}
               >
-                <option value="">all</option>
+                <option value="">{t("extensions.characterMarket.all")}</option>
                 {tagOptions.map(tag => (
                   <option key={tag} value={tag}>
                     {tag}
@@ -121,7 +126,7 @@ export const CharacterMarketDialog: React.FC = () => {
               </select>
             </label>
             <label htmlFor="characterMarketFilterMerchant">
-              Merchant:
+              {t("extensions.characterMarket.merchant")}
               <select
                 id="characterMarketFilterMerchant"
                 value={merchantFilter ?? ""}
@@ -130,8 +135,8 @@ export const CharacterMarketDialog: React.FC = () => {
                   setMerchantFilter(value === "" ? null : value === "unassigned" ? "unassigned" : Number(value));
                 }}
               >
-                <option value="">all</option>
-                <option value="unassigned">Unassigned</option>
+                <option value="">{t("extensions.characterMarket.all")}</option>
+                <option value="unassigned">{t("extensions.characterMarket.unassigned")}</option>
                 {merchantOptions.map(merchant => (
                   <option key={merchant.id} value={merchant.id}>
                     {merchant.name}
@@ -147,7 +152,7 @@ export const CharacterMarketDialog: React.FC = () => {
                 checked={inStockOnly}
                 onChange={event => setInStockOnly(event.target.checked)}
               />{" "}
-              In stock only
+              {t("extensions.characterMarket.inStockOnly")}
             </label>
           </div>
           <section

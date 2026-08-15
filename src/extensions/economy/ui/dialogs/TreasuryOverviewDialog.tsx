@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   closeDialog,
@@ -15,6 +16,7 @@ import { type TreasuryOverviewRow, useTreasuryOverviewState } from "../../store/
 type SortField = keyof Omit<TreasuryOverviewRow, "id">;
 
 export const TreasuryOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("treasuryOverview"));
   const rawRows = useTreasuryOverviewState(state => state.rows);
 
@@ -57,7 +59,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Treasury Overview"
+      title={t("extensions.titles.treasuryOverview")}
       onClose={() => closeDialog("treasuryOverview")}
       className="fmg-dialog--table"
     >

@@ -33,35 +33,38 @@ const StateEditorTabBar: React.FC<{
   tabs: readonly ExtensionEditorTab[];
   activeTab: string;
   onSelect: (tabId: string) => void;
-}> = ({ tabs, activeTab, onSelect }) => (
-  <div className="tab-row d-flex" role="tablist" aria-label="State editor sections">
-    {TABS.map(tab => (
-      <button
-        key={tab.id}
-        type="button"
-        role="tab"
-        aria-selected={activeTab === tab.id}
-        className={activeTab === tab.id ? "pressed" : ""}
-        onClick={() => onSelect(tab.id)}
-      >
-        {tab.label}
-      </button>
-    ))}
-    {tabs.map(tab => (
-      <button
-        key={tab.id}
-        id={`stateEditorTab-${tab.id}`}
-        type="button"
-        role="tab"
-        aria-selected={activeTab === tab.id}
-        className={activeTab === tab.id ? "pressed" : ""}
-        onClick={() => onSelect(tab.id)}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-);
+}> = ({ tabs, activeTab, onSelect }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="tab-row d-flex" role="tablist" aria-label="State editor sections">
+      {TABS.map(tab => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          className={activeTab === tab.id ? "pressed" : ""}
+          onClick={() => onSelect(tab.id)}
+        >
+          {t(`extensions.editorTabs.${tab.id}`, { defaultValue: tab.label })}
+        </button>
+      ))}
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          id={`stateEditorTab-${tab.id}`}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          className={activeTab === tab.id ? "pressed" : ""}
+          onClick={() => onSelect(tab.id)}
+        >
+          {t(`extensions.editorTabs.${tab.id}`, { defaultValue: tab.label })}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 export const StateEditorDialog: React.FC = () => {
   const { t } = useTranslation();

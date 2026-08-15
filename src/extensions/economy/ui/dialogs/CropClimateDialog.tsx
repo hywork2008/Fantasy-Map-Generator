@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useCellInfoState, useDialogState } from "../../../hostUi";
 import { formatAnnualPrecipitation } from "../../../hostUtils";
 import {
@@ -318,6 +319,7 @@ const IrrigationSummary: React.FC<{ cellId: number | null; precipitation: number
 };
 
 export const CropClimateDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("cropClimate"));
   const { cellId, temperature, precipitation } = useCellInfoState();
   const crops = getGoods().filter(good => Boolean(getClimateProfile(good)));
@@ -333,26 +335,30 @@ export const CropClimateDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Crop climate guide"
+      title={t("extensions.titles.cropClimate")}
       onClose={() => closeDialog("cropClimate")}
       className="crop-climate-dialog"
       anchorTitlebarOnOpen
     >
       <div className="crop-climate-dialog__cell-summary">
-        <span>Selected cell {cellId === null ? "not set" : `#${cellId}`}</span>
-        <strong>{temperature === null ? "Temperature n/a" : `${temperature}°`}</strong>
+        <span>
+          {cellId === null
+            ? t("extensions.cropClimate.cellUnset")
+            : t("extensions.cropClimate.cellSet", { id: cellId })}
+        </span>
+        <strong>{temperature === null ? t("extensions.cropClimate.temperatureNa") : `${temperature}°`}</strong>
         <strong>
           {precipitation === null
-            ? "Annual precipitation n/a"
-            : `Annual precipitation ${formatAnnualPrecipitation(precipitation)}`}
+            ? t("extensions.cropClimate.precipNa")
+            : t("extensions.cropClimate.precip", { value: formatAnnualPrecipitation(precipitation) })}
         </strong>
       </div>
       <IrrigationSummary cellId={cellId} precipitation={precipitation} />
       {!crops.length ? (
-        <p className="crop-climate-dialog__empty">No crop goods are available in this catalogue.</p>
+        <p className="crop-climate-dialog__empty">{t("extensions.cropClimate.empty")}</p>
       ) : (
         <>
-          <div className="crop-climate-tabs" role="tablist" aria-label="Crop climate guide view">
+          <div className="crop-climate-tabs" role="tablist" aria-label={t("extensions.cropClimate.tabsAria")}>
             <button
               type="button"
               role="tab"
@@ -360,7 +366,7 @@ export const CropClimateDialog: React.FC = () => {
               className={tab === "detail" ? "pressed" : undefined}
               onClick={() => setTab("detail")}
             >
-              Crop details
+              {t("extensions.cropClimate.details")}
             </button>
             <button
               type="button"
@@ -369,13 +375,13 @@ export const CropClimateDialog: React.FC = () => {
               className={tab === "compare" ? "pressed" : undefined}
               onClick={() => setTab("compare")}
             >
-              Compare crops
+              {t("extensions.cropClimate.compare")}
             </button>
           </div>
           {tab === "detail" && selected && (
             <>
               <label className="crop-climate-select">
-                <span>Crop</span>
+                <span>{t("extensions.cropClimate.crop")}</span>
                 <select value={selected.i} onChange={event => setSelectedId(Number(event.target.value))}>
                   {crops.map(good => (
                     <option key={good.i} value={good.i}>

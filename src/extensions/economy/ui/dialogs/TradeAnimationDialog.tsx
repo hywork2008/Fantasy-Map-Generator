@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import type { MerchantRoutePreference } from "../../../../services/routeGrade";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
@@ -58,13 +59,14 @@ const tabButtonStyle = (active: boolean): React.CSSProperties => ({
 });
 
 export const TradeAnimationDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("tradeAnimationEditor"));
   const [activeTab, setActiveTab] = React.useState<"caravans" | "flow" | "settings">("caravans");
 
   return (
     <Dialog
       isOpen={isOpen}
-      title="Trade Animation"
+      title={t("extensions.titles.tradeAnimation")}
       onClose={() => closeDialog("tradeAnimationEditor")}
       className="fmg-dialog--table"
     >

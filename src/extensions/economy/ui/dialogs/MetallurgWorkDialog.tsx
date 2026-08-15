@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import {
@@ -26,6 +27,7 @@ const STATUS_LABEL: Record<MetallurgWorkOrderRow["status"], string> = {
 };
 
 export const MetallurgWorkDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("metallurgWorkOverview"));
   const orders = useMetallurgWorkOverviewState(state => state.orders);
   const materials = useMetallurgWorkOverviewState(state => state.materials);
@@ -42,7 +44,7 @@ export const MetallurgWorkDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Metallurg Work"
+      title={t("extensions.titles.metallurgWork")}
       onClose={() => closeDialog("metallurgWorkOverview")}
       className="fmg-dialog--table fmg-dialog--metallurg-work"
     >

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import {
@@ -12,6 +13,7 @@ import { useDomainPollDetailState } from "../../store/domainPollDetailState";
  * PR-13 — per-burg domain levy contribution to state poll tax.
  */
 export const DomainPollDetailDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("domainPollDetail"));
   const details = useDomainPollDetailState(state => state.details);
   const selectedStateId = useDomainPollDetailState(state => state.selectedStateId);
@@ -25,7 +27,7 @@ export const DomainPollDetailDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Domain Poll Detail"
+      title={t("extensions.titles.domainPoll")}
       onClose={() => closeDialog("domainPollDetail")}
       className="fmg-dialog--table"
     >

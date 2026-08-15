@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, FillBox, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 
@@ -14,6 +15,7 @@ import {
 import { useMarketsGoodCompareState } from "../../store/marketsGoodCompareState";
 
 export const MarketsGoodCompareDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("marketsGoodCompare"));
   const { options, selectedGoodId, sortBy, sortDirection, isPercentageMode, rows, totalStock, avgPrice } =
     useMarketsGoodCompareState();
@@ -55,7 +57,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Compare Good Stock"
+      title={t("extensions.titles.compareGoodStock")}
       className="fmg-dialog--table"
       onClose={() => {
         closeDialog("marketsGoodCompare");

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -11,6 +12,7 @@ import { useDebtNegotiationState } from "../../store/debtNegotiationState";
  * PR-12 — interest-rate negotiation panel for the named Banker syndicate.
  */
 export const DebtNegotiationDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("debtNegotiation"));
   const view = useDebtNegotiationState(state => state.view);
 
@@ -29,7 +31,7 @@ export const DebtNegotiationDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Debt Negotiation"
+      title={t("extensions.titles.debtNegotiation")}
       onClose={() => closeDialog("debtNegotiation")}
       className="fmg-dialog--narrow"
     >

@@ -45,7 +45,7 @@ const BurgEditorTabBar: React.FC<BurgEditorTabBarProps> = ({ tabs, activeTab, on
           className={activeTab === tab.id ? "pressed" : ""}
           onClick={() => onSelect(tab.id)}
         >
-          {tab.label}
+          {t(`extensions.editorTabs.${tab.id}`, { defaultValue: tab.label })}
         </button>
       ))}
     </div>

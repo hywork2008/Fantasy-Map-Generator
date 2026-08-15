@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, IconButton, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice, rn } from "../../../hostUtils";
 
@@ -13,6 +14,7 @@ const ROUTE_MODE_LABELS = {
 } as const;
 
 export const TradeDetailsDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("tradeDetails"));
   const summary = useTradeDetailsState(state => state.summary);
   const rows = useTradeDetailsState(state => state.rows);
@@ -54,7 +56,7 @@ export const TradeDetailsDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Trade Details"
+      title={t("extensions.titles.tradeDetails")}
       className="fmg-dialog--table"
       onClose={() => {
         closeDialog("tradeDetails");

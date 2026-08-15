@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { refreshMineralOverview } from "../../controllers/mineralOverview";
@@ -43,6 +44,7 @@ const ACCESS_TIP: Record<MineralAccessStatus, string> = {
 };
 
 export const MineralOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("mineralOverview"));
   const commodities = useMineralOverviewState(state => state.commodities);
   const deposits = useMineralOverviewState(state => state.deposits);
@@ -68,7 +70,7 @@ export const MineralOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Minerals Overview"
+      title={t("extensions.titles.mineralsOverview")}
       onClose={() => closeDialog("mineralOverview")}
       className="fmg-dialog--table fmg-dialog--minerals-overview"
     >

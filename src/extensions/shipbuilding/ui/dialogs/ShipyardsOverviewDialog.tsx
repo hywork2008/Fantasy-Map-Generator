@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   closeDialog,
   Dialog,
@@ -25,6 +26,7 @@ type SortField = keyof Pick<
 >;
 
 export const ShipyardsOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("ShipyardsOverviewDialog"));
   const rawRows = useShipyardsOverviewState(s => s.rows);
   const onZoom = useShipyardsOverviewState(s => s.onZoom);
@@ -54,14 +56,14 @@ export const ShipyardsOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Shipyards Overview"
+      title={t("extensions.titles.shipyardsOverview")}
       onClose={() => closeDialog("ShipyardsOverviewDialog")}
       className="fmg-dialog--table"
     >
       <TableDialogLayout bodyRef={scrollElementRef} className="shipyards-overview-dialog">
         {rows.length === 0 ? (
           <div>
-            <i>No active shipyard queues found.</i>
+            <i>{t("extensions.shipyards.empty")}</i>
           </div>
         ) : (
           <table className="fmg-table states-table">
@@ -81,28 +83,28 @@ export const ShipyardsOverviewDialog: React.FC = () => {
               <tr>
                 <SortableHeader
                   field="burgName"
-                  label="Shipyard"
+                  label={t("extensions.shipyards.shipyard")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSortBy}
                 />
                 <SortableHeader
                   field="ownerLabel"
-                  label="Owner"
+                  label={t("extensions.shipyards.owner")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSortBy}
                 />
                 <SortableHeader
                   field="shipClassName"
-                  label="Building"
+                  label={t("extensions.shipyards.building")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSortBy}
                 />
                 <SortableHeader
                   field="progressPct"
-                  label="Progress"
+                  label={t("extensions.shipyards.progress")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSortBy}
@@ -110,11 +112,11 @@ export const ShipyardsOverviewDialog: React.FC = () => {
                 />
                 <SortableHeader
                   field="materialStatus"
-                  label="Materials"
+                  label={t("extensions.shipyards.materials")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSortBy}
-                  tip="Construction consumes Wood, Sails, Ropes, and Tar from this shipyard's local market"
+                  tip={t("extensions.shipyards.materialsTip")}
                 />
                 <SortableHeader
                   field="strategicMaterialSummary"

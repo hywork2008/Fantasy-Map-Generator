@@ -1,5 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { createPlayerCharacter } from "../../characterPopulation";
@@ -41,6 +42,7 @@ function normalizedSkill(value: number): number {
 
 /** Characters-owned setup dialog for a custom player character. */
 export const PlayerCharacterDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("playerCharacter"));
   const culturesSet = useOptionsState(state => state.culturesSet);
   const openCharacterDetails = useCharactersUiState(state => state.openCharacterDetails);
@@ -106,7 +108,7 @@ export const PlayerCharacterDialog: React.FC = () => {
 
   const handleCreate = (): void => {
     if (!burgId || !cultureId || !raceId) {
-      setError("Choose a home burg, culture, and race.");
+      setError(t("extensions.playerCharacter.errorMissing"));
       return;
     }
     const isInitialPlayerCharacter = playerCharacterId === null;
@@ -121,7 +123,7 @@ export const PlayerCharacterDialog: React.FC = () => {
       isPlayerCharacter: isInitialPlayerCharacter
     });
     if (!character || (isInitialPlayerCharacter && !setInitialPlayerCharacter(character.i))) {
-      setError("The player character could not be created.");
+      setError(t("extensions.playerCharacter.errorCreate"));
       return;
     }
     useCharactersUiState.getState().bumpRefreshToken();
@@ -131,21 +133,24 @@ export const PlayerCharacterDialog: React.FC = () => {
   };
 
   const livePlayer = getCharacters().find(character => character.i === playerCharacterId);
-  const fantasyLabel = culturesSet.toLowerCase().includes("fantasy") ? "Fantasy character" : "Character";
+  const isFantasy = culturesSet.toLowerCase().includes("fantasy");
 
   return (
     <Dialog
       isOpen={isOpen}
-      title={`Create ${fantasyLabel}`}
+      title={isFantasy ? t("extensions.playerCharacter.titleFantasy") : t("extensions.playerCharacter.titleCharacter")}
       onClose={() => closeDialog("playerCharacter")}
       buttons={[
         {
-          label: "Reroll",
+          label: t("extensions.playerCharacter.reroll"),
           onClick: rerollDraft,
           disabled: !burgs.length || !cultures.length || !races.length
         },
         {
-          label: playerCharacterId === null ? "Create player character" : "Create character",
+          label:
+            playerCharacterId === null
+              ? t("extensions.playerCharacter.createPlayer")
+              : t("extensions.playerCharacter.createCharacter"),
           onClick: handleCreate,
           disabled: !burgs.length || !cultures.length || !races.length
         }
@@ -155,21 +160,23 @@ export const PlayerCharacterDialog: React.FC = () => {
       <div id="playerCharacterSetup" style={{ display: "grid", gap: 10, minWidth: 460, padding: 10 }}>
         <p style={{ margin: 0 }}>
           {playerCharacterId === null
-            ? "Create a custom focus character. They remain available without Nobility; political titles can be added later."
-            : "Create an additional character. Your current player character will remain selected."}
+            ? t("extensions.playerCharacter.introFirst")
+            : t("extensions.playerCharacter.introAdditional")}
         </p>
-        {livePlayer && <p style={{ margin: 0 }}>Current sheet: {livePlayer.name}</p>}
+        {livePlayer && (
+          <p style={{ margin: 0 }}>{t("extensions.playerCharacter.currentSheet", { name: livePlayer.name })}</p>
+        )}
         <label htmlFor="playerCharacterName">
-          Name
+          {t("extensions.playerCharacter.name")}
           <input
             id="playerCharacterName"
             value={name}
             onChange={event => setName(event.target.value)}
-            placeholder="Generated if blank"
+            placeholder={t("extensions.playerCharacter.namePlaceholder")}
           />
         </label>
         <label htmlFor="playerCharacterBurg">
-          Home burg
+          {t("extensions.playerCharacter.homeBurg")}
           <select
             id="playerCharacterBurg"
             value={burgId}
@@ -184,7 +191,7 @@ export const PlayerCharacterDialog: React.FC = () => {
         </label>
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
           <label htmlFor="playerCharacterCulture">
-            Culture
+            {t("extensions.playerCharacter.culture")}
             <select
               id="playerCharacterCulture"
               value={cultureId}
@@ -198,7 +205,7 @@ export const PlayerCharacterDialog: React.FC = () => {
             </select>
           </label>
           <label htmlFor="playerCharacterRace">
-            Race
+            {t("extensions.playerCharacter.race")}
             <select id="playerCharacterRace" value={raceId} onChange={event => setRaceId(Number(event.target.value))}>
               {races.map(race => (
                 <option key={race.i} value={race.i}>
@@ -208,7 +215,7 @@ export const PlayerCharacterDialog: React.FC = () => {
             </select>
           </label>
           <label htmlFor="playerCharacterAge">
-            Age
+            {t("extensions.playerCharacter.age")}
             <input
               id="playerCharacterAge"
               type="number"
@@ -219,14 +226,14 @@ export const PlayerCharacterDialog: React.FC = () => {
             />
           </label>
           <label htmlFor="playerCharacterGender">
-            Gender
+            {t("extensions.playerCharacter.gender")}
             <select
               id="playerCharacterGender"
               value={gender}
               onChange={event => setGender(event.target.value as Gender)}
             >
-              <option value="female">Female</option>
-              <option value="male">Male</option>
+              <option value="female">{t("extensions.playerCharacter.female")}</option>
+              <option value="male">{t("extensions.playerCharacter.male")}</option>
             </select>
           </label>
         </div>

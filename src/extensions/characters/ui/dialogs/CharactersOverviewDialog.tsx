@@ -17,7 +17,7 @@ import { CharactersTable } from "../components/tables/CharactersTable";
 
 export const CharactersOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("charactersOverview"));
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const culturesSet = useOptionsState(state => state.culturesSet);
   const showRace = isFantasyCulturesSet(culturesSet);
 
@@ -130,7 +130,7 @@ export const CharactersOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Characters Overview"
+      title={t("extensions.titles.charactersOverview")}
       onClose={() => closeDialog("charactersOverview")}
       className="fmg-dialog--table"
     >
@@ -141,14 +141,14 @@ export const CharactersOverviewDialog: React.FC = () => {
             className={`options ${activeTab === "overview" ? "active" : ""}`}
             onClick={() => setActiveTab("overview")}
           >
-            Overview
+            {t("extensions.charactersOverview.overview")}
           </button>
           <button
             type="button"
             className={`options ${activeTab === "stats" ? "active" : ""}`}
             onClick={() => setActiveTab("stats")}
           >
-            Capabilities & Stats
+            {t("extensions.charactersOverview.stats")}
           </button>
         </div>
 
@@ -173,9 +173,14 @@ export const CharactersOverviewDialog: React.FC = () => {
           />
         )}
 
-        <div id="charactersFilters" data-tip="Apply a filter" className="d-flex" style={{ padding: "5px" }}>
-          <label htmlFor="charactersSearch" data-tip="Filter by name, state, title, role, or gender">
-            Search:{" "}
+        <div
+          id="charactersFilters"
+          data-tip={t("extensions.charactersOverview.filterTip")}
+          className="d-flex"
+          style={{ padding: "5px" }}
+        >
+          <label htmlFor="charactersSearch" data-tip={t("extensions.charactersOverview.searchTip")}>
+            {t("extensions.charactersOverview.search")}{" "}
             <input
               id="charactersSearch"
               type="search"
@@ -184,14 +189,14 @@ export const CharactersOverviewDialog: React.FC = () => {
             />
           </label>
           <label htmlFor="charactersFilterState" style={{ marginLeft: "10px" }}>
-            State:{" "}
+            {t("extensions.charactersOverview.state")}{" "}
             <select
               id="charactersFilterState"
               value={filterStateId ?? "-1"}
               onChange={e => setFilterStateId(+e.target.value)}
             >
-              <option value="-1">all</option>
-              <option value="0">{states[0]?.name ?? "Neutral"}</option>
+              <option value="-1">{t("extensions.charactersOverview.all")}</option>
+              <option value="0">{states[0]?.name ?? t("extensions.charactersOverview.neutral")}</option>
               {sortedStates.map(s => (
                 <option key={s.i} value={s.i}>
                   {s.name}
@@ -202,9 +207,9 @@ export const CharactersOverviewDialog: React.FC = () => {
           <label
             htmlFor="charactersFilterRoleClass"
             style={{ marginLeft: "10px" }}
-            data-tip="Filter by title/role class, or by an active Guild Master or Guild Apprentice role."
+            data-tip={t("extensions.charactersOverview.titleRoleTip")}
           >
-            Title/Role:{" "}
+            {t("extensions.charactersOverview.titleRole")}{" "}
             <select
               id="charactersFilterRoleClass"
               value={filterRoleClass ?? ""}
@@ -213,7 +218,7 @@ export const CharactersOverviewDialog: React.FC = () => {
                 setFilterRoleClass(value ? (value as CharacterOverviewRoleFilter) : null);
               }}
             >
-              <option value="">all</option>
+              <option value="">{t("extensions.charactersOverview.all")}</option>
               {CHARACTER_OVERVIEW_ROLE_FILTERS.map(roleFilter => (
                 <option key={roleFilter} value={roleFilter}>
                   {getCharacterOverviewRoleFilterLabel(roleFilter)}
@@ -228,13 +233,16 @@ export const CharactersOverviewDialog: React.FC = () => {
           className="totalLine"
           style={{ padding: "5px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
         >
-          <div data-tip="Characters displayed">
-            Characters: {filteredCharacters.length} of {characters.length}
+          <div data-tip={t("extensions.charactersOverview.countTip")}>
+            {t("extensions.charactersOverview.count", {
+              shown: filteredCharacters.length,
+              total: characters.length
+            })}
           </div>
           {activeTab === "stats" && (
             <button type="button" className="btn" onClick={handleDownloadCsv}>
               <span className="icon-download" style={{ marginRight: "4px" }} />
-              Export CSV
+              {t("extensions.charactersOverview.exportCsv")}
             </button>
           )}
         </div>

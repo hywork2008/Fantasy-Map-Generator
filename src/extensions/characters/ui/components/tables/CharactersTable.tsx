@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { SortableHeader } from "../../../../hostUi";
 import { formatPrice } from "../../../../hostUtils";
 import type { CharacterRowData } from "../../../controllers/characters-overview";
@@ -27,6 +28,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
   showRace = false,
   showFamily = true
 }) => {
+  const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -60,7 +62,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
         sortOrder={sortOrder}
         onSort={onSort}
         numeric={numeric}
-        tip={`Click to sort by ${label.toLowerCase()}`}
+        tip={t("extensions.charactersOverview.sortTip", { field: label.toLowerCase() })}
         style={{ width, minWidth: width }}
       />
     );
@@ -71,23 +73,27 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
       <table className="fmg-table">
         <thead style={{ zIndex: 3 }}>
           <tr>
-            <SortHeader field="name" label="Name" width="6em" />
-            <SortHeader field="age" label="Age" numeric width="4em" />
-            <SortHeader field="appearance" label="App" numeric width="4em" />
-            <SortHeader field="prestige" label="Pre" numeric width="4em" />
-            <SortHeader field="wealth" label="Wealth" numeric width="6em" />
-            {showRace && <SortHeader field="race" label="Race" width="7em" />}
-            <SortHeader field="gender" label="Gender" width="6em" />
-            {showFamily ? <SortHeader field="maritalStatus" label="Family" width="7em" /> : null}
-            {showFamily ? <SortHeader field="children" label="Children" numeric width="5em" /> : null}
-            <SortHeader field="title" label="Title / Role" width="10em" />
-            <SortHeader field="state" label="State" width="10em" />
+            <SortHeader field="name" label={t("extensions.charactersOverview.name")} width="6em" />
+            <SortHeader field="age" label={t("extensions.charactersOverview.age")} numeric width="4em" />
+            <SortHeader field="appearance" label={t("extensions.charactersOverview.appearance")} numeric width="4em" />
+            <SortHeader field="prestige" label={t("extensions.charactersOverview.prestige")} numeric width="4em" />
+            <SortHeader field="wealth" label={t("extensions.charactersOverview.wealth")} numeric width="6em" />
+            {showRace && <SortHeader field="race" label={t("extensions.charactersOverview.race")} width="7em" />}
+            <SortHeader field="gender" label={t("extensions.charactersOverview.gender")} width="6em" />
+            {showFamily ? (
+              <SortHeader field="maritalStatus" label={t("extensions.charactersOverview.family")} width="7em" />
+            ) : null}
+            {showFamily ? (
+              <SortHeader field="children" label={t("extensions.charactersOverview.children")} numeric width="5em" />
+            ) : null}
+            <SortHeader field="title" label={t("extensions.charactersOverview.title")} width="10em" />
+            <SortHeader field="state" label={t("extensions.charactersOverview.stateCol")} width="10em" />
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={colSpan}>No characters found</td>
+              <td colSpan={colSpan}>{t("extensions.charactersOverview.empty")}</td>
             </tr>
           ) : (
             <>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, TableDialogLayout, useDialogState, VirtualTableBody } from "../../../hostUi";
 
@@ -6,6 +7,7 @@ import { open as openEmploymentOverview, refreshEmploymentOverview } from "../..
 import { type EmploymentOverviewRow, useEmploymentOverviewState } from "../../store/employmentOverviewState";
 
 export const EmploymentOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("employmentOverview"));
   const rows = useEmploymentOverviewState(state => state.rows);
 
@@ -23,7 +25,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Employment Overview"
+      title={t("extensions.titles.employmentOverview")}
       onClose={() => closeDialog("employmentOverview")}
       className="fmg-dialog--table"
     >

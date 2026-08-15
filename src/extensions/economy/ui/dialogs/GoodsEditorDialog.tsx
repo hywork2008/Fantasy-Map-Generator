@@ -27,12 +27,9 @@ import {
 } from "../../controllers/goods-editor";
 import { useGoodsEditorTableState } from "../../store/goodsEditorTableState";
 
-const RAW_TIP =
-  "Raw goods are produced by rural population in cells based on biome availability and in cells and burgs when bonus resource is assigned to cells";
-const MFG_TIP = "Manufactured goods are produced in burgs";
-
 const TypeBadge: React.FC<{ type: string }> = ({ type }) => {
-  const tip = type === "RAW" ? RAW_TIP : MFG_TIP;
+  const { t } = useTranslation();
+  const tip = type === "RAW" ? t("extensions.goodsEditor.rawTip") : t("extensions.goodsEditor.mfgTip");
   return <span data-tip={tip}>{type}</span>;
 };
 
@@ -76,7 +73,12 @@ export const GoodsEditorDialog: React.FC = () => {
   const visibleGoods = goods.filter(good => good.isTagVisible);
 
   return (
-    <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose} className="fmg-dialog--table">
+    <Dialog
+      isOpen={isOpen}
+      title={t("extensions.titles.goodsEditor")}
+      onClose={handleClose}
+      className="fmg-dialog--table"
+    >
       <div id="goodsEditorContainer">
         <div ref={parentRef} id="goodsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
           <table className="fmg-table">
@@ -109,74 +111,74 @@ export const GoodsEditorDialog: React.FC = () => {
                     <th />
                     <SortableHeader
                       field="name"
-                      label="Name"
+                      label={t("extensions.goodsEditor.name")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
-                      tip="Click to sort by good name"
+                      tip={t("extensions.goodsEditor.nameTip")}
                     />
                     <SortableHeader
                       field="type"
-                      label="Type"
+                      label={t("extensions.goodsEditor.type")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
-                      tip="Click to sort by type"
+                      tip={t("extensions.goodsEditor.typeTip")}
                     />
                   </>
                 ) : (
                   <>
                     <SortableHeader
                       field="isDisplayed"
-                      label="Display"
+                      label={t("extensions.goodsEditor.display")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Click to sort by whether the good is displayed on the Goods map"
+                      tip={t("extensions.goodsEditor.displayTip")}
                     />
                     <SortableHeader
                       field="name"
-                      label="Name"
+                      label={t("extensions.goodsEditor.name")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
-                      tip="Click to sort by good name"
+                      tip={t("extensions.goodsEditor.nameTip")}
                     />
                     <SortableHeader
                       field="type"
-                      label="Type"
+                      label={t("extensions.goodsEditor.type")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
-                      tip="Click to sort by type"
+                      tip={t("extensions.goodsEditor.typeTip")}
                     />
                     <SortableHeader
                       field="produced"
-                      label="Potential"
+                      label={t("extensions.goodsEditor.potential")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Projected current capacity from cells and burgs, not realised production. Click to sort"
+                      tip={t("extensions.goodsEditor.potentialTip")}
                     />
                     <SortableHeader
                       field="stock"
-                      label="Stock"
+                      label={t("extensions.goodsEditor.stock")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Total units in stock across all markets and burg inventories. Click to sort"
+                      tip={t("extensions.goodsEditor.stockTip")}
                     />
                     <SortableHeader
                       field="cumulativeMarketIntake"
-                      label="Market Output"
+                      label={t("extensions.goodsEditor.marketOutput")}
                       sortBy={sortBy}
                       sortOrder={sortOrder}
                       onSort={toggleSortBy}
                       numeric
-                      tip="Realised local output placed into Market stock, not retail sales: burg craft output plus rural/biome output since generation or the last reset. Click to sort"
+                      tip={t("extensions.goodsEditor.marketOutputTip")}
                     />
                     <SortableHeader
                       field="actualOutput"

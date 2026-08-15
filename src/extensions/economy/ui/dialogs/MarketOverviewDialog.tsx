@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import {
   closeDialog,
@@ -56,6 +57,7 @@ function formatTransportBlueprintName(blueprintId: TransportAssetOrder["blueprin
 }
 
 export const MarketOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("marketOverview"));
   const marketId = useDialogState(state => state.dialogConfigs.marketOverview?.marketId as number | undefined);
   const name = useMarketOverviewState(state => state.name);
@@ -211,7 +213,7 @@ export const MarketOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Market Overview"
+      title={t("extensions.titles.marketOverview")}
       onClose={() => closeDialog("marketOverview")}
       className="fmg-dialog--table"
     >

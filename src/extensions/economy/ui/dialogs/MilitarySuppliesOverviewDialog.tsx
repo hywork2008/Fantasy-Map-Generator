@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   closeDialog,
@@ -22,6 +23,7 @@ type SortField = Exclude<keyof MilitarySuppliesOverviewRow, "stateId">;
 const numberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 
 export const MilitarySuppliesOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("militarySuppliesOverview"));
   const rawRows = useMilitarySuppliesOverviewState(state => state.rows);
   const bodyRef = React.useRef<HTMLDivElement>(null);
@@ -60,7 +62,7 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Military Supplies Overview"
+      title={t("extensions.titles.militarySupplies")}
       onClose={() => closeDialog("militarySuppliesOverview")}
       className="fmg-dialog--table"
     >

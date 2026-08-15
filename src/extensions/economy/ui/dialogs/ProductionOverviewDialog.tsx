@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -19,6 +20,7 @@ const KIND_COLOR: Record<ProductionOverviewRow["kind"], string> = {
 };
 
 export const ProductionOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("productionOverview"));
   const burgId = useDialogState(state => state.dialogConfigs.productionOverview?.burgId as number | undefined);
   const burgName = useProductionOverviewState(state => state.burgName);
@@ -38,7 +40,7 @@ export const ProductionOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Production Overview"
+      title={t("extensions.titles.productionOverview")}
       onClose={() => closeDialog("productionOverview")}
       className="fmg-dialog--table"
     >

@@ -1,10 +1,12 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog } from "../../../hostUi";
 
 import { setGoodsTagsDialogState, useGoodsTagsDialogState } from "../../store/goodsTagsDialogState";
 
 export const GoodsTagsFilterDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useGoodsTagsDialogState(s => s.isOpen);
   const tags = useGoodsTagsDialogState(s => s.tags);
   const activeTags = useGoodsTagsDialogState(s => s.activeTags);
@@ -30,7 +32,7 @@ export const GoodsTagsFilterDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Filter by Tags"
+      title={t("extensions.titles.filterByTags")}
       onClose={close}
       buttons={[
         { label: "Apply", onClick: handleApply },

@@ -30,6 +30,9 @@ describe("internationalization", () => {
     expect(i18n.t("dialogs.titles.cellInfo")).toBe("セル情報");
     expect(i18n.t("dialogs.chrome.closeAll")).toBe("すべてのダイアログを閉じる");
     expect(i18n.t("dialogs.regenerate.title", { feature: "国家" })).toBe("国家 を再生成");
+    expect(i18n.t("extensions.titles.charactersOverview")).toBe("人物概要");
+    expect(i18n.t("extensions.actions.economy-edit-goods.label")).toBe("産物");
+    expect(i18n.t("extensions.titles.cropClimate")).toBe("作物気候案内");
   });
 
   it("keeps English and Japanese catalogs on the same keys", () => {

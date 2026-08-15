@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   closeDialog,
   Dialog,
@@ -40,6 +41,7 @@ function compareRows(
 }
 
 export const VesselAssetsOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("VesselAssetsOverviewDialog"));
   const rawRows = useVesselAssetsOverviewState(state => state.rows);
   const summary = useVesselAssetsOverviewState(state => state.summary);
@@ -61,31 +63,35 @@ export const VesselAssetsOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Vessel assets"
+      title={t("extensions.titles.vesselAssets")}
       onClose={() => closeDialog("VesselAssetsOverviewDialog")}
       className="fmg-dialog--table"
     >
       <TableDialogLayout bodyRef={scrollElementRef} className="vessel-assets-overview-dialog">
-        <p className="dialog-note">
-          One row per physical hull. Location and next port come from finite-fleet itineraries; market ship Goods are
-          separate saleable inventory.
-        </p>
+        <p className="dialog-note">{t("extensions.vessels.note")}</p>
         {summary.total > 0 && (
           <p className="dialog-note" style={{ marginTop: 0 }}>
-            Fleet: {summary.total} hulls · Idle/docked {summary.docked} · Patrol {summary.voyage} · Cargo{" "}
-            {summary.cargo} · Maintenance {summary.maintenance}
-            {summary.navalCrewCapacity > 0 ? ` · Naval crew capacity ${summary.navalCrewCapacity}` : ""}
+            {t("extensions.vessels.fleet", {
+              total: summary.total,
+              docked: summary.docked,
+              voyage: summary.voyage,
+              cargo: summary.cargo,
+              maintenance: summary.maintenance
+            })}
+            {summary.navalCrewCapacity > 0
+              ? t("extensions.vessels.navalCrew", { capacity: summary.navalCrewCapacity })
+              : ""}
           </p>
         )}
         {rows.length === 0 ? (
-          <i>No completed vessels found.</i>
+          <i>{t("extensions.vessels.empty")}</i>
         ) : (
           <table className="fmg-table states-table">
             <thead>
               <tr>
                 <SortableHeader
                   field="hullId"
-                  label="Hull #"
+                  label={t("extensions.vessels.hull")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSort}
@@ -93,28 +99,28 @@ export const VesselAssetsOverviewDialog: React.FC = () => {
                 />
                 <SortableHeader
                   field="ownerLabel"
-                  label="Owner"
+                  label={t("extensions.vessels.owner")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSort}
                 />
                 <SortableHeader
                   field="operatorLabel"
-                  label="Merchant organization / merchants"
+                  label={t("extensions.vessels.operator")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSort}
                 />
                 <SortableHeader
                   field="homePort"
-                  label="Home port"
+                  label={t("extensions.vessels.homePort")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSort}
                 />
                 <SortableHeader
                   field="shipClassName"
-                  label="Class"
+                  label={t("extensions.vessels.class")}
                   sortBy={sortBy}
                   sortOrder={sortOrder}
                   onSort={toggleSort}

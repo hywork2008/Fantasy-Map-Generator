@@ -308,8 +308,8 @@ export const ToolsTab: React.FC = () => {
     ...editActions.map(a => ({
       key: a.id,
       domId: undefined as string | undefined,
-      label: a.label,
-      tooltip: a.tooltip ?? "",
+      label: t(`extensions.actions.${a.id}.label`, { defaultValue: a.label }),
+      tooltip: t(`extensions.actions.${a.id}.tooltip`, { defaultValue: a.tooltip ?? "" }),
       dialogId: a.dialogId,
       onClick: a.onClick
     }))
@@ -337,8 +337,8 @@ export const ToolsTab: React.FC = () => {
     ...regenerateActions.map(a => ({
       key: a.id,
       domId: undefined as string | undefined,
-      label: a.label,
-      tooltip: a.tooltip ?? "",
+      label: t(`extensions.actions.${a.id}.label`, { defaultValue: a.label }),
+      tooltip: t(`extensions.actions.${a.id}.tooltip`, { defaultValue: a.tooltip ?? "" }),
       onClick: a.onClick,
       config: undefined as StaticRegenerateButton["config"] | undefined
     }))

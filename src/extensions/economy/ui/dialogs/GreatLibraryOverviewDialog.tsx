@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { open as openGreatLibraryOverview, refreshGreatLibraryOverview } from "../../controllers/greatLibraryOverview";
@@ -37,6 +38,7 @@ function GateMark({ ok, tip }: { ok: boolean; tip: string }): React.ReactElement
 }
 
 export const GreatLibraryOverviewDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("greatLibraryOverview"));
   const projects = useGreatLibraryOverviewState(state => state.projects);
   const eligibility = useGreatLibraryOverviewState(state => state.eligibility);
@@ -48,7 +50,7 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title="Great Library Overview"
+      title={t("extensions.titles.greatLibrary")}
       onClose={() => closeDialog("greatLibraryOverview")}
       className="fmg-dialog--table fmg-dialog--great-library-overview"
     >

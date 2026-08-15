@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { statesEditorActions } from "../../controllers/states-editor";
 import { useExtensionState } from "../../store/extensionState";
@@ -12,6 +13,7 @@ import { SortableHeader } from "../components/tables/SortableHeader";
 import { VirtualTableBody } from "../components/VirtualTableBody";
 
 export const StatesEditorContent: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState("overview");
   const allEditorTabs = useExtensionState(state => state.editorTabs);
   const editorTabs = useMemo(() => allEditorTabs.filter(t => t.editorId === "statesEditor"), [allEditorTabs]);
@@ -95,21 +97,21 @@ export const StatesEditorContent: React.FC = () => {
             }}
             onClick={() => setActiveTab("overview")}
           >
-            Overview
+            {t("extensions.editorTabs.overview")}
           </div>
-          {editorTabs.map(t => (
+          {editorTabs.map(tab => (
             <div
-              key={t.id}
+              key={tab.id}
               style={{
                 padding: "4px 12px",
                 cursor: "pointer",
-                borderBottom: activeTab === t.id ? "2px solid #ddd" : "2px solid transparent",
-                fontWeight: activeTab === t.id ? "bold" : "normal",
-                opacity: activeTab === t.id ? 1 : 0.7
+                borderBottom: activeTab === tab.id ? "2px solid #ddd" : "2px solid transparent",
+                fontWeight: activeTab === tab.id ? "bold" : "normal",
+                opacity: activeTab === tab.id ? 1 : 0.7
               }}
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => setActiveTab(tab.id)}
             >
-              {t.label}
+              {t(`extensions.editorTabs.${tab.id}`, { defaultValue: tab.label })}
             </div>
           ))}
         </div>
