@@ -631,6 +631,7 @@ function regenerateSettlementPattern(): void {
     // run. Every generator below branches on it directly, so a stale value
     // here silently ignores whatever pattern the user currently has selected.
     worldContext.options.initialSettlementPattern = optionsSnap.initialSettlementPattern;
+    worldContext.options.initialPolityRealmSize = optionsSnap.initialPolityRealmSize;
 
     const localSeed = generateSeed();
     (Math as Record<"random", () => number>).random = Alea(localSeed);

@@ -61,6 +61,7 @@ import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { ERROR, INFO, WARN } from "../utils/debug";
+import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { layerIsOn } from "../utils/nodeUtils";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
@@ -272,7 +273,10 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       era: validated.document.simulation.era,
       mapWidth: worldContext.graphWidth,
       mapHeight: worldContext.graphHeight,
-      initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern)
+      initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern),
+      initialPolityRealmSize: normalizeInitialPolityRealmSize(
+        worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
+      )
     });
     // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
     legacyMutation(() => {
@@ -548,6 +552,9 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     worldContext.options.initialSettlementPattern = normalizeInitialSettlementPattern(
       worldContext.options.initialSettlementPattern
     );
+    worldContext.options.initialPolityRealmSize = normalizeInitialPolityRealmSize(
+      worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
+    );
     if (settings[16]) worldContext.options.temperatureEquator = +settings[16];
     if (settings[17])
       worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
@@ -575,6 +582,9 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     zustandUpdates.historicalPeriod = worldContext.options.historicalPeriod ?? "highMedieval";
     zustandUpdates.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
     zustandUpdates.initialSettlementPattern = worldContext.options.initialSettlementPattern;
+    zustandUpdates.initialPolityRealmSize = normalizeInitialPolityRealmSize(
+      worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
+    );
     zustandUpdates.ironDepositsPerState = worldContext.options.ironDepositsPerState ?? 0.4;
     useOptionsState.getState().setOptions(zustandUpdates);
   }

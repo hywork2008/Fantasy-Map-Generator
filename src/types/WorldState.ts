@@ -30,6 +30,12 @@ export type ConflictAutonomy = "autonomous" | "playerDirected";
  */
 export type InitialSettlementPattern = "frontier" | "marches" | "scattered" | "standard" | "dense";
 
+/**
+ * @deprecated Use `initialPolityRealmSize`. Kept so archives and localStorage
+ * can migrate `capital` → 1 and `hinterland` → 30.
+ */
+export type InitialPolityScope = "hinterland" | "capital";
+
 /** Economic starting conditions for a newly generated map. */
 export type EconomyStartMode = "provisioned" | "balanced" | "subsistence";
 
@@ -115,6 +121,14 @@ export interface WorldOptions {
    * expansion normalize this to "standard" during archive migration.
    */
   initialSettlementPattern: InitialSettlementPattern;
+  /**
+   * Foundation-map starting realm size in cells (1–30). `1` is capital only.
+   * Missing values and the former `hinterland` scope migrate to 30.
+   * Ignored for `standard`.
+   */
+  initialPolityRealmSize?: number;
+  /** @deprecated Migrated to `initialPolityRealmSize`. */
+  initialPolityScope?: InitialPolityScope;
   /**
    * Biome regional profile: adjusts auto-assignment rates and continuous masks
    * (great forests, heath mosaics, mediterranean scrub, etc.). Default global.

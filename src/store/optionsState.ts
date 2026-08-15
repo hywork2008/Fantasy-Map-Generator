@@ -109,6 +109,12 @@ export interface OptionsState {
    * Fantasy defaults use ~0.45 (Marches). Ignored for `standard`.
    */
   oikoumeneLandShare: number;
+  /**
+   * Foundation-map starting realm size in cells (1 = capital only, 30 = compact
+   * core). Oikoumene land share still decides how much countryside is populated.
+   * Ignored for `standard`.
+   */
+  initialPolityRealmSize: number;
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
   /**
@@ -351,6 +357,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialPopulationSaturation: 60,
   initialSettlementPattern: "standard",
   oikoumeneLandShare: 0.45,
+  initialPolityRealmSize: 30,
   biomeRegionProfile: "global",
   volcanismChance: 30,
   volcanoActiveChance: 25,

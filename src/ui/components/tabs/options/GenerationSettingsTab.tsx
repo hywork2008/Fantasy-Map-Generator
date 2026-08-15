@@ -537,6 +537,26 @@ export const GenerationSettingsTab: React.FC = () => {
           <tr>
             <th colSpan={4}>{t("generation.sectionRealms")}</th>
           </tr>
+          <tr
+            data-tip={t("generation.initialPolityRealmSizeTip")}
+            style={{
+              display: options.initialSettlementPattern === "standard" ? "none" : undefined
+            }}
+          >
+            <td>
+              <LockIconButton id="initialPolityRealmSize" />
+            </td>
+            <th>{t("generation.initialPolityRealmSize")}</th>
+            <td colSpan={2}>
+              <SliderInput
+                min="1"
+                max="30"
+                value={options.initialPolityRealmSize}
+                onChange={v => updateOptionAndLock("initialPolityRealmSize", Number(v))}
+              />
+            </td>
+          </tr>
+
           <tr data-tip={statesNumberTooltip}>
             <td>
               <LockIconButton id="statesNumber" />

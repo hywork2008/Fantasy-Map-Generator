@@ -26,6 +26,7 @@ import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeHeightExponent } from "../utils/height";
+import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
@@ -36,7 +37,11 @@ import {
   normalizeHabitability
 } from "./frontierAnalysis";
 import { evaluateHarborElevation } from "./harborSiteConditions";
-import { getInitialPolityCapitalCount, selectInitialPolityCapitalNodes } from "./initialPolities";
+import {
+  collectStartingRealmCells,
+  getInitialPolityCapitalCount,
+  selectInitialPolityCapitalNodes
+} from "./initialPolities";
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
@@ -771,9 +776,10 @@ class BurgModule {
 
     const generateTowns = () => {
       const burgsNumber = getTownsNumber();
+      const realmCells = getStartingRealmCellSet();
       const placedCells = plannedNodes.length
         ? [...plannedNodes]
-            .filter(node => !cells.burg[node.cell])
+            .filter(node => !cells.burg[node.cell] && (!realmCells || realmCells.has(node.cell)))
             .sort((a, b) => b.score - a.score)
             .slice(0, burgsNumber)
             .map(node => node.cell)
@@ -801,7 +807,9 @@ class BurgModule {
     };
 
     generateCapitals();
-    generateTowns();
+    if (!isCapitalOnlyPolityRealm(this.worldContext.options.initialPolityRealmSize) || preservesLegacyCandidates) {
+      generateTowns();
+    }
 
     for (const burg of burgs) {
       if (!burg.i) continue;
@@ -832,6 +840,23 @@ class BurgModule {
       if (isAuto) return rn(populatedCells.length / 5 / (grid.points.length / 10000) ** 0.8);
 
       return Math.min(manors, populatedCells.length);
+    }
+
+    function getStartingRealmCellSet(): Set<number> | null {
+      if (preservesLegacyCandidates || !pack.settlementFoundation) return null;
+      const realmSize = normalizeInitialPolityRealmSize(worldContext.options.initialPolityRealmSize);
+      if (realmSize <= 1) return new Set();
+      const capitals = burgs.filter(burg => burg.i && burg.capital);
+      if (!capitals.length) return null;
+      const allowedByRegion = pack.settlementFoundation.regions.map(region => new Set(region.cells));
+      const cellsInRealm = new Set<number>();
+      for (const capital of capitals) {
+        const allowed = allowedByRegion.find(region => region.has(capital.cell));
+        for (const cellId of collectStartingRealmCells(cells, capital.cell, realmSize, allowed)) {
+          cellsInRealm.add(cellId);
+        }
+      }
+      return cellsInRealm;
     }
   }
 

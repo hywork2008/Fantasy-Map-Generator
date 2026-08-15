@@ -152,7 +152,14 @@ class StatesModule {
 
     if (useSettlementNuclei) {
       const plan = pack.settlementFoundation;
-      if (plan) assignInitialPolities({ plan, cells, burgs, states });
+      if (plan)
+        assignInitialPolities({
+          plan,
+          cells,
+          burgs,
+          states,
+          realmSize: this.worldContext.options.initialPolityRealmSize
+        });
       else {
         cells.state.fill(0);
         for (const state of states) {

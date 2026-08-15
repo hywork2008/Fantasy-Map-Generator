@@ -1000,6 +1000,8 @@
     "statesNumberTip": "Define the number of states for standard maps",
     "polityDensity": "Polity density",
     "polityDensityTip": "Define polity density for settlement-network maps",
+    "initialPolityRealmSize": "Starting realm (cells)",
+    "initialPolityRealmSizeTip": "How many land cells each state owns at generation. 1 is the capital only (one city). Higher values grow a compact core around the capital, up to 30 cells, and stay inside the oikoumene. Oikoumene land share still decides how much countryside is populated; this slider only decides how much of it starts as state land.",
     "sizeVariety": "Size variety",
     "sizeVarietyTip": "Define how much states and cultures can vary in size. Defines expansionism value",
     "growthRate": "Growth rate",

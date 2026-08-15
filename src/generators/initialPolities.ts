@@ -1,6 +1,6 @@
-import FlatQueue from "flatqueue";
 import type { Burg, State } from "../types/models";
 import type { SettlementFoundationPlan, SettlementNode } from "../types/settlementFoundation";
+import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { canStateClaimCell } from "./dangerExpandPolicy";
 
 type NumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
@@ -23,75 +23,103 @@ export interface InitialPolitiesInput {
   readonly cells: InitialPolityCells;
   readonly burgs: readonly Burg[];
   readonly states: readonly State[];
+  /** Starting realm size in cells (1 = capital only). Defaults to 30. */
+  readonly realmSize?: number;
 }
 
 /**
  * Owns Foundation-map political control.
  *
- * Territory comes from:
- * 1. Materialized route corridors from each capital (movement network).
- * 2. The full Settlement Foundation region around capital seeds — so oikoumene
- *    land share becomes visible state land, **including every burg** inside that
- *    region. Leaving towns as unlinked neutral holes created Swiss-cheese maps
- *    (empty countryside claimed, cities neutral).
+ * Territory is a compact blob of up to `realmSize` land cells around each
+ * capital, clipped to that capital's Settlement Foundation region. Oikoumene
+ * land share still decides how much countryside is populated; this function
+ * only decides how much of it starts as state land.
  *
- * Burgs *outside* any foundation region stay free. Wilderness stays unclaimed.
+ * `realmSize === 1` is capital-only. Burgs outside the blob stay free.
  */
-export function assignInitialPolities({ plan, cells, burgs, states }: InitialPolitiesInput): void {
-  const lockedStateAtCell = getLockedStateCells(cells, states);
-  const stateAtRouteCell = assignRouteNetwork(states, burgs, cells, lockedStateAtCell);
-  const nodesByRegion = groupNodesByRegion(plan);
-  const capitalStateByCell = getCapitalStateByCell(states, burgs);
-  cells.state.fill(0);
+export function assignInitialPolities({ plan, cells, burgs, states, realmSize }: InitialPolitiesInput): void {
+  const size = normalizeInitialPolityRealmSize(realmSize);
+  if (size <= 1) {
+    assignCapitalOnlyPolities(cells, burgs, states);
+    return;
+  }
+  assignCompactStartingRealms(plan, cells, burgs, states, size);
+}
 
+function assignCompactStartingRealms(
+  plan: SettlementFoundationPlan,
+  cells: InitialPolityCells,
+  burgs: readonly Burg[],
+  states: readonly State[],
+  realmSize: number
+): void {
+  const lockedStateAtCell = getLockedStateCells(cells, states);
+  cells.state.fill(0);
   for (const cellId of Array.from(cells.i)) {
     if (lockedStateAtCell[cellId]) cells.state[cellId] = lockedStateAtCell[cellId];
   }
 
-  for (const [cellId, stateId] of stateAtRouteCell) {
-    if (cells.h[cellId] < 20 || lockedStateAtCell[cellId]) continue;
-    // Capitals / burgs stay claimed even if danger is high; pure wilderness cores stay out.
-    const forceCore = !!cells.burg[cellId] || cells.pop[cellId] > 0;
-    if (!forceCore && !canStateClaimCell(cells.danger?.[cellId])) continue;
-    cells.state[cellId] = stateId;
-  }
-
-  // Paint each foundation region from capital / route seeds. Towns and hinterland
-  // use the same nearest-seed rule so cities are not left as 1-cell neutral holes.
-  for (const region of plan.regions) {
-    const regionNodes = nodesByRegion.get(region.id) ?? [];
-    const ownershipSeeds = collectRegionOwnershipSeeds(
-      region,
-      regionNodes,
-      stateAtRouteCell,
-      capitalStateByCell,
-      cells,
-      burgs
-    );
-    if (!ownershipSeeds.size) continue;
-
-    for (const cellId of region.cells) {
-      if (cells.h[cellId] < 20 || lockedStateAtCell[cellId]) continue;
-
-      const burgId = cells.burg[cellId];
-      const forceCore = !!burgId || cells.pop[cellId] > 0;
-      if (!forceCore && !canStateClaimCell(cells.danger?.[cellId])) continue;
-
-      const owner = nearestSeedOwner(cellId, ownershipSeeds, cells.p);
-      if (owner) cells.state[cellId] = owner;
+  const claimed = new Set<number>();
+  for (const state of states) {
+    if (!state?.i || state.removed) continue;
+    const capital = burgs[state.capital ?? 0];
+    if (!capital || capital.removed) continue;
+    if (lockedStateAtCell[capital.cell] && lockedStateAtCell[capital.cell] !== state.i) continue;
+    const allowed = getFoundationRegionCells(plan, capital.cell);
+    const realm = collectStartingRealmCells(cells, capital.cell, realmSize, allowed, claimed);
+    for (const cellId of realm) {
+      if (lockedStateAtCell[cellId] && lockedStateAtCell[cellId] !== state.i) continue;
+      cells.state[cellId] = state.i;
+      claimed.add(cellId);
     }
   }
 
-  // Remaining populated oikoumene cells (including towns) join the nearest capital
-  // that already holds land in the same foundation region.
-  claimOrphanPopulatedCells(plan, cells, states, burgs, lockedStateAtCell);
-
-  fillEnclosedUnclaimedLand(cells);
   for (const burg of burgs) {
     if (!burg.i || burg.removed) continue;
     burg.state = cells.state[burg.cell];
     burg.stateHistory = [burg.state];
   }
+}
+
+/**
+ * Compact land blob around a capital, staying inside `allowedCells` when given
+ * (the capital's foundation region). Already-claimed cells are skipped so
+ * neighbouring States do not steal each other's cores.
+ */
+export function collectStartingRealmCells(
+  cells: Pick<InitialPolityCells, "c" | "h" | "danger">,
+  capitalCell: number,
+  maxCells: number,
+  allowedCells?: ReadonlySet<number>,
+  alreadyClaimed?: ReadonlySet<number>
+): number[] {
+  const limit = Math.max(1, maxCells);
+  const selected: number[] = [];
+  const queued = new Set<number>([capitalCell]);
+  const queue = [capitalCell];
+
+  while (queue.length && selected.length < limit) {
+    const cellId = queue.shift();
+    if (cellId === undefined) break;
+    if ((cells.h[cellId] ?? 0) < 20) continue;
+    if (alreadyClaimed?.has(cellId) && cellId !== capitalCell) continue;
+    if (allowedCells && !allowedCells.has(cellId) && cellId !== capitalCell) continue;
+    if (cellId !== capitalCell && !canStateClaimCell(cells.danger?.[cellId])) continue;
+    selected.push(cellId);
+    for (const neighbor of cells.c[cellId] ?? []) {
+      if (queued.has(neighbor)) continue;
+      if ((cells.h[neighbor] ?? 0) < 20) continue;
+      if (allowedCells && !allowedCells.has(neighbor)) continue;
+      queued.add(neighbor);
+      queue.push(neighbor);
+    }
+  }
+  return selected;
+}
+
+function getFoundationRegionCells(plan: SettlementFoundationPlan, capitalCell: number): Set<number> | undefined {
+  const region = plan.regions.find(entry => entry.cells.includes(capitalCell));
+  return region ? new Set(region.cells) : undefined;
 }
 
 /**
@@ -187,43 +215,25 @@ function compareNodePriority(left: SettlementNode, right: SettlementNode): numbe
   return left.score - right.score || right.id - left.id;
 }
 
-function assignRouteNetwork(
-  states: readonly State[],
-  burgs: readonly Burg[],
-  cells: InitialPolityCells,
-  lockedStateAtCell: Uint16Array
-): Map<number, number> {
-  type QueueEntry = { readonly cell: number; readonly state: number; readonly cost: number };
-  const queue = new FlatQueue<QueueEntry>();
-  const cost = new Float64Array(cells.i.length).fill(Infinity);
-  const owner = new Uint16Array(cells.i.length);
-
+/** Each State owns only its capital cell. Hinterland and extra towns stay unclaimed. */
+function assignCapitalOnlyPolities(cells: InitialPolityCells, burgs: readonly Burg[], states: readonly State[]): void {
+  const lockedStateAtCell = getLockedStateCells(cells, states);
+  cells.state.fill(0);
+  for (const cellId of Array.from(cells.i)) {
+    if (lockedStateAtCell[cellId]) cells.state[cellId] = lockedStateAtCell[cellId];
+  }
   for (const state of states) {
-    if (!state.i || state.removed) continue;
+    if (!state?.i || state.removed) continue;
     const capital = burgs[state.capital ?? 0];
     if (!capital || capital.removed) continue;
-    cost[capital.cell] = 0;
-    owner[capital.cell] = state.i;
-    queue.push({ cell: capital.cell, state: state.i, cost: 0 }, 0);
+    if (lockedStateAtCell[capital.cell] && lockedStateAtCell[capital.cell] !== state.i) continue;
+    cells.state[capital.cell] = state.i;
   }
-
-  while (queue.length) {
-    const current = queue.pop()!;
-    if (current.cost !== cost[current.cell] || current.state !== owner[current.cell]) continue;
-    for (const neighborKey of Object.keys(cells.routes[current.cell] ?? {})) {
-      const neighbor = Number(neighborKey);
-      if (lockedStateAtCell[neighbor] && lockedStateAtCell[neighbor] !== current.state) continue;
-      const totalCost = current.cost + distanceBetween(current.cell, neighbor, cells.p);
-      if (totalCost > cost[neighbor] || (totalCost === cost[neighbor] && current.state >= owner[neighbor])) continue;
-      cost[neighbor] = totalCost;
-      owner[neighbor] = current.state;
-      queue.push({ cell: neighbor, state: current.state, cost: totalCost }, totalCost);
-    }
+  for (const burg of burgs) {
+    if (!burg.i || burg.removed) continue;
+    burg.state = cells.state[burg.cell];
+    burg.stateHistory = [burg.state];
   }
-
-  const result = new Map<number, number>();
-  for (const cellId of Array.from(cells.i)) if (owner[cellId]) result.set(cellId, owner[cellId]);
-  return result;
 }
 
 function getLockedStateCells(cells: InitialPolityCells, states: readonly State[]): Uint16Array {
@@ -233,181 +243,4 @@ function getLockedStateCells(cells: InitialPolityCells, states: readonly State[]
     if (stateId && states[stateId]?.lock) locked[cellId] = stateId;
   }
   return locked;
-}
-
-function getCapitalStateByCell(states: readonly State[], burgs: readonly Burg[]): Map<number, number> {
-  const capitalStateByCell = new Map<number, number>();
-  for (const state of states) {
-    if (!state.i || state.removed) continue;
-    const capital = burgs[state.capital ?? 0];
-    if (!capital || capital.removed) continue;
-    capitalStateByCell.set(capital.cell, state.i);
-  }
-  return capitalStateByCell;
-}
-
-function groupNodesByRegion(plan: SettlementFoundationPlan): Map<number, SettlementFoundationPlan["nodes"][number][]> {
-  const nodesByRegion = new Map<number, SettlementFoundationPlan["nodes"][number][]>();
-  for (const node of plan.nodes) {
-    const nodes = nodesByRegion.get(node.regionId) ?? [];
-    nodes.push(node);
-    nodesByRegion.set(node.regionId, nodes);
-  }
-  return nodesByRegion;
-}
-
-/**
- * Ownership seeds for a region: route-served cells that already have a state,
- * plus any capital that sits in the region (even if routes are empty).
- */
-function collectRegionOwnershipSeeds(
-  region: SettlementFoundationPlan["regions"][number],
-  regionNodes: readonly SettlementFoundationPlan["nodes"][number][],
-  stateAtRouteCell: ReadonlyMap<number, number>,
-  capitalStateByCell: ReadonlyMap<number, number>,
-  cells: InitialPolityCells,
-  burgs: readonly Burg[]
-): Map<number, number> {
-  const seeds = new Map<number, number>();
-  const regionCells = new Set(region.cells);
-
-  for (const node of regionNodes) {
-    const owner = stateAtRouteCell.get(node.cell) ?? capitalStateByCell.get(node.cell);
-    if (owner) seeds.set(node.cell, owner);
-  }
-
-  for (const cellId of region.cells) {
-    const owner = stateAtRouteCell.get(cellId) ?? capitalStateByCell.get(cellId);
-    if (owner) seeds.set(cellId, owner);
-  }
-
-  // Capitals inside the region are always seeds even when the route map is sparse.
-  for (const burg of burgs) {
-    if (!burg.i || burg.removed || !burg.capital) continue;
-    if (!regionCells.has(burg.cell)) continue;
-    const owner = capitalStateByCell.get(burg.cell);
-    if (owner) seeds.set(burg.cell, owner);
-  }
-
-  // If the capital sits on a node just outside a tiny region.cells list, still allow
-  // seeds from any capital whose state already owns a route cell that touches the region.
-  if (!seeds.size) {
-    for (const cellId of region.cells) {
-      for (const neighbor of cells.c[cellId] ?? []) {
-        const owner = stateAtRouteCell.get(neighbor) ?? capitalStateByCell.get(neighbor);
-        if (owner) seeds.set(neighbor, owner);
-      }
-    }
-  }
-
-  return seeds;
-}
-
-function nearestSeedOwner(cellId: number, seeds: ReadonlyMap<number, number>, points: InitialPolityCells["p"]): number {
-  const [x, y] = points[cellId];
-  let result = 0;
-  let distance = Infinity;
-  for (const [seedCell, owner] of seeds) {
-    if (!owner) continue;
-    const [seedX, seedY] = points[seedCell];
-    const candidateDistance = (x - seedX) ** 2 + (y - seedY) ** 2;
-    if (candidateDistance >= distance) continue;
-    result = owner;
-    distance = candidateDistance;
-  }
-  return result;
-}
-
-/**
- * Fallback: populated foundation cells still neutral after region paint attach to
- * the nearest capital that holds any cell in the same region (towns included).
- */
-function claimOrphanPopulatedCells(
-  plan: SettlementFoundationPlan,
-  cells: InitialPolityCells,
-  states: readonly State[],
-  burgs: readonly Burg[],
-  lockedStateAtCell: Uint16Array
-): void {
-  const cellRegion = new Map<number, number>();
-  for (const region of plan.regions) {
-    for (const cellId of region.cells) cellRegion.set(cellId, region.id);
-  }
-
-  const capitalsByRegion = new Map<number, { cell: number; state: number }[]>();
-  for (const state of states) {
-    if (!state.i || state.removed) continue;
-    const capital = burgs[state.capital ?? 0];
-    if (!capital || capital.removed) continue;
-    const regionId = cellRegion.get(capital.cell);
-    if (regionId === undefined) continue;
-    const list = capitalsByRegion.get(regionId) ?? [];
-    list.push({ cell: capital.cell, state: state.i });
-    capitalsByRegion.set(regionId, list);
-  }
-
-  for (const cellId of Array.from(cells.i)) {
-    if (cells.state[cellId] || lockedStateAtCell[cellId]) continue;
-    if (cells.h[cellId] < 20) continue;
-    // Claim populated countryside and towns; empty wilderness stays free.
-    const forceCore = !!cells.burg[cellId] || cells.pop[cellId] > 0;
-    if (!forceCore) continue;
-    const regionId = cellRegion.get(cellId);
-    if (regionId === undefined) continue;
-
-    const capitals = capitalsByRegion.get(regionId);
-    if (!capitals?.length) continue;
-    // Burgs always join their regional capital; high-danger empty land stays out.
-    if (!cells.burg[cellId] && !canStateClaimCell(cells.danger?.[cellId])) continue;
-
-    cells.state[cellId] = nearestSeedOwner(cellId, new Map(capitals.map(entry => [entry.cell, entry.state])), cells.p);
-  }
-}
-
-function distanceBetween(from: number, to: number, points: InitialPolityCells["p"]): number {
-  const [fromX, fromY] = points[from];
-  const [toX, toY] = points[to];
-  return Math.hypot(toX - fromX, toY - fromY);
-}
-
-/** Normalizes only small, completely enclosed wilderness pockets. */
-function fillEnclosedUnclaimedLand(cells: InitialPolityCells): void {
-  const checked = new Uint8Array(cells.i.length);
-  for (const start of Array.from(cells.i)) {
-    if (checked[start] || cells.state[start] || cells.h[start] < 20) continue;
-    if (!canStateClaimCell(cells.danger?.[start])) continue;
-    const pocket: number[] = [];
-    const owners = new Set<number>();
-    const queue = [start];
-    checked[start] = 1;
-    let hasOpenBoundary = false;
-    while (queue.length) {
-      const cellId = queue.pop();
-      if (cellId === undefined) continue;
-      if (cells.pop[cellId] > 0 || cells.burg[cellId]) {
-        hasOpenBoundary = true;
-        continue;
-      }
-      if (!canStateClaimCell(cells.danger?.[cellId])) {
-        hasOpenBoundary = true; // danger core keeps the pocket open to wilderness
-        continue;
-      }
-      pocket.push(cellId);
-      for (const neighbor of cells.c[cellId]) {
-        if (cells.h[neighbor] < 20) {
-          hasOpenBoundary = true;
-          continue;
-        }
-        const owner = cells.state[neighbor];
-        if (owner) owners.add(owner);
-        else if (!checked[neighbor]) {
-          checked[neighbor] = 1;
-          queue.push(neighbor);
-        }
-      }
-    }
-    const owner = owners.values().next().value as number | undefined;
-    if (pocket.length > 3 || hasOpenBoundary || owners.size !== 1 || owner === undefined) continue;
-    for (const cellId of pocket) cells.state[cellId] = owner;
-  }
 }

@@ -1000,6 +1000,8 @@
     "statesNumberTip": "標準地図での国家数を指定します",
     "polityDensity": "政体の密度",
     "polityDensityTip": "集落ネットワーク地図での政体密度を指定します",
+    "initialPolityRealmSize": "初期領域（セル）",
+    "initialPolityRealmSizeTip": "生成時に各国が領有する陸地セル数です。1 は首都のみ（1都市）。大きくすると首都の周りに最大 30 セルまでの小さな核を作り、居住圏の内側に収まります。居住圏の土地割合は定住する広さ、このスライダーは最初から国家領になる広さです。",
     "sizeVariety": "規模のばらつき",
     "sizeVarietyTip": "国家と文化の規模がどれだけばらつくかを決めます。拡張主義の値になります",
     "growthRate": "成長率",

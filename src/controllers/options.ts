@@ -35,6 +35,7 @@ import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } fro
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { isValidCanvasDimension, isValidCanvasSize, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
 import { applyOption, lock, locked, store, stored, unlock } from "../utils/domUtils";
+import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { cleanupData } from "../versioning";
@@ -488,6 +489,8 @@ export function applyStoredOptions(): void {
     "growthRate",
     "initialPopulationSaturation",
     "initialSettlementPattern",
+    "initialPolityScope",
+    "initialPolityRealmSize",
     "oikoumeneLandShare",
     "biomeRegionProfile",
     "templateRandomization",
@@ -546,6 +549,13 @@ export function applyStoredOptions(): void {
             : +value;
       (loadedOptions as Record<PersistedOptionKey, string | number | boolean>)[key] = parsedValue;
     }
+  }
+  const legacyPolityScope = (loadedOptions as { initialPolityScope?: unknown }).initialPolityScope;
+  if (loadedOptions.initialPolityRealmSize == null && legacyPolityScope != null) {
+    loadedOptions.initialPolityRealmSize = normalizeInitialPolityRealmSize(legacyPolityScope);
+  }
+  if (loadedOptions.initialPolityRealmSize != null) {
+    loadedOptions.initialPolityRealmSize = normalizeInitialPolityRealmSize(loadedOptions.initialPolityRealmSize);
   }
   if (typeof loadedOptions.initialSettlementPattern === "string") {
     loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(loadedOptions.initialSettlementPattern);

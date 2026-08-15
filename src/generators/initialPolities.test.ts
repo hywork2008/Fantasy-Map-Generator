@@ -28,31 +28,25 @@ describe("Initial Polities Module", () => {
     expect(burgs[2].state).toBe(1);
   });
 
-  it("governs towns inside the same foundation region even without a route link", () => {
-    // Without this, political maps look inverted: countryside claimed, cities neutral holes.
-    const cells = createCells(5, { 0: { 1: 0 }, 1: { 0: 0 } });
+  it("grows a compact contiguous core of the requested cell count", () => {
+    const cells = createCells(8, {});
     cells.burg[0] = 1;
-    cells.burg[4] = 2;
-    const burgs = [0, { i: 1, cell: 0, capital: 1 }, { i: 2, cell: 4, capital: 0 }] as never;
+    const burgs = [0, { i: 1, cell: 0, capital: 1 }] as never;
 
     assignInitialPolities({
       plan: {
-        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 4] }],
-        nodes: [
-          { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
-          { id: 1, regionId: 0, cell: 4, role: "village", score: 5 }
-        ],
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2, 3, 4, 5] }],
+        nodes: [{ id: 0, regionId: 0, cell: 0, role: "center", score: 10 }],
         links: []
       },
       cells,
       burgs,
-      states: [{ i: 0 }, { i: 1, capital: 1 }]
+      states: [{ i: 0 }, { i: 1, capital: 1 }],
+      realmSize: 3
     });
 
-    expect(cells.state[0]).toBe(1);
-    expect(cells.state[1]).toBe(1);
-    expect(cells.state[4]).toBe(1);
-    expect(burgs[2].state).toBe(1);
+    expect(Array.from(cells.state)).toEqual([1, 1, 1, 0, 0, 0, 0, 0]);
+    expect(burgs[1].state).toBe(1);
   });
 
   it("does not claim a burg outside the foundation region as state territory", () => {
@@ -79,9 +73,34 @@ describe("Initial Polities Module", () => {
     expect(burgs[2].state).toBe(0);
   });
 
-  it("claims the full foundation hinterland around a capital even without routes", () => {
-    // Large oikoumene region: only the capital is a burg. Hinterland cells still
-    // become state land so oikoumene land share is visible on the political map.
+  it("starts each State as a single capital city when scope is capital", () => {
+    const cells = createCells(8, { 0: { 1: 0 }, 1: { 0: 0, 2: 0 }, 2: { 1: 0 } });
+    cells.burg[0] = 1;
+    cells.burg[4] = 2;
+    const burgs = [0, { i: 1, cell: 0, capital: 1 }, { i: 2, cell: 4, capital: 0 }] as never;
+
+    assignInitialPolities({
+      plan: {
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2, 3, 4, 5] }],
+        nodes: [
+          { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
+          { id: 1, regionId: 0, cell: 4, role: "village", score: 5 }
+        ],
+        links: [{ fromNodeId: 0, toNodeId: 1, kind: "river" }]
+      },
+      cells,
+      burgs,
+      states: [{ i: 0 }, { i: 1, capital: 1 }],
+      realmSize: 1
+    });
+
+    expect(Array.from(cells.state)).toEqual([1, 0, 0, 0, 0, 0, 0, 0]);
+    expect(burgs[1].state).toBe(1);
+    expect(burgs[2].state).toBe(0);
+  });
+
+  it("fills the foundation region when it is smaller than the realm-size cap", () => {
+    // Six-cell region, default cap 30: the whole contiguous region is claimed.
     const cells = createCells(8, {});
     cells.burg[0] = 1;
     const burgs = [0, { i: 1, cell: 0, capital: 1 }] as never;
@@ -124,7 +143,7 @@ describe("Initial Polities Module", () => {
       states: [{ i: 0 }, { i: 1, capital: 1 }]
     });
 
-    expect(cells.state).toEqual(new Uint16Array([1, 0, 1]));
+    expect(cells.state).toEqual(new Uint16Array([1, 0, 0]));
   });
 
   it("treats States number as the capital count target (not node/2 capacity)", () => {

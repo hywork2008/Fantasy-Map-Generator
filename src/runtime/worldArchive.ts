@@ -8,6 +8,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import { ensureBiomeCatalogFields } from "../data/biomeCatalog";
 import type { BiomesData } from "../types/WorldState";
+import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import {
   CORE_ENTITY_KINDS,
@@ -408,6 +409,10 @@ function migrateWorldOptions(world: unknown): void {
   // v1 necessarily lacks this field. Normalizing v2 too protects the typed
   // context from malformed/manual archive edits without changing valid values.
   world.options.initialSettlementPattern = normalizeInitialSettlementPattern(world.options.initialSettlementPattern);
+  world.options.initialPolityRealmSize = normalizeInitialPolityRealmSize(
+    world.options.initialPolityRealmSize ?? world.options.initialPolityScope
+  );
+  delete world.options.initialPolityScope;
 }
 
 /**
