@@ -511,7 +511,7 @@ function isEligibleTarget(
   frontier: FrontierSimulationState,
   cellId: number
 ): boolean {
-  // monster_domain / wild_margin are not outpost targets (survival distance).
+  // Monster domains stay banned; the danger margin is allowed but scores worse.
   const wildOk = cells.wildLand ? allowsFrontierOutpost(cells.wildLand[cellId]) : true;
   return (
     cells.state[cellId] === 0 &&

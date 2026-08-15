@@ -246,6 +246,15 @@ describe("Frontier Expansion Phase 3", () => {
     expect(Object.values(simulation.frontier.projects)).toHaveLength(3);
   });
 
+  it("can found an outpost on the danger margin, not only claimable wilderness", () => {
+    const world = createWorld();
+    world.pack.cells.danger = new Uint8Array([0, 40]);
+    world.pack.cells.wildLand = new Uint8Array([0, 2]);
+    const simulation = createSimulation(100);
+
+    expect(advance(world, simulation).established).toEqual([1]);
+  });
+
   it("measures colonist surplus against subsistence capacity, not terrain capacity", () => {
     const world = createWorld();
     // Terrain C=100 would keep 65 people at home, so 55 looks like no surplus.

@@ -79,7 +79,11 @@ export function isClaimableFrontier(code: number | undefined | null): boolean {
   return code === WILD_LAND.claimable;
 }
 
-/** Outposts only on claimable; margin/monster banned (survival distance). */
+/**
+ * Outposts may sit on claimable land or the danger margin. Monster domains stay
+ * banned. Margin is worse-scored (danger penalty) but must remain reachable —
+ * otherwise a fantasy frontier never leaves its oikoumene.
+ */
 export function allowsFrontierOutpost(code: number | undefined | null): boolean {
-  return code === WILD_LAND.claimable;
+  return code === WILD_LAND.claimable || code === WILD_LAND.margin;
 }

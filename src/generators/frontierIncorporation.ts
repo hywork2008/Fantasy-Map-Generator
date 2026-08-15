@@ -7,7 +7,8 @@ import { Provinces } from "./provinces-generator";
 import { States } from "./states-generator";
 import { assignWildLandTags, isMonsterDomain } from "./wildLandTags";
 
-const MIN_SETTLEMENT_POPULATION = 4;
+/** A supported outpost that still has residents may incorporate; 4 was higher than a typical transfer. */
+const MIN_SETTLEMENT_POPULATION = 1;
 const MIN_SETTLEMENT_SUPPORT_YEARS = 3;
 const MAX_ADMINISTRATIVE_CORRIDOR_HOPS = 8;
 

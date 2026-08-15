@@ -62,6 +62,15 @@ describe("frontier incorporation transaction", () => {
     expect(world.pack.provinces[1]?.rural).toBe(26);
   });
 
+  it("incorporates a supported settlement that is still below the old four-point village size", () => {
+    const world = createWorld(true);
+    world.pack.cells.pop[2] = 1.2;
+    const simulation = createSimulation();
+
+    expect(incorporateEligibleFrontierSettlements({ world, simulation }).incorporations).toHaveLength(1);
+    expect(world.pack.cells.state[2]).toBe(1);
+  });
+
   it("leaves an otherwise eligible settlement unclaimed when no land corridor reaches its State", () => {
     const world = createWorld(false);
     const simulation = createSimulation();
