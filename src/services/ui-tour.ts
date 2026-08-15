@@ -343,7 +343,7 @@ class UITourModule {
           popover: {
             title: "Save and Load Maps",
             description:
-              "Click Save to download a .map file preserving your entire world. Click Load to open a previously saved file and continue where you left off.",
+              "Click Save to download a .map file preserving your entire world. Click Load to open a previously saved file, or to apply exported generation options.",
             side: "top",
             onNextClick: () => {
               tour.destroy();

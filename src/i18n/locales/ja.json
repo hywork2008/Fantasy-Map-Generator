@@ -1754,7 +1754,18 @@
       "copyLink": "リンクをクリップボードにコピーします",
       "fromUrlLabel": "地図ファイルの URL：",
       "invalidUrl": "有効な URL を入力してください",
-      "corsNote": "読み込むにはサーバーが CORS を許可している必要があります。許可されていない場合は Dropbox に保存し、直接リンクを指定してください"
+      "corsNote": "読み込むにはサーバーが CORS を許可している必要があります。許可されていない場合は Dropbox に保存し、直接リンクを指定してください",
+      "generationOptions": "生成オプションを読み込む",
+      "generationOptionsLoad": "ファイル",
+      "generationOptionsTip": "書き出した生成オプション JSON を読み込み、Options に適用します",
+      "generationOptionsHint": "シード、ハイトマップ、文化など、生成に使う設定を適用します。世界に反映するには、その後新しい地図を生成してください。",
+      "generationOptionsApplied": "生成オプションを適用しました。使うには新しい地図を生成してください。",
+      "generationOptionsErrors": {
+        "invalidJson": "選択したファイルは有効な JSON ではありません",
+        "invalidFormat": "選択したファイルは生成オプションの書き出しではありません",
+        "emptyOptions": "選択したファイルに使える生成オプションがありません",
+        "busy": "地図の生成中は生成オプションを適用できません"
+      }
     },
     "export": {
       "downloadImage": "画像をダウンロード",

@@ -2,8 +2,11 @@ import type React from "react";
 import { useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { connectToDropbox, loadURL } from "../../controllers/options";
+import { importGenerationOptionsFromFile } from "../../io/exportGenerationOptions";
 import { createSharableDropboxLink, loadFromDropbox, quickLoad, uploadMap } from "../../io/load";
+import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
+import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useLoadMapDialogState } from "../../store/loadMapDialogState";
 import { Dialog } from "./Dialog";
 import { closeDialog, closeDialogs } from "./dialogService";
@@ -22,6 +25,8 @@ export const LoadMapDialog: React.FC = () => {
   const isSharableLinkVisible = useLoadMapDialogState(state => state.isSharableLinkVisible);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const generationOptionsInputRef = useRef<HTMLInputElement>(null);
+  const isGenerating = useGenerationProgressState(state => state.isGenerating);
 
   const hasDropboxFiles = dropboxFiles.length > 0;
   const showDropboxSelect = isDropboxConnected;
@@ -39,6 +44,24 @@ export const LoadMapDialog: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const handleGenerationOptionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileToLoad = e.currentTarget.files?.[0];
+    if (!fileToLoad) return;
+    e.currentTarget.value = "";
+    void importGenerationOptionsFromFile(fileToLoad).then(result => {
+      if (!result.ok) {
+        tip(t(`dialogs.load.generationOptionsErrors.${result.error}`), false, "error");
+        return;
+      }
+      closeDialogs();
+      tip(t("dialogs.load.generationOptionsApplied"), true, "success", 7000);
+    });
+  };
+
+  const handleLoadGenerationOptions = () => {
+    generationOptionsInputRef.current?.click();
+  };
+
   return (
     <Dialog isOpen={isOpen} title={t("dialogs.titles.loadMap")} onClose={() => closeDialog("loadMapData")}>
       <input
@@ -48,6 +71,14 @@ export const LoadMapDialog: React.FC = () => {
         accept=".fmg,.map,.gz"
         className="d-none"
         onChange={handleFileChange}
+      />
+      <input
+        ref={generationOptionsInputRef}
+        id="generationOptionsToLoad"
+        type="file"
+        accept=".json,application/json"
+        className="d-none"
+        onChange={handleGenerationOptionsChange}
       />
       <div>
         <strong>{t("dialogs.load.loadFrom")}</strong>{" "}
@@ -65,6 +96,20 @@ export const LoadMapDialog: React.FC = () => {
       <p>
         <Trans i18nKey="dialogs.load.storageHint" />
       </p>
+
+      <div>
+        <strong>{t("dialogs.load.generationOptions")}</strong>{" "}
+        <button
+          id="loadGenerationOptions"
+          type="button"
+          data-tip={t("dialogs.load.generationOptionsTip")}
+          disabled={isGenerating}
+          onClick={handleLoadGenerationOptions}
+        >
+          {t("dialogs.load.generationOptionsLoad")}
+        </button>
+      </div>
+      <p>{t("dialogs.load.generationOptionsHint")}</p>
 
       <div id="loadFromDropbox">
         <p>

@@ -1754,7 +1754,18 @@
       "copyLink": "Copy link to the clipboard",
       "fromUrlLabel": "Provide URL to map file:",
       "invalidUrl": "Please provide a valid URL",
-      "corsNote": "Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and provide a direct link"
+      "corsNote": "Please note server should allow CORS for file to be loaded. If CORS is not allowed, save file to Dropbox and provide a direct link",
+      "generationOptions": "Load generation options",
+      "generationOptionsLoad": "file",
+      "generationOptionsTip": "Load a previously exported generation-options JSON and apply it to Options",
+      "generationOptionsHint": "This applies seed, heightmap, cultures, and related generation settings. Generate a new map afterwards to build a world from them.",
+      "generationOptionsApplied": "Generation options applied. Generate a new map to use them.",
+      "generationOptionsErrors": {
+        "invalidJson": "The selected file is not valid JSON",
+        "invalidFormat": "The selected file is not a generation-options export",
+        "emptyOptions": "The selected file does not contain usable generation options",
+        "busy": "Generation options cannot be applied while a map is being generated"
+      }
     },
     "export": {
       "downloadImage": "Download image",
