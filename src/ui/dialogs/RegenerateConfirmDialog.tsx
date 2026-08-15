@@ -119,6 +119,14 @@ export const RegenerateConfirmDialog: React.FC = () => {
     config.landRouteElevationAversion !== undefined ||
     config.internationalRoutePolicy !== undefined;
   const showCharacterEntropy = config.characterEntropy !== undefined;
+  const internationalRouteNoteKey =
+    internationalRoutePolicy === "peacefulNeighbors"
+      ? "internationalPeacefulNote"
+      : internationalRoutePolicy === "allAdjacentStates"
+        ? "internationalAllAdjacentNote"
+        : internationalRoutePolicy === "none"
+          ? "internationalNoneNote"
+          : "internationalDefaultNote";
 
   return (
     <Dialog
@@ -200,16 +208,22 @@ export const RegenerateConfirmDialog: React.FC = () => {
                   value={internationalRoutePolicy}
                   onChange={event => {
                     const value = event.target.value;
-                    if (value === "none" || value === "peacefulNeighbors" || value === "settlementDefault") {
+                    if (
+                      value === "none" ||
+                      value === "peacefulNeighbors" ||
+                      value === "allAdjacentStates" ||
+                      value === "settlementDefault"
+                    ) {
                       setInternationalRoutePolicy(value);
                     }
                   }}
                 >
                   <option value="settlementDefault">{t("dialogs.regenerate.internationalDefault")}</option>
                   <option value="peacefulNeighbors">{t("dialogs.regenerate.internationalPeaceful")}</option>
+                  <option value="allAdjacentStates">{t("dialogs.regenerate.internationalAllAdjacent")}</option>
                   <option value="none">{t("dialogs.regenerate.internationalNone")}</option>
                 </select>
-                <p>{t("dialogs.regenerate.internationalNote")}</p>
+                <p>{t(`dialogs.regenerate.${internationalRouteNoteKey}`)}</p>
               </div>
             )}
           </div>

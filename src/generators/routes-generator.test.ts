@@ -270,6 +270,28 @@ describe("RoutesModule settlement connections", () => {
     expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
   });
 
+  it("connects hostile neighboring States with the all-adjacent policy", () => {
+    worldContext.pack.cells.state = [1, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 },
+      { i: 2, cell: 1, x: 10, y: 0, state: 2, feature: 1, capital: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.pack.states = [
+      { i: 0, name: "Neutrals" },
+      { i: 1, name: "Alpha", neighbors: [2], diplomacy: ["x", "x", "Enemy"] },
+      { i: 2, name: "Beta", neighbors: [1], diplomacy: ["x", "Enemy", "x"] }
+    ] as typeof worldContext.pack.states;
+    worldContext.options = {
+      initialSettlementPattern: "scattered",
+      internationalRoutePolicy: "allAdjacentStates"
+    } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
+      expect.objectContaining({ group: "trails", cells: [0, 1], international: true })
+    ]);
+  });
+
   it("does not route an international trail through a third State", () => {
     worldContext.pack.cells.c = [[1], [0, 2], [1]];
     worldContext.pack.cells.h = [25, 25, 25];
@@ -333,7 +355,7 @@ describe("RoutesModule settlement water connections", () => {
     expect(route).toBeUndefined();
   });
 
-  it("connects peaceful neighboring scattered States through shared sea access", () => {
+  it("connects hostile neighboring scattered States through shared sea access under the all-adjacent policy", () => {
     worldContext.pack = {
       cells: {
         c: [[1], [0, 2], [1]],
@@ -362,8 +384,8 @@ describe("RoutesModule settlement water connections", () => {
       ],
       states: [
         { i: 0, name: "Neutrals" },
-        { i: 1, name: "Alpha", neighbors: [2], diplomacy: ["x", "x", "Neutral"] },
-        { i: 2, name: "Beta", neighbors: [1], diplomacy: ["x", "Neutral", "x"] }
+        { i: 1, name: "Alpha", neighbors: [2], diplomacy: ["x", "x", "Enemy"] },
+        { i: 2, name: "Beta", neighbors: [1], diplomacy: ["x", "Enemy", "x"] }
       ],
       rivers: [],
       vertices: { c: [], p: [] },
@@ -372,13 +394,60 @@ describe("RoutesModule settlement water connections", () => {
     worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
     worldContext.options = {
       initialSettlementPattern: "scattered",
-      internationalRoutePolicy: "peacefulNeighbors",
+      internationalRoutePolicy: "allAdjacentStates",
       seaRouteGenerationMode: "augmented"
     } as typeof worldContext.options;
     worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
 
     expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
       expect.objectContaining({ group: "searoutes", cells: [0, 1, 2], international: true })
+    ]);
+  });
+
+  it("joins same-state ports on different landmasses with a searoute", () => {
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 0, 25],
+        biomeCode: [1, 0, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [1, 0, 2],
+        v: [[], [], []],
+        f: [2, 1, 3],
+        state: [1, 0, 1],
+        haven: [1, 0, 1],
+        g: [0, 0, 0],
+        t: [1, -1, 1],
+        r: [0, 0, 0],
+        fl: [0, 0, 0],
+        routes: {}
+      },
+      burgs: [
+        { i: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 2, port: 1 },
+        { i: 2, cell: 2, x: 20, y: 0, state: 1, feature: 3, port: 1 }
+      ],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Alpha" }
+      ],
+      rivers: [],
+      vertices: { c: [], p: [] },
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
+    worldContext.options = {
+      initialSettlementPattern: "standard",
+      seaRouteGenerationMode: "augmented"
+    } as typeof worldContext.options;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
+      expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] })
     ]);
   });
 

@@ -468,6 +468,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     GenerationPipeline.Cultures.expand(state);
     GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.States.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Burgs.shift({ connectStateLandmasses: true });
     GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, state);

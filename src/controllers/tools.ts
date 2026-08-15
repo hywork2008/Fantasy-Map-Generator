@@ -657,7 +657,7 @@ function regenerateSettlementPattern(): void {
     GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.States.generate(worldContext, viewContext, appServices, state);
-    GenerationPipeline.Burgs.shift();
+    GenerationPipeline.Burgs.shift({ connectStateLandmasses: true });
     GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, state);
@@ -830,7 +830,7 @@ async function regenerateBurgs(): Promise<void> {
     }
 
     pack.burgs = newBurgs;
-    GenerationPipeline.Burgs.shift();
+    GenerationPipeline.Burgs.shift({ connectStateLandmasses: true });
 
     states
       .filter((s: State) => s.i && !s.removed && !s.capital)

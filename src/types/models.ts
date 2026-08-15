@@ -163,9 +163,10 @@ export type SeaRouteGenerationMode = "legacy" | "augmented";
  * Controls whether route generation may add cross-State connections.
  * - settlementDefault preserves the historic behavior: only standard settlement maps add sparse international routes.
  * - peacefulNeighbors additionally joins eligible adjacent States that are on good terms.
+ * - allAdjacentStates joins every adjacent State pair with low-grade trails and sea lanes, regardless of relations.
  * - none suppresses automatic cross-State routes altogether.
  */
-export type InternationalRoutePolicy = "settlementDefault" | "peacefulNeighbors" | "none";
+export type InternationalRoutePolicy = "settlementDefault" | "peacefulNeighbors" | "allAdjacentStates" | "none";
 
 /**
  * Land-route Dijkstra cost model for roads/trails generation.

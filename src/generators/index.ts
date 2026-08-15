@@ -101,7 +101,8 @@ function runStatesGenerate(
 ): WorldStateAt<"states"> {
   States.generate(worldContext, viewContext, appServices, state);
   // Lake-port representation depends on the State ownership established above.
-  Burgs.shift();
+  // Multi-landmass states also receive a sea port on each inhabited island here.
+  Burgs.shift({ connectStateLandmasses: true });
   return state as unknown as WorldStateAt<"states">;
 }
 

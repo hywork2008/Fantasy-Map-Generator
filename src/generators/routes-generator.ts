@@ -498,7 +498,14 @@ class RoutesModule {
    */
   private getInternationalRoutePolicy(): InternationalRoutePolicy {
     const policy = this.worldContext.options.internationalRoutePolicy;
-    if (policy === "none" || policy === "peacefulNeighbors" || policy === "settlementDefault") return policy;
+    if (
+      policy === "none" ||
+      policy === "peacefulNeighbors" ||
+      policy === "allAdjacentStates" ||
+      policy === "settlementDefault"
+    ) {
+      return policy;
+    }
     return "settlementDefault";
   }
 
@@ -520,10 +527,8 @@ class RoutesModule {
     );
   }
 
-  /** Returns each mutually neighboring State pair whose bilateral relation permits a route. */
-  private getPeacefulNeighborStatePairs(): [State, State][] {
-    if (this.getInternationalRoutePolicy() !== "peacefulNeighbors") return [];
-
+  /** Returns each mutually neighboring State pair exactly once, without applying diplomacy policy. */
+  private getAdjacentStatePairs(): [State, State][] {
     const states = this.worldContext.pack.states ?? [];
     const pairs: [State, State][] = [];
     for (const state of states) {
@@ -532,11 +537,23 @@ class RoutesModule {
         const neighbor = states[neighborId];
         if (!neighbor?.i || neighbor.removed || state.i >= neighbor.i) continue;
         if (!neighbor.neighbors?.includes(state.i)) continue;
-        if (!this.hasPeacefulRouteRelation(state, neighbor)) continue;
         pairs.push([state, neighbor]);
       }
     }
     return pairs;
+  }
+
+  /** Returns adjacent State pairs whose bilateral relation permits a route. */
+  private getPeacefulNeighborStatePairs(): [State, State][] {
+    if (this.getInternationalRoutePolicy() !== "peacefulNeighbors") return [];
+    return this.getAdjacentStatePairs().filter(([firstState, secondState]) =>
+      this.hasPeacefulRouteRelation(firstState, secondState)
+    );
+  }
+
+  /** Returns all adjacent State pairs for low-grade cross-border routes, including hostile neighbors. */
+  private getAllAdjacentStatePairs(): [State, State][] {
+    return this.getInternationalRoutePolicy() === "allAdjacentStates" ? this.getAdjacentStatePairs() : [];
   }
 
   private hasPeacefulRouteRelation(from: State, to: State): boolean {
@@ -1049,10 +1066,19 @@ class RoutesModule {
    * State cannot consume the one candidate edge that would otherwise connect two eligible States.
    */
   private generatePeacefulNeighborTrails(connections: Map<string, boolean>) {
+    return this.generateNeighborTrails(connections, this.getPeacefulNeighborStatePairs());
+  }
+
+  /** Adds low-grade border trails for all adjacent States, irrespective of their current diplomatic relation. */
+  private generateAllAdjacentStateTrails(connections: Map<string, boolean>) {
+    return this.generateNeighborTrails(connections, this.getAllAdjacentStatePairs());
+  }
+
+  private generateNeighborTrails(connections: Map<string, boolean>, statePairs: ReadonlyArray<[State, State]>) {
     const { pack } = this.worldContext;
     const trails: Route[] = [];
 
-    for (const [firstState, secondState] of this.getPeacefulNeighborStatePairs()) {
+    for (const [firstState, secondState] of statePairs) {
       const firstBurgs = pack.burgs.filter(burg => Boolean(burg?.i && !burg.removed && burg.state === firstState.i));
       const secondBurgs = pack.burgs.filter(burg => Boolean(burg?.i && !burg.removed && burg.state === secondState.i));
       const pairs = this.getSortedBurgPairs(firstBurgs, secondBurgs, (firstBurg, secondBurg) =>
@@ -1140,10 +1166,26 @@ class RoutesModule {
     connections: Map<string, boolean>,
     seaRouteGenerationMode: SeaRouteGenerationMode
   ) {
+    return this.generateNeighborSeaRoutes(connections, seaRouteGenerationMode, this.getPeacefulNeighborStatePairs());
+  }
+
+  /** Adds low-grade sea lanes for all adjacent States, irrespective of their current diplomatic relation. */
+  private generateAllAdjacentStateSeaRoutes(
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: SeaRouteGenerationMode
+  ) {
+    return this.generateNeighborSeaRoutes(connections, seaRouteGenerationMode, this.getAllAdjacentStatePairs());
+  }
+
+  private generateNeighborSeaRoutes(
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: SeaRouteGenerationMode,
+    statePairs: ReadonlyArray<[State, State]>
+  ) {
     const { pack } = this.worldContext;
     const seaRoutes: Route[] = [];
 
-    for (const [firstState, secondState] of this.getPeacefulNeighborStatePairs()) {
+    for (const [firstState, secondState] of statePairs) {
       const firstPorts = pack.burgs.filter(burg =>
         Boolean(burg?.i && !burg.removed && burg.state === firstState.i && burg.port && pack.cells.haven[burg.cell])
       );
@@ -1338,8 +1380,10 @@ class RoutesModule {
     const trails = this.generateTrails(landConnections);
     const internationalTrails = this.generateInternationalTrails(landConnections);
     const peacefulNeighborTrails = this.generatePeacefulNeighborTrails(landConnections);
+    const allAdjacentStateTrails = this.generateAllAdjacentStateTrails(landConnections);
     const seaRoutes = this.generateSeaRoutes(waterConnections, seaRouteGenerationMode);
     const peacefulNeighborSeaRoutes = this.generatePeacefulNeighborSeaRoutes(waterConnections, seaRouteGenerationMode);
+    const allAdjacentStateSeaRoutes = this.generateAllAdjacentStateSeaRoutes(waterConnections, seaRouteGenerationMode);
     const riverRoutes = this.generateRiverRoutes();
     const pointsArray = this.preparePointsArray();
 
@@ -1355,7 +1399,11 @@ class RoutesModule {
       routes.push({ i: routes.length, group: "trails", feature, points, cells: cells! });
     }
 
-    for (const { feature, cells, merged } of this.mergeRoutes([...internationalTrails, ...peacefulNeighborTrails])) {
+    for (const { feature, cells, merged } of this.mergeRoutes([
+      ...internationalTrails,
+      ...peacefulNeighborTrails,
+      ...allAdjacentStateTrails
+    ])) {
       if (merged) continue;
       const points = this.getPoints("trails", cells!, pointsArray);
       routes.push({ i: routes.length, group: "trails", feature, points, cells: cells!, international: true });
@@ -1363,7 +1411,8 @@ class RoutesModule {
 
     for (const { feature, cells, merged, international } of this.mergeRoutes([
       ...seaRoutes,
-      ...peacefulNeighborSeaRoutes
+      ...peacefulNeighborSeaRoutes,
+      ...allAdjacentStateSeaRoutes
     ])) {
       if (merged) continue;
       const points = this.getPoints("searoutes", cells!, pointsArray);

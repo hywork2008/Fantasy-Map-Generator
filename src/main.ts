@@ -1148,11 +1148,11 @@ function getGenerationStages(): Array<() => Promise<void>> {
       if (worldContext.options.initialSettlementPattern !== "standard") {
         Routes.generate(worldContext, viewContext, appServices, state);
         States.generate(worldContext, viewContext, appServices, state);
-        Burgs.shift();
+        Burgs.shift({ connectStateLandmasses: true });
         Routes.generate(worldContext, viewContext, appServices, state);
       } else {
         States.generate(worldContext, viewContext, appServices, state);
-        Burgs.shift();
+        Burgs.shift({ connectStateLandmasses: true });
         Routes.generate(worldContext, viewContext, appServices, state);
       }
       Religions.generate(worldContext, viewContext, appServices, state);

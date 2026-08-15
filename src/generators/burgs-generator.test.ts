@@ -6,6 +6,7 @@ import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { Burgs } from "./burgs-generator";
 import type { FrontierSegment } from "./frontierAnalysis";
+import { Names } from "./names-generator";
 
 // ---------------------------------------------------------------------------
 // Minimal pack geometry used across all scenarios
@@ -659,6 +660,308 @@ describe("BurgsModule.shift — river-bank shift", () => {
     const burg = worldContext.pack.burgs[1];
     // Still shifted (axis-aligned fallback), just not crashing on the missing course.
     expect(burg.x === 5 && burg.y === 5).toBe(false);
+  });
+});
+
+describe("BurgsModule.shift — multi-landmass state ports", () => {
+  beforeEach(() => {
+    worldContext.grid = { cells: { temp: new Array(10).fill(20) } } as unknown as Grid;
+    vi.spyOn(Names, "getCulture").mockReturnValue("Harbor");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // Continent (feature 10) + isle (feature 11) share ocean 2. State 1 already has an
+  // inland town on each landmass and owns a free harbour cell on both coasts.
+  const makeArchipelagoPack = () =>
+    ({
+      burgs: [
+        0 as unknown as Burg,
+        { i: 1, cell: 1, x: 5, y: 5, capital: 1, state: 1, feature: 10 },
+        { i: 2, cell: 3, x: 25, y: 5, capital: 0, state: 1, feature: 11 }
+      ],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3, 4, 5]),
+        h: [0, 20, 20, 20, 20, 19],
+        haven: [0, 0, 5, 0, 5, 0],
+        harbor: [0, 0, 1, 0, 1, 0],
+        f: [0, 10, 10, 11, 11, 2],
+        g: [0, 0, 0, 0, 0, 0],
+        r: [0, 0, 0, 0, 0, 0],
+        fl: [0, 0, 0, 0, 0, 0],
+        s: [0, 10, 20, 10, 15, 0],
+        pop: [0, 4, 4, 4, 4, 0],
+        burg: [0, 1, 0, 2, 0, 0],
+        state: [0, 1, 1, 1, 1, 0],
+        culture: [0, 1, 1, 1, 1, 0],
+        p: [
+          [0, 0],
+          [5, 5],
+          [10, 5],
+          [25, 5],
+          [30, 5],
+          [18, 5]
+        ] as [number, number][],
+        v: [[], [], [0, 1], [], [2, 3], []]
+      },
+      features: [
+        null,
+        null,
+        { i: 2, type: "ocean", cells: 8 },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        { i: 10, type: "island", group: "continent", cells: 20 },
+        { i: 11, type: "island", group: "isle", cells: 4 }
+      ],
+      vertices: {
+        c: [
+          [2, 5],
+          [2, 5],
+          [4, 5],
+          [4, 5]
+        ],
+        p: [
+          [10, 0],
+          [10, 10],
+          [30, 0],
+          [30, 10]
+        ] as [number, number][]
+      },
+      rivers: [],
+      states: [{ i: 0 }, { i: 1, culture: 1 }],
+      cultures: [
+        { i: 0, base: 0 },
+        { i: 1, base: 0 }
+      ]
+    }) as unknown as PackedGraph;
+
+  it("founds a sea port on each inhabited landmass of a multi-island state", () => {
+    worldContext.pack = makeArchipelagoPack();
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    const { burgs, cells } = worldContext.pack;
+    const ports = burgs.filter(burg => burg.i && burg.port);
+    const portLandmasses = new Set(ports.map(burg => cells.f[burg.cell]));
+
+    expect(portLandmasses.has(10)).toBe(true); // continent harbour
+    expect(portLandmasses.has(11)).toBe(true); // isle harbour
+    expect(ports.every(burg => burg.port === 2)).toBe(true); // same ocean — searoutes can join them
+    const continentPort = burgs.find(burg => burg.cell === 2 && burg.port === 2);
+    const islePort = burgs.find(burg => burg.cell === 4 && burg.port === 2);
+    expect(continentPort).toBeDefined();
+    expect(islePort).toBeDefined();
+    expect([continentPort?.x, continentPort?.y]).toEqual([10, 5]); // stay on land cell centre
+    expect([islePort?.x, islePort?.y]).toEqual([30, 5]);
+    expect(burgs[1].port).toBeUndefined(); // original inland capital stays inland
+    expect(burgs[2].port).toBeUndefined(); // original inland isle town stays inland
+  });
+
+  it("does not found extra towns when each landmass already has a coastal burg", () => {
+    const pack = makeArchipelagoPack();
+    pack.burgs[1].cell = 2;
+    pack.burgs[1].x = 10;
+    pack.burgs[1].y = 5;
+    pack.burgs[2].cell = 4;
+    pack.burgs[2].x = 30;
+    pack.burgs[2].y = 5;
+    pack.cells.burg = [0, 0, 1, 0, 2, 0] as unknown as PackedGraph["cells"]["burg"];
+    worldContext.pack = pack;
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    expect(worldContext.pack.burgs.filter(burg => burg.i)).toHaveLength(2);
+    expect(worldContext.pack.burgs[1].port).toBe(2);
+    expect(worldContext.pack.burgs[2].port).toBe(2);
+  });
+
+  it("does not invent ports for a state that occupies only one landmass", () => {
+    const pack = makeArchipelagoPack();
+    pack.burgs[2].state = 2;
+    pack.burgs[2].feature = 11;
+    pack.cells.state = [0, 1, 1, 2, 2, 0] as unknown as PackedGraph["cells"]["state"];
+    pack.states = [{ i: 0 }, { i: 1, culture: 1 }, { i: 2, culture: 1 }] as unknown as PackedGraph["states"];
+    worldContext.pack = pack;
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    expect(worldContext.pack.burgs.filter(burg => burg.i)).toHaveLength(2);
+    expect(worldContext.pack.burgs[1].port).toBeUndefined();
+    expect(worldContext.pack.burgs[2].port).toBeUndefined();
+  });
+
+  it("gives each state a port on a shared island when connectStateLandmasses is on", () => {
+    worldContext.pack = {
+      burgs: [
+        0 as unknown as Burg,
+        { i: 1, cell: 1, x: 5, y: 5, capital: 1, state: 1, feature: 10 },
+        { i: 2, cell: 2, x: 15, y: 5, capital: 0, state: 2, feature: 10 },
+        { i: 3, cell: 3, x: 25, y: 5, capital: 0, state: 1, feature: 11 },
+        { i: 4, cell: 4, x: 35, y: 5, capital: 1, state: 2, feature: 11 }
+      ],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3, 4, 5]),
+        h: [0, 20, 20, 20, 20, 19],
+        haven: [0, 5, 5, 5, 5, 0],
+        harbor: [0, 1, 2, 2, 1, 0],
+        f: [0, 10, 10, 11, 11, 2],
+        g: [0, 0, 0, 0, 0, 0],
+        r: [0, 0, 0, 0, 0, 0],
+        fl: [0, 0, 0, 0, 0, 0],
+        s: [0, 10, 10, 10, 10, 0],
+        burg: [0, 1, 2, 3, 4, 0],
+        state: [0, 1, 2, 1, 2, 0],
+        culture: [0, 1, 1, 1, 1, 0],
+        p: [
+          [0, 0],
+          [5, 5],
+          [15, 5],
+          [25, 5],
+          [35, 5],
+          [20, 10]
+        ] as [number, number][],
+        v: [[], [0, 1], [2, 3], [4, 5], [6, 7], []]
+      },
+      features: [
+        null,
+        null,
+        { i: 2, type: "ocean", cells: 8 },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        { i: 10, type: "island", group: "continent", cells: 20 },
+        { i: 11, type: "island", group: "isle", cells: 4 }
+      ],
+      vertices: {
+        c: [
+          [1, 5],
+          [1, 5],
+          [2, 5],
+          [2, 5],
+          [3, 5],
+          [3, 5],
+          [4, 5],
+          [4, 5]
+        ],
+        p: [
+          [5, 0],
+          [5, 10],
+          [15, 0],
+          [15, 10],
+          [25, 0],
+          [25, 10],
+          [35, 0],
+          [35, 10]
+        ] as [number, number][]
+      },
+      rivers: [],
+      states: [{ i: 0 }, { i: 1, culture: 1 }, { i: 2, culture: 1 }],
+      cultures: [
+        { i: 0, base: 0 },
+        { i: 1, base: 0 }
+      ]
+    } as unknown as PackedGraph;
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    const ports = worldContext.pack.burgs.filter(burg => burg.i && burg.port);
+    const keys = ports.map(burg => `${burg.state}:${worldContext.pack.cells.f[burg.cell]}`).sort();
+    expect(keys).toEqual(["1:10", "1:11", "2:10", "2:11"]);
+  });
+
+  it("skips lake islands when deciding which landmasses need a sea port", () => {
+    const pack = makeArchipelagoPack();
+    pack.features[11] = { i: 11, type: "island", group: "lake_island", cells: 4 } as PackedGraph["features"][number];
+    worldContext.pack = pack;
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    expect(worldContext.pack.burgs.filter(burg => burg.i)).toHaveLength(2);
+    expect(worldContext.pack.burgs.some(burg => burg.cell === 4)).toBe(false);
+  });
+
+  it("founds a harbour town on a populated state island that has no burg at all", () => {
+    const pack = makeArchipelagoPack();
+    pack.burgs = [0 as unknown as Burg, { i: 1, cell: 1, x: 5, y: 5, capital: 1, state: 1, feature: 10 }];
+    pack.cells.burg = [0, 1, 0, 0, 0, 0] as unknown as PackedGraph["cells"]["burg"];
+    pack.cells.pop = [0, 4, 4, 4, 4, 0] as unknown as PackedGraph["cells"]["pop"];
+    worldContext.pack = pack;
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    const { burgs, cells } = worldContext.pack;
+    const islandPort = burgs.find(burg => burg.i && cells.f[burg.cell] === 11 && burg.port);
+    expect(islandPort).toBeDefined();
+    expect(islandPort?.cell).toBe(4);
+    expect(islandPort?.port).toBe(2);
+    expect([islandPort?.x, islandPort?.y]).toEqual([30, 5]); // not slid onto the drawn coastline
+    expect(burgs.some(burg => burg.cell === 2 && burg.port === 2)).toBe(true);
+  });
+
+  it("sits a harbour town next to its haven, not at the centre of a large river cell", () => {
+    // Cell 2 is a wide coastal cell: centre at x=0 (by a river), ocean edge at x=20.
+    // Leaving the burg at the centre would stretch the port/searoute across inland
+    // neighbours that are not ports.
+    const pack = makeArchipelagoPack();
+    pack.burgs = [0 as unknown as Burg, { i: 1, cell: 1, x: 5, y: 5, capital: 1, state: 1, feature: 10 }];
+    pack.cells.burg = [0, 1, 0, 0, 0, 0] as unknown as PackedGraph["cells"]["burg"];
+    pack.cells.pop = [0, 4, 4, 4, 4, 0] as unknown as PackedGraph["cells"]["pop"];
+    pack.cells.p = [
+      [0, 0],
+      [5, 5],
+      [0, 5],
+      [25, 5],
+      [30, 5],
+      [24, 5]
+    ] as PackedGraph["cells"]["p"];
+    pack.cells.v = [[], [], [0, 1], [], [2, 3], []] as PackedGraph["cells"]["v"];
+    pack.vertices = {
+      c: [
+        [2, 5],
+        [2, 5],
+        [4, 5],
+        [4, 5]
+      ],
+      p: [
+        [20, 0],
+        [20, 10],
+        [32, 0],
+        [32, 10]
+      ]
+    } as PackedGraph["vertices"];
+    worldContext.pack = pack;
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    const continentPort = worldContext.pack.burgs.find(burg => burg.cell === 2 && burg.port === 2);
+    expect(continentPort).toBeDefined();
+    expect(continentPort!.x).toBeCloseTo(18, 5); // 2 units inland of the x=20 shore
+    expect(continentPort!.y).toBeCloseTo(5, 5);
+    expect(continentPort!.x).toBeGreaterThan(10); // not left at the river-side centre
+  });
+
+  it("does not found a town on an empty claimed rock with no rural population", () => {
+    const pack = makeArchipelagoPack();
+    pack.burgs = [0 as unknown as Burg, { i: 1, cell: 1, x: 5, y: 5, capital: 1, state: 1, feature: 10 }];
+    pack.cells.burg = [0, 1, 0, 0, 0, 0] as unknown as PackedGraph["cells"]["burg"];
+    pack.cells.pop = [0, 4, 4, 0, 0, 0] as unknown as PackedGraph["cells"]["pop"];
+    worldContext.pack = pack;
+
+    Burgs.shift({ connectStateLandmasses: true });
+
+    expect(worldContext.pack.burgs.filter(burg => burg.i)).toHaveLength(1);
+    expect(worldContext.pack.burgs.some(burg => burg.cell === 4)).toBe(false);
   });
 });
 

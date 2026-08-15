@@ -50,6 +50,20 @@ const MIN_LAKE_PORT_SHARE = 0.003;
 const MIN_LAKE_PORT_CELLS = 4;
 const MIN_LAKE_PORTS = 2;
 const MAX_LAKE_PORTS = 6;
+/**
+ * Rural `cells.pop` units that make a burg-less state holding count as a
+ * settled overseas landmass. Cell Info people = pop × populationRate
+ * (default 1000), so 1 unit is about a hamlet.
+ */
+const MIN_OVERSEAS_RURAL_POP = 1;
+/**
+ * Keep a newly founded harbour town this many map units inland of the voronoi
+ * shore. The SVG coastline is a smoothed path inside the raw cell edge; a
+ * 95% slide puts the icon in the drawn sea on small isles, while leaving the
+ * town at the centre of a large river cell that only nicks the ocean stretches
+ * the port/searoute to a distant coastal neighbour.
+ */
+const MIN_PORT_INLAND_GAP = 2;
 
 interface StrategicContext {
   frontiers: Map<number, FrontierSegment[]>;
@@ -67,13 +81,26 @@ type PortCandidate = {
   preferred: boolean; // safe harbour, capital harbour, or river port — promoted unconditionally
 };
 
+export type BurgShiftOptions = {
+  /**
+   * After states own territory, a polity that already has towns on two or more
+   * sea landmasses (continent / island / isle) must also have a sea port on
+   * each of those landmasses so intra-state searoutes can form.
+   */
+  connectStateLandmasses?: boolean;
+};
+
 class BurgModule {
   worldContext: WorldContext = worldContext;
   viewContext: Readonly<ViewContext> = viewContext;
   appServices: AppServices = appServices;
+  /** Burgs founded as overseas harbours: keep the town on the cell centre; the anchor sits at sea. */
+  private landmassPortBurgIds = new Set<number>();
 
   // Assign port feature ids to burgs and position them appropriately
-  shift() {
+  shift(options: BurgShiftOptions = {}) {
+    if (options.connectStateLandmasses) this.ensureStateLandmassPorts();
+
     const { cells, burgs } = this.worldContext.pack;
     const riversById = new Map(this.worldContext.pack.rivers.map(river => [river.i, river]));
     for (const burg of burgs) {
@@ -84,7 +111,9 @@ class BurgModule {
     for (const candidates of candidatesByWater.values()) {
       if (!candidates.length) continue;
       const lockedLakePorts = candidates[0].waterKind === "lake" ? this.getLockedLakePorts(candidates[0].haven) : [];
-      for (const candidate of this.selectPorts(candidates, lockedLakePorts)) {
+      for (const candidate of this.selectPorts(candidates, lockedLakePorts, {
+        byState: Boolean(options.connectStateLandmasses)
+      })) {
         this.promoteToPort(candidate, riversById);
       }
     }
@@ -96,6 +125,8 @@ class BurgModule {
       burg.x = x;
       burg.y = y;
     }
+
+    this.landmassPortBurgIds.clear();
   }
 
   /**
@@ -180,7 +211,154 @@ class BurgModule {
     );
   }
 
-  private selectPorts(candidates: PortCandidate[], lockedLakePorts: Burg[] = []): PortCandidate[] {
+  /**
+   * A state that already holds two or more sea landmasses (continent, island,
+   * or isle) needs a sea port on each settled one. Rural population is assigned
+   * from habitability before burg placement, and states later flood-fill across
+   * water, so a fertile island can be fully owned and populated with zero
+   * towns. Those holdings still need a harbour or they stay off the searoute
+   * network.
+   */
+  ensureStateLandmassPorts(): void {
+    const { pack } = this.worldContext;
+    const { burgs, cells, features } = pack;
+    if (!burgs?.length || !cells.i?.length || !features?.length) return;
+
+    const holdings = new Map<string, { stateId: number; landFeatureId: number; pop: number; hasBurg: boolean }>();
+    const holdingKey = (stateId: number, landFeatureId: number) => `${stateId}:${landFeatureId}`;
+    const addHolding = (stateId: number, landFeatureId: number) => {
+      const key = holdingKey(stateId, landFeatureId);
+      const existing = holdings.get(key);
+      if (existing) return existing;
+      const created = { stateId, landFeatureId, pop: 0, hasBurg: false };
+      holdings.set(key, created);
+      return created;
+    };
+
+    for (const cellId of cells.i) {
+      if (cells.h[cellId] < 20) continue;
+      const stateId = cells.state[cellId];
+      if (!stateId) continue;
+      const landFeatureId = this.getSeaLandmassId(cells.f[cellId]);
+      if (landFeatureId === null) continue;
+      addHolding(stateId, landFeatureId).pop += cells.pop?.[cellId] ?? 0;
+    }
+
+    for (const burg of burgs) {
+      if (!burg.i || burg.removed || !burg.state) continue;
+      const landFeatureId = this.getSeaLandmassId(cells.f[burg.cell]);
+      if (landFeatureId === null) continue;
+      addHolding(burg.state, landFeatureId).hasBurg = true;
+    }
+
+    const landFeaturesByState = new Map<number, Set<number>>();
+    for (const holding of holdings.values()) {
+      if (!holding.hasBurg && holding.pop < MIN_OVERSEAS_RURAL_POP) continue;
+      const owned = landFeaturesByState.get(holding.stateId);
+      if (owned) owned.add(holding.landFeatureId);
+      else landFeaturesByState.set(holding.stateId, new Set([holding.landFeatureId]));
+    }
+
+    for (const [stateId, landFeatures] of landFeaturesByState) {
+      if (landFeatures.size < 2) continue;
+      for (const landFeatureId of landFeatures) {
+        if (this.stateHasSeaPortCandidate(stateId, landFeatureId)) continue;
+        const cell = this.pickBestStateHarborCell(stateId, landFeatureId);
+        if (cell === null) continue;
+        this.addGeneratedBurg(cell, stateId);
+      }
+    }
+  }
+
+  private getSeaLandmassId(featureId: number): number | null {
+    const feature = this.worldContext.pack.features[featureId];
+    if (feature?.type !== "island" || feature.group === "lake_island") return null;
+    return feature.i ?? featureId;
+  }
+
+  private isViableSeaHarborCell(cellId: number): boolean {
+    const { cells, features } = this.worldContext.pack;
+    const haven = cells.haven[cellId];
+    if (!haven || !cells.harbor[cellId]) return false;
+    const feature = features[cells.f[haven]];
+    if (feature?.type !== "ocean" || feature.cells <= 1) return false;
+    if (this.worldContext.grid.cells.temp[cells.g[cellId]] <= 0) return false;
+    return this.elevationAllowsFormalHarbor(cellId);
+  }
+
+  private stateHasSeaPortCandidate(stateId: number, landFeatureId: number): boolean {
+    const { burgs, cells } = this.worldContext.pack;
+    return burgs.some(burg => {
+      if (!burg.i || burg.removed || this.getPortState(burg) !== stateId) return false;
+      if (cells.f[burg.cell] !== landFeatureId) return false;
+      if (burg.lock && burg.port && cells.haven[burg.cell]) {
+        const water = this.worldContext.pack.features[cells.f[cells.haven[burg.cell]]];
+        return water?.type === "ocean";
+      }
+      return this.isViableSeaHarborCell(burg.cell);
+    });
+  }
+
+  private pickBestStateHarborCell(stateId: number, landFeatureId: number): number | null {
+    const { cells } = this.worldContext.pack;
+    let best: number | null = null;
+    let bestHarbor = Number.POSITIVE_INFINITY;
+    let bestShore = Number.POSITIVE_INFINITY;
+    let bestSuitability = Number.NEGATIVE_INFINITY;
+    for (const cellId of cells.i) {
+      if (cells.state[cellId] !== stateId || cells.f[cellId] !== landFeatureId) continue;
+      if (cells.burg[cellId] || cells.h[cellId] < 20) continue;
+      if (!this.isViableSeaHarborCell(cellId)) continue;
+      const harbor = cells.harbor[cellId];
+      const shore = this.distanceFromCenterToHavenEdge(cellId);
+      const suitability = cells.s?.[cellId] ?? 0;
+      const betterHarbor = harbor < bestHarbor;
+      const closerShore = harbor === bestHarbor && shore < bestShore;
+      const betterSite = harbor === bestHarbor && shore === bestShore && suitability > bestSuitability;
+      const earlierCell =
+        harbor === bestHarbor && shore === bestShore && suitability === bestSuitability && cellId < (best ?? cellId);
+      if (betterHarbor || closerShore || betterSite || earlierCell) {
+        best = cellId;
+        bestHarbor = harbor;
+        bestShore = shore;
+        bestSuitability = suitability;
+      }
+    }
+    return best;
+  }
+
+  private addGeneratedBurg(cell: number, stateId: number): Burg {
+    const { pack } = this.worldContext;
+    const { cells } = pack;
+    const [x, y] = cells.p[cell];
+    const burgId = pack.burgs.length;
+    const culture = cells.culture[cell] || pack.states[stateId]?.culture || 0;
+    const name = Names.getCulture(culture);
+    const burg: Burg = {
+      cell,
+      x,
+      y,
+      i: burgId,
+      state: stateId,
+      culture,
+      name,
+      feature: cells.f[cell],
+      capital: 0,
+      security: 50,
+      sanitation: 50,
+      stateHistory: [stateId]
+    };
+    pack.burgs.push(burg);
+    cells.burg[cell] = burgId;
+    this.landmassPortBurgIds.add(burgId);
+    return burg;
+  }
+
+  private selectPorts(
+    candidates: PortCandidate[],
+    lockedLakePorts: Burg[] = [],
+    options: { byState?: boolean } = {}
+  ): PortCandidate[] {
     const { cells } = this.worldContext.pack;
     const rank = (candidate: PortCandidate) =>
       (candidate.burg.capital ? -1000 : 0) + (candidate.haven !== null ? cells.harbor[candidate.burg.cell] : 0);
@@ -192,13 +370,15 @@ class BurgModule {
     const promoted = new Set<PortCandidate>();
     for (const c of candidates) if (c.preferred) promoted.add(c);
 
-    const byLand = new Map<number, PortCandidate[]>();
+    const groups = new Map<string, PortCandidate[]>();
     for (const c of candidates) {
-      if (!byLand.has(c.landFeature)) byLand.set(c.landFeature, []);
-      byLand.get(c.landFeature)!.push(c);
+      const key = options.byState ? `${c.landFeature}:${this.getPortState(c.burg)}` : String(c.landFeature);
+      const group = groups.get(key);
+      if (group) group.push(c);
+      else groups.set(key, [c]);
     }
-    for (const group of byLand.values()) {
-      if (group.some(c => promoted.has(c))) continue; // landmass already has a port here
+    for (const group of groups.values()) {
+      if (group.some(c => promoted.has(c))) continue; // landmass (or state+landmass) already has a port here
       promoted.add(group.reduce((best, c) => (rank(c) < rank(best) ? c : best)));
     }
 
@@ -305,6 +485,12 @@ class BurgModule {
   private promoteToPort(candidate: PortCandidate, riversById: Map<number, { i: number; cells: number[] }>): void {
     const { burg, haven, portFeatureId } = candidate;
     burg.port = portFeatureId;
+    if (haven !== null && burg.i && this.landmassPortBurgIds.has(burg.i)) {
+      const [x, y] = this.getCoastalBurgPosition(burg.cell, haven);
+      burg.x = x;
+      burg.y = y;
+      return;
+    }
     const [x, y] =
       haven !== null ? this.getCloseToEdgePoint(burg.cell, haven) : this.shiftTowardsRiverBank(burg.cell, riversById);
     burg.x = x;
@@ -398,17 +584,52 @@ class BurgModule {
     ).length;
   }
 
-  private getCloseToEdgePoint(cell1: number, cell2: number): [number, number] {
+  private getSharedEdgeMidpoint(cell1: number, cell2: number): Point | null {
     const { cells, vertices } = this.worldContext.pack;
-    const [x0, y0] = cells.p[cell1];
     const commonVertices = cells.v[cell1].filter((vertex: number) =>
       vertices.c[vertex].some((c: number) => c === cell2)
     );
+    if (commonVertices.length < 2) return null;
     const [x1, y1] = vertices.p[commonVertices[0]];
     const [x2, y2] = vertices.p[commonVertices[1]];
-    const xEdge = (x1 + x2) / 2;
-    const yEdge = (y1 + y2) / 2;
-    return [rn(x0 + 0.95 * (xEdge - x0), 2), rn(y0 + 0.95 * (yEdge - y0), 2)];
+    if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return null;
+    return [(x1 + x2) / 2, (y1 + y2) / 2];
+  }
+
+  private distanceFromCenterToHavenEdge(cellId: number): number {
+    const { cells } = this.worldContext.pack;
+    const haven = cells.haven[cellId];
+    if (!haven) return 0;
+    const edge = this.getSharedEdgeMidpoint(cellId, haven);
+    if (!edge) return 0;
+    const [x, y] = cells.p[cellId];
+    return Math.hypot(x - edge[0], y - edge[1]);
+  }
+
+  private getCloseToEdgePoint(cell1: number, cell2: number): [number, number] {
+    const { cells } = this.worldContext.pack;
+    const [x0, y0] = cells.p[cell1];
+    const edge = this.getSharedEdgeMidpoint(cell1, cell2);
+    if (!edge) return [x0, y0];
+    return [rn(x0 + 0.95 * (edge[0] - x0), 2), rn(y0 + 0.95 * (edge[1] - y0), 2)];
+  }
+
+  /**
+   * Sit the town on land, just inland of the haven edge. Used for overseas
+   * harbour foundations: cell-centre is wrong on a large river cell that only
+   * nicks the ocean, and the legacy 95% slide is wrong on a tiny isle.
+   */
+  private getCoastalBurgPosition(cellId: number, haven: number): Point {
+    const { cells } = this.worldContext.pack;
+    const [x0, y0] = cells.p[cellId];
+    const edge = this.getSharedEdgeMidpoint(cellId, haven);
+    if (!edge) return [x0, y0];
+    const dx = edge[0] - x0;
+    const dy = edge[1] - y0;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= MIN_PORT_INLAND_GAP) return [x0, y0];
+    const t = (dist - MIN_PORT_INLAND_GAP) / dist;
+    return [rn(x0 + t * dx, 2), rn(y0 + t * dy, 2)];
   }
 
   private shiftTowardsRiverBank(cellId: number, riversById: Map<number, { i: number; cells: number[] }>): Point {
