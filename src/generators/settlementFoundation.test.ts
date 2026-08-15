@@ -41,7 +41,10 @@ describe("Settlement Foundation Module", () => {
     // Footprint is ~30% of habitable capacity (20 cells × 10).
     expect(result.settledCapacity).toBeCloseTo(result.totalCapacity * 0.3, 5);
     expect(result.settledCellCount).toBe(6);
-    expect(result.totalPopulation).toBeCloseTo(result.totalCapacity * 0.3, 5);
+    // Settled cells start at 60% of K, not 100% (saturation ≈ footprint).
+    expect(result.totalPopulation).toBeCloseTo(result.settledCapacity * 0.6, 5);
+    expect(result.totalPopulation).toBeCloseTo(result.totalCapacity * 0.18, 5);
+    expect(cells.pop[4]).toBeCloseTo(cells.capacity[4] * 0.6, 5);
     expect(result.plan.regions[0].cells[0]).toBe(4);
     expect(result.plan.nodes.length).toBeGreaterThanOrEqual(2);
     expect(result.plan.links).toHaveLength(result.plan.nodes.length - 1);

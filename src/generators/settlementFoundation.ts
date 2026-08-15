@@ -7,7 +7,7 @@ import type {
 } from "../types/settlementFoundation";
 import type { InitialSettlementPattern } from "../types/WorldState";
 import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
-import { createInitialPopulationCohorts } from "./initialPopulationCohorts";
+import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 type MutableNumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
@@ -105,10 +105,9 @@ export function createSettlementFoundation(
     .flatMap(region => region.cells.map(id => sitesById.get(id)))
     .filter((site): site is SettledSite => site !== undefined);
   const settledCapacity = selected.reduce((sum, site) => sum + site.capacity, 0);
-  // Population density within the oikoumene: global saturation vs settled capacity.
-  const populationScale = settledCapacity
-    ? Math.min(1, (totalCapacity * Math.max(saturation, 0.15)) / settledCapacity)
-    : 0;
+  // Density inside the oikoumene. Cap at 60% of K so frontier/marches do not
+  // start at full subsistence (saturation ≈ footprint used to yield scale 1).
+  const populationScale = startingPopulationScaleOfK(settledCapacity, totalCapacity, Math.max(saturation, 0.15));
   const totalPopulation = placeCohorts(cells, selected, populationScale);
   const nodes = createNodes(regions, sites, random);
   const links = createLinks(nodes, sites);

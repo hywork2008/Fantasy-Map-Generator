@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -120,5 +121,31 @@ describe("simulateDemographics birth floor (PR-P2)", () => {
     });
     simulateDemographics(1);
     expect(providerCalled).toBe(false);
+  });
+
+  it("does not bleed a rural cell that starts at carrying capacity", () => {
+    worldContext.pack.cells = {
+      i: new Uint16Array([0]),
+      pop: new Float32Array([100]),
+      children: new Float32Array([40]),
+      maleAdults: new Float32Array([22]),
+      femaleAdults: new Float32Array([23]),
+      elders: new Float32Array([15]),
+      capacity: new Float32Array([100]),
+      subsistenceCapacity: new Float32Array([100]),
+      state: new Uint16Array([1]),
+      h: new Uint8Array([30]),
+      s: new Uint8Array([20]),
+      r: new Uint16Array([0]),
+      c: [[]]
+    } as unknown as PackedGraph["cells"];
+    worldContext.pack.burgs = [];
+    simulationContext.currentMonth = 6;
+    simulationContext.currentDay = 15;
+
+    simulateDemographics(1);
+
+    expect(worldContext.pack.cells.pop[0]).toBeCloseTo(100, 5);
+    expect(worldContext.pack.cells.children[0]).toBeGreaterThan(0);
   });
 });

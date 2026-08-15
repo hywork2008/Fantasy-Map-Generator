@@ -10,6 +10,7 @@ import {
   setCellDemographics,
   splitDemographicBuckets
 } from "./demographicTransfer";
+import { replacementAwareBirths } from "./demographyBirths";
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
@@ -97,11 +98,15 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const currentTotal = children + maleAdults + femaleAdults + elders;
     const roomForGrowth = capacity > 0 ? Math.max(-0.5, 1 - currentTotal / capacity) : 0;
 
-    // If roomForGrowth is negative, it means starvation/disease. We increase deaths across the board.
-    if (roomForGrowth > 0) {
-      const births = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
-      children += births;
-    } else if (roomForGrowth < 0) {
+    if (roomForGrowth >= 0) {
+      children += replacementAwareBirths({
+        femaleAdults,
+        baseGrowthRate,
+        deltaYears,
+        roomForGrowth,
+        naturalDeaths: elderDeaths + childDeaths
+      });
+    } else {
       // OVERPOPULATION -> Try to migrate!
       const excessTotal = currentTotal - capacity;
 
@@ -189,14 +194,14 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const currentTotal = children + maleAdults + femaleAdults + elders;
     const roomForGrowth = effectiveCapacity > 0 ? Math.max(-0.5, 1 - currentTotal / effectiveCapacity) : 0;
 
-    if (roomForGrowth > 0) {
+    if (roomForGrowth >= 0) {
       // Garrison forts have negligible resident families — suppress natural increase.
       if (burg.group !== "fort") {
-        const continuousBirths = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
+        const continuousBirths = femaleAdults * baseGrowthRate * deltaYears * Math.max(0, roomForGrowth);
         // Optional economy birth-floor provider (urban pregnancy due). Never sum with continuous —
         // take the max so near-term pregnancies set a lower bound without double counting.
-        // docs/plan/urban-housing-system.md PR-P2 / K19.
-        const birthFloorProvider = getBirthFloorProvider();
+        // docs/plan/urban-housing-system.md PR-P2 / K19. Conception still requires spare room.
+        const birthFloorProvider = roomForGrowth > 0 ? getBirthFloorProvider() : null;
         const birthsFromPregnancy =
           birthFloorProvider && burg.i
             ? birthFloorProvider({
@@ -207,10 +212,16 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
                 deltaYears
               })
             : 0;
-        const births = Math.max(continuousBirths, Math.max(0, birthsFromPregnancy));
-        children += births;
+        children += replacementAwareBirths({
+          femaleAdults,
+          baseGrowthRate,
+          deltaYears,
+          roomForGrowth,
+          naturalDeaths: elderDeaths + childDeaths,
+          extraFloor: birthsFromPregnancy
+        });
       }
-    } else if (roomForGrowth < 0) {
+    } else {
       const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
       const before = children + maleAdults + femaleAdults + elders;
       children *= 1 - starvationRate;

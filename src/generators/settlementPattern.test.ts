@@ -49,7 +49,8 @@ describe("applyInitialSettlementPattern", () => {
 
     expect(result.settledCellCount).toBeLessThan(result.suitableCellCount);
     expect(Array.from(first.pop)).toEqual(Array.from(second.pop));
-    expect(result.totalPopulation).toBeCloseTo(result.totalCapacity * 0.3, 5);
+    expect(result.totalPopulation).toBeCloseTo(result.settledCapacity * 0.6, 5);
+    expect(result.totalPopulation).toBeLessThan(result.totalCapacity * 0.3);
     expect(first.capacity).toEqual(second.capacity);
     expect(Array.from(first.pop).filter(population => population === 0).length).toBeGreaterThan(1);
   });

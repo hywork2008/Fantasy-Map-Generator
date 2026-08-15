@@ -1,7 +1,7 @@
 import { getInitialSettlementPatternPreset } from "../data/initialSettlementPatterns";
 import type { SettlementFoundationPlan } from "../types/settlementFoundation";
 import type { InitialSettlementPattern } from "../types/WorldState";
-import { createInitialPopulationCohorts } from "./initialPopulationCohorts";
+import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
 import {
   createSettlementFoundation,
   type SettlementClimate,
@@ -115,7 +115,7 @@ export function applyInitialSettlementPattern(
     totalCapacity * saturation
   );
   const settledCapacity = selected.reduce((sum, candidate) => sum + candidate.capacity, 0);
-  const populationScale = settledCapacity > 0 ? Math.min(1, (totalCapacity * saturation) / settledCapacity) : 0;
+  const populationScale = startingPopulationScaleOfK(settledCapacity, totalCapacity, saturation);
   let totalPopulation = 0;
 
   for (const candidate of selected) {
