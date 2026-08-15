@@ -9,6 +9,7 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { RNGService } from "../utils/probabilityUtils";
+import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 const INVESTMENT_COST = 6;
 const EMERGENCY_RELIEF_COST = 3;
@@ -73,7 +74,7 @@ export function assessFrontierSupport(
   const state = states[project.stateId];
   const governance = getFrontierGovernance(simulation, project.stateId);
   const population = cells.pop[project.cellId] ?? 0;
-  const capacity = cells.capacity[project.cellId] ?? 0;
+  const capacity = getCellSubsistenceCapacity(cells, project.cellId);
   const danger = cells.danger[project.cellId] ?? 0;
   const disaster = rollDisaster(cells, project.cellId, population, capacity, danger, governance, rng);
   const recoveryCost = disaster ? Math.max(1, EMERGENCY_RELIEF_COST - mitigationFor(disaster, governance)) : 0;
@@ -149,7 +150,7 @@ function chooseInvestment(
     if ((cells.danger[cellId] ?? 0) > 100) return "fort";
     if ((cells.fl?.[cellId] ?? 0) >= 100) return "road";
     if ((cells.s[cellId] ?? 0) < 30) return "well";
-    if ((cells.pop[cellId] ?? 0) > (cells.capacity[cellId] ?? 1) * 0.8) return "sanitation";
+    if ((cells.pop[cellId] ?? 0) > getCellSubsistenceCapacity(cells, cellId) * 0.8) return "sanitation";
   }
   const candidates = FRONTIER_INVESTMENTS.filter(
     key => governance.investments[key] === Math.min(...FRONTIER_INVESTMENTS.map(k => governance.investments[k]))

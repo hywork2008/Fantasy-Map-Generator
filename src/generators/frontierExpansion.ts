@@ -12,6 +12,7 @@ import type { RNGService } from "../utils/probabilityUtils";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
+import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 import { allowsFrontierOutpost } from "./wildLandTags";
 
 const SETUP_COST = 8;
@@ -360,7 +361,10 @@ function getStateCandidates(
 
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
-    const available = estimateSourceContribution(cells.pop[sourceCellId] ?? 0, cells.capacity[sourceCellId] ?? 0);
+    const available = estimateSourceContribution(
+      cells.pop[sourceCellId] ?? 0,
+      getCellSubsistenceCapacity(cells, sourceCellId)
+    );
     if (available <= 0 && poolAvailable <= 0) continue;
 
     for (const { cellId, hops } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
@@ -379,7 +383,7 @@ function getStateCandidates(
 
   const candidates: InternalFrontierCandidateSummary[] = [];
   for (const [cellId, rawContributions] of contributionsByTarget) {
-    const targetLimit = (cells.capacity[cellId] ?? 0) * 0.25;
+    const targetLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
     let remaining = targetLimit;
     const contributions: FrontierContribution[] = [];
     for (const contribution of [...rawContributions].sort(
@@ -432,13 +436,16 @@ function getBestReachableColonistPool(
   const pools = new Map<number, number>();
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
-    const available = estimateSourceContribution(cells.pop[sourceCellId] ?? 0, cells.capacity[sourceCellId] ?? 0);
+    const available = estimateSourceContribution(
+      cells.pop[sourceCellId] ?? 0,
+      getCellSubsistenceCapacity(cells, sourceCellId)
+    );
     if (available <= 0 && poolAvailable <= 0) continue;
     for (const { cellId } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
       if (!isEligibleTarget(cells, frontier, cellId)) continue;
       // The pool is state-wide (not per-source-cell); seed each target with it once, then
       // let every reaching source cell add its own live-cell contribution on top.
-      const targetLimit = (cells.capacity[cellId] ?? 0) * 0.25;
+      const targetLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
       const base = pools.has(cellId) ? (pools.get(cellId) ?? 0) : poolAvailable;
       pools.set(cellId, Math.min(targetLimit, base + available));
     }
@@ -510,7 +517,7 @@ function isEligibleTarget(
     cells.state[cellId] === 0 &&
     cells.province[cellId] === 0 &&
     frontier.cellStages[cellId] === FRONTIER_STAGE.wilderness &&
-    cells.capacity[cellId] >= MIN_OUTPOST_CAPACITY &&
+    getCellSubsistenceCapacity(cells, cellId) >= MIN_OUTPOST_CAPACITY &&
     cells.danger[cellId] <= MAX_OUTPOST_DANGER &&
     wildOk
   );
@@ -520,7 +527,12 @@ function scoreCandidate(cells: WorldContext["pack"]["cells"], cellId: number, ra
   const waterAccess = cells.r[cellId] ? 20 : cells.harbor[cellId] ? 15 : cells.conf[cellId] ? 8 : 0;
   const terrainPenalty = cells.h[cellId] >= 70 ? 20 : cells.h[cellId] >= 55 ? 8 : 0;
   return (
-    cells.capacity[cellId] + cells.s[cellId] * 2 + waterAccess - cells.danger[cellId] * 0.8 - terrainPenalty + random
+    getCellSubsistenceCapacity(cells, cellId) +
+    cells.s[cellId] * 2 +
+    waterAccess -
+    cells.danger[cellId] * 0.8 -
+    terrainPenalty +
+    random
   );
 }
 
@@ -582,6 +594,7 @@ function transferFromApplicantPool(
   return colonists;
 }
 
+/** `sourceCapacity` is subsistence K, the same ceiling demography uses. */
 function estimateSourceContribution(sourcePopulation: number, sourceCapacity: number): number {
   const surplus = sourcePopulation - sourceCapacity * SOURCE_RETENTION_RATIO;
   return Math.max(0, Math.min(12, surplus * 0.5));

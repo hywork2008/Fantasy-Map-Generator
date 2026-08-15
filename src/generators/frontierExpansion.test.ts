@@ -246,6 +246,29 @@ describe("Frontier Expansion Phase 3", () => {
     expect(Object.values(simulation.frontier.projects)).toHaveLength(3);
   });
 
+  it("measures colonist surplus against subsistence capacity, not terrain capacity", () => {
+    const world = createWorld();
+    // Terrain C=100 would keep 65 people at home, so 55 looks like no surplus.
+    // Subsistence K=70 keeps only 45.5, so the same village can still send an expedition.
+    world.pack.cells = {
+      ...world.pack.cells,
+      pop: new Float32Array([55, 0]),
+      capacity: new Float32Array([100, 50]),
+      subsistenceCapacity: new Float32Array([70, 40]),
+      children: new Float32Array([13.75, 0]),
+      maleAdults: new Float32Array([13.75, 0]),
+      femaleAdults: new Float32Array([13.75, 0]),
+      elders: new Float32Array([13.75, 0])
+    };
+    const simulation = createSimulation(100);
+
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([
+      expect.objectContaining({ stateId: 1, cellId: 1, colonists: expect.any(Number) })
+    ]);
+    expect(getFrontierCandidateSummaries(world, simulation)[0]?.colonists).toBeGreaterThanOrEqual(0.5);
+    expect(advance(world, simulation).established).toEqual([1]);
+  });
+
   it("does not advertise a candidate when its connected population reserve cannot form an expedition", () => {
     const world = createWorld();
     world.pack.cells = {
@@ -278,7 +301,7 @@ describe("Frontier Expansion Phase 3", () => {
 
   it("founds an outpost purely from the state's frontier applicant pool when no live cell has surplus", () => {
     const world = createWorld();
-    // pop === capacity * SOURCE_RETENTION_RATIO exactly: cell-based surplus is zero.
+    // pop === subsistence K * SOURCE_RETENTION_RATIO exactly: cell-based surplus is zero.
     world.pack.cells.pop[0] = 65;
     const simulation = createSimulation(100);
     simulation.frontier.applicantPoolByState[1] = { maleAdults: 3, femaleAdults: 3 };
