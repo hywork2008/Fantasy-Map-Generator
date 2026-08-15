@@ -245,6 +245,34 @@ describe("seedInitialFleets integration", () => {
     }
   });
 
+  it("does not seed hulls on frontier land-origin maps", () => {
+    installPack({
+      burgs: [{ i: 1, state: 1, capital: 1, citadel: 1, population: 30 }]
+    });
+    worldContext.options = {
+      ...(worldContext.options ?? {}),
+      initialSettlementPattern: "frontier",
+      frontierStartMode: "landOrigin"
+    };
+
+    expect(seedInitialFleets([], new Map())).toBe(0);
+    expect(getHulls()).toHaveLength(0);
+  });
+
+  it("still seeds hulls on frontier seaborne maps", () => {
+    installPack({
+      burgs: [{ i: 1, state: 1, capital: 1, citadel: 1, population: 30 }]
+    });
+    worldContext.options = {
+      ...(worldContext.options ?? {}),
+      historicalPeriod: "highMedieval",
+      initialSettlementPattern: "frontier",
+      frontierStartMode: "seaborne"
+    };
+
+    expect(seedInitialFleets([], new Map())).toBeGreaterThan(0);
+  });
+
   it("skips states with no ocean ports", () => {
     installPack({ burgs: [{ i: 1, state: 1, port: 0, population: 50 }] });
     // Override: no ocean haven

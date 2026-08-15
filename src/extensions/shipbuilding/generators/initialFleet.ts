@@ -3,6 +3,8 @@
  * See docs/plan/shipbuilding-initial-fleet.md.
  */
 
+import { shouldSeedInitialFleets } from "../../../utils/frontierStartMode";
+import { isTrueOceanPortBurg } from "../../../utils/oceanPort";
 import type { Burg, PackedGraph, State } from "../../hostTypes";
 import { getShipbuildingRuntimeState, getWorldContext } from "../shipbuildingContext";
 import {
@@ -65,12 +67,7 @@ export function unitHash(...parts: number[]): number {
 }
 
 export function isOceanPortBurg(burg: Burg | undefined, pack: PackedGraph): boolean {
-  if (!burg?.i || burg.removed || !burg.port) return false;
-  const haven = pack.cells.haven?.[burg.cell];
-  if (!haven) return false;
-  const featureId = pack.cells.f?.[haven];
-  if (featureId === undefined || featureId === null) return false;
-  return pack.features?.[featureId]?.type === "ocean";
+  return isTrueOceanPortBurg(burg, pack);
 }
 
 export function collectOceanPortsByState(
@@ -373,6 +370,7 @@ export function seedInitialFleets(
   portCapacity: ReadonlyMap<number, PortCapacity> = new Map()
 ): number {
   const { pack, options } = getWorldContext();
+  if (!shouldSeedInitialFleets(options)) return 0;
   const period = resolveHistoricalPeriod(options?.historicalPeriod);
   const shipyardBurgIds = new Set(candidates.map(c => c.burgId));
   const portsByState = collectOceanPortsByState(pack, shipyardBurgIds);

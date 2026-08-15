@@ -32,8 +32,10 @@ import {
 } from "../utils";
 import { TIME } from "../utils/debug";
 import type { RelationKey } from "../utils/diplomacyRelations";
+import { allowsGeneratedSeaLanes } from "../utils/frontierStartMode";
 import { isLand } from "../utils/graphUtils";
 import { normalizeHeightExponent } from "../utils/height";
+import { isTrueOceanPortBurg } from "../utils/oceanPort";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import type { Point } from "./voronoi";
@@ -515,6 +517,11 @@ class RoutesModule {
       this.getInternationalRoutePolicy() === "settlementDefault" &&
       this.worldContext.options.initialSettlementPattern === "standard"
     );
+  }
+
+  /** Land-origin frontier has no ships, so it must not chart searoutes. */
+  private allowsGeneratedSeaLanes(): boolean {
+    return allowsGeneratedSeaLanes(this.worldContext.options);
   }
 
   /**
@@ -1181,6 +1188,10 @@ class RoutesModule {
   private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
+    if (!this.allowsGeneratedSeaLanes()) {
+      TIME && console.timeEnd("generateSeaRoutes");
+      return [];
+    }
     const international = this.allowsInternationalSeaRoutes();
     const portGroups: Array<FeatureBurgGroup & Partial<Pick<StateFeatureBurgGroup, "stateId">>> = international
       ? this.sortBurgsByFeature(pack.burgs).portsByFeature
@@ -1189,10 +1200,9 @@ class RoutesModule {
 
     for (const portGroup of portGroups) {
       const { feature } = portGroup;
-      // A river burg retains `port` for existing settlement / drain metadata, but it is
-      // not a sea port unless it has a haven cell. Do not let its shared feature create
-      // a bidirectional sea lane along the river channel.
-      const featurePorts = portGroup.burgs.filter(burg => Boolean(pack.cells.haven[burg.cell]));
+      // Drain-resolved inland ports share burg.port with the ocean but are not
+      // sea ports. Only a true ocean haven may open a sea lane.
+      const featurePorts = portGroup.burgs.filter(burg => isTrueOceanPortBurg(burg, pack));
       if (featurePorts.length < 2) continue;
       const points = featurePorts.map(burg => [burg.x, burg.y] as Point);
       const allPortEdges =
@@ -1237,14 +1247,16 @@ class RoutesModule {
   ) {
     const { pack } = this.worldContext;
     // Keep autonomous ports out of the pre-State route pass for the same reason as local trails.
-    if (!pack.cells.state) return [];
+    if (!pack.cells.state || !this.allowsGeneratedSeaLanes()) return [];
 
     const portsByFeature = new Map<number, Burg[]>();
     for (const burg of pack.burgs) {
-      if (!burg?.i || burg.removed || burg.state || !burg.port || !pack.cells.haven[burg.cell]) continue;
-      const ports = portsByFeature.get(burg.port) ?? [];
+      if (!burg?.i || burg.removed || burg.state || !isTrueOceanPortBurg(burg, pack)) continue;
+      const portFeature = burg.port;
+      if (!portFeature) continue;
+      const ports = portsByFeature.get(portFeature) ?? [];
       ports.push(burg);
-      portsByFeature.set(burg.port, ports);
+      portsByFeature.set(portFeature, ports);
     }
 
     const seaRoutes: Route[] = [];
@@ -1304,15 +1316,12 @@ class RoutesModule {
     statePairs: ReadonlyArray<[State, State]>
   ) {
     const { pack } = this.worldContext;
+    if (!this.allowsGeneratedSeaLanes()) return [];
     const seaRoutes: Route[] = [];
 
     for (const [firstState, secondState] of statePairs) {
-      const firstPorts = pack.burgs.filter(burg =>
-        Boolean(burg?.i && !burg.removed && burg.state === firstState.i && burg.port && pack.cells.haven[burg.cell])
-      );
-      const secondPorts = pack.burgs.filter(burg =>
-        Boolean(burg?.i && !burg.removed && burg.state === secondState.i && burg.port && pack.cells.haven[burg.cell])
-      );
+      const firstPorts = pack.burgs.filter(burg => burg.state === firstState.i && isTrueOceanPortBurg(burg, pack));
+      const secondPorts = pack.burgs.filter(burg => burg.state === secondState.i && isTrueOceanPortBurg(burg, pack));
       const pairs = this.getSortedBurgPairs(firstPorts, secondPorts, (firstPort, secondPort) =>
         Boolean(firstPort.port && firstPort.port === secondPort.port)
       );
@@ -1347,6 +1356,8 @@ class RoutesModule {
    */
   private generateRiverRoutes(): Route[] {
     const { pack } = this.worldContext;
+    // Land-origin frontier has no ships; river lines share the searoutes layer.
+    if (!this.allowsGeneratedSeaLanes()) return [];
     const riverGraph = buildRiverNavigationGraph(pack);
     const riverPorts = pack.burgs.filter(burg =>
       Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
@@ -1636,19 +1647,25 @@ class RoutesModule {
   connectPort(cellId: number, stateId: number): Route | undefined {
     const { pack } = this.worldContext;
     const source = pack.burgs[pack.cells.burg[cellId]];
-    if (!source?.port || source.state !== stateId || !pack.cells.haven[cellId]) return;
+    const sourcePort = source?.port;
+    if (
+      !this.allowsGeneratedSeaLanes() ||
+      !isTrueOceanPortBurg(source, pack) ||
+      source.state !== stateId ||
+      !sourcePort
+    ) {
+      return;
+    }
     const international = this.allowsInternationalSeaRoutes();
 
     const targetCells = new Set(
       pack.burgs
         .filter(
           burg =>
-            burg?.i &&
-            !burg.removed &&
             burg.i !== source.i &&
             (international || burg.state === stateId) &&
             burg.port === source.port &&
-            Boolean(pack.cells.haven[burg.cell])
+            isTrueOceanPortBurg(burg, pack)
         )
         .map(burg => burg.cell)
     );
@@ -1671,7 +1688,7 @@ class RoutesModule {
     const sourceSegment = newSegments.find(segment => segment[0] === cellId);
     if (!sourceSegment) return;
 
-    return this.appendRoute("searoutes", source.port, sourceSegment);
+    return this.appendRoute("searoutes", sourcePort, sourceSegment);
   }
 
   hasSeaRoute(cellId: number): boolean {

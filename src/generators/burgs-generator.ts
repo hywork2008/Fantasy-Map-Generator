@@ -25,6 +25,7 @@ import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
+import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeHeightExponent } from "../utils/height";
 import { isCapitalOnlyPolityRealm, normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { buildBurgDemographics } from "./burgDemographics";
@@ -36,6 +37,7 @@ import {
   getChronicleContestedBurgs,
   normalizeHabitability
 } from "./frontierAnalysis";
+import { selectFrontierStartCapitals } from "./frontierStartPlacement";
 import { evaluateHarborElevation } from "./harborSiteConditions";
 import {
   collectStartingRealmCells,
@@ -717,7 +719,16 @@ class BurgModule {
           pack.settlementFoundation!,
           useOptionsState.getState().statesNumber
         );
-        const plannedCapitals = selectInitialPolityCapitalNodes(pack.settlementFoundation!, cells.p, capitalsNumber);
+        const plannedCapitals =
+          this.worldContext.options.initialSettlementPattern === "frontier"
+            ? selectFrontierStartCapitals({
+                plan: pack.settlementFoundation!,
+                pack,
+                count: capitalsNumber,
+                startMode: normalizeFrontierStartMode(this.worldContext.options.frontierStartMode),
+                realmSize: normalizeInitialPolityRealmSize(this.worldContext.options.initialPolityRealmSize)
+              })
+            : selectInitialPolityCapitalNodes(pack.settlementFoundation!, cells.p, capitalsNumber);
         for (const node of plannedCapitals) {
           const cell = node.cell;
           const [x, y] = cells.p[cell];

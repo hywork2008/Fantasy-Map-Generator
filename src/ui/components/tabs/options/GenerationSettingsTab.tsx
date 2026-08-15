@@ -538,6 +538,29 @@ export const GenerationSettingsTab: React.FC = () => {
             <th colSpan={4}>{t("generation.sectionRealms")}</th>
           </tr>
           <tr
+            data-tip={t("generation.frontierStartModeTip")}
+            style={{
+              display: options.initialSettlementPattern === "frontier" ? undefined : "none"
+            }}
+          >
+            <td>
+              <LockIconButton id="frontierStartMode" />
+            </td>
+            <th>{t("generation.frontierStartMode")}</th>
+            <td colSpan={2}>
+              <select
+                value={options.frontierStartMode}
+                onChange={e =>
+                  updateOptionAndLock("frontierStartMode", e.target.value as typeof options.frontierStartMode)
+                }
+              >
+                <option value="landOrigin">{t("generation.frontierStartModes.landOrigin")}</option>
+                <option value="seaborne">{t("generation.frontierStartModes.seaborne")}</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr
             data-tip={t("generation.initialPolityRealmSizeTip")}
             style={{
               display: options.initialSettlementPattern === "standard" ? "none" : undefined

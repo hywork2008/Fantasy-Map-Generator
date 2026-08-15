@@ -632,6 +632,7 @@ function regenerateSettlementPattern(): void {
     // here silently ignores whatever pattern the user currently has selected.
     worldContext.options.initialSettlementPattern = optionsSnap.initialSettlementPattern;
     worldContext.options.initialPolityRealmSize = optionsSnap.initialPolityRealmSize;
+    worldContext.options.frontierStartMode = optionsSnap.frontierStartMode;
 
     const localSeed = generateSeed();
     (Math as Record<"random", () => number>).random = Alea(localSeed);

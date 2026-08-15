@@ -1056,6 +1056,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
   worldContext.options.initialPolityRealmSize = useOptionsState.getState().initialPolityRealmSize;
+  worldContext.options.frontierStartMode = useOptionsState.getState().frontierStartMode;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
   worldContext.options.volcanicSoilStrength = useOptionsState.getState().volcanicSoilStrength;
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;

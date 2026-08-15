@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-16
+
+- docs/simulation/frontier-start-modes.md
+
 2026-08-15
 
 - docs/plan/vessel-itinerary-and-finite-trade-fleet.md

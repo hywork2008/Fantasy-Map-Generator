@@ -1000,6 +1000,12 @@
     "statesNumberTip": "Define the number of states for standard maps",
     "polityDensity": "Polity density",
     "polityDensityTip": "Define polity density for settlement-network maps",
+    "frontierStartMode": "Frontier start",
+    "frontierStartModeTip": "How frontier states begin. Land origin is humanity arising here: capitals sit on large landmasses, nobody has ships yet, and no sea lanes are charted. Seaborne landing beaches each state on a large coast with ships and sea lanes between those ports. One-cell isles are never starting homelands; islands remain valid later as colonies.",
+    "frontierStartModes": {
+      "landOrigin": "Land origin (no ships)",
+      "seaborne": "Seaborne landing"
+    },
     "initialPolityRealmSize": "Starting realm (cells)",
     "initialPolityRealmSizeTip": "How many land cells each state owns at generation. 1 is the capital only (one city). Higher values grow a compact core around the capital, up to 30 cells, and stay inside the oikoumene. Oikoumene land share still decides how much countryside is populated; this slider only decides how much of it starts as state land.",
     "sizeVariety": "Size variety",

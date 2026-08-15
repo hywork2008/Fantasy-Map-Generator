@@ -31,6 +31,12 @@ export type ConflictAutonomy = "autonomous" | "playerDirected";
 export type InitialSettlementPattern = "frontier" | "marches" | "scattered" | "standard" | "dense";
 
 /**
+ * Frontier-only opening story. Other settlement patterns ignore this field.
+ * Missing values migrate to `landOrigin`.
+ */
+export type FrontierStartMode = "landOrigin" | "seaborne";
+
+/**
  * @deprecated Use `initialPolityRealmSize`. Kept so archives and localStorage
  * can migrate `capital` → 1 and `hinterland` → 30.
  */
@@ -129,6 +135,12 @@ export interface WorldOptions {
   initialPolityRealmSize?: number;
   /** @deprecated Migrated to `initialPolityRealmSize`. */
   initialPolityScope?: InitialPolityScope;
+  /**
+   * Frontier opening story. `landOrigin` = humanity arose here (no ships, no
+   * searoutes). `seaborne` = landed from off-map with ships. Ignored unless
+   * `initialSettlementPattern` is `frontier`. See docs/simulation/frontier-start-modes.md.
+   */
+  frontierStartMode?: FrontierStartMode;
   /**
    * Biome regional profile: adjusts auto-assignment rates and continuous masks
    * (great forests, heath mosaics, mediterranean scrub, etc.). Default global.

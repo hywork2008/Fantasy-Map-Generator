@@ -61,6 +61,7 @@ import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { ERROR, INFO, WARN } from "../utils/debug";
+import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -276,7 +277,8 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern),
       initialPolityRealmSize: normalizeInitialPolityRealmSize(
         worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
-      )
+      ),
+      frontierStartMode: normalizeFrontierStartMode(worldContext.options.frontierStartMode)
     });
     // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
     legacyMutation(() => {
@@ -555,6 +557,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     worldContext.options.initialPolityRealmSize = normalizeInitialPolityRealmSize(
       worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
     );
+    worldContext.options.frontierStartMode = normalizeFrontierStartMode(worldContext.options.frontierStartMode);
     if (settings[16]) worldContext.options.temperatureEquator = +settings[16];
     if (settings[17])
       worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
@@ -585,6 +588,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     zustandUpdates.initialPolityRealmSize = normalizeInitialPolityRealmSize(
       worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
     );
+    zustandUpdates.frontierStartMode = normalizeFrontierStartMode(worldContext.options.frontierStartMode);
     zustandUpdates.ironDepositsPerState = worldContext.options.ironDepositsPerState ?? 0.4;
     useOptionsState.getState().setOptions(zustandUpdates);
   }

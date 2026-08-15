@@ -240,6 +240,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(WORLD_ARCHIVE_SCHEMA_VERSION).toBe(2);
     expect(staged.document.schemaVersion).toBe(WORLD_ARCHIVE_SCHEMA_VERSION);
     expect(staged.document.world.options.initialSettlementPattern).toBe("standard");
+    expect(staged.document.world.options.frontierStartMode).toBe("landOrigin");
   });
 
   it("stages a legacy positional map without changing live state", async () => {

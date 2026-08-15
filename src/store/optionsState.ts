@@ -6,7 +6,12 @@ import {
   resolveRacePersonNameMapping
 } from "../data/racePersonNameConfig";
 import type { BiomeRegionProfile } from "../types/biomeRegion";
-import type { ConflictAutonomy, EconomyStartMode, InitialSettlementPattern } from "../types/WorldState";
+import type {
+  ConflictAutonomy,
+  EconomyStartMode,
+  FrontierStartMode,
+  InitialSettlementPattern
+} from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 import { DEFAULT_GOLD_TO_SILVER_RATE, DEFAULT_SILVER_TO_COPPER_RATE } from "../utils/currency";
 
@@ -115,6 +120,11 @@ export interface OptionsState {
    * Ignored for `standard`.
    */
   initialPolityRealmSize: number;
+  /**
+   * Frontier opening story. Ignored unless `initialSettlementPattern` is
+   * `frontier`. See docs/simulation/frontier-start-modes.md.
+   */
+  frontierStartMode: FrontierStartMode;
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
   /**
@@ -358,6 +368,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialSettlementPattern: "standard",
   oikoumeneLandShare: 0.45,
   initialPolityRealmSize: 30,
+  frontierStartMode: "landOrigin",
   biomeRegionProfile: "global",
   volcanismChance: 30,
   volcanoActiveChance: 25,

@@ -603,6 +603,169 @@ describe("RoutesModule settlement water connections", () => {
     expect(Routes.connectPort(0, 1)).toBeUndefined();
   });
 
+  it("does not chart searoutes on frontier land-origin maps even with ocean ports", () => {
+    const graphInternals = Routes as unknown as RoutesGraphInternals;
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 0, 25],
+        biomeCode: [1, 0, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [1, 0, 2],
+        v: [[], [], []],
+        f: [2, 1, 3],
+        state: [1, 0, 2],
+        haven: [1, 0, 1],
+        g: [0, 0, 0],
+        t: [1, -1, 1],
+        r: [0, 0, 0],
+        fl: [0, 0, 0],
+        routes: {}
+      },
+      burgs: [
+        { i: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 2, port: 1 },
+        { i: 2, cell: 2, x: 20, y: 0, state: 2, feature: 3, port: 1 }
+      ],
+      features: [
+        0,
+        { i: 1, type: "ocean", land: false, cells: 40 },
+        { i: 2, type: "island", land: true, cells: 80 },
+        { i: 3, type: "island", land: true, cells: 80 }
+      ],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Alpha" },
+        { i: 2, name: "Beta" }
+      ],
+      rivers: [],
+      vertices: { c: [], p: [] },
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
+    worldContext.options = {
+      initialSettlementPattern: "frontier",
+      frontierStartMode: "landOrigin",
+      seaRouteGenerationMode: "augmented"
+    } as typeof worldContext.options;
+
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([]);
+    expect(Routes.connectPort(0, 1)).toBeUndefined();
+  });
+
+  it("charts searoutes on frontier seaborne maps between true ocean ports", () => {
+    const graphInternals = Routes as unknown as RoutesGraphInternals;
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 0, 25],
+        biomeCode: [1, 0, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [1, 0, 2],
+        v: [[], [], []],
+        f: [2, 1, 3],
+        state: [1, 0, 1],
+        haven: [1, 0, 1],
+        g: [0, 0, 0],
+        t: [1, -1, 1],
+        r: [0, 0, 0],
+        fl: [0, 0, 0],
+        routes: {}
+      },
+      burgs: [
+        { i: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 2, port: 1 },
+        { i: 2, cell: 2, x: 20, y: 0, state: 1, feature: 3, port: 1 }
+      ],
+      features: [
+        0,
+        { i: 1, type: "ocean", land: false, cells: 40 },
+        { i: 2, type: "island", land: true, cells: 80 },
+        { i: 3, type: "island", land: true, cells: 80 }
+      ],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Alpha" }
+      ],
+      rivers: [],
+      vertices: { c: [], p: [] },
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
+    worldContext.options = {
+      initialSettlementPattern: "frontier",
+      frontierStartMode: "seaborne",
+      seaRouteGenerationMode: "augmented"
+    } as typeof worldContext.options;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+    Routes.sync();
+
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([
+      expect.objectContaining({ feature: 1, cells: [0, 1, 2] })
+    ]);
+  });
+
+  it("does not open a sea lane from a lake-drain port that only stores the ocean feature id", () => {
+    const graphInternals = Routes as unknown as RoutesGraphInternals;
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 0, 25],
+        biomeCode: [1, 0, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [1, 0, 2],
+        v: [[], [], []],
+        f: [2, 3, 4],
+        state: [1, 0, 1],
+        haven: [1, 0, 1],
+        g: [0, 0, 0],
+        t: [1, -1, 1],
+        r: [0, 0, 0],
+        fl: [0, 0, 0],
+        routes: {}
+      },
+      burgs: [
+        { i: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 2, port: 1 },
+        { i: 2, cell: 2, x: 20, y: 0, state: 1, feature: 4, port: 1 }
+      ],
+      features: [
+        0,
+        { i: 1, type: "ocean", land: false, cells: 40 },
+        { i: 2, type: "island", land: true, cells: 80 },
+        { i: 3, type: "lake", land: false, cells: 8 },
+        { i: 4, type: "island", land: true, cells: 80 }
+      ],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Alpha" }
+      ],
+      rivers: [],
+      vertices: { c: [], p: [] },
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
+    worldContext.options = {
+      initialSettlementPattern: "standard",
+      seaRouteGenerationMode: "augmented"
+    } as typeof worldContext.options;
+    Routes.sync();
+
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([]);
+  });
+
   it("does not join a river-only port to an existing sea lane", () => {
     worldContext.pack.cells.c = [[1], [0, 2, 3], [1], [1]];
     worldContext.pack.cells.h = [25, 25, 25, 25];

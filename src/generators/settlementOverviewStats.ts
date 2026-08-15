@@ -31,7 +31,7 @@ const EMPTY_INDEPENDENT_BURG_STATS: IndependentBurgStats = {
 };
 
 function isIndependentBurg(burg: Burg | 0 | undefined): burg is Burg {
-  return !!(burg?.i && !burg.removed && !burg.state);
+  return typeof burg === "object" && !!burg && !!burg.i && !burg.removed && !burg.state;
 }
 
 /**
