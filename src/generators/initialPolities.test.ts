@@ -195,6 +195,33 @@ describe("Initial Polities Module", () => {
 
     expect(selectInitialPolityCapitalNodes(plan, points, 3).map(node => node.cell)).toEqual([0, 4, 2]);
     expect(selectInitialPolityCapitalNodes(plan, points, 4).map(node => node.cell)).toEqual([0, 4, 2, 1]);
+    expect(selectInitialPolityCapitalNodes(plan, points, 3, { maxPerRegion: 1 }).map(node => node.cell)).toEqual([
+      0, 4, 2
+    ]);
+  });
+
+  it("does not double a region while another homeland is still empty", () => {
+    const plan = {
+      regions: [
+        { id: 0, kind: "river" as const, center: 0, cells: [0, 1] },
+        { id: 1, kind: "river" as const, center: 2, cells: [2] }
+      ],
+      nodes: [
+        { id: 0, regionId: 0, cell: 0, role: "center" as const, score: 20 },
+        { id: 1, regionId: 0, cell: 1, role: "village" as const, score: 19 },
+        { id: 2, regionId: 1, cell: 2, role: "village" as const, score: 1 }
+      ],
+      links: []
+    };
+    const points: [number, number][] = [
+      [0, 0],
+      [1, 0],
+      [200, 0]
+    ];
+
+    expect(selectInitialPolityCapitalNodes(plan, points, 2, { maxPerRegion: 1 }).map(node => node.cell)).toEqual([
+      0, 2
+    ]);
   });
 });
 

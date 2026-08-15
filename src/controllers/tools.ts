@@ -633,6 +633,7 @@ function regenerateSettlementPattern(): void {
     worldContext.options.initialSettlementPattern = optionsSnap.initialSettlementPattern;
     worldContext.options.initialPolityRealmSize = optionsSnap.initialPolityRealmSize;
     worldContext.options.frontierStartMode = optionsSnap.frontierStartMode;
+    worldContext.options.frontierPolitySpacing = optionsSnap.frontierPolitySpacing;
 
     const localSeed = generateSeed();
     (Math as Record<"random", () => number>).random = Alea(localSeed);
@@ -644,7 +645,8 @@ function regenerateSettlementPattern(): void {
       Math.random,
       { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
       optionsSnap.statesNumber,
-      optionsSnap.oikoumeneLandShare
+      optionsSnap.oikoumeneLandShare,
+      optionsSnap.frontierPolitySpacing
     );
     if (settlementPattern.plan) pack.settlementFoundation = settlementPattern.plan;
     else delete pack.settlementFoundation;

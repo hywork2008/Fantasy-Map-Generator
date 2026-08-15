@@ -146,18 +146,44 @@ export function getInitialPolityCapitalCount(plan: SettlementFoundationPlan, sta
 export function selectInitialPolityCapitalNodes(
   plan: SettlementFoundationPlan,
   points: readonly (readonly [number, number])[],
-  count: number
+  count: number,
+  options?: { maxPerRegion?: number }
 ): SettlementNode[] {
   if (count <= 0 || !plan.nodes.length) return [];
 
   const targetCount = Math.min(plan.nodes.length, Math.floor(count));
+  const maxPerRegion = options?.maxPerRegion ?? Number.POSITIVE_INFINITY;
   const regionalCenters = plan.nodes.filter(node => node.role === "center");
-  const selected = selectFarthestNodes(regionalCenters, points, Math.min(targetCount, regionalCenters.length));
+  const selected = takeFarthestCapitals(regionalCenters, points, targetCount, [], maxPerRegion);
   if (selected.length === targetCount) return selected;
 
   const selectedIds = new Set(selected.map(node => node.id));
   const remaining = plan.nodes.filter(node => !selectedIds.has(node.id));
-  return [...selected, ...selectFarthestNodes(remaining, points, targetCount - selected.length, selected)];
+  const spaced = takeFarthestCapitals(remaining, points, targetCount - selected.length, selected, maxPerRegion);
+  if (selected.length + spaced.length === targetCount) return [...selected, ...spaced];
+
+  const used = new Set([...selected, ...spaced].map(node => node.id));
+  const leftovers = plan.nodes.filter(node => !used.has(node.id));
+  return [
+    ...selected,
+    ...spaced,
+    ...selectFarthestNodes(leftovers, points, targetCount - selected.length - spaced.length, [...selected, ...spaced])
+  ];
+}
+
+function takeFarthestCapitals(
+  candidates: readonly SettlementNode[],
+  points: readonly (readonly [number, number])[],
+  count: number,
+  alreadySelected: readonly SettlementNode[],
+  maxPerRegion: number
+): SettlementNode[] {
+  const regionCounts = new Map<number, number>();
+  for (const node of alreadySelected) {
+    regionCounts.set(node.regionId, (regionCounts.get(node.regionId) ?? 0) + 1);
+  }
+  const eligible = candidates.filter(node => (regionCounts.get(node.regionId) ?? 0) < maxPerRegion);
+  return selectFarthestNodes(eligible, points, count, alreadySelected);
 }
 
 function selectFarthestNodes(

@@ -35,7 +35,7 @@ import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } fro
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { isValidCanvasDimension, isValidCanvasSize, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
 import { applyOption, lock, locked, store, stored, unlock } from "../utils/domUtils";
-import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
+import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
@@ -492,6 +492,7 @@ export function applyStoredOptions(): void {
     "initialSettlementPattern",
     "initialPolityRealmSize",
     "frontierStartMode",
+    "frontierPolitySpacing",
     "oikoumeneLandShare",
     "biomeRegionProfile",
     "templateRandomization",
@@ -559,6 +560,7 @@ export function applyStoredOptions(): void {
     loadedOptions.initialPolityRealmSize = normalizeInitialPolityRealmSize(loadedOptions.initialPolityRealmSize);
   }
   loadedOptions.frontierStartMode = normalizeFrontierStartMode(loadedOptions.frontierStartMode);
+  loadedOptions.frontierPolitySpacing = normalizeFrontierPolitySpacing(loadedOptions.frontierPolitySpacing);
   if (typeof loadedOptions.initialSettlementPattern === "string") {
     loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(loadedOptions.initialSettlementPattern);
     // Settlement patterns have a recommended population saturation. Restore

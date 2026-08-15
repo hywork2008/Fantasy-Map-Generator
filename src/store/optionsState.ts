@@ -9,6 +9,7 @@ import type { BiomeRegionProfile } from "../types/biomeRegion";
 import type {
   ConflictAutonomy,
   EconomyStartMode,
+  FrontierPolitySpacing,
   FrontierStartMode,
   InitialSettlementPattern
 } from "../types/WorldState";
@@ -125,6 +126,11 @@ export interface OptionsState {
    * `frontier`. See docs/simulation/frontier-start-modes.md.
    */
   frontierStartMode: FrontierStartMode;
+  /**
+   * Frontier capital spacing. Ignored unless `initialSettlementPattern` is
+   * `frontier`. See docs/simulation/frontier-start-modes.md.
+   */
+  frontierPolitySpacing: FrontierPolitySpacing;
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
   /**
@@ -369,6 +375,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   oikoumeneLandShare: 0.45,
   initialPolityRealmSize: 30,
   frontierStartMode: "landOrigin",
+  frontierPolitySpacing: "dispersed",
   biomeRegionProfile: "global",
   volcanismChance: 30,
   volcanoActiveChance: 25,

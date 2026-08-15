@@ -37,6 +37,12 @@ export type InitialSettlementPattern = "frontier" | "marches" | "scattered" | "s
 export type FrontierStartMode = "landOrigin" | "seaborne";
 
 /**
+ * Frontier-only capital spacing. Other settlement patterns ignore this field.
+ * Missing values migrate to `dispersed`.
+ */
+export type FrontierPolitySpacing = "clustered" | "dispersed";
+
+/**
  * @deprecated Use `initialPolityRealmSize`. Kept so archives and localStorage
  * can migrate `capital` → 1 and `hinterland` → 30.
  */
@@ -141,6 +147,12 @@ export interface WorldOptions {
    * `initialSettlementPattern` is `frontier`. See docs/simulation/frontier-start-modes.md.
    */
   frontierStartMode?: FrontierStartMode;
+  /**
+   * How far apart Frontier capitals start. `dispersed` (default) gives each
+   * state its own distant homeland; `clustered` keeps the former close start.
+   * Ignored unless `initialSettlementPattern` is `frontier`.
+   */
+  frontierPolitySpacing?: FrontierPolitySpacing;
   /**
    * Biome regional profile: adjusts auto-assignment rates and continuous masks
    * (great forests, heath mosaics, mediterranean scrub, etc.). Default global.

@@ -1,7 +1,11 @@
 import type { PackedGraph } from "../types/PackedGraph";
 import type { SettlementFoundationPlan, SettlementNode } from "../types/settlementFoundation";
-import type { FrontierStartMode } from "../types/WorldState";
-import { frontierStartLandFloors, MIN_FRONTIER_START_LAND_CELLS_ABSOLUTE } from "../utils/frontierStartMode";
+import type { FrontierPolitySpacing, FrontierStartMode } from "../types/WorldState";
+import {
+  frontierStartLandFloors,
+  MIN_FRONTIER_START_LAND_CELLS_ABSOLUTE,
+  normalizeFrontierPolitySpacing
+} from "../utils/frontierStartMode";
 import { isTrueOceanHarborCell } from "../utils/oceanPort";
 import { selectInitialPolityCapitalNodes } from "./initialPolities";
 
@@ -11,6 +15,7 @@ export interface FrontierStartPlacementArgs {
   readonly count: number;
   readonly startMode: FrontierStartMode;
   readonly realmSize: number;
+  readonly spacing?: FrontierPolitySpacing;
 }
 
 /**
@@ -24,13 +29,14 @@ export function selectFrontierStartCapitals(args: FrontierStartPlacementArgs): S
   if (count <= 0 || !plan.nodes.length) return [];
 
   const points = pack.cells.p;
+  const maxPerRegion = normalizeFrontierPolitySpacing(args.spacing) === "dispersed" ? 1 : undefined;
   let selected: SettlementNode[] = [];
 
   for (const minCells of frontierStartLandFloors(realmSize)) {
     const landEligible = plan.nodes.filter(node => isEligibleStartLandmass(pack, node.cell, minCells));
     const pool = startMode === "seaborne" ? preferSeaborneHarborNodes(plan, pack, landEligible, count) : landEligible;
     if (!pool.length) continue;
-    selected = selectInitialPolityCapitalNodes({ ...plan, nodes: pool }, points, count);
+    selected = selectInitialPolityCapitalNodes({ ...plan, nodes: pool }, points, count, { maxPerRegion });
     if (selected.length) break;
   }
 
@@ -41,7 +47,8 @@ export function selectFrontierStartCapitals(args: FrontierStartPlacementArgs): S
     selected = selectInitialPolityCapitalNodes(
       { ...plan, nodes: notTiny.length ? notTiny : plan.nodes },
       points,
-      count
+      count,
+      { maxPerRegion }
     );
   }
 

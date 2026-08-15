@@ -1,6 +1,7 @@
 import { getInitialSettlementPatternPreset } from "../data/initialSettlementPatterns";
 import type { SettlementFoundationPlan } from "../types/settlementFoundation";
-import type { InitialSettlementPattern } from "../types/WorldState";
+import type { FrontierPolitySpacing, InitialSettlementPattern } from "../types/WorldState";
+import { frontierFoundationRegionFloor, normalizeFrontierPolitySpacing } from "../utils/frontierStartMode";
 import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
 import {
   createSettlementFoundation,
@@ -59,17 +60,20 @@ export function applyInitialSettlementPattern(
   climate: SettlementClimate = {},
   initialPolityCount = 0,
   /** Override pattern settledFootprint (0–1). Used by fantasy oikoumene control. */
-  oikoumeneLandShare?: number
+  oikoumeneLandShare?: number,
+  frontierPolitySpacing?: FrontierPolitySpacing
 ): SettlementPatternResult {
   if (pattern !== "standard" && canBuildFoundation(cells)) {
+    const spacing = normalizeFrontierPolitySpacing(frontierPolitySpacing);
     return createSettlementFoundation(
       cells,
       climate,
       pattern,
       initialPopulationSaturation,
       random,
-      getMinimumFoundationRegionCount(pattern, initialPolityCount),
-      oikoumeneLandShare
+      getMinimumFoundationRegionCount(pattern, initialPolityCount, spacing),
+      oikoumeneLandShare,
+      spacing
     );
   }
 
@@ -142,8 +146,12 @@ export function applyInitialSettlementPattern(
  * request needs more independent hubs; otherwise additional States can only
  * become neighbours inside the same compact region (long interstate borders).
  */
-function getMinimumFoundationRegionCount(pattern: InitialSettlementPattern, initialPolityCount: number): number {
-  if (pattern === "frontier") return Math.max(0, Math.ceil(initialPolityCount / 5));
+function getMinimumFoundationRegionCount(
+  pattern: InitialSettlementPattern,
+  initialPolityCount: number,
+  frontierPolitySpacing: FrontierPolitySpacing = "clustered"
+): number {
+  if (pattern === "frontier") return frontierFoundationRegionFloor(initialPolityCount, frontierPolitySpacing);
   // Marches: prefer roughly one region per 2–3 states so wild belts separate polities.
   if (pattern === "marches") return Math.max(0, Math.ceil(initialPolityCount / 2.5));
   return 0;

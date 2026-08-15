@@ -1006,6 +1006,12 @@
       "landOrigin": "Land origin (no ships)",
       "seaborne": "Seaborne landing"
     },
+    "frontierPolitySpacing": "Starting state spacing",
+    "frontierPolitySpacingTip": "How far apart Frontier capitals start. Spread apart (default) gives each state its own distant homeland so they do not open next to each other. Clustered keeps the earlier close start, with several states sharing one settlement cluster.",
+    "frontierPolitySpacings": {
+      "dispersed": "Spread apart",
+      "clustered": "Clustered"
+    },
     "initialPolityRealmSize": "Starting realm (cells)",
     "initialPolityRealmSizeTip": "How many land cells each state owns at generation. 1 is the capital only (one city). Higher values grow a compact core around the capital, up to 30 cells, and stay inside the oikoumene. Oikoumene land share still decides how much countryside is populated; this slider only decides how much of it starts as state land.",
     "sizeVariety": "Size variety",

@@ -7,6 +7,7 @@ This document is the living spec. Implementation lives in:
 | Concern | Module |
 | :--- | :--- |
 | Option + defaults | `src/types/WorldState.ts`, `src/store/optionsState.ts`, `src/utils/frontierStartMode.ts` |
+| Capital spacing | `frontierPolitySpacing` in the same option files; region floor in `settlementPattern.ts` |
 | Capital landmass / landing | `src/generators/frontierStartPlacement.ts` |
 | True ocean port | `src/utils/oceanPort.ts` |
 | Sea lanes | `src/generators/routes-generator.ts` |
@@ -31,6 +32,23 @@ Shown only when Settlement pattern is **Frontier**. Other patterns ignore the fi
 A shipyard is a *place that can build hulls* (ocean haven + timber). It is not a ship. A port is *geography* (a harbor). Neither implies a fleet.
 
 **Invariant:** no ocean-going hulls ⇒ no generated searoutes. Ports and shipyard candidates may still exist as geography.
+
+---
+
+## 1.1 Starting state spacing
+
+Option: `worldContext.options.frontierPolitySpacing` (`"dispersed"` \| `"clustered"`).
+
+Shown only when Settlement pattern is **Frontier**. Missing or invalid values migrate to `"dispersed"`.
+
+Frontier's oikoumene used to open only 1–3 compact regions (`settlementRegionCount: [1, 3]`, plus a floor of `ceil(states / 5)`). Three states therefore often shared one settlement blob and looked like they spawned next door.
+
+| Mode | Regions | Capitals |
+| :--- | :--- | :--- |
+| **Spread apart** (default) | At least one Foundation region per polity. Region centers weight geographic distance more heavily (0.92 / 0.08). | Prefer at most one capital per region until every homeland has one |
+| **Clustered** | Historical floor: `ceil(states / 5)` inside the 1–3 preset range | Several states may share one cluster |
+
+Spacing does not change Starting realm size, land-origin / seaborne rules, or oikoumene land share. It only decides whether those homelands sit on top of each other.
 
 ---
 
@@ -151,7 +169,8 @@ Land origin now skips both hull seed and sea-lane generation. Sea-lane generatio
 Options → Generation, visible only for Settlement pattern = Frontier:
 
 - **Frontier start:** Land origin (no ships) | Seaborne landing
-- Tip: Land origin is humanity arising here — large homelands, no ships, no sea lanes. Seaborne landing beaches each state on a large coast with ships and sea lanes between those ports. Tiny isles are never starting homelands.
+- **Starting state spacing:** Spread apart (default) | Clustered
+- Tip: Land origin is humanity arising here — large homelands, no ships, no sea lanes. Seaborne landing beaches each state on a large coast with ships and sea lanes between those ports. Tiny isles are never starting homelands. Spread apart opens a separate distant homeland per state; Clustered is the older close start.
 
 Starting realm (1–30 cells) still controls how much of the oikoumene is painted as state land. It does not override the landmass floor.
 

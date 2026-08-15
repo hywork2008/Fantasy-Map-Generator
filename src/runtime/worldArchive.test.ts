@@ -244,6 +244,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(staged.document.schemaVersion).toBe(WORLD_ARCHIVE_SCHEMA_VERSION);
     expect(staged.document.world.options.initialSettlementPattern).toBe("standard");
     expect(staged.document.world.options.frontierStartMode).toBe("landOrigin");
+    expect(staged.document.world.options.frontierPolitySpacing).toBe("dispersed");
   });
 
   it("stages a legacy positional map without changing live state", async () => {

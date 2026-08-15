@@ -103,6 +103,27 @@ describe("Settlement Foundation Module", () => {
     expect(cells.pop[100]).toBe(0);
   });
 
+  it("opens one distant homeland per polity under dispersed frontier spacing", () => {
+    const cells = createCells(101, [5, 50, 95]);
+    const climate = { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) };
+    const clustered = createSettlementFoundation(cells, climate, "frontier", 0.3, () => 0, 0, undefined, "clustered");
+    const dispersed = createSettlementFoundation(
+      createCells(101, [5, 50, 95]),
+      climate,
+      "frontier",
+      0.3,
+      () => 0,
+      3,
+      undefined,
+      "dispersed"
+    );
+
+    expect(clustered.plan.regions).toHaveLength(1);
+    expect(dispersed.plan.regions).toHaveLength(3);
+    const centers = dispersed.plan.regions.map(region => region.center);
+    expect(Math.max(...centers) - Math.min(...centers)).toBeGreaterThan(70);
+  });
+
   it("honors the additional regional hubs requested by high polity density", () => {
     const cells = createCells(101, [5]);
     const result = createSettlementFoundation(

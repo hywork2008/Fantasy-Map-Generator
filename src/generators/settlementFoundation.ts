@@ -5,7 +5,8 @@ import type {
   SettlementNode,
   SettlementRegion
 } from "../types/settlementFoundation";
-import type { InitialSettlementPattern } from "../types/WorldState";
+import type { FrontierPolitySpacing, InitialSettlementPattern } from "../types/WorldState";
+import { frontierRegionCenterDistanceWeight, normalizeFrontierPolitySpacing } from "../utils/frontierStartMode";
 import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
@@ -78,10 +79,12 @@ export function createSettlementFoundation(
    * Optional override for share of suitable capacity that becomes oikoumene
    * (settled footprint). When omitted, uses the pattern preset's settledFootprint.
    */
-  oikoumeneLandShare?: number
+  oikoumeneLandShare?: number,
+  politySpacing?: FrontierPolitySpacing
 ): SettlementFoundationResult {
   const preset = getInitialSettlementPatternPreset(pattern);
   const saturation = clamp(initialPopulationSaturation, 0, 1);
+  const spacing = normalizeFrontierPolitySpacing(pattern === "frontier" ? politySpacing : "clustered");
   const { sites, resources, totalCapacity } = collectSites(cells, climate, random);
   clearPopulation(cells);
 
@@ -90,7 +93,7 @@ export function createSettlementFoundation(
   }
 
   const regionCount = selectRegionCount(preset.settlementRegionCount, resources.length, random, minimumRegionCount);
-  const centers = selectRegionCenters(resources, regionCount, random);
+  const centers = selectRegionCenters(resources, regionCount, random, frontierRegionCenterDistanceWeight(spacing));
   const footprint =
     oikoumeneLandShare !== undefined && Number.isFinite(oikoumeneLandShare)
       ? clamp(oikoumeneLandShare, 0.1, 0.95)
@@ -278,7 +281,12 @@ function selectRegionCount(
   return Math.min(resourceCount, Math.max(selected, Math.max(0, Math.floor(minimumRegionCount))));
 }
 
-function selectRegionCenters(resources: SettledSite[], count: number, random: () => number): SettledSite[] {
+function selectRegionCenters(
+  resources: SettledSite[],
+  count: number,
+  random: () => number,
+  distanceWeight = 0.76
+): SettledSite[] {
   const ranked = [...resources].sort((a, b) => b.score - a.score || a.id - b.id);
   const centers: SettledSite[] = [ranked[0]];
   const diagonal = Math.max(
@@ -288,6 +296,8 @@ function selectRegionCenters(resources: SettledSite[], count: number, random: ()
       Math.max(...resources.map(site => site.y)) - Math.min(...resources.map(site => site.y))
     )
   );
+  const separation = clamp(distanceWeight, 0.5, 0.98);
+  const qualityWeight = 1 - separation;
 
   while (centers.length < count) {
     const next = ranked
@@ -298,7 +308,7 @@ function selectRegionCenters(resources: SettledSite[], count: number, random: ()
         // Foundation regions are the starting points for separate polities.
         // Once the best site is chosen, geographic separation is deliberately
         // more important than a small local resource-score advantage.
-        const score = (nearest / diagonal) * 0.76 + quality * 0.24;
+        const score = (nearest / diagonal) * separation + quality * qualityWeight;
         return { site, score: score * (0.98 + random() * 0.04) };
       })
       .sort((a, b) => b.score - a.score || b.site.score - a.site.score || a.site.id - b.site.id)[0]?.site;

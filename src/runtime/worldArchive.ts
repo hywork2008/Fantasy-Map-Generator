@@ -8,7 +8,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import { ensureBiomeCatalogFields } from "../data/biomeCatalog";
 import type { BiomesData } from "../types/WorldState";
-import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
+import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import {
@@ -414,6 +414,7 @@ function migrateWorldOptions(world: unknown): void {
     world.options.initialPolityRealmSize ?? world.options.initialPolityScope
   );
   world.options.frontierStartMode = normalizeFrontierStartMode(world.options.frontierStartMode);
+  world.options.frontierPolitySpacing = normalizeFrontierPolitySpacing(world.options.frontierPolitySpacing);
   delete world.options.initialPolityScope;
 }
 

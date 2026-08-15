@@ -1,4 +1,4 @@
-import type { FrontierStartMode, WorldOptions } from "../types/WorldState";
+import type { FrontierPolitySpacing, FrontierStartMode, WorldOptions } from "../types/WorldState";
 
 export const DEFAULT_FRONTIER_START_MODE: FrontierStartMode = "landOrigin";
 
@@ -17,6 +17,29 @@ export const FRONTIER_START_LAND_RELAXATION = [40, 16, 4, 2] as const;
 /** Converts saved or UI input to a supported frontier opening story. */
 export function normalizeFrontierStartMode(value: unknown): FrontierStartMode {
   return value === "seaborne" ? "seaborne" : DEFAULT_FRONTIER_START_MODE;
+}
+
+export const DEFAULT_FRONTIER_POLITY_SPACING: FrontierPolitySpacing = "dispersed";
+
+/** Converts saved or UI input to a supported Frontier capital-spacing policy. */
+export function normalizeFrontierPolitySpacing(value: unknown): FrontierPolitySpacing {
+  return value === "clustered" ? "clustered" : DEFAULT_FRONTIER_POLITY_SPACING;
+}
+
+/**
+ * How many separate Settlement Foundation regions Frontier should try to open
+ * before capitals are placed. Clustered keeps the historical "few shared
+ * homelands" floor; dispersed aims for one distant region per polity.
+ */
+export function frontierFoundationRegionFloor(polityCount: number, spacing: FrontierPolitySpacing): number {
+  if (!Number.isFinite(polityCount) || polityCount <= 0) return 0;
+  const count = Math.round(polityCount);
+  return spacing === "dispersed" ? count : Math.ceil(count / 5);
+}
+
+/** Distance vs site-quality mix when picking Foundation region centers. */
+export function frontierRegionCenterDistanceWeight(spacing: FrontierPolitySpacing): number {
+  return spacing === "dispersed" ? 0.92 : 0.76;
 }
 
 export function minFrontierStartLandCells(realmSize: number): number {

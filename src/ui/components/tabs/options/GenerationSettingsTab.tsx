@@ -561,6 +561,29 @@ export const GenerationSettingsTab: React.FC = () => {
           </tr>
 
           <tr
+            data-tip={t("generation.frontierPolitySpacingTip")}
+            style={{
+              display: options.initialSettlementPattern === "frontier" ? undefined : "none"
+            }}
+          >
+            <td>
+              <LockIconButton id="frontierPolitySpacing" />
+            </td>
+            <th>{t("generation.frontierPolitySpacing")}</th>
+            <td colSpan={2}>
+              <select
+                value={options.frontierPolitySpacing}
+                onChange={e =>
+                  updateOptionAndLock("frontierPolitySpacing", e.target.value as typeof options.frontierPolitySpacing)
+                }
+              >
+                <option value="dispersed">{t("generation.frontierPolitySpacings.dispersed")}</option>
+                <option value="clustered">{t("generation.frontierPolitySpacings.clustered")}</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr
             data-tip={t("generation.initialPolityRealmSizeTip")}
             style={{
               display: options.initialSettlementPattern === "standard" ? "none" : undefined

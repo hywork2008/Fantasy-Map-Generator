@@ -726,7 +726,8 @@ class BurgModule {
                 pack,
                 count: capitalsNumber,
                 startMode: normalizeFrontierStartMode(this.worldContext.options.frontierStartMode),
-                realmSize: normalizeInitialPolityRealmSize(this.worldContext.options.initialPolityRealmSize)
+                realmSize: normalizeInitialPolityRealmSize(this.worldContext.options.initialPolityRealmSize),
+                spacing: this.worldContext.options.frontierPolitySpacing
               })
             : selectInitialPolityCapitalNodes(pack.settlementFoundation!, cells.p, capitalsNumber);
         for (const node of plannedCapitals) {

@@ -1057,6 +1057,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
   worldContext.options.initialPolityRealmSize = useOptionsState.getState().initialPolityRealmSize;
   worldContext.options.frontierStartMode = useOptionsState.getState().frontierStartMode;
+  worldContext.options.frontierPolitySpacing = useOptionsState.getState().frontierPolitySpacing;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
   worldContext.options.volcanicSoilStrength = useOptionsState.getState().volcanicSoilStrength;
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
@@ -1139,7 +1140,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
         Math.random,
         { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
         optionsSnap.statesNumber,
-        optionsSnap.oikoumeneLandShare
+        optionsSnap.oikoumeneLandShare,
+        optionsSnap.frontierPolitySpacing
       );
       if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
       else delete worldContext.pack.settlementFoundation;
