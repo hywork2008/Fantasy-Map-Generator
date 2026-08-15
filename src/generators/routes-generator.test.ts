@@ -313,6 +313,38 @@ describe("RoutesModule settlement connections", () => {
 
     expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
   });
+
+  it("connects autonomous burgs inside the same settlement region with local trails", () => {
+    worldContext.pack.cells.c = [[1], [0, 2], [1]];
+    worldContext.pack.cells.h = [25, 25, 25];
+    worldContext.pack.cells.biomeCode = [1, 1, 1];
+    worldContext.pack.cells.p = [
+      [0, 0],
+      [10, 0],
+      [20, 0]
+    ];
+    worldContext.pack.cells.burg = [1, 0, 2];
+    worldContext.pack.cells.f = [1, 1, 1];
+    worldContext.pack.cells.state = [0, 0, 0];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 0, feature: 1 },
+      { i: 2, cell: 2, x: 20, y: 0, state: 0, feature: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.pack.settlementFoundation = {
+      regions: [{ id: 1, kind: "river", center: 1, cells: [0, 1, 2] }],
+      nodes: [],
+      links: []
+    };
+    worldContext.options = { initialSettlementPattern: "scattered" } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
+      expect.objectContaining({ group: "trails", cells: [0, 1, 2] })
+    ]);
+
+    worldContext.pack.cells.state[1] = 1;
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
+  });
 });
 
 describe("RoutesModule settlement water connections", () => {
@@ -401,6 +433,49 @@ describe("RoutesModule settlement water connections", () => {
 
     expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
       expect.objectContaining({ group: "searoutes", cells: [0, 1, 2], international: true })
+    ]);
+  });
+
+  it("connects autonomous ports sharing sea access without requiring a State", () => {
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 0, 25],
+        biomeCode: [1, 0, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [1, 0, 2],
+        v: [[], [], []],
+        f: [2, 1, 3],
+        state: [0, 0, 0],
+        haven: [1, 0, 1],
+        g: [0, 0, 0],
+        t: [1, -1, 1],
+        r: [0, 0, 0],
+        fl: [0, 0, 0],
+        routes: {}
+      },
+      burgs: [
+        { i: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, state: 0, feature: 2, port: 1 },
+        { i: 2, cell: 2, x: 20, y: 0, state: 0, feature: 3, port: 1 }
+      ],
+      rivers: [],
+      vertices: { c: [], p: [] },
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
+    worldContext.options = {
+      initialSettlementPattern: "scattered",
+      seaRouteGenerationMode: "augmented"
+    } as typeof worldContext.options;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
+      expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] })
     ]);
   });
 

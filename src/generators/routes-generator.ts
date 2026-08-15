@@ -160,6 +160,7 @@ type RouteGraphEdge = { from: number; to: number; triangleIndex: number };
 type PortEdge = [number, number];
 type StateFeatureBurgGroup = { feature: number; stateId: number; burgs: Burg[] };
 type FeatureBurgGroup = { feature: number; burgs: Burg[] };
+type AutonomousBurgGroup = { feature: number; burgs: Burg[]; allowedCells?: ReadonlySet<number> };
 
 // name generator data
 const models: Record<string, Record<string, number>> = {
@@ -889,6 +890,7 @@ class RoutesModule {
     exit,
     stateId,
     allowedStateIds,
+    allowedCells,
     seaRouteGenerationMode,
     landMode,
     landRouteGenerationMode
@@ -900,6 +902,8 @@ class RoutesModule {
     stateId?: number;
     /** Non-zero State ids permitted for a cross-border trail. Unclaimed cells remain traversable. */
     allowedStateIds?: ReadonlySet<number>;
+    /** Optional spatial boundary for a local settlement network. */
+    allowedCells?: ReadonlySet<number>;
     seaRouteGenerationMode?: SeaRouteGenerationMode;
     landMode?: LandRouteMode;
     landRouteGenerationMode?: LandRouteGenerationMode;
@@ -913,6 +917,7 @@ class RoutesModule {
       landRouteGenerationMode
     });
     const getCost = (from: number, to: number) => {
+      if (allowedCells && !allowedCells.has(to)) return Infinity;
       if (stateId && pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId) return Infinity;
       if (allowedStateIds && pack.cells.state[to] !== 0 && !allowedStateIds.has(pack.cells.state[to])) return Infinity;
       return baseCost(from, to);
@@ -1017,6 +1022,66 @@ class RoutesModule {
     }
 
     TIME && console.timeEnd("generateTrails");
+    return trails;
+  }
+
+  /**
+   * Groups independent burgs into local settlement networks. A state id of 0 normally means wilderness,
+   * but a burg at that id is an inhabited autonomous settlement and must not be treated as roadless terrain.
+   */
+  private getAutonomousBurgGroups(): AutonomousBurgGroup[] {
+    const { pack } = this.worldContext;
+    const autonomousBurgs = pack.burgs.filter(burg => Boolean(burg?.i && !burg.removed && !burg.state));
+    if (!autonomousBurgs.length) return [];
+
+    const regionsByCell = new Map<number, { id: number; cells: ReadonlySet<number> }>();
+    for (const region of pack.settlementFoundation?.regions ?? []) {
+      const cells = new Set(region.cells);
+      for (const cellId of region.cells) regionsByCell.set(cellId, { id: region.id, cells });
+    }
+
+    const groups = new Map<string, AutonomousBurgGroup>();
+    for (const burg of autonomousBurgs) {
+      const region = regionsByCell.get(burg.cell);
+      const feature = burg.feature as number;
+      // Older saves have no settlement plan. Keep their free burgs connected by land feature,
+      // while the unclaimed-state filter below still prevents routes from crossing a State.
+      const key = region ? `region:${region.id}:feature:${feature}` : `feature:${feature}`;
+      const group = groups.get(key);
+      if (group) {
+        group.burgs.push(burg);
+        continue;
+      }
+      groups.set(key, { feature, burgs: [burg], allowedCells: region?.cells });
+    }
+
+    return [...groups.values()];
+  }
+
+  /** Creates local low-grade trails for autonomous settlements without traversing State territory. */
+  private generateAutonomousSettlementTrails(connections: Map<string, boolean>) {
+    const trails: Route[] = [];
+    const unclaimedOnly = new Set<number>();
+
+    for (const { feature, burgs, allowedCells } of this.getAutonomousBurgGroups()) {
+      const points = burgs.map(burg => [burg.x, burg.y] as Point);
+      for (const [fromId, toId] of this.calculateUrquhartEdges(points)) {
+        const segments = this.findPathSegments({
+          isWater: false,
+          connections,
+          start: burgs[fromId].cell,
+          exit: burgs[toId].cell,
+          allowedStateIds: unclaimedOnly,
+          allowedCells,
+          landMode: "trails"
+        });
+        for (const segment of segments) {
+          this.addConnections(segment, connections);
+          trails.push({ feature, cells: segment } as Route);
+        }
+      }
+    }
+
     return trails;
   }
 
@@ -1158,6 +1223,55 @@ class RoutesModule {
     }
 
     TIME && console.timeEnd("generateSeaRoutes");
+    return seaRoutes;
+  }
+
+  /** Creates local sea lanes between autonomous ports sharing the same water feature. */
+  private generateAutonomousSettlementSeaRoutes(
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: SeaRouteGenerationMode
+  ) {
+    const { pack } = this.worldContext;
+    const portsByFeature = new Map<number, Burg[]>();
+    for (const burg of pack.burgs) {
+      if (!burg?.i || burg.removed || burg.state || !burg.port || !pack.cells.haven[burg.cell]) continue;
+      const ports = portsByFeature.get(burg.port) ?? [];
+      ports.push(burg);
+      portsByFeature.set(burg.port, ports);
+    }
+
+    const seaRoutes: Route[] = [];
+    for (const [feature, ports] of portsByFeature) {
+      if (ports.length < 2) continue;
+      const points = ports.map(port => [port.x, port.y] as Point);
+      const allPortEdges =
+        seaRouteGenerationMode === "augmented"
+          ? this.calculateAugmentedEdges(points)
+          : this.calculateUrquhartEdges(points);
+      const portEdges =
+        seaRouteGenerationMode === "augmented"
+          ? this.addCoastalBackboneEdges(
+              points,
+              allPortEdges,
+              ports.map((_, index) => index)
+            )
+          : allPortEdges;
+
+      for (const [fromId, toId] of portEdges) {
+        const segments = this.findPathSegments({
+          isWater: true,
+          connections,
+          start: ports[fromId].cell,
+          exit: ports[toId].cell,
+          seaRouteGenerationMode
+        });
+        for (const segment of segments) {
+          this.addConnections(segment, connections);
+          seaRoutes.push({ feature, cells: segment } as Route);
+        }
+      }
+    }
+
     return seaRoutes;
   }
 
@@ -1378,10 +1492,15 @@ class RoutesModule {
     // route endpoints. Every generated network is based on actual burgs.
     const mainRoads = this.generateMainRoads(landConnections);
     const trails = this.generateTrails(landConnections);
+    const autonomousSettlementTrails = this.generateAutonomousSettlementTrails(landConnections);
     const internationalTrails = this.generateInternationalTrails(landConnections);
     const peacefulNeighborTrails = this.generatePeacefulNeighborTrails(landConnections);
     const allAdjacentStateTrails = this.generateAllAdjacentStateTrails(landConnections);
     const seaRoutes = this.generateSeaRoutes(waterConnections, seaRouteGenerationMode);
+    const autonomousSettlementSeaRoutes = this.generateAutonomousSettlementSeaRoutes(
+      waterConnections,
+      seaRouteGenerationMode
+    );
     const peacefulNeighborSeaRoutes = this.generatePeacefulNeighborSeaRoutes(waterConnections, seaRouteGenerationMode);
     const allAdjacentStateSeaRoutes = this.generateAllAdjacentStateSeaRoutes(waterConnections, seaRouteGenerationMode);
     const riverRoutes = this.generateRiverRoutes();
@@ -1393,7 +1512,7 @@ class RoutesModule {
       routes.push({ i: routes.length, group: "roads", feature, points, cells: cells! });
     }
 
-    for (const { feature, cells, merged } of this.mergeRoutes(trails)) {
+    for (const { feature, cells, merged } of this.mergeRoutes([...trails, ...autonomousSettlementTrails])) {
       if (merged) continue;
       const points = this.getPoints("trails", cells!, pointsArray);
       routes.push({ i: routes.length, group: "trails", feature, points, cells: cells! });
@@ -1411,6 +1530,7 @@ class RoutesModule {
 
     for (const { feature, cells, merged, international } of this.mergeRoutes([
       ...seaRoutes,
+      ...autonomousSettlementSeaRoutes,
       ...peacefulNeighborSeaRoutes,
       ...allAdjacentStateSeaRoutes
     ])) {
