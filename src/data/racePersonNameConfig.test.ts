@@ -11,6 +11,8 @@ describe("racePersonNameConfig", () => {
     expect(DEFAULT_RACE_PERSON_NAME_SPHERES.elf).toEqual({ primary: 7, alternate: 22 });
     expect(DEFAULT_RACE_PERSON_NAME_SPHERES.dark_elf).toEqual({ primary: 23, alternate: 42 });
     expect(DEFAULT_RACE_PERSON_NAME_SPHERES.dwarf).toEqual({ primary: 6, alternate: 0 });
+    expect(DEFAULT_RACE_PERSON_NAME_SPHERES.demon).toEqual({ primary: 23 });
+    expect(DEFAULT_RACE_PERSON_NAME_SPHERES.beastfolk).toEqual({ primary: null });
   });
 
   it("applyRacePersonNameSpheres stamps primary then alternate by race order", () => {

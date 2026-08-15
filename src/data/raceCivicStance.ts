@@ -2,7 +2,7 @@
  * How each race relates to multi-folk politics on High/Dark Fantasy maps.
  *
  * - **diplomatic** (human, elf, dwarf): can war *or* ally; rare mixed polities.
- * - **distant** (dark elf, giant, draconic, amazones): civilized but keep distance; mono.
+ * - **distant** (dark elf, giant, draconic, amazones, demon, beastfolk): civilized but keep distance; mono.
  * - **enemy_colony** (goblin, orc, arachnid): own colonies/lairs; hostile ecology; mono war courts.
  * - **bound** (wyrmkin): no free polities; only under a host race (see raceBoundServitors).
  *
@@ -18,7 +18,14 @@ export type RaceCivicStance = "diplomatic" | "distant" | "enemy_colony" | "bound
 export const DIPLOMATIC_CORE_RACE_KEYS: ReadonlySet<string> = new Set(["human", "elf", "dwarf"]);
 
 /** Keep their own realms; not full enemies, not open multi-folk cities. */
-export const DISTANT_RACE_KEYS: ReadonlySet<string> = new Set(["dark_elf", "giant", "draconic", "amazones"]);
+export const DISTANT_RACE_KEYS: ReadonlySet<string> = new Set([
+  "dark_elf",
+  "giant",
+  "draconic",
+  "amazones",
+  "demon",
+  "beastfolk"
+]);
 
 /**
  * Self-contained hostile colonies / nests / warbands.

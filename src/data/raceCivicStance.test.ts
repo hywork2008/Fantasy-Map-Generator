@@ -17,6 +17,8 @@ describe("raceCivicStance", () => {
     expect(raceCivicStance("giant")).toBe("distant");
     expect(raceCivicStance("draconic")).toBe("distant");
     expect(raceCivicStance("amazones")).toBe("distant");
+    expect(raceCivicStance("demon")).toBe("distant");
+    expect(raceCivicStance("beastfolk")).toBe("distant");
     expect(raceCivicStance("goblin")).toBe("enemy_colony");
     expect(raceCivicStance("orc")).toBe("enemy_colony");
     expect(raceCivicStance("arachnid")).toBe("enemy_colony");
@@ -30,6 +32,8 @@ describe("raceCivicStance", () => {
     expect(canAppearInMixedCourt("orc")).toBe(false);
     expect(canAppearInMixedCourt("dark_elf")).toBe(false);
     expect(canAppearInMixedCourt("amazones")).toBe(false);
+    expect(canAppearInMixedCourt("demon")).toBe(false);
+    expect(canAppearInMixedCourt("beastfolk")).toBe(false);
     expect(canAppearInMixedCourt("wyrmkin")).toBe(false);
   });
 
@@ -38,6 +42,8 @@ describe("raceCivicStance", () => {
     expect(mixedPolityChanceForRaceKey("elf")).toBeGreaterThan(0);
     expect(mixedPolityChanceForRaceKey("orc")).toBe(0);
     expect(mixedPolityChanceForRaceKey("draconic")).toBe(0);
+    expect(mixedPolityChanceForRaceKey("demon")).toBe(0);
+    expect(mixedPolityChanceForRaceKey("beastfolk")).toBe(0);
   });
 
   it("defaults enemy and distant races to always mono", () => {
@@ -45,6 +51,8 @@ describe("raceCivicStance", () => {
     expect(defaultMonoRacialForRaceKey("goblin", () => 0)).toBe(true);
     expect(defaultMonoRacialForRaceKey("dark_elf", () => 0)).toBe(true);
     expect(defaultMonoRacialForRaceKey("amazones", () => 0.99)).toBe(true);
+    expect(defaultMonoRacialForRaceKey("demon", () => 0)).toBe(true);
+    expect(defaultMonoRacialForRaceKey("beastfolk", () => 0)).toBe(true);
   });
 
   it("can roll rare mixed for humans when random is low", () => {

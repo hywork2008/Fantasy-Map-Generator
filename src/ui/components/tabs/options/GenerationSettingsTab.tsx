@@ -415,10 +415,10 @@ export const GenerationSettingsTab: React.FC = () => {
                 <option value="antique" data-max="10">
                   {t("generation.culturesSets.antique")}
                 </option>
-                <option value="highFantasy" data-max="17">
+                <option value="highFantasy" data-max="19">
                   {t("generation.culturesSets.highFantasy")}
                 </option>
-                <option value="darkFantasy" data-max="18">
+                <option value="darkFantasy" data-max="36">
                   {t("generation.culturesSets.darkFantasy")}
                 </option>
                 <option value="random" data-max="100">

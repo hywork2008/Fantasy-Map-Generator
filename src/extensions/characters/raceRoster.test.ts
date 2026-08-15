@@ -68,7 +68,11 @@ describe("sampleRaceIdForState", () => {
     const human = races.find(r => r.key === "human")!.i;
     const forbidden = new Set(
       races
-        .filter(r => ["goblin", "orc", "arachnid", "dark_elf", "giant", "draconic", "amazones"].includes(r.key))
+        .filter(r =>
+          ["goblin", "orc", "arachnid", "dark_elf", "giant", "draconic", "amazones", "demon", "beastfolk"].includes(
+            r.key
+          )
+        )
         .map(r => r.i)
     );
     const allowed = new Set(races.filter(r => ["human", "elf", "dwarf"].includes(r.key)).map(r => r.i));

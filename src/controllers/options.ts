@@ -982,7 +982,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       oriental: 13,
       english: 10,
       antique: 17,
-      highFantasy: 18,
+      highFantasy: 19,
       darkFantasy: 36,
       random: 100
     };

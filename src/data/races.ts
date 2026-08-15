@@ -279,6 +279,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
   },
   {
     // Appended to preserve the ids of all races that existed in older saves.
+    // Independent High/Dark Fantasy culture: Vharok (cultures-generator). Distant civic stance.
     key: "demon",
     name: "Demon",
     lifespan: 180,
@@ -301,6 +302,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     }
   },
   {
+    // Independent High/Dark Fantasy culture: Veldan (cultures-generator). Distant civic stance.
     key: "beastfolk",
     name: "Beastfolk",
     lifespan: 40,

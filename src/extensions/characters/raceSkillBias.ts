@@ -113,6 +113,20 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     diplomacy: -4,
     artistry: 2
   },
+  // Distant infernal courts: personal might and pact-lore.
+  demon: {
+    intrigue: 6,
+    learning: 4,
+    prowess: 8
+  },
+  // Distant wild folk: fieldcraft and personal strength; thin book-learning.
+  beastfolk: {
+    diplomacy: -2,
+    geography: 3,
+    learning: -3,
+    prowess: 4,
+    stewardship: -2
+  },
   // Enemy colony nest predators.
   arachnid: {
     martial: -4,

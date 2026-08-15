@@ -9,7 +9,7 @@ Related: race fertility & lifespan (`src/data/races.ts`), civic stance (`src/dat
 
 1. **Most realms are mono-racial.** Each folk keeps its own colonies, holds, forests, or nests. Multi-folk *states* are **rare** exceptions, not the map default.
 2. **Human, elf, and dwarf** are the diplomatic core: they fight each other and also **form alliances**. Relative to everyone else, they are still “people you can talk to.”
-3. **Dark elf, giant, draconic, Amazones** keep **distance** — not open enemy, not open melting-pot. Strong cultures, closed doors.
+3. **Dark elf, giant, draconic, Amazones, Demon, Beastfolk** keep **distance** — not open enemy, not open melting-pot. Strong cultures, closed doors.
 4. **Goblin, orc, arachnid** live in **enemy colonies** (raids, war-clans, predatory nests). They do not staff mixed courts or peaceful markets.
 5. **Wyrmkin** are **bound servitors** of **draconic** realms only — no free kingdoms. They run markets, craft halls, and desk work dragons will not do themselves.
 6. Slow-fertility long-lived folk still cannot survive endless total war — limited wars and frontiers matter — but **coexistence is usually “next door,” not “same crown.”**
@@ -21,7 +21,7 @@ Related: race fertility & lifespan (`src/data/races.ts`), civic stance (`src/dat
 | Stance | Races | Polity | Diplomacy flavor |
 | :--- | :--- | :--- | :--- |
 | **Diplomatic core** | Human, Elf, Dwarf | Mostly mono; **rare** mixed (~10–18%) | War *or* alliance; trade and treaties normal |
-| **Distant** | Dark Elf, Giant, Draconic, Amazones | Always mono | Formal distance; trade possible, mixed cities rare/absent |
+| **Distant** | Dark Elf, Giant, Draconic, Amazones, Demon, Beastfolk | Always mono | Formal distance; trade possible, mixed cities rare/absent |
 | **Enemy colony** | Goblin, Orc, Arachnid | Always mono; war/nest courts only | Hostile ecology; containment, not co-citizenship |
 | **Bound** | Wyrmkin | Never independent | Live only under a host race (draconic); thrall stock for trade/craft |
 
@@ -58,6 +58,8 @@ Coexistence with them means **frontiers, fortresses, and seasonal war**, not sha
 - **Giant** (god-line / Yotunn): cyclopean builders with draconic-level personal might and **deep-time longevity** (typical ~800 years, under high elves only slightly, well under dragons). They keep lesser folk out with **secrecy, intermediaries, and controlled access** (Intrigue for non-involvement — not dark-elf succession games). Little interest in mortal scholarship. Personality: low sociability/compassion, high guile and confidence, restrained greed. Sparse named courts and near-replacement births match millennial mono realms.
 - **Draconic**: power and pride; keep lesser folk at arm’s length by apex presence more than scheming. **Named merchants and craft masters are almost never dragons** — those desks belong to **Wyrmkin**.
 - **Amazones**: strong female-led warrior culture; other peoples find the social order hard to live under, so contact stays limited.
+- **Demon** (Vharok cultures): horned folk with long but not elf-scale lives; infernal courts in hot, thinly settled lands. Pact-lore and personal might, not mass war. Closed doors, not enemy colonies — full civil offices, no mixed cities.
+- **Beastfolk** (Veldan cultures): short-lived wild clans of mixed animal ancestry. Forest and grassland holds. Energetic and sociable among their own; thin book-learning; keep other folk at a neighbor’s distance.
 
 They get full (non-merchant-war-only) mono courts — civilizations, just not cosmopolitans.
 

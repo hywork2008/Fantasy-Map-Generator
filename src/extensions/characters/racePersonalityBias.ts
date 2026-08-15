@@ -113,6 +113,27 @@ export const RACE_PERSONALITY_BIAS: Readonly<Record<string, PersonalityBiasTable
     honor: 4,
     energy: 4
   },
+  // Distant infernal courts: proud, guileful, closed to outsiders.
+  demon: {
+    confidence: 6,
+    guile: 6,
+    compassion: -12,
+    sociability: -4,
+    zeal: 8,
+    honor: -2,
+    vengefulness: -8,
+    greed: 6
+  },
+  // Distant wild clans: energetic, sociable among their own, not courtly.
+  beastfolk: {
+    energy: 6,
+    sociability: 4,
+    boldness: 4,
+    greed: -2,
+    rationality: -2,
+    honor: 2,
+    compassion: 2
+  },
   arachnid: {
     boldness: -2,
     greed: 4,

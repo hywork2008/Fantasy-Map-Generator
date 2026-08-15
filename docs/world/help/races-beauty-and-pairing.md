@@ -79,7 +79,7 @@ See [multi-race-geopolitics.md](./multi-race-geopolitics.md) and `src/data/raceC
 | Stance | Races | Courts |
 | :--- | :--- | :--- |
 | **Diplomatic** | Human, Elf, Dwarf | Mostly mono; rare mixed (only these three as staff) |
-| **Distant** | Dark Elf, Giant, Draconic, Amazones | Always mono; full civil offices; keep distance |
+| **Distant** | Dark Elf, Giant, Draconic, Amazones, Demon, Beastfolk | Always mono; full civil offices; keep distance |
 | **Enemy colony** | Goblin, Orc, Arachnid | Always mono; **ruler + martial only**; no merchants/guilds |
 | **Bound** | Wyrmkin | No free polity; only under **Draconic** (markets/craft thralls) |
 
@@ -96,6 +96,8 @@ Role and office still dominate, but race shifts medians (`raceSkillBias.ts`):
 - **Draconic** (distant): apex Prowess; weak Martial/Diplomacy/Engineering pride. **Merchants are Wyrmkin**, not dragons.
 - **Wyrmkin** (bound): stewardship/diplomacy up; prowess down; thrall origins; face of dragon trade.
 - **Dark Elf / Amazones** (distant): underdark intrigue or warrior matriarchy — not cosmopolitan.
+- **Demon** (distant): Prowess/Intrigue/Learning up; Martial/Diplomacy down. Personality: confidence and guile, low compassion/sociability.
+- **Beastfolk** (distant): Prowess/Geography up; short-lived wilderness folk. Personality: energy and sociability among their own.
 
 ---
 

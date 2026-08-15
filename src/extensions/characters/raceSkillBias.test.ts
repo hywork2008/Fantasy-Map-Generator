@@ -92,6 +92,17 @@ describe("raceSkillBias", () => {
   it("exports non-empty bias tables for fantasy races", () => {
     expect(Object.keys(raceSkillBiasForKey("elf")).length).toBeGreaterThan(0);
     expect(Object.keys(raceSkillBiasForKey("goblin")).length).toBeGreaterThan(0);
+    expect(Object.keys(raceSkillBiasForKey("demon")).length).toBeGreaterThan(0);
+    expect(Object.keys(raceSkillBiasForKey("beastfolk")).length).toBeGreaterThan(0);
+  });
+
+  it("tilts Demon toward prowess/intrigue and Beastfolk toward prowess/geography", () => {
+    expect(skillMeanFor("prowess", { raceKey: "demon" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
+    expect(skillMeanFor("intrigue", { raceKey: "demon" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
+    expect(skillMeanFor("martial", { raceKey: "demon" }).mean).toBeLessThan(SKILL_BASE_MEAN);
+    expect(skillMeanFor("prowess", { raceKey: "beastfolk" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
+    expect(skillMeanFor("geography", { raceKey: "beastfolk" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
+    expect(skillMeanFor("learning", { raceKey: "beastfolk" }).mean).toBeLessThan(SKILL_BASE_MEAN);
   });
 });
 

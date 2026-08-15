@@ -698,6 +698,24 @@ class NamesGenerator {
         d: "ankprs",
         m: 0,
         b: "Adme,Adramet,Agadir,Akko,Akzib,Alimas,Alis-Ubbo,Alqosh,Amid,Ammon,Ampi,Amurru,Andarig,Anpa,Araden,Aram,Arwad,Ashkelon,Athar,Atiq,Aza,Azeka,Baalbek,Babel,Batrun,Beerot,Beersheba,Beit Shemesh,Berytus,Bet Agus,Bet Anya,Beth-Horon,Bethel,Bethlehem,Bethuel,Bet Nahrin,Bet Nohadra,Bet Zalin,Birmula,Biruta,Bit Agushi,Bitan,Bit Zamani,Cerne,Dammeseq,Darmsuq,Dor,Eddial,Eden Ekron,Elah,Emek,Emun,Ephratah,Eyn Ganim,Finike,Gades,Galatia,Gaza,Gebal,Gedera,Gerizzim,Gethsemane,Gibeon,Gilead,Gilgal,Golgotha,Goshen,Gytte,Hagalil,Haifa,Halab,Haqel Dma,Har Habayit,Har Nevo,Har Pisga,Havilah,Hazor,Hebron,Hormah,Iboshim,Iriho,Irinem,Irridu,Israel,Kadesh,Kanaan,Kapara,Karaly,Kart-Hadasht,Keret Chadeshet,Kernah,Kesed,Keysariya,Kfar,Kfar Nahum,Khalibon,Khalpe,Khamat,Kiryat,Kittim,Kurda,Lapethos,Larna,Lepqis,Lepriptza,Liksos,Lod,Luv,Malaka,Malet,Marat,Megido,Melitta,Merdin,Metsada,Mishmarot,Mitzrayim,Moab,Mopsos,Motye,Mukish,Nampigi,Nampigu,Natzrat,Nimrud,Nineveh,Nob,Nuhadra,Oea,Ofir,Oyat,Phineka,Phoenicus,Pleshet,Qart-Tubah Sarepta,Qatna,Rabat Amon,Rakkath,Ramat Aviv,Ramitha,Ramta,Rehovot,Reshef,Rushadir,Rushakad,Samrin,Sefarad,Sehyon,Sepat,Sexi,Sharon,Shechem,Shefelat,Shfanim,Shiloh,Shmaya,Shomron,Sidon,Sinay,Sis,Solki,Sur,Suria,Tabetu,Tadmur,Tarshish,Tartus,Teberya,Tefessedt,Tekoa,Teyman,Tinga,Tipasa,Tsabratan,Tur Abdin,Tzarfat,Tziyon,Tzor,Ugarit,Unubaal,Ureshlem,Urhay,Urushalim,Vaga,Yaffa,Yamhad,Yam hamelach,Yam Kineret,Yamutbal,Yathrib,Yaudi,Yavne,Yehuda,Yerushalayim,Yev,Yevus,Yizreel,Yurdnan,Zarefat,Zeboim,Zeurta,Zeytim,Zikhron,Zmurna"
+      },
+      {
+        name: "Infernal",
+        i: 43,
+        min: 5,
+        max: 11,
+        d: "zkh",
+        m: 0,
+        b: "Ashketh,Ashmek,Ashqeth,Ashqor,Ashroth,Ashruun,Ashvek,Ashveth,Ashzok,Ethvak,Irvath,Ithmek,Ithqor,Ithraz,Ithrazek,Ithrun,Ithvaz,Ithvok,Ithvor,Ithzul,Izketh,Izkhor,Izkor,Izkun,Kalzeth,Kelthor,Kelveth,Kethroz,Kethuun,Kethvar,Khalvok,Khorqel,Khorvaz,Korzun,Malqor,Malvok,Malzun,Melqaz,Melqor,Melvor,Melzeth,Mekthar,Meqrath,Narqeth,Nalzeth,Neqroth,Nethrak,Nexrath,Nirvok,Nizqar,Orketh,Oruun,Orvath,Orzath,Othvun,Qazreth,Qazveth,Qelreth,Qelvar,Qethrak,Qirvaz,Qorvaz,Qorveth,Qovrak,Qulveth,Qunreth,Raxeth,Razqun,Rethvak,Rilvaz,Rilzeth,Ruzqel,Ruzvath,Thalzok,Thalveth,Thozketh,Thurvak,Ulvokar,Vakthor,Vashreth,Velkoth,Vethor,Vethrak,Vhaketh,Vharnex,Vharok,Vharqel,Vharuun,Vharzok,Vhazketh,Vhazrun,Vhelqor,Vhoreth,Vhorkaz,Vokthar,Vorketh,Vorath,Vorqeth,Voruun,Vorzeth,Vozketh,Xalquor,Xalruun,Xalveth,Xathrek,Xazketh,Xelroth,Xelvok,Xizvar,Xorath,Xorvath,Xovath,Xulrek,Xulthar,Xurmek,Xurvath,Zalketh,Zalquun,Zarketh,Zelqor,Zethqar,Zharuun,Zhaveth,Zhunreth,Zhulkar,Zhurvan,Zirvak,Zirveth,Zovreth,Zunqor"
+      },
+      {
+        name: "Beastfolk",
+        i: 44,
+        min: 5,
+        max: 10,
+        d: "rl",
+        m: 0,
+        b: "Belrin,Belvar,Brannil,Brannoc,Branthor,Braskel,Bravok,Brenith,Brenok,Brithen,Dalren,Dalvok,Drannil,Dranok,Draskel,Drathol,Draveth,Dravok,Halthar,Harkel,Harneth,Harnil,Harnok,Heslin,Hestel,Holnir,Holvar,Hrodel,Hroskel,Hrotha,Hrovan,Hroven,Kalnir,Karnith,Keldar,Keldrin,Kelthorn,Kelvar,Kelvok,Kessir,Kestel,Korlen,Korthen,Korvan,Lethar,Lurvan,Marvok,Meldrin,Melvar,Morkan,Mornak,Morthen,Nalveth,Nerath,Neskir,Nethril,Nirvak,Nolveth,Nostrel,Orlen,Ornak,Ornath,Orskel,Orthel,Orvan,Orveth,Orvin,Relvok,Renock,Rovan,Ruveth,Ruvin,Selnak,Selnir,Selthorn,Skarnel,Skelthorn,Skorin,Solvar,Tarnok,Tharnel,Tharnok,Tharvok,Therok,Theslin,Thesvar,Thornak,Thorsel,Throvan,Tolnir,Valdrin,Valeth,Vaskel,Vasren,Veldan,Veldor,Velmir,Velric,Velrok,Velthorn,Veskar,Veslin,Volnak,Vorlen,Vorrak,Vorrin,Voskiran"
       }
     ];
   }
