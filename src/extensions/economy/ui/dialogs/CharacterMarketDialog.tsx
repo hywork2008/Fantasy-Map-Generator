@@ -157,20 +157,20 @@ export const CharacterMarketDialog: React.FC = () => {
           </div>
           <section
             className="table"
-            aria-label="Market goods"
+            aria-label={t("extensions.characterMarket.ariaGoods")}
             style={{ overflowY: "scroll", scrollbarGutter: "stable" }}
           >
             <table className="fmg-table">
               <thead>
                 <tr className="header">
-                  <th>Good</th>
-                  <th>Merchant</th>
-                  <th>Available locally</th>
-                  <th>Ask</th>
-                  <th>Bid</th>
-                  <th>Owned</th>
-                  <th>Units</th>
-                  <th>Trade</th>
+                  <th>{t("extensions.characterMarket.good")}</th>
+                  <th>{t("extensions.characterMarket.merchantCol")}</th>
+                  <th>{t("extensions.characterMarket.available")}</th>
+                  <th>{t("extensions.characterMarket.ask")}</th>
+                  <th>{t("extensions.characterMarket.bid")}</th>
+                  <th>{t("extensions.characterMarket.owned")}</th>
+                  <th>{t("extensions.characterMarket.units")}</th>
+                  <th>{t("extensions.characterMarket.trade")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -191,7 +191,7 @@ export const CharacterMarketDialog: React.FC = () => {
                       <td>{formatRetailQuantity(row.playerUnits, row.retailLotSize)}</td>
                       <td>
                         <input
-                          aria-label={`${localizedGoodName} units`}
+                          aria-label={t("extensions.characterMarket.unitsAria", { name: localizedGoodName })}
                           type="number"
                           min={row.retailLotSize}
                           step={row.retailLotSize}
@@ -207,7 +207,7 @@ export const CharacterMarketDialog: React.FC = () => {
                           onClick={() => execute(row.goodId, "buy")}
                           disabled={row.availableStock <= 0}
                         >
-                          Buy
+                          {t("extensions.characterMarket.buy")}
                         </button>{" "}
                         <button
                           type="button"
@@ -216,14 +216,14 @@ export const CharacterMarketDialog: React.FC = () => {
                           }
                           disabled={row.availableStock <= 0}
                         >
-                          Buy all
+                          {t("extensions.characterMarket.buyAll")}
                         </button>{" "}
                         <button
                           type="button"
                           onClick={() => execute(row.goodId, "sell")}
                           disabled={row.playerUnits <= 0}
                         >
-                          Sell
+                          {t("extensions.characterMarket.sell")}
                         </button>
                       </td>
                     </tr>
@@ -232,8 +232,8 @@ export const CharacterMarketDialog: React.FC = () => {
               </tbody>
             </table>
           </section>
-          {!snapshot.rows.length ? <p>No goods are currently traded in this market.</p> : null}
-          {snapshot.rows.length > 0 && rows.length === 0 ? <p>No goods match the current filters.</p> : null}
+          {!snapshot.rows.length ? <p>{t("extensions.characterMarket.noTraded")}</p> : null}
+          {snapshot.rows.length > 0 && rows.length === 0 ? <p>{t("extensions.characterMarket.noMatch")}</p> : null}
         </div>
       )}
     </Dialog>

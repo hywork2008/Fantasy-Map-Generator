@@ -40,32 +40,34 @@ export const BalanceHistoryDialog: React.FC = () => {
       onClose={() => closeDialog("balanceHistory")}
       className="fmg-dialog--table"
       buttons={[
-        { label: "Download CSV", onClick: downloadBalanceHistoryCsv, disabled: snapshots.length === 0 },
         {
-          label: "Download Goods Balance CSV",
+          label: t("extensions.balanceHistory.downloadCsv"),
+          onClick: downloadBalanceHistoryCsv,
+          disabled: snapshots.length === 0
+        },
+        {
+          label: t("extensions.balanceHistory.downloadGoodsCsv"),
           onClick: downloadGoodsBalanceHistoryCsv,
           disabled: intervalCount === 0
         },
         {
-          label: "Download Flow Attribution CSV",
+          label: t("extensions.balanceHistory.downloadFlowCsv"),
           onClick: downloadGoodsFlowAttributionCsv,
           disabled: intervalCount === 0
         },
-        { label: "Clear History", onClick: clearBalanceHistory, disabled: snapshots.length === 0 }
+        { label: t("extensions.balanceHistory.clear"), onClick: clearBalanceHistory, disabled: snapshots.length === 0 }
       ]}
     >
       <TableDialogLayout
         bodyRef={parentRef}
         summary={
           <div className="dim" style={{ fontSize: "0.9em" }}>
-            One row per map generation and per completed Advance Day/Month/Year action. "Download Goods Balance CSV"
-            exports stock changes and supply/consumption categories per Good; "Download Flow Attribution CSV" adds
-            market, burg, guild domain, and recipe-output attribution.
+            {t("extensions.balanceHistory.note")}
           </div>
         }
       >
         {snapshots.length === 0 ? (
-          <i>No snapshots yet. Generate a map or advance time to start tracking balance history.</i>
+          <i>{t("extensions.balanceHistory.empty")}</i>
         ) : (
           <div ref={parentRef} className="table">
             <table className="fmg-table">
@@ -82,17 +84,27 @@ export const BalanceHistoryDialog: React.FC = () => {
               </colgroup>
               <thead className="header">
                 <tr>
-                  <th>Label</th>
-                  <th>Date</th>
-                  <th data-tip="Real (post-populationRate/urbanization) world population">Population</th>
-                  <th data-tip="Urban population share of total">Urban %</th>
-                  <th data-tip="Sum of current stock across every enabled Good">Goods Stock</th>
-                  <th data-tip="Wild (Game) world headcount">Fauna Wild</th>
-                  <th data-tip="Domesticated (liveAnimal) world headcount">Fauna Domesticated</th>
-                  <th data-tip="Species whose world headcount is critically low — see FAUNA_AT_RISK_HEADCOUNT_THRESHOLD">
-                    Fauna At-Risk
+                  <th>{t("extensions.balanceHistory.label")}</th>
+                  <th>{t("extensions.balanceHistory.date")}</th>
+                  <th data-tip={t("extensions.balanceHistory.populationTip")}>
+                    {t("extensions.balanceHistory.population")}
                   </th>
-                  <th data-tip="Sum of every State's public treasury">Treasury</th>
+                  <th data-tip={t("extensions.balanceHistory.urbanTip")}>{t("extensions.balanceHistory.urban")}</th>
+                  <th data-tip={t("extensions.balanceHistory.goodsStockTip")}>
+                    {t("extensions.balanceHistory.goodsStock")}
+                  </th>
+                  <th data-tip={t("extensions.balanceHistory.faunaWildTip")}>
+                    {t("extensions.balanceHistory.faunaWild")}
+                  </th>
+                  <th data-tip={t("extensions.balanceHistory.faunaDomTip")}>
+                    {t("extensions.balanceHistory.faunaDom")}
+                  </th>
+                  <th data-tip={t("extensions.balanceHistory.faunaRiskTip")}>
+                    {t("extensions.balanceHistory.faunaRisk")}
+                  </th>
+                  <th data-tip={t("extensions.balanceHistory.treasuryTip")}>
+                    {t("extensions.balanceHistory.treasury")}
+                  </th>
                 </tr>
               </thead>
               <VirtualTableBody
@@ -100,9 +112,13 @@ export const BalanceHistoryDialog: React.FC = () => {
                 scrollElementRef={parentRef}
                 renderRow={snapshot => (
                   <tr key={snapshot.id}>
-                    <td>{snapshot.label}</td>
+                    <td>{formatSnapshotLabel(snapshot.label, t)}</td>
                     <td>
-                      Y{snapshot.year} M{snapshot.month} D{snapshot.day}
+                      {t("extensions.balanceHistory.dateFmt", {
+                        year: snapshot.year,
+                        month: snapshot.month,
+                        day: snapshot.day
+                      })}
                     </td>
                     <td>{formatNumber(snapshot.population.total)}</td>
                     <td>{formatPercent(snapshot.population.urbanizationRate)}</td>
@@ -121,3 +137,9 @@ export const BalanceHistoryDialog: React.FC = () => {
     </Dialog>
   );
 };
+
+function formatSnapshotLabel(label: string, t: (key: string) => string): string {
+  if (label === "Initial Generation") return t("extensions.balanceHistory.initialGeneration");
+  if (label === "Advance Time") return t("extensions.balanceHistory.advanceTime");
+  return label;
+}

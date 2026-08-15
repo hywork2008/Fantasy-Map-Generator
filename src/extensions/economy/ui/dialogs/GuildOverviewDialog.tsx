@@ -98,15 +98,15 @@ export const GuildOverviewDialog: React.FC = () => {
       <TableDialogLayout
         bodyRef={parentRef}
         controls={
-          <div id="guildOverviewFilters" data-tip="Filter guild technique stocks" className="d-flex">
+          <div id="guildOverviewFilters" data-tip={t("extensions.guildOverview.filterTip")} className="d-flex">
             <label htmlFor="guildOverviewFilterBurg">
-              Burg:
+              {t("extensions.guildOverview.burg")}
               <select
                 id="guildOverviewFilterBurg"
                 value={filterBurgId ?? ""}
                 onChange={event => setFilterBurgId(event.target.value === "" ? null : Number(event.target.value))}
               >
-                <option value="">all</option>
+                <option value="">{t("extensions.guildOverview.all")}</option>
                 {burgOptions.map(option => (
                   <option key={option.id} value={option.id}>
                     {option.name}
@@ -115,13 +115,13 @@ export const GuildOverviewDialog: React.FC = () => {
               </select>
             </label>
             <label htmlFor="guildOverviewFilterState">
-              State:
+              {t("extensions.guildOverview.state")}
               <select
                 id="guildOverviewFilterState"
                 value={filterStateId ?? ""}
                 onChange={event => setFilterStateId(event.target.value === "" ? null : Number(event.target.value))}
               >
-                <option value="">all</option>
+                <option value="">{t("extensions.guildOverview.all")}</option>
                 {stateOptions.map(option => (
                   <option key={option.id} value={option.id}>
                     {option.name}
@@ -130,7 +130,7 @@ export const GuildOverviewDialog: React.FC = () => {
               </select>
             </label>
             <label htmlFor="guildOverviewFilterDomain">
-              Domain:
+              {t("extensions.guildOverview.domain")}
               <select
                 id="guildOverviewFilterDomain"
                 value={filterDomain ?? ""}
@@ -138,7 +138,7 @@ export const GuildOverviewDialog: React.FC = () => {
                   setFilterDomain(event.target.value === "" ? null : (event.target.value as GuildOverviewRow["domain"]))
                 }
               >
-                <option value="">all</option>
+                <option value="">{t("extensions.guildOverview.all")}</option>
                 {domainOptions.map(domain => (
                   <option key={domain} value={domain}>
                     {domain}
@@ -150,15 +150,16 @@ export const GuildOverviewDialog: React.FC = () => {
         }
         summary={
           <div className="totalLine">
-            <span data-tip="Guild technique stocks displayed after filtering">
-              Guild stocks:{" "}
+            <span data-tip={t("extensions.guildOverview.countTip")}>
+              {t("extensions.guildOverview.count")}{" "}
               <span id="guildOverviewCount">
-                {rows.length} of {rawRows.length}
+                {t("extensions.guildOverview.countValue", { shown: rows.length, total: rawRows.length })}
               </span>
             </span>
             {" · "}
-            <span data-tip="Sum of every listed guild technique stock's private treasury">
-              Total guild treasury: <span id="guildOverviewTotal">{totalTreasury.toFixed(1)}</span>
+            <span data-tip={t("extensions.guildOverview.totalTreasuryTip")}>
+              {t("extensions.guildOverview.totalTreasury")}{" "}
+              <span id="guildOverviewTotal">{totalTreasury.toFixed(1)}</span>
             </span>
           </div>
         }
@@ -166,7 +167,7 @@ export const GuildOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="guildOverviewRefresh"
-            data-tip="Refresh the Guild Overview"
+            data-tip={t("extensions.guildOverview.refreshTip")}
             className="icon-cw"
             onClick={refreshGuildOverview}
           />
@@ -186,62 +187,62 @@ export const GuildOverviewDialog: React.FC = () => {
             <tr>
               <SortableHeader
                 field="burgName"
-                label="Burg"
+                label={t("extensions.guildOverview.burgCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="Burg hosting this guild technique stock"
+                tip={t("extensions.guildOverview.burgColTip")}
               />
               <SortableHeader
                 field="stateName"
-                label="State"
+                label={t("extensions.guildOverview.stateCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="Owning state"
+                tip={t("extensions.guildOverview.stateColTip")}
               />
               <SortableHeader
                 field="domain"
-                label="Domain"
+                label={t("extensions.guildOverview.domainCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="Craft-domain guild (metallurgy, woodworking, masonry, textiles, leather, glassware, instruments, printing)"
+                tip={t("extensions.guildOverview.domainColTip")}
               />
               <SortableHeader
                 field="status"
-                label="Status"
+                label={t("extensions.guildOverview.status")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="Formal chapter or informal craft-practitioner stock"
+                tip={t("extensions.guildOverview.statusTip")}
               />
               <SortableHeader
                 field="stock"
-                label="Technique"
+                label={t("extensions.guildOverview.technique")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="0..1 accumulated technique (saturating EWMA driven by staffed practitioners)"
+                tip={t("extensions.guildOverview.techniqueTip")}
               />
               <SortableHeader
                 field="bonus"
-                label="Bonus"
+                label={t("extensions.guildOverview.bonus")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="1 + technique bonus applied to this domain's manufacturing efficiency"
+                tip={t("extensions.guildOverview.bonusTip")}
               />
               <SortableHeader
                 field="treasury"
-                label="Treasury"
+                label={t("extensions.guildOverview.treasury")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Guild's own private capital, independent of burg.treasury"
+                tip={t("extensions.guildOverview.treasuryTip")}
               />
             </tr>
           </thead>
@@ -250,9 +251,7 @@ export const GuildOverviewDialog: React.FC = () => {
               <tr>
                 <td colSpan={7}>
                   <span>
-                    {rawRows.length
-                      ? "No guild stocks match the selected filters"
-                      : "No Burg has an active guild technique stock yet"}
+                    {rawRows.length ? t("extensions.guildOverview.emptyFiltered") : t("extensions.guildOverview.empty")}
                   </span>
                 </td>
               </tr>
@@ -270,24 +269,29 @@ export const GuildOverviewDialog: React.FC = () => {
   );
 };
 
-const GuildRow: React.FC<{ row: GuildOverviewRow }> = ({ row }) => (
-  <tr className="states" data-id={row.id} data-burg={row.burgName}>
-    <td className="d-flex">
-      <IconButton
-        data-tip="Click to zoom into view"
-        className="icon-dot-circled pointer"
-        onClick={() => {
-          const burg = getApi().worldContext.pack.burgs[row.burgId];
-          if (burg) getApi().zoomTo(burg.x, burg.y, 8, 2000);
-        }}
-      />
-      <span data-tip={row.burgName}>{row.burgName}</span>
-    </td>
-    <td>{row.stateName}</td>
-    <td>{row.domain}</td>
-    <td>{row.status === "chapter" ? "Chapter" : "Informal"}</td>
-    <td className="numeric">{row.stock.toFixed(3)}</td>
-    <td className="numeric">{row.bonus.toFixed(3)}</td>
-    <td className="numeric">{row.treasury.toFixed(2)}</td>
-  </tr>
-);
+const GuildRow: React.FC<{ row: GuildOverviewRow }> = ({ row }) => {
+  const { t } = useTranslation();
+  return (
+    <tr className="states" data-id={row.id} data-burg={row.burgName}>
+      <td className="d-flex">
+        <IconButton
+          data-tip={t("extensions.guildOverview.zoomTip")}
+          className="icon-dot-circled pointer"
+          onClick={() => {
+            const burg = getApi().worldContext.pack.burgs[row.burgId];
+            if (burg) getApi().zoomTo(burg.x, burg.y, 8, 2000);
+          }}
+        />
+        <span data-tip={row.burgName}>{row.burgName}</span>
+      </td>
+      <td>{row.stateName}</td>
+      <td>{row.domain}</td>
+      <td>
+        {row.status === "chapter" ? t("extensions.guildOverview.chapter") : t("extensions.guildOverview.informal")}
+      </td>
+      <td className="numeric">{row.stock.toFixed(3)}</td>
+      <td className="numeric">{row.bonus.toFixed(3)}</td>
+      <td className="numeric">{row.treasury.toFixed(2)}</td>
+    </tr>
+  );
+};

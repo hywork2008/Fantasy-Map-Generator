@@ -132,15 +132,12 @@ export const MarketsOverviewDialog: React.FC = () => {
     e.stopPropagation();
     const market = markets.find(row => row.i === marketId);
     if (!market) return;
-    openConfirm(
-      `Are you sure you want to remove the market "${market.centerName}"?<br>This action cannot be reverted`,
-      {
-        title: "Remove Market",
-        confirm: "Remove",
-        cancel: "Cancel",
-        onConfirm: () => marketsOverviewActions.removeMarket(marketId)
-      }
-    );
+    openConfirm(t("extensions.marketsOverview.removeMessage", { name: market.centerName }), {
+      title: t("extensions.marketsOverview.removeTitle"),
+      confirm: t("extensions.marketsOverview.removeConfirm"),
+      cancel: t("common.cancel"),
+      onConfirm: () => marketsOverviewActions.removeMarket(marketId)
+    });
   };
 
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -181,69 +178,69 @@ export const MarketsOverviewDialog: React.FC = () => {
               <tr className="header">
                 <th />
                 <th
-                  data-tip="Market center burg name. Click to sort"
+                  data-tip={t("extensions.marketsOverview.marketTip")}
                   className={`sortable alphabetically ${getSortIcon("market", true)}`}
                   onClick={() => marketsOverviewActions.setSorting("market")}
                 >
-                  Market
+                  {t("extensions.marketsOverview.market")}
                 </th>
                 <th
-                  data-tip="Responsible market manager character. Click to sort"
+                  data-tip={t("extensions.marketsOverview.managerTip")}
                   className={`sortable alphabetically ${getSortIcon("manager", true)}`}
                   onClick={() => marketsOverviewActions.setSorting("manager")}
                 >
-                  Manager
+                  {t("extensions.marketsOverview.manager")}
                 </th>
                 <th
-                  data-tip="Number of cells in market territory. Click to sort"
+                  data-tip={t("extensions.marketsOverview.cellsTip")}
                   className={`sortable ${getSortIcon("cells")}`}
                   onClick={() => marketsOverviewActions.setSorting("cells")}
                 >
-                  Cells
+                  {t("extensions.marketsOverview.cells")}
                 </th>
                 {!isManualMode && (
                   <>
                     <th
-                      data-tip="Number of burgs in market territory. Click to sort"
+                      data-tip={t("extensions.marketsOverview.burgsTip")}
                       className={`sortable ${getSortIcon("burgs")}`}
                       onClick={() => marketsOverviewActions.setSorting("burgs")}
                     >
-                      Burgs
+                      {t("extensions.marketsOverview.burgs")}
                     </th>
                     <th
-                      data-tip="Total population of all burgs in market territory. Click to sort"
+                      data-tip={t("extensions.marketsOverview.populationTip")}
                       className={`sortable ${getSortIcon("population")}`}
                       onClick={() => marketsOverviewActions.setSorting("population")}
                     >
-                      Population
+                      {t("extensions.marketsOverview.population")}
                     </th>
                     <th
-                      data-tip="Total stock of all goods. Click to sort"
+                      data-tip={t("extensions.marketsOverview.stockTip")}
                       className={`sortable ${getSortIcon("stock")}`}
                       onClick={() => marketsOverviewActions.setSorting("stock")}
                     >
-                      Stock
+                      {t("extensions.marketsOverview.stock")}
                     </th>
                     <th
-                      data-tip="Total gross sales revenue. Click to sort"
+                      data-tip={t("extensions.marketsOverview.salesTip")}
                       className={`sortable ${getSortIcon("sales")}`}
                       onClick={() => marketsOverviewActions.setSorting("sales")}
                     >
-                      Sales
+                      {t("extensions.marketsOverview.sales")}
                     </th>
                     <th
-                      data-tip="Total purchase spending. Click to sort"
+                      data-tip={t("extensions.marketsOverview.buysTip")}
                       className={`sortable ${getSortIcon("buys")}`}
                       onClick={() => marketsOverviewActions.setSorting("buys")}
                     >
-                      Buys
+                      {t("extensions.marketsOverview.buys")}
                     </th>
                     <th
-                      data-tip="Market value: net trading flow plus unsold inventory value minus tax. Click to sort"
+                      data-tip={t("extensions.marketsOverview.valueTip")}
                       className={`sortable ${getSortIcon("value")}`}
                       onClick={() => marketsOverviewActions.setSorting("value")}
                     >
-                      Value
+                      {t("extensions.marketsOverview.value")}
                     </th>
                     <th />
                   </>
@@ -254,7 +251,7 @@ export const MarketsOverviewDialog: React.FC = () => {
               <tbody>
                 <tr>
                   <td colSpan={isManualMode ? 4 : 10}>
-                    <span>No markets available</span>
+                    <span>{t("extensions.marketsOverview.empty")}</span>
                   </td>
                 </tr>
               </tbody>
@@ -293,36 +290,34 @@ export const MarketsOverviewDialog: React.FC = () => {
                   if (m.isNoMarket) {
                     return (
                       <tr key={m.i} {...commonRowProps} onClick={() => handleRowClick(m.i)}>
-                        <td data-tip="Cells assigned to no market">
+                        <td data-tip={t("extensions.marketsOverview.noMarketAssignedTip")}>
                           <FillBox fill="none" />
                         </td>
-                        <td
-                          className="marketName"
-                          data-tip="Cells with no market; their burgs are excluded from production"
-                        >
+                        <td className="marketName" data-tip={t("extensions.marketsOverview.noMarketNameTip")}>
                           {m.centerName}
                         </td>
-                        <td
-                          className="marketOwner"
-                          data-tip="Cells with no market; their burgs are excluded from production"
-                        >
+                        <td className="marketOwner" data-tip={t("extensions.marketsOverview.noMarketNameTip")}>
                           {m.managerName}
                         </td>
-                        <td className="marketCells numeric" data-tip="Number of cells with no market" data-type="cells">
+                        <td
+                          className="marketCells numeric"
+                          data-tip={t("extensions.marketsOverview.noMarketCellsTip")}
+                          data-type="cells"
+                        >
                           {displayVal(m.cells, totals.cells)}
                         </td>
                         {!isManualMode && (
                           <>
                             <td
                               className="marketBurgs numeric"
-                              data-tip="Number of burgs with no market"
+                              data-tip={t("extensions.marketsOverview.noMarketBurgsTip")}
                               data-type="burgs"
                             >
                               {displayVal(m.burgs, totals.burgs)}
                             </td>
                             <td
                               className="marketPopulation numeric"
-                              data-tip="Total population with no market"
+                              data-tip={t("extensions.marketsOverview.noMarketPopTip")}
                               data-type="population"
                             >
                               {displayPop(m.population, totals.population)}
@@ -369,15 +364,15 @@ export const MarketsOverviewDialog: React.FC = () => {
                           onChange={event => handleColorChange(m.i, event.target.value)}
                         />
                       </td>
-                      <td className="marketName" data-tip="Market name. Click to view details">
+                      <td className="marketName" data-tip={t("extensions.marketsOverview.marketNameClickTip")}>
                         {m.centerName}
                       </td>
                       <td
                         className={`marketOwner ${m.managerId !== undefined ? "pointer actionLink" : ""}`}
                         data-tip={
                           m.managerId !== undefined
-                            ? "Responsible market manager character. Click to view details"
-                            : "Responsible market manager character"
+                            ? t("extensions.marketsOverview.managerClickTip")
+                            : t("extensions.marketsOverview.managerNoClickTip")
                         }
                         onClick={e => {
                           if (m.managerId !== undefined) {
@@ -391,7 +386,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                       </td>
                       <td
                         className="marketCells numeric"
-                        data-tip="Number of cells in market territory"
+                        data-tip={t("extensions.marketsOverview.cellsCountTip")}
                         data-type="cells"
                       >
                         {displayVal(m.cells, totals.cells)}
@@ -400,41 +395,49 @@ export const MarketsOverviewDialog: React.FC = () => {
                         <>
                           <td
                             className="marketBurgs numeric"
-                            data-tip="Number of burgs in market territory"
+                            data-tip={t("extensions.marketsOverview.burgsCountTip")}
                             data-type="burgs"
                           >
                             {displayVal(m.burgs, totals.burgs)}
                           </td>
                           <td
                             className="marketPopulation numeric"
-                            data-tip="Total population in market territory"
+                            data-tip={t("extensions.marketsOverview.popCountTip")}
                             data-type="population"
                           >
                             {displayPop(m.population, totals.population)}
                           </td>
                           <td
                             className="marketStock numeric"
-                            data-tip="Total stock of all goods in this market"
+                            data-tip={t("extensions.marketsOverview.stockCountTip")}
                             data-type="stock"
                           >
                             {displayVal(m.stock, totals.stock)}
                           </td>
-                          <td className="marketSales numeric" data-tip="Total gross sales revenue" data-type="sales">
+                          <td
+                            className="marketSales numeric"
+                            data-tip={t("extensions.marketsOverview.salesCountTip")}
+                            data-type="sales"
+                          >
                             {displayPrice(m.sales, totals.sales)}
                           </td>
-                          <td className="marketBuysCol numeric" data-tip="Total purchase spending" data-type="buys">
+                          <td
+                            className="marketBuysCol numeric"
+                            data-tip={t("extensions.marketsOverview.buysCountTip")}
+                            data-type="buys"
+                          >
                             {displayPrice(m.buys, totals.buys)}
                           </td>
                           <td
                             className="marketValue numeric"
-                            data-tip="Market value: net trading flow plus unsold inventory value minus tax"
+                            data-tip={t("extensions.marketsOverview.valueCountTip")}
                             data-type="value"
                           >
                             {displayPrice(m.value, totals.value)}
                           </td>
                           <td>
                             <IconButton
-                              data-tip="Remove this market"
+                              data-tip={t("extensions.marketsOverview.removeTip")}
                               className="icon-trash-empty hiddenIcon"
                               onClick={e => handleRemoveClick(e, m.i)}
                             />
@@ -450,17 +453,21 @@ export const MarketsOverviewDialog: React.FC = () => {
         </div>
 
         <div id="marketsOverviewFooter" className="totalLine" style={{ display: isManualMode ? "none" : "block" }}>
-          <div data-tip="Total number of markets">
-            Markets:<span id="marketsOverviewFooterMarkets">{totalMarkets}</span>
+          <div data-tip={t("extensions.marketsOverview.totalsMarketsTip")}>
+            {t("extensions.marketsOverview.totalsMarkets")}
+            <span id="marketsOverviewFooterMarkets">{totalMarkets}</span>
           </div>
-          <div data-tip="Average gross sales revenue per market">
-            Avg Sales:<span id="marketsOverviewFooterSales">{formatPrice(avgSales)}</span>
+          <div data-tip={t("extensions.marketsOverview.avgSalesTip")}>
+            {t("extensions.marketsOverview.avgSales")}
+            <span id="marketsOverviewFooterSales">{formatPrice(avgSales)}</span>
           </div>
-          <div data-tip="Average purchase spending per market">
-            Avg Buys:<span id="marketsOverviewFooterBuys">{formatPrice(avgBuys)}</span>
+          <div data-tip={t("extensions.marketsOverview.avgBuysTip")}>
+            {t("extensions.marketsOverview.avgBuys")}
+            <span id="marketsOverviewFooterBuys">{formatPrice(avgBuys)}</span>
           </div>
-          <div data-tip="Average market value per market">
-            Avg Value:<span id="marketsOverviewFooterValue">{formatPrice(avgValue)}</span>
+          <div data-tip={t("extensions.marketsOverview.avgValueTip")}>
+            {t("extensions.marketsOverview.avgValue")}
+            <span id="marketsOverviewFooterValue">{formatPrice(avgValue)}</span>
           </div>
         </div>
 
@@ -470,35 +477,35 @@ export const MarketsOverviewDialog: React.FC = () => {
               <button
                 type="button"
                 id="marketsOverviewRefresh"
-                data-tip="Refresh the overview"
+                data-tip={t("extensions.marketsOverview.refreshTip")}
                 className="icon-cw"
                 onClick={marketsOverviewActions.marketsOverviewAddLines}
               />
               <button
                 type="button"
                 id="marketsOverviewPercentage"
-                data-tip="Toggle percentage / absolute values views"
+                data-tip={t("extensions.marketsOverview.percentageTip")}
                 className="icon-percent"
                 onClick={marketsOverviewActions.togglePercentageMode}
               />
               <button
                 type="button"
                 id="marketsOverviewCompare"
-                data-tip="Compare good stock across markets"
+                data-tip={t("extensions.marketsOverview.compareTip")}
                 className="icon-chart-bar"
                 onClick={marketsOverviewActions.openMarketCompare}
               />
               <button
                 type="button"
                 id="marketsOverviewTradeOpportunities"
-                data-tip="Find buy-low / sell-high routes across markets"
+                data-tip={t("extensions.marketsOverview.opportunitiesTip")}
                 className="icon-exchange"
                 onClick={marketsOverviewActions.openTradeOpportunities}
               />
               <button
                 type="button"
                 id="marketsOverviewExport"
-                data-tip="Save markets data as a CSV file"
+                data-tip={t("extensions.marketsOverview.exportTip")}
                 className="icon-download"
                 onClick={marketsOverviewActions.downloadMarketsCsv}
               />
@@ -507,7 +514,7 @@ export const MarketsOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="marketsManually"
-            data-tip="Manually re-assign market territories"
+            data-tip={t("extensions.marketsOverview.manualTip")}
             className={`icon-brush${isManualMode ? " pressed" : ""}`}
             onClick={marketsOverviewActions.toggleManualAssignment}
           />
@@ -519,28 +526,28 @@ export const MarketsOverviewDialog: React.FC = () => {
               max="100"
               step="1"
               value={brushSize}
-              data-tip="Brush size"
+              data-tip={t("extensions.marketsOverview.brushSize")}
               className="d-inline-block"
               onChange={e => marketsOverviewActions.setBrushSize(parseInt(e.target.value, 10))}
             />
             <button
               type="button"
               id="marketsManuallyUndo"
-              data-tip="Undo last brush stroke"
+              data-tip={t("extensions.marketsOverview.undoTip")}
               className="icon-ccw"
               onClick={marketsOverviewActions.undoMarketsManualStep}
             />
             <button
               type="button"
               id="marketsManuallyApply"
-              data-tip="Apply assignment"
+              data-tip={t("extensions.marketsOverview.applyTip")}
               className="icon-check"
               onClick={() => marketsOverviewActions.exitMarketsManualAssignment(true)}
             />
             <button
               type="button"
               id="marketsManuallyCancel"
-              data-tip="Cancel assignment"
+              data-tip={t("extensions.marketsOverview.cancelTip")}
               className="icon-cancel"
               onClick={() => marketsOverviewActions.exitMarketsManualAssignment(false)}
             />
@@ -548,21 +555,21 @@ export const MarketsOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="marketsAdd"
-            data-tip="Add a new market. Click on a burg on the map. Hold Shift to add multiple"
+            data-tip={t("extensions.marketsOverview.addTip")}
             className={`icon-plus${isAddMode ? " pressed" : ""}`}
             onClick={marketsOverviewActions.toggleAddMarketMode}
           />
           <button
             type="button"
             id="marketsRegenerate"
-            data-tip="Regenerate markets and their territories"
+            data-tip={t("extensions.marketsOverview.regenerateMarketsTip")}
             className="icon-arrows-cw"
             onClick={() => setIsRegenerateMarketsDialogOpen(true)}
           />
           <button
             type="button"
             id="marketsRegenerateProduction"
-            data-tip="Regenerate production and trade deals"
+            data-tip={t("extensions.marketsOverview.regenerateProductionTip")}
             className="icon-retweet"
             onClick={() => setIsRegenerateProductionDialogOpen(true)}
           />
@@ -570,12 +577,12 @@ export const MarketsOverviewDialog: React.FC = () => {
 
         <Dialog
           isOpen={isRegenerateMarketsDialogOpen}
-          title="Regenerate markets"
+          title={t("extensions.marketsOverview.regenerateMarketsTitle")}
           onClose={() => setIsRegenerateMarketsDialogOpen(false)}
           buttons={[
-            { label: "Cancel", onClick: () => setIsRegenerateMarketsDialogOpen(false) },
+            { label: t("common.cancel"), onClick: () => setIsRegenerateMarketsDialogOpen(false) },
             {
-              label: "Regenerate",
+              label: t("extensions.marketsOverview.regenerate"),
               onClick: () => {
                 marketsOverviewActions.regenerateMarkets(regenerateTradeAlongsideMarkets);
                 setIsRegenerateMarketsDialogOpen(false);
@@ -585,7 +592,7 @@ export const MarketsOverviewDialog: React.FC = () => {
           ]}
         >
           <div className="d-grid">
-            <div>Are you sure you want to regenerate markets and their territories?</div>
+            <div>{t("extensions.marketsOverview.regenerateMarketsBody")}</div>
             <label className="d-flex">
               <input
                 type="checkbox"
@@ -593,19 +600,19 @@ export const MarketsOverviewDialog: React.FC = () => {
                 checked={regenerateTradeAlongsideMarkets}
                 onChange={e => setRegenerateTradeAlongsideMarkets(e.target.checked)}
               />
-              Regenerate production and trade
+              {t("extensions.marketsOverview.regenerateTradeToo")}
             </label>
           </div>
         </Dialog>
 
         <Dialog
           isOpen={isRegenerateProductionDialogOpen}
-          title="Regenerate production"
+          title={t("extensions.marketsOverview.regenerateProductionTitle")}
           onClose={() => setIsRegenerateProductionDialogOpen(false)}
           buttons={[
-            { label: "Cancel", onClick: () => setIsRegenerateProductionDialogOpen(false) },
+            { label: t("common.cancel"), onClick: () => setIsRegenerateProductionDialogOpen(false) },
             {
-              label: "Regenerate",
+              label: t("extensions.marketsOverview.regenerate"),
               onClick: () => {
                 marketsOverviewActions.regenerateProduction();
                 setIsRegenerateProductionDialogOpen(false);
@@ -613,10 +620,7 @@ export const MarketsOverviewDialog: React.FC = () => {
             }
           ]}
         >
-          <div>
-            Are you sure you want to regenerate production and trade for all goods? Generation will be based on the
-            current Goods settings and bonus goods placement.
-          </div>
+          <div>{t("extensions.marketsOverview.regenerateProductionBody")}</div>
         </Dialog>
       </div>
     </Dialog>

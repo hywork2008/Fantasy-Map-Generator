@@ -34,7 +34,7 @@ export const DomainPollDetailDialog: React.FC = () => {
       <div style={{ padding: "0.5rem 0.75rem", minWidth: 480 }}>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem" }}>
           <label>
-            State{" "}
+            {t("extensions.domainPoll.state")}{" "}
             <select value={selected?.stateId ?? ""} onChange={e => selectDomainPollState(Number(e.target.value))}>
               {details.map(d => (
                 <option key={d.stateId} value={d.stateId}>
@@ -46,30 +46,34 @@ export const DomainPollDetailDialog: React.FC = () => {
           <button
             type="button"
             className="icon-cw"
-            data-tip="Refresh"
-            aria-label="Refresh domain poll detail"
+            data-tip={t("extensions.domainPoll.refreshTip")}
+            aria-label={t("extensions.domainPoll.refreshAria")}
             onClick={() => refreshDomainPollDetail(selected?.stateId)}
           />
         </div>
 
         {!selected ? (
-          <div className="empty-message">No provincial domain seats found.</div>
+          <div className="empty-message">{t("extensions.domainPoll.empty")}</div>
         ) : (
           <>
             <div style={{ fontSize: "0.9em", marginBottom: "0.5rem" }}>
-              <strong>{selected.stateName}</strong> · poll mult <strong>×{selected.pollMultiplier.toFixed(3)}</strong> ·
-              avg levy {selected.averageLevy.toFixed(2)} · extract share {(selected.extractShare * 100).toFixed(0)}%
+              <strong>{selected.stateName}</strong> ·{" "}
+              {t("extensions.domainPoll.summary", {
+                mult: selected.pollMultiplier.toFixed(3),
+                levy: selected.averageLevy.toFixed(2),
+                extract: (selected.extractShare * 100).toFixed(0)
+              })}
             </div>
             <table className="fmg-table" style={{ width: "100%", fontSize: "0.85em" }}>
               <thead>
                 <tr>
-                  <th>Burg</th>
-                  <th>Province</th>
-                  <th>Pop</th>
-                  <th>Levy</th>
-                  <th>Policy</th>
-                  <th>Works</th>
-                  <th>Weight</th>
+                  <th>{t("extensions.domainPoll.burg")}</th>
+                  <th>{t("extensions.domainPoll.province")}</th>
+                  <th>{t("extensions.domainPoll.pop")}</th>
+                  <th>{t("extensions.domainPoll.levy")}</th>
+                  <th>{t("extensions.domainPoll.policy")}</th>
+                  <th>{t("extensions.domainPoll.works")}</th>
+                  <th>{t("extensions.domainPoll.weight")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -79,9 +83,10 @@ export const DomainPollDetailDialog: React.FC = () => {
                     <td>{seat.provinceName}</td>
                     <td>{seat.population.toFixed(0)}</td>
                     <td>×{seat.levyRate.toFixed(2)}</td>
-                    <td>{seat.policy}</td>
+                    <td>{domainPolicyLabel(seat.policy, t)}</td>
                     <td>
-                      {seat.worksTarget} {seat.worksProgress > 0 ? `${seat.worksProgress}/100` : ""}
+                      {domainWorksLabel(seat.worksTarget, t)}{" "}
+                      {seat.worksProgress > 0 ? `${seat.worksProgress}/100` : ""}
                     </td>
                     <td>{(seat.weightShare * 100).toFixed(1)}%</td>
                   </tr>
@@ -94,3 +99,23 @@ export const DomainPollDetailDialog: React.FC = () => {
     </Dialog>
   );
 };
+
+const POLICY_KEYS: Record<string, string> = {
+  balanced: "extensions.domainPoll.policyBalanced",
+  extract: "extensions.domainPoll.policyExtract",
+  fortify: "extensions.domainPoll.policyFortify"
+};
+
+const WORKS_KEYS: Record<string, string> = {
+  walls: "extensions.domainPoll.worksWalls",
+  citadel: "extensions.domainPoll.worksCitadel",
+  plaza: "extensions.domainPoll.worksPlaza"
+};
+
+function domainPolicyLabel(policy: string, t: (key: string) => string): string {
+  return POLICY_KEYS[policy] ? t(POLICY_KEYS[policy]) : policy;
+}
+
+function domainWorksLabel(target: string, t: (key: string) => string): string {
+  return WORKS_KEYS[target] ? t(WORKS_KEYS[target]) : target;
+}

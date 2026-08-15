@@ -49,7 +49,7 @@ export const CouncilSessionDialog: React.FC = () => {
       <div style={{ padding: "0.5rem 0.75rem", minWidth: 540 }}>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap" }}>
           <label>
-            State{" "}
+            {t("extensions.councilSession.state")}{" "}
             <select value={selected?.stateId ?? ""} onChange={e => selectCouncilSessionState(Number(e.target.value))}>
               {rows.map(r => (
                 <option key={r.stateId} value={r.stateId}>
@@ -60,15 +60,15 @@ export const CouncilSessionDialog: React.FC = () => {
           </label>
           {selected && selected.snapshots.length > 0 ? (
             <label>
-              Replay{" "}
+              {t("extensions.councilSession.replay")}{" "}
               <select
                 value={replaySessionNumber ?? selected.snapshots[selected.snapshots.length - 1]!.sessionNumber}
                 onChange={e => selectCouncilReplaySession(Number(e.target.value))}
               >
                 {selected.snapshots.map(s => (
                   <option key={s.sessionNumber} value={s.sessionNumber}>
-                    #{s.sessionNumber} · Y{s.year}.M{s.month}
-                    {s.councilFailed ? " · veto" : ""}
+                    #{s.sessionNumber} · {t("extensions.councilSession.dateFmt", { year: s.year, month: s.month })}
+                    {s.councilFailed ? ` · ${t("extensions.councilSession.veto")}` : ""}
                   </option>
                 ))}
               </select>
@@ -77,37 +77,50 @@ export const CouncilSessionDialog: React.FC = () => {
           <button
             type="button"
             className="icon-cw"
-            data-tip="Refresh"
-            aria-label="Refresh council session log"
+            data-tip={t("extensions.councilSession.refreshTip")}
+            aria-label={t("extensions.councilSession.refreshAria")}
             onClick={() => refreshCouncilSession(selected?.stateId)}
           />
         </div>
 
         {!selected ? (
-          <div className="empty-message">No assembly sessions recorded yet — run a tax cycle first.</div>
+          <div className="empty-message">{t("extensions.councilSession.empty")}</div>
         ) : (
           <>
             <div style={{ fontSize: "0.9em", marginBottom: "0.5rem" }}>
-              <strong>{selected.stateName}</strong> · {selected.form} · support {graphSupport}/100
-              {graphDebtYes > 0 ? ` · debt vote ${(graphDebtYes * 100).toFixed(0)}% yes` : ""}
-              {selected.coupLegitimacy != null ? ` · legitimacy ${selected.coupLegitimacy}` : ""}
-              {selected.civilUnrest ? " · CIVIL UNREST" : ""}
-              {selected.legitimacyWarActive
-                ? ` · LEGIT WAR${selected.pretenderName ? ` (${selected.pretenderName})` : ""}`
+              <strong>{selected.stateName}</strong> · {selected.form} ·{" "}
+              {t("extensions.councilSession.support", { value: graphSupport })}
+              {graphDebtYes > 0
+                ? ` · ${t("extensions.councilSession.debtVote", { pct: (graphDebtYes * 100).toFixed(0) })}`
                 : ""}
-              {selected.foreignDebtInDefault ? " · FX DEFAULT" : ""}
-              {selected.tradeSanctionMult < 1 ? ` · trade ×${selected.tradeSanctionMult.toFixed(2)}` : ""}
-              {selected.creditRating ? ` · rating ${selected.creditRating}` : ""}
+              {selected.coupLegitimacy != null
+                ? ` · ${t("extensions.councilSession.legitimacy", { value: selected.coupLegitimacy })}`
+                : ""}
+              {selected.civilUnrest ? ` · ${t("extensions.councilSession.civilUnrest")}` : ""}
+              {selected.legitimacyWarActive
+                ? ` · ${t("extensions.councilSession.legitWar")}${selected.pretenderName ? ` (${selected.pretenderName})` : ""}`
+                : ""}
+              {selected.foreignDebtInDefault ? ` · ${t("extensions.councilSession.fxDefault")}` : ""}
+              {selected.tradeSanctionMult < 1
+                ? ` · ${t("extensions.councilSession.trade", { value: selected.tradeSanctionMult.toFixed(2) })}`
+                : ""}
+              {selected.creditRating
+                ? ` · ${t("extensions.councilSession.rating", { value: selected.creditRating })}`
+                : ""}
             </div>
 
             {/* PR-15 faction vote bar graph */}
             {graphFactions.length > 0 ? (
               <div style={{ marginBottom: "0.75rem" }}>
                 <div style={{ fontWeight: 600, fontSize: "0.85em", marginBottom: "0.35rem" }}>
-                  Faction vote graph
+                  {t("extensions.councilSession.graph")}
                   {replaySnap
-                    ? ` — session #${replaySnap.sessionNumber} (Y${replaySnap.year}.M${replaySnap.month})`
-                    : " — live"}
+                    ? t("extensions.councilSession.graphSession", {
+                        n: replaySnap.sessionNumber,
+                        year: replaySnap.year,
+                        month: replaySnap.month
+                      })
+                    : t("extensions.councilSession.graphLive")}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
                   {graphFactions.map(f => {
@@ -117,9 +130,12 @@ export const CouncilSessionDialog: React.FC = () => {
                       <div key={f.faction} style={{ fontSize: "0.8em" }}>
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                           <span>
-                            {f.faction} · share {sharePct.toFixed(0)}%
+                            {t("extensions.councilSession.share", {
+                              faction: councilFactionLabel(f.faction, t),
+                              pct: sharePct.toFixed(0)
+                            })}
                           </span>
-                          <span>yes lean {leanPct.toFixed(0)}%</span>
+                          <span>{t("extensions.councilSession.yesLean", { pct: leanPct.toFixed(0) })}</span>
                         </div>
                         <div
                           style={{
@@ -145,10 +161,12 @@ export const CouncilSessionDialog: React.FC = () => {
                 </div>
                 {graphLineVotes ? (
                   <div style={{ fontSize: "0.8em", marginTop: "0.4rem", opacity: 0.9 }}>
-                    Line yes: debt {(graphLineVotes.debtIssue * 100).toFixed(0)}% · war{" "}
-                    {(graphLineVotes.warFooting * 100).toFixed(0)}% · tax{" "}
-                    {(graphLineVotes.extraordinaryTax * 100).toFixed(0)}% · mil{" "}
-                    {(graphLineVotes.militaryExpansion * 100).toFixed(0)}%
+                    {t("extensions.councilSession.lineYes", {
+                      debt: (graphLineVotes.debtIssue * 100).toFixed(0),
+                      war: (graphLineVotes.warFooting * 100).toFixed(0),
+                      tax: (graphLineVotes.extraordinaryTax * 100).toFixed(0),
+                      mil: (graphLineVotes.militaryExpansion * 100).toFixed(0)
+                    })}
                   </div>
                 ) : null}
                 {replaySnap?.notes ? (
@@ -160,23 +178,21 @@ export const CouncilSessionDialog: React.FC = () => {
             <table className="fmg-table" style={{ width: "100%", fontSize: "0.85em" }}>
               <thead>
                 <tr>
-                  <th>When</th>
-                  <th>Kind</th>
-                  <th>Summary</th>
+                  <th>{t("extensions.councilSession.when")}</th>
+                  <th>{t("extensions.councilSession.kind")}</th>
+                  <th>{t("extensions.councilSession.summary")}</th>
                 </tr>
               </thead>
               <tbody>
                 {log.length === 0 ? (
                   <tr>
-                    <td colSpan={3}>No log lines for this state.</td>
+                    <td colSpan={3}>{t("extensions.councilSession.emptyLog")}</td>
                   </tr>
                 ) : (
                   log.map(entry => (
                     <tr key={entry.id}>
-                      <td>
-                        Y{entry.year}.M{entry.month}
-                      </td>
-                      <td>{entry.kind}</td>
+                      <td>{t("extensions.councilSession.dateFmt", { year: entry.year, month: entry.month })}</td>
+                      <td>{councilKindLabel(entry.kind, t)}</td>
                       <td data-tip={entry.factionDetail || entry.summary}>{entry.summary}</td>
                     </tr>
                   ))
@@ -189,3 +205,34 @@ export const CouncilSessionDialog: React.FC = () => {
     </Dialog>
   );
 };
+
+const FACTION_KEYS: Record<string, string> = {
+  court: "extensions.councilSession.factionCourt",
+  merchants: "extensions.councilSession.factionMerchants",
+  military: "extensions.councilSession.factionMilitary",
+  clergy: "extensions.councilSession.factionClergy"
+};
+
+const KIND_KEYS: Record<string, string> = {
+  session: "extensions.councilSession.kindSession",
+  vote: "extensions.councilSession.kindVote",
+  veto: "extensions.councilSession.kindVeto",
+  tax_farm: "extensions.councilSession.kindTaxFarm",
+  debt_issue: "extensions.councilSession.kindDebtIssue",
+  debt_service: "extensions.councilSession.kindDebtService",
+  default: "extensions.councilSession.kindDefault",
+  coup_risk: "extensions.councilSession.kindCoupRisk",
+  coup: "extensions.councilSession.kindCoup",
+  foreign_debt: "extensions.councilSession.kindForeignDebt",
+  diplomacy: "extensions.councilSession.kindDiplomacy",
+  bond_market: "extensions.councilSession.kindBondMarket",
+  note: "extensions.councilSession.kindNote"
+};
+
+function councilFactionLabel(faction: string, t: (key: string) => string): string {
+  return FACTION_KEYS[faction] ? t(FACTION_KEYS[faction]) : faction;
+}
+
+function councilKindLabel(kind: string, t: (key: string) => string): string {
+  return KIND_KEYS[kind] ? t(KIND_KEYS[kind]) : kind;
+}

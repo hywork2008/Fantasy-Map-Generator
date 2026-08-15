@@ -36,40 +36,60 @@ export const DebtNegotiationDialog: React.FC = () => {
       className="fmg-dialog--narrow"
     >
       {!view ? (
-        <div className="empty-message">No state available for debt negotiation.</div>
+        <div className="empty-message">{t("extensions.debtNegotiation.empty")}</div>
       ) : (
         <div className="debt-negotiation" style={{ padding: "0.5rem 0.75rem", minWidth: 320 }}>
           <div style={{ marginBottom: "0.5rem" }}>
             <strong>{view.stateName}</strong> · {view.form}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.35rem 1rem", fontSize: "0.9em" }}>
-            <span data-tip="Named Banker (primary syndicate member)">
-              Banker: <strong>{view.bankerName}</strong>
+            <span data-tip={t("extensions.debtNegotiation.bankerTip")}>
+              {t("extensions.debtNegotiation.banker")} <strong>{view.bankerName}</strong>
             </span>
-            <span data-tip="Effective monthly interest">
-              Rate: <strong>{(view.debtInterestRate * 100).toFixed(2)}%</strong>
+            <span data-tip={t("extensions.debtNegotiation.rateTip")}>
+              {t("extensions.debtNegotiation.rate")} <strong>{(view.debtInterestRate * 100).toFixed(2)}%</strong>
               {view.debtRateNegotiation !== 0
-                ? ` (nego ${view.debtRateNegotiation > 0 ? "+" : ""}${view.debtRateNegotiation})`
+                ? ` ${t("extensions.debtNegotiation.nego", {
+                    signed: `${view.debtRateNegotiation > 0 ? "+" : ""}${view.debtRateNegotiation}`
+                  })}`
                 : ""}
             </span>
-            <span data-tip="Public debt principal">Debt: {formatPrice(view.publicDebt)}</span>
-            <span data-tip="Credit pool balance">Pool: {formatPrice(view.creditPoolBalance)}</span>
-            <span data-tip="Assembly support">Council: {view.councilSupport}/100</span>
-            <span data-tip="Last debt-issue faction vote yes share">
-              Debt vote:{" "}
-              {view.councilLastDebtVoteYes != null ? `${(view.councilLastDebtVoteYes * 100).toFixed(0)}% yes` : "—"}
+            <span data-tip={t("extensions.debtNegotiation.debtTip")}>
+              {t("extensions.debtNegotiation.debt")} {formatPrice(view.publicDebt)}
             </span>
-            <span data-tip="In public-debt default">Default: {view.debtInDefault ? "YES" : "—"}</span>
-            <span data-tip="Military/merchant coup risk while in default">
-              Coup risk: {view.debtCoupRisk ? "YES" : "—"}
+            <span data-tip={t("extensions.debtNegotiation.poolTip")}>
+              {t("extensions.debtNegotiation.pool")} {formatPrice(view.creditPoolBalance)}
+            </span>
+            <span data-tip={t("extensions.debtNegotiation.councilTip")}>
+              {t("extensions.debtNegotiation.council")} {view.councilSupport}/100
+            </span>
+            <span data-tip={t("extensions.debtNegotiation.voteTip")}>
+              {t("extensions.debtNegotiation.vote")}{" "}
+              {view.councilLastDebtVoteYes != null
+                ? t("extensions.debtNegotiation.voteYes", {
+                    pct: (view.councilLastDebtVoteYes * 100).toFixed(0)
+                  })
+                : "—"}
+            </span>
+            <span data-tip={t("extensions.debtNegotiation.defaultTip")}>
+              {t("extensions.debtNegotiation.default")} {view.debtInDefault ? t("extensions.debtNegotiation.yes") : "—"}
+            </span>
+            <span data-tip={t("extensions.debtNegotiation.coupTip")}>
+              {t("extensions.debtNegotiation.coup")} {view.debtCoupRisk ? t("extensions.debtNegotiation.yes") : "—"}
             </span>
           </div>
 
           {view.factionShares ? (
-            <div style={{ marginTop: "0.6rem", fontSize: "0.85em" }} data-tip="Council faction bloc shares">
-              Factions: court {(view.factionShares.court * 100).toFixed(0)}% · merchants{" "}
-              {(view.factionShares.merchants * 100).toFixed(0)}% · military{" "}
-              {(view.factionShares.military * 100).toFixed(0)}% · clergy {(view.factionShares.clergy * 100).toFixed(0)}%
+            <div
+              style={{ marginTop: "0.6rem", fontSize: "0.85em" }}
+              data-tip={t("extensions.debtNegotiation.factionsTip")}
+            >
+              {t("extensions.debtNegotiation.factions", {
+                court: (view.factionShares.court * 100).toFixed(0),
+                merchants: (view.factionShares.merchants * 100).toFixed(0),
+                military: (view.factionShares.military * 100).toFixed(0),
+                clergy: (view.factionShares.clergy * 100).toFixed(0)
+              })}
             </div>
           ) : null}
 
@@ -77,9 +97,9 @@ export const DebtNegotiationDialog: React.FC = () => {
             <table className="fmg-table" style={{ marginTop: "0.6rem", width: "100%", fontSize: "0.85em" }}>
               <thead>
                 <tr>
-                  <th>Syndicate</th>
-                  <th>Greed</th>
-                  <th>Weight</th>
+                  <th>{t("extensions.debtNegotiation.syndicate")}</th>
+                  <th>{t("extensions.debtNegotiation.greed")}</th>
+                  <th>{t("extensions.debtNegotiation.weight")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -87,7 +107,7 @@ export const DebtNegotiationDialog: React.FC = () => {
                   <tr key={m.characterId}>
                     <td>
                       {m.name}
-                      {m.isBanker ? " (Banker)" : ""}
+                      {m.isBanker ? t("extensions.debtNegotiation.bankerSuffix") : ""}
                     </td>
                     <td>{m.greed}</td>
                     <td>{m.weight.toFixed(2)}</td>
@@ -97,7 +117,7 @@ export const DebtNegotiationDialog: React.FC = () => {
             </table>
           ) : (
             <div style={{ marginTop: "0.6rem", fontSize: "0.85em", opacity: 0.8 }}>
-              Anonymous creditors (no capital-market syndicate yet).
+              {t("extensions.debtNegotiation.anonymous")}
             </div>
           )}
 
@@ -114,25 +134,25 @@ export const DebtNegotiationDialog: React.FC = () => {
               type="button"
               className="button"
               disabled={!view.canNegotiate || view.debtInDefault}
-              data-tip="Press the Banker for cheaper credit (costs public treasury bribe)"
+              data-tip={t("extensions.debtNegotiation.rateDownTip")}
               onClick={() => handleNegotiate(-1)}
             >
-              Rate −
+              {t("extensions.debtNegotiation.rateDown")}
             </button>
             <button
               type="button"
               className="button"
               disabled={!view.canNegotiate || view.debtInDefault}
-              data-tip="Accept harsher credit terms (raises interest; no bribe)"
+              data-tip={t("extensions.debtNegotiation.rateUpTip")}
               onClick={() => handleNegotiate(1)}
             >
-              Rate +
+              {t("extensions.debtNegotiation.rateUp")}
             </button>
             <button
               type="button"
               className="icon-cw"
-              data-tip="Refresh"
-              aria-label="Refresh debt negotiation"
+              data-tip={t("extensions.debtNegotiation.refreshTip")}
+              aria-label={t("extensions.debtNegotiation.refreshAria")}
               onClick={() => refreshDebtNegotiation(view.stateId)}
             />
           </div>

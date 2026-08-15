@@ -1,5 +1,5 @@
 import React from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import {
   closeDialog,
@@ -67,18 +67,16 @@ export const TreasuryOverviewDialog: React.FC = () => {
         bodyRef={parentRef}
         summary={
           <div className="totalLine">
-            <div data-tip="Multi-ledger: Public (L2), Household purse (L1), Department balances (L3a), Ruler personal (L0).">
-              Ledgers: Public (L2) <span id="treasuryOverviewTotalPublic">{totalPublic.toFixed(1)}</span>
-              {" · "}
-              Household (L1) <span id="treasuryOverviewTotalHouseholdPurse">{totalHouseholdPurse.toFixed(1)}</span>
-              {" · "}
-              Depts stock (L3a) <span id="treasuryOverviewTotalDeptBalances">{totalDeptBalances.toFixed(1)}</span>
-              {" · "}
-              Rulers L0 <span id="treasuryOverviewTotalPersonal">{totalPersonal.toFixed(1)}</span>
+            <div data-tip={t("extensions.treasuryOverview.ledgersTip")}>
+              {t("extensions.treasuryOverview.ledgers", {
+                public: totalPublic.toFixed(1),
+                household: totalHouseholdPurse.toFixed(1),
+                depts: totalDeptBalances.toFixed(1),
+                rulers: totalPersonal.toFixed(1)
+              })}
             </div>
             <div className="dim" style={{ fontSize: "0.9em", marginTop: "0.25em" }}>
-              Personal cash is pocket money. Named department columns are this-cycle nominal intent;{" "}
-              <strong>Depts bal</strong> is real L3a spendable stock (office stipends already drawn).
+              <Trans i18nKey="extensions.treasuryOverview.note" />
             </div>
           </div>
         }
@@ -86,7 +84,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="treasuryOverviewRefresh"
-            data-tip="Refresh the Treasury Overview"
+            data-tip={t("extensions.treasuryOverview.refreshTip")}
             className="icon-cw"
             onClick={refreshTreasuryOverview}
           />
@@ -125,389 +123,389 @@ export const TreasuryOverviewDialog: React.FC = () => {
             <tr>
               <SortableHeader
                 field="stateName"
-                label="State"
+                label={t("extensions.treasuryOverview.state")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="State name"
+                tip={t("extensions.treasuryOverview.stateTip")}
               />
               <SortableHeader
                 field="form"
-                label="Form"
+                label={t("extensions.treasuryOverview.form")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="Governance form — determines the baseline department allocation table"
+                tip={t("extensions.treasuryOverview.formTip")}
               />
               <SortableHeader
                 field="publicTreasury"
-                label="Public"
+                label={t("extensions.treasuryOverview.public")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="L2 public treasury stock (state.treasury). Institutional cash for war and common government — not the ruler's personal purse"
+                tip={t("extensions.treasuryOverview.publicTip")}
               />
               <SortableHeader
                 field="householdPurse"
-                label="HH purse"
+                label={t("extensions.treasuryOverview.hhPurse")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="L1 crown household purse (state.householdPurse) — court/institutional household cash. Credited each cycle from the form's household budget share"
+                tip={t("extensions.treasuryOverview.hhPurseTip")}
               />
               <SortableHeader
                 field="rulerPersonal"
-                label="Ruler L0"
+                label={t("extensions.treasuryOverview.rulerL0")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Living ruler's Character.wealth (personal pocket money). Paid from the household purse, capped — often much smaller than Public + HH purse"
+                tip={t("extensions.treasuryOverview.rulerL0Tip")}
               />
               <SortableHeader
                 field="domesticIncome"
-                label="Income"
+                label={t("extensions.treasuryOverview.income")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="This cycle's domestic income the departments below are allocated from (poll tax + voyage income)"
+                tip={t("extensions.treasuryOverview.incomeTip")}
               />
               <SortableHeader
                 field="household"
-                label="HH paid"
+                label={t("extensions.treasuryOverview.hhPaid")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Personal household stipend paid this cycle from L1 household purse into the ruler's L0 wealth"
+                tip={t("extensions.treasuryOverview.hhPaidTip")}
               />
               <SortableHeader
                 field="officeStipendsPaid"
-                label="Stipends"
+                label={t("extensions.treasuryOverview.stipends")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Sum actually paid to central office holders this cycle (real deduction from public treasury)"
+                tip={t("extensions.treasuryOverview.stipendsTip")}
               />
               <SortableHeader
                 field="departmentBalancesStock"
-                label="Depts bal"
+                label={t("extensions.treasuryOverview.deptsBal")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="L3a real departmentBalances stock (sum). Credited from this cycle's dept shares; vacant offices leave cash parked here"
+                tip={t("extensions.treasuryOverview.deptsBalTip")}
               />
               <SortableHeader
                 field="nominalDepartments"
-                label="Depts Σ"
+                label={t("extensions.treasuryOverview.deptsSum")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Sum of nominal non-household department budgets this cycle (intent, not stock)"
+                tip={t("extensions.treasuryOverview.deptsSumTip")}
               />
               <SortableHeader
                 field="marshalcy"
-                label="Marshalcy"
+                label={t("extensions.treasuryOverview.marshalcy")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal military department Budget — office stipend is in Stipends; military upkeep Need is separate"
+                tip={t("extensions.treasuryOverview.marshalcyTip")}
               />
               <SortableHeader
                 field="militaryFundingRatio"
-                label="Funding"
+                label={t("extensions.treasuryOverview.funding")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Marshalcy Budget ÷ Need — below ~0.5 accrues discontent quickly, at/above 0.8 is well-funded"
+                tip={t("extensions.treasuryOverview.fundingTip")}
               />
               <SortableHeader
                 field="militaryDiscontent"
-                label="Discontent"
+                label={t("extensions.treasuryOverview.discontent")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Accumulates while underfunded, decays while well-funded (0-200)"
+                tip={t("extensions.treasuryOverview.discontentTip")}
               />
               <SortableHeader
                 field="warFooting"
-                label="War"
+                label={t("extensions.treasuryOverview.war")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="War footing policy (PR-6) — reweights department shares toward marshalcy when ON"
+                tip={t("extensions.treasuryOverview.warTip")}
               />
               <SortableHeader
                 field="militaryMobilizationBoost"
-                label="Mob+"
+                label={t("extensions.treasuryOverview.mob")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Troop-target uplift while war footing is on and marshalcy Budget exceeds Need (case β)"
+                tip={t("extensions.treasuryOverview.mobTip")}
               />
               <SortableHeader
                 field="publicDebt"
-                label="Debt"
+                label={t("extensions.treasuryOverview.debt")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Public debt principal (PR-7) — funded by the credit pool (PR-9); interest returns to moneylenders"
+                tip={t("extensions.treasuryOverview.debtTip")}
               />
               <SortableHeader
                 field="creditPoolBalance"
-                label="Credit"
+                label={t("extensions.treasuryOverview.credit")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Credit pool (PR-9) — funds debt issues; interest/repay/tax-farm feed it; PR-10 named syndicate skims a personal share"
+                tip={t("extensions.treasuryOverview.creditTip")}
               />
               <SortableHeader
                 field="primaryMoneylenderName"
-                label="Banker"
+                label={t("extensions.treasuryOverview.banker")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="Primary named moneylender (capital market manager or top rival) — PR-10"
+                tip={t("extensions.treasuryOverview.bankerTip")}
               />
               <SortableHeader
                 field="debtInterestRate"
-                label="Rate"
+                label={t("extensions.treasuryOverview.rate")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Effective monthly interest on public debt (form × greed × assembly support × negotiation) — PR-10/11"
+                tip={t("extensions.treasuryOverview.rateTip")}
               />
               <SortableHeader
                 field="debtInDefault"
-                label="Default"
+                label={t("extensions.treasuryOverview.default")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="PR-11: missed interest streak — new borrowing frozen"
+                tip={t("extensions.treasuryOverview.defaultTip")}
               />
               <SortableHeader
                 field="debtCoupRisk"
-                label="Coup"
+                label={t("extensions.treasuryOverview.coup")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="PR-12: high military discontent while in default — merchant mutiny / coup risk"
+                tip={t("extensions.treasuryOverview.coupTip")}
               />
               <SortableHeader
                 field="councilSupport"
-                label="Council"
+                label={t("extensions.treasuryOverview.council")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Assembly support 0–100 (PR-8) — scales wartime veto chance and gates voluntary debt"
+                tip={t("extensions.treasuryOverview.councilTip")}
               />
               <SortableHeader
                 field="councilLastDebtVoteYes"
-                label="Vote"
+                label={t("extensions.treasuryOverview.vote")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-12 last debt-issue faction vote yes share"
+                tip={t("extensions.treasuryOverview.voteTip")}
               />
               <SortableHeader
                 field="lastTaxFarmLeak"
-                label="Farm"
+                label={t("extensions.treasuryOverview.farm")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Last-cycle tax-farm leak from L2 (PR-7/8)"
+                tip={t("extensions.treasuryOverview.farmTip")}
               />
               <SortableHeader
                 field="domainPollTaxMultiplier"
-                label="Poll×"
+                label={t("extensions.treasuryOverview.poll")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-12 domain levy → poll-tax collection multiplier"
+                tip={t("extensions.treasuryOverview.pollTip")}
               />
               <SortableHeader
                 field="foreignDebt"
-                label="FX Debt"
+                label={t("extensions.treasuryOverview.fxDebt")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-13/14 foreign/international debt principal (Ally/Friendly or bond market)"
+                tip={t("extensions.treasuryOverview.fxDebtTip")}
               />
               <SortableHeader
                 field="foreignDebtInDefault"
-                label="FX Def"
+                label={t("extensions.treasuryOverview.fxDef")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="PR-14 foreign loan default — creditor diplomacy chilled"
+                tip={t("extensions.treasuryOverview.fxDefTip")}
               />
               <SortableHeader
                 field="coupLegitimacy"
-                label="Legit"
+                label={t("extensions.treasuryOverview.legit")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-14 post-coup legitimacy 0–100 (0 = no recent coup)"
+                tip={t("extensions.treasuryOverview.legitTip")}
               />
               <SortableHeader
                 field="civilUnrest"
-                label="Unrest"
+                label={t("extensions.treasuryOverview.unrest")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="PR-14 civil unrest after debt coup"
+                tip={t("extensions.treasuryOverview.unrestTip")}
               />
               <SortableHeader
                 field="legitimacyWarActive"
-                label="LWar"
+                label={t("extensions.treasuryOverview.lwar")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="PR-15 legitimacy war (pretender vs regime)"
+                tip={t("extensions.treasuryOverview.lwarTip")}
               />
               <SortableHeader
                 field="creditRating"
-                label="Rating"
+                label={t("extensions.treasuryOverview.rating")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="PR-15 sovereign credit rating (bond market)"
+                tip={t("extensions.treasuryOverview.ratingTip")}
               />
               <SortableHeader
                 field="tradeSanctionMult"
-                label="Trade×"
+                label={t("extensions.treasuryOverview.tradeX")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-15 trade sanction multiplier on deal/voyage income while in FX default"
+                tip={t("extensions.treasuryOverview.tradeXTip")}
               />
               <SortableHeader
                 field="councilSessionNumber"
-                label="Sess#"
+                label={t("extensions.treasuryOverview.sess")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-13 assembly session counter (council log)"
+                tip={t("extensions.treasuryOverview.sessTip")}
               />
               <SortableHeader
                 field="chancery"
-                label="Chancery"
+                label={t("extensions.treasuryOverview.chancery")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget this cycle"
+                tip={t("extensions.treasuryOverview.deptBudgetTip")}
               />
               <SortableHeader
                 field="stewardship"
-                label="Stewardship"
+                label={t("extensions.treasuryOverview.stewardship")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget this cycle"
+                tip={t("extensions.treasuryOverview.deptBudgetTip")}
               />
               <SortableHeader
                 field="spymastery"
-                label="Spymastery"
+                label={t("extensions.treasuryOverview.spymastery")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget this cycle"
+                tip={t("extensions.treasuryOverview.deptBudgetTip")}
               />
               <SortableHeader
                 field="ecclesiastica"
-                label="Ecclesiastica"
+                label={t("extensions.treasuryOverview.ecclesiastica")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget this cycle"
+                tip={t("extensions.treasuryOverview.deptBudgetTip")}
               />
               <SortableHeader
                 field="chanceryServiceLevel"
-                label="Chancery Svc"
+                label={t("extensions.treasuryOverview.chancerySvc")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-17b: smoothed 0-100% liquidity-based service level. Below ~80% starts costing real gameplay effects for this department (e.g. Spymastery → espionage effectiveness, Stewardship → tax efficiency)"
+                tip={t("extensions.treasuryOverview.chancerySvcTip")}
               />
               <SortableHeader
                 field="stewardshipServiceLevel"
-                label="Stewardship Svc"
+                label={t("extensions.treasuryOverview.stewardshipSvc")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-17b: smoothed 0-100% liquidity-based service level — drives administrative upkeep/tax efficiency in taxes-generator.ts, one cycle lagged"
+                tip={t("extensions.treasuryOverview.stewardshipSvcTip")}
               />
               <SortableHeader
                 field="spymasteryServiceLevel"
-                label="Spymastery Svc"
+                label={t("extensions.treasuryOverview.spymasterySvc")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-17b/17d: smoothed 0-100% liquidity-based service level — drives this state's espionage/intrigue effectiveness (floor 40%)"
+                tip={t("extensions.treasuryOverview.spymasterySvcTip")}
               />
               <SortableHeader
                 field="ecclesiasticaServiceLevel"
-                label="Ecclesiastica Svc"
+                label={t("extensions.treasuryOverview.ecclesiasticaSvc")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-17b: smoothed 0-100% liquidity-based service level for Ecclesiastica"
+                tip={t("extensions.treasuryOverview.ecclesiasticaSvcTip")}
               />
               <SortableHeader
                 field="departmentBalanceRemit"
-                label="Dept Remit"
+                label={t("extensions.treasuryOverview.deptRemit")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-17a: cash remitted L3a → L2 this cycle because a non-marshalcy department balance exceeded its cap (6× nominal budget) — the office simply could not spend it fast enough"
+                tip={t("extensions.treasuryOverview.deptRemitTip")}
               />
               <SortableHeader
                 field="diplomaticReliability"
-                label="Diplo Reliability"
+                label={t("extensions.treasuryOverview.diplo")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-17g: 0-100 accumulated diplomatic reputation driven by Chancery's service level. Below 30, sustained neglect risks straining an existing alliance"
+                tip={t("extensions.treasuryOverview.diploTip")}
               />
               <SortableHeader
                 field="religiousUnrest"
-                label="Religious Unrest"
+                label={t("extensions.treasuryOverview.religious")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-17h: 0-100 accumulated unrest driven by Ecclesiastica's service level (Theocracy accumulates 1.5× faster). Above 40 it costs assembly support, gating debt issuance, war footing, and every department-budget cut"
+                tip={t("extensions.treasuryOverview.religiousTip")}
               />
             </tr>
           </thead>
@@ -515,7 +513,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
             <tbody>
               <tr>
                 <td colSpan={44}>
-                  <span>No state has an allocated treasury yet — run a generation cycle first</span>
+                  <span>{t("extensions.treasuryOverview.empty")}</span>
                 </td>
               </tr>
             </tbody>
@@ -532,101 +530,154 @@ export const TreasuryOverviewDialog: React.FC = () => {
   );
 };
 
-const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
-  <tr className="states" data-id={row.id} data-state={row.stateName}>
-    <td data-tip={row.stateName}>{row.stateName}</td>
-    <td>{row.form}</td>
-    <td className="numeric" data-tip="Public treasury (L2)">
-      {row.publicTreasury.toFixed(2)}
-    </td>
-    <td className="numeric" data-tip="Household purse (L1)">
-      {row.householdPurse.toFixed(2)}
-    </td>
-    <td className="numeric" data-tip="Ruler personal wealth (L0)">
-      {row.rulerPersonal.toFixed(2)}
-    </td>
-    <td className="numeric">{row.domesticIncome.toFixed(2)}</td>
-    <td className="numeric" data-tip="Household stipend paid this cycle (L1→L0)">
-      {row.household.toFixed(2)}
-    </td>
-    <td className="numeric">{row.officeStipendsPaid.toFixed(2)}</td>
-    <td className="numeric" data-tip="L3a department balances stock">
-      {row.departmentBalancesStock.toFixed(2)}
-    </td>
-    <td className="numeric" data-tip="Nominal department budgets sum this cycle">
-      {row.nominalDepartments.toFixed(2)}
-    </td>
-    <td className="numeric">{row.marshalcy.toFixed(2)}</td>
-    <td className="numeric">{row.militaryFundingRatio.toFixed(2)}</td>
-    <td className="numeric">{row.militaryDiscontent.toFixed(1)}</td>
-    <td data-tip={row.warFooting ? "War footing ON" : "War footing off"}>{row.warFooting ? "ON" : "—"}</td>
-    <td className="numeric">{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
-    <td className="numeric" data-tip="Public debt principal">
-      {row.publicDebt > 0 ? row.publicDebt.toFixed(2) : "—"}
-    </td>
-    <td className="numeric" data-tip="Credit pool (moneylenders)">
-      {row.creditPoolBalance > 0 ? row.creditPoolBalance.toFixed(2) : "—"}
-    </td>
-    <td data-tip="Primary moneylender">{row.primaryMoneylenderName || "—"}</td>
-    <td className="numeric" data-tip="Debt interest rate">
-      {row.debtInterestRate > 0 ? `${(row.debtInterestRate * 100).toFixed(2)}%` : "—"}
-    </td>
-    <td data-tip={row.debtInDefault ? "In default" : "Current"}>{row.debtInDefault ? "YES" : "—"}</td>
-    <td data-tip={row.debtCoupRisk ? "Coup risk" : "No coup risk"}>{row.debtCoupRisk ? "YES" : "—"}</td>
-    <td className="numeric" data-tip="Assembly support">
-      {row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}
-    </td>
-    <td className="numeric" data-tip="Debt-issue vote yes">
-      {row.councilLastDebtVoteYes > 0 ? `${(row.councilLastDebtVoteYes * 100).toFixed(0)}%` : "—"}
-    </td>
-    <td className="numeric" data-tip="Last tax-farm leak">
-      {row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}
-    </td>
-    <td className="numeric" data-tip="Domain poll mult">
-      {row.domainPollTaxMultiplier !== 1 ? `×${row.domainPollTaxMultiplier.toFixed(2)}` : "—"}
-    </td>
-    <td className="numeric" data-tip="Foreign debt">
-      {row.foreignDebt > 0 ? row.foreignDebt.toFixed(2) : "—"}
-    </td>
-    <td data-tip={row.foreignDebtInDefault ? "Foreign default" : "Current"}>
-      {row.foreignDebtInDefault ? "YES" : "—"}
-    </td>
-    <td className="numeric" data-tip="Coup legitimacy">
-      {row.coupLegitimacy > 0 ? row.coupLegitimacy.toFixed(0) : "—"}
-    </td>
-    <td data-tip={row.civilUnrest ? "Civil unrest" : "Stable"}>{row.civilUnrest ? "YES" : "—"}</td>
-    <td data-tip={row.legitimacyWarActive ? "Legitimacy war" : "—"}>{row.legitimacyWarActive ? "YES" : "—"}</td>
-    <td data-tip="Credit rating">{row.creditRating !== "—" ? row.creditRating : "—"}</td>
-    <td className="numeric" data-tip="Trade sanction mult">
-      {row.tradeSanctionMult < 1 ? `×${row.tradeSanctionMult.toFixed(2)}` : "—"}
-    </td>
-    <td className="numeric" data-tip="Council sessions">
-      {row.councilSessionNumber > 0 ? row.councilSessionNumber : "—"}
-    </td>
-    <td className="numeric">{row.chancery.toFixed(2)}</td>
-    <td className="numeric">{row.stewardship.toFixed(2)}</td>
-    <td className="numeric">{row.spymastery.toFixed(2)}</td>
-    <td className="numeric">{row.ecclesiastica.toFixed(2)}</td>
-    <td className="numeric" data-tip={`Budget multiplier ×${row.chanceryBudgetMultiplier.toFixed(2)}`}>
-      {(row.chanceryServiceLevel * 100).toFixed(0)}%
-    </td>
-    <td className="numeric" data-tip={`Budget multiplier ×${row.stewardshipBudgetMultiplier.toFixed(2)}`}>
-      {(row.stewardshipServiceLevel * 100).toFixed(0)}%
-    </td>
-    <td className="numeric" data-tip={`Budget multiplier ×${row.spymasteryBudgetMultiplier.toFixed(2)}`}>
-      {(row.spymasteryServiceLevel * 100).toFixed(0)}%
-    </td>
-    <td className="numeric" data-tip={`Budget multiplier ×${row.ecclesiasticaBudgetMultiplier.toFixed(2)}`}>
-      {(row.ecclesiasticaServiceLevel * 100).toFixed(0)}%
-    </td>
-    <td className="numeric" data-tip="Cash remitted back to public treasury this cycle (over-cap department balance)">
-      {row.departmentBalanceRemit > 0 ? row.departmentBalanceRemit.toFixed(2) : "—"}
-    </td>
-    <td className="numeric" data-tip="Below 30 risks straining an existing alliance">
-      {row.diplomaticReliability.toFixed(0)}
-    </td>
-    <td className="numeric" data-tip="Above 40 costs assembly support">
-      {row.religiousUnrest.toFixed(0)}
-    </td>
-  </tr>
-);
+const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => {
+  const { t } = useTranslation();
+  return (
+    <tr className="states" data-id={row.id} data-state={row.stateName}>
+      <td data-tip={row.stateName}>{row.stateName}</td>
+      <td>{row.form}</td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.publicCell")}>
+        {row.publicTreasury.toFixed(2)}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.hhCell")}>
+        {row.householdPurse.toFixed(2)}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.rulerCell")}>
+        {row.rulerPersonal.toFixed(2)}
+      </td>
+      <td className="numeric">{row.domesticIncome.toFixed(2)}</td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.hhPaidCell")}>
+        {row.household.toFixed(2)}
+      </td>
+      <td className="numeric">{row.officeStipendsPaid.toFixed(2)}</td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.deptsBalCell")}>
+        {row.departmentBalancesStock.toFixed(2)}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.deptsSumCell")}>
+        {row.nominalDepartments.toFixed(2)}
+      </td>
+      <td className="numeric">{row.marshalcy.toFixed(2)}</td>
+      <td className="numeric">{row.militaryFundingRatio.toFixed(2)}</td>
+      <td className="numeric">{row.militaryDiscontent.toFixed(1)}</td>
+      <td data-tip={row.warFooting ? t("extensions.treasuryOverview.warOn") : t("extensions.treasuryOverview.warOff")}>
+        {row.warFooting ? t("extensions.treasuryOverview.on") : "—"}
+      </td>
+      <td className="numeric">{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.publicDebtCell")}>
+        {row.publicDebt > 0 ? row.publicDebt.toFixed(2) : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.creditCell")}>
+        {row.creditPoolBalance > 0 ? row.creditPoolBalance.toFixed(2) : "—"}
+      </td>
+      <td data-tip={t("extensions.treasuryOverview.bankerCell")}>{row.primaryMoneylenderName || "—"}</td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.rateCell")}>
+        {row.debtInterestRate > 0 ? `${(row.debtInterestRate * 100).toFixed(2)}%` : "—"}
+      </td>
+      <td
+        data-tip={
+          row.debtInDefault ? t("extensions.treasuryOverview.inDefault") : t("extensions.treasuryOverview.current")
+        }
+      >
+        {row.debtInDefault ? t("extensions.treasuryOverview.yes") : "—"}
+      </td>
+      <td
+        data-tip={
+          row.debtCoupRisk ? t("extensions.treasuryOverview.coupRisk") : t("extensions.treasuryOverview.noCoupRisk")
+        }
+      >
+        {row.debtCoupRisk ? t("extensions.treasuryOverview.yes") : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.supportCell")}>
+        {row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.voteCell")}>
+        {row.councilLastDebtVoteYes > 0 ? `${(row.councilLastDebtVoteYes * 100).toFixed(0)}%` : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.farmCell")}>
+        {row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.pollCell")}>
+        {row.domainPollTaxMultiplier !== 1 ? `×${row.domainPollTaxMultiplier.toFixed(2)}` : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.fxCell")}>
+        {row.foreignDebt > 0 ? row.foreignDebt.toFixed(2) : "—"}
+      </td>
+      <td
+        data-tip={
+          row.foreignDebtInDefault
+            ? t("extensions.treasuryOverview.foreignDefault")
+            : t("extensions.treasuryOverview.current")
+        }
+      >
+        {row.foreignDebtInDefault ? t("extensions.treasuryOverview.yes") : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.legitCell")}>
+        {row.coupLegitimacy > 0 ? row.coupLegitimacy.toFixed(0) : "—"}
+      </td>
+      <td
+        data-tip={
+          row.civilUnrest ? t("extensions.treasuryOverview.civilUnrest") : t("extensions.treasuryOverview.stable")
+        }
+      >
+        {row.civilUnrest ? t("extensions.treasuryOverview.yes") : "—"}
+      </td>
+      <td data-tip={row.legitimacyWarActive ? t("extensions.treasuryOverview.legitimacyWar") : "—"}>
+        {row.legitimacyWarActive ? t("extensions.treasuryOverview.yes") : "—"}
+      </td>
+      <td data-tip={t("extensions.treasuryOverview.ratingCell")}>
+        {row.creditRating !== "—" ? row.creditRating : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.tradeCell")}>
+        {row.tradeSanctionMult < 1 ? `×${row.tradeSanctionMult.toFixed(2)}` : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.sessCell")}>
+        {row.councilSessionNumber > 0 ? row.councilSessionNumber : "—"}
+      </td>
+      <td className="numeric">{row.chancery.toFixed(2)}</td>
+      <td className="numeric">{row.stewardship.toFixed(2)}</td>
+      <td className="numeric">{row.spymastery.toFixed(2)}</td>
+      <td className="numeric">{row.ecclesiastica.toFixed(2)}</td>
+      <td
+        className="numeric"
+        data-tip={t("extensions.treasuryOverview.budgetMult", {
+          value: row.chanceryBudgetMultiplier.toFixed(2)
+        })}
+      >
+        {(row.chanceryServiceLevel * 100).toFixed(0)}%
+      </td>
+      <td
+        className="numeric"
+        data-tip={t("extensions.treasuryOverview.budgetMult", {
+          value: row.stewardshipBudgetMultiplier.toFixed(2)
+        })}
+      >
+        {(row.stewardshipServiceLevel * 100).toFixed(0)}%
+      </td>
+      <td
+        className="numeric"
+        data-tip={t("extensions.treasuryOverview.budgetMult", {
+          value: row.spymasteryBudgetMultiplier.toFixed(2)
+        })}
+      >
+        {(row.spymasteryServiceLevel * 100).toFixed(0)}%
+      </td>
+      <td
+        className="numeric"
+        data-tip={t("extensions.treasuryOverview.budgetMult", {
+          value: row.ecclesiasticaBudgetMultiplier.toFixed(2)
+        })}
+      >
+        {(row.ecclesiasticaServiceLevel * 100).toFixed(0)}%
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.remitCell")}>
+        {row.departmentBalanceRemit > 0 ? row.departmentBalanceRemit.toFixed(2) : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.diploCell")}>
+        {row.diplomaticReliability.toFixed(0)}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.religiousCell")}>
+        {row.religiousUnrest.toFixed(0)}
+      </td>
+    </tr>
+  );
+};

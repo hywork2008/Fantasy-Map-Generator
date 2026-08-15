@@ -4,44 +4,10 @@ import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { refreshMineralOverview } from "../../controllers/mineralOverview";
 import {
-  type MineralAccessStatus,
   type MineralCommodityOverviewRow,
   type MineralDepositOverviewRow,
-  type MineralSupplyStatus,
   useMineralOverviewState
 } from "../../store/mineralOverviewState";
-
-const STATUS_LABEL: Record<MineralSupplyStatus, string> = {
-  active: "Active",
-  idle: "Idle",
-  unprospected: "Unprospected",
-  exhausted: "Exhausted",
-  absent: "Absent"
-};
-
-const STATUS_TIP: Record<MineralSupplyStatus, string> = {
-  active: "At least one mine is actively supplying this resource.",
-  idle: "The deposit is known, but no active mine currently supplies it.",
-  unprospected: "The resource exists in the generated geology but has not been discovered by a mine operation.",
-  exhausted: "Every generated deposit of this resource is exhausted.",
-  absent: "This map generated no deposit containing this resource."
-};
-
-const ACCESS_LABEL: Record<MineralAccessStatus, string> = {
-  domestic: "Domestic",
-  importing: "Importing",
-  embargoed: "Embargoed",
-  noDomesticDeposit: "No domestic deposit",
-  developing: "Not operating"
-};
-
-const ACCESS_TIP: Record<MineralAccessStatus, string> = {
-  domestic: "At least one active mine in this State supplies the resource.",
-  importing: "A State-funded military-material procurement order is awaiting delivery.",
-  embargoed: "A military-material procurement order was blocked because only Enemy supply was available.",
-  noDomesticDeposit: "This State has no generated deposit containing this resource.",
-  developing: "The resource exists in this State, but no active mine currently supplies it."
-};
 
 export const MineralOverviewDialog: React.FC = () => {
   const { t } = useTranslation();
@@ -76,28 +42,27 @@ export const MineralOverviewDialog: React.FC = () => {
     >
       <div className="mineral-overview-dialog">
         <div className="totalLine" id="mineralOverviewSummary">
-          <span data-tip="Mineral types currently produced by one or more active mines">
-            Active supply: {activeCount}
+          <span data-tip={t("extensions.mineralsOverview.activeSupplyTip")}>
+            {t("extensions.mineralsOverview.activeSupply", { count: activeCount })}
           </span>
           {" · "}
-          <span data-tip="Mineral types generated in geology but not yet discovered">
-            To prospect: {unprospectedCount}
+          <span data-tip={t("extensions.mineralsOverview.toProspectTip")}>
+            {t("extensions.mineralsOverview.toProspect", { count: unprospectedCount })}
           </span>
           {" · "}
-          <span data-tip="Mineral types with no remaining source on this map">Unavailable: {missingCount}</span>
+          <span data-tip={t("extensions.mineralsOverview.unavailableTip")}>
+            {t("extensions.mineralsOverview.unavailable", { count: missingCount })}
+          </span>
         </div>
         <div className="d-flex header" id="mineralOverviewFilters">
-          <label
-            htmlFor="mineralOverviewFilterState"
-            data-tip="Filter deposits and resource totals by the State that contains each deposit"
-          >
-            State:
+          <label htmlFor="mineralOverviewFilterState" data-tip={t("extensions.mineralsOverview.stateTip")}>
+            {t("extensions.mineralsOverview.state")}
             <select
               id="mineralOverviewFilterState"
               value={selectedStateId ?? ""}
               onChange={event => setSelectedStateId(event.target.value === "" ? null : Number(event.target.value))}
             >
-              <option value="">All states</option>
+              <option value="">{t("extensions.mineralsOverview.allStates")}</option>
               {states.map(state => (
                 <option key={state.id} value={state.id}>
                   {state.name}
@@ -107,35 +72,36 @@ export const MineralOverviewDialog: React.FC = () => {
           </label>
         </div>
         <section className="mineral-overview-dialog__section" aria-labelledby="mineralCoverageHeading">
-          <h3 id="mineralCoverageHeading">Resource coverage</h3>
-          <p className="note">
-            Capacity and reserves include all generated deposits, including unprospected ones. Output reflects active
-            mines.
-          </p>
+          <h3 id="mineralCoverageHeading">{t("extensions.mineralsOverview.coverage")}</h3>
+          <p className="note">{t("extensions.mineralsOverview.coverageNote")}</p>
           <div ref={commodityRef} id="mineralOverviewCoverage" className="table">
             <table className="fmg-table">
               <thead className="header">
                 <tr>
-                  <th>Resource</th>
-                  <th data-tip="Active, idle, unprospected, exhausted, or absent">Supply status</th>
-                  <th data-tip="Domestic supply, import in transit, embargo, or local access state">Access</th>
-                  <th className="numeric" data-tip="All generated deposits containing this resource">
-                    Deposits
+                  <th>{t("extensions.mineralsOverview.resource")}</th>
+                  <th data-tip={t("extensions.mineralsOverview.supplyStatusTip")}>
+                    {t("extensions.mineralsOverview.supplyStatus")}
                   </th>
-                  <th className="numeric" data-tip="Deposits found by prospecting or an established mine">
-                    Known
+                  <th data-tip={t("extensions.mineralsOverview.accessTip")}>
+                    {t("extensions.mineralsOverview.access")}
                   </th>
-                  <th className="numeric" data-tip="Mines currently supplying this resource">
-                    Mines
+                  <th className="numeric" data-tip={t("extensions.mineralsOverview.depositsTip")}>
+                    {t("extensions.mineralsOverview.deposits")}
                   </th>
-                  <th className="numeric" data-tip="Recoverable material remaining across all deposits (tons)">
-                    Reserves (t)
+                  <th className="numeric" data-tip={t("extensions.mineralsOverview.knownTip")}>
+                    {t("extensions.mineralsOverview.known")}
                   </th>
-                  <th className="numeric" data-tip="Full potential annual extraction across all deposits (tons/year)">
-                    Capacity (t/y)
+                  <th className="numeric" data-tip={t("extensions.mineralsOverview.minesTip")}>
+                    {t("extensions.mineralsOverview.mines")}
                   </th>
-                  <th className="numeric" data-tip="Last annualized output recorded by active mines (tons/year)">
-                    Output (t/y)
+                  <th className="numeric" data-tip={t("extensions.mineralsOverview.reservesTip")}>
+                    {t("extensions.mineralsOverview.reserves")}
+                  </th>
+                  <th className="numeric" data-tip={t("extensions.mineralsOverview.capacityTip")}>
+                    {t("extensions.mineralsOverview.capacity")}
+                  </th>
+                  <th className="numeric" data-tip={t("extensions.mineralsOverview.outputTip")}>
+                    {t("extensions.mineralsOverview.output")}
                   </th>
                 </tr>
               </thead>
@@ -148,33 +114,37 @@ export const MineralOverviewDialog: React.FC = () => {
           </div>
         </section>
         <section className="mineral-overview-dialog__section" aria-labelledby="mineralDepositsHeading">
-          <h3 id="mineralDepositsHeading">Deposits</h3>
+          <h3 id="mineralDepositsHeading">{t("extensions.mineralsOverview.depositsHeading")}</h3>
           <div ref={depositRef} id="mineralOverviewDeposits" className="table">
             <table className="fmg-table">
               <thead className="header">
                 <tr>
-                  <th className="numeric">ID</th>
-                  <th>Primary resource</th>
-                  <th>Resources</th>
-                  <th>District</th>
-                  <th>Mine status</th>
-                  <th>State</th>
-                  <th>Settlement</th>
-                  <th className="numeric">Depth</th>
-                  <th className="numeric">Richness</th>
-                  <th className="numeric">Reserves (t)</th>
-                  <th className="numeric">Capacity (t/y)</th>
-                  <th className="numeric">Output (t/y)</th>
+                  <th className="numeric">{t("extensions.mineralsOverview.id")}</th>
+                  <th>{t("extensions.mineralsOverview.primary")}</th>
+                  <th>{t("extensions.mineralsOverview.resources")}</th>
+                  <th>{t("extensions.mineralsOverview.district")}</th>
+                  <th>{t("extensions.mineralsOverview.mineStatus")}</th>
+                  <th>{t("extensions.mineralsOverview.stateCol")}</th>
+                  <th>{t("extensions.mineralsOverview.settlement")}</th>
+                  <th className="numeric">{t("extensions.mineralsOverview.depth")}</th>
+                  <th className="numeric">{t("extensions.mineralsOverview.richness")}</th>
+                  <th className="numeric">{t("extensions.mineralsOverview.reserves")}</th>
+                  <th className="numeric">{t("extensions.mineralsOverview.capacity")}</th>
+                  <th className="numeric">{t("extensions.mineralsOverview.output")}</th>
                 </tr>
               </thead>
               {deposits.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={12}>No mineral deposits match this State</td>
+                    <td colSpan={12}>{t("extensions.mineralsOverview.emptyDeposits")}</td>
                   </tr>
                 </tbody>
               ) : (
-                <VirtualTableBody items={deposits} scrollElementRef={depositRef} renderRow={renderDepositRow} />
+                <VirtualTableBody
+                  items={deposits}
+                  scrollElementRef={depositRef}
+                  renderRow={row => <DepositRow row={row} />}
+                />
               )}
             </table>
           </div>
@@ -183,7 +153,7 @@ export const MineralOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="mineralOverviewRefresh"
-            data-tip="Refresh mineral deposits, reserves, and mine output"
+            data-tip={t("extensions.mineralsOverview.refreshTip")}
             className="icon-cw"
             onClick={() => refreshMineralOverview(selectedStateId)}
           />
@@ -193,31 +163,45 @@ export const MineralOverviewDialog: React.FC = () => {
   );
 };
 
-const CommodityRow: React.FC<{ row: MineralCommodityOverviewRow }> = ({ row }) => (
-  <tr data-resource={row.commodity} data-status={row.status}>
-    <td>{row.commodity}</td>
-    <td data-tip={STATUS_TIP[row.status]}>{STATUS_LABEL[row.status]}</td>
-    <td data-tip={row.accessStatus ? ACCESS_TIP[row.accessStatus] : "Choose a State to inspect national access."}>
-      {row.accessStatus ? ACCESS_LABEL[row.accessStatus] : "—"}
-      {row.incomingUnits ? ` (${row.incomingUnits})` : ""}
-    </td>
-    <td className="numeric">{row.depositCount}</td>
-    <td className="numeric">{row.discoveredCount}</td>
-    <td className="numeric">{row.activeMineCount}</td>
-    <td className="numeric">{row.reserveTons}</td>
-    <td className="numeric">{row.annualCapacityTons}</td>
-    <td className="numeric">{row.annualOutputTons}</td>
-  </tr>
-);
+const CommodityRow: React.FC<{ row: MineralCommodityOverviewRow }> = ({ row }) => {
+  const { t } = useTranslation();
+  return (
+    <tr data-resource={row.commodity} data-status={row.status}>
+      <td>{row.commodity}</td>
+      <td data-tip={t(`extensions.mineralsOverview.statusTips.${row.status}`)}>
+        {t(`extensions.mineralsOverview.status.${row.status}`)}
+      </td>
+      <td
+        data-tip={
+          row.accessStatus
+            ? t(`extensions.mineralsOverview.accessTips.${row.accessStatus}`)
+            : t("extensions.mineralsOverview.chooseState")
+        }
+      >
+        {row.accessStatus ? t(`extensions.mineralsOverview.accessStatus.${row.accessStatus}`) : "—"}
+        {row.incomingUnits ? ` (${row.incomingUnits})` : ""}
+      </td>
+      <td className="numeric">{row.depositCount}</td>
+      <td className="numeric">{row.discoveredCount}</td>
+      <td className="numeric">{row.activeMineCount}</td>
+      <td className="numeric">{row.reserveTons}</td>
+      <td className="numeric">{row.annualCapacityTons}</td>
+      <td className="numeric">{row.annualOutputTons}</td>
+    </tr>
+  );
+};
 
-function renderDepositRow(row: MineralDepositOverviewRow): React.ReactNode {
+function DepositRow({ row }: { row: MineralDepositOverviewRow }): React.ReactNode {
+  const { t } = useTranslation();
   return (
     <tr key={row.id} data-id={row.id} data-status={row.status} data-cell={row.cell} data-state-id={row.stateId}>
       <td className="numeric">{row.id}</td>
       <td>{row.primaryCommodity}</td>
       <td>{row.commodities}</td>
       <td>{row.districtType}</td>
-      <td data-tip={STATUS_TIP[row.status]}>{STATUS_LABEL[row.status]}</td>
+      <td data-tip={t(`extensions.mineralsOverview.statusTips.${row.status}`)}>
+        {t(`extensions.mineralsOverview.status.${row.status}`)}
+      </td>
       <td>{row.stateName}</td>
       <td>{row.burgName}</td>
       <td className="numeric">{row.depth}</td>

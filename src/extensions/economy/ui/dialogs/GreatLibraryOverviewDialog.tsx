@@ -3,15 +3,22 @@ import { useTranslation } from "react-i18next";
 
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { open as openGreatLibraryOverview, refreshGreatLibraryOverview } from "../../controllers/greatLibraryOverview";
-import type { GreatLibraryStatus } from "../../generators/greatLibraryTypes";
+import type { GreatLibraryPhase, GreatLibraryStatus } from "../../generators/greatLibraryTypes";
 import { useGreatLibraryOverviewState } from "../../store/greatLibraryOverviewState";
 
-const STATUS_LABEL: Record<GreatLibraryStatus, string> = {
-  planning: "Planning",
-  building: "Under construction",
-  paused: "Paused",
-  completed: "Completed",
-  ruined: "Ruined"
+const STATUS_LABEL_KEY: Record<GreatLibraryStatus, string> = {
+  planning: "extensions.greatLibrary.statusPlanning",
+  building: "extensions.greatLibrary.statusBuilding",
+  paused: "extensions.greatLibrary.statusPaused",
+  completed: "extensions.greatLibrary.statusCompleted",
+  ruined: "extensions.greatLibrary.statusRuined"
+};
+
+const PHASE_LABEL_KEY: Record<GreatLibraryPhase, string> = {
+  sitePrep: "extensions.greatLibrary.phaseSitePrep",
+  structure: "extensions.greatLibrary.phaseStructure",
+  collection: "extensions.greatLibrary.phaseCollection",
+  inauguration: "extensions.greatLibrary.phaseInauguration"
 };
 
 const STATUS_ICON: Record<GreatLibraryStatus, string> = {
@@ -22,11 +29,11 @@ const STATUS_ICON: Record<GreatLibraryStatus, string> = {
   ruined: "🏚️"
 };
 
-const GATE_TIP: Record<"culture" | "ruler" | "wealth" | "peace", string> = {
-  culture: "Culture.knowledgeValue is scholarly enough (docs/plan/great-library.md KD-2)",
-  ruler: "A living ruler with enough learning and a knowledge-valuing court (KD-3)",
-  wealth: "Treasury clears the floor and a full year's construction budget (KD-4)",
-  peace: "No active 'Enemy' diplomacy relation (KD-4 W3)"
+const GATE_TIP_KEY: Record<"culture" | "ruler" | "wealth" | "peace", string> = {
+  culture: "extensions.greatLibrary.gateCulture",
+  ruler: "extensions.greatLibrary.gateRuler",
+  wealth: "extensions.greatLibrary.gateWealth",
+  peace: "extensions.greatLibrary.gatePeace"
 };
 
 function GateMark({ ok, tip }: { ok: boolean; tip: string }): React.ReactElement {
@@ -56,45 +63,45 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
     >
       <div className="great-library-overview-dialog">
         <section className="great-library-overview-dialog__section" aria-labelledby="greatLibraryProjectsHeading">
-          <h3 id="greatLibraryProjectsHeading">Projects</h3>
+          <h3 id="greatLibraryProjectsHeading">{t("extensions.greatLibrary.projects")}</h3>
           <div className="table">
             <table className="fmg-table">
               <thead className="header">
                 <tr>
-                  <th>Status</th>
-                  <th>State</th>
-                  <th>City</th>
-                  <th>Phase</th>
-                  <th className="numeric" data-tip="Progress toward completion">
-                    Progress
+                  <th>{t("extensions.greatLibrary.status")}</th>
+                  <th>{t("extensions.greatLibrary.state")}</th>
+                  <th>{t("extensions.greatLibrary.city")}</th>
+                  <th>{t("extensions.greatLibrary.phase")}</th>
+                  <th className="numeric" data-tip={t("extensions.greatLibrary.progressTip")}>
+                    {t("extensions.greatLibrary.progress")}
                   </th>
-                  <th className="numeric" data-tip="Cumulative treasury spend on this project">
-                    Spent
+                  <th className="numeric" data-tip={t("extensions.greatLibrary.spentTip")}>
+                    {t("extensions.greatLibrary.spent")}
                   </th>
-                  <th className="numeric" data-tip="Post-completion vitality (funds upkeep, decays without it)">
-                    Endowment
+                  <th className="numeric" data-tip={t("extensions.greatLibrary.endowmentTip")}>
+                    {t("extensions.greatLibrary.endowment")}
                   </th>
-                  <th className="numeric">Started</th>
-                  <th className="numeric">Finished</th>
+                  <th className="numeric">{t("extensions.greatLibrary.started")}</th>
+                  <th className="numeric">{t("extensions.greatLibrary.finished")}</th>
                 </tr>
               </thead>
               {projects.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={9}>No Great Library has been proposed on this map yet.</td>
+                    <td colSpan={9}>{t("extensions.greatLibrary.emptyProjects")}</td>
                   </tr>
                 </tbody>
               ) : (
                 <tbody>
                   {projects.map(row => (
                     <tr key={row.id} data-id={row.id} data-status={row.status}>
-                      <td data-tip={row.occupied ? "Site occupied by a foreign State" : undefined}>
-                        {STATUS_ICON[row.status]} {STATUS_LABEL[row.status]}
-                        {row.occupied ? " (occupied)" : ""}
+                      <td data-tip={row.occupied ? t("extensions.greatLibrary.occupied") : undefined}>
+                        {STATUS_ICON[row.status]} {t(STATUS_LABEL_KEY[row.status])}
+                        {row.occupied ? t("extensions.greatLibrary.occupiedSuffix") : ""}
                       </td>
                       <td>{row.stateName}</td>
                       <td>{row.burgName}</td>
-                      <td>{row.phase}</td>
+                      <td>{t(PHASE_LABEL_KEY[row.phase])}</td>
                       <td className="numeric">
                         {row.status === "ruined" ? "—" : `${Math.round((row.progress / row.buildPoints) * 100)}%`}
                       </td>
@@ -113,33 +120,30 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
         </section>
 
         <section className="great-library-overview-dialog__section" aria-labelledby="greatLibraryEligibilityHeading">
-          <h3 id="greatLibraryEligibilityHeading">States without a Great Library</h3>
-          <p className="note">
-            Every gate (culture, ruler, wealth, peace) must pass for a State to begin construction on its own next
-            settle year (docs/plan/great-library.md KD-2/3/4).
-          </p>
+          <h3 id="greatLibraryEligibilityHeading">{t("extensions.greatLibrary.eligibility")}</h3>
+          <p className="note">{t("extensions.greatLibrary.eligibilityNote")}</p>
           <div className="table">
             <table className="fmg-table">
               <thead className="header">
                 <tr>
-                  <th>State</th>
-                  <th data-tip={GATE_TIP.culture}>Culture</th>
-                  <th data-tip={GATE_TIP.ruler}>Ruler</th>
-                  <th data-tip={GATE_TIP.wealth}>Wealth</th>
-                  <th data-tip={GATE_TIP.peace}>Peace</th>
-                  <th className="numeric" data-tip="Culture.knowledgeValue">
-                    Knowledge
+                  <th>{t("extensions.greatLibrary.state")}</th>
+                  <th data-tip={t(GATE_TIP_KEY.culture)}>{t("extensions.greatLibrary.culture")}</th>
+                  <th data-tip={t(GATE_TIP_KEY.ruler)}>{t("extensions.greatLibrary.ruler")}</th>
+                  <th data-tip={t(GATE_TIP_KEY.wealth)}>{t("extensions.greatLibrary.wealth")}</th>
+                  <th data-tip={t(GATE_TIP_KEY.peace)}>{t("extensions.greatLibrary.peace")}</th>
+                  <th className="numeric" data-tip={t("extensions.greatLibrary.knowledgeTip")}>
+                    {t("extensions.greatLibrary.knowledge")}
                   </th>
-                  <th className="numeric" data-tip="Ruler score (excellence x how much patronage values knowledge)">
-                    Ruler score
+                  <th className="numeric" data-tip={t("extensions.greatLibrary.rulerScoreTip")}>
+                    {t("extensions.greatLibrary.rulerScore")}
                   </th>
-                  <th className="numeric">Treasury</th>
+                  <th className="numeric">{t("extensions.greatLibrary.treasury")}</th>
                 </tr>
               </thead>
               {eligibility.length === 0 ? (
                 <tbody>
                   <tr>
-                    <td colSpan={8}>Every State already has an active or ruined Great Library project.</td>
+                    <td colSpan={8}>{t("extensions.greatLibrary.emptyEligibility")}</td>
                   </tr>
                 </tbody>
               ) : (
@@ -148,16 +152,16 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
                     <tr key={row.stateId} data-state-id={row.stateId} data-eligible={row.eligible}>
                       <td>{row.stateName}</td>
                       <td>
-                        <GateMark ok={row.cultureOk} tip={GATE_TIP.culture} />
+                        <GateMark ok={row.cultureOk} tip={t(GATE_TIP_KEY.culture)} />
                       </td>
                       <td>
-                        <GateMark ok={row.rulerOk} tip={GATE_TIP.ruler} />
+                        <GateMark ok={row.rulerOk} tip={t(GATE_TIP_KEY.ruler)} />
                       </td>
                       <td>
-                        <GateMark ok={row.wealthOk} tip={GATE_TIP.wealth} />
+                        <GateMark ok={row.wealthOk} tip={t(GATE_TIP_KEY.wealth)} />
                       </td>
                       <td>
-                        <GateMark ok={row.peaceOk} tip={GATE_TIP.peace} />
+                        <GateMark ok={row.peaceOk} tip={t(GATE_TIP_KEY.peace)} />
                       </td>
                       <td className="numeric">{row.knowledgeValue.toFixed(2)}</td>
                       <td className="numeric">{row.rulerScore.toFixed(2)}</td>
@@ -174,7 +178,7 @@ export const GreatLibraryOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="greatLibraryOverviewRefresh"
-            data-tip="Refresh projects and eligibility"
+            data-tip={t("extensions.greatLibrary.refreshTip")}
             className="icon-cw"
             onClick={refreshGreatLibraryOverview}
           />

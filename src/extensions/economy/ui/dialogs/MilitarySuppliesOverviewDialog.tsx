@@ -70,24 +70,32 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
         bodyRef={bodyRef}
         summary={
           <div id="militarySuppliesOverviewSummary" className="totalLine">
-            <span data-tip="Serviceable weapon sets held by all states">Arms: {format(totals.arms)}</span>
+            <span data-tip={t("extensions.militarySupplies.armsTip")}>
+              {t("extensions.militarySupplies.arms", { value: format(totals.arms) })}
+            </span>
             {" · "}
-            <span data-tip="Military mounts assigned to active mounted units">Mounts: {format(totals.mounts)}</span>
+            <span data-tip={t("extensions.militarySupplies.mountsTip")}>
+              {t("extensions.militarySupplies.mounts", { value: format(totals.mounts) })}
+            </span>
             {" · "}
-            <span data-tip="Serviceable firearms held by all states">Muskets: {format(totals.muskets)}</span>
+            <span data-tip={t("extensions.militarySupplies.musketsTip")}>
+              {t("extensions.militarySupplies.muskets", { value: format(totals.muskets) })}
+            </span>
             {" · "}
-            <span data-tip="Serviceable cannon held by all states">Artillery: {format(totals.artillery)}</span>
+            <span data-tip={t("extensions.militarySupplies.artilleryTip")}>
+              {t("extensions.militarySupplies.artillery", { value: format(totals.artillery) })}
+            </span>
             <br />
-            <span data-tip="Finished arrows held in all State military stockpiles">
-              Arrows: {format(totals.arrows)}
+            <span data-tip={t("extensions.militarySupplies.arrowsTip")}>
+              {t("extensions.militarySupplies.arrows", { value: format(totals.arrows) })}
             </span>
             {" · "}
-            <span data-tip="Finished bullets held in all State military stockpiles">
-              Bullets: {format(totals.bullets)}
+            <span data-tip={t("extensions.militarySupplies.bulletsTip")}>
+              {t("extensions.militarySupplies.bullets", { value: format(totals.bullets) })}
             </span>
             {" · "}
-            <span data-tip="Finished gunpowder held in all State military stockpiles">
-              Gunpowder: {format(totals.gunpowder)}
+            <span data-tip={t("extensions.militarySupplies.gunpowderTip")}>
+              {t("extensions.militarySupplies.gunpowder", { value: format(totals.gunpowder) })}
             </span>
           </div>
         }
@@ -95,95 +103,94 @@ export const MilitarySuppliesOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="militarySuppliesOverviewRefresh"
-            data-tip="Refresh national military supplies"
+            data-tip={t("extensions.militarySupplies.refreshTip")}
             className="icon-cw"
             onClick={refreshMilitarySuppliesOverview}
           />
         }
       >
         <p className="note" style={{ marginTop: 0 }}>
-          Arms, muskets, and artillery are serviceable State equipment. Arrows, bullets, and gunpowder are stockpiled
-          finished Goods available to the State's armies. Mounts are horses or camels assigned to active mounted units.
+          {t("extensions.militarySupplies.note")}
         </p>
         <table className="fmg-table">
           <thead className="header">
             <tr>
               <SortableHeader
                 field="stateName"
-                label="State"
+                label={t("extensions.militarySupplies.state")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
               />
               <SortableHeader
                 field="arms"
-                label="Arms"
+                label={t("extensions.militarySupplies.armsCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Serviceable weapon sets held by the state"
+                tip={t("extensions.militarySupplies.armsColTip")}
               />
               <SortableHeader
                 field="arrows"
-                label="Arrows"
+                label={t("extensions.militarySupplies.arrowsCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Finished arrows held in the State military stockpile"
+                tip={t("extensions.militarySupplies.arrowsColTip")}
               />
               <SortableHeader
                 field="mounts"
-                label="Mounts"
+                label={t("extensions.militarySupplies.mountsCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Horses or camels assigned to active mounted units"
+                tip={t("extensions.militarySupplies.mountsColTip")}
               />
               <SortableHeader
                 field="muskets"
-                label="Muskets"
+                label={t("extensions.militarySupplies.musketsCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Serviceable firearms held by the state"
+                tip={t("extensions.militarySupplies.musketsColTip")}
               />
               <SortableHeader
                 field="bullets"
-                label="Bullets"
+                label={t("extensions.militarySupplies.bulletsCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Finished bullets held in the State military stockpile"
+                tip={t("extensions.militarySupplies.bulletsColTip")}
               />
               <SortableHeader
                 field="artillery"
-                label="Artillery"
+                label={t("extensions.militarySupplies.artilleryCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Serviceable cannon held by the state"
+                tip={t("extensions.militarySupplies.artilleryColTip")}
               />
               <SortableHeader
                 field="gunpowder"
-                label="Gunpowder"
+                label={t("extensions.militarySupplies.gunpowderCol")}
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Finished gunpowder held in the State military stockpile"
+                tip={t("extensions.militarySupplies.gunpowderColTip")}
               />
             </tr>
           </thead>
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={8}>No states or military supply records have been generated yet.</td>
+                <td colSpan={8}>{t("extensions.militarySupplies.empty")}</td>
               </tr>
             </tbody>
           ) : (

@@ -45,24 +45,32 @@ export const MarketDealsDialog: React.FC = () => {
             <thead id="marketDealsHeader" ref={headerRef}>
               <tr className="header">
                 <th />
-                <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
-                  Good
-                </th>
-                <th data-tip="Click to sort by deal type" className="sortable alphabetically" data-sortby="direction">
-                  Type
+                <th
+                  data-tip={t("extensions.marketDeals.goodTip")}
+                  className="sortable alphabetically"
+                  data-sortby="good"
+                >
+                  {t("extensions.marketDeals.good")}
                 </th>
                 <th
-                  data-tip="Click to sort by counterparty"
+                  data-tip={t("extensions.marketDeals.typeTip")}
+                  className="sortable alphabetically"
+                  data-sortby="direction"
+                >
+                  {t("extensions.marketDeals.type")}
+                </th>
+                <th
+                  data-tip={t("extensions.marketDeals.counterpartyTip")}
                   className="sortable alphabetically"
                   data-sortby="counterparty"
                 >
-                  Counterparty
+                  {t("extensions.marketDeals.counterparty")}
                 </th>
-                <th data-tip="Click to sort by units" className="sortable" data-sortby="units">
-                  Units
+                <th data-tip={t("extensions.marketDeals.unitsTip")} className="sortable" data-sortby="units">
+                  {t("extensions.marketDeals.units")}
                 </th>
-                <th data-tip="Click to sort by income" className="sortable" data-sortby="income">
-                  Income
+                <th data-tip={t("extensions.marketDeals.incomeTip")} className="sortable" data-sortby="income">
+                  {t("extensions.marketDeals.income")}
                 </th>
               </tr>
             </thead>
@@ -70,7 +78,7 @@ export const MarketDealsDialog: React.FC = () => {
               <tbody>
                 <tr>
                   <td colSpan={6}>
-                    <span>No market deals recorded</span>
+                    <span>{t("extensions.marketDeals.empty")}</span>
                   </td>
                 </tr>
               </tbody>
@@ -85,11 +93,11 @@ export const MarketDealsDialog: React.FC = () => {
         </div>
 
         <div id="marketDealsFooter" className="totalLine">
-          <div data-tip="Deals count">
-            Deals: <span id="marketDealsFooterDeals">{dealsCount}</span>
+          <div data-tip={t("extensions.marketDeals.dealsTip")}>
+            {t("extensions.marketDeals.deals")} <span id="marketDealsFooterDeals">{dealsCount}</span>
           </div>
-          <div data-tip="Net flow for this market">
-            Net Flow: <span id="marketDealsFooterNet">{formatPrice(netFlow)}</span>
+          <div data-tip={t("extensions.marketDeals.netFlowTip")}>
+            {t("extensions.marketDeals.netFlow")} <span id="marketDealsFooterNet">{formatPrice(netFlow)}</span>
           </div>
         </div>
 
@@ -97,26 +105,26 @@ export const MarketDealsDialog: React.FC = () => {
           <button
             type="button"
             id="marketDealsRefresh"
-            data-tip="Refresh the Deals screen"
+            data-tip={t("extensions.marketDeals.refreshTip")}
             className="icon-cw"
             onClick={refreshMarketDeals}
           />
           <button
             type="button"
             id="marketDealsExport"
-            data-tip="Save market deals data as a text file (.csv)"
+            data-tip={t("extensions.marketDeals.exportTip")}
             className="icon-download"
             onClick={downloadDealsCsv}
           />
           <select
             id="marketDealsFilter"
-            data-tip="Filter deals by scope"
+            data-tip={t("extensions.marketDeals.filterTip")}
             value={activeFilter}
             onChange={e => setActiveMarketDealsFilter(e.target.value as "all" | "local" | "global")}
           >
-            <option value="all">All</option>
-            <option value="local">Local</option>
-            <option value="global">Global</option>
+            <option value="all">{t("extensions.marketDeals.all")}</option>
+            <option value="local">{t("extensions.marketDeals.local")}</option>
+            <option value="global">{t("extensions.marketDeals.global")}</option>
           </select>
         </div>
       </div>
@@ -124,40 +132,53 @@ export const MarketDealsDialog: React.FC = () => {
   );
 };
 
-const DealRow: React.FC<{ row: MarketDealRow; onRowClick: (row: MarketDealRow) => void }> = ({ row, onRowClick }) => (
-  <tr
-    className="states marketDeal"
-    data-id={row.id}
-    data-good={row.goodName}
-    data-direction={row.direction}
-    data-units={row.units}
-    data-counterparty={`${row.counterpartyType}_${row.partyName}`}
-    data-income={row.income}
-  >
-    <td>
-      <svg aria-label={row.goodName} data-tip="Good icon" width="1.3em" height="1.3em" className="goodIcon">
-        <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-        <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-      </svg>
-    </td>
-    <td data-tip="Good name" className="goodName">
-      {row.goodName}
-    </td>
-    <td>
-      <span className="marketBadge" style={{ background: row.backColor, color: row.incomeColor }}>
-        {row.direction.toUpperCase()}
-      </span>
-    </td>
-    <td className="marketDealParty pointer" data-tip="Click to zoom" onClick={() => onRowClick(row)}>
-      <span
-        className={row.counterpartyType === "burg" ? "icon-dot-circled" : "icon-store"}
-        style={{ display: "inline-block", ...(row.counterpartyType === "market" ? { fontSize: "0.85em" } : {}) }}
-      />
-      {row.partyName}
-    </td>
-    <td className="marketDealUnits">{row.units}</td>
-    <td className="marketDealIncome" style={{ color: row.incomeColor }}>
-      {formatPrice(row.income)}
-    </td>
-  </tr>
-);
+const DealRow: React.FC<{ row: MarketDealRow; onRowClick: (row: MarketDealRow) => void }> = ({ row, onRowClick }) => {
+  const { t } = useTranslation();
+  return (
+    <tr
+      className="states marketDeal"
+      data-id={row.id}
+      data-good={row.goodName}
+      data-direction={row.direction}
+      data-units={row.units}
+      data-counterparty={`${row.counterpartyType}_${row.partyName}`}
+      data-income={row.income}
+    >
+      <td>
+        <svg
+          aria-label={row.goodName}
+          data-tip={t("extensions.marketDeals.goodIcon")}
+          width="1.3em"
+          height="1.3em"
+          className="goodIcon"
+        >
+          <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
+          <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
+        </svg>
+      </td>
+      <td data-tip={t("extensions.marketDeals.goodName")} className="goodName">
+        {row.goodName}
+      </td>
+      <td>
+        <span className="marketBadge" style={{ background: row.backColor, color: row.incomeColor }}>
+          {t(`extensions.marketDeals.${row.direction}`)}
+        </span>
+      </td>
+      <td
+        className="marketDealParty pointer"
+        data-tip={t("extensions.marketDeals.zoomTip")}
+        onClick={() => onRowClick(row)}
+      >
+        <span
+          className={row.counterpartyType === "burg" ? "icon-dot-circled" : "icon-store"}
+          style={{ display: "inline-block", ...(row.counterpartyType === "market" ? { fontSize: "0.85em" } : {}) }}
+        />
+        {row.partyName}
+      </td>
+      <td className="marketDealUnits">{row.units}</td>
+      <td className="marketDealIncome" style={{ color: row.incomeColor }}>
+        {formatPrice(row.income)}
+      </td>
+    </tr>
+  );
+};

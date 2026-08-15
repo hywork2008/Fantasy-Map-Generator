@@ -6,11 +6,11 @@ import { formatPrice, rn } from "../../../hostUtils";
 import { closeTradeDetails } from "../../controllers/trade-details";
 import { useTradeDetailsState } from "../../store/tradeDetailsState";
 
-const ROUTE_MODE_LABELS = {
-  land: "Land",
-  water: "Sea",
-  sea: "Sea",
-  river: "Downstream river"
+const ROUTE_MODE_KEYS = {
+  land: "extensions.tradeDetails.modeLand",
+  water: "extensions.tradeDetails.modeSea",
+  sea: "extensions.tradeDetails.modeSea",
+  river: "extensions.tradeDetails.modeRiver"
 } as const;
 
 export const TradeDetailsDialog: React.FC = () => {
@@ -68,18 +68,20 @@ export const TradeDetailsDialog: React.FC = () => {
           {summary && (
             <>
               <span>
-                <b>Seller</b>: {summary.sellerName} {summary.sellerType}{" "}
+                <b>{t("extensions.tradeDetails.seller")}</b>: {summary.sellerName}{" "}
+                {t(`extensions.tradeDetails.party${summary.sellerType === "market" ? "Market" : "Burg"}`)}{" "}
                 <IconButton
                   className="icon-dot-circled pointer"
-                  data-tip="Zoom to seller"
+                  data-tip={t("extensions.tradeDetails.zoomSeller")}
                   onClick={summary.onZoomSeller}
                 />
               </span>
               <span>
-                <b>Buyer</b>: {summary.buyerName} {summary.buyerType}{" "}
+                <b>{t("extensions.tradeDetails.buyer")}</b>: {summary.buyerName}{" "}
+                {t(`extensions.tradeDetails.party${summary.buyerType === "market" ? "Market" : "Burg"}`)}{" "}
                 <IconButton
                   className="icon-dot-circled pointer"
-                  data-tip="Zoom to buyer"
+                  data-tip={t("extensions.tradeDetails.zoomBuyer")}
                   onClick={summary.onZoomBuyer}
                 />
               </span>
@@ -102,35 +104,35 @@ export const TradeDetailsDialog: React.FC = () => {
               <tr className="header">
                 <th />
                 <th
-                  data-tip="Click to sort by good"
+                  data-tip={t("extensions.tradeDetails.goodTip")}
                   className={`sortable alphabetically ${getSortIcon("good", true)} -trade-details-dialog__margin-left-0`}
                   onClick={() => setSorting("good")}
                 >
-                  Good
+                  {t("extensions.tradeDetails.good")}
                 </th>
                 <th
-                  data-tip="Click to sort by units"
+                  data-tip={t("extensions.tradeDetails.unitsTip")}
                   className={`sortable ${getSortIcon("units")}`}
                   onClick={() => setSorting("units")}
                 >
-                  Units
+                  {t("extensions.tradeDetails.units")}
                 </th>
                 <th
-                  data-tip="Click to sort by unit price"
+                  data-tip={t("extensions.tradeDetails.priceTip")}
                   className={`sortable ${getSortIcon("price")}`}
                   onClick={() => setSorting("price")}
                 >
-                  Price
+                  {t("extensions.tradeDetails.price")}
                 </th>
                 <th
-                  data-tip="Click to sort by value"
+                  data-tip={t("extensions.tradeDetails.valueTip")}
                   className={`sortable ${getSortIcon("value")}`}
                   onClick={() => setSorting("value")}
                 >
-                  Value
+                  {t("extensions.tradeDetails.value")}
                 </th>
-                <th data-tip="Cargo slots occupied by one unit">Unit volume</th>
-                <th data-tip="Total cargo slots occupied by this good">Volume</th>
+                <th data-tip={t("extensions.tradeDetails.unitVolumeTip")}>{t("extensions.tradeDetails.unitVolume")}</th>
+                <th data-tip={t("extensions.tradeDetails.volumeTip")}>{t("extensions.tradeDetails.volume")}</th>
               </tr>
             </thead>
             <VirtualTableBody
@@ -146,12 +148,18 @@ export const TradeDetailsDialog: React.FC = () => {
                   data-value={row.value}
                 >
                   <td>
-                    <svg aria-label={row.goodName} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
+                    <svg
+                      aria-label={row.goodName}
+                      data-tip={t("extensions.tradeDetails.goodIcon")}
+                      width="2em"
+                      height="2em"
+                      className="goodIcon"
+                    >
                       <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
                       <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
                     </svg>
                   </td>
-                  <td data-tip="Good name" className="goodName">
+                  <td data-tip={t("extensions.tradeDetails.goodName")} className="goodName">
                     {row.goodName}
                   </td>
                   <td className="goodUnits">{rn(row.units, 2)}</td>
@@ -167,27 +175,40 @@ export const TradeDetailsDialog: React.FC = () => {
 
         <div id="tradeDetailsFooter" className="totalLine footer">
           <div>
-            Distance: <span id="tradeDetailsFooterDistance">{distance}</span>
+            {t("extensions.tradeDetails.distance")} <span id="tradeDetailsFooterDistance">{distance}</span>
           </div>
-          <div data-tip="Total traded units">
-            Units: <span id="tradeDetailsFooterUnits">{rn(totalUnits, 2)}</span>
+          <div data-tip={t("extensions.tradeDetails.unitsTotalTip")}>
+            {t("extensions.tradeDetails.unitsTotal")} <span id="tradeDetailsFooterUnits">{rn(totalUnits, 2)}</span>
           </div>
-          <div data-tip="Total deal value">
-            Value: <span id="tradeDetailsFooterValue">{formatPrice(totalValue)}</span>
+          <div data-tip={t("extensions.tradeDetails.valueTotalTip")}>
+            {t("extensions.tradeDetails.valueTotal")}{" "}
+            <span id="tradeDetailsFooterValue">{formatPrice(totalValue)}</span>
           </div>
           {routeLegs.length > 0 && (
-            <div data-tip="Route sections and their travel mode">
-              Route: {routeLegs.map(leg => `${ROUTE_MODE_LABELS[leg.mode]} ${leg.distance} km`).join(" · ")}
+            <div data-tip={t("extensions.tradeDetails.routeTip")}>
+              {t("extensions.tradeDetails.route")}{" "}
+              {routeLegs
+                .map(leg =>
+                  t("extensions.tradeDetails.routeLeg", {
+                    mode: t(ROUTE_MODE_KEYS[leg.mode]),
+                    distance: leg.distance
+                  })
+                )
+                .join(" · ")}
             </div>
           )}
           {transportSummaries.map(summary => (
-            <div
-              key={`${summary.mode}-${summary.transportName}`}
-              data-tip="Cargo capacity and remaining free space for this route mode"
-            >
-              {ROUTE_MODE_LABELS[summary.mode]}: {summary.transportName} × {summary.unitCount} — {summary.usedSlots} /{" "}
-              {summary.capacitySlots} slots, free {summary.freeSlots} ({Math.round(summary.utilization * 100)}% loaded)
-              · {summary.assetSource}
+            <div key={`${summary.mode}-${summary.transportName}`} data-tip={t("extensions.tradeDetails.transportTip")}>
+              {t("extensions.tradeDetails.transport", {
+                mode: t(ROUTE_MODE_KEYS[summary.mode]),
+                name: summary.transportName,
+                count: summary.unitCount,
+                used: summary.usedSlots,
+                capacity: summary.capacitySlots,
+                free: summary.freeSlots,
+                pct: Math.round(summary.utilization * 100)
+              })}
+              {summary.assetSource ? ` · ${summary.assetSource}` : ""}
               {summary.reservationState ? ` (${summary.reservationState})` : ""}
             </div>
           ))}

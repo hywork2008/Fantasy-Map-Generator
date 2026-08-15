@@ -7,10 +7,10 @@ import { formatPrice } from "../../../hostUtils";
 import { open as openProductionOverview, refreshProductionOverview } from "../../controllers/production-overview";
 import { type ProductionOverviewRow, useProductionOverviewState } from "../../store/productionOverviewState";
 
-const KIND_LABEL: Record<ProductionOverviewRow["kind"], string> = {
-  manufactured: "MADE",
-  sold: "SOLD",
-  bought: "BOUGHT"
+const KIND_LABEL_KEY: Record<ProductionOverviewRow["kind"], string> = {
+  manufactured: "extensions.productionOverview.kindMade",
+  sold: "extensions.productionOverview.kindSold",
+  bought: "extensions.productionOverview.kindBought"
 };
 
 const KIND_COLOR: Record<ProductionOverviewRow["kind"], string> = {
@@ -62,18 +62,18 @@ export const ProductionOverviewDialog: React.FC = () => {
             <thead className="header">
               <tr>
                 <th />
-                <th>Good</th>
-                <th>Type</th>
-                <th>Units</th>
-                <th>Price</th>
-                <th>Net</th>
+                <th>{t("extensions.productionOverview.good")}</th>
+                <th>{t("extensions.productionOverview.type")}</th>
+                <th>{t("extensions.productionOverview.units")}</th>
+                <th>{t("extensions.productionOverview.price")}</th>
+                <th>{t("extensions.productionOverview.net")}</th>
               </tr>
             </thead>
             {rows.length === 0 ? (
               <tbody>
                 <tr>
                   <td colSpan={6}>
-                    <span>No production recorded for this burg</span>
+                    <span>{t("extensions.productionOverview.empty")}</span>
                   </td>
                 </tr>
               </tbody>
@@ -88,14 +88,14 @@ export const ProductionOverviewDialog: React.FC = () => {
         </div>
 
         <div id="productionOverviewFooter" className="totalLine">
-          <div data-tip="Gross product per 1,000 actual residents for the current production run">
-            Product / 1k: <span id="productionOverviewFooterWealth">{wealth}</span>
+          <div data-tip={t("extensions.productionOverview.productPerKTip")}>
+            {t("extensions.productionOverview.productPerK")} <span id="productionOverviewFooterWealth">{wealth}</span>
           </div>
-          <div data-tip="Total sales tax paid to the state on this burg's sell deals this cycle">
-            Tax paid: <span id="productionOverviewFooterTax">{taxPaid}</span>
+          <div data-tip={t("extensions.productionOverview.taxPaidTip")}>
+            {t("extensions.productionOverview.taxPaid")} <span id="productionOverviewFooterTax">{taxPaid}</span>
           </div>
-          <div data-tip="Burg's cumulative cash balance after all production, purchases, and sales">
-            Treasury: <span id="productionOverviewFooterTreasury">{treasury}</span>
+          <div data-tip={t("extensions.productionOverview.treasuryTip")}>
+            {t("extensions.productionOverview.treasury")} <span id="productionOverviewFooterTreasury">{treasury}</span>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export const ProductionOverviewDialog: React.FC = () => {
           <button
             type="button"
             id="productionOverviewRefresh"
-            data-tip="Refresh the Production Overview"
+            data-tip={t("extensions.productionOverview.refreshTip")}
             className="icon-cw"
             onClick={refreshProductionOverview}
           />
@@ -113,26 +113,35 @@ export const ProductionOverviewDialog: React.FC = () => {
   );
 };
 
-const ProductionRow: React.FC<{ row: ProductionOverviewRow }> = ({ row }) => (
-  <tr className="states" data-id={row.id} data-good={row.goodName} data-kind={row.kind}>
-    <td>
-      <svg aria-label={row.goodName} data-tip="Good icon" width="1.3em" height="1.3em" className="goodIcon">
-        <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-        <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-      </svg>
-    </td>
-    <td data-tip="Good name" className="goodName">
-      {row.goodName}
-    </td>
-    <td>
-      <span className="marketBadge" style={{ color: KIND_COLOR[row.kind] }}>
-        {KIND_LABEL[row.kind]}
-      </span>
-    </td>
-    <td>{row.units}</td>
-    <td>{row.price ? formatPrice(row.price) : ""}</td>
-    <td style={{ color: row.net > 0 ? "#2a6" : row.net < 0 ? "#c44" : undefined }}>
-      {row.kind === "manufactured" ? "" : formatPrice(row.net)}
-    </td>
-  </tr>
-);
+const ProductionRow: React.FC<{ row: ProductionOverviewRow }> = ({ row }) => {
+  const { t } = useTranslation();
+  return (
+    <tr className="states" data-id={row.id} data-good={row.goodName} data-kind={row.kind}>
+      <td>
+        <svg
+          aria-label={row.goodName}
+          data-tip={t("extensions.productionOverview.iconTip")}
+          width="1.3em"
+          height="1.3em"
+          className="goodIcon"
+        >
+          <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
+          <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
+        </svg>
+      </td>
+      <td data-tip={t("extensions.productionOverview.goodNameTip")} className="goodName">
+        {row.goodName}
+      </td>
+      <td>
+        <span className="marketBadge" style={{ color: KIND_COLOR[row.kind] }}>
+          {t(KIND_LABEL_KEY[row.kind])}
+        </span>
+      </td>
+      <td>{row.units}</td>
+      <td>{row.price ? formatPrice(row.price) : ""}</td>
+      <td style={{ color: row.net > 0 ? "#2a6" : row.net < 0 ? "#c44" : undefined }}>
+        {row.kind === "manufactured" ? "" : formatPrice(row.net)}
+      </td>
+    </tr>
+  );
+};
