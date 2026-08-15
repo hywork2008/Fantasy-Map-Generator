@@ -130,7 +130,10 @@ export function tickLegitimacyWar(state: State): LegitimacyWarTickResult {
     result.active = true;
     result.opened = true;
     result.summary = `Legitimacy war opens — pretender ${state.legitimacyPretenderName || pretenderId} challenges the regime.`;
-    appendCouncilLog(state, "note", result.summary);
+    appendCouncilLog(state, "note", result.summary, {
+      messageKey: "legitWarOpen",
+      messageParams: { name: state.legitimacyPretenderName || String(pretenderId) }
+    });
     dispatchLegitimacyWarEvent(state, "open");
     return result;
   }
@@ -173,7 +176,7 @@ export function tickLegitimacyWar(state: State): LegitimacyWarTickResult {
     result.pretenderCrushed = true;
     result.active = false;
     result.summary = "Legitimacy war ends — regime holds; pretender crushed.";
-    appendCouncilLog(state, "note", result.summary);
+    appendCouncilLog(state, "note", result.summary, { messageKey: "legitWarRegime" });
     dispatchLegitimacyWarEvent(state, "regime_win");
     return result;
   }
@@ -206,7 +209,10 @@ export function tickLegitimacyWar(state: State): LegitimacyWarTickResult {
   result.pretenderRestored = true;
   result.active = false;
   result.summary = `Legitimacy war ends — pretender ${pretender?.name || pretenderId} restored.`;
-  appendCouncilLog(state, "coup", result.summary);
+  appendCouncilLog(state, "coup", result.summary, {
+    messageKey: "legitWarPretender",
+    messageParams: { name: pretender?.name || String(pretenderId) }
+  });
   dispatchLegitimacyWarEvent(state, "pretender_win");
   return result;
 }

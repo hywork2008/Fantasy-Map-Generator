@@ -876,6 +876,8 @@ export interface State {
     yesShare?: number;
     amount?: number;
     factionDetail?: string;
+    messageKey?: string;
+    messageParams?: Record<string, string | number>;
   }[];
   /** PR-13 assembly session counter. */
   councilSessionNumber?: number;

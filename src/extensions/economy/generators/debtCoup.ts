@@ -174,7 +174,11 @@ export function tryDebtCoup(state: State): DebtCoupResult {
   result.summary = summary;
 
   // PR-14: legitimacy crash + civil unrest sticky flags.
-  applyCoupAftermath(state, summary);
+  applyCoupAftermath(state, summary, {
+    leader: leader.name,
+    title: titleName,
+    oldRuler: oldRuler.name
+  });
 
   dispatchDebtCoupSuccessEvent(state, result);
   return result;

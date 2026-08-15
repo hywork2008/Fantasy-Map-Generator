@@ -13,12 +13,10 @@ import {
   type DistCondition,
   FN_DEFS,
   generateExpression,
-  interpretDistribution,
   parseExpression
 } from "./goodsDistributionExpression";
 
 const pack = () => getWorldContext().pack;
-const biomesData = () => getWorldContext().biomesData;
 
 export interface GoodDistributionDraft {
   dialogTitle?: string;
@@ -52,8 +50,7 @@ function resetState(): void {
   setGoodsDistributionEditorState({
     groups: [],
     expression: "",
-    cellCountText: "",
-    previewText: "",
+    matchingCount: { status: "empty" },
     activePicker: null,
     isInitialized: false,
     dialogTitle: DEFAULT_DRAFT.dialogTitle,
@@ -69,14 +66,12 @@ function resetState(): void {
 
 function syncState(groups: DistCondition[][]) {
   const expression = generateExpression(groups);
-  const cellCountText = countMatchingCells(expression, pack(), cellId => Goods.getMethods(cellId)) || "";
-  const previewText = interpretDistribution(expression, biomesData());
+  const matchingCount = countMatchingCells(expression, pack(), cellId => Goods.getMethods(cellId));
 
   setGoodsDistributionEditorState({
     groups: cloneGroups(groups),
     expression,
-    cellCountText,
-    previewText,
+    matchingCount,
     activePicker: null,
     isInitialized: true
   });

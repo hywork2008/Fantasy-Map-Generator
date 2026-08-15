@@ -44,7 +44,11 @@ export interface CivilUnrestTickResult {
 /**
  * Apply immediate post-coup legitimacy / unrest flags after a successful debt coup.
  */
-export function applyCoupAftermath(state: State, summary?: string): CoupAftermathApplyResult {
+export function applyCoupAftermath(
+  state: State,
+  summary?: string,
+  seizure?: { leader: string; title: string; oldRuler: string }
+): CoupAftermathApplyResult {
   state.coupLegitimacy = COUP_LEGITIMACY_INITIAL;
   state.civilUnrest = true;
   state.civilUnrestCycles = 0;
@@ -61,7 +65,15 @@ export function applyCoupAftermath(state: State, summary?: string): CoupAftermat
     "coup",
     summary
       ? `${summary} Legitimacy ${COUP_LEGITIMACY_INITIAL}; civil unrest begins.`
-      : `Coup aftermath: legitimacy ${COUP_LEGITIMACY_INITIAL}; civil unrest begins.`
+      : `Coup aftermath: legitimacy ${COUP_LEGITIMACY_INITIAL}; civil unrest begins.`,
+    seizure
+      ? {
+          messageKey: "debtCoupAftermath",
+          messageParams: { ...seizure, legitimacy: COUP_LEGITIMACY_INITIAL }
+        }
+      : summary
+        ? { messageKey: "coupNamed", messageParams: { summary, legitimacy: COUP_LEGITIMACY_INITIAL } }
+        : { messageKey: "coupAftermath", messageParams: { legitimacy: COUP_LEGITIMACY_INITIAL } }
   );
   dispatchCoupCivilUnrestEvent(state, "start");
   return { legitimacy: COUP_LEGITIMACY_INITIAL, civilUnrest: true };
@@ -114,7 +126,11 @@ export function tickCoupLegitimacyAndUnrest(state: State): CivilUnrestTickResult
     appendCouncilLog(
       state,
       "note",
-      `Civil unrest deepens (legitimacy ${legitimacy}, discontent ${result.discontent}).`
+      `Civil unrest deepens (legitimacy ${legitimacy}, discontent ${result.discontent}).`,
+      {
+        messageKey: "unrestDeepens",
+        messageParams: { legitimacy, discontent: result.discontent }
+      }
     );
     dispatchCoupCivilUnrestEvent(state, "tick");
   }
@@ -123,7 +139,10 @@ export function tickCoupLegitimacyAndUnrest(state: State): CivilUnrestTickResult
   if (legitimacy >= 65 && discontent < CIVIL_UNREST_DISCONTENT_FLOOR) {
     state.civilUnrest = false;
     result.active = false;
-    appendCouncilLog(state, "note", `Civil unrest subsides (legitimacy ${legitimacy}).`);
+    appendCouncilLog(state, "note", `Civil unrest subsides (legitimacy ${legitimacy}).`, {
+      messageKey: "unrestSubsides",
+      messageParams: { legitimacy }
+    });
     dispatchCoupCivilUnrestEvent(state, "clear");
   }
 

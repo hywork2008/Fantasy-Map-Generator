@@ -193,7 +193,9 @@ export const CouncilSessionDialog: React.FC = () => {
                     <tr key={entry.id}>
                       <td>{t("extensions.councilSession.dateFmt", { year: entry.year, month: entry.month })}</td>
                       <td>{councilKindLabel(entry.kind, t)}</td>
-                      <td data-tip={entry.factionDetail || entry.summary}>{entry.summary}</td>
+                      <td data-tip={localizeFactionDetail(entry.factionDetail, t) || councilLogSummary(entry, t)}>
+                        {councilLogSummary(entry, t)}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -235,4 +237,19 @@ function councilFactionLabel(faction: string, t: (key: string) => string): strin
 
 function councilKindLabel(kind: string, t: (key: string) => string): string {
   return KIND_KEYS[kind] ? t(KIND_KEYS[kind]) : kind;
+}
+
+function councilLogSummary(
+  entry: { summary: string; messageKey?: string; messageParams?: Record<string, string | number> },
+  t: (key: string, options?: Record<string, unknown>) => string
+): string {
+  if (!entry.messageKey) return entry.summary;
+  return t(`extensions.councilSession.logs.${entry.messageKey}`, entry.messageParams);
+}
+
+function localizeFactionDetail(detail: string | undefined, t: (key: string) => string): string | undefined {
+  if (!detail) return undefined;
+  return detail.replace(/\b(court|merchants|military|clergy)\b/g, match =>
+    FACTION_KEYS[match] ? t(FACTION_KEYS[match]) : match
+  );
 }

@@ -40,7 +40,7 @@ export interface MarketOverviewTransportOrderRow {
   workPoints: number;
   requiredWorkPoints: number;
   progressPercent: number;
-  materials: string;
+  materials: { name: string; units: number }[];
   budgetLimit?: number;
   fundedAmount: number;
   status: "queued" | "waitingMaterials" | "building" | "completed" | "cancelled";

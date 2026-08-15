@@ -363,7 +363,28 @@ export function parseExpression(expr: string): DistCondition[][] | null {
   return groups.length ? groups : null;
 }
 
-export function interpretDistribution(dist: string, biomesData: WorldContext["biomesData"]): string {
+const SHORE_PREVIEW_KEYS: Record<string, string> = {
+  "-2": "extensions.goodsDistribution.shore.n2",
+  "-1": "extensions.goodsDistribution.shore.n1",
+  "1": "extensions.goodsDistribution.shore.p1",
+  "2": "extensions.goodsDistribution.shore.p2"
+};
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+function splitArgs(args: string): string[] {
+  return args
+    .replace(/["']/g, "")
+    .split(",")
+    .map(arg => arg.trim())
+    .filter(Boolean);
+}
+
+export function interpretDistribution(
+  dist: string,
+  biomesData: WorldContext["biomesData"],
+  t: Translate = (_key, options) => String(options?.defaultValue ?? _key)
+): string {
   if (!dist) return "";
 
   return dist
@@ -372,66 +393,73 @@ export function interpretDistribution(dist: string, biomesData: WorldContext["bi
       return names.length === 1 ? names[0] : `${list(names)}`;
     })
     .replace(/biomeTag\(([^)]+)\)/g, (_, args: string) => {
-      const tags = args
-        .replace(/["']/g, "")
-        .split(",")
-        .map(arg => arg.trim());
-      return `biome tag: ${tags.join("/")}`;
+      const tags = splitArgs(args).map(tag => t(`extensions.goodsDistribution.biomeTag.${tag}`, { defaultValue: tag }));
+      return t("extensions.goodsDistribution.previewBiomeTag", { tags: tags.join("/") });
     })
-    .replace(/minHeight\((-?\d+(?:\.\d+)?)\)/g, (_, h: string) => `min height ${getHeight(+h)}`)
-    .replace(/maxHeight\((-?\d+(?:\.\d+)?)\)/g, (_, h: string) => `max height ${getHeight(+h)}`)
-    .replace(/minTemp\((-?\d+(?:\.\d+)?)\)/g, (_, t: string) => `min temp ${convertTemperature(+t)}`)
-    .replace(/maxTemp\((-?\d+(?:\.\d+)?)\)/g, (_, t: string) => `max temp ${convertTemperature(+t)}`)
+    .replace(/minHeight\((-?\d+(?:\.\d+)?)\)/g, (_, h: string) =>
+      t("extensions.goodsDistribution.previewMinHeight", { value: getHeight(+h) })
+    )
+    .replace(/maxHeight\((-?\d+(?:\.\d+)?)\)/g, (_, h: string) =>
+      t("extensions.goodsDistribution.previewMaxHeight", { value: getHeight(+h) })
+    )
+    .replace(/minTemp\((-?\d+(?:\.\d+)?)\)/g, (_, temp: string) =>
+      t("extensions.goodsDistribution.previewMinTemp", { value: convertTemperature(+temp) })
+    )
+    .replace(/maxTemp\((-?\d+(?:\.\d+)?)\)/g, (_, temp: string) =>
+      t("extensions.goodsDistribution.previewMaxTemp", { value: convertTemperature(+temp) })
+    )
     .replace(/shore\(([^)]+)\)/g, (_, args: string) =>
-      args
-        .split(",")
-        .map(arg => SHORE_OPTIONS.find(option => option.value === arg.trim())?.label || arg.trim())
+      splitArgs(args)
+        .map(value => {
+          const key = SHORE_PREVIEW_KEYS[value];
+          return key ? t(key) : SHORE_OPTIONS.find(option => option.value === value)?.label || value;
+        })
         .join("/")
     )
     .replace(/type\(([^)]+)\)/g, (_, args: string) => {
-      const types = args
-        .replace(/["']/g, "")
-        .split(",")
-        .map(arg => arg.trim());
-      return `type: ${types.join("/")}`;
+      const types = splitArgs(args).map(type =>
+        t(`extensions.goodsDistribution.featureType.${type}`, { defaultValue: type })
+      );
+      return t("extensions.goodsDistribution.previewType", { types: types.join("/") });
     })
-    .replace(
-      /coastalHabitat\(([^)]+)\)/g,
-      (_, args: string) =>
-        `coastal habitat: ${args
-          .replace(/["']/g, "")
-          .split(",")
-          .map(arg => arg.trim())
-          .join("/")}`
+    .replace(/coastalHabitat\(([^)]+)\)/g, (_, args: string) => {
+      const habitats = splitArgs(args).map(habitat =>
+        t(`extensions.goodsDistribution.habitat.${habitat}`, { defaultValue: habitat })
+      );
+      return t("extensions.goodsDistribution.previewCoastal", { habitats: habitats.join("/") });
+    })
+    .replace(/nearshoreHabitat\(([^)]+)\)/g, (_, args: string) => {
+      const habitats = splitArgs(args).map(habitat =>
+        t(`extensions.goodsDistribution.habitat.${habitat}`, { defaultValue: habitat })
+      );
+      return t("extensions.goodsDistribution.previewNearshore", { habitats: habitats.join("/") });
+    })
+    .replace(/river\(\)/g, () => t("extensions.goodsDistribution.previewRiver"))
+    .replace(/minHabitability\((\d+)\)/g, (_, n: string) =>
+      t("extensions.goodsDistribution.previewMinHab", { value: n })
     )
-    .replace(
-      /nearshoreHabitat\(([^)]+)\)/g,
-      (_, args: string) =>
-        `nearshore habitat: ${args
-          .replace(/["']/g, "")
-          .split(",")
-          .map(arg => arg.trim())
-          .join("/")}`
-    )
-    .replace(/river\(\)/g, "river presence")
-    .replace(/minHabitability\((\d+)\)/g, (_, n: string) => `habitability ≥ ${n}%`)
-    .replace(/habitability\(\)/g, "more habitable areas")
-    .replace(/elevation\(\)/g, "more elevated areas")
-    .replace(/nth\((\d+)\)/g, (_, n: string) => `1 in ${n} cells`)
-    .replace(/random\((\d+)\)/g, (_, n: string) => `${n}% chance`)
-    .replace(/\s*&&\s*/g, " AND ")
-    .replace(/\s*\|\|\s*/g, " OR ")
-    .replace(/!\s*/g, "NOT ")
+    .replace(/habitability\(\)/g, () => t("extensions.goodsDistribution.previewHab"))
+    .replace(/elevation\(\)/g, () => t("extensions.goodsDistribution.previewElev"))
+    .replace(/nth\((\d+)\)/g, (_, n: string) => t("extensions.goodsDistribution.previewNth", { n }))
+    .replace(/random\((\d+)\)/g, (_, n: string) => t("extensions.goodsDistribution.previewRandom", { n }))
+    .replace(/\s*&&\s*/g, ` ${t("extensions.goodsDistribution.and")} `)
+    .replace(/\s*\|\|\s*/g, ` ${t("extensions.goodsDistribution.or")} `)
+    .replace(/!\s*/g, `${t("extensions.goodsDistribution.not")} `)
     .replace(/\s+/g, " ")
     .trim();
 }
+
+export type MatchingCellCount =
+  | { status: "empty" }
+  | { status: "invalid" }
+  | { status: "ok"; cells: number; percent: number };
 
 export function countMatchingCells(
   distribution: string,
   pack: WorldContext["pack"],
   getMethods: (cellId: number) => DistributionMethods
-): string {
-  if (!distribution) return "";
+): MatchingCellCount {
+  if (!distribution) return { status: "empty" };
 
   let cells = 0;
   try {
@@ -444,8 +472,8 @@ export function countMatchingCells(
       if (eligible) cells++;
     }
   } catch {
-    return "invalid";
+    return { status: "invalid" };
   }
 
-  return `${cells.toLocaleString()} cells (${rn((cells / pack.cells.i.length) * 100, 1)}%)`;
+  return { status: "ok", cells, percent: rn((cells / pack.cells.i.length) * 100, 1) };
 }

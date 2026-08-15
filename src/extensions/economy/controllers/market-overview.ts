@@ -150,10 +150,11 @@ export function refreshMarketOverview(): void {
   const transportOrderRows: MarketOverviewTransportOrderRow[] = TransportAssetOrders.getOrders(market.i).map(order => {
     const blueprint = TransportAssetOrders.getBlueprints().find(candidate => candidate.id === order.blueprintId);
     const materials = blueprint
-      ? Object.entries(blueprint.materialNames)
-          .map(([name, units]) => `${name} ×${units * order.quantity}`)
-          .join(", ")
-      : "Unknown materials";
+      ? Object.entries(blueprint.materialNames).map(([name, units]) => ({
+          name,
+          units: units * order.quantity
+        }))
+      : [];
     const requiredWorkPoints = (blueprint?.requiredWorkPoints ?? 0) * order.quantity;
     return {
       id: order.id,

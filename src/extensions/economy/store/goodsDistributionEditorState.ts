@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DistCondition } from "../controllers/goodsDistributionExpression";
+import type { DistCondition, MatchingCellCount } from "../controllers/goodsDistributionExpression";
 
 export type DistributionPickerType = "biomes" | "shore" | "featureType";
 
@@ -12,8 +12,7 @@ export interface ActiveDistributionPicker {
 interface GoodsDistributionEditorState {
   groups: DistCondition[][];
   expression: string;
-  cellCountText: string;
-  previewText: string;
+  matchingCount: MatchingCellCount;
   activePicker: ActiveDistributionPicker | null;
   isInitialized: boolean;
   dialogTitle: string;
@@ -29,8 +28,7 @@ interface GoodsDistributionEditorState {
 export const useGoodsDistributionEditorState = create<GoodsDistributionEditorState>(() => ({
   groups: [],
   expression: "",
-  cellCountText: "",
-  previewText: "",
+  matchingCount: { status: "empty" },
   activePicker: null,
   isInitialized: false,
   dialogTitle: "Distribution Editor",

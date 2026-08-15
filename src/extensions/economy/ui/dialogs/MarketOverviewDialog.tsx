@@ -605,7 +605,20 @@ export const MarketOverviewDialog: React.FC = () => {
                                 : t("extensions.marketOverview.autoReplacement")}
                             </small>
                           </td>
-                          <td>{row.materials}</td>
+                          <td>
+                            {row.materials.length
+                              ? row.materials
+                                  .map(material =>
+                                    t("extensions.marketOverview.materialItem", {
+                                      name: t(`economy.goods.names.${material.name}`, {
+                                        defaultValue: material.name
+                                      }),
+                                      units: material.units
+                                    })
+                                  )
+                                  .join(", ")
+                              : t("extensions.marketOverview.unknownMaterials")}
+                          </td>
                           <td
                             data-tip={t("extensions.marketOverview.progressTip", {
                               done: row.workPoints,

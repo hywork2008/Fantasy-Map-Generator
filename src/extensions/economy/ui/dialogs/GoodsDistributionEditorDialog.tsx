@@ -31,6 +31,7 @@ import {
   FEATURE_TYPE_OPTIONS,
   FN_DEFS,
   HABITAT_OPTIONS,
+  interpretDistribution,
   SHORE_OPTIONS
 } from "../../controllers/goodsDistributionExpression";
 import { getGoods, getWorldContext } from "../../economyContext";
@@ -229,17 +230,26 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
   const chance = useGoodsDistributionEditorState(state => state.chance);
   const groups = useGoodsDistributionEditorState(state => state.groups);
   const expression = useGoodsDistributionEditorState(state => state.expression);
-  const cellCountText = useGoodsDistributionEditorState(state => state.cellCountText);
-  const previewText = useGoodsDistributionEditorState(state => state.previewText);
+  const matchingCount = useGoodsDistributionEditorState(state => state.matchingCount);
   const isInitialized = useGoodsDistributionEditorState(state => state.isInitialized);
+  const biomesData = getWorldContext().biomesData;
   const biomes = React.useMemo(() => {
-    const biomesData = getWorldContext().biomesData;
     return (biomesData.i || []).map(id => ({
       id,
       name: biomesData.name[id] || `Biome ${id}`,
       color: biomesData.color[id] || "#ccc"
     }));
-  }, []);
+  }, [biomesData]);
+  const previewText = interpretDistribution(expression, biomesData, t);
+  const cellCountText =
+    matchingCount.status === "invalid"
+      ? t("extensions.goodsDistribution.invalid")
+      : matchingCount.status === "ok"
+        ? t("extensions.goodsDistribution.cellCount", {
+            count: matchingCount.cells.toLocaleString(),
+            percent: matchingCount.percent
+          })
+        : "";
   const iconOptions = React.useMemo(() => {
     const goods = getGoods();
     return Array.from(new Set(goods.map(good => good.icon))).sort();

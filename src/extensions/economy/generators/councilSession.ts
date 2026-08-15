@@ -35,6 +35,9 @@ export interface CouncilLogEntry {
   amount?: number;
   /** PR-14 optional faction breakdown string for vote lines. */
   factionDetail?: string;
+  /** i18n key under extensions.councilSession.logs.* */
+  messageKey?: string;
+  messageParams?: Record<string, string | number>;
 }
 
 /** Max retained log lines per state. */
@@ -77,7 +80,9 @@ export function appendCouncilLog(
   state: State,
   kind: CouncilLogKind,
   summary: string,
-  extra?: Partial<Pick<CouncilLogEntry, "support" | "yesShare" | "amount" | "factionDetail">>
+  extra?: Partial<
+    Pick<CouncilLogEntry, "support" | "yesShare" | "amount" | "factionDetail" | "messageKey" | "messageParams">
+  >
 ): CouncilLogEntry {
   const entry: CouncilLogEntry = {
     id: nextLogId(state),
@@ -102,7 +107,9 @@ export function recordCouncilSession(state: State, input: CouncilSessionRecordIn
   const sessionNo = (state.councilSessionNumber || 0) + 1;
   const support = input.councilSupport ?? state.councilSupport ?? 0;
   appendCouncilLog(state, "session", `Session #${sessionNo} opens (support ${rn(support, 0)}/100).`, {
-    support
+    support,
+    messageKey: "session",
+    messageParams: { n: sessionNo, support: rn(support, 0) }
   });
   // Keep session counter in sync (appendCouncilLog already increments on "session").
   state.councilSessionNumber = sessionNo;
@@ -117,18 +124,25 @@ export function recordCouncilSession(state: State, input: CouncilSessionRecordIn
       {
         support,
         yesShare: input.debtVoteYes,
-        factionDetail: input.debtVoteFactionSummary
+        factionDetail: input.debtVoteFactionSummary,
+        messageKey: input.debtVoteYes >= 0.5 ? "voteCarried" : "voteDefeated",
+        messageParams: { pct: rn(input.debtVoteYes * 100, 0) }
       }
     );
   }
 
   if (input.councilFailed) {
-    appendCouncilLog(state, "veto", "Wartime assembly vetoed part of ordinary revenue.", { support });
+    appendCouncilLog(state, "veto", "Wartime assembly vetoed part of ordinary revenue.", {
+      support,
+      messageKey: "veto"
+    });
   }
 
   if ((input.taxFarmLeak || 0) > 0) {
     appendCouncilLog(state, "tax_farm", `Tax-farm leak ${rn(input.taxFarmLeak || 0, 2)} SP.`, {
-      amount: input.taxFarmLeak
+      amount: input.taxFarmLeak,
+      messageKey: "taxFarm",
+      messageParams: { amount: rn(input.taxFarmLeak || 0, 2) }
     });
   }
 
@@ -139,19 +153,30 @@ export function recordCouncilSession(state: State, input: CouncilSessionRecordIn
       `Debt service: interest ${rn(input.debtInterestPaid || 0, 2)} SP` +
         ((input.debtRepaid || 0) > 0 ? `, repay ${rn(input.debtRepaid || 0, 2)} SP` : "") +
         ".",
-      { amount: rn((input.debtInterestPaid || 0) + (input.debtRepaid || 0), 2) }
+      {
+        amount: rn((input.debtInterestPaid || 0) + (input.debtRepaid || 0), 2),
+        messageKey: (input.debtRepaid || 0) > 0 ? "debtServiceRepay" : "debtService",
+        messageParams: {
+          interest: rn(input.debtInterestPaid || 0, 2),
+          repay: rn(input.debtRepaid || 0, 2)
+        }
+      }
     );
   }
 
   if ((input.debtIssued || 0) > 0) {
     appendCouncilLog(state, "debt_issue", `Domestic war debt issued ${rn(input.debtIssued || 0, 2)} SP.`, {
-      amount: input.debtIssued
+      amount: input.debtIssued,
+      messageKey: "debtIssue",
+      messageParams: { amount: rn(input.debtIssued || 0, 2) }
     });
   }
 
   if ((input.foreignDebtIssued || 0) > 0) {
     appendCouncilLog(state, "foreign_debt", `Foreign loan drawn ${rn(input.foreignDebtIssued || 0, 2)} SP.`, {
-      amount: input.foreignDebtIssued
+      amount: input.foreignDebtIssued,
+      messageKey: "foreignLoan",
+      messageParams: { amount: rn(input.foreignDebtIssued || 0, 2) }
     });
   }
 
@@ -160,37 +185,57 @@ export function recordCouncilSession(state: State, input: CouncilSessionRecordIn
       state,
       "bond_market",
       `Bond-market issue ${rn(input.bondMarketIssued || 0, 2)} SP (third-party underwriter).`,
-      { amount: input.bondMarketIssued }
+      {
+        amount: input.bondMarketIssued,
+        messageKey: "bondMarket",
+        messageParams: { amount: rn(input.bondMarketIssued || 0, 2) }
+      }
     );
   }
 
   if ((input.foreignDebtInterest || 0) > 0) {
     appendCouncilLog(state, "foreign_debt", `Foreign debt interest paid ${rn(input.foreignDebtInterest || 0, 2)} SP.`, {
-      amount: input.foreignDebtInterest
+      amount: input.foreignDebtInterest,
+      messageKey: "foreignInterest",
+      messageParams: { amount: rn(input.foreignDebtInterest || 0, 2) }
     });
   }
 
   if (input.foreignDebtDefaulted) {
-    appendCouncilLog(state, "default", "Foreign loan(s) entered DEFAULT — creditor diplomacy chilled.");
+    appendCouncilLog(state, "default", "Foreign loan(s) entered DEFAULT — creditor diplomacy chilled.", {
+      messageKey: "foreignDefault"
+    });
   }
 
   if ((input.diplomacyWorsened || 0) > 0) {
-    appendCouncilLog(state, "diplomacy", `Diplomacy worsened with ${input.diplomacyWorsened} foreign creditor(s).`);
+    appendCouncilLog(state, "diplomacy", `Diplomacy worsened with ${input.diplomacyWorsened} foreign creditor(s).`, {
+      messageKey: "diplomacy",
+      messageParams: { count: input.diplomacyWorsened ?? 0 }
+    });
   }
 
   if (input.enteredDefault) {
-    appendCouncilLog(state, "default", "Public debt entered DEFAULT — new borrowing frozen.");
+    appendCouncilLog(state, "default", "Public debt entered DEFAULT — new borrowing frozen.", {
+      messageKey: "defaultEntered"
+    });
   } else if (input.clearedDefault) {
-    appendCouncilLog(state, "default", "Public debt default cleared — interest current.");
+    appendCouncilLog(state, "default", "Public debt default cleared — interest current.", {
+      messageKey: "defaultCleared"
+    });
   }
 
   // Coup success is logged by applyCoupAftermath; only note risk here if no success.
   if (!input.coupSucceeded && input.coupRisk) {
-    appendCouncilLog(state, "coup_risk", "Debt coup risk elevated (military restiveness).");
+    appendCouncilLog(state, "coup_risk", "Debt coup risk elevated (military restiveness).", {
+      messageKey: "coupRisk"
+    });
   }
 
   if (input.civilUnrestTick) {
-    appendCouncilLog(state, "note", `Civil unrest pressure (legitimacy ${rn(input.legitimacy ?? 0, 0)}).`);
+    appendCouncilLog(state, "note", `Civil unrest pressure (legitimacy ${rn(input.legitimacy ?? 0, 0)}).`, {
+      messageKey: "unrestPressure",
+      messageParams: { legitimacy: rn(input.legitimacy ?? 0, 0) }
+    });
   }
 }
 
@@ -205,7 +250,9 @@ export function getCouncilSessionLog(state: Pick<State, "councilSessionLog">): C
     support: entry.support,
     yesShare: entry.yesShare,
     amount: entry.amount,
-    factionDetail: (entry as { factionDetail?: string }).factionDetail
+    factionDetail: (entry as { factionDetail?: string }).factionDetail,
+    messageKey: (entry as { messageKey?: string }).messageKey,
+    messageParams: (entry as { messageParams?: Record<string, string | number> }).messageParams
   }));
 }
 
