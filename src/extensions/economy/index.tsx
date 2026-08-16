@@ -188,6 +188,7 @@ import { drawMarketsLayer } from "./renderers/draw-markets";
 import {
   clear as clearTradeAnimation,
   draw as drawTradeAnimation,
+  getCaravanInstanceKey,
   getCaravanPosition,
   getCaravansAtPoint
 } from "./renderers/draw-trade-animation";
@@ -2518,7 +2519,7 @@ export function init(api: ExtensionAPI): void {
         kind: "extension",
         extensionId: ECONOMY_EXTENSION_ID,
         layerId: "trade-animation",
-        id: `economy-caravan-${caravan.i}`,
+        id: `economy-caravan-${getCaravanInstanceKey(caravan)}`,
         cellId: -1,
         index: caravan.i,
         coordinate: [pos.x, pos.y]

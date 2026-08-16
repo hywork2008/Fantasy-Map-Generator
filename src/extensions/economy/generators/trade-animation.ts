@@ -199,9 +199,9 @@ export class TradeAnimationModule {
   }
 
   /**
-   * Isolated frontier homelands often have no road or sea lane between them.
-   * Merchants still walk the land: search adjacent land cells only after the
-   * formal route graph has no path, so roads and rivers stay preferred.
+   * A newly settled homeland has no trails yet. Pack trains still walk from the
+   * capital to a village of the same polity; they do not pioneer a continent-
+   * crossing path to a foreign market. Roads and rivers stay preferred.
    */
   private findWildernessLandPath(startCell: number, endCell: number): RoutePath | null {
     const world = getWorldContext();
@@ -210,6 +210,9 @@ export class TradeAnimationModule {
     const heights = cells.h;
     if (!neighbors || !heights || startCell === endCell) return null;
     if (heights[startCell] < 20 || heights[endCell] < 20) return null;
+    const startState = cells.state?.[startCell] || 0;
+    const endState = cells.state?.[endCell] || 0;
+    if (!startState || startState !== endState) return null;
 
     const dist = new Float64Array(heights.length).fill(Infinity);
     const prev = new Int32Array(heights.length).fill(-1);
@@ -226,6 +229,7 @@ export class TradeAnimationModule {
 
       for (const next of neighbors[cell] ?? []) {
         if (heights[next] < 20) continue;
+        if ((cells.state?.[next] || 0) !== startState) continue;
         const edgeCost = this.getEdgeTravelDays(cell, next, undefined, "land", "land", emptyRoutes);
         if (!Number.isFinite(edgeCost)) continue;
         const newCost = cost + edgeCost;

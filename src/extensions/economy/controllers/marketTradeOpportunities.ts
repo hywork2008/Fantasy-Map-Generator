@@ -107,6 +107,7 @@ export function refresh(): void {
 
       const targetCenter = world.pack.burgs[target.centerBurgId];
       if (!targetCenter) continue;
+      if (!Markets.isDomesticTradePair(sourceCenter, targetCenter)) continue;
 
       const buyPrice = Markets.customerBuyPrice(sourceGood.price, source.centerBurgId, goodId);
       const sellPrice = Markets.customerSellPrice(targetGood.price, target.centerBurgId, goodId);
@@ -405,14 +406,12 @@ export function highlightTradeOpportunity(row: MarketTradeOpportunityRow): void 
   const routePath = getWorldContext().pack.cells?.routes
     ? TradeRoutePlanner.findRoutePath(source.cell, target.cell)
     : null;
-  highlight(
-    routePath?.points?.length
-      ? routePath.points
-      : [
-          [source.x, source.y],
-          [target.x, target.y]
-        ]
-  );
+  // A missing path is not a straight chord across the map.
+  if (!routePath?.points?.length) {
+    clearHighlight();
+    return;
+  }
+  highlight(routePath.points);
 }
 
 export function clearTradeOpportunityHighlight(): void {

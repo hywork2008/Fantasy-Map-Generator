@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createEmptyFrontierSimulationState,
   FRONTIER_STAGE,
@@ -7,6 +7,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import { Burgs } from "./burgs-generator";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
+import { Routes } from "./routes-generator";
 
 function createWorld(corridorConnected: boolean): WorldContext {
   return {
@@ -45,14 +46,26 @@ function createSimulation(): SimulationContext {
 
 describe("frontier incorporation transaction", () => {
   afterEach(() => vi.restoreAllMocks());
+
+  beforeEach(() => {
+    vi.spyOn(Routes, "connectFrontier").mockReturnValue(undefined);
+  });
   it("claims only the land-connected corridor and refreshes State, Province, and neighbor aggregates", () => {
     const world = createWorld(true);
     const simulation = createSimulation();
+    const connectFrontier = vi.mocked(Routes.connectFrontier).mockReturnValue({ i: 8 } as never);
 
     const result = incorporateEligibleFrontierSettlements({ world, simulation });
 
+    expect(connectFrontier).toHaveBeenCalledWith(2, 1);
     expect(result.incorporations).toEqual([
-      expect.objectContaining({ settlementCellId: 2, stateId: 1, cellIds: [2, 1], provinceId: 1 })
+      expect.objectContaining({
+        settlementCellId: 2,
+        stateId: 1,
+        cellIds: [2, 1],
+        provinceId: 1,
+        routeAdded: true
+      })
     ]);
     expect(world.pack.cells.state).toEqual(new Uint16Array([1, 1, 1, 2]));
     expect(world.pack.cells.province).toEqual(new Uint16Array([1, 1, 1, 2]));

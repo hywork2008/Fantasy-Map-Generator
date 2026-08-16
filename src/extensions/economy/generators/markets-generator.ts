@@ -423,6 +423,18 @@ export class MarketsModule {
   }
 
   /**
+   * Frontier merchants stay with their polity. A missing or foreign state id is
+   * not a domestic pair, even when a river happens to connect two capitals.
+   */
+  isDomesticTradePair(source: Pick<Burg, "state" | "cell">, target: Pick<Burg, "state" | "cell">): boolean {
+    if (!this.usesStateBoundedTerritories()) return true;
+    const states = this.worldContext.pack.cells.state;
+    const sourceState = source.state || states?.[source.cell] || 0;
+    const targetState = target.state || states?.[target.cell] || 0;
+    return sourceState > 0 && sourceState === targetState;
+  }
+
+  /**
    * Re-stamps every claimed cell onto its state's market. Returns true when any
    * cell or burg assignment changed, so callers can rebuild rural caches.
    */
@@ -2004,10 +2016,14 @@ export class MarketsModule {
 
   private getMarketTradeRoute(source: Burg, target: Burg): MarketTradeRoute | null {
     if (source.i === target.i) return null;
+    if (!this.isDomesticTradePair(source, target)) return null;
 
     const routePath = this.worldContext.pack.cells?.routes
       ? TradeRoutePlanner.findRoutePath(source.cell, target.cell)
       : null;
+    // Frontier homelands have no pilgrimage trails. A missing path means the
+    // two markets are not yet connected; do not invent a straight-line deal.
+    if (!routePath?.segments?.length && this.usesStateBoundedTerritories()) return null;
     const segments: TradeRouteSegment[] = routePath?.segments?.length
       ? routePath.segments.map(segment => ({
           type: segment.type,

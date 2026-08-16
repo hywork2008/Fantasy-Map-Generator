@@ -105,7 +105,7 @@ export async function draw(): Promise<void> {
   const animOptions = TradeAnimation.getOptions();
   const size = animOptions.markerSize;
 
-  const groups = layer.selectAll<SVGGElement, Caravan>("g.caravan").data(caravans, c => c.i);
+  const groups = layer.selectAll<SVGGElement, Caravan>("g.caravan").data(caravans, getCaravanInstanceKey);
 
   groups.exit().transition().duration(500).style("opacity", 0).remove();
 
@@ -162,6 +162,59 @@ export function clear(): void {
     return;
   }
   getTradeAnimLayer()?.selectAll("g.caravan").interrupt().remove();
+}
+
+/** Stable join key so a reused numeric id is not treated as the same shipment. */
+export function getCaravanInstanceKey(caravan: Caravan): string {
+  const firstDeal = caravan.payload[0]?.dealId ?? "none";
+  return [
+    caravan.i,
+    caravan.sellerType,
+    caravan.seller,
+    caravan.buyerType,
+    caravan.buyer,
+    Math.round(caravan.totalDistance),
+    firstDeal,
+    caravan.state
+  ].join(":");
+}
+
+function flattenRoutePoints(caravan: Caravan): Point[] {
+  return (caravan.routeSegments ?? [])
+    .flatMap((segment, index) => (index === 0 ? segment.points : segment.points.slice(1)))
+    .map(point => [point[0], point[1]] as Point);
+}
+
+function isShortHighlightHop(points: Point[]): boolean {
+  if (points.length !== 2) return false;
+  return Math.hypot(points[1][0] - points[0][0], points[1][1] - points[0][1]) <= 80;
+}
+
+/**
+ * Map highlight for a shipment. A two-point start→end chord is only kept for a
+ * short local hop; a long chord is replaced by the real land/sea path, or
+ * omitted, so a reused trade id cannot paint a red line across the ocean.
+ */
+export function getCaravanHighlightPoints(caravan: Caravan): Point[] {
+  const fromSegments = flattenRoutePoints(caravan);
+  if (fromSegments.length >= 3 || isShortHighlightHop(fromSegments)) return fromSegments;
+
+  const start = fromSegments[0];
+  const end = fromSegments[fromSegments.length - 1];
+  if (!start || !end) return [];
+
+  const world = getWorldContext();
+  const firstPoint = caravan.routeSegments?.[0]?.points[0];
+  const lastSegment = caravan.routeSegments?.[caravan.routeSegments.length - 1];
+  const lastPoint = lastSegment?.points[lastSegment.points.length - 1];
+  const startCell = typeof firstPoint?.[2] === "number" ? firstPoint[2] : undefined;
+  const endCell = typeof lastPoint?.[2] === "number" ? lastPoint[2] : undefined;
+  if (startCell === undefined || endCell === undefined || startCell === endCell) return [];
+
+  const resolved = world.pack.cells?.routes ? TradeAnimation.findRoutePath(startCell, endCell) : null;
+  if (!resolved?.points?.length) return [];
+  if (resolved.points.length >= 3 || isShortHighlightHop(resolved.points)) return resolved.points;
+  return [];
 }
 
 export function highlight(points: Point[]): void {

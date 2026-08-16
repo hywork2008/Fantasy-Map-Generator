@@ -18,6 +18,7 @@ import {
   type TradeLogisticsSettings as TradeLogisticsSettingsType
 } from "../../generators/tradeLogisticsSettings";
 import { routeHasWater } from "../../generators/tradeSailSchedule";
+import { getCaravanInstanceKey } from "../../renderers/draw-trade-animation";
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -228,6 +229,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
       return {
         i: c.i,
+        instanceKey: getCaravanInstanceKey(c),
         state: c.state,
         statusLabel:
           c.state === "loading" ? t("extensions.tradeAnimation.loading") : t("extensions.tradeAnimation.inTransit"),
@@ -369,11 +371,11 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               scrollElementRef={parentRef}
               renderRow={row => (
                 <tr
-                  key={row.i}
+                  key={row.instanceKey}
                   className="states"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
-                    const targetCaravan = caravans.find(c => c.i === row.i);
+                    const targetCaravan = caravans.find(c => getCaravanInstanceKey(c) === row.instanceKey);
                     if (targetCaravan) {
                       document.dispatchEvent(
                         new CustomEvent("trade:showDetails", { detail: { caravan: targetCaravan } })

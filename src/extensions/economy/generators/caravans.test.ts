@@ -255,6 +255,38 @@ describe("caravan loading accumulation", () => {
     expect(getCaravans()[0].departReason).toBe("depart-local");
   });
 
+  it("does not reissue the id of a caravan that has already arrived", () => {
+    const lot = ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 2,
+      unitCost: 50,
+      requireCapital: false
+    });
+    expect(lot).not.toBeNull();
+    Caravans.spawnFromDeals([]);
+    const firstId = getCaravans()[0]?.i;
+    expect(firstId).toBeDefined();
+
+    Caravans.tick(365);
+    expect(getCaravans()).toEqual([]);
+
+    const secondLot = ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 2,
+      unitCost: 50,
+      requireCapital: false
+    });
+    expect(secondLot).not.toBeNull();
+    Caravans.spawnFromDeals([]);
+
+    expect(getCaravans()).toHaveLength(1);
+    expect(getCaravans()[0].i).toBeGreaterThan(firstId as number);
+  });
+
   it("terminates an O/D loading pass when a stale manifest contributes no cargo", () => {
     // A Good missing from the current catalogue cannot be packed. The important invariant is
     // that spawnFromDeals returns rather than repeatedly retrying the same no-progress manifest.

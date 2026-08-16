@@ -904,6 +904,82 @@ describe("MarketsModule", () => {
       expect(column[5]).not.toBe(homeMarket);
     });
 
+    it("rejects a river-connected foreign market even when pathfinding finds a route", () => {
+      installFrontierWorld();
+      setGoods([
+        {
+          i: 0,
+          name: "Wheat",
+          value: 10,
+          tags: ["food"],
+          unit: "unit",
+          icon: "icon",
+          color: "#fff",
+          distribution: "1",
+          recipes: [],
+          demandCoverage: { food: 1 }
+        }
+      ]);
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 20 } }
+      };
+      setMarkets([market1, market2]);
+      marketsModule.sync();
+
+      expect(marketsModule.isDomesticTradePair(worldContext.pack.burgs[1], worldContext.pack.burgs[2])).toBe(false);
+      expect(marketsModule.isDomesticTradePair(worldContext.pack.burgs[1], worldContext.pack.burgs[1])).toBe(true);
+
+      marketsModule.runGlobalTrade();
+      expect(getDeals().filter(deal => deal.sellerType === "market" && deal.buyerType === "market")).toEqual([]);
+    });
+
+    it("does not invent inter-state trade deals across trail-less wilderness", () => {
+      installFrontierWorld();
+      setGoods([
+        {
+          i: 0,
+          name: "Wheat",
+          value: 10,
+          tags: ["food"],
+          unit: "unit",
+          icon: "icon",
+          color: "#fff",
+          distribution: "1",
+          recipes: [],
+          demandCoverage: { food: 1 }
+        }
+      ]);
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 20 } }
+      };
+      setMarkets([market1, market2]);
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [];
+      marketsModule.sync();
+
+      marketsModule.runGlobalTrade();
+
+      expect(getDeals().filter(deal => deal.sellerType === "market" && deal.buyerType === "market")).toEqual([]);
+    });
+
     it("adds a new burg to the existing state market instead of opening a rival", () => {
       installFrontierWorld();
       // biome-ignore lint/complexity/useLiteralKeys: private factory under test

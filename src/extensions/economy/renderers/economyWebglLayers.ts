@@ -23,7 +23,7 @@ import { getMinedGoodName } from "../generators/mineralResources";
 import { getCellProduction } from "../generators/production-utils";
 import { TradeAnimation } from "../generators/trade-animation";
 import { getDisplayedGoodIds } from "../store/goodsDisplaySelection";
-import { getCaravanPosition, getHighlightedPoints } from "./draw-trade-animation";
+import { getCaravanInstanceKey, getCaravanPosition, getHighlightedPoints } from "./draw-trade-animation";
 
 const MIN_GOODS_ALPHA = 26;
 const MAX_GOODS_ALPHA = 230;
@@ -333,9 +333,8 @@ function buildTradeCaravanIcons(): ExtensionWebglIconDatum[] {
     const imgSize = type === "land" ? size / 1.6 : size;
     const iconUrl = type === "land" ? "./images/markers/wagon.svg" : "./images/markers/ship.svg";
 
-    const dealId = c.payload[0]?.dealId ?? 0;
     return {
-      id: `economy-caravan-${c.i}-${c.seller}-${c.buyer}-${dealId}`,
+      id: `economy-caravan-${getCaravanInstanceKey(c)}`,
       position: [x, y],
       angle,
       size: imgSize,

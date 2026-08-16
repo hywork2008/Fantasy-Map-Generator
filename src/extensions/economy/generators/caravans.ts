@@ -38,6 +38,7 @@ import { type Good, isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { utilizationOf } from "./marketFlowBudget";
+import { Markets } from "./markets-generator";
 import type {
   Caravan,
   Deal,
@@ -713,12 +714,18 @@ function resolveBakeContext(month: number): {
 
 export class CaravansModule {
   private ensureNextCaravanId(): number {
-    const nextId = getNextCaravanId();
-    if (nextId) return nextId;
-    const caravans = getCaravans();
-    const computed = caravans.length > 0 ? Math.max(...caravans.map(c => c.i)) + 1 : 0;
-    setNextCaravanId(computed);
-    return computed;
+    // A finished caravan is removed from the live array. Using only that array
+    // as the high-water mark reissues its id, and the Trade Animation highlight
+    // (keyed on caravan.i) then draws the new shipment as a continuation —
+    // a red straight line from the old position to the new destination.
+    let liveMax = -1;
+    for (const caravan of getCaravans()) {
+      if (caravan.i > liveMax) liveMax = caravan.i;
+    }
+    const stored = getNextCaravanId();
+    const next = Math.max(Number.isFinite(stored) ? stored : 0, liveMax + 1, 0);
+    if (next !== stored) setNextCaravanId(next);
+    return next;
   }
 
   /** Clears raw fresh cargo from saved/in-memory caravans immediately after a rule or map reload. */
@@ -752,6 +759,11 @@ export class CaravansModule {
     }
 
     const world = getWorldContext();
+    const originBurgId = resolveEndpointBurgId(deal.sellerType, deal.seller);
+    const destinationBurgId = resolveEndpointBurgId(deal.buyerType, deal.buyer);
+    const originBurg = originBurgId !== null ? world.pack.burgs[originBurgId] : undefined;
+    const destinationBurg = destinationBurgId !== null ? world.pack.burgs[destinationBurgId] : undefined;
+    if (!originBurg || !destinationBurg || !Markets.isDomesticTradePair(originBurg, destinationBurg)) return null;
     const totalDistance = getRouteDistanceKm(routeSegments, world.distanceScale);
     if (totalDistance <= 0) return null;
 
@@ -897,6 +909,7 @@ export class CaravansModule {
     const endBurg = burgs[endBurgId];
 
     if (!startBurg || !endBurg || startBurg.i === endBurg.i) return nextId;
+    if (!Markets.isDomesticTradePair(startBurg, endBurg)) return nextId;
 
     const routePath = TradeRoutePlanner.findRoutePath(startBurg.cell, endBurg.cell);
     if (!routePath || routePath.segments.length === 0) return nextId;

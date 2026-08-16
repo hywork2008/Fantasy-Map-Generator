@@ -208,7 +208,7 @@ describe("findRoutePath", () => {
     expect(ta.findRoutePath(0, 2)).toBeNull();
   });
 
-  it("walks adjacent land cells when no road or sea lane connects two burgs", () => {
+  it("walks same-state land from a capital to its new village when no trail exists yet", () => {
     const pack = makePack(
       {},
       [],
@@ -221,6 +221,7 @@ describe("findRoutePath", () => {
     );
     pack.cells.h = [25, 25, 25, 25];
     pack.cells.c = [[1], [0, 2], [1, 3], [2]];
+    pack.cells.state = [1, 1, 1, 1];
     pack.cells.p = [
       [0, 0],
       [10, 0],
@@ -243,6 +244,25 @@ describe("findRoutePath", () => {
         ]
       }
     ]);
+  });
+
+  it("does not pioneer a wilderness path between different states", () => {
+    const pack = makePack(
+      {},
+      [],
+      [
+        [0, 0],
+        [10, 0],
+        [20, 0],
+        [30, 0]
+      ]
+    );
+    pack.cells.h = [25, 25, 25, 25];
+    pack.cells.c = [[1], [0, 2], [1, 3], [2]];
+    pack.cells.state = [1, 1, 2, 2];
+    worldContext.pack = pack as unknown as PackedGraph;
+
+    expect(ta.findRoutePath(0, 3)).toBeNull();
   });
 
   it("does not invent a land path across open water", () => {

@@ -5,6 +5,7 @@ import type { WorldState } from "../types/WorldState";
 import { Burgs } from "./burgs-generator";
 import { canStateClaimCell } from "./dangerExpandPolicy";
 import { Provinces } from "./provinces-generator";
+import { Routes } from "./routes-generator";
 import { States } from "./states-generator";
 import { assignWildLandTags, isMonsterDomain } from "./wildLandTags";
 
@@ -94,12 +95,16 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
     }
 
     delete frontier.projects[project.cellId];
+    // A land village is supplied from its own capital along a new trail.
+    // Seaborne beachheads wait for Burgs.add to open a harbour route.
+    const supplyTrail = origin === "land" ? Routes.connectFrontier(project.cellId, project.stateId) : undefined;
     incorporations.push({
       settlementCellId: project.cellId,
       stateId: project.stateId,
       origin,
       cellIds: claimedCellIds,
-      provinceId
+      provinceId,
+      routeAdded: Boolean(supplyTrail)
     });
   }
 

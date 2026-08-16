@@ -1,14 +1,14 @@
-import { type Point, useOptionsState } from "../../hostCore";
+import { useOptionsState } from "../../hostCore";
 import { openDialog } from "../../hostUi";
 import { minmax, rn } from "../../hostUtils";
 
-import { getApi, getMarketById, getMerchantOrganizations, getWorldContext } from "../economyContext";
+import { getApi, getCaravans, getMarketById, getMerchantOrganizations, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Caravan, TradeRouteSegment } from "../generators/marketTypes";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
 import { getGoodCargoSlotsPerUnit } from "../generators/tradeCargo";
 import { formatSailDecisionReason } from "../generators/tradeSailSchedule";
-import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
+import { clearHighlight, getCaravanHighlightPoints, highlight } from "../renderers/draw-trade-animation";
 import { setTradeDetailsState } from "../store/tradeDetailsState";
 
 let activeCaravan: Caravan | undefined;
@@ -30,12 +30,8 @@ export function open(caravan: Caravan): void {
 
   if (!startBurg || !endBurg) return;
 
-  const points = caravan.routeSegments
-    .flatMap((s, idx) => (idx === 0 ? s.points : s.points.slice(1)))
-    .map(p => [p[0], p[1]] as Point);
-
   tradeDetailsAddLines();
-  highlight(points);
+  highlight(getCaravanHighlightPoints(caravan));
   openDialog("tradeDetails");
 }
 
@@ -198,5 +194,12 @@ document.addEventListener("trade:showDetails", (e: Event) => {
 document.addEventListener("fmg:time-advanced", () => {
   if (!activeCaravan) return;
   if (!getApi().isDialogOpen("tradeDetails")) return;
+  // Identity is the object, not caravan.i — a finished id may be reissued.
+  const stillLive = getCaravans().includes(activeCaravan);
+  if (!stillLive) {
+    clearHighlight();
+    return;
+  }
   tradeDetailsAddLines();
+  highlight(getCaravanHighlightPoints(activeCaravan));
 });
