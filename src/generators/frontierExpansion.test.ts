@@ -547,7 +547,7 @@ describe("Frontier Expansion Phase 3", () => {
     expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
   });
 
-  it("drains the applicant pool before pulling any further colonists out of live cells", () => {
+  it("draws the larger live-cell surplus before topping up from the applicant pool", () => {
     const world = createWorld();
     const simulation = createSimulation(100);
     simulation.frontier.applicantPoolByState[1] = { maleAdults: 1, femaleAdults: 1 };
@@ -555,12 +555,13 @@ describe("Frontier Expansion Phase 3", () => {
     const result = advance(world, simulation);
 
     expect(result.established).toEqual([1]);
-    // targetLimit is capacity[1] * 0.25 = 12.5: the pool's 2 colonists plus the cell's
-    // (otherwise 12-colonist) surplus would exceed it, so the cell only tops up the
-    // remainder (10.5) instead of contributing its full surplus.
+    // targetLimit is capacity[1] * 0.25 = 12.5. Funding is one state-wide reserve (the
+    // applicant pool and every owned cell's surplus), spent largest-contributor-first —
+    // cell 0's 12-colonist surplus outweighs the pool's 2, so it's drawn first (fully),
+    // and the pool only tops up the remaining 0.5.
     expect(world.pack.cells.pop[1]).toBeCloseTo(12.5);
-    expect(world.pack.cells.pop[0]).toBeCloseTo(89.5);
-    expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
+    expect(world.pack.cells.pop[0]).toBeCloseTo(88);
+    expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0.75, femaleAdults: 0.75 });
   });
 
   it("founding uses the pre-economy snapshot even after same-tick treasury drain", () => {
