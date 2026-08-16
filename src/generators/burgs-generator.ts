@@ -828,6 +828,10 @@ class BurgModule {
       // Civic-condition simulation has not started yet; every new settlement begins neutral.
       burg.security = 50;
       burg.sanitation = 50;
+      // The live simulation clock does not exist yet at this point in generation
+      // (initSimulationClock() runs after core generation); the world's declared
+      // starting year is the correct "founded" date for every initial Burg.
+      burg.foundedYear = worldContext.options.year ?? 0;
     }
 
     pack.burgs = burgs;
@@ -1449,7 +1453,11 @@ class BurgModule {
       capital: 0,
       port: 0,
       security: 50,
-      sanitation: 50
+      sanitation: 50,
+      // Every post-generation Burg (frontier incorporation's overseas beachheads,
+      // rural settlement promotion, interactive placement) is founded at whatever
+      // year the live simulation clock currently reads.
+      foundedYear: simulationContext.currentYear
     };
     this.definePopulation(burg);
     this.defineEmblem(burg);

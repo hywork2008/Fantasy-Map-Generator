@@ -298,6 +298,14 @@ export interface Burg {
    * available for any future UI/AI decision that needs to judge a reclaim's legitimacy.
    */
   stateHistory?: number[];
+  /**
+   * Calendar year this Burg was founded. Initial-generation Burgs (BurgModule.generate) record
+   * the world's starting year (`options.year`); every Burg created afterward — frontier
+   * incorporation's overseas beachheads, rural settlement promotion, interactive Burg placement —
+   * records the live `simulationContext.currentYear` at creation (BurgModule.add). Undefined on
+   * saves made before this field existed; absence means "unknown", not "founded at year 0".
+   */
+  foundedYear?: number;
 }
 
 export interface Culture {
