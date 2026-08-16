@@ -50,6 +50,8 @@ Frontier's oikoumene used to open only 1–3 compact regions (`settlementRegionC
 
 Spacing does not change Starting realm size, land-origin / seaborne rules, or oikoumene land share. It only decides whether those homelands sit on top of each other.
 
+The **capital is always the first realm cell**, and it sits on a **river** whenever one exists on a large enough landmass. Remaining starting-realm cells grow as adjacent land from that capital (`collectStartingRealmCells`), so a 2-cell, 10-cell, or 30-cell start is on water without a size-specific rule. Among rivers, a **coastal river-mouth** scores higher (true ocean harbor is required when the start is seaborne). Several states on the same island are spaced along that island's coastline (about 8 land-coast hops when dispersed, relaxing if the shore is short) instead of being shoved to opposite map corners. Land origin is not snapped to a riverless harbor.
+
 ---
 
 ## 1.2 Seaborne remnant fleet
@@ -123,7 +125,7 @@ The burg is then placed on that harbor cell so `Burgs.shift` / `selectPorts` can
 
 If no harbor exists on that landmass, the node is skipped until the land-size floor is relaxed. Only the last-resort path may leave a seaborne capital inland (rare; tiny/odd maps).
 
-Land origin does **not** force the coast. Inland river, coastal cell without a formal port, and true ports are all legal as long as the landmass is large.
+Land origin does **not** force the coast. The capital must sit on a river when one exists (inland river is legal). A riverless harbor is not used just because it is coastal. Seaborne still snaps to a true ocean harbor, preferring a mouth.
 
 ---
 
