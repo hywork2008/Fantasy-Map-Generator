@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ARCTIC_CIRCLE_LATITUDE_DEG,
   convertLegacyLatitudeToGeographic,
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_EQUATORIAL_CIRCUMFERENCE_KM,
@@ -7,7 +8,8 @@ import {
   getEarthDistanceBetweenMapPoints,
   getEarthDistanceScale,
   getEarthMapLatitudeSpan,
-  getEarthPathDistance
+  getEarthPathDistance,
+  getTemperateLatitudeBound
 } from "./earthConfig";
 
 describe("Earth map calibration", () => {
@@ -28,6 +30,32 @@ describe("Earth map calibration", () => {
 
   it("derives the map's latitude span from its equatorial width and aspect ratio", () => {
     expect(getEarthMapLatitudeSpan(EARTH_DEFAULT_MAP_SIZE, 1_280, 720)).toBeCloseTo(26.1225, 4);
+  });
+});
+
+describe("getTemperateLatitudeBound", () => {
+  it("caps the center latitude so the pole-ward edge lands exactly on the Arctic/Antarctic Circle", () => {
+    const latitudeSpan = 20;
+    const bound = getTemperateLatitudeBound(latitudeSpan, 90 - latitudeSpan / 2);
+
+    expect(bound).toBeCloseTo(ARCTIC_CIRCLE_LATITUDE_DEG - latitudeSpan / 2, 6);
+    expect(bound + latitudeSpan / 2).toBeCloseTo(ARCTIC_CIRCLE_LATITUDE_DEG, 6);
+  });
+
+  it("falls back to the ±90° clamp when it is tighter than the Arctic bound", () => {
+    // A span so large that 90 - span / 2 is below the Arctic-circle-derived bound.
+    const latitudeSpan = 10;
+    const maxCenterLatitude = 5; // tighter than 66.5 - 10 / 2 = 61.5
+    expect(getTemperateLatitudeBound(latitudeSpan, maxCenterLatitude)).toBe(maxCenterLatitude);
+  });
+
+  it("never returns a negative bound for an oversized span", () => {
+    expect(getTemperateLatitudeBound(200, 0)).toBe(0);
+  });
+
+  it("returns 0 for non-finite input", () => {
+    expect(getTemperateLatitudeBound(Number.NaN, 50)).toBe(0);
+    expect(getTemperateLatitudeBound(20, Number.NaN)).toBe(0);
   });
 });
 

@@ -4,7 +4,8 @@ import {
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_TEMPERATURE_PRESET,
   getEarthDistanceScale,
-  getEarthMapLatitudeSpan
+  getEarthMapLatitudeSpan,
+  getTemperateLatitudeBound
 } from "./data/earthConfig";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
@@ -1486,9 +1487,16 @@ function defineMapSize() {
     // Bias toward temperate latitudes rather than drawing uniformly across the full
     // range: a uniform draw makes near-polar (icy, low-habitability) random maps
     // disproportionately common now that the Earth-realistic pole temperatures
-    // (EARTH_TEMPERATURE_PRESET) are asymmetric and quite cold.
+    // (EARTH_TEMPERATURE_PRESET) are asymmetric and quite cold. Cap the CENTER
+    // latitude so the map's pole-ward edge (center + latT / 2) never lands past the
+    // Arctic/Antarctic Circle — the temperate/cold climate transition also used by
+    // getGeozone() (src/services/cellInfoService.ts). At the extreme of the random
+    // range the edge just reaches that line rather than drawing deep into the cold
+    // zone; the map always ends up on the warm side. This only bounds the automatic
+    // draw — unlocking "latitude" and setting it manually can still place the map
+    // in an uninhabitably cold band.
     const hemisphereSign = P(0.5) ? 1 : -1;
-    const temperateBound = Math.min(70, maxCenterLatitude);
+    const temperateBound = getTemperateLatitudeBound(latT, maxCenterLatitude);
     const magnitude = gauss(40, 20, 0, temperateBound);
     updates.latitude = rn(hemisphereSign * magnitude, 1);
   }

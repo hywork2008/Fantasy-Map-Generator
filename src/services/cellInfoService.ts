@@ -1,5 +1,6 @@
 import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
+import { ARCTIC_CIRCLE_LATITUDE_DEG } from "../data/earthConfig";
 import { getForestClearingRate } from "../generators/forestStock";
 import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
 import { getRiverCellHydrology } from "../generators/riverHydrology";
@@ -112,14 +113,14 @@ export function getProvinceName(provinceId: number): string {
 }
 
 export function getGeozone(latitude: number): string {
-  if (latitude > 66.5) return "Arctic";
+  if (latitude > ARCTIC_CIRCLE_LATITUDE_DEG) return "Arctic";
   if (latitude > 35) return "Temperate North";
   if (latitude > 23.5) return "Subtropical North";
   if (latitude > 1) return "Tropical North";
   if (latitude > -1) return "Equatorial";
   if (latitude > -23.5) return "Tropical South";
   if (latitude > -35) return "Subtropical South";
-  if (latitude > -66.5) return "Temperate South";
+  if (latitude > -ARCTIC_CIRCLE_LATITUDE_DEG) return "Temperate South";
   return "Antarctic";
 }
 export function toDMS(coord: number, c: "lat" | "lon"): string {

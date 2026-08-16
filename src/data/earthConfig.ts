@@ -32,6 +32,15 @@ export const EARTH_TEMPERATURE_PRESET = {
 } as const;
 
 /**
+ * Latitude of the Arctic/Antarctic Circle, in degrees — the conventional boundary between
+ * the temperate and cold (polar) climate zones. Shared by `getGeozone()`
+ * (`src/services/cellInfoService.ts`, geozone classification for the cell info panel) and
+ * `defineMapSize()` (`src/main.ts`, bounds the World Configurator's random `latitude` draw
+ * so a freshly generated map's pole-ward edge never drifts far past this line).
+ */
+export const ARCTIC_CIRCLE_LATITUDE_DEG = 66.5;
+
+/**
  * Earth's axial tilt (obliquity), in degrees. Default value for the World Configurator's
  * `axialTilt` option, which drives the seasonal temperature swing (see
  * `src/utils/seasonUtils.ts`'s `getSeasonalTemperatureOffset`). 0° means no seasons at all;
@@ -64,6 +73,25 @@ export function getEarthMapLatitudeSpan(mapSize: number, graphWidth: number, gra
 
   const longitudeSpan = Math.min((mapSize / 100) * 360, 360);
   return mapSize >= 100 ? 180 : Math.min(longitudeSpan / (graphWidth / graphHeight), 180);
+}
+
+/**
+ * Returns the maximum absolute center `latitude` for a map of the given latitude span such
+ * that a random draw never places the map's pole-ward edge (`|center| + span / 2`) past the
+ * Arctic/Antarctic Circle — the temperate/cold climate transition (`ARCTIC_CIRCLE_LATITUDE_DEG`).
+ * At this bound the edge exactly reaches that line; drawing any `|center|` up to this value
+ * keeps the map on the warm side. `maxCenterLatitude` (typically `90 - span / 2`, the limit
+ * that keeps the map within ±90°) is applied as an outer clamp for oversized spans where the
+ * Arctic bound alone would place the center out of range.
+ *
+ * Used by `defineMapSize()` (`src/main.ts`) to bound the World Configurator's automatic
+ * `latitude` draw. Does not affect manually setting `latitude` after unlocking it — that can
+ * still place the map deep in an uninhabitably cold band.
+ */
+export function getTemperateLatitudeBound(latitudeSpan: number, maxCenterLatitude: number): number {
+  if (!Number.isFinite(latitudeSpan) || !Number.isFinite(maxCenterLatitude)) return 0;
+  const edgeBound = Math.max(0, ARCTIC_CIRCLE_LATITUDE_DEG - latitudeSpan / 2);
+  return Math.min(edgeBound, maxCenterLatitude);
 }
 
 /**
