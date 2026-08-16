@@ -15,6 +15,7 @@ function createCells(count: number, riverCells: readonly number[] = [4]) {
     r: Uint16Array.from({ length: count }, (_, index) => (riverSet.has(index) ? 1 : 0)),
     harbor: new Uint8Array(count),
     t: new Int8Array(count),
+    f: new Uint16Array(count),
     conf: new Uint16Array(count),
     danger: new Uint8Array(count),
     g: Uint16Array.from({ length: count }, (_, index) => index),
@@ -147,6 +148,34 @@ describe("Settlement Foundation Module", () => {
     expect(result.plan.regions.map(region => region.center).sort((a, b) => a - b)).toEqual([5, 50, 95]);
     const regionSizes = result.plan.regions.map(region => region.cells.length);
     expect(Math.max(...regionSizes) - Math.min(...regionSizes)).toBeLessThan(8);
+  });
+
+  it("treats separate land features as independent frontier expansion fields", () => {
+    const cells = createCells(101, [5, 50, 95]);
+    // The two continental coasts are visually close around cells 5 and 50,
+    // but moving people between them requires a sea crossing.
+    cells.f.fill(1, 0, 30);
+    cells.f.fill(2, 30);
+    for (const cellId of [5, 50, 95]) {
+      cells.harbor[cellId] = 1;
+      cells.t[cellId] = 1;
+    }
+
+    const result = createSettlementFoundation(
+      cells,
+      { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) },
+      "frontier",
+      0.3,
+      () => 0,
+      2,
+      undefined,
+      "dispersed",
+      "seaborne",
+      new Set([5, 50, 95])
+    );
+
+    expect(result.plan.regions.map(region => region.center)).toContain(5);
+    expect(result.plan.regions.map(region => region.center)).toContain(50);
   });
 
   it("honors the additional regional hubs requested by high polity density", () => {

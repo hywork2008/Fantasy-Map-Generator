@@ -1138,7 +1138,11 @@ function getGenerationStages(): Array<() => Promise<void>> {
         optionsSnap.initialSettlementPattern === "frontier" &&
         optionsSnap.frontierPolitySpacing === "dispersed" &&
         optionsSnap.frontierStartMode === "seaborne"
-          ? getPreferredDispersedSeaborneFoundationCells(worldContext.pack, optionsSnap.initialPolityRealmSize)
+          ? getPreferredDispersedSeaborneFoundationCells(
+              worldContext.pack,
+              optionsSnap.initialPolityRealmSize,
+              optionsSnap.statesNumber
+            )
           : undefined;
       const settlementPattern = applyInitialSettlementPattern(
         worldContext.pack.cells,

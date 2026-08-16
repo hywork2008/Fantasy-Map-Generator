@@ -24,6 +24,8 @@ export interface SettlementFoundationCells {
   readonly p: readonly (readonly [number, number])[];
   readonly r?: ArrayLike<number>;
   readonly harbor?: ArrayLike<number>;
+  /** Land-feature id; used to make different continents independent start fields. */
+  readonly f?: ArrayLike<number>;
   readonly t?: ArrayLike<number>;
   readonly biomeCode?: ArrayLike<number>;
   readonly conf?: ArrayLike<number>;
@@ -110,7 +112,13 @@ export function createSettlementFoundation(
           ? coastalResources
           : resources
       : resources;
-  const centers = selectRegionCenters(centerPool, regionCount, random, frontierRegionCenterDistanceWeight(spacing));
+  const centers = selectRegionCenters(
+    centerPool,
+    regionCount,
+    random,
+    frontierRegionCenterDistanceWeight(spacing),
+    centerPool === preferredStartResources ? cells.f : undefined
+  );
   const footprint =
     oikoumeneLandShare !== undefined && Number.isFinite(oikoumeneLandShare)
       ? clamp(oikoumeneLandShare, 0.1, 0.95)
@@ -310,7 +318,8 @@ function selectRegionCenters(
   resources: SettledSite[],
   count: number,
   random: () => number,
-  distanceWeight = 0.76
+  distanceWeight = 0.76,
+  landFeatureByCell?: ArrayLike<number>
 ): SettledSite[] {
   const ranked = [...resources].sort((a, b) => b.score - a.score || a.id - b.id);
   const centers: SettledSite[] = [ranked[0]];
@@ -328,7 +337,16 @@ function selectRegionCenters(
     const next = ranked
       .filter(site => !centers.includes(site))
       .map(site => {
-        const nearest = Math.min(...centers.map(center => Math.hypot(site.x - center.x, site.y - center.y)));
+        // Different land features are separated by a sea crossing. They are
+        // therefore independent expansion fields, regardless of their visual
+        // Euclidean distance on the map. Subsequent starts on one feature only
+        // compete with starts already placed on that same feature.
+        const competingCenters = landFeatureByCell
+          ? centers.filter(center => landFeatureByCell[center.id] === landFeatureByCell[site.id])
+          : centers;
+        const nearest = competingCenters.length
+          ? Math.min(...competingCenters.map(center => Math.hypot(site.x - center.x, site.y - center.y)))
+          : diagonal;
         const quality = site.score / ranked[0].score;
         // Foundation regions are the starting points for separate polities.
         // Once the best site is chosen, geographic separation is deliberately

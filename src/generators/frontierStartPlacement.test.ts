@@ -90,7 +90,35 @@ describe("selectFrontierStartCapitals", () => {
       ]
     });
 
-    expect([...getPreferredDispersedSeaborneFoundationCells(pack, 1)]).toEqual([5, 20, 35, 50]);
+    expect([...getPreferredDispersedSeaborneFoundationCells(pack, 1, 4)]).toEqual([5, 20, 35, 50]);
+  });
+
+  it("excludes a large-but-noncontinental island when continents can host every polity", () => {
+    const cellCount = 290;
+    const featureOf = Array.from({ length: cellCount }, (_, index) =>
+      index < 90 ? 1 : index < 180 ? 2 : index < 287 ? 3 : 8
+    );
+    const harbor = Array.from({ length: cellCount }, () => 0);
+    const haven = Array.from({ length: cellCount }, () => 0);
+    for (const cellId of [5, 25, 95, 115, 185, 205]) {
+      harbor[cellId] = 1;
+      haven[cellId] = 287;
+    }
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      harbor,
+      haven,
+      havenFeature: Array.from({ length: cellCount }, (_, index) => (haven[index] ? 8 : 0)),
+      features: [
+        { i: 1, land: true, type: "island", group: "continent", cells: 500 },
+        { i: 2, land: true, type: "island", group: "continent", cells: 400 },
+        { i: 3, land: true, type: "island", group: "island", cells: 107 },
+        { i: 8, land: false, type: "ocean", cells: 400 }
+      ]
+    });
+
+    expect([...getPreferredDispersedSeaborneFoundationCells(pack, 1, 4)]).toEqual([5, 25, 95, 115]);
   });
 
   it("never starts on a one-cell isle when a large landmass exists", () => {

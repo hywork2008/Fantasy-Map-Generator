@@ -630,7 +630,11 @@ function regenerateSettlementPattern(): void {
       optionsSnap.initialSettlementPattern === "frontier" &&
       optionsSnap.frontierPolitySpacing === "dispersed" &&
       optionsSnap.frontierStartMode === "seaborne"
-        ? getPreferredDispersedSeaborneFoundationCells(pack, optionsSnap.initialPolityRealmSize)
+        ? getPreferredDispersedSeaborneFoundationCells(
+            pack,
+            optionsSnap.initialPolityRealmSize,
+            optionsSnap.statesNumber
+          )
         : undefined;
 
     // `worldContext.options.initialSettlementPattern` (and the other fields
