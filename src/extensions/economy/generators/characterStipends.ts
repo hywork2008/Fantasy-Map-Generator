@@ -33,7 +33,7 @@ import {
  * | Market rival | 0.90 | Fixed; market treasury is a ceiling only |
  * | Guild master | 1.05 | Fixed; guild treasury is a ceiling only |
  * | Market manager | 2.10 | Fixed |
- * | Field commander | 1.50–4.50 | Upkeep share with floor/cap (treasuryAllocation) |
+ * | Field commander | 1.50–4.50 | Upkeep share with floor/cap; only company-scale field/fleet units (officerAssignment) |
  * | Province lord | 3.00 | Fixed from seated Burg treasury |
  * | Central office | 2.40–9.00 | Share of department budget with floor/cap |
  * | Ruler household | 3.00–15.00 | Share of income with floor/cap |

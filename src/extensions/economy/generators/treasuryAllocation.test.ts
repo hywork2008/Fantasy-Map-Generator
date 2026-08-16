@@ -470,18 +470,18 @@ describe("treasuryAllocation", () => {
       expect(state.treasury).toBe(0);
     });
 
-    it("applies the personal-pay floor when regiment upkeep would yield copper scraps", () => {
+    it("applies the personal-pay floor when a company-scale regiment's upkeep would yield copper scraps", () => {
       const commander = makeRuler({
         i: 22,
         titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
       });
-      // 1 head → upkeep 0.12 → proportional 0.018, floor lifts to 1.5
+      // 80 heads (minimum independent command) → upkeep 9.6 → proportional 1.44, floor lifts to 1.5
       const state = {
         i: 1,
         form: "Monarchy",
         diplomacy: [],
         treasury: 1000,
-        military: [{ state: 1, commanderId: 22, u: { Infantry: 1 } }]
+        military: [{ state: 1, commanderId: 22, u: { Infantry: 80 } }]
       } as unknown as State;
       worldContext.pack.characters = [commander];
 
@@ -490,6 +490,27 @@ describe("treasuryAllocation", () => {
       expect(allocation.fieldCommanderStipendsPaid).toBe(FIELD_COMMANDER_STIPEND_FLOOR);
       expect(commander.wealth).toBe(FIELD_COMMANDER_STIPEND_FLOOR);
       expect(state.departmentBalances?.marshalcy).toBe(rn(350 - FIELD_COMMANDER_STIPEND_FLOOR, 2));
+    });
+
+    it("pays nothing to a commander attached to a sub-company remnant", () => {
+      const commander = makeRuler({
+        i: 24,
+        titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+      });
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        military: [{ state: 1, commanderId: 24, a: 17, u: { Infantry: 17 } }]
+      } as unknown as State;
+      worldContext.pack.characters = [commander];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.fieldCommanderStipendsPaid).toBe(0);
+      expect(commander.wealth).toBe(0);
+      expect(state.departmentBalances?.marshalcy).toBe(350);
     });
 
     it("never pays the capital guard's commander (already paid as Marshal via officeStipendsPaid)", () => {

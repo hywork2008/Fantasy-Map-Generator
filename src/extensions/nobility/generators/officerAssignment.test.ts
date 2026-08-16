@@ -4,7 +4,13 @@ import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, MilitaryRegiment, PackedGraph } from "../../hostTypes";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
 import "../types";
-import { assignOfficers, getRegimentCommander } from "./officerAssignment";
+import {
+  assignOfficers,
+  getRegimentCommander,
+  MIN_TROOPS_FOR_DEDICATED_OFFICER,
+  regimentQualifiesForDedicatedOfficer,
+  regimentTroopStrength
+} from "./officerAssignment";
 
 function makeRegiment(overrides: Partial<MilitaryRegiment>): MilitaryRegiment {
   return {
@@ -186,6 +192,59 @@ describe("assignOfficers", () => {
 
     expect(fieldArmy.commanderId).not.toBe(9);
     expect(worldContext.pack.characters).toHaveLength(2);
+  });
+
+  it("does not create a Commander for a sub-company field regiment even when the assignment roll succeeds", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
+
+    const platoon = makeRegiment({ i: 1, state: 1, a: 17, u: { infantry: 17 } });
+
+    worldContext.pack = {
+      characters: [],
+      cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [platoon] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    expect(platoon.commanderId).toBeUndefined();
+    expect(worldContext.pack.characters).toHaveLength(0);
+  });
+
+  it("still assigns a Commander once the regiment reaches company strength", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
+
+    const company = makeRegiment({
+      i: 1,
+      state: 1,
+      a: MIN_TROOPS_FOR_DEDICATED_OFFICER,
+      u: { infantry: MIN_TROOPS_FOR_DEDICATED_OFFICER }
+    });
+
+    worldContext.pack = {
+      characters: [],
+      cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [company] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    expect(company.commanderId).toBeDefined();
+    expect(worldContext.pack.characters).toHaveLength(1);
+  });
+
+  it("treats current strength `a` as authoritative over unit-table leftovers", () => {
+    expect(regimentTroopStrength({ a: 17, u: { infantry: 80 } })).toBe(17);
+    expect(regimentTroopStrength({ u: { infantry: 17, archers: 3 } })).toBe(20);
+    expect(regimentQualifiesForDedicatedOfficer({ a: MIN_TROOPS_FOR_DEDICATED_OFFICER - 1, u: {} })).toBe(false);
+    expect(regimentQualifiesForDedicatedOfficer({ a: MIN_TROOPS_FOR_DEDICATED_OFFICER, u: {} })).toBe(true);
+    expect(regimentQualifiesForDedicatedOfficer({ a: 200, u: {}, isCapitalGuard: true })).toBe(false);
   });
 
   it("does not crash for states with no military and getRegimentCommander returns undefined for an unassigned regiment", () => {

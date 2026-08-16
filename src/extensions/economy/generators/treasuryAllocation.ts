@@ -4,7 +4,10 @@ import { stateHasEnemy } from "../../hostCore";
 import type { MilitaryRegiment, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
-import { getRegimentCommander } from "../../nobility/generators/officerAssignment";
+import {
+  getRegimentCommander,
+  regimentQualifiesForDedicatedOfficer
+} from "../../nobility/generators/officerAssignment";
 import { getRulerId } from "../../nobility/nobilityContext";
 import type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
 import { getRegimentMilitaryUpkeep, getStateMilitaryUpkeep } from "./militaryLogistics";
@@ -653,10 +656,12 @@ export function payMilitaryUpkeep(state: State, need?: number): MarshalcySpendRe
 
 /**
  * Pays each living field/fleet officer (Commander/Admiral) commanding one of `state.military`'s
- * non-capital-guard regiments a stipend off that regiment's own upkeep cost (see
- * FIELD_COMMANDER_STIPEND_RATE / FLOOR). Cash is drawn L3a.marshalcy → L2 (PR-5); payment is
- * cash-limited so commanders are not paid from thin air when both purses are empty. Returns the
- * total actually paid. A regiment with no dedicated officer yet or a dead one pays nothing.
+ * non-capital-guard, company-scale regiments a stipend off that regiment's own upkeep cost (see
+ * FIELD_COMMANDER_STIPEND_RATE / FLOOR). Platoons below MIN_TROOPS_FOR_DEDICATED_OFFICER are not
+ * an independent command and pay nothing, even if a stale commanderId remains. Cash is drawn
+ * L3a.marshalcy → L2 (PR-5); payment is cash-limited so commanders are not paid from thin air
+ * when both purses are empty. Returns the total actually paid. A regiment with no dedicated
+ * officer yet or a dead one pays nothing.
  */
 export function payFieldCommanderStipends(state: State): number {
   if (!state.i || !hasCharactersContext()) return 0;
@@ -665,6 +670,7 @@ export function payFieldCommanderStipends(state: State): number {
   let totalPaid = 0;
   for (const regiment of state.military || []) {
     if (regiment.isCapitalGuard) continue;
+    if (!regimentQualifiesForDedicatedOfficer(regiment)) continue;
 
     const commander = getRegimentCommander(characters, regiment);
     if (!commander) continue;
