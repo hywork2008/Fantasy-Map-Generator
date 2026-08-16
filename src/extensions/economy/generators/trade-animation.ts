@@ -111,7 +111,8 @@ export class TradeAnimationModule {
     // should use their established sea lane instead of needlessly unloading cargo inland.
     const result =
       this.findRoutePathWithAllowedEdges(startCell, endCell, true) ??
-      this.findRoutePathWithAllowedEdges(startCell, endCell, false);
+      this.findRoutePathWithAllowedEdges(startCell, endCell, false) ??
+      this.findWildernessLandPath(startCell, endCell);
     this.routePathCache.set(cacheKey, result);
     return result;
   }
@@ -195,6 +196,64 @@ export class TradeAnimationModule {
     }
 
     return null;
+  }
+
+  /**
+   * Isolated frontier homelands often have no road or sea lane between them.
+   * Merchants still walk the land: search adjacent land cells only after the
+   * formal route graph has no path, so roads and rivers stay preferred.
+   */
+  private findWildernessLandPath(startCell: number, endCell: number): RoutePath | null {
+    const world = getWorldContext();
+    const cells = world.pack.cells;
+    const neighbors = cells.c;
+    const heights = cells.h;
+    if (!neighbors || !heights || startCell === endCell) return null;
+    if (heights[startCell] < 20 || heights[endCell] < 20) return null;
+
+    const dist = new Float64Array(heights.length).fill(Infinity);
+    const prev = new Int32Array(heights.length).fill(-1);
+    dist[startCell] = 0;
+    const queue = new FlatQueue<number>();
+    queue.push(startCell, 0);
+    const emptyRoutes = new Map<number, RouteGeometry>();
+
+    while (queue.length) {
+      const cost = queue.peekValue()!;
+      const cell = queue.pop()!;
+      if (cost > dist[cell]) continue;
+      if (cell === endCell) return this.buildWildernessPath(endCell, prev);
+
+      for (const next of neighbors[cell] ?? []) {
+        if (heights[next] < 20) continue;
+        const edgeCost = this.getEdgeTravelDays(cell, next, undefined, "land", "land", emptyRoutes);
+        if (!Number.isFinite(edgeCost)) continue;
+        const newCost = cost + edgeCost;
+        if (newCost < dist[next]) {
+          dist[next] = newCost;
+          prev[next] = cell;
+          queue.push(next, newCost);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private buildWildernessPath(endCell: number, prev: Int32Array): RoutePath {
+    const cells: number[] = [];
+    for (let cell = endCell; cell !== -1; cell = prev[cell]) cells.push(cell);
+    cells.reverse();
+    if (cells.length < 2) return { points: [], segments: [] };
+
+    const points: TradeRoutePoint[] = cells.map(cellId => {
+      const [x, y] = this.getCellPoint(cellId);
+      return [x, y, cellId];
+    });
+    return {
+      points: points.map(([x, y]) => [x, y]),
+      segments: [{ type: "land", points }]
+    };
   }
 
   private getOutgoingEdges(

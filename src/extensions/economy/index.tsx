@@ -522,6 +522,7 @@ let _unregisterJobsResignEscortCommand: (() => void) | null = null;
 let _unregisterJobsCancelEscortCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
+let _unregisterMarketTerritorySystem: (() => void) | null = null;
 
 function isMountedCapacityRequest(value: unknown): value is { stateId: number; capacity?: number; handled: boolean } {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
@@ -2363,12 +2364,11 @@ export function init(api: ExtensionAPI): void {
     const { cellId, burgId } = event.detail;
     const assignedGoodId = Goods.assignBiomeProduct(cellId);
     const burg = getWorldContext().pack.burgs[burgId];
-    // A promoted frontier harbour must become an actual commercial centre, not
-    // merely borrow a market id. `addMarket` is idempotent for an existing
-    // centre; expanding territories afterwards gives the new market stock,
-    // demand, and a route-planning endpoint for genuine trade deals.
+    // Frontier polities share one market with their founding merchants. A new
+    // village joins that catchment; only a state that still has no market
+    // (typically a seaborne beachhead that founded a new polity) opens one.
     const createdMarket = burg ? Markets.addMarket(burgId) : null;
-    if (createdMarket) Markets.expandTerritories();
+    if (createdMarket || Markets.usesStateBoundedTerritories()) Markets.expandTerritories();
     if (burg) burg.market = getMarketCellColumn()[cellId] || 0;
     // A new catchment can cover an already-opened mine that was still paying labour
     // and delivering Ore to the old capital hinterland.
@@ -2568,6 +2568,14 @@ export function init(api: ExtensionAPI): void {
 
       const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+      // Incorporate last tick's political claims before this cycle's rural
+      // production. Same-tick claims are stamped in the finalize-phase sync.
+      measureTickStep("economy:marketTerritories", () => {
+        if (Markets.syncStateBoundedTerritories()) {
+          syncBurgMarketLedgers();
+          markProductionDirty();
+        }
+      });
       // Must run before updateAnnualAgriculture() so this year's Tools investment feeds
       // this year's yieldPerArea/farmLaborRequired recompute, not next year's
       // (docs/plan/rural-agtech-investment.md §3.5). Industrial tech runs right after so
@@ -2807,6 +2815,22 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  _unregisterMarketTerritorySystem = api.registerSimulationSystem({
+    id: "economy.marketTerritories",
+    phase: "finalize",
+    reads: ["map.politics", "simulation.cells", "extension.economy"],
+    writes: ["extension.economy", "simulation.burgs"],
+    cadence: { every: 1 },
+    profileLabel: "economyMarketTerritories",
+    run: (_context, writer) => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+      if (!Markets.syncStateBoundedTerritories()) return;
+      syncBurgMarketLedgers();
+      markProductionDirty();
+      writer.markChanged("extension.economy", "simulation.burgs");
+    }
+  });
+
   // Bind trade animation renderer (must happen before any toggle)
   TradeAnimation.bind({
     draw: drawTradeAnimation,
@@ -3033,6 +3057,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterClearCommand = null;
   _unregisterTickSystem?.();
   _unregisterTickSystem = null;
+  _unregisterMarketTerritorySystem?.();
+  _unregisterMarketTerritorySystem = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;

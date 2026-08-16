@@ -207,4 +207,50 @@ describe("findRoutePath", () => {
 
     expect(ta.findRoutePath(0, 2)).toBeNull();
   });
+
+  it("walks adjacent land cells when no road or sea lane connects two burgs", () => {
+    const pack = makePack(
+      {},
+      [],
+      [
+        [0, 0],
+        [10, 0],
+        [20, 0],
+        [30, 0]
+      ]
+    );
+    pack.cells.h = [25, 25, 25, 25];
+    pack.cells.c = [[1], [0, 2], [1, 3], [2]];
+    pack.cells.p = [
+      [0, 0],
+      [10, 0],
+      [20, 0],
+      [30, 0]
+    ];
+    worldContext.pack = pack as unknown as PackedGraph;
+    worldContext.distanceScale = 1;
+
+    const result = ta.findRoutePath(0, 3);
+    expect(result).not.toBeNull();
+    expect(result!.segments).toEqual([
+      {
+        type: "land",
+        points: [
+          [0, 0, 0],
+          [10, 0, 1],
+          [20, 0, 2],
+          [30, 0, 3]
+        ]
+      }
+    ]);
+  });
+
+  it("does not invent a land path across open water", () => {
+    const pack = makePack();
+    pack.cells.h = [25, 10, 10, 25];
+    pack.cells.c = [[1], [0, 2], [1, 3], [2]];
+    worldContext.pack = pack as unknown as PackedGraph;
+
+    expect(ta.findRoutePath(0, 3)).toBeNull();
+  });
 });

@@ -412,7 +412,65 @@ export class MarketsModule {
     return markets;
   }
 
+  /**
+   * Frontier-style maps keep political control on small homelands. The merchants
+   * who opened those homelands stay with the polity: one market per state, and
+   * the market's catchment is exactly the state's governed land.
+   */
+  usesStateBoundedTerritories(): boolean {
+    const pattern = this.worldContext.options?.initialSettlementPattern;
+    return pattern === "frontier" || pattern === "marches" || pattern === "scattered";
+  }
+
+  /**
+   * Re-stamps every claimed cell onto its state's market. Returns true when any
+   * cell or burg assignment changed, so callers can rebuild rural caches.
+   */
+  syncStateBoundedTerritories(): boolean {
+    if (!this.usesStateBoundedTerritories()) return false;
+    const markets = getMarkets();
+    if (!markets.length) return false;
+
+    const previous = getMarketCellColumn();
+    this.indexMarkets(markets);
+    const next = this.assignMarketsToStateTerritories(markets);
+    const changed = previous.length !== next.length || previous.some((marketId, cellId) => marketId !== next[cellId]);
+    if (changed) this.invalidateRuralProductionCache();
+    return changed;
+  }
+
   private createMarkets(): Market[] {
+    this.marketById = [];
+    const markets = this.usesStateBoundedTerritories() ? this.createOneMarketPerState() : this.createSpacedMarkets();
+    const colors = getColors(markets.length);
+    markets.forEach((m, i) => {
+      m.color = colors[i];
+    });
+    return markets;
+  }
+
+  private createOneMarketPerState(): Market[] {
+    const { burgs, states } = this.worldContext.pack;
+    const markets: Market[] = [];
+
+    for (const state of states ?? []) {
+      if (!state?.i || state.removed) continue;
+      const capital = burgs[state.capital];
+      const center =
+        capital?.i && !capital.removed
+          ? capital
+          : burgs.find(burg => burg.i && !burg.removed && burg.state === state.i);
+      if (!center?.i) continue;
+
+      const market = this.makeEmptyMarket(markets.length + 1, center.i);
+      markets.push(market);
+      this.marketById[market.i] = market;
+    }
+
+    return markets;
+  }
+
+  private createSpacedMarkets(): Market[] {
     // Score each burg by population; capitals and ports are weighted higher
     const scored = this.worldContext.pack.burgs
       .map(burg => {
@@ -442,29 +500,26 @@ export class MarketsModule {
       const { x, y } = burg;
       const nearest = tree.find(x, y, minSpacing);
       if (!nearest) {
-        // Create a new market anchored at this burg
-        const marketId = markets.length + 1;
-        const market: Market = {
-          i: marketId,
-          centerBurgId: burg.i,
-          color: "",
-          goods: {},
-          warehouseSecurity: 50,
-          warehouseSanitation: 50
-        };
+        const market = this.makeEmptyMarket(markets.length + 1, burg.i);
         markets.push(market);
-        this.marketById[marketId] = market;
-        tree.add([x, y, marketId]);
+        this.marketById[market.i] = market;
+        tree.add([x, y, market.i]);
         minSpacing += 1;
       }
     }
 
-    const colors = getColors(markets.length);
-    markets.forEach((m, i) => {
-      m.color = colors[i];
-    });
-
     return markets;
+  }
+
+  private makeEmptyMarket(marketId: number, centerBurgId: number): Market {
+    return {
+      i: marketId,
+      centerBurgId,
+      color: "",
+      goods: {},
+      warehouseSecurity: 50,
+      warehouseSanitation: 50
+    };
   }
 
   expandTerritories(markets: Market[] = getMarkets()): Uint16Array {
@@ -488,6 +543,76 @@ export class MarketsModule {
   }
 
   private expandMarkets(markets: Market[]): Uint16Array {
+    return this.usesStateBoundedTerritories()
+      ? this.assignMarketsToStateTerritories(markets)
+      : this.floodFillMarketTerritories(markets);
+  }
+
+  private findMarketForState(stateId: number, markets: Market[] = getMarkets()): Market | undefined {
+    if (!stateId) return undefined;
+    const { burgs, states } = this.worldContext.pack;
+    const capitalId = states?.[stateId]?.capital;
+    if (capitalId) {
+      const capitalMarket = markets.find(market => market.centerBurgId === capitalId);
+      if (capitalMarket) return capitalMarket;
+    }
+    return markets.find(market => burgs[market.centerBurgId]?.state === stateId);
+  }
+
+  /**
+   * One market per polity: every governed land cell belongs to that state's
+   * merchants. Wilderness stays unassigned so a three-cell opening does not
+   * swallow the continent.
+   */
+  private assignMarketsToStateTerritories(markets: Market[]): Uint16Array {
+    const cells = this.worldContext.pack.cells;
+    const burgs = this.worldContext.pack.burgs;
+    const goodCellColumn = getGoodCellColumn();
+    const cellMarket = new Uint16Array(cells.i.length);
+    const marketByState = new Map<number, number>();
+    const tradeCenters = {} as Record<number, boolean>;
+
+    for (const market of markets) {
+      const centerBurg = burgs[market.centerBurgId];
+      if (!centerBurg) continue;
+      tradeCenters[centerBurg.i!] = true;
+      const stateId = centerBurg.state || cells.state?.[centerBurg.cell] || 0;
+      if (stateId && !marketByState.has(stateId)) marketByState.set(stateId, market.i);
+      cellMarket[centerBurg.cell] = market.i;
+    }
+
+    for (const cellId of cells.i) {
+      const stateId = cells.state?.[cellId] ?? 0;
+      const marketId = marketByState.get(stateId);
+      if (!marketId) continue;
+      if (cells.h[cellId] < 20 && !goodCellColumn[cellId]) continue;
+      cellMarket[cellId] = marketId;
+    }
+
+    // Coastal water goods belong to the adjacent homeland, not a void market.
+    for (const cellId of cells.i) {
+      if (cellMarket[cellId] || cells.h[cellId] >= 20 || !goodCellColumn[cellId]) continue;
+      for (const neighborId of cells.c[cellId] ?? []) {
+        const neighborMarket = cellMarket[neighborId];
+        if (neighborMarket) {
+          cellMarket[cellId] = neighborMarket;
+          break;
+        }
+      }
+    }
+
+    setMarketCellColumn(cellMarket);
+
+    for (const burg of burgs) {
+      if (!burg.i || burg.removed) continue;
+      burg.market = cellMarket[burg.cell] || 0;
+      burg.plaza = burg.plaza || tradeCenters[burg.i] ? 1 : 0;
+    }
+
+    return cellMarket;
+  }
+
+  private floodFillMarketTerritories(markets: Market[]): Uint16Array {
     const cells = this.worldContext.pack.cells;
     const goodCellColumn = getGoodCellColumn();
     const cellMarket = new Uint16Array(cells.i.length);
@@ -1115,6 +1240,20 @@ export class MarketsModule {
     const markets = getMarkets();
     if (markets.some(m => m.centerBurgId === burgId)) {
       return null;
+    }
+
+    // A new frontier village is supplied by the merchants who already serve
+    // that polity. Do not plant a second market inside the same state.
+    if (this.usesStateBoundedTerritories()) {
+      const stateId = burg.state || this.worldContext.pack.cells.state?.[burg.cell] || 0;
+      const existing = this.findMarketForState(stateId, markets);
+      if (existing) {
+        const column = getMarketCellColumn();
+        if (burg.cell >= 0 && burg.cell < column.length) column[burg.cell] = existing.i;
+        burg.market = existing.i;
+        burg.plaza = burg.plaza || 1;
+        return null;
+      }
     }
 
     const maxId = markets.reduce((max, m) => Math.max(max, m.i), 0);

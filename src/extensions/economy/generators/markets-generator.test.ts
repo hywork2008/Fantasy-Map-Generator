@@ -800,6 +800,126 @@ describe("MarketsModule", () => {
       expect(destination.goods[4].stock).toBe(2.5);
     });
   });
+
+  describe("frontier state-bounded territories", () => {
+    let marketsModule: MarketsModule;
+
+    afterEach(() => {
+      clearEconomyContext();
+      clearCharactersContext();
+    });
+
+    beforeEach(() => {
+      const api = { worldContext } as unknown as ExtensionAPI;
+      initEconomyContext(api);
+      initCharactersContext(api);
+      marketsModule = new MarketsModule();
+      worldContext.graphWidth = 1000;
+      worldContext.graphHeight = 800;
+      worldContext.distanceScale = 1;
+      worldContext.options = { gunpowderEraEnabled: true } as typeof worldContext.options;
+      worldContext.pack = {
+        characters: [],
+        cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+        goods: [],
+        markets: [],
+        burgs: [],
+        deals: [],
+        states: [{ i: 0, salesTax: 0 }]
+      } as unknown as PackedGraph;
+    });
+
+    function installFrontierWorld(): void {
+      worldContext.graphWidth = 2000;
+      worldContext.graphHeight = 1600;
+      worldContext.options = {
+        ...worldContext.options,
+        initialSettlementPattern: "frontier"
+      } as typeof worldContext.options;
+      worldContext.pack.states = [
+        { i: 0 },
+        { i: 1, capital: 1 },
+        { i: 2, capital: 2 },
+        { i: 3, capital: 3 }
+      ] as unknown as PackedGraph["states"];
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, cell: 0, state: 1, capital: 1, x: 50, y: 50, name: "North" } as unknown as Burg,
+        { i: 2, cell: 5, state: 2, capital: 1, x: 1900, y: 50, name: "East" } as unknown as Burg,
+        { i: 3, cell: 8, state: 3, capital: 1, x: 50, y: 1500, name: "South" } as unknown as Burg
+      ];
+      worldContext.pack.cells = {
+        i: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        h: [25, 25, 25, 25, 25, 25, 10, 25, 25],
+        c: [[1], [0, 2], [1, 3], [2, 4], [3], [4], [5], [8], [7]],
+        state: Uint16Array.from([1, 0, 0, 0, 0, 2, 0, 0, 3]),
+        f: [1, 1, 1, 1, 1, 1, 2, 1, 1]
+      } as unknown as PackedGraph["cells"];
+    }
+
+    it("places one market per state instead of one continent-wide catchment", () => {
+      installFrontierWorld();
+      // biome-ignore lint/complexity/useLiteralKeys: private factory under test
+      const markets = marketsModule["createMarkets"]() as Market[];
+
+      expect(markets).toHaveLength(3);
+      expect(markets.map(market => market.centerBurgId).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    });
+
+    it("assigns only governed land to each state's market and leaves wilderness empty", () => {
+      installFrontierWorld();
+      // biome-ignore lint/complexity/useLiteralKeys: private factory under test
+      const markets = marketsModule["createMarkets"]() as Market[];
+      setMarkets(markets);
+      // biome-ignore lint/complexity/useLiteralKeys: private expansion under test
+      const territories = marketsModule["expandMarkets"](markets) as Uint16Array;
+
+      const marketByBurg = Object.fromEntries(markets.map(market => [market.centerBurgId, market.i]));
+      expect(territories[0]).toBe(marketByBurg[1]);
+      expect(territories[5]).toBe(marketByBurg[2]);
+      expect(territories[8]).toBe(marketByBurg[3]);
+      expect(territories[1]).toBe(0);
+      expect(territories[2]).toBe(0);
+      expect(territories[3]).toBe(0);
+      expect(territories[4]).toBe(0);
+      expect(worldContext.pack.burgs[1].market).toBe(marketByBurg[1]);
+    });
+
+    it("expands a state's market onto newly incorporated cells of that state only", () => {
+      installFrontierWorld();
+      // biome-ignore lint/complexity/useLiteralKeys: private factory under test
+      const markets = marketsModule["createMarkets"]() as Market[];
+      setMarkets(markets);
+      marketsModule.expandTerritories(markets);
+
+      worldContext.pack.cells.state[1] = 1;
+      worldContext.pack.cells.state[2] = 1;
+      expect(marketsModule.syncStateBoundedTerritories()).toBe(true);
+
+      const column = getMarketCellColumn();
+      const homeMarket = worldContext.pack.burgs[1].market;
+      expect(column[1]).toBe(homeMarket);
+      expect(column[2]).toBe(homeMarket);
+      expect(column[3]).toBe(0);
+      expect(column[5]).not.toBe(homeMarket);
+    });
+
+    it("adds a new burg to the existing state market instead of opening a rival", () => {
+      installFrontierWorld();
+      // biome-ignore lint/complexity/useLiteralKeys: private factory under test
+      const markets = marketsModule["createMarkets"]() as Market[];
+      setMarkets(markets);
+      marketsModule.expandTerritories(markets);
+
+      const village: Burg = { i: 4, cell: 1, state: 1, x: 80, y: 50, name: "Outpost" } as unknown as Burg;
+      worldContext.pack.burgs.push(village);
+      worldContext.pack.cells.state[1] = 1;
+
+      expect(marketsModule.addMarket(4)).toBeNull();
+      expect(village.market).toBe(worldContext.pack.burgs[1].market);
+      expect(getMarkets()).toHaveLength(3);
+    });
+  });
 });
 
 describe("MarketsModule shipbuilding material consumption", () => {
