@@ -28,6 +28,18 @@ const SETTLEMENT_SUPPORT_YEARS = 3;
 const MAX_OUTPOST_DANGER = FRONTIER_OUTPOST_MAX_DANGER;
 const SETUP_FOOD = 4;
 const MAX_FRONTIER_HOPS = 6;
+/**
+ * Cost per hop of distance from the State's own territory, applied to every
+ * land candidate's score. Founding and later corridor-claiming a settlement
+ * are both instantaneous population/land transactions with no simulated
+ * travel, escort, or elapsed time — nothing else in the scoring makes a
+ * six-hop reach materially riskier or slower than a one-hop one. This term is
+ * the only thing standing in for that missing cost, so it must be large
+ * enough that a resource claim cannot make a maximal reach the default
+ * outcome (see RESOURCE_CLAIM_* below) — a legitimate close find should still
+ * win outright; a distant one should only win when nothing closer competes.
+ */
+const LAND_HOP_PENALTY = 25;
 const SOURCE_RETENTION_RATIO = 0.65;
 const MAX_FRONTIER_PROJECT_SLOTS = 3;
 /** A one- or two-cell rock cannot sustain the harbour town and hinterland an overseas colony requires. */
@@ -502,7 +514,9 @@ function getLandStateCandidates(
       origin: "land",
       resourceClaimCellId: getNearestResourceClaimCell(stateId, cells, frontier, cellId),
       score:
-        scoreCandidate(world, cells, cellId, 0) + getResourceClaimPriority(stateId, cells, frontier, cellId) - hops * 9,
+        scoreCandidate(world, cells, cellId, 0) +
+        getResourceClaimPriority(stateId, cells, frontier, cellId) -
+        hops * LAND_HOP_PENALTY,
       setupCost: SETUP_COST,
       requiredReserve: TREASURY_RESERVE + SETUP_COST
     });
@@ -844,10 +858,26 @@ function scoreCandidate(
   );
 }
 
+/** Full bonus for a candidate that IS the discovered resource cell. */
+const RESOURCE_CLAIM_MATCH_BONUS = 90;
+/** Ceiling of the tapering bonus for a candidate merely approaching a claim. */
+const RESOURCE_CLAIM_APPROACH_BONUS = 70;
+const RESOURCE_CLAIM_APPROACH_DECAY = 4;
+
 /**
  * A claim is survey knowledge, not ownership. It rewards the next reachable
  * frontier cell that shortens the route to that discovery, retaining the
  * ordinary incremental corridor and incorporation rules.
+ *
+ * The state-led survey (Economy's MineOperations.prospectForState) can spot a
+ * claim up to 20 hops out — far past MAX_FRONTIER_HOPS — so this bonus alone
+ * used to make the farthest reachable cell toward any known claim the
+ * near-automatic pick, every direction from the surveyed one scoring far
+ * behind it. That reads as an unescorted population jump straight to a
+ * prize rather than a State settling outward and happening to reach a find.
+ * These constants are kept below LAND_HOP_PENALTY's six-hop ceiling (150) so
+ * a claim can still tip a close call, or justify a modest reach when nothing
+ * closer competes, but can no longer out-vote every hop of extra distance.
  */
 function getResourceClaimPriority(
   stateId: number,
@@ -857,12 +887,12 @@ function getResourceClaimPriority(
 ): number {
   const claimCellId = getNearestResourceClaimCell(stateId, cells, frontier, candidateCellId);
   if (claimCellId === undefined) return 0;
-  if (claimCellId === candidateCellId) return 180;
+  if (claimCellId === candidateCellId) return RESOURCE_CLAIM_MATCH_BONUS;
   const candidatePoint = cells.p?.[candidateCellId];
   const claimPoint = cells.p?.[claimCellId];
   if (!candidatePoint || !claimPoint) return 0;
   const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);
-  return Math.max(0, 110 - distance / 4);
+  return Math.max(0, RESOURCE_CLAIM_APPROACH_BONUS - distance / RESOURCE_CLAIM_APPROACH_DECAY);
 }
 
 function getNearestResourceClaimCell(
@@ -876,7 +906,13 @@ function getNearestResourceClaimCell(
   let bestCellId: number | undefined;
   let bestDistance = Infinity;
   for (const claim of Object.values(frontier.resourceClaimsByCell)) {
-    if (claim.stateId !== stateId || claim.status === "secured" || cells.state[claim.cellId] !== 0) continue;
+    // regimentMovement.ts's getResourceGuardClaim() marches a disposable regiment
+    // out to a freshly surveyed claim ("discovered" → "guardMarching" →
+    // "guarding"). Before that regiment physically arrives, nothing is actually
+    // holding the site — pulling colonist funding toward it already would be
+    // the same unescorted population jump this priority exists to justify
+    // against ordinary, closer land. Wait for "guarding" before it can pull.
+    if (claim.stateId !== stateId || claim.status !== "guarding" || cells.state[claim.cellId] !== 0) continue;
     const claimPoint = cells.p?.[claim.cellId];
     if (!claimPoint) continue;
     const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);

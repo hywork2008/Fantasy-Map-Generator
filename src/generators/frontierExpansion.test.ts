@@ -206,12 +206,14 @@ describe("Frontier Expansion Phase 3", () => {
       routes: { 0: {}, 1: {}, 2: {} }
     };
     const simulation = createSimulation(100, 100, 3);
+    // A regiment (regimentMovement.ts's guard march) has already reached the
+    // site — only then does the frontier system treat it as worth reaching for.
     simulation.frontier.resourceClaimsByCell[2] = {
       cellId: 2,
       stateId: 1,
       commodity: "gold",
       discoveredYear: 100,
-      status: "discovered"
+      status: "guarding"
     };
 
     const result = advance(world, simulation);
@@ -219,6 +221,106 @@ describe("Frontier Expansion Phase 3", () => {
     expect(result.established[0]).toBe(2);
     expect(world.pack.cells.state[2]).toBe(0);
     expect(simulation.frontier.resourceClaimsByCell[2]?.status).toBe("settling");
+  });
+
+  it("does not pull an expedition toward a claim until its guard regiment has arrived", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      p: [
+        [0, 0],
+        [1, 0],
+        [20, 0]
+      ],
+      c: [[1, 2], [0], [0]],
+      state: new Uint16Array([1, 0, 0]),
+      province: new Uint16Array([1, 0, 0]),
+      pop: new Float32Array([100, 0, 0]),
+      capacity: new Float32Array([100, 50, 50]),
+      children: new Float32Array([25, 0, 0]),
+      maleAdults: new Float32Array([25, 0, 0]),
+      femaleAdults: new Float32Array([25, 0, 0]),
+      elders: new Float32Array([25, 0, 0]),
+      danger: new Uint8Array([0, 10, 10]),
+      h: new Uint8Array([30, 30, 30]),
+      s: new Uint8Array([50, 50, 50]),
+      r: new Uint16Array([0, 0, 0]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+
+    for (const status of ["discovered", "guardMarching", "settling"] as const) {
+      simulation.frontier.resourceClaimsByCell[2] = {
+        cellId: 2,
+        stateId: 1,
+        commodity: "gold",
+        discoveredYear: 100,
+        status
+      };
+      const candidates = getFrontierCandidateSummaries(world, simulation);
+      const claimCandidate = candidates.find(candidate => candidate.cellId === 2);
+      expect(claimCandidate?.resourceClaimCellId).toBeUndefined();
+    }
+
+    simulation.frontier.resourceClaimsByCell[2]!.status = "guarding";
+    const guardedCandidates = getFrontierCandidateSummaries(world, simulation);
+    expect(guardedCandidates.find(candidate => candidate.cellId === 2)?.resourceClaimCellId).toBe(2);
+  });
+
+  it("does not let a distant resource claim outrank a much closer, otherwise-equal site", () => {
+    const world = createWorld();
+    // Chain: 0 (owned) branches to 1 (one hop away) and to a five-hop line 2-3-4-5-6,
+    // with a discovered claim sitting on the far end (6). Every candidate cell shares
+    // identical terrain, so only hop distance and the resource bonus can separate them.
+    const cellIds = [0, 1, 2, 3, 4, 5, 6];
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: Uint16Array.from(cellIds),
+      c: [[1, 2], [0], [0, 3], [2, 4], [3, 5], [4, 6], [5]],
+      p: cellIds.map(cellId => [cellId * 100, 0] as [number, number]),
+      state: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 1 : 0)),
+      province: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 1 : 0)),
+      pop: Float32Array.from(cellIds, cellId => (cellId === 0 ? 100 : 0)),
+      capacity: Float32Array.from(cellIds, cellId => (cellId === 0 ? 100 : 50)),
+      children: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      maleAdults: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      femaleAdults: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      elders: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      danger: new Uint8Array(cellIds.length),
+      h: new Uint8Array(cellIds.length).fill(30),
+      s: new Uint8Array(cellIds.length).fill(50),
+      r: new Uint16Array(cellIds.length),
+      harbor: new Uint8Array(cellIds.length),
+      conf: new Uint8Array(cellIds.length),
+      burg: new Uint16Array(cellIds.length),
+      routes: Object.fromEntries(cellIds.map(cellId => [cellId, {}]))
+    };
+    const simulation = createSimulation(100, 100, cellIds.length);
+    // Guarded, not merely discovered — the priority bonus is live for this test.
+    simulation.frontier.resourceClaimsByCell[6] = {
+      cellId: 6,
+      stateId: 1,
+      commodity: "gold",
+      discoveredYear: 100,
+      status: "guarding"
+    };
+
+    const candidates = getFrontierCandidateSummaries(world, simulation);
+    const near = candidates.find(candidate => candidate.cellId === 1);
+    const far = candidates.find(candidate => candidate.cellId === 6);
+    expect(near).toBeDefined();
+    expect(far).toBeDefined();
+    // A five-hop reach for the claim must not out-score the one-hop, equally
+    // fundable, equally fertile alternative right next door.
+    expect(near!.score).toBeGreaterThan(far!.score);
+    // The state can afford all three of its slots this year, so the distant
+    // claim cell is still eventually settled — but only after the closer,
+    // higher-priority site, not instead of it.
+    expect(advance(world, simulation).established[0]).toBe(1);
   });
 
   it("pools several small local surpluses into one viable frontier expedition", () => {
