@@ -3,6 +3,7 @@
 2026-08-16
 
 - docs/simulation/frontier-start-modes.md
+- docs/simulation/frontier-start-placement-guidelines.md
 
 2026-08-15
 
