@@ -44,7 +44,7 @@ export function selectFrontierStartCapitals(args: FrontierStartPlacementArgs): S
     const landEligible = plan.nodes.filter(node => isEligibleStartLandmass(pack, node.cell, minCells));
     const pool = startMode === "seaborne" ? preferSeaborneHarborNodes(plan, pack, landEligible, count) : landEligible;
     if (!pool.length) continue;
-    selected = selectInitialPolityCapitalNodes({ ...plan, nodes: pool }, points, count, { maxPerRegion });
+    selected = pickPreferredLandmassNodes(plan, pack, pool, points, count, maxPerRegion);
     if (selected.length) break;
   }
 
@@ -52,16 +52,41 @@ export function selectFrontierStartCapitals(args: FrontierStartPlacementArgs): S
     const notTiny = plan.nodes.filter(
       node => landFeatureCellCount(pack, node.cell) >= MIN_FRONTIER_START_LAND_CELLS_ABSOLUTE
     );
-    selected = selectInitialPolityCapitalNodes(
-      { ...plan, nodes: notTiny.length ? notTiny : plan.nodes },
+    selected = pickPreferredLandmassNodes(
+      plan,
+      pack,
+      notTiny.length ? notTiny : plan.nodes,
       points,
       count,
-      { maxPerRegion }
+      maxPerRegion
     );
   }
 
   if (startMode !== "seaborne") return selected;
   return snapCapitalsToOceanHarbors(plan, pack, selected);
+}
+
+function pickPreferredLandmassNodes(
+  plan: SettlementFoundationPlan,
+  pack: PackedGraph,
+  pool: readonly SettlementNode[],
+  points: PackedGraph["cells"]["p"],
+  count: number,
+  maxPerRegion: number | undefined
+): SettlementNode[] {
+  const continents = pool.filter(node => isContinentCell(pack, node.cell));
+  if (!continents.length) {
+    return selectInitialPolityCapitalNodes({ ...plan, nodes: [...pool] }, points, count, { maxPerRegion });
+  }
+  const selected = selectInitialPolityCapitalNodes({ ...plan, nodes: continents }, points, count, { maxPerRegion });
+  if (selected.length >= count) return selected;
+  const used = new Set(selected.map(node => node.cell));
+  const rest = pool.filter(node => !used.has(node.cell) && !isContinentCell(pack, node.cell));
+  if (!rest.length) return selected;
+  return [
+    ...selected,
+    ...selectInitialPolityCapitalNodes({ ...plan, nodes: rest }, points, count - selected.length, { maxPerRegion })
+  ];
 }
 
 function preferSeaborneHarborNodes(
@@ -259,34 +284,23 @@ function pickSpacedCoastalCells(
     list.push(cellId);
     byFeature.set(featureId, list);
   }
-  const features = [...byFeature.keys()].sort(
-    (left, right) =>
-      landFeatureCellCount(pack, byFeature.get(right)![0]) - landFeatureCellCount(pack, byFeature.get(left)![0])
-  );
+  const features = [...byFeature.keys()].sort((left, right) => compareStartLandmass(pack, left, right));
 
+  // Continents first. One-per-landmass across islands is how 4 states became
+  // 2:2 (one each on two isles, then a second on the continent).
+  const continentFeatures = features.filter(featureId => isContinentFeature(pack, featureId));
+  const otherFeatures = features.filter(featureId => !isContinentFeature(pack, featureId));
   const picked: number[] = [];
-  // First pass: one best river-mouth per landmass so states are not stacked
-  // on a single beach, without forcing every capital onto the map rim.
-  for (const featureId of features) {
-    if (picked.length >= count) break;
-    const best = [...byFeature.get(featureId)!].sort(
-      (left, right) => startCellScore(pack, right) - startCellScore(pack, left) || left - right
-    )[0];
-    picked.push(best);
-  }
-
-  for (const minHops of hopLadder) {
-    if (picked.length >= count) break;
-    for (const featureId of features) {
-      if (picked.length >= count) break;
-      const next = bestSpacedCoastalCell(
-        pack,
-        byFeature.get(featureId)!,
-        picked.filter(cellId => (pack.cells.f?.[cellId] ?? 0) === featureId),
-        minHops
-      );
-      if (next !== null && !picked.includes(next)) picked.push(next);
-    }
+  fillSpacedLandmasses(
+    pack,
+    byFeature,
+    continentFeatures.length ? continentFeatures : otherFeatures,
+    picked,
+    count,
+    hopLadder
+  );
+  if (picked.length < count && continentFeatures.length) {
+    fillSpacedLandmasses(pack, byFeature, otherFeatures, picked, count, hopLadder);
   }
 
   if (picked.length < count) {
@@ -299,6 +313,58 @@ function pickSpacedCoastalCells(
     }
   }
   return picked.slice(0, count);
+}
+
+function fillSpacedLandmasses(
+  pack: PackedGraph,
+  byFeature: ReadonlyMap<number, number[]>,
+  features: readonly number[],
+  picked: number[],
+  count: number,
+  hopLadder: readonly number[]
+): void {
+  for (const featureId of features) {
+    if (picked.length >= count) return;
+    const best = [...byFeature.get(featureId)!].sort(
+      (left, right) => startCellScore(pack, right) - startCellScore(pack, left) || left - right
+    )[0];
+    if (best !== undefined && !picked.includes(best)) picked.push(best);
+  }
+
+  for (const minHops of hopLadder) {
+    if (picked.length >= count) return;
+    for (const featureId of features) {
+      if (picked.length >= count) return;
+      const next = bestSpacedCoastalCell(
+        pack,
+        byFeature.get(featureId)!,
+        picked.filter(cellId => (pack.cells.f?.[cellId] ?? 0) === featureId),
+        minHops
+      );
+      if (next !== null && !picked.includes(next)) picked.push(next);
+    }
+  }
+}
+
+function isContinentFeature(pack: PackedGraph, featureId: number): boolean {
+  return pack.features?.[featureId]?.group === "continent";
+}
+
+function isContinentCell(pack: PackedGraph, cellId: number): boolean {
+  const featureId = pack.cells.f?.[cellId];
+  return featureId !== undefined && isContinentFeature(pack, featureId);
+}
+
+function featureLandCells(pack: PackedGraph, featureId: number): number {
+  const feature = pack.features?.[featureId];
+  if (!feature?.land) return 0;
+  return feature.cells ?? 0;
+}
+
+function compareStartLandmass(pack: PackedGraph, left: number, right: number): number {
+  const continentDelta = Number(isContinentFeature(pack, right)) - Number(isContinentFeature(pack, left));
+  if (continentDelta) return continentDelta;
+  return featureLandCells(pack, right) - featureLandCells(pack, left) || left - right;
 }
 
 function bestSpacedCoastalCell(

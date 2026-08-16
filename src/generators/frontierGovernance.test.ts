@@ -82,4 +82,32 @@ describe("frontier governance", () => {
     expect(bare.disaster).toBe("drought");
     expect(bare.recoveryCost).toBeGreaterThan(protectedAssessment.recoveryCost);
   });
+
+  it("lets a well from a neighbouring river keep a tight food margin alive", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1]),
+      pop: new Float32Array([10, 0]),
+      capacity: new Float32Array([11, 11]),
+      subsistenceCapacity: new Float32Array([11, 11]),
+      danger: new Uint8Array([0, 0]),
+      s: new Uint8Array([40, 40]),
+      r: new Uint16Array([0, 1]),
+      c: [[1], [0]]
+    };
+    const simulation = createSimulation();
+    const project = simulation.frontier.projects[0]!;
+
+    const assessment = assessFrontierSupport(
+      world,
+      simulation,
+      project,
+      60,
+      createRNGService(() => 0.99)
+    );
+
+    expect(assessment.canSupport).toBe(true);
+    expect(assessment.failureReasons).not.toContain("Local food capacity is too low for the settlement");
+  });
 });

@@ -322,6 +322,41 @@ describe("Frontier Expansion Phase 3", () => {
     expect(advance(world, simulation).established).toEqual([1]);
   });
 
+  it("scores a riverless neighbour and a rainy well site instead of only on-cell rivers", () => {
+    const world = createWorld();
+    world.grid = { cells: { prec: new Uint8Array([20, 2]) } };
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      c: [[1], [0, 2], [1]],
+      g: new Uint16Array([0, 0, 1]),
+      state: new Uint16Array([1, 0, 0]),
+      province: new Uint16Array([1, 0, 0]),
+      pop: new Float32Array([80, 0, 0]),
+      capacity: new Float32Array([80, 40, 40]),
+      subsistenceCapacity: new Float32Array([80, 40, 40]),
+      children: new Float32Array([20, 0, 0]),
+      maleAdults: new Float32Array([20, 0, 0]),
+      femaleAdults: new Float32Array([20, 0, 0]),
+      elders: new Float32Array([20, 0, 0]),
+      danger: new Uint8Array([0, 10, 10]),
+      h: new Uint8Array([30, 30, 30]),
+      s: new Uint8Array([50, 50, 50]),
+      r: new Uint16Array([1, 0, 0]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+
+    const candidates = getFrontierCandidateSummaries(world, simulation);
+    expect(candidates.map(candidate => candidate.cellId)).toContain(1);
+    expect(candidates.find(candidate => candidate.cellId === 1)!.score).toBeGreaterThan(
+      candidates.find(candidate => candidate.cellId === 2)?.score ?? Number.NEGATIVE_INFINITY
+    );
+  });
+
   it("does not advertise a candidate when its connected population reserve cannot form an expedition", () => {
     const world = createWorld();
     world.pack.cells = {

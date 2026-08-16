@@ -12,6 +12,7 @@ import { allowsGeneratedSeaLanes } from "../utils/frontierStartMode";
 import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
 import { isTrueOceanHarborCell, isTrueOceanPortBurg } from "../utils/oceanPort";
 import type { RNGService } from "../utils/probabilityUtils";
+import { getCellPrecipitation, getCellWaterAccess } from "./cellWaterAccess";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
 import { type FrontierIncorporation, incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
@@ -429,8 +430,7 @@ function getStateCandidates(
   frontier: FrontierSimulationState,
   stateCenter: number | undefined
 ): readonly InternalFrontierCandidateSummary[] {
-  const { cells } = world.pack;
-  const landCandidates = getLandStateCandidates(stateId, cells, frontier, stateCenter);
+  const landCandidates = getLandStateCandidates(stateId, world, frontier, stateCenter);
   // Overseas colonization is an escape from a closed land frontier, not a
   // replacement for ordinary local settlement. A State first uses reachable
   // wilderness on its present landmass; only then may an ocean-going port
@@ -440,10 +440,11 @@ function getStateCandidates(
 
 function getLandStateCandidates(
   stateId: number,
-  cells: WorldContext["pack"]["cells"],
+  world: WorldContext,
   frontier: FrontierSimulationState,
   stateCenter: number | undefined
 ): readonly InternalFrontierCandidateSummary[] {
+  const { cells } = world.pack;
   const contributionsByTarget = new Map<number, FrontierContribution[]>();
   const poolAvailable = getFrontierApplicantPoolTotal(frontier, stateId);
 
@@ -503,7 +504,7 @@ function getLandStateCandidates(
       origin: "land",
       resourceClaimCellId: getNearestResourceClaimCell(stateId, cells, frontier, cellId),
       score:
-        scoreCandidate(cells, cellId, 0) +
+        scoreCandidate(world, cells, cellId, 0) +
         getResourceClaimPriority(stateId, cells, frontier, cellId) -
         Math.min(...contributions.map(contribution => contribution.hops)) * 9,
       setupCost: SETUP_COST,
@@ -615,7 +616,7 @@ function getSeaborneStateCandidates(
       // Prefer a colony with a real hinterland. Crossing distance is a soft
       // support cost, never a reason to settle a barren nearby islet instead.
       score:
-        scoreCandidate(cells, cellId, 0) +
+        scoreCandidate(world, cells, cellId, 0) +
         getSeaborneHinterlandScore(targetLandCells) +
         Math.min(36, hinterland.unclaimedLandCells * 2) -
         distance / 250,
@@ -831,8 +832,13 @@ function isEligibleTarget(
   );
 }
 
-function scoreCandidate(cells: WorldContext["pack"]["cells"], cellId: number, random: number): number {
-  const waterAccess = cells.r[cellId] ? 20 : cells.harbor[cellId] ? 15 : cells.conf[cellId] ? 8 : 0;
+function scoreCandidate(
+  world: WorldContext,
+  cells: WorldContext["pack"]["cells"],
+  cellId: number,
+  random: number
+): number {
+  const waterAccess = getCellWaterAccess(cells, cellId, getCellPrecipitation(world, cellId)).score;
   const terrainPenalty = cells.h[cellId] >= 70 ? 20 : cells.h[cellId] >= 55 ? 8 : 0;
   return (
     getCellSubsistenceCapacity(cells, cellId) +

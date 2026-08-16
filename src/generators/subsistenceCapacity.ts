@@ -5,6 +5,7 @@ import {
   type StapleCropKind,
   type StapleSoilType
 } from "../data/stapleCrops";
+import { getCellWaterAccess, RAINFED_WELL_PRECIPITATION } from "./cellWaterAccess";
 
 /** Dominant local food strategy. Codes keep the packed map serializable. */
 export const LIVELIHOOD_CODE = {
@@ -81,8 +82,9 @@ export function generateSubsistenceCapacity(world: WorldContext): void {
     const tags = world.biomesData.tags[cells.biomeCode[cellId] ?? 0] ?? [];
     const temperature = world.grid.cells.temp[cells.g[cellId] ?? cellId] ?? 12;
     const precipitation = world.grid.cells.prec[cells.g[cellId] ?? cellId] ?? 45;
-    const soil = getCellSoil(tags, Boolean(cells.r[cellId]));
-    const agriculture = getAgricultureSupport(temperature, precipitation, soil, tags);
+    const water = getCellWaterAccess(cells, cellId, precipitation);
+    const soil = getCellSoil(tags, water.kind === "river" || water.kind === "adjacentRiver");
+    const agriculture = getAgricultureSupport(temperature, precipitation, soil, tags, water.irrigationSupplement);
     const fishing = getFishingSupport(cells, cellId, tags);
     const pastoral = getPastoralSupport(temperature, tags);
     const foraging = getForagingSupport(temperature, tags);
@@ -104,12 +106,19 @@ function getAgricultureSupport(
   temperature: number,
   precipitation: number,
   soil: StapleSoilType,
-  tags: readonly string[]
+  tags: readonly string[],
+  irrigationSupplement = 0
 ): number {
   if (tags.includes("desert")) return 0;
-  const main = bestCropSuitability("cereal", temperature, precipitation, soil);
-  const root = bestCropSuitability("tuber", temperature, precipitation, soil);
-  const legume = bestCropSuitability("legume", temperature, precipitation, soil);
+  // A ditch or well only tops up a dry year. Adding rainfall to an already
+  // suitable cell would push wheat and other staples into the waterlogged tail.
+  const cropIrrigation =
+    irrigationSupplement > 0 && precipitation < RAINFED_WELL_PRECIPITATION
+      ? Math.min(irrigationSupplement, RAINFED_WELL_PRECIPITATION - precipitation)
+      : 0;
+  const main = bestCropSuitability("cereal", temperature, precipitation, soil, cropIrrigation);
+  const root = bestCropSuitability("tuber", temperature, precipitation, soil, cropIrrigation);
+  const legume = bestCropSuitability("legume", temperature, precipitation, soil, cropIrrigation);
   const staple = Math.max(main, root);
 
   // A staple and a legume represent the normal rotation. A lone staple is
@@ -124,12 +133,13 @@ function bestCropSuitability(
   kind: StapleCropKind,
   temperature: number,
   precipitation: number,
-  soil: StapleSoilType
+  soil: StapleSoilType,
+  irrigationSupplement = 0
 ): number {
   let best = 0;
   for (const crop of STAPLE_CROP_LIST) {
     if (crop.kind !== kind) continue;
-    best = Math.max(best, getStapleCropSuitability(crop, temperature, precipitation, soil));
+    best = Math.max(best, getStapleCropSuitability(crop, temperature, precipitation, soil, irrigationSupplement));
   }
   return best;
 }

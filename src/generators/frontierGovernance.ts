@@ -9,6 +9,7 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { RNGService } from "../utils/probabilityUtils";
+import { getCellPrecipitation, getCellWaterAccess, getWellCapacityBonus } from "./cellWaterAccess";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 const INVESTMENT_COST = 6;
@@ -74,10 +75,14 @@ export function assessFrontierSupport(
   const state = states[project.stateId];
   const governance = getFrontierGovernance(simulation, project.stateId);
   const population = cells.pop[project.cellId] ?? 0;
+  const water = getCellWaterAccess(cells, project.cellId, getCellPrecipitation(world, project.cellId));
   const capacity = getCellSubsistenceCapacity(cells, project.cellId);
+  const supportCapacity = capacity * (1 + getWellCapacityBonus(water, governance.investments.well));
   const danger = cells.danger[project.cellId] ?? 0;
-  const disaster = rollDisaster(cells, project.cellId, population, capacity, danger, governance, rng);
-  const recoveryCost = disaster ? Math.max(1, EMERGENCY_RELIEF_COST - mitigationFor(disaster, governance)) : 0;
+  const disaster = rollDisaster(cells, project.cellId, population, capacity, danger, governance, rng, water.canDigWell);
+  const recoveryCost = disaster
+    ? Math.max(1, EMERGENCY_RELIEF_COST - mitigationFor(disaster, governance, water.canDigWell))
+    : 0;
   const upkeep = Math.max(0, 1 - Math.min(1, governance.investments.road));
   const food = Math.max(0, 1 - Math.min(1, governance.investments.granary));
   const failureReasons: string[] = [];
@@ -86,7 +91,7 @@ export function assessFrontierSupport(
   // Judge the calendar-boundary reserve, not the post-economy cash remaining
   // after same-tick taxes and department upkeep.
   if (priorBudget < 12 + upkeep + recoveryCost) failureReasons.push("The state lacks its protected frontier reserve");
-  if (capacity < population * 1.2) failureReasons.push("Local food capacity is too low for the settlement");
+  if (supportCapacity < population * 1.2) failureReasons.push("Local food capacity is too low for the settlement");
   if (danger > 150 + governance.investments.fort * 12)
     failureReasons.push("Local danger exceeds the fort and patrol cover");
   if (disaster && recoveryCost > 0 && priorBudget < 12 + upkeep + recoveryCost) {
@@ -165,10 +170,12 @@ function rollDisaster(
   capacity: number,
   danger: number,
   governance: FrontierStateGovernance,
-  rng: RNGService
+  rng: RNGService,
+  canDigWell = false
 ): FrontierDisaster | undefined {
+  const wellLevel = governance.investments.well + (canDigWell ? 1 : 0);
   const risks: Array<{ disaster: FrontierDisaster; risk: number }> = [
-    { disaster: "drought", risk: ((cells.s[cellId] ?? 0) < 30 ? 0.12 : 0.025) - governance.investments.well * 0.02 },
+    { disaster: "drought", risk: ((cells.s[cellId] ?? 0) < 30 ? 0.12 : 0.025) - wellLevel * 0.02 },
     { disaster: "flood", risk: ((cells.fl?.[cellId] ?? 0) >= 100 ? 0.12 : 0.015) - governance.investments.road * 0.01 },
     {
       disaster: "epidemic",
@@ -187,14 +194,15 @@ function rollDisaster(
   return undefined;
 }
 
-function mitigationFor(disaster: FrontierDisaster, governance: FrontierStateGovernance): number {
+function mitigationFor(disaster: FrontierDisaster, governance: FrontierStateGovernance, canDigWell = false): number {
+  const wellLevel = governance.investments.well + (canDigWell ? 1 : 0);
   switch (disaster) {
     case "drought":
-      return governance.investments.well + governance.investments.granary;
+      return wellLevel + governance.investments.granary;
     case "flood":
       return governance.investments.road;
     case "epidemic":
-      return governance.investments.sanitation + governance.investments.well;
+      return governance.investments.sanitation + wellLevel;
     case "bandits":
       return governance.investments.fort;
   }

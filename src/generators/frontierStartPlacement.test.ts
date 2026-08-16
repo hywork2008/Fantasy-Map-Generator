@@ -6,7 +6,7 @@ import { selectFrontierStartCapitals } from "./frontierStartPlacement";
 function buildPack(opts: {
   cellCount: number;
   featureOf: number[];
-  features: Array<{ i: number; land: boolean; type: string; cells: number }>;
+  features: Array<{ i: number; land: boolean; type: string; cells: number; group?: string }>;
   harbor?: number[];
   haven?: number[];
   havenFeature?: number[];
@@ -277,5 +277,62 @@ describe("selectFrontierStartCapitals", () => {
       spacing: "dispersed"
     });
     expect(selected.map(node => node.cell).sort((a, b) => a - b)).toEqual([3, 14]);
+  });
+
+  it("fills a continent before opening island homelands under dispersed spacing", () => {
+    const cellCount = 130;
+    const featureOf = Array.from({ length: cellCount }, (_, i) => {
+      if (i === 125 || i === 126) return 8;
+      if (i >= 100) return 3;
+      if (i >= 80) return 2;
+      return 1;
+    });
+    const river = Array.from({ length: cellCount }, () => 0);
+    const harbor = Array.from({ length: cellCount }, () => 0);
+    const haven = Array.from({ length: cellCount }, () => 0);
+    const coast = Array.from({ length: cellCount }, () => 0);
+    const suitability = Array.from({ length: cellCount }, () => 8);
+    const mouths = [5, 20, 35, 50, 85, 110];
+    for (const cellId of mouths) {
+      river[cellId] = 1;
+      harbor[cellId] = 1;
+      haven[cellId] = cellId >= 100 ? 126 : 125;
+      coast[cellId] = 1;
+    }
+    // Island mouths are richer so the old one-per-landmass pass would take them.
+    suitability[85] = 90;
+    suitability[110] = 90;
+    suitability[5] = 40;
+    suitability[20] = 38;
+    suitability[35] = 36;
+    suitability[50] = 34;
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      river,
+      harbor,
+      haven,
+      coast,
+      suitability,
+      havenFeature: Array.from({ length: cellCount }, (_, i) => (mouths.includes(i) ? 8 : 0)),
+      features: [
+        { i: 1, land: true, type: "island", group: "continent", cells: 80 },
+        { i: 2, land: true, type: "island", group: "island", cells: 20 },
+        { i: 3, land: true, type: "island", group: "island", cells: 25 },
+        { i: 8, land: false, type: "ocean", cells: 400 }
+      ]
+    });
+    const selected = selectFrontierStartCapitals({
+      plan: plan(
+        mouths.map((cell, id) => ({ id, regionId: id, cell, role: "center", score: 1 })),
+        mouths.map(cell => [cell])
+      ),
+      pack,
+      count: 4,
+      startMode: "landOrigin",
+      realmSize: 1,
+      spacing: "dispersed"
+    });
+    expect(selected.map(node => node.cell).sort((a, b) => a - b)).toEqual([5, 20, 35, 50]);
   });
 });

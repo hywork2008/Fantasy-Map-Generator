@@ -50,6 +50,24 @@ describe("generateSubsistenceCapacity", () => {
     expect(getLivelihoodKind(livelihood?.[3])).toBe("foraging");
   });
 
+  it("raises agricultural support when the next cell has a river", () => {
+    const isolated = createWorld();
+    const watered = createWorld();
+    isolated.grid.cells.prec[0] = 4;
+    watered.grid.cells.prec[0] = 4;
+    watered.pack.cells.r = new Uint16Array([0, 0, 0, 0, 0]);
+    watered.pack.cells.c = [[1], [0], [], [], []];
+    watered.pack.cells.r[1] = 7;
+    isolated.pack.cells.c = [[], [], [], [], []];
+
+    generateSubsistenceCapacity(isolated);
+    generateSubsistenceCapacity(watered);
+
+    expect(watered.pack.cells.subsistenceCapacity?.[0] ?? 0).toBeGreaterThan(
+      isolated.pack.cells.subsistenceCapacity?.[0] ?? 0
+    );
+  });
+
   it("uses the local food capacity for initial population placement when available", async () => {
     const { applyInitialSettlementPattern } = await import("./settlementPattern");
     const cells = {
