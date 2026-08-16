@@ -341,7 +341,7 @@ export function buildLandCellGeometry(
 
     const fringes = getCoastalFringePolygons(cells, vertices, cellId);
     for (const fringe of fringes) {
-      geometry.push({ cellId, polygon: fringe });
+      geometry.push({ cellId, polygon: fringe, isFringe: true });
     }
   }
 
@@ -2163,8 +2163,17 @@ function appendLandPolygons(
   getFillColor: (cellId: number) => Color,
   idPrefix: string = kind
 ): void {
+  // Coastal fringe entries exist only to close the anti-gap seam under the opaque base "land" fill.
+  // Every other colour overlay shares this same topology but paints its own per-cell fillColor, so
+  // re-emitting the fringe there draws a second overlapping translucent shape for that one cell —
+  // its alpha compounds with the main polygon's instead of blending once, and cells with several
+  // coastal edges (or a state's many small boundary-adjacent cells) turn visibly darker/near-opaque.
+  // See `DeckLandCellGeometry.isFringe`'s doc comment.
+  const includeFringes = kind === "land";
+
   if (isFlatLandTopology(landCells)) {
     for (let index = 0; index < landCells.cellIds.length; index++) {
+      if (!includeFringes && landCells.isFringe[index]) continue;
       const cellId = landCells.cellIds[index];
       target.push({
         id: `${idPrefix}-cell-${cellId}`,
@@ -2177,7 +2186,8 @@ function appendLandPolygons(
     return;
   }
 
-  for (const { cellId, polygon } of landCells) {
+  for (const { cellId, polygon, isFringe } of landCells) {
+    if (!includeFringes && isFringe) continue;
     target.push({
       id: `${idPrefix}-cell-${cellId}`,
       kind,

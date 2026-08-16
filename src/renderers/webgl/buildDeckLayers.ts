@@ -162,7 +162,8 @@ const pendingLandTopologySignatures = new Set<string>();
 const emptyLandTopology: FlatLandTopology = {
   cellIds: new Uint32Array(),
   polygonOffsets: new Uint32Array([0]),
-  coordinates: new Float32Array()
+  coordinates: new Float32Array(),
+  isFringe: new Uint8Array()
 };
 
 /** Module-level cache for the ocean-depth offscreen canvas (not in deckLayerDataCache because HTMLCanvasElement is not CachedDeckData). */

@@ -22,7 +22,8 @@ workerScope.addEventListener("message", event => {
     workerScope.postMessage({ kind: "result", requestId: request.requestId, revision: request.revision, topology }, [
       topology.cellIds.buffer,
       topology.polygonOffsets.buffer,
-      topology.coordinates.buffer
+      topology.coordinates.buffer,
+      topology.isFringe.buffer
     ]);
   } catch (error) {
     workerScope.postMessage(

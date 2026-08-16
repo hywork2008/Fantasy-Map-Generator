@@ -38,7 +38,8 @@ function topology(value: number): FlatLandTopology {
   return {
     cellIds: new Uint32Array([value]),
     polygonOffsets: new Uint32Array([0, 2]),
-    coordinates: new Float32Array([value, value])
+    coordinates: new Float32Array([value, value]),
+    isFringe: new Uint8Array([0])
   };
 }
 

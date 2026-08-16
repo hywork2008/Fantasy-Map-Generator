@@ -38,7 +38,8 @@ class FakeProjectionWorker implements LandTopologyProjectionWorker {
         topology: {
           cellIds: new Uint32Array([revision]),
           polygonOffsets: new Uint32Array([0, 2]),
-          coordinates: new Float32Array([revision, revision])
+          coordinates: new Float32Array([revision, revision]),
+          isFringe: new Uint8Array([0])
         }
       }
     } as MessageEvent);
