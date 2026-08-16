@@ -1134,7 +1134,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
       Cultures.generate(worldContext, viewContext, appServices, state);
       Cultures.expand(state);
       const optionsSnap = useOptionsState.getState();
-      const preferredFrontierStartCells =
+      const preferredFrontierStarts =
         optionsSnap.initialSettlementPattern === "frontier" &&
         optionsSnap.frontierPolitySpacing === "dispersed" &&
         optionsSnap.frontierStartMode === "seaborne"
@@ -1154,7 +1154,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
         optionsSnap.oikoumeneLandShare,
         optionsSnap.frontierPolitySpacing,
         optionsSnap.frontierStartMode,
-        preferredFrontierStartCells
+        preferredFrontierStarts?.cells,
+        preferredFrontierStarts?.landmassOrder
       );
       if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
       else delete worldContext.pack.settlementFoundation;

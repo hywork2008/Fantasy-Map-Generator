@@ -90,7 +90,9 @@ describe("selectFrontierStartCapitals", () => {
       ]
     });
 
-    expect([...getPreferredDispersedSeaborneFoundationCells(pack, 1, 4)]).toEqual([5, 20, 35, 50]);
+    const starts = getPreferredDispersedSeaborneFoundationCells(pack, 1, 4);
+    expect([...starts.cells]).toEqual([5, 20, 35, 50]);
+    expect(starts.landmassOrder).toEqual([1, 1, 1, 1]);
   });
 
   it("excludes a large-but-noncontinental island when continents can host every polity", () => {
@@ -118,7 +120,67 @@ describe("selectFrontierStartCapitals", () => {
       ]
     });
 
-    expect([...getPreferredDispersedSeaborneFoundationCells(pack, 1, 4)]).toEqual([5, 25, 95, 115]);
+    const starts = getPreferredDispersedSeaborneFoundationCells(pack, 1, 4);
+    expect([...starts.cells]).toEqual([5, 25, 95, 115]);
+    expect(starts.landmassOrder).toEqual([1, 2, 1, 2]);
+  });
+
+  it("treats an island at least half as large as a continent as a peer homeland", () => {
+    const featureOf = Array.from({ length: 70 }, (_, index) => (index < 30 ? 1 : index < 60 ? 2 : index < 65 ? 3 : 8));
+    const harbor = Array.from({ length: 70 }, () => 0);
+    const haven = Array.from({ length: 70 }, () => 0);
+    for (const cellId of [5, 15, 35, 45, 61]) {
+      harbor[cellId] = 1;
+      haven[cellId] = 66;
+    }
+    const pack = buildPack({
+      cellCount: 70,
+      featureOf,
+      harbor,
+      haven,
+      havenFeature: Array.from({ length: 70 }, (_, index) => (haven[index] ? 8 : 0)),
+      features: [
+        { i: 1, land: true, type: "island", group: "continent", cells: 1_630 },
+        { i: 2, land: true, type: "island", group: "island", cells: 957 },
+        { i: 3, land: true, type: "island", group: "island", cells: 107 },
+        { i: 8, land: false, type: "ocean", cells: 400 }
+      ]
+    });
+
+    const starts = getPreferredDispersedSeaborneFoundationCells(pack, 2, 4);
+    expect([...starts.cells]).toEqual([5, 15, 35, 45]);
+    expect(starts.landmassOrder).toEqual([1, 2, 1, 2]);
+  });
+
+  it("allocates a four-polity archipelago across its three largest peer islands first", () => {
+    const cellCount = 2_600;
+    const featureOf = Array.from({ length: cellCount }, (_, index) =>
+      index < 868 ? 6 : index < 1_656 ? 18 : index < 2_430 ? 3 : index < 2_585 ? 8 : 9
+    );
+    const harbor = Array.from({ length: cellCount }, () => 0);
+    const haven = Array.from({ length: cellCount }, () => 0);
+    for (const cellId of [10, 20, 880, 890, 1_670, 1_680, 2_440]) {
+      harbor[cellId] = 1;
+      haven[cellId] = 2_590;
+    }
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      harbor,
+      haven,
+      havenFeature: Array.from({ length: cellCount }, (_, index) => (haven[index] ? 9 : 0)),
+      features: [
+        { i: 3, land: true, type: "island", group: "island", cells: 774 },
+        { i: 6, land: true, type: "island", group: "island", cells: 868 },
+        { i: 8, land: true, type: "island", group: "island", cells: 155 },
+        { i: 9, land: false, type: "ocean", cells: 400 },
+        { i: 18, land: true, type: "island", group: "island", cells: 788 }
+      ]
+    });
+
+    const starts = getPreferredDispersedSeaborneFoundationCells(pack, 2, 4);
+    expect([...starts.cells]).toEqual([10, 20, 880, 890, 1_670, 1_680]);
+    expect(starts.landmassOrder).toEqual([6, 18, 3, 6]);
   });
 
   it("never starts on a one-cell isle when a large landmass exists", () => {

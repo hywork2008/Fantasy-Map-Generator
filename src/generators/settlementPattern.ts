@@ -63,7 +63,8 @@ export function applyInitialSettlementPattern(
   oikoumeneLandShare?: number,
   frontierPolitySpacing?: FrontierPolitySpacing,
   frontierStartMode?: FrontierStartMode,
-  preferredFrontierStartCells?: ReadonlySet<number>
+  preferredFrontierStartCells?: ReadonlySet<number>,
+  preferredFrontierStartLandmassOrder?: readonly number[]
 ): SettlementPatternResult {
   if (pattern !== "standard" && canBuildFoundation(cells)) {
     const spacing = normalizeFrontierPolitySpacing(frontierPolitySpacing);
@@ -77,7 +78,8 @@ export function applyInitialSettlementPattern(
       oikoumeneLandShare,
       spacing,
       frontierStartMode,
-      preferredFrontierStartCells
+      preferredFrontierStartCells,
+      preferredFrontierStartLandmassOrder
     );
   }
 

@@ -84,7 +84,8 @@ export function createSettlementFoundation(
   oikoumeneLandShare?: number,
   politySpacing?: FrontierPolitySpacing,
   frontierStartMode?: FrontierStartMode,
-  preferredFrontierStartCells?: ReadonlySet<number>
+  preferredFrontierStartCells?: ReadonlySet<number>,
+  preferredFrontierStartLandmassOrder?: readonly number[]
 ): SettlementFoundationResult {
   const preset = getInitialSettlementPatternPreset(pattern);
   const saturation = clamp(initialPopulationSaturation, 0, 1);
@@ -117,7 +118,8 @@ export function createSettlementFoundation(
     regionCount,
     random,
     frontierRegionCenterDistanceWeight(spacing),
-    centerPool === preferredStartResources ? cells.f : undefined
+    centerPool === preferredStartResources ? cells.f : undefined,
+    centerPool === preferredStartResources ? preferredFrontierStartLandmassOrder : undefined
   );
   const footprint =
     oikoumeneLandShare !== undefined && Number.isFinite(oikoumeneLandShare)
@@ -319,10 +321,16 @@ function selectRegionCenters(
   count: number,
   random: () => number,
   distanceWeight = 0.76,
-  landFeatureByCell?: ArrayLike<number>
+  landFeatureByCell?: ArrayLike<number>,
+  landmassOrder?: readonly number[]
 ): SettledSite[] {
   const ranked = [...resources].sort((a, b) => b.score - a.score || a.id - b.id);
-  const centers: SettledSite[] = [ranked[0]];
+  const firstLandmass = landmassOrder?.[0];
+  const firstCenter =
+    firstLandmass === undefined || !landFeatureByCell
+      ? ranked[0]
+      : (ranked.find(site => landFeatureByCell[site.id] === firstLandmass) ?? ranked[0]);
+  const centers: SettledSite[] = [firstCenter];
   const diagonal = Math.max(
     1,
     Math.hypot(
@@ -334,8 +342,14 @@ function selectRegionCenters(
   const qualityWeight = 1 - separation;
 
   while (centers.length < count) {
+    const intendedLandmass = landmassOrder?.[centers.length];
+    const intendedCandidates =
+      intendedLandmass === undefined || !landFeatureByCell
+        ? ranked
+        : ranked.filter(site => landFeatureByCell[site.id] === intendedLandmass);
+    const candidatePool = intendedCandidates.some(site => !centers.includes(site)) ? intendedCandidates : ranked;
     const next = ranked
-      .filter(site => !centers.includes(site))
+      .filter(site => candidatePool.includes(site) && !centers.includes(site))
       .map(site => {
         // Different land features are separated by a sea crossing. They are
         // therefore independent expansion fields, regardless of their visual

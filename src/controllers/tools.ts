@@ -626,7 +626,7 @@ function regenerateSettlementPattern(): void {
     const cells = pack.cells;
     const optionsSnap = useOptionsState.getState();
     const state = getWorldState();
-    const preferredFrontierStartCells =
+    const preferredFrontierStarts =
       optionsSnap.initialSettlementPattern === "frontier" &&
       optionsSnap.frontierPolitySpacing === "dispersed" &&
       optionsSnap.frontierStartMode === "seaborne"
@@ -659,7 +659,8 @@ function regenerateSettlementPattern(): void {
       optionsSnap.oikoumeneLandShare,
       optionsSnap.frontierPolitySpacing,
       optionsSnap.frontierStartMode,
-      preferredFrontierStartCells
+      preferredFrontierStarts?.cells,
+      preferredFrontierStarts?.landmassOrder
     );
     if (settlementPattern.plan) pack.settlementFoundation = settlementPattern.plan;
     else delete pack.settlementFoundation;

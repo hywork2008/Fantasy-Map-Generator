@@ -23,6 +23,12 @@ export interface FrontierStartPlacementArgs {
   readonly spacing?: FrontierPolitySpacing;
 }
 
+export interface DispersedSeaborneFoundationStarts {
+  readonly cells: ReadonlySet<number>;
+  /** Land feature selected for each initial polity, ordered by polity ordinal. */
+  readonly landmassOrder: readonly number[];
+}
+
 /**
  * Returns the large-landmass ocean harbours that can anchor independent
  * seaborne homelands. Foundation generation uses this before it distributes
@@ -33,25 +39,53 @@ export function getPreferredDispersedSeaborneFoundationCells(
   pack: PackedGraph,
   realmSize: number,
   polityCount: number
-): ReadonlySet<number> {
+): DispersedSeaborneFoundationStarts {
   const minimumLandCells = minFrontierStartLandCells(realmSize);
   const continentScaleLandCells = getContinentScaleLandCellFloor(pack, minimumLandCells);
-  const continentScaleCandidates = new Set<number>();
-  const fallbackCandidates = new Set<number>();
+  const continentScaleCandidates = new Map<number, number[]>();
+  const fallbackCandidates = new Map<number, number[]>();
   for (const cellId of pack.cells.i ?? []) {
     if (!isEligibleStartLandmass(pack, cellId, minimumLandCells)) continue;
     if (!isOpenOceanHarbor(pack, cellId)) continue;
-    fallbackCandidates.add(cellId);
+    const featureId = pack.cells.f?.[cellId];
+    if (featureId === undefined || featureId === null) continue;
+    addLandmassCandidate(fallbackCandidates, featureId, cellId);
     if (isContinentScaleLandmass(pack, cellId, continentScaleLandCells)) {
-      continentScaleCandidates.add(cellId);
+      addLandmassCandidate(continentScaleCandidates, featureId, cellId);
     }
   }
 
   // A separate continent is an independent expansion field: crossing the sea
   // is deliberately never treated as a shortcut between starting polities.
   // Do not consume a small island merely because it is visually farther away.
-  if (continentScaleCandidates.size >= polityCount) return continentScaleCandidates;
-  return new Set([...continentScaleCandidates, ...fallbackCandidates]);
+  const preferredCandidates =
+    countLandmassCandidates(continentScaleCandidates) >= polityCount ? continentScaleCandidates : fallbackCandidates;
+  const featureIds = [...preferredCandidates.keys()].sort(
+    (left, right) => featureLandCells(pack, right) - featureLandCells(pack, left) || left - right
+  );
+  const candidateCells = [...preferredCandidates.values()].reduce<number[]>((allCells, landmassCells) => {
+    allCells.push(...landmassCells);
+    return allCells;
+  }, []);
+  return {
+    cells: new Set(candidateCells),
+    landmassOrder: createLandmassAllocationOrder(featureIds, polityCount)
+  };
+}
+
+function addLandmassCandidate(candidates: Map<number, number[]>, featureId: number, cellId: number): void {
+  const cells = candidates.get(featureId) ?? [];
+  cells.push(cellId);
+  candidates.set(featureId, cells);
+}
+
+function countLandmassCandidates(candidates: ReadonlyMap<number, readonly number[]>): number {
+  return [...candidates.values()].reduce((total, cells) => total + cells.length, 0);
+}
+
+function createLandmassAllocationOrder(featureIds: readonly number[], polityCount: number): number[] {
+  if (!featureIds.length || polityCount <= 0) return [];
+  return Array.from({ length: polityCount }, (_, index) => featureIds[index % featureIds.length]);
 }
 
 /**
@@ -209,19 +243,15 @@ function landFeatureCellCount(pack: PackedGraph, cellId: number): number {
 }
 
 function getContinentScaleLandCellFloor(pack: PackedGraph, minimumLandCells: number): number {
-  const continentalLandmasses = (pack.features ?? [])
-    .filter(feature => feature?.land && feature.group === "continent")
-    .map(feature => feature.cells ?? 0)
-    .filter(cells => cells > 0);
-  if (continentalLandmasses.length) return Math.max(minimumLandCells, Math.min(...continentalLandmasses));
-
-  // Maps without a `continent` group still need a viable fallback. In that
-  // case, only the largest landmass is continent-scale.
   const largestLandmass = Math.max(
     0,
     ...(pack.features ?? []).filter(feature => feature?.land).map(feature => feature.cells ?? 0)
   );
-  return Math.max(minimumLandCells, largestLandmass);
+  // Feature groups are heuristic labels. A 957-cell island beside a
+  // 1,630-cell continent is still a major independent expansion field, while
+  // a 107-cell isle beside a 3,000-cell continent is not. Use relative land
+  // area so both continent and archipelago maps follow the same rule.
+  return Math.max(minimumLandCells, Math.ceil(largestLandmass / 2));
 }
 
 function isContinentScaleLandmass(pack: PackedGraph, cellId: number, continentScaleLandCells: number): boolean {

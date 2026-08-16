@@ -178,6 +178,33 @@ describe("Settlement Foundation Module", () => {
     expect(result.plan.regions.map(region => region.center)).toContain(50);
   });
 
+  it("uses the largest-island allocation order before opening a second homeland", () => {
+    const cells = createCells(101, [5, 30, 50, 95]);
+    cells.f.fill(1, 0, 40);
+    cells.f.fill(2, 40, 75);
+    cells.f.fill(3, 75);
+    for (const cellId of [5, 30, 50, 95]) {
+      cells.harbor[cellId] = 1;
+      cells.t[cellId] = 1;
+    }
+
+    const result = createSettlementFoundation(
+      cells,
+      { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) },
+      "frontier",
+      0.3,
+      () => 0,
+      4,
+      undefined,
+      "dispersed",
+      "seaborne",
+      new Set([5, 30, 50, 95]),
+      [1, 2, 3, 1]
+    );
+
+    expect(result.plan.regions.map(region => region.center)).toEqual([5, 50, 95, 30]);
+  });
+
   it("honors the additional regional hubs requested by high polity density", () => {
     const cells = createCells(101, [5]);
     const result = createSettlementFoundation(
