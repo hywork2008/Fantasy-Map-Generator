@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { SettlementFoundationPlan } from "../types/settlementFoundation";
-import { selectFrontierStartCapitals } from "./frontierStartPlacement";
+import { getPreferredDispersedSeaborneFoundationCells, selectFrontierStartCapitals } from "./frontierStartPlacement";
 
 function buildPack(opts: {
   cellCount: number;
@@ -67,6 +67,32 @@ const plan = (nodes: SettlementFoundationPlan["nodes"], regionCells: number[][])
 });
 
 describe("selectFrontierStartCapitals", () => {
+  it("selects only large-landmass ocean harbours for dispersed seaborne Foundation regions", () => {
+    const featureOf = Array.from({ length: 86 }, (_, index) => (index === 80 ? 8 : index === 81 ? 2 : 1));
+    const harbor = Array.from({ length: 86 }, () => 0);
+    const haven = Array.from({ length: 86 }, () => 0);
+    for (const cellId of [5, 20, 35, 50]) {
+      harbor[cellId] = 1;
+      haven[cellId] = 80;
+    }
+    harbor[81] = 1;
+    haven[81] = 80;
+    const pack = buildPack({
+      cellCount: 86,
+      featureOf,
+      harbor,
+      haven,
+      havenFeature: Array.from({ length: 86 }, (_, index) => (haven[index] ? 8 : 0)),
+      features: [
+        { i: 1, land: true, type: "island", cells: 80 },
+        { i: 2, land: true, type: "island", cells: 1 },
+        { i: 8, land: false, type: "ocean", cells: 300 }
+      ]
+    });
+
+    expect([...getPreferredDispersedSeaborneFoundationCells(pack, 1)]).toEqual([5, 20, 35, 50]);
+  });
+
   it("never starts on a one-cell isle when a large landmass exists", () => {
     // cells 0-89: continent 1; cell 90: one-cell isle 2; cell 91: ocean haven for isle
     const featureOf = Array.from({ length: 92 }, (_, i) => (i === 90 ? 2 : i === 91 ? 8 : 1));

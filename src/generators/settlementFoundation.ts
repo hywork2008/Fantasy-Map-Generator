@@ -5,7 +5,7 @@ import type {
   SettlementNode,
   SettlementRegion
 } from "../types/settlementFoundation";
-import type { FrontierPolitySpacing, InitialSettlementPattern } from "../types/WorldState";
+import type { FrontierPolitySpacing, FrontierStartMode, InitialSettlementPattern } from "../types/WorldState";
 import { frontierRegionCenterDistanceWeight, normalizeFrontierPolitySpacing } from "../utils/frontierStartMode";
 import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
@@ -80,7 +80,9 @@ export function createSettlementFoundation(
    * (settled footprint). When omitted, uses the pattern preset's settledFootprint.
    */
   oikoumeneLandShare?: number,
-  politySpacing?: FrontierPolitySpacing
+  politySpacing?: FrontierPolitySpacing,
+  frontierStartMode?: FrontierStartMode,
+  preferredFrontierStartCells?: ReadonlySet<number>
 ): SettlementFoundationResult {
   const preset = getInitialSettlementPatternPreset(pattern);
   const saturation = clamp(initialPopulationSaturation, 0, 1);
@@ -93,7 +95,22 @@ export function createSettlementFoundation(
   }
 
   const regionCount = selectRegionCount(preset.settlementRegionCount, resources.length, random, minimumRegionCount);
-  const centers = selectRegionCenters(resources, regionCount, random, frontierRegionCenterDistanceWeight(spacing));
+  const coastalResources = resources.filter(site => cells.harbor?.[site.id] && cells.t?.[site.id] === 1);
+  const preferredStartResources = preferredFrontierStartCells
+    ? resources.filter(site => preferredFrontierStartCells.has(site.id))
+    : [];
+  // Seaborne states must have their own viable port region. If regions are
+  // seeded inland and only one happens to touch a harbour, every capital is
+  // forced back into that one region regardless of the spacing setting.
+  const centerPool =
+    pattern === "frontier" && spacing === "dispersed" && frontierStartMode === "seaborne"
+      ? preferredStartResources.length >= regionCount
+        ? preferredStartResources
+        : coastalResources.length >= regionCount
+          ? coastalResources
+          : resources
+      : resources;
+  const centers = selectRegionCenters(centerPool, regionCount, random, frontierRegionCenterDistanceWeight(spacing));
   const footprint =
     oikoumeneLandShare !== undefined && Number.isFinite(oikoumeneLandShare)
       ? clamp(oikoumeneLandShare, 0.1, 0.95)
@@ -102,7 +119,15 @@ export function createSettlementFoundation(
   // Expanding only through resource-screened candidates left thin corridors that
   // made Marches/45% look identical to Frontier/30% on normal climate maps.
   const targetCapacity = totalCapacity * footprint;
-  const regions = buildRegions(cells, sites, centers, targetCapacity, preset.settlementClustering, footprint);
+  const regions = buildRegions(
+    cells,
+    sites,
+    centers,
+    targetCapacity,
+    preset.settlementClustering,
+    footprint,
+    pattern === "frontier" && spacing === "dispersed"
+  );
   const sitesById = new Map(sites.map(site => [site.id, site]));
   const selected = regions
     .flatMap(region => region.cells.map(id => sitesById.get(id)))
@@ -325,7 +350,8 @@ function buildRegions(
   centers: SettledSite[],
   targetCapacity: number,
   settlementClustering: number,
-  footprint: number
+  footprint: number,
+  distributeCapacityEvenly = false
 ): SettlementRegion[] {
   const sitesById = new Map(sites.map(site => [site.id, site]));
   const claimed = new Set<number>();
@@ -333,7 +359,14 @@ function buildRegions(
   const maxHops = getMaximumRegionHops(sites.length, settlementClustering, footprint, centers.length);
 
   return centers.map((center, id) => {
-    const budget = targetCapacity * (center.score / totalCenterScore);
+    // Dispersed frontier starts are independent homelands. Giving one rich
+    // resource core almost the whole population budget turns the remaining
+    // nominal regions into tiny outposts, then forces every State to start in
+    // the rich core. Equal budgets give contemporaneous States comparable
+    // overland room before their frontier waves meet.
+    const budget = distributeCapacityEvenly
+      ? targetCapacity / centers.length
+      : targetCapacity * (center.score / totalCenterScore);
     const cellsInRegion = expandCompactRegion(cells, sitesById, center.id, budget, claimed, maxHops);
     const kind = center.kind;
     return { id, kind, center: center.id, cells: cellsInRegion };

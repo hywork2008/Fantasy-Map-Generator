@@ -7,6 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { isNomadicBiome } from "../data/biomeCatalog";
+import { getPreferredDispersedSeaborneFoundationCells } from "../generators/frontierStartPlacement";
 import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { applyInitialSettlementPattern } from "../generators/settlementPattern";
 import { runTimeSimulation } from "../generators/timeEngine";
@@ -625,6 +626,12 @@ function regenerateSettlementPattern(): void {
     const cells = pack.cells;
     const optionsSnap = useOptionsState.getState();
     const state = getWorldState();
+    const preferredFrontierStartCells =
+      optionsSnap.initialSettlementPattern === "frontier" &&
+      optionsSnap.frontierPolitySpacing === "dispersed" &&
+      optionsSnap.frontierStartMode === "seaborne"
+        ? getPreferredDispersedSeaborneFoundationCells(pack, optionsSnap.initialPolityRealmSize)
+        : undefined;
 
     // `worldContext.options.initialSettlementPattern` (and the other fields
     // `prepareGenerationStage` copies) is only refreshed by a full Generate
@@ -646,7 +653,9 @@ function regenerateSettlementPattern(): void {
       { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
       optionsSnap.statesNumber,
       optionsSnap.oikoumeneLandShare,
-      optionsSnap.frontierPolitySpacing
+      optionsSnap.frontierPolitySpacing,
+      optionsSnap.frontierStartMode,
+      preferredFrontierStartCells
     );
     if (settlementPattern.plan) pack.settlementFoundation = settlementPattern.plan;
     else delete pack.settlementFoundation;

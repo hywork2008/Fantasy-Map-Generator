@@ -124,6 +124,31 @@ describe("Settlement Foundation Module", () => {
     expect(Math.max(...centers) - Math.min(...centers)).toBeGreaterThan(70);
   });
 
+  it("seeds dispersed seaborne homelands from separate coastal resource regions", () => {
+    const cells = createCells(101, [5, 50, 95]);
+    for (const cellId of [5, 50, 95]) {
+      cells.harbor[cellId] = 1;
+      cells.t[cellId] = 1;
+    }
+
+    const result = createSettlementFoundation(
+      cells,
+      { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) },
+      "frontier",
+      0.3,
+      () => 0,
+      3,
+      undefined,
+      "dispersed",
+      "seaborne"
+    );
+
+    expect(result.plan.regions).toHaveLength(3);
+    expect(result.plan.regions.map(region => region.center).sort((a, b) => a - b)).toEqual([5, 50, 95]);
+    const regionSizes = result.plan.regions.map(region => region.cells.length);
+    expect(Math.max(...regionSizes) - Math.min(...regionSizes)).toBeLessThan(8);
+  });
+
   it("honors the additional regional hubs requested by high polity density", () => {
     const cells = createCells(101, [5]);
     const result = createSettlementFoundation(

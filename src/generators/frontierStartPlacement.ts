@@ -4,6 +4,7 @@ import type { FrontierPolitySpacing, FrontierStartMode } from "../types/WorldSta
 import {
   frontierStartLandFloors,
   MIN_FRONTIER_START_LAND_CELLS_ABSOLUTE,
+  minFrontierStartLandCells,
   normalizeFrontierPolitySpacing
 } from "../utils/frontierStartMode";
 import { isTrueOceanHarborCell } from "../utils/oceanPort";
@@ -20,6 +21,25 @@ export interface FrontierStartPlacementArgs {
   readonly startMode: FrontierStartMode;
   readonly realmSize: number;
   readonly spacing?: FrontierPolitySpacing;
+}
+
+/**
+ * Returns the large-landmass ocean harbours that can anchor independent
+ * seaborne homelands. Foundation generation uses this before it distributes
+ * population, so dispersed capital placement is not later forced back into
+ * the one region that happened to contain a port.
+ */
+export function getPreferredDispersedSeaborneFoundationCells(
+  pack: PackedGraph,
+  realmSize: number
+): ReadonlySet<number> {
+  const minimumLandCells = minFrontierStartLandCells(realmSize);
+  const candidates = new Set<number>();
+  for (const cellId of pack.cells.i ?? []) {
+    if (!isEligibleStartLandmass(pack, cellId, minimumLandCells)) continue;
+    if (isOpenOceanHarbor(pack, cellId)) candidates.add(cellId);
+  }
+  return candidates;
 }
 
 /**

@@ -41,6 +41,7 @@ import { Dungeons } from "./generators/dungeons-generator";
 import { Features } from "./generators/features";
 import { initializeForestStock } from "./generators/forestStock";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
+import { getPreferredDispersedSeaborneFoundationCells } from "./generators/frontierStartPlacement";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
@@ -1133,6 +1134,12 @@ function getGenerationStages(): Array<() => Promise<void>> {
       Cultures.generate(worldContext, viewContext, appServices, state);
       Cultures.expand(state);
       const optionsSnap = useOptionsState.getState();
+      const preferredFrontierStartCells =
+        optionsSnap.initialSettlementPattern === "frontier" &&
+        optionsSnap.frontierPolitySpacing === "dispersed" &&
+        optionsSnap.frontierStartMode === "seaborne"
+          ? getPreferredDispersedSeaborneFoundationCells(worldContext.pack, optionsSnap.initialPolityRealmSize)
+          : undefined;
       const settlementPattern = applyInitialSettlementPattern(
         worldContext.pack.cells,
         worldContext.options.initialSettlementPattern,
@@ -1141,7 +1148,9 @@ function getGenerationStages(): Array<() => Promise<void>> {
         { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
         optionsSnap.statesNumber,
         optionsSnap.oikoumeneLandShare,
-        optionsSnap.frontierPolitySpacing
+        optionsSnap.frontierPolitySpacing,
+        optionsSnap.frontierStartMode,
+        preferredFrontierStartCells
       );
       if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
       else delete worldContext.pack.settlementFoundation;

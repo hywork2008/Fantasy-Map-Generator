@@ -1,6 +1,6 @@
 import { getInitialSettlementPatternPreset } from "../data/initialSettlementPatterns";
 import type { SettlementFoundationPlan } from "../types/settlementFoundation";
-import type { FrontierPolitySpacing, InitialSettlementPattern } from "../types/WorldState";
+import type { FrontierPolitySpacing, FrontierStartMode, InitialSettlementPattern } from "../types/WorldState";
 import { frontierFoundationRegionFloor, normalizeFrontierPolitySpacing } from "../utils/frontierStartMode";
 import { createInitialPopulationCohorts, startingPopulationScaleOfK } from "./initialPopulationCohorts";
 import {
@@ -61,7 +61,9 @@ export function applyInitialSettlementPattern(
   initialPolityCount = 0,
   /** Override pattern settledFootprint (0–1). Used by fantasy oikoumene control. */
   oikoumeneLandShare?: number,
-  frontierPolitySpacing?: FrontierPolitySpacing
+  frontierPolitySpacing?: FrontierPolitySpacing,
+  frontierStartMode?: FrontierStartMode,
+  preferredFrontierStartCells?: ReadonlySet<number>
 ): SettlementPatternResult {
   if (pattern !== "standard" && canBuildFoundation(cells)) {
     const spacing = normalizeFrontierPolitySpacing(frontierPolitySpacing);
@@ -73,7 +75,9 @@ export function applyInitialSettlementPattern(
       random,
       getMinimumFoundationRegionCount(pattern, initialPolityCount, spacing),
       oikoumeneLandShare,
-      spacing
+      spacing,
+      frontierStartMode,
+      preferredFrontierStartCells
     );
   }
 
