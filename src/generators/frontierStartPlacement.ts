@@ -122,14 +122,17 @@ function findOceanHarborCell(
   node: SettlementNode,
   used: ReadonlySet<number> = new Set()
 ): number | null {
-  if (isOpenOceanHarbor(pack, node.cell) && !used.has(node.cell)) return node.cell;
-
   const landFeatureId = pack.cells.f?.[node.cell];
   if (landFeatureId === undefined) return null;
   const regionCells = getFoundationRegionCells(plan, node.cell);
+  // A capital must stay attached to its populated Foundation region. Choosing
+  // an arbitrary harbour elsewhere on the same landmass would create a State
+  // whose compact realm has no rural population after unclaimed cells are
+  // intentionally cleared.
+  if (!regionCells) return null;
+  if (regionCells.has(node.cell) && isOpenOceanHarbor(pack, node.cell) && !used.has(node.cell)) return node.cell;
 
   let best: number | null = null;
-  let bestInRegion = false;
   let bestHarbor = Number.POSITIVE_INFINITY;
   let bestScore = Number.NEGATIVE_INFINITY;
 
@@ -137,20 +140,17 @@ function findOceanHarborCell(
   for (let index = 0; index < cells.length; index++) {
     const cellId = cells[index];
     if (pack.cells.f?.[cellId] !== landFeatureId) continue;
+    if (!regionCells.has(cellId)) continue;
     if (used.has(cellId)) continue;
     if (!isOpenOceanHarbor(pack, cellId)) continue;
 
-    const inRegion = regionCells ? regionCells.has(cellId) : false;
     const harbor = pack.cells.harbor?.[cellId] ?? Number.POSITIVE_INFINITY;
     const score = pack.cells.s?.[cellId] ?? 0;
-    const betterRegion = inRegion && !bestInRegion;
-    const sameRegion = inRegion === bestInRegion;
-    const betterHarbor = sameRegion && harbor < bestHarbor;
+    const betterHarbor = harbor < bestHarbor;
     const betterScore =
-      sameRegion && harbor === bestHarbor && (score > bestScore || (score === bestScore && cellId < (best ?? cellId)));
-    if (best === null || betterRegion || betterHarbor || betterScore) {
+      harbor === bestHarbor && (score > bestScore || (score === bestScore && cellId < (best ?? cellId)));
+    if (best === null || betterHarbor || betterScore) {
       best = cellId;
-      bestInRegion = inRegion;
       bestHarbor = harbor;
       bestScore = score;
     }
@@ -192,20 +192,38 @@ function selectRiverStartCapitals(args: FrontierStartPlacementArgs): SettlementN
   const spacing = normalizeFrontierPolitySpacing(args.spacing);
   const hopLadder = spacing === "dispersed" ? DISPERSED_COAST_HOPS : CLUSTERED_COAST_HOPS;
   const requireOcean = startMode === "seaborne";
+  const foundationCells = new Set(plan.regions.flatMap(region => region.cells));
+  const pickCapitals = (candidates: readonly number[]): number[] => {
+    if (spacing !== "dispersed") return pickSpacedCoastalCells(pack, candidates, count, hopLadder);
+
+    // Prefer one capital from each populated Foundation region before opening
+    // a second homeland in any one region. This is the river/coast equivalent
+    // of selectInitialPolityCapitalNodes(..., { maxPerRegion: 1 }).
+    const regionalCandidates = getBestCandidatePerFoundationRegion(plan, pack, candidates);
+    const preferred = pickSpacedCoastalCells(
+      pack,
+      regionalCandidates,
+      Math.min(count, regionalCandidates.length),
+      hopLadder
+    );
+    return preferred.length >= count
+      ? preferred
+      : pickSpacedCoastalCells(pack, candidates, count, hopLadder, preferred);
+  };
 
   for (const minCells of frontierStartLandFloors(args.realmSize)) {
-    const rivers = collectStartCells(pack, minCells, { requireRiver: true, requireOcean });
+    const rivers = collectStartCells(pack, foundationCells, minCells, { requireRiver: true, requireOcean });
     if (rivers.length) {
-      const picked = pickSpacedCoastalCells(pack, rivers, count, hopLadder);
+      const picked = pickCapitals(rivers);
       if (picked.length) return picked.map((cellId, index) => toStartNode(plan, pack, cellId, index));
     }
   }
 
   if (requireOcean) {
     for (const minCells of frontierStartLandFloors(args.realmSize)) {
-      const coasts = collectStartCells(pack, minCells, { requireRiver: false, requireOcean: true });
+      const coasts = collectStartCells(pack, foundationCells, minCells, { requireRiver: false, requireOcean: true });
       if (coasts.length) {
-        const picked = pickSpacedCoastalCells(pack, coasts, count, hopLadder);
+        const picked = pickCapitals(coasts);
         if (picked.length) return picked.map((cellId, index) => toStartNode(plan, pack, cellId, index));
       }
     }
@@ -216,6 +234,7 @@ function selectRiverStartCapitals(args: FrontierStartPlacementArgs): SettlementN
 
 function collectStartCells(
   pack: PackedGraph,
+  foundationCells: ReadonlySet<number>,
   minCells: number,
   flags: { requireRiver: boolean; requireOcean: boolean }
 ): number[] {
@@ -224,6 +243,7 @@ function collectStartCells(
   const found: number[] = [];
   for (let index = 0; index < ids.length; index++) {
     const cellId = ids[index];
+    if (!foundationCells.has(cellId)) continue;
     if (!isEligibleStartLandmass(pack, cellId, minCells)) continue;
     if ((cells.h?.[cellId] ?? 0) < 20) continue;
     if (flags.requireRiver && !(cells.r?.[cellId] > 0)) continue;
@@ -231,6 +251,32 @@ function collectStartCells(
     found.push(cellId);
   }
   return found;
+}
+
+function getBestCandidatePerFoundationRegion(
+  plan: SettlementFoundationPlan,
+  pack: PackedGraph,
+  candidates: readonly number[]
+): number[] {
+  const regionByCell = new Map<number, number>();
+  for (const region of plan.regions) {
+    for (const cellId of region.cells) regionByCell.set(cellId, region.id);
+  }
+
+  const bestByRegion = new Map<number, number>();
+  for (const cellId of candidates) {
+    const regionId = regionByCell.get(cellId);
+    if (regionId === undefined) continue;
+    const current = bestByRegion.get(regionId);
+    if (
+      current === undefined ||
+      startCellScore(pack, cellId) > startCellScore(pack, current) ||
+      (startCellScore(pack, cellId) === startCellScore(pack, current) && cellId < current)
+    ) {
+      bestByRegion.set(regionId, cellId);
+    }
+  }
+  return [...bestByRegion.values()];
 }
 
 function isCoastalLandCell(pack: PackedGraph, cellId: number): boolean {
@@ -273,7 +319,8 @@ function pickSpacedCoastalCells(
   pack: PackedGraph,
   candidates: readonly number[],
   count: number,
-  hopLadder: readonly number[]
+  hopLadder: readonly number[],
+  initialPicks: readonly number[] = []
 ): number[] {
   if (!candidates.length || count <= 0) return [];
   const unique = [...new Set(candidates)];
@@ -290,7 +337,7 @@ function pickSpacedCoastalCells(
   // 2:2 (one each on two isles, then a second on the continent).
   const continentFeatures = features.filter(featureId => isContinentFeature(pack, featureId));
   const otherFeatures = features.filter(featureId => !isContinentFeature(pack, featureId));
-  const picked: number[] = [];
+  const picked = [...new Set(initialPicks)];
   fillSpacedLandmasses(
     pack,
     byFeature,

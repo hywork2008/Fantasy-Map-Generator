@@ -224,6 +224,65 @@ describe("selectFrontierStartCapitals", () => {
     expect(selected.map(node => node.cell)).toEqual([5]);
   });
 
+  it("does not move a capital to a river outside its populated Foundation region", () => {
+    const cellCount = 85;
+    const featureOf = Array.from({ length: cellCount }, () => 1);
+    const river = Array.from({ length: cellCount }, () => 0);
+    // Cell 5 is a more attractive river, but it has no Foundation population.
+    river[5] = 7;
+    river[10] = 1;
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      river,
+      features: [{ i: 1, land: true, type: "island", cells: cellCount }]
+    });
+    const selected = selectFrontierStartCapitals({
+      plan: plan([{ id: 0, regionId: 0, cell: 3, role: "center", score: 20 }], [[3, 10]]),
+      pack,
+      count: 1,
+      startMode: "landOrigin",
+      realmSize: 30
+    });
+
+    expect(selected.map(node => node.cell)).toEqual([10]);
+    expect(selected[0]?.regionId).toBe(0);
+  });
+
+  it("uses separate Foundation regions before placing a second dispersed river capital in one region", () => {
+    const cellCount = 85;
+    const featureOf = Array.from({ length: cellCount }, () => 1);
+    const river = Array.from({ length: cellCount }, () => 0);
+    // Region 0 has the two highest-quality river sites. Region 1 still gets
+    // a capital first when the user asks for dispersed starting states.
+    river[3] = 9;
+    river[14] = 8;
+    river[5] = 1;
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      river,
+      features: [{ i: 1, land: true, type: "island", cells: cellCount }]
+    });
+    const selected = selectFrontierStartCapitals({
+      plan: plan(
+        [
+          { id: 0, regionId: 0, cell: 3, role: "center", score: 20 },
+          { id: 1, regionId: 1, cell: 5, role: "center", score: 10 }
+        ],
+        [[3, 14], [5]]
+      ),
+      pack,
+      count: 2,
+      startMode: "landOrigin",
+      realmSize: 1,
+      spacing: "dispersed"
+    });
+
+    expect(selected.map(node => node.cell).sort((a, b) => a - b)).toEqual([3, 5]);
+    expect(new Set(selected.map(node => node.regionId)).size).toBe(2);
+  });
+
   it("spaces two one-cell starts along the same island coast instead of the strip ends", () => {
     const cellCount = 90;
     const featureOf = Array.from({ length: cellCount }, () => 1);
