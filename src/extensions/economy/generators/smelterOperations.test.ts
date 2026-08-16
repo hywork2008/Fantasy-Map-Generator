@@ -9,7 +9,8 @@ import {
   setGoods,
   setMarkets,
   setMineOperations,
-  setMineralDeposits
+  setMineralDeposits,
+  setSmelterOperations
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -118,6 +119,85 @@ describe("SmelterOperationsModule", () => {
     expect(getMarkets()[0].goods[4].stock).toBe(2.5);
   });
 
+  it("restaffs a smelter that follows its mine onto a newly founded market", () => {
+    worldContext.pack = {
+      burgs: [
+        { i: 0, cell: 0, x: 0, y: 0, market: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, market: 1, state: 1 },
+        { i: 2, cell: 1, x: 5, y: 0, market: 2, state: 1 }
+      ],
+      states: [
+        { i: 0, name: "Neutral" },
+        { i: 1, name: "Test State", treasury: 10, supplyStrain: 0 }
+      ],
+      cells: {
+        i: [0, 1],
+        p: [
+          [0, 0],
+          [5, 0]
+        ],
+        c: [[1], [0]],
+        biomeCode: Uint8Array.from([0, 1]),
+        r: Uint16Array.from([0, 1]),
+        state: Uint16Array.from([1, 1]),
+        danger: Uint8Array.from([0, 0])
+      }
+    } as unknown as PackedGraph;
+    setMarkets([
+      { i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 20, price: 2 }, 3: { stock: 20, price: 3 } } },
+      { i: 2, centerBurgId: 2, color: "#222", goods: { 1: { stock: 20, price: 2 }, 3: { stock: 20, price: 3 } } }
+    ]);
+    setMineOperations([
+      {
+        i: 1,
+        depositId: 1,
+        burgId: 2,
+        marketId: 2,
+        workers: 16,
+        technology: 1,
+        drainage: 1,
+        fuelAccess: 1,
+        annualOutputTons: {},
+        active: true
+      }
+    ]);
+    setSmelterOperations([
+      {
+        i: 1,
+        depositId: 1,
+        cell: 0,
+        burgId: 1,
+        marketId: 1,
+        waterPower: 0.4,
+        fuelAccess: 0.4,
+        technology: 1.1,
+        toolsInvestmentStock: 0,
+        smeltingYield: 0.8,
+        annualCapacityTons: 120,
+        workers: 0,
+        securityInvestment: 0,
+        lastSecurityUpkeep: 0,
+        lastTheftLoss: 0,
+        lastTheftRisk: 0,
+        active: true
+      }
+    ]);
+    Goods.sync();
+    Markets.sync();
+
+    SmelterOperations.generate();
+
+    expect(getSmelterOperations()).toEqual([
+      expect.objectContaining({
+        depositId: 1,
+        burgId: 2,
+        marketId: 2,
+        workers: getSmelterRequiredWorkers({ annualCapacityTons: 120 }),
+        active: true
+      })
+    ]);
+  });
+
   it("uses a practical workforce target for high-capacity deposits in small burgs", () => {
     expect(getSmelterRequiredWorkers({ annualCapacityTons: 120 })).toBeCloseTo(0.8, 5);
     expect(getSmelterRequiredWorkers({ annualCapacityTons: 900 })).toBeCloseTo(2.75, 5);
@@ -132,6 +212,36 @@ describe("SmelterOperationsModule", () => {
     expect(getMarkets()[0].goods[1].stock).toBe(20);
     expect(getMarkets()[0].goods[2]).toBeUndefined();
     expect(getMarkets()[0].goods[4]).toBeUndefined();
+  });
+
+  it("burns local forest into Charcoal when the market has none", () => {
+    setGoods([
+      { i: 1, name: "Iron Ore", tags: ["ore"], value: 2, unit: "wagon", icon: "iron", color: "#777" },
+      { i: 2, name: "Iron Ingot", tags: ["ingot"], value: 4, unit: "wagon", icon: "iron", color: "#777" },
+      {
+        i: 3,
+        name: "Charcoal",
+        tags: ["fuel"],
+        value: 3,
+        unit: "sack",
+        icon: "coal",
+        color: "#333",
+        recipes: [{ 5: 1.5 }]
+      },
+      { i: 4, name: "Slag", tags: ["industrialWaste"], value: 0.5, unit: "wain", icon: "slag", color: "#444" },
+      { i: 5, name: "Wood", tags: ["fuel"], value: 1, unit: "log", icon: "wood", color: "#642" }
+    ]);
+    Goods.sync();
+    getMarkets()[0].goods[3].stock = 0;
+    worldContext.pack.cells.forestCover = Float32Array.from([0, 1]);
+    worldContext.pack.cells.forestStock = Float32Array.from([0, 1]);
+    SmelterOperations.generate();
+
+    SmelterOperations.produceMonth();
+
+    expect(getMarkets()[0].goods[2].stock).toBeGreaterThan(0);
+    expect(getMarkets()[0].goods[3].stock).toBeGreaterThan(0);
+    expect(getMarkets()[0].goods[1].stock).toBeLessThan(20);
   });
 
   it("requests a State-funded Charcoal reserve at an iron smelter serving military Ingot demand", () => {

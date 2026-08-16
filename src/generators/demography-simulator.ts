@@ -1,5 +1,5 @@
 import type { SimulationContext } from "../context/simulationContext";
-import { simulationContext } from "../context/simulationContext";
+import { FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { getBirthFloorProvider } from "./birthModifiers";
@@ -43,6 +43,15 @@ export interface PromotedSettlement {
   readonly stateId: number;
 }
 
+function isLiveFrontierExpeditionCell(cellId: number): boolean {
+  const frontier = simulationContext.frontier;
+  if (!frontier) return false;
+  const stage = frontier.cellStages?.[cellId];
+  return (
+    stage === FRONTIER_STAGE.outpost || stage === FRONTIER_STAGE.settlement || frontier.projects?.[cellId] !== undefined
+  );
+}
+
 /**
  * Simulates population dynamics (aging, births, starvation/disease) using a logistic growth model.
  * Handles both rural populations (pack.cells) and urban populations (pack.burgs).
@@ -69,10 +78,22 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   };
 
   // 1. Process Rural Cells
+  const keepStatelessPopulation = worldContext.options?.initialSettlementPattern === "standard";
   for (let i = 0; i < pack.cells.i.length; i++) {
-    if (pack.cells.pop[i] <= 0) continue;
-
     const stateId = pack.cells.state[i];
+    // Sparse starts: only state land and live expeditions hold people. Stateless
+    // neighbours would consume the same food K and permanently block expansion.
+    if (!keepStatelessPopulation && !stateId && !isLiveFrontierExpeditionCell(i)) {
+      if (pack.cells.pop[i] > 0) {
+        pack.cells.pop[i] = 0;
+        pack.cells.children[i] = 0;
+        pack.cells.maleAdults[i] = 0;
+        pack.cells.femaleAdults[i] = 0;
+        pack.cells.elders[i] = 0;
+      }
+      continue;
+    }
+    if (pack.cells.pop[i] <= 0) continue;
     const capacity = getCellSubsistenceCapacity(pack.cells, i);
     let children = pack.cells.children[i];
     let maleAdults = pack.cells.maleAdults[i];

@@ -11,6 +11,7 @@ import {
   setGoods,
   setMarketCellColumn,
   setMarkets,
+  setMineOperations,
   setMineralDeposits
 } from "../economyContext";
 import { Goods } from "./goods-generator";
@@ -397,6 +398,71 @@ describe("MineOperationsModule", () => {
     expect(getMineDrainageFactor(operation, dryLegacyDeposit)).toBeCloseTo(0.7, 5);
     expect(getMineDrainageRequirement(wetRiverDeposit)).toBeGreaterThan(1);
     expect(getMineDrainageFactor(operation, wetRiverDeposit)).toBeLessThan(0.7);
+  });
+
+  it("reattaches an opened mine to the market that now covers its deposit and supplies that market", () => {
+    worldContext.pack = {
+      burgs: [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, market: 1 }, { i: 2, cell: 1, x: 10, y: 0, market: 2 }],
+      cells: {
+        i: [0, 1],
+        p: [
+          [0, 0],
+          [10, 0]
+        ],
+        h: Uint8Array.from([55, 55]),
+        r: Uint16Array.from([0, 0]),
+        routes: {}
+      }
+    } as unknown as PackedGraph;
+    setGoods([{ i: 1, name: "Iron Ore", tags: ["ore"], value: 2, unit: "wagon", icon: "iron", color: "#777" }]);
+    setMarkets([
+      { i: 1, centerBurgId: 1, color: "#111", goods: {} },
+      { i: 2, centerBurgId: 2, color: "#222", goods: {} }
+    ]);
+    setGoodCellColumn(new Uint16Array([0, 0]));
+    setMarketCellColumn(new Uint16Array([1, 2]));
+    Goods.sync();
+    Markets.sync();
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 1,
+        type: "bandedIron",
+        primaryCommodity: "iron",
+        commodities: ["iron"],
+        yields: [{ commodity: "iron", reserveTons: 100, annualCapacityTons: 120 }],
+        richness: 2,
+        depth: "surface",
+        accessibility: 1,
+        discovered: true,
+        exhausted: false
+      }
+    ]);
+    setMineOperations([
+      {
+        i: 1,
+        depositId: 1,
+        burgId: 1,
+        marketId: 1,
+        workers: 0,
+        technology: 1,
+        drainage: 1,
+        fuelAccess: 1,
+        annualOutputTons: {},
+        active: true
+      }
+    ]);
+
+    expect(MineOperations.reanchorOperations()).toBe(1);
+    expect(getMineOperations()[0]).toEqual(
+      expect.objectContaining({ burgId: 2, marketId: 2, workers: 16, active: true })
+    );
+
+    MineOperations.produceMonth();
+
+    expect(getMarkets()[0].goods[1]).toBeUndefined();
+    expect(getMarkets()[1].goods[1].stock).toBeGreaterThan(0);
   });
 
   it("applies groundwater pressure to the monthly output of a deep mine", () => {

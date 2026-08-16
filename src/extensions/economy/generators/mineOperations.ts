@@ -79,6 +79,27 @@ export function getMineDrainageFactor(
   return Math.max(0, Math.min(1, operation.drainage / getMineDrainageRequirement(deposit)));
 }
 
+/** Share of geological capacity a staffed mine actually extracts this month. */
+export function getMineExtractionFactor(
+  operation: Pick<MineOperation, "workers" | "technology" | "fuelAccess" | "toolsInvestmentStock" | "drainage">,
+  deposit: Pick<MineralDeposit, "richness" | "depth" | "groundwaterPressure" | "accessibility">
+): number {
+  const workerFactor = Math.min(1, operation.workers / getMineRequiredWorkers(deposit));
+  const investmentBonus = 1 + MINE_TECH_BONUS_MAX * (operation.toolsInvestmentStock ?? 0);
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      workerFactor *
+        operation.technology *
+        investmentBonus *
+        getMineDrainageFactor(operation, deposit) *
+        operation.fuelAccess *
+        deposit.accessibility
+    )
+  );
+}
+
 /** Creates accessible mines and settles their monthly output into market stock. */
 export class MineOperationsModule {
   generate(): void {
@@ -219,8 +240,39 @@ export class MineOperationsModule {
     };
   }
 
+  /**
+   * Frontier towns redraw market catchments after they are founded. An already-opened
+   * mine must follow that coverage — otherwise it keeps drawing labour from the old
+   * capital hinterland and delivering Ore to a market that no longer owns the site.
+   */
+  reanchorOperations(): number {
+    const marketById = new Set(getMarkets().map(market => market.i));
+    const marketColumn = getMarketCellColumn();
+    const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
+    const operations = getMineOperations();
+    let reanchored = 0;
+    for (const operation of operations) {
+      if (!operation.active) continue;
+      const deposit = depositsById.get(operation.depositId);
+      if (!deposit || deposit.exhausted) continue;
+      const marketId = marketColumn[deposit.cell] ?? 0;
+      if (!marketId || !marketById.has(marketId)) continue;
+      const burgId = this.findNearestBurgId(deposit.cell, marketId);
+      if (!burgId) continue;
+      if (operation.marketId === marketId && operation.burgId === burgId) continue;
+      operation.marketId = marketId;
+      operation.burgId = burgId;
+      // Same as a newly opened mine: staff immediately, then let the next January
+      // reconcile pull the crew down toward the new market's actual adults.
+      if (operation.workers <= 0) operation.workers = getMineRequiredWorkers(deposit);
+      reanchored += 1;
+    }
+    return reanchored;
+  }
+
   /** Opens only already-discovered deposits that have become part of a market area. */
   openDiscoveredAccessibleOperations(): number {
+    this.reanchorOperations();
     const marketById = new Set(getMarkets().map(market => market.i));
     const marketColumn = getMarketCellColumn();
     const operations = getMineOperations();
@@ -361,22 +413,7 @@ export class MineOperationsModule {
         continue;
       }
 
-      const workerFactor = Math.min(1, operation.workers / getMineRequiredWorkers(deposit));
-      // toolsInvestmentStock (IndustrialTechInvestment.settleAnnual(), independent of the
-      // prospect()-derived `technology` baseline) applies as its own multiplier — docs/plan/rural-agtech-investment.md §6.2.
-      const investmentBonus = 1 + MINE_TECH_BONUS_MAX * (operation.toolsInvestmentStock ?? 0);
-      const extractionFactor = Math.max(
-        0,
-        Math.min(
-          1,
-          workerFactor *
-            operation.technology *
-            investmentBonus *
-            getMineDrainageFactor(operation, deposit) *
-            operation.fuelAccess *
-            deposit.accessibility
-        )
-      );
+      const extractionFactor = getMineExtractionFactor(operation, deposit);
       const annualOutput: Partial<Record<MineralCommodity, number>> = {};
 
       for (const yieldInfo of deposit.yields) {

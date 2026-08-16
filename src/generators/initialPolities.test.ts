@@ -73,6 +73,52 @@ describe("Initial Polities Module", () => {
     expect(burgs[2].state).toBe(0);
   });
 
+  it("removes rural people from unclaimed cells so a one-cell start can still expand", () => {
+    const cells = createCells(5, {});
+    cells.burg[0] = 1;
+    const burgs = [0, { i: 1, cell: 0, capital: 1 }] as never;
+
+    assignInitialPolities({
+      plan: {
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2, 3] }],
+        nodes: [{ id: 0, regionId: 0, cell: 0, role: "center", score: 10 }],
+        links: []
+      },
+      cells,
+      burgs,
+      states: [{ i: 0 }, { i: 1, capital: 1 }],
+      realmSize: 1
+    });
+
+    expect(Array.from(cells.state)).toEqual([1, 0, 0, 0, 0]);
+    expect(cells.pop[0]).toBe(10);
+    expect(Array.from(cells.pop.slice(1))).toEqual([0, 0, 0, 0]);
+  });
+
+  it("keeps people only on the compact starting realm, not the leftover oikoumene", () => {
+    const cells = createCells(8, {});
+    cells.burg[0] = 1;
+    const burgs = [0, { i: 1, cell: 0, capital: 1 }] as never;
+
+    assignInitialPolities({
+      plan: {
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2, 3, 4, 5] }],
+        nodes: [{ id: 0, regionId: 0, cell: 0, role: "center", score: 10 }],
+        links: []
+      },
+      cells,
+      burgs,
+      states: [{ i: 0 }, { i: 1, capital: 1 }],
+      realmSize: 3
+    });
+
+    expect(Array.from(cells.state.slice(0, 3))).toEqual([1, 1, 1]);
+    expect(cells.pop[0]).toBe(10);
+    expect(cells.pop[2]).toBe(10);
+    expect(cells.pop[3]).toBe(0);
+    expect(cells.pop[5]).toBe(0);
+  });
+
   it("starts each State as a single capital city when scope is capital", () => {
     const cells = createCells(8, { 0: { 1: 0 }, 1: { 0: 0, 2: 0 }, 2: { 1: 0 } });
     cells.burg[0] = 1;

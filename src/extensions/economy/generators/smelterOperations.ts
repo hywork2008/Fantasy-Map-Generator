@@ -9,6 +9,7 @@ import {
   getWorldContext,
   setSmelterOperations
 } from "../economyContext";
+import { harvestWood } from "./forestStock";
 import { isGoodEnabled } from "./goods-generator";
 import { getGuildBonus } from "./guildKnowledge";
 import { Markets } from "./markets-generator";
@@ -84,6 +85,7 @@ export class SmelterOperationsModule {
       if (!burgId) continue;
 
       const previous = previousByDeposit.get(deposit.i);
+      const relocated = previous !== undefined && (previous.marketId !== mine.marketId || previous.burgId !== burgId);
       const annualCapacityTons = this.getAnnualCapacity(deposit.yields);
       operations.push({
         i: operations.length + 1,
@@ -97,9 +99,10 @@ export class SmelterOperationsModule {
         toolsInvestmentStock: previous?.toolsInvestmentStock ?? 0,
         smeltingYield: previous?.smeltingYield ?? DEFAULT_SMELTING_YIELD,
         annualCapacityTons,
-        // A newly built smelter staffs up immediately; annual reconciliation (basicEmployment.ts)
-        // pulls this back down toward the Burg's actually-available adults over subsequent years.
-        workers: previous?.workers ?? getSmelterRequiredWorkers({ annualCapacityTons }),
+        // A newly built or relocated smelter staffs up immediately; annual reconciliation
+        // (basicEmployment.ts) pulls this back down toward the Burg's actually-available
+        // adults over subsequent years. Keep the previous crew only while the site stays put.
+        workers: previous && !relocated ? previous.workers : getSmelterRequiredWorkers({ annualCapacityTons }),
         securityInvestment: previous?.securityInvestment ?? DEFAULT_SECURITY_INVESTMENT,
         lastSecurityUpkeep: 0,
         lastTheftLoss: 0,
@@ -227,6 +230,7 @@ export class SmelterOperationsModule {
       const processingFactor = this.getProcessingFactor(smelter);
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
+      this.ensureLocalCharcoalReserve(smelter, monthlyCapacity, goodsByName);
 
       for (const yieldInfo of oreYields) {
         const commodity = yieldInfo.commodity;
@@ -362,6 +366,48 @@ export class SmelterOperationsModule {
         (yieldInfo.annualCapacityTons / totalAnnualOreCapacity)) /
       12
     );
+  }
+
+  /**
+   * A forest-sited furnace burns local timber into Charcoal when the market has none.
+   * Frontier mining towns often have no spare burg labour for the Charcoal recipe, so
+   * the smelter's own fuelAccess is what actually feeds the bloomery.
+   */
+  private ensureLocalCharcoalReserve(
+    smelter: SmelterOperation,
+    monthlyOreCapacity: number,
+    goodsByName: ReadonlyMap<string, { i: number; name: string; recipes?: readonly Record<number, number>[] }>
+  ): void {
+    if (smelter.fuelAccess < 0.75 || monthlyOreCapacity <= 0) return;
+    const charcoal = goodsByName.get(CHARCOAL_GOOD_NAME);
+    const wood = goodsByName.get("wood");
+    if (!charcoal || !wood || !isGoodEnabled(charcoal) || !isGoodEnabled(wood)) return;
+
+    const market = Markets.get(smelter.marketId);
+    if (!market) return;
+    const available = market.goods[charcoal.i]?.stock ?? 0;
+    const needed = (monthlyOreCapacity * CHARCOAL_PER_ORE_UNIT) / MARKET_SMELTING_STOCK_SHARE;
+    const shortfall = needed - available;
+    if (shortfall <= 0.0001) return;
+
+    const woodPerCharcoal = charcoal.recipes?.[0]?.[wood.i] ?? 1.5;
+    const harvestedWood = this.harvestLocalWood(smelter.cell, shortfall * woodPerCharcoal);
+    if (harvestedWood <= 0) return;
+    Markets.addSmelterSupply(smelter.marketId, charcoal.i, harvestedWood / Math.max(0.0001, woodPerCharcoal));
+  }
+
+  private harvestLocalWood(cellId: number, requestedWood: number): number {
+    const cells = getWorldContext().pack.cells;
+    const candidateIds = [...new Set([cellId, ...(cells.c?.[cellId] ?? [])])];
+    let remaining = requestedWood;
+    let harvested = 0;
+    for (const candidate of candidateIds) {
+      if (remaining <= 0) break;
+      const taken = harvestWood(candidate, remaining);
+      harvested += taken;
+      remaining -= taken;
+    }
+    return harvested;
   }
 
   private getProcessingFactor(smelter: SmelterOperation): number {

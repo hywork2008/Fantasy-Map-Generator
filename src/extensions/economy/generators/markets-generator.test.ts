@@ -10,6 +10,7 @@ import {
   getMarketCellColumn,
   getMarkets,
   initEconomyContext,
+  setGoods,
   setMarkets,
   setMetallurgWorkOrders
 } from "../economyContext";
@@ -770,7 +771,7 @@ describe("MarketsModule", () => {
       const market3: Market = { i: 3, centerBurgId: 30, color: "#fff", goods: {} };
       const market7: Market = { i: 7, centerBurgId: 70, color: "#fff", goods: {} };
       setMarkets([market3, market7]);
-      expect(marketsModule.get(3)).toBeUndefined();
+      expect(marketsModule.get(3)).toBe(market3);
 
       marketsModule.sync();
 
@@ -784,6 +785,19 @@ describe("MarketsModule", () => {
       setMarkets([null as unknown as Market, market2]);
       expect(() => marketsModule.sync()).not.toThrow();
       expect(marketsModule.get(2)).toBe(market2);
+    });
+
+    it("addMineSupply writes to a loaded market before the transient index is synchronized", () => {
+      const ore = { i: 4, name: "Iron Ore", tags: ["ore"], value: 2, unit: "wagon", icon: "iron", color: "#777" };
+      const destination: Market = { i: 4, centerBurgId: 1, color: "#111", goods: {} };
+      setMarkets([destination]);
+      setGoods([ore]);
+      vi.mocked(Goods.get).mockImplementation((id: number) => (id === ore.i ? ore : undefined));
+      // biome-ignore lint/complexity/useLiteralKeys: emulate a loaded map before Markets.sync()
+      marketsModule["marketById"] = [];
+
+      expect(marketsModule.addMineSupply(4, 4, 2.5)).toBe(2.5);
+      expect(destination.goods[4].stock).toBe(2.5);
     });
   });
 });

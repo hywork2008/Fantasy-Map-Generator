@@ -1833,7 +1833,7 @@
       "livelihood": "Livelihood",
       "livelihoodTip": "Dominant local food strategy used to limit rural population growth",
       "localFood": "Local food capacity",
-      "localFoodTip": "Local rural population support before imported food; terrain capacity remains a separate upper ceiling",
+      "localFoodTip": "Rural people this cell can feed from local livelihood, before imports. Urban residents are counted separately (burg housing and market food), so total Population can exceed this number without the countryside being over capacity.",
       "elevation": "Elevation",
       "depth": "Depth",
       "temperature": "Temperature",

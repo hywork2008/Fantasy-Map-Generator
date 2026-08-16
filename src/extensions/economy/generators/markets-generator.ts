@@ -895,7 +895,7 @@ export class MarketsModule {
 
   private addRuralOutput(marketId: number, collectionBurgId: number, goodId: number, amount: number): void {
     if (amount <= 0) return;
-    const market = this.marketById[marketId];
+    const market = this.get(marketId);
     const good = Goods.get(goodId);
     if (!market || !good || !isGoodEnabled(good)) return;
 
@@ -1075,7 +1075,12 @@ export class MarketsModule {
 
   public get(marketId: number | undefined): Market | undefined {
     if (!marketId) return undefined;
-    return this.marketById[marketId];
+    const indexed = this.marketById[marketId];
+    if (indexed) return indexed;
+    // Loaded maps restore the market array before this in-memory index is rebuilt.
+    const market = getMarkets().find(candidate => candidate.i === marketId);
+    if (market) this.marketById[marketId] = market;
+    return market;
   }
 
   private applyLocalTradePriceBias(populationByMarket: number[]): void {

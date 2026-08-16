@@ -1833,7 +1833,7 @@
       "livelihood": "生業",
       "livelihoodTip": "農村人口の上限に使う、その土地の主な食料戦略です",
       "localFood": "地元の食料収容力",
-      "localFoodTip": "輸入前の農村人口を支えられる量です。地形の収容力は別の上限です",
+      "localFoodTip": "このセルの生業で賄える農村人口（輸入前）。都市人口はBurgの住宅・市場食料で別計算なので、Population合計がこの数字を超えても農村が過密とは限りません。",
       "elevation": "標高",
       "depth": "水深",
       "temperature": "気温",

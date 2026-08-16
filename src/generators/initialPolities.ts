@@ -5,11 +5,17 @@ import { canStateClaimCell } from "./dangerExpandPolicy";
 
 type NumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
 
+type MutableNumberColumn = ArrayLike<number> & { [index: number]: number };
+
 export interface InitialPolityCells {
   readonly i: ArrayLike<number>;
   readonly c: readonly (readonly number[])[];
   readonly h: ArrayLike<number>;
-  readonly pop: ArrayLike<number>;
+  readonly pop: MutableNumberColumn;
+  readonly children?: MutableNumberColumn;
+  readonly maleAdults?: MutableNumberColumn;
+  readonly femaleAdults?: MutableNumberColumn;
+  readonly elders?: MutableNumberColumn;
   readonly burg: ArrayLike<number>;
   readonly routes: Readonly<Record<number, Readonly<Record<number, number>>>>;
   readonly p: readonly (readonly [number, number])[];
@@ -36,14 +42,42 @@ export interface InitialPolitiesInput {
  * only decides how much of it starts as state land.
  *
  * `realmSize === 1` is capital-only. Burgs outside the blob stay free.
+ * Unclaimed oikoumene hinterland is then depopulated: a one-cell start cannot
+ * expand if nameless neighbours already sit on the local food capacity.
  */
 export function assignInitialPolities({ plan, cells, burgs, states, realmSize }: InitialPolitiesInput): void {
   const size = normalizeInitialPolityRealmSize(realmSize);
   if (size <= 1) {
     assignCapitalOnlyPolities(cells, burgs, states);
-    return;
+  } else {
+    assignCompactStartingRealms(plan, cells, burgs, states, size);
   }
-  assignCompactStartingRealms(plan, cells, burgs, states, size);
+  clearUnclaimedOikoumenePopulation(cells);
+}
+
+/**
+ * Frontier / marches keep people only on state land (and later on live frontier
+ * expeditions). Stateless rural stock next to a capital races that capital for
+ * the same subsistence K; if the natives fill it first, the state can never
+ * send a colonist party.
+ */
+export function clearUnclaimedOikoumenePopulation(
+  cells: Pick<InitialPolityCells, "i" | "state" | "pop" | "children" | "maleAdults" | "femaleAdults" | "elders">,
+  keepCell?: (cellId: number) => boolean
+): number {
+  let cleared = 0;
+  for (const cellId of Array.from(cells.i)) {
+    if (cells.state[cellId]) continue;
+    if (keepCell?.(cellId)) continue;
+    if (!((cells.pop[cellId] ?? 0) > 0)) continue;
+    cells.pop[cellId] = 0;
+    if (cells.children) cells.children[cellId] = 0;
+    if (cells.maleAdults) cells.maleAdults[cellId] = 0;
+    if (cells.femaleAdults) cells.femaleAdults[cellId] = 0;
+    if (cells.elders) cells.elders[cellId] = 0;
+    cleared += 1;
+  }
+  return cleared;
 }
 
 function assignCompactStartingRealms(

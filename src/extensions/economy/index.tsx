@@ -1027,9 +1027,13 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to prospect mines");
       if (value !== undefined) throw new Error("economy.mines.prospect does not accept a payload");
 
+      const reanchoredOperations = MineOperations.reanchorOperations();
       const result = MineOperations.prospect();
-      if (result.discovered) SmelterOperations.generate();
-      return { changed: result.discovered > 0 || result.upgraded > 0, result };
+      if (result.discovered || reanchoredOperations) SmelterOperations.generate();
+      return {
+        changed: result.discovered > 0 || result.upgraded > 0 || reanchoredOperations > 0,
+        result
+      };
     }
   });
   _unregisterJobsApplyCommand = api.registerExtensionCommand({
@@ -2228,6 +2232,8 @@ export function init(api: ExtensionAPI): void {
   // newly added Ingots/Cats begin at zero stock (no duplicated wealth).
   _worldLoadedHandler = () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    Goods.sync();
+    Markets.sync();
     clearStateFiscalReports();
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
@@ -2265,7 +2271,9 @@ export function init(api: ExtensionAPI): void {
     // Run after the crop migration so a loaded map immediately receives crop-specific climate,
     // soil, and field-output columns rather than waiting for its next annual tick.
     DevelopmentPotential.generate();
-    if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
+    if (MineOperations.reanchorOperations() || (!getSmelterOperations().length && getMineOperations().length)) {
+      SmelterOperations.generate();
+    }
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
     const migratedMetallurgTools = MetallurgWork.migrateLegacyToolsUnitScale();
     if (!getMetallurgAssetLedgers().length) {
@@ -2362,6 +2370,9 @@ export function init(api: ExtensionAPI): void {
     const createdMarket = burg ? Markets.addMarket(burgId) : null;
     if (createdMarket) Markets.expandTerritories();
     if (burg) burg.market = getMarketCellColumn()[cellId] || 0;
+    // A new catchment can cover an already-opened mine that was still paying labour
+    // and delivering Ore to the old capital hinterland.
+    if (MineOperations.reanchorOperations()) SmelterOperations.generate();
 
     // A changed bonus product and a new urban worker both affect the next
     // production cycle. One microtask coalesces every same-tick promotion.
@@ -2734,8 +2745,9 @@ export function init(api: ExtensionAPI): void {
         if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
           daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
           const discoveries = runStateProspecting(api, () => context.rng.rand());
+          const reanchoredOperations = MineOperations.reanchorOperations();
           const openedOperations = MineOperations.openDiscoveredAccessibleOperations();
-          if (discoveries || openedOperations) SmelterOperations.generate();
+          if (discoveries || openedOperations || reanchoredOperations) SmelterOperations.generate();
         }
       });
 
@@ -2835,6 +2847,8 @@ export function init(api: ExtensionAPI): void {
 
   api.registerMapReinitHook(() => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    Goods.sync();
+    Markets.sync();
     attachSvgClickHandlers();
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
@@ -2869,7 +2883,9 @@ export function init(api: ExtensionAPI): void {
       Goods.sync();
       Markets.initializeMarketPrices();
     }
-    if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
+    if (MineOperations.reanchorOperations() || (!getSmelterOperations().length && getMineOperations().length)) {
+      SmelterOperations.generate();
+    }
     if (getWorldContext().options.gunpowderEraEnabled === false) refreshEconomyForGunpowderEra(api);
     // Backfill sales/poll tax rates and recompute treasury for maps saved before this feature existed.
     // Both calls are idempotent/cheap, so re-running them on every load is safe.

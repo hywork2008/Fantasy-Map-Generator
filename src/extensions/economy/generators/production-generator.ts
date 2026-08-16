@@ -259,6 +259,10 @@ export class ProductionModule {
     // market-deals-overview.ts, production-overview.ts) for the whole ~30-day interval between
     // cycles, instead of for ~0ms (docs/temp/profits.md decision #1).
     setDeals([]);
+    // Loaded maps restore goods/markets before the singleton lookup caches are rebuilt.
+    // Rural Wood and mine supply both write through those caches.
+    Goods.sync();
+    Markets.sync();
 
     // A0 flow diagnostics: retail stock before rural/burg production this cycle.
     beginFlowCycleCapture();
@@ -266,6 +270,7 @@ export class ProductionModule {
 
     measureTickStep("production:rural", () => Markets.collectRuralProduction());
     measureTickStep("production:minesSmelters", () => {
+      if (MineOperations.reanchorOperations()) SmelterOperations.generate();
       MineOperations.produceMonth();
       SmelterOperations.produceMonth();
     });

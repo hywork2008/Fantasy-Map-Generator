@@ -29,7 +29,7 @@ import {
 import { TIME } from "../utils/debug";
 import { getStateExpandDangerCost } from "./dangerExpandPolicy";
 import { COA } from "./emblem/generator";
-import { assignInitialPolities } from "./initialPolities";
+import { assignInitialPolities, clearUnclaimedOikoumenePopulation } from "./initialPolities";
 import { Names } from "./names-generator";
 
 class StatesModule {
@@ -173,6 +173,7 @@ class StatesModule {
             b.state = cells.state[b.cell];
             b.stateHistory = [b.state];
           });
+        clearUnclaimedOikoumenePopulation(cells);
       }
       TIME && console.timeEnd("expandStates");
       return;

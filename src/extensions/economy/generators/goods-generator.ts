@@ -2787,7 +2787,11 @@ export class GoodsModule {
   }
 
   get(i: number): Good | undefined {
-    return this.goodById[i];
+    const indexed = this.goodById[i];
+    if (indexed) return indexed;
+    const good = getGoods().find(candidate => candidate.i === i);
+    if (good) this.goodById[i] = good;
+    return good;
   }
 
   /** True only while a catalogue entry still exactly matches its shipped definition. */

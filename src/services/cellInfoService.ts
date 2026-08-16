@@ -61,9 +61,7 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
       : "no",
     population: getFriendlyPopulation(i),
     livelihood: cells.livelihood ? getLivelihoodKind(cells.livelihood[i]) : "legacy map",
-    subsistenceCapacity: cells.subsistenceCapacity
-      ? si(getCellSubsistenceCapacity(cells, i) * worldContext.populationRate)
-      : "legacy map",
+    subsistenceCapacity: getFriendlySubsistenceCapacity(i),
     burg: cells.burg?.[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no",
     danger: cells.danger ? String(cells.danger[i]) : "n/a",
     feature: f ? `${worldContext.pack.features[f].group} (${f})` : "n/a",
@@ -200,9 +198,16 @@ export function getFriendlyPopulation(i: number): string {
   const [rural, urban] = getCellPopulation(i);
   return `${si(rural + urban)} (${si(rural)} rural, urban ${si(urban)})`;
 }
+export function getFriendlySubsistenceCapacity(i: number): string {
+  const cells = worldContext.pack.cells;
+  if (!cells.subsistenceCapacity) return "legacy map";
+  const capacity = getCellSubsistenceCapacity(cells, i) * worldContext.populationRate;
+  const rural = cells.pop[i] * worldContext.populationRate;
+  return `${si(capacity)} (rural ${si(rural)} / ${si(capacity)})`;
+}
 export function getPopulationTip(i: number): string {
   const [rural, urban] = getCellPopulation(i);
-  return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
+  return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}. Local food capacity applies to the rural figure only.`;
 }
 
 /** Tip for the Combat Deaths layer (rolling battlefield casualties). */

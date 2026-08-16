@@ -14,10 +14,14 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMineOperations,
+  getMineralDeposits,
   getSaltworks,
   getWorldContext
 } from "../economyContext";
 import { Goods, isGoodEnabled } from "./goods-generator";
+import { getMineExtractionFactor } from "./mineOperations";
+import { getMinedGoodName } from "./mineralResources";
 import { Production } from "./production-generator";
 import { getCellProduction } from "./production-utils";
 import { reconcileRetailInventory } from "./retailInventory";
@@ -161,6 +165,21 @@ export function getProduction(): Record<number, GoodProduction> {
     for (const saltworks of getSaltworks()) {
       if (!saltworks.active || saltworks.monthlyOutputBags <= 0) continue;
       addProduction(saltGood.i, saltworks.monthlyOutputBags, "industrial", saltworks.marketId);
+    }
+  }
+
+  const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+  const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
+  for (const operation of getMineOperations()) {
+    if (!operation.active) continue;
+    const deposit = depositsById.get(operation.depositId);
+    if (!deposit || deposit.exhausted) continue;
+    const extractionFactor = getMineExtractionFactor(operation, deposit);
+    if (!(extractionFactor > 0)) continue;
+    for (const yieldInfo of deposit.yields) {
+      const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
+      if (!good || !isGoodEnabled(good) || yieldInfo.reserveTons <= 0) continue;
+      addProduction(good.i, (yieldInfo.annualCapacityTons * extractionFactor) / 12, "industrial", operation.marketId);
     }
   }
 

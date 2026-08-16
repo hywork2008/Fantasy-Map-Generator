@@ -148,4 +148,35 @@ describe("simulateDemographics birth floor (PR-P2)", () => {
     expect(worldContext.pack.cells.pop[0]).toBeCloseTo(100, 5);
     expect(worldContext.pack.cells.children[0]).toBeGreaterThan(0);
   });
+
+  it("clears stateless rural people on a frontier map so they cannot occupy a neighbour's food K", () => {
+    worldContext.options = { ...(worldContext.options ?? {}), initialSettlementPattern: "frontier" };
+    worldContext.pack.cells = {
+      i: new Uint16Array([0, 1]),
+      pop: new Float32Array([8, 5]),
+      children: new Float32Array([3, 2]),
+      maleAdults: new Float32Array([2, 1]),
+      femaleAdults: new Float32Array([2, 1]),
+      elders: new Float32Array([1, 1]),
+      capacity: new Float32Array([10, 10]),
+      subsistenceCapacity: new Float32Array([10, 10]),
+      state: new Uint16Array([1, 0]),
+      h: new Uint8Array([30, 30]),
+      s: new Uint8Array([20, 20]),
+      r: new Uint16Array([0, 0]),
+      c: [[1], [0]]
+    } as unknown as PackedGraph["cells"];
+    worldContext.pack.burgs = [];
+    simulationContext.frontier = {
+      ...simulationContext.frontier,
+      cellStages: new Uint8Array([3, 0]),
+      projects: {}
+    };
+
+    simulateDemographics(1);
+
+    expect(worldContext.pack.cells.pop[1]).toBe(0);
+    expect(worldContext.pack.cells.children[1]).toBe(0);
+    expect(worldContext.pack.cells.pop[0]).toBeGreaterThan(0);
+  });
 });
