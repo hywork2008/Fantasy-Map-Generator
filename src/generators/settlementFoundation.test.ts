@@ -178,6 +178,27 @@ describe("Settlement Foundation Module", () => {
     expect(result.plan.regions.map(region => region.center)).toContain(50);
   });
 
+  it("does not treat a neighbouring landmass as a close competitor under land-origin dispersal", () => {
+    const cells = createCells(101, [5, 50]);
+    cells.f.fill(1, 0, 30);
+    cells.f.fill(2, 30);
+    const result = createSettlementFoundation(
+      cells,
+      { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) },
+      "frontier",
+      0.3,
+      () => 0,
+      2,
+      undefined,
+      "dispersed",
+      "landOrigin"
+    );
+
+    const landmasses = new Set(result.plan.regions.map(region => cells.f[region.center]));
+    expect(landmasses.has(1)).toBe(true);
+    expect(landmasses.has(2)).toBe(true);
+  });
+
   it("uses the largest-island allocation order before opening a second homeland", () => {
     const cells = createCells(101, [5, 30, 50, 95]);
     cells.f.fill(1, 0, 40);

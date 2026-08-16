@@ -41,7 +41,7 @@ import { Dungeons } from "./generators/dungeons-generator";
 import { Features } from "./generators/features";
 import { initializeForestStock } from "./generators/forestStock";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
-import { getPreferredDispersedSeaborneFoundationCells } from "./generators/frontierStartPlacement";
+import { getPreferredDispersedFrontierStarts } from "./generators/frontierStartPlacement";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
@@ -1135,14 +1135,14 @@ function getGenerationStages(): Array<() => Promise<void>> {
       Cultures.expand(state);
       const optionsSnap = useOptionsState.getState();
       const preferredFrontierStarts =
-        optionsSnap.initialSettlementPattern === "frontier" &&
-        optionsSnap.frontierPolitySpacing === "dispersed" &&
-        optionsSnap.frontierStartMode === "seaborne"
-          ? getPreferredDispersedSeaborneFoundationCells(
-              worldContext.pack,
-              optionsSnap.initialPolityRealmSize,
-              optionsSnap.statesNumber
-            )
+        optionsSnap.initialSettlementPattern === "frontier" && optionsSnap.frontierPolitySpacing === "dispersed"
+          ? getPreferredDispersedFrontierStarts({
+              pack: worldContext.pack,
+              realmSize: optionsSnap.initialPolityRealmSize,
+              polityCount: optionsSnap.statesNumber,
+              startMode: optionsSnap.frontierStartMode,
+              climate: { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec }
+            })
           : undefined;
       const settlementPattern = applyInitialSettlementPattern(
         worldContext.pack.cells,

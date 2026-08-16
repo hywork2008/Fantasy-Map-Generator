@@ -118,8 +118,8 @@ export function createSettlementFoundation(
     regionCount,
     random,
     frontierRegionCenterDistanceWeight(spacing),
-    centerPool === preferredStartResources ? cells.f : undefined,
-    centerPool === preferredStartResources ? preferredFrontierStartLandmassOrder : undefined
+    pattern === "frontier" && spacing === "dispersed" ? cells.f : undefined,
+    pattern === "frontier" && spacing === "dispersed" ? preferredFrontierStartLandmassOrder : undefined
   );
   const footprint =
     oikoumeneLandShare !== undefined && Number.isFinite(oikoumeneLandShare)

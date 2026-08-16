@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { SettlementFoundationPlan } from "../types/settlementFoundation";
-import { getPreferredDispersedSeaborneFoundationCells, selectFrontierStartCapitals } from "./frontierStartPlacement";
+import {
+  buildFrontierStartAudit,
+  getPreferredDispersedFrontierStarts,
+  getPreferredDispersedSeaborneFoundationCells,
+  selectFrontierStartCapitals
+} from "./frontierStartPlacement";
 
 function buildPack(opts: {
   cellCount: number;
@@ -129,7 +134,7 @@ describe("selectFrontierStartCapitals", () => {
     const featureOf = Array.from({ length: 70 }, (_, index) => (index < 30 ? 1 : index < 60 ? 2 : index < 65 ? 3 : 8));
     const harbor = Array.from({ length: 70 }, () => 0);
     const haven = Array.from({ length: 70 }, () => 0);
-    for (const cellId of [5, 15, 35, 45, 61]) {
+    for (const cellId of [5, 10, 15, 35, 45, 61]) {
       harbor[cellId] = 1;
       haven[cellId] = 66;
     }
@@ -148,8 +153,8 @@ describe("selectFrontierStartCapitals", () => {
     });
 
     const starts = getPreferredDispersedSeaborneFoundationCells(pack, 2, 4);
-    expect([...starts.cells]).toEqual([5, 15, 35, 45]);
-    expect(starts.landmassOrder).toEqual([1, 2, 1, 2]);
+    expect([...starts.cells]).toEqual([5, 10, 15, 35, 45]);
+    expect(starts.landmassOrder).toEqual([1, 2, 1, 1]);
   });
 
   it("allocates a four-polity archipelago across its three largest peer islands first", () => {
@@ -454,7 +459,7 @@ describe("selectFrontierStartCapitals", () => {
     expect(selected.map(node => node.cell).sort((a, b) => a - b)).toEqual([3, 14]);
   });
 
-  it("fills a continent before opening island homelands under dispersed spacing", () => {
+  it("keeps undersized islands out of the first homeland set", () => {
     const cellCount = 130;
     const featureOf = Array.from({ length: cellCount }, (_, i) => {
       if (i === 125 || i === 126) return 8;
@@ -509,5 +514,123 @@ describe("selectFrontierStartCapitals", () => {
       spacing: "dispersed"
     });
     expect(selected.map(node => node.cell).sort((a, b) => a - b)).toEqual([5, 20, 35, 50]);
+  });
+
+  it("opens a first homeland on each large landmass instead of filling the continent", () => {
+    const cellCount = 130;
+    const featureOf = Array.from({ length: cellCount }, (_, i) => {
+      if (i === 125 || i === 126) return 8;
+      if (i >= 80) return 2;
+      return 1;
+    });
+    const river = Array.from({ length: cellCount }, () => 0);
+    const harbor = Array.from({ length: cellCount }, () => 0);
+    const haven = Array.from({ length: cellCount }, () => 0);
+    const coast = Array.from({ length: cellCount }, () => 0);
+    const suitability = Array.from({ length: cellCount }, () => 8);
+    const mouths = [5, 20, 35, 90, 110];
+    for (const cellId of mouths) {
+      river[cellId] = 1;
+      harbor[cellId] = 1;
+      haven[cellId] = cellId >= 80 ? 126 : 125;
+      coast[cellId] = 1;
+    }
+    suitability[90] = 90;
+    suitability[110] = 90;
+    suitability[5] = 40;
+    suitability[20] = 38;
+    suitability[35] = 36;
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      river,
+      harbor,
+      haven,
+      coast,
+      suitability,
+      havenFeature: Array.from({ length: cellCount }, (_, i) => (mouths.includes(i) ? 8 : 0)),
+      features: [
+        { i: 1, land: true, type: "island", group: "continent", cells: 240 },
+        { i: 2, land: true, type: "island", group: "island", cells: 180 },
+        { i: 8, land: false, type: "ocean", cells: 400 }
+      ]
+    });
+    const selected = selectFrontierStartCapitals({
+      plan: plan(
+        mouths.map((cell, id) => ({ id, regionId: id, cell, role: "center", score: 1 })),
+        mouths.map(cell => [cell])
+      ),
+      pack,
+      count: 3,
+      startMode: "landOrigin",
+      realmSize: 1,
+      spacing: "dispersed"
+    });
+    const landmasses = new Set(selected.map(node => pack.cells.f[node.cell]));
+    expect(landmasses.has(1)).toBe(true);
+    expect(landmasses.has(2)).toBe(true);
+    expect(selected).toHaveLength(3);
+  });
+
+  it("allocates land-origin homelands with the same landmass potential rule", () => {
+    const cellCount = 70;
+    const featureOf = Array.from({ length: cellCount }, (_, index) =>
+      index < 30 ? 1 : index < 60 ? 2 : index < 65 ? 3 : 8
+    );
+    const river = Array.from({ length: cellCount }, () => 0);
+    for (const cellId of [5, 10, 15, 35, 45, 61]) river[cellId] = 1;
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      river,
+      features: [
+        { i: 1, land: true, type: "island", group: "continent", cells: 1_630 },
+        { i: 2, land: true, type: "island", group: "island", cells: 957 },
+        { i: 3, land: true, type: "island", group: "island", cells: 107 },
+        { i: 8, land: false, type: "ocean", cells: 400 }
+      ]
+    });
+
+    const starts = getPreferredDispersedFrontierStarts({
+      pack,
+      realmSize: 2,
+      polityCount: 4,
+      startMode: "landOrigin"
+    });
+    expect([...starts.cells].sort((left, right) => left - right)).toEqual([5, 10, 15, 35, 45]);
+    expect(starts.landmassOrder).toEqual([1, 2, 1, 1]);
+  });
+
+  it("records same-landmass hop distance as infinite across a sea crossing", () => {
+    const cellCount = 40;
+    const featureOf = Array.from({ length: cellCount }, (_, index) => (index < 18 ? 1 : index < 36 ? 2 : 8));
+    const river = Array.from({ length: cellCount }, () => 0);
+    river[4] = 1;
+    river[22] = 1;
+    const pack = buildPack({
+      cellCount,
+      featureOf,
+      river,
+      features: [
+        { i: 1, land: true, type: "island", cells: 200 },
+        { i: 2, land: true, type: "island", cells: 180 },
+        { i: 8, land: false, type: "ocean", cells: 400 }
+      ]
+    });
+    const selected = [
+      { id: 0, regionId: 0, cell: 4, role: "center" as const, score: 1 },
+      { id: 1, regionId: 1, cell: 22, role: "center" as const, score: 1 }
+    ];
+    const audit = buildFrontierStartAudit(
+      plan(selected, [
+        [3, 4, 5],
+        [21, 22, 23]
+      ]),
+      pack,
+      selected
+    );
+    expect(audit).toHaveLength(2);
+    expect(audit.every(record => !Number.isFinite(record.nearestSameLandmassCapitalHops))).toBe(true);
+    expect(new Set(audit.map(record => record.landmassId))).toEqual(new Set([1, 2]));
   });
 });

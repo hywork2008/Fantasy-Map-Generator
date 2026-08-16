@@ -7,7 +7,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { isNomadicBiome } from "../data/biomeCatalog";
-import { getPreferredDispersedSeaborneFoundationCells } from "../generators/frontierStartPlacement";
+import { getPreferredDispersedFrontierStarts } from "../generators/frontierStartPlacement";
 import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { applyInitialSettlementPattern } from "../generators/settlementPattern";
 import { runTimeSimulation } from "../generators/timeEngine";
@@ -627,14 +627,14 @@ function regenerateSettlementPattern(): void {
     const optionsSnap = useOptionsState.getState();
     const state = getWorldState();
     const preferredFrontierStarts =
-      optionsSnap.initialSettlementPattern === "frontier" &&
-      optionsSnap.frontierPolitySpacing === "dispersed" &&
-      optionsSnap.frontierStartMode === "seaborne"
-        ? getPreferredDispersedSeaborneFoundationCells(
+      optionsSnap.initialSettlementPattern === "frontier" && optionsSnap.frontierPolitySpacing === "dispersed"
+        ? getPreferredDispersedFrontierStarts({
             pack,
-            optionsSnap.initialPolityRealmSize,
-            optionsSnap.statesNumber
-          )
+            realmSize: optionsSnap.initialPolityRealmSize,
+            polityCount: optionsSnap.statesNumber,
+            startMode: optionsSnap.frontierStartMode,
+            climate: { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec }
+          })
         : undefined;
 
     // `worldContext.options.initialSettlementPattern` (and the other fields

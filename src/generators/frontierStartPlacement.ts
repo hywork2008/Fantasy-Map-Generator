@@ -1,13 +1,22 @@
 import type { PackedGraph } from "../types/PackedGraph";
 import type { SettlementFoundationPlan, SettlementNode } from "../types/settlementFoundation";
 import type { FrontierPolitySpacing, FrontierStartMode } from "../types/WorldState";
+import { DEBUG, INFO } from "../utils/debug";
 import {
   frontierStartLandFloors,
   MIN_FRONTIER_START_LAND_CELLS_ABSOLUTE,
-  minFrontierStartLandCells,
   normalizeFrontierPolitySpacing
 } from "../utils/frontierStartMode";
 import { isTrueOceanHarborCell } from "../utils/oceanPort";
+import {
+  allocateFrontierLandmassSlots,
+  type FrontierClimateColumns,
+  type FrontierStartAuditRecord,
+  type LandmassGrowthPotential,
+  landHopDistance,
+  measureLandmassPotential,
+  measureStartRegionPotential
+} from "./frontierStartPotential";
 import { selectInitialPolityCapitalNodes } from "./initialPolities";
 
 /** Same-island starts stay this far apart along the coast before relaxing. */
@@ -23,69 +32,115 @@ export interface FrontierStartPlacementArgs {
   readonly spacing?: FrontierPolitySpacing;
 }
 
-export interface DispersedSeaborneFoundationStarts {
+export interface DispersedFrontierFoundationStarts {
   readonly cells: ReadonlySet<number>;
   /** Land feature selected for each initial polity, ordered by polity ordinal. */
   readonly landmassOrder: readonly number[];
 }
 
+/** @deprecated Use DispersedFrontierFoundationStarts. */
+export type DispersedSeaborneFoundationStarts = DispersedFrontierFoundationStarts;
+
+export interface DispersedFrontierStartArgs {
+  readonly pack: PackedGraph;
+  readonly realmSize: number;
+  readonly polityCount: number;
+  readonly startMode?: FrontierStartMode;
+  readonly climate?: FrontierClimateColumns;
+}
+
 /**
- * Returns the large-landmass ocean harbours that can anchor independent
- * seaborne homelands. Foundation generation uses this before it distributes
- * population, so dispersed capital placement is not later forced back into
- * the one region that happened to contain a port.
+ * Returns the landmass-aware start cells that can anchor independent Frontier
+ * homelands. Foundation generation uses this before it distributes population,
+ * so dispersed capital placement is not later forced back into one estuary.
+ */
+export function getPreferredDispersedFrontierStarts(
+  args: DispersedFrontierStartArgs
+): DispersedFrontierFoundationStarts {
+  const { pack, realmSize, polityCount, climate } = args;
+  const startMode = args.startMode ?? "landOrigin";
+  if (polityCount <= 0) return { cells: new Set(), landmassOrder: [] };
+
+  for (const minCells of frontierStartLandFloors(realmSize)) {
+    const selected = selectDispersedStartLandmasses(pack, minCells, polityCount, startMode, climate);
+    if (selected.landmassOrder.length) return selected;
+  }
+
+  return selectDispersedStartLandmasses(pack, MIN_FRONTIER_START_LAND_CELLS_ABSOLUTE, polityCount, startMode, climate);
+}
+
+/**
+ * Seaborne wrapper kept for existing tests and regenerate paths.
  */
 export function getPreferredDispersedSeaborneFoundationCells(
   pack: PackedGraph,
   realmSize: number,
-  polityCount: number
-): DispersedSeaborneFoundationStarts {
-  const minimumLandCells = minFrontierStartLandCells(realmSize);
-  const continentScaleLandCells = getContinentScaleLandCellFloor(pack, minimumLandCells);
-  const continentScaleCandidates = new Map<number, number[]>();
-  const fallbackCandidates = new Map<number, number[]>();
+  polityCount: number,
+  climate?: FrontierClimateColumns
+): DispersedFrontierFoundationStarts {
+  return getPreferredDispersedFrontierStarts({
+    pack,
+    realmSize,
+    polityCount,
+    startMode: "seaborne",
+    climate
+  });
+}
+
+function selectDispersedStartLandmasses(
+  pack: PackedGraph,
+  minCells: number,
+  polityCount: number,
+  startMode: FrontierStartMode,
+  climate?: FrontierClimateColumns
+): DispersedFrontierFoundationStarts {
+  const startSites = collectLandmassStartSites(pack, minCells, startMode);
+  const landmasses: LandmassGrowthPotential[] = [...startSites.entries()].map(([featureId, cells]) => ({
+    ...measureLandmassPotential(pack, featureId, climate),
+    startSites: cells.length
+  }));
+  const landmassOrder = allocateFrontierLandmassSlots(landmasses, polityCount);
+  const allocated = new Set(landmassOrder);
+  const cells = new Set<number>();
+  for (const featureId of allocated) {
+    for (const cellId of startSites.get(featureId) ?? []) cells.add(cellId);
+  }
+  return { cells, landmassOrder };
+}
+
+function collectLandmassStartSites(
+  pack: PackedGraph,
+  minCells: number,
+  startMode: FrontierStartMode
+): Map<number, number[]> {
+  const requireOcean = startMode === "seaborne";
+  const sites = new Map<number, number[]>();
   for (const cellId of pack.cells.i ?? []) {
-    if (!isEligibleStartLandmass(pack, cellId, minimumLandCells)) continue;
-    if (!isOpenOceanHarbor(pack, cellId)) continue;
+    if (!isEligibleStartLandmass(pack, cellId, minCells)) continue;
+    if ((pack.cells.h?.[cellId] ?? 0) < 20) continue;
     const featureId = pack.cells.f?.[cellId];
     if (featureId === undefined || featureId === null) continue;
-    addLandmassCandidate(fallbackCandidates, featureId, cellId);
-    if (isContinentScaleLandmass(pack, cellId, continentScaleLandCells)) {
-      addLandmassCandidate(continentScaleCandidates, featureId, cellId);
+    if (requireOcean) {
+      if (!isOpenOceanHarbor(pack, cellId)) continue;
+    } else if (!isLandOriginStartSite(pack, cellId)) {
+      continue;
     }
+    addLandmassCandidate(sites, featureId, cellId);
   }
+  return sites;
+}
 
-  // A separate continent is an independent expansion field: crossing the sea
-  // is deliberately never treated as a shortcut between starting polities.
-  // Do not consume a small island merely because it is visually farther away.
-  const preferredCandidates =
-    countLandmassCandidates(continentScaleCandidates) >= polityCount ? continentScaleCandidates : fallbackCandidates;
-  const featureIds = [...preferredCandidates.keys()].sort(
-    (left, right) => featureLandCells(pack, right) - featureLandCells(pack, left) || left - right
-  );
-  const candidateCells = [...preferredCandidates.values()].reduce<number[]>((allCells, landmassCells) => {
-    allCells.push(...landmassCells);
-    return allCells;
-  }, []);
-  return {
-    cells: new Set(candidateCells),
-    landmassOrder: createLandmassAllocationOrder(featureIds, polityCount)
-  };
+function isLandOriginStartSite(pack: PackedGraph, cellId: number): boolean {
+  if ((pack.cells.r?.[cellId] ?? 0) > 0) return true;
+  if ((pack.cells.harbor?.[cellId] ?? 0) > 0) return true;
+  if ((pack.cells.t?.[cellId] ?? 0) === 1) return true;
+  return (pack.cells.conf?.[cellId] ?? 0) > 0;
 }
 
 function addLandmassCandidate(candidates: Map<number, number[]>, featureId: number, cellId: number): void {
   const cells = candidates.get(featureId) ?? [];
   cells.push(cellId);
   candidates.set(featureId, cells);
-}
-
-function countLandmassCandidates(candidates: ReadonlyMap<number, readonly number[]>): number {
-  return [...candidates.values()].reduce((total, cells) => total + cells.length, 0);
-}
-
-function createLandmassAllocationOrder(featureIds: readonly number[], polityCount: number): number[] {
-  if (!featureIds.length || polityCount <= 0) return [];
-  return Array.from({ length: polityCount }, (_, index) => featureIds[index % featureIds.length]);
 }
 
 /**
@@ -100,7 +155,7 @@ export function selectFrontierStartCapitals(args: FrontierStartPlacementArgs): S
   if (count <= 0 || !plan.nodes.length) return [];
 
   const riverCapitals = selectRiverStartCapitals(args);
-  if (riverCapitals.length) return riverCapitals;
+  if (riverCapitals.length) return finishFrontierCapitalSelection(args, riverCapitals);
 
   const points = pack.cells.p;
   const maxPerRegion = normalizeFrontierPolitySpacing(args.spacing) === "dispersed" ? 1 : undefined;
@@ -128,8 +183,62 @@ export function selectFrontierStartCapitals(args: FrontierStartPlacementArgs): S
     );
   }
 
-  if (startMode !== "seaborne") return selected;
-  return snapCapitalsToOceanHarbors(plan, pack, selected);
+  return finishFrontierCapitalSelection(args, selected);
+}
+
+function finishFrontierCapitalSelection(
+  args: FrontierStartPlacementArgs,
+  selected: readonly SettlementNode[]
+): SettlementNode[] {
+  const placed =
+    args.startMode !== "seaborne" ? [...selected] : snapCapitalsToOceanHarbors(args.plan, args.pack, selected);
+  if (normalizeFrontierPolitySpacing(args.spacing) === "dispersed") {
+    logFrontierStartAudit(buildFrontierStartAudit(args.plan, args.pack, placed));
+  }
+  return placed;
+}
+
+export function buildFrontierStartAudit(
+  plan: SettlementFoundationPlan,
+  pack: PackedGraph,
+  selected: readonly SettlementNode[]
+): FrontierStartAuditRecord[] {
+  return selected.map(node => {
+    const landmassId = pack.cells.f?.[node.cell] ?? 0;
+    const region = plan.regions.find(entry => entry.id === node.regionId || entry.cells.includes(node.cell));
+    const regionCells = region?.cells ?? [node.cell];
+    const ruralPopulation = regionCells.reduce((sum, cellId) => sum + (pack.cells.pop?.[cellId] ?? 0), 0);
+    const scored = measureStartRegionPotential(pack, node.cell);
+    const nearestSameLandmassCapitalHops = Math.min(
+      Number.POSITIVE_INFINITY,
+      ...selected
+        .filter(other => other.cell !== node.cell && (pack.cells.f?.[other.cell] ?? 0) === landmassId)
+        .map(other => landHopDistance(pack, node.cell, other.cell))
+    );
+    return {
+      capitalCell: node.cell,
+      regionId: node.regionId,
+      landmassId,
+      ruralPopulation,
+      surplusPopulation: scored.surplusPopulation,
+      firstRingCandidateCells: scored.firstRingCandidateCells,
+      potential: scored.potential,
+      nearestSameLandmassCapitalHops
+    };
+  });
+}
+
+function logFrontierStartAudit(records: readonly FrontierStartAuditRecord[]): void {
+  if (!INFO || !DEBUG.frontierStart || !records.length) return;
+  console.info(
+    "Frontier start audit",
+    records.map(record => ({
+      ...record,
+      nearestSameLandmassCapitalHops: Number.isFinite(record.nearestSameLandmassCapitalHops)
+        ? record.nearestSameLandmassCapitalHops
+        : "none"
+    }))
+  );
 }
 
 function pickPreferredLandmassNodes(
@@ -140,18 +249,38 @@ function pickPreferredLandmassNodes(
   count: number,
   maxPerRegion: number | undefined
 ): SettlementNode[] {
-  const continents = pool.filter(node => isContinentCell(pack, node.cell));
-  if (!continents.length) {
+  const byFeature = new Map<number, SettlementNode[]>();
+  for (const node of pool) {
+    const featureId = pack.cells.f?.[node.cell] ?? 0;
+    const list = byFeature.get(featureId) ?? [];
+    list.push(node);
+    byFeature.set(featureId, list);
+  }
+  const landmasses: LandmassGrowthPotential[] = [...byFeature.entries()].map(([featureId, nodes]) => ({
+    ...measureLandmassPotential(pack, featureId),
+    startSites: nodes.length
+  }));
+  const order = allocateFrontierLandmassSlots(landmasses, count);
+  if (!order.length) {
     return selectInitialPolityCapitalNodes({ ...plan, nodes: [...pool] }, points, count, { maxPerRegion });
   }
-  const selected = selectInitialPolityCapitalNodes({ ...plan, nodes: continents }, points, count, { maxPerRegion });
-  if (selected.length >= count) return selected;
-  const used = new Set(selected.map(node => node.cell));
-  const rest = pool.filter(node => !used.has(node.cell) && !isContinentCell(pack, node.cell));
-  if (!rest.length) return selected;
+
+  const selected: SettlementNode[] = [];
+  const used = new Set<number>();
+  for (const featureId of order) {
+    const remaining = (byFeature.get(featureId) ?? []).filter(node => !used.has(node.cell));
+    if (!remaining.length) continue;
+    const [next] = selectInitialPolityCapitalNodes({ ...plan, nodes: remaining }, points, 1, { maxPerRegion });
+    if (!next) continue;
+    selected.push(next);
+    used.add(next.cell);
+  }
+  if (selected.length >= count) return selected.slice(0, count);
+  const leftover = pool.filter(node => !used.has(node.cell));
+  if (!leftover.length) return selected;
   return [
     ...selected,
-    ...selectInitialPolityCapitalNodes({ ...plan, nodes: rest }, points, count - selected.length, { maxPerRegion })
+    ...selectInitialPolityCapitalNodes({ ...plan, nodes: leftover }, points, count - selected.length, { maxPerRegion })
   ];
 }
 
@@ -240,24 +369,6 @@ function landFeatureCellCount(pack: PackedGraph, cellId: number): number {
   const feature = pack.features?.[featureId];
   if (!feature?.land) return 0;
   return feature.cells ?? 0;
-}
-
-function getContinentScaleLandCellFloor(pack: PackedGraph, minimumLandCells: number): number {
-  const largestLandmass = Math.max(
-    0,
-    ...(pack.features ?? []).filter(feature => feature?.land).map(feature => feature.cells ?? 0)
-  );
-  // Feature groups are heuristic labels. A 957-cell island beside a
-  // 1,630-cell continent is still a major independent expansion field, while
-  // a 107-cell isle beside a 3,000-cell continent is not. Use relative land
-  // area so both continent and archipelago maps follow the same rule.
-  return Math.max(minimumLandCells, Math.ceil(largestLandmass / 2));
-}
-
-function isContinentScaleLandmass(pack: PackedGraph, cellId: number, continentScaleLandCells: number): boolean {
-  const featureId = pack.cells.f?.[cellId];
-  if (featureId === undefined || featureId === null) return false;
-  return isContinentFeature(pack, featureId) || featureLandCells(pack, featureId) >= continentScaleLandCells;
 }
 
 function getFoundationRegionCells(plan: SettlementFoundationPlan, capitalCell: number): Set<number> | null {
@@ -415,24 +526,18 @@ function pickSpacedCoastalCells(
     list.push(cellId);
     byFeature.set(featureId, list);
   }
-  const features = [...byFeature.keys()].sort((left, right) => compareStartLandmass(pack, left, right));
-
-  // Continents first. One-per-landmass across islands is how 4 states became
-  // 2:2 (one each on two isles, then a second on the continent).
-  const continentFeatures = features.filter(featureId => isContinentFeature(pack, featureId));
-  const otherFeatures = features.filter(featureId => !isContinentFeature(pack, featureId));
+  const landmasses: LandmassGrowthPotential[] = [...byFeature.entries()].map(([featureId, cells]) => ({
+    ...measureLandmassPotential(pack, featureId),
+    startSites: cells.length
+  }));
+  const allocated = allocateFrontierLandmassSlots(landmasses, count);
+  const uniqueAllocated = [...new Set(allocated)];
+  const leftoverFeatures = [...byFeature.keys()]
+    .filter(featureId => !uniqueAllocated.includes(featureId))
+    .sort((left, right) => compareStartLandmass(pack, left, right));
+  const features = uniqueAllocated.length ? [...uniqueAllocated, ...leftoverFeatures] : leftoverFeatures;
   const picked = [...new Set(initialPicks)];
-  fillSpacedLandmasses(
-    pack,
-    byFeature,
-    continentFeatures.length ? continentFeatures : otherFeatures,
-    picked,
-    count,
-    hopLadder
-  );
-  if (picked.length < count && continentFeatures.length) {
-    fillSpacedLandmasses(pack, byFeature, otherFeatures, picked, count, hopLadder);
-  }
+  fillSpacedLandmasses(pack, byFeature, features, picked, count, hopLadder);
 
   if (picked.length < count) {
     const leftover = unique
@@ -477,15 +582,6 @@ function fillSpacedLandmasses(
   }
 }
 
-function isContinentFeature(pack: PackedGraph, featureId: number): boolean {
-  return pack.features?.[featureId]?.group === "continent";
-}
-
-function isContinentCell(pack: PackedGraph, cellId: number): boolean {
-  const featureId = pack.cells.f?.[cellId];
-  return featureId !== undefined && isContinentFeature(pack, featureId);
-}
-
 function featureLandCells(pack: PackedGraph, featureId: number): number {
   const feature = pack.features?.[featureId];
   if (!feature?.land) return 0;
@@ -493,8 +589,9 @@ function featureLandCells(pack: PackedGraph, featureId: number): number {
 }
 
 function compareStartLandmass(pack: PackedGraph, left: number, right: number): number {
-  const continentDelta = Number(isContinentFeature(pack, right)) - Number(isContinentFeature(pack, left));
-  if (continentDelta) return continentDelta;
+  const potentialDelta =
+    measureLandmassPotential(pack, right).potential - measureLandmassPotential(pack, left).potential;
+  if (potentialDelta) return potentialDelta;
   return featureLandCells(pack, right) - featureLandCells(pack, left) || left - right;
 }
 
