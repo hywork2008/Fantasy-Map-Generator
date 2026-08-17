@@ -1,6 +1,18 @@
 /** Earth-equivalent equatorial circumference used to calibrate generated map distances. */
 export const EARTH_EQUATORIAL_CIRCUMFERENCE_KM = 40_075;
 
+/** Mean length of a degree of latitude. */
+export const KM_PER_DEG_LAT = 110.57;
+/** Length of a degree of longitude at the equator. */
+export const KM_PER_DEG_LON_EQUATOR = 111.32;
+
+export interface EarthBBox {
+  west: number;
+  east: number;
+  south: number;
+  north: number;
+}
+
 const EARTH_RADIUS_KM = EARTH_EQUATORIAL_CIRCUMFERENCE_KM / (2 * Math.PI);
 
 type MapCoordinates = {
@@ -73,6 +85,34 @@ export function getEarthMapLatitudeSpan(mapSize: number, graphWidth: number, gra
 
   const longitudeSpan = Math.min((mapSize / 100) * 360, 360);
   return mapSize >= 100 ? 180 : Math.min(longitudeSpan / (graphWidth / graphHeight), 180);
+}
+
+/**
+ * Geographic window painted onto a graph. `region` is the minimum content;
+ * leftover canvas shows more land/sea at the same kilometres-per-pixel rather
+ * than stretching the bbox to the window aspect.
+ */
+export function earthRegionView(region: EarthBBox, graphWidth: number, graphHeight: number): EarthBBox {
+  if (!(graphWidth > 0) || !(graphHeight > 0)) {
+    return { west: region.west, east: region.east, south: region.south, north: region.north };
+  }
+  const midLat = ((region.north + region.south) / 2) * (Math.PI / 180);
+  const cosLat = Math.max(Math.cos(midLat), 0.05);
+  const lonSpan = region.east - region.west;
+  const latSpan = region.north - region.south;
+  const geoW = lonSpan * KM_PER_DEG_LON_EQUATOR * cosLat;
+  const geoH = latSpan * KM_PER_DEG_LAT;
+  const kmPerPx = Math.max(geoW / graphWidth, geoH / graphHeight);
+  const shownLon = (graphWidth * kmPerPx) / (KM_PER_DEG_LON_EQUATOR * cosLat);
+  const shownLat = (graphHeight * kmPerPx) / KM_PER_DEG_LAT;
+  const cx = (region.west + region.east) / 2;
+  const cy = (region.south + region.north) / 2;
+  return {
+    west: cx - shownLon / 2,
+    east: cx + shownLon / 2,
+    south: cy - shownLat / 2,
+    north: cy + shownLat / 2
+  };
 }
 
 /**

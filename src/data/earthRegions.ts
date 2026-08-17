@@ -3,6 +3,8 @@
  * cell centroids. See docs/plan/earth-geography-heightmaps.md.
  */
 
+import { earthRegionView } from "./earthConfig";
+
 export interface EarthClimateAnchor {
   mapSize: number;
   /** Geographic center latitude in degrees (not the legacy 0–100 shift). */
@@ -48,7 +50,8 @@ const JAPAN_STRAITS: EarthStrait[] = [
   { name: "Naruto", a: [134.662, 34.255], b: [134.638, 34.205], widthKm: 1.3 },
   { name: "Kurushima", a: [133.199, 34.407], b: [132.999, 34.066], widthKm: 4 },
   { name: "KiiChannel", a: [135.35, 33.9], b: [134.45, 34.05], widthKm: 40 },
-  { name: "Kojima-Sakaide", a: [133.79, 34.47], b: [133.85, 34.32], widthKm: 12 }
+  { name: "Kojima-Sakaide", a: [133.84, 34.5], b: [133.84, 34.28], widthKm: 12 },
+  { name: "BisanEast", a: [133.95, 34.5], b: [133.95, 34.28], widthKm: 12 }
 ];
 
 /**
@@ -83,26 +86,30 @@ export const EAST_ASIA_REGION: EarthRegion = {
 };
 
 /**
- * Four home islands only: Kyushu at the lower-left, Hokkaido at the upper-right.
- * Framed around Google Maps @38.73N, 136.78E, z≈5.83. Okinawa, the Northern
- * Territories, and other small islands are left off the map.
+ * Japan home waters: Kyushu at the lower-left of the *content* box, Hokkaido
+ * at the upper-right. Padded ~1° past Cape Soya and Cape Sata so a coastal
+ * sea lane can pass those capes. The painted window grows with the canvas
+ * at true km scale (no window-aspect squash); leftover space is more of the
+ * same geography — in-frame islands, Korea, China, and Russia stay on the
+ * land mask. Islands SW of Kyushu or NE of Hokkaido need not drive the frame.
  */
 export const JAPAN_REGION: EarthRegion = {
   id: "japan",
   name: "Japan",
-  west: 129.2,
-  east: 145.82,
-  south: 30.95,
-  north: 45.55,
+  west: 128.6,
+  east: 146.4,
+  south: 29.9,
+  north: 46.6,
   projection: "equirectangular",
   climateAnchor: {
-    mapSize: 4.6167,
+    mapSize: 4.9444,
     latitude: 38.25,
-    longitude: 9.96
+    longitude: 9.82
   },
   raster: { path: "./heightmaps/earth/japan.bin" },
   topology: { keepStraits: JAPAN_STRAITS },
-  attribution: "Natural Earth 10m admin-0 JPN, restricted to Honshu, Hokkaido, Kyushu, and Shikoku (public domain)."
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). In-frame islands and neighboring land are kept; the canvas is not stretched to the window."
 };
 
 export const earthRegions: Record<string, EarthRegion> = {
@@ -118,7 +125,11 @@ export function getEarthRegion(id: string): EarthRegion | undefined {
   return earthRegions[id];
 }
 
-export function earthRegionMapCoordinates(region: EarthRegion): {
+export function earthRegionMapCoordinates(
+  region: EarthRegion,
+  graphWidth?: number,
+  graphHeight?: number
+): {
   latT: number;
   latN: number;
   latS: number;
@@ -126,13 +137,14 @@ export function earthRegionMapCoordinates(region: EarthRegion): {
   lonW: number;
   lonE: number;
 } {
+  const view = graphWidth != null && graphHeight != null ? earthRegionView(region, graphWidth, graphHeight) : region;
   return {
-    latT: region.north - region.south,
-    latN: region.north,
-    latS: region.south,
-    lonT: region.east - region.west,
-    lonW: region.west,
-    lonE: region.east
+    latT: view.north - view.south,
+    latN: view.north,
+    latS: view.south,
+    lonT: view.east - view.west,
+    lonW: view.west,
+    lonE: view.east
   };
 }
 

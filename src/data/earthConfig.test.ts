@@ -5,6 +5,7 @@ import {
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_EQUATORIAL_CIRCUMFERENCE_KM,
   type EarthMappedWorld,
+  earthRegionView,
   getEarthDistanceBetweenMapPoints,
   getEarthDistanceScale,
   getEarthMapLatitudeSpan,
@@ -30,6 +31,18 @@ describe("Earth map calibration", () => {
 
   it("derives the map's latitude span from its equatorial width and aspect ratio", () => {
     expect(getEarthMapLatitudeSpan(EARTH_DEFAULT_MAP_SIZE, 1_280, 720)).toBeCloseTo(26.1225, 4);
+  });
+});
+
+describe("earthRegionView", () => {
+  it("grows the long axis instead of stretching the content bbox", () => {
+    const region = { west: 128.6, east: 146.4, south: 29.9, north: 46.6 };
+    const wide = earthRegionView(region, 960, 540);
+    expect(wide.north - wide.south).toBeCloseTo(region.north - region.south, 5);
+    expect(wide.east - wide.west).toBeGreaterThan(region.east - region.west);
+    const tall = earthRegionView(region, 540, 960);
+    expect(tall.east - tall.west).toBeCloseTo(region.east - region.west, 5);
+    expect(tall.north - tall.south).toBeGreaterThan(region.north - region.south);
   });
 });
 

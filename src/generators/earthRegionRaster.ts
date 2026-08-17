@@ -1,3 +1,4 @@
+import { earthRegionView } from "../data/earthConfig";
 import type { EarthRegion } from "../data/earthRegions";
 
 export const EARTH_RASTER_MAGIC = 0x45474d46; // "FMGE" little-endian
@@ -116,8 +117,23 @@ export function mapPointToLonLat(
   x: number,
   y: number
 ): { lon: number; lat: number } {
+  const view = earthRegionView(region, graphWidth, graphHeight);
   return {
-    lon: region.west + (x / graphWidth) * (region.east - region.west),
-    lat: region.north - (y / graphHeight) * (region.north - region.south)
+    lon: view.west + (x / graphWidth) * (view.east - view.west),
+    lat: view.north - (y / graphHeight) * (view.north - view.south)
+  };
+}
+
+export function lonLatToMapPoint(
+  region: EarthRegion,
+  graphWidth: number,
+  graphHeight: number,
+  lon: number,
+  lat: number
+): { x: number; y: number } {
+  const view = earthRegionView(region, graphWidth, graphHeight);
+  return {
+    x: ((lon - view.west) / (view.east - view.west)) * graphWidth,
+    y: ((view.north - lat) / (view.north - view.south)) * graphHeight
   };
 }

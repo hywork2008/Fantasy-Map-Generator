@@ -3,10 +3,12 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
+import { earthRegionView, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
 import { EAST_ASIA_REGION, JAPAN_REGION } from "../data/earthRegions";
 import { useOptionsState } from "../store/optionsState";
 import { generateGrid } from "../utils/graphUtils";
-import { mapPointToLonLat } from "./earthRegionRaster";
+import { loadEarthRaster } from "./earthRegionHeightmap";
+import { lonLatToMapPoint, mapPointToLonLat, sampleLand } from "./earthRegionRaster";
 import { HeightmapGenerator } from "./heightmap-generator";
 
 const GRAPH_WIDTH = 960;
@@ -20,6 +22,11 @@ const LANDMARKS = {
   shikoku: { lon: 133.5, lat: 33.7 },
   kyushu: { lon: 130.8, lat: 32.8 },
   tokyoBay: { lon: 139.95, lat: 35.35 }
+};
+
+const CAPES = {
+  capeSoya: { lon: 141.94, lat: 45.52 },
+  capeSata: { lon: 130.66, lat: 30.99 }
 };
 
 function nearestCell(grid: ReturnType<typeof generateGrid>, lon: number, lat: number, heights?: Uint8Array): number {
@@ -73,16 +80,28 @@ describe("fromEarthRegion east-asia", () => {
       const cell = nearestCell(grid, place.lon, place.lat, heights);
       expect(heights[cell], name).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
       const here = mapPointToLonLat(EAST_ASIA_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, ...grid.points[cell]);
-      expect(Math.hypot(here.lon - place.lon, here.lat - place.lat), `${name} too far`).toBeLessThan(0.5);
+      expect(Math.hypot(here.lon - place.lon, here.lat - place.lat), `${name} too far`).toBeLessThan(0.7);
     }
   }, 20000);
 
   it("keeps Hokkaido, Honshu, Shikoku and Kyushu in separate land components", async () => {
     const { grid, heights } = await generateEastAsia(6);
-    const hokkaido = landComponentId(heights, grid, nearestCell(grid, LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat));
-    const honshu = landComponentId(heights, grid, nearestCell(grid, LANDMARKS.kanto.lon, LANDMARKS.kanto.lat));
-    const shikoku = landComponentId(heights, grid, nearestCell(grid, LANDMARKS.shikoku.lon, LANDMARKS.shikoku.lat));
-    const kyushu = landComponentId(heights, grid, nearestCell(grid, LANDMARKS.kyushu.lon, LANDMARKS.kyushu.lat));
+    const hokkaido = landComponentId(
+      heights,
+      grid,
+      nearestCell(grid, LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat, heights)
+    );
+    const honshu = landComponentId(heights, grid, nearestCell(grid, LANDMARKS.kanto.lon, LANDMARKS.kanto.lat, heights));
+    const shikoku = landComponentId(
+      heights,
+      grid,
+      nearestCell(grid, LANDMARKS.shikoku.lon, LANDMARKS.shikoku.lat, heights)
+    );
+    const kyushu = landComponentId(
+      heights,
+      grid,
+      nearestCell(grid, LANDMARKS.kyushu.lon, LANDMARKS.kyushu.lat, heights)
+    );
     expect(hokkaido, "hokkaido land").toBeGreaterThanOrEqual(0);
     expect(honshu, "honshu land").toBeGreaterThanOrEqual(0);
     expect(shikoku, "shikoku land").toBeGreaterThanOrEqual(0);
@@ -124,29 +143,74 @@ function nearestJapanCell(
   return best;
 }
 
-const OFF_MAP = {
-  okinawa: { lon: 127.68, lat: 26.21 },
-  kunashiri: { lon: 146.05, lat: 44.4 },
+const OFF_FRAME = {
+  okinawa: { lon: 127.68, lat: 26.21 }
+};
+
+const IN_FRAME = {
   tsushima: { lon: 129.33, lat: 34.38 },
-  sado: { lon: 138.37, lat: 38.02 }
+  sado: { lon: 138.37, lat: 38.02 },
+  awaji: { lon: 134.83, lat: 34.33 },
+  oki: { lon: 133.28, lat: 36.17 }
 };
 
 function isInsideJapanBbox(lon: number, lat: number): boolean {
   return lon >= JAPAN_REGION.west && lon <= JAPAN_REGION.east && lat >= JAPAN_REGION.south && lat <= JAPAN_REGION.north;
 }
 
+function waterCellsAlong(
+  grid: ReturnType<typeof generateGrid>,
+  heights: Uint8Array,
+  pred: (lon: number, lat: number) => boolean
+): { lon: number; lat: number }[] {
+  const cells: { lon: number; lat: number }[] = [];
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights[i] >= HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, x, y);
+    if (pred(here.lon, here.lat)) cells.push(here);
+  }
+  return cells;
+}
+
 describe("fromEarthRegion japan", () => {
   it("frames Kyushu in the south-west and Hokkaido in the north-east", () => {
-    expect(JAPAN_REGION.west).toBeCloseTo(129.2, 5);
-    expect(JAPAN_REGION.south).toBeCloseTo(30.95, 5);
-    expect(JAPAN_REGION.east).toBeCloseTo(145.82, 5);
-    expect(JAPAN_REGION.north).toBeCloseTo(45.55, 5);
-    expect(JAPAN_REGION.east).toBeLessThan(146);
-    expect(JAPAN_REGION.south).toBeGreaterThan(30);
+    expect(JAPAN_REGION.west).toBeCloseTo(128.6, 5);
+    expect(JAPAN_REGION.south).toBeCloseTo(29.9, 5);
+    expect(JAPAN_REGION.east).toBeCloseTo(146.4, 5);
+    expect(JAPAN_REGION.north).toBeCloseTo(46.6, 5);
+    expect(JAPAN_REGION.north - CAPES.capeSoya.lat).toBeGreaterThan(0.8);
+    expect(CAPES.capeSata.lat - JAPAN_REGION.south).toBeGreaterThan(0.8);
     expect(isInsideJapanBbox(LANDMARKS.kyushu.lon, LANDMARKS.kyushu.lat)).toBe(true);
     expect(isInsideJapanBbox(LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat)).toBe(true);
-    expect(isInsideJapanBbox(OFF_MAP.okinawa.lon, OFF_MAP.okinawa.lat)).toBe(false);
-    expect(isInsideJapanBbox(OFF_MAP.kunashiri.lon, OFF_MAP.kunashiri.lat)).toBe(false);
+    expect(isInsideJapanBbox(CAPES.capeSoya.lon, CAPES.capeSoya.lat)).toBe(true);
+    expect(isInsideJapanBbox(CAPES.capeSata.lon, CAPES.capeSata.lat)).toBe(true);
+    expect(isInsideJapanBbox(OFF_FRAME.okinawa.lon, OFF_FRAME.okinawa.lat)).toBe(false);
+    for (const [name, place] of Object.entries(IN_FRAME)) {
+      expect(isInsideJapanBbox(place.lon, place.lat), name).toBe(true);
+    }
+  });
+
+  it("does not stretch Japan to the window aspect", () => {
+    const midLat = ((JAPAN_REGION.north + JAPAN_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    for (const [gw, gh] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const origin = lonLatToMapPoint(JAPAN_REGION, gw, gh, 137.5, 38.25);
+      const east = lonLatToMapPoint(JAPAN_REGION, gw, gh, 138.5, 38.25);
+      const north = lonLatToMapPoint(JAPAN_REGION, gw, gh, 137.5, 39.25);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${gw}x${gh}`).toBeCloseTo(expected, 3);
+      const view = earthRegionView(JAPAN_REGION, gw, gh);
+      expect(view.west).toBeLessThanOrEqual(JAPAN_REGION.west + 1e-6);
+      expect(view.east).toBeGreaterThanOrEqual(JAPAN_REGION.east - 1e-6);
+      expect(view.south).toBeLessThanOrEqual(JAPAN_REGION.south + 1e-6);
+      expect(view.north).toBeGreaterThanOrEqual(JAPAN_REGION.north - 1e-6);
+    }
   });
 
   it("keeps Kanto as land and the four home islands separate", async () => {
@@ -173,16 +237,46 @@ describe("fromEarthRegion japan", () => {
       nearestJapanCell(grid, LANDMARKS.shikoku.lon, LANDMARKS.shikoku.lat)
     );
     const kyushu = landComponentId(heights, grid, kyushuCell);
-    expect(new Set([hokkaido, honshu, shikoku, kyushu]).size).toBe(4);
+    expect(hokkaido, "hokkaido land").toBeGreaterThanOrEqual(0);
+    expect(honshu, "honshu land").toBeGreaterThanOrEqual(0);
+    expect(shikoku, "shikoku land").toBeGreaterThanOrEqual(0);
+    expect(kyushu, "kyushu land").toBeGreaterThanOrEqual(0);
+    expect(hokkaido !== honshu, `Hokkaido-Honshu ${hokkaido}/${honshu}`).toBe(true);
+    expect(honshu !== shikoku, `Honshu-Shikoku ${honshu}/${shikoku}`).toBe(true);
+    expect(honshu !== kyushu, `Honshu-Kyushu ${honshu}/${kyushu}`).toBe(true);
+    expect(shikoku !== kyushu, `Shikoku-Kyushu ${shikoku}/${kyushu}`).toBe(true);
 
-    for (const [name, place] of Object.entries(OFF_MAP)) {
-      if (!isInsideJapanBbox(place.lon, place.lat)) continue;
-      const cell = nearestJapanCell(grid, place.lon, place.lat);
-      const sampled = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, ...grid.points[cell]);
-      if (Math.hypot(sampled.lon - place.lon, sampled.lat - place.lat) > 0.25) continue;
-      expect(heights[cell], `${name} should stay off the four-island mask`).toBeLessThan(
-        HeightThreshold.WATER_MAX_HEIGHT
-      );
+    const raster = await loadEarthRaster(JAPAN_REGION);
+    for (const [name, place] of Object.entries(IN_FRAME)) {
+      expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
     }
+    expect(sampleLand(raster, 129.07, 35.18), "Busan").toBe(true);
+    expect(sampleLand(raster, 131.89, 43.12), "Vladivostok").toBe(true);
+  }, 20000);
+
+  it("keeps a coastal sea corridor north of Cape Soya and south of Cape Sata", async () => {
+    const { grid, heights } = await generateJapan(4);
+    const soyaLand = nearestJapanCell(grid, CAPES.capeSoya.lon, CAPES.capeSoya.lat, heights);
+    const sataLand = nearestJapanCell(grid, CAPES.capeSata.lon, CAPES.capeSata.lat, heights);
+    expect(heights[soyaLand]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    expect(heights[sataLand]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+
+    const northSea = waterCellsAlong(
+      grid,
+      heights,
+      (lon, lat) => lat > CAPES.capeSoya.lat + 0.15 && lon > 141.2 && lon < 142.7
+    );
+    expect(northSea.length, "water north of Cape Soya").toBeGreaterThan(4);
+    const northSpan = Math.max(...northSea.map(c => c.lon)) - Math.min(...northSea.map(c => c.lon));
+    expect(northSpan, "north-coast passage is not a single pinch cell").toBeGreaterThan(0.5);
+
+    const southSea = waterCellsAlong(
+      grid,
+      heights,
+      (lon, lat) => lat < CAPES.capeSata.lat - 0.15 && lon > 130.2 && lon < 131.2
+    );
+    expect(southSea.length, "water south of Cape Sata").toBeGreaterThan(4);
+    const southSpan = Math.max(...southSea.map(c => c.lon)) - Math.min(...southSea.map(c => c.lon));
+    expect(southSpan, "south-coast passage is not a single pinch cell").toBeGreaterThan(0.4);
   }, 20000);
 });

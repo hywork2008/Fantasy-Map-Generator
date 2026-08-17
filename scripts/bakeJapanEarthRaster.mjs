@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Bake the Japan EarthRegion raster: four home islands only
- * (Honshu, Hokkaido, Kyushu, Shikoku) plus GMTED/ETOPO elevation.
+ * Bake the Japan EarthRegion raster: Natural Earth land in a theatre large
+ * enough that a 16:9 canvas can show Korea / east China / Primorye around
+ * the Japan content box, plus GMTED/ETOPO elevation.
  *
  * Usage: node scripts/bakeJapanEarthRaster.mjs
  */
@@ -21,17 +22,17 @@ const NE_PATHS = [
   path.join(ROOT, "temp/ne_10m_admin_0_countries.geojson")
 ];
 
-const WEST = 129.2;
-const EAST = 145.82;
-const SOUTH = 30.95;
-const NORTH = 45.55;
+// Wider than JAPAN_REGION so a landscape canvas can show neighbors at true scale.
+const WEST = 118;
+const EAST = 157;
+const SOUTH = 29.5;
+const NORTH = 47.5;
 const DEG = 0.02;
 const WIDTH = Math.round((EAST - WEST) / DEG);
 const HEIGHT = Math.round((NORTH - SOUTH) / DEG);
 const NODATA = -32768;
 const MAGIC = 0x45474d46;
 const VERSION = 1;
-const MAIN_ISLANDS = 4;
 
 function loadCountries() {
   for (const candidate of NE_PATHS) {
@@ -43,40 +44,19 @@ function loadCountries() {
   throw new Error("Natural Earth 10m countries GeoJSON not found.");
 }
 
-function isoOf(feature) {
-  const p = feature.properties ?? {};
-  return p.ADM0_A3 || p.ISO_A3 || p.iso_a3 || "";
+function polygonsOf(geom) {
+  if (!geom) return [];
+  return geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
 }
 
-function ringArea(ring) {
-  let a = 0;
-  for (let i = 0; i < ring.length - 1; i++) {
-    a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
-  }
-  return Math.abs(a / 2);
-}
-
-function japanMainIslands(features) {
-  const japan = features.find(f => isoOf(f) === "JPN");
-  if (!japan) throw new Error("JPN feature missing from Natural Earth");
-  const geom = japan.geometry;
-  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
-  const ranked = polys
-    .map(poly => ({ poly, area: ringArea(poly[0]) }))
-    .sort((a, b) => b.area - a.area);
-  const chosen = ranked.slice(0, MAIN_ISLANDS);
-  console.log(
-    "islands",
-    chosen.map((c, i) => `#${i} area=${c.area.toFixed(3)} rings=${c.poly.length}`)
-  );
-  return chosen.map(c => c.poly);
-}
-
-function rasterizeLand(polygons) {
+function rasterizeLand(features) {
   const land = new Uint8Array(WIDTH * HEIGHT);
   const px = lon => ((lon - WEST) / (EAST - WEST)) * WIDTH;
   const py = lat => ((NORTH - lat) / (NORTH - SOUTH)) * HEIGHT;
-  for (const poly of polygons) {
+  let polyCount = 0;
+  for (const feature of features) {
+    for (const poly of polygonsOf(feature.geometry)) {
+      polyCount++;
     const buckets = Array.from({ length: HEIGHT }, () => []);
     for (const ring of poly) {
       for (let i = 0; i < ring.length - 1; i++) {
@@ -109,8 +89,9 @@ function rasterizeLand(polygons) {
         for (let x = a; x <= b; x++) land[y * WIDTH + x] = 1;
       }
     }
+    }
   }
-  console.log("land px", land.reduce((s, v) => s + v, 0), `${WIDTH}x${HEIGHT}`);
+  console.log("land px", land.reduce((s, v) => s + v, 0), `${WIDTH}x${HEIGHT}`, "polys", polyCount);
   return land;
 }
 
@@ -203,8 +184,7 @@ function encodeRaster(land, elevation) {
 
 async function main() {
   const countries = loadCountries();
-  const islands = japanMainIslands(countries.features);
-  const land = rasterizeLand(islands);
+  const land = rasterizeLand(countries.features);
   const { tiles, z } = await loadTiles(7);
   const elevation = new Int16Array(WIDTH * HEIGHT);
   for (let y = 0; y < HEIGHT; y++) {

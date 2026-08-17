@@ -5,7 +5,7 @@ Packed public-domain elevation and land masks used by `fromEarthRegion()`.
 | File | Contents |
 | :--- | :--- |
 | `east-asia.bin` | FMGE raster: Natural Earth 10m admin-0 land + GMTED2010/ETOPO elevation |
-| `japan.bin` | Four home islands only (Honshu, Hokkaido, Kyushu, Shikoku) + GMTED/ETOPO |
+| `japan.bin` | Japan theatre (in-frame islands + neighboring land) + GMTED/ETOPO |
 
 Bake:
 

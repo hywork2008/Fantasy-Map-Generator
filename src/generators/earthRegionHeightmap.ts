@@ -1,4 +1,5 @@
 import { HeightThreshold } from "../data/constants";
+import { earthRegionView, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
 import type { EarthRegion, EarthStrait } from "../data/earthRegions";
 import type { Grid } from "../types/Grid";
 import { findGridCell } from "../utils/graphUtils";
@@ -6,6 +7,7 @@ import { depthMetersToHeight, metersToHeight, normalizeHeightExponent } from "..
 import {
   decodeEarthRaster,
   type EarthRaster,
+  lonLatToMapPoint,
   mapPointToLonLat,
   sampleElevation,
   sampleLand
@@ -66,22 +68,6 @@ export function encodeEarthCellHeight(isLand: boolean, elevationMeters: number |
   return depthMetersToHeight(elevationMeters);
 }
 
-function lonLatToMapPoint(
-  region: EarthRegion,
-  graphWidth: number,
-  graphHeight: number,
-  lon: number,
-  lat: number
-): {
-  x: number;
-  y: number;
-} {
-  return {
-    x: ((lon - region.west) / (region.east - region.west)) * graphWidth,
-    y: ((region.north - lat) / (region.north - region.south)) * graphHeight
-  };
-}
-
 function pointToSegmentDistance(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax;
   const dy = by - ay;
@@ -100,9 +86,10 @@ function applyStraits(
   graphHeight: number,
   straits: EarthStrait[]
 ): void {
-  const midLat = ((region.north + region.south) / 2) * (Math.PI / 180);
-  const kmPerX = ((region.east - region.west) * 111.32 * Math.cos(midLat)) / graphWidth;
-  const kmPerY = ((region.north - region.south) * 110.57) / graphHeight;
+  const view = earthRegionView(region, graphWidth, graphHeight);
+  const midLat = ((view.north + view.south) / 2) * (Math.PI / 180);
+  const kmPerX = ((view.east - view.west) * KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / graphWidth;
+  const kmPerY = ((view.north - view.south) * KM_PER_DEG_LAT) / graphHeight;
   const cellKm = ((kmPerX + kmPerY) / 2) * grid.spacing;
 
   for (const strait of straits) {
