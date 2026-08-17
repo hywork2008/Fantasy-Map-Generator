@@ -74,6 +74,11 @@ const EUROPE_CENTRAL_STRAITS: EarthStrait[] = [{ name: "Dover", a: [1.32, 51.13]
 
 const ATLANTICS_STRAITS: EarthStrait[] = [...BRITAIN_STRAITS, ...MEDITERRANEAN_STRAITS];
 
+const CARIBBEAN_STRAITS: EarthStrait[] = [
+  { name: "FloridaStrait", a: [-81.8, 24.55], b: [-82.2, 23.3], widthKm: 80 },
+  { name: "WindwardPassage", a: [-74.13, 20.24], b: [-73.42, 19.82], widthKm: 80 }
+];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -237,13 +242,39 @@ export const ATLANTICS_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). North America and Europe stay complete; neighboring land is not sliced into mystery stubs."
 };
 
+/**
+ * Caribbean / Gulf / Central America: Los Angeles at the upper-left,
+ * Belém at the lower-right. Mexico, the Caribbean islands, and northern
+ * South America stay in-frame. The graph is fitted to this bbox's true shape.
+ */
+export const CARIBBEAN_REGION: EarthRegion = {
+  id: "caribbean",
+  name: "Caribbean",
+  west: -119.3,
+  east: -47.5,
+  south: -2.4,
+  north: 34.9,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 19.9444,
+    latitude: 16.25,
+    longitude: 78.94
+  },
+  raster: { path: "./heightmaps/earth/caribbean.bin" },
+  topology: { keepStraits: CARIBBEAN_STRAITS },
+  previewPng: "./heightmaps/caribbean.png",
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). Los Angeles to Belém; in-frame islands and neighboring shores are kept."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
   britain: BRITAIN_REGION,
   "mediterranean-sea": MEDITERRANEAN_SEA_REGION,
   "europe-central": EUROPE_CENTRAL_REGION,
-  atlantics: ATLANTICS_REGION
+  atlantics: ATLANTICS_REGION,
+  caribbean: CARIBBEAN_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

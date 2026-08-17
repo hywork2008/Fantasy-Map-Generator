@@ -3,6 +3,7 @@ import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
   ATLANTICS_REGION,
   BRITAIN_REGION,
+  CARIBBEAN_REGION,
   EAST_ASIA_REGION,
   EUROPE_CENTRAL_REGION,
   earthRegionMapCoordinates,
@@ -122,5 +123,17 @@ describe("atlantics climate conversion", () => {
     expect(coords.latN).toBeCloseTo(68, 5);
     expect(ATLANTICS_REGION.climateAnchor.mapSize).toBeCloseTo(((44 - -108) / 360) * 100, 3);
     expect(ATLANTICS_REGION.climateAnchor.latitude).toBeCloseTo((-8 + 68) / 2, 5);
+  });
+});
+
+describe("caribbean climate conversion", () => {
+  it("anchors climate to the Los Angeles–Belém bbox", () => {
+    const coords = earthRegionMapCoordinates(CARIBBEAN_REGION);
+    expect(coords.lonW).toBeCloseTo(-119.3, 5);
+    expect(coords.lonE).toBeCloseTo(-47.5, 5);
+    expect(coords.latS).toBeCloseTo(-2.4, 5);
+    expect(coords.latN).toBeCloseTo(34.9, 5);
+    expect(CARIBBEAN_REGION.climateAnchor.mapSize).toBeCloseTo(((-47.5 - -119.3) / 360) * 100, 3);
+    expect(CARIBBEAN_REGION.climateAnchor.latitude).toBeCloseTo((-2.4 + 34.9) / 2, 5);
   });
 });

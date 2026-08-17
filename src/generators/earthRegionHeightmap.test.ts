@@ -7,6 +7,7 @@ import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_
 import {
   ATLANTICS_REGION,
   BRITAIN_REGION,
+  CARIBBEAN_REGION,
   EAST_ASIA_REGION,
   EUROPE_CENTRAL_REGION,
   JAPAN_REGION,
@@ -26,6 +27,7 @@ const BRITAIN_GRAPH = earthRegionFitGraph(BRITAIN_REGION, MAX_GRAPH_WIDTH, MAX_G
 const MED_GRAPH = earthRegionFitGraph(MEDITERRANEAN_SEA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const EUROPE_CENTRAL_GRAPH = earthRegionFitGraph(EUROPE_CENTRAL_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const ATLANTICS_GRAPH = earthRegionFitGraph(ATLANTICS_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const CARIBBEAN_GRAPH = earthRegionFitGraph(CARIBBEAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -962,5 +964,147 @@ describe("fromEarthRegion atlantics", () => {
       (lon, lat) => lon > -45 && lon < -20 && lat > 35 && lat < 50
     );
     expect(midAtlantic.length, "mid-Atlantic water").toBeGreaterThan(10);
+  }, 20000);
+});
+
+const CARIBBEAN_LANDMARKS = {
+  losAngeles: { lon: -118.24, lat: 34.05 },
+  belem: { lon: -48.5, lat: -1.46 },
+  mexicoCity: { lon: -99.13, lat: 19.43 },
+  havana: { lon: -82.38, lat: 23.13 },
+  panama: { lon: -79.52, lat: 8.98 },
+  miami: { lon: -80.27, lat: 25.78 }
+};
+
+const CARIBBEAN_IN_FRAME = {
+  cuba: { lon: -79.0, lat: 22.0 },
+  jamaica: { lon: -77.3, lat: 18.15 },
+  hispaniola: { lon: -70.7, lat: 19.0 },
+  yucatan: { lon: -89.0, lat: 20.5 }
+};
+
+async function generateCaribbean(points = 4) {
+  worldContext.graphWidth = CARIBBEAN_GRAPH.width;
+  worldContext.graphHeight = CARIBBEAN_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "caribbean", heightExponent: 1.8 });
+  const grid = generateGrid("earth-caribbean-test", CARIBBEAN_GRAPH.width, CARIBBEAN_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestCaribbeanCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(CARIBBEAN_REGION, CARIBBEAN_GRAPH.width, CARIBBEAN_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function isInsideCaribbeanBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= CARIBBEAN_REGION.west &&
+    lon <= CARIBBEAN_REGION.east &&
+    lat >= CARIBBEAN_REGION.south &&
+    lat <= CARIBBEAN_REGION.north
+  );
+}
+
+describe("fromEarthRegion caribbean", () => {
+  it("frames Los Angeles at the upper-left and Belém at the lower-right", () => {
+    expect(CARIBBEAN_REGION.west).toBeCloseTo(-119.3, 5);
+    expect(CARIBBEAN_REGION.east).toBeCloseTo(-47.5, 5);
+    expect(CARIBBEAN_REGION.south).toBeCloseTo(-2.4, 5);
+    expect(CARIBBEAN_REGION.north).toBeCloseTo(34.9, 5);
+    expect(isInsideCaribbeanBbox(CARIBBEAN_LANDMARKS.losAngeles.lon, CARIBBEAN_LANDMARKS.losAngeles.lat)).toBe(true);
+    expect(isInsideCaribbeanBbox(CARIBBEAN_LANDMARKS.belem.lon, CARIBBEAN_LANDMARKS.belem.lat)).toBe(true);
+    expect(CARIBBEAN_LANDMARKS.losAngeles.lon - CARIBBEAN_REGION.west).toBeLessThan(2);
+    expect(CARIBBEAN_REGION.north - CARIBBEAN_LANDMARKS.losAngeles.lat).toBeLessThan(1.2);
+    expect(CARIBBEAN_REGION.east - CARIBBEAN_LANDMARKS.belem.lon).toBeLessThan(2);
+    expect(CARIBBEAN_LANDMARKS.belem.lat - CARIBBEAN_REGION.south).toBeLessThan(1.2);
+    expect(isInsideCaribbeanBbox(-122.42, 37.77), "San Francisco").toBe(false);
+    expect(isInsideCaribbeanBbox(-43.17, -22.9), "Rio").toBe(false);
+    expect(isInsideCaribbeanBbox(-74.0, 40.71), "New York").toBe(false);
+    for (const [name, place] of Object.entries(CARIBBEAN_IN_FRAME)) {
+      expect(isInsideCaribbeanBbox(place.lon, place.lat), name).toBe(true);
+    }
+  });
+
+  it("does not stretch the Caribbean to the window aspect", () => {
+    const midLat = ((CARIBBEAN_REGION.north + CARIBBEAN_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(CARIBBEAN_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(CARIBBEAN_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(CARIBBEAN_REGION, fitted.width, fitted.height, -83.4, 16.25);
+      const east = lonLatToMapPoint(CARIBBEAN_REGION, fitted.width, fitted.height, -82.4, 16.25);
+      const north = lonLatToMapPoint(CARIBBEAN_REGION, fitted.width, fitted.height, -83.4, 17.25);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps Los Angeles and Belém as land and Cuba separate from the mainland", async () => {
+    const { grid, heights } = await generateCaribbean(6);
+    const la = nearestCaribbeanCell(
+      grid,
+      CARIBBEAN_LANDMARKS.losAngeles.lon,
+      CARIBBEAN_LANDMARKS.losAngeles.lat,
+      heights
+    );
+    const belem = nearestCaribbeanCell(grid, CARIBBEAN_LANDMARKS.belem.lon, CARIBBEAN_LANDMARKS.belem.lat, heights);
+    expect(heights[la]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    expect(heights[belem]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    const laHere = mapPointToLonLat(
+      CARIBBEAN_REGION,
+      CARIBBEAN_GRAPH.width,
+      CARIBBEAN_GRAPH.height,
+      ...grid.points[la]
+    );
+    expect(
+      Math.hypot(laHere.lon - CARIBBEAN_LANDMARKS.losAngeles.lon, laHere.lat - CARIBBEAN_LANDMARKS.losAngeles.lat)
+    ).toBeLessThan(0.6);
+
+    const [lax, lay] = grid.points[la];
+    const [bx, by] = grid.points[belem];
+    expect(lax, "Los Angeles is on the western half").toBeLessThan(CARIBBEAN_GRAPH.width / 2);
+    expect(lay, "Los Angeles is on the northern half").toBeLessThan(CARIBBEAN_GRAPH.height / 2);
+    expect(bx, "Belém is on the eastern half").toBeGreaterThan(CARIBBEAN_GRAPH.width / 2);
+    expect(by, "Belém is on the southern half").toBeGreaterThan(CARIBBEAN_GRAPH.height / 2);
+
+    const mainland = landComponentId(heights, grid, la);
+    const cuba = landComponentId(
+      heights,
+      grid,
+      nearestCaribbeanCell(grid, CARIBBEAN_LANDMARKS.havana.lon, CARIBBEAN_LANDMARKS.havana.lat, heights)
+    );
+    expect(mainland, "mainland land").toBeGreaterThanOrEqual(0);
+    expect(cuba, "cuba land").toBeGreaterThanOrEqual(0);
+    expect(mainland !== cuba, `Mainland-Cuba ${mainland}/${cuba}`).toBe(true);
+
+    const raster = await loadEarthRaster(CARIBBEAN_REGION);
+    for (const [name, place] of Object.entries(CARIBBEAN_IN_FRAME)) {
+      expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
+    }
   }, 20000);
 });

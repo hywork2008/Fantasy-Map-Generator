@@ -10,6 +10,7 @@ Packed public-domain elevation and land masks used by `fromEarthRegion()`.
 | `mediterranean-sea.bin` | Gibraltar to Levant (in-frame islands + neighboring shores) + GMTED/ETOPO |
 | `europe-central.bin` | Channel / Low Countries / Rhine / Elbe industrial core + GMTED/ETOPO |
 | `atlantics.bin` | North Atlantic basin (complete North America and Europe) + GMTED/ETOPO |
+| `caribbean.bin` | Los Angeles (NW) to Belém (SE): Gulf, Caribbean, Central America + GMTED/ETOPO |
 
 Bake:
 
@@ -20,6 +21,7 @@ node scripts/bakeBritainEarthRaster.mjs
 node scripts/bakeMediterraneanSeaEarthRaster.mjs
 node scripts/bakeEuropeCentralEarthRaster.mjs
 node scripts/bakeAtlanticsEarthRaster.mjs
+node scripts/bakeCaribbeanEarthRaster.mjs
 ```
 
 License: Natural Earth, GMTED2010, and ETOPO1 are public domain. See

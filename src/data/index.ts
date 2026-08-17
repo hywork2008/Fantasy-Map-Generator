@@ -10,6 +10,7 @@ export {
 export {
   ATLANTICS_REGION,
   BRITAIN_REGION,
+  CARIBBEAN_REGION,
   EAST_ASIA_REGION,
   type EarthClimateAnchor,
   type EarthRegion,
