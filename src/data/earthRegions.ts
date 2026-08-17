@@ -89,6 +89,14 @@ const INDIAN_OCEAN_STRAITS: EarthStrait[] = [
   { name: "Sunda", a: [105.4, -5.9], b: [105.7, -6.5], widthKm: 24 }
 ];
 
+const ARABIA_STRAITS: EarthStrait[] = [
+  { name: "Dardanelles", a: [26.36, 40.2], b: [26.42, 40.14], widthKm: 1.4 },
+  { name: "Bosporus", a: [28.99, 41.12], b: [29.07, 41.12], widthKm: 0.7 },
+  { name: "BabElMandeb", a: [43.32, 12.69], b: [43.48, 12.65], widthKm: 26 },
+  { name: "Hormuz", a: [56.35, 26.57], b: [56.52, 27.05], widthKm: 39 },
+  { name: "Palk", a: [79.4, 9.25], b: [79.75, 9.12], widthKm: 20 }
+];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -331,6 +339,33 @@ export const INDIAN_OCEAN_REGION: EarthRegion = {
   attribution: "Natural Earth 10m admin-0 land (public domain). Dakar to mainland Australia; Tasmania is off-map."
 };
 
+/**
+ * Arabia theatre: Croatia at the upper-left, Sri Lanka at the lower-right.
+ * Padded ~1.2° west of Istria so a Dalmatian coastal lane can pass, and
+ * ~1.2° south and east of Dondra Head / Sangamankanda so a coastal lane
+ * can pass Sri Lanka. In-frame neighbors stay on the land mask. The
+ * graph is fitted to this bbox's true shape.
+ */
+export const ARABIA_REGION: EarthRegion = {
+  id: "arabia",
+  name: "Arabia",
+  west: 12.3,
+  east: 83.1,
+  south: 4.7,
+  north: 47.0,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 19.6667,
+    latitude: 25.85,
+    longitude: 33.51
+  },
+  raster: { path: "./heightmaps/earth/arabia.bin" },
+  topology: { keepStraits: ARABIA_STRAITS },
+  previewPng: "./heightmaps/arabia.png",
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). Croatia to Sri Lanka; south and east of Sri Lanka keep a coastal-sea margin."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
@@ -340,7 +375,8 @@ export const earthRegions: Record<string, EarthRegion> = {
   atlantics: ATLANTICS_REGION,
   caribbean: CARIBBEAN_REGION,
   europe: EUROPE_REGION,
-  "indian-ocean": INDIAN_OCEAN_REGION
+  "indian-ocean": INDIAN_OCEAN_REGION,
+  arabia: ARABIA_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

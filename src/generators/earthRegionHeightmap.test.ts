@@ -5,6 +5,7 @@ import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
 import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
 import {
+  ARABIA_REGION,
   ATLANTICS_REGION,
   BRITAIN_REGION,
   CARIBBEAN_REGION,
@@ -32,6 +33,7 @@ const ATLANTICS_GRAPH = earthRegionFitGraph(ATLANTICS_REGION, MAX_GRAPH_WIDTH, M
 const CARIBBEAN_GRAPH = earthRegionFitGraph(CARIBBEAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const EUROPE_GRAPH = earthRegionFitGraph(EUROPE_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const INDIAN_OCEAN_GRAPH = earthRegionFitGraph(INDIAN_OCEAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const ARABIA_GRAPH = earthRegionFitGraph(ARABIA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -1393,5 +1395,143 @@ describe("fromEarthRegion indian-ocean", () => {
     expect(sampleLand(raster, 146.42, -39.75), "ocean south of Wilsons Promontory").toBe(false);
     expect(sampleLand(raster, 150.5, -38.2), "ocean SE of Cape Howe").toBe(false);
     expect(sampleLand(raster, 147.32, -42.88), "Hobart raster").toBe(false);
+  }, 20000);
+});
+
+const ARABIA_LANDMARKS = {
+  zagreb: { lon: 15.98, lat: 45.81 },
+  savudrija: { lon: 13.49, lat: 45.49 },
+  split: { lon: 16.44, lat: 43.51 },
+  colombo: { lon: 79.86, lat: 6.93 },
+  dondraHead: { lon: 80.59, lat: 5.92 },
+  sangamankanda: { lon: 81.88, lat: 7.02 },
+  mumbai: { lon: 72.88, lat: 19.08 },
+  mecca: { lon: 39.83, lat: 21.42 },
+  cairo: { lon: 31.24, lat: 30.04 },
+  istanbul: { lon: 28.98, lat: 41.01 },
+  baghdad: { lon: 44.37, lat: 33.32 }
+};
+
+async function generateArabia(points = 4) {
+  worldContext.graphWidth = ARABIA_GRAPH.width;
+  worldContext.graphHeight = ARABIA_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "arabia", heightExponent: 1.8 });
+  const grid = generateGrid("earth-arabia-test", ARABIA_GRAPH.width, ARABIA_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestArabiaCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(ARABIA_REGION, ARABIA_GRAPH.width, ARABIA_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function isInsideArabiaBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= ARABIA_REGION.west && lon <= ARABIA_REGION.east && lat >= ARABIA_REGION.south && lat <= ARABIA_REGION.north
+  );
+}
+
+describe("fromEarthRegion arabia", () => {
+  it("frames Croatia at the upper-left and Sri Lanka at the lower-right", () => {
+    expect(ARABIA_REGION.west).toBeCloseTo(12.3, 5);
+    expect(ARABIA_REGION.east).toBeCloseTo(83.1, 5);
+    expect(ARABIA_REGION.south).toBeCloseTo(4.7, 5);
+    expect(ARABIA_REGION.north).toBeCloseTo(47.0, 5);
+    expect(isInsideArabiaBbox(ARABIA_LANDMARKS.zagreb.lon, ARABIA_LANDMARKS.zagreb.lat)).toBe(true);
+    expect(isInsideArabiaBbox(ARABIA_LANDMARKS.savudrija.lon, ARABIA_LANDMARKS.savudrija.lat)).toBe(true);
+    expect(isInsideArabiaBbox(ARABIA_LANDMARKS.split.lon, ARABIA_LANDMARKS.split.lat)).toBe(true);
+    expect(isInsideArabiaBbox(ARABIA_LANDMARKS.colombo.lon, ARABIA_LANDMARKS.colombo.lat)).toBe(true);
+    expect(isInsideArabiaBbox(ARABIA_LANDMARKS.dondraHead.lon, ARABIA_LANDMARKS.dondraHead.lat)).toBe(true);
+    expect(isInsideArabiaBbox(ARABIA_LANDMARKS.sangamankanda.lon, ARABIA_LANDMARKS.sangamankanda.lat)).toBe(true);
+    expect(ARABIA_LANDMARKS.savudrija.lon - ARABIA_REGION.west).toBeGreaterThan(0.8);
+    expect(ARABIA_LANDMARKS.savudrija.lon - ARABIA_REGION.west).toBeLessThan(2);
+    expect(ARABIA_LANDMARKS.dondraHead.lat - ARABIA_REGION.south).toBeGreaterThan(0.8);
+    expect(ARABIA_LANDMARKS.dondraHead.lat - ARABIA_REGION.south).toBeLessThan(2);
+    expect(ARABIA_REGION.east - ARABIA_LANDMARKS.sangamankanda.lon).toBeGreaterThan(0.8);
+    expect(ARABIA_REGION.east - ARABIA_LANDMARKS.sangamankanda.lon).toBeLessThan(2);
+    expect(isInsideArabiaBbox(16.37, 48.21), "Vienna").toBe(false);
+    expect(isInsideArabiaBbox(73.51, 4.18), "Malé").toBe(false);
+    expect(isInsideArabiaBbox(88.36, 22.57), "Kolkata").toBe(false);
+    expect(isInsideArabiaBbox(2.35, 48.86), "Paris").toBe(false);
+  });
+
+  it("does not stretch Arabia to the window aspect", () => {
+    const midLat = ((ARABIA_REGION.north + ARABIA_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(ARABIA_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(ARABIA_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(ARABIA_REGION, fitted.width, fitted.height, 45, 25.85);
+      const east = lonLatToMapPoint(ARABIA_REGION, fitted.width, fitted.height, 46, 25.85);
+      const north = lonLatToMapPoint(ARABIA_REGION, fitted.width, fitted.height, 45, 26.85);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps Zagreb and Colombo as land on opposite corners and Sri Lanka separate", async () => {
+    const { grid, heights } = await generateArabia(6);
+    const zagreb = nearestArabiaCell(grid, ARABIA_LANDMARKS.zagreb.lon, ARABIA_LANDMARKS.zagreb.lat, heights);
+    const colombo = nearestArabiaCell(grid, ARABIA_LANDMARKS.colombo.lon, ARABIA_LANDMARKS.colombo.lat, heights);
+    expect(heights[zagreb]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    expect(heights[colombo]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+
+    const [zx, zy] = grid.points[zagreb];
+    const [cx, cy] = grid.points[colombo];
+    expect(zx, "Zagreb is on the western half").toBeLessThan(ARABIA_GRAPH.width / 2);
+    expect(zy, "Zagreb is on the northern half").toBeLessThan(ARABIA_GRAPH.height / 2);
+    expect(cx, "Colombo is on the eastern half").toBeGreaterThan(ARABIA_GRAPH.width / 2);
+    expect(cy, "Colombo is on the southern half").toBeGreaterThan(ARABIA_GRAPH.height / 2);
+
+    const europe = landComponentId(heights, grid, zagreb);
+    const sriLanka = landComponentId(heights, grid, colombo);
+    const india = landComponentId(
+      heights,
+      grid,
+      nearestArabiaCell(grid, ARABIA_LANDMARKS.mumbai.lon, ARABIA_LANDMARKS.mumbai.lat, heights)
+    );
+    expect(europe, "europe land").toBeGreaterThanOrEqual(0);
+    expect(sriLanka, "sri lanka land").toBeGreaterThanOrEqual(0);
+    expect(india, "india land").toBeGreaterThanOrEqual(0);
+    expect(europe !== sriLanka, `Europe-SriLanka ${europe}/${sriLanka}`).toBe(true);
+    expect(india !== sriLanka, `India-SriLanka ${india}/${sriLanka}`).toBe(true);
+
+    const raster = await loadEarthRaster(ARABIA_REGION);
+    expect(sampleLand(raster, ARABIA_LANDMARKS.zagreb.lon, ARABIA_LANDMARKS.zagreb.lat), "Zagreb").toBe(true);
+    expect(sampleLand(raster, ARABIA_LANDMARKS.colombo.lon, ARABIA_LANDMARKS.colombo.lat), "Colombo").toBe(true);
+    expect(sampleLand(raster, ARABIA_LANDMARKS.mumbai.lon, ARABIA_LANDMARKS.mumbai.lat), "Mumbai").toBe(true);
+    expect(sampleLand(raster, ARABIA_LANDMARKS.mecca.lon, ARABIA_LANDMARKS.mecca.lat), "Mecca").toBe(true);
+    expect(sampleLand(raster, ARABIA_LANDMARKS.cairo.lon, ARABIA_LANDMARKS.cairo.lat), "Cairo").toBe(true);
+    expect(sampleLand(raster, ARABIA_LANDMARKS.istanbul.lon, ARABIA_LANDMARKS.istanbul.lat), "Istanbul").toBe(true);
+    expect(sampleLand(raster, ARABIA_LANDMARKS.baghdad.lon, ARABIA_LANDMARKS.baghdad.lat), "Baghdad").toBe(true);
+    expect(sampleLand(raster, 80.59, 6.05), "Sri Lanka south land").toBe(true);
+    expect(sampleLand(raster, 81.7, 7.4), "Sri Lanka east land").toBe(true);
+    expect(sampleLand(raster, 80.59, 5.2), "ocean south of Sri Lanka").toBe(false);
+    expect(sampleLand(raster, 82.5, 7.5), "ocean east of Sri Lanka").toBe(false);
   }, 20000);
 });

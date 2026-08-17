@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | Phase 0–2 implemented (2026-08-18). Phase 3 in progress: `japan`, `britain`, `mediterranean-sea`, `europe-central`, `atlantics`, `caribbean`, `europe`, and `indian-ocean` Earth regions added. iceland 等は未着手。PNG 経路は他 id とユーザー投入用に残存 |
+| Status | Phase 0–2 implemented (2026-08-18). Phase 3 in progress: `japan`, `britain`, `mediterranean-sea`, `europe-central`, `atlantics`, `caribbean`, `europe`, `indian-ocean`, and `arabia` Earth regions added. iceland 等は未着手。PNG 経路は他 id とユーザー投入用に残存 |
 | Parent | なし |
 | Related | [`../map-initialization-process.md`](../map-initialization-process.md)、[`src/generators/heightmap-generator.ts`](../../src/generators/heightmap-generator.ts)、[`src/data/precreated-heightmaps.ts`](../../src/data/precreated-heightmaps.ts)、[`src/data/earthConfig.ts`](../../src/data/earthConfig.ts)、[`public/heightmaps/import-rules.txt`](../../public/heightmaps/import-rules.txt)、日本パッチ [`../../scripts/patchEastAsiaJapan.mjs`](../../scripts/patchEastAsiaJapan.mjs) |
 | Scope | precreated heightmap（`east-asia` など実在地域のカタログ）を、「Heightmapper のスクショ PNG を世界とみなす」経路から、「公開 DEM ＋ 陸海ベクトルをセル中心でサンプルする」経路へ置き換える設計。手続生成テンプレ（Archipelago / Pangea 等）は対象外 |
@@ -363,6 +363,7 @@ PNG に太い溝を塗ってダウンサンプルに賭けるのをやめる。�
 - `caribbean` を追加済み。内容 bbox はロサンゼルス（左上）〜ベレン（右下）（119.3–47.5°W, 2.4°S–34.9°N）。メキシコ・カリブ・中米・北南米。
 - `europe` を追加済み。内容 bbox はアイルランド〜ジョージア、キプロス〜フィンランド（11.5°W–47.5°E, 34–71.5°N）。EU 加盟・候補・申請国が収まる。アイスランドは枠外。
 - `indian-ocean` を追加済み。内容 bbox はダカール（西端、Almadies の西に沿岸航路余白）〜オーストラリア本土（右下）（18.7°W–155.3°E, 40.3°S–39.7°N）。Wilson's Promontory の南に南岸〜東岸の航路余白。タスマニア本土は枠外。
+- `arabia` を追加済み。内容 bbox はクロアチア（左上）〜スリランカ（右下）（12.3–83.1°E, 4.7–47.0°N）。スリランカ南岸・東岸に沿岸航路余白。
 - iceland など、範囲が狭く検証しやすい id から `EarthRegion` 化する。
 - world / world-from-pacific は投影（太平洋中心）が特殊なので後回し。
 - 任意: 主要河川ベクトルを種にする。

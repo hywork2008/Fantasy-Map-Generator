@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
+  ARABIA_REGION,
   ATLANTICS_REGION,
   BRITAIN_REGION,
   CARIBBEAN_REGION,
@@ -162,5 +163,17 @@ describe("indian-ocean climate conversion", () => {
     expect(coords.latS).toBeGreaterThan(-40.6);
     expect(INDIAN_OCEAN_REGION.climateAnchor.mapSize).toBeCloseTo(((155.3 - -18.7) / 360) * 100, 3);
     expect(INDIAN_OCEAN_REGION.climateAnchor.latitude).toBeCloseTo((-40.3 + 39.7) / 2, 5);
+  });
+});
+
+describe("arabia climate conversion", () => {
+  it("anchors climate to the Croatia–Sri Lanka bbox", () => {
+    const coords = earthRegionMapCoordinates(ARABIA_REGION);
+    expect(coords.lonW).toBeCloseTo(12.3, 5);
+    expect(coords.lonE).toBeCloseTo(83.1, 5);
+    expect(coords.latS).toBeCloseTo(4.7, 5);
+    expect(coords.latN).toBeCloseTo(47.0, 5);
+    expect(ARABIA_REGION.climateAnchor.mapSize).toBeCloseTo(((83.1 - 12.3) / 360) * 100, 3);
+    expect(ARABIA_REGION.climateAnchor.latitude).toBeCloseTo((4.7 + 47.0) / 2, 5);
   });
 });

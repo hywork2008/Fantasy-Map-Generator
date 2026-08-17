@@ -13,6 +13,7 @@ Packed public-domain elevation and land masks used by `fromEarthRegion()`.
 | `caribbean.bin` | Los Angeles (NW) to Belém (SE): Gulf, Caribbean, Central America + GMTED/ETOPO |
 | `europe.bin` | Ireland to Georgia, Cyprus to Finland (EU members + candidates) + GMTED/ETOPO |
 | `indian-ocean.bin` | Dakar (W) to mainland Australia (SE); Bass Strait north channel; Tasmania off-map + GMTED/ETOPO |
+| `arabia.bin` | Croatia (NW) to Sri Lanka (SE); coastal margin south and east of Sri Lanka + GMTED/ETOPO |
 
 Bake:
 
@@ -26,6 +27,7 @@ node scripts/bakeAtlanticsEarthRaster.mjs
 node scripts/bakeCaribbeanEarthRaster.mjs
 node scripts/bakeEuropeEarthRaster.mjs
 node scripts/bakeIndianOceanEarthRaster.mjs
+node scripts/bakeArabiaEarthRaster.mjs
 ```
 
 License: Natural Earth, GMTED2010, and ETOPO1 are public domain. See
