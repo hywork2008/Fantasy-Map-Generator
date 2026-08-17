@@ -509,6 +509,58 @@ describe("Frontier Expansion Phase 3", () => {
     expect(advance(world, simulation).established).toEqual([1]);
   });
 
+  it("extends the same mining-floor exception and pull strength to silver, not just gold", () => {
+    const buildWorldWithClaim = (commodity: "gold" | "silver") => {
+      const world = createWorld();
+      world.pack.cells = {
+        ...world.pack.cells,
+        i: new Uint16Array([0, 1]),
+        c: [[1], [0]],
+        p: [
+          [0, 0],
+          [20, 0]
+        ],
+        state: new Uint16Array([1, 0]),
+        province: new Uint16Array([1, 0]),
+        pop: new Float32Array([100, 0]),
+        capacity: new Float32Array([100, 4]),
+        subsistenceCapacity: new Float32Array([100, 1]),
+        children: new Float32Array([25, 0]),
+        maleAdults: new Float32Array([25, 0]),
+        femaleAdults: new Float32Array([25, 0]),
+        elders: new Float32Array([25, 0]),
+        danger: new Uint8Array([0, 10]),
+        h: new Uint8Array([30, 62]),
+        s: new Uint8Array([50, 15]),
+        r: new Uint16Array([0, 0]),
+        harbor: new Uint8Array([0, 0]),
+        conf: new Uint8Array([0, 0]),
+        burg: new Uint16Array([0, 0]),
+        routes: { 0: {}, 1: {} }
+      };
+      const simulation = createSimulation(100, 100, 2);
+      simulation.frontier.resourceClaimsByCell[1] = {
+        cellId: 1,
+        stateId: 1,
+        commodity,
+        discoveredYear: 100,
+        status: "guarding"
+      };
+      return { world, simulation };
+    };
+
+    const gold = buildWorldWithClaim("gold");
+    const silver = buildWorldWithClaim("silver");
+    const goldCandidates = getFrontierCandidateSummaries(gold.world, gold.simulation);
+    const silverCandidates = getFrontierCandidateSummaries(silver.world, silver.simulation);
+
+    // Silver below the ordinary farm-capacity floor is just as foundable as
+    // gold, and scores identically — the mining pull is not gold-specific.
+    expect(silverCandidates).toEqual([expect.objectContaining({ cellId: 1, resourceClaimCellId: 1 })]);
+    expect(silverCandidates[0]?.score).toBeCloseTo(goldCandidates[0]?.score ?? Number.NaN);
+    expect(advance(silver.world, silver.simulation).established).toEqual([1]);
+  });
+
   it("pools several small local surpluses into one viable frontier expedition", () => {
     const world = createWorld();
     world.pack.cells = {

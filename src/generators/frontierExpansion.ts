@@ -36,9 +36,10 @@ const MAX_FRONTIER_HOPS = 6;
  * six-hop reach materially riskier or slower than a one-hop one. This term is
  * the only thing standing in for that missing cost, so it must be large
  * enough that a generic resource claim cannot make a maximal reach the
- * default outcome (see RESOURCE_CLAIM_* below). Gold is the exception: a
- * guarded vein commits the State to the corridor that shortens the remaining
- * hop count, while this penalty still prefers the next step over a jump.
+ * default outcome (see RESOURCE_CLAIM_* below). Precious metals (gold,
+ * silver) are the exception: a guarded vein commits the State to the
+ * corridor that shortens the remaining hop count, while this penalty still
+ * prefers the next step over a jump.
  */
 const LAND_HOP_PENALTY = 25;
 const SOURCE_RETENTION_RATIO = 0.65;
@@ -833,11 +834,11 @@ function isEligibleTarget(
   // Monster domains stay banned; the danger margin is allowed but scores worse.
   const wildOk = cells.wildLand ? allowsFrontierOutpost(cells.wildLand[cellId]) : true;
   const hasFarmCapacity = getCellSubsistenceCapacity(cells, cellId) >= MIN_OUTPOST_CAPACITY;
-  // A guarded gold vein (and the dry cells that shorten the remaining walk
-  // to it) is a mining camp, not a farm. Local subsistence is allowed to
-  // fall below the ordinary outpost floor; the sponsoring State already
-  // ships SETUP_FOOD with the expedition.
-  const miningApproach = claimIndex?.isGoldApproach(cellId) ?? false;
+  // A guarded precious-metal vein (and the dry cells that shorten the
+  // remaining walk to it) is a mining camp, not a farm. Local subsistence is
+  // allowed to fall below the ordinary outpost floor; the sponsoring State
+  // already ships SETUP_FOOD with the expedition.
+  const miningApproach = claimIndex?.isPreciousMetalApproach(cellId) ?? false;
   return (
     cells.state[cellId] === 0 &&
     cells.province[cellId] === 0 &&
@@ -854,7 +855,7 @@ function getFrontierTargetLimit(
   claimIndex: ResourceClaimIndex
 ): number {
   const farmLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
-  return claimIndex.isGoldApproach(cellId) ? Math.max(farmLimit, MIN_COLONISTS) : farmLimit;
+  return claimIndex.isPreciousMetalApproach(cellId) ? Math.max(farmLimit, MIN_COLONISTS) : farmLimit;
 }
 
 function scoreCandidate(
@@ -881,30 +882,37 @@ const RESOURCE_CLAIM_MATCH_BONUS = 90;
 const RESOURCE_CLAIM_APPROACH_BONUS = 70;
 const RESOURCE_CLAIM_APPROACH_DECAY = 4;
 /**
- * Gold is valuable enough to justify a dry highland mining camp. The match
- * bonus must clear a river (+20), mountain terrain (up to 20), and a large
- * subsistence gap; the approach bonus is a flat corridor commitment so the
- * hop penalty still prefers the next cell over a six-hop jump.
+ * Gold and silver are valuable enough to justify a dry highland mining camp.
+ * The match bonus must clear a river (+20), mountain terrain (up to 20), and
+ * a large subsistence gap; the approach bonus is a flat corridor commitment
+ * so the hop penalty still prefers the next cell over a six-hop jump.
  */
-const GOLD_CLAIM_MATCH_BONUS = 200;
-const GOLD_CLAIM_APPROACH_BONUS = 180;
+const PRECIOUS_METAL_CLAIM_MATCH_BONUS = 200;
+const PRECIOUS_METAL_CLAIM_APPROACH_BONUS = 180;
 /** Survey parties can spot a vein up to 20 hops out; walk far enough to reach the State. */
 const RESOURCE_CLAIM_HOP_SEARCH = 24;
 
+/** Commodities valuable enough to pull expansion toward a dry, riverless vein (see LAND_HOP_PENALTY). */
+const PRECIOUS_METAL_COMMODITIES = new Set(["gold", "silver"]);
+
+function isPreciousMetal(commodity: string): boolean {
+  return PRECIOUS_METAL_COMMODITIES.has(commodity);
+}
+
 type ResourceClaimIndex = {
   readonly nearestClaimCellId: (candidateCellId: number) => number | undefined;
-  readonly isGoldApproach: (cellId: number) => boolean;
+  readonly isPreciousMetalApproach: (cellId: number) => boolean;
   readonly priority: (cellId: number) => number;
 };
 
 /**
  * A claim is survey knowledge, not ownership. Ordinary minerals keep a
  * Euclidean taper that can tip a close call without making the farthest
- * reachable cell the default pick. Gold is different: lode veins sit on
- * shield/orogen cells that usually have no river, so a farm-weighted score
- * walks a short way toward the find and then diverts to wetter land. A
- * guarded gold claim therefore commits the State to any cell that shortens
- * the remaining hop count.
+ * reachable cell the default pick. Gold and silver are different: lode veins
+ * sit on shield/orogen cells that usually have no river, so a farm-weighted
+ * score walks a short way toward the find and then diverts to wetter land. A
+ * guarded precious-metal claim therefore commits the State to any cell that
+ * shortens the remaining hop count.
  *
  * regimentMovement.ts's getResourceGuardClaim() marches a disposable regiment
  * out to a freshly surveyed claim ("discovered" → "guardMarching" →
@@ -958,9 +966,9 @@ function buildResourceClaimIndex(
 
   const claimByCellId = new Map(claims.map(claim => [claim.cellId, claim]));
 
-  const isCloserToGold = (cellId: number, claimCellId: number): boolean => {
+  const isCloserToPreciousMetal = (cellId: number, claimCellId: number): boolean => {
     const claim = claimByCellId.get(claimCellId);
-    if (claim?.commodity !== "gold") return false;
+    if (!claim || !isPreciousMetal(claim.commodity)) return false;
     const remaining = stateHopsToClaim.get(claimCellId);
     const hopsToClaim = claim.hopsFromCell.get(cellId);
     return remaining !== undefined && hopsToClaim !== undefined && hopsToClaim < remaining;
@@ -968,10 +976,10 @@ function buildResourceClaimIndex(
 
   return {
     nearestClaimCellId,
-    isGoldApproach: cellId => {
+    isPreciousMetalApproach: cellId => {
       for (const claim of claims) {
-        if (claim.commodity !== "gold") continue;
-        if (claim.cellId === cellId || isCloserToGold(cellId, claim.cellId)) return true;
+        if (!isPreciousMetal(claim.commodity)) continue;
+        if (claim.cellId === cellId || isCloserToPreciousMetal(cellId, claim.cellId)) return true;
       }
       return false;
     },
@@ -982,8 +990,8 @@ function buildResourceClaimIndex(
       if (!claim) return 0;
       const bonuses = getResourceClaimBonuses(claim.commodity);
       if (claimCellId === candidateCellId) return bonuses.match;
-      if (claim.commodity === "gold") {
-        return isCloserToGold(candidateCellId, claimCellId) ? bonuses.approach : 0;
+      if (isPreciousMetal(claim.commodity)) {
+        return isCloserToPreciousMetal(candidateCellId, claimCellId) ? bonuses.approach : 0;
       }
       const candidatePoint = cells.p?.[candidateCellId];
       const claimPoint = cells.p?.[claimCellId];
@@ -995,8 +1003,8 @@ function buildResourceClaimIndex(
 }
 
 function getResourceClaimBonuses(commodity: string): { match: number; approach: number } {
-  return commodity === "gold"
-    ? { match: GOLD_CLAIM_MATCH_BONUS, approach: GOLD_CLAIM_APPROACH_BONUS }
+  return isPreciousMetal(commodity)
+    ? { match: PRECIOUS_METAL_CLAIM_MATCH_BONUS, approach: PRECIOUS_METAL_CLAIM_APPROACH_BONUS }
     : { match: RESOURCE_CLAIM_MATCH_BONUS, approach: RESOURCE_CLAIM_APPROACH_BONUS };
 }
 
