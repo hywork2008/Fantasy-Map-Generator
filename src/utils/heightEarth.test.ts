@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
+  BRITAIN_REGION,
   EAST_ASIA_REGION,
   earthRegionMapCoordinates,
   JAPAN_REGION,
@@ -70,5 +71,17 @@ describe("japan climate conversion", () => {
     expect(coords.latN).toBeCloseTo(46.6, 5);
     expect(JAPAN_REGION.climateAnchor.mapSize).toBeCloseTo(((146.4 - 118.5) / 360) * 100, 3);
     expect(JAPAN_REGION.climateAnchor.latitude).toBeCloseTo((29.9 + 46.6) / 2, 5);
+  });
+});
+
+describe("britain climate conversion", () => {
+  it("anchors climate to the British Isles bbox (Ireland SW – Shetland NE)", () => {
+    const coords = earthRegionMapCoordinates(BRITAIN_REGION);
+    expect(coords.lonW).toBeCloseTo(-11.5, 5);
+    expect(coords.lonE).toBeCloseTo(3.0, 5);
+    expect(coords.latS).toBeCloseTo(49.0, 5);
+    expect(coords.latN).toBeCloseTo(61.7, 5);
+    expect(BRITAIN_REGION.climateAnchor.mapSize).toBeCloseTo(((3.0 - -11.5) / 360) * 100, 3);
+    expect(BRITAIN_REGION.climateAnchor.latitude).toBeCloseTo((49.0 + 61.7) / 2, 5);
   });
 });

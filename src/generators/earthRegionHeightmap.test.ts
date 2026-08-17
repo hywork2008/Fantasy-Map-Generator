@@ -4,7 +4,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
 import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
-import { EAST_ASIA_REGION, JAPAN_REGION } from "../data/earthRegions";
+import { BRITAIN_REGION, EAST_ASIA_REGION, JAPAN_REGION } from "../data/earthRegions";
 import { useOptionsState } from "../store/optionsState";
 import { generateGrid } from "../utils/graphUtils";
 import { loadEarthRaster } from "./earthRegionHeightmap";
@@ -15,6 +15,7 @@ const MAX_GRAPH_WIDTH = 960;
 const MAX_GRAPH_HEIGHT = 540;
 const EAST_ASIA_GRAPH = earthRegionFitGraph(EAST_ASIA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const JAPAN_GRAPH = earthRegionFitGraph(JAPAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const BRITAIN_GRAPH = earthRegionFitGraph(BRITAIN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -286,5 +287,165 @@ describe("fromEarthRegion japan", () => {
     expect(southSea.length, "water south of Cape Sata").toBeGreaterThan(4);
     const southSpan = Math.max(...southSea.map(c => c.lon)) - Math.min(...southSea.map(c => c.lon));
     expect(southSpan, "south-coast passage is not a single pinch cell").toBeGreaterThan(0.4);
+  }, 20000);
+});
+
+const BRITAIN_LANDMARKS = {
+  london: { lon: -0.12, lat: 51.51 },
+  manchester: { lon: -2.24, lat: 53.48 },
+  dublin: { lon: -6.26, lat: 53.35 },
+  cork: { lon: -8.47, lat: 51.9 },
+  edinburgh: { lon: -3.19, lat: 55.95 },
+  shetland: { lon: -1.27, lat: 60.38 },
+  landsEnd: { lon: -5.72, lat: 50.07 },
+  dover: { lon: 1.32, lat: 51.13 }
+};
+
+const BRITAIN_IN_FRAME = {
+  man: { lon: -4.5, lat: 54.23 },
+  wight: { lon: -1.3, lat: 50.67 },
+  anglesey: { lon: -4.38, lat: 53.28 },
+  calais: { lon: 1.86, lat: 50.95 }
+};
+
+async function generateBritain(points = 4) {
+  worldContext.graphWidth = BRITAIN_GRAPH.width;
+  worldContext.graphHeight = BRITAIN_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "britain", heightExponent: 1.8 });
+  const grid = generateGrid("earth-britain-test", BRITAIN_GRAPH.width, BRITAIN_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestBritainCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(BRITAIN_REGION, BRITAIN_GRAPH.width, BRITAIN_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function britainWaterAlong(
+  grid: ReturnType<typeof generateGrid>,
+  heights: Uint8Array,
+  pred: (lon: number, lat: number) => boolean
+): { lon: number; lat: number }[] {
+  const cells: { lon: number; lat: number }[] = [];
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights[i] >= HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(BRITAIN_REGION, BRITAIN_GRAPH.width, BRITAIN_GRAPH.height, x, y);
+    if (pred(here.lon, here.lat)) cells.push(here);
+  }
+  return cells;
+}
+
+function isInsideBritainBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= BRITAIN_REGION.west &&
+    lon <= BRITAIN_REGION.east &&
+    lat >= BRITAIN_REGION.south &&
+    lat <= BRITAIN_REGION.north
+  );
+}
+
+describe("fromEarthRegion britain", () => {
+  it("frames western Ireland in the south-west and Shetland in the north-east", () => {
+    expect(BRITAIN_REGION.west).toBeCloseTo(-11.5, 5);
+    expect(BRITAIN_REGION.east).toBeCloseTo(3.0, 5);
+    expect(BRITAIN_REGION.south).toBeCloseTo(49.0, 5);
+    expect(BRITAIN_REGION.north).toBeCloseTo(61.7, 5);
+    expect(BRITAIN_REGION.north - BRITAIN_LANDMARKS.shetland.lat).toBeGreaterThan(0.8);
+    expect(BRITAIN_LANDMARKS.landsEnd.lat - BRITAIN_REGION.south).toBeGreaterThan(0.8);
+    expect(BRITAIN_REGION.east - BRITAIN_LANDMARKS.dover.lon).toBeGreaterThan(1);
+    expect(isInsideBritainBbox(BRITAIN_LANDMARKS.cork.lon, BRITAIN_LANDMARKS.cork.lat)).toBe(true);
+    expect(isInsideBritainBbox(BRITAIN_LANDMARKS.shetland.lon, BRITAIN_LANDMARKS.shetland.lat)).toBe(true);
+    expect(isInsideBritainBbox(-19, 64.8), "Iceland").toBe(false);
+    for (const [name, place] of Object.entries(BRITAIN_IN_FRAME)) {
+      expect(isInsideBritainBbox(place.lon, place.lat), name).toBe(true);
+    }
+  });
+
+  it("does not stretch Britain to the window aspect", () => {
+    const midLat = ((BRITAIN_REGION.north + BRITAIN_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(BRITAIN_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(BRITAIN_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(BRITAIN_REGION, fitted.width, fitted.height, -4.25, 55.35);
+      const east = lonLatToMapPoint(BRITAIN_REGION, fitted.width, fitted.height, -3.25, 55.35);
+      const north = lonLatToMapPoint(BRITAIN_REGION, fitted.width, fitted.height, -4.25, 56.35);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 3);
+    }
+  });
+
+  it("keeps London as land and Ireland separate from Great Britain", async () => {
+    const { grid, heights } = await generateBritain(6);
+    const london = nearestBritainCell(grid, BRITAIN_LANDMARKS.london.lon, BRITAIN_LANDMARKS.london.lat, heights);
+    expect(heights[london]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    const here = mapPointToLonLat(BRITAIN_REGION, BRITAIN_GRAPH.width, BRITAIN_GRAPH.height, ...grid.points[london]);
+    expect(Math.hypot(here.lon - BRITAIN_LANDMARKS.london.lon, here.lat - BRITAIN_LANDMARKS.london.lat)).toBeLessThan(
+      0.4
+    );
+
+    const ireland = landComponentId(
+      heights,
+      grid,
+      nearestBritainCell(grid, BRITAIN_LANDMARKS.dublin.lon, BRITAIN_LANDMARKS.dublin.lat, heights)
+    );
+    const britain = landComponentId(heights, grid, london);
+    const france = landComponentId(
+      heights,
+      grid,
+      nearestBritainCell(grid, BRITAIN_IN_FRAME.calais.lon, BRITAIN_IN_FRAME.calais.lat, heights)
+    );
+    expect(ireland, "ireland land").toBeGreaterThanOrEqual(0);
+    expect(britain, "britain land").toBeGreaterThanOrEqual(0);
+    expect(france, "calais land").toBeGreaterThanOrEqual(0);
+    expect(ireland !== britain, `Ireland-Britain ${ireland}/${britain}`).toBe(true);
+    expect(britain !== france, `Britain-France ${britain}/${france}`).toBe(true);
+
+    const raster = await loadEarthRaster(BRITAIN_REGION);
+    for (const [name, place] of Object.entries(BRITAIN_IN_FRAME)) {
+      expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
+    }
+    expect(sampleLand(raster, BRITAIN_LANDMARKS.shetland.lon, BRITAIN_LANDMARKS.shetland.lat), "Shetland").toBe(true);
+  }, 20000);
+
+  it("keeps a coastal sea corridor through the Strait of Dover", async () => {
+    const { grid, heights } = await generateBritain(4);
+    const doverLand = nearestBritainCell(grid, BRITAIN_LANDMARKS.dover.lon, BRITAIN_LANDMARKS.dover.lat, heights);
+    expect(heights[doverLand]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+
+    const channel = britainWaterAlong(
+      grid,
+      heights,
+      (lon, lat) => lon > 1.15 && lon < 1.85 && lat > 50.85 && lat < 51.2
+    );
+    expect(channel.length, "water in the Strait of Dover").toBeGreaterThan(3);
+    const span = Math.max(...channel.map(c => c.lat)) - Math.min(...channel.map(c => c.lat));
+    expect(span, "Dover passage is not a single pinch cell").toBeGreaterThan(0.15);
   }, 20000);
 });

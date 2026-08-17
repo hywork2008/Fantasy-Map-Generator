@@ -54,6 +54,14 @@ const JAPAN_STRAITS: EarthStrait[] = [
   { name: "BisanEast", a: [133.95, 34.5], b: [133.95, 34.28], widthKm: 12 }
 ];
 
+const BRITAIN_STRAITS: EarthStrait[] = [
+  { name: "Dover", a: [1.32, 51.13], b: [1.59, 50.87], widthKm: 33 },
+  { name: "NorthChannel", a: [-5.73, 55.31], b: [-6.06, 55.2], widthKm: 20 },
+  { name: "Solent", a: [-1.3, 50.8], b: [-1.3, 50.68], widthKm: 4 },
+  { name: "Menai", a: [-4.18, 53.24], b: [-4.14, 53.12], widthKm: 0.5 },
+  { name: "Pentland", a: [-3.14, 58.64], b: [-3.14, 58.78], widthKm: 10 }
+];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -110,9 +118,36 @@ export const JAPAN_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). In-frame islands and neighboring land are kept; the canvas is not stretched to the window."
 };
 
+/**
+ * British Isles: western Ireland at the lower-left, Shetland at the upper-right.
+ * Padded past Land's End, Cape Wrath / Unst, and Dover so coastal sea lanes
+ * can pass those capes and the Channel. In-frame neighbors (Calais, etc.)
+ * stay on the land mask. The graph is fitted to this bbox's true shape.
+ */
+export const BRITAIN_REGION: EarthRegion = {
+  id: "britain",
+  name: "Britain",
+  west: -11.5,
+  east: 3.0,
+  south: 49.0,
+  north: 61.7,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 4.0278,
+    latitude: 55.35,
+    longitude: 51.23
+  },
+  raster: { path: "./heightmaps/earth/britain.bin" },
+  topology: { keepStraits: BRITAIN_STRAITS },
+  previewPng: "./heightmaps/britain.png",
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). British Isles and in-frame neighbors are kept; the canvas is not stretched to the window."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
-  japan: JAPAN_REGION
+  japan: JAPAN_REGION,
+  britain: BRITAIN_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

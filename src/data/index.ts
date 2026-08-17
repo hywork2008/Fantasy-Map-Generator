@@ -8,6 +8,7 @@ export {
   TemperatureThreshold
 } from "./constants";
 export {
+  BRITAIN_REGION,
   EAST_ASIA_REGION,
   type EarthClimateAnchor,
   type EarthRegion,
