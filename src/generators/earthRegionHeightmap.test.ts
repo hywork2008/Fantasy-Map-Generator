@@ -4,7 +4,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
 import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
-import { BRITAIN_REGION, EAST_ASIA_REGION, JAPAN_REGION } from "../data/earthRegions";
+import { BRITAIN_REGION, EAST_ASIA_REGION, JAPAN_REGION, MEDITERRANEAN_SEA_REGION } from "../data/earthRegions";
 import { useOptionsState } from "../store/optionsState";
 import { generateGrid } from "../utils/graphUtils";
 import { loadEarthRaster } from "./earthRegionHeightmap";
@@ -16,6 +16,7 @@ const MAX_GRAPH_HEIGHT = 540;
 const EAST_ASIA_GRAPH = earthRegionFitGraph(EAST_ASIA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const JAPAN_GRAPH = earthRegionFitGraph(JAPAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const BRITAIN_GRAPH = earthRegionFitGraph(BRITAIN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const MED_GRAPH = earthRegionFitGraph(MEDITERRANEAN_SEA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -447,5 +448,164 @@ describe("fromEarthRegion britain", () => {
     expect(channel.length, "water in the Strait of Dover").toBeGreaterThan(3);
     const span = Math.max(...channel.map(c => c.lat)) - Math.min(...channel.map(c => c.lat));
     expect(span, "Dover passage is not a single pinch cell").toBeGreaterThan(0.15);
+  }, 20000);
+});
+
+const MED_LANDMARKS = {
+  gibraltar: { lon: -5.35, lat: 36.14 },
+  cadiz: { lon: -6.29, lat: 36.53 },
+  venice: { lon: 12.34, lat: 45.44 },
+  tunis: { lon: 10.18, lat: 36.81 },
+  alexandria: { lon: 29.92, lat: 31.2 },
+  palermo: { lon: 13.36, lat: 38.12 },
+  cagliari: { lon: 9.11, lat: 39.22 },
+  ajaccio: { lon: 8.74, lat: 41.93 },
+  nicosia: { lon: 33.38, lat: 35.17 }
+};
+
+const MED_IN_FRAME = {
+  sicily: { lon: 13.36, lat: 38.12 },
+  sardinia: { lon: 9.11, lat: 39.22 },
+  corsica: { lon: 8.74, lat: 41.93 },
+  crete: { lon: 24.9, lat: 35.2 },
+  cyprus: { lon: 33.38, lat: 35.17 },
+  mallorca: { lon: 2.65, lat: 39.57 },
+  malta: { lon: 14.38, lat: 35.9 }
+};
+
+async function generateMediterranean(points = 4) {
+  worldContext.graphWidth = MED_GRAPH.width;
+  worldContext.graphHeight = MED_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "mediterranean-sea", heightExponent: 1.8 });
+  const grid = generateGrid("earth-med-test", MED_GRAPH.width, MED_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestMedCell(grid: ReturnType<typeof generateGrid>, lon: number, lat: number, heights?: Uint8Array): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(MEDITERRANEAN_SEA_REGION, MED_GRAPH.width, MED_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function medWaterAlong(
+  grid: ReturnType<typeof generateGrid>,
+  heights: Uint8Array,
+  pred: (lon: number, lat: number) => boolean
+): { lon: number; lat: number }[] {
+  const cells: { lon: number; lat: number }[] = [];
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights[i] >= HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(MEDITERRANEAN_SEA_REGION, MED_GRAPH.width, MED_GRAPH.height, x, y);
+    if (pred(here.lon, here.lat)) cells.push(here);
+  }
+  return cells;
+}
+
+function isInsideMedBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= MEDITERRANEAN_SEA_REGION.west &&
+    lon <= MEDITERRANEAN_SEA_REGION.east &&
+    lat >= MEDITERRANEAN_SEA_REGION.south &&
+    lat <= MEDITERRANEAN_SEA_REGION.north
+  );
+}
+
+describe("fromEarthRegion mediterranean-sea", () => {
+  it("frames Gibraltar in the west and the Levant in the east", () => {
+    expect(MEDITERRANEAN_SEA_REGION.west).toBeCloseTo(-7, 5);
+    expect(MEDITERRANEAN_SEA_REGION.east).toBeCloseTo(36.8, 5);
+    expect(MEDITERRANEAN_SEA_REGION.south).toBeCloseTo(29.8, 5);
+    expect(MEDITERRANEAN_SEA_REGION.north).toBeCloseTo(46.2, 5);
+    expect(MED_LANDMARKS.gibraltar.lon - MEDITERRANEAN_SEA_REGION.west).toBeGreaterThan(1);
+    expect(MEDITERRANEAN_SEA_REGION.east - MED_LANDMARKS.nicosia.lon).toBeGreaterThan(2);
+    expect(MEDITERRANEAN_SEA_REGION.north - MED_LANDMARKS.venice.lat).toBeGreaterThan(0.5);
+    expect(MED_LANDMARKS.alexandria.lat - MEDITERRANEAN_SEA_REGION.south).toBeGreaterThan(1);
+    expect(isInsideMedBbox(MED_LANDMARKS.cadiz.lon, MED_LANDMARKS.cadiz.lat)).toBe(true);
+    expect(isInsideMedBbox(-9.14, 38.72), "Lisbon").toBe(false);
+    expect(isInsideMedBbox(32.9, 24.09), "Aswan").toBe(false);
+    for (const [name, place] of Object.entries(MED_IN_FRAME)) {
+      expect(isInsideMedBbox(place.lon, place.lat), name).toBe(true);
+    }
+  });
+
+  it("does not stretch the Mediterranean to the window aspect", () => {
+    const midLat = ((MEDITERRANEAN_SEA_REGION.north + MEDITERRANEAN_SEA_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(MEDITERRANEAN_SEA_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(MEDITERRANEAN_SEA_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(MEDITERRANEAN_SEA_REGION, fitted.width, fitted.height, 14.9, 38);
+      const east = lonLatToMapPoint(MEDITERRANEAN_SEA_REGION, fitted.width, fitted.height, 15.9, 38);
+      const north = lonLatToMapPoint(MEDITERRANEAN_SEA_REGION, fitted.width, fitted.height, 14.9, 39);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps Venice as land and Sicily, Sardinia and Corsica separate", async () => {
+    const { grid, heights } = await generateMediterranean(6);
+    const venice = nearestMedCell(grid, MED_LANDMARKS.venice.lon, MED_LANDMARKS.venice.lat, heights);
+    expect(heights[venice]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    const here = mapPointToLonLat(MEDITERRANEAN_SEA_REGION, MED_GRAPH.width, MED_GRAPH.height, ...grid.points[venice]);
+    expect(Math.hypot(here.lon - MED_LANDMARKS.venice.lon, here.lat - MED_LANDMARKS.venice.lat)).toBeLessThan(0.5);
+
+    const italy = landComponentId(heights, grid, venice);
+    const sicily = landComponentId(
+      heights,
+      grid,
+      nearestMedCell(grid, MED_LANDMARKS.palermo.lon, MED_LANDMARKS.palermo.lat, heights)
+    );
+    const sardinia = landComponentId(
+      heights,
+      grid,
+      nearestMedCell(grid, MED_LANDMARKS.cagliari.lon, MED_LANDMARKS.cagliari.lat, heights)
+    );
+    const corsica = landComponentId(
+      heights,
+      grid,
+      nearestMedCell(grid, MED_LANDMARKS.ajaccio.lon, MED_LANDMARKS.ajaccio.lat, heights)
+    );
+    expect(italy, "italy land").toBeGreaterThanOrEqual(0);
+    expect(sicily, "sicily land").toBeGreaterThanOrEqual(0);
+    expect(sardinia, "sardinia land").toBeGreaterThanOrEqual(0);
+    expect(corsica, "corsica land").toBeGreaterThanOrEqual(0);
+    expect(italy !== sicily, `Italy-Sicily ${italy}/${sicily}`).toBe(true);
+    expect(sardinia !== corsica, `Sardinia-Corsica ${sardinia}/${corsica}`).toBe(true);
+
+    const raster = await loadEarthRaster(MEDITERRANEAN_SEA_REGION);
+    for (const [name, place] of Object.entries(MED_IN_FRAME)) {
+      expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
+    }
+  }, 20000);
+
+  it("keeps a sea corridor through the Strait of Gibraltar", async () => {
+    const { grid, heights } = await generateMediterranean(4);
+    const gibraltarLand = nearestMedCell(grid, MED_LANDMARKS.gibraltar.lon, MED_LANDMARKS.gibraltar.lat, heights);
+    expect(heights[gibraltarLand]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+
+    const strait = medWaterAlong(grid, heights, (lon, lat) => lon > -5.9 && lon < -5.1 && lat > 35.8 && lat < 36.2);
+    expect(strait.length, "water in the Strait of Gibraltar").toBeGreaterThan(2);
+    const span = Math.max(...strait.map(c => c.lon)) - Math.min(...strait.map(c => c.lon));
+    expect(span, "Gibraltar passage is not a single pinch cell").toBeGreaterThan(0.2);
   }, 20000);
 });

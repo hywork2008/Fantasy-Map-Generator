@@ -18,7 +18,8 @@ export {
   getEarthRegion,
   isEarthRegion,
   JAPAN_REGION,
-  LEGACY_PRECREATED_CLIMATE
+  LEGACY_PRECREATED_CLIMATE,
+  MEDITERRANEAN_SEA_REGION
 } from "./earthRegions";
 export {
   getHeightmapTemplateWeights,

@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | Phase 0–2 implemented (2026-08-18). Phase 3 in progress: `japan` and `britain` Earth regions added. mediterranean-sea 等は未着手。PNG 経路は他 id とユーザー投入用に残存 |
+| Status | Phase 0–2 implemented (2026-08-18). Phase 3 in progress: `japan`, `britain`, and `mediterranean-sea` Earth regions added. europe-central 等は未着手。PNG 経路は他 id とユーザー投入用に残存 |
 | Parent | なし |
 | Related | [`../map-initialization-process.md`](../map-initialization-process.md)、[`src/generators/heightmap-generator.ts`](../../src/generators/heightmap-generator.ts)、[`src/data/precreated-heightmaps.ts`](../../src/data/precreated-heightmaps.ts)、[`src/data/earthConfig.ts`](../../src/data/earthConfig.ts)、[`public/heightmaps/import-rules.txt`](../../public/heightmaps/import-rules.txt)、日本パッチ [`../../scripts/patchEastAsiaJapan.mjs`](../../scripts/patchEastAsiaJapan.mjs) |
 | Scope | precreated heightmap（`east-asia` など実在地域のカタログ）を、「Heightmapper のスクショ PNG を世界とみなす」経路から、「公開 DEM ＋ 陸海ベクトルをセル中心でサンプルする」経路へ置き換える設計。手続生成テンプレ（Archipelago / Pangea 等）は対象外 |
@@ -357,7 +357,8 @@ PNG に太い溝を塗ってダウンサンプルに賭けるのをやめる。�
 
 - `japan` を追加済み。内容 bbox は黄海〜北海道北東（118.5–146.4°E, 29.9–46.6°N）。グラフをテンプレートの真の縦横比に合わせ、余ったウィンドウは領域外（黒）にする。陸マスクは枠内の島と隣接地を残す。
 - `britain` を追加済み。内容 bbox はアイルランド西岸〜シェトランド（11.5°W–3.0°E, 49.0–61.7°N）。ドーバーに海路余白。枠内の隣接地（カレーなど）は残す。
-- mediterranean-sea、iceland など、範囲が狭く検証しやすい id から `EarthRegion` 化する。
+- `mediterranean-sea` を追加済み。内容 bbox はジブラルタル〜レヴァント（7.0°W–36.8°E, 29.8–46.2°N）。ジブラルタル／メッシーナ／ボニファチオ／ダーダネルス／ボスポラスを海峡として残す。
+- europe-central、iceland など、範囲が狭く検証しやすい id から `EarthRegion` 化する。
 - world / world-from-pacific は投影（太平洋中心）が特殊なので後回し。
 - 任意: 主要河川ベクトルを種にする。
 

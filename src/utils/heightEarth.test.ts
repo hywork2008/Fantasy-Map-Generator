@@ -5,7 +5,8 @@ import {
   EAST_ASIA_REGION,
   earthRegionMapCoordinates,
   JAPAN_REGION,
-  LEGACY_PRECREATED_CLIMATE
+  LEGACY_PRECREATED_CLIMATE,
+  MEDITERRANEAN_SEA_REGION
 } from "../data/earthRegions";
 import { depthMetersToHeight, depthToMeters, heightToMeters, metersToHeight } from "./height";
 
@@ -83,5 +84,17 @@ describe("britain climate conversion", () => {
     expect(coords.latN).toBeCloseTo(61.7, 5);
     expect(BRITAIN_REGION.climateAnchor.mapSize).toBeCloseTo(((3.0 - -11.5) / 360) * 100, 3);
     expect(BRITAIN_REGION.climateAnchor.latitude).toBeCloseTo((49.0 + 61.7) / 2, 5);
+  });
+});
+
+describe("mediterranean-sea climate conversion", () => {
+  it("anchors climate to the Gibraltar–Levant bbox", () => {
+    const coords = earthRegionMapCoordinates(MEDITERRANEAN_SEA_REGION);
+    expect(coords.lonW).toBeCloseTo(-7, 5);
+    expect(coords.lonE).toBeCloseTo(36.8, 5);
+    expect(coords.latS).toBeCloseTo(29.8, 5);
+    expect(coords.latN).toBeCloseTo(46.2, 5);
+    expect(MEDITERRANEAN_SEA_REGION.climateAnchor.mapSize).toBeCloseTo(((36.8 - -7) / 360) * 100, 3);
+    expect(MEDITERRANEAN_SEA_REGION.climateAnchor.latitude).toBeCloseTo((29.8 + 46.2) / 2, 5);
   });
 });

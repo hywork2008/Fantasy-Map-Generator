@@ -62,6 +62,14 @@ const BRITAIN_STRAITS: EarthStrait[] = [
   { name: "Pentland", a: [-3.14, 58.64], b: [-3.14, 58.78], widthKm: 10 }
 ];
 
+const MEDITERRANEAN_STRAITS: EarthStrait[] = [
+  { name: "Gibraltar", a: [-5.61, 36.01], b: [-5.42, 35.92], widthKm: 14 },
+  { name: "Messina", a: [15.64, 38.22], b: [15.57, 38.19], widthKm: 3.2 },
+  { name: "Bonifacio", a: [9.16, 41.39], b: [9.19, 41.24], widthKm: 11 },
+  { name: "Dardanelles", a: [26.36, 40.2], b: [26.42, 40.14], widthKm: 1.4 },
+  { name: "Bosporus", a: [28.99, 41.12], b: [29.07, 41.12], widthKm: 0.7 }
+];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -144,10 +152,38 @@ export const BRITAIN_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). British Isles and in-frame neighbors are kept; the canvas is not stretched to the window."
 };
 
+/**
+ * Mediterranean basin for the Age of Exploration: Gibraltar (with an
+ * Atlantic approach) at the west, the Levant and Cyprus at the east.
+ * Venice sits near the northern edge; the Gulf of Sidra and the Nile
+ * Delta keep a strip of sea to the south. In-frame islands and
+ * neighbors stay on the land mask. The graph is fitted to this bbox.
+ */
+export const MEDITERRANEAN_SEA_REGION: EarthRegion = {
+  id: "mediterranean-sea",
+  name: "Mediterranean Sea",
+  west: -7,
+  east: 36.8,
+  south: 29.8,
+  north: 46.2,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 12.1667,
+    latitude: 38,
+    longitude: 45.29
+  },
+  raster: { path: "./heightmaps/earth/mediterranean-sea.bin" },
+  topology: { keepStraits: MEDITERRANEAN_STRAITS },
+  previewPng: "./heightmaps/mediterranean-sea.png",
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). In-frame Mediterranean islands and neighboring shores are kept; the canvas is not stretched to the window."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
-  britain: BRITAIN_REGION
+  britain: BRITAIN_REGION,
+  "mediterranean-sea": MEDITERRANEAN_SEA_REGION
 };
 
 export function isEarthRegion(id: string): boolean {
