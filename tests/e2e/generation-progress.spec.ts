@@ -308,10 +308,13 @@ test("updates the globe selection when applying a World Configurator preset", as
   const latitudeInput = configurator.locator("#latitudeInput");
   const globeArea = configurator.locator("#globeArea");
   await expect(mapSizeInput).toHaveValue("12.9");
-  await expect(latitudeInput).toHaveAttribute("min", "-90");
-  await expect(latitudeInput).toHaveAttribute("max", "90");
-  expect(Number(await latitudeInput.inputValue())).toBeGreaterThanOrEqual(-90);
-  expect(Number(await latitudeInput.inputValue())).toBeLessThanOrEqual(90);
+  const latitudeMin = Number(await latitudeInput.getAttribute("min"));
+  const latitudeMax = Number(await latitudeInput.getAttribute("max"));
+  expect(latitudeMin).toBeLessThan(0);
+  expect(latitudeMax).toBeGreaterThan(0);
+  expect(latitudeMax).toBeLessThanOrEqual(90);
+  expect(Number(await latitudeInput.inputValue())).toBeGreaterThanOrEqual(latitudeMin);
+  expect(Number(await latitudeInput.inputValue())).toBeLessThanOrEqual(latitudeMax);
   await expect(configurator.locator("#temperatureEquatorInput")).toHaveValue("27");
   await expect(configurator.locator("#temperatureNorthPoleInput")).toHaveValue("-18");
   await expect(configurator.locator("#temperatureSouthPoleInput")).toHaveValue("-50");
@@ -357,6 +360,60 @@ test("updates the globe selection when applying a World Configurator preset", as
   await configurator.getByRole("button", { name: "Whole world", exact: true }).click();
   await expect(mapSizeInput).toHaveValue("100");
   await expect.poll(() => globeArea.getAttribute("d")).not.toBe(northernPath);
+});
+
+test("rotates the World Configurator globe meridian in 15° steps", async ({ page }) => {
+  await page.goto("/?seed=world-configurator-meridian&width=1280&height=720");
+
+  const buildMap = page.locator(".generation-progress-dialog");
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Climate and waterways");
+  await buildMap.getByRole("button", { name: "Open World Configurator", exact: true }).click();
+
+  const configurator = page.locator("#worldConfiguratorContainer");
+  const meridianInput = configurator.locator("#globeMeridianInput");
+  const longitudeSlider = configurator.locator("#longitudeOutput");
+  const globeArea = configurator.locator("#globeArea");
+  const globeMeridianLabel = configurator.locator("#globeMeridianLabel");
+
+  const lonT = (await getMapCoordinates(page)).lonT;
+  const halfWidth = lonT / 2;
+
+  await meridianInput.fill("0");
+  await meridianInput.blur();
+  await expect(meridianInput).toHaveValue("0");
+  await expect(globeMeridianLabel).toHaveText("0°");
+  await expect(longitudeSlider).toHaveAttribute("min", String(-90 + halfWidth));
+  await expect(longitudeSlider).toHaveAttribute("max", String(90 - halfWidth));
+  const primeMeridianPath = await globeArea.getAttribute("d");
+  expect(primeMeridianPath).toBeTruthy();
+
+  await meridianInput.fill("135");
+  await meridianInput.blur();
+  await expect(meridianInput).toHaveValue("135");
+  await expect(globeMeridianLabel).toHaveText("135°E");
+  await expect(longitudeSlider).toHaveAttribute("min", String(45 + halfWidth));
+  await expect(longitudeSlider).toHaveAttribute("max", String(225 - halfWidth));
+  await expect.poll(() => globeArea.getAttribute("d")).not.toBe(primeMeridianPath);
+
+  const beforeMove = await getMapCoordinates(page);
+  const longitudeInput = configurator.locator("#longitudeInput");
+  const latitudeInput = configurator.locator("#latitudeInput");
+  await longitudeInput.fill("150");
+  await longitudeInput.blur();
+  await expect.poll(async () => {
+    const coords = await getMapCoordinates(page);
+    return (coords.lonW + coords.lonE) / 2;
+  }).toBeCloseTo(150, 0);
+  await expect.poll(() => globeArea.getAttribute("d")).not.toBe(primeMeridianPath);
+  expect((await getMapCoordinates(page)).lonW).not.toBe(beforeMove.lonW);
+
+  await latitudeInput.fill("70");
+  await latitudeInput.blur();
+  await expect.poll(async () => {
+    const coords = await getMapCoordinates(page);
+    return (coords.latN + coords.latS) / 2;
+  }).toBeCloseTo(70, 0);
 });
 
 test("preserves a newly generated landscape when climate is regenerated", async ({ page }) => {

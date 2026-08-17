@@ -1,5 +1,6 @@
 import { heightmapTemplates } from "./data";
 import {
+  computeMapCoordinates,
   EARTH_AXIAL_TILT_DEG,
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_TEMPERATURE_PRESET,
@@ -7,7 +8,7 @@ import {
   getEarthMapLatitudeSpan,
   getTemperateLatitudeBound
 } from "./data/earthConfig";
-import { earthRegionMapCoordinates, getEarthRegion } from "./data/earthRegions";
+import { getEarthRegion } from "./data/earthRegions";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
@@ -1528,28 +1529,11 @@ function defineMapSize() {
 
 export function calculateMapCoordinates() {
   const options = useOptionsState.getState();
-  const earthRegion = getEarthRegion(options.template);
-  if (earthRegion) {
-    worldContext.mapCoordinates = earthRegionMapCoordinates(
-      earthRegion,
-      worldContext.graphWidth,
-      worldContext.graphHeight
-    );
-    return;
-  }
-  const sizeFraction = options.mapSize / 100;
-  const lonShift = options.longitude / 100;
-
-  const lonT = rn(sizeFraction * 360, 1);
-  const latT = rn(getEarthMapLatitudeSpan(options.mapSize, worldContext.graphWidth, worldContext.graphHeight), 1);
-  const maxCenterLatitude = 90 - latT / 2;
-  const centerLatitude = minmax(options.latitude, -maxCenterLatitude, maxCenterLatitude);
-  const latN = rn(centerLatitude + latT / 2, 1);
-  const latS = rn(latN - latT, 1);
-
-  const lonE = rn(180 - (360 - lonT) * lonShift, 1);
-  const lonW = rn(lonE - lonT, 1);
-  worldContext.mapCoordinates = { latT, latN, latS, lonT, lonW, lonE };
+  // Earth-region templates only seed the initial climateAnchor in defineMapSize().
+  // Live World Configurator edits must be able to move that window — e.g. put a
+  // Japan-shaped heightmap at the pole or on the equator — so coordinates always
+  // follow the current mapSize / latitude / longitude options.
+  worldContext.mapCoordinates = computeMapCoordinates(options, worldContext.graphWidth, worldContext.graphHeight);
 }
 
 // ─── Temperature model ────────────────────────────────────────────────────────

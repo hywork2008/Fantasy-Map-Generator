@@ -7,9 +7,9 @@ import { earthRegionView } from "./earthConfig";
 
 export interface EarthClimateAnchor {
   mapSize: number;
-  /** Geographic center latitude in degrees (not the legacy 0–100 shift). */
+  /** Initial geographic center latitude in degrees. Users may move it later. */
   latitude: number;
-  /** Legacy-compatible 0–100 longitude shift used by calculateMapCoordinates. */
+  /** Initial 0–100 longitude shift for calculateMapCoordinates. Users may move it later. */
   longitude: number;
 }
 

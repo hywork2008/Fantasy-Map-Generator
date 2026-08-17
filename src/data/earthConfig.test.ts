@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ARCTIC_CIRCLE_LATITUDE_DEG,
+  computeMapCoordinates,
   convertLegacyLatitudeToGeographic,
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_EQUATORIAL_CIRCUMFERENCE_KM,
@@ -12,7 +13,14 @@ import {
   getEarthDistanceScale,
   getEarthMapLatitudeSpan,
   getEarthPathDistance,
-  getTemperateLatitudeBound
+  getTemperateLatitudeBound,
+  globeMeridianSliderRange,
+  longitudeCenterToShift,
+  longitudeShiftToCenter,
+  mapLatitudeSliderRange,
+  snapGlobeMeridian,
+  unwrapLongitudeForRange,
+  wrapLongitude
 } from "./earthConfig";
 
 describe("Earth map calibration", () => {
@@ -140,5 +148,59 @@ describe("Legacy latitude migration", () => {
   it("clamps the result to [-90, 90]", () => {
     expect(convertLegacyLatitudeToGeographic(0, 0)).toBeLessThanOrEqual(90);
     expect(convertLegacyLatitudeToGeographic(100, 0)).toBeGreaterThanOrEqual(-90);
+  });
+});
+
+describe("World Configurator globe longitude", () => {
+  const japanLonT = 146.4 - 118.5;
+  const japanShift = 10.12;
+
+  it("places a 50 shift on the prime meridian", () => {
+    expect(longitudeShiftToCenter(50, 27.9)).toBeCloseTo(0, 5);
+    expect(longitudeCenterToShift(0, 27.9)).toBeCloseTo(50, 5);
+  });
+
+  it("reconstructs Japan's climate-anchor shift as ~132°E, snapping the blue line to 135°", () => {
+    const center = longitudeShiftToCenter(japanShift, japanLonT);
+    expect(center).toBeCloseTo((118.5 + 146.4) / 2, 0);
+    expect(snapGlobeMeridian(center)).toBe(135);
+    const range = globeMeridianSliderRange(135, japanLonT);
+    expect(range.min).toBeCloseTo(45 + japanLonT / 2, 5);
+    expect(range.max).toBeCloseTo(225 - japanLonT / 2, 5);
+    expect(center).toBeGreaterThan(range.min);
+    expect(center).toBeLessThan(range.max);
+  });
+
+  it("round-trips a 135°E center through the legacy 0–100 shift", () => {
+    const lonT = 27.9;
+    const shift = longitudeCenterToShift(135, lonT);
+    expect(longitudeShiftToCenter(shift, lonT)).toBeCloseTo(135, 5);
+  });
+
+  it("unwraps dateline longitudes so a 135° meridian slider still increases eastward", () => {
+    expect(wrapLongitude(225)).toBe(-135);
+    expect(unwrapLongitudeForRange(-135, 45, 225)).toBe(225);
+    expect(unwrapLongitudeForRange(132.45, 45, 225)).toBeCloseTo(132.45, 5);
+  });
+
+  it("lets a Japan climate-anchor be moved off its geographic bbox", () => {
+    const japan = computeMapCoordinates({ mapSize: 7.75, latitude: 38.25, longitude: 10.12 }, 960, 540);
+    expect(japan.lonW).toBeCloseTo(118.5, 0);
+    expect(japan.lonE).toBeCloseTo(146.4, 0);
+    expect((japan.latN + japan.latS) / 2).toBeCloseTo(38.25, 0);
+
+    const polar = computeMapCoordinates({ mapSize: 7.75, latitude: 80, longitude: 10.12 }, 960, 540);
+    expect((polar.latN + polar.latS) / 2).toBeGreaterThan(60);
+    expect(polar.latN).toBeLessThanOrEqual(90);
+    expect(polar.lonW).toBeCloseTo(japan.lonW, 5);
+
+    const west = computeMapCoordinates({ mapSize: 7.75, latitude: 38.25, longitude: 20 }, 960, 540);
+    expect((west.lonW + west.lonE) / 2).toBeLessThan((japan.lonW + japan.lonE) / 2);
+  });
+
+  it("keeps the latitude slider from pushing the map off the globe", () => {
+    const range = mapLatitudeSliderRange(12.9, 1280, 720);
+    expect(range.max).toBeCloseTo(90 - getEarthMapLatitudeSpan(12.9, 1280, 720) / 2, 5);
+    expect(range.min).toBeCloseTo(-range.max, 5);
   });
 });

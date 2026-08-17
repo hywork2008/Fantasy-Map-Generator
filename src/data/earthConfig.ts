@@ -1,3 +1,5 @@
+import { minmax, rn } from "../utils/numberUtils";
+
 /** Earth-equivalent equatorial circumference used to calibrate generated map distances. */
 export const EARTH_EQUATORIAL_CIRCUMFERENCE_KM = 40_075;
 
@@ -18,8 +20,10 @@ const EARTH_RADIUS_KM = EARTH_EQUATORIAL_CIRCUMFERENCE_KM / (2 * Math.PI);
 type MapCoordinates = {
   latT?: number;
   latN?: number;
+  latS?: number;
   lonT?: number;
   lonW?: number;
+  lonE?: number;
 };
 
 export type EarthMappedWorld = {
@@ -69,6 +73,41 @@ export const EARTH_AXIAL_TILT_DEG = 23.5;
 export function getEarthDistanceScale(mapSize: number, graphWidth: number): number {
   if (!Number.isFinite(mapSize) || !Number.isFinite(graphWidth) || graphWidth <= 0) return 0;
   return (EARTH_EQUATORIAL_CIRCUMFERENCE_KM * mapSize) / (100 * graphWidth);
+}
+
+/**
+ * World-configurator placement on the globe. Earth-region heightmaps only seed
+ * the initial `mapSize` / `latitude` / `longitude` via `climateAnchor`; this
+ * function always honors the live options so a Japan-shaped map can be moved
+ * to the pole, the equator, or anywhere in the visible hemisphere.
+ */
+export function computeMapCoordinates(
+  options: { mapSize: number; latitude: number; longitude: number },
+  graphWidth: number,
+  graphHeight: number
+): Required<MapCoordinates> {
+  const sizeFraction = options.mapSize / 100;
+  const lonShift = options.longitude / 100;
+  const lonT = rn(sizeFraction * 360, 1);
+  const latT = rn(getEarthMapLatitudeSpan(options.mapSize, graphWidth, graphHeight), 1);
+  const maxCenterLatitude = 90 - latT / 2;
+  const centerLatitude = minmax(options.latitude, -maxCenterLatitude, maxCenterLatitude);
+  const latN = rn(centerLatitude + latT / 2, 1);
+  const latS = rn(latN - latT, 1);
+  const lonE = rn(180 - (360 - lonT) * lonShift, 1);
+  const lonW = rn(lonE - lonT, 1);
+  return { latT, latN, latS, lonT, lonW, lonE };
+}
+
+/** Allowed central-latitude range so the map stays on the globe. */
+export function mapLatitudeSliderRange(
+  mapSize: number,
+  graphWidth: number,
+  graphHeight: number
+): { min: number; max: number } {
+  const latT = getEarthMapLatitudeSpan(mapSize, graphWidth, graphHeight);
+  const maxCenter = Math.max(0, 90 - latT / 2);
+  return { min: -maxCenter, max: maxCenter };
 }
 
 /** Returns the map's north-to-south extent in geographic degrees. */
@@ -232,8 +271,65 @@ export function getEarthPathDistance(
   return distance;
 }
 
+/** Step used by the World Configurator globe's central-meridian control. */
+export const GLOBE_MERIDIAN_STEP_DEG = 15;
+
+/** Visible longitude span of the orthographic globe (±90° from the blue line). */
+export const GLOBE_VISIBLE_LONGITUDE_SPAN_DEG = 180;
+
+/** Wrap a longitude into (-180, 180]. */
+export function wrapLongitude(longitude: number): number {
+  if (!Number.isFinite(longitude)) return 0;
+  return ((longitude + 540) % 360) - 180;
+}
+
+/** Snap a longitude to the nearest World Configurator meridian step, clamped to [-180, 180]. */
+export function snapGlobeMeridian(longitude: number, step: number = GLOBE_MERIDIAN_STEP_DEG): number {
+  if (!Number.isFinite(longitude) || !Number.isFinite(step) || step <= 0) return 0;
+  const snapped = Math.round(longitude / step) * step;
+  return Math.min(Math.max(snapped, -180), 180);
+}
+
+/** Convert the legacy 0–100 west–east shift into the map's central longitude. */
+export function longitudeShiftToCenter(shift: number, lonT: number): number {
+  if (!Number.isFinite(shift) || !Number.isFinite(lonT) || !(lonT > 0) || lonT >= 360) return 0;
+  const clampedShift = Math.min(Math.max(shift, 0), 100);
+  return wrapLongitude(180 - (360 - lonT) * (clampedShift / 100) - lonT / 2);
+}
+
+/** Convert a central longitude back into the legacy 0–100 west–east shift. */
+export function longitudeCenterToShift(center: number, lonT: number): number {
+  if (!Number.isFinite(center) || !Number.isFinite(lonT) || !(lonT > 0) || lonT >= 360) return 50;
+  const shift = ((180 - lonT / 2 - wrapLongitude(center)) / (360 - lonT)) * 100;
+  return Math.min(Math.max(shift, 0), 100);
+}
+
+/**
+ * Slider bounds for the map's central longitude. The window is the visible
+ * hemisphere around the blue line (`meridian ± 90°`), inset by half the map
+ * width so the selection rectangle never disappears behind the globe.
+ */
+export function globeMeridianSliderRange(centralMeridian: number, lonT = 0): { min: number; max: number } {
+  const meridian = Number.isFinite(centralMeridian) ? centralMeridian : 0;
+  const halfSpan = GLOBE_VISIBLE_LONGITUDE_SPAN_DEG / 2;
+  const halfWidth = Number.isFinite(lonT) && lonT > 0 ? Math.min(Math.max(lonT / 2, 0), halfSpan) : 0;
+  return { min: meridian - halfSpan + halfWidth, max: meridian + halfSpan - halfWidth };
+}
+
+/**
+ * Express `longitude` in the same 360° numbering as `[min, max]` so a slider
+ * whose bounds cross ±180° still increases from west to east.
+ */
+export function unwrapLongitudeForRange(longitude: number, min: number, max: number): number {
+  if (!Number.isFinite(longitude) || !Number.isFinite(min) || !Number.isFinite(max)) return 0;
+  let value = wrapLongitude(longitude);
+  while (value < min) value += 360;
+  while (value > max) value -= 360;
+  return value;
+}
+
 function normalizeLongitudeDelta(longitudeDelta: number): number {
-  return ((longitudeDelta + 540) % 360) - 180;
+  return wrapLongitude(longitudeDelta);
 }
 
 function toRadians(degrees: number): number {

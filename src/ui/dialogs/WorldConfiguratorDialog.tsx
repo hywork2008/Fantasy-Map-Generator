@@ -5,12 +5,22 @@ import { useTranslation } from "react-i18next";
 import { worldContext } from "../../context/worldContext";
 import { unitsEditorActions } from "../../controllers/units-editor";
 import { updateClimateDuringStagedGeneration, updateWorld } from "../../controllers/world-configurator";
-import { getEarthDistanceScale } from "../../data/earthConfig";
+import {
+  GLOBE_MERIDIAN_STEP_DEG,
+  getEarthDistanceScale,
+  globeMeridianSliderRange,
+  longitudeCenterToShift,
+  longitudeShiftToCenter,
+  mapLatitudeSliderRange,
+  snapGlobeMeridian,
+  unwrapLongitudeForRange,
+  wrapLongitude
+} from "../../data/earthConfig";
 import { useDialogState } from "../../store/dialogState";
 import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useOptionsState } from "../../store/optionsState";
 import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorFormStore";
-import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
+import { convertTemperature, debounce, minmax, parseTransform, rn, round } from "../../utils";
 import { lock, locked } from "../../utils/domUtils";
 import { LockIconButton } from "../components/LockIconButton";
 import { syncRangeProgressInElement } from "../rangeInputStyles";
@@ -29,8 +39,9 @@ export const WorldConfiguratorDialog: React.FC = () => {
     state => state.isOpen && !state.isGenerating && !state.autoRun && state.currentStage === 1
   );
   const globeRef = useRef<SVGSVGElement>(null);
-  const controlsRef = useRef<HTMLFieldSetElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const [autoChange, setAutoChange] = useState(true);
+  const [centralMeridian, setCentralMeridian] = useState(0);
 
   const temperatureEquator = useWorldConfiguratorFormStore(state => state.temperatureEquator);
   const temperatureNorthPole = useWorldConfiguratorFormStore(state => state.temperatureNorthPole);
@@ -40,6 +51,16 @@ export const WorldConfiguratorDialog: React.FC = () => {
   const latitude = useOptionsState(s => s.latitude);
   const longitude = useOptionsState(s => s.longitude);
   const prec = useOptionsState(s => s.prec);
+  const lonT = rn(Math.min((mapSize / 100) * 360, 360), 1);
+  const centerLongitude = longitudeShiftToCenter(longitude, lonT);
+  const longitudeSlider = globeMeridianSliderRange(centralMeridian, lonT);
+  const sliderLongitude = minmax(
+    unwrapLongitudeForRange(centerLongitude, longitudeSlider.min, longitudeSlider.max),
+    longitudeSlider.min,
+    longitudeSlider.max
+  );
+  const latitudeSlider = mapLatitudeSliderRange(mapSize, worldContext.graphWidth, worldContext.graphHeight);
+  const sliderLatitude = minmax(latitude, latitudeSlider.min, latitudeSlider.max);
   const rangeControlValues = useMemo(
     () => [
       { id: "temperatureEquatorOutput", value: temperatureEquator },
@@ -47,11 +68,22 @@ export const WorldConfiguratorDialog: React.FC = () => {
       { id: "temperatureSouthPoleOutput", value: temperatureSouthPole },
       { id: "axialTiltOutput", value: axialTilt },
       { id: "mapSizeOutput", value: mapSize },
-      { id: "latitudeOutput", value: latitude },
-      { id: "longitudeOutput", value: longitude },
+      { id: "latitudeOutput", value: sliderLatitude },
+      { id: "longitudeOutput", value: sliderLongitude },
+      { id: "globeMeridianOutput", value: centralMeridian },
       { id: "precOutput", value: prec }
     ],
-    [axialTilt, latitude, longitude, mapSize, prec, temperatureEquator, temperatureNorthPole, temperatureSouthPole]
+    [
+      axialTilt,
+      centralMeridian,
+      mapSize,
+      sliderLatitude,
+      prec,
+      sliderLongitude,
+      temperatureEquator,
+      temperatureNorthPole,
+      temperatureSouthPole
+    ]
   );
 
   // Compute temperature conversions for display
@@ -60,9 +92,10 @@ export const WorldConfiguratorDialog: React.FC = () => {
   const tempSpF = convertTemperature(temperatureSouthPole, "°F");
 
   const getProjectionPath = useCallback(() => {
-    const projection = geoOrthographic().translate([100, 100]).scale(100);
+    // Rotate so the blue vertical line is `centralMeridian` rather than 0°.
+    const projection = geoOrthographic().translate([100, 100]).scale(100).rotate([-centralMeridian, 0]);
     return geoPath(projection);
-  }, []);
+  }, [centralMeridian]);
 
   const updateGlobeTemperature = useCallback(() => {
     if (!globeRef.current) return;
@@ -126,6 +159,13 @@ export const WorldConfiguratorDialog: React.FC = () => {
     globe.select("#globeGraticule").attr("d", round(path(graticule()) ?? "", 1));
     updateWindDirections();
   }, [getProjectionPath, updateGlobePosition, updateGlobeTemperature, updateWindDirections]);
+
+  // Point the blue line at the current map when the dialog opens so regions
+  // east of 90°E / west of 90°W (Japan, etc.) land on the visible hemisphere.
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    setCentralMeridian(deriveGlobeMeridian());
+  }, [isOpen]);
 
   // Initialize on open
   useLayoutEffect(() => {
@@ -192,20 +232,43 @@ export const WorldConfiguratorDialog: React.FC = () => {
       worldContext.options.axialTilt = val;
       formStore.setAxialTilt(val);
     } else if (stored === "mapSize" || stored === "latitude" || stored === "longitude" || stored === "prec") {
-      useOptionsState.getState().setOption(stored, val);
+      const optionValue = stored === "longitude" ? rn(longitudeCenterToShift(val, lonT), 1) : val;
+      useOptionsState.getState().setOption(stored, optionValue);
       // Also sync to form store
       if (stored === "mapSize") {
         formStore.setMapSize(val);
         syncEarthDistanceScale(val);
       } else if (stored === "latitude") formStore.setLatitude(val);
-      else if (stored === "longitude") formStore.setLongitude(val);
-      else if (stored === "prec") formStore.setPrec(val);
+      else if (stored === "longitude") {
+        formStore.setLongitude(optionValue);
+        const unwrapped = unwrapLongitudeForRange(val, longitudeSlider.min, longitudeSlider.max);
+        if (unwrapped < longitudeSlider.min || unwrapped > longitudeSlider.max) {
+          setCentralMeridian(snapGlobeMeridian(val));
+        }
+      } else if (stored === "prec") formStore.setPrec(val);
 
       if (stored !== "prec") updateGlobePosition();
+      lock(stored, String(optionValue));
+      if (autoChange) scheduleWorldUpdate();
+      return;
     }
 
     lock(stored, String(val));
     if (autoChange) scheduleWorldUpdate();
+  }
+
+  function handleMeridianSliderChange(event: React.ChangeEvent<HTMLInputElement>): void {
+    setCentralMeridian(snapGlobeMeridian(Number(event.target.value)));
+  }
+
+  function handleMeridianInputChange(event: React.ChangeEvent<HTMLInputElement>): void {
+    const raw = Number(event.target.value);
+    if (!Number.isFinite(raw)) return;
+    setCentralMeridian(minmax(raw, -180, 180));
+  }
+
+  function handleMeridianInputBlur(event: React.FocusEvent<HTMLInputElement>): void {
+    setCentralMeridian(snapGlobeMeridian(Number(event.target.value)));
   }
 
   function applyWorldUpdate(): void {
@@ -272,10 +335,10 @@ export const WorldConfiguratorDialog: React.FC = () => {
       className="fmg-dialog--world-configurator"
       onClose={() => closeDialog("worldConfigurator")}
     >
-      <div id="worldConfiguratorContainer">
+      <div ref={controlsRef} id="worldConfiguratorContainer">
         <div className="world-configurator__content">
           <div className="world-configurator__main">
-            <fieldset ref={controlsRef} id="worldControls" onInput={handleControlsChange}>
+            <fieldset id="worldControls" onInput={handleControlsChange}>
               <div>
                 <LockIconButton id="temperatureEquator" />
                 <label data-tip="Set temperature at equator">
@@ -413,61 +476,62 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </div>
               <div>
                 <LockIconButton id="latitude" />
-                <label data-tip="Set the map's central latitude: North Pole is 90°, Equator is 0°, and South Pole is -90°">
+                <label data-tip="Set the map's central latitude. The slider keeps the map on the globe: North Pole is 90°, Equator is 0°, and South Pole is -90°.">
                   <i>Latitude:</i>
                   <input
                     id="latitudeInput"
                     data-stored="latitude"
                     type="number"
-                    min={-90}
-                    max={90}
+                    min={latitudeSlider.min}
+                    max={latitudeSlider.max}
                     step="0.1"
-                    value={latitude}
+                    value={rn(sliderLatitude, 1)}
                     onChange={handleControlsChange}
                   />
                   °
                   <br />
-                  <i>-90°</i>
+                  <i>{formatSliderDegrees(latitudeSlider.min)}</i>
                   <input
                     id="latitudeOutput"
                     data-stored="latitude"
                     type="range"
-                    min={-90}
-                    max={90}
+                    min={latitudeSlider.min}
+                    max={latitudeSlider.max}
                     step="0.1"
-                    value={latitude}
+                    value={sliderLatitude}
                     onChange={handleControlsChange}
                   />
-                  <i>90°</i>
+                  <i>{formatSliderDegrees(latitudeSlider.max)}</i>
                 </label>
               </div>
               <div>
                 <LockIconButton id="longitude" />
-                <label data-tip="Set a West-East map shift, set to 50 to make map center lie on Prime meridian">
+                <label data-tip="Set the map's central longitude. The slider covers the hemisphere visible on the globe (±90° from the blue line).">
                   <i>Longitudes:</i>
                   <input
                     id="longitudeInput"
                     data-stored="longitude"
                     type="number"
-                    min={0}
-                    max={100}
+                    min={-180}
+                    max={180}
                     step="0.1"
-                    value={longitude}
+                    value={rn(centerLongitude, 1)}
                     onChange={handleControlsChange}
                   />
+                  °
                   <br />
-                  <i>W</i>
+                  <i>{formatSliderDegrees(longitudeSlider.min)}</i>
                   <input
                     id="longitudeOutput"
                     data-stored="longitude"
                     type="range"
-                    min={0}
-                    max={100}
+                    min={longitudeSlider.min}
+                    max={longitudeSlider.max}
                     step="0.1"
-                    value={longitude}
+                    value={sliderLongitude}
                     onChange={handleControlsChange}
                   />
-                  <i>E</i>
+                  <i>{formatSliderDegrees(longitudeSlider.max)}</i>
                 </label>
               </div>
               <div>
@@ -518,7 +582,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </div>
             </fieldset>
             <div className="world-configurator__globe-column">
-              <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 240" aria-hidden="true">
+              <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 252" aria-hidden="true">
                 <defs>
                   <linearGradient id="temperatureGradient" x1={0} x2={0} y1={0} y2={1}>
                     <stop id="grad90" offset="0%" stopColor="blue" />
@@ -591,11 +655,40 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 </g>
                 <circle id="globeGradient" cx={100} cy={100} r={100} fill="url(#temperatureGradient)" stroke="none" />
                 <line id="globePrimeMeridian" x1={100} x2={100} y1={0} y2={200} />
+                <text id="globeMeridianLabel" x={100} y={216} textAnchor="middle">
+                  {formatGlobeMeridian(centralMeridian)}
+                </text>
                 <line id="globeEquator" x1={1} x2={200} y1={100} y2={100} />
                 <circle id="globeOutline" cx={100} cy={100} r={100} fill="none" />
                 <path id="globeGraticule" />
                 <path id="globeArea" />
               </svg>
+              <label
+                className="world-configurator__globe-meridian"
+                data-tip="Longitude represented by the blue line, in 15° steps. 0° is the Prime Meridian; 135°E is UTC+9 (Japan)."
+              >
+                <i>Meridian:</i>
+                <input
+                  id="globeMeridianInput"
+                  type="number"
+                  min={-180}
+                  max={180}
+                  step={GLOBE_MERIDIAN_STEP_DEG}
+                  value={centralMeridian}
+                  onChange={handleMeridianInputChange}
+                  onBlur={handleMeridianInputBlur}
+                />
+                °
+                <input
+                  id="globeMeridianOutput"
+                  type="range"
+                  min={-180}
+                  max={180}
+                  step={GLOBE_MERIDIAN_STEP_DEG}
+                  value={centralMeridian}
+                  onChange={handleMeridianSliderChange}
+                />
+              </label>
               <button
                 type="button"
                 id="restoreWinds"
@@ -663,6 +756,27 @@ export const WorldConfiguratorDialog: React.FC = () => {
     </Dialog>
   );
 };
+
+function deriveGlobeMeridian(): number {
+  const { lonW, lonE, lonT } = worldContext.mapCoordinates;
+  if (typeof lonW === "number" && Number.isFinite(lonW) && typeof lonT === "number" && Number.isFinite(lonT)) {
+    return snapGlobeMeridian(wrapLongitude(lonW + lonT / 2));
+  }
+  if (typeof lonW === "number" && typeof lonE === "number" && Number.isFinite(lonW) && Number.isFinite(lonE)) {
+    return snapGlobeMeridian(wrapLongitude((lonW + lonE) / 2));
+  }
+  const options = useOptionsState.getState();
+  return snapGlobeMeridian(longitudeShiftToCenter(options.longitude, Math.min((options.mapSize / 100) * 360, 360)));
+}
+
+function formatGlobeMeridian(longitude: number): string {
+  if (Math.abs(longitude) < 0.05) return "0°";
+  return longitude > 0 ? `${rn(longitude, 1)}°E` : `${rn(Math.abs(longitude), 1)}°W`;
+}
+
+function formatSliderDegrees(value: number): string {
+  return `${rn(value, 1)}°`;
+}
 
 function getGlobeStats() {
   const unit = useOptionsState.getState().distanceUnit;

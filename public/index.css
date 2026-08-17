@@ -1363,6 +1363,27 @@ svg.button {
   align-items: flex-end;
 }
 
+.world-configurator__globe-meridian {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25em;
+  width: 22em;
+  margin: 0.15em 0 0.25em;
+}
+
+.world-configurator__globe-meridian input[type="number"] {
+  border: 1px solid #e5e5e5;
+  padding: 0;
+  width: 4em;
+}
+
+.world-configurator__globe-meridian input[type="range"] {
+  flex: 1;
+  min-width: 8em;
+}
+
 .world-configurator__presets {
   margin-top: 0.3em;
 }
@@ -1396,7 +1417,8 @@ svg.button {
   fill: #001754;
 }
 
-#globeLatLabels {
+#globeLatLabels,
+#globeMeridianLabel {
   stroke: none;
   fill: #001754;
 }
