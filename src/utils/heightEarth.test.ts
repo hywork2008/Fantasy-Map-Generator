@@ -3,6 +3,7 @@ import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
   BRITAIN_REGION,
   EAST_ASIA_REGION,
+  EUROPE_CENTRAL_REGION,
   earthRegionMapCoordinates,
   JAPAN_REGION,
   LEGACY_PRECREATED_CLIMATE,
@@ -96,5 +97,17 @@ describe("mediterranean-sea climate conversion", () => {
     expect(coords.latN).toBeCloseTo(46.2, 5);
     expect(MEDITERRANEAN_SEA_REGION.climateAnchor.mapSize).toBeCloseTo(((36.8 - -7) / 360) * 100, 3);
     expect(MEDITERRANEAN_SEA_REGION.climateAnchor.latitude).toBeCloseTo((29.8 + 46.2) / 2, 5);
+  });
+});
+
+describe("europe-central climate conversion", () => {
+  it("anchors climate to the Channel–Elbe industrial-core bbox", () => {
+    const coords = earthRegionMapCoordinates(EUROPE_CENTRAL_REGION);
+    expect(coords.lonW).toBeCloseTo(-1.8, 5);
+    expect(coords.lonE).toBeCloseTo(14.8, 5);
+    expect(coords.latS).toBeCloseTo(45.5, 5);
+    expect(coords.latN).toBeCloseTo(54.3, 5);
+    expect(EUROPE_CENTRAL_REGION.climateAnchor.mapSize).toBeCloseTo(((14.8 - -1.8) / 360) * 100, 3);
+    expect(EUROPE_CENTRAL_REGION.climateAnchor.latitude).toBeCloseTo((45.5 + 54.3) / 2, 5);
   });
 });

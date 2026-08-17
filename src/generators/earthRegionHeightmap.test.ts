@@ -4,7 +4,13 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
 import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
-import { BRITAIN_REGION, EAST_ASIA_REGION, JAPAN_REGION, MEDITERRANEAN_SEA_REGION } from "../data/earthRegions";
+import {
+  BRITAIN_REGION,
+  EAST_ASIA_REGION,
+  EUROPE_CENTRAL_REGION,
+  JAPAN_REGION,
+  MEDITERRANEAN_SEA_REGION
+} from "../data/earthRegions";
 import { useOptionsState } from "../store/optionsState";
 import { generateGrid } from "../utils/graphUtils";
 import { loadEarthRaster } from "./earthRegionHeightmap";
@@ -17,6 +23,7 @@ const EAST_ASIA_GRAPH = earthRegionFitGraph(EAST_ASIA_REGION, MAX_GRAPH_WIDTH, M
 const JAPAN_GRAPH = earthRegionFitGraph(JAPAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const BRITAIN_GRAPH = earthRegionFitGraph(BRITAIN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const MED_GRAPH = earthRegionFitGraph(MEDITERRANEAN_SEA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const EUROPE_CENTRAL_GRAPH = earthRegionFitGraph(EUROPE_CENTRAL_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -607,5 +614,187 @@ describe("fromEarthRegion mediterranean-sea", () => {
     expect(strait.length, "water in the Strait of Gibraltar").toBeGreaterThan(2);
     const span = Math.max(...strait.map(c => c.lon)) - Math.min(...strait.map(c => c.lon));
     expect(span, "Gibraltar passage is not a single pinch cell").toBeGreaterThan(0.2);
+  }, 20000);
+});
+
+const EUROPE_CENTRAL_LANDMARKS = {
+  paris: { lon: 2.35, lat: 48.86 },
+  amsterdam: { lon: 4.9, lat: 52.37 },
+  brussels: { lon: 4.35, lat: 50.85 },
+  cologne: { lon: 6.96, lat: 50.94 },
+  lyon: { lon: 4.84, lat: 45.76 },
+  hamburg: { lon: 10.0, lat: 53.55 },
+  berlin: { lon: 13.41, lat: 52.52 },
+  london: { lon: -0.12, lat: 51.51 },
+  dover: { lon: 1.32, lat: 51.13 }
+};
+
+const EUROPE_CENTRAL_IN_FRAME = {
+  essen: { lon: 7.01, lat: 51.45 },
+  antwerp: { lon: 4.4, lat: 51.22 },
+  frankfurt: { lon: 8.68, lat: 50.11 },
+  leipzig: { lon: 12.37, lat: 51.34 }
+};
+
+async function generateEuropeCentral(points = 4) {
+  worldContext.graphWidth = EUROPE_CENTRAL_GRAPH.width;
+  worldContext.graphHeight = EUROPE_CENTRAL_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "europe-central", heightExponent: 1.8 });
+  const grid = generateGrid("earth-europe-central-test", EUROPE_CENTRAL_GRAPH.width, EUROPE_CENTRAL_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestEuropeCentralCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(EUROPE_CENTRAL_REGION, EUROPE_CENTRAL_GRAPH.width, EUROPE_CENTRAL_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function europeCentralWaterAlong(
+  grid: ReturnType<typeof generateGrid>,
+  heights: Uint8Array,
+  pred: (lon: number, lat: number) => boolean
+): { lon: number; lat: number }[] {
+  const cells: { lon: number; lat: number }[] = [];
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights[i] >= HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(EUROPE_CENTRAL_REGION, EUROPE_CENTRAL_GRAPH.width, EUROPE_CENTRAL_GRAPH.height, x, y);
+    if (pred(here.lon, here.lat)) cells.push(here);
+  }
+  return cells;
+}
+
+function isInsideEuropeCentralBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= EUROPE_CENTRAL_REGION.west &&
+    lon <= EUROPE_CENTRAL_REGION.east &&
+    lat >= EUROPE_CENTRAL_REGION.south &&
+    lat <= EUROPE_CENTRAL_REGION.north
+  );
+}
+
+describe("fromEarthRegion europe-central", () => {
+  it("frames the Channel and Low Countries in the north-west and Saxony in the east", () => {
+    expect(EUROPE_CENTRAL_REGION.west).toBeCloseTo(-1.8, 5);
+    expect(EUROPE_CENTRAL_REGION.east).toBeCloseTo(14.8, 5);
+    expect(EUROPE_CENTRAL_REGION.south).toBeCloseTo(45.5, 5);
+    expect(EUROPE_CENTRAL_REGION.north).toBeCloseTo(54.3, 5);
+    expect(isInsideEuropeCentralBbox(EUROPE_CENTRAL_LANDMARKS.paris.lon, EUROPE_CENTRAL_LANDMARKS.paris.lat)).toBe(
+      true
+    );
+    expect(isInsideEuropeCentralBbox(EUROPE_CENTRAL_LANDMARKS.lyon.lon, EUROPE_CENTRAL_LANDMARKS.lyon.lat)).toBe(true);
+    expect(isInsideEuropeCentralBbox(EUROPE_CENTRAL_LANDMARKS.hamburg.lon, EUROPE_CENTRAL_LANDMARKS.hamburg.lat)).toBe(
+      true
+    );
+    expect(isInsideEuropeCentralBbox(EUROPE_CENTRAL_LANDMARKS.berlin.lon, EUROPE_CENTRAL_LANDMARKS.berlin.lat)).toBe(
+      true
+    );
+    expect(isInsideEuropeCentralBbox(EUROPE_CENTRAL_LANDMARKS.london.lon, EUROPE_CENTRAL_LANDMARKS.london.lat)).toBe(
+      true
+    );
+    expect(isInsideEuropeCentralBbox(16.37, 48.21), "Vienna").toBe(false);
+    expect(isInsideEuropeCentralBbox(12.57, 55.68), "Copenhagen").toBe(false);
+    expect(isInsideEuropeCentralBbox(9.19, 45.46), "Milan").toBe(false);
+    for (const [name, place] of Object.entries(EUROPE_CENTRAL_IN_FRAME)) {
+      expect(isInsideEuropeCentralBbox(place.lon, place.lat), name).toBe(true);
+    }
+  });
+
+  it("does not stretch Central Europe to the window aspect", () => {
+    const midLat = ((EUROPE_CENTRAL_REGION.north + EUROPE_CENTRAL_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(EUROPE_CENTRAL_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(EUROPE_CENTRAL_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(EUROPE_CENTRAL_REGION, fitted.width, fitted.height, 6.5, 49.8);
+      const east = lonLatToMapPoint(EUROPE_CENTRAL_REGION, fitted.width, fitted.height, 7.5, 49.8);
+      const north = lonLatToMapPoint(EUROPE_CENTRAL_REGION, fitted.width, fitted.height, 6.5, 50.8);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps Paris as land and Britain separate from the continent", async () => {
+    const { grid, heights } = await generateEuropeCentral(6);
+    const paris = nearestEuropeCentralCell(
+      grid,
+      EUROPE_CENTRAL_LANDMARKS.paris.lon,
+      EUROPE_CENTRAL_LANDMARKS.paris.lat,
+      heights
+    );
+    expect(heights[paris]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    const here = mapPointToLonLat(
+      EUROPE_CENTRAL_REGION,
+      EUROPE_CENTRAL_GRAPH.width,
+      EUROPE_CENTRAL_GRAPH.height,
+      ...grid.points[paris]
+    );
+    expect(
+      Math.hypot(here.lon - EUROPE_CENTRAL_LANDMARKS.paris.lon, here.lat - EUROPE_CENTRAL_LANDMARKS.paris.lat)
+    ).toBeLessThan(0.4);
+
+    const continent = landComponentId(heights, grid, paris);
+    const britain = landComponentId(
+      heights,
+      grid,
+      nearestEuropeCentralCell(grid, EUROPE_CENTRAL_LANDMARKS.london.lon, EUROPE_CENTRAL_LANDMARKS.london.lat, heights)
+    );
+    expect(continent, "continent land").toBeGreaterThanOrEqual(0);
+    expect(britain, "london land").toBeGreaterThanOrEqual(0);
+    expect(continent !== britain, `Continent-Britain ${continent}/${britain}`).toBe(true);
+
+    const raster = await loadEarthRaster(EUROPE_CENTRAL_REGION);
+    for (const [name, place] of Object.entries(EUROPE_CENTRAL_IN_FRAME)) {
+      expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
+    }
+    expect(
+      sampleLand(raster, EUROPE_CENTRAL_LANDMARKS.cologne.lon, EUROPE_CENTRAL_LANDMARKS.cologne.lat),
+      "Cologne"
+    ).toBe(true);
+  }, 20000);
+
+  it("keeps a sea corridor through the Strait of Dover", async () => {
+    const { grid, heights } = await generateEuropeCentral(4);
+    const doverLand = nearestEuropeCentralCell(
+      grid,
+      EUROPE_CENTRAL_LANDMARKS.dover.lon,
+      EUROPE_CENTRAL_LANDMARKS.dover.lat,
+      heights
+    );
+    expect(heights[doverLand]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+
+    const channel = europeCentralWaterAlong(
+      grid,
+      heights,
+      (lon, lat) => lon > 1.15 && lon < 1.85 && lat > 50.85 && lat < 51.2
+    );
+    expect(channel.length, "water in the Strait of Dover").toBeGreaterThan(3);
+    const span = Math.max(...channel.map(c => c.lat)) - Math.min(...channel.map(c => c.lat));
+    expect(span, "Dover passage is not a single pinch cell").toBeGreaterThan(0.15);
   }, 20000);
 });

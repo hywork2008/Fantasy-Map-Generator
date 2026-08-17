@@ -70,6 +70,8 @@ const MEDITERRANEAN_STRAITS: EarthStrait[] = [
   { name: "Bosporus", a: [28.99, 41.12], b: [29.07, 41.12], widthKm: 0.7 }
 ];
 
+const EUROPE_CENTRAL_STRAITS: EarthStrait[] = [{ name: "Dover", a: [1.32, 51.13], b: [1.59, 50.87], widthKm: 33 }];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -179,11 +181,38 @@ export const MEDITERRANEAN_SEA_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). In-frame Mediterranean islands and neighboring shores are kept; the canvas is not stretched to the window."
 };
 
+/**
+ * Industrial Revolution core of continental Europe: Channel approaches
+ * and the Low Countries in the north-west, the Elbe / Saxony in the
+ * east, Lyon at the southern edge. SE England may appear as an in-frame
+ * neighbor; Dover stays open. The graph is fitted to this bbox's true shape.
+ */
+export const EUROPE_CENTRAL_REGION: EarthRegion = {
+  id: "europe-central",
+  name: "Europe Central",
+  west: -1.8,
+  east: 14.8,
+  south: 45.5,
+  north: 54.3,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 4.6111,
+    latitude: 49.9,
+    longitude: 48.11
+  },
+  raster: { path: "./heightmaps/earth/europe-central.bin" },
+  topology: { keepStraits: EUROPE_CENTRAL_STRAITS },
+  previewPng: "./heightmaps/europe-central.png",
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). In-frame industrial-core land and Channel neighbors are kept; the canvas is not stretched to the window."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
   britain: BRITAIN_REGION,
-  "mediterranean-sea": MEDITERRANEAN_SEA_REGION
+  "mediterranean-sea": MEDITERRANEAN_SEA_REGION,
+  "europe-central": EUROPE_CENTRAL_REGION
 };
 
 export function isEarthRegion(id: string): boolean {
