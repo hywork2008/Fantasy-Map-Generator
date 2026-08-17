@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { worldContext } from "../context/worldContext";
 import { heightmapTemplates, precreatedHeightmaps } from "../data";
+import { getEarthRegion } from "../data/earthRegions";
 import { HeightmapGenerator } from "../generators/heightmap-generator";
 import type { Grid } from "../types/Grid";
 import { openDialog } from "../ui/dialogs/dialogService";
@@ -52,6 +53,8 @@ export async function buildPrecreatedPreview(id: string, scheme: string, renderO
 
 export function getHeightmapName(id: string): string {
   if (id in heightmapTemplates) return heightmapTemplates[id].name;
+  const earth = getEarthRegion(id);
+  if (earth) return earth.name;
   if (id in precreatedHeightmaps) return precreatedHeightmaps[id].name;
   return id;
 }

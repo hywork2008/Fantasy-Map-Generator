@@ -8,6 +8,17 @@ export {
   TemperatureThreshold
 } from "./constants";
 export {
+  EAST_ASIA_REGION,
+  type EarthClimateAnchor,
+  type EarthRegion,
+  type EarthStrait,
+  earthRegionMapCoordinates,
+  earthRegions,
+  getEarthRegion,
+  isEarthRegion,
+  LEGACY_PRECREATED_CLIMATE
+} from "./earthRegions";
+export {
   getHeightmapTemplateWeights,
   type HeightmapTemplateRandomization,
   heightmapLandmassThresholds,

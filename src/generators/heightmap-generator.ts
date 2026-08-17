@@ -8,12 +8,27 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { heightmapTemplates } from "../data";
 import { HeightmapConstants, HeightThreshold, VolcanoConstants } from "../data/constants";
+import { type EarthRegion, getEarthRegion } from "../data/earthRegions";
 import { useOptionsState } from "../store/optionsState";
 import type { Grid } from "../types/Grid";
 import { createTypedArray, findGridCell, getNumberInRange, lim, minmax, P, rand } from "../utils";
 import { ERROR, TIME } from "../utils/debug";
+import { buildEarthRegionHeights } from "./earthRegionHeightmap";
 
 type Tool = "Hill" | "Pit" | "Range" | "Trough" | "Strait" | "Mask" | "Invert" | "Add" | "Multiply" | "Smooth";
+
+/** PNG-precreated path only. Earth regions do not use image lightness. */
+export function heightFromImageLightness(lightness: number): number {
+  const powered =
+    lightness < HeightmapConstants.IMAGE_WATER_THRESHOLD
+      ? lightness
+      : HeightmapConstants.IMAGE_WATER_THRESHOLD + (lightness - HeightmapConstants.IMAGE_WATER_THRESHOLD) ** 0.8;
+  return minmax(
+    Math.floor(powered * HeightThreshold.HEIGHT_MAX),
+    HeightThreshold.HEIGHT_MIN,
+    HeightThreshold.HEIGHT_MAX
+  );
+}
 
 /** A single-Hill placement tagged as a volcano, awaiting HeightmapModule.finalizeVolcanoes(). */
 interface PendingVolcano {
@@ -747,8 +762,13 @@ class HeightmapModule {
     const id = useOptionsState.getState().template;
     Math.random = Alea(seed);
     const isTemplate = id in heightmapTemplates;
+    const earthRegion = getEarthRegion(id);
 
-    const heights = isTemplate ? this.fromTemplate(graph, id) : await this.fromPrecreated(graph, id);
+    const heights = isTemplate
+      ? this.fromTemplate(graph, id)
+      : earthRegion
+        ? await this.fromEarthRegion(graph, earthRegion)
+        : await this.fromPrecreated(graph, id);
     TIME && console.timeEnd("defineHeightmap");
 
     this.clearData();
@@ -776,17 +796,21 @@ class HeightmapModule {
   private getHeightsFromImageData(imageData: Uint8ClampedArray): void {
     if (!this.heights) return;
     for (let i = 0; i < this.heights.length; i++) {
-      const lightness = imageData[i * 4] / 255;
-      const powered =
-        lightness < HeightmapConstants.IMAGE_WATER_THRESHOLD
-          ? lightness
-          : HeightmapConstants.IMAGE_WATER_THRESHOLD + (lightness - HeightmapConstants.IMAGE_WATER_THRESHOLD) ** 0.8;
-      this.heights[i] = minmax(
-        Math.floor(powered * HeightThreshold.HEIGHT_MAX),
-        HeightThreshold.HEIGHT_MIN,
-        HeightThreshold.HEIGHT_MAX
-      );
+      this.heights[i] = heightFromImageLightness(imageData[i * 4] / 255);
     }
+  }
+
+  async fromEarthRegion(graph: Grid, region: EarthRegion): Promise<Uint8Array> {
+    this.setGraph(graph);
+    const exponent = useOptionsState.getState().heightExponent;
+    this.heights = await buildEarthRegionHeights(
+      graph,
+      region,
+      this.worldContext.graphWidth,
+      this.worldContext.graphHeight,
+      exponent
+    );
+    return this.heights;
   }
 
   fromPrecreated(graph: Grid, id: string): Promise<Uint8Array> {

@@ -43,3 +43,25 @@ export function depthToMeters(h: number): number {
 
 /** Sentinel depth (meters, negative) for h <= 0 — deep-water cells the legacy formula never guarded. */
 export const DEEP_WATER_SENTINEL_M = -9999;
+
+/**
+ * Inverse of `heightToMeters` for land. Returns a pack height index in 20–100.
+ * Sea-level land (`meters <= 0`) still maps to 20 so a 0 m plain stays land.
+ */
+export function metersToHeight(meters: number, exponent: number): number {
+  const exp = normalizeHeightExponent(exponent);
+  if (!Number.isFinite(meters) || meters <= 0) return 20;
+  const raw = 18 + meters ** (1 / exp);
+  return Math.max(20, Math.min(100, Math.round(raw)));
+}
+
+/**
+ * Inverse of `depthToMeters` for water. `depthMeters` is negative (below sea level).
+ * Returns a pack height index in 0–19.
+ */
+export function depthMetersToHeight(depthMeters: number): number {
+  if (!Number.isFinite(depthMeters) || depthMeters >= 0) return 19;
+  if (depthMeters <= DEEP_WATER_SENTINEL_M / 2) return 0;
+  const h = 1000 / (50 - depthMeters);
+  return Math.max(0, Math.min(19, Math.round(h)));
+}

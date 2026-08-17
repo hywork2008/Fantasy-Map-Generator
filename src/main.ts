@@ -7,6 +7,7 @@ import {
   getEarthMapLatitudeSpan,
   getTemperateLatitudeBound
 } from "./data/earthConfig";
+import { earthRegionMapCoordinates, getEarthRegion } from "./data/earthRegions";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
@@ -1476,6 +1477,21 @@ function defineMapSize() {
   const randomize = new URL(window.location.href).searchParams.get("options") === "default";
   const options = useOptionsState.getState();
   const updates: Partial<OptionsState> = {};
+  const earthRegion = getEarthRegion(options.template);
+  if (earthRegion) {
+    const { mapSize, latitude, longitude } = earthRegion.climateAnchor;
+    if (randomize || !locked("mapSize")) updates.mapSize = mapSize;
+    if (randomize || !locked("latitude")) updates.latitude = latitude;
+    if (randomize || !locked("longitude")) updates.longitude = longitude;
+    if (randomize || !locked("distanceScale")) {
+      const appliedMapSize = updates.mapSize ?? mapSize;
+      const distanceScale = getEarthDistanceScale(appliedMapSize, worldContext.graphWidth);
+      updates.distanceScale = distanceScale;
+      worldContext.distanceScale = distanceScale;
+    }
+    if (Object.keys(updates).length > 0) useOptionsState.getState().setOptions(updates);
+    return;
+  }
   if (randomize || !locked("mapSize")) updates.mapSize = EARTH_DEFAULT_MAP_SIZE;
   if (randomize || !locked("latitude")) {
     const latT = getEarthMapLatitudeSpan(
@@ -1512,6 +1528,11 @@ function defineMapSize() {
 
 export function calculateMapCoordinates() {
   const options = useOptionsState.getState();
+  const earthRegion = getEarthRegion(options.template);
+  if (earthRegion) {
+    worldContext.mapCoordinates = earthRegionMapCoordinates(earthRegion);
+    return;
+  }
   const sizeFraction = options.mapSize / 100;
   const lonShift = options.longitude / 100;
 
