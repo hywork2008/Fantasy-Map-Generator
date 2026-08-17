@@ -35,9 +35,10 @@ const MAX_FRONTIER_HOPS = 6;
  * travel, escort, or elapsed time — nothing else in the scoring makes a
  * six-hop reach materially riskier or slower than a one-hop one. This term is
  * the only thing standing in for that missing cost, so it must be large
- * enough that a resource claim cannot make a maximal reach the default
- * outcome (see RESOURCE_CLAIM_* below) — a legitimate close find should still
- * win outright; a distant one should only win when nothing closer competes.
+ * enough that a generic resource claim cannot make a maximal reach the
+ * default outcome (see RESOURCE_CLAIM_* below). Gold is the exception: a
+ * guarded vein commits the State to the corridor that shortens the remaining
+ * hop count, while this penalty still prefers the next step over a jump.
  */
 const LAND_HOP_PENALTY = 25;
 const SOURCE_RETENTION_RATIO = 0.65;
@@ -457,6 +458,7 @@ function getLandStateCandidates(
   stateCenter: number | undefined
 ): readonly InternalFrontierCandidateSummary[] {
   const { cells } = world.pack;
+  const claimIndex = buildResourceClaimIndex(stateId, cells, frontier);
 
   // Frontier colonisation is a state-funded project, not a village-by-village
   // one. The applicant pool and every owned cell's local surplus are one
@@ -486,8 +488,8 @@ function getLandStateCandidates(
   if (!contributions.length) return [];
 
   const candidates: InternalFrontierCandidateSummary[] = [];
-  for (const { cellId, hops } of findReachableFrontierFromState(cells, frontier, stateId)) {
-    const targetLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
+  for (const { cellId, hops } of findReachableFrontierFromState(cells, frontier, stateId, claimIndex)) {
+    const targetLimit = getFrontierTargetLimit(cells, cellId, claimIndex);
     let remaining = targetLimit;
     const limitedContributions: FrontierContribution[] = [];
     for (const contribution of [...contributions].sort(
@@ -512,11 +514,8 @@ function getLandStateCandidates(
       colonists,
       sector: getFrontierSector(cellId, stateCenter, cells),
       origin: "land",
-      resourceClaimCellId: getNearestResourceClaimCell(stateId, cells, frontier, cellId),
-      score:
-        scoreCandidate(world, cells, cellId, 0) +
-        getResourceClaimPriority(stateId, cells, frontier, cellId) -
-        hops * LAND_HOP_PENALTY,
+      resourceClaimCellId: claimIndex.nearestClaimCellId(cellId),
+      score: scoreCandidate(world, cells, cellId, 0) + claimIndex.priority(cellId) - hops * LAND_HOP_PENALTY,
       setupCost: SETUP_COST,
       requiredReserve: TREASURY_RESERVE + SETUP_COST
     });
@@ -716,6 +715,7 @@ function getBestReachableColonistPool(
   cells: WorldContext["pack"]["cells"],
   frontier: FrontierSimulationState
 ): number {
+  const claimIndex = buildResourceClaimIndex(stateId, cells, frontier);
   let totalAvailable = getFrontierApplicantPoolTotal(frontier, stateId);
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
@@ -727,8 +727,8 @@ function getBestReachableColonistPool(
   if (totalAvailable <= 0) return 0;
 
   let best = 0;
-  for (const { cellId } of findReachableFrontierFromState(cells, frontier, stateId)) {
-    const targetLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
+  for (const { cellId } of findReachableFrontierFromState(cells, frontier, stateId, claimIndex)) {
+    const targetLimit = getFrontierTargetLimit(cells, cellId, claimIndex);
     best = Math.max(best, Math.min(totalAvailable, targetLimit));
   }
   return best;
@@ -792,7 +792,8 @@ function findReachableFrontier(
 function findReachableFrontierFromState(
   cells: WorldContext["pack"]["cells"],
   frontier: FrontierSimulationState,
-  stateId: number
+  stateId: number,
+  claimIndex?: ResourceClaimIndex
 ): Array<{ cellId: number; hops: number }> {
   const queue: Array<{ cellId: number; hops: number }> = [];
   const visited = new Set<number>();
@@ -811,7 +812,7 @@ function findReachableFrontierFromState(
       if (visited.has(cellId) || !isTraversableFrontierCell(cells, stateId, cellId)) continue;
       visited.add(cellId);
       const hops = current.hops + 1;
-      if (isEligibleTarget(cells, frontier, cellId)) candidates.push({ cellId, hops });
+      if (isEligibleTarget(cells, frontier, cellId, claimIndex)) candidates.push({ cellId, hops });
       queue.push({ cellId, hops });
     }
   }
@@ -826,18 +827,34 @@ function isTraversableFrontierCell(cells: WorldContext["pack"]["cells"], stateId
 function isEligibleTarget(
   cells: WorldContext["pack"]["cells"],
   frontier: FrontierSimulationState,
-  cellId: number
+  cellId: number,
+  claimIndex?: ResourceClaimIndex
 ): boolean {
   // Monster domains stay banned; the danger margin is allowed but scores worse.
   const wildOk = cells.wildLand ? allowsFrontierOutpost(cells.wildLand[cellId]) : true;
+  const hasFarmCapacity = getCellSubsistenceCapacity(cells, cellId) >= MIN_OUTPOST_CAPACITY;
+  // A guarded gold vein (and the dry cells that shorten the remaining walk
+  // to it) is a mining camp, not a farm. Local subsistence is allowed to
+  // fall below the ordinary outpost floor; the sponsoring State already
+  // ships SETUP_FOOD with the expedition.
+  const miningApproach = claimIndex?.isGoldApproach(cellId) ?? false;
   return (
     cells.state[cellId] === 0 &&
     cells.province[cellId] === 0 &&
     frontier.cellStages[cellId] === FRONTIER_STAGE.wilderness &&
-    getCellSubsistenceCapacity(cells, cellId) >= MIN_OUTPOST_CAPACITY &&
+    (hasFarmCapacity || miningApproach) &&
     cells.danger[cellId] <= MAX_OUTPOST_DANGER &&
     wildOk
   );
+}
+
+function getFrontierTargetLimit(
+  cells: WorldContext["pack"]["cells"],
+  cellId: number,
+  claimIndex: ResourceClaimIndex
+): number {
+  const farmLimit = getCellSubsistenceCapacity(cells, cellId) * 0.25;
+  return claimIndex.isGoldApproach(cellId) ? Math.max(farmLimit, MIN_COLONISTS) : farmLimit;
 }
 
 function scoreCandidate(
@@ -863,65 +880,145 @@ const RESOURCE_CLAIM_MATCH_BONUS = 90;
 /** Ceiling of the tapering bonus for a candidate merely approaching a claim. */
 const RESOURCE_CLAIM_APPROACH_BONUS = 70;
 const RESOURCE_CLAIM_APPROACH_DECAY = 4;
+/**
+ * Gold is valuable enough to justify a dry highland mining camp. The match
+ * bonus must clear a river (+20), mountain terrain (up to 20), and a large
+ * subsistence gap; the approach bonus is a flat corridor commitment so the
+ * hop penalty still prefers the next cell over a six-hop jump.
+ */
+const GOLD_CLAIM_MATCH_BONUS = 200;
+const GOLD_CLAIM_APPROACH_BONUS = 180;
+/** Survey parties can spot a vein up to 20 hops out; walk far enough to reach the State. */
+const RESOURCE_CLAIM_HOP_SEARCH = 24;
+
+type ResourceClaimIndex = {
+  readonly nearestClaimCellId: (candidateCellId: number) => number | undefined;
+  readonly isGoldApproach: (cellId: number) => boolean;
+  readonly priority: (cellId: number) => number;
+};
 
 /**
- * A claim is survey knowledge, not ownership. It rewards the next reachable
- * frontier cell that shortens the route to that discovery, retaining the
- * ordinary incremental corridor and incorporation rules.
+ * A claim is survey knowledge, not ownership. Ordinary minerals keep a
+ * Euclidean taper that can tip a close call without making the farthest
+ * reachable cell the default pick. Gold is different: lode veins sit on
+ * shield/orogen cells that usually have no river, so a farm-weighted score
+ * walks a short way toward the find and then diverts to wetter land. A
+ * guarded gold claim therefore commits the State to any cell that shortens
+ * the remaining hop count.
  *
- * The state-led survey (Economy's MineOperations.prospectForState) can spot a
- * claim up to 20 hops out — far past MAX_FRONTIER_HOPS — so this bonus alone
- * used to make the farthest reachable cell toward any known claim the
- * near-automatic pick, every direction from the surveyed one scoring far
- * behind it. That reads as an unescorted population jump straight to a
- * prize rather than a State settling outward and happening to reach a find.
- * These constants are kept below LAND_HOP_PENALTY's six-hop ceiling (150) so
- * a claim can still tip a close call, or justify a modest reach when nothing
- * closer competes, but can no longer out-vote every hop of extra distance.
+ * regimentMovement.ts's getResourceGuardClaim() marches a disposable regiment
+ * out to a freshly surveyed claim ("discovered" → "guardMarching" →
+ * "guarding"). Before that regiment physically arrives, nothing is actually
+ * holding the site — pulling colonist funding toward it already would be
+ * the same unescorted population jump this priority exists to justify
+ * against ordinary, closer land. Wait for "guarding" before it can pull.
  */
-function getResourceClaimPriority(
+function buildResourceClaimIndex(
   stateId: number,
   cells: WorldContext["pack"]["cells"],
-  frontier: FrontierSimulationState,
-  candidateCellId: number
-): number {
-  const claimCellId = getNearestResourceClaimCell(stateId, cells, frontier, candidateCellId);
-  if (claimCellId === undefined) return 0;
-  if (claimCellId === candidateCellId) return RESOURCE_CLAIM_MATCH_BONUS;
-  const candidatePoint = cells.p?.[candidateCellId];
-  const claimPoint = cells.p?.[claimCellId];
-  if (!candidatePoint || !claimPoint) return 0;
-  const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);
-  return Math.max(0, RESOURCE_CLAIM_APPROACH_BONUS - distance / RESOURCE_CLAIM_APPROACH_DECAY);
+  frontier: FrontierSimulationState
+): ResourceClaimIndex {
+  const claims: Array<{ cellId: number; commodity: string; hopsFromCell: Map<number, number> }> = [];
+  for (const claim of Object.values(frontier.resourceClaimsByCell)) {
+    if (claim.stateId !== stateId || claim.status !== "guarding" || cells.state[claim.cellId] !== 0) continue;
+    claims.push({
+      cellId: claim.cellId,
+      commodity: claim.commodity,
+      hopsFromCell: buildHopDistancesFrom(cells, stateId, claim.cellId, RESOURCE_CLAIM_HOP_SEARCH)
+    });
+  }
+
+  const stateHopsToClaim = new Map<number, number>();
+  for (const claim of claims) {
+    let best = Infinity;
+    for (let cellId = 0; cellId < cells.i.length; cellId++) {
+      if (cells.state[cellId] !== stateId) continue;
+      const hops = claim.hopsFromCell.get(cellId);
+      if (hops !== undefined && hops < best) best = hops;
+    }
+    if (best !== Infinity) stateHopsToClaim.set(claim.cellId, best);
+  }
+
+  const nearestClaimCellId = (candidateCellId: number): number | undefined => {
+    const candidatePoint = cells.p?.[candidateCellId];
+    if (!candidatePoint) return undefined;
+    let bestCellId: number | undefined;
+    let bestDistance = Infinity;
+    for (const claim of claims) {
+      const claimPoint = cells.p?.[claim.cellId];
+      if (!claimPoint) continue;
+      const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);
+      if (distance < bestDistance || (distance === bestDistance && claim.cellId < (bestCellId ?? Infinity))) {
+        bestCellId = claim.cellId;
+        bestDistance = distance;
+      }
+    }
+    return bestCellId;
+  };
+
+  const claimByCellId = new Map(claims.map(claim => [claim.cellId, claim]));
+
+  const isCloserToGold = (cellId: number, claimCellId: number): boolean => {
+    const claim = claimByCellId.get(claimCellId);
+    if (claim?.commodity !== "gold") return false;
+    const remaining = stateHopsToClaim.get(claimCellId);
+    const hopsToClaim = claim.hopsFromCell.get(cellId);
+    return remaining !== undefined && hopsToClaim !== undefined && hopsToClaim < remaining;
+  };
+
+  return {
+    nearestClaimCellId,
+    isGoldApproach: cellId => {
+      for (const claim of claims) {
+        if (claim.commodity !== "gold") continue;
+        if (claim.cellId === cellId || isCloserToGold(cellId, claim.cellId)) return true;
+      }
+      return false;
+    },
+    priority: candidateCellId => {
+      const claimCellId = nearestClaimCellId(candidateCellId);
+      if (claimCellId === undefined) return 0;
+      const claim = claimByCellId.get(claimCellId);
+      if (!claim) return 0;
+      const bonuses = getResourceClaimBonuses(claim.commodity);
+      if (claimCellId === candidateCellId) return bonuses.match;
+      if (claim.commodity === "gold") {
+        return isCloserToGold(candidateCellId, claimCellId) ? bonuses.approach : 0;
+      }
+      const candidatePoint = cells.p?.[candidateCellId];
+      const claimPoint = cells.p?.[claimCellId];
+      if (!candidatePoint || !claimPoint) return 0;
+      const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);
+      return Math.max(0, bonuses.approach - distance / RESOURCE_CLAIM_APPROACH_DECAY);
+    }
+  };
 }
 
-function getNearestResourceClaimCell(
-  stateId: number,
+function getResourceClaimBonuses(commodity: string): { match: number; approach: number } {
+  return commodity === "gold"
+    ? { match: GOLD_CLAIM_MATCH_BONUS, approach: GOLD_CLAIM_APPROACH_BONUS }
+    : { match: RESOURCE_CLAIM_MATCH_BONUS, approach: RESOURCE_CLAIM_APPROACH_BONUS };
+}
+
+function buildHopDistancesFrom(
   cells: WorldContext["pack"]["cells"],
-  frontier: FrontierSimulationState,
-  candidateCellId: number
-): number | undefined {
-  const candidatePoint = cells.p?.[candidateCellId];
-  if (!candidatePoint) return undefined;
-  let bestCellId: number | undefined;
-  let bestDistance = Infinity;
-  for (const claim of Object.values(frontier.resourceClaimsByCell)) {
-    // regimentMovement.ts's getResourceGuardClaim() marches a disposable regiment
-    // out to a freshly surveyed claim ("discovered" → "guardMarching" →
-    // "guarding"). Before that regiment physically arrives, nothing is actually
-    // holding the site — pulling colonist funding toward it already would be
-    // the same unescorted population jump this priority exists to justify
-    // against ordinary, closer land. Wait for "guarding" before it can pull.
-    if (claim.stateId !== stateId || claim.status !== "guarding" || cells.state[claim.cellId] !== 0) continue;
-    const claimPoint = cells.p?.[claim.cellId];
-    if (!claimPoint) continue;
-    const distance = Math.hypot(candidatePoint[0] - claimPoint[0], candidatePoint[1] - claimPoint[1]);
-    if (distance < bestDistance || (distance === bestDistance && claim.cellId < (bestCellId ?? Infinity))) {
-      bestCellId = claim.cellId;
-      bestDistance = distance;
+  stateId: number,
+  originCellId: number,
+  maxHops: number
+): Map<number, number> {
+  const hops = new Map<number, number>([[originCellId, 0]]);
+  const queue = [originCellId];
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const current = queue[cursor]!;
+    const currentHops = hops.get(current) ?? 0;
+    if (currentHops >= maxHops) continue;
+    for (const neighborId of cells.c[current] ?? []) {
+      if (hops.has(neighborId) || !isTraversableFrontierCell(cells, stateId, neighborId)) continue;
+      hops.set(neighborId, currentHops + 1);
+      queue.push(neighborId);
     }
   }
-  return bestCellId;
+  return hops;
 }
 
 function transferColonists(

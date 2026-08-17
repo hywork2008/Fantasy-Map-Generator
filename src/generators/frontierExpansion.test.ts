@@ -271,11 +271,12 @@ describe("Frontier Expansion Phase 3", () => {
     expect(guardedCandidates.find(candidate => candidate.cellId === 2)?.resourceClaimCellId).toBe(2);
   });
 
-  it("does not let a distant resource claim outrank a much closer, otherwise-equal site", () => {
+  it("does not let a distant generic mineral claim outrank a much closer, otherwise-equal site", () => {
     const world = createWorld();
     // Chain: 0 (owned) branches to 1 (one hop away) and to a five-hop line 2-3-4-5-6,
-    // with a discovered claim sitting on the far end (6). Every candidate cell shares
-    // identical terrain, so only hop distance and the resource bonus can separate them.
+    // with a discovered iron claim sitting on the far end (6). Every candidate cell
+    // shares identical terrain, so only hop distance and the resource bonus can
+    // separate them. Iron keeps the Euclidean taper; gold is tested separately.
     const cellIds = [0, 1, 2, 3, 4, 5, 6];
     world.pack.cells = {
       ...world.pack.cells,
@@ -300,11 +301,10 @@ describe("Frontier Expansion Phase 3", () => {
       routes: Object.fromEntries(cellIds.map(cellId => [cellId, {}]))
     };
     const simulation = createSimulation(100, 100, cellIds.length);
-    // Guarded, not merely discovered — the priority bonus is live for this test.
     simulation.frontier.resourceClaimsByCell[6] = {
       cellId: 6,
       stateId: 1,
-      commodity: "gold",
+      commodity: "iron",
       discoveredYear: 100,
       status: "guarding"
     };
@@ -314,13 +314,199 @@ describe("Frontier Expansion Phase 3", () => {
     const far = candidates.find(candidate => candidate.cellId === 6);
     expect(near).toBeDefined();
     expect(far).toBeDefined();
-    // A five-hop reach for the claim must not out-score the one-hop, equally
-    // fundable, equally fertile alternative right next door.
+    // A five-hop reach for a generic mineral must not out-score the one-hop,
+    // equally fundable, equally fertile alternative right next door.
     expect(near!.score).toBeGreaterThan(far!.score);
-    // The state can afford all three of its slots this year, so the distant
-    // claim cell is still eventually settled — but only after the closer,
-    // higher-priority site, not instead of it.
     expect(advance(world, simulation).established[0]).toBe(1);
+  });
+
+  it("walks toward a guarded gold vein instead of settling an unrelated closer cell", () => {
+    const world = createWorld();
+    // Same fork as the iron case: cell 1 is a one-hop dead end, cells 2-6 are
+    // the corridor to a guarded gold vein. Gold commits the State to that
+    // corridor, but the hop penalty still prefers the next step (2) over a jump.
+    const cellIds = [0, 1, 2, 3, 4, 5, 6];
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: Uint16Array.from(cellIds),
+      c: [[1, 2], [0], [0, 3], [2, 4], [3, 5], [4, 6], [5]],
+      p: cellIds.map(cellId => [cellId * 100, 0] as [number, number]),
+      state: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 1 : 0)),
+      province: Uint16Array.from(cellIds, cellId => (cellId === 0 ? 1 : 0)),
+      pop: Float32Array.from(cellIds, cellId => (cellId === 0 ? 100 : 0)),
+      capacity: Float32Array.from(cellIds, cellId => (cellId === 0 ? 100 : 50)),
+      children: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      maleAdults: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      femaleAdults: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      elders: Float32Array.from(cellIds, cellId => (cellId === 0 ? 25 : 0)),
+      danger: new Uint8Array(cellIds.length),
+      h: new Uint8Array(cellIds.length).fill(30),
+      s: new Uint8Array(cellIds.length).fill(50),
+      r: new Uint16Array(cellIds.length),
+      harbor: new Uint8Array(cellIds.length),
+      conf: new Uint8Array(cellIds.length),
+      burg: new Uint16Array(cellIds.length),
+      routes: Object.fromEntries(cellIds.map(cellId => [cellId, {}]))
+    };
+    const simulation = createSimulation(100, 100, cellIds.length);
+    simulation.frontier.resourceClaimsByCell[6] = {
+      cellId: 6,
+      stateId: 1,
+      commodity: "gold",
+      discoveredYear: 100,
+      status: "guarding"
+    };
+
+    const candidates = getFrontierCandidateSummaries(world, simulation);
+    const side = candidates.find(candidate => candidate.cellId === 1);
+    const step = candidates.find(candidate => candidate.cellId === 2);
+    const vein = candidates.find(candidate => candidate.cellId === 6);
+    expect(step).toBeDefined();
+    expect(vein).toBeDefined();
+    expect(step!.score).toBeGreaterThan(side?.score ?? Number.NEGATIVE_INFINITY);
+    expect(step!.score).toBeGreaterThan(vein!.score);
+    expect(advance(world, simulation).established[0]).toBe(2);
+  });
+
+  it("settles a riverless gold vein instead of a neighbouring river cell", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      c: [[1, 2], [0], [0]],
+      p: [
+        [0, 0],
+        [0, 20],
+        [20, 0]
+      ],
+      state: new Uint16Array([1, 0, 0]),
+      province: new Uint16Array([1, 0, 0]),
+      pop: new Float32Array([100, 0, 0]),
+      capacity: new Float32Array([100, 50, 50]),
+      subsistenceCapacity: new Float32Array([100, 50, 10]),
+      children: new Float32Array([25, 0, 0]),
+      maleAdults: new Float32Array([25, 0, 0]),
+      femaleAdults: new Float32Array([25, 0, 0]),
+      elders: new Float32Array([25, 0, 0]),
+      danger: new Uint8Array([0, 10, 10]),
+      h: new Uint8Array([30, 30, 62]),
+      s: new Uint8Array([50, 50, 20]),
+      r: new Uint16Array([0, 1, 0]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+    simulation.frontier.resourceClaimsByCell[2] = {
+      cellId: 2,
+      stateId: 1,
+      commodity: "gold",
+      discoveredYear: 100,
+      status: "guarding"
+    };
+
+    const candidates = getFrontierCandidateSummaries(world, simulation);
+    const river = candidates.find(candidate => candidate.cellId === 1);
+    const gold = candidates.find(candidate => candidate.cellId === 2);
+    expect(gold).toBeDefined();
+    expect(gold!.score).toBeGreaterThan(river?.score ?? Number.NEGATIVE_INFINITY);
+    expect(advance(world, simulation).established[0]).toBe(2);
+  });
+
+  it("keeps approaching gold through riverless cells rather than diverting to a river", () => {
+    const world = createWorld();
+    // Cell 1 is a wet one-hop site off the gold path. Cells 2-3 are dry highland
+    // leading to the vein. The State should take the dry step toward gold.
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2, 3]),
+      c: [[1, 2], [0], [0, 3], [2]],
+      p: [
+        [0, 0],
+        [0, 20],
+        [20, 0],
+        [40, 0]
+      ],
+      state: new Uint16Array([1, 0, 0, 0]),
+      province: new Uint16Array([1, 0, 0, 0]),
+      pop: new Float32Array([100, 0, 0, 0]),
+      capacity: new Float32Array([100, 50, 8, 8]),
+      subsistenceCapacity: new Float32Array([100, 50, 1, 1]),
+      children: new Float32Array([25, 0, 0, 0]),
+      maleAdults: new Float32Array([25, 0, 0, 0]),
+      femaleAdults: new Float32Array([25, 0, 0, 0]),
+      elders: new Float32Array([25, 0, 0, 0]),
+      danger: new Uint8Array([0, 10, 10, 10]),
+      h: new Uint8Array([30, 30, 60, 62]),
+      s: new Uint8Array([50, 50, 15, 15]),
+      r: new Uint16Array([0, 1, 0, 0]),
+      harbor: new Uint8Array([0, 0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {}, 3: {} }
+    };
+    const simulation = createSimulation(100, 100, 4);
+    simulation.frontier.resourceClaimsByCell[3] = {
+      cellId: 3,
+      stateId: 1,
+      commodity: "gold",
+      discoveredYear: 100,
+      status: "guarding"
+    };
+
+    const candidates = getFrontierCandidateSummaries(world, simulation);
+    const river = candidates.find(candidate => candidate.cellId === 1);
+    const step = candidates.find(candidate => candidate.cellId === 2);
+    const vein = candidates.find(candidate => candidate.cellId === 3);
+    expect(step).toBeDefined();
+    expect(vein).toBeDefined();
+    expect(step!.score).toBeGreaterThan(river?.score ?? Number.NEGATIVE_INFINITY);
+    expect(step!.score).toBeGreaterThan(vein!.score);
+    expect(advance(world, simulation).established[0]).toBe(2);
+  });
+
+  it("can found a mining outpost on a gold vein below the ordinary farm-capacity floor", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1]),
+      c: [[1], [0]],
+      p: [
+        [0, 0],
+        [20, 0]
+      ],
+      state: new Uint16Array([1, 0]),
+      province: new Uint16Array([1, 0]),
+      pop: new Float32Array([100, 0]),
+      capacity: new Float32Array([100, 4]),
+      subsistenceCapacity: new Float32Array([100, 1]),
+      children: new Float32Array([25, 0]),
+      maleAdults: new Float32Array([25, 0]),
+      femaleAdults: new Float32Array([25, 0]),
+      elders: new Float32Array([25, 0]),
+      danger: new Uint8Array([0, 10]),
+      h: new Uint8Array([30, 62]),
+      s: new Uint8Array([50, 15]),
+      r: new Uint16Array([0, 0]),
+      harbor: new Uint8Array([0, 0]),
+      conf: new Uint8Array([0, 0]),
+      burg: new Uint16Array([0, 0]),
+      routes: { 0: {}, 1: {} }
+    };
+    const simulation = createSimulation(100, 100, 2);
+    simulation.frontier.resourceClaimsByCell[1] = {
+      cellId: 1,
+      stateId: 1,
+      commodity: "gold",
+      discoveredYear: 100,
+      status: "guarding"
+    };
+
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([
+      expect.objectContaining({ cellId: 1, resourceClaimCellId: 1 })
+    ]);
+    expect(advance(world, simulation).established).toEqual([1]);
   });
 
   it("pools several small local surpluses into one viable frontier expedition", () => {
