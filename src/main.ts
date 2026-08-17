@@ -3,7 +3,6 @@ import {
   EARTH_AXIAL_TILT_DEG,
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_TEMPERATURE_PRESET,
-  earthRegionView,
   getEarthDistanceScale,
   getEarthMapLatitudeSpan,
   getTemperateLatitudeBound
@@ -1480,11 +1479,7 @@ function defineMapSize() {
   const updates: Partial<OptionsState> = {};
   const earthRegion = getEarthRegion(options.template);
   if (earthRegion) {
-    const view = earthRegionView(earthRegion, worldContext.graphWidth, worldContext.graphHeight);
-    const mapSize = ((view.east - view.west) / 360) * 100;
-    const latitude = (view.north + view.south) / 2;
-    const lonT = view.east - view.west;
-    const longitude = lonT >= 360 ? 50 : (100 * (180 - view.east)) / (360 - lonT);
+    const { mapSize, latitude, longitude } = earthRegion.climateAnchor;
     if (randomize || !locked("mapSize")) updates.mapSize = mapSize;
     if (randomize || !locked("latitude")) updates.latitude = latitude;
     if (randomize || !locked("longitude")) updates.longitude = longitude;

@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { worldContext } from "../context/worldContext";
 import { heightmapTemplates, precreatedHeightmaps } from "../data";
+import { earthRegionFitGraph } from "../data/earthConfig";
 import { getEarthRegion } from "../data/earthRegions";
 import { HeightmapGenerator } from "../generators/heightmap-generator";
 import type { Grid } from "../types/Grid";
@@ -46,11 +47,15 @@ export function buildTemplatePreview(id: string, seed: string, scheme: string, r
 }
 
 export async function buildPrecreatedPreview(id: string, scheme: string, renderOcean: boolean): Promise<string> {
-  const graph = getOrComputeGraph();
   const region = getEarthRegion(id);
-  const heights = region
-    ? await HeightmapGenerator.fromEarthRegion(graph, region)
-    : await HeightmapGenerator.fromPrecreated(graph, id);
+  if (region) {
+    const fitted = earthRegionFitGraph(region, worldContext.graphWidth, worldContext.graphHeight);
+    const graph = generateGrid(worldContext.seed, fitted.width, fitted.height);
+    const heights = await HeightmapGenerator.fromEarthRegion(graph, region, fitted);
+    return renderHeightmapToDataUrl(heights, graph, scheme, renderOcean);
+  }
+  const graph = getOrComputeGraph();
+  const heights = await HeightmapGenerator.fromPrecreated(graph, id);
   return renderHeightmapToDataUrl(heights, graph, scheme, renderOcean);
 }
 

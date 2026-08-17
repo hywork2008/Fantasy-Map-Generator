@@ -87,32 +87,41 @@ export function getEarthMapLatitudeSpan(mapSize: number, graphWidth: number, gra
   return mapSize >= 100 ? 180 : Math.min(longitudeSpan / (graphWidth / graphHeight), 180);
 }
 
-/**
- * Geographic window painted onto a graph. `region` is the minimum content;
- * leftover canvas shows more land/sea at the same kilometres-per-pixel rather
- * than stretching the bbox to the window aspect.
- */
-export function earthRegionView(region: EarthBBox, graphWidth: number, graphHeight: number): EarthBBox {
-  if (!(graphWidth > 0) || !(graphHeight > 0)) {
-    return { west: region.west, east: region.east, south: region.south, north: region.north };
-  }
+/** True map width/height ratio for an Earth-region bbox (km, mid-latitude). */
+export function earthRegionAspect(region: EarthBBox): number {
   const midLat = ((region.north + region.south) / 2) * (Math.PI / 180);
   const cosLat = Math.max(Math.cos(midLat), 0.05);
-  const lonSpan = region.east - region.west;
-  const latSpan = region.north - region.south;
-  const geoW = lonSpan * KM_PER_DEG_LON_EQUATOR * cosLat;
-  const geoH = latSpan * KM_PER_DEG_LAT;
-  const kmPerPx = Math.max(geoW / graphWidth, geoH / graphHeight);
-  const shownLon = (graphWidth * kmPerPx) / (KM_PER_DEG_LON_EQUATOR * cosLat);
-  const shownLat = (graphHeight * kmPerPx) / KM_PER_DEG_LAT;
-  const cx = (region.west + region.east) / 2;
-  const cy = (region.south + region.north) / 2;
-  return {
-    west: cx - shownLon / 2,
-    east: cx + shownLon / 2,
-    south: cy - shownLat / 2,
-    north: cy + shownLat / 2
-  };
+  const geoW = (region.east - region.west) * KM_PER_DEG_LON_EQUATOR * cosLat;
+  const geoH = (region.north - region.south) * KM_PER_DEG_LAT;
+  if (!(geoH > 0)) return 1;
+  return geoW / geoH;
+}
+
+/**
+ * Largest graph that fits in `maxWidth` × `maxHeight` while keeping the
+ * region's true shape. Leftover window is off-map (the existing black
+ * letterbox), not extra ocean cells.
+ */
+export function earthRegionFitGraph(
+  region: EarthBBox,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number } {
+  if (!(maxWidth > 0) || !(maxHeight > 0)) return { width: maxWidth, height: maxHeight };
+  const aspect = earthRegionAspect(region);
+  if (maxWidth / maxHeight > aspect) {
+    return { width: Math.max(1, Math.round(maxHeight * aspect)), height: maxHeight };
+  }
+  return { width: maxWidth, height: Math.max(1, Math.round(maxWidth / aspect)) };
+}
+
+/**
+ * Geographic window painted onto the graph. The graph is expected to already
+ * match the region's aspect (`earthRegionFitGraph`); leftover browser chrome
+ * is outside the graph, not extra longitude/latitude.
+ */
+export function earthRegionView(region: EarthBBox, _graphWidth?: number, _graphHeight?: number): EarthBBox {
+  return { west: region.west, east: region.east, south: region.south, north: region.north };
 }
 
 /**

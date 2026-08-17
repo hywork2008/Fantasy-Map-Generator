@@ -64,11 +64,11 @@ describe("legacy east-asia climate conversion", () => {
 describe("japan climate conversion", () => {
   it("anchors climate to the four-island bbox (Kyushu SW – Hokkaido NE)", () => {
     const coords = earthRegionMapCoordinates(JAPAN_REGION);
-    expect(coords.lonW).toBeCloseTo(128.6, 5);
+    expect(coords.lonW).toBeCloseTo(118.5, 5);
     expect(coords.lonE).toBeCloseTo(146.4, 5);
     expect(coords.latS).toBeCloseTo(29.9, 5);
     expect(coords.latN).toBeCloseTo(46.6, 5);
-    expect(JAPAN_REGION.climateAnchor.mapSize).toBeCloseTo(((146.4 - 128.6) / 360) * 100, 3);
+    expect(JAPAN_REGION.climateAnchor.mapSize).toBeCloseTo(((146.4 - 118.5) / 360) * 100, 3);
     expect(JAPAN_REGION.climateAnchor.latitude).toBeCloseTo((29.9 + 46.6) / 2, 5);
   });
 });

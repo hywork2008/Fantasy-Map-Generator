@@ -5,6 +5,8 @@ import {
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_EQUATORIAL_CIRCUMFERENCE_KM,
   type EarthMappedWorld,
+  earthRegionAspect,
+  earthRegionFitGraph,
   earthRegionView,
   getEarthDistanceBetweenMapPoints,
   getEarthDistanceScale,
@@ -34,15 +36,26 @@ describe("Earth map calibration", () => {
   });
 });
 
-describe("earthRegionView", () => {
-  it("grows the long axis instead of stretching the content bbox", () => {
-    const region = { west: 128.6, east: 146.4, south: 29.9, north: 46.6 };
-    const wide = earthRegionView(region, 960, 540);
-    expect(wide.north - wide.south).toBeCloseTo(region.north - region.south, 5);
-    expect(wide.east - wide.west).toBeGreaterThan(region.east - region.west);
-    const tall = earthRegionView(region, 540, 960);
-    expect(tall.east - tall.west).toBeCloseTo(region.east - region.west, 5);
-    expect(tall.north - tall.south).toBeGreaterThan(region.north - region.south);
+describe("earthRegionFitGraph", () => {
+  const region = { west: 118.5, east: 146.4, south: 29.9, north: 46.6 };
+
+  it("fits a landscape window without changing the geographic bbox", () => {
+    const fitted = earthRegionFitGraph(region, 960, 540);
+    expect(fitted.height).toBe(540);
+    expect(fitted.width).toBeLessThan(960);
+    expect(fitted.width / fitted.height).toBeCloseTo(earthRegionAspect(region), 2);
+    const view = earthRegionView(region, fitted.width, fitted.height);
+    expect(view.west).toBe(region.west);
+    expect(view.east).toBe(region.east);
+    expect(view.south).toBe(region.south);
+    expect(view.north).toBe(region.north);
+  });
+
+  it("fits a portrait window without inventing extra latitude", () => {
+    const fitted = earthRegionFitGraph(region, 540, 960);
+    expect(fitted.width).toBe(540);
+    expect(fitted.height).toBeLessThan(960);
+    expect(fitted.width / fitted.height).toBeCloseTo(earthRegionAspect(region), 2);
   });
 });
 

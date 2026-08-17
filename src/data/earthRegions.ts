@@ -86,25 +86,23 @@ export const EAST_ASIA_REGION: EarthRegion = {
 };
 
 /**
- * Japan home waters: Kyushu at the lower-left of the *content* box, Hokkaido
- * at the upper-right. Padded ~1° past Cape Soya and Cape Sata so a coastal
- * sea lane can pass those capes. The painted window grows with the canvas
- * at true km scale (no window-aspect squash); leftover space is more of the
- * same geography — in-frame islands, Korea, China, and Russia stay on the
- * land mask. Islands SW of Kyushu or NE of Hokkaido need not drive the frame.
+ * Japan home waters: Yellow Sea (118.5°E) on the west, Hokkaido at the
+ * upper-right. Padded ~1° past Cape Soya and Cape Sata so a coastal sea
+ * lane can pass those capes. The graph is fitted to this bbox's true shape;
+ * leftover browser window is off-map, not extra ocean.
  */
 export const JAPAN_REGION: EarthRegion = {
   id: "japan",
   name: "Japan",
-  west: 128.6,
+  west: 118.5,
   east: 146.4,
   south: 29.9,
   north: 46.6,
   projection: "equirectangular",
   climateAnchor: {
-    mapSize: 4.9444,
+    mapSize: 7.75,
     latitude: 38.25,
-    longitude: 9.82
+    longitude: 10.12
   },
   raster: { path: "./heightmaps/earth/japan.bin" },
   topology: { keepStraits: JAPAN_STRAITS },

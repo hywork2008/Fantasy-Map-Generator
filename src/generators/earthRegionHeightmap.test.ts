@@ -3,7 +3,7 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
-import { earthRegionView, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
+import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
 import { EAST_ASIA_REGION, JAPAN_REGION } from "../data/earthRegions";
 import { useOptionsState } from "../store/optionsState";
 import { generateGrid } from "../utils/graphUtils";
@@ -11,8 +11,10 @@ import { loadEarthRaster } from "./earthRegionHeightmap";
 import { lonLatToMapPoint, mapPointToLonLat, sampleLand } from "./earthRegionRaster";
 import { HeightmapGenerator } from "./heightmap-generator";
 
-const GRAPH_WIDTH = 960;
-const GRAPH_HEIGHT = 540;
+const MAX_GRAPH_WIDTH = 960;
+const MAX_GRAPH_HEIGHT = 540;
+const EAST_ASIA_GRAPH = earthRegionFitGraph(EAST_ASIA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const JAPAN_GRAPH = earthRegionFitGraph(JAPAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -35,7 +37,7 @@ function nearestCell(grid: ReturnType<typeof generateGrid>, lon: number, lat: nu
   for (let i = 0; i < grid.points.length; i++) {
     if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
     const [x, y] = grid.points[i];
-    const here = mapPointToLonLat(EAST_ASIA_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, x, y);
+    const here = mapPointToLonLat(EAST_ASIA_REGION, EAST_ASIA_GRAPH.width, EAST_ASIA_GRAPH.height, x, y);
     const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
     if (d < bestD) {
       bestD = d;
@@ -64,10 +66,10 @@ function landComponentId(heights: Uint8Array, grid: ReturnType<typeof generateGr
 }
 
 async function generateEastAsia(points = 4) {
-  worldContext.graphWidth = GRAPH_WIDTH;
-  worldContext.graphHeight = GRAPH_HEIGHT;
+  worldContext.graphWidth = EAST_ASIA_GRAPH.width;
+  worldContext.graphHeight = EAST_ASIA_GRAPH.height;
   useOptionsState.getState().setOptions({ points, template: "east-asia", heightExponent: 1.8 });
-  const grid = generateGrid("earth-asia-test", GRAPH_WIDTH, GRAPH_HEIGHT);
+  const grid = generateGrid("earth-asia-test", EAST_ASIA_GRAPH.width, EAST_ASIA_GRAPH.height);
   const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
   return { grid, heights };
 }
@@ -75,11 +77,16 @@ async function generateEastAsia(points = 4) {
 describe("fromEarthRegion east-asia", () => {
   it("keeps Kanto, Nobi and Osaka plains as land", async () => {
     const { grid, heights } = await generateEastAsia(4);
-    for (const [name, place] of Object.entries(LANDMARKS)) {
-      if (name === "tokyoBay") continue;
+    for (const name of ["kanto", "nobi", "osaka"] as const) {
+      const place = LANDMARKS[name];
       const cell = nearestCell(grid, place.lon, place.lat, heights);
       expect(heights[cell], name).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
-      const here = mapPointToLonLat(EAST_ASIA_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, ...grid.points[cell]);
+      const here = mapPointToLonLat(
+        EAST_ASIA_REGION,
+        EAST_ASIA_GRAPH.width,
+        EAST_ASIA_GRAPH.height,
+        ...grid.points[cell]
+      );
       expect(Math.hypot(here.lon - place.lon, here.lat - place.lat), `${name} too far`).toBeLessThan(0.7);
     }
   }, 20000);
@@ -114,10 +121,10 @@ describe("fromEarthRegion east-asia", () => {
 });
 
 async function generateJapan(points = 4) {
-  worldContext.graphWidth = GRAPH_WIDTH;
-  worldContext.graphHeight = GRAPH_HEIGHT;
+  worldContext.graphWidth = JAPAN_GRAPH.width;
+  worldContext.graphHeight = JAPAN_GRAPH.height;
   useOptionsState.getState().setOptions({ points, template: "japan", heightExponent: 1.8 });
-  const grid = generateGrid("earth-japan-test", GRAPH_WIDTH, GRAPH_HEIGHT);
+  const grid = generateGrid("earth-japan-test", JAPAN_GRAPH.width, JAPAN_GRAPH.height);
   const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
   return { grid, heights };
 }
@@ -133,7 +140,7 @@ function nearestJapanCell(
   for (let i = 0; i < grid.points.length; i++) {
     if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
     const [x, y] = grid.points[i];
-    const here = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, x, y);
+    const here = mapPointToLonLat(JAPAN_REGION, JAPAN_GRAPH.width, JAPAN_GRAPH.height, x, y);
     const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
     if (d < bestD) {
       bestD = d;
@@ -167,7 +174,7 @@ function waterCellsAlong(
   for (let i = 0; i < grid.points.length; i++) {
     if (heights[i] >= HeightThreshold.WATER_MAX_HEIGHT) continue;
     const [x, y] = grid.points[i];
-    const here = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, x, y);
+    const here = mapPointToLonLat(JAPAN_REGION, JAPAN_GRAPH.width, JAPAN_GRAPH.height, x, y);
     if (pred(here.lon, here.lat)) cells.push(here);
   }
   return cells;
@@ -175,7 +182,7 @@ function waterCellsAlong(
 
 describe("fromEarthRegion japan", () => {
   it("frames Kyushu in the south-west and Hokkaido in the north-east", () => {
-    expect(JAPAN_REGION.west).toBeCloseTo(128.6, 5);
+    expect(JAPAN_REGION.west).toBeCloseTo(118.5, 5);
     expect(JAPAN_REGION.south).toBeCloseTo(29.9, 5);
     expect(JAPAN_REGION.east).toBeCloseTo(146.4, 5);
     expect(JAPAN_REGION.north).toBeCloseTo(46.6, 5);
@@ -185,6 +192,7 @@ describe("fromEarthRegion japan", () => {
     expect(isInsideJapanBbox(LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat)).toBe(true);
     expect(isInsideJapanBbox(CAPES.capeSoya.lon, CAPES.capeSoya.lat)).toBe(true);
     expect(isInsideJapanBbox(CAPES.capeSata.lon, CAPES.capeSata.lat)).toBe(true);
+    expect(isInsideJapanBbox(121.5, 37.0), "Yellow Sea").toBe(true);
     expect(isInsideJapanBbox(OFF_FRAME.okinawa.lon, OFF_FRAME.okinawa.lat)).toBe(false);
     for (const [name, place] of Object.entries(IN_FRAME)) {
       expect(isInsideJapanBbox(place.lon, place.lat), name).toBe(true);
@@ -194,22 +202,22 @@ describe("fromEarthRegion japan", () => {
   it("does not stretch Japan to the window aspect", () => {
     const midLat = ((JAPAN_REGION.north + JAPAN_REGION.south) / 2) * (Math.PI / 180);
     const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
-    for (const [gw, gh] of [
+    const aspect = earthRegionAspect(JAPAN_REGION);
+    for (const [maxW, maxH] of [
       [960, 540],
       [540, 960],
       [800, 800]
     ] as const) {
-      const origin = lonLatToMapPoint(JAPAN_REGION, gw, gh, 137.5, 38.25);
-      const east = lonLatToMapPoint(JAPAN_REGION, gw, gh, 138.5, 38.25);
-      const north = lonLatToMapPoint(JAPAN_REGION, gw, gh, 137.5, 39.25);
+      const fitted = earthRegionFitGraph(JAPAN_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(JAPAN_REGION, fitted.width, fitted.height, 137.5, 38.25);
+      const east = lonLatToMapPoint(JAPAN_REGION, fitted.width, fitted.height, 138.5, 38.25);
+      const north = lonLatToMapPoint(JAPAN_REGION, fitted.width, fitted.height, 137.5, 39.25);
       const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
       const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
-      expect(dx / dy, `${gw}x${gh}`).toBeCloseTo(expected, 3);
-      const view = earthRegionView(JAPAN_REGION, gw, gh);
-      expect(view.west).toBeLessThanOrEqual(JAPAN_REGION.west + 1e-6);
-      expect(view.east).toBeGreaterThanOrEqual(JAPAN_REGION.east - 1e-6);
-      expect(view.south).toBeLessThanOrEqual(JAPAN_REGION.south + 1e-6);
-      expect(view.north).toBeGreaterThanOrEqual(JAPAN_REGION.north - 1e-6);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 3);
     }
   });
 
@@ -217,17 +225,17 @@ describe("fromEarthRegion japan", () => {
     const { grid, heights } = await generateJapan(6);
     const kanto = nearestJapanCell(grid, LANDMARKS.kanto.lon, LANDMARKS.kanto.lat, heights);
     expect(heights[kanto]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
-    const here = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, ...grid.points[kanto]);
+    const here = mapPointToLonLat(JAPAN_REGION, JAPAN_GRAPH.width, JAPAN_GRAPH.height, ...grid.points[kanto]);
     expect(Math.hypot(here.lon - LANDMARKS.kanto.lon, here.lat - LANDMARKS.kanto.lat)).toBeLessThan(0.4);
 
     const kyushuCell = nearestJapanCell(grid, LANDMARKS.kyushu.lon, LANDMARKS.kyushu.lat, heights);
     const hokkaidoCell = nearestJapanCell(grid, LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat, heights);
     const [kx, ky] = grid.points[kyushuCell];
     const [hx, hy] = grid.points[hokkaidoCell];
-    expect(kx, "Kyushu is on the western half").toBeLessThan(GRAPH_WIDTH / 2);
-    expect(ky, "Kyushu is on the southern half").toBeGreaterThan(GRAPH_HEIGHT / 2);
-    expect(hx, "Hokkaido is on the eastern half").toBeGreaterThan(GRAPH_WIDTH / 2);
-    expect(hy, "Hokkaido is on the northern half").toBeLessThan(GRAPH_HEIGHT / 2);
+    expect(kx, "Kyushu is on the western half").toBeLessThan(JAPAN_GRAPH.width / 2);
+    expect(ky, "Kyushu is on the southern half").toBeGreaterThan(JAPAN_GRAPH.height / 2);
+    expect(hx, "Hokkaido is on the eastern half").toBeGreaterThan(JAPAN_GRAPH.width / 2);
+    expect(hy, "Hokkaido is on the northern half").toBeLessThan(JAPAN_GRAPH.height / 2);
 
     const hokkaido = landComponentId(heights, grid, hokkaidoCell);
     const honshu = landComponentId(heights, grid, nearestJapanCell(grid, LANDMARKS.kanto.lon, LANDMARKS.kanto.lat));

@@ -800,14 +800,18 @@ class HeightmapModule {
     }
   }
 
-  async fromEarthRegion(graph: Grid, region: EarthRegion): Promise<Uint8Array> {
+  async fromEarthRegion(
+    graph: Grid,
+    region: EarthRegion,
+    graphSize?: { width: number; height: number }
+  ): Promise<Uint8Array> {
     this.setGraph(graph);
     const exponent = useOptionsState.getState().heightExponent;
     this.heights = await buildEarthRegionHeights(
       graph,
       region,
-      this.worldContext.graphWidth,
-      this.worldContext.graphHeight,
+      graphSize?.width ?? this.worldContext.graphWidth,
+      graphSize?.height ?? this.worldContext.graphHeight,
       exponent
     );
     return this.heights;

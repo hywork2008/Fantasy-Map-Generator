@@ -10,7 +10,8 @@ import {
   getInitialSettlementPatternPreset,
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../data";
-import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
+import { convertLegacyLatitudeToGeographic, earthRegionFitGraph } from "../data/earthConfig";
+import { getEarthRegion } from "../data/earthRegions";
 import { parseRacePersonNameMapping, resolveRacePersonNameMapping } from "../data/racePersonNameConfig";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
@@ -120,8 +121,12 @@ export function applyGraphSize(): void {
     ? { mapWidth: options.mapWidth, mapHeight: options.mapHeight }
     : getWindowCanvasSize();
   if (!isValidCanvasSize(options)) options.setOptions(canvasSize);
-  worldContext.graphWidth = canvasSize.mapWidth;
-  worldContext.graphHeight = canvasSize.mapHeight;
+  const earthRegion = getEarthRegion(options.template);
+  const graphSize = earthRegion
+    ? earthRegionFitGraph(earthRegion, canvasSize.mapWidth, canvasSize.mapHeight)
+    : { width: canvasSize.mapWidth, height: canvasSize.mapHeight };
+  worldContext.graphWidth = graphSize.width;
+  worldContext.graphHeight = graphSize.height;
   const { graphWidth, graphHeight } = worldContext;
 
   if (!viewContext?.renderMap || !viewContext.viewbox) return;
@@ -148,7 +153,10 @@ export function fitMapToScreen(): void {
   view.svg.attr("width", String(svgWidth)).attr("height", String(svgHeight));
 
   const { graphWidth, graphHeight } = worldContext;
-  const zoomMin = rn(Math.max(svgWidth / graphWidth, svgHeight / graphHeight), 3);
+  const earthRegion = getEarthRegion(useOptionsState.getState().template);
+  const zoomMin = earthRegion
+    ? rn(Math.min(svgWidth / graphWidth, svgHeight / graphHeight), 3)
+    : rn(Math.max(svgWidth / graphWidth, svgHeight / graphHeight), 3);
   useOptionsState.getState().setOption("zoomExtentMin", zoomMin);
   const zoomMax = useOptionsState.getState().zoomExtentMax;
 
