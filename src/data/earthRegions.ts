@@ -79,6 +79,8 @@ const CARIBBEAN_STRAITS: EarthStrait[] = [
   { name: "WindwardPassage", a: [-74.13, 20.24], b: [-73.42, 19.82], widthKm: 80 }
 ];
 
+const EUROPE_STRAITS: EarthStrait[] = [...BRITAIN_STRAITS, ...MEDITERRANEAN_STRAITS];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -267,6 +269,33 @@ export const CARIBBEAN_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). Los Angeles to Belém; in-frame islands and neighboring shores are kept."
 };
 
+/**
+ * Europe as on the EU membership map: Ireland to Georgia, Cyprus to
+ * Finland. All EU members, candidates, potential candidates, and
+ * applicants stay in-frame (Portugal, Ireland, Finland, Cyprus,
+ * Ukraine, Turkey, Georgia). Iceland is left off. The graph is fitted
+ * to this bbox's true shape.
+ */
+export const EUROPE_REGION: EarthRegion = {
+  id: "europe",
+  name: "Europe",
+  west: -11.5,
+  east: 47.5,
+  south: 34,
+  north: 71.5,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 16.3889,
+    latitude: 52.75,
+    longitude: 44.02
+  },
+  raster: { path: "./heightmaps/earth/europe.bin" },
+  topology: { keepStraits: EUROPE_STRAITS },
+  previewPng: "./heightmaps/europe.png",
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). EU members and candidates from Ireland to Georgia stay complete; Iceland is off-map."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
@@ -274,7 +303,8 @@ export const earthRegions: Record<string, EarthRegion> = {
   "mediterranean-sea": MEDITERRANEAN_SEA_REGION,
   "europe-central": EUROPE_CENTRAL_REGION,
   atlantics: ATLANTICS_REGION,
-  caribbean: CARIBBEAN_REGION
+  caribbean: CARIBBEAN_REGION,
+  europe: EUROPE_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

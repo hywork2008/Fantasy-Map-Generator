@@ -10,6 +10,7 @@ import {
   CARIBBEAN_REGION,
   EAST_ASIA_REGION,
   EUROPE_CENTRAL_REGION,
+  EUROPE_REGION,
   JAPAN_REGION,
   MEDITERRANEAN_SEA_REGION
 } from "../data/earthRegions";
@@ -28,6 +29,7 @@ const MED_GRAPH = earthRegionFitGraph(MEDITERRANEAN_SEA_REGION, MAX_GRAPH_WIDTH,
 const EUROPE_CENTRAL_GRAPH = earthRegionFitGraph(EUROPE_CENTRAL_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const ATLANTICS_GRAPH = earthRegionFitGraph(ATLANTICS_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const CARIBBEAN_GRAPH = earthRegionFitGraph(CARIBBEAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const EUROPE_GRAPH = earthRegionFitGraph(EUROPE_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -1106,5 +1108,127 @@ describe("fromEarthRegion caribbean", () => {
     for (const [name, place] of Object.entries(CARIBBEAN_IN_FRAME)) {
       expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
     }
+  }, 20000);
+});
+
+const EUROPE_LANDMARKS = {
+  dublin: { lon: -6.26, lat: 53.35 },
+  lisbon: { lon: -9.14, lat: 38.72 },
+  helsinki: { lon: 24.94, lat: 60.17 },
+  nicosia: { lon: 33.38, lat: 35.17 },
+  tbilisi: { lon: 44.79, lat: 41.72 },
+  kyiv: { lon: 30.52, lat: 50.45 },
+  rome: { lon: 12.5, lat: 41.9 },
+  paris: { lon: 2.35, lat: 48.86 },
+  stockholm: { lon: 18.07, lat: 59.33 },
+  ankara: { lon: 32.86, lat: 39.93 }
+};
+
+const EUROPE_IN_FRAME = {
+  ireland: { lon: -8.0, lat: 53.4 },
+  sicily: { lon: 14.0, lat: 37.5 },
+  crete: { lon: 24.9, lat: 35.2 },
+  cyprus: { lon: 33.38, lat: 35.17 },
+  malta: { lon: 14.38, lat: 35.9 }
+};
+
+async function generateEurope(points = 4) {
+  worldContext.graphWidth = EUROPE_GRAPH.width;
+  worldContext.graphHeight = EUROPE_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "europe", heightExponent: 1.8 });
+  const grid = generateGrid("earth-europe-test", EUROPE_GRAPH.width, EUROPE_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestEuropeCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(EUROPE_REGION, EUROPE_GRAPH.width, EUROPE_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function isInsideEuropeBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= EUROPE_REGION.west && lon <= EUROPE_REGION.east && lat >= EUROPE_REGION.south && lat <= EUROPE_REGION.north
+  );
+}
+
+describe("fromEarthRegion europe", () => {
+  it("includes EU members and candidates from Ireland to Georgia", () => {
+    expect(EUROPE_REGION.west).toBeCloseTo(-11.5, 5);
+    expect(EUROPE_REGION.east).toBeCloseTo(47.5, 5);
+    expect(EUROPE_REGION.south).toBeCloseTo(34, 5);
+    expect(EUROPE_REGION.north).toBeCloseTo(71.5, 5);
+    for (const [name, place] of Object.entries(EUROPE_LANDMARKS)) {
+      expect(isInsideEuropeBbox(place.lon, place.lat), name).toBe(true);
+    }
+    expect(isInsideEuropeBbox(-21.94, 64.15), "Reykjavik").toBe(false);
+    expect(isInsideEuropeBbox(31.24, 30.04), "Cairo").toBe(false);
+    expect(isInsideEuropeBbox(-74.0, 40.71), "New York").toBe(false);
+  });
+
+  it("does not stretch Europe to the window aspect", () => {
+    const midLat = ((EUROPE_REGION.north + EUROPE_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(EUROPE_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(EUROPE_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(EUROPE_REGION, fitted.width, fitted.height, 18, 52.75);
+      const east = lonLatToMapPoint(EUROPE_REGION, fitted.width, fitted.height, 19, 52.75);
+      const north = lonLatToMapPoint(EUROPE_REGION, fitted.width, fitted.height, 18, 53.75);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps Paris as land and Ireland separate from Great Britain", async () => {
+    const { grid, heights } = await generateEurope(6);
+    const paris = nearestEuropeCell(grid, EUROPE_LANDMARKS.paris.lon, EUROPE_LANDMARKS.paris.lat, heights);
+    expect(heights[paris]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    const here = mapPointToLonLat(EUROPE_REGION, EUROPE_GRAPH.width, EUROPE_GRAPH.height, ...grid.points[paris]);
+    expect(Math.hypot(here.lon - EUROPE_LANDMARKS.paris.lon, here.lat - EUROPE_LANDMARKS.paris.lat)).toBeLessThan(0.6);
+
+    const ireland = landComponentId(
+      heights,
+      grid,
+      nearestEuropeCell(grid, EUROPE_LANDMARKS.dublin.lon, EUROPE_LANDMARKS.dublin.lat, heights)
+    );
+    const britain = landComponentId(heights, grid, nearestEuropeCell(grid, -1.5, 52.5, heights));
+    const continent = landComponentId(heights, grid, paris);
+    expect(ireland, "ireland land").toBeGreaterThanOrEqual(0);
+    expect(britain, "britain land").toBeGreaterThanOrEqual(0);
+    expect(continent, "continent land").toBeGreaterThanOrEqual(0);
+    expect(ireland !== britain, `Ireland-Britain ${ireland}/${britain}`).toBe(true);
+    expect(britain !== continent, `Britain-Continent ${britain}/${continent}`).toBe(true);
+
+    const raster = await loadEarthRaster(EUROPE_REGION);
+    for (const [name, place] of Object.entries(EUROPE_IN_FRAME)) {
+      expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
+    }
+    expect(sampleLand(raster, EUROPE_LANDMARKS.tbilisi.lon, EUROPE_LANDMARKS.tbilisi.lat), "Tbilisi").toBe(true);
+    expect(sampleLand(raster, EUROPE_LANDMARKS.nicosia.lon, EUROPE_LANDMARKS.nicosia.lat), "Nicosia").toBe(true);
   }, 20000);
 });

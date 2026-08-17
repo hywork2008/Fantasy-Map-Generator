@@ -6,6 +6,7 @@ import {
   CARIBBEAN_REGION,
   EAST_ASIA_REGION,
   EUROPE_CENTRAL_REGION,
+  EUROPE_REGION,
   earthRegionMapCoordinates,
   JAPAN_REGION,
   LEGACY_PRECREATED_CLIMATE,
@@ -135,5 +136,17 @@ describe("caribbean climate conversion", () => {
     expect(coords.latN).toBeCloseTo(34.9, 5);
     expect(CARIBBEAN_REGION.climateAnchor.mapSize).toBeCloseTo(((-47.5 - -119.3) / 360) * 100, 3);
     expect(CARIBBEAN_REGION.climateAnchor.latitude).toBeCloseTo((-2.4 + 34.9) / 2, 5);
+  });
+});
+
+describe("europe climate conversion", () => {
+  it("anchors climate to the Ireland–Georgia EU map bbox", () => {
+    const coords = earthRegionMapCoordinates(EUROPE_REGION);
+    expect(coords.lonW).toBeCloseTo(-11.5, 5);
+    expect(coords.lonE).toBeCloseTo(47.5, 5);
+    expect(coords.latS).toBeCloseTo(34, 5);
+    expect(coords.latN).toBeCloseTo(71.5, 5);
+    expect(EUROPE_REGION.climateAnchor.mapSize).toBeCloseTo(((47.5 - -11.5) / 360) * 100, 3);
+    expect(EUROPE_REGION.climateAnchor.latitude).toBeCloseTo((34 + 71.5) / 2, 5);
   });
 });

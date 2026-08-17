@@ -16,6 +16,7 @@ export {
   type EarthRegion,
   type EarthStrait,
   EUROPE_CENTRAL_REGION,
+  EUROPE_REGION,
   earthRegionMapCoordinates,
   earthRegions,
   getEarthRegion,
