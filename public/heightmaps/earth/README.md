@@ -9,6 +9,7 @@ Packed public-domain elevation and land masks used by `fromEarthRegion()`.
 | `britain.bin` | British Isles theatre (Ireland to Shetland + in-frame neighbors) + GMTED/ETOPO |
 | `mediterranean-sea.bin` | Gibraltar to Levant (in-frame islands + neighboring shores) + GMTED/ETOPO |
 | `europe-central.bin` | Channel / Low Countries / Rhine / Elbe industrial core + GMTED/ETOPO |
+| `atlantics.bin` | North Atlantic basin (complete North America and Europe) + GMTED/ETOPO |
 
 Bake:
 
@@ -18,6 +19,7 @@ node scripts/bakeJapanEarthRaster.mjs
 node scripts/bakeBritainEarthRaster.mjs
 node scripts/bakeMediterraneanSeaEarthRaster.mjs
 node scripts/bakeEuropeCentralEarthRaster.mjs
+node scripts/bakeAtlanticsEarthRaster.mjs
 ```
 
 License: Natural Earth, GMTED2010, and ETOPO1 are public domain. See

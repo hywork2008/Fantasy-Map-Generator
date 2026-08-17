@@ -5,6 +5,7 @@ import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
 import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
 import {
+  ATLANTICS_REGION,
   BRITAIN_REGION,
   EAST_ASIA_REGION,
   EUROPE_CENTRAL_REGION,
@@ -24,6 +25,7 @@ const JAPAN_GRAPH = earthRegionFitGraph(JAPAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH
 const BRITAIN_GRAPH = earthRegionFitGraph(BRITAIN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const MED_GRAPH = earthRegionFitGraph(MEDITERRANEAN_SEA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const EUROPE_CENTRAL_GRAPH = earthRegionFitGraph(EUROPE_CENTRAL_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const ATLANTICS_GRAPH = earthRegionFitGraph(ATLANTICS_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -796,5 +798,169 @@ describe("fromEarthRegion europe-central", () => {
     expect(channel.length, "water in the Strait of Dover").toBeGreaterThan(3);
     const span = Math.max(...channel.map(c => c.lat)) - Math.min(...channel.map(c => c.lat));
     expect(span, "Dover passage is not a single pinch cell").toBeGreaterThan(0.15);
+  }, 20000);
+});
+
+const ATLANTICS_LANDMARKS = {
+  newYork: { lon: -74.0, lat: 40.71 },
+  chicago: { lon: -87.63, lat: 41.88 },
+  miami: { lon: -80.27, lat: 25.78 },
+  hudsonBay: { lon: -80.0, lat: 60.0 },
+  london: { lon: -0.12, lat: 51.51 },
+  paris: { lon: 2.35, lat: 48.86 },
+  rome: { lon: 12.5, lat: 41.9 },
+  lisbon: { lon: -9.14, lat: 38.72 },
+  cairo: { lon: 31.24, lat: 30.04 },
+  manaus: { lon: -60.02, lat: -3.12 }
+};
+
+const ATLANTICS_IN_FRAME = {
+  iceland: { lon: -19.0, lat: 64.8 },
+  ireland: { lon: -8.0, lat: 53.4 },
+  sicily: { lon: 14.0, lat: 37.5 },
+  florida: { lon: -81.7, lat: 28.0 },
+  azores: { lon: -25.5, lat: 37.75 }
+};
+
+async function generateAtlantics(points = 4) {
+  worldContext.graphWidth = ATLANTICS_GRAPH.width;
+  worldContext.graphHeight = ATLANTICS_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "atlantics", heightExponent: 1.8 });
+  const grid = generateGrid("earth-atlantics-test", ATLANTICS_GRAPH.width, ATLANTICS_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestAtlanticsCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(ATLANTICS_REGION, ATLANTICS_GRAPH.width, ATLANTICS_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function atlanticsWaterAlong(
+  grid: ReturnType<typeof generateGrid>,
+  heights: Uint8Array,
+  pred: (lon: number, lat: number) => boolean
+): { lon: number; lat: number }[] {
+  const cells: { lon: number; lat: number }[] = [];
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights[i] >= HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(ATLANTICS_REGION, ATLANTICS_GRAPH.width, ATLANTICS_GRAPH.height, x, y);
+    if (pred(here.lon, here.lat)) cells.push(here);
+  }
+  return cells;
+}
+
+function isInsideAtlanticsBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= ATLANTICS_REGION.west &&
+    lon <= ATLANTICS_REGION.east &&
+    lat >= ATLANTICS_REGION.south &&
+    lat <= ATLANTICS_REGION.north
+  );
+}
+
+describe("fromEarthRegion atlantics", () => {
+  it("keeps North America and Europe as complete recognizable continents", () => {
+    expect(ATLANTICS_REGION.west).toBeCloseTo(-108, 5);
+    expect(ATLANTICS_REGION.east).toBeCloseTo(44, 5);
+    expect(ATLANTICS_REGION.south).toBeCloseTo(-8, 5);
+    expect(ATLANTICS_REGION.north).toBeCloseTo(68, 5);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.newYork.lon, ATLANTICS_LANDMARKS.newYork.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.chicago.lon, ATLANTICS_LANDMARKS.chicago.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.miami.lon, ATLANTICS_LANDMARKS.miami.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.hudsonBay.lon, ATLANTICS_LANDMARKS.hudsonBay.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.london.lon, ATLANTICS_LANDMARKS.london.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.paris.lon, ATLANTICS_LANDMARKS.paris.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.rome.lon, ATLANTICS_LANDMARKS.rome.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.cairo.lon, ATLANTICS_LANDMARKS.cairo.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(ATLANTICS_LANDMARKS.manaus.lon, ATLANTICS_LANDMARKS.manaus.lat)).toBe(true);
+    expect(isInsideAtlanticsBbox(-118.24, 34.05), "Los Angeles").toBe(false);
+    expect(isInsideAtlanticsBbox(18.42, -33.92), "Cape Town").toBe(false);
+    expect(isInsideAtlanticsBbox(139.69, 35.69), "Tokyo").toBe(false);
+    for (const [name, place] of Object.entries(ATLANTICS_IN_FRAME)) {
+      expect(isInsideAtlanticsBbox(place.lon, place.lat), name).toBe(true);
+    }
+  });
+
+  it("does not stretch the Atlantic to the window aspect", () => {
+    const midLat = ((ATLANTICS_REGION.north + ATLANTICS_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(ATLANTICS_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(ATLANTICS_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(ATLANTICS_REGION, fitted.width, fitted.height, -32, 30);
+      const east = lonLatToMapPoint(ATLANTICS_REGION, fitted.width, fitted.height, -31, 30);
+      const north = lonLatToMapPoint(ATLANTICS_REGION, fitted.width, fitted.height, -32, 31);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps New York and London as land on separate continents", async () => {
+    const { grid, heights } = await generateAtlantics(6);
+    const newYork = nearestAtlanticsCell(
+      grid,
+      ATLANTICS_LANDMARKS.newYork.lon,
+      ATLANTICS_LANDMARKS.newYork.lat,
+      heights
+    );
+    const london = nearestAtlanticsCell(grid, ATLANTICS_LANDMARKS.london.lon, ATLANTICS_LANDMARKS.london.lat, heights);
+    expect(heights[newYork]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    expect(heights[london]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    const here = mapPointToLonLat(
+      ATLANTICS_REGION,
+      ATLANTICS_GRAPH.width,
+      ATLANTICS_GRAPH.height,
+      ...grid.points[newYork]
+    );
+    expect(
+      Math.hypot(here.lon - ATLANTICS_LANDMARKS.newYork.lon, here.lat - ATLANTICS_LANDMARKS.newYork.lat)
+    ).toBeLessThan(1.2);
+
+    const america = landComponentId(heights, grid, newYork);
+    const europe = landComponentId(heights, grid, london);
+    expect(america, "america land").toBeGreaterThanOrEqual(0);
+    expect(europe, "europe land").toBeGreaterThanOrEqual(0);
+    expect(america !== europe, `America-Europe ${america}/${europe}`).toBe(true);
+
+    const raster = await loadEarthRaster(ATLANTICS_REGION);
+    for (const [name, place] of Object.entries(ATLANTICS_IN_FRAME)) {
+      expect(sampleLand(raster, place.lon, place.lat), `${name} raster`).toBe(true);
+    }
+  }, 20000);
+
+  it("has open ocean between North America and Europe", async () => {
+    const { grid, heights } = await generateAtlantics(4);
+    const midAtlantic = atlanticsWaterAlong(
+      grid,
+      heights,
+      (lon, lat) => lon > -45 && lon < -20 && lat > 35 && lat < 50
+    );
+    expect(midAtlantic.length, "mid-Atlantic water").toBeGreaterThan(10);
   }, 20000);
 });

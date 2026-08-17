@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
+  ATLANTICS_REGION,
   BRITAIN_REGION,
   EAST_ASIA_REGION,
   EUROPE_CENTRAL_REGION,
@@ -109,5 +110,17 @@ describe("europe-central climate conversion", () => {
     expect(coords.latN).toBeCloseTo(54.3, 5);
     expect(EUROPE_CENTRAL_REGION.climateAnchor.mapSize).toBeCloseTo(((14.8 - -1.8) / 360) * 100, 3);
     expect(EUROPE_CENTRAL_REGION.climateAnchor.latitude).toBeCloseTo((45.5 + 54.3) / 2, 5);
+  });
+});
+
+describe("atlantics climate conversion", () => {
+  it("anchors climate to the recognizable North Atlantic basin", () => {
+    const coords = earthRegionMapCoordinates(ATLANTICS_REGION);
+    expect(coords.lonW).toBeCloseTo(-108, 5);
+    expect(coords.lonE).toBeCloseTo(44, 5);
+    expect(coords.latS).toBeCloseTo(-8, 5);
+    expect(coords.latN).toBeCloseTo(68, 5);
+    expect(ATLANTICS_REGION.climateAnchor.mapSize).toBeCloseTo(((44 - -108) / 360) * 100, 3);
+    expect(ATLANTICS_REGION.climateAnchor.latitude).toBeCloseTo((-8 + 68) / 2, 5);
   });
 });

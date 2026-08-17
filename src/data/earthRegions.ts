@@ -72,6 +72,8 @@ const MEDITERRANEAN_STRAITS: EarthStrait[] = [
 
 const EUROPE_CENTRAL_STRAITS: EarthStrait[] = [{ name: "Dover", a: [1.32, 51.13], b: [1.59, 50.87], widthKm: 33 }];
 
+const ATLANTICS_STRAITS: EarthStrait[] = [...BRITAIN_STRAITS, ...MEDITERRANEAN_STRAITS];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -207,12 +209,41 @@ export const EUROPE_CENTRAL_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). In-frame industrial-core land and Channel neighbors are kept; the canvas is not stretched to the window."
 };
 
+/**
+ * North Atlantic basin, matching the original Heightmapper crop's intent:
+ * North America and Europe as complete, recognizable continents, with
+ * Greenland, the Maghreb, and northern South America as full shoulders
+ * rather than mid-continent slices. Legacy `atlantics → [42, 23, 65]`
+ * reconstructs to about 107°W–44°E, 10°S–66°N; this box is that window
+ * snapped to geographic landmarks. The graph is fitted to its true shape.
+ */
+export const ATLANTICS_REGION: EarthRegion = {
+  id: "atlantics",
+  name: "Atlantics",
+  west: -108,
+  east: 44,
+  south: -8,
+  north: 68,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 42.2222,
+    latitude: 30,
+    longitude: 65.38
+  },
+  raster: { path: "./heightmaps/earth/atlantics.bin" },
+  topology: { keepStraits: ATLANTICS_STRAITS },
+  previewPng: "./heightmaps/atlantics.png",
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). North America and Europe stay complete; neighboring land is not sliced into mystery stubs."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
   britain: BRITAIN_REGION,
   "mediterranean-sea": MEDITERRANEAN_SEA_REGION,
-  "europe-central": EUROPE_CENTRAL_REGION
+  "europe-central": EUROPE_CENTRAL_REGION,
+  atlantics: ATLANTICS_REGION
 };
 
 export function isEarthRegion(id: string): boolean {
