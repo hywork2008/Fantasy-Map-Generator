@@ -11,6 +11,7 @@ import {
   EAST_ASIA_REGION,
   EUROPE_CENTRAL_REGION,
   EUROPE_REGION,
+  INDIAN_OCEAN_REGION,
   JAPAN_REGION,
   MEDITERRANEAN_SEA_REGION
 } from "../data/earthRegions";
@@ -30,6 +31,7 @@ const EUROPE_CENTRAL_GRAPH = earthRegionFitGraph(EUROPE_CENTRAL_REGION, MAX_GRAP
 const ATLANTICS_GRAPH = earthRegionFitGraph(ATLANTICS_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const CARIBBEAN_GRAPH = earthRegionFitGraph(CARIBBEAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const EUROPE_GRAPH = earthRegionFitGraph(EUROPE_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const INDIAN_OCEAN_GRAPH = earthRegionFitGraph(INDIAN_OCEAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -1230,5 +1232,166 @@ describe("fromEarthRegion europe", () => {
     }
     expect(sampleLand(raster, EUROPE_LANDMARKS.tbilisi.lon, EUROPE_LANDMARKS.tbilisi.lat), "Tbilisi").toBe(true);
     expect(sampleLand(raster, EUROPE_LANDMARKS.nicosia.lon, EUROPE_LANDMARKS.nicosia.lat), "Nicosia").toBe(true);
+  }, 20000);
+});
+
+const INDIAN_OCEAN_LANDMARKS = {
+  dakar: { lon: -17.45, lat: 14.69 },
+  pointeDesAlmadies: { lon: -17.53, lat: 14.74 },
+  lisbon: { lon: -9.14, lat: 38.72 },
+  melbourne: { lon: 144.96, lat: -37.81 },
+  wilsonsPromontory: { lon: 146.42, lat: -39.13 },
+  capeHowe: { lon: 149.97, lat: -37.5 },
+  sydney: { lon: 151.21, lat: -33.87 },
+  perth: { lon: 115.86, lat: -31.95 },
+  mumbai: { lon: 72.88, lat: 19.08 },
+  capeTown: { lon: 18.42, lat: -33.92 },
+  jakarta: { lon: 106.85, lat: -6.21 }
+};
+
+async function generateIndianOcean(points = 4) {
+  worldContext.graphWidth = INDIAN_OCEAN_GRAPH.width;
+  worldContext.graphHeight = INDIAN_OCEAN_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "indian-ocean", heightExponent: 1.8 });
+  const grid = generateGrid("earth-indian-ocean-test", INDIAN_OCEAN_GRAPH.width, INDIAN_OCEAN_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestIndianOceanCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(INDIAN_OCEAN_REGION, INDIAN_OCEAN_GRAPH.width, INDIAN_OCEAN_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function isInsideIndianOceanBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= INDIAN_OCEAN_REGION.west &&
+    lon <= INDIAN_OCEAN_REGION.east &&
+    lat >= INDIAN_OCEAN_REGION.south &&
+    lat <= INDIAN_OCEAN_REGION.north
+  );
+}
+
+describe("fromEarthRegion indian-ocean", () => {
+  it("frames Dakar at the west edge and mainland Australia at the lower-right", () => {
+    expect(INDIAN_OCEAN_REGION.west).toBeCloseTo(-18.7, 5);
+    expect(INDIAN_OCEAN_REGION.east).toBeCloseTo(155.3, 5);
+    expect(INDIAN_OCEAN_REGION.south).toBeCloseTo(-40.3, 5);
+    expect(INDIAN_OCEAN_REGION.north).toBeCloseTo(39.7, 5);
+    expect(isInsideIndianOceanBbox(INDIAN_OCEAN_LANDMARKS.dakar.lon, INDIAN_OCEAN_LANDMARKS.dakar.lat)).toBe(true);
+    expect(
+      isInsideIndianOceanBbox(
+        INDIAN_OCEAN_LANDMARKS.pointeDesAlmadies.lon,
+        INDIAN_OCEAN_LANDMARKS.pointeDesAlmadies.lat
+      )
+    ).toBe(true);
+    expect(isInsideIndianOceanBbox(INDIAN_OCEAN_LANDMARKS.lisbon.lon, INDIAN_OCEAN_LANDMARKS.lisbon.lat)).toBe(true);
+    expect(isInsideIndianOceanBbox(INDIAN_OCEAN_LANDMARKS.melbourne.lon, INDIAN_OCEAN_LANDMARKS.melbourne.lat)).toBe(
+      true
+    );
+    expect(
+      isInsideIndianOceanBbox(
+        INDIAN_OCEAN_LANDMARKS.wilsonsPromontory.lon,
+        INDIAN_OCEAN_LANDMARKS.wilsonsPromontory.lat
+      )
+    ).toBe(true);
+    expect(isInsideIndianOceanBbox(INDIAN_OCEAN_LANDMARKS.capeHowe.lon, INDIAN_OCEAN_LANDMARKS.capeHowe.lat)).toBe(
+      true
+    );
+    expect(isInsideIndianOceanBbox(INDIAN_OCEAN_LANDMARKS.sydney.lon, INDIAN_OCEAN_LANDMARKS.sydney.lat)).toBe(true);
+    expect(INDIAN_OCEAN_LANDMARKS.pointeDesAlmadies.lon - INDIAN_OCEAN_REGION.west).toBeGreaterThan(0.8);
+    expect(INDIAN_OCEAN_LANDMARKS.pointeDesAlmadies.lon - INDIAN_OCEAN_REGION.west).toBeLessThan(2);
+    expect(INDIAN_OCEAN_LANDMARKS.wilsonsPromontory.lat - INDIAN_OCEAN_REGION.south).toBeGreaterThan(0.8);
+    expect(INDIAN_OCEAN_LANDMARKS.wilsonsPromontory.lat - INDIAN_OCEAN_REGION.south).toBeLessThan(2);
+    expect(INDIAN_OCEAN_REGION.east - INDIAN_OCEAN_LANDMARKS.sydney.lon).toBeLessThan(5);
+    expect(isInsideIndianOceanBbox(147.32, -42.88), "Hobart / Tasmania").toBe(false);
+    expect(isInsideIndianOceanBbox(147.0, -41.4), "Launceston / Tasmania").toBe(false);
+    expect(isInsideIndianOceanBbox(-23.51, 14.92), "Praia / Cape Verde").toBe(false);
+    expect(isInsideIndianOceanBbox(-9.14, 41.15), "Porto").toBe(false);
+  });
+
+  it("does not stretch the Indian Ocean to the window aspect", () => {
+    const midLat = ((INDIAN_OCEAN_REGION.north + INDIAN_OCEAN_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(INDIAN_OCEAN_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(INDIAN_OCEAN_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(INDIAN_OCEAN_REGION, fitted.width, fitted.height, 72.4, 0);
+      const east = lonLatToMapPoint(INDIAN_OCEAN_REGION, fitted.width, fitted.height, 73.4, 0);
+      const north = lonLatToMapPoint(INDIAN_OCEAN_REGION, fitted.width, fitted.height, 72.4, 1);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps Lisbon and Melbourne as land on opposite corners", async () => {
+    const { grid, heights } = await generateIndianOcean(6);
+    const lisbon = nearestIndianOceanCell(
+      grid,
+      INDIAN_OCEAN_LANDMARKS.lisbon.lon,
+      INDIAN_OCEAN_LANDMARKS.lisbon.lat,
+      heights
+    );
+    const melbourne = nearestIndianOceanCell(
+      grid,
+      INDIAN_OCEAN_LANDMARKS.melbourne.lon,
+      INDIAN_OCEAN_LANDMARKS.melbourne.lat,
+      heights
+    );
+    expect(heights[lisbon]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    expect(heights[melbourne]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+
+    const [lx, ly] = grid.points[lisbon];
+    const [mx, my] = grid.points[melbourne];
+    expect(lx, "Lisbon is on the western half").toBeLessThan(INDIAN_OCEAN_GRAPH.width / 2);
+    expect(ly, "Lisbon is on the northern half").toBeLessThan(INDIAN_OCEAN_GRAPH.height / 2);
+    expect(mx, "Melbourne is on the eastern half").toBeGreaterThan(INDIAN_OCEAN_GRAPH.width / 2);
+    expect(my, "Melbourne is on the southern half").toBeGreaterThan(INDIAN_OCEAN_GRAPH.height / 2);
+
+    const iberia = landComponentId(heights, grid, lisbon);
+    const australia = landComponentId(heights, grid, melbourne);
+    expect(iberia, "iberia land").toBeGreaterThanOrEqual(0);
+    expect(australia, "australia land").toBeGreaterThanOrEqual(0);
+    expect(iberia !== australia, `Iberia-Australia ${iberia}/${australia}`).toBe(true);
+
+    const raster = await loadEarthRaster(INDIAN_OCEAN_REGION);
+    expect(sampleLand(raster, INDIAN_OCEAN_LANDMARKS.sydney.lon, INDIAN_OCEAN_LANDMARKS.sydney.lat), "Sydney").toBe(
+      true
+    );
+    expect(sampleLand(raster, INDIAN_OCEAN_LANDMARKS.perth.lon, INDIAN_OCEAN_LANDMARKS.perth.lat), "Perth").toBe(true);
+    expect(sampleLand(raster, INDIAN_OCEAN_LANDMARKS.dakar.lon, INDIAN_OCEAN_LANDMARKS.dakar.lat), "Dakar").toBe(true);
+    expect(sampleLand(raster, -17.48, 14.72), "Cap-Vert west land").toBe(true);
+    expect(sampleLand(raster, -18.2, 14.74), "ocean west of Dakar").toBe(false);
+    expect(
+      sampleLand(raster, INDIAN_OCEAN_LANDMARKS.wilsonsPromontory.lon, INDIAN_OCEAN_LANDMARKS.wilsonsPromontory.lat),
+      "Wilsons Promontory"
+    ).toBe(true);
+    expect(sampleLand(raster, 146.42, -39.75), "ocean south of Wilsons Promontory").toBe(false);
+    expect(sampleLand(raster, 150.5, -38.2), "ocean SE of Cape Howe").toBe(false);
+    expect(sampleLand(raster, 147.32, -42.88), "Hobart raster").toBe(false);
   }, 20000);
 });

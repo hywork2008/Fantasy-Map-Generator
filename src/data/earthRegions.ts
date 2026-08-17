@@ -81,6 +81,14 @@ const CARIBBEAN_STRAITS: EarthStrait[] = [
 
 const EUROPE_STRAITS: EarthStrait[] = [...BRITAIN_STRAITS, ...MEDITERRANEAN_STRAITS];
 
+const INDIAN_OCEAN_STRAITS: EarthStrait[] = [
+  { name: "Gibraltar", a: [-5.61, 36.01], b: [-5.42, 35.92], widthKm: 14 },
+  { name: "BabElMandeb", a: [43.32, 12.69], b: [43.48, 12.65], widthKm: 26 },
+  { name: "Hormuz", a: [56.35, 26.57], b: [56.52, 27.05], widthKm: 39 },
+  { name: "Malacca", a: [100.35, 2.85], b: [101.35, 2.45], widthKm: 65 },
+  { name: "Sunda", a: [105.4, -5.9], b: [105.7, -6.5], widthKm: 24 }
+];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -296,6 +304,33 @@ export const EUROPE_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). EU members and candidates from Ireland to Georgia stay complete; Iceland is off-map."
 };
 
+/**
+ * Indian Ocean theatre: Dakar (Cap-Vert) at the west edge, mainland
+ * Australia at the lower-right. Padded ~1.2° west of Pointe des Almadies
+ * and ~1.2° south of Wilsons Promontory so a coastal sea lane can pass
+ * Dakar and turn from Australia's south coast to the east coast (Bass
+ * Strait north channel). Tasmania stays off the south edge. The graph
+ * is fitted to this bbox's true shape.
+ */
+export const INDIAN_OCEAN_REGION: EarthRegion = {
+  id: "indian-ocean",
+  name: "Indian Ocean",
+  west: -18.7,
+  east: 155.3,
+  south: -40.3,
+  north: 39.7,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 48.3333,
+    latitude: -0.3,
+    longitude: 13.28
+  },
+  raster: { path: "./heightmaps/earth/indian-ocean.bin" },
+  topology: { keepStraits: INDIAN_OCEAN_STRAITS },
+  previewPng: "./heightmaps/indian-ocean.png",
+  attribution: "Natural Earth 10m admin-0 land (public domain). Dakar to mainland Australia; Tasmania is off-map."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
@@ -304,7 +339,8 @@ export const earthRegions: Record<string, EarthRegion> = {
   "europe-central": EUROPE_CENTRAL_REGION,
   atlantics: ATLANTICS_REGION,
   caribbean: CARIBBEAN_REGION,
-  europe: EUROPE_REGION
+  europe: EUROPE_REGION,
+  "indian-ocean": INDIAN_OCEAN_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

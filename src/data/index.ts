@@ -20,6 +20,7 @@ export {
   earthRegionMapCoordinates,
   earthRegions,
   getEarthRegion,
+  INDIAN_OCEAN_REGION,
   isEarthRegion,
   JAPAN_REGION,
   LEGACY_PRECREATED_CLIMATE,

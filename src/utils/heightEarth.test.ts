@@ -8,6 +8,7 @@ import {
   EUROPE_CENTRAL_REGION,
   EUROPE_REGION,
   earthRegionMapCoordinates,
+  INDIAN_OCEAN_REGION,
   JAPAN_REGION,
   LEGACY_PRECREATED_CLIMATE,
   MEDITERRANEAN_SEA_REGION
@@ -148,5 +149,18 @@ describe("europe climate conversion", () => {
     expect(coords.latN).toBeCloseTo(71.5, 5);
     expect(EUROPE_REGION.climateAnchor.mapSize).toBeCloseTo(((47.5 - -11.5) / 360) * 100, 3);
     expect(EUROPE_REGION.climateAnchor.latitude).toBeCloseTo((34 + 71.5) / 2, 5);
+  });
+});
+
+describe("indian-ocean climate conversion", () => {
+  it("anchors climate to the Dakar–Australia bbox and excludes Tasmania", () => {
+    const coords = earthRegionMapCoordinates(INDIAN_OCEAN_REGION);
+    expect(coords.lonW).toBeCloseTo(-18.7, 5);
+    expect(coords.lonE).toBeCloseTo(155.3, 5);
+    expect(coords.latS).toBeCloseTo(-40.3, 5);
+    expect(coords.latN).toBeCloseTo(39.7, 5);
+    expect(coords.latS).toBeGreaterThan(-40.6);
+    expect(INDIAN_OCEAN_REGION.climateAnchor.mapSize).toBeCloseTo(((155.3 - -18.7) / 360) * 100, 3);
+    expect(INDIAN_OCEAN_REGION.climateAnchor.latitude).toBeCloseTo((-40.3 + 39.7) / 2, 5);
   });
 });
