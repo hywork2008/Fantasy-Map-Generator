@@ -47,7 +47,10 @@ export function buildTemplatePreview(id: string, seed: string, scheme: string, r
 
 export async function buildPrecreatedPreview(id: string, scheme: string, renderOcean: boolean): Promise<string> {
   const graph = getOrComputeGraph();
-  const heights = await HeightmapGenerator.fromPrecreated(graph, id);
+  const region = getEarthRegion(id);
+  const heights = region
+    ? await HeightmapGenerator.fromEarthRegion(graph, region)
+    : await HeightmapGenerator.fromPrecreated(graph, id);
   return renderHeightmapToDataUrl(heights, graph, scheme, renderOcean);
 }
 

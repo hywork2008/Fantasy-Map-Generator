@@ -16,6 +16,7 @@ export {
   earthRegions,
   getEarthRegion,
   isEarthRegion,
+  JAPAN_REGION,
   LEGACY_PRECREATED_CLIMATE
 } from "./earthRegions";
 export {

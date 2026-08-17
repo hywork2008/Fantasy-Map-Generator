@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | Phase 0–2 implemented (2026-08-18). east-asia は `fromEarthRegion()`。PNG 経路は他 id とユーザー投入用に残存 |
+| Status | Phase 0–2 implemented (2026-08-18). Phase 3 in progress: `japan` Earth region added (four home islands, Kyushu SW – Hokkaido NE). britain 等は未着手。PNG 経路は他 id とユーザー投入用に残存 |
 | Parent | なし |
 | Related | [`../map-initialization-process.md`](../map-initialization-process.md)、[`src/generators/heightmap-generator.ts`](../../src/generators/heightmap-generator.ts)、[`src/data/precreated-heightmaps.ts`](../../src/data/precreated-heightmaps.ts)、[`src/data/earthConfig.ts`](../../src/data/earthConfig.ts)、[`public/heightmaps/import-rules.txt`](../../public/heightmaps/import-rules.txt)、日本パッチ [`../../scripts/patchEastAsiaJapan.mjs`](../../scripts/patchEastAsiaJapan.mjs) |
 | Scope | precreated heightmap（`east-asia` など実在地域のカタログ）を、「Heightmapper のスクショ PNG を世界とみなす」経路から、「公開 DEM ＋ 陸海ベクトルをセル中心でサンプルする」経路へ置き換える設計。手続生成テンプレ（Archipelago / Pangea 等）は対象外 |
@@ -355,6 +355,7 @@ PNG に太い溝を塗ってダウンサンプルに賭けるのをやめる。�
 
 ### Phase 3 — カタログ展開と任意ハイドロ
 
+- `japan` を追加済み。bbox は九州南西〜北海道北東（129.2–145.82°E, 30.95–45.55°N）。Google Maps `@38.73N, 136.78E, z≈5.83` 相当。陸マスクは本州・北海道・九州・四国のみ（沖縄・北方領土・小島は含めない）。
 - britain、mediterranean-sea、iceland など、範囲が狭く検証しやすい id から `EarthRegion` 化する。
 - world / world-from-pacific は投影（太平洋中心）が特殊なので後回し。
 - 任意: 主要河川ベクトルを種にする。

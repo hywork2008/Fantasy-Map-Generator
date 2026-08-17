@@ -17,6 +17,7 @@ const precreatedHeightmaps = {
   hellenica: {id: 13, name: "Hellenica"},
   iceland: {id: 14, name: "Iceland"},
   "indian-ocean": {id: 15, name: "Indian Ocean"},
+  japan: {id: 23, name: "Japan"},
   "mediterranean-sea": {id: 16, name: "Mediterranean Sea"},
   "middle-east": {id: 17, name: "Middle East"},
   "north-america": {id: 18, name: "North America"},

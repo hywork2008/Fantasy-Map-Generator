@@ -7,8 +7,9 @@ To get heightmap with correct height scale:
 6. Render image
 7. Optionally rescale image to a smaller size (e.g. 500x300px) as high resolution is not used
 
-Earth regions (east-asia) do not use this PNG path. They sample
+Earth regions (east-asia, japan) do not use this PNG path. They sample
 public-domain DEM + land polygons at cell centroids. See
 docs/plan/earth-geography-heightmaps.md and
-public/heightmaps/earth/README.md. Rebuild the raster with:
+public/heightmaps/earth/README.md. Rebuild the rasters with:
   node scripts/bakeEastAsiaEarthRaster.mjs
+  node scripts/bakeJapanEarthRaster.mjs

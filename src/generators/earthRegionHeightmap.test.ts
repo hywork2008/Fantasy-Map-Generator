@@ -3,7 +3,7 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
-import { EAST_ASIA_REGION } from "../data/earthRegions";
+import { EAST_ASIA_REGION, JAPAN_REGION } from "../data/earthRegions";
 import { useOptionsState } from "../store/optionsState";
 import { generateGrid } from "../utils/graphUtils";
 import { mapPointToLonLat } from "./earthRegionRaster";
@@ -91,5 +91,98 @@ describe("fromEarthRegion east-asia", () => {
     expect(honshu !== shikoku, `Honshu-Shikoku ${honshu}/${shikoku}`).toBe(true);
     expect(honshu !== kyushu, `Honshu-Kyushu ${honshu}/${kyushu}`).toBe(true);
     expect(shikoku !== kyushu, `Shikoku-Kyushu ${shikoku}/${kyushu}`).toBe(true);
+  }, 20000);
+});
+
+async function generateJapan(points = 4) {
+  worldContext.graphWidth = GRAPH_WIDTH;
+  worldContext.graphHeight = GRAPH_HEIGHT;
+  useOptionsState.getState().setOptions({ points, template: "japan", heightExponent: 1.8 });
+  const grid = generateGrid("earth-japan-test", GRAPH_WIDTH, GRAPH_HEIGHT);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestJapanCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+const OFF_MAP = {
+  okinawa: { lon: 127.68, lat: 26.21 },
+  kunashiri: { lon: 146.05, lat: 44.4 },
+  tsushima: { lon: 129.33, lat: 34.38 },
+  sado: { lon: 138.37, lat: 38.02 }
+};
+
+function isInsideJapanBbox(lon: number, lat: number): boolean {
+  return lon >= JAPAN_REGION.west && lon <= JAPAN_REGION.east && lat >= JAPAN_REGION.south && lat <= JAPAN_REGION.north;
+}
+
+describe("fromEarthRegion japan", () => {
+  it("frames Kyushu in the south-west and Hokkaido in the north-east", () => {
+    expect(JAPAN_REGION.west).toBeCloseTo(129.2, 5);
+    expect(JAPAN_REGION.south).toBeCloseTo(30.95, 5);
+    expect(JAPAN_REGION.east).toBeCloseTo(145.82, 5);
+    expect(JAPAN_REGION.north).toBeCloseTo(45.55, 5);
+    expect(JAPAN_REGION.east).toBeLessThan(146);
+    expect(JAPAN_REGION.south).toBeGreaterThan(30);
+    expect(isInsideJapanBbox(LANDMARKS.kyushu.lon, LANDMARKS.kyushu.lat)).toBe(true);
+    expect(isInsideJapanBbox(LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat)).toBe(true);
+    expect(isInsideJapanBbox(OFF_MAP.okinawa.lon, OFF_MAP.okinawa.lat)).toBe(false);
+    expect(isInsideJapanBbox(OFF_MAP.kunashiri.lon, OFF_MAP.kunashiri.lat)).toBe(false);
+  });
+
+  it("keeps Kanto as land and the four home islands separate", async () => {
+    const { grid, heights } = await generateJapan(6);
+    const kanto = nearestJapanCell(grid, LANDMARKS.kanto.lon, LANDMARKS.kanto.lat, heights);
+    expect(heights[kanto]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    const here = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, ...grid.points[kanto]);
+    expect(Math.hypot(here.lon - LANDMARKS.kanto.lon, here.lat - LANDMARKS.kanto.lat)).toBeLessThan(0.4);
+
+    const kyushuCell = nearestJapanCell(grid, LANDMARKS.kyushu.lon, LANDMARKS.kyushu.lat, heights);
+    const hokkaidoCell = nearestJapanCell(grid, LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat, heights);
+    const [kx, ky] = grid.points[kyushuCell];
+    const [hx, hy] = grid.points[hokkaidoCell];
+    expect(kx, "Kyushu is on the western half").toBeLessThan(GRAPH_WIDTH / 2);
+    expect(ky, "Kyushu is on the southern half").toBeGreaterThan(GRAPH_HEIGHT / 2);
+    expect(hx, "Hokkaido is on the eastern half").toBeGreaterThan(GRAPH_WIDTH / 2);
+    expect(hy, "Hokkaido is on the northern half").toBeLessThan(GRAPH_HEIGHT / 2);
+
+    const hokkaido = landComponentId(heights, grid, hokkaidoCell);
+    const honshu = landComponentId(heights, grid, nearestJapanCell(grid, LANDMARKS.kanto.lon, LANDMARKS.kanto.lat));
+    const shikoku = landComponentId(
+      heights,
+      grid,
+      nearestJapanCell(grid, LANDMARKS.shikoku.lon, LANDMARKS.shikoku.lat)
+    );
+    const kyushu = landComponentId(heights, grid, kyushuCell);
+    expect(new Set([hokkaido, honshu, shikoku, kyushu]).size).toBe(4);
+
+    for (const [name, place] of Object.entries(OFF_MAP)) {
+      if (!isInsideJapanBbox(place.lon, place.lat)) continue;
+      const cell = nearestJapanCell(grid, place.lon, place.lat);
+      const sampled = mapPointToLonLat(JAPAN_REGION, GRAPH_WIDTH, GRAPH_HEIGHT, ...grid.points[cell]);
+      if (Math.hypot(sampled.lon - place.lon, sampled.lat - place.lat) > 0.25) continue;
+      expect(heights[cell], `${name} should stay off the four-island mask`).toBeLessThan(
+        HeightThreshold.WATER_MAX_HEIGHT
+      );
+    }
   }, 20000);
 });

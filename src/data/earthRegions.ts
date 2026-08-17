@@ -40,6 +40,17 @@ export interface EarthRegion {
   attribution: string;
 }
 
+const JAPAN_STRAITS: EarthStrait[] = [
+  { name: "Tsugaru", a: [140.848, 41.255], b: [140.209, 41.425], widthKm: 19.5 },
+  { name: "Kanmon", a: [130.945, 33.958], b: [130.955, 33.906], widthKm: 0.7 },
+  { name: "Bungo", a: [132.017, 33.267], b: [131.885, 33.276], widthKm: 14 },
+  { name: "Akashi", a: [135.035, 34.645], b: [135.01, 34.575], widthKm: 4 },
+  { name: "Naruto", a: [134.662, 34.255], b: [134.638, 34.205], widthKm: 1.3 },
+  { name: "Kurushima", a: [133.199, 34.407], b: [132.999, 34.066], widthKm: 4 },
+  { name: "KiiChannel", a: [135.35, 33.9], b: [134.45, 34.05], widthKm: 40 },
+  { name: "Kojima-Sakaide", a: [133.79, 34.47], b: [133.85, 34.32], widthKm: 12 }
+];
+
 /**
  * East Asia: eastern Himalaya / Yunnan through Japan and the Korean peninsula.
  *
@@ -64,24 +75,39 @@ export const EAST_ASIA_REGION: EarthRegion = {
   },
   raster: { path: "./heightmaps/earth/east-asia.bin" },
   topology: {
-    keepStraits: [
-      { name: "Tsugaru", a: [140.848, 41.255], b: [140.209, 41.425], widthKm: 19.5 },
-      { name: "Kanmon", a: [130.945, 33.958], b: [130.955, 33.906], widthKm: 0.7 },
-      { name: "Bungo", a: [132.017, 33.267], b: [131.885, 33.276], widthKm: 14 },
-      { name: "Akashi", a: [135.035, 34.645], b: [135.01, 34.575], widthKm: 4 },
-      { name: "Naruto", a: [134.662, 34.255], b: [134.638, 34.205], widthKm: 1.3 },
-      { name: "Kurushima", a: [133.199, 34.407], b: [132.999, 34.066], widthKm: 4 },
-      { name: "KiiChannel", a: [135.35, 33.9], b: [134.45, 34.05], widthKm: 40 },
-      { name: "Kojima-Sakaide", a: [133.79, 34.47], b: [133.85, 34.32], widthKm: 12 }
-    ]
+    keepStraits: JAPAN_STRAITS
   },
   previewPng: "./heightmaps/east-asia.png",
   attribution:
     "Natural Earth 10m admin-0 land polygons (public domain). Japan is the JPN feature; Korea/China follow Natural Earth."
 };
 
+/**
+ * Four home islands only: Kyushu at the lower-left, Hokkaido at the upper-right.
+ * Framed around Google Maps @38.73N, 136.78E, z≈5.83. Okinawa, the Northern
+ * Territories, and other small islands are left off the map.
+ */
+export const JAPAN_REGION: EarthRegion = {
+  id: "japan",
+  name: "Japan",
+  west: 129.2,
+  east: 145.82,
+  south: 30.95,
+  north: 45.55,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 4.6167,
+    latitude: 38.25,
+    longitude: 9.96
+  },
+  raster: { path: "./heightmaps/earth/japan.bin" },
+  topology: { keepStraits: JAPAN_STRAITS },
+  attribution: "Natural Earth 10m admin-0 JPN, restricted to Honshu, Hokkaido, Kyushu, and Shikoku (public domain)."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
-  "east-asia": EAST_ASIA_REGION
+  "east-asia": EAST_ASIA_REGION,
+  japan: JAPAN_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

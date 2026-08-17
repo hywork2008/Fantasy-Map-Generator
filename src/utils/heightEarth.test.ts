@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
-import { EAST_ASIA_REGION, earthRegionMapCoordinates, LEGACY_PRECREATED_CLIMATE } from "../data/earthRegions";
+import {
+  EAST_ASIA_REGION,
+  earthRegionMapCoordinates,
+  JAPAN_REGION,
+  LEGACY_PRECREATED_CLIMATE
+} from "../data/earthRegions";
 import { depthMetersToHeight, depthToMeters, heightToMeters, metersToHeight } from "./height";
 
 describe("metersToHeight / heightToMeters", () => {
@@ -53,5 +58,17 @@ describe("legacy east-asia climate conversion", () => {
     expect(coords.lonW).toBe(90);
     expect(coords.lonE).toBe(150);
     expect(coords.latS).toBeGreaterThan(0);
+  });
+});
+
+describe("japan climate conversion", () => {
+  it("anchors climate to the four-island bbox (Kyushu SW – Hokkaido NE)", () => {
+    const coords = earthRegionMapCoordinates(JAPAN_REGION);
+    expect(coords.lonW).toBeCloseTo(129.2, 5);
+    expect(coords.lonE).toBeCloseTo(145.82, 5);
+    expect(coords.latS).toBeCloseTo(30.95, 5);
+    expect(coords.latN).toBeCloseTo(45.55, 5);
+    expect(JAPAN_REGION.climateAnchor.mapSize).toBeCloseTo(((145.82 - 129.2) / 360) * 100, 3);
+    expect(JAPAN_REGION.climateAnchor.latitude).toBeCloseTo((30.95 + 45.55) / 2, 5);
   });
 });
