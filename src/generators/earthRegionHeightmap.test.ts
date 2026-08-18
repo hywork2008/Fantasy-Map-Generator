@@ -112,7 +112,13 @@ describe("fromEarthRegion east-asia", () => {
     }
   }, 20000);
 
-  it("keeps Hokkaido, Honshu, Shikoku and Kyushu in separate land components", async () => {
+  // EAST_ASIA_REGION intentionally has no `topology.keepStraits` (see the doc comment on
+  // EAST_ASIA_REGION in earthRegions.ts): at this bbox's ~2x coarser grid, reusing JAPAN_STRAITS's
+  // carve radii forced 90+ km-wide corridors across the Seto Inland Sea and Kanmon, swallowing the
+  // real Sanyo coastal plain. Without that forcing, Honshu/Shikoku/Kyushu can fuse into one
+  // component here — only Hokkaido (behind the wider, naturally-deep Tsugaru Strait) reliably
+  // stays separate. Use JAPAN_REGION when Honshu/Shikoku/Kyushu must render as distinct landmasses.
+  it("keeps Hokkaido separate from the Honshu/Shikoku/Kyushu mainland", async () => {
     const { grid, heights } = await generateEastAsia(6);
     const hokkaido = landComponentId(
       heights,
@@ -120,24 +126,9 @@ describe("fromEarthRegion east-asia", () => {
       nearestCell(grid, LANDMARKS.hokkaido.lon, LANDMARKS.hokkaido.lat, heights)
     );
     const honshu = landComponentId(heights, grid, nearestCell(grid, LANDMARKS.kanto.lon, LANDMARKS.kanto.lat, heights));
-    const shikoku = landComponentId(
-      heights,
-      grid,
-      nearestCell(grid, LANDMARKS.shikoku.lon, LANDMARKS.shikoku.lat, heights)
-    );
-    const kyushu = landComponentId(
-      heights,
-      grid,
-      nearestCell(grid, LANDMARKS.kyushu.lon, LANDMARKS.kyushu.lat, heights)
-    );
     expect(hokkaido, "hokkaido land").toBeGreaterThanOrEqual(0);
     expect(honshu, "honshu land").toBeGreaterThanOrEqual(0);
-    expect(shikoku, "shikoku land").toBeGreaterThanOrEqual(0);
-    expect(kyushu, "kyushu land").toBeGreaterThanOrEqual(0);
     expect(hokkaido !== honshu, `Hokkaido-Honshu ${hokkaido}/${honshu}`).toBe(true);
-    expect(honshu !== shikoku, `Honshu-Shikoku ${honshu}/${shikoku}`).toBe(true);
-    expect(honshu !== kyushu, `Honshu-Kyushu ${honshu}/${kyushu}`).toBe(true);
-    expect(shikoku !== kyushu, `Shikoku-Kyushu ${shikoku}/${kyushu}`).toBe(true);
   }, 20000);
 });
 

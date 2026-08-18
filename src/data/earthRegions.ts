@@ -110,6 +110,15 @@ const ARABIA_STRAITS: EarthStrait[] = [
  * reconstructed to ~110.3–149.9°E, center ~35.2°N — a tighter window on
  * the same theatre. This bbox is wider so Tibet and Hokkaido stay on-map
  * together; climate uses this bbox, not the legacy shift.
+ *
+ * Deliberately has no `topology.keepStraits`, unlike `JAPAN_REGION`. This bbox covers roughly
+ * 5.6x JAPAN_REGION's area at the same default cell budget, so its grid is ~2x coarser
+ * (~46 km/cell vs. ~21 km/cell at 10K cells) — `applyStraits()`'s carve radius scales with
+ * `grid.spacing`, so reusing `JAPAN_STRAITS` here forced ~90+ km-wide corridors across the Seto
+ * Inland Sea, swallowing the real Sanyo coastal plain (Osaka–Kobe–Okayama–Hiroshima) well beyond
+ * what any strait actually needed. At this scale the western-Japan landmasses occasionally fusing
+ * across a strait is the smaller visual defect; use `JAPAN_REGION` when precise strait separation
+ * (Honshu/Shikoku/Kyushu as distinct landmasses) matters.
  */
 export const EAST_ASIA_REGION: EarthRegion = {
   id: "east-asia",
@@ -125,9 +134,6 @@ export const EAST_ASIA_REGION: EarthRegion = {
     longitude: 10
   },
   raster: { path: "./heightmaps/earth/east-asia.bin" },
-  topology: {
-    keepStraits: JAPAN_STRAITS
-  },
   previewPng: "./heightmaps/east-asia.png",
   attribution:
     "Natural Earth 10m admin-0 land polygons (public domain). Japan is the JPN feature; Korea/China follow Natural Earth."
