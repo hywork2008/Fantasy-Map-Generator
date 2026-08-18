@@ -78,6 +78,76 @@ function pointToSegmentDistance(px: number, py: number, ax: number, ay: number, 
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
+/** Flood-fills every grid cell within `radiusPx` of the [start, end] segment to water. Idempotent
+ * and monotonic (only ever turns land into water), so calling it again with a larger radius for
+ * the same segment safely extends a previous, smaller carve rather than needing to undo it. */
+function carveCorridor(
+  heights: Uint8Array,
+  grid: Grid,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  radiusPx: number
+): void {
+  const steps = Math.max(4, Math.ceil(Math.hypot(end.x - start.x, end.y - start.y) / Math.max(grid.spacing / 2, 1)));
+  const seen = new Set<number>();
+  for (let step = 0; step <= steps; step++) {
+    const t = step / steps;
+    const x = start.x + (end.x - start.x) * t;
+    const y = start.y + (end.y - start.y) * t;
+    const seed = findGridCell(x, y, grid);
+    const queue = [seed];
+    while (queue.length) {
+      const cell = queue.pop();
+      if (cell == null || seen.has(cell)) continue;
+      const [cx, cy] = grid.points[cell];
+      if (pointToSegmentDistance(cx, cy, start.x, start.y, end.x, end.y) > radiusPx) continue;
+      seen.add(cell);
+      if (heights[cell] >= HeightThreshold.WATER_MAX_HEIGHT) {
+        heights[cell] = HeightThreshold.WATER_MAX_HEIGHT - 2;
+      }
+      const neighbors = grid.cells.c[cell];
+      if (!neighbors) continue;
+      for (const neighbor of neighbors) {
+        if (!seen.has(neighbor)) queue.push(neighbor);
+      }
+    }
+  }
+}
+
+/** BFS over land cells only (mirrors the test suite's landmass-separation check). Returns the
+ * smallest cell index in the connected land component containing `start`, or -1 if `start` isn't
+ * land. Two probes return equal ids iff they're still connected by an unbroken land path. */
+function landComponentId(heights: Uint8Array, grid: Grid, start: number): number {
+  if (start < 0 || heights[start] < HeightThreshold.WATER_MAX_HEIGHT) return -1;
+  const seen = new Uint8Array(heights.length);
+  const stack = [start];
+  seen[start] = 1;
+  let min = start;
+  while (stack.length) {
+    const cell = stack.pop() as number;
+    if (cell < min) min = cell;
+    for (const neighbor of grid.cells.c[cell] ?? []) {
+      if (seen[neighbor] || heights[neighbor] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+      seen[neighbor] = 1;
+      stack.push(neighbor);
+    }
+  }
+  return min;
+}
+
+/**
+ * Radius multipliers (of `grid.spacing`) tried in increasing order before falling back to the
+ * legacy 1.05 floor. `1.05` is a topology-safety floor, not a real-world width: at coarse
+ * Earth-region resolutions (e.g. Japan's default ~21 km/cell) it forced every strait narrower
+ * than ~1.5 cells (Naruto is 1.3 km wide!) into a ~44 km-wide carved corridor regardless of the
+ * strait's actual width, and with several such straits packed across the Seto Inland Sea, the
+ * oversized corridors overlapped and ate into the Sanyo coastal plain (Osaka–Kobe–Okayama–
+ * Hiroshima) on both shores. Growing the radius only until the strait's own two shores are
+ * verifiably disconnected keeps the same worst-case guarantee (the last candidate matches the old
+ * floor exactly) while using far less of it in the common case where a smaller cut already works.
+ */
+const STRAIT_RADIUS_FLOOR_MULTIPLIERS = [0.55, 0.7, 0.85, 1.05];
+
 function applyStraits(
   heights: Uint8Array,
   grid: Grid,
@@ -94,7 +164,6 @@ function applyStraits(
 
   for (const strait of straits) {
     const widthCells = Math.max(1, Math.round(strait.widthKm / Math.max(cellKm, 1e-6)));
-    const radiusPx = Math.max(grid.spacing * 1.05, (widthCells * grid.spacing) / 2);
     let start = lonLatToMapPoint(region, graphWidth, graphHeight, strait.a[0], strait.a[1]);
     let end = lonLatToMapPoint(region, graphWidth, graphHeight, strait.b[0], strait.b[1]);
     const dx = end.x - start.x;
@@ -109,29 +178,34 @@ function applyStraits(
       start = { x: mx - (ux * minLength) / 2, y: my - (uy * minLength) / 2 };
       end = { x: mx + (ux * minLength) / 2, y: my + (uy * minLength) / 2 };
     }
-    const steps = Math.max(4, Math.ceil(Math.hypot(end.x - start.x, end.y - start.y) / Math.max(grid.spacing / 2, 1)));
-    const seen = new Set<number>();
-    for (let step = 0; step <= steps; step++) {
-      const t = step / steps;
-      const x = start.x + (end.x - start.x) * t;
-      const y = start.y + (end.y - start.y) * t;
-      const seed = findGridCell(x, y, grid);
-      const queue = [seed];
-      while (queue.length) {
-        const cell = queue.pop();
-        if (cell == null || seen.has(cell)) continue;
-        const [cx, cy] = grid.points[cell];
-        if (pointToSegmentDistance(cx, cy, start.x, start.y, end.x, end.y) > radiusPx) continue;
-        seen.add(cell);
-        if (heights[cell] >= HeightThreshold.WATER_MAX_HEIGHT) {
-          heights[cell] = HeightThreshold.WATER_MAX_HEIGHT - 2;
-        }
-        const neighbors = grid.cells.c[cell];
-        if (!neighbors) continue;
-        for (const neighbor of neighbors) {
-          if (!seen.has(neighbor)) queue.push(neighbor);
-        }
-      }
+
+    // Probe cells sit well past each end of the (possibly extended) segment, on the shore each
+    // side represents, so we can tell whether a given carve radius actually cut the land bridge
+    // between them. The offset must clear every radius candidate below, so probes never end up
+    // inside the corridor themselves.
+    const maxCandidateRadius = Math.max(
+      grid.spacing * STRAIT_RADIUS_FLOOR_MULTIPLIERS[STRAIT_RADIUS_FLOOR_MULTIPLIERS.length - 1],
+      (widthCells * grid.spacing) / 2
+    );
+    const probeOffset = maxCandidateRadius + grid.spacing * 0.3;
+    const segLen = Math.hypot(end.x - start.x, end.y - start.y) || 1;
+    const ux = (end.x - start.x) / segLen;
+    const uy = (end.y - start.y) / segLen;
+    const probeA = findGridCell(start.x - ux * probeOffset, start.y - uy * probeOffset, grid);
+    const probeB = findGridCell(end.x + ux * probeOffset, end.y + uy * probeOffset, grid);
+    const probeALand = heights[probeA] >= HeightThreshold.WATER_MAX_HEIGHT;
+    const probeBLand = heights[probeB] >= HeightThreshold.WATER_MAX_HEIGHT;
+
+    for (const multiplier of STRAIT_RADIUS_FLOOR_MULTIPLIERS) {
+      const radiusPx = Math.max(grid.spacing * multiplier, (widthCells * grid.spacing) / 2);
+      carveCorridor(heights, grid, start, end, radiusPx);
+      const isLastCandidate =
+        multiplier === STRAIT_RADIUS_FLOOR_MULTIPLIERS[STRAIT_RADIUS_FLOOR_MULTIPLIERS.length - 1];
+      if (isLastCandidate) break;
+      // If either shore isn't solid land to begin with, we can't verify separation this way —
+      // keep escalating to the legacy floor rather than guessing.
+      if (!probeALand || !probeBLand) continue;
+      if (landComponentId(heights, grid, probeA) !== landComponentId(heights, grid, probeB)) break;
     }
   }
 }
