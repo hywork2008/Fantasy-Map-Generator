@@ -1,4 +1,4 @@
-import { rn } from "../../hostUtils";
+import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
   getCraftDomainEmploymentRecords,
   getGuildKnowledgeLastSettledYear,
@@ -79,7 +79,7 @@ export class GuildKnowledgeModule {
       remaining.delete(key);
 
       const coverage = Math.min(1, workers / GUILD_SATURATION_WORKERS);
-      const stock = rn((previous?.stock ?? 0) * (1 - GUILD_ADOPTION_RATE) + coverage * GUILD_ADOPTION_RATE, 4);
+      const stock = rn(applyKnowledgeEwma(previous?.stock ?? 0, coverage, GUILD_ADOPTION_RATE), 4);
       // Rebuilding this entry from scratch each year must not drop its accumulated guild capital
       // (docs/plan/burg-treasury-equilibrium.md §3.1) — only `stock` (technique) is recomputed here.
       next.push({ burgId, domain, stock, treasury: previous?.treasury ?? 0 });
@@ -88,7 +88,7 @@ export class GuildKnowledgeModule {
     // A Burg whose practitioners vanished (site closed, workers reassigned) keeps its guild hall
     // decaying for a while instead of vanishing the instant its last worker leaves.
     for (const orphan of remaining.values()) {
-      const stock = rn(orphan.stock * (1 - GUILD_DECAY_RATE), 4);
+      const stock = rn(applyKnowledgeEwma(orphan.stock, 0, GUILD_DECAY_RATE), 4);
       if (stock > MIN_TRACKED_STOCK) next.push({ ...orphan, stock });
     }
 

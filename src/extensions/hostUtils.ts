@@ -35,3 +35,8 @@ export {
   getSeasonalTemperatureOffset,
   type Season
 } from "../utils/seasonUtils";
+export {
+  applyKnowledgeEwma,
+  clampTechnologyDevelopmentSpeed,
+  getTechnologyDevelopmentSpeed
+} from "../utils/technologyDevelopmentSpeed";

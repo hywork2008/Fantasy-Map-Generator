@@ -1,4 +1,5 @@
 import { Routes } from "../../../generators/routes-generator";
+import { getAtmosphericSteamDrainageBonus } from "../../../generators/technologyProgress";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -413,7 +414,9 @@ export class MineOperationsModule {
         continue;
       }
 
-      const extractionFactor = getMineExtractionFactor(operation, deposit);
+      const burg = getWorldContext().pack.burgs?.[operation.burgId];
+      const steamDrainage = Math.min(1, operation.drainage + getAtmosphericSteamDrainageBonus(burg?.state ?? 0));
+      const extractionFactor = getMineExtractionFactor({ ...operation, drainage: steamDrainage }, deposit);
       const annualOutput: Partial<Record<MineralCommodity, number>> = {};
 
       for (const yieldInfo of deposit.yields) {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { worldContext } from "../../hostCore";
+import { useOptionsState, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -29,7 +29,10 @@ describe("GuildKnowledgeModule", () => {
     } as unknown as PackedGraph;
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
+    clearEconomyContext();
+  });
 
   function smelter(overrides: Partial<Parameters<typeof setSmelterOperations>[0][number]> = {}) {
     return {
@@ -79,6 +82,17 @@ describe("GuildKnowledgeModule", () => {
 
     expect(stock).toBeGreaterThan(0.45);
     expect(stock).toBeLessThan(0.55);
+  });
+
+  it("matures a fully-staffed chapter in one year at 100× development speed", () => {
+    useOptionsState.setState({ technologyDevelopmentSpeed: 100 });
+    setSmelterOperations([smelter()]);
+
+    GuildKnowledge.settleAnnual();
+
+    const stock =
+      getGuildKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "metallurgy")?.stock ?? 0;
+    expect(stock).toBeGreaterThan(0.99);
   });
 
   it("decays the stock for an inactive smelter instead of growing it", () => {

@@ -80,6 +80,7 @@ import { StateNameEditorDialog } from "./StateNameEditorDialog";
 import { StatesChartDialog } from "./StatesChartDialog";
 import { StyleSaverDialog } from "./StyleSaverDialog";
 import { SubmapToolDialog } from "./SubmapToolDialog";
+import { TechnologyOverviewDialog } from "./TechnologyOverviewDialog";
 import { TemperatureGraphDialog } from "./TemperatureGraphDialog";
 import { TemplateEditorDialog } from "./TemplateEditorDialog";
 import { TextureUrlDialog } from "./TextureUrlDialog";
@@ -185,6 +186,7 @@ export const DialogsContainer: React.FC = () => {
           <StyleSaverDialog />
           <SubmapToolDialog />
           <TemperatureGraphDialog />
+          <TechnologyOverviewDialog />
           <TemplateEditorDialog />
           <TextureUrlDialog />
           <TransformToolDialog />

@@ -1067,6 +1067,8 @@
     "playerDirected": "プレイヤー主導",
     "warFrequency": "戦争の頻度",
     "warFrequencyTip": "自律戦争が熟す速さの倍率です。1.0 が既定（おおよそ一代かけて醸成）。0.0 は自律的な激化を止めます。2.0 は頻繁な戦争です。",
+    "technologyDevelopmentSpeed": "技術の発展速度",
+    "technologyDevelopmentSpeedTip": "シミュレーション1年あたりに進む知識・技術蓄積の年数です。1倍が歴史的なペースです。大航海時代の地図では最大100倍まで上げると、蒸気機関など前工業化技術が出るまでの待ち時間を短縮できます。ギルド・学院・国家機密の蓄積と技術の普及がこの倍率に従います。",
     "currencyHeading": "通貨単位：",
     "currencyHeadingTip": "表示専用の硬貨単位です。内部の価格・国庫・個人資産は銀貨価値のまま保持されます。",
     "oneGoldPiece": "金貨 1 枚",
@@ -1304,6 +1306,10 @@
       "population": {
         "label": "人口",
         "tooltip": "人口概要を開きます — 国家別の生存数と死亡集計（統治者と設計レビュー用）"
+      },
+      "technology": {
+        "label": "技術",
+        "tooltip": "技術概要を開きます — 国家ごとの知識段階、発見年、蒸気排水機関の到達"
       },
       "provinces": {
         "label": "州",
@@ -1610,6 +1616,7 @@
       "exportPngTiles": "PNG タイルに書き出す",
       "cellInfo": "セル情報",
       "populationOverview": "人口概要",
+      "technologyOverview": "技術概要",
       "burgsOverview": "都市概要",
       "militaryOverview": "軍事概要",
       "regimentsOverview": "連隊概要",
@@ -1947,6 +1954,57 @@
       "quality": "質",
       "qualityTip": "陸上連隊の平均質（1 = 精鋭。新兵はこれを下げます）",
       "empty": "表示する国家がありません。先に地図を生成してください。"
+    },
+    "technology": {
+      "heading": "国家ごとの技術グラフ上の位置です。大気圧排水機関が知られているか、実証されたか、採用されたかもここに出ます。",
+      "headingTip": "段階は年次の技術評価から来ます。ギルドの Technique はこのグラフへの入力の一つにすぎません。",
+      "filterTip": "国家・時代帯・段階で絞り込みます。中世の基礎技術を隠すと、全国家が最初から持っている成熟中世技術を除きます。",
+      "state": "国家",
+      "era": "時代",
+      "stage": "段階",
+      "all": "すべて",
+      "hideBaseline": "中世の基礎技術を隠す",
+      "count": "行",
+      "countTip": "絞り込み後の行数と、有効な技術グラフ上の国家×技術の総数",
+      "countValue": "{{shown}} / {{total}}",
+      "steam": "蒸気排水",
+      "steamTip": "最初の実用蒸気機関である大気圧排水機関に、何カ国が各段階まで達しているか",
+      "steamValue": "既知 {{known}} · 実証 {{demonstrated}} · 採用 {{adopted}} · 普及 {{diffused}} / {{states}} カ国",
+      "refreshTip": "現在のシミュレーション年から再読み込み",
+      "stateCol": "国家",
+      "stateColTip": "この技術行を所有する政治国家",
+      "technologyCol": "技術",
+      "technologyColTip": "ホスト技術グラフ上のノード",
+      "eraCol": "時代",
+      "eraColTip": "成熟中世（0）から初期蒸気（5）までの帯",
+      "stageCol": "段階",
+      "stageColTip": "未解禁、既知、実証、採用、普及",
+      "knownYear": "既知",
+      "knownYearTip": "原理が初めて記録された暦年",
+      "demonstratedYear": "実証",
+      "demonstratedYearTip": "試作が成功した暦年",
+      "adoptedYear": "採用",
+      "adoptedYearTip": "制度として使い始めた暦年",
+      "diffusion": "普及",
+      "diffusionTip": "採用済み技術が国内に広がった割合",
+      "zoomTip": "この国家の首都へズーム",
+      "empty": "技術行がありません。先に地図を生成してください。",
+      "emptyFiltered": "現在の絞り込みに合う行がありません。",
+      "eras": {
+        "0": "0 中世",
+        "1": "1 後期中世",
+        "2": "2 火薬",
+        "3": "3 大航海",
+        "4": "4 前工業化",
+        "5": "5 蒸気"
+      },
+      "stages": {
+        "locked": "未解禁",
+        "known": "既知",
+        "demonstrated": "実証",
+        "adopted": "採用",
+        "diffused": "普及"
+      }
     },
     "burgEditor": {
       "tabsAria": "都市エディターの節",

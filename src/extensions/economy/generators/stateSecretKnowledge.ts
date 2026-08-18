@@ -1,4 +1,4 @@
-import { rn } from "../../hostUtils";
+import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
   getMilitaryResourceLedgers,
   getSimulationYear,
@@ -61,7 +61,7 @@ export class StateSecretKnowledgeModule {
       const demand = ledger.annualDemand.gunpowder ?? 0;
       if (demand <= 0 || !state || !state.i || state.removed) {
         if (previous) {
-          const stock = rn(previous.stock * (1 - STATE_SECRET_DECAY_RATE), 4);
+          const stock = rn(applyKnowledgeEwma(previous.stock, 0, STATE_SECRET_DECAY_RATE), 4);
           if (stock > MIN_TRACKED_STOCK) next.push({ ...previous, stock });
         }
         continue;
@@ -73,17 +73,14 @@ export class StateSecretKnowledgeModule {
       if (spend > 0) state.treasury = rn((state.treasury || 0) - spend, 2);
 
       const coverageThisYear = spend / STATE_SECRET_TARGET_ANNUAL_SPEND;
-      const stock = rn(
-        previousStock * (1 - STATE_SECRET_ADOPTION_RATE) + coverageThisYear * STATE_SECRET_ADOPTION_RATE,
-        4
-      );
+      const stock = rn(applyKnowledgeEwma(previousStock, coverageThisYear, STATE_SECRET_ADOPTION_RATE), 4);
       next.push({ stateId: ledger.stateId, domain: "pyrotechnics", stock });
     }
 
     // A state whose ledger disappeared entirely (e.g. removed before the next MilitaryResources
     // regeneration) keeps its stock decaying instead of vanishing outright.
     for (const orphan of remaining.values()) {
-      const stock = rn(orphan.stock * (1 - STATE_SECRET_DECAY_RATE), 4);
+      const stock = rn(applyKnowledgeEwma(orphan.stock, 0, STATE_SECRET_DECAY_RATE), 4);
       if (stock > MIN_TRACKED_STOCK) next.push({ ...orphan, stock });
     }
 

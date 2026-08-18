@@ -107,6 +107,7 @@ import * as RiversOverview from "./rivers-overview";
 import { createRoute } from "./routes-editor";
 import { overviewRoutes } from "./routes-overview";
 import { openSubmapTool } from "./submap-tool";
+import { overviewTechnology } from "./technologyOverview";
 import { openTransformTool } from "./transform-tool";
 import { editUnits } from "./units-editor";
 import { editWorld } from "./world-configurator";
@@ -211,6 +212,7 @@ document.addEventListener("react-tool-action", e => {
     toggleEditor("riversOverview", "toggleRivers", RiversOverview.overviewRivers);
   else if (button === "overviewMilitaryButton") toggleEditor("militaryOverview", "toggleMilitary", overviewMilitary);
   else if (button === "overviewPopulationButton") toggleEditor("populationOverview", null, overviewPopulation);
+  else if (button === "overviewTechnologyButton") toggleEditor("technologyOverview", null, overviewTechnology);
   else if (button === "overviewRegimentsButton") toggleEditor("regimentsOverview", "toggleMilitary", overviewRegiments);
   else if (button === "overviewMarkersButton")
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);

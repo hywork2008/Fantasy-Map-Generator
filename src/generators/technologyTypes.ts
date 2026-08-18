@@ -4,7 +4,7 @@
  *
  * Stages separate knowing a principle from institutional adoption.
  * Progress is live simulation state (not a generation option) and is scoped
- * primarily to political states for era 0–3 nodes.
+ * primarily to political states for era 0–5 nodes.
  */
 
 export const TECHNOLOGY_STAGES = ["locked", "known", "demonstrated", "adopted", "diffused"] as const;
@@ -13,8 +13,8 @@ export type TechnologyStage = (typeof TECHNOLOGY_STAGES)[number];
 export const TECHNOLOGY_SCOPES = ["burg", "state", "network"] as const;
 export type TechnologyScope = (typeof TECHNOLOGY_SCOPES)[number];
 
-/** Roadmap eras implemented through maritime commerce (later eras deferred). */
-export type TechnologyEraBand = 0 | 1 | 2 | 3;
+/** Roadmap eras implemented through early steam pumping (later industrial eras deferred). */
+export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface TechnologyProgress {
   technologyId: string;
@@ -49,6 +49,11 @@ export interface TechnologySignals {
   shipTechPoints: number;
   completedHulls: number;
   urbanWaterMaxTier: number;
+  instruments: number;
+  deepMineCount: number;
+  coalMineCount: number;
+  /** 0..1 derived drainage/investment pressure on active mines. */
+  mineDrainagePressure: number;
   atWar: boolean;
   capitalPort: boolean;
 }

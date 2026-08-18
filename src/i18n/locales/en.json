@@ -1067,6 +1067,8 @@
     "playerDirected": "Player-directed",
     "warFrequency": "War Frequency",
     "warFrequencyTip": "Multiplier for how quickly autonomous wars mature. 1.0 is default (wars take roughly a generation to brew). 0.0 prevents autonomous escalation. 2.0 means frequent wars.",
+    "technologyDevelopmentSpeed": "Technology development speed",
+    "technologyDevelopmentSpeedTip": "How many years of knowledge and technology accumulation each simulation year represents. 1× is the historical pace. Raise it (up to 100×) on Age of Exploration maps to shorten the wait until steam engines and other pre-industrial technologies appear. Guild, academy, and state-secret stocks, plus technology diffusion, all scale with this multiplier.",
     "currencyHeading": "Currency denominations:",
     "currencyHeadingTip": "Display-only coin denominations. Internal prices, treasuries, and personal wealth remain stored as silver-piece values.",
     "oneGoldPiece": "1 Gold Piece",
@@ -1304,6 +1306,10 @@
       "population": {
         "label": "Population",
         "tooltip": "Open Population Overview — living counts and death tallies by state (for rulers and design review)"
+      },
+      "technology": {
+        "label": "Technologies",
+        "tooltip": "Open Technology Overview — each state's knowledge stage, discovery years, and steam pumping progress"
       },
       "provinces": {
         "label": "Provinces",
@@ -1610,6 +1616,7 @@
       "exportPngTiles": "Export to PNG tiles",
       "cellInfo": "CellInfo",
       "populationOverview": "Population Overview",
+      "technologyOverview": "Technology Overview",
       "burgsOverview": "Burgs Overview",
       "militaryOverview": "Military Overview",
       "regimentsOverview": "Regiments Overview",
@@ -1947,6 +1954,57 @@
       "quality": "Qual",
       "qualityTip": "Mean land regiment quality (1=veteran, green recruits lower this)",
       "empty": "No states to show. Generate a map first."
+    },
+    "technology": {
+      "heading": "Each state's place on the technology graph — including whether atmospheric steam pumping has been discovered, demonstrated, or adopted.",
+      "headingTip": "Stages come from the annual technology evaluator. Guild Technique is only one input to this graph.",
+      "filterTip": "Filter by state, era band, or stage. Hide baseline hides the mature-medieval technologies every state starts with.",
+      "state": "State",
+      "era": "Era",
+      "stage": "Stage",
+      "all": "All",
+      "hideBaseline": "Hide medieval baseline",
+      "count": "Rows",
+      "countTip": "Filtered rows versus every state-technology pair on the active graph",
+      "countValue": "{{shown}} / {{total}}",
+      "steam": "Steam pumping",
+      "steamTip": "How many states have reached each stage of atmospheric steam pumping, the first practical steam engine",
+      "steamValue": "{{known}} known · {{demonstrated}} demonstrated · {{adopted}} adopted · {{diffused}} diffused / {{states}} states",
+      "refreshTip": "Refresh from the current simulation year",
+      "stateCol": "State",
+      "stateColTip": "Political state that owns this technology row",
+      "technologyCol": "Technology",
+      "technologyColTip": "Technology node on the host graph",
+      "eraCol": "Era",
+      "eraColTip": "Roadmap band from mature medieval (0) to early steam (5)",
+      "stageCol": "Stage",
+      "stageColTip": "Locked, known, demonstrated, adopted, or diffused",
+      "knownYear": "Known",
+      "knownYearTip": "Calendar year the principle was first recorded",
+      "demonstratedYear": "Demonstrated",
+      "demonstratedYearTip": "Calendar year of a working trial",
+      "adoptedYear": "Adopted",
+      "adoptedYearTip": "Calendar year institutional use began",
+      "diffusion": "Spread",
+      "diffusionTip": "Share of the state that has taken up an adopted technology",
+      "zoomTip": "Zoom to this state's capital",
+      "empty": "No technology rows. Generate a map first.",
+      "emptyFiltered": "No rows match the current filters.",
+      "eras": {
+        "0": "0 Medieval",
+        "1": "1 Late medieval",
+        "2": "2 Gunpowder",
+        "3": "3 Maritime",
+        "4": "4 Pre-industrial",
+        "5": "5 Steam"
+      },
+      "stages": {
+        "locked": "Locked",
+        "known": "Known",
+        "demonstrated": "Demonstrated",
+        "adopted": "Adopted",
+        "diffused": "Diffused"
+      }
     },
     "burgEditor": {
       "tabsAria": "Burg editor sections",

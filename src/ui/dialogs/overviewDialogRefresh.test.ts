@@ -7,6 +7,7 @@ import { usePopulationOverviewState } from "../../store/populationOverviewState"
 import { useRegimentsOverviewState } from "../../store/regimentsOverviewState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
+import { useTechnologyOverviewState } from "../../store/technologyOverviewState";
 import { registerOverviewDialogRefreshers } from "./overviewDialogRefresh";
 
 registerOverviewDialogRefreshers();
@@ -24,7 +25,8 @@ describe("Overview dialog refresh registration", () => {
       ["populationOverview", () => usePopulationOverviewState.getState().refreshCounter],
       ["regimentsOverview", () => useRegimentsOverviewState.getState().refreshCounter],
       ["riversOverview", () => useRiversOverviewState.getState().refreshCounter],
-      ["routesOverview", () => useRoutesOverviewState.getState().refreshCounter]
+      ["routesOverview", () => useRoutesOverviewState.getState().refreshCounter],
+      ["technologyOverview", () => useTechnologyOverviewState.getState().refreshCounter]
     ];
 
     for (const [dialogId, getRefreshCounter] of refreshCounters) {

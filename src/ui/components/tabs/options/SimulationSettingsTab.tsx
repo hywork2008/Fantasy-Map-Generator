@@ -4,6 +4,11 @@ import { setConflictAutonomy } from "../../../../controllers/simulationSettings"
 import { useOptionsState } from "../../../../store/optionsState";
 import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
+import {
+  clampTechnologyDevelopmentSpeed,
+  MAX_TECHNOLOGY_DEVELOPMENT_SPEED,
+  MIN_TECHNOLOGY_DEVELOPMENT_SPEED
+} from "../../../../utils/technologyDevelopmentSpeed";
 import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 
@@ -102,6 +107,22 @@ export const SimulationSettingsTab: React.FC = () => {
                 step="0.1"
                 value={options.warFrequency}
                 onChange={v => updateOptionAndLock("warFrequency", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("simulation.technologyDevelopmentSpeedTip")}>
+            <td>
+              <LockIconButton id="technologyDevelopmentSpeed" />
+            </td>
+            <td>{t("simulation.technologyDevelopmentSpeed")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                min={MIN_TECHNOLOGY_DEVELOPMENT_SPEED}
+                max={MAX_TECHNOLOGY_DEVELOPMENT_SPEED}
+                step="1"
+                value={options.technologyDevelopmentSpeed}
+                onChange={v => updateOptionAndLock("technologyDevelopmentSpeed", clampTechnologyDevelopmentSpeed(v))}
               />
             </td>
           </tr>

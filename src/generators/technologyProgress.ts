@@ -9,6 +9,7 @@
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { isGunpowderEraEnabled } from "../utils/gunpowderEra";
+import { getTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
 import { getActiveTechnologyDefinitions, getTechnologyDefinition } from "./technologyDefinitions";
 import {
   createEmptyTechnologySimulationState,
@@ -139,6 +140,23 @@ export function getFourCourseRotationEffect(stateId: number): number {
   if (stage === "adopted") return 0.75;
   if (stage === "demonstrated") return 0.35;
   return 0;
+}
+
+/**
+ * How much atmospheric steam pumping supplements a state's mine drainage (0..1).
+ * Demonstration is a single trial engine; adoption/diffusion are working installations.
+ */
+export function getAtmosphericSteamPumpingEffect(stateId: number): number {
+  const stage = getTechnologyStage("atmosphericSteamPumping", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
+/** Extra drainage credit (0..0.5) applied on top of a mine's physical drainage works. */
+export function getAtmosphericSteamDrainageBonus(stateId: number): number {
+  return getAtmosphericSteamPumpingEffect(stateId) * 0.5;
 }
 
 type HistoricalPeriod = NonNullable<typeof worldContext.options.historicalPeriod>;
@@ -328,6 +346,10 @@ function emptySignals(): TechnologySignals {
     shipTechPoints: 0,
     completedHulls: 0,
     urbanWaterMaxTier: 0,
+    instruments: 0,
+    deepMineCount: 0,
+    coalMineCount: 0,
+    mineDrainagePressure: 0,
     atWar: false,
     capitalPort: false
   };
@@ -395,6 +417,7 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       if (domain === "woodworking") signals.woodworking = Math.max(signals.woodworking, stock);
       if (domain === "printing") signals.printing = Math.max(signals.printing, stock);
       if (domain === "masonry") signals.masonry = Math.max(signals.masonry, stock);
+      if (domain === "instruments") signals.instruments = Math.max(signals.instruments, stock);
     }
 
     const academyMax = new Map<number, number>();
@@ -411,10 +434,39 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       if (signals) signals.administration = Math.max(signals.administration, stock);
     }
 
+    const depositsById = new Map<number, Record<string, unknown>>();
+    for (const deposit of asStockArray(economy.mineralDeposits)) {
+      depositsById.set(asNumber(deposit.i), deposit);
+    }
+    type MineAgg = { active: number; deep: number; coal: number; deficit: number };
+    const mineAgg = new Map<number, MineAgg>();
     for (const mine of asStockArray(economy.mineOperations)) {
       const stateId = asNumber(mine.stateId) || burgStateId(asNumber(mine.burgId));
       const signals = map.get(stateId);
-      if (signals && mine.active !== false) signals.mineCount += 1;
+      if (!signals || mine.active === false) continue;
+      signals.mineCount += 1;
+
+      const agg = mineAgg.get(stateId) ?? { active: 0, deep: 0, coal: 0, deficit: 0 };
+      agg.active += 1;
+      const deposit = depositsById.get(asNumber(mine.depositId));
+      const depth = String(deposit?.depth ?? "");
+      if (depth === "deep") agg.deep += 1;
+      const commodities = Array.isArray(deposit?.commodities) ? deposit.commodities : [];
+      const primary = String(deposit?.primaryCommodity ?? "");
+      if (primary === "coal" || commodities.includes("coal")) agg.coal += 1;
+      const drainageNeed = depth === "deep" ? 1 : depth === "shallow" ? 0.55 : 0.2;
+      agg.deficit += Math.max(0, drainageNeed - asNumber(mine.drainage));
+      mineAgg.set(stateId, agg);
+    }
+    for (const [stateId, agg] of mineAgg) {
+      const signals = map.get(stateId);
+      if (!signals || agg.active <= 0) continue;
+      signals.deepMineCount = agg.deep;
+      signals.coalMineCount = agg.coal;
+      signals.mineDrainagePressure = Math.max(
+        0,
+        Math.min(1, 0.45 * (agg.deficit / agg.active) + 0.3 * (agg.deep / agg.active) + 0.25 * Math.min(1, agg.coal))
+      );
     }
     for (const smelter of asStockArray(economy.smelterOperations)) {
       const stateId = asNumber(smelter.stateId) || burgStateId(asNumber(smelter.burgId));
@@ -516,7 +568,7 @@ function advanceStage(
     entry.diffusion = Math.max(entry.diffusion || 0, 0);
   }
   if (stage === "adopted") {
-    entry.diffusion = Math.min(1, (entry.diffusion || 0) + DIFFUSION_ANNUAL_GAIN);
+    entry.diffusion = Math.min(1, (entry.diffusion || 0) + DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed());
     if (entry.diffusion >= 1) stage = "diffused";
   }
   if (stage === "diffused") {

@@ -1,4 +1,4 @@
-import { rn } from "../../hostUtils";
+import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
   getAcademyKnowledgeLastSettledYear,
   getAcademyKnowledgeStocks,
@@ -65,7 +65,7 @@ export class AcademyKnowledgeModule {
       remaining.delete(key);
 
       const coverage = Math.min(1, workers / ACADEMY_SATURATION_WORKERS);
-      const stock = rn(previousStock * (1 - ACADEMY_ADOPTION_RATE) + coverage * ACADEMY_ADOPTION_RATE, 4);
+      const stock = rn(applyKnowledgeEwma(previousStock, coverage, ACADEMY_ADOPTION_RATE), 4);
       next.push({ burgId, domain, stock });
     }
 
@@ -73,7 +73,7 @@ export class AcademyKnowledgeModule {
     // chancery's stock decaying for a while instead of vanishing the instant staffing dips —
     // same lingering-orphan behavior as GuildKnowledge.
     for (const orphan of remaining.values()) {
-      const stock = rn(orphan.stock * (1 - ACADEMY_DECAY_RATE), 4);
+      const stock = rn(applyKnowledgeEwma(orphan.stock, 0, ACADEMY_DECAY_RATE), 4);
       if (stock > MIN_TRACKED_STOCK) next.push({ ...orphan, stock });
     }
 

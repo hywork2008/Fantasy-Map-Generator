@@ -206,6 +206,13 @@ export interface OptionsState {
   /** Default for newly generated maps; the active map stores its value in WorldOptions. */
   conflictAutonomy: ConflictAutonomy;
   warFrequency: number;
+  /**
+   * Multiplier on annual knowledge/technology accumulation (Options → Simulation).
+   * 1 = historical pace; 100 compresses ~a century of guild/academy/state-secret
+   * stock growth and tech diffusion into one simulation year so Age-of-Exploration
+   * maps can reach steam pumping without waiting out the full pre-industrial climb.
+   */
+  technologyDevelopmentSpeed: number;
   diplomacyHistoryAttempts: number;
 
   // Danger settings
@@ -480,6 +487,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   recruitQualityEnabled: true,
   conflictAutonomy: DEFAULT_CONFLICT_AUTONOMY,
   warFrequency: 1.0,
+  technologyDevelopmentSpeed: 1,
   diplomacyHistoryAttempts: 1,
 
   dangerEnabled: false,

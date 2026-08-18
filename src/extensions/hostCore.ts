@@ -46,7 +46,7 @@ export {
   LIVELIHOOD_CODE,
   reconcileSubsistenceCapacityFromFood
 } from "../generators/subsistenceCapacity";
-export { getFourCourseRotationEffect } from "../generators/technologyProgress";
+export { getAtmosphericSteamPumpingEffect, getFourCourseRotationEffect } from "../generators/technologyProgress";
 export type { Point } from "../generators/voronoi";
 export { BordersRenderer } from "../renderers/draw-borders";
 export { MilitaryRenderer } from "../renderers/draw-military";

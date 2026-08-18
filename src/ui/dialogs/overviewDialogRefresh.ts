@@ -6,6 +6,7 @@ import { usePopulationOverviewState } from "../../store/populationOverviewState"
 import { useRegimentsOverviewState } from "../../store/regimentsOverviewState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
+import { useTechnologyOverviewState } from "../../store/technologyOverviewState";
 
 let registered = false;
 
@@ -24,4 +25,5 @@ export function registerOverviewDialogRefreshers(): void {
   registerDialogBeforeOpen("regimentsOverview", () => useRegimentsOverviewState.getState().refresh());
   registerDialogBeforeOpen("riversOverview", () => useRiversOverviewState.getState().refresh());
   registerDialogBeforeOpen("routesOverview", () => useRoutesOverviewState.getState().refresh());
+  registerDialogBeforeOpen("technologyOverview", () => useTechnologyOverviewState.getState().refresh());
 }

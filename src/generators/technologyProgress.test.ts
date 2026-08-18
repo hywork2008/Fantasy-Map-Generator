@@ -1,11 +1,15 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import { TECHNOLOGY_DEFINITIONS } from "./technologyDefinitions";
 import {
+  getAtmosphericSteamDrainageBonus,
+  getAtmosphericSteamPumpingEffect,
   getFourCourseRotationEffect,
   getGunpowderDemandTechMultiplier,
   getMaxShipClassTierForState,
+  getTechnologyProgressEntries,
   getTechnologyStage,
   isDistillationKnown,
   resetTechnologyProgress,
@@ -85,8 +89,13 @@ function installMinimalWorld(
 
 describe("technologyProgress", () => {
   beforeEach(() => {
+    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
     installMinimalWorld({ gunpowder: false });
     resetTechnologyProgress();
+  });
+
+  afterEach(() => {
+    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
   });
 
   it("seeds mature-medieval start profile as diffused for every live state", () => {
@@ -283,5 +292,72 @@ describe("technologyProgress", () => {
   it("keeps gunpowder demand multiplier at 0 when the world gate is off", () => {
     installMinimalWorld({ gunpowder: false });
     expect(getGunpowderDemandTechMultiplier(1)).toBe(0);
+  });
+
+  it("defines atmospheric steam pumping behind the pre-industrial knowledge chain", () => {
+    const definition = TECHNOLOGY_DEFINITIONS.find(def => def.id === "atmosphericSteamPumping");
+    expect(definition).toMatchObject({
+      era: 5,
+      prerequisites: [
+        "experimentalNaturalPhilosophy",
+        "mineSurveyAndDrainage",
+        "precisionBoringAndMeasurement",
+        "coalFuelSupply"
+      ]
+    });
+    expect(getAtmosphericSteamPumpingEffect(1)).toBe(0);
+    expect(getAtmosphericSteamDrainageBonus(1)).toBe(0);
+
+    setTechnologyProgressForTests([
+      { technologyId: "atmosphericSteamPumping", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    expect(getAtmosphericSteamPumpingEffect(1)).toBeCloseTo(0.35);
+    expect(getAtmosphericSteamDrainageBonus(1)).toBeCloseTo(0.175);
+  });
+
+  it("advances steam pumping when pre-industrial prerequisites and mine pressure are present", () => {
+    installMinimalWorld({ gunpowder: false });
+    simulationContext.extensions = {
+      economy: {
+        guildKnowledgeStocks: [
+          { burgId: 3, domain: "metallurgy", stock: 0.7 },
+          { burgId: 3, domain: "woodworking", stock: 0.4 },
+          { burgId: 3, domain: "printing", stock: 0.55 }
+        ],
+        academyKnowledgeStocks: [{ burgId: 3, domain: "administration", stock: 0.6 }],
+        mineOperations: [{ burgId: 3, depositId: 1, active: true, drainage: 0.3, workers: 8 }],
+        mineralDeposits: [{ i: 1, depth: "deep", primaryCommodity: "coal", commodities: ["coal"] }],
+        smelterOperations: [{ burgId: 3, active: true, workers: 16 }]
+      }
+    };
+    setTechnologyProgressForTests([
+      { technologyId: "recordReplication", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "mathAstronomyGeography", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "distillation", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "improvedMining", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "mechanicalWorkshops", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "highTempFurnace", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "commercialFinance", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 }
+    ]);
+    worldContext.pack.states[2].treasury = 200;
+
+    for (let year = 1200; year <= 1204; year++) {
+      simulationContext.currentYear = year;
+      settleTechnologyAnnual(year);
+    }
+
+    expect(["demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("atmosphericSteamPumping", 2));
+  });
+
+  it("diffuses an adopted technology in one year at 100× development speed", () => {
+    useOptionsState.setState({ technologyDevelopmentSpeed: 100 });
+    setTechnologyProgressForTests([
+      { technologyId: "improvedMining", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    // improvedMining has no startStage >= adopted, so settle still evaluates it.
+    settleTechnologyAnnual(1200);
+    const entry = getTechnologyProgressEntries().find(p => p.technologyId === "improvedMining" && p.ownerId === 1);
+    expect(entry?.stage).toBe("diffused");
+    expect(entry?.diffusion).toBe(1);
   });
 });

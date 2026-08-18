@@ -1,10 +1,12 @@
 /**
- * Technology node definitions for roadmap eras 0–3 (mature medieval → maritime).
- * Eras 4+ (pre-industrial and later) are intentionally omitted.
+ * Technology node definitions for roadmap eras 0–5 (mature medieval → early steam).
+ * Eras 6+ (electrification, chemistry, petroleum, space) are intentionally omitted.
  *
  * Thresholds are soft and demand-driven: high treasury/ports/knowledge stocks
  * advance stages; inland states can still progress era-1 mining nodes without
- * ever unlocking ocean-going hulls.
+ * ever unlocking ocean-going hulls. Era 4–5 is a first pass of
+ * docs/plan/steam-engine-knowledge-accumulation.md on the existing annual
+ * evaluator — ExperimentalWorkshop / SteamPumpTrial remain later refinements.
  */
 
 import type { TechnologyDefinition } from "./technologyTypes";
@@ -338,7 +340,79 @@ const ERA_3: readonly TechnologyDefinition[] = [
   }
 ];
 
-export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [...START_PROFILE, ...ERA_1, ...ERA_2, ...ERA_3];
+/** Stage 4: pre-industrial knowledge that makes steam pumping a rational investment. */
+const ERA_4: readonly TechnologyDefinition[] = [
+  {
+    id: "experimentalNaturalPhilosophy",
+    label: "Experimental natural philosophy",
+    era: 4,
+    scope: "state",
+    prerequisites: ["recordReplication", "mathAstronomyGeography", "distillation"],
+    known: { min: { administration: 0.25, printing: 0.25, treasury: 40 } },
+    demonstrated: { min: { administration: 0.4, printing: 0.4, treasury: 70 } },
+    adopted: { min: { administration: 0.55, printing: 0.5, treasury: 110 } }
+  },
+  {
+    id: "mineSurveyAndDrainage",
+    label: "Mine survey and drainage",
+    era: 4,
+    scope: "state",
+    prerequisites: ["improvedMining", "mechanicalWorkshops"],
+    known: { min: { mineCount: 1, metallurgy: 0.25 } },
+    demonstrated: { min: { deepMineCount: 1, mineDrainagePressure: 0.25, metallurgy: 0.4, woodworking: 0.25 } },
+    adopted: { min: { deepMineCount: 1, mineDrainagePressure: 0.4, metallurgy: 0.5, treasury: 60 } }
+  },
+  {
+    id: "precisionBoringAndMeasurement",
+    label: "Precision boring and measurement",
+    era: 4,
+    scope: "state",
+    prerequisites: ["highTempFurnace", "recordReplication"],
+    known: { min: { metallurgy: 0.4, smelterWorkers: 6 } },
+    demonstrated: { min: { metallurgy: 0.55, smelterWorkers: 10, printing: 0.25 } },
+    adopted: { min: { metallurgy: 0.65, smelterWorkers: 14, administration: 0.35 } }
+  },
+  {
+    id: "coalFuelSupply",
+    label: "Coal fuel supply",
+    era: 4,
+    scope: "state",
+    prerequisites: ["improvedMining", "commercialFinance"],
+    known: { min: { mineCount: 1, treasury: 30 } },
+    demonstrated: { min: { mineCount: 1, treasury: 60, administration: 0.2 } },
+    adopted: { min: { mineCount: 1, treasury: 100, administration: 0.3 } }
+  }
+];
+
+/** Stage 5: first practical steam — atmospheric mine-drainage engines. */
+const ERA_5: readonly TechnologyDefinition[] = [
+  {
+    id: "atmosphericSteamPumping",
+    label: "Atmospheric steam pumping",
+    era: 5,
+    scope: "state",
+    prerequisites: [
+      "experimentalNaturalPhilosophy",
+      "mineSurveyAndDrainage",
+      "precisionBoringAndMeasurement",
+      "coalFuelSupply"
+    ],
+    known: { min: { mineDrainagePressure: 0.2, deepMineCount: 1, treasury: 80 } },
+    demonstrated: { min: { mineDrainagePressure: 0.35, deepMineCount: 1, metallurgy: 0.55, treasury: 120 } },
+    adopted: {
+      min: { mineDrainagePressure: 0.45, deepMineCount: 1, metallurgy: 0.65, administration: 0.4, treasury: 160 }
+    }
+  }
+];
+
+export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [
+  ...START_PROFILE,
+  ...ERA_1,
+  ...ERA_2,
+  ...ERA_3,
+  ...ERA_4,
+  ...ERA_5
+];
 
 export const TECHNOLOGY_DEFINITION_BY_ID: ReadonlyMap<string, TechnologyDefinition> = new Map(
   TECHNOLOGY_DEFINITIONS.map(def => [def.id, def])

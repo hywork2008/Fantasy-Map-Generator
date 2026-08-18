@@ -40,6 +40,7 @@ import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../u
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
+import { clampTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
 import { cleanupData } from "../versioning";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { editWorld } from "./world-configurator";
@@ -518,6 +519,7 @@ export function applyStoredOptions(): void {
     "goldToSilverRate",
     "silverToCopperRate",
     "warFrequency",
+    "technologyDevelopmentSpeed",
     "threatCalculation",
     "emblemShape",
     "distanceScale",
@@ -569,6 +571,11 @@ export function applyStoredOptions(): void {
   }
   loadedOptions.frontierStartMode = normalizeFrontierStartMode(loadedOptions.frontierStartMode);
   loadedOptions.frontierPolitySpacing = normalizeFrontierPolitySpacing(loadedOptions.frontierPolitySpacing);
+  if (loadedOptions.technologyDevelopmentSpeed != null) {
+    loadedOptions.technologyDevelopmentSpeed = clampTechnologyDevelopmentSpeed(
+      loadedOptions.technologyDevelopmentSpeed
+    );
+  }
   if (typeof loadedOptions.initialSettlementPattern === "string") {
     loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(loadedOptions.initialSettlementPattern);
     // Settlement patterns have a recommended population saturation. Restore

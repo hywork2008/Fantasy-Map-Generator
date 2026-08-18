@@ -119,6 +119,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     dialogId: "populationOverview"
   },
   {
+    key: "technology",
+    label: "Technologies",
+    tooltip: "Open Technology Overview — each state's knowledge stage, discovery years, and steam pumping progress",
+    eventName: "overviewTechnologyButton",
+    dialogId: "technologyOverview"
+  },
+  {
     key: "provinces",
     label: "Provinces",
     tooltip: "Click to open Provinces Editor",
