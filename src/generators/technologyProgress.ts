@@ -599,35 +599,54 @@ function goodIdByName(economy: Record<string, unknown>, name: string): number | 
   return null;
 }
 
-function marketBelongsToState(
-  market: Record<string, unknown>,
-  pack: { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> },
-  stateId: number
-): boolean {
-  const center = pack.burgs?.[asNumber(market.centerBurgId)];
-  if (center && typeof center === "object" && !center.removed && center.state === stateId) return true;
-  const marketId = asNumber(market.i);
-  for (const burg of pack.burgs ?? []) {
-    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || burg.state !== stateId) continue;
-    if (burg.market === marketId) return true;
+type ChemMedPack = { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> };
+
+/**
+ * Market -> owning state(s), built once per buildStateSignals() call instead of re-derived per
+ * (state, good) pair. A market can serve more than one state via a split-border catchment (a live
+ * burg outside the center burg's state still pointing burg.market at it) — same ownership rule as
+ * before, just computed in a single O(markets + burgs) pass rather than O(states * markets * burgs).
+ */
+function buildMarketOwnerStates(economy: Record<string, unknown>, pack: ChemMedPack): Map<number, Set<number>> {
+  const owners = new Map<number, Set<number>>();
+  const addOwner = (marketId: number, stateId: number | undefined) => {
+    if (!stateId) return;
+    const existing = owners.get(marketId);
+    if (existing) existing.add(stateId);
+    else owners.set(marketId, new Set([stateId]));
+  };
+
+  for (const market of asStockArray(economy.markets)) {
+    const center = pack.burgs?.[asNumber(market.centerBurgId)];
+    if (center && typeof center === "object" && !center.removed) addOwner(asNumber(market.i), center.state);
   }
-  return false;
+  for (const burg of pack.burgs ?? []) {
+    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || !burg.market) continue;
+    addOwner(burg.market, burg.state);
+  }
+  return owners;
 }
 
-function stateMarketStock(
+/** Per-state stock totals for one good, computed in a single pass over markets. */
+function stateMarketStockByGood(
   economy: Record<string, unknown>,
-  pack: { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> },
-  stateId: number,
-  goodId: number
-): number {
-  let stock = 0;
+  owners: Map<number, Set<number>>,
+  goodId: number | null
+): Map<number, number> {
+  const byState = new Map<number, number>();
+  if (goodId === null) return byState;
   for (const market of asStockArray(economy.markets)) {
-    if (!marketBelongsToState(market, pack, stateId)) continue;
+    const ownerStates = owners.get(asNumber(market.i));
+    if (!ownerStates || ownerStates.size === 0) continue;
     const goods = isRecord(market.goods) ? market.goods : {};
     const row = goods[String(goodId)] ?? goods[goodId as unknown as string];
-    stock += asNumber(isRecord(row) ? row.stock : row);
+    const stock = asNumber(isRecord(row) ? row.stock : row);
+    if (stock === 0) continue;
+    for (const stateId of ownerStates) {
+      byState.set(stateId, (byState.get(stateId) ?? 0) + stock);
+    }
   }
-  return stock;
+  return byState;
 }
 
 function applyChemistryMedicineSignals(
@@ -693,22 +712,29 @@ function applyChemistryMedicineSignals(
     }
   }
 
+  // One pass over markets per good (not per state) — see buildMarketOwnerStates()/stateMarketStockByGood().
+  const marketOwners = buildMarketOwnerStates(economy, pack);
+  const soapStockByState = stateMarketStockByGood(economy, marketOwners, soapId);
+  const glassStockByState = stateMarketStockByGood(economy, marketOwners, glassId);
+  const sulfurStockByState = stateMarketStockByGood(economy, marketOwners, sulfurId);
+  const pumiceStockByState = stateMarketStockByGood(economy, marketOwners, pumiceId);
+
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
     signals.battleWoundPressure = clamp01((combatByState.get(stateId) ?? 0) / Math.max(urbanPop * 0.02, 1));
 
-    const soapStock = soapId === null ? 0 : stateMarketStock(economy, pack, stateId, soapId);
-    const glassStock = glassId === null ? 0 : stateMarketStock(economy, pack, stateId, glassId);
+    const soapStock = soapStockByState.get(stateId) ?? 0;
+    const glassStock = glassStockByState.get(stateId) ?? 0;
     const soapShort = clamp01(1 - soapStock / Math.max(urbanPop * 0.02, 1));
     const glassShort = clamp01(1 - glassStock / Math.max(urbanPop * 0.02, 1));
     signals.soapGlassPressure = clamp01(0.5 * soapShort + 0.5 * glassShort);
 
-    const sulfurStock = sulfurId === null ? 0 : stateMarketStock(economy, pack, stateId, sulfurId);
+    const sulfurStock = sulfurStockByState.get(stateId) ?? 0;
     const marketCoverage = clamp01(sulfurStock / 2);
     const militaryCoverage = signals.gunpowderDemand > 0 ? 1 - signals.gunpowderSulfurPressure : 0;
     signals.sulfurAccess = Math.max(militaryCoverage, marketCoverage);
 
-    signals.pumiceCoverage = pumiceId === null ? 0 : clamp01(stateMarketStock(economy, pack, stateId, pumiceId) / 1);
+    signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
     signals.medicineDemandPressure = clamp01(
       0.4 * signals.urbanSanitationPressure +
