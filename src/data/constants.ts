@@ -492,10 +492,11 @@ export const VolcanoConstants = {
   MIN_PEAK_HEIGHT: 82,
 
   /**
-   * Volcanic intensity (0..1, peak = 1) at and above which a cell is the barren crater/lava
-   * core (`volcanicBarrens` / `lavaField`) rather than the fertile flank ring
-   * (`volcanicSoil`). Not user-tunable — this is the "unmistakably a volcano" core identity;
-   * only the flank ring's reach is (see options.volcanicSoilStrength).
+   * Volcanic intensity (0..1, peak = 1) at and above which a cell is the barren cone
+   * (`volcanicBarrens`) rather than the fertile flank ring (`volcanicSoil`). Not user-tunable —
+   * this is the "unmistakably a volcano" core identity; only the flank ring's reach is
+   * (see options.volcanicSoilStrength). Molten lava is a crater lake + lava-flow line, not
+   * this area biome.
    */
   CORE_MIN_INTENSITY: 0.75,
 
@@ -506,19 +507,19 @@ export const VolcanoConstants = {
   SOIL_MIN_INTENSITY_AT_ZERO_STRENGTH: 0.72,
 
   /**
-   * Cosmetic caldera notch carved into an *active* volcano's summit. Purely a height dent for
-   * the contour/relief rendering — the "molten crater" read comes from the lavaField biome
-   * override, not from this dip, so it deliberately stays shallow.
+   * Longest lava-flow walk, in packed cells, from the crater rim. One cell is already tens of
+   * kilometres at default scale, so this stays short on purpose.
    */
-  ACTIVE_CALDERA_DEPTH: 6,
+  LAVA_FLOW_MAX_CELLS: 5,
 
-  /**
-   * Floor for an active volcano's caldera dip, expressed as a margin above
-   * HeightThreshold.WATER_MAX_HEIGHT. Keeps the notch from ever accidentally sinking an active
-   * (lava-filled) summit below the water line — that fate is reserved for dormant volcanoes,
-   * whose summit is deliberately carved into a crater lake instead.
-   */
-  ACTIVE_FLOOR_MARGIN: 15,
+  /** Starting half-width (map units) of a lava-flow ribbon — much thinner than a river mouth. */
+  LAVA_FLOW_SOURCE_WIDTH: 0.12,
+
+  /** Width growth along a lava flow. Flux is dummy; keep this small so the ribbon stays a line. */
+  LAVA_FLOW_WIDTH_FACTOR: 0.45,
+
+  /** Dummy flux fed to the shared river-bank geometry so width barely grows downhill. */
+  LAVA_FLOW_DUMMY_FLUX: 10,
 
   /**
    * Minimum height for the *fallback* volcano candidate: the map's single tallest land cell,

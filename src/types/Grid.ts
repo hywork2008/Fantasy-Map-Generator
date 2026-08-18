@@ -50,12 +50,21 @@ export type GridCells = Cells & {
    */
   volcanic?: Float32Array;
   /**
-   * 1 for cells belonging to a volcano rolled "active" (magma core) rather than dormant (bare
-   * cone / crater lake) — see options.volcanoActiveChance. Only meaningful where `volcanic` is
-   * at or above VolcanoConstants.CORE_MIN_INTENSITY; 0/undefined elsewhere.
+   * 1 for cells belonging to a volcano rolled "active" (lava crater + downhill flow) rather than
+   * dormant (bare cone / freshwater crater lake) — see options.volcanoActiveChance. Only
+   * meaningful where `volcanic` is at or above VolcanoConstants.CORE_MIN_INTENSITY; 0/undefined
+   * elsewhere.
    */
   volcanicActive?: Uint8Array;
 };
+
+/** A tagged volcanic peak written by HeightmapModule.finalizeVolcanoes(). */
+export interface GridVolcano {
+  /** Grid cell of the carved crater (height dropped below the water line). */
+  peakCell: number;
+  /** True when the volcano rolled "active" (lava lake + lava flow). */
+  active: boolean;
+}
 
 export interface Grid {
   spacing: number;
@@ -68,4 +77,9 @@ export interface Grid {
   cells: GridCells;
   vertices: Vertices;
   features: GridFeature[];
+  /**
+   * Volcanic peaks tagged during heightmap generation. Absent on maps generated before this
+   * field existed, and empty when volcanismChance placed none.
+   */
+  volcanoes?: GridVolcano[];
 }

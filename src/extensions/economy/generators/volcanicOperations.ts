@@ -30,7 +30,7 @@ export interface VolcanicSiteCandidate {
   ashNeighborCount: number;
   /** Of those, the ones whose biome is lavaField or volcanicBarrens (the barren/rocky core). */
   sulfurNeighborCount: number;
-  /** Of those, the ones whose biome is specifically lavaField (the active/molten core). */
+  /** Of those, the ones whose biome is specifically lavaField (cooled lava along a flow). */
   obsidianNeighborCount: number;
 }
 

@@ -51,6 +51,7 @@ import {
   buildLandCellGeometry,
   buildLandMaskPolygons,
   buildLandPolygonsBase,
+  buildLavaFlowPolygons,
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
@@ -707,6 +708,7 @@ export function buildDeckLayers(
   }
 
   if (activeLayers.toggleLakes) {
+    const lavaFill = lakePaint.lava?.fill ?? lakePaint.freshwater.fill;
     layers.push(
       new SolidPolygonLayer<DeckFeaturePolygon>({
         id: "fmg-webgl-lakes",
@@ -743,6 +745,16 @@ export function buildDeckLayers(
         widthMaxPixels: 6,
         jointRounded: true,
         capRounded: true,
+        pickable: false
+      }),
+      new SolidPolygonLayer<DeckRiverPolygon>({
+        id: "fmg-webgl-lava-flows",
+        data: getCachedDeckData("polygon:lava-flows", signatures.byLayer["lava-flows"], () =>
+          buildLavaFlowPolygons(worldContext, viewContext.focusScope, lavaFill)
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon: datum => datum.polygon,
+        getFillColor: datum => datum.fillColor,
         pickable: false
       })
     );
@@ -1661,6 +1673,13 @@ function buildLayerSignatures(
     "toggleLakes",
     ["map.topology", "map.physical", "presentation.styles"],
     () => `${geometry()}|${featuresSignature(pack.features, "lake")}|${paintSignature(styles.lakePaint)}`
+  );
+  setIfActive(
+    "lava-flows",
+    "toggleLakes",
+    ["map.topology", "map.physical", "presentation.styles"],
+    () =>
+      `${geometry()}|${riversSignature(pack.lavaFlows)}|${colorSignature(styles.lakePaint.lava?.fill ?? styles.lakePaint.freshwater.fill)}`
   );
   setIfActive(
     "ice",

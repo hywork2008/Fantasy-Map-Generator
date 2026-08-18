@@ -11,6 +11,7 @@ import type { PackedGraphFeature } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
 import { Names } from "./names-generator";
+import { indexLakeVolcanism } from "./volcanicTerrain";
 
 export class LakesModule {
   worldContext: WorldContext = worldContext;
@@ -82,12 +83,16 @@ export class LakesModule {
       return lake.shoreline.reduce((minCell, c) => (heights[c] < heights[minCell] ? c : minCell));
     };
 
+    const volcanismByLake = indexLakeVolcanism(pack, grid);
+
     features.forEach(feature => {
       if (feature.type !== "lake") return;
       feature.flux = getFlux(feature);
       feature.temp = getLakeTemp(feature);
       feature.evaporation = getLakeEvaporation(feature);
       if (feature.closed) return; // no outlet for lakes in depressed areas
+      // Lava craters do not drain as water rivers; their overflow is a lava flow.
+      if (volcanismByLake.get(feature.i) === "active") return;
 
       feature.outCell = getLowestShoreCell(feature);
       lakeOutCells[feature.outCell as number] = feature.i;

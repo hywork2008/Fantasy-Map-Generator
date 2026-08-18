@@ -7,6 +7,7 @@ import { Burgs } from "./burgs-generator";
 import { Cultures } from "./cultures-generator";
 import { Features } from "./features";
 import { Lakes } from "./lakes";
+import { LavaFlows } from "./lavaFlows";
 import { Military } from "./military-generator";
 import { Provinces } from "./provinces-generator";
 import { Religions } from "./religions-generator";
@@ -45,6 +46,7 @@ function runRiversGenerate(
   appServices: AppServices
 ): WorldStateAt<"rivers"> {
   Rivers.generate(worldContext, viewContext, appServices, state);
+  LavaFlows.generate(worldContext, viewContext, appServices, state);
   return state as WorldStateAt<"rivers">;
 }
 

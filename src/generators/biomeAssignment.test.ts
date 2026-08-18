@@ -19,7 +19,8 @@ const base = {
   x: 100,
   y: 100,
   volcanic: 0,
-  volcanicActive: false
+  volcanicActive: false,
+  lavaFlow: false
 };
 
 describe("biomeAssignment", () => {
@@ -223,7 +224,7 @@ describe("biomeAssignment", () => {
     expect(key).not.toBe("tropicalDryForest");
   });
 
-  it("classifies a tagged volcano's crater/lava core over every other special biome", () => {
+  it("classifies a tagged volcano's cone as barren rock, and lava-flow cells as cooled lava field", () => {
     const dormant = classifySpecialBiome(
       { ...base, volcanic: 0.9, volcanicActive: false },
       { profile: "global", seed: 1, volcanicSoilStrength: 50 }
@@ -234,7 +235,13 @@ describe("biomeAssignment", () => {
       { ...base, volcanic: 0.9, volcanicActive: true },
       { profile: "global", seed: 1, volcanicSoilStrength: 50 }
     );
-    expect(active).toBe("lavaField");
+    expect(active).toBe("volcanicBarrens");
+
+    const flow = classifySpecialBiome(
+      { ...base, volcanic: 0.4, volcanicActive: true, lavaFlow: true },
+      { profile: "global", seed: 1, volcanicSoilStrength: 50 }
+    );
+    expect(flow).toBe("lavaField");
   });
 
   it("keeps a snow-capped volcano as glacier rather than the barren/lava override", () => {

@@ -92,7 +92,7 @@ export const ReliefIconsRenderer: IRenderer = {
         // Snow/ice takes priority (matches classifySpecialBiome's glacier-before-volcanic
         // order) so a snow-capped volcano still reads as a snow peak, not a bare cone icon —
         // the previously-orphaned #relief-vulcan-* sprites (ReliefEditorDialog.tsx) finally get
-        // auto-selected here, for both dormant (volcanicBarrens) and active (lavaField) peaks.
+        // auto-selected here, for both dormant and active volcanic cones.
         const type =
           h > 70 && temp < 0
             ? "mountSnow"

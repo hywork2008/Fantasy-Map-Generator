@@ -3,7 +3,7 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { heightmapTemplates } from "../data";
-import { VolcanoConstants } from "../data/constants";
+import { HeightThreshold, VolcanoConstants } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
 import { generateGrid } from "../utils/graphUtils";
 import { HeightmapGenerator } from "./heightmap-generator";
@@ -84,5 +84,18 @@ describe("HeightmapGenerator volcano tagging", () => {
 
     expect(grid.cells.volcanic?.some(v => v > 0) ?? false).toBe(false);
     expect(grid.cells.volcanicActive?.some(v => v > 0) ?? false).toBe(false);
+  });
+
+  it("carves both active and dormant volcano peaks into crater lakes", async () => {
+    const dormant = await generateHeights("98948141", "highIsland", 100, 0);
+    const active = await generateHeights("98948141", "highIsland", 100, 100);
+    expect(dormant.volcanoes?.some(volcano => !volcano.active)).toBe(true);
+    expect(active.volcanoes?.some(volcano => volcano.active)).toBe(true);
+    for (const volcano of dormant.volcanoes ?? []) {
+      expect(dormant.cells.h[volcano.peakCell]).toBeLessThan(HeightThreshold.WATER_MAX_HEIGHT);
+    }
+    for (const volcano of active.volcanoes ?? []) {
+      expect(active.cells.h[volcano.peakCell]).toBeLessThan(HeightThreshold.WATER_MAX_HEIGHT);
+    }
   });
 });

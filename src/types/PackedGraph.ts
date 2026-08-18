@@ -6,6 +6,7 @@ import type {
   Dungeon,
   FrontierFort,
   IceElement,
+  LavaFlow,
   Marker,
   Monster,
   PackedGraphFeature,
@@ -115,6 +116,11 @@ export interface PackedGraph {
   cells: PackedGraphCells;
   vertices: PackedGraphVertices;
   rivers: River[];
+  /**
+   * Downhill lava flows from active volcanic craters. Absent/empty on maps with no active
+   * volcanoes and on saves from before this field existed.
+   */
+  lavaFlows?: LavaFlow[];
   features: PackedGraphFeature[];
   burgs: Burg[];
   states: State[];

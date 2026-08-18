@@ -24,6 +24,7 @@ import {
   GridRenderer,
   HeightmapRenderer,
   IceRenderer,
+  LavaFlowsRenderer,
   MarkersRenderer,
   MilitaryRenderer,
   PopulationRenderer,
@@ -341,6 +342,7 @@ export function getCurrentPreset(): void {
  */
 export function paintSvgMapLayers(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
+  LavaFlowsRenderer.render(worldContext, viewContext, appServices);
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
@@ -395,6 +397,7 @@ export function drawLayers(): void {
 
 function drawHybridSvgOverlays(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
+  LavaFlowsRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
   // Ice and river editing resolve domain IDs from WebGL picks. Their editor-only control overlays
   // live under #debug, so hybrid mode no longer keeps hidden #ice or #rivers SVG mirrors alive.

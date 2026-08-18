@@ -143,8 +143,9 @@ export interface OptionsState {
   volcanismChance: number;
   /**
    * Of the volcanic peaks actually rolled (see volcanismChance), the % flagged "active"
-   * (molten `lavaField` crater) rather than dormant (bare `volcanicBarrens` cone whose summit
-   * is carved into a crater lake). Read once per tagged volcano at generation time.
+   * (lava crater lake + downhill lava flow; cooled `lavaField` along the flow) rather than
+   * dormant (bare `volcanicBarrens` cone whose summit is a freshwater crater lake). Read once
+   * per tagged volcano at generation time.
    */
   volcanoActiveChance: number;
   /**
