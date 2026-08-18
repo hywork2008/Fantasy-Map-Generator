@@ -3,6 +3,7 @@
 2026-08-18
 
 - docs/plan/earth-geography-heightmaps.md
+- docs/plan/steam-industrial-implementation.md
 
 2026-08-16
 

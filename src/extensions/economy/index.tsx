@@ -95,6 +95,7 @@ import {
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
+  migrateIndustrialSteamGoods,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
@@ -152,6 +153,7 @@ import { SmelterOperations } from "./generators/smelterOperations";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
 import { clearStateFiscalReports } from "./generators/stateFiscalReport";
 import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
+import { SteamIndustry } from "./generators/steamIndustry";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import {
   clearStrategicProcurementExpenses,
@@ -2240,6 +2242,7 @@ export function init(api: ExtensionAPI): void {
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
+    const migratedIndustrialSteam = migrateIndustrialSteamGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2256,6 +2259,7 @@ export function init(api: ExtensionAPI): void {
       migratedLegacyMetals ||
       migratedLiveCats ||
       migratedLiveDogs ||
+      migratedIndustrialSteam ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -2703,6 +2707,7 @@ export function init(api: ExtensionAPI): void {
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
         urbanWaterChanged = UrbanWater.settleAnnual();
+        SteamIndustry.settleAnnual();
         // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
         // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
         // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
@@ -2878,6 +2883,7 @@ export function init(api: ExtensionAPI): void {
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
+    const migratedIndustrialSteam = migrateIndustrialSteamGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2894,6 +2900,7 @@ export function init(api: ExtensionAPI): void {
       migratedLegacyMetals ||
       migratedLiveCats ||
       migratedLiveDogs ||
+      migratedIndustrialSteam ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||

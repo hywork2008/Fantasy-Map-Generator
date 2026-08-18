@@ -325,9 +325,11 @@ describe("technologyProgress", () => {
           { burgId: 3, domain: "printing", stock: 0.55 }
         ],
         academyKnowledgeStocks: [{ burgId: 3, domain: "administration", stock: 0.6 }],
-        mineOperations: [{ burgId: 3, depositId: 1, active: true, drainage: 0.3, workers: 8 }],
+        mineOperations: [{ i: 1, burgId: 3, depositId: 1, active: true, drainage: 0.3, workers: 8 }],
         mineralDeposits: [{ i: 1, depth: "deep", primaryCommodity: "coal", commodities: ["coal"] }],
-        smelterOperations: [{ burgId: 3, active: true, workers: 16 }]
+        smelterOperations: [{ burgId: 3, active: true, workers: 16 }],
+        steamPumpTrials: [{ stateId: 2, mineOperationId: 1, documentedRuns: 3, status: "running" }],
+        steamInstallations: [{ mineOperationId: 1 }]
       }
     };
     setTechnologyProgressForTests([

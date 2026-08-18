@@ -1,3 +1,5 @@
+import type { SteamWaterworks } from "./steamTypes";
+
 /**
  * Burg-level water and sanitation infrastructure.
  * See docs/plan/urban-water-and-sanitation-system.md.
@@ -121,6 +123,8 @@ export type UrbanWaterSystem = {
   // ── Phase 4: late tech & pollution diplomacy ─────────────────────────────
   waterLifting: number;
   municipalSanitation: number;
+  /** Optional municipal steam pumping plant (docs/plan/steam-industrial-implementation.md Phase 3B). */
+  steamWaterworks?: SteamWaterworks;
   sanitaryEngineering: number;
   /** Compensation this burg/state paid to downstream victims last year. */
   lastPollutionCompensationPaid: number;

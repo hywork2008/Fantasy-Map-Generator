@@ -1,5 +1,4 @@
 import { Routes } from "../../../generators/routes-generator";
-import { getAtmosphericSteamDrainageBonus } from "../../../generators/technologyProgress";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -13,6 +12,7 @@ import {
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import { getMinedGoodName, type MineOperation, type MineralCommodity, type MineralDeposit } from "./mineralResources";
+import { getMineSteamDrainageBonus } from "./steamInstallations";
 
 const INITIAL_OPERATION_ACCESSIBILITY = 0.5;
 const PROSPECTING_ACCESSIBILITY = 0.35;
@@ -414,8 +414,7 @@ export class MineOperationsModule {
         continue;
       }
 
-      const burg = getWorldContext().pack.burgs?.[operation.burgId];
-      const steamDrainage = Math.min(1, operation.drainage + getAtmosphericSteamDrainageBonus(burg?.state ?? 0));
+      const steamDrainage = Math.min(1, operation.drainage + getMineSteamDrainageBonus(operation.i));
       const extractionFactor = getMineExtractionFactor({ ...operation, drainage: steamDrainage }, deposit);
       const annualOutput: Partial<Record<MineralCommodity, number>> = {};
 

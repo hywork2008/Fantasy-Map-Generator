@@ -76,6 +76,7 @@ import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmploymen
 import type { SmelterOperation } from "./generators/smelterOperationsTypes";
 import type { SmithingWorkshopLedger } from "./generators/smithingWorkshopLedgerTypes";
 import type { StateSecretStock } from "./generators/stateSecretTypes";
+import type { RailwayLink, SteamInstallation, SteamPumpTrial } from "./generators/steamTypes";
 import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
@@ -135,6 +136,7 @@ let _guildSuccessionLastSettledYearFallback: number | null = null;
 let _burgTreasuryLastSettledYearFallback: number | null = null;
 let _innFacilitiesLastSettledYearFallback: number | null = null;
 let _urbanWaterLastSettledYearFallback: number | null = null;
+let _steamInstallationsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -187,6 +189,7 @@ export function clearEconomyContext(): void {
   _burgTreasuryLastSettledYearFallback = null;
   _innFacilitiesLastSettledYearFallback = null;
   _urbanWaterLastSettledYearFallback = null;
+  _steamInstallationsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1284,6 +1287,42 @@ export function setUrbanWaterLastSettledYear(year: number): void {
     return;
   }
   _urbanWaterLastSettledYearFallback = year;
+}
+
+export function getSteamPumpTrials(): SteamPumpTrial[] {
+  return getSliceArray<SteamPumpTrial>("steamPumpTrials");
+}
+export function setSteamPumpTrials(trials: readonly SteamPumpTrial[]): void {
+  setSliceArray("steamPumpTrials", trials);
+}
+export function getSteamInstallations(): SteamInstallation[] {
+  return getSliceArray<SteamInstallation>("steamInstallations");
+}
+export function setSteamInstallations(installations: readonly SteamInstallation[]): void {
+  setSliceArray("steamInstallations", installations);
+}
+export function getRailwayLinks(): RailwayLink[] {
+  return getSliceArray<RailwayLink>("railwayLinks");
+}
+export function setRailwayLinks(links: readonly RailwayLink[]): void {
+  setSliceArray("railwayLinks", links);
+}
+
+export function getSteamInstallationsLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.steamInstallationsLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _steamInstallationsLastSettledYearFallback;
+}
+export function setSteamInstallationsLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.steamInstallationsLastSettledYear = year;
+    return;
+  }
+  _steamInstallationsLastSettledYearFallback = year;
 }
 
 /**

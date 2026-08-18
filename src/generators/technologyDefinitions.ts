@@ -384,7 +384,7 @@ const ERA_4: readonly TechnologyDefinition[] = [
   }
 ];
 
-/** Stage 5: first practical steam — atmospheric mine-drainage engines. */
+/** Stage 5: first practical steam — atmospheric mine-drainage engines and early industrial power. */
 const ERA_5: readonly TechnologyDefinition[] = [
   {
     id: "atmosphericSteamPumping",
@@ -398,10 +398,144 @@ const ERA_5: readonly TechnologyDefinition[] = [
       "coalFuelSupply"
     ],
     known: { min: { mineDrainagePressure: 0.2, deepMineCount: 1, treasury: 80 } },
-    demonstrated: { min: { mineDrainagePressure: 0.35, deepMineCount: 1, metallurgy: 0.55, treasury: 120 } },
+    demonstrated: {
+      min: { mineDrainagePressure: 0.35, deepMineCount: 1, metallurgy: 0.55, treasury: 120, steamTrialYears: 2 }
+    },
     adopted: {
-      min: { mineDrainagePressure: 0.45, deepMineCount: 1, metallurgy: 0.65, administration: 0.4, treasury: 160 }
-    }
+      min: {
+        mineDrainagePressure: 0.45,
+        deepMineCount: 1,
+        metallurgy: 0.65,
+        administration: 0.4,
+        treasury: 160,
+        steamInstallations: 1
+      }
+    },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
+  },
+  {
+    id: "condensateEfficiency",
+    label: "Separate-condenser steam engine",
+    era: 5,
+    scope: "state",
+    prerequisites: ["atmosphericSteamPumping"],
+    known: { min: { steamInstallations: 1, metallurgy: 0.5, treasury: 80 } },
+    demonstrated: { min: { steamInstallations: 1, metallurgy: 0.6, administration: 0.35, treasury: 120 } },
+    adopted: { min: { steamInstallations: 1, metallurgy: 0.7, administration: 0.45, treasury: 160 } },
+    minimumYearsAtPreviousStage: { demonstrated: 1, adopted: 2 }
+  },
+  {
+    id: "rotarySteamPower",
+    label: "Rotary steam power",
+    era: 5,
+    scope: "state",
+    prerequisites: ["condensateEfficiency", "mechanicalWorkshops"],
+    known: { min: { woodworking: 0.35, metallurgy: 0.5, treasury: 80 } },
+    demonstrated: { min: { woodworking: 0.45, metallurgy: 0.6, urbanPopulation: 15, treasury: 120 } },
+    adopted: { min: { woodworking: 0.55, metallurgy: 0.65, urbanPopulation: 20, treasury: 160 } }
+  },
+  {
+    id: "coalCarbonization",
+    label: "Coke-fuelled blast furnace",
+    era: 5,
+    scope: "state",
+    prerequisites: ["improvedMining", "highTempFurnace"],
+    known: { min: { mineCount: 1, metallurgy: 0.35, treasury: 40 } },
+    demonstrated: { min: { coalMineCount: 1, metallurgy: 0.5, smelterWorkers: 8, treasury: 70 } },
+    adopted: { min: { coalMineCount: 1, metallurgy: 0.6, smelterWorkers: 12, treasury: 100 } }
+  },
+  {
+    id: "standardMachineWorks",
+    label: "Standard machine works",
+    era: 5,
+    scope: "state",
+    prerequisites: ["rotarySteamPower", "coalCarbonization"],
+    known: { min: { metallurgy: 0.55, smelterWorkers: 8, treasury: 80 } },
+    demonstrated: { min: { metallurgy: 0.65, smelterWorkers: 12, administration: 0.35, treasury: 120 } },
+    adopted: { min: { metallurgy: 0.7, smelterWorkers: 14, administration: 0.45, treasury: 160 } }
+  },
+  {
+    id: "highEfficiencySteamEngine",
+    label: "High-efficiency stationary steam engine",
+    era: 5,
+    scope: "state",
+    prerequisites: ["condensateEfficiency", "standardMachineWorks"],
+    known: { min: { metallurgy: 0.6, treasury: 100 } },
+    demonstrated: { min: { metallurgy: 0.7, administration: 0.4, treasury: 140 } },
+    adopted: { min: { metallurgy: 0.75, administration: 0.5, treasury: 180 } }
+  },
+  {
+    id: "steamTransport",
+    label: "Steam locomotive",
+    era: 5,
+    scope: "state",
+    prerequisites: ["highEfficiencySteamEngine", "stoneBuildingAndRoads"],
+    known: { min: { treasury: 120, administration: 0.35 } },
+    demonstrated: { min: { treasury: 160, administration: 0.4, urbanPopulation: 18 } },
+    adopted: { min: { treasury: 200, administration: 0.5, urbanPopulation: 25 } }
+  },
+  {
+    id: "railEngineering",
+    label: "Rail engineering",
+    era: 5,
+    scope: "state",
+    prerequisites: ["steamTransport", "standardMachineWorks"],
+    known: { min: { treasury: 140, masonry: 0.3 } },
+    demonstrated: { min: { treasury: 180, masonry: 0.4, administration: 0.4 } },
+    adopted: { min: { treasury: 220, masonry: 0.5, administration: 0.5 } }
+  },
+  {
+    id: "railwayOperations",
+    label: "Railway operations",
+    era: 5,
+    scope: "state",
+    prerequisites: ["railEngineering", "commercialFinance"],
+    known: { min: { treasury: 160, portCount: 0, administration: 0.4 } },
+    demonstrated: { min: { treasury: 200, administration: 0.45 } },
+    adopted: { min: { treasury: 260, administration: 0.55 } }
+  },
+  {
+    id: "municipalSteamPumping",
+    label: "Municipal steam pumping",
+    era: 5,
+    scope: "state",
+    prerequisites: ["highEfficiencySteamEngine", "urbanCoveredDrainage"],
+    known: { min: { urbanWaterMaxTier: 2, treasury: 80 } },
+    demonstrated: { min: { urbanWaterMaxTier: 3, administration: 0.35, treasury: 120 } },
+    adopted: { min: { urbanWaterMaxTier: 3, administration: 0.45, treasury: 160 } }
+  },
+  {
+    id: "marineSteamEngineering",
+    label: "Marine steam engineering",
+    era: 5,
+    scope: "state",
+    prerequisites: ["highEfficiencySteamEngine", "oceanGoingHulls"],
+    worldGates: ["shipbuildingWorld"],
+    known: { min: { portCount: 1, treasury: 100 } },
+    demonstrated: { min: { portCount: 1, shipTechPoints: 40, treasury: 140 } },
+    adopted: { min: { portCount: 2, shipTechPoints: 80, treasury: 180 } }
+  },
+  {
+    id: "coastalSteamNavigation",
+    label: "Coastal steam navigation",
+    era: 5,
+    scope: "state",
+    prerequisites: ["marineSteamEngineering", "fleetLogistics"],
+    worldGates: ["shipbuildingWorld"],
+    known: { min: { portCount: 1, completedHulls: 2, treasury: 120 } },
+    demonstrated: { min: { portCount: 2, completedHulls: 4, treasury: 160 } },
+    adopted: { min: { portCount: 2, completedHulls: 6, treasury: 200 } }
+  },
+  {
+    id: "oceanSteamNavigation",
+    label: "Ocean steam navigation",
+    era: 5,
+    scope: "state",
+    prerequisites: ["coastalSteamNavigation", "oceanNavigation"],
+    worldGates: ["shipbuildingWorld"],
+    known: { min: { portCount: 2, completedHulls: 4, treasury: 160 } },
+    demonstrated: { min: { portCount: 2, completedHulls: 6, shipTechPoints: 80, treasury: 200 } },
+    adopted: { min: { portCount: 3, completedHulls: 8, shipTechPoints: 120, treasury: 260 } }
   }
 ];
 

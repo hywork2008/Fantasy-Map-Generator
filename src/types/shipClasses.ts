@@ -38,6 +38,15 @@ export const SHIP_CLASS_DEFINITIONS: readonly ShipClassDefinition[] = [
     buildPointsRequired: 60,
     cargoCapacitySlots: 800,
     navalCrewCapacity: 800
+  },
+  {
+    id: "steamship",
+    name: "Steamship",
+    tier: 3,
+    techPointsRequired: 200,
+    buildPointsRequired: 80,
+    cargoCapacitySlots: 1100,
+    navalCrewCapacity: 700
   }
 ];
 

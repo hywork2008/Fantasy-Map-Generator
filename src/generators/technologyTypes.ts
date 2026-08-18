@@ -54,6 +54,10 @@ export interface TechnologySignals {
   coalMineCount: number;
   /** 0..1 derived drainage/investment pressure on active mines. */
   mineDrainagePressure: number;
+  /** Consecutive viable steam-trial years in this state. */
+  steamTrialYears: number;
+  /** Fueled atmospheric steam installations on this state's mines. */
+  steamInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }
@@ -80,6 +84,11 @@ export interface TechnologyDefinition {
   readonly known: TechnologyThresholds;
   readonly demonstrated: TechnologyThresholds;
   readonly adopted: TechnologyThresholds;
+  /**
+   * Years that must elapse at the previous stage before climbing.
+   * Divided by Options → Simulation technology development speed.
+   */
+  readonly minimumYearsAtPreviousStage?: Partial<Record<"known" | "demonstrated" | "adopted", number>>;
 }
 
 export interface TechnologySimulationState {

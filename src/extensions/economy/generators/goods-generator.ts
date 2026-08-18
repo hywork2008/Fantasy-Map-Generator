@@ -4,6 +4,8 @@ import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import { getCoastalHabitatKey, getNearshoreHabitatKey } from "../../../data/coastalHabitatCatalog";
 import { PERENNIAL_CROP_PROFILES } from "../../../data/perennialCrops";
 import { STAPLE_CROP_PROFILES } from "../../../data/stapleCrops";
+import { getTechnologyProgressEntries } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast, type TechnologyStage } from "../../../generators/technologyTypes";
 import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
 import { rn, TIME } from "../../hostUtils";
@@ -97,10 +99,19 @@ export function getDemandTargets(population: number): number[] {
 
 const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery", "bullets", "muskets"]);
 
-/** Returns whether a good is available under the current world's era settings. */
-export function isGoodEnabled(good: Pick<Good, "name">): boolean {
-  if (getWorldContext().options.gunpowderEraEnabled !== false) return true;
-  return !GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase());
+function worldKnowsTechnology(technologyId: string, minimum: TechnologyStage = "demonstrated"): boolean {
+  return getTechnologyProgressEntries().some(
+    entry => entry.technologyId === technologyId && isTechnologyStageAtLeast(entry.stage, minimum)
+  );
+}
+
+/** Returns whether a good is available under the current world's era and technology settings. */
+export function isGoodEnabled(good: Pick<Good, "name" | "requiredTechnology">): boolean {
+  if (GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase()) && getWorldContext().options.gunpowderEraEnabled === false) {
+    return false;
+  }
+  if (good.requiredTechnology && !worldKnowsTechnology(good.requiredTechnology, "demonstrated")) return false;
+  return true;
 }
 
 /**
@@ -2415,6 +2426,112 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [{ Grapes: GRAPES_LOTS_PER_RAISINS_LOT }],
     unit: "250 kg raisins lot"
+  },
+  {
+    name: "Coke",
+    warEconomyType: "strategic",
+    tags: ["fuel", "industrial"],
+    icon: "good-coal",
+    color: "#2b2b2b",
+    value: 4,
+    chance: 0,
+    recipes: [{ Coal: 1.4 }],
+    unit: "wain",
+    demandCoverage: { utilities: 0.1 },
+    requiredTechnology: "coalCarbonization"
+  },
+  {
+    name: "Steel",
+    warEconomyType: "strategic",
+    tags: ["metal", "industrial"],
+    icon: "good-unknown",
+    color: "#7a8490",
+    value: 14,
+    chance: 0,
+    recipes: [{ "Iron Ingot": 1, Coke: 0.6, Lime: 0.2 }],
+    unit: "bar",
+    demandCoverage: { construction: 0.05 },
+    requiredTechnology: "standardMachineWorks"
+  },
+  {
+    name: "Machine Parts",
+    warEconomyType: "strategic",
+    tags: ["industrial", "tools"],
+    icon: "good-unknown",
+    color: "#6d7380",
+    value: 18,
+    chance: 0,
+    recipes: [{ Steel: 0.6, "Iron Ingot": 0.4, Tools: 0.2 }],
+    unit: "crate",
+    demandCoverage: {},
+    requiredTechnology: "standardMachineWorks"
+  },
+  {
+    name: "Stationary Steam Engine",
+    warEconomyType: "strategic",
+    tags: ["industrial", "capital"],
+    icon: "good-unknown",
+    color: "#4a5560",
+    value: 80,
+    chance: 0,
+    recipes: [{ "Machine Parts": 2, Steel: 1.5, "Copper Ingot": 0.4, Glass: 0.2 }],
+    unit: "engine",
+    demandCoverage: {},
+    requiredTechnology: "highEfficiencySteamEngine"
+  },
+  {
+    name: "Rail",
+    warEconomyType: "strategic",
+    tags: ["industrial", "construction"],
+    icon: "good-unknown",
+    color: "#5c5c5c",
+    value: 24,
+    chance: 0,
+    recipes: [{ Steel: 1, "Machine Parts": 0.2, Wood: 0.4 }],
+    unit: "length",
+    demandCoverage: { construction: 0.02 },
+    requiredTechnology: "railEngineering"
+  },
+  {
+    name: "Locomotive",
+    warEconomyType: "strategic",
+    tags: ["industrial", "capital"],
+    icon: "good-unknown",
+    color: "#3d3d3d",
+    value: 160,
+    chance: 0,
+    recipes: [{ Steel: 2, "Machine Parts": 2, "Stationary Steam Engine": 1 }],
+    unit: "engine",
+    demandCoverage: {},
+    requiredTechnology: "steamTransport"
+  },
+  {
+    name: "Marine Steam Engine",
+    warEconomyType: "strategic",
+    tags: ["industrial", "capital"],
+    icon: "good-unknown",
+    color: "#3a4a55",
+    value: 70,
+    chance: 0,
+    recipes: [{ Steel: 1.5, "Machine Parts": 2, "Copper Ingot": 0.5 }],
+    unit: "engine",
+    demandCoverage: {},
+    requiredTechnology: "marineSteamEngineering"
+  },
+  {
+    name: "Steamship",
+    warEconomyType: "military",
+    seaOnly: true,
+    tags: ["naval", "industrial"],
+    icon: "good-ships",
+    color: "#3a4a55",
+    value: Math.max(shipGoodValue("steamship"), 120),
+    chance: 0,
+    recipes: [{ Wood: 4, Sails: 1, Ropes: 2, Tar: 1, "Marine Steam Engine": 1 }],
+    unit: "ship",
+    demandCoverage: { military: 2 },
+    multipliers: { cultureType: { Naval: 2 } },
+    requiredTechnology: "coastalSteamNavigation"
   }
 ];
 
@@ -2489,6 +2606,13 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Sulfur: tradeProfile(3, 3, 4, 2, 0, 4, 2),
   Saltpeter: tradeProfile(3, 3, 4, 2, 0, 4, 2),
   Coal: tradeProfile(5, 4, 2, 0, 0, 5, 2),
+  Coke: tradeProfile(5, 4, 3, 1, 0, 5, 2),
+  Steel: tradeProfile(4, 3, 4, 1, 0, 5, 2),
+  "Machine Parts": tradeProfile(3, 2, 4, 2, 0, 4, 2),
+  "Stationary Steam Engine": tradeProfile(5, 5, 5, 1, 0, 4, 3),
+  Rail: tradeProfile(5, 5, 3, 0, 0, 5, 2),
+  Locomotive: tradeProfile(5, 5, 5, 1, 0, 4, 3),
+  "Marine Steam Engine": tradeProfile(5, 5, 5, 1, 0, 4, 3),
   Charcoal: tradeProfile(4, 3, 2, 0, 0, 4, 2),
   Oil: tradeProfile(3, 3, 2, 1, 0, 4, 2),
   Mahogany: tradeProfile(4, 5, 5, 3, 0, 4, 2),
@@ -2919,6 +3043,53 @@ export function migrateLiveDogsGood(): boolean {
   if (!dogs) throw new Error("Dogs must be present in the shipped goods catalogue");
   dogs.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   goods.push(dogs);
+  return true;
+}
+
+const INDUSTRIAL_STEAM_GOOD_NAMES = [
+  "Coke",
+  "Steel",
+  "Machine Parts",
+  "Stationary Steam Engine",
+  "Rail",
+  "Locomotive",
+  "Marine Steam Engine",
+  "Steamship"
+] as const;
+
+/**
+ * Appends first-wave steam-industrial Goods to older catalogues without seeding stock.
+ * Recipes are remapped to this save's live Good ids (Coke/Steel may not share default ids).
+ */
+export function migrateIndustrialSteamGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of INDUSTRIAL_STEAM_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of INDUSTRIAL_STEAM_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
   return true;
 }
 

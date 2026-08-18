@@ -1,4 +1,5 @@
-import { isDistillationKnown } from "../../../generators/technologyProgress";
+import { getTechnologyStage, isDistillationKnown } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
 import {
@@ -134,7 +135,13 @@ const STATE_TECH_GATED_GOODS: Readonly<Record<string, (stateId: number) => boole
 };
 
 /** State-scoped technology availability for otherwise globally registered manufactured goods. */
-export function isGoodManufacturableInState(good: Pick<Good, "name">, stateId: number): boolean {
+export function isGoodManufacturableInState(good: Pick<Good, "name" | "requiredTechnology">, stateId: number): boolean {
+  if (
+    good.requiredTechnology &&
+    !isTechnologyStageAtLeast(getTechnologyStage(good.requiredTechnology, stateId), "adopted")
+  ) {
+    return false;
+  }
   return STATE_TECH_GATED_GOODS[good.name]?.(stateId) ?? true;
 }
 

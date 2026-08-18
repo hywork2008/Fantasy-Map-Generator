@@ -103,6 +103,12 @@ export interface Good {
   /** Missing only on legacy or user-created catalogue entries; callers must use the migration fallback. */
   cargo?: GoodCargoProfile;
 
+  /**
+   * Host technology graph id that must be demonstrated somewhere (world-known)
+   * and adopted in the producing state (manufacturable).
+   */
+  requiredTechnology?: string;
+
   // lore
   name: string;
   tags: string[];

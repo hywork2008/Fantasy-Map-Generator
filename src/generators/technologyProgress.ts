@@ -119,6 +119,7 @@ export function isDistillationKnown(stateId: number): boolean {
  * Tech points still apply separately in Shipbuilding.
  */
 export function getMaxShipClassTierForState(stateId: number): number {
+  if (isTechnologyAtLeast("coastalSteamNavigation", stateId, "demonstrated")) return 3;
   const hulls = getTechnologyStage("oceanGoingHulls", stateId);
   const navigation = getTechnologyStage("oceanNavigation", stateId);
   if (isTechnologyStageAtLeast(hulls, "adopted") && isTechnologyStageAtLeast(navigation, "known")) {
@@ -350,6 +351,8 @@ function emptySignals(): TechnologySignals {
     deepMineCount: 0,
     coalMineCount: 0,
     mineDrainagePressure: 0,
+    steamTrialYears: 0,
+    steamInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -468,6 +471,23 @@ function buildStateSignals(): Map<number, TechnologySignals> {
         Math.min(1, 0.45 * (agg.deficit / agg.active) + 0.3 * (agg.deep / agg.active) + 0.25 * Math.min(1, agg.coal))
       );
     }
+
+    const trialYearsByState = new Map<number, number>();
+    for (const trial of asStockArray(economy.steamPumpTrials)) {
+      const stateId = asNumber(trial.stateId);
+      trialYearsByState.set(stateId, Math.max(trialYearsByState.get(stateId) ?? 0, asNumber(trial.documentedRuns)));
+    }
+    for (const [stateId, years] of trialYearsByState) {
+      const signals = map.get(stateId);
+      if (signals) signals.steamTrialYears = years;
+    }
+    for (const installation of asStockArray(economy.steamInstallations)) {
+      const mineId = asNumber(installation.mineOperationId);
+      const mine = asStockArray(economy.mineOperations).find(entry => asNumber(entry.i) === mineId);
+      const stateId = asNumber(mine?.stateId) || burgStateId(asNumber(mine?.burgId));
+      const signals = map.get(stateId);
+      if (signals) signals.steamInstallations += 1;
+    }
     for (const smelter of asStockArray(economy.smelterOperations)) {
       const stateId = asNumber(smelter.stateId) || burgStateId(asNumber(smelter.burgId));
       const signals = map.get(stateId);
@@ -545,6 +565,12 @@ function thresholdsMet(thresholds: TechnologyThresholds, signals: TechnologySign
   return true;
 }
 
+function heldLongEnough(startYear: number | undefined, requiredYears: number | undefined, year: number): boolean {
+  if (!requiredYears) return true;
+  if (startYear === undefined) return false;
+  return year - startYear >= requiredYears / getTechnologyDevelopmentSpeed();
+}
+
 function advanceStage(
   entry: TechnologyProgress,
   def: TechnologyDefinition,
@@ -552,17 +578,27 @@ function advanceStage(
   year: number
 ): TechnologyStage {
   let stage = entry.stage;
+  const waits = def.minimumYearsAtPreviousStage;
 
-  // Same year may climb locked → known → demonstrated → adopted when signals are strong.
+  // Same year may climb locked → known → demonstrated → adopted when signals are strong
+  // and the definition does not require time-in-stage.
   if (technologyStageRank(stage) < 1 && thresholdsMet(def.known, signals)) {
     stage = "known";
     entry.discoveredYear = entry.discoveredYear ?? year;
   }
-  if (technologyStageRank(stage) === 1 && thresholdsMet(def.demonstrated, signals)) {
+  if (
+    technologyStageRank(stage) === 1 &&
+    heldLongEnough(entry.discoveredYear, waits?.demonstrated, year) &&
+    thresholdsMet(def.demonstrated, signals)
+  ) {
     stage = "demonstrated";
     entry.demonstratedYear = entry.demonstratedYear ?? year;
   }
-  if (technologyStageRank(stage) === 2 && thresholdsMet(def.adopted, signals)) {
+  if (
+    technologyStageRank(stage) === 2 &&
+    heldLongEnough(entry.demonstratedYear, waits?.adopted, year) &&
+    thresholdsMet(def.adopted, signals)
+  ) {
     stage = "adopted";
     entry.adoptedYear = entry.adoptedYear ?? year;
     entry.diffusion = Math.max(entry.diffusion || 0, 0);
