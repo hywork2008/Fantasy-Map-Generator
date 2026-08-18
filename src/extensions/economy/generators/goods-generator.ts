@@ -99,10 +99,34 @@ export function getDemandTargets(population: number): number[] {
 
 const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery", "bullets", "muskets"]);
 
+/**
+ * `isGoodEnabled()` is one of the hottest functions in the economy extension (called per
+ * good per market across production/market/diagnostics loops). Scanning every technology
+ * progress entry on each call is O(states x technologies) and dominates once tech-gated goods
+ * are in play. `tech.progress` is only ever reassigned to a new array reference in
+ * `settleTechnologyAnnual()` (self-gated to once per simulated year), so a Set rebuilt only
+ * when that reference changes — mirroring `_marketByIdCache` in economyContext.ts — keeps
+ * lookups O(1) without risking staleness.
+ */
+let _worldKnownTechnologyCache: {
+  source: ReturnType<typeof getTechnologyProgressEntries>;
+  byMinimum: Map<TechnologyStage, Set<string>>;
+} | null = null;
+
 function worldKnowsTechnology(technologyId: string, minimum: TechnologyStage = "demonstrated"): boolean {
-  return getTechnologyProgressEntries().some(
-    entry => entry.technologyId === technologyId && isTechnologyStageAtLeast(entry.stage, minimum)
-  );
+  const entries = getTechnologyProgressEntries();
+  if (!_worldKnownTechnologyCache || _worldKnownTechnologyCache.source !== entries) {
+    _worldKnownTechnologyCache = { source: entries, byMinimum: new Map() };
+  }
+  let known = _worldKnownTechnologyCache.byMinimum.get(minimum);
+  if (!known) {
+    known = new Set<string>();
+    for (const entry of entries) {
+      if (isTechnologyStageAtLeast(entry.stage, minimum)) known.add(entry.technologyId);
+    }
+    _worldKnownTechnologyCache.byMinimum.set(minimum, known);
+  }
+  return known.has(technologyId);
 }
 
 /** Returns whether a good is available under the current world's era and technology settings. */

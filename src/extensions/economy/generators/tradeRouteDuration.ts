@@ -1,7 +1,7 @@
 import { calculateLandTravelDays } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
 import { useOptionsState } from "../../hostCore";
-import { getMarkets, getWorldContext } from "../economyContext";
+import { getMarkets, getRailwayLinks, getWorldContext } from "../economyContext";
 import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
 import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { getRailwayTravelMultiplier } from "./railwayTravel";
@@ -54,6 +54,14 @@ function resolveHeightExponent(options?: RouteDurationOptions): number {
 
 function applyRailway(points: readonly TradeRoutePoint[]): number {
   if (points.length < 2) return 1;
+  // The nearest-market lookup below is O(markets) per endpoint and this function runs on
+  // nearly every land-segment duration calculation in the economy extension (caravans, retail
+  // restocking, strategic procurement, trade-opportunity scanning, escort jobs, market
+  // generation, player travel). Skip it while no state has finished any railway link yet —
+  // railwayOperations requires demonstrated Coke -> Steel -> Machine Parts -> Steam Engine ->
+  // steamTransport -> railEngineering first, so this covers the overwhelming majority of any
+  // playthrough (see docs/plan/steam-industrial-implementation.md §7).
+  if (getRailwayLinks().length === 0) return 1;
   try {
     const burgs = getWorldContext().pack?.burgs ?? [];
     const markets = getMarkets();
