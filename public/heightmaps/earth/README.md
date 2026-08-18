@@ -14,6 +14,7 @@ Packed public-domain elevation and land masks used by `fromEarthRegion()`.
 | `europe.bin` | Ireland to Georgia, Cyprus to Finland (EU members + candidates) + GMTED/ETOPO |
 | `indian-ocean.bin` | Dakar (W) to mainland Australia (SE); Bass Strait north channel; Tasmania off-map + GMTED/ETOPO |
 | `arabia.bin` | Croatia (NW) to Sri Lanka (SE); coastal margin south and east of Sri Lanka + GMTED/ETOPO |
+| `ancient-rome.bin` | Roman Empire AD 117: Britain to the Caspian, Thebes to Scotland + GMTED/ETOPO |
 
 Bake:
 
@@ -28,6 +29,7 @@ node scripts/bakeCaribbeanEarthRaster.mjs
 node scripts/bakeEuropeEarthRaster.mjs
 node scripts/bakeIndianOceanEarthRaster.mjs
 node scripts/bakeArabiaEarthRaster.mjs
+node scripts/bakeAncientRomeEarthRaster.mjs
 ```
 
 License: Natural Earth, GMTED2010, and ETOPO1 are public domain. See

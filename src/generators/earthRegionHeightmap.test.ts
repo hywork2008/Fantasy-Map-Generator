@@ -5,6 +5,7 @@ import { worldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
 import { earthRegionAspect, earthRegionFitGraph, KM_PER_DEG_LAT, KM_PER_DEG_LON_EQUATOR } from "../data/earthConfig";
 import {
+  ANCIENT_ROME_REGION,
   ARABIA_REGION,
   ATLANTICS_REGION,
   BRITAIN_REGION,
@@ -34,6 +35,7 @@ const CARIBBEAN_GRAPH = earthRegionFitGraph(CARIBBEAN_REGION, MAX_GRAPH_WIDTH, M
 const EUROPE_GRAPH = earthRegionFitGraph(EUROPE_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const INDIAN_OCEAN_GRAPH = earthRegionFitGraph(INDIAN_OCEAN_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 const ARABIA_GRAPH = earthRegionFitGraph(ARABIA_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
+const ANCIENT_ROME_GRAPH = earthRegionFitGraph(ANCIENT_ROME_REGION, MAX_GRAPH_WIDTH, MAX_GRAPH_HEIGHT);
 
 const LANDMARKS = {
   kanto: { lon: 139.75, lat: 36.0 },
@@ -1533,5 +1535,136 @@ describe("fromEarthRegion arabia", () => {
     expect(sampleLand(raster, 81.7, 7.4), "Sri Lanka east land").toBe(true);
     expect(sampleLand(raster, 80.59, 5.2), "ocean south of Sri Lanka").toBe(false);
     expect(sampleLand(raster, 82.5, 7.5), "ocean east of Sri Lanka").toBe(false);
+  }, 20000);
+});
+
+const ROME_LANDMARKS = {
+  rome: { lon: 12.5, lat: 41.9 },
+  carthage: { lon: 10.32, lat: 36.85 },
+  alexandria: { lon: 29.92, lat: 31.2 },
+  london: { lon: -0.13, lat: 51.51 },
+  gibraltar: { lon: -5.35, lat: 36.14 },
+  thebes: { lon: 32.64, lat: 25.72 },
+  capeWrath: { lon: -5.0, lat: 58.63 },
+  capeStVincent: { lon: -9.0, lat: 37.02 },
+  caspianEast: { lon: 54.0, lat: 42.0 },
+  sicily: { lon: 14.0, lat: 37.5 }
+};
+
+async function generateAncientRome(points = 4) {
+  worldContext.graphWidth = ANCIENT_ROME_GRAPH.width;
+  worldContext.graphHeight = ANCIENT_ROME_GRAPH.height;
+  useOptionsState.getState().setOptions({ points, template: "ancient-rome", heightExponent: 1.8 });
+  const grid = generateGrid("earth-ancient-rome-test", ANCIENT_ROME_GRAPH.width, ANCIENT_ROME_GRAPH.height);
+  const heights = await HeightmapGenerator.generate(worldContext, viewContext, appServices, grid);
+  return { grid, heights };
+}
+
+function nearestRomeCell(
+  grid: ReturnType<typeof generateGrid>,
+  lon: number,
+  lat: number,
+  heights?: Uint8Array
+): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < grid.points.length; i++) {
+    if (heights && heights[i] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const [x, y] = grid.points[i];
+    const here = mapPointToLonLat(ANCIENT_ROME_REGION, ANCIENT_ROME_GRAPH.width, ANCIENT_ROME_GRAPH.height, x, y);
+    const d = (here.lon - lon) ** 2 + (here.lat - lat) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function isInsideRomeBbox(lon: number, lat: number): boolean {
+  return (
+    lon >= ANCIENT_ROME_REGION.west &&
+    lon <= ANCIENT_ROME_REGION.east &&
+    lat >= ANCIENT_ROME_REGION.south &&
+    lat <= ANCIENT_ROME_REGION.north
+  );
+}
+
+describe("fromEarthRegion ancient-rome", () => {
+  it("frames the AD 117 empire from Britain to the Caspian", () => {
+    expect(ANCIENT_ROME_REGION.west).toBeCloseTo(-11.5, 5);
+    expect(ANCIENT_ROME_REGION.east).toBeCloseTo(56, 5);
+    expect(ANCIENT_ROME_REGION.south).toBeCloseTo(21.5, 5);
+    expect(ANCIENT_ROME_REGION.north).toBeCloseTo(59.5, 5);
+    expect(isInsideRomeBbox(ROME_LANDMARKS.rome.lon, ROME_LANDMARKS.rome.lat)).toBe(true);
+    expect(isInsideRomeBbox(ROME_LANDMARKS.london.lon, ROME_LANDMARKS.london.lat)).toBe(true);
+    expect(isInsideRomeBbox(ROME_LANDMARKS.thebes.lon, ROME_LANDMARKS.thebes.lat)).toBe(true);
+    expect(isInsideRomeBbox(ROME_LANDMARKS.caspianEast.lon, ROME_LANDMARKS.caspianEast.lat)).toBe(true);
+    expect(isInsideRomeBbox(ROME_LANDMARKS.capeWrath.lon, ROME_LANDMARKS.capeWrath.lat)).toBe(true);
+    expect(isInsideRomeBbox(ROME_LANDMARKS.capeStVincent.lon, ROME_LANDMARKS.capeStVincent.lat)).toBe(true);
+    expect(ROME_LANDMARKS.capeStVincent.lon - ANCIENT_ROME_REGION.west).toBeGreaterThan(1);
+    expect(ANCIENT_ROME_REGION.east - ROME_LANDMARKS.caspianEast.lon).toBeGreaterThan(1);
+    expect(ANCIENT_ROME_REGION.north - ROME_LANDMARKS.capeWrath.lat).toBeGreaterThan(0.5);
+    expect(ROME_LANDMARKS.thebes.lat - ANCIENT_ROME_REGION.south).toBeGreaterThan(2);
+    expect(isInsideRomeBbox(10.75, 59.91), "Oslo").toBe(false);
+    expect(isInsideRomeBbox(32.86, 39.93), "Ankara").toBe(true);
+  });
+
+  it("does not stretch Ancient Rome to the window aspect", () => {
+    const midLat = ((ANCIENT_ROME_REGION.north + ANCIENT_ROME_REGION.south) / 2) * (Math.PI / 180);
+    const expected = (KM_PER_DEG_LON_EQUATOR * Math.cos(midLat)) / KM_PER_DEG_LAT;
+    const aspect = earthRegionAspect(ANCIENT_ROME_REGION);
+    for (const [maxW, maxH] of [
+      [960, 540],
+      [540, 960],
+      [800, 800]
+    ] as const) {
+      const fitted = earthRegionFitGraph(ANCIENT_ROME_REGION, maxW, maxH);
+      expect(fitted.width / fitted.height, `${maxW}x${maxH} aspect`).toBeCloseTo(aspect, 2);
+      expect(fitted.width).toBeLessThanOrEqual(maxW);
+      expect(fitted.height).toBeLessThanOrEqual(maxH);
+      const origin = lonLatToMapPoint(ANCIENT_ROME_REGION, fitted.width, fitted.height, 12.5, 41.9);
+      const east = lonLatToMapPoint(ANCIENT_ROME_REGION, fitted.width, fitted.height, 13.5, 41.9);
+      const north = lonLatToMapPoint(ANCIENT_ROME_REGION, fitted.width, fitted.height, 12.5, 42.9);
+      const dx = Math.hypot(east.x - origin.x, east.y - origin.y);
+      const dy = Math.hypot(north.x - origin.x, north.y - origin.y);
+      expect(dx / dy, `${maxW}x${maxH}`).toBeCloseTo(expected, 2);
+    }
+  });
+
+  it("keeps Rome, Britain and Thebes as land and Sicily separate from Italy", async () => {
+    const { grid, heights } = await generateAncientRome(6);
+    const rome = nearestRomeCell(grid, ROME_LANDMARKS.rome.lon, ROME_LANDMARKS.rome.lat, heights);
+    const london = nearestRomeCell(grid, ROME_LANDMARKS.london.lon, ROME_LANDMARKS.london.lat, heights);
+    const thebes = nearestRomeCell(grid, ROME_LANDMARKS.thebes.lon, ROME_LANDMARKS.thebes.lat, heights);
+    expect(heights[rome]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    expect(heights[london]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+    expect(heights[thebes]).toBeGreaterThanOrEqual(HeightThreshold.WATER_MAX_HEIGHT);
+
+    const [lx] = grid.points[london];
+    const [tx, ty] = grid.points[thebes];
+    expect(lx, "Britain is on the western half").toBeLessThan(ANCIENT_ROME_GRAPH.width / 2);
+    expect(tx, "Thebes is on the eastern half").toBeGreaterThan(ANCIENT_ROME_GRAPH.width / 2);
+    expect(ty, "Thebes is on the southern half").toBeGreaterThan(ANCIENT_ROME_GRAPH.height / 2);
+
+    const italy = landComponentId(heights, grid, rome);
+    const sicily = landComponentId(
+      heights,
+      grid,
+      nearestRomeCell(grid, ROME_LANDMARKS.sicily.lon, ROME_LANDMARKS.sicily.lat, heights)
+    );
+    expect(italy, "italy land").toBeGreaterThanOrEqual(0);
+    expect(sicily, "sicily land").toBeGreaterThanOrEqual(0);
+    expect(italy !== sicily, `Italy-Sicily ${italy}/${sicily}`).toBe(true);
+
+    const raster = await loadEarthRaster(ANCIENT_ROME_REGION);
+    expect(sampleLand(raster, ROME_LANDMARKS.rome.lon, ROME_LANDMARKS.rome.lat), "Rome").toBe(true);
+    expect(sampleLand(raster, ROME_LANDMARKS.carthage.lon, ROME_LANDMARKS.carthage.lat), "Carthage").toBe(true);
+    expect(sampleLand(raster, ROME_LANDMARKS.alexandria.lon, ROME_LANDMARKS.alexandria.lat), "Alexandria").toBe(true);
+    expect(sampleLand(raster, ROME_LANDMARKS.london.lon, ROME_LANDMARKS.london.lat), "London").toBe(true);
+    expect(sampleLand(raster, ROME_LANDMARKS.thebes.lon, ROME_LANDMARKS.thebes.lat), "Thebes").toBe(true);
+    expect(sampleLand(raster, 14.5, 40.9), "Campania").toBe(true);
+    expect(sampleLand(raster, 12.25, 45.5), "Veneto").toBe(true);
+    expect(sampleLand(raster, 29.0, 41.05), "Byzantium").toBe(true);
   }, 20000);
 });

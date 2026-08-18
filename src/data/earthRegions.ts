@@ -89,6 +89,11 @@ const INDIAN_OCEAN_STRAITS: EarthStrait[] = [
   { name: "Sunda", a: [105.4, -5.9], b: [105.7, -6.5], widthKm: 24 }
 ];
 
+const ANCIENT_ROME_STRAITS: EarthStrait[] = [
+  { name: "Dover", a: [1.32, 51.13], b: [1.59, 50.87], widthKm: 33 },
+  ...MEDITERRANEAN_STRAITS
+];
+
 const ARABIA_STRAITS: EarthStrait[] = [
   { name: "Dardanelles", a: [26.36, 40.2], b: [26.42, 40.14], widthKm: 1.4 },
   { name: "Bosporus", a: [28.99, 41.12], b: [29.07, 41.12], widthKm: 0.7 },
@@ -366,6 +371,32 @@ export const ARABIA_REGION: EarthRegion = {
     "Natural Earth 10m admin-0 land (public domain). Croatia to Sri Lanka; south and east of Sri Lanka keep a coastal-sea margin."
 };
 
+/**
+ * Roman Empire at its AD 117 height (Britannica ancient-Rome map):
+ * Atlantic approaches west of Iberia and Britain, the Caspian in the
+ * east, Thebes and the Red Sea in the south, Scotland in the north.
+ * Ireland may appear as an in-frame neighbor. The graph is fitted to
+ * this bbox's true shape; leftover window is off-map.
+ */
+export const ANCIENT_ROME_REGION: EarthRegion = {
+  id: "ancient-rome",
+  name: "Ancient Rome",
+  west: -11.5,
+  east: 56,
+  south: 21.5,
+  north: 59.5,
+  projection: "equirectangular",
+  climateAnchor: {
+    mapSize: 18.75,
+    latitude: 40.5,
+    longitude: 42.39
+  },
+  raster: { path: "./heightmaps/earth/ancient-rome.bin" },
+  topology: { keepStraits: ANCIENT_ROME_STRAITS },
+  attribution:
+    "Natural Earth 10m admin-0 land (public domain). Roman Empire AD 117 theatre from Britain to the Caspian; in-frame neighbors are kept."
+};
+
 export const earthRegions: Record<string, EarthRegion> = {
   "east-asia": EAST_ASIA_REGION,
   japan: JAPAN_REGION,
@@ -376,7 +407,8 @@ export const earthRegions: Record<string, EarthRegion> = {
   caribbean: CARIBBEAN_REGION,
   europe: EUROPE_REGION,
   "indian-ocean": INDIAN_OCEAN_REGION,
-  arabia: ARABIA_REGION
+  arabia: ARABIA_REGION,
+  "ancient-rome": ANCIENT_ROME_REGION
 };
 
 export function isEarthRegion(id: string): boolean {

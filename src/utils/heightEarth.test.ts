@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { convertLegacyLatitudeToGeographic } from "../data/earthConfig";
 import {
+  ANCIENT_ROME_REGION,
   ARABIA_REGION,
   ATLANTICS_REGION,
   BRITAIN_REGION,
@@ -175,5 +176,17 @@ describe("arabia climate conversion", () => {
     expect(coords.latN).toBeCloseTo(47.0, 5);
     expect(ARABIA_REGION.climateAnchor.mapSize).toBeCloseTo(((83.1 - 12.3) / 360) * 100, 3);
     expect(ARABIA_REGION.climateAnchor.latitude).toBeCloseTo((4.7 + 47.0) / 2, 5);
+  });
+});
+
+describe("ancient-rome climate conversion", () => {
+  it("anchors climate to the AD 117 empire bbox (Britain to the Caspian)", () => {
+    const coords = earthRegionMapCoordinates(ANCIENT_ROME_REGION);
+    expect(coords.lonW).toBeCloseTo(-11.5, 5);
+    expect(coords.lonE).toBeCloseTo(56, 5);
+    expect(coords.latS).toBeCloseTo(21.5, 5);
+    expect(coords.latN).toBeCloseTo(59.5, 5);
+    expect(ANCIENT_ROME_REGION.climateAnchor.mapSize).toBeCloseTo(((56 - -11.5) / 360) * 100, 3);
+    expect(ANCIENT_ROME_REGION.climateAnchor.latitude).toBeCloseTo((21.5 + 59.5) / 2, 5);
   });
 });

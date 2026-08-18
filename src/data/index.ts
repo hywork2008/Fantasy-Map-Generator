@@ -8,6 +8,7 @@ export {
   TemperatureThreshold
 } from "./constants";
 export {
+  ANCIENT_ROME_REGION,
   ARABIA_REGION,
   ATLANTICS_REGION,
   BRITAIN_REGION,
