@@ -6,7 +6,7 @@
  * worker loops that were already simulated) — inventing headcount/consumer mechanics for them from
  * scratch is deferred to a later phase (docs/plan/knowledge-guild-system.md §9 Phase 3 state note).
  */
-export const SCHOLARLY_KNOWLEDGE_DOMAINS = ["administration"] as const;
+export const SCHOLARLY_KNOWLEDGE_DOMAINS = ["administration", "medicine", "naturalPhilosophy"] as const;
 export type ScholarlyKnowledgeDomain = (typeof SCHOLARLY_KNOWLEDGE_DOMAINS)[number];
 
 /**

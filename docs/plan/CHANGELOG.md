@@ -2,6 +2,7 @@
 
 2026-08-18
 
+- docs/plan/chemistry-medicine-knowledge-accumulation.md
 - docs/plan/earth-geography-heightmaps.md
 - docs/plan/steam-industrial-implementation.md
 

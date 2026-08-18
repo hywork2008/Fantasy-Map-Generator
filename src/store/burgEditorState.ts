@@ -48,6 +48,7 @@ export interface BurgData {
   inns: string;
   waterSanitation: string;
   sanitationScore: string;
+  medicalCareScore: string;
 
   // Features
   capital: boolean;

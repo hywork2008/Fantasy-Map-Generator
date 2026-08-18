@@ -1,0 +1,85 @@
+/**
+ * Chemistry / medicine workshops, trials, and civic medical-care rows.
+ * Design: docs/plan/chemistry-medicine-knowledge-accumulation.md
+ */
+
+export type ChemistryTrialKind = "compounding" | "laboratory" | "acidPlant";
+
+export type ChemistryFailureReason =
+  | "materialShortage"
+  | "contamination"
+  | "invalidFormula"
+  | "glassBreakage"
+  | "fundingCut"
+  | "pollutionLimit";
+
+export interface ChemistryTrial {
+  kind: ChemistryTrialKind;
+  burgId: number;
+  stateId: number;
+  status: "building" | "running" | "failed" | "retired";
+  operatingYears: number;
+  documentedRuns: number;
+  failureCount: number;
+  lastFailureReason?: ChemistryFailureReason;
+  inputsConsumed: number;
+  outputsDelivered: number;
+}
+
+export interface ExperimentalWorkshop {
+  burgId: number;
+  sponsorStateId: number;
+  active: boolean;
+  researchers: number;
+  annualBudget: number;
+  experimentRecord: number;
+  lastFundedYear: number;
+}
+
+export interface ApothecaryWorkshop {
+  burgId: number;
+  sponsorStateId: number;
+  active: boolean;
+  practitioners: number;
+  annualBudget: number;
+  compoundingRecord: number;
+  lastFundedYear: number;
+}
+
+export interface HospitalInstallation {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  practitioners: number;
+  condition: number;
+  utilization: number;
+  ratedCare: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+export interface AcidPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+export interface ChemMedPracticeRecord {
+  stateId: number;
+  labGlassPracticeYears: number;
+  pozzolanPractice: number;
+  obsidianPractice: number;
+  lastLabGlassYear?: number;
+  lastPozzolanYear?: number;
+  lastObsidianYear?: number;
+}
+
+export interface MedicalCareReliefRow {
+  burgId: number;
+  relief: number;
+}

@@ -163,6 +163,7 @@ const burgEditorInternal = {
       inns: economySummary?.inns ?? "—",
       waterSanitation: economySummary?.waterSanitation ?? "—",
       sanitationScore: economySummary?.sanitationScore ?? "—",
+      medicalCareScore: typeof b.medicalCare === "number" ? String(b.medicalCare) : "—",
       capital: !!b.capital,
       port: !!b.port,
       citadel: !!b.citadel,

@@ -388,7 +388,14 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     // Escort (護衛) job board — all culture sets.
     "escortJobPostings",
     "escortHireApplications",
-    "escortActiveContracts"
+    "escortActiveContracts",
+    "experimentalWorkshops",
+    "apothecaryWorkshops",
+    "chemistryTrials",
+    "hospitalInstallations",
+    "acidPlants",
+    "chemMedPracticeRecords",
+    "medicalCareReliefByBurg"
   ]) {
     assertOptionalArrayField(slice, field, "economy");
   }

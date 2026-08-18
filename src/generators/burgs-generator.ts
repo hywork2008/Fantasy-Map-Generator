@@ -353,6 +353,7 @@ class BurgModule {
       capital: 0,
       security: 50,
       sanitation: 50,
+      medicalCare: 50,
       stateHistory: [stateId]
     };
     pack.burgs.push(burg);
@@ -1454,6 +1455,7 @@ class BurgModule {
       port: 0,
       security: 50,
       sanitation: 50,
+      medicalCare: 50,
       // Every post-generation Burg (frontier incorporation's overseas beachheads,
       // rural settlement promotion, interactive placement) is founded at whatever
       // year the live simulation clock currently reads.

@@ -388,6 +388,12 @@ export const BurgEditorDialog: React.FC = () => {
                     <span id="burgSanitationScore">{burgData.sanitationScore}</span>
                   </td>
                 </tr>
+                <tr data-tip="Medical care civic score 0–100 from fueled hospitals, written to burg.medicalCare. Not a sewer score.">
+                  <th scope="row">Medical care</th>
+                  <td>
+                    <span id="burgMedicalCareScore">{burgData.medicalCareScore}</span>
+                  </td>
+                </tr>
                 <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
                   <th scope="row">Pregnant</th>
                   <td>

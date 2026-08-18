@@ -13,6 +13,15 @@ import type { AcademyKnowledgeStock } from "./generators/academyKnowledgeTypes";
 import type { AdministrationEmploymentRecord } from "./generators/administrationEmployment";
 import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
 import type { CellFoodReserve } from "./generators/cellFoodRescueTypes";
+import type {
+  AcidPlant,
+  ApothecaryWorkshop,
+  ChemistryTrial,
+  ChemMedPracticeRecord,
+  ExperimentalWorkshop,
+  HospitalInstallation,
+  MedicalCareReliefRow
+} from "./generators/chemistryTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
@@ -137,6 +146,10 @@ let _burgTreasuryLastSettledYearFallback: number | null = null;
 let _innFacilitiesLastSettledYearFallback: number | null = null;
 let _urbanWaterLastSettledYearFallback: number | null = null;
 let _steamInstallationsLastSettledYearFallback: number | null = null;
+let _apothecaryWorkshopsLastSettledYearFallback: number | null = null;
+let _experimentalWorkshopsLastSettledYearFallback: number | null = null;
+let _hospitalInstallationsLastSettledYearFallback: number | null = null;
+let _acidPlantsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -190,6 +203,10 @@ export function clearEconomyContext(): void {
   _innFacilitiesLastSettledYearFallback = null;
   _urbanWaterLastSettledYearFallback = null;
   _steamInstallationsLastSettledYearFallback = null;
+  _apothecaryWorkshopsLastSettledYearFallback = null;
+  _experimentalWorkshopsLastSettledYearFallback = null;
+  _hospitalInstallationsLastSettledYearFallback = null;
+  _acidPlantsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1323,6 +1340,100 @@ export function setSteamInstallationsLastSettledYear(year: number): void {
     return;
   }
   _steamInstallationsLastSettledYearFallback = year;
+}
+
+function yearFromSlice(field: string, fallback: number | null): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice[field];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return fallback;
+}
+
+function writeYearToSlice(field: string, year: number, assignFallback: (value: number) => void): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice[field] = year;
+    return;
+  }
+  assignFallback(year);
+}
+
+export function getExperimentalWorkshops(): ExperimentalWorkshop[] {
+  return getSliceArray<ExperimentalWorkshop>("experimentalWorkshops");
+}
+export function setExperimentalWorkshops(rows: readonly ExperimentalWorkshop[]): void {
+  setSliceArray("experimentalWorkshops", rows);
+}
+export function getApothecaryWorkshops(): ApothecaryWorkshop[] {
+  return getSliceArray<ApothecaryWorkshop>("apothecaryWorkshops");
+}
+export function setApothecaryWorkshops(rows: readonly ApothecaryWorkshop[]): void {
+  setSliceArray("apothecaryWorkshops", rows);
+}
+export function getChemistryTrials(): ChemistryTrial[] {
+  return getSliceArray<ChemistryTrial>("chemistryTrials");
+}
+export function setChemistryTrials(rows: readonly ChemistryTrial[]): void {
+  setSliceArray("chemistryTrials", rows);
+}
+export function getHospitalInstallations(): HospitalInstallation[] {
+  return getSliceArray<HospitalInstallation>("hospitalInstallations");
+}
+export function setHospitalInstallations(rows: readonly HospitalInstallation[]): void {
+  setSliceArray("hospitalInstallations", rows);
+}
+export function getAcidPlants(): AcidPlant[] {
+  return getSliceArray<AcidPlant>("acidPlants");
+}
+export function setAcidPlants(rows: readonly AcidPlant[]): void {
+  setSliceArray("acidPlants", rows);
+}
+export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
+  return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
+}
+export function setChemMedPracticeRecords(rows: readonly ChemMedPracticeRecord[]): void {
+  setSliceArray("chemMedPracticeRecords", rows);
+}
+export function getMedicalCareReliefByBurg(): MedicalCareReliefRow[] {
+  return getSliceArray<MedicalCareReliefRow>("medicalCareReliefByBurg");
+}
+export function setMedicalCareReliefByBurg(rows: readonly MedicalCareReliefRow[]): void {
+  setSliceArray("medicalCareReliefByBurg", rows);
+}
+
+export function getApothecaryWorkshopsLastSettledYear(): number | null {
+  return yearFromSlice("apothecaryWorkshopsLastSettledYear", _apothecaryWorkshopsLastSettledYearFallback);
+}
+export function setApothecaryWorkshopsLastSettledYear(year: number): void {
+  writeYearToSlice("apothecaryWorkshopsLastSettledYear", year, value => {
+    _apothecaryWorkshopsLastSettledYearFallback = value;
+  });
+}
+export function getExperimentalWorkshopsLastSettledYear(): number | null {
+  return yearFromSlice("experimentalWorkshopsLastSettledYear", _experimentalWorkshopsLastSettledYearFallback);
+}
+export function setExperimentalWorkshopsLastSettledYear(year: number): void {
+  writeYearToSlice("experimentalWorkshopsLastSettledYear", year, value => {
+    _experimentalWorkshopsLastSettledYearFallback = value;
+  });
+}
+export function getHospitalInstallationsLastSettledYear(): number | null {
+  return yearFromSlice("hospitalInstallationsLastSettledYear", _hospitalInstallationsLastSettledYearFallback);
+}
+export function setHospitalInstallationsLastSettledYear(year: number): void {
+  writeYearToSlice("hospitalInstallationsLastSettledYear", year, value => {
+    _hospitalInstallationsLastSettledYearFallback = value;
+  });
+}
+export function getAcidPlantsLastSettledYear(): number | null {
+  return yearFromSlice("acidPlantsLastSettledYear", _acidPlantsLastSettledYearFallback);
+}
+export function setAcidPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("acidPlantsLastSettledYear", year, value => {
+    _acidPlantsLastSettledYearFallback = value;
+  });
 }
 
 /**

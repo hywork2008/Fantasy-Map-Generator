@@ -11,6 +11,7 @@
 - [都市水利・衛生インフラ設計](./urban-water-and-sanitation-system.md) §6, §11
 - [鉱物資源・鉱山・貨幣供給システム設計](./mineral-resource-system.md) §8
 - [鉱石精錬・治安システム設計](./mineral-smelting-security-system.md) §2
+- [化学・医学の知識・技術蓄積プロセス設計](./chemistry-medicine-knowledge-accumulation.md): Phase D の手前。ガラス細工・火山材料・薬種から工業硫酸までの蓄積
 
 ## 1. 結論
 

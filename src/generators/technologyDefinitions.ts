@@ -1,6 +1,6 @@
 /**
- * Technology node definitions for roadmap eras 0–5 (mature medieval → early steam).
- * Eras 6+ (electrification, chemistry, petroleum, space) are intentionally omitted.
+ * Technology node definitions for roadmap eras 0–6 (mature medieval → industrial chemistry).
+ * Eras 7+ (petroleum, space) remain omitted.
  *
  * Thresholds are soft and demand-driven: high treasury/ports/knowledge stocks
  * advance stages; inland states can still progress era-1 mining nodes without
@@ -194,6 +194,50 @@ const ERA_1: readonly TechnologyDefinition[] = [
     known: { min: { treasury: 30, urbanPopulation: 8 } },
     demonstrated: { min: { treasury: 80, urbanPopulation: 15, administration: 0.2 } },
     adopted: { min: { treasury: 150, urbanPopulation: 25, administration: 0.35, portCount: 1 } }
+  },
+  {
+    id: "laboratoryGlassware",
+    label: "Laboratory glassware",
+    era: 1,
+    scope: "state",
+    prerequisites: ["distillation", "recordReplication"],
+    known: { min: { glassware: 0.15, treasury: 20 } },
+    demonstrated: { min: { glassware: 0.35, labVesselQuality: 0.45, labGlassPracticeYears: 2, treasury: 30 } },
+    adopted: { min: { glassware: 0.45, labVesselQuality: 0.45, treasury: 40 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
+  },
+  {
+    id: "apothecaryCompounding",
+    label: "Apothecary compounding",
+    era: 1,
+    scope: "state",
+    prerequisites: ["distillation", "recordReplication"],
+    known: { min: { medicineDemandPressure: 0.2, treasury: 20 } },
+    demonstrated: { min: { medicineDemandPressure: 0.3, apothecaryTrialYears: 2, treasury: 30 } },
+    adopted: { min: { medicineDemandPressure: 0.35, apothecaryTrialYears: 2, treasury: 40 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
+  },
+  {
+    id: "surgicalAnatomy",
+    label: "Surgical anatomy",
+    era: 1,
+    scope: "state",
+    prerequisites: ["apothecaryCompounding"],
+    known: { min: { medicine: 0.1, treasury: 20 } },
+    demonstrated: { min: { medicine: 0.25, apothecaryTrialYears: 2, treasury: 30 } },
+    adopted: { min: { medicine: 0.35, treasury: 40 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 3 }
+  },
+  {
+    id: "hospitalMedicine",
+    label: "Hospital medicine",
+    era: 1,
+    scope: "state",
+    prerequisites: ["apothecaryCompounding", "urbanCoveredDrainage"],
+    known: { min: { medicineDemandPressure: 0.3, urbanWaterMaxTier: 2, treasury: 40 } },
+    demonstrated: { min: { hospitalTrialYears: 2, urbanWaterMaxTier: 2, treasury: 60 } },
+    adopted: { min: { hospitalInstallations: 1, treasury: 80 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
   }
 ];
 
@@ -348,9 +392,10 @@ const ERA_4: readonly TechnologyDefinition[] = [
     era: 4,
     scope: "state",
     prerequisites: ["recordReplication", "mathAstronomyGeography", "distillation"],
-    known: { min: { administration: 0.25, printing: 0.25, treasury: 40 } },
-    demonstrated: { min: { administration: 0.4, printing: 0.4, treasury: 70 } },
-    adopted: { min: { administration: 0.55, printing: 0.5, treasury: 110 } }
+    known: { min: { administration: 0.25, printing: 0.25, treasury: 40, glassware: 0.1 } },
+    demonstrated: { min: { administration: 0.4, printing: 0.4, treasury: 70, experimentRecord: 0.25 } },
+    adopted: { min: { administration: 0.55, printing: 0.5, treasury: 110, experimentRecord: 0.4 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
   },
   {
     id: "mineSurveyAndDrainage",
@@ -381,6 +426,28 @@ const ERA_4: readonly TechnologyDefinition[] = [
     known: { min: { mineCount: 1, treasury: 30 } },
     demonstrated: { min: { mineCount: 1, treasury: 60, administration: 0.2 } },
     adopted: { min: { mineCount: 1, treasury: 100, administration: 0.3 } }
+  },
+  {
+    id: "earlyPublicHealth",
+    label: "Early public health",
+    era: 4,
+    scope: "state",
+    prerequisites: ["hospitalMedicine", "urbanCoveredDrainage"],
+    known: { min: { administration: 0.3, urbanWaterMaxMunicipalSanitation: 0.2, treasury: 50 } },
+    demonstrated: { min: { hospitalInstallations: 1, urbanWaterMaxTier: 3, administration: 0.4, treasury: 80 } },
+    adopted: { min: { hospitalInstallations: 2, urbanWaterMaxTier: 3, administration: 0.5, treasury: 120 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  {
+    id: "analyticalChemistry",
+    label: "Analytical chemistry",
+    era: 4,
+    scope: "state",
+    prerequisites: ["laboratoryGlassware", "experimentalNaturalPhilosophy"],
+    known: { min: { experimentRecord: 0.2, labVesselQuality: 0.45, treasury: 50 } },
+    demonstrated: { min: { experimentRecord: 0.4, labVesselQuality: 0.45, treasury: 70 } },
+    adopted: { min: { experimentRecord: 0.55, naturalPhilosophy: 0.4, treasury: 110 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
   }
 ];
 
@@ -539,13 +606,40 @@ const ERA_5: readonly TechnologyDefinition[] = [
   }
 ];
 
+/** Stage 6: industrial chemistry foundation and sulfuric acid. */
+const ERA_6: readonly TechnologyDefinition[] = [
+  {
+    id: "chemicalIndustryFoundation",
+    label: "Chemical industry foundation",
+    era: 6,
+    scope: "state",
+    prerequisites: ["analyticalChemistry"],
+    known: { min: { experimentRecord: 0.4, sulfurAccess: 0.2, lateChemistryDemandPressure: 0.2, treasury: 80 } },
+    demonstrated: { min: { experimentRecord: 0.5, sulfurAccess: 0.3, treasury: 110 } },
+    adopted: { min: { experimentRecord: 0.55, sulfurAccess: 0.35, treasury: 140 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  {
+    id: "industrialSulfuricAcid",
+    label: "Industrial sulfuric acid",
+    era: 6,
+    scope: "state",
+    prerequisites: ["chemicalIndustryFoundation"],
+    known: { min: { sulfurAccess: 0.3, labVesselQuality: 0.45, treasury: 100 } },
+    demonstrated: { min: { acidPlantTrialYears: 2, sulfurAccess: 0.35, treasury: 140 } },
+    adopted: { min: { acidPlantInstallations: 1, sulfurAccess: 0.4, treasury: 180 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  }
+];
+
 export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [
   ...START_PROFILE,
   ...ERA_1,
   ...ERA_2,
   ...ERA_3,
   ...ERA_4,
-  ...ERA_5
+  ...ERA_5,
+  ...ERA_6
 ];
 
 export const TECHNOLOGY_DEFINITION_BY_ID: ReadonlyMap<string, TechnologyDefinition> = new Map(

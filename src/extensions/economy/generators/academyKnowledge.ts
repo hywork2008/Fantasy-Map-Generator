@@ -3,6 +3,9 @@ import {
   getAcademyKnowledgeLastSettledYear,
   getAcademyKnowledgeStocks,
   getAdministrationEmployment,
+  getApothecaryWorkshops,
+  getExperimentalWorkshops,
+  getHospitalInstallations,
   getSimulationYear,
   setAcademyKnowledgeLastSettledYear,
   setAcademyKnowledgeStocks
@@ -93,6 +96,15 @@ export class AcademyKnowledgeModule {
 
     for (const record of getAdministrationEmployment()) {
       add(record.burgId, "administration", record.workers);
+    }
+    for (const workshop of getApothecaryWorkshops()) {
+      if (workshop.active) add(workshop.burgId, "medicine", workshop.practitioners);
+    }
+    for (const hospital of getHospitalInstallations()) {
+      if (hospital.active) add(hospital.burgId, "medicine", hospital.practitioners);
+    }
+    for (const workshop of getExperimentalWorkshops()) {
+      if (workshop.active) add(workshop.burgId, "naturalPhilosophy", workshop.researchers);
     }
 
     return practitioners;

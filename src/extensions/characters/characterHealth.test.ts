@@ -8,6 +8,8 @@ import {
   getCharacterHealth,
   HEALTH_FULL,
   isCharacterSick,
+  MEDICAL_CARE_DEFAULT,
+  resolveCharacterMedicalCare,
   resolveCharacterSanitation
 } from "./characterHealth";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
@@ -94,6 +96,31 @@ describe("resolveCharacterSanitation", () => {
   it("returns the neutral default (50) when nothing resolves", () => {
     worldContext.pack.states = [{}] as never;
     expect(resolveCharacterSanitation({ location: undefined, state: 1 })).toBe(50);
+  });
+});
+
+describe("resolveCharacterMedicalCare", () => {
+  afterEach(() => {
+    clearCharactersContext();
+  });
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {} as unknown as PackedGraph;
+  });
+
+  it("returns the seeded default without a characters context", () => {
+    clearCharactersContext();
+    expect(resolveCharacterMedicalCare({ location: 0, state: 1 })).toBe(MEDICAL_CARE_DEFAULT);
+  });
+
+  it("reads burg.medicalCare then state.medicalCare then 50", () => {
+    worldContext.pack.burgs = [{ i: 0, medicalCare: 80 }] as never;
+    expect(resolveCharacterMedicalCare({ location: 0, state: 1 })).toBe(80);
+    worldContext.pack.burgs = [{ i: 0, removed: true, medicalCare: 80 }] as never;
+    worldContext.pack.states = [{}, { i: 1, medicalCare: 61 }] as never;
+    expect(resolveCharacterMedicalCare({ location: 0, state: 1 })).toBe(61);
+    expect(resolveCharacterMedicalCare({ location: undefined, state: 2 })).toBe(50);
   });
 });
 

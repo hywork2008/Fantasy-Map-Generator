@@ -55,11 +55,14 @@ import {
   setSmithingWorkshopLedgers
 } from "./economyContext";
 import { AcademyKnowledge } from "./generators/academyKnowledge";
+import { AcidPlants } from "./generators/acidPlants";
 import { AgTechInvestment } from "./generators/agTechInvestment";
+import { ApothecaryWorkshops } from "./generators/apothecaryWorkshops";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposition";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
+import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
   applyCharacterToConstructionJob,
@@ -77,6 +80,7 @@ import {
   tickEscortHiring
 } from "./generators/escortHire";
 import { clearEscortHireState, rebuildEscortJobPostings, tickEscortJobBoard } from "./generators/escortJobPostings";
+import { ExperimentalWorkshops } from "./generators/experimentalWorkshops";
 import { ExportStaging } from "./generators/exportStaging";
 import {
   clearFaunaPopulation,
@@ -92,6 +96,7 @@ import {
   Goods,
   getDefaultGoodTradeProfile,
   isGoodEnabled,
+  migrateChemMedGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
@@ -117,6 +122,7 @@ import {
   settleAnnualColdClimateKnowledge,
   settleMonthlyHeating
 } from "./generators/heating";
+import { HospitalInstallations } from "./generators/hospitalInstallations";
 import type { IncrementalBatchOptions } from "./generators/incrementalBatching";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
@@ -2243,6 +2249,7 @@ export function init(api: ExtensionAPI): void {
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedIndustrialSteam = migrateIndustrialSteamGoods();
+    const migratedChemMed = migrateChemMedGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2260,6 +2267,7 @@ export function init(api: ExtensionAPI): void {
       migratedLiveCats ||
       migratedLiveDogs ||
       migratedIndustrialSteam ||
+      migratedChemMed ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -2704,6 +2712,14 @@ export function init(api: ExtensionAPI): void {
         // health is recalculated, so new insulation/hearth techniques affect future fuel use
         // while this year's coal smoke remains visible in the civic health score.
         settleAnnualColdClimateKnowledge();
+        // Chemistry / medicine workshops and hospitals must publish headcount and
+        // burg.medicalCare before Guild/Academy EWMA and UrbanWater sanitation writes.
+        // docs/plan/chemistry-medicine-knowledge-accumulation.md §9
+        ApothecaryWorkshops.settleAnnual();
+        ExperimentalWorkshops.settleAnnual();
+        HospitalInstallations.settleAnnual();
+        AcidPlants.settleAnnual();
+        settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
         urbanWaterChanged = UrbanWater.settleAnnual();
@@ -2884,6 +2900,7 @@ export function init(api: ExtensionAPI): void {
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedIndustrialSteam = migrateIndustrialSteamGoods();
+    const migratedChemMed = migrateChemMedGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2901,6 +2918,7 @@ export function init(api: ExtensionAPI): void {
       migratedLiveCats ||
       migratedLiveDogs ||
       migratedIndustrialSteam ||
+      migratedChemMed ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||

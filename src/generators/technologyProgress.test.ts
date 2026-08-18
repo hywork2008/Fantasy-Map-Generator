@@ -12,6 +12,7 @@ import {
   getTechnologyProgressEntries,
   getTechnologyStage,
   isDistillationKnown,
+  isLaboratoryGlasswareKnown,
   resetTechnologyProgress,
   seedTechnologyStartProfile,
   setTechnologyProgressForTests,
@@ -325,6 +326,17 @@ describe("technologyProgress", () => {
           { burgId: 3, domain: "printing", stock: 0.55 }
         ],
         academyKnowledgeStocks: [{ burgId: 3, domain: "administration", stock: 0.6 }],
+        experimentalWorkshops: [
+          {
+            burgId: 3,
+            sponsorStateId: 2,
+            active: true,
+            researchers: 2,
+            annualBudget: 16,
+            experimentRecord: 0.5,
+            lastFundedYear: 1200
+          }
+        ],
         mineOperations: [{ i: 1, burgId: 3, depositId: 1, active: true, drainage: 0.3, workers: 8 }],
         mineralDeposits: [{ i: 1, depth: "deep", primaryCommodity: "coal", commodities: ["coal"] }],
         smelterOperations: [{ burgId: 3, active: true, workers: 16 }],
@@ -339,7 +351,8 @@ describe("technologyProgress", () => {
       { technologyId: "improvedMining", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
       { technologyId: "mechanicalWorkshops", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
       { technologyId: "highTempFurnace", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
-      { technologyId: "commercialFinance", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 }
+      { technologyId: "commercialFinance", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "experimentalNaturalPhilosophy", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 }
     ]);
     worldContext.pack.states[2].treasury = 200;
 
@@ -361,5 +374,57 @@ describe("technologyProgress", () => {
     const entry = getTechnologyProgressEntries().find(p => p.technologyId === "improvedMining" && p.ownerId === 1);
     expect(entry?.stage).toBe("diffused");
     expect(entry?.diffusion).toBe(1);
+  });
+
+  it("defines laboratory glassware without requiring Pumice and keeps chemistry off the medicine path", () => {
+    const lab = TECHNOLOGY_DEFINITIONS.find(def => def.id === "laboratoryGlassware");
+    expect(lab?.era).toBe(1);
+    expect(lab?.demonstrated.min?.labVesselQuality).toBe(0.45);
+    expect(lab?.prerequisites).toEqual(["distillation", "recordReplication"]);
+
+    const hospital = TECHNOLOGY_DEFINITIONS.find(def => def.id === "hospitalMedicine");
+    expect(hospital?.prerequisites).toEqual(["apothecaryCompounding", "urbanCoveredDrainage"]);
+
+    const acid = TECHNOLOGY_DEFINITIONS.find(def => def.id === "industrialSulfuricAcid");
+    expect(acid?.era).toBe(6);
+    expect(acid?.prerequisites).toEqual(["chemicalIndustryFoundation"]);
+
+    const enp = TECHNOLOGY_DEFINITIONS.find(def => def.id === "experimentalNaturalPhilosophy");
+    expect(enp?.prerequisites).toEqual(["recordReplication", "mathAstronomyGeography", "distillation"]);
+    expect(enp?.known.min?.glassware).toBe(0.1);
+  });
+
+  it("zeros new chemistry signals when Economy is off and computes labVesselQuality without Pumice", () => {
+    installMinimalWorld();
+    simulationContext.extensions = undefined;
+    setTechnologyProgressForTests([]);
+    expect(isLaboratoryGlasswareKnown(1)).toBe(false);
+
+    simulationContext.extensions = {
+      economy: {
+        guildKnowledgeStocks: [{ burgId: 1, domain: "glassware", stock: 0.65 }],
+        goods: [
+          { i: 10, name: "Soap" },
+          { i: 11, name: "Glass" },
+          { i: 12, name: "Pumice" },
+          { i: 13, name: "Sulfur" }
+        ],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 11: { stock: 4 }, 10: { stock: 2 }, 13: { stock: 3 } }
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    worldContext.pack.states[1].treasury = 80;
+    setTechnologyProgressForTests([
+      { technologyId: "distillation", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 },
+      { technologyId: "recordReplication", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ]);
+    settleTechnologyAnnual(1200);
+    expect(["known", "demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("laboratoryGlassware", 1));
   });
 });

@@ -75,6 +75,7 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Boots: "leather",
   Ceramics: "glassware",
   Glass: "glassware",
+  "Lab Glassware": "glassware",
   Paper: "printing",
   Ink: "printing",
   Books: "printing",

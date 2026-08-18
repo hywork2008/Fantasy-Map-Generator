@@ -21,6 +21,8 @@ import { resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 export const HEALTH_FULL = 100;
 /** Neutral sanitation score used when no burg/state value is resolvable (matches the host's own seed default). */
 export const SANITATION_DEFAULT = 50;
+/** Neutral medical-care civic score (matches the host Burg.medicalCare seed). */
+export const MEDICAL_CARE_DEFAULT = 50;
 /** Local sanitation at/above this carries no elevated disease risk. */
 export const SANITATION_SAFE_THRESHOLD = 60;
 /** Max permanent drag on the unafflicted health target from chronic exposure to squalor. */
@@ -150,6 +152,39 @@ export function resolveCharacterSanitation(
   return SANITATION_DEFAULT;
 }
 
+/**
+ * Resolve the local medical-care civic score (0–100): burg → state → 50.
+ * Pack fields only — Characters must not import Economy or hospital objects.
+ */
+export function resolveCharacterMedicalCare(
+  character: Pick<Character, "location" | "state" | "nationalityStateId">
+): number {
+  if (!hasCharactersContext()) return MEDICAL_CARE_DEFAULT;
+  const { pack } = getWorldContext();
+
+  if (character.location !== undefined) {
+    const burg = pack.burgs?.[character.location];
+    if (burg && !burg.removed && typeof burg.medicalCare === "number") return burg.medicalCare;
+  }
+
+  const stateId = character.nationalityStateId ?? character.state;
+  const state = pack.states?.[stateId];
+  if (state && typeof state.medicalCare === "number") return state.medicalCare;
+
+  return MEDICAL_CARE_DEFAULT;
+}
+
+function medicalCareScales(character: Pick<Character, "location" | "state" | "nationalityStateId">): {
+  recoveryScale: number;
+  infectionScale: number;
+} {
+  const care = resolveCharacterMedicalCare(character) / 100;
+  return {
+    recoveryScale: 0.7 + 0.6 * care,
+    infectionScale: 1.25 - 0.5 * care
+  };
+}
+
 interface Vulnerability {
   /** >1 = more vulnerable to disease, <1 = more resistant. */
   multiplier: number;
@@ -252,14 +287,19 @@ export function advanceCharacterHealth(deltaYears: number): void {
       character.health = minmax(currentHealth - drain, 1, HEALTH_FULL);
 
       // Better constitution/wealth/sanitation (lower vulnerability multiplier) improves recovery odds.
-      const recoveryChance = minmax(SEVERITY_RECOVERY_CHANCE_PER_YEAR[severity] / multiplier, 0.02, 0.9);
+      const { recoveryScale, infectionScale } = medicalCareScales(character);
+      const recoveryChance = minmax(
+        (SEVERITY_RECOVERY_CHANCE_PER_YEAR[severity] / multiplier) * recoveryScale,
+        0.02,
+        0.9
+      );
       if (rollPerYear(recoveryChance, deltaYears)) {
         character.affliction = undefined;
         character.timesIllness = (character.timesIllness ?? 0) + 1;
         continue;
       }
 
-      const escalationChance = SEVERITY_ESCALATION_CHANCE_PER_YEAR[severity] * multiplier;
+      const escalationChance = SEVERITY_ESCALATION_CHANCE_PER_YEAR[severity] * multiplier * infectionScale;
       if (escalationChance > 0 && rollPerYear(escalationChance, deltaYears)) {
         const nextIndex = Math.min(SEVERITY_ORDER.length - 1, SEVERITY_ORDER.indexOf(severity) + 1);
         affliction.severity = SEVERITY_ORDER[nextIndex];
@@ -276,9 +316,15 @@ export function advanceCharacterHealth(deltaYears: number): void {
         : Math.max(target, currentHealth - recovery * 0.3); // settles down slowly if sanitation just worsened
 
     // Roll for a new infection across all sanitation-gate-eligible diseases at once.
+    const { infectionScale } = medicalCareScales(character);
     const weighted = eligibleAfflictions(sanitation).map(def => ({
       def,
-      chance: BASE_ANNUAL_INFECTION_RATE * diseasePressure(def, sanitation, isElder) * def.pickWeight * multiplier
+      chance:
+        BASE_ANNUAL_INFECTION_RATE *
+        diseasePressure(def, sanitation, isElder) *
+        def.pickWeight *
+        multiplier *
+        infectionScale
     }));
     const totalChance = weighted.reduce((sum, w) => sum + w.chance, 0);
     if (totalChance <= 0 || !rollPerYear(totalChance, deltaYears)) continue;

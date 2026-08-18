@@ -148,7 +148,8 @@ class ProvinceModule {
           color,
           coa,
           security: 50,
-          sanitation: 50
+          sanitation: 50,
+          medicalCare: 50
         });
       }
     });
@@ -298,7 +299,8 @@ class ProvinceModule {
           color,
           coa,
           security: 50,
-          sanitation: 50
+          sanitation: 50,
+          medicalCare: 50
         });
         s.provinces.push(provinceId);
 

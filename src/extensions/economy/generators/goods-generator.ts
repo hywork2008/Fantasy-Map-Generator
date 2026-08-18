@@ -2556,6 +2556,69 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { military: 2 },
     multipliers: { cultureType: { Naval: 2 } },
     requiredTechnology: "coastalSteamNavigation"
+  },
+  {
+    name: "Lab Glassware",
+    warEconomyType: "strategic",
+    tags: ["industrial", "tools"],
+    icon: "good-glass",
+    color: "#9ec9d4",
+    value: 14,
+    chance: 0,
+    recipes: [
+      { Glass: 1, Pumice: 0.2, Tools: 0.1 },
+      { Glass: 1, Tools: 0.2 }
+    ],
+    unit: "crate",
+    demandCoverage: {},
+    requiredTechnology: "laboratoryGlassware"
+  },
+  {
+    name: "Medicines",
+    warEconomyType: "strategic",
+    tags: ["luxury"],
+    icon: "good-medicinal-herbs",
+    color: "#6b8f71",
+    value: 16,
+    chance: 0,
+    recipes: [
+      { "Medicinal herbs": 1, Honey: 0.3, Salt: 0.1 },
+      { "Medicinal herbs": 1, Vinegar: 0.3, Alum: 0.2 },
+      { "Medicinal herbs": 1, Soap: 0.2, Vinegar: 0.2 },
+      { "Medicinal herbs": 1, Sulfur: 0.15, Incense: 0.1 }
+    ],
+    unit: "chest",
+    demandCoverage: {},
+    requiredTechnology: "apothecaryCompounding"
+  },
+  {
+    name: "Sulfuric Acid",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-sulfur",
+    color: "#c9b44a",
+    value: 18,
+    chance: 0,
+    recipes: [
+      { Sulfur: 1, Coal: 0.4, "Lead Ingot": 0.15, "Lab Glassware": 0.1 },
+      { Sulfur: 1, Charcoal: 0.4, "Lead Ingot": 0.15, "Lab Glassware": 0.1 }
+    ],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "industrialSulfuricAcid"
+  },
+  {
+    name: "Coal Tar",
+    warEconomyType: "strategic",
+    tags: ["industrial", "fuel"],
+    icon: "good-tar",
+    color: "#2a2420",
+    value: 6,
+    chance: 0,
+    recipes: [{ Coke: 1.2 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "chemicalIndustryFoundation"
   }
 ];
 
@@ -2637,6 +2700,10 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Rail: tradeProfile(5, 5, 3, 0, 0, 5, 2),
   Locomotive: tradeProfile(5, 5, 5, 1, 0, 4, 3),
   "Marine Steam Engine": tradeProfile(5, 5, 5, 1, 0, 4, 3),
+  "Lab Glassware": tradeProfile(2, 2, 4, 2, 0, 2, 4),
+  Medicines: tradeProfile(2, 2, 4, 2, 1, 3, 3),
+  "Sulfuric Acid": tradeProfile(4, 3, 4, 1, 0, 2, 5),
+  "Coal Tar": tradeProfile(4, 3, 3, 0, 0, 3, 3),
   Charcoal: tradeProfile(4, 3, 2, 0, 0, 4, 2),
   Oil: tradeProfile(3, 3, 2, 1, 0, 4, 2),
   Mahogany: tradeProfile(4, 5, 5, 3, 0, 4, 2),
@@ -3081,6 +3148,8 @@ const INDUSTRIAL_STEAM_GOOD_NAMES = [
   "Steamship"
 ] as const;
 
+const CHEMMED_GOOD_NAMES = ["Lab Glassware", "Medicines", "Sulfuric Acid", "Coal Tar"] as const;
+
 /**
  * Appends first-wave steam-industrial Goods to older catalogues without seeding stock.
  * Recipes are remapped to this save's live Good ids (Coke/Steel may not share default ids).
@@ -3101,6 +3170,41 @@ export function migrateIndustrialSteamGoods(): boolean {
 
   const idByName = new Map(goods.map(good => [good.name, good.i]));
   for (const name of INDUSTRIAL_STEAM_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+/**
+ * Appends chemistry/medicine Goods in the reserved catalog order without seeding stock.
+ */
+export function migrateChemMedGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of CHEMMED_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of CHEMMED_GOOD_NAMES) {
     const good = goods.find(entry => entry.name === name);
     const template = GOODS_DATA.find(entry => entry.name === name);
     if (!good || !template?.recipes) continue;

@@ -13,6 +13,7 @@
 - [知識・技術蓄積システム](./knowledge-guild-system.md) §2–5
 - [個人熟練・才能・技法システム](./individual-skill-mastery-system.md) §3–6
 - [蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md): 初期蒸気機関の採用後に導入する中間財、資本財、容量サービスと後続技術の設計。
+- [化学・医学の知識・技術蓄積プロセス設計](./chemistry-medicine-knowledge-accumulation.md): 同じ蓄積型。共有 `ExperimentalWorkshop` と実験ガラス。
 
 ---
 

@@ -285,6 +285,14 @@ export interface Burg {
    * from UrbanWaterSystem (docs/plan/urban-water-and-sanitation-system.md Phase 1).
    */
   sanitation?: number;
+  /**
+   * Local medical-care civic score from 0 (no usable care) to 100 (fueled hospital).
+   * Seeded at 50 ("folk / household care, never simulated as a hospital town").
+   * Missing on old saves means never simulated — treat as 50, same as the host seed.
+   * When Economy is on, HospitalInstallations.settleAnnual writes this from
+   * medicalCareRelief (docs/plan/chemistry-medicine-knowledge-accumulation.md §8.1).
+   */
+  medicalCare?: number;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;
   market?: number;
@@ -524,6 +532,8 @@ export interface Province {
   security?: number;
   /** Regional public-health and cleanliness score from 0 (unsanitary) to 100 (sanitary). */
   sanitation?: number;
+  /** Regional medical-care civic score from 0 (no usable care) to 100 (fueled hospital). */
+  medicalCare?: number;
 }
 
 export interface Religion extends NamedReligion {
@@ -994,6 +1004,8 @@ export interface State {
   security?: number;
   /** State-wide public-health and cleanliness score from 0 (unsanitary) to 100 (sanitary). */
   sanitation?: number;
+  /** State-wide medical-care civic score from 0 (no usable care) to 100 (fueled hospital). */
+  medicalCare?: number;
 }
 
 export interface Zone {

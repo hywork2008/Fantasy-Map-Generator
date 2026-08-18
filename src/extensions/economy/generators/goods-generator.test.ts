@@ -12,6 +12,7 @@ import {
 } from "../economyContext";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
+  GOODS_DATA,
   GoodsModule,
   isGoodEnabled,
   migrateFoodProcessingLotContracts,
@@ -306,6 +307,25 @@ describe("GoodsModule", () => {
       expect(good?.biomeOutputByTag, name).toBeUndefined();
       expect(good?.chance, name).toBe(0);
     }
+  });
+
+  it("reserves chemistry and medicine goods with technology gates and no household demand", () => {
+    goodsModule.restoreDefaults();
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const lab = byName.get("Lab Glassware");
+    const medicines = byName.get("Medicines");
+    const acid = byName.get("Sulfuric Acid");
+    const tar = byName.get("Coal Tar");
+    expect(lab?.requiredTechnology).toBe("laboratoryGlassware");
+    expect(medicines?.requiredTechnology).toBe("apothecaryCompounding");
+    expect(acid?.requiredTechnology).toBe("industrialSulfuricAcid");
+    expect(tar?.requiredTechnology).toBe("chemicalIndustryFoundation");
+    expect(lab?.demandCoverage).toEqual({});
+    expect(medicines?.demandCoverage).toEqual({});
+    const labTemplate = GOODS_DATA.find(good => good.name === "Lab Glassware");
+    expect(labTemplate?.recipes?.some(recipe => recipe.Glass && recipe.Tools && !recipe.Pumice)).toBe(true);
+    const acidTemplate = GOODS_DATA.find(good => good.name === "Sulfuric Acid");
+    expect(acidTemplate?.recipes?.every(recipe => recipe["Lead Ingot"])).toBe(true);
   });
 
   it("defines Cats as a live, locally produced pest-control good", () => {

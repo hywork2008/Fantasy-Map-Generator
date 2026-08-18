@@ -66,7 +66,8 @@ class StatesModule {
         culture: burg.culture!,
         coa,
         security: 50,
-        sanitation: 50
+        sanitation: 50,
+        medicalCare: 50
       });
     });
 

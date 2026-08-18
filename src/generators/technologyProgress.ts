@@ -353,6 +353,30 @@ function emptySignals(): TechnologySignals {
     mineDrainagePressure: 0,
     steamTrialYears: 0,
     steamInstallations: 0,
+    glassware: 0,
+    naturalPhilosophy: 0,
+    medicine: 0,
+    sulfurAccess: 0,
+    urbanSanitationPressure: 0,
+    epidemicPressure: 0,
+    battleWoundPressure: 0,
+    soapGlassPressure: 0,
+    gunpowderSulfurPressure: 0,
+    medicineDemandPressure: 0,
+    foodFertilizerPressure: 0,
+    lateChemistryDemandPressure: 0,
+    labVesselQuality: 0,
+    pumiceCoverage: 0,
+    pozzolanPractice: 0,
+    obsidianPractice: 0,
+    labGlassPracticeYears: 0,
+    apothecaryTrialYears: 0,
+    hospitalTrialYears: 0,
+    acidPlantTrialYears: 0,
+    hospitalInstallations: 0,
+    acidPlantInstallations: 0,
+    experimentRecord: 0,
+    urbanWaterMaxMunicipalSanitation: 0,
     atWar: false,
     capitalPort: false
   };
@@ -421,20 +445,26 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       if (domain === "printing") signals.printing = Math.max(signals.printing, stock);
       if (domain === "masonry") signals.masonry = Math.max(signals.masonry, stock);
       if (domain === "instruments") signals.instruments = Math.max(signals.instruments, stock);
+      if (domain === "glassware") signals.glassware = Math.max(signals.glassware, stock);
     }
 
-    const academyMax = new Map<number, number>();
+    const academyMax = new Map<string, number>();
     for (const entry of asStockArray(economy.academyKnowledgeStocks)) {
-      if (entry.domain !== "administration") continue;
+      const domain = String(entry.domain ?? "");
       const burgId = asNumber(entry.burgId);
       const stock = asNumber(entry.stock);
       const burg = pack.burgs?.[burgId];
-      if (!burg?.state) continue;
-      academyMax.set(burg.state, Math.max(academyMax.get(burg.state) ?? 0, stock));
+      if (!burg?.state || !domain) continue;
+      const key = `${burg.state}:${domain}`;
+      academyMax.set(key, Math.max(academyMax.get(key) ?? 0, stock));
     }
-    for (const [stateId, stock] of academyMax) {
-      const signals = map.get(stateId);
-      if (signals) signals.administration = Math.max(signals.administration, stock);
+    for (const [key, stock] of academyMax) {
+      const [stateIdRaw, domain] = key.split(":");
+      const signals = map.get(Number(stateIdRaw));
+      if (!signals) continue;
+      if (domain === "administration") signals.administration = Math.max(signals.administration, stock);
+      if (domain === "medicine") signals.medicine = Math.max(signals.medicine, stock);
+      if (domain === "naturalPhilosophy") signals.naturalPhilosophy = Math.max(signals.naturalPhilosophy, stock);
     }
 
     const depositsById = new Map<number, Record<string, unknown>>();
@@ -500,17 +530,28 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       const signals = map.get(stateId);
       if (!signals) continue;
       const demand = isRecord(ledger.annualDemand) ? ledger.annualDemand : {};
+      const unmet = isRecord(ledger.unmetDemand) ? ledger.unmetDemand : {};
       signals.gunpowderDemand = asNumber(demand.gunpowder);
+      const sulfurDemand = asNumber(demand.sulfur);
+      signals.gunpowderSulfurPressure = sulfurDemand > 0 ? clamp01(asNumber(unmet.sulfur) / sulfurDemand) : 0;
     }
+    const waterByBurg = new Map<number, Record<string, unknown>>();
     for (const water of asStockArray(economy.urbanWaterSystems)) {
       const burgId = asNumber(water.burgId);
+      waterByBurg.set(burgId, water);
       const burg = pack.burgs?.[burgId];
       if (!burg?.state) continue;
       const signals = map.get(burg.state);
       if (!signals) continue;
-      const tier = asNumber(water.tier);
-      signals.urbanWaterMaxTier = Math.max(signals.urbanWaterMaxTier, tier);
+      signals.urbanWaterMaxTier = Math.max(signals.urbanWaterMaxTier, asNumber(water.tier));
+      signals.urbanWaterMaxMunicipalSanitation = Math.max(
+        signals.urbanWaterMaxMunicipalSanitation,
+        asNumber(water.municipalSanitation)
+      );
+      signals.epidemicPressure = Math.max(signals.epidemicPressure, asNumber(water.healthPressure));
     }
+
+    applyChemistryMedicineSignals(map, pack, economy);
   }
 
   const shipbuilding = simulationContext.extensions?.shipbuilding;
@@ -541,6 +582,273 @@ function buildStateSignals(): Map<number, TechnologySignals> {
 function burgStateId(burgId: number): number {
   const burg = worldContext.pack?.burgs?.[burgId];
   return burg?.state ?? 0;
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function goodIdByName(economy: Record<string, unknown>, name: string): number | null {
+  for (const good of asStockArray(economy.goods)) {
+    if (String(good.name ?? "") === name) {
+      const id = asNumber(good.i, -1);
+      return id >= 0 ? id : null;
+    }
+  }
+  return null;
+}
+
+function marketBelongsToState(
+  market: Record<string, unknown>,
+  pack: { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> },
+  stateId: number
+): boolean {
+  const center = pack.burgs?.[asNumber(market.centerBurgId)];
+  if (center && typeof center === "object" && !center.removed && center.state === stateId) return true;
+  const marketId = asNumber(market.i);
+  for (const burg of pack.burgs ?? []) {
+    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || burg.state !== stateId) continue;
+    if (burg.market === marketId) return true;
+  }
+  return false;
+}
+
+function stateMarketStock(
+  economy: Record<string, unknown>,
+  pack: { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> },
+  stateId: number,
+  goodId: number
+): number {
+  let stock = 0;
+  for (const market of asStockArray(economy.markets)) {
+    if (!marketBelongsToState(market, pack, stateId)) continue;
+    const goods = isRecord(market.goods) ? market.goods : {};
+    const row = goods[String(goodId)] ?? goods[goodId as unknown as string];
+    stock += asNumber(isRecord(row) ? row.stock : row);
+  }
+  return stock;
+}
+
+function applyChemistryMedicineSignals(
+  map: Map<number, TechnologySignals>,
+  pack: {
+    burgs?: Array<
+      | {
+          i?: number;
+          removed?: boolean;
+          state?: number;
+          market?: number;
+          population?: number;
+          sanitation?: number;
+        }
+      | 0
+      | null
+    >;
+  },
+  economy: Record<string, unknown>
+): void {
+  const soapId = goodIdByName(economy, "Soap");
+  const glassId = goodIdByName(economy, "Glass");
+  const pumiceId = goodIdByName(economy, "Pumice");
+  const sulfurId = goodIdByName(economy, "Sulfur");
+
+  const waterByBurg = new Map<number, Record<string, unknown>>();
+  for (const water of asStockArray(economy.urbanWaterSystems)) {
+    waterByBurg.set(asNumber(water.burgId), water);
+  }
+
+  const sanitationWeighted = new Map<number, { sum: number; pop: number }>();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || !burg.state) continue;
+    const signals = map.get(burg.state);
+    if (!signals) continue;
+    const pop = Math.max(0, Number(burg.population) || 0);
+    const water = waterByBurg.get(burg.i);
+    const term = water
+      ? Math.max(1 - asNumber(burg.sanitation, 50) / 100, asNumber(water.healthPressure))
+      : 1 - asNumber(burg.sanitation, 50) / 100;
+    const entry = sanitationWeighted.get(burg.state) ?? { sum: 0, pop: 0 };
+    entry.sum += term * pop;
+    entry.pop += pop;
+    sanitationWeighted.set(burg.state, entry);
+  }
+  for (const [stateId, entry] of sanitationWeighted) {
+    const signals = map.get(stateId);
+    if (signals && entry.pop > 0) signals.urbanSanitationPressure = clamp01(entry.sum / entry.pop);
+  }
+
+  const combatByState = new Map<number, number>();
+  const loss = simulationContext.populationLoss;
+  if (loss && typeof loss === "object" && Array.isArray(loss.history)) {
+    for (const bucket of loss.history) {
+      if (!isRecord(bucket) || !isRecord(bucket.byState)) continue;
+      for (const [rawId, totals] of Object.entries(bucket.byState)) {
+        const stateId = Number(rawId);
+        combatByState.set(
+          stateId,
+          (combatByState.get(stateId) ?? 0) + asNumber(isRecord(totals) ? totals.combat : totals)
+        );
+      }
+    }
+  }
+
+  for (const [stateId, signals] of map) {
+    const urbanPop = Math.max(signals.urbanPopulation, 1);
+    signals.battleWoundPressure = clamp01((combatByState.get(stateId) ?? 0) / Math.max(urbanPop * 0.02, 1));
+
+    const soapStock = soapId === null ? 0 : stateMarketStock(economy, pack, stateId, soapId);
+    const glassStock = glassId === null ? 0 : stateMarketStock(economy, pack, stateId, glassId);
+    const soapShort = clamp01(1 - soapStock / Math.max(urbanPop * 0.02, 1));
+    const glassShort = clamp01(1 - glassStock / Math.max(urbanPop * 0.02, 1));
+    signals.soapGlassPressure = clamp01(0.5 * soapShort + 0.5 * glassShort);
+
+    const sulfurStock = sulfurId === null ? 0 : stateMarketStock(economy, pack, stateId, sulfurId);
+    const marketCoverage = clamp01(sulfurStock / 2);
+    const militaryCoverage = signals.gunpowderDemand > 0 ? 1 - signals.gunpowderSulfurPressure : 0;
+    signals.sulfurAccess = Math.max(militaryCoverage, marketCoverage);
+
+    signals.pumiceCoverage = pumiceId === null ? 0 : clamp01(stateMarketStock(economy, pack, stateId, pumiceId) / 1);
+    signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
+    signals.medicineDemandPressure = clamp01(
+      0.4 * signals.urbanSanitationPressure +
+        0.3 * signals.epidemicPressure +
+        0.2 * signals.battleWoundPressure +
+        0.1 * signals.soapGlassPressure
+    );
+  }
+
+  for (const record of asStockArray(economy.chemMedPracticeRecords)) {
+    const signals = map.get(asNumber(record.stateId));
+    if (!signals) continue;
+    signals.labGlassPracticeYears = asNumber(record.labGlassPracticeYears);
+    signals.pozzolanPractice = clamp01(asNumber(record.pozzolanPractice));
+    signals.obsidianPractice = clamp01(asNumber(record.obsidianPractice));
+  }
+
+  const compoundingYears = new Map<number, number>();
+  const acidYears = new Map<number, number>();
+  for (const trial of asStockArray(economy.chemistryTrials)) {
+    if (String(trial.status ?? "") !== "running") continue;
+    const stateId = asNumber(trial.stateId);
+    const runs = asNumber(trial.documentedRuns);
+    const kind = String(trial.kind ?? "");
+    if (kind === "compounding") compoundingYears.set(stateId, Math.max(compoundingYears.get(stateId) ?? 0, runs));
+    if (kind === "acidPlant") acidYears.set(stateId, Math.max(acidYears.get(stateId) ?? 0, runs));
+  }
+  for (const [stateId, years] of compoundingYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.apothecaryTrialYears = years;
+  }
+  for (const [stateId, years] of acidYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.acidPlantTrialYears = years;
+  }
+
+  const hospitalYears = new Map<number, number>();
+  for (const hospital of asStockArray(economy.hospitalInstallations)) {
+    if (hospital.active === false) continue;
+    const stateId = asNumber(hospital.stateId) || burgStateId(asNumber(hospital.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.hospitalInstallations += 1;
+    hospitalYears.set(stateId, Math.max(hospitalYears.get(stateId) ?? 0, asNumber(hospital.documentedRuns)));
+  }
+  for (const [stateId, years] of hospitalYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.hospitalTrialYears = years;
+  }
+
+  for (const plant of asStockArray(economy.acidPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.acidPlantInstallations += 1;
+  }
+
+  for (const workshop of asStockArray(economy.experimentalWorkshops)) {
+    if (workshop.active === false) continue;
+    const stateId = asNumber(workshop.sponsorStateId) || burgStateId(asNumber(workshop.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.experimentRecord = Math.max(signals.experimentRecord, asNumber(workshop.experimentRecord));
+  }
+
+  let fertilizerCount = 0;
+  const fertilizerByState = new Map<number, { sum: number; n: number }>();
+  for (const market of asStockArray(economy.markets)) {
+    const ledger = isRecord(market.foodLedger) ? market.foodLedger : null;
+    if (!ledger) continue;
+    const stateId = (() => {
+      const center = pack.burgs?.[asNumber(market.centerBurgId)];
+      return center && typeof center === "object" ? (center.state ?? 0) : 0;
+    })();
+    if (!stateId) continue;
+    const need = Math.max(0, asNumber(ledger.urbanNeed));
+    const gap = Math.max(0, asNumber(ledger.importNeed) - asNumber(ledger.satisfiedImport));
+    const ratio = need > 0 ? gap / need : 0;
+    const entry = fertilizerByState.get(stateId) ?? { sum: 0, n: 0 };
+    entry.sum += ratio;
+    entry.n += 1;
+    fertilizerByState.set(stateId, entry);
+    fertilizerCount += 1;
+  }
+  if (fertilizerCount > 0) {
+    for (const [stateId, entry] of fertilizerByState) {
+      const signals = map.get(stateId);
+      if (!signals || entry.n <= 0) continue;
+      signals.foodFertilizerPressure = clamp01(entry.sum / entry.n);
+      signals.lateChemistryDemandPressure = clamp01(
+        0.4 * signals.gunpowderSulfurPressure + 0.3 * signals.soapGlassPressure + 0.3 * signals.foodFertilizerPressure
+      );
+    }
+  }
+}
+
+/** Whether a state knows how to blow laboratory vessels. */
+export function isLaboratoryGlasswareKnown(stateId: number): boolean {
+  return isTechnologyAtLeast("laboratoryGlassware", stateId, "known");
+}
+
+/** Whether a state has institutionalized apothecary compounding. */
+export function isApothecaryCompoundingAdopted(stateId: number): boolean {
+  return isTechnologyAtLeast("apothecaryCompounding", stateId, "adopted");
+}
+
+/**
+ * 0..1 local hospital utilization for a state — not a global medicine multiplier.
+ * Reads Economy hospital rows when present; otherwise 0.
+ */
+export function getHospitalCareEffect(stateId: number): number {
+  const economy = simulationContext.extensions?.economy;
+  if (!isRecord(economy)) return 0;
+  let sum = 0;
+  let n = 0;
+  for (const hospital of asStockArray(economy.hospitalInstallations)) {
+    if (hospital.active === false) continue;
+    const owner = asNumber(hospital.stateId) || burgStateId(asNumber(hospital.burgId));
+    if (owner !== stateId) continue;
+    sum += clamp01(
+      asNumber(hospital.utilization) * asNumber(hospital.condition, 1) * asNumber(hospital.ratedCare, 0.4)
+    );
+    n += 1;
+  }
+  return n > 0 ? clamp01(sum / n) : 0;
+}
+
+/** 0..1 fueled acid-plant utilization in a state — not a global chemistry multiplier. */
+export function getIndustrialSulfuricAcidEffect(stateId: number): number {
+  const economy = simulationContext.extensions?.economy;
+  if (!isRecord(economy)) return 0;
+  let sum = 0;
+  let n = 0;
+  for (const plant of asStockArray(economy.acidPlants)) {
+    if (plant.active === false) continue;
+    const owner = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    if (owner !== stateId) continue;
+    sum += clamp01(asNumber(plant.utilization));
+    n += 1;
+  }
+  return n > 0 ? clamp01(sum / n) : 0;
 }
 
 function prerequisitesMet(def: TechnologyDefinition, stageOf: (id: string) => TechnologyStage): boolean {

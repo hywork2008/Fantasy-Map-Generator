@@ -13,8 +13,8 @@ export type TechnologyStage = (typeof TECHNOLOGY_STAGES)[number];
 export const TECHNOLOGY_SCOPES = ["burg", "state", "network"] as const;
 export type TechnologyScope = (typeof TECHNOLOGY_SCOPES)[number];
 
-/** Roadmap eras implemented through early steam pumping (later industrial eras deferred). */
-export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5;
+/** Roadmap eras through early steam (5) and industrial chemistry (6). */
+export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface TechnologyProgress {
   technologyId: string;
@@ -58,6 +58,32 @@ export interface TechnologySignals {
   steamTrialYears: number;
   /** Fueled atmospheric steam installations on this state's mines. */
   steamInstallations: number;
+  glassware: number;
+  naturalPhilosophy: number;
+  medicine: number;
+  sulfurAccess: number;
+  urbanSanitationPressure: number;
+  epidemicPressure: number;
+  battleWoundPressure: number;
+  soapGlassPressure: number;
+  gunpowderSulfurPressure: number;
+  medicineDemandPressure: number;
+  /** Reserved; computed in the sulfuric-acid phase. */
+  foodFertilizerPressure: number;
+  /** Reserved; computed in the sulfuric-acid phase. */
+  lateChemistryDemandPressure: number;
+  labVesselQuality: number;
+  pumiceCoverage: number;
+  pozzolanPractice: number;
+  obsidianPractice: number;
+  labGlassPracticeYears: number;
+  apothecaryTrialYears: number;
+  hospitalTrialYears: number;
+  acidPlantTrialYears: number;
+  hospitalInstallations: number;
+  acidPlantInstallations: number;
+  experimentRecord: number;
+  urbanWaterMaxMunicipalSanitation: number;
   atWar: boolean;
   capitalPort: boolean;
 }
