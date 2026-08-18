@@ -1837,6 +1837,8 @@
       "elevation": "Elevation",
       "depth": "Depth",
       "temperature": "Temperature",
+      "temperatureTip": "Air temperature on the current simulation date, matching the Temperature layer. The annual average is the generation-time climate used by biomes and crops.",
+      "temperatureValue": "{{current}} (annual {{annual}})",
       "waterTemp": "Water temperature",
       "waterTempTip": "Surface water temperature advected along the resolved current field; open ocean only",
       "currentDirection": "Current direction",

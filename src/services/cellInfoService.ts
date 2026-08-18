@@ -17,6 +17,22 @@ import { rn } from "../utils/numberUtils";
 import { convertTemperature, formatAnnualPrecipitation, si } from "../utils/unitUtils";
 import { tooltipExtensions } from "./tooltipExtensions";
 
+/**
+ * Air temperatures for Cell Info. The Temperature layer draws `seasonalTemp ?? temp`;
+ * crop/biome tools still want the generation-time annual average in `temp`.
+ */
+export function resolveCellAirTemperatures(
+  temp: ArrayLike<number> | undefined,
+  seasonalTemp: ArrayLike<number> | undefined,
+  gridCellId: number
+): { current: number | null; annual: number | null } {
+  const annual = temp?.[gridCellId];
+  const annualValue = typeof annual === "number" && Number.isFinite(annual) ? annual : null;
+  const seasonal = seasonalTemp?.[gridCellId];
+  const currentValue = typeof seasonal === "number" && Number.isFinite(seasonal) ? seasonal : annualValue;
+  return { current: currentValue, annual: annualValue };
+}
+
 export function updateCellInfo(point: [number, number], i: number, g: number): void {
   const cells = worldContext.pack.cells;
   const pointX = String(rn(point[0]));
@@ -27,11 +43,12 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
   const riverId = cells.h[i] >= 20 ? cells.r[i] : 0;
   const river = riverId ? worldContext.pack.rivers.find(candidate => candidate.i === riverId) : undefined;
   const riverHydrology = getRiverCellHydrology(river, i);
+  const air = resolveCellAirTemperatures(worldContext.grid.cells.temp, worldContext.grid.cells.seasonalTemp, g);
 
   useCellInfoState.getState().updateInfo({
     cell: String(i),
     cellId: i,
-    temperature: worldContext.grid.cells.temp[g] ?? null,
+    temperature: air.annual,
     precipitation: worldContext.grid.cells.prec[g] ?? null,
     x: pointX,
     y: pointY,
@@ -41,7 +58,8 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     area: cells.area[i] ? `${si(getArea(cells.area[i]))} ${getAreaUnit()}` : "n/a",
     elevation: getElevation(worldContext.pack.features[f], worldContext.pack.cells.h[i]),
     depth: getDepth(worldContext.pack.features[f], point),
-    temp: convertTemperature(worldContext.grid.cells.temp[g]),
+    temp: air.current === null ? "n/a" : convertTemperature(air.current),
+    annualTemp: air.annual === null ? "n/a" : convertTemperature(air.annual),
     prec: cells.h[i] >= 20 ? getFriendlyPrecipitation(i) : "n/a",
     river: riverId ? getRiverInfo(riverId) : "no",
     riverSurfaceVelocity: riverHydrology ? `${riverHydrology.surfaceVelocity} m/s` : "n/a",

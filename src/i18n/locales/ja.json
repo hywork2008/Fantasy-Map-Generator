@@ -1837,6 +1837,8 @@
       "elevation": "標高",
       "depth": "水深",
       "temperature": "気温",
+      "temperatureTip": "シミュレーション日付の気温です。Temperature レイヤーと同じ値です。年平均は生成時の気候で、バイオームや作物が使います。",
+      "temperatureValue": "{{current}}（年平均 {{annual}}）",
       "waterTemp": "水温",
       "waterTempTip": "海流場に沿って運ばれる表層水温です。外洋のみ",
       "currentDirection": "海流の向き",

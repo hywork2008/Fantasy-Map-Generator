@@ -4,6 +4,7 @@ export interface CellInfoData {
   cell: string;
   /** Raw packed-cell id and climate values for tools that need model units, not display formatting. */
   cellId: number | null;
+  /** Annual-average °C (`grid.cells.temp`). Crop Climate still reads this, not the seasonal display. */
   temperature: number | null;
   precipitation: number | null;
   x: string;
@@ -28,7 +29,10 @@ export interface CellInfoData {
   subsistenceCapacity: string;
   elevation: string;
   depth: string;
+  /** Current air temperature (seasonalTemp ?? temp), matching the Temperature layer. */
   temp: string;
+  /** Generation-time annual-average air temperature (`grid.cells.temp`). */
+  annualTemp: string;
   biome: string;
   /** Derived from potential forest capacity and the live standing-timber stock. */
   forestClearance: string;
@@ -81,6 +85,7 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   elevation: "0",
   depth: "0",
   temp: "0",
+  annualTemp: "0",
   biome: "n/a",
   forestClearance: "n/a",
   coastalHabitat: "none",
