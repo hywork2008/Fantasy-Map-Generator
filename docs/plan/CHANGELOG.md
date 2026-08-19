@@ -2,6 +2,7 @@
 
 2026-08-19
 
+- docs/plan/craft-demand-calibration.md
 - docs/plan/player-character-technology-bias.md
 
 2026-08-18

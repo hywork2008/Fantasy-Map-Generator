@@ -229,6 +229,7 @@ import { BurgEditorWaterTab } from "./ui/components/BurgEditorWaterTab";
 import { StateFiscalReportTab } from "./ui/components/StateFiscalReportTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { BalanceHistoryDialog } from "./ui/dialogs/BalanceHistoryDialog";
+import { CalibrationOverviewDialog } from "./ui/dialogs/CalibrationOverviewDialog";
 import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
 import { CouncilSessionDialog } from "./ui/dialogs/CouncilSessionDialog";
 import { CropClimateDialog } from "./ui/dialogs/CropClimateDialog";
@@ -1829,6 +1830,11 @@ export function init(api: ExtensionAPI): void {
     component: GuildOverviewDialog
   });
   api.registerDialog({
+    id: "CalibrationOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: CalibrationOverviewDialog
+  });
+  api.registerDialog({
     id: "MetallurgWorkDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: MetallurgWorkDialog
@@ -2040,6 +2046,19 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-craft-calibration",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Craft calibration",
+    dialogId: "calibrationOverview",
+    tooltip: "Compare authored historical craft demand with live employment (diagnostics; production is unchanged)",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "calibrationOverviewButton" } }));
+    }
+  });
+
+  api.registerAction({
     id: "economy-metallurg-work",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -2187,6 +2206,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
   api.registerToolAction("stateEmploymentOverviewButton", () => toggleEditorDialog("stateEmploymentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
+  api.registerToolAction("calibrationOverviewButton", () => toggleEditorDialog("calibrationOverview", null));
   api.registerToolAction("metallurgWorkOverviewButton", () => toggleEditorDialog("metallurgWorkOverview", null));
   api.registerToolAction("militarySuppliesOverviewButton", () => toggleEditorDialog("militarySuppliesOverview", null));
   api.registerToolAction("mineralOverviewButton", () => toggleEditorDialog("mineralOverview", null));
@@ -2254,6 +2274,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("employmentOverview");
       api.closeDialog("stateEmploymentOverview");
       api.closeDialog("guildOverview");
+      api.closeDialog("calibrationOverview");
       api.closeDialog("metallurgWorkOverview");
       api.closeDialog("militarySuppliesOverview");
       api.closeDialog("treasuryOverview");
@@ -3420,6 +3441,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("employmentOverviewButton");
   api.unregisterToolAction("stateEmploymentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
+  api.unregisterToolAction("calibrationOverviewButton");
   api.unregisterToolAction("metallurgWorkOverviewButton");
   api.unregisterToolAction("militarySuppliesOverviewButton");
   api.unregisterToolAction("mineralOverviewButton");
