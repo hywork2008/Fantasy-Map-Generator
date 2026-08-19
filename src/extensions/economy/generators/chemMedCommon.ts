@@ -13,6 +13,8 @@ export const APOTHECARY_BUDGET = 12;
 export const EXPERIMENTAL_BUDGET = 16;
 export const HOSPITAL_BUDGET = 20;
 export const ACID_PLANT_BUDGET = 24;
+/** calibration TBD — slightly higher than ACID_PLANT_BUDGET; a later, larger-scale plant. */
+export const PHOSPHATE_FERTILIZER_PLANT_BUDGET = 28;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

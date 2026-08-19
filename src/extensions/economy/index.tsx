@@ -143,6 +143,7 @@ import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { getStateMountedCapacity } from "./generators/mountAvailability";
+import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
@@ -2930,6 +2931,9 @@ export function init(api: ExtensionAPI): void {
         ExperimentalWorkshops.settleAnnual();
         HospitalInstallations.settleAnnual();
         AcidPlants.settleAnnual();
+        // Depends on AcidPlants's Sulfuric Acid output for its own recipe
+        // (docs/plan/phosphate-fertilizer-vertical-slice.md §3.7); runs right after.
+        PhosphateFertilizerPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).

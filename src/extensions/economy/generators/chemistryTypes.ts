@@ -3,7 +3,7 @@
  * Design: docs/plan/chemistry-medicine-knowledge-accumulation.md
  */
 
-export type ChemistryTrialKind = "compounding" | "laboratory" | "acidPlant";
+export type ChemistryTrialKind = "compounding" | "laboratory" | "acidPlant" | "phosphateFertilizerPlant";
 
 export type ChemistryFailureReason =
   | "materialShortage"
@@ -60,6 +60,17 @@ export interface HospitalInstallation {
 }
 
 export interface AcidPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/** Same shape as AcidPlant. Design: docs/plan/phosphate-fertilizer-vertical-slice.md §3.7. */
+export interface PhosphateFertilizerPlant {
   burgId: number;
   stateId: number;
   role: "trial" | "service";

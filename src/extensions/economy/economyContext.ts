@@ -20,7 +20,8 @@ import type {
   ChemMedPracticeRecord,
   ExperimentalWorkshop,
   HospitalInstallation,
-  MedicalCareReliefRow
+  MedicalCareReliefRow,
+  PhosphateFertilizerPlant
 } from "./generators/chemistryTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
@@ -158,6 +159,7 @@ let _apothecaryWorkshopsLastSettledYearFallback: number | null = null;
 let _experimentalWorkshopsLastSettledYearFallback: number | null = null;
 let _hospitalInstallationsLastSettledYearFallback: number | null = null;
 let _acidPlantsLastSettledYearFallback: number | null = null;
+let _phosphateFertilizerPlantsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -215,6 +217,7 @@ export function clearEconomyContext(): void {
   _experimentalWorkshopsLastSettledYearFallback = null;
   _hospitalInstallationsLastSettledYearFallback = null;
   _acidPlantsLastSettledYearFallback = null;
+  _phosphateFertilizerPlantsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1398,6 +1401,12 @@ export function getAcidPlants(): AcidPlant[] {
 export function setAcidPlants(rows: readonly AcidPlant[]): void {
   setSliceArray("acidPlants", rows);
 }
+export function getPhosphateFertilizerPlants(): PhosphateFertilizerPlant[] {
+  return getSliceArray<PhosphateFertilizerPlant>("phosphateFertilizerPlants");
+}
+export function setPhosphateFertilizerPlants(rows: readonly PhosphateFertilizerPlant[]): void {
+  setSliceArray("phosphateFertilizerPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1441,6 +1450,14 @@ export function getAcidPlantsLastSettledYear(): number | null {
 export function setAcidPlantsLastSettledYear(year: number): void {
   writeYearToSlice("acidPlantsLastSettledYear", year, value => {
     _acidPlantsLastSettledYearFallback = value;
+  });
+}
+export function getPhosphateFertilizerPlantsLastSettledYear(): number | null {
+  return yearFromSlice("phosphateFertilizerPlantsLastSettledYear", _phosphateFertilizerPlantsLastSettledYearFallback);
+}
+export function setPhosphateFertilizerPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("phosphateFertilizerPlantsLastSettledYear", year, value => {
+    _phosphateFertilizerPlantsLastSettledYearFallback = value;
   });
 }
 
