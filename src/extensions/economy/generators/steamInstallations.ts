@@ -6,7 +6,7 @@
 
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
-import { rn } from "../../hostUtils";
+import { isDeepMineRequirementRelaxed, rn, scaleCountRequirement } from "../../hostUtils";
 import {
   getGoods,
   getMineOperations,
@@ -45,11 +45,13 @@ function burgStateId(burgId: number): number {
 
 function eligibleDeepMines(stateId: number) {
   const deposits = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
-  return getMineOperations().filter(operation => {
+  const inState = getMineOperations().filter(operation => {
     if (!operation.active) return false;
-    if (burgStateId(operation.burgId) !== stateId) return false;
-    return deposits.get(operation.depositId)?.depth === "deep";
+    return burgStateId(operation.burgId) === stateId;
   });
+  const deep = inState.filter(operation => deposits.get(operation.depositId)?.depth === "deep");
+  if (deep.length || !isDeepMineRequirementRelaxed()) return deep;
+  return inState;
 }
 
 function operateSite(marketId: number, needsBuildIron: boolean): { coal: number; tools: number; utilization: number } {
@@ -157,7 +159,12 @@ export class SteamInstallationsModule {
     }
 
     for (const trial of trials) {
-      if (trial.status !== "running" || trial.documentedRuns < STEAM_TRIAL_YEARS_FOR_DEMONSTRATION) continue;
+      if (
+        trial.status !== "running" ||
+        trial.documentedRuns < scaleCountRequirement(STEAM_TRIAL_YEARS_FOR_DEMONSTRATION)
+      ) {
+        continue;
+      }
       if (installations.some(installation => installation.mineOperationId === trial.mineOperationId)) {
         trial.status = "retired";
         continue;

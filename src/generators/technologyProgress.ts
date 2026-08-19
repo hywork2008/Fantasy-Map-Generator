@@ -10,6 +10,11 @@ import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { isGunpowderEraEnabled } from "../utils/gunpowderEra";
 import { getTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
+import {
+  getTechnologyRequirementEase,
+  meetsTechnologyRequirement,
+  type TechnologyRequirementKind
+} from "../utils/technologyRequirementEase";
 import { getActiveTechnologyDefinitions, getTechnologyDefinition } from "./technologyDefinitions";
 import {
   createEmptyTechnologySimulationState,
@@ -881,12 +886,47 @@ function prerequisitesMet(def: TechnologyDefinition, stageOf: (id: string) => Te
   return def.prerequisites.every(id => isTechnologyStageAtLeast(stageOf(id), "adopted"));
 }
 
+const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
+  "mineCount",
+  "deepMineCount",
+  "coalMineCount",
+  "portCount",
+  "coastalBurgCount",
+  "smelterWorkers",
+  "completedHulls",
+  "steamTrialYears",
+  "steamInstallations",
+  "hospitalInstallations",
+  "acidPlantInstallations",
+  "labGlassPracticeYears",
+  "apothecaryTrialYears",
+  "hospitalTrialYears",
+  "acidPlantTrialYears",
+  "urbanWaterMaxTier"
+]);
+
+const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
+  "treasury",
+  "urbanPopulation",
+  "gunpowderDemand",
+  "shipTechPoints"
+]);
+
+function signalRequirementKind(key: keyof TechnologySignals): TechnologyRequirementKind {
+  if (COUNT_SIGNAL_KEYS.has(key)) return "count";
+  if (AMOUNT_SIGNAL_KEYS.has(key)) return "amount";
+  return "ratio";
+}
+
 function thresholdsMet(thresholds: TechnologyThresholds, signals: TechnologySignals): boolean {
   if (thresholds.min) {
+    const ease = getTechnologyRequirementEase();
     for (const [key, need] of Object.entries(thresholds.min) as [keyof TechnologySignals, number][]) {
       if (need === undefined) continue;
       const value = signals[key];
-      if (typeof value === "number" && value < need) return false;
+      if (typeof value === "number" && !meetsTechnologyRequirement(value, need, signalRequirementKind(key), ease)) {
+        return false;
+      }
     }
   }
   if (thresholds.flags) {
@@ -902,7 +942,8 @@ function thresholdsMet(thresholds: TechnologyThresholds, signals: TechnologySign
 function heldLongEnough(startYear: number | undefined, requiredYears: number | undefined, year: number): boolean {
   if (!requiredYears) return true;
   if (startYear === undefined) return false;
-  return year - startYear >= requiredYears / getTechnologyDevelopmentSpeed();
+  const waitYears = Math.floor(requiredYears / getTechnologyDevelopmentSpeed() / getTechnologyRequirementEase() + 1e-9);
+  return year - startYear >= waitYears;
 }
 
 function advanceStage(

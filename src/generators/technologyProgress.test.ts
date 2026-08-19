@@ -90,13 +90,13 @@ function installMinimalWorld(
 
 describe("technologyProgress", () => {
   beforeEach(() => {
-    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
+    useOptionsState.setState({ technologyDevelopmentSpeed: 1, technologyRequirementEase: 1 });
     installMinimalWorld({ gunpowder: false });
     resetTechnologyProgress();
   });
 
   afterEach(() => {
-    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
+    useOptionsState.setState({ technologyDevelopmentSpeed: 1, technologyRequirementEase: 1 });
   });
 
   it("seeds mature-medieval start profile as diffused for every live state", () => {
@@ -362,6 +362,25 @@ describe("technologyProgress", () => {
     }
 
     expect(["demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("atmosphericSteamPumping", 2));
+  });
+
+  it("climbs atmospheric steam pumping in one year at 100× requirement ease without mines or trials", () => {
+    useOptionsState.setState({ technologyRequirementEase: 100 });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("atmosphericSteamPumping", 1)).toBe("locked");
+
+    settleTechnologyAnnual(1200);
+
+    expect(["adopted", "diffused"]).toContain(getTechnologyStage("atmosphericSteamPumping", 1));
+    expect(["adopted", "diffused"]).toContain(getTechnologyStage("condensateEfficiency", 1));
+    expect(["adopted", "diffused"]).toContain(getTechnologyStage("highEfficiencySteamEngine", 1));
+  });
+
+  it("keeps steam pumping locked without mines at historical requirement ease", () => {
+    seedTechnologyStartProfile(1200);
+    settleTechnologyAnnual(1200);
+    expect(getTechnologyStage("improvedMining", 1)).toBe("locked");
+    expect(getTechnologyStage("atmosphericSteamPumping", 1)).toBe("locked");
   });
 
   it("diffuses an adopted technology in one year at 100× development speed", () => {

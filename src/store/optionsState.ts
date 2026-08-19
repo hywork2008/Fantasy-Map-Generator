@@ -214,6 +214,13 @@ export interface OptionsState {
    * maps can reach steam pumping without waiting out the full pre-industrial climb.
    */
   technologyDevelopmentSpeed: number;
+  /**
+   * Divisor on technology evidence gates (Options → Simulation).
+   * 1 = historical mines / treasury / trial-years / guild-stock bars;
+   * 100 waives those bars so steam and later nodes can climb without the
+   * physical evidence the historical path requires. Does not change EWMA rates.
+   */
+  technologyRequirementEase: number;
   diplomacyHistoryAttempts: number;
 
   // Danger settings
@@ -489,6 +496,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   conflictAutonomy: DEFAULT_CONFLICT_AUTONOMY,
   warFrequency: 1.0,
   technologyDevelopmentSpeed: 1,
+  technologyRequirementEase: 1,
   diplomacyHistoryAttempts: 1,
 
   dangerEnabled: false,
