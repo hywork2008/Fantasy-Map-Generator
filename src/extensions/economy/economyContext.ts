@@ -160,6 +160,7 @@ let _experimentalWorkshopsLastSettledYearFallback: number | null = null;
 let _hospitalInstallationsLastSettledYearFallback: number | null = null;
 let _acidPlantsLastSettledYearFallback: number | null = null;
 let _phosphateFertilizerPlantsLastSettledYearFallback: number | null = null;
+let _fertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -218,6 +219,7 @@ export function clearEconomyContext(): void {
   _hospitalInstallationsLastSettledYearFallback = null;
   _acidPlantsLastSettledYearFallback = null;
   _phosphateFertilizerPlantsLastSettledYearFallback = null;
+  _fertilizerInvestmentLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1458,6 +1460,15 @@ export function getPhosphateFertilizerPlantsLastSettledYear(): number | null {
 export function setPhosphateFertilizerPlantsLastSettledYear(year: number): void {
   writeYearToSlice("phosphateFertilizerPlantsLastSettledYear", year, value => {
     _phosphateFertilizerPlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards FertilizerInvestment.settleAnnual(), same shape as getAgTechLastSettledYear. */
+export function getFertilizerInvestmentLastSettledYear(): number | null {
+  return yearFromSlice("fertilizerInvestmentLastSettledYear", _fertilizerInvestmentLastSettledYearFallback);
+}
+export function setFertilizerInvestmentLastSettledYear(year: number): void {
+  writeYearToSlice("fertilizerInvestmentLastSettledYear", year, value => {
+    _fertilizerInvestmentLastSettledYearFallback = value;
   });
 }
 

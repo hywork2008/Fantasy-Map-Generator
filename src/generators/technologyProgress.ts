@@ -795,6 +795,8 @@ function applyChemistryMedicineSignals(
 
   const compoundingYears = new Map<number, number>();
   const acidYears = new Map<number, number>();
+  // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
+  const phosphateFertilizerYears = new Map<number, number>();
   for (const trial of asStockArray(economy.chemistryTrials)) {
     if (String(trial.status ?? "") !== "running") continue;
     const stateId = asNumber(trial.stateId);
@@ -802,6 +804,9 @@ function applyChemistryMedicineSignals(
     const kind = String(trial.kind ?? "");
     if (kind === "compounding") compoundingYears.set(stateId, Math.max(compoundingYears.get(stateId) ?? 0, runs));
     if (kind === "acidPlant") acidYears.set(stateId, Math.max(acidYears.get(stateId) ?? 0, runs));
+    if (kind === "phosphateFertilizerPlant") {
+      phosphateFertilizerYears.set(stateId, Math.max(phosphateFertilizerYears.get(stateId) ?? 0, runs));
+    }
   }
   for (const [stateId, years] of compoundingYears) {
     const signals = map.get(stateId);
@@ -810,6 +815,10 @@ function applyChemistryMedicineSignals(
   for (const [stateId, years] of acidYears) {
     const signals = map.get(stateId);
     if (signals) signals.acidPlantTrialYears = years;
+  }
+  for (const [stateId, years] of phosphateFertilizerYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.phosphateFertilizerTrialYears = years;
   }
 
   const hospitalYears = new Map<number, number>();
@@ -831,6 +840,14 @@ function applyChemistryMedicineSignals(
     const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
     const signals = map.get(stateId);
     if (signals) signals.acidPlantInstallations += 1;
+  }
+
+  // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
+  for (const plant of asStockArray(economy.phosphateFertilizerPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.phosphateFertilizerPlantCount += 1;
   }
 
   for (const workshop of asStockArray(economy.experimentalWorkshops)) {
@@ -938,6 +955,8 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "apothecaryTrialYears",
   "hospitalTrialYears",
   "acidPlantTrialYears",
+  "phosphateFertilizerTrialYears",
+  "phosphateFertilizerPlantCount",
   "urbanWaterMaxTier"
 ]);
 

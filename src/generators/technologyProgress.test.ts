@@ -456,6 +456,13 @@ describe("technologyProgress", () => {
     expect(acid?.era).toBe(6);
     expect(acid?.prerequisites).toEqual(["chemicalIndustryFoundation"]);
 
+    // docs/plan/phosphate-fertilizer-vertical-slice.md §3.5.
+    const phosphate = TECHNOLOGY_DEFINITIONS.find(def => def.id === "phosphateFertilizer");
+    expect(phosphate?.era).toBe(6);
+    expect(phosphate?.prerequisites).toEqual(["industrialSulfuricAcid"]);
+    expect(phosphate?.demonstrated.min?.phosphateFertilizerTrialYears).toBe(2);
+    expect(phosphate?.adopted.min?.phosphateFertilizerPlantCount).toBe(1);
+
     const enp = TECHNOLOGY_DEFINITIONS.find(def => def.id === "experimentalNaturalPhilosophy");
     expect(enp?.prerequisites).toEqual(["recordReplication", "mathAstronomyGeography", "distillation"]);
     expect(enp?.known.min?.glassware).toBe(0.1);
@@ -493,6 +500,58 @@ describe("technologyProgress", () => {
     ]);
     settleTechnologyAnnual(1200);
     expect(["known", "demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("laboratoryGlassware", 1));
+  });
+
+  it("computes phosphateRockAccess/phosphateFertilizerTrialYears/phosphateFertilizerPlantCount from market stock, ChemistryTrial, and PhosphateFertilizerPlant rows (docs/plan/phosphate-fertilizer-vertical-slice.md §3.6)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 20, name: "Phosphate Rock" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 20: { stock: 10 } } // clamp01(10 / 2) = 1, well past the 0.25/0.3/0.35 thresholds
+          }
+        ],
+        chemistryTrials: [
+          {
+            kind: "phosphateFertilizerPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        phosphateFertilizerPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "industrialSulfuricAcid", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 1 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "phosphateFertilizer");
+    // phosphateFertilizerTrialYears(5)>=2, phosphateRockAccess(1)>=0.3, treasury(200)>=170: all met.
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    // phosphateFertilizerPlantCount(1)>=1 and phosphateRockAccess(1)>=0.35 are met; only the
+    // adopted treasury threshold (210, installMinimalWorld sets 200) is expected to be unmet.
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 200 < 210"]);
   });
 
   describe("known-stage technology hints", () => {

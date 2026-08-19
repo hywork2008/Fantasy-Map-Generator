@@ -631,9 +631,8 @@ const ERA_6: readonly TechnologyDefinition[] = [
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   },
   // docs/plan/phosphate-fertilizer-vertical-slice.md §3.5. demonstrated/adopted read
-  // phosphateFertilizerTrialYears/phosphateFertilizerPlantCount, which stay 0 (see
-  // technologyTypes.ts) until PhosphateFertilizerPlants (§3.7, Phase 2) exists — so this node
-  // can reach "known" in Phase 1 but not progress further until then.
+  // phosphateFertilizerTrialYears/phosphateFertilizerPlantCount, sourced from
+  // PhosphateFertilizerPlants (§3.7) via technologyProgress.ts (§3.6).
   {
     id: "phosphateFertilizer",
     label: "Phosphate fertilizer",

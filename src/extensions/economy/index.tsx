@@ -87,6 +87,7 @@ import {
   recordQuarterlyNonFoodDemand,
   updateAnnualFaunaCohorts
 } from "./generators/faunaPopulation";
+import { FertilizerInvestment } from "./generators/fertilizerInvestment";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
@@ -2803,6 +2804,11 @@ export function init(api: ExtensionAPI): void {
       let agricultureRefreshed = false;
       measureTickStep("economy:annualAgTech", () => {
         AgTechInvestment.settleAnnual();
+        // Phosphate Fertilizer purchase, same shared marketTreasury.balance as Tools above but a
+        // separate stock/budget calculation — runs before industrial tech so farm investment
+        // (Tools + Fertilizer) keeps priority over mine/smelter claims (docs/plan/
+        // phosphate-fertilizer-vertical-slice.md §3.8; docs/plan/rural-agtech-investment.md §6.3).
+        FertilizerInvestment.settleAnnual();
         IndustrialTechInvestment.settleAnnual();
         // Must run before the quarter's food ledger so annual demographic changes
         // alter cultivated area and farm labour without waiting an extra quarter.

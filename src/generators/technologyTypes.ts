@@ -86,14 +86,10 @@ export interface TechnologySignals {
   phosphateRockAccess: number;
   /**
    * Consecutive documented-run years of a running ChemistryTrial(kind="phosphateFertilizerPlant"),
-   * same shape as acidPlantTrialYears. Stays 0 until PhosphateFertilizerPlants (docs/plan/
-   * phosphate-fertilizer-vertical-slice.md §3.7, Phase 2) exists.
+   * same shape as acidPlantTrialYears. See docs/plan/phosphate-fertilizer-vertical-slice.md §3.6-3.7.
    */
   phosphateFertilizerTrialYears: number;
-  /**
-   * Count of active PhosphateFertilizerPlant entries, same shape as acidPlantInstallations.
-   * Stays 0 until PhosphateFertilizerPlants (Phase 2) exists.
-   */
+  /** Count of active PhosphateFertilizerPlant entries, same shape as acidPlantInstallations. */
   phosphateFertilizerPlantCount: number;
   experimentRecord: number;
   urbanWaterMaxMunicipalSanitation: number;
