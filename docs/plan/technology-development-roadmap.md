@@ -33,6 +33,7 @@
 - [蒸気機関の知識・技術蓄積プロセス設計](./steam-engine-knowledge-accumulation.md): 火器・貨幣・都市需要による深部鉱山の排水圧力から、初期蒸気排水機関の試作・実証・採用へ至る設計。
 - [蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md): Coke、Steel、機械部品、資本財、鉄道、化学、電化を市場・技術・設備の連鎖として導入する設計。
 - [化学・医学の知識・技術蓄積プロセス設計](./chemistry-medicine-knowledge-accumulation.md): 薬種・実験ガラス・病院から工業硫酸までの知識蓄積。火山材料とガラス細工を化学・医学の本線に接続する。
+- [プレイヤーキャラクターによる技術バイアス](./player-character-technology-bias.md): PC は同じ証拠に局所バイアスをかけ、Technology Overview が `explainTechnologyGate` で不足シグナルを示す。
 
 ---
 

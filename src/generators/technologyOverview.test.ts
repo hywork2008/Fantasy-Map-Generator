@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { collectTechnologyOverviewRows, summarizeAtmosphericSteamPumping } from "./technologyOverview";
-import { resetTechnologyProgress, setTechnologyProgressForTests } from "./technologyProgress";
+import { explainTechnologyGate, resetTechnologyProgress, setTechnologyProgressForTests } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 
 function installWorld(): void {
@@ -66,5 +66,14 @@ describe("technologyOverview", () => {
       adopted: 0,
       diffused: 0
     });
+  });
+
+  it("explains why a collected atmospheric steam pumping row is stuck", () => {
+    const steam = collectTechnologyOverviewRows().find(row => row.technologyId === "atmosphericSteamPumping");
+    expect(steam).toBeTruthy();
+    if (!steam) return;
+    const lines = explainTechnologyGate(steam.stateId, steam.technologyId);
+    expect(lines[0]).toMatch(/^hint is /);
+    expect(lines.some(line => line.startsWith("unmet known min"))).toBe(true);
   });
 });

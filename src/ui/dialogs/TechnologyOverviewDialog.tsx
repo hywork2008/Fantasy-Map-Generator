@@ -7,6 +7,7 @@ import {
   summarizeAtmosphericSteamPumping,
   type TechnologyOverviewRow
 } from "../../generators/technologyOverview";
+import { explainTechnologyGate } from "../../generators/technologyProgress";
 import { TECHNOLOGY_STAGES, type TechnologyEraBand, type TechnologyStage } from "../../generators/technologyTypes";
 import { useDialogState } from "../../store/dialogState";
 import { useTechnologyOverviewState } from "../../store/technologyOverviewState";
@@ -35,6 +36,17 @@ function formatYear(year: number | null): string {
   return year === null ? "—" : String(year);
 }
 
+function pickSteamDiagnosticRow(
+  filteredRows: readonly TechnologyOverviewRow[],
+  allRows: readonly TechnologyOverviewRow[]
+): TechnologyOverviewRow | undefined {
+  const fromFiltered = filteredRows.filter(row => row.technologyId === "atmosphericSteamPumping");
+  const source = fromFiltered.length
+    ? fromFiltered
+    : allRows.filter(row => row.technologyId === "atmosphericSteamPumping");
+  return source.find(row => row.stageRank < 4) ?? source[0];
+}
+
 export const TechnologyOverviewDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("technologyOverview"));
@@ -48,6 +60,7 @@ export const TechnologyOverviewDialog: React.FC = () => {
   const [filterEra, setFilterEra] = useState<TechnologyEraBand | null>(null);
   const [filterStage, setFilterStage] = useState<TechnologyStage | null>(null);
   const [hideBaseline, setHideBaseline] = useState(true);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -80,6 +93,10 @@ export const TechnologyOverviewDialog: React.FC = () => {
     if (filterStateId !== null && !stateOptions.some(option => option.id === filterStateId)) setFilterStateId(null);
   }, [filterStateId, stateOptions]);
 
+  useEffect(() => {
+    if (!isOpen) setSelectedRowId(null);
+  }, [isOpen]);
+
   const rows = useMemo(() => {
     return rawRows
       .filter(row => {
@@ -98,6 +115,14 @@ export const TechnologyOverviewDialog: React.FC = () => {
         return a.technologyLabel.localeCompare(b.technologyLabel);
       });
   }, [filterEra, filterStage, filterStateId, hideBaseline, rawRows, sortBy, sortOrder]);
+
+  const selectedRow = useMemo(() => rawRows.find(row => row.id === selectedRowId) ?? null, [rawRows, selectedRowId]);
+
+  const gateLines = useMemo(() => {
+    void refreshCounter;
+    if (!selectedRow) return [];
+    return explainTechnologyGate(selectedRow.stateId, selectedRow.technologyId);
+  }, [refreshCounter, selectedRow]);
 
   const toggleSortBy = (field: string) => {
     if (field === sortBy) {
@@ -205,8 +230,37 @@ export const TechnologyOverviewDialog: React.FC = () => {
                   diffused: steam.diffused,
                   states: steam.states
                 })}
-              </span>
+              </span>{" "}
+              <button
+                type="button"
+                id="technologyOverviewWhySteam"
+                data-tip={t("dialogs.technology.whySteamTip")}
+                onClick={() => {
+                  const steamRow = pickSteamDiagnosticRow(rows, rawRows);
+                  if (steamRow) setSelectedRowId(steamRow.id);
+                }}
+              >
+                {t("dialogs.technology.why")}
+              </button>
             </span>
+            {selectedRow ? (
+              <div id="technologyOverviewGate" className="technology-overview-dialog__gate">
+                <div data-tip={t("dialogs.technology.whyTip")}>
+                  {t("dialogs.technology.gateTitle", {
+                    state: selectedRow.stateName,
+                    technology: selectedRow.technologyLabel
+                  })}
+                </div>
+                <ul className="technology-overview-dialog__gate-list">
+                  {gateLines.map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                {gateLines.some(line => line.startsWith("unmet ") || line.startsWith("unknown technology")) ? null : (
+                  <p className="technology-overview-dialog__gate-clear">{t("dialogs.technology.gateClear")}</p>
+                )}
+              </div>
+            ) : null}
           </div>
         }
         footer={
@@ -304,7 +358,14 @@ export const TechnologyOverviewDialog: React.FC = () => {
             <VirtualTableBody
               items={rows}
               scrollElementRef={parentRef}
-              renderRow={(row: TechnologyOverviewRow) => <TechnologyRow key={row.id} row={row} />}
+              renderRow={(row: TechnologyOverviewRow) => (
+                <TechnologyRow
+                  key={row.id}
+                  row={row}
+                  selected={row.id === selectedRowId}
+                  onSelect={() => setSelectedRowId(row.id)}
+                />
+              )}
             />
           )}
         </table>
@@ -313,16 +374,22 @@ export const TechnologyOverviewDialog: React.FC = () => {
   );
 };
 
-const TechnologyRow: React.FC<{ row: TechnologyOverviewRow }> = ({ row }) => {
+const TechnologyRow: React.FC<{
+  row: TechnologyOverviewRow;
+  selected: boolean;
+  onSelect: () => void;
+}> = ({ row, selected, onSelect }) => {
   const { t } = useTranslation();
   const canZoom = row.capitalX !== null && row.capitalY !== null;
+  const isSteam = row.technologyId === "atmosphericSteamPumping";
   return (
     <tr
-      className="states"
+      className={`states${selected ? " selected" : ""}`}
       data-id={row.id}
       data-technology={row.technologyId}
       data-stage={row.stage}
-      data-steam={row.technologyId === "atmosphericSteamPumping" ? "1" : "0"}
+      data-steam={isSteam ? "1" : "0"}
+      onClick={onSelect}
     >
       <td className="d-flex">
         {canZoom ? (
@@ -330,6 +397,17 @@ const TechnologyRow: React.FC<{ row: TechnologyOverviewRow }> = ({ row }) => {
             data-tip={t("dialogs.technology.zoomTip")}
             className="icon-dot-circled pointer"
             onClick={() => zoomTo(row.capitalX as number, row.capitalY as number, 8, 2000)}
+          />
+        ) : null}
+        {isSteam || selected ? (
+          <IconButton
+            data-tip={t("dialogs.technology.whyTip")}
+            className="icon-help-circled pointer"
+            aria-label={t("dialogs.technology.why")}
+            onClick={event => {
+              event.stopPropagation();
+              onSelect();
+            }}
           />
         ) : null}
         <span data-tip={row.stateName}>{row.stateName}</span>
