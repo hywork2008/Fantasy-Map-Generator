@@ -4,6 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { TECHNOLOGY_DEFINITIONS } from "./technologyDefinitions";
 import {
+  explainTechnologyGate,
   getAtmosphericSteamDrainageBonus,
   getAtmosphericSteamPumpingEffect,
   getFourCourseRotationEffect,
@@ -11,6 +12,7 @@ import {
   getMaxShipClassTierForState,
   getTechnologyProgressEntries,
   getTechnologyStage,
+  HINTABLE_KNOWN_RATIO_KEYS,
   isDistillationKnown,
   isLaboratoryGlasswareKnown,
   resetTechnologyProgress,
@@ -18,7 +20,7 @@ import {
   setTechnologyProgressForTests,
   settleTechnologyAnnual
 } from "./technologyProgress";
-import { createEmptyTechnologySimulationState } from "./technologyTypes";
+import { createEmptyTechnologySimulationState, type TechnologyProgress } from "./technologyTypes";
 
 function installMinimalWorld(
   opts: {
@@ -445,5 +447,183 @@ describe("technologyProgress", () => {
     ]);
     settleTechnologyAnnual(1200);
     expect(["known", "demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("laboratoryGlassware", 1));
+  });
+
+  describe("known-stage technology hints", () => {
+    const ENP_PREREQS: TechnologyProgress[] = [
+      { technologyId: "recordReplication", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "mathAstronomyGeography", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "distillation", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 }
+    ];
+
+    const ASP_PREREQS: TechnologyProgress[] = [
+      ...ENP_PREREQS,
+      { technologyId: "experimentalNaturalPhilosophy", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "mineSurveyAndDrainage", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "precisionBoringAndMeasurement", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
+      { technologyId: "coalFuelSupply", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 }
+    ];
+
+    function hintRow(
+      technologyId: string,
+      years: { firstEligibleYear?: number; expiresAfterYear?: number } = {}
+    ): Record<string, unknown> {
+      return {
+        stateId: 2,
+        technologyId,
+        burgId: 3,
+        sourceCharacterId: 1,
+        firstEligibleYear: years.firstEligibleYear ?? 1200,
+        expiresAfterYear: years.expiresAfterYear ?? 1202
+      };
+    }
+
+    it("allowlists only knowledge-ratio keys", () => {
+      expect(HINTABLE_KNOWN_RATIO_KEYS).toEqual([
+        "experimentRecord",
+        "administration",
+        "printing",
+        "naturalPhilosophy",
+        "metallurgy",
+        "woodworking",
+        "masonry",
+        "instruments",
+        "glassware",
+        "medicine",
+        "pyrotechnics"
+      ]);
+      expect(HINTABLE_KNOWN_RATIO_KEYS).not.toContain("mineDrainagePressure");
+      expect(HINTABLE_KNOWN_RATIO_KEYS).not.toContain("urbanSanitationPressure");
+      expect(HINTABLE_KNOWN_RATIO_KEYS).not.toContain("deepMineCount");
+      expect(HINTABLE_KNOWN_RATIO_KEYS).not.toContain("treasury");
+    });
+
+    it("treats ENP known knowledge ratios as met but still requires treasury", () => {
+      worldContext.pack.states[2].treasury = 0;
+      const hints = [hintRow("experimentalNaturalPhilosophy")];
+      simulationContext.extensions = { economy: { technologyHints: hints } };
+      setTechnologyProgressForTests(ENP_PREREQS);
+
+      const before = structuredClone(hints);
+      settleTechnologyAnnual(1200);
+
+      expect(getTechnologyStage("experimentalNaturalPhilosophy", 2)).toBe("locked");
+      expect(simulationContext.extensions.economy.technologyHints).toEqual(before);
+
+      const lines = explainTechnologyGate(2, "experimentalNaturalPhilosophy");
+      expect(lines).toContain("hint is live");
+      expect(lines).toContain("unmet known min treasury: 0 < 40");
+      expect(lines.some(line => line.startsWith("unmet known min administration"))).toBe(false);
+      expect(lines.some(line => line.startsWith("unmet known min printing"))).toBe(false);
+      expect(lines.some(line => line.startsWith("unmet known min glassware"))).toBe(false);
+    });
+
+    it("lets an ENP hint unlock known when treasury is present and stocks are not", () => {
+      worldContext.pack.states[2].treasury = 40;
+      simulationContext.extensions = {
+        economy: { technologyHints: [hintRow("experimentalNaturalPhilosophy")] }
+      };
+      setTechnologyProgressForTests(ENP_PREREQS);
+
+      settleTechnologyAnnual(1200);
+
+      expect(getTechnologyStage("experimentalNaturalPhilosophy", 2)).toBe("known");
+      expect(getTechnologyStage("experimentalNaturalPhilosophy", 2)).not.toBe("demonstrated");
+
+      const lines = explainTechnologyGate(2, "experimentalNaturalPhilosophy");
+      expect(lines).toContain("hint is live");
+      expect(lines.some(line => line.startsWith("unmet known min"))).toBe(false);
+      expect(lines).toContain("unmet demonstrated min experimentRecord: 0 < 0.25");
+    });
+
+    it("does not apply a hint to ENP demonstrated even when wait years have elapsed", () => {
+      worldContext.pack.states[2].treasury = 200;
+      simulationContext.extensions = {
+        economy: { technologyHints: [hintRow("experimentalNaturalPhilosophy")] }
+      };
+      setTechnologyProgressForTests([
+        ...ENP_PREREQS,
+        {
+          technologyId: "experimentalNaturalPhilosophy",
+          scope: "state",
+          ownerId: 2,
+          stage: "known",
+          discoveredYear: 1190,
+          diffusion: 0
+        }
+      ]);
+
+      settleTechnologyAnnual(1200);
+
+      expect(getTechnologyStage("experimentalNaturalPhilosophy", 2)).toBe("known");
+    });
+
+    it("does not set ASP known from a hint without deepMineCount", () => {
+      worldContext.pack.states[2].treasury = 200;
+      simulationContext.extensions = {
+        economy: { technologyHints: [hintRow("atmosphericSteamPumping")] }
+      };
+      setTechnologyProgressForTests(ASP_PREREQS);
+
+      settleTechnologyAnnual(1200);
+
+      expect(getTechnologyStage("atmosphericSteamPumping", 2)).toBe("locked");
+      const lines = explainTechnologyGate(2, "atmosphericSteamPumping");
+      expect(lines).toContain("hint is live");
+      expect(lines).toContain("unmet known min deepMineCount: 0 < 1");
+      expect(lines).toContain("unmet known min mineDrainagePressure: 0 < 0.2");
+    });
+
+    it("does not waive mineDrainagePressure even when a hint and a deep mine are present", () => {
+      worldContext.pack.states[2].treasury = 200;
+      simulationContext.extensions = {
+        economy: {
+          technologyHints: [hintRow("atmosphericSteamPumping")],
+          // One fully-drained deep mine plus four shallow ones keeps pressure below 0.2
+          // while still satisfying deepMineCount.
+          mineOperations: [
+            { i: 1, burgId: 3, depositId: 1, active: true, drainage: 1, workers: 8 },
+            { i: 2, burgId: 3, depositId: 2, active: true, drainage: 1, workers: 4 },
+            { i: 3, burgId: 3, depositId: 3, active: true, drainage: 1, workers: 4 },
+            { i: 4, burgId: 3, depositId: 4, active: true, drainage: 1, workers: 4 },
+            { i: 5, burgId: 3, depositId: 5, active: true, drainage: 1, workers: 4 }
+          ],
+          mineralDeposits: [
+            { i: 1, depth: "deep", primaryCommodity: "iron", commodities: ["iron"] },
+            { i: 2, depth: "shallow", primaryCommodity: "iron", commodities: ["iron"] },
+            { i: 3, depth: "shallow", primaryCommodity: "iron", commodities: ["iron"] },
+            { i: 4, depth: "shallow", primaryCommodity: "iron", commodities: ["iron"] },
+            { i: 5, depth: "shallow", primaryCommodity: "iron", commodities: ["iron"] }
+          ]
+        }
+      };
+      setTechnologyProgressForTests(ASP_PREREQS);
+
+      settleTechnologyAnnual(1200);
+
+      expect(getTechnologyStage("atmosphericSteamPumping", 2)).toBe("locked");
+      const lines = explainTechnologyGate(2, "atmosphericSteamPumping");
+      expect(lines).toContain("hint is live");
+      expect(lines.some(line => line.startsWith("unmet known min deepMineCount"))).toBe(false);
+      expect(lines).toContain("unmet known min mineDrainagePressure: 0.06 < 0.2");
+    });
+
+    it("ignores expired or not-yet-eligible hints", () => {
+      worldContext.pack.states[2].treasury = 40;
+      simulationContext.extensions = {
+        economy: {
+          technologyHints: [
+            hintRow("experimentalNaturalPhilosophy", { firstEligibleYear: 1190, expiresAfterYear: 1199 }),
+            hintRow("experimentalNaturalPhilosophy", { firstEligibleYear: 1201, expiresAfterYear: 1203 })
+          ]
+        }
+      };
+      setTechnologyProgressForTests(ENP_PREREQS);
+
+      settleTechnologyAnnual(1200);
+
+      expect(getTechnologyStage("experimentalNaturalPhilosophy", 2)).toBe("locked");
+      expect(explainTechnologyGate(2, "experimentalNaturalPhilosophy")).toContain("hint is not live");
+    });
   });
 });

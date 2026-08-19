@@ -23,12 +23,33 @@ import {
   type TechnologyDefinition,
   type TechnologyProgress,
   type TechnologyScope,
+  type TechnologySignalKey,
   type TechnologySignals,
   type TechnologySimulationState,
   type TechnologyStage,
   type TechnologyThresholds,
   technologyStageRank
 } from "./technologyTypes";
+
+/**
+ * Knowledge-ratio mins a live TechnologyHint may treat as met on the known stage.
+ * Counts, amounts, and physical pressures (mineDrainagePressure, sanitation, …) stay required.
+ */
+export const HINTABLE_KNOWN_RATIO_KEYS = [
+  "experimentRecord",
+  "administration",
+  "printing",
+  "naturalPhilosophy",
+  "metallurgy",
+  "woodworking",
+  "masonry",
+  "instruments",
+  "glassware",
+  "medicine",
+  "pyrotechnics"
+] as const satisfies readonly (keyof TechnologySignals)[];
+
+const HINTABLE_KNOWN_RATIO_KEY_SET: ReadonlySet<keyof TechnologySignals> = new Set(HINTABLE_KNOWN_RATIO_KEYS);
 
 const DIFFUSION_ANNUAL_GAIN = 0.15;
 /** Demonstrated blackPowder without war can still advance if treasury demand is high. */
@@ -288,6 +309,7 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
   });
 
   const byKey = new Map(tech.progress.map(p => [progressKey(p.technologyId, p.scope, p.ownerId), p]));
+  const liveHintKeys = collectLiveTechnologyHintKeys(year);
 
   for (const stateId of liveStateIds) {
     const signals = signalsByState.get(stateId) ?? emptySignals();
@@ -317,7 +339,8 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
         continue;
       }
 
-      entry.stage = advanceStage(entry, def, signals, year);
+      // Hints waive allowlisted knowledge ratios on the known climb only.
+      entry.stage = advanceStage(entry, def, signals, year, liveHintKeys.has(`${stateId}:${def.id}`));
     }
   }
 
@@ -918,11 +941,61 @@ function signalRequirementKind(key: keyof TechnologySignals): TechnologyRequirem
   return "ratio";
 }
 
-function thresholdsMet(thresholds: TechnologyThresholds, signals: TechnologySignals): boolean {
+function isHintableKnownRatioKey(key: keyof TechnologySignals): boolean {
+  return HINTABLE_KNOWN_RATIO_KEY_SET.has(key);
+}
+
+/** Read-only window: Economy owns writing and expiry deletion. */
+function isLiveTechnologyHint(
+  hint: Record<string, unknown>,
+  stateId: number,
+  technologyId: string,
+  year: number
+): boolean {
+  if (asNumber(hint.stateId) !== stateId) return false;
+  if (String(hint.technologyId ?? "") !== technologyId) return false;
+  const first = hint.firstEligibleYear;
+  const expires = hint.expiresAfterYear;
+  if (typeof first !== "number" || typeof expires !== "number") return false;
+  if (!Number.isFinite(first) || !Number.isFinite(expires)) return false;
+  return first <= year && year <= expires;
+}
+
+function collectLiveTechnologyHintKeys(year: number): ReadonlySet<string> {
+  const keys = new Set<string>();
+  const economy = simulationContext.extensions?.economy;
+  if (!isRecord(economy)) return keys;
+  for (const hint of asStockArray(economy.technologyHints)) {
+    const stateId = asNumber(hint.stateId);
+    const technologyId = String(hint.technologyId ?? "");
+    if (!stateId || !technologyId) continue;
+    if (isLiveTechnologyHint(hint, stateId, technologyId, year)) {
+      keys.add(`${stateId}:${technologyId}`);
+    }
+  }
+  return keys;
+}
+
+function hasLiveTechnologyHint(stateId: number, technologyId: string, year: number): boolean {
+  const economy = simulationContext.extensions?.economy;
+  if (!isRecord(economy)) return false;
+  for (const hint of asStockArray(economy.technologyHints)) {
+    if (isLiveTechnologyHint(hint, stateId, technologyId, year)) return true;
+  }
+  return false;
+}
+
+function thresholdsMet(
+  thresholds: TechnologyThresholds,
+  signals: TechnologySignals,
+  opts?: { hintKnowledgeRatios?: boolean }
+): boolean {
   if (thresholds.min) {
     const ease = getTechnologyRequirementEase();
-    for (const [key, need] of Object.entries(thresholds.min) as [keyof TechnologySignals, number][]) {
+    const hintKnowledgeRatios = opts?.hintKnowledgeRatios === true;
+    for (const [key, need] of Object.entries(thresholds.min) as [TechnologySignalKey, number][]) {
       if (need === undefined) continue;
+      if (hintKnowledgeRatios && isHintableKnownRatioKey(key)) continue;
       const value = signals[key];
       if (typeof value === "number" && !meetsTechnologyRequirement(value, need, signalRequirementKind(key), ease)) {
         return false;
@@ -950,14 +1023,15 @@ function advanceStage(
   entry: TechnologyProgress,
   def: TechnologyDefinition,
   signals: TechnologySignals,
-  year: number
+  year: number,
+  hintKnowledgeRatios = false
 ): TechnologyStage {
   let stage = entry.stage;
   const waits = def.minimumYearsAtPreviousStage;
 
   // Same year may climb locked → known → demonstrated → adopted when signals are strong
-  // and the definition does not require time-in-stage.
-  if (technologyStageRank(stage) < 1 && thresholdsMet(def.known, signals)) {
+  // and the definition does not require time-in-stage. Hints never apply past known.
+  if (technologyStageRank(stage) < 1 && thresholdsMet(def.known, signals, { hintKnowledgeRatios })) {
     stage = "known";
     entry.discoveredYear = entry.discoveredYear ?? year;
   }
@@ -988,6 +1062,51 @@ function advanceStage(
 
   entry.stage = stage;
   return stage;
+}
+
+function explainThresholds(
+  stage: "known" | "demonstrated" | "adopted",
+  thresholds: TechnologyThresholds,
+  signals: TechnologySignals,
+  lines: string[],
+  opts?: { hintKnowledgeRatios?: boolean }
+): void {
+  const ease = getTechnologyRequirementEase();
+  const hintKnowledgeRatios = opts?.hintKnowledgeRatios === true;
+  if (thresholds.min) {
+    for (const [key, need] of Object.entries(thresholds.min) as [TechnologySignalKey, number][]) {
+      if (need === undefined) continue;
+      if (hintKnowledgeRatios && isHintableKnownRatioKey(key)) continue;
+      const value = signals[key];
+      if (typeof value === "number" && !meetsTechnologyRequirement(value, need, signalRequirementKind(key), ease)) {
+        lines.push(`unmet ${stage} min ${key}: ${value} < ${need}`);
+      }
+    }
+  }
+  if (thresholds.flags?.atWar === true && !signals.atWar && signals.treasury < WAR_OPTIONAL_TREASURY) {
+    lines.push(`unmet ${stage} flag atWar`);
+  }
+  if (thresholds.flags?.capitalPort === true && !signals.capitalPort) {
+    lines.push(`unmet ${stage} flag capitalPort`);
+  }
+}
+
+/**
+ * English diagnostic lines for unmet known/demonstrated/adopted mins and hint liveness.
+ * Used by tests now; Technology Overview will read it later. Pure read of pack + slices.
+ */
+export function explainTechnologyGate(stateId: number, technologyId: string): string[] {
+  const def = getTechnologyDefinition(technologyId);
+  if (!def) return [`unknown technology ${technologyId}`];
+
+  const signals = buildStateSignals().get(stateId) ?? emptySignals();
+  const year = simulationContext.currentYear;
+  const hintLive = hasLiveTechnologyHint(stateId, technologyId, year);
+  const lines: string[] = [hintLive ? "hint is live" : "hint is not live"];
+  explainThresholds("known", def.known, signals, lines, { hintKnowledgeRatios: hintLive });
+  explainThresholds("demonstrated", def.demonstrated, signals, lines);
+  explainThresholds("adopted", def.adopted, signals, lines);
+  return lines;
 }
 
 /** Test helper: replace progress rows. */
