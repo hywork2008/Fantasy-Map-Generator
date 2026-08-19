@@ -6,7 +6,10 @@ import {
   getAcademyKnowledgeStocks,
   initEconomyContext,
   setAcademyKnowledgeStocks,
-  setAdministrationEmployment
+  setAdministrationEmployment,
+  setExperimentalWorkshops,
+  setInstructionResidues,
+  setResearchNamedSeats
 } from "../economyContext";
 import {
   ACADEMY_CONQUEST_DISRUPTION_PENALTY,
@@ -116,6 +119,56 @@ describe("AcademyKnowledgeModule", () => {
       applyConquestDisruptionToAcademies(999);
 
       expect(getAcademyKnowledgeStocks()).toEqual([]);
+    });
+  });
+
+  describe("derived technology-bias extraWorkers", () => {
+    function philosophyStock(): number {
+      return (
+        getAcademyKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "naturalPhilosophy")?.stock ??
+        0
+      );
+    }
+
+    function settleWorkshop(): number {
+      setExperimentalWorkshops([
+        {
+          burgId: 1,
+          sponsorStateId: 1,
+          active: true,
+          researchers: 2,
+          annualBudget: 16,
+          experimentRecord: 0,
+          lastFundedYear: 499
+        }
+      ]);
+      AcademyKnowledge.settleAnnual();
+      return philosophyStock();
+    }
+
+    function resetWorld(): void {
+      clearEconomyContext();
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.options = { year: 500 };
+      worldContext.pack = {
+        burgs: [{ i: 1, cell: 0, x: 0, y: 0, market: 1 }],
+        cells: { i: [0], p: [[0, 0]], h: Uint8Array.from([55]), r: Uint16Array.from([0]), routes: {} }
+      } as unknown as PackedGraph;
+    }
+
+    it("does not change stock when seats and residues are empty", () => {
+      const control = settleWorkshop();
+      resetWorld();
+      setResearchNamedSeats([]);
+      setInstructionResidues([]);
+      expect(settleWorkshop()).toBe(control);
+    });
+
+    it("raises naturalPhilosophy coverage from a workshopResearcher seat versus the empty-seat control", () => {
+      const control = settleWorkshop();
+      resetWorld();
+      setResearchNamedSeats([{ burgId: 1, characterId: 9, role: "workshopResearcher" }]);
+      expect(settleWorkshop()).toBeGreaterThan(control);
     });
   });
 });

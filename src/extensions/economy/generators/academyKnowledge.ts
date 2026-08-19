@@ -11,6 +11,7 @@ import {
   setAcademyKnowledgeStocks
 } from "../economyContext";
 import type { AcademyKnowledgeStock, ScholarlyKnowledgeDomain } from "./academyKnowledgeTypes";
+import { getDerivedExtraWorkers, isScholarlyKnowledgeDomain } from "./technologyBiasApply";
 
 /**
  * Drives every scholarly-academy domain's per-Burg AcademyKnowledgeStock (docs/plan/
@@ -105,6 +106,9 @@ export class AcademyKnowledgeModule {
     }
     for (const workshop of getExperimentalWorkshops()) {
       if (workshop.active) add(workshop.burgId, "naturalPhilosophy", workshop.researchers);
+    }
+    for (const { burgId, domain, extraWorkers } of getDerivedExtraWorkers().values()) {
+      if (isScholarlyKnowledgeDomain(domain)) add(burgId, domain, extraWorkers);
     }
 
     return practitioners;

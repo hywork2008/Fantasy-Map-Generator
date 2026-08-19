@@ -7,6 +7,8 @@ import {
   initEconomyContext,
   setCraftDomainEmploymentRecords,
   setGuildKnowledgeStocks,
+  setInstructionResidues,
+  setResearchNamedSeats,
   setSmelterOperations
 } from "../economyContext";
 import {
@@ -222,6 +224,45 @@ describe("GuildKnowledgeModule", () => {
       applyConquestDisruptionToGuilds(999);
 
       expect(getGuildKnowledgeStocks()).toEqual([]);
+    });
+  });
+
+  describe("derived technology-bias extraWorkers", () => {
+    function metallurgyStock(): number {
+      return getGuildKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "metallurgy")?.stock ?? 0;
+    }
+
+    function settleControl(workers: number): number {
+      setSmelterOperations([smelter({ workers })]);
+      GuildKnowledge.settleAnnual();
+      return metallurgyStock();
+    }
+
+    function resetWorld(): void {
+      clearEconomyContext();
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.options = { year: 500 };
+      worldContext.pack = {
+        burgs: [{ i: 1, cell: 0, x: 0, y: 0, market: 1 }],
+        cells: { i: [0], p: [[0, 0]], h: Uint8Array.from([55]), r: Uint16Array.from([0]), routes: {} }
+      } as unknown as PackedGraph;
+    }
+
+    it("does not change stock when seats and residues are empty", () => {
+      const control = settleControl(GUILD_SATURATION_WORKERS / 2);
+      resetWorld();
+      setResearchNamedSeats([]);
+      setInstructionResidues([]);
+      const emptyBias = settleControl(GUILD_SATURATION_WORKERS / 2);
+      expect(emptyBias).toBe(control);
+    });
+
+    it("raises metallurgy coverage from a mineLaborer seat versus the empty-seat control", () => {
+      const control = settleControl(GUILD_SATURATION_WORKERS / 2);
+      resetWorld();
+      setResearchNamedSeats([{ burgId: 1, characterId: 9, role: "mineLaborer" }]);
+      const withSeat = settleControl(GUILD_SATURATION_WORKERS / 2);
+      expect(withSeat).toBeGreaterThan(control);
     });
   });
 });

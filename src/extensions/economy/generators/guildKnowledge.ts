@@ -9,6 +9,7 @@ import {
   setGuildKnowledgeStocks
 } from "../economyContext";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
+import { getDerivedExtraWorkers, isCraftKnowledgeDomain } from "./technologyBiasApply";
 
 /**
  * Drives every craft-guild domain's per-Burg GuildKnowledgeStock (docs/plan/
@@ -111,6 +112,9 @@ export class GuildKnowledgeModule {
     }
     for (const record of getCraftDomainEmploymentRecords()) {
       add(record.burgId, record.domain, record.workers);
+    }
+    for (const { burgId, domain, extraWorkers } of getDerivedExtraWorkers().values()) {
+      if (isCraftKnowledgeDomain(domain)) add(burgId, domain, extraWorkers);
     }
 
     return practitioners;
