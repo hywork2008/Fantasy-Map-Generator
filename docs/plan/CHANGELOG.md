@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-20
+
+- docs/plan/phosphate-fertilizer-vertical-slice.md
+
 2026-08-19
 
 - docs/plan/craft-demand-calibration.md

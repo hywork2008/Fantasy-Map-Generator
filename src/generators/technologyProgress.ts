@@ -403,6 +403,9 @@ function emptySignals(): TechnologySignals {
     acidPlantTrialYears: 0,
     hospitalInstallations: 0,
     acidPlantInstallations: 0,
+    phosphateRockAccess: 0,
+    phosphateFertilizerTrialYears: 0,
+    phosphateFertilizerPlantCount: 0,
     experimentRecord: 0,
     urbanWaterMaxMunicipalSanitation: 0,
     atWar: false,
@@ -703,6 +706,7 @@ function applyChemistryMedicineSignals(
   const glassId = goodIdByName(economy, "Glass");
   const pumiceId = goodIdByName(economy, "Pumice");
   const sulfurId = goodIdByName(economy, "Sulfur");
+  const phosphateRockId = goodIdByName(economy, "Phosphate Rock");
 
   const waterByBurg = new Map<number, Record<string, unknown>>();
   for (const water of asStockArray(economy.urbanWaterSystems)) {
@@ -750,6 +754,7 @@ function applyChemistryMedicineSignals(
   const glassStockByState = stateMarketStockByGood(economy, marketOwners, glassId);
   const sulfurStockByState = stateMarketStockByGood(economy, marketOwners, sulfurId);
   const pumiceStockByState = stateMarketStockByGood(economy, marketOwners, pumiceId);
+  const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, phosphateRockId);
 
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
@@ -765,6 +770,10 @@ function applyChemistryMedicineSignals(
     const marketCoverage = clamp01(sulfurStock / 2);
     const militaryCoverage = signals.gunpowderDemand > 0 ? 1 - signals.gunpowderSulfurPressure : 0;
     signals.sulfurAccess = Math.max(militaryCoverage, marketCoverage);
+
+    // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6 — same market-stock-coverage shape
+    // as sulfurAccess, no military-demand analog (Phosphate Rock has no war use).
+    signals.phosphateRockAccess = clamp01((phosphateRockStockByState.get(stateId) ?? 0) / 2);
 
     signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));

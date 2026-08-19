@@ -2621,6 +2621,38 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: {},
     requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Raw phosphorite. Cell placement comes from MineralDeposit/MineOperation
+    // ("phosphorite" districts on "basin" provinces, mineralResources.ts), same convention as
+    // Sulfur/Saltpeter/Coal — see docs/plan/phosphate-fertilizer-vertical-slice.md §3.2-3.3.
+    name: "Phosphate Rock",
+    warEconomyType: "strategic",
+    tags: ["mineral", "industrial"],
+    icon: "good-stone",
+    color: "#9c8a5e",
+    value: 6,
+    chance: 0,
+    unit: "wain",
+    demandCoverage: {}
+  },
+  {
+    // "One Good, two supply sites" like Sulfuric Acid: this recipe is the craft-worker path
+    // (production-generator.ts worker loop); PhosphateFertilizerPlants (Phase 2, docs/plan/
+    // phosphate-fertilizer-vertical-slice.md §3.7) adds a second, State-funded capital path.
+    // Must never carry household demand — the market-purchased Market.fertilizerStock adoption
+    // stock (Phase 3, §3.8) is the only intended consumer.
+    name: "Phosphate Fertilizer",
+    warEconomyType: "strategic",
+    tags: ["industrial", "agriculture"],
+    icon: "good-salt",
+    color: "#c7b98a",
+    value: 20,
+    chance: 0,
+    recipes: [{ "Phosphate Rock": 1, "Sulfuric Acid": 0.6 }],
+    unit: "sack",
+    demandCoverage: {},
+    requiredTechnology: "phosphateFertilizer"
   }
 ];
 
@@ -3207,6 +3239,44 @@ export function migrateChemMedGoods(): boolean {
 
   const idByName = new Map(goods.map(good => [good.name, good.i]));
   for (const name of CHEMMED_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const PHOSPHATE_GOOD_NAMES = ["Phosphate Rock", "Phosphate Fertilizer"] as const;
+
+/**
+ * Appends the phosphate-fertilizer chain Goods (docs/plan/phosphate-fertilizer-vertical-slice.md
+ * §3.4) to older catalogues without seeding stock. Same shape as migrateChemMedGoods.
+ */
+export function migratePhosphateGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of PHOSPHATE_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of PHOSPHATE_GOOD_NAMES) {
     const good = goods.find(entry => entry.name === name);
     const template = GOODS_DATA.find(entry => entry.name === name);
     if (!good || !template?.recipes) continue;

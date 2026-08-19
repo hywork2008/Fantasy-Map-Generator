@@ -82,6 +82,19 @@ export interface TechnologySignals {
   acidPlantTrialYears: number;
   hospitalInstallations: number;
   acidPlantInstallations: number;
+  /** 0..1 market-stock coverage of Phosphate Rock, same shape as sulfurAccess. */
+  phosphateRockAccess: number;
+  /**
+   * Consecutive documented-run years of a running ChemistryTrial(kind="phosphateFertilizerPlant"),
+   * same shape as acidPlantTrialYears. Stays 0 until PhosphateFertilizerPlants (docs/plan/
+   * phosphate-fertilizer-vertical-slice.md §3.7, Phase 2) exists.
+   */
+  phosphateFertilizerTrialYears: number;
+  /**
+   * Count of active PhosphateFertilizerPlant entries, same shape as acidPlantInstallations.
+   * Stays 0 until PhosphateFertilizerPlants (Phase 2) exists.
+   */
+  phosphateFertilizerPlantCount: number;
   experimentRecord: number;
   urbanWaterMaxMunicipalSanitation: number;
   atWar: boolean;

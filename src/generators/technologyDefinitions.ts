@@ -606,7 +606,7 @@ const ERA_5: readonly TechnologyDefinition[] = [
   }
 ];
 
-/** Stage 6: industrial chemistry foundation and sulfuric acid. */
+/** Stage 6: industrial chemistry foundation, sulfuric acid, and phosphate fertilizer. */
 const ERA_6: readonly TechnologyDefinition[] = [
   {
     id: "chemicalIndustryFoundation",
@@ -628,6 +628,29 @@ const ERA_6: readonly TechnologyDefinition[] = [
     known: { min: { sulfurAccess: 0.3, labVesselQuality: 0.45, treasury: 100 } },
     demonstrated: { min: { acidPlantTrialYears: 2, sulfurAccess: 0.35, treasury: 140 } },
     adopted: { min: { acidPlantInstallations: 1, sulfurAccess: 0.4, treasury: 180 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/phosphate-fertilizer-vertical-slice.md §3.5. demonstrated/adopted read
+  // phosphateFertilizerTrialYears/phosphateFertilizerPlantCount, which stay 0 (see
+  // technologyTypes.ts) until PhosphateFertilizerPlants (§3.7, Phase 2) exists — so this node
+  // can reach "known" in Phase 1 but not progress further until then.
+  {
+    id: "phosphateFertilizer",
+    label: "Phosphate fertilizer",
+    era: 6,
+    scope: "state",
+    prerequisites: ["industrialSulfuricAcid"],
+    known: {
+      min: {
+        sulfurAccess: 0.35,
+        phosphateRockAccess: 0.25,
+        administration: 0.4,
+        foodFertilizerPressure: 0.2,
+        treasury: 130
+      }
+    },
+    demonstrated: { min: { phosphateFertilizerTrialYears: 2, phosphateRockAccess: 0.3, treasury: 170 } },
+    adopted: { min: { phosphateFertilizerPlantCount: 1, phosphateRockAccess: 0.35, treasury: 210 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];

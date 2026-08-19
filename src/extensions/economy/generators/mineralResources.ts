@@ -82,7 +82,10 @@ const DISTRICT_PROFILES: readonly DistrictProfile[] = [
   { type: "lodeGold", provinces: ["shield", "orogen"], primary: "gold", commodities: ["gold"] },
   { type: "placer", provinces: ["placer"], primary: "gold", commodities: ["gold"] },
   { type: "coalSeam", provinces: ["basin"], primary: "coal", commodities: ["coal"] },
-  { type: "evaporite", provinces: ["basin"], primary: "sulfur", commodities: ["sulfur", "saltpeter"] }
+  { type: "evaporite", provinces: ["basin"], primary: "sulfur", commodities: ["sulfur", "saltpeter"] },
+  // Sedimentary phosphorite, same "basin" province as coalSeam/evaporite (docs/plan/
+  // phosphate-fertilizer-vertical-slice.md §3.2).
+  { type: "phosphorite", provinces: ["basin"], primary: "phosphate rock", commodities: ["phosphate rock"] }
 ];
 
 const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
@@ -96,7 +99,8 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
   "lodeGold",
   "placer",
   "coalSeam",
-  "evaporite"
+  "evaporite",
+  "phosphorite"
 ];
 
 const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
@@ -487,7 +491,8 @@ export class MineralResourcesModule {
       gold: 1,
       coal: 160,
       saltpeter: 12,
-      sulfur: 15
+      sulfur: 15,
+      "phosphate rock": 140 // calibration TBD — bulk sedimentary rock, slightly below coal's scale
     };
     const capacity = baseAnnualCapacity[commodity] * richness * (primary ? 1 : 0.25);
     const mineLifeYears = 60 + Math.floor(this.hash(seed, `${commodity}:life`, cell) * 190);
