@@ -8,7 +8,7 @@
 import { useOptionsState } from "../store/optionsState";
 
 export const MIN_TECHNOLOGY_DEVELOPMENT_SPEED = 1;
-export const MAX_TECHNOLOGY_DEVELOPMENT_SPEED = 1000;
+export const MAX_TECHNOLOGY_DEVELOPMENT_SPEED = Number.MAX_SAFE_INTEGER;
 export const DEFAULT_TECHNOLOGY_DEVELOPMENT_SPEED = 1;
 
 export function clampTechnologyDevelopmentSpeed(value: unknown): number {

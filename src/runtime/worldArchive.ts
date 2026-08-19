@@ -330,6 +330,15 @@ function assertNetworkReferences(pack: Record<string, unknown>, cellCount: numbe
       assertReferenceArray(river.cells, cellCount, `pack.rivers[${index}].cells`, { allowSentinel: -1 });
     }
   }
+  if (Array.isArray(pack.lavaFlows)) {
+    assertEntityTableArray(pack.lavaFlows, "pack.lavaFlows");
+    for (const [index, flow] of pack.lavaFlows.entries()) {
+      if (!isRecord(flow)) continue;
+      assertOptionalReference(flow, "source", cellCount, `pack.lavaFlows[${index}]`);
+      assertOptionalReference(flow, "mouth", cellCount, `pack.lavaFlows[${index}]`);
+      assertReferenceArray(flow.cells, cellCount, `pack.lavaFlows[${index}].cells`);
+    }
+  }
   if (Array.isArray(pack.routes)) {
     assertEntityTableArray(pack.routes, "pack.routes");
     for (const [index, route] of pack.routes.entries()) {

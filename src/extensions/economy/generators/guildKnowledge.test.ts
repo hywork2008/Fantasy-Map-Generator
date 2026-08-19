@@ -7,17 +7,23 @@ import {
   initEconomyContext,
   setCraftDomainEmploymentRecords,
   setGuildKnowledgeStocks,
+  setInstructionResidues,
+  setResearchNamedSeats,
   setSmelterOperations
 } from "../economyContext";
+import { setEconomyCalibrationState } from "../store/economyCalibrationState";
+import { guildSaturationPoints, peopleToPoints } from "./craftScale";
 import {
   applyConquestDisruptionToGuilds,
   applyMasterlessGuildPenalty,
+  collectGuildPractitioners,
   GUILD_CONQUEST_DISRUPTION_PENALTY,
   GUILD_MASTERLESS_DEATH_PENALTY,
   GUILD_SATURATION_WORKERS,
   GuildKnowledge,
   getGuildBonus
 } from "./guildKnowledge";
+import { GUILD_SITE_KNOWLEDGE_CAP_PEOPLE } from "./smelterOperationsTypes";
 
 describe("GuildKnowledgeModule", () => {
   beforeEach(() => {
@@ -27,6 +33,10 @@ describe("GuildKnowledgeModule", () => {
       burgs: [{ i: 1, cell: 0, x: 0, y: 0, market: 1 }],
       cells: { i: [0], p: [[0, 0]], h: Uint8Array.from([55]), r: Uint16Array.from([0]), routes: {} }
     } as unknown as PackedGraph;
+    // These tests (outside the "applyCalibration closed inventory" block below) exercise the
+    // pre-PR-3 legacy path deliberately — raw smelter.workers/GUILD_SATURATION_WORKERS fixtures —
+    // which PR 4 no longer runs by default. The calibrated path has its own dedicated tests.
+    setEconomyCalibrationState({ applyCalibration: false });
   });
 
   afterEach(() => {
@@ -140,6 +150,22 @@ describe("GuildKnowledgeModule", () => {
     expect(getGuildBonus(999, "metallurgy")).toBe(1);
   });
 
+  it("collects woodworking headcount from craft-domain employment and metallurgy from smelter plus smithing", () => {
+    setSmelterOperations([smelter({ workers: 2 })]);
+    setCraftDomainEmploymentRecords([
+      { burgId: 1, domain: "woodworking", workers: 1 },
+      { burgId: 1, domain: "metallurgy", workers: 3 }
+    ]);
+
+    const practitioners = [...collectGuildPractitioners().values()];
+    expect(practitioners).toEqual(
+      expect.arrayContaining([
+        { burgId: 1, domain: "woodworking", workers: 1 },
+        { burgId: 1, domain: "metallurgy", workers: 5 }
+      ])
+    );
+  });
+
   it("grows a non-metallurgy domain's stock from CraftDomainEmploymentRecord alone", () => {
     setCraftDomainEmploymentRecords([{ burgId: 1, domain: "textiles", workers: GUILD_SATURATION_WORKERS }]);
 
@@ -222,6 +248,99 @@ describe("GuildKnowledgeModule", () => {
       applyConquestDisruptionToGuilds(999);
 
       expect(getGuildKnowledgeStocks()).toEqual([]);
+    });
+  });
+
+  describe("derived technology-bias extraWorkers", () => {
+    function metallurgyStock(): number {
+      return getGuildKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "metallurgy")?.stock ?? 0;
+    }
+
+    function settleControl(workers: number): number {
+      setSmelterOperations([smelter({ workers })]);
+      GuildKnowledge.settleAnnual();
+      return metallurgyStock();
+    }
+
+    function resetWorld(): void {
+      clearEconomyContext();
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.options = { year: 500 };
+      worldContext.pack = {
+        burgs: [{ i: 1, cell: 0, x: 0, y: 0, market: 1 }],
+        cells: { i: [0], p: [[0, 0]], h: Uint8Array.from([55]), r: Uint16Array.from([0]), routes: {} }
+      } as unknown as PackedGraph;
+    }
+
+    it("does not change stock when seats and residues are empty", () => {
+      const control = settleControl(GUILD_SATURATION_WORKERS / 2);
+      resetWorld();
+      setResearchNamedSeats([]);
+      setInstructionResidues([]);
+      const emptyBias = settleControl(GUILD_SATURATION_WORKERS / 2);
+      expect(emptyBias).toBe(control);
+    });
+
+    it("raises metallurgy coverage from a mineLaborer seat versus the empty-seat control", () => {
+      const control = settleControl(GUILD_SATURATION_WORKERS / 2);
+      resetWorld();
+      setResearchNamedSeats([{ burgId: 1, characterId: 9, role: "mineLaborer" }]);
+      const withSeat = settleControl(GUILD_SATURATION_WORKERS / 2);
+      expect(withSeat).toBeGreaterThan(control);
+    });
+  });
+
+  describe("applyCalibration closed inventory (docs/plan/craft-demand-calibration.md §2.0, PR 3)", () => {
+    afterEach(() => setEconomyCalibrationState({ applyCalibration: false }));
+
+    it("caps a smelter site's guild-metallurgy input at GUILD_SITE_KNOWLEDGE_CAP_PEOPLE regardless of furnace size", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      const saturation = guildSaturationPoints(worldContext.populationRate);
+
+      // BASE-only smelter (annualCapacityTons: 0) already yields SMELTER_EMPLOYMENT_BASE_PEOPLE (8),
+      // above the 6-person cap. The stale reconciled `workers` field (999 pt) must be ignored.
+      setSmelterOperations([smelter({ annualCapacityTons: 0, workers: 999 })]);
+      const baseWorkers =
+        [...collectGuildPractitioners().values()].find(e => e.burgId === 1 && e.domain === "metallurgy")?.workers ?? 0;
+      expect(baseWorkers / saturation).toBeLessThanOrEqual(0.5 + 1e-9);
+      expect(baseWorkers).toBeCloseTo(peopleToPoints(GUILD_SITE_KNOWLEDGE_CAP_PEOPLE, worldContext.populationRate), 6);
+
+      // A large, fully-supplied furnace stays at the same 0.50 cap — not a bigger share.
+      setSmelterOperations([smelter({ annualCapacityTons: 5000, workers: 999 })]);
+      const fullFurnaceWorkers =
+        [...collectGuildPractitioners().values()].find(e => e.burgId === 1 && e.domain === "metallurgy")?.workers ?? 0;
+      expect(fullFurnaceWorkers / saturation).toBeLessThanOrEqual(0.5 + 1e-9);
+    });
+
+    it("does not cap manufacture-only CraftDomainEmploymentRecord labor — a fully-staffed craft chapter still reaches coverage 1", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      // 19.8 real people is the reference-fixture woodworking manufacture typical
+      // (docs/plan/craft-demand-calibration.md §2.2), well above the 12-person guild saturation —
+      // it must not be capped the way a site source (P3-P5) is.
+      setCraftDomainEmploymentRecords([
+        { burgId: 1, domain: "woodworking", workers: peopleToPoints(19.8, worldContext.populationRate) }
+      ]);
+
+      const workers =
+        [...collectGuildPractitioners().values()].find(e => e.burgId === 1 && e.domain === "woodworking")?.workers ?? 0;
+      const coverage = Math.min(1, workers / guildSaturationPoints(worldContext.populationRate));
+      expect(coverage).toBeCloseTo(1, 2);
+    });
+
+    it("uses the real-people saturation threshold in settleAnnual() instead of the flat legacy constant", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      setSmelterOperations([smelter({ annualCapacityTons: 0, workers: 999 })]);
+
+      GuildKnowledge.settleAnnual();
+
+      const stock = getGuildKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "metallurgy")?.stock;
+      expect(stock).toBeGreaterThan(0);
+      // At coverage ≤ 0.50 the single-year EWMA step cannot approach 1 the way the uncapped legacy
+      // path (workers=999 / GUILD_SATURATION_WORKERS=6) would.
+      expect(stock).toBeLessThan(0.5);
     });
   });
 });

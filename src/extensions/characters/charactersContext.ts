@@ -248,3 +248,26 @@ export function resolveCultureTypeForLoadout(cultureId: number): string | undefi
     return undefined;
   }
 }
+
+/** Character id → known technology ids, or `"all"`. Missing slice field is an empty record. */
+export type PersonalTechnologyKnowledge = Record<string, "all" | string[]>;
+
+export function getPersonalTechnologyKnowledge(): PersonalTechnologyKnowledge {
+  const slice = _api?.simulationContext?.extensions?.characters as Record<string, unknown> | undefined;
+  const stored = slice?.personalTechnologyKnowledge;
+  if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+    return stored as PersonalTechnologyKnowledge;
+  }
+  return {};
+}
+
+export function setPersonalTechnologyKnowledge(value: PersonalTechnologyKnowledge): void {
+  const extensions = getApi().simulationContext?.extensions;
+  if (!extensions) return;
+  let slice = extensions.characters;
+  if (!slice) {
+    slice = {};
+    extensions.characters = slice;
+  }
+  slice.personalTechnologyKnowledge = value;
+}

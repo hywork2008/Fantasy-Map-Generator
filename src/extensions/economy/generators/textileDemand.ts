@@ -1,14 +1,28 @@
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getGoods, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { laborPeople } from "./craftScale";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market, TextileLedger } from "./marketTypes";
 
 export const PEOPLE_PER_TEXTILE_MARKET_LOT = 1_000;
 export const WARDROBE_REPLACEMENT_YEARS = 4;
 export const INITIAL_TEXTILE_WORK_MONTHS = 3;
-export const MIN_TEXTILE_WORKERS = 2;
 export const MIN_TEXTILE_MONTHLY_MARGIN_PER_WORKER = 1.05;
+
+/**
+ * Three constants split out of the former single MIN_TEXTILE_WORKERS = 2
+ * (docs/plan/craft-demand-calibration.md §2.0, PR 3): a real-people burg-size floor, a lot-count
+ * floor, and a margin floor. Under applyCalibration, the burg-size check compares real labor
+ * people instead of raw population points — at the default populationRate 1000 this is numerically
+ * identical to the legacy `burg.population >= 2` check.
+ */
+export const MIN_TEXTILE_BURG_PEOPLE = 2000;
+export const MIN_TEXTILE_ORDER_LOTS = 2;
+export const MIN_TEXTILE_MARGIN_FLOOR = MIN_TEXTILE_ORDER_LOTS * MIN_TEXTILE_MONTHLY_MARGIN_PER_WORKER;
+/** Legacy points-scale burg-size floor, restored when applyCalibration is off. */
+const MIN_TEXTILE_WORKERS = 2;
 
 export type TextileDemandProfile = {
   populationLots: number;
@@ -169,10 +183,15 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
   const clothPrice = market.goods[cloth.i]?.price ?? cloth.value;
   const projectedMonthlyMargin =
     Math.max(0, garmentPrice - clothPrice) * (expectedOrders / INITIAL_TEXTILE_WORK_MONTHS);
+  const applyCalibration = getEconomyCalibrationState().applyCalibration;
+  const burgMeetsSizeFloor = applyCalibration
+    ? laborPeople(burg.population ?? 0, Math.max(0, getWorldContext().populationRate ?? 0) || 1) >=
+      MIN_TEXTILE_BURG_PEOPLE
+    : (burg.population ?? 0) >= MIN_TEXTILE_WORKERS;
   const viable =
-    (burg.population ?? 0) >= MIN_TEXTILE_WORKERS &&
-    expectedOrders >= MIN_TEXTILE_WORKERS &&
-    projectedMonthlyMargin >= MIN_TEXTILE_WORKERS * MIN_TEXTILE_MONTHLY_MARGIN_PER_WORKER;
+    burgMeetsSizeFloor &&
+    expectedOrders >= MIN_TEXTILE_ORDER_LOTS &&
+    projectedMonthlyMargin >= MIN_TEXTILE_MARGIN_FLOOR;
 
   return { ...profile, expectedOrders, availableInputOrders, projectedMonthlyMargin, viable };
 }

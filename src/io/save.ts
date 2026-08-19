@@ -307,7 +307,8 @@ function prepareMapDataFromSvg(): string {
     worldContext.pack.cells.coastalHabitat ? Array.from(worldContext.pack.cells.coastalHabitat).join(",") : "", // [53] coastal habitat codes
     worldContext.pack.cells.nearshoreHabitat ? Array.from(worldContext.pack.cells.nearshoreHabitat).join(",") : "", // [54] nearshore habitat codes
     mineralResources, // [55] Economy mineral-resource state
-    races // [56] pack.races (species table; optional on legacy maps)
+    races, // [56] pack.races (species table; optional on legacy maps)
+    JSON.stringify(worldContext.pack.lavaFlows ?? []) // [57] pack.lavaFlows (optional on legacy maps)
   ].join("\r\n");
 
   return mapData;

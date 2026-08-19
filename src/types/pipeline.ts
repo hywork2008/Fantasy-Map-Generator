@@ -28,10 +28,10 @@ export type WorldStateAt<Stage extends string> = WorldState & { readonly _stage:
 // "In" types use PipelineStageInput (Readonly) to express required inputs.
 // "Out" types use PipelineStageOutput to express guaranteed outputs.
 
-/** Stage 01 – Rivers.generate: computes flux and lays river networks */
+/** Stage 01 – Rivers.generate + LavaFlows.generate: water networks, then non-water lava ribbons */
 export type RiversGenerateIn = PipelineStageInput<Pick<PackedGraph, "cells" | "features" | "vertices">>;
-/** writes: rivers, cells.{r, fl} */
-export type RiversGenerateOut = PipelineStageOutput<Pick<PackedGraph, "rivers">>;
+/** writes: rivers, lavaFlows, cells.{r, fl} */
+export type RiversGenerateOut = PipelineStageOutput<Pick<PackedGraph, "rivers" | "lavaFlows">>;
 
 /** Stage 02 – Biomes.define: assigns biome codes to cells (writes cells.biomeCode) */
 export type BiomesDefineIn = PipelineStageInput<Pick<PackedGraph, "cells">>;

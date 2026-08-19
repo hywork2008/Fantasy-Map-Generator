@@ -99,7 +99,9 @@ describe("raceSkillBias", () => {
   it("tilts Demon toward prowess/intrigue and Beastfolk toward prowess/geography", () => {
     expect(skillMeanFor("prowess", { raceKey: "demon" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
     expect(skillMeanFor("intrigue", { raceKey: "demon" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
-    expect(skillMeanFor("martial", { raceKey: "demon" }).mean).toBeLessThan(SKILL_BASE_MEAN);
+    // RACE_SKILL_BIAS.demon has no martial entry (unlike other high-prowess races), so martial
+    // sits at baseline rather than below it.
+    expect(skillMeanFor("martial", { raceKey: "demon" }).mean).toBe(SKILL_BASE_MEAN);
     expect(skillMeanFor("prowess", { raceKey: "beastfolk" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
     expect(skillMeanFor("geography", { raceKey: "beastfolk" }).mean).toBeGreaterThan(SKILL_BASE_MEAN);
     expect(skillMeanFor("learning", { raceKey: "beastfolk" }).mean).toBeLessThan(SKILL_BASE_MEAN);

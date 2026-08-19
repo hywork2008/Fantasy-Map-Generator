@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setCraftDomainEmploymentRecords, setGoods } from "../economyContext";
+import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
@@ -31,6 +32,10 @@ describe("transport asset orders", () => {
       { i: 4, name: "Ropes", value: 2, tags: [] },
       { i: 5, name: "Tar", value: 1, tags: [] }
     ]);
+    // These tests (outside the "applyCalibration real-people transport capacity" block below)
+    // exercise the pre-PR-3 legacy capacity model (25% of observed craft employment, `used.total`
+    // as a raw population-point sum) deliberately — PR 4 no longer runs it by default.
+    setEconomyCalibrationState({ applyCalibration: false });
   });
 
   afterEach(() => {
@@ -131,5 +136,44 @@ describe("transport asset orders", () => {
     expect(MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "river-barge")?.available).toBe(
       1
     );
+  });
+
+  describe("applyCalibration real-people transport capacity (docs/plan/craft-demand-calibration.md Key Decision 10, PR 3)", () => {
+    afterEach(() => setEconomyCalibrationState({ applyCalibration: false }));
+
+    it("completes a wagon within one production cycle for the 9000-person reference fixture, with no guild-craft employment at all", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      (worldContext.pack.burgs[1] as Burg).population = 9; // 9 points × 1000 = 9000 people
+      // The legacy "25% of observed woodworking employment" capacity would give this burg zero
+      // transport-labor capacity with no craft-domain records at all — the dedicated real-people
+      // pool (TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND) must not depend on this being non-empty.
+      setCraftDomainEmploymentRecords([]);
+
+      TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "wagon", quantity: 1 });
+      TransportAssetOrders.beginProductionCycle();
+      const used = TransportAssetOrders.consumePlannedWork(1, 9);
+
+      const order = TransportAssetOrders.getOrders(1)[0];
+      expect(order).toMatchObject({ status: "completed", completedQuantity: 1 });
+      // 8 real people converted back to population points (8/1000), not a chunk of the burg's
+      // whole 9-point production-labor budget.
+      expect(used.total).toBeCloseTo(0.008, 6);
+    });
+
+    it("reports the transport-labor allocation for Employment Overview, but production-generator.ts must not feed it into guild-craft employment", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      (worldContext.pack.burgs[1] as Burg).population = 9;
+      setCraftDomainEmploymentRecords([]);
+
+      TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 1 });
+      TransportAssetOrders.beginProductionCycle();
+      const used = TransportAssetOrders.consumePlannedWork(1, 9);
+
+      // See production-generator.ts's runWorkerLoop(): under applyCalibration it skips folding
+      // reservedTransportWork.byDomain into CraftDomainEmploymentRecord (Key Decision 10).
+      expect(used.byDomain.get("woodworking")).toBeGreaterThan(0);
+    });
   });
 });

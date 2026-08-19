@@ -11,7 +11,9 @@ import {
   getWorldContext,
   setConstructionOperations
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import type { ConstructionOperation, LegacyConstructionOperation } from "./constructionEmploymentTypes";
+import { pointsToPeople } from "./craftScale";
 import { isGoodEnabled } from "./goods-generator";
 import { getHousingRecipe, getMasonMaterialShare, type HousingRecipe } from "./housingRecipes";
 import { Markets } from "./markets-generator";
@@ -144,6 +146,24 @@ export function normalizeConstructionOperation(
   return op as ConstructionOperation;
 }
 
+/** Size-aware effective backlog shared by the points (materials) and people (Employment) formulas below. */
+function computeEffectiveBacklog(
+  operation: Pick<ConstructionOperation, "buildingStock"> & {
+    dwellingStock?: number;
+    requiredDwellings?: number;
+  },
+  adults: number
+): number {
+  let housingBacklog: number;
+  if (operation.dwellingStock != null && operation.requiredDwellings != null) {
+    housingBacklog = getHousingBacklog(operation.dwellingStock, operation.requiredDwellings);
+  } else {
+    // After write-through: housingBacklog ≡ max(0, 1 - buildingStock).
+    housingBacklog = Math.max(0, 1 - clamp01(operation.buildingStock));
+  }
+  return housingBacklog * getTargetBuildingStock(adults);
+}
+
 /**
  * Headcount needed to close this year's size-aware housing backlog, split masons/carpenters.
  * `masonShareContext` drives culture brick/stone recipe (K17); omit for Generic-without-brick tests.
@@ -156,18 +176,35 @@ export function getConstructionRequiredWorkers(
   adults: number,
   masonShareContext: MasonShareContext = {}
 ): { mason: number; carpenter: number } {
-  let housingBacklog: number;
-  if (operation.dwellingStock != null && operation.requiredDwellings != null) {
-    housingBacklog = getHousingBacklog(operation.dwellingStock, operation.requiredDwellings);
-  } else {
-    // After write-through: housingBacklog ≡ max(0, 1 - buildingStock).
-    housingBacklog = Math.max(0, 1 - clamp01(operation.buildingStock));
-  }
-  const sizeTarget = getTargetBuildingStock(adults);
-  const effectiveBacklog = housingBacklog * sizeTarget;
+  const effectiveBacklog = computeEffectiveBacklog(operation, adults);
   const totalRequired = CONSTRUCTION_WORKERS_BASE + effectiveBacklog * adults * WORKERS_SHARE_PER_BACKLOG;
   const masonShare = getMasonShare(operation.hasQuarryAccess, masonShareContext);
   return { mason: rn(totalRequired * masonShare, 2), carpenter: rn(totalRequired * (1 - masonShare), 2) };
+}
+
+/**
+ * Real-people construction hire-board / labor-factor-gate demand, authored independently of
+ * getConstructionRequiredWorkers() (docs/plan/craft-demand-calibration.md §2.2, Key Decision 11).
+ * Materials (masonLoad/woodNeed) stay on the unchanged points formula at every settlement size —
+ * only Employment, hire-board postings, and named seats move to this real-people figure.
+ */
+export const CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE = 8;
+
+export function getConstructionRequiredPeople(
+  operation: Pick<ConstructionOperation, "buildingStock" | "hasQuarryAccess"> & {
+    dwellingStock?: number;
+    requiredDwellings?: number;
+  },
+  adults: number,
+  populationRate: number,
+  masonShareContext: MasonShareContext = {}
+): { mason: number; carpenter: number } {
+  const effectiveBacklog = computeEffectiveBacklog(operation, adults);
+  const totalPeople =
+    CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE +
+    pointsToPeople(effectiveBacklog * adults * WORKERS_SHARE_PER_BACKLOG, populationRate);
+  const masonShare = getMasonShare(operation.hasQuarryAccess, masonShareContext);
+  return { mason: rn(totalPeople * masonShare, 2), carpenter: rn(totalPeople * (1 - masonShare), 2) };
 }
 
 /**
@@ -409,10 +446,34 @@ export class ConstructionOperationsModule {
       });
       // Named hire-board seats count toward labor coverage (Phase 3).
       const namedSeats = countNamedConstructionSeats(operation.burgId);
-      const masonHeadcount = operation.masonWorkers + namedSeats.mason;
-      const carpenterHeadcount = operation.carpenterWorkers + namedSeats.carpenter;
-      const masonFactor = required.mason > 0 ? Math.min(1, masonHeadcount / required.mason) : 1;
-      const carpenterFactor = required.carpenter > 0 ? Math.min(1, carpenterHeadcount / required.carpenter) : 1;
+      let masonFactor: number;
+      let carpenterFactor: number;
+      if (getEconomyCalibrationState().applyCalibration) {
+        // Key Decision 11: the labor-factor gate uses real-people assigned/required, decoupled from
+        // the unchanged points-denominated material formula above (masonLoad/woodNeed keep
+        // required.mason/carpenter — the points figure — regardless of this branch).
+        const requiredPeople = getConstructionRequiredPeople(
+          { ...operation, requiredDwellings },
+          adults,
+          populationRate,
+          {
+            cultureType: resolveBurgCultureType(burg),
+            highFantasy,
+            brickAvailable
+          }
+        );
+        const assignedMasonPeople = pointsToPeople(operation.masonWorkers, populationRate) + namedSeats.mason;
+        const assignedCarpenterPeople =
+          pointsToPeople(operation.carpenterWorkers, populationRate) + namedSeats.carpenter;
+        masonFactor = requiredPeople.mason > 0 ? Math.min(1, assignedMasonPeople / requiredPeople.mason) : 1;
+        carpenterFactor =
+          requiredPeople.carpenter > 0 ? Math.min(1, assignedCarpenterPeople / requiredPeople.carpenter) : 1;
+      } else {
+        const masonHeadcount = operation.masonWorkers + namedSeats.mason;
+        const carpenterHeadcount = operation.carpenterWorkers + namedSeats.carpenter;
+        masonFactor = required.mason > 0 ? Math.min(1, masonHeadcount / required.mason) : 1;
+        carpenterFactor = required.carpenter > 0 ? Math.min(1, carpenterHeadcount / required.carpenter) : 1;
+      }
 
       const masonLoad = required.mason * STONE_PER_MASON_WORKER_ANNUAL;
       const masonMaterial = recipe.stone + recipe.brick;

@@ -1,21 +1,129 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-import { closeDialog, Dialog, TableDialogLayout, useDialogState, VirtualTableBody } from "../../../hostUi";
+import {
+  closeDialog,
+  Dialog,
+  SortableHeader,
+  TableDialogLayout,
+  useDialogState,
+  VirtualTableBody
+} from "../../../hostUi";
 
 import { open as openEmploymentOverview, refreshEmploymentOverview } from "../../controllers/employment-overview";
 import { type EmploymentOverviewRow, useEmploymentOverviewState } from "../../store/employmentOverviewState";
 
+type SortField = keyof Pick<
+  EmploymentOverviewRow,
+  | "burgName"
+  | "stateName"
+  | "administration"
+  | "mining"
+  | "smelting"
+  | "trade"
+  | "strategicIndustry"
+  | "craft"
+  | "construction"
+  | "dwellings"
+  | "requiredDwellings"
+  | "housingGapPct"
+  | "underConstruction"
+  | "constructionJobsOpen"
+  | "householdCare"
+  | "marketLaborForce"
+  | "laborResidual"
+  | "marketUnemploymentPct"
+  | "employmentFocus"
+  | "basicEmploymentDemand"
+  | "serviceEmploymentDemand"
+  | "employmentDemand"
+>;
+
+const TEXT_SORT_FIELDS = new Set<SortField>(["burgName", "stateName", "employmentFocus"]);
+
+const COLUMNS: { field: SortField; labelKey: string; tipKey: string; numeric?: boolean }[] = [
+  { field: "burgName", labelKey: "burg", tipKey: "burgTip" },
+  { field: "stateName", labelKey: "state", tipKey: "stateTip" },
+  { field: "administration", labelKey: "admin", tipKey: "adminTip", numeric: true },
+  { field: "mining", labelKey: "mining", tipKey: "miningTip", numeric: true },
+  { field: "smelting", labelKey: "smelting", tipKey: "smeltingTip", numeric: true },
+  { field: "trade", labelKey: "trade", tipKey: "tradeTip", numeric: true },
+  { field: "strategicIndustry", labelKey: "industry", tipKey: "industryTip", numeric: true },
+  { field: "craft", labelKey: "craft", tipKey: "craftTip", numeric: true },
+  { field: "construction", labelKey: "construction", tipKey: "constructionTip", numeric: true },
+  { field: "dwellings", labelKey: "dwellings", tipKey: "dwellingsTip", numeric: true },
+  { field: "requiredDwellings", labelKey: "need", tipKey: "needTip", numeric: true },
+  { field: "housingGapPct", labelKey: "gap", tipKey: "gapTip", numeric: true },
+  { field: "underConstruction", labelKey: "building", tipKey: "buildingTip", numeric: true },
+  { field: "constructionJobsOpen", labelKey: "jobs", tipKey: "jobsTip", numeric: true },
+  { field: "householdCare", labelKey: "care", tipKey: "careTip", numeric: true },
+  { field: "marketLaborForce", labelKey: "market", tipKey: "marketTip", numeric: true },
+  { field: "laborResidual", labelKey: "residual", tipKey: "residualTip", numeric: true },
+  { field: "marketUnemploymentPct", labelKey: "uPct", tipKey: "uPctTip", numeric: true },
+  { field: "employmentFocus", labelKey: "focus", tipKey: "focusTip" },
+  { field: "basicEmploymentDemand", labelKey: "basic", tipKey: "basicTip", numeric: true },
+  { field: "serviceEmploymentDemand", labelKey: "service", tipKey: "serviceTip", numeric: true },
+  { field: "employmentDemand", labelKey: "total", tipKey: "totalTip", numeric: true }
+];
+
 export const EmploymentOverviewDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("employmentOverview"));
-  const rows = useEmploymentOverviewState(state => state.rows);
+  const rawRows = useEmploymentOverviewState(state => state.rows);
 
   const parentRef = React.useRef<HTMLDivElement>(null);
+  const [sortBy, setSortBy] = React.useState<SortField>("laborResidual");
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
+  const [filterBurgId, setFilterBurgId] = React.useState<number | null>(null);
+  const [filterStateId, setFilterStateId] = React.useState<number | null>(null);
+
+  const toggleSortBy = (field: string) => {
+    const nextField = field as SortField;
+    if (nextField === sortBy) {
+      setSortOrder(order => (order === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(nextField);
+      setSortOrder(TEXT_SORT_FIELDS.has(nextField) ? "asc" : "desc");
+    }
+  };
 
   React.useEffect(() => {
     if (isOpen) setTimeout(() => openEmploymentOverview(), 0);
   }, [isOpen]);
+
+  const stateOptions = React.useMemo(
+    () =>
+      [...new Map(rawRows.map(row => [row.stateId, { id: row.stateId, name: row.stateName }])).values()].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
+    [rawRows]
+  );
+  const burgOptions = React.useMemo(() => {
+    const source = filterStateId === null ? rawRows : rawRows.filter(row => row.stateId === filterStateId);
+    return [...new Map(source.map(row => [row.burgId, { id: row.burgId, name: row.burgName }])).values()].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }, [filterStateId, rawRows]);
+
+  React.useEffect(() => {
+    if (filterBurgId !== null && !burgOptions.some(option => option.id === filterBurgId)) setFilterBurgId(null);
+    if (filterStateId !== null && !stateOptions.some(option => option.id === filterStateId)) setFilterStateId(null);
+  }, [burgOptions, filterBurgId, filterStateId, stateOptions]);
+
+  const rows = React.useMemo(() => {
+    return rawRows
+      .filter(row => {
+        if (filterBurgId !== null && row.burgId !== filterBurgId) return false;
+        if (filterStateId !== null && row.stateId !== filterStateId) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const valA = a[sortBy];
+        const valB = b[sortBy];
+        const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : (valA as number) - (valB as number);
+        return sortOrder === "asc" ? cmp : -cmp;
+      });
+  }, [filterBurgId, filterStateId, rawRows, sortBy, sortOrder]);
 
   const totalEmploymentDemand = rows.reduce((sum, row) => sum + row.employmentDemand, 0);
   const totalResidual = rows.reduce((sum, row) => sum + Math.max(0, row.laborResidual), 0);
@@ -31,8 +139,53 @@ export const EmploymentOverviewDialog: React.FC = () => {
     >
       <TableDialogLayout
         bodyRef={parentRef}
+        controls={
+          <div
+            id="employmentOverviewFilters"
+            data-tip={t("extensions.employmentOverview.filterTip")}
+            className="d-flex"
+          >
+            <label htmlFor="employmentOverviewFilterState">
+              {t("extensions.employmentOverview.stateFilter")}
+              <select
+                id="employmentOverviewFilterState"
+                value={filterStateId ?? ""}
+                onChange={event => setFilterStateId(event.target.value === "" ? null : Number(event.target.value))}
+              >
+                <option value="">{t("extensions.employmentOverview.all")}</option>
+                {stateOptions.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label htmlFor="employmentOverviewFilterBurg">
+              {t("extensions.employmentOverview.burgFilter")}
+              <select
+                id="employmentOverviewFilterBurg"
+                value={filterBurgId ?? ""}
+                onChange={event => setFilterBurgId(event.target.value === "" ? null : Number(event.target.value))}
+              >
+                <option value="">{t("extensions.employmentOverview.all")}</option>
+                {burgOptions.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        }
         summary={
           <div className="totalLine">
+            <span data-tip={t("extensions.employmentOverview.countTip")}>
+              {t("extensions.employmentOverview.count")}{" "}
+              <span id="employmentOverviewCount">
+                {t("extensions.employmentOverview.countValue", { shown: rows.length, total: rawRows.length })}
+              </span>
+            </span>
+            {" · "}
             <span data-tip={t("extensions.employmentOverview.totalDemandTip")}>
               {t("extensions.employmentOverview.totalDemand")}{" "}
               <span id="employmentOverviewTotal">{totalEmploymentDemand.toFixed(1)}</span>
@@ -65,97 +218,36 @@ export const EmploymentOverviewDialog: React.FC = () => {
       >
         <table className="fmg-table">
           <colgroup>
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
-            <col />
+            {COLUMNS.map(column => (
+              <col key={column.field} />
+            ))}
           </colgroup>
           <thead className="header">
             <tr>
-              <th data-tip={t("extensions.employmentOverview.burgTip")}>{t("extensions.employmentOverview.burg")}</th>
-              <th data-tip={t("extensions.employmentOverview.stateTip")}>{t("extensions.employmentOverview.state")}</th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.adminTip")}>
-                {t("extensions.employmentOverview.admin")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.miningTip")}>
-                {t("extensions.employmentOverview.mining")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.smeltingTip")}>
-                {t("extensions.employmentOverview.smelting")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.tradeTip")}>
-                {t("extensions.employmentOverview.trade")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.industryTip")}>
-                {t("extensions.employmentOverview.industry")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.craftTip")}>
-                {t("extensions.employmentOverview.craft")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.constructionTip")}>
-                {t("extensions.employmentOverview.construction")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.dwellingsTip")}>
-                {t("extensions.employmentOverview.dwellings")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.needTip")}>
-                {t("extensions.employmentOverview.need")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.gapTip")}>
-                {t("extensions.employmentOverview.gap")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.buildingTip")}>
-                {t("extensions.employmentOverview.building")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.jobsTip")}>
-                {t("extensions.employmentOverview.jobs")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.careTip")}>
-                {t("extensions.employmentOverview.care")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.marketTip")}>
-                {t("extensions.employmentOverview.market")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.residualTip")}>
-                {t("extensions.employmentOverview.residual")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.uPctTip")}>
-                {t("extensions.employmentOverview.uPct")}
-              </th>
-              <th data-tip={t("extensions.employmentOverview.focusTip")}>{t("extensions.employmentOverview.focus")}</th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.basicTip")}>
-                {t("extensions.employmentOverview.basic")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.serviceTip")}>
-                {t("extensions.employmentOverview.service")}
-              </th>
-              <th className="numeric" data-tip={t("extensions.employmentOverview.totalTip")}>
-                {t("extensions.employmentOverview.total")}
-              </th>
+              {COLUMNS.map(column => (
+                <SortableHeader
+                  key={column.field}
+                  field={column.field}
+                  label={t(`extensions.employmentOverview.${column.labelKey}`)}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  numeric={column.numeric}
+                  className={column.numeric ? "numeric" : undefined}
+                  tip={t(`extensions.employmentOverview.${column.tipKey}`)}
+                />
+              ))}
             </tr>
           </thead>
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={22}>
-                  <span>{t("extensions.employmentOverview.empty")}</span>
+                <td colSpan={COLUMNS.length}>
+                  <span>
+                    {rawRows.length
+                      ? t("extensions.employmentOverview.emptyFiltered")
+                      : t("extensions.employmentOverview.empty")}
+                  </span>
                 </td>
               </tr>
             </tbody>

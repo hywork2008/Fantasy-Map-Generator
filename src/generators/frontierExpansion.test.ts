@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createEmptyFrontierSimulationState,
   FRONTIER_STAGE,
@@ -13,6 +13,7 @@ import {
   getFrontierProjectSlots,
   snapshotFrontierBudgets
 } from "./frontierExpansion";
+import { Routes } from "./routes-generator";
 
 function createWorld(treasury = 100): WorldContext {
   return {
@@ -67,6 +68,15 @@ function advance(world: WorldContext, simulation: SimulationContext) {
 }
 
 describe("Frontier Expansion Phase 3", () => {
+  // Phase 4 incorporation (frontierIncorporation.ts) hands a settled project's supply trail to
+  // Routes.connectFrontier(), which is bound to the real Routes singleton's own worldContext, not
+  // the throwaway WorldContext these tests build — same stub frontierIncorporation.test.ts uses.
+  beforeEach(() => {
+    vi.spyOn(Routes, "connectFrontier").mockReturnValue(undefined);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
   it("establishes an outpost and settles it after sustained annual support without claiming land", () => {
     const world = createWorld();
     const simulation = createSimulation(100);

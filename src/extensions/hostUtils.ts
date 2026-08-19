@@ -40,3 +40,9 @@ export {
   clampTechnologyDevelopmentSpeed,
   getTechnologyDevelopmentSpeed
 } from "../utils/technologyDevelopmentSpeed";
+export {
+  clampTechnologyRequirementEase,
+  getTechnologyRequirementEase,
+  isDeepMineRequirementRelaxed,
+  scaleCountRequirement
+} from "../utils/technologyRequirementEase";

@@ -65,6 +65,7 @@ function getMinimalDataJson(): string {
     provinces: worldContext.pack.provinces,
     religions: worldContext.pack.religions,
     rivers: worldContext.pack.rivers,
+    lavaFlows: worldContext.pack.lavaFlows ?? [],
     markers: worldContext.pack.markers,
     routes: worldContext.pack.routes,
     zones: worldContext.pack.zones,
@@ -209,6 +210,7 @@ function getPackCellsData() {
     provinces: worldContext.pack.provinces,
     religions: worldContext.pack.religions,
     rivers: worldContext.pack.rivers,
+    lavaFlows: worldContext.pack.lavaFlows ?? [],
     markers: worldContext.pack.markers,
     routes: worldContext.pack.routes,
     zones: worldContext.pack.zones

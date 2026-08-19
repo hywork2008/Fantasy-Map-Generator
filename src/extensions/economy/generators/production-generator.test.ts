@@ -4,6 +4,8 @@ import { createEmptyTechnologySimulationState } from "../../../generators/techno
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
+import { setEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getGoodDemandCalibration, laborPointsForLots } from "./craftDemandCalibration";
 import { type Good, Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
@@ -41,8 +43,8 @@ type ManufactureHarness = {
       goalGoodId: number;
       laborProductivity: number;
     },
-    workerFraction: number
-  ): void;
+    laborBudget: number
+  ): { yieldLots: number; laborUsed: number };
 };
 
 describe("ProductionModule byproducts", () => {
@@ -218,5 +220,128 @@ describe("ProductionModule byproducts", () => {
     expect(market.goods[1].stock).toBe(0);
     expect(market.goods[2].stock).toBeCloseTo(0.76, 8);
     expect(market.goods[3].stock).toBe(53);
+  });
+
+  describe("labor/yield split under applyCalibration (docs/plan/craft-demand-calibration.md §3.5, PR 3)", () => {
+    afterEach(() => setEconomyCalibrationState({ applyCalibration: false }));
+
+    function harnessState() {
+      return {
+        burg: { i: 1, cell: 0, treasury: 0 },
+        market: { i: 1, goods: {} },
+        inventory: [] as number[],
+        demandCoverage: [] as number[],
+        records: [] as ProductionRecord[],
+        ingredientCosts: 0,
+        smithingProgramByGood: new Map<string, never>(),
+        strategicLaborMarket: undefined,
+        strategicDemandByGood: new Map<number, never>()
+      };
+    }
+
+    it("decouples laborUsed from yieldLots for a low-labor-intensity calibrated good (Barrels)", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      const barrels = { i: 10, name: "Barrels", tags: [], value: 2, unit: "barrel", icon: "", color: "" } as Good;
+      const laborPerLot = laborPointsForLots("Barrels", 1, 1000);
+      expect(getGoodDemandCalibration("Barrels")).toBeDefined();
+      const production = new ProductionModule() as unknown as ManufactureHarness;
+
+      // 9.36 lots' worth of labor at the authored rate (docs/plan/craft-demand-calibration.md §3).
+      const laborBudget = 9.36 * laborPerLot;
+      const { yieldLots, laborUsed } = production.executeManufacture(
+        harnessState(),
+        { demandCoverageByGood: [] },
+        {
+          action: {
+            good: barrels,
+            ingredients: [],
+            byproducts: [],
+            maxYield: 100,
+            ingredientCostPerUnit: 0,
+            smithingProgram: null
+          },
+          candidates: [],
+          goalGoodId: 10,
+          laborProductivity: 1
+        },
+        laborBudget
+      );
+
+      expect(laborUsed).toBeCloseTo(laborBudget, 6);
+      expect(yieldLots).toBeGreaterThan(9);
+      // The old bug: labor and yield were the same quantity (yieldLots === laborBudget ≈ 0.0099).
+      expect(yieldLots).not.toBeCloseTo(laborBudget, 2);
+    });
+
+    it("behaves identically to the legacy 1:1 labor=yield identity when applyCalibration is off", () => {
+      const unmapped = {
+        i: 11,
+        name: "Not Calibrated Good",
+        tags: [],
+        value: 1,
+        unit: "wain",
+        icon: "",
+        color: ""
+      } as Good;
+      const production = new ProductionModule() as unknown as ManufactureHarness;
+
+      const { yieldLots, laborUsed } = production.executeManufacture(
+        harnessState(),
+        { demandCoverageByGood: [] },
+        {
+          action: {
+            good: unmapped,
+            ingredients: [],
+            byproducts: [],
+            maxYield: 100,
+            ingredientCostPerUnit: 0,
+            smithingProgram: null
+          },
+          candidates: [],
+          goalGoodId: 11,
+          laborProductivity: 1
+        },
+        0.7
+      );
+
+      expect(yieldLots).toBeCloseTo(0.7, 6);
+      expect(laborUsed).toBeCloseTo(0.7, 6);
+    });
+
+    it("returns laborUsed 0 (not the offered budget) when an ingredient purchase fails", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      const wood = { i: 12, name: "Wood", tags: [], value: 1, unit: "wain", icon: "", color: "" } as Good;
+      const arrows = { i: 13, name: "Arrows", tags: [], value: 3, unit: "quiver", icon: "", color: "" } as Good;
+      setGoods([wood, arrows]);
+      Goods.sync();
+      const production = new ProductionModule() as unknown as ManufactureHarness;
+      const state = harnessState();
+      // No Wood in inventory and none on the market — the ingredient buy must fail.
+      state.market.goods = {};
+
+      const { yieldLots, laborUsed } = production.executeManufacture(
+        state,
+        { demandCoverageByGood: [] },
+        {
+          action: {
+            good: arrows,
+            ingredients: [{ goodId: 12, amount: 1 }],
+            byproducts: [],
+            maxYield: 100,
+            ingredientCostPerUnit: 0,
+            smithingProgram: null
+          },
+          candidates: [],
+          goalGoodId: 13,
+          laborProductivity: 1
+        },
+        0.05
+      );
+
+      expect(yieldLots).toBe(0);
+      expect(laborUsed).toBe(0);
+    });
   });
 });

@@ -163,7 +163,7 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
     "mountain",
     "volcanic"
   ]),
-  D("lavaField", "Lava field", "#5c1f12", 0, 5000, 0, { vulcan: 3 }, ["dry", "mountain", "volcanic"]),
+  D("lavaField", "Lava field", "#5c1f12", 0, 5000, 0, { vulcan: 3 }, ["dry", "mountain", "volcanic"]), // cooled recent lava along a flow, not molten magma
   D("volcanicSoil", "Volcanic soil", "#4a3728", 55, 60, 140, { grass: 5, deciduous: 3, acacia: 1 }, [
     "arable",
     "volcanic"

@@ -13,7 +13,7 @@ export interface VolcanicOperation {
   ashNeighborCount: number;
   /** Neighbor cells in the barren/rocky core (lavaField or volcanicBarrens) — gates Sulfur. */
   sulfurNeighborCount: number;
-  /** Neighbor cells specifically in lavaField (the active/molten core) — gates Obsidian. */
+  /** Neighbor cells specifically in lavaField (cooled lava along a flow) — gates Obsidian. */
   obsidianNeighborCount: number;
   active: boolean;
 }

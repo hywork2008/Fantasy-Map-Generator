@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTickProfile, logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
 
+// TIME is off by default (see utils/debug.ts) so timing overhead doesn't dominate a long SVG
+// advance in normal play — force it on here so measureTickStep actually records instead of
+// short-circuiting to a no-op.
+vi.mock("../utils/debug", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/debug")>();
+  return { ...actual, TIME: true };
+});
+
 /**
  * Feeds a fixed sequence of elapsed-ms values to successive measureTickStep() calls,
  * independent of how fast the test actually runs. Each measureTickStep() call reads

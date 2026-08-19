@@ -22,6 +22,7 @@ import {
   setDeals,
   setStrategicLaborMarkets
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
 import { CELL_FOOD_PRESERVATION_LABOR_SHARE } from "./cellFoodRescue";
@@ -30,7 +31,14 @@ import {
   ConstructionOperations,
   getConstructionProductivityMultiplier
 } from "./constructionEmployment";
+import {
+  domainShare,
+  getCalibratedMonthlyLots,
+  getGoodDemandCalibration,
+  laborPointsForLots
+} from "./craftDemandCalibration";
 import { smoothCraftWorkers } from "./craftEmployment";
+import { laborPeople } from "./craftScale";
 import { ExportStaging } from "./exportStaging";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
@@ -72,6 +80,7 @@ import { MilitaryResources } from "./militaryResources";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
+import { expectedWorkerPoints, getOccupationalRow } from "./occupationalCalibration";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 import type {
   DealRecord,
@@ -360,14 +369,15 @@ export class ProductionModule {
       cycle.constructionOperationByBurg.get(burg.i)
     );
     const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
+    const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     cycle.craftWorkersByBurg.set(
       burg.i,
-      smoothCraftWorkers(cycle.craftWorkersByBurg.get(burg.i) ?? 0, craftWorkersUsed.total)
+      smoothCraftWorkers(cycle.craftWorkersByBurg.get(burg.i) ?? 0, craftWorkersUsed.total, populationRate)
     );
     for (const domain of CRAFT_KNOWLEDGE_DOMAINS) {
       const key = craftDomainKey(burg.i, domain);
       const observed = craftWorkersUsed.byDomain.get(domain) ?? 0;
-      const smoothed = smoothCraftWorkers(cycle.craftDomainWorkersByKey.get(key) ?? 0, observed);
+      const smoothed = smoothCraftWorkers(cycle.craftDomainWorkersByKey.get(key) ?? 0, observed, populationRate);
       cycle.craftDomainWorkersByKey.set(key, smoothed);
     }
     // Phase 5 (docs/plan/biome-goods-producer-ecosystem.md §9.4): advances Wine/Raisins' smoothed
@@ -635,8 +645,30 @@ export class ProductionModule {
       activeGoalGoodId: null,
       smithingProgramByGood,
       strategicLaborMarket,
-      strategicDemandByGood: this.getCombinedStrategicDemand(market.i)
+      strategicDemandByGood: this.getCombinedStrategicDemand(market.i),
+      remainingCalibratedLots: this.buildRemainingCalibratedLots(burg, population, index)
     };
+  }
+
+  /**
+   * Seeds this cycle's per-good calibrated lot targets (docs/plan/craft-demand-calibration.md
+   * §3.5). Empty unless applyCalibration is on. Only goods with a GOOD_DEMAND_CALIBRATION row are
+   * tracked — every other good keeps runWorkerLoop()'s pre-PR-3, uncapped batching behavior.
+   */
+  private buildRemainingCalibratedLots(burg: Burg, population: number, index: ProductionIndex): Map<number, number> {
+    const remainingCalibratedLots = new Map<number, number>();
+    if (!getEconomyCalibrationState().applyCalibration) return remainingCalibratedLots;
+
+    const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
+    const laborPeopleBurg = laborPeople(population, populationRate);
+    const port = Boolean(burg.port);
+    const capital = Boolean(burg.capital);
+    for (const good of index.productiveGoods) {
+      if (!getGoodDemandCalibration(good.name)) continue;
+      const lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
+      remainingCalibratedLots.set(good.i, Math.max(0, lots));
+    }
+    return remainingCalibratedLots;
   }
 
   /**
@@ -682,13 +714,26 @@ export class ProductionModule {
    * unrelated categories to get a turn at all.
    */
   private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): CraftWorkerUsage {
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const burgId = state.burg.i;
     const reservedTransportWork = burgId
       ? TransportAssetOrders.consumePlannedWork(burgId, state.population)
       : { total: 0, byDomain: new Map<CraftKnowledgeDomain, number>() };
     let workersUsed = reservedTransportWork.total;
     const byDomain = new Map<CraftDomainEmploymentRecord["domain"], number>();
-    for (const [domain, workers] of reservedTransportWork.byDomain) byDomain.set(domain, workers);
+    // Key Decision 10 (docs/plan/craft-demand-calibration.md): transport-asset construction labor
+    // still draws down the Burg's population-point production budget (reservedTransportWork.total,
+    // above), but is no longer counted as guild-craft practitioner labor once applyCalibration is
+    // on — carts/wagons/barges are excluded from CraftDomainEmploymentRecord entirely.
+    if (!applyCalibration) {
+      for (const [domain, workers] of reservedTransportWork.byDomain) byDomain.set(domain, workers);
+    }
+
+    // Goods that produced zero output this cycle (ingredient/treasury shortfall) are dropped from
+    // candidate lists for the rest of this call so a single stuck good cannot be re-selected every
+    // step (docs/plan/craft-demand-calibration.md §3.5). Only populated when applyCalibration is on.
+    const skippedGoodIds = new Set<number>();
 
     // Cap iterations to ceil(population) so floating-point leftovers cannot spin.
     const maxSteps = Math.max(0, Math.ceil(state.population));
@@ -707,6 +752,11 @@ export class ProductionModule {
         const workerFraction = Math.min(1, workersLeft);
         if (workerFraction <= 1e-9) break;
 
+        const priorityCandidates = skippedGoodIds.size
+          ? index.priorityGoods.filter(good => !skippedGoodIds.has(good.i))
+          : index.priorityGoods;
+        if (!priorityCandidates.length) break;
+
         const decision = this.makeProductionDecision(
           index,
           state,
@@ -715,17 +765,30 @@ export class ProductionModule {
           state.activeGoalGoodId,
           workersLeft,
           workerFraction,
-          index.priorityGoods
+          priorityCandidates
         );
         if (!decision) break; // No more affordable/available preserving work this cycle.
         state.activeGoalGoodId = decision.goalGoodId;
 
-        this.executeManufacture(state, index, decision, workerFraction);
-        workersUsed += workerFraction;
-        priorityWorkUsed += workerFraction;
+        const laborBudget =
+          applyCalibration && state.remainingCalibratedLots.has(decision.action.good.i)
+            ? this.getCalibratedLaborBudget(state, decision.action.good, workersLeft, populationRate)
+            : workerFraction;
+        const { yieldLots, laborUsed } = this.executeManufacture(state, index, decision, laborBudget);
+        const spent = applyCalibration ? laborUsed : workerFraction;
+        this.settleCalibratedProduction(
+          state,
+          decision.action.good.i,
+          yieldLots,
+          laborUsed,
+          applyCalibration,
+          skippedGoodIds
+        );
+        workersUsed += spent;
+        priorityWorkUsed += spent;
 
         const domain = getCraftDomainForGood(decision.action.good.name);
-        if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);
+        if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
       }
     }
 
@@ -756,6 +819,7 @@ export class ProductionModule {
 
         for (const good of strategicGoods) {
           if (step >= maxSteps || strategicWorkUsed >= strategicWorkCap - 1e-9) break;
+          if (skippedGoodIds.has(good.i)) continue;
           const demand = state.strategicDemandByGood.get(good.i);
           if (!demand) continue;
           const strategicWeight = getStrategicLaborAllocationWeight(demand);
@@ -784,13 +848,27 @@ export class ProductionModule {
             if (!decision) break; // Not profitable (or infeasible) this cycle — move to the next good.
             state.activeGoalGoodId = decision.goalGoodId;
 
-            this.executeManufacture(state, index, decision, workerFraction);
-            workersUsed += workerFraction;
-            strategicWorkUsed += workerFraction;
-            shareUsed += workerFraction;
+            const laborBudget =
+              applyCalibration && state.remainingCalibratedLots.has(decision.action.good.i)
+                ? this.getCalibratedLaborBudget(state, decision.action.good, workersLeft, populationRate)
+                : workerFraction;
+            const { yieldLots, laborUsed } = this.executeManufacture(state, index, decision, laborBudget);
+            const spent = applyCalibration ? laborUsed : workerFraction;
+            this.settleCalibratedProduction(
+              state,
+              decision.action.good.i,
+              yieldLots,
+              laborUsed,
+              applyCalibration,
+              skippedGoodIds
+            );
+            workersUsed += spent;
+            strategicWorkUsed += spent;
+            shareUsed += spent;
+            if (applyCalibration && laborUsed <= 1e-9) break; // this good is stuck; move to the next.
 
             const domain = getCraftDomainForGood(decision.action.good.name);
-            if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);
+            if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
           }
         }
       }
@@ -810,6 +888,9 @@ export class ProductionModule {
       if (workerFraction <= 1e-9) break;
 
       if (!stickyDecision || step % reevalEvery === 0) {
+        const phase2Candidates = skippedGoodIds.size
+          ? index.productiveGoods.filter(good => !skippedGoodIds.has(good.i))
+          : index.productiveGoods;
         stickyDecision = this.makeProductionDecision(
           index,
           state,
@@ -817,30 +898,112 @@ export class ProductionModule {
           state.demandCoverage,
           state.activeGoalGoodId,
           workersLeft,
-          workerFraction
+          workerFraction,
+          phase2Candidates
         );
         if (!stickyDecision) break;
         state.activeGoalGoodId = stickyDecision.goalGoodId;
       }
 
-      this.executeManufacture(state, index, stickyDecision, workerFraction);
-      workersUsed += workerFraction;
+      const chosenGood = stickyDecision.action.good;
+      const laborBudget =
+        applyCalibration && state.remainingCalibratedLots.has(chosenGood.i)
+          ? this.getCalibratedLaborBudget(state, chosenGood, workersLeft, populationRate)
+          : workerFraction;
+      const { yieldLots, laborUsed } = this.executeManufacture(state, index, stickyDecision, laborBudget);
+      const spent = applyCalibration ? laborUsed : workerFraction;
+      this.settleCalibratedProduction(state, chosenGood.i, yieldLots, laborUsed, applyCalibration, skippedGoodIds);
+      workersUsed += spent;
+      // A stuck good (zero output this attempt) must not keep winning the sticky slot — force a
+      // fresh ranking next step so a different good gets a turn (docs/plan/craft-demand-calibration.md §3.5).
+      if (applyCalibration && laborUsed <= 1e-9) stickyDecision = null;
 
-      const domain = getCraftDomainForGood(stickyDecision.action.good.name);
-      if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);
+      const domain = getCraftDomainForGood(chosenGood.name);
+      if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
     }
 
     return { total: workersUsed, byDomain };
   }
 
+  /**
+   * Labor budget (population points) offered to executeManufacture() for a good with a calibrated
+   * monthly lot target (docs/plan/craft-demand-calibration.md §3.5). Bounded by whatever labor the
+   * calling phase still has left, this good's remaining calibrated lots for the cycle (converted to
+   * labor via its authored laborPointsPerLot), and — for guild-mapped goods — a domain-wide labor
+   * cap so one good cannot absorb its whole domain's expected labor in a single batch.
+   */
+  private getCalibratedLaborBudget(
+    state: BurgProductionState,
+    good: Good,
+    workersLeft: number,
+    populationRate: number
+  ): number {
+    const remainingLots = state.remainingCalibratedLots.get(good.i) ?? 0;
+    const laborPerLot = Math.max(1e-9, laborPointsForLots(good.name, 1, populationRate));
+    let cap = workersLeft;
+
+    const domain = getCraftDomainForGood(good.name);
+    if (domain) {
+      const port = Boolean(state.burg.port);
+      const expected = expectedWorkerPoints({
+        row: getOccupationalRow(domain),
+        laborPeople: laborPeople(state.population, populationRate),
+        populationRate,
+        port,
+        capital: Boolean(state.burg.capital),
+        hasQuarry: false
+      });
+      cap = Math.min(cap, expected * domainShare(good.name, port));
+    }
+
+    return Math.max(0, Math.min(cap, remainingLots * laborPerLot));
+  }
+
+  /**
+   * Decrements this cycle's remaining calibrated-lot target by what was actually produced, and
+   * marks a good "skipped" for the rest of this runWorkerLoop() call when it produced nothing this
+   * attempt (ingredient/treasury shortfall) — see the required test in
+   * docs/plan/craft-demand-calibration.md §3.5: a good that plans positive lots but fails its
+   * ingredient buy must not be re-selected every remaining step of the same cycle.
+   */
+  private settleCalibratedProduction(
+    state: BurgProductionState,
+    goodId: number,
+    yieldLots: number,
+    laborUsed: number,
+    applyCalibration: boolean,
+    skippedGoodIds: Set<number>
+  ): void {
+    if (!applyCalibration) return;
+    const remaining = state.remainingCalibratedLots.get(goodId);
+    if (remaining != null) state.remainingCalibratedLots.set(goodId, Math.max(0, remaining - yieldLots));
+    if (laborUsed <= 1e-9) skippedGoodIds.add(goodId);
+  }
+
+  /**
+   * `laborBudget` is a population-point labor allocation, not a lot count. Prior to
+   * docs/plan/craft-demand-calibration.md PR 3, this method assumed labor and yield were the same
+   * quantity (`actualYield = Math.min(workerFraction, maxYield)`), which forced a low-labor-
+   * intensity good like Barrels to produce hundreds of lots in a single step whenever a full 1.0
+   * labor slice was offered. When `applyCalibration` is on, `laborBudget` is first converted to a
+   * desired lot count via the good's authored `laborPointsPerLot` (craftDemandCalibration.ts) —
+   * unmapped goods keep `laborPerLot = 1`, so `desiredLots` is numerically identical to the legacy
+   * `workerFraction` for them. `laborUsed` reflects only the labor actually consumed by the final,
+   * fully-capped `actualYield` — zero on every early-return path (nothing was actually
+   * manufactured), never the full offered `laborBudget`.
+   */
   private executeManufacture(
     state: BurgProductionState,
     index: ProductionIndex,
     decision: ProductionDecision,
-    workerFraction: number
-  ): void {
+    laborBudget: number
+  ): { yieldLots: number; laborUsed: number } {
     const { good, ingredients, byproducts, maxYield, ingredientCostPerUnit, smithingProgram } = decision.action;
-    let actualYield = Math.min(workerFraction, maxYield);
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
+    const laborPerLot = applyCalibration ? Math.max(1e-9, laborPointsForLots(good.name, 1, populationRate)) : 1;
+    const desiredLots = laborBudget / laborPerLot;
+    let actualYield = Math.min(desiredLots, maxYield);
     const fundingState = this.getStateMilitaryManufacturingFund(state, decision.goalGoodId);
     const availableFunds = fundingState?.treasury ?? state.burg.treasury ?? 0;
 
@@ -860,7 +1023,8 @@ export class ProductionModule {
       const affordableYield = Math.max(0, availableFunds) / ingredientCostPerUnit;
       actualYield = Math.min(actualYield, affordableYield);
     }
-    if (actualYield <= 0.001) return;
+    if (actualYield <= 0.001) return { yieldLots: 0, laborUsed: 0 };
+    const laborUsed = actualYield * laborPerLot;
 
     const cultureModifier = getModifiers(good, state.burg.cell);
     // The Burg's craft guild for this Good's domain (GuildKnowledge.settleAnnual()) applies as an
@@ -875,7 +1039,7 @@ export class ProductionModule {
         (smithingProgram?.outputMultiplier ?? 1),
       2
     );
-    if (!produced) return;
+    if (!produced) return { yieldLots: 0, laborUsed: 0 };
 
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
     type Plan = { ingredientId: number; amount: number; fromInventory: number; deal: Deal | null };
@@ -902,7 +1066,7 @@ export class ProductionModule {
           // Either way, bail out before producing more than the ingredients actually paid for.
           const message = `Failed to acquire ${rn(fromMarket, 2)} units of ${Goods.get(ingredientId)?.name} from market for production of ${good.name}`;
           ERROR && console.error(message);
-          return;
+          return { yieldLots: 0, laborUsed: 0 };
         }
         remainingBudget = Math.max(0, remainingBudget - deal.units * deal.price);
       }
@@ -968,6 +1132,8 @@ export class ProductionModule {
         masterCharacterId: smithingProgram?.masterCharacterId ?? null
       });
     }
+
+    return { yieldLots: produced, laborUsed };
   }
 
   /** A State pays only for its own military Metallurg order manufactured in one of its Burgs. */
@@ -1679,6 +1845,13 @@ type BurgProductionState = {
   smithingProgramByGood: ReadonlyMap<string, SmithingProductProgram>;
   strategicDemandByGood: ReadonlyMap<number, StrategicProductionDemand>;
   strategicLaborMarket: LaborMarket | undefined;
+  /**
+   * This cycle's remaining calibrated monthly lot target, by goodId, for every good with a
+   * GOOD_DEMAND_CALIBRATION row (craftDemandCalibration.ts). Empty when applyCalibration is off.
+   * A good absent from this map has no calibrated cap — runWorkerLoop() falls back to its
+   * pre-PR-3 behavior for it (docs/plan/craft-demand-calibration.md §3.5).
+   */
+  remainingCalibratedLots: Map<number, number>;
 };
 
 type DemandEffect = { multiplier: number; category: DemandCategory | null };

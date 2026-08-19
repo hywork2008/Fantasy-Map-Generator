@@ -1,6 +1,6 @@
 import { getGuildChapters, getGuildKnowledgeStocks, getWorldContext } from "../economyContext";
 import type { BurgGuildListRow } from "../generators/guildChapterTypes";
-import { getGuildBonus } from "../generators/guildKnowledge";
+import { collectGuildPractitioners, getGuildBonus } from "../generators/guildKnowledge";
 import { findMaster } from "../generators/guildSuccession";
 import { getIndividualSkill } from "../generators/individualSkillMastery";
 
@@ -10,7 +10,12 @@ export function listGuildsForBurg(burgId: number): BurgGuildListRow[] {
   const stocks = getGuildKnowledgeStocks().filter(stock => stock.burgId === burgId);
   const stockByDomain = new Map(stocks.map(stock => [stock.domain, stock]));
   const chapterByDomain = new Map(chapters.map(chapter => [chapter.domain, chapter]));
-  const domains = new Set([...stockByDomain.keys(), ...chapterByDomain.keys()]);
+  const workersByDomain = new Map(
+    [...collectGuildPractitioners().values()]
+      .filter(entry => entry.burgId === burgId)
+      .map(entry => [entry.domain, entry.workers] as const)
+  );
+  const domains = new Set([...stockByDomain.keys(), ...chapterByDomain.keys(), ...workersByDomain.keys()]);
   const characters = getWorldContext().pack.characters ?? [];
 
   return [...domains]
@@ -22,6 +27,7 @@ export function listGuildsForBurg(burgId: number): BurgGuildListRow[] {
       return {
         domain,
         status: chapter ? "chapter" : "informal",
+        workers: workersByDomain.get(domain) ?? 0,
         stock: stock?.stock ?? 0,
         bonus: getGuildBonus(burgId, domain),
         treasury: stock?.treasury ?? 0,

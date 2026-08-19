@@ -7,8 +7,10 @@ import {
   setConstructionHireApplications,
   setConstructionNamedSeats
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import type { ConstructionHireApplication, ConstructionHireRole, ConstructionNamedSeat } from "./constructionHireTypes";
 import { getConstructionJobPosting } from "./constructionJobPostings";
+import { peopleToPoints } from "./craftScale";
 import { characterHasEmploymentCommitment } from "./employmentCommitment";
 
 export type { ConstructionHireApplication, ConstructionHireRole, ConstructionNamedSeat } from "./constructionHireTypes";
@@ -129,7 +131,7 @@ export function applyCharacterToConstructionJob(args: {
   }
   // Construction xor cull (and block double construction seat/app) — K10.
   if (characterHasEmploymentCommitment(args.characterId)) {
-    return { ok: false, message: "Already committed to employment (construction, hunt, or escort)." };
+    return { ok: false, message: "Already committed to employment (construction, hunt, escort, or research)." };
   }
 
   const posting = getConstructionJobPosting(args.burgId);
@@ -243,11 +245,18 @@ function acceptApplication(app: ConstructionHireApplication): void {
     return;
   }
 
-  // Anonymous: add 1 point to the matching anonymous worker pool.
+  // Anonymous: add one real person's worth of population points to the matching worker pool.
+  // Pre-PR-3 this added a full 1.0 population point per accepted hire — at the default rate
+  // 1000, that overcounted one hired worker as 1000 real people (docs/plan/
+  // craft-demand-calibration.md §2.0 P10). applyCalibration converts the increment to
+  // peopleToPoints(1), leaving the legacy +1 point in place while the flag is off.
   const op = getConstructionOperations().find(o => o.active && o.burgId === app.burgId);
   if (!op) return;
-  if (app.role === "mason") op.masonWorkers = (op.masonWorkers ?? 0) + 1;
-  else op.carpenterWorkers = (op.carpenterWorkers ?? 0) + 1;
+  const increment = getEconomyCalibrationState().applyCalibration
+    ? peopleToPoints(1, Math.max(0, getWorldContext().populationRate ?? 0) || 1)
+    : 1;
+  if (app.role === "mason") op.masonWorkers = (op.masonWorkers ?? 0) + increment;
+  else op.carpenterWorkers = (op.carpenterWorkers ?? 0) + increment;
 }
 
 /**

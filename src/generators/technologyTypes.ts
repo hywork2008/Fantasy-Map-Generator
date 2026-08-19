@@ -112,7 +112,8 @@ export interface TechnologyDefinition {
   readonly adopted: TechnologyThresholds;
   /**
    * Years that must elapse at the previous stage before climbing.
-   * Divided by Options → Simulation technology development speed.
+   * Compressed by Options → Simulation technology development speed and
+   * requirement ease (floor of requiredYears / speed / ease).
    */
   readonly minimumYearsAtPreviousStage?: Partial<Record<"known" | "demonstrated" | "adopted", number>>;
 }

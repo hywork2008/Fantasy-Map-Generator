@@ -133,6 +133,7 @@ class HeightmapModule {
     // finalizeVolcanoes() never revisits this time — the old volcano would never disappear.
     cells.volcanic = new Float32Array(this.heights.length);
     cells.volcanicActive = new Uint8Array(this.heights.length);
+    graph.volcanoes = [];
   }
 
   addHill(count: string, height: string, rangeX: string, rangeY: string): void {
@@ -259,18 +260,20 @@ class HeightmapModule {
    * icons.ts already read grid.cells.temp/prec through the pack.cells.g back-reference rather
    * than a pack-local copy.
    *
-   * Dormant volcanoes get their summit carved to HeightThreshold.WATER_MAX_HEIGHT - 1: the
+   * Every tagged volcano gets its summit carved to HeightThreshold.WATER_MAX_HEIGHT - 1: the
    * exact same "gridCells.h[i] = 19" trick main.ts's addLakesInDeepDepressions() uses, so the
    * standard Features.markupGrid() pass that runs right after HeightmapGenerator.generate()
    * discovers it as an ordinary enclosed lake — no separate lake-creation code needed, the same
-   * mechanism that already turns a template's Pit depressions into lakes. Active volcanoes keep
-   * their height (molten, not a hole) and only get a shallow cosmetic caldera notch.
+   * mechanism that already turns a template's Pit depressions into lakes. Active vs dormant is
+   * a lake-group / lava-flow distinction (lava lake + downhill ribbon vs freshwater crater),
+   * not a difference in how the crater is cut.
    */
   private finalizeVolcanoes(): void {
     if (!this.heights || !this.grid || !this.pendingVolcanoes.length) return;
     // setGraph() always allocates these fresh for the current run — see its comment.
     const volcanic = this.grid.cells.volcanic!;
     const volcanicActive = this.grid.cells.volcanicActive!;
+    const volcanoes = this.grid.volcanoes ?? [];
 
     for (const { peakCell, active, change } of this.pendingVolcanoes) {
       const peakChange = change[peakCell] || 1;
@@ -281,16 +284,11 @@ class HeightmapModule {
         if (active && intensity >= VolcanoConstants.CORE_MIN_INTENSITY) volcanicActive[cellId] = 1;
       }
 
-      if (active) {
-        this.heights[peakCell] = Math.max(
-          HeightThreshold.WATER_MAX_HEIGHT + VolcanoConstants.ACTIVE_FLOOR_MARGIN,
-          this.heights[peakCell] - VolcanoConstants.ACTIVE_CALDERA_DEPTH
-        );
-      } else {
-        this.heights[peakCell] = HeightThreshold.WATER_MAX_HEIGHT - 1;
-      }
+      this.heights[peakCell] = HeightThreshold.WATER_MAX_HEIGHT - 1;
+      volcanoes.push({ peakCell, active });
     }
 
+    this.grid.volcanoes = volcanoes;
     this.pendingVolcanoes = [];
   }
 

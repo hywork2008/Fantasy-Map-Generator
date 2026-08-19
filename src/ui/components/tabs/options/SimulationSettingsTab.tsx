@@ -9,6 +9,11 @@ import {
   MAX_TECHNOLOGY_DEVELOPMENT_SPEED,
   MIN_TECHNOLOGY_DEVELOPMENT_SPEED
 } from "../../../../utils/technologyDevelopmentSpeed";
+import {
+  clampTechnologyRequirementEase,
+  MAX_TECHNOLOGY_REQUIREMENT_EASE,
+  MIN_TECHNOLOGY_REQUIREMENT_EASE
+} from "../../../../utils/technologyRequirementEase";
 import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 
@@ -123,6 +128,23 @@ export const SimulationSettingsTab: React.FC = () => {
                 step="1"
                 value={options.technologyDevelopmentSpeed}
                 onChange={v => updateOptionAndLock("technologyDevelopmentSpeed", clampTechnologyDevelopmentSpeed(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip={t("simulation.technologyRequirementEaseTip")}>
+            <td>
+              <LockIconButton id="technologyRequirementEase" />
+            </td>
+            <td>{t("simulation.technologyRequirementEase")}</td>
+            <td colSpan={2}>
+              <SliderInput
+                id="technologyRequirementEase"
+                min={MIN_TECHNOLOGY_REQUIREMENT_EASE}
+                max={MAX_TECHNOLOGY_REQUIREMENT_EASE}
+                step="1"
+                value={options.technologyRequirementEase}
+                onChange={v => updateOptionAndLock("technologyRequirementEase", clampTechnologyRequirementEase(v))}
               />
             </td>
           </tr>

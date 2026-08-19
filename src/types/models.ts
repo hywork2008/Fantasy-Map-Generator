@@ -548,6 +548,24 @@ export interface Religion extends NamedReligion {
   urban?: number;
 }
 
+/**
+ * A downhill lava flow from an active volcanic crater. Same variable-width polyline geometry
+ * as a river, but it is not water: no flux, no erosion, no navigation, no `cells.r` write.
+ */
+export interface LavaFlow {
+  i: number;
+  /** Packed crater (source) cell. */
+  source: number;
+  /** Last cell of the flow (land terminus or the water cell it poured into). */
+  mouth: number;
+  cells: number[];
+  points?: Point[];
+  widthFactor: number;
+  sourceWidth: number;
+  /** Grid cell of the tagged volcanic peak this flow belongs to. */
+  volcanoGridCell: number;
+}
+
 export interface River {
   i: number;
   source: number;

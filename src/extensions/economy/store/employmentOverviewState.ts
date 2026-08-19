@@ -2,7 +2,9 @@ import { create } from "zustand";
 
 export interface EmploymentOverviewRow {
   id: number; // burgId
+  burgId: number;
   burgName: string;
+  stateId: number;
   stateName: string;
   isCapital: boolean;
   administration: number;

@@ -6,7 +6,7 @@
 
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
-import { rn } from "../../hostUtils";
+import { isDeepMineRequirementRelaxed, rn, scaleCountRequirement } from "../../hostUtils";
 import {
   getGoods,
   getMineOperations,
@@ -20,8 +20,11 @@ import {
   setSteamInstallationsLastSettledYear,
   setSteamPumpTrials
 } from "../economyContext";
+import { addNamedStock } from "./chemMedCommon";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
+import { trialSeatUtilizationBonus } from "./technologyBiasApply";
+import { consumeFuelDepositsForMine, FUEL_TRIAL_UTILIZATION_RESCUE_CAP } from "./technologyPatronage";
 
 export const STEAM_ANNUAL_COAL = 2;
 export const STEAM_ANNUAL_TOOLS = 0.35;
@@ -45,11 +48,13 @@ function burgStateId(burgId: number): number {
 
 function eligibleDeepMines(stateId: number) {
   const deposits = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
-  return getMineOperations().filter(operation => {
+  const inState = getMineOperations().filter(operation => {
     if (!operation.active) return false;
-    if (burgStateId(operation.burgId) !== stateId) return false;
-    return deposits.get(operation.depositId)?.depth === "deep";
+    return burgStateId(operation.burgId) === stateId;
   });
+  const deep = inState.filter(operation => deposits.get(operation.depositId)?.depth === "deep");
+  if (deep.length || !isDeepMineRequirementRelaxed()) return deep;
+  return inState;
 }
 
 function operateSite(marketId: number, needsBuildIron: boolean): { coal: number; tools: number; utilization: number } {
@@ -144,10 +149,23 @@ export class SteamInstallationsModule {
         trial.utilization = 0;
         continue;
       }
+      const reserved = consumeFuelDepositsForMine(trial.mineOperationId, year);
+      if (reserved.coal > 0) addNamedStock(mine.marketId, "Coal", reserved.coal);
+      if (reserved.tools > 0) addNamedStock(mine.marketId, "Tools", reserved.tools);
+      if (reserved.iron > 0) addNamedStock(mine.marketId, "Iron Ingot", reserved.iron);
       const result = operateSite(mine.marketId, trial.status === "building");
+      let utilization = result.utilization;
+      let rescueLeft = FUEL_TRIAL_UTILIZATION_RESCUE_CAP;
+      if ((reserved.coal > 0 || reserved.tools > 0 || reserved.iron > 0) && utilization < 0.5) {
+        const fuelAdd = Math.min(rescueLeft, 0.5 - utilization);
+        utilization = rn(utilization + fuelAdd, 4);
+        rescueLeft -= fuelAdd;
+      }
+      const seatAdd = Math.min(rescueLeft, trialSeatUtilizationBonus(trial.mineOperationId));
+      if (seatAdd > 0) utilization = rn(Math.min(1, utilization + seatAdd), 4);
       trial.fuelConsumed = rn(trial.fuelConsumed + result.coal, 4);
       trial.maintenanceConsumed = rn(trial.maintenanceConsumed + result.tools, 4);
-      trial.utilization = result.utilization;
+      trial.utilization = utilization;
       trial.lastOperatedYear = year;
       if (result.utilization >= 0.5) {
         if (trial.status === "building") trial.status = "running";
@@ -157,7 +175,12 @@ export class SteamInstallationsModule {
     }
 
     for (const trial of trials) {
-      if (trial.status !== "running" || trial.documentedRuns < STEAM_TRIAL_YEARS_FOR_DEMONSTRATION) continue;
+      if (
+        trial.status !== "running" ||
+        trial.documentedRuns < scaleCountRequirement(STEAM_TRIAL_YEARS_FOR_DEMONSTRATION)
+      ) {
+        continue;
+      }
       if (installations.some(installation => installation.mineOperationId === trial.mineOperationId)) {
         trial.status = "retired";
         continue;

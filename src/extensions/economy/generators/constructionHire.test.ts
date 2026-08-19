@@ -10,6 +10,7 @@ import {
   setConstructionOperations,
   setGoods
 } from "../economyContext";
+import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import type { ConstructionOperation } from "./constructionEmploymentTypes";
 import {
   ANON_HIRE_LAG_DAYS,
@@ -149,5 +150,22 @@ describe("constructionHire Phase 2–3", () => {
     (worldContext.pack.characters![0] as { location: number }).location = 2;
     purgeInvalidConstructionHireState();
     expect(getConstructionNamedSeats()).toHaveLength(0);
+  });
+
+  describe("applyCalibration named-seat increment (docs/plan/craft-demand-calibration.md §2.0 P10, PR 3)", () => {
+    afterEach(() => setEconomyCalibrationState({ applyCalibration: false }));
+
+    it("adds peopleToPoints(1) instead of a full population point for an accepted anonymous hire", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+
+      tickConstructionHiring(HIRE_ROUND_DAYS);
+      tickConstructionHiring(ANON_HIRE_LAG_DAYS);
+
+      const total = getConstructionOperations()[0].carpenterWorkers + getConstructionOperations()[0].masonWorkers;
+      // 1 real person at the default rate 1000 is 0.001 points — nowhere near the legacy +1 point
+      // (which represented 1000 people for a single accepted hire).
+      expect(total).toBeGreaterThan(0);
+      expect(total).toBeLessThan(0.01);
+    });
   });
 });

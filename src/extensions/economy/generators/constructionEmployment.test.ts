@@ -15,9 +15,11 @@ import {
 } from "../economyContext";
 import {
   BASE_ANNUAL_STOCK_GROWTH,
+  CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE,
   ConstructionOperations,
   estimateDwellingsUnderConstruction,
   getConstructionProductivityMultiplier,
+  getConstructionRequiredPeople,
   getConstructionRequiredWorkers,
   getEffectiveConstructionBacklog,
   getHousingBacklog,
@@ -289,6 +291,50 @@ describe("getConstructionRequiredWorkers", () => {
     const large = getConstructionRequiredWorkers({ buildingStock: 0, hasQuarryAccess: false }, 4000, ctx);
     expect(mid.carpenter).toBeGreaterThan(small.carpenter);
     expect(large.carpenter).toBeGreaterThan(mid.carpenter);
+  });
+});
+
+describe("getConstructionRequiredPeople (docs/plan/craft-demand-calibration.md §2.2, Key Decision 11)", () => {
+  it("is BASE_PEOPLE at zero backlog, independent of getConstructionRequiredWorkers' points BASE", () => {
+    const people = getConstructionRequiredPeople({ buildingStock: 1, hasQuarryAccess: true }, 5, 1000, {
+      cultureType: "Generic",
+      brickAvailable: true
+    });
+    expect(people.mason + people.carpenter).toBeCloseTo(CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE, 1);
+  });
+
+  it("matches the 9-point empty-town fixture (~5 adults, backlog≈0 → ~8 people)", () => {
+    const people = getConstructionRequiredPeople({ buildingStock: 1, hasQuarryAccess: true }, 5, 1000, {
+      cultureType: "Generic",
+      brickAvailable: true
+    });
+    const total = people.mason + people.carpenter;
+    expect(total).toBeGreaterThanOrEqual(7.5);
+    expect(total).toBeLessThanOrEqual(8.5);
+  });
+
+  it("matches the 50-point capital fixture (50 adults, full backlog → ~302 people)", () => {
+    const people = getConstructionRequiredPeople({ buildingStock: 0, hasQuarryAccess: true }, 50, 1000, {
+      cultureType: "Generic",
+      brickAvailable: true
+    });
+    const total = people.mason + people.carpenter;
+    expect(total).toBeCloseTo(302, -1);
+  });
+
+  it("scales the variable term inversely with populationRate while BASE stays fixed", () => {
+    const atDefaultRate = getConstructionRequiredPeople({ buildingStock: 0, hasQuarryAccess: true }, 50, 1000, {
+      cultureType: "Generic",
+      brickAvailable: true
+    });
+    const atHalfRate = getConstructionRequiredPeople({ buildingStock: 0, hasQuarryAccess: true }, 50, 500, {
+      cultureType: "Generic",
+      brickAvailable: true
+    });
+    const totalDefault = atDefaultRate.mason + atDefaultRate.carpenter;
+    const totalHalf = atHalfRate.mason + atHalfRate.carpenter;
+    expect(totalHalf).toBeLessThan(totalDefault);
+    expect(totalHalf).toBeGreaterThanOrEqual(CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE);
   });
 });
 

@@ -1,5 +1,11 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "./backstoryProfile";
-import { getCharacters, getCurrentYear, getWorldContext } from "./charactersContext";
+import {
+  getCharacters,
+  getCurrentYear,
+  getPersonalTechnologyKnowledge,
+  getWorldContext,
+  setPersonalTechnologyKnowledge
+} from "./charactersContext";
 import type { Character, CharacterPersonality, CharacterRole, CharacterSkills } from "./characterTypes";
 import { finalizeCharacterSocietyForPeer } from "./finalizeCharacterSociety";
 import { createPerson } from "./personFactory";
@@ -43,6 +49,8 @@ export interface CreatePlayerCharacterOptions {
   abilityValues: Record<string, number>;
   /** Only the first custom character is assigned the player-character role. */
   isPlayerCharacter?: boolean;
+  /** Tools/create only. Never passed from world generation. */
+  personalTechnologyKnowledge?: "all" | string[];
 }
 
 function getNextCharacterId(characters: readonly Character[]): number {
@@ -165,6 +173,11 @@ export function createPlayerCharacter(options: CreatePlayerCharacterOptions): Ch
   if (character.abilityProfile?.presetId === "ck3e") syncCk3AbilityProfileSkills(character);
 
   characters.push(character);
+  if (options.personalTechnologyKnowledge !== undefined) {
+    const knowledge = { ...getPersonalTechnologyKnowledge() };
+    knowledge[String(character.i)] = options.personalTechnologyKnowledge;
+    setPersonalTechnologyKnowledge(knowledge);
+  }
   seedRelationsWithPeers(character, characters);
   finalizeCharacterSocietyForPeer(character, characters, {
     stateNames: getStateNames(),

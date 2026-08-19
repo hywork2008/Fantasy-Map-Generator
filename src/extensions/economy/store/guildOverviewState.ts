@@ -10,6 +10,8 @@ export interface GuildOverviewRow {
   stateName: string;
   domain: CraftKnowledgeDomain;
   status: GuildPresenceStatus;
+  /** Live practitioner headcount driving this domain's technique (coverage = workers / 6). */
+  workers: number;
   stock: number;
   bonus: number;
   treasury: number;

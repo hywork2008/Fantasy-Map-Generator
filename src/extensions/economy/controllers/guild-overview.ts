@@ -1,7 +1,7 @@
 import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 import { getGuildChapters, getGuildKnowledgeStocks, getWorldContext } from "../economyContext";
-import { getGuildBonus } from "../generators/guildKnowledge";
+import { collectGuildPractitioners, getGuildBonus } from "../generators/guildKnowledge";
 import { type GuildOverviewRow, setGuildOverviewState } from "../store/guildOverviewState";
 
 /**
@@ -21,19 +21,22 @@ export function refreshGuildOverview(): void {
   const states = world.pack.states ?? [];
   const chapters = new Set(getGuildChapters().map(chapter => `${chapter.burgId}:${chapter.domain}`));
 
+  const workersByKey = collectGuildPractitioners();
   const rows: GuildOverviewRow[] = [];
   for (const entry of getGuildKnowledgeStocks()) {
     const burg = burgs[entry.burgId];
     if (!burg?.i || burg.removed) continue;
+    const key = `${entry.burgId}:${entry.domain}`;
 
     rows.push({
-      id: `${entry.burgId}:${entry.domain}`,
+      id: key,
       burgId: entry.burgId,
       burgName: burg.name || `Burg ${entry.burgId}`,
       stateId: burg.state ?? 0,
       stateName: (burg.state ? states[burg.state]?.name : undefined) ?? "—",
       domain: entry.domain,
-      status: chapters.has(`${entry.burgId}:${entry.domain}`) ? "chapter" : "informal",
+      status: chapters.has(key) ? "chapter" : "informal",
+      workers: rn(workersByKey.get(key)?.workers ?? 0, 1),
       stock: rn(entry.stock, 3),
       bonus: rn(getGuildBonus(entry.burgId, entry.domain), 3),
       treasury: rn(entry.treasury, 2)

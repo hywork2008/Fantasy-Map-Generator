@@ -29,6 +29,7 @@ import {
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import { Lakes } from "./lakes";
+import { indexLakeVolcanism } from "./volcanicTerrain";
 
 class FeatureModule {
   worldContext: WorldContext = worldContext;
@@ -481,8 +482,13 @@ class FeatureModule {
       return "gulf";
     };
 
+    const volcanismByLake = indexLakeVolcanism(pack, grid);
+
     const defineLakeGroup = (feature: PackedGraphFeature) => {
+      const volcanism = volcanismByLake.get(feature.i);
+      if (volcanism === "active") return "lava";
       if (feature.temp < TemperatureThreshold.FROZEN_LAKE_TEMP) return "frozen";
+      if (volcanism === "dormant") return "freshwater";
       if (feature.height > HeightThreshold.LAVA_LAKE_HEIGHT && feature.cells < 10 && feature.firstCell % 10 === 0)
         return "lava";
 

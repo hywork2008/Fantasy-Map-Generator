@@ -14,6 +14,7 @@
 - [個人熟練・才能・技法システム](./individual-skill-mastery-system.md) §3–6
 - [蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md): 初期蒸気機関の採用後に導入する中間財、資本財、容量サービスと後続技術の設計。
 - [化学・医学の知識・技術蓄積プロセス設計](./chemistry-medicine-knowledge-accumulation.md): 同じ蓄積型。共有 `ExperimentalWorkshop` と実験ガラス。
+- [プレイヤーキャラクターによる技術バイアス](./player-character-technology-bias.md): プレイヤーは蒸気物証を直書きせず、Technology Overview の診断で ASP が止まっている理由を見られる。
 
 ---
 
@@ -189,6 +190,10 @@ atmosphericSteamPumping → condensateEfficiency → rotarySteamPower
 | `diffused` | 設置可能な State 内の適格深部鉱山へ、部品・整備者が段階的に広がる | 年次設置率で進行 |
 
 既存の `advanceStage()` は条件が強いと同年に `locked → known → demonstrated → adopted` まで進める。このノード群には適用しない。各 `TechnologyDefinition` に `minimumYearsAtPreviousStage` または同等の project-evidence 条件を加え、上表の年数を跨いでから昇格させる。これが「知識の蓄積」を年次閾値の一回通過にしないための必須変更である。
+
+### 5.4 `smelterWorkers` の単位（[craft-demand-calibration.md](./craft-demand-calibration.md) PR 4、2026-08-20 追記）
+
+`precisionBoringAndMeasurement` / `highTempFurnace` / `cannonFoundry` / `coalCarbonization` / `standardMachineWorks` / `improvedMining` の各 `known`/`demonstrated`/`adopted` が読む `smelterWorkers` シグナルは、この PR で population point から実人数へ書き換えられた。`technologyProgress.ts`（`buildStateSignals()`）は `smelter.workers`（`SmelterOperation` の population-point 実雇用数、`basicEmployment.ts` の年次 reconcile は無変更）に `populationRate` を掛けて実人数化する。しきい値定数（`technologyDefinitions.ts`）は同じ年トン閾値を保つ換算式 `people = 1000 × minPoints − 492` で書き換え済み（旧 2/4/6/8/10/12/14 pt → 1508/3508/5508/7508/9508/11508/13508 人）。これは蒸気ゲートを緩める変更ではない——200 トン炉（フルスタッフでも smelter.workers=1 pt）は `highTempFurnace.adopted`（9508 人）に届かない。旧 10 pt 相当（3800 トン、10,000 人）は届く。詳細は [craft-demand-calibration.md](./craft-demand-calibration.md) §5・PR 4 を参照。`economy` 拡張の `applyCalibration` フラグ（既定 true）に関わらず、この換算は常時有効（`smelter.workers` 自体は同フラグの影響を受けない値のため）。
 
 ## 6. 試作、失敗、採算
 

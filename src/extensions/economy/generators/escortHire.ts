@@ -112,7 +112,7 @@ export function applyCharacterToEscortJob(args: { characterId: number; postingId
     return { ok: false, message: "Still recovering from a previous escort injury." };
   }
   if (characterHasEmploymentCommitment(args.characterId)) {
-    return { ok: false, message: "Already committed to employment (construction, hunt, or escort)." };
+    return { ok: false, message: "Already committed to employment (construction, hunt, escort, or research)." };
   }
 
   const posting = getEscortJobPostingById(args.postingId);

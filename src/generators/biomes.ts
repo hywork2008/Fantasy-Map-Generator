@@ -22,6 +22,7 @@ import {
 } from "./biomeAssignment";
 import { initializeBiomeAttributes } from "./biomeAttributes";
 import { assignCoastalHabitats } from "./coastalHabitatAssignment";
+import { lavaFlowLandCells } from "./volcanicTerrain";
 
 class BiomesModule {
   worldContext: WorldContext = worldContext;
@@ -39,6 +40,7 @@ class BiomesModule {
 
     const { fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference, t: coastDist, p: points } = pack.cells;
     const { temp, prec, volcanic: gridVolcanic, volcanicActive: gridVolcanicActive } = grid.cells;
+    const lavaFlowCells = lavaFlowLandCells(pack);
     const n = pack.cells.i.length;
     pack.cells.biomeCode = new Uint8Array(n);
     const habitats = ensureCoastalHabitatColumns(n, pack.cells);
@@ -90,7 +92,8 @@ class BiomesModule {
         x,
         y,
         volcanic: gridVolcanic?.[gridReference[cellId]] ?? 0,
-        volcanicActive: Boolean(gridVolcanicActive?.[gridReference[cellId]])
+        volcanicActive: Boolean(gridVolcanicActive?.[gridReference[cellId]]),
+        lavaFlow: lavaFlowCells.has(cellId)
       };
       pack.cells.biomeCode[cellId] = this.resolveBiomeCode(climate, assignmentOptions);
     }
@@ -150,7 +153,8 @@ class BiomesModule {
         x: 0,
         y: 0,
         volcanic: 0,
-        volcanicActive: false
+        volcanicActive: false,
+        lavaFlow: false
       },
       { profile, seed: 1, volcanicSoilStrength: this.worldContext.options?.volcanicSoilStrength ?? 50 }
     );

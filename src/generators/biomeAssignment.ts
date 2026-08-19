@@ -26,11 +26,16 @@ export interface CellBiomeClimate {
    */
   readonly volcanic: number;
   /**
-   * True only where `volcanic` belongs to a volcano rolled "active" (molten `lavaField` core)
-   * rather than dormant (`volcanicBarrens` cone whose summit was carved into a crater lake).
+   * True only where `volcanic` belongs to a volcano rolled "active" (lava crater + flow)
+   * rather than dormant (`volcanicBarrens` cone whose summit is a freshwater crater lake).
    * Meaningless when `volcanic` is below VolcanoConstants.CORE_MIN_INTENSITY.
    */
   readonly volcanicActive: boolean;
+  /**
+   * True when a generated lava flow crossed this land cell. Those cells become cooled
+   * `lavaField` (recent barren lava rock), not a molten area fill.
+   */
+  readonly lavaFlow: boolean;
 }
 
 export interface AssignmentOptions {
@@ -236,9 +241,9 @@ export function classifySpecialBiome(c: CellBiomeClimate, options: AssignmentOpt
   // volcano already resolved to "glacier" above, so this only fires on ice-free peaks/flanks.
   // Takes priority over every other special biome below — a tagged volcano is a stronger,
   // rarer signal than the generic climate/elevation heuristics it would otherwise fall through to.
-  if (c.volcanic >= VolcanoConstants.CORE_MIN_INTENSITY) {
-    return c.volcanicActive ? "lavaField" : "volcanicBarrens";
-  }
+  // Molten lava is a crater lake + flow line; the area biomes here are cooled rock / ash soil.
+  if (c.lavaFlow) return "lavaField";
+  if (c.volcanic >= VolcanoConstants.CORE_MIN_INTENSITY) return "volcanicBarrens";
   if (c.volcanic >= volcanicSoilThreshold(options.volcanicSoilStrength)) return "volcanicSoil";
 
   // 3. Mangrove

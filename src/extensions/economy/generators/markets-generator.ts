@@ -29,10 +29,12 @@ import {
   setMarkets,
   setStrategicLaborMarkets
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
 import { planCellFoodRescue } from "./cellFoodRescue";
 import type { CellFreshFoodInput } from "./cellFoodRescueTypes";
+import { consumerCoverageForCategory, recipesForIndustrialDemand } from "./craftDemandCalibration";
 import { ExportStaging } from "./exportStaging";
 import {
   recordCellFoodHouseholdConsumption,
@@ -2237,17 +2239,19 @@ export class MarketsModule {
   }
 
   private collectConsumerDemand(goods: Good[]): number[] {
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
     const totalCoverageByCategory = Object.fromEntries(
       DEMAND_PRIORITY.map(category => [
         category,
-        goods.reduce((sum, g) => sum + (g?.demandCoverage?.[category] || 0), 0) || 1
+        goods.reduce((sum, g) => sum + consumerCoverageForCategory(g, category, applyCalibration), 0) || 1
       ])
     ) as Record<DemandCategory, number>;
 
     const demandFactor: number[] = [];
     for (const good of goods) {
       demandFactor[good.i] = DEMAND_PRIORITY.reduce((sum, category) => {
-        const share = (good?.demandCoverage?.[category] || 0) / (totalCoverageByCategory[category] || 1);
+        const share =
+          consumerCoverageForCategory(good, category, applyCalibration) / (totalCoverageByCategory[category] || 1);
         return sum + share * DEMAND_TARGET_FACTORS[category];
       }, 0);
     }
@@ -2256,11 +2260,21 @@ export class MarketsModule {
 
   private collectIndustrialDemand(goods: Good[], consumerDemandFactors: number[]): number[] {
     // Per-capita demand for ingredients driven by consumer demand for their manufactured outputs.
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    const recipeCost = (recipe: Record<string, number>): number => {
+      let cost = 0;
+      for (const [ingredientIdStr, amount] of Object.entries(recipe)) {
+        const ingredient = Goods.get(+ingredientIdStr);
+        if (ingredient && isGoodEnabled(ingredient)) cost += amount * ingredient.value;
+      }
+      return cost;
+    };
     const demandFactor: number[] = [];
     for (const good of goods) {
       if (!good.recipes?.length) continue;
       const outputDemand = consumerDemandFactors[good.i] || 0;
-      for (const recipe of good.recipes) {
+      const recipes = recipesForIndustrialDemand(good, applyCalibration, recipeCost);
+      for (const recipe of recipes) {
         for (const [ingredientIdStr, amount] of Object.entries(recipe)) {
           const ingredientId = +ingredientIdStr;
           const ingredient = Goods.get(ingredientId);

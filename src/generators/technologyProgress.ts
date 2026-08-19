@@ -10,6 +10,11 @@ import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { isGunpowderEraEnabled } from "../utils/gunpowderEra";
 import { getTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
+import {
+  getTechnologyRequirementEase,
+  meetsTechnologyRequirement,
+  type TechnologyRequirementKind
+} from "../utils/technologyRequirementEase";
 import { getActiveTechnologyDefinitions, getTechnologyDefinition } from "./technologyDefinitions";
 import {
   createEmptyTechnologySimulationState,
@@ -18,12 +23,33 @@ import {
   type TechnologyDefinition,
   type TechnologyProgress,
   type TechnologyScope,
+  type TechnologySignalKey,
   type TechnologySignals,
   type TechnologySimulationState,
   type TechnologyStage,
   type TechnologyThresholds,
   technologyStageRank
 } from "./technologyTypes";
+
+/**
+ * Knowledge-ratio mins a live TechnologyHint may treat as met on the known stage.
+ * Counts, amounts, and physical pressures (mineDrainagePressure, sanitation, …) stay required.
+ */
+export const HINTABLE_KNOWN_RATIO_KEYS = [
+  "experimentRecord",
+  "administration",
+  "printing",
+  "naturalPhilosophy",
+  "metallurgy",
+  "woodworking",
+  "masonry",
+  "instruments",
+  "glassware",
+  "medicine",
+  "pyrotechnics"
+] as const satisfies readonly (keyof TechnologySignals)[];
+
+const HINTABLE_KNOWN_RATIO_KEY_SET: ReadonlySet<keyof TechnologySignals> = new Set(HINTABLE_KNOWN_RATIO_KEYS);
 
 const DIFFUSION_ANNUAL_GAIN = 0.15;
 /** Demonstrated blackPowder without war can still advance if treasury demand is high. */
@@ -283,6 +309,7 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
   });
 
   const byKey = new Map(tech.progress.map(p => [progressKey(p.technologyId, p.scope, p.ownerId), p]));
+  const liveHintKeys = collectLiveTechnologyHintKeys(year);
 
   for (const stateId of liveStateIds) {
     const signals = signalsByState.get(stateId) ?? emptySignals();
@@ -312,7 +339,8 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
         continue;
       }
 
-      entry.stage = advanceStage(entry, def, signals, year);
+      // Hints waive allowlisted knowledge ratios on the known climb only.
+      entry.stage = advanceStage(entry, def, signals, year, liveHintKeys.has(`${stateId}:${def.id}`));
     }
   }
 
@@ -411,9 +439,8 @@ function buildStateSignals(): Map<number, TechnologySignals> {
     if (!signals) continue;
     signals.treasury = Math.max(0, Number(state.treasury) || 0);
     signals.atWar = Boolean(state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
-    // Urban population is stored in "display people / populationRate" units in many UIs;
-    // keep raw burg.population sum (already in map population units).
-    void populationRate;
+    // Urban population stays in population-point units (docs/plan/craft-demand-calibration.md
+    // PR 4: "urbanPopulation はポイントのまま" — a scale gate, not restated in people).
   }
 
   const economy = simulationContext.extensions?.economy;
@@ -522,7 +549,12 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       const stateId = asNumber(smelter.stateId) || burgStateId(asNumber(smelter.burgId));
       const signals = map.get(stateId);
       if (signals && smelter.active !== false) {
-        signals.smelterWorkers += asNumber(smelter.workers);
+        // docs/plan/craft-demand-calibration.md PR 4: this is the one raw-headcount signal (not a
+        // 0-1 stock) technologyDefinitions.ts's smelterWorkers gates read, so it is restated in
+        // real people here — smelter.workers itself stays a population-point figure everywhere
+        // else (SmelterOperation, basicEmployment.ts's reconcile, GuildKnowledgeModule's closed
+        // inventory all keep the pre-PR-4 unit).
+        signals.smelterWorkers += Math.max(0, asNumber(smelter.workers)) * populationRate;
       }
     }
     for (const ledger of asStockArray(economy.militaryResourceLedgers)) {
@@ -599,35 +631,54 @@ function goodIdByName(economy: Record<string, unknown>, name: string): number | 
   return null;
 }
 
-function marketBelongsToState(
-  market: Record<string, unknown>,
-  pack: { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> },
-  stateId: number
-): boolean {
-  const center = pack.burgs?.[asNumber(market.centerBurgId)];
-  if (center && typeof center === "object" && !center.removed && center.state === stateId) return true;
-  const marketId = asNumber(market.i);
-  for (const burg of pack.burgs ?? []) {
-    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || burg.state !== stateId) continue;
-    if (burg.market === marketId) return true;
+type ChemMedPack = { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> };
+
+/**
+ * Market -> owning state(s), built once per buildStateSignals() call instead of re-derived per
+ * (state, good) pair. A market can serve more than one state via a split-border catchment (a live
+ * burg outside the center burg's state still pointing burg.market at it) — same ownership rule as
+ * before, just computed in a single O(markets + burgs) pass rather than O(states * markets * burgs).
+ */
+function buildMarketOwnerStates(economy: Record<string, unknown>, pack: ChemMedPack): Map<number, Set<number>> {
+  const owners = new Map<number, Set<number>>();
+  const addOwner = (marketId: number, stateId: number | undefined) => {
+    if (!stateId) return;
+    const existing = owners.get(marketId);
+    if (existing) existing.add(stateId);
+    else owners.set(marketId, new Set([stateId]));
+  };
+
+  for (const market of asStockArray(economy.markets)) {
+    const center = pack.burgs?.[asNumber(market.centerBurgId)];
+    if (center && typeof center === "object" && !center.removed) addOwner(asNumber(market.i), center.state);
   }
-  return false;
+  for (const burg of pack.burgs ?? []) {
+    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || !burg.market) continue;
+    addOwner(burg.market, burg.state);
+  }
+  return owners;
 }
 
-function stateMarketStock(
+/** Per-state stock totals for one good, computed in a single pass over markets. */
+function stateMarketStockByGood(
   economy: Record<string, unknown>,
-  pack: { burgs?: Array<{ i?: number; removed?: boolean; state?: number; market?: number } | 0 | null> },
-  stateId: number,
-  goodId: number
-): number {
-  let stock = 0;
+  owners: Map<number, Set<number>>,
+  goodId: number | null
+): Map<number, number> {
+  const byState = new Map<number, number>();
+  if (goodId === null) return byState;
   for (const market of asStockArray(economy.markets)) {
-    if (!marketBelongsToState(market, pack, stateId)) continue;
+    const ownerStates = owners.get(asNumber(market.i));
+    if (!ownerStates || ownerStates.size === 0) continue;
     const goods = isRecord(market.goods) ? market.goods : {};
     const row = goods[String(goodId)] ?? goods[goodId as unknown as string];
-    stock += asNumber(isRecord(row) ? row.stock : row);
+    const stock = asNumber(isRecord(row) ? row.stock : row);
+    if (stock === 0) continue;
+    for (const stateId of ownerStates) {
+      byState.set(stateId, (byState.get(stateId) ?? 0) + stock);
+    }
   }
-  return stock;
+  return byState;
 }
 
 function applyChemistryMedicineSignals(
@@ -693,22 +744,29 @@ function applyChemistryMedicineSignals(
     }
   }
 
+  // One pass over markets per good (not per state) — see buildMarketOwnerStates()/stateMarketStockByGood().
+  const marketOwners = buildMarketOwnerStates(economy, pack);
+  const soapStockByState = stateMarketStockByGood(economy, marketOwners, soapId);
+  const glassStockByState = stateMarketStockByGood(economy, marketOwners, glassId);
+  const sulfurStockByState = stateMarketStockByGood(economy, marketOwners, sulfurId);
+  const pumiceStockByState = stateMarketStockByGood(economy, marketOwners, pumiceId);
+
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
     signals.battleWoundPressure = clamp01((combatByState.get(stateId) ?? 0) / Math.max(urbanPop * 0.02, 1));
 
-    const soapStock = soapId === null ? 0 : stateMarketStock(economy, pack, stateId, soapId);
-    const glassStock = glassId === null ? 0 : stateMarketStock(economy, pack, stateId, glassId);
+    const soapStock = soapStockByState.get(stateId) ?? 0;
+    const glassStock = glassStockByState.get(stateId) ?? 0;
     const soapShort = clamp01(1 - soapStock / Math.max(urbanPop * 0.02, 1));
     const glassShort = clamp01(1 - glassStock / Math.max(urbanPop * 0.02, 1));
     signals.soapGlassPressure = clamp01(0.5 * soapShort + 0.5 * glassShort);
 
-    const sulfurStock = sulfurId === null ? 0 : stateMarketStock(economy, pack, stateId, sulfurId);
+    const sulfurStock = sulfurStockByState.get(stateId) ?? 0;
     const marketCoverage = clamp01(sulfurStock / 2);
     const militaryCoverage = signals.gunpowderDemand > 0 ? 1 - signals.gunpowderSulfurPressure : 0;
     signals.sulfurAccess = Math.max(militaryCoverage, marketCoverage);
 
-    signals.pumiceCoverage = pumiceId === null ? 0 : clamp01(stateMarketStock(economy, pack, stateId, pumiceId) / 1);
+    signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
     signals.medicineDemandPressure = clamp01(
       0.4 * signals.urbanSanitationPressure +
@@ -855,12 +913,97 @@ function prerequisitesMet(def: TechnologyDefinition, stageOf: (id: string) => Te
   return def.prerequisites.every(id => isTechnologyStageAtLeast(stageOf(id), "adopted"));
 }
 
-function thresholdsMet(thresholds: TechnologyThresholds, signals: TechnologySignals): boolean {
+const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
+  "mineCount",
+  "deepMineCount",
+  "coalMineCount",
+  "portCount",
+  "coastalBurgCount",
+  "smelterWorkers",
+  "completedHulls",
+  "steamTrialYears",
+  "steamInstallations",
+  "hospitalInstallations",
+  "acidPlantInstallations",
+  "labGlassPracticeYears",
+  "apothecaryTrialYears",
+  "hospitalTrialYears",
+  "acidPlantTrialYears",
+  "urbanWaterMaxTier"
+]);
+
+const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
+  "treasury",
+  "urbanPopulation",
+  "gunpowderDemand",
+  "shipTechPoints"
+]);
+
+function signalRequirementKind(key: keyof TechnologySignals): TechnologyRequirementKind {
+  if (COUNT_SIGNAL_KEYS.has(key)) return "count";
+  if (AMOUNT_SIGNAL_KEYS.has(key)) return "amount";
+  return "ratio";
+}
+
+function isHintableKnownRatioKey(key: keyof TechnologySignals): boolean {
+  return HINTABLE_KNOWN_RATIO_KEY_SET.has(key);
+}
+
+/** Read-only window: Economy owns writing and expiry deletion. */
+function isLiveTechnologyHint(
+  hint: Record<string, unknown>,
+  stateId: number,
+  technologyId: string,
+  year: number
+): boolean {
+  if (asNumber(hint.stateId) !== stateId) return false;
+  if (String(hint.technologyId ?? "") !== technologyId) return false;
+  const first = hint.firstEligibleYear;
+  const expires = hint.expiresAfterYear;
+  if (typeof first !== "number" || typeof expires !== "number") return false;
+  if (!Number.isFinite(first) || !Number.isFinite(expires)) return false;
+  return first <= year && year <= expires;
+}
+
+function collectLiveTechnologyHintKeys(year: number): ReadonlySet<string> {
+  const keys = new Set<string>();
+  const economy = simulationContext.extensions?.economy;
+  if (!isRecord(economy)) return keys;
+  for (const hint of asStockArray(economy.technologyHints)) {
+    const stateId = asNumber(hint.stateId);
+    const technologyId = String(hint.technologyId ?? "");
+    if (!stateId || !technologyId) continue;
+    if (isLiveTechnologyHint(hint, stateId, technologyId, year)) {
+      keys.add(`${stateId}:${technologyId}`);
+    }
+  }
+  return keys;
+}
+
+function hasLiveTechnologyHint(stateId: number, technologyId: string, year: number): boolean {
+  const economy = simulationContext.extensions?.economy;
+  if (!isRecord(economy)) return false;
+  for (const hint of asStockArray(economy.technologyHints)) {
+    if (isLiveTechnologyHint(hint, stateId, technologyId, year)) return true;
+  }
+  return false;
+}
+
+function thresholdsMet(
+  thresholds: TechnologyThresholds,
+  signals: TechnologySignals,
+  opts?: { hintKnowledgeRatios?: boolean }
+): boolean {
   if (thresholds.min) {
-    for (const [key, need] of Object.entries(thresholds.min) as [keyof TechnologySignals, number][]) {
+    const ease = getTechnologyRequirementEase();
+    const hintKnowledgeRatios = opts?.hintKnowledgeRatios === true;
+    for (const [key, need] of Object.entries(thresholds.min) as [TechnologySignalKey, number][]) {
       if (need === undefined) continue;
+      if (hintKnowledgeRatios && isHintableKnownRatioKey(key)) continue;
       const value = signals[key];
-      if (typeof value === "number" && value < need) return false;
+      if (typeof value === "number" && !meetsTechnologyRequirement(value, need, signalRequirementKind(key), ease)) {
+        return false;
+      }
     }
   }
   if (thresholds.flags) {
@@ -876,21 +1019,23 @@ function thresholdsMet(thresholds: TechnologyThresholds, signals: TechnologySign
 function heldLongEnough(startYear: number | undefined, requiredYears: number | undefined, year: number): boolean {
   if (!requiredYears) return true;
   if (startYear === undefined) return false;
-  return year - startYear >= requiredYears / getTechnologyDevelopmentSpeed();
+  const waitYears = Math.floor(requiredYears / getTechnologyDevelopmentSpeed() / getTechnologyRequirementEase() + 1e-9);
+  return year - startYear >= waitYears;
 }
 
 function advanceStage(
   entry: TechnologyProgress,
   def: TechnologyDefinition,
   signals: TechnologySignals,
-  year: number
+  year: number,
+  hintKnowledgeRatios = false
 ): TechnologyStage {
   let stage = entry.stage;
   const waits = def.minimumYearsAtPreviousStage;
 
   // Same year may climb locked → known → demonstrated → adopted when signals are strong
-  // and the definition does not require time-in-stage.
-  if (technologyStageRank(stage) < 1 && thresholdsMet(def.known, signals)) {
+  // and the definition does not require time-in-stage. Hints never apply past known.
+  if (technologyStageRank(stage) < 1 && thresholdsMet(def.known, signals, { hintKnowledgeRatios })) {
     stage = "known";
     entry.discoveredYear = entry.discoveredYear ?? year;
   }
@@ -921,6 +1066,51 @@ function advanceStage(
 
   entry.stage = stage;
   return stage;
+}
+
+function explainThresholds(
+  stage: "known" | "demonstrated" | "adopted",
+  thresholds: TechnologyThresholds,
+  signals: TechnologySignals,
+  lines: string[],
+  opts?: { hintKnowledgeRatios?: boolean }
+): void {
+  const ease = getTechnologyRequirementEase();
+  const hintKnowledgeRatios = opts?.hintKnowledgeRatios === true;
+  if (thresholds.min) {
+    for (const [key, need] of Object.entries(thresholds.min) as [TechnologySignalKey, number][]) {
+      if (need === undefined) continue;
+      if (hintKnowledgeRatios && isHintableKnownRatioKey(key)) continue;
+      const value = signals[key];
+      if (typeof value === "number" && !meetsTechnologyRequirement(value, need, signalRequirementKind(key), ease)) {
+        lines.push(`unmet ${stage} min ${key}: ${value} < ${need}`);
+      }
+    }
+  }
+  if (thresholds.flags?.atWar === true && !signals.atWar && signals.treasury < WAR_OPTIONAL_TREASURY) {
+    lines.push(`unmet ${stage} flag atWar`);
+  }
+  if (thresholds.flags?.capitalPort === true && !signals.capitalPort) {
+    lines.push(`unmet ${stage} flag capitalPort`);
+  }
+}
+
+/**
+ * English diagnostic lines for unmet known/demonstrated/adopted mins and hint liveness.
+ * Read by Technology Overview and tests. Pure read of pack + slices.
+ */
+export function explainTechnologyGate(stateId: number, technologyId: string): string[] {
+  const def = getTechnologyDefinition(technologyId);
+  if (!def) return [`unknown technology ${technologyId}`];
+
+  const signals = buildStateSignals().get(stateId) ?? emptySignals();
+  const year = simulationContext.currentYear;
+  const hintLive = hasLiveTechnologyHint(stateId, technologyId, year);
+  const lines: string[] = [hintLive ? "hint is live" : "hint is not live"];
+  explainThresholds("known", def.known, signals, lines, { hintKnowledgeRatios: hintLive });
+  explainThresholds("demonstrated", def.demonstrated, signals, lines);
+  explainThresholds("adopted", def.adopted, signals, lines);
+  return lines;
 }
 
 /** Test helper: replace progress rows. */

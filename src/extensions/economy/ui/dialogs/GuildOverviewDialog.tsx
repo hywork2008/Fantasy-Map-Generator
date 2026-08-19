@@ -13,17 +13,19 @@ import {
 
 import { open as openGuildOverview, refreshGuildOverview } from "../../controllers/guild-overview";
 import { getApi } from "../../economyContext";
+import { useEconomyCalibrationState } from "../../store/economyCalibrationState";
 import { type GuildOverviewRow, useGuildOverviewState } from "../../store/guildOverviewState";
 
 type SortField = keyof Pick<
   GuildOverviewRow,
-  "burgName" | "stateName" | "domain" | "status" | "stock" | "bonus" | "treasury"
+  "burgName" | "stateName" | "domain" | "status" | "workers" | "stock" | "bonus" | "treasury"
 >;
 
 export const GuildOverviewDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("guildOverview"));
   const rawRows = useGuildOverviewState(state => state.rows);
+  const applyCalibration = useEconomyCalibrationState(state => state.applyCalibration);
 
   const parentRef = React.useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = React.useState<SortField>("stock");
@@ -182,6 +184,7 @@ export const GuildOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -218,6 +221,19 @@ export const GuildOverviewDialog: React.FC = () => {
                 tip={t("extensions.guildOverview.statusTip")}
               />
               <SortableHeader
+                field="workers"
+                label={t("extensions.guildOverview.workers")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip={t(
+                  applyCalibration
+                    ? "extensions.guildOverview.workersTipCalibrated"
+                    : "extensions.guildOverview.workersTip"
+                )}
+              />
+              <SortableHeader
                 field="stock"
                 label={t("extensions.guildOverview.technique")}
                 sortBy={sortBy}
@@ -249,7 +265,7 @@ export const GuildOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <span>
                     {rawRows.length ? t("extensions.guildOverview.emptyFiltered") : t("extensions.guildOverview.empty")}
                   </span>
@@ -289,9 +305,15 @@ const GuildRow: React.FC<{ row: GuildOverviewRow }> = ({ row }) => {
       <td>
         {row.status === "chapter" ? t("extensions.guildOverview.chapter") : t("extensions.guildOverview.informal")}
       </td>
+      <td className="numeric">{formatWorkers(row.workers)}</td>
       <td className="numeric">{row.stock.toFixed(3)}</td>
       <td className="numeric">{row.bonus.toFixed(3)}</td>
       <td className="numeric">{row.treasury.toFixed(2)}</td>
     </tr>
   );
 };
+
+function formatWorkers(workers: number): string {
+  if (workers <= 0) return "0";
+  return Number.isInteger(workers) ? String(workers) : workers.toFixed(1);
+}

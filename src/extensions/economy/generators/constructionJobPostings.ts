@@ -6,7 +6,9 @@ import {
   getConstructionOperations,
   getWorldContext
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import {
+  getConstructionRequiredPeople,
   getConstructionRequiredWorkers,
   getHousingBacklog,
   getRequiredDwellings,
@@ -16,6 +18,7 @@ import {
   resolveBurgCultureType
 } from "./constructionEmployment";
 import type { ConstructionOperation } from "./constructionEmploymentTypes";
+import { pointsToPeople } from "./craftScale";
 
 /**
  * Construction job postings vs anonymous macro hiring
@@ -39,6 +42,15 @@ export const CONSTRUCTION_POSTING_SHARE = 0.1;
 export const CONSTRUCTION_OPEN_GAP_SHARE = 0.3;
 /** Minimum full demand (mason+carpenter) before we bother posting MIN_POSTINGS. */
 const DEMAND_FLOOR_FOR_POSTINGS = 1.5;
+
+/**
+ * Real-people equivalents of the three posting thresholds above (docs/plan/
+ * craft-demand-calibration.md §2.2), used once applyCalibration is on and demand/filled are
+ * expressed in real people rather than population points.
+ */
+export const CONSTRUCTION_MIN_POSTINGS_PEOPLE = 1;
+export const CONSTRUCTION_MAX_POSTINGS_PEOPLE = 12;
+const DEMAND_FLOOR_FOR_POSTINGS_PEOPLE = 3;
 
 export interface ConstructionRoleDemand {
   mason: number;
@@ -76,15 +88,22 @@ function masonContextForBurg(burg: { culture?: number; type?: string }): MasonSh
   };
 }
 
-/** Full construction labor demand (unchanged economics). */
+/**
+ * Full construction labor demand for the hire board. Points (unchanged economics) when
+ * applyCalibration is off; real people (docs/plan/craft-demand-calibration.md §2.2) when on —
+ * `populationRate` is only consulted in the latter case.
+ */
 export function getFullConstructionDemand(
   operation: Pick<ConstructionOperation, "buildingStock" | "hasQuarryAccess" | "dwellingStock"> & {
     requiredDwellings?: number;
   },
   adults: number,
+  populationRate: number,
   masonShareContext?: MasonShareContext
 ): ConstructionRoleDemand {
-  const roles = getConstructionRequiredWorkers(operation, adults, masonShareContext);
+  const roles = getEconomyCalibrationState().applyCalibration
+    ? getConstructionRequiredPeople(operation, adults, populationRate, masonShareContext)
+    : getConstructionRequiredWorkers(operation, adults, masonShareContext);
   return {
     mason: roles.mason,
     carpenter: roles.carpenter,
@@ -122,9 +141,22 @@ export function computeConstructionOpenSeats(args: {
   carpenterDemand: number;
   masonFilled: number;
   carpenterFilled: number;
+  /** True when demandTotal/filledTotal are real people, not population points. */
+  applyCalibration?: boolean;
 }): { openSeats: number; openMason: number; openCarpenter: number } {
-  const { demandTotal, filledTotal, masonDemand, carpenterDemand, masonFilled, carpenterFilled } = args;
-  if (demandTotal < DEMAND_FLOOR_FOR_POSTINGS) {
+  const {
+    demandTotal,
+    filledTotal,
+    masonDemand,
+    carpenterDemand,
+    masonFilled,
+    carpenterFilled,
+    applyCalibration = false
+  } = args;
+  const demandFloor = applyCalibration ? DEMAND_FLOOR_FOR_POSTINGS_PEOPLE : DEMAND_FLOOR_FOR_POSTINGS;
+  const minPostings = applyCalibration ? CONSTRUCTION_MIN_POSTINGS_PEOPLE : CONSTRUCTION_MIN_POSTINGS;
+  const maxPostings = applyCalibration ? CONSTRUCTION_MAX_POSTINGS_PEOPLE : CONSTRUCTION_MAX_POSTINGS;
+  if (demandTotal < demandFloor) {
     return { openSeats: 0, openMason: 0, openCarpenter: 0 };
   }
 
@@ -132,10 +164,7 @@ export function computeConstructionOpenSeats(args: {
   const raw = demandTotal * CONSTRUCTION_POSTING_SHARE + gap * CONSTRUCTION_OPEN_GAP_SHARE;
   // Always leave at least MIN when demand is real — the reserved macro band guarantees room.
   const reservedBand = demandTotal * CONSTRUCTION_RESERVED_FOR_HIRE;
-  const openSeats = Math.min(
-    CONSTRUCTION_MAX_POSTINGS,
-    Math.max(CONSTRUCTION_MIN_POSTINGS, Math.ceil(Math.max(raw, reservedBand * 0.5)))
-  );
+  const openSeats = Math.min(maxPostings, Math.max(minPostings, Math.ceil(Math.max(raw, reservedBand * 0.5))));
 
   // Split openings by role demand share (prefer the thinner role).
   const masonShort = Math.max(0, masonDemand - masonFilled);
@@ -174,7 +203,8 @@ export function getConstructionJobPosting(burgId: number): ConstructionJobPostin
   const adults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
   const ctx = masonContextForBurg(burg);
 
-  const demandRoles = getFullConstructionDemand({ ...operation, requiredDwellings }, adults, ctx);
+  const applyCalibration = getEconomyCalibrationState().applyCalibration;
+  const demandRoles = getFullConstructionDemand({ ...operation, requiredDwellings }, adults, rate, ctx);
   const macroRoles = getConstructionMacroRequiredWorkers({ ...operation, requiredDwellings }, adults, ctx);
 
   let namedMason = 0;
@@ -192,10 +222,17 @@ export function getConstructionJobPosting(burgId: number): ConstructionJobPostin
     else pendingCarpenter += 1;
   }
 
+  // Named seats are already a real headcount (1 seat = 1 character). Anonymous
+  // operation.masonWorkers/carpenterWorkers stay population points; convert to people alongside
+  // named seats once applyCalibration is on, matching demandRoles' unit above.
+  const anonymousMason = applyCalibration ? pointsToPeople(operation.masonWorkers, rate) : operation.masonWorkers;
+  const anonymousCarpenter = applyCalibration
+    ? pointsToPeople(operation.carpenterWorkers, rate)
+    : operation.carpenterWorkers;
   const filled: ConstructionRoleDemand = {
-    mason: operation.masonWorkers + namedMason,
-    carpenter: operation.carpenterWorkers + namedCarpenter,
-    total: rn(operation.masonWorkers + namedMason + operation.carpenterWorkers + namedCarpenter, 2)
+    mason: anonymousMason + namedMason,
+    carpenter: anonymousCarpenter + namedCarpenter,
+    total: rn(anonymousMason + namedMason + anonymousCarpenter + namedCarpenter, 2)
   };
   const openings = computeConstructionOpenSeats({
     demandTotal: demandRoles.total,
@@ -203,7 +240,8 @@ export function getConstructionJobPosting(burgId: number): ConstructionJobPostin
     masonDemand: demandRoles.mason,
     carpenterDemand: demandRoles.carpenter,
     masonFilled: filled.mason,
-    carpenterFilled: filled.carpenter
+    carpenterFilled: filled.carpenter,
+    applyCalibration
   });
   // Pending applications reserve seats so they are not double-offered.
   const freeMason = Math.max(0, openings.openMason - pendingMason);

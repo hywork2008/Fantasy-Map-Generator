@@ -14,7 +14,8 @@ import {
   setMarkets,
   setMetallurgWorkOrders
 } from "../economyContext";
-import { Goods } from "./goods-generator";
+import { setEconomyCalibrationState } from "../store/economyCalibrationState";
+import { DEMAND_TARGET_FACTORS, type Good, Goods } from "./goods-generator";
 import { getCommercialRecipeByproducts, MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import type { MetallurgWorkOrder } from "./metallurgWorkTypes";
@@ -1087,5 +1088,77 @@ describe("MarketsModule shipbuilding material consumption", () => {
       status: "fulfilled"
     });
     expect(market.goods[0].stock).toBe(8);
+  });
+});
+
+describe("MarketsModule craft calibration demand", () => {
+  let marketsModule: MarketsModule;
+
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    marketsModule = new MarketsModule();
+    worldContext.options = { gunpowderEraEnabled: true } as typeof worldContext.options;
+    setEconomyCalibrationState({ applyCalibration: false });
+  });
+
+  afterEach(() => {
+    setEconomyCalibrationState({ applyCalibration: false });
+    clearEconomyContext();
+  });
+
+  it("leaves Barrels in the utilities residual while applyCalibration is off", () => {
+    const wood = { i: 1, name: "Wood", demandCoverage: { utilities: 1 } } as Good;
+    const barrels = { i: 2, name: "Barrels", demandCoverage: { utilities: 1 } } as Good;
+    const goods = [wood, barrels];
+    // biome-ignore lint/complexity/useLiteralKeys: private collector
+    const off = marketsModule["collectConsumerDemand"](goods);
+    expect(off[2]).toBeCloseTo(off[1]);
+    expect(off[2]).toBeCloseTo(DEMAND_TARGET_FACTORS.utilities / 2);
+  });
+
+  it("gives remaining utilities residual to uncalibrated goods when applyCalibration is on", () => {
+    const wood = { i: 1, name: "Wood", demandCoverage: { utilities: 1 } } as Good;
+    const barrels = { i: 2, name: "Barrels", demandCoverage: { utilities: 1 } } as Good;
+    setEconomyCalibrationState({ applyCalibration: true });
+    // biome-ignore lint/complexity/useLiteralKeys: private collector
+    const on = marketsModule["collectConsumerDemand"]([wood, barrels]);
+    expect(on[2]).toBe(0);
+    expect(on[1]).toBeCloseTo(DEMAND_TARGET_FACTORS.utilities);
+  });
+
+  it("counts Beer barrel industrial demand four times off and once on", () => {
+    const barley = { i: 1, name: "Barley", value: 1 } as Good;
+    const barrels = { i: 2, name: "Barrels", value: 2 } as Good;
+    const beer = {
+      i: 10,
+      name: "Beer",
+      value: 4,
+      recipes: [
+        { 1: 1, 2: 0.08 },
+        { 1: 1, 2: 0.08 },
+        { 1: 1, 2: 0.08 },
+        { 1: 1, 2: 0.08 }
+      ]
+    } as Good;
+    const previousGet = vi.mocked(Goods.get).getMockImplementation();
+    vi.mocked(Goods.get).mockImplementation((id: number) => {
+      if (id === 1) return barley;
+      if (id === 2) return barrels;
+      if (id === 10) return beer;
+      return undefined;
+    });
+    try {
+      const consumer: number[] = [];
+      consumer[10] = 1;
+      // biome-ignore lint/complexity/useLiteralKeys: private collector
+      const off = marketsModule["collectIndustrialDemand"]([beer], consumer);
+      expect(off[2]).toBeCloseTo(0.32);
+      setEconomyCalibrationState({ applyCalibration: true });
+      // biome-ignore lint/complexity/useLiteralKeys: private collector
+      const on = marketsModule["collectIndustrialDemand"]([beer], consumer);
+      expect(on[2]).toBeCloseTo(0.08);
+    } finally {
+      if (previousGet) vi.mocked(Goods.get).mockImplementation(previousGet);
+    }
   });
 });

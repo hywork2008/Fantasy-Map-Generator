@@ -78,7 +78,9 @@ export function refreshEmploymentOverview(): void {
 
     rows.push({
       id: burgId,
+      burgId,
       burgName: burg.name || `Burg ${burgId}`,
+      stateId: burg.state ?? 0,
       stateName: (burg.state ? states[burg.state]?.name : undefined) ?? "—",
       isCapital: Boolean(burg.capital),
       administration: rn(administrationByBurg.get(burgId) ?? 0, 1),

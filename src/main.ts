@@ -48,6 +48,7 @@ import { getPreferredDispersedFrontierStarts } from "./generators/frontierStartP
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
+import { LavaFlows } from "./generators/lavaFlows";
 import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
 import { Names } from "./generators/names-generator";
@@ -1125,6 +1126,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
       // below read pack.cells.enclosure, so this must run before them.
       Features.applyOceanCurrentEnclosure();
       Rivers.generate(worldContext, viewContext, appServices, state);
+      LavaFlows.generate(worldContext, viewContext, appServices, state);
       Biomes.define(state);
       Features.defineGroups();
       Ice.generate(worldContext, viewContext, appServices, state);

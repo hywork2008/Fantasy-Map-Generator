@@ -41,6 +41,7 @@ import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { clampTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
+import { clampTechnologyRequirementEase } from "../utils/technologyRequirementEase";
 import { cleanupData } from "../versioning";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { editWorld } from "./world-configurator";
@@ -520,6 +521,7 @@ export function applyStoredOptions(): void {
     "silverToCopperRate",
     "warFrequency",
     "technologyDevelopmentSpeed",
+    "technologyRequirementEase",
     "threatCalculation",
     "emblemShape",
     "distanceScale",
@@ -575,6 +577,9 @@ export function applyStoredOptions(): void {
     loadedOptions.technologyDevelopmentSpeed = clampTechnologyDevelopmentSpeed(
       loadedOptions.technologyDevelopmentSpeed
     );
+  }
+  if (loadedOptions.technologyRequirementEase != null) {
+    loadedOptions.technologyRequirementEase = clampTechnologyRequirementEase(loadedOptions.technologyRequirementEase);
   }
   if (typeof loadedOptions.initialSettlementPattern === "string") {
     loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(loadedOptions.initialSettlementPattern);

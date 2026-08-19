@@ -1,11 +1,11 @@
 import type React from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PREP_TEMPLATES, type PrepTemplateId } from "../../../characters/adventurerTemplates";
 import { usePlayerCharacterState } from "../../../characters/store/playerCharacterState";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { openCharacterMarket } from "../../../economy/controllers/characterMarket";
-import { getCullCooldowns, getEscortCooldowns } from "../../../economy/economyContext";
+import { getCullCooldowns, getEscortCooldowns, getSteamPumpTrials } from "../../../economy/economyContext";
 import { buildCharacterReadiness } from "../../../economy/generators/characterReadiness";
 import {
   getCharacterConstructionEmployment,
@@ -42,6 +42,16 @@ import {
   toggleWarFootingForRuler
 } from "../../../economy/generators/fiscalAuthority";
 import { applyPrepTemplateSkills } from "../../../economy/generators/prepTemplateSkills";
+import { getCharacterInstructMission } from "../../../economy/generators/technologyInstruct";
+import {
+  burgHasActiveExperimentalWorkshop,
+  burgHasActiveMine,
+  burgHasSteamTrial,
+  getCharacterPendingResearchApplication,
+  getCharacterResearchEmployment,
+  RESEARCH_PLAYER_HIRE_LAG_DAYS,
+  type ResearchPlayerHireRole
+} from "../../../economy/generators/technologyResearchHire";
 import { targetDifficulty } from "../../../economy/generators/threatCullCombat";
 import {
   getCharacterCullContract,
@@ -80,6 +90,9 @@ export const PlayerCharacterPanel: React.FC = () => {
   const pendingTravel = usePlayerCharacterState(state => state.pendingTravel);
   const openCharacterDetails = useCharactersUiState(state => state.openCharacterDetails);
   const requestDetailsTab = useCharactersUiState(state => state.requestDetailsTab);
+  type ResearchAction = ResearchPlayerHireRole | "teach" | "copy";
+  const [researchRole, setResearchRole] = useState<ResearchAction>("workshopResearcher");
+  const [teachIds, setTeachIds] = useState<string[]>([]);
 
   // refreshToken is an intentional extra dep: characters mutate in place on ticks.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
@@ -166,7 +179,16 @@ export const PlayerCharacterPanel: React.FC = () => {
     const cullPendingApp = getCharacterPendingCullApplication(playerCharacterId);
     const escortContract = getCharacterEscortContract(playerCharacterId);
     const escortPendingApp = getCharacterPendingEscortApplication(playerCharacterId);
+    const researchSeat = getCharacterResearchEmployment(playerCharacterId);
+    const researchPendingApp = getCharacterPendingResearchApplication(playerCharacterId);
+    const instructMission = getCharacterInstructMission(playerCharacterId);
     const burgId = summary?.location?.burgId;
+    const trial =
+      burgId != null
+        ? getSteamPumpTrials().find(
+            entry => entry.burgId === burgId && (entry.status === "building" || entry.status === "running")
+          )
+        : undefined;
     const posting = burgId != null ? getConstructionJobPosting(burgId) : null;
     const cullPosts = burgId != null ? getCullJobPostingsForBurg(burgId) : [];
     const openCullPosts = cullPosts.filter(p => getLiveOpenSeats(p.i) > 0);
@@ -194,6 +216,13 @@ export const PlayerCharacterPanel: React.FC = () => {
       escortContract,
       escortPendingApp,
       openEscortPosts,
+      researchSeat,
+      researchPendingApp,
+      instructMission,
+      hasWorkshop: burgId != null && burgHasActiveExperimentalWorkshop(burgId),
+      hasMine: burgId != null && burgHasActiveMine(burgId),
+      hasTrial: burgId != null && burgHasSteamTrial(burgId),
+      trialMineId: trial?.mineOperationId ?? null,
       onInjuryCooldown,
       cooldownDaysLeft: onInjuryCooldown && cooldownUntil != null ? Math.max(0, Math.ceil(cooldownUntil - ordinal)) : 0
     };
@@ -220,6 +249,9 @@ export const PlayerCharacterPanel: React.FC = () => {
   const hasConstructionCommitment = Boolean(workStatus?.seat || workStatus?.pendingApp);
   const hasCullCommitment = Boolean(workStatus?.cullContract || workStatus?.cullPendingApp);
   const hasEscortCommitment = Boolean(workStatus?.escortContract || workStatus?.escortPendingApp);
+  const hasResearchCommitment = Boolean(
+    workStatus?.researchSeat || workStatus?.researchPendingApp || workStatus?.instructMission
+  );
   // Panel-only: on active hunt/escort, block Move so the player does not leave mid-mission by accident.
   const canMove =
     Boolean(summary?.location) && !pendingTravel && !workStatus?.cullContract && !workStatus?.escortContract;
@@ -325,6 +357,117 @@ export const PlayerCharacterPanel: React.FC = () => {
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
+  const handleApplyResearch = () => {
+    if (playerCharacterId === null || workStatus?.burgId == null) return;
+    if (researchRole === "teach") {
+      const result = getApi().dispatchExtensionCommand({
+        extensionId: ECONOMY_EXTENSION_ID,
+        name: "jobs.instruct",
+        payload: { characterId: playerCharacterId, burgId: workStatus.burgId, technologyIds: teachIds }
+      });
+      const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+      if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+      usePlayerCharacterState.getState().bumpRefreshToken();
+      return;
+    }
+    if (researchRole === "copy") {
+      const result = getApi().dispatchExtensionCommand({
+        extensionId: ECONOMY_EXTENSION_ID,
+        name: "jobs.copyNotes",
+        payload: { characterId: playerCharacterId, burgId: workStatus.burgId, technologyId: teachIds[0] }
+      });
+      const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+      if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+      usePlayerCharacterState.getState().bumpRefreshToken();
+      return;
+    }
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.applyResearch",
+      payload: {
+        characterId: playerCharacterId,
+        burgId: workStatus.burgId,
+        role: researchRole,
+        mineOperationId: workStatus.trialMineId ?? undefined
+      }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    else if (!result) tip("Enable the Economy extension to apply for research work.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleFundWorkshop = () => {
+    if (playerCharacterId === null || workStatus?.burgId == null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "patronage.fundWorkshop",
+      payload: { characterId: playerCharacterId, burgId: workStatus.burgId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleHireResearchers = () => {
+    if (playerCharacterId === null || workStatus?.burgId == null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "patronage.hireResearchers",
+      payload: { characterId: playerCharacterId, burgId: workStatus.burgId, count: 1 }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleFuelTrial = () => {
+    if (playerCharacterId === null || workStatus?.trialMineId == null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "patronage.fuelTrial",
+      payload: { characterId: playerCharacterId, mineOperationId: workStatus.trialMineId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleCancelResearchApplication = () => {
+    if (playerCharacterId === null) return;
+    if (workStatus?.instructMission) {
+      const result = getApi().dispatchExtensionCommand({
+        extensionId: ECONOMY_EXTENSION_ID,
+        name: "jobs.cancelInstruct",
+        payload: { characterId: playerCharacterId }
+      });
+      const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+      if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+      usePlayerCharacterState.getState().bumpRefreshToken();
+      return;
+    }
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.cancelResearchApplication",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleResignResearch = () => {
+    if (playerCharacterId === null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.resignResearch",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   const pendingLabel =
     pendingTravel && pendingTravel.remainingDays > 0 ? `Travelling · ${pendingTravel.remainingDays}d left` : null;
 
@@ -348,6 +491,24 @@ export const PlayerCharacterPanel: React.FC = () => {
     if (workStatus?.onInjuryCooldown) {
       return `Recovering from injury (${workStatus.cooldownDaysLeft}d)`;
     }
+    if (workStatus?.researchSeat) {
+      const role =
+        workStatus.researchSeat.role === "workshopResearcher"
+          ? "workshop researcher"
+          : workStatus.researchSeat.role === "mineLaborer"
+            ? "mine laborer"
+            : workStatus.researchSeat.role;
+      return `${role} @ burg ${workStatus.researchSeat.burgId}`;
+    }
+    if (workStatus?.researchPendingApp) {
+      const role =
+        workStatus.researchPendingApp.role === "workshopResearcher"
+          ? "workshop"
+          : workStatus.researchPendingApp.role === "mineLaborer"
+            ? "mine labor"
+            : workStatus.researchPendingApp.role;
+      return `Applying ${role} (${Math.ceil(workStatus.researchPendingApp.daysRemaining)}d)`;
+    }
     if (workStatus?.seat) {
       return `${workStatus.seat.role} @ burg ${workStatus.seat.burgId}`;
     }
@@ -364,6 +525,8 @@ export const PlayerCharacterPanel: React.FC = () => {
     if (workStatus?.openEscortPosts?.length) {
       parts.push(`${workStatus.openEscortPosts.length} escort`);
     }
+    if (workStatus?.hasWorkshop) parts.push("workshop");
+    if (workStatus?.hasMine) parts.push("mine labor");
     if (parts.length) return `${parts.join(" · ")} job(s) here`;
     return "No job openings here";
   })();
@@ -410,6 +573,7 @@ export const PlayerCharacterPanel: React.FC = () => {
     !hasConstructionCommitment &&
     !hasCullCommitment &&
     !hasEscortCommitment &&
+    !hasResearchCommitment &&
     !workStatus?.onInjuryCooldown &&
     (workStatus?.posting?.openSeats ?? 0) > 0;
 
@@ -419,6 +583,7 @@ export const PlayerCharacterPanel: React.FC = () => {
     !hasConstructionCommitment &&
     !hasCullCommitment &&
     !hasEscortCommitment &&
+    !hasResearchCommitment &&
     !workStatus?.onInjuryCooldown &&
     (workStatus?.openCullPosts?.length ?? 0) > 0;
 
@@ -428,8 +593,29 @@ export const PlayerCharacterPanel: React.FC = () => {
     !hasConstructionCommitment &&
     !hasCullCommitment &&
     !hasEscortCommitment &&
+    !hasResearchCommitment &&
     !workStatus?.onInjuryCooldown &&
     (workStatus?.openEscortPosts?.length ?? 0) > 0;
+
+  const selectedResearchOpen =
+    researchRole === "workshopResearcher"
+      ? Boolean(workStatus?.hasWorkshop)
+      : researchRole === "mineLaborer"
+        ? Boolean(workStatus?.hasMine)
+        : researchRole === "trialMachinist"
+          ? Boolean(workStatus?.hasTrial)
+          : researchRole === "teach"
+            ? teachIds.length > 0
+            : teachIds.length === 1;
+  const canApplyResearch =
+    Boolean(summary?.location) &&
+    !pendingTravel &&
+    !hasConstructionCommitment &&
+    !hasCullCommitment &&
+    !hasEscortCommitment &&
+    !hasResearchCommitment &&
+    !workStatus?.onInjuryCooldown &&
+    selectedResearchOpen;
 
   const canResignConstruction = Boolean(workStatus?.seat);
   const canCancelApplication = Boolean(workStatus?.pendingApp);
@@ -437,6 +623,44 @@ export const PlayerCharacterPanel: React.FC = () => {
   const canResignCull = Boolean(workStatus?.cullContract);
   const canCancelEscortApplication = Boolean(workStatus?.escortPendingApp);
   const canResignEscort = Boolean(workStatus?.escortContract);
+  const canCancelResearchApplication = Boolean(workStatus?.researchPendingApp || workStatus?.instructMission);
+  const canResignResearch = Boolean(workStatus?.researchSeat);
+
+  const researchStatusLabel = (() => {
+    if (workStatus?.instructMission) {
+      return `${workStatus.instructMission.kind === "teach" ? "Teaching" : "Copying notes"} (${Math.ceil(workStatus.instructMission.daysRemaining)}d)`;
+    }
+    if (workStatus?.researchSeat) {
+      const role =
+        workStatus.researchSeat.role === "workshopResearcher"
+          ? "Workshop researcher"
+          : workStatus.researchSeat.role === "mineLaborer"
+            ? "Mine laborer"
+            : workStatus.researchSeat.role === "trialMachinist"
+              ? "Trial machinist"
+              : workStatus.researchSeat.role;
+      return `${role} @ burg ${workStatus.researchSeat.burgId}`;
+    }
+    if (workStatus?.researchPendingApp) {
+      const role =
+        workStatus.researchPendingApp.role === "workshopResearcher"
+          ? "workshop"
+          : workStatus.researchPendingApp.role === "mineLaborer"
+            ? "mine labor"
+            : workStatus.researchPendingApp.role === "trialMachinist"
+              ? "trial"
+              : workStatus.researchPendingApp.role;
+      return `Applying ${role} (${Math.ceil(workStatus.researchPendingApp.daysRemaining)}d)`;
+    }
+    if (workStatus?.hasWorkshop || workStatus?.hasMine || workStatus?.hasTrial) {
+      const parts: string[] = [];
+      if (workStatus.hasWorkshop) parts.push("workshop");
+      if (workStatus.hasMine) parts.push("mine labor");
+      if (workStatus.hasTrial) parts.push("trial");
+      return `${parts.join(" · ")} available`;
+    }
+    return "No research openings here";
+  })();
   const canTrade = Boolean(summary?.location) && !pendingTravel && getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID);
 
   const handleCancelApplication = () => {
@@ -1307,6 +1531,112 @@ export const PlayerCharacterPanel: React.FC = () => {
           </button>
         </div>
       )}
+
+      {summary && getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID) ? (
+        <div className="pcp-actions pcp-actions-research" role="toolbar" aria-label="Research work">
+          <span className="pcp-research-status" title={researchStatusLabel}>
+            Research: {researchStatusLabel}
+          </span>
+          <select
+            className="pcp-action"
+            aria-label="Research job role"
+            data-tip="Choose workshop research (engineering 60+) or unskilled mine labor. Hire resolves after 14 days and cannot combine with other jobs."
+            value={researchRole}
+            disabled={hasResearchCommitment}
+            onChange={event => setResearchRole(event.target.value as ResearchAction)}
+          >
+            <option value="workshopResearcher">Workshop</option>
+            <option value="mineLaborer">Mine labor</option>
+            <option value="trialMachinist">Trial</option>
+            <option value="teach">Teach</option>
+            <option value="copy">Copy notes</option>
+          </select>
+          {researchRole === "teach" || researchRole === "copy" ? (
+            <input
+              className="pcp-action"
+              aria-label="Technology ids"
+              data-tip="Comma-separated technology ids. Teach allows 1–3. Copy notes uses the first id."
+              value={teachIds.join(",")}
+              onChange={event => {
+                const ids = event.target.value
+                  .split(/[\s,]+/)
+                  .map(id => id.trim())
+                  .filter(Boolean);
+                setTeachIds(ids.slice(0, researchRole === "copy" ? 1 : 3));
+              }}
+              placeholder={researchRole === "copy" ? "technologyId" : "id,id,id"}
+            />
+          ) : null}
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              researchRole === "workshopResearcher"
+                ? `Apply as a workshop researcher here (Economy). Requires engineering 60+ and an experimental workshop. Decision in ${RESEARCH_PLAYER_HIRE_LAG_DAYS} days.`
+                : `Apply as mine labor here (Economy). Requires an active mine. Decision in ${RESEARCH_PLAYER_HIRE_LAG_DAYS} days.`
+            }
+            disabled={!canApplyResearch}
+            onClick={handleApplyResearch}
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Withdraw a pending research application"
+            disabled={!canCancelResearchApplication}
+            onClick={handleCancelResearchApplication}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Leave research or mine-labor work at this burg"
+            disabled={!canResignResearch}
+            onClick={handleResignResearch}
+          >
+            Resign
+          </button>
+        </div>
+      ) : null}
+
+      {summary && getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID) ? (
+        <div className="pcp-actions pcp-actions-patronage" role="toolbar" aria-label="Research patronage">
+          <span className="pcp-research-status">Patronage</span>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Pay 16 gold toward this burg's experimental workshop (ruler treasury or personal wealth)."
+            disabled={!summary.location || pendingTravel != null}
+            onClick={handleFundWorkshop}
+          >
+            Fund
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Hire one extra workshop researcher for 8 gold. Requires an open workshop."
+            disabled={!workStatus?.hasWorkshop || pendingTravel != null}
+            onClick={handleHireResearchers}
+          >
+            Hire
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              workStatus?.hasTrial
+                ? "Reserve Coal/Tools/Iron for the next trial year. Gold is charged now; goods are not placed on the market."
+                : "Requires a steam pump trial in this burg."
+            }
+            disabled={!workStatus?.hasTrial || pendingTravel != null}
+            onClick={handleFuelTrial}
+          >
+            Fuel
+          </button>
+        </div>
+      ) : null}
     </Dialog>
   );
 };

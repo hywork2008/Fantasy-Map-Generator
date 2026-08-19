@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setGuildChapters, setGuildKnowledgeStocks } from "../economyContext";
+import {
+  clearEconomyContext,
+  initEconomyContext,
+  setCraftDomainEmploymentRecords,
+  setGuildChapters,
+  setGuildKnowledgeStocks
+} from "../economyContext";
 import { getGuildOverviewState } from "../store/guildOverviewState";
 import { refreshGuildOverview } from "./guild-overview";
 
@@ -24,7 +30,18 @@ describe("refreshGuildOverview", () => {
     refreshGuildOverview();
 
     expect(getGuildOverviewState().rows).toEqual([
-      expect.objectContaining({ domain: "metallurgy", status: "chapter" })
+      expect.objectContaining({ domain: "metallurgy", status: "chapter", workers: 0 })
+    ]);
+  });
+
+  it("attaches live woodworking headcount to the matching technique-stock row", () => {
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "woodworking", stock: 0.166, treasury: 0 }]);
+    setCraftDomainEmploymentRecords([{ burgId: 1, domain: "woodworking", workers: 1 }]);
+
+    refreshGuildOverview();
+
+    expect(getGuildOverviewState().rows).toEqual([
+      expect.objectContaining({ domain: "woodworking", workers: 1, stock: 0.166 })
     ]);
   });
 });

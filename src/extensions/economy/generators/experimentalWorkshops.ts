@@ -19,6 +19,8 @@ import {
 import { consumeNamed, debitTreasury, EXPERIMENTAL_BUDGET, marketIdForBurg, pickSponsorBurg } from "./chemMedCommon";
 import { getPracticeForState, recordLabGlassPractice, recordObsidianPractice } from "./chemMedPractice";
 import type { CraftDomainEmploymentRecord } from "./guildKnowledgeTypes";
+import { biasExperimentRecordRate, getWorkshopPatronageAppliedGold } from "./technologyBiasApply";
+import { patronageFundedBurgId } from "./technologyPatronage";
 
 const RESEARCHERS = 2;
 
@@ -55,8 +57,12 @@ export class ExperimentalWorkshopsModule {
 
       let workshop = workshops.find(entry => entry.sponsorStateId === state.i && entry.active);
       if (!workshop) {
-        const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, EXPERIMENTAL_BUDGET)) continue;
+        const fundedBurgId = patronageFundedBurgId(state.i, year);
+        const burgId = fundedBurgId ?? pickSponsorBurg(state.i);
+        if (!burgId) continue;
+        const applied = getWorkshopPatronageAppliedGold(burgId, state.i, year);
+        const need = Math.max(0, EXPERIMENTAL_BUDGET - applied);
+        if (need > 0 && !debitTreasury(state.i, need)) continue;
         workshop = {
           burgId,
           sponsorStateId: state.i,
@@ -67,10 +73,13 @@ export class ExperimentalWorkshopsModule {
           lastFundedYear: year
         };
         workshops.push(workshop);
-      } else if (!debitTreasury(state.i, EXPERIMENTAL_BUDGET)) {
-        workshop.active = false;
-        continue;
       } else {
+        // Patronage gold is appliedGold; empty deposits still debit the full 16.
+        const need = Math.max(0, EXPERIMENTAL_BUDGET - getWorkshopPatronageAppliedGold(workshop.burgId, state.i, year));
+        if (need > 0 && !debitTreasury(state.i, need)) {
+          workshop.active = false;
+          continue;
+        }
         workshop.lastFundedYear = year;
         workshop.active = true;
       }
@@ -87,9 +96,10 @@ export class ExperimentalWorkshopsModule {
       const practice = getPracticeForState(state.i);
       const rate =
         0.15 * (1 + 0.15 * (practice?.pozzolanPractice ?? 0)) * (1 + 0.05 * (practice?.obsidianPractice ?? 0));
+      const recordRate = biasExperimentRecordRate(rate, workshop.burgId);
 
       if (glass > 0 && tools > 0) {
-        workshop.experimentRecord = rn(applyKnowledgeEwma(workshop.experimentRecord, 1, rate), 4);
+        workshop.experimentRecord = rn(applyKnowledgeEwma(workshop.experimentRecord, 1, recordRate), 4);
         recordLabGlassPractice(state.i, year);
         upsertInstruments(workshop.burgId, RESEARCHERS + (copper > 0 ? 1 : 0));
         if (obsidian > 0) recordObsidianPractice(state.i, year);

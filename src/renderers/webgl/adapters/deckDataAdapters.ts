@@ -16,6 +16,7 @@ import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../../../data/coastalHabitatCatalog";
 import { HeightThreshold, OceanCurrentConstants } from "../../../data/constants";
+import { LavaFlows } from "../../../generators/lavaFlows";
 import { Rivers } from "../../../generators/river-generator";
 import { Routes } from "../../../generators/routes-generator";
 import { useOptionsState } from "../../../store/optionsState";
@@ -101,7 +102,7 @@ export interface DeckPath {
 
 export interface DeckRiverPolygon {
   id: string;
-  kind: "river";
+  kind: "river" | "lavaFlow";
   cellId: number | null;
   polygon: DeckPosition[];
   fillColor: Color;
@@ -1220,6 +1221,43 @@ export function buildRiverPolygons(
       });
     }
 
+    return polygons;
+  });
+}
+
+export function buildLavaFlowPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  fillColor: Color
+): DeckRiverPolygon[] {
+  return (worldContext.pack.lavaFlows ?? []).flatMap(flow => {
+    if (flow.cells.length < 2 || (focusScope && !flow.cells.some(cell => isCellInScope(focusScope, cell)))) {
+      return [];
+    }
+
+    let points = LavaFlows.getBankPoints(flow, worldContext.pack);
+    if (points.length >= 3) {
+      const sampled = sampleCatmullRomPolyline(points as unknown as [number, number][], 0.1, false, 0.5);
+      points = interpolateRiverWidths(points, sampled);
+    }
+    if (points.length < 2) return [];
+
+    const banks = Rivers.getRiverBanks(points, flow.widthFactor, flow.sourceWidth);
+    const polygons: DeckRiverPolygon[] = [];
+    for (let index = 0; index < points.length - 1; index++) {
+      const left = banks.left[index];
+      const nextLeft = banks.left[index + 1];
+      const right = banks.right[index];
+      const nextRight = banks.right[index + 1];
+      if (!left || !nextLeft || !right || !nextRight) continue;
+      polygons.push({
+        id: `lava-flow-segment-${index}-${flow.i}`,
+        kind: "lavaFlow",
+        cellId: flow.cells[0] ?? null,
+        polygon: [left, nextLeft, nextRight, right],
+        fillColor
+      });
+    }
     return polygons;
   });
 }

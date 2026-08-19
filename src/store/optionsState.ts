@@ -143,8 +143,9 @@ export interface OptionsState {
   volcanismChance: number;
   /**
    * Of the volcanic peaks actually rolled (see volcanismChance), the % flagged "active"
-   * (molten `lavaField` crater) rather than dormant (bare `volcanicBarrens` cone whose summit
-   * is carved into a crater lake). Read once per tagged volcano at generation time.
+   * (lava crater lake + downhill lava flow; cooled `lavaField` along the flow) rather than
+   * dormant (bare `volcanicBarrens` cone whose summit is a freshwater crater lake). Read once
+   * per tagged volcano at generation time.
    */
   volcanoActiveChance: number;
   /**
@@ -213,6 +214,13 @@ export interface OptionsState {
    * maps can reach steam pumping without waiting out the full pre-industrial climb.
    */
   technologyDevelopmentSpeed: number;
+  /**
+   * Divisor on technology evidence gates (Options → Simulation).
+   * 1 = historical mines / treasury / trial-years / guild-stock bars;
+   * 100 waives those bars so steam and later nodes can climb without the
+   * physical evidence the historical path requires. Does not change EWMA rates.
+   */
+  technologyRequirementEase: number;
   diplomacyHistoryAttempts: number;
 
   // Danger settings
@@ -488,6 +496,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   conflictAutonomy: DEFAULT_CONFLICT_AUTONOMY,
   warFrequency: 1.0,
   technologyDevelopmentSpeed: 1,
+  technologyRequirementEase: 1,
   diplomacyHistoryAttempts: 1,
 
   dangerEnabled: false,

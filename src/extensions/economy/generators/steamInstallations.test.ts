@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
 import { getTechnologyStage, setTechnologyProgressForTests } from "../../../generators/technologyProgress";
-import { worldContext } from "../../hostCore";
+import { useOptionsState, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -80,7 +80,10 @@ describe("SteamInstallations", () => {
     Markets.sync();
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    useOptionsState.setState({ technologyRequirementEase: 1 });
+    clearEconomyContext();
+  });
 
   it("starts a trial on a deep mine once the state knows atmospheric steam pumping", () => {
     expect(SteamInstallations.settleAnnual()).toBe(true);
@@ -93,6 +96,29 @@ describe("SteamInstallations", () => {
 
   it("does not grant a drainage bonus to mines without a fueled engine", () => {
     expect(getMineSteamDrainageBonus(99)).toBe(0);
+  });
+
+  it("starts a trial on a shallow mine when requirement ease waives the deep-mine gate", () => {
+    useOptionsState.setState({ technologyRequirementEase: 2 });
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "coalSeam",
+        primaryCommodity: "coal",
+        commodities: ["coal"],
+        yields: [{ commodity: "coal", reserveTons: 400, annualCapacityTons: 40 }],
+        richness: 2,
+        depth: "shallow",
+        accessibility: 1,
+        discovered: true,
+        exhausted: false
+      }
+    ]);
+
+    expect(SteamInstallations.settleAnnual()).toBe(true);
+    expect(getSteamPumpTrials().find(entry => entry.stateId === 1)?.mineOperationId).toBe(1);
   });
 
   it("records trial years that the host graph can read as demonstration evidence", () => {
