@@ -655,6 +655,90 @@ describe("technologyProgress", () => {
     expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 400 < 450"]);
   });
 
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.4.
+  it("defines syntheticAmmonia as an era-6 node gated behind catalyticChemistry alone", () => {
+    const syntheticAmmonia = TECHNOLOGY_DEFINITIONS.find(def => def.id === "syntheticAmmonia");
+    expect(syntheticAmmonia?.era).toBe(6);
+    // prerequisitesMet() already requires catalyticChemistry adopted, which transitively requires
+    // its own ancestor chain adopted — no need to re-list highPressureChemicalApparatus etc.
+    expect(syntheticAmmonia?.prerequisites).toEqual(["catalyticChemistry"]);
+    expect(syntheticAmmonia?.known.min?.fertilizerCoverageGap).toBe(0.3);
+    expect(syntheticAmmonia?.known.min?.administration).toBe(0.65);
+    expect(syntheticAmmonia?.known.min?.instruments).toBe(0.45);
+    expect(syntheticAmmonia?.demonstrated.min?.syntheticAmmoniaTrialYears).toBe(2);
+    expect(syntheticAmmonia?.adopted.min?.syntheticAmmoniaInstallations).toBe(1);
+    expect(syntheticAmmonia?.minimumYearsAtPreviousStage).toEqual({ demonstrated: 3, adopted: 5 });
+  });
+
+  it("computes fertilizerCoverageGap/syntheticAmmoniaTrialYears/syntheticAmmoniaInstallations without disturbing foodFertilizerPressure's existing calibration (docs/plan/synthetic-ammonia-vertical-slice.md §3.5)", () => {
+    installMinimalWorld();
+    // Between the demonstrated (600) and adopted (700) treasury bars, so only the adopted
+    // threshold is expected to be unmet on treasury — same isolation style as the
+    // catalyticChemistry/modernSteelmaking gate tests above.
+    (worldContext.pack.states[1] as { treasury: number }).treasury = 650;
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 40, name: "Nitrogen Fertilizer" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: {},
+            // fertilizerCoverageGap = 1 - fertilizerStock = 0.5, past the known threshold (0.3).
+            fertilizerStock: 0.5,
+            // foodFertilizerPressure = (importNeed - satisfiedImport) / urbanNeed = 5/10 = 0.5,
+            // computed by the same untouched ratio logic — proves gapSum's addition to this loop
+            // does not disturb it.
+            foodLedger: { urbanNeed: 10, importNeed: 6, satisfiedImport: 1 }
+          }
+        ],
+        experimentalWorkshops: [{ burgId: 1, sponsorStateId: 1, active: true, experimentRecord: 0.8 }],
+        academyKnowledgeStocks: [{ burgId: 1, domain: "administration", stock: 0.75 }],
+        guildKnowledgeStocks: [{ burgId: 1, domain: "instruments", stock: 0.5 }],
+        chemistryTrials: [
+          {
+            kind: "syntheticAmmoniaPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        syntheticAmmoniaPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "catalyticChemistry", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "syntheticAmmonia");
+    expect(lines.some(line => line.includes("unmet known"))).toBe(false);
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 650 < 700"]);
+
+    // foodFertilizerPressure (urban food import gap, 0.5 from the ledger above) clears
+    // phosphateFertilizer's known threshold (0.2) exactly as before — its existing ratio
+    // computation is untouched by the new gapSum accumulation added to the same loop.
+    const phosphateLines = explainTechnologyGate(1, "phosphateFertilizer");
+    expect(phosphateLines.some(line => line.includes("unmet known min foodFertilizerPressure"))).toBe(false);
+  });
+
   describe("known-stage technology hints", () => {
     const ENP_PREREQS: TechnologyProgress[] = [
       { technologyId: "recordReplication", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },

@@ -15,6 +15,13 @@ export const HOSPITAL_BUDGET = 20;
 export const ACID_PLANT_BUDGET = 24;
 /** calibration TBD — slightly higher than ACID_PLANT_BUDGET; a later, larger-scale plant. */
 export const PHOSPHATE_FERTILIZER_PLANT_BUDGET = 28;
+/**
+ * calibration TBD — the highest of the four State capital budgets (ACID_PLANT_BUDGET 24 <
+ * PHOSPHATE_FERTILIZER_PLANT_BUDGET 28 < STEEL_CONVERTER_PLANT_BUDGET 32 < this). A high-pressure
+ * catalytic ammonia plant is the most capital-intensive of the four historically.
+ * See docs/plan/synthetic-ammonia-vertical-slice.md §3.6.
+ */
+export const SYNTHETIC_AMMONIA_PLANT_BUDGET = 40;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

@@ -2653,6 +2653,38 @@ export const GOODS_DATA: GoodData[] = [
     unit: "sack",
     demandCoverage: {},
     requiredTechnology: "phosphateFertilizer"
+  },
+  {
+    // The Haber-Bosch high-pressure/catalytic step has no artisan-scale analogue, unlike Sulfuric
+    // Acid/Steel/Phosphate Fertilizer — no recipes[] here. Production is plant-only
+    // (SyntheticAmmoniaPlants, docs/plan/synthetic-ammonia-vertical-slice.md §3.6).
+    name: "Synthetic Ammonia",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown", // no dedicated sprite; follow-up per docs/plan/synthetic-ammonia-vertical-slice.md §1
+    color: "#8fb8c9",
+    value: 26,
+    chance: 0,
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "syntheticAmmonia"
+  },
+  {
+    // Craft-recipe-only (route A) conversion of Synthetic Ammonia into a spreadable fertilizer —
+    // the capital-intensive step is the ammonia synthesis itself (SyntheticAmmoniaPlants), not
+    // this blending/bagging step. Same "never household demand" contract as Phosphate Fertilizer
+    // (steam-industrial-goods-and-technology-chain.md:125).
+    name: "Nitrogen Fertilizer",
+    warEconomyType: "strategic",
+    tags: ["industrial", "agriculture"],
+    icon: "good-salt", // no dedicated sprite; follow-up per docs/plan/synthetic-ammonia-vertical-slice.md §1
+    color: "#a8c76a",
+    value: 24,
+    chance: 0,
+    recipes: [{ "Synthetic Ammonia": 0.7 }],
+    unit: "sack",
+    demandCoverage: {},
+    requiredTechnology: "syntheticAmmonia"
   }
 ];
 
@@ -3277,6 +3309,44 @@ export function migratePhosphateGoods(): boolean {
 
   const idByName = new Map(goods.map(good => [good.name, good.i]));
   for (const name of PHOSPHATE_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const SYNTHETIC_AMMONIA_GOOD_NAMES = ["Synthetic Ammonia", "Nitrogen Fertilizer"] as const;
+
+/**
+ * Appends the synthetic-ammonia chain Goods (docs/plan/synthetic-ammonia-vertical-slice.md §3.3)
+ * to older catalogues without seeding stock. Same shape as migratePhosphateGoods.
+ */
+export function migrateSyntheticAmmoniaGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of SYNTHETIC_AMMONIA_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of SYNTHETIC_AMMONIA_GOOD_NAMES) {
     const good = goods.find(entry => entry.name === name);
     const template = GOODS_DATA.find(entry => entry.name === name);
     if (!good || !template?.recipes) continue;

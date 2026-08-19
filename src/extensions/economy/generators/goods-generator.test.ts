@@ -27,6 +27,7 @@ import {
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
+  migrateSyntheticAmmoniaGoods,
   migrateWineRecipe
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
@@ -263,6 +264,22 @@ describe("GoodsModule", () => {
     expect(ingot).toMatchObject({ value: 4, chance: 0, tags: ["ingot", "metal", "military"] });
     expect(byName.get("Tools")?.recipes).toEqual([{ [ingot!.i]: 0.5 }]);
     expect(migrateLegacyOreIngotGoods()).toBe(false);
+  });
+
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.2-3.3.
+  it("appends Synthetic Ammonia (plant-only, no recipe) and Nitrogen Fertilizer (craft recipe consuming it) to an older catalogue", () => {
+    setGoods([{ i: 2, name: "Iron", tags: ["ore"], value: 4, unit: "wagon", icon: "good-iron", color: "#5D686E" }]);
+
+    expect(migrateSyntheticAmmoniaGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const ammonia = byName.get("Synthetic Ammonia");
+    const nitrogenFertilizer = byName.get("Nitrogen Fertilizer");
+    expect(ammonia).toMatchObject({ requiredTechnology: "syntheticAmmonia", chance: 0 });
+    expect(ammonia?.recipes).toBeUndefined();
+    expect(nitrogenFertilizer).toMatchObject({ requiredTechnology: "syntheticAmmonia", chance: 0 });
+    expect(nitrogenFertilizer?.recipes).toEqual([{ [ammonia!.i]: 0.7 }]);
+    expect(migrateSyntheticAmmoniaGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

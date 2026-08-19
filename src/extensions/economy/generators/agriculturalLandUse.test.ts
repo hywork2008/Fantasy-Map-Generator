@@ -10,6 +10,7 @@ import {
   FOUR_COURSE_CLOVER_LEY_SHARE,
   getCropMix,
   MEGACITY_LABOR_EXPORT_SHARE,
+  NITROGEN_FERTILIZER_YIELD_BONUS_MAX,
   PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX,
   reconcileForestClearanceForAgriculture,
   STATE_YIELD_BONUS_MAX
@@ -252,6 +253,61 @@ describe("agricultural land use", () => {
       {},
       {
         fertilizerStockByCell: new Float32Array(2)
+      }
+    );
+
+    expect(withZeroStock.yieldPerArea).toEqual(withoutField.yieldPerArea);
+    expect(withZeroStock.farmLaborRequired).toEqual(withoutField.farmLaborRequired);
+  });
+
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.8.
+  it("raises yield with purchased Nitrogen Fertilizer, independent of agTech/State/Phosphate bonuses", () => {
+    const world = createWorld();
+    const baseline = calculateAgriculturalLandProfile(world);
+    const withNitrogen = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        nitrogenFertilizerStockByCell: new Float32Array([0, 1])
+      }
+    );
+    const withAll = calculateAgriculturalLandProfile(
+      world,
+      new Float32Array([0, 1]),
+      new Float32Array([0, 1]),
+      {},
+      {
+        fertilizerStockByCell: new Float32Array([0, 1]),
+        nitrogenFertilizerStockByCell: new Float32Array([0, 1])
+      }
+    );
+
+    const nitrogenBonusMultiplier = 1 + NITROGEN_FERTILIZER_YIELD_BONUS_MAX;
+    const combinedMultiplier =
+      (1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE) *
+      (1 + STATE_YIELD_BONUS_MAX) *
+      (1 + PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX) *
+      nitrogenBonusMultiplier;
+    expect(withNitrogen.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * nitrogenBonusMultiplier, 4);
+    expect(withAll.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
+    // Yield-only, like Phosphate Fertilizer: no labor-savings or draft-animal gating.
+    expect(withNitrogen.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 4);
+    // Cell 0's nitrogenFertilizerStockByCell entry is 0, so it is untouched.
+    expect(withNitrogen.yieldPerArea[0]).toBe(baseline.yieldPerArea[0]);
+  });
+
+  it("matches the no-argument call when nitrogenFertilizerStockByCell is omitted from conditions (back-compat)", () => {
+    const world = createWorld();
+    const withoutField = calculateAgriculturalLandProfile(world, undefined, undefined, {}, {});
+    const withZeroStock = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        nitrogenFertilizerStockByCell: new Float32Array(2)
       }
     );
 

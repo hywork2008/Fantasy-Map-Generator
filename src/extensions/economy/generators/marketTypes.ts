@@ -50,6 +50,14 @@ export interface Market {
    * is treated as 0. See docs/plan/phosphate-fertilizer-vertical-slice.md §3.8.
    */
   fertilizerStock?: number;
+  /**
+   * 0..1 saturating EWMA of annual Nitrogen Fertilizer purchase coverage across this market's
+   * cultivated land. Separate account/stock from agTechStock (Tools) and fertilizerStock
+   * (Phosphate Fertilizer). Feeds yieldPerArea in agriculturalLandUse.ts. Undefined (pre-slice
+   * saves, or a market with no cultivated land yet) is treated as 0.
+   * See docs/plan/synthetic-ammonia-vertical-slice.md §3.7.
+   */
+  nitrogenFertilizerStock?: number;
   /** Household clothing demand and consumption, separate from wholesale market intake. */
   textileLedger?: TextileLedger;
   /** Household fuel use and cold-climate technical knowledge for this market territory. */

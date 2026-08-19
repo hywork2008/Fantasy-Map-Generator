@@ -3,7 +3,12 @@
  * Design: docs/plan/chemistry-medicine-knowledge-accumulation.md
  */
 
-export type ChemistryTrialKind = "compounding" | "laboratory" | "acidPlant" | "phosphateFertilizerPlant";
+export type ChemistryTrialKind =
+  | "compounding"
+  | "laboratory"
+  | "acidPlant"
+  | "phosphateFertilizerPlant"
+  | "syntheticAmmoniaPlant";
 
 export type ChemistryFailureReason =
   | "materialShortage"
@@ -71,6 +76,22 @@ export interface AcidPlant {
 
 /** Same shape as AcidPlant. Design: docs/plan/phosphate-fertilizer-vertical-slice.md §3.7. */
 export interface PhosphateFertilizerPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/**
+ * Same shape as AcidPlant/PhosphateFertilizerPlant — a genuinely chemical-industry facility, so it
+ * uses the ChemistryTrial indirection rather than SteelConverterPlant's self-held documentedRuns
+ * (that exception is specific to the metallurgy domain, steelConverterTypes.ts).
+ * Design: docs/plan/synthetic-ammonia-vertical-slice.md §3.6.
+ */
+export interface SyntheticAmmoniaPlant {
   burgId: number;
   stateId: number;
   role: "trial" | "service";

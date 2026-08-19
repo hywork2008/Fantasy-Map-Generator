@@ -411,6 +411,9 @@ function emptySignals(): TechnologySignals {
     modernSteelmakingInstallations: 0,
     experimentRecord: 0,
     urbanWaterMaxMunicipalSanitation: 0,
+    fertilizerCoverageGap: 0,
+    syntheticAmmoniaTrialYears: 0,
+    syntheticAmmoniaInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -806,6 +809,9 @@ function applyChemistryMedicineSignals(
   const acidYears = new Map<number, number>();
   // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
   const phosphateFertilizerYears = new Map<number, number>();
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.5 — same ChemistryTrial indirection as
+  // phosphateFertilizerYears above.
+  const syntheticAmmoniaYears = new Map<number, number>();
   for (const trial of asStockArray(economy.chemistryTrials)) {
     if (String(trial.status ?? "") !== "running") continue;
     const stateId = asNumber(trial.stateId);
@@ -815,6 +821,9 @@ function applyChemistryMedicineSignals(
     if (kind === "acidPlant") acidYears.set(stateId, Math.max(acidYears.get(stateId) ?? 0, runs));
     if (kind === "phosphateFertilizerPlant") {
       phosphateFertilizerYears.set(stateId, Math.max(phosphateFertilizerYears.get(stateId) ?? 0, runs));
+    }
+    if (kind === "syntheticAmmoniaPlant") {
+      syntheticAmmoniaYears.set(stateId, Math.max(syntheticAmmoniaYears.get(stateId) ?? 0, runs));
     }
   }
   for (const [stateId, years] of compoundingYears) {
@@ -828,6 +837,10 @@ function applyChemistryMedicineSignals(
   for (const [stateId, years] of phosphateFertilizerYears) {
     const signals = map.get(stateId);
     if (signals) signals.phosphateFertilizerTrialYears = years;
+  }
+  for (const [stateId, years] of syntheticAmmoniaYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.syntheticAmmoniaTrialYears = years;
   }
 
   const hospitalYears = new Map<number, number>();
@@ -876,6 +889,14 @@ function applyChemistryMedicineSignals(
     if (signals) signals.phosphateFertilizerPlantCount += 1;
   }
 
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.5.
+  for (const plant of asStockArray(economy.syntheticAmmoniaPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.syntheticAmmoniaInstallations += 1;
+  }
+
   for (const workshop of asStockArray(economy.experimentalWorkshops)) {
     if (workshop.active === false) continue;
     const stateId = asNumber(workshop.sponsorStateId) || burgStateId(asNumber(workshop.burgId));
@@ -884,7 +905,10 @@ function applyChemistryMedicineSignals(
   }
 
   let fertilizerCount = 0;
-  const fertilizerByState = new Map<number, { sum: number; n: number }>();
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.5: gapSum accumulates the "fertilizer
+  // coverage gap" (1 - Market.fertilizerStock) in the same single pass as foodFertilizerPressure,
+  // without a second loop or new cultivatedArea plumbing.
+  const fertilizerByState = new Map<number, { sum: number; n: number; gapSum: number }>();
   for (const market of asStockArray(economy.markets)) {
     const ledger = isRecord(market.foodLedger) ? market.foodLedger : null;
     if (!ledger) continue;
@@ -896,8 +920,9 @@ function applyChemistryMedicineSignals(
     const need = Math.max(0, asNumber(ledger.urbanNeed));
     const gap = Math.max(0, asNumber(ledger.importNeed) - asNumber(ledger.satisfiedImport));
     const ratio = need > 0 ? gap / need : 0;
-    const entry = fertilizerByState.get(stateId) ?? { sum: 0, n: 0 };
+    const entry = fertilizerByState.get(stateId) ?? { sum: 0, n: 0, gapSum: 0 };
     entry.sum += ratio;
+    entry.gapSum += 1 - clamp01(asNumber(market.fertilizerStock));
     entry.n += 1;
     fertilizerByState.set(stateId, entry);
     fertilizerCount += 1;
@@ -907,6 +932,7 @@ function applyChemistryMedicineSignals(
       const signals = map.get(stateId);
       if (!signals || entry.n <= 0) continue;
       signals.foodFertilizerPressure = clamp01(entry.sum / entry.n);
+      signals.fertilizerCoverageGap = clamp01(entry.gapSum / entry.n);
       signals.lateChemistryDemandPressure = clamp01(
         0.4 * signals.gunpowderSulfurPressure + 0.3 * signals.soapGlassPressure + 0.3 * signals.foodFertilizerPressure
       );
@@ -985,7 +1011,9 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "phosphateFertilizerPlantCount",
   "modernSteelmakingTrialYears",
   "modernSteelmakingInstallations",
-  "urbanWaterMaxTier"
+  "urbanWaterMaxTier",
+  "syntheticAmmoniaTrialYears",
+  "syntheticAmmoniaInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([

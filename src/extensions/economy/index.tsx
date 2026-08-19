@@ -112,6 +112,7 @@ import {
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
+  migrateSyntheticAmmoniaGoods,
   migrateWineRecipe
 } from "./generators/goods-generator";
 import { GreatLibrary } from "./generators/greatLibrary";
@@ -144,6 +145,7 @@ import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { getStateMountedCapacity } from "./generators/mountAvailability";
+import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { Production } from "./generators/production-generator";
@@ -165,6 +167,7 @@ import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
 import { SteamIndustry } from "./generators/steamIndustry";
 import { SteelConverters } from "./generators/steelConverters";
 import { StrategicProcurement } from "./generators/strategicProcurement";
+import { SyntheticAmmoniaPlants } from "./generators/syntheticAmmoniaPlants";
 import {
   clearStrategicProcurementExpenses,
   clearVoyageIncome,
@@ -2458,6 +2461,7 @@ export function init(api: ExtensionAPI): void {
     const migratedIndustrialSteam = migrateIndustrialSteamGoods();
     const migratedChemMed = migrateChemMedGoods();
     const migratedPhosphate = migratePhosphateGoods();
+    const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2477,6 +2481,7 @@ export function init(api: ExtensionAPI): void {
       migratedIndustrialSteam ||
       migratedChemMed ||
       migratedPhosphate ||
+      migratedSyntheticAmmonia ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -2810,6 +2815,11 @@ export function init(api: ExtensionAPI): void {
         // (Tools + Fertilizer) keeps priority over mine/smelter claims (docs/plan/
         // phosphate-fertilizer-vertical-slice.md §3.8; docs/plan/rural-agtech-investment.md §6.3).
         FertilizerInvestment.settleAnnual();
+        // Nitrogen Fertilizer purchase, same shared marketTreasury.balance but a separate
+        // stock/budget calculation — runs right after Phosphate Fertilizer so both farm-fertilizer
+        // investments keep priority over mine/smelter claims together (docs/plan/
+        // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
+        NitrogenFertilizerInvestment.settleAnnual();
         IndustrialTechInvestment.settleAnnual();
         // Must run before the quarter's food ledger so annual demographic changes
         // alter cultivated area and farm labour without waiting an extra quarter.
@@ -2945,6 +2955,10 @@ export function init(api: ExtensionAPI): void {
         // second supply route for the existing Steel Good (docs/plan/modern-steelmaking-and-
         // high-pressure-apparatus.md §3.2).
         SteelConverters.settleAnnual();
+        // Consumes only Coke (hydrogen source + process-energy proxy), independent of the plants
+        // above — grouped here as the era 6 plant block (docs/plan/synthetic-ammonia-vertical-
+        // slice.md §3.6).
+        SyntheticAmmoniaPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
@@ -3128,6 +3142,7 @@ export function init(api: ExtensionAPI): void {
     const migratedIndustrialSteam = migrateIndustrialSteamGoods();
     const migratedChemMed = migrateChemMedGoods();
     const migratedPhosphate = migratePhosphateGoods();
+    const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -3147,6 +3162,7 @@ export function init(api: ExtensionAPI): void {
       migratedIndustrialSteam ||
       migratedChemMed ||
       migratedPhosphate ||
+      migratedSyntheticAmmonia ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||

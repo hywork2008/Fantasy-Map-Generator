@@ -706,6 +706,30 @@ const ERA_6: readonly TechnologyDefinition[] = [
     demonstrated: { min: { experimentRecord: 0.7, naturalPhilosophy: 0.55, treasury: 380 } },
     adopted: { min: { experimentRecord: 0.75, naturalPhilosophy: 0.6, administration: 0.65, treasury: 450 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.4. Sole prerequisite is catalyticChemistry:
+  // prerequisitesMet() already requires every prerequisite adopted, so catalyticChemistry's own
+  // ancestor chain (highPressureChemicalApparatus/modernSteelmaking/industrialSulfuricAcid/
+  // chemicalIndustryFoundation) is transitively required without re-listing it here. known's
+  // administration/instruments sit at or above catalyticChemistry's own adopted thresholds (the
+  // gate this node's prerequisite already clears just before this node can progress at all);
+  // fertilizerCoverageGap is the new "fertilizer coverage gap" demand signal (§3.5).
+  {
+    id: "syntheticAmmonia",
+    label: "Synthetic ammonia",
+    era: 6,
+    scope: "state",
+    prerequisites: ["catalyticChemistry"],
+    known: {
+      min: { fertilizerCoverageGap: 0.3, administration: 0.65, instruments: 0.45, treasury: 500 }
+    },
+    demonstrated: {
+      min: { syntheticAmmoniaTrialYears: 2, experimentRecord: 0.75, treasury: 600 }
+    },
+    adopted: {
+      min: { syntheticAmmoniaInstallations: 1, administration: 0.7, treasury: 700 }
+    },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 

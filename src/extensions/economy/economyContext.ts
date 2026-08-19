@@ -21,7 +21,8 @@ import type {
   ExperimentalWorkshop,
   HospitalInstallation,
   MedicalCareReliefRow,
-  PhosphateFertilizerPlant
+  PhosphateFertilizerPlant,
+  SyntheticAmmoniaPlant
 } from "./generators/chemistryTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
@@ -163,6 +164,8 @@ let _acidPlantsLastSettledYearFallback: number | null = null;
 let _phosphateFertilizerPlantsLastSettledYearFallback: number | null = null;
 let _steelConverterPlantsLastSettledYearFallback: number | null = null;
 let _fertilizerInvestmentLastSettledYearFallback: number | null = null;
+let _syntheticAmmoniaPlantsLastSettledYearFallback: number | null = null;
+let _nitrogenFertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -223,6 +226,8 @@ export function clearEconomyContext(): void {
   _phosphateFertilizerPlantsLastSettledYearFallback = null;
   _steelConverterPlantsLastSettledYearFallback = null;
   _fertilizerInvestmentLastSettledYearFallback = null;
+  _syntheticAmmoniaPlantsLastSettledYearFallback = null;
+  _nitrogenFertilizerInvestmentLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1419,6 +1424,13 @@ export function getSteelConverterPlants(): SteelConverterPlant[] {
 export function setSteelConverterPlants(rows: readonly SteelConverterPlant[]): void {
   setSliceArray("steelConverterPlants", rows);
 }
+/** Same shape as getAcidPlants/getPhosphateFertilizerPlants. Design: docs/plan/synthetic-ammonia-vertical-slice.md §3.6. */
+export function getSyntheticAmmoniaPlants(): SyntheticAmmoniaPlant[] {
+  return getSliceArray<SyntheticAmmoniaPlant>("syntheticAmmoniaPlants");
+}
+export function setSyntheticAmmoniaPlants(rows: readonly SyntheticAmmoniaPlant[]): void {
+  setSliceArray("syntheticAmmoniaPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1481,6 +1493,15 @@ export function setSteelConverterPlantsLastSettledYear(year: number): void {
     _steelConverterPlantsLastSettledYearFallback = value;
   });
 }
+/** Guards SyntheticAmmoniaPlants.settleAnnual(), same shape as getPhosphateFertilizerPlantsLastSettledYear. */
+export function getSyntheticAmmoniaPlantsLastSettledYear(): number | null {
+  return yearFromSlice("syntheticAmmoniaPlantsLastSettledYear", _syntheticAmmoniaPlantsLastSettledYearFallback);
+}
+export function setSyntheticAmmoniaPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("syntheticAmmoniaPlantsLastSettledYear", year, value => {
+    _syntheticAmmoniaPlantsLastSettledYearFallback = value;
+  });
+}
 /** Guards FertilizerInvestment.settleAnnual(), same shape as getAgTechLastSettledYear. */
 export function getFertilizerInvestmentLastSettledYear(): number | null {
   return yearFromSlice("fertilizerInvestmentLastSettledYear", _fertilizerInvestmentLastSettledYearFallback);
@@ -1488,6 +1509,18 @@ export function getFertilizerInvestmentLastSettledYear(): number | null {
 export function setFertilizerInvestmentLastSettledYear(year: number): void {
   writeYearToSlice("fertilizerInvestmentLastSettledYear", year, value => {
     _fertilizerInvestmentLastSettledYearFallback = value;
+  });
+}
+/** Guards NitrogenFertilizerInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */
+export function getNitrogenFertilizerInvestmentLastSettledYear(): number | null {
+  return yearFromSlice(
+    "nitrogenFertilizerInvestmentLastSettledYear",
+    _nitrogenFertilizerInvestmentLastSettledYearFallback
+  );
+}
+export function setNitrogenFertilizerInvestmentLastSettledYear(year: number): void {
+  writeYearToSlice("nitrogenFertilizerInvestmentLastSettledYear", year, value => {
+    _nitrogenFertilizerInvestmentLastSettledYearFallback = value;
   });
 }
 

@@ -102,6 +102,18 @@ export interface TechnologySignals {
   modernSteelmakingInstallations: number;
   experimentRecord: number;
   urbanWaterMaxMunicipalSanitation: number;
+  /**
+   * 0..1. 1 minus the state-average Market.fertilizerStock (Phosphate Fertilizer adoption) across
+   * markets with a food ledger — the "fertilizer coverage gap" demand pull for syntheticAmmonia's
+   * known threshold. Computed alongside foodFertilizerPressure but from a different source; does
+   * not change foodFertilizerPressure/lateChemistryDemandPressure's existing calibration. See
+   * docs/plan/synthetic-ammonia-vertical-slice.md §3.5.
+   */
+  fertilizerCoverageGap: number;
+  /** SyntheticAmmoniaPlant's ChemistryTrial documentedRuns state max, same shape as phosphateFertilizerTrialYears. */
+  syntheticAmmoniaTrialYears: number;
+  /** Count of active SyntheticAmmoniaPlant entries, same shape as phosphateFertilizerPlantCount. */
+  syntheticAmmoniaInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }
