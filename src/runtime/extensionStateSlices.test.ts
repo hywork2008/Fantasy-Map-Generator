@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Burg, State } from "../types/models";
-import { bindExtensionStateSlices, resetExtensionStateSlices } from "./extensionStateSlices";
+import {
+  assertValidExtensionStateSlices,
+  bindExtensionStateSlices,
+  resetExtensionStateSlices
+} from "./extensionStateSlices";
 import { createPresentationData } from "./presentationData";
 import { createWorldDocument } from "./worldArchive";
 
@@ -164,5 +168,140 @@ describe("extension state slice compatibility adapter", () => {
     resetExtensionStateSlices(simulation);
 
     expect(simulation.extensions).toEqual({});
+  });
+});
+
+describe("technology bias extension slice validation", () => {
+  it("accepts missing or empty persistent fields", () => {
+    const world = createWorld();
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, { extensions: { economy: {}, characters: {} } } as SimulationContext)
+    ).not.toThrow();
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: {
+          economy: {
+            researchHireApplications: [],
+            researchNamedSeats: [],
+            researchInstructMissions: [],
+            instructionResidues: [],
+            technologyHints: [],
+            patronageDeposits: []
+          },
+          characters: { personalTechnologyKnowledge: {} }
+        }
+      } as SimulationContext)
+    ).not.toThrow();
+  });
+
+  it("rejects malformed economy arrays", () => {
+    const world = createWorld();
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: { economy: { researchHireApplications: {} } }
+      } as SimulationContext)
+    ).toThrow("simulation.extensions.economy.researchHireApplications must be an array");
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: { economy: { technologyHints: "not-an-array" } }
+      } as SimulationContext)
+    ).toThrow("simulation.extensions.economy.technologyHints must be an array");
+  });
+
+  it("rejects unknown personal technology ids and invalid keys", () => {
+    const world = createWorld();
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: { characters: { personalTechnologyKnowledge: [] } }
+      } as SimulationContext)
+    ).toThrow("simulation.extensions.characters.personalTechnologyKnowledge must be a record");
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: { characters: { personalTechnologyKnowledge: { "1a": "all" } } }
+      } as SimulationContext)
+    ).toThrow("simulation.extensions.characters.personalTechnologyKnowledge has invalid key 1a");
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: { characters: { personalTechnologyKnowledge: { "1": ["notARealTechnology"] } } }
+      } as SimulationContext)
+    ).toThrow("simulation.extensions.characters.personalTechnologyKnowledge.1[0] references unknown technology");
+  });
+
+  it("accepts known technology ids and a valid hint window", () => {
+    const world = createWorld();
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: {
+          characters: {
+            personalTechnologyKnowledge: {
+              "1": "all",
+              "2": ["experimentalNaturalPhilosophy", "basicMetallurgy"]
+            }
+          },
+          economy: {
+            technologyHints: [
+              {
+                stateId: 1,
+                technologyId: "experimentalNaturalPhilosophy",
+                burgId: 1,
+                sourceCharacterId: 1,
+                firstEligibleYear: 1000,
+                expiresAfterYear: 1002
+              }
+            ]
+          }
+        }
+      } as SimulationContext)
+    ).not.toThrow();
+  });
+
+  it("rejects inverted or non-finite hint years", () => {
+    const world = createWorld();
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: {
+          economy: {
+            technologyHints: [
+              {
+                stateId: 1,
+                technologyId: "experimentalNaturalPhilosophy",
+                burgId: 1,
+                sourceCharacterId: 1,
+                firstEligibleYear: 1002,
+                expiresAfterYear: 1000
+              }
+            ]
+          }
+        }
+      } as SimulationContext)
+    ).toThrow("expiresAfterYear must be >= firstEligibleYear");
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: {
+          economy: {
+            technologyHints: [
+              {
+                stateId: 1,
+                technologyId: "experimentalNaturalPhilosophy",
+                burgId: 1,
+                sourceCharacterId: 1,
+                firstEligibleYear: Number.NaN,
+                expiresAfterYear: 1002
+              }
+            ]
+          }
+        }
+      } as SimulationContext)
+    ).toThrow("firstEligibleYear must be a finite integer");
   });
 });

@@ -1,5 +1,6 @@
 import type { ExtensionStateSlices, SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { getTechnologyDefinition } from "../generators/technologyDefinitions";
 import type { CoreReference } from "./extensionArchiveTypes";
 import {
   collectEntityReferences,
@@ -343,6 +344,45 @@ function validateInnStayLedgers(value: unknown, world: WorldContext): void {
   }
 }
 
+function validateTechnologyHints(value: unknown): void {
+  if (value === undefined) return;
+  const name = "simulation.extensions.economy.technologyHints";
+  if (!Array.isArray(value)) return;
+  for (const [index, hint] of value.entries()) {
+    const entryName = `${name}[${index}]`;
+    assertRecord(hint, entryName);
+    for (const field of ["firstEligibleYear", "expiresAfterYear"] as const) {
+      const year = hint[field];
+      if (!Number.isInteger(year)) {
+        throw new Error(`${entryName}.${field} must be a finite integer`);
+      }
+    }
+    if ((hint.expiresAfterYear as number) < (hint.firstEligibleYear as number)) {
+      throw new Error(`${entryName}.expiresAfterYear must be >= firstEligibleYear`);
+    }
+  }
+}
+
+function validatePersonalTechnologyKnowledge(value: unknown): void {
+  if (value === undefined) return;
+  const name = "simulation.extensions.characters.personalTechnologyKnowledge";
+  if (!isRecord(value)) throw new Error(`${name} must be a record`);
+  for (const [key, knowledge] of Object.entries(value)) {
+    if (!/^\d+$/.test(key)) {
+      throw new Error(`${name} has invalid key ${key}`);
+    }
+    if (knowledge === "all") continue;
+    if (!Array.isArray(knowledge) || !knowledge.every(id => typeof id === "string")) {
+      throw new Error(`${name}.${key} must be "all" or an array of technology ids`);
+    }
+    for (const [index, id] of knowledge.entries()) {
+      if (!getTechnologyDefinition(id)) {
+        throw new Error(`${name}.${key}[${index}] references unknown technology ${id}`);
+      }
+    }
+  }
+}
+
 function validateCharactersSlice(slice: Record<string, unknown>): void {
   assertOptionalArrayField(slice, "characters", "characters");
   if (slice.abilityPresetId !== undefined && typeof slice.abilityPresetId !== "string") {
@@ -354,6 +394,7 @@ function validateCharactersSlice(slice: Record<string, unknown>): void {
       throw new Error("simulation.extensions.characters.allowedRaceKeys must contain only strings");
     }
   }
+  validatePersonalTechnologyKnowledge(slice.personalTechnologyKnowledge);
 }
 
 function validateEconomySlice(slice: Record<string, unknown>, world: WorldContext): void {
@@ -395,10 +436,19 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "hospitalInstallations",
     "acidPlants",
     "chemMedPracticeRecords",
-    "medicalCareReliefByBurg"
+    "medicalCareReliefByBurg",
+    // Player technology-bias SoT (docs/plan/player-character-technology-bias.md PR-1).
+    // steamPumpTrials remain optional/opaque.
+    "researchHireApplications",
+    "researchNamedSeats",
+    "researchInstructMissions",
+    "instructionResidues",
+    "technologyHints",
+    "patronageDeposits"
   ]) {
     assertOptionalArrayField(slice, field, "economy");
   }
+  validateTechnologyHints(slice.technologyHints);
   if (slice.cullCooldowns !== undefined) {
     if (typeof slice.cullCooldowns !== "object" || slice.cullCooldowns === null || Array.isArray(slice.cullCooldowns)) {
       throw new Error("Archive simulation.extensions.economy.cullCooldowns must be a record");

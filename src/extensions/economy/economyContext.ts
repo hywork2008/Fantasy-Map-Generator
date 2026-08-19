@@ -90,6 +90,14 @@ import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
 import type {
+  InstructionResidue,
+  PatronageDeposit,
+  ResearchHireApplication,
+  ResearchNamedSeat,
+  TechnologyHint,
+  TechnologyInstructMission
+} from "./generators/technologyBiasTypes";
+import type {
   CullActiveContract,
   CullCooldowns,
   CullHireApplication,
@@ -1551,6 +1559,49 @@ export function setEscortCooldowns(cooldowns: EscortCooldowns): void {
     return;
   }
   getLegacyPackFields().escortCooldowns = cooldowns;
+}
+
+/** Player technology-bias SoT (docs/plan/player-character-technology-bias.md). Derived contributions are not persisted. */
+export function getResearchHireApplications(): ResearchHireApplication[] {
+  return getSliceArray<ResearchHireApplication>("researchHireApplications");
+}
+export function setResearchHireApplications(apps: readonly ResearchHireApplication[]): void {
+  setSliceArray("researchHireApplications", apps);
+}
+
+export function getResearchNamedSeats(): ResearchNamedSeat[] {
+  return getSliceArray<ResearchNamedSeat>("researchNamedSeats");
+}
+export function setResearchNamedSeats(seats: readonly ResearchNamedSeat[]): void {
+  setSliceArray("researchNamedSeats", seats);
+}
+
+export function getResearchInstructMissions(): TechnologyInstructMission[] {
+  return getSliceArray<TechnologyInstructMission>("researchInstructMissions");
+}
+export function setResearchInstructMissions(missions: readonly TechnologyInstructMission[]): void {
+  setSliceArray("researchInstructMissions", missions);
+}
+
+export function getInstructionResidues(): InstructionResidue[] {
+  return getSliceArray<InstructionResidue>("instructionResidues");
+}
+export function setInstructionResidues(residues: readonly InstructionResidue[]): void {
+  setSliceArray("instructionResidues", residues);
+}
+
+export function getTechnologyHints(): TechnologyHint[] {
+  return getSliceArray<TechnologyHint>("technologyHints");
+}
+export function setTechnologyHints(hints: readonly TechnologyHint[]): void {
+  setSliceArray("technologyHints", hints);
+}
+
+export function getPatronageDeposits(): PatronageDeposit[] {
+  return getSliceArray<PatronageDeposit>("patronageDeposits");
+}
+export function setPatronageDeposits(deposits: readonly PatronageDeposit[]): void {
+  setSliceArray("patronageDeposits", deposits);
 }
 
 /** Urban pregnancy pipeline stock (docs/plan/urban-housing-system.md PR-P1). */
