@@ -20,8 +20,11 @@ import {
   setSteamInstallationsLastSettledYear,
   setSteamPumpTrials
 } from "../economyContext";
+import { addNamedStock } from "./chemMedCommon";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
+import { trialSeatUtilizationBonus } from "./technologyBiasApply";
+import { consumeFuelDepositsForMine, FUEL_TRIAL_UTILIZATION_RESCUE_CAP } from "./technologyPatronage";
 
 export const STEAM_ANNUAL_COAL = 2;
 export const STEAM_ANNUAL_TOOLS = 0.35;
@@ -146,10 +149,23 @@ export class SteamInstallationsModule {
         trial.utilization = 0;
         continue;
       }
+      const reserved = consumeFuelDepositsForMine(trial.mineOperationId, year);
+      if (reserved.coal > 0) addNamedStock(mine.marketId, "Coal", reserved.coal);
+      if (reserved.tools > 0) addNamedStock(mine.marketId, "Tools", reserved.tools);
+      if (reserved.iron > 0) addNamedStock(mine.marketId, "Iron Ingot", reserved.iron);
       const result = operateSite(mine.marketId, trial.status === "building");
+      let utilization = result.utilization;
+      let rescueLeft = FUEL_TRIAL_UTILIZATION_RESCUE_CAP;
+      if ((reserved.coal > 0 || reserved.tools > 0 || reserved.iron > 0) && utilization < 0.5) {
+        const fuelAdd = Math.min(rescueLeft, 0.5 - utilization);
+        utilization = rn(utilization + fuelAdd, 4);
+        rescueLeft -= fuelAdd;
+      }
+      const seatAdd = Math.min(rescueLeft, trialSeatUtilizationBonus(trial.mineOperationId));
+      if (seatAdd > 0) utilization = rn(Math.min(1, utilization + seatAdd), 4);
       trial.fuelConsumed = rn(trial.fuelConsumed + result.coal, 4);
       trial.maintenanceConsumed = rn(trial.maintenanceConsumed + result.tools, 4);
-      trial.utilization = result.utilization;
+      trial.utilization = utilization;
       trial.lastOperatedYear = year;
       if (result.utilization >= 0.5) {
         if (trial.status === "building") trial.status = "running";

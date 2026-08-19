@@ -38,8 +38,11 @@ function formatYear(year: number | null): string {
 
 function pickSteamDiagnosticRow(
   filteredRows: readonly TechnologyOverviewRow[],
-  allRows: readonly TechnologyOverviewRow[]
+  allRows: readonly TechnologyOverviewRow[],
+  selectedRowId: string | null
 ): TechnologyOverviewRow | undefined {
+  const selected = allRows.find(row => row.id === selectedRowId);
+  if (selected?.technologyId === "atmosphericSteamPumping") return selected;
   const fromFiltered = filteredRows.filter(row => row.technologyId === "atmosphericSteamPumping");
   const source = fromFiltered.length
     ? fromFiltered
@@ -236,7 +239,7 @@ export const TechnologyOverviewDialog: React.FC = () => {
                 id="technologyOverviewWhySteam"
                 data-tip={t("dialogs.technology.whySteamTip")}
                 onClick={() => {
-                  const steamRow = pickSteamDiagnosticRow(rows, rawRows);
+                  const steamRow = pickSteamDiagnosticRow(rows, rawRows, selectedRowId);
                   if (steamRow) setSelectedRowId(steamRow.id);
                 }}
               >

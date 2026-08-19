@@ -8,6 +8,7 @@ import {
   getMineOperations,
   getResearchHireApplications,
   getResearchNamedSeats,
+  getSteamPumpTrials,
   getWorldContext,
   setResearchHireApplications,
   setResearchNamedSeats
@@ -16,13 +17,13 @@ import { characterHasEmploymentCommitment } from "./employmentCommitment";
 import { ENGINEERING_WORKSHOP_MIN } from "./technologyBiasApply";
 import type { ResearchHireApplication, ResearchNamedSeat } from "./technologyBiasTypes";
 
-export type ResearchPlayerHireRole = "workshopResearcher" | "mineLaborer";
+export type ResearchPlayerHireRole = "workshopResearcher" | "mineLaborer" | "trialMachinist";
 
 /** Player / named character applications wait this long before hire resolves. */
 export const RESEARCH_PLAYER_HIRE_LAG_DAYS = 14;
 export const RESEARCH_ROLE_SOURCE = "economy";
 
-const PLAYER_HIRE_ROLES = new Set<ResearchPlayerHireRole>(["workshopResearcher", "mineLaborer"]);
+const PLAYER_HIRE_ROLES = new Set<ResearchPlayerHireRole>(["workshopResearcher", "mineLaborer", "trialMachinist"]);
 
 function isPlayerHireRole(role: string): role is ResearchPlayerHireRole {
   return PLAYER_HIRE_ROLES.has(role as ResearchPlayerHireRole);
@@ -49,6 +50,18 @@ export function burgHasActiveMine(burgId: number): boolean {
 
 function firstActiveMineId(burgId: number): number | undefined {
   return getMineOperations().find(operation => operation.active && operation.burgId === burgId)?.i;
+}
+
+export function burgHasSteamTrial(burgId: number): boolean {
+  return getSteamPumpTrials().some(
+    trial => trial.burgId === burgId && (trial.status === "building" || trial.status === "running")
+  );
+}
+
+function firstTrialMineId(burgId: number): number | undefined {
+  return getSteamPumpTrials().find(
+    trial => trial.burgId === burgId && (trial.status === "building" || trial.status === "running")
+  )?.mineOperationId;
 }
 
 function nextApplicationId(apps: readonly ResearchHireApplication[]): number {
@@ -93,6 +106,7 @@ export function applyCharacterToResearchJob(args: {
   characterId: number;
   burgId: number;
   role: ResearchPlayerHireRole;
+  mineOperationId?: number;
 }): { ok: boolean; message: string; daysRemaining?: number } {
   const { pack } = getWorldContext();
   const character = pack.characters?.find(c => c.i === args.characterId);
@@ -120,6 +134,18 @@ export function applyCharacterToResearchJob(args: {
         message: `Engineering skill of ${ENGINEERING_WORKSHOP_MIN} or higher is required for workshop research.`
       };
     }
+  } else if (args.role === "trialMachinist") {
+    const mineOperationId = args.mineOperationId ?? firstTrialMineId(args.burgId);
+    if (mineOperationId == null) {
+      return { ok: false, message: "No steam pump trial in this burg." };
+    }
+    const engineering = readEngineering(character);
+    if (engineering === null || engineering < ENGINEERING_WORKSHOP_MIN) {
+      return {
+        ok: false,
+        message: `Engineering skill of ${ENGINEERING_WORKSHOP_MIN} or higher is required for trial work.`
+      };
+    }
   } else if (!burgHasActiveMine(args.burgId)) {
     return { ok: false, message: "No active mine in this burg." };
   }
@@ -136,11 +162,15 @@ export function applyCharacterToResearchJob(args: {
     const mineOperationId = firstActiveMineId(args.burgId);
     if (mineOperationId != null) application.mineOperationId = mineOperationId;
   }
+  if (args.role === "trialMachinist") {
+    const mineOperationId = args.mineOperationId ?? firstTrialMineId(args.burgId);
+    if (mineOperationId != null) application.mineOperationId = mineOperationId;
+  }
   apps.push(application);
   setResearchHireApplications(apps);
   return {
     ok: true,
-    message: `Applied as ${args.role === "workshopResearcher" ? "workshop researcher" : "mine laborer"}. Decision in ${RESEARCH_PLAYER_HIRE_LAG_DAYS} days.`,
+    message: `Applied as ${researchRoleLabel(args.role).toLowerCase()}. Decision in ${RESEARCH_PLAYER_HIRE_LAG_DAYS} days.`,
     daysRemaining: RESEARCH_PLAYER_HIRE_LAG_DAYS
   };
 }
@@ -203,6 +233,10 @@ export function purgeInvalidResearchHireState(): void {
       removeResearchRole(character);
       continue;
     }
+    if (seat.role === "trialMachinist" && !burgHasSteamTrial(seat.burgId)) {
+      removeResearchRole(character);
+      continue;
+    }
     validSeats.push(seat);
   }
   setResearchNamedSeats(validSeats);
@@ -212,6 +246,7 @@ export function purgeInvalidResearchHireState(): void {
     if (!character || character.dead || character.location !== app.burgId) return false;
     if (app.role === "workshopResearcher" && !activeWorkshopBurgIds.has(app.burgId)) return false;
     if (app.role === "mineLaborer" && !activeMineBurgIds.has(app.burgId)) return false;
+    if (app.role === "trialMachinist" && !burgHasSteamTrial(app.burgId)) return false;
     return true;
   });
   setResearchHireApplications(validApps);
@@ -225,8 +260,10 @@ function acceptApplication(app: ResearchHireApplication): void {
 
   const seats = getResearchNamedSeats().filter(seat => seat.characterId !== app.characterId);
   const seat: ResearchNamedSeat = { burgId: app.burgId, role: app.role, characterId: app.characterId };
-  if (app.role === "mineLaborer") {
-    const mineOperationId = app.mineOperationId ?? firstActiveMineId(app.burgId);
+  if (app.role === "mineLaborer" || app.role === "trialMachinist") {
+    const mineOperationId =
+      app.mineOperationId ??
+      (app.role === "trialMachinist" ? firstTrialMineId(app.burgId) : firstActiveMineId(app.burgId));
     if (mineOperationId != null) seat.mineOperationId = mineOperationId;
   }
   seats.push(seat);
@@ -252,6 +289,7 @@ export function tickResearchHiring(deltaDays: number): void {
     }
     if (app.role === "workshopResearcher" && !burgHasActiveExperimentalWorkshop(app.burgId)) continue;
     if (app.role === "mineLaborer" && !burgHasActiveMine(app.burgId)) continue;
+    if (app.role === "trialMachinist" && !burgHasSteamTrial(app.burgId)) continue;
     acceptApplication(app);
   }
   setResearchHireApplications(remaining);

@@ -11,6 +11,7 @@ import {
   getEscortActiveContracts,
   getEscortHireApplications,
   getResearchHireApplications,
+  getResearchInstructMissions,
   getResearchNamedSeats
 } from "../economyContext";
 
@@ -39,6 +40,7 @@ export function characterHasEscortCommitment(characterId: number): boolean {
 export function characterHasResearchCommitment(characterId: number): boolean {
   if (getResearchNamedSeats().some(seat => seat.characterId === characterId)) return true;
   if (getResearchHireApplications().some(app => app.characterId === characterId)) return true;
+  if (getResearchInstructMissions().some(mission => mission.characterId === characterId)) return true;
   return false;
 }
 

@@ -10,9 +10,11 @@ import { diseaseDeathReason, diseaseDeathRiskFor } from "./characterHealth";
 import {
   getCharacters,
   getCurrentYear,
+  getPersonalTechnologyKnowledge,
   getWorldContext,
   hasCharactersContext,
-  replaceCharacters
+  replaceCharacters,
+  setPersonalTechnologyKnowledge
 } from "./charactersContext";
 import { type Character, type CharacterRoleClass, type CharacterSkills, isCk3Character } from "./characterTypes";
 import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
@@ -156,6 +158,9 @@ export function advanceCharacterAging(deltaYears: number): void {
     if (Math.random() > survivalProb) {
       character.dead = true;
       character.deathYear = getCurrentYear();
+      const knowledge = { ...getPersonalTechnologyKnowledge() };
+      delete knowledge[String(character.i)];
+      setPersonalTechnologyKnowledge(knowledge);
 
       let baseReason = diseaseDeathReason(character) ?? "Deceased";
       if (usesCk3Systems && character.titles.length > 0) {

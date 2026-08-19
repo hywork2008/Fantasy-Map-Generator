@@ -120,6 +120,16 @@ export function getDerivedExtraWorkers(): Map<string, ExtraWorkersEntry> {
 }
 
 /** Best workshop-researcher quality at this burg, or 0 when no seat is present. */
+/** Seat rescue toward trial utilization, capped at 0.35. */
+export function trialSeatUtilizationBonus(mineOperationId: number): number {
+  for (const seat of getResearchNamedSeats()) {
+    if (seat.role !== "trialMachinist" || seat.mineOperationId !== mineOperationId) continue;
+    const extra = extraWorkersFromEngineering(readCharacterEngineering(seat.characterId));
+    return Math.min(0.15 * extra, 0.35);
+  }
+  return 0;
+}
+
 export function getWorkshopExperimentQuality(burgId: number): number {
   let best = 0;
   let hasSeat = false;

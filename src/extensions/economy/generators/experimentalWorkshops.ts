@@ -20,6 +20,7 @@ import { consumeNamed, debitTreasury, EXPERIMENTAL_BUDGET, marketIdForBurg, pick
 import { getPracticeForState, recordLabGlassPractice, recordObsidianPractice } from "./chemMedPractice";
 import type { CraftDomainEmploymentRecord } from "./guildKnowledgeTypes";
 import { biasExperimentRecordRate, getWorkshopPatronageAppliedGold } from "./technologyBiasApply";
+import { patronageFundedBurgId } from "./technologyPatronage";
 
 const RESEARCHERS = 2;
 
@@ -56,8 +57,12 @@ export class ExperimentalWorkshopsModule {
 
       let workshop = workshops.find(entry => entry.sponsorStateId === state.i && entry.active);
       if (!workshop) {
-        const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, EXPERIMENTAL_BUDGET)) continue;
+        const fundedBurgId = patronageFundedBurgId(state.i, year);
+        const burgId = fundedBurgId ?? pickSponsorBurg(state.i);
+        if (!burgId) continue;
+        const applied = getWorkshopPatronageAppliedGold(burgId, state.i, year);
+        const need = Math.max(0, EXPERIMENTAL_BUDGET - applied);
+        if (need > 0 && !debitTreasury(state.i, need)) continue;
         workshop = {
           burgId,
           sponsorStateId: state.i,

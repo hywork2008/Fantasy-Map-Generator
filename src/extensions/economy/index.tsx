@@ -168,6 +168,15 @@ import {
   Taxes
 } from "./generators/taxes-generator";
 import {
+  cancelInstructMission,
+  decayInstructionResidues,
+  dropExpiredHints,
+  startCopyNotes,
+  startInstructMission,
+  tickInstructMissions
+} from "./generators/technologyInstruct";
+import { fuelTrial, fundWorkshop, hireResearchers } from "./generators/technologyPatronage";
+import {
   applyCharacterToResearchJob,
   cancelResearchApplication,
   clearResearchHireState,
@@ -540,6 +549,12 @@ let _unregisterJobsCancelEscortCommand: (() => void) | null = null;
 let _unregisterJobsApplyResearchCommand: (() => void) | null = null;
 let _unregisterJobsResignResearchCommand: (() => void) | null = null;
 let _unregisterJobsCancelResearchCommand: (() => void) | null = null;
+let _unregisterJobsInstructCommand: (() => void) | null = null;
+let _unregisterJobsCancelInstructCommand: (() => void) | null = null;
+let _unregisterJobsCopyNotesCommand: (() => void) | null = null;
+let _unregisterPatronageFundCommand: (() => void) | null = null;
+let _unregisterPatronageHireCommand: (() => void) | null = null;
+let _unregisterPatronageFuelCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 let _unregisterMarketTerritorySystem: (() => void) | null = null;
@@ -1197,14 +1212,17 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
         throw new Error("Economy must be enabled to apply for research work");
       }
-      const payload = value as { characterId?: number; burgId?: number; role?: ResearchPlayerHireRole } | undefined;
+      const payload = value as
+        | { characterId?: number; burgId?: number; role?: ResearchPlayerHireRole; mineOperationId?: number }
+        | undefined;
       if (!payload?.characterId || !payload?.burgId || !payload?.role) {
         throw new Error("jobs.applyResearch requires { characterId, burgId, role }");
       }
       const result = applyCharacterToResearchJob({
         characterId: payload.characterId,
         burgId: payload.burgId,
-        role: payload.role
+        role: payload.role,
+        mineOperationId: payload.mineOperationId
       });
       return { changed: result.ok, result };
     }
@@ -1232,6 +1250,113 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       const payload = value as { characterId?: number } | undefined;
       if (!payload?.characterId) throw new Error("jobs.cancelResearchApplication requires { characterId }");
       const result = cancelResearchApplication(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsInstructCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.instruct",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to teach");
+      }
+      const payload = value as { characterId?: number; burgId?: number; technologyIds?: string[] } | undefined;
+      if (!payload?.characterId || !payload?.burgId || !payload.technologyIds) {
+        throw new Error("jobs.instruct requires { characterId, burgId, technologyIds }");
+      }
+      const result = startInstructMission({
+        characterId: payload.characterId,
+        burgId: payload.burgId,
+        technologyIds: payload.technologyIds
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsCancelInstructCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.cancelInstruct",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to cancel teaching");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.cancelInstruct requires { characterId }");
+      const result = cancelInstructMission(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsCopyNotesCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.copyNotes",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to copy notes");
+      }
+      const payload = value as { characterId?: number; burgId?: number; technologyId?: string } | undefined;
+      if (!payload?.characterId || !payload?.burgId || !payload.technologyId) {
+        throw new Error("jobs.copyNotes requires { characterId, burgId, technologyId }");
+      }
+      const result = startCopyNotes({
+        characterId: payload.characterId,
+        burgId: payload.burgId,
+        technologyId: payload.technologyId
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterPatronageFundCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "patronage.fundWorkshop",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to fund a workshop");
+      }
+      const payload = value as { characterId?: number; burgId?: number; amount?: number } | undefined;
+      if (!payload?.characterId || !payload?.burgId) {
+        throw new Error("patronage.fundWorkshop requires { characterId, burgId }");
+      }
+      const result = fundWorkshop({
+        characterId: payload.characterId,
+        burgId: payload.burgId,
+        amount: payload.amount
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterPatronageHireCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "patronage.hireResearchers",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to hire researchers");
+      }
+      const payload = value as { characterId?: number; burgId?: number; count?: number } | undefined;
+      if (!payload?.characterId || !payload?.burgId) {
+        throw new Error("patronage.hireResearchers requires { characterId, burgId }");
+      }
+      const result = hireResearchers({
+        characterId: payload.characterId,
+        burgId: payload.burgId,
+        count: payload.count
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterPatronageFuelCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "patronage.fuelTrial",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to fuel a trial");
+      }
+      const payload = value as { characterId?: number; mineOperationId?: number } | undefined;
+      if (!payload?.characterId || !payload?.mineOperationId) {
+        throw new Error("patronage.fuelTrial requires { characterId, mineOperationId }");
+      }
+      const result = fuelTrial({
+        characterId: payload.characterId,
+        mineOperationId: payload.mineOperationId
+      });
       return { changed: result.ok, result };
     }
   });
@@ -2744,6 +2869,7 @@ export function init(api: ExtensionAPI): void {
         tickConstructionHiring(effectiveDays);
         // Research workshop / mine-labor hire lag (technology-bias PR-3).
         tickResearchHiring(effectiveDays);
+        tickInstructMissions(effectiveDays, { spreadNeighborhood: true });
         // Threat cull / pest job board expiry + monthly top-up (PR-2).
         tickCullJobBoard(effectiveDays);
         // Cull hire lag / accept / combat resolve + ecology (PR-3b).
@@ -2774,6 +2900,8 @@ export function init(api: ExtensionAPI): void {
         // Chemistry / medicine workshops and hospitals must publish headcount and
         // burg.medicalCare before Guild/Academy EWMA and UrbanWater sanitation writes.
         // docs/plan/chemistry-medicine-knowledge-accumulation.md §9
+        dropExpiredHints();
+        decayInstructionResidues();
         ApothecaryWorkshops.settleAnnual();
         ExperimentalWorkshops.settleAnnual();
         HospitalInstallations.settleAnnual();
@@ -3142,6 +3270,18 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterJobsResignResearchCommand = null;
   _unregisterJobsCancelResearchCommand?.();
   _unregisterJobsCancelResearchCommand = null;
+  _unregisterJobsInstructCommand?.();
+  _unregisterJobsInstructCommand = null;
+  _unregisterJobsCancelInstructCommand?.();
+  _unregisterJobsCancelInstructCommand = null;
+  _unregisterJobsCopyNotesCommand?.();
+  _unregisterJobsCopyNotesCommand = null;
+  _unregisterPatronageFundCommand?.();
+  _unregisterPatronageFundCommand = null;
+  _unregisterPatronageHireCommand?.();
+  _unregisterPatronageHireCommand = null;
+  _unregisterPatronageFuelCommand?.();
+  _unregisterPatronageFuelCommand = null;
   _unregisterCommerceTradeCommand?.();
   _unregisterCommerceTradeCommand = null;
   _unregisterClearCommand?.();

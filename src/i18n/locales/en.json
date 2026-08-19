@@ -1986,7 +1986,7 @@
       "steamValue": "{{known}} known · {{demonstrated}} demonstrated · {{adopted}} adopted · {{diffused}} diffused / {{states}} states",
       "why": "Why",
       "whyTip": "Show why this technology is stuck — unmet evidence and whether a teaching hint is live",
-      "whySteamTip": "Show why atmospheric steam pumping is stuck for the selected or first steam row",
+      "whySteamTip": "Show why atmospheric steam pumping is stuck. Uses the selected steam row when one is selected; otherwise the first non-diffused steam row in the current filter.",
       "gateTitle": "Why {{state}} / {{technology}} is stuck",
       "gateClear": "No unmet known, demonstrated, or adopted thresholds. The stage may still be waiting on years or prerequisite technologies.",
       "refreshTip": "Refresh from the current simulation year",
