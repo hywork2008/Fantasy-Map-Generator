@@ -14,6 +14,7 @@ import {
 import {
   applyConquestDisruptionToGuilds,
   applyMasterlessGuildPenalty,
+  collectGuildPractitioners,
   GUILD_CONQUEST_DISRUPTION_PENALTY,
   GUILD_MASTERLESS_DEATH_PENALTY,
   GUILD_SATURATION_WORKERS,
@@ -140,6 +141,22 @@ describe("GuildKnowledgeModule", () => {
 
   it("returns bonus 1 (no bonus) for a Burg with no tracked stock", () => {
     expect(getGuildBonus(999, "metallurgy")).toBe(1);
+  });
+
+  it("collects woodworking headcount from craft-domain employment and metallurgy from smelter plus smithing", () => {
+    setSmelterOperations([smelter({ workers: 2 })]);
+    setCraftDomainEmploymentRecords([
+      { burgId: 1, domain: "woodworking", workers: 1 },
+      { burgId: 1, domain: "metallurgy", workers: 3 }
+    ]);
+
+    const practitioners = [...collectGuildPractitioners().values()];
+    expect(practitioners).toEqual(
+      expect.arrayContaining([
+        { burgId: 1, domain: "woodworking", workers: 1 },
+        { burgId: 1, domain: "metallurgy", workers: 5 }
+      ])
+    );
   });
 
   it("grows a non-metallurgy domain's stock from CraftDomainEmploymentRecord alone", () => {

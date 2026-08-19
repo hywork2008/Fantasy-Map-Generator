@@ -26,6 +26,12 @@ export const BurgEditorGuildsTab: FC = () => {
             <tr>
               <th scope="col">Domain</th>
               <th scope="col">Status</th>
+              <th
+                scope="col"
+                data-tip="Live practitioner headcount driving this domain's technique (coverage = workers / 6). Metallurgy includes smelter workers."
+              >
+                Workers
+              </th>
               <th scope="col">Stock</th>
               <th scope="col">Bonus</th>
               <th scope="col">Treasury</th>
@@ -39,6 +45,7 @@ export const BurgEditorGuildsTab: FC = () => {
               <tr key={row.domain}>
                 <td>{row.domain}</td>
                 <td>{row.status === "chapter" ? "Chapter" : "Informal"}</td>
+                <td className="numeric">{formatWorkers(row.workers)}</td>
                 <td>{row.stock.toFixed(3)}</td>
                 <td>{row.bonus.toFixed(3)}</td>
                 <td>{row.treasury.toFixed(2)}</td>
@@ -70,3 +77,8 @@ export const BurgEditorGuildsTab: FC = () => {
     </div>
   );
 };
+
+function formatWorkers(workers: number): string {
+  if (workers <= 0) return "0";
+  return Number.isInteger(workers) ? String(workers) : workers.toFixed(1);
+}

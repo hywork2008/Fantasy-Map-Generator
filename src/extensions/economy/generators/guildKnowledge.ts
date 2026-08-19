@@ -56,7 +56,35 @@ function keyOf(burgId: number, domain: CraftKnowledgeDomain): string {
   return `${burgId}:${domain}`;
 }
 
-type Practitioners = { burgId: number; domain: CraftKnowledgeDomain; workers: number };
+export type GuildPractitioners = { burgId: number; domain: CraftKnowledgeDomain; workers: number };
+
+/**
+ * Live practitioner headcount that drives guild technique coverage (`workers / 6`).
+ * Metallurgy sums active smelter workers with metallurgy craft employment; other domains use
+ * craft-domain employment plus any player-bias extra seats.
+ */
+export function collectGuildPractitioners(): Map<string, GuildPractitioners> {
+  const practitioners = new Map<string, GuildPractitioners>();
+  const add = (burgId: number, domain: CraftKnowledgeDomain, workers: number) => {
+    if (workers <= 0) return;
+    const key = keyOf(burgId, domain);
+    const entry = practitioners.get(key);
+    if (entry) entry.workers += workers;
+    else practitioners.set(key, { burgId, domain, workers });
+  };
+
+  for (const smelter of getSmelterOperations()) {
+    if (smelter.active) add(smelter.burgId, "metallurgy", smelter.workers);
+  }
+  for (const record of getCraftDomainEmploymentRecords()) {
+    add(record.burgId, record.domain, record.workers);
+  }
+  for (const { burgId, domain, extraWorkers } of getDerivedExtraWorkers().values()) {
+    if (isCraftKnowledgeDomain(domain)) add(burgId, domain, extraWorkers);
+  }
+
+  return practitioners;
+}
 
 export class GuildKnowledgeModule {
   /**
@@ -70,7 +98,7 @@ export class GuildKnowledgeModule {
     if (getGuildKnowledgeLastSettledYear() === year) return false;
     setGuildKnowledgeLastSettledYear(year);
 
-    const practitioners = this.collectPractitioners();
+    const practitioners = collectGuildPractitioners();
     const remaining = new Map(getGuildKnowledgeStocks().map(entry => [keyOf(entry.burgId, entry.domain), entry]));
 
     const next: GuildKnowledgeStock[] = [];
@@ -95,29 +123,6 @@ export class GuildKnowledgeModule {
 
     setGuildKnowledgeStocks(next);
     return true;
-  }
-
-  private collectPractitioners(): Map<string, Practitioners> {
-    const practitioners = new Map<string, Practitioners>();
-    const add = (burgId: number, domain: CraftKnowledgeDomain, workers: number) => {
-      if (workers <= 0) return;
-      const key = keyOf(burgId, domain);
-      const entry = practitioners.get(key);
-      if (entry) entry.workers += workers;
-      else practitioners.set(key, { burgId, domain, workers });
-    };
-
-    for (const smelter of getSmelterOperations()) {
-      if (smelter.active) add(smelter.burgId, "metallurgy", smelter.workers);
-    }
-    for (const record of getCraftDomainEmploymentRecords()) {
-      add(record.burgId, record.domain, record.workers);
-    }
-    for (const { burgId, domain, extraWorkers } of getDerivedExtraWorkers().values()) {
-      if (isCraftKnowledgeDomain(domain)) add(burgId, domain, extraWorkers);
-    }
-
-    return practitioners;
   }
 }
 

@@ -2535,6 +2535,8 @@
       "domainColTip": "Craft-domain guild (metallurgy, woodworking, masonry, textiles, leather, glassware, instruments, printing)",
       "status": "Status",
       "statusTip": "Formal chapter or informal craft-practitioner stock",
+      "workers": "Workers",
+      "workersTip": "Live practitioner headcount driving this domain's technique (coverage = workers / 6). Metallurgy includes smelter workers.",
       "technique": "Technique",
       "techniqueTip": "0..1 accumulated technique (saturating EWMA driven by staffed practitioners)",
       "bonus": "Bonus",

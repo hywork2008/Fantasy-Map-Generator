@@ -4,6 +4,7 @@ import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
   initEconomyContext,
+  setCraftDomainEmploymentRecords,
   setGuildChapters,
   setGuildKnowledgeStocks,
   setIndividualSkills
@@ -55,6 +56,7 @@ describe("listGuildsForBurg", () => {
       expect.objectContaining({
         domain: "metallurgy",
         status: "chapter",
+        workers: 0,
         stock: 0,
         treasury: 0,
         foundedYear: 500,
@@ -64,7 +66,22 @@ describe("listGuildsForBurg", () => {
         masterTechniques: ["heatTreatment"],
         masterReconstructionLeads: [{ technique: "patternWelding", progress: 0.45 }]
       }),
-      expect.objectContaining({ domain: "textiles", status: "informal", stock: 0.4, treasury: 12, foundedYear: null })
+      expect.objectContaining({
+        domain: "textiles",
+        status: "informal",
+        workers: 0,
+        stock: 0.4,
+        treasury: 12,
+        foundedYear: null
+      })
+    ]);
+  });
+
+  it("shows live woodworking headcount even when only craft-domain employment exists", () => {
+    setCraftDomainEmploymentRecords([{ burgId: 1, domain: "woodworking", workers: 1 }]);
+
+    expect(listGuildsForBurg(1)).toEqual([
+      expect.objectContaining({ domain: "woodworking", status: "informal", workers: 1, stock: 0 })
     ]);
   });
 });
