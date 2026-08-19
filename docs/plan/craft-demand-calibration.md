@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| **Status** | Draft — PR 1 implemented (tables + Calibration Overview; production unchanged) |
+| **Status** | Draft — PR 1–2 implemented (tables + Overview; market residual/representative recipe behind applyCalibration, default false) |
 | **Author** | — |
 | **Date** | 2026-08-19 |
 | **Revised** | 2026-08-19（第4稿: smelterWorkers 人換算は旧トン閾値を保存、Phase 2 停止条件、未マップ財の lots フォールバック、0.50 cap の適用範囲） |

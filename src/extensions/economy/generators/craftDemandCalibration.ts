@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT, REFERENCE_FIXTURE_LABOR_PEOPLE } from "./craftScale";
+import type { DemandCategory } from "./goodsGeneratorTypes";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 
 export type DemandProvenanceKind =
@@ -334,4 +335,53 @@ export function getCalibratedMonthlyLots(args: {
   let lots = row.fixtureLotsPerMonth * scale;
   if (args.capital && row.goodName === "Books") lots *= 2;
   return lots;
+}
+
+/**
+ * Consumer-category share used by `collectConsumerDemand`. When calibration is on, rows with
+ * residualWeight 0 leave the denominator (Barrels, Ropes, Tools, …). Rows with a residualCategory
+ * keep only that category (Arrows hunting 0.5, Books luxury 1).
+ */
+export function consumerCoverageForCategory(
+  good: { name: string; demandCoverage?: Partial<Record<DemandCategory, number>> },
+  category: DemandCategory,
+  applyCalibration: boolean
+): number {
+  const catalogue = good.demandCoverage?.[category] ?? 0;
+  if (!applyCalibration) return catalogue;
+  const row = getGoodDemandCalibration(good.name);
+  if (!row) return catalogue;
+  if (row.residualWeight <= 0) return 0;
+  if (row.residualCategory) return row.residualCategory === category ? row.residualWeight : 0;
+  return catalogue;
+}
+
+/**
+ * Recipes that drive industrial (ingredient) demand. Calibration uses one representative recipe
+ * so Beer's four grain paths do not quadruple Barrels 0.08. Uncalibrated goods still collapse to
+ * the cheapest enabled recipe when the flag is on.
+ */
+export function recipesForIndustrialDemand<T extends Record<string, number>>(
+  good: { name: string; recipes?: readonly T[] },
+  applyCalibration: boolean,
+  recipeCost: (recipe: T) => number
+): readonly T[] {
+  const recipes = good.recipes;
+  if (!recipes?.length) return [];
+  if (!applyCalibration) return recipes;
+  const row = getGoodDemandCalibration(good.name);
+  if (row?.typicalRecipeIndex != null) {
+    const picked = recipes[row.typicalRecipeIndex];
+    if (picked) return [picked];
+  }
+  let best = recipes[0];
+  let bestCost = Number.POSITIVE_INFINITY;
+  for (const recipe of recipes) {
+    const cost = recipeCost(recipe);
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = recipe;
+    }
+  }
+  return [best];
 }

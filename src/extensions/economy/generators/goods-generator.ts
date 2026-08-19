@@ -1384,6 +1384,8 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [{ Wood: 1 }],
     unit: "barrel",
+    // Catalogue coverage is kept for applyCalibration=false. When the flag is on,
+    // craftDemandCalibration residualWeight 0 removes Barrels from the consumer denominator.
     demandCoverage: { utilities: 1 }
   },
   {
