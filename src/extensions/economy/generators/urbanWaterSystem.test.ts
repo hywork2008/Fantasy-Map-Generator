@@ -566,7 +566,7 @@ describe("settleBurgWaterInvestment", () => {
   });
 
   it("starts open ditches under flood demand and advances progress", () => {
-    const settlement = burg({ treasury: 2000, product: 80, market: 1, population: 8 });
+    const settlement = burg({ treasury: 500, product: 80, market: 1, population: 8 });
     const result = settleBurgWaterInvestment({
       burg: settlement,
       system: baseSystem({
@@ -635,7 +635,7 @@ describe("settleBurgWaterInvestment", () => {
 
   it("can start covered culverts when masonry stock and outfall exist", () => {
     setGuildKnowledgeStocks([{ burgId: 1, domain: "masonry", stock: 0.4, treasury: 0 }]);
-    const settlement = burg({ treasury: 8000, product: 120, market: 1, population: 15 });
+    const settlement = burg({ treasury: 2000, product: 120, market: 1, population: 15 });
     const result = settleBurgWaterInvestment({
       burg: settlement,
       system: baseSystem({
@@ -834,9 +834,11 @@ describe("UrbanWater module", () => {
     }
 
     // Both trajectories eventually clear tier 4 in this fixture (institutional targets rise with
-    // tier regardless of race) — the point of the bias is to get there *faster* and to push
-    // waterLifting *past* the un-boosted period ceiling, not to be the only path that arrives.
-    const YEARS = 25;
+    // tier regardless of race) — the point of the bias is to get there *faster*, not to be the
+    // only path that arrives. The biased burg reaches tier 4 by year 11 and the unbiased one not
+    // until year 18 (verified against current construction pacing), so 15 years keeps the two
+    // trajectories on opposite sides of the tier-4 line with a comfortable margin either way.
+    const YEARS = 15;
 
     it("pulls a giant river capital to tier 4 faster, and past the un-boosted early-medieval water-lifting ceiling", () => {
       useOptionsState.setState({ culturesSet: "highFantasy" });

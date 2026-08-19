@@ -469,14 +469,16 @@ describe("faunaPopulation", () => {
       forestCellWorld();
       worldContext.pack.cells.state = new Uint16Array([1]);
       worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
+      // getStateMountedHeadcount() sums regiment.u[unitName] for unit names options.military tags
+      // "mounted" — it no longer reads regiment.type/regiment.a directly.
+      worldContext.options = { military: [{ name: "cavalry", type: "mounted" }] } as typeof worldContext.options;
       worldContext.pack.states = [
         {},
         {
           i: 1,
           culture: 0,
           military: [
-            { type: "mounted", a: 300 },
-            { type: "melee", a: 900 } // non-mounted headcount must not count toward mount demand
+            { u: { cavalry: 300, melee: 900 } } // non-mounted headcount must not count toward mount demand
           ]
         }
       ] as never;
@@ -489,7 +491,8 @@ describe("faunaPopulation", () => {
       forestCellWorld();
       worldContext.pack.cells.state = new Uint16Array([1]);
       worldContext.pack.cultures = [{ i: 0, type: "Nomadic" }] as never;
-      worldContext.pack.states = [{}, { i: 1, culture: 0, military: [{ type: "mounted", a: 300 }] }] as never;
+      worldContext.options = { military: [{ name: "cavalry", type: "mounted" }] } as typeof worldContext.options;
+      worldContext.pack.states = [{}, { i: 1, culture: 0, military: [{ u: { cavalry: 300 } }] }] as never;
 
       expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(300);
       // Horses can still pick up caravan-draft demand (world-average, independent of culture), but
