@@ -2548,6 +2548,13 @@
       "informal": "Informal"
     },
     "employmentOverview": {
+      "filterTip": "Filter employment rows by burg or state",
+      "burgFilter": "Burg:",
+      "stateFilter": "State:",
+      "all": "all",
+      "count": "Burgs:",
+      "countValue": "{{shown}} of {{total}}",
+      "countTip": "Burgs displayed after filtering",
       "totalDemand": "Total demand:",
       "totalDemandTip": "Sum of every listed Burg's employmentDemand (basic + service)",
       "residualLabor": "Residual labor:",
@@ -2601,6 +2608,7 @@
       "serviceTip": "serviceEmploymentDemand ≈ basic × 1.5",
       "total": "Total",
       "totalTip": "basic + service demand (urban labor intake driver in Megacity mode)",
+      "emptyFiltered": "No burgs match the selected filters",
       "empty": "No Burg has recorded employment or demographics yet",
       "capital": "State capital",
       "dwellingsBuilt": "{{built}} built / {{required}} required dwellings",

@@ -68,7 +68,9 @@ describe("refreshEmploymentOverview", () => {
 
     const capital = rows.find(row => row.id === 1);
     expect(capital).toMatchObject({
+      burgId: 1,
       burgName: "Capital City",
+      stateId: 1,
       stateName: "Testland",
       isCapital: true,
       administration: 10,

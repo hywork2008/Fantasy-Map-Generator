@@ -2548,6 +2548,13 @@
       "informal": "非公式"
     },
     "employmentOverview": {
+      "filterTip": "都市または国家で雇用行を絞り込み",
+      "burgFilter": "都市：",
+      "stateFilter": "国家：",
+      "all": "すべて",
+      "count": "都市：",
+      "countValue": "{{shown}} / {{total}}",
+      "countTip": "絞り込み後に表示している都市数",
       "totalDemand": "総需要：",
       "totalDemandTip": "表示中の各都市の雇用需要（基礎＋サービス）の合計",
       "residualLabor": "残余労働：",
@@ -2601,6 +2608,7 @@
       "serviceTip": "サービス雇用需要 ≈ 基礎 × 1.5",
       "total": "合計",
       "totalTip": "基礎＋サービス需要（巨大都市モードの都市労働取込の駆動）",
+      "emptyFiltered": "選択した条件に合う都市がありません",
       "empty": "雇用や人口動態を記録した都市がまだありません",
       "capital": "首都",
       "dwellingsBuilt": "建済 {{built}} / 必要 {{required}}",
