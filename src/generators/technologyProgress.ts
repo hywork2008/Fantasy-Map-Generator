@@ -1093,7 +1093,7 @@ function explainThresholds(
 
 /**
  * English diagnostic lines for unmet known/demonstrated/adopted mins and hint liveness.
- * Used by tests now; Technology Overview will read it later. Pure read of pack + slices.
+ * Read by Technology Overview and tests. Pure read of pack + slices.
  */
 export function explainTechnologyGate(stateId: number, technologyId: string): string[] {
   const def = getTechnologyDefinition(technologyId);

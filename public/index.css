@@ -953,6 +953,11 @@ tr.states {
     border-color: #c4c4c4;
     background-image: linear-gradient(to right, #dedede 100%, #f2f2f2 50%, #fcfcfc 0%);
   }
+
+  &.selected td {
+    border-color: #b28585;
+    background-image: linear-gradient(to right, #f2f2f2 0%, #ebe7e7 50%, #e5dadb 100%);
+  }
 }
 
 div.totalLine>div {
