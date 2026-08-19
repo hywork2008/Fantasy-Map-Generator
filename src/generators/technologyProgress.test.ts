@@ -616,6 +616,45 @@ describe("technologyProgress", () => {
     expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 200 < 230"]);
   });
 
+  // docs/plan/catalytic-chemistry.md §3.
+  it("defines catalyticChemistry as an era-6 node gated behind highPressureChemicalApparatus with no new signals", () => {
+    const catalyticChemistry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "catalyticChemistry");
+    expect(catalyticChemistry?.era).toBe(6);
+    expect(catalyticChemistry?.prerequisites).toEqual(["highPressureChemicalApparatus"]);
+    // Every threshold sits above what highPressureChemicalApparatus's own adopted stage already
+    // guarantees (experimentRecord 0.65, instruments 0.3, administration 0.6), so reaching the
+    // prerequisite does not automatically satisfy this node too.
+    expect(catalyticChemistry?.known.min?.experimentRecord).toBe(0.65);
+    expect(catalyticChemistry?.known.min?.instruments).toBe(0.4);
+    expect(catalyticChemistry?.demonstrated.min?.naturalPhilosophy).toBe(0.55);
+    expect(catalyticChemistry?.adopted.min?.administration).toBe(0.65);
+    expect(catalyticChemistry?.minimumYearsAtPreviousStage).toEqual({ demonstrated: 3, adopted: 5 });
+  });
+
+  it("computes catalyticChemistry's gate from ExperimentalWorkshops' experimentRecord and Academy/Guild naturalPhilosophy/instruments stocks (docs/plan/catalytic-chemistry.md §4)", () => {
+    installMinimalWorld();
+    // Between the demonstrated (380) and adopted (450) treasury bars, so only the adopted
+    // threshold is expected to be unmet on treasury — same isolation style as the
+    // modernSteelmaking gate test above.
+    (worldContext.pack.states[1] as { treasury: number }).treasury = 400;
+    simulationContext.extensions = {
+      economy: {
+        experimentalWorkshops: [{ burgId: 1, sponsorStateId: 1, active: true, experimentRecord: 0.8 }],
+        academyKnowledgeStocks: [
+          { burgId: 1, domain: "naturalPhilosophy", stock: 0.7 },
+          { burgId: 1, domain: "administration", stock: 0.7 }
+        ],
+        guildKnowledgeStocks: [{ burgId: 1, domain: "instruments", stock: 0.5 }]
+      }
+    };
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "catalyticChemistry");
+    expect(lines.some(line => line.includes("unmet known"))).toBe(false);
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 400 < 450"]);
+  });
+
   describe("known-stage technology hints", () => {
     const ENP_PREREQS: TechnologyProgress[] = [
       { technologyId: "recordReplication", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },

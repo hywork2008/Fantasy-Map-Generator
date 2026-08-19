@@ -686,6 +686,26 @@ const ERA_6: readonly TechnologyDefinition[] = [
     demonstrated: { min: { experimentRecord: 0.6, steelAccess: 0.35, treasury: 240 } },
     adopted: { min: { experimentRecord: 0.65, steelAccess: 0.4, administration: 0.6, treasury: 290 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/catalytic-chemistry.md §3. No new Good/facility/signal: "研究所" (ExperimentalWorkshops,
+  // already backing experimentRecord/naturalPhilosophy/instruments) and "長期投資"
+  // (minimumYearsAtPreviousStage, the same mechanism every other era-6 node here uses) already
+  // cover the roadmap's "research institute, rare materials, long-term investment" prerequisites
+  // (technology-development-roadmap.md §9.1) except rare catalyst materials, deliberately deferred
+  // to syntheticAmmonia per modern-steelmaking-and-high-pressure-apparatus.md §7 decision 4. Every
+  // threshold below is set above what highPressureChemicalApparatus's own adopted stage already
+  // guarantees (experimentRecord 0.65, instruments 0.3, administration 0.6, treasury 290), so this
+  // node is not automatically satisfied the instant its prerequisite is adopted.
+  {
+    id: "catalyticChemistry",
+    label: "Catalytic chemistry",
+    era: 6,
+    scope: "state",
+    prerequisites: ["highPressureChemicalApparatus"],
+    known: { min: { experimentRecord: 0.65, naturalPhilosophy: 0.5, instruments: 0.4, treasury: 320 } },
+    demonstrated: { min: { experimentRecord: 0.7, naturalPhilosophy: 0.55, treasury: 380 } },
+    adopted: { min: { experimentRecord: 0.75, naturalPhilosophy: 0.6, administration: 0.65, treasury: 450 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 
