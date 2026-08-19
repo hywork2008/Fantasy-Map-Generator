@@ -138,6 +138,19 @@
   background: rgba(240, 234, 220, 0.7);
 }
 
+.player-character-panel .pcp-actions-research {
+  padding-top: 6px;
+  background: rgba(236, 230, 214, 0.75);
+}
+
+.player-character-panel .pcp-research-status {
+  flex: 1 1 100%;
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 .player-character-panel .pcp-action {
   display: inline-flex;
   align-items: center;

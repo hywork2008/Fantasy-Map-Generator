@@ -129,7 +129,7 @@ export function applyCharacterToCullJob(args: { characterId: number; postingId: 
     return { ok: false, message: "Still recovering from a previous hunt injury." };
   }
   if (characterHasEmploymentCommitment(args.characterId)) {
-    return { ok: false, message: "Already committed to employment (construction, hunt, or escort)." };
+    return { ok: false, message: "Already committed to employment (construction, hunt, escort, or research)." };
   }
 
   const posting = getCullJobPostingById(args.postingId);

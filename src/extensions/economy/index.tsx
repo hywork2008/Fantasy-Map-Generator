@@ -168,6 +168,14 @@ import {
   Taxes
 } from "./generators/taxes-generator";
 import {
+  applyCharacterToResearchJob,
+  cancelResearchApplication,
+  clearResearchHireState,
+  type ResearchPlayerHireRole,
+  resignResearchJob,
+  tickResearchHiring
+} from "./generators/technologyResearchHire";
+import {
   applyCharacterToCullJob,
   cancelCullApplication,
   clearCullHiringSession,
@@ -529,6 +537,9 @@ let _unregisterJobsCancelCullCommand: (() => void) | null = null;
 let _unregisterJobsApplyEscortCommand: (() => void) | null = null;
 let _unregisterJobsResignEscortCommand: (() => void) | null = null;
 let _unregisterJobsCancelEscortCommand: (() => void) | null = null;
+let _unregisterJobsApplyResearchCommand: (() => void) | null = null;
+let _unregisterJobsResignResearchCommand: (() => void) | null = null;
+let _unregisterJobsCancelResearchCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 let _unregisterMarketTerritorySystem: (() => void) | null = null;
@@ -1179,6 +1190,51 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: result.ok, result };
     }
   });
+  _unregisterJobsApplyResearchCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.applyResearch",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to apply for research work");
+      }
+      const payload = value as { characterId?: number; burgId?: number; role?: ResearchPlayerHireRole } | undefined;
+      if (!payload?.characterId || !payload?.burgId || !payload?.role) {
+        throw new Error("jobs.applyResearch requires { characterId, burgId, role }");
+      }
+      const result = applyCharacterToResearchJob({
+        characterId: payload.characterId,
+        burgId: payload.burgId,
+        role: payload.role
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsResignResearchCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.resignResearch",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to resign research work");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.resignResearch requires { characterId }");
+      const result = resignResearchJob(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsCancelResearchCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.cancelResearchApplication",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to cancel a research application");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.cancelResearchApplication requires { characterId }");
+      const result = cancelResearchApplication(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
   _unregisterCommerceTradeCommand = api.registerExtensionCommand({
     extensionId: ECONOMY_EXTENSION_ID,
     name: "commerce.trade",
@@ -1222,6 +1278,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearCullHiringSession();
       clearEscortHireState();
       clearEscortHiringSession();
+      clearResearchHireState();
       clearUrbanPregnancy();
       MineralResources.clear();
       Minting.clear();
@@ -2685,6 +2742,8 @@ export function init(api: ExtensionAPI): void {
         tickUrbanPregnancy(effectiveDeltaYears);
         // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
         tickConstructionHiring(effectiveDays);
+        // Research workshop / mine-labor hire lag (technology-bias PR-3).
+        tickResearchHiring(effectiveDays);
         // Threat cull / pest job board expiry + monthly top-up (PR-2).
         tickCullJobBoard(effectiveDays);
         // Cull hire lag / accept / combat resolve + ecology (PR-3b).
@@ -3077,6 +3136,12 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterJobsResignEscortCommand = null;
   _unregisterJobsCancelEscortCommand?.();
   _unregisterJobsCancelEscortCommand = null;
+  _unregisterJobsApplyResearchCommand?.();
+  _unregisterJobsApplyResearchCommand = null;
+  _unregisterJobsResignResearchCommand?.();
+  _unregisterJobsResignResearchCommand = null;
+  _unregisterJobsCancelResearchCommand?.();
+  _unregisterJobsCancelResearchCommand = null;
   _unregisterCommerceTradeCommand?.();
   _unregisterCommerceTradeCommand = null;
   _unregisterClearCommand?.();
