@@ -123,7 +123,7 @@ const ERA_1: readonly TechnologyDefinition[] = [
     prerequisites: ["basicMetallurgy"],
     known: { min: { mineCount: 1 } },
     demonstrated: { min: { mineCount: 1, metallurgy: 0.15, treasury: 20 } },
-    adopted: { min: { mineCount: 2, metallurgy: 0.35, smelterWorkers: 4, treasury: 40 } }
+    adopted: { min: { mineCount: 2, metallurgy: 0.35, smelterWorkers: 3508, treasury: 40 } }
   },
   {
     id: "highTempFurnace",
@@ -131,9 +131,9 @@ const ERA_1: readonly TechnologyDefinition[] = [
     era: 1,
     scope: "state",
     prerequisites: ["basicMetallurgy", "improvedMining"],
-    known: { min: { metallurgy: 0.2, smelterWorkers: 2 } },
-    demonstrated: { min: { metallurgy: 0.4, smelterWorkers: 6, treasury: 30 } },
-    adopted: { min: { metallurgy: 0.55, smelterWorkers: 10, treasury: 60 } }
+    known: { min: { metallurgy: 0.2, smelterWorkers: 1508 } },
+    demonstrated: { min: { metallurgy: 0.4, smelterWorkers: 5508, treasury: 30 } },
+    adopted: { min: { metallurgy: 0.55, smelterWorkers: 9508, treasury: 60 } }
   },
   {
     id: "mechanicalWorkshops",
@@ -272,9 +272,9 @@ const ERA_2: readonly TechnologyDefinition[] = [
     scope: "state",
     prerequisites: ["blackPowder", "highTempFurnace"],
     worldGates: ["gunpowderWorld"],
-    known: { min: { metallurgy: 0.4, smelterWorkers: 6, treasury: 50 } },
-    demonstrated: { min: { metallurgy: 0.55, smelterWorkers: 10, pyrotechnics: 0.25, treasury: 90 } },
-    adopted: { min: { metallurgy: 0.65, smelterWorkers: 14, pyrotechnics: 0.4, treasury: 120 } }
+    known: { min: { metallurgy: 0.4, smelterWorkers: 5508, treasury: 50 } },
+    demonstrated: { min: { metallurgy: 0.55, smelterWorkers: 9508, pyrotechnics: 0.25, treasury: 90 } },
+    adopted: { min: { metallurgy: 0.65, smelterWorkers: 13508, pyrotechnics: 0.4, treasury: 120 } }
   },
   {
     id: "artilleryTactics",
@@ -413,9 +413,9 @@ const ERA_4: readonly TechnologyDefinition[] = [
     era: 4,
     scope: "state",
     prerequisites: ["highTempFurnace", "recordReplication"],
-    known: { min: { metallurgy: 0.4, smelterWorkers: 6 } },
-    demonstrated: { min: { metallurgy: 0.55, smelterWorkers: 10, printing: 0.25 } },
-    adopted: { min: { metallurgy: 0.65, smelterWorkers: 14, administration: 0.35 } }
+    known: { min: { metallurgy: 0.4, smelterWorkers: 5508 } },
+    demonstrated: { min: { metallurgy: 0.55, smelterWorkers: 9508, printing: 0.25 } },
+    adopted: { min: { metallurgy: 0.65, smelterWorkers: 13508, administration: 0.35 } }
   },
   {
     id: "coalFuelSupply",
@@ -508,8 +508,8 @@ const ERA_5: readonly TechnologyDefinition[] = [
     scope: "state",
     prerequisites: ["improvedMining", "highTempFurnace"],
     known: { min: { mineCount: 1, metallurgy: 0.35, treasury: 40 } },
-    demonstrated: { min: { coalMineCount: 1, metallurgy: 0.5, smelterWorkers: 8, treasury: 70 } },
-    adopted: { min: { coalMineCount: 1, metallurgy: 0.6, smelterWorkers: 12, treasury: 100 } }
+    demonstrated: { min: { coalMineCount: 1, metallurgy: 0.5, smelterWorkers: 7508, treasury: 70 } },
+    adopted: { min: { coalMineCount: 1, metallurgy: 0.6, smelterWorkers: 11508, treasury: 100 } }
   },
   {
     id: "standardMachineWorks",
@@ -517,9 +517,9 @@ const ERA_5: readonly TechnologyDefinition[] = [
     era: 5,
     scope: "state",
     prerequisites: ["rotarySteamPower", "coalCarbonization"],
-    known: { min: { metallurgy: 0.55, smelterWorkers: 8, treasury: 80 } },
-    demonstrated: { min: { metallurgy: 0.65, smelterWorkers: 12, administration: 0.35, treasury: 120 } },
-    adopted: { min: { metallurgy: 0.7, smelterWorkers: 14, administration: 0.45, treasury: 160 } }
+    known: { min: { metallurgy: 0.55, smelterWorkers: 7508, treasury: 80 } },
+    demonstrated: { min: { metallurgy: 0.65, smelterWorkers: 11508, administration: 0.35, treasury: 120 } },
+    adopted: { min: { metallurgy: 0.7, smelterWorkers: 13508, administration: 0.45, treasury: 160 } }
   },
   {
     id: "highEfficiencySteamEngine",

@@ -3,7 +3,8 @@ import { persist } from "zustand/middleware";
 
 /**
  * Economy calibration flag (docs/plan/craft-demand-calibration.md §4.2).
- * Default false until PR 4. PR 1 diagnostics ignore this flag.
+ * Default true as of PR 4 (unit-consistent craft/guild/academy labor is now the standard path;
+ * flip off to restore pre-PR-3 behavior for comparison/debugging). PR 1 diagnostics ignore this flag.
  */
 interface EconomyCalibrationState {
   applyCalibration: boolean;
@@ -13,7 +14,7 @@ interface EconomyCalibrationState {
 export const useEconomyCalibrationState = create<EconomyCalibrationState>()(
   persist(
     set => ({
-      applyCalibration: false,
+      applyCalibration: true,
       setApplyCalibration: (value: boolean) => set({ applyCalibration: value })
     }),
     { name: "fmg-economy-calibration" }

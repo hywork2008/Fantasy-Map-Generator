@@ -9,6 +9,7 @@ import {
   setInstructionResidues,
   setResearchNamedSeats
 } from "../economyContext";
+import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { ACADEMY_SATURATION_WORKERS } from "./academyKnowledge";
 import { GUILD_SATURATION_WORKERS } from "./guildKnowledge";
 import {
@@ -70,6 +71,12 @@ describe("technologyBiasApply", () => {
     initEconomyContext(api);
     initCharactersContext(api);
     worldContext.pack = { characters: [] } as unknown as PackedGraph;
+    // These tests assert against RESIDUE_GUILD_SATURATION_WORKERS/RESIDUE_ACADEMY_SATURATION_WORKERS
+    // directly — the pre-PR-3 legacy saturation constants — which getDerivedExtraWorkers() only
+    // uses when applyCalibration is off (PR 4 flips the default to on). guildKnowledge.test.ts /
+    // academyKnowledge.test.ts cover the calibrated (guildSaturationPoints/ACADEMY_SATURATION_PEOPLE)
+    // residue scaling.
+    setEconomyCalibrationState({ applyCalibration: false });
   });
 
   afterEach(() => {

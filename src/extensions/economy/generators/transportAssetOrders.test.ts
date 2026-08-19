@@ -32,6 +32,10 @@ describe("transport asset orders", () => {
       { i: 4, name: "Ropes", value: 2, tags: [] },
       { i: 5, name: "Tar", value: 1, tags: [] }
     ]);
+    // These tests (outside the "applyCalibration real-people transport capacity" block below)
+    // exercise the pre-PR-3 legacy capacity model (25% of observed craft employment, `used.total`
+    // as a raw population-point sum) deliberately — PR 4 no longer runs it by default.
+    setEconomyCalibrationState({ applyCalibration: false });
   });
 
   afterEach(() => {

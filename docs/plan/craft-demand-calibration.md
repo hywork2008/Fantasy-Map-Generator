@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| **Status** | Draft — PR 1–3 implemented (tables + Overview; market residual/representative recipe; closed-inventory people grain, saturation, yield/labor split — all behind applyCalibration, default false). PR 4 (host tech-signal units) not started. |
+| **Status** | Implemented — PR 1–4 complete. `applyCalibration` defaults to `true` as of PR 4; `smelterWorkers` tech-signal restated in real people (`technologyProgress.ts`/`technologyDefinitions.ts`), 0–1 stock gates left untouched. |
 | **Author** | — |
 | **Date** | 2026-08-19 |
 | **Revised** | 2026-08-19（第4稿: smelterWorkers 人換算は旧トン閾値を保存、Phase 2 停止条件、未マップ財の lots フォールバック、0.50 cap の適用範囲） |

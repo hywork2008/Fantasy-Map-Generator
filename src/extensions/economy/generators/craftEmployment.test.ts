@@ -1,9 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { smoothCraftWorkers } from "./craftEmployment";
 import { peopleToPoints } from "./craftScale";
 
 describe("smoothCraftWorkers", () => {
+  // These top-level tests exercise the pre-PR-3 legacy tracking floor (MIN_TRACKED_WORKERS)
+  // deliberately — PR 4 no longer runs it by default. The real-people floor has its own tests below.
+  beforeEach(() => setEconomyCalibrationState({ applyCalibration: false }));
+
   it("moves 20% of the gap toward this cycle's observed workers", () => {
     expect(smoothCraftWorkers(0, 10)).toBeCloseTo(2, 5);
     expect(smoothCraftWorkers(2, 10)).toBeCloseTo(3.6, 5);

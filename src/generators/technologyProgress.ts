@@ -439,9 +439,8 @@ function buildStateSignals(): Map<number, TechnologySignals> {
     if (!signals) continue;
     signals.treasury = Math.max(0, Number(state.treasury) || 0);
     signals.atWar = Boolean(state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
-    // Urban population is stored in "display people / populationRate" units in many UIs;
-    // keep raw burg.population sum (already in map population units).
-    void populationRate;
+    // Urban population stays in population-point units (docs/plan/craft-demand-calibration.md
+    // PR 4: "urbanPopulation はポイントのまま" — a scale gate, not restated in people).
   }
 
   const economy = simulationContext.extensions?.economy;
@@ -550,7 +549,12 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       const stateId = asNumber(smelter.stateId) || burgStateId(asNumber(smelter.burgId));
       const signals = map.get(stateId);
       if (signals && smelter.active !== false) {
-        signals.smelterWorkers += asNumber(smelter.workers);
+        // docs/plan/craft-demand-calibration.md PR 4: this is the one raw-headcount signal (not a
+        // 0-1 stock) technologyDefinitions.ts's smelterWorkers gates read, so it is restated in
+        // real people here — smelter.workers itself stays a population-point figure everywhere
+        // else (SmelterOperation, basicEmployment.ts's reconcile, GuildKnowledgeModule's closed
+        // inventory all keep the pre-PR-4 unit).
+        signals.smelterWorkers += Math.max(0, asNumber(smelter.workers)) * populationRate;
       }
     }
     for (const ledger of asStockArray(economy.militaryResourceLedgers)) {

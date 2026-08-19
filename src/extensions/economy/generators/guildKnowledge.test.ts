@@ -33,6 +33,10 @@ describe("GuildKnowledgeModule", () => {
       burgs: [{ i: 1, cell: 0, x: 0, y: 0, market: 1 }],
       cells: { i: [0], p: [[0, 0]], h: Uint8Array.from([55]), r: Uint16Array.from([0]), routes: {} }
     } as unknown as PackedGraph;
+    // These tests (outside the "applyCalibration closed inventory" block below) exercise the
+    // pre-PR-3 legacy path deliberately — raw smelter.workers/GUILD_SATURATION_WORKERS fixtures —
+    // which PR 4 no longer runs by default. The calibrated path has its own dedicated tests.
+    setEconomyCalibrationState({ applyCalibration: false });
   });
 
   afterEach(() => {

@@ -36,6 +36,12 @@ function installMinimalWorld(
     historicalPeriod: opts.historicalPeriod,
     year: 1200
   } as typeof worldContext.options;
+  // worldContext.populationRate defaults to the module placeholder 1 (worldContext.ts), not the
+  // real default of 1000 (optionsState.ts). Harmless while smelterWorkers was a raw population-
+  // point sum; docs/plan/craft-demand-calibration.md PR 4 restates it in real people
+  // (`workers × populationRate`), so tests need a realistic rate for its higher thresholds to be
+  // reachable at all.
+  worldContext.populationRate = 1000;
   worldContext.pack = {
     ...(worldContext.pack ?? {}),
     states: [
@@ -220,6 +226,46 @@ describe("technologyProgress", () => {
     }
     const stage = getTechnologyStage("improvedMining", 2);
     expect(["demonstrated", "adopted", "diffused"]).toContain(stage);
+  });
+
+  describe("smelterWorkers restated in real people (docs/plan/craft-demand-calibration.md PR 4)", () => {
+    // getSmelterRequiredWorkers({annualCapacityTons}) = 0.5 + tons × 0.0025 (smelterOperations.ts) —
+    // a fully-staffed smelter's reconciled points figure for a furnace of that annual capacity.
+    function settleHighTempFurnace(smelterWorkersPoints: number): void {
+      installMinimalWorld({ gunpowder: false });
+      worldContext.pack.states[2].treasury = 200;
+      simulationContext.extensions = {
+        economy: {
+          guildKnowledgeStocks: [{ burgId: 3, domain: "metallurgy", stock: 0.6 }],
+          mineOperations: [
+            { burgId: 3, active: true, workers: 4 },
+            { burgId: 3, active: true, workers: 4 }
+          ],
+          smelterOperations: [{ burgId: 3, active: true, workers: smelterWorkersPoints }]
+        }
+      };
+      seedTechnologyStartProfile(1200);
+      for (let year = 1200; year <= 1205; year++) {
+        simulationContext.currentYear = year;
+        settleTechnologyAnnual(year);
+      }
+    }
+
+    it("does not adopt highTempFurnace for an under-threshold furnace (~3000 tons ≈ 8000 people, under the 9508-person gate)", () => {
+      // 8 points = getSmelterRequiredWorkers({annualCapacityTons: 3000}) — clears improvedMining's
+      // adopted gate (3508) and highTempFurnace's own known/demonstrated gates (1508/5508), but
+      // 8 × populationRate(1000) = 8000 falls short of highTempFurnace.adopted's 9508.
+      settleHighTempFurnace(8);
+      expect(getTechnologyStage("highTempFurnace", 2)).not.toBe("adopted");
+    });
+
+    it("adopts highTempFurnace for the old 10-point-equivalent furnace (3800 tons, docs/plan/craft-demand-calibration.md §5 worked example)", () => {
+      // 10 points × 1000 = 10,000 people clears the 9508-person adopted gate — restating the gate
+      // preserves reachability for a furnace that met the pre-PR-4 10-point threshold, without
+      // loosening it into a steam-patch (the BASE_PEOPLE-derived headroom is only 492 people).
+      settleHighTempFurnace(10);
+      expect(["adopted", "diffused"]).toContain(getTechnologyStage("highTempFurnace", 2));
+    });
   });
 
   it("gates caravel/galleon ship tiers behind ocean-going tech stages", () => {
