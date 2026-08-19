@@ -6,21 +6,32 @@ import {
   getCraftDomainEmploymentRecords,
   getGuildKnowledgeStocks,
   getMineOperations,
+  getMineralDeposits,
   getSmelterOperations,
   getWorldContext
 } from "../economyContext";
+import { getAdministrationEmploymentPeople } from "../generators/administrationEmployment";
 import { getTradeWorkersByBurg } from "../generators/basicEmployment";
 import { getHousingRecipeForBurg } from "../generators/constructionEmployment";
 import { getCalibratedMonthlyLots, goodsForDomain, laborPointsForLots } from "../generators/craftDemandCalibration";
-import { displayPeople, laborPeople, pointsToPeople } from "../generators/craftScale";
+import {
+  displayPeople,
+  guildSaturationPoints,
+  laborPeople,
+  peopleToPoints,
+  pointsToPeople
+} from "../generators/craftScale";
 import { collectGuildPractitioners, GUILD_SATURATION_WORKERS } from "../generators/guildKnowledge";
+import { getMineEmploymentPeople } from "../generators/mineOperations";
 import {
   expectedWorkerPeople,
   expectedWorkerPoints,
   OCCUPATIONAL_CALIBRATION,
   type OccupationalCalibrationRow
 } from "../generators/occupationalCalibration";
+import { getSmelterEmploymentPeople } from "../generators/smelterOperationsTypes";
 import { type CalibrationOverviewRow, setCalibrationOverviewState } from "../store/calibrationOverviewState";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 
 export function open(): void {
   openDialog("calibrationOverview");
@@ -39,16 +50,37 @@ export function refreshCalibrationOverview(): void {
     getCraftDomainEmploymentRecords().map(record => [`${record.burgId}:${record.domain}`, record.workers])
   );
   const constructionByBurg = new Map(getConstructionOperations().map(op => [op.burgId, op] as const));
-  const adminByBurg = new Map(getAdministrationEmployment().map(record => [record.burgId, record.workers]));
+  // Site pools (mining/smelting/administration) show the authored, real-people Employment figure
+  // (docs/plan/craft-demand-calibration.md §2.0 P3-P5) converted back to points so the shared
+  // actualPeople = pointsToPeople(actualWorkerPoints, rate) derivation below roundtrips correctly —
+  // not a raw pointsToPeople() of the population-point reconcile figure, which is how mine's actual
+  // headcount used to inflate into the tens of thousands.
+  const adminByBurg = new Map<number, number>();
+  for (const record of getAdministrationEmployment()) {
+    const state = states[record.stateId];
+    if (!state?.i || state.removed) continue;
+    adminByBurg.set(
+      record.burgId,
+      (adminByBurg.get(record.burgId) ?? 0) + peopleToPoints(getAdministrationEmploymentPeople(state, rate), rate)
+    );
+  }
   const mineByBurg = new Map<number, number>();
   for (const mine of getMineOperations()) {
     if (!mine.active || !mine.burgId) continue;
-    mineByBurg.set(mine.burgId, (mineByBurg.get(mine.burgId) ?? 0) + mine.workers);
+    const deposit = getMineralDeposits().find(candidate => candidate.i === mine.depositId);
+    if (!deposit) continue;
+    mineByBurg.set(
+      mine.burgId,
+      (mineByBurg.get(mine.burgId) ?? 0) + peopleToPoints(getMineEmploymentPeople(deposit), rate)
+    );
   }
   const smeltByBurg = new Map<number, number>();
   for (const smelter of getSmelterOperations()) {
     if (!smelter.active || !smelter.burgId) continue;
-    smeltByBurg.set(smelter.burgId, (smeltByBurg.get(smelter.burgId) ?? 0) + smelter.workers);
+    smeltByBurg.set(
+      smelter.burgId,
+      (smeltByBurg.get(smelter.burgId) ?? 0) + peopleToPoints(getSmelterEmploymentPeople(smelter), rate)
+    );
   }
   const tradeByBurg = getTradeWorkersByBurg();
 
@@ -170,8 +202,10 @@ function buildRow(args: {
   const demandLots = goods.reduce((sum, good) => sum + good.provenanceLots, 0);
   const laborFromAuthoredLots = goods.reduce((sum, good) => sum + good.authoredLaborPoints, 0);
   const stock = args.occ.guildDomain ? (stockByKeyOrNull(args.stockByKey, burgId, args.occ.guildDomain) ?? null) : null;
-  const guildCoverage =
-    args.occ.guildDomain != null ? Math.min(1, actualWorkerPoints / GUILD_SATURATION_WORKERS) : null;
+  const guildSaturation = getEconomyCalibrationState().applyCalibration
+    ? guildSaturationPoints(args.rate)
+    : GUILD_SATURATION_WORKERS;
+  const guildCoverage = args.occ.guildDomain != null ? Math.min(1, actualWorkerPoints / guildSaturation) : null;
   const domain =
     args.occ.guildDomain ??
     (args.occ.pool === "constructionCarpenter" || args.occ.pool === "constructionMason"

@@ -1,4 +1,6 @@
 import { rn } from "../../hostUtils";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { peopleToPoints } from "./craftScale";
 
 /**
  * Craft/manufacturing employment (weavers, tailors, smiths, and other Burg-anchored artisans
@@ -26,14 +28,27 @@ export interface CraftEmploymentRecord {
 const CYCLE_SMOOTHING = 0.2;
 /** Below this, a decaying record is dropped instead of lingering at a near-zero value forever. */
 const MIN_TRACKED_WORKERS = 0.01;
+/**
+ * Real-people tracking floor used once applyCalibration is on (docs/plan/
+ * craft-demand-calibration.md §2.0 P11) — a 3-person woodworking chapter should not decay to zero
+ * the way the legacy 0.01-population-point floor (≈10 people at the default rate) would.
+ */
+const MIN_TRACKED_PEOPLE = 0.5;
 
 /**
  * Blends this cycle's observed manufacturing worker usage into the Burg's tracked figure.
  * Returns 0 once the smoothed value decays below the tracking floor, so callers can drop the
- * record instead of persisting an ever-shrinking near-zero entry.
+ * record instead of persisting an ever-shrinking near-zero entry. `populationRate` is only
+ * consulted when applyCalibration is on.
  */
-export function smoothCraftWorkers(previousWorkers: number, observedWorkersThisCycle: number): number {
+export function smoothCraftWorkers(
+  previousWorkers: number,
+  observedWorkersThisCycle: number,
+  populationRate = 1000
+): number {
   const observed = Math.max(0, observedWorkersThisCycle);
   const next = previousWorkers + (observed - previousWorkers) * CYCLE_SMOOTHING;
-  return next < MIN_TRACKED_WORKERS ? 0 : rn(next, 3);
+  const applyCalibration = getEconomyCalibrationState().applyCalibration;
+  const floor = applyCalibration ? peopleToPoints(MIN_TRACKED_PEOPLE, populationRate) : MIN_TRACKED_WORKERS;
+  return next < floor ? 0 : rn(next, applyCalibration ? 6 : 3);
 }

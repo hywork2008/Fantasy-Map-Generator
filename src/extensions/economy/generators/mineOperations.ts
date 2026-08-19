@@ -63,6 +63,19 @@ export function getMineRequiredWorkers(deposit: Pick<MineralDeposit, "richness">
 }
 
 /**
+ * Real-people headcount for a mine site, authored independently of getMineRequiredWorkers()
+ * (docs/plan/craft-demand-calibration.md §2.0 P4). Decoupled from the population-point reconcile
+ * loop in basicEmployment.ts. Mining has no guild domain (occupationalCalibration.ts), so this is
+ * used only for Calibration/Employment Overview display — never added to a guild's practitioner sum.
+ */
+export const MINE_EMPLOYMENT_BASE_PEOPLE = 40;
+export const MINE_EMPLOYMENT_PEOPLE_PER_RICHNESS = 80;
+
+export function getMineEmploymentPeople(deposit: Pick<MineralDeposit, "richness">): number {
+  return MINE_EMPLOYMENT_BASE_PEOPLE + deposit.richness * MINE_EMPLOYMENT_PEOPLE_PER_RICHNESS;
+}
+
+/**
  * Required drainage relative to the former depth-only baseline. A persistent
  * groundwater pressure therefore matters most in deep workings, while an old save
  * without the field continues to use exactly the former drainage factor.

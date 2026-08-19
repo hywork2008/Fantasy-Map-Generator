@@ -2538,6 +2538,7 @@
       "statusTip": "Formal chapter or informal craft-practitioner stock",
       "workers": "Workers",
       "workersTip": "Live practitioner headcount driving this domain's technique (coverage = workers / 6). Metallurgy includes smelter workers.",
+      "workersTipCalibrated": "Live practitioner headcount driving this domain's technique (coverage = workers / a real-people saturation threshold, 12 people at the default population rate). Metallurgy includes smelter workers, capped at the site's share of that threshold.",
       "technique": "Technique",
       "techniqueTip": "0..1 accumulated technique (saturating EWMA driven by staffed practitioners)",
       "bonus": "Bonus",

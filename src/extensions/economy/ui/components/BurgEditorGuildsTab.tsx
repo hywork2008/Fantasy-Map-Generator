@@ -1,11 +1,16 @@
 import type { FC } from "react";
 import { useBurgEditorState } from "../../../hostUi";
 import { listGuildsForBurg } from "../../controllers/burgGuilds";
+import { useEconomyCalibrationState } from "../../store/economyCalibrationState";
 
 /** Read-only guild presence ledger for the Burg currently open in Edit Burg. */
 export const BurgEditorGuildsTab: FC = () => {
   const burgId = useBurgEditorState(state => state.burgData?.id);
+  const applyCalibration = useEconomyCalibrationState(state => state.applyCalibration);
   const rows = burgId === undefined ? [] : listGuildsForBurg(burgId);
+  const workersTip = applyCalibration
+    ? "Live practitioner headcount driving this domain's technique (coverage = workers / a real-people saturation threshold, 12 people at the default population rate). Metallurgy includes smelter workers, capped at the site's share of that threshold."
+    : "Live practitioner headcount driving this domain's technique (coverage = workers / 6). Metallurgy includes smelter workers.";
 
   if (!rows.length) {
     return (
@@ -26,10 +31,7 @@ export const BurgEditorGuildsTab: FC = () => {
             <tr>
               <th scope="col">Domain</th>
               <th scope="col">Status</th>
-              <th
-                scope="col"
-                data-tip="Live practitioner headcount driving this domain's technique (coverage = workers / 6). Metallurgy includes smelter workers."
-              >
+              <th scope="col" data-tip={workersTip}>
                 Workers
               </th>
               <th scope="col">Stock</th>

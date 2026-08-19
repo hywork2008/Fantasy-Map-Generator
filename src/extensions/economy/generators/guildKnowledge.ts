@@ -5,10 +5,14 @@ import {
   getGuildKnowledgeStocks,
   getSimulationYear,
   getSmelterOperations,
+  getWorldContext,
   setGuildKnowledgeLastSettledYear,
   setGuildKnowledgeStocks
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { guildSaturationPoints, peopleToPoints } from "./craftScale";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
+import { GUILD_SITE_KNOWLEDGE_CAP_PEOPLE, getSmelterEmploymentPeople } from "./smelterOperationsTypes";
 import { getDerivedExtraWorkers, isCraftKnowledgeDomain } from "./technologyBiasApply";
 
 /**
@@ -73,11 +77,32 @@ export function collectGuildPractitioners(): Map<string, GuildPractitioners> {
     else practitioners.set(key, { burgId, domain, workers });
   };
 
+  const applyCalibration = getEconomyCalibrationState().applyCalibration;
+  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+
   for (const smelter of getSmelterOperations()) {
-    if (smelter.active) add(smelter.burgId, "metallurgy", smelter.workers);
+    if (!smelter.active) continue;
+    // Closed-inventory site cap (docs/plan/craft-demand-calibration.md §2.0 P3): the smelter's
+    // authored, real-people Employment figure — decoupled from smelter.workers' population-point
+    // reconcile loop — capped at GUILD_SITE_KNOWLEDGE_CAP_PEOPLE and converted back to points so
+    // it fits the same points-denominated sum as every other source here.
+    const workers = applyCalibration
+      ? peopleToPoints(Math.min(getSmelterEmploymentPeople(smelter), GUILD_SITE_KNOWLEDGE_CAP_PEOPLE), populationRate)
+      : smelter.workers;
+    add(smelter.burgId, "metallurgy", workers);
   }
   for (const record of getCraftDomainEmploymentRecords()) {
-    add(record.burgId, record.domain, record.workers);
+    // Manufacture-only employment (P1) is never capped here — it is the real, uncontested guild
+    // labor signal. The sole exception is "instruments": it has no manufacture-craft-employment
+    // source of its own today (CRAFT_DOMAIN_BY_GOOD_NAME maps only Liquor to it), so its entries in
+    // this table come entirely from experimentalWorkshops.ts's upsertInstruments() — an authored
+    // real-people researcher count (P9/P12), not manufacturing labor — and must be converted like
+    // any other closed-inventory source.
+    const workers =
+      applyCalibration && record.domain === "instruments"
+        ? peopleToPoints(record.workers, populationRate)
+        : record.workers;
+    add(record.burgId, record.domain, workers);
   }
   for (const { burgId, domain, extraWorkers } of getDerivedExtraWorkers().values()) {
     if (isCraftKnowledgeDomain(domain)) add(burgId, domain, extraWorkers);
@@ -100,6 +125,9 @@ export class GuildKnowledgeModule {
 
     const practitioners = collectGuildPractitioners();
     const remaining = new Map(getGuildKnowledgeStocks().map(entry => [keyOf(entry.burgId, entry.domain), entry]));
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+    const saturation = applyCalibration ? guildSaturationPoints(populationRate) : GUILD_SATURATION_WORKERS;
 
     const next: GuildKnowledgeStock[] = [];
     for (const { burgId, domain, workers } of practitioners.values()) {
@@ -107,7 +135,7 @@ export class GuildKnowledgeModule {
       const previous = remaining.get(key);
       remaining.delete(key);
 
-      const coverage = Math.min(1, workers / GUILD_SATURATION_WORKERS);
+      const coverage = Math.min(1, workers / saturation);
       const stock = rn(applyKnowledgeEwma(previous?.stock ?? 0, coverage, GUILD_ADOPTION_RATE), 4);
       // Rebuilding this entry from scratch each year must not drop its accumulated guild capital
       // (docs/plan/burg-treasury-equilibrium.md §3.1) — only `stock` (technique) is recomputed here.

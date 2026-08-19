@@ -7,10 +7,14 @@ import {
   getExperimentalWorkshops,
   getHospitalInstallations,
   getSimulationYear,
+  getWorldContext,
   setAcademyKnowledgeLastSettledYear,
   setAcademyKnowledgeStocks
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import type { AcademyKnowledgeStock, ScholarlyKnowledgeDomain } from "./academyKnowledgeTypes";
+import { ACADEMY_ADMIN_KNOWLEDGE_CAP_PEOPLE, getAdministrationEmploymentPeople } from "./administrationEmployment";
+import { ACADEMY_SATURATION_PEOPLE } from "./craftScale";
 import { getDerivedExtraWorkers, isScholarlyKnowledgeDomain } from "./technologyBiasApply";
 
 /**
@@ -61,6 +65,8 @@ export class AcademyKnowledgeModule {
 
     const practitioners = this.collectPractitioners();
     const remaining = new Map(getAcademyKnowledgeStocks().map(entry => [keyOf(entry.burgId, entry.domain), entry]));
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    const saturation = applyCalibration ? ACADEMY_SATURATION_PEOPLE : ACADEMY_SATURATION_WORKERS;
 
     const next: AcademyKnowledgeStock[] = [];
     for (const { burgId, domain, workers } of practitioners.values()) {
@@ -68,7 +74,7 @@ export class AcademyKnowledgeModule {
       const previousStock = remaining.get(key)?.stock ?? 0;
       remaining.delete(key);
 
-      const coverage = Math.min(1, workers / ACADEMY_SATURATION_WORKERS);
+      const coverage = Math.min(1, workers / saturation);
       const stock = rn(applyKnowledgeEwma(previousStock, coverage, ACADEMY_ADOPTION_RATE), 4);
       next.push({ burgId, domain, stock });
     }
@@ -95,8 +101,24 @@ export class AcademyKnowledgeModule {
       else practitioners.set(key, { burgId, domain, workers });
     };
 
-    for (const record of getAdministrationEmployment()) {
-      add(record.burgId, "administration", record.workers);
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    if (applyCalibration) {
+      // Closed-inventory site cap (docs/plan/craft-demand-calibration.md §2.0 P5): administration's
+      // authored, real-people Employment figure — decoupled from AdministrationEmploymentRecord's
+      // population-point reconcile loop — capped at ACADEMY_ADMIN_KNOWLEDGE_CAP_PEOPLE. The
+      // practitioner sum stays real-people-denominated (no points conversion), unlike guild.
+      const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+      const states = getWorldContext().pack.states ?? [];
+      for (const record of getAdministrationEmployment()) {
+        const state = states[record.stateId];
+        if (!state?.i || state.removed) continue;
+        const employmentPeople = getAdministrationEmploymentPeople(state, populationRate);
+        add(record.burgId, "administration", Math.min(employmentPeople, ACADEMY_ADMIN_KNOWLEDGE_CAP_PEOPLE));
+      }
+    } else {
+      for (const record of getAdministrationEmployment()) {
+        add(record.burgId, "administration", record.workers);
+      }
     }
     for (const workshop of getApothecaryWorkshops()) {
       if (workshop.active) add(workshop.burgId, "medicine", workshop.practitioners);

@@ -2538,6 +2538,7 @@
       "statusTip": "正式支部か、非公式の職人在庫か",
       "workers": "労働者",
       "workersTip": "この領域の技術を動かす実務者の現在人数（充足度 = 人数 / 6）。冶金は精錬所の労働者も含む。",
+      "workersTipCalibrated": "Live practitioner headcount driving this domain's technique (coverage = workers / a real-people saturation threshold, 12 people at the default population rate). Metallurgy includes smelter workers, capped at the site's share of that threshold.",
       "technique": "技術",
       "techniqueTip": "0〜1 の蓄積技術（常勤職人による飽和 EWMA）",
       "bonus": "ボーナス",

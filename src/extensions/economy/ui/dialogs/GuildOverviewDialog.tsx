@@ -13,6 +13,7 @@ import {
 
 import { open as openGuildOverview, refreshGuildOverview } from "../../controllers/guild-overview";
 import { getApi } from "../../economyContext";
+import { useEconomyCalibrationState } from "../../store/economyCalibrationState";
 import { type GuildOverviewRow, useGuildOverviewState } from "../../store/guildOverviewState";
 
 type SortField = keyof Pick<
@@ -24,6 +25,7 @@ export const GuildOverviewDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("guildOverview"));
   const rawRows = useGuildOverviewState(state => state.rows);
+  const applyCalibration = useEconomyCalibrationState(state => state.applyCalibration);
 
   const parentRef = React.useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = React.useState<SortField>("stock");
@@ -225,7 +227,11 @@ export const GuildOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip={t("extensions.guildOverview.workersTip")}
+                tip={t(
+                  applyCalibration
+                    ? "extensions.guildOverview.workersTipCalibrated"
+                    : "extensions.guildOverview.workersTip"
+                )}
               />
               <SortableHeader
                 field="stock"

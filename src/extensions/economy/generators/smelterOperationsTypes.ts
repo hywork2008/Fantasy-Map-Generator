@@ -26,3 +26,20 @@ export interface SmelterOperation {
   lastTheftRisk: number;
   active: boolean;
 }
+
+/**
+ * Real-people headcount for a smelter site, authored independently of getSmelterRequiredWorkers()
+ * (smelterOperations.ts, docs/plan/craft-demand-calibration.md §2.0 P3). Decoupled from the
+ * population-point reconcile loop in basicEmployment.ts — used only for the closed-inventory
+ * guild-metallurgy input (capped at GUILD_SITE_KNOWLEDGE_CAP_PEOPLE) and for Calibration Overview
+ * display. Kept in this dependency-free types module (not smelterOperations.ts, which imports
+ * guildKnowledge.ts for getGuildBonus) so guildKnowledge.ts can import it without a cycle.
+ */
+export const SMELTER_EMPLOYMENT_BASE_PEOPLE = 8;
+export const SMELTER_EMPLOYMENT_PEOPLE_PER_ANNUAL_TON = 2.5;
+/** Single-source guild-metallurgy coverage cap: 6/12 = 0.50 (docs/plan/craft-demand-calibration.md §2.0). */
+export const GUILD_SITE_KNOWLEDGE_CAP_PEOPLE = 6;
+
+export function getSmelterEmploymentPeople(smelter: Pick<SmelterOperation, "annualCapacityTons">): number {
+  return SMELTER_EMPLOYMENT_BASE_PEOPLE + smelter.annualCapacityTons * SMELTER_EMPLOYMENT_PEOPLE_PER_ANNUAL_TON;
+}

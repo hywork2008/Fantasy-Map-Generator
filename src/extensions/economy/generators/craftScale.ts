@@ -32,3 +32,11 @@ export const GUILD_SATURATION_PEOPLE = 12;
 export function guildSaturationPoints(populationRate: number): number {
   return Math.max(peopleToPoints(GUILD_SATURATION_PEOPLE, populationRate), 1e-9);
 }
+
+/**
+ * Academy/chancery saturation, in real people (PR 3 §2.0). Unlike the guild-craft coverage sum
+ * (which stays population-point-denominated — see guildSaturationPoints()), every academy
+ * practitioner input is a small authored people count, so AcademyKnowledgeModule compares its
+ * practitioner sum directly against this constant with no points conversion.
+ */
+export const ACADEMY_SATURATION_PEOPLE = 16;

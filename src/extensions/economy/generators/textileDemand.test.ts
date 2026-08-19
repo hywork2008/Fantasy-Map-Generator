@@ -10,6 +10,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
+import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { GuildChapters } from "./guildChapters";
 import {
   getMarketTextileDemandProfile,
@@ -116,5 +117,24 @@ describe("textile household demand", () => {
     market.goods[0].stock = 60;
     GuildChapters.seedAfterGenerate();
     expect(getGuildChapters()).toContainEqual(expect.objectContaining({ burgId: 1, domain: "textiles" }));
+  });
+
+  describe("applyCalibration burg-size floor (docs/plan/craft-demand-calibration.md §2.0, PR 3)", () => {
+    afterEach(() => setEconomyCalibrationState({ applyCalibration: false }));
+
+    it("is numerically identical to the legacy points check at the default population rate", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      const burg = worldContext.pack.burgs[1]!;
+      expect(getTextileGuildWorkPlan(burg)).toMatchObject({ viable: true });
+    });
+
+    it("compares real labor people, not raw population points, once populationRate differs from 1000", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      // 2 population points × 500 = 1000 real people — below MIN_TEXTILE_BURG_PEOPLE (2000), so
+      // this burg is no longer viable even though its raw population-point count is unchanged.
+      worldContext.populationRate = 500;
+      const burg = worldContext.pack.burgs[1]!;
+      expect(getTextileGuildWorkPlan(burg)).toMatchObject({ viable: false });
+    });
   });
 });

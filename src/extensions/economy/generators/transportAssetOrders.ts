@@ -10,6 +10,8 @@ import {
   setNextTransportAssetOrderId,
   setTransportAssetOrders
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import type { MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
@@ -69,6 +71,14 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
 ];
 
 const WORK_SHARE_OF_OBSERVED_CRAFT_EMPLOYMENT = 0.25;
+/**
+ * Dedicated real-people capacity for transport-asset construction (docs/plan/
+ * craft-demand-calibration.md Key Decision 10 / §2.0 P2). Replaces the legacy "25% of observed
+ * guild-craft employment" capacity once applyCalibration is on — carts/wagons/barges are excluded
+ * from guild-craft practitioner counting entirely, so they get their own small, self-contained
+ * labor pool instead of borrowing from woodworking's population-point figure.
+ */
+const TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND = 1.5;
 
 type PlannedWork = { orderId: number; workPoints: number; domain: CraftKnowledgeDomain };
 
@@ -186,6 +196,24 @@ export class TransportAssetOrdersModule {
   ): { total: number; byDomain: Map<CraftKnowledgeDomain, number> } {
     const planned = this.plannedWorkByBurg.get(burgId) ?? [];
     const byDomain = new Map<CraftKnowledgeDomain, number>();
+
+    if (getEconomyCalibrationState().applyCalibration) {
+      // planCraftWork() already bounded each entry's workPoints by this burg's dedicated
+      // real-people transport capacity (TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND), so every planned
+      // entry is consumed in full here — no further population(points)-based cap. The people total
+      // is converted back to population points only for the caller's production-labor budget.
+      const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+      let peopleConsumed = 0;
+      for (const entry of planned) {
+        const allocated = Math.max(0, entry.workPoints);
+        if (!(allocated > 0)) continue;
+        peopleConsumed += allocated;
+        byDomain.set(entry.domain, (byDomain.get(entry.domain) ?? 0) + allocated);
+        this.applyWork(entry.orderId, allocated, entry.domain, burgId);
+      }
+      return { total: peopleToPoints(peopleConsumed, populationRate), byDomain };
+    }
+
     let total = 0;
     for (const entry of planned) {
       if (total >= population) break;
@@ -265,9 +293,24 @@ export class TransportAssetOrdersModule {
   }
 
   private planCraftWork(): void {
+    const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+
+    // Legacy (applyCalibration off): capacity is 25% of observed guild-craft employment.
     const observed = new Map<string, number>();
-    for (const record of getCraftDomainEmploymentRecords())
-      observed.set(`${record.burgId}:${record.domain}`, record.workers);
+    if (!applyCalibration) {
+      for (const record of getCraftDomainEmploymentRecords())
+        observed.set(`${record.burgId}:${record.domain}`, record.workers);
+    }
+    // applyCalibration on: capacity is a dedicated real-people pool sized off each burg's own
+    // population, independent of guild-craft employment (Key Decision 10).
+    const burgPopulationById = new Map<number, number>();
+    if (applyCalibration) {
+      for (const burg of getWorldContext().pack.burgs) {
+        if (burg?.i && !burg.removed) burgPopulationById.set(burg.i, burg.population ?? 0);
+      }
+    }
+
     const assigned = new Map<string, number>();
     const orders = this.getOrdersByPriority().filter(order => order.status === "building");
     for (const order of orders) {
@@ -287,7 +330,10 @@ export class TransportAssetOrdersModule {
       for (const burgId of burgIds) {
         if (!(unassigned > 0)) break;
         const key = `${burgId}:${blueprint.requiredCraft}`;
-        const capacity = (observed.get(key) ?? 0) * WORK_SHARE_OF_OBSERVED_CRAFT_EMPLOYMENT;
+        const capacity = applyCalibration
+          ? (laborPeople(burgPopulationById.get(burgId) ?? 0, populationRate) / 1000) *
+            TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND
+          : (observed.get(key) ?? 0) * WORK_SHARE_OF_OBSERVED_CRAFT_EMPLOYMENT;
         const remainingCapacity = Math.max(0, capacity - (assigned.get(key) ?? 0));
         const workPoints = Math.min(unassigned, remainingCapacity);
         if (!(workPoints > 0)) continue;

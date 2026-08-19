@@ -17,6 +17,12 @@ import { getIngotGoodName, ORE_COMMODITIES, type OreCommodity } from "./mineralR
 import type { SmelterOperation } from "./smelterOperationsTypes";
 
 export type { SmelterOperation } from "./smelterOperationsTypes";
+export {
+  GUILD_SITE_KNOWLEDGE_CAP_PEOPLE,
+  getSmelterEmploymentPeople,
+  SMELTER_EMPLOYMENT_BASE_PEOPLE,
+  SMELTER_EMPLOYMENT_PEOPLE_PER_ANNUAL_TON
+} from "./smelterOperationsTypes";
 
 const DEFAULT_SMELTING_YIELD = 0.8;
 const DEFAULT_SECURITY_INVESTMENT = 0;

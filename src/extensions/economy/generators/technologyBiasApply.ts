@@ -9,9 +9,12 @@ import {
   getInstructionResidues,
   getPatronageDeposits,
   getResearchNamedSeats,
-  getSimulationYear
+  getSimulationYear,
+  getWorldContext
 } from "../economyContext";
+import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import { SCHOLARLY_KNOWLEDGE_DOMAINS, type ScholarlyKnowledgeDomain } from "./academyKnowledgeTypes";
+import { ACADEMY_SATURATION_PEOPLE, guildSaturationPoints, peopleToPoints } from "./craftScale";
 import { CRAFT_KNOWLEDGE_DOMAINS, type CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 
 /** Must match GUILD_SATURATION_WORKERS — imported by settlers, not here, to avoid a cycle. */
@@ -91,16 +94,33 @@ function addExtraWorkers(
 /**
  * Derived extraWorkers for this tick. Hire-researcher patronage is not included —
  * that mutates workshop.researchers in a later PR.
+ *
+ * Unit note (docs/plan/craft-demand-calibration.md §2.0 P6-P8, PR 3): craft-domain entries feed
+ * GuildKnowledgeModule's population-point-denominated practitioner sum, while scholarly-domain
+ * entries feed AcademyKnowledgeModule's real-people-denominated sum. Seat-sourced entries
+ * (mineLaborer, workshopResearcher) are always authored in real people; when applyCalibration is
+ * on, a craft-domain seat entry is converted to points here so the guild consumer never has to
+ * guess the entry's unit. Residue-sourced entries are already scaled to the saturation passed to
+ * extraWorkersFromResidue(), so no further conversion is applied at the call site.
  */
 export function getDerivedExtraWorkers(): Map<string, ExtraWorkersEntry> {
   const byKey = new Map<string, ExtraWorkersEntry>();
+  const applyCalibration = getEconomyCalibrationState().applyCalibration;
+  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
 
   for (const seat of getResearchNamedSeats()) {
     if (seat.role === "mineLaborer") {
-      addExtraWorkers(byKey, seat.burgId, "metallurgy", 1);
+      const people = 1;
+      addExtraWorkers(
+        byKey,
+        seat.burgId,
+        "metallurgy",
+        applyCalibration ? peopleToPoints(people, populationRate) : people
+      );
       continue;
     }
     if (seat.role !== "workshopResearcher") continue;
+    // naturalPhilosophy is scholarly — AcademyKnowledgeModule's sum stays people-denominated.
     addExtraWorkers(
       byKey,
       seat.burgId,
@@ -110,9 +130,14 @@ export function getDerivedExtraWorkers(): Map<string, ExtraWorkersEntry> {
   }
 
   for (const residue of getInstructionResidues()) {
-    const saturation = isScholarlyKnowledgeDomain(residue.domain)
-      ? RESIDUE_ACADEMY_SATURATION_WORKERS
-      : RESIDUE_GUILD_SATURATION_WORKERS;
+    const isScholarly = isScholarlyKnowledgeDomain(residue.domain);
+    const saturation = applyCalibration
+      ? isScholarly
+        ? ACADEMY_SATURATION_PEOPLE
+        : guildSaturationPoints(populationRate)
+      : isScholarly
+        ? RESIDUE_ACADEMY_SATURATION_WORKERS
+        : RESIDUE_GUILD_SATURATION_WORKERS;
     addExtraWorkers(byKey, residue.burgId, residue.domain, extraWorkersFromResidue(residue.stock, saturation));
   }
 
