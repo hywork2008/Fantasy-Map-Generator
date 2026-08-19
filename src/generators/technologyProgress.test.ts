@@ -554,6 +554,68 @@ describe("technologyProgress", () => {
     expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 200 < 210"]);
   });
 
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.4-3.5.
+  it("defines modernSteelmaking and highPressureChemicalApparatus with the expected era, prerequisites, and threshold keys", () => {
+    const modernSteelmaking = TECHNOLOGY_DEFINITIONS.find(def => def.id === "modernSteelmaking");
+    expect(modernSteelmaking?.era).toBe(6);
+    expect(modernSteelmaking?.prerequisites).toEqual(["standardMachineWorks"]);
+    expect(modernSteelmaking?.known.min?.steelAccess).toBe(0.2);
+    expect(modernSteelmaking?.demonstrated.min?.modernSteelmakingTrialYears).toBe(2);
+    expect(modernSteelmaking?.adopted.min?.modernSteelmakingInstallations).toBe(1);
+
+    const highPressureChemicalApparatus = TECHNOLOGY_DEFINITIONS.find(
+      def => def.id === "highPressureChemicalApparatus"
+    );
+    expect(highPressureChemicalApparatus?.era).toBe(6);
+    // Requires both era-6 metallurgy and chemistry lineages adopted before it can even reach known.
+    expect(highPressureChemicalApparatus?.prerequisites).toEqual(["modernSteelmaking", "industrialSulfuricAcid"]);
+    expect(highPressureChemicalApparatus?.known.min?.steelAccess).toBe(0.3);
+    expect(highPressureChemicalApparatus?.known.min?.instruments).toBe(0.3);
+    // No new Good/facility: the "trial years" stand-in reuses ExperimentalWorkshops'
+    // experimentRecord signal instead of a dedicated apparatus (§7 decision 5).
+    expect(highPressureChemicalApparatus?.demonstrated.min?.experimentRecord).toBe(0.6);
+    expect(highPressureChemicalApparatus?.adopted.min?.experimentRecord).toBe(0.65);
+  });
+
+  it("computes steelAccess/modernSteelmakingTrialYears/modernSteelmakingInstallations from market stock, guild metallurgy knowledge, and SteelConverterPlant rows (docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 30, name: "Steel" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 30: { stock: 10 } } // clamp01(10 / 2) = 1, well past the 0.2/0.35/0.4 thresholds
+          }
+        ],
+        // modernSteelmaking re-checks metallurgy at every stage (§3.4), unlike phosphateFertilizer's
+        // sulfurAccess pattern, so the fixture needs a guild metallurgy stock past 0.85 too.
+        guildKnowledgeStocks: [{ burgId: 1, domain: "metallurgy", stock: 0.9 }],
+        steelConverterPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "modernSteelmaking");
+    // modernSteelmakingTrialYears(5)>=2, metallurgy(0.9)>=0.8, treasury(200)>=190: all met.
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    // modernSteelmakingInstallations(1)>=1 and metallurgy(0.9)>=0.85 are met; only the adopted
+    // treasury threshold (230, installMinimalWorld sets 200) is expected to be unmet.
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 200 < 230"]);
+  });
+
   describe("known-stage technology hints", () => {
     const ENP_PREREQS: TechnologyProgress[] = [
       { technologyId: "recordReplication", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },

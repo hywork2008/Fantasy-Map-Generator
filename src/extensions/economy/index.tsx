@@ -163,6 +163,7 @@ import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
 import { clearStateFiscalReports } from "./generators/stateFiscalReport";
 import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
 import { SteamIndustry } from "./generators/steamIndustry";
+import { SteelConverters } from "./generators/steelConverters";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import {
   clearStrategicProcurementExpenses,
@@ -2940,6 +2941,10 @@ export function init(api: ExtensionAPI): void {
         // Depends on AcidPlants's Sulfuric Acid output for its own recipe
         // (docs/plan/phosphate-fertilizer-vertical-slice.md §3.7); runs right after.
         PhosphateFertilizerPlants.settleAnnual();
+        // Bessemer-converter Steel supply — independent of the chemistry plants above; the
+        // second supply route for the existing Steel Good (docs/plan/modern-steelmaking-and-
+        // high-pressure-apparatus.md §3.2).
+        SteelConverters.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).

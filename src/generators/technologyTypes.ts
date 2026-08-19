@@ -91,6 +91,15 @@ export interface TechnologySignals {
   phosphateFertilizerTrialYears: number;
   /** Count of active PhosphateFertilizerPlant entries, same shape as acidPlantInstallations. */
   phosphateFertilizerPlantCount: number;
+  /**
+   * 0..1 market-stock coverage of Steel, same shape as sulfurAccess/phosphateRockAccess. See
+   * docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3.
+   */
+  steelAccess: number;
+  /** SteelConverterPlant.documentedRuns state max, same shape as hospitalTrialYears. */
+  modernSteelmakingTrialYears: number;
+  /** Count of active SteelConverterPlant entries, same shape as hospitalInstallations. */
+  modernSteelmakingInstallations: number;
   experimentRecord: number;
   urbanWaterMaxMunicipalSanitation: number;
   atWar: boolean;

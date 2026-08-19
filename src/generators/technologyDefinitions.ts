@@ -651,6 +651,41 @@ const ERA_6: readonly TechnologyDefinition[] = [
     demonstrated: { min: { phosphateFertilizerTrialYears: 2, phosphateRockAccess: 0.3, treasury: 170 } },
     adopted: { min: { phosphateFertilizerPlantCount: 1, phosphateRockAccess: 0.35, treasury: 210 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.4. metallurgy: 0.75 is set
+  // above standardMachineWorks's own adopted threshold (0.7) so it isn't automatically met the
+  // moment the prerequisite is adopted. demonstrated/adopted read modernSteelmakingTrialYears/
+  // modernSteelmakingInstallations, sourced from SteelConverterPlant (§3.2) via
+  // technologyProgress.ts (§3.3).
+  {
+    id: "modernSteelmaking",
+    label: "Modern steelmaking",
+    era: 6,
+    scope: "state",
+    prerequisites: ["standardMachineWorks"],
+    known: { min: { metallurgy: 0.75, steelAccess: 0.2, administration: 0.4, treasury: 150 } },
+    demonstrated: { min: { modernSteelmakingTrialYears: 2, metallurgy: 0.8, treasury: 190 } },
+    adopted: { min: { modernSteelmakingInstallations: 1, metallurgy: 0.85, treasury: 230 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.5. Requires both
+  // modernSteelmaking and industrialSulfuricAcid adopted (prerequisitesMet()); by then
+  // metallurgy already clears modernSteelmaking's adopted threshold (0.85), so it is not
+  // re-listed here — same reasoning as industrialSulfuricAcid not re-listing
+  // chemicalIndustryFoundation's experimentRecord threshold. No new Good or facility: "steel
+  // quality"/"instrumentation"/"safety regulation" are represented by steelAccess (new)/
+  // instruments (existing craft-knowledge signal)/administration (existing); "trial years" reuse
+  // ExperimentalWorkshops' experimentRecord signal instead of a dedicated apparatus (§7 decision 5).
+  {
+    id: "highPressureChemicalApparatus",
+    label: "High-pressure chemical apparatus",
+    era: 6,
+    scope: "state",
+    prerequisites: ["modernSteelmaking", "industrialSulfuricAcid"],
+    known: { min: { steelAccess: 0.3, instruments: 0.3, administration: 0.5, treasury: 190 } },
+    demonstrated: { min: { experimentRecord: 0.6, steelAccess: 0.35, treasury: 240 } },
+    adopted: { min: { experimentRecord: 0.65, steelAccess: 0.4, administration: 0.6, treasury: 290 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 

@@ -87,6 +87,7 @@ import type { SmelterOperation } from "./generators/smelterOperationsTypes";
 import type { SmithingWorkshopLedger } from "./generators/smithingWorkshopLedgerTypes";
 import type { StateSecretStock } from "./generators/stateSecretTypes";
 import type { RailwayLink, SteamInstallation, SteamPumpTrial } from "./generators/steamTypes";
+import type { SteelConverterPlant } from "./generators/steelConverterTypes";
 import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
@@ -160,6 +161,7 @@ let _experimentalWorkshopsLastSettledYearFallback: number | null = null;
 let _hospitalInstallationsLastSettledYearFallback: number | null = null;
 let _acidPlantsLastSettledYearFallback: number | null = null;
 let _phosphateFertilizerPlantsLastSettledYearFallback: number | null = null;
+let _steelConverterPlantsLastSettledYearFallback: number | null = null;
 let _fertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
@@ -219,6 +221,7 @@ export function clearEconomyContext(): void {
   _hospitalInstallationsLastSettledYearFallback = null;
   _acidPlantsLastSettledYearFallback = null;
   _phosphateFertilizerPlantsLastSettledYearFallback = null;
+  _steelConverterPlantsLastSettledYearFallback = null;
   _fertilizerInvestmentLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
@@ -1409,6 +1412,13 @@ export function getPhosphateFertilizerPlants(): PhosphateFertilizerPlant[] {
 export function setPhosphateFertilizerPlants(rows: readonly PhosphateFertilizerPlant[]): void {
   setSliceArray("phosphateFertilizerPlants", rows);
 }
+/** Same shape as getAcidPlants/getPhosphateFertilizerPlants. Design: docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.2. */
+export function getSteelConverterPlants(): SteelConverterPlant[] {
+  return getSliceArray<SteelConverterPlant>("steelConverterPlants");
+}
+export function setSteelConverterPlants(rows: readonly SteelConverterPlant[]): void {
+  setSliceArray("steelConverterPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1460,6 +1470,15 @@ export function getPhosphateFertilizerPlantsLastSettledYear(): number | null {
 export function setPhosphateFertilizerPlantsLastSettledYear(year: number): void {
   writeYearToSlice("phosphateFertilizerPlantsLastSettledYear", year, value => {
     _phosphateFertilizerPlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards SteelConverters.settleAnnual(), same shape as getAcidPlantsLastSettledYear. */
+export function getSteelConverterPlantsLastSettledYear(): number | null {
+  return yearFromSlice("steelConverterPlantsLastSettledYear", _steelConverterPlantsLastSettledYearFallback);
+}
+export function setSteelConverterPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("steelConverterPlantsLastSettledYear", year, value => {
+    _steelConverterPlantsLastSettledYearFallback = value;
   });
 }
 /** Guards FertilizerInvestment.settleAnnual(), same shape as getAgTechLastSettledYear. */

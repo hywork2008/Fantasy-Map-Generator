@@ -406,6 +406,9 @@ function emptySignals(): TechnologySignals {
     phosphateRockAccess: 0,
     phosphateFertilizerTrialYears: 0,
     phosphateFertilizerPlantCount: 0,
+    steelAccess: 0,
+    modernSteelmakingTrialYears: 0,
+    modernSteelmakingInstallations: 0,
     experimentRecord: 0,
     urbanWaterMaxMunicipalSanitation: 0,
     atWar: false,
@@ -707,6 +710,7 @@ function applyChemistryMedicineSignals(
   const pumiceId = goodIdByName(economy, "Pumice");
   const sulfurId = goodIdByName(economy, "Sulfur");
   const phosphateRockId = goodIdByName(economy, "Phosphate Rock");
+  const steelId = goodIdByName(economy, "Steel");
 
   const waterByBurg = new Map<number, Record<string, unknown>>();
   for (const water of asStockArray(economy.urbanWaterSystems)) {
@@ -755,6 +759,7 @@ function applyChemistryMedicineSignals(
   const sulfurStockByState = stateMarketStockByGood(economy, marketOwners, sulfurId);
   const pumiceStockByState = stateMarketStockByGood(economy, marketOwners, pumiceId);
   const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, phosphateRockId);
+  const steelStockByState = stateMarketStockByGood(economy, marketOwners, steelId);
 
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
@@ -774,6 +779,10 @@ function applyChemistryMedicineSignals(
     // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6 — same market-stock-coverage shape
     // as sulfurAccess, no military-demand analog (Phosphate Rock has no war use).
     signals.phosphateRockAccess = clamp01((phosphateRockStockByState.get(stateId) ?? 0) / 2);
+
+    // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3 — same market-stock-
+    // coverage shape as sulfurAccess/phosphateRockAccess, no military-demand analog.
+    signals.steelAccess = clamp01((steelStockByState.get(stateId) ?? 0) / 2);
 
     signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
@@ -833,6 +842,23 @@ function applyChemistryMedicineSignals(
   for (const [stateId, years] of hospitalYears) {
     const signals = map.get(stateId);
     if (signals) signals.hospitalTrialYears = years;
+  }
+
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3 — same shape as the
+  // hospitalInstallations/hospitalTrialYears block above: SteelConverterPlant holds
+  // documentedRuns on itself, no ChemistryTrial indirection.
+  const steelYears = new Map<number, number>();
+  for (const plant of asStockArray(economy.steelConverterPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.modernSteelmakingInstallations += 1;
+    steelYears.set(stateId, Math.max(steelYears.get(stateId) ?? 0, asNumber(plant.documentedRuns)));
+  }
+  for (const [stateId, years] of steelYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.modernSteelmakingTrialYears = years;
   }
 
   for (const plant of asStockArray(economy.acidPlants)) {
@@ -957,6 +983,8 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "acidPlantTrialYears",
   "phosphateFertilizerTrialYears",
   "phosphateFertilizerPlantCount",
+  "modernSteelmakingTrialYears",
+  "modernSteelmakingInstallations",
   "urbanWaterMaxTier"
 ]);
 

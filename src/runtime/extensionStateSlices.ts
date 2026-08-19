@@ -436,6 +436,7 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "hospitalInstallations",
     "acidPlants",
     "phosphateFertilizerPlants",
+    "steelConverterPlants",
     "chemMedPracticeRecords",
     "medicalCareReliefByBurg",
     // Player technology-bias SoT (docs/plan/player-character-technology-bias.md PR-1).
