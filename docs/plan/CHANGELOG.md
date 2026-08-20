@@ -3,9 +3,11 @@
 2026-08-20
 
 - docs/plan/catalytic-chemistry.md
+- docs/plan/chlorine-production-vertical-slice.md
 - docs/plan/electric-power-and-telegraph.md
 - docs/plan/modern-steelmaking-and-high-pressure-apparatus.md
 - docs/plan/phosphate-fertilizer-vertical-slice.md
+- docs/plan/smokeless-powder-visibility.md
 - docs/plan/synthetic-ammonia-vertical-slice.md
 
 2026-08-19

@@ -1502,15 +1502,22 @@ export const GOODS_DATA: GoodData[] = [
     // by this period) and which then endured essentially unchanged into the 19th century. The
     // previous 0.5/0.25/0.5 (40/20/40) split under-weighted Saltpeter relative to even the
     // earliest medieval hand-cannon formulas and doesn't correspond to any historical batch.
-    // When Gunpowder's tech chain grows further stages toward modern smokeless propellants, add
-    // period/stage-gated recipe variants here rather than re-tuning this baseline in place.
+    // Second recipe: guncotton-style nitrocellulose propellant once industrial Nitric Acid is
+    // available (Cotton nitrated by Nitric Acid, Sulfuric Acid as the dehydrating agent — see
+    // Nitric Acid's own comment above) — the modern smokeless-propellant stage this comment used
+    // to invite as a future addition. Stays the same Good/unit/consumers rather than a separate
+    // "Smokeless Powder": to Muskets/Artillery/Bullets and militaryResources.ts, Gunpowder is
+    // just "propellant" regardless of which chemistry produced this batch.
     warEconomyType: "military",
     tags: ["military"],
     icon: "good-gunpowder",
     color: "#b0c4de",
     value: 12,
     chance: 0,
-    recipes: [{ Saltpeter: 0.75, Sulfur: 0.1, Charcoal: 0.15 }],
+    recipes: [
+      { Saltpeter: 0.75, Sulfur: 0.1, Charcoal: 0.15 },
+      { Cotton: 0.2, "Nitric Acid": 0.3, "Sulfuric Acid": 0.1 }
+    ],
     unit: "barrel",
     // State arsenals procure powder through Metallurg work orders. Letting every Burg's
     // population-proportional military demand buy it first strands tiny local batches and
@@ -2711,6 +2718,25 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: { utilities: 0.1 },
     requiredTechnology: "catalyticChemistry"
+  },
+  {
+    // Displacement process (pre-Ostwald route, in use since the 17th century and still the
+    // dominant method through the 19th): Saltpeter distilled with Sulfuric Acid liberates
+    // nitric acid, leaving potassium bisulfate behind — same "collapse the historical apparatus
+    // into one recipe" abstraction as Sulfuric Acid/Chlorine/Soda Ash above. Feeds Gunpowder's
+    // own second recipe below rather than a separate military Good, per Gunpowder's existing
+    // comment inviting "period/stage-gated recipe variants" as its tech chain modernizes.
+    name: "Nitric Acid",
+    warEconomyType: "strategic",
+    tags: ["industrial", "military", "mineral"],
+    icon: "good-unknown",
+    color: "#f0e068",
+    value: 22,
+    chance: 0,
+    recipes: [{ Saltpeter: 1, "Sulfuric Acid": 0.5 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "industrialSulfuricAcid"
   },
   {
     name: "Coal Tar",
