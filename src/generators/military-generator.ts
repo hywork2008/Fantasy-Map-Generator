@@ -360,6 +360,25 @@ class MilitaryModule {
         if (unit.requiresTechnology) {
           s.temp[unit.name] *= getTechnologyAdoptionShare(unit.requiresTechnology, s.i);
         }
+        // Aviation composite gate (docs/plan/military-era-progression.md §4.4). A single
+        // requiresTechnology can't express "needs both an engine and a lightweight airframe", so
+        // this is keyed on unit.type rather than a specific unit name — any aviation-type unit
+        // (the built-in "aviation" one, or a custom one added later via Military Options)
+        // inherits the same baseline realism floor, on top of whatever requiresTechnology it may
+        // additionally declare. internalCombustionEngine (adopted) supplies the motive power;
+        // electrolyticIndustry (demonstrated — Aluminum) supplies the lightweight structural
+        // material roadmap §9.4 names as "後続の航空" (later aviation use). The result is the
+        // weaker of the two prerequisites' own adoption shares — an aviation industry is only as
+        // mature as its least-developed input, and 0 (either prerequisite unmet) means "not built
+        // yet", same "falsy -> skip this unit" semantics as every other gate here.
+        if (unit.type === "aviation") {
+          const engineShare = getTechnologyAdoptionShare({ id: "internalCombustionEngine", minimum: "adopted" }, s.i);
+          const airframeShare = getTechnologyAdoptionShare(
+            { id: "electrolyticIndustry", minimum: "demonstrated" },
+            s.i
+          );
+          s.temp[unit.name] *= Math.min(engineShare, airframeShare);
+        }
       }
 
       // Second pass: units that `obsoletes` another unit gradually take over that unit's
@@ -1088,6 +1107,40 @@ class MilitaryModule {
         type: "machinery",
         separate: 0,
         requiresTechnology: { id: "modernSteelmaking", minimum: "demonstrated" }
+      },
+      {
+        // docs/plan/military-era-progression.md §4.4 (Phase 2). First real user of the "armored"
+        // type — stateModifier/cellTypeModifier/burgTypeModifier (above) and battle-screen.ts's
+        // phase scheme already had tuned armored entries with nothing to apply them to. Gated
+        // directly on internalCombustionEngine (adopted), giving that tech's own
+        // getInternalCombustionEngineEffect() (technologyProgress.ts) its first real consumer.
+        // No `obsoletes` — functionally edges out cavalry's shock role over time as its own
+        // recruitment share grows, but doesn't directly cannibalize cavalry's rate (§6 non-goal).
+        icon: "🛡️",
+        name: "armored",
+        rural: 0,
+        urban: 0.008,
+        crew: 4,
+        power: 40,
+        type: "armored",
+        separate: 0,
+        requiresTechnology: { id: "internalCombustionEngine", minimum: "adopted" }
+      },
+      {
+        // docs/plan/military-era-progression.md §4.4 (Phase 2). First real user of the "aviation"
+        // type — see battle-screen.ts's defineType()/getAirBattlePhase(), which have handled an
+        // all-"aviation" battle ("air" type, dogfight/maneuvering phases) since before any unit of
+        // this type existed. Composite technology gate (internalCombustionEngine + Aluminum-era
+        // electrolyticIndustry) applied by unit.type in the loop above, not via requiresTechnology
+        // — a single unit here has no requiresTechnology of its own.
+        icon: "✈️",
+        name: "aviation",
+        rural: 0,
+        urban: 0.005,
+        crew: 2,
+        power: 25,
+        type: "aviation",
+        separate: 1
       },
       {
         icon: "🌊",

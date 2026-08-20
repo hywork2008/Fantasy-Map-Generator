@@ -2,7 +2,7 @@
 
 ## 状態
 
-**Phase 1 実装済み（2026-08-21）。** [technology-development-roadmap.md](./technology-development-roadmap.md) の Phase 1–8（中世農業〜ロケット・宇宙開発）が実装済みになった一方、`Military.generate()` が生成する部隊編成（`src/generators/military-generator.ts`）は火薬時代（Era 2）で止まっており、Era 3〜8（大航海〜ロケット）に対応するユニットが一つも存在しない、というギャップに対応する。本書はこのギャップを閉じるための設計と実装フェーズをまとめる。Phase 1（ゲーティング機構＋Era 5-6 ユニット）の実装内容は §5 の実装ログを参照。Phase 2 以降（armored/aviation の投入、Economy 連携、ロケット砲）は引き続き未着手。
+**Phase 1・Phase 2 実装済み（2026-08-21）。** [technology-development-roadmap.md](./technology-development-roadmap.md) の Phase 1–8（中世農業〜ロケット・宇宙開発）が実装済みになった一方、`Military.generate()` が生成する部隊編成（`src/generators/military-generator.ts`）は火薬時代（Era 2）で止まっており、Era 3〜8（大航海〜ロケット）に対応するユニットが一つも存在しない、というギャップに対応する。本書はこのギャップを閉じるための設計と実装フェーズをまとめる。Phase 1（ゲーティング機構＋Era 5-6 ユニット）・Phase 2（armored/aviation の投入）の実装内容は §5 の実装ログを参照。Phase 3（Economy 連携）・Phase 4（ロケット砲、バックログ）は引き続き未着手。
 
 ---
 
@@ -179,29 +179,36 @@ for (const unit of military) {
 
 `syntheticAmmonia`（合成アンモニア、Era 6）は roadmap §9.2 が明記する通り火薬原料の供給源にもなる。ここでは新ユニットは作らず、`getGunpowderDemandTechMultiplier()`（[technologyProgress.ts:132-144](../../src/generators/technologyProgress.ts)）と同型の「近代火薬供給効率」乗数を Phase 3（§5）で Economy 側に追加することを推奨する（Military のロースターには影響しない）。
 
-### 4.4 Era 7（石油・内燃機関）— 装甲車・航空機（新 type の実戦投入）
+### 4.4 Era 7（石油・内燃機関）— 装甲車・航空機（新 type の実戦投入）✅ Phase 2 実装済み
 
 ここで初めて `armored` と `aviation` という**既存だが未使用の type** を実際のユニットとして投入する。
 
 | フィールド | armored | aviation |
 | --- | --- | --- |
-| icon | 🛡️🚗（仮） | ✈️（仮） |
+| icon | 🛡️ | ✈️ |
 | type | `armored`（新規投入） | `aviation`（新規投入） |
 | obsoletes | （なし。cavalry の一部役割を機能的に代替するが、募兵シェアの直接収奪はしない — §6 非目標） | （なし） |
-| requiresTechnology | `{ id: "internalCombustionEngine", minimum: "adopted" }` | 複合条件（下記） |
+| requiresTechnology | `{ id: "internalCombustionEngine", minimum: "adopted" }` | なし（複合条件は `unit.type === "aviation"` のコード側特例で判定、下記） |
 | rural / urban | `0` / `0.008`（希少・高コスト） | `0` / `0.005`（さらに希少） |
 | crew / power | `4` / `40`（Uncalibrated） | `2` / `25`（Uncalibrated） |
+| separate | `0`（他兵科と混成編成可） | `1`（fleet と同様、航空隊は独立編成） |
 
-- **armored** は `internalCombustionEngine`（Era 7 の内燃機関ノード）の `adopted` を直接ゲートにする。これは `getInternalCombustionEngineEffect()` に初めて実消費者を与えることになる（[technologyProgress.ts:210-223](../../src/generators/technologyProgress.ts) のコメントにある「deliberately unconsumed」を解消）。
-- **aviation** は単一ノードでは表現できない（roadmap 本文 §7 の結果欄に「航空」という語は出るが、専用の technologyDefinitions ノードは存在しない）。原則5（新規ノードを増やさない）に従い、`internalCombustionEngine`（動力）と `electrolyticIndustry`（Era 6、Aluminum＝軽量構造材、roadmap §9.4 が「後続の航空」の材料選択肢として明記）の**複合条件**として表現する:
+- **armored** は `internalCombustionEngine`（Era 7 の内燃機関ノード）の `adopted` を直接ゲートにする。これは `getInternalCombustionEngineEffect()` に初めて実消費者を与えることになる（[technologyProgress.ts:210-223](../../src/generators/technologyProgress.ts) のコメントにある「deliberately unconsumed」を解消）。Phase 1 で作った `requiresTechnology` の単純ゲート機構をそのまま使うだけで済み、追加コードは不要だった。
+- **aviation** は単一ノードでは表現できない（roadmap 本文 §7 の結果欄に「航空」という語は出るが、専用の technologyDefinitions ノードは存在しない）。原則5（新規ノードを増やさない）に従い、`internalCombustionEngine`（動力）と `electrolyticIndustry`（Era 6、Aluminum＝軽量構造材、roadmap §9.4 が「後続の航空」の材料選択肢として明記）の**複合条件**として表現する。実装は §3.2 で確立した `s.temp[unit.name]` ループへの type 別特例（`passUnitLimits()` ではない — Phase 1 での方針転換を踏襲）:
   ```ts
-  requiresTechnology は単一ゲートで表現しきれないため、passUnitLimits() 側で
-  aviation type のユニットに限り「internalCombustionEngine adopted AND electrolyticIndustry demonstrated以上」
-  を追加 AND 判定する（military-generator.ts 内の小さな特例、§5 Phase 2 で実装）。
+  // s.temp[unit.name] を計算するループ内、requiresTechnology の乗算の直後に追加
+  if (unit.type === "aviation") {
+    const engineShare = getTechnologyAdoptionShare({ id: "internalCombustionEngine", minimum: "adopted" }, s.i);
+    const airframeShare = getTechnologyAdoptionShare(
+      { id: "electrolyticIndustry", minimum: "demonstrated" },
+      s.i
+    );
+    s.temp[unit.name] *= Math.min(engineShare, airframeShare);
+  }
   ```
-  これも `electrolyticIndustry` の唯一の軍事的消費者になる。
+  `unit.name === "aviation"` ではなく `unit.type === "aviation"` で判定しているため、将来 Military Options でユーザーが独自に追加する `aviation` type のカスタムユニットにも同じ現実的な下限が自動的にかかる。両ゲートのうち弱い方の share を採用する（`Math.min`）— どちらか片方が未解禁なら 0（ユニット不在）、両方解禁済みならその時点で成熟度が低い方に律速される。これも `electrolyticIndustry` の唯一の軍事的消費者になる。
 
-`armored`/`aviation` は combat エンジン側の変更が不要（§1.3）なので、このフェーズの実装コストは「ロースター定義＋ゲート追加」に収まる見込みが大きい。
+`armored`/`aviation` は combat エンジン側の変更が不要という §1.3 の見立ては、[src/controllers/battle-screen.test.ts](../../src/controllers/battle-screen.test.ts) を新規に書いて実証済み — `Battle.prototype` のメソッドを `Object.create(Battle.prototype)` で作った最小限の `this` に対して直接呼び、`defineType()` が全機 aviation の対戦を `"air"` と判定すること、`selectPhase()` が `"maneuvering"`/`"dogfight"` を実際に選ぶこと、`calculateStrength()` の `scheme` テーブルの `armored`/`aviation` 列が実際に読まれていること（`dogfight` は `maneuvering` のちょうど2倍、`melee` の armored 補正、`shelling` で armored の出力が 0 になることを確認）を検証した。手動でのブラウザ確認は行っていない（§8 参照）。
 
 ### 4.5 Era 8（ロケット・宇宙開発）— ロケット砲のみ、戦略兵器化はしない
 
@@ -247,11 +254,12 @@ for (const unit of military) {
 - 既存ユニット・既存テストの回帰確認: `npx vitest run`(フルスイート、410 ファイル / 3236 テスト)と `npx tsc --noEmit` がいずれもクリーン。`historicalPeriod` 未設定(既存テストの前提)では新規3ユニットの技術段階は常に `"locked"` になり、既存ロースターと同じ挙動になることを確認済み。
 - `military-generator.test.ts` にテスト追加(新 `describe` ブロック、5件): ロック時に3ユニットとも現れないこと、`standardMachineWorks` adopted で riflemen が現れ musketeers のシェアが半分未満に縮むこと、`modernSteelmaking` demonstrated で machineGunners のみ現れること、`modernSteelmaking` adopted で fieldArtillery が現れ artillery のシェアが縮むこと、`gunpowderEraEnabled=false` では技術が adopted でも5ユニットとも現れないこと。`beforeEach` で `resetTechnologyProgress()` を呼び、他テストとの技術状態の漏れを防止(`technologyProgress.test.ts` と同じ作法)。
 
-### Phase 2 — Era 7 ユニット（armored / aviation） と 新 type の実戦投入
+### Phase 2 — Era 7 ユニット（armored / aviation） と 新 type の実戦投入 ✅ 実装済み（2026-08-21）
 
-- `armored`/`aviation` ユニット定義を追加。`aviation` の複合ゲート（§4.4）は単一の `requiresTechnology` では表現できないため、§3.2 で実装した `s.temp[unit.name]` 計算ループに type 別の特例として実装する（Phase 1 の実装方針転換を踏襲 — `passUnitLimits()` ではなく State 単位の倍率計算に寄せる）。
-- Battle Screen（[battle-screen.ts](../../src/controllers/battle-screen.ts)）で `armored`/`aviation` を含む連隊同士の戦闘を手動検証する（`defineType()` の `"air"`/`"landing"` 判定、`scheme` テーブルの `dogfight`/`maneuvering` フェーズが実際に選ばれることを確認 — エンジン変更は原則不要のはずだが、実ユニットで動かして初めて確定する）。
-- `MilitaryOptionsDialog.tsx` は既存の `unitTypes` 選択肢のみで対応可能なはずだが、`requiresTechnology` を持つユニットの表示（例: 「この技術が `adopted` するまで募兵されません」の tip 表示）を検討。
+- `armored`/`aviation` ユニット定義を `Military.getDefaultOptions()` に追加(§4.4)。icon は 🛡️ / ✈️、`aviation` は `fleet` と同じ `separate: 1`(独立編成)とした。
+- `aviation` の複合ゲート(§4.4)は単一の `requiresTechnology` では表現できないため、§3.2 で実装した `s.temp[unit.name]` 計算ループに `unit.type === "aviation"` の特例として実装した(`passUnitLimits()` ではなく State 単位の倍率計算に寄せる、Phase 1 の方針をそのまま踏襲)。ユニット名ではなく type で判定しているため、将来ユーザーが Military Options で追加する `aviation` type のカスタムユニットにも同じゲートが自動的にかかる。
+- Battle Screen の手動検証の代わりに、[src/controllers/battle-screen.test.ts](../../src/controllers/battle-screen.test.ts) を新規作成し `Battle.prototype` のメソッドを直接呼ぶ自動テストで検証した(5件、全て green)。`new Battle(...)` はダイアログ表示等の実UI副作用を伴うため使わず、`Object.create(Battle.prototype)` で最小限の `this` を組み立てて `defineType()`/`selectPhase()`/`calculateStrength()` を直接叩く手法を採った。検証できたこと: (1) 両陣営とも全ユニットが aviation type のとき `defineType()` が `"air"` と判定する、(2) 地上ユニットが混ざると `"air"` にならない、(3) `selectPhase()` が `iteration` に応じて `"maneuvering"`→`"dogfight"` を実際に選ぶ(`P()` の `>=1`/`<=0` 決定的分岐を利用し非フレークにできた)、(4) `calculateStrength()` の `scheme` テーブルの `aviation` 列(`dogfight`が`maneuvering`のちょうど2倍)と `armored` 列(`melee`で正の出力、`shelling`で0)が実際に読まれている。§1.3 の「エンジン変更は原則不要」という見立てが実証された(変更ゼロ)。ブラウザでの実プレイ手動確認はまだ未実施(§8)。
+- `MilitaryOptionsDialog.tsx` に軽量な UI ヒントを追加した: `requiresTechnology` を持つユニット名の隣に 🔬 バッジ(hover で技術ID・必要段階を表示)、`obsoletes` を持つユニットに ↩️ バッジ(hover でどのユニットの募兵シェアを緩やかに奪うかを表示)。テーブル列の追加はせず、既存の `title`/`data-tip` パターンを流用。
 
 ### Phase 3 — Economy 拡張との装備連携
 
@@ -291,16 +299,13 @@ for (const unit of military) {
 
 ### 自動テスト
 
-- `military-generator.test.ts`: **実装済み（Phase 1）。** 新 `describe` ブロックに5テスト追加 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。既存5テストも無変更で green（フルスイート 410ファイル/3236テスト、`tsc --noEmit` ともにクリーン、2026-08-21確認）。
-- `technologyProgress.test.ts` への `getTechnologyAdoptionShare()` 専用単体テストは **未追加**（military-generator.test.ts 側の統合テストでカバーしている。既存 `get*Effect()` 系と同型の純関数なので優先度は低いが、Phase 2 着手時にあわせて追加を検討）。
+- `military-generator.test.ts`: **実装済み（Phase 1 + Phase 2）。** Phase 1 で5テスト、Phase 2 で5テスト追加。Phase 1 分 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。Phase 2 分 — locked時に armored/aviation とも不在／`internalCombustionEngine` adopted のみで armored 出現・aviation は不在のまま／aviation は複合ゲートの片方だけでは出現しない／両方(adopted + demonstrated)揃うと armored・aviation とも出現／`gunpowderEraEnabled=false` でも armored/aviation は火薬系ユニットと違い不在にならない。既存テストも無変更で green（フルスイート 411ファイル/3246テスト、`tsc --noEmit` ともにクリーン、2026-08-21確認）。
+- `src/controllers/battle-screen.test.ts`: **新規作成（Phase 2）。** `Battle.prototype` を直接叩く5テストで `defineType()`/`selectPhase()`/`calculateStrength()` の armored/aviation 対応を検証（詳細は §4.4 実装ログ）。
+- `technologyProgress.test.ts` への `getTechnologyAdoptionShare()` 専用単体テストは **未追加**（military-generator.test.ts 側の統合テストでカバーしている。既存 `get*Effect()` 系と同型の純関数なので優先度は低い）。
 
-### 手動確認手順（Phase 1 分は未実施 — 次回セッションで確認）
+### 手動確認手順（未実施 — 次回セッションで確認）
 
-1. `historicalPeriod` を `steamEra` 以降に設定して新規マップを生成し、Military Options で State の技術段階に応じて `riflemen`/`fieldArtillery`/`machineGunners` が有効になっていることを確認する。
+1. `historicalPeriod` を `steamEra` 以降に設定して新規マップを生成し、Military Options で State の技術段階に応じて `riflemen`/`fieldArtillery`/`machineGunners`/`armored`/`aviation` が有効になっていること、名前欄の 🔬/↩️ バッジが正しく表示されることを確認する。
 2. `ageOfExploration` 以前の開始で、新ユニットが一切出現しない（従来どおり6ユニットのみ）ことを確認する。
 3. Regiments Overview で新ユニットが実際に連隊に編成されていることを確認する。
-
-以下は Phase 2 実装後にあわせて確認する（Phase 1 では armored/aviation 未実装のため対象外）:
-
-1. Military Options を開き、`armored`/`aviation` が `unitTypes` ドロップダウンで表示・選択できることを確認する（§1.3 で確認済みの通り土台は実装済みのはず）。
-2. Battle Screen で `armored`/`aviation` を含む連隊同士を衝突させ、`"air"`/`"landing"` 戦闘種別と `dogfight`/`maneuvering` フェーズが実際に選択されることを確認する。
+4. Battle Screen で `armored`/`aviation` を含む連隊同士を実際に衝突させ、`"air"`/`"landing"` 戦闘種別と `dogfight`/`maneuvering` フェーズが選択されること、UI 上の表示が破綻しないことを確認する（battle-screen.test.ts はロジックのみの検証であり、ダイアログ描画・ユーザー操作フローは未確認）。

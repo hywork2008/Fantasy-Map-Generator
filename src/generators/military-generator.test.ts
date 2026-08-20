@@ -399,3 +399,109 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
     }
   });
 });
+
+// docs/plan/military-era-progression.md Phase 2: the "armored"/"aviation" types get their first
+// real default units. armored uses the plain single-gate mechanism Phase 1 already built;
+// aviation is the first user of the type-keyed composite gate (internalCombustionEngine +
+// electrolyticIndustry) since a single requiresTechnology field can't express an AND of two
+// technologies.
+describe("MilitaryModule.generate — era-7 armored/aviation units", () => {
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
+  function unitTotals(state: ReturnType<typeof generate>): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const regiment of state.military ?? []) {
+      for (const [unitName, amount] of Object.entries(regiment.u)) {
+        totals[unitName] = (totals[unitName] ?? 0) + amount;
+      }
+    }
+    return totals;
+  }
+
+  // aviation's urban rate (0.008) is deliberately tiny (§4.4 "さらに希少") — at populationRate 1
+  // and this fixture's single 10000-population burg, a partial adoption share (e.g. "demonstrated"
+  // = 0.35) can legitimately round down to exactly 0 troops, which would make a >0 assertion flaky
+  // rather than meaningful. A higher populationRate (same knob real generation scales all troop
+  // counts by) clears that rounding margin without changing what's being gated.
+  function generateAtScale(pack: PackedGraph, populationRate: number) {
+    worldContext.pack = pack;
+    worldContext.populationRate = populationRate;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+    Military.generate(worldContext, viewContext, appServices, makeState(pack));
+    return worldContext.pack.states[1];
+  }
+
+  it("keeps armored/aviation out of the roster while internalCombustionEngine and electrolyticIndustry are locked", () => {
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.armored ?? 0).toBe(0);
+    expect(totals.aviation ?? 0).toBe(0);
+  });
+
+  it("recruits armored once internalCombustionEngine is adopted, independent of electrolyticIndustry", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.armored ?? 0).toBeGreaterThan(0);
+    // aviation additionally needs electrolyticIndustry — must stay absent on this gate alone.
+    expect(totals.aviation ?? 0).toBe(0);
+  });
+
+  it("keeps aviation out when only one of its two required technologies clears its bar", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+      // electrolyticIndustry left locked.
+    ]);
+    const engineOnly = unitTotals(generate(makeBasePack("Enemy")));
+    expect(engineOnly.aviation ?? 0).toBe(0);
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "electrolyticIndustry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+      // internalCombustionEngine left locked.
+    ]);
+    const airframeOnly = unitTotals(generate(makeBasePack("Enemy")));
+    expect(airframeOnly.aviation ?? 0).toBe(0);
+  });
+
+  it("recruits aviation once both internalCombustionEngine (adopted) and electrolyticIndustry (demonstrated) clear their bars", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electrolyticIndustry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const state = generateAtScale(makeBasePack("Enemy"), 50);
+    const totals = unitTotals(state);
+
+    expect(totals.armored ?? 0).toBeGreaterThan(0);
+    expect(totals.aviation ?? 0).toBeGreaterThan(0);
+  });
+
+  it("does not gate armored/aviation on the gunpowder-era world toggle, unlike the firearm-descended units", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electrolyticIndustry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const pack = makeBasePack("Enemy");
+    const state = makeState(pack);
+    state.options = { year: 1000, gunpowderEraEnabled: false };
+    worldContext.pack = pack;
+    worldContext.populationRate = 50; // see generateAtScale's comment above on rounding margin
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+
+    Military.generate(worldContext, viewContext, appServices, state);
+    const totals = unitTotals(worldContext.pack.states[1]);
+
+    expect(totals.armored ?? 0).toBeGreaterThan(0);
+    expect(totals.aviation ?? 0).toBeGreaterThan(0);
+    expect(totals.musketeers ?? 0).toBe(0);
+    expect(totals.artillery ?? 0).toBe(0);
+  });
+});
