@@ -2905,6 +2905,16 @@
       "diploTip": "PR-17g: 0-100 accumulated diplomatic reputation driven by Chancery's service level. Below 30, sustained neglect risks straining an existing alliance",
       "religious": "Religious Unrest",
       "religiousTip": "PR-17h: 0-100 accumulated unrest driven by Ecclesiastica's service level (Theocracy accumulates 1.5× faster). Above 40 it costs assembly support, gating debt issuance, war footing, and every department-budget cut",
+      "drought": "Drought",
+      "droughtTip": "Current drought/heatwave stage — climate-disaster-drought.md's hysteretic stage machine (calm/watch/active/severe/recovering)",
+      "droughtSeverity": "Dryness",
+      "droughtSeverityTip": "0-100% this year's post-mitigation drought/heatwave severity (irrigation investment discounts this)",
+      "relief": "Drought Relief",
+      "reliefTip": "Treasury spent this cycle on emergency drought relief — partial spend when the treasury cannot cover the full budget",
+      "stageWatch": "Watch",
+      "stageActive": "Active",
+      "stageSevere": "Severe",
+      "stageRecovering": "Recovering",
       "publicCell": "Public treasury (L2)",
       "hhCell": "Household purse (L1)",
       "rulerCell": "Ruler personal wealth (L0)",
@@ -2927,7 +2937,10 @@
       "budgetMult": "Budget multiplier ×{{value}}",
       "remitCell": "Cash remitted back to public treasury this cycle (over-cap department balance)",
       "diploCell": "Below 30 risks straining an existing alliance",
-      "religiousCell": "Above 40 costs assembly support"
+      "religiousCell": "Above 40 costs assembly support",
+      "droughtCell": "Current drought/heatwave stage",
+      "droughtSeverityCell": "This year's post-mitigation severity",
+      "reliefCell": "Emergency relief spent this cycle"
     },
     "marketDeals": {
       "good": "Good",

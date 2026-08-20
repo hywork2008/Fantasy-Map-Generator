@@ -2905,6 +2905,16 @@
       "diploTip": "PR-17g：尚書サービスのサービス水準が積む 0–100 の外交評価。30 未満の放置は既存同盟を傷つける",
       "religious": "宗教不安",
       "religiousTip": "PR-17h：宗務サービスのサービス水準が積む 0–100 の不安（神政は 1.5 倍速）。40 超で議会支持を削り、債務発行・戦争態勢・部門予算削減を阻む",
+      "drought": "干魃",
+      "droughtTip": "現在の干魃・熱波ステージ（climate-disaster-drought.mdのヒステリシス付きステージマシン: 平常/予兆/発災/深刻/回復期）",
+      "droughtSeverity": "乾燥度",
+      "droughtSeverityTip": "今年の緩和後の干魃・熱波severity（0–100%）。灌漑投資でこの値は割り引かれる",
+      "relief": "干魃救済",
+      "reliefTip": "今期、緊急干魃救済に支出した国庫額。国庫が予算全額を賄えない場合は部分支出になる",
+      "stageWatch": "予兆",
+      "stageActive": "発災",
+      "stageSevere": "深刻",
+      "stageRecovering": "回復期",
       "publicCell": "公庫（L2）",
       "hhCell": "宮廷金庫（L1）",
       "rulerCell": "統治者個人資産（L0）",
@@ -2927,7 +2937,10 @@
       "budgetMult": "予算倍率 ×{{value}}",
       "remitCell": "今期、上限超過の部門残高として公庫へ戻した現金",
       "diploCell": "30 未満だと既存同盟が傷つく",
-      "religiousCell": "40 超だと議会支持を削る"
+      "religiousCell": "40 超だと議会支持を削る",
+      "droughtCell": "現在の干魃・熱波ステージ",
+      "droughtSeverityCell": "今年の緩和後severity",
+      "reliefCell": "今期支出した緊急救済額"
     },
     "marketDeals": {
       "good": "産物",

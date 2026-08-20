@@ -65,6 +65,7 @@ import { Caravans } from "./generators/caravans";
 import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
 import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
 import { ChlorinePlants } from "./generators/chlorinePlants";
+import { ClimateDisasters } from "./generators/climateDisasters";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
   applyCharacterToConstructionJob,
@@ -2889,6 +2890,12 @@ export function init(api: ExtensionAPI): void {
         // markets by population. Does not touch marketTreasury — PowerStations already paid the
         // capital/operating cost (docs/plan/electric-power-and-telegraph.md §3.10).
         PowerGridInvestment.settleAnnual();
+        // Rolls this year's per-State drought/heatwave severity and writes climateFoodStress —
+        // must run before updateAnnualAgriculture() so this year's dryness feeds this year's
+        // harvest, not next year's (unlike Dam/Levee's floodProtectionByCell, which the comment on
+        // Dams.settleAnnual() below explains is allowed to lag a year).
+        // docs/plan/climate-disaster-drought.md §3.1.
+        ClimateDisasters.settleAnnual(context.rng);
         // Must run before the quarter's food ledger so annual demographic changes
         // alter cultivated area and farm labour without waiting an extra quarter.
         agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();

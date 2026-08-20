@@ -10,6 +10,7 @@ import {
 import type { Burg } from "../../hostTypes";
 import {
   clearSettlementDevelopmentLastEvaluatedYear,
+  getClimateFoodStress,
   getCultivableArea,
   getCultivatedArea,
   getFarmLaborRequired,
@@ -35,6 +36,7 @@ import {
   getStateAgriculturalProductivity,
   getWorldContext,
   getYieldPerArea,
+  setClimateFoodStress,
   setCultivableArea,
   setCultivatedArea,
   setFarmLaborRequired,
@@ -262,6 +264,7 @@ export class DevelopmentPotentialModule {
     setRiverResidualFlow(new Float32Array());
     setFieldDrainage(new Float32Array());
     setFloodProtection(new Float32Array());
+    setClimateFoodStress(new Float32Array());
     setHuntingWorkers(new Float32Array());
     setFishingWorkers(new Float32Array());
     setFishingRequiredWorkers(new Float32Array());
@@ -363,6 +366,7 @@ export class DevelopmentPotentialModule {
     }
     if (getFieldDrainage().length !== cellCount) setFieldDrainage(new Float32Array(cellCount));
     if (getFloodProtection().length !== cellCount) setFloodProtection(new Float32Array(cellCount));
+    if (getClimateFoodStress().length !== cellCount) setClimateFoodStress(new Float32Array(cellCount));
     return {
       cropGoods: getGoods().filter(good => Boolean(good.crop) && isGoodEnabled(good)),
       soilFertilityByCell: getSoilFertility(),
@@ -372,6 +376,7 @@ export class DevelopmentPotentialModule {
       irrigationConveyanceEfficiencyByCell: getIrrigationConveyanceEfficiency(),
       fieldDrainageByCell: getFieldDrainage(),
       floodProtectionByCell: getFloodProtection(),
+      climateFoodStressByCell: getClimateFoodStress(),
       fertilizerStockByCell: resolveFertilizerStockByCell(cellCount),
       nitrogenFertilizerStockByCell: resolveNitrogenFertilizerStockByCell(cellCount)
     };

@@ -185,7 +185,9 @@ let _damsLastSettledYearFallback: number | null = null;
 let _leveesLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
+let _climateDisastersLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _climateFoodStressFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
   _api = api;
@@ -257,7 +259,9 @@ export function clearEconomyContext(): void {
   _leveesLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
+  _climateDisastersLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
+  _climateFoodStressFallback = new Float32Array();
 }
 
 export function getApi(): ExtensionAPI {
@@ -613,6 +617,19 @@ export function getFloodProtection(): Float32Array<ArrayBufferLike> {
 export function setFloodProtection(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("floodProtection", value, next => {
     _floodProtectionFallback = next;
+  });
+}
+/**
+ * 0..1 this-year drought/heatwave stress broadcast from each State's ClimateDisasters.settleAnnual()
+ * onto its cells, consumed by calculateClimateYield() the same way floodProtectionByCell is.
+ * Design: docs/plan/climate-disaster-drought.md §3.1/§3.5.
+ */
+export function getClimateFoodStress(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("climateFoodStress", _climateFoodStressFallback);
+}
+export function setClimateFoodStress(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("climateFoodStress", value, next => {
+    _climateFoodStressFallback = next;
   });
 }
 export function getFieldDrainage(): Float32Array<ArrayBufferLike> {
@@ -1731,6 +1748,15 @@ export function getLeveesLastSettledYear(): number | null {
 export function setLeveesLastSettledYear(year: number): void {
   writeYearToSlice("leveesLastSettledYear", year, value => {
     _leveesLastSettledYearFallback = value;
+  });
+}
+/** Guards ClimateDisasters.settleAnnual(). Design: docs/plan/climate-disaster-drought.md §3.1. */
+export function getClimateDisastersLastSettledYear(): number | null {
+  return yearFromSlice("climateDisastersLastSettledYear", _climateDisastersLastSettledYearFallback);
+}
+export function setClimateDisastersLastSettledYear(year: number): void {
+  writeYearToSlice("climateDisastersLastSettledYear", year, value => {
+    _climateDisastersLastSettledYearFallback = value;
   });
 }
 

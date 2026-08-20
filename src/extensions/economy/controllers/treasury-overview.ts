@@ -93,7 +93,10 @@ export function refreshTreasuryOverview(): void {
       ecclesiasticaBudgetMultiplier: rn(state.departmentBudgetMultiplier?.ecclesiastica ?? 1, 2),
       departmentBalanceRemit: rn(snapshot.departmentBalanceRemit, 2),
       diplomaticReliability: rn(state.diplomaticReliability ?? 100, 1),
-      religiousUnrest: rn(state.religiousUnrest || 0, 1)
+      religiousUnrest: rn(state.religiousUnrest || 0, 1),
+      droughtStage: state.droughtStage || "calm",
+      droughtSeverity: rn(state.droughtSeverity || 0, 3),
+      lastDisasterRelief: rn(state.lastDisasterRelief || 0, 2)
     });
   }
 

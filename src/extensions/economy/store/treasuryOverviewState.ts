@@ -106,6 +106,12 @@ export interface TreasuryOverviewRow {
    * 40 costs assembly support (councilAssembly.ts). docs/plan/department-budget-spending-effects.md §3.3.
    */
   religiousUnrest: number;
+  /** Current drought/heatwave stage ("calm" when never rolled or no exposure). docs/plan/climate-disaster-drought.md. */
+  droughtStage: string;
+  /** 0..1 this year's post-mitigation drought/heatwave severity. */
+  droughtSeverity: number;
+  /** Treasury spent this cycle on emergency drought relief. */
+  lastDisasterRelief: number;
 }
 
 interface TreasuryOverviewState {

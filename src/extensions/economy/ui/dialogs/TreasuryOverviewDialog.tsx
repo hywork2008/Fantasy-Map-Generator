@@ -507,12 +507,38 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 numeric
                 tip={t("extensions.treasuryOverview.religiousTip")}
               />
+              <SortableHeader
+                field="droughtStage"
+                label={t("extensions.treasuryOverview.drought")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip={t("extensions.treasuryOverview.droughtTip")}
+              />
+              <SortableHeader
+                field="droughtSeverity"
+                label={t("extensions.treasuryOverview.droughtSeverity")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip={t("extensions.treasuryOverview.droughtSeverityTip")}
+              />
+              <SortableHeader
+                field="lastDisasterRelief"
+                label={t("extensions.treasuryOverview.relief")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip={t("extensions.treasuryOverview.reliefTip")}
+              />
             </tr>
           </thead>
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={44}>
+                <td colSpan={47}>
                   <span>{t("extensions.treasuryOverview.empty")}</span>
                 </td>
               </tr>
@@ -677,6 +703,19 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => {
       </td>
       <td className="numeric" data-tip={t("extensions.treasuryOverview.religiousCell")}>
         {row.religiousUnrest.toFixed(0)}
+      </td>
+      <td data-tip={t("extensions.treasuryOverview.droughtCell")}>
+        {row.droughtStage === "calm"
+          ? "—"
+          : t(
+              `extensions.treasuryOverview.stage${row.droughtStage.charAt(0).toUpperCase()}${row.droughtStage.slice(1)}`
+            )}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.droughtSeverityCell")}>
+        {row.droughtSeverity > 0 ? `${(row.droughtSeverity * 100).toFixed(0)}%` : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.reliefCell")}>
+        {row.lastDisasterRelief > 0 ? row.lastDisasterRelief.toFixed(2) : "—"}
       </td>
     </tr>
   );

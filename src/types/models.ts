@@ -937,6 +937,38 @@ export interface State {
   /** PR-13 assembly session counter. */
   councilSessionNumber?: number;
   /**
+   * -1..1 persisted mean-reverting climate random walk (drought/heatwave dryness driver),
+   * updated once per simulation year by ClimateDisasters.settleAnnual().
+   * docs/plan/climate-disaster-drought.md §3.1.
+   */
+  climateAnomaly?: number;
+  /** Current drought/heatwave stage machine position. docs/plan/climate-disaster-drought.md §3.2. */
+  droughtStage?: "calm" | "watch" | "active" | "severe" | "recovering";
+  /** 0..1 this year's post-mitigation drought/heatwave severity. docs/plan/climate-disaster-drought.md §3.1. */
+  droughtSeverity?: number;
+  /** Consecutive years at droughtStage active/severe — feeds the severity escalation rule. */
+  droughtYears?: number;
+  /** 0..1 this year's effective food-production drag after emergency relief mitigation, broadcast
+   *  onto cells as climateFoodStressByCell. docs/plan/climate-disaster-drought.md §3.1/§3.5. */
+  climateFoodStress?: number;
+  /** Treasury spent this cycle on emergency drought relief (0 when no disaster is active or the
+   *  treasury was empty). docs/plan/climate-disaster-drought.md §3.3. */
+  lastDisasterRelief?: number;
+  /**
+   * Generic disaster chronicle (ring buffer, max 24), appended only on stage transitions.
+   * Same "summary is a required plain string, no dialog required" shape as councilSessionLog.
+   * docs/plan/climate-disaster-drought.md §3.4.
+   */
+  disasterLog?: {
+    id: number;
+    kind: "drought";
+    stage: "calm" | "watch" | "active" | "severe" | "recovering";
+    year: number;
+    severity: number;
+    reliefSpent?: number;
+    summary: string;
+  }[];
+  /**
    * PR-8 assembly support snapshot (0–100) from the last tax cycle / support refresh.
    */
   councilSupport?: number;

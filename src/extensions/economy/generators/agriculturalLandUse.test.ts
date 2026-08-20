@@ -562,4 +562,75 @@ describe("agricultural land use", () => {
     expect(full.yieldPerArea[0]).toBeGreaterThan(half.yieldPerArea[0]);
     expect(full.foodPotential[0]).toBeGreaterThan(none.foodPotential[0]);
   });
+
+  // docs/plan/climate-disaster-drought.md §3.5 — climateFoodStressByCell (ClimateDisasters) applies
+  // a background drought/heatwave drag, discounted by the cell's own irrigationDevelopmentByCell.
+  it("treats an omitted climateFoodStressByCell the same as an explicit all-zero one", () => {
+    const world = createWorld();
+    const omitted = calculateAgriculturalLandProfile(world, undefined, undefined, {}, {});
+    const explicitZero = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        climateFoodStressByCell: new Float32Array(2)
+      }
+    );
+
+    expect(explicitZero.foodPotential).toEqual(omitted.foodPotential);
+  });
+
+  it("lowers yield as climateFoodStressByCell rises, monotonically toward maximum drag", () => {
+    const world = createWorld();
+    const none = calculateAgriculturalLandProfile(world, undefined, undefined, {}, {});
+    const half = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        climateFoodStressByCell: new Float32Array([0.5, 0.5])
+      }
+    );
+    const full = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        climateFoodStressByCell: new Float32Array([1, 1])
+      }
+    );
+
+    expect(half.yieldPerArea[0]).toBeLessThan(none.yieldPerArea[0]);
+    expect(full.yieldPerArea[0]).toBeLessThan(half.yieldPerArea[0]);
+    expect(full.foodPotential[0]).toBeLessThan(none.foodPotential[0]);
+  });
+
+  it("lets a cell's own irrigationDevelopmentByCell discount its drought exposure", () => {
+    const world = createWorld();
+    const rainfed = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        climateFoodStressByCell: new Float32Array([1, 1]),
+        irrigationDevelopmentByCell: new Float32Array([0, 0])
+      }
+    );
+    const irrigated = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        climateFoodStressByCell: new Float32Array([1, 1]),
+        irrigationDevelopmentByCell: new Float32Array([1, 1])
+      }
+    );
+
+    expect(irrigated.yieldPerArea[0]).toBeGreaterThan(rainfed.yieldPerArea[0]);
+  });
 });

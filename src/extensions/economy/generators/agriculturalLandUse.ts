@@ -111,6 +111,17 @@ export const RIVER_ENVIRONMENTAL_FLOW_RESERVE = 0.55;
  * floodProtectionByCell and shrink this drag toward 0. See docs/plan/river-levee-and-flood-damage.md §3.4.
  */
 export const FLOOD_YIELD_DAMAGE_SEVERITY = 0.35;
+/**
+ * calibration TBD — slightly above FLOOD_YIELD_DAMAGE_SEVERITY(0.35): drought/heatwave is rated
+ * the same "非常に大" impact as flood in disaster-mode.md, but irrigation (see
+ * DROUGHT_IRRIGATION_YIELD_MITIGATION below) is a more direct, more effective countermeasure than
+ * flood protection is against flood, so the unmitigated ceiling is set a bit higher. Applied only
+ * while ClimateDisasters.settleAnnual() has an active/severe drought this year — 0 the rest of the
+ * time. See docs/plan/climate-disaster-drought.md §3.5.
+ */
+export const DROUGHT_YIELD_DAMAGE_SEVERITY = 0.45;
+/** 0..1 share of a cell's own irrigationDevelopment that discounts its drought exposure. */
+export const DROUGHT_IRRIGATION_YIELD_MITIGATION = 0.8;
 const MIN_SOIL_FERTILITY = 0.55;
 const MAX_SOIL_FERTILITY = 1.1;
 
@@ -141,6 +152,12 @@ export interface AgriculturalConditions {
    * docs/plan/river-levee-and-flood-damage.md.
    */
   readonly floodProtectionByCell?: Float32Array;
+  /**
+   * 0..1 this-year drought/heatwave stress broadcast per-State by ClimateDisasters.settleAnnual(),
+   * discounted in calculateClimateYield() by the cell's own irrigationDevelopmentByCell. See §3.5 of
+   * docs/plan/climate-disaster-drought.md.
+   */
+  readonly climateFoodStressByCell?: Float32Array;
   /**
    * Market-purchased Phosphate Fertilizer adoption coverage, resolved to cells by
    * DevelopmentPotential from Market.fertilizerStock — same shape as fourCourseRotationByCell.
@@ -1087,6 +1104,10 @@ function calculateClimateYield(
   });
   const floodProtection = conditions.floodProtectionByCell?.[cellId] ?? 0;
   const floodFactor = 1 - floodHazard * (1 - floodProtection) * FLOOD_YIELD_DAMAGE_SEVERITY;
+  const droughtStress = conditions.climateFoodStressByCell?.[cellId] ?? 0;
+  const cellIrrigation = conditions.irrigationDevelopmentByCell?.[cellId] ?? 0;
+  const droughtFactor =
+    1 - droughtStress * (1 - cellIrrigation * DROUGHT_IRRIGATION_YIELD_MITIGATION) * DROUGHT_YIELD_DAMAGE_SEVERITY;
   return Math.max(
     0,
     temperatureFactor *
@@ -1094,7 +1115,8 @@ function calculateClimateYield(
       cropFactor *
       soilFertilityFactor *
       salinityFactor *
-      floodFactor
+      floodFactor *
+      droughtFactor
   );
 }
 
