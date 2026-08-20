@@ -3,12 +3,17 @@ import { DEBUG, TIME } from "../utils/debug";
 
 /**
  * Aggregates per-step wall-clock cost across advanceTime() calls so the incremental cost of
- * adding a new tick hook (or core simulation step) can be measured instead of guessed. Timing
- * itself is gated by TIME (existing convention, tree-shakeable in production); the auto-printed
- * summary is additionally gated by DEBUG.tickProfiler (off by default — enable via
- * localStorage.setItem("debug", JSON.stringify({ tickProfiler: true })) and reload) so normal
- * play doesn't get a console.table on every Advance Day/Month/Year batch.
+ * adding a new tick hook (or core simulation step) can be measured instead of guessed.
+ *
+ * Recording is gated by TIME OR DEBUG.tickProfiler, not TIME alone: TIME defaults to false
+ * (it also drives the much heavier console.time/timeEnd calls elsewhere, which measurably slow
+ * a long SVG advance — see commit that flipped it off), but a bare performance.now() diff here
+ * is cheap enough to opt into on demand via localStorage.setItem("debug",
+ * JSON.stringify({ tickProfiler: true })) and reload, without paying the console.time cost.
+ * The auto-printed summary stays gated by DEBUG.tickProfiler alone so normal play doesn't get a
+ * console.table on every Advance Day/Month/Year batch.
  */
+const RECORDING_ENABLED = TIME || DEBUG.tickProfiler === true;
 export interface TickProfileEntry {
   label: string;
   calls: number;
@@ -19,9 +24,9 @@ export interface TickProfileEntry {
 
 const _entries = new Map<string, TickProfileEntry>();
 
-/** Runs `fn`, recording its wall-clock cost under `label`. Zero overhead when TIME is false. */
+/** Runs `fn`, recording its wall-clock cost under `label`. Zero overhead when recording is disabled. */
 export function measureTickStep<T>(label: string, fn: () => T): T {
-  if (!TIME) return fn();
+  if (!RECORDING_ENABLED) return fn();
 
   const start = performance.now();
   const result = fn();
@@ -37,7 +42,7 @@ export function measureTickStep<T>(label: string, fn: () => T): T {
  * measureTickStep(label, () => asyncFn()) would capture.
  */
 export async function measureTickStepAsync<T>(label: string, fn: () => Promise<T>): Promise<T> {
-  if (!TIME) return fn();
+  if (!RECORDING_ENABLED) return fn();
 
   const start = performance.now();
   const result = await fn();

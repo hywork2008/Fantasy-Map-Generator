@@ -226,6 +226,12 @@ async function main(): Promise<void> {
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: args.width, height: args.height } });
+  // tickProfiler only records when DEBUG.tickProfiler is set (TIME defaults to false in the
+  // app build to avoid console.time overhead) — set it before any page script runs so the
+  // module-load-time DEBUG snapshot in src/utils/debug.ts picks it up.
+  await context.addInitScript(() => {
+    localStorage.setItem("debug", JSON.stringify({ tickProfiler: true }));
+  });
   const page = await context.newPage();
   page.on("console", msg => {
     if (msg.type() === "error") console.error("[browser]", msg.text());
