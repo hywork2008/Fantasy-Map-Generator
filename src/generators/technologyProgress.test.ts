@@ -9,6 +9,7 @@ import {
   getAtmosphericSteamPumpingEffect,
   getFourCourseRotationEffect,
   getGunpowderDemandTechMultiplier,
+  getInternalCombustionEngineEffect,
   getMaxShipClassTierForState,
   getMechanizedTextilesEffect,
   getMechanizedTextilesOutputMultiplier,
@@ -978,6 +979,113 @@ describe("technologyProgress", () => {
     expect(lines.some(line => line.includes("cinnabarAccess"))).toBe(false);
     expect(lines.some(line => line.includes("mercuryPlantTrialYears"))).toBe(false);
     expect(lines.some(line => line.includes("mercuryPlantInstallations"))).toBe(false);
+  });
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.5.
+  it("defines the era-7 petroleum chain (geology -> drilling -> refining -> internal combustion) with prerequisites gated above each other's own adopted floor", () => {
+    const geology = TECHNOLOGY_DEFINITIONS.find(def => def.id === "petroleumGeologyAndExploration");
+    expect(geology?.era).toBe(7);
+    expect(geology?.prerequisites).toEqual(["mineSurveyAndDrainage", "precisionBoringAndMeasurement"]);
+
+    const drilling = TECHNOLOGY_DEFINITIONS.find(def => def.id === "modernDrillingAndFieldOperations");
+    expect(drilling?.era).toBe(7);
+    expect(drilling?.prerequisites).toEqual(["petroleumGeologyAndExploration"]);
+    expect(drilling?.known.min?.petroleumAccess).toBe(0.15);
+    expect(drilling?.adopted.min?.petroleumAccess).toBe(0.35);
+
+    const refining = TECHNOLOGY_DEFINITIONS.find(def => def.id === "oilRefiningAndFractionation");
+    expect(refining?.era).toBe(7);
+    expect(refining?.prerequisites).toEqual(["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"]);
+    expect(refining?.demonstrated.min?.oilRefineryTrialYears).toBe(2);
+    expect(refining?.adopted.min?.oilRefineryInstallations).toBe(1);
+
+    const ice = TECHNOLOGY_DEFINITIONS.find(def => def.id === "internalCombustionEngine");
+    expect(ice?.era).toBe(7);
+    expect(ice?.prerequisites).toEqual(["oilRefiningAndFractionation", "standardMachineWorks"]);
+    expect(ice?.known.min?.refinedFuelAccess).toBe(0.15);
+
+    expect(getInternalCombustionEngineEffect(1)).toBe(0);
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    expect(getInternalCombustionEngineEffect(1)).toBeCloseTo(0.35);
+  });
+
+  it("never lets modernDrillingAndFieldOperations progress unless petroleumGeologyAndExploration has reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      {
+        technologyId: "petroleumGeologyAndExploration",
+        scope: "state",
+        ownerId: 1,
+        stage: "demonstrated",
+        diffusion: 0
+      }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("modernDrillingAndFieldOperations", 1)).toBe("locked");
+  });
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same shape as the
+  // cinnabarAccess/mercuryPlantTrialYears/mercuryPlantInstallations test above, plus
+  // refinedFuelAccess (reads Kerosene instead of Crude Oil).
+  it("computes petroleumAccess/refinedFuelAccess/oilRefineryTrialYears/oilRefineryInstallations from market stock, a ChemistryTrial row, and OilRefineryPlant rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [
+          { i: 70, name: "Crude Oil" },
+          { i: 71, name: "Kerosene" }
+        ],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: {
+              70: { stock: 10 }, // clamp01(10 / 2) = 1, past every petroleumAccess threshold
+              71: { stock: 10 } // clamp01(10 / 2) = 1, past every refinedFuelAccess threshold
+            }
+          }
+        ],
+        chemistryTrials: [
+          {
+            kind: "oilRefineryPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        oilRefineryPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "modernDrillingAndFieldOperations", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "oilRefiningAndFractionation");
+    // petroleumAccess(1) clears known/demonstrated; oilRefineryTrialYears(5)>=2 clears
+    // demonstrated; oilRefineryInstallations(1)>=1 clears adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("petroleumAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("oilRefineryTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("oilRefineryInstallations"))).toBe(false);
   });
 
   it("computes copperWireAccess/powerStationTrialYears/powerStationInstallations from market stock and PowerStation rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {

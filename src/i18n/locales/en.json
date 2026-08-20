@@ -665,6 +665,7 @@
         "Copper Wire": "Copper Wire",
         "Coral": "Coral",
         "Cotton": "Cotton",
+        "Crude Oil": "Crude Oil",
         "Dates": "Dates",
         "Dogs": "Dogs",
         "Dried Fruits": "Dried Fruits",
@@ -701,6 +702,7 @@
         "Iron Ore": "Iron Ore",
         "Ivory": "Ivory",
         "Jewelry": "Jewelry",
+        "Kerosene": "Kerosene",
         "Lead Ingot": "Lead Ingot",
         "Lead Ore": "Lead Ore",
         "Leather": "Leather",
@@ -710,6 +712,7 @@
         "Locomotive": "Locomotive",
         "Linen": "Linen",
         "Liquor": "Liquor",
+        "Lubricating Oil": "Lubricating Oil",
         "Machine Parts": "Machine Parts",
         "Mahogany": "Mahogany",
         "Marine Steam Engine": "Marine Steam Engine",
@@ -2032,7 +2035,9 @@
         "2": "2 Gunpowder",
         "3": "3 Maritime",
         "4": "4 Pre-industrial",
-        "5": "5 Steam"
+        "5": "5 Steam",
+        "6": "6 Industrial chemistry",
+        "7": "7 Petroleum"
       },
       "stages": {
         "locked": "Locked",

@@ -13,8 +13,8 @@ export type TechnologyStage = (typeof TECHNOLOGY_STAGES)[number];
 export const TECHNOLOGY_SCOPES = ["burg", "state", "network"] as const;
 export type TechnologyScope = (typeof TECHNOLOGY_SCOPES)[number];
 
-/** Roadmap eras through early steam (5) and industrial chemistry (6). */
-export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** Roadmap eras through early steam (5), industrial chemistry (6), and petroleum (7). */
+export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export interface TechnologyProgress {
   technologyId: string;
@@ -149,6 +149,20 @@ export interface TechnologySignals {
   mercuryPlantTrialYears: number;
   /** Count of active MercuryPlant entries, same shape as acidPlantInstallations. */
   mercuryPlantInstallations: number;
+  /**
+   * 0..1 market-stock coverage of Crude Oil, same shape as cinnabarAccess/steelAccess. Used as
+   * modernDrillingAndFieldOperations's real gate instead of a requiredTechnology on Crude Oil
+   * itself, which would be circular (the good is never produced until the node demonstrates, so
+   * its own market coverage could never rise to meet the threshold). See docs/plan/petroleum-and-
+   * internal-combustion-vertical-slice.md §3.1, §3.4.
+   */
+  petroleumAccess: number;
+  /** 0..1 market-stock coverage of Kerosene, same shape as petroleumAccess — the demand-pull for internalCombustionEngine. */
+  refinedFuelAccess: number;
+  /** OilRefineryPlant's ChemistryTrial documentedRuns state max, same shape as mercuryPlantTrialYears. */
+  oilRefineryTrialYears: number;
+  /** Count of active OilRefineryPlant entries, same shape as mercuryPlantInstallations. */
+  oilRefineryInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }

@@ -86,6 +86,10 @@ const DISTRICT_PROFILES: readonly DistrictProfile[] = [
   // Sedimentary phosphorite, same "basin" province as coalSeam/evaporite (docs/plan/
   // phosphate-fertilizer-vertical-slice.md §3.2).
   { type: "phosphorite", provinces: ["basin"], primary: "phosphate rock", commodities: ["phosphate rock"] },
+  // Sedimentary source-rock petroleum, same "basin" province as coalSeam/evaporite/phosphorite —
+  // no new GeologicalProvinceKind needed. docs/plan/petroleum-and-internal-combustion-vertical-
+  // slice.md §3.2.
+  { type: "oilField", provinces: ["basin"], primary: "crude oil", commodities: ["crude oil"] },
   // Lateritic bauxite weathering crust, same "shield" province as bandedIron/lodeGold — no new
   // GeologicalProvinceKind added (docs/plan/electrolytic-industry-vertical-slice.md §3.2).
   { type: "laterite", provinces: ["shield"], primary: "bauxite", commodities: ["bauxite"] },
@@ -110,6 +114,7 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
   "coalSeam",
   "evaporite",
   "phosphorite",
+  "oilField",
   "laterite",
   "cinnabarVein"
 ];
@@ -505,7 +510,8 @@ export class MineralResourcesModule {
       sulfur: 15,
       "phosphate rock": 140, // calibration TBD — bulk sedimentary rock, slightly below coal's scale
       bauxite: 120, // calibration TBD — bulk lateritic ore, below Phosphate Rock's scale
-      cinnabar: 5 // calibration TBD — rare hydrothermal ore, well below Sulfur(15)/Saltpeter(12)
+      cinnabar: 5, // calibration TBD — rare hydrothermal ore, well below Sulfur(15)/Saltpeter(12)
+      "crude oil": 70 // calibration TBD — bulk fuel mineral like Coal(160)/Bauxite(120), but scarcer at this era
     };
     const capacity = baseAnnualCapacity[commodity] * richness * (primary ? 1 : 0.25);
     const mineLifeYears = 60 + Math.floor(this.hash(seed, `${commodity}:life`, cell) * 190);

@@ -2893,6 +2893,56 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "cinnabarRoastingAndMercuryRecovery"
   },
   {
+    // Raw petroleum. Cell placement comes from MineralDeposit/MineOperation ("oilField" districts
+    // on "basin" provinces, mineralResources.ts — the same sedimentary province as coalSeam/
+    // evaporite/phosphorite). No requiredTechnology, same "raw ore is never gated" pattern as
+    // Bauxite/Cinnabar: gating extraction itself would be circular against
+    // modernDrillingAndFieldOperations's petroleumAccess threshold, which reads this Good's own
+    // market coverage. See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.1-3.2.
+    name: "Crude Oil",
+    warEconomyType: "strategic",
+    tags: ["fuel", "mineral"],
+    icon: "good-unknown",
+    color: "#2b1f18",
+    value: 6,
+    chance: 0,
+    unit: "barrel",
+    demandCoverage: {}
+  },
+  {
+    // Fractionally distilled out of Crude Oil by OilRefineryPlants only — no craft-worker recipe,
+    // same "capital-only" reasoning as Mercury/Aluminum/Synthetic Ammonia: fractional distillation
+    // needs an industrial refinery a household workshop does not have. The bulk cut of the two
+    // refinery outputs (see Lubricating Oil below). Deliberately carries no demandCoverage — the
+    // existing "Oil" Good (Olives/Whales) already covers household lamp/cooking use.
+    // See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.3.
+    name: "Kerosene",
+    warEconomyType: "strategic",
+    tags: ["fuel", "industrial"],
+    icon: "good-unknown",
+    color: "#c9a869",
+    value: 14,
+    chance: 0,
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "oilRefiningAndFractionation"
+  },
+  {
+    // The small byproduct cut of the same OilRefineryPlants distillation run that yields Kerosene
+    // above — same "capital-only" reasoning, no craft-worker recipe.
+    // See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.3.
+    name: "Lubricating Oil",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown",
+    color: "#4a3620",
+    value: 18,
+    chance: 0,
+    unit: "flask",
+    demandCoverage: {},
+    requiredTechnology: "oilRefiningAndFractionation"
+  },
+  {
     // "One Good, two supply sites" like Sulfuric Acid: this recipe is the craft-worker path
     // (production-generator.ts worker loop); PhosphateFertilizerPlants (Phase 2, docs/plan/
     // phosphate-fertilizer-vertical-slice.md §3.7) adds a second, State-funded capital path.
@@ -3670,6 +3720,29 @@ export function migrateMercuryChainGoods(): boolean {
   let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   let changed = false;
   for (const name of MERCURY_CHAIN_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  return changed;
+}
+
+const PETROLEUM_CHAIN_GOOD_NAMES = ["Crude Oil", "Kerosene", "Lubricating Oil"] as const;
+
+/**
+ * Appends the Crude Oil/Kerosene/Lubricating Oil chain (docs/plan/petroleum-and-internal-
+ * combustion-vertical-slice.md §3.2-3.3) to older catalogues without seeding stock. Same shape as
+ * migrateMercuryChainGoods — none of the three Goods carry a recipe, so no ingredient-id
+ * resolution pass is needed.
+ */
+export function migratePetroleumChainGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of PETROLEUM_CHAIN_GOOD_NAMES) {
     if (goods.some(good => good.name === name)) continue;
     const shipped = Goods.getDefaultGood(name);
     if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);

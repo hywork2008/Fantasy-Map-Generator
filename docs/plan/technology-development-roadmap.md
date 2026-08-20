@@ -2,7 +2,9 @@
 
 ## 状態
 
-**Phase 1–6 実装済み（宇宙開発を除く大半の分野）**（2026-08-20 更新。辰砂・水銀チェーン（§9.5、`cinnabarRoastingAndMercuryRecovery`）の実装により Phase 6 が完了）
+**Phase 1–7 実装済み（宇宙開発を除く全分野）**（2026-08-20 更新。石油・内燃機関チェーン（§10、
+`petroleumGeologyAndExploration`/`modernDrillingAndFieldOperations`/`oilRefiningAndFractionation`/
+`internalCombustionEngine`）の実装により Phase 7 が完了）
 
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
@@ -12,7 +14,7 @@
 | 4 | 前工業化ノード + 初期蒸気機関 | 実装済み。工場制手工業（`factoryOrganization`）を追加済み（2026-08-20、下記参照） |
 | 5 | 蒸気・機械化（高効率機関・鉄道・海運蒸機） | 実装済み。機械紡績・機械織機（`mechanizedTextiles`）を追加済み（2026-08-20、下記参照） |
 | 6 | 近代化学・電化・電解工業（硫酸・リン酸肥料・近代製鋼・触媒化学・合成アンモニア・発電網・電解アルミニウム・辰砂/水銀） | 実装済み。辰砂・水銀チェーン（§9.5）を追加済み（2026-08-20、下記参照） |
-| 7 | 石油・内燃機関 | **未着手**（別機会） |
+| 7 | 石油・内燃機関 | 実装済み。石油地質・掘削・製油・内燃機関チェーン（§10）を追加済み（2026-08-20、下記参照） |
 | 8 | ロケット・宇宙開発 | **未着手**（別機会） |
 
 `textiles` ギルド知識ドメイン（紡織）は §3-A の分類上ずっと存在していたが、2026-08-20 まで技術ノードからは一切参照されておらず、蓄積されても何の効果も持たなかった。`factoryOrganization` / `mechanizedTextiles` の追加はこの欠落（§7・§8 の「工場制手工業」「機械紡績・機械織機」行）を埋めるもの。`leather` ドメインは元々ロードマップにノードとして記載がなく、対応不要。
@@ -40,6 +42,7 @@
 - [蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md): Coke、Steel、機械部品、資本財、鉄道、化学、電化を市場・技術・設備の連鎖として導入する設計。
 - [化学・医学の知識・技術蓄積プロセス設計](./chemistry-medicine-knowledge-accumulation.md): 薬種・実験ガラス・病院から工業硫酸までの知識蓄積。火山材料とガラス細工を化学・医学の本線に接続する。
 - [プレイヤーキャラクターによる技術バイアス](./player-character-technology-bias.md): PC は同じ証拠に局所バイアスをかけ、Technology Overview が `explainTechnologyGate` で不足シグナルを示す。
+- [石油・内燃機関の縦切り実装計画](./petroleum-and-internal-combustion-vertical-slice.md): 石油地質・試掘、近代掘削・油田運営、製油・分留、内燃機関の4ノードと `Crude Oil`/`Kerosene`/`Lubricating Oil` チェーン。
 
 ---
 
@@ -469,11 +472,26 @@ interface TechnologyDefinition {
    必ず蓄積し、閾値超過でその年の産出を強制的に停止させる（[cinnabar-mercury-vertical-slice.md](./cinnabar-mercury-vertical-slice.md) §3.6-3.7）。
    既存の `burg.sanitation`／キャラクター疾病モデルへの接続は意図的に見送った（同書§1・§6 決定事項2）。
 
-### Phase 7: 石油・内燃機関
+### Phase 7: 石油・内燃機関 — **実装済み**
 
-1. Oil seep / Petroleum の地質・掘削・油田運営を実装する。
-2. 製油所を原油の分留・変換・処理を担う設備として実装し、用途別燃料・潤滑油を生産する。
-3. 内燃機関、石油輸送、石油化学を、それぞれ別ノードとして接続する。
+1. Oil seep / Petroleum の地質・掘削・油田運営を実装済み（`petroleumGeologyAndExploration` /
+   `modernDrillingAndFieldOperations`）。`Crude Oil` は `Bauxite`/`Cinnabar` と同じ「鉱山供給のみ、
+   `requiredTechnology` なし」パターンで、新規 district `oilField`（province `basin` — coalSeam/evaporite/
+   phosphorite と同区分）から自動供給される。`modernDrillingAndFieldOperations` は新規シグナル
+   `petroleumAccess`（`Crude Oil` の市場在庫カバレッジ）を実質的なゲートとする — 循環依存を避けるため、
+   `Crude Oil` 自体は技術ゲートしない設計とした。
+2. 製油所を原油の分留・変換・処理を担う設備として実装済み（`oilRefiningAndFractionation` + `OilRefineryPlants`）。
+   `OilRefineryPlant` はこの経済で初めて1つの入力（Crude Oil）から2つの Good（`Kerosene`/`Lubricating Oil`）を
+   同時産出するプラント。両 Good とも `Synthetic Ammonia`/`Aluminum`/`Mercury` と同じ「資本設備のみ」パターン。
+3. 内燃機関を `internalCombustionEngine` ノードとして実装済み（`standardMachineWorks` を mechanics/
+   precisionMachining の代理前提とし、`refinedFuelAccess`/`steelAccess` を閾値とする）。roadmap の「車両・船舶・
+   発電・後続航空の動力」という効果は `getInternalCombustionEngineEffect()` として公開するに留め、具体的な消費先
+   （新規 Good、既存動力ボーナスの拡張）は未実装のまま次タスクに委ねた
+   （`getAtmosphericSteamDrainageBonus()` が現在も未接続であるのと同じパターン）。
+   「石油輸送」（Shipbuilding/Caravan との接続）・「石油化学」（roadmap §10
+   5行目、`catalyticChemistry` との接続）は非目的として見送った。詳細は
+   [petroleum-and-internal-combustion-vertical-slice.md](./petroleum-and-internal-combustion-vertical-slice.md)
+   を参照。
 
 ### Phase 8: ロケット・宇宙開発
 

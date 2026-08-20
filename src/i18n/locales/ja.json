@@ -665,6 +665,7 @@
         "Copper Wire": "銅線",
         "Coral": "珊瑚",
         "Cotton": "綿",
+        "Crude Oil": "原油",
         "Dates": "ナツメヤシの実",
         "Dogs": "犬",
         "Dried Fruits": "ドライフルーツ",
@@ -701,6 +702,7 @@
         "Iron Ore": "鉄鉱石",
         "Ivory": "象牙",
         "Jewelry": "宝飾品",
+        "Kerosene": "灯油",
         "Lead Ingot": "鉛インゴット",
         "Lead Ore": "鉛鉱石",
         "Leather": "革",
@@ -710,6 +712,7 @@
         "Linen": "リネン",
         "Liquor": "蒸留酒",
         "Locomotive": "機関車",
+        "Lubricating Oil": "潤滑油",
         "Machine Parts": "機械部品",
         "Mahogany": "マホガニー",
         "Marble": "大理石",
@@ -2032,7 +2035,9 @@
         "2": "2 火薬",
         "3": "3 大航海",
         "4": "4 前工業化",
-        "5": "5 蒸気"
+        "5": "5 蒸気",
+        "6": "6 近代化学",
+        "7": "7 石油"
       },
       "stages": {
         "locked": "未解禁",

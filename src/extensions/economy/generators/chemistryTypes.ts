@@ -10,7 +10,8 @@ export type ChemistryTrialKind =
   | "phosphateFertilizerPlant"
   | "syntheticAmmoniaPlant"
   | "chlorinePlant"
-  | "mercuryPlant";
+  | "mercuryPlant"
+  | "oilRefineryPlant";
 
 export type ChemistryFailureReason =
   | "materialShortage"
@@ -136,6 +137,23 @@ export interface MercuryPlant {
   lastFundedYear: number;
   /** 0..1 cumulative local health/environment debt. */
   contamination: number;
+}
+
+/**
+ * Same shape as PhosphateFertilizerPlant/SyntheticAmmoniaPlant. Unlike MercuryPlant, this plant
+ * yields two Goods (Kerosene bulk + Lubricating Oil byproduct) from one Crude Oil input — the
+ * first two-output plant in this economy. No contamination-style debt field — roadmap §10 does
+ * not require one for refining, unlike §9.5's Mercury.
+ * Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.6-3.7.
+ */
+export interface OilRefineryPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
 }
 
 export interface ChemMedPracticeRecord {

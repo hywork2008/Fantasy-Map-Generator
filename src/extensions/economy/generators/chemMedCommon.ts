@@ -68,6 +68,12 @@ export const CHLOR_ALKALI_PLANT_BUDGET = 34;
  * heavy plants (24-42) above. See docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
  */
 export const MERCURY_PLANT_BUDGET = 14;
+/**
+ * calibration TBD — a fractional-distillation refinery: heavier than
+ * PHOSPHATE_FERTILIZER_PLANT_BUDGET(28), lighter than CHLOR_ALKALI_PLANT_BUDGET(34).
+ * See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+ */
+export const OIL_REFINERY_PLANT_BUDGET = 30;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

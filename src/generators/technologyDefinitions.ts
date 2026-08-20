@@ -1,6 +1,6 @@
 /**
- * Technology node definitions for roadmap eras 0–6 (mature medieval → industrial chemistry).
- * Eras 7+ (petroleum, space) remain omitted.
+ * Technology node definitions for roadmap eras 0–7 (mature medieval → petroleum). Era 8 (space)
+ * remains omitted.
  *
  * Thresholds are soft and demand-driven: high treasury/ports/knowledge stocks
  * advance stages; inland states can still progress era-1 mining nodes without
@@ -886,6 +886,78 @@ const ERA_6: readonly TechnologyDefinition[] = [
   }
 ];
 
+/**
+ * Stage 7: petroleum — geology/drilling, refining, and the internal combustion engine.
+ * Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md.
+ */
+const ERA_7: readonly TechnologyDefinition[] = [
+  // §3.5. Pure knowledge-accumulation node, no direct Good gate — mineSurveyAndDrainage/
+  // precisionBoringAndMeasurement stand in for roadmap §10's "geology、surveying、
+  // drillingEngineering" the same way cinnabarRoastingAndMercuryRecovery reused mineCount/
+  // metallurgy instead of inventing dedicated mining/smelting nodes. Whether a state can actually
+  // extract oil is gated later, at modernDrillingAndFieldOperations's petroleumAccess threshold —
+  // this node stays generic exploration activity, same as mineSurveyAndDrainage/coalFuelSupply
+  // carrying no ore-specific gate of their own.
+  {
+    id: "petroleumGeologyAndExploration",
+    label: "Petroleum geology and exploratory drilling",
+    era: 7,
+    scope: "state",
+    prerequisites: ["mineSurveyAndDrainage", "precisionBoringAndMeasurement"],
+    known: { min: { mineCount: 2, treasury: 140 } },
+    demonstrated: { min: { mineCount: 2, deepMineCount: 2, treasury: 190 } },
+    adopted: { min: { mineCount: 3, deepMineCount: 2, administration: 0.4, treasury: 240 } }
+  },
+  // §3.5. petroleumAccess (Crude Oil market-stock coverage) is the real gate at every stage —
+  // Crude Oil itself carries no requiredTechnology (§1 non-goal 6: gating the ore here would be
+  // circular, since it would never be produced long enough to raise its own coverage signal).
+  {
+    id: "modernDrillingAndFieldOperations",
+    label: "Modern drilling and oil-field operations",
+    era: 7,
+    scope: "state",
+    prerequisites: ["petroleumGeologyAndExploration"],
+    known: { min: { petroleumAccess: 0.15, treasury: 200 } },
+    demonstrated: { min: { petroleumAccess: 0.25, administration: 0.45, treasury: 260 } },
+    adopted: { min: { petroleumAccess: 0.35, administration: 0.5, treasury: 320 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // §3.5. highPressureChemicalApparatus stands in for roadmap §10's "chemicalEngineering、
+  // thermodynamics、precisionMachining" — the same high-pressure/precision apparatus node
+  // electrolyticIndustry/catalyticChemistry already reuse. known's experimentRecord (0.68) and
+  // treasury (320) sit above highPressureChemicalApparatus's own adopted floor (0.65/290) so this
+  // node is not automatically satisfied the instant its prerequisite adopts. demonstrated/adopted
+  // read oilRefineryTrialYears/oilRefineryInstallations, sourced from OilRefineryPlant (§3.7) via
+  // technologyProgress.ts (§3.4).
+  {
+    id: "oilRefiningAndFractionation",
+    label: "Oil refining and fractional distillation",
+    era: 7,
+    scope: "state",
+    prerequisites: ["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"],
+    known: { min: { petroleumAccess: 0.3, experimentRecord: 0.68, treasury: 320 } },
+    demonstrated: { min: { oilRefineryTrialYears: 2, petroleumAccess: 0.35, treasury: 380 } },
+    adopted: { min: { oilRefineryInstallations: 1, administration: 0.62, treasury: 450 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.5. standardMachineWorks stands in for roadmap §10's "mechanics、precisionMachining" —
+  // the same precision-machine-tool node railEngineering/highEfficiencySteamEngine already reuse.
+  // refinedFuelAccess (Kerosene market-stock coverage) is the demand-pull; steelAccess sits above
+  // both prerequisites' own floors. Effect (getInternalCombustionEngineEffect) is intentionally
+  // left unconsumed — §1 non-goal 5.
+  {
+    id: "internalCombustionEngine",
+    label: "Internal combustion engine",
+    era: 7,
+    scope: "state",
+    prerequisites: ["oilRefiningAndFractionation", "standardMachineWorks"],
+    known: { min: { refinedFuelAccess: 0.15, steelAccess: 0.35, treasury: 300 } },
+    demonstrated: { min: { refinedFuelAccess: 0.25, steelAccess: 0.4, treasury: 360 } },
+    adopted: { min: { refinedFuelAccess: 0.35, steelAccess: 0.45, administration: 0.5, treasury: 430 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  }
+];
+
 export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [
   ...START_PROFILE,
   ...ERA_1,
@@ -893,7 +965,8 @@ export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [
   ...ERA_3,
   ...ERA_4,
   ...ERA_5,
-  ...ERA_6
+  ...ERA_6,
+  ...ERA_7
 ];
 
 export const TECHNOLOGY_DEFINITION_BY_ID: ReadonlyMap<string, TechnologyDefinition> = new Map(

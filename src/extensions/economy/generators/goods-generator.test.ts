@@ -26,6 +26,7 @@ import {
   migrateLiveDogsGood,
   migrateMercuryChainGoods,
   migratePerennialFruitGoods,
+  migratePetroleumChainGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
@@ -374,6 +375,36 @@ describe("GoodsModule", () => {
     });
     expect(mercury?.recipes).toBeUndefined();
     expect(migrateMercuryChainGoods()).toBe(false);
+  });
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2-3.3, §3.8.
+  it("appends Crude Oil (mined, no recipe) and Kerosene/Lubricating Oil (plant-only, no recipe)", () => {
+    setGoods([
+      { i: 1, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migratePetroleumChainGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const crudeOil = byName.get("Crude Oil");
+    const kerosene = byName.get("Kerosene");
+    const lubricatingOil = byName.get("Lubricating Oil");
+    expect(crudeOil).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(crudeOil?.requiredTechnology).toBeUndefined();
+    expect(crudeOil?.recipes).toBeUndefined();
+    expect(kerosene).toMatchObject({
+      requiredTechnology: "oilRefiningAndFractionation",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(kerosene?.recipes).toBeUndefined();
+    expect(lubricatingOil).toMatchObject({
+      requiredTechnology: "oilRefiningAndFractionation",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(lubricatingOil?.recipes).toBeUndefined();
+    expect(migratePetroleumChainGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

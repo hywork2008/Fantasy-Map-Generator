@@ -72,6 +72,13 @@ describe("MineralResourcesModule", () => {
     expect(isMineSuppliedGoodName("Cinnabar")).toBe(true);
   });
 
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2, same "bypasses smelting"
+  // shape as coal/phosphate rock/bauxite/cinnabar above.
+  it("maps crude oil to a directly mine-supplied Good, same as cinnabar", () => {
+    expect(getMinedGoodName("crude oil")).toBe("crude oil");
+    expect(isMineSuppliedGoodName("Crude Oil")).toBe(true);
+  });
+
   it("derives greater groundwater pressure from rainfall and a river, without using it to relocate deposits", () => {
     const priorGrid = worldContext.grid;
     worldContext.pack.cells.g = Uint16Array.from([0, 1]);

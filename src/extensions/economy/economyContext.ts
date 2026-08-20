@@ -23,6 +23,7 @@ import type {
   HospitalInstallation,
   MedicalCareReliefRow,
   MercuryPlant,
+  OilRefineryPlant,
   PhosphateFertilizerPlant,
   SyntheticAmmoniaPlant
 } from "./generators/chemistryTypes";
@@ -177,6 +178,7 @@ let _telegraphLinesLastSettledYearFallback: number | null = null;
 let _electrolysisPlantsLastSettledYearFallback: number | null = null;
 let _chlorAlkaliPlantsLastSettledYearFallback: number | null = null;
 let _mercuryPlantsLastSettledYearFallback: number | null = null;
+let _oilRefineryPlantsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _damsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
@@ -247,6 +249,7 @@ export function clearEconomyContext(): void {
   _electrolysisPlantsLastSettledYearFallback = null;
   _chlorAlkaliPlantsLastSettledYearFallback = null;
   _mercuryPlantsLastSettledYearFallback = null;
+  _oilRefineryPlantsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
   _damsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
@@ -1509,6 +1512,16 @@ export function getMercuryPlants(): MercuryPlant[] {
 export function setMercuryPlants(rows: readonly MercuryPlant[]): void {
   setSliceArray("mercuryPlants", rows);
 }
+/**
+ * Same shape as getMercuryPlants — the first plant that yields two Goods (Kerosene + Lubricating
+ * Oil) from one input. Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+ */
+export function getOilRefineryPlants(): OilRefineryPlant[] {
+  return getSliceArray<OilRefineryPlant>("oilRefineryPlants");
+}
+export function setOilRefineryPlants(rows: readonly OilRefineryPlant[]): void {
+  setSliceArray("oilRefineryPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1662,6 +1675,18 @@ export function getMercuryPlantsLastSettledYear(): number | null {
 export function setMercuryPlantsLastSettledYear(year: number): void {
   writeYearToSlice("mercuryPlantsLastSettledYear", year, value => {
     _mercuryPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards OilRefineryPlants.settleAnnual(), same shape as getMercuryPlantsLastSettledYear.
+ * Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+ */
+export function getOilRefineryPlantsLastSettledYear(): number | null {
+  return yearFromSlice("oilRefineryPlantsLastSettledYear", _oilRefineryPlantsLastSettledYearFallback);
+}
+export function setOilRefineryPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("oilRefineryPlantsLastSettledYear", year, value => {
+    _oilRefineryPlantsLastSettledYearFallback = value;
   });
 }
 /** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */

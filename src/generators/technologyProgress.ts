@@ -206,6 +206,21 @@ export function getMechanizedTextilesEffect(stateId: number): number {
   return 0;
 }
 
+/**
+ * Local uptake of the internal combustion engine (docs/plan/technology-development-roadmap.md
+ * §10's 内燃機関 node). Same "1/0.35/0.75/1" stage shape as getMechanizedTextilesEffect /
+ * getAtmosphericSteamPumpingEffect. Deliberately unconsumed for now — no vehicle/vessel/power
+ * system yet reads it, same as getAtmosphericSteamDrainageBonus. See docs/plan/petroleum-and-
+ * internal-combustion-vertical-slice.md §1 non-goal 5.
+ */
+export function getInternalCombustionEngineEffect(stateId: number): number {
+  const stage = getTechnologyStage("internalCombustionEngine", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
 /** Max output multiplier mechanized spinning/weaving adds on top of the textiles guild-technique bonus. */
 const MECHANIZED_TEXTILES_BONUS_MAX = 0.35;
 
@@ -458,6 +473,10 @@ function emptySignals(): TechnologySignals {
     cinnabarAccess: 0,
     mercuryPlantTrialYears: 0,
     mercuryPlantInstallations: 0,
+    petroleumAccess: 0,
+    refinedFuelAccess: 0,
+    oilRefineryTrialYears: 0,
+    oilRefineryInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -761,6 +780,8 @@ function applyChemistryMedicineSignals(
   const steelId = goodIdByName(economy, "Steel");
   const copperWireId = goodIdByName(economy, "Copper Wire");
   const cinnabarId = goodIdByName(economy, "Cinnabar");
+  const crudeOilId = goodIdByName(economy, "Crude Oil");
+  const keroseneId = goodIdByName(economy, "Kerosene");
 
   const waterByBurg = new Map<number, Record<string, unknown>>();
   for (const water of asStockArray(economy.urbanWaterSystems)) {
@@ -812,6 +833,8 @@ function applyChemistryMedicineSignals(
   const steelStockByState = stateMarketStockByGood(economy, marketOwners, steelId);
   const copperWireStockByState = stateMarketStockByGood(economy, marketOwners, copperWireId);
   const cinnabarStockByState = stateMarketStockByGood(economy, marketOwners, cinnabarId);
+  const crudeOilStockByState = stateMarketStockByGood(economy, marketOwners, crudeOilId);
+  const keroseneStockByState = stateMarketStockByGood(economy, marketOwners, keroseneId);
 
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
@@ -844,6 +867,13 @@ function applyChemistryMedicineSignals(
     // sulfurAccess/steelAccess/phosphateRockAccess/copperWireAccess.
     signals.cinnabarAccess = clamp01((cinnabarStockByState.get(stateId) ?? 0) / 2);
 
+    // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same market-stock-
+    // coverage shape as cinnabarAccess. Crude Oil carries no requiredTechnology of its own (§1
+    // non-goal 6), so this signal cannot be circular with the node that gates on it.
+    signals.petroleumAccess = clamp01((crudeOilStockByState.get(stateId) ?? 0) / 2);
+    // Same shape, reading Kerosene instead — the demand-pull for internalCombustionEngine.
+    signals.refinedFuelAccess = clamp01((keroseneStockByState.get(stateId) ?? 0) / 2);
+
     signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
     signals.medicineDemandPressure = clamp01(
@@ -872,6 +902,9 @@ function applyChemistryMedicineSignals(
   // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same ChemistryTrial indirection as
   // acidYears above.
   const mercuryPlantYears = new Map<number, number>();
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same ChemistryTrial
+  // indirection as mercuryPlantYears above.
+  const oilRefineryYears = new Map<number, number>();
   for (const trial of asStockArray(economy.chemistryTrials)) {
     if (String(trial.status ?? "") !== "running") continue;
     const stateId = asNumber(trial.stateId);
@@ -887,6 +920,9 @@ function applyChemistryMedicineSignals(
     }
     if (kind === "mercuryPlant") {
       mercuryPlantYears.set(stateId, Math.max(mercuryPlantYears.get(stateId) ?? 0, runs));
+    }
+    if (kind === "oilRefineryPlant") {
+      oilRefineryYears.set(stateId, Math.max(oilRefineryYears.get(stateId) ?? 0, runs));
     }
   }
   for (const [stateId, years] of compoundingYears) {
@@ -908,6 +944,10 @@ function applyChemistryMedicineSignals(
   for (const [stateId, years] of mercuryPlantYears) {
     const signals = map.get(stateId);
     if (signals) signals.mercuryPlantTrialYears = years;
+  }
+  for (const [stateId, years] of oilRefineryYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.oilRefineryTrialYears = years;
   }
 
   const hospitalYears = new Map<number, number>();
@@ -1005,6 +1045,15 @@ function applyChemistryMedicineSignals(
     const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
     const signals = map.get(stateId);
     if (signals) signals.mercuryPlantInstallations += 1;
+  }
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same shape as the
+  // mercuryPlants block above.
+  for (const plant of asStockArray(economy.oilRefineryPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.oilRefineryInstallations += 1;
   }
 
   // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
@@ -1174,7 +1223,9 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "electrolysisPlantTrialYears",
   "electrolysisPlantInstallations",
   "mercuryPlantTrialYears",
-  "mercuryPlantInstallations"
+  "mercuryPlantInstallations",
+  "oilRefineryTrialYears",
+  "oilRefineryInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([

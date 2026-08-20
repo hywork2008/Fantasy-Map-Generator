@@ -30,7 +30,7 @@ type SortField = keyof Pick<
   | "diffusion"
 >;
 
-const ERA_OPTIONS: readonly TechnologyEraBand[] = [0, 1, 2, 3, 4, 5, 6];
+const ERA_OPTIONS: readonly TechnologyEraBand[] = [0, 1, 2, 3, 4, 5, 6, 7];
 
 function formatYear(year: number | null): string {
   return year === null ? "—" : String(year);

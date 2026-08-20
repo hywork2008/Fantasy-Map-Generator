@@ -115,6 +115,7 @@ import {
   migrateLiveDogsGood,
   migrateMercuryChainGoods,
   migratePerennialFruitGoods,
+  migratePetroleumChainGoods,
   migratePhosphateGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
@@ -155,6 +156,7 @@ import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { getStateMountedCapacity } from "./generators/mountAvailability";
 import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
+import { OilRefineryPlants } from "./generators/oilRefineryPlants";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { PowerGridInvestment } from "./generators/powerGridInvestment";
@@ -2496,6 +2498,7 @@ export function init(api: ExtensionAPI): void {
     const migratedElectrical = migrateElectricalGoods();
     const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
     const migratedMercuryChain = migrateMercuryChainGoods();
+    const migratedPetroleumChain = migratePetroleumChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2519,6 +2522,7 @@ export function init(api: ExtensionAPI): void {
       migratedElectrical ||
       migratedElectrolyticIndustry ||
       migratedMercuryChain ||
+      migratedPetroleumChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -3038,6 +3042,9 @@ export function init(api: ExtensionAPI): void {
         // deliberately minor-scale chemistry plant (§9.5's "少量生産"), not a bulk industrial
         // process. docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
         MercuryPlants.settleAnnual();
+        // Crude Oil/Coal/Firebrick only, independent of every other plant above — the era-7
+        // refining step. docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+        OilRefineryPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
@@ -3231,6 +3238,7 @@ export function init(api: ExtensionAPI): void {
     const migratedElectrical = migrateElectricalGoods();
     const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
     const migratedMercuryChain = migrateMercuryChainGoods();
+    const migratedPetroleumChain = migratePetroleumChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -3254,6 +3262,7 @@ export function init(api: ExtensionAPI): void {
       migratedElectrical ||
       migratedElectrolyticIndustry ||
       migratedMercuryChain ||
+      migratedPetroleumChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
