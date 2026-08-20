@@ -31,7 +31,13 @@ function canOpenWorkshop(stateId: number): boolean {
   );
 }
 
-function upsertInstruments(burgId: number, workers: number): void {
+/**
+ * Merges a worker headcount into this burg's "instruments" craft-domain employment record.
+ * Exported for reuse by powerStations.ts (docs/plan/electric-power-and-telegraph.md §3.11) — a
+ * second, independent producer of the "instruments" Guild Knowledge domain alongside
+ * ExperimentalWorkshops. See the comment on the "instruments" case in guildKnowledge.ts.
+ */
+export function upsertInstruments(burgId: number, workers: number): void {
   const rows = [...getCraftDomainEmploymentRecords()];
   const existing = rows.find(row => row.burgId === burgId && row.domain === "instruments");
   if (existing) existing.workers = Math.max(existing.workers, workers);

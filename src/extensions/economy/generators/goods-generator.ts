@@ -2493,6 +2493,23 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "standardMachineWorks"
   },
   {
+    // electricalExperiments' sole Good output. Shared bottleneck consumed by both TelegraphLines
+    // and PowerStations (docs/plan/electric-power-and-telegraph.md §3.2) — steam-industrial-
+    // technology-history.csv row 13's "Copper wire is both a communications input and a
+    // prerequisite for later power systems".
+    name: "Copper Wire",
+    warEconomyType: "strategic",
+    tags: ["industrial", "metal"],
+    icon: "good-unknown", // no dedicated sprite yet; same placeholder treatment as other era-6 Goods
+    color: "#c98a4b",
+    value: 16,
+    chance: 0,
+    recipes: [{ "Copper Ingot": 1, Glass: 0.2, "Machine Parts": 0.1 }],
+    unit: "coil",
+    demandCoverage: {},
+    requiredTechnology: "electricalExperiments"
+  },
+  {
     name: "Stationary Steam Engine",
     warEconomyType: "strategic",
     tags: ["industrial", "capital"],
@@ -2762,6 +2779,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Coke: tradeProfile(5, 4, 3, 1, 0, 5, 2),
   Steel: tradeProfile(4, 3, 4, 1, 0, 5, 2),
   "Machine Parts": tradeProfile(3, 2, 4, 2, 0, 4, 2),
+  "Copper Wire": tradeProfile(4, 3, 4, 1, 0, 5, 2),
   "Stationary Steam Engine": tradeProfile(5, 5, 5, 1, 0, 4, 3),
   Rail: tradeProfile(5, 5, 3, 0, 0, 5, 2),
   Locomotive: tradeProfile(5, 5, 5, 1, 0, 4, 3),
@@ -3309,6 +3327,44 @@ export function migratePhosphateGoods(): boolean {
 
   const idByName = new Map(goods.map(good => [good.name, good.i]));
   for (const name of PHOSPHATE_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const ELECTRICAL_GOOD_NAMES = ["Copper Wire"] as const;
+
+/**
+ * Appends the Copper Wire Good (docs/plan/electric-power-and-telegraph.md §3.2) to older
+ * catalogues without seeding stock. Same shape as migrateSyntheticAmmoniaGoods.
+ */
+export function migrateElectricalGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of ELECTRICAL_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of ELECTRICAL_GOOD_NAMES) {
     const good = goods.find(entry => entry.name === name);
     const template = GOODS_DATA.find(entry => entry.name === name);
     if (!good || !template?.recipes) continue;

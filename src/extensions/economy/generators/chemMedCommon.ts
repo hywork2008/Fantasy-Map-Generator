@@ -22,6 +22,16 @@ export const PHOSPHATE_FERTILIZER_PLANT_BUDGET = 28;
  * See docs/plan/synthetic-ammonia-vertical-slice.md §3.6.
  */
 export const SYNTHETIC_AMMONIA_PLANT_BUDGET = 40;
+/**
+ * calibration TBD — higher than STEEL_CONVERTER_PLANT_BUDGET(32), lower than
+ * SYNTHETIC_AMMONIA_PLANT_BUDGET(40). A power station is a larger capital project than a Bessemer
+ * converter but not as capital-intensive as a high-pressure catalytic ammonia plant.
+ * See docs/plan/electric-power-and-telegraph.md §3.9.
+ */
+export const POWER_STATION_BUDGET = 36;
+/** calibration TBD — lower than the four chemistry/metallurgy plant budgets above. A telegraph
+ *  line is lightweight wiring-and-relay infrastructure, not a process plant. */
+export const TELEGRAPH_LINE_BUDGET = 18;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

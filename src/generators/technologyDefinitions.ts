@@ -730,6 +730,86 @@ const ERA_6: readonly TechnologyDefinition[] = [
       min: { syntheticAmmoniaInstallations: 1, administration: 0.7, treasury: 700 }
     },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.4. An independent branch off era 4's
+  // experimentalNaturalPhilosophy (same two-hop jump as chemicalIndustryFoundation ->
+  // analyticalChemistry) rather than the chemicalIndustryFoundation chain above — the roadmap
+  // treats electrification and modern chemistry as parallel fields, not one line. experimentRecord
+  // thresholds sit above experimentalNaturalPhilosophy's own adopted (0.4); instruments is an
+  // independent signal experimentalNaturalPhilosophy never touches.
+  {
+    id: "electricalExperiments",
+    label: "Electrical and magnetic experiments",
+    era: 6,
+    scope: "state",
+    prerequisites: ["experimentalNaturalPhilosophy"],
+    known: { min: { naturalPhilosophy: 0.45, instruments: 0.3, experimentRecord: 0.45, treasury: 90 } },
+    demonstrated: { min: { naturalPhilosophy: 0.5, experimentRecord: 0.5, treasury: 120 } },
+    adopted: { min: { naturalPhilosophy: 0.55, instruments: 0.35, administration: 0.35, treasury: 150 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.5. known deliberately omits naturalPhilosophy —
+  // electricalExperiments' own adopted already requires naturalPhilosophy >= 0.55, so a known
+  // threshold below that would be met the instant the prerequisite adopts (same reasoning
+  // industrialSulfuricAcid uses for not re-listing chemicalIndustryFoundation's experimentRecord).
+  // demonstrated/adopted reintroduce naturalPhilosophy above that 0.55 floor. No dedicated
+  // "battery" Good or Precision Instruments Good — instruments stands in, per modern-steelmaking-
+  // and-high-pressure-apparatus.md §7 decision 4.
+  {
+    id: "practicalElectrochemistry",
+    label: "Practical batteries and electrical measurement",
+    era: 6,
+    scope: "state",
+    prerequisites: ["electricalExperiments"],
+    known: { min: { copperWireAccess: 0.15, instruments: 0.4, treasury: 130 } },
+    demonstrated: { min: { naturalPhilosophy: 0.58, instruments: 0.45, treasury: 160 } },
+    adopted: { min: { naturalPhilosophy: 0.62, instruments: 0.5, administration: 0.4, treasury: 200 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.6. Sole prerequisite is practicalElectrochemistry
+  // — deliberately does not route through generatorAndMotor/powerGrid. Historically the telegraph
+  // (Morse, 1837) preceded practical generators and grids by decades and ran on batteries alone
+  // (steam-industrial-technology-history.csv row 13).
+  {
+    id: "electricTelegraph",
+    label: "Electric telegraph network",
+    era: 6,
+    scope: "state",
+    prerequisites: ["practicalElectrochemistry"],
+    known: { min: { copperWireAccess: 0.3, administration: 0.45, treasury: 160 } },
+    demonstrated: { min: { telegraphLineTrialYears: 2, copperWireAccess: 0.35, treasury: 210 } },
+    adopted: { min: { telegraphLineInstallations: 1, administration: 0.55, treasury: 260 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.7. Two prerequisites, same shape as
+  // highPressureChemicalApparatus (modernSteelmaking + industrialSulfuricAcid): both
+  // electricalExperiments and modernSteelmaking must be adopted. steelAccess (0.3) sits above
+  // modernSteelmaking's own known threshold (0.2, never re-stated at its demonstrated/adopted), so
+  // it remains a meaningful gate rather than an automatic pass-through.
+  {
+    id: "generatorAndMotor",
+    label: "Generator and motor",
+    era: 6,
+    scope: "state",
+    prerequisites: ["electricalExperiments", "modernSteelmaking"],
+    known: { min: { copperWireAccess: 0.35, steelAccess: 0.3, instruments: 0.4, treasury: 260 } },
+    demonstrated: { min: { powerStationTrialYears: 2, steelAccess: 0.35, treasury: 320 } },
+    adopted: { min: { powerStationInstallations: 1, administration: 0.55, treasury: 380 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.8. administration sits above generatorAndMotor's
+  // own adopted threshold (0.55) at every stage so it is never automatically satisfied the instant
+  // the prerequisite adopts. electricityCoverage is the fresh demand-pull signal.
+  {
+    id: "powerGrid",
+    label: "Power grid and electricity utilities",
+    era: 6,
+    scope: "state",
+    prerequisites: ["generatorAndMotor"],
+    known: { min: { electricityCoverage: 0.25, administration: 0.58, treasury: 350 } },
+    demonstrated: { min: { electricityCoverage: 0.3, administration: 0.62, treasury: 420 } },
+    adopted: { min: { electricityCoverage: 0.35, administration: 0.68, treasury: 500 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 

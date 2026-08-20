@@ -95,9 +95,10 @@ export function collectGuildPractitioners(): Map<string, GuildPractitioners> {
     // Manufacture-only employment (P1) is never capped here — it is the real, uncontested guild
     // labor signal. The sole exception is "instruments": it has no manufacture-craft-employment
     // source of its own today (CRAFT_DOMAIN_BY_GOOD_NAME maps only Liquor to it), so its entries in
-    // this table come entirely from experimentalWorkshops.ts's upsertInstruments() — an authored
-    // real-people researcher count (P9/P12), not manufacturing labor — and must be converted like
-    // any other closed-inventory source.
+    // this table come entirely from authored real-people headcounts — experimentalWorkshops.ts's
+    // upsertInstruments() (P9/P12 researcher count) and, since docs/plan/electric-power-and-
+    // telegraph.md §3.11, powerStations.ts's own upsertInstruments() call — not manufacturing
+    // labor, and must be converted like any other closed-inventory source.
     const workers =
       applyCalibration && record.domain === "instruments"
         ? peopleToPoints(record.workers, populationRate)

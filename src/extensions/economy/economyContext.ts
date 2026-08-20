@@ -27,6 +27,7 @@ import type {
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
+import type { PowerStation, TelegraphLine } from "./generators/electricalTypes";
 import type {
   EscortActiveContract,
   EscortCooldowns,
@@ -166,6 +167,9 @@ let _steelConverterPlantsLastSettledYearFallback: number | null = null;
 let _fertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _syntheticAmmoniaPlantsLastSettledYearFallback: number | null = null;
 let _nitrogenFertilizerInvestmentLastSettledYearFallback: number | null = null;
+let _powerStationsLastSettledYearFallback: number | null = null;
+let _telegraphLinesLastSettledYearFallback: number | null = null;
+let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -228,6 +232,9 @@ export function clearEconomyContext(): void {
   _fertilizerInvestmentLastSettledYearFallback = null;
   _syntheticAmmoniaPlantsLastSettledYearFallback = null;
   _nitrogenFertilizerInvestmentLastSettledYearFallback = null;
+  _powerStationsLastSettledYearFallback = null;
+  _telegraphLinesLastSettledYearFallback = null;
+  _powerGridInvestmentLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1431,6 +1438,20 @@ export function getSyntheticAmmoniaPlants(): SyntheticAmmoniaPlant[] {
 export function setSyntheticAmmoniaPlants(rows: readonly SyntheticAmmoniaPlant[]): void {
   setSliceArray("syntheticAmmoniaPlants", rows);
 }
+/** Same shape as getAcidPlants/getSteelConverterPlants. Design: docs/plan/electric-power-and-telegraph.md §3.9. */
+export function getPowerStations(): PowerStation[] {
+  return getSliceArray<PowerStation>("powerStations");
+}
+export function setPowerStations(rows: readonly PowerStation[]): void {
+  setSliceArray("powerStations", rows);
+}
+/** Same shape as getPowerStations. Design: docs/plan/electric-power-and-telegraph.md §3.9. */
+export function getTelegraphLines(): TelegraphLine[] {
+  return getSliceArray<TelegraphLine>("telegraphLines");
+}
+export function setTelegraphLines(rows: readonly TelegraphLine[]): void {
+  setSliceArray("telegraphLines", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1521,6 +1542,33 @@ export function getNitrogenFertilizerInvestmentLastSettledYear(): number | null 
 export function setNitrogenFertilizerInvestmentLastSettledYear(year: number): void {
   writeYearToSlice("nitrogenFertilizerInvestmentLastSettledYear", year, value => {
     _nitrogenFertilizerInvestmentLastSettledYearFallback = value;
+  });
+}
+/** Guards PowerStations.settleAnnual(), same shape as getSteelConverterPlantsLastSettledYear. */
+export function getPowerStationsLastSettledYear(): number | null {
+  return yearFromSlice("powerStationsLastSettledYear", _powerStationsLastSettledYearFallback);
+}
+export function setPowerStationsLastSettledYear(year: number): void {
+  writeYearToSlice("powerStationsLastSettledYear", year, value => {
+    _powerStationsLastSettledYearFallback = value;
+  });
+}
+/** Guards TelegraphLines.settleAnnual(), same shape as getPowerStationsLastSettledYear. */
+export function getTelegraphLinesLastSettledYear(): number | null {
+  return yearFromSlice("telegraphLinesLastSettledYear", _telegraphLinesLastSettledYearFallback);
+}
+export function setTelegraphLinesLastSettledYear(year: number): void {
+  writeYearToSlice("telegraphLinesLastSettledYear", year, value => {
+    _telegraphLinesLastSettledYearFallback = value;
+  });
+}
+/** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */
+export function getPowerGridInvestmentLastSettledYear(): number | null {
+  return yearFromSlice("powerGridInvestmentLastSettledYear", _powerGridInvestmentLastSettledYearFallback);
+}
+export function setPowerGridInvestmentLastSettledYear(year: number): void {
+  writeYearToSlice("powerGridInvestmentLastSettledYear", year, value => {
+    _powerGridInvestmentLastSettledYearFallback = value;
   });
 }
 

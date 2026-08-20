@@ -114,6 +114,26 @@ export interface TechnologySignals {
   syntheticAmmoniaTrialYears: number;
   /** Count of active SyntheticAmmoniaPlant entries, same shape as phosphateFertilizerPlantCount. */
   syntheticAmmoniaInstallations: number;
+  /**
+   * 0..1 market-stock coverage of Copper Wire, same shape as sulfurAccess/steelAccess/
+   * phosphateRockAccess. See docs/plan/electric-power-and-telegraph.md §3.3.
+   */
+  copperWireAccess: number;
+  /** PowerStation.documentedRuns state max, same shape as modernSteelmakingTrialYears. */
+  powerStationTrialYears: number;
+  /** Count of active PowerStation entries, same shape as modernSteelmakingInstallations. */
+  powerStationInstallations: number;
+  /** TelegraphLine.documentedRuns state max, same shape as powerStationTrialYears. */
+  telegraphLineTrialYears: number;
+  /** Count of active TelegraphLine entries, same shape as powerStationInstallations. */
+  telegraphLineInstallations: number;
+  /**
+   * 0..1. State average of Market.electricityStock across markets with population, limited to
+   * markets that have any population — the demand pull for powerGrid's thresholds. Unlike
+   * fertilizerCoverageGap this is not inverted: powerGrid is meant to become attractive once local
+   * generation coverage is already meaningful. See docs/plan/electric-power-and-telegraph.md §3.3.
+   */
+  electricityCoverage: number;
   atWar: boolean;
   capitalPort: boolean;
 }

@@ -15,6 +15,7 @@ import {
   GOODS_DATA,
   GoodsModule,
   isGoodEnabled,
+  migrateElectricalGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
@@ -280,6 +281,41 @@ describe("GoodsModule", () => {
     expect(nitrogenFertilizer).toMatchObject({ requiredTechnology: "syntheticAmmonia", chance: 0 });
     expect(nitrogenFertilizer?.recipes).toEqual([{ [ammonia!.i]: 0.7 }]);
     expect(migrateSyntheticAmmoniaGoods()).toBe(false);
+  });
+
+  // docs/plan/electric-power-and-telegraph.md §3.2, §3.13.
+  it("appends Copper Wire, resolving its recipe ingredients against the migrated catalogue's ids", () => {
+    setGoods([
+      {
+        i: 1,
+        name: "Copper Ingot",
+        tags: ["ingot", "metal"],
+        value: 6,
+        unit: "bar",
+        icon: "good-copper",
+        color: "#b87333"
+      },
+      { i: 2, name: "Glass", tags: ["industrial"], value: 5, unit: "crate", icon: "good-glass", color: "#cde" },
+      {
+        i: 3,
+        name: "Machine Parts",
+        tags: ["industrial", "tools"],
+        value: 18,
+        unit: "crate",
+        icon: "good-unknown",
+        color: "#6d7380"
+      }
+    ]);
+
+    expect(migrateElectricalGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const copperWire = byName.get("Copper Wire");
+    expect(copperWire).toMatchObject({ requiredTechnology: "electricalExperiments", chance: 0, demandCoverage: {} });
+    expect(copperWire?.recipes).toEqual([
+      { 1: 1, 2: 0.2, 3: 0.1 } // Copper Ingot / Glass / Machine Parts, resolved to this catalogue's ids
+    ]);
+    expect(migrateElectricalGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

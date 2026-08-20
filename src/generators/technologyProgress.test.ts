@@ -739,6 +739,167 @@ describe("technologyProgress", () => {
     expect(phosphateLines.some(line => line.includes("unmet known min foodFertilizerPressure"))).toBe(false);
   });
 
+  // docs/plan/electric-power-and-telegraph.md §3.4-3.8.
+  it("defines the electric-power-and-telegraph node chain with the expected era, prerequisites, and threshold keys", () => {
+    const electricalExperiments = TECHNOLOGY_DEFINITIONS.find(def => def.id === "electricalExperiments");
+    expect(electricalExperiments?.era).toBe(6);
+    expect(electricalExperiments?.prerequisites).toEqual(["experimentalNaturalPhilosophy"]);
+    expect(electricalExperiments?.known.min?.naturalPhilosophy).toBe(0.45);
+    expect(electricalExperiments?.adopted.min?.naturalPhilosophy).toBe(0.55);
+
+    const practicalElectrochemistry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "practicalElectrochemistry");
+    expect(practicalElectrochemistry?.era).toBe(6);
+    expect(practicalElectrochemistry?.prerequisites).toEqual(["electricalExperiments"]);
+    // known deliberately omits naturalPhilosophy — electricalExperiments' own adopted already
+    // requires it >= 0.55, so a lower known threshold would be met the instant the prerequisite
+    // adopts (§3.5).
+    expect(practicalElectrochemistry?.known.min?.naturalPhilosophy).toBeUndefined();
+    expect(practicalElectrochemistry?.demonstrated.min?.naturalPhilosophy).toBe(0.58);
+
+    const electricTelegraph = TECHNOLOGY_DEFINITIONS.find(def => def.id === "electricTelegraph");
+    expect(electricTelegraph?.era).toBe(6);
+    // Does not route through generatorAndMotor/powerGrid — battery-only, per the CSV row-13
+    // historical anchor (Morse, 1837).
+    expect(electricTelegraph?.prerequisites).toEqual(["practicalElectrochemistry"]);
+    expect(electricTelegraph?.demonstrated.min?.telegraphLineTrialYears).toBe(2);
+    expect(electricTelegraph?.adopted.min?.telegraphLineInstallations).toBe(1);
+
+    const generatorAndMotor = TECHNOLOGY_DEFINITIONS.find(def => def.id === "generatorAndMotor");
+    expect(generatorAndMotor?.era).toBe(6);
+    expect(generatorAndMotor?.prerequisites).toEqual(["electricalExperiments", "modernSteelmaking"]);
+    expect(generatorAndMotor?.demonstrated.min?.powerStationTrialYears).toBe(2);
+    expect(generatorAndMotor?.adopted.min?.powerStationInstallations).toBe(1);
+
+    const powerGrid = TECHNOLOGY_DEFINITIONS.find(def => def.id === "powerGrid");
+    expect(powerGrid?.era).toBe(6);
+    expect(powerGrid?.prerequisites).toEqual(["generatorAndMotor"]);
+    expect(powerGrid?.known.min?.electricityCoverage).toBe(0.25);
+    expect(powerGrid?.adopted.min?.electricityCoverage).toBe(0.35);
+  });
+
+  it("computes copperWireAccess/powerStationTrialYears/powerStationInstallations from market stock and PowerStation rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 50, name: "Copper Wire" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 50: { stock: 10 } } // clamp01(10 / 2) = 1, past every copperWireAccess threshold
+          }
+        ],
+        powerStations: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200,
+            generationCapacity: 2
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "generatorAndMotor");
+    // copperWireAccess(1) clears known(0.35); powerStationTrialYears(5)>=2 and
+    // powerStationInstallations(1)>=1 clear demonstrated/adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("copperWireAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("powerStationTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("powerStationInstallations"))).toBe(false);
+  });
+
+  it("computes telegraphLineTrialYears/telegraphLineInstallations from TelegraphLine rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        telegraphLines: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "electricTelegraph");
+    expect(lines.some(line => line.includes("telegraphLineTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("telegraphLineInstallations"))).toBe(false);
+  });
+
+  it("computes electricityCoverage from Market.electricityStock across markets with population (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        markets: [
+          // Burg 1 (state 1, population 30 from installMinimalWorld) — well past every threshold.
+          { i: 1, centerBurgId: 1, goods: {}, electricityStock: 0.4 },
+          // Burg 3 (state 2, population 18) — below the known threshold (0.25).
+          { i: 2, centerBurgId: 3, goods: {}, electricityStock: 0.2 }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    worldContext.pack.burgs[3].market = 2;
+    settleTechnologyAnnual(1200);
+
+    expect(explainTechnologyGate(1, "powerGrid").some(line => line.includes("electricityCoverage"))).toBe(false);
+    // explainThresholds checks known/demonstrated/adopted independently, so 0.2 falls short of all
+    // three thresholds (0.25/0.3/0.35) at once.
+    expect(explainTechnologyGate(2, "powerGrid").filter(line => line.includes("electricityCoverage"))).toEqual([
+      "unmet known min electricityCoverage: 0.2 < 0.25",
+      "unmet demonstrated min electricityCoverage: 0.2 < 0.3",
+      "unmet adopted min electricityCoverage: 0.2 < 0.35"
+    ]);
+  });
+
+  it("diffuses every technology faster for an owner whose electricTelegraph has reached adopted (docs/plan/electric-power-and-telegraph.md §3.12)", () => {
+    installMinimalWorld();
+    // improvedMining's sole prerequisite (basicMetallurgy) auto-seeds to "diffused" for every live
+    // state; setting improvedMining itself directly to "adopted" skips known/demonstrated/adopted
+    // threshold evaluation entirely (all three rank checks in advanceStage() require the entry to
+    // currently sit at a lower rank), isolating just the diffusion-growth line under test.
+    setTechnologyProgressForTests([
+      { technologyId: "improvedMining", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+    const baseline = getTechnologyProgressEntries().find(
+      p => p.technologyId === "improvedMining" && p.ownerId === 1
+    )?.diffusion;
+    expect(baseline).toBeCloseTo(0.15, 5); // DIFFUSION_ANNUAL_GAIN(0.15) * speed(1) * (1 + 0)
+
+    setTechnologyProgressForTests([
+      { technologyId: "improvedMining", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electricTelegraph", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ]);
+    settleTechnologyAnnual(1200);
+    const boosted = getTechnologyProgressEntries().find(
+      p => p.technologyId === "improvedMining" && p.ownerId === 1
+    )?.diffusion;
+    expect(boosted).toBeCloseTo(0.225, 5); // 0.15 * (1 + TELEGRAPH_DIFFUSION_BONUS_MAX(0.5))
+
+    // A state without electricTelegraph adopted is unaffected.
+    setTechnologyProgressForTests([
+      { technologyId: "improvedMining", scope: "state", ownerId: 2, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+    const unaffected = getTechnologyProgressEntries().find(
+      p => p.technologyId === "improvedMining" && p.ownerId === 2
+    )?.diffusion;
+    expect(unaffected).toBeCloseTo(0.15, 5);
+  });
+
   describe("known-stage technology hints", () => {
     const ENP_PREREQS: TechnologyProgress[] = [
       { technologyId: "recordReplication", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },

@@ -52,6 +52,12 @@ export const HINTABLE_KNOWN_RATIO_KEYS = [
 const HINTABLE_KNOWN_RATIO_KEY_SET: ReadonlySet<keyof TechnologySignals> = new Set(HINTABLE_KNOWN_RATIO_KEYS);
 
 const DIFFUSION_ANNUAL_GAIN = 0.15;
+/**
+ * docs/plan/electric-power-and-telegraph.md §3.12 — an owner whose electricTelegraph has reached
+ * adopted diffuses every technology up to 50% faster. Applied inside advanceStage() via the same
+ * stageOf() closure prerequisitesMet() already reads, not a new TechnologySignals field.
+ */
+const TELEGRAPH_DIFFUSION_BONUS_MAX = 0.5;
 /** Demonstrated blackPowder without war can still advance if treasury demand is high. */
 const WAR_OPTIONAL_TREASURY = 100;
 
@@ -340,7 +346,7 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
       }
 
       // Hints waive allowlisted knowledge ratios on the known climb only.
-      entry.stage = advanceStage(entry, def, signals, year, liveHintKeys.has(`${stateId}:${def.id}`));
+      entry.stage = advanceStage(entry, def, signals, year, stageOf, liveHintKeys.has(`${stateId}:${def.id}`));
     }
   }
 
@@ -414,6 +420,12 @@ function emptySignals(): TechnologySignals {
     fertilizerCoverageGap: 0,
     syntheticAmmoniaTrialYears: 0,
     syntheticAmmoniaInstallations: 0,
+    copperWireAccess: 0,
+    powerStationTrialYears: 0,
+    powerStationInstallations: 0,
+    telegraphLineTrialYears: 0,
+    telegraphLineInstallations: 0,
+    electricityCoverage: 0,
     atWar: false,
     capitalPort: false
   };
@@ -714,6 +726,7 @@ function applyChemistryMedicineSignals(
   const sulfurId = goodIdByName(economy, "Sulfur");
   const phosphateRockId = goodIdByName(economy, "Phosphate Rock");
   const steelId = goodIdByName(economy, "Steel");
+  const copperWireId = goodIdByName(economy, "Copper Wire");
 
   const waterByBurg = new Map<number, Record<string, unknown>>();
   for (const water of asStockArray(economy.urbanWaterSystems)) {
@@ -763,6 +776,7 @@ function applyChemistryMedicineSignals(
   const pumiceStockByState = stateMarketStockByGood(economy, marketOwners, pumiceId);
   const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, phosphateRockId);
   const steelStockByState = stateMarketStockByGood(economy, marketOwners, steelId);
+  const copperWireStockByState = stateMarketStockByGood(economy, marketOwners, copperWireId);
 
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
@@ -786,6 +800,10 @@ function applyChemistryMedicineSignals(
     // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3 — same market-stock-
     // coverage shape as sulfurAccess/phosphateRockAccess, no military-demand analog.
     signals.steelAccess = clamp01((steelStockByState.get(stateId) ?? 0) / 2);
+
+    // docs/plan/electric-power-and-telegraph.md §3.3 — same market-stock-coverage shape as
+    // sulfurAccess/steelAccess/phosphateRockAccess.
+    signals.copperWireAccess = clamp01((copperWireStockByState.get(stateId) ?? 0) / 2);
 
     signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
@@ -874,6 +892,37 @@ function applyChemistryMedicineSignals(
     if (signals) signals.modernSteelmakingTrialYears = years;
   }
 
+  // docs/plan/electric-power-and-telegraph.md §3.3 — same shape as the modernSteelmaking block
+  // above: PowerStation holds documentedRuns on itself, no ChemistryTrial indirection.
+  const powerStationYears = new Map<number, number>();
+  for (const plant of asStockArray(economy.powerStations)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.powerStationInstallations += 1;
+    powerStationYears.set(stateId, Math.max(powerStationYears.get(stateId) ?? 0, asNumber(plant.documentedRuns)));
+  }
+  for (const [stateId, years] of powerStationYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.powerStationTrialYears = years;
+  }
+
+  // docs/plan/electric-power-and-telegraph.md §3.3 — same shape as the powerStations block above.
+  const telegraphLineYears = new Map<number, number>();
+  for (const line of asStockArray(economy.telegraphLines)) {
+    if (line.active === false) continue;
+    const stateId = asNumber(line.stateId) || burgStateId(asNumber(line.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.telegraphLineInstallations += 1;
+    telegraphLineYears.set(stateId, Math.max(telegraphLineYears.get(stateId) ?? 0, asNumber(line.documentedRuns)));
+  }
+  for (const [stateId, years] of telegraphLineYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.telegraphLineTrialYears = years;
+  }
+
   for (const plant of asStockArray(economy.acidPlants)) {
     if (plant.active === false) continue;
     const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
@@ -937,6 +986,33 @@ function applyChemistryMedicineSignals(
         0.4 * signals.gunpowderSulfurPressure + 0.3 * signals.soapGlassPressure + 0.3 * signals.foodFertilizerPressure
       );
     }
+  }
+
+  // docs/plan/electric-power-and-telegraph.md §3.3: state average of Market.electricityStock,
+  // limited to markets with population. Market has no population field of its own (unlike
+  // cultivatedArea, which is keyed by cell via marketCellColumn) — populationByMarket is built
+  // locally from pack.burgs the same way Markets.calculatePopulationByMarket() does internally.
+  const populationByMarket = new Map<number, number>();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || !burg.market) continue;
+    const pop = Math.max(0, Number(burg.population) || 0);
+    if (pop <= 0) continue;
+    populationByMarket.set(burg.market, (populationByMarket.get(burg.market) ?? 0) + pop);
+  }
+  const electricityByState = new Map<number, { sum: number; n: number }>();
+  for (const market of asStockArray(economy.markets)) {
+    if (!((populationByMarket.get(asNumber(market.i)) ?? 0) > 0)) continue;
+    const center = pack.burgs?.[asNumber(market.centerBurgId)];
+    const stateId = center && typeof center === "object" ? (center.state ?? 0) : 0;
+    if (!stateId) continue;
+    const entry = electricityByState.get(stateId) ?? { sum: 0, n: 0 };
+    entry.sum += clamp01(asNumber(market.electricityStock));
+    entry.n += 1;
+    electricityByState.set(stateId, entry);
+  }
+  for (const [stateId, entry] of electricityByState) {
+    const signals = map.get(stateId);
+    if (signals && entry.n > 0) signals.electricityCoverage = clamp01(entry.sum / entry.n);
   }
 }
 
@@ -1013,7 +1089,11 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "modernSteelmakingInstallations",
   "urbanWaterMaxTier",
   "syntheticAmmoniaTrialYears",
-  "syntheticAmmoniaInstallations"
+  "syntheticAmmoniaInstallations",
+  "powerStationTrialYears",
+  "powerStationInstallations",
+  "telegraphLineTrialYears",
+  "telegraphLineInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
@@ -1112,6 +1192,7 @@ function advanceStage(
   def: TechnologyDefinition,
   signals: TechnologySignals,
   year: number,
+  stageOf: (id: string) => TechnologyStage,
   hintKnowledgeRatios = false
 ): TechnologyStage {
   let stage = entry.stage;
@@ -1141,7 +1222,16 @@ function advanceStage(
     entry.diffusion = Math.max(entry.diffusion || 0, 0);
   }
   if (stage === "adopted") {
-    entry.diffusion = Math.min(1, (entry.diffusion || 0) + DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed());
+    // docs/plan/electric-power-and-telegraph.md §3.12. Same host-internal special-case pattern as
+    // GUNPOWDER_ERA2_TECHNOLOGY_IDS above: a direct reference to one technology id inside this
+    // otherwise-generic function, rather than a new TechnologySignals field.
+    const telegraphBonus = isTechnologyStageAtLeast(stageOf("electricTelegraph"), "adopted")
+      ? TELEGRAPH_DIFFUSION_BONUS_MAX
+      : 0;
+    entry.diffusion = Math.min(
+      1,
+      (entry.diffusion || 0) + DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed() * (1 + telegraphBonus)
+    );
     if (entry.diffusion >= 1) stage = "diffused";
   }
   if (stage === "diffused") {

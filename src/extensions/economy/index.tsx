@@ -98,6 +98,7 @@ import {
   getDefaultGoodTradeProfile,
   isGoodEnabled,
   migrateChemMedGoods,
+  migrateElectricalGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
@@ -148,6 +149,8 @@ import { getStateMountedCapacity } from "./generators/mountAvailability";
 import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
+import { PowerGridInvestment } from "./generators/powerGridInvestment";
+import { PowerStations } from "./generators/powerStations";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
 import {
@@ -191,6 +194,7 @@ import {
   resignResearchJob,
   tickResearchHiring
 } from "./generators/technologyResearchHire";
+import { TelegraphLines } from "./generators/telegraphLines";
 import {
   applyCharacterToCullJob,
   cancelCullApplication,
@@ -2462,6 +2466,7 @@ export function init(api: ExtensionAPI): void {
     const migratedChemMed = migrateChemMedGoods();
     const migratedPhosphate = migratePhosphateGoods();
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
+    const migratedElectrical = migrateElectricalGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2482,6 +2487,7 @@ export function init(api: ExtensionAPI): void {
       migratedChemMed ||
       migratedPhosphate ||
       migratedSyntheticAmmonia ||
+      migratedElectrical ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -2821,6 +2827,10 @@ export function init(api: ExtensionAPI): void {
         // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
         NitrogenFertilizerInvestment.settleAnnual();
         IndustrialTechInvestment.settleAnnual();
+        // Allocates last year's PowerStations generation capacity (era-6 plant block below) to
+        // markets by population. Does not touch marketTreasury — PowerStations already paid the
+        // capital/operating cost (docs/plan/electric-power-and-telegraph.md §3.10).
+        PowerGridInvestment.settleAnnual();
         // Must run before the quarter's food ledger so annual demographic changes
         // alter cultivated area and farm labour without waiting an extra quarter.
         agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
@@ -2959,6 +2969,12 @@ export function init(api: ExtensionAPI): void {
         // above — grouped here as the era 6 plant block (docs/plan/synthetic-ammonia-vertical-
         // slice.md §3.6).
         SyntheticAmmoniaPlants.settleAnnual();
+        // Coal/Copper Wire/Machine Parts only, independent of the other era-6 plants above.
+        // PowerGridInvestment (annualAgTech block above) reads this year's output starting next
+        // year (docs/plan/electric-power-and-telegraph.md §3.9).
+        PowerStations.settleAnnual();
+        // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
+        TelegraphLines.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
@@ -3143,6 +3159,7 @@ export function init(api: ExtensionAPI): void {
     const migratedChemMed = migrateChemMedGoods();
     const migratedPhosphate = migratePhosphateGoods();
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
+    const migratedElectrical = migrateElectricalGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -3163,6 +3180,7 @@ export function init(api: ExtensionAPI): void {
       migratedChemMed ||
       migratedPhosphate ||
       migratedSyntheticAmmonia ||
+      migratedElectrical ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
