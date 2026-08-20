@@ -31,7 +31,18 @@ export type GenerationOptionsImportResult =
   | { ok: true; options: Partial<GenerationOptions> }
   | { ok: false; error: GenerationOptionsImportError };
 
-const HISTORICAL_PERIODS = ["earlyMedieval", "highMedieval", "lateMedieval", "ageOfExploration"] as const;
+const HISTORICAL_PERIODS = [
+  "earlyMedieval",
+  "highMedieval",
+  "lateMedieval",
+  "ageOfExploration",
+  "maritimeEra",
+  "preIndustrialEra",
+  "steamEra",
+  "industrialChemistryEra",
+  "petroleumEra",
+  "rocketryEra"
+] as const;
 const TEMPLATE_RANDOMIZATIONS = ["all", "landRich", "oceanRich"] as const;
 const ENCLOSURE_MODES = ["oceanCurrents", "oceanCurrentsAmbient", "radius"] as const;
 const STATE_LABEL_MODES = ["auto", "short", "full"] as const;

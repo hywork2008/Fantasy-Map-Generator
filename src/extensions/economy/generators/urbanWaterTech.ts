@@ -17,7 +17,17 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-export type HistoricalPeriod = "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
+export type HistoricalPeriod =
+  | "earlyMedieval"
+  | "highMedieval"
+  | "lateMedieval"
+  | "ageOfExploration"
+  | "maritimeEra"
+  | "preIndustrialEra"
+  | "steamEra"
+  | "industrialChemistryEra"
+  | "petroleumEra"
+  | "rocketryEra";
 
 /** Additive raise to waterLifting/municipalSanitation only — see raceWaterTechBias.ts. */
 export type WaterTechCeilingBonus = { waterLifting: number; municipalSanitation: number };
@@ -37,6 +47,23 @@ export function waterTechCeilings(
       // tier, since sanitary engineering stays pre-industrial throughout this period.
       case "ageOfExploration":
         return { waterLifting: 0.85, municipalSanitation: 0.78, sanitaryEngineering: 0.4 };
+      // Era 3-8 (docs/plan/technology-development-roadmap.md §3), matching the Technology
+      // Overview dialog's Era filter and technologyProgress.ts's HISTORICAL_PERIOD_FRONTIER_ERA:
+      // each later era keeps raising the soft ceiling, with sanitaryEngineering (the most
+      // "industrial" component) climbing fastest since it's the one this file's header comment
+      // calls out as "not free in 1200".
+      case "maritimeEra":
+        return { waterLifting: 0.88, municipalSanitation: 0.8, sanitaryEngineering: 0.45 };
+      case "preIndustrialEra":
+        return { waterLifting: 0.9, municipalSanitation: 0.85, sanitaryEngineering: 0.55 };
+      case "steamEra":
+        return { waterLifting: 0.93, municipalSanitation: 0.9, sanitaryEngineering: 0.68 };
+      case "industrialChemistryEra":
+        return { waterLifting: 0.96, municipalSanitation: 0.94, sanitaryEngineering: 0.8 };
+      case "petroleumEra":
+        return { waterLifting: 0.98, municipalSanitation: 0.97, sanitaryEngineering: 0.9 };
+      case "rocketryEra":
+        return { waterLifting: 1, municipalSanitation: 1, sanitaryEngineering: 0.95 };
       case "highMedieval":
       default:
         return { waterLifting: 0.55, municipalSanitation: 0.55, sanitaryEngineering: 0.08 };

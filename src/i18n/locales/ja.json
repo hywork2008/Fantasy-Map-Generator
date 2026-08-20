@@ -1069,7 +1069,13 @@
       "earlyMedieval": "初期中世（約 500–1000）",
       "highMedieval": "盛期中世（約 1000–1300）",
       "lateMedieval": "後期中世（約 1300–1500）",
-      "ageOfExploration": "大航海時代（約 1450–1600）"
+      "ageOfExploration": "大航海時代（約 1450–1600）",
+      "maritimeEra": "大航海期（Era 3）",
+      "preIndustrialEra": "前工業化期（Era 4）",
+      "steamEra": "蒸気の時代（Era 5）",
+      "industrialChemistryEra": "近代化学の時代（Era 6）",
+      "petroleumEra": "石油の時代（Era 7）",
+      "rocketryEra": "ロケット・宇宙開発期（Era 8）"
     },
     "startFirearmsUnstocked": "火器を未配備で開始",
     "startFirearmsUnstockedTip": "新しい地図では通常、既存の銃兵と砲兵はすでに装備済みです。有効にすると火器装備を 0 から始め、国家が経済を通じて調達する必要があります。",

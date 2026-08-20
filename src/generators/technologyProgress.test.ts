@@ -30,7 +30,17 @@ import { createEmptyTechnologySimulationState, type TechnologyProgress } from ".
 function installMinimalWorld(
   opts: {
     gunpowder?: boolean;
-    historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
+    historicalPeriod?:
+      | "earlyMedieval"
+      | "highMedieval"
+      | "lateMedieval"
+      | "ageOfExploration"
+      | "maritimeEra"
+      | "preIndustrialEra"
+      | "steamEra"
+      | "industrialChemistryEra"
+      | "petroleumEra"
+      | "rocketryEra";
   } = {}
 ): void {
   worldContext.options = {
@@ -155,6 +165,33 @@ describe("technologyProgress", () => {
 
     // A non-gunpowder technology is unaffected by historicalPeriod either way.
     expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused");
+  });
+
+  it("seeds Era-3-8-aligned historicalPeriod values as diffused below, demonstrated at, and untouched above their frontier era", () => {
+    // steamEra corresponds to Technology Overview's Era 5 (docs/plan/technology-development-
+    // roadmap.md §3): era 0-4 nodes (including the era-2 gunpowder chain) are fully diffused, era
+    // 5 itself is demonstrated, and era 6+ is left alone (still locked).
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "steamEra" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused"); // era 0
+    expect(getTechnologyStage("improvedMining", 1)).toBe("diffused"); // era 1
+    expect(getTechnologyStage("blackPowder", 1)).toBe("diffused"); // era 2 — strictly below the frontier
+    expect(getTechnologyStage("atmosphericSteamPumping", 1)).toBe("demonstrated"); // era 5, at the frontier
+    expect(getTechnologyStage("chemicalIndustryFoundation", 1)).toBe("locked"); // era 6, above the frontier
+
+    // rocketryEra corresponds to Era 8, the highest defined — everything below is diffused and
+    // era 8 itself is demonstrated (there is no era above it to leave locked).
+    resetTechnologyProgress();
+    installMinimalWorld({ gunpowder: false, historicalPeriod: "rocketryEra" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("modernDrillingAndFieldOperations", 1)).toBe("diffused"); // era 7
+    expect(getTechnologyStage("rocketDynamicsAndHighTemperatureCombustionResearch", 1)).toBe("demonstrated"); // era 8
+
+    // The legacy 4 periods are unaffected by this addition — era-1+ nodes still start locked.
+    resetTechnologyProgress();
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "ageOfExploration" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("improvedMining", 1)).toBe("locked");
   });
 
   it("keeps a period-seeded gunpowder stage after annual evaluation instead of resetting it", () => {

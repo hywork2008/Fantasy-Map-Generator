@@ -126,8 +126,22 @@ export interface WorldOptions {
    * Undefined preserves the legacy, fully equipped starting-force behavior.
    */
   initialFirearmsUnstocked?: boolean;
-  /** Historical-technology backdrop selected in Generation Settings. Undefined preserves legacy maps as "highMedieval". */
-  historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
+  /**
+   * Historical-technology backdrop selected in Generation Settings. Undefined preserves legacy
+   * maps as "highMedieval". See optionsState.ts's `historicalPeriod` doc comment for the 6
+   * Era-3-8-aligned values added after "ageOfExploration".
+   */
+  historicalPeriod?:
+    | "earlyMedieval"
+    | "highMedieval"
+    | "lateMedieval"
+    | "ageOfExploration"
+    | "maritimeEra"
+    | "preIndustrialEra"
+    | "steamEra"
+    | "industrialChemistryEra"
+    | "petroleumEra"
+    | "rocketryEra";
   /**
    * Persisted generation distribution policy. Archives created before frontier
    * expansion normalize this to "standard" during archive migration.

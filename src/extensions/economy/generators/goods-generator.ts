@@ -154,7 +154,15 @@ const GUNPOWDER_ERA_PRICE_MULTIPLIER: Readonly<Record<HistoricalPeriod, number>>
   earlyMedieval: 2.2,
   highMedieval: 1.8,
   lateMedieval: 1.3,
-  ageOfExploration: 1
+  ageOfExploration: 1,
+  // Era 3-8: strictly later than ageOfExploration (technologyProgress.ts's
+  // HISTORICAL_PERIOD_FRONTIER_ERA), so gunpowder is at least as mature/cheap as it is there.
+  maritimeEra: 1,
+  preIndustrialEra: 1,
+  steamEra: 1,
+  industrialChemistryEra: 1,
+  petroleumEra: 1,
+  rocketryEra: 1
 };
 
 /** Mutates `goods` in place, scaling GUNPOWDER_ERA_GOODS values by the current historicalPeriod. */

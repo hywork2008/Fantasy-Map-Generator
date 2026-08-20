@@ -1069,7 +1069,13 @@
       "earlyMedieval": "Early Medieval (c. 500-1000)",
       "highMedieval": "High Medieval (c. 1000-1300)",
       "lateMedieval": "Late Medieval (c. 1300-1500)",
-      "ageOfExploration": "Age of Exploration (c. 1450-1600)"
+      "ageOfExploration": "Age of Exploration (c. 1450-1600)",
+      "maritimeEra": "Maritime (Era 3)",
+      "preIndustrialEra": "Pre-industrial (Era 4)",
+      "steamEra": "Steam (Era 5)",
+      "industrialChemistryEra": "Industrial chemistry (Era 6)",
+      "petroleumEra": "Petroleum (Era 7)",
+      "rocketryEra": "Rocketry and space (Era 8)"
     },
     "startFirearmsUnstocked": "Start firearms unstocked",
     "startFirearmsUnstockedTip": "New maps normally treat existing musketeer and artillery units as already equipped. Enable this to start their firearm equipment at zero and require state procurement through the economy.",

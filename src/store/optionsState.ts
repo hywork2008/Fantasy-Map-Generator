@@ -30,8 +30,24 @@ export interface OptionsState {
    * generation choices (docs/plan/guns-era.md). Default "ageOfExploration" (~1450-1600 Europe)
    * — gunpowder-era Goods/military units are independently controlled by `gunpowderEraEnabled`
    * below and default enabled, so this period no longer needs to precede gunpowder content.
+   *
+   * The 6 values after "ageOfExploration" correspond 1:1 to the Technology Overview dialog's
+   * Era 3-8 filter (technologyOverview era labels, docs/plan/technology-development-roadmap.md
+   * §3): each seeds every technology-graph node below that era as "diffused" and every node in
+   * that era itself as "demonstrated", same mechanism as the legacy 4 values already use for the
+   * era-2 gunpowder chain — see technologyProgress.ts's HISTORICAL_PERIOD_FRONTIER_ERA.
    */
-  historicalPeriod: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
+  historicalPeriod:
+    | "earlyMedieval"
+    | "highMedieval"
+    | "lateMedieval"
+    | "ageOfExploration"
+    | "maritimeEra"
+    | "preIndustrialEra"
+    | "steamEra"
+    | "industrialChemistryEra"
+    | "petroleumEra"
+    | "rocketryEra";
   template: string;
   /** Restricts unlocked random heightmap selection by the templates' mean land coverage. */
   templateRandomization: HeightmapTemplateRandomization;

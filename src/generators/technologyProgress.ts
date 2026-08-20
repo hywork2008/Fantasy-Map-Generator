@@ -21,6 +21,7 @@ import {
   isTechnologyStageAtLeast,
   progressKey,
   type TechnologyDefinition,
+  type TechnologyEraBand,
   type TechnologyProgress,
   type TechnologyScope,
   type TechnologySignalKey,
@@ -297,6 +298,29 @@ const GUNPOWDER_ERA2_TECHNOLOGY_IDS: ReadonlySet<string> = new Set([
   "gunpowderFortification"
 ]);
 
+/**
+ * Generalizes the GUNPOWDER_ERA2_START_STAGE_BY_PERIOD idea (above) to the 6 historicalPeriod
+ * values added after "ageOfExploration" (optionsState.ts), each corresponding 1:1 to a
+ * Technology Overview dialog Era (docs/plan/technology-development-roadmap.md §3): picking one
+ * means "this world already lives in that era". Every node whose `era` is strictly below the
+ * picked era is seeded "diffused" (long-settled background technology, same treatment era 0 nodes
+ * always get via their own unconditional `startStage`); every node AT the picked era is seeded
+ * "demonstrated" — proven and in limited use, same as ageOfExploration's era-2 treatment above,
+ * leaving "adopted"/"diffused" as something a state still has to invest toward through play. Eras
+ * above the picked one are untouched (fall through to `def.startStage`, i.e. stay "locked").
+ * Only covers the 6 new values — the legacy 4 keep their existing, unrelated behavior unchanged
+ * (era-1+ nodes stay "locked" under earlyMedieval/highMedieval/lateMedieval/ageOfExploration,
+ * exactly as before this was added).
+ */
+const HISTORICAL_PERIOD_FRONTIER_ERA: Readonly<Partial<Record<HistoricalPeriod, TechnologyEraBand>>> = {
+  maritimeEra: 3,
+  preIndustrialEra: 4,
+  steamEra: 5,
+  industrialChemistryEra: 6,
+  petroleumEra: 7,
+  rocketryEra: 8
+};
+
 function resolveStartStage(
   def: TechnologyDefinition,
   period: HistoricalPeriod | undefined
@@ -304,6 +328,11 @@ function resolveStartStage(
   if (GUNPOWDER_ERA2_TECHNOLOGY_IDS.has(def.id)) {
     const override = period && GUNPOWDER_ERA2_START_STAGE_BY_PERIOD[period];
     if (override) return override;
+  }
+  const frontierEra = period && HISTORICAL_PERIOD_FRONTIER_ERA[period];
+  if (frontierEra !== undefined) {
+    if (def.era < frontierEra) return "diffused";
+    if (def.era === frontierEra) return "demonstrated";
   }
   return def.startStage;
 }
