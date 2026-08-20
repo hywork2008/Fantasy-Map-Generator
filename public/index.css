@@ -555,12 +555,30 @@ input[type="color"] {
   }
 }
 
+/* The Tools panel can grow far taller than the viewport once its labels are
+   localized (see button rule below), so bound it and let it scroll
+   internally, mirroring #optionsTabContent's max-height + overflow-y
+   pattern. This guarantees every button stays reachable regardless of
+   locale or how many extension-contributed buttons are appended. */
+#toolsContent {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 #toolsContent>.grid {
   /* display: grid; */
 }
 
 #toolsContent>.grid button {
   width: min-content;
+  /* CJK scripts have no spaces, so the browser's default line-breaking
+     rules treat every character boundary as a valid break point. Combined
+     with width: min-content above, that collapses localized labels (e.g.
+     Japanese) into a single-character-wide column, one character per line.
+     keep-all restricts CJK breaking to explicit word boundaries only
+     (spaces/hyphens), so labels lay out on one line like Latin script does,
+     while leaving Latin wrapping behavior unchanged. */
+  word-break: keep-all;
 }
 
 #mapLayers {
