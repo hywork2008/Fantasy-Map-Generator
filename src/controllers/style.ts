@@ -1505,6 +1505,7 @@ function collectStyleData(): StyleJSON {
     "#roads": ["opacity", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "filter", "mask"],
     "#trails": ["opacity", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "filter", "mask"],
     "#searoutes": ["opacity", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "filter", "mask"],
+    "#railways": ["opacity", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "filter", "mask"],
     "#statesBody": ["opacity", "filter"],
     "#statesHalo": ["opacity", "data-width", "stroke-width", "filter"],
     "#provs": ["opacity", "fill", "font-size", "font-family", "filter"],

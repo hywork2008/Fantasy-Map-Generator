@@ -350,6 +350,80 @@ describe("RoutesModule settlement connections", () => {
   });
 });
 
+describe("RoutesModule connectRailway", () => {
+  beforeEach(() => {
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 25, 25],
+        biomeCode: [1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [1, 0, 2],
+        f: [1, 1, 1],
+        state: [1, 1, 1],
+        routes: {}
+      },
+      burgs: [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, state: 1 }, { i: 2, cell: 2, x: 20, y: 0, state: 1 }],
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+  });
+
+  it("lays new railway track between two burg cells", () => {
+    const laid = Routes.connectRailway(0, 2, 1);
+
+    expect(laid).toBe(true);
+    const railway = worldContext.pack.routes.find(route => route.group === "railways");
+    expect(railway?.cells).toEqual([0, 1, 2]);
+    expect(worldContext.pack.cells.routes[0]).toEqual({ 1: railway?.i });
+    expect(worldContext.pack.cells.routes[2]).toEqual({ 1: railway?.i });
+  });
+
+  it("does not lay duplicate track once the two cells are already rail-connected", () => {
+    expect(Routes.connectRailway(0, 2, 1)).toBe(true);
+
+    expect(Routes.connectRailway(0, 2, 1)).toBe(false);
+    expect(worldContext.pack.routes.filter(route => route.group === "railways")).toHaveLength(1);
+  });
+
+  it("prefers laying track alongside an existing road instead of a bare line", () => {
+    worldContext.pack.routes = [
+      {
+        i: 0,
+        group: "roads",
+        feature: 1,
+        points: [
+          [0, 0, 0],
+          [10, 0, 1],
+          [20, 0, 2]
+        ],
+        cells: [0, 1, 2]
+      }
+    ] as typeof worldContext.pack.routes;
+
+    const laid = Routes.connectRailway(0, 2, 1);
+
+    expect(laid).toBe(true);
+    expect(worldContext.pack.routes.find(route => route.group === "railways")?.cells).toEqual([0, 1, 2]);
+  });
+
+  it("does not cross into a foreign State's territory", () => {
+    worldContext.pack.cells.state = [1, 3, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1 },
+      { i: 2, cell: 2, x: 20, y: 0, state: 2 }
+    ] as typeof worldContext.pack.burgs;
+
+    expect(Routes.connectRailway(0, 2, 1)).toBe(false);
+    expect(worldContext.pack.routes.some(route => route.group === "railways")).toBe(false);
+  });
+});
+
 describe("RoutesModule settlement water connections", () => {
   const routeGenerationInternals = Routes as unknown as RouteGenerationInternals;
 

@@ -39,7 +39,7 @@ export function editRouteGroups(): void {
   });
 }
 
-export const DEFAULT_ROUTE_GROUPS = ["roads", "trails", "searoutes"];
+export const DEFAULT_ROUTE_GROUPS = ["roads", "trails", "searoutes", "railways"];
 
 export function routeGroupsAddGroup(): void {
   openPrompt({

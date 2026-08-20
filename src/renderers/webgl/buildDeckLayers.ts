@@ -300,12 +300,14 @@ const WEBGL_PATH_LAYERS: Array<{ toggle: string; id: string; build: PathBuilder 
         {
           roads: styles.dashStyles.roads,
           trails: styles.dashStyles.trails,
-          searoutes: styles.dashStyles.searoutes
+          searoutes: styles.dashStyles.searoutes,
+          railways: styles.dashStyles.railways
         },
         {
           roads: styles.paintStyles.roads,
           trails: styles.paintStyles.trails,
-          searoutes: styles.paintStyles.searoutes
+          searoutes: styles.paintStyles.searoutes,
+          railways: styles.paintStyles.railways
         }
       )
   }
@@ -1768,7 +1770,7 @@ function buildLayerSignatures(
     "toggleRoutes",
     ["map.networks", "presentation.styles"],
     () =>
-      `${mapId}|${scope}|${routesSignature(pack.routes)}|${pathDashStyleSignature(styles.pathDashStyles, ["roads", "trails", "searoutes"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["roads", "trails", "searoutes"])}`
+      `${mapId}|${scope}|${routesSignature(pack.routes)}|${pathDashStyleSignature(styles.pathDashStyles, ["roads", "trails", "searoutes", "railways"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["roads", "trails", "searoutes", "railways"])}`
   );
   // Geometry/phase only, matching buildSeaCurrentCellPolygons — color is time-driven and
   // recomputed every animation frame in the layer push below, never part of this signature.

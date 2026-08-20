@@ -48,6 +48,7 @@ const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").Curv
   roads: curveCatmullRom.alpha(0.1),
   trails: curveCatmullRom.alpha(0.1),
   searoutes: curveCatmullRom.alpha(0.5),
+  railways: curveCatmullRom.alpha(0.1),
   default: curveCatmullRom.alpha(0.1)
 };
 
@@ -1691,6 +1692,64 @@ class RoutesModule {
     return this.appendRoute("searoutes", sourcePort, sourceSegment);
   }
 
+  /**
+   * Lays railway track directly between two named burg cells (e.g. two State
+   * market towns once `railwayOperations` reaches `demonstrated` — see
+   * docs/plan/steam-industrial-implementation.md §7). Unlike `connectFrontier`/
+   * `connectToNetwork`, which walk to the *nearest* existing network node, this
+   * connects two specific endpoints. Running alongside an existing road or
+   * trail right-of-way is cheaper than surveying an independent line from
+   * scratch, so track tends to follow roads without being a copy of them —
+   * the two are still drawn as separate overlapping routes, never merged
+   * into one type (§2 "道路との重複" of the design discussion).
+   *
+   * Returns false when no new track was materialized: the two cells are
+   * already fully connected by rail, or no land path exists between them
+   * without leaving `stateId`'s territory.
+   */
+  connectRailway(fromCellId: number, toCellId: number, stateId?: number): boolean {
+    if (fromCellId === toCellId) return false;
+    const { pack } = this.worldContext;
+    this.sync();
+
+    const railwayConnections = this.getGroupConnections("railways");
+    const roadConnections = this.getGroupConnections("roads");
+    const trailConnections = this.getGroupConnections("trails");
+    const baseCost = this.createCostEvaluator({
+      isWater: false,
+      connections: railwayConnections,
+      landMode: "roads"
+    });
+    const getCost = (from: number, to: number) => {
+      if (stateId && pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId) return Infinity;
+      const cost = baseCost(from, to);
+      if (cost === Infinity) return Infinity;
+
+      const key = `${from}-${to}`;
+      const reverseKey = `${to}-${from}`;
+      const alongsideExisting =
+        roadConnections.has(key) ||
+        roadConnections.has(reverseKey) ||
+        trailConnections.has(key) ||
+        trailConnections.has(reverseKey);
+      return alongsideExisting ? cost * 0.5 : cost;
+    };
+
+    const pathCells = findPath(fromCellId, cell => cell === toCellId, getCost, pack);
+    if (!pathCells || pathCells.length < 2) return false;
+
+    const segments = this.getRouteSegments(pathCells, railwayConnections);
+    if (!segments.length) return false;
+
+    let laid = false;
+    for (const segment of segments) {
+      if (segment.length < 2) continue;
+      this.appendRoute("railways", pack.cells.f[segment[0]], segment);
+      laid = true;
+    }
+    return laid;
+  }
+
   hasSeaRoute(cellId: number): boolean {
     const { pack } = this.worldContext;
     return Object.values(pack.cells.routes[cellId] ?? {}).some(routeId =>
@@ -1716,7 +1775,7 @@ class RoutesModule {
     return this.appendRoute("trails", pack.cells.f[cellId], pathCells);
   }
 
-  private appendRoute(group: "trails" | "searoutes", feature: number, pathCells: number[]): Route {
+  private appendRoute(group: "trails" | "searoutes" | "railways", feature: number, pathCells: number[]): Route {
     const { pack } = this.worldContext;
     const pointsArray = this.preparePointsArray();
     const points = this.getPoints(group, pathCells, pointsArray);

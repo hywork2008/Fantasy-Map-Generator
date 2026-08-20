@@ -130,6 +130,9 @@ class ViewLayerServiceImpl {
   get searoutes() {
     return viewContext.searoutes;
   }
+  get railways() {
+    return viewContext.railways;
+  }
 
   // ── Settlement ────────────────────────────────────────────────────────────
   get icons() {

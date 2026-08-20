@@ -2792,7 +2792,11 @@ export function init(api: ExtensionAPI): void {
       "simulation.states",
       "map.settlements",
       "simulation.cells",
-      "map.annotations"
+      "map.annotations",
+      // Railway links materialize as "railways"-group pack.routes once railwayOperations
+      // is adopted (steamIndustry.ts's settleRailways) — see docs/plan/
+      // steam-industrial-implementation.md §7.
+      "map.networks"
     ],
     cadence: { every: 1 },
     profileLabel: "economy",
@@ -2910,6 +2914,7 @@ export function init(api: ExtensionAPI): void {
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
       let settledAdultsFromMobility = 0;
       let urbanWaterChanged = false;
+      let railwayNetworkChanged = false;
       let burgGroupsChanged = false;
       let cullTopics: readonly DataTopic[] = [];
       let escortTopics: readonly string[] = [];
@@ -2979,7 +2984,9 @@ export function init(api: ExtensionAPI): void {
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
         urbanWaterChanged = UrbanWater.settleAnnual();
-        SteamIndustry.settleAnnual();
+        // Returns true only when new "railways" route track was laid this call
+        // (docs/plan/steam-industrial-implementation.md §7) — drives map.networks below.
+        railwayNetworkChanged = SteamIndustry.settleAnnual();
         // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
         // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
         // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
@@ -3083,6 +3090,9 @@ export function init(api: ExtensionAPI): void {
       if (burgGroupsChanged || settledAdultsFromMobility > 0 || urbanWaterChanged) {
         writer.markChanged("simulation.burgs", "map.settlements");
       }
+      // New railway track was laid into pack.routes/pack.cells.routes this tick
+      // (steamIndustry.ts's settleRailways) — redraw routes and invalidate the WebGL cache.
+      if (railwayNetworkChanged) writer.markChanged("map.networks");
       // Cull ecology topics (cells/annotations) — only when resolve actually mutated host data.
       if (cullTopics.length) {
         const hostTopics = cullTopics.filter(t => t === "simulation.cells" || t === "map.annotations");

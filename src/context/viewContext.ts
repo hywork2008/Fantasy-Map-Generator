@@ -83,6 +83,7 @@ export interface InfrastructureLayers {
   roads: SvgGroup;
   trails: SvgGroup;
   searoutes: SvgGroup;
+  railways: SvgGroup;
 }
 
 /** Settlement, label and military layers. */

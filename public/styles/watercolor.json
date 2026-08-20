@@ -209,6 +209,15 @@
     "filter": null,
     "mask": null
   },
+  "#railways": {
+    "opacity": 0.9,
+    "stroke": "#8f6b96",
+    "stroke-width": 0.55,
+    "stroke-dasharray": "",
+    "stroke-linecap": "butt",
+    "filter": null,
+    "mask": null
+  },
   "#searoutes": {
     "opacity": 0.9,
     "stroke": "#969696",

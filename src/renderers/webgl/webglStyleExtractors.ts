@@ -34,6 +34,7 @@ export interface PathDashStyles {
   roads: DeckPathDashArray;
   trails: DeckPathDashArray;
   searoutes: DeckPathDashArray;
+  railways: DeckPathDashArray;
 }
 
 export interface PathPaintStyles {
@@ -42,6 +43,7 @@ export interface PathPaintStyles {
   roads: Color;
   trails: Color;
   searoutes: Color;
+  railways: Color;
 }
 
 export interface RiverPaint {
@@ -84,7 +86,8 @@ export function getPathDashStyles(_viewContext?: Readonly<ViewContext>): PathDas
     provinceBorders: getDashArray("#provinceBorders"),
     roads: getDashArray("#roads"),
     trails: getDashArray("#trails"),
-    searoutes: getDashArray("#searoutes")
+    searoutes: getDashArray("#searoutes"),
+    railways: getDashArray("#railways")
   };
 }
 
@@ -95,7 +98,8 @@ export function getPathPaintStyles(_viewContext?: Readonly<ViewContext>): PathPa
     provinceBorders: getStrokePaint("#provinceBorders", "#56566d", 0.8),
     roads: getStrokePaint("#roads", "#d06324", 0.9),
     trails: getStrokePaint("#trails", "#d06324", 0.9),
-    searoutes: getStrokePaint("#searoutes", "#ffffff", 0.9)
+    searoutes: getStrokePaint("#searoutes", "#ffffff", 0.9),
+    railways: getStrokePaint("#railways", "#7a3b8f", 0.9)
   };
 }
 

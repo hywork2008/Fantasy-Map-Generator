@@ -96,7 +96,8 @@ describe("webgl style extractors", () => {
           provinceBorders: [0, 2],
           roads: [3, 1],
           trails: [0, 0],
-          searoutes: [1, 2]
+          searoutes: [1, 2],
+          railways: [0, 0]
         });
         expect(getDashArray("#stateBorders")).toEqual([2, 2]);
         expect(parseDashArray("0 0")).toEqual([0, 0]);
@@ -106,7 +107,8 @@ describe("webgl style extractors", () => {
           provinceBorders: [86, 86, 109, 204],
           roads: [208, 99, 36, 230],
           trails: [208, 99, 36, 230],
-          searoutes: [255, 255, 255, 230]
+          searoutes: [255, 255, 255, 230],
+          railways: [122, 59, 143, 230]
         });
       }
     );
