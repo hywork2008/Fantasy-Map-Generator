@@ -2,14 +2,20 @@
 
 ## 状態
 
-**Phase 1–3 実装済み（大航海・海洋商業まで）**（2026-08-03）
+**Phase 1–6 実装済み（宇宙開発を除く大半の分野）**（2026-08-20 更新。旧「Phase 1–3 実装済み」表記は Phase 4–6 の進捗を反映していなかったため更新）
 
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
 | 1 | 共通モデル・開始時代シード・年次評価 | 実装済み |
 | 2 | 火薬ノード + State 別需要効率 | 実装済み |
 | 3 | 大航海ノード + 船級ゲート | 実装済み |
-| 4+ | 前工業化〜宇宙 | **未着手**（別機会） |
+| 4 | 前工業化ノード + 初期蒸気機関 | 実装済み。工場制手工業（`factoryOrganization`）を追加済み（2026-08-20、下記参照） |
+| 5 | 蒸気・機械化（高効率機関・鉄道・海運蒸機） | 実装済み。機械紡績・機械織機（`mechanizedTextiles`）を追加済み（2026-08-20、下記参照） |
+| 6 | 近代化学・電化・電解工業（硫酸・リン酸肥料・近代製鋼・触媒化学・合成アンモニア・発電網・電解アルミニウム） | 実装済み。辰砂・水銀チェーン（§9.5）のみ未着手 |
+| 7 | 石油・内燃機関 | **未着手**（別機会） |
+| 8 | ロケット・宇宙開発 | **未着手**（別機会） |
+
+`textiles` ギルド知識ドメイン（紡織）は §3-A の分類上ずっと存在していたが、2026-08-20 まで技術ノードからは一切参照されておらず、蓄積されても何の効果も持たなかった。`factoryOrganization` / `mechanizedTextiles` の追加はこの欠落（§7・§8 の「工場制手工業」「機械紡績・機械織機」行）を埋めるもの。`leather` ドメインは元々ロードマップにノードとして記載がなく、対応不要。
 
 コードの主な置き場:
 
@@ -438,24 +444,26 @@ interface TechnologyDefinition {
 2. 船級: sloop 常時可、caravel は `oceanGoingHulls` ≥ demonstrated、galleon は adopted + `oceanNavigation` ≥ known（加えて従来の tech points）。
 3. 内陸は港・船体シグナルが弱いため大航海ノードが停滞し、鉱山系 era-1 ノードは別経路で進行可能。
 
-### Phase 4: 前工業化と蒸気機関 — **未着手**
+### Phase 4: 前工業化と蒸気機関 — **実装済み**
 
-1. [蒸気機関の知識・技術蓄積プロセス設計](./steam-engine-knowledge-accumulation.md) に従い、鉱山排水圧力、実験自然哲学、精密中ぐり、Coal 供給を別々の前提として実装する。火器の Iron / Lead 需要は鉱山投資を加速するが、蒸気機関の必須前提にはしない。
-2. 初期蒸気機関は深部鉱山の試作・設置記録を必要とし、Coal、Iron、Tools、保守を実際に消費する。効果は設置済み MineOperation の排水・年産上限に限定する。
-3. 高効率機関、工場動力、蒸気輸送、鉄道は個別の後続ノードとして実装する。
+1. [蒸気機関の知識・技術蓄積プロセス設計](./steam-engine-knowledge-accumulation.md) に従い、鉱山排水圧力、実験自然哲学、精密中ぐり、Coal 供給を別々の前提として実装済み（`experimentalNaturalPhilosophy` / `mineSurveyAndDrainage` / `precisionBoringAndMeasurement` / `coalFuelSupply`）。火器の Iron / Lead 需要は鉱山投資を加速するが、蒸気機関の必須前提にはしていない。
+2. 初期蒸気機関（`atmosphericSteamPumping`）は深部鉱山の試作・設置記録を必要とし、効果は設置済み MineOperation の排水・年産上限に限定している。
+3. 高効率機関、工場動力、蒸気輸送、鉄道を個別の後続ノードとして実装済み（ERA_5、下記 Phase 5 参照）。
+4. **2026-08-20 追加**: 本書 §7 の「工場制手工業」行が `textiles` ギルド知識ドメインを前提に挙げているにもかかわらずノード化されていなかったため、`factoryOrganization`（`mechanicalWorkshops` + `commercialFinance` 前提）を追加した。効果は Phase 5 の `mechanizedTextiles` の前提となるほか、単独では新たな生産効果を持たない（ロードマップの「分業・生産規模・動力需要の増大」は下流の `mechanizedTextiles` 側で具体化する）。
 
-### Phase 5: 電力・硫酸・近代化学
+### Phase 5: 電力・硫酸・近代化学 — **実装済み**
 
-1. naturalPhilosophy / chemistry の実践者・組織知・消費先を追加する。
-2. 工業的硫酸、リン酸肥料、近代製鋼、電力網、高圧装置、触媒化学を順に接続する。
-3. 合成アンモニアは最後に実装し、肥料普及と軍需原料を別効果として検証する。
+1. naturalPhilosophy / chemistry の実践者・組織知・消費先を追加済み（`analyticalChemistry` ほか）。
+2. 工業的硫酸、リン酸肥料、近代製鋼、電力網、高圧装置、触媒化学を接続済み（下記 Phase 6 参照。ERA_5/ERA_6 に実装が分散している）。
+3. 合成アンモニアを実装済み（肥料普及と軍需原料を別効果として扱う設計は [synthetic-ammonia-vertical-slice.md](./synthetic-ammonia-vertical-slice.md) 参照）。
+4. **2026-08-20 追加**: 本書 §8 の「機械紡績・機械織機」行（`textiles`、`mechanics`、`factory organization` 前提）が未実装だったため、`mechanizedTextiles`（`factoryOrganization` + `rotarySteamPower` 前提）を追加した。効果は `getMechanizedTextilesOutputMultiplier`（`technologyProgress.ts`）が Cloth / Garments / Sails（`textiles` ギルドドメイン）の生産量に最大 +35% のボーナスを乗せる形で `production-generator.ts` に接続済み — 既存のギルド技術ボーナスに積み重なる。
 
-### Phase 6: 電気化学・アルミニウム・水銀の安全な利用
+### Phase 6: 電気化学・アルミニウム・水銀の安全な利用 — **アルミニウムまで実装済み。水銀は未着手**
 
-1. Electricity を容量型サービスとして導入し、発電所・送電網・需要家の不足時挙動を実装する。
-2. Bauxite → Alumina → Aluminum のチェーンを追加し、電解精錬を大口電力需要として接続する。
-3. Cinnabar → Mercury の小規模チェーンと、分析・貴金属回収・精密計測の限定用途を追加する。
-4. 水銀鉱山・精錬・利用による健康・環境の負債を、同じ変更で実装・テストする。
+1. Electricity を容量型サービスとして導入し、発電所・送電網・需要家の不足時挙動を実装済み（`generatorAndMotor` / `powerGrid`、[electric-power-and-telegraph.md](./electric-power-and-telegraph.md)）。
+2. Bauxite → Alumina → Aluminum のチェーンを追加し、電解精錬を大口電力需要として接続済み（`electrolyticIndustry`、[electrolytic-industry-vertical-slice.md](./electrolytic-industry-vertical-slice.md)）。
+3. Cinnabar → Mercury の小規模チェーンと、分析・貴金属回収・精密計測の限定用途は **未着手**。
+4. 水銀鉱山・精錬・利用による健康・環境の負債（`MercuryContaminationStock`）も同様に **未着手**。
 
 ### Phase 7: 石油・内燃機関
 

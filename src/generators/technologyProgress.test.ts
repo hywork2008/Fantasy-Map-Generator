@@ -10,6 +10,8 @@ import {
   getFourCourseRotationEffect,
   getGunpowderDemandTechMultiplier,
   getMaxShipClassTierForState,
+  getMechanizedTextilesEffect,
+  getMechanizedTextilesOutputMultiplier,
   getTechnologyProgressEntries,
   getTechnologyStage,
   HINTABLE_KNOWN_RATIO_KEYS,
@@ -429,6 +431,69 @@ describe("technologyProgress", () => {
     settleTechnologyAnnual(1200);
     expect(getTechnologyStage("improvedMining", 1)).toBe("locked");
     expect(getTechnologyStage("atmosphericSteamPumping", 1)).toBe("locked");
+  });
+
+  it("defines factory organization and mechanized textiles behind the textiles guild chain", () => {
+    const factoryOrganization = TECHNOLOGY_DEFINITIONS.find(def => def.id === "factoryOrganization");
+    expect(factoryOrganization).toMatchObject({
+      era: 4,
+      prerequisites: ["mechanicalWorkshops", "commercialFinance"]
+    });
+    const mechanizedTextiles = TECHNOLOGY_DEFINITIONS.find(def => def.id === "mechanizedTextiles");
+    expect(mechanizedTextiles).toMatchObject({
+      era: 5,
+      prerequisites: ["factoryOrganization", "rotarySteamPower"]
+    });
+
+    expect(getMechanizedTextilesEffect(1)).toBe(0);
+    expect(getMechanizedTextilesOutputMultiplier(1)).toBe(1);
+
+    setTechnologyProgressForTests([
+      { technologyId: "mechanizedTextiles", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+      { technologyId: "mechanizedTextiles", scope: "state", ownerId: 2, stage: "diffused", diffusion: 1 }
+    ]);
+    expect(getMechanizedTextilesEffect(1)).toBeCloseTo(0.35);
+    expect(getMechanizedTextilesOutputMultiplier(1)).toBeCloseTo(1 + 0.35 * 0.35);
+    expect(getMechanizedTextilesEffect(2)).toBe(1);
+    expect(getMechanizedTextilesOutputMultiplier(2)).toBeCloseTo(1.35);
+  });
+
+  it("advances factory organization and mechanized textiles once textiles/metalworking guild stock, capital, and steam power are present", () => {
+    installMinimalWorld({ gunpowder: false });
+    worldContext.pack.states[1].treasury = 400;
+    simulationContext.extensions = {
+      economy: {
+        guildKnowledgeStocks: [
+          { burgId: 1, domain: "textiles", stock: 0.8 },
+          { burgId: 1, domain: "metallurgy", stock: 0.7 }
+        ],
+        academyKnowledgeStocks: [{ burgId: 1, domain: "administration", stock: 0.6 }]
+      }
+    };
+    setTechnologyProgressForTests([
+      { technologyId: "mechanicalWorkshops", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 },
+      { technologyId: "commercialFinance", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 },
+      { technologyId: "rotarySteamPower", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ]);
+
+    settleTechnologyAnnual(1200);
+
+    // Burgs 1+2 (state 1) hold 42 population points, above both nodes' urbanPopulation floors.
+    expect(["demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("factoryOrganization", 1));
+    expect(["demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("mechanizedTextiles", 1));
+  });
+
+  it("keeps mechanized textiles locked without factory organization or rotary steam power", () => {
+    installMinimalWorld({ gunpowder: false });
+    worldContext.pack.states[1].treasury = 400;
+    simulationContext.extensions = {
+      economy: {
+        guildKnowledgeStocks: [{ burgId: 1, domain: "textiles", stock: 0.9 }]
+      }
+    };
+    settleTechnologyAnnual(1200);
+    expect(getTechnologyStage("factoryOrganization", 1)).toBe("locked");
+    expect(getTechnologyStage("mechanizedTextiles", 1)).toBe("locked");
   });
 
   it("diffuses an adopted technology in one year at 100× development speed", () => {
@@ -998,6 +1063,7 @@ describe("technologyProgress", () => {
         "metallurgy",
         "woodworking",
         "masonry",
+        "textiles",
         "instruments",
         "glassware",
         "medicine",

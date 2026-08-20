@@ -448,6 +448,23 @@ const ERA_4: readonly TechnologyDefinition[] = [
     demonstrated: { min: { experimentRecord: 0.4, labVesselQuality: 0.45, treasury: 70 } },
     adopted: { min: { experimentRecord: 0.55, naturalPhilosophy: 0.4, treasury: 110 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/technology-development-roadmap.md §7 row 6 (工場制手工業). Prerequisites are
+  // mechanicalWorkshops (water power, the table's "水力") and commercialFinance (stewardship /
+  // capital) rather than a fresh signal for each — both must be adopted before this node can even
+  // reach known, which already floors woodworking >= 0.45, urbanPopulation >= 25, treasury >= 150,
+  // and administration >= 0.35. textiles/metallurgy ("textiles / metalworking Guild") are the two
+  // signals neither prerequisite touches, so they carry the real gate; urbanPopulation/treasury
+  // are restated above those guaranteed floors so they stay meaningful rather than auto-passing.
+  {
+    id: "factoryOrganization",
+    label: "Factory-style manufactory organization",
+    era: 4,
+    scope: "state",
+    prerequisites: ["mechanicalWorkshops", "commercialFinance"],
+    known: { min: { textiles: 0.2, metallurgy: 0.2, urbanPopulation: 28 } },
+    demonstrated: { min: { textiles: 0.32, metallurgy: 0.28, urbanPopulation: 32, treasury: 190 } },
+    adopted: { min: { textiles: 0.42, metallurgy: 0.32, urbanPopulation: 38, treasury: 230, administration: 0.42 } }
   }
 ];
 
@@ -500,6 +517,25 @@ const ERA_5: readonly TechnologyDefinition[] = [
     known: { min: { woodworking: 0.35, metallurgy: 0.5, treasury: 80 } },
     demonstrated: { min: { woodworking: 0.45, metallurgy: 0.6, urbanPopulation: 15, treasury: 120 } },
     adopted: { min: { woodworking: 0.55, metallurgy: 0.65, urbanPopulation: 20, treasury: 160 } }
+  },
+  // docs/plan/technology-development-roadmap.md §8 row 3 (機械紡績・機械織機). Both prerequisites
+  // must be adopted (factoryOrganization -> textiles/metallurgy/urbanPopulation/treasury/
+  // administration; rotarySteamPower -> woodworking/metallurgy/urbanPopulation/treasury), so every
+  // threshold below sits above the higher of the two prerequisites' own adopted floors — textiles
+  // (factoryOrganization's 0.42) is pushed well past its guaranteed value to stay a real gate,
+  // since neither prerequisite raises it further on its own. Effect: getMechanizedTextilesEffect /
+  // getMechanizedTextilesOutputMultiplier (technologyProgress.ts) apply a Cloth/Garments/Sails
+  // output bonus at production-generator.ts's textiles-domain step, alongside the existing guild-
+  // technique bonus — "Cloth 生産量増、職人構成と都市雇用の変化" from the roadmap row's result column.
+  {
+    id: "mechanizedTextiles",
+    label: "Mechanized spinning and weaving",
+    era: 5,
+    scope: "state",
+    prerequisites: ["factoryOrganization", "rotarySteamPower"],
+    known: { min: { textiles: 0.5 } },
+    demonstrated: { min: { textiles: 0.62, treasury: 260 } },
+    adopted: { min: { textiles: 0.72, treasury: 300, urbanPopulation: 45 } }
   },
   {
     id: "coalCarbonization",

@@ -1,4 +1,8 @@
-import { getTechnologyStage, isDistillationKnown } from "../../../generators/technologyProgress";
+import {
+  getMechanizedTextilesOutputMultiplier,
+  getTechnologyStage,
+  isDistillationKnown
+} from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
@@ -1031,10 +1035,16 @@ export class ProductionModule {
     // efficiency multiplier alongside culture — docs/plan/knowledge-guild-system.md §6, §9 Phase 2.
     const domain = getCraftDomainForGood(good.name);
     const guildBonus = domain && state.burg.i ? getGuildBonus(state.burg.i, domain) : 1;
+    // Mechanized spinning/weaving (docs/plan/technology-development-roadmap.md §8) stacks on top of
+    // the guild-technique bonus for the whole textiles domain (Cloth/Garments/Sails), not just Cloth
+    // itself — mechanization improved the whole weaving trade, and Garments/Sails are woven from it.
+    const technologyBonus =
+      domain === "textiles" && state.burg.state ? getMechanizedTextilesOutputMultiplier(state.burg.state) : 1;
     const produced = rn(
       actualYield *
         cultureModifier *
         guildBonus *
+        technologyBonus *
         decision.laborProductivity *
         (smithingProgram?.outputMultiplier ?? 1),
       2

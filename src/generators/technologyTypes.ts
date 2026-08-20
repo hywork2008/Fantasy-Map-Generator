@@ -45,6 +45,8 @@ export interface TechnologySignals {
   printing: number;
   administration: number;
   masonry: number;
+  /** 0..1 max GuildKnowledgeStock("textiles") across the state's burgs — spinning/weaving/sailmaking technique. */
+  textiles: number;
   gunpowderDemand: number;
   shipTechPoints: number;
   completedHulls: number;

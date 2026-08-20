@@ -43,6 +43,7 @@ export const HINTABLE_KNOWN_RATIO_KEYS = [
   "metallurgy",
   "woodworking",
   "masonry",
+  "textiles",
   "instruments",
   "glassware",
   "medicine",
@@ -190,6 +191,31 @@ export function getAtmosphericSteamPumpingEffect(stateId: number): number {
 /** Extra drainage credit (0..0.5) applied on top of a mine's physical drainage works. */
 export function getAtmosphericSteamDrainageBonus(stateId: number): number {
   return getAtmosphericSteamPumpingEffect(stateId) * 0.5;
+}
+
+/**
+ * Local uptake of mechanized spinning and weaving (docs/plan/technology-development-roadmap.md
+ * §8's 機械紡績・機械織機 node). Demonstration is a single mechanized workshop; adoption/diffusion
+ * are the normal way the state's textiles guild works.
+ */
+export function getMechanizedTextilesEffect(stateId: number): number {
+  const stage = getTechnologyStage("mechanizedTextiles", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
+/** Max output multiplier mechanized spinning/weaving adds on top of the textiles guild-technique bonus. */
+const MECHANIZED_TEXTILES_BONUS_MAX = 0.35;
+
+/**
+ * Ready-to-multiply Cloth/Garments/Sails output bonus (1 = no bonus), same "1 + max * ratio" shape
+ * as GuildKnowledge.getGuildBonus — applied alongside it at production-generator.ts's textiles-
+ * domain output step, not in place of it. See docs/plan/technology-development-roadmap.md §8.
+ */
+export function getMechanizedTextilesOutputMultiplier(stateId: number): number {
+  return 1 + MECHANIZED_TEXTILES_BONUS_MAX * getMechanizedTextilesEffect(stateId);
 }
 
 type HistoricalPeriod = NonNullable<typeof worldContext.options.historicalPeriod>;
@@ -377,6 +403,7 @@ function emptySignals(): TechnologySignals {
     printing: 0,
     administration: 0,
     masonry: 0,
+    textiles: 0,
     gunpowderDemand: 0,
     shipTechPoints: 0,
     completedHulls: 0,
@@ -496,6 +523,7 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       if (domain === "masonry") signals.masonry = Math.max(signals.masonry, stock);
       if (domain === "instruments") signals.instruments = Math.max(signals.instruments, stock);
       if (domain === "glassware") signals.glassware = Math.max(signals.glassware, stock);
+      if (domain === "textiles") signals.textiles = Math.max(signals.textiles, stock);
     }
 
     const academyMax = new Map<string, number>();

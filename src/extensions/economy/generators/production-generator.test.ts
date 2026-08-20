@@ -344,4 +344,56 @@ describe("ProductionModule byproducts", () => {
       expect(laborUsed).toBe(0);
     });
   });
+
+  it("applies the mechanized-textiles output bonus to the textiles guild domain (docs/plan/technology-development-roadmap.md §8)", () => {
+    const cloth = {
+      i: 20,
+      name: "Cloth",
+      tags: ["clothing"],
+      value: 15,
+      unit: "wardrobe bolt",
+      icon: "",
+      color: ""
+    } as Good;
+    const production = new ProductionModule() as unknown as ManufactureHarness;
+    const stateFor = (stateId: number) => ({
+      burg: { i: 1, cell: 0, treasury: 0, state: stateId },
+      market: { i: 1, goods: {} },
+      inventory: [] as number[],
+      demandCoverage: [] as number[],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: undefined,
+      strategicDemandByGood: new Map<number, never>()
+    });
+    const decision = {
+      action: {
+        good: cloth,
+        ingredients: [] as { goodId: number; amount: number }[],
+        byproducts: [] as { goodId: number; amount: number }[],
+        maxYield: 100,
+        ingredientCostPerUnit: 0,
+        smithingProgram: null
+      },
+      candidates: [] as never[],
+      goalGoodId: 20,
+      laborProductivity: 1
+    };
+
+    const baseline = production.executeManufacture(stateFor(1), { demandCoverageByGood: [] }, decision, 1);
+    expect(baseline.yieldLots).toBeCloseTo(1, 6);
+
+    simulationContext.technology.progress = [
+      { technologyId: "mechanizedTextiles", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ];
+    const mechanized = production.executeManufacture(stateFor(1), { demandCoverageByGood: [] }, decision, 1);
+    // getMechanizedTextilesOutputMultiplier("adopted") = 1 + 0.35 * 0.75 = 1.2625, rn()'d to 2 places.
+    expect(mechanized.yieldLots).toBeCloseTo(1.26, 2);
+    expect(mechanized.yieldLots).toBeGreaterThan(baseline.yieldLots);
+
+    // A different state without the technology still gets the plain guild-only bonus (1×).
+    const other = production.executeManufacture(stateFor(2), { demandCoverageByGood: [] }, decision, 1);
+    expect(other.yieldLots).toBeCloseTo(1, 6);
+  });
 });
