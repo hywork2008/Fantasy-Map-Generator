@@ -16,6 +16,7 @@ import {
   GoodsModule,
   isGoodEnabled,
   migrateElectricalGoods,
+  migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
@@ -316,6 +317,39 @@ describe("GoodsModule", () => {
       { 1: 1, 2: 0.2, 3: 0.1 } // Copper Ingot / Glass / Machine Parts, resolved to this catalogue's ids
     ]);
     expect(migrateElectricalGoods()).toBe(false);
+  });
+
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.2-3.4, §3.8.
+  it("appends Bauxite (mined, no recipe), Alumina (craft recipe), and Aluminum (plant-only, no recipe)", () => {
+    setGoods([
+      {
+        i: 1,
+        name: "Caustic Soda",
+        tags: ["industrial", "mineral"],
+        value: 13,
+        unit: "barrel",
+        icon: "good-unknown",
+        color: "#eae6da"
+      },
+      { i: 2, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migrateElectrolyticIndustryGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const bauxite = byName.get("Bauxite");
+    const alumina = byName.get("Alumina");
+    const aluminum = byName.get("Aluminum");
+    expect(bauxite).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(bauxite?.requiredTechnology).toBeUndefined();
+    expect(bauxite?.recipes).toBeUndefined();
+    expect(alumina).toMatchObject({ requiredTechnology: "chemicalIndustryFoundation", chance: 0 });
+    expect(alumina?.recipes).toEqual([
+      { [bauxite!.i]: 1, 1: 0.3, 2: 0.2 } // Bauxite / Caustic Soda / Coal, resolved to this catalogue's ids
+    ]);
+    expect(aluminum).toMatchObject({ requiredTechnology: "electrolyticIndustry", chance: 0, demandCoverage: {} });
+    expect(aluminum?.recipes).toBeUndefined();
+    expect(migrateElectrolyticIndustryGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

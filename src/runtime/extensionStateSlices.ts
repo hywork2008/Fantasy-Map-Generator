@@ -441,6 +441,8 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     // docs/plan/electric-power-and-telegraph.md §3.9.
     "powerStations",
     "telegraphLines",
+    // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+    "electrolysisPlants",
     "chemMedPracticeRecords",
     "medicalCareReliefByBurg",
     // Player technology-bias SoT (docs/plan/player-character-technology-bias.md PR-1).

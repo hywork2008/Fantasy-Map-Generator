@@ -69,8 +69,9 @@ describe("refreshMineralOverview", () => {
     refreshMineralOverview();
 
     const state = getMineralOverviewState();
-    // 6 ore + coal/saltpeter/sulfur/phosphate rock (docs/plan/phosphate-fertilizer-vertical-slice.md §3.2).
-    expect(state.commodities).toHaveLength(10);
+    // 6 ore + coal/saltpeter/sulfur/phosphate rock/bauxite (docs/plan/phosphate-fertilizer-
+    // vertical-slice.md §3.2, docs/plan/electrolytic-industry-vertical-slice.md §3.2).
+    expect(state.commodities).toHaveLength(11);
     expect(state.commodities.find(row => row.commodity === "iron")).toMatchObject({
       depositCount: 1,
       activeMineCount: 1,

@@ -6,9 +6,10 @@ export type OreCommodity = (typeof ORE_COMMODITIES)[number];
 /**
  * Mineral goods that bypass smelting and remain directly mine-supplied. Not literally all
  * "fuel" (Saltpeter/Sulfur aren't either) — the name predates Phosphate Rock; kept as-is rather
- * than renamed (docs/plan/phosphate-fertilizer-vertical-slice.md §3.2).
+ * than renamed (docs/plan/phosphate-fertilizer-vertical-slice.md §3.2). "bauxite" follows the
+ * same convention (docs/plan/electrolytic-industry-vertical-slice.md §3.2).
  */
-export const FUEL_MINERAL_COMMODITIES = ["coal", "saltpeter", "sulfur", "phosphate rock"] as const;
+export const FUEL_MINERAL_COMMODITIES = ["coal", "saltpeter", "sulfur", "phosphate rock", "bauxite"] as const;
 
 export type FuelMineralCommodity = (typeof FUEL_MINERAL_COMMODITIES)[number];
 export type MineralCommodity = OreCommodity | FuelMineralCommodity;
@@ -28,7 +29,8 @@ export type MineralDistrictType =
   | "placer"
   | "coalSeam"
   | "evaporite"
-  | "phosphorite";
+  | "phosphorite"
+  | "laterite";
 
 /**
  * A field sign used by State prospecting. Evidence is generated with the deposit

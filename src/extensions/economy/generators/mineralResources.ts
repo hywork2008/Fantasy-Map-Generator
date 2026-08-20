@@ -85,7 +85,10 @@ const DISTRICT_PROFILES: readonly DistrictProfile[] = [
   { type: "evaporite", provinces: ["basin"], primary: "sulfur", commodities: ["sulfur", "saltpeter"] },
   // Sedimentary phosphorite, same "basin" province as coalSeam/evaporite (docs/plan/
   // phosphate-fertilizer-vertical-slice.md §3.2).
-  { type: "phosphorite", provinces: ["basin"], primary: "phosphate rock", commodities: ["phosphate rock"] }
+  { type: "phosphorite", provinces: ["basin"], primary: "phosphate rock", commodities: ["phosphate rock"] },
+  // Lateritic bauxite weathering crust, same "shield" province as bandedIron/lodeGold — no new
+  // GeologicalProvinceKind added (docs/plan/electrolytic-industry-vertical-slice.md §3.2).
+  { type: "laterite", provinces: ["shield"], primary: "bauxite", commodities: ["bauxite"] }
 ];
 
 const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
@@ -100,7 +103,8 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
   "placer",
   "coalSeam",
   "evaporite",
-  "phosphorite"
+  "phosphorite",
+  "laterite"
 ];
 
 const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
@@ -492,7 +496,8 @@ export class MineralResourcesModule {
       coal: 160,
       saltpeter: 12,
       sulfur: 15,
-      "phosphate rock": 140 // calibration TBD — bulk sedimentary rock, slightly below coal's scale
+      "phosphate rock": 140, // calibration TBD — bulk sedimentary rock, slightly below coal's scale
+      bauxite: 120 // calibration TBD — bulk lateritic ore, below Phosphate Rock's scale
     };
     const capacity = baseAnnualCapacity[commodity] * richness * (primary ? 1 : 0.25);
     const mineLifeYears = 60 + Math.floor(this.hash(seed, `${commodity}:life`, cell) * 190);

@@ -617,6 +617,8 @@
     "goods": {
       "names": {
         "Alum": "ミョウバン",
+        "Alumina": "アルミナ",
+        "Aluminum": "アルミニウム",
         "Amber": "琥珀",
         "Apples": "リンゴ",
         "Arms": "武器",
@@ -626,6 +628,7 @@
         "Ash": "灰",
         "Barley": "大麦",
         "Barrels": "樽",
+        "Bauxite": "ボーキサイト",
         "Beer": "ビール",
         "Beeswax": "蜜蝋",
         "Books": "書物",

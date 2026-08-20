@@ -29,6 +29,7 @@ import type { ConstructionOperation } from "./generators/constructionEmploymentT
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { PowerStation, TelegraphLine } from "./generators/electricalTypes";
+import type { ElectrolysisPlant } from "./generators/electrolysisTypes";
 import type {
   EscortActiveContract,
   EscortCooldowns,
@@ -171,6 +172,7 @@ let _syntheticAmmoniaPlantsLastSettledYearFallback: number | null = null;
 let _nitrogenFertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _powerStationsLastSettledYearFallback: number | null = null;
 let _telegraphLinesLastSettledYearFallback: number | null = null;
+let _electrolysisPlantsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
@@ -237,6 +239,7 @@ export function clearEconomyContext(): void {
   _nitrogenFertilizerInvestmentLastSettledYearFallback = null;
   _powerStationsLastSettledYearFallback = null;
   _telegraphLinesLastSettledYearFallback = null;
+  _electrolysisPlantsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
@@ -1462,6 +1465,13 @@ export function getTelegraphLines(): TelegraphLine[] {
 export function setTelegraphLines(rows: readonly TelegraphLine[]): void {
   setSliceArray("telegraphLines", rows);
 }
+/** Same shape as getPowerStations. Design: docs/plan/electrolytic-industry-vertical-slice.md §3.7. */
+export function getElectrolysisPlants(): ElectrolysisPlant[] {
+  return getSliceArray<ElectrolysisPlant>("electrolysisPlants");
+}
+export function setElectrolysisPlants(rows: readonly ElectrolysisPlant[]): void {
+  setSliceArray("electrolysisPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1579,6 +1589,18 @@ export function getTelegraphLinesLastSettledYear(): number | null {
 export function setTelegraphLinesLastSettledYear(year: number): void {
   writeYearToSlice("telegraphLinesLastSettledYear", year, value => {
     _telegraphLinesLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards ElectrolysisPlants.settleAnnual(), same shape as getTelegraphLinesLastSettledYear.
+ * Design: docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+ */
+export function getElectrolysisPlantsLastSettledYear(): number | null {
+  return yearFromSlice("electrolysisPlantsLastSettledYear", _electrolysisPlantsLastSettledYearFallback);
+}
+export function setElectrolysisPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("electrolysisPlantsLastSettledYear", year, value => {
+    _electrolysisPlantsLastSettledYearFallback = value;
   });
 }
 /** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */

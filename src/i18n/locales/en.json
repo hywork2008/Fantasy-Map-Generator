@@ -617,6 +617,8 @@
     "goods": {
       "names": {
         "Alum": "Alum",
+        "Alumina": "Alumina",
+        "Aluminum": "Aluminum",
         "Amber": "Amber",
         "Apples": "Apples",
         "Arms": "Arms",
@@ -626,6 +628,7 @@
         "Ash": "Ash",
         "Barley": "Barley",
         "Barrels": "Barrels",
+        "Bauxite": "Bauxite",
         "Beer": "Beer",
         "Beeswax": "Beeswax",
         "Books": "Books",

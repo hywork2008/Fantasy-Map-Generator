@@ -777,6 +777,66 @@ describe("technologyProgress", () => {
     expect(powerGrid?.adopted.min?.electricityCoverage).toBe(0.35);
   });
 
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.6.
+  it("defines electrolyticIndustry converging on all three of practicalElectrochemistry/highPressureChemicalApparatus/powerGrid", () => {
+    const electrolyticIndustry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "electrolyticIndustry");
+    expect(electrolyticIndustry?.era).toBe(6);
+    expect(electrolyticIndustry?.prerequisites).toEqual([
+      "practicalElectrochemistry",
+      "highPressureChemicalApparatus",
+      "powerGrid"
+    ]);
+    expect(electrolyticIndustry?.demonstrated.min?.electrolysisPlantTrialYears).toBe(2);
+    expect(electrolyticIndustry?.adopted.min?.electrolysisPlantInstallations).toBe(1);
+  });
+
+  it("never lets electrolyticIndustry progress unless all three prerequisites have reached adopted", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        markets: [{ i: 1, centerBurgId: 1, goods: {}, electricityStock: 1 }]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    // Only two of the three prerequisites adopted for state 1 — the third (powerGrid) is absent,
+    // so prerequisitesMet() must keep electrolyticIndustry locked regardless of how far the
+    // known/demonstrated/adopted signal thresholds above (electricityCoverage=1, well past 0.4)
+    // are individually satisfied.
+    setTechnologyProgressForTests([
+      { technologyId: "practicalElectrochemistry", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "highPressureChemicalApparatus", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("electrolyticIndustry", 1)).toBe("locked");
+  });
+
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.5 — same shape as the powerStations
+  // signal test above.
+  it("computes electrolysisPlantTrialYears/electrolysisPlantInstallations from ElectrolysisPlant rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        electrolysisPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "electrolyticIndustry");
+    expect(lines.some(line => line.includes("electrolysisPlantTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("electrolysisPlantInstallations"))).toBe(false);
+  });
+
   it("computes copperWireAccess/powerStationTrialYears/powerStationInstallations from market stock and PowerStation rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
     installMinimalWorld();
     simulationContext.extensions = {

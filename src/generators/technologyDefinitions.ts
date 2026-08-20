@@ -810,6 +810,25 @@ const ERA_6: readonly TechnologyDefinition[] = [
     demonstrated: { min: { electricityCoverage: 0.3, administration: 0.62, treasury: 420 } },
     adopted: { min: { electricityCoverage: 0.35, administration: 0.68, treasury: 500 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.6. Three prerequisites converge here —
+  // practicalElectrochemistry (electrochemistry), highPressureChemicalApparatus (the existing
+  // chemicalEngineering proxy catalyticChemistry already reuses), and powerGrid (a stable
+  // electricity network) — matching roadmap §9.3 L289's three-item prerequisite list exactly.
+  // prerequisitesMet() requires all three adopted, so every threshold below sits above the
+  // highest of their own adopted thresholds (powerGrid's administration 0.68/treasury 500/
+  // electricityCoverage 0.35 dominate) to avoid an automatic pass-through the instant the last
+  // prerequisite adopts.
+  {
+    id: "electrolyticIndustry",
+    label: "Electrolytic industry",
+    era: 6,
+    scope: "state",
+    prerequisites: ["practicalElectrochemistry", "highPressureChemicalApparatus", "powerGrid"],
+    known: { min: { electricityCoverage: 0.4, administration: 0.7, treasury: 550 } },
+    demonstrated: { min: { electrolysisPlantTrialYears: 2, electricityCoverage: 0.45, treasury: 650 } },
+    adopted: { min: { electrolysisPlantInstallations: 1, administration: 0.75, treasury: 800 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 

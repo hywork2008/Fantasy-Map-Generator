@@ -5,6 +5,7 @@
 - docs/plan/catalytic-chemistry.md
 - docs/plan/chlorine-production-vertical-slice.md
 - docs/plan/electric-power-and-telegraph.md
+- docs/plan/electrolytic-industry-vertical-slice.md
 - docs/plan/modern-steelmaking-and-high-pressure-apparatus.md
 - docs/plan/phosphate-fertilizer-vertical-slice.md
 - docs/plan/smokeless-powder-visibility.md

@@ -426,6 +426,8 @@ function emptySignals(): TechnologySignals {
     telegraphLineTrialYears: 0,
     telegraphLineInstallations: 0,
     electricityCoverage: 0,
+    electrolysisPlantTrialYears: 0,
+    electrolysisPlantInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -923,6 +925,26 @@ function applyChemistryMedicineSignals(
     if (signals) signals.telegraphLineTrialYears = years;
   }
 
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.5 — same shape as the powerStations/
+  // telegraphLines blocks above: ElectrolysisPlant holds documentedRuns on itself, no
+  // ChemistryTrial indirection.
+  const electrolysisPlantYears = new Map<number, number>();
+  for (const plant of asStockArray(economy.electrolysisPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.electrolysisPlantInstallations += 1;
+    electrolysisPlantYears.set(
+      stateId,
+      Math.max(electrolysisPlantYears.get(stateId) ?? 0, asNumber(plant.documentedRuns))
+    );
+  }
+  for (const [stateId, years] of electrolysisPlantYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.electrolysisPlantTrialYears = years;
+  }
+
   for (const plant of asStockArray(economy.acidPlants)) {
     if (plant.active === false) continue;
     const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
@@ -1093,7 +1115,9 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "powerStationTrialYears",
   "powerStationInstallations",
   "telegraphLineTrialYears",
-  "telegraphLineInstallations"
+  "telegraphLineInstallations",
+  "electrolysisPlantTrialYears",
+  "electrolysisPlantInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([

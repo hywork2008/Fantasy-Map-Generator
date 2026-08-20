@@ -2804,6 +2804,55 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: {}
   },
   {
+    // Raw bauxite ore. Cell placement comes from MineralDeposit/MineOperation ("laterite"
+    // districts on "shield" provinces, mineralResources.ts), same convention as Phosphate Rock.
+    // See docs/plan/electrolytic-industry-vertical-slice.md §3.2.
+    name: "Bauxite",
+    warEconomyType: "strategic",
+    tags: ["mineral", "industrial"],
+    icon: "good-stone",
+    color: "#a8826a",
+    value: 5,
+    chance: 0,
+    unit: "wain",
+    demandCoverage: {}
+  },
+  {
+    // Bayer-process alumina refining: Bauxite digested with an alkali (Caustic Soda) and heat
+    // yields alumina, the feedstock for electrolytic reduction below. No electricity required at
+    // this stage — see technology-development-roadmap.md §9.4 ("Bauxite + アルカリ化学 + 熱 →
+    // Alumina"). See docs/plan/electrolytic-industry-vertical-slice.md §3.3.
+    name: "Alumina",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#e8e4dc",
+    value: 16,
+    chance: 0,
+    recipes: [{ Bauxite: 1, "Caustic Soda": 0.3, Coal: 0.2 }],
+    unit: "sack",
+    demandCoverage: {},
+    requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Electrolytically reduced from Alumina — no craft-worker recipe exists (unlike Steel/
+    // Sulfuric Acid/Chlorine's dual-route pattern): electrolytic reduction has no pre-industrial
+    // artisanal equivalent, same reasoning as Synthetic Ammonia's capital-only supply below.
+    // Production is plant-only (ElectrolysisPlants). Value set high, reflecting aluminum's real
+    // 19th-century cost before Hall-Héroult mass production (once priced above silver). See
+    // docs/plan/electrolytic-industry-vertical-slice.md §3.4.
+    name: "Aluminum",
+    warEconomyType: "strategic",
+    tags: ["metal", "industrial"],
+    icon: "good-unknown",
+    color: "#c7c9cc",
+    value: 34,
+    chance: 0,
+    unit: "bar",
+    demandCoverage: {},
+    requiredTechnology: "electrolyticIndustry"
+  },
+  {
     // "One Good, two supply sites" like Sulfuric Acid: this recipe is the craft-worker path
     // (production-generator.ts worker loop); PhosphateFertilizerPlants (Phase 2, docs/plan/
     // phosphate-fertilizer-vertical-slice.md §3.7) adds a second, State-funded capital path.
@@ -3515,6 +3564,44 @@ export function migrateElectricalGoods(): boolean {
 
   const idByName = new Map(goods.map(good => [good.name, good.i]));
   for (const name of ELECTRICAL_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const ELECTROLYTIC_GOOD_NAMES = ["Bauxite", "Alumina", "Aluminum"] as const;
+
+/**
+ * Appends the Bauxite/Alumina/Aluminum chain (docs/plan/electrolytic-industry-vertical-slice.md
+ * §3.2-3.4) to older catalogues without seeding stock. Same shape as migrateElectricalGoods.
+ */
+export function migrateElectrolyticIndustryGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of ELECTROLYTIC_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of ELECTROLYTIC_GOOD_NAMES) {
     const good = goods.find(entry => entry.name === name);
     const template = GOODS_DATA.find(entry => entry.name === name);
     if (!good || !template?.recipes) continue;

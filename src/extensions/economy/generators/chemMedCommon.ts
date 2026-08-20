@@ -38,6 +38,13 @@ export const POWER_STATION_BUDGET = 36;
 /** calibration TBD — lower than the four chemistry/metallurgy plant budgets above. A telegraph
  *  line is lightweight wiring-and-relay infrastructure, not a process plant. */
 export const TELEGRAPH_LINE_BUDGET = 18;
+/**
+ * calibration TBD — the highest State capital budget in the economy: electrolytic reduction is
+ * both the most electricity-intensive and (historically) most capital-intensive process in the
+ * chemistry/metallurgy chain, above even SYNTHETIC_AMMONIA_PLANT_BUDGET(40).
+ * See docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+ */
+export const ELECTROLYSIS_PLANT_BUDGET = 42;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

@@ -73,6 +73,7 @@ import {
   tickConstructionHiring
 } from "./generators/constructionHire";
 import { DevelopmentPotential } from "./generators/developmentPotential";
+import { ElectrolysisPlants } from "./generators/electrolysisPlants";
 import {
   applyCharacterToEscortJob,
   cancelEscortApplication,
@@ -100,6 +101,7 @@ import {
   isGoodEnabled,
   migrateChemMedGoods,
   migrateElectricalGoods,
+  migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
@@ -2468,6 +2470,7 @@ export function init(api: ExtensionAPI): void {
     const migratedPhosphate = migratePhosphateGoods();
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedElectrical = migrateElectricalGoods();
+    const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2489,6 +2492,7 @@ export function init(api: ExtensionAPI): void {
       migratedPhosphate ||
       migratedSyntheticAmmonia ||
       migratedElectrical ||
+      migratedElectrolyticIndustry ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -2985,6 +2989,11 @@ export function init(api: ExtensionAPI): void {
         PowerStations.settleAnnual();
         // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
         TelegraphLines.settleAnnual();
+        // Reads this year's Market.electricityStock, already written by PowerGridInvestment
+        // earlier in this same annual tick (investment block runs before this production block).
+        // Alumina/Coke/Firebrick consumption is independent of the other era-6 plants above.
+        // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+        ElectrolysisPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
@@ -3175,6 +3184,7 @@ export function init(api: ExtensionAPI): void {
     const migratedPhosphate = migratePhosphateGoods();
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedElectrical = migrateElectricalGoods();
+    const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -3196,6 +3206,7 @@ export function init(api: ExtensionAPI): void {
       migratedPhosphate ||
       migratedSyntheticAmmonia ||
       migratedElectrical ||
+      migratedElectrolyticIndustry ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||

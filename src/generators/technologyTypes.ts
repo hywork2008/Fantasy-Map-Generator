@@ -134,6 +134,10 @@ export interface TechnologySignals {
    * generation coverage is already meaningful. See docs/plan/electric-power-and-telegraph.md §3.3.
    */
   electricityCoverage: number;
+  /** ElectrolysisPlant.documentedRuns state max, same shape as powerStationTrialYears. */
+  electrolysisPlantTrialYears: number;
+  /** Count of active ElectrolysisPlant entries, same shape as powerStationInstallations. */
+  electrolysisPlantInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }
