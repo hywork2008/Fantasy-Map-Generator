@@ -12,10 +12,11 @@ import {
 import { editHeightmap } from "../../controllers/heightmapEditor";
 import { regeneratePrompt } from "../../controllers/options";
 import { heightmapTemplates, precreatedHeightmaps } from "../../data";
-import { useGenerationProgressState } from "../../store/generationProgressState";
+import { generationProgressStore, useGenerationProgressState } from "../../store/generationProgressState";
 import { useOptionsState } from "../../store/optionsState";
 import { generateSeed } from "../../utils";
 import { heightmapColorSchemes } from "../../utils/colorUtils";
+import { lock } from "../../utils/domUtils";
 import { IconButton } from "../components/IconButton";
 import { closeDialog } from "./dialogService";
 
@@ -223,7 +224,18 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
 
   function handleSelect(): void {
     useOptionsState.getState().setOption("template", selectedId);
+    // Selecting a template explicitly is an intentional pin — lock it so the
+    // "Heightmap" row keeps this choice on subsequent randomized regenerations.
+    lock("template");
     closeDialog("heightmapSelection");
+
+    // Map generation currently paused for stage review: everything staged so far was
+    // built on the old heightmap, so re-run the Landscape stage immediately instead of
+    // leaving the user to separately press "Generate another landscape".
+    const { isOpen, isGenerating } = generationProgressStore.getState();
+    if (isOpen && !isGenerating) {
+      generationProgressStore.getState().retryLandscape();
+    }
   }
 
   function handleNewMap(): void {
