@@ -63,6 +63,7 @@ import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposi
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
+import { ChlorinePlants } from "./generators/chlorinePlants";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
   applyCharacterToConstructionJob,
@@ -2966,6 +2967,10 @@ export function init(api: ExtensionAPI): void {
         // Depends on AcidPlants's Sulfuric Acid output for its own recipe
         // (docs/plan/phosphate-fertilizer-vertical-slice.md §3.7); runs right after.
         PhosphateFertilizerPlants.settleAnnual();
+        // Also depends on AcidPlants's Sulfuric Acid output (catalytic Deacon-process oxidation
+        // with Salt); runs alongside PhosphateFertilizerPlants for the same reason.
+        // docs/plan/chlorine-production-vertical-slice.md §3.6.
+        ChlorinePlants.settleAnnual();
         // Bessemer-converter Steel supply — independent of the chemistry plants above; the
         // second supply route for the existing Steel Good (docs/plan/modern-steelmaking-and-
         // high-pressure-apparatus.md §3.2).

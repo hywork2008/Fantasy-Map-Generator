@@ -2647,6 +2647,27 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "industrialSulfuricAcid"
   },
   {
+    // Catalytic oxidation (Deacon process, 1868): Salt + Sulfuric Acid liberates hydrochloric
+    // gas, which a catalyst bed (Firebrick-lined chamber, same role as a smelter's lining) then
+    // oxidizes with air into Chlorine. Collapses the historical two-step HCl-then-oxidation
+    // chain into one recipe, the same abstraction level Sulfuric Acid above already uses for the
+    // lead-chamber process. Water/sanitation and bleach consumers are a later slice — this is
+    // supply only. "One Good, two supply sites" like Sulfuric Acid/Phosphate Fertilizer: this
+    // recipe is the craft-worker path, ChlorinePlants (chlorinePlants.ts) is the State-funded
+    // capital path. Design: docs/plan/chlorine-production-vertical-slice.md §3.2.
+    name: "Chlorine",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#c9e066",
+    value: 20,
+    chance: 0,
+    recipes: [{ Salt: 1, "Sulfuric Acid": 0.6, Coal: 0.3, Firebrick: 0.1 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "catalyticChemistry"
+  },
+  {
     name: "Coal Tar",
     warEconomyType: "strategic",
     tags: ["industrial", "fuel"],

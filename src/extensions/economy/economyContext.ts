@@ -18,6 +18,7 @@ import type {
   ApothecaryWorkshop,
   ChemistryTrial,
   ChemMedPracticeRecord,
+  ChlorinePlant,
   ExperimentalWorkshop,
   HospitalInstallation,
   MedicalCareReliefRow,
@@ -162,6 +163,7 @@ let _apothecaryWorkshopsLastSettledYearFallback: number | null = null;
 let _experimentalWorkshopsLastSettledYearFallback: number | null = null;
 let _hospitalInstallationsLastSettledYearFallback: number | null = null;
 let _acidPlantsLastSettledYearFallback: number | null = null;
+let _chlorinePlantsLastSettledYearFallback: number | null = null;
 let _phosphateFertilizerPlantsLastSettledYearFallback: number | null = null;
 let _steelConverterPlantsLastSettledYearFallback: number | null = null;
 let _fertilizerInvestmentLastSettledYearFallback: number | null = null;
@@ -227,6 +229,7 @@ export function clearEconomyContext(): void {
   _experimentalWorkshopsLastSettledYearFallback = null;
   _hospitalInstallationsLastSettledYearFallback = null;
   _acidPlantsLastSettledYearFallback = null;
+  _chlorinePlantsLastSettledYearFallback = null;
   _phosphateFertilizerPlantsLastSettledYearFallback = null;
   _steelConverterPlantsLastSettledYearFallback = null;
   _fertilizerInvestmentLastSettledYearFallback = null;
@@ -1424,6 +1427,13 @@ export function getPhosphateFertilizerPlants(): PhosphateFertilizerPlant[] {
 export function setPhosphateFertilizerPlants(rows: readonly PhosphateFertilizerPlant[]): void {
   setSliceArray("phosphateFertilizerPlants", rows);
 }
+/** Same shape as getAcidPlants/getPhosphateFertilizerPlants. Design: docs/plan/chlorine-production-vertical-slice.md §3.6. */
+export function getChlorinePlants(): ChlorinePlant[] {
+  return getSliceArray<ChlorinePlant>("chlorinePlants");
+}
+export function setChlorinePlants(rows: readonly ChlorinePlant[]): void {
+  setSliceArray("chlorinePlants", rows);
+}
 /** Same shape as getAcidPlants/getPhosphateFertilizerPlants. Design: docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.2. */
 export function getSteelConverterPlants(): SteelConverterPlant[] {
   return getSliceArray<SteelConverterPlant>("steelConverterPlants");
@@ -1503,6 +1513,15 @@ export function getPhosphateFertilizerPlantsLastSettledYear(): number | null {
 export function setPhosphateFertilizerPlantsLastSettledYear(year: number): void {
   writeYearToSlice("phosphateFertilizerPlantsLastSettledYear", year, value => {
     _phosphateFertilizerPlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards ChlorinePlants.settleAnnual(), same shape as getAcidPlantsLastSettledYear. */
+export function getChlorinePlantsLastSettledYear(): number | null {
+  return yearFromSlice("chlorinePlantsLastSettledYear", _chlorinePlantsLastSettledYearFallback);
+}
+export function setChlorinePlantsLastSettledYear(year: number): void {
+  writeYearToSlice("chlorinePlantsLastSettledYear", year, value => {
+    _chlorinePlantsLastSettledYearFallback = value;
   });
 }
 /** Guards SteelConverters.settleAnnual(), same shape as getAcidPlantsLastSettledYear. */

@@ -13,6 +13,12 @@ export const APOTHECARY_BUDGET = 12;
 export const EXPERIMENTAL_BUDGET = 16;
 export const HOSPITAL_BUDGET = 20;
 export const ACID_PLANT_BUDGET = 24;
+/**
+ * calibration TBD — slightly above ACID_PLANT_BUDGET: a catalytic-oxidation (Deacon process)
+ * unit built alongside an existing acid works, not a standalone heavy plant like the fertilizer/
+ * steel/ammonia lines below. See docs/plan/chlorine-production-vertical-slice.md §3.6.
+ */
+export const CHLORINE_PLANT_BUDGET = 26;
 /** calibration TBD — slightly higher than ACID_PLANT_BUDGET; a later, larger-scale plant. */
 export const PHOSPHATE_FERTILIZER_PLANT_BUDGET = 28;
 /**

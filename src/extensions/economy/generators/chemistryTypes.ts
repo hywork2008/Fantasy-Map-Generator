@@ -8,7 +8,8 @@ export type ChemistryTrialKind =
   | "laboratory"
   | "acidPlant"
   | "phosphateFertilizerPlant"
-  | "syntheticAmmoniaPlant";
+  | "syntheticAmmoniaPlant"
+  | "chlorinePlant";
 
 export type ChemistryFailureReason =
   | "materialShortage"
@@ -76,6 +77,21 @@ export interface AcidPlant {
 
 /** Same shape as AcidPlant. Design: docs/plan/phosphate-fertilizer-vertical-slice.md §3.7. */
 export interface PhosphateFertilizerPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/**
+ * Same shape as AcidPlant — a catalytic-oxidation (Deacon process) plant that turns Salt +
+ * Sulfuric Acid into Chlorine, downstream of AcidPlants in the settle order.
+ * Design: docs/plan/chlorine-production-vertical-slice.md §3.6.
+ */
+export interface ChlorinePlant {
   burgId: number;
   stateId: number;
   role: "trial" | "service";
