@@ -105,14 +105,34 @@ export function getTechnologyProgressEntries(): readonly TechnologyProgress[] {
   return getTechnologyState().progress;
 }
 
+/**
+ * getTechnologyStage() is the single hottest technology read — every tech-gated Good candidate
+ * in the per-burg production worker loop (production-generator.ts's runWorkerLoop/
+ * makeProductionDecision, via isGoodManufacturableInState) calls it once per candidate, many
+ * thousand times per simulated year. `progress` has grown to (technologies × states) entries as
+ * the tech graph expanded (77 technologies as of 2026-08-21, most "state"-scoped), so a linear
+ * .find() over it here — repeated per candidate, per burg, per month — got measurably more
+ * expensive purely from that catalogue growth (see docs/analytics/advance-year-benchmark-*.json).
+ * `progress` is only ever replaced wholesale (never push/spliced in place — see the reassignments
+ * in this file), so indexing it by array identity is safe: the cache rebuilds once whenever a new
+ * array shows up (annual re-evaluation, map load/reset) and is reused for every read in between.
+ */
+let progressIndexCache: { source: TechnologyProgress[]; index: Map<string, TechnologyProgress> } | null = null;
+
+function getProgressIndex(progress: TechnologyProgress[]): Map<string, TechnologyProgress> {
+  if (progressIndexCache && progressIndexCache.source === progress) return progressIndexCache.index;
+  const index = new Map(progress.map(p => [progressKey(p.technologyId, p.scope, p.ownerId), p]));
+  progressIndexCache = { source: progress, index };
+  return index;
+}
+
 export function getTechnologyStage(
   technologyId: string,
   ownerId: number,
   scope: TechnologyScope = "state"
 ): TechnologyStage {
-  const entry = getTechnologyState().progress.find(
-    p => p.technologyId === technologyId && p.ownerId === ownerId && p.scope === scope
-  );
+  const progress = getTechnologyState().progress;
+  const entry = getProgressIndex(progress).get(progressKey(technologyId, scope, ownerId));
   return entry?.stage ?? "locked";
 }
 

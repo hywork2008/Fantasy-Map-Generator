@@ -1,0 +1,706 @@
+{
+  "generatedAt": "2026-08-20T19:39:35.792Z",
+  "baseURL": "http://localhost:5173",
+  "result": {
+    "name": "advance-year-bulk",
+    "extensions": [
+      "characters",
+      "economy"
+    ],
+    "seed": "advance-year-perf",
+    "wallClockMs": 2036.300000011921,
+    "daysAdvanced": 366,
+    "startYear": 712,
+    "endYear": 713,
+    "endMonth": 1,
+    "endDay": 1,
+    "tickCountDelta": 366,
+    "cellCount": 4154,
+    "burgCount": 131,
+    "marketCount": 131,
+    "caravanCount": 0,
+    "profile": [
+      {
+        "label": "production:settle",
+        "calls": 12,
+        "totalMs": 1412.3999999761581,
+        "lastMs": 124.69999998807907,
+        "maxMs": 171.19999998807907
+      },
+      {
+        "label": "production:produce",
+        "calls": 12,
+        "totalMs": 1087.4999999701977,
+        "lastMs": 104.30000001192093,
+        "maxMs": 104.30000001192093
+      },
+      {
+        "label": "production:finishCycle",
+        "calls": 12,
+        "totalMs": 470.19999995827675,
+        "lastMs": 57.30000001192093,
+        "maxMs": 57.30000001192093
+      },
+      {
+        "label": "production:syncLedgers",
+        "calls": 12,
+        "totalMs": 408.40000000596046,
+        "lastMs": 53.80000001192093,
+        "maxMs": 53.80000001192093
+      },
+      {
+        "label": "economy",
+        "calls": 366,
+        "totalMs": 354.00000017881393,
+        "lastMs": 55.20000001788139,
+        "maxMs": 55.20000001788139
+      },
+      {
+        "label": "production:startCycle",
+        "calls": 12,
+        "totalMs": 309.8999999463558,
+        "lastMs": 22.599999994039536,
+        "maxMs": 31
+      },
+      {
+        "label": "production:burgLoop",
+        "calls": 12,
+        "totalMs": 307.3000000715256,
+        "lastMs": 24.400000005960464,
+        "maxMs": 30.400000005960464
+      },
+      {
+        "label": "production:rural",
+        "calls": 12,
+        "totalMs": 213.20000004768372,
+        "lastMs": 15.900000005960464,
+        "maxMs": 20.30000001192093
+      },
+      {
+        "label": "production:playerCommerce",
+        "calls": 12,
+        "totalMs": 191.09999999403954,
+        "lastMs": 14.699999988079071,
+        "maxMs": 28.80000001192093
+      },
+      {
+        "label": "production:planRetail",
+        "calls": 12,
+        "totalMs": 190.2000000178814,
+        "lastMs": 14.5,
+        "maxMs": 28.69999998807907
+      },
+      {
+        "label": "economy:dailyHiringPregnancy",
+        "calls": 366,
+        "totalMs": 137.49999991059303,
+        "lastMs": 0,
+        "maxMs": 24
+      },
+      {
+        "label": "core:manpower",
+        "calls": 366,
+        "totalMs": 86.79999995231628,
+        "lastMs": 0,
+        "maxMs": 3.9000000059604645
+      },
+      {
+        "label": "economy:annualAgTech",
+        "calls": 366,
+        "totalMs": 79.7000000178814,
+        "lastMs": 42.69999998807907,
+        "maxMs": 42.69999998807907
+      },
+      {
+        "label": "core:demographics",
+        "calls": 366,
+        "totalMs": 72.39999985694885,
+        "lastMs": 1.2000000178813934,
+        "maxMs": 1.2999999821186066
+      },
+      {
+        "label": "production:metallurgProcurement",
+        "calls": 12,
+        "totalMs": 69.50000002980232,
+        "lastMs": 2.0999999940395355,
+        "maxMs": 42.599999994039536
+      },
+      {
+        "label": "production:pricesAndLabor",
+        "calls": 12,
+        "totalMs": 47.69999983906746,
+        "lastMs": 3.2999999821186066,
+        "maxMs": 6.399999976158142
+      },
+      {
+        "label": "production:taxes",
+        "calls": 12,
+        "totalMs": 39.40000006556511,
+        "lastMs": 1.800000011920929,
+        "maxMs": 7.200000017881393
+      },
+      {
+        "label": "economy:foodCalendar",
+        "calls": 366,
+        "totalMs": 37.40000003576279,
+        "lastMs": 0,
+        "maxMs": 5.699999988079071
+      },
+      {
+        "label": "economy:forestProspect",
+        "calls": 366,
+        "totalMs": 34.49999997019768,
+        "lastMs": 0.10000002384185791,
+        "maxMs": 5.5
+      },
+      {
+        "label": "economy:annualUrbanKnowledge",
+        "calls": 366,
+        "totalMs": 30.599999994039536,
+        "lastMs": 12.099999994039536,
+        "maxMs": 14.300000011920929
+      },
+      {
+        "label": "economyMarketTerritories",
+        "calls": 366,
+        "totalMs": 26.69999998807907,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.30000001192092896
+      },
+      {
+        "label": "production:saltLogistics",
+        "calls": 12,
+        "totalMs": 26.400000035762787,
+        "lastMs": 1.9000000059604645,
+        "maxMs": 2.4000000059604645
+      },
+      {
+        "label": "production:globalTrade",
+        "calls": 12,
+        "totalMs": 24.40000006556511,
+        "lastMs": 1.7000000178813934,
+        "maxMs": 2.9000000059604645
+      },
+      {
+        "label": "production:spawnCaravans",
+        "calls": 12,
+        "totalMs": 23.999999970197678,
+        "lastMs": 1,
+        "maxMs": 12.400000005960464
+      },
+      {
+        "label": "economy:marketTerritories",
+        "calls": 366,
+        "totalMs": 23.800000190734863,
+        "lastMs": 0.10000002384185791,
+        "maxMs": 0.20000001788139343
+      },
+      {
+        "label": "production:metallurgWork",
+        "calls": 12,
+        "totalMs": 11.200000017881393,
+        "lastMs": 0.9000000059604645,
+        "maxMs": 2.4000000059604645
+      },
+      {
+        "label": "production:fillDemand",
+        "calls": 12,
+        "totalMs": 10.699999988079071,
+        "lastMs": 0.699999988079071,
+        "maxMs": 1.5999999940395355
+      },
+      {
+        "label": "technologyProgress",
+        "calls": 366,
+        "totalMs": 9.199999868869781,
+        "lastMs": 2.2999999821186066,
+        "maxMs": 4.799999982118607
+      },
+      {
+        "label": "production:monthlyLedgers",
+        "calls": 12,
+        "totalMs": 8,
+        "lastMs": 0.5999999940395355,
+        "maxMs": 0.800000011920929
+      },
+      {
+        "label": "production:householdHeating",
+        "calls": 12,
+        "totalMs": 8,
+        "lastMs": 0.5999999940395355,
+        "maxMs": 1.5
+      },
+      {
+        "label": "frontierExpansion",
+        "calls": 366,
+        "totalMs": 6.499999940395355,
+        "lastMs": 4.100000023841858,
+        "maxMs": 4.100000023841858
+      },
+      {
+        "label": "economy:warIntensity",
+        "calls": 366,
+        "totalMs": 3.900000035762787,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "seasonalClimate",
+        "calls": 366,
+        "totalMs": 3.499999910593033,
+        "lastMs": 0,
+        "maxMs": 0.19999998807907104
+      },
+      {
+        "label": "production:strategicLabor",
+        "calls": 12,
+        "totalMs": 3.4000000059604645,
+        "lastMs": 0.30000001192092896,
+        "maxMs": 0.5
+      },
+      {
+        "label": "production:quarryAshConstruction",
+        "calls": 12,
+        "totalMs": 2.9999999403953552,
+        "lastMs": 0.29999998211860657,
+        "maxMs": 0.4000000059604645
+      },
+      {
+        "label": "production:buildIndex",
+        "calls": 12,
+        "totalMs": 2.4000000953674316,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.30000001192092896
+      },
+      {
+        "label": "production:metallurgFulfillment",
+        "calls": 12,
+        "totalMs": 2.400000035762787,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.7000000178813934
+      },
+      {
+        "label": "shipbuilding",
+        "calls": 366,
+        "totalMs": 2.1000000536441803,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "dungeonEcology",
+        "calls": 366,
+        "totalMs": 2.100000023841858,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "nobility",
+        "calls": 366,
+        "totalMs": 2.100000023841858,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "economy:caravans",
+        "calls": 366,
+        "totalMs": 1.9000000059604645,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.5
+      },
+      {
+        "label": "wildernessEcology",
+        "calls": 366,
+        "totalMs": 1.800000011920929,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "frontierBudgetSnapshot",
+        "calls": 366,
+        "totalMs": 1.7999999821186066,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "production:metallurgForecast",
+        "calls": 12,
+        "totalMs": 1.4999999403953552,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.29999998211860657
+      },
+      {
+        "label": "production:stateSummaries",
+        "calls": 12,
+        "totalMs": 1.4999999403953552,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.29999998211860657
+      },
+      {
+        "label": "production:militaryMaterialStaging",
+        "calls": 12,
+        "totalMs": 1.4000000953674316,
+        "lastMs": 0.10000002384185791,
+        "maxMs": 0.30000001192092896
+      },
+      {
+        "label": "economy:caravanMovement",
+        "calls": 366,
+        "totalMs": 1.399999976158142,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.5
+      },
+      {
+        "label": "production:merchantPrep",
+        "calls": 12,
+        "totalMs": 1.199999988079071,
+        "lastMs": 0,
+        "maxMs": 0.9000000059604645
+      },
+      {
+        "label": "production:minesSmelters",
+        "calls": 12,
+        "totalMs": 0.9999999701976776,
+        "lastMs": 0,
+        "maxMs": 0.20000001788139343
+      },
+      {
+        "label": "core:militaryFallback",
+        "calls": 366,
+        "totalMs": 0.9000000059604645,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "production:merchantPortfolios",
+        "calls": 12,
+        "totalMs": 0.8999999761581421,
+        "lastMs": 0.19999998807907104,
+        "maxMs": 0.19999998807907104
+      },
+      {
+        "label": "production:pomaceWine",
+        "calls": 12,
+        "totalMs": 0.7999999821186066,
+        "lastMs": 0.09999999403953552,
+        "maxMs": 0.19999998807907104
+      },
+      {
+        "label": "production:marketMaintenance",
+        "calls": 12,
+        "totalMs": 0.5999999642372131,
+        "lastMs": 0,
+        "maxMs": 0.09999999403953552
+      },
+      {
+        "label": "economy:retailInventory",
+        "calls": 366,
+        "totalMs": 0.30000001192092896,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "economy:strategicProcurement",
+        "calls": 366,
+        "totalMs": 0.10000002384185791,
+        "lastMs": 0,
+        "maxMs": 0.10000002384185791
+      },
+      {
+        "label": "production:merchantPurchaseCapital",
+        "calls": 12,
+        "totalMs": 0,
+        "lastMs": 0,
+        "maxMs": 0
+      },
+      {
+        "label": "production:innStays",
+        "calls": 12,
+        "totalMs": 0,
+        "lastMs": 0,
+        "maxMs": 0
+      }
+    ],
+    "topTotalShare": [
+      {
+        "label": "production:settle",
+        "totalMs": 1412.4,
+        "sharePct": 24.35,
+        "calls": 12,
+        "avgMs": 117.7
+      },
+      {
+        "label": "production:produce",
+        "totalMs": 1087.5,
+        "sharePct": 18.75,
+        "calls": 12,
+        "avgMs": 90.625
+      },
+      {
+        "label": "production:finishCycle",
+        "totalMs": 470.2,
+        "sharePct": 8.11,
+        "calls": 12,
+        "avgMs": 39.183
+      },
+      {
+        "label": "production:syncLedgers",
+        "totalMs": 408.4,
+        "sharePct": 7.04,
+        "calls": 12,
+        "avgMs": 34.033
+      },
+      {
+        "label": "economy",
+        "totalMs": 354,
+        "sharePct": 6.1,
+        "calls": 366,
+        "avgMs": 0.967
+      },
+      {
+        "label": "production:startCycle",
+        "totalMs": 309.9,
+        "sharePct": 5.34,
+        "calls": 12,
+        "avgMs": 25.825
+      },
+      {
+        "label": "production:burgLoop",
+        "totalMs": 307.3,
+        "sharePct": 5.3,
+        "calls": 12,
+        "avgMs": 25.608
+      },
+      {
+        "label": "production:rural",
+        "totalMs": 213.2,
+        "sharePct": 3.68,
+        "calls": 12,
+        "avgMs": 17.767
+      },
+      {
+        "label": "production:playerCommerce",
+        "totalMs": 191.1,
+        "sharePct": 3.29,
+        "calls": 12,
+        "avgMs": 15.925
+      },
+      {
+        "label": "production:planRetail",
+        "totalMs": 190.2,
+        "sharePct": 3.28,
+        "calls": 12,
+        "avgMs": 15.85
+      },
+      {
+        "label": "economy:dailyHiringPregnancy",
+        "totalMs": 137.5,
+        "sharePct": 2.37,
+        "calls": 366,
+        "avgMs": 0.376
+      },
+      {
+        "label": "core:manpower",
+        "totalMs": 86.8,
+        "sharePct": 1.5,
+        "calls": 366,
+        "avgMs": 0.237
+      },
+      {
+        "label": "economy:annualAgTech",
+        "totalMs": 79.7,
+        "sharePct": 1.37,
+        "calls": 366,
+        "avgMs": 0.218
+      },
+      {
+        "label": "core:demographics",
+        "totalMs": 72.4,
+        "sharePct": 1.25,
+        "calls": 366,
+        "avgMs": 0.198
+      },
+      {
+        "label": "production:metallurgProcurement",
+        "totalMs": 69.5,
+        "sharePct": 1.2,
+        "calls": 12,
+        "avgMs": 5.792
+      },
+      {
+        "label": "production:pricesAndLabor",
+        "totalMs": 47.7,
+        "sharePct": 0.82,
+        "calls": 12,
+        "avgMs": 3.975
+      },
+      {
+        "label": "production:taxes",
+        "totalMs": 39.4,
+        "sharePct": 0.68,
+        "calls": 12,
+        "avgMs": 3.283
+      },
+      {
+        "label": "economy:foodCalendar",
+        "totalMs": 37.4,
+        "sharePct": 0.64,
+        "calls": 366,
+        "avgMs": 0.102
+      },
+      {
+        "label": "economy:forestProspect",
+        "totalMs": 34.5,
+        "sharePct": 0.59,
+        "calls": 366,
+        "avgMs": 0.094
+      },
+      {
+        "label": "economy:annualUrbanKnowledge",
+        "totalMs": 30.6,
+        "sharePct": 0.53,
+        "calls": 366,
+        "avgMs": 0.084
+      },
+      {
+        "label": "economyMarketTerritories",
+        "totalMs": 26.7,
+        "sharePct": 0.46,
+        "calls": 366,
+        "avgMs": 0.073
+      },
+      {
+        "label": "production:saltLogistics",
+        "totalMs": 26.4,
+        "sharePct": 0.46,
+        "calls": 12,
+        "avgMs": 2.2
+      },
+      {
+        "label": "production:globalTrade",
+        "totalMs": 24.4,
+        "sharePct": 0.42,
+        "calls": 12,
+        "avgMs": 2.033
+      },
+      {
+        "label": "production:spawnCaravans",
+        "totalMs": 24,
+        "sharePct": 0.41,
+        "calls": 12,
+        "avgMs": 2
+      },
+      {
+        "label": "economy:marketTerritories",
+        "totalMs": 23.8,
+        "sharePct": 0.41,
+        "calls": 366,
+        "avgMs": 0.065
+      },
+      {
+        "label": "production:metallurgWork",
+        "totalMs": 11.2,
+        "sharePct": 0.19,
+        "calls": 12,
+        "avgMs": 0.933
+      },
+      {
+        "label": "production:fillDemand",
+        "totalMs": 10.7,
+        "sharePct": 0.18,
+        "calls": 12,
+        "avgMs": 0.892
+      },
+      {
+        "label": "technologyProgress",
+        "totalMs": 9.2,
+        "sharePct": 0.16,
+        "calls": 366,
+        "avgMs": 0.025
+      },
+      {
+        "label": "production:monthlyLedgers",
+        "totalMs": 8,
+        "sharePct": 0.14,
+        "calls": 12,
+        "avgMs": 0.667
+      },
+      {
+        "label": "production:householdHeating",
+        "totalMs": 8,
+        "sharePct": 0.14,
+        "calls": 12,
+        "avgMs": 0.667
+      },
+      {
+        "label": "frontierExpansion",
+        "totalMs": 6.5,
+        "sharePct": 0.11,
+        "calls": 366,
+        "avgMs": 0.018
+      },
+      {
+        "label": "economy:warIntensity",
+        "totalMs": 3.9,
+        "sharePct": 0.07,
+        "calls": 366,
+        "avgMs": 0.011
+      },
+      {
+        "label": "seasonalClimate",
+        "totalMs": 3.5,
+        "sharePct": 0.06,
+        "calls": 366,
+        "avgMs": 0.01
+      },
+      {
+        "label": "production:strategicLabor",
+        "totalMs": 3.4,
+        "sharePct": 0.06,
+        "calls": 12,
+        "avgMs": 0.283
+      },
+      {
+        "label": "production:quarryAshConstruction",
+        "totalMs": 3,
+        "sharePct": 0.05,
+        "calls": 12,
+        "avgMs": 0.25
+      },
+      {
+        "label": "production:buildIndex",
+        "totalMs": 2.4,
+        "sharePct": 0.04,
+        "calls": 12,
+        "avgMs": 0.2
+      },
+      {
+        "label": "production:metallurgFulfillment",
+        "totalMs": 2.4,
+        "sharePct": 0.04,
+        "calls": 12,
+        "avgMs": 0.2
+      },
+      {
+        "label": "shipbuilding",
+        "totalMs": 2.1,
+        "sharePct": 0.04,
+        "calls": 366,
+        "avgMs": 0.006
+      },
+      {
+        "label": "dungeonEcology",
+        "totalMs": 2.1,
+        "sharePct": 0.04,
+        "calls": 366,
+        "avgMs": 0.006
+      },
+      {
+        "label": "nobility",
+        "totalMs": 2.1,
+        "sharePct": 0.04,
+        "calls": 366,
+        "avgMs": 0.006
+      }
+    ]
+  }
+}
