@@ -1202,9 +1202,9 @@
       "custom": "カスタム（未保存）"
     },
     "names": {
-      "toggleBiomes": "バイオーム",
+      "toggleBiomes": "生物群系",
       "toggleCoastalHabitats": "沿岸生息地",
-      "toggleCombatDeaths": "戦闘死",
+      "toggleCombatDeaths": "戦死者",
       "toggleBorders": "国境",
       "toggleCells": "セル",
       "toggleCoordinates": "座標",
@@ -1213,13 +1213,13 @@
       "toggleEnclosure": "囲繞度",
       "toggleEmblems": "紋章",
       "toggleGrid": "グリッド",
-      "toggleHeight": "標高地図",
+      "toggleHeight": "標高",
       "toggleIce": "氷",
-      "toggleBurgIcons": "アイコン",
+      "toggleBurgIcons": "都市",
       "toggleLabels": "ラベル",
       "toggleLakes": "湖",
       "toggleMarkers": "マーカー",
-      "toggleFrontierForts": "辺境要塞",
+      "toggleFrontierForts": "要塞",
       "toggleMilitary": "軍事",
       "toggleOceanCurrents": "海流",
       "togglePopulation": "人口",
@@ -1231,13 +1231,13 @@
       "toggleRoutes": "交易路",
       "toggleRulers": "定規",
       "toggleScaleBar": "縮尺バー",
-      "toggleSeaCurrents": "航路の流れ",
+      "toggleSeaCurrents": "航路の海流",
       "toggleStates": "国家",
       "toggleTemperature": "気温",
       "toggleTexture": "テクスチャ",
       "toggleVignette": "ビネット",
       "toggleCompass": "方位図",
-      "toggleZones": "ゾーン",
+      "toggleZones": "区域",
       "toggleGoods": "産物",
       "toggleMarketsLayer": "市場",
       "toggleTrade": "交易",
@@ -2119,7 +2119,7 @@
         "tooltip": "国家別雇用概要を開きます — 農村・都市労働、ギルド職人雇用、余剰／失業"
       },
       "economy-edit-guilds": {
-        "label": "ギルド",
+        "label": "組合",
         "tooltip": "ギルド概要を開きます — 都市ごとの職人領域の技術と金庫"
       },
       "economy-metallurg-work": {
@@ -2163,8 +2163,8 @@
         "tooltip": "生成された人物名簿を表示します"
       },
       "characters-create-player": {
-        "label": "プレイヤーキャラクター",
-        "tooltip": "種族と技能を持つ名前付きプレイヤーキャラクターを作ります"
+        "label": "人物作成",
+        "tooltip": "種族と技能を持つ名前付き登場人物を作ります"
       },
       "characters-settings": {
         "label": "人物設定",
