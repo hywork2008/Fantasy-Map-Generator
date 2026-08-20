@@ -86,9 +86,9 @@ body.fmg-generation-review-preview .fmg-webgl-managed-svg-layer {
 
 /* State labels remain live SVG controls in hybrid mode. Limit the affordance to
    their painted text so the map and the WebGL-rendered burg labels stay neutral. */
-body.fmg-webgl-hybrid #labels > #states text,
-body.fmg-webgl-hybrid #labels > #states textPath,
-body.fmg-webgl-hybrid #labels > #states tspan {
+body.fmg-webgl-hybrid #labels>#states text,
+body.fmg-webgl-hybrid #labels>#states textPath,
+body.fmg-webgl-hybrid #labels>#states tspan {
   cursor: pointer;
 }
 
@@ -328,6 +328,7 @@ text.drag {
   --dialog-offset-x: 0px;
   --dialog-offset-y: 0px;
   position: absolute;
+  min-width: 400px;
   z-index: 20;
   /* useDraggable updates these offsets. Unlike .fmg-dialog, the options
      panel is anchored at its normal absolute position rather than centered. */
@@ -459,12 +460,9 @@ input[type="color"] {
   box-sizing: border-box;
   height: 18px;
   padding: 0;
-  background: linear-gradient(
-      to right,
+  background: linear-gradient(to right,
       var(--dark-solid) 0 var(--range-progress),
-      var(--range-track) var(--range-progress) 100%
-    )
-    center / 100% 4px no-repeat;
+      var(--range-track) var(--range-progress) 100%) center / 100% 4px no-repeat;
   cursor: pointer;
 }
 
@@ -600,7 +598,7 @@ input[type="color"] {
   overflow: hidden;
 }
 
-#optionsTabContent > .tab {
+#optionsTabContent>.tab {
   flex: 0 0 auto;
 }
 
