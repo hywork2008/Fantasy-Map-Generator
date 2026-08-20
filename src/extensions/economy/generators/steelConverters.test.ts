@@ -26,7 +26,8 @@ describe("SteelConvertersModule", () => {
       { i: 1, name: "Iron Ingot", tags: [], value: 8, unit: "bar", icon: "good-iron", color: "#8a8a8a" },
       { i: 2, name: "Coke", tags: [], value: 4, unit: "wain", icon: "good-coal", color: "#2b2b2b" },
       { i: 3, name: "Lime", tags: [], value: 3, unit: "sack", icon: "good-stone", color: "#e5e5df" },
-      { i: 4, name: "Steel", tags: [], value: 14, unit: "bar", icon: "good-unknown", color: "#7a8490" }
+      { i: 4, name: "Steel", tags: [], value: 14, unit: "bar", icon: "good-unknown", color: "#7a8490" },
+      { i: 5, name: "Firebrick", tags: [], value: 6, unit: "wain", icon: "good-clay", color: "#8a4a30" }
     ]);
     setMarkets([
       {
@@ -37,7 +38,8 @@ describe("SteelConvertersModule", () => {
           1: { stock: 100, price: 8 },
           2: { stock: 100, price: 4 },
           3: { stock: 100, price: 3 },
-          4: { stock: 0, price: 14 }
+          4: { stock: 0, price: 14 },
+          5: { stock: 100, price: 6 }
         }
       }
     ]);
@@ -57,7 +59,7 @@ describe("SteelConvertersModule", () => {
     expect(worldContext.pack.states[1].treasury).toBe(100);
   });
 
-  it("creates a plant, debits the budget, consumes Iron Ingot/Coke/Lime, and produces Steel once known", () => {
+  it("creates a plant, debits the budget, consumes Iron Ingot/Coke/Lime/Firebrick, and produces Steel once known", () => {
     setTechnologyProgressForTests([
       { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
     ]);
@@ -76,6 +78,7 @@ describe("SteelConvertersModule", () => {
     expect(market?.goods[2]?.stock).toBe(100 - 1.8); // Coke consumed
     expect(market?.goods[3]?.stock).toBe(100 - 0.6); // Lime consumed
     expect(market?.goods[4]?.stock).toBe(0.6); // trial-role Steel output rate
+    expect(market?.goods[5]?.stock).toBe(100 - 0.6); // Firebrick consumed
   });
 
   it("reduces utilization and skips output when Iron Ingot stock is scarce", () => {
@@ -88,7 +91,8 @@ describe("SteelConvertersModule", () => {
           1: { stock: 0.5, price: 8 },
           2: { stock: 100, price: 4 },
           3: { stock: 100, price: 3 },
-          4: { stock: 0, price: 14 }
+          4: { stock: 0, price: 14 },
+          5: { stock: 100, price: 6 }
         }
       }
     ]);

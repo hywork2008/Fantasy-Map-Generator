@@ -80,10 +80,12 @@ export class PowerStationsModule {
       const marketId = marketIdForBurg(plant.burgId);
       // Annual input scale: calibration TBD. Coal is the fuel; Copper Wire/Machine Parts are
       // wiring and turbine/generator parts consumed as ongoing maintenance and expansion stock.
+      // Firebrick relines the boiler firebox — same ongoing-consumable shape as the others.
       const coal = consumeNamed(marketId, "Coal", 4);
       const copperWire = consumeNamed(marketId, "Copper Wire", 1);
       const machineParts = consumeNamed(marketId, "Machine Parts", 1.5);
-      const coverage = Math.min(1, coal / 4, copperWire / 1, machineParts / 1.5);
+      const firebrick = consumeNamed(marketId, "Firebrick", 0.3);
+      const coverage = Math.min(1, coal / 4, copperWire / 1, machineParts / 1.5, firebrick / 0.3);
       plant.utilization = rn(Math.max(0, coverage), 4);
 
       if (plant.utilization >= 0.5) {

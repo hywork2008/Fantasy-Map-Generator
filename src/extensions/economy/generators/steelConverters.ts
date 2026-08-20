@@ -68,10 +68,13 @@ export class SteelConvertersModule {
       const marketId = marketIdForBurg(plant.burgId);
       // Annual input scale: 3x the existing craft recipe's per-unit ratio (Iron Ingot 1 : Coke
       // 0.6 : Lime 0.2 — goods-generator.ts), a bulk-production scale-up. Calibration TBD.
+      // Firebrick relines the converter vessel; a Bessemer/open-hearth lining wears faster than
+      // a boiler firebox (PowerStations' 0.3), so this draws at the same rate as Lime.
       const ironIngot = consumeNamed(marketId, "Iron Ingot", 3);
       const coke = consumeNamed(marketId, "Coke", 1.8);
       const lime = consumeNamed(marketId, "Lime", 0.6);
-      const coverage = Math.min(1, ironIngot / 3, coke / 1.8, lime / 0.6);
+      const firebrick = consumeNamed(marketId, "Firebrick", 0.6);
+      const coverage = Math.min(1, ironIngot / 3, coke / 1.8, lime / 0.6, firebrick / 0.6);
       plant.utilization = rn(Math.max(0, coverage), 4);
 
       if (plant.utilization >= 0.5) {

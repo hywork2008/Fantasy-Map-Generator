@@ -107,13 +107,16 @@ export class AcidPlantsModule {
       if (fuel <= 0) fuel = consumeNamed(marketId, "Charcoal", 0.3);
       const lead = consumeNamed(marketId, "Lead Ingot", 0.1);
       const glass = consumeNamed(marketId, "Lab Glassware", 0.05) || consumeNamed(marketId, "Glass", 0.08);
-      const coverage = Math.min(1, sulfur / 0.5, fuel / 0.3, lead / 0.1, glass / 0.05);
+      // Firebrick lines the burner/roaster stage feeding the lead chamber; the chamber itself
+      // runs cooler than a smelter or converter, so this draws a light rate, same order as Lead.
+      const firebrick = consumeNamed(marketId, "Firebrick", 0.1);
+      const coverage = Math.min(1, sulfur / 0.5, fuel / 0.3, lead / 0.1, glass / 0.05, firebrick / 0.1);
       plant.utilization = rn(Math.max(0, coverage), 4);
 
       const trial = trialFor(state.i, trials);
       trial.burgId = plant.burgId;
       trial.operatingYears += 1;
-      trial.inputsConsumed = rn(trial.inputsConsumed + sulfur + fuel + lead + glass, 4);
+      trial.inputsConsumed = rn(trial.inputsConsumed + sulfur + fuel + lead + glass + firebrick, 4);
       if (plant.utilization >= 0.5) {
         trial.documentedRuns += 1;
         plant.documentedRuns += 1;

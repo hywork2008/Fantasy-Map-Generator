@@ -27,7 +27,8 @@ describe("PowerStationsModule", () => {
     setGoods([
       { i: 1, name: "Coal", tags: [], value: 3, unit: "wain", icon: "good-coal", color: "#333" },
       { i: 2, name: "Copper Wire", tags: [], value: 16, unit: "coil", icon: "good-unknown", color: "#c98a4b" },
-      { i: 3, name: "Machine Parts", tags: [], value: 18, unit: "crate", icon: "good-unknown", color: "#6d7380" }
+      { i: 3, name: "Machine Parts", tags: [], value: 18, unit: "crate", icon: "good-unknown", color: "#6d7380" },
+      { i: 4, name: "Firebrick", tags: [], value: 6, unit: "wain", icon: "good-clay", color: "#8a4a30" }
     ]);
     setMarkets([
       {
@@ -37,7 +38,8 @@ describe("PowerStationsModule", () => {
         goods: {
           1: { stock: 100, price: 3 },
           2: { stock: 100, price: 16 },
-          3: { stock: 100, price: 18 }
+          3: { stock: 100, price: 18 },
+          4: { stock: 100, price: 6 }
         }
       }
     ]);
@@ -57,7 +59,7 @@ describe("PowerStationsModule", () => {
     expect(worldContext.pack.states[1].treasury).toBe(200);
   });
 
-  it("creates a plant, debits the budget, consumes Coal/Copper Wire/Machine Parts, computes generationCapacity, and grows instruments once known", () => {
+  it("creates a plant, debits the budget, consumes Coal/Copper Wire/Machine Parts/Firebrick, computes generationCapacity, and grows instruments once known", () => {
     setTechnologyProgressForTests([
       { technologyId: "generatorAndMotor", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
     ]);
@@ -76,6 +78,7 @@ describe("PowerStationsModule", () => {
     expect(market?.goods[1]?.stock).toBe(100 - 4); // Coal consumed
     expect(market?.goods[2]?.stock).toBe(100 - 1); // Copper Wire consumed
     expect(market?.goods[3]?.stock).toBe(100 - 1.5); // Machine Parts consumed
+    expect(market?.goods[4]?.stock).toBe(100 - 0.3); // Firebrick consumed
 
     const instruments = getCraftDomainEmploymentRecords().find(row => row.burgId === 1 && row.domain === "instruments");
     expect(instruments?.workers).toBe(2);
@@ -90,7 +93,8 @@ describe("PowerStationsModule", () => {
         goods: {
           1: { stock: 0.5, price: 3 },
           2: { stock: 100, price: 16 },
-          3: { stock: 100, price: 18 }
+          3: { stock: 100, price: 18 },
+          4: { stock: 100, price: 6 }
         }
       }
     ]);

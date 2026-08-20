@@ -1105,6 +1105,26 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { River: 1.3, Lake: 1.3 } }
   },
   {
+    // Refractory lining brick — Brick above chars and spalls at smelter/steam/chemical-plant
+    // temperatures, so sustained high-heat industry needs this separate, hotter-fired good.
+    // Same Clay body as Brick, mineral Coal instead of Wood for the higher firing temperature,
+    // gated behind the technology that first makes routine high-temperature furnace operation
+    // possible. Consumed as ongoing lining-maintenance stock by SteelConverters/AcidPlants/
+    // PowerStations (see those modules), same "consumeNamed on every settled year" shape as Coal/
+    // Copper Wire/Machine Parts there — not a one-off construction material like Brick.
+    name: "Firebrick",
+    warEconomyType: "strategic",
+    tags: ["industrial", "construction"],
+    icon: "good-clay",
+    color: "#8a4a30",
+    value: 6,
+    chance: 0,
+    recipes: [{ Clay: 1.5, Coal: 0.5 }],
+    unit: "wain",
+    demandCoverage: {},
+    requiredTechnology: "highTempFurnace"
+  },
+  {
     name: "Volcanic Ash",
     warEconomyType: "luxury",
     tags: ["mineral", "construction"],
