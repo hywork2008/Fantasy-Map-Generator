@@ -12,6 +12,7 @@
 - docs/plan/modern-steelmaking-and-high-pressure-apparatus.md
 - docs/plan/petroleum-and-internal-combustion-vertical-slice.md
 - docs/plan/phosphate-fertilizer-vertical-slice.md
+- docs/plan/rocket-and-space-development-vertical-slice.md
 - docs/plan/smokeless-powder-visibility.md
 - docs/plan/synthetic-ammonia-vertical-slice.md
 

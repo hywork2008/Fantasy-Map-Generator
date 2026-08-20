@@ -13,8 +13,8 @@ export type TechnologyStage = (typeof TECHNOLOGY_STAGES)[number];
 export const TECHNOLOGY_SCOPES = ["burg", "state", "network"] as const;
 export type TechnologyScope = (typeof TECHNOLOGY_SCOPES)[number];
 
-/** Roadmap eras through early steam (5), industrial chemistry (6), and petroleum (7). */
-export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+/** Roadmap eras through early steam (5), industrial chemistry (6), petroleum (7), and rocketry/space (8). */
+export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export interface TechnologyProgress {
   technologyId: string;

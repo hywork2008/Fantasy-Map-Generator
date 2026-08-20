@@ -2015,7 +2015,7 @@
       "technologyCol": "Technology",
       "technologyColTip": "Technology node on the host graph",
       "eraCol": "Era",
-      "eraColTip": "Roadmap band from mature medieval (0) to early steam (5)",
+      "eraColTip": "Roadmap band from mature medieval (0) to rocketry and space development (8)",
       "stageCol": "Stage",
       "stageColTip": "Locked, known, demonstrated, adopted, or diffused",
       "knownYear": "Known",
@@ -2037,7 +2037,8 @@
         "4": "4 Pre-industrial",
         "5": "5 Steam",
         "6": "6 Industrial chemistry",
-        "7": "7 Petroleum"
+        "7": "7 Petroleum",
+        "8": "8 Rocketry and space"
       },
       "stages": {
         "locked": "Locked",

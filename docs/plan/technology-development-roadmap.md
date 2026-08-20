@@ -2,9 +2,9 @@
 
 ## 状態
 
-**Phase 1–7 実装済み（宇宙開発を除く全分野）**（2026-08-20 更新。石油・内燃機関チェーン（§10、
-`petroleumGeologyAndExploration`/`modernDrillingAndFieldOperations`/`oilRefiningAndFractionation`/
-`internalCombustionEngine`）の実装により Phase 7 が完了）
+**Phase 1–8 実装済み（全分野が実装済み — ロードマップ完成）**（2026-08-20 更新。ロケット・宇宙開発チェーン（§11、
+`militarySignalRockets`/`rocketDynamicsAndHighTemperatureCombustionResearch`/`liquidPropulsionAndTestFacilities`/
+`guidanceAndAttitudeControl`/`stagingAndOrbitalInsertion`）の実装により Phase 8 が完了し、本書の全段階が実装済みとなった）
 
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
@@ -15,7 +15,7 @@
 | 5 | 蒸気・機械化（高効率機関・鉄道・海運蒸機） | 実装済み。機械紡績・機械織機（`mechanizedTextiles`）を追加済み（2026-08-20、下記参照） |
 | 6 | 近代化学・電化・電解工業（硫酸・リン酸肥料・近代製鋼・触媒化学・合成アンモニア・発電網・電解アルミニウム・辰砂/水銀） | 実装済み。辰砂・水銀チェーン（§9.5）を追加済み（2026-08-20、下記参照） |
 | 7 | 石油・内燃機関 | 実装済み。石油地質・掘削・製油・内燃機関チェーン（§10）を追加済み（2026-08-20、下記参照） |
-| 8 | ロケット・宇宙開発 | **未着手**（別機会） |
+| 8 | ロケット・宇宙開発 | 実装済み。火薬ロケット・ロケット力学研究・液体推進・誘導制御・多段化軌道投入チェーン（§11）を追加済み（2026-08-20、下記参照） |
 
 `textiles` ギルド知識ドメイン（紡織）は §3-A の分類上ずっと存在していたが、2026-08-20 まで技術ノードからは一切参照されておらず、蓄積されても何の効果も持たなかった。`factoryOrganization` / `mechanizedTextiles` の追加はこの欠落（§7・§8 の「工場制手工業」「機械紡績・機械織機」行）を埋めるもの。`leather` ドメインは元々ロードマップにノードとして記載がなく、対応不要。
 
@@ -43,6 +43,7 @@
 - [化学・医学の知識・技術蓄積プロセス設計](./chemistry-medicine-knowledge-accumulation.md): 薬種・実験ガラス・病院から工業硫酸までの知識蓄積。火山材料とガラス細工を化学・医学の本線に接続する。
 - [プレイヤーキャラクターによる技術バイアス](./player-character-technology-bias.md): PC は同じ証拠に局所バイアスをかけ、Technology Overview が `explainTechnologyGate` で不足シグナルを示す。
 - [石油・内燃機関の縦切り実装計画](./petroleum-and-internal-combustion-vertical-slice.md): 石油地質・試掘、近代掘削・油田運営、製油・分留、内燃機関の4ノードと `Crude Oil`/`Kerosene`/`Lubricating Oil` チェーン。
+- [ロケット・宇宙開発の縦切り実装計画](./rocket-and-space-development-vertical-slice.md): 火薬ロケット、ロケット力学・高温燃焼研究、液体推進・試験設備、誘導・姿勢制御、多段化・軌道投入の5ノード。新規 Good・プラント・シグナルなしで既存の era 1–7 系列を収束させる。
 
 ---
 
@@ -493,11 +494,25 @@ interface TechnologyDefinition {
    [petroleum-and-internal-combustion-vertical-slice.md](./petroleum-and-internal-combustion-vertical-slice.md)
    を参照。
 
-### Phase 8: ロケット・宇宙開発
+### Phase 8: ロケット・宇宙開発 — **実装済み**
 
-1. 火薬ロケットを、初期火薬技術の限定用途として追加する。
-2. 高性能ロケットは、推進・制御・試験・精密材料・大規模組織を要求する別系統として設計する。
-3. 宇宙開発の効果は、まず観測・通信・地図・威信に限定し、戦略兵器は別設計まで自動解禁しない。
+1. 火薬ロケット（`militarySignalRockets`）を、`artilleryTactics`/`mechanicalWorkshops` を前提とする
+   `gunpowderWorld` ゲート付きノードとして追加した。決定事項13を守り、他のどの era-8 ノードの `prerequisites`
+   にも現れない独立した葉として実装している — 火薬ロケットから高性能ロケット系列への自動昇格は存在しない。
+2. 高性能ロケットは、火薬とは無関係な学術・工業系列（`mathAstronomyGeography`/`electricalExperiments`/
+   `highPressureChemicalApparatus`）から派生する `rocketDynamicsAndHighTemperatureCombustionResearch` を起点に、
+   `liquidPropulsionAndTestFacilities`（+ `oilRefiningAndFractionation`/`powerGrid`）→
+   `guidanceAndAttitudeControl`（+ `electricTelegraph`）→ `stagingAndOrbitalInsertion`（+ `electrolyticIndustry`）
+   という4ノードの別系統として実装した。新規 Good・State資本設備プラント・`TechnologySignals` フィールドは
+   一切追加せず、既存の `refinedFuelAccess`/`electricityCoverage`/`copperWireAccess`/`instruments`/
+   `experimentRecord`/`administration`/`treasury` と `minimumYearsAtPreviousStage` の組み合わせだけで
+   roadmap §11 の「推進・制御・試験・精密材料・大規模組織」を表現している（`catalyticChemistry` と同型の
+   知識収束ノードパターン）。
+3. 宇宙開発の効果は `getMilitarySignalRocketsEffect()`/`getStagingAndOrbitalInsertionEffect()` という
+   0..1 の効果クエリ関数として公開するに留め、`getAtmosphericSteamDrainageBonus()`/
+   `getInternalCombustionEngineEffect()` と同じ「未接続」のまま次タスクに委ねた。通信・観測・地図・威信などの
+   民生的効果、および戦略兵器としての効果はいずれも本書の技術進行からは自動的に与えない。詳細は
+   [rocket-and-space-development-vertical-slice.md](./rocket-and-space-development-vertical-slice.md) を参照。
 
 ---
 

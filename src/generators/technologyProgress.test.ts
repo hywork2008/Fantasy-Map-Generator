@@ -13,6 +13,8 @@ import {
   getMaxShipClassTierForState,
   getMechanizedTextilesEffect,
   getMechanizedTextilesOutputMultiplier,
+  getMilitarySignalRocketsEffect,
+  getStagingAndOrbitalInsertionEffect,
   getTechnologyProgressEntries,
   getTechnologyStage,
   HINTABLE_KNOWN_RATIO_KEYS,
@@ -1025,6 +1027,77 @@ describe("technologyProgress", () => {
     settleTechnologyAnnual(1200);
 
     expect(getTechnologyStage("modernDrillingAndFieldOperations", 1)).toBe("locked");
+  });
+
+  // docs/plan/rocket-and-space-development-vertical-slice.md §3.3.
+  it("defines the era-8 rocketry/space chain with militarySignalRockets as an independent leaf, not a prerequisite of any other node", () => {
+    const era8 = TECHNOLOGY_DEFINITIONS.filter(def => def.era === 8);
+    expect(era8.map(def => def.id).sort()).toEqual(
+      [
+        "guidanceAndAttitudeControl",
+        "liquidPropulsionAndTestFacilities",
+        "militarySignalRockets",
+        "rocketDynamicsAndHighTemperatureCombustionResearch",
+        "stagingAndOrbitalInsertion"
+      ].sort()
+    );
+
+    const rockets = TECHNOLOGY_DEFINITIONS.find(def => def.id === "militarySignalRockets");
+    expect(rockets?.worldGates).toEqual(["gunpowderWorld"]);
+    expect(rockets?.prerequisites).toEqual(["artilleryTactics", "mechanicalWorkshops"]);
+    // roadmap decision 13: rockets/space must not unlock directly from powder rockets — verify no
+    // other era-8 node (including the chain's terminal node) lists it as a prerequisite.
+    for (const def of era8) {
+      if (def.id === "militarySignalRockets") continue;
+      expect(def.prerequisites).not.toContain("militarySignalRockets");
+    }
+
+    const dynamics = TECHNOLOGY_DEFINITIONS.find(
+      def => def.id === "rocketDynamicsAndHighTemperatureCombustionResearch"
+    );
+    expect(dynamics?.era).toBe(8);
+    expect(dynamics?.prerequisites).toEqual([
+      "mathAstronomyGeography",
+      "electricalExperiments",
+      "highPressureChemicalApparatus"
+    ]);
+
+    const liquid = TECHNOLOGY_DEFINITIONS.find(def => def.id === "liquidPropulsionAndTestFacilities");
+    expect(liquid?.prerequisites).toEqual([
+      "rocketDynamicsAndHighTemperatureCombustionResearch",
+      "oilRefiningAndFractionation",
+      "powerGrid"
+    ]);
+    expect(liquid?.known.min?.refinedFuelAccess).toBe(0.35);
+
+    const guidance = TECHNOLOGY_DEFINITIONS.find(def => def.id === "guidanceAndAttitudeControl");
+    expect(guidance?.prerequisites).toEqual(["liquidPropulsionAndTestFacilities", "electricTelegraph"]);
+
+    const staging = TECHNOLOGY_DEFINITIONS.find(def => def.id === "stagingAndOrbitalInsertion");
+    expect(staging?.prerequisites).toEqual(["guidanceAndAttitudeControl", "electrolyticIndustry"]);
+    expect(staging?.adopted.min?.treasury).toBe(1600);
+
+    expect(getMilitarySignalRocketsEffect(1)).toBe(0);
+    expect(getStagingAndOrbitalInsertionEffect(1)).toBe(0);
+    setTechnologyProgressForTests([
+      { technologyId: "militarySignalRockets", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "stagingAndOrbitalInsertion", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    expect(getMilitarySignalRocketsEffect(1)).toBeCloseTo(0.75);
+    expect(getStagingAndOrbitalInsertionEffect(1)).toBeCloseTo(0.35);
+  });
+
+  it("never lets rocketDynamicsAndHighTemperatureCombustionResearch progress unless mathAstronomyGeography, electricalExperiments, and highPressureChemicalApparatus have all reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      { technologyId: "mathAstronomyGeography", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electricalExperiments", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      // highPressureChemicalApparatus intentionally left short of adopted.
+      { technologyId: "highPressureChemicalApparatus", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("rocketDynamicsAndHighTemperatureCombustionResearch", 1)).toBe("locked");
   });
 
   // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same shape as the

@@ -221,6 +221,36 @@ export function getInternalCombustionEngineEffect(stateId: number): number {
   return 0;
 }
 
+/**
+ * Local uptake of military/signal powder rockets (docs/plan/technology-development-roadmap.md
+ * §11's 軍用・信号用火薬ロケット node). Same "1/0.35/0.75/1" stage shape as
+ * getInternalCombustionEngineEffect. Deliberately unconsumed — roadmap §11 explicitly defers
+ * strategic-weapon effects to a separate diplomacy/military design. See docs/plan/rocket-and-
+ * space-development-vertical-slice.md §1 non-goal 3.
+ */
+export function getMilitarySignalRocketsEffect(stateId: number): number {
+  const stage = getTechnologyStage("militarySignalRockets", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
+/**
+ * Local uptake of multi-stage rockets and orbital insertion (docs/plan/technology-development-
+ * roadmap.md §11's 多段化・軌道投入 node — the terminal node of the rocketry/space chain). Same
+ * "1/0.35/0.75/1" stage shape as getInternalCombustionEngineEffect. Deliberately unconsumed — no
+ * communication/observation/mapping/prestige system yet reads it. See docs/plan/rocket-and-space-
+ * development-vertical-slice.md §1 non-goal 3.
+ */
+export function getStagingAndOrbitalInsertionEffect(stateId: number): number {
+  const stage = getTechnologyStage("stagingAndOrbitalInsertion", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
 /** Max output multiplier mechanized spinning/weaving adds on top of the textiles guild-technique bonus. */
 const MECHANIZED_TEXTILES_BONUS_MAX = 0.35;
 

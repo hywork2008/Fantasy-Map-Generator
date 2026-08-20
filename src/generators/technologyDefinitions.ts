@@ -1,6 +1,6 @@
 /**
- * Technology node definitions for roadmap eras 0–7 (mature medieval → petroleum). Era 8 (space)
- * remains omitted.
+ * Technology node definitions for roadmap eras 0–8 (mature medieval → rocketry/space), the full
+ * span of docs/plan/technology-development-roadmap.md.
  *
  * Thresholds are soft and demand-driven: high treasury/ports/knowledge stocks
  * advance stages; inland states can still progress era-1 mining nodes without
@@ -958,6 +958,87 @@ const ERA_7: readonly TechnologyDefinition[] = [
   }
 ];
 
+/**
+ * Stage 8: rocketry and space development. Design: docs/plan/rocket-and-space-development-
+ * vertical-slice.md. No new Good/plant/TechnologySignals field — every node reuses era 1–7
+ * signals and prerequisite chains (§3.2 of that doc).
+ */
+const ERA_8: readonly TechnologyDefinition[] = [
+  // §3.3. Independent leaf off the gunpowder line — deliberately not a prerequisite of any other
+  // era-8 node. roadmap decision 13: rockets/space must not unlock directly from powder rockets.
+  {
+    id: "militarySignalRockets",
+    label: "Military and signal powder rockets",
+    era: 8,
+    scope: "state",
+    prerequisites: ["artilleryTactics", "mechanicalWorkshops"],
+    worldGates: ["gunpowderWorld"],
+    known: { min: { pyrotechnics: 0.65, woodworking: 0.5, treasury: 70 } },
+    demonstrated: { min: { pyrotechnics: 0.7, gunpowderDemand: 3.5, treasury: 110 }, flags: { atWar: true } },
+    adopted: { min: { pyrotechnics: 0.75, gunpowderDemand: 4, administration: 0.45, treasury: 150 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
+  },
+  // §3.3. mathAstronomyGeography/electricalExperiments/highPressureChemicalApparatus stand in for
+  // roadmap §11's "advancedMathematics、physics、thermodynamics、Academy Knowledge" — the same
+  // highPressureChemicalApparatus proxy oilRefiningAndFractionation already reuses for
+  // thermodynamics/precisionMachining. Pure knowledge-convergence node, no Good gate, same pattern
+  // as catalyticChemistry (era 6, §2 of the vertical-slice doc).
+  {
+    id: "rocketDynamicsAndHighTemperatureCombustionResearch",
+    label: "Rocket dynamics and high-temperature combustion research",
+    era: 8,
+    scope: "state",
+    prerequisites: ["mathAstronomyGeography", "electricalExperiments", "highPressureChemicalApparatus"],
+    known: { min: { experimentRecord: 0.68, naturalPhilosophy: 0.58, instruments: 0.4, treasury: 320 } },
+    demonstrated: { min: { experimentRecord: 0.72, naturalPhilosophy: 0.62, treasury: 400 } },
+    adopted: { min: { experimentRecord: 0.78, administration: 0.65, treasury: 480 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.3. refinedFuelAccess (Kerosene market-stock coverage, already internalCombustionEngine's
+  // demand-pull) stands in for "精製燃料・酸化剤"; electricityCoverage + powerGrid for "大電力".
+  {
+    id: "liquidPropulsionAndTestFacilities",
+    label: "Liquid propulsion and rocket test facilities",
+    era: 8,
+    scope: "state",
+    prerequisites: ["rocketDynamicsAndHighTemperatureCombustionResearch", "oilRefiningAndFractionation", "powerGrid"],
+    known: { min: { refinedFuelAccess: 0.35, electricityCoverage: 0.38, treasury: 560 } },
+    demonstrated: { min: { refinedFuelAccess: 0.42, electricityCoverage: 0.42, administration: 0.7, treasury: 650 } },
+    adopted: { min: { refinedFuelAccess: 0.48, electricityCoverage: 0.46, administration: 0.74, treasury: 750 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.3. copperWireAccess/instruments + electricTelegraph stand in for roadmap §11's
+  // "electricalEngineering、electronics、controlTheory" and "センサー、通信、計算装置".
+  {
+    id: "guidanceAndAttitudeControl",
+    label: "Guidance and attitude control",
+    era: 8,
+    scope: "state",
+    prerequisites: ["liquidPropulsionAndTestFacilities", "electricTelegraph"],
+    known: { min: { copperWireAccess: 0.4, instruments: 0.55, treasury: 800 } },
+    demonstrated: { min: { copperWireAccess: 0.45, instruments: 0.6, administration: 0.76, treasury: 900 } },
+    adopted: { min: { copperWireAccess: 0.5, instruments: 0.65, administration: 0.8, treasury: 1000 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.3. electrolyticIndustry (Aluminum) stands in for "lightweightStructures" — roadmap §9.4
+  // already names Aluminum as future "航空、後続の宇宙機器の材料選択肢". administration/treasury
+  // carry "systemsEngineering"/"国家計画" (national-scale organization), same shape as
+  // electrolyticIndustry/powerGrid's own high-threshold + long minimumYearsAtPreviousStage.
+  // Effect (getStagingAndOrbitalInsertionEffect) intentionally left unconsumed — vertical-slice
+  // doc §1 non-goal 2.
+  {
+    id: "stagingAndOrbitalInsertion",
+    label: "Multi-stage rockets and orbital insertion",
+    era: 8,
+    scope: "state",
+    prerequisites: ["guidanceAndAttitudeControl", "electrolyticIndustry"],
+    known: { min: { administration: 0.82, experimentRecord: 0.82, treasury: 1100 } },
+    demonstrated: { min: { administration: 0.85, experimentRecord: 0.85, treasury: 1300 } },
+    adopted: { min: { administration: 0.88, experimentRecord: 0.88, treasury: 1600 } },
+    minimumYearsAtPreviousStage: { demonstrated: 4, adopted: 6 }
+  }
+];
+
 export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [
   ...START_PROFILE,
   ...ERA_1,
@@ -966,7 +1047,8 @@ export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [
   ...ERA_4,
   ...ERA_5,
   ...ERA_6,
-  ...ERA_7
+  ...ERA_7,
+  ...ERA_8
 ];
 
 export const TECHNOLOGY_DEFINITION_BY_ID: ReadonlyMap<string, TechnologyDefinition> = new Map(
