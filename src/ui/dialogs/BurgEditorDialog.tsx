@@ -11,6 +11,11 @@ import { PopulationPyramid } from "../components/PopulationPyramid";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
+/** Matches economy/index.tsx's ECONOMY_EXTENSION_ID. Kept as a literal here (rather than an
+ * import) so this dialog doesn't pull in the economy extension's module graph just to key
+ * one row-visibility check. */
+const ECONOMY_EXTENSION_ID = "economy";
+
 interface BurgEditorTabBarProps {
   tabs: ExtensionEditorTab[];
   activeTab: string;
@@ -63,6 +68,7 @@ export const BurgEditorDialog: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const allEditorTabs = useExtensionState(state => state.editorTabs);
   const enabledExtensions = useExtensionState(state => state.enabledExtensions);
+  const isEconomyEnabled = useExtensionState(state => Boolean(state.enabledExtensions[ECONOMY_EXTENSION_ID]));
   const editorTabs = useMemo(
     () => getEnabledEditorTabs(allEditorTabs, enabledExtensions, "burgEditor"),
     [allEditorTabs, enabledExtensions]
@@ -95,6 +101,7 @@ export const BurgEditorDialog: React.FC = () => {
       title={t("dialogs.titles.editBurg")}
       onClose={() => closeDialog("burgEditor")}
       anchorTitlebarOnOpen
+      className="fmg-dialog--burg-editor"
     >
       {editorTabs.length > 0 && <BurgEditorTabBar tabs={editorTabs} activeTab={activeTab} onSelect={setActiveTab} />}
       {activeTab === "overview" ? (
@@ -249,169 +256,173 @@ export const BurgEditorDialog: React.FC = () => {
                     <span id="burgElevation">{burgData.elevation}</span> above sea level
                   </td>
                 </tr>
-                <tr data-tip="Burg average daily production">
-                  <th scope="row">Production:</th>
-                  <td>
-                    <span id="burgProduction" className="d-inline-flex">
-                      {burgData.production}
-                    </span>
-                  </td>
-                </tr>
-                <tr data-tip="Wealth is gross product per population point for the current production run. It is a per-capita productivity measure, not the burg's cumulative treasury.">
-                  <th scope="row">Wealth</th>
-                  <td>
-                    <span id="burgWealth">{burgData.wealth}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Treasury is the burg's cumulative cash balance after all production, purchases, and sales.">
-                  <th scope="row">Treasury</th>
-                  <td>
-                    <span id="burgTreasury">{burgData.treasury}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Annual Grain output from rural fields in this burg's own map cell. A zero here matches the absence of Grain color on the Goods layer.">
-                  <th scope="row">Cell Grain</th>
-                  <td>
-                    <span id="burgCellGrainProduction">{burgData.cellGrainProduction}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Current-quarter Grain production from all rural cells assigned to this burg's Market territory.">
-                  <th scope="row">Market Grain</th>
-                  <td>
-                    <span id="burgMarketGrainProduction">{burgData.marketGrainProduction}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Food physically delivered from another Market this quarter. This is not inferred from population capacity.">
-                  <th scope="row">Food imports</th>
-                  <td>
-                    <span id="burgMarketFoodImports">{burgData.marketFoodImports}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Requested food-reserve replenishment that did not arrive this quarter. It is a reserve gap, not an immediate starvation count.">
-                  <th scope="row">Food reserve gap</th>
-                  <td>
-                    <span id="burgMarketFoodReserveGap">{burgData.marketFoodReserveGap}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Food currently held in this burg's Market, expressed in ledger units and months of the Market's current demand.">
-                  <th scope="row">Market food stock</th>
-                  <td>
-                    <span id="burgMarketFoodStock">{burgData.marketFoodStock}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Basic employment (administration, mining, smelting, trade) that earns income from outside the burg, in adult-worker points. Drives population growth in Megacity mode.">
-                  <th scope="row">Basic employment</th>
-                  <td>
-                    <span id="burgBasicEmploymentDemand">{burgData.basicEmploymentDemand}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Service employment (inns, brokers, artisans) that basic employment supports, in adult-worker points.">
-                  <th scope="row">Service employment</th>
-                  <td>
-                    <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Labor: adult ledger — household care (non-market) is excluded from unemployment. Residual > 0 means market jobs could expand.">
-                  <th scope="row">Labor residual</th>
-                  <td>
-                    <span id="burgLaborResidual">{burgData.laborResidual}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Labor: estimated market unemployment among adults after household care and assigned work (not a census; display model).">
-                  <th scope="row">Market unemployment</th>
-                  <td>
-                    <span id="burgMarketUnemployment">{burgData.marketUnemployment}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Labor: suggested sector to grow when residual labor remains (housing gap, services, trade, craft, …).">
-                  <th scope="row">Employment focus</th>
-                  <td>
-                    <span id="burgEmploymentFocus">{burgData.employmentFocus}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Labor: compact employment composition (adults, care, assigned, residual, focus). Display-only.">
-                  <th scope="row">Labor ledger</th>
-                  <td>
-                    <span
-                      id="burgEmploymentComposition"
-                      style={{ whiteSpace: "pre-line", display: "inline-block", textAlign: "left" }}
-                    >
-                      {burgData.employmentComposition}
-                    </span>
-                  </td>
-                </tr>
-                <tr data-tip="Housing: built permanent dwellings vs required (household size 4.5; people = population × populationRate). Requires Economy and a market burg.">
-                  <th scope="row">Dwellings</th>
-                  <td>
-                    <span id="burgDwellings">{burgData.dwellings}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Housing: share of required dwellings still unbuilt. Raises mason/carpenter jobs and Stone/Brick/Wood demand.">
-                  <th scope="row">Housing gap</th>
-                  <td>
-                    <span id="burgHousingGap">{burgData.housingGap}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Housing: estimated new dwellings under construction this year (labor-limited; ~25% of the remaining gap when fully staffed). Material shortages can slow real progress further.">
-                  <th scope="row">Under construction</th>
-                  <td>
-                    <span id="burgUnderConstruction">{burgData.underConstruction}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Housing: mason + carpenter workers assigned to this burg (adult population points).">
-                  <th scope="row">Construction workers</th>
-                  <td>
-                    <span id="burgConstructionWorkers">{burgData.constructionWorkers}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Jobs: construction hire-board openings. Anonymous yearly hire only fills ~85% of demand so these seats stay open for applicants (player/NPC).">
-                  <th scope="row">Construction jobs</th>
-                  <td>
-                    <span id="burgConstructionJobs">{burgData.constructionJobs}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Commercial short-stay lodging. Inn beds are not permanent homes and do not raise housing capacity.">
-                  <th scope="row">Inns</th>
-                  <td>
-                    <span id="burgInns">{burgData.inns}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Urban water and sanitation: drainage tier, burden, flood, and odor. See the Water tab for detail.">
-                  <th scope="row">Water / sanitation</th>
-                  <td>
-                    <span id="burgWaterSanitation">{burgData.waterSanitation}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Civic sanitation score 0–100 written to burg.sanitation from the urban water model.">
-                  <th scope="row">Sanitation score</th>
-                  <td>
-                    <span id="burgSanitationScore">{burgData.sanitationScore}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Medical care civic score 0–100 from fueled hospitals, written to burg.medicalCare. Not a sewer score.">
-                  <th scope="row">Medical care</th>
-                  <td>
-                    <span id="burgMedicalCareScore">{burgData.medicalCareScore}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
-                  <th scope="row">Pregnant</th>
-                  <td>
-                    <span id="burgPregnant">{burgData.pregnant}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Demography: lower bound on near-term births/year. Live births use max(continuous growth, pregnancy due).">
-                  <th scope="row">Expected births</th>
-                  <td>
-                    <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
-                  </td>
-                </tr>
-                <tr data-tip="Valuation: housing replacement cost at the current culture building recipe × walls/citadel premium.">
-                  <th scope="row">Settlement value</th>
-                  <td>
-                    <span id="burgSettlementValue">{burgData.settlementValue}</span>
-                  </td>
-                </tr>
+                {isEconomyEnabled && (
+                  <>
+                    <tr data-tip="Burg average daily production">
+                      <th scope="row">Production:</th>
+                      <td>
+                        <span id="burgProduction" className="d-inline-flex">
+                          {burgData.production}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Wealth is gross product per population point for the current production run. It is a per-capita productivity measure, not the burg's cumulative treasury.">
+                      <th scope="row">Wealth</th>
+                      <td>
+                        <span id="burgWealth">{burgData.wealth}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Treasury is the burg's cumulative cash balance after all production, purchases, and sales.">
+                      <th scope="row">Treasury</th>
+                      <td>
+                        <span id="burgTreasury">{burgData.treasury}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Annual Grain output from rural fields in this burg's own map cell. A zero here matches the absence of Grain color on the Goods layer.">
+                      <th scope="row">Cell Grain</th>
+                      <td>
+                        <span id="burgCellGrainProduction">{burgData.cellGrainProduction}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Current-quarter Grain production from all rural cells assigned to this burg's Market territory.">
+                      <th scope="row">Market Grain</th>
+                      <td>
+                        <span id="burgMarketGrainProduction">{burgData.marketGrainProduction}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Food physically delivered from another Market this quarter. This is not inferred from population capacity.">
+                      <th scope="row">Food imports</th>
+                      <td>
+                        <span id="burgMarketFoodImports">{burgData.marketFoodImports}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Requested food-reserve replenishment that did not arrive this quarter. It is a reserve gap, not an immediate starvation count.">
+                      <th scope="row">Food reserve gap</th>
+                      <td>
+                        <span id="burgMarketFoodReserveGap">{burgData.marketFoodReserveGap}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Food currently held in this burg's Market, expressed in ledger units and months of the Market's current demand.">
+                      <th scope="row">Market food stock</th>
+                      <td>
+                        <span id="burgMarketFoodStock">{burgData.marketFoodStock}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Basic employment (administration, mining, smelting, trade) that earns income from outside the burg, in adult-worker points. Drives population growth in Megacity mode.">
+                      <th scope="row">Basic employment</th>
+                      <td>
+                        <span id="burgBasicEmploymentDemand">{burgData.basicEmploymentDemand}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Service employment (inns, brokers, artisans) that basic employment supports, in adult-worker points.">
+                      <th scope="row">Service employment</th>
+                      <td>
+                        <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Labor: adult ledger — household care (non-market) is excluded from unemployment. Residual > 0 means market jobs could expand.">
+                      <th scope="row">Labor residual</th>
+                      <td>
+                        <span id="burgLaborResidual">{burgData.laborResidual}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Labor: estimated market unemployment among adults after household care and assigned work (not a census; display model).">
+                      <th scope="row">Market unemployment</th>
+                      <td>
+                        <span id="burgMarketUnemployment">{burgData.marketUnemployment}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Labor: suggested sector to grow when residual labor remains (housing gap, services, trade, craft, …).">
+                      <th scope="row">Employment focus</th>
+                      <td>
+                        <span id="burgEmploymentFocus">{burgData.employmentFocus}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Labor: compact employment composition (adults, care, assigned, residual, focus). Display-only.">
+                      <th scope="row">Labor ledger</th>
+                      <td>
+                        <span
+                          id="burgEmploymentComposition"
+                          style={{ whiteSpace: "pre-line", display: "inline-block", textAlign: "left" }}
+                        >
+                          {burgData.employmentComposition}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Housing: built permanent dwellings vs required (household size 4.5; people = population × populationRate). Requires Economy and a market burg.">
+                      <th scope="row">Dwellings</th>
+                      <td>
+                        <span id="burgDwellings">{burgData.dwellings}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Housing: share of required dwellings still unbuilt. Raises mason/carpenter jobs and Stone/Brick/Wood demand.">
+                      <th scope="row">Housing gap</th>
+                      <td>
+                        <span id="burgHousingGap">{burgData.housingGap}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Housing: estimated new dwellings under construction this year (labor-limited; ~25% of the remaining gap when fully staffed). Material shortages can slow real progress further.">
+                      <th scope="row">Under construction</th>
+                      <td>
+                        <span id="burgUnderConstruction">{burgData.underConstruction}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Housing: mason + carpenter workers assigned to this burg (adult population points).">
+                      <th scope="row">Construction workers</th>
+                      <td>
+                        <span id="burgConstructionWorkers">{burgData.constructionWorkers}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Jobs: construction hire-board openings. Anonymous yearly hire only fills ~85% of demand so these seats stay open for applicants (player/NPC).">
+                      <th scope="row">Construction jobs</th>
+                      <td>
+                        <span id="burgConstructionJobs">{burgData.constructionJobs}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Commercial short-stay lodging. Inn beds are not permanent homes and do not raise housing capacity.">
+                      <th scope="row">Inns</th>
+                      <td>
+                        <span id="burgInns">{burgData.inns}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Urban water and sanitation: drainage tier, burden, flood, and odor. See the Water tab for detail.">
+                      <th scope="row">Water / sanitation</th>
+                      <td>
+                        <span id="burgWaterSanitation">{burgData.waterSanitation}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Civic sanitation score 0–100 written to burg.sanitation from the urban water model.">
+                      <th scope="row">Sanitation score</th>
+                      <td>
+                        <span id="burgSanitationScore">{burgData.sanitationScore}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Medical care civic score 0–100 from fueled hospitals, written to burg.medicalCare. Not a sewer score.">
+                      <th scope="row">Medical care</th>
+                      <td>
+                        <span id="burgMedicalCareScore">{burgData.medicalCareScore}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
+                      <th scope="row">Pregnant</th>
+                      <td>
+                        <span id="burgPregnant">{burgData.pregnant}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Demography: lower bound on near-term births/year. Live births use max(continuous growth, pregnancy due).">
+                      <th scope="row">Expected births</th>
+                      <td>
+                        <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
+                      </td>
+                    </tr>
+                    <tr data-tip="Valuation: housing replacement cost at the current culture building recipe × walls/citadel premium.">
+                      <th scope="row">Settlement value</th>
+                      <td>
+                        <span id="burgSettlementValue">{burgData.settlementValue}</span>
+                      </td>
+                    </tr>
+                  </>
+                )}
                 <tr>
                   <th scope="row">Features:</th>
                   <td>

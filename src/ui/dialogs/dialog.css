@@ -384,6 +384,29 @@
   flex-shrink: 0;
 }
 
+/* Edit Burg: the tab bar (#burgEditorTabs) and footer action row (#burgFooter) must stay
+   pinned to the top/bottom of the dialog instead of scrolling away with the content
+   in between, same pattern as .fmg-dialog--emblem above. */
+.fmg-dialog--burg-editor > .fmg-dialog-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fmg-dialog--burg-editor #burgEditorTabs {
+  flex-shrink: 0;
+}
+
+.fmg-dialog--burg-editor #burgBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.fmg-dialog--burg-editor #burgFooter {
+  flex-shrink: 0;
+}
+
 .fmg-dialog-buttonpane {
   display: flex;
   justify-content: flex-end;
