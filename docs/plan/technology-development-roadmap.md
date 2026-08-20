@@ -2,14 +2,26 @@
 
 ## 状態
 
-**Phase 1–3 実装済み（大航海・海洋商業まで）**（2026-08-03）
+**Phase 1–8 実装済み（全分野が実装済み — ロードマップ完成）**（2026-08-20 更新。ロケット・宇宙開発チェーン（§11、
+`militarySignalRockets`/`rocketDynamicsAndHighTemperatureCombustionResearch`/`liquidPropulsionAndTestFacilities`/
+`guidanceAndAttitudeControl`/`stagingAndOrbitalInsertion`）の実装により Phase 8 が完了し、本書の全段階が実装済みとなった）
 
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
 | 1 | 共通モデル・開始時代シード・年次評価 | 実装済み |
 | 2 | 火薬ノード + State 別需要効率 | 実装済み |
 | 3 | 大航海ノード + 船級ゲート | 実装済み |
-| 4+ | 前工業化〜宇宙 | **未着手**（別機会） |
+| 4 | 前工業化ノード + 初期蒸気機関 | 実装済み。工場制手工業（`factoryOrganization`）を追加済み（2026-08-20、下記参照） |
+| 5 | 蒸気・機械化（高効率機関・鉄道・海運蒸機） | 実装済み。機械紡績・機械織機（`mechanizedTextiles`）を追加済み（2026-08-20、下記参照） |
+| 6 | 近代化学・電化・電解工業（硫酸・リン酸肥料・近代製鋼・触媒化学・合成アンモニア・発電網・電解アルミニウム・辰砂/水銀） | 実装済み。辰砂・水銀チェーン（§9.5）を追加済み（2026-08-20、下記参照） |
+| 7 | 石油・内燃機関 | 実装済み。石油地質・掘削・製油・内燃機関チェーン（§10）を追加済み（2026-08-20、下記参照） |
+| 8 | ロケット・宇宙開発 | 実装済み。火薬ロケット・ロケット力学研究・液体推進・誘導制御・多段化軌道投入チェーン（§11）を追加済み（2026-08-20、下記参照） |
+
+`textiles` ギルド知識ドメイン（紡織）は §3-A の分類上ずっと存在していたが、2026-08-20 まで技術ノードからは一切参照されておらず、蓄積されても何の効果も持たなかった。`factoryOrganization` / `mechanizedTextiles` の追加はこの欠落（§7・§8 の「工場制手工業」「機械紡績・機械織機」行）を埋めるもの。`leather` ドメインは元々ロードマップにノードとして記載がなく、対応不要。
+
+**2026-08-20 追加（設計のみ・未実装）**: §16（付録）に、現在の開始時代（§2、成熟中世）の手前を埋める前史として、古代ローマ的技術水準から成熟中世に至るまでの技術ロードマップを追加設計した。Phase 1–8（段階0〜8）の実装・仕様には一切影響しない、独立した将来検討用の拡張（例: 「古代ローマ開始」シナリオを追加する場合の設計叩き台）である。
+
+**2026-08-21 追加（技術グラフのデータ層のみ実装済み）**: §16.2〜16.4 の18ノード（前1: 6ノード、前2: 6ノード、前3: 6ノード）を [`src/generators/technologyPrehistory.ts`](../../src/generators/technologyPrehistory.ts) に型付きデータとして実装した（ユニットテスト: [`technologyPrehistory.test.ts`](../../src/generators/technologyPrehistory.test.ts)、15件）。`technologyDefinitions.ts` / `technologyProgress.ts` / `worldContext` / 年次 tick のいずれからも import されておらず、現行ゲームの開始・進行には一切影響しない。`TechnologyEraBand`（0〜8）は変更せず、前史は独自の `PrehistoryEra` 文字列型で管理する。§16.1 の「維持投資途絶による退行」は、前2の3ノード（`collapseOfCentralMaintenance`/`dissolutionOfLegionsIntoRetinues`/`fragmentationOfUnifiedTrade`）が持つ `affectsMaintenanceOf` フィールドとして情報だけ表現し、実際に他ノードの stage を巻き戻す評価器は実装していない（決定事項15のとおり、これは前史専用ルールであり実装済み段階0〜8には適用しない）。「古代ローマ開始」シナリオ本体（世界生成オプション分岐・退行評価器・UI）は引き続き未着手。
 
 コードの主な置き場:
 
@@ -34,6 +46,8 @@
 - [蒸気機関後の工業 Good・市場・後続技術設計](./steam-industrial-goods-and-technology-chain.md): Coke、Steel、機械部品、資本財、鉄道、化学、電化を市場・技術・設備の連鎖として導入する設計。
 - [化学・医学の知識・技術蓄積プロセス設計](./chemistry-medicine-knowledge-accumulation.md): 薬種・実験ガラス・病院から工業硫酸までの知識蓄積。火山材料とガラス細工を化学・医学の本線に接続する。
 - [プレイヤーキャラクターによる技術バイアス](./player-character-technology-bias.md): PC は同じ証拠に局所バイアスをかけ、Technology Overview が `explainTechnologyGate` で不足シグナルを示す。
+- [石油・内燃機関の縦切り実装計画](./petroleum-and-internal-combustion-vertical-slice.md): 石油地質・試掘、近代掘削・油田運営、製油・分留、内燃機関の4ノードと `Crude Oil`/`Kerosene`/`Lubricating Oil` チェーン。
+- [ロケット・宇宙開発の縦切り実装計画](./rocket-and-space-development-vertical-slice.md): 火薬ロケット、ロケット力学・高温燃焼研究、液体推進・試験設備、誘導・姿勢制御、多段化・軌道投入の5ノード。新規 Good・プラント・シグナルなしで既存の era 1–7 系列を収束させる。
 
 ---
 
@@ -116,6 +130,8 @@
 - 大規模な株式会社・植民地行政・恒常的な世界市場
 - 蒸気機関、機械化工場、鉄道
 - 近代的な化学工業、高圧化学、アンモニア合成
+
+この開始状態がどのような歴史的経路（古代ローマ的文明の技術的頂点と、その一部の喪失・再到達）を経て成立したと想定するかは、§16（付録）で扱う。現行の開始時点の数値・解禁状態を変更するものではなく、背景設定および将来「古代ローマ開始」のような別シナリオを検討する場合の設計叩き台として位置づける。
 
 ---
 
@@ -438,36 +454,71 @@ interface TechnologyDefinition {
 2. 船級: sloop 常時可、caravel は `oceanGoingHulls` ≥ demonstrated、galleon は adopted + `oceanNavigation` ≥ known（加えて従来の tech points）。
 3. 内陸は港・船体シグナルが弱いため大航海ノードが停滞し、鉱山系 era-1 ノードは別経路で進行可能。
 
-### Phase 4: 前工業化と蒸気機関 — **未着手**
+### Phase 4: 前工業化と蒸気機関 — **実装済み**
 
-1. [蒸気機関の知識・技術蓄積プロセス設計](./steam-engine-knowledge-accumulation.md) に従い、鉱山排水圧力、実験自然哲学、精密中ぐり、Coal 供給を別々の前提として実装する。火器の Iron / Lead 需要は鉱山投資を加速するが、蒸気機関の必須前提にはしない。
-2. 初期蒸気機関は深部鉱山の試作・設置記録を必要とし、Coal、Iron、Tools、保守を実際に消費する。効果は設置済み MineOperation の排水・年産上限に限定する。
-3. 高効率機関、工場動力、蒸気輸送、鉄道は個別の後続ノードとして実装する。
+1. [蒸気機関の知識・技術蓄積プロセス設計](./steam-engine-knowledge-accumulation.md) に従い、鉱山排水圧力、実験自然哲学、精密中ぐり、Coal 供給を別々の前提として実装済み（`experimentalNaturalPhilosophy` / `mineSurveyAndDrainage` / `precisionBoringAndMeasurement` / `coalFuelSupply`）。火器の Iron / Lead 需要は鉱山投資を加速するが、蒸気機関の必須前提にはしていない。
+2. 初期蒸気機関（`atmosphericSteamPumping`）は深部鉱山の試作・設置記録を必要とし、効果は設置済み MineOperation の排水・年産上限に限定している。
+3. 高効率機関、工場動力、蒸気輸送、鉄道を個別の後続ノードとして実装済み（ERA_5、下記 Phase 5 参照）。
+4. **2026-08-20 追加**: 本書 §7 の「工場制手工業」行が `textiles` ギルド知識ドメインを前提に挙げているにもかかわらずノード化されていなかったため、`factoryOrganization`（`mechanicalWorkshops` + `commercialFinance` 前提）を追加した。効果は Phase 5 の `mechanizedTextiles` の前提となるほか、単独では新たな生産効果を持たない（ロードマップの「分業・生産規模・動力需要の増大」は下流の `mechanizedTextiles` 側で具体化する）。
 
-### Phase 5: 電力・硫酸・近代化学
+### Phase 5: 電力・硫酸・近代化学 — **実装済み**
 
-1. naturalPhilosophy / chemistry の実践者・組織知・消費先を追加する。
-2. 工業的硫酸、リン酸肥料、近代製鋼、電力網、高圧装置、触媒化学を順に接続する。
-3. 合成アンモニアは最後に実装し、肥料普及と軍需原料を別効果として検証する。
+1. naturalPhilosophy / chemistry の実践者・組織知・消費先を追加済み（`analyticalChemistry` ほか）。
+2. 工業的硫酸、リン酸肥料、近代製鋼、電力網、高圧装置、触媒化学を接続済み（下記 Phase 6 参照。ERA_5/ERA_6 に実装が分散している）。
+3. 合成アンモニアを実装済み（肥料普及と軍需原料を別効果として扱う設計は [synthetic-ammonia-vertical-slice.md](./synthetic-ammonia-vertical-slice.md) 参照）。
+4. **2026-08-20 追加**: 本書 §8 の「機械紡績・機械織機」行（`textiles`、`mechanics`、`factory organization` 前提）が未実装だったため、`mechanizedTextiles`（`factoryOrganization` + `rotarySteamPower` 前提）を追加した。効果は `getMechanizedTextilesOutputMultiplier`（`technologyProgress.ts`）が Cloth / Garments / Sails（`textiles` ギルドドメイン）の生産量に最大 +35% のボーナスを乗せる形で `production-generator.ts` に接続済み — 既存のギルド技術ボーナスに積み重なる。
 
-### Phase 6: 電気化学・アルミニウム・水銀の安全な利用
+### Phase 6: 電気化学・アルミニウム・水銀の安全な利用 — **実装済み**
 
-1. Electricity を容量型サービスとして導入し、発電所・送電網・需要家の不足時挙動を実装する。
-2. Bauxite → Alumina → Aluminum のチェーンを追加し、電解精錬を大口電力需要として接続する。
-3. Cinnabar → Mercury の小規模チェーンと、分析・貴金属回収・精密計測の限定用途を追加する。
-4. 水銀鉱山・精錬・利用による健康・環境の負債を、同じ変更で実装・テストする。
+1. Electricity を容量型サービスとして導入し、発電所・送電網・需要家の不足時挙動を実装済み（`generatorAndMotor` / `powerGrid`、[electric-power-and-telegraph.md](./electric-power-and-telegraph.md)）。
+2. Bauxite → Alumina → Aluminum のチェーンを追加し、電解精錬を大口電力需要として接続済み（`electrolyticIndustry`、[electrolytic-industry-vertical-slice.md](./electrolytic-industry-vertical-slice.md)）。
+3. Cinnabar → Mercury の小規模チェーンを追加済み（`cinnabarRoastingAndMercuryRecovery`、`MercuryPlants`、
+   [cinnabar-mercury-vertical-slice.md](./cinnabar-mercury-vertical-slice.md)）。分析（`analyticalChemistry` を
+   流用）は実装済み。貴金属回収・精密計測の限定用途は `Mercury` Good の未実装の消費先として次タスクに委ねる。
+4. 水銀鉱山・精錬・利用による健康・環境の負債は `MercuryPlant.contamination` として実装済み — 運転する年ごとに
+   必ず蓄積し、閾値超過でその年の産出を強制的に停止させる（[cinnabar-mercury-vertical-slice.md](./cinnabar-mercury-vertical-slice.md) §3.6-3.7）。
+   既存の `burg.sanitation`／キャラクター疾病モデルへの接続は意図的に見送った（同書§1・§6 決定事項2）。
 
-### Phase 7: 石油・内燃機関
+### Phase 7: 石油・内燃機関 — **実装済み**
 
-1. Oil seep / Petroleum の地質・掘削・油田運営を実装する。
-2. 製油所を原油の分留・変換・処理を担う設備として実装し、用途別燃料・潤滑油を生産する。
-3. 内燃機関、石油輸送、石油化学を、それぞれ別ノードとして接続する。
+1. Oil seep / Petroleum の地質・掘削・油田運営を実装済み（`petroleumGeologyAndExploration` /
+   `modernDrillingAndFieldOperations`）。`Crude Oil` は `Bauxite`/`Cinnabar` と同じ「鉱山供給のみ、
+   `requiredTechnology` なし」パターンで、新規 district `oilField`（province `basin` — coalSeam/evaporite/
+   phosphorite と同区分）から自動供給される。`modernDrillingAndFieldOperations` は新規シグナル
+   `petroleumAccess`（`Crude Oil` の市場在庫カバレッジ）を実質的なゲートとする — 循環依存を避けるため、
+   `Crude Oil` 自体は技術ゲートしない設計とした。
+2. 製油所を原油の分留・変換・処理を担う設備として実装済み（`oilRefiningAndFractionation` + `OilRefineryPlants`）。
+   `OilRefineryPlant` はこの経済で初めて1つの入力（Crude Oil）から2つの Good（`Kerosene`/`Lubricating Oil`）を
+   同時産出するプラント。両 Good とも `Synthetic Ammonia`/`Aluminum`/`Mercury` と同じ「資本設備のみ」パターン。
+3. 内燃機関を `internalCombustionEngine` ノードとして実装済み（`standardMachineWorks` を mechanics/
+   precisionMachining の代理前提とし、`refinedFuelAccess`/`steelAccess` を閾値とする）。roadmap の「車両・船舶・
+   発電・後続航空の動力」という効果は `getInternalCombustionEngineEffect()` として公開するに留め、具体的な消費先
+   （新規 Good、既存動力ボーナスの拡張）は未実装のまま次タスクに委ねた
+   （`getAtmosphericSteamDrainageBonus()` が現在も未接続であるのと同じパターン）。
+   「石油輸送」（Shipbuilding/Caravan との接続）・「石油化学」（roadmap §10
+   5行目、`catalyticChemistry` との接続）は非目的として見送った。詳細は
+   [petroleum-and-internal-combustion-vertical-slice.md](./petroleum-and-internal-combustion-vertical-slice.md)
+   を参照。
 
-### Phase 8: ロケット・宇宙開発
+### Phase 8: ロケット・宇宙開発 — **実装済み**
 
-1. 火薬ロケットを、初期火薬技術の限定用途として追加する。
-2. 高性能ロケットは、推進・制御・試験・精密材料・大規模組織を要求する別系統として設計する。
-3. 宇宙開発の効果は、まず観測・通信・地図・威信に限定し、戦略兵器は別設計まで自動解禁しない。
+1. 火薬ロケット（`militarySignalRockets`）を、`artilleryTactics`/`mechanicalWorkshops` を前提とする
+   `gunpowderWorld` ゲート付きノードとして追加した。決定事項13を守り、他のどの era-8 ノードの `prerequisites`
+   にも現れない独立した葉として実装している — 火薬ロケットから高性能ロケット系列への自動昇格は存在しない。
+2. 高性能ロケットは、火薬とは無関係な学術・工業系列（`mathAstronomyGeography`/`electricalExperiments`/
+   `highPressureChemicalApparatus`）から派生する `rocketDynamicsAndHighTemperatureCombustionResearch` を起点に、
+   `liquidPropulsionAndTestFacilities`（+ `oilRefiningAndFractionation`/`powerGrid`）→
+   `guidanceAndAttitudeControl`（+ `electricTelegraph`）→ `stagingAndOrbitalInsertion`（+ `electrolyticIndustry`）
+   という4ノードの別系統として実装した。新規 Good・State資本設備プラント・`TechnologySignals` フィールドは
+   一切追加せず、既存の `refinedFuelAccess`/`electricityCoverage`/`copperWireAccess`/`instruments`/
+   `experimentRecord`/`administration`/`treasury` と `minimumYearsAtPreviousStage` の組み合わせだけで
+   roadmap §11 の「推進・制御・試験・精密材料・大規模組織」を表現している（`catalyticChemistry` と同型の
+   知識収束ノードパターン）。
+3. 宇宙開発の効果は `getMilitarySignalRocketsEffect()`/`getStagingAndOrbitalInsertionEffect()` という
+   0..1 の効果クエリ関数として公開するに留め、`getAtmosphericSteamDrainageBonus()`/
+   `getInternalCombustionEngineEffect()` と同じ「未接続」のまま次タスクに委ねた。通信・観測・地図・威信などの
+   民生的効果、および戦略兵器としての効果はいずれも本書の技術進行からは自動的に与えない。詳細は
+   [rocket-and-space-development-vertical-slice.md](./rocket-and-space-development-vertical-slice.md) を参照。
 
 ---
 
@@ -505,3 +556,103 @@ interface TechnologyDefinition {
 11. 石油は、採掘・精製・輸送・用途別燃料を分け、内燃機関・石油化学・ロケット推進の共通基盤とする。
 12. ハーバー・ボッシュ法は、近代化学、高圧装置、エネルギー、国家または企業研究、肥料流通を必要とする終盤の複合技術とする。
 13. ロケットと宇宙開発は、火薬ロケットから直接の上位解禁にせず、推進・制御・試験・精密材料・大規模組織を必要とする別段階とする。
+14. 帝政ローマ的な技術水準は、成熟中世の開始状態を上回る要素（水硬性コンクリート建築、都市上水網、常備軍団、地中海規模の統一貨幣圏、広い識字率・行政記録密度）と、下回る要素（重量有輪犂、三圃式、鐙、騎士制度）の両方を持つ非単調な前史として扱う。「古代の方が単純に技術が低い」という単調な描写にはしない。
+15. 古代の衰退期（前2）は、新規ノードの発見ではなく主に「維持投資の途絶による退行」として表現する。退行は既存の `TechnologyStage` 列挙内を逆方向（例: `diffused`/`adopted` → `known`）に遷移させることで表し、§12 のデータ契約に新たな状態値は追加しない。この退行則は前史専用の追加ルールであり、実装済みの段階0〜8には適用しない。
+16. 帝政ローマ期に失われた広域インフラ・組織技術（都市上水網、統一交易圏、常備軍、行政記録密度、陸上輸送網）は、前史側で個別に再導入・再実装しない。既存の段階1・2・3・4・5（本書 §4・§5・§6・§7・§8）が、新技術として再到達または超過達成する形で扱う（§16.4 対応表）。前史専用の効果・Good・シグナルとして重複実装しない。
+
+---
+
+## 16. 付録: 古代ローマから成熟中世への前史ロードマップ（設計のみ・未実装）
+
+本章は、§2 が開始条件として固定する「成熟中世・騎士時代」（概ね西暦 1100〜1400 年相当）に至るまでの前史を、本書 §1 と同じ「条件付き技術グラフ」「発見・実用化・普及の分離」「知識の所有主体」「需要駆動」の原則に沿って設計する。Phase 1–8（段階0〜8、§4〜§11）はすでに実装済みであり、本章はそれより手前・独立の拡張である。現在の生成コードは §2 の開始状態からシミュレーションを始めており、本章の内容を実装しない限りゲーム上の効果は一切発生しない。
+
+想定用途は次の二つに限定する。
+
+1. 「なぜ成熟中世の開始状態が、ある面ではローマ帝政期より進んでおり（三圃式・鉄製農具・騎士制度）、別の面では劣っている（都市上水網・常備軍団・広域統一市場が存在しない）のか」という背景設定・UI 説明文の裏付け。
+2. 将来「古代ローマ開始」のような、より早い時代を開始点とする別シナリオを追加する場合の技術グラフの叩き台。
+
+### 16.1 新原則: 維持コストによる技術の退行
+
+§1.1〜1.4 の原則に加え、本章専用として次の原則を導入する（決定事項15、実装済み段階0〜8には適用しない）。
+
+技術は、発見・実用化・普及が進む方向にしか動かないわけではない。`adopted` / `diffused` の技術のうち、継続的な財政・労働力・輸送コストを要するもの（大規模インフラ、常備制度、広域交易網）は、その維持投資が途絶えると `known` 相当まで後退しうる。これは新たな `TechnologyStage` を追加するのではなく、既存の5段階（`locked` / `known` / `demonstrated` / `adopted` / `diffused`）を逆方向に遷移させることで表現する。
+
+```text
+維持投資（財政・労働力・輸送）の継続
+  → adopted / diffused を維持
+維持投資の途絶（中央政府の解体、財政破綻、交易路の危険化）
+  → adopted / diffused → known（設備・記録は残るが、継続的な稼働・普及効果は失われる）
+```
+
+退行は「技術そのものを忘れる」のではなく、「制度・資本が支えられなくなり、効果が働かなくなる」ことを表す。石造の水道橋は地面に残るが、維持修繕がなければ機能を失う、というのがこの原則の典型例である。
+
+### 16.2 前1: 帝政ローマ最盛期（技術・制度の頂点）
+
+この段階は、部族的な青銅器・初期鉄器社会（本ロードマップの対象外とする）から一足飛びに、中央集権的な帝政の技術・制度水準を最初の記述可能な到達点として置く。
+
+| ノード | 前提知識・技能 | 資源・設備・制度 | 結果 |
+| --- | --- | --- | --- |
+| 水硬性モルタル・コンクリート建築 | masonry、stoneworking、初歩の chemistry（石灰焼成） | 石灰石、火山灰等の混和材、燃料、熟練石工 | ドーム・アーチ・港湾構造物・大規模公共建築を、切石加工だけに頼らず安価かつ大量に建設可能にする |
+| 高架水道橋・都市上水網 | civilEngineering、surveying、水硬性コンクリート建築 | 水源測量、石材、継続的な維持管理予算 | 数十万人規模の都市への安定給水。公共浴場・噴水・水洗設備など都市衛生の基盤 |
+| 舗装軍道網 | civilEngineering、surveying、administration | 石材、賦役労働、中央財政 | 陸上輸送・軍展開の速度が向上し、遠隔属州の統治・交易・軍需輸送を一体化する |
+| 常備軍団と兵站制度 | administration、militaryEngineering、Martial Discipline | 常設の国庫、規格化装備、穀物供給網、道路網 | 標準化された装備・訓練・補給線を持つ常備軍。辺境防衛と迅速な鎮圧行軍が可能になる |
+| 属州行政・成文法 | writing、administration、法学的 Academy Knowledge | 書記層、記録保存、中央-地方の官僚機構 | 属州の徴税・治安・司法を標準化し、広域統治のコストを引き下げる |
+| 地中海規模の統一交易圏・貨幣制度 | administration、commercialFinance の先駆的形態 | 港湾、共通貨幣、契約・海商に関する法制度、治安（海賊掃討） | 属州間で穀物・オリーブ油・ワイン・金属を大量に海上輸送し、大都市への安価な食料供給を実現する |
+
+この段階の技術は、どれも高い水準の中央財政・官僚機構という単一の前提に依存する。次段階（前2）は、この共通前提が崩れたときに何が起きるかを描く。
+
+### 16.3 前2: 古代の衰退と地方分権化（移行期）
+
+この段階は、新規ノードの獲得よりも、前段階（前1）で `adopted` / `diffused` に達していた技術が §16.1 の退行則によって後退する過程を中心に据える。同時に、この混乱期に後の中世技術の萌芽となる要素が生まれる。
+
+| ノード | 前提・引き金 | 資源・設備・制度 | 結果 |
+| --- | --- | --- | --- |
+| 中央財政・道路網の維持断絶 | 中央政府の解体（内戦・侵入・財政破綻） | なし（退行の引き金となる負のノード） | 「舗装軍道網」「高架水道橋」など維持依存の技術が、地域ごとに `diffused` / `adopted` → `known` 相当へ後退しうる |
+| 常備軍団の解体と従士団化 | 中央財政の断絶、辺境防衛の地方委譲 | 地方領主の台頭、土地を対価とした軍役 | 常備軍団に代わり、土地に紐づいた従士団・城砦防衛体制が軍事力の単位になる |
+| 統一交易圏の分断・現物経済化 | 治安悪化、海上交易路の危険化 | なし（退行の引き金となる負のノード） | 広域市場と統一貨幣の効果が失われ、地域自給と現物取引・小規模市場が優勢になる |
+| 修道院による知識の断片的保存 | writing、宗教制度、Academy Knowledge の残滓 | 写本、修道院、限られた識字聖職者 | 属州行政期の記録密度・識字率は取り戻せないが、学術知の全面的な断絶は避けられる |
+| 重量有輪犂の萌芽 | blacksmithing、北方の重粘土質土壌への適応需要 | 鉄、牽引力のある役畜 | ローマ期の軽量な引っ掻き犂を、北方の重い土壌向けの犂へ置き換え始める。段階0「鉄製農具」の前身 |
+| 鐙・改良馬具の伝来 | 遊牧民・東方との接触、交易 | なし | 騎乗戦闘の安定性が向上する。段階0「騎士」制度の軍事技術的前身 |
+
+「維持投資の途絶」と「新技術の萌芽」は同じ地域で同時に起きてよい。ある State が道路網の維持に失敗しつつ重量有輪犂を採用する、といった非対称な進行を許容する。
+
+### 16.4 前3: 初期中世の再建と封建化（→ 段階0 成熟中世へ）
+
+この段階は、前2で生まれた萌芽を制度として定着させ、§2.1 の開始プロファイルへ到達する回復・統合の過程を描く。
+
+| ノード | 前提知識・技能 | 資源・設備・制度 | 結果 |
+| --- | --- | --- | --- |
+| 荘園制・封建的階層の制度化 | 地方領主制、慣習法 | 土地・労働・軍役義務を結ぶ制度 | 土地・労働・軍役を一体化した安定した地方統治単位ができる。段階0の統治基盤 |
+| 三圃式農業への移行 | 鉄製農具の普及、荘園の耕地管理 | 十分な鉄供給、労働力配分の制度化 | 二圃式に対して単位面積あたりの収穫が増加する。§2.1「三圃式、鉄製農具」の前提そのもの |
+| 水車・風車の本格的普及 | carpentry、mechanics | 河川・適地、木材、都市・荘園の製粉需要 | ローマ期は限定的だった水力利用が、製粉・揚水・繊維加工へ本格的に普及する。§2.1「水力・風力」の前提 |
+| 騎士制度の確立 | 鐙・改良馬具、封建軍役義務、Martial Discipline | 従士への土地・武具の授与、訓練 | §2.1「騎士、弓兵、槍兵、攻城兵器」の直接の前身となる軍事・社会制度が確立する |
+| 大聖堂学校・修道院学術の再興 | 修道院知識保存、都市の再成長 | 学校、写本、後援（教会・領主） | §2.1「文字・商業」、および段階1「数学・天文・地理」（本書 §4）への橋渡しとなる学術基盤が育つ |
+| 遠隔地交易の再興（定期市・商人団） | 治安回復、貨幣経済の再興 | 定期市、商人団、街道・河川交通の回復 | §2.1「文字・商業」の「都市市場」、および後のギルド制度の前身が形成される |
+
+この6ノードがおおむね `adopted` に達した時点が、§2.1 の開始プロファイル（三圃式・鉄製農具・役畜、水車・風車、冶金、石造建築・橋・道路・荷車・河川輸送、沿岸航海、騎士・弓兵・槍兵・攻城兵器、写本・帳簿・信用・都市市場）に相当する。
+
+### 16.5 帝政ローマ期の達成と、成熟中世開始時点との対応
+
+ローマ期の達成は、成熟中世の開始状態にそのまま持ち越されない。以下は、決定事項16に対応する「どこで失われ、どの既存段階で再到達・超過達成するか」の一覧である。
+
+| 帝政ローマ期の達成 | 段階0（成熟中世）開始時点の状態 | 再到達・超過達成する段階 |
+| --- | --- | --- |
+| 水硬性コンクリート建築 | 喪失。石造建築は継続するが工法は簡素化する | 本ロードマップの範囲では再導入しない（近代以降の技術として別途扱う場合のみ検討） |
+| 高架水道橋・都市上水網 | 大部分喪失。井戸・小規模水利のみ | 段階1「都市水利・被覆排水渠」（本書 §4）で部分的に再興、[urban-water-and-sanitation-system.md](./urban-water-and-sanitation-system.md) で本格的に再興 |
+| 常備軍団・規格化兵站 | 喪失。封建軍役・従士団に置換 | 段階2「火器の量産」（本書 §5）以降の常備化、段階4以降（本書 §7〜）の国家財政拡大で再到達 |
+| 地中海規模の統一貨幣・交易圏 | 喪失。地域市場中心 | 段階1「商業金融の成熟」（本書 §4）で回復開始、段階3「大航海・海洋商業」（本書 §6）で外洋規模へ超過達成 |
+| 属州行政・広い識字率・記録密度 | 大幅後退。記録は聖職者・修道院中心 | 段階1「記録と複製の拡大」（本書 §4）で回復開始 |
+| 舗装軍道網 | 部分的存続（劣化）。荷車・河川輸送で代替 | 段階4「蒸気輸送」・段階5「鉄道」（本書 §8）で質的に超過達成 |
+| 鉄製農具・重量有輪犂・三圃式・騎士制度 | 開始時点で標準装備として既に普及済み（§2.1） | ローマ期には存在せず、前2・前3（本章 §16.3〜16.4）で新規に獲得する、ローマを上回る到達点 |
+
+この対応表が示すとおり、成熟中世の開始状態は「古代より単純に進んでいる」のでも「単純に退化している」のでもない。都市インフラ・常備制度・広域交易は後退したまま開始し、後続の段階1・3・4・5（本書 §4・§6・§7・§8）で新技術として再構築・超過達成される一方、農業・騎兵技術は古代を上回った状態で開始する。
+
+### 16.6 本章を実装する場合の留意点
+
+実装を検討する際は、次を守る。
+
+- §12 の `TechnologyStage` 列挙・`TechnologyDefinition` 契約はそのまま再利用し、新たな状態値・データ構造を追加しない。退行は既存フィールドの値を逆方向へ更新するだけで表現する（決定事項15）。
+- 前1〜前3のいずれのノードも、実装済みの段階0〜8（本書 §4〜§11）のノード・Good・シグナルを重複して再実装しない。§16.5 の対応表が指す既存ノードへ収束させる（決定事項16）。
+- 本章はあくまで「開始時点をどこに置くか」の選択肢を増やす拡張であり、既存の既定シナリオ（§2 を開始点とする現行の生成）を変更しない（決定事項1・2は不変）。「古代ローマ開始」シナリオを追加する場合も、既定シナリオとは別の `WorldContext.options` 分岐として実装し、既存セーブ・既存テストに影響を与えない設計とする。
+
+**実装状況（2026-08-21）**: 上記18ノードのデータ層（`TechnologyDefinition` 相当の型・thresholds・prerequisites・`affectsMaintenanceOf` 情報メタデータ・純粋関数 `advancePrehistoryStage`/`prehistoryThresholdsMet`/`prehistoryPrerequisitesMet`）は [`src/generators/technologyPrehistory.ts`](../../src/generators/technologyPrehistory.ts) に実装済み。上記3点の留意点はいずれも守られている（`technologyTypes.ts`/`technologyDefinitions.ts` 未変更、段階0〜8のノード・シグナルを再実装せず、既定シナリオ・セーブ・既存テストへの接続なし）。未着手なのは、退行を実際に適用する評価器、「古代ローマ開始」の `WorldContext.options` 分岐、および世界生成 UI。

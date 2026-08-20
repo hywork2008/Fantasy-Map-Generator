@@ -46,6 +46,22 @@ const FIREARM_BULLETS_PER_HEAD = 0.012;
 /** Replacement weapons and personal protection for every active troop. */
 const ARMS_PER_HEAD = 0.01;
 
+// docs/plan/military-era-progression.md §5 Phase 3 — armored/aviation/fieldArtillery/
+// machineGunners' equipment and fuel demand. Unlike the plannedU-gated Muskets/Arms establishment
+// above, these are drawn straight from the market every month like Iron/Lead/Fodder (the plan's
+// own Phase 3 note explicitly defers applying the plannedU dormant-establishment pattern to these
+// new units — decide that only after Phase 1/2 see real play). All uncalibrated.
+/** Steel barrels/receivers/launcher racks on top of fieldArtillery/machineGunners/rocketArtillery's existing Iron/Lead/Gunpowder draw (via isArtilleryLike()/isFirearm() below) — see needsAdvancedSteel(). */
+const MODERN_STEEL_PER_HEAD = 0.05;
+/** Hull and armor plating. */
+const STEEL_PER_ARMORED_HEAD = 0.15;
+/** Engine fuel — see internalCombustionEngine's own refinedFuelAccess threshold (Kerosene market coverage). */
+const KEROSENE_PER_ARMORED_HEAD = 0.06;
+/** Airframe structure — electrolyticIndustry's Aluminum, per roadmap §9.4. */
+const ALUMINUM_PER_AVIATION_HEAD = 0.2;
+/** Engine fuel — higher burn than ground vehicles. */
+const KEROSENE_PER_AVIATION_HEAD = 0.08;
+
 /** Settles state military material demand against its principal market. */
 export class MilitaryResourcesModule {
   generate(): void {
@@ -131,9 +147,25 @@ export class MilitaryResourcesModule {
 
       // Finished equipment and ammunition are fulfilled through Metallurg work orders after generic
       // production runs. Ammunition is placed in persistent State stockpiles, not consumed in peacetime.
+      // steel/kerosene/aluminum (docs/plan/military-era-progression.md §5 Phase 3) are always in
+      // scope, independent of gunpowderEraEnabled — armored/aviation's own recruitment gate is
+      // (§4.4), and fieldArtillery/machineGunners' contribution to "steel" is naturally 0 when
+      // gunpowder is disabled since those units can't be recruited at all in that case.
       const resources = gunpowderEraEnabled
-        ? (["fodder", "arms", "arrows", "iron", "lead", "gunpowder", "bullets", "muskets"] as const)
-        : (["fodder", "arms", "arrows"] as const);
+        ? ([
+            "fodder",
+            "arms",
+            "arrows",
+            "iron",
+            "lead",
+            "gunpowder",
+            "bullets",
+            "muskets",
+            "steel",
+            "kerosene",
+            "aluminum"
+          ] as const)
+        : (["fodder", "arms", "arrows", "steel", "kerosene", "aluminum"] as const);
 
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
@@ -237,14 +269,21 @@ export class MilitaryResourcesModule {
     let mounted = 0;
     let archers = 0;
     let troops = 0;
+    // docs/plan/military-era-progression.md §5 Phase 3-4.
+    let advancedSteelHeads = 0; // fieldArtillery/machineGunners/rocketArtillery — see needsAdvancedSteel()
+    let armored = 0;
+    let aviation = 0;
     for (const regiment of state.military || []) {
       for (const [unitName, rawCount] of Object.entries(regiment.u || {})) {
         const count = rawCount / populationRate;
         troops += count;
-        if (this.isArtillery(unitName)) artillery += count;
+        if (this.isArtilleryLike(unitName)) artillery += count;
         else if (this.isFirearm(unitName)) firearms += count;
         if (isMountedUnit(unitName)) mounted += count;
         if (this.isArcher(unitName)) archers += count;
+        if (this.needsAdvancedSteel(unitName)) advancedSteelHeads += count;
+        if (this.isArmoredUnit(unitName)) armored += count;
+        if (this.isAviationUnit(unitName)) aviation += count;
       }
       const firearmUnitNames = new Set([...Object.keys(regiment.u || {}), ...Object.keys(regiment.plannedU ?? {})]);
       for (const unitName of firearmUnitNames) {
@@ -263,6 +302,19 @@ export class MilitaryResourcesModule {
     if (arrows > 0) demand.arrows = arrows;
     const arms = rn(troops * ARMS_PER_HEAD, 4);
     if (arms > 0) demand.arms = arms;
+
+    // docs/plan/military-era-progression.md §5 Phase 3-4 — computed unconditionally (unlike the
+    // iron/lead/gunpowder/bullets/muskets block below, which returns early when gunpowderEraEnabled
+    // is off). armored/aviation are independent of that world gate (§4.4); advancedSteelHeads is
+    // fieldArtillery/machineGunners/rocketArtillery, which naturally stay at 0 troops when
+    // gunpowder is disabled (they're excluded from recruitment entirely — see gunpowderEra.ts), so
+    // this is safe either way.
+    const steel = rn(advancedSteelHeads * MODERN_STEEL_PER_HEAD + armored * STEEL_PER_ARMORED_HEAD, 4);
+    if (steel > 0) demand.steel = steel;
+    const kerosene = rn(armored * KEROSENE_PER_ARMORED_HEAD + aviation * KEROSENE_PER_AVIATION_HEAD, 4);
+    if (kerosene > 0) demand.kerosene = kerosene;
+    const aluminum = rn(aviation * ALUMINUM_PER_AVIATION_HEAD, 4);
+    if (aluminum > 0) demand.aluminum = aluminum;
 
     if (!gunpowderEraEnabled) return demand;
 
@@ -309,12 +361,63 @@ export class MilitaryResourcesModule {
     return demand;
   }
 
+  /**
+   * The legacy "artillery" unit only. Kept an exact match (not broadened to include
+   * "fieldArtillery") specifically because unstockInitialFirearmForces() below reads it: sweeping
+   * fieldArtillery into a dormant plannedU slot would strand it there forever, since
+   * metallurgWork.ts's own (separately-defined, unbroadened) isArtillery() drives the Metallurg
+   * "Artillery" Good work order that reactivates a dormant slot — it doesn't recognize
+   * "fieldArtillery" either, and broadening it too is a bigger, explicitly-deferred change (see
+   * isArtilleryLike() below for where fieldArtillery's material demand — as opposed to its
+   * equipment-establishment tracking — is handled instead).
+   */
   private isArtillery(unitName: string): boolean {
     return unitName.toLowerCase() === "artillery";
   }
 
+  /**
+   * Broader than isArtillery() above — also matches "fieldArtillery" (steel breech-loaders,
+   * docs/plan/military-era-progression.md §4.3) and "rocketArtillery" (§4.5), which share the
+   * legacy unit's iron/lead/gunpowder demand shape (same combat role, still a gunpowder-fired gun)
+   * on top of the additional Steel draw needsAdvancedSteel() below adds. Used only for
+   * material-demand aggregation in getAnnualDemand() — never for the plannedU equipment-
+   * establishment tracking in unstockInitialFirearmForces() (see isArtillery()'s own comment for
+   * why that stays exact). Same includes("artillery") pattern gunpowderEra.ts's
+   * isGunpowderEraMilitaryUnit() already uses for the "machinery" type.
+   */
+  private isArtilleryLike(unitName: string): boolean {
+    return unitName.toLowerCase().includes("artillery");
+  }
+
   private isFirearm(unitName: string): boolean {
     return isFirearmMilitaryUnitName(unitName);
+  }
+
+  private getUnitDefinition(unitName: string) {
+    return getWorldContext().options.military?.find(unit => unit.name === unitName);
+  }
+
+  /**
+   * fieldArtillery/machineGunners (modernSteelmaking, Phase 3) and rocketArtillery (militarySignalRockets,
+   * Phase 4 — a rocket launcher rack needs at least as much steel fabrication as a gun carriage) —
+   * identified by their requiresTechnology gate rather than name, so any other custom unit a
+   * player gates on one of these technologies (Military Options) automatically draws the same
+   * Steel demand, no regex maintenance required (docs/plan/military-era-progression.md §5 Phase 3,
+   * principle 7). Renamed from needsModernSteel() when Phase 4 added the second technology id.
+   */
+  private needsAdvancedSteel(unitName: string): boolean {
+    const technologyId = this.getUnitDefinition(unitName)?.requiresTechnology?.id;
+    return technologyId === "modernSteelmaking" || technologyId === "militarySignalRockets";
+  }
+
+  /** Type-based, not name-based (principle 7) — matches any "armored" type unit, built-in or custom. */
+  private isArmoredUnit(unitName: string): boolean {
+    return this.getUnitDefinition(unitName)?.type === "armored";
+  }
+
+  /** Type-based, not name-based (principle 7) — matches any "aviation" type unit, built-in or custom. */
+  private isAviationUnit(unitName: string): boolean {
+    return this.getUnitDefinition(unitName)?.type === "aviation";
   }
 
   private isArcher(unitName: string): boolean {

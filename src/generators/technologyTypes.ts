@@ -13,8 +13,8 @@ export type TechnologyStage = (typeof TECHNOLOGY_STAGES)[number];
 export const TECHNOLOGY_SCOPES = ["burg", "state", "network"] as const;
 export type TechnologyScope = (typeof TECHNOLOGY_SCOPES)[number];
 
-/** Roadmap eras through early steam (5) and industrial chemistry (6). */
-export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** Roadmap eras through early steam (5), industrial chemistry (6), petroleum (7), and rocketry/space (8). */
+export type TechnologyEraBand = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export interface TechnologyProgress {
   technologyId: string;
@@ -45,6 +45,8 @@ export interface TechnologySignals {
   printing: number;
   administration: number;
   masonry: number;
+  /** 0..1 max GuildKnowledgeStock("textiles") across the state's burgs — spinning/weaving/sailmaking technique. */
+  textiles: number;
   gunpowderDemand: number;
   shipTechPoints: number;
   completedHulls: number;
@@ -82,8 +84,85 @@ export interface TechnologySignals {
   acidPlantTrialYears: number;
   hospitalInstallations: number;
   acidPlantInstallations: number;
+  /** 0..1 market-stock coverage of Phosphate Rock, same shape as sulfurAccess. */
+  phosphateRockAccess: number;
+  /**
+   * Consecutive documented-run years of a running ChemistryTrial(kind="phosphateFertilizerPlant"),
+   * same shape as acidPlantTrialYears. See docs/plan/phosphate-fertilizer-vertical-slice.md §3.6-3.7.
+   */
+  phosphateFertilizerTrialYears: number;
+  /** Count of active PhosphateFertilizerPlant entries, same shape as acidPlantInstallations. */
+  phosphateFertilizerPlantCount: number;
+  /**
+   * 0..1 market-stock coverage of Steel, same shape as sulfurAccess/phosphateRockAccess. See
+   * docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3.
+   */
+  steelAccess: number;
+  /** SteelConverterPlant.documentedRuns state max, same shape as hospitalTrialYears. */
+  modernSteelmakingTrialYears: number;
+  /** Count of active SteelConverterPlant entries, same shape as hospitalInstallations. */
+  modernSteelmakingInstallations: number;
   experimentRecord: number;
   urbanWaterMaxMunicipalSanitation: number;
+  /**
+   * 0..1. 1 minus the state-average Market.fertilizerStock (Phosphate Fertilizer adoption) across
+   * markets with a food ledger — the "fertilizer coverage gap" demand pull for syntheticAmmonia's
+   * known threshold. Computed alongside foodFertilizerPressure but from a different source; does
+   * not change foodFertilizerPressure/lateChemistryDemandPressure's existing calibration. See
+   * docs/plan/synthetic-ammonia-vertical-slice.md §3.5.
+   */
+  fertilizerCoverageGap: number;
+  /** SyntheticAmmoniaPlant's ChemistryTrial documentedRuns state max, same shape as phosphateFertilizerTrialYears. */
+  syntheticAmmoniaTrialYears: number;
+  /** Count of active SyntheticAmmoniaPlant entries, same shape as phosphateFertilizerPlantCount. */
+  syntheticAmmoniaInstallations: number;
+  /**
+   * 0..1 market-stock coverage of Copper Wire, same shape as sulfurAccess/steelAccess/
+   * phosphateRockAccess. See docs/plan/electric-power-and-telegraph.md §3.3.
+   */
+  copperWireAccess: number;
+  /** PowerStation.documentedRuns state max, same shape as modernSteelmakingTrialYears. */
+  powerStationTrialYears: number;
+  /** Count of active PowerStation entries, same shape as modernSteelmakingInstallations. */
+  powerStationInstallations: number;
+  /** TelegraphLine.documentedRuns state max, same shape as powerStationTrialYears. */
+  telegraphLineTrialYears: number;
+  /** Count of active TelegraphLine entries, same shape as powerStationInstallations. */
+  telegraphLineInstallations: number;
+  /**
+   * 0..1. State average of Market.electricityStock across markets with population, limited to
+   * markets that have any population — the demand pull for powerGrid's thresholds. Unlike
+   * fertilizerCoverageGap this is not inverted: powerGrid is meant to become attractive once local
+   * generation coverage is already meaningful. See docs/plan/electric-power-and-telegraph.md §3.3.
+   */
+  electricityCoverage: number;
+  /** ElectrolysisPlant.documentedRuns state max, same shape as powerStationTrialYears. */
+  electrolysisPlantTrialYears: number;
+  /** Count of active ElectrolysisPlant entries, same shape as powerStationInstallations. */
+  electrolysisPlantInstallations: number;
+  /**
+   * 0..1 market-stock coverage of Cinnabar, same shape as phosphateRockAccess/steelAccess/
+   * copperWireAccess. See docs/plan/cinnabar-mercury-vertical-slice.md §3.4.
+   */
+  cinnabarAccess: number;
+  /** MercuryPlant.documentedRuns state max, same shape as acidPlantTrialYears. */
+  mercuryPlantTrialYears: number;
+  /** Count of active MercuryPlant entries, same shape as acidPlantInstallations. */
+  mercuryPlantInstallations: number;
+  /**
+   * 0..1 market-stock coverage of Crude Oil, same shape as cinnabarAccess/steelAccess. Used as
+   * modernDrillingAndFieldOperations's real gate instead of a requiredTechnology on Crude Oil
+   * itself, which would be circular (the good is never produced until the node demonstrates, so
+   * its own market coverage could never rise to meet the threshold). See docs/plan/petroleum-and-
+   * internal-combustion-vertical-slice.md §3.1, §3.4.
+   */
+  petroleumAccess: number;
+  /** 0..1 market-stock coverage of Kerosene, same shape as petroleumAccess — the demand-pull for internalCombustionEngine. */
+  refinedFuelAccess: number;
+  /** OilRefineryPlant's ChemistryTrial documentedRuns state max, same shape as mercuryPlantTrialYears. */
+  oilRefineryTrialYears: number;
+  /** Count of active OilRefineryPlant entries, same shape as mercuryPlantInstallations. */
+  oilRefineryInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }

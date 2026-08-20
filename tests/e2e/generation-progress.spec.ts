@@ -439,3 +439,38 @@ test("preserves a newly generated landscape when climate is regenerated", async 
 
   expect(await getCoastlineSignature(page)).toBe(coastlineBeforeClimate);
 });
+
+test("automatically regenerates the landscape when the template is changed mid-generation", async ({ page }) => {
+  await page.goto("/?width=1280&height=720");
+
+  const buildMap = page.locator(".generation-progress-dialog");
+  await expectStageReady(buildMap, "Landscape outline");
+
+  const templateLabel = page.locator("#templateInputContainer span");
+  const lockIcon = page.locator("#lock_template");
+  await expect(lockIcon).toHaveAttribute("data-locked", "0");
+
+  // Initial template is picked at random (unlocked), so target whichever of two
+  // fixed templates the run didn't already land on — guarantees an actual change.
+  const initialTemplate = (await templateLabel.textContent())?.trim();
+  const targetId = initialTemplate === "archipelago" ? "atoll" : "archipelago";
+  const coastlineBeforeSelect = await getCoastlineSignature(page);
+
+  await page.locator("#templateInputContainer").click();
+  const heightmapDialog = page.locator("#heightmapSelectionDialog");
+  await expect(heightmapDialog.getByRole("heading", { name: "Heightmap templates", exact: true })).toBeVisible();
+  await heightmapDialog.locator(`article[data-id="${targetId}"]`).click();
+  await heightmapDialog.getByRole("button", { name: "Select", exact: true }).click();
+  await expect(heightmapDialog).toBeHidden();
+
+  // Selecting a template pins it via lock_template so it survives randomization.
+  await expect(lockIcon).toHaveAttribute("data-locked", "1");
+  await expect(templateLabel).toHaveText(targetId);
+
+  // No "Generate another landscape" click here — selecting the template mid-generation
+  // must trigger the Landscape stage re-run by itself.
+  await expectStageReady(buildMap, "Landscape outline");
+  await expect(templateLabel).toHaveText(targetId);
+  await expect(lockIcon).toHaveAttribute("data-locked", "1");
+  expect(await getCoastlineSignature(page)).not.toBe(coastlineBeforeSelect);
+});

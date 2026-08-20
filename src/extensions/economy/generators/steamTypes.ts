@@ -33,6 +33,13 @@ export interface RailwayLink {
   toMarketId: number;
   utilization: number;
   lastFueledYear: number;
+  /**
+   * True once track has been materialized as a `pack.routes` "railways" group
+   * route between the two markets' burg cells (routes-generator.ts's
+   * `connectRailway`). Older saves / links created before this field existed
+   * are treated as not-yet-materialized so they get track laid retroactively.
+   */
+  materialized?: boolean;
 }
 
 export interface SteamWaterworks {

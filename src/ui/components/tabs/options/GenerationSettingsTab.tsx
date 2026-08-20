@@ -783,7 +783,13 @@ export const GenerationSettingsTab: React.FC = () => {
                     | "earlyMedieval"
                     | "highMedieval"
                     | "lateMedieval"
-                    | "ageOfExploration";
+                    | "ageOfExploration"
+                    | "maritimeEra"
+                    | "preIndustrialEra"
+                    | "steamEra"
+                    | "industrialChemistryEra"
+                    | "petroleumEra"
+                    | "rocketryEra";
                   updateOptionAndLock("historicalPeriod", period);
                   document.dispatchEvent(new CustomEvent("react-change-historical-period", { detail: { period } }));
                 }}
@@ -792,6 +798,13 @@ export const GenerationSettingsTab: React.FC = () => {
                 <option value="highMedieval">{t("generation.periods.highMedieval")}</option>
                 <option value="lateMedieval">{t("generation.periods.lateMedieval")}</option>
                 <option value="ageOfExploration">{t("generation.periods.ageOfExploration")}</option>
+                {/* Era 3-8, matching the Technology Overview dialog's Era filter 1:1. */}
+                <option value="maritimeEra">{t("generation.periods.maritimeEra")}</option>
+                <option value="preIndustrialEra">{t("generation.periods.preIndustrialEra")}</option>
+                <option value="steamEra">{t("generation.periods.steamEra")}</option>
+                <option value="industrialChemistryEra">{t("generation.periods.industrialChemistryEra")}</option>
+                <option value="petroleumEra">{t("generation.periods.petroleumEra")}</option>
+                <option value="rocketryEra">{t("generation.periods.rocketryEra")}</option>
               </select>
             </td>
             <td></td>

@@ -435,6 +435,23 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "chemistryTrials",
     "hospitalInstallations",
     "acidPlants",
+    "phosphateFertilizerPlants",
+    "steelConverterPlants",
+    "syntheticAmmoniaPlants",
+    // docs/plan/electric-power-and-telegraph.md §3.9.
+    "powerStations",
+    "telegraphLines",
+    // docs/plan/dam-flood-control-and-hydropower.md §3.
+    "damSites",
+    "dams",
+    // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+    "electrolysisPlants",
+    // docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7.
+    "chlorAlkaliPlants",
+    // docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+    "mercuryPlants",
+    // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+    "oilRefineryPlants",
     "chemMedPracticeRecords",
     "medicalCareReliefByBurg",
     // Player technology-bias SoT (docs/plan/player-character-technology-bias.md PR-1).

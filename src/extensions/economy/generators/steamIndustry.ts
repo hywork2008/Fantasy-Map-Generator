@@ -3,6 +3,7 @@
  * docs/plan/steam-industrial-implementation.md Phases 0 / 3A / 3B.
  */
 
+import { Routes } from "../../../generators/routes-generator";
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
@@ -32,7 +33,17 @@ function consumeNamed(marketId: number, name: string, amount: number): number {
   return Markets.consumeForSmelting(marketId, good.i, amount, 0.5);
 }
 
-function settleRailways(year: number): void {
+/** Resolves a market to its center burg's cell, for laying track between two markets. */
+function marketBurgCell(marketId: number, markets: ReturnType<typeof getMarkets>): number | undefined {
+  const market = markets.find(entry => entry.i === marketId);
+  if (!market) return undefined;
+  const burg = getWorldContext().pack.burgs?.[market.centerBurgId];
+  if (!burg?.i || burg.removed) return undefined;
+  return burg.cell;
+}
+
+/** Returns true when this call laid new "railways" route track (docs/plan/steam-industrial-implementation.md §7). */
+function settleRailways(year: number): boolean {
   const states = getWorldContext().pack.states ?? [];
   const markets = getMarkets();
   const links = [...getRailwayLinks()];
@@ -82,12 +93,26 @@ function settleRailways(year: number): void {
     }
   }
 
+  let networkChanged = false;
   for (const link of links) {
+    // Materialize the visible/pathable "railways" route once, the first year the
+    // link exists. Older links loaded from a save without this field get track
+    // laid retroactively instead of staying an invisible economic-only edge.
+    if (!link.materialized) {
+      const fromCell = marketBurgCell(link.fromMarketId, markets);
+      const toCell = marketBurgCell(link.toMarketId, markets);
+      if (fromCell !== undefined && toCell !== undefined && Routes.connectRailway(fromCell, toCell, link.stateId)) {
+        link.materialized = true;
+        networkChanged = true;
+      }
+    }
+
     const coal = consumeNamed(link.fromMarketId, "Coal", RAIL_COAL_PER_LINK);
     link.utilization = rn(Math.min(1, coal / RAIL_COAL_PER_LINK), 4);
     link.lastFueledYear = year;
   }
   setRailwayLinks(links);
+  return networkChanged;
 }
 
 function settleWaterworks(year: number): void {
@@ -127,13 +152,19 @@ function settleWaterworks(year: number): void {
 }
 
 export class SteamIndustryModule {
+  /**
+   * Settles this year's steam industry (mine pumps / railway links / waterworks), at most
+   * once per simulation year (self-gated on `getSteamInstallationsLastSettledYear`). Returns
+   * true when `settleRailways` materialized new "railways" route track this call, so the
+   * caller can invalidate the `map.networks` topic and redraw the map.
+   */
   settleAnnual(): boolean {
     const year = getSimulationYear();
     if (getSteamInstallationsLastSettledYear() === year) return false;
     SteamInstallations.settleAnnual();
-    settleRailways(year);
+    const railwayNetworkChanged = settleRailways(year);
     settleWaterworks(year);
-    return true;
+    return railwayNetworkChanged;
   }
 }
 

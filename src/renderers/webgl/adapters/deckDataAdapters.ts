@@ -1333,8 +1333,8 @@ function getRiverSegmentColor(baseColor: Color, widthRatio: number, fluxRatio: n
 export function buildRoutePaths(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  dashArrays?: Partial<Record<"roads" | "trails" | "searoutes", DeckPathDashArray>>,
-  colors?: Partial<Record<"roads" | "trails" | "searoutes", Color>>
+  dashArrays?: Partial<Record<"roads" | "trails" | "searoutes" | "railways", DeckPathDashArray>>,
+  colors?: Partial<Record<"roads" | "trails" | "searoutes" | "railways", Color>>
 ): DeckPath[] {
   return (worldContext.pack.routes ?? []).flatMap(route => {
     if (focusScope && !(route.cells ?? []).some(cell => isCellInScope(focusScope, cell))) return [];
@@ -1351,13 +1351,14 @@ export function buildRoutePaths(
       path = sampleCatmullRomPolyline(path, alpha, false, 0.5);
     }
 
-    const width = route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : 0.65;
+    const width =
+      route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : route.group === "railways" ? 0.85 : 0.65;
     const dashArray =
-      route.group === "roads" || route.group === "trails" || route.group === "searoutes"
+      route.group === "roads" || route.group === "trails" || route.group === "searoutes" || route.group === "railways"
         ? dashArrays?.[route.group]
         : undefined;
     const color =
-      route.group === "roads" || route.group === "trails" || route.group === "searoutes"
+      route.group === "roads" || route.group === "trails" || route.group === "searoutes" || route.group === "railways"
         ? (colors?.[route.group] ?? getRouteColor(route))
         : getRouteColor(route);
 
@@ -2544,6 +2545,7 @@ function getSharedEdge(
 function getRouteColor(route: Route): Color {
   if (route.group === "searoutes") return colorToRgba("#4f8fc6", "#4f8fc6", 0.8);
   if (route.group === "roads") return colorToRgba("#7b4b2a", "#7b4b2a");
+  if (route.group === "railways") return colorToRgba("#7a3b8f", "#7a3b8f", 0.9);
   return colorToRgba("#8b6f47", "#8b6f47", 0.9);
 }
 

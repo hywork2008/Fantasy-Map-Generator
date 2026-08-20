@@ -86,9 +86,9 @@ body.fmg-generation-review-preview .fmg-webgl-managed-svg-layer {
 
 /* State labels remain live SVG controls in hybrid mode. Limit the affordance to
    their painted text so the map and the WebGL-rendered burg labels stay neutral. */
-body.fmg-webgl-hybrid #labels > #states text,
-body.fmg-webgl-hybrid #labels > #states textPath,
-body.fmg-webgl-hybrid #labels > #states tspan {
+body.fmg-webgl-hybrid #labels>#states text,
+body.fmg-webgl-hybrid #labels>#states textPath,
+body.fmg-webgl-hybrid #labels>#states tspan {
   cursor: pointer;
 }
 
@@ -328,6 +328,7 @@ text.drag {
   --dialog-offset-x: 0px;
   --dialog-offset-y: 0px;
   position: absolute;
+  min-width: 400px;
   z-index: 20;
   /* useDraggable updates these offsets. Unlike .fmg-dialog, the options
      panel is anchored at its normal absolute position rather than centered. */
@@ -459,12 +460,9 @@ input[type="color"] {
   box-sizing: border-box;
   height: 18px;
   padding: 0;
-  background: linear-gradient(
-      to right,
+  background: linear-gradient(to right,
       var(--dark-solid) 0 var(--range-progress),
-      var(--range-track) var(--range-progress) 100%
-    )
-    center / 100% 4px no-repeat;
+      var(--range-track) var(--range-progress) 100%) center / 100% 4px no-repeat;
   cursor: pointer;
 }
 
@@ -555,12 +553,30 @@ input[type="color"] {
   }
 }
 
+/* The Tools panel can grow far taller than the viewport once its labels are
+   localized (see button rule below), so bound it and let it scroll
+   internally, mirroring #optionsTabContent's max-height + overflow-y
+   pattern. This guarantees every button stays reachable regardless of
+   locale or how many extension-contributed buttons are appended. */
+#toolsContent {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 #toolsContent>.grid {
   /* display: grid; */
 }
 
 #toolsContent>.grid button {
   width: min-content;
+  /* CJK scripts have no spaces, so the browser's default line-breaking
+     rules treat every character boundary as a valid break point. Combined
+     with width: min-content above, that collapses localized labels (e.g.
+     Japanese) into a single-character-wide column, one character per line.
+     keep-all restricts CJK breaking to explicit word boundaries only
+     (spaces/hyphens), so labels lay out on one line like Latin script does,
+     while leaving Latin wrapping behavior unchanged. */
+  word-break: keep-all;
 }
 
 #mapLayers {
@@ -582,7 +598,7 @@ input[type="color"] {
   overflow: hidden;
 }
 
-#optionsTabContent > .tab {
+#optionsTabContent>.tab {
   flex: 0 0 auto;
 }
 

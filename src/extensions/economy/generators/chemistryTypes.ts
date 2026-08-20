@@ -3,7 +3,15 @@
  * Design: docs/plan/chemistry-medicine-knowledge-accumulation.md
  */
 
-export type ChemistryTrialKind = "compounding" | "laboratory" | "acidPlant";
+export type ChemistryTrialKind =
+  | "compounding"
+  | "laboratory"
+  | "acidPlant"
+  | "phosphateFertilizerPlant"
+  | "syntheticAmmoniaPlant"
+  | "chlorinePlant"
+  | "mercuryPlant"
+  | "oilRefineryPlant";
 
 export type ChemistryFailureReason =
   | "materialShortage"
@@ -60,6 +68,85 @@ export interface HospitalInstallation {
 }
 
 export interface AcidPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/** Same shape as AcidPlant. Design: docs/plan/phosphate-fertilizer-vertical-slice.md §3.7. */
+export interface PhosphateFertilizerPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/**
+ * Same shape as AcidPlant — a catalytic-oxidation (Deacon process) plant that turns Salt +
+ * Sulfuric Acid into Chlorine, downstream of AcidPlants in the settle order.
+ * Design: docs/plan/chlorine-production-vertical-slice.md §3.6.
+ */
+export interface ChlorinePlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/**
+ * Same shape as AcidPlant/PhosphateFertilizerPlant — a genuinely chemical-industry facility, so it
+ * uses the ChemistryTrial indirection rather than SteelConverterPlant's self-held documentedRuns
+ * (that exception is specific to the metallurgy domain, steelConverterTypes.ts).
+ * Design: docs/plan/synthetic-ammonia-vertical-slice.md §3.6.
+ */
+export interface SyntheticAmmoniaPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/**
+ * Same shape as AcidPlant/PhosphateFertilizerPlant — cinnabar roasting is a genuinely chemical
+ * process (mercury-vapor condensation), so it uses the ChemistryTrial indirection.
+ * `contamination` is the "MercuryContaminationStock" roadmap §9.5 requires: an unavoidable,
+ * monotonically-accumulating byproduct of every operating year (never reduced by avoiding
+ * production — only partially relieved by a funded containment shutdown; see mercuryPlants.ts).
+ * Design: docs/plan/cinnabar-mercury-vertical-slice.md §3.6-3.7.
+ */
+export interface MercuryPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+  /** 0..1 cumulative local health/environment debt. */
+  contamination: number;
+}
+
+/**
+ * Same shape as PhosphateFertilizerPlant/SyntheticAmmoniaPlant. Unlike MercuryPlant, this plant
+ * yields two Goods (Kerosene bulk + Lubricating Oil byproduct) from one Crude Oil input — the
+ * first two-output plant in this economy. No contamination-style debt field — roadmap §10 does
+ * not require one for refining, unlike §9.5's Mercury.
+ * Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.6-3.7.
+ */
+export interface OilRefineryPlant {
   burgId: number;
   stateId: number;
   role: "trial" | "service";

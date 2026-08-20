@@ -43,6 +43,30 @@ export interface Market {
    * See docs/plan/rural-agtech-investment.md §3.2-3.3.
    */
   agTechStock?: number;
+  /**
+   * 0..1 saturating EWMA of annual Phosphate Fertilizer purchase coverage across this market's
+   * cultivated land. Separate account/stock from agTechStock (Tools). Feeds yieldPerArea in
+   * agriculturalLandUse.ts. Undefined (pre-slice saves, or a market with no cultivated land yet)
+   * is treated as 0. See docs/plan/phosphate-fertilizer-vertical-slice.md §3.8.
+   */
+  fertilizerStock?: number;
+  /**
+   * 0..1 saturating EWMA of annual Nitrogen Fertilizer purchase coverage across this market's
+   * cultivated land. Separate account/stock from agTechStock (Tools) and fertilizerStock
+   * (Phosphate Fertilizer). Feeds yieldPerArea in agriculturalLandUse.ts. Undefined (pre-slice
+   * saves, or a market with no cultivated land yet) is treated as 0.
+   * See docs/plan/synthetic-ammonia-vertical-slice.md §3.7.
+   */
+  nitrogenFertilizerStock?: number;
+  /**
+   * 0..1 saturating EWMA of this market's electricity-demand coverage from PowerStation
+   * generationCapacity. Not a market inventory Good — no unit, price, or recipe. Before powerGrid
+   * is adopted in the owning State only same-market PowerStation capacity counts; once adopted,
+   * capacity is pooled and shared across the whole State's markets by population. Undefined
+   * (pre-slice saves, or a market with no population) is treated as 0.
+   * See docs/plan/electric-power-and-telegraph.md §3.10.
+   */
+  electricityStock?: number;
   /** Household clothing demand and consumption, separate from wholesale market intake. */
   textileLedger?: TextileLedger;
   /** Household fuel use and cold-climate technical knowledge for this market territory. */

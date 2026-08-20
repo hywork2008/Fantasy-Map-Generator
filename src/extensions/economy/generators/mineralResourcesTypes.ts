@@ -3,8 +3,23 @@ export const ORE_COMMODITIES = ["iron", "copper", "tin", "lead", "silver", "gold
 
 export type OreCommodity = (typeof ORE_COMMODITIES)[number];
 
-/** Mineral goods that bypass smelting and remain directly mine-supplied. */
-export const FUEL_MINERAL_COMMODITIES = ["coal", "saltpeter", "sulfur"] as const;
+/**
+ * Mineral goods that bypass smelting and remain directly mine-supplied. Not literally all
+ * "fuel" (Saltpeter/Sulfur aren't either) — the name predates Phosphate Rock; kept as-is rather
+ * than renamed (docs/plan/phosphate-fertilizer-vertical-slice.md §3.2). "bauxite" follows the
+ * same convention (docs/plan/electrolytic-industry-vertical-slice.md §3.2), as does "cinnabar"
+ * (docs/plan/cinnabar-mercury-vertical-slice.md §3.2) and "crude oil"
+ * (docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2).
+ */
+export const FUEL_MINERAL_COMMODITIES = [
+  "coal",
+  "saltpeter",
+  "sulfur",
+  "phosphate rock",
+  "bauxite",
+  "cinnabar",
+  "crude oil"
+] as const;
 
 export type FuelMineralCommodity = (typeof FUEL_MINERAL_COMMODITIES)[number];
 export type MineralCommodity = OreCommodity | FuelMineralCommodity;
@@ -23,7 +38,11 @@ export type MineralDistrictType =
   | "lodeGold"
   | "placer"
   | "coalSeam"
-  | "evaporite";
+  | "evaporite"
+  | "phosphorite"
+  | "laterite"
+  | "cinnabarVein"
+  | "oilField";
 
 /**
  * A field sign used by State prospecting. Evidence is generated with the deposit

@@ -95,6 +95,42 @@ function resolveAgTechStockByCell(cellCount: number): Float32Array {
 }
 
 /**
+ * Broadcasts each Market's fertilizerStock (docs/plan/phosphate-fertilizer-vertical-slice.md §3.8)
+ * to its cells, same shape as resolveAgTechStockByCell.
+ */
+function resolveFertilizerStockByCell(cellCount: number): Float32Array {
+  const stockByCell = new Float32Array(cellCount);
+  const marketCellColumn = getMarketCellColumn();
+  if (!marketCellColumn.length) return stockByCell;
+
+  const stockByMarketId = new Map(getMarkets().map(market => [market.i, market.fertilizerStock ?? 0]));
+  for (let cellId = 0; cellId < cellCount; cellId++) {
+    const marketId = marketCellColumn[cellId];
+    if (!marketId) continue;
+    stockByCell[cellId] = stockByMarketId.get(marketId) ?? 0;
+  }
+  return stockByCell;
+}
+
+/**
+ * Broadcasts each Market's nitrogenFertilizerStock (docs/plan/synthetic-ammonia-vertical-slice.md
+ * §3.7) to its cells, same shape as resolveFertilizerStockByCell.
+ */
+function resolveNitrogenFertilizerStockByCell(cellCount: number): Float32Array {
+  const stockByCell = new Float32Array(cellCount);
+  const marketCellColumn = getMarketCellColumn();
+  if (!marketCellColumn.length) return stockByCell;
+
+  const stockByMarketId = new Map(getMarkets().map(market => [market.i, market.nitrogenFertilizerStock ?? 0]));
+  for (let cellId = 0; cellId < cellCount; cellId++) {
+    const marketId = marketCellColumn[cellId];
+    if (!marketId) continue;
+    stockByCell[cellId] = stockByMarketId.get(marketId) ?? 0;
+  }
+  return stockByCell;
+}
+
+/**
  * Broadcasts each State's stateAgriculturalProductivity (docs/plan/rural-agtech-investment.md
  * §6.1) to its cells via cells.state, so calculateAgriculturalLandProfile stays State-unaware.
  */
@@ -332,7 +368,9 @@ export class DevelopmentPotentialModule {
       fourCourseRotationByCell: resolveFourCourseRotationByCell(world.pack.cells),
       irrigationDevelopmentByCell: getIrrigationDevelopment(),
       irrigationConveyanceEfficiencyByCell: getIrrigationConveyanceEfficiency(),
-      fieldDrainageByCell: getFieldDrainage()
+      fieldDrainageByCell: getFieldDrainage(),
+      fertilizerStockByCell: resolveFertilizerStockByCell(cellCount),
+      nitrogenFertilizerStockByCell: resolveNitrogenFertilizerStockByCell(cellCount)
     };
   }
 

@@ -259,6 +259,28 @@ export const MilitaryOptionsDialog: React.FC = () => {
                             value={name}
                             onChange={e => updateUnit(index, "name", e.target.value)}
                           />
+                          {unit.requiresTechnology && (
+                            // docs/plan/military-era-progression.md §3.2 / §5 Phase 2 — a per-State
+                            // technology gate has no other visible sign in this table (biomes/
+                            // states/cultures/religions are all explicit columns; the technology
+                            // gate isn't, since only a handful of units use it so far). Without
+                            // this, a unit that never shows up in a generated map looks silently
+                            // broken rather than "not unlocked yet for any State".
+                            <span
+                              style={{ marginLeft: "4px", cursor: "help", opacity: 0.8 }}
+                              title={`Recruitable only by States whose "${unit.requiresTechnology.id}" technology has reached "${unit.requiresTechnology.minimum}" or later (docs/plan/military-era-progression.md)`}
+                            >
+                              🔬
+                            </span>
+                          )}
+                          {unit.obsoletes && (
+                            <span
+                              style={{ marginLeft: "4px", cursor: "help", opacity: 0.8 }}
+                              title={`Gradually takes over ${(Array.isArray(unit.obsoletes) ? unit.obsoletes : [unit.obsoletes]).map(target => `"${target}"`).join(" and ")}'s recruitment share as this unit's technology adoption grows, per State — none of them are deleted or removed from standing regiments`}
+                            >
+                              ↩️
+                            </span>
+                          )}
                         </td>
                         <td>
                           <button

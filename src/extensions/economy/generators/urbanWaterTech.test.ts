@@ -83,6 +83,30 @@ describe("water tech ceilings and evolution", () => {
     expect(boosted.municipalSanitation).toBeLessThanOrEqual(1);
   });
 
+  it("keeps raising all three ceilings through the Era-3-8-aligned periods added after ageOfExploration", () => {
+    const periods = [
+      "ageOfExploration",
+      "maritimeEra",
+      "preIndustrialEra",
+      "steamEra",
+      "industrialChemistryEra",
+      "petroleumEra",
+      "rocketryEra"
+    ] as const;
+    for (let i = 1; i < periods.length; i++) {
+      const prev = waterTechCeilings(periods[i - 1]);
+      const next = waterTechCeilings(periods[i]);
+      expect(next.waterLifting).toBeGreaterThanOrEqual(prev.waterLifting);
+      expect(next.municipalSanitation).toBeGreaterThanOrEqual(prev.municipalSanitation);
+      expect(next.sanitaryEngineering).toBeGreaterThan(prev.sanitaryEngineering);
+    }
+    expect(waterTechCeilings("rocketryEra")).toEqual({
+      waterLifting: 1,
+      municipalSanitation: 1,
+      sanitaryEngineering: 0.95
+    });
+  });
+
   it("grows water lifting under drought and river access", () => {
     const next = evolveWaterTechStocks({
       previous: { waterLifting: 0.1, municipalSanitation: 0.1, sanitaryEngineering: 0 },

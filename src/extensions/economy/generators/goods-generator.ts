@@ -154,7 +154,15 @@ const GUNPOWDER_ERA_PRICE_MULTIPLIER: Readonly<Record<HistoricalPeriod, number>>
   earlyMedieval: 2.2,
   highMedieval: 1.8,
   lateMedieval: 1.3,
-  ageOfExploration: 1
+  ageOfExploration: 1,
+  // Era 3-8: strictly later than ageOfExploration (technologyProgress.ts's
+  // HISTORICAL_PERIOD_FRONTIER_ERA), so gunpowder is at least as mature/cheap as it is there.
+  maritimeEra: 1,
+  preIndustrialEra: 1,
+  steamEra: 1,
+  industrialChemistryEra: 1,
+  petroleumEra: 1,
+  rocketryEra: 1
 };
 
 /** Mutates `goods` in place, scaling GUNPOWDER_ERA_GOODS values by the current historicalPeriod. */
@@ -1105,6 +1113,26 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { River: 1.3, Lake: 1.3 } }
   },
   {
+    // Refractory lining brick — Brick above chars and spalls at smelter/steam/chemical-plant
+    // temperatures, so sustained high-heat industry needs this separate, hotter-fired good.
+    // Same Clay body as Brick, mineral Coal instead of Wood for the higher firing temperature,
+    // gated behind the technology that first makes routine high-temperature furnace operation
+    // possible. Consumed as ongoing lining-maintenance stock by SteelConverters/AcidPlants/
+    // PowerStations (see those modules), same "consumeNamed on every settled year" shape as Coal/
+    // Copper Wire/Machine Parts there — not a one-off construction material like Brick.
+    name: "Firebrick",
+    warEconomyType: "strategic",
+    tags: ["industrial", "construction"],
+    icon: "good-clay",
+    color: "#8a4a30",
+    value: 6,
+    chance: 0,
+    recipes: [{ Clay: 1.5, Coal: 0.5 }],
+    unit: "wain",
+    demandCoverage: {},
+    requiredTechnology: "highTempFurnace"
+  },
+  {
     name: "Volcanic Ash",
     warEconomyType: "luxury",
     tags: ["mineral", "construction"],
@@ -1210,7 +1238,14 @@ export const GOODS_DATA: GoodData[] = [
     color: "#a0c8e8",
     value: 6,
     chance: 0,
-    recipes: [{ "White sand": 1, Potash: 0.5 }],
+    // Second recipe: the historically dominant soda-lime formulation once industrial Soda Ash
+    // is available (see Soda Ash's own comment below), alongside the original forest/potash-glass
+    // recipe. requiredTechnology lives on Soda Ash itself, not here, so this alternative simply
+    // has no viable ingredient until chemicalIndustryFoundation is adopted somewhere.
+    recipes: [
+      { "White sand": 1, Potash: 0.5 },
+      { "White sand": 1, "Soda Ash": 0.5 }
+    ],
     unit: "wain",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Nomadic: 0.2 } }
@@ -1241,6 +1276,22 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ "Volcanic Ash": 1, Lime: 1 }],
     unit: "pallet",
     demandCoverage: { construction: 1 }
+  },
+  {
+    // Slaking: quicklime (Lime above) plus water yields calcium hydroxide. Water itself has no
+    // Good — same "not every real-world input needs a market stock" treatment Lime's own recipe
+    // gives Stone's firing fuel. Feeds Bleaching Powder below (Chlorine's first real downstream
+    // consumer) as well as mortar/soil-treatment uses folded into the construction tag.
+    name: "Slaked Lime",
+    warEconomyType: "strategic",
+    tags: ["industrial", "construction"],
+    icon: "good-clay",
+    color: "#f0ece0",
+    value: 3,
+    chance: 0,
+    recipes: [{ Lime: 1 }],
+    unit: "sack",
+    demandCoverage: {}
   },
   {
     name: "Ropes",
@@ -1459,15 +1510,22 @@ export const GOODS_DATA: GoodData[] = [
     // by this period) and which then endured essentially unchanged into the 19th century. The
     // previous 0.5/0.25/0.5 (40/20/40) split under-weighted Saltpeter relative to even the
     // earliest medieval hand-cannon formulas and doesn't correspond to any historical batch.
-    // When Gunpowder's tech chain grows further stages toward modern smokeless propellants, add
-    // period/stage-gated recipe variants here rather than re-tuning this baseline in place.
+    // Second recipe: guncotton-style nitrocellulose propellant once industrial Nitric Acid is
+    // available (Cotton nitrated by Nitric Acid, Sulfuric Acid as the dehydrating agent — see
+    // Nitric Acid's own comment above) — the modern smokeless-propellant stage this comment used
+    // to invite as a future addition. Stays the same Good/unit/consumers rather than a separate
+    // "Smokeless Powder": to Muskets/Artillery/Bullets and militaryResources.ts, Gunpowder is
+    // just "propellant" regardless of which chemistry produced this batch.
     warEconomyType: "military",
     tags: ["military"],
     icon: "good-gunpowder",
     color: "#b0c4de",
     value: 12,
     chance: 0,
-    recipes: [{ Saltpeter: 0.75, Sulfur: 0.1, Charcoal: 0.15 }],
+    recipes: [
+      { Saltpeter: 0.75, Sulfur: 0.1, Charcoal: 0.15 },
+      { Cotton: 0.2, "Nitric Acid": 0.3, "Sulfuric Acid": 0.1 }
+    ],
     unit: "barrel",
     // State arsenals procure powder through Metallurg work orders. Letting every Burg's
     // population-proportional military demand buy it first strands tiny local batches and
@@ -1882,10 +1940,14 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e0e4cc",
     value: 6,
     chance: 0,
+    // Fourth recipe: hard/curd soap once industrial Caustic Soda is available (see its own
+    // comment above) — NaOH is a stronger saponifying alkali than wood-ash Potash, hence the
+    // lower ratio, alongside the three existing Potash soft-soap recipes.
     recipes: [
       { Olives: 1, Potash: 0.3 },
       { Cattle: 1, Potash: 0.3 },
-      { Tallow: 1, Potash: 0.3 }
+      { Tallow: 1, Potash: 0.3 },
+      { Tallow: 1, "Caustic Soda": 0.15 }
     ],
     unit: "barrel",
     demandCoverage: { utilities: 0.4, luxury: 0.6 }
@@ -2493,6 +2555,23 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "standardMachineWorks"
   },
   {
+    // electricalExperiments' sole Good output. Shared bottleneck consumed by both TelegraphLines
+    // and PowerStations (docs/plan/electric-power-and-telegraph.md §3.2) — steam-industrial-
+    // technology-history.csv row 13's "Copper wire is both a communications input and a
+    // prerequisite for later power systems".
+    name: "Copper Wire",
+    warEconomyType: "strategic",
+    tags: ["industrial", "metal"],
+    icon: "good-unknown", // no dedicated sprite yet; same placeholder treatment as other era-6 Goods
+    color: "#c98a4b",
+    value: 16,
+    chance: 0,
+    recipes: [{ "Copper Ingot": 1, Glass: 0.2, "Machine Parts": 0.1 }],
+    unit: "coil",
+    demandCoverage: {},
+    requiredTechnology: "electricalExperiments"
+  },
+  {
     name: "Stationary Steam Engine",
     warEconomyType: "strategic",
     tags: ["industrial", "capital"],
@@ -2610,6 +2689,67 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "industrialSulfuricAcid"
   },
   {
+    // Catalytic oxidation (Deacon process, 1868): Salt + Sulfuric Acid liberates hydrochloric
+    // gas, which a catalyst bed (Firebrick-lined chamber, same role as a smelter's lining) then
+    // oxidizes with air into Chlorine. Collapses the historical two-step HCl-then-oxidation
+    // chain into one recipe, the same abstraction level Sulfuric Acid above already uses for the
+    // lead-chamber process. Water/sanitation and bleach consumers are a later slice — this is
+    // supply only. "One Good, three supply sites" like Sulfuric Acid/Phosphate Fertilizer's two:
+    // this recipe is the craft-worker path, ChlorinePlants (chlorinePlants.ts) is the Deacon-
+    // process State-funded capital path, and ChlorAlkaliPlants (chlorAlkaliPlants.ts) is a third,
+    // electrolytic route requiring no Sulfuric Acid/Coal at all (docs/plan/
+    // chlor-alkali-electrolysis-vertical-slice.md §3.1). Design: docs/plan/
+    // chlorine-production-vertical-slice.md §3.2.
+    name: "Chlorine",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#c9e066",
+    value: 20,
+    chance: 0,
+    recipes: [{ Salt: 1, "Sulfuric Acid": 0.6, Coal: 0.3, Firebrick: 0.1 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "catalyticChemistry"
+  },
+  {
+    // The "bleach consumers" slice Chlorine's comment above deferred: slaking Lime into Slaked
+    // Lime and passing Chlorine gas through it yields calcium hypochlorite, the 19th-century
+    // textile/paper bleaching and water-treatment product — Chlorine's first real downstream
+    // consumer beyond its own plant loop. Kept as a directly-demanded utilities good rather than
+    // rewriting Cloth/Linen/Paper's own recipes, which would ripple into their existing balance.
+    name: "Bleaching Powder",
+    warEconomyType: "strategic",
+    tags: ["industrial"],
+    icon: "good-unknown",
+    color: "#e8e8e0",
+    value: 30,
+    chance: 0,
+    recipes: [{ Chlorine: 1, "Slaked Lime": 1 }],
+    unit: "barrel",
+    demandCoverage: { utilities: 0.1 },
+    requiredTechnology: "catalyticChemistry"
+  },
+  {
+    // Displacement process (pre-Ostwald route, in use since the 17th century and still the
+    // dominant method through the 19th): Saltpeter distilled with Sulfuric Acid liberates
+    // nitric acid, leaving potassium bisulfate behind — same "collapse the historical apparatus
+    // into one recipe" abstraction as Sulfuric Acid/Chlorine/Soda Ash above. Feeds Gunpowder's
+    // own second recipe below rather than a separate military Good, per Gunpowder's existing
+    // comment inviting "period/stage-gated recipe variants" as its tech chain modernizes.
+    name: "Nitric Acid",
+    warEconomyType: "strategic",
+    tags: ["industrial", "military", "mineral"],
+    icon: "good-unknown",
+    color: "#f0e068",
+    value: 22,
+    chance: 0,
+    recipes: [{ Saltpeter: 1, "Sulfuric Acid": 0.5 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "industrialSulfuricAcid"
+  },
+  {
     name: "Coal Tar",
     warEconomyType: "strategic",
     tags: ["industrial", "fuel"],
@@ -2621,6 +2761,244 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: {},
     requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Leblanc process (1791): Salt roasted with Sulfuric Acid and burnt with Lime and Coal
+    // yields soda ash, compressing the historical two furnace stages (salt-cake, then black-ash)
+    // into one recipe — same abstraction level Sulfuric Acid/Chlorine above already use for
+    // their own multi-step processes. The intermediate sodium sulfate ("salt cake") stays
+    // implicit rather than becoming its own Good, for the same reason. Feeds a second Glass
+    // recipe below (the historically dominant soda-lime formulation, vs. Glass's existing
+    // Potash-based forest/potash-glass recipe) and Caustic Soda's causticization step.
+    name: "Soda Ash",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#d8d4c0",
+    value: 9,
+    chance: 0,
+    recipes: [{ Salt: 1, Lime: 0.3, Coal: 0.3, "Sulfuric Acid": 0.1 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Causticization: Soda Ash boiled with Slaked Lime swaps calcium and sodium hydroxides,
+    // precipitating out calcium carbonate and leaving Caustic Soda in solution — the historical
+    // route to NaOH that predates chlor-alkali electrolysis. ChlorAlkaliPlants
+    // (chlorAlkaliPlants.ts) now provides a second, electrolytic route (brine electrolysis,
+    // co-produced with Chlorine) requiring no Soda Ash/Slaked Lime chain at all — see docs/plan/
+    // chlor-alkali-electrolysis-vertical-slice.md §3.1. Feeds a second Soap recipe below
+    // (hard/curd soap, vs. Soap's existing Potash-based soft-soap recipe).
+    name: "Caustic Soda",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#eae6da",
+    value: 13,
+    chance: 0,
+    recipes: [{ "Soda Ash": 1, "Slaked Lime": 0.3 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Raw phosphorite. Cell placement comes from MineralDeposit/MineOperation
+    // ("phosphorite" districts on "basin" provinces, mineralResources.ts), same convention as
+    // Sulfur/Saltpeter/Coal — see docs/plan/phosphate-fertilizer-vertical-slice.md §3.2-3.3.
+    name: "Phosphate Rock",
+    warEconomyType: "strategic",
+    tags: ["mineral", "industrial"],
+    icon: "good-stone",
+    color: "#9c8a5e",
+    value: 6,
+    chance: 0,
+    unit: "wain",
+    demandCoverage: {}
+  },
+  {
+    // Raw bauxite ore. Cell placement comes from MineralDeposit/MineOperation ("laterite"
+    // districts on "shield" provinces, mineralResources.ts), same convention as Phosphate Rock.
+    // See docs/plan/electrolytic-industry-vertical-slice.md §3.2.
+    name: "Bauxite",
+    warEconomyType: "strategic",
+    tags: ["mineral", "industrial"],
+    icon: "good-stone",
+    color: "#a8826a",
+    value: 5,
+    chance: 0,
+    unit: "wain",
+    demandCoverage: {}
+  },
+  {
+    // Bayer-process alumina refining: Bauxite digested with an alkali (Caustic Soda) and heat
+    // yields alumina, the feedstock for electrolytic reduction below. No electricity required at
+    // this stage — see technology-development-roadmap.md §9.4 ("Bauxite + アルカリ化学 + 熱 →
+    // Alumina"). See docs/plan/electrolytic-industry-vertical-slice.md §3.3.
+    name: "Alumina",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#e8e4dc",
+    value: 16,
+    chance: 0,
+    recipes: [{ Bauxite: 1, "Caustic Soda": 0.3, Coal: 0.2 }],
+    unit: "sack",
+    demandCoverage: {},
+    requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Electrolytically reduced from Alumina — no craft-worker recipe exists (unlike Steel/
+    // Sulfuric Acid/Chlorine's dual-route pattern): electrolytic reduction has no pre-industrial
+    // artisanal equivalent, same reasoning as Synthetic Ammonia's capital-only supply below.
+    // Production is plant-only (ElectrolysisPlants). Value set high, reflecting aluminum's real
+    // 19th-century cost before Hall-Héroult mass production (once priced above silver). See
+    // docs/plan/electrolytic-industry-vertical-slice.md §3.4.
+    name: "Aluminum",
+    warEconomyType: "strategic",
+    tags: ["metal", "industrial"],
+    icon: "good-unknown",
+    color: "#c7c9cc",
+    value: 34,
+    chance: 0,
+    unit: "bar",
+    demandCoverage: {},
+    requiredTechnology: "electrolyticIndustry"
+  },
+  {
+    // Raw cinnabar (mercuric sulfide) ore. Cell placement comes from MineralDeposit/MineOperation
+    // ("cinnabarVein" districts on "volcanic"/"orogen" provinces, mineralResources.ts) — hydro-
+    // thermal mercury deposits form in both settings historically (Almadén/Idrija sit in orogenic
+    // belts, not active volcanoes), so unlike Bauxite's single-province "laterite" this profile
+    // lists two. See docs/plan/cinnabar-mercury-vertical-slice.md §3.2.
+    name: "Cinnabar",
+    warEconomyType: "strategic",
+    tags: ["mineral", "industrial"],
+    icon: "good-stone",
+    color: "#b8362b",
+    value: 8,
+    chance: 0,
+    unit: "sack",
+    demandCoverage: {}
+  },
+  {
+    // Roasted out of Cinnabar by MercuryPlants only — no craft-worker recipe, same "capital-only"
+    // reasoning as Aluminum/Synthetic Ammonia: mercury distillation needs a sealed retort and
+    // condenser a household workshop does not have. Unlike those two, production stays
+    // deliberately small (see mercuryPlants.ts) and every operating year adds to the plant's own
+    // contamination debt — roadmap §9.5's "must never be obtained without a health/environment
+    // cost" (§15 decision 10). Valued near Aluminum, reflecting mercury's historically high
+    // per-unit price. See docs/plan/cinnabar-mercury-vertical-slice.md §3.3.
+    name: "Mercury",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown",
+    color: "#d7d7de",
+    value: 30,
+    chance: 0,
+    unit: "flask",
+    demandCoverage: {},
+    requiredTechnology: "cinnabarRoastingAndMercuryRecovery"
+  },
+  {
+    // Raw petroleum. Cell placement comes from MineralDeposit/MineOperation ("oilField" districts
+    // on "basin" provinces, mineralResources.ts — the same sedimentary province as coalSeam/
+    // evaporite/phosphorite). No requiredTechnology, same "raw ore is never gated" pattern as
+    // Bauxite/Cinnabar: gating extraction itself would be circular against
+    // modernDrillingAndFieldOperations's petroleumAccess threshold, which reads this Good's own
+    // market coverage. See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.1-3.2.
+    name: "Crude Oil",
+    warEconomyType: "strategic",
+    tags: ["fuel", "mineral"],
+    icon: "good-unknown",
+    color: "#2b1f18",
+    value: 6,
+    chance: 0,
+    unit: "barrel",
+    demandCoverage: {}
+  },
+  {
+    // Fractionally distilled out of Crude Oil by OilRefineryPlants only — no craft-worker recipe,
+    // same "capital-only" reasoning as Mercury/Aluminum/Synthetic Ammonia: fractional distillation
+    // needs an industrial refinery a household workshop does not have. The bulk cut of the two
+    // refinery outputs (see Lubricating Oil below). Deliberately carries no demandCoverage — the
+    // existing "Oil" Good (Olives/Whales) already covers household lamp/cooking use.
+    // See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.3.
+    name: "Kerosene",
+    warEconomyType: "strategic",
+    tags: ["fuel", "industrial"],
+    icon: "good-unknown",
+    color: "#c9a869",
+    value: 14,
+    chance: 0,
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "oilRefiningAndFractionation"
+  },
+  {
+    // The small byproduct cut of the same OilRefineryPlants distillation run that yields Kerosene
+    // above — same "capital-only" reasoning, no craft-worker recipe.
+    // See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.3.
+    name: "Lubricating Oil",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown",
+    color: "#4a3620",
+    value: 18,
+    chance: 0,
+    unit: "flask",
+    demandCoverage: {},
+    requiredTechnology: "oilRefiningAndFractionation"
+  },
+  {
+    // "One Good, two supply sites" like Sulfuric Acid: this recipe is the craft-worker path
+    // (production-generator.ts worker loop); PhosphateFertilizerPlants (Phase 2, docs/plan/
+    // phosphate-fertilizer-vertical-slice.md §3.7) adds a second, State-funded capital path.
+    // Must never carry household demand — the market-purchased Market.fertilizerStock adoption
+    // stock (Phase 3, §3.8) is the only intended consumer.
+    name: "Phosphate Fertilizer",
+    warEconomyType: "strategic",
+    tags: ["industrial", "agriculture"],
+    icon: "good-salt",
+    color: "#c7b98a",
+    value: 20,
+    chance: 0,
+    recipes: [{ "Phosphate Rock": 1, "Sulfuric Acid": 0.6 }],
+    unit: "sack",
+    demandCoverage: {},
+    requiredTechnology: "phosphateFertilizer"
+  },
+  {
+    // The Haber-Bosch high-pressure/catalytic step has no artisan-scale analogue, unlike Sulfuric
+    // Acid/Steel/Phosphate Fertilizer — no recipes[] here. Production is plant-only
+    // (SyntheticAmmoniaPlants, docs/plan/synthetic-ammonia-vertical-slice.md §3.6).
+    name: "Synthetic Ammonia",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown", // no dedicated sprite; follow-up per docs/plan/synthetic-ammonia-vertical-slice.md §1
+    color: "#8fb8c9",
+    value: 26,
+    chance: 0,
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "syntheticAmmonia"
+  },
+  {
+    // Craft-recipe-only (route A) conversion of Synthetic Ammonia into a spreadable fertilizer —
+    // the capital-intensive step is the ammonia synthesis itself (SyntheticAmmoniaPlants), not
+    // this blending/bagging step. Same "never household demand" contract as Phosphate Fertilizer
+    // (steam-industrial-goods-and-technology-chain.md:125).
+    name: "Nitrogen Fertilizer",
+    warEconomyType: "strategic",
+    tags: ["industrial", "agriculture"],
+    icon: "good-salt", // no dedicated sprite; follow-up per docs/plan/synthetic-ammonia-vertical-slice.md §1
+    color: "#a8c76a",
+    value: 24,
+    chance: 0,
+    recipes: [{ "Synthetic Ammonia": 0.7 }],
+    unit: "sack",
+    demandCoverage: {},
+    requiredTechnology: "syntheticAmmonia"
   }
 ];
 
@@ -2698,6 +3076,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Coke: tradeProfile(5, 4, 3, 1, 0, 5, 2),
   Steel: tradeProfile(4, 3, 4, 1, 0, 5, 2),
   "Machine Parts": tradeProfile(3, 2, 4, 2, 0, 4, 2),
+  "Copper Wire": tradeProfile(4, 3, 4, 1, 0, 5, 2),
   "Stationary Steam Engine": tradeProfile(5, 5, 5, 1, 0, 4, 3),
   Rail: tradeProfile(5, 5, 3, 0, 0, 5, 2),
   Locomotive: tradeProfile(5, 5, 5, 1, 0, 4, 3),
@@ -3207,6 +3586,203 @@ export function migrateChemMedGoods(): boolean {
 
   const idByName = new Map(goods.map(good => [good.name, good.i]));
   for (const name of CHEMMED_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const PHOSPHATE_GOOD_NAMES = ["Phosphate Rock", "Phosphate Fertilizer"] as const;
+
+/**
+ * Appends the phosphate-fertilizer chain Goods (docs/plan/phosphate-fertilizer-vertical-slice.md
+ * §3.4) to older catalogues without seeding stock. Same shape as migrateChemMedGoods.
+ */
+export function migratePhosphateGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of PHOSPHATE_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of PHOSPHATE_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const ELECTRICAL_GOOD_NAMES = ["Copper Wire"] as const;
+
+/**
+ * Appends the Copper Wire Good (docs/plan/electric-power-and-telegraph.md §3.2) to older
+ * catalogues without seeding stock. Same shape as migrateSyntheticAmmoniaGoods.
+ */
+export function migrateElectricalGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of ELECTRICAL_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of ELECTRICAL_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const ELECTROLYTIC_GOOD_NAMES = ["Bauxite", "Alumina", "Aluminum"] as const;
+
+/**
+ * Appends the Bauxite/Alumina/Aluminum chain (docs/plan/electrolytic-industry-vertical-slice.md
+ * §3.2-3.4) to older catalogues without seeding stock. Same shape as migrateElectricalGoods.
+ */
+export function migrateElectrolyticIndustryGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of ELECTROLYTIC_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of ELECTROLYTIC_GOOD_NAMES) {
+    const good = goods.find(entry => entry.name === name);
+    const template = GOODS_DATA.find(entry => entry.name === name);
+    if (!good || !template?.recipes) continue;
+    good.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating ${name}`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const MERCURY_CHAIN_GOOD_NAMES = ["Cinnabar", "Mercury"] as const;
+
+/**
+ * Appends the Cinnabar/Mercury chain (docs/plan/cinnabar-mercury-vertical-slice.md §3.2-3.3) to
+ * older catalogues without seeding stock. Same shape as migrateElectrolyticIndustryGoods, but
+ * neither Good carries a recipe, so no ingredient-id resolution pass is needed.
+ */
+export function migrateMercuryChainGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of MERCURY_CHAIN_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  return changed;
+}
+
+const PETROLEUM_CHAIN_GOOD_NAMES = ["Crude Oil", "Kerosene", "Lubricating Oil"] as const;
+
+/**
+ * Appends the Crude Oil/Kerosene/Lubricating Oil chain (docs/plan/petroleum-and-internal-
+ * combustion-vertical-slice.md §3.2-3.3) to older catalogues without seeding stock. Same shape as
+ * migrateMercuryChainGoods — none of the three Goods carry a recipe, so no ingredient-id
+ * resolution pass is needed.
+ */
+export function migratePetroleumChainGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of PETROLEUM_CHAIN_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  return changed;
+}
+
+const SYNTHETIC_AMMONIA_GOOD_NAMES = ["Synthetic Ammonia", "Nitrogen Fertilizer"] as const;
+
+/**
+ * Appends the synthetic-ammonia chain Goods (docs/plan/synthetic-ammonia-vertical-slice.md §3.3)
+ * to older catalogues without seeding stock. Same shape as migratePhosphateGoods.
+ */
+export function migrateSyntheticAmmoniaGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of SYNTHETIC_AMMONIA_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  for (const name of SYNTHETIC_AMMONIA_GOOD_NAMES) {
     const good = goods.find(entry => entry.name === name);
     const template = GOODS_DATA.find(entry => entry.name === name);
     if (!good || !template?.recipes) continue;

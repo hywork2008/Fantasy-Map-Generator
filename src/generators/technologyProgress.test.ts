@@ -9,7 +9,12 @@ import {
   getAtmosphericSteamPumpingEffect,
   getFourCourseRotationEffect,
   getGunpowderDemandTechMultiplier,
+  getInternalCombustionEngineEffect,
   getMaxShipClassTierForState,
+  getMechanizedTextilesEffect,
+  getMechanizedTextilesOutputMultiplier,
+  getMilitarySignalRocketsEffect,
+  getStagingAndOrbitalInsertionEffect,
   getTechnologyProgressEntries,
   getTechnologyStage,
   HINTABLE_KNOWN_RATIO_KEYS,
@@ -25,7 +30,17 @@ import { createEmptyTechnologySimulationState, type TechnologyProgress } from ".
 function installMinimalWorld(
   opts: {
     gunpowder?: boolean;
-    historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval" | "ageOfExploration";
+    historicalPeriod?:
+      | "earlyMedieval"
+      | "highMedieval"
+      | "lateMedieval"
+      | "ageOfExploration"
+      | "maritimeEra"
+      | "preIndustrialEra"
+      | "steamEra"
+      | "industrialChemistryEra"
+      | "petroleumEra"
+      | "rocketryEra";
   } = {}
 ): void {
   worldContext.options = {
@@ -150,6 +165,33 @@ describe("technologyProgress", () => {
 
     // A non-gunpowder technology is unaffected by historicalPeriod either way.
     expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused");
+  });
+
+  it("seeds Era-3-8-aligned historicalPeriod values as diffused below, demonstrated at, and untouched above their frontier era", () => {
+    // steamEra corresponds to Technology Overview's Era 5 (docs/plan/technology-development-
+    // roadmap.md §3): era 0-4 nodes (including the era-2 gunpowder chain) are fully diffused, era
+    // 5 itself is demonstrated, and era 6+ is left alone (still locked).
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "steamEra" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused"); // era 0
+    expect(getTechnologyStage("improvedMining", 1)).toBe("diffused"); // era 1
+    expect(getTechnologyStage("blackPowder", 1)).toBe("diffused"); // era 2 — strictly below the frontier
+    expect(getTechnologyStage("atmosphericSteamPumping", 1)).toBe("demonstrated"); // era 5, at the frontier
+    expect(getTechnologyStage("chemicalIndustryFoundation", 1)).toBe("locked"); // era 6, above the frontier
+
+    // rocketryEra corresponds to Era 8, the highest defined — everything below is diffused and
+    // era 8 itself is demonstrated (there is no era above it to leave locked).
+    resetTechnologyProgress();
+    installMinimalWorld({ gunpowder: false, historicalPeriod: "rocketryEra" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("modernDrillingAndFieldOperations", 1)).toBe("diffused"); // era 7
+    expect(getTechnologyStage("rocketDynamicsAndHighTemperatureCombustionResearch", 1)).toBe("demonstrated"); // era 8
+
+    // The legacy 4 periods are unaffected by this addition — era-1+ nodes still start locked.
+    resetTechnologyProgress();
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "ageOfExploration" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("improvedMining", 1)).toBe("locked");
   });
 
   it("keeps a period-seeded gunpowder stage after annual evaluation instead of resetting it", () => {
@@ -431,6 +473,69 @@ describe("technologyProgress", () => {
     expect(getTechnologyStage("atmosphericSteamPumping", 1)).toBe("locked");
   });
 
+  it("defines factory organization and mechanized textiles behind the textiles guild chain", () => {
+    const factoryOrganization = TECHNOLOGY_DEFINITIONS.find(def => def.id === "factoryOrganization");
+    expect(factoryOrganization).toMatchObject({
+      era: 4,
+      prerequisites: ["mechanicalWorkshops", "commercialFinance"]
+    });
+    const mechanizedTextiles = TECHNOLOGY_DEFINITIONS.find(def => def.id === "mechanizedTextiles");
+    expect(mechanizedTextiles).toMatchObject({
+      era: 5,
+      prerequisites: ["factoryOrganization", "rotarySteamPower"]
+    });
+
+    expect(getMechanizedTextilesEffect(1)).toBe(0);
+    expect(getMechanizedTextilesOutputMultiplier(1)).toBe(1);
+
+    setTechnologyProgressForTests([
+      { technologyId: "mechanizedTextiles", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+      { technologyId: "mechanizedTextiles", scope: "state", ownerId: 2, stage: "diffused", diffusion: 1 }
+    ]);
+    expect(getMechanizedTextilesEffect(1)).toBeCloseTo(0.35);
+    expect(getMechanizedTextilesOutputMultiplier(1)).toBeCloseTo(1 + 0.35 * 0.35);
+    expect(getMechanizedTextilesEffect(2)).toBe(1);
+    expect(getMechanizedTextilesOutputMultiplier(2)).toBeCloseTo(1.35);
+  });
+
+  it("advances factory organization and mechanized textiles once textiles/metalworking guild stock, capital, and steam power are present", () => {
+    installMinimalWorld({ gunpowder: false });
+    worldContext.pack.states[1].treasury = 400;
+    simulationContext.extensions = {
+      economy: {
+        guildKnowledgeStocks: [
+          { burgId: 1, domain: "textiles", stock: 0.8 },
+          { burgId: 1, domain: "metallurgy", stock: 0.7 }
+        ],
+        academyKnowledgeStocks: [{ burgId: 1, domain: "administration", stock: 0.6 }]
+      }
+    };
+    setTechnologyProgressForTests([
+      { technologyId: "mechanicalWorkshops", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 },
+      { technologyId: "commercialFinance", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 },
+      { technologyId: "rotarySteamPower", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ]);
+
+    settleTechnologyAnnual(1200);
+
+    // Burgs 1+2 (state 1) hold 42 population points, above both nodes' urbanPopulation floors.
+    expect(["demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("factoryOrganization", 1));
+    expect(["demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("mechanizedTextiles", 1));
+  });
+
+  it("keeps mechanized textiles locked without factory organization or rotary steam power", () => {
+    installMinimalWorld({ gunpowder: false });
+    worldContext.pack.states[1].treasury = 400;
+    simulationContext.extensions = {
+      economy: {
+        guildKnowledgeStocks: [{ burgId: 1, domain: "textiles", stock: 0.9 }]
+      }
+    };
+    settleTechnologyAnnual(1200);
+    expect(getTechnologyStage("factoryOrganization", 1)).toBe("locked");
+    expect(getTechnologyStage("mechanizedTextiles", 1)).toBe("locked");
+  });
+
   it("diffuses an adopted technology in one year at 100× development speed", () => {
     useOptionsState.setState({ technologyDevelopmentSpeed: 100 });
     setTechnologyProgressForTests([
@@ -455,6 +560,13 @@ describe("technologyProgress", () => {
     const acid = TECHNOLOGY_DEFINITIONS.find(def => def.id === "industrialSulfuricAcid");
     expect(acid?.era).toBe(6);
     expect(acid?.prerequisites).toEqual(["chemicalIndustryFoundation"]);
+
+    // docs/plan/phosphate-fertilizer-vertical-slice.md §3.5.
+    const phosphate = TECHNOLOGY_DEFINITIONS.find(def => def.id === "phosphateFertilizer");
+    expect(phosphate?.era).toBe(6);
+    expect(phosphate?.prerequisites).toEqual(["industrialSulfuricAcid"]);
+    expect(phosphate?.demonstrated.min?.phosphateFertilizerTrialYears).toBe(2);
+    expect(phosphate?.adopted.min?.phosphateFertilizerPlantCount).toBe(1);
 
     const enp = TECHNOLOGY_DEFINITIONS.find(def => def.id === "experimentalNaturalPhilosophy");
     expect(enp?.prerequisites).toEqual(["recordReplication", "mathAstronomyGeography", "distillation"]);
@@ -495,6 +607,720 @@ describe("technologyProgress", () => {
     expect(["known", "demonstrated", "adopted", "diffused"]).toContain(getTechnologyStage("laboratoryGlassware", 1));
   });
 
+  it("computes phosphateRockAccess/phosphateFertilizerTrialYears/phosphateFertilizerPlantCount from market stock, ChemistryTrial, and PhosphateFertilizerPlant rows (docs/plan/phosphate-fertilizer-vertical-slice.md §3.6)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 20, name: "Phosphate Rock" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 20: { stock: 10 } } // clamp01(10 / 2) = 1, well past the 0.25/0.3/0.35 thresholds
+          }
+        ],
+        chemistryTrials: [
+          {
+            kind: "phosphateFertilizerPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        phosphateFertilizerPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "industrialSulfuricAcid", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 1 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "phosphateFertilizer");
+    // phosphateFertilizerTrialYears(5)>=2, phosphateRockAccess(1)>=0.3, treasury(200)>=170: all met.
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    // phosphateFertilizerPlantCount(1)>=1 and phosphateRockAccess(1)>=0.35 are met; only the
+    // adopted treasury threshold (210, installMinimalWorld sets 200) is expected to be unmet.
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 200 < 210"]);
+  });
+
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.4-3.5.
+  it("defines modernSteelmaking and highPressureChemicalApparatus with the expected era, prerequisites, and threshold keys", () => {
+    const modernSteelmaking = TECHNOLOGY_DEFINITIONS.find(def => def.id === "modernSteelmaking");
+    expect(modernSteelmaking?.era).toBe(6);
+    expect(modernSteelmaking?.prerequisites).toEqual(["standardMachineWorks"]);
+    expect(modernSteelmaking?.known.min?.steelAccess).toBe(0.2);
+    expect(modernSteelmaking?.demonstrated.min?.modernSteelmakingTrialYears).toBe(2);
+    expect(modernSteelmaking?.adopted.min?.modernSteelmakingInstallations).toBe(1);
+
+    const highPressureChemicalApparatus = TECHNOLOGY_DEFINITIONS.find(
+      def => def.id === "highPressureChemicalApparatus"
+    );
+    expect(highPressureChemicalApparatus?.era).toBe(6);
+    // Requires both era-6 metallurgy and chemistry lineages adopted before it can even reach known.
+    expect(highPressureChemicalApparatus?.prerequisites).toEqual(["modernSteelmaking", "industrialSulfuricAcid"]);
+    expect(highPressureChemicalApparatus?.known.min?.steelAccess).toBe(0.3);
+    expect(highPressureChemicalApparatus?.known.min?.instruments).toBe(0.3);
+    // No new Good/facility: the "trial years" stand-in reuses ExperimentalWorkshops'
+    // experimentRecord signal instead of a dedicated apparatus (§7 decision 5).
+    expect(highPressureChemicalApparatus?.demonstrated.min?.experimentRecord).toBe(0.6);
+    expect(highPressureChemicalApparatus?.adopted.min?.experimentRecord).toBe(0.65);
+  });
+
+  it("computes steelAccess/modernSteelmakingTrialYears/modernSteelmakingInstallations from market stock, guild metallurgy knowledge, and SteelConverterPlant rows (docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 30, name: "Steel" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 30: { stock: 10 } } // clamp01(10 / 2) = 1, well past the 0.2/0.35/0.4 thresholds
+          }
+        ],
+        // modernSteelmaking re-checks metallurgy at every stage (§3.4), unlike phosphateFertilizer's
+        // sulfurAccess pattern, so the fixture needs a guild metallurgy stock past 0.85 too.
+        guildKnowledgeStocks: [{ burgId: 1, domain: "metallurgy", stock: 0.9 }],
+        steelConverterPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "modernSteelmaking");
+    // modernSteelmakingTrialYears(5)>=2, metallurgy(0.9)>=0.8, treasury(200)>=190: all met.
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    // modernSteelmakingInstallations(1)>=1 and metallurgy(0.9)>=0.85 are met; only the adopted
+    // treasury threshold (230, installMinimalWorld sets 200) is expected to be unmet.
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 200 < 230"]);
+  });
+
+  // docs/plan/catalytic-chemistry.md §3.
+  it("defines catalyticChemistry as an era-6 node gated behind highPressureChemicalApparatus with no new signals", () => {
+    const catalyticChemistry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "catalyticChemistry");
+    expect(catalyticChemistry?.era).toBe(6);
+    expect(catalyticChemistry?.prerequisites).toEqual(["highPressureChemicalApparatus"]);
+    // Every threshold sits above what highPressureChemicalApparatus's own adopted stage already
+    // guarantees (experimentRecord 0.65, instruments 0.3, administration 0.6), so reaching the
+    // prerequisite does not automatically satisfy this node too.
+    expect(catalyticChemistry?.known.min?.experimentRecord).toBe(0.65);
+    expect(catalyticChemistry?.known.min?.instruments).toBe(0.4);
+    expect(catalyticChemistry?.demonstrated.min?.naturalPhilosophy).toBe(0.55);
+    expect(catalyticChemistry?.adopted.min?.administration).toBe(0.65);
+    expect(catalyticChemistry?.minimumYearsAtPreviousStage).toEqual({ demonstrated: 3, adopted: 5 });
+  });
+
+  it("computes catalyticChemistry's gate from ExperimentalWorkshops' experimentRecord and Academy/Guild naturalPhilosophy/instruments stocks (docs/plan/catalytic-chemistry.md §4)", () => {
+    installMinimalWorld();
+    // Between the demonstrated (380) and adopted (450) treasury bars, so only the adopted
+    // threshold is expected to be unmet on treasury — same isolation style as the
+    // modernSteelmaking gate test above.
+    (worldContext.pack.states[1] as { treasury: number }).treasury = 400;
+    simulationContext.extensions = {
+      economy: {
+        experimentalWorkshops: [{ burgId: 1, sponsorStateId: 1, active: true, experimentRecord: 0.8 }],
+        academyKnowledgeStocks: [
+          { burgId: 1, domain: "naturalPhilosophy", stock: 0.7 },
+          { burgId: 1, domain: "administration", stock: 0.7 }
+        ],
+        guildKnowledgeStocks: [{ burgId: 1, domain: "instruments", stock: 0.5 }]
+      }
+    };
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "catalyticChemistry");
+    expect(lines.some(line => line.includes("unmet known"))).toBe(false);
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 400 < 450"]);
+  });
+
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.4.
+  it("defines syntheticAmmonia as an era-6 node gated behind catalyticChemistry alone", () => {
+    const syntheticAmmonia = TECHNOLOGY_DEFINITIONS.find(def => def.id === "syntheticAmmonia");
+    expect(syntheticAmmonia?.era).toBe(6);
+    // prerequisitesMet() already requires catalyticChemistry adopted, which transitively requires
+    // its own ancestor chain adopted — no need to re-list highPressureChemicalApparatus etc.
+    expect(syntheticAmmonia?.prerequisites).toEqual(["catalyticChemistry"]);
+    expect(syntheticAmmonia?.known.min?.fertilizerCoverageGap).toBe(0.3);
+    expect(syntheticAmmonia?.known.min?.administration).toBe(0.65);
+    expect(syntheticAmmonia?.known.min?.instruments).toBe(0.45);
+    expect(syntheticAmmonia?.demonstrated.min?.syntheticAmmoniaTrialYears).toBe(2);
+    expect(syntheticAmmonia?.adopted.min?.syntheticAmmoniaInstallations).toBe(1);
+    expect(syntheticAmmonia?.minimumYearsAtPreviousStage).toEqual({ demonstrated: 3, adopted: 5 });
+  });
+
+  it("computes fertilizerCoverageGap/syntheticAmmoniaTrialYears/syntheticAmmoniaInstallations without disturbing foodFertilizerPressure's existing calibration (docs/plan/synthetic-ammonia-vertical-slice.md §3.5)", () => {
+    installMinimalWorld();
+    // Between the demonstrated (600) and adopted (700) treasury bars, so only the adopted
+    // threshold is expected to be unmet on treasury — same isolation style as the
+    // catalyticChemistry/modernSteelmaking gate tests above.
+    (worldContext.pack.states[1] as { treasury: number }).treasury = 650;
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 40, name: "Nitrogen Fertilizer" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: {},
+            // fertilizerCoverageGap = 1 - fertilizerStock = 0.5, past the known threshold (0.3).
+            fertilizerStock: 0.5,
+            // foodFertilizerPressure = (importNeed - satisfiedImport) / urbanNeed = 5/10 = 0.5,
+            // computed by the same untouched ratio logic — proves gapSum's addition to this loop
+            // does not disturb it.
+            foodLedger: { urbanNeed: 10, importNeed: 6, satisfiedImport: 1 }
+          }
+        ],
+        experimentalWorkshops: [{ burgId: 1, sponsorStateId: 1, active: true, experimentRecord: 0.8 }],
+        academyKnowledgeStocks: [{ burgId: 1, domain: "administration", stock: 0.75 }],
+        guildKnowledgeStocks: [{ burgId: 1, domain: "instruments", stock: 0.5 }],
+        chemistryTrials: [
+          {
+            kind: "syntheticAmmoniaPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        syntheticAmmoniaPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "catalyticChemistry", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "syntheticAmmonia");
+    expect(lines.some(line => line.includes("unmet known"))).toBe(false);
+    expect(lines.some(line => line.includes("unmet demonstrated"))).toBe(false);
+    expect(lines.filter(line => line.includes("unmet adopted"))).toEqual(["unmet adopted min treasury: 650 < 700"]);
+
+    // foodFertilizerPressure (urban food import gap, 0.5 from the ledger above) clears
+    // phosphateFertilizer's known threshold (0.2) exactly as before — its existing ratio
+    // computation is untouched by the new gapSum accumulation added to the same loop.
+    const phosphateLines = explainTechnologyGate(1, "phosphateFertilizer");
+    expect(phosphateLines.some(line => line.includes("unmet known min foodFertilizerPressure"))).toBe(false);
+  });
+
+  // docs/plan/electric-power-and-telegraph.md §3.4-3.8.
+  it("defines the electric-power-and-telegraph node chain with the expected era, prerequisites, and threshold keys", () => {
+    const electricalExperiments = TECHNOLOGY_DEFINITIONS.find(def => def.id === "electricalExperiments");
+    expect(electricalExperiments?.era).toBe(6);
+    expect(electricalExperiments?.prerequisites).toEqual(["experimentalNaturalPhilosophy"]);
+    expect(electricalExperiments?.known.min?.naturalPhilosophy).toBe(0.45);
+    expect(electricalExperiments?.adopted.min?.naturalPhilosophy).toBe(0.55);
+
+    const practicalElectrochemistry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "practicalElectrochemistry");
+    expect(practicalElectrochemistry?.era).toBe(6);
+    expect(practicalElectrochemistry?.prerequisites).toEqual(["electricalExperiments"]);
+    // known deliberately omits naturalPhilosophy — electricalExperiments' own adopted already
+    // requires it >= 0.55, so a lower known threshold would be met the instant the prerequisite
+    // adopts (§3.5).
+    expect(practicalElectrochemistry?.known.min?.naturalPhilosophy).toBeUndefined();
+    expect(practicalElectrochemistry?.demonstrated.min?.naturalPhilosophy).toBe(0.58);
+
+    const electricTelegraph = TECHNOLOGY_DEFINITIONS.find(def => def.id === "electricTelegraph");
+    expect(electricTelegraph?.era).toBe(6);
+    // Does not route through generatorAndMotor/powerGrid — battery-only, per the CSV row-13
+    // historical anchor (Morse, 1837).
+    expect(electricTelegraph?.prerequisites).toEqual(["practicalElectrochemistry"]);
+    expect(electricTelegraph?.demonstrated.min?.telegraphLineTrialYears).toBe(2);
+    expect(electricTelegraph?.adopted.min?.telegraphLineInstallations).toBe(1);
+
+    const generatorAndMotor = TECHNOLOGY_DEFINITIONS.find(def => def.id === "generatorAndMotor");
+    expect(generatorAndMotor?.era).toBe(6);
+    expect(generatorAndMotor?.prerequisites).toEqual(["electricalExperiments", "modernSteelmaking"]);
+    expect(generatorAndMotor?.demonstrated.min?.powerStationTrialYears).toBe(2);
+    expect(generatorAndMotor?.adopted.min?.powerStationInstallations).toBe(1);
+
+    const powerGrid = TECHNOLOGY_DEFINITIONS.find(def => def.id === "powerGrid");
+    expect(powerGrid?.era).toBe(6);
+    expect(powerGrid?.prerequisites).toEqual(["generatorAndMotor"]);
+    expect(powerGrid?.known.min?.electricityCoverage).toBe(0.25);
+    expect(powerGrid?.adopted.min?.electricityCoverage).toBe(0.35);
+  });
+
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.6.
+  it("defines electrolyticIndustry converging on all three of practicalElectrochemistry/highPressureChemicalApparatus/powerGrid", () => {
+    const electrolyticIndustry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "electrolyticIndustry");
+    expect(electrolyticIndustry?.era).toBe(6);
+    expect(electrolyticIndustry?.prerequisites).toEqual([
+      "practicalElectrochemistry",
+      "highPressureChemicalApparatus",
+      "powerGrid"
+    ]);
+    expect(electrolyticIndustry?.demonstrated.min?.electrolysisPlantTrialYears).toBe(2);
+    expect(electrolyticIndustry?.adopted.min?.electrolysisPlantInstallations).toBe(1);
+  });
+
+  it("never lets electrolyticIndustry progress unless all three prerequisites have reached adopted", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        markets: [{ i: 1, centerBurgId: 1, goods: {}, electricityStock: 1 }]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    // Only two of the three prerequisites adopted for state 1 — the third (powerGrid) is absent,
+    // so prerequisitesMet() must keep electrolyticIndustry locked regardless of how far the
+    // known/demonstrated/adopted signal thresholds above (electricityCoverage=1, well past 0.4)
+    // are individually satisfied.
+    setTechnologyProgressForTests([
+      { technologyId: "practicalElectrochemistry", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "highPressureChemicalApparatus", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("electrolyticIndustry", 1)).toBe("locked");
+  });
+
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.5 — same shape as the powerStations
+  // signal test above.
+  it("computes electrolysisPlantTrialYears/electrolysisPlantInstallations from ElectrolysisPlant rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        electrolysisPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "electrolyticIndustry");
+    expect(lines.some(line => line.includes("electrolysisPlantTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("electrolysisPlantInstallations"))).toBe(false);
+  });
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.5.
+  it("defines cinnabarRoastingAndMercuryRecovery on chemicalIndustryFoundation, using mining/smelting signals directly rather than dedicated prerequisite nodes", () => {
+    const mercury = TECHNOLOGY_DEFINITIONS.find(def => def.id === "cinnabarRoastingAndMercuryRecovery");
+    expect(mercury?.era).toBe(6);
+    expect(mercury?.prerequisites).toEqual(["chemicalIndustryFoundation"]);
+    expect(mercury?.known.min?.mineCount).toBe(1);
+    expect(mercury?.known.min?.metallurgy).toBe(0.3);
+    expect(mercury?.demonstrated.min?.mercuryPlantTrialYears).toBe(2);
+    expect(mercury?.adopted.min?.mercuryPlantInstallations).toBe(1);
+  });
+
+  it("never lets cinnabarRoastingAndMercuryRecovery progress unless chemicalIndustryFoundation has reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      { technologyId: "chemicalIndustryFoundation", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("cinnabarRoastingAndMercuryRecovery", 1)).toBe("locked");
+  });
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same shape as the electrolysisPlantTrial-
+  // Years/electrolysisPlantInstallations test above, plus cinnabarAccess (market-stock coverage,
+  // same shape as copperWireAccess) and mercuryPlantTrialYears (read from a running
+  // ChemistryTrial(kind="mercuryPlant") row, same shape as acidPlantTrialYears).
+  it("computes cinnabarAccess/mercuryPlantTrialYears/mercuryPlantInstallations from market stock, a ChemistryTrial row, and MercuryPlant rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 60, name: "Cinnabar" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 60: { stock: 10 } } // clamp01(10 / 2) = 1, past every cinnabarAccess threshold
+          }
+        ],
+        chemistryTrials: [
+          {
+            kind: "mercuryPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        mercuryPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200,
+            contamination: 0.1
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "chemicalIndustryFoundation", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "cinnabarRoastingAndMercuryRecovery");
+    // cinnabarAccess(1) clears known/demonstrated/adopted; mercuryPlantTrialYears(5)>=2 clears
+    // demonstrated; mercuryPlantInstallations(1)>=1 clears adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("cinnabarAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("mercuryPlantTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("mercuryPlantInstallations"))).toBe(false);
+  });
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.5.
+  it("defines the era-7 petroleum chain (geology -> drilling -> refining -> internal combustion) with prerequisites gated above each other's own adopted floor", () => {
+    const geology = TECHNOLOGY_DEFINITIONS.find(def => def.id === "petroleumGeologyAndExploration");
+    expect(geology?.era).toBe(7);
+    expect(geology?.prerequisites).toEqual(["mineSurveyAndDrainage", "precisionBoringAndMeasurement"]);
+
+    const drilling = TECHNOLOGY_DEFINITIONS.find(def => def.id === "modernDrillingAndFieldOperations");
+    expect(drilling?.era).toBe(7);
+    expect(drilling?.prerequisites).toEqual(["petroleumGeologyAndExploration"]);
+    expect(drilling?.known.min?.petroleumAccess).toBe(0.15);
+    expect(drilling?.adopted.min?.petroleumAccess).toBe(0.35);
+
+    const refining = TECHNOLOGY_DEFINITIONS.find(def => def.id === "oilRefiningAndFractionation");
+    expect(refining?.era).toBe(7);
+    expect(refining?.prerequisites).toEqual(["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"]);
+    expect(refining?.demonstrated.min?.oilRefineryTrialYears).toBe(2);
+    expect(refining?.adopted.min?.oilRefineryInstallations).toBe(1);
+
+    const ice = TECHNOLOGY_DEFINITIONS.find(def => def.id === "internalCombustionEngine");
+    expect(ice?.era).toBe(7);
+    expect(ice?.prerequisites).toEqual(["oilRefiningAndFractionation", "standardMachineWorks"]);
+    expect(ice?.known.min?.refinedFuelAccess).toBe(0.15);
+
+    expect(getInternalCombustionEngineEffect(1)).toBe(0);
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    expect(getInternalCombustionEngineEffect(1)).toBeCloseTo(0.35);
+  });
+
+  it("never lets modernDrillingAndFieldOperations progress unless petroleumGeologyAndExploration has reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      {
+        technologyId: "petroleumGeologyAndExploration",
+        scope: "state",
+        ownerId: 1,
+        stage: "demonstrated",
+        diffusion: 0
+      }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("modernDrillingAndFieldOperations", 1)).toBe("locked");
+  });
+
+  // docs/plan/rocket-and-space-development-vertical-slice.md §3.3.
+  it("defines the era-8 rocketry/space chain with militarySignalRockets as an independent leaf, not a prerequisite of any other node", () => {
+    const era8 = TECHNOLOGY_DEFINITIONS.filter(def => def.era === 8);
+    expect(era8.map(def => def.id).sort()).toEqual(
+      [
+        "guidanceAndAttitudeControl",
+        "liquidPropulsionAndTestFacilities",
+        "militarySignalRockets",
+        "rocketDynamicsAndHighTemperatureCombustionResearch",
+        "stagingAndOrbitalInsertion"
+      ].sort()
+    );
+
+    const rockets = TECHNOLOGY_DEFINITIONS.find(def => def.id === "militarySignalRockets");
+    expect(rockets?.worldGates).toEqual(["gunpowderWorld"]);
+    expect(rockets?.prerequisites).toEqual(["artilleryTactics", "mechanicalWorkshops"]);
+    // roadmap decision 13: rockets/space must not unlock directly from powder rockets — verify no
+    // other era-8 node (including the chain's terminal node) lists it as a prerequisite.
+    for (const def of era8) {
+      if (def.id === "militarySignalRockets") continue;
+      expect(def.prerequisites).not.toContain("militarySignalRockets");
+    }
+
+    const dynamics = TECHNOLOGY_DEFINITIONS.find(
+      def => def.id === "rocketDynamicsAndHighTemperatureCombustionResearch"
+    );
+    expect(dynamics?.era).toBe(8);
+    expect(dynamics?.prerequisites).toEqual([
+      "mathAstronomyGeography",
+      "electricalExperiments",
+      "highPressureChemicalApparatus"
+    ]);
+
+    const liquid = TECHNOLOGY_DEFINITIONS.find(def => def.id === "liquidPropulsionAndTestFacilities");
+    expect(liquid?.prerequisites).toEqual([
+      "rocketDynamicsAndHighTemperatureCombustionResearch",
+      "oilRefiningAndFractionation",
+      "powerGrid"
+    ]);
+    expect(liquid?.known.min?.refinedFuelAccess).toBe(0.35);
+
+    const guidance = TECHNOLOGY_DEFINITIONS.find(def => def.id === "guidanceAndAttitudeControl");
+    expect(guidance?.prerequisites).toEqual(["liquidPropulsionAndTestFacilities", "electricTelegraph"]);
+
+    const staging = TECHNOLOGY_DEFINITIONS.find(def => def.id === "stagingAndOrbitalInsertion");
+    expect(staging?.prerequisites).toEqual(["guidanceAndAttitudeControl", "electrolyticIndustry"]);
+    expect(staging?.adopted.min?.treasury).toBe(1600);
+
+    expect(getMilitarySignalRocketsEffect(1)).toBe(0);
+    expect(getStagingAndOrbitalInsertionEffect(1)).toBe(0);
+    setTechnologyProgressForTests([
+      { technologyId: "militarySignalRockets", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "stagingAndOrbitalInsertion", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    expect(getMilitarySignalRocketsEffect(1)).toBeCloseTo(0.75);
+    expect(getStagingAndOrbitalInsertionEffect(1)).toBeCloseTo(0.35);
+  });
+
+  it("never lets rocketDynamicsAndHighTemperatureCombustionResearch progress unless mathAstronomyGeography, electricalExperiments, and highPressureChemicalApparatus have all reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      { technologyId: "mathAstronomyGeography", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electricalExperiments", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      // highPressureChemicalApparatus intentionally left short of adopted.
+      { technologyId: "highPressureChemicalApparatus", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("rocketDynamicsAndHighTemperatureCombustionResearch", 1)).toBe("locked");
+  });
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same shape as the
+  // cinnabarAccess/mercuryPlantTrialYears/mercuryPlantInstallations test above, plus
+  // refinedFuelAccess (reads Kerosene instead of Crude Oil).
+  it("computes petroleumAccess/refinedFuelAccess/oilRefineryTrialYears/oilRefineryInstallations from market stock, a ChemistryTrial row, and OilRefineryPlant rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [
+          { i: 70, name: "Crude Oil" },
+          { i: 71, name: "Kerosene" }
+        ],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: {
+              70: { stock: 10 }, // clamp01(10 / 2) = 1, past every petroleumAccess threshold
+              71: { stock: 10 } // clamp01(10 / 2) = 1, past every refinedFuelAccess threshold
+            }
+          }
+        ],
+        chemistryTrials: [
+          {
+            kind: "oilRefineryPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        oilRefineryPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "modernDrillingAndFieldOperations", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "oilRefiningAndFractionation");
+    // petroleumAccess(1) clears known/demonstrated; oilRefineryTrialYears(5)>=2 clears
+    // demonstrated; oilRefineryInstallations(1)>=1 clears adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("petroleumAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("oilRefineryTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("oilRefineryInstallations"))).toBe(false);
+  });
+
+  it("computes copperWireAccess/powerStationTrialYears/powerStationInstallations from market stock and PowerStation rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 50, name: "Copper Wire" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 50: { stock: 10 } } // clamp01(10 / 2) = 1, past every copperWireAccess threshold
+          }
+        ],
+        powerStations: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200,
+            generationCapacity: 2
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "generatorAndMotor");
+    // copperWireAccess(1) clears known(0.35); powerStationTrialYears(5)>=2 and
+    // powerStationInstallations(1)>=1 clear demonstrated/adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("copperWireAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("powerStationTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("powerStationInstallations"))).toBe(false);
+  });
+
+  it("computes telegraphLineTrialYears/telegraphLineInstallations from TelegraphLine rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        telegraphLines: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "electricTelegraph");
+    expect(lines.some(line => line.includes("telegraphLineTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("telegraphLineInstallations"))).toBe(false);
+  });
+
+  it("computes electricityCoverage from Market.electricityStock across markets with population (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        markets: [
+          // Burg 1 (state 1, population 30 from installMinimalWorld) — well past every threshold.
+          { i: 1, centerBurgId: 1, goods: {}, electricityStock: 0.4 },
+          // Burg 3 (state 2, population 18) — below the known threshold (0.25).
+          { i: 2, centerBurgId: 3, goods: {}, electricityStock: 0.2 }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    worldContext.pack.burgs[3].market = 2;
+    settleTechnologyAnnual(1200);
+
+    expect(explainTechnologyGate(1, "powerGrid").some(line => line.includes("electricityCoverage"))).toBe(false);
+    // explainThresholds checks known/demonstrated/adopted independently, so 0.2 falls short of all
+    // three thresholds (0.25/0.3/0.35) at once.
+    expect(explainTechnologyGate(2, "powerGrid").filter(line => line.includes("electricityCoverage"))).toEqual([
+      "unmet known min electricityCoverage: 0.2 < 0.25",
+      "unmet demonstrated min electricityCoverage: 0.2 < 0.3",
+      "unmet adopted min electricityCoverage: 0.2 < 0.35"
+    ]);
+  });
+
+  it("diffuses every technology faster for an owner whose electricTelegraph has reached adopted (docs/plan/electric-power-and-telegraph.md §3.12)", () => {
+    installMinimalWorld();
+    // improvedMining's sole prerequisite (basicMetallurgy) auto-seeds to "diffused" for every live
+    // state; setting improvedMining itself directly to "adopted" skips known/demonstrated/adopted
+    // threshold evaluation entirely (all three rank checks in advanceStage() require the entry to
+    // currently sit at a lower rank), isolating just the diffusion-growth line under test.
+    setTechnologyProgressForTests([
+      { technologyId: "improvedMining", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+    const baseline = getTechnologyProgressEntries().find(
+      p => p.technologyId === "improvedMining" && p.ownerId === 1
+    )?.diffusion;
+    expect(baseline).toBeCloseTo(0.15, 5); // DIFFUSION_ANNUAL_GAIN(0.15) * speed(1) * (1 + 0)
+
+    setTechnologyProgressForTests([
+      { technologyId: "improvedMining", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electricTelegraph", scope: "state", ownerId: 1, stage: "adopted", diffusion: 1 }
+    ]);
+    settleTechnologyAnnual(1200);
+    const boosted = getTechnologyProgressEntries().find(
+      p => p.technologyId === "improvedMining" && p.ownerId === 1
+    )?.diffusion;
+    expect(boosted).toBeCloseTo(0.225, 5); // 0.15 * (1 + TELEGRAPH_DIFFUSION_BONUS_MAX(0.5))
+
+    // A state without electricTelegraph adopted is unaffected.
+    setTechnologyProgressForTests([
+      { technologyId: "improvedMining", scope: "state", ownerId: 2, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+    const unaffected = getTechnologyProgressEntries().find(
+      p => p.technologyId === "improvedMining" && p.ownerId === 2
+    )?.diffusion;
+    expect(unaffected).toBeCloseTo(0.15, 5);
+  });
+
   describe("known-stage technology hints", () => {
     const ENP_PREREQS: TechnologyProgress[] = [
       { technologyId: "recordReplication", scope: "state", ownerId: 2, stage: "adopted", diffusion: 1 },
@@ -533,6 +1359,7 @@ describe("technologyProgress", () => {
         "metallurgy",
         "woodworking",
         "masonry",
+        "textiles",
         "instruments",
         "glassware",
         "medicine",

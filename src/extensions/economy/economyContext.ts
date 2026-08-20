@@ -18,13 +18,21 @@ import type {
   ApothecaryWorkshop,
   ChemistryTrial,
   ChemMedPracticeRecord,
+  ChlorinePlant,
   ExperimentalWorkshop,
   HospitalInstallation,
-  MedicalCareReliefRow
+  MedicalCareReliefRow,
+  MercuryPlant,
+  OilRefineryPlant,
+  PhosphateFertilizerPlant,
+  SyntheticAmmoniaPlant
 } from "./generators/chemistryTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
+import type { Dam, DamSite } from "./generators/damTypes";
+import type { PowerStation, TelegraphLine } from "./generators/electricalTypes";
+import type { ChlorAlkaliPlant, ElectrolysisPlant } from "./generators/electrolysisTypes";
 import type {
   EscortActiveContract,
   EscortCooldowns,
@@ -86,6 +94,7 @@ import type { SmelterOperation } from "./generators/smelterOperationsTypes";
 import type { SmithingWorkshopLedger } from "./generators/smithingWorkshopLedgerTypes";
 import type { StateSecretStock } from "./generators/stateSecretTypes";
 import type { RailwayLink, SteamInstallation, SteamPumpTrial } from "./generators/steamTypes";
+import type { SteelConverterPlant } from "./generators/steelConverterTypes";
 import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
@@ -158,6 +167,20 @@ let _apothecaryWorkshopsLastSettledYearFallback: number | null = null;
 let _experimentalWorkshopsLastSettledYearFallback: number | null = null;
 let _hospitalInstallationsLastSettledYearFallback: number | null = null;
 let _acidPlantsLastSettledYearFallback: number | null = null;
+let _chlorinePlantsLastSettledYearFallback: number | null = null;
+let _phosphateFertilizerPlantsLastSettledYearFallback: number | null = null;
+let _steelConverterPlantsLastSettledYearFallback: number | null = null;
+let _fertilizerInvestmentLastSettledYearFallback: number | null = null;
+let _syntheticAmmoniaPlantsLastSettledYearFallback: number | null = null;
+let _nitrogenFertilizerInvestmentLastSettledYearFallback: number | null = null;
+let _powerStationsLastSettledYearFallback: number | null = null;
+let _telegraphLinesLastSettledYearFallback: number | null = null;
+let _electrolysisPlantsLastSettledYearFallback: number | null = null;
+let _chlorAlkaliPlantsLastSettledYearFallback: number | null = null;
+let _mercuryPlantsLastSettledYearFallback: number | null = null;
+let _oilRefineryPlantsLastSettledYearFallback: number | null = null;
+let _powerGridInvestmentLastSettledYearFallback: number | null = null;
+let _damsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -215,6 +238,20 @@ export function clearEconomyContext(): void {
   _experimentalWorkshopsLastSettledYearFallback = null;
   _hospitalInstallationsLastSettledYearFallback = null;
   _acidPlantsLastSettledYearFallback = null;
+  _chlorinePlantsLastSettledYearFallback = null;
+  _phosphateFertilizerPlantsLastSettledYearFallback = null;
+  _steelConverterPlantsLastSettledYearFallback = null;
+  _fertilizerInvestmentLastSettledYearFallback = null;
+  _syntheticAmmoniaPlantsLastSettledYearFallback = null;
+  _nitrogenFertilizerInvestmentLastSettledYearFallback = null;
+  _powerStationsLastSettledYearFallback = null;
+  _telegraphLinesLastSettledYearFallback = null;
+  _electrolysisPlantsLastSettledYearFallback = null;
+  _chlorAlkaliPlantsLastSettledYearFallback = null;
+  _mercuryPlantsLastSettledYearFallback = null;
+  _oilRefineryPlantsLastSettledYearFallback = null;
+  _powerGridInvestmentLastSettledYearFallback = null;
+  _damsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1398,6 +1435,93 @@ export function getAcidPlants(): AcidPlant[] {
 export function setAcidPlants(rows: readonly AcidPlant[]): void {
   setSliceArray("acidPlants", rows);
 }
+export function getPhosphateFertilizerPlants(): PhosphateFertilizerPlant[] {
+  return getSliceArray<PhosphateFertilizerPlant>("phosphateFertilizerPlants");
+}
+export function setPhosphateFertilizerPlants(rows: readonly PhosphateFertilizerPlant[]): void {
+  setSliceArray("phosphateFertilizerPlants", rows);
+}
+/** Same shape as getAcidPlants/getPhosphateFertilizerPlants. Design: docs/plan/chlorine-production-vertical-slice.md §3.6. */
+export function getChlorinePlants(): ChlorinePlant[] {
+  return getSliceArray<ChlorinePlant>("chlorinePlants");
+}
+export function setChlorinePlants(rows: readonly ChlorinePlant[]): void {
+  setSliceArray("chlorinePlants", rows);
+}
+/** Same shape as getAcidPlants/getPhosphateFertilizerPlants. Design: docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.2. */
+export function getSteelConverterPlants(): SteelConverterPlant[] {
+  return getSliceArray<SteelConverterPlant>("steelConverterPlants");
+}
+export function setSteelConverterPlants(rows: readonly SteelConverterPlant[]): void {
+  setSliceArray("steelConverterPlants", rows);
+}
+/** Same shape as getAcidPlants/getPhosphateFertilizerPlants. Design: docs/plan/synthetic-ammonia-vertical-slice.md §3.6. */
+export function getSyntheticAmmoniaPlants(): SyntheticAmmoniaPlant[] {
+  return getSliceArray<SyntheticAmmoniaPlant>("syntheticAmmoniaPlants");
+}
+export function setSyntheticAmmoniaPlants(rows: readonly SyntheticAmmoniaPlant[]): void {
+  setSliceArray("syntheticAmmoniaPlants", rows);
+}
+/** Same shape as getAcidPlants/getSteelConverterPlants. Design: docs/plan/electric-power-and-telegraph.md §3.9. */
+export function getPowerStations(): PowerStation[] {
+  return getSliceArray<PowerStation>("powerStations");
+}
+export function setPowerStations(rows: readonly PowerStation[]): void {
+  setSliceArray("powerStations", rows);
+}
+/** Same shape as getPowerStations. Design: docs/plan/electric-power-and-telegraph.md §3.9. */
+export function getTelegraphLines(): TelegraphLine[] {
+  return getSliceArray<TelegraphLine>("telegraphLines");
+}
+export function setTelegraphLines(rows: readonly TelegraphLine[]): void {
+  setSliceArray("telegraphLines", rows);
+}
+/** Same shape as getPowerStations. Design: docs/plan/dam-flood-control-and-hydropower.md §3. */
+export function getDamSites(): DamSite[] {
+  return getSliceArray<DamSite>("damSites");
+}
+export function setDamSites(rows: readonly DamSite[]): void {
+  setSliceArray("damSites", rows);
+}
+/** Same shape as getPowerStations. Design: docs/plan/dam-flood-control-and-hydropower.md §3. */
+export function getDams(): Dam[] {
+  return getSliceArray<Dam>("dams");
+}
+export function setDams(rows: readonly Dam[]): void {
+  setSliceArray("dams", rows);
+}
+/** Same shape as getPowerStations. Design: docs/plan/electrolytic-industry-vertical-slice.md §3.7. */
+export function getElectrolysisPlants(): ElectrolysisPlant[] {
+  return getSliceArray<ElectrolysisPlant>("electrolysisPlants");
+}
+export function setElectrolysisPlants(rows: readonly ElectrolysisPlant[]): void {
+  setSliceArray("electrolysisPlants", rows);
+}
+/** Same shape as getElectrolysisPlants — a third supply route for Chlorine/Caustic Soda.
+ *  Design: docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7. */
+export function getChlorAlkaliPlants(): ChlorAlkaliPlant[] {
+  return getSliceArray<ChlorAlkaliPlant>("chlorAlkaliPlants");
+}
+export function setChlorAlkaliPlants(rows: readonly ChlorAlkaliPlant[]): void {
+  setSliceArray("chlorAlkaliPlants", rows);
+}
+/** Same shape as getPhosphateFertilizerPlants. Design: docs/plan/cinnabar-mercury-vertical-slice.md §3.7. */
+export function getMercuryPlants(): MercuryPlant[] {
+  return getSliceArray<MercuryPlant>("mercuryPlants");
+}
+export function setMercuryPlants(rows: readonly MercuryPlant[]): void {
+  setSliceArray("mercuryPlants", rows);
+}
+/**
+ * Same shape as getMercuryPlants — the first plant that yields two Goods (Kerosene + Lubricating
+ * Oil) from one input. Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+ */
+export function getOilRefineryPlants(): OilRefineryPlant[] {
+  return getSliceArray<OilRefineryPlant>("oilRefineryPlants");
+}
+export function setOilRefineryPlants(rows: readonly OilRefineryPlant[]): void {
+  setSliceArray("oilRefineryPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1441,6 +1565,146 @@ export function getAcidPlantsLastSettledYear(): number | null {
 export function setAcidPlantsLastSettledYear(year: number): void {
   writeYearToSlice("acidPlantsLastSettledYear", year, value => {
     _acidPlantsLastSettledYearFallback = value;
+  });
+}
+export function getPhosphateFertilizerPlantsLastSettledYear(): number | null {
+  return yearFromSlice("phosphateFertilizerPlantsLastSettledYear", _phosphateFertilizerPlantsLastSettledYearFallback);
+}
+export function setPhosphateFertilizerPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("phosphateFertilizerPlantsLastSettledYear", year, value => {
+    _phosphateFertilizerPlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards ChlorinePlants.settleAnnual(), same shape as getAcidPlantsLastSettledYear. */
+export function getChlorinePlantsLastSettledYear(): number | null {
+  return yearFromSlice("chlorinePlantsLastSettledYear", _chlorinePlantsLastSettledYearFallback);
+}
+export function setChlorinePlantsLastSettledYear(year: number): void {
+  writeYearToSlice("chlorinePlantsLastSettledYear", year, value => {
+    _chlorinePlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards SteelConverters.settleAnnual(), same shape as getAcidPlantsLastSettledYear. */
+export function getSteelConverterPlantsLastSettledYear(): number | null {
+  return yearFromSlice("steelConverterPlantsLastSettledYear", _steelConverterPlantsLastSettledYearFallback);
+}
+export function setSteelConverterPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("steelConverterPlantsLastSettledYear", year, value => {
+    _steelConverterPlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards SyntheticAmmoniaPlants.settleAnnual(), same shape as getPhosphateFertilizerPlantsLastSettledYear. */
+export function getSyntheticAmmoniaPlantsLastSettledYear(): number | null {
+  return yearFromSlice("syntheticAmmoniaPlantsLastSettledYear", _syntheticAmmoniaPlantsLastSettledYearFallback);
+}
+export function setSyntheticAmmoniaPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("syntheticAmmoniaPlantsLastSettledYear", year, value => {
+    _syntheticAmmoniaPlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards FertilizerInvestment.settleAnnual(), same shape as getAgTechLastSettledYear. */
+export function getFertilizerInvestmentLastSettledYear(): number | null {
+  return yearFromSlice("fertilizerInvestmentLastSettledYear", _fertilizerInvestmentLastSettledYearFallback);
+}
+export function setFertilizerInvestmentLastSettledYear(year: number): void {
+  writeYearToSlice("fertilizerInvestmentLastSettledYear", year, value => {
+    _fertilizerInvestmentLastSettledYearFallback = value;
+  });
+}
+/** Guards NitrogenFertilizerInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */
+export function getNitrogenFertilizerInvestmentLastSettledYear(): number | null {
+  return yearFromSlice(
+    "nitrogenFertilizerInvestmentLastSettledYear",
+    _nitrogenFertilizerInvestmentLastSettledYearFallback
+  );
+}
+export function setNitrogenFertilizerInvestmentLastSettledYear(year: number): void {
+  writeYearToSlice("nitrogenFertilizerInvestmentLastSettledYear", year, value => {
+    _nitrogenFertilizerInvestmentLastSettledYearFallback = value;
+  });
+}
+/** Guards PowerStations.settleAnnual(), same shape as getSteelConverterPlantsLastSettledYear. */
+export function getPowerStationsLastSettledYear(): number | null {
+  return yearFromSlice("powerStationsLastSettledYear", _powerStationsLastSettledYearFallback);
+}
+export function setPowerStationsLastSettledYear(year: number): void {
+  writeYearToSlice("powerStationsLastSettledYear", year, value => {
+    _powerStationsLastSettledYearFallback = value;
+  });
+}
+/** Guards TelegraphLines.settleAnnual(), same shape as getPowerStationsLastSettledYear. */
+export function getTelegraphLinesLastSettledYear(): number | null {
+  return yearFromSlice("telegraphLinesLastSettledYear", _telegraphLinesLastSettledYearFallback);
+}
+export function setTelegraphLinesLastSettledYear(year: number): void {
+  writeYearToSlice("telegraphLinesLastSettledYear", year, value => {
+    _telegraphLinesLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards ElectrolysisPlants.settleAnnual(), same shape as getTelegraphLinesLastSettledYear.
+ * Design: docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+ */
+export function getElectrolysisPlantsLastSettledYear(): number | null {
+  return yearFromSlice("electrolysisPlantsLastSettledYear", _electrolysisPlantsLastSettledYearFallback);
+}
+export function setElectrolysisPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("electrolysisPlantsLastSettledYear", year, value => {
+    _electrolysisPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards ChlorAlkaliPlants.settleAnnual(), same shape as getElectrolysisPlantsLastSettledYear.
+ * Design: docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7.
+ */
+export function getChlorAlkaliPlantsLastSettledYear(): number | null {
+  return yearFromSlice("chlorAlkaliPlantsLastSettledYear", _chlorAlkaliPlantsLastSettledYearFallback);
+}
+export function setChlorAlkaliPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("chlorAlkaliPlantsLastSettledYear", year, value => {
+    _chlorAlkaliPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards MercuryPlants.settleAnnual(), same shape as getChlorAlkaliPlantsLastSettledYear.
+ * Design: docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+ */
+export function getMercuryPlantsLastSettledYear(): number | null {
+  return yearFromSlice("mercuryPlantsLastSettledYear", _mercuryPlantsLastSettledYearFallback);
+}
+export function setMercuryPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("mercuryPlantsLastSettledYear", year, value => {
+    _mercuryPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards OilRefineryPlants.settleAnnual(), same shape as getMercuryPlantsLastSettledYear.
+ * Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+ */
+export function getOilRefineryPlantsLastSettledYear(): number | null {
+  return yearFromSlice("oilRefineryPlantsLastSettledYear", _oilRefineryPlantsLastSettledYearFallback);
+}
+export function setOilRefineryPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("oilRefineryPlantsLastSettledYear", year, value => {
+    _oilRefineryPlantsLastSettledYearFallback = value;
+  });
+}
+/** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */
+export function getPowerGridInvestmentLastSettledYear(): number | null {
+  return yearFromSlice("powerGridInvestmentLastSettledYear", _powerGridInvestmentLastSettledYearFallback);
+}
+export function setPowerGridInvestmentLastSettledYear(year: number): void {
+  writeYearToSlice("powerGridInvestmentLastSettledYear", year, value => {
+    _powerGridInvestmentLastSettledYearFallback = value;
+  });
+}
+/** Guards Dams.settleAnnual(). Design: docs/plan/dam-flood-control-and-hydropower.md §3. */
+export function getDamsLastSettledYear(): number | null {
+  return yearFromSlice("damsLastSettledYear", _damsLastSettledYearFallback);
+}
+export function setDamsLastSettledYear(year: number): void {
+  writeYearToSlice("damsLastSettledYear", year, value => {
+    _damsLastSettledYearFallback = value;
   });
 }
 
@@ -2089,4 +2353,8 @@ export function getTradeAnimLayer() {
 
 export function getMineralDepositsLayer() {
   return getApi().getSvgLayer("mineralDeposits");
+}
+
+export function getDamsLayer() {
+  return getApi().getSvgLayer("dams");
 }

@@ -1,5 +1,25 @@
 # 追加したドキュメント
 
+2026-08-21
+
+- docs/plan/military-era-progression.md
+
+2026-08-20
+
+- docs/plan/catalytic-chemistry.md
+- docs/plan/chlor-alkali-electrolysis-vertical-slice.md
+- docs/plan/chlorine-production-vertical-slice.md
+- docs/plan/cinnabar-mercury-vertical-slice.md
+- docs/plan/dam-flood-control-and-hydropower.md
+- docs/plan/electric-power-and-telegraph.md
+- docs/plan/electrolytic-industry-vertical-slice.md
+- docs/plan/modern-steelmaking-and-high-pressure-apparatus.md
+- docs/plan/petroleum-and-internal-combustion-vertical-slice.md
+- docs/plan/phosphate-fertilizer-vertical-slice.md
+- docs/plan/rocket-and-space-development-vertical-slice.md
+- docs/plan/smokeless-powder-visibility.md
+- docs/plan/synthetic-ammonia-vertical-slice.md
+
 2026-08-19
 
 - docs/plan/craft-demand-calibration.md

@@ -58,6 +58,27 @@ describe("MineralResourcesModule", () => {
     expect(isMineSuppliedGoodName("Tools")).toBe(false);
   });
 
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.2, same "bypasses smelting" shape as coal/
+  // phosphate rock above.
+  it("maps bauxite to a directly mine-supplied Good, same as phosphate rock", () => {
+    expect(getMinedGoodName("bauxite")).toBe("bauxite");
+    expect(isMineSuppliedGoodName("Bauxite")).toBe(true);
+  });
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.2, same "bypasses smelting" shape as coal/
+  // phosphate rock/bauxite above.
+  it("maps cinnabar to a directly mine-supplied Good, same as bauxite", () => {
+    expect(getMinedGoodName("cinnabar")).toBe("cinnabar");
+    expect(isMineSuppliedGoodName("Cinnabar")).toBe(true);
+  });
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2, same "bypasses smelting"
+  // shape as coal/phosphate rock/bauxite/cinnabar above.
+  it("maps crude oil to a directly mine-supplied Good, same as cinnabar", () => {
+    expect(getMinedGoodName("crude oil")).toBe("crude oil");
+    expect(isMineSuppliedGoodName("Crude Oil")).toBe(true);
+  });
+
   it("derives greater groundwater pressure from rainfall and a river, without using it to relocate deposits", () => {
     const priorGrid = worldContext.grid;
     worldContext.pack.cells.g = Uint16Array.from([0, 1]);

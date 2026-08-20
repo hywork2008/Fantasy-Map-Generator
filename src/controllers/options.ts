@@ -1002,7 +1002,13 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       | "earlyMedieval"
       | "highMedieval"
       | "lateMedieval"
-      | "ageOfExploration";
+      | "ageOfExploration"
+      | "maritimeEra"
+      | "preIndustrialEra"
+      | "steamEra"
+      | "industrialChemistryEra"
+      | "petroleumEra"
+      | "rocketryEra";
   });
 
   document.addEventListener("react-change-state-labels-mode", (e: Event) => {

@@ -15,6 +15,8 @@ import {
   GOODS_DATA,
   GoodsModule,
   isGoodEnabled,
+  migrateElectricalGoods,
+  migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
@@ -22,11 +24,14 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migrateMercuryChainGoods,
   migratePerennialFruitGoods,
+  migratePetroleumChainGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
+  migrateSyntheticAmmoniaGoods,
   migrateWineRecipe
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
@@ -263,6 +268,143 @@ describe("GoodsModule", () => {
     expect(ingot).toMatchObject({ value: 4, chance: 0, tags: ["ingot", "metal", "military"] });
     expect(byName.get("Tools")?.recipes).toEqual([{ [ingot!.i]: 0.5 }]);
     expect(migrateLegacyOreIngotGoods()).toBe(false);
+  });
+
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.2-3.3.
+  it("appends Synthetic Ammonia (plant-only, no recipe) and Nitrogen Fertilizer (craft recipe consuming it) to an older catalogue", () => {
+    setGoods([{ i: 2, name: "Iron", tags: ["ore"], value: 4, unit: "wagon", icon: "good-iron", color: "#5D686E" }]);
+
+    expect(migrateSyntheticAmmoniaGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const ammonia = byName.get("Synthetic Ammonia");
+    const nitrogenFertilizer = byName.get("Nitrogen Fertilizer");
+    expect(ammonia).toMatchObject({ requiredTechnology: "syntheticAmmonia", chance: 0 });
+    expect(ammonia?.recipes).toBeUndefined();
+    expect(nitrogenFertilizer).toMatchObject({ requiredTechnology: "syntheticAmmonia", chance: 0 });
+    expect(nitrogenFertilizer?.recipes).toEqual([{ [ammonia!.i]: 0.7 }]);
+    expect(migrateSyntheticAmmoniaGoods()).toBe(false);
+  });
+
+  // docs/plan/electric-power-and-telegraph.md §3.2, §3.13.
+  it("appends Copper Wire, resolving its recipe ingredients against the migrated catalogue's ids", () => {
+    setGoods([
+      {
+        i: 1,
+        name: "Copper Ingot",
+        tags: ["ingot", "metal"],
+        value: 6,
+        unit: "bar",
+        icon: "good-copper",
+        color: "#b87333"
+      },
+      { i: 2, name: "Glass", tags: ["industrial"], value: 5, unit: "crate", icon: "good-glass", color: "#cde" },
+      {
+        i: 3,
+        name: "Machine Parts",
+        tags: ["industrial", "tools"],
+        value: 18,
+        unit: "crate",
+        icon: "good-unknown",
+        color: "#6d7380"
+      }
+    ]);
+
+    expect(migrateElectricalGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const copperWire = byName.get("Copper Wire");
+    expect(copperWire).toMatchObject({ requiredTechnology: "electricalExperiments", chance: 0, demandCoverage: {} });
+    expect(copperWire?.recipes).toEqual([
+      { 1: 1, 2: 0.2, 3: 0.1 } // Copper Ingot / Glass / Machine Parts, resolved to this catalogue's ids
+    ]);
+    expect(migrateElectricalGoods()).toBe(false);
+  });
+
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.2-3.4, §3.8.
+  it("appends Bauxite (mined, no recipe), Alumina (craft recipe), and Aluminum (plant-only, no recipe)", () => {
+    setGoods([
+      {
+        i: 1,
+        name: "Caustic Soda",
+        tags: ["industrial", "mineral"],
+        value: 13,
+        unit: "barrel",
+        icon: "good-unknown",
+        color: "#eae6da"
+      },
+      { i: 2, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migrateElectrolyticIndustryGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const bauxite = byName.get("Bauxite");
+    const alumina = byName.get("Alumina");
+    const aluminum = byName.get("Aluminum");
+    expect(bauxite).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(bauxite?.requiredTechnology).toBeUndefined();
+    expect(bauxite?.recipes).toBeUndefined();
+    expect(alumina).toMatchObject({ requiredTechnology: "chemicalIndustryFoundation", chance: 0 });
+    expect(alumina?.recipes).toEqual([
+      { [bauxite!.i]: 1, 1: 0.3, 2: 0.2 } // Bauxite / Caustic Soda / Coal, resolved to this catalogue's ids
+    ]);
+    expect(aluminum).toMatchObject({ requiredTechnology: "electrolyticIndustry", chance: 0, demandCoverage: {} });
+    expect(aluminum?.recipes).toBeUndefined();
+    expect(migrateElectrolyticIndustryGoods()).toBe(false);
+  });
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.2-3.3, §3.8.
+  it("appends Cinnabar (mined, no recipe) and Mercury (plant-only, no recipe)", () => {
+    setGoods([
+      { i: 1, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migrateMercuryChainGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const cinnabar = byName.get("Cinnabar");
+    const mercury = byName.get("Mercury");
+    expect(cinnabar).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(cinnabar?.requiredTechnology).toBeUndefined();
+    expect(cinnabar?.recipes).toBeUndefined();
+    expect(mercury).toMatchObject({
+      requiredTechnology: "cinnabarRoastingAndMercuryRecovery",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(mercury?.recipes).toBeUndefined();
+    expect(migrateMercuryChainGoods()).toBe(false);
+  });
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2-3.3, §3.8.
+  it("appends Crude Oil (mined, no recipe) and Kerosene/Lubricating Oil (plant-only, no recipe)", () => {
+    setGoods([
+      { i: 1, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migratePetroleumChainGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const crudeOil = byName.get("Crude Oil");
+    const kerosene = byName.get("Kerosene");
+    const lubricatingOil = byName.get("Lubricating Oil");
+    expect(crudeOil).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(crudeOil?.requiredTechnology).toBeUndefined();
+    expect(crudeOil?.recipes).toBeUndefined();
+    expect(kerosene).toMatchObject({
+      requiredTechnology: "oilRefiningAndFractionation",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(kerosene?.recipes).toBeUndefined();
+    expect(lubricatingOil).toMatchObject({
+      requiredTechnology: "oilRefiningAndFractionation",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(lubricatingOil?.recipes).toBeUndefined();
+    expect(migratePetroleumChainGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

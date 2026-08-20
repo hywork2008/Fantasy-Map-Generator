@@ -104,6 +104,7 @@ export function createViewLayers(): void {
   const roads = routes.append("g").attr("id", "roads") as Selection<SVGGElement, unknown, null, undefined>;
   const trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
+  const railways = routes.append("g").attr("id", "railways") as Selection<SVGGElement, unknown, null, undefined>;
   const ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
   const prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
     SVGGElement,
@@ -225,6 +226,7 @@ export function createViewLayers(): void {
     roads,
     trails,
     searoutes,
+    railways,
     temperature,
     danger,
     combatDeaths,
@@ -376,6 +378,10 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
   const roads = routes.select("#roads") as Selection<SVGGElement, unknown, null, undefined>;
   const trails = routes.select("#trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.select("#searoutes") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this route group existed won't have #railways — append it so old saves gain it too.
+  let railways = routes.select("#railways") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!railways.size())
+    railways = routes.append("g").attr("id", "railways") as Selection<SVGGElement, unknown, null, undefined>;
   const temperature = viewbox.select("#temperature") as Selection<SVGGElement, unknown, null, undefined>;
   const danger = viewbox.select("#danger") as Selection<SVGGElement, unknown, null, undefined>;
   const coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
@@ -474,6 +480,7 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
     roads,
     trails,
     searoutes,
+    railways,
     temperature,
     danger,
     combatDeaths,

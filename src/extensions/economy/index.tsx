@@ -63,6 +63,8 @@ import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposi
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
+import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
+import { ChlorinePlants } from "./generators/chlorinePlants";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
   applyCharacterToConstructionJob,
@@ -71,7 +73,10 @@ import {
   resignConstructionJob,
   tickConstructionHiring
 } from "./generators/constructionHire";
+import { DamSites } from "./generators/damSites";
+import { Dams } from "./generators/dams";
 import { DevelopmentPotential } from "./generators/developmentPotential";
+import { ElectrolysisPlants } from "./generators/electrolysisPlants";
 import {
   applyCharacterToEscortJob,
   cancelEscortApplication,
@@ -87,6 +92,7 @@ import {
   recordQuarterlyNonFoodDemand,
   updateAnnualFaunaCohorts
 } from "./generators/faunaPopulation";
+import { FertilizerInvestment } from "./generators/fertilizerInvestment";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
@@ -97,6 +103,8 @@ import {
   getDefaultGoodTradeProfile,
   isGoodEnabled,
   migrateChemMedGoods,
+  migrateElectricalGoods,
+  migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
@@ -105,11 +113,15 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migrateMercuryChainGoods,
   migratePerennialFruitGoods,
+  migratePetroleumChainGoods,
+  migratePhosphateGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
+  migrateSyntheticAmmoniaGoods,
   migrateWineRecipe
 } from "./generators/goods-generator";
 import { GreatLibrary } from "./generators/greatLibrary";
@@ -136,13 +148,19 @@ import { MartialIndividualMastery } from "./generators/martialIndividualMastery"
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { clearMarketMerchantPortfolios, syncMarketMerchantPortfolios } from "./generators/merchantPortfolios";
 import { MerchantTransportAssets } from "./generators/merchantTransportAssets";
+import { MercuryPlants } from "./generators/mercuryPlants";
 import { MetallurgWork } from "./generators/metallurgWork";
 import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { getStateMountedCapacity } from "./generators/mountAvailability";
+import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
+import { OilRefineryPlants } from "./generators/oilRefineryPlants";
+import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
+import { PowerGridInvestment } from "./generators/powerGridInvestment";
+import { PowerStations } from "./generators/powerStations";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
 import {
@@ -160,7 +178,9 @@ import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
 import { clearStateFiscalReports } from "./generators/stateFiscalReport";
 import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
 import { SteamIndustry } from "./generators/steamIndustry";
+import { SteelConverters } from "./generators/steelConverters";
 import { StrategicProcurement } from "./generators/strategicProcurement";
+import { SyntheticAmmoniaPlants } from "./generators/syntheticAmmoniaPlants";
 import {
   clearStrategicProcurementExpenses,
   clearVoyageIncome,
@@ -184,6 +204,7 @@ import {
   resignResearchJob,
   tickResearchHiring
 } from "./generators/technologyResearchHire";
+import { TelegraphLines } from "./generators/telegraphLines";
 import {
   applyCharacterToCullJob,
   cancelCullApplication,
@@ -217,6 +238,7 @@ import {
   getCaravanPosition,
   getCaravansAtPoint
 } from "./renderers/draw-trade-animation";
+import { drawDams } from "./renderers/drawDams";
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
@@ -334,6 +356,14 @@ export const economyLayers: LayerConfig[] = [
     tooltip:
       "Mineral Deposits: discovered mines, colored and iconed by their primary commodity (dimmed once exhausted or idle). Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "mineralDeposits", insertBefore: "icons", display: "none" }]
+  },
+  {
+    id: "toggleDams",
+    name: "Dams",
+    shortcut: null,
+    tooltip:
+      "Dams: State-built river dams for flood control and (once electrified) hydroelectric power. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "dams", insertBefore: "icons", display: "none" }]
   }
 ];
 
@@ -1002,6 +1032,11 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         // See the matching comment at the main generation call site — reseeds any cell whose fauna
         // stock hadn't been created yet instead of leaving it to appear lazily on first draw.
         updateAnnualFaunaCohorts();
+        // Same "one-time deterministic geography scan" shape as MineralResources; no dedicated
+        // regenerate target exists for river siting, so it rides along with "minerals".
+        // docs/plan/dam-flood-control-and-hydropower.md §3.
+        DamSites.generate();
+        Dams.clear(); // Discard Dams built on the old site ids before they're regenerated.
       }
       if (value.target === "economy" || value.target === "markets") {
         Markets.generate(true);
@@ -1407,6 +1442,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearResearchHireState();
       clearUrbanPregnancy();
       MineralResources.clear();
+      DamSites.clear();
+      Dams.clear();
       Minting.clear();
       MilitaryResources.clear();
       TradeSecurity.clear();
@@ -2349,6 +2386,9 @@ export function init(api: ExtensionAPI): void {
           // map may have picked a different historicalPeriod, which changes the default set.
           resetDisplayedGoodSelection();
           MineralResources.generate();
+          // Deterministic river-siting scan (docs/plan/dam-flood-control-and-hydropower.md §3).
+          DamSites.generate();
+          Dams.clear();
           // Goods before DevelopmentPotential (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase
           // B follow-up): DevelopmentPotential.generate() -> storeAgriculture() ->
           // allocateRuralOccupations() calls calculateHusbandryDemand()/calculateViticultureDemand(),
@@ -2453,6 +2493,12 @@ export function init(api: ExtensionAPI): void {
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedIndustrialSteam = migrateIndustrialSteamGoods();
     const migratedChemMed = migrateChemMedGoods();
+    const migratedPhosphate = migratePhosphateGoods();
+    const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
+    const migratedElectrical = migrateElectricalGoods();
+    const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
+    const migratedMercuryChain = migrateMercuryChainGoods();
+    const migratedPetroleumChain = migratePetroleumChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2471,6 +2517,12 @@ export function init(api: ExtensionAPI): void {
       migratedLiveDogs ||
       migratedIndustrialSteam ||
       migratedChemMed ||
+      migratedPhosphate ||
+      migratedSyntheticAmmonia ||
+      migratedElectrical ||
+      migratedElectrolyticIndustry ||
+      migratedMercuryChain ||
+      migratedPetroleumChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -2775,7 +2827,11 @@ export function init(api: ExtensionAPI): void {
       "simulation.states",
       "map.settlements",
       "simulation.cells",
-      "map.annotations"
+      "map.annotations",
+      // Railway links materialize as "railways"-group pack.routes once railwayOperations
+      // is adopted (steamIndustry.ts's settleRailways) — see docs/plan/
+      // steam-industrial-implementation.md §7.
+      "map.networks"
     ],
     cadence: { every: 1 },
     profileLabel: "economy",
@@ -2799,7 +2855,21 @@ export function init(api: ExtensionAPI): void {
       let agricultureRefreshed = false;
       measureTickStep("economy:annualAgTech", () => {
         AgTechInvestment.settleAnnual();
+        // Phosphate Fertilizer purchase, same shared marketTreasury.balance as Tools above but a
+        // separate stock/budget calculation — runs before industrial tech so farm investment
+        // (Tools + Fertilizer) keeps priority over mine/smelter claims (docs/plan/
+        // phosphate-fertilizer-vertical-slice.md §3.8; docs/plan/rural-agtech-investment.md §6.3).
+        FertilizerInvestment.settleAnnual();
+        // Nitrogen Fertilizer purchase, same shared marketTreasury.balance but a separate
+        // stock/budget calculation — runs right after Phosphate Fertilizer so both farm-fertilizer
+        // investments keep priority over mine/smelter claims together (docs/plan/
+        // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
+        NitrogenFertilizerInvestment.settleAnnual();
         IndustrialTechInvestment.settleAnnual();
+        // Allocates last year's PowerStations generation capacity (era-6 plant block below) to
+        // markets by population. Does not touch marketTreasury — PowerStations already paid the
+        // capital/operating cost (docs/plan/electric-power-and-telegraph.md §3.10).
+        PowerGridInvestment.settleAnnual();
         // Must run before the quarter's food ledger so annual demographic changes
         // alter cultivated area and farm labour without waiting an extra quarter.
         agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
@@ -2879,6 +2949,7 @@ export function init(api: ExtensionAPI): void {
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
       let settledAdultsFromMobility = 0;
       let urbanWaterChanged = false;
+      let railwayNetworkChanged = false;
       let burgGroupsChanged = false;
       let cullTopics: readonly DataTopic[] = [];
       let escortTopics: readonly string[] = [];
@@ -2927,11 +2998,60 @@ export function init(api: ExtensionAPI): void {
         ExperimentalWorkshops.settleAnnual();
         HospitalInstallations.settleAnnual();
         AcidPlants.settleAnnual();
+        // Depends on AcidPlants's Sulfuric Acid output for its own recipe
+        // (docs/plan/phosphate-fertilizer-vertical-slice.md §3.7); runs right after.
+        PhosphateFertilizerPlants.settleAnnual();
+        // Also depends on AcidPlants's Sulfuric Acid output (catalytic Deacon-process oxidation
+        // with Salt); runs alongside PhosphateFertilizerPlants for the same reason.
+        // docs/plan/chlorine-production-vertical-slice.md §3.6.
+        ChlorinePlants.settleAnnual();
+        // Bessemer-converter Steel supply — independent of the chemistry plants above; the
+        // second supply route for the existing Steel Good (docs/plan/modern-steelmaking-and-
+        // high-pressure-apparatus.md §3.2).
+        SteelConverters.settleAnnual();
+        // Consumes only Coke (hydrogen source + process-energy proxy), independent of the plants
+        // above — grouped here as the era 6 plant block (docs/plan/synthetic-ammonia-vertical-
+        // slice.md §3.6).
+        SyntheticAmmoniaPlants.settleAnnual();
+        // Coal/Copper Wire/Machine Parts only, independent of the other era-6 plants above.
+        // PowerGridInvestment (annualAgTech block above) reads this year's output starting next
+        // year (docs/plan/electric-power-and-telegraph.md §3.9).
+        PowerStations.settleAnnual();
+        // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
+        TelegraphLines.settleAnnual();
+        // Stone/Timber founding/upkeep, plus Copper Wire/Machine Parts once electrified (no Coal —
+        // water is the fuel). Runs after AgTechInvestment (annualAgTech block above, earlier in
+        // this same tick) so its floodProtectionByCell floor is applied on top of, not overwritten
+        // by, that block's own EWMA write. PowerGridInvestment reads this year's generationCapacity
+        // starting next year, the same one-year lag PowerStations already has.
+        // docs/plan/dam-flood-control-and-hydropower.md §3.
+        Dams.settleAnnual();
+        // Reads this year's Market.electricityStock, already written by PowerGridInvestment
+        // earlier in this same annual tick (investment block runs before this production block).
+        // Alumina/Coke/Firebrick consumption is independent of the other era-6 plants above.
+        // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+        ElectrolysisPlants.settleAnnual();
+        // Chlor-alkali brine electrolysis — a THIRD supply route for Chlorine/Caustic Soda
+        // (craft-worker recipes + ChlorinePlants' Deacon-process route already exist). Consumes
+        // Salt/Firebrick/Market.electricityStock only — no Coal, no Sulfuric Acid, no AcidPlants
+        // dependency — independent of every other era-6 plant above. Competes with ChlorinePlants
+        // and the craft-worker Chlorine recipe for the same Salt Good (a modeling nuance, not a
+        // blocker). docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.1.
+        ChlorAlkaliPlants.settleAnnual();
+        // Cinnabar/Coal/Firebrick only, independent of every other era-6 plant above — a small,
+        // deliberately minor-scale chemistry plant (§9.5's "少量生産"), not a bulk industrial
+        // process. docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+        MercuryPlants.settleAnnual();
+        // Crude Oil/Coal/Firebrick only, independent of every other plant above — the era-7
+        // refining step. docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+        OilRefineryPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
         urbanWaterChanged = UrbanWater.settleAnnual();
-        SteamIndustry.settleAnnual();
+        // Returns true only when new "railways" route track was laid this call
+        // (docs/plan/steam-industrial-implementation.md §7) — drives map.networks below.
+        railwayNetworkChanged = SteamIndustry.settleAnnual();
         // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
         // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
         // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
@@ -3035,6 +3155,9 @@ export function init(api: ExtensionAPI): void {
       if (burgGroupsChanged || settledAdultsFromMobility > 0 || urbanWaterChanged) {
         writer.markChanged("simulation.burgs", "map.settlements");
       }
+      // New railway track was laid into pack.routes/pack.cells.routes this tick
+      // (steamIndustry.ts's settleRailways) — redraw routes and invalidate the WebGL cache.
+      if (railwayNetworkChanged) writer.markChanged("map.networks");
       // Cull ecology topics (cells/annotations) — only when resolve actually mutated host data.
       if (cullTopics.length) {
         const hostTopics = cullTopics.filter(t => t === "simulation.cells" || t === "map.annotations");
@@ -3073,6 +3196,7 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleMarketsLayer", () => document.getElementById("marketsLayer"));
   api.registerLayerElement("toggleTrade", () => document.getElementById("tradeAnimation"));
   api.registerLayerElement("toggleMineralDeposits", () => document.getElementById("mineralDeposits"));
+  api.registerLayerElement("toggleDams", () => document.getElementById("dams"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -3109,6 +3233,12 @@ export function init(api: ExtensionAPI): void {
     const migratedLiveDogs = migrateLiveDogsGood();
     const migratedIndustrialSteam = migrateIndustrialSteamGoods();
     const migratedChemMed = migrateChemMedGoods();
+    const migratedPhosphate = migratePhosphateGoods();
+    const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
+    const migratedElectrical = migrateElectricalGoods();
+    const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
+    const migratedMercuryChain = migrateMercuryChainGoods();
+    const migratedPetroleumChain = migratePetroleumChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -3127,6 +3257,12 @@ export function init(api: ExtensionAPI): void {
       migratedLiveDogs ||
       migratedIndustrialSteam ||
       migratedChemMed ||
+      migratedPhosphate ||
+      migratedSyntheticAmmonia ||
+      migratedElectrical ||
+      migratedElectrolyticIndustry ||
+      migratedMercuryChain ||
+      migratedPetroleumChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -3213,6 +3349,21 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("toggleDams", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleDams")) {
+      api.turnLayerOn("toggleDams");
+      if (api.viewContext.renderMode === "webglHybrid") {
+        api.getSvgLayer("dams")?.style("display", "none");
+        api.requestWebglRender();
+        return;
+      }
+      drawDams();
+    } else {
+      api.getSvgLayer("dams")?.html("");
+      api.turnLayerOff("toggleDams");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // The economy tick publishes extension.economy on every simulated day. A
@@ -3231,6 +3382,7 @@ export function init(api: ExtensionAPI): void {
       api.getSvgLayer("marketsLayerFill")?.style("display", "none");
       api.getSvgLayer("marketsLayer")?.style("display", "none");
       api.getSvgLayer("mineralDeposits")?.style("display", "none");
+      api.getSvgLayer("dams")?.style("display", "none");
       api.requestWebglRender();
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
@@ -3238,6 +3390,7 @@ export function init(api: ExtensionAPI): void {
     if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
     if (api.layerIsOn("toggleMineralDeposits")) drawMineralDeposits();
+    if (api.layerIsOn("toggleDams")) drawDams();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });
 }

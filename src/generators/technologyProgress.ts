@@ -21,6 +21,7 @@ import {
   isTechnologyStageAtLeast,
   progressKey,
   type TechnologyDefinition,
+  type TechnologyEraBand,
   type TechnologyProgress,
   type TechnologyScope,
   type TechnologySignalKey,
@@ -43,6 +44,7 @@ export const HINTABLE_KNOWN_RATIO_KEYS = [
   "metallurgy",
   "woodworking",
   "masonry",
+  "textiles",
   "instruments",
   "glassware",
   "medicine",
@@ -52,6 +54,12 @@ export const HINTABLE_KNOWN_RATIO_KEYS = [
 const HINTABLE_KNOWN_RATIO_KEY_SET: ReadonlySet<keyof TechnologySignals> = new Set(HINTABLE_KNOWN_RATIO_KEYS);
 
 const DIFFUSION_ANNUAL_GAIN = 0.15;
+/**
+ * docs/plan/electric-power-and-telegraph.md §3.12 — an owner whose electricTelegraph has reached
+ * adopted diffuses every technology up to 50% faster. Applied inside advanceStage() via the same
+ * stageOf() closure prerequisitesMet() already reads, not a new TechnologySignals field.
+ */
+const TELEGRAPH_DIFFUSION_BONUS_MAX = 0.5;
 /** Demonstrated blackPowder without war can still advance if treasury demand is high. */
 const WAR_OPTIONAL_TREASURY = 100;
 
@@ -115,6 +123,26 @@ export function isTechnologyAtLeast(
   scope: TechnologyScope = "state"
 ): boolean {
   return isTechnologyStageAtLeast(getTechnologyStage(technologyId, ownerId, scope), minimum);
+}
+
+/**
+ * Recruitment-share multiplier (0..1) for a per-State military unit technology gate
+ * (docs/plan/military-era-progression.md §3.3, MilitaryUnit.requiresTechnology). Returns 0 below
+ * `gate.minimum` — military-generator.ts treats that as "this unit doesn't exist for this State
+ * yet" and skips it entirely. At or above `minimum` it reuses the same "diffused=1 / adopted=0.75
+ * / demonstrated=0.35 / known=0.1" ladder as getFourCourseRotationEffect() and the other
+ * get*Effect() helpers above — so a unit gated at minimum:"adopted" (the common case so far)
+ * necessarily opens abruptly at 0.75 (nothing between "locked to this State" and "adopted" can
+ * satisfy that gate) and then keeps climbing toward 1 as adoption diffuses further; a unit gated
+ * at a lower minimum (e.g. "demonstrated" or "known") eases in more gradually from 0.35 or 0.1.
+ */
+export function getTechnologyAdoptionShare(gate: { id: string; minimum: TechnologyStage }, stateId: number): number {
+  const stage = getTechnologyStage(gate.id, stateId);
+  if (!isTechnologyStageAtLeast(stage, gate.minimum)) return 0;
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0.1;
 }
 
 /**
@@ -186,6 +214,76 @@ export function getAtmosphericSteamDrainageBonus(stateId: number): number {
   return getAtmosphericSteamPumpingEffect(stateId) * 0.5;
 }
 
+/**
+ * Local uptake of mechanized spinning and weaving (docs/plan/technology-development-roadmap.md
+ * §8's 機械紡績・機械織機 node). Demonstration is a single mechanized workshop; adoption/diffusion
+ * are the normal way the state's textiles guild works.
+ */
+export function getMechanizedTextilesEffect(stateId: number): number {
+  const stage = getTechnologyStage("mechanizedTextiles", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
+/**
+ * Local uptake of the internal combustion engine (docs/plan/technology-development-roadmap.md
+ * §10's 内燃機関 node). Same "1/0.35/0.75/1" stage shape as getMechanizedTextilesEffect /
+ * getAtmosphericSteamPumpingEffect. Deliberately unconsumed for now — no vehicle/vessel/power
+ * system yet reads it, same as getAtmosphericSteamDrainageBonus. See docs/plan/petroleum-and-
+ * internal-combustion-vertical-slice.md §1 non-goal 5.
+ */
+export function getInternalCombustionEngineEffect(stateId: number): number {
+  const stage = getTechnologyStage("internalCombustionEngine", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
+/**
+ * Local uptake of military/signal powder rockets (docs/plan/technology-development-roadmap.md
+ * §11's 軍用・信号用火薬ロケット node). Same "1/0.35/0.75/1" stage shape as
+ * getInternalCombustionEngineEffect. Deliberately unconsumed — roadmap §11 explicitly defers
+ * strategic-weapon effects to a separate diplomacy/military design. See docs/plan/rocket-and-
+ * space-development-vertical-slice.md §1 non-goal 3.
+ */
+export function getMilitarySignalRocketsEffect(stateId: number): number {
+  const stage = getTechnologyStage("militarySignalRockets", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
+/**
+ * Local uptake of multi-stage rockets and orbital insertion (docs/plan/technology-development-
+ * roadmap.md §11's 多段化・軌道投入 node — the terminal node of the rocketry/space chain). Same
+ * "1/0.35/0.75/1" stage shape as getInternalCombustionEngineEffect. Deliberately unconsumed — no
+ * communication/observation/mapping/prestige system yet reads it. See docs/plan/rocket-and-space-
+ * development-vertical-slice.md §1 non-goal 3.
+ */
+export function getStagingAndOrbitalInsertionEffect(stateId: number): number {
+  const stage = getTechnologyStage("stagingAndOrbitalInsertion", stateId);
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0;
+}
+
+/** Max output multiplier mechanized spinning/weaving adds on top of the textiles guild-technique bonus. */
+const MECHANIZED_TEXTILES_BONUS_MAX = 0.35;
+
+/**
+ * Ready-to-multiply Cloth/Garments/Sails output bonus (1 = no bonus), same "1 + max * ratio" shape
+ * as GuildKnowledge.getGuildBonus — applied alongside it at production-generator.ts's textiles-
+ * domain output step, not in place of it. See docs/plan/technology-development-roadmap.md §8.
+ */
+export function getMechanizedTextilesOutputMultiplier(stateId: number): number {
+  return 1 + MECHANIZED_TEXTILES_BONUS_MAX * getMechanizedTextilesEffect(stateId);
+}
+
 type HistoricalPeriod = NonNullable<typeof worldContext.options.historicalPeriod>;
 
 /**
@@ -220,6 +318,29 @@ const GUNPOWDER_ERA2_TECHNOLOGY_IDS: ReadonlySet<string> = new Set([
   "gunpowderFortification"
 ]);
 
+/**
+ * Generalizes the GUNPOWDER_ERA2_START_STAGE_BY_PERIOD idea (above) to the 6 historicalPeriod
+ * values added after "ageOfExploration" (optionsState.ts), each corresponding 1:1 to a
+ * Technology Overview dialog Era (docs/plan/technology-development-roadmap.md §3): picking one
+ * means "this world already lives in that era". Every node whose `era` is strictly below the
+ * picked era is seeded "diffused" (long-settled background technology, same treatment era 0 nodes
+ * always get via their own unconditional `startStage`); every node AT the picked era is seeded
+ * "demonstrated" — proven and in limited use, same as ageOfExploration's era-2 treatment above,
+ * leaving "adopted"/"diffused" as something a state still has to invest toward through play. Eras
+ * above the picked one are untouched (fall through to `def.startStage`, i.e. stay "locked").
+ * Only covers the 6 new values — the legacy 4 keep their existing, unrelated behavior unchanged
+ * (era-1+ nodes stay "locked" under earlyMedieval/highMedieval/lateMedieval/ageOfExploration,
+ * exactly as before this was added).
+ */
+const HISTORICAL_PERIOD_FRONTIER_ERA: Readonly<Partial<Record<HistoricalPeriod, TechnologyEraBand>>> = {
+  maritimeEra: 3,
+  preIndustrialEra: 4,
+  steamEra: 5,
+  industrialChemistryEra: 6,
+  petroleumEra: 7,
+  rocketryEra: 8
+};
+
 function resolveStartStage(
   def: TechnologyDefinition,
   period: HistoricalPeriod | undefined
@@ -227,6 +348,11 @@ function resolveStartStage(
   if (GUNPOWDER_ERA2_TECHNOLOGY_IDS.has(def.id)) {
     const override = period && GUNPOWDER_ERA2_START_STAGE_BY_PERIOD[period];
     if (override) return override;
+  }
+  const frontierEra = period && HISTORICAL_PERIOD_FRONTIER_ERA[period];
+  if (frontierEra !== undefined) {
+    if (def.era < frontierEra) return "diffused";
+    if (def.era === frontierEra) return "demonstrated";
   }
   return def.startStage;
 }
@@ -340,7 +466,7 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
       }
 
       // Hints waive allowlisted knowledge ratios on the known climb only.
-      entry.stage = advanceStage(entry, def, signals, year, liveHintKeys.has(`${stateId}:${def.id}`));
+      entry.stage = advanceStage(entry, def, signals, year, stageOf, liveHintKeys.has(`${stateId}:${def.id}`));
     }
   }
 
@@ -371,6 +497,7 @@ function emptySignals(): TechnologySignals {
     printing: 0,
     administration: 0,
     masonry: 0,
+    textiles: 0,
     gunpowderDemand: 0,
     shipTechPoints: 0,
     completedHulls: 0,
@@ -403,8 +530,32 @@ function emptySignals(): TechnologySignals {
     acidPlantTrialYears: 0,
     hospitalInstallations: 0,
     acidPlantInstallations: 0,
+    phosphateRockAccess: 0,
+    phosphateFertilizerTrialYears: 0,
+    phosphateFertilizerPlantCount: 0,
+    steelAccess: 0,
+    modernSteelmakingTrialYears: 0,
+    modernSteelmakingInstallations: 0,
     experimentRecord: 0,
     urbanWaterMaxMunicipalSanitation: 0,
+    fertilizerCoverageGap: 0,
+    syntheticAmmoniaTrialYears: 0,
+    syntheticAmmoniaInstallations: 0,
+    copperWireAccess: 0,
+    powerStationTrialYears: 0,
+    powerStationInstallations: 0,
+    telegraphLineTrialYears: 0,
+    telegraphLineInstallations: 0,
+    electricityCoverage: 0,
+    electrolysisPlantTrialYears: 0,
+    electrolysisPlantInstallations: 0,
+    cinnabarAccess: 0,
+    mercuryPlantTrialYears: 0,
+    mercuryPlantInstallations: 0,
+    petroleumAccess: 0,
+    refinedFuelAccess: 0,
+    oilRefineryTrialYears: 0,
+    oilRefineryInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -473,6 +624,7 @@ function buildStateSignals(): Map<number, TechnologySignals> {
       if (domain === "masonry") signals.masonry = Math.max(signals.masonry, stock);
       if (domain === "instruments") signals.instruments = Math.max(signals.instruments, stock);
       if (domain === "glassware") signals.glassware = Math.max(signals.glassware, stock);
+      if (domain === "textiles") signals.textiles = Math.max(signals.textiles, stock);
     }
 
     const academyMax = new Map<string, number>();
@@ -703,6 +855,12 @@ function applyChemistryMedicineSignals(
   const glassId = goodIdByName(economy, "Glass");
   const pumiceId = goodIdByName(economy, "Pumice");
   const sulfurId = goodIdByName(economy, "Sulfur");
+  const phosphateRockId = goodIdByName(economy, "Phosphate Rock");
+  const steelId = goodIdByName(economy, "Steel");
+  const copperWireId = goodIdByName(economy, "Copper Wire");
+  const cinnabarId = goodIdByName(economy, "Cinnabar");
+  const crudeOilId = goodIdByName(economy, "Crude Oil");
+  const keroseneId = goodIdByName(economy, "Kerosene");
 
   const waterByBurg = new Map<number, Record<string, unknown>>();
   for (const water of asStockArray(economy.urbanWaterSystems)) {
@@ -750,6 +908,12 @@ function applyChemistryMedicineSignals(
   const glassStockByState = stateMarketStockByGood(economy, marketOwners, glassId);
   const sulfurStockByState = stateMarketStockByGood(economy, marketOwners, sulfurId);
   const pumiceStockByState = stateMarketStockByGood(economy, marketOwners, pumiceId);
+  const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, phosphateRockId);
+  const steelStockByState = stateMarketStockByGood(economy, marketOwners, steelId);
+  const copperWireStockByState = stateMarketStockByGood(economy, marketOwners, copperWireId);
+  const cinnabarStockByState = stateMarketStockByGood(economy, marketOwners, cinnabarId);
+  const crudeOilStockByState = stateMarketStockByGood(economy, marketOwners, crudeOilId);
+  const keroseneStockByState = stateMarketStockByGood(economy, marketOwners, keroseneId);
 
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
@@ -765,6 +929,29 @@ function applyChemistryMedicineSignals(
     const marketCoverage = clamp01(sulfurStock / 2);
     const militaryCoverage = signals.gunpowderDemand > 0 ? 1 - signals.gunpowderSulfurPressure : 0;
     signals.sulfurAccess = Math.max(militaryCoverage, marketCoverage);
+
+    // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6 — same market-stock-coverage shape
+    // as sulfurAccess, no military-demand analog (Phosphate Rock has no war use).
+    signals.phosphateRockAccess = clamp01((phosphateRockStockByState.get(stateId) ?? 0) / 2);
+
+    // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3 — same market-stock-
+    // coverage shape as sulfurAccess/phosphateRockAccess, no military-demand analog.
+    signals.steelAccess = clamp01((steelStockByState.get(stateId) ?? 0) / 2);
+
+    // docs/plan/electric-power-and-telegraph.md §3.3 — same market-stock-coverage shape as
+    // sulfurAccess/steelAccess/phosphateRockAccess.
+    signals.copperWireAccess = clamp01((copperWireStockByState.get(stateId) ?? 0) / 2);
+
+    // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same market-stock-coverage shape as
+    // sulfurAccess/steelAccess/phosphateRockAccess/copperWireAccess.
+    signals.cinnabarAccess = clamp01((cinnabarStockByState.get(stateId) ?? 0) / 2);
+
+    // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same market-stock-
+    // coverage shape as cinnabarAccess. Crude Oil carries no requiredTechnology of its own (§1
+    // non-goal 6), so this signal cannot be circular with the node that gates on it.
+    signals.petroleumAccess = clamp01((crudeOilStockByState.get(stateId) ?? 0) / 2);
+    // Same shape, reading Kerosene instead — the demand-pull for internalCombustionEngine.
+    signals.refinedFuelAccess = clamp01((keroseneStockByState.get(stateId) ?? 0) / 2);
 
     signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
@@ -786,6 +973,17 @@ function applyChemistryMedicineSignals(
 
   const compoundingYears = new Map<number, number>();
   const acidYears = new Map<number, number>();
+  // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
+  const phosphateFertilizerYears = new Map<number, number>();
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.5 — same ChemistryTrial indirection as
+  // phosphateFertilizerYears above.
+  const syntheticAmmoniaYears = new Map<number, number>();
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same ChemistryTrial indirection as
+  // acidYears above.
+  const mercuryPlantYears = new Map<number, number>();
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same ChemistryTrial
+  // indirection as mercuryPlantYears above.
+  const oilRefineryYears = new Map<number, number>();
   for (const trial of asStockArray(economy.chemistryTrials)) {
     if (String(trial.status ?? "") !== "running") continue;
     const stateId = asNumber(trial.stateId);
@@ -793,6 +991,18 @@ function applyChemistryMedicineSignals(
     const kind = String(trial.kind ?? "");
     if (kind === "compounding") compoundingYears.set(stateId, Math.max(compoundingYears.get(stateId) ?? 0, runs));
     if (kind === "acidPlant") acidYears.set(stateId, Math.max(acidYears.get(stateId) ?? 0, runs));
+    if (kind === "phosphateFertilizerPlant") {
+      phosphateFertilizerYears.set(stateId, Math.max(phosphateFertilizerYears.get(stateId) ?? 0, runs));
+    }
+    if (kind === "syntheticAmmoniaPlant") {
+      syntheticAmmoniaYears.set(stateId, Math.max(syntheticAmmoniaYears.get(stateId) ?? 0, runs));
+    }
+    if (kind === "mercuryPlant") {
+      mercuryPlantYears.set(stateId, Math.max(mercuryPlantYears.get(stateId) ?? 0, runs));
+    }
+    if (kind === "oilRefineryPlant") {
+      oilRefineryYears.set(stateId, Math.max(oilRefineryYears.get(stateId) ?? 0, runs));
+    }
   }
   for (const [stateId, years] of compoundingYears) {
     const signals = map.get(stateId);
@@ -801,6 +1011,22 @@ function applyChemistryMedicineSignals(
   for (const [stateId, years] of acidYears) {
     const signals = map.get(stateId);
     if (signals) signals.acidPlantTrialYears = years;
+  }
+  for (const [stateId, years] of phosphateFertilizerYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.phosphateFertilizerTrialYears = years;
+  }
+  for (const [stateId, years] of syntheticAmmoniaYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.syntheticAmmoniaTrialYears = years;
+  }
+  for (const [stateId, years] of mercuryPlantYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.mercuryPlantTrialYears = years;
+  }
+  for (const [stateId, years] of oilRefineryYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.oilRefineryTrialYears = years;
   }
 
   const hospitalYears = new Map<number, number>();
@@ -817,11 +1043,112 @@ function applyChemistryMedicineSignals(
     if (signals) signals.hospitalTrialYears = years;
   }
 
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.3 — same shape as the
+  // hospitalInstallations/hospitalTrialYears block above: SteelConverterPlant holds
+  // documentedRuns on itself, no ChemistryTrial indirection.
+  const steelYears = new Map<number, number>();
+  for (const plant of asStockArray(economy.steelConverterPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.modernSteelmakingInstallations += 1;
+    steelYears.set(stateId, Math.max(steelYears.get(stateId) ?? 0, asNumber(plant.documentedRuns)));
+  }
+  for (const [stateId, years] of steelYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.modernSteelmakingTrialYears = years;
+  }
+
+  // docs/plan/electric-power-and-telegraph.md §3.3 — same shape as the modernSteelmaking block
+  // above: PowerStation holds documentedRuns on itself, no ChemistryTrial indirection.
+  const powerStationYears = new Map<number, number>();
+  for (const plant of asStockArray(economy.powerStations)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.powerStationInstallations += 1;
+    powerStationYears.set(stateId, Math.max(powerStationYears.get(stateId) ?? 0, asNumber(plant.documentedRuns)));
+  }
+  for (const [stateId, years] of powerStationYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.powerStationTrialYears = years;
+  }
+
+  // docs/plan/electric-power-and-telegraph.md §3.3 — same shape as the powerStations block above.
+  const telegraphLineYears = new Map<number, number>();
+  for (const line of asStockArray(economy.telegraphLines)) {
+    if (line.active === false) continue;
+    const stateId = asNumber(line.stateId) || burgStateId(asNumber(line.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.telegraphLineInstallations += 1;
+    telegraphLineYears.set(stateId, Math.max(telegraphLineYears.get(stateId) ?? 0, asNumber(line.documentedRuns)));
+  }
+  for (const [stateId, years] of telegraphLineYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.telegraphLineTrialYears = years;
+  }
+
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.5 — same shape as the powerStations/
+  // telegraphLines blocks above: ElectrolysisPlant holds documentedRuns on itself, no
+  // ChemistryTrial indirection.
+  const electrolysisPlantYears = new Map<number, number>();
+  for (const plant of asStockArray(economy.electrolysisPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.electrolysisPlantInstallations += 1;
+    electrolysisPlantYears.set(
+      stateId,
+      Math.max(electrolysisPlantYears.get(stateId) ?? 0, asNumber(plant.documentedRuns))
+    );
+  }
+  for (const [stateId, years] of electrolysisPlantYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.electrolysisPlantTrialYears = years;
+  }
+
   for (const plant of asStockArray(economy.acidPlants)) {
     if (plant.active === false) continue;
     const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
     const signals = map.get(stateId);
     if (signals) signals.acidPlantInstallations += 1;
+  }
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same shape as the acidPlants block above.
+  for (const plant of asStockArray(economy.mercuryPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.mercuryPlantInstallations += 1;
+  }
+
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same shape as the
+  // mercuryPlants block above.
+  for (const plant of asStockArray(economy.oilRefineryPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.oilRefineryInstallations += 1;
+  }
+
+  // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
+  for (const plant of asStockArray(economy.phosphateFertilizerPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.phosphateFertilizerPlantCount += 1;
+  }
+
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.5.
+  for (const plant of asStockArray(economy.syntheticAmmoniaPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.syntheticAmmoniaInstallations += 1;
   }
 
   for (const workshop of asStockArray(economy.experimentalWorkshops)) {
@@ -832,7 +1159,10 @@ function applyChemistryMedicineSignals(
   }
 
   let fertilizerCount = 0;
-  const fertilizerByState = new Map<number, { sum: number; n: number }>();
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.5: gapSum accumulates the "fertilizer
+  // coverage gap" (1 - Market.fertilizerStock) in the same single pass as foodFertilizerPressure,
+  // without a second loop or new cultivatedArea plumbing.
+  const fertilizerByState = new Map<number, { sum: number; n: number; gapSum: number }>();
   for (const market of asStockArray(economy.markets)) {
     const ledger = isRecord(market.foodLedger) ? market.foodLedger : null;
     if (!ledger) continue;
@@ -844,8 +1174,9 @@ function applyChemistryMedicineSignals(
     const need = Math.max(0, asNumber(ledger.urbanNeed));
     const gap = Math.max(0, asNumber(ledger.importNeed) - asNumber(ledger.satisfiedImport));
     const ratio = need > 0 ? gap / need : 0;
-    const entry = fertilizerByState.get(stateId) ?? { sum: 0, n: 0 };
+    const entry = fertilizerByState.get(stateId) ?? { sum: 0, n: 0, gapSum: 0 };
     entry.sum += ratio;
+    entry.gapSum += 1 - clamp01(asNumber(market.fertilizerStock));
     entry.n += 1;
     fertilizerByState.set(stateId, entry);
     fertilizerCount += 1;
@@ -855,10 +1186,38 @@ function applyChemistryMedicineSignals(
       const signals = map.get(stateId);
       if (!signals || entry.n <= 0) continue;
       signals.foodFertilizerPressure = clamp01(entry.sum / entry.n);
+      signals.fertilizerCoverageGap = clamp01(entry.gapSum / entry.n);
       signals.lateChemistryDemandPressure = clamp01(
         0.4 * signals.gunpowderSulfurPressure + 0.3 * signals.soapGlassPressure + 0.3 * signals.foodFertilizerPressure
       );
     }
+  }
+
+  // docs/plan/electric-power-and-telegraph.md §3.3: state average of Market.electricityStock,
+  // limited to markets with population. Market has no population field of its own (unlike
+  // cultivatedArea, which is keyed by cell via marketCellColumn) — populationByMarket is built
+  // locally from pack.burgs the same way Markets.calculatePopulationByMarket() does internally.
+  const populationByMarket = new Map<number, number>();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg || typeof burg !== "object" || !burg.i || burg.removed || !burg.market) continue;
+    const pop = Math.max(0, Number(burg.population) || 0);
+    if (pop <= 0) continue;
+    populationByMarket.set(burg.market, (populationByMarket.get(burg.market) ?? 0) + pop);
+  }
+  const electricityByState = new Map<number, { sum: number; n: number }>();
+  for (const market of asStockArray(economy.markets)) {
+    if (!((populationByMarket.get(asNumber(market.i)) ?? 0) > 0)) continue;
+    const center = pack.burgs?.[asNumber(market.centerBurgId)];
+    const stateId = center && typeof center === "object" ? (center.state ?? 0) : 0;
+    if (!stateId) continue;
+    const entry = electricityByState.get(stateId) ?? { sum: 0, n: 0 };
+    entry.sum += clamp01(asNumber(market.electricityStock));
+    entry.n += 1;
+    electricityByState.set(stateId, entry);
+  }
+  for (const [stateId, entry] of electricityByState) {
+    const signals = map.get(stateId);
+    if (signals && entry.n > 0) signals.electricityCoverage = clamp01(entry.sum / entry.n);
   }
 }
 
@@ -929,7 +1288,23 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "apothecaryTrialYears",
   "hospitalTrialYears",
   "acidPlantTrialYears",
-  "urbanWaterMaxTier"
+  "phosphateFertilizerTrialYears",
+  "phosphateFertilizerPlantCount",
+  "modernSteelmakingTrialYears",
+  "modernSteelmakingInstallations",
+  "urbanWaterMaxTier",
+  "syntheticAmmoniaTrialYears",
+  "syntheticAmmoniaInstallations",
+  "powerStationTrialYears",
+  "powerStationInstallations",
+  "telegraphLineTrialYears",
+  "telegraphLineInstallations",
+  "electrolysisPlantTrialYears",
+  "electrolysisPlantInstallations",
+  "mercuryPlantTrialYears",
+  "mercuryPlantInstallations",
+  "oilRefineryTrialYears",
+  "oilRefineryInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
@@ -1028,6 +1403,7 @@ function advanceStage(
   def: TechnologyDefinition,
   signals: TechnologySignals,
   year: number,
+  stageOf: (id: string) => TechnologyStage,
   hintKnowledgeRatios = false
 ): TechnologyStage {
   let stage = entry.stage;
@@ -1057,7 +1433,16 @@ function advanceStage(
     entry.diffusion = Math.max(entry.diffusion || 0, 0);
   }
   if (stage === "adopted") {
-    entry.diffusion = Math.min(1, (entry.diffusion || 0) + DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed());
+    // docs/plan/electric-power-and-telegraph.md §3.12. Same host-internal special-case pattern as
+    // GUNPOWDER_ERA2_TECHNOLOGY_IDS above: a direct reference to one technology id inside this
+    // otherwise-generic function, rather than a new TechnologySignals field.
+    const telegraphBonus = isTechnologyStageAtLeast(stageOf("electricTelegraph"), "adopted")
+      ? TELEGRAPH_DIFFUSION_BONUS_MAX
+      : 0;
+    entry.diffusion = Math.min(
+      1,
+      (entry.diffusion || 0) + DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed() * (1 + telegraphBonus)
+    );
     if (entry.diffusion >= 1) stage = "diffused";
   }
   if (stage === "diffused") {

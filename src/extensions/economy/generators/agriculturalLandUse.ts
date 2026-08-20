@@ -80,6 +80,22 @@ export const STATE_YIELD_BONUS_MAX = 0.15;
 export const FOUR_COURSE_YIELD_BONUS_MAX = 0.12;
 /** Better fodder and a planned rotation reduce labour for the staple-field share. */
 export const FOUR_COURSE_LABOR_SAVINGS_MAX = 0.08;
+/**
+ * Rural Phosphate Fertilizer adoption bonus, driven by FertilizerInvestment.settleAnnual().
+ * Yield-only, no labor-savings term — chemical fertilizer raises output per hectare, it doesn't
+ * reduce the labour a farmer spends working the field. calibration TBD, between FOUR_COURSE
+ * (0.12, free/practice-based) and AGTECH (0.4, needs Tools + draft animal). See
+ * docs/plan/phosphate-fertilizer-vertical-slice.md §3.9.
+ */
+export const PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX = 0.2;
+/**
+ * Rural Nitrogen Fertilizer adoption bonus, driven by NitrogenFertilizerInvestment.settleAnnual().
+ * Larger than PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX(0.2) but smaller than AGTECH_YIELD_BONUS_MAX
+ * (0.4) — nitrogen is the primary yield-limiting nutrient historically addressed by Haber-Bosch.
+ * Yield-only, same reasoning as PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX. calibration TBD.
+ * See docs/plan/synthetic-ammonia-vertical-slice.md §3.8.
+ */
+export const NITROGEN_FERTILIZER_YIELD_BONUS_MAX = 0.3;
 /** One course in the four-year plan is represented as a clover ley. */
 export const FOUR_COURSE_CLOVER_LEY_SHARE = 0.25;
 /** Extra organic-fertility recovery supplied by the clover ley and its livestock cycle. */
@@ -111,6 +127,18 @@ export interface AgriculturalConditions {
   readonly irrigationConveyanceEfficiencyByCell?: Float32Array;
   /** Separate from irrigation: controls salt leaching and waterlogging only. */
   readonly fieldDrainageByCell?: Float32Array;
+  /**
+   * Market-purchased Phosphate Fertilizer adoption coverage, resolved to cells by
+   * DevelopmentPotential from Market.fertilizerStock — same shape as fourCourseRotationByCell.
+   * See docs/plan/phosphate-fertilizer-vertical-slice.md §3.8-3.9.
+   */
+  readonly fertilizerStockByCell?: Float32Array;
+  /**
+   * Market-purchased Nitrogen Fertilizer adoption coverage, resolved to cells by
+   * DevelopmentPotential from Market.nitrogenFertilizerStock — same shape as fertilizerStockByCell.
+   * See docs/plan/synthetic-ammonia-vertical-slice.md §3.7-3.8.
+   */
+  readonly nitrogenFertilizerStockByCell?: Float32Array;
   /** Resolved once per agricultural pass; callers may provide a cached annual result. */
   readonly irrigation?: RiverIrrigationResults;
 }
@@ -609,7 +637,9 @@ function calculateYieldKgPerHectare(
     effectiveClimateYield *
     (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech) *
     (1 + STATE_YIELD_BONUS_MAX * stateProductivity) *
-    (1 + FOUR_COURSE_YIELD_BONUS_MAX * (conditions.fourCourseRotationByCell?.[cellId] ?? 0))
+    (1 + FOUR_COURSE_YIELD_BONUS_MAX * (conditions.fourCourseRotationByCell?.[cellId] ?? 0)) *
+    (1 + PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX * (conditions.fertilizerStockByCell?.[cellId] ?? 0)) *
+    (1 + NITROGEN_FERTILIZER_YIELD_BONUS_MAX * (conditions.nitrogenFertilizerStockByCell?.[cellId] ?? 0))
   );
 }
 

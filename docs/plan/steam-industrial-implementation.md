@@ -4,6 +4,8 @@
 
 **実装進行中**。2026-08-18。Phase 0–3 の最小縦切りをコードに入れた。Phase 4（化学・電化）は未着手。
 
+**2026-08-20 追記**: Phase 3A の残タスクのうち、`pack.routes` への `group: "railways"` 実体化（§7.2 表・§2 表「輸送」行の「まだないもの」記載）を実装した。`steamIndustry.ts` の `settleRailways` が `RailwayLink` を作成する際、`routes-generator.ts` の新規 `Routes.connectRailway(fromCellId, toCellId, stateId)` で対応する市場burg間に実際の路線ジオメトリを敷設し、`RailwayLink.materialized` で二重敷設を防ぐ。道路・小道の右側帯を通ると敷設コストが半分になるため、既存道路に沿う安価な敷設と独立線形のどちらも自然に選ばれる（§14 Open Question 1 への回答）。色は紫 `#7a3b8f`（全スタイルプリセットに `#railways` を追加、cyberpunk/gloom など既に紫を使うプリセットのみ別色）。`tradeRouteDuration.ts` は既存の州内フラット倍率のままで、実距離ベースの所要時間・連隊移動・国際路線ポリシーへの統合は未着手（§7.2 表の残り行）。
+
 対象は、host 技術グラフの `atmosphericSteamPumping` が State ごとに到達した**あと**に、何をどの順で実装するかである。蒸気船を Shipyard 商品として足すだけでは足りない。鉄道インフラと都市蒸気揚水を同列の第一波とし、その前に工業基盤（Coke / Steel / Machine Parts / 定置機関）を置く。
 
 関連する正本:

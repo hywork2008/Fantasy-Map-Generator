@@ -1,6 +1,6 @@
 /**
- * Technology node definitions for roadmap eras 0–6 (mature medieval → industrial chemistry).
- * Eras 7+ (petroleum, space) remain omitted.
+ * Technology node definitions for roadmap eras 0–8 (mature medieval → rocketry/space), the full
+ * span of docs/plan/technology-development-roadmap.md.
  *
  * Thresholds are soft and demand-driven: high treasury/ports/knowledge stocks
  * advance stages; inland states can still progress era-1 mining nodes without
@@ -448,6 +448,23 @@ const ERA_4: readonly TechnologyDefinition[] = [
     demonstrated: { min: { experimentRecord: 0.4, labVesselQuality: 0.45, treasury: 70 } },
     adopted: { min: { experimentRecord: 0.55, naturalPhilosophy: 0.4, treasury: 110 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/technology-development-roadmap.md §7 row 6 (工場制手工業). Prerequisites are
+  // mechanicalWorkshops (water power, the table's "水力") and commercialFinance (stewardship /
+  // capital) rather than a fresh signal for each — both must be adopted before this node can even
+  // reach known, which already floors woodworking >= 0.45, urbanPopulation >= 25, treasury >= 150,
+  // and administration >= 0.35. textiles/metallurgy ("textiles / metalworking Guild") are the two
+  // signals neither prerequisite touches, so they carry the real gate; urbanPopulation/treasury
+  // are restated above those guaranteed floors so they stay meaningful rather than auto-passing.
+  {
+    id: "factoryOrganization",
+    label: "Factory-style manufactory organization",
+    era: 4,
+    scope: "state",
+    prerequisites: ["mechanicalWorkshops", "commercialFinance"],
+    known: { min: { textiles: 0.2, metallurgy: 0.2, urbanPopulation: 28 } },
+    demonstrated: { min: { textiles: 0.32, metallurgy: 0.28, urbanPopulation: 32, treasury: 190 } },
+    adopted: { min: { textiles: 0.42, metallurgy: 0.32, urbanPopulation: 38, treasury: 230, administration: 0.42 } }
   }
 ];
 
@@ -500,6 +517,25 @@ const ERA_5: readonly TechnologyDefinition[] = [
     known: { min: { woodworking: 0.35, metallurgy: 0.5, treasury: 80 } },
     demonstrated: { min: { woodworking: 0.45, metallurgy: 0.6, urbanPopulation: 15, treasury: 120 } },
     adopted: { min: { woodworking: 0.55, metallurgy: 0.65, urbanPopulation: 20, treasury: 160 } }
+  },
+  // docs/plan/technology-development-roadmap.md §8 row 3 (機械紡績・機械織機). Both prerequisites
+  // must be adopted (factoryOrganization -> textiles/metallurgy/urbanPopulation/treasury/
+  // administration; rotarySteamPower -> woodworking/metallurgy/urbanPopulation/treasury), so every
+  // threshold below sits above the higher of the two prerequisites' own adopted floors — textiles
+  // (factoryOrganization's 0.42) is pushed well past its guaranteed value to stay a real gate,
+  // since neither prerequisite raises it further on its own. Effect: getMechanizedTextilesEffect /
+  // getMechanizedTextilesOutputMultiplier (technologyProgress.ts) apply a Cloth/Garments/Sails
+  // output bonus at production-generator.ts's textiles-domain step, alongside the existing guild-
+  // technique bonus — "Cloth 生産量増、職人構成と都市雇用の変化" from the roadmap row's result column.
+  {
+    id: "mechanizedTextiles",
+    label: "Mechanized spinning and weaving",
+    era: 5,
+    scope: "state",
+    prerequisites: ["factoryOrganization", "rotarySteamPower"],
+    known: { min: { textiles: 0.5 } },
+    demonstrated: { min: { textiles: 0.62, treasury: 260 } },
+    adopted: { min: { textiles: 0.72, treasury: 300, urbanPopulation: 45 } }
   },
   {
     id: "coalCarbonization",
@@ -606,7 +642,7 @@ const ERA_5: readonly TechnologyDefinition[] = [
   }
 ];
 
-/** Stage 6: industrial chemistry foundation and sulfuric acid. */
+/** Stage 6: industrial chemistry foundation, sulfuric acid, and phosphate fertilizer. */
 const ERA_6: readonly TechnologyDefinition[] = [
   {
     id: "chemicalIndustryFoundation",
@@ -619,6 +655,24 @@ const ERA_6: readonly TechnologyDefinition[] = [
     adopted: { min: { experimentRecord: 0.55, sulfurAccess: 0.35, treasury: 140 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
   },
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.5. roadmap §9.5 row 1's "mining、smelting、
+  // chemistry" — chemistry is chemicalIndustryFoundation (already Alumina's requiredTechnology
+  // proxy); mining/smelting have no dedicated TechnologyDefinition of their own anywhere in this
+  // graph (mineSurveyAndDrainage uses the same mineCount/metallurgy signals directly), so this
+  // node does the same rather than inventing new prerequisite nodes. Every threshold sits above
+  // chemicalIndustryFoundation's own adopted floor (experimentRecord 0.55/sulfurAccess
+  // 0.35/treasury 140) to avoid an automatic pass-through the instant the prerequisite adopts.
+  {
+    id: "cinnabarRoastingAndMercuryRecovery",
+    label: "Cinnabar roasting and mercury recovery",
+    era: 6,
+    scope: "state",
+    prerequisites: ["chemicalIndustryFoundation"],
+    known: { min: { cinnabarAccess: 0.15, mineCount: 1, metallurgy: 0.3, treasury: 150 } },
+    demonstrated: { min: { mercuryPlantTrialYears: 2, cinnabarAccess: 0.2, metallurgy: 0.35, treasury: 180 } },
+    adopted: { min: { mercuryPlantInstallations: 1, cinnabarAccess: 0.25, administration: 0.5, treasury: 220 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
   {
     id: "industrialSulfuricAcid",
     label: "Industrial sulfuric acid",
@@ -629,6 +683,359 @@ const ERA_6: readonly TechnologyDefinition[] = [
     demonstrated: { min: { acidPlantTrialYears: 2, sulfurAccess: 0.35, treasury: 140 } },
     adopted: { min: { acidPlantInstallations: 1, sulfurAccess: 0.4, treasury: 180 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/phosphate-fertilizer-vertical-slice.md §3.5. demonstrated/adopted read
+  // phosphateFertilizerTrialYears/phosphateFertilizerPlantCount, sourced from
+  // PhosphateFertilizerPlants (§3.7) via technologyProgress.ts (§3.6).
+  {
+    id: "phosphateFertilizer",
+    label: "Phosphate fertilizer",
+    era: 6,
+    scope: "state",
+    prerequisites: ["industrialSulfuricAcid"],
+    known: {
+      min: {
+        sulfurAccess: 0.35,
+        phosphateRockAccess: 0.25,
+        administration: 0.4,
+        foodFertilizerPressure: 0.2,
+        treasury: 130
+      }
+    },
+    demonstrated: { min: { phosphateFertilizerTrialYears: 2, phosphateRockAccess: 0.3, treasury: 170 } },
+    adopted: { min: { phosphateFertilizerPlantCount: 1, phosphateRockAccess: 0.35, treasury: 210 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.4. metallurgy: 0.75 is set
+  // above standardMachineWorks's own adopted threshold (0.7) so it isn't automatically met the
+  // moment the prerequisite is adopted. demonstrated/adopted read modernSteelmakingTrialYears/
+  // modernSteelmakingInstallations, sourced from SteelConverterPlant (§3.2) via
+  // technologyProgress.ts (§3.3).
+  {
+    id: "modernSteelmaking",
+    label: "Modern steelmaking",
+    era: 6,
+    scope: "state",
+    prerequisites: ["standardMachineWorks"],
+    known: { min: { metallurgy: 0.75, steelAccess: 0.2, administration: 0.4, treasury: 150 } },
+    demonstrated: { min: { modernSteelmakingTrialYears: 2, metallurgy: 0.8, treasury: 190 } },
+    adopted: { min: { modernSteelmakingInstallations: 1, metallurgy: 0.85, treasury: 230 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/modern-steelmaking-and-high-pressure-apparatus.md §3.5. Requires both
+  // modernSteelmaking and industrialSulfuricAcid adopted (prerequisitesMet()); by then
+  // metallurgy already clears modernSteelmaking's adopted threshold (0.85), so it is not
+  // re-listed here — same reasoning as industrialSulfuricAcid not re-listing
+  // chemicalIndustryFoundation's experimentRecord threshold. No new Good or facility: "steel
+  // quality"/"instrumentation"/"safety regulation" are represented by steelAccess (new)/
+  // instruments (existing craft-knowledge signal)/administration (existing); "trial years" reuse
+  // ExperimentalWorkshops' experimentRecord signal instead of a dedicated apparatus (§7 decision 5).
+  {
+    id: "highPressureChemicalApparatus",
+    label: "High-pressure chemical apparatus",
+    era: 6,
+    scope: "state",
+    prerequisites: ["modernSteelmaking", "industrialSulfuricAcid"],
+    known: { min: { steelAccess: 0.3, instruments: 0.3, administration: 0.5, treasury: 190 } },
+    demonstrated: { min: { experimentRecord: 0.6, steelAccess: 0.35, treasury: 240 } },
+    adopted: { min: { experimentRecord: 0.65, steelAccess: 0.4, administration: 0.6, treasury: 290 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/catalytic-chemistry.md §3. No new Good/facility/signal: "研究所" (ExperimentalWorkshops,
+  // already backing experimentRecord/naturalPhilosophy/instruments) and "長期投資"
+  // (minimumYearsAtPreviousStage, the same mechanism every other era-6 node here uses) already
+  // cover the roadmap's "research institute, rare materials, long-term investment" prerequisites
+  // (technology-development-roadmap.md §9.1) except rare catalyst materials, deliberately deferred
+  // to syntheticAmmonia per modern-steelmaking-and-high-pressure-apparatus.md §7 decision 4. Every
+  // threshold below is set above what highPressureChemicalApparatus's own adopted stage already
+  // guarantees (experimentRecord 0.65, instruments 0.3, administration 0.6, treasury 290), so this
+  // node is not automatically satisfied the instant its prerequisite is adopted.
+  {
+    id: "catalyticChemistry",
+    label: "Catalytic chemistry",
+    era: 6,
+    scope: "state",
+    prerequisites: ["highPressureChemicalApparatus"],
+    known: { min: { experimentRecord: 0.65, naturalPhilosophy: 0.5, instruments: 0.4, treasury: 320 } },
+    demonstrated: { min: { experimentRecord: 0.7, naturalPhilosophy: 0.55, treasury: 380 } },
+    adopted: { min: { experimentRecord: 0.75, naturalPhilosophy: 0.6, administration: 0.65, treasury: 450 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/synthetic-ammonia-vertical-slice.md §3.4. Sole prerequisite is catalyticChemistry:
+  // prerequisitesMet() already requires every prerequisite adopted, so catalyticChemistry's own
+  // ancestor chain (highPressureChemicalApparatus/modernSteelmaking/industrialSulfuricAcid/
+  // chemicalIndustryFoundation) is transitively required without re-listing it here. known's
+  // administration/instruments sit at or above catalyticChemistry's own adopted thresholds (the
+  // gate this node's prerequisite already clears just before this node can progress at all);
+  // fertilizerCoverageGap is the new "fertilizer coverage gap" demand signal (§3.5).
+  {
+    id: "syntheticAmmonia",
+    label: "Synthetic ammonia",
+    era: 6,
+    scope: "state",
+    prerequisites: ["catalyticChemistry"],
+    known: {
+      min: { fertilizerCoverageGap: 0.3, administration: 0.65, instruments: 0.45, treasury: 500 }
+    },
+    demonstrated: {
+      min: { syntheticAmmoniaTrialYears: 2, experimentRecord: 0.75, treasury: 600 }
+    },
+    adopted: {
+      min: { syntheticAmmoniaInstallations: 1, administration: 0.7, treasury: 700 }
+    },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.4. An independent branch off era 4's
+  // experimentalNaturalPhilosophy (same two-hop jump as chemicalIndustryFoundation ->
+  // analyticalChemistry) rather than the chemicalIndustryFoundation chain above — the roadmap
+  // treats electrification and modern chemistry as parallel fields, not one line. experimentRecord
+  // thresholds sit above experimentalNaturalPhilosophy's own adopted (0.4); instruments is an
+  // independent signal experimentalNaturalPhilosophy never touches.
+  {
+    id: "electricalExperiments",
+    label: "Electrical and magnetic experiments",
+    era: 6,
+    scope: "state",
+    prerequisites: ["experimentalNaturalPhilosophy"],
+    known: { min: { naturalPhilosophy: 0.45, instruments: 0.3, experimentRecord: 0.45, treasury: 90 } },
+    demonstrated: { min: { naturalPhilosophy: 0.5, experimentRecord: 0.5, treasury: 120 } },
+    adopted: { min: { naturalPhilosophy: 0.55, instruments: 0.35, administration: 0.35, treasury: 150 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.5. known deliberately omits naturalPhilosophy —
+  // electricalExperiments' own adopted already requires naturalPhilosophy >= 0.55, so a known
+  // threshold below that would be met the instant the prerequisite adopts (same reasoning
+  // industrialSulfuricAcid uses for not re-listing chemicalIndustryFoundation's experimentRecord).
+  // demonstrated/adopted reintroduce naturalPhilosophy above that 0.55 floor. No dedicated
+  // "battery" Good or Precision Instruments Good — instruments stands in, per modern-steelmaking-
+  // and-high-pressure-apparatus.md §7 decision 4.
+  {
+    id: "practicalElectrochemistry",
+    label: "Practical batteries and electrical measurement",
+    era: 6,
+    scope: "state",
+    prerequisites: ["electricalExperiments"],
+    known: { min: { copperWireAccess: 0.15, instruments: 0.4, treasury: 130 } },
+    demonstrated: { min: { naturalPhilosophy: 0.58, instruments: 0.45, treasury: 160 } },
+    adopted: { min: { naturalPhilosophy: 0.62, instruments: 0.5, administration: 0.4, treasury: 200 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.6. Sole prerequisite is practicalElectrochemistry
+  // — deliberately does not route through generatorAndMotor/powerGrid. Historically the telegraph
+  // (Morse, 1837) preceded practical generators and grids by decades and ran on batteries alone
+  // (steam-industrial-technology-history.csv row 13).
+  {
+    id: "electricTelegraph",
+    label: "Electric telegraph network",
+    era: 6,
+    scope: "state",
+    prerequisites: ["practicalElectrochemistry"],
+    known: { min: { copperWireAccess: 0.3, administration: 0.45, treasury: 160 } },
+    demonstrated: { min: { telegraphLineTrialYears: 2, copperWireAccess: 0.35, treasury: 210 } },
+    adopted: { min: { telegraphLineInstallations: 1, administration: 0.55, treasury: 260 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.7. Two prerequisites, same shape as
+  // highPressureChemicalApparatus (modernSteelmaking + industrialSulfuricAcid): both
+  // electricalExperiments and modernSteelmaking must be adopted. steelAccess (0.3) sits above
+  // modernSteelmaking's own known threshold (0.2, never re-stated at its demonstrated/adopted), so
+  // it remains a meaningful gate rather than an automatic pass-through.
+  {
+    id: "generatorAndMotor",
+    label: "Generator and motor",
+    era: 6,
+    scope: "state",
+    prerequisites: ["electricalExperiments", "modernSteelmaking"],
+    known: { min: { copperWireAccess: 0.35, steelAccess: 0.3, instruments: 0.4, treasury: 260 } },
+    demonstrated: { min: { powerStationTrialYears: 2, steelAccess: 0.35, treasury: 320 } },
+    adopted: { min: { powerStationInstallations: 1, administration: 0.55, treasury: 380 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electric-power-and-telegraph.md §3.8. administration sits above generatorAndMotor's
+  // own adopted threshold (0.55) at every stage so it is never automatically satisfied the instant
+  // the prerequisite adopts. electricityCoverage is the fresh demand-pull signal.
+  {
+    id: "powerGrid",
+    label: "Power grid and electricity utilities",
+    era: 6,
+    scope: "state",
+    prerequisites: ["generatorAndMotor"],
+    known: { min: { electricityCoverage: 0.25, administration: 0.58, treasury: 350 } },
+    demonstrated: { min: { electricityCoverage: 0.3, administration: 0.62, treasury: 420 } },
+    adopted: { min: { electricityCoverage: 0.35, administration: 0.68, treasury: 500 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/electrolytic-industry-vertical-slice.md §3.6. Three prerequisites converge here —
+  // practicalElectrochemistry (electrochemistry), highPressureChemicalApparatus (the existing
+  // chemicalEngineering proxy catalyticChemistry already reuses), and powerGrid (a stable
+  // electricity network) — matching roadmap §9.3 L289's three-item prerequisite list exactly.
+  // prerequisitesMet() requires all three adopted, so every threshold below sits above the
+  // highest of their own adopted thresholds (powerGrid's administration 0.68/treasury 500/
+  // electricityCoverage 0.35 dominate) to avoid an automatic pass-through the instant the last
+  // prerequisite adopts.
+  {
+    id: "electrolyticIndustry",
+    label: "Electrolytic industry",
+    era: 6,
+    scope: "state",
+    prerequisites: ["practicalElectrochemistry", "highPressureChemicalApparatus", "powerGrid"],
+    known: { min: { electricityCoverage: 0.4, administration: 0.7, treasury: 550 } },
+    demonstrated: { min: { electrolysisPlantTrialYears: 2, electricityCoverage: 0.45, treasury: 650 } },
+    adopted: { min: { electrolysisPlantInstallations: 1, administration: 0.75, treasury: 800 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  }
+];
+
+/**
+ * Stage 7: petroleum — geology/drilling, refining, and the internal combustion engine.
+ * Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md.
+ */
+const ERA_7: readonly TechnologyDefinition[] = [
+  // §3.5. Pure knowledge-accumulation node, no direct Good gate — mineSurveyAndDrainage/
+  // precisionBoringAndMeasurement stand in for roadmap §10's "geology、surveying、
+  // drillingEngineering" the same way cinnabarRoastingAndMercuryRecovery reused mineCount/
+  // metallurgy instead of inventing dedicated mining/smelting nodes. Whether a state can actually
+  // extract oil is gated later, at modernDrillingAndFieldOperations's petroleumAccess threshold —
+  // this node stays generic exploration activity, same as mineSurveyAndDrainage/coalFuelSupply
+  // carrying no ore-specific gate of their own.
+  {
+    id: "petroleumGeologyAndExploration",
+    label: "Petroleum geology and exploratory drilling",
+    era: 7,
+    scope: "state",
+    prerequisites: ["mineSurveyAndDrainage", "precisionBoringAndMeasurement"],
+    known: { min: { mineCount: 2, treasury: 140 } },
+    demonstrated: { min: { mineCount: 2, deepMineCount: 2, treasury: 190 } },
+    adopted: { min: { mineCount: 3, deepMineCount: 2, administration: 0.4, treasury: 240 } }
+  },
+  // §3.5. petroleumAccess (Crude Oil market-stock coverage) is the real gate at every stage —
+  // Crude Oil itself carries no requiredTechnology (§1 non-goal 6: gating the ore here would be
+  // circular, since it would never be produced long enough to raise its own coverage signal).
+  {
+    id: "modernDrillingAndFieldOperations",
+    label: "Modern drilling and oil-field operations",
+    era: 7,
+    scope: "state",
+    prerequisites: ["petroleumGeologyAndExploration"],
+    known: { min: { petroleumAccess: 0.15, treasury: 200 } },
+    demonstrated: { min: { petroleumAccess: 0.25, administration: 0.45, treasury: 260 } },
+    adopted: { min: { petroleumAccess: 0.35, administration: 0.5, treasury: 320 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // §3.5. highPressureChemicalApparatus stands in for roadmap §10's "chemicalEngineering、
+  // thermodynamics、precisionMachining" — the same high-pressure/precision apparatus node
+  // electrolyticIndustry/catalyticChemistry already reuse. known's experimentRecord (0.68) and
+  // treasury (320) sit above highPressureChemicalApparatus's own adopted floor (0.65/290) so this
+  // node is not automatically satisfied the instant its prerequisite adopts. demonstrated/adopted
+  // read oilRefineryTrialYears/oilRefineryInstallations, sourced from OilRefineryPlant (§3.7) via
+  // technologyProgress.ts (§3.4).
+  {
+    id: "oilRefiningAndFractionation",
+    label: "Oil refining and fractional distillation",
+    era: 7,
+    scope: "state",
+    prerequisites: ["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"],
+    known: { min: { petroleumAccess: 0.3, experimentRecord: 0.68, treasury: 320 } },
+    demonstrated: { min: { oilRefineryTrialYears: 2, petroleumAccess: 0.35, treasury: 380 } },
+    adopted: { min: { oilRefineryInstallations: 1, administration: 0.62, treasury: 450 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.5. standardMachineWorks stands in for roadmap §10's "mechanics、precisionMachining" —
+  // the same precision-machine-tool node railEngineering/highEfficiencySteamEngine already reuse.
+  // refinedFuelAccess (Kerosene market-stock coverage) is the demand-pull; steelAccess sits above
+  // both prerequisites' own floors. Effect (getInternalCombustionEngineEffect) is intentionally
+  // left unconsumed — §1 non-goal 5.
+  {
+    id: "internalCombustionEngine",
+    label: "Internal combustion engine",
+    era: 7,
+    scope: "state",
+    prerequisites: ["oilRefiningAndFractionation", "standardMachineWorks"],
+    known: { min: { refinedFuelAccess: 0.15, steelAccess: 0.35, treasury: 300 } },
+    demonstrated: { min: { refinedFuelAccess: 0.25, steelAccess: 0.4, treasury: 360 } },
+    adopted: { min: { refinedFuelAccess: 0.35, steelAccess: 0.45, administration: 0.5, treasury: 430 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  }
+];
+
+/**
+ * Stage 8: rocketry and space development. Design: docs/plan/rocket-and-space-development-
+ * vertical-slice.md. No new Good/plant/TechnologySignals field — every node reuses era 1–7
+ * signals and prerequisite chains (§3.2 of that doc).
+ */
+const ERA_8: readonly TechnologyDefinition[] = [
+  // §3.3. Independent leaf off the gunpowder line — deliberately not a prerequisite of any other
+  // era-8 node. roadmap decision 13: rockets/space must not unlock directly from powder rockets.
+  {
+    id: "militarySignalRockets",
+    label: "Military and signal powder rockets",
+    era: 8,
+    scope: "state",
+    prerequisites: ["artilleryTactics", "mechanicalWorkshops"],
+    worldGates: ["gunpowderWorld"],
+    known: { min: { pyrotechnics: 0.65, woodworking: 0.5, treasury: 70 } },
+    demonstrated: { min: { pyrotechnics: 0.7, gunpowderDemand: 3.5, treasury: 110 }, flags: { atWar: true } },
+    adopted: { min: { pyrotechnics: 0.75, gunpowderDemand: 4, administration: 0.45, treasury: 150 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
+  },
+  // §3.3. mathAstronomyGeography/electricalExperiments/highPressureChemicalApparatus stand in for
+  // roadmap §11's "advancedMathematics、physics、thermodynamics、Academy Knowledge" — the same
+  // highPressureChemicalApparatus proxy oilRefiningAndFractionation already reuses for
+  // thermodynamics/precisionMachining. Pure knowledge-convergence node, no Good gate, same pattern
+  // as catalyticChemistry (era 6, §2 of the vertical-slice doc).
+  {
+    id: "rocketDynamicsAndHighTemperatureCombustionResearch",
+    label: "Rocket dynamics and high-temperature combustion research",
+    era: 8,
+    scope: "state",
+    prerequisites: ["mathAstronomyGeography", "electricalExperiments", "highPressureChemicalApparatus"],
+    known: { min: { experimentRecord: 0.68, naturalPhilosophy: 0.58, instruments: 0.4, treasury: 320 } },
+    demonstrated: { min: { experimentRecord: 0.72, naturalPhilosophy: 0.62, treasury: 400 } },
+    adopted: { min: { experimentRecord: 0.78, administration: 0.65, treasury: 480 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.3. refinedFuelAccess (Kerosene market-stock coverage, already internalCombustionEngine's
+  // demand-pull) stands in for "精製燃料・酸化剤"; electricityCoverage + powerGrid for "大電力".
+  {
+    id: "liquidPropulsionAndTestFacilities",
+    label: "Liquid propulsion and rocket test facilities",
+    era: 8,
+    scope: "state",
+    prerequisites: ["rocketDynamicsAndHighTemperatureCombustionResearch", "oilRefiningAndFractionation", "powerGrid"],
+    known: { min: { refinedFuelAccess: 0.35, electricityCoverage: 0.38, treasury: 560 } },
+    demonstrated: { min: { refinedFuelAccess: 0.42, electricityCoverage: 0.42, administration: 0.7, treasury: 650 } },
+    adopted: { min: { refinedFuelAccess: 0.48, electricityCoverage: 0.46, administration: 0.74, treasury: 750 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.3. copperWireAccess/instruments + electricTelegraph stand in for roadmap §11's
+  // "electricalEngineering、electronics、controlTheory" and "センサー、通信、計算装置".
+  {
+    id: "guidanceAndAttitudeControl",
+    label: "Guidance and attitude control",
+    era: 8,
+    scope: "state",
+    prerequisites: ["liquidPropulsionAndTestFacilities", "electricTelegraph"],
+    known: { min: { copperWireAccess: 0.4, instruments: 0.55, treasury: 800 } },
+    demonstrated: { min: { copperWireAccess: 0.45, instruments: 0.6, administration: 0.76, treasury: 900 } },
+    adopted: { min: { copperWireAccess: 0.5, instruments: 0.65, administration: 0.8, treasury: 1000 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // §3.3. electrolyticIndustry (Aluminum) stands in for "lightweightStructures" — roadmap §9.4
+  // already names Aluminum as future "航空、後続の宇宙機器の材料選択肢". administration/treasury
+  // carry "systemsEngineering"/"国家計画" (national-scale organization), same shape as
+  // electrolyticIndustry/powerGrid's own high-threshold + long minimumYearsAtPreviousStage.
+  // Effect (getStagingAndOrbitalInsertionEffect) intentionally left unconsumed — vertical-slice
+  // doc §1 non-goal 2.
+  {
+    id: "stagingAndOrbitalInsertion",
+    label: "Multi-stage rockets and orbital insertion",
+    era: 8,
+    scope: "state",
+    prerequisites: ["guidanceAndAttitudeControl", "electrolyticIndustry"],
+    known: { min: { administration: 0.82, experimentRecord: 0.82, treasury: 1100 } },
+    demonstrated: { min: { administration: 0.85, experimentRecord: 0.85, treasury: 1300 } },
+    adopted: { min: { administration: 0.88, experimentRecord: 0.88, treasury: 1600 } },
+    minimumYearsAtPreviousStage: { demonstrated: 4, adopted: 6 }
   }
 ];
 
@@ -639,7 +1046,9 @@ export const TECHNOLOGY_DEFINITIONS: readonly TechnologyDefinition[] = [
   ...ERA_3,
   ...ERA_4,
   ...ERA_5,
-  ...ERA_6
+  ...ERA_6,
+  ...ERA_7,
+  ...ERA_8
 ];
 
 export const TECHNOLOGY_DEFINITION_BY_ID: ReadonlyMap<string, TechnologyDefinition> = new Map(

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -6,6 +6,7 @@ import { createDefaultBiomesData } from "../data/biomeCatalog";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { Military } from "./military-generator";
+import { resetTechnologyProgress, setTechnologyProgressForTests } from "./technologyProgress";
 
 function makeState(pack: PackedGraph): WorldState {
   return {
@@ -113,6 +114,14 @@ function makeBasePack(relation: string): PackedGraph {
 }
 
 describe("MilitaryModule.generate — consolidated regiment structure", () => {
+  // Every test in this file runs Military.generate(), which now reads per-State technology
+  // gates (docs/plan/military-era-progression.md §3). Without a reset, a technologyProgress
+  // entry seeded by one test (or lazily seeded from an earlier test's pack) would leak into the
+  // next test's identical state ids (see technologyProgress.test.ts for the same pattern).
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
   it("excludes artillery from regiments when the gunpowder era is disabled", () => {
     const pack = makeBasePack("Enemy");
     const state = makeState(pack);
@@ -285,5 +294,313 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
     const threatenedGuard = threatenedState.military!.find(r => r.isCapitalGuard)!;
 
     expect(threatenedGuard.a).toBeGreaterThan(safeGuard.a);
+  });
+});
+
+// docs/plan/military-era-progression.md Phase 1: per-State technology gating for era-5/6 units
+// (riflemen/fieldArtillery/machineGunners) and gradual obsolescence of the units they supersede.
+describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
+  function unitTotals(state: ReturnType<typeof generate>): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const regiment of state.military ?? []) {
+      for (const [unitName, amount] of Object.entries(regiment.u)) {
+        totals[unitName] = (totals[unitName] ?? 0) + amount;
+      }
+    }
+    return totals;
+  }
+
+  it("keeps riflemen/fieldArtillery/machineGunners out of the roster while their technology is locked", () => {
+    // No setTechnologyProgressForTests() call — every technology defaults to "locked", same as
+    // the pre-Phase-1 behavior for every existing (ungated) unit.
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.riflemen ?? 0).toBe(0);
+    expect(totals.fieldArtillery ?? 0).toBe(0);
+    expect(totals.machineGunners ?? 0).toBe(0);
+    expect(totals.musketeers ?? 0).toBeGreaterThan(0);
+    expect(totals.artillery ?? 0).toBeGreaterThan(0);
+  });
+
+  it("recruits riflemen once standardMachineWorks is adopted, and shrinks musketeers' share", () => {
+    const lockedState = generate(makeBasePack("Enemy"));
+    const lockedTotals = unitTotals(lockedState);
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const adoptedState = generate(makeBasePack("Enemy"));
+    const adoptedTotals = unitTotals(adoptedState);
+
+    expect(adoptedTotals.riflemen ?? 0).toBeGreaterThan(0);
+    // obsoletes: ["musketeers", "archers"] — adopted (share 0.75) leaves both only 25% of what
+    // they'd otherwise be, so both totals should drop well below the locked baseline.
+    expect(adoptedTotals.musketeers ?? 0).toBeLessThan((lockedTotals.musketeers ?? 0) * 0.5);
+    expect(adoptedTotals.archers ?? 0).toBeLessThan((lockedTotals.archers ?? 0) * 0.5);
+    // fieldArtillery/machineGunners are gated on a different technology (modernSteelmaking) and
+    // must stay unaffected by standardMachineWorks alone.
+    expect(adoptedTotals.fieldArtillery ?? 0).toBe(0);
+    expect(adoptedTotals.machineGunners ?? 0).toBe(0);
+  });
+
+  it("nearly eliminates archers once riflemen technology is fully diffused (2026-08-21 user feedback: rocketryEra starts still showed a full archer corps)", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "diffused", diffusion: 1 }
+    ]);
+    const totals = unitTotals(generate(makeBasePack("Enemy")));
+
+    // diffused -> share 1, so archers' modifier is multiplied by (1 - 1) = 0 for this State.
+    expect(totals.riflemen ?? 0).toBeGreaterThan(0);
+    expect(totals.archers ?? 0).toBe(0);
+    expect(totals.musketeers ?? 0).toBe(0);
+  });
+
+  it("recruits machineGunners once modernSteelmaking is demonstrated, below fieldArtillery's adopted bar", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.machineGunners ?? 0).toBeGreaterThan(0);
+    // fieldArtillery requires "adopted", one stage further than machineGunners' "demonstrated".
+    expect(totals.fieldArtillery ?? 0).toBe(0);
+    // machineGunners has no `obsoletes` relationship — artillery keeps its full share.
+    expect(totals.artillery ?? 0).toBeGreaterThan(0);
+  });
+
+  it("recruits fieldArtillery once modernSteelmaking is adopted, and shrinks artillery's share", () => {
+    const lockedState = generate(makeBasePack("Enemy"));
+    const lockedTotals = unitTotals(lockedState);
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const adoptedState = generate(makeBasePack("Enemy"));
+    const adoptedTotals = unitTotals(adoptedState);
+
+    expect(adoptedTotals.fieldArtillery ?? 0).toBeGreaterThan(0);
+    expect(adoptedTotals.machineGunners ?? 0).toBeGreaterThan(0); // "adopted" also clears "demonstrated"
+    expect(adoptedTotals.artillery ?? 0).toBeLessThan((lockedTotals.artillery ?? 0) * 0.5);
+  });
+
+  it("does not gate riflemen/fieldArtillery/machineGunners when the gunpowder era is disabled, same as musketeers/artillery", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const pack = makeBasePack("Enemy");
+    const state = makeState(pack);
+    state.options = { year: 1000, gunpowderEraEnabled: false };
+    worldContext.pack = pack;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+
+    Military.generate(worldContext, viewContext, appServices, state);
+    const totals = unitTotals(worldContext.pack.states[1]);
+
+    for (const name of ["musketeers", "artillery", "riflemen", "fieldArtillery", "machineGunners"]) {
+      expect(totals[name] ?? 0).toBe(0);
+    }
+  });
+});
+
+// docs/plan/military-era-progression.md Phase 2: the "armored"/"aviation" types get their first
+// real default units. armored uses the plain single-gate mechanism Phase 1 already built;
+// aviation is the first user of the type-keyed composite gate (internalCombustionEngine +
+// electrolyticIndustry) since a single requiresTechnology field can't express an AND of two
+// technologies.
+describe("MilitaryModule.generate — era-7 armored/aviation units", () => {
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
+  function unitTotals(state: ReturnType<typeof generate>): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const regiment of state.military ?? []) {
+      for (const [unitName, amount] of Object.entries(regiment.u)) {
+        totals[unitName] = (totals[unitName] ?? 0) + amount;
+      }
+    }
+    return totals;
+  }
+
+  // aviation's urban rate (0.008) is deliberately tiny (§4.4 "さらに希少") — at populationRate 1
+  // and this fixture's single 10000-population burg, a partial adoption share (e.g. "demonstrated"
+  // = 0.35) can legitimately round down to exactly 0 troops, which would make a >0 assertion flaky
+  // rather than meaningful. A higher populationRate (same knob real generation scales all troop
+  // counts by) clears that rounding margin without changing what's being gated.
+  function generateAtScale(pack: PackedGraph, populationRate: number) {
+    worldContext.pack = pack;
+    worldContext.populationRate = populationRate;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+    Military.generate(worldContext, viewContext, appServices, makeState(pack));
+    return worldContext.pack.states[1];
+  }
+
+  it("keeps armored/aviation out of the roster while internalCombustionEngine and electrolyticIndustry are locked", () => {
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.armored ?? 0).toBe(0);
+    expect(totals.aviation ?? 0).toBe(0);
+  });
+
+  it("recruits armored once internalCombustionEngine is adopted, independent of electrolyticIndustry", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.armored ?? 0).toBeGreaterThan(0);
+    // aviation additionally needs electrolyticIndustry — must stay absent on this gate alone.
+    expect(totals.aviation ?? 0).toBe(0);
+  });
+
+  it("keeps aviation out when only one of its two required technologies clears its bar", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+      // electrolyticIndustry left locked.
+    ]);
+    const engineOnly = unitTotals(generate(makeBasePack("Enemy")));
+    expect(engineOnly.aviation ?? 0).toBe(0);
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "electrolyticIndustry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+      // internalCombustionEngine left locked.
+    ]);
+    const airframeOnly = unitTotals(generate(makeBasePack("Enemy")));
+    expect(airframeOnly.aviation ?? 0).toBe(0);
+  });
+
+  it("recruits aviation once both internalCombustionEngine (adopted) and electrolyticIndustry (demonstrated) clear their bars", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electrolyticIndustry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const state = generateAtScale(makeBasePack("Enemy"), 50);
+    const totals = unitTotals(state);
+
+    expect(totals.armored ?? 0).toBeGreaterThan(0);
+    expect(totals.aviation ?? 0).toBeGreaterThan(0);
+  });
+
+  it("does not gate armored/aviation on the gunpowder-era world toggle, unlike the firearm-descended units", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "internalCombustionEngine", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "electrolyticIndustry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const pack = makeBasePack("Enemy");
+    const state = makeState(pack);
+    state.options = { year: 1000, gunpowderEraEnabled: false };
+    worldContext.pack = pack;
+    worldContext.populationRate = 50; // see generateAtScale's comment above on rounding margin
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+
+    Military.generate(worldContext, viewContext, appServices, state);
+    const totals = unitTotals(worldContext.pack.states[1]);
+
+    expect(totals.armored ?? 0).toBeGreaterThan(0);
+    expect(totals.aviation ?? 0).toBeGreaterThan(0);
+    expect(totals.musketeers ?? 0).toBe(0);
+    expect(totals.artillery ?? 0).toBe(0);
+  });
+});
+
+// docs/plan/military-era-progression.md Phase 4 (backlog): rocketArtillery, applying the exact
+// same requiresTechnology/obsoletes mechanism Phase 1's fieldArtillery already established —
+// unlike armored/aviation, this is a gunpowder-descended unit by name+type (type "machinery" +
+// name includes "artillery" — isGunpowderEraMilitaryUnit(), gunpowderEra.ts), so it stays gated
+// by gunpowderEraEnabled the same way musketeers/artillery/fieldArtillery are (militarySignalRockets
+// itself also independently carries worldGates: ["gunpowderWorld"] in technologyDefinitions.ts,
+// but that only governs whether the technology node is ever seeded/progressed at all — the world-
+// level military roster filter tested below is the separate, actual mechanism this test exercises).
+describe("MilitaryModule.generate — era-8 rocketArtillery", () => {
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
+  function unitTotals(state: ReturnType<typeof generate>): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const regiment of state.military ?? []) {
+      for (const [unitName, amount] of Object.entries(regiment.u)) {
+        totals[unitName] = (totals[unitName] ?? 0) + amount;
+      }
+    }
+    return totals;
+  }
+
+  // rocketArtillery's urban rate (0.02) combined with fieldArtillery's own already-partial
+  // adoption share can round to a small enough headcount that a *0.5 comparison sits right on a
+  // rounding boundary at populationRate 1 (see military-era-progression.md Phase 2's aviation
+  // tests for the same issue) — scale up like generateAtScale() elsewhere in this file.
+  function generateAtScale(pack: PackedGraph, populationRate: number) {
+    worldContext.pack = pack;
+    worldContext.populationRate = populationRate;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+    Military.generate(worldContext, viewContext, appServices, makeState(pack));
+    return worldContext.pack.states[1];
+  }
+
+  it("keeps rocketArtillery out of the roster while militarySignalRockets is locked", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const totals = unitTotals(generate(makeBasePack("Enemy")));
+
+    expect(totals.rocketArtillery ?? 0).toBe(0);
+    expect(totals.fieldArtillery ?? 0).toBeGreaterThan(0);
+  });
+
+  it("recruits rocketArtillery once militarySignalRockets is adopted, and shrinks fieldArtillery's share", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const baselineTotals = unitTotals(generateAtScale(makeBasePack("Enemy"), 50));
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "militarySignalRockets", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const rocketTotals = unitTotals(generateAtScale(makeBasePack("Enemy"), 50));
+
+    expect(rocketTotals.rocketArtillery ?? 0).toBeGreaterThan(0);
+    // obsoletes: "fieldArtillery" — adopted (share 0.75) leaves fieldArtillery only 25% of what
+    // it'd otherwise be, same shrink shape as riflemen/musketeers and fieldArtillery/artillery.
+    expect(rocketTotals.fieldArtillery ?? 0).toBeLessThan((baselineTotals.fieldArtillery ?? 0) * 0.5);
+  });
+
+  it("does not gate rocketArtillery when the gunpowder era is disabled, same as fieldArtillery", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "militarySignalRockets", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const pack = makeBasePack("Enemy");
+    const state = makeState(pack);
+    state.options = { year: 1000, gunpowderEraEnabled: false };
+    worldContext.pack = pack;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+
+    Military.generate(worldContext, viewContext, appServices, state);
+    const totals = unitTotals(worldContext.pack.states[1]);
+
+    expect(totals.rocketArtillery ?? 0).toBe(0);
+    expect(totals.fieldArtillery ?? 0).toBe(0);
   });
 });
