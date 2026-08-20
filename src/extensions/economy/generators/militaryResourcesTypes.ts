@@ -9,7 +9,14 @@ export const MILITARY_RESOURCES = [
   "arms",
   "arrows",
   "bullets",
-  "muskets"
+  "muskets",
+  // docs/plan/military-era-progression.md §5 Phase 3 — fieldArtillery/machineGunners (Steel, on
+  // top of the iron/lead/gunpowder they already draw as artillery/firearm units) and armored/
+  // aviation (Steel or Aluminum airframe + Kerosene fuel). Independent of gunpowderEraEnabled,
+  // same as armored/aviation's recruitment gate itself (docs/plan/military-era-progression.md §4.4).
+  "steel",
+  "kerosene",
+  "aluminum"
 ] as const;
 export type MilitaryResource = (typeof MILITARY_RESOURCES)[number];
 

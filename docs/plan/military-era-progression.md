@@ -2,7 +2,7 @@
 
 ## 状態
 
-**Phase 1・Phase 2 実装済み（2026-08-21）。** [technology-development-roadmap.md](./technology-development-roadmap.md) の Phase 1–8（中世農業〜ロケット・宇宙開発）が実装済みになった一方、`Military.generate()` が生成する部隊編成（`src/generators/military-generator.ts`）は火薬時代（Era 2）で止まっており、Era 3〜8（大航海〜ロケット）に対応するユニットが一つも存在しない、というギャップに対応する。本書はこのギャップを閉じるための設計と実装フェーズをまとめる。Phase 1（ゲーティング機構＋Era 5-6 ユニット）・Phase 2（armored/aviation の投入）の実装内容は §5 の実装ログを参照。Phase 3（Economy 連携）・Phase 4（ロケット砲、バックログ）は引き続き未着手。
+**Phase 1・Phase 2・Phase 3 実装済み（2026-08-21）。** [technology-development-roadmap.md](./technology-development-roadmap.md) の Phase 1–8（中世農業〜ロケット・宇宙開発）が実装済みになった一方、`Military.generate()` が生成する部隊編成（`src/generators/military-generator.ts`）は火薬時代（Era 2）で止まっており、Era 3〜8（大航海〜ロケット）に対応するユニットが一つも存在しない、というギャップに対応する。本書はこのギャップを閉じるための設計と実装フェーズをまとめる。Phase 1（ゲーティング機構＋Era 5-6 ユニット）・Phase 2（armored/aviation の投入）・Phase 3（Economy 拡張との装備連携）の実装内容は §5 の実装ログを参照。Phase 4（ロケット砲、バックログ）のみ引き続き未着手。
 
 ---
 
@@ -261,13 +261,20 @@ for (const unit of military) {
 - Battle Screen の手動検証の代わりに、[src/controllers/battle-screen.test.ts](../../src/controllers/battle-screen.test.ts) を新規作成し `Battle.prototype` のメソッドを直接呼ぶ自動テストで検証した(5件、全て green)。`new Battle(...)` はダイアログ表示等の実UI副作用を伴うため使わず、`Object.create(Battle.prototype)` で最小限の `this` を組み立てて `defineType()`/`selectPhase()`/`calculateStrength()` を直接叩く手法を採った。検証できたこと: (1) 両陣営とも全ユニットが aviation type のとき `defineType()` が `"air"` と判定する、(2) 地上ユニットが混ざると `"air"` にならない、(3) `selectPhase()` が `iteration` に応じて `"maneuvering"`→`"dogfight"` を実際に選ぶ(`P()` の `>=1`/`<=0` 決定的分岐を利用し非フレークにできた)、(4) `calculateStrength()` の `scheme` テーブルの `aviation` 列(`dogfight`が`maneuvering`のちょうど2倍)と `armored` 列(`melee`で正の出力、`shelling`で0)が実際に読まれている。§1.3 の「エンジン変更は原則不要」という見立てが実証された(変更ゼロ)。ブラウザでの実プレイ手動確認はまだ未実施(§8)。
 - `MilitaryOptionsDialog.tsx` に軽量な UI ヒントを追加した: `requiresTechnology` を持つユニット名の隣に 🔬 バッジ(hover で技術ID・必要段階を表示)、`obsoletes` を持つユニットに ↩️ バッジ(hover でどのユニットの募兵シェアを緩やかに奪うかを表示)。テーブル列の追加はせず、既存の `title`/`data-tip` パターンを流用。
 
-### Phase 3 — Economy 拡張との装備連携
+### Phase 3 — Economy 拡張との装備連携 ✅ 実装済み（2026-08-21）
 
-- `armored`/`aviation`/`fieldArtillery`/`machineGunners` の装備・燃料需要を Economy 側（`militaryResources.ts`）に追加する。既存の `isFirearm()`/`isArtillery()`（名前正規表現）パターンではなく、`unit.type` ベースの判定に寄せる（原則7）。
-  - `armored`: Steel + Kerosene（内燃機関の燃料代理、`internalCombustionEngine` の `refinedFuelAccess` 信号がすでに Kerosene 市場カバレッジを指している）。
-  - `aviation`: Aluminum + Kerosene。
-  - `fieldArtillery`/`machineGunners`: 既存の `ARTILLERY_IRON_PER_GUN` 等と同型で Steel を追加消費。
-- `musketeers`/`artillery` が現在受けている `unstockInitialFirearmForces()`（`plannedU` による装備待ち休眠編成、[militaryResources.ts:76-116](../../src/extensions/economy/generators/militaryResources.ts)）と同じパターンを新ユニットにも適用するかどうかは、Phase 1〜2 の実プレイ結果を見てから判断する（いきなり全部に適用すると初期採用がゼロになりすぎる懸念があるため）。
+- `armored`/`aviation`/`fieldArtillery`/`machineGunners` の装備・燃料需要を Economy 側（`src/extensions/economy/generators/militaryResources.ts`）に追加した。新しい Good ・新しい technologyDefinitions ノードは増やしていない（既存の Steel/Kerosene/Aluminum をそのまま消費先として使う、原則4）。
+  - `MILITARY_RESOURCES`（`militaryResourcesTypes.ts`）に `steel`/`kerosene`/`aluminum` を追加。
+  - `getAnnualDemand()` に4つの新カウンタを追加し、専用の per-head 定数（すべて "Uncalibrated" — 既存の `ARCHER_ARROWS_PER_HEAD` 等と同じ位置づけ）で需要を計算:
+    - `armored`（`unit.type === "armored"`、`isArmoredUnit()`）: Steel（`STEEL_PER_ARMORED_HEAD = 0.15`）+ Kerosene（`KEROSENE_PER_ARMORED_HEAD = 0.06`）。
+    - `aviation`（`unit.type === "aviation"`、`isAviationUnit()`）: Aluminum（`ALUMINUM_PER_AVIATION_HEAD = 0.2`）+ Kerosene（`KEROSENE_PER_AVIATION_HEAD = 0.08`）。
+    - `fieldArtillery`/`machineGunners`（`unit.requiresTechnology?.id === "modernSteelmaking"`、`needsModernSteel()`）: 既存の Iron/Lead/Gunpowder 需要に加えて Steel（`MODERN_STEEL_PER_HEAD = 0.05`）を追加消費。
+  - `isArmoredUnit()`/`isAviationUnit()`/`needsModernSteel()` はいずれも `unit.type`／`unit.requiresTechnology.id` という構造化データで判定しており、ユニット名の正規表現には依存しない（原則7）。将来ユーザーが Military Options で同じ `type`／`requiresTechnology` を持つカスタムユニットを追加しても自動的に同じ需要がかかる。
+  - Steel/Kerosene/Aluminum の需要は `gunpowderEraEnabled` の早期 return より**前**で計算し、常に評価される（armored/aviation 自体が §4.4 でこのフラグと無関係と確定しているため）。fieldArtillery/machineGunners 由来の分は、火薬無効時はそれらのユニット自体が募兵されない（`gunpowderEra.ts`）ため自然に 0 になる。
+  - `settleMonthly()` の対象リソース一覧も、`gunpowderEraEnabled` の値にかかわらず `steel`/`kerosene`/`aluminum` を常に含めるよう修正した。Good 名ルックアップは既存の `goodsByName.get(resource)`（lowercase 一致）にそのまま乗るため、"iron"/"lead" 用の `" ingot"` サフィックス分岐に手を加える必要はなかった。
+  - 装備は Iron/Lead/Fodder と同じ**毎月の市場直接消費**（`Markets.consumeForMilitary()`）として扱い、Muskets/Arms のような Metallurg 工廠発注＋`plannedU` 休眠編成パターンは適用しなかった（次項参照、計画通り）。
+- **重要な設計変更（実装中に発見）**: 当初は「`isArtillery()` を `=== "artillery"` から `.includes("artillery")` に一括で広げ、`fieldArtillery` も同じ判定に含める」という単純な変更を想定していたが、これは `unstockInitialFirearmForces()`（`initialFirearmsUnstocked` 時に部隊を `plannedU` の休眠枠へ振り替える処理）にも影響することが判明した。`metallurgWork.ts` は**別に定義された独自の** `isArtillery()`（`=== "artillery"` のまま、広げていない）で `plannedU` を再活性化する "Artillery" Good の生産計画を立てるため、`fieldArtillery` を `unstockInitialFirearmForces()` 側だけ広げると、`fieldArtillery` の休眠枠がどちらの生産計画にも一致せず**永久に再活性化されない**という実質的なリグレッションになるところだった（`initialFirearmsUnstocked` を有効にした場合のみ顕在化）。対処として `isArtillery()`（`unstockInitialFirearmForces()` 用、厳密一致のまま）と `isArtilleryLike()`（`getAnnualDemand()` の資材需要集計専用、`includes("artillery")` に広げた版）を分離した。テストでこの区別を固定化済み（下記）。
+- `musketeers`/`artillery` が現在受けている `unstockInitialFirearmForces()`（`plannedU` による装備待ち休眠編成、[militaryResources.ts:97-132](../../src/extensions/economy/generators/militaryResources.ts)）と同じパターンを新ユニットにも適用するかどうかは、計画通り Phase 3 では見送った（上記の通り、うっかり見送りを破るところだったので、テストで固定化した）。
 
 ### Phase 4（バックログ・任意）— Era 8 ロケット砲
 
@@ -292,6 +299,8 @@ for (const unit of military) {
 - **State 間の戦力格差の拡大。** per-State 技術採用モデルはロードマップの意図通り「先進 State と後進 State が同じ Era でも全く違う軍を持つ」ことを許すが、`armored`/`aviation` の power 値（§4.4）が高すぎると、内燃機関を獲得した State が近隣を一方的に蹂躙し外交バランスを崩す可能性がある。Phase 2 で必ず複数 State 間の相対戦力比を確認する。
 - **募兵シェアがゼロになる旧ユニットの UI 上の扱い。** `diffused` で `musketeers` の募兵枠がほぼゼロになると、Military Options の一覧から実質的に消えたように見える。プレイヤーが「ユニットが消えた」と誤解しないよう、Regiments Overview 等で在役中の旧式ユニットは引き続き表示され続けることを明示するか、最低floor（例: 5%）を残すかを Phase 1 実装時に決める。
 - **`aviation` の複合ゲートは `requiresTechnology` 単一フィールドでは表現できない。** §4.4 の通り `passUnitLimits()` 内に type 別の特例が必要になり、スキーマの一貫性がやや崩れる。将来的に3つ目の複合ゲートユニットが必要になった場合は `requiresTechnology` を配列化する再設計を検討する。
+- **`isArtillery()` と `isArtilleryLike()` の混同リスク（Phase 3 実装ログ参照）。** `militaryResources.ts` に名前の似た厳密版・広範版の2つの private メソッドが存在する。将来この2つを見分けずどちらか一方に統一しようとすると、§5 Phase 3 実装ログに書いた「`fieldArtillery` の `plannedU` 休眠枠が永久に再活性化されなくなる」バグを再導入しかねない。両メソッドの doc comment に相互参照を書き、テストでも固定化済みだが、次に触る人は必ず両方の doc comment を読むこと。
+- **Steel/Kerosene/Aluminum の需要と供給のタイミングずれ。** `internalCombustionEngine`/`modernSteelmaking` が `adopted` に到達した直後の State は、まだ市場に十分な Steel/Kerosene/Aluminum 在庫が無い可能性がある（`unmetDemand` として記録されるだけで、Phase 3 では在庫不足時のフォールバックや優先配分は実装していない）。§4.4/§4.3 の技術ゲート自身がある程度供給インフラの先行成立を前提にしている（例: `internalCombustionEngine` の `adopted` 閾値は `refinedFuelAccess: 0.35` を要求する）ため致命的ではないはずだが、実プレイでの `unmetDemand.steel`/`unmetDemand.kerosene`/`unmetDemand.aluminum` の値は確認していない。
 
 ---
 
@@ -299,9 +308,11 @@ for (const unit of military) {
 
 ### 自動テスト
 
-- `military-generator.test.ts`: **実装済み（Phase 1 + Phase 2）。** Phase 1 で5テスト、Phase 2 で5テスト追加。Phase 1 分 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。Phase 2 分 — locked時に armored/aviation とも不在／`internalCombustionEngine` adopted のみで armored 出現・aviation は不在のまま／aviation は複合ゲートの片方だけでは出現しない／両方(adopted + demonstrated)揃うと armored・aviation とも出現／`gunpowderEraEnabled=false` でも armored/aviation は火薬系ユニットと違い不在にならない。既存テストも無変更で green（フルスイート 411ファイル/3246テスト、`tsc --noEmit` ともにクリーン、2026-08-21確認）。
+- `military-generator.test.ts`: **実装済み（Phase 1 + Phase 2）。** Phase 1 で5テスト、Phase 2 で5テスト追加。Phase 1 分 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。Phase 2 分 — locked時に armored/aviation とも不在／`internalCombustionEngine` adopted のみで armored 出現・aviation は不在のまま／aviation は複合ゲートの片方だけでは出現しない／両方(adopted + demonstrated)揃うと armored・aviation とも出現／`gunpowderEraEnabled=false` でも armored/aviation は火薬系ユニットと違い不在にならない。
 - `src/controllers/battle-screen.test.ts`: **新規作成（Phase 2）。** `Battle.prototype` を直接叩く5テストで `defineType()`/`selectPhase()`/`calculateStrength()` の armored/aviation 対応を検証（詳細は §4.4 実装ログ）。
+- `militaryResources.test.ts`: **実装済み（Phase 3）。** 新 `describe` ブロックに4テスト追加 — fieldArtillery/machineGunners/armored/aviation の Steel/Kerosene/Aluminum 需要が期待通りの計算式で出ること・市場在庫が減ること／legacy "artillery" は Steel を消費しないこと／`gunpowderEraEnabled=false` でも armored/aviation の Steel/Kerosene/Aluminum 需要は残ること／**`initialFirearmsUnstocked` 時に fieldArtillery が legacy artillery と違って `plannedU` へ振り替えられないこと**（実装中に見つけた §5 Phase 3 実装ログの回帰ガード）。既存6テストも無変更で green。
 - `technologyProgress.test.ts` への `getTechnologyAdoptionShare()` 専用単体テストは **未追加**（military-generator.test.ts 側の統合テストでカバーしている。既存 `get*Effect()` 系と同型の純関数なので優先度は低い）。
+- フルスイート 411ファイル/3250テスト（Phase 3 分 +4）、`tsc --noEmit`・`biome check` ともにクリーン（2026-08-21確認）。
 
 ### 手動確認手順（未実施 — 次回セッションで確認）
 
@@ -309,3 +320,4 @@ for (const unit of military) {
 2. `ageOfExploration` 以前の開始で、新ユニットが一切出現しない（従来どおり6ユニットのみ）ことを確認する。
 3. Regiments Overview で新ユニットが実際に連隊に編成されていることを確認する。
 4. Battle Screen で `armored`/`aviation` を含む連隊同士を実際に衝突させ、`"air"`/`"landing"` 戦闘種別と `dogfight`/`maneuvering` フェーズが選択されること、UI 上の表示が破綻しないことを確認する（battle-screen.test.ts はロジックのみの検証であり、ダイアログ描画・ユーザー操作フローは未確認）。
+5. armored/aviation/fieldArtillery/machineGunners を編成した State で、Goods Editor または市場画面から Steel/Kerosene/Aluminum の在庫が実際に減っていくこと、`unmetDemand` が異常に張り付き続けないことを確認する（§7 のリスク参照）。
