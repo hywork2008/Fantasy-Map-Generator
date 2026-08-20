@@ -276,7 +276,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                           {unit.obsoletes && (
                             <span
                               style={{ marginLeft: "4px", cursor: "help", opacity: 0.8 }}
-                              title={`Gradually takes over "${unit.obsoletes}"'s recruitment share as this unit's technology adoption grows, per State — "${unit.obsoletes}" is not deleted or removed from standing regiments`}
+                              title={`Gradually takes over ${(Array.isArray(unit.obsoletes) ? unit.obsoletes : [unit.obsoletes]).map(target => `"${target}"`).join(" and ")}'s recruitment share as this unit's technology adoption grows, per State — none of them are deleted or removed from standing regiments`}
                             >
                               ↩️
                             </span>

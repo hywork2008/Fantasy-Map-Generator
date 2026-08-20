@@ -1061,11 +1061,14 @@ export interface MilitaryUnit {
    */
   requiresTechnology?: { id: string; minimum: "known" | "demonstrated" | "adopted" | "diffused" };
   /**
-   * Name of an older unit this one gradually supersedes as `requiresTechnology`'s adoption share
-   * grows (docs/plan/military-era-progression.md §3.3). The obsoleted unit is never deleted or
+   * Name(s) of older unit(s) this one gradually supersedes as `requiresTechnology`'s adoption
+   * share grows (docs/plan/military-era-progression.md §3.3). Accepts a single name or an array —
+   * e.g. riflemen obsoletes both "musketeers" (the unit it's a direct upgrade of) and "archers"
+   * (a separate, older ranged lineage that never had its own obsoletes relationship — see §3.3's
+   * "riflemen also obsoletes archers" addendum). An obsoleted unit is never deleted or
    * force-replaced — only its effective recruitment share shrinks as this unit's share grows.
    */
-  obsoletes?: string;
+  obsoletes?: string | string[];
 }
 
 export interface MilitaryRegiment {

@@ -339,13 +339,26 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
     const adoptedTotals = unitTotals(adoptedState);
 
     expect(adoptedTotals.riflemen ?? 0).toBeGreaterThan(0);
-    // obsoletes: "musketeers" — adopted (share 0.75) leaves musketeers only 25% of what they'd
-    // otherwise be, so the state's musketeer total should drop well below the locked baseline.
+    // obsoletes: ["musketeers", "archers"] — adopted (share 0.75) leaves both only 25% of what
+    // they'd otherwise be, so both totals should drop well below the locked baseline.
     expect(adoptedTotals.musketeers ?? 0).toBeLessThan((lockedTotals.musketeers ?? 0) * 0.5);
+    expect(adoptedTotals.archers ?? 0).toBeLessThan((lockedTotals.archers ?? 0) * 0.5);
     // fieldArtillery/machineGunners are gated on a different technology (modernSteelmaking) and
     // must stay unaffected by standardMachineWorks alone.
     expect(adoptedTotals.fieldArtillery ?? 0).toBe(0);
     expect(adoptedTotals.machineGunners ?? 0).toBe(0);
+  });
+
+  it("nearly eliminates archers once riflemen technology is fully diffused (2026-08-21 user feedback: rocketryEra starts still showed a full archer corps)", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "diffused", diffusion: 1 }
+    ]);
+    const totals = unitTotals(generate(makeBasePack("Enemy")));
+
+    // diffused -> share 1, so archers' modifier is multiplied by (1 - 1) = 0 for this State.
+    expect(totals.riflemen ?? 0).toBeGreaterThan(0);
+    expect(totals.archers ?? 0).toBe(0);
+    expect(totals.musketeers ?? 0).toBe(0);
   });
 
   it("recruits machineGunners once modernSteelmaking is demonstrated, below fieldArtillery's adopted bar", () => {

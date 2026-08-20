@@ -81,6 +81,11 @@ function addUnits(target: Record<string, number>, source: Record<string, number>
   }
 }
 
+/** `unit.obsoletes` accepts a single name or an array (docs/plan/military-era-progression.md §3.3). */
+function obsoletesUnit(unit: MilitaryUnit, unitName: string): boolean {
+  return Array.isArray(unit.obsoletes) ? unit.obsoletes.includes(unitName) : unit.obsoletes === unitName;
+}
+
 interface FieldArmyBucket {
   neighborState: number;
   weight: number;
@@ -389,7 +394,7 @@ class MilitaryModule {
       // s.temp[name] is already set before any of them get scaled down here.
       for (const unit of military) {
         if (s.temp[unit.name] === undefined) continue;
-        const obsoletedBy = military.filter(u => u.obsoletes === unit.name && u.requiresTechnology);
+        const obsoletedBy = military.filter(u => obsoletesUnit(u, unit.name) && u.requiresTechnology);
         if (!obsoletedBy.length) continue;
         const supersededShare = obsoletedBy.reduce(
           (total, u) => total + getTechnologyAdoptionShare(u.requiresTechnology!, s.i),
@@ -1034,9 +1039,17 @@ class MilitaryModule {
         // (era 5's precision-machine-tool node, also reused by internalCombustionEngine) reaching
         // "adopted" is read as "this State can rifle barrels and standardize cartridges". Below
         // that stage the unit is invisible for that State (getTechnologyAdoptionShare returns 0).
-        // `obsoletes: "musketeers"` gradually shifts musketeers' own recruitment share to this
-        // unit as adoption grows, without deleting musketeers or re-equipping standing regiments —
-        // see the "Second pass" block above in generate().
+        // `obsoletes: ["musketeers", "archers"]` gradually shifts both units' recruitment share to
+        // this one as adoption grows, without deleting them or re-equipping standing regiments —
+        // see the "Second pass" block above in generate(). "archers" was added alongside
+        // "musketeers" as a design response to user feedback (2026-08-21, docs/plan/military-era-
+        // progression.md §3.3 addendum): archers never had an obsoletes relationship of their own,
+        // so a rocketryEra start with riflemen everywhere still showed a full, undiminished archer
+        // corps. musketeers itself deliberately still doesn't obsolete archers — musketeers has no
+        // per-State requiresTechnology gate of its own (only the world-level gunpowderEraEnabled
+        // toggle), and obsoletion only fires off an obsoleting unit's own requiresTechnology share,
+        // so archers coexist with early firearms (matchlock-era mixed pike/shot/bow formations were
+        // historically real) and only decline once rifled firearms become the norm.
         icon: "🎯",
         name: "riflemen",
         rural: 0.1,
@@ -1046,7 +1059,7 @@ class MilitaryModule {
         type: "ranged",
         separate: 0,
         requiresTechnology: { id: "standardMachineWorks", minimum: "adopted" },
-        obsoletes: "musketeers"
+        obsoletes: ["musketeers", "archers"]
       },
       {
         icon: "🐴",

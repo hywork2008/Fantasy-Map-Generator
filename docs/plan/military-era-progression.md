@@ -127,7 +127,7 @@ export function getTechnologyAdoptionShare(
 // 同じ valid.forEach(s => {...}) 内、上記ループの直後
 for (const unit of military) {
   if (s.temp[unit.name] === undefined) continue;
-  const obsoletedBy = military.filter(u => u.obsoletes === unit.name && u.requiresTechnology);
+  const obsoletedBy = military.filter(u => obsoletesUnit(u, unit.name) && u.requiresTechnology);
   if (!obsoletedBy.length) continue;
   const supersededShare = obsoletedBy.reduce(
     (total, u) => total + getTechnologyAdoptionShare(u.requiresTechnology!, s.i),
@@ -138,6 +138,8 @@ for (const unit of military) {
 ```
 
 これにより、例えば `riflemen`（`obsoletes: "musketeers"`）が `adopted`（share=0.75）に達した State では、その State の `musketeers` の `s.temp` 値（＝実効募兵倍率）が 25% に減る。**既存の在役連隊からユニットが消えるわけではない** — 新規募兵・自然減耗のサイクルで自然に入れ替わる（既存の `updateDynamic()` の補充ロジックと `manpower.ts` の徴兵サイクルにそのまま乗る）。
+
+**追記（2026-08-21、ユーザーフィードバック対応）**: `obsoletes` は単一ユニット名だけでなく配列も受け付けるよう `string | string[]` に拡張した（`types/models.ts`、`obsoletesUnit()` ヘルパーで判定）。きっかけは「`rocketryEra` 開始で riflemen が大量にいるのに archers（弓兵）が全く減らない」という指摘。`archers` は基本ゲーム（Phase 1 以前）からの独立したユニットで、`musketeers` とは別系統のまま一度も `obsoletes` の対象になったことがなかった — マスケット銃兵自体が per-State の `requiresTechnology` ゲートを持たない（世界単位の `gunpowderEraEnabled` トグルのみ、§1.4 参照）ため、`musketeers` に `obsoletes: "archers"` を後付けすると `musketeers` 自身の解禁挙動まで変えてしまいリグレッションが大きい。代わりに `riflemen`（既に安全な `requiresTechnology` ゲート持ち）を `obsoletes: ["musketeers", "archers"]` に拡張し、精密ライフリングが普及した State でだけ弓兵も一緒に廃れるようにした。初期のマスケット銃兵と弓兵が混成編成のまま共存する期間（史実の pike-and-shot 期にも実際にあった）は残る、という設計判断は意図的なもの。詳細は §4.2 参照。
 
 ---
 
@@ -153,9 +155,9 @@ for (const unit of military) {
 | フィールド | 値 |
 | --- | --- |
 | name | `riflemen` |
-| icon | 🎯（仮） |
+| icon | 🎯 |
 | type | `ranged` |
-| obsoletes | `musketeers` |
+| obsoletes | `["musketeers", "archers"]`（2026-08-21追記 — 元は `musketeers` のみ。§3.3 追記を参照） |
 | requiresTechnology | `{ id: "standardMachineWorks", minimum: "adopted" }` |
 | rural / urban | `0.1` / `0.08`（musketeers と同水準） |
 | crew / power | `1` / `1.6`（Uncalibrated — 要調整） |
@@ -255,6 +257,7 @@ for (const unit of military) {
 - `gunpowderEra.ts` の `FIREARM_UNIT_NAME_PATTERN` に `rifle` を追加。`riflemen` は追加前の正規表現(`arquebus|musketeer|musket|firearm|handgun|gunner`)にマッチしなかったため、`gunpowderEraEnabled=false` でも除外されない不具合になるところだった。`fieldArtillery`(`"machinery"` 型 + 名前に `artillery` を含む)と `machineGunners`(`gunner` に既にマッチ)は既存パターンで自動的に正しく除外される。
 - 既存ユニット・既存テストの回帰確認: `npx vitest run`(フルスイート、410 ファイル / 3236 テスト)と `npx tsc --noEmit` がいずれもクリーン。`historicalPeriod` 未設定(既存テストの前提)では新規3ユニットの技術段階は常に `"locked"` になり、既存ロースターと同じ挙動になることを確認済み。
 - `military-generator.test.ts` にテスト追加(新 `describe` ブロック、5件): ロック時に3ユニットとも現れないこと、`standardMachineWorks` adopted で riflemen が現れ musketeers のシェアが半分未満に縮むこと、`modernSteelmaking` demonstrated で machineGunners のみ現れること、`modernSteelmaking` adopted で fieldArtillery が現れ artillery のシェアが縮むこと、`gunpowderEraEnabled=false` では技術が adopted でも5ユニットとも現れないこと。`beforeEach` で `resetTechnologyProgress()` を呼び、他テストとの技術状態の漏れを防止(`technologyProgress.test.ts` と同じ作法)。
+- **追記（2026-08-21、Phase 1〜4 完了後のユーザーフィードバック対応）**: `riflemen` の `obsoletes` を `"musketeers"` 単体から `["musketeers", "archers"]` の配列へ拡張。詳細・理由は §3.3 の追記と §4.2 の表を参照。
 
 ### Phase 2 — Era 7 ユニット（armored / aviation） と 新 type の実戦投入 ✅ 実装済み（2026-08-21）
 
@@ -314,11 +317,11 @@ for (const unit of military) {
 
 ### 自動テスト
 
-- `military-generator.test.ts`: **実装済み（Phase 1 + Phase 2 + Phase 4）。** Phase 1 で5テスト、Phase 2 で5テスト、Phase 4 で3テスト追加。Phase 1 分 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。Phase 2 分 — locked時に armored/aviation とも不在／`internalCombustionEngine` adopted のみで armored 出現・aviation は不在のまま／aviation は複合ゲートの片方だけでは出現しない／両方(adopted + demonstrated)揃うと armored・aviation とも出現／`gunpowderEraEnabled=false` でも armored/aviation は火薬系ユニットと違い不在にならない。Phase 4 分 — locked時に rocketArtillery が不在／`militarySignalRockets` adopted で rocketArtillery 出現・fieldArtillery 減衰／`gunpowderEraEnabled=false` では fieldArtillery と同様に不在。
+- `military-generator.test.ts`: **実装済み（Phase 1 + Phase 2 + Phase 4 + 追記）。** Phase 1 で5テスト、Phase 2 で5テスト、Phase 4 で3テスト、archers 追記で1テスト追加。Phase 1 分 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。Phase 2 分 — locked時に armored/aviation とも不在／`internalCombustionEngine` adopted のみで armored 出現・aviation は不在のまま／aviation は複合ゲートの片方だけでは出現しない／両方(adopted + demonstrated)揃うと armored・aviation とも出現／`gunpowderEraEnabled=false` でも armored/aviation は火薬系ユニットと違い不在にならない。Phase 4 分 — locked時に rocketArtillery が不在／`militarySignalRockets` adopted で rocketArtillery 出現・fieldArtillery 減衰／`gunpowderEraEnabled=false` では fieldArtillery と同様に不在。追記分 — `standardMachineWorks` diffused（rocketryEra 相当）で archers がほぼゼロになること。
 - `src/controllers/battle-screen.test.ts`: **新規作成（Phase 2）。** `Battle.prototype` を直接叩く5テストで `defineType()`/`selectPhase()`/`calculateStrength()` の armored/aviation 対応を検証（詳細は §4.4 実装ログ）。
 - `militaryResources.test.ts`: **実装済み（Phase 3 + Phase 4）。** `describe` ブロックに Phase 3 で4テスト、Phase 4 で1テスト追加。Phase 3 分 — fieldArtillery/machineGunners/armored/aviation の Steel/Kerosene/Aluminum 需要が期待通りの計算式で出ること・市場在庫が減ること／legacy "artillery" は Steel を消費しないこと／`gunpowderEraEnabled=false` でも armored/aviation の Steel/Kerosene/Aluminum 需要は残ること／**`initialFirearmsUnstocked` 時に fieldArtillery が legacy artillery と違って `plannedU` へ振り替えられないこと**（実装中に見つけた §5 Phase 3 実装ログの回帰ガード）。Phase 4 分 — rocketArtillery が `needsAdvancedSteel()` 経由で Steel を消費し、Kerosene/Aluminum は消費しないこと。既存6テストも無変更で green。
 - `technologyProgress.test.ts` への `getTechnologyAdoptionShare()` 専用単体テストは **未追加**（military-generator.test.ts 側の統合テストでカバーしている。既存 `get*Effect()` 系と同型の純関数なので優先度は低い）。
-- フルスイート 411ファイル/3254テスト、`tsc --noEmit`・`biome check` ともにクリーン（2026-08-21確認、Phase 1〜4 全実装後）。
+- フルスイート 411ファイル/3255テスト、`tsc --noEmit`・`biome check` ともにクリーン（2026-08-21確認、Phase 1〜4 + archers 追記実装後）。
 
 ### 手動確認手順（未実施 — 次回セッションで確認）
 
@@ -328,3 +331,4 @@ for (const unit of military) {
 4. Battle Screen で `armored`/`aviation` を含む連隊同士を実際に衝突させ、`"air"`/`"landing"` 戦闘種別と `dogfight`/`maneuvering` フェーズが選択されること、UI 上の表示が破綻しないことを確認する（battle-screen.test.ts はロジックのみの検証であり、ダイアログ描画・ユーザー操作フローは未確認）。
 5. armored/aviation/fieldArtillery/machineGunners/rocketArtillery を編成した State で、Goods Editor または市場画面から Steel/Kerosene/Aluminum の在庫が実際に減っていくこと、`unmetDemand` が異常に張り付き続けないことを確認する（§7 のリスク参照）。
 6. `artillery`→`fieldArtillery`→`rocketArtillery` の3段階すべてが揃う長寿命 State で、連隊編成が不自然に破綻しない（§5 Phase 4 実装ログの3段階チェーンの挙動どおりになる）ことを確認する。
+7. `rocketryEra` 開始の State で `riflemen` が多数いる一方 `archers` がほぼゼロになっていること（今回のユーザーフィードバックそのもの）を Regiments Overview で目視確認する。
