@@ -1230,7 +1230,14 @@ export const GOODS_DATA: GoodData[] = [
     color: "#a0c8e8",
     value: 6,
     chance: 0,
-    recipes: [{ "White sand": 1, Potash: 0.5 }],
+    // Second recipe: the historically dominant soda-lime formulation once industrial Soda Ash
+    // is available (see Soda Ash's own comment below), alongside the original forest/potash-glass
+    // recipe. requiredTechnology lives on Soda Ash itself, not here, so this alternative simply
+    // has no viable ingredient until chemicalIndustryFoundation is adopted somewhere.
+    recipes: [
+      { "White sand": 1, Potash: 0.5 },
+      { "White sand": 1, "Soda Ash": 0.5 }
+    ],
     unit: "wain",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Nomadic: 0.2 } }
@@ -1261,6 +1268,22 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ "Volcanic Ash": 1, Lime: 1 }],
     unit: "pallet",
     demandCoverage: { construction: 1 }
+  },
+  {
+    // Slaking: quicklime (Lime above) plus water yields calcium hydroxide. Water itself has no
+    // Good — same "not every real-world input needs a market stock" treatment Lime's own recipe
+    // gives Stone's firing fuel. Feeds Bleaching Powder below (Chlorine's first real downstream
+    // consumer) as well as mortar/soil-treatment uses folded into the construction tag.
+    name: "Slaked Lime",
+    warEconomyType: "strategic",
+    tags: ["industrial", "construction"],
+    icon: "good-clay",
+    color: "#f0ece0",
+    value: 3,
+    chance: 0,
+    recipes: [{ Lime: 1 }],
+    unit: "sack",
+    demandCoverage: {}
   },
   {
     name: "Ropes",
@@ -1902,10 +1925,14 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e0e4cc",
     value: 6,
     chance: 0,
+    // Fourth recipe: hard/curd soap once industrial Caustic Soda is available (see its own
+    // comment above) — NaOH is a stronger saponifying alkali than wood-ash Potash, hence the
+    // lower ratio, alongside the three existing Potash soft-soap recipes.
     recipes: [
       { Olives: 1, Potash: 0.3 },
       { Cattle: 1, Potash: 0.3 },
-      { Tallow: 1, Potash: 0.3 }
+      { Tallow: 1, Potash: 0.3 },
+      { Tallow: 1, "Caustic Soda": 0.15 }
     ],
     unit: "barrel",
     demandCoverage: { utilities: 0.4, luxury: 0.6 }
@@ -2668,6 +2695,24 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "catalyticChemistry"
   },
   {
+    // The "bleach consumers" slice Chlorine's comment above deferred: slaking Lime into Slaked
+    // Lime and passing Chlorine gas through it yields calcium hypochlorite, the 19th-century
+    // textile/paper bleaching and water-treatment product — Chlorine's first real downstream
+    // consumer beyond its own plant loop. Kept as a directly-demanded utilities good rather than
+    // rewriting Cloth/Linen/Paper's own recipes, which would ripple into their existing balance.
+    name: "Bleaching Powder",
+    warEconomyType: "strategic",
+    tags: ["industrial"],
+    icon: "good-unknown",
+    color: "#e8e8e0",
+    value: 30,
+    chance: 0,
+    recipes: [{ Chlorine: 1, "Slaked Lime": 1 }],
+    unit: "barrel",
+    demandCoverage: { utilities: 0.1 },
+    requiredTechnology: "catalyticChemistry"
+  },
+  {
     name: "Coal Tar",
     warEconomyType: "strategic",
     tags: ["industrial", "fuel"],
@@ -2676,6 +2721,44 @@ export const GOODS_DATA: GoodData[] = [
     value: 6,
     chance: 0,
     recipes: [{ Coke: 1.2 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Leblanc process (1791): Salt roasted with Sulfuric Acid and burnt with Lime and Coal
+    // yields soda ash, compressing the historical two furnace stages (salt-cake, then black-ash)
+    // into one recipe — same abstraction level Sulfuric Acid/Chlorine above already use for
+    // their own multi-step processes. The intermediate sodium sulfate ("salt cake") stays
+    // implicit rather than becoming its own Good, for the same reason. Feeds a second Glass
+    // recipe below (the historically dominant soda-lime formulation, vs. Glass's existing
+    // Potash-based forest/potash-glass recipe) and Caustic Soda's causticization step.
+    name: "Soda Ash",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#d8d4c0",
+    value: 9,
+    chance: 0,
+    recipes: [{ Salt: 1, Lime: 0.3, Coal: 0.3, "Sulfuric Acid": 0.1 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "chemicalIndustryFoundation"
+  },
+  {
+    // Causticization: Soda Ash boiled with Slaked Lime swaps calcium and sodium hydroxides,
+    // precipitating out calcium carbonate and leaving Caustic Soda in solution — the historical
+    // route to NaOH before the chlor-alkali electrolysis ChlorinePlants' design notes deferred
+    // (chlorinePlants.ts). Feeds a second Soap recipe below (hard/curd soap, vs. Soap's existing
+    // Potash-based soft-soap recipe).
+    name: "Caustic Soda",
+    warEconomyType: "strategic",
+    tags: ["industrial", "mineral"],
+    icon: "good-unknown",
+    color: "#eae6da",
+    value: 13,
+    chance: 0,
+    recipes: [{ "Soda Ash": 1, "Slaked Lime": 0.3 }],
     unit: "barrel",
     demandCoverage: {},
     requiredTechnology: "chemicalIndustryFoundation"
