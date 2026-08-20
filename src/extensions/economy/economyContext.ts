@@ -52,6 +52,7 @@ import {
   LODGING_STYLES,
   type LodgingStyle
 } from "./generators/innFacilityTypes";
+import type { Levee, LeveeSite } from "./generators/leveeTypes";
 import type { FlowCycleSnapshot } from "./generators/marketFlowTypes";
 import type {
   Caravan,
@@ -181,6 +182,7 @@ let _mercuryPlantsLastSettledYearFallback: number | null = null;
 let _oilRefineryPlantsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _damsLastSettledYearFallback: number | null = null;
+let _leveesLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -252,6 +254,7 @@ export function clearEconomyContext(): void {
   _oilRefineryPlantsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
   _damsLastSettledYearFallback = null;
+  _leveesLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1490,6 +1493,20 @@ export function getDams(): Dam[] {
 export function setDams(rows: readonly Dam[]): void {
   setSliceArray("dams", rows);
 }
+/** Same shape as getDamSites. Design: docs/plan/river-levee-and-flood-damage.md §3. */
+export function getLeveeSites(): LeveeSite[] {
+  return getSliceArray<LeveeSite>("leveeSites");
+}
+export function setLeveeSites(rows: readonly LeveeSite[]): void {
+  setSliceArray("leveeSites", rows);
+}
+/** Same shape as getDams. Design: docs/plan/river-levee-and-flood-damage.md §3. */
+export function getLevees(): Levee[] {
+  return getSliceArray<Levee>("levees");
+}
+export function setLevees(rows: readonly Levee[]): void {
+  setSliceArray("levees", rows);
+}
 /** Same shape as getPowerStations. Design: docs/plan/electrolytic-industry-vertical-slice.md §3.7. */
 export function getElectrolysisPlants(): ElectrolysisPlant[] {
   return getSliceArray<ElectrolysisPlant>("electrolysisPlants");
@@ -1705,6 +1722,15 @@ export function getDamsLastSettledYear(): number | null {
 export function setDamsLastSettledYear(year: number): void {
   writeYearToSlice("damsLastSettledYear", year, value => {
     _damsLastSettledYearFallback = value;
+  });
+}
+/** Guards Levees.settleAnnual(). Design: docs/plan/river-levee-and-flood-damage.md §3. */
+export function getLeveesLastSettledYear(): number | null {
+  return yearFromSlice("leveesLastSettledYear", _leveesLastSettledYearFallback);
+}
+export function setLeveesLastSettledYear(year: number): void {
+  writeYearToSlice("leveesLastSettledYear", year, value => {
+    _leveesLastSettledYearFallback = value;
   });
 }
 
@@ -2357,4 +2383,8 @@ export function getMineralDepositsLayer() {
 
 export function getDamsLayer() {
   return getApi().getSvgLayer("dams");
+}
+
+export function getLeveesLayer() {
+  return getApi().getSvgLayer("levees");
 }

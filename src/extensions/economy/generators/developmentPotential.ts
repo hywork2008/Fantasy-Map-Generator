@@ -14,6 +14,7 @@ import {
   getCultivatedArea,
   getFarmLaborRequired,
   getFieldDrainage,
+  getFloodProtection,
   getFloweringForageArea,
   getFoodPotential,
   getGoods,
@@ -361,6 +362,7 @@ export class DevelopmentPotentialModule {
       setIrrigationConveyanceEfficiency(new Float32Array(cellCount));
     }
     if (getFieldDrainage().length !== cellCount) setFieldDrainage(new Float32Array(cellCount));
+    if (getFloodProtection().length !== cellCount) setFloodProtection(new Float32Array(cellCount));
     return {
       cropGoods: getGoods().filter(good => Boolean(good.crop) && isGoodEnabled(good)),
       soilFertilityByCell: getSoilFertility(),
@@ -369,6 +371,7 @@ export class DevelopmentPotentialModule {
       irrigationDevelopmentByCell: getIrrigationDevelopment(),
       irrigationConveyanceEfficiencyByCell: getIrrigationConveyanceEfficiency(),
       fieldDrainageByCell: getFieldDrainage(),
+      floodProtectionByCell: getFloodProtection(),
       fertilizerStockByCell: resolveFertilizerStockByCell(cellCount),
       nitrogenFertilizerStockByCell: resolveNitrogenFertilizerStockByCell(cellCount)
     };

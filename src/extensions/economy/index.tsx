@@ -139,6 +139,8 @@ import type { IncrementalBatchOptions } from "./generators/incrementalBatching";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
 import { InnStays } from "./generators/innStays";
+import { LeveeSites } from "./generators/leveeSites";
+import { Levees } from "./generators/levees";
 import { clearLiveAnimalCatchAccumulators } from "./generators/liveAnimalCatch";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
@@ -239,6 +241,7 @@ import {
   getCaravansAtPoint
 } from "./renderers/draw-trade-animation";
 import { drawDams } from "./renderers/drawDams";
+import { drawLevees } from "./renderers/drawLevees";
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
@@ -364,6 +367,14 @@ export const economyLayers: LayerConfig[] = [
     tooltip:
       "Dams: State-built river dams for flood control and (once electrified) hydroelectric power. Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "dams", insertBefore: "icons", display: "none" }]
+  },
+  {
+    id: "toggleLevees",
+    name: "Levees",
+    shortcut: null,
+    tooltip:
+      "Levees: State-built embankments protecting high-hazard river reaches from flooding. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "levees", insertBefore: "icons", display: "none" }]
   }
 ];
 
@@ -1037,6 +1048,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         // docs/plan/dam-flood-control-and-hydropower.md §3.
         DamSites.generate();
         Dams.clear(); // Discard Dams built on the old site ids before they're regenerated.
+        // Same rationale as DamSites (docs/plan/river-levee-and-flood-damage.md §3.2).
+        LeveeSites.generate();
+        Levees.clear(); // Discard Levees built on the old site ids before they're regenerated.
       }
       if (value.target === "economy" || value.target === "markets") {
         Markets.generate(true);
@@ -1444,6 +1458,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       MineralResources.clear();
       DamSites.clear();
       Dams.clear();
+      LeveeSites.clear();
+      Levees.clear();
       Minting.clear();
       MilitaryResources.clear();
       TradeSecurity.clear();
@@ -2389,6 +2405,9 @@ export function init(api: ExtensionAPI): void {
           // Deterministic river-siting scan (docs/plan/dam-flood-control-and-hydropower.md §3).
           DamSites.generate();
           Dams.clear();
+          // Same rationale (docs/plan/river-levee-and-flood-damage.md §3.2).
+          LeveeSites.generate();
+          Levees.clear();
           // Goods before DevelopmentPotential (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase
           // B follow-up): DevelopmentPotential.generate() -> storeAgriculture() ->
           // allocateRuralOccupations() calls calculateHusbandryDemand()/calculateViticultureDemand(),
@@ -3026,6 +3045,10 @@ export function init(api: ExtensionAPI): void {
         // starting next year, the same one-year lag PowerStations already has.
         // docs/plan/dam-flood-control-and-hydropower.md §3.
         Dams.settleAnnual();
+        // Stone/Timber founding/upkeep, no electrification stage. Runs right after Dams so its
+        // floodProtectionByCell floor is applied on top of both Dams' and AgTechInvestment's
+        // writes earlier in this same tick. docs/plan/river-levee-and-flood-damage.md §3.
+        Levees.settleAnnual();
         // Reads this year's Market.electricityStock, already written by PowerGridInvestment
         // earlier in this same annual tick (investment block runs before this production block).
         // Alumina/Coke/Firebrick consumption is independent of the other era-6 plants above.
@@ -3197,6 +3220,7 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleTrade", () => document.getElementById("tradeAnimation"));
   api.registerLayerElement("toggleMineralDeposits", () => document.getElementById("mineralDeposits"));
   api.registerLayerElement("toggleDams", () => document.getElementById("dams"));
+  api.registerLayerElement("toggleLevees", () => document.getElementById("levees"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -3364,6 +3388,21 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("toggleLevees", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleLevees")) {
+      api.turnLayerOn("toggleLevees");
+      if (api.viewContext.renderMode === "webglHybrid") {
+        api.getSvgLayer("levees")?.style("display", "none");
+        api.requestWebglRender();
+        return;
+      }
+      drawLevees();
+    } else {
+      api.getSvgLayer("levees")?.html("");
+      api.turnLayerOff("toggleLevees");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // The economy tick publishes extension.economy on every simulated day. A
@@ -3383,6 +3422,7 @@ export function init(api: ExtensionAPI): void {
       api.getSvgLayer("marketsLayer")?.style("display", "none");
       api.getSvgLayer("mineralDeposits")?.style("display", "none");
       api.getSvgLayer("dams")?.style("display", "none");
+      api.getSvgLayer("levees")?.style("display", "none");
       api.requestWebglRender();
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
@@ -3391,6 +3431,7 @@ export function init(api: ExtensionAPI): void {
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
     if (api.layerIsOn("toggleMineralDeposits")) drawMineralDeposits();
     if (api.layerIsOn("toggleDams")) drawDams();
+    if (api.layerIsOn("toggleLevees")) drawLevees();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });
 }

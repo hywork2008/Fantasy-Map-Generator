@@ -444,6 +444,9 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     // docs/plan/dam-flood-control-and-hydropower.md §3.
     "damSites",
     "dams",
+    // docs/plan/river-levee-and-flood-damage.md §3.
+    "leveeSites",
+    "levees",
     // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
     "electrolysisPlants",
     // docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7.

@@ -515,4 +515,51 @@ describe("agricultural land use", () => {
     expect(surplusShare).toBeLessThan(0.5);
     expect(surplusShare).toBeGreaterThanOrEqual(0);
   });
+
+  // docs/plan/river-levee-and-flood-damage.md §3.4 — floodProtectionByCell (Dam/Levee/
+  // AgTechInvestment) discounts the background natural-flood-hazard yield drag. createWorld()'s
+  // h=30 cells already carry a nonzero hazard (moderate lowLand exposure) even without a river, so
+  // no dedicated flood-prone fixture is needed to exercise it.
+  it("treats an omitted floodProtectionByCell the same as an explicit all-zero one", () => {
+    const world = createWorld();
+    const omitted = calculateAgriculturalLandProfile(world, undefined, undefined, {}, {});
+    const explicitZero = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        floodProtectionByCell: new Float32Array(2)
+      }
+    );
+
+    expect(explicitZero.foodPotential).toEqual(omitted.foodPotential);
+  });
+
+  it("raises yield as floodProtectionByCell rises, monotonically toward full protection", () => {
+    const world = createWorld();
+    const none = calculateAgriculturalLandProfile(world, undefined, undefined, {}, {});
+    const half = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        floodProtectionByCell: new Float32Array([0.5, 0.5])
+      }
+    );
+    const full = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        floodProtectionByCell: new Float32Array([1, 1])
+      }
+    );
+
+    expect(half.yieldPerArea[0]).toBeGreaterThan(none.yieldPerArea[0]);
+    expect(full.yieldPerArea[0]).toBeGreaterThan(half.yieldPerArea[0]);
+    expect(full.foodPotential[0]).toBeGreaterThan(none.foodPotential[0]);
+  });
 });

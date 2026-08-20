@@ -17,6 +17,7 @@ import {
 } from "../../hostCore";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import { getLatitude } from "../../hostUtils";
+import { computeNaturalFloodRisk } from "./floodHazard";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
 
@@ -103,6 +104,13 @@ export const FOUR_COURSE_SOIL_RESTORATION_BONUS = 0.015;
 /** Relative annual water supplied by one generated river-flux unit. Calibration is intentionally map-relative. */
 export const IRRIGATION_ANNUAL_WATER_PER_FLUX = 30;
 export const RIVER_ENVIRONMENTAL_FLOW_RESERVE = 0.55;
+/**
+ * calibration TBD — same order of magnitude as the salinity yield penalty below. Worst case (a
+ * fully unprotected cell at maximum natural flood hazard) loses this share of yield every year as
+ * a continuous background drag, not a discrete flood event. Dam/Levee/AgTechInvestment all raise
+ * floodProtectionByCell and shrink this drag toward 0. See docs/plan/river-levee-and-flood-damage.md §3.4.
+ */
+export const FLOOD_YIELD_DAMAGE_SEVERITY = 0.35;
 const MIN_SOIL_FERTILITY = 0.55;
 const MAX_SOIL_FERTILITY = 1.1;
 
@@ -127,6 +135,12 @@ export interface AgriculturalConditions {
   readonly irrigationConveyanceEfficiencyByCell?: Float32Array;
   /** Separate from irrigation: controls salt leaching and waterlogging only. */
   readonly fieldDrainageByCell?: Float32Array;
+  /**
+   * 0..1 flood-control investment level (Dam/Levee/AgTechInvestment water works) that discounts
+   * the background flood-hazard yield drag in calculateClimateYield(). See §3.4 of
+   * docs/plan/river-levee-and-flood-damage.md.
+   */
+  readonly floodProtectionByCell?: Float32Array;
   /**
    * Market-purchased Phosphate Fertilizer adoption coverage, resolved to cells by
    * DevelopmentPotential from Market.fertilizerStock — same shape as fourCourseRotationByCell.
@@ -1065,9 +1079,22 @@ function calculateClimateYield(
   const salinity = conditions.irrigationSalinityByCell?.[cellId] ?? 0;
   const soilFertilityFactor = Math.max(0.7, 1 - (1 - fertility) * 0.5);
   const salinityFactor = Math.max(0.35, 1 - salinity * 0.65);
+  const floodHazard = computeNaturalFloodRisk({
+    cellId,
+    cells: world.pack.cells,
+    biomesTags: world.biomesData?.tags,
+    gridPrec: world.grid?.cells.prec
+  });
+  const floodProtection = conditions.floodProtectionByCell?.[cellId] ?? 0;
+  const floodFactor = 1 - floodHazard * (1 - floodProtection) * FLOOD_YIELD_DAMAGE_SEVERITY;
   return Math.max(
     0,
-    temperatureFactor * areaWeightedPrecipitationFactor * cropFactor * soilFertilityFactor * salinityFactor
+    temperatureFactor *
+      areaWeightedPrecipitationFactor *
+      cropFactor *
+      soilFertilityFactor *
+      salinityFactor *
+      floodFactor
   );
 }
 

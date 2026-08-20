@@ -29,6 +29,7 @@ import {
   setUrbanWaterSystems
 } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { computeNaturalFloodRisk } from "./floodHazard";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
@@ -265,11 +266,12 @@ export function readBurgWaterGeography(args: {
   // Height units are 0–100 style; ~8+ points of relief is strong local slope.
   const slopeAdvantage = clamp01(maxDrop / 12);
 
-  const lowLand = clamp01((40 - height) / 25);
-  const fluxRisk = clamp01(Math.log1p(riverFlux) / 8);
-  const wetRisk = isWetland ? 0.45 : 0;
-  const rainRisk = clamp01((precipitation - 30) / 80);
-  const naturalFloodRisk = clamp01(0.35 * lowLand + 0.3 * fluxRisk + 0.25 * wetRisk + 0.2 * rainRisk);
+  const naturalFloodRisk = computeNaturalFloodRisk({
+    cellId,
+    cells,
+    biomesTags: args.biomesTags,
+    gridPrec: args.gridPrec
+  });
 
   const irrigationPotential = isDry ? (hasRiver ? 0.75 : 0.15) : hasRiver ? 0.45 : isWetland ? 0.2 : 0.3;
 

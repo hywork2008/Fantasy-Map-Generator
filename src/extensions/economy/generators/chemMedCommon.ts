@@ -52,6 +52,11 @@ export const ELECTROLYSIS_PLANT_BUDGET = 42;
  */
 export const DAM_BUDGET = 26;
 /**
+ * calibration TBD — lower than DAM_BUDGET(26). An earthwork embankment with timber revetment has
+ * no intake works or generator to fund, unlike a weir/dam. See docs/plan/river-levee-and-flood-damage.md §3.
+ */
+export const LEVEE_BUDGET = 10;
+/**
  * calibration TBD — sits between STEEL_CONVERTER_PLANT_BUDGET(32) and POWER_STATION_BUDGET(36),
  * above CHLORINE_PLANT_BUDGET(26): brine electrolysis is a genuinely new electrochemical process
  * (not "built alongside an existing acid works" the way the Deacon-process ChlorinePlants is),
