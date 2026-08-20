@@ -259,6 +259,7 @@ export interface PopulationLossDeathTotals {
   combat: number;
   famine: number;
   natural: number;
+  disease: number;
   other: number;
   total: number;
 }

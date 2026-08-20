@@ -829,6 +829,7 @@ class BurgModule {
       // Civic-condition simulation has not started yet; every new settlement begins neutral.
       burg.security = 50;
       burg.sanitation = 50;
+      burg.waterSecurity = 50;
       // The live simulation clock does not exist yet at this point in generation
       // (initSimulationClock() runs after core generation); the world's declared
       // starting year is the correct "founded" date for every initial Burg.

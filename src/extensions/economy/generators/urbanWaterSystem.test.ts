@@ -29,7 +29,8 @@ import {
   sanitationScoreFromSystem,
   settleBurgWaterInvestment,
   UrbanWater,
-  WATER_PROJECT_URGENCY_THRESHOLD
+  WATER_PROJECT_URGENCY_THRESHOLD,
+  waterSecurityScoreFromSystem
 } from "./urbanWaterSystem";
 import type { UrbanWaterSystem } from "./urbanWaterTypes";
 
@@ -471,6 +472,30 @@ describe("computeUrbanWaterSystem", () => {
     expect(score).toBeLessThanOrEqual(100);
   });
 
+  it("computes waterSecurityScoreFromSystem independently of sanitationBurden/floodExposure/odor", () => {
+    const base = { drinkingWaterSecurity: 0.8, waterContamination: 0.1 } as UrbanWaterSystem;
+    const goodWater = waterSecurityScoreFromSystem(base);
+    expect(goodWater).toBeCloseTo(0.8 * 60 + (1 - 0.1) * 40, 4); // 84
+
+    // Changing sanitationBurden/floodExposure/odor (sanitationScoreFromSystem's other inputs)
+    // must not move waterSecurityScoreFromSystem at all.
+    const worseElsewhere = {
+      ...base,
+      sanitationBurden: 1,
+      floodExposure: 1,
+      odor: 1,
+      healthPressure: 1
+    } as UrbanWaterSystem;
+    expect(waterSecurityScoreFromSystem(worseElsewhere)).toBe(goodWater);
+  });
+
+  it("keeps waterSecurityScoreFromSystem within 0-100", () => {
+    const worst = { drinkingWaterSecurity: 0, waterContamination: 1 } as UrbanWaterSystem;
+    const best = { drinkingWaterSecurity: 1, waterContamination: 0 } as UrbanWaterSystem;
+    expect(waterSecurityScoreFromSystem(worst)).toBe(0);
+    expect(waterSecurityScoreFromSystem(best)).toBe(100);
+  });
+
   it("preserves tier when previous is provided", () => {
     const first = computeUrbanWaterSystem({
       burg: burg({ population: 10, capital: 1, market: 1 }),
@@ -766,6 +791,11 @@ describe("UrbanWater module", () => {
     expect(burgs[1]!.sanitation).toBe(sanitationScoreFromSystem(riverCity));
     expect(worldContext.pack.provinces![0].sanitation).not.toBe(50);
     expect(worldContext.pack.states![0].sanitation).not.toBe(50);
+
+    // Same civic-score rollup, independent water-specific channel (§3.1).
+    expect(burgs[1]!.waterSecurity).toBe(waterSecurityScoreFromSystem(riverCity));
+    expect(typeof worldContext.pack.provinces![0].waterSecurity).toBe("number");
+    expect(typeof worldContext.pack.states![0].waterSecurity).toBe("number");
   });
 
   it("settleAnnual is once-per-year and can invest under demand", () => {

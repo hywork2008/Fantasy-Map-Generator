@@ -107,7 +107,7 @@ export const PopulationOverviewDialog: React.FC = () => {
     const rows = states
       .filter(s => s.i && !s.removed)
       .map(s => {
-        const d = deaths.get(s.i) ?? { combat: 0, famine: 0, natural: 0, other: 0, total: 0 };
+        const d = deaths.get(s.i) ?? { combat: 0, famine: 0, natural: 0, disease: 0, other: 0, total: 0 };
         return {
           id: s.i,
           name: s.name,
@@ -116,6 +116,7 @@ export const PopulationOverviewDialog: React.FC = () => {
           combat: d.combat,
           famine: d.famine,
           natural: d.natural,
+          disease: d.disease,
           other: d.other,
           total: d.total
         };
@@ -130,11 +131,12 @@ export const PopulationOverviewDialog: React.FC = () => {
         acc.combat += r.combat;
         acc.famine += r.famine;
         acc.natural += r.natural;
+        acc.disease += r.disease;
         acc.other += r.other;
         acc.total += r.total;
         return acc;
       },
-      { combat: 0, famine: 0, natural: 0, other: 0, total: 0 }
+      { combat: 0, famine: 0, natural: 0, disease: 0, other: 0, total: 0 }
     );
   }, [deathRows]);
 
@@ -249,6 +251,9 @@ export const PopulationOverviewDialog: React.FC = () => {
               </span>
               <span>
                 {t("dialogs.population.natural")}: {fmt(deathTotals.natural)}
+              </span>
+              <span>
+                {t("dialogs.population.disease")}: {fmt(deathTotals.disease)}
               </span>
               <span>
                 {t("dialogs.population.other")}: {fmt(deathTotals.other)}
@@ -466,6 +471,14 @@ export const PopulationOverviewDialog: React.FC = () => {
                     numeric
                   />
                   <SortableHeader
+                    label={t("dialogs.population.disease")}
+                    field="disease"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
                     label={t("dialogs.population.other")}
                     field="other"
                     sortBy={sortBy}
@@ -502,6 +515,7 @@ export const PopulationOverviewDialog: React.FC = () => {
                     <td className="total numeric">{fmt(r.combat)}</td>
                     <td className="total numeric">{fmt(r.famine)}</td>
                     <td className="total numeric">{fmt(r.natural)}</td>
+                    <td className="total numeric">{fmt(r.disease)}</td>
                     <td className="total numeric">{fmt(r.other)}</td>
                     <td className="total numeric">
                       <strong>{fmt(r.total)}</strong>

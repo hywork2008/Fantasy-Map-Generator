@@ -23,8 +23,12 @@ export const HEALTH_FULL = 100;
 export const SANITATION_DEFAULT = 50;
 /** Neutral medical-care civic score (matches the host Burg.medicalCare seed). */
 export const MEDICAL_CARE_DEFAULT = 50;
+/** Neutral water-security score (matches the host Burg.waterSecurity seed). */
+export const WATER_SECURITY_DEFAULT = 50;
 /** Local sanitation at/above this carries no elevated disease risk. */
 export const SANITATION_SAFE_THRESHOLD = 60;
+/** Local water security at/above this carries no elevated waterborne-disease risk. */
+export const WATER_SECURITY_SAFE_THRESHOLD = 55;
 /** Max permanent drag on the unafflicted health target from chronic exposure to squalor. */
 export const CHRONIC_HEALTH_DRAG_MAX = 20;
 /** Annual base infection probability scale at maximum sanitation pressure and average vulnerability. */
@@ -89,12 +93,22 @@ interface AfflictionDef {
   readonly label: string;
   /** 0 = age/ambient driven only, 1 = fully sanitation-driven. */
   readonly sanitationWeight: number;
+  /**
+   * 0 (default, omit) = no water-specific component; the remaining 1 - sanitationWeight stays
+   * fully ambient, same as before this field existed. >0 = blends in waterSecurity pressure,
+   * taking its share out of the ambient remainder — see diseasePressure(). Design:
+   * docs/plan/epidemic-cholera-and-water-security.md §3.2.
+   */
+  readonly waterWeight?: number;
   /** Relative pick weight among afflictions that pass their gate. */
   readonly pickWeight: number;
   /** Multiplies SEVERITY_DEATH_RISK_PER_YEAR for this disease. */
   readonly deathRiskMultiplier: number;
   /** Only rollable when local sanitation is at/below this (0–100); undefined = no gate. */
   readonly requiresSanitationBelow?: number;
+  /** Only rollable when local water security is at/below this (0–100); undefined = no gate.
+   *  Independent of requiresSanitationBelow — a disease can gate on one, the other, or both. */
+  readonly requiresWaterSecurityBelow?: number;
 }
 
 /** Disease catalog — see docs/plan/characters/character-health-and-disease.md §2.2. */
@@ -117,7 +131,27 @@ export const AFFLICTION_CATALOG: Readonly<Record<AfflictionKind, AfflictionDef>>
     deathRiskMultiplier: 1.8,
     requiresSanitationBelow: 25
   },
-  wasting: { id: "wasting", label: "Wasting sickness", sanitationWeight: 0.15, pickWeight: 1, deathRiskMultiplier: 1.1 }
+  wasting: {
+    id: "wasting",
+    label: "Wasting sickness",
+    sanitationWeight: 0.15,
+    pickWeight: 1,
+    deathRiskMultiplier: 1.1
+  },
+  /**
+   * Waterborne — deliberately gated on water security alone (no requiresSanitationBelow): a burg
+   * can keep decent general upkeep yet still have a contaminated drinking-water supply, and that
+   * alone should be able to trigger cholera. See docs/plan/epidemic-cholera-and-water-security.md §4 decision 1.
+   */
+  cholera: {
+    id: "cholera",
+    label: "Cholera",
+    sanitationWeight: 0.3,
+    waterWeight: 0.7,
+    pickWeight: 2,
+    deathRiskMultiplier: 1.6, // calibration TBD — between flux and plague, a severe acute waterborne illness
+    requiresWaterSecurityBelow: 55
+  }
 };
 
 /** `character.health`, defaulting to full health when never simulated (old saves/fixtures). */
@@ -150,6 +184,29 @@ export function resolveCharacterSanitation(
   if (state && typeof state.sanitation === "number") return state.sanitation;
 
   return SANITATION_DEFAULT;
+}
+
+/**
+ * Resolve the local drinking-water quality score (0–100): burg → state → 50. Independent of
+ * resolveCharacterSanitation() — see the AfflictionDef.waterWeight doc comment.
+ * Design: docs/plan/epidemic-cholera-and-water-security.md §3.2.
+ */
+export function resolveCharacterWaterSecurity(
+  character: Pick<Character, "location" | "state" | "nationalityStateId">
+): number {
+  if (!hasCharactersContext()) return WATER_SECURITY_DEFAULT;
+  const { pack } = getWorldContext();
+
+  if (character.location !== undefined) {
+    const burg = pack.burgs?.[character.location];
+    if (burg && !burg.removed && typeof burg.waterSecurity === "number") return burg.waterSecurity;
+  }
+
+  const stateId = character.nationalityStateId ?? character.state;
+  const state = pack.states?.[stateId];
+  if (state && typeof state.waterSecurity === "number") return state.waterSecurity;
+
+  return WATER_SECURITY_DEFAULT;
 }
 
 /**
@@ -232,18 +289,26 @@ function rollPerYear(probabilityPerYear: number, deltaYears: number): boolean {
 
 /**
  * How strongly this disease presses on a character right now: a sanitation-driven term
- * (0 at/above SANITATION_SAFE_THRESHOLD) blended with a small ambient/age-driven term so
- * chronic, non-sanitation illnesses (wasting sickness in elders) can still occur in clean cities.
+ * (0 at/above SANITATION_SAFE_THRESHOLD), an optional water-security-driven term (0 at/above
+ * WATER_SECURITY_SAFE_THRESHOLD, for waterWeight > 0 diseases like cholera), and a small
+ * ambient/age-driven term so chronic, non-sanitation illnesses (wasting sickness in elders) can
+ * still occur in clean cities. When waterWeight is omitted (the pre-cholera diseases), this
+ * reduces exactly to the original two-term blend — see docs/plan/epidemic-cholera-and-water-security.md §3.2.
  */
-function diseasePressure(def: AfflictionDef, sanitation: number, isElder: boolean): number {
+function diseasePressure(def: AfflictionDef, sanitation: number, waterSecurity: number, isElder: boolean): number {
   const sanitationPressure = normalize(SANITATION_SAFE_THRESHOLD - sanitation, 0, SANITATION_SAFE_THRESHOLD);
+  const waterPressure = normalize(WATER_SECURITY_SAFE_THRESHOLD - waterSecurity, 0, WATER_SECURITY_SAFE_THRESHOLD);
   const ambientPressure = def.id === "wasting" && isElder ? 0.5 : 0.05;
-  return def.sanitationWeight * sanitationPressure + (1 - def.sanitationWeight) * ambientPressure;
+  const waterWeight = def.waterWeight ?? 0;
+  const ambientWeight = Math.max(0, 1 - def.sanitationWeight - waterWeight);
+  return def.sanitationWeight * sanitationPressure + waterWeight * waterPressure + ambientWeight * ambientPressure;
 }
 
-function eligibleAfflictions(sanitation: number): AfflictionDef[] {
+function eligibleAfflictions(sanitation: number, waterSecurity: number): AfflictionDef[] {
   return Object.values(AFFLICTION_CATALOG).filter(
-    def => def.requiresSanitationBelow === undefined || sanitation <= def.requiresSanitationBelow
+    def =>
+      (def.requiresSanitationBelow === undefined || sanitation <= def.requiresSanitationBelow) &&
+      (def.requiresWaterSecurityBelow === undefined || waterSecurity <= def.requiresWaterSecurityBelow)
   );
 }
 
@@ -276,6 +341,7 @@ export function advanceCharacterHealth(deltaYears: number): void {
     if (character.dead) continue;
 
     const sanitation = resolveCharacterSanitation(character);
+    const waterSecurity = resolveCharacterWaterSecurity(character);
     const { multiplier, isElder } = characterVulnerability(character);
     const currentHealth = getCharacterHealth(character);
 
@@ -315,13 +381,13 @@ export function advanceCharacterHealth(deltaYears: number): void {
         ? Math.min(target, currentHealth + recovery)
         : Math.max(target, currentHealth - recovery * 0.3); // settles down slowly if sanitation just worsened
 
-    // Roll for a new infection across all sanitation-gate-eligible diseases at once.
+    // Roll for a new infection across all sanitation/water-gate-eligible diseases at once.
     const { infectionScale } = medicalCareScales(character);
-    const weighted = eligibleAfflictions(sanitation).map(def => ({
+    const weighted = eligibleAfflictions(sanitation, waterSecurity).map(def => ({
       def,
       chance:
         BASE_ANNUAL_INFECTION_RATE *
-        diseasePressure(def, sanitation, isElder) *
+        diseasePressure(def, sanitation, waterSecurity, isElder) *
         def.pickWeight *
         multiplier *
         infectionScale

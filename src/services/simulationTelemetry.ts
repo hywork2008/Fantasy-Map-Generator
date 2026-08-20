@@ -22,7 +22,7 @@ export interface DeathEvent {
   stateId: number;
   people: number;
   /** Mirrors DeathCause in populationLossTracker.ts (duplicated here to keep this file dependency-free). */
-  cause: "combat" | "famine" | "natural" | "other";
+  cause: "combat" | "famine" | "natural" | "disease" | "other";
   /** Battlefield packed-cell index when known (combat only). */
   cellId?: number;
 }

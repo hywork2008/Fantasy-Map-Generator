@@ -28,6 +28,18 @@ const MIN_SETTLEMENT_POINTS = 0.5;
 const RURAL_TO_SETTLEMENT_SHARE = 0.3;
 const MAX_STATE_URBAN_SHARE = 0.18;
 const SETTLEMENT_SPACING_HOPS = 2;
+/**
+ * Burg.waterSecurity at/above this carries no epidemic mortality — matches the burgs-generator.ts
+ * seed value, so an Economy-off (or pre-UrbanWater) burg always sits at exactly zero pressure.
+ * Design: docs/plan/epidemic-cholera-and-water-security.md §3.3.
+ */
+const EPIDEMIC_WATER_SAFE_THRESHOLD = 50;
+/**
+ * calibration TBD — squared pressure (below) so mediocre water security stays low-risk and only
+ * collapsed infrastructure drives a real outbreak; scale picked so a fully collapsed water supply
+ * (waterSecurity 0) costs ~12%/year, the same order of magnitude as a severe multi-year famine.
+ */
+const EPIDEMIC_RATE_SCALE = 0.12;
 
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
@@ -69,9 +81,10 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   const { demographicBirthRate, demographicChildMortalityRate } = useOptionsState.getState();
   const baseGrowthRate = demographicBirthRate;
   const populationRate = worldContext.populationRate || 1;
-  /** Batch natural/famine point losses per state, convert once to people. */
+  /** Batch natural/famine/epidemic point losses per state, convert once to people. */
   const naturalPts = new Map<number, number>();
   const faminePts = new Map<number, number>();
+  const epidemicPts = new Map<number, number>();
   const addLoss = (map: Map<number, number>, stateId: number, pts: number) => {
     if (!stateId || pts <= 0) return;
     map.set(stateId, (map.get(stateId) ?? 0) + pts);
@@ -252,6 +265,22 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       addLoss(faminePts, stateId, before - (children + maleAdults + femaleAdults + elders));
     }
 
+    // Epidemic mortality: independent of food supply/roomForGrowth above — a well-fed, growing
+    // city can still lose residents to cholera if its water supply is contaminated. Rural cells
+    // have no UrbanWaterSystem and are intentionally excluded (docs/plan/epidemic-cholera-and-
+    // water-security.md §4 decision 3).
+    const waterSecurity = typeof burg.waterSecurity === "number" ? burg.waterSecurity : EPIDEMIC_WATER_SAFE_THRESHOLD;
+    if (waterSecurity < EPIDEMIC_WATER_SAFE_THRESHOLD) {
+      const pressure = (EPIDEMIC_WATER_SAFE_THRESHOLD - waterSecurity) / EPIDEMIC_WATER_SAFE_THRESHOLD;
+      const epidemicRate = Math.min(0.99, pressure * pressure * deltaYears * EPIDEMIC_RATE_SCALE);
+      const beforeEpidemic = children + maleAdults + femaleAdults + elders;
+      children *= 1 - epidemicRate;
+      maleAdults *= 1 - epidemicRate;
+      femaleAdults *= 1 - epidemicRate;
+      elders *= 1 - epidemicRate;
+      addLoss(epidemicPts, stateId, beforeEpidemic - (children + maleAdults + femaleAdults + elders));
+    }
+
     const newPop = children + maleAdults + femaleAdults + elders;
 
     burg.demographics.children = children;
@@ -276,6 +305,9 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   }
   for (const [stateId, pts] of faminePts) {
     recordDeaths(stateId, pts * populationRate, "famine");
+  }
+  for (const [stateId, pts] of epidemicPts) {
+    recordDeaths(stateId, pts * populationRate, "disease");
   }
 
   return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };

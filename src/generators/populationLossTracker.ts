@@ -21,7 +21,7 @@ import {
 } from "../context/simulationContext";
 import { telemetry } from "../services/simulationTelemetry";
 
-export type DeathCause = "combat" | "famine" | "natural" | "other";
+export type DeathCause = "combat" | "famine" | "natural" | "disease" | "other";
 
 export type StateDeathTotals = PopulationLossDeathTotals;
 
@@ -33,7 +33,7 @@ export interface RecordDeathsOptions {
 const MAX_HISTORY_DAYS = 40;
 
 function emptyTotals(): PopulationLossDeathTotals {
-  return { combat: 0, famine: 0, natural: 0, other: 0, total: 0 };
+  return { combat: 0, famine: 0, natural: 0, disease: 0, other: 0, total: 0 };
 }
 
 function getState(): PopulationLossState {
@@ -152,6 +152,7 @@ export function getDeathsByState(window: DeathWindow): Map<number, StateDeathTot
       row.combat += totals.combat;
       row.famine += totals.famine;
       row.natural += totals.natural;
+      row.disease += totals.disease;
       row.other += totals.other;
       row.total += totals.total;
     }

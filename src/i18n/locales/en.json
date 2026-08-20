@@ -137,6 +137,7 @@
     "afflictionKind": {
       "fever": "Fever",
       "flux": "Flux",
+      "cholera": "Cholera",
       "pox": "Pox",
       "plague": "Plague",
       "wasting": "Wasting sickness"
@@ -1975,6 +1976,7 @@
       "combat": "Combat",
       "famine": "Famine",
       "natural": "Natural",
+      "disease": "Disease",
       "other": "Other",
       "deathsTotal": "Deaths",
       "state": "State",

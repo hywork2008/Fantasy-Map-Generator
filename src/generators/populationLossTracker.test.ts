@@ -35,6 +35,15 @@ describe("populationLossTracker", () => {
     expect(byState.get(2)?.famine).toBe(20);
   });
 
+  it("tracks 'disease' as its own cause, separate from famine", () => {
+    recordDeaths(1, 40, "disease");
+    recordDeaths(1, 10, "famine");
+    const byState = getDeathsByState("day");
+    expect(byState.get(1)?.disease).toBe(40);
+    expect(byState.get(1)?.famine).toBe(10);
+    expect(byState.get(1)?.total).toBe(50);
+  });
+
   it("excludes deaths older than the week window", () => {
     recordDeaths(1, 1000, "natural");
     advancePopulationLossClock(10);

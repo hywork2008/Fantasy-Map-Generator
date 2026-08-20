@@ -137,6 +137,7 @@
     "afflictionKind": {
       "fever": "熱病",
       "flux": "水腹",
+      "cholera": "コレラ",
       "pox": "発疹病",
       "plague": "疫病",
       "wasting": "消耗病"
@@ -1975,6 +1976,7 @@
       "combat": "戦闘",
       "famine": "飢饉",
       "natural": "自然死",
+      "disease": "疫病",
       "other": "その他",
       "deathsTotal": "死亡",
       "state": "国家",

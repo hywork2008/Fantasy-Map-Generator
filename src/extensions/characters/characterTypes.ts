@@ -320,7 +320,7 @@ export type CharacterRoleClass =
 export type AfflictionSeverity = "mild" | "moderate" | "severe" | "critical";
 
 /** Disease archetype id — catalog defined in characterHealth.ts's AFFLICTION_CATALOG. */
-export type AfflictionKind = "fever" | "flux" | "pox" | "plague" | "wasting";
+export type AfflictionKind = "fever" | "flux" | "pox" | "plague" | "wasting" | "cholera";
 
 /** A character's current sickness. Absence on `Character.affliction` means healthy. */
 export interface CharacterAffliction {

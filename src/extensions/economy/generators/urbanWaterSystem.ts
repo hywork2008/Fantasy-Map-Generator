@@ -902,6 +902,17 @@ export function sanitationScoreFromSystem(system: UrbanWaterSystem): number {
   return Math.max(0, Math.min(100, rn(score, 1)));
 }
 
+/**
+ * Water-quality-specific civic score, independent of `sanitation`'s broader blend (waste
+ * disposal, flood, odor). Extracts just the two water-supply sub-signals sanitationScoreFromSystem
+ * already computes, at the same 34:18 ratio (rescaled to 60:40) — no new raw data.
+ * Design: docs/plan/epidemic-cholera-and-water-security.md §3.1.
+ */
+export function waterSecurityScoreFromSystem(system: UrbanWaterSystem): number {
+  const score = system.drinkingWaterSecurity * 60 + (1 - system.waterContamination) * 40;
+  return Math.max(0, Math.min(100, rn(score, 1)));
+}
+
 export function getUrbanWaterSystemForBurg(burgId: number): UrbanWaterSystem | undefined {
   return getUrbanWaterSystems().find(system => system.burgId === burgId);
 }
@@ -1607,53 +1618,83 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
 
   for (const system of systems) {
     const burg = world.pack.burgs[system.burgId];
-    if (burg?.i) burg.sanitation = sanitationScoreFromSystem(system);
+    if (burg?.i) {
+      burg.sanitation = sanitationScoreFromSystem(system);
+      burg.waterSecurity = waterSecurityScoreFromSystem(system);
+    }
   }
   return systems;
 }
 
-function rollupProvinceAndStateSanitation(): void {
+/** Running sum/count pair used to average a burg civic score up to its Province/State. */
+interface RollupAccumulator {
+  sum: number;
+  n: number;
+}
+
+/**
+ * Averages both burg civic scores (unweighted by population, matching the pre-existing sanitation
+ * rollup) up to Province/State in a single burgs pass. Design: docs/plan/epidemic-cholera-and-water-security.md §3.1.
+ */
+function rollupProvinceAndStateCivicScores(): void {
   const world = getWorldContext();
   const burgs = world.pack.burgs;
   const provinces = world.pack.provinces;
   const states = world.pack.states;
   if (!provinces?.length && !states?.length) return;
 
-  const byProvince = new Map<number, { sum: number; n: number }>();
-  const byState = new Map<number, { sum: number; n: number }>();
+  const sanitationByProvince = new Map<number, RollupAccumulator>();
+  const sanitationByState = new Map<number, RollupAccumulator>();
+  const waterSecurityByProvince = new Map<number, RollupAccumulator>();
+  const waterSecurityByState = new Map<number, RollupAccumulator>();
+
+  const accumulate = (map: Map<number, RollupAccumulator>, id: number, value: number) => {
+    if (id <= 0) return;
+    const entry = map.get(id) ?? { sum: 0, n: 0 };
+    entry.sum += value;
+    entry.n += 1;
+    map.set(id, entry);
+  };
 
   for (const burg of burgs) {
     if (!burg?.i || burg.removed) continue;
-    const sanitation = burg.sanitation;
-    if (typeof sanitation !== "number" || !Number.isFinite(sanitation)) continue;
     const provinceId = burg.province ?? 0;
-    if (provinceId > 0) {
-      const entry = byProvince.get(provinceId) ?? { sum: 0, n: 0 };
-      entry.sum += sanitation;
-      entry.n += 1;
-      byProvince.set(provinceId, entry);
-    }
     const stateId = burg.state ?? 0;
-    if (stateId > 0) {
-      const entry = byState.get(stateId) ?? { sum: 0, n: 0 };
-      entry.sum += sanitation;
-      entry.n += 1;
-      byState.set(stateId, entry);
+
+    const sanitation = burg.sanitation;
+    if (typeof sanitation === "number" && Number.isFinite(sanitation)) {
+      accumulate(sanitationByProvince, provinceId, sanitation);
+      accumulate(sanitationByState, stateId, sanitation);
+    }
+
+    const waterSecurity = burg.waterSecurity;
+    if (typeof waterSecurity === "number" && Number.isFinite(waterSecurity)) {
+      accumulate(waterSecurityByProvince, provinceId, waterSecurity);
+      accumulate(waterSecurityByState, stateId, waterSecurity);
     }
   }
+
+  const applyRollup = (map: Map<number, RollupAccumulator>, id: number): number | undefined => {
+    const entry = map.get(id);
+    return entry && entry.n > 0 ? rn(entry.sum / entry.n, 1) : undefined;
+  };
 
   if (provinces) {
     for (const province of provinces) {
       if (!province?.i || province.removed) continue;
-      const entry = byProvince.get(province.i);
-      if (entry && entry.n > 0) province.sanitation = rn(entry.sum / entry.n, 1);
+      const sanitation = applyRollup(sanitationByProvince, province.i);
+      if (sanitation !== undefined) province.sanitation = sanitation;
+      const waterSecurity = applyRollup(waterSecurityByProvince, province.i);
+      if (waterSecurity !== undefined) province.waterSecurity = waterSecurity;
     }
   }
   if (states) {
     for (const state of states) {
       if (!state?.i || state.removed) continue;
-      const entry = byState.get(state.i);
-      if (entry && entry.n > 0) state.sanitation = rn(entry.sum / entry.n, 1);
+      const sanitation = applyRollup(sanitationByState, state.i);
+      if (sanitation !== undefined) state.sanitation = sanitation;
+      const waterSecurity = applyRollup(waterSecurityByState, state.i);
+      if (waterSecurity !== undefined) state.waterSecurity = waterSecurity;
     }
   }
 }
@@ -1662,7 +1703,7 @@ class UrbanWaterSystemModule {
   /** Full rebuild after map generation or economy enable — assigns tiers 0–2, no spend. */
   generate(): void {
     setUrbanWaterSystems(buildSystems("generate"));
-    rollupProvinceAndStateSanitation();
+    rollupProvinceAndStateCivicScores();
     setUrbanWaterLastSettledYear(getSimulationYear());
   }
 
@@ -1681,7 +1722,7 @@ class UrbanWaterSystemModule {
     }
 
     setUrbanWaterSystems(buildSystems("annual"));
-    rollupProvinceAndStateSanitation();
+    rollupProvinceAndStateCivicScores();
     return true;
   }
 

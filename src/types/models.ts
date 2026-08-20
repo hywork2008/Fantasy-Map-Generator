@@ -293,6 +293,14 @@ export interface Burg {
    * medicalCareRelief (docs/plan/chemistry-medicine-knowledge-accumulation.md §8.1).
    */
   medicalCare?: number;
+  /**
+   * Drinking-water quality civic score from 0 (contaminated) to 100 (secure). Seeded at 50;
+   * when Economy is enabled, UrbanWater.settleAnnual/generate overwrites this from
+   * UrbanWaterSystem's drinkingWaterSecurity/waterContamination — deliberately independent of
+   * `sanitation`, which blends in waste disposal, flood, and odor too.
+   * See docs/plan/epidemic-cholera-and-water-security.md §3.1.
+   */
+  waterSecurity?: number;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;
   market?: number;
@@ -534,6 +542,8 @@ export interface Province {
   sanitation?: number;
   /** Regional medical-care civic score from 0 (no usable care) to 100 (fueled hospital). */
   medicalCare?: number;
+  /** Regional drinking-water quality score from 0 (contaminated) to 100 (secure). */
+  waterSecurity?: number;
 }
 
 export interface Religion extends NamedReligion {
@@ -1024,6 +1034,8 @@ export interface State {
   sanitation?: number;
   /** State-wide medical-care civic score from 0 (no usable care) to 100 (fueled hospital). */
   medicalCare?: number;
+  /** State-wide drinking-water quality score from 0 (contaminated) to 100 (secure). */
+  waterSecurity?: number;
 }
 
 export interface Zone {

@@ -10,7 +10,9 @@ import {
   isCharacterSick,
   MEDICAL_CARE_DEFAULT,
   resolveCharacterMedicalCare,
-  resolveCharacterSanitation
+  resolveCharacterSanitation,
+  resolveCharacterWaterSecurity,
+  WATER_SECURITY_DEFAULT
 } from "./characterHealth";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
@@ -96,6 +98,44 @@ describe("resolveCharacterSanitation", () => {
   it("returns the neutral default (50) when nothing resolves", () => {
     worldContext.pack.states = [{}] as never;
     expect(resolveCharacterSanitation({ location: undefined, state: 1 })).toBe(50);
+  });
+});
+
+describe("resolveCharacterWaterSecurity", () => {
+  afterEach(() => {
+    clearCharactersContext();
+  });
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {} as unknown as PackedGraph;
+  });
+
+  it("returns the neutral default without a characters context", () => {
+    clearCharactersContext();
+    expect(resolveCharacterWaterSecurity({ location: 0, state: 1 })).toBe(WATER_SECURITY_DEFAULT);
+  });
+
+  it("reads the character's burg waterSecurity when available", () => {
+    worldContext.pack.burgs = [{ i: 0, waterSecurity: 18 }] as never;
+    expect(resolveCharacterWaterSecurity({ location: 0, state: 1 })).toBe(18);
+  });
+
+  it("ignores a removed burg and falls back to the state", () => {
+    worldContext.pack.burgs = [{ i: 0, removed: true, waterSecurity: 18 }] as never;
+    worldContext.pack.states = [{}, { i: 1, waterSecurity: 77 }] as never;
+    expect(resolveCharacterWaterSecurity({ location: 0, state: 1 })).toBe(77);
+  });
+
+  it("is independent of resolveCharacterSanitation for the same burg", () => {
+    worldContext.pack.burgs = [{ i: 0, sanitation: 90, waterSecurity: 5 }] as never;
+    expect(resolveCharacterSanitation({ location: 0, state: 1 })).toBe(90);
+    expect(resolveCharacterWaterSecurity({ location: 0, state: 1 })).toBe(5);
+  });
+
+  it("returns the neutral default (50) when nothing resolves", () => {
+    worldContext.pack.states = [{}] as never;
+    expect(resolveCharacterWaterSecurity({ location: undefined, state: 1 })).toBe(50);
   });
 });
 
@@ -242,6 +282,32 @@ describe("advanceCharacterHealth", () => {
     }
 
     expect(squalidInfections).toBeGreaterThan(cleanInfections);
+  });
+
+  it("gates cholera on water security alone — good general sanitation does not protect against contaminated water (statistical)", () => {
+    const trials = 300;
+    let contaminatedWaterCholera = 0;
+    let cleanWaterCholera = 0;
+
+    for (let i = 0; i < trials; i++) {
+      const contaminated = baseCharacter({ i: 0, health: HEALTH_FULL, location: 0 });
+      const clean = baseCharacter({ i: 1, health: HEALTH_FULL, location: 1 });
+      worldContext.pack.burgs = [
+        { i: 0, sanitation: 90, waterSecurity: 5 }, // good general upkeep, contaminated drinking water
+        { i: 1, sanitation: 90, waterSecurity: 90 } // good on both fronts
+      ] as never;
+      worldContext.pack.characters = [contaminated, clean] as never;
+
+      advanceCharacterHealth(1);
+
+      if (contaminated.affliction?.kind === "cholera") contaminatedWaterCholera++;
+      if (clean.affliction?.kind === "cholera") cleanWaterCholera++;
+    }
+
+    expect(contaminatedWaterCholera).toBeGreaterThan(0);
+    // requiresWaterSecurityBelow(55) hard-excludes cholera once water security clears the gate —
+    // deterministically zero, not just statistically lower.
+    expect(cleanWaterCholera).toBe(0);
   });
 
   it("recovers an afflicted character when Math.random always favors success", () => {
