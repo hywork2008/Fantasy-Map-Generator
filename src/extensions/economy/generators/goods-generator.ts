@@ -2858,6 +2858,41 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "electrolyticIndustry"
   },
   {
+    // Raw cinnabar (mercuric sulfide) ore. Cell placement comes from MineralDeposit/MineOperation
+    // ("cinnabarVein" districts on "volcanic"/"orogen" provinces, mineralResources.ts) — hydro-
+    // thermal mercury deposits form in both settings historically (Almadén/Idrija sit in orogenic
+    // belts, not active volcanoes), so unlike Bauxite's single-province "laterite" this profile
+    // lists two. See docs/plan/cinnabar-mercury-vertical-slice.md §3.2.
+    name: "Cinnabar",
+    warEconomyType: "strategic",
+    tags: ["mineral", "industrial"],
+    icon: "good-stone",
+    color: "#b8362b",
+    value: 8,
+    chance: 0,
+    unit: "sack",
+    demandCoverage: {}
+  },
+  {
+    // Roasted out of Cinnabar by MercuryPlants only — no craft-worker recipe, same "capital-only"
+    // reasoning as Aluminum/Synthetic Ammonia: mercury distillation needs a sealed retort and
+    // condenser a household workshop does not have. Unlike those two, production stays
+    // deliberately small (see mercuryPlants.ts) and every operating year adds to the plant's own
+    // contamination debt — roadmap §9.5's "must never be obtained without a health/environment
+    // cost" (§15 decision 10). Valued near Aluminum, reflecting mercury's historically high
+    // per-unit price. See docs/plan/cinnabar-mercury-vertical-slice.md §3.3.
+    name: "Mercury",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown",
+    color: "#d7d7de",
+    value: 30,
+    chance: 0,
+    unit: "flask",
+    demandCoverage: {},
+    requiredTechnology: "cinnabarRoastingAndMercuryRecovery"
+  },
+  {
     // "One Good, two supply sites" like Sulfuric Acid: this recipe is the craft-worker path
     // (production-generator.ts worker loop); PhosphateFertilizerPlants (Phase 2, docs/plan/
     // phosphate-fertilizer-vertical-slice.md §3.7) adds a second, State-funded capital path.
@@ -3621,6 +3656,28 @@ export function migrateElectrolyticIndustryGoods(): boolean {
     good.requiredTechnology = template.requiredTechnology;
   }
   return true;
+}
+
+const MERCURY_CHAIN_GOOD_NAMES = ["Cinnabar", "Mercury"] as const;
+
+/**
+ * Appends the Cinnabar/Mercury chain (docs/plan/cinnabar-mercury-vertical-slice.md §3.2-3.3) to
+ * older catalogues without seeding stock. Same shape as migrateElectrolyticIndustryGoods, but
+ * neither Good carries a recipe, so no ingredient-id resolution pass is needed.
+ */
+export function migrateMercuryChainGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of MERCURY_CHAIN_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  return changed;
 }
 
 const SYNTHETIC_AMMONIA_GOOD_NAMES = ["Synthetic Ammonia", "Nitrogen Fertilizer"] as const;

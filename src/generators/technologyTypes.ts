@@ -140,6 +140,15 @@ export interface TechnologySignals {
   electrolysisPlantTrialYears: number;
   /** Count of active ElectrolysisPlant entries, same shape as powerStationInstallations. */
   electrolysisPlantInstallations: number;
+  /**
+   * 0..1 market-stock coverage of Cinnabar, same shape as phosphateRockAccess/steelAccess/
+   * copperWireAccess. See docs/plan/cinnabar-mercury-vertical-slice.md §3.4.
+   */
+  cinnabarAccess: number;
+  /** MercuryPlant.documentedRuns state max, same shape as acidPlantTrialYears. */
+  mercuryPlantTrialYears: number;
+  /** Count of active MercuryPlant entries, same shape as acidPlantInstallations. */
+  mercuryPlantInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }

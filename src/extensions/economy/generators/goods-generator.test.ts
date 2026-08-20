@@ -24,6 +24,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migrateMercuryChainGoods,
   migratePerennialFruitGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
@@ -350,6 +351,29 @@ describe("GoodsModule", () => {
     expect(aluminum).toMatchObject({ requiredTechnology: "electrolyticIndustry", chance: 0, demandCoverage: {} });
     expect(aluminum?.recipes).toBeUndefined();
     expect(migrateElectrolyticIndustryGoods()).toBe(false);
+  });
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.2-3.3, §3.8.
+  it("appends Cinnabar (mined, no recipe) and Mercury (plant-only, no recipe)", () => {
+    setGoods([
+      { i: 1, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migrateMercuryChainGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const cinnabar = byName.get("Cinnabar");
+    const mercury = byName.get("Mercury");
+    expect(cinnabar).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(cinnabar?.requiredTechnology).toBeUndefined();
+    expect(cinnabar?.recipes).toBeUndefined();
+    expect(mercury).toMatchObject({
+      requiredTechnology: "cinnabarRoastingAndMercuryRecovery",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(mercury?.recipes).toBeUndefined();
+    expect(migrateMercuryChainGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

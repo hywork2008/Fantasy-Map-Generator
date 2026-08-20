@@ -655,6 +655,24 @@ const ERA_6: readonly TechnologyDefinition[] = [
     adopted: { min: { experimentRecord: 0.55, sulfurAccess: 0.35, treasury: 140 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
   },
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.5. roadmap §9.5 row 1's "mining、smelting、
+  // chemistry" — chemistry is chemicalIndustryFoundation (already Alumina's requiredTechnology
+  // proxy); mining/smelting have no dedicated TechnologyDefinition of their own anywhere in this
+  // graph (mineSurveyAndDrainage uses the same mineCount/metallurgy signals directly), so this
+  // node does the same rather than inventing new prerequisite nodes. Every threshold sits above
+  // chemicalIndustryFoundation's own adopted floor (experimentRecord 0.55/sulfurAccess
+  // 0.35/treasury 140) to avoid an automatic pass-through the instant the prerequisite adopts.
+  {
+    id: "cinnabarRoastingAndMercuryRecovery",
+    label: "Cinnabar roasting and mercury recovery",
+    era: 6,
+    scope: "state",
+    prerequisites: ["chemicalIndustryFoundation"],
+    known: { min: { cinnabarAccess: 0.15, mineCount: 1, metallurgy: 0.3, treasury: 150 } },
+    demonstrated: { min: { mercuryPlantTrialYears: 2, cinnabarAccess: 0.2, metallurgy: 0.35, treasury: 180 } },
+    adopted: { min: { mercuryPlantInstallations: 1, cinnabarAccess: 0.25, administration: 0.5, treasury: 220 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
   {
     id: "industrialSulfuricAcid",
     label: "Industrial sulfuric acid",

@@ -88,7 +88,13 @@ const DISTRICT_PROFILES: readonly DistrictProfile[] = [
   { type: "phosphorite", provinces: ["basin"], primary: "phosphate rock", commodities: ["phosphate rock"] },
   // Lateritic bauxite weathering crust, same "shield" province as bandedIron/lodeGold — no new
   // GeologicalProvinceKind added (docs/plan/electrolytic-industry-vertical-slice.md §3.2).
-  { type: "laterite", provinces: ["shield"], primary: "bauxite", commodities: ["bauxite"] }
+  { type: "laterite", provinces: ["shield"], primary: "bauxite", commodities: ["bauxite"] },
+  // Hydrothermal cinnabar deposits form in both active-volcanic and orogenic-belt settings
+  // historically (Almadén/Idrija sit in tectonic uplift zones, not active volcanoes) — unlike
+  // laterite's single "shield" province, this profile lists two so the entire Mercury chain does
+  // not depend on a map actually generating a volcano (real volcanoes are deliberately scarce,
+  // see volcanicOperations.ts). docs/plan/cinnabar-mercury-vertical-slice.md §3.2.
+  { type: "cinnabarVein", provinces: ["volcanic", "orogen"], primary: "cinnabar", commodities: ["cinnabar"] }
 ];
 
 const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
@@ -104,7 +110,8 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
   "coalSeam",
   "evaporite",
   "phosphorite",
-  "laterite"
+  "laterite",
+  "cinnabarVein"
 ];
 
 const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
@@ -497,7 +504,8 @@ export class MineralResourcesModule {
       saltpeter: 12,
       sulfur: 15,
       "phosphate rock": 140, // calibration TBD — bulk sedimentary rock, slightly below coal's scale
-      bauxite: 120 // calibration TBD — bulk lateritic ore, below Phosphate Rock's scale
+      bauxite: 120, // calibration TBD — bulk lateritic ore, below Phosphate Rock's scale
+      cinnabar: 5 // calibration TBD — rare hydrothermal ore, well below Sulfur(15)/Saltpeter(12)
     };
     const capacity = baseAnnualCapacity[commodity] * richness * (primary ? 1 : 0.25);
     const mineLifeYears = 60 + Math.floor(this.hash(seed, `${commodity}:life`, cell) * 190);

@@ -2,7 +2,7 @@
 
 ## 状態
 
-**Phase 1–6 実装済み（宇宙開発を除く大半の分野）**（2026-08-20 更新。旧「Phase 1–3 実装済み」表記は Phase 4–6 の進捗を反映していなかったため更新）
+**Phase 1–6 実装済み（宇宙開発を除く大半の分野）**（2026-08-20 更新。辰砂・水銀チェーン（§9.5、`cinnabarRoastingAndMercuryRecovery`）の実装により Phase 6 が完了）
 
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
@@ -11,7 +11,7 @@
 | 3 | 大航海ノード + 船級ゲート | 実装済み |
 | 4 | 前工業化ノード + 初期蒸気機関 | 実装済み。工場制手工業（`factoryOrganization`）を追加済み（2026-08-20、下記参照） |
 | 5 | 蒸気・機械化（高効率機関・鉄道・海運蒸機） | 実装済み。機械紡績・機械織機（`mechanizedTextiles`）を追加済み（2026-08-20、下記参照） |
-| 6 | 近代化学・電化・電解工業（硫酸・リン酸肥料・近代製鋼・触媒化学・合成アンモニア・発電網・電解アルミニウム） | 実装済み。辰砂・水銀チェーン（§9.5）のみ未着手 |
+| 6 | 近代化学・電化・電解工業（硫酸・リン酸肥料・近代製鋼・触媒化学・合成アンモニア・発電網・電解アルミニウム・辰砂/水銀） | 実装済み。辰砂・水銀チェーン（§9.5）を追加済み（2026-08-20、下記参照） |
 | 7 | 石油・内燃機関 | **未着手**（別機会） |
 | 8 | ロケット・宇宙開発 | **未着手**（別機会） |
 
@@ -458,12 +458,16 @@ interface TechnologyDefinition {
 3. 合成アンモニアを実装済み（肥料普及と軍需原料を別効果として扱う設計は [synthetic-ammonia-vertical-slice.md](./synthetic-ammonia-vertical-slice.md) 参照）。
 4. **2026-08-20 追加**: 本書 §8 の「機械紡績・機械織機」行（`textiles`、`mechanics`、`factory organization` 前提）が未実装だったため、`mechanizedTextiles`（`factoryOrganization` + `rotarySteamPower` 前提）を追加した。効果は `getMechanizedTextilesOutputMultiplier`（`technologyProgress.ts`）が Cloth / Garments / Sails（`textiles` ギルドドメイン）の生産量に最大 +35% のボーナスを乗せる形で `production-generator.ts` に接続済み — 既存のギルド技術ボーナスに積み重なる。
 
-### Phase 6: 電気化学・アルミニウム・水銀の安全な利用 — **アルミニウムまで実装済み。水銀は未着手**
+### Phase 6: 電気化学・アルミニウム・水銀の安全な利用 — **実装済み**
 
 1. Electricity を容量型サービスとして導入し、発電所・送電網・需要家の不足時挙動を実装済み（`generatorAndMotor` / `powerGrid`、[electric-power-and-telegraph.md](./electric-power-and-telegraph.md)）。
 2. Bauxite → Alumina → Aluminum のチェーンを追加し、電解精錬を大口電力需要として接続済み（`electrolyticIndustry`、[electrolytic-industry-vertical-slice.md](./electrolytic-industry-vertical-slice.md)）。
-3. Cinnabar → Mercury の小規模チェーンと、分析・貴金属回収・精密計測の限定用途は **未着手**。
-4. 水銀鉱山・精錬・利用による健康・環境の負債（`MercuryContaminationStock`）も同様に **未着手**。
+3. Cinnabar → Mercury の小規模チェーンを追加済み（`cinnabarRoastingAndMercuryRecovery`、`MercuryPlants`、
+   [cinnabar-mercury-vertical-slice.md](./cinnabar-mercury-vertical-slice.md)）。分析（`analyticalChemistry` を
+   流用）は実装済み。貴金属回収・精密計測の限定用途は `Mercury` Good の未実装の消費先として次タスクに委ねる。
+4. 水銀鉱山・精錬・利用による健康・環境の負債は `MercuryPlant.contamination` として実装済み — 運転する年ごとに
+   必ず蓄積し、閾値超過でその年の産出を強制的に停止させる（[cinnabar-mercury-vertical-slice.md](./cinnabar-mercury-vertical-slice.md) §3.6-3.7）。
+   既存の `burg.sanitation`／キャラクター疾病モデルへの接続は意図的に見送った（同書§1・§6 決定事項2）。
 
 ### Phase 7: 石油・内燃機関
 

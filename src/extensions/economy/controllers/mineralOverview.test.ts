@@ -69,9 +69,10 @@ describe("refreshMineralOverview", () => {
     refreshMineralOverview();
 
     const state = getMineralOverviewState();
-    // 6 ore + coal/saltpeter/sulfur/phosphate rock/bauxite (docs/plan/phosphate-fertilizer-
-    // vertical-slice.md §3.2, docs/plan/electrolytic-industry-vertical-slice.md §3.2).
-    expect(state.commodities).toHaveLength(11);
+    // 6 ore + coal/saltpeter/sulfur/phosphate rock/bauxite/cinnabar (docs/plan/phosphate-
+    // fertilizer-vertical-slice.md §3.2, docs/plan/electrolytic-industry-vertical-slice.md §3.2,
+    // docs/plan/cinnabar-mercury-vertical-slice.md §3.2).
+    expect(state.commodities).toHaveLength(12);
     expect(state.commodities.find(row => row.commodity === "iron")).toMatchObject({
       depositCount: 1,
       activeMineCount: 1,
@@ -85,6 +86,10 @@ describe("refreshMineralOverview", () => {
       status: "unprospected"
     });
     expect(state.commodities.find(row => row.commodity === "gold")).toMatchObject({
+      depositCount: 0,
+      status: "absent"
+    });
+    expect(state.commodities.find(row => row.commodity === "cinnabar")).toMatchObject({
       depositCount: 0,
       status: "absent"
     });

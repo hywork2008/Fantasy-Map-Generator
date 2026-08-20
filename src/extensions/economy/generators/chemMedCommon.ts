@@ -61,6 +61,13 @@ export const DAM_BUDGET = 26;
  * See docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7.
  */
 export const CHLOR_ALKALI_PLANT_BUDGET = 34;
+/**
+ * calibration TBD — lightest State capital budget in the economy, between APOTHECARY_BUDGET(12)
+ * and EXPERIMENTAL_BUDGET(16): a small cinnabar-roasting retort, not a bulk chemical works —
+ * roadmap §9.5 explicitly frames Mercury recovery as small-scale ("少量生産"), well below the four
+ * heavy plants (24-42) above. See docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+ */
+export const MERCURY_PLANT_BUDGET = 14;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

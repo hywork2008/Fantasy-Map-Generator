@@ -902,6 +902,84 @@ describe("technologyProgress", () => {
     expect(lines.some(line => line.includes("electrolysisPlantInstallations"))).toBe(false);
   });
 
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.5.
+  it("defines cinnabarRoastingAndMercuryRecovery on chemicalIndustryFoundation, using mining/smelting signals directly rather than dedicated prerequisite nodes", () => {
+    const mercury = TECHNOLOGY_DEFINITIONS.find(def => def.id === "cinnabarRoastingAndMercuryRecovery");
+    expect(mercury?.era).toBe(6);
+    expect(mercury?.prerequisites).toEqual(["chemicalIndustryFoundation"]);
+    expect(mercury?.known.min?.mineCount).toBe(1);
+    expect(mercury?.known.min?.metallurgy).toBe(0.3);
+    expect(mercury?.demonstrated.min?.mercuryPlantTrialYears).toBe(2);
+    expect(mercury?.adopted.min?.mercuryPlantInstallations).toBe(1);
+  });
+
+  it("never lets cinnabarRoastingAndMercuryRecovery progress unless chemicalIndustryFoundation has reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      { technologyId: "chemicalIndustryFoundation", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("cinnabarRoastingAndMercuryRecovery", 1)).toBe("locked");
+  });
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same shape as the electrolysisPlantTrial-
+  // Years/electrolysisPlantInstallations test above, plus cinnabarAccess (market-stock coverage,
+  // same shape as copperWireAccess) and mercuryPlantTrialYears (read from a running
+  // ChemistryTrial(kind="mercuryPlant") row, same shape as acidPlantTrialYears).
+  it("computes cinnabarAccess/mercuryPlantTrialYears/mercuryPlantInstallations from market stock, a ChemistryTrial row, and MercuryPlant rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 60, name: "Cinnabar" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 60: { stock: 10 } } // clamp01(10 / 2) = 1, past every cinnabarAccess threshold
+          }
+        ],
+        chemistryTrials: [
+          {
+            kind: "mercuryPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        mercuryPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200,
+            contamination: 0.1
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "chemicalIndustryFoundation", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "cinnabarRoastingAndMercuryRecovery");
+    // cinnabarAccess(1) clears known/demonstrated/adopted; mercuryPlantTrialYears(5)>=2 clears
+    // demonstrated; mercuryPlantInstallations(1)>=1 clears adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("cinnabarAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("mercuryPlantTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("mercuryPlantInstallations"))).toBe(false);
+  });
+
   it("computes copperWireAccess/powerStationTrialYears/powerStationInstallations from market stock and PowerStation rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
     installMinimalWorld();
     simulationContext.extensions = {

@@ -113,6 +113,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migrateMercuryChainGoods,
   migratePerennialFruitGoods,
   migratePhosphateGoods,
   migratePomaceDistillationGoods,
@@ -146,6 +147,7 @@ import { MartialIndividualMastery } from "./generators/martialIndividualMastery"
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { clearMarketMerchantPortfolios, syncMarketMerchantPortfolios } from "./generators/merchantPortfolios";
 import { MerchantTransportAssets } from "./generators/merchantTransportAssets";
+import { MercuryPlants } from "./generators/mercuryPlants";
 import { MetallurgWork } from "./generators/metallurgWork";
 import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
@@ -2493,6 +2495,7 @@ export function init(api: ExtensionAPI): void {
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedElectrical = migrateElectricalGoods();
     const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
+    const migratedMercuryChain = migrateMercuryChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2515,6 +2518,7 @@ export function init(api: ExtensionAPI): void {
       migratedSyntheticAmmonia ||
       migratedElectrical ||
       migratedElectrolyticIndustry ||
+      migratedMercuryChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -3030,6 +3034,10 @@ export function init(api: ExtensionAPI): void {
         // and the craft-worker Chlorine recipe for the same Salt Good (a modeling nuance, not a
         // blocker). docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.1.
         ChlorAlkaliPlants.settleAnnual();
+        // Cinnabar/Coal/Firebrick only, independent of every other era-6 plant above — a small,
+        // deliberately minor-scale chemistry plant (§9.5's "少量生産"), not a bulk industrial
+        // process. docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+        MercuryPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
@@ -3222,6 +3230,7 @@ export function init(api: ExtensionAPI): void {
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedElectrical = migrateElectricalGoods();
     const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
+    const migratedMercuryChain = migrateMercuryChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -3244,6 +3253,7 @@ export function init(api: ExtensionAPI): void {
       migratedSyntheticAmmonia ||
       migratedElectrical ||
       migratedElectrolyticIndustry ||
+      migratedMercuryChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||

@@ -448,6 +448,8 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "electrolysisPlants",
     // docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7.
     "chlorAlkaliPlants",
+    // docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+    "mercuryPlants",
     "chemMedPracticeRecords",
     "medicalCareReliefByBurg",
     // Player technology-bias SoT (docs/plan/player-character-technology-bias.md PR-1).

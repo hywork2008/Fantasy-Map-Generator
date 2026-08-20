@@ -9,7 +9,8 @@ export type ChemistryTrialKind =
   | "acidPlant"
   | "phosphateFertilizerPlant"
   | "syntheticAmmoniaPlant"
-  | "chlorinePlant";
+  | "chlorinePlant"
+  | "mercuryPlant";
 
 export type ChemistryFailureReason =
   | "materialShortage"
@@ -115,6 +116,26 @@ export interface SyntheticAmmoniaPlant {
   utilization: number;
   documentedRuns: number;
   lastFundedYear: number;
+}
+
+/**
+ * Same shape as AcidPlant/PhosphateFertilizerPlant — cinnabar roasting is a genuinely chemical
+ * process (mercury-vapor condensation), so it uses the ChemistryTrial indirection.
+ * `contamination` is the "MercuryContaminationStock" roadmap §9.5 requires: an unavoidable,
+ * monotonically-accumulating byproduct of every operating year (never reduced by avoiding
+ * production — only partially relieved by a funded containment shutdown; see mercuryPlants.ts).
+ * Design: docs/plan/cinnabar-mercury-vertical-slice.md §3.6-3.7.
+ */
+export interface MercuryPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+  /** 0..1 cumulative local health/environment debt. */
+  contamination: number;
 }
 
 export interface ChemMedPracticeRecord {

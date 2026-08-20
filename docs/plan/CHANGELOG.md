@@ -5,6 +5,7 @@
 - docs/plan/catalytic-chemistry.md
 - docs/plan/chlor-alkali-electrolysis-vertical-slice.md
 - docs/plan/chlorine-production-vertical-slice.md
+- docs/plan/cinnabar-mercury-vertical-slice.md
 - docs/plan/dam-flood-control-and-hydropower.md
 - docs/plan/electric-power-and-telegraph.md
 - docs/plan/electrolytic-industry-vertical-slice.md

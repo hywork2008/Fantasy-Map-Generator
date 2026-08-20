@@ -22,6 +22,7 @@ import type {
   ExperimentalWorkshop,
   HospitalInstallation,
   MedicalCareReliefRow,
+  MercuryPlant,
   PhosphateFertilizerPlant,
   SyntheticAmmoniaPlant
 } from "./generators/chemistryTypes";
@@ -175,6 +176,7 @@ let _powerStationsLastSettledYearFallback: number | null = null;
 let _telegraphLinesLastSettledYearFallback: number | null = null;
 let _electrolysisPlantsLastSettledYearFallback: number | null = null;
 let _chlorAlkaliPlantsLastSettledYearFallback: number | null = null;
+let _mercuryPlantsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _damsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
@@ -244,6 +246,7 @@ export function clearEconomyContext(): void {
   _telegraphLinesLastSettledYearFallback = null;
   _electrolysisPlantsLastSettledYearFallback = null;
   _chlorAlkaliPlantsLastSettledYearFallback = null;
+  _mercuryPlantsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
   _damsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
@@ -1499,6 +1502,13 @@ export function getChlorAlkaliPlants(): ChlorAlkaliPlant[] {
 export function setChlorAlkaliPlants(rows: readonly ChlorAlkaliPlant[]): void {
   setSliceArray("chlorAlkaliPlants", rows);
 }
+/** Same shape as getPhosphateFertilizerPlants. Design: docs/plan/cinnabar-mercury-vertical-slice.md §3.7. */
+export function getMercuryPlants(): MercuryPlant[] {
+  return getSliceArray<MercuryPlant>("mercuryPlants");
+}
+export function setMercuryPlants(rows: readonly MercuryPlant[]): void {
+  setSliceArray("mercuryPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1640,6 +1650,18 @@ export function getChlorAlkaliPlantsLastSettledYear(): number | null {
 export function setChlorAlkaliPlantsLastSettledYear(year: number): void {
   writeYearToSlice("chlorAlkaliPlantsLastSettledYear", year, value => {
     _chlorAlkaliPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards MercuryPlants.settleAnnual(), same shape as getChlorAlkaliPlantsLastSettledYear.
+ * Design: docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+ */
+export function getMercuryPlantsLastSettledYear(): number | null {
+  return yearFromSlice("mercuryPlantsLastSettledYear", _mercuryPlantsLastSettledYearFallback);
+}
+export function setMercuryPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("mercuryPlantsLastSettledYear", year, value => {
+    _mercuryPlantsLastSettledYearFallback = value;
   });
 }
 /** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */

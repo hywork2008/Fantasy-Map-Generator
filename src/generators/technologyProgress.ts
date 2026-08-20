@@ -455,6 +455,9 @@ function emptySignals(): TechnologySignals {
     electricityCoverage: 0,
     electrolysisPlantTrialYears: 0,
     electrolysisPlantInstallations: 0,
+    cinnabarAccess: 0,
+    mercuryPlantTrialYears: 0,
+    mercuryPlantInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -757,6 +760,7 @@ function applyChemistryMedicineSignals(
   const phosphateRockId = goodIdByName(economy, "Phosphate Rock");
   const steelId = goodIdByName(economy, "Steel");
   const copperWireId = goodIdByName(economy, "Copper Wire");
+  const cinnabarId = goodIdByName(economy, "Cinnabar");
 
   const waterByBurg = new Map<number, Record<string, unknown>>();
   for (const water of asStockArray(economy.urbanWaterSystems)) {
@@ -807,6 +811,7 @@ function applyChemistryMedicineSignals(
   const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, phosphateRockId);
   const steelStockByState = stateMarketStockByGood(economy, marketOwners, steelId);
   const copperWireStockByState = stateMarketStockByGood(economy, marketOwners, copperWireId);
+  const cinnabarStockByState = stateMarketStockByGood(economy, marketOwners, cinnabarId);
 
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
@@ -835,6 +840,10 @@ function applyChemistryMedicineSignals(
     // sulfurAccess/steelAccess/phosphateRockAccess.
     signals.copperWireAccess = clamp01((copperWireStockByState.get(stateId) ?? 0) / 2);
 
+    // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same market-stock-coverage shape as
+    // sulfurAccess/steelAccess/phosphateRockAccess/copperWireAccess.
+    signals.cinnabarAccess = clamp01((cinnabarStockByState.get(stateId) ?? 0) / 2);
+
     signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
     signals.medicineDemandPressure = clamp01(
@@ -860,6 +869,9 @@ function applyChemistryMedicineSignals(
   // docs/plan/synthetic-ammonia-vertical-slice.md §3.5 — same ChemistryTrial indirection as
   // phosphateFertilizerYears above.
   const syntheticAmmoniaYears = new Map<number, number>();
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same ChemistryTrial indirection as
+  // acidYears above.
+  const mercuryPlantYears = new Map<number, number>();
   for (const trial of asStockArray(economy.chemistryTrials)) {
     if (String(trial.status ?? "") !== "running") continue;
     const stateId = asNumber(trial.stateId);
@@ -872,6 +884,9 @@ function applyChemistryMedicineSignals(
     }
     if (kind === "syntheticAmmoniaPlant") {
       syntheticAmmoniaYears.set(stateId, Math.max(syntheticAmmoniaYears.get(stateId) ?? 0, runs));
+    }
+    if (kind === "mercuryPlant") {
+      mercuryPlantYears.set(stateId, Math.max(mercuryPlantYears.get(stateId) ?? 0, runs));
     }
   }
   for (const [stateId, years] of compoundingYears) {
@@ -889,6 +904,10 @@ function applyChemistryMedicineSignals(
   for (const [stateId, years] of syntheticAmmoniaYears) {
     const signals = map.get(stateId);
     if (signals) signals.syntheticAmmoniaTrialYears = years;
+  }
+  for (const [stateId, years] of mercuryPlantYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.mercuryPlantTrialYears = years;
   }
 
   const hospitalYears = new Map<number, number>();
@@ -978,6 +997,14 @@ function applyChemistryMedicineSignals(
     const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
     const signals = map.get(stateId);
     if (signals) signals.acidPlantInstallations += 1;
+  }
+
+  // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same shape as the acidPlants block above.
+  for (const plant of asStockArray(economy.mercuryPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.mercuryPlantInstallations += 1;
   }
 
   // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
@@ -1145,7 +1172,9 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "telegraphLineTrialYears",
   "telegraphLineInstallations",
   "electrolysisPlantTrialYears",
-  "electrolysisPlantInstallations"
+  "electrolysisPlantInstallations",
+  "mercuryPlantTrialYears",
+  "mercuryPlantInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
