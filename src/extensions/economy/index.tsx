@@ -72,6 +72,8 @@ import {
   resignConstructionJob,
   tickConstructionHiring
 } from "./generators/constructionHire";
+import { DamSites } from "./generators/damSites";
+import { Dams } from "./generators/dams";
 import { DevelopmentPotential } from "./generators/developmentPotential";
 import { ElectrolysisPlants } from "./generators/electrolysisPlants";
 import {
@@ -231,6 +233,7 @@ import {
   getCaravanPosition,
   getCaravansAtPoint
 } from "./renderers/draw-trade-animation";
+import { drawDams } from "./renderers/drawDams";
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
@@ -348,6 +351,14 @@ export const economyLayers: LayerConfig[] = [
     tooltip:
       "Mineral Deposits: discovered mines, colored and iconed by their primary commodity (dimmed once exhausted or idle). Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "mineralDeposits", insertBefore: "icons", display: "none" }]
+  },
+  {
+    id: "toggleDams",
+    name: "Dams",
+    shortcut: null,
+    tooltip:
+      "Dams: State-built river dams for flood control and (once electrified) hydroelectric power. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "dams", insertBefore: "icons", display: "none" }]
   }
 ];
 
@@ -1016,6 +1027,11 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         // See the matching comment at the main generation call site — reseeds any cell whose fauna
         // stock hadn't been created yet instead of leaving it to appear lazily on first draw.
         updateAnnualFaunaCohorts();
+        // Same "one-time deterministic geography scan" shape as MineralResources; no dedicated
+        // regenerate target exists for river siting, so it rides along with "minerals".
+        // docs/plan/dam-flood-control-and-hydropower.md §3.
+        DamSites.generate();
+        Dams.clear(); // Discard Dams built on the old site ids before they're regenerated.
       }
       if (value.target === "economy" || value.target === "markets") {
         Markets.generate(true);
@@ -1421,6 +1437,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearResearchHireState();
       clearUrbanPregnancy();
       MineralResources.clear();
+      DamSites.clear();
+      Dams.clear();
       Minting.clear();
       MilitaryResources.clear();
       TradeSecurity.clear();
@@ -2363,6 +2381,9 @@ export function init(api: ExtensionAPI): void {
           // map may have picked a different historicalPeriod, which changes the default set.
           resetDisplayedGoodSelection();
           MineralResources.generate();
+          // Deterministic river-siting scan (docs/plan/dam-flood-control-and-hydropower.md §3).
+          DamSites.generate();
+          Dams.clear();
           // Goods before DevelopmentPotential (2026-08-07, docs/plan/fauna-biome-realism.md §3 Phase
           // B follow-up): DevelopmentPotential.generate() -> storeAgriculture() ->
           // allocateRuralOccupations() calls calculateHusbandryDemand()/calculateViticultureDemand(),
@@ -2989,6 +3010,13 @@ export function init(api: ExtensionAPI): void {
         PowerStations.settleAnnual();
         // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
         TelegraphLines.settleAnnual();
+        // Stone/Timber founding/upkeep, plus Copper Wire/Machine Parts once electrified (no Coal —
+        // water is the fuel). Runs after AgTechInvestment (annualAgTech block above, earlier in
+        // this same tick) so its floodProtectionByCell floor is applied on top of, not overwritten
+        // by, that block's own EWMA write. PowerGridInvestment reads this year's generationCapacity
+        // starting next year, the same one-year lag PowerStations already has.
+        // docs/plan/dam-flood-control-and-hydropower.md §3.
+        Dams.settleAnnual();
         // Reads this year's Market.electricityStock, already written by PowerGridInvestment
         // earlier in this same annual tick (investment block runs before this production block).
         // Alumina/Coke/Firebrick consumption is independent of the other era-6 plants above.
@@ -3145,6 +3173,7 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleMarketsLayer", () => document.getElementById("marketsLayer"));
   api.registerLayerElement("toggleTrade", () => document.getElementById("tradeAnimation"));
   api.registerLayerElement("toggleMineralDeposits", () => document.getElementById("mineralDeposits"));
+  api.registerLayerElement("toggleDams", () => document.getElementById("dams"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -3293,6 +3322,21 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("toggleDams", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleDams")) {
+      api.turnLayerOn("toggleDams");
+      if (api.viewContext.renderMode === "webglHybrid") {
+        api.getSvgLayer("dams")?.style("display", "none");
+        api.requestWebglRender();
+        return;
+      }
+      drawDams();
+    } else {
+      api.getSvgLayer("dams")?.html("");
+      api.turnLayerOff("toggleDams");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // The economy tick publishes extension.economy on every simulated day. A
@@ -3311,6 +3355,7 @@ export function init(api: ExtensionAPI): void {
       api.getSvgLayer("marketsLayerFill")?.style("display", "none");
       api.getSvgLayer("marketsLayer")?.style("display", "none");
       api.getSvgLayer("mineralDeposits")?.style("display", "none");
+      api.getSvgLayer("dams")?.style("display", "none");
       api.requestWebglRender();
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
@@ -3318,6 +3363,7 @@ export function init(api: ExtensionAPI): void {
     if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
     if (api.layerIsOn("toggleMineralDeposits")) drawMineralDeposits();
+    if (api.layerIsOn("toggleDams")) drawDams();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });
 }

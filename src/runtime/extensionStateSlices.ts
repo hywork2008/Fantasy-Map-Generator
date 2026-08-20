@@ -441,6 +441,9 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     // docs/plan/electric-power-and-telegraph.md §3.9.
     "powerStations",
     "telegraphLines",
+    // docs/plan/dam-flood-control-and-hydropower.md §3.
+    "damSites",
+    "dams",
     // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
     "electrolysisPlants",
     "chemMedPracticeRecords",

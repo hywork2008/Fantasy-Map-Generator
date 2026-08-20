@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, getMarkets, initEconomyContext, setMarkets, setPowerStations } from "../economyContext";
+import {
+  clearEconomyContext,
+  getMarkets,
+  initEconomyContext,
+  setDams,
+  setMarkets,
+  setPowerStations
+} from "../economyContext";
 import {
   ELECTRICITY_ADOPTION_RATE,
   PowerGridInvestment,
@@ -142,6 +149,66 @@ describe("PowerGridInvestmentModule", () => {
     PowerGridInvestment.settleAnnual();
 
     expect(getMarkets()[0]?.marketTreasury?.balance).toBe(1000);
+  });
+
+  it("pools an electrified Dam's generationCapacity alongside PowerStation capacity", () => {
+    worldContext.pack = {
+      states: [{ i: 0 }, { i: 1, name: "Volta", removed: false }],
+      burgs: [{ i: 0 }, { i: 1, state: 1, market: 1, population: 1000, removed: false }]
+    } as unknown as PackedGraph;
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
+    setPowerStations([]);
+    setDams([
+      {
+        i: 1,
+        siteId: 1,
+        stateId: 1,
+        burgId: 1,
+        role: "service",
+        active: true,
+        utilization: 1,
+        documentedRuns: 5,
+        lastFundedYear: 1889,
+        electrified: true,
+        generationCapacity: TARGET_ELECTRICITY_PER_1000_POPULATION,
+        floodProtectionRating: 0.5
+      }
+    ]);
+
+    expect(PowerGridInvestment.settleAnnual()).toBe(true);
+
+    const market = getMarkets().find(entry => entry.i === 1);
+    expect(market?.electricityStock).toBeCloseTo(ELECTRICITY_ADOPTION_RATE, 5);
+  });
+
+  it("ignores an unelectrified Dam's generationCapacity even if nonzero", () => {
+    worldContext.pack = {
+      states: [{ i: 0 }, { i: 1, name: "Volta", removed: false }],
+      burgs: [{ i: 0 }, { i: 1, state: 1, market: 1, population: 1000, removed: false }]
+    } as unknown as PackedGraph;
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
+    setPowerStations([]);
+    setDams([
+      {
+        i: 1,
+        siteId: 1,
+        stateId: 1,
+        burgId: 1,
+        role: "trial",
+        active: true,
+        utilization: 1,
+        documentedRuns: 1,
+        lastFundedYear: 1889,
+        electrified: false,
+        generationCapacity: TARGET_ELECTRICITY_PER_1000_POPULATION,
+        floodProtectionRating: 0.2
+      }
+    ]);
+
+    expect(PowerGridInvestment.settleAnnual()).toBe(true);
+
+    const market = getMarkets().find(entry => entry.i === 1);
+    expect(market?.electricityStock ?? 0).toBeCloseTo(0, 5);
   });
 
   it("is a no-op the second time it is called within the same simulation year", () => {

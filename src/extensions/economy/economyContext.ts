@@ -28,6 +28,7 @@ import type {
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
+import type { Dam, DamSite } from "./generators/damTypes";
 import type { PowerStation, TelegraphLine } from "./generators/electricalTypes";
 import type { ElectrolysisPlant } from "./generators/electrolysisTypes";
 import type {
@@ -174,6 +175,7 @@ let _powerStationsLastSettledYearFallback: number | null = null;
 let _telegraphLinesLastSettledYearFallback: number | null = null;
 let _electrolysisPlantsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
+let _damsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -241,6 +243,7 @@ export function clearEconomyContext(): void {
   _telegraphLinesLastSettledYearFallback = null;
   _electrolysisPlantsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
+  _damsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
@@ -1465,6 +1468,20 @@ export function getTelegraphLines(): TelegraphLine[] {
 export function setTelegraphLines(rows: readonly TelegraphLine[]): void {
   setSliceArray("telegraphLines", rows);
 }
+/** Same shape as getPowerStations. Design: docs/plan/dam-flood-control-and-hydropower.md §3. */
+export function getDamSites(): DamSite[] {
+  return getSliceArray<DamSite>("damSites");
+}
+export function setDamSites(rows: readonly DamSite[]): void {
+  setSliceArray("damSites", rows);
+}
+/** Same shape as getPowerStations. Design: docs/plan/dam-flood-control-and-hydropower.md §3. */
+export function getDams(): Dam[] {
+  return getSliceArray<Dam>("dams");
+}
+export function setDams(rows: readonly Dam[]): void {
+  setSliceArray("dams", rows);
+}
 /** Same shape as getPowerStations. Design: docs/plan/electrolytic-industry-vertical-slice.md §3.7. */
 export function getElectrolysisPlants(): ElectrolysisPlant[] {
   return getSliceArray<ElectrolysisPlant>("electrolysisPlants");
@@ -1610,6 +1627,15 @@ export function getPowerGridInvestmentLastSettledYear(): number | null {
 export function setPowerGridInvestmentLastSettledYear(year: number): void {
   writeYearToSlice("powerGridInvestmentLastSettledYear", year, value => {
     _powerGridInvestmentLastSettledYearFallback = value;
+  });
+}
+/** Guards Dams.settleAnnual(). Design: docs/plan/dam-flood-control-and-hydropower.md §3. */
+export function getDamsLastSettledYear(): number | null {
+  return yearFromSlice("damsLastSettledYear", _damsLastSettledYearFallback);
+}
+export function setDamsLastSettledYear(year: number): void {
+  writeYearToSlice("damsLastSettledYear", year, value => {
+    _damsLastSettledYearFallback = value;
   });
 }
 
@@ -2258,4 +2284,8 @@ export function getTradeAnimLayer() {
 
 export function getMineralDepositsLayer() {
   return getApi().getSvgLayer("mineralDeposits");
+}
+
+export function getDamsLayer() {
+  return getApi().getSvgLayer("dams");
 }

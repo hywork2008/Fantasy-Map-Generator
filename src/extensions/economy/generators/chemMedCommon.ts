@@ -45,6 +45,12 @@ export const TELEGRAPH_LINE_BUDGET = 18;
  * See docs/plan/electrolytic-industry-vertical-slice.md §3.7.
  */
 export const ELECTROLYSIS_PLANT_BUDGET = 42;
+/**
+ * calibration TBD — between TELEGRAPH_LINE_BUDGET(18) and STEEL_CONVERTER_PLANT_BUDGET(32). A
+ * masonry weir/dam with intake works is a bigger civil project than wiring-and-relay infrastructure
+ * but smaller than a Bessemer converter plant. See docs/plan/dam-flood-control-and-hydropower.md §3.
+ */
+export const DAM_BUDGET = 26;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

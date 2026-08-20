@@ -4,6 +4,7 @@
 
 - docs/plan/catalytic-chemistry.md
 - docs/plan/chlorine-production-vertical-slice.md
+- docs/plan/dam-flood-control-and-hydropower.md
 - docs/plan/electric-power-and-telegraph.md
 - docs/plan/electrolytic-industry-vertical-slice.md
 - docs/plan/modern-steelmaking-and-high-pressure-apparatus.md

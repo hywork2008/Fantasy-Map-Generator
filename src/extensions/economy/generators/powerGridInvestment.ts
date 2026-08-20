@@ -2,6 +2,7 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  getDams,
   getMarkets,
   getPowerGridInvestmentLastSettledYear,
   getPowerStations,
@@ -12,13 +13,14 @@ import {
 import { marketIdForBurg } from "./chemMedCommon";
 
 /**
- * Distributes PowerStation generation capacity to markets as Market.electricityStock — a
- * population-demand coverage EWMA, not a market Good purchase. Same "Market-funded annual
- * investment -> EWMA" shape as fertilizerInvestment.ts, but the supply side is PowerStation
- * capacity (§3.9) instead of a Good purchased via Markets.consumeForMarketInvestment, and the
- * demand basis is population instead of cultivated area. Does not touch market.marketTreasury —
- * the capital/operating cost of electricity is already paid by PowerStations.settleAnnual(); this
- * module only allocates the capacity that produced.
+ * Distributes PowerStation (and electrified Dam, docs/plan/dam-flood-control-and-hydropower.md §3)
+ * generation capacity to markets as Market.electricityStock — a population-demand coverage EWMA,
+ * not a market Good purchase. Same "Market-funded annual investment -> EWMA" shape as
+ * fertilizerInvestment.ts, but the supply side is PowerStation/Dam capacity (§3.9) instead of a
+ * Good purchased via Markets.consumeForMarketInvestment, and the demand basis is population
+ * instead of cultivated area. Does not touch market.marketTreasury — the capital/operating cost of
+ * electricity is already paid by PowerStations.settleAnnual()/Dams.settleAnnual(); this module
+ * only allocates the capacity that produced.
  * Design: docs/plan/electric-power-and-telegraph.md §3.10.
  */
 
@@ -65,6 +67,16 @@ export class PowerGridInvestmentModule {
       if (marketId) capacityByMarket.set(marketId, (capacityByMarket.get(marketId) ?? 0) + plant.generationCapacity);
       if (plant.stateId) {
         capacityByState.set(plant.stateId, (capacityByState.get(plant.stateId) ?? 0) + plant.generationCapacity);
+      }
+    }
+    // Electrified Dams join the same pool as coal PowerStations — an unelectrified Dam has
+    // generationCapacity 0 (dams.ts), so this is a no-op for States without generatorAndMotor.
+    for (const dam of getDams()) {
+      if (!dam.active || !dam.electrified) continue;
+      const marketId = marketIdForBurg(dam.burgId);
+      if (marketId) capacityByMarket.set(marketId, (capacityByMarket.get(marketId) ?? 0) + dam.generationCapacity);
+      if (dam.stateId) {
+        capacityByState.set(dam.stateId, (capacityByState.get(dam.stateId) ?? 0) + dam.generationCapacity);
       }
     }
 
