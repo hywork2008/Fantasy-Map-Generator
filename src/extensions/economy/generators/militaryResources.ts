@@ -51,7 +51,7 @@ const ARMS_PER_HEAD = 0.01;
 // above, these are drawn straight from the market every month like Iron/Lead/Fodder (the plan's
 // own Phase 3 note explicitly defers applying the plannedU dormant-establishment pattern to these
 // new units — decide that only after Phase 1/2 see real play). All uncalibrated.
-/** Steel barrels/receivers on top of fieldArtillery/machineGunners' existing Iron/Lead/Gunpowder draw (via isArtilleryLike()/isFirearm() below) — see needsModernSteel(). */
+/** Steel barrels/receivers/launcher racks on top of fieldArtillery/machineGunners/rocketArtillery's existing Iron/Lead/Gunpowder draw (via isArtilleryLike()/isFirearm() below) — see needsAdvancedSteel(). */
 const MODERN_STEEL_PER_HEAD = 0.05;
 /** Hull and armor plating. */
 const STEEL_PER_ARMORED_HEAD = 0.15;
@@ -269,8 +269,8 @@ export class MilitaryResourcesModule {
     let mounted = 0;
     let archers = 0;
     let troops = 0;
-    // docs/plan/military-era-progression.md §5 Phase 3.
-    let modernSteelHeads = 0; // fieldArtillery/machineGunners — see needsModernSteel()
+    // docs/plan/military-era-progression.md §5 Phase 3-4.
+    let advancedSteelHeads = 0; // fieldArtillery/machineGunners/rocketArtillery — see needsAdvancedSteel()
     let armored = 0;
     let aviation = 0;
     for (const regiment of state.military || []) {
@@ -281,7 +281,7 @@ export class MilitaryResourcesModule {
         else if (this.isFirearm(unitName)) firearms += count;
         if (isMountedUnit(unitName)) mounted += count;
         if (this.isArcher(unitName)) archers += count;
-        if (this.needsModernSteel(unitName)) modernSteelHeads += count;
+        if (this.needsAdvancedSteel(unitName)) advancedSteelHeads += count;
         if (this.isArmoredUnit(unitName)) armored += count;
         if (this.isAviationUnit(unitName)) aviation += count;
       }
@@ -303,12 +303,13 @@ export class MilitaryResourcesModule {
     const arms = rn(troops * ARMS_PER_HEAD, 4);
     if (arms > 0) demand.arms = arms;
 
-    // docs/plan/military-era-progression.md §5 Phase 3 — computed unconditionally (unlike the
+    // docs/plan/military-era-progression.md §5 Phase 3-4 — computed unconditionally (unlike the
     // iron/lead/gunpowder/bullets/muskets block below, which returns early when gunpowderEraEnabled
-    // is off). armored/aviation are independent of that world gate (§4.4); modernSteelHeads is
-    // fieldArtillery/machineGunners, which naturally stay at 0 troops when gunpowder is disabled
-    // (they're excluded from recruitment entirely — see gunpowderEra.ts), so this is safe either way.
-    const steel = rn(modernSteelHeads * MODERN_STEEL_PER_HEAD + armored * STEEL_PER_ARMORED_HEAD, 4);
+    // is off). armored/aviation are independent of that world gate (§4.4); advancedSteelHeads is
+    // fieldArtillery/machineGunners/rocketArtillery, which naturally stay at 0 troops when
+    // gunpowder is disabled (they're excluded from recruitment entirely — see gunpowderEra.ts), so
+    // this is safe either way.
+    const steel = rn(advancedSteelHeads * MODERN_STEEL_PER_HEAD + armored * STEEL_PER_ARMORED_HEAD, 4);
     if (steel > 0) demand.steel = steel;
     const kerosene = rn(armored * KEROSENE_PER_ARMORED_HEAD + aviation * KEROSENE_PER_AVIATION_HEAD, 4);
     if (kerosene > 0) demand.kerosene = kerosene;
@@ -376,13 +377,13 @@ export class MilitaryResourcesModule {
 
   /**
    * Broader than isArtillery() above — also matches "fieldArtillery" (steel breech-loaders,
-   * docs/plan/military-era-progression.md §4.3), which shares the legacy unit's iron/lead/
-   * gunpowder demand shape (same combat role, still a gunpowder-fired gun) on top of the
-   * additional Steel draw needsModernSteel() below adds. Used only for material-demand
-   * aggregation in getAnnualDemand() — never for the plannedU equipment-establishment tracking in
-   * unstockInitialFirearmForces() (see isArtillery()'s own comment for why that stays exact).
-   * Same includes("artillery") pattern gunpowderEra.ts's isGunpowderEraMilitaryUnit() already uses
-   * for the "machinery" type.
+   * docs/plan/military-era-progression.md §4.3) and "rocketArtillery" (§4.5), which share the
+   * legacy unit's iron/lead/gunpowder demand shape (same combat role, still a gunpowder-fired gun)
+   * on top of the additional Steel draw needsAdvancedSteel() below adds. Used only for
+   * material-demand aggregation in getAnnualDemand() — never for the plannedU equipment-
+   * establishment tracking in unstockInitialFirearmForces() (see isArtillery()'s own comment for
+   * why that stays exact). Same includes("artillery") pattern gunpowderEra.ts's
+   * isGunpowderEraMilitaryUnit() already uses for the "machinery" type.
    */
   private isArtilleryLike(unitName: string): boolean {
     return unitName.toLowerCase().includes("artillery");
@@ -397,13 +398,16 @@ export class MilitaryResourcesModule {
   }
 
   /**
-   * fieldArtillery/machineGunners — identified by their requiresTechnology gate rather than name,
-   * so any other custom unit a player gates on modernSteelmaking (Military Options) automatically
-   * draws the same Steel demand, no regex maintenance required (docs/plan/military-era-progression.md
-   * §5 Phase 3, principle 7).
+   * fieldArtillery/machineGunners (modernSteelmaking, Phase 3) and rocketArtillery (militarySignalRockets,
+   * Phase 4 — a rocket launcher rack needs at least as much steel fabrication as a gun carriage) —
+   * identified by their requiresTechnology gate rather than name, so any other custom unit a
+   * player gates on one of these technologies (Military Options) automatically draws the same
+   * Steel demand, no regex maintenance required (docs/plan/military-era-progression.md §5 Phase 3,
+   * principle 7). Renamed from needsModernSteel() when Phase 4 added the second technology id.
    */
-  private needsModernSteel(unitName: string): boolean {
-    return this.getUnitDefinition(unitName)?.requiresTechnology?.id === "modernSteelmaking";
+  private needsAdvancedSteel(unitName: string): boolean {
+    const technologyId = this.getUnitDefinition(unitName)?.requiresTechnology?.id;
+    return technologyId === "modernSteelmaking" || technologyId === "militarySignalRockets";
   }
 
   /** Type-based, not name-based (principle 7) — matches any "armored" type unit, built-in or custom. */

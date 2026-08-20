@@ -165,8 +165,9 @@ describe("MilitaryResourcesModule", () => {
   });
 
   // docs/plan/military-era-progression.md §5 Phase 3 — armored/aviation/fieldArtillery/machineGunners'
-  // Steel/Kerosene/Aluminum demand.
-  describe("Phase 3 — armored/aviation/fieldArtillery/machineGunners equipment demand", () => {
+  // Steel/Kerosene/Aluminum demand. Also covers Phase 4's rocketArtillery, which reuses this same
+  // material-demand mechanism (needsAdvancedSteel()) rather than adding a new one.
+  describe("Phase 3-4 — armored/aviation/fieldArtillery/machineGunners/rocketArtillery equipment demand", () => {
     function setPhase2Units() {
       worldContext.options.military = [
         { name: "artillery", type: "machinery" },
@@ -182,7 +183,12 @@ describe("MilitaryResourcesModule", () => {
           requiresTechnology: { id: "modernSteelmaking", minimum: "demonstrated" }
         },
         { name: "armored", type: "armored" },
-        { name: "aviation", type: "aviation" }
+        { name: "aviation", type: "aviation" },
+        {
+          name: "rocketArtillery",
+          type: "machinery",
+          requiresTechnology: { id: "militarySignalRockets", minimum: "adopted" }
+        }
       ] as unknown as typeof worldContext.options.military;
     }
 
@@ -270,6 +276,27 @@ describe("MilitaryResourcesModule", () => {
       expect(getMarkets()[0].goods[6].stock).toBeLessThan(100);
       expect(getMarkets()[0].goods[7].stock).toBeLessThan(100);
       expect(getMarkets()[0].goods[8].stock).toBeLessThan(100);
+    });
+
+    it("draws Steel for rocketArtillery (Phase 4) via the same needsAdvancedSteel() path as fieldArtillery/machineGunners", () => {
+      setPhase2Units();
+      setPhase3Goods();
+      worldContext.pack.states[1].military = [
+        { i: 1, u: { rocketArtillery: 6 } }
+      ] as unknown as (typeof worldContext.pack.states)[1]["military"];
+
+      MilitaryResources.generate();
+      MilitaryResources.settleMonthly();
+
+      const ledger = getMilitaryResourceLedgers()[0];
+      expect(ledger.annualDemand.steel).toBeCloseTo(6 * 0.05, 4);
+      // rocketArtillery also flows into isArtilleryLike()'s iron/lead/gunpowder demand, same as
+      // fieldArtillery — a rocket launcher rack is still a gunpowder-fired weapon in this model.
+      expect(ledger.annualDemand.iron).toBeGreaterThan(0);
+      expect(ledger.annualDemand.gunpowder).toBeGreaterThan(0);
+      // rocketArtillery has no engine/airframe — no Kerosene/Aluminum demand of its own.
+      expect(ledger.annualDemand.kerosene).toBeUndefined();
+      expect(ledger.annualDemand.aluminum).toBeUndefined();
     });
 
     it('does not draw Steel for the legacy "artillery" unit, only fieldArtillery', () => {

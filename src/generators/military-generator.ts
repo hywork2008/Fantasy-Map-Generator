@@ -1112,10 +1112,15 @@ class MilitaryModule {
         // docs/plan/military-era-progression.md §4.4 (Phase 2). First real user of the "armored"
         // type — stateModifier/cellTypeModifier/burgTypeModifier (above) and battle-screen.ts's
         // phase scheme already had tuned armored entries with nothing to apply them to. Gated
-        // directly on internalCombustionEngine (adopted), giving that tech's own
-        // getInternalCombustionEngineEffect() (technologyProgress.ts) its first real consumer.
-        // No `obsoletes` — functionally edges out cavalry's shock role over time as its own
-        // recruitment share grows, but doesn't directly cannibalize cavalry's rate (§6 non-goal).
+        // directly on internalCombustionEngine (adopted) via requiresTechnology/
+        // getTechnologyAdoptionShare() above — a parallel read of the same TechnologyProgress
+        // state getInternalCombustionEngineEffect() (technologyProgress.ts) exposes, not a call to
+        // that function itself (its own 0/0.35/0.75/1 shape has no "adopted"-only floor, so it
+        // isn't a drop-in for this unit's stricter gate). getInternalCombustionEngineEffect()
+        // itself remains formally uncalled — see docs/plan/military-era-progression.md §5 Phase 4's
+        // correction note. No `obsoletes` — functionally edges out cavalry's shock role over time
+        // as its own recruitment share grows, but doesn't directly cannibalize cavalry's rate (§6
+        // non-goal).
         icon: "🛡️",
         name: "armored",
         rural: 0,
@@ -1141,6 +1146,28 @@ class MilitaryModule {
         power: 25,
         type: "aviation",
         separate: 1
+      },
+      {
+        // docs/plan/military-era-progression.md §4.5 (Phase 4, backlog). militarySignalRockets
+        // (era 8) explicitly stays a "limited signal/military use" node in the roadmap — not a
+        // strategic-weapon unlock — so this is deliberately just fieldArtillery's ordinary
+        // conventional upgrade (higher power, obsoletes it the same way fieldArtillery obsoletes
+        // legacy artillery), not a new type and not any diplomacy/prestige effect (§6 non-goal).
+        // requiresTechnology reads the same TechnologyProgress state
+        // getMilitarySignalRocketsEffect() (technologyProgress.ts) exposes via its own 0/0.35/
+        // 0.75/1 shape — not a call to that function itself, same distinction as armored's own
+        // internalCombustionEngine gate above (see docs/plan/military-era-progression.md §5 Phase
+        // 4's correction note).
+        icon: "🚀",
+        name: "rocketArtillery",
+        rural: 0,
+        urban: 0.02,
+        crew: 6,
+        power: 35,
+        type: "machinery",
+        separate: 0,
+        requiresTechnology: { id: "militarySignalRockets", minimum: "adopted" },
+        obsoletes: "fieldArtillery"
       },
       {
         icon: "🌊",

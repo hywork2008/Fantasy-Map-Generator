@@ -505,3 +505,89 @@ describe("MilitaryModule.generate — era-7 armored/aviation units", () => {
     expect(totals.artillery ?? 0).toBe(0);
   });
 });
+
+// docs/plan/military-era-progression.md Phase 4 (backlog): rocketArtillery, applying the exact
+// same requiresTechnology/obsoletes mechanism Phase 1's fieldArtillery already established —
+// unlike armored/aviation, this is a gunpowder-descended unit by name+type (type "machinery" +
+// name includes "artillery" — isGunpowderEraMilitaryUnit(), gunpowderEra.ts), so it stays gated
+// by gunpowderEraEnabled the same way musketeers/artillery/fieldArtillery are (militarySignalRockets
+// itself also independently carries worldGates: ["gunpowderWorld"] in technologyDefinitions.ts,
+// but that only governs whether the technology node is ever seeded/progressed at all — the world-
+// level military roster filter tested below is the separate, actual mechanism this test exercises).
+describe("MilitaryModule.generate — era-8 rocketArtillery", () => {
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
+  function unitTotals(state: ReturnType<typeof generate>): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const regiment of state.military ?? []) {
+      for (const [unitName, amount] of Object.entries(regiment.u)) {
+        totals[unitName] = (totals[unitName] ?? 0) + amount;
+      }
+    }
+    return totals;
+  }
+
+  // rocketArtillery's urban rate (0.02) combined with fieldArtillery's own already-partial
+  // adoption share can round to a small enough headcount that a *0.5 comparison sits right on a
+  // rounding boundary at populationRate 1 (see military-era-progression.md Phase 2's aviation
+  // tests for the same issue) — scale up like generateAtScale() elsewhere in this file.
+  function generateAtScale(pack: PackedGraph, populationRate: number) {
+    worldContext.pack = pack;
+    worldContext.populationRate = populationRate;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+    Military.generate(worldContext, viewContext, appServices, makeState(pack));
+    return worldContext.pack.states[1];
+  }
+
+  it("keeps rocketArtillery out of the roster while militarySignalRockets is locked", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const totals = unitTotals(generate(makeBasePack("Enemy")));
+
+    expect(totals.rocketArtillery ?? 0).toBe(0);
+    expect(totals.fieldArtillery ?? 0).toBeGreaterThan(0);
+  });
+
+  it("recruits rocketArtillery once militarySignalRockets is adopted, and shrinks fieldArtillery's share", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const baselineTotals = unitTotals(generateAtScale(makeBasePack("Enemy"), 50));
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "militarySignalRockets", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const rocketTotals = unitTotals(generateAtScale(makeBasePack("Enemy"), 50));
+
+    expect(rocketTotals.rocketArtillery ?? 0).toBeGreaterThan(0);
+    // obsoletes: "fieldArtillery" — adopted (share 0.75) leaves fieldArtillery only 25% of what
+    // it'd otherwise be, same shrink shape as riflemen/musketeers and fieldArtillery/artillery.
+    expect(rocketTotals.fieldArtillery ?? 0).toBeLessThan((baselineTotals.fieldArtillery ?? 0) * 0.5);
+  });
+
+  it("does not gate rocketArtillery when the gunpowder era is disabled, same as fieldArtillery", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "militarySignalRockets", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const pack = makeBasePack("Enemy");
+    const state = makeState(pack);
+    state.options = { year: 1000, gunpowderEraEnabled: false };
+    worldContext.pack = pack;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+
+    Military.generate(worldContext, viewContext, appServices, state);
+    const totals = unitTotals(worldContext.pack.states[1]);
+
+    expect(totals.rocketArtillery ?? 0).toBe(0);
+    expect(totals.fieldArtillery ?? 0).toBe(0);
+  });
+});

@@ -2,7 +2,7 @@
 
 ## 状態
 
-**Phase 1・Phase 2・Phase 3 実装済み（2026-08-21）。** [technology-development-roadmap.md](./technology-development-roadmap.md) の Phase 1–8（中世農業〜ロケット・宇宙開発）が実装済みになった一方、`Military.generate()` が生成する部隊編成（`src/generators/military-generator.ts`）は火薬時代（Era 2）で止まっており、Era 3〜8（大航海〜ロケット）に対応するユニットが一つも存在しない、というギャップに対応する。本書はこのギャップを閉じるための設計と実装フェーズをまとめる。Phase 1（ゲーティング機構＋Era 5-6 ユニット）・Phase 2（armored/aviation の投入）・Phase 3（Economy 拡張との装備連携）の実装内容は §5 の実装ログを参照。Phase 4（ロケット砲、バックログ）のみ引き続き未着手。
+**Phase 1〜4 すべて実装済み（2026-08-21）。** [technology-development-roadmap.md](./technology-development-roadmap.md) の Phase 1–8（中世農業〜ロケット・宇宙開発）が実装済みになった一方、`Military.generate()` が生成する部隊編成（`src/generators/military-generator.ts`）は火薬時代（Era 2）で止まっており、Era 3〜8（大航海〜ロケット）に対応するユニットが一つも存在しない、というギャップに対応する。本書はこのギャップを閉じるための設計と実装フェーズをまとめる。Phase 1（ゲーティング機構＋Era 5-6 ユニット）・Phase 2（armored/aviation の投入）・Phase 3（Economy 拡張との装備連携）・Phase 4（rocketArtillery）の実装内容は §5 の実装ログを参照。ブラウザでの手動確認（§8）のみ未実施。
 
 ---
 
@@ -210,7 +210,7 @@ for (const unit of military) {
 
 `armored`/`aviation` は combat エンジン側の変更が不要という §1.3 の見立ては、[src/controllers/battle-screen.test.ts](../../src/controllers/battle-screen.test.ts) を新規に書いて実証済み — `Battle.prototype` のメソッドを `Object.create(Battle.prototype)` で作った最小限の `this` に対して直接呼び、`defineType()` が全機 aviation の対戦を `"air"` と判定すること、`selectPhase()` が `"maneuvering"`/`"dogfight"` を実際に選ぶこと、`calculateStrength()` の `scheme` テーブルの `armored`/`aviation` 列が実際に読まれていること（`dogfight` は `maneuvering` のちょうど2倍、`melee` の armored 補正、`shelling` で armored の出力が 0 になることを確認）を検証した。手動でのブラウザ確認は行っていない（§8 参照）。
 
-### 4.5 Era 8（ロケット・宇宙開発）— ロケット砲のみ、戦略兵器化はしない
+### 4.5 Era 8（ロケット・宇宙開発）— ロケット砲のみ、戦略兵器化はしない ✅ Phase 4 実装済み
 
 | フィールド | 値 |
 | --- | --- |
@@ -222,6 +222,8 @@ for (const unit of military) {
 | crew / power | `6` / `35`（Uncalibrated） |
 
 `militarySignalRockets`（Era 8 の軍用・信号用火薬ロケット）は roadmap 自身が「限定的な信号・軍事用途。宇宙開発の直接解禁にはしない」と明記しているノードであり、`getMilitarySignalRocketsEffect()` も「deliberately unconsumed」（[technologyProgress.ts:225-238](../../src/generators/technologyProgress.ts)）。本書はこれを**通常の砲兵ユニットの上位互換**として消費するに留め、外交・威信・戦略効果は一切付与しない（roadmap §11 の非目標をそのまま継承）。
+
+**用語の訂正（Phase 4 実装時に気づいた不正確な記述）**: 上の一文、および Phase 2 の実装ログにあった「`getInternalCombustionEngineEffect()`/`getMilitarySignalRocketsEffect()` に初めて実消費者を与える」という表現は正確ではない。実際に呼んでいるのは `requiresTechnology` 経由の `getTechnologyAdoptionShare()` であり、`getInternalCombustionEngineEffect()`/`getMilitarySignalRocketsEffect()` という名前の関数そのものは Phase 1〜4 を通じて一度も呼ばれていない（`grep` で確認済み）。両者は同じ `TechnologyProgress` 状態を読む**並行した**別実装であり、後者は `getTechnologyAdoptionShare()` のような `minimum` カットオフを持たない（`demonstrated` の時点で既に 0.35 を返す）ため、「`adopted` 未満では存在しない」という本書のゲート設計とは形が異なり、単純な置き換えはできない。`getInternalCombustionEngineEffect()`/`getMilitarySignalRocketsEffect()` 自体は今後も未消費のままである — 呼びたい場合は army roster 側ではなく、両関数のコメントが元々想定していた「車両/船舶/動力システム」「別の軍事・外交設計」側で使うのが筋。
 
 `stagingAndOrbitalInsertion`（多段化・軌道投入、Era 8 の終端ノード）には**対応するユニットを作らない**。人工衛星・軌道投入は編成可能な「部隊」ではなく、通信・観測・威信という別カテゴリの効果であり、`getStagingAndOrbitalInsertionEffect()` は引き続き未消費のままにする（roadmap 自身の非目標を継承 — §6 参照）。
 
@@ -276,9 +278,13 @@ for (const unit of military) {
 - **重要な設計変更（実装中に発見）**: 当初は「`isArtillery()` を `=== "artillery"` から `.includes("artillery")` に一括で広げ、`fieldArtillery` も同じ判定に含める」という単純な変更を想定していたが、これは `unstockInitialFirearmForces()`（`initialFirearmsUnstocked` 時に部隊を `plannedU` の休眠枠へ振り替える処理）にも影響することが判明した。`metallurgWork.ts` は**別に定義された独自の** `isArtillery()`（`=== "artillery"` のまま、広げていない）で `plannedU` を再活性化する "Artillery" Good の生産計画を立てるため、`fieldArtillery` を `unstockInitialFirearmForces()` 側だけ広げると、`fieldArtillery` の休眠枠がどちらの生産計画にも一致せず**永久に再活性化されない**という実質的なリグレッションになるところだった（`initialFirearmsUnstocked` を有効にした場合のみ顕在化）。対処として `isArtillery()`（`unstockInitialFirearmForces()` 用、厳密一致のまま）と `isArtilleryLike()`（`getAnnualDemand()` の資材需要集計専用、`includes("artillery")` に広げた版）を分離した。テストでこの区別を固定化済み（下記）。
 - `musketeers`/`artillery` が現在受けている `unstockInitialFirearmForces()`（`plannedU` による装備待ち休眠編成、[militaryResources.ts:97-132](../../src/extensions/economy/generators/militaryResources.ts)）と同じパターンを新ユニットにも適用するかどうかは、計画通り Phase 3 では見送った（上記の通り、うっかり見送りを破るところだったので、テストで固定化した）。
 
-### Phase 4（バックログ・任意）— Era 8 ロケット砲
+### Phase 4（バックログ・任意）— Era 8 ロケット砲 ✅ 実装済み（2026-08-21）
 
-- `rocketArtillery` の追加。Phase 1〜3 で確立したパターンをそのまま適用するだけなので優先度は低い。`syntheticAmmonia` 由来の近代火薬供給効率乗数（§4.3）も同時期に検討してよい。
+- `rocketArtillery` を `Military.getDefaultOptions()` に追加(§4.5)。`obsoletes: "fieldArtillery"`／`requiresTechnology: { id: "militarySignalRockets", minimum: "adopted" }` は Phase 1 で確立したフィールドをそのまま使い、新しいコード機構は不要だった(§3.2/3.3 の `s.temp[unit.name]` ゲート・obsolescence ループがそのまま効く)。`isGunpowderEraMilitaryUnit()` も名前(`rocketartillery`)+type(`machinery`)の既存パターンでそのまま正しく判定されるため無変更。
+- **`militaryResources.ts`（Phase 3 のパターンを実際に拡張した点）**: `needsModernSteel()`(判定対象: `requiresTechnology.id === "modernSteelmaking"` のみ)を `needsAdvancedSteel()` に改名し、`"militarySignalRockets"` も対象に加えた(ロケットランチャーの架台も鋼材集約的という判断)。Phase 3 では「Phase 1〜3 で確立したパターンをそのまま適用するだけ」という Phase 4 の想定通り、新しい定数・新しい仕組みは増やさず、既存の `MODERN_STEEL_PER_HEAD` レートをそのまま流用した。`rocketArtillery` は名前に `"artillery"` を含む(`isArtilleryLike()`)ため、Iron/Lead/Gunpowder 需要も fieldArtillery と同様に自動で乗る — Kerosene/Aluminum は付与していない(エンジン・機体を持たないため)。
+- `syntheticAmmonia` 由来の近代火薬供給効率乗数（§4.3）は Phase 4 の本文で「同時期に検討してよい」と書かれた**任意**項目であり、今回は実装していない（明示的に見送り。必要になれば別タスクとして着手する）。
+- 3段階の obsolescence 連鎖（`artillery` → `fieldArtillery` → `rocketArtillery`）が正しく動くことをテストで確認: `rocketArtillery` が `adopted` のとき `fieldArtillery` のシェアが縮む一方、`legacy artillery` の縮小幅は `fieldArtillery` 自身の `modernSteelmaking` 採用状況だけで決まり、`rocketArtillery` の状態には直接左右されない（§3.3 の実装が「直接の obsoletes 元」しか見ない一段階ずつの計算のため）。これは既存の 2段階チェーン（`musketeers`→`riflemen`、`artillery`→`fieldArtillery`）と同じ挙動であり、Phase 4 で新たな不整合を持ち込んではいない。
+- `military-generator.test.ts` に3テスト追加: locked時に不在／`militarySignalRockets` adopted で出現し `fieldArtillery` のシェアが縮む／`gunpowderEraEnabled=false` では `fieldArtillery` と同様に不在。`militaryResources.test.ts` に1テスト追加: `rocketArtillery` が `needsAdvancedSteel()` 経由で Steel を消費し、Kerosene/Aluminum は消費しないこと。
 
 ---
 
@@ -308,16 +314,17 @@ for (const unit of military) {
 
 ### 自動テスト
 
-- `military-generator.test.ts`: **実装済み（Phase 1 + Phase 2）。** Phase 1 で5テスト、Phase 2 で5テスト追加。Phase 1 分 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。Phase 2 分 — locked時に armored/aviation とも不在／`internalCombustionEngine` adopted のみで armored 出現・aviation は不在のまま／aviation は複合ゲートの片方だけでは出現しない／両方(adopted + demonstrated)揃うと armored・aviation とも出現／`gunpowderEraEnabled=false` でも armored/aviation は火薬系ユニットと違い不在にならない。
+- `military-generator.test.ts`: **実装済み（Phase 1 + Phase 2 + Phase 4）。** Phase 1 で5テスト、Phase 2 で5テスト、Phase 4 で3テスト追加。Phase 1 分 — locked時に3ユニットとも不在／`standardMachineWorks` adopted で riflemen 出現・musketeers 減衰／`modernSteelmaking` demonstrated で machineGunners のみ出現／`modernSteelmaking` adopted で fieldArtillery 出現・artillery 減衰／`gunpowderEraEnabled=false` では5ユニットとも不在。Phase 2 分 — locked時に armored/aviation とも不在／`internalCombustionEngine` adopted のみで armored 出現・aviation は不在のまま／aviation は複合ゲートの片方だけでは出現しない／両方(adopted + demonstrated)揃うと armored・aviation とも出現／`gunpowderEraEnabled=false` でも armored/aviation は火薬系ユニットと違い不在にならない。Phase 4 分 — locked時に rocketArtillery が不在／`militarySignalRockets` adopted で rocketArtillery 出現・fieldArtillery 減衰／`gunpowderEraEnabled=false` では fieldArtillery と同様に不在。
 - `src/controllers/battle-screen.test.ts`: **新規作成（Phase 2）。** `Battle.prototype` を直接叩く5テストで `defineType()`/`selectPhase()`/`calculateStrength()` の armored/aviation 対応を検証（詳細は §4.4 実装ログ）。
-- `militaryResources.test.ts`: **実装済み（Phase 3）。** 新 `describe` ブロックに4テスト追加 — fieldArtillery/machineGunners/armored/aviation の Steel/Kerosene/Aluminum 需要が期待通りの計算式で出ること・市場在庫が減ること／legacy "artillery" は Steel を消費しないこと／`gunpowderEraEnabled=false` でも armored/aviation の Steel/Kerosene/Aluminum 需要は残ること／**`initialFirearmsUnstocked` 時に fieldArtillery が legacy artillery と違って `plannedU` へ振り替えられないこと**（実装中に見つけた §5 Phase 3 実装ログの回帰ガード）。既存6テストも無変更で green。
+- `militaryResources.test.ts`: **実装済み（Phase 3 + Phase 4）。** `describe` ブロックに Phase 3 で4テスト、Phase 4 で1テスト追加。Phase 3 分 — fieldArtillery/machineGunners/armored/aviation の Steel/Kerosene/Aluminum 需要が期待通りの計算式で出ること・市場在庫が減ること／legacy "artillery" は Steel を消費しないこと／`gunpowderEraEnabled=false` でも armored/aviation の Steel/Kerosene/Aluminum 需要は残ること／**`initialFirearmsUnstocked` 時に fieldArtillery が legacy artillery と違って `plannedU` へ振り替えられないこと**（実装中に見つけた §5 Phase 3 実装ログの回帰ガード）。Phase 4 分 — rocketArtillery が `needsAdvancedSteel()` 経由で Steel を消費し、Kerosene/Aluminum は消費しないこと。既存6テストも無変更で green。
 - `technologyProgress.test.ts` への `getTechnologyAdoptionShare()` 専用単体テストは **未追加**（military-generator.test.ts 側の統合テストでカバーしている。既存 `get*Effect()` 系と同型の純関数なので優先度は低い）。
-- フルスイート 411ファイル/3250テスト（Phase 3 分 +4）、`tsc --noEmit`・`biome check` ともにクリーン（2026-08-21確認）。
+- フルスイート 411ファイル/3254テスト、`tsc --noEmit`・`biome check` ともにクリーン（2026-08-21確認、Phase 1〜4 全実装後）。
 
 ### 手動確認手順（未実施 — 次回セッションで確認）
 
-1. `historicalPeriod` を `steamEra` 以降に設定して新規マップを生成し、Military Options で State の技術段階に応じて `riflemen`/`fieldArtillery`/`machineGunners`/`armored`/`aviation` が有効になっていること、名前欄の 🔬/↩️ バッジが正しく表示されることを確認する。
+1. `historicalPeriod` を `rocketryEra`（最終段階）に設定して新規マップを生成し、Military Options で State の技術段階に応じて `riflemen`/`fieldArtillery`/`machineGunners`/`armored`/`aviation`/`rocketArtillery` が有効になっていること、名前欄の 🔬/↩️ バッジが正しく表示されることを確認する。
 2. `ageOfExploration` 以前の開始で、新ユニットが一切出現しない（従来どおり6ユニットのみ）ことを確認する。
 3. Regiments Overview で新ユニットが実際に連隊に編成されていることを確認する。
 4. Battle Screen で `armored`/`aviation` を含む連隊同士を実際に衝突させ、`"air"`/`"landing"` 戦闘種別と `dogfight`/`maneuvering` フェーズが選択されること、UI 上の表示が破綻しないことを確認する（battle-screen.test.ts はロジックのみの検証であり、ダイアログ描画・ユーザー操作フローは未確認）。
-5. armored/aviation/fieldArtillery/machineGunners を編成した State で、Goods Editor または市場画面から Steel/Kerosene/Aluminum の在庫が実際に減っていくこと、`unmetDemand` が異常に張り付き続けないことを確認する（§7 のリスク参照）。
+5. armored/aviation/fieldArtillery/machineGunners/rocketArtillery を編成した State で、Goods Editor または市場画面から Steel/Kerosene/Aluminum の在庫が実際に減っていくこと、`unmetDemand` が異常に張り付き続けないことを確認する（§7 のリスク参照）。
+6. `artillery`→`fieldArtillery`→`rocketArtillery` の3段階すべてが揃う長寿命 State で、連隊編成が不自然に破綻しない（§5 Phase 4 実装ログの3段階チェーンの挙動どおりになる）ことを確認する。
