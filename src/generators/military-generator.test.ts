@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -6,6 +6,7 @@ import { createDefaultBiomesData } from "../data/biomeCatalog";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { Military } from "./military-generator";
+import { resetTechnologyProgress, setTechnologyProgressForTests } from "./technologyProgress";
 
 function makeState(pack: PackedGraph): WorldState {
   return {
@@ -113,6 +114,14 @@ function makeBasePack(relation: string): PackedGraph {
 }
 
 describe("MilitaryModule.generate — consolidated regiment structure", () => {
+  // Every test in this file runs Military.generate(), which now reads per-State technology
+  // gates (docs/plan/military-era-progression.md §3). Without a reset, a technologyProgress
+  // entry seeded by one test (or lazily seeded from an earlier test's pack) would leak into the
+  // next test's identical state ids (see technologyProgress.test.ts for the same pattern).
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
   it("excludes artillery from regiments when the gunpowder era is disabled", () => {
     const pack = makeBasePack("Enemy");
     const state = makeState(pack);
@@ -285,5 +294,108 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
     const threatenedGuard = threatenedState.military!.find(r => r.isCapitalGuard)!;
 
     expect(threatenedGuard.a).toBeGreaterThan(safeGuard.a);
+  });
+});
+
+// docs/plan/military-era-progression.md Phase 1: per-State technology gating for era-5/6 units
+// (riflemen/fieldArtillery/machineGunners) and gradual obsolescence of the units they supersede.
+describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
+  beforeEach(() => {
+    resetTechnologyProgress();
+  });
+
+  function unitTotals(state: ReturnType<typeof generate>): Record<string, number> {
+    const totals: Record<string, number> = {};
+    for (const regiment of state.military ?? []) {
+      for (const [unitName, amount] of Object.entries(regiment.u)) {
+        totals[unitName] = (totals[unitName] ?? 0) + amount;
+      }
+    }
+    return totals;
+  }
+
+  it("keeps riflemen/fieldArtillery/machineGunners out of the roster while their technology is locked", () => {
+    // No setTechnologyProgressForTests() call — every technology defaults to "locked", same as
+    // the pre-Phase-1 behavior for every existing (ungated) unit.
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.riflemen ?? 0).toBe(0);
+    expect(totals.fieldArtillery ?? 0).toBe(0);
+    expect(totals.machineGunners ?? 0).toBe(0);
+    expect(totals.musketeers ?? 0).toBeGreaterThan(0);
+    expect(totals.artillery ?? 0).toBeGreaterThan(0);
+  });
+
+  it("recruits riflemen once standardMachineWorks is adopted, and shrinks musketeers' share", () => {
+    const lockedState = generate(makeBasePack("Enemy"));
+    const lockedTotals = unitTotals(lockedState);
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const adoptedState = generate(makeBasePack("Enemy"));
+    const adoptedTotals = unitTotals(adoptedState);
+
+    expect(adoptedTotals.riflemen ?? 0).toBeGreaterThan(0);
+    // obsoletes: "musketeers" — adopted (share 0.75) leaves musketeers only 25% of what they'd
+    // otherwise be, so the state's musketeer total should drop well below the locked baseline.
+    expect(adoptedTotals.musketeers ?? 0).toBeLessThan((lockedTotals.musketeers ?? 0) * 0.5);
+    // fieldArtillery/machineGunners are gated on a different technology (modernSteelmaking) and
+    // must stay unaffected by standardMachineWorks alone.
+    expect(adoptedTotals.fieldArtillery ?? 0).toBe(0);
+    expect(adoptedTotals.machineGunners ?? 0).toBe(0);
+  });
+
+  it("recruits machineGunners once modernSteelmaking is demonstrated, below fieldArtillery's adopted bar", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const state = generate(makeBasePack("Enemy"));
+    const totals = unitTotals(state);
+
+    expect(totals.machineGunners ?? 0).toBeGreaterThan(0);
+    // fieldArtillery requires "adopted", one stage further than machineGunners' "demonstrated".
+    expect(totals.fieldArtillery ?? 0).toBe(0);
+    // machineGunners has no `obsoletes` relationship — artillery keeps its full share.
+    expect(totals.artillery ?? 0).toBeGreaterThan(0);
+  });
+
+  it("recruits fieldArtillery once modernSteelmaking is adopted, and shrinks artillery's share", () => {
+    const lockedState = generate(makeBasePack("Enemy"));
+    const lockedTotals = unitTotals(lockedState);
+
+    resetTechnologyProgress();
+    setTechnologyProgressForTests([
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const adoptedState = generate(makeBasePack("Enemy"));
+    const adoptedTotals = unitTotals(adoptedState);
+
+    expect(adoptedTotals.fieldArtillery ?? 0).toBeGreaterThan(0);
+    expect(adoptedTotals.machineGunners ?? 0).toBeGreaterThan(0); // "adopted" also clears "demonstrated"
+    expect(adoptedTotals.artillery ?? 0).toBeLessThan((lockedTotals.artillery ?? 0) * 0.5);
+  });
+
+  it("does not gate riflemen/fieldArtillery/machineGunners when the gunpowder era is disabled, same as musketeers/artillery", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const pack = makeBasePack("Enemy");
+    const state = makeState(pack);
+    state.options = { year: 1000, gunpowderEraEnabled: false };
+    worldContext.pack = pack;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+
+    Military.generate(worldContext, viewContext, appServices, state);
+    const totals = unitTotals(worldContext.pack.states[1]);
+
+    for (const name of ["musketeers", "artillery", "riflemen", "fieldArtillery", "machineGunners"]) {
+      expect(totals[name] ?? 0).toBe(0);
+    }
   });
 });

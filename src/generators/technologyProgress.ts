@@ -126,6 +126,26 @@ export function isTechnologyAtLeast(
 }
 
 /**
+ * Recruitment-share multiplier (0..1) for a per-State military unit technology gate
+ * (docs/plan/military-era-progression.md §3.3, MilitaryUnit.requiresTechnology). Returns 0 below
+ * `gate.minimum` — military-generator.ts treats that as "this unit doesn't exist for this State
+ * yet" and skips it entirely. At or above `minimum` it reuses the same "diffused=1 / adopted=0.75
+ * / demonstrated=0.35 / known=0.1" ladder as getFourCourseRotationEffect() and the other
+ * get*Effect() helpers above — so a unit gated at minimum:"adopted" (the common case so far)
+ * necessarily opens abruptly at 0.75 (nothing between "locked to this State" and "adopted" can
+ * satisfy that gate) and then keeps climbing toward 1 as adoption diffuses further; a unit gated
+ * at a lower minimum (e.g. "demonstrated" or "known") eases in more gradually from 0.35 or 0.1.
+ */
+export function getTechnologyAdoptionShare(gate: { id: string; minimum: TechnologyStage }, stateId: number): number {
+  const stage = getTechnologyStage(gate.id, stateId);
+  if (!isTechnologyStageAtLeast(stage, gate.minimum)) return 0;
+  if (stage === "diffused") return 1;
+  if (stage === "adopted") return 0.75;
+  if (stage === "demonstrated") return 0.35;
+  return 0.1;
+}
+
+/**
  * Multiplier on military gunpowder demand (lower = more efficient chemistry/logistics).
  * Pre-demonstration programs waste powder; adopted corned powder / mass firearms improve on baseline.
  */

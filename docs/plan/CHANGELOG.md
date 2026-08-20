@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-21
+
+- docs/plan/military-era-progression.md
+
 2026-08-20
 
 - docs/plan/catalytic-chemistry.md

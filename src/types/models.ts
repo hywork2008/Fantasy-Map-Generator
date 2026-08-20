@@ -1050,6 +1050,22 @@ export interface MilitaryUnit {
   states?: number[];
   cultures?: number[];
   religions?: number[];
+  /**
+   * Per-State technology gate (docs/plan/military-era-progression.md §3). Omitted = always
+   * recruitable (matches every pre-existing unit's behavior). When present, a State can only
+   * recruit this unit once its own technologyProgress stage for `id` reaches `minimum`; below
+   * that the unit is skipped entirely for that State (see passUnitLimits() in
+   * military-generator.ts). `TechnologyStage` is intentionally inlined as a string union here
+   * (not imported from generators/technologyTypes.ts) to keep this base types module free of
+   * generator dependencies — keep the literals in sync with TECHNOLOGY_STAGES.
+   */
+  requiresTechnology?: { id: string; minimum: "known" | "demonstrated" | "adopted" | "diffused" };
+  /**
+   * Name of an older unit this one gradually supersedes as `requiresTechnology`'s adoption share
+   * grows (docs/plan/military-era-progression.md §3.3). The obsoleted unit is never deleted or
+   * force-replaced — only its effective recruitment share shrinks as this unit's share grows.
+   */
+  obsoletes?: string;
 }
 
 export interface MilitaryRegiment {

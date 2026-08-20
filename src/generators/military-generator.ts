@@ -32,6 +32,7 @@ import {
 import { constrainRegimentUnits, requestFleetCapacity, requestMountedCapacity } from "./militaryAssetCapacity";
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
+import { getTechnologyAdoptionShare } from "./technologyProgress";
 
 /** At most this many consolidated field armies per state (plus one capital guard, plus one fleet). */
 const MAX_FIELD_ARMIES = 21;
@@ -349,6 +350,33 @@ class MilitaryModule {
         // Shipbuilding extension (if enabled) boosts naval unit strength for states
         // whose shipyards have completed state-owned hulls — defaults to 1 (no-op).
         if (unit.type === "naval") s.temp[unit.name] *= getNavalTechBonus(s.i);
+        // Per-State technology gate (docs/plan/military-era-progression.md §3.2). Folded into
+        // the same s.temp[unit.name] modifier the rural/urban recruitment loops below already
+        // treat as "falsy -> skip this unit for this state" (`!stateObj.temp![unit.name]`), so a
+        // locked gate needs no changes to those loops — it just multiplies the modifier to 0.
+        // Once a State reaches the gate's minimum stage the unit's own recruitment rate is scaled
+        // by how far its technology has since diffused (see getTechnologyAdoptionShare's own doc
+        // comment) rather than jumping straight to full strength.
+        if (unit.requiresTechnology) {
+          s.temp[unit.name] *= getTechnologyAdoptionShare(unit.requiresTechnology, s.i);
+        }
+      }
+
+      // Second pass: units that `obsoletes` another unit gradually take over that unit's
+      // recruitment share as their own technology adoption share grows (§3.3) — e.g. riflemen
+      // reaching "adopted" (share 0.75) shrinks musketeers' effective modifier to 25% of what it
+      // would otherwise be for this State, without deleting musketeers from the roster or forcing
+      // already-raised regiments to re-equip. Runs after the pass above so every unit's own
+      // s.temp[name] is already set before any of them get scaled down here.
+      for (const unit of military) {
+        if (s.temp[unit.name] === undefined) continue;
+        const obsoletedBy = military.filter(u => u.obsoletes === unit.name && u.requiresTechnology);
+        if (!obsoletedBy.length) continue;
+        const supersededShare = obsoletedBy.reduce(
+          (total, u) => total + getTechnologyAdoptionShare(u.requiresTechnology!, s.i),
+          0
+        );
+        s.temp[unit.name] *= Math.max(0, 1 - Math.min(1, supersededShare));
       }
     });
 
@@ -932,7 +960,7 @@ class MilitaryModule {
     TIME && console.timeEnd("generateMilitary");
   }
 
-  getDefaultOptions() {
+  getDefaultOptions(): MilitaryUnit[] {
     // Ships stay unarmed transports until Shipbuilding tech unlocks cannons (docs/plan/shipbuilding.md) —
     // a fleet unit's own combat power is just its crew fighting hand-to-hand, cut down for the cramped
     // footing a rolling deck gives against a proper melee line. Troops it ferries/embarks (marines) are
@@ -981,6 +1009,27 @@ class MilitaryModule {
         separate: 0
       },
       {
+        // docs/plan/military-era-progression.md §4.2 (Phase 1). Gated by the same world-level
+        // gunpowderEraEnabled as musketeers (FIREARM_UNIT_NAME_PATTERN now matches "rifle" —
+        // see gunpowderEra.ts), plus a per-State technology gate on top: standardMachineWorks
+        // (era 5's precision-machine-tool node, also reused by internalCombustionEngine) reaching
+        // "adopted" is read as "this State can rifle barrels and standardize cartridges". Below
+        // that stage the unit is invisible for that State (getTechnologyAdoptionShare returns 0).
+        // `obsoletes: "musketeers"` gradually shifts musketeers' own recruitment share to this
+        // unit as adoption grows, without deleting musketeers or re-equipping standing regiments —
+        // see the "Second pass" block above in generate().
+        icon: "🎯",
+        name: "riflemen",
+        rural: 0.1,
+        urban: 0.08,
+        crew: 1,
+        power: 1.6,
+        type: "ranged",
+        separate: 0,
+        requiresTechnology: { id: "standardMachineWorks", minimum: "adopted" },
+        obsoletes: "musketeers"
+      },
+      {
         icon: "🐴",
         name: "cavalry",
         rural: 0.12,
@@ -1002,6 +1051,43 @@ class MilitaryModule {
         power: 12,
         type: "machinery",
         separate: 0
+      },
+      {
+        // docs/plan/military-era-progression.md §4.3 (Phase 1). modernSteelmaking (era 6) reaching
+        // "adopted" stands in for the shift from cast-iron/bronze smoothbores to steel breech-
+        // loading guns (Krupp-style). `unitName.includes("artillery")` + type "machinery" already
+        // makes isGunpowderEraMilitaryUnit() (gunpowderEra.ts) match this unit by name, so it's
+        // excluded the same way "artillery" is when gunpowderEraEnabled is off — no pattern change
+        // needed here (unlike riflemen above). `obsoletes: "artillery"` shifts artillery's own
+        // recruitment share to this unit as adoption grows.
+        icon: "🧨",
+        name: "fieldArtillery",
+        rural: 0,
+        urban: 0.03,
+        crew: 8,
+        power: 20,
+        type: "machinery",
+        separate: 0,
+        requiresTechnology: { id: "modernSteelmaking", minimum: "adopted" },
+        obsoletes: "artillery"
+      },
+      {
+        // docs/plan/military-era-progression.md §4.3 (Phase 1). A lower bar than fieldArtillery
+        // (demonstrated, not adopted) since a State can field a handful of trial machine guns well
+        // before it can re-tool its whole artillery park in steel. Small crew, high power, type
+        // "machinery" so it reuses the existing machinery terrain/combat-phase tables (highland,
+        // shelling, etc. — see military-generator.ts's cellTypeModifier and battle-screen.ts's
+        // scheme). Not an obsoletes relationship — it's a pure addition alongside existing ranged
+        // units, not a replacement for any one of them.
+        icon: "🔥",
+        name: "machineGunners",
+        rural: 0,
+        urban: 0.015,
+        crew: 4,
+        power: 10,
+        type: "machinery",
+        separate: 0,
+        requiresTechnology: { id: "modernSteelmaking", minimum: "demonstrated" }
       },
       {
         icon: "🌊",
