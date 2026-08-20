@@ -30,7 +30,7 @@ import type { ConstructionHireApplication, ConstructionNamedSeat } from "./gener
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Dam, DamSite } from "./generators/damTypes";
 import type { PowerStation, TelegraphLine } from "./generators/electricalTypes";
-import type { ElectrolysisPlant } from "./generators/electrolysisTypes";
+import type { ChlorAlkaliPlant, ElectrolysisPlant } from "./generators/electrolysisTypes";
 import type {
   EscortActiveContract,
   EscortCooldowns,
@@ -174,6 +174,7 @@ let _nitrogenFertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _powerStationsLastSettledYearFallback: number | null = null;
 let _telegraphLinesLastSettledYearFallback: number | null = null;
 let _electrolysisPlantsLastSettledYearFallback: number | null = null;
+let _chlorAlkaliPlantsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _damsLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
@@ -242,6 +243,7 @@ export function clearEconomyContext(): void {
   _powerStationsLastSettledYearFallback = null;
   _telegraphLinesLastSettledYearFallback = null;
   _electrolysisPlantsLastSettledYearFallback = null;
+  _chlorAlkaliPlantsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
   _damsLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
@@ -1489,6 +1491,14 @@ export function getElectrolysisPlants(): ElectrolysisPlant[] {
 export function setElectrolysisPlants(rows: readonly ElectrolysisPlant[]): void {
   setSliceArray("electrolysisPlants", rows);
 }
+/** Same shape as getElectrolysisPlants — a third supply route for Chlorine/Caustic Soda.
+ *  Design: docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7. */
+export function getChlorAlkaliPlants(): ChlorAlkaliPlant[] {
+  return getSliceArray<ChlorAlkaliPlant>("chlorAlkaliPlants");
+}
+export function setChlorAlkaliPlants(rows: readonly ChlorAlkaliPlant[]): void {
+  setSliceArray("chlorAlkaliPlants", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1618,6 +1628,18 @@ export function getElectrolysisPlantsLastSettledYear(): number | null {
 export function setElectrolysisPlantsLastSettledYear(year: number): void {
   writeYearToSlice("electrolysisPlantsLastSettledYear", year, value => {
     _electrolysisPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards ChlorAlkaliPlants.settleAnnual(), same shape as getElectrolysisPlantsLastSettledYear.
+ * Design: docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7.
+ */
+export function getChlorAlkaliPlantsLastSettledYear(): number | null {
+  return yearFromSlice("chlorAlkaliPlantsLastSettledYear", _chlorAlkaliPlantsLastSettledYearFallback);
+}
+export function setChlorAlkaliPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("chlorAlkaliPlantsLastSettledYear", year, value => {
+    _chlorAlkaliPlantsLastSettledYearFallback = value;
   });
 }
 /** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */

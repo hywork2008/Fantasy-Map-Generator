@@ -2686,9 +2686,12 @@ export const GOODS_DATA: GoodData[] = [
     // oxidizes with air into Chlorine. Collapses the historical two-step HCl-then-oxidation
     // chain into one recipe, the same abstraction level Sulfuric Acid above already uses for the
     // lead-chamber process. Water/sanitation and bleach consumers are a later slice — this is
-    // supply only. "One Good, two supply sites" like Sulfuric Acid/Phosphate Fertilizer: this
-    // recipe is the craft-worker path, ChlorinePlants (chlorinePlants.ts) is the State-funded
-    // capital path. Design: docs/plan/chlorine-production-vertical-slice.md §3.2.
+    // supply only. "One Good, three supply sites" like Sulfuric Acid/Phosphate Fertilizer's two:
+    // this recipe is the craft-worker path, ChlorinePlants (chlorinePlants.ts) is the Deacon-
+    // process State-funded capital path, and ChlorAlkaliPlants (chlorAlkaliPlants.ts) is a third,
+    // electrolytic route requiring no Sulfuric Acid/Coal at all (docs/plan/
+    // chlor-alkali-electrolysis-vertical-slice.md §3.1). Design: docs/plan/
+    // chlorine-production-vertical-slice.md §3.2.
     name: "Chlorine",
     warEconomyType: "strategic",
     tags: ["industrial", "mineral"],
@@ -2774,9 +2777,11 @@ export const GOODS_DATA: GoodData[] = [
   {
     // Causticization: Soda Ash boiled with Slaked Lime swaps calcium and sodium hydroxides,
     // precipitating out calcium carbonate and leaving Caustic Soda in solution — the historical
-    // route to NaOH before the chlor-alkali electrolysis ChlorinePlants' design notes deferred
-    // (chlorinePlants.ts). Feeds a second Soap recipe below (hard/curd soap, vs. Soap's existing
-    // Potash-based soft-soap recipe).
+    // route to NaOH that predates chlor-alkali electrolysis. ChlorAlkaliPlants
+    // (chlorAlkaliPlants.ts) now provides a second, electrolytic route (brine electrolysis,
+    // co-produced with Chlorine) requiring no Soda Ash/Slaked Lime chain at all — see docs/plan/
+    // chlor-alkali-electrolysis-vertical-slice.md §3.1. Feeds a second Soap recipe below
+    // (hard/curd soap, vs. Soap's existing Potash-based soft-soap recipe).
     name: "Caustic Soda",
     warEconomyType: "strategic",
     tags: ["industrial", "mineral"],

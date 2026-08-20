@@ -37,11 +37,9 @@
   機器の材料選択肢）は `Aluminum` の消費先が存在しない現状ではまだ導入対象がなく、具体的な次タスクが決まった時点で
   別の縦切りに委ねる — `electric-power-and-telegraph.md` が `Electricity` の消費先を本書に委ねたのと同じ理由。
 - roadmap §9.5 の水銀・辰砂チェーン。電解工業とは独立した鉱物・毒性チェーンであり、本書と技術的依存関係を持たない。
-- 塩素アルカリ電解（chlor-alkali electrolysis）。`goods-generator.ts` の `Caustic Soda` コメントが「causticization…
-  the historical route to NaOH before the chlor-alkali electrolysis ChlorinePlants' design notes deferred」と明記する
-  経路で、`Chlorine`/`Caustic Soda` は既に Deacon 法・causticization 法で生産できている。`electrolyticIndustry` が
-  存在するようになった後でも、既存の2つの Good に**第三の供給経路**を追加することは、既存の生産量やバランスを変えず
-  実益が薄いため、具体的な次タスクとして計画されるまで着手しない。
+- （2026-08-20 削除）塩素アルカリ電解は本書の非目的から外れ、
+  [chlor-alkali-electrolysis-vertical-slice.md](./chlor-alkali-electrolysis-vertical-slice.md) として別途実装
+  される（§7 決定事項5）。
 - 水力発電。`electric-power-and-telegraph.md` §7 決定事項6を継承し、`PowerStation`（延いては `Market.electricityStock`）
   は石炭専焼のみのまま変更しない。
 - `MarketOverviewDialog` などの UI 表示。既存の `Sulfuric Acid`/`Steel`/`Copper Wire` と同じく、市場在庫パネルへの
@@ -411,12 +409,18 @@ ElectrolysisPlants.settleAnnual();
    存在しないプロセスである。
 3. **`ElectrolysisPlant` は `ChemistryTrial` を経由しない**（`SteelConverterPlant`/`PowerStation` 型）。電解冶金
    ドメインであり、`modern-steelmaking-and-high-pressure-apparatus.md` §7 決定事項2 と同じ理由でこの特例を踏襲する。
-4. **`Market.electricityStock` を読むが、新しい共通ヘルパーは `chemMedCommon.ts` に追加しない**。読み取り専用の
-   1箇所限定の利用であり、`electrolysisPlants.ts` 内にインライン実装する。将来2つ目の電力消費産業が追加された
-   時点で共通化を検討する。
-5. **塩素アルカリ電解を実装しない**。`Chlorine`/`Caustic Soda` は既に別経路（Deacon 法・causticization）で生産
-   できており、電解工業の実装後に第三の供給経路を追加する実益は薄い。`goods-generator.ts` のコメントが指す
-   「chlor-alkali electrolysis の設計メモ」は、具体的な次タスクとして計画されるまで着手しない。
+4. **（2026-08-20 改訂）`Market.electricityStock` の読み取りを `chemMedCommon.ts` の共通ヘルパー
+   `electricityCoverageForMarket()` に昇格した**。本注記が想定していた「将来2つ目の電力消費産業が追加された
+   時点で共通化を検討する」が現実になったため（`chlorAlkaliPlants.ts`、
+   [chlor-alkali-electrolysis-vertical-slice.md](./chlor-alkali-electrolysis-vertical-slice.md) §3.7）、
+   `electrolysisPlants.ts` 自身もこの共通ヘルパーへ移行した。
+5. **（2026-08-20 改訂）塩素アルカリ電解を実装しないという判断を撤回した**。当初の理由（第三の供給経路を
+   追加しても既存の生産量やバランスを変えず実益が薄い）を再検討した結果、史実の塩素アルカリ電解は原料構成が
+   本質的に異なる（Sulfuric Acid/Coal/Firebrick の中間チェーンを経由せず、Salt と電力のみで完結する）こと、
+   電力が安価になるにつれて旧来の Leblanc 法プラントを実際に置き換えた歴史的経緯があることから、独立した
+   実装価値があると判断した。詳細設計は
+   [chlor-alkali-electrolysis-vertical-slice.md](./chlor-alkali-electrolysis-vertical-slice.md) に分離する。
+   貿易競争・雇用・外交シミュレーションへの波及効果は当面のスコープ外とし、別タスクの Open Question として残す。
 6. **`bauxiteAccess` のような市場在庫カバレッジ信号を `electrolyticIndustry` の閾値に追加しない**。原料偏在は
    `ElectrolysisPlant.utilization`（ひいては `electrolysisPlantTrialYears`/`Installations`）を通じて間接的に
    ノードの進行を抑制する、というより単純な因果関係に留める。

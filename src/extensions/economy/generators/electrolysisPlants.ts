@@ -11,7 +11,6 @@ import { rn } from "../../hostUtils";
 import {
   getElectrolysisPlants,
   getElectrolysisPlantsLastSettledYear,
-  getMarkets,
   getSimulationYear,
   getWorldContext,
   setElectrolysisPlants,
@@ -19,21 +18,13 @@ import {
 } from "../economyContext";
 import {
   addNamedStock,
-  clamp01,
   consumeNamed,
   debitTreasury,
   ELECTROLYSIS_PLANT_BUDGET,
+  electricityCoverageForMarket,
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
-
-/** 0..1 Market.electricityStock read directly — this module is the sole reader outside
- *  technologyProgress.ts's own signal copy, so no shared helper is added to chemMedCommon.ts
- *  (§7 decision 4). */
-function electricityCoverageForMarket(marketId: number): number {
-  const market = getMarkets().find(entry => entry.i === marketId);
-  return clamp01(Number(market?.electricityStock) || 0);
-}
 
 export class ElectrolysisPlantsModule {
   settleAnnual(): boolean {

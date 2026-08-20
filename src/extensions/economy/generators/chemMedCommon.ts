@@ -51,10 +51,30 @@ export const ELECTROLYSIS_PLANT_BUDGET = 42;
  * but smaller than a Bessemer converter plant. See docs/plan/dam-flood-control-and-hydropower.md §3.
  */
 export const DAM_BUDGET = 26;
+/**
+ * calibration TBD — sits between STEEL_CONVERTER_PLANT_BUDGET(32) and POWER_STATION_BUDGET(36),
+ * above CHLORINE_PLANT_BUDGET(26): brine electrolysis is a genuinely new electrochemical process
+ * (not "built alongside an existing acid works" the way the Deacon-process ChlorinePlants is),
+ * but historically needs far less electricity per tonne of output than Hall-Héroult aluminum
+ * reduction (~2.5-3.5 MWh/t Cl2 vs ~13-15 MWh/t Al) and no high-temperature bath or carbon-anode
+ * consumption — clearly lighter than ELECTROLYSIS_PLANT_BUDGET(42), the ceiling.
+ * See docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.7.
+ */
+export const CHLOR_ALKALI_PLANT_BUDGET = 34;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
+}
+
+/** 0..1 Market.electricityStock read for a market — shared by ElectrolysisPlants and
+ *  ChlorAlkaliPlants, the two State capital-equipment modules whose utilization is capped by
+ *  electricity capacity, not just Good stock. Originally kept inline in electrolysisPlants.ts as
+ *  a single-reader convenience (electrolytic-industry-vertical-slice.md §7 decision 4, "when a
+ *  second electricity-consuming industry is added, consider sharing" — that moment is now). */
+export function electricityCoverageForMarket(marketId: number): number {
+  const market = getMarkets().find(entry => entry.i === marketId);
+  return clamp01(Number(market?.electricityStock) || 0);
 }
 
 export function findGood(name: string) {

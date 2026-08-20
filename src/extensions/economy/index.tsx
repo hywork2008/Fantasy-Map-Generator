@@ -63,6 +63,7 @@ import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposi
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
+import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
 import { ChlorinePlants } from "./generators/chlorinePlants";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
@@ -3022,6 +3023,13 @@ export function init(api: ExtensionAPI): void {
         // Alumina/Coke/Firebrick consumption is independent of the other era-6 plants above.
         // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
         ElectrolysisPlants.settleAnnual();
+        // Chlor-alkali brine electrolysis — a THIRD supply route for Chlorine/Caustic Soda
+        // (craft-worker recipes + ChlorinePlants' Deacon-process route already exist). Consumes
+        // Salt/Firebrick/Market.electricityStock only — no Coal, no Sulfuric Acid, no AcidPlants
+        // dependency — independent of every other era-6 plant above. Competes with ChlorinePlants
+        // and the craft-worker Chlorine recipe for the same Salt Good (a modeling nuance, not a
+        // blocker). docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.1.
+        ChlorAlkaliPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
