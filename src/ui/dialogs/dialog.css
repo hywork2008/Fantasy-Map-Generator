@@ -574,6 +574,19 @@
   }
 }
 
+/* Read-only data grids need visible row and column boundaries so adjacent
+   values remain distinguishable. Editing grids keep their existing controls
+   unobstructed: a table containing an input in a data cell is excluded. */
+.fmg-dialog table {
+  border-collapse: collapse;
+
+  th,
+  td {
+    border: 1px solid color-mix(in srgb, var(--dark-solid, #666) 25%, transparent);
+    padding: 0 1px;
+  }
+}
+
 .fmg-property-table {
   width: 100%;
 }
