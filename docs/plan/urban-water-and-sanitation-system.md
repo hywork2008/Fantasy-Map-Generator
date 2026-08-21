@@ -544,7 +544,7 @@ Giant 国家は任意の土地に発生しない。State 拡張直後に、全�
 - `src/generators/giantWaterworksSiting.ts` / `burgs-generator.ts`: Giant 国家の Burg を地図上の最高河川水源より低い同State内の適地へ配置する。
 - `src/generators/giantWaterSourceSovereignty.ts` / `states-generator.ts`: Giant 国家が最高河川水源、標高流下で復元した同一河系の流域、首都からの陸上回廊を占有できる場合だけを残す。
 - `src/extensions/economy/generators/urbanWaterSystem.ts`: `buildSystems("generate")` が Giant 国家の全 Burg を Tier 4 遺産としてシードする。`settleBurgWaterInvestment()` は通常は Burg 種族、Giant 国家のローマ水利遺産については State 種族の race bias を上表の4箇所へ注入する。
-- `src/extensions/economy/generators/urbanWaterSupply.ts` / `renderers/drawWaterSupply.ts`: `hasInheritedRomanWaterworks` の集落について、同一State・同一陸地内の最高位かつ下水放流に汚染されない河川セルを保全取水地として選び、長大な模式導水路を `toggleWaterSupply` レイヤーに描画する。外国領の河川は取水地に使わない。
+- `src/extensions/economy/generators/urbanWaterSupply.ts` / `renderers/drawWaterSupply.ts`: `hasInheritedRomanWaterworks` の集落群について、同一State・同一陸地内の最高位かつ下水放流に汚染されない河川セルを共通の保全取水地として選ぶ。取水地から最寄りの Burg へ、以後は既設導水セルから最寄りの未接続 Burg へ、標高を経路コストに含めないセル間最短経路を追加して樹状の模式導水路を `toggleWaterSupply` レイヤーに描画する。外国領・海・別陸地は経路に使わない。
 - `src/extensions/economy/generators/urbanSewerage.ts` / `renderers/drawSewerage.ts`: `hasInheritedRomanSewer` の集落について、同一陸地内で低い河川、なければ海岸を放流点とする模式幹線下水を決定し、`toggleSewerage` レイヤーに描画する。導水・下水とも海・海峡・別島を越えない。
 
 ---

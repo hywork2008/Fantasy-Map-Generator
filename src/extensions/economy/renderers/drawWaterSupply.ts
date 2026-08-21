@@ -25,30 +25,29 @@ function routeMarkup(route: InheritedWaterSupplyRoute, burgName: string): string
   const [sx, sy] = route.source;
   const [dx, dy] = route.destination;
   const path = aqueductPath(route);
-  const title = escapeHtml(`Protected Roman headwater intake → ${burgName}`);
+  const isIntakeSegment = route.sourceCell === route.intakeCell;
+  const title = escapeHtml(
+    `${isIntakeSegment ? "Protected Roman headwater intake" : "Roman aqueduct branch"} → ${burgName}`
+  );
+  const branchMarker = isIntakeSegment
+    ? `<circle cx="${sx}" cy="${sy}" r="4" fill="none" stroke="#0b4f6c" stroke-width="0.8" stroke-dasharray="1 1"/>` +
+      `<circle cx="${sx}" cy="${sy}" r="2.4" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.8"/>`
+    : `<circle cx="${sx}" cy="${sy}" r="1.8" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.8"/>`;
   return (
-    `<g id="${route.id}" data-burg-id="${route.burgId}" data-source-cell="${route.sourceCell}">` +
+    `<g id="${route.id}" data-burg-id="${route.burgId}" data-source-cell="${route.sourceCell}" data-intake-cell="${route.intakeCell}">` +
     `<title>${title}</title>` +
     `<path d="${path}" fill="none" stroke="${OUTER_STROKE}" stroke-width="3.2" stroke-linecap="round"/>` +
     `<path d="${path}" fill="none" stroke="${WATER_STROKE}" stroke-width="1.15" stroke-dasharray="3 2" stroke-linecap="round"/>` +
-    `<circle cx="${sx}" cy="${sy}" r="4" fill="none" stroke="#0b4f6c" stroke-width="0.8" stroke-dasharray="1 1"/>` +
-    `<circle cx="${sx}" cy="${sy}" r="2.4" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.8"/>` +
+    branchMarker +
     `<path d="M ${dx - 2},${dy + 2} L ${dx},${dy - 2.4} L ${dx + 2},${dy + 2} Z" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.8"/>` +
     `</g>`
   );
 }
 
 function aqueductPath(route: InheritedWaterSupplyRoute): string {
-  const [sx, sy] = route.source;
-  const [dx, dy] = route.destination;
-  const vx = dx - sx;
-  const vy = dy - sy;
-  const length = Math.hypot(vx, vy);
-  if (length < 0.1) return `M ${sx},${sy}`;
-  const offset = Math.min(18, Math.max(4, length * 0.1)) * (route.burgId % 2 ? 1 : -1);
-  const cx = (sx + dx) / 2 - (vy / length) * offset;
-  const cy = (sy + dy) / 2 + (vx / length) * offset;
-  return `M ${sx},${sy} Q ${cx},${cy} ${dx},${dy}`;
+  const [first, ...rest] = route.points;
+  if (!first) return "";
+  return `M ${first[0]},${first[1]}${rest.map(([x, y]) => ` L ${x},${y}`).join("")}`;
 }
 
 function escapeHtml(value: string): string {
