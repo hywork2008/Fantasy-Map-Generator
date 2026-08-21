@@ -70,7 +70,13 @@ describe("OverseasRelations", () => {
     worldContext.pack = {
       states: [{ i: 0 } as State, { i: 1, name: "Testland", treasury: 100 } as State],
       burgs: [{ i: 0 } as Burg, { i: 1, state: 1, market: 1, port: 5, capital: 1, cell: 0, removed: false } as Burg],
-      cells: { g: Uint16Array.from([0]) }
+      cells: {
+        g: Uint16Array.from([0, 0]),
+        state: Uint16Array.from([1, 0]),
+        haven: Uint16Array.from([1, 0]),
+        f: Uint16Array.from([0, 1])
+      },
+      features: [{}, { i: 1, type: "ocean" }]
     } as unknown as PackedGraph;
     worldContext.grid = { cells: { temp: Float32Array.from([12]) } } as never;
     setMarkets([{ i: 1, centerBurgId: 1, color: "#000", goods: {} }] as never);
@@ -106,6 +112,15 @@ describe("OverseasRelations", () => {
     );
     OverseasRelations.generate();
     expect(getDistantRealms()).toBe(first);
+  });
+
+  it("excludes a landlocked state whose lake port resolves to an ocean feature", () => {
+    worldContext.pack.cells.haven[0] = 1;
+    worldContext.pack.features[1] = { i: 1, type: "lake" } as PackedGraph["features"][number];
+
+    expect(OverseasRelations.stateHasSeaPort(1)).toBe(false);
+    expect(OverseasRelations.listEligibleStateIds()).not.toContain(1);
+    expect(OverseasRelations.sendTradeExpedition(1, REALM_ID)).toEqual({ ok: false, reason: "no-port" });
   });
 
   it("refuses to fund an expedition the treasury cannot afford", () => {

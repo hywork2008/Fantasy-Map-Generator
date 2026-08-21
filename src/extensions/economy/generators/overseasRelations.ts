@@ -228,13 +228,25 @@ function creditStateTreasury(stateId: number, amount: number): void {
   state.treasury = rn((state.treasury ?? 0) + amount, 2);
 }
 
-function isSeaPortBurg(burg: { i?: number; removed?: boolean; port?: number; market?: number }): boolean {
-  return Boolean(burg.i && !burg.removed && burg.port && typeof burg.market === "number" && burg.market > 0);
+function isSeaPortBurg(
+  stateId: number,
+  burg: { i?: number; removed?: boolean; port?: number; market?: number; cell?: number }
+): boolean {
+  if (!burg.i || burg.removed || !burg.port || typeof burg.market !== "number" || burg.market <= 0) return false;
+
+  const { pack } = getWorldContext();
+  const cellId = burg.cell;
+  if (typeof cellId !== "number" || pack.cells.state?.[cellId] !== stateId) return false;
+
+  // `burg.port` can point to the ocean reached by a lake's outlet, even when the burg itself is
+  // landlocked. Overseas voyages need an immediate entrance onto the open ocean instead.
+  const havenId = pack.cells.haven?.[cellId];
+  return typeof havenId === "number" && pack.features?.[pack.cells.f?.[havenId]]?.type === "ocean";
 }
 
 function listStatePortBurgs(stateId: number) {
   const burgs = getWorldContext().pack.burgs ?? [];
-  return burgs.filter(burg => burg?.state === stateId && isSeaPortBurg(burg));
+  return burgs.filter(burg => burg?.state === stateId && isSeaPortBurg(stateId, burg));
 }
 
 function getMarketWaterCargoCapacity(marketId: number): number {
