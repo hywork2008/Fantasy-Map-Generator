@@ -1,0 +1,187 @@
+import { isFantasyCulturesSet } from "../data/raceCivicStance";
+import { getRaceById } from "../data/races";
+import type { Burg, Culture, Race, State } from "../types/models";
+import type { PackedGraph } from "../types/PackedGraph";
+
+type SovereigntyCells = Pick<PackedGraph["cells"], "c" | "h" | "i" | "p" | "r" | "state">;
+type River = PackedGraph["rivers"][number];
+
+export interface GiantWaterSourceSovereigntyInput {
+  burgs: Burg[];
+  cells: SovereigntyCells;
+  cultures: Culture[];
+  culturesSet: string | undefined;
+  races: Race[] | undefined;
+  rivers: River[];
+  states: State[];
+}
+
+/**
+ * Make a Giant State possible only when it can occupy the map's highest river source and the
+ * mapped river-basin corridor flowing from it. Other Giant States are converted to the normal
+ * human state culture, keeping this singular protected watershed as the Giant polity's core.
+ *
+ * The packed graph has no polygonal catchment field; `River.basin` and its river cells are the
+ * authoritative basin proxy available during state generation.
+ */
+export function enforceGiantWaterSourceSovereignty(args: GiantWaterSourceSovereigntyInput): number | null {
+  if (!isFantasyCulturesSet(args.culturesSet)) return null;
+  const sourceCell = highestRiverSourceCell(args.cells, args.rivers);
+  if (sourceCell === undefined) return demoteGiantStates(args);
+
+  const giantStates = args.states.filter(state => state?.i && isGiantState(state, args.cultures, args.races));
+  if (!giantStates.length) return null;
+
+  const basinCells = watershedCellsForSource(sourceCell, args.cells, args.rivers);
+  const selected = giantStates
+    .map(state => ({ state, path: findLandPath(args.cells, args.burgs[state.capital]?.cell, sourceCell) }))
+    .filter((candidate): candidate is { state: State; path: number[] } => Boolean(candidate.path))
+    .filter(candidate =>
+      [...candidate.path, ...basinCells].every(
+        cell =>
+          canClaimCell(args.cells, args.states, cell, candidate.state.i) &&
+          !isForeignCapitalCell(cell, candidate.state.i, args.states, args.burgs)
+      )
+    )
+    .sort((a, b) => a.path.length - b.path.length || a.state.i - b.state.i)[0];
+
+  if (!selected) return demoteGiantStates(args);
+
+  const giantStateId = selected.state.i;
+  for (const cell of new Set([...selected.path, ...basinCells])) args.cells.state[cell] = giantStateId;
+  for (const burg of args.burgs) {
+    if (!burg?.i || burg.removed) continue;
+    burg.state = args.cells.state[burg.cell];
+    burg.stateHistory = [burg.state];
+  }
+
+  const humanCulture = args.cultures.find(culture => getRaceById(args.races, culture?.race)?.key === "human")?.i;
+  if (humanCulture !== undefined) {
+    for (const state of giantStates) {
+      if (state.i !== giantStateId) state.culture = humanCulture;
+    }
+  }
+  return giantStateId;
+}
+
+function demoteGiantStates(args: GiantWaterSourceSovereigntyInput): null {
+  const humanCulture = args.cultures.find(culture => getRaceById(args.races, culture?.race)?.key === "human")?.i;
+  if (humanCulture === undefined) return null;
+  for (const state of args.states) {
+    if (state?.i && isGiantState(state, args.cultures, args.races)) state.culture = humanCulture;
+  }
+  return null;
+}
+
+function isGiantState(state: State, cultures: readonly Culture[], races: readonly Race[] | undefined): boolean {
+  const culture = cultures[state.culture] ?? cultures.find(candidate => candidate?.i === state.culture);
+  return getRaceById(races, culture?.race)?.key === "giant";
+}
+
+function highestRiverSourceCell(cells: SovereigntyCells, rivers: readonly River[]): number | undefined {
+  let source: number | undefined;
+  const riverSources = rivers
+    .map(river => river.source)
+    .filter(
+      (cell): cell is number => Number.isInteger(cell) && cell >= 0 && cell < cells.i.length && cells.h[cell] >= 20
+    );
+  // Manually edited or incomplete legacy rivers can lack a valid `source` field.
+  // Their highest mapped river cell remains the best compatible fallback.
+  const candidates = riverSources.length ? riverSources : Array.from(cells.i).filter(cell => Boolean(cells.r[cell]));
+  for (const cell of candidates) {
+    if (
+      source === undefined ||
+      cells.h[cell] > cells.h[source] ||
+      (cells.h[cell] === cells.h[source] && cell < source)
+    ) {
+      source = cell;
+    }
+  }
+  return source;
+}
+
+function watershedCellsForSource(sourceCell: number, cells: SovereigntyCells, rivers: readonly River[]): number[] {
+  const sourceRiverId = cells.r[sourceCell];
+  const sourceRiver =
+    rivers.find(river => river.i === sourceRiverId) ?? rivers.find(river => river.source === sourceCell);
+  const basinId = sourceRiver?.basin ?? sourceRiverId;
+  const riverIds = new Set(rivers.filter(river => (river.basin ?? river.i) === basinId).map(river => river.i));
+  const riverCells = new Set(Array.from(cells.i).filter(cell => cells.h[cell] >= 20 && riverIds.has(cells.r[cell])));
+  riverCells.add(sourceCell);
+
+  // Rivers are generated by repeatedly flowing to the lowest adjacent cell. Reuse that
+  // deterministic terrain rule to claim the land which drains into this river basin.
+  const drainsToBasin = new Int8Array(cells.i.length);
+  for (const cell of riverCells) drainsToBasin[cell] = 1;
+  const watershed = Array.from(cells.i).filter(cell => cellDrainsToBasin(cell, cells, riverCells, drainsToBasin));
+  return watershed;
+}
+
+function cellDrainsToBasin(
+  start: number,
+  cells: SovereigntyCells,
+  riverCells: ReadonlySet<number>,
+  drainage: Int8Array
+): boolean {
+  if (cells.h[start] < 20) return false;
+  const trail: number[] = [];
+  let cell = start;
+  while (true) {
+    if (riverCells.has(cell) || drainage[cell] === 1) {
+      for (const visited of trail) drainage[visited] = 1;
+      return true;
+    }
+    if (drainage[cell] === -1 || cells.h[cell] < 20) {
+      for (const visited of trail) drainage[visited] = -1;
+      return false;
+    }
+    trail.push(cell);
+    const neighbor = lowestNeighbor(cell, cells);
+    if (neighbor === undefined || cells.h[neighbor] >= cells.h[cell]) {
+      for (const visited of trail) drainage[visited] = -1;
+      return false;
+    }
+    cell = neighbor;
+  }
+}
+
+function lowestNeighbor(cell: number, cells: SovereigntyCells): number | undefined {
+  return cells.c[cell]?.reduce((lowest, neighbor) => (cells.h[neighbor] < cells.h[lowest] ? neighbor : lowest));
+}
+
+function canClaimCell(cells: SovereigntyCells, states: readonly State[], cell: number, stateId: number): boolean {
+  const owner = cells.state[cell];
+  return !owner || owner === stateId || !states[owner]?.lock;
+}
+
+function isForeignCapitalCell(
+  cell: number,
+  stateId: number,
+  states: readonly State[],
+  burgs: readonly Burg[]
+): boolean {
+  return states.some(state => state?.i && state.i !== stateId && burgs[state.capital]?.cell === cell);
+}
+
+/** Shortest land corridor from a State capital to the protected source. */
+function findLandPath(cells: SovereigntyCells, fromCell: number | undefined, targetCell: number): number[] | null {
+  if (fromCell === undefined || cells.h[fromCell] < 20 || cells.h[targetCell] < 20) return null;
+  const previous = new Int32Array(cells.i.length).fill(-1);
+  const queue = [fromCell];
+  previous[fromCell] = fromCell;
+  for (let index = 0; index < queue.length; index++) {
+    const cell = queue[index]!;
+    if (cell === targetCell) break;
+    for (const neighbor of cells.c[cell] ?? []) {
+      if (cells.h[neighbor] < 20 || previous[neighbor] !== -1) continue;
+      previous[neighbor] = cell;
+      queue.push(neighbor);
+    }
+  }
+  if (previous[targetCell] === -1) return null;
+  const path: number[] = [];
+  for (let cell = targetCell; ; cell = previous[cell]) {
+    path.push(cell);
+    if (cell === fromCell) return path.reverse();
+  }
+}

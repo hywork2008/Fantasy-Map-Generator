@@ -359,7 +359,7 @@ interface RegionalWaterScheme {
 
 これは既存の Burg 単位 `UrbanWaterSystem` の置換ではない。`RegionalWaterScheme` は「どの Burg へ、どの経路で、どれだけ原水または処理水を届けるか」を所有し、各 `UrbanWaterSystem` は受け取った水を貯水・消毒・配水する能力と、下水を回収・処理する能力を所有する。
 
-Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）には、古代ローマ式の導水を `UrbanWaterSystem.hasInheritedRomanWaterworks`、幹線下水を `hasInheritedRomanSewer` として初期配置する。旧セーブの前者は後者も持つものとして移行する。地図生成時には、これらの集落を地図上の最高河川水源より低い標高の適地へ置く。遺産があり State が Giant である間は、年次の水利技術バイアスも State 種族から得る。`toggleWaterSupply` は、**同一State・同一陸地内で最も高い、下水放流に汚染されない河川源流**を保全取水地として選び、都市までの長大な模式導水路を描画する。外国領の河川を代替取水地にしない。`toggleSewerage` は、同一陸地かつ集落より低い河川、なければ海岸を放流点として幹線下水を描画する。海・海峡・別島を越える導水・下水は行わない。後続の `RegionalWaterScheme` が実際の水源保護区・経路・契約相手を所有するまで、これは暫定的な遺産記録である。
+Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）には、古代ローマ式の導水を `UrbanWaterSystem.hasInheritedRomanWaterworks`、幹線下水を `hasInheritedRomanSewer` として初期配置する。旧セーブの前者は後者も持つものとして移行する。Giant 国家は、地図で最高標高の `River.source`、その `River.basin` に流下する集水域、および首都から水源へ至る陸上回廊を単独で占有できる場合だけに生成する。できない Giant 候補は通常の Human State として扱う。地図生成時には、これらの集落を地図上の最高河川水源より低い標高の適地へ置く。遺産があり State が Giant である間は、年次の水利技術バイアスも State 種族から得る。`toggleWaterSupply` は、**同一State・同一陸地内で最も高い、下水放流に汚染されない河川源流**を保全取水地として選び、都市までの長大な模式導水路を描画する。外国領の河川を代替取水地にしない。`toggleSewerage` は、同一陸地かつ集落より低い河川、なければ海岸を放流点として幹線下水を描画する。海・海峡・別島を越える導水・下水は行わない。後続の `RegionalWaterScheme` が実際の水源保護区・経路・契約相手を所有するまで、これは暫定的な遺産記録である。
 
 ## 10. 参考と設定上の注意
 

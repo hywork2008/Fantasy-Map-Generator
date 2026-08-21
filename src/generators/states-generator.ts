@@ -29,6 +29,7 @@ import {
 import { TIME } from "../utils/debug";
 import { getStateExpandDangerCost } from "./dangerExpandPolicy";
 import { COA } from "./emblem/generator";
+import { enforceGiantWaterSourceSovereignty } from "./giantWaterSourceSovereignty";
 import { assignInitialPolities, clearUnclaimedOikoumenePopulation } from "./initialPolities";
 import { Names } from "./names-generator";
 
@@ -127,6 +128,15 @@ class StatesModule {
     pack.states = this.createStates();
     this.expandStates(this.worldContext, this.viewContext, this.appServices);
     this.normalize();
+    enforceGiantWaterSourceSovereignty({
+      burgs: pack.burgs,
+      cells: pack.cells,
+      cultures: pack.cultures,
+      culturesSet: useOptionsState.getState().culturesSet,
+      races: pack.races,
+      rivers: pack.rivers,
+      states: pack.states
+    });
     this.getPoles(state);
     this.findNeighbors();
     this.assignColors(this.worldContext, this.viewContext, this.appServices);
