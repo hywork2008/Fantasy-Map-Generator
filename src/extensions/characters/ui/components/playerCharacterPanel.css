@@ -1,7 +1,7 @@
 .fmg-dialog.player-character-panel {
-  top: 12px;
+  top: 26px;
   left: auto;
-  right: 12px;
+  right: 2px;
   width: 280px;
   min-height: 0;
   max-width: min(360px, calc(100vw - 24px));
