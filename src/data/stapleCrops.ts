@@ -118,6 +118,16 @@ export const STAPLE_CROP_PROFILES = {
     soils: ["loam", "sandy", "alluvial"],
     calendar: WARM_CEREAL_CALENDAR
   },
+  Maize: {
+    kind: "cereal",
+    // A warm, relatively high-yield staple. It remains climate-gated like the
+    // other physical crops, rather than appearing as a random bonus good.
+    yieldMultiplier: 1.12,
+    temperature: { min: 10, idealMin: 18, idealMax: 30, max: 36 },
+    precipitation: { min: 4, idealMin: 8, idealMax: 15, max: 25 },
+    soils: ["loam", "alluvial", "humus"],
+    calendar: WARM_CEREAL_CALENDAR
+  },
   Buckwheat: {
     kind: "cereal",
     yieldMultiplier: 0.72,

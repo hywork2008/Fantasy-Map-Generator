@@ -101,6 +101,9 @@ describe("OverseasRelations", () => {
   it("seeds the Distant Realm table once and never reseeds it", () => {
     const first = getDistantRealms();
     expect(first.length).toBeGreaterThan(0);
+    expect(first.flatMap(realm => realm.specialtyGoodNames)).toEqual(
+      expect.arrayContaining(["Cocoa", "Coffee", "Maize", "Rubber"])
+    );
     OverseasRelations.generate();
     expect(getDistantRealms()).toBe(first);
   });
@@ -307,6 +310,10 @@ describe("OverseasRelations", () => {
     expect(state.treasury).toBeGreaterThan(treasuryAfterDeparture);
     expect(releasedHullIds).toEqual([21]);
     expect(OverseasRelations.getOverseasRelationsOverview(1)[0].relation).toBe("trading");
+    expect(worldContext.pack.states[0].diplomacy?.[0]).toMatchObject([
+      "Overseas: Testland and Zantira Coast",
+      { from: 1, action: "opened overseas trade" }
+    ]);
 
     // The hull is back in port — a follow-up expedition can draw it again.
     const followUp = OverseasRelations.sendTradeExpedition(1, REALM_ID);

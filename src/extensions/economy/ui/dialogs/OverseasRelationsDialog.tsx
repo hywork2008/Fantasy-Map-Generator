@@ -84,6 +84,9 @@ export const OverseasRelationsDialog: React.FC = () => {
           <>
             <div className="totalLine">
               {t("extensions.overseasRelations.activeCount", { count: activeExpeditionCount })}
+              <button type="button" onClick={refresh} style={{ marginLeft: "1em" }}>
+                {t("extensions.overseasRelations.refresh")}
+              </button>
               <label htmlFor="overseasEscortCount" style={{ marginLeft: "1em" }}>
                 {t("extensions.overseasRelations.escortCount")}
               </label>
@@ -125,7 +128,11 @@ export const OverseasRelationsDialog: React.FC = () => {
                     <td>{row.realmName}</td>
                     <td>{t(`extensions.overseasRelations.climateBand.${row.climateBand}`)}</td>
                     <td>{t(`extensions.overseasRelations.distanceBand.${row.distanceBand}`)}</td>
-                    <td>{row.specialtyGoodNames.join(", ")}</td>
+                    <td>
+                      {row.specialtyGoodNames
+                        .map(name => t(`economy.goods.names.${name}`, { defaultValue: name }))
+                        .join(", ")}
+                    </td>
                     <td>{t(`extensions.overseasRelations.powerTier.${row.powerTier}`)}</td>
                     <td>
                       {t(`extensions.overseasRelations.relationLabel.${row.relation}`)}
@@ -150,7 +157,10 @@ export const OverseasRelationsDialog: React.FC = () => {
                           {row.lastColonyOutput > 0 ? (
                             <div>
                               {t("extensions.overseasRelations.colonyOutput", {
-                                output: row.lastColonyOutput.toFixed(1)
+                                output: row.lastColonyOutput.toFixed(1),
+                                good: row.colonyGoodName
+                                  ? t(`economy.goods.names.${row.colonyGoodName}`, { defaultValue: row.colonyGoodName })
+                                  : ""
                               })}
                             </div>
                           ) : null}

@@ -433,6 +433,17 @@ export const GOODS_DATA: GoodData[] = [
     crop: STAPLE_CROP_PROFILES.Millet
   },
   {
+    name: "Maize",
+    warEconomyType: "essential",
+    tags: ["food", "crop", "stapleCrop", "cereal"],
+    icon: "good-grain",
+    color: "#eec643",
+    value: 1,
+    chance: 0,
+    unit: "wain",
+    crop: STAPLE_CROP_PROFILES.Maize
+  },
+  {
     name: "Buckwheat",
     warEconomyType: "essential",
     tags: ["food", "crop", "stapleCrop", "cereal"],
@@ -859,6 +870,43 @@ export const GOODS_DATA: GoodData[] = [
     unit: "chest",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Generic: 1.2 } }
+  },
+  {
+    name: "Cocoa",
+    warEconomyType: "luxury",
+    tags: ["luxury", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#74412d",
+    value: 14,
+    chance: 0,
+    unit: "bag",
+    demandCoverage: { luxury: 1 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Cocoa
+  },
+  {
+    name: "Coffee",
+    warEconomyType: "luxury",
+    tags: ["luxury", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#4b3621",
+    value: 12,
+    chance: 0,
+    unit: "bag",
+    demandCoverage: { luxury: 1 },
+    multipliers: { cultureType: { Highland: 1.3 } },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Coffee
+  },
+  {
+    name: "Rubber",
+    warEconomyType: "strategic",
+    tags: ["industrial", "construction", "naval", "perennialCrop"],
+    icon: "good-unknown",
+    color: "#3e3a39",
+    value: 10,
+    chance: 0,
+    unit: "bale",
+    demandCoverage: { utilities: 0.5 },
+    perennialCrop: PERENNIAL_CROP_PROFILES.Rubber
   },
   {
     name: "Amber",
@@ -3065,6 +3113,10 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Incense: tradeProfile(1, 2, 4, 3, 0, 4, 2),
   Silk: tradeProfile(1, 2, 5, 3, 0, 3, 2),
   Spices: tradeProfile(1, 2, 5, 3, 0, 4, 2),
+  Cocoa: tradeProfile(2, 2, 4, 3, 0, 4, 2),
+  Coffee: tradeProfile(1, 2, 4, 3, 1, 4, 2),
+  Maize: tradeProfile(4, 4, 2, 1, -1, 3, 2),
+  Rubber: tradeProfile(3, 3, 4, 3, 0, 4, 2),
   Amber: tradeProfile(1, 1, 4, 2, 0, 5, 1),
   Furs: tradeProfile(2, 4, 3, 2, 0, 3, 2),
   Sheep: tradeProfile(5, 5, 2, 0, -2, 1, 5),

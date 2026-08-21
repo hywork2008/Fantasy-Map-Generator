@@ -24,7 +24,15 @@ describe("perennial crop suitability", () => {
       Pears: { precipitation: { min: 4, idealMin: 6, idealMax: 9, max: 21 } },
       Plums: { precipitation: { min: 6, idealMin: 9, idealMax: 15, max: 18 } },
       Figs: { precipitation: { min: 3, idealMin: 7, idealMax: 15, max: 27 } },
-      Lemons: { precipitation: { min: 3, idealMin: 10, idealMax: 23, max: 40 } }
+      Lemons: { precipitation: { min: 3, idealMin: 10, idealMax: 23, max: 40 } },
+      Cocoa: { precipitation: { min: 10, idealMin: 15, idealMax: 30, max: 45 } },
+      Coffee: { precipitation: { min: 8, idealMin: 12, idealMax: 25, max: 40 } },
+      Rubber: { precipitation: { min: 15, idealMin: 20, idealMax: 35, max: 50 } }
     });
+  });
+
+  it("keeps tropical plantations climate-gated", () => {
+    expect(getPerennialCropSuitability(PERENNIAL_CROP_PROFILES.Cocoa, 27, 20, "humus")).toBe(1);
+    expect(getPerennialCropSuitability(PERENNIAL_CROP_PROFILES.Rubber, 15, 25, "loam")).toBe(0);
   });
 });

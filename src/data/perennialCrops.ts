@@ -69,6 +69,17 @@ const DATE_PALM_CALENDAR = {
   maximumCropsPerYear: 1
 } as const satisfies CropCalendarProfile;
 
+const TROPICAL_ORCHARD_CALENDAR = {
+  annualCycleDays: 365,
+  turnaroundDays: 0,
+  isPerennial: true,
+  minimumGrowingTemperatureC: 16,
+  harvestWindows: [{ startAfterPlantingDays: 240, durationDays: 90 }],
+  labourByStage: { establishment: 0.22, maintenance: 0.43, harvestAndProcessing: 0.35 },
+  canProduceContinuously: false,
+  maximumCropsPerYear: 1
+} as const satisfies CropCalendarProfile;
+
 /**
  * `grid.cells.prec` stores annual precipitation in a 100 mm proxy scale.
  * These boundaries are the FAO ECOCROP annual-rainfall bands divided by 100,
@@ -163,6 +174,39 @@ export const PERENNIAL_CROP_PROFILES = {
     laborDaysPerHectare: 26,
     yieldLotsPerHectarePerMonth: 0.025,
     calendar: MEDITERRANEAN_ORCHARD_CALENDAR
+  },
+  Cocoa: {
+    kind: "orchard",
+    temperature: { min: 18, idealMin: 24, idealMax: 30, max: 36 },
+    precipitation: { min: 10, idealMin: 15, idealMax: 30, max: 45 },
+    soils: ["loam", "humus", "alluvial"],
+    maximumLandShare: 0.12,
+    areaHectaresPerPerson: 0.006,
+    laborDaysPerHectare: 42,
+    yieldLotsPerHectarePerMonth: 0.025,
+    calendar: TROPICAL_ORCHARD_CALENDAR
+  },
+  Coffee: {
+    kind: "orchard",
+    temperature: { min: 12, idealMin: 18, idealMax: 26, max: 32 },
+    precipitation: { min: 8, idealMin: 12, idealMax: 25, max: 40 },
+    soils: ["loam", "humus", "alluvial", "thin"],
+    maximumLandShare: 0.15,
+    areaHectaresPerPerson: 0.008,
+    laborDaysPerHectare: 38,
+    yieldLotsPerHectarePerMonth: 0.022,
+    calendar: TROPICAL_ORCHARD_CALENDAR
+  },
+  Rubber: {
+    kind: "orchard",
+    temperature: { min: 20, idealMin: 25, idealMax: 32, max: 38 },
+    precipitation: { min: 15, idealMin: 20, idealMax: 35, max: 50 },
+    soils: ["loam", "humus", "alluvial"],
+    maximumLandShare: 0.08,
+    areaHectaresPerPerson: 0.004,
+    laborDaysPerHectare: 30,
+    yieldLotsPerHectarePerMonth: 0.02,
+    calendar: TROPICAL_ORCHARD_CALENDAR
   }
 } as const satisfies Record<string, PerennialCropProfile>;
 

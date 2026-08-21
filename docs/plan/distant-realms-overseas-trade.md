@@ -9,7 +9,7 @@
 
 ---
 
-## 実装メモ（Phase 0–4、2026-08-21）
+## 実装メモ（Phase 0–5、2026-08-21）
 
 新規ファイル: `overseasRelationsTypes.ts`（型）、`overseasVoyageRisk.ts`（純関数：気候差・海難/海賊リスク・PowerTier別レート）、`overseasRelations.ts`（`OverseasRelations`シングルトン：seed・遠征発航・月次決済）、`store/overseasRelationsState.ts` + `controllers/overseasRelations.ts` + `ui/dialogs/OverseasRelationsDialog.tsx`（一覧＋「交易遠征を送る」ボタン）。`economyContext.ts`にDistantRealm/OverseasRelationLedger/OverseasExpeditionの永続化スロットを追加し、`index.tsx`のTools「Overseas Relations」ボタン・`production-generator.ts`の月次決済（`TradeSecurity.settleMonthly()`と同じ枠）に接続済み。テストは`overseasRelations.test.ts`（seed冪等性、国庫不足、船プール枯渇、共有プール減少、成功/喪失の決済）で、`npm run build`相当のtsc・biome・vitest（economy配下206ファイル/1542件）はすべて green。
 
@@ -286,7 +286,7 @@ measureTickStep("production:overseasExpeditions", () => OverseasRelations.settle
 | 2 | ✅ 実装済み（2026-08-21）。護衛艦連携：国有`ShipHull`をescortに割当て、piracyRisk低減。Vessel assets UIに"Overseas"ラベル追加 |
 | 3 | ✅ 実装済み（2026-08-21）。収奪系：貢納要求・略奪、tributary化と月次自動収入 |
 | 4 | ✅ 実装済み（2026-08-21）。統治系：植民地化の初期遠征、`colonyGarrisonRequired/Funded`維持費レジャー、反乱による喪失 |
-| 5 | 新規Good（Cocoa/Coffee/Maize/Rubber）追加、UIの磨き込み、フレーバーイベント（Chronicle連携） |
+| 5 | ✅ 実装済み（2026-08-21）。新規Good（Cocoa/Coffee/Maize/Rubber）を気候・土地・収穫暦つきの実物産物として追加。遠方諸国の特産品に採用し、UIの産物名ローカライズ・更新ボタン・植民地産出品表示を追加。初交易、武力遠征、植民地の成立／反乱をChronicleに記録 |
 
 各Phaseは独立に価値があり（Phase 1だけでも「香辛料・カカオを仕入れる」というユーザーの主要イメージは満たせる）、途中で止めても壊れない設計にしてある。
 

@@ -9,6 +9,7 @@ describe("staple crop precipitation profiles", () => {
       Barley: { precipitation: { min: 2, idealMin: 5, idealMax: 10, max: 20 } },
       Oats: { precipitation: { min: 2.5, idealMin: 6, idealMax: 10, max: 15 } },
       Millet: { precipitation: { min: 2, idealMin: 5, idealMax: 7.5, max: 10 } },
+      Maize: { precipitation: { min: 4, idealMin: 8, idealMax: 15, max: 25 } },
       Buckwheat: { precipitation: { min: 4, idealMin: 7, idealMax: 10, max: 13 } },
       Peas: { precipitation: { min: 3.5, idealMin: 8, idealMax: 12, max: 25 } },
       "Broad Beans": { precipitation: { min: 2.5, idealMin: 6.5, idealMax: 10, max: 26 } },
@@ -21,6 +22,11 @@ describe("staple crop precipitation profiles", () => {
 
   it("treats physically ideal wheat rainfall as fully suitable", () => {
     expect(getStapleCropSuitability(STAPLE_CROP_PROFILES.Wheat, 15, 8, "loam")).toBe(1);
+  });
+
+  it("keeps maize as a warm, wet cereal rather than a generic bonus good", () => {
+    expect(getStapleCropSuitability(STAPLE_CROP_PROFILES.Maize, 24, 12, "alluvial")).toBe(1);
+    expect(getStapleCropSuitability(STAPLE_CROP_PROFILES.Maize, 5, 12, "alluvial")).toBe(0);
   });
 
   it("does not treat wet-of-max rainfall as barren, and prefers the more rain-tolerant crop", () => {

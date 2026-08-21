@@ -12,7 +12,7 @@
  * home market directly and use a treasury-funded garrison ledger rather than real map cells.
  */
 
-import { SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
+import { type ChronicleEvent, SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
   getDistantRealms,
@@ -87,7 +87,7 @@ const DISTANT_REALM_SEEDS: readonly Omit<DistantRealm, "i">[] = [
     powerScore: 40,
     wealthLevel: 500,
     defenseScore: 30,
-    specialtyGoodNames: ["Spices", "Ivory", "Coral"]
+    specialtyGoodNames: ["Spices", "Cocoa", "Rubber"]
   },
   {
     name: "Kharvashi Sultanate",
@@ -114,7 +114,7 @@ const DISTANT_REALM_SEEDS: readonly Omit<DistantRealm, "i">[] = [
     powerScore: 25,
     wealthLevel: 700,
     defenseScore: 20,
-    specialtyGoodNames: ["Silk", "Sugarcane", "Dyes"]
+    specialtyGoodNames: ["Coffee", "Sugarcane", "Dyes"]
   },
   {
     name: "Tepal Highlands",
@@ -123,7 +123,7 @@ const DISTANT_REALM_SEEDS: readonly Omit<DistantRealm, "i">[] = [
     powerScore: 35,
     wealthLevel: 650,
     defenseScore: 25,
-    specialtyGoodNames: ["Tobacco", "Cotton", "Pearls"]
+    specialtyGoodNames: ["Maize", "Coffee", "Pearls"]
   },
   {
     name: "Sundrift Emirates",
@@ -141,7 +141,7 @@ const DISTANT_REALM_SEEDS: readonly Omit<DistantRealm, "i">[] = [
     powerScore: 20,
     wealthLevel: 900,
     defenseScore: 15,
-    specialtyGoodNames: ["Spices", "Sugarcane", "Pearls"]
+    specialtyGoodNames: ["Spices", "Coffee", "Pearls"]
   },
   {
     name: "Norrfjall Reaches",
@@ -168,7 +168,7 @@ const DISTANT_REALM_SEEDS: readonly Omit<DistantRealm, "i">[] = [
     powerScore: 15,
     wealthLevel: 600,
     defenseScore: 10,
-    specialtyGoodNames: ["Cotton", "Dyes", "Ivory"]
+    specialtyGoodNames: ["Rubber", "Cocoa", "Ivory"]
   }
 ];
 
@@ -202,6 +202,7 @@ export interface OverseasRealmStatusRow {
   colonyGarrisonFunded: number | null;
   monthsUnderfunded: number;
   lastColonyOutput: number;
+  colonyGoodName: string | null;
   activeExpedition: { purpose: ExpeditionPurpose; departedTick: number; etaTick: number; escortCount: number } | null;
   lastOutcome: {
     purpose: ExpeditionPurpose;
@@ -316,6 +317,30 @@ function releaseEscortHulls(expeditionId: number, hullIds: readonly number[], ou
   if (!hullIds.length) return;
   const detail = { expeditionId, hullIds, outcome, result: undefined as "fulfilled" | "unavailable" | undefined };
   document.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-release-request", { detail }));
+}
+
+/** Add a sparse, player-visible record for consequential overseas milestones. */
+function recordOverseasChronicle(
+  stateId: number,
+  realm: Pick<DistantRealm, "i" | "name">,
+  action: string,
+  rawText: string
+): void {
+  const states = getWorldContext().pack.states;
+  const state = states?.[stateId];
+  const chronicleState = states?.[0];
+  if (!state?.i || !chronicleState) return;
+
+  const event: ChronicleEvent = {
+    id: `overseas-${stateId}-${realm.i}-${getSimulationDay()}-${action.replaceAll(" ", "-")}`,
+    yearsAgo: 0,
+    from: stateId,
+    to: 0,
+    action,
+    rawText
+  };
+  const chronicle = chronicleState.diplomacy ?? [];
+  chronicleState.diplomacy = [[`Overseas: ${state.name} and ${realm.name}`, event], ...chronicle];
 }
 
 class OverseasRelationsModule {
@@ -652,6 +677,12 @@ class OverseasRelationsModule {
           ledger.relation = "hostile";
           ledger.relationScore = 0;
         }
+        recordOverseasChronicle(
+          expedition.stateId,
+          realm,
+          "lost an overseas expedition",
+          `${state.name}'s ${expedition.purpose} expedition to ${realm.name} was lost to ${cause}.`
+        );
       } else if (expedition.purpose === "tribute" || expedition.purpose === "raid") {
         const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "contacted");
         const powerTier = this.getPowerTierForState(expedition.stateId, realm);
@@ -670,6 +701,12 @@ class OverseasRelationsModule {
           expedition.outcome = { lost: true, cause: "repelled" };
           ledger.relation = "hostile";
           ledger.relationScore = 0;
+          recordOverseasChronicle(
+            expedition.stateId,
+            realm,
+            "had an overseas expedition repelled",
+            `${state.name}'s ${expedition.purpose} expedition was repelled by ${realm.name}.`
+          );
         } else {
           MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
           releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
@@ -682,6 +719,14 @@ class OverseasRelationsModule {
           expedition.outcome = { lost: false, revenue, profit: revenue };
           ledger.relation = expedition.purpose === "tribute" ? "tributary" : "hostile";
           ledger.relationScore = expedition.purpose === "tribute" ? 25 : 0;
+          recordOverseasChronicle(
+            expedition.stateId,
+            realm,
+            expedition.purpose === "tribute" ? "secured overseas tribute" : "raided an overseas realm",
+            expedition.purpose === "tribute"
+              ? `${state.name} secured tribute from ${realm.name}.`
+              : `${state.name} raided ${realm.name}, leaving the realm hostile.`
+          );
         }
         expedition.state = "resolved";
         ledger.lastResolvedTick = now;
@@ -701,6 +746,12 @@ class OverseasRelationsModule {
           expedition.outcome = { lost: true, cause: "repelled" };
           ledger.relation = "hostile";
           ledger.relationScore = 0;
+          recordOverseasChronicle(
+            expedition.stateId,
+            realm,
+            "had a colonial expedition repelled",
+            `${state.name}'s colonial expedition was repelled by ${realm.name}.`
+          );
         } else {
           MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
           releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
@@ -715,6 +766,12 @@ class OverseasRelationsModule {
           ledger.lastColonyOutput = 0;
           ledger.monthsUnderfunded = 0;
           expedition.outcome = { lost: false, profit: 0 };
+          recordOverseasChronicle(
+            expedition.stateId,
+            realm,
+            "founded an overseas colony",
+            `${state.name} founded a colony in ${realm.name}.`
+          );
         }
         expedition.state = "resolved";
         ledger.lastResolvedTick = now;
@@ -728,8 +785,20 @@ class OverseasRelationsModule {
         const grossReturn = rn(computeExpeditionReturn({ buyCost: expedition.buyCost, powerTier, distancePremium }), 2);
         creditStateTreasury(expedition.stateId, grossReturn);
         expedition.outcome = { lost: false, profit: rn(grossReturn - expedition.buyCost, 2) };
+        const priorLedger = getOverseasRelationLedgers().find(
+          entry => entry.stateId === expedition.stateId && entry.realmId === expedition.realmId
+        );
+        const hadTradingRelation = Boolean(priorLedger && RELATION_RANK[priorLedger.relation] >= RELATION_RANK.trading);
         const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "trading");
         ledger.relationScore = Math.min(100, (ledger.relationScore ?? 0) + 5);
+        if (!hadTradingRelation) {
+          recordOverseasChronicle(
+            expedition.stateId,
+            realm,
+            "opened overseas trade",
+            `${state.name} opened a trade route with ${realm.name}.`
+          );
+        }
       }
 
       expedition.state = "resolved";
@@ -775,6 +844,12 @@ class OverseasRelationsModule {
         ledger.colonyGarrisonRequired = undefined;
         ledger.colonyGarrisonFunded = undefined;
         ledger.colonyPortMarketId = undefined;
+        recordOverseasChronicle(
+          ledger.stateId,
+          realm,
+          "lost an overseas colony to rebellion",
+          `${state.name}'s colony in ${realm.name} rebelled after its garrison went unfunded.`
+        );
         continue;
       }
 
@@ -811,6 +886,7 @@ class OverseasRelationsModule {
             expedition.stateId === stateId && expedition.realmId === realm.i && expedition.state === "resolved"
         )
         .sort((a, b) => b.etaTick - a.etaTick)[0];
+      const colonyGoodName = realm.specialtyGoodNames.find(name => Boolean(findGoodByName(name))) ?? null;
 
       return {
         realmId: realm.i,
@@ -825,6 +901,7 @@ class OverseasRelationsModule {
         colonyGarrisonFunded: ledger?.colonyGarrisonFunded ?? null,
         monthsUnderfunded: ledger?.monthsUnderfunded ?? 0,
         lastColonyOutput: ledger?.lastColonyOutput ?? 0,
+        colonyGoodName,
         activeExpedition: active
           ? {
               purpose: active.purpose,
