@@ -52,6 +52,7 @@ function burgName(burgId: number | null | undefined): string {
 
 function statusLabelFor(hull: ShipHull): { label: string; sort: number } {
   if (hull.status === "maintenance") return { label: "Maintenance", sort: 4 };
+  if (hull.duty === "overseas") return { label: "Overseas escort", sort: 3 };
   if (hull.status === "cargo") {
     if (hull.duty === "loading") return { label: "Loading", sort: 2 };
     return { label: "At sea", sort: 3 };
@@ -73,6 +74,7 @@ function locationLabelFor(hull: ShipHull): string {
     const dest = hull.nextBurgId != null ? burgName(hull.nextBurgId) : "destination";
     return `At sea (${pct}% → ${dest})`;
   }
+  if (hull.duty === "overseas") return "Escorting an overseas expedition";
   if (hull.status === "voyage" || hull.duty === "patrol") {
     return "On patrol";
   }

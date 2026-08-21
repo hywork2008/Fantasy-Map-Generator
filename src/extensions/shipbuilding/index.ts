@@ -9,7 +9,10 @@ import type {
 import {
   isShipbuildingMerchantHullReleaseRequest,
   isShipbuildingMerchantHullReservationRequest,
-  isShipbuildingMerchantHullsRequest
+  isShipbuildingMerchantHullsRequest,
+  isShipbuildingStateHullAvailabilityRequest,
+  isShipbuildingStateHullReleaseRequest,
+  isShipbuildingStateHullReservationRequest
 } from "../hostTypes";
 import type { LayerConfig } from "../hostUi";
 import { measureGenerationStep } from "../hostUtils";
@@ -35,8 +38,11 @@ import {
   getHulls,
   getInitialStateOwnedDemand,
   getStateNavalCrewCapacity,
+  isStateAtWar,
   releaseMerchantHullsFromCargo,
+  releaseStateHullsFromOverseasEscort,
   reserveMerchantHullsForCargo,
+  reserveStateHullsForOverseasEscort,
   runShipyardTick
 } from "./generators/shipyardQueue";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
@@ -67,6 +73,9 @@ let _unregisterTickSystem: (() => void) | null = null;
 let _merchantHullsRequestHandler: ((event: Event) => void) | null = null;
 let _merchantHullReservationRequestHandler: ((event: Event) => void) | null = null;
 let _merchantHullReleaseRequestHandler: ((event: Event) => void) | null = null;
+let _stateHullAvailabilityRequestHandler: ((event: Event) => void) | null = null;
+let _stateHullReservationRequestHandler: ((event: Event) => void) | null = null;
+let _stateHullReleaseRequestHandler: ((event: Event) => void) | null = null;
 let _caravanHullPositionsHandler: ((event: Event) => void) | null = null;
 let _fleetCapacityRequestHandler: ((event: Event) => void) | null = null;
 
@@ -199,6 +208,59 @@ export function init(api: ExtensionAPI): void {
       : "unavailable";
   };
   document.addEventListener("fmg:shipbuilding-merchant-hull-release-request", _merchantHullReleaseRequestHandler);
+
+  _stateHullAvailabilityRequestHandler = event => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isShipbuildingStateHullAvailabilityRequest(detail)) return;
+    if (isStateAtWar(detail.stateId, getWorldContext().pack.states)) {
+      detail.hullIds = [];
+      return;
+    }
+    detail.hullIds = getHulls()
+      .filter(
+        hull =>
+          hull.owner === "state" &&
+          hull.ownerId === detail.stateId &&
+          hull.status !== "maintenance" &&
+          hull.duty !== "overseas" &&
+          (hull.status === "docked" || hull.status === "voyage")
+      )
+      .map(hull => hull.id);
+  };
+  document.addEventListener("fmg:shipbuilding-state-hull-availability-request", _stateHullAvailabilityRequestHandler);
+
+  _stateHullReservationRequestHandler = event => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isShipbuildingStateHullReservationRequest(detail)) return;
+    detail.result =
+      !isStateAtWar(detail.stateId, getWorldContext().pack.states) &&
+      reserveStateHullsForOverseasEscort({
+        stateId: detail.stateId,
+        expeditionId: detail.expeditionId,
+        hullIds: detail.hullIds
+      })
+        ? "fulfilled"
+        : "unavailable";
+    refreshVesselAssetsOverviewIfOpen();
+  };
+  document.addEventListener("fmg:shipbuilding-state-hull-reservation-request", _stateHullReservationRequestHandler);
+
+  _stateHullReleaseRequestHandler = event => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isShipbuildingStateHullReleaseRequest(detail)) return;
+    detail.result = releaseStateHullsFromOverseasEscort({
+      expeditionId: detail.expeditionId,
+      hullIds: detail.hullIds,
+      outcome: detail.outcome
+    })
+      ? "fulfilled"
+      : "unavailable";
+    refreshVesselAssetsOverviewIfOpen();
+  };
+  document.addEventListener("fmg:shipbuilding-state-hull-release-request", _stateHullReleaseRequestHandler);
 
   _caravanHullPositionsHandler = (event: Event) => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
@@ -450,6 +512,24 @@ export function cleanup(api: ExtensionAPI): void {
   if (_merchantHullReleaseRequestHandler) {
     document.removeEventListener("fmg:shipbuilding-merchant-hull-release-request", _merchantHullReleaseRequestHandler);
     _merchantHullReleaseRequestHandler = null;
+  }
+  if (_stateHullAvailabilityRequestHandler) {
+    document.removeEventListener(
+      "fmg:shipbuilding-state-hull-availability-request",
+      _stateHullAvailabilityRequestHandler
+    );
+    _stateHullAvailabilityRequestHandler = null;
+  }
+  if (_stateHullReservationRequestHandler) {
+    document.removeEventListener(
+      "fmg:shipbuilding-state-hull-reservation-request",
+      _stateHullReservationRequestHandler
+    );
+    _stateHullReservationRequestHandler = null;
+  }
+  if (_stateHullReleaseRequestHandler) {
+    document.removeEventListener("fmg:shipbuilding-state-hull-release-request", _stateHullReleaseRequestHandler);
+    _stateHullReleaseRequestHandler = null;
   }
   if (_caravanHullPositionsHandler) {
     document.removeEventListener("fmg:economy-caravan-hull-positions", _caravanHullPositionsHandler);

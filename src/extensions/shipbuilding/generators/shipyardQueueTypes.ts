@@ -23,7 +23,7 @@ export type ShipHullStatus = "docked" | "voyage" | "cargo" | "maintenance";
  * Operational duty for itinerary display and income rules
  * (docs/plan/vessel-itinerary-and-finite-trade-fleet.md P1).
  */
-export type ShipHullDuty = "idle" | "loading" | "cargo" | "ballast" | "patrol";
+export type ShipHullDuty = "idle" | "loading" | "cargo" | "ballast" | "patrol" | "overseas";
 
 /**
  * A single completed hull. `ownerId` is a stateId for `owner: "state"` (navy hulls are
@@ -51,4 +51,6 @@ export interface ShipHull {
   routeProgress?: number;
   /** High-level duty label for UI and voyage-income gating. */
   duty?: ShipHullDuty;
+  /** OverseasRelations expedition id while a state navy hull is escorting a convoy. */
+  overseasExpeditionId?: number | null;
 }

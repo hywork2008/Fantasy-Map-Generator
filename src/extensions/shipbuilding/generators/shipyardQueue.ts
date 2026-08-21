@@ -168,6 +168,78 @@ export function releaseMerchantHullsFromCargo(args: {
   return true;
 }
 
+/** State-navy hulls on overseas escort duty cannot patrol, earn voyage income, or be double-booked. */
+export function reserveStateHullsForOverseasEscort(args: {
+  stateId: number;
+  expeditionId: number;
+  hullIds: readonly number[];
+}): boolean {
+  const runtime = getShipbuildingRuntimeState();
+  const hulls = args.hullIds.map(id => runtime.hulls[id]);
+  if (
+    !args.hullIds.length ||
+    hulls.some(
+      hull =>
+        hull?.owner !== "state" ||
+        hull.ownerId !== args.stateId ||
+        hull.status === "maintenance" ||
+        hull.duty === "overseas" ||
+        (hull.status !== "docked" && hull.status !== "voyage")
+    )
+  ) {
+    return false;
+  }
+
+  for (const hull of hulls) {
+    if (!hull) continue;
+    hull.status = "voyage";
+    hull.currentBurgId = null;
+    hull.nextBurgId = null;
+    hull.caravanId = null;
+    hull.routeProgress = 0;
+    hull.overseasExpeditionId = args.expeditionId;
+    applyDuty(hull, "overseas");
+  }
+  return true;
+}
+
+/** Return escorts to patrol, or send them through the existing 30-day maintenance recovery on loss. */
+export function releaseStateHullsFromOverseasEscort(args: {
+  expeditionId: number;
+  hullIds: readonly number[];
+  outcome: "arrived" | "lost";
+}): boolean {
+  const runtime = getShipbuildingRuntimeState();
+  const hulls = args.hullIds.map(id => runtime.hulls[id]);
+  if (
+    hulls.some(
+      hull => hull?.owner !== "state" || hull.duty !== "overseas" || hull.overseasExpeditionId !== args.expeditionId
+    )
+  ) {
+    return false;
+  }
+
+  for (const hull of hulls) {
+    if (!hull) continue;
+    hull.overseasExpeditionId = null;
+    hull.caravanId = null;
+    hull.nextBurgId = null;
+    hull.routeProgress = 0;
+    if (args.outcome === "lost") {
+      hull.status = "maintenance";
+      hull.maintenanceDays = 30;
+      hull.currentBurgId = hull.homeBurgId;
+      applyDuty(hull, undefined);
+      continue;
+    }
+    hull.status = "voyage";
+    hull.currentBurgId = null;
+    hull.maintenanceDays = undefined;
+    applyDuty(hull, "patrol");
+  }
+  return true;
+}
+
 /** Project Economy caravan progress onto bound merchant hulls. */
 export function applyCaravanHullPositions(
   updates: readonly {

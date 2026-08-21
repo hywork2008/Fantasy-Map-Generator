@@ -33,6 +33,8 @@ const OTHER_REALM_ID = 7;
 describe("OverseasRelations", () => {
   const reservedHullIds: number[] = [];
   const releasedHullIds: number[] = [];
+  const reservedEscortHullIds: number[] = [];
+  const releasedEscortHullIds: { hullIds: number[]; outcome: "arrived" | "lost" }[] = [];
   const reserveHullListener = (event: Event) => {
     const detail = (event as CustomEvent<{ hullIds: number[]; result?: string }>).detail;
     reservedHullIds.push(...detail.hullIds);
@@ -41,6 +43,20 @@ describe("OverseasRelations", () => {
   const releaseHullListener = (event: Event) => {
     const detail = (event as CustomEvent<{ hullIds: number[]; result?: string }>).detail;
     releasedHullIds.push(...detail.hullIds);
+    detail.result = "fulfilled";
+  };
+  const escortAvailabilityListener = (event: Event) => {
+    const detail = (event as CustomEvent<{ stateId: number; hullIds?: number[] }>).detail;
+    if (detail.stateId === 1) detail.hullIds = [90, 91];
+  };
+  const reserveEscortListener = (event: Event) => {
+    const detail = (event as CustomEvent<{ hullIds: number[]; result?: string }>).detail;
+    reservedEscortHullIds.push(...detail.hullIds);
+    detail.result = "fulfilled";
+  };
+  const releaseEscortListener = (event: Event) => {
+    const detail = (event as CustomEvent<{ hullIds: number[]; outcome: "arrived" | "lost"; result?: string }>).detail;
+    releasedEscortHullIds.push({ hullIds: [...detail.hullIds], outcome: detail.outcome });
     detail.result = "fulfilled";
   };
 
@@ -59,8 +75,13 @@ describe("OverseasRelations", () => {
     setGoods([spicesGood()]);
     reservedHullIds.length = 0;
     releasedHullIds.length = 0;
+    reservedEscortHullIds.length = 0;
+    releasedEscortHullIds.length = 0;
     document.addEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHullListener);
     document.addEventListener("fmg:shipbuilding-merchant-hull-release-request", releaseHullListener);
+    document.addEventListener("fmg:shipbuilding-state-hull-availability-request", escortAvailabilityListener);
+    document.addEventListener("fmg:shipbuilding-state-hull-reservation-request", reserveEscortListener);
+    document.addEventListener("fmg:shipbuilding-state-hull-release-request", releaseEscortListener);
     OverseasRelations.generate();
   });
 
@@ -68,6 +89,9 @@ describe("OverseasRelations", () => {
     vi.restoreAllMocks();
     document.removeEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHullListener);
     document.removeEventListener("fmg:shipbuilding-merchant-hull-release-request", releaseHullListener);
+    document.removeEventListener("fmg:shipbuilding-state-hull-availability-request", escortAvailabilityListener);
+    document.removeEventListener("fmg:shipbuilding-state-hull-reservation-request", reserveEscortListener);
+    document.removeEventListener("fmg:shipbuilding-state-hull-release-request", releaseEscortListener);
     simulationContext.extensions = {};
     clearEconomyContext();
   });
@@ -114,6 +138,43 @@ describe("OverseasRelations", () => {
     expect(second).toEqual({ ok: false, reason: "no-ships-available" });
   });
 
+  it("assigns requested state-navy escorts and releases them after a successful voyage", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 23, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+
+    const result = OverseasRelations.sendTradeExpedition(1, REALM_ID, 2);
+    expect(result.ok).toBe(true);
+    const expedition = getOverseasExpeditions()[0];
+    expect(expedition.escortHullIds).toEqual([90, 91]);
+    expect(reservedEscortHullIds).toEqual([90, 91]);
+
+    simulationContext.currentDay = expedition.etaTick;
+    vi.spyOn(Math, "random").mockReturnValue(0.999);
+    OverseasRelations.settleMonthly();
+
+    expect(releasedEscortHullIds).toEqual([{ hullIds: [90, 91], outcome: "arrived" }]);
+  });
+
+  it("refunds the outlay when requested escorts cannot be reserved", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 24, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+    const unavailableListener = (event: Event) => {
+      const detail = (event as CustomEvent<{ result?: string }>).detail;
+      detail.result = "unavailable";
+    };
+    document.addEventListener("fmg:shipbuilding-state-hull-reservation-request", unavailableListener);
+    const treasuryBefore = worldContext.pack.states[1].treasury;
+
+    const result = OverseasRelations.sendTradeExpedition(1, REALM_ID, 1);
+
+    document.removeEventListener("fmg:shipbuilding-state-hull-reservation-request", unavailableListener);
+    expect(result).toEqual({ ok: false, reason: "no-escorts-available" });
+    expect(worldContext.pack.states[1].treasury).toBe(treasuryBefore);
+    expect(getOverseasExpeditions()).toHaveLength(0);
+  });
+
   it("resolves a successful voyage: treasury profit, relation upgraded to trading, hull returns to port", () => {
     MerchantTransportAssets.reconcileMerchantHulls([
       { id: 21, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
@@ -146,7 +207,7 @@ describe("OverseasRelations", () => {
       { id: 22, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
     ]);
     const state = worldContext.pack.states[1];
-    OverseasRelations.sendTradeExpedition(1, REALM_ID);
+    OverseasRelations.sendTradeExpedition(1, REALM_ID, 1);
     const expedition = getOverseasExpeditions()[0];
     const treasuryAfterDeparture = state.treasury;
 
@@ -158,5 +219,6 @@ describe("OverseasRelations", () => {
     expect(expedition.state).toBe("resolved");
     expect(expedition.outcome?.lost).toBe(true);
     expect(state.treasury).toBe(treasuryAfterDeparture); // no payout, and no refund of the sunk buyCost
+    expect(releasedEscortHullIds).toEqual([{ hullIds: [90], outcome: "lost" }]);
   });
 });

@@ -8,7 +8,7 @@ export interface VesselAssetsOverviewRow {
   operatorLabel: string;
   homePort: string;
   shipClassName: string;
-  /** Display duty: Idle / Patrol / At sea / Loading / Maintenance */
+  /** Display duty: Idle / Patrol / Overseas escort / At sea / Loading / Maintenance */
   statusLabel: string;
   /** Port name or "At sea (N% → Dest)" */
   locationLabel: string;

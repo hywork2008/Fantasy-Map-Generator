@@ -1,5 +1,5 @@
 /**
- * Distant Realms / Overseas Trading Companies — Phase 0 (seed) + Phase 1 (trade expeditions).
+ * Distant Realms / Overseas Trading Companies — Phase 0–2 (trade expeditions and naval escorts).
  * Design: docs/plan/distant-realms-overseas-trade.md
  *
  * Deliberately does not reach the complexity of the map's own Economy simulation: a DistantRealm
@@ -8,8 +8,8 @@
  * caravans draw from — but goods/price flow is a flat treasury outlay and payout, not a
  * burg-by-burg simulation.
  *
- * Phase 1 scope: trade only. Escort ships (Phase 2), tribute/raid (Phase 3), and colonization
- * (Phase 4) are not implemented — PowerTier is computed and shown, but nothing in Phase 1 gates
+ * Scope: trade plus optional state-navy escorts. Tribute/raid (Phase 3), and colonization
+ * (Phase 4) are not implemented — PowerTier is computed and shown, but nothing here gates
  * on it besides which multiplier a trade run gets.
  */
 
@@ -167,7 +167,8 @@ export type SendExpeditionFailureReason =
   | "no-port"
   | "no-good-available"
   | "insufficient-treasury"
-  | "no-ships-available";
+  | "no-ships-available"
+  | "no-escorts-available";
 
 export type SendExpeditionResult =
   | { ok: true; expeditionId: number }
@@ -181,7 +182,7 @@ export interface OverseasRealmStatusRow {
   specialtyGoodNames: string[];
   powerTier: PowerTier;
   relation: RealmRelation;
-  activeExpedition: { departedTick: number; etaTick: number } | null;
+  activeExpedition: { departedTick: number; etaTick: number; escortCount: number } | null;
   lastOutcome: { lost: boolean; cause?: ExpeditionOutcomeCause; profit?: number; resolvedTick: number } | null;
 }
 
@@ -265,6 +266,31 @@ function getReservationShipTier(reservationId: number): number {
   return tiers.length ? Math.min(...tiers) : FALLBACK_SHIP_TIER;
 }
 
+function getReservationShipHullIds(reservationId: number): number[] {
+  const reservation = getTransportReservations().find(entry => entry.id === reservationId);
+  if (!reservation) return [];
+  return reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? []);
+}
+
+function getAvailableEscortHullIds(stateId: number): number[] {
+  const detail: { source: "economy"; stateId: number; hullIds?: number[] } = { source: "economy", stateId };
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-availability-request", { detail }));
+  return detail.hullIds ?? [];
+}
+
+function reserveEscortHulls(stateId: number, expeditionId: number, hullIds: readonly number[]): boolean {
+  if (!hullIds.length) return true;
+  const detail = { stateId, expeditionId, hullIds, result: undefined as "fulfilled" | "unavailable" | undefined };
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-reservation-request", { detail }));
+  return detail.result === "fulfilled";
+}
+
+function releaseEscortHulls(expeditionId: number, hullIds: readonly number[], outcome: "arrived" | "lost"): void {
+  if (!hullIds.length) return;
+  const detail = { expeditionId, hullIds, outcome, result: undefined as "fulfilled" | "unavailable" | undefined };
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-release-request", { detail }));
+}
+
 class OverseasRelationsModule {
   /** Idempotent — DistantRealms are seeded once per world and never regenerated afterward. */
   generate(): void {
@@ -325,8 +351,8 @@ class OverseasRelationsModule {
     return ledger;
   }
 
-  /** Launches a Phase 1 trade voyage: reserves ships from the shared merchant pool and funds the buy. */
-  sendTradeExpedition(stateId: number, realmId: number): SendExpeditionResult {
+  /** Launches a trade voyage, optionally committing state-navy hulls to protect it from piracy. */
+  sendTradeExpedition(stateId: number, realmId: number, escortCount = 0): SendExpeditionResult {
     const state = getWorldContext().pack.states?.[stateId];
     if (!state?.i || state.removed) return { ok: false, reason: "invalid-state" };
 
@@ -354,6 +380,12 @@ class OverseasRelationsModule {
     if (!debitStateTreasury(stateId, buyCost)) return { ok: false, reason: "insufficient-treasury" };
 
     const expeditionId = getNextOverseasExpeditionId();
+    const requestedEscortCount = Math.max(0, Math.floor(escortCount));
+    const escortHullIds = getAvailableEscortHullIds(stateId).slice(0, requestedEscortCount);
+    if (escortHullIds.length !== requestedEscortCount || !reserveEscortHulls(stateId, expeditionId, escortHullIds)) {
+      creditStateTreasury(stateId, buyCost);
+      return { ok: false, reason: "no-escorts-available" };
+    }
     const waterAllocation: TransportAllocation = {
       mode: "water",
       transportId: "",
@@ -364,6 +396,7 @@ class OverseasRelationsModule {
     };
     const reservationResult = MerchantTransportAssets.reserve(portMarketId, expeditionId, [waterAllocation]);
     if (!reservationResult) {
+      releaseEscortHulls(expeditionId, escortHullIds, "arrived");
       creditStateTreasury(stateId, buyCost); // venture never left port — refund the outlay
       return { ok: false, reason: "no-ships-available" };
     }
@@ -377,6 +410,7 @@ class OverseasRelationsModule {
       purpose: "trade",
       goodId: good.i,
       reservationId: reservationResult.reservation.id,
+      escortHullIds,
       portMarketId,
       buyCost,
       departedTick: now,
@@ -405,6 +439,7 @@ class OverseasRelationsModule {
       if (!realm || !state?.i || state.removed) {
         // Defensive: state or realm vanished mid-voyage. Return the ships, no payout either way.
         MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
+        releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
         expedition.state = "resolved";
         expedition.outcome = { lost: false, profit: 0 };
         continue;
@@ -416,7 +451,12 @@ class OverseasRelationsModule {
         distanceBand: realm.distanceBand,
         shipTier,
         climateSteps,
-        escortRatio: 0 // Phase 2: state-navy escorts reduce piracy risk here
+        escortRatio:
+          (expedition.escortHullIds?.length ?? 0) /
+          Math.max(
+            1,
+            getReservationShipHullIds(expedition.reservationId).length + (expedition.escortHullIds?.length ?? 0)
+          )
       });
 
       const lost = Math.random() < roundTripLossRisk;
@@ -424,10 +464,12 @@ class OverseasRelationsModule {
         const cause: ExpeditionOutcomeCause =
           Math.random() < shipwreckRisk / Math.max(roundTripLossRisk, 1e-9) ? "shipwreck" : "piracy";
         MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "lost");
+        releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "lost");
         expedition.outcome = { lost: true, cause };
         // buyCost was already spent when the expedition departed — that is the risk, no refund.
       } else {
         MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
+        releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
         const good = getGoods().find(entry => entry.i === expedition.goodId);
         const powerTier = this.getPowerTierForState(expedition.stateId, realm);
         const distancePremium = good ? getDefaultGoodTradeProfile(good).distancePremium : 0;
@@ -467,7 +509,13 @@ class OverseasRelationsModule {
         specialtyGoodNames: realm.specialtyGoodNames,
         powerTier: this.getPowerTierForState(stateId, realm),
         relation: ledger?.relation ?? "unknown",
-        activeExpedition: active ? { departedTick: active.departedTick, etaTick: active.etaTick } : null,
+        activeExpedition: active
+          ? {
+              departedTick: active.departedTick,
+              etaTick: active.etaTick,
+              escortCount: active.escortHullIds?.length ?? 0
+            }
+          : null,
         lastOutcome:
           lastResolved?.outcome !== undefined ? { ...lastResolved.outcome, resolvedTick: lastResolved.etaTick } : null
       };

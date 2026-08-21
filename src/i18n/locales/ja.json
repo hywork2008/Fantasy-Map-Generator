@@ -3256,6 +3256,9 @@
       "state": "国家",
       "noEligibleStates": "外洋に繋がる港と市場を持つ国家がまだありません — 海外交易には港が必要です。",
       "activeCount": "海外へ派遣中の船: {{count}}隻",
+      "escortCount": "護衛艦",
+      "escortOption_one": "護衛艦 {{count}} 隻",
+      "escortOption_other": "護衛艦 {{count}} 隻",
       "sentMessage": "遠征を派遣しました。",
       "realm": "遠方国家",
       "climate": "気候",
@@ -3266,7 +3269,7 @@
       "status": "状況",
       "action": "行動",
       "sendExpedition": "交易遠征を送る",
-      "outbound": "航海中 — {{day}}日目に帰還予定",
+      "outbound": "航海中 — {{day}}日目に帰還予定（護衛 {{escorts}} 隻）",
       "arrivedProfit": "帰還 — 利益 {{profit}}",
       "lostShipwreck": "喪失 — 海難事故",
       "lostPiracy": "喪失 — 海賊被害",
@@ -3303,7 +3306,8 @@
         "no-port": "この国家には市場を持つ外洋港がありません。",
         "no-good-available": "この国の特産品が現在いずれも有効になっていません。",
         "insufficient-treasury": "国庫が遠征費用を賄えません。",
-        "no-ships-available": "遠征に回せる商船がありません — 全て他の用途で使用中です。"
+        "no-ships-available": "遠征に回せる商船がありません — 全て他の用途で使用中です。",
+        "no-escorts-available": "要求した護衛艦を利用できません — 戦時・整備中・既に海外派遣中のいずれかです。"
       }
     },
     "marketDeals": {

@@ -1,5 +1,5 @@
 /**
- * Distant Realms / Overseas Trading Companies — Phase 0/1 data model.
+ * Distant Realms / Overseas Trading Companies — Phase 0–2 data model.
  * Design: docs/plan/distant-realms-overseas-trade.md
  *
  * DistantRealm is deliberately NOT a full State: no cells, no geometry, no per-burg simulation.
@@ -67,6 +67,8 @@ export interface OverseasExpedition {
   goodId: number;
   /** Ties this expedition to MerchantTransportAssets' reservation lifecycle (shared ship pool). */
   reservationId: number;
+  /** State-owned navy hulls committed to this convoy for its whole round trip (Phase 2). */
+  escortHullIds: number[];
   portMarketId: number;
   /** Treasury already spent funding the venture; lost outright if the voyage is lost. */
   buyCost: number;

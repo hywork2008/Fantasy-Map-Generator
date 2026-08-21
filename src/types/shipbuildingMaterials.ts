@@ -65,6 +65,29 @@ export interface ShipbuildingMerchantHullReleaseRequest {
   result?: "fulfilled" | "unavailable";
 }
 
+/** Economy asks which state-navy hulls can leave their patrol for an overseas escort. */
+export interface ShipbuildingStateHullAvailabilityRequest {
+  source: "economy";
+  stateId: number;
+  hullIds?: number[];
+}
+
+/** Mutable synchronous request to assign state-owned hulls to an overseas expedition. */
+export interface ShipbuildingStateHullReservationRequest {
+  stateId: number;
+  expeditionId: number;
+  hullIds: readonly number[];
+  result?: "fulfilled" | "unavailable";
+}
+
+/** Mutable synchronous request to return state-owned overseas escorts to their navy lifecycle. */
+export interface ShipbuildingStateHullReleaseRequest {
+  expeditionId: number;
+  hullIds: readonly number[];
+  outcome: "arrived" | "lost";
+  result?: "fulfilled" | "unavailable";
+}
+
 /** Economy projects live caravan progress onto reserved merchant hulls each tick. */
 export interface EconomyCaravanHullPositionUpdate {
   hullId: number;
@@ -199,6 +222,49 @@ export function isShipbuildingMerchantHullReleaseRequest(
   if (!value || typeof value !== "object") return false;
   const request = value as Partial<ShipbuildingMerchantHullReleaseRequest>;
   return (
+    Array.isArray(request.hullIds) &&
+    request.hullIds.every(id => Number.isInteger(id) && id > 0) &&
+    (request.outcome === "arrived" || request.outcome === "lost")
+  );
+}
+
+export function isShipbuildingStateHullAvailabilityRequest(
+  value: unknown
+): value is ShipbuildingStateHullAvailabilityRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingStateHullAvailabilityRequest>;
+  return (
+    request.source === "economy" &&
+    typeof request.stateId === "number" &&
+    Number.isInteger(request.stateId) &&
+    request.stateId > 0
+  );
+}
+
+export function isShipbuildingStateHullReservationRequest(
+  value: unknown
+): value is ShipbuildingStateHullReservationRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingStateHullReservationRequest>;
+  return (
+    typeof request.stateId === "number" &&
+    Number.isInteger(request.stateId) &&
+    request.stateId > 0 &&
+    typeof request.expeditionId === "number" &&
+    Number.isInteger(request.expeditionId) &&
+    request.expeditionId > 0 &&
+    Array.isArray(request.hullIds) &&
+    request.hullIds.every(id => Number.isInteger(id) && id > 0)
+  );
+}
+
+export function isShipbuildingStateHullReleaseRequest(value: unknown): value is ShipbuildingStateHullReleaseRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingStateHullReleaseRequest>;
+  return (
+    typeof request.expeditionId === "number" &&
+    Number.isInteger(request.expeditionId) &&
+    request.expeditionId > 0 &&
     Array.isArray(request.hullIds) &&
     request.hullIds.every(id => Number.isInteger(id) && id > 0) &&
     (request.outcome === "arrived" || request.outcome === "lost")

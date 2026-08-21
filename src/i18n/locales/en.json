@@ -3256,6 +3256,9 @@
       "state": "State",
       "noEligibleStates": "No State with a sea-connected port and market yet — Overseas Relations needs one to reach a Distant Realm.",
       "activeCount": "Ships committed overseas: {{count}}",
+      "escortCount": "Escorts",
+      "escortOption_one": "{{count}} naval escort",
+      "escortOption_other": "{{count}} naval escorts",
       "sentMessage": "Expedition dispatched.",
       "realm": "Distant Realm",
       "climate": "Climate",
@@ -3266,7 +3269,7 @@
       "status": "Status",
       "action": "Action",
       "sendExpedition": "Send Trade Expedition",
-      "outbound": "Outbound — returns day {{day}}",
+      "outbound": "Outbound — returns day {{day}} ({{escorts}} escorts)",
       "arrivedProfit": "Arrived — profit {{profit}}",
       "lostShipwreck": "Lost — shipwreck",
       "lostPiracy": "Lost — piracy",
@@ -3303,7 +3306,8 @@
         "no-port": "This State has no sea-connected port with a market.",
         "no-good-available": "None of this Realm's specialty goods are currently enabled.",
         "insufficient-treasury": "Treasury cannot cover the expedition's outlay.",
-        "no-ships-available": "No merchant ships are available to crew this expedition — they are all committed elsewhere."
+        "no-ships-available": "No merchant ships are available to crew this expedition — they are all committed elsewhere.",
+        "no-escorts-available": "The requested naval escorts are unavailable — they may be at war, in maintenance, or already committed overseas."
       }
     },
     "marketDeals": {

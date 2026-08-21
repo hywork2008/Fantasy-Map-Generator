@@ -47,10 +47,10 @@ export function selectState(stateId: number): void {
   refresh();
 }
 
-export function sendTradeExpedition(realmId: number): void {
+export function sendTradeExpedition(realmId: number, escortCount = 0): void {
   const stateId = getOverseasRelationsState().selectedStateId;
   if (stateId === null) return;
-  const result = OverseasRelations.sendTradeExpedition(stateId, realmId);
+  const result = OverseasRelations.sendTradeExpedition(stateId, realmId, escortCount);
   setOverseasRelationsState({ lastActionMessage: result.ok ? "sent" : result.reason });
   refresh();
 }

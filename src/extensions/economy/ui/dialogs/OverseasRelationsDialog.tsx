@@ -9,6 +9,7 @@ export const OverseasRelationsDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("overseasRelations"));
   const { stateOptions, selectedStateId, rows, activeExpeditionCount, lastActionMessage } = useOverseasRelationsState();
+  const [escortCount, setEscortCount] = React.useState(0);
 
   React.useEffect(() => {
     if (isOpen) refresh();
@@ -16,7 +17,10 @@ export const OverseasRelationsDialog: React.FC = () => {
 
   const renderStatus = (row: (typeof rows)[number]) => {
     if (row.activeExpedition) {
-      return t("extensions.overseasRelations.outbound", { day: row.activeExpedition.etaTick });
+      return t("extensions.overseasRelations.outbound", {
+        day: row.activeExpedition.etaTick,
+        escorts: row.activeExpedition.escortCount
+      });
     }
     if (row.lastOutcome) {
       if (row.lastOutcome.lost) {
@@ -60,6 +64,20 @@ export const OverseasRelationsDialog: React.FC = () => {
           <>
             <div className="totalLine">
               {t("extensions.overseasRelations.activeCount", { count: activeExpeditionCount })}
+              <label htmlFor="overseasEscortCount" style={{ marginLeft: "1em" }}>
+                {t("extensions.overseasRelations.escortCount")}
+              </label>
+              <select
+                id="overseasEscortCount"
+                value={escortCount}
+                onChange={event => setEscortCount(Number(event.target.value))}
+              >
+                {[0, 1, 2, 3].map(count => (
+                  <option key={count} value={count}>
+                    {t("extensions.overseasRelations.escortOption", { count })}
+                  </option>
+                ))}
+              </select>
               {lastActionMessage && lastActionMessage !== "sent" ? (
                 <div className="dim">{t(`extensions.overseasRelations.reason.${lastActionMessage}`)}</div>
               ) : null}
@@ -95,7 +113,7 @@ export const OverseasRelationsDialog: React.FC = () => {
                       <button
                         type="button"
                         disabled={Boolean(row.activeExpedition)}
-                        onClick={() => sendTradeExpedition(row.realmId)}
+                        onClick={() => sendTradeExpedition(row.realmId, escortCount)}
                       >
                         {t("extensions.overseasRelations.sendExpedition")}
                       </button>

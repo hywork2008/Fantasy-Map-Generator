@@ -20,6 +20,8 @@ export function runVoyageTick(burgs: readonly Burg[], states: readonly State[], 
 
   for (const hull of getHulls()) {
     if (hull.status === "cargo") continue;
+    // OverseasRelations owns this hull until the escorting expedition resolves.
+    if (hull.duty === "overseas") continue;
 
     if (hull.status === "maintenance") {
       const remainingDays = Math.max(0, (hull.maintenanceDays ?? 0) - deltaYears * 365.2425);

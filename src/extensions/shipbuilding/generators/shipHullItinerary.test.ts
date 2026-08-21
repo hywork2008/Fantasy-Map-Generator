@@ -6,7 +6,9 @@ import {
   getHulls,
   registerCompletedHull,
   releaseMerchantHullsFromCargo,
-  reserveMerchantHullsForCargo
+  releaseStateHullsFromOverseasEscort,
+  reserveMerchantHullsForCargo,
+  reserveStateHullsForOverseasEscort
 } from "./shipyardQueue";
 
 function makeBurg(partial: Partial<Burg> & { i: number }): Burg {
@@ -117,6 +119,26 @@ describe("ship hull itinerary (finite fleet P1)", () => {
       })
     ).toBe(true);
     expect(getHulls()[0].caravanId).toBe(43);
+  });
+
+  it("commits a navy hull to an overseas escort, then returns it to patrol", () => {
+    const home = makeBurg({ i: 1, state: 1, capital: 1 });
+    const hull = registerCompletedHull({
+      burg: home,
+      owner: "state",
+      shipClassId: "caravel",
+      states: [{}, { i: 1, diplomacy: [] }] as State[],
+      emitCompletedEvent: false
+    });
+
+    expect(reserveStateHullsForOverseasEscort({ stateId: 1, expeditionId: 44, hullIds: [hull.id] })).toBe(true);
+    expect(getHulls()[0]).toMatchObject({ status: "voyage", duty: "overseas", overseasExpeditionId: 44 });
+    expect(reserveStateHullsForOverseasEscort({ stateId: 1, expeditionId: 45, hullIds: [hull.id] })).toBe(false);
+
+    expect(releaseStateHullsFromOverseasEscort({ expeditionId: 44, hullIds: [hull.id], outcome: "arrived" })).toBe(
+      true
+    );
+    expect(getHulls()[0]).toMatchObject({ status: "voyage", duty: "patrol", overseasExpeditionId: null });
   });
 
   it("puts a lost cargo hull into maintenance without abstract voyage status", () => {

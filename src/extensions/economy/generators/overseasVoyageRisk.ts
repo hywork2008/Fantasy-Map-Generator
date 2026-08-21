@@ -6,8 +6,8 @@
  *
  * Phase 1 simplification vs. the design doc: risk is resolved once for the whole round trip
  * (as if it were two independent legs compounded together) instead of once per leg with an
- * intermediate "at realm" state. Escort ships (Phase 2) are not modeled yet — callers always
- * pass escortRatio 0, so ESCORT_EFFECTIVENESS has no effect until Phase 2 wires it up.
+ * intermediate "at realm" state. Phase 2 callers supply the convoy's escort ratio, reducing
+ * piracy risk without changing the shipwreck calculation.
  */
 
 import type { ClimateBand, DistanceBand, PowerTier } from "./overseasRelationsTypes";
