@@ -2450,3 +2450,7 @@ export function getDamsLayer() {
 export function getLeveesLayer() {
   return getApi().getSvgLayer("levees");
 }
+
+export function getWaterSupplyLayer() {
+  return getApi().getSvgLayer("waterSupply");
+}

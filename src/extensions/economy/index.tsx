@@ -246,6 +246,7 @@ import {
 import { drawDams } from "./renderers/drawDams";
 import { drawLevees } from "./renderers/drawLevees";
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
+import { drawWaterSupply } from "./renderers/drawWaterSupply";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds, resetDisplayedGoodSelection } from "./store/goodsDisplaySelection";
@@ -379,6 +380,14 @@ export const economyLayers: LayerConfig[] = [
     tooltip:
       "Levees: State-built embankments protecting high-hazard river reaches from flooding. Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "levees", insertBefore: "icons", display: "none" }]
+  },
+  {
+    id: "toggleWaterSupply",
+    name: "Water Supply",
+    shortcut: null,
+    tooltip:
+      "Water Supply: Roman aqueducts serving Giant-city waterworks. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "waterSupply", insertAfter: "rivers", display: "none" }]
   }
 ];
 
@@ -3256,6 +3265,7 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleMineralDeposits", () => document.getElementById("mineralDeposits"));
   api.registerLayerElement("toggleDams", () => document.getElementById("dams"));
   api.registerLayerElement("toggleLevees", () => document.getElementById("levees"));
+  api.registerLayerElement("toggleWaterSupply", () => document.getElementById("waterSupply"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -3439,6 +3449,18 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("toggleWaterSupply", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleWaterSupply")) {
+      api.turnLayerOn("toggleWaterSupply");
+      // The supply layer is SVG in both render modes: it is infrastructure geometry that has no
+      // deck.gl equivalent yet, so hiding it in hybrid mode would make the feature disappear.
+      drawWaterSupply();
+    } else {
+      api.getSvgLayer("waterSupply")?.html("");
+      api.turnLayerOff("toggleWaterSupply");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // The economy tick publishes extension.economy on every simulated day. A
@@ -3460,6 +3482,7 @@ export function init(api: ExtensionAPI): void {
       api.getSvgLayer("dams")?.style("display", "none");
       api.getSvgLayer("levees")?.style("display", "none");
       api.requestWebglRender();
+      if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
     }
@@ -3468,6 +3491,7 @@ export function init(api: ExtensionAPI): void {
     if (api.layerIsOn("toggleMineralDeposits")) drawMineralDeposits();
     if (api.layerIsOn("toggleDams")) drawDams();
     if (api.layerIsOn("toggleLevees")) drawLevees();
+    if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });
 }
