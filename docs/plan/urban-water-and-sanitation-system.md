@@ -517,7 +517,7 @@ Giant 国家（State の文化種族が Giant）の全 Burg — `capital` / `cit
 
 重力導水を設定と地形の両方で矛盾させないため、State 生成後の Burg 整列時に、Giant 国家の集落は地図上の最高河川水源より**厳密に低い**標高へ配置する。候補は同じ State 内の未占有・居住可能な低地セルから選び、適地性を優先する。候補がない例外的な地図では既存位置を保持する。
 
-通常の `hasDownstreamOutfall` は地形だけで決まるが、Giant 遺産は `hasInheritedRomanWaterworks` により遠隔導水・幹線放流へ接続済みとして扱う。このため、村や砦を含めて「排水先のない下水網」にはならない。遺産そのものは State が運営するため、局地文化が異なっても維持できる。
+通常の `hasDownstreamOutfall` は地形だけで決まるが、Giant 遺産は `hasInheritedRomanSewer` により同一陸地の低位河川または海岸の幹線放流へ接続済みとして扱う。このため、村や砦を含めて「排水先のない下水網」にはならない。遺産そのものは State が運営するため、局地文化が異なっても維持できる。
 
 ### 15.2 バイアスの内容(`WaterTechRaceBias`)
 
@@ -539,7 +539,8 @@ Giant 国家（State の文化種族が Giant）の全 Burg — `capital` / `cit
 - `src/extensions/economy/generators/urbanWaterTech.ts`: `waterTechCeilings()` / `evolveWaterTechStocks()` に任意の `ceilingBonus` 引数を追加。
 - `src/generators/giantWaterworksSiting.ts` / `burgs-generator.ts`: Giant 国家の Burg を地図上の最高河川水源より低い同State内の適地へ配置する。
 - `src/extensions/economy/generators/urbanWaterSystem.ts`: `buildSystems("generate")` が Giant 国家の全 Burg を Tier 4 遺産としてシードする。`settleBurgWaterInvestment()` は通常は Burg 種族、Giant 国家のローマ水利遺産については State 種族の race bias を上表の4箇所へ注入する。
-- `src/extensions/economy/generators/urbanWaterSupply.ts` / `renderers/drawWaterSupply.ts`: `hasInheritedRomanWaterworks` の集落について、同一陸地内の同高度以上の河川セルを取水地点として模式導水路を決定し、`toggleWaterSupply` レイヤーに描画する。海・海峡・別島を越える導水は行わない。これは自然河川レイヤーと混在しない表示用の暫定経路である。
+- `src/extensions/economy/generators/urbanWaterSupply.ts` / `renderers/drawWaterSupply.ts`: `hasInheritedRomanWaterworks` の集落について、同一陸地内の同高度以上の河川セルを取水地点として模式導水路を決定し、`toggleWaterSupply` レイヤーに描画する。
+- `src/extensions/economy/generators/urbanSewerage.ts` / `renderers/drawSewerage.ts`: `hasInheritedRomanSewer` の集落について、同一陸地内で低い河川、なければ海岸を放流点とする模式幹線下水を決定し、`toggleSewerage` レイヤーに描画する。導水・下水とも海・海峡・別島を越えない。
 
 ---
 

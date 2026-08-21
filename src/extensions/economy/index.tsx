@@ -246,6 +246,7 @@ import {
 import { drawDams } from "./renderers/drawDams";
 import { drawLevees } from "./renderers/drawLevees";
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
+import { drawSewerage } from "./renderers/drawSewerage";
 import { drawWaterSupply } from "./renderers/drawWaterSupply";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
@@ -388,6 +389,13 @@ export const economyLayers: LayerConfig[] = [
     tooltip:
       "Water Supply: Roman aqueducts serving Giant-settlement waterworks. Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "waterSupply", insertAfter: "rivers", display: "none" }]
+  },
+  {
+    id: "toggleSewerage",
+    name: "Sewerage",
+    shortcut: null,
+    tooltip: "Sewerage: Giant-settlement trunk sewers and outfalls. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "sewerage", insertAfter: "waterSupply", display: "none" }]
   }
 ];
 
@@ -3266,6 +3274,7 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleDams", () => document.getElementById("dams"));
   api.registerLayerElement("toggleLevees", () => document.getElementById("levees"));
   api.registerLayerElement("toggleWaterSupply", () => document.getElementById("waterSupply"));
+  api.registerLayerElement("toggleSewerage", () => document.getElementById("sewerage"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -3461,6 +3470,18 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("toggleSewerage", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleSewerage")) {
+      api.turnLayerOn("toggleSewerage");
+      // Like aqueducts, trunk sewers are an SVG overlay in both render modes until deck.gl owns
+      // utility infrastructure geometry.
+      drawSewerage();
+    } else {
+      api.getSvgLayer("sewerage")?.html("");
+      api.turnLayerOff("toggleSewerage");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // The economy tick publishes extension.economy on every simulated day. A
@@ -3483,6 +3504,7 @@ export function init(api: ExtensionAPI): void {
       api.getSvgLayer("levees")?.style("display", "none");
       api.requestWebglRender();
       if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
+      if (api.layerIsOn("toggleSewerage")) drawSewerage();
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
     }
@@ -3492,6 +3514,7 @@ export function init(api: ExtensionAPI): void {
     if (api.layerIsOn("toggleDams")) drawDams();
     if (api.layerIsOn("toggleLevees")) drawLevees();
     if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
+    if (api.layerIsOn("toggleSewerage")) drawSewerage();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });
 }

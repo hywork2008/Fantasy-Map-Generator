@@ -35,6 +35,7 @@ import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
 import { raceKeyForBurgState, raceKeyForBurgWaterworks } from "./resolveBurgCulture";
+import { hasSameLandSewerOutfall } from "./urbanSewerage";
 import {
   cleaningTaxRevenue,
   evolveInstitutions,
@@ -670,8 +671,13 @@ export function computeUrbanWaterSystem(args: {
   const municipalSanitation = args.municipalSanitation ?? previous?.municipalSanitation ?? 0;
   const sanitaryEngineering = args.sanitaryEngineering ?? previous?.sanitaryEngineering ?? 0;
   const hasInheritedRomanWaterworks = previous?.hasInheritedRomanWaterworks ?? false;
-  const hasRegionalRomanConnection =
+  // `hasInheritedRomanWaterworks` used to record both facilities. Keep it as the migration
+  // default while storing aqueduct and trunk-sewer connectivity independently from now on.
+  const hasInheritedRomanSewer = previous?.hasInheritedRomanSewer ?? hasInheritedRomanWaterworks;
+  const hasRegionalRomanWaterConnection =
     hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
+  const hasRegionalRomanSewerOutfall =
+    hasInheritedRomanSewer && hasSameLandSewerOutfall(burg, getWorldContext().pack.cells);
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);
@@ -687,13 +693,17 @@ export function computeUrbanWaterSystem(args: {
   const serviceWaterCapacity = clamp01(
     base.service *
       maint *
-      (geography.hasRiver || geography.isCoastal || hasRegionalRomanConnection ? 1.1 : 0.85) *
+      (geography.hasRiver || geography.isCoastal || hasRegionalRomanWaterConnection ? 1.1 : 0.85) *
       lifting.service
   );
   let irrigationCapacity = clamp01(base.irrigation * maint * geography.irrigationPotential * 1.2 * lifting.irrigation);
   const drinkingBase =
     base.drinking *
-    (geography.hasRiver || geography.isCoastal || hasRegionalRomanConnection ? 1.05 : geography.isDry ? 0.75 : 0.95) *
+    (geography.hasRiver || geography.isCoastal || hasRegionalRomanWaterConnection
+      ? 1.05
+      : geography.isDry
+        ? 0.75
+        : 0.95) *
     lifting.drinking;
 
   const popFactor = clamp01(people / 12000);
@@ -733,8 +743,8 @@ export function computeUrbanWaterSystem(args: {
   irrigationCapacity = clamp01(irrigationCapacity * (1 + organic.fertilizerReturn * 0.12));
   irrigationCapacity = irrigationPollutionPenalty(upstreamPollutionImport, irrigationCapacity);
 
-  const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal || hasRegionalRomanConnection;
-  const hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalRomanConnection;
+  const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal || hasRegionalRomanSewerOutfall;
+  const hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalRomanWaterConnection;
   const hasSeparateWastewaterRoute = computeSeparateWastewaterRoute({ tier, sanitaryEngineering });
   const mixedLocal = localMixedIntakeOutfall({
     hasRiver: geography.hasRiver,
@@ -861,6 +871,7 @@ export function computeUrbanWaterSystem(args: {
     hasUpstreamIntake,
     hasDownstreamOutfall,
     hasInheritedRomanWaterworks,
+    hasInheritedRomanSewer,
     hasSeparateWastewaterRoute,
     stormwaterDemand: rn(stormwaterDemand, 4),
     wastewaterDemand: rn(wastewaterDemand, 4),
@@ -983,6 +994,7 @@ function systemDefaults(
     hasUpstreamIntake: false,
     hasDownstreamOutfall: false,
     hasInheritedRomanWaterworks: false,
+    hasInheritedRomanSewer: false,
     hasSeparateWastewaterRoute: false,
     stormwaterDemand: 0.3,
     wastewaterDemand: 0.3,
@@ -1038,7 +1050,8 @@ function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
     dischargeRegulation: 0.8,
     waterLifting: 0.72,
     municipalSanitation: 0.82,
-    hasInheritedRomanWaterworks: true
+    hasInheritedRomanWaterworks: true,
+    hasInheritedRomanSewer: true
   });
 }
 
@@ -1643,6 +1656,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           municipalSanitation: investment.municipalSanitation,
           sanitaryEngineering: investment.sanitaryEngineering,
           hasInheritedRomanWaterworks: previous.hasInheritedRomanWaterworks,
+          hasInheritedRomanSewer: previous.hasInheritedRomanSewer ?? previous.hasInheritedRomanWaterworks,
           pollutionDiplomaticStrain: previous?.pollutionDiplomaticStrain ?? 0
         }),
         tier: investment.tier,

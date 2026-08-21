@@ -2454,3 +2454,7 @@ export function getLeveesLayer() {
 export function getWaterSupplyLayer() {
   return getApi().getSvgLayer("waterSupply");
 }
+
+export function getSewerageLayer() {
+  return getApi().getSvgLayer("sewerage");
+}

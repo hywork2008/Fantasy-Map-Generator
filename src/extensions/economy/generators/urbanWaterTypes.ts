@@ -98,6 +98,8 @@ export type UrbanWaterSystem = {
    * RegionalWaterScheme data will describe the actual route and counterparties.
    */
   hasInheritedRomanWaterworks?: boolean;
+  /** A Giant settlement's inherited trunk sewer. Older saves infer this from `hasInheritedRomanWaterworks`. */
+  hasInheritedRomanSewer?: boolean;
   hasSeparateWastewaterRoute: boolean;
   stormwaterDemand: number;
   wastewaterDemand: number;
