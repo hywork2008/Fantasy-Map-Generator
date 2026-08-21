@@ -22,7 +22,9 @@ export function isGiantWaterworksState(args: {
 /** Highest mapped river cell, used as the world's highest available gravity-water source. */
 export function highestWaterSourceElevation(cells: WaterSitingCells): number | null {
   let highest: number | null = null;
-  for (const cell of cells.i) {
+  // Small editor/test graphs can omit the packed-id column; river ids share the same index space.
+  const cellIds = cells.i?.length ? cells.i : Array.from({ length: cells.r.length }, (_value, cell) => cell);
+  for (const cell of cellIds) {
     if (!cells.r[cell]) continue;
     const elevation = cells.h[cell];
     if (highest === null || elevation > highest) highest = elevation;

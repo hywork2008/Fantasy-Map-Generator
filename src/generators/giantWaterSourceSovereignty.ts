@@ -4,6 +4,7 @@ import type { Burg, Culture, Race, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 
 type SovereigntyCells = Pick<PackedGraph["cells"], "c" | "h" | "i" | "p" | "r" | "state">;
+type GiantWatershedCells = Pick<PackedGraph["cells"], "c" | "h" | "i" | "r">;
 type River = PackedGraph["rivers"][number];
 
 export interface GiantWaterSourceSovereigntyInput {
@@ -26,13 +27,13 @@ export interface GiantWaterSourceSovereigntyInput {
  */
 export function enforceGiantWaterSourceSovereignty(args: GiantWaterSourceSovereigntyInput): number | null {
   if (!isFantasyCulturesSet(args.culturesSet)) return null;
-  const sourceCell = highestRiverSourceCell(args.cells, args.rivers);
+  const sourceCell = getHighestRiverSourceCell(args.cells, args.rivers);
   if (sourceCell === undefined) return demoteGiantStates(args);
 
   const giantStates = args.states.filter(state => state?.i && isGiantState(state, args.cultures, args.races));
   if (!giantStates.length) return null;
 
-  const basinCells = watershedCellsForSource(sourceCell, args.cells, args.rivers);
+  const basinCells = getWatershedCellsForSource(sourceCell, args.cells, args.rivers);
   const selected = giantStates
     .map(state => ({ state, path: findLandPath(args.cells, args.burgs[state.capital]?.cell, sourceCell) }))
     .filter((candidate): candidate is { state: State; path: number[] } => Boolean(candidate.path))
@@ -78,7 +79,8 @@ function isGiantState(state: State, cultures: readonly Culture[], races: readonl
   return getRaceById(races, culture?.race)?.key === "giant";
 }
 
-function highestRiverSourceCell(cells: SovereigntyCells, rivers: readonly River[]): number | undefined {
+/** Highest mapped river source, breaking equal-elevation ties by packed-cell id. */
+export function getHighestRiverSourceCell(cells: GiantWatershedCells, rivers: readonly River[]): number | undefined {
   let source: number | undefined;
   const riverSources = rivers
     .map(river => river.source)
@@ -100,12 +102,17 @@ function highestRiverSourceCell(cells: SovereigntyCells, rivers: readonly River[
   return source;
 }
 
-function watershedCellsForSource(sourceCell: number, cells: SovereigntyCells, rivers: readonly River[]): number[] {
+/** Land cells whose deterministic downhill path reaches the source river's basin. */
+export function getWatershedCellsForSource(
+  sourceCell: number,
+  cells: GiantWatershedCells,
+  rivers: readonly River[]
+): number[] {
   const sourceRiverId = cells.r[sourceCell];
   const sourceRiver =
     rivers.find(river => river.i === sourceRiverId) ?? rivers.find(river => river.source === sourceCell);
-  const basinId = sourceRiver?.basin ?? sourceRiverId;
-  const riverIds = new Set(rivers.filter(river => (river.basin ?? river.i) === basinId).map(river => river.i));
+  const basinId = sourceRiver ? basinRootId(sourceRiver, rivers) : sourceRiverId;
+  const riverIds = new Set(rivers.filter(river => basinRootId(river, rivers) === basinId).map(river => river.i));
   const riverCells = new Set(Array.from(cells.i).filter(cell => cells.h[cell] >= 20 && riverIds.has(cells.r[cell])));
   riverCells.add(sourceCell);
 
@@ -117,9 +124,23 @@ function watershedCellsForSource(sourceCell: number, cells: SovereigntyCells, ri
   return watershed;
 }
 
+/** `basin` is assigned during Rivers.specify, which follows State generation. Follow parents meanwhile. */
+function basinRootId(river: River, rivers: readonly River[]): number {
+  if (river.basin) return river.basin;
+  const visited = new Set<number>();
+  let current = river;
+  while (current.parent && current.parent !== current.i && !visited.has(current.i)) {
+    visited.add(current.i);
+    const parent = rivers.find(candidate => candidate.i === current.parent);
+    if (!parent) break;
+    current = parent;
+  }
+  return current.i;
+}
+
 function cellDrainsToBasin(
   start: number,
-  cells: SovereigntyCells,
+  cells: GiantWatershedCells,
   riverCells: ReadonlySet<number>,
   drainage: Int8Array
 ): boolean {
@@ -145,7 +166,7 @@ function cellDrainsToBasin(
   }
 }
 
-function lowestNeighbor(cell: number, cells: SovereigntyCells): number | undefined {
+function lowestNeighbor(cell: number, cells: GiantWatershedCells): number | undefined {
   return cells.c[cell]?.reduce((lowest, neighbor) => (cells.h[neighbor] < cells.h[lowest] ? neighbor : lowest));
 }
 

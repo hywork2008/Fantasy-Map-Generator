@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { enforceGiantWaterSourceSovereignty } from "./giantWaterSourceSovereignty";
+import { enforceGiantWaterSourceSovereignty, getWatershedCellsForSource } from "./giantWaterSourceSovereignty";
 
 describe("enforceGiantWaterSourceSovereignty", () => {
+  it("follows river parents before Rivers.specify assigns basin ids", () => {
+    const cells = {
+      i: new Uint16Array([0, 1, 2]),
+      c: [[1], [0, 2], [1]],
+      h: new Uint16Array([90, 60, 30]),
+      r: new Uint16Array([1, 2, 2])
+    };
+
+    expect(
+      getWatershedCellsForSource(0, cells, [
+        { i: 1, source: 0, parent: 2 },
+        { i: 2, source: 1, parent: 0 }
+      ] as any)
+    ).toEqual([0, 1, 2]);
+  });
+
   it("gives the sole Giant State the highest source, its basin, and a land corridor", () => {
     const cells = {
       i: new Uint16Array([0, 1, 2, 3, 4]),

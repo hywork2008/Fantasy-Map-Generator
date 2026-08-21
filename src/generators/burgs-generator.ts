@@ -15,6 +15,7 @@ import {
   isNomadicBiome,
   isSnowBiome
 } from "../data/biomeCatalog";
+import { getRaceById } from "../data/races";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
@@ -38,6 +39,7 @@ import {
   normalizeHabitability
 } from "./frontierAnalysis";
 import { selectFrontierStartCapitals } from "./frontierStartPlacement";
+import { type GiantHighlandOikoumene, seedGiantHighlandOikoumene } from "./giantHighlandOikoumene";
 import {
   chooseLowerGiantWaterworksSite,
   highestWaterSourceElevation,
@@ -737,6 +739,11 @@ class BurgModule {
 
     let burgs: Burg[] = [0 as unknown as Burg]; // burgs[0] is a sentinel 0, array is 1-indexed
     cells.burg = new Uint16Array(cells.i.length);
+    const giantHighlandOikoumene = seedGiantHighlandOikoumene(
+      this.worldContext,
+      useOptionsState.getState().culturesSet,
+      useOptionsState.getState().initialPopulationSaturation / 100
+    );
 
     // The Settlement Foundation owns non-standard Burg candidates. Standard
     // maps remain the legacy adapter, including their all-suitable-cell pool.
@@ -862,6 +869,7 @@ class BurgModule {
     };
 
     generateCapitals();
+    ensureGiantSourceCapital(giantHighlandOikoumene);
     if (!isCapitalOnlyPolityRealm(this.worldContext.options.initialPolityRealmSize) || preservesLegacyCandidates) {
       generateTowns();
     }
@@ -892,6 +900,31 @@ class BurgModule {
       }
 
       return number;
+    }
+
+    /** Keep the highest protected source in the Giant homeland's first polity. */
+    function ensureGiantSourceCapital(giant: GiantHighlandOikoumene | null): void {
+      if (!giant || cells.culture[giant.sourceCell] !== giant.cultureId) return;
+      if (burgs.some(burg => burg.i && burg.capital && burg.cell === giant.sourceCell)) return;
+      const displaced = burgs.at(-1);
+      if (!displaced?.i) return;
+      burgs.pop();
+      cells.burg[displaced.cell] = 0;
+
+      const [x, y] = cells.p[giant.sourceCell];
+      burgs.push({
+        i: displaced.i,
+        state: displaced.i,
+        cell: giant.sourceCell,
+        x,
+        y,
+        culture: giant.cultureId,
+        name: Names.getCultureShort(worldContext, viewContext, appServices, giant.cultureId),
+        feature: cells.f[giant.sourceCell],
+        capital: 1
+      });
+      cells.burg[giant.sourceCell] = displaced.i;
+      burgsQuadtree = quadtree(burgs.filter(burg => burg.i).map(burg => [burg.x, burg.y] as [number, number]));
     }
 
     function getTownsNumber() {
@@ -1034,6 +1067,12 @@ class BurgModule {
     if (burg.capital) population *= 1.5;
     const connectivityRate = Routes.getConnectivityRate(cellId);
     if (connectivityRate) population *= connectivityRate;
+    const culture = pack.cultures[burg.culture ?? 0];
+    if (getRaceById(pack.races, culture?.race)?.key === "giant") {
+      // The source cell has an elevated strategic score to guarantee a Giant capital; it must
+      // not turn that score into human-scale population.
+      population = Math.min(population, Math.max(localFoodCapacity, 0.01));
+    }
     population *= gauss(1, 1, 0.25, 4, 5); // randomize
     population += (((burg.i as number) % 100) - (cellId % 100)) / 1000; // unround
     const capacity = rn(Math.max(population, 0.01), 3);

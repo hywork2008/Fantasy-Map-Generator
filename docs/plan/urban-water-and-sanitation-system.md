@@ -519,6 +519,8 @@ Giant 国家は任意の土地に発生しない。State 拡張直後に、全�
 
 既存のロック済み State 領や他国の首都セルのためにこの回廊または流域を確保できない場合、Giant 国家は生成しない（その State は通常の Human 文化 State として扱う）。複数の Giant 候補がある場合は、最短の陸上回廊を持つ一国だけを残す。これにより、Giant 国家が国境外の源流や上流都市に依存することを防ぎ、最高水源と流域を国家的な保護区として一貫して保有する。
 
+Giant は食料供給・気温・人間用の高地適性で生死を判定しない。通常人口を配置した後、最高水源の集水域を Giant 文化の高地オイコウメネとして再配置し、雪山・寒冷地でも人口と首都候補を残す。各セルの Giant 容量は、同じセルに人間容量がある場合はその **10%**、人間容量がゼロの高地では周辺の人間居住地の平均面積密度の **10%** とする。この容量を食料由来の `subsistenceCapacity` にも直接設定するため、後年の農業・気温計算によって飢餓死しない。最高水源セルの適地スコアだけは首都選定のために上げるが、実人口・都市容量はこの低密度上限を超えない。
+
 重力導水を設定と地形の両方で矛盾させないため、State 生成後の Burg 整列時に、Giant 国家の集落は地図上の最高河川水源より**厳密に低い**標高へ配置する。候補は同じ State 内の未占有・居住可能な低地セルから選び、適地性を優先する。候補がない例外的な地図では既存位置を保持する。
 
 通常の `hasDownstreamOutfall` は地形だけで決まるが、Giant 遺産は `hasInheritedRomanSewer` により同一陸地の低位河川または海岸の幹線放流へ接続済みとして扱う。河川と海岸の候補が共存する場合は、集落から近い方を選び、遠い河川へ低地を横断して接続することはない。このため、村や砦を含めて「排水先のない下水網」にはならない。遺産そのものは State が運営するため、局地文化が異なっても維持できる。
@@ -542,6 +544,7 @@ Giant 国家は任意の土地に発生しない。State 拡張直後に、全�
 - `src/extensions/economy/generators/resolveBurgCulture.ts`: `raceKeyForBurg(burg)` と `raceKeyForBurgState(burg)` — Burg/State の `culture.race` → `pack.races[].key` を解決。
 - `src/extensions/economy/generators/urbanWaterTech.ts`: `waterTechCeilings()` / `evolveWaterTechStocks()` に任意の `ceilingBonus` 引数を追加。
 - `src/generators/giantWaterworksSiting.ts` / `burgs-generator.ts`: Giant 国家の Burg を地図上の最高河川水源より低い同State内の適地へ配置する。
+- `src/generators/giantHighlandOikoumene.ts` / `burgs-generator.ts`: 人間の居住適性がゼロでも最高水源の流域に Giant の低密度人口・文化・首都候補を置き、各セルの容量を人間相当の10%に制限する。
 - `src/generators/giantWaterSourceSovereignty.ts` / `states-generator.ts`: Giant 国家が最高河川水源、標高流下で復元した同一河系の流域、首都からの陸上回廊を占有できる場合だけを残す。
 - `src/extensions/economy/generators/urbanWaterSystem.ts`: `buildSystems("generate")` が Giant 国家の全 Burg を Tier 4 遺産としてシードする。`settleBurgWaterInvestment()` は通常は Burg 種族、Giant 国家のローマ水利遺産については State 種族の race bias を上表の4箇所へ注入する。
 - `src/extensions/economy/generators/urbanWaterSupply.ts` / `renderers/drawWaterSupply.ts`: `hasInheritedRomanWaterworks` の集落群について、同一State・同一陸地内の最高位かつ下水放流に汚染されない河川セルを共通の保全取水地として選ぶ。取水地から最寄りの Burg へ、以後は既設導水セルから最寄りの未接続 Burg へ、標高を経路コストに含めないセル間最短経路を追加して樹状の模式導水路を `toggleWaterSupply` レイヤーに描画する。外国領・海・別陸地は経路に使わない。
