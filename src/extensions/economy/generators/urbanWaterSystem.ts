@@ -34,7 +34,7 @@ import { computeNaturalFloodRisk } from "./floodHazard";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
-import { raceKeyForBurg } from "./resolveBurgCulture";
+import { raceKeyForBurg, raceKeyForBurgState } from "./resolveBurgCulture";
 import {
   cleaningTaxRevenue,
   evolveInstitutions,
@@ -668,6 +668,8 @@ export function computeUrbanWaterSystem(args: {
   const waterLifting = args.waterLifting ?? previous?.waterLifting ?? 0;
   const municipalSanitation = args.municipalSanitation ?? previous?.municipalSanitation ?? 0;
   const sanitaryEngineering = args.sanitaryEngineering ?? previous?.sanitaryEngineering ?? 0;
+  const hasInheritedRomanWaterworks = previous?.hasInheritedRomanWaterworks ?? false;
+  const hasRegionalRomanConnection = hasInheritedRomanWaterworks;
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);
@@ -681,12 +683,15 @@ export function computeUrbanWaterSystem(args: {
   const permitBoost = 1 + connectionPermitCoverage * 0.12 + municipalSanitation * 0.08;
   const wastewaterCapacity = clamp01(base.wastewater * maint * clearFactor * permitBoost);
   const serviceWaterCapacity = clamp01(
-    base.service * maint * (geography.hasRiver || geography.isCoastal ? 1.1 : 0.85) * lifting.service
+    base.service *
+      maint *
+      (geography.hasRiver || geography.isCoastal || hasRegionalRomanConnection ? 1.1 : 0.85) *
+      lifting.service
   );
   let irrigationCapacity = clamp01(base.irrigation * maint * geography.irrigationPotential * 1.2 * lifting.irrigation);
   const drinkingBase =
     base.drinking *
-    (geography.hasRiver || geography.isCoastal ? 1.05 : geography.isDry ? 0.75 : 0.95) *
+    (geography.hasRiver || geography.isCoastal || hasRegionalRomanConnection ? 1.05 : geography.isDry ? 0.75 : 0.95) *
     lifting.drinking;
 
   const popFactor = clamp01(people / 12000);
@@ -726,8 +731,8 @@ export function computeUrbanWaterSystem(args: {
   irrigationCapacity = clamp01(irrigationCapacity * (1 + organic.fertilizerReturn * 0.12));
   irrigationCapacity = irrigationPollutionPenalty(upstreamPollutionImport, irrigationCapacity);
 
-  const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal;
-  const hasUpstreamIntake = geography.hasRiver && !geography.isWetland;
+  const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal || hasRegionalRomanConnection;
+  const hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalRomanConnection;
   const hasSeparateWastewaterRoute = computeSeparateWastewaterRoute({ tier, sanitaryEngineering });
   const mixedLocal = localMixedIntakeOutfall({
     hasRiver: geography.hasRiver,
@@ -853,6 +858,7 @@ export function computeUrbanWaterSystem(args: {
     odor: rn(odor, 4),
     hasUpstreamIntake,
     hasDownstreamOutfall,
+    hasInheritedRomanWaterworks,
     hasSeparateWastewaterRoute,
     stormwaterDemand: rn(stormwaterDemand, 4),
     wastewaterDemand: rn(wastewaterDemand, 4),
@@ -974,6 +980,7 @@ function systemDefaults(
     odor: 0.3,
     hasUpstreamIntake: false,
     hasDownstreamOutfall: false,
+    hasInheritedRomanWaterworks: false,
     hasSeparateWastewaterRoute: false,
     stormwaterDemand: 0.3,
     wastewaterDemand: 0.3,
@@ -1005,6 +1012,33 @@ function systemDefaults(
     pollutionDiplomaticStrain: 0,
     ...partial
   };
+}
+
+/**
+ * Giant states in a Fantasy cultures set begin with functioning Roman-grade urban works.
+ * The legacy trunk may run to a distant source/outfall, so the local cell need not itself be
+ * river or coastal. This is only a generation seed: ordinary annual maintenance can still
+ * degrade its effective capacity, while tier 5 sanitary engineering remains unavailable.
+ */
+function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
+  const isCityOrLarger = Boolean(burg.capital) || burg.group === "capital" || burg.group === "city";
+  const stateRace = raceKeyForBurgState(burg);
+  const isGiantFantasyState =
+    stateRace === "giant" && waterTechRaceBiasFor(stateRace, useOptionsState.getState().culturesSet) !== null;
+  if (!isCityOrLarger || !isGiantFantasyState) return null;
+
+  return systemDefaults({
+    burgId: burg.i!,
+    tier: 4,
+    maintenanceCondition: 0.94,
+    clogging: 0.03,
+    connectionPermitCoverage: 0.86,
+    cleaningTaxRate: 0.025,
+    dischargeRegulation: 0.8,
+    waterLifting: 0.72,
+    municipalSanitation: 0.82,
+    hasInheritedRomanWaterworks: true
+  });
 }
 
 /**
@@ -1557,7 +1591,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
       gridPrec: world.grid?.cells?.prec
     });
     const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
-    const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : null;
+    const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : giantRomanWaterworksSeed(burg);
     const ambientTemperature = ambientTemperatureForBurg(burg);
 
     // First pass metrics (for demand / investment decisions).

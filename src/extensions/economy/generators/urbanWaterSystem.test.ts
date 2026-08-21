@@ -839,8 +839,8 @@ describe("UrbanWater module", () => {
 
   describe("race water tech bias (Giant on Fantasy culture sets)", () => {
     beforeEach(() => {
-      // Bind the river capital (burg 1) to a giant-race culture; leave the geography/masonry
-      // fixture otherwise unchanged so only the race/culturesSet gate differs between tests.
+      // Make State 1 Giant. The capital itself intentionally keeps its generic local culture:
+      // generation heritage follows the owning country, not a burg culture left behind by conquest.
       worldContext.pack.cultures = [
         { i: 0, type: "Generic" },
         { i: 1, type: "River", race: 1 }
@@ -849,7 +849,7 @@ describe("UrbanWater module", () => {
         { i: 0, key: "unknown", name: "Unknown" },
         { i: 1, key: "giant", name: "Giant" }
       ] as typeof worldContext.pack.races;
-      worldContext.pack.burgs[1]!.culture = 1;
+      worldContext.pack.states![0]!.culture = 1;
       worldContext.options = { historicalPeriod: "earlyMedieval" } as typeof worldContext.options;
       setGuildKnowledgeStocks([{ burgId: 1, domain: "masonry", stock: 0.5, treasury: 0 }]);
     });
@@ -863,32 +863,45 @@ describe("UrbanWater module", () => {
       }
     }
 
-    // Both trajectories eventually clear tier 4 in this fixture (institutional targets rise with
-    // tier regardless of race) — the point of the bias is to get there *faster*, not to be the
-    // only path that arrives. The biased burg reaches tier 4 by year 11 and the unbiased one not
-    // until year 18 (verified against current construction pacing), so 15 years keeps the two
-    // trajectories on opposite sides of the tier-4 line with a comfortable margin either way.
+    // Outside Fantasy culture sets, the older bias remains only a fast-track. In a Giant Fantasy
+    // state, by contrast, every capital/city is seeded at Roman tier 4 during map generation.
     const YEARS = 15;
 
-    it("pulls a giant river capital to tier 4 faster, and past the un-boosted early-medieval water-lifting ceiling", () => {
+    it("seeds every Giant-state capital/city with Roman works, including a city without a local river", () => {
       useOptionsState.setState({ culturesSet: "highFantasy" });
+      worldContext.pack.burgs[2]!.group = "city";
       UrbanWater.generate();
-      settleYears(YEARS);
 
-      const giantCity = getUrbanWaterSystems().find(s => s.burgId === 1)!;
-      expect(giantCity.tier).toBeGreaterThanOrEqual(4);
-      // earlyMedieval's un-boosted ceiling caps waterLifting at 0.35 — the bias should clear it.
-      expect(giantCity.waterLifting).toBeGreaterThan(0.35);
+      const giantCapital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      const giantInlandCity = getUrbanWaterSystems().find(s => s.burgId === 2)!;
+      expect(giantCapital.tier).toBe(4);
+      expect(giantInlandCity.tier).toBe(4);
+      expect(giantInlandCity.hasInheritedRomanWaterworks).toBe(true);
+      expect(giantInlandCity.hasUpstreamIntake).toBe(true);
+      expect(giantInlandCity.hasDownstreamOutfall).toBe(true);
+      expect(giantCapital.sanitaryEngineering).toBe(0);
+
+      settleYears(YEARS);
+      expect(getUrbanWaterSystems().find(s => s.burgId === 1)!.tier).toBeGreaterThanOrEqual(4);
     });
 
-    it("does not apply the bias outside Fantasy culture sets, even for the same giant-culture burg", () => {
+    it("does not give the generation guarantee to Giant-state towns", () => {
+      useOptionsState.setState({ culturesSet: "highFantasy" });
+      worldContext.pack.burgs[2]!.group = "town";
+      UrbanWater.generate();
+
+      const giantTown = getUrbanWaterSystems().find(s => s.burgId === 2)!;
+      expect(giantTown.tier).toBeLessThan(4);
+      expect(giantTown.hasInheritedRomanWaterworks).toBe(false);
+    });
+
+    it("does not seed Roman works outside Fantasy culture sets, even for the same Giant state", () => {
       useOptionsState.setState({ culturesSet: "world" });
       UrbanWater.generate();
       settleYears(YEARS);
 
-      // Same geography/masonry/population as the biased test above, over the same number of
-      // years: without the Fantasy-culture-set gate, this burg is still short of tier 4 and its
-      // waterLifting stays at or under the un-boosted ceiling.
+      // Same geography/masonry/population as the seeded test: without the Fantasy-culture-set
+      // gate, this burg remains on the normal, gradual development path.
       const sameCity = getUrbanWaterSystems().find(s => s.burgId === 1)!;
       expect(sameCity.tier).toBeLessThan(4);
       expect(sameCity.waterLifting).toBeLessThanOrEqual(0.35 + 0.0001);

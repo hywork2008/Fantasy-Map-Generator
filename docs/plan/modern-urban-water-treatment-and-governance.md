@@ -359,6 +359,8 @@ interface RegionalWaterScheme {
 
 これは既存の Burg 単位 `UrbanWaterSystem` の置換ではない。`RegionalWaterScheme` は「どの Burg へ、どの経路で、どれだけ原水または処理水を届けるか」を所有し、各 `UrbanWaterSystem` は受け取った水を貯水・消毒・配水する能力と、下水を回収・処理する能力を所有する。
 
+Giant 国家の `capital` / `city` に初期から存在する古代ローマ式の導水・幹線下水は、`UrbanWaterSystem.hasInheritedRomanWaterworks` で先に表現する。このフラグは、局地的な河川がなくても既存の広域導水・放流接続があることを示す暫定的な遺産記録であり、後続の `RegionalWaterScheme` が実際の水源・経路・契約相手を所有するまでの代替ではない。
+
 ## 10. 参考と設定上の注意
 
 - 砂濾過は微生物と濁りを減らす有効な工程だが、化学汚染を除去する万能手段ではない。塩素消毒は主に病原体を対象とし、濁りや化学物質を消さない。 [CDC: 家庭・地域の水処理](https://www.cdc.gov/global-water-sanitation-hygiene/about/about-household-water-treatment.html)

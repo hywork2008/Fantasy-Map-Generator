@@ -45,3 +45,13 @@ export function raceKeyForBurg(burg: Burg | undefined): RaceKey | undefined {
   const culture = pack.cultures?.[cultureId];
   return getRaceById(pack.races, culture?.race)?.key;
 }
+
+/** Species key of the State that owns a burg, resilient to id-indexed and dense State arrays. */
+export function raceKeyForBurgState(burg: Burg | undefined): RaceKey | undefined {
+  const { pack } = getWorldContext();
+  const stateId = burg?.state ?? 0;
+  if (!stateId) return undefined;
+  const state = pack.states?.[stateId] ?? pack.states?.find(candidate => candidate?.i === stateId);
+  const culture = pack.cultures?.[state?.culture ?? 0];
+  return getRaceById(pack.races, culture?.race)?.key;
+}

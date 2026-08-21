@@ -507,19 +507,21 @@ interface UrbanWaterSystem {
 
 ## 15. 種族による例外: Giant の古代水利遺産
 
-**実装済み**（2026-08-14、`src/extensions/economy/generators/raceWaterTechBias.ts`）
+**実装済み**（2026-08-14 のバイアス、2026-08-21 の Giant 国家 city 初期シード）
 
 Fantasy Cultures Set（`highFantasy`/`darkFantasy`。判定は `isFantasyCulturesSet()`, `src/data/raceCivicStance.ts`）で Giant 種族の Burg は、古代ローマ相当（クロアカ・マキシマ級の被覆下水幹線＋導水路）の上下水道技術をあらかじめ持つ民族として扱う。`raceSkillBias.ts` の Giant 定義（`engineering: +8`、dwarf と同水準）と一貫させ、「神系種族が失われていない工学知識を保持している」という設定を反映する。
 
-### 15.1 フロア(絶対下限)ではなくバイアス(強い引き寄せ)
+### 15.1 city 以上は生成時の遺産、それ以外はバイアス
 
-検討の結果、`tier`/`waterLifting`/`municipalSanitation` を強制的に上書きする絶対フロア案は採用しなかった。理由:
+Giant 国家（State の文化種族が Giant）の `capital` / `city` は、地図生成時に Tier 4（管理下水網）と導水・幹線放流への既存接続を必ず持つ。これは新たに建設する近代設備ではなく、古代ローマ相当の遺産として初期状態を直接シードする。Tier 5 の分流・処理は与えない。
 
-1. **物理的整合性が壊れる**: `hasDownstreamOutfall` は地形だけで決まるため、内陸・水源なしの Burg に tier 4(管理下水網)を強制すると「排水先のない下水網」という矛盾した状態になる。
+この例外を city 未満へ広げない。小都市・村・前哨拠点への `tier`/`waterLifting`/`municipalSanitation` の絶対フロア案は採用しない。理由:
+
+1. **物理的整合性が壊れる**: 通常の `hasDownstreamOutfall` は地形だけで決まるため、内陸・水源なしの Burg に tier 4(管理下水網)を強制すると「排水先のない下水網」という矛盾した状態になる。city 以上の Giant 遺産だけは、`hasInheritedRomanWaterworks` により既存の遠隔導水・幹線放流へ接続済みとしてこの条件を満たす。
 2. **既存の種族条件付けパターンと不整合**: `raceSkillBias.ts` / `racePersonalityBias.ts` / `raceWealthBias.ts` はいずれも「通常のロジックに下駄を履かせる」バイアス型であり、出力を強制上書きするフロア型はこのコードベースの慣習から外れる。
 3. 設計書 §5.3 の「衛生は人口への恒久的な万能バフにしない」という原則と、無条件フロアは衝突する。
 
-採用した設計は、**既存の需要駆動・地形駆動パイプラインを迂回せず、入力側に強いバイアスをかけて速く・確実に到達させる**方式である。河川/沿岸があり `people >= 1500`(`canStartAdvancedProject` の managedSewers ゲート)を満たす Giant の都市は、同条件の他種族より明確に早く tier 4 へ到達し(統合テストの固定フィクスチャでは約 20 年 vs 約 29 年 — 制度ストックのEWMA収束速度に依存するため実際の年数は状況次第)、以後は `waterLifting`/`municipalSanitation` の到達可能上限そのものが歴史時代天井を超えて引き上げられる(バイアスなしでは `Math.min(ceiling, …)` により天井を絶対に超えない)。一方、水源のない小規模な前哨拠点は対象外のままになる — これは意図した挙動である。
+city 未満には、既存の需要駆動・地形駆動パイプラインを迂回せず、入力側に強いバイアスをかけて速く・確実に到達させる方式を残す。河川/沿岸があり `people >= 1500`(`canStartAdvancedProject` の managedSewers ゲート)を満たす Giant の小都市は、同条件の他種族より明確に早く tier 4 へ到達し、以後は `waterLifting`/`municipalSanitation` の到達可能上限そのものが歴史時代天井を超えて引き上げられる。一方、水源のない小規模な前哨拠点は対象外のままになる — これは意図した挙動である。
 
 ### 15.2 バイアスの内容(`WaterTechRaceBias`)
 
@@ -532,14 +534,14 @@ Fantasy Cultures Set（`highFantasy`/`darkFantasy`。判定は `isFantasyCulture
 
 `sanitaryEngineering`(Tier 5・上下水分離)は一切バイアスしない — ローマは分流式下水も処理施設も持たなかったため、Tier 5 は他種族と同じく需要駆動で獲得する対象のままとする。
 
-判定は Burg が属する文化(`culture.race`)の種族単位で行う。Giant は `raceCivicStance.ts` 上で distant/mono-racial(=「国」と呼べる都市はほぼ全て Giant 文化)という前提のため、実質的に「Giant 国の都市」を広くカバーする。征服した非 Giant 文化の都市は対象外になる(意図的な既定挙動)。
+生成時の遺産判定は Burg 個人の文化ではなく、**Burg を所有する State の文化種族**で行う。従って Giant 国家が初期に持つ city 以上の都市は、局所文化が異なっていても遺産を得る。通常の年次バイアスは従来どおり Burg 文化を読むため、征服後の非 Giant 文化都市が新規建設を加速することはない。
 
 ### 15.3 実装
 
 - `src/extensions/economy/generators/raceWaterTechBias.ts`: `RACE_WATER_TECH_BIAS` テーブルと `waterTechRaceBiasFor(raceKey, culturesSet)`。
-- `src/extensions/economy/generators/resolveBurgCulture.ts`: `raceKeyForBurg(burg)` — `culture.race` → `pack.races[].key` を解決。
+- `src/extensions/economy/generators/resolveBurgCulture.ts`: `raceKeyForBurg(burg)` と `raceKeyForBurgState(burg)` — Burg/State の `culture.race` → `pack.races[].key` を解決。
 - `src/extensions/economy/generators/urbanWaterTech.ts`: `waterTechCeilings()` / `evolveWaterTechStocks()` に任意の `ceilingBonus` 引数を追加。
-- `src/extensions/economy/generators/urbanWaterSystem.ts`: `settleBurgWaterInvestment()` で `raceBias` を解決し、上表の4箇所へ注入。
+- `src/extensions/economy/generators/urbanWaterSystem.ts`: `buildSystems("generate")` が Giant 国家の city 以上を Tier 4 遺産としてシードし、`settleBurgWaterInvestment()` は通常の race bias を上表の4箇所へ注入。
 
 ---
 

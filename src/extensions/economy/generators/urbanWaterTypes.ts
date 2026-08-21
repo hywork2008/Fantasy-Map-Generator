@@ -91,6 +91,12 @@ export type UrbanWaterSystem = {
   odor: number;
   hasUpstreamIntake: boolean;
   hasDownstreamOutfall: boolean;
+  /**
+   * A pre-existing aqueduct and trunk-sewer connection inherited by a Giant city at map
+   * generation. It supplies/exports beyond the local cell; future RegionalWaterScheme data
+   * will describe the actual route and counterparties.
+   */
+  hasInheritedRomanWaterworks?: boolean;
   hasSeparateWastewaterRoute: boolean;
   stormwaterDemand: number;
   wastewaterDemand: number;
