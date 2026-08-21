@@ -10,12 +10,16 @@ export interface InheritedSewerRoute {
   destination: [number, number];
 }
 
-type SewerCells = Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "p" | "r" | "state">;
+type SewerCells = Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "r" | "state"> & {
+  /** Legacy simulation fixtures can omit geometry; fall back to packed-cell proximity there. */
+  p?: PackedGraph["cells"]["p"];
+};
 
 /**
  * Determine the Giant inherited trunk-sewer route for each served settlement.
- * Outfalls stay on the same landmass and must be no higher than the settlement, so the display
- * cannot imply a submarine sewer or an uphill gravity drain.
+ * Outfalls stay on the same landmass and must be no higher than the settlement. A river is used
+ * only when it is nearer than the coast, preventing a remote river line from crossing lowland
+ * that could discharge directly into the nearby sea.
  */
 export function buildInheritedSewerRoutes(args: {
   burgs: readonly (Burg | undefined)[];
@@ -30,7 +34,7 @@ export function buildInheritedSewerRoutes(args: {
     if (!burg?.i) continue;
     const outfall = chooseSameLandSewerOutfall(burg, args.cells);
     if (outfall === undefined) continue;
-    const destination = args.cells.p[outfall];
+    const destination = args.cells.p?.[outfall];
     if (!destination) continue;
     routes.push({
       id: `roman-sewer-${burg.i}`,
@@ -45,30 +49,36 @@ export function buildInheritedSewerRoutes(args: {
 }
 
 /** True if a gravity trunk sewer can reach a lower river or coast on the same landmass. */
-export function hasSameLandSewerOutfall(
-  burg: Burg,
-  cells: Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "r" | "state">
-): boolean {
+export function hasSameLandSewerOutfall(burg: Burg, cells: SewerCells): boolean {
   return chooseSameLandSewerOutfall(burg, cells) !== undefined;
 }
 
-function chooseSameLandSewerOutfall(burg: Burg, cells: Omit<SewerCells, "p">): number | undefined {
+function chooseSameLandSewerOutfall(burg: Burg, cells: SewerCells): number | undefined {
   const landFeature = cells.f?.[burg.cell];
   const burgHeight = cells.h[burg.cell] ?? 0;
   const cellIds = cells.i?.length ? cells.i : Array.from({ length: cells.r.length }, (_value, cell) => cell);
   const sameLandLower = cellIds.filter(
     cell => (!cells.f || cells.f[cell] === landFeature) && (cells.h[cell] ?? 0) <= burgHeight
   );
-  const localRiver = burg.state
-    ? sameLandLower.filter(cell => cells.r[cell] && (!cells.state || cells.state[cell] === burg.state))
-    : [];
-  const river = localRiver.length ? localRiver : sameLandLower.filter(cell => cells.r[cell]);
-  if (river.length) return nearestByCellId(river, burg.cell);
-
+  const river = sameLandLower.filter(cell => cells.r[cell]);
   const coast = sameLandLower.filter(cell => cells.haven?.[cell]);
-  return coast.length ? nearestByCellId(coast, burg.cell) : undefined;
+  const nearestRiver = nearestByDistance(river, burg, cells);
+  const nearestCoast = nearestByDistance(coast, burg, cells);
+  if (nearestRiver === undefined) return nearestCoast;
+  if (nearestCoast === undefined) return nearestRiver;
+  return distanceToBurg(nearestRiver, burg, cells) <= distanceToBurg(nearestCoast, burg, cells)
+    ? nearestRiver
+    : nearestCoast;
 }
 
-function nearestByCellId(cells: Iterable<number>, fromCell: number): number {
-  return Array.from(cells).sort((a, b) => Math.abs(a - fromCell) - Math.abs(b - fromCell) || a - b)[0]!;
+function nearestByDistance(candidates: Iterable<number>, burg: Burg, cells: SewerCells): number | undefined {
+  return Array.from(candidates).sort(
+    (a, b) => distanceToBurg(a, burg, cells) - distanceToBurg(b, burg, cells) || a - b
+  )[0];
+}
+
+function distanceToBurg(cell: number, burg: Burg, cells: SewerCells): number {
+  const point = cells.p?.[cell];
+  if (!point) return Math.abs(cell - burg.cell);
+  return Math.hypot(point[0] - burg.x, point[1] - burg.y);
 }

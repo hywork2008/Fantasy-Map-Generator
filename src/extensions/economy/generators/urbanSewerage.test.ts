@@ -48,4 +48,26 @@ describe("buildInheritedSewerRoutes", () => {
 
     expect(routes).toEqual([expect.objectContaining({ outfallCell: 1, outfallKind: "coast" })]);
   });
+
+  it("chooses the nearby coast instead of extending a trunk sewer to a distant river", () => {
+    const routes = buildInheritedSewerRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 0, y: 0, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2]),
+        p: [
+          [0, 0],
+          [100, 0],
+          [10, 0]
+        ],
+        f: new Uint16Array([1, 1, 1]),
+        h: new Uint16Array([60, 10, 10]),
+        r: new Uint16Array([0, 1, 0]),
+        haven: new Uint16Array([0, 0, 4]),
+        state: new Uint16Array([1, 1, 1])
+      },
+      systems: [inheritedSewer(1)]
+    });
+
+    expect(routes).toEqual([expect.objectContaining({ outfallCell: 2, outfallKind: "coast" })]);
+  });
 });
