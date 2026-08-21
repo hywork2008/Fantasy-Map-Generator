@@ -6,6 +6,7 @@ import {
   close,
   refresh,
   selectState,
+  sendColonizationExpedition,
   sendRaidExpedition,
   sendTradeExpedition,
   sendTributeExpedition
@@ -45,6 +46,9 @@ export const OverseasRelationsDialog: React.FC = () => {
       }
       if (row.lastOutcome.purpose === "raid") {
         return t("extensions.overseasRelations.raidSuccess", { revenue: (row.lastOutcome.revenue ?? 0).toFixed(1) });
+      }
+      if (row.lastOutcome.purpose === "colonizeInitial") {
+        return t("extensions.overseasRelations.colonyEstablished");
       }
       return t("extensions.overseasRelations.arrivedProfit", { profit: (row.lastOutcome.profit ?? 0).toFixed(1) });
     }
@@ -132,6 +136,26 @@ export const OverseasRelationsDialog: React.FC = () => {
                           })}
                         </div>
                       ) : null}
+                      {row.colonyGarrisonRequired !== null && row.colonyGarrisonFunded !== null ? (
+                        <div className="dim">
+                          <progress
+                            value={Math.min(row.colonyGarrisonFunded, row.colonyGarrisonRequired)}
+                            max={row.colonyGarrisonRequired}
+                          />
+                          {t("extensions.overseasRelations.garrison", {
+                            funded: row.colonyGarrisonFunded.toFixed(1),
+                            required: row.colonyGarrisonRequired.toFixed(1),
+                            months: row.monthsUnderfunded
+                          })}
+                          {row.lastColonyOutput > 0 ? (
+                            <div>
+                              {t("extensions.overseasRelations.colonyOutput", {
+                                output: row.lastColonyOutput.toFixed(1)
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </td>
                     <td>{renderStatus(row)}</td>
                     <td>
@@ -160,6 +184,18 @@ export const OverseasRelationsDialog: React.FC = () => {
                           onClick={() => sendRaidExpedition(row.realmId, escortCount)}
                         >
                           {t("extensions.overseasRelations.sendRaid")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            Boolean(row.activeExpedition) ||
+                            row.powerTier !== "weaker" ||
+                            row.relation === "hostile" ||
+                            row.relation === "colony"
+                          }
+                          onClick={() => sendColonizationExpedition(row.realmId, escortCount)}
+                        >
+                          {t("extensions.overseasRelations.sendColonize")}
                         </button>
                       </div>
                     </td>

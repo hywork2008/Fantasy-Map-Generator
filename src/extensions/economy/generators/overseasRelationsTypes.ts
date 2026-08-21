@@ -1,5 +1,5 @@
 /**
- * Distant Realms / Overseas Trading Companies — Phase 0–3 data model.
+ * Distant Realms / Overseas Trading Companies — Phase 0–4 data model.
  * Design: docs/plan/distant-realms-overseas-trade.md
  *
  * DistantRealm is deliberately NOT a full State: no cells, no geometry, no per-burg simulation.
@@ -26,9 +26,9 @@ export interface DistantRealm {
   distanceBand: DistanceBand;
   /** Abstract naval/military strength, compared against a state's overseasProjectionScore. */
   powerScore: number;
-  /** Abstract treasury the realm can be taxed/raided from (Phase 3+; unused by Phase 1 trade). */
+  /** Abstract treasury the realm can be taxed, raided, or developed from (Phase 3+). */
   wealthLevel: number;
-  /** Abstract defense used by tribute/raid/colonize success rolls (Phase 3+; unused by Phase 1). */
+  /** Abstract defense used by tribute, raid, and colonization success rolls (Phase 3+). */
   defenseScore: number;
   /** Existing Economy Good names this realm exports. Phase 1 draws only from this list. */
   specialtyGoodNames: string[];
@@ -48,10 +48,14 @@ export interface OverseasRelationLedger {
   /** Phase 4 colonization upkeep — present only once relation reaches "colony". */
   colonyGarrisonRequired?: number;
   colonyGarrisonFunded?: number;
+  /** Home market that receives the colony's monthly specialty output. */
+  colonyPortMarketId?: number;
+  /** Specialty-good units directly added to the home market in the latest monthly settlement. */
+  lastColonyOutput?: number;
   monthsUnderfunded: number;
 }
 
-export type ExpeditionPurpose = "trade" | "tribute" | "raid";
+export type ExpeditionPurpose = "trade" | "tribute" | "raid" | "colonizeInitial";
 export type ExpeditionState = "outbound" | "resolved";
 export type ExpeditionOutcomeCause = "shipwreck" | "piracy" | "repelled";
 

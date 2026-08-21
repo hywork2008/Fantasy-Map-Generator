@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeCoercionSuccessChance, computeRoundTripLossRisk } from "./overseasVoyageRisk";
+import {
+  computeCoercionSuccessChance,
+  computeColonizationSuccessChance,
+  computeColonyGarrisonRequirement,
+  computeColonyOutputFactor,
+  computeRoundTripLossRisk
+} from "./overseasVoyageRisk";
 
 describe("overseas voyage escort risk", () => {
   it("reduces only piracy-related round-trip loss risk when escorts accompany the convoy", () => {
@@ -19,6 +25,18 @@ describe("overseas voyage escort risk", () => {
     expect(escorted.shipwreckRisk).toBe(unescorted.shipwreckRisk);
     expect(escorted.piracyRisk).toBeLessThan(unescorted.piracyRisk);
     expect(escorted.roundTripLossRisk).toBeLessThan(unescorted.roundTripLossRisk);
+  });
+});
+
+describe("overseas colony math", () => {
+  it("rewards escorts during establishment, charges more for remote garrisons, and decays output after shortages", () => {
+    expect(computeColonizationSuccessChance({ defenseScore: 50, escortCount: 2, relationScore: 0 })).toBeGreaterThan(
+      computeColonizationSuccessChance({ defenseScore: 50, escortCount: 1, relationScore: 0 })
+    );
+    expect(computeColonyGarrisonRequirement({ defenseScore: 50, distanceBand: "remote" })).toBeGreaterThan(
+      computeColonyGarrisonRequirement({ defenseScore: 50, distanceBand: "nearAbroad" })
+    );
+    expect(computeColonyOutputFactor(2)).toBeLessThan(1);
   });
 });
 

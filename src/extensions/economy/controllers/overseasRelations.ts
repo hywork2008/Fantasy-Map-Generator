@@ -70,3 +70,11 @@ export function sendRaidExpedition(realmId: number, escortCount: number): void {
   setOverseasRelationsState({ lastActionMessage: result.ok ? "sent" : result.reason });
   refresh();
 }
+
+export function sendColonizationExpedition(realmId: number, escortCount: number): void {
+  const stateId = getOverseasRelationsState().selectedStateId;
+  if (stateId === null) return;
+  const result = OverseasRelations.sendColonizationExpedition(stateId, realmId, escortCount);
+  setOverseasRelationsState({ lastActionMessage: result.ok ? "sent" : result.reason });
+  refresh();
+}

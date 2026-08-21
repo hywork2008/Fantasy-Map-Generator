@@ -8,9 +8,8 @@
  * caravans draw from — but goods/price flow is a flat treasury outlay and payout, not a
  * burg-by-burg simulation.
  *
- * Scope: trade plus optional state-navy escorts. Tribute/raid (Phase 3), and colonization
- * (Phase 4) are not implemented — PowerTier is computed and shown, but nothing here gates
- * on it besides which multiplier a trade run gets.
+ * Scope: trade, armed coercion, and abstract off-map colonies. Colonies supply an existing
+ * home market directly and use a treasury-funded garrison ledger rather than real map cells.
  */
 
 import { SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
@@ -18,6 +17,7 @@ import { rn } from "../../hostUtils";
 import {
   getDistantRealms,
   getGoods,
+  getMarketById,
   getNextOverseasExpeditionId,
   getOverseasExpeditions,
   getOverseasRelationLedgers,
@@ -45,9 +45,16 @@ import type {
   RealmRelation
 } from "./overseasRelationsTypes";
 import {
+  COLONY_GARRISON_UPKEEP_PER_UNIT,
+  COLONY_REBELLION_MONTHS,
   climateGapSteps,
   computeCoercionRevenue,
   computeCoercionSuccessChance,
+  computeColonizationCost,
+  computeColonizationSuccessChance,
+  computeColonyGarrisonRequirement,
+  computeColonyMonthlyOutput,
+  computeColonyOutputFactor,
   computeExpeditionBuyCost,
   computeExpeditionReturn,
   computeMonthlyTributeRevenue,
@@ -57,6 +64,7 @@ import {
   getExpeditionDurationDays,
   getPowerTier
 } from "./overseasVoyageRisk";
+import { markRetailInventoryDirty } from "./retailInventory";
 
 /** Cargo slots requested per expedition — flavor-only; decoupled from the treasury math below. */
 const DEFAULT_EXPEDITION_CARGO_SLOTS = 200;
@@ -190,6 +198,10 @@ export interface OverseasRealmStatusRow {
   powerTier: PowerTier;
   relation: RealmRelation;
   lastTributePaid: number;
+  colonyGarrisonRequired: number | null;
+  colonyGarrisonFunded: number | null;
+  monthsUnderfunded: number;
+  lastColonyOutput: number;
   activeExpedition: { purpose: ExpeditionPurpose; departedTick: number; etaTick: number; escortCount: number } | null;
   lastOutcome: {
     purpose: ExpeditionPurpose;
@@ -450,6 +462,77 @@ class OverseasRelationsModule {
     return this.sendCoercionExpedition(stateId, realmId, "raid", escortCount);
   }
 
+  /** Establish a colony in a weaker Realm; the initial investment is sunk once the convoy departs. */
+  sendColonizationExpedition(stateId: number, realmId: number, escortCount: number): SendExpeditionResult {
+    const state = getWorldContext().pack.states?.[stateId];
+    if (!state?.i || state.removed) return { ok: false, reason: "invalid-state" };
+    const realm = getDistantRealms().find(entry => entry.i === realmId);
+    if (!realm) return { ok: false, reason: "unknown-realm" };
+    if (
+      getOverseasExpeditions().some(
+        expedition =>
+          expedition.stateId === stateId && expedition.realmId === realmId && expedition.state === "outbound"
+      )
+    ) {
+      return { ok: false, reason: "expedition-in-progress" };
+    }
+
+    const ledger = getOverseasRelationLedgers().find(entry => entry.stateId === stateId && entry.realmId === realmId);
+    if (ledger?.relation === "hostile") return { ok: false, reason: "hostile-realm" };
+    if (ledger?.relation === "colony" || this.getPowerTierForState(stateId, realm) !== "weaker") {
+      return { ok: false, reason: "power-tier-restricted" };
+    }
+
+    const requestedEscortCount = Math.max(0, Math.floor(escortCount));
+    if (!requestedEscortCount) return { ok: false, reason: "escort-required" };
+    const portMarketId = pickPortMarketForState(stateId);
+    if (portMarketId === null) return { ok: false, reason: "no-port" };
+    const initialCost = rn(computeColonizationCost(realm.defenseScore), 2);
+    if (!debitStateTreasury(stateId, initialCost)) return { ok: false, reason: "insufficient-treasury" };
+
+    const expeditionId = getNextOverseasExpeditionId();
+    const escortHullIds = getAvailableEscortHullIds(stateId).slice(0, requestedEscortCount);
+    if (escortHullIds.length !== requestedEscortCount || !reserveEscortHulls(stateId, expeditionId, escortHullIds)) {
+      creditStateTreasury(stateId, initialCost);
+      return { ok: false, reason: "no-escorts-available" };
+    }
+    const waterAllocation: TransportAllocation = {
+      mode: "water",
+      transportId: "",
+      transportName: "",
+      unitCount: 0,
+      capacitySlots: 0,
+      usedSlots: DEFAULT_EXPEDITION_CARGO_SLOTS
+    };
+    const reservationResult = MerchantTransportAssets.reserve(portMarketId, expeditionId, [waterAllocation]);
+    if (!reservationResult) {
+      releaseEscortHulls(expeditionId, escortHullIds, "arrived");
+      creditStateTreasury(stateId, initialCost);
+      return { ok: false, reason: "no-ships-available" };
+    }
+    MerchantTransportAssets.depart(reservationResult.reservation.id);
+
+    const now = getSimulationDay();
+    const expeditions = getOverseasExpeditions();
+    expeditions.push({
+      id: expeditionId,
+      stateId,
+      realmId,
+      purpose: "colonizeInitial",
+      reservationId: reservationResult.reservation.id,
+      escortHullIds,
+      portMarketId,
+      buyCost: initialCost,
+      departedTick: now,
+      etaTick: now + getExpeditionDurationDays(realm.distanceBand),
+      state: "outbound"
+    });
+    setOverseasExpeditions(expeditions);
+    setNextOverseasExpeditionId(expeditionId + 1);
+    this.ensureRelationLedger(stateId, realmId, "contacted");
+    return { ok: true, expeditionId };
+  }
+
   /** Armed overseas action. It still needs merchant transport, but no trade-goods outlay. */
   private sendCoercionExpedition(
     stateId: number,
@@ -569,7 +652,7 @@ class OverseasRelationsModule {
           ledger.relation = "hostile";
           ledger.relationScore = 0;
         }
-      } else if (expedition.purpose !== "trade") {
+      } else if (expedition.purpose === "tribute" || expedition.purpose === "raid") {
         const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "contacted");
         const powerTier = this.getPowerTierForState(expedition.stateId, realm);
         const succeeded =
@@ -603,6 +686,39 @@ class OverseasRelationsModule {
         expedition.state = "resolved";
         ledger.lastResolvedTick = now;
         continue;
+      } else if (expedition.purpose === "colonizeInitial") {
+        const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "contacted");
+        const succeeded =
+          Math.random() <
+          computeColonizationSuccessChance({
+            defenseScore: realm.defenseScore,
+            escortCount: expedition.escortHullIds?.length ?? 0,
+            relationScore: ledger.relationScore ?? 0
+          });
+        if (!succeeded) {
+          MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "lost");
+          releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "lost");
+          expedition.outcome = { lost: true, cause: "repelled" };
+          ledger.relation = "hostile";
+          ledger.relationScore = 0;
+        } else {
+          MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
+          releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
+          ledger.relation = "colony";
+          ledger.relationScore = 10;
+          ledger.colonyGarrisonRequired = rn(
+            computeColonyGarrisonRequirement({ defenseScore: realm.defenseScore, distanceBand: realm.distanceBand }),
+            2
+          );
+          ledger.colonyGarrisonFunded = 0;
+          ledger.colonyPortMarketId = expedition.portMarketId;
+          ledger.lastColonyOutput = 0;
+          ledger.monthsUnderfunded = 0;
+          expedition.outcome = { lost: false, profit: 0 };
+        }
+        expedition.state = "resolved";
+        ledger.lastResolvedTick = now;
+        continue;
       } else {
         MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
         releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
@@ -632,6 +748,52 @@ class OverseasRelationsModule {
       creditStateTreasury(ledger.stateId, tribute);
       ledger.lastTributePaid = tribute;
     }
+
+    for (const ledger of getOverseasRelationLedgers()) {
+      ledger.lastColonyOutput = 0;
+      if (ledger.relation !== "colony") continue;
+      const realm = getDistantRealms().find(entry => entry.i === ledger.realmId);
+      const state = getWorldContext().pack.states?.[ledger.stateId];
+      if (!realm || !state?.i || state.removed) continue;
+
+      const required = Math.max(
+        1,
+        ledger.colonyGarrisonRequired ??
+          computeColonyGarrisonRequirement({ defenseScore: realm.defenseScore, distanceBand: realm.distanceBand })
+      );
+      ledger.colonyGarrisonRequired = rn(required, 2);
+      const requestedUpkeep = required * COLONY_GARRISON_UPKEEP_PER_UNIT;
+      const paidUpkeep = Math.min(Math.max(0, state.treasury ?? 0), requestedUpkeep);
+      state.treasury = rn(Math.max(0, (state.treasury ?? 0) - paidUpkeep), 2);
+      ledger.colonyGarrisonFunded = rn(paidUpkeep / COLONY_GARRISON_UPKEEP_PER_UNIT, 2);
+      if ((ledger.colonyGarrisonFunded ?? 0) + 1e-6 < required) ledger.monthsUnderfunded += 1;
+      else ledger.monthsUnderfunded = 0;
+
+      if (ledger.monthsUnderfunded >= COLONY_REBELLION_MONTHS) {
+        ledger.relation = "hostile";
+        ledger.relationScore = 0;
+        ledger.colonyGarrisonRequired = undefined;
+        ledger.colonyGarrisonFunded = undefined;
+        ledger.colonyPortMarketId = undefined;
+        continue;
+      }
+
+      const good = realm.specialtyGoodNames
+        .map(findGoodByName)
+        .find((entry): entry is Good => Boolean(entry && isGoodEnabled(entry)));
+      const market = ledger.colonyPortMarketId ? getMarketById(ledger.colonyPortMarketId) : undefined;
+      if (!good || !market) continue;
+      const output = rn(
+        computeColonyMonthlyOutput(realm.wealthLevel) * computeColonyOutputFactor(ledger.monthsUnderfunded),
+        2
+      );
+      if (output <= 0) continue;
+      const marketGood = market.goods[good.i] ?? { stock: 0, price: good.value };
+      marketGood.stock = rn(marketGood.stock + output, 2);
+      market.goods[good.i] = marketGood;
+      ledger.lastColonyOutput = output;
+      markRetailInventoryDirty(market.i);
+    }
   }
 
   getOverseasRelationsOverview(stateId: number): OverseasRealmStatusRow[] {
@@ -659,6 +821,10 @@ class OverseasRelationsModule {
         powerTier: this.getPowerTierForState(stateId, realm),
         relation: ledger?.relation ?? "unknown",
         lastTributePaid: ledger?.lastTributePaid ?? 0,
+        colonyGarrisonRequired: ledger?.colonyGarrisonRequired ?? null,
+        colonyGarrisonFunded: ledger?.colonyGarrisonFunded ?? null,
+        monthsUnderfunded: ledger?.monthsUnderfunded ?? 0,
+        lastColonyOutput: ledger?.lastColonyOutput ?? 0,
         activeExpedition: active
           ? {
               purpose: active.purpose,

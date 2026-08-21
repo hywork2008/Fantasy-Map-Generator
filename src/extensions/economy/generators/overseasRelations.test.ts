@@ -4,6 +4,7 @@ import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import {
   clearEconomyContext,
   getDistantRealms,
+  getMarketById,
   getOverseasExpeditions,
   getOverseasRelationLedgers,
   initEconomyContext,
@@ -237,6 +238,52 @@ describe("OverseasRelations", () => {
     expect(expedition.outcome).toEqual({ lost: true, cause: "repelled" });
     expect(OverseasRelations.getOverseasRelationsOverview(1)[0].relation).toBe("hostile");
     expect(releasedEscortHullIds).toEqual([{ hullIds: [90], outcome: "lost" }]);
+  });
+
+  it("establishes a weaker Realm as a colony, pays its garrison, and supplies its home market", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 28, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+    expect(OverseasRelations.sendColonizationExpedition(1, REALM_ID, 1)).toEqual({
+      ok: false,
+      reason: "power-tier-restricted"
+    });
+
+    const result = OverseasRelations.sendColonizationExpedition(1, OTHER_REALM_ID, 1);
+    expect(result.ok).toBe(true);
+    const expedition = getOverseasExpeditions()[0];
+    simulationContext.currentDay = expedition.etaTick;
+    vi.spyOn(Math, "random").mockReturnValueOnce(0.999).mockReturnValueOnce(0);
+
+    OverseasRelations.settleMonthly();
+
+    const ledger = getOverseasRelationLedgers().find(entry => entry.stateId === 1 && entry.realmId === OTHER_REALM_ID);
+    expect(ledger).toMatchObject({ relation: "colony", monthsUnderfunded: 0 });
+    expect(ledger?.colonyGarrisonFunded).toBeGreaterThan(0);
+    expect(ledger?.lastColonyOutput).toBeGreaterThan(0);
+    expect(getMarketById(1)?.goods[1]?.stock).toBeGreaterThan(0);
+  });
+
+  it("reduces output under an unfunded garrison and loses the colony to rebellion after four months", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 29, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+    OverseasRelations.sendColonizationExpedition(1, OTHER_REALM_ID, 1);
+    const expedition = getOverseasExpeditions()[0];
+    simulationContext.currentDay = expedition.etaTick;
+    vi.spyOn(Math, "random").mockReturnValueOnce(0.999).mockReturnValueOnce(0);
+    OverseasRelations.settleMonthly();
+    worldContext.pack.states[1].treasury = 0;
+
+    OverseasRelations.settleMonthly();
+    const ledger = getOverseasRelationLedgers().find(entry => entry.stateId === 1 && entry.realmId === OTHER_REALM_ID)!;
+    expect(ledger).toMatchObject({ relation: "colony", monthsUnderfunded: 1 });
+    expect(ledger.lastColonyOutput).toBeGreaterThan(0);
+
+    OverseasRelations.settleMonthly();
+    OverseasRelations.settleMonthly();
+    OverseasRelations.settleMonthly();
+    expect(ledger).toMatchObject({ relation: "hostile", monthsUnderfunded: 4, colonyGarrisonRequired: undefined });
   });
 
   it("resolves a successful voyage: treasury profit, relation upgraded to trading, hull returns to port", () => {

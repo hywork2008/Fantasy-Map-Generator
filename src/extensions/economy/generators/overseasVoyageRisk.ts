@@ -164,6 +164,45 @@ export function computeMonthlyTributeRevenue(wealthLevel: number): number {
   return Math.max(0, wealthLevel) * 0.003;
 }
 
+/** Initial state-treasury investment required to establish a colony. */
+export function computeColonizationCost(defenseScore: number): number {
+  return 8 + Math.max(0, defenseScore) * 0.08;
+}
+
+/** A colony is harder to establish than a tribute relationship against the same defense. */
+export function computeColonizationSuccessChance(params: {
+  defenseScore: number;
+  escortCount: number;
+  relationScore: number;
+}): number {
+  const base = 0.5;
+  const escortBonus = Math.min(0.27, Math.max(0, params.escortCount) * 0.09);
+  const defensePenalty = clamp01(Math.max(0, params.defenseScore) / 250) * 0.42;
+  const relationBonus = clamp01(params.relationScore / 100) * 0.06;
+  return clamp01(base + 0.16 + escortBonus + relationBonus - defensePenalty);
+}
+
+/** Required abstract garrison strength; remote colonies cost more to keep supplied. */
+export function computeColonyGarrisonRequirement(params: { defenseScore: number; distanceBand: DistanceBand }): number {
+  const distanceFactor: Record<DistanceBand, number> = { nearAbroad: 0, farAbroad: 0.5, remote: 1 };
+  return Math.max(1, 1 + Math.max(0, params.defenseScore) / 100 + distanceFactor[params.distanceBand]);
+}
+
+/** Treasury paid per abstract garrison-strength point each month. */
+export const COLONY_GARRISON_UPKEEP_PER_UNIT = 1.25;
+/** At this many consecutive underfunded months the colony revolts and is lost. */
+export const COLONY_REBELLION_MONTHS = 4;
+
+/** Stock directly imported from the colony each month, before underfunding decay. */
+export function computeColonyMonthlyOutput(wealthLevel: number): number {
+  return Math.max(0, wealthLevel) / 500;
+}
+
+/** The first missed month is tolerated; later shortages progressively cut plantation output. */
+export function computeColonyOutputFactor(monthsUnderfunded: number): number {
+  return clamp01(1 - Math.max(0, monthsUnderfunded - 1) * 0.25);
+}
+
 /** Abstract naval/mercantile reach a state can project overseas. Tunable defaults. */
 const MERCHANT_TONNAGE_WEIGHT = 0.05;
 const TREASURY_WEIGHT = 0.3;

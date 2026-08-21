@@ -3271,11 +3271,15 @@
       "sendExpedition": "交易遠征を送る",
       "sendTribute": "貢納を要求する",
       "sendRaid": "略奪する",
+      "sendColonize": "統治を開始する",
       "outbound": "{{purpose}}遠征航海中 — {{day}}日目に帰還予定（護衛 {{escorts}} 隻）",
       "arrivedProfit": "帰還 — 利益 {{profit}}",
       "tributeSuccess": "貢納を受諾 — 収入 {{revenue}}、朝貢国化",
       "raidSuccess": "略奪成功 — 収入 {{revenue}}、遠方国家は敵対化",
+      "colonyEstablished": "植民地を設立 — 駐留維持費が必要です",
       "monthlyTribute": "直近の月次貢納: {{revenue}}",
+      "garrison": "駐留 {{funded}} / {{required}}（資金不足 {{months}}か月）",
+      "colonyOutput": "直近の植民地産出: {{output}}",
       "lostShipwreck": "喪失 — 海難事故",
       "lostPiracy": "喪失 — 海賊被害",
       "repelled": "撃退 — 遠征喪失、遠方国家は敵対化",
@@ -3283,7 +3287,8 @@
       "purpose": {
         "trade": "交易",
         "tribute": "貢納要求",
-        "raid": "略奪"
+        "raid": "略奪",
+        "colonizeInitial": "統治"
       },
       "climateBand": {
         "polar": "寒帯",

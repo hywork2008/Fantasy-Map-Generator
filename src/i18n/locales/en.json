@@ -3271,11 +3271,15 @@
       "sendExpedition": "Send Trade Expedition",
       "sendTribute": "Demand Tribute",
       "sendRaid": "Raid",
+      "sendColonize": "Establish Colony",
       "outbound": "{{purpose}} expedition — returns day {{day}} ({{escorts}} escorts)",
       "arrivedProfit": "Arrived — profit {{profit}}",
       "tributeSuccess": "Tribute accepted — revenue {{revenue}}; now a tributary",
       "raidSuccess": "Raid successful — revenue {{revenue}}; Realm is now hostile",
+      "colonyEstablished": "Colony established — garrison upkeep now required",
       "monthlyTribute": "Latest monthly tribute: {{revenue}}",
+      "garrison": "Garrison {{funded}} / {{required}} (underfunded {{months}} months)",
+      "colonyOutput": "Latest colony output: {{output}}",
       "lostShipwreck": "Lost — shipwreck",
       "lostPiracy": "Lost — piracy",
       "repelled": "Repelled — expedition lost; Realm is now hostile",
@@ -3283,7 +3287,8 @@
       "purpose": {
         "trade": "Trade",
         "tribute": "Tribute",
-        "raid": "Raid"
+        "raid": "Raid",
+        "colonizeInitial": "Colonization"
       },
       "climateBand": {
         "polar": "Polar",
