@@ -2545,6 +2545,7 @@
       "guildOverview": "ギルド概要",
       "calibrationOverview": "Craft Calibration",
       "treasuryOverview": "国庫概要",
+      "overseasRelations": "海外交易",
       "mineralsOverview": "鉱物概要",
       "militarySupplies": "軍需補給概要",
       "metallurgWork": "冶金作業",
@@ -3250,6 +3251,60 @@
       "droughtCell": "現在の干魃・熱波ステージ",
       "droughtSeverityCell": "今年の緩和後severity",
       "reliefCell": "今期支出した緊急救済額"
+    },
+    "overseasRelations": {
+      "state": "国家",
+      "noEligibleStates": "外洋に繋がる港と市場を持つ国家がまだありません — 海外交易には港が必要です。",
+      "activeCount": "海外へ派遣中の船: {{count}}隻",
+      "sentMessage": "遠征を派遣しました。",
+      "realm": "遠方国家",
+      "climate": "気候",
+      "distance": "距離",
+      "goods": "特産品",
+      "power": "国力",
+      "relation": "関係",
+      "status": "状況",
+      "action": "行動",
+      "sendExpedition": "交易遠征を送る",
+      "outbound": "航海中 — {{day}}日目に帰還予定",
+      "arrivedProfit": "帰還 — 利益 {{profit}}",
+      "lostShipwreck": "喪失 — 海難事故",
+      "lostPiracy": "喪失 — 海賊被害",
+      "neverSailed": "まだ遠征を送っていません",
+      "climateBand": {
+        "polar": "寒帯",
+        "temperate": "温帯",
+        "arid": "乾燥帯",
+        "subtropical": "亜熱帯",
+        "tropical": "熱帯"
+      },
+      "distanceBand": {
+        "nearAbroad": "近隣外地",
+        "farAbroad": "遠隔外地",
+        "remote": "絶域"
+      },
+      "powerTier": {
+        "weaker": "弱い",
+        "comparable": "同格",
+        "stronger": "強い"
+      },
+      "relationLabel": {
+        "unknown": "未接触",
+        "contacted": "接触済み",
+        "trading": "交易中",
+        "tributary": "朝貢国",
+        "colony": "植民地",
+        "hostile": "敵対"
+      },
+      "reason": {
+        "invalid-state": "この国家は無効になっています。",
+        "unknown-realm": "この遠方国家は不明です。",
+        "expedition-in-progress": "この国家への遠征は既に航海中です。",
+        "no-port": "この国家には市場を持つ外洋港がありません。",
+        "no-good-available": "この国の特産品が現在いずれも有効になっていません。",
+        "insufficient-treasury": "国庫が遠征費用を賄えません。",
+        "no-ships-available": "遠征に回せる商船がありません — 全て他の用途で使用中です。"
+      }
     },
     "marketDeals": {
       "good": "産物",

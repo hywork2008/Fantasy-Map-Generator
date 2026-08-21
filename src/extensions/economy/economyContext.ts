@@ -78,6 +78,7 @@ import type {
   MineralGeologicalProvince
 } from "./generators/mineralResourcesTypes";
 import type { MintLedger } from "./generators/mintingTypes";
+import type { DistantRealm, OverseasExpedition, OverseasRelationLedger } from "./generators/overseasRelationsTypes";
 import type { ProductionRecord } from "./generators/productionRecordTypes";
 import type { QuarryOperation } from "./generators/quarryOperationsTypes";
 import type {
@@ -2113,6 +2114,41 @@ export function getTradeSecurityLedgers(): TradeSecurityLedger[] {
 }
 export function setTradeSecurityLedgers(ledgers: readonly TradeSecurityLedger[]): void {
   setSliceArray("tradeSecurityLedgers", ledgers);
+}
+
+/**
+ * Off-map "Distant Realm" nations — Overseas Relations (docs/plan/distant-realms-overseas-trade.md).
+ * Seeded once per world (world-generation-scoped, not per-state); read by every state that qualifies.
+ */
+export function getDistantRealms(): DistantRealm[] {
+  return getSliceArray<DistantRealm>("distantRealms");
+}
+export function setDistantRealms(realms: readonly DistantRealm[]): void {
+  setSliceArray("distantRealms", realms);
+}
+
+/** One row per (state, realm) relationship, created lazily on first contact. */
+export function getOverseasRelationLedgers(): OverseasRelationLedger[] {
+  return getSliceArray<OverseasRelationLedger>("overseasRelationLedgers");
+}
+export function setOverseasRelationLedgers(ledgers: readonly OverseasRelationLedger[]): void {
+  setSliceArray("overseasRelationLedgers", ledgers);
+}
+
+/** In-flight and resolved overseas voyages. */
+export function getOverseasExpeditions(): OverseasExpedition[] {
+  return getSliceArray<OverseasExpedition>("overseasExpeditions");
+}
+export function setOverseasExpeditions(expeditions: readonly OverseasExpedition[]): void {
+  setSliceArray("overseasExpeditions", expeditions);
+}
+
+export function getNextOverseasExpeditionId(): number {
+  const id = getSliceNumber("nextOverseasExpeditionId");
+  return id > 0 ? id : 1;
+}
+export function setNextOverseasExpeditionId(id: number): void {
+  setSliceNumber("nextOverseasExpeditionId", id);
 }
 
 /** Per-cell dominant good id, owned by the economy extension. */

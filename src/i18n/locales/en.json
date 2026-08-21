@@ -2545,6 +2545,7 @@
       "guildOverview": "Guild Overview",
       "calibrationOverview": "Craft Calibration",
       "treasuryOverview": "Treasury Overview",
+      "overseasRelations": "Overseas Relations",
       "mineralsOverview": "Minerals Overview",
       "militarySupplies": "Military Supplies Overview",
       "metallurgWork": "Metallurg Work",
@@ -3250,6 +3251,60 @@
       "droughtCell": "Current drought/heatwave stage",
       "droughtSeverityCell": "This year's post-mitigation severity",
       "reliefCell": "Emergency relief spent this cycle"
+    },
+    "overseasRelations": {
+      "state": "State",
+      "noEligibleStates": "No State with a sea-connected port and market yet — Overseas Relations needs one to reach a Distant Realm.",
+      "activeCount": "Ships committed overseas: {{count}}",
+      "sentMessage": "Expedition dispatched.",
+      "realm": "Distant Realm",
+      "climate": "Climate",
+      "distance": "Distance",
+      "goods": "Specialty goods",
+      "power": "Power",
+      "relation": "Relation",
+      "status": "Status",
+      "action": "Action",
+      "sendExpedition": "Send Trade Expedition",
+      "outbound": "Outbound — returns day {{day}}",
+      "arrivedProfit": "Arrived — profit {{profit}}",
+      "lostShipwreck": "Lost — shipwreck",
+      "lostPiracy": "Lost — piracy",
+      "neverSailed": "No expedition sent yet",
+      "climateBand": {
+        "polar": "Polar",
+        "temperate": "Temperate",
+        "arid": "Arid",
+        "subtropical": "Subtropical",
+        "tropical": "Tropical"
+      },
+      "distanceBand": {
+        "nearAbroad": "Near Abroad",
+        "farAbroad": "Far Abroad",
+        "remote": "Remote"
+      },
+      "powerTier": {
+        "weaker": "Weaker",
+        "comparable": "Comparable",
+        "stronger": "Stronger"
+      },
+      "relationLabel": {
+        "unknown": "Unknown",
+        "contacted": "Contacted",
+        "trading": "Trading",
+        "tributary": "Tributary",
+        "colony": "Colony",
+        "hostile": "Hostile"
+      },
+      "reason": {
+        "invalid-state": "That State is no longer valid.",
+        "unknown-realm": "That Realm is no longer known.",
+        "expedition-in-progress": "An expedition to this Realm is already at sea.",
+        "no-port": "This State has no sea-connected port with a market.",
+        "no-good-available": "None of this Realm's specialty goods are currently enabled.",
+        "insufficient-treasury": "Treasury cannot cover the expedition's outlay.",
+        "no-ships-available": "No merchant ships are available to crew this expedition — they are all committed elsewhere."
+      }
     },
     "marketDeals": {
       "good": "Good",

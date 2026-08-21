@@ -85,6 +85,7 @@ import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
 import { expectedWorkerPoints, getOccupationalRow } from "./occupationalCalibration";
+import { OverseasRelations } from "./overseasRelations";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 import type {
   DealRecord,
@@ -306,6 +307,7 @@ export class ProductionModule {
       Minting.settleMonthly();
       MilitaryResources.settleMonthly();
       TradeSecurity.settleMonthly();
+      OverseasRelations.settleMonthly();
     });
     measureTickStep("production:militaryMaterialStaging", () => MetallurgWork.stageStateMilitaryMaterials());
     measureTickStep("production:pricesAndLabor", () => {

@@ -3,6 +3,7 @@
 2026-08-21
 
 - docs/plan/climate-disaster-drought.md
+- docs/plan/distant-realms-overseas-trade.md
 - docs/plan/epidemic-cholera-and-water-security.md
 - docs/plan/military-era-progression.md
 - docs/plan/river-levee-and-flood-damage.md

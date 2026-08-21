@@ -25,6 +25,7 @@ import {
   clearEconomyContext,
   getBurgMarketLedgers,
   getCaravans,
+  getDistantRealms,
   getGoodCellColumn,
   getGoods,
   getMarketCellColumn,
@@ -160,6 +161,7 @@ import { Minting } from "./generators/minting";
 import { getStateMountedCapacity } from "./generators/mountAvailability";
 import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
 import { OilRefineryPlants } from "./generators/oilRefineryPlants";
+import { OverseasRelations } from "./generators/overseasRelations";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { PowerGridInvestment } from "./generators/powerGridInvestment";
@@ -277,6 +279,7 @@ import { MarketTradeOpportunitiesDialog } from "./ui/dialogs/MarketTradeOpportun
 import { MetallurgWorkDialog } from "./ui/dialogs/MetallurgWorkDialog";
 import { MilitarySuppliesOverviewDialog } from "./ui/dialogs/MilitarySuppliesOverviewDialog";
 import { MineralOverviewDialog } from "./ui/dialogs/MineralOverviewDialog";
+import { OverseasRelationsDialog } from "./ui/dialogs/OverseasRelationsDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { StateEmploymentOverviewDialog } from "./ui/dialogs/StateEmploymentOverviewDialog";
@@ -1077,6 +1080,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "currency") Minting.generate();
       if (value.target === "economy") MilitaryResources.generate();
       if (value.target === "economy") TradeSecurity.generate();
+      if (value.target === "economy") OverseasRelations.generate();
       if (value.target === "economy") Taxes.defineTaxRates();
       if (value.target === "economy" || value.target === "production") {
         FoodProduction.seedFoodLedgerBootstrap();
@@ -1464,6 +1468,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       Minting.clear();
       MilitaryResources.clear();
       TradeSecurity.clear();
+      OverseasRelations.clear();
       setGoods([]);
       setMarkets([]);
       setDeals([]);
@@ -1909,6 +1914,11 @@ export function init(api: ExtensionAPI): void {
     component: TreasuryOverviewDialog
   });
   api.registerDialog({
+    id: "OverseasRelationsDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: OverseasRelationsDialog
+  });
+  api.registerDialog({
     id: "DebtNegotiationDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: DebtNegotiationDialog
@@ -2169,6 +2179,19 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerAction({
+    id: "economy-overseas-relations",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Overseas Relations",
+    dialogId: "overseasRelations",
+    tooltip: "Open Overseas Relations — trade voyages to Distant Realms beyond the map, for States with a sea port",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "overseasRelationsButton" } }));
+    }
+  });
+
+  api.registerAction({
     id: "economy-great-library",
     extensionId: ECONOMY_EXTENSION_ID,
     tab: "tools",
@@ -2265,6 +2288,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("militarySuppliesOverviewButton", () => toggleEditorDialog("militarySuppliesOverview", null));
   api.registerToolAction("mineralOverviewButton", () => toggleEditorDialog("mineralOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
+  api.registerToolAction("overseasRelationsButton", () => toggleEditorDialog("overseasRelations", null));
   api.registerToolAction("greatLibraryOverviewButton", () => toggleEditorDialog("greatLibraryOverview", null));
   api.registerToolAction("balanceHistoryButton", () => toggleEditorDialog("balanceHistory", null));
   api.registerToolAction("debtNegotiationButton", () => toggleEditorDialog("debtNegotiation", null));
@@ -2332,6 +2356,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("metallurgWorkOverview");
       api.closeDialog("militarySuppliesOverview");
       api.closeDialog("treasuryOverview");
+      api.closeDialog("overseasRelations");
       api.closeDialog("greatLibraryOverview");
       api.closeDialog("debtNegotiation");
       api.closeDialog("councilSession");
@@ -2367,6 +2392,7 @@ export function init(api: ExtensionAPI): void {
     if (getWorldContext().pack.states?.length) {
       DevelopmentPotential.generate();
       if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+      if (!getDistantRealms().length) OverseasRelations.generate();
       if (getMarkets().length) {
         syncMarketManagers();
         syncBurgMarketLedgers();
@@ -2440,6 +2466,7 @@ export function init(api: ExtensionAPI): void {
           Minting.generate();
           MilitaryResources.generate();
           TradeSecurity.generate();
+          OverseasRelations.generate();
           Taxes.defineTaxRates();
           FoodProduction.seedFoodLedgerBootstrap();
           const isCancelled = () => !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID);
@@ -2564,6 +2591,7 @@ export function init(api: ExtensionAPI): void {
       SmelterOperations.generate();
     }
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+    if (!getDistantRealms().length) OverseasRelations.generate();
     const migratedMetallurgTools = MetallurgWork.migrateLegacyToolsUnitScale();
     if (!getMetallurgAssetLedgers().length) {
       MetallurgWork.generate();
@@ -3319,6 +3347,7 @@ export function init(api: ExtensionAPI): void {
     if (!getMintLedgers().length && getMarkets().length) Minting.generate();
     if (!getMilitaryResourceLedgers().length && getMarkets().length) MilitaryResources.generate();
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+    if (!getDistantRealms().length) OverseasRelations.generate();
     if (getMarkets().length) syncBurgMarketLedgers();
   });
 
@@ -3647,6 +3676,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("militarySuppliesOverviewButton");
   api.unregisterToolAction("mineralOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
+  api.unregisterToolAction("overseasRelationsButton");
   api.unregisterToolAction("greatLibraryOverviewButton");
   api.unregisterToolAction("balanceHistoryButton");
   api.unregisterToolAction("debtNegotiationButton");
