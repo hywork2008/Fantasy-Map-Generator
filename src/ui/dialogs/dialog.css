@@ -165,7 +165,7 @@
   min-height: 0;
 }
 
-.metallurg-work-dialog__section > h3 {
+.metallurg-work-dialog__section>h3 {
   flex-shrink: 0;
 }
 
@@ -190,8 +190,8 @@
   min-height: 0;
 }
 
-.mineral-overview-dialog__section > h3,
-.mineral-overview-dialog__section > .note {
+.mineral-overview-dialog__section>h3,
+.mineral-overview-dialog__section>.note {
   flex-shrink: 0;
 }
 
@@ -216,8 +216,8 @@
   min-height: 0;
 }
 
-.great-library-overview-dialog__section > h3,
-.great-library-overview-dialog__section > .note {
+.great-library-overview-dialog__section>h3,
+.great-library-overview-dialog__section>.note {
   flex-shrink: 0;
 }
 
@@ -340,7 +340,7 @@
   }
 }
 
-.fmg-dialog--notes > .fmg-dialog-content {
+.fmg-dialog--notes>.fmg-dialog-content {
   display: flex;
   flex-direction: column;
 }
@@ -349,7 +349,7 @@
    with the form fields when the dialog is resized shorter. #emblemEditor is
    the direct child of .fmg-dialog-content, so the flex-column chain has to
    start there, not at #emblemEditorContainer two levels down. */
-.fmg-dialog--emblem > .fmg-dialog-content {
+.fmg-dialog--emblem>.fmg-dialog-content {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -387,7 +387,7 @@
 /* Edit Burg: the tab bar (#burgEditorTabs) and footer action row (#burgFooter) must stay
    pinned to the top/bottom of the dialog instead of scrolling away with the content
    in between, same pattern as .fmg-dialog--emblem above. */
-.fmg-dialog--burg-editor > .fmg-dialog-content {
+.fmg-dialog--burg-editor>.fmg-dialog-content {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -536,7 +536,7 @@
      regardless of its cell's actual column width — wider than most narrow columns
      (State, Group, …), so it silently overflows into the next cell. Constrain it
      to the cell it's actually in. */
-  td > input:not([type="checkbox"]):not([type="radio"]) {
+  td>input:not([type="checkbox"]):not([type="radio"]) {
     box-sizing: border-box;
     width: 100%;
   }
@@ -554,7 +554,7 @@
      directly on a table cell drops it out of the table's column-width and
      row-height algorithm, letting the cell collapse to a few px while its content
      overflows into neighboring columns. */
-  td > .d-flex {
+  td>.d-flex {
     align-items: center;
     gap: 0.25em;
 
@@ -569,7 +569,7 @@
      td > .d-flex wrapper above, so `text-align: right` on td.numeric has no effect —
      flex items ignore text-align. Push the group itself to the cell's right edge
      instead, so it still lines up under a right-aligned numeric header. */
-  td.numeric > .d-flex {
+  td.numeric>.d-flex {
     justify-content: flex-end;
   }
 }
@@ -583,7 +583,7 @@
   th,
   td {
     border: 1px solid color-mix(in srgb, var(--dark-solid, #666) 25%, transparent);
-    padding: 0 1px;
+    padding: 0 2px;
   }
 }
 
