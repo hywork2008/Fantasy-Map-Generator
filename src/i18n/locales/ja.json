@@ -3261,6 +3261,8 @@
     "overseasRelations": {
       "state": "国家",
       "noEligibleStates": "外洋に繋がる港と市場を持つ国家がまだありません — 海外交易には港が必要です。",
+      "noDiscoveredRealms": "この国家はまだ遠方国家を発見していません。海事知識を発展させ、海図を広げてください。",
+      "navigationRequired": "この航海に必要な海事能力にまだ達していません。",
       "activeCount": "海外へ派遣中の船: {{count}}隻",
       "refresh": "更新",
       "escortCount": "護衛艦",
@@ -3325,6 +3327,8 @@
       "reason": {
         "invalid-state": "この国家は無効になっています。",
         "unknown-realm": "この遠方国家は不明です。",
+        "realm-not-discovered": "この国家はその遠方国家をまだ発見していません。",
+        "insufficient-navigation": "この航海には航海術・海図・船殻・艦隊兵站がまだ不足しています。",
         "expedition-in-progress": "この国家への遠征は既に航海中です。",
         "no-port": "この国家には市場を持つ外洋港がありません。",
         "no-good-available": "この国の特産品が現在いずれも有効になっていません。",

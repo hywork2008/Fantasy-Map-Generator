@@ -3261,6 +3261,8 @@
     "overseasRelations": {
       "state": "State",
       "noEligibleStates": "No State with a sea-connected port and market yet — Overseas Relations needs one to reach a Distant Realm.",
+      "noDiscoveredRealms": "This State has not yet discovered any Distant Realms. Develop maritime knowledge to extend its charts.",
+      "navigationRequired": "The maritime capability required for this voyage has not been achieved.",
       "activeCount": "Ships committed overseas: {{count}}",
       "refresh": "Refresh",
       "escortCount": "Escorts",
@@ -3325,6 +3327,8 @@
       "reason": {
         "invalid-state": "That State is no longer valid.",
         "unknown-realm": "That Realm is no longer known.",
+        "realm-not-discovered": "This State has not discovered that Distant Realm.",
+        "insufficient-navigation": "Navigation, charts, hulls, or fleet logistics are not yet sufficient for that voyage.",
         "expedition-in-progress": "An expedition to this Realm is already at sea.",
         "no-port": "This State has no sea-connected port with a market.",
         "no-good-available": "None of this Realm's specialty goods are currently enabled.",

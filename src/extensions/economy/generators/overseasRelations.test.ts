@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  resetTechnologyProgress,
+  seedTechnologyStartProfile,
+  setTechnologyProgressForTests
+} from "../../../generators/technologyProgress";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import {
@@ -31,6 +36,16 @@ function spicesGood(): Good {
 const REALM_ID = 1;
 // Realm #7: Kai'lani Archipelago — also trades Spices, the only Good this fixture registers.
 const OTHER_REALM_ID = 7;
+
+function enableRemoteOverseasVoyages(): void {
+  setTechnologyProgressForTests([
+    { technologyId: "oceanNavigation", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+    { technologyId: "oceanGoingHulls", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+    { technologyId: "standardCharts", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+    { technologyId: "fleetLogistics", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+    { technologyId: "overseasTradingPosts", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+  ]);
+}
 
 describe("OverseasRelations", () => {
   const reservedHullIds: number[] = [];
@@ -81,6 +96,7 @@ describe("OverseasRelations", () => {
     worldContext.grid = { cells: { temp: Float32Array.from([12]) } } as never;
     setMarkets([{ i: 1, centerBurgId: 1, color: "#000", goods: {} }] as never);
     setGoods([spicesGood()]);
+    enableRemoteOverseasVoyages();
     reservedHullIds.length = 0;
     releasedHullIds.length = 0;
     reservedEscortHullIds.length = 0;
@@ -101,6 +117,7 @@ describe("OverseasRelations", () => {
     document.removeEventListener("fmg:shipbuilding-state-hull-reservation-request", reserveEscortListener);
     document.removeEventListener("fmg:shipbuilding-state-hull-release-request", releaseEscortListener);
     simulationContext.extensions = {};
+    resetTechnologyProgress();
     clearEconomyContext();
   });
 
@@ -121,6 +138,33 @@ describe("OverseasRelations", () => {
     expect(OverseasRelations.stateHasSeaPort(1)).toBe(false);
     expect(OverseasRelations.listEligibleStateIds()).not.toContain(1);
     expect(OverseasRelations.sendTradeExpedition(1, REALM_ID)).toEqual({ ok: false, reason: "no-port" });
+  });
+
+  it("reveals realms by chart knowledge and blocks voyages beyond current capabilities", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "oceanNavigation", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
+    ]);
+
+    expect(OverseasRelations.getOverseasRelationsOverview(1).map(row => row.realmId)).toEqual([1, 2, 3]);
+    expect(OverseasRelations.getOverseasRelationsOverview(1).every(row => !row.canSendExpedition)).toBe(true);
+    expect(OverseasRelations.sendTradeExpedition(1, OTHER_REALM_ID)).toEqual({
+      ok: false,
+      reason: "realm-not-discovered"
+    });
+    expect(OverseasRelations.sendTradeExpedition(1, REALM_ID)).toEqual({
+      ok: false,
+      reason: "insufficient-navigation"
+    });
+  });
+
+  it("makes nearby and far-away realms available from the Age of Exploration start profile", () => {
+    worldContext.options = { historicalPeriod: "ageOfExploration" } as never;
+    resetTechnologyProgress();
+    seedTechnologyStartProfile();
+
+    const rows = OverseasRelations.getOverseasRelationsOverview(1);
+    expect(rows.filter(row => row.distanceBand !== "remote").every(row => row.canSendExpedition)).toBe(true);
+    expect(rows.filter(row => row.distanceBand === "remote").every(row => !row.canSendExpedition)).toBe(true);
   });
 
   it("refuses to fund an expedition the treasury cannot afford", () => {

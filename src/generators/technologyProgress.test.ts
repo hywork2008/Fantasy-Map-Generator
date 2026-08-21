@@ -167,7 +167,14 @@ describe("technologyProgress", () => {
     expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused");
   });
 
-  it("seeds Era-3-8-aligned historicalPeriod values as diffused below, demonstrated at, and untouched above their frontier era", () => {
+  it("seeds Age of Exploration and later historical periods as diffused below, demonstrated at, and untouched above their frontier era", () => {
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "ageOfExploration" });
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("improvedMining", 1)).toBe("diffused"); // era 1
+    expect(getTechnologyStage("oceanNavigation", 1)).toBe("demonstrated"); // era 3
+    expect(getTechnologyStage("overseasTradingPosts", 1)).toBe("demonstrated"); // era 3
+
+    resetTechnologyProgress();
     // steamEra corresponds to Technology Overview's Era 5 (docs/plan/technology-development-
     // roadmap.md §3): era 0-4 nodes (including the era-2 gunpowder chain) are fully diffused, era
     // 5 itself is demonstrated, and era 6+ is left alone (still locked).
@@ -187,9 +194,9 @@ describe("technologyProgress", () => {
     expect(getTechnologyStage("modernDrillingAndFieldOperations", 1)).toBe("diffused"); // era 7
     expect(getTechnologyStage("rocketDynamicsAndHighTemperatureCombustionResearch", 1)).toBe("demonstrated"); // era 8
 
-    // The legacy 4 periods are unaffected by this addition — era-1+ nodes still start locked.
+    // The pre-Exploration periods retain their original technology profile.
     resetTechnologyProgress();
-    installMinimalWorld({ gunpowder: true, historicalPeriod: "ageOfExploration" });
+    installMinimalWorld({ gunpowder: true, historicalPeriod: "lateMedieval" });
     seedTechnologyStartProfile(1200);
     expect(getTechnologyStage("improvedMining", 1)).toBe("locked");
   });

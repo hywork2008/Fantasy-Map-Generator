@@ -339,8 +339,8 @@ const GUNPOWDER_ERA2_TECHNOLOGY_IDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Generalizes the GUNPOWDER_ERA2_START_STAGE_BY_PERIOD idea (above) to the 6 historicalPeriod
- * values added after "ageOfExploration" (optionsState.ts), each corresponding 1:1 to a
+ * Generalizes the GUNPOWDER_ERA2_START_STAGE_BY_PERIOD idea (above) to "ageOfExploration" and
+ * the 6 historicalPeriod values added after it (optionsState.ts), each corresponding 1:1 to a
  * Technology Overview dialog Era (docs/plan/technology-development-roadmap.md §3): picking one
  * means "this world already lives in that era". Every node whose `era` is strictly below the
  * picked era is seeded "diffused" (long-settled background technology, same treatment era 0 nodes
@@ -348,11 +348,12 @@ const GUNPOWDER_ERA2_TECHNOLOGY_IDS: ReadonlySet<string> = new Set([
  * "demonstrated" — proven and in limited use, same as ageOfExploration's era-2 treatment above,
  * leaving "adopted"/"diffused" as something a state still has to invest toward through play. Eras
  * above the picked one are untouched (fall through to `def.startStage`, i.e. stay "locked").
- * Only covers the 6 new values — the legacy 4 keep their existing, unrelated behavior unchanged
- * (era-1+ nodes stay "locked" under earlyMedieval/highMedieval/lateMedieval/ageOfExploration,
- * exactly as before this was added).
+ * The three earlier medieval values retain their existing behavior; ageOfExploration deliberately
+ * begins Era 3 so its starting caravel / galleon fleets are paired with the navigation knowledge
+ * needed to use them.
  */
 const HISTORICAL_PERIOD_FRONTIER_ERA: Readonly<Partial<Record<HistoricalPeriod, TechnologyEraBand>>> = {
+  ageOfExploration: 3,
   maritimeEra: 3,
   preIndustrialEra: 4,
   steamEra: 5,

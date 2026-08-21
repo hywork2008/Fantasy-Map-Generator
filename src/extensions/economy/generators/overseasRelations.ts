@@ -12,6 +12,7 @@
  * home market directly and use a treasury-funded garrison ledger rather than real map cells.
  */
 
+import { isTechnologyAtLeast } from "../../../generators/technologyProgress";
 import { type ChronicleEvent, SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -175,6 +176,8 @@ const DISTANT_REALM_SEEDS: readonly Omit<DistantRealm, "i">[] = [
 export type SendExpeditionFailureReason =
   | "invalid-state"
   | "unknown-realm"
+  | "realm-not-discovered"
+  | "insufficient-navigation"
   | "expedition-in-progress"
   | "no-port"
   | "no-good-available"
@@ -195,6 +198,8 @@ export interface OverseasRealmStatusRow {
   climateBand: ClimateBand;
   distanceBand: DistanceBand;
   specialtyGoodNames: string[];
+  /** The State has sufficient navigation, charts, hulls, and logistics to mount a voyage. */
+  canSendExpedition: boolean;
   powerTier: PowerTier;
   relation: RealmRelation;
   lastTributePaid: number;
@@ -213,6 +218,35 @@ export interface OverseasRealmStatusRow {
     resolvedTick: number;
   } | null;
 }
+
+/**
+ * Distant realms are not common knowledge. Technology determines both which places appear on a
+ * State's charts and which of those places its fleet can actually reach. A prior expedition keeps
+ * a realm known, so established relations are never erased by a migration or changed tech state.
+ */
+const REALM_DISCOVERY_REQUIREMENTS: Readonly<Record<DistanceBand, readonly [string, "known"]>> = {
+  nearAbroad: ["oceanNavigation", "known"],
+  farAbroad: ["standardCharts", "known"],
+  remote: ["overseasTradingPosts", "known"]
+};
+
+const REALM_VOYAGE_REQUIREMENTS: Readonly<
+  Record<DistanceBand, readonly (readonly [string, "demonstrated" | "adopted"])[]>
+> = {
+  nearAbroad: [["oceanNavigation", "demonstrated"]],
+  farAbroad: [
+    ["oceanNavigation", "demonstrated"],
+    ["oceanGoingHulls", "demonstrated"],
+    ["standardCharts", "demonstrated"]
+  ],
+  remote: [
+    ["oceanNavigation", "demonstrated"],
+    ["oceanGoingHulls", "adopted"],
+    ["standardCharts", "demonstrated"],
+    ["fleetLogistics", "demonstrated"],
+    ["overseasTradingPosts", "demonstrated"]
+  ]
+};
 
 function debitStateTreasury(stateId: number, amount: number): boolean {
   const state = getWorldContext().pack.states?.[stateId];
@@ -380,6 +414,37 @@ class OverseasRelationsModule {
     return states.filter(state => state?.i && !state.removed && this.stateHasSeaPort(state.i)).map(state => state.i);
   }
 
+  private hasExistingKnowledge(stateId: number, realmId: number): boolean {
+    return (
+      getOverseasRelationLedgers().some(entry => entry.stateId === stateId && entry.realmId === realmId) ||
+      getOverseasExpeditions().some(expedition => expedition.stateId === stateId && expedition.realmId === realmId)
+    );
+  }
+
+  /** Whether this State has heard of the realm through its own maritime knowledge or prior contact. */
+  isRealmDiscovered(stateId: number, realm: Pick<DistantRealm, "i" | "distanceBand">): boolean {
+    if (this.hasExistingKnowledge(stateId, realm.i)) return true;
+    const [technologyId, minimum] = REALM_DISCOVERY_REQUIREMENTS[realm.distanceBand];
+    return isTechnologyAtLeast(technologyId, stateId, minimum);
+  }
+
+  /** Whether the State can currently equip an expedition to a realm it has discovered. */
+  canSendExpeditionToRealm(stateId: number, realm: Pick<DistantRealm, "distanceBand">): boolean {
+    return REALM_VOYAGE_REQUIREMENTS[realm.distanceBand].every(([technologyId, minimum]) =>
+      isTechnologyAtLeast(technologyId, stateId, minimum)
+    );
+  }
+
+  private getExpeditionAccessFailure(
+    stateId: number,
+    realm: Pick<DistantRealm, "i" | "distanceBand">
+  ): SendExpeditionFailureReason | null {
+    if (!this.stateHasSeaPort(stateId)) return "no-port";
+    if (!this.isRealmDiscovered(stateId, realm)) return "realm-not-discovered";
+    if (!this.canSendExpeditionToRealm(stateId, realm)) return "insufficient-navigation";
+    return null;
+  }
+
   /** Abstract naval/mercantile reach — merchant tonnage plus treasury. docs §3. */
   getOverseasProjectionScore(stateId: number): number {
     const state = getWorldContext().pack.states?.[stateId];
@@ -423,6 +488,8 @@ class OverseasRelationsModule {
 
     const realm = getDistantRealms().find(entry => entry.i === realmId);
     if (!realm) return { ok: false, reason: "unknown-realm" };
+    const accessFailure = this.getExpeditionAccessFailure(stateId, realm);
+    if (accessFailure) return { ok: false, reason: accessFailure };
 
     const alreadyOutbound = getOverseasExpeditions().some(
       expedition => expedition.stateId === stateId && expedition.realmId === realmId && expedition.state === "outbound"
@@ -505,6 +572,8 @@ class OverseasRelationsModule {
     if (!state?.i || state.removed) return { ok: false, reason: "invalid-state" };
     const realm = getDistantRealms().find(entry => entry.i === realmId);
     if (!realm) return { ok: false, reason: "unknown-realm" };
+    const accessFailure = this.getExpeditionAccessFailure(stateId, realm);
+    if (accessFailure) return { ok: false, reason: accessFailure };
     if (
       getOverseasExpeditions().some(
         expedition =>
@@ -581,6 +650,8 @@ class OverseasRelationsModule {
     if (!state?.i || state.removed) return { ok: false, reason: "invalid-state" };
     const realm = getDistantRealms().find(entry => entry.i === realmId);
     if (!realm) return { ok: false, reason: "unknown-realm" };
+    const accessFailure = this.getExpeditionAccessFailure(stateId, realm);
+    if (accessFailure) return { ok: false, reason: accessFailure };
     if (
       getOverseasExpeditions().some(
         expedition =>
@@ -886,48 +957,51 @@ class OverseasRelationsModule {
   getOverseasRelationsOverview(stateId: number): OverseasRealmStatusRow[] {
     const ledgers = getOverseasRelationLedgers();
     const expeditions = getOverseasExpeditions();
-    return getDistantRealms().map(realm => {
-      const ledger = ledgers.find(entry => entry.stateId === stateId && entry.realmId === realm.i);
-      const active = expeditions.find(
-        expedition =>
-          expedition.stateId === stateId && expedition.realmId === realm.i && expedition.state === "outbound"
-      );
-      const lastResolved = expeditions
-        .filter(
+    return getDistantRealms()
+      .filter(realm => this.isRealmDiscovered(stateId, realm))
+      .map(realm => {
+        const ledger = ledgers.find(entry => entry.stateId === stateId && entry.realmId === realm.i);
+        const active = expeditions.find(
           expedition =>
-            expedition.stateId === stateId && expedition.realmId === realm.i && expedition.state === "resolved"
-        )
-        .sort((a, b) => b.etaTick - a.etaTick)[0];
-      const colonyGoodName = realm.specialtyGoodNames.find(name => Boolean(findGoodByName(name))) ?? null;
+            expedition.stateId === stateId && expedition.realmId === realm.i && expedition.state === "outbound"
+        );
+        const lastResolved = expeditions
+          .filter(
+            expedition =>
+              expedition.stateId === stateId && expedition.realmId === realm.i && expedition.state === "resolved"
+          )
+          .sort((a, b) => b.etaTick - a.etaTick)[0];
+        const colonyGoodName = realm.specialtyGoodNames.find(name => Boolean(findGoodByName(name))) ?? null;
 
-      return {
-        realmId: realm.i,
-        realmName: realm.name,
-        climateBand: realm.climateBand,
-        distanceBand: realm.distanceBand,
-        specialtyGoodNames: realm.specialtyGoodNames,
-        powerTier: this.getPowerTierForState(stateId, realm),
-        relation: ledger?.relation ?? "unknown",
-        lastTributePaid: ledger?.lastTributePaid ?? 0,
-        colonyGarrisonRequired: ledger?.colonyGarrisonRequired ?? null,
-        colonyGarrisonFunded: ledger?.colonyGarrisonFunded ?? null,
-        monthsUnderfunded: ledger?.monthsUnderfunded ?? 0,
-        lastColonyOutput: ledger?.lastColonyOutput ?? 0,
-        colonyGoodName,
-        activeExpedition: active
-          ? {
-              purpose: active.purpose,
-              departedTick: active.departedTick,
-              etaTick: active.etaTick,
-              escortCount: active.escortHullIds?.length ?? 0
-            }
-          : null,
-        lastOutcome:
-          lastResolved?.outcome !== undefined
-            ? { purpose: lastResolved.purpose, ...lastResolved.outcome, resolvedTick: lastResolved.etaTick }
-            : null
-      };
-    });
+        return {
+          realmId: realm.i,
+          realmName: realm.name,
+          climateBand: realm.climateBand,
+          distanceBand: realm.distanceBand,
+          specialtyGoodNames: realm.specialtyGoodNames,
+          canSendExpedition: this.canSendExpeditionToRealm(stateId, realm),
+          powerTier: this.getPowerTierForState(stateId, realm),
+          relation: ledger?.relation ?? "unknown",
+          lastTributePaid: ledger?.lastTributePaid ?? 0,
+          colonyGarrisonRequired: ledger?.colonyGarrisonRequired ?? null,
+          colonyGarrisonFunded: ledger?.colonyGarrisonFunded ?? null,
+          monthsUnderfunded: ledger?.monthsUnderfunded ?? 0,
+          lastColonyOutput: ledger?.lastColonyOutput ?? 0,
+          colonyGoodName,
+          activeExpedition: active
+            ? {
+                purpose: active.purpose,
+                departedTick: active.departedTick,
+                etaTick: active.etaTick,
+                escortCount: active.escortHullIds?.length ?? 0
+              }
+            : null,
+          lastOutcome:
+            lastResolved?.outcome !== undefined
+              ? { purpose: lastResolved.purpose, ...lastResolved.outcome, resolvedTick: lastResolved.etaTick }
+              : null
+        };
+      });
   }
 }
 

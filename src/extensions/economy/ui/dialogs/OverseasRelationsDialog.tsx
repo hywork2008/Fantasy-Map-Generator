@@ -109,110 +109,125 @@ export const OverseasRelationsDialog: React.FC = () => {
               ) : null}
             </div>
 
-            <table className="fmg-table">
-              <thead className="header">
-                <tr>
-                  <th>{t("extensions.overseasRelations.realm")}</th>
-                  <th>{t("extensions.overseasRelations.climate")}</th>
-                  <th>{t("extensions.overseasRelations.distance")}</th>
-                  <th>{t("extensions.overseasRelations.goods")}</th>
-                  <th>{t("extensions.overseasRelations.power")}</th>
-                  <th>{t("extensions.overseasRelations.relation")}</th>
-                  <th>{t("extensions.overseasRelations.status")}</th>
-                  <th>{t("extensions.overseasRelations.action")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(row => (
-                  <tr key={row.realmId}>
-                    <td>{row.realmName}</td>
-                    <td>{t(`extensions.overseasRelations.climateBand.${row.climateBand}`)}</td>
-                    <td>{t(`extensions.overseasRelations.distanceBand.${row.distanceBand}`)}</td>
-                    <td>
-                      {row.specialtyGoodNames
-                        .map(name => t(`economy.goods.names.${name}`, { defaultValue: name }))
-                        .join(", ")}
-                    </td>
-                    <td>{t(`extensions.overseasRelations.powerTier.${row.powerTier}`)}</td>
-                    <td>
-                      {t(`extensions.overseasRelations.relationLabel.${row.relation}`)}
-                      {row.lastTributePaid > 0 ? (
-                        <div className="dim">
-                          {t("extensions.overseasRelations.monthlyTribute", {
-                            revenue: row.lastTributePaid.toFixed(1)
-                          })}
-                        </div>
-                      ) : null}
-                      {row.colonyGarrisonRequired !== null && row.colonyGarrisonFunded !== null ? (
-                        <div className="dim">
-                          <progress
-                            value={Math.min(row.colonyGarrisonFunded, row.colonyGarrisonRequired)}
-                            max={row.colonyGarrisonRequired}
-                          />
-                          {t("extensions.overseasRelations.garrison", {
-                            funded: row.colonyGarrisonFunded.toFixed(1),
-                            required: row.colonyGarrisonRequired.toFixed(1),
-                            months: row.monthsUnderfunded
-                          })}
-                          {row.lastColonyOutput > 0 ? (
-                            <div>
-                              {t("extensions.overseasRelations.colonyOutput", {
-                                output: row.lastColonyOutput.toFixed(1),
-                                good: row.colonyGoodName
-                                  ? t(`economy.goods.names.${row.colonyGoodName}`, { defaultValue: row.colonyGoodName })
-                                  : ""
-                              })}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td>{renderStatus(row)}</td>
-                    <td>
-                      <div className="d-flex">
-                        <button
-                          type="button"
-                          disabled={Boolean(row.activeExpedition)}
-                          onClick={() => sendTradeExpedition(row.realmId, escortCount)}
-                        >
-                          {t("extensions.overseasRelations.sendExpedition")}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            Boolean(row.activeExpedition) || row.powerTier === "stronger" || row.relation === "hostile"
-                          }
-                          onClick={() => sendTributeExpedition(row.realmId, escortCount)}
-                        >
-                          {t("extensions.overseasRelations.sendTribute")}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            Boolean(row.activeExpedition) || row.powerTier !== "weaker" || row.relation === "hostile"
-                          }
-                          onClick={() => sendRaidExpedition(row.realmId, escortCount)}
-                        >
-                          {t("extensions.overseasRelations.sendRaid")}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            Boolean(row.activeExpedition) ||
-                            row.powerTier !== "weaker" ||
-                            row.relation === "hostile" ||
-                            row.relation === "colony"
-                          }
-                          onClick={() => sendColonizationExpedition(row.realmId, escortCount)}
-                        >
-                          {t("extensions.overseasRelations.sendColonize")}
-                        </button>
-                      </div>
-                    </td>
+            {!rows.length ? <div className="dim">{t("extensions.overseasRelations.noDiscoveredRealms")}</div> : null}
+            {rows.length ? (
+              <table className="fmg-table">
+                <thead className="header">
+                  <tr>
+                    <th>{t("extensions.overseasRelations.realm")}</th>
+                    <th>{t("extensions.overseasRelations.climate")}</th>
+                    <th>{t("extensions.overseasRelations.distance")}</th>
+                    <th>{t("extensions.overseasRelations.goods")}</th>
+                    <th>{t("extensions.overseasRelations.power")}</th>
+                    <th>{t("extensions.overseasRelations.relation")}</th>
+                    <th>{t("extensions.overseasRelations.status")}</th>
+                    <th>{t("extensions.overseasRelations.action")}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map(row => (
+                    <tr key={row.realmId}>
+                      <td>{row.realmName}</td>
+                      <td>{t(`extensions.overseasRelations.climateBand.${row.climateBand}`)}</td>
+                      <td>{t(`extensions.overseasRelations.distanceBand.${row.distanceBand}`)}</td>
+                      <td>
+                        {row.specialtyGoodNames
+                          .map(name => t(`economy.goods.names.${name}`, { defaultValue: name }))
+                          .join(", ")}
+                      </td>
+                      <td>{t(`extensions.overseasRelations.powerTier.${row.powerTier}`)}</td>
+                      <td>
+                        {t(`extensions.overseasRelations.relationLabel.${row.relation}`)}
+                        {row.lastTributePaid > 0 ? (
+                          <div className="dim">
+                            {t("extensions.overseasRelations.monthlyTribute", {
+                              revenue: row.lastTributePaid.toFixed(1)
+                            })}
+                          </div>
+                        ) : null}
+                        {row.colonyGarrisonRequired !== null && row.colonyGarrisonFunded !== null ? (
+                          <div className="dim">
+                            <progress
+                              value={Math.min(row.colonyGarrisonFunded, row.colonyGarrisonRequired)}
+                              max={row.colonyGarrisonRequired}
+                            />
+                            {t("extensions.overseasRelations.garrison", {
+                              funded: row.colonyGarrisonFunded.toFixed(1),
+                              required: row.colonyGarrisonRequired.toFixed(1),
+                              months: row.monthsUnderfunded
+                            })}
+                            {row.lastColonyOutput > 0 ? (
+                              <div>
+                                {t("extensions.overseasRelations.colonyOutput", {
+                                  output: row.lastColonyOutput.toFixed(1),
+                                  good: row.colonyGoodName
+                                    ? t(`economy.goods.names.${row.colonyGoodName}`, {
+                                        defaultValue: row.colonyGoodName
+                                      })
+                                    : ""
+                                })}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td>{renderStatus(row)}</td>
+                      <td>
+                        {!row.canSendExpedition ? (
+                          <div className="dim">{t("extensions.overseasRelations.navigationRequired")}</div>
+                        ) : null}
+                        <div className="d-flex">
+                          <button
+                            type="button"
+                            disabled={Boolean(row.activeExpedition) || !row.canSendExpedition}
+                            onClick={() => sendTradeExpedition(row.realmId, escortCount)}
+                          >
+                            {t("extensions.overseasRelations.sendExpedition")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(row.activeExpedition) ||
+                              !row.canSendExpedition ||
+                              row.powerTier === "stronger" ||
+                              row.relation === "hostile"
+                            }
+                            onClick={() => sendTributeExpedition(row.realmId, escortCount)}
+                          >
+                            {t("extensions.overseasRelations.sendTribute")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(row.activeExpedition) ||
+                              !row.canSendExpedition ||
+                              row.powerTier !== "weaker" ||
+                              row.relation === "hostile"
+                            }
+                            onClick={() => sendRaidExpedition(row.realmId, escortCount)}
+                          >
+                            {t("extensions.overseasRelations.sendRaid")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(row.activeExpedition) ||
+                              !row.canSendExpedition ||
+                              row.powerTier !== "weaker" ||
+                              row.relation === "hostile" ||
+                              row.relation === "colony"
+                            }
+                            onClick={() => sendColonizationExpedition(row.realmId, escortCount)}
+                          >
+                            {t("extensions.overseasRelations.sendColonize")}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
           </>
         )}
       </div>
