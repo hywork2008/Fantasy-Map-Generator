@@ -698,7 +698,7 @@ const CULTURE_CROP_PREFERENCES: Record<CultureType, Partial<Record<string, numbe
   Generic: { Wheat: 1.35, Barley: 1.15, Peas: 1.25, "Broad Beans": 1.15 },
   Hunting: { Oats: 1.35, Buckwheat: 1.45, Turnips: 1.2, Peas: 1.2 },
   Highland: { Rye: 1.5, Oats: 1.25, Buckwheat: 1.4, Peas: 1.2 },
-  River: { Wheat: 1.45, Barley: 1.2, "Broad Beans": 1.4, Peas: 1.2 },
+  River: { Rice: 1.55, Wheat: 1.45, Barley: 1.2, "Broad Beans": 1.4, Peas: 1.2, Soybeans: 1.25 },
   Lake: { Oats: 1.4, Barley: 1.2, Peas: 1.4, "Broad Beans": 1.25 },
   Naval: { Wheat: 1.3, Barley: 1.25, Peas: 1.3, "Broad Beans": 1.2 },
   Nomadic: { Millet: 1.65, Barley: 1.2, Lentils: 1.4, Chickpeas: 1.4 }

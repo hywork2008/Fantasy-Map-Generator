@@ -16,11 +16,13 @@ used by Cell Info, Crop climate guide, perennial crops, and irrigation.
 | Barley | [FAO ECOCROP: *Hordeum vulgare*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1232): 200–2000 / 500–1000 mm |
 | Oats | [FAO ECOCROP: *Avena sativa*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=481): 250–1500 / 600–1000 mm |
 | Millet | [FAO ECOCROP: *Panicum miliaceum*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=8280): 200–1000 / 500–750 mm |
+| Rice | [FAO ECOCROP: *Oryza sativa*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1574): 1000–4000 / 1500–2000 mm |
 | Buckwheat | [FAO ECOCROP: *Fagopyrum esculentum*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=2285): 400–1300 / 700–1000 mm |
 | Peas | [FAO ECOCROP: *Pisum sativum*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1721): 350–2500 / 800–1200 mm |
 | Broad Beans | [FAO ECOCROP: *Vicia faba*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=2146): 250–2600 / 650–1000 mm |
 | Lentils | [FAO ECOCROP: *Lens culinaris*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=7209): 250–2500 / 600–1000 mm |
 | Chickpeas | [FAO ECOCROP: *Cicer arietinum*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=2479): 300–1800 / 600–1000 mm |
+| Soybeans | [FAO ECOCROP: *Glycine max*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1150): 450–1800 / 600–1500 mm |
 | Turnips | Annual climate-screening range 250–1500 / 500–800 mm. ECOCROP has no matching turnip record; this conservative range is a model parameter pending a species-specific source. |
 | Potatoes | [FAO ECOCROP: *Solanum tuberosum*](https://ecocrop.apps.fao.org/ecocrop/srv/en/dataSheet?id=1971): 250–2000 / 500–800 mm |
 

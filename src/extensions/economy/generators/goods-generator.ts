@@ -444,6 +444,17 @@ export const GOODS_DATA: GoodData[] = [
     crop: STAPLE_CROP_PROFILES.Maize
   },
   {
+    name: "Rice",
+    warEconomyType: "essential",
+    tags: ["food", "crop", "stapleCrop", "cereal"],
+    icon: "good-grain",
+    color: "#f1dfa0",
+    value: 1.1,
+    chance: 0,
+    unit: "wain",
+    crop: STAPLE_CROP_PROFILES.Rice
+  },
+  {
     name: "Buckwheat",
     warEconomyType: "essential",
     tags: ["food", "crop", "stapleCrop", "cereal"],
@@ -497,6 +508,17 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     unit: "wain",
     crop: STAPLE_CROP_PROFILES.Chickpeas
+  },
+  {
+    name: "Soybeans",
+    warEconomyType: "essential",
+    tags: ["food", "crop", "stapleCrop", "legume"],
+    icon: "good-grain",
+    color: "#b4c66a",
+    value: 1.05,
+    chance: 0,
+    unit: "wain",
+    crop: STAPLE_CROP_PROFILES.Soybeans
   },
   {
     name: "Turnips",
@@ -3116,6 +3138,8 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Cocoa: tradeProfile(2, 2, 4, 3, 0, 4, 2),
   Coffee: tradeProfile(1, 2, 4, 3, 1, 4, 2),
   Maize: tradeProfile(4, 4, 2, 1, -1, 3, 2),
+  Rice: tradeProfile(4, 4, 2, 1, -1, 3, 2),
+  Soybeans: tradeProfile(3, 3, 2, 0, -1, 3, 2),
   Rubber: tradeProfile(3, 3, 4, 3, 0, 4, 2),
   Amber: tradeProfile(1, 1, 4, 2, 0, 5, 1),
   Furs: tradeProfile(2, 4, 3, 2, 0, 3, 2),

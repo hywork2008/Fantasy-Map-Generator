@@ -128,6 +128,16 @@ export const STAPLE_CROP_PROFILES = {
     soils: ["loam", "alluvial", "humus"],
     calendar: WARM_CEREAL_CALENDAR
   },
+  Rice: {
+    kind: "cereal",
+    yieldMultiplier: 1.1,
+    temperature: { min: 10, idealMin: 20, idealMax: 30, max: 36 },
+    precipitation: { min: 10, idealMin: 15, idealMax: 20, max: 40 },
+    // ECOCROP records wide soil texture and permanently wet drainage. These
+    // soil types represent the map's floodplain and water-retaining paddy land.
+    soils: ["alluvial", "clay", "loam"],
+    calendar: WARM_CEREAL_CALENDAR
+  },
   Buckwheat: {
     kind: "cereal",
     yieldMultiplier: 0.72,
@@ -166,6 +176,14 @@ export const STAPLE_CROP_PROFILES = {
     temperature: { min: 8, idealMin: 16, idealMax: 27, max: 33 },
     precipitation: { min: 3, idealMin: 6, idealMax: 10, max: 18 },
     soils: ["sandy", "loam", "alluvial"],
+    calendar: LEGUME_CALENDAR
+  },
+  Soybeans: {
+    kind: "legume",
+    yieldMultiplier: 0.8,
+    temperature: { min: 10, idealMin: 20, idealMax: 33, max: 38 },
+    precipitation: { min: 4.5, idealMin: 6, idealMax: 15, max: 18 },
+    soils: ["humus", "loam", "clay", "sandy"],
     calendar: LEGUME_CALENDAR
   },
   Turnips: {

@@ -100,11 +100,15 @@ describe("GoodsModule", () => {
 
   it("ships the overseas crop goods with their physical crop profiles", () => {
     const maize = GOODS_DATA.find(good => good.name === "Maize");
+    const rice = GOODS_DATA.find(good => good.name === "Rice");
+    const soybeans = GOODS_DATA.find(good => good.name === "Soybeans");
     const cocoa = GOODS_DATA.find(good => good.name === "Cocoa");
     const coffee = GOODS_DATA.find(good => good.name === "Coffee");
     const rubber = GOODS_DATA.find(good => good.name === "Rubber");
 
     expect(maize?.crop?.kind).toBe("cereal");
+    expect(rice?.crop?.kind).toBe("cereal");
+    expect(soybeans?.crop?.kind).toBe("legume");
     expect(cocoa?.perennialCrop?.kind).toBe("orchard");
     expect(coffee?.perennialCrop?.kind).toBe("orchard");
     expect(rubber).toMatchObject({ tags: expect.arrayContaining(["industrial", "perennialCrop"]) });
