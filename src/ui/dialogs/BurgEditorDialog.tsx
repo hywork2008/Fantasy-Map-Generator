@@ -108,7 +108,7 @@ export const BurgEditorDialog: React.FC = () => {
         <div id="burgBody">
           <div className="d-flex">
             <svg
-              data-tip="Burg emblem. Click to edit"
+              data-tip={t("dialogs.burgEditor.emblemTip")}
               className="pointer"
               viewBox="0 0 200 200"
               width="13em"
@@ -125,7 +125,7 @@ export const BurgEditorDialog: React.FC = () => {
                     {burgData.provinceAndState}
                   </td>
                 </tr>
-                <tr data-tip="Type to rename the burg">
+                <tr data-tip={t("dialogs.burgEditor.nameTip")}>
                   <th scope="row">
                     <label htmlFor="burgName">{t("dialogs.burgEditor.name")}</label>
                   </th>
@@ -137,19 +137,19 @@ export const BurgEditorDialog: React.FC = () => {
                       value={burgData.name}
                       onChange={e => burgEditorActions.changeName(e.target.value)}
                     />
-                    <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
+                    <span data-tip={t("dialogs.burgEditor.nameSpeakTip")} className="speaker">
                       🔊
                     </span>
                     <IconButton
                       id="burgNameReRandom"
-                      data-tip="Generate random name for the burg"
+                      data-tip={t("dialogs.burgEditor.nameRandomTip")}
                       className="icon-globe pointer"
                       onClick={() => burgEditorActions.generateNameRandom()}
                     ></IconButton>
                   </td>
                 </tr>
-                <tr data-tip="Select burg group. Groups defines burg icon, label size and style">
-                  <th scope="row">Group:</th>
+                <tr data-tip={t("dialogs.burgEditor.groupTip")}>
+                  <th scope="row">{t("dialogs.burgEditor.group")}</th>
                   <td>
                     <select
                       id="burgGroup"
@@ -164,32 +164,32 @@ export const BurgEditorDialog: React.FC = () => {
                     </select>
                     <IconButton
                       id="burgGroupConfigure"
-                      data-tip="Configure burg groups"
+                      data-tip={t("dialogs.burgEditor.groupConfigureTip")}
                       className="icon-cog pointer"
                       onClick={() => burgEditorActions.editBurgGroups()}
                     ></IconButton>
                   </td>
                 </tr>
-                <tr data-tip="Select burg type. Type slightly affects emblem generation">
-                  <th scope="row">Type:</th>
+                <tr data-tip={t("dialogs.burgEditor.typeTip")}>
+                  <th scope="row">{t("dialogs.burgEditor.type")}</th>
                   <td>
                     <select
                       id="burgType"
                       value={burgData.type}
                       onChange={e => burgEditorActions.changeType(e.target.value)}
                     >
-                      <option value="Generic">Generic</option>
-                      <option value="River">River</option>
-                      <option value="Lake">Lake</option>
-                      <option value="Naval">Naval</option>
-                      <option value="Nomadic">Nomadic</option>
-                      <option value="Hunting">Hunting</option>
-                      <option value="Highland">Highland</option>
+                      <option value="Generic">{t("dialogs.burgEditor.types.generic")}</option>
+                      <option value="River">{t("dialogs.burgEditor.types.river")}</option>
+                      <option value="Lake">{t("dialogs.burgEditor.types.lake")}</option>
+                      <option value="Naval">{t("dialogs.burgEditor.types.naval")}</option>
+                      <option value="Nomadic">{t("dialogs.burgEditor.types.nomadic")}</option>
+                      <option value="Hunting">{t("dialogs.burgEditor.types.hunting")}</option>
+                      <option value="Highland">{t("dialogs.burgEditor.types.highland")}</option>
                     </select>
                   </td>
                 </tr>
-                <tr data-tip="Select dominant culture">
-                  <th scope="row">Culture:</th>
+                <tr data-tip={t("dialogs.burgEditor.cultureTip")}>
+                  <th scope="row">{t("dialogs.burgEditor.culture")}</th>
                   <td>
                     <select
                       id="burgCulture"
@@ -204,15 +204,15 @@ export const BurgEditorDialog: React.FC = () => {
                     </select>
                     <IconButton
                       id="burgNameReCulture"
-                      data-tip="Generate culture-specific name for the burg"
+                      data-tip={t("dialogs.burgEditor.cultureGenerateTip")}
                       className="icon-book pointer"
                       onClick={() => burgEditorActions.generateNameCulture()}
                     ></IconButton>
                   </td>
                 </tr>
-                <tr data-tip="Set burg population">
+                <tr data-tip={t("dialogs.burgEditor.populationTip")}>
                   <th scope="row">
-                    <label htmlFor="burgPopulation">Population:</label>
+                    <label htmlFor="burgPopulation">{t("dialogs.burgEditor.population")}</label>
                   </th>
                   <td>
                     <input
@@ -231,8 +231,8 @@ export const BurgEditorDialog: React.FC = () => {
                     />
                   </td>
                 </tr>
-                <tr data-tip="Burg average yearly temperature">
-                  <th scope="row">Temperature:</th>
+                <tr data-tip={t("dialogs.burgEditor.temperatureTip")}>
+                  <th scope="row">{t("dialogs.burgEditor.temperature")}</th>
                   <td className="d-flex">
                     <span id="burgTemperature">{burgData.temperature}</span>
                     <div className="d-flex">
@@ -243,103 +243,103 @@ export const BurgEditorDialog: React.FC = () => {
                       ></i>
                       <i
                         id="burgTemperatureGraph"
-                        data-tip="Show temperature graph for the burg"
+                        data-tip={t("dialogs.burgEditor.temperatureGraphTip")}
                         className="icon-chart-area pointer"
                         onClick={() => burgEditorActions.showTemperatureGraph()}
                       ></i>
                     </div>
                   </td>
                 </tr>
-                <tr data-tip="Burg height above mean sea level">
-                  <th scope="row">Elevation:</th>
+                <tr data-tip={t("dialogs.burgEditor.elevationTip")}>
+                  <th scope="row">{t("dialogs.burgEditor.elevation")}</th>
                   <td>
-                    <span id="burgElevation">{burgData.elevation}</span> above sea level
+                    <span id="burgElevation">{burgData.elevation}</span> {t("dialogs.burgEditor.aboveSeaLevel")}
                   </td>
                 </tr>
                 {isEconomyEnabled && (
                   <>
-                    <tr data-tip="Burg average daily production">
-                      <th scope="row">Production:</th>
+                    <tr data-tip={t("dialogs.burgEditor.productionTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.production")}</th>
                       <td>
                         <span id="burgProduction" className="d-inline-flex">
                           {burgData.production}
                         </span>
                       </td>
                     </tr>
-                    <tr data-tip="Wealth is gross product per population point for the current production run. It is a per-capita productivity measure, not the burg's cumulative treasury.">
-                      <th scope="row">Wealth</th>
+                    <tr data-tip={t("dialogs.burgEditor.wealthTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.wealth")}</th>
                       <td>
                         <span id="burgWealth">{burgData.wealth}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Treasury is the burg's cumulative cash balance after all production, purchases, and sales.">
-                      <th scope="row">Treasury</th>
+                    <tr data-tip={t("dialogs.burgEditor.treasuryTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.treasury")}</th>
                       <td>
                         <span id="burgTreasury">{burgData.treasury}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Annual Grain output from rural fields in this burg's own map cell. A zero here matches the absence of Grain color on the Goods layer.">
-                      <th scope="row">Cell Grain</th>
+                    <tr data-tip={t("dialogs.burgEditor.cellGrainTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.cellGrain")}</th>
                       <td>
                         <span id="burgCellGrainProduction">{burgData.cellGrainProduction}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Current-quarter Grain production from all rural cells assigned to this burg's Market territory.">
-                      <th scope="row">Market Grain</th>
+                    <tr data-tip={t("dialogs.burgEditor.marketGrainTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.marketGrain")}</th>
                       <td>
                         <span id="burgMarketGrainProduction">{burgData.marketGrainProduction}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Food physically delivered from another Market this quarter. This is not inferred from population capacity.">
-                      <th scope="row">Food imports</th>
+                    <tr data-tip={t("dialogs.burgEditor.foodImportsTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.foodImports")}</th>
                       <td>
                         <span id="burgMarketFoodImports">{burgData.marketFoodImports}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Requested food-reserve replenishment that did not arrive this quarter. It is a reserve gap, not an immediate starvation count.">
-                      <th scope="row">Food reserve gap</th>
+                    <tr data-tip={t("dialogs.burgEditor.foodReserveGapTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.foodReserveGap")}</th>
                       <td>
                         <span id="burgMarketFoodReserveGap">{burgData.marketFoodReserveGap}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Food currently held in this burg's Market, expressed in ledger units and months of the Market's current demand.">
-                      <th scope="row">Market food stock</th>
+                    <tr data-tip={t("dialogs.burgEditor.marketFoodStockTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.marketFoodStock")}</th>
                       <td>
                         <span id="burgMarketFoodStock">{burgData.marketFoodStock}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Basic employment (administration, mining, smelting, trade) that earns income from outside the burg, in adult-worker points. Drives population growth in Megacity mode.">
-                      <th scope="row">Basic employment</th>
+                    <tr data-tip={t("dialogs.burgEditor.basicEmploymentTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.basicEmployment")}</th>
                       <td>
                         <span id="burgBasicEmploymentDemand">{burgData.basicEmploymentDemand}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Service employment (inns, brokers, artisans) that basic employment supports, in adult-worker points.">
-                      <th scope="row">Service employment</th>
+                    <tr data-tip={t("dialogs.burgEditor.serviceEmploymentTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.serviceEmployment")}</th>
                       <td>
                         <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Labor: adult ledger — household care (non-market) is excluded from unemployment. Residual > 0 means market jobs could expand.">
-                      <th scope="row">Labor residual</th>
+                    <tr data-tip={t("dialogs.burgEditor.laborResidualTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.laborResidual")}</th>
                       <td>
                         <span id="burgLaborResidual">{burgData.laborResidual}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Labor: estimated market unemployment among adults after household care and assigned work (not a census; display model).">
-                      <th scope="row">Market unemployment</th>
+                    <tr data-tip={t("dialogs.burgEditor.marketUnemploymentTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.marketUnemployment")}</th>
                       <td>
                         <span id="burgMarketUnemployment">{burgData.marketUnemployment}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Labor: suggested sector to grow when residual labor remains (housing gap, services, trade, craft, …).">
-                      <th scope="row">Employment focus</th>
+                    <tr data-tip={t("dialogs.burgEditor.employmentFocusTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.employmentFocus")}</th>
                       <td>
                         <span id="burgEmploymentFocus">{burgData.employmentFocus}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Labor: compact employment composition (adults, care, assigned, residual, focus). Display-only.">
-                      <th scope="row">Labor ledger</th>
+                    <tr data-tip={t("dialogs.burgEditor.laborLedgerTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.laborLedger")}</th>
                       <td>
                         <span
                           id="burgEmploymentComposition"
@@ -349,74 +349,74 @@ export const BurgEditorDialog: React.FC = () => {
                         </span>
                       </td>
                     </tr>
-                    <tr data-tip="Housing: built permanent dwellings vs required (household size 4.5; people = population × populationRate). Requires Economy and a market burg.">
-                      <th scope="row">Dwellings</th>
+                    <tr data-tip={t("dialogs.burgEditor.dwellingsTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.dwellings")}</th>
                       <td>
                         <span id="burgDwellings">{burgData.dwellings}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Housing: share of required dwellings still unbuilt. Raises mason/carpenter jobs and Stone/Brick/Wood demand.">
-                      <th scope="row">Housing gap</th>
+                    <tr data-tip={t("dialogs.burgEditor.housingGapTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.housingGap")}</th>
                       <td>
                         <span id="burgHousingGap">{burgData.housingGap}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Housing: estimated new dwellings under construction this year (labor-limited; ~25% of the remaining gap when fully staffed). Material shortages can slow real progress further.">
-                      <th scope="row">Under construction</th>
+                    <tr data-tip={t("dialogs.burgEditor.underConstructionTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.underConstruction")}</th>
                       <td>
                         <span id="burgUnderConstruction">{burgData.underConstruction}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Housing: mason + carpenter workers assigned to this burg (adult population points).">
-                      <th scope="row">Construction workers</th>
+                    <tr data-tip={t("dialogs.burgEditor.constructionWorkersTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.constructionWorkers")}</th>
                       <td>
                         <span id="burgConstructionWorkers">{burgData.constructionWorkers}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Jobs: construction hire-board openings. Anonymous yearly hire only fills ~85% of demand so these seats stay open for applicants (player/NPC).">
-                      <th scope="row">Construction jobs</th>
+                    <tr data-tip={t("dialogs.burgEditor.constructionJobsTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.constructionJobs")}</th>
                       <td>
                         <span id="burgConstructionJobs">{burgData.constructionJobs}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Commercial short-stay lodging. Inn beds are not permanent homes and do not raise housing capacity.">
-                      <th scope="row">Inns</th>
+                    <tr data-tip={t("dialogs.burgEditor.innsTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.inns")}</th>
                       <td>
                         <span id="burgInns">{burgData.inns}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Urban water and sanitation: drainage tier, burden, flood, and odor. See the Water tab for detail.">
-                      <th scope="row">Water / sanitation</th>
+                    <tr data-tip={t("dialogs.burgEditor.waterSanitationTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.waterSanitation")}</th>
                       <td>
                         <span id="burgWaterSanitation">{burgData.waterSanitation}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Civic sanitation score 0–100 written to burg.sanitation from the urban water model.">
-                      <th scope="row">Sanitation score</th>
+                    <tr data-tip={t("dialogs.burgEditor.sanitationScoreTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.sanitationScore")}</th>
                       <td>
                         <span id="burgSanitationScore">{burgData.sanitationScore}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Medical care civic score 0–100 from fueled hospitals, written to burg.medicalCare. Not a sewer score.">
-                      <th scope="row">Medical care</th>
+                    <tr data-tip={t("dialogs.burgEditor.medicalCareTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.medicalCare")}</th>
                       <td>
                         <span id="burgMedicalCareScore">{burgData.medicalCareScore}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
-                      <th scope="row">Pregnant</th>
+                    <tr data-tip={t("dialogs.burgEditor.pregnantTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.pregnant")}</th>
                       <td>
                         <span id="burgPregnant">{burgData.pregnant}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Demography: lower bound on near-term births/year. Live births use max(continuous growth, pregnancy due).">
-                      <th scope="row">Expected births</th>
+                    <tr data-tip={t("dialogs.burgEditor.expectedBirthsTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.expectedBirths")}</th>
                       <td>
                         <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
                       </td>
                     </tr>
-                    <tr data-tip="Valuation: housing replacement cost at the current culture building recipe × walls/citadel premium.">
-                      <th scope="row">Settlement value</th>
+                    <tr data-tip={t("dialogs.burgEditor.settlementValueTip")}>
+                      <th scope="row">{t("dialogs.burgEditor.settlementValue")}</th>
                       <td>
                         <span id="burgSettlementValue">{burgData.settlementValue}</span>
                       </td>
@@ -424,47 +424,47 @@ export const BurgEditorDialog: React.FC = () => {
                   </>
                 )}
                 <tr>
-                  <th scope="row">Features:</th>
+                  <th scope="row">{t("dialogs.burgEditor.features")}</th>
                   <td>
                     <IconButton
                       id="burgCapital"
-                      data-tip="Shows whether the burg is a state capital. Click to toggle"
+                      data-tip={t("dialogs.burgEditor.featureCapitalTip")}
                       className={`burgFeature icon-star pointer ${!burgData.capital ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("capital")}
                     ></IconButton>
                     <IconButton
                       id="burgPort"
-                      data-tip="Shows whether the burg is a port. Click to toggle"
+                      data-tip={t("dialogs.burgEditor.featurePortTip")}
                       className={`burgFeature icon-anchor pointer ${!burgData.port ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("port")}
                     ></IconButton>
                     <IconButton
                       id="burgCitadel"
-                      data-tip="Shows whether the burg has a citadel (castle). Click to toggle"
+                      data-tip={t("dialogs.burgEditor.featureCitadelTip")}
                       className={`burgFeature icon-chess-rook pointer ${!burgData.citadel ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("citadel")}
                     ></IconButton>
                     <IconButton
                       id="burgWalls"
-                      data-tip="Shows whether the burg is walled. Click to toggle"
+                      data-tip={t("dialogs.burgEditor.featureWallsTip")}
                       className={`burgFeature icon-fort-awesome pointer ${!burgData.walls ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("walls")}
                     ></IconButton>
                     <IconButton
                       id="burgPlaza"
-                      data-tip="Shows whether the burg is a trade center (has big marketplace). Click to toggle"
+                      data-tip={t("dialogs.burgEditor.featurePlazaTip")}
                       className={`burgFeature icon-store pointer ${!burgData.plaza ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("plaza")}
                     ></IconButton>
                     <IconButton
                       id="burgTemple"
-                      data-tip="Shows whether the burg is a religious center. Click to toggle"
+                      data-tip={t("dialogs.burgEditor.featureTempleTip")}
                       className={`burgFeature icon-chess-bishop pointer ${!burgData.temple ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("temple")}
                     ></IconButton>
                     <IconButton
                       id="burgShanty"
-                      data-tip="Shows whether the burg has a shanty town. Click to toggle"
+                      data-tip={t("dialogs.burgEditor.featureShantyTip")}
                       className={`burgFeature icon-campground pointer ${!burgData.shanty ? "inactive" : ""}`}
                       onClick={() => burgEditorActions.toggleFeature("shanty")}
                     ></IconButton>
@@ -475,20 +475,20 @@ export const BurgEditorDialog: React.FC = () => {
           </div>
 
           {burgData.previewUrl && (
-            <div id="burgPreviewSection" data-tip="Burg map preview" className="d-flex">
+            <div id="burgPreviewSection" data-tip={t("dialogs.burgEditor.previewSectionTip")} className="d-flex">
               <div className="d-flex">
-                <span>Burg preview:</span>
+                <span>{t("dialogs.burgEditor.previewLabel")}</span>
                 <div className="d-flex">
                   <i
                     id="burgLinkOpen"
-                    data-tip="Open burg map in a new tab"
+                    data-tip={t("dialogs.burgEditor.previewOpenTip")}
                     className="icon-link-ext pointer"
                     onClick={() => burgEditorActions.openBurgLink()}
                   ></i>
                 </div>
               </div>
               <div id="burgPreviewObject">
-                <object data={burgData.previewUrl} aria-label="Burg Map Preview" />
+                <object data={burgData.previewUrl} aria-label={t("dialogs.burgEditor.previewAriaLabel")} />
               </div>
             </div>
           )}

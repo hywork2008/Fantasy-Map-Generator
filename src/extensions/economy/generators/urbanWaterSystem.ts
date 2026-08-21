@@ -13,6 +13,7 @@
  * Design: docs/plan/urban-water-and-sanitation-system.md §4–8, §11.
  */
 
+import i18n from "../../../i18n";
 import { useOptionsState } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
@@ -918,17 +919,35 @@ export function getUrbanWaterSystemForBurg(burgId: number): UrbanWaterSystem | u
 }
 
 export function formatUrbanWaterSummary(system: UrbanWaterSystem): string {
-  const tierLabel = WATER_SANITATION_TIER_LABELS[system.tier];
+  const tierLabel = i18n.t(`economy.water.tiers.${system.tier}`, {
+    defaultValue: WATER_SANITATION_TIER_LABELS[system.tier]
+  });
   const project =
     system.activeProject && system.upgradeProgress > 0
-      ? ` · building ${WATER_WORKS_PROJECT_LABELS[system.activeProject]} ${rn(system.upgradeProgress * 100, 0)}%`
+      ? i18n.t("economy.water.summary.building", {
+          project: i18n.t(`economy.water.projects.${system.activeProject}`, {
+            defaultValue: WATER_WORKS_PROJECT_LABELS[system.activeProject]
+          }),
+          percent: rn(system.upgradeProgress * 100, 0)
+        })
       : "";
-  const health = system.healthPressure >= 0.45 ? ` · health risk ${rn(system.healthPressure * 100, 0)}%` : "";
+  const health =
+    system.healthPressure >= 0.45
+      ? i18n.t("economy.water.summary.healthRisk", { percent: rn(system.healthPressure * 100, 0) })
+      : "";
   const upstream =
     system.upstreamPollutionImport >= 0.15
-      ? ` · upstream pollution ${rn(system.upstreamPollutionImport * 100, 0)}%`
+      ? i18n.t("economy.water.summary.upstreamPollution", { percent: rn(system.upstreamPollutionImport * 100, 0) })
       : "";
-  return `${tierLabel} · sanitation burden ${rn(system.sanitationBurden * 100, 0)}% · flood ${rn(system.floodExposure * 100, 0)}% · odor ${rn(system.odor * 100, 0)}%${project}${health}${upstream}`;
+  return i18n.t("economy.water.summary.main", {
+    tier: tierLabel,
+    burden: rn(system.sanitationBurden * 100, 0),
+    flood: rn(system.floodExposure * 100, 0),
+    odor: rn(system.odor * 100, 0),
+    project,
+    health,
+    upstream
+  });
 }
 
 function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {

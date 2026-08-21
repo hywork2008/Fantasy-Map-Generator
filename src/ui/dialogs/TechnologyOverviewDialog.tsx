@@ -251,7 +251,9 @@ export const TechnologyOverviewDialog: React.FC = () => {
                 <div data-tip={t("dialogs.technology.whyTip")}>
                   {t("dialogs.technology.gateTitle", {
                     state: selectedRow.stateName,
-                    technology: selectedRow.technologyLabel
+                    technology: t(`dialogs.technology.catalog.${selectedRow.technologyId}`, {
+                      defaultValue: selectedRow.technologyLabel
+                    })
                   })}
                 </div>
                 <ul className="technology-overview-dialog__gate-list">
@@ -415,7 +417,7 @@ const TechnologyRow: React.FC<{
         ) : null}
         <span data-tip={row.stateName}>{row.stateName}</span>
       </td>
-      <td>{row.technologyLabel}</td>
+      <td>{t(`dialogs.technology.catalog.${row.technologyId}`, { defaultValue: row.technologyLabel })}</td>
       <td>{t(`dialogs.technology.eras.${row.era}`)}</td>
       <td>{t(`dialogs.technology.stages.${row.stage}`)}</td>
       <td className="numeric">{formatYear(row.discoveredYear)}</td>

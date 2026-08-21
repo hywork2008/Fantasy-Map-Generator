@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { useTranslation } from "react-i18next";
 import { useBurgEditorState } from "../../../hostUi";
 import { rn } from "../../../hostUtils";
 import { getAleDemandMultiplier, getAleWaterRisk } from "../../generators/aleDemand";
@@ -18,6 +19,7 @@ import {
   type OrganicWasteRoute
 } from "../../generators/urbanWaterTypes";
 
+/** English fallbacks used when a translation is missing; canonical labels live in i18n under economy.water.*. */
 const CLEANSING_LABELS: Readonly<Record<CleansingMaterial, string>> = {
   water: "Water washing",
   plant: "Plant materials",
@@ -44,6 +46,7 @@ function pct(value: number): string {
  * Phases 1–3: metrics, public works, institutions, organic routes, river externalities.
  */
 export const BurgEditorWaterTab: FC = () => {
+  const { t } = useTranslation();
   const burgId = useBurgEditorState(state => state.burgData?.id);
   const cultureType = useBurgEditorState(state => state.burgData?.type);
   const system = burgId === undefined ? undefined : getUrbanWaterSystemForBurg(burgId);
@@ -51,8 +54,7 @@ export const BurgEditorWaterTab: FC = () => {
   if (!system) {
     return (
       <div id="burgWaterTab" role="status">
-        No urban water system is recorded for this burg. Enable Economy and regenerate the map, or wait for the annual
-        settlement.
+        {t("dialogs.burgEditor.waterTab.noSystem")}
       </div>
     );
   }
@@ -70,211 +72,262 @@ export const BurgEditorWaterTab: FC = () => {
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 3);
 
-  const projectLabel = system.activeProject ? WATER_WORKS_PROJECT_LABELS[system.activeProject] : "None";
-  const demandLabel = system.primaryDemandSignal ? WATER_DEMAND_SIGNAL_LABELS[system.primaryDemandSignal] : "None";
+  const tierLabel = t(`economy.water.tiers.${system.tier}`, {
+    defaultValue: WATER_SANITATION_TIER_LABELS[system.tier]
+  });
+  const projectLabel = system.activeProject
+    ? t(`economy.water.projects.${system.activeProject}`, {
+        defaultValue: WATER_WORKS_PROJECT_LABELS[system.activeProject]
+      })
+    : t("economy.water.none");
+  const demandLabel = system.primaryDemandSignal
+    ? t(`economy.water.demandSignals.${system.primaryDemandSignal}`, {
+        defaultValue: WATER_DEMAND_SIGNAL_LABELS[system.primaryDemandSignal]
+      })
+    : t("economy.water.none");
 
   return (
     <div id="burgWaterTab">
-      <p data-tip="Drainage tier is local practice; institutions and organic-waste pathways shape health beyond tier alone.">
-        {formatUrbanWaterSummary(system)}
+      <p data-tip={t("dialogs.burgEditor.waterTab.summaryTip")}>{formatUrbanWaterSummary(system)}</p>
+      <p data-tip={t("dialogs.burgEditor.waterTab.civicScoreTip")}>
+        {t("dialogs.burgEditor.waterTab.civicScoreLabel")} <strong id="burgWaterCivicScore">{civicScore}</strong>{" "}
+        {t("dialogs.burgEditor.waterTab.outOf100")}
       </p>
-      <p data-tip="Host civic score written to burg.sanitation (0 worst – 100 best).">
-        Civic sanitation score: <strong id="burgWaterCivicScore">{civicScore}</strong> / 100
-      </p>
-      <p data-tip="Unsafe or insecure drinking water raises local small-ale demand by up to 50%. This does not reduce the city's sanitation or disease pressure.">
-        Daily ale demand adjustment: <strong id="burgWaterAleDemandAdjustment">+{pct(aleDemandBonus)}</strong>{" "}
-        (drinking-water risk {pct(aleWaterRisk)})
+      <p data-tip={t("dialogs.burgEditor.waterTab.aleDemandTip")}>
+        {t("dialogs.burgEditor.waterTab.aleDemandLabel")}{" "}
+        <strong id="burgWaterAleDemandAdjustment">+{pct(aleDemandBonus)}</strong>{" "}
+        {t("dialogs.burgEditor.waterTab.drinkingWaterRiskSuffix", { risk: pct(aleWaterRisk) })}
       </p>
 
       <div className="table" style={{ overflow: "auto" }}>
         <table id="burgWaterMetricsTable" className="fmg-table">
           <thead>
             <tr>
-              <th scope="col">Metric</th>
-              <th scope="col">Value</th>
+              <th scope="col">{t("dialogs.burgEditor.waterTab.metric")}</th>
+              <th scope="col">{t("dialogs.burgEditor.waterTab.value")}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <th scope="row">Infrastructure tier</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.infrastructureTier")}</th>
               <td>
-                {system.tier} — {WATER_SANITATION_TIER_LABELS[system.tier]}
+                {system.tier} — {tierLabel}
               </td>
             </tr>
-            <tr data-tip="Demand signal that most strongly justifies a waterworks project this year.">
-              <th scope="row">Primary demand</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.primaryDemandTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.primaryDemand")}</th>
               <td>
                 {demandLabel} ({pct(system.demandUrgency)})
               </td>
             </tr>
-            <tr data-tip="Active public works project paid from burg treasury + market Stone/Tools/Brick.">
-              <th scope="row">Active project</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.activeProjectTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.activeProject")}</th>
               <td>
                 {projectLabel}
-                {system.activeProject ? ` · ${pct(system.upgradeProgress)} complete` : ""}
+                {system.activeProject
+                  ? ` ${t("dialogs.burgEditor.waterTab.projectCompleteSuffix", { percent: pct(system.upgradeProgress) })}`
+                  : ""}
               </td>
             </tr>
-            <tr data-tip="Cleaning tax is a burg levy for street/drain cleaning, separate from state poll tax.">
-              <th scope="row">Cleaning tax</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.cleaningTaxTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.cleaningTax")}</th>
               <td>
-                rate {pct(system.cleaningTaxRate)} · revenue {rn(system.lastCleaningTaxRevenue, 1)}
+                {t("dialogs.burgEditor.waterTab.cleaningTaxValue", {
+                  rate: pct(system.cleaningTaxRate),
+                  revenue: rn(system.lastCleaningTaxRevenue, 1)
+                })}
               </td>
             </tr>
-            <tr data-tip="Share of connections under permit. Reduces illegal dumping when high (grows from tier 3).">
-              <th scope="row">Connection permits</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.connectionPermitsTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.connectionPermits")}</th>
               <td>{pct(system.connectionPermitCoverage)}</td>
             </tr>
-            <tr data-tip="Outfall and discharge controls. Protects local drinking water when high.">
-              <th scope="row">Discharge regulation</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.dischargeRegulationTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.dischargeRegulation")}</th>
               <td>{pct(system.dischargeRegulation)}</td>
             </tr>
-            <tr data-tip="True when the burg's drinking intake shares the same watercourse as its outfall without adequate regulation.">
-              <th scope="row">Mixed intake/outfall</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.mixedIntakeOutfallTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.mixedIntakeOutfall")}</th>
               <td>
-                {system.localMixedIntakeOutfall ? "Yes — tier alone does not secure drinking water" : "No / protected"}
+                {system.localMixedIntakeOutfall
+                  ? t("dialogs.burgEditor.waterTab.mixedIntakeYes")
+                  : t("dialogs.burgEditor.waterTab.mixedIntakeNo")}
               </td>
             </tr>
-            <tr data-tip="Share of needed annual maintenance paid from burg treasury (separate from construction).">
-              <th scope="row">Maintenance coverage</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.maintenanceCoverageTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.maintenanceCoverage")}</th>
               <td>
-                {pct(system.lastMaintenanceCoverage)} (spent {rn(system.lastMaintenanceSpend, 1)})
+                {t("dialogs.burgEditor.waterTab.maintenanceCoverageValue", {
+                  coverage: pct(system.lastMaintenanceCoverage),
+                  spend: rn(system.lastMaintenanceSpend, 1)
+                })}
               </td>
             </tr>
-            <tr data-tip="Treasury spent on construction last year (cash + materials).">
-              <th scope="row">Construction spend</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.constructionSpendTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.constructionSpend")}</th>
               <td>{rn(system.lastConstructionSpend, 1)}</td>
             </tr>
-            <tr data-tip="Silt, debris, and illegal dumping that cut capacity even when the structure is intact.">
-              <th scope="row">Clogging</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.cloggingTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.clogging")}</th>
               <td>{pct(system.clogging)}</td>
             </tr>
-            <tr data-tip="Residual street organic load after cesspits, night soil, composting, and scavenging.">
-              <th scope="row">Organic street load</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.organicStreetLoadTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.organicStreetLoad")}</th>
               <td>{pct(system.organicStreetLoad)}</td>
             </tr>
-            <tr data-tip="Managed composting success after climate, pile mass, and cover. Cold slows but does not forbid composting.">
-              <th scope="row">Composting efficiency</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.compostingEfficiencyTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.compostingEfficiency")}</th>
               <td>{pct(system.compostingEfficiency)}</td>
             </tr>
-            <tr data-tip="Facility pig-toilets are not free-range market pigs. European-style free-range scavenging leaves this near zero.">
-              <th scope="row">Pig-toilet practice</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.pigToiletPracticeTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.pigToiletPractice")}</th>
               <td>{pct(system.pigToiletPractice)}</td>
             </tr>
-            <tr data-tip="Pollution imported from upstream river burgs' outfalls.">
-              <th scope="row">Upstream pollution</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.upstreamPollutionTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.upstreamPollution")}</th>
               <td>{pct(system.upstreamPollutionImport)}</td>
             </tr>
-            <tr data-tip="Pollution this burg exports downstream.">
-              <th scope="row">Downstream export</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.downstreamExportTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.downstreamExport")}</th>
               <td>{pct(system.downstreamPollutionExport)}</td>
             </tr>
-            <tr data-tip="Indoor smoke exposure from Coal used as a household heating fallback in this market territory.">
-              <th scope="row">Coal smoke exposure</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.coalSmokeExposureTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.coalSmokeExposure")}</th>
               <td>{pct(system.coalSmokeExposure ?? 0)}</td>
             </tr>
-            <tr data-tip="Disease pressure from water contamination, organic load, scavenging risk, and household coal smoke. Reserved for a future epidemic system.">
-              <th scope="row">Health pressure</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.healthPressureTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.healthPressure")}</th>
               <td>{pct(system.healthPressure)}</td>
             </tr>
-            <tr data-tip="Local water-lifting adoption (wheels, cisterns, pumps). Raises service and drinking supply; capped by historical period.">
-              <th scope="row">Water lifting</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.waterLiftingTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.waterLifting")}</th>
               <td>{pct(system.waterLifting)}</td>
             </tr>
-            <tr data-tip="Municipal sanitation doctrine (permits, cleaning, workshop rules) as a tech stock alongside institution fields.">
-              <th scope="row">Municipal sanitation tech</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.municipalSanitationTechTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.municipalSanitationTech")}</th>
               <td>{pct(system.municipalSanitation)}</td>
             </tr>
-            <tr data-tip="Sanitary engineering stock. Required for tier 5 and separate foul-water routes. Nearly unavailable before late medieval pressure.">
-              <th scope="row">Sanitary engineering</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.sanitaryEngineeringTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.sanitaryEngineering")}</th>
               <td>
                 {pct(system.sanitaryEngineering)}
-                {system.hasSeparateWastewaterRoute ? " · separate wastewater route" : ""}
+                {system.hasSeparateWastewaterRoute
+                  ? ` ${t("dialogs.burgEditor.waterTab.separateWastewaterRouteSuffix")}`
+                  : ""}
               </td>
             </tr>
-            <tr data-tip="Interstate pollution indemnity paid from the polluter's state treasury to the victim's.">
-              <th scope="row">Pollution compensation</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.pollutionCompensationTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.pollutionCompensation")}</th>
               <td>
-                paid {rn(system.lastPollutionCompensationPaid, 1)} · received{" "}
-                {rn(system.lastPollutionCompensationReceived, 1)}
+                {t("dialogs.burgEditor.waterTab.pollutionCompensationValue", {
+                  paid: rn(system.lastPollutionCompensationPaid, 1),
+                  received: rn(system.lastPollutionCompensationReceived, 1)
+                })}
               </td>
             </tr>
-            <tr data-tip="Unresolved cross-border pollution grievance. High unpaid strain can raise state alert.">
-              <th scope="row">Diplomatic strain</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.diplomaticStrainTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.diplomaticStrain")}</th>
               <td>{pct(system.pollutionDiplomaticStrain)}</td>
             </tr>
-            <tr data-tip="Effective capacity after maintenance and local slope.">
-              <th scope="row">Stormwater capacity</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.stormwaterCapacityTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.stormwaterCapacity")}</th>
               <td>
-                {pct(system.stormwaterDrainageCapacity)} (demand {pct(system.stormwaterDemand)})
+                {t("dialogs.burgEditor.waterTab.capacityDemandValue", {
+                  capacity: pct(system.stormwaterDrainageCapacity),
+                  demand: pct(system.stormwaterDemand)
+                })}
               </td>
             </tr>
-            <tr data-tip="Household, bath, and workshop wastewater handling capacity.">
-              <th scope="row">Wastewater capacity</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.wastewaterCapacityTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.wastewaterCapacity")}</th>
               <td>
-                {pct(system.wastewaterCapacity)} (demand {pct(system.wastewaterDemand)})
+                {t("dialogs.burgEditor.waterTab.capacityDemandValue", {
+                  capacity: pct(system.wastewaterCapacity),
+                  demand: pct(system.wastewaterDemand)
+                })}
               </td>
             </tr>
             <tr>
-              <th scope="row">Drinking-water security</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.drinkingWaterSecurity")}</th>
               <td>{pct(system.drinkingWaterSecurity)}</td>
             </tr>
-            <tr data-tip="Uses water contamination (70%) and insecure drinking water (30%). It raises small-ale demand, without treating ale as a cure for poor sanitation.">
-              <th scope="row">Ale demand from water risk</th>
+            <tr data-tip={t("dialogs.burgEditor.waterTab.aleDemandFromWaterRiskTip")}>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.aleDemandFromWaterRisk")}</th>
               <td>
-                +{pct(aleDemandBonus)} (risk {pct(aleWaterRisk)})
+                {t("dialogs.burgEditor.waterTab.aleDemandRiskValue", {
+                  bonus: pct(aleDemandBonus),
+                  risk: pct(aleWaterRisk)
+                })}
               </td>
             </tr>
             <tr>
-              <th scope="row">Service / craft water</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.serviceCraftWater")}</th>
               <td>{pct(system.serviceWaterCapacity)}</td>
             </tr>
             <tr>
-              <th scope="row">Irrigation capacity</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.irrigationCapacity")}</th>
               <td>{pct(system.irrigationCapacity)}</td>
             </tr>
             <tr>
-              <th scope="row">Maintenance condition</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.maintenanceCondition")}</th>
               <td>{pct(system.maintenanceCondition)}</td>
             </tr>
             <tr>
-              <th scope="row">Sanitation burden</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.sanitationBurden")}</th>
               <td>{pct(system.sanitationBurden)}</td>
             </tr>
             <tr>
-              <th scope="row">Water contamination</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.waterContamination")}</th>
               <td>{pct(system.waterContamination)}</td>
             </tr>
             <tr>
-              <th scope="row">Flood exposure</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.floodExposure")}</th>
               <td>{pct(system.floodExposure)}</td>
             </tr>
             <tr>
-              <th scope="row">Muddiness</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.muddiness")}</th>
               <td>{pct(system.muddiness)}</td>
             </tr>
             <tr>
-              <th scope="row">Odor</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.odor")}</th>
               <td>{pct(system.odor)}</td>
             </tr>
             <tr>
-              <th scope="row">Intake / outfall</th>
+              <th scope="row">{t("dialogs.burgEditor.waterTab.intakeOutfall")}</th>
               <td>
-                {system.hasUpstreamIntake ? "upstream intake" : "no protected intake"}
+                {system.hasUpstreamIntake
+                  ? t("dialogs.burgEditor.waterTab.upstreamIntakeYes")
+                  : t("dialogs.burgEditor.waterTab.upstreamIntakeNo")}
                 {" · "}
-                {system.hasDownstreamOutfall ? "downstream outfall" : "no natural outfall"}
-                {system.hasSeparateWastewaterRoute ? " · separate wastewater route" : ""}
+                {system.hasDownstreamOutfall
+                  ? t("dialogs.burgEditor.waterTab.downstreamOutfallYes")
+                  : t("dialogs.burgEditor.waterTab.downstreamOutfallNo")}
+                {system.hasSeparateWastewaterRoute
+                  ? ` ${t("dialogs.burgEditor.waterTab.separateWastewaterRouteSuffix")}`
+                  : ""}
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p data-tip="Cultural weights are recomputed from burg type; they are not separate tech unlocks.">
-        Cleansing customs:{" "}
-        {topCleansing.map(entry => `${CLEANSING_LABELS[entry.key]} ${pct(entry.weight)}`).join(" · ")}
+      <p data-tip={t("dialogs.burgEditor.waterTab.cleansingCustomsTip")}>
+        {t("dialogs.burgEditor.waterTab.cleansingCustomsLabel")}{" "}
+        {topCleansing
+          .map(
+            entry =>
+              `${t(`economy.water.cleansingMaterials.${entry.key}`, { defaultValue: CLEANSING_LABELS[entry.key] })} ${pct(entry.weight)}`
+          )
+          .join(" · ")}
       </p>
-      <p data-tip="Organic-waste pathway weights. Market pigs contribute scavenging relief and risk, not pig-toilet practice.">
-        Organic waste routes: {topWaste.map(entry => `${WASTE_LABELS[entry.key]} ${pct(entry.weight)}`).join(" · ")}
+      <p data-tip={t("dialogs.burgEditor.waterTab.organicWasteRoutesTip")}>
+        {t("dialogs.burgEditor.waterTab.organicWasteRoutesLabel")}{" "}
+        {topWaste
+          .map(
+            entry =>
+              `${t(`economy.water.wasteRoutes.${entry.key}`, { defaultValue: WASTE_LABELS[entry.key] })} ${pct(entry.weight)}`
+          )
+          .join(" · ")}
       </p>
     </div>
   );
