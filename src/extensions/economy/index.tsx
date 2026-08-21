@@ -386,7 +386,7 @@ export const economyLayers: LayerConfig[] = [
     name: "Water Supply",
     shortcut: null,
     tooltip:
-      "Water Supply: Roman aqueducts serving Giant-city waterworks. Click to toggle, drag to raise or lower the layer.",
+      "Water Supply: Roman aqueducts serving Giant-settlement waterworks. Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "waterSupply", insertAfter: "rivers", display: "none" }]
   }
 ];

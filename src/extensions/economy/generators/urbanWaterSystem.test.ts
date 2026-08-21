@@ -870,6 +870,8 @@ describe("UrbanWater module", () => {
 
     it("seeds every Giant-state capital/city with Roman works, including a city without a local river", () => {
       useOptionsState.setState({ culturesSet: "highFantasy" });
+      // The capital's river is the high gravity source; the inland city sits below it.
+      worldContext.pack.cells.h[0] = 60;
       worldContext.pack.burgs[2]!.group = "city";
       UrbanWater.generate();
 
@@ -883,17 +885,19 @@ describe("UrbanWater module", () => {
       expect(giantCapital.sanitaryEngineering).toBe(0);
 
       settleYears(YEARS);
-      expect(getUrbanWaterSystems().find(s => s.burgId === 1)!.tier).toBeGreaterThanOrEqual(4);
+      const maintainedCapital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(maintainedCapital.tier).toBeGreaterThanOrEqual(4);
+      expect(maintainedCapital.hasInheritedRomanWaterworks).toBe(true);
     });
 
-    it("does not give the generation guarantee to Giant-state towns", () => {
+    it("extends the inherited aqueduct and trunk sewer to Giant-state villages and forts", () => {
       useOptionsState.setState({ culturesSet: "highFantasy" });
-      worldContext.pack.burgs[2]!.group = "town";
+      worldContext.pack.burgs[2]!.group = "fort";
       UrbanWater.generate();
 
-      const giantTown = getUrbanWaterSystems().find(s => s.burgId === 2)!;
-      expect(giantTown.tier).toBeLessThan(4);
-      expect(giantTown.hasInheritedRomanWaterworks).toBe(false);
+      const giantFort = getUrbanWaterSystems().find(s => s.burgId === 2)!;
+      expect(giantFort.tier).toBe(4);
+      expect(giantFort.hasInheritedRomanWaterworks).toBe(true);
     });
 
     it("does not seed Roman works outside Fantasy culture sets, even for the same Giant state", () => {

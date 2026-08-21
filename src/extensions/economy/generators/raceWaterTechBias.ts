@@ -8,9 +8,9 @@
  * conditions (geography, treasury, masonry stock). It never bypasses the
  * `hasOutfall` / population gates in `canStartAdvancedProject()` — a burg with
  * nowhere to drain still cannot build a new sewer network, race or no race.
- * The separate generation-only Roman inheritance for Giant-state capitals and
- * cities lives in `urbanWaterSystem.ts`; a landlocked hamlet remains on this
- * ordinary bias path.
+ * The separate generation-only Roman inheritance for every Giant-State Burg
+ * lives in `urbanWaterSystem.ts`; settlements are placed below a high water
+ * source by the core burg generator before that inheritance is applied.
  */
 import { isFantasyCulturesSet } from "../../../data/raceCivicStance";
 import type { RaceKey } from "../../hostTypes";

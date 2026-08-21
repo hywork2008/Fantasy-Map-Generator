@@ -38,6 +38,11 @@ import {
   normalizeHabitability
 } from "./frontierAnalysis";
 import { selectFrontierStartCapitals } from "./frontierStartPlacement";
+import {
+  chooseLowerGiantWaterworksSite,
+  highestWaterSourceElevation,
+  isGiantWaterworksState
+} from "./giantWaterworksSiting";
 import { evaluateHarborElevation } from "./harborSiteConditions";
 import {
   collectStartingRealmCells,
@@ -108,6 +113,11 @@ class BurgModule {
   shift(options: BurgShiftOptions = {}) {
     if (options.connectStateLandmasses) this.ensureStateLandmassPorts();
 
+    // States are known on the second shift during generation. Giant States preserve a
+    // gravity-fed Roman waterworks tradition, so every permanent settlement is moved below the
+    // map's highest water source before ports and routes are finalized.
+    this.resiteGiantWaterworksSettlements();
+
     const { cells, burgs } = this.worldContext.pack;
     const riversById = new Map(this.worldContext.pack.rivers.map(river => [river.i, river]));
     for (const burg of burgs) {
@@ -134,6 +144,38 @@ class BurgModule {
     }
 
     this.landmassPortBurgIds.clear();
+  }
+
+  private resiteGiantWaterworksSettlements(): void {
+    const { pack } = this.worldContext;
+    const { burgs, cells, cultures, races, states } = pack;
+    const highestSourceElevation = highestWaterSourceElevation(cells);
+    if (highestSourceElevation === null || !states?.length) return;
+
+    const culturesSet = useOptionsState.getState().culturesSet;
+    for (const burg of burgs) {
+      if (!burg.i || burg.removed || !burg.state || cells.h[burg.cell] < highestSourceElevation) continue;
+      if (!isGiantWaterworksState({ stateId: burg.state, states, cultures, races, culturesSet })) continue;
+
+      const targetCell = chooseLowerGiantWaterworksSite({
+        cells,
+        stateId: burg.state,
+        fromCell: burg.cell,
+        highestSourceElevation
+      });
+      if (targetCell === undefined) continue;
+
+      cells.burg[burg.cell] = 0;
+      burg.cell = targetCell;
+      [burg.x, burg.y] = cells.p[targetCell];
+      burg.feature = cells.f[targetCell];
+      cells.burg[targetCell] = burg.i;
+
+      if (burg.capital) {
+        const state = states[burg.state] ?? states.find(candidate => candidate?.i === burg.state);
+        if (state) state.center = targetCell;
+      }
+    }
   }
 
   /**

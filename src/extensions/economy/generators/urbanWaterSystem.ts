@@ -46,6 +46,7 @@ import {
   resolveOrganicPathways,
   tierDrinkingHealthBonus
 } from "./urbanWaterInstitutions";
+import { hasSameLandGravityWaterSource } from "./urbanWaterSupply";
 import {
   applyPollutionDiplomaticAlert,
   buildInterstatePollutionEdges,
@@ -669,7 +670,8 @@ export function computeUrbanWaterSystem(args: {
   const municipalSanitation = args.municipalSanitation ?? previous?.municipalSanitation ?? 0;
   const sanitaryEngineering = args.sanitaryEngineering ?? previous?.sanitaryEngineering ?? 0;
   const hasInheritedRomanWaterworks = previous?.hasInheritedRomanWaterworks ?? false;
-  const hasRegionalRomanConnection = hasInheritedRomanWaterworks;
+  const hasRegionalRomanConnection =
+    hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);
@@ -1021,11 +1023,10 @@ function systemDefaults(
  * degrade its effective capacity, while tier 5 sanitary engineering remains unavailable.
  */
 function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
-  const isCityOrLarger = Boolean(burg.capital) || burg.group === "capital" || burg.group === "city";
   const stateRace = raceKeyForBurgState(burg);
   const isGiantFantasyState =
     stateRace === "giant" && waterTechRaceBiasFor(stateRace, useOptionsState.getState().culturesSet) !== null;
-  if (!isCityOrLarger || !isGiantFantasyState) return null;
+  if (!isGiantFantasyState) return null;
 
   return systemDefaults({
     burgId: burg.i!,
@@ -1583,7 +1584,10 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
   let systems: UrbanWaterSystem[] = [];
   for (const burg of world.pack.burgs) {
     if (!burg?.i || burg.removed) continue;
-    if (burg.group === "fort") continue;
+    const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : giantRomanWaterworksSeed(burg);
+    // Ordinary forts remain non-civic military sites, but Giant forts are supplied by the same
+    // inherited aqueduct/trunk sewer network as their villages and cities.
+    if (burg.group === "fort" && !previous?.hasInheritedRomanWaterworks) continue;
 
     const geography = readBurgWaterGeography({
       cellId: burg.cell,
@@ -1594,7 +1598,6 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
       gridPrec: world.grid?.cells?.prec
     });
     const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
-    const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : giantRomanWaterworksSeed(burg);
     const ambientTemperature = ambientTemperatureForBurg(burg);
 
     // First pass metrics (for demand / investment decisions).
@@ -1639,6 +1642,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           waterLifting: investment.waterLifting,
           municipalSanitation: investment.municipalSanitation,
           sanitaryEngineering: investment.sanitaryEngineering,
+          hasInheritedRomanWaterworks: previous.hasInheritedRomanWaterworks,
           pollutionDiplomaticStrain: previous?.pollutionDiplomaticStrain ?? 0
         }),
         tier: investment.tier,

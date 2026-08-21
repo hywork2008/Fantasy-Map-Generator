@@ -92,7 +92,7 @@ export type UrbanWaterSystem = {
   hasUpstreamIntake: boolean;
   hasDownstreamOutfall: boolean;
   /**
-   * A pre-existing aqueduct and trunk-sewer connection inherited by a Giant city at map
+   * A pre-existing aqueduct and trunk-sewer connection inherited by a Giant settlement at map
    * generation. It supplies/exports beyond the local cell; while the owning State is Giant, its
    * water-engineering bias applies even where the burg has another local culture. Future
    * RegionalWaterScheme data will describe the actual route and counterparties.

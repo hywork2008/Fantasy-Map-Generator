@@ -13,16 +13,16 @@ export interface InheritedWaterSupplyRoute {
 
 export interface InheritedWaterSupplyRouteInput {
   burgs: readonly (Burg | undefined)[];
-  cells: Pick<PackedGraph["cells"], "h" | "i" | "p" | "r" | "state">;
+  cells: Pick<PackedGraph["cells"], "f" | "h" | "i" | "p" | "r" | "state">;
   systems: readonly UrbanWaterSystem[];
 }
 
 /**
  * Derive visible aqueduct routes from existing Roman-waterworks records.
  *
- * These routes are deliberately deterministic and are not a new river: an inherited Giant city
- * takes from the nearest river cell of its State that is at least as high as the city, falling
- * back to the nearest same-State river, then a cross-border river if necessary. The eventual
+ * These routes are deliberately deterministic and are not a new river: an inherited Giant settlement
+ * takes only from a river cell on the same landmass. It prefers the nearest same-State gravity
+ * source, then another State's gravity source on that landmass. The eventual
  * RegionalWaterScheme will replace this routing rule with negotiated sources and constructed
  * segments, while retaining the same source/destination shape for renderers.
  */
@@ -67,11 +67,38 @@ function chooseIntakeCell(
   cells: InheritedWaterSupplyRouteInput["cells"]
 ): number | undefined {
   const burgPoint: [number, number] = [burg.x, burg.y];
-  const localStateRivers = burg.state ? riverCells.filter(cell => cells.state[cell] === burg.state) : [...riverCells];
-  const candidates = localStateRivers.length ? localStateRivers : riverCells;
+  const sameLandRivers = riverCells.filter(cell => cells.f[cell] === cells.f[burg.cell]);
+  if (!sameLandRivers.length) return undefined;
+  const localStateRivers = burg.state
+    ? sameLandRivers.filter(cell => cells.state[cell] === burg.state)
+    : [...sameLandRivers];
   const burgHeight = cells.h[burg.cell] ?? 0;
-  const gravityCandidates = candidates.filter(cell => (cells.h[cell] ?? 0) >= burgHeight);
-  return nearestCell(gravityCandidates.length ? gravityCandidates : candidates, burgPoint, cells.p);
+  const localGravityCandidates = localStateRivers.filter(cell => (cells.h[cell] ?? 0) >= burgHeight);
+  const allGravityCandidates = sameLandRivers.filter(cell => (cells.h[cell] ?? 0) >= burgHeight);
+  const candidates = localGravityCandidates.length
+    ? localGravityCandidates
+    : allGravityCandidates.length
+      ? allGravityCandidates
+      : localStateRivers.length
+        ? localStateRivers
+        : riverCells;
+  return nearestCell(candidates, burgPoint, cells.p);
+}
+
+/** True when a burg can take gravity water without crossing a sea or another landmass. */
+export function hasSameLandGravityWaterSource(
+  burg: Burg,
+  cells: Pick<PackedGraph["cells"], "f" | "h" | "i" | "r">
+): boolean {
+  const landFeature = cells.f?.[burg.cell];
+  const burgHeight = cells.h[burg.cell] ?? 0;
+  // Test fixtures and legacy adapters can omit `cells.i`; `r` is indexed by the same packed id.
+  const cellIds = cells.i?.length ? cells.i : Array.from({ length: cells.r.length }, (_value, cell) => cell);
+  for (const cell of cellIds) {
+    if (!cells.r[cell] || (cells.f && cells.f[cell] !== landFeature)) continue;
+    if ((cells.h[cell] ?? 0) >= burgHeight) return true;
+  }
+  return false;
 }
 
 function nearestCell(
