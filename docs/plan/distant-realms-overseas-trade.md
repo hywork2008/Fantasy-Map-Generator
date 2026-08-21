@@ -2,14 +2,14 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| Status | **Phase 0 + Phase 1 + Phase 2 implemented**（2026-08-21）；Phase 3–5 未実装 |
+| Status | **Phase 0 + Phase 1 + Phase 2 + Phase 3 implemented**（2026-08-21）；Phase 4–5 未実装 |
 | 対象 | Economy拡張（新規モジュール）、Shipbuilding拡張（`ShipHull` 予約・duty）、Goods新規追加 |
 | 前提 | [merchant-transport-asset-ledger.md](merchant-transport-asset-ledger.md)、[vessel-itinerary-and-finite-trade-fleet.md](vessel-itinerary-and-finite-trade-fleet.md)、[shipbuilding-initial-fleet.md](shipbuilding-initial-fleet.md)、[state-treasury-department-budget.md](state-treasury-department-budget.md)、[staple-crop-climate.md](staple-crop-climate.md) |
 | 調査日 | 2026-08-21 |
 
 ---
 
-## 実装メモ（Phase 0–2、2026-08-21）
+## 実装メモ（Phase 0–3、2026-08-21）
 
 新規ファイル: `overseasRelationsTypes.ts`（型）、`overseasVoyageRisk.ts`（純関数：気候差・海難/海賊リスク・PowerTier別レート）、`overseasRelations.ts`（`OverseasRelations`シングルトン：seed・遠征発航・月次決済）、`store/overseasRelationsState.ts` + `controllers/overseasRelations.ts` + `ui/dialogs/OverseasRelationsDialog.tsx`（一覧＋「交易遠征を送る」ボタン）。`economyContext.ts`にDistantRealm/OverseasRelationLedger/OverseasExpeditionの永続化スロットを追加し、`index.tsx`のTools「Overseas Relations」ボタン・`production-generator.ts`の月次決済（`TradeSecurity.settleMonthly()`と同じ枠）に接続済み。テストは`overseasRelations.test.ts`（seed冪等性、国庫不足、船プール枯渇、共有プール減少、成功/喪失の決済）で、`npm run build`相当のtsc・biome・vitest（economy配下206ファイル/1542件）はすべて green。
 
@@ -26,6 +26,10 @@
 ### Phase 2（2026-08-21）
 
 国有`ShipHull`を遠征ごとの護衛艦として0〜3隻選べるようにした。EconomyとShipbuildingの間は既存と同様の同期イベント境界で、利用可能艦照会・予約・帰還を行う。護衛艦は`duty: "overseas"`で往復中は哨戒・航海収入から外れ、遠征解決時に哨戒へ戻る。遠征喪失時は商船と同じく30日整備に入る（恒久撃沈は引き続き将来課題）。`escortRatio`を`computeRoundTripLossRisk`へ渡し、海難率は変えず海賊率だけを低減する。Vessel assets UIには`Overseas escort`状態を表示する。
+
+### Phase 3（2026-08-21）
+
+「貢納を要求する」と「略奪する」を追加した。どちらも護衛艦1隻以上と商船輸送枠を必要とし、貢納は同格/弱いRealm、略奪は弱いRealmだけに許可される。航海を無事終えた後に、防衛力・護衛数・国力差・既存関係から成る成功判定を行う。貢納成功は一時収入と`tributary`化、略奪成功はより大きい一時収入と`hostile`化をもたらす。撃退・航海喪失も敵対化する。朝貢国は`settleMonthly()`でRealmの抽象国富に比例する収入を国庫へ納める。
 
 ---
 
@@ -276,7 +280,7 @@ measureTickStep("production:overseasExpeditions", () => OverseasRelations.settle
 | 0 | ✅ 実装済み（2026-08-21）。`DistantRealm`/`OverseasRelationLedger`型定義、世界生成時のRealm seed（フレーバー名・気候帯・距離帯・powerScore・specialtyGoodIds）。UIはまだ無し |
 | 1 | ✅ 実装済み（2026-08-21）。貿易のみ：Expedition発航→§6リスク判定（往復1ロールに簡略化）→損益確定→UI一覧（読み取り専用＋「交易遠征を送る」ボタンのみ） |
 | 2 | ✅ 実装済み（2026-08-21）。護衛艦連携：国有`ShipHull`をescortに割当て、piracyRisk低減。Vessel assets UIに"Overseas"ラベル追加 |
-| 3 | 収奪系：貢納要求・略奪、tributary化と月次自動収入 |
+| 3 | ✅ 実装済み（2026-08-21）。収奪系：貢納要求・略奪、tributary化と月次自動収入 |
 | 4 | 統治系：植民地化の初期遠征、`colonyGarrisonRequired/Funded`維持費レジャー、反乱による喪失 |
 | 5 | 新規Good（Cocoa/Coffee/Maize/Rubber）追加、UIの磨き込み、フレーバーイベント（Chronicle連携） |
 

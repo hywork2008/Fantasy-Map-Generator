@@ -3269,11 +3269,22 @@
       "status": "状況",
       "action": "行動",
       "sendExpedition": "交易遠征を送る",
-      "outbound": "航海中 — {{day}}日目に帰還予定（護衛 {{escorts}} 隻）",
+      "sendTribute": "貢納を要求する",
+      "sendRaid": "略奪する",
+      "outbound": "{{purpose}}遠征航海中 — {{day}}日目に帰還予定（護衛 {{escorts}} 隻）",
       "arrivedProfit": "帰還 — 利益 {{profit}}",
+      "tributeSuccess": "貢納を受諾 — 収入 {{revenue}}、朝貢国化",
+      "raidSuccess": "略奪成功 — 収入 {{revenue}}、遠方国家は敵対化",
+      "monthlyTribute": "直近の月次貢納: {{revenue}}",
       "lostShipwreck": "喪失 — 海難事故",
       "lostPiracy": "喪失 — 海賊被害",
+      "repelled": "撃退 — 遠征喪失、遠方国家は敵対化",
       "neverSailed": "まだ遠征を送っていません",
+      "purpose": {
+        "trade": "交易",
+        "tribute": "貢納要求",
+        "raid": "略奪"
+      },
       "climateBand": {
         "polar": "寒帯",
         "temperate": "温帯",
@@ -3307,7 +3318,10 @@
         "no-good-available": "この国の特産品が現在いずれも有効になっていません。",
         "insufficient-treasury": "国庫が遠征費用を賄えません。",
         "no-ships-available": "遠征に回せる商船がありません — 全て他の用途で使用中です。",
-        "no-escorts-available": "要求した護衛艦を利用できません — 戦時・整備中・既に海外派遣中のいずれかです。"
+        "no-escorts-available": "要求した護衛艦を利用できません — 戦時・整備中・既に海外派遣中のいずれかです。",
+        "escort-required": "武力遠征には少なくとも1隻の護衛艦が必要です。",
+        "power-tier-restricted": "この遠方国家との国力差では、その行動は行えません。",
+        "hostile-realm": "この遠方国家は前回の衝突により敵対しています。"
       }
     },
     "marketDeals": {

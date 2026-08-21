@@ -2,7 +2,14 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { Dialog, useDialogState } from "../../../hostUi";
-import { close, refresh, selectState, sendTradeExpedition } from "../../controllers/overseasRelations";
+import {
+  close,
+  refresh,
+  selectState,
+  sendRaidExpedition,
+  sendTradeExpedition,
+  sendTributeExpedition
+} from "../../controllers/overseasRelations";
 import { useOverseasRelationsState } from "../../store/overseasRelationsState";
 
 export const OverseasRelationsDialog: React.FC = () => {
@@ -18,6 +25,7 @@ export const OverseasRelationsDialog: React.FC = () => {
   const renderStatus = (row: (typeof rows)[number]) => {
     if (row.activeExpedition) {
       return t("extensions.overseasRelations.outbound", {
+        purpose: t(`extensions.overseasRelations.purpose.${row.activeExpedition.purpose}`),
         day: row.activeExpedition.etaTick,
         escorts: row.activeExpedition.escortCount
       });
@@ -27,8 +35,16 @@ export const OverseasRelationsDialog: React.FC = () => {
         return t(
           row.lastOutcome.cause === "shipwreck"
             ? "extensions.overseasRelations.lostShipwreck"
-            : "extensions.overseasRelations.lostPiracy"
+            : row.lastOutcome.cause === "repelled"
+              ? "extensions.overseasRelations.repelled"
+              : "extensions.overseasRelations.lostPiracy"
         );
+      }
+      if (row.lastOutcome.purpose === "tribute") {
+        return t("extensions.overseasRelations.tributeSuccess", { revenue: (row.lastOutcome.revenue ?? 0).toFixed(1) });
+      }
+      if (row.lastOutcome.purpose === "raid") {
+        return t("extensions.overseasRelations.raidSuccess", { revenue: (row.lastOutcome.revenue ?? 0).toFixed(1) });
       }
       return t("extensions.overseasRelations.arrivedProfit", { profit: (row.lastOutcome.profit ?? 0).toFixed(1) });
     }
@@ -107,16 +123,45 @@ export const OverseasRelationsDialog: React.FC = () => {
                     <td>{t(`extensions.overseasRelations.distanceBand.${row.distanceBand}`)}</td>
                     <td>{row.specialtyGoodNames.join(", ")}</td>
                     <td>{t(`extensions.overseasRelations.powerTier.${row.powerTier}`)}</td>
-                    <td>{t(`extensions.overseasRelations.relationLabel.${row.relation}`)}</td>
+                    <td>
+                      {t(`extensions.overseasRelations.relationLabel.${row.relation}`)}
+                      {row.lastTributePaid > 0 ? (
+                        <div className="dim">
+                          {t("extensions.overseasRelations.monthlyTribute", {
+                            revenue: row.lastTributePaid.toFixed(1)
+                          })}
+                        </div>
+                      ) : null}
+                    </td>
                     <td>{renderStatus(row)}</td>
                     <td>
-                      <button
-                        type="button"
-                        disabled={Boolean(row.activeExpedition)}
-                        onClick={() => sendTradeExpedition(row.realmId, escortCount)}
-                      >
-                        {t("extensions.overseasRelations.sendExpedition")}
-                      </button>
+                      <div className="d-flex">
+                        <button
+                          type="button"
+                          disabled={Boolean(row.activeExpedition)}
+                          onClick={() => sendTradeExpedition(row.realmId, escortCount)}
+                        >
+                          {t("extensions.overseasRelations.sendExpedition")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            Boolean(row.activeExpedition) || row.powerTier === "stronger" || row.relation === "hostile"
+                          }
+                          onClick={() => sendTributeExpedition(row.realmId, escortCount)}
+                        >
+                          {t("extensions.overseasRelations.sendTribute")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            Boolean(row.activeExpedition) || row.powerTier !== "weaker" || row.relation === "hostile"
+                          }
+                          onClick={() => sendRaidExpedition(row.realmId, escortCount)}
+                        >
+                          {t("extensions.overseasRelations.sendRaid")}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

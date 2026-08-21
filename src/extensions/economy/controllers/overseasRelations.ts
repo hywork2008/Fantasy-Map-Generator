@@ -54,3 +54,19 @@ export function sendTradeExpedition(realmId: number, escortCount = 0): void {
   setOverseasRelationsState({ lastActionMessage: result.ok ? "sent" : result.reason });
   refresh();
 }
+
+export function sendTributeExpedition(realmId: number, escortCount: number): void {
+  const stateId = getOverseasRelationsState().selectedStateId;
+  if (stateId === null) return;
+  const result = OverseasRelations.sendTributeExpedition(stateId, realmId, escortCount);
+  setOverseasRelationsState({ lastActionMessage: result.ok ? "sent" : result.reason });
+  refresh();
+}
+
+export function sendRaidExpedition(realmId: number, escortCount: number): void {
+  const stateId = getOverseasRelationsState().selectedStateId;
+  if (stateId === null) return;
+  const result = OverseasRelations.sendRaidExpedition(stateId, realmId, escortCount);
+  setOverseasRelationsState({ lastActionMessage: result.ok ? "sent" : result.reason });
+  refresh();
+}

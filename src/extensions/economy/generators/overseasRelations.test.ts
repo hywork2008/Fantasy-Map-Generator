@@ -5,6 +5,7 @@ import {
   clearEconomyContext,
   getDistantRealms,
   getOverseasExpeditions,
+  getOverseasRelationLedgers,
   initEconomyContext,
   setGoods,
   setMarkets
@@ -173,6 +174,69 @@ describe("OverseasRelations", () => {
     expect(result).toEqual({ ok: false, reason: "no-escorts-available" });
     expect(worldContext.pack.states[1].treasury).toBe(treasuryBefore);
     expect(getOverseasExpeditions()).toHaveLength(0);
+  });
+
+  it("turns a successful escorted tribute demand into a tributary with monthly income", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 25, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+    const result = OverseasRelations.sendTributeExpedition(1, REALM_ID, 1);
+    expect(result.ok).toBe(true);
+    const expedition = getOverseasExpeditions()[0];
+    simulationContext.currentDay = expedition.etaTick;
+    vi.spyOn(Math, "random").mockReturnValueOnce(0.999).mockReturnValueOnce(0);
+
+    OverseasRelations.settleMonthly();
+
+    expect(expedition.outcome).toMatchObject({ lost: false, revenue: expect.any(Number) });
+    const ledger = getOverseasRelationLedgers().find(entry => entry.stateId === 1 && entry.realmId === REALM_ID);
+    expect(ledger).toMatchObject({ relation: "tributary" });
+    expect(ledger?.lastTributePaid).toBeGreaterThan(0);
+  });
+
+  it("allows raids only against weaker Realms and leaves the target hostile after success", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 26, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+    expect(OverseasRelations.sendRaidExpedition(1, REALM_ID, 1)).toEqual({
+      ok: false,
+      reason: "power-tier-restricted"
+    });
+
+    const result = OverseasRelations.sendRaidExpedition(1, OTHER_REALM_ID, 1);
+    expect(result.ok).toBe(true);
+    const expedition = getOverseasExpeditions()[0];
+    simulationContext.currentDay = expedition.etaTick;
+    vi.spyOn(Math, "random").mockReturnValueOnce(0.999).mockReturnValueOnce(0);
+    OverseasRelations.settleMonthly();
+
+    expect(expedition.outcome).toMatchObject({ lost: false, revenue: expect.any(Number) });
+    expect(
+      OverseasRelations.getOverseasRelationsOverview(1).find(row => row.realmId === OTHER_REALM_ID)?.relation
+    ).toBe("hostile");
+  });
+
+  it("requires at least one state-navy escort for an armed expedition", () => {
+    expect(OverseasRelations.sendTributeExpedition(1, REALM_ID, 0)).toEqual({
+      ok: false,
+      reason: "escort-required"
+    });
+  });
+
+  it("marks a Realm hostile and sends the convoy to maintenance when an armed expedition is repelled", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 27, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "voyage" }
+    ]);
+    OverseasRelations.sendTributeExpedition(1, REALM_ID, 1);
+    const expedition = getOverseasExpeditions()[0];
+    simulationContext.currentDay = expedition.etaTick;
+    vi.spyOn(Math, "random").mockReturnValue(0.999);
+
+    OverseasRelations.settleMonthly();
+
+    expect(expedition.outcome).toEqual({ lost: true, cause: "repelled" });
+    expect(OverseasRelations.getOverseasRelationsOverview(1)[0].relation).toBe("hostile");
+    expect(releasedEscortHullIds).toEqual([{ hullIds: [90], outcome: "lost" }]);
   });
 
   it("resolves a successful voyage: treasury profit, relation upgraded to trading, hull returns to port", () => {

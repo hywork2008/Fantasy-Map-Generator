@@ -3269,11 +3269,22 @@
       "status": "Status",
       "action": "Action",
       "sendExpedition": "Send Trade Expedition",
-      "outbound": "Outbound — returns day {{day}} ({{escorts}} escorts)",
+      "sendTribute": "Demand Tribute",
+      "sendRaid": "Raid",
+      "outbound": "{{purpose}} expedition — returns day {{day}} ({{escorts}} escorts)",
       "arrivedProfit": "Arrived — profit {{profit}}",
+      "tributeSuccess": "Tribute accepted — revenue {{revenue}}; now a tributary",
+      "raidSuccess": "Raid successful — revenue {{revenue}}; Realm is now hostile",
+      "monthlyTribute": "Latest monthly tribute: {{revenue}}",
       "lostShipwreck": "Lost — shipwreck",
       "lostPiracy": "Lost — piracy",
+      "repelled": "Repelled — expedition lost; Realm is now hostile",
       "neverSailed": "No expedition sent yet",
+      "purpose": {
+        "trade": "Trade",
+        "tribute": "Tribute",
+        "raid": "Raid"
+      },
       "climateBand": {
         "polar": "Polar",
         "temperate": "Temperate",
@@ -3307,7 +3318,10 @@
         "no-good-available": "None of this Realm's specialty goods are currently enabled.",
         "insufficient-treasury": "Treasury cannot cover the expedition's outlay.",
         "no-ships-available": "No merchant ships are available to crew this expedition — they are all committed elsewhere.",
-        "no-escorts-available": "The requested naval escorts are unavailable — they may be at war, in maintenance, or already committed overseas."
+        "no-escorts-available": "The requested naval escorts are unavailable — they may be at war, in maintenance, or already committed overseas.",
+        "escort-required": "An armed expedition requires at least one naval escort.",
+        "power-tier-restricted": "This Realm's relative power prevents that action.",
+        "hostile-realm": "This Realm is hostile after the previous conflict."
       }
     },
     "marketDeals": {

@@ -38,6 +38,7 @@ import type {
   DistanceBand,
   DistantRealm,
   ExpeditionOutcomeCause,
+  ExpeditionPurpose,
   OverseasExpedition,
   OverseasRelationLedger,
   PowerTier,
@@ -45,8 +46,11 @@ import type {
 } from "./overseasRelationsTypes";
 import {
   climateGapSteps,
+  computeCoercionRevenue,
+  computeCoercionSuccessChance,
   computeExpeditionBuyCost,
   computeExpeditionReturn,
+  computeMonthlyTributeRevenue,
   computeOverseasProjectionScore,
   computeRoundTripLossRisk,
   FALLBACK_SHIP_TIER,
@@ -168,7 +172,10 @@ export type SendExpeditionFailureReason =
   | "no-good-available"
   | "insufficient-treasury"
   | "no-ships-available"
-  | "no-escorts-available";
+  | "no-escorts-available"
+  | "escort-required"
+  | "power-tier-restricted"
+  | "hostile-realm";
 
 export type SendExpeditionResult =
   | { ok: true; expeditionId: number }
@@ -182,8 +189,16 @@ export interface OverseasRealmStatusRow {
   specialtyGoodNames: string[];
   powerTier: PowerTier;
   relation: RealmRelation;
-  activeExpedition: { departedTick: number; etaTick: number; escortCount: number } | null;
-  lastOutcome: { lost: boolean; cause?: ExpeditionOutcomeCause; profit?: number; resolvedTick: number } | null;
+  lastTributePaid: number;
+  activeExpedition: { purpose: ExpeditionPurpose; departedTick: number; etaTick: number; escortCount: number } | null;
+  lastOutcome: {
+    purpose: ExpeditionPurpose;
+    lost: boolean;
+    cause?: ExpeditionOutcomeCause;
+    profit?: number;
+    revenue?: number;
+    resolvedTick: number;
+  } | null;
 }
 
 function debitStateTreasury(stateId: number, amount: number): boolean {
@@ -342,12 +357,13 @@ class OverseasRelationsModule {
     const ledgers = getOverseasRelationLedgers();
     let ledger = ledgers.find(entry => entry.stateId === stateId && entry.realmId === realmId);
     if (!ledger) {
-      ledger = { stateId, realmId, relation: atLeast, monthsUnderfunded: 0 };
+      ledger = { stateId, realmId, relation: atLeast, relationScore: 0, monthsUnderfunded: 0 };
       ledgers.push(ledger);
       setOverseasRelationLedgers(ledgers);
     } else if (RELATION_RANK[ledger.relation] < RELATION_RANK[atLeast]) {
       ledger.relation = atLeast;
     }
+    ledger.relationScore = Math.max(0, Math.min(100, ledger.relationScore ?? 0));
     return ledger;
   }
 
@@ -426,6 +442,87 @@ class OverseasRelationsModule {
     return { ok: true, expeditionId };
   }
 
+  sendTributeExpedition(stateId: number, realmId: number, escortCount: number): SendExpeditionResult {
+    return this.sendCoercionExpedition(stateId, realmId, "tribute", escortCount);
+  }
+
+  sendRaidExpedition(stateId: number, realmId: number, escortCount: number): SendExpeditionResult {
+    return this.sendCoercionExpedition(stateId, realmId, "raid", escortCount);
+  }
+
+  /** Armed overseas action. It still needs merchant transport, but no trade-goods outlay. */
+  private sendCoercionExpedition(
+    stateId: number,
+    realmId: number,
+    purpose: Extract<ExpeditionPurpose, "tribute" | "raid">,
+    escortCount: number
+  ): SendExpeditionResult {
+    const state = getWorldContext().pack.states?.[stateId];
+    if (!state?.i || state.removed) return { ok: false, reason: "invalid-state" };
+    const realm = getDistantRealms().find(entry => entry.i === realmId);
+    if (!realm) return { ok: false, reason: "unknown-realm" };
+    if (
+      getOverseasExpeditions().some(
+        expedition =>
+          expedition.stateId === stateId && expedition.realmId === realmId && expedition.state === "outbound"
+      )
+    ) {
+      return { ok: false, reason: "expedition-in-progress" };
+    }
+
+    const ledger = getOverseasRelationLedgers().find(entry => entry.stateId === stateId && entry.realmId === realmId);
+    if (ledger?.relation === "hostile") return { ok: false, reason: "hostile-realm" };
+    const powerTier = this.getPowerTierForState(stateId, realm);
+    if (powerTier === "stronger" || (purpose === "raid" && powerTier !== "weaker")) {
+      return { ok: false, reason: "power-tier-restricted" };
+    }
+
+    const requestedEscortCount = Math.max(0, Math.floor(escortCount));
+    if (!requestedEscortCount) return { ok: false, reason: "escort-required" };
+    const portMarketId = pickPortMarketForState(stateId);
+    if (portMarketId === null) return { ok: false, reason: "no-port" };
+
+    const expeditionId = getNextOverseasExpeditionId();
+    const escortHullIds = getAvailableEscortHullIds(stateId).slice(0, requestedEscortCount);
+    if (escortHullIds.length !== requestedEscortCount || !reserveEscortHulls(stateId, expeditionId, escortHullIds)) {
+      return { ok: false, reason: "no-escorts-available" };
+    }
+    const waterAllocation: TransportAllocation = {
+      mode: "water",
+      transportId: "",
+      transportName: "",
+      unitCount: 0,
+      capacitySlots: 0,
+      usedSlots: DEFAULT_EXPEDITION_CARGO_SLOTS
+    };
+    const reservationResult = MerchantTransportAssets.reserve(portMarketId, expeditionId, [waterAllocation]);
+    if (!reservationResult) {
+      releaseEscortHulls(expeditionId, escortHullIds, "arrived");
+      return { ok: false, reason: "no-ships-available" };
+    }
+    MerchantTransportAssets.depart(reservationResult.reservation.id);
+
+    const now = getSimulationDay();
+    const expeditions = getOverseasExpeditions();
+    expeditions.push({
+      id: expeditionId,
+      stateId,
+      realmId,
+      purpose,
+      reservationId: reservationResult.reservation.id,
+      escortHullIds,
+      portMarketId,
+      buyCost: 0,
+      departedTick: now,
+      etaTick: now + getExpeditionDurationDays(realm.distanceBand),
+      state: "outbound"
+    });
+    setOverseasExpeditions(expeditions);
+    setNextOverseasExpeditionId(expeditionId + 1);
+    this.ensureRelationLedger(stateId, realmId, "contacted");
+    return { ok: true, expeditionId };
+  }
+
   /** Resolves every overseas expedition whose ETA has arrived. Called once per production month. */
   settleMonthly(): void {
     if (!getDistantRealms().length) return;
@@ -467,6 +564,45 @@ class OverseasRelationsModule {
         releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "lost");
         expedition.outcome = { lost: true, cause };
         // buyCost was already spent when the expedition departed — that is the risk, no refund.
+        if (expedition.purpose !== "trade") {
+          const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "contacted");
+          ledger.relation = "hostile";
+          ledger.relationScore = 0;
+        }
+      } else if (expedition.purpose !== "trade") {
+        const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "contacted");
+        const powerTier = this.getPowerTierForState(expedition.stateId, realm);
+        const succeeded =
+          Math.random() <
+          computeCoercionSuccessChance({
+            purpose: expedition.purpose,
+            powerTier,
+            defenseScore: realm.defenseScore,
+            escortCount: expedition.escortHullIds?.length ?? 0,
+            relationScore: ledger.relationScore ?? 0
+          });
+        if (!succeeded) {
+          MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "lost");
+          releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "lost");
+          expedition.outcome = { lost: true, cause: "repelled" };
+          ledger.relation = "hostile";
+          ledger.relationScore = 0;
+        } else {
+          MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
+          releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
+          const revenue = rn(
+            computeCoercionRevenue({ purpose: expedition.purpose, wealthLevel: realm.wealthLevel }),
+            2
+          );
+          creditStateTreasury(expedition.stateId, revenue);
+          realm.wealthLevel = rn(Math.max(0, realm.wealthLevel - revenue), 2);
+          expedition.outcome = { lost: false, revenue, profit: revenue };
+          ledger.relation = expedition.purpose === "tribute" ? "tributary" : "hostile";
+          ledger.relationScore = expedition.purpose === "tribute" ? 25 : 0;
+        }
+        expedition.state = "resolved";
+        ledger.lastResolvedTick = now;
+        continue;
       } else {
         MerchantTransportAssets.settleCaravan({ transportReservationId: expedition.reservationId }, "arrived");
         releaseEscortHulls(expedition.id, expedition.escortHullIds ?? [], "arrived");
@@ -476,12 +612,25 @@ class OverseasRelationsModule {
         const grossReturn = rn(computeExpeditionReturn({ buyCost: expedition.buyCost, powerTier, distancePremium }), 2);
         creditStateTreasury(expedition.stateId, grossReturn);
         expedition.outcome = { lost: false, profit: rn(grossReturn - expedition.buyCost, 2) };
-        this.ensureRelationLedger(expedition.stateId, expedition.realmId, "trading");
+        const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "trading");
+        ledger.relationScore = Math.min(100, (ledger.relationScore ?? 0) + 5);
       }
 
       expedition.state = "resolved";
       const ledger = this.ensureRelationLedger(expedition.stateId, expedition.realmId, "contacted");
       ledger.lastResolvedTick = now;
+    }
+
+    for (const ledger of getOverseasRelationLedgers()) {
+      ledger.lastTributePaid = 0;
+      if (ledger.relation !== "tributary") continue;
+      const realm = getDistantRealms().find(entry => entry.i === ledger.realmId);
+      const state = getWorldContext().pack.states?.[ledger.stateId];
+      if (!realm || !state?.i || state.removed) continue;
+      const tribute = rn(computeMonthlyTributeRevenue(realm.wealthLevel), 2);
+      if (tribute <= 0) continue;
+      creditStateTreasury(ledger.stateId, tribute);
+      ledger.lastTributePaid = tribute;
     }
   }
 
@@ -509,15 +658,19 @@ class OverseasRelationsModule {
         specialtyGoodNames: realm.specialtyGoodNames,
         powerTier: this.getPowerTierForState(stateId, realm),
         relation: ledger?.relation ?? "unknown",
+        lastTributePaid: ledger?.lastTributePaid ?? 0,
         activeExpedition: active
           ? {
+              purpose: active.purpose,
               departedTick: active.departedTick,
               etaTick: active.etaTick,
               escortCount: active.escortHullIds?.length ?? 0
             }
           : null,
         lastOutcome:
-          lastResolved?.outcome !== undefined ? { ...lastResolved.outcome, resolvedTick: lastResolved.etaTick } : null
+          lastResolved?.outcome !== undefined
+            ? { purpose: lastResolved.purpose, ...lastResolved.outcome, resolvedTick: lastResolved.etaTick }
+            : null
       };
     });
   }

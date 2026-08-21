@@ -1,5 +1,5 @@
 /**
- * Distant Realms / Overseas Trading Companies — Phase 0–2 data model.
+ * Distant Realms / Overseas Trading Companies — Phase 0–3 data model.
  * Design: docs/plan/distant-realms-overseas-trade.md
  *
  * DistantRealm is deliberately NOT a full State: no cells, no geometry, no per-burg simulation.
@@ -39,23 +39,29 @@ export interface OverseasRelationLedger {
   stateId: number;
   realmId: number;
   relation: RealmRelation;
+  /** 0..100 diplomatic familiarity; successful trade makes later coercion somewhat less risky. */
+  relationScore: number;
   /** Simulation day (getSimulationDay()) of the most recent resolved expedition, for UI display. */
   lastResolvedTick?: number;
+  /** Treasury income received from this tributary in the most recent monthly settlement. */
+  lastTributePaid?: number;
   /** Phase 4 colonization upkeep — present only once relation reaches "colony". */
   colonyGarrisonRequired?: number;
   colonyGarrisonFunded?: number;
   monthsUnderfunded: number;
 }
 
-export type ExpeditionPurpose = "trade";
+export type ExpeditionPurpose = "trade" | "tribute" | "raid";
 export type ExpeditionState = "outbound" | "resolved";
-export type ExpeditionOutcomeCause = "shipwreck" | "piracy";
+export type ExpeditionOutcomeCause = "shipwreck" | "piracy" | "repelled";
 
 export interface OverseasExpeditionOutcome {
   lost: boolean;
   cause?: ExpeditionOutcomeCause;
   /** Treasury credited on arrival (0 when lost). */
   profit?: number;
+  /** Treasury credited by a successful tribute demand or raid. */
+  revenue?: number;
 }
 
 export interface OverseasExpedition {
@@ -63,8 +69,8 @@ export interface OverseasExpedition {
   stateId: number;
   realmId: number;
   purpose: ExpeditionPurpose;
-  /** Good actually carried this trip, chosen from the realm's specialtyGoodNames. */
-  goodId: number;
+  /** Good actually carried this trip, chosen from the realm's specialtyGoodNames (trade only). */
+  goodId?: number;
   /** Ties this expedition to MerchantTransportAssets' reservation lifecycle (shared ship pool). */
   reservationId: number;
   /** State-owned navy hulls committed to this convoy for its whole round trip (Phase 2). */

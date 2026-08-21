@@ -10,7 +10,7 @@
  * piracy risk without changing the shipwreck calculation.
  */
 
-import type { ClimateBand, DistanceBand, PowerTier } from "./overseasRelationsTypes";
+import type { ClimateBand, DistanceBand, ExpeditionPurpose, PowerTier } from "./overseasRelationsTypes";
 import { CLIMATE_BANDS } from "./overseasRelationsTypes";
 
 export function clamp01(value: number): number {
@@ -132,6 +132,36 @@ export function computeExpeditionReturn(params: {
 }): number {
   const premiumBonus = 1 + params.distancePremium * DISTANCE_PREMIUM_STEP;
   return params.buyCost * RETURN_MULTIPLIER[params.powerTier] * premiumBonus;
+}
+
+/** Probability that an armed coercion expedition succeeds after reaching the Realm. */
+export function computeCoercionSuccessChance(params: {
+  purpose: Extract<ExpeditionPurpose, "tribute" | "raid">;
+  powerTier: PowerTier;
+  defenseScore: number;
+  escortCount: number;
+  relationScore: number;
+}): number {
+  const base = params.purpose === "tribute" ? 0.64 : 0.56;
+  const powerBonus = params.powerTier === "weaker" ? 0.16 : params.powerTier === "comparable" ? 0 : -0.2;
+  const escortBonus = Math.min(0.24, Math.max(0, params.escortCount) * 0.08);
+  const defensePenalty = clamp01(Math.max(0, params.defenseScore) / 250) * 0.38;
+  const relationBonus = clamp01(params.relationScore / 100) * 0.08;
+  return clamp01(base + powerBonus + escortBonus + relationBonus - defensePenalty);
+}
+
+/** Treasury-scale rewards from the Realm's abstract wealth; avoids injecting market-scale values. */
+export function computeCoercionRevenue(params: {
+  purpose: Extract<ExpeditionPurpose, "tribute" | "raid">;
+  wealthLevel: number;
+}): number {
+  const share = params.purpose === "tribute" ? 0.025 : 0.08;
+  return Math.max(0, params.wealthLevel) * share;
+}
+
+/** Small recurring monthly revenue after a successful tribute demand. */
+export function computeMonthlyTributeRevenue(wealthLevel: number): number {
+  return Math.max(0, wealthLevel) * 0.003;
 }
 
 /** Abstract naval/mercantile reach a state can project overseas. Tunable defaults. */
