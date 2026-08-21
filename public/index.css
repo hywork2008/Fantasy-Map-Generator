@@ -622,6 +622,20 @@ input[type="color"] {
   z-index: 99999;
 }
 
+#hover-tooltip {
+  position: fixed;
+  z-index: 100001;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(30, 30, 30, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font: 12px/1.35 Arial, sans-serif;
+  pointer-events: none;
+  white-space: pre-line;
+}
+
 .map-pick-chooser {
   position: fixed;
   width: min(260px, calc(100vw - 16px));

@@ -55,26 +55,38 @@ export function clearMainTip(): void {
   }
 }
 export function showDataTip(event: MouseEvent): void {
-  const target = event.target as HTMLElement;
+  const target = getTipTarget(event.target);
   if (!target) return;
 
   let dataTip = target.dataset.tip;
-  if (!dataTip && (target.parentNode as HTMLElement)?.dataset?.tip)
-    dataTip = (target.parentNode as HTMLElement).dataset.tip;
   if (!dataTip) return;
 
   const shortcut = target.dataset.shortcut;
   if (shortcut && !MOBILE) dataTip += `. Shortcut: ${shortcut}`;
 
-  tip(dataTip);
+  useToastStore.getState().showHoverTooltip(dataTip, event.clientX, event.clientY, target);
+}
+export function hideDataTip(event: MouseEvent): void {
+  const hoverTooltip = useToastStore.getState().hoverTooltip;
+  if (!hoverTooltip) return;
+
+  const nextTarget = event.relatedTarget;
+  if (nextTarget instanceof Node && hoverTooltip.target.contains(nextTarget)) return;
+
+  useToastStore.getState().hideHoverTooltip();
 }
 export function showElementLockTip(event: MouseEvent): void {
-  const locked = (event?.target as HTMLElement)?.classList?.contains("icon-lock");
-  if (locked) {
-    tip("Locked. Click to unlock the element and allow it to be changed by regeneration tools");
-  } else {
-    tip("Unlocked. Click to lock the element and prevent changes to it by regeneration tools");
-  }
+  const eventTarget = event.target;
+  const target =
+    getTipTarget(eventTarget) ??
+    (eventTarget instanceof Element ? (eventTarget.closest<HTMLElement>("button") ?? eventTarget) : null);
+  if (!target) return;
+
+  const locked = target.classList.contains("icon-lock");
+  const message = locked
+    ? "Locked. Click to unlock the element and allow it to be changed by regeneration tools"
+    : "Unlocked. Click to lock the element and prevent changes to it by regeneration tools";
+  useToastStore.getState().showHoverTooltip(message, event.clientX, event.clientY, target);
 }
 export function showNotes(e: MouseEvent): void {
   if (isDialogVisible("notesEditor")) return;
@@ -392,3 +404,7 @@ const tipBackgroundMap: Record<string, string> = {
 // @ts-expect-error userAgentData is not strictly in standard TS DOM
 const MOBILE: boolean = window.innerWidth < 600 || navigator.userAgentData?.mobile;
 let currentNoteId: string | null = null;
+
+function getTipTarget(target: EventTarget | null): HTMLElement | null {
+  return target instanceof Element ? target.closest<HTMLElement>("[data-tip]") : null;
+}

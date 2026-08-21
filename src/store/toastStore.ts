@@ -12,12 +12,23 @@ export interface Toast {
   expiresAt?: number;
 }
 
+export interface HoverTooltip {
+  message: string;
+  x: number;
+  y: number;
+  /** The element that owns the tooltip, used to keep it open while moving over its children. */
+  target: Element;
+}
+
 interface ToastState {
   /** 最新の通知1件のみ保持（重複排除済み） */
   toast: Toast | null;
+  hoverTooltip: HoverTooltip | null;
   currentMessage: string;
   addToast: (message: string, type: ToastType, isMain?: boolean, timeMs?: number) => void;
   removeToast: () => void;
+  showHoverTooltip: (message: string, x: number, y: number, target: Element) => void;
+  hideHoverTooltip: () => void;
   setMainToast: (message: string, color: string) => void;
   clearMainToast: () => void;
   getMainToast: () => { message: string; color: string } | null;
@@ -28,6 +39,7 @@ let timeoutId: NodeJS.Timeout | null = null;
 
 export const useToastStore = create<ToastState>((set, get) => ({
   toast: null,
+  hoverTooltip: null,
   currentMessage: "",
 
   addToast: (message, type, isMain = false, timeMs = 0) => {
@@ -66,6 +78,15 @@ export const useToastStore = create<ToastState>((set, get) => ({
       clearTimeout(timeoutId);
       timeoutId = null;
     }
+  },
+
+  showHoverTooltip: (message, x, y, target) => {
+    if (!message.trim()) return;
+    set({ hoverTooltip: { message, x, y, target } });
+  },
+
+  hideHoverTooltip: () => {
+    set({ hoverTooltip: null });
   },
 
   setMainToast: (message, color) => {
