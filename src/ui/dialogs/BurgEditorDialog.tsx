@@ -228,6 +228,7 @@ export const BurgEditorDialog: React.FC = () => {
                       maleAdults={burgData.maleAdults}
                       femaleAdults={burgData.femaleAdults}
                       elders={burgData.elders}
+                      ageBands={burgData.populationAgeBands}
                     />
                   </td>
                 </tr>

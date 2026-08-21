@@ -1,5 +1,6 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import type { PopulationAgeBands } from "../services/populationAgeBands";
 
 export interface BurgCulture {
   id: number;
@@ -19,6 +20,7 @@ export interface BurgData {
   maleAdults: number;
   femaleAdults: number;
   elders: number;
+  populationAgeBands: PopulationAgeBands;
   temperature: string;
   temperatureLikeIn: string;
   elevation: string;

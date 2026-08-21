@@ -1,17 +1,20 @@
 import type React from "react";
+import type { PopulationAgeBands } from "../../services/populationAgeBands";
 
 interface PopulationPyramidProps {
   childrenCount: number;
   maleAdults: number;
   femaleAdults: number;
   elders: number;
+  ageBands: PopulationAgeBands;
 }
 
 export const PopulationPyramid: React.FC<PopulationPyramidProps> = ({
   childrenCount,
   maleAdults,
   femaleAdults,
-  elders
+  elders,
+  ageBands
 }) => {
   const mAdults = Math.round(maleAdults);
   const fAdults = Math.round(femaleAdults);
@@ -87,9 +90,9 @@ export const PopulationPyramid: React.FC<PopulationPyramidProps> = ({
         <span>Male</span>
         <span>Female</span>
       </div>
-      <Row label="50+" male={maleElders} female={femaleElders} />
-      <Row label="15-50" male={mAdults} female={fAdults} />
-      <Row label="0-14" male={maleChildren} female={femaleChildren} />
+      <Row label={ageBands.elders} male={maleElders} female={femaleElders} />
+      <Row label={ageBands.adults} male={mAdults} female={fAdults} />
+      <Row label={ageBands.children} male={maleChildren} female={femaleChildren} />
     </div>
   );
 };

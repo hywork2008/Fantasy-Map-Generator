@@ -9,6 +9,7 @@ import { burgEconomyExtensions } from "../services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import { getHeight } from "../services/cellInfoService";
 import { GenerationPipeline } from "../services/generationPipeline";
+import { getPopulationAgeBands } from "../services/populationAgeBands";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getBurgEditorState } from "../store/burgEditorState";
@@ -93,6 +94,13 @@ const burgEditorInternal = {
   updateBurgValues(): void {
     const burgId = burgEditorInternal.getBurgId();
     const b = worldContext.pack.burgs[burgId];
+    const state = worldContext.pack.states[b.state ?? 0];
+    const stateCulture = worldContext.pack.cultures[state?.culture ?? 0];
+    // `racialComposition` is saved on recent maps; older maps derive the same result from
+    // their state culture. A mixed state has no one calendar that can label every resident.
+    const isMonoRacial =
+      state?.racialComposition === "mono" || (!state?.racialComposition && !!stateCulture?.monoRacial);
+    const populationAgeBands = getPopulationAgeBands(worldContext.pack.races, stateCulture?.race, isMonoRacial);
     const province = worldContext.pack.cells.province[b.cell];
     const provinceName = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
     const stateName = worldContext.pack.states[b.state!].fullName || worldContext.pack.states[b.state!].name;
@@ -134,6 +142,7 @@ const burgEditorInternal = {
       elders: b.demographics?.elders
         ? rn(b.demographics.elders * worldContext.populationRate * worldContext.urbanization)
         : 0,
+      populationAgeBands,
       temperature: tempStr,
       temperatureLikeIn: tempLikeIn,
       elevation: elevationStr,
