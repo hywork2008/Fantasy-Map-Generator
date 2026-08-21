@@ -43,7 +43,7 @@ function enableRemoteOverseasVoyages(): void {
     { technologyId: "oceanGoingHulls", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
     { technologyId: "standardCharts", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
     { technologyId: "fleetLogistics", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
-    { technologyId: "overseasTradingPosts", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    { technologyId: "overseasTradingPosts", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
   ]);
 }
 
@@ -157,14 +157,15 @@ describe("OverseasRelations", () => {
     });
   });
 
-  it("makes nearby and far-away realms available from the Age of Exploration start profile", () => {
+  it("makes every realm available to a naval state from the Age of Exploration start profile", () => {
     worldContext.options = { historicalPeriod: "ageOfExploration" } as never;
+    worldContext.pack.states[1].type = "Naval";
     resetTechnologyProgress();
     seedTechnologyStartProfile();
 
     const rows = OverseasRelations.getOverseasRelationsOverview(1);
-    expect(rows.filter(row => row.distanceBand !== "remote").every(row => row.canSendExpedition)).toBe(true);
-    expect(rows.filter(row => row.distanceBand === "remote").every(row => !row.canSendExpedition)).toBe(true);
+    expect(rows).toHaveLength(getDistantRealms().length);
+    expect(rows.every(row => row.canSendExpedition)).toBe(true);
   });
 
   it("refuses to fund an expedition the treasury cannot afford", () => {

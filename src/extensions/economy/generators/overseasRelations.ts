@@ -12,7 +12,7 @@
  * home market directly and use a treasury-funded garrison ledger rather than real map cells.
  */
 
-import { isTechnologyAtLeast } from "../../../generators/technologyProgress";
+import { getStateMaritimeAptitude, isTechnologyAtLeast } from "../../../generators/technologyProgress";
 import { type ChronicleEvent, SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -224,10 +224,10 @@ export interface OverseasRealmStatusRow {
  * State's charts and which of those places its fleet can actually reach. A prior expedition keeps
  * a realm known, so established relations are never erased by a migration or changed tech state.
  */
-const REALM_DISCOVERY_REQUIREMENTS: Readonly<Record<DistanceBand, readonly [string, "known"]>> = {
+const REALM_DISCOVERY_REQUIREMENTS: Readonly<Record<DistanceBand, readonly [string, "known" | "demonstrated"]>> = {
   nearAbroad: ["oceanNavigation", "known"],
-  farAbroad: ["standardCharts", "known"],
-  remote: ["overseasTradingPosts", "known"]
+  farAbroad: ["standardCharts", "demonstrated"],
+  remote: ["overseasTradingPosts", "demonstrated"]
 };
 
 const REALM_VOYAGE_REQUIREMENTS: Readonly<
@@ -425,7 +425,14 @@ class OverseasRelationsModule {
   isRealmDiscovered(stateId: number, realm: Pick<DistantRealm, "i" | "distanceBand">): boolean {
     if (this.hasExistingKnowledge(stateId, realm.i)) return true;
     const [technologyId, minimum] = REALM_DISCOVERY_REQUIREMENTS[realm.distanceBand];
-    return isTechnologyAtLeast(technologyId, stateId, minimum);
+    if (!isTechnologyAtLeast(technologyId, stateId, minimum)) return false;
+    if (realm.distanceBand === "nearAbroad") return true;
+
+    const aptitude = getStateMaritimeAptitude(stateId);
+    if (realm.distanceBand === "farAbroad") {
+      return aptitude >= 1 || isTechnologyAtLeast("standardCharts", stateId, "adopted");
+    }
+    return aptitude >= 2 || isTechnologyAtLeast("overseasTradingPosts", stateId, "adopted");
   }
 
   /** Whether the State can currently equip an expedition to a realm it has discovered. */

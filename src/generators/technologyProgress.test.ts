@@ -15,6 +15,7 @@ import {
   getMechanizedTextilesOutputMultiplier,
   getMilitarySignalRocketsEffect,
   getStagingAndOrbitalInsertionEffect,
+  getStateMaritimeAptitude,
   getTechnologyProgressEntries,
   getTechnologyStage,
   HINTABLE_KNOWN_RATIO_KEYS,
@@ -199,6 +200,23 @@ describe("technologyProgress", () => {
     installMinimalWorld({ gunpowder: true, historicalPeriod: "lateMedieval" });
     seedTechnologyStartProfile(1200);
     expect(getTechnologyStage("improvedMining", 1)).toBe("locked");
+  });
+
+  it("gives naval states priority, then compact states, in the seeded maritime profile", () => {
+    installMinimalWorld({ historicalPeriod: "ageOfExploration" });
+    worldContext.seed = "maritime-profile-test";
+    worldContext.pack.states[1].type = "Naval";
+    worldContext.pack.states[1].area = 120;
+    worldContext.pack.states[2].type = "Generic";
+    worldContext.pack.states[2].area = 10;
+    worldContext.pack.states.push({ i: 3, name: "Large", type: "Generic", area: 120, treasury: 20 } as never);
+
+    expect(getStateMaritimeAptitude(1)).toBe(2);
+    expect(getStateMaritimeAptitude(2)).toBeGreaterThanOrEqual(1);
+    expect(getStateMaritimeAptitude(2)).toBeGreaterThanOrEqual(getStateMaritimeAptitude(3));
+
+    seedTechnologyStartProfile(1200);
+    expect(getTechnologyStage("oceanNavigation", 1)).toBe("adopted");
   });
 
   it("keeps a period-seeded gunpowder stage after annual evaluation instead of resetting it", () => {

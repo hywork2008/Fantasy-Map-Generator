@@ -362,6 +362,57 @@ const HISTORICAL_PERIOD_FRONTIER_ERA: Readonly<Partial<Record<HistoricalPeriod, 
   rocketryEra: 8
 };
 
+const MARITIME_START_TECHNOLOGIES = new Set([
+  "oceanNavigation",
+  "oceanGoingHulls",
+  "standardCharts",
+  "fleetLogistics",
+  "overseasTradingPosts"
+]);
+const MARITIME_SPECIALIST_TECHNOLOGIES = new Set(["oceanNavigation", "oceanGoingHulls", "standardCharts"]);
+
+/**
+ * A deterministic starting maritime profile. Naval states take precedence, then compact states;
+ * a seed-derived bonus makes otherwise similar countries diverge without consuming generation RNG.
+ * 0 = coastal, 1 = regional, 2 = oceanic.
+ */
+export function getStateMaritimeAptitude(stateId: number): 0 | 1 | 2 {
+  const states = worldContext.pack.states ?? [];
+  const state = states[stateId];
+  if (!state?.i || state.removed) return 0;
+
+  const cultureType = worldContext.pack.cultures?.[state.culture]?.type;
+  if (state.type === "Naval" || cultureType === "Naval") return 2;
+
+  const areas = states
+    .filter(candidate => candidate?.i && !candidate.removed)
+    .map(candidate => candidate.area ?? candidate.cells ?? 0)
+    .filter(area => area > 0)
+    .sort((a, b) => a - b);
+  const ownArea = state.area ?? state.cells ?? 0;
+  const medianArea = areas.length ? areas[Math.floor(areas.length / 2)] : 0;
+  const compact = ownArea > 0 && medianArea > 0 && ownArea <= medianArea * 0.7;
+
+  const seed = `${worldContext.seed || "world"}:maritime:${stateId}`;
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
+  }
+  const randomBonus = ownArea > 0 && (hash >>> 0) / 2 ** 32 >= 0.72 ? 1 : 0;
+  return Math.min(2, (compact ? 1 : 0) + randomBonus) as 0 | 1 | 2;
+}
+
+function applyMaritimeStartBias(
+  def: TechnologyDefinition,
+  start: TechnologyStage | undefined,
+  stateId: number
+): TechnologyStage | undefined {
+  if (start !== "demonstrated" || !MARITIME_START_TECHNOLOGIES.has(def.id)) return start;
+  const aptitude = getStateMaritimeAptitude(stateId);
+  if (aptitude === 2 || (aptitude === 1 && MARITIME_SPECIALIST_TECHNOLOGIES.has(def.id))) return "adopted";
+  return start;
+}
+
 function resolveStartStage(
   def: TechnologyDefinition,
   period: HistoricalPeriod | undefined
@@ -393,7 +444,7 @@ export function seedTechnologyStartProfile(year = simulationContext.currentYear)
       if (def.scope !== "state") continue;
       const key = progressKey(def.id, "state", state.i);
       if (byKey.has(key)) continue;
-      const start = resolveStartStage(def, period);
+      const start = applyMaritimeStartBias(def, resolveStartStage(def, period), state.i);
       if (!start || start === "locked") {
         byKey.set(key, {
           technologyId: def.id,
