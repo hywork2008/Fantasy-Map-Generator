@@ -25,12 +25,13 @@ function routeMarkup(route: InheritedWaterSupplyRoute, burgName: string): string
   const [sx, sy] = route.source;
   const [dx, dy] = route.destination;
   const path = aqueductPath(route);
-  const title = escapeHtml(`Roman aqueduct: river intake → ${burgName}`);
+  const title = escapeHtml(`Protected Roman headwater intake → ${burgName}`);
   return (
     `<g id="${route.id}" data-burg-id="${route.burgId}" data-source-cell="${route.sourceCell}">` +
     `<title>${title}</title>` +
     `<path d="${path}" fill="none" stroke="${OUTER_STROKE}" stroke-width="3.2" stroke-linecap="round"/>` +
     `<path d="${path}" fill="none" stroke="${WATER_STROKE}" stroke-width="1.15" stroke-dasharray="3 2" stroke-linecap="round"/>` +
+    `<circle cx="${sx}" cy="${sy}" r="4" fill="none" stroke="#0b4f6c" stroke-width="0.8" stroke-dasharray="1 1"/>` +
     `<circle cx="${sx}" cy="${sy}" r="2.4" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.8"/>` +
     `<path d="M ${dx - 2},${dy + 2} L ${dx},${dy - 2.4} L ${dx + 2},${dy + 2} Z" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.8"/>` +
     `</g>`
