@@ -13,6 +13,7 @@ import {
 } from "../economyContext";
 import type { Good } from "./goodsGeneratorTypes";
 import type { Market } from "./marketTypes";
+import { raceKeyForBurgWaterworks } from "./resolveBurgCulture";
 import type { BurgWaterGeography } from "./urbanWaterSystem";
 import {
   annualMaintenanceNeed,
@@ -905,6 +906,18 @@ describe("UrbanWater module", () => {
       const sameCity = getUrbanWaterSystems().find(s => s.burgId === 1)!;
       expect(sameCity.tier).toBeLessThan(4);
       expect(sameCity.waterLifting).toBeLessThanOrEqual(0.35 + 0.0001);
+    });
+
+    it("uses the Giant State's engineering tradition to maintain its inherited works", () => {
+      worldContext.pack.cultures!.push({ i: 2, type: "Local", race: 2 });
+      worldContext.pack.races!.push({ i: 2, key: "human", name: "Human" });
+      worldContext.pack.burgs[1]!.culture = 2;
+
+      const giantStateWaterworks = raceKeyForBurgWaterworks(worldContext.pack.burgs[1], true);
+      const ordinaryLocalWaterworks = raceKeyForBurgWaterworks(worldContext.pack.burgs[1], false);
+
+      expect(giantStateWaterworks).toBe("giant");
+      expect(ordinaryLocalWaterworks).toBe("human");
     });
   });
 });

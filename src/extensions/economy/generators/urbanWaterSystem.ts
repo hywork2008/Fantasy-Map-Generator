@@ -34,7 +34,7 @@ import { computeNaturalFloodRisk } from "./floodHazard";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
-import { raceKeyForBurg, raceKeyForBurgState } from "./resolveBurgCulture";
+import { raceKeyForBurgState, raceKeyForBurgWaterworks } from "./resolveBurgCulture";
 import {
   cleaningTaxRevenue,
   evolveInstitutions,
@@ -1142,8 +1142,11 @@ export function settleBurgWaterInvestment(args: {
 
   // Race-conditioned bias (Fantasy culture sets only) — see raceWaterTechBias.ts. This is a
   // demand/gate bias applied on top of ordinary conditions, never a bypass of geography/scale
-  // gates: a burg with nowhere to drain still cannot build a sewer network.
-  const raceBias = waterTechRaceBiasFor(raceKeyForBurg(burg), useOptionsState.getState().culturesSet);
+  // gates: a burg with nowhere to drain still cannot build a sewer network. A Roman waterworks
+  // inheritance belongs to the Giant State that operates its aqueducts and trunk sewer, so it
+  // continues to receive that State's technical bias even if a local burg culture differs.
+  const waterTechRace = raceKeyForBurgWaterworks(burg, system.hasInheritedRomanWaterworks);
+  const raceBias = waterTechRaceBiasFor(waterTechRace, useOptionsState.getState().culturesSet);
   const effectiveUrgencyThreshold = WATER_PROJECT_URGENCY_THRESHOLD * (raceBias?.urgencyThresholdMultiplier ?? 1);
 
   // Institutional head start feeds connectionPermitCoverage/dischargeRegulation targets only

@@ -55,3 +55,17 @@ export function raceKeyForBurgState(burg: Burg | undefined): RaceKey | undefined
   const culture = pack.cultures?.[state?.culture ?? 0];
   return getRaceById(pack.races, culture?.race)?.key;
 }
+
+/**
+ * Race that maintains a burg's waterworks. Ordinary works use the local Burg culture.
+ * A Giant State's inherited Roman aqueduct/trunk sewer instead uses the State's engineering
+ * tradition, because its operation is a country-scale responsibility.
+ */
+export function raceKeyForBurgWaterworks(
+  burg: Burg | undefined,
+  hasInheritedRomanWaterworks: boolean | undefined
+): RaceKey | undefined {
+  const stateRace = raceKeyForBurgState(burg);
+  if (hasInheritedRomanWaterworks && stateRace === "giant") return stateRace;
+  return raceKeyForBurg(burg);
+}

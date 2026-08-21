@@ -534,14 +534,14 @@ city 未満には、既存の需要駆動・地形駆動パイプラインを迂
 
 `sanitaryEngineering`(Tier 5・上下水分離)は一切バイアスしない — ローマは分流式下水も処理施設も持たなかったため、Tier 5 は他種族と同じく需要駆動で獲得する対象のままとする。
 
-生成時の遺産判定は Burg 個人の文化ではなく、**Burg を所有する State の文化種族**で行う。従って Giant 国家が初期に持つ city 以上の都市は、局所文化が異なっていても遺産を得る。通常の年次バイアスは従来どおり Burg 文化を読むため、征服後の非 Giant 文化都市が新規建設を加速することはない。
+生成時の遺産判定は Burg 個人の文化ではなく、**Burg を所有する State の文化種族**で行う。従って Giant 国家が初期に持つ city 以上の都市は、局所文化が異なっていても遺産を得る。`hasInheritedRomanWaterworks` を維持している Giant 国家の city 以上は、年次の技術バイアスにも State の Giant 種族を用いる。これは導水路・幹線下水を State が運営・修繕する前提であり、局所文化の違いで遺産の維持技能だけが即座に失われることを防ぐ。遺産を持たない都市は従来どおり Burg 文化を読み、征服後の非 Giant 文化都市が新規建設を一律に加速することはない。
 
 ### 15.3 実装
 
 - `src/extensions/economy/generators/raceWaterTechBias.ts`: `RACE_WATER_TECH_BIAS` テーブルと `waterTechRaceBiasFor(raceKey, culturesSet)`。
 - `src/extensions/economy/generators/resolveBurgCulture.ts`: `raceKeyForBurg(burg)` と `raceKeyForBurgState(burg)` — Burg/State の `culture.race` → `pack.races[].key` を解決。
 - `src/extensions/economy/generators/urbanWaterTech.ts`: `waterTechCeilings()` / `evolveWaterTechStocks()` に任意の `ceilingBonus` 引数を追加。
-- `src/extensions/economy/generators/urbanWaterSystem.ts`: `buildSystems("generate")` が Giant 国家の city 以上を Tier 4 遺産としてシードし、`settleBurgWaterInvestment()` は通常の race bias を上表の4箇所へ注入。
+- `src/extensions/economy/generators/urbanWaterSystem.ts`: `buildSystems("generate")` が Giant 国家の city 以上を Tier 4 遺産としてシードする。`settleBurgWaterInvestment()` は通常は Burg 種族、Giant 国家のローマ水利遺産については State 種族の race bias を上表の4箇所へ注入する。
 
 ---
 
