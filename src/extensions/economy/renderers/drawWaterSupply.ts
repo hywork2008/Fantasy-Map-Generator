@@ -1,4 +1,6 @@
 import { getUrbanWaterSystems, getWaterSupplyLayer, getWorldContext } from "../economyContext";
+import { raceKeyForBurgState } from "../generators/resolveBurgCulture";
+import { getSeasonalColdBurgIds } from "../generators/urbanWaterClimate";
 import { buildInheritedWaterSupplyRoutes, type InheritedWaterSupplyRoute } from "../generators/urbanWaterSupply";
 
 const OUTER_STROKE = "#f5e6b3";
@@ -9,12 +11,27 @@ export function drawWaterSupply(): void {
   const layer = getWaterSupplyLayer();
   if (!layer) return;
 
-  const { pack } = getWorldContext();
+  const world = getWorldContext();
+  const { pack } = world;
+  const systems = getUrbanWaterSystems();
   const routes = buildInheritedWaterSupplyRoutes({
     burgs: pack.burgs,
     cells: pack.cells,
     rivers: pack.rivers,
-    systems: getUrbanWaterSystems()
+    sewerClimate: {
+      seasonalColdBurgIds: getSeasonalColdBurgIds(
+        world,
+        pack.burgs,
+        systems
+          .filter(system => {
+            const burg = pack.burgs[system.burgId];
+            return Boolean(burg?.i && raceKeyForBurgState(burg) === "giant");
+          })
+          .map(system => system.burgId)
+      ),
+      features: pack.features
+    },
+    systems
   });
   layer.html(
     routes.map(route => routeMarkup(route, pack.burgs[route.burgId]?.name ?? `Burg ${route.burgId}`)).join("")
@@ -28,7 +45,7 @@ function routeMarkup(route: InheritedWaterSupplyRoute, burgName: string): string
   const path = aqueductPath(route);
   const isIntakeSegment = route.sourceCell === route.intakeCell;
   const title = escapeHtml(
-    `${isIntakeSegment ? "Protected Roman headwater intake" : "Roman aqueduct branch"} → ${burgName}`
+    `${isIntakeSegment ? "Protected Roman headwater intake" : "Roman aqueduct branch"}${route.requiresWinterCistern ? " (covered winter conduit and cistern)" : ""} → ${burgName}`
   );
   const branchMarker = isIntakeSegment
     ? `<circle cx="${sx}" cy="${sy}" r="4" fill="none" stroke="#0b4f6c" stroke-width="0.8" stroke-dasharray="1 1"/>` +
@@ -40,6 +57,9 @@ function routeMarkup(route: InheritedWaterSupplyRoute, burgName: string): string
     `<path d="${path}" fill="none" stroke="${OUTER_STROKE}" stroke-width="3.2" stroke-linecap="round"/>` +
     `<path d="${path}" fill="none" stroke="${WATER_STROKE}" stroke-width="1.15" stroke-dasharray="3 2" stroke-linecap="round"/>` +
     branchMarker +
+    (route.requiresWinterCistern
+      ? `<rect x="${dx - 2.3}" y="${dy - 2.3}" width="4.6" height="4.6" rx="0.8" fill="#d9f2ff" stroke="#0b4f6c" stroke-width="0.8"/>`
+      : "") +
     `<path d="M ${dx - 2},${dy + 2} L ${dx},${dy - 2.4} L ${dx + 2},${dy + 2} Z" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.8"/>` +
     `</g>`
   );

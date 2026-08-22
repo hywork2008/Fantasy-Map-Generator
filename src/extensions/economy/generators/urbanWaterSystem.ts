@@ -36,6 +36,7 @@ import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
 import { raceKeyForBurgState, raceKeyForBurgWaterworks } from "./resolveBurgCulture";
 import { hasSameLandSewerOutfall } from "./urbanSewerage";
+import { isSeasonalColdBurg } from "./urbanWaterClimate";
 import {
   cleaningTaxRevenue,
   evolveInstitutions,
@@ -683,7 +684,10 @@ export function computeUrbanWaterSystem(args: {
     hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
   const hasRegionalRomanSewerOutfall =
     hasInheritedRomanSewer &&
-    hasSameLandSewerOutfall(burg, getWorldContext().pack.cells, getWorldContext().pack.rivers);
+    hasSameLandSewerOutfall(burg, getWorldContext().pack.cells, getWorldContext().pack.rivers, {
+      seasonalColdBurgIds: isGiantState && isSeasonalColdBurg(getWorldContext(), burg) ? new Set([burg.i!]) : undefined,
+      features: getWorldContext().pack.features
+    });
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);

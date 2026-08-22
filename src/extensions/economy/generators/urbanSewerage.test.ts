@@ -73,6 +73,31 @@ describe("buildInheritedSewerRoutes", () => {
     expect(routes).toEqual([expect.objectContaining({ outfallCell: 2, outfallKind: "coast" })]);
   });
 
+  it("uses sealed storage and infiltration instead of a river that ends inland during seasonal cold", () => {
+    const routes = buildInheritedSewerRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 0, y: 0, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3]),
+        p: [
+          [0, 0],
+          [20, 0],
+          [30, 0],
+          [8, 8]
+        ],
+        f: new Uint16Array([1, 1, 1, 1]),
+        h: new Uint16Array([60, 50, 20, 10]),
+        r: new Uint16Array([0, 1, 1, 0]),
+        haven: new Uint16Array([0, 0, 0, 0]),
+        state: new Uint16Array([1, 1, 1, 1])
+      },
+      rivers: [{ i: 1, source: 1, mouth: 2 }],
+      climate: { seasonalColdBurgIds: new Set([1]) },
+      systems: [inheritedSewer(1)]
+    });
+
+    expect(routes).toEqual([expect.objectContaining({ outfallCell: 3, outfallKind: "storage" })]);
+  });
+
   it("merges nearby parallel drains into one downstream river trunk", () => {
     const routes = buildInheritedSewerRoutes({
       burgs: [

@@ -26,7 +26,7 @@
 家庭・便所・浴場・工房 → 下水管 → スクリーン・沈砂 → 一次沈殿 → 生物処理 → 最終沈殿 → （必要なら消毒）→ 下流放流
 ```
 
-「下水を川へ流す」だけでは衛生的な下水道ではない。上水取水点より十分下流に放流口を置くこと、処理の各工程に能力と維持費を与えること、豪雨時に未処理水があふれることを、別々に扱う。
+「下水を川へ流す」だけでは衛生的な下水道ではない。上水取水点より十分下流に放流口を置くこと、処理の各工程に能力と維持費を与えること、豪雨時に未処理水があふれることを、別々に扱う。ただし「下流放流」は海・外洋へつながる開放流域に限る。内陸で消失する河川、閉鎖湖、永久凍土に近い寒冷地では、同じ河川を放流先とみなさず、貯留・土壌浸透・蒸発散・汚泥保管を処理系の一部として扱う。
 
 同様に、砂濾過と塩素消毒を一つの万能設備にしない。濁った原水へ塩素を加えるだけでは管理が難しく、濾過だけでは配水中の再汚染を防げない。原水保護、濁度を下げる工程、消毒、残留消毒剤の検査、密閉した配水をそろえて初めて `drinkingWaterSecurity` を高くできる。
 
@@ -63,6 +63,30 @@
 - 下水処理場と放流口は取水口より下流に置き、洪水時の逆流を避ける。潮汐河川なら満潮逆流も判定する。
 - 取水口と放流口を離せない都市は、地下水・泉・貯水池・遠距離導水を優先し、処理能力のない人口密集を抑える。
 - 雨水と汚水を同じ管に流す**合流式**は初期費用を下げるが、豪雨時に越流する。新設の近代都市は原則として分流式とする。
+
+### 2.2 気温と閉鎖流域による処理方式の分岐
+
+処理方式は Burg の年平均気温だけで決めない。少なくとも**冬の低温**、**夏に生物処理が働く期間**、および放流先が海へ抜けるかを別々に判定する。河川セルであることは、安全な放流先であることを意味しない。
+
+```text
+河川を下流へ追跡
+  → 海・外洋へ到達                 : openBasin（条件付きで河川放流可）
+  → 閉鎖湖・湿地・扇状地で消失     : closedBasin（河川放流不可）
+
+冬季最低気温 <= -15°C かつ 夏季平均気温 >= 10°C
+  → seasonalCold（冬季の生物処理・露天池は停止／凍結）
+```
+
+`seasonalCold + closedBasin` は、タイガの盆地・内陸デルタ・河川が砂礫地や湿地で消える地域を表す。この分類は巨人・人間を問わない地理条件であり、巨人の食料・居住適性の判定へは接続しない。
+
+| 流域・気候 | 冬季 | 夏季 | 下水の既定終点 | 許可しないこと |
+| --- | --- | --- | --- | --- |
+| `openBasin` + 温暖 | 通年運転可能 | 生物処理が安定 | 処理場 → 取水点より下流の河川放流 | 取水点・河川源流への接続 |
+| `openBasin` + `seasonalCold` | 覆蓋槽・配管保温を要する。露天生物処理は低下 | 散水ろ床・湿地を季節運転できる | 越冬貯留を経た、流量のある下流放流 | 凍結期に未処理水を河川へ連続放流 |
+| `closedBasin` + 温暖 | 通年の沈殿・浸透管理 | 蒸発散・人工湿地・土壌処理が使える | 沈殿 → 浸透盆／人工湿地／再利用。水文的な閉鎖域内で収支管理 | 消失河川・閉鎖湖を「下流放流」と扱うこと |
+| `closedBasin` + `seasonalCold` | 密閉沈殿槽・凍結しない幹線・汚泥保管へ貯留 | 短い暖期に沈殿水を人工湿地・礫層・浸透盆へ計画投入 | `sealedStorageAndInfiltration`（貯留・浸透処理地） | 河川源流、凍結した水路、地下水流向で取水地の上流にある処理地 |
+
+寒冷閉鎖流域では、処理場を市街地下流かつ取水地の地下水流向より下流に置く。浸透能力、凍結深、地下水位、処理地から取水点までの距離を満たせない場合、都市の接続率・人口・工房排水を増やさず、広域移送または汲み取り・密閉保管を選ぶ。夏に約15°Cまで上がる地域は、暖期の礫床・人工湿地・乾燥床を使えるが、冬季の連続的な好気性処理を仮定しない。
 
 ---
 
@@ -206,6 +230,9 @@ interface ModernWaterTreatmentSystem {
   sourceProtection: number;          // 0..1: 上流取水・保護区・放流隔離
   drinkingTreatmentTier: 0 | 1 | 2 | 3;
   wastewaterTreatmentTier: 0 | 1 | 2 | 3;
+  basinKind: "openBasin" | "closedBasin";
+  thermalRegime: "temperate" | "seasonalCold";
+  effluentDestination: "riverOutfall" | "coastalOutfall" | "sealedStorageAndInfiltration";
   distributionIntegrity: number;     // 漏水・負圧・配水池衛生
   treatmentOperationsFunding: number;
   wastewaterOperationsFunding: number;
@@ -216,6 +243,8 @@ interface ModernWaterTreatmentSystem {
   effluentCompliance: number;
   combinedSewerOverflow: number;
   sludgeBacklog: number;
+  winterStorageFill: number;         // 凍結期に処理待ちの沈殿水・汚泥の占有率
+  seasonalInfiltrationCapacity: number;
 }
 ```
 
@@ -233,14 +262,19 @@ interface ModernWaterTreatmentSystem {
 | 2 | 散水ろ床などの生物処理 + 最終沈殿 | 有機物負荷を大きく下げる |
 | 3 | 活性汚泥など + 放流水検査／必要時の消毒 | 高密度都市でも低い有機物・病原体負荷を維持 |
 
-年次更新では、人口・工房・降雨から水量と汚濁負荷を計算し、`capacity × operationsFunding × maintenanceCondition` と比較する。処理能力が足りない、塩素在庫が尽きる、検査が行われない、豪雨で合流式越流が起きる、汚泥が滞留する、のいずれでも安全性を下げる。
+年次更新では、人口・工房・降雨から水量と汚濁負荷を計算し、`capacity × operationsFunding × maintenanceCondition` と比較する。処理能力が足りない、塩素在庫が尽きる、検査が行われない、豪雨で合流式越流が起きる、汚泥が滞留する、のいずれでも安全性を下げる。`seasonalCold` では冬季に好気性処理能力と露天湿地・乾燥床の能力を下げ、流入分を `winterStorageFill` へ積む。暖期には `seasonalInfiltrationCapacity` と未凍結の処理能力の範囲で取り崩す。`closedBasin` では `riverOutfall` を選択不能にし、貯留量が上限を越えた時点で衛生負担・地下水汚染・工房操業制限を発生させる。単に見えない河川終端へ負荷を捨ててゼロにはしない。
 
 ```text
 原水汚染 + 配水漏水 + 濾過／消毒不足
   → waterSecurity 低下 → 水系疾病圧の上昇
 
+開放流域:
 下水量 + 工房排水 + 合流式越流 −（一次／二次処理容量 × 運転充足）
   → riverPollutionLoad 上昇 → 下流 Burg の原水汚染・外交圧
+
+寒冷閉鎖流域:
+下水量 − 冬季の密閉貯留余力 − 暖期の浸透／蒸発散／再利用能力
+  → winterStorageFill・sludgeBacklog 上昇 → 地下水汚染・衛生負担・接続／操業制限
 ```
 
 `drinkingTreatmentTier = 3` でも、工業毒物・塩類・重金属を砂濾過や塩素で無害化したことにはしない。これらは水源転換、工房排水の事前規制、後期の高度処理を必要とする別問題である。
@@ -359,7 +393,7 @@ interface RegionalWaterScheme {
 
 これは既存の Burg 単位 `UrbanWaterSystem` の置換ではない。`RegionalWaterScheme` は「どの Burg へ、どの経路で、どれだけ原水または処理水を届けるか」を所有し、各 `UrbanWaterSystem` は受け取った水を貯水・消毒・配水する能力と、下水を回収・処理する能力を所有する。
 
-Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）には、古代ローマ式の導水を `UrbanWaterSystem.hasInheritedRomanWaterworks`、幹線下水を `hasInheritedRomanSewer` として初期配置する。旧セーブの前者は後者も持つものとして移行する。Giant は食料・気温・人間用の高地適性に縛られず、最高水源の集水域には雪山を含めて低密度（人間相当容量の最大10%）で定住する。このため、Giant 国家は、地図で最高標高の `River.source`、その `River.basin` に流下する集水域、および首都から水源へ至る陸上回廊を単独で占有できる場合だけに生成する。できない Giant 候補は通常の Human State として扱う。地図生成時には、これらの集落を地図上の最高河川水源より低い標高の適地へ置く。遺産があり State が Giant である間は、年次の水利技術バイアスも State 種族から得る。`toggleWaterSupply` は、**同一State・同一陸地内で最も高い、下水放流に汚染されない河川源流**を共通の保全取水地として選ぶ。導水は取水地から最寄りの Burg へ、以後は既設の導水セルから最寄りの未接続 Burg へ、標高を無視したセル間最短距離で追加するため、重複しない幹線と枝線の樹状網として描画される。外国領・海・別島は経路に使わない。`toggleSewerage` は、同一陸地かつ集落より低い河川と海岸のうち近い方を放流点として幹線下水を描画し、海岸より近い河川がある場合だけ河川へ流す。海・海峡・別島を越える導水・下水は行わない。後続の `RegionalWaterScheme` が実際の水源保護区・経路・契約相手を所有するまで、これは暫定的な遺産記録である。
+Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）には、古代ローマ式の導水を `UrbanWaterSystem.hasInheritedRomanWaterworks`、幹線下水を `hasInheritedRomanSewer` として初期配置する。旧セーブの前者は後者も持つものとして移行する。Giant は食料・気温・人間用の高地適性に縛られず、最高水源の集水域には雪山を含めて低密度（人間相当容量の最大10%）で定住する。このため、Giant 国家は、地図で最高標高の `River.source`、その `River.basin` に流下する集水域、および首都から水源へ至る陸上回廊を単独で占有できる場合だけに生成する。できない Giant 候補は通常の Human State として扱う。地図生成時には、これらの集落を地図上の最高河川水源より低い標高の適地へ置く。遺産があり State が Giant である間は、年次の水利技術バイアスも State 種族から得る。Giant 国家の既設上下水道は `drinkingTreatmentTier = 1` と `wastewaterTreatmentTier = 1` を持つ。`toggleWaterSupply` は、**同一State・同一陸地内で最も高い、下水放流に汚染されない河川源流**を共通の保全取水地として選ぶ。導水は取水地から最寄りの Burg へ、以後は既設の導水セルから最寄りの未接続 Burg へ、標高を無視したセル間最短距離で追加するため、重複しない幹線と枝線の樹状網として描画される。外国領・海・別島は経路に使わない。`toggleSewerage` は、河川セルの近さだけで放流点を選ばず、下流追跡で海へ達する `openBasin` の河川または近い海岸だけを通常の放流点とする。`seasonalCold + closedBasin` のタイガ等では、河川放流の代わりに共同の `sealedStorageAndInfiltration` を終点とし、冬は密閉貯留、夏は人工湿地・礫層・浸透盆へ計画投入する。処理地は取水源・源流セル・地下水流向で取水地の上流に置かない。海・海峡・別島を越える導水・下水は行わない。後続の `RegionalWaterScheme` が実際の水源保護区・経路・契約相手を所有するまで、これは暫定的な遺産記録である。
 
 ## 10. 参考と設定上の注意
 

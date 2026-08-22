@@ -1,6 +1,6 @@
 import FlatQueue from "flatqueue";
 import type { Burg, PackedGraph } from "../../hostTypes";
-import { buildInheritedSewerRoutes } from "./urbanSewerage";
+import { buildInheritedSewerRoutes, type GiantSewerClimateOptions } from "./urbanSewerage";
 import type { UrbanWaterSystem } from "./urbanWaterTypes";
 
 type ServedBurg = Burg & { i: number };
@@ -24,6 +24,8 @@ export interface InheritedWaterSupplyRoute {
   sourceCell: number;
   source: [number, number];
   destination: [number, number];
+  /** Cold-season service uses a covered conduit and winter cistern rather than an open channel. */
+  requiresWinterCistern: boolean;
   /** Cell-by-cell shortest path from the existing tree to the served Burg. */
   cellPath: number[];
   points: [number, number][];
@@ -32,7 +34,9 @@ export interface InheritedWaterSupplyRoute {
 export interface InheritedWaterSupplyRouteInput {
   burgs: readonly (Burg | undefined)[];
   cells: Pick<PackedGraph["cells"], "c" | "f" | "h" | "haven" | "i" | "p" | "r" | "state">;
-  rivers?: readonly Pick<PackedGraph["rivers"][number], "i" | "source">[];
+  rivers?: readonly (Pick<PackedGraph["rivers"][number], "i" | "source"> &
+    Partial<Pick<PackedGraph["rivers"][number], "mouth">>)[];
+  sewerClimate?: GiantSewerClimateOptions;
   systems: readonly UrbanWaterSystem[];
 }
 
@@ -51,6 +55,7 @@ export function buildInheritedWaterSupplyRoutes({
   burgs,
   cells,
   rivers,
+  sewerClimate,
   systems
 }: InheritedWaterSupplyRouteInput): InheritedWaterSupplyRoute[] {
   const riverCells: number[] = [];
@@ -60,7 +65,9 @@ export function buildInheritedWaterSupplyRoutes({
 
   if (!riverCells.length) return [];
 
-  const sewerOutfalls = buildInheritedSewerRoutes({ burgs, cells, rivers, systems }).map(route => route.outfallCell);
+  const sewerOutfalls = buildInheritedSewerRoutes({ burgs, cells, rivers, climate: sewerClimate, systems }).map(
+    route => route.outfallCell
+  );
   const servedGroups = new Map<string, ServedBurg[]>();
   for (const system of systems) {
     if (!system.hasInheritedRomanWaterworks) continue;
@@ -72,7 +79,9 @@ export function buildInheritedWaterSupplyRoutes({
 
   return Array.from(servedGroups.values()).flatMap(group => {
     const sourceCell = chooseProtectedIntakeCell(group, riverCells, cells, sewerOutfalls);
-    return sourceCell === undefined ? [] : buildAqueductTree(group, sourceCell, cells);
+    return sourceCell === undefined
+      ? []
+      : buildAqueductTree(group, sourceCell, cells, sewerClimate?.seasonalColdBurgIds ?? new Set());
   });
 }
 
@@ -105,7 +114,8 @@ function chooseProtectedIntakeCell(
 function buildAqueductTree(
   burgs: readonly ServedBurg[],
   intakeCell: number,
-  cells: GravityAqueductCells
+  cells: GravityAqueductCells,
+  seasonalColdBurgIds: ReadonlySet<number>
 ): InheritedWaterSupplyRoute[] {
   const stateId = burgs[0]?.state ?? 0;
   const landFeature = cells.f[burgs[0]!.cell];
@@ -143,6 +153,7 @@ function buildAqueductTree(
       sourceCell,
       source: [source[0], source[1]],
       destination,
+      requiresWinterCistern: seasonalColdBurgIds.has(next.burg.i),
       cellPath: next.cellPath,
       points
     });

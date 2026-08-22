@@ -32,6 +32,29 @@ describe("buildInheritedWaterSupplyRoutes", () => {
     ]);
   });
 
+  it("marks a seasonal-cold Giant aqueduct as a covered winter conduit with cistern storage", () => {
+    const routes = buildInheritedWaterSupplyRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 10, y: 10, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1]),
+        c: [[1], [0]],
+        p: [
+          [10, 10],
+          [12, 10]
+        ],
+        f: new Uint16Array([1, 1]),
+        haven: new Uint16Array([0, 0]),
+        r: new Uint16Array([0, 1]),
+        h: new Uint16Array([40, 60]),
+        state: new Uint16Array([1, 1])
+      },
+      sewerClimate: { seasonalColdBurgIds: new Set([1]) },
+      systems: [inheritedSystem(1)]
+    });
+
+    expect(routes).toEqual([expect.objectContaining({ burgId: 1, requiresWinterCistern: true })]);
+  });
+
   it("does not use a foreign State's river as an unprotected intake", () => {
     const routes = buildInheritedWaterSupplyRoutes({
       burgs: [undefined, { i: 1, cell: 0, x: 10, y: 10, state: 1, type: "Generic" }],

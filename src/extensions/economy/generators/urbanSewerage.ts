@@ -5,7 +5,7 @@ export interface InheritedSewerRoute {
   id: string;
   burgId: number;
   outfallCell: number;
-  outfallKind: "river" | "coast";
+  outfallKind: "river" | "coast" | "storage";
   /** The downstream trunk this branch joins, when its own route does not reach the outfall. */
   joinsRouteId?: string;
   source: [number, number];
@@ -16,9 +16,19 @@ type SewerCells = Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "r" | "
   /** Legacy simulation fixtures can omit geometry; fall back to packed-cell proximity there. */
   p?: PackedGraph["cells"]["p"];
 };
-type RiverHead = Pick<PackedGraph["rivers"][number], "i" | "source">;
+type RiverMeta = Pick<PackedGraph["rivers"][number], "i" | "source"> &
+  Partial<Pick<PackedGraph["rivers"][number], "mouth">>;
+type WaterFeature = Pick<PackedGraph["features"][number], "i" | "type" | "closed">;
 type Point = [number, number];
 type SewerJoin = { point: Point; trunkT: number };
+type SewerOutfall = { cell: number; kind: InheritedSewerRoute["outfallKind"] };
+
+export type GiantSewerClimateOptions = {
+  /** Burgs whose winter freezes exposed treatment while their brief summer can run infiltration beds. */
+  seasonalColdBurgIds?: ReadonlySet<number>;
+  /** Needed to distinguish a river mouth in the ocean from a land terminus or closed lake. */
+  features?: readonly WaterFeature[];
+};
 
 const SEWER_MERGE_DISTANCE = 10;
 
@@ -31,7 +41,8 @@ const SEWER_MERGE_DISTANCE = 10;
 export function buildInheritedSewerRoutes(args: {
   burgs: readonly (Burg | undefined)[];
   cells: SewerCells;
-  rivers?: readonly RiverHead[];
+  rivers?: readonly RiverMeta[];
+  climate?: GiantSewerClimateOptions;
   systems: readonly UrbanWaterSystem[];
 }): InheritedSewerRoute[] {
   const directRoutes: InheritedSewerRoute[] = [];
@@ -40,15 +51,15 @@ export function buildInheritedSewerRoutes(args: {
     if (!(system.hasInheritedRomanSewer ?? system.hasInheritedRomanWaterworks)) continue;
     const burg = args.burgs[system.burgId];
     if (!burg?.i) continue;
-    const outfall = chooseSameLandSewerOutfall(burg, args.cells, args.rivers);
+    const outfall = chooseSameLandSewerOutfall(burg, args.cells, args.rivers, args.climate);
     if (outfall === undefined) continue;
-    const destination = args.cells.p?.[outfall];
+    const destination = args.cells.p?.[outfall.cell];
     if (!destination) continue;
     directRoutes.push({
       id: `roman-sewer-${burg.i}`,
       burgId: burg.i,
-      outfallCell: outfall,
-      outfallKind: args.cells.r[outfall] ? "river" : "coast",
+      outfallCell: outfall.cell,
+      outfallKind: outfall.kind,
       source: [burg.x, burg.y],
       destination: [destination[0], destination[1]]
     });
@@ -57,11 +68,21 @@ export function buildInheritedSewerRoutes(args: {
 }
 
 /** True if a gravity trunk sewer can reach a lower river or coast on the same landmass. */
-export function hasSameLandSewerOutfall(burg: Burg, cells: SewerCells, rivers?: readonly RiverHead[]): boolean {
-  return chooseSameLandSewerOutfall(burg, cells, rivers) !== undefined;
+export function hasSameLandSewerOutfall(
+  burg: Burg,
+  cells: SewerCells,
+  rivers?: readonly RiverMeta[],
+  climate?: GiantSewerClimateOptions
+): boolean {
+  return chooseSameLandSewerOutfall(burg, cells, rivers, climate) !== undefined;
 }
 
-function chooseSameLandSewerOutfall(burg: Burg, cells: SewerCells, rivers?: readonly RiverHead[]): number | undefined {
+function chooseSameLandSewerOutfall(
+  burg: Burg,
+  cells: SewerCells,
+  rivers?: readonly RiverMeta[],
+  climate?: GiantSewerClimateOptions
+): SewerOutfall | undefined {
   const landFeature = cells.f?.[burg.cell];
   const burgHeight = cells.h[burg.cell] ?? 0;
   const cellIds = cells.i?.length ? cells.i : Array.from({ length: cells.r.length }, (_value, cell) => cell);
@@ -71,18 +92,50 @@ function chooseSameLandSewerOutfall(burg: Burg, cells: SewerCells, rivers?: read
   // The source cell is an inviolate headwater intake. A trunk sewer can join only the second
   // mapped cell or later, even when the source happens to be the closest river point.
   const riverHeadCells = getRiverHeadCells(cells, rivers);
-  const river = sameLandLower.filter(cell => cells.r[cell] && !riverHeadCells.has(cell));
+  const seasonalCold = Boolean(burg.i && climate?.seasonalColdBurgIds?.has(burg.i));
+  const closedRiverIds = seasonalCold ? getClosedRiverIds(cells, rivers, climate?.features) : new Set<number>();
+  const river = sameLandLower.filter(
+    cell => cells.r[cell] && !riverHeadCells.has(cell) && !closedRiverIds.has(cells.r[cell]!)
+  );
   const coast = sameLandLower.filter(cell => cells.haven?.[cell]);
   const nearestRiver = nearestByDistance(river, burg, cells);
   const nearestCoast = nearestByDistance(coast, burg, cells);
-  if (nearestRiver === undefined) return nearestCoast;
-  if (nearestCoast === undefined) return nearestRiver;
+  if (nearestRiver === undefined && nearestCoast === undefined) {
+    const storage = seasonalCold ? chooseSameLandStorageSite(sameLandLower, burg, cells) : undefined;
+    return storage === undefined ? undefined : { cell: storage, kind: "storage" };
+  }
+  if (nearestRiver === undefined) return { cell: nearestCoast!, kind: "coast" };
+  if (nearestCoast === undefined) return { cell: nearestRiver, kind: "river" };
   return distanceToBurg(nearestRiver, burg, cells) <= distanceToBurg(nearestCoast, burg, cells)
-    ? nearestRiver
-    : nearestCoast;
+    ? { cell: nearestRiver, kind: "river" }
+    : { cell: nearestCoast, kind: "coast" };
 }
 
-function getRiverHeadCells(cells: SewerCells, rivers?: readonly RiverHead[]): Set<number> {
+function chooseSameLandStorageSite(cells: Iterable<number>, burg: Burg, sewerCells: SewerCells): number | undefined {
+  return nearestByDistance(
+    Array.from(cells).filter(cell => cell !== burg.cell && !sewerCells.r[cell] && !sewerCells.haven?.[cell]),
+    burg,
+    sewerCells
+  );
+}
+
+function getClosedRiverIds(
+  cells: SewerCells,
+  rivers?: readonly RiverMeta[],
+  features?: readonly WaterFeature[]
+): Set<number> {
+  const featureById = new Map(features?.map(feature => [feature.i, feature]));
+  const closed = new Set<number>();
+  for (const river of rivers ?? []) {
+    if (!Number.isInteger(river.mouth) || river.mouth! < 0 || river.mouth! >= cells.r.length) continue;
+    const mouth = river.mouth!;
+    const feature = featureById.get(cells.f?.[mouth] ?? -1);
+    if ((cells.h[mouth] ?? 0) >= 20 || (feature && (feature.type !== "ocean" || feature.closed))) closed.add(river.i);
+  }
+  return closed;
+}
+
+function getRiverHeadCells(cells: SewerCells, rivers?: readonly RiverMeta[]): Set<number> {
   const headCells = new Set<number>();
   const explicitRiverIds = new Set<number>();
   for (const river of rivers ?? []) {
