@@ -106,6 +106,16 @@ export type CharacterRaceAppearance =
   | { kind: "demon"; hornAnimal: DemonHornAnimal }
   | { kind: "beastfolk"; animal: BeastfolkAnimal; furryScale: number };
 
+/** Species-level exceptions to ordinary human environmental carrying capacity. */
+export interface RaceEnvironmentalSurvival {
+  /** The folk can survive without agricultural or other local food capacity. */
+  foodIndependent: boolean;
+  /** Ambient temperature does not itself make a place uninhabitable for the folk. */
+  temperatureIndependent: boolean;
+  /** Maximum local population capacity relative to an equivalent human settlement. */
+  populationCapacityMultiplier: number;
+}
+
 /**
  * Species / folk traits, independent of culture (language, names, expansion).
  * Index 0 is "Unknown" (Wildlands / unset).
@@ -138,6 +148,8 @@ export interface Race {
   fertility?: RaceFertility;
   /** Character-level fantasy appearance options (for example Demon horns). */
   characterAppearance?: RaceCharacterAppearance;
+  /** Species-level food, temperature, and low-density survival rules. */
+  environmentalSurvival?: RaceEnvironmentalSurvival;
   lock?: boolean;
   removed?: boolean;
 }

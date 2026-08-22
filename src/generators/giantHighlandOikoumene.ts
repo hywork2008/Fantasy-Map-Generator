@@ -30,6 +30,8 @@ export function seedGiantHighlandOikoumene(
   const sourceCell = getHighestRiverSourceCell(pack.cells, pack.rivers);
   if (sourceCell === undefined || pack.cells.h[sourceCell] < 20) return null;
   const giantCulture = [...giantCultures].sort((a, b) => a.i - b.i)[0]!;
+  const giantSurvival = getRaceById(pack.races, giantCulture.race)?.environmentalSurvival;
+  const populationCapacityMultiplier = giantSurvival?.populationCapacityMultiplier ?? 0.1;
   const watershed = getWatershedCellsForSource(sourceCell, pack.cells, pack.rivers);
   if (!watershed.length) return null;
 
@@ -56,7 +58,7 @@ export function seedGiantHighlandOikoumene(
     if (pack.cells.culture[cell] !== giantCulture.i || pack.cells.h[cell] < 20) continue;
     const area = Math.max(pack.cells.area[cell] ?? 0, 1);
     const equivalentHumanCapacity = Math.max(pack.cells.capacity[cell] ?? 0, referenceHumanDensity * area);
-    const giantCapacity = equivalentHumanCapacity * 0.1;
+    const giantCapacity = equivalentHumanCapacity * populationCapacityMultiplier;
     const suitability = Math.max(1, Math.round((giantCapacity * meanArea) / area));
     const cohorts = createInitialPopulationCohorts(giantCapacity, saturation);
 

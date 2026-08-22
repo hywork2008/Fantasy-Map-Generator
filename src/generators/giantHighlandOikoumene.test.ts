@@ -4,21 +4,21 @@ import { seedGiantHighlandOikoumene } from "./giantHighlandOikoumene";
 describe("seedGiantHighlandOikoumene", () => {
   it("keeps a cold, high source watershed inhabited at one tenth of human capacity", () => {
     const cells = {
-      i: new Uint16Array([0, 1, 2, 3]),
-      c: [[1], [0, 2], [1, 3], [2]],
-      h: new Uint16Array([95, 80, 90, 30]),
-      r: new Uint16Array([0, 1, 1, 0]),
-      culture: new Uint16Array([2, 2, 2, 2]),
-      capacity: new Float32Array([0, 0, 0, 100]),
-      subsistenceCapacity: new Float32Array([0, 0, 0, 100]),
-      subsistenceNonAgriculturalCapacity: new Float32Array([0, 0, 0, 100]),
-      area: new Float32Array([10, 10, 10, 10]),
-      s: new Int16Array([0, 0, 0, 20]),
-      pop: new Float32Array(4),
-      children: new Float32Array(4),
-      maleAdults: new Float32Array(4),
-      femaleAdults: new Float32Array(4),
-      elders: new Float32Array(4)
+      i: new Uint16Array([0, 1, 2, 3, 4]),
+      c: [[1], [0, 2], [1, 3], [2, 4], [3]],
+      h: new Uint16Array([95, 80, 90, 30, 10]),
+      r: new Uint16Array([0, 1, 1, 0, 0]),
+      culture: new Uint16Array([2, 2, 2, 2, 2]),
+      capacity: new Float32Array([0, 0, 0, 100, 0]),
+      subsistenceCapacity: new Float32Array([0, 0, 0, 100, 0]),
+      subsistenceNonAgriculturalCapacity: new Float32Array([0, 0, 0, 100, 0]),
+      area: new Float32Array([10, 10, 10, 10, 10]),
+      s: new Int16Array([0, 0, 0, 20, 0]),
+      pop: new Float32Array(5),
+      children: new Float32Array(5),
+      maleAdults: new Float32Array(5),
+      femaleAdults: new Float32Array(5),
+      elders: new Float32Array(5)
     };
     const world = {
       pack: {

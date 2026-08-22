@@ -28,6 +28,7 @@ import type {
   Race,
   RaceBeautyIdeal,
   RaceCharacterAppearance,
+  RaceEnvironmentalSurvival,
   RaceFertility,
   RaceKey
 } from "../types/models";
@@ -42,6 +43,8 @@ export interface RaceDefinition {
   beautyIdeal: RaceBeautyIdeal;
   fertility: RaceFertility;
   characterAppearance?: RaceCharacterAppearance;
+  /** Persistent species traits used by settlement and population generators. */
+  environmentalSurvival?: RaceEnvironmentalSurvival;
 }
 
 const humanLooks: AppearanceAxes = {
@@ -189,6 +192,13 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     looksBaseline: { stature: 90, build: 80, symmetry: 45, refinement: 35, vitality: 55, ornament: 40 },
     beautyIdeal: {
       weights: { stature: 1.5, build: 1.0, vitality: 0.7, symmetry: 0.4, refinement: -0.3, ornament: 0.2 }
+    },
+    // Giants survive without local food production and are not limited by ambient temperature.
+    // Keep their exceptional highland population density at one tenth of an equivalent human one.
+    environmentalSurvival: {
+      foodIndependent: true,
+      temperatureIndependent: true,
+      populationCapacityMultiplier: 0.1
     },
     // R_max ≈ 2.7 — near-replacement + century-scale spacing so polity-age lore tracks millennia
     // (not the old 250y / short-window profile that capped growth-age estimates ~1–2K years).
@@ -366,7 +376,8 @@ function definitionToRace(def: RaceDefinition, i: number): Race {
     looksBaseline: { ...def.looksBaseline },
     beautyIdeal: { weights: { ...def.beautyIdeal.weights } },
     fertility: { ...def.fertility },
-    ...(def.characterAppearance ? { characterAppearance: cloneCharacterAppearance(def.characterAppearance) } : {})
+    ...(def.characterAppearance ? { characterAppearance: cloneCharacterAppearance(def.characterAppearance) } : {}),
+    ...(def.environmentalSurvival ? { environmentalSurvival: { ...def.environmentalSurvival } } : {})
   };
   if (def.characterGender) race.characterGender = def.characterGender;
   return race;
@@ -390,6 +401,7 @@ export function applyCatalogRaceDefaults(race: Race): Race {
     race.lifespan = def.lifespan;
     race.maxLifespan = def.maxLifespan;
     race.fertility = { ...def.fertility };
+    race.environmentalSurvival = def.environmentalSurvival ? { ...def.environmentalSurvival } : undefined;
   } else {
     if (race.lifespan === undefined) race.lifespan = DEFAULT_RACE_LIFESPAN;
     if (race.maxLifespan === undefined) race.maxLifespan = DEFAULT_RACE_MAX_LIFESPAN;
