@@ -76,6 +76,10 @@ export type WaterTechStocks = {
 export type UrbanWaterSystem = {
   burgId: number;
   tier: WaterSanitationTier;
+  /** Treatment works for potable water; older saves without this field imply tier 0. */
+  drinkingTreatmentTier?: WaterSanitationTier;
+  /** Treatment works for wastewater before discharge; older saves without this field imply tier 0. */
+  wastewaterTreatmentTier?: WaterSanitationTier;
   drinkingWaterSecurity: number;
   serviceWaterCapacity: number;
   irrigationCapacity: number;

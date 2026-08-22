@@ -881,6 +881,10 @@ describe("UrbanWater module", () => {
       const giantInlandCity = getUrbanWaterSystems().find(s => s.burgId === 2)!;
       expect(giantCapital.tier).toBe(4);
       expect(giantInlandCity.tier).toBe(4);
+      expect(giantCapital.drinkingTreatmentTier).toBe(1);
+      expect(giantCapital.wastewaterTreatmentTier).toBe(1);
+      expect(giantInlandCity.drinkingTreatmentTier).toBe(1);
+      expect(giantInlandCity.wastewaterTreatmentTier).toBe(1);
       expect(giantInlandCity.hasInheritedRomanWaterworks).toBe(true);
       expect(giantInlandCity.hasInheritedRomanSewer).toBe(true);
       expect(giantInlandCity.hasUpstreamIntake).toBe(true);
@@ -890,6 +894,8 @@ describe("UrbanWater module", () => {
       settleYears(YEARS);
       const maintainedCapital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
       expect(maintainedCapital.tier).toBeGreaterThanOrEqual(4);
+      expect(maintainedCapital.drinkingTreatmentTier).toBe(1);
+      expect(maintainedCapital.wastewaterTreatmentTier).toBe(1);
       expect(maintainedCapital.hasInheritedRomanWaterworks).toBe(true);
     });
 

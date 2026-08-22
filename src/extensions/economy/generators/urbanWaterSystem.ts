@@ -648,6 +648,11 @@ export function computeUrbanWaterSystem(args: {
 }): UrbanWaterSystem {
   const { burg, geography, people, cultureType, previous } = args;
   const hasMarket = (burg.market ?? 0) > 0;
+  // Giants retain basic potable-water and wastewater treatment as a State capability, even when
+  // a burg has a different local culture or an old save did not yet store the two tier fields.
+  const isGiantState = raceKeyForBurgState(burg) === "giant";
+  const drinkingTreatmentTier: WaterSanitationTier = isGiantState ? 1 : (previous?.drinkingTreatmentTier ?? 0);
+  const wastewaterTreatmentTier: WaterSanitationTier = isGiantState ? 1 : (previous?.wastewaterTreatmentTier ?? 0);
   const tier: WaterSanitationTier =
     args.tier ??
     previous?.tier ??
@@ -858,6 +863,8 @@ export function computeUrbanWaterSystem(args: {
   return {
     burgId: burg.i!,
     tier,
+    drinkingTreatmentTier,
+    wastewaterTreatmentTier,
     drinkingWaterSecurity: rn(drinkingWaterSecurity, 4),
     serviceWaterCapacity: rn(serviceWaterCapacity, 4),
     irrigationCapacity: rn(irrigationCapacity, 4),
@@ -981,6 +988,8 @@ function systemDefaults(
   partial: Partial<UrbanWaterSystem> & Pick<UrbanWaterSystem, "burgId" | "tier">
 ): UrbanWaterSystem {
   return {
+    drinkingTreatmentTier: 0,
+    wastewaterTreatmentTier: 0,
     drinkingWaterSecurity: 0.5,
     serviceWaterCapacity: 0.3,
     irrigationCapacity: 0.2,
@@ -1044,6 +1053,8 @@ function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
   return systemDefaults({
     burgId: burg.i!,
     tier: 4,
+    drinkingTreatmentTier: 1,
+    wastewaterTreatmentTier: 1,
     maintenanceCondition: 0.94,
     clogging: 0.03,
     connectionPermitCoverage: 0.86,
