@@ -13,6 +13,7 @@ export function drawWaterSupply(): void {
   const routes = buildInheritedWaterSupplyRoutes({
     burgs: pack.burgs,
     cells: pack.cells,
+    rivers: pack.rivers,
     systems: getUrbanWaterSystems()
   });
   layer.html(

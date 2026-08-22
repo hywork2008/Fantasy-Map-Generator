@@ -10,7 +10,12 @@ export function drawSewerage(): void {
   if (!layer) return;
 
   const { pack } = getWorldContext();
-  const routes = buildInheritedSewerRoutes({ burgs: pack.burgs, cells: pack.cells, systems: getUrbanWaterSystems() });
+  const routes = buildInheritedSewerRoutes({
+    burgs: pack.burgs,
+    cells: pack.cells,
+    rivers: pack.rivers,
+    systems: getUrbanWaterSystems()
+  });
   layer.html(
     routes.map(route => routeMarkup(route, pack.burgs[route.burgId]?.name ?? `Burg ${route.burgId}`)).join("")
   );

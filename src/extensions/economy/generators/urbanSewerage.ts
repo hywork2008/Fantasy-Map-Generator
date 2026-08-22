@@ -14,6 +14,7 @@ type SewerCells = Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "r" | "
   /** Legacy simulation fixtures can omit geometry; fall back to packed-cell proximity there. */
   p?: PackedGraph["cells"]["p"];
 };
+type RiverHead = Pick<PackedGraph["rivers"][number], "i" | "source">;
 
 /**
  * Determine the Giant inherited trunk-sewer route for each served settlement.
@@ -24,6 +25,7 @@ type SewerCells = Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "r" | "
 export function buildInheritedSewerRoutes(args: {
   burgs: readonly (Burg | undefined)[];
   cells: SewerCells;
+  rivers?: readonly RiverHead[];
   systems: readonly UrbanWaterSystem[];
 }): InheritedSewerRoute[] {
   const routes: InheritedSewerRoute[] = [];
@@ -32,7 +34,7 @@ export function buildInheritedSewerRoutes(args: {
     if (!(system.hasInheritedRomanSewer ?? system.hasInheritedRomanWaterworks)) continue;
     const burg = args.burgs[system.burgId];
     if (!burg?.i) continue;
-    const outfall = chooseSameLandSewerOutfall(burg, args.cells);
+    const outfall = chooseSameLandSewerOutfall(burg, args.cells, args.rivers);
     if (outfall === undefined) continue;
     const destination = args.cells.p?.[outfall];
     if (!destination) continue;
@@ -49,18 +51,21 @@ export function buildInheritedSewerRoutes(args: {
 }
 
 /** True if a gravity trunk sewer can reach a lower river or coast on the same landmass. */
-export function hasSameLandSewerOutfall(burg: Burg, cells: SewerCells): boolean {
-  return chooseSameLandSewerOutfall(burg, cells) !== undefined;
+export function hasSameLandSewerOutfall(burg: Burg, cells: SewerCells, rivers?: readonly RiverHead[]): boolean {
+  return chooseSameLandSewerOutfall(burg, cells, rivers) !== undefined;
 }
 
-function chooseSameLandSewerOutfall(burg: Burg, cells: SewerCells): number | undefined {
+function chooseSameLandSewerOutfall(burg: Burg, cells: SewerCells, rivers?: readonly RiverHead[]): number | undefined {
   const landFeature = cells.f?.[burg.cell];
   const burgHeight = cells.h[burg.cell] ?? 0;
   const cellIds = cells.i?.length ? cells.i : Array.from({ length: cells.r.length }, (_value, cell) => cell);
   const sameLandLower = cellIds.filter(
     cell => (!cells.f || cells.f[cell] === landFeature) && (cells.h[cell] ?? 0) <= burgHeight
   );
-  const river = sameLandLower.filter(cell => cells.r[cell]);
+  // The source cell is an inviolate headwater intake. A trunk sewer can join only the second
+  // mapped cell or later, even when the source happens to be the closest river point.
+  const riverHeadCells = getRiverHeadCells(cells, rivers);
+  const river = sameLandLower.filter(cell => cells.r[cell] && !riverHeadCells.has(cell));
   const coast = sameLandLower.filter(cell => cells.haven?.[cell]);
   const nearestRiver = nearestByDistance(river, burg, cells);
   const nearestCoast = nearestByDistance(coast, burg, cells);
@@ -69,6 +74,35 @@ function chooseSameLandSewerOutfall(burg: Burg, cells: SewerCells): number | und
   return distanceToBurg(nearestRiver, burg, cells) <= distanceToBurg(nearestCoast, burg, cells)
     ? nearestRiver
     : nearestCoast;
+}
+
+function getRiverHeadCells(cells: SewerCells, rivers?: readonly RiverHead[]): Set<number> {
+  const headCells = new Set<number>();
+  const explicitRiverIds = new Set<number>();
+  for (const river of rivers ?? []) {
+    if (!Number.isInteger(river.source) || river.source < 0 || river.source >= cells.r.length) continue;
+    headCells.add(river.source);
+    explicitRiverIds.add(river.i);
+  }
+
+  // Legacy fixtures and old saves can lack River.source. Fall back to each river's highest packed
+  // cell, which is the same headwater convention used by river generation.
+  const highestByRiver = new Map<number, number>();
+  const cellIds = cells.i?.length ? cells.i : Array.from({ length: cells.r.length }, (_value, cell) => cell);
+  for (const cell of cellIds) {
+    const riverId = cells.r[cell];
+    if (!riverId || explicitRiverIds.has(riverId)) continue;
+    const current = highestByRiver.get(riverId);
+    if (
+      current === undefined ||
+      (cells.h[cell] ?? 0) > (cells.h[current] ?? 0) ||
+      ((cells.h[cell] ?? 0) === (cells.h[current] ?? 0) && cell < current)
+    ) {
+      highestByRiver.set(riverId, cell);
+    }
+  }
+  for (const cell of highestByRiver.values()) headCells.add(cell);
+  return headCells;
 }
 
 function nearestByDistance(candidates: Iterable<number>, burg: Burg, cells: SewerCells): number | undefined {

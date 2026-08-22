@@ -677,7 +677,8 @@ export function computeUrbanWaterSystem(args: {
   const hasRegionalRomanWaterConnection =
     hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
   const hasRegionalRomanSewerOutfall =
-    hasInheritedRomanSewer && hasSameLandSewerOutfall(burg, getWorldContext().pack.cells);
+    hasInheritedRomanSewer &&
+    hasSameLandSewerOutfall(burg, getWorldContext().pack.cells, getWorldContext().pack.rivers);
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);

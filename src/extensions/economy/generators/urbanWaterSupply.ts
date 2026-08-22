@@ -32,6 +32,7 @@ export interface InheritedWaterSupplyRoute {
 export interface InheritedWaterSupplyRouteInput {
   burgs: readonly (Burg | undefined)[];
   cells: Pick<PackedGraph["cells"], "c" | "f" | "h" | "haven" | "i" | "p" | "r" | "state">;
+  rivers?: readonly Pick<PackedGraph["rivers"][number], "i" | "source">[];
   systems: readonly UrbanWaterSystem[];
 }
 
@@ -49,6 +50,7 @@ type GravityAqueductCells = Pick<PackedGraph["cells"], "c" | "f" | "h" | "i" | "
 export function buildInheritedWaterSupplyRoutes({
   burgs,
   cells,
+  rivers,
   systems
 }: InheritedWaterSupplyRouteInput): InheritedWaterSupplyRoute[] {
   const riverCells: number[] = [];
@@ -58,7 +60,7 @@ export function buildInheritedWaterSupplyRoutes({
 
   if (!riverCells.length) return [];
 
-  const sewerOutfalls = buildInheritedSewerRoutes({ burgs, cells, systems }).map(route => route.outfallCell);
+  const sewerOutfalls = buildInheritedSewerRoutes({ burgs, cells, rivers, systems }).map(route => route.outfallCell);
   const servedGroups = new Map<string, ServedBurg[]>();
   for (const system of systems) {
     if (!system.hasInheritedRomanWaterworks) continue;
@@ -263,10 +265,14 @@ export function hasSameLandGravityWaterSource(
   const burgHeight = cells.h[burg.cell] ?? 0;
   // Test fixtures and legacy adapters can omit `cells.i`; `r` is indexed by the same packed id.
   const cellIds = cells.i?.length ? cells.i : Array.from({ length: cells.r.length }, (_value, cell) => cell);
+  // Geometry-less legacy adapters cannot validate a terrain profile. Preserve the older
+  // same-land elevation check there; real maps always provide the graph and use findGravityPath.
+  const canValidateRoute = Boolean(cells.i?.length && cells.c?.length && cells.p?.length);
   for (const cell of cellIds) {
     if (!cells.r[cell] || (cells.f && cells.f[cell] !== landFeature)) continue;
     if (burg.state && cells.state && cells.state[cell] !== burg.state) continue;
     if ((cells.h[cell] ?? 0) < burgHeight + MIN_DELIVERY_HEAD) continue;
+    if (!canValidateRoute) return true;
     if (findGravityPath(cell, burg.cell, burg.state ?? 0, landFeature, cells)) return true;
   }
   return false;
