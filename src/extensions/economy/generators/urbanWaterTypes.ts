@@ -135,6 +135,27 @@ export type UrbanWaterSystem = {
   lastMaintenanceSpend: number;
   lastConstructionSpend: number;
 
+  // ── Modern Phase 2 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12): source
+  // protection & Tier 1 (slow sand filtration / primary wastewater settling) investment. A second,
+  // independent axis from the legacy `tier` ladder above — see urbanWaterModernTreatment.ts's
+  // header for why it is not folded into that ladder's WaterWorksProjectKind. ───────────────────
+  /** 0..1: upstream intake protection + record-keeping. A prerequisite for drinkingTreatmentTier
+   * reaching 1, and a small drinkingWaterSecurity bonus in its own right even before then (§2's
+   * priority-1 item, distinct from filtration). */
+  sourceProtection: number;
+  /** 0..1 progress toward drinkingTreatmentTier reaching 1. */
+  drinkingTreatmentUpgradeProgress: number;
+  /** 0..1 progress toward wastewaterTreatmentTier reaching 1. */
+  wastewaterTreatmentUpgradeProgress: number;
+  /** 0..1 coverage of this year's recurring operating cost for drinkingTreatmentTier ≥ 1 (sand
+   * renewal, reservoir upkeep, record-keeping) — a separate funding pool from construction above
+   * (§5.1's "四つの財布"). An unfunded Tier 1 plant keeps its tier but loses most of its effective
+   * benefit — see computeUrbanWaterSystem()'s drinkingWaterSecurity/waterContamination terms. */
+  treatmentOperationsFunding: number;
+  /** Same as `treatmentOperationsFunding`, for wastewaterTreatmentTier. */
+  wastewaterOperationsFunding: number;
+  lastModernConstructionSpend: number;
+
   // ── Phase 3: institutions, organic routes, externalities ─────────────────
   connectionPermitCoverage: number;
   cleaningTaxRate: number;

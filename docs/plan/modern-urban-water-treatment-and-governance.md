@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案（Phase 1 実装済み・Phase 2–5 未実装、§8/§12 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
+**設計案（Phase 1–2 実装済み・Phase 3–5 未実装、§8/§12/§13 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
 
 既存の[都市水利・衛生インフラ設計](./urban-water-and-sanitation-system.md)が扱う開放側溝、被覆暗渠、分流、清掃・放流規制を置き換えない。本書はその後段、すなわち「川の水を都市規模で飲料用に安全化する」「汚水を下流へ移すだけでなく処理して放流する」近代的な工程を定義する。
 
@@ -301,7 +301,7 @@ interface ModernWaterTreatmentSystem {
 | Phase | 変更 | 既存資産との接続 |
 | --- | --- | --- |
 | 1 | **実装済み（2026-08-23、§12参照）**。`ModernWaterTreatmentSystem` と `RegionalWaterScheme`、取水・放流の地理判定、`waterSecurity` / `riverPollutionLoad` の分離 | `UrbanWaterSystem`、疫病水質設計 |
-| 2 | 水源保護、低速砂濾過、一次沈殿、建設費と運転費の分離 | Burg treasury、清掃税・接続料 |
+| 2 | **実装済み（2026-08-23、§13参照）**。水源保護、低速砂濾過、一次沈殿、建設費と運転費の分離 | Burg treasury、清掃税・接続料 |
 | 3 | 流域水道局、参加・補償・水利認可、`toggleWaterSupply` の計画／建設／稼働表示 | Burg/State の行政按分、既存の拡張レイヤー API |
 | 4 | 凝集・急速濾過・`Chlorine` 消費・水質検査 | era 6 の化学工業、`Chlorine` Good |
 | 5 | 散水ろ床／活性汚泥、汚泥処理、流域補償、放流水検査、`toggleSewerage` | `sanitaryEngineering`、上流・下流汚染外交 |
@@ -485,3 +485,46 @@ Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）に
 - `sealedStorageAndInfiltration` の容量経済（`winterStorageFill`、`seasonalInfiltrationCapacity`）。今回は `effluentDestination` の分類のみで、`hasDownstreamOutfall = false` による汚濁の局所化は既存の `pollutionExport()` に委ねている。
 - `RegionalWaterScheme` のライフサイクル（提案→調査→交渉→資金→建設→試運転→運転）。
 - `modernizationAffinity`（§11）を Tier 初期値・投資速度へ実際に接続すること。
+
+---
+
+## 13. Phase 2 実装メモ（実装済み・2026-08-23）
+
+**状態: 実装済み**。§12 で追加した `drinkingTreatmentTier`/`wastewaterTreatmentTier` は、それまで巨人国家だけが 1 に固定され、他の全 Burg は生成時 0 のまま**進行ロジックが一切存在せず**、しかもどの計算式からも参照されない純粋なデータだった（`drinkingWaterSecurity`/`waterContamination` に何の影響も与えていなかった）。Phase 2 はこの2つの穴を埋めた: 通常 Burg 向けの年次投資ロジックと、実際にゲーム上の数値へ反映する接続。
+
+### 13.1 新設ファイル `urbanWaterModernTreatment.ts`
+
+既存の `WaterWorksProjectKind`（開放側溝→衛生分離の単一梯子）へ新プロジェクトを追加する案も検討したが、`WATER_WORKS_PROJECT_LABELS` 等の全 UI/参照テーブルに era ゲート付き近代プロジェクトが漏れ出すため、既存の `urbanWaterTech.ts`（Phase 4 late tech）と対をなす、独立した小さいモジュールとして実装した。
+
+- **`sourceProtection`**（水源保護、0..1）: `hasUpstreamIntake` が前提。単独でも `drinkingWaterSecurity` に小さいボーナスを与える（§2 の優先1が優先3と独立した価値を持つという記述に対応）。
+- **`drinkingTreatmentUpgradeProgress` → `drinkingTreatmentTier` 0→1**（低速砂濾過）: `sourceProtection >= 0.6` を前提条件とする（§4.1 の技術グラフが `slowSandFiltration` を `protectedIntakeAndWaterRecords` に依存させている構造を反映）。同一年内に水源保護がこの閾値を超えれば、同じ年のうちに濾過投資へ連鎖しうる。
+- **`wastewaterTreatmentUpgradeProgress` → `wastewaterTreatmentTier` 0→1**（一次沈殿）: 独立した経路。`hasDownstreamOutfall`（§12 で一般化済み、閉鎖流域では false）が前提。
+- **era ゲート**: `historicalPeriod` が `steamEra` 以降（§4 の Stage B、cultures-generator.ts の `Industrial` 文化ゲートと同一閾値）。
+- **人口ゲート**: 400人未満は対象外。
+- **`modernizationAffinity`（§11）を初めて実際に配線**: 投資速度の乗数としてのみ使用し（0.35〜1.65倍）、era/地理ゲートには一切影響しない（§11.4 の「技術的に不可能なことを可能にはしない」という設計方針どおり）。
+- **建設費と運転費の分離**（§5.1「四つの財布」）: 建設（一回限り、`MODERN_CONSTRUCTION_BUDGET_SHARE = 0.06`）と運転（毎年、`MODERN_OPERATIONS_BUDGET_SHARE = 0.03`）を別プールとして扱う。Tier に到達していても `treatmentOperationsFunding`/`wastewaterOperationsFunding` が低ければ、下記13.2の効果はほとんど得られない（§5.1「施設はあるが安全性は低い」を再現）。
+- **年次実行順**: `settleBurgWaterInvestment`（既存レガシー投資）の後に呼ぶ。同じ Burg treasury を取り合うため、基礎的な既存インフラの維持・建設が優先され、近代化投資は残った予算から行う設計とした。
+- **意図的な簡略化**（未実装のまま残した部分、忘れないよう明記）: 建設費は現金のみで、既存の `purchaseProjectMaterials`（Stone/Tools/Brick の市場調達）は近代プロジェクトには接続していない。将来、Phase 2 のゲームプレイが妥当だと確認できた時点での接続を推奨する。
+
+### 13.2 `computeUrbanWaterSystem` への接続（このフェーズの核心）
+
+新設フィールドが実際に効果を持つよう、既存の3つの式に項を追加した:
+
+| 式 | 追加した項 |
+| --- | --- |
+| `waterContamination` | `- sourceProtection * 0.06 - (drinkingTreatmentTier >= 1 ? 0.12 * treatmentOperationsFunding : 0)` |
+| `drinkingWaterSecurity` | `+ sourceProtection * 0.05 + (drinkingTreatmentTier >= 1 ? 0.2 * treatmentOperationsFunding : 0)` |
+| `treatmentFactor`（`downstreamPollutionExport` の入力） | `× (wastewaterTreatmentTier >= 1 ? 1 - 0.35 * wastewaterOperationsFunding : 1)` |
+
+3行目は、`riverPollutionLoad`（§1/§12 で `downstreamPollutionExport`/`upstreamPollutionImport` として既に実装済みと確認した信号）を下げる直接の経路であり、「上流の一次処理場が下流 Burg の水安全を守る」という本書全体の前提を、初めて数値として成立させている。
+
+### 13.3 巨人国家の扱い
+
+巨人は `settleModernWaterTreatmentInvestment` を一切通らない（§12 で確認した通り `computeUrbanWaterSystem` 内で `isGiantState` 分岐が毎回上書きするため）。今回、`sourceProtection: 1`、`treatmentOperationsFunding`/`wastewaterOperationsFunding: 0.9` を同じ分岐へ追加した — 巨人の継承インフラが「存在するが13.2の効果を一切生まない」という抜け（Phase 2 実装前は該当フィールドがどの式からも参照されていなかったため、巨人の Tier 1 も無効果だった）を、他の巨人向け既存シード値（`connectionPermitCoverage: 0.86` 等）と同水準でふさいだ。
+
+### 13.4 未着手（Phase 3 以降に残した項目）
+
+- 建設費の Goods 連動（現状は現金のみ）。
+- Tier 2以降（急速濾過・塩素消毒 = Phase 4、生物処理 = Phase 5）。
+- `RegionalWaterScheme` のライフサイクル本体（§9.2 の提案→調査→交渉→資金→建設→試運転→運転）。単独 Burg の `sourceProtection`/Tier 進行は実装したが、複数 Burg にまたがる広域水源・導水路の共同事業はまだ存在しない。
+- `sealedStorageAndInfiltration` の容量経済（`winterStorageFill`、`seasonalInfiltrationCapacity`）— §12 から持ち越し、未着手のまま。

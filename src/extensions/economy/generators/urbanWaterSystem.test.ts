@@ -95,6 +95,12 @@ function baseSystem(overrides: Partial<UrbanWaterSystem> = {}): UrbanWaterSystem
     lastMaintenanceCoverage: 1,
     lastMaintenanceSpend: 0,
     lastConstructionSpend: 0,
+    sourceProtection: 0,
+    drinkingTreatmentUpgradeProgress: 0,
+    wastewaterTreatmentUpgradeProgress: 0,
+    treatmentOperationsFunding: 0,
+    wastewaterOperationsFunding: 0,
+    lastModernConstructionSpend: 0,
     connectionPermitCoverage: 0,
     cleaningTaxRate: 0,
     dischargeRegulation: 0,
@@ -565,6 +571,95 @@ describe("computeUrbanWaterSystem", () => {
     expect(system.hasDownstreamOutfall).toBe(true);
     expect(system.effluentDestination).toBe("riverOutfall");
   });
+
+  it("a funded modern drinkingTreatmentTier lowers waterContamination and raises drinkingWaterSecurity", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12
+    };
+    const untreated = computeUrbanWaterSystem(base);
+    const treated = computeUrbanWaterSystem({
+      ...base,
+      drinkingTreatmentTier: 1,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1
+    });
+
+    expect(treated.waterContamination).toBeLessThan(untreated.waterContamination);
+    expect(treated.drinkingWaterSecurity).toBeGreaterThan(untreated.drinkingWaterSecurity);
+  });
+
+  it("an unfunded modern drinkingTreatmentTier gives little of the funded benefit (construction without operations)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12
+    };
+    const unfunded = computeUrbanWaterSystem({
+      ...base,
+      drinkingTreatmentTier: 1,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 0
+    });
+    const funded = computeUrbanWaterSystem({
+      ...base,
+      drinkingTreatmentTier: 1,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1
+    });
+
+    expect(funded.drinkingWaterSecurity).toBeGreaterThan(unfunded.drinkingWaterSecurity);
+  });
+
+  it("a funded modern wastewaterTreatmentTier lowers downstreamPollutionExport", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12
+    };
+    const untreated = computeUrbanWaterSystem(base);
+    const treated = computeUrbanWaterSystem({
+      ...base,
+      wastewaterTreatmentTier: 1,
+      wastewaterOperationsFunding: 1
+    });
+
+    expect(treated.downstreamPollutionExport).toBeLessThanOrEqual(untreated.downstreamPollutionExport);
+  });
+
+  it("Giant burgs get full source protection and operations funding regardless of investment args", () => {
+    worldContext.pack = {
+      states: [undefined, { i: 1, culture: 1 }],
+      cultures: [
+        { i: 0, type: "Generic" },
+        { i: 1, type: "River", race: 1 }
+      ],
+      races: [
+        { i: 0, key: "unknown", name: "Unknown" },
+        { i: 1, key: "giant", name: "Giant" }
+      ]
+    } as unknown as PackedGraph;
+    const system = computeUrbanWaterSystem({
+      burg: burg({ population: 10, market: 1, state: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      // Even an explicit "no investment yet" override is overridden by the Giant seed.
+      sourceProtection: 0,
+      treatmentOperationsFunding: 0
+    });
+    expect(system.drinkingTreatmentTier).toBe(1);
+    expect(system.sourceProtection).toBe(1);
+    expect(system.treatmentOperationsFunding).toBe(0.9);
+  });
 });
 
 describe("settleBurgWaterInvestment", () => {
@@ -886,6 +981,39 @@ describe("UrbanWater module", () => {
 
     expect(starved.lastMaintenanceCoverage).toBeLessThan(0.2);
     expect(recovered.lastMaintenanceCoverage).toBeGreaterThan(starved.lastMaintenanceCoverage);
+  });
+
+  it("progresses drinkingTreatmentTier/wastewaterTreatmentTier toward 1 for a well-funded river capital in the modern era (docs/plan/modern-urban-water-treatment-and-governance.md §8 Phase 2)", () => {
+    worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+    UrbanWater.generate();
+    let year = 999;
+    for (let i = 0; i < 8; i++) {
+      // Re-fund generously each year so this new, secondary initiative isn't starved by whatever
+      // the legacy tier ladder spends first out of the same treasury (settleModernWaterTreatment-
+      // Investment intentionally runs after settleBurgWaterInvestment — see urbanWaterSystem.ts).
+      worldContext.pack.burgs[1]!.treasury = 20000;
+      setUrbanWaterLastSettledYear(year--);
+      UrbanWater.settleAnnual();
+    }
+    const system = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+    expect(system.drinkingTreatmentTier).toBe(1);
+    expect(system.wastewaterTreatmentTier).toBe(1);
+    expect(system.sourceProtection).toBeGreaterThan(0);
+  });
+
+  it("never reaches a modern treatment tier before the modern water era, however well-funded", () => {
+    worldContext.options = { historicalPeriod: "earlyMedieval" } as typeof worldContext.options;
+    UrbanWater.generate();
+    let year = 999;
+    for (let i = 0; i < 8; i++) {
+      worldContext.pack.burgs[1]!.treasury = 20000;
+      setUrbanWaterLastSettledYear(year--);
+      UrbanWater.settleAnnual();
+    }
+    const system = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+    expect(system.drinkingTreatmentTier ?? 0).toBe(0);
+    expect(system.wastewaterTreatmentTier ?? 0).toBe(0);
+    expect(system.sourceProtection).toBe(0);
   });
 
   describe("race water tech bias (Giant on Fantasy culture sets)", () => {
