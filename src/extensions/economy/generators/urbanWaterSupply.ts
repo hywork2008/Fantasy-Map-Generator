@@ -5,6 +5,14 @@ import type { UrbanWaterSystem } from "./urbanWaterTypes";
 
 type ServedBurg = Burg & { i: number };
 
+// Height values are packed-map terrain steps, rather than metres. These limits deliberately
+// permit shallow Roman cuttings while rejecting a route that simply draws through a mountain.
+const MIN_DELIVERY_HEAD = 1;
+const MIN_AQUEDUCT_GRADE = 0.012;
+const MAX_AQUEDUCT_CUT_DEPTH = 6;
+const CUTTING_COST = 12;
+const VIADUCT_COST = 0.5;
+
 /** A gravity-fed aqueduct route rendered for a pre-existing Giant Roman waterworks system. */
 export interface InheritedWaterSupplyRoute {
   id: string;
@@ -27,14 +35,16 @@ export interface InheritedWaterSupplyRouteInput {
   systems: readonly UrbanWaterSystem[];
 }
 
+type GravityAqueductCells = Pick<PackedGraph["cells"], "c" | "f" | "h" | "i" | "p" | "r" | "state">;
+
 /**
  * Derive visible aqueduct routes from existing Roman-waterworks records.
  *
  * These routes are deliberately deterministic and are not a new river. Each protected headwater
- * grows one shortest-path tree: first to the nearest served Burg, then from the existing tree to
- * the next nearest Burg. Heights are not a routing cost, so the display remains an engineering
- * plan rather than an invented second river. The eventual RegionalWaterScheme can replace these
- * inherited segments with negotiated construction records.
+ * grows one gravity-feasible tree: first to the nearest served Burg, then from the existing tree
+ * to the next nearest Burg. A route may use shallow cuttings and viaducts, but it cannot pass
+ * through a mountain higher than its declining water level. The eventual RegionalWaterScheme can
+ * replace these inherited segments with negotiated construction records.
  */
 export function buildInheritedWaterSupplyRoutes({
   burgs,
@@ -93,7 +103,7 @@ function chooseProtectedIntakeCell(
 function buildAqueductTree(
   burgs: readonly ServedBurg[],
   intakeCell: number,
-  cells: InheritedWaterSupplyRouteInput["cells"]
+  cells: GravityAqueductCells
 ): InheritedWaterSupplyRoute[] {
   const stateId = burgs[0]?.state ?? 0;
   const landFeature = cells.f[burgs[0]!.cell];
@@ -103,7 +113,7 @@ function buildAqueductTree(
 
   while (pending.length) {
     const candidates = pending
-      .map(burg => ({ burg, cellPath: shortestPathToTree(burg.cell, treeCells, stateId, landFeature, cells) }))
+      .map(burg => ({ burg, cellPath: shortestGravityPathToTree(burg.cell, treeCells, stateId, landFeature, cells) }))
       .filter((candidate): candidate is { burg: ServedBurg; cellPath: number[] } => Boolean(candidate.cellPath))
       .sort((a, b) => pathLength(a.cellPath, cells) - pathLength(b.cellPath, cells) || a.burg.i - b.burg.i);
     const next = candidates[0];
@@ -138,42 +148,76 @@ function buildAqueductTree(
   return routes;
 }
 
-/** Nearest existing aqueduct cell, using geography only: elevation never contributes to the cost. */
-function shortestPathToTree(
+/**
+ * Find the least-engineering gravity route from any existing pipe cell. A branch may begin at a
+ * lower point in the tree only when that point still has sufficient head for the served Burg.
+ */
+function shortestGravityPathToTree(
   fromCell: number,
   treeCells: ReadonlySet<number>,
   stateId: number,
   landFeature: number,
-  cells: InheritedWaterSupplyRouteInput["cells"]
+  cells: GravityAqueductCells
 ): number[] | null {
+  const paths = Array.from(treeCells)
+    .filter(sourceCell => (cells.h[sourceCell] ?? 0) >= (cells.h[fromCell] ?? 0) + MIN_DELIVERY_HEAD)
+    .map(sourceCell => findGravityPath(sourceCell, fromCell, stateId, landFeature, cells))
+    .filter((candidate): candidate is GravityPath => Boolean(candidate))
+    .sort((a, b) => a.cost - b.cost || a.path.length - b.path.length || a.path[0]! - b.path[0]!);
+  return paths[0]?.path ?? null;
+}
+
+type GravityPath = { path: number[]; cost: number };
+
+/**
+ * Dijkstra over valid Roman-style alignment. The design water level declines along the route;
+ * terrain above it is cutting/tunnel work and terrain below it is a viaduct or embankment.
+ */
+function findGravityPath(
+  sourceCell: number,
+  targetCell: number,
+  stateId: number,
+  landFeature: number,
+  cells: GravityAqueductCells
+): GravityPath | null {
   const previous = new Int32Array(cells.i.length).fill(-1);
   const distance = new Float64Array(cells.i.length).fill(Infinity);
+  const construction = new Float64Array(cells.i.length).fill(Infinity);
   const queue = new FlatQueue<number>();
-  previous[fromCell] = fromCell;
-  distance[fromCell] = 0;
-  queue.push(fromCell, 0);
+  const sourceHeight = cells.h[sourceCell] ?? 0;
+  const targetHeight = cells.h[targetCell] ?? 0;
+  previous[sourceCell] = sourceCell;
+  distance[sourceCell] = 0;
+  construction[sourceCell] = 0;
+  queue.push(sourceCell, 0);
 
   while (queue.length) {
     const cell = queue.pop()!;
-    if (treeCells.has(cell)) return restorePath(cell, fromCell, previous);
+    if (cell === targetCell)
+      return { path: restorePath(cell, sourceCell, previous).reverse(), cost: construction[cell]! };
     for (const neighbor of cells.c[cell] ?? []) {
       if (!isAqueductLandCell(neighbor, stateId, landFeature, cells)) continue;
-      const nextDistance = distance[cell] + edgeLength(cell, neighbor, cells);
-      if (nextDistance >= distance[neighbor]) continue;
+      const edge = edgeLength(cell, neighbor, cells);
+      const nextDistance = distance[cell]! + edge;
+      const waterLevel = sourceHeight - nextDistance * MIN_AQUEDUCT_GRADE;
+      if (waterLevel < targetHeight + MIN_DELIVERY_HEAD) continue;
+
+      const terrainHeight = cells.h[neighbor] ?? 0;
+      const cutting = Math.max(0, terrainHeight - waterLevel);
+      if (cutting > MAX_AQUEDUCT_CUT_DEPTH) continue;
+      const viaduct = Math.max(0, waterLevel - terrainHeight);
+      const nextConstruction = construction[cell]! + edge + cutting * CUTTING_COST + viaduct * VIADUCT_COST;
+      if (nextConstruction >= construction[neighbor]) continue;
       distance[neighbor] = nextDistance;
+      construction[neighbor] = nextConstruction;
       previous[neighbor] = cell;
-      queue.push(neighbor, nextDistance);
+      queue.push(neighbor, nextConstruction);
     }
   }
   return null;
 }
 
-function isAqueductLandCell(
-  cell: number,
-  stateId: number,
-  landFeature: number,
-  cells: InheritedWaterSupplyRouteInput["cells"]
-): boolean {
+function isAqueductLandCell(cell: number, stateId: number, landFeature: number, cells: GravityAqueductCells): boolean {
   return cells.h[cell] >= 20 && cells.f[cell] === landFeature && (!stateId || cells.state[cell] === stateId);
 }
 
@@ -187,11 +231,11 @@ function restorePath(end: number, start: number, previous: Int32Array): number[]
   return path;
 }
 
-function pathLength(path: readonly number[], cells: InheritedWaterSupplyRouteInput["cells"]): number {
+function pathLength(path: readonly number[], cells: GravityAqueductCells): number {
   return path.slice(1).reduce((length, cell, index) => length + edgeLength(path[index]!, cell, cells), 0);
 }
 
-function edgeLength(from: number, to: number, cells: InheritedWaterSupplyRouteInput["cells"]): number {
+function edgeLength(from: number, to: number, cells: GravityAqueductCells): number {
   const a = cells.p[from];
   const b = cells.p[to];
   return a && b ? Math.hypot(a[0] - b[0], a[1] - b[1]) : 1;
@@ -213,7 +257,7 @@ function canReachDownstream(from: number, target: number, cells: InheritedWaterS
 /** True when a burg can take gravity water without crossing a sea or another landmass. */
 export function hasSameLandGravityWaterSource(
   burg: Burg,
-  cells: Pick<PackedGraph["cells"], "f" | "h" | "i" | "r" | "state">
+  cells: Pick<PackedGraph["cells"], "c" | "f" | "h" | "i" | "p" | "r" | "state">
 ): boolean {
   const landFeature = cells.f?.[burg.cell];
   const burgHeight = cells.h[burg.cell] ?? 0;
@@ -222,7 +266,8 @@ export function hasSameLandGravityWaterSource(
   for (const cell of cellIds) {
     if (!cells.r[cell] || (cells.f && cells.f[cell] !== landFeature)) continue;
     if (burg.state && cells.state && cells.state[cell] !== burg.state) continue;
-    if ((cells.h[cell] ?? 0) >= burgHeight) return true;
+    if ((cells.h[cell] ?? 0) < burgHeight + MIN_DELIVERY_HEAD) continue;
+    if (findGravityPath(cell, burg.cell, burg.state ?? 0, landFeature, cells)) return true;
   }
   return false;
 }

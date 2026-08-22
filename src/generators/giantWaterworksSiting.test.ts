@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chooseLowerGiantWaterworksSite,
+  hasGiantGravityWaterRouteToCell,
   highestWaterSourceElevation,
   isGiantWaterworksState
 } from "./giantWaterworksSiting";
@@ -38,5 +39,19 @@ describe("Giant waterworks siting", () => {
     expect(chooseLowerGiantWaterworksSite({ cells, stateId: 1, fromCell: 1, highestSourceElevation: highest! })).toBe(
       2
     );
+  });
+
+  it("does not treat a city beyond a major ridge as gravity-water reachable", () => {
+    const ridgeCells = {
+      i: new Uint16Array([0, 1, 2, 3]),
+      c: [[1], [0, 2], [1, 3], [2]],
+      f: new Uint16Array([1, 1, 1, 1]),
+      h: new Uint16Array([63, 100, 80, 58]),
+      r: new Uint16Array([1, 0, 0, 0]),
+      s: new Uint16Array([10, 10, 10, 10]),
+      state: new Uint16Array([1, 1, 1, 1])
+    };
+
+    expect(hasGiantGravityWaterRouteToCell({ cells: ridgeCells, stateId: 1, targetCell: 3 })).toBe(false);
   });
 });

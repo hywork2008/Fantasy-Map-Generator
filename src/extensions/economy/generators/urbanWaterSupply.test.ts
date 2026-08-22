@@ -149,6 +149,30 @@ describe("buildInheritedWaterSupplyRoutes", () => {
     expect(routes).toEqual([]);
   });
 
+  it("rejects a nominal aqueduct that would need to cut through a high mountain ridge", () => {
+    const routes = buildInheritedWaterSupplyRoutes({
+      burgs: [undefined, { i: 1, cell: 3, x: 30, y: 0, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3]),
+        c: [[1], [0, 2], [1, 3], [2]],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [30, 0]
+        ],
+        f: new Uint16Array([1, 1, 1, 1]),
+        haven: new Uint16Array([0, 0, 0, 0]),
+        r: new Uint16Array([1, 0, 0, 0]),
+        h: new Uint16Array([63, 100, 80, 58]),
+        state: new Uint16Array([1, 1, 1, 1])
+      },
+      systems: [inheritedSystem(1)]
+    });
+
+    expect(routes).toEqual([]);
+  });
+
   it("grows one shortest-path aqueduct tree and branches only from existing pipe cells", () => {
     const routes = buildInheritedWaterSupplyRoutes({
       burgs: [
@@ -180,7 +204,7 @@ describe("buildInheritedWaterSupplyRoutes", () => {
     expect(routes.map(route => ({ burgId: route.burgId, cellPath: route.cellPath }))).toEqual([
       { burgId: 1, cellPath: [0, 1, 2] },
       { burgId: 3, cellPath: [1, 5] },
-      { burgId: 2, cellPath: [2, 3, 4] }
+      { burgId: 2, cellPath: [1, 2, 3, 4] }
     ]);
     expect(routes.every(route => route.intakeCell === 0)).toBe(true);
   });

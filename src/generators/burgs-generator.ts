@@ -42,6 +42,7 @@ import { selectFrontierStartCapitals } from "./frontierStartPlacement";
 import { type GiantHighlandOikoumene, seedGiantHighlandOikoumene } from "./giantHighlandOikoumene";
 import {
   chooseLowerGiantWaterworksSite,
+  hasGiantGravityWaterRouteToCell,
   highestWaterSourceElevation,
   isGiantWaterworksState
 } from "./giantWaterworksSiting";
@@ -115,9 +116,9 @@ class BurgModule {
   shift(options: BurgShiftOptions = {}) {
     if (options.connectStateLandmasses) this.ensureStateLandmassPorts();
 
-    // States are known on the second shift during generation. Giant States preserve a
-    // gravity-fed Roman waterworks tradition, so every permanent settlement is moved below the
-    // map's highest water source before ports and routes are finalized.
+    // States are known on the second shift during generation. Giant settlements retain their
+    // distinct highland ecology, but a gravity-fed Roman aqueduct may not cross an uncuttable
+    // ridge. Resite only the waterworks placement; never use human food or climate suitability.
     this.resiteGiantWaterworksSettlements();
 
     const { cells, burgs } = this.worldContext.pack;
@@ -156,14 +157,23 @@ class BurgModule {
 
     const culturesSet = useOptionsState.getState().culturesSet;
     for (const burg of burgs) {
-      if (!burg.i || burg.removed || !burg.state || cells.h[burg.cell] < highestSourceElevation) continue;
+      if (!burg.i || burg.removed || !burg.state) continue;
       if (!isGiantWaterworksState({ stateId: burg.state, states, cultures, races, culturesSet })) continue;
+      const stateId = burg.state;
+      const hasGravityRoute = hasGiantGravityWaterRouteToCell({
+        cells,
+        stateId,
+        targetCell: burg.cell
+      });
+      if (cells.h[burg.cell] < highestSourceElevation && hasGravityRoute) continue;
 
       const targetCell = chooseLowerGiantWaterworksSite({
         cells,
-        stateId: burg.state,
+        stateId,
         fromCell: burg.cell,
-        highestSourceElevation
+        highestSourceElevation,
+        isSiteEligible: cell =>
+          !cells.burg[cell] && hasGiantGravityWaterRouteToCell({ cells, stateId, targetCell: cell })
       });
       if (targetCell === undefined) continue;
 

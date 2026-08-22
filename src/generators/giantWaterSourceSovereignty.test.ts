@@ -18,6 +18,21 @@ describe("enforceGiantWaterSourceSovereignty", () => {
     ).toEqual([0, 1, 2]);
   });
 
+  it("fills a flat internal drainage hollow surrounded by the selected watershed", () => {
+    const cells = {
+      i: new Uint16Array([0, 1, 2, 3, 4]),
+      c: [[1], [0, 2, 3], [1, 3, 4], [1, 2], [2]],
+      h: new Uint16Array([60, 31, 30, 31, 30]),
+      r: new Uint16Array([1, 0, 0, 1, 1])
+    };
+
+    // Cells 1 and 2 descend into an equal-height flat at cell 4. They have no strictly lower
+    // neighbour, but every edge of their component touches this same watershed.
+    expect(getWatershedCellsForSource(0, cells, [{ i: 1, source: 0, basin: 1 }] as any).sort((a, b) => a - b)).toEqual([
+      0, 1, 2, 3, 4
+    ]);
+  });
+
   it("gives the sole Giant State the highest source, its basin, and a land corridor", () => {
     const cells = {
       i: new Uint16Array([0, 1, 2, 3, 4]),
@@ -153,5 +168,47 @@ describe("enforceGiantWaterSourceSovereignty", () => {
       })
     ).toBeNull();
     expect(states[1]!.culture).toBe(2);
+  });
+
+  it("keeps only the source-connected Giant territory and restores detached watershed branches", () => {
+    const cells = {
+      i: new Uint16Array([0, 1, 2, 3]),
+      c: [[1], [0], [3], [2]],
+      h: new Uint16Array([40, 90, 80, 30]),
+      r: new Uint16Array([0, 1, 2, 2]),
+      // Cell 3 was a Giant holding before the watershed pass. It must not remain a detached
+      // political enclave after the neighbouring branch is returned to State 2.
+      state: new Uint16Array([1, 1, 2, 1]),
+      p: [
+        [0, 0],
+        [1, 0],
+        [10, 0],
+        [11, 0]
+      ]
+    };
+    const states = [{ i: 0 }, { i: 1, capital: 1, culture: 1 }, { i: 2, culture: 2 }];
+    const burgs = [undefined, { i: 1, cell: 0, state: 1, x: 0, y: 0 }, { i: 2, cell: 3, state: 1, x: 11, y: 0 }];
+
+    expect(
+      enforceGiantWaterSourceSovereignty({
+        cells,
+        states: states as any,
+        burgs: burgs as any,
+        cultures: [{ i: 0 }, { i: 1, race: 1 }, { i: 2, race: 2 }] as any,
+        races: [
+          { i: 0, key: "unknown" },
+          { i: 1, key: "giant" },
+          { i: 2, key: "human" }
+        ] as any,
+        rivers: [
+          { i: 1, source: 1, basin: 1 },
+          { i: 2, source: 2, basin: 1 }
+        ] as any,
+        culturesSet: "highFantasy"
+      })
+    ).toBe(1);
+
+    expect(Array.from(cells.state)).toEqual([1, 1, 2, 2]);
+    expect(burgs[2]!.state).toBe(2);
   });
 });

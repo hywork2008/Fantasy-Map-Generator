@@ -18,9 +18,10 @@ export interface GiantWaterSourceSovereigntyInput {
 }
 
 /**
- * Make a Giant State possible only when it can occupy the map's highest river source and the
- * mapped river-basin corridor flowing from it. Other Giant States are converted to the normal
- * human state culture, keeping this singular protected watershed as the Giant polity's core.
+ * Make a Giant State possible only when it can occupy the map's highest river source and a
+ * connected part of its mapped river-basin corridor. The whole watershed remains Giant cultural
+ * homeland, but it must not turn one political State into remote territorial islands. Other Giant
+ * States are converted to the normal human state culture, keeping this singular polity's core.
  *
  * The packed graph has no polygonal catchment field; `River.basin` and its river cells are the
  * authoritative basin proxy available during state generation.
@@ -33,12 +34,23 @@ export function enforceGiantWaterSourceSovereignty(args: GiantWaterSourceSoverei
   const giantStates = args.states.filter(state => state?.i && isGiantState(state, args.cultures, args.races));
   if (!giantStates.length) return null;
 
+  // Keep this snapshot so detached watershed branches can return to their original polity.
+  // Culture and population are intentionally untouched: Giants can inhabit every highland branch
+  // without requiring that all of it belongs to their one formal State.
+  const previousOwners = Array.from(args.cells.state);
   const basinCells = getWatershedCellsForSource(sourceCell, args.cells, args.rivers);
   const selected = giantStates
-    .map(state => ({ state, path: findLandPath(args.cells, args.burgs[state.capital]?.cell, sourceCell) }))
-    .filter((candidate): candidate is { state: State; path: number[] } => Boolean(candidate.path))
+    .map(state => {
+      const path = findLandPath(args.cells, args.burgs[state.capital]?.cell, sourceCell);
+      if (!path) return null;
+      const connectedBasin = connectedComponent(new Set([...path, ...basinCells]), sourceCell, args.cells);
+      return { state, path, connectedBasin };
+    })
+    .filter((candidate): candidate is { state: State; path: number[]; connectedBasin: Set<number> } =>
+      Boolean(candidate)
+    )
     .filter(candidate =>
-      [...candidate.path, ...basinCells].every(
+      [...candidate.connectedBasin].every(
         cell =>
           canClaimCell(args.cells, args.states, cell, candidate.state.i) &&
           !isForeignCapitalCell(cell, candidate.state.i, args.states, args.burgs)
@@ -49,7 +61,24 @@ export function enforceGiantWaterSourceSovereignty(args: GiantWaterSourceSoverei
   if (!selected) return demoteGiantStates(args);
 
   const giantStateId = selected.state.i;
-  for (const cell of new Set([...selected.path, ...basinCells])) args.cells.state[cell] = giantStateId;
+  const prospectiveClaim = new Set<number>([
+    ...selected.path,
+    ...basinCells,
+    ...Array.from(args.cells.i).filter(cell => previousOwners[cell] === giantStateId)
+  ]);
+  const core = connectedComponent(prospectiveClaim, sourceCell, args.cells);
+  if (!core.size) return demoteGiantStates(args);
+
+  // Only the component attached to the protected headwater becomes Nurkel. This makes
+  // watershed membership a cultural / demographic rule rather than permission to create
+  // detached political enclaves through other States.
+  for (const cell of core) args.cells.state[cell] = giantStateId;
+  for (const component of disconnectedComponents(prospectiveClaim, core, args.cells)) {
+    const fallbackOwner = chooseDetachedFallbackOwner(component, previousOwners, giantStateId, args.cells);
+    for (const cell of component) {
+      args.cells.state[cell] = previousOwners[cell] === giantStateId ? fallbackOwner : previousOwners[cell];
+    }
+  }
   for (const burg of args.burgs) {
     if (!burg?.i || burg.removed) continue;
     burg.state = args.cells.state[burg.cell];
@@ -63,6 +92,68 @@ export function enforceGiantWaterSourceSovereignty(args: GiantWaterSourceSoverei
     }
   }
   return giantStateId;
+}
+
+/** The land-connected component of a candidate territorial claim. */
+function connectedComponent(
+  cellsToVisit: ReadonlySet<number>,
+  start: number,
+  cells: Pick<PackedGraph["cells"], "c">
+): Set<number> {
+  if (!cellsToVisit.has(start)) return new Set();
+  const component = new Set<number>([start]);
+  const queue = [start];
+  for (let index = 0; index < queue.length; index++) {
+    const cell = queue[index]!;
+    for (const neighbor of cells.c[cell] ?? []) {
+      if (!cellsToVisit.has(neighbor) || component.has(neighbor)) continue;
+      component.add(neighbor);
+      queue.push(neighbor);
+    }
+  }
+  return component;
+}
+
+function disconnectedComponents(
+  cellsToVisit: ReadonlySet<number>,
+  core: ReadonlySet<number>,
+  cells: Pick<PackedGraph["cells"], "c">
+): Set<number>[] {
+  const remaining = new Set(Array.from(cellsToVisit).filter(cell => !core.has(cell)));
+  const components: Set<number>[] = [];
+  while (remaining.size) {
+    const start = remaining.values().next().value as number;
+    const component = connectedComponent(remaining, start, cells);
+    for (const cell of component) remaining.delete(cell);
+    components.push(component);
+  }
+  return components;
+}
+
+/**
+ * A former detached Giant holding is returned as one coherent local patch. Prefer the owner it
+ * displaced; otherwise choose the State with the longest external boundary, or neutral land.
+ */
+function chooseDetachedFallbackOwner(
+  component: ReadonlySet<number>,
+  previousOwners: readonly number[],
+  giantStateId: number,
+  cells: SovereigntyCells
+): number {
+  const boundaryCounts = new Map<number, number>();
+  const count = (owner: number) => {
+    if (!owner || owner === giantStateId) return;
+    boundaryCounts.set(owner, (boundaryCounts.get(owner) ?? 0) + 1);
+  };
+
+  for (const cell of component) {
+    count(previousOwners[cell]!);
+    for (const neighbor of cells.c[cell] ?? []) {
+      if (!component.has(neighbor)) count(previousOwners[neighbor]!);
+    }
+  }
+
+  return Array.from(boundaryCounts.entries()).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0;
 }
 
 function demoteGiantStates(args: GiantWaterSourceSovereigntyInput): null {
@@ -120,8 +211,36 @@ export function getWatershedCellsForSource(
   // deterministic terrain rule to claim the land which drains into this river basin.
   const drainsToBasin = new Int8Array(cells.i.length);
   for (const cell of riverCells) drainsToBasin[cell] = 1;
-  const watershed = Array.from(cells.i).filter(cell => cellDrainsToBasin(cell, cells, riverCells, drainsToBasin));
-  return watershed;
+  const watershed = new Set(
+    Array.from(cells.i).filter(cell => cellDrainsToBasin(cell, cells, riverCells, drainsToBasin))
+  );
+  fillEnclosedWatershedHoles(watershed, cells);
+  return Array.from(watershed);
+}
+
+/**
+ * Strict downhill tracing leaves an unassigned flat when it reaches an equal-height neighbour.
+ * A land component surrounded entirely by the selected watershed is an internal drainage hollow,
+ * not a separate polity-sized basin, so include it before political territory is derived.
+ */
+function fillEnclosedWatershedHoles(watershed: Set<number>, cells: GiantWatershedCells): void {
+  const unvisited = new Set(Array.from(cells.i).filter(cell => cells.h[cell] >= 20 && !watershed.has(cell)));
+
+  while (unvisited.size) {
+    const start = unvisited.values().next().value as number;
+    const component = connectedComponent(unvisited, start, cells);
+    for (const cell of component) unvisited.delete(cell);
+
+    const boundary = new Set<number>();
+    for (const cell of component) {
+      for (const neighbor of cells.c[cell] ?? []) {
+        if (!component.has(neighbor)) boundary.add(neighbor);
+      }
+    }
+    if (boundary.size && [...boundary].every(cell => watershed.has(cell))) {
+      for (const cell of component) watershed.add(cell);
+    }
+  }
 }
 
 /** `basin` is assigned during Rivers.specify, which follows State generation. Follow parents meanwhile. */
