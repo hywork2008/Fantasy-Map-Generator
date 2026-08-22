@@ -1,7 +1,7 @@
 import type { WorldContext } from "../../../context/worldContext";
 import { getSeasonalTemperatureOffset } from "../../../utils/seasonUtils";
 import type { Burg } from "../../hostTypes";
-import { getClosedRiverIds } from "./urbanSewerage";
+import { getClosedRiverIds } from "./urbanRiverBasin";
 
 /** A winter freeze with a short warm season; exposed treatment must be stored or seasonal. */
 export const SEASONAL_COLD_WINTER_C = -15;
@@ -69,13 +69,13 @@ export type RiverBasinKind = "openBasin" | "closedBasin";
 export type WaterEffluentDestination = "riverOutfall" | "coastalOutfall" | "sealedStorageAndInfiltration";
 
 /**
- * Classifies the river running through `cellId`, if any. Generalizes urbanSewerage.ts's
- * `getClosedRiverIds` (originally private to the Giant-legacy inherited-sewer route, and gated to
- * seasonal-cold burgs there before 2026-08-23) so every burg — not just Giant/seasonal-cold ones —
- * can tell whether its river is a legitimate downstream outfall. Called unconditionally (unlike
- * the old Roman-legacy helpers, which short-circuit away when a burg has no inherited waterworks
- * to check), so — like `isSeasonalColdBurg` — missing map data fails open to `openBasin` for
- * legacy/test fixtures rather than throwing.
+ * Classifies the river running through `cellId`, if any, via `getClosedRiverIds`
+ * (urbanRiverBasin.ts — shared with urbanSewerage.ts's Giant-legacy inherited-sewer route, which
+ * gated it to seasonal-cold burgs before 2026-08-23) so every burg — not just Giant/seasonal-cold
+ * ones — can tell whether its river is a legitimate downstream outfall. Called unconditionally
+ * (unlike the old Roman-legacy helpers, which short-circuit away when a burg has no inherited
+ * waterworks to check), so — like `isSeasonalColdBurg` — missing map data fails open to `openBasin`
+ * for legacy/test fixtures rather than throwing.
  */
 export function resolveBurgBasinKind(args: {
   cellId: number;

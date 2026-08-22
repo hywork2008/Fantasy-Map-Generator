@@ -1,5 +1,6 @@
 import FlatQueue from "flatqueue";
 import type { Burg, PackedGraph } from "../../hostTypes";
+import { getClosedRiverIds } from "./urbanRiverBasin";
 import type { UrbanWaterSystem } from "./urbanWaterTypes";
 
 export interface InheritedSewerRoute {
@@ -127,29 +128,6 @@ function chooseSameLandStorageSite(cells: Iterable<number>, burg: Burg, sewerCel
     burg,
     sewerCells
   );
-}
-
-/**
- * Rivers whose mouth does not reach the open sea — elevated inland/desert terminus, a closed
- * (endorheic) lake, or a non-ocean feature (docs/plan/modern-urban-water-treatment-and-
- * governance.md §2.2's `closedBasin`). Originally private to this module's Giant-legacy sewer
- * routing; exported 2026-08-23 so urbanWaterSystem.ts can classify every burg's `basinKind`, not
- * just Giant/seasonal-cold ones.
- */
-export function getClosedRiverIds(
-  cells: SewerCells,
-  rivers?: readonly RiverMeta[],
-  features?: readonly WaterFeature[]
-): Set<number> {
-  const featureById = new Map(features?.map(feature => [feature.i, feature]));
-  const closed = new Set<number>();
-  for (const river of rivers ?? []) {
-    if (!Number.isInteger(river.mouth) || river.mouth! < 0 || river.mouth! >= cells.r.length) continue;
-    const mouth = river.mouth!;
-    const feature = featureById.get(cells.f?.[mouth] ?? -1);
-    if ((cells.h[mouth] ?? 0) >= 20 || (feature && (feature.type !== "ocean" || feature.closed))) closed.add(river.i);
-  }
-  return closed;
 }
 
 function getRiverHeadCells(cells: SewerCells, rivers?: readonly RiverMeta[]): Set<number> {
