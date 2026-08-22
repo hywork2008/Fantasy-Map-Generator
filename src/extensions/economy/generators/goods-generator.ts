@@ -2692,6 +2692,33 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "standardMachineWorks"
   },
   {
+    // Corrosion-resistant alloy steel. The modest Chromium/Nickel additions represent the
+    // common austenitic family; Molybdenum is a small but valuable addition for chloride/wet
+    // service and Silicon represents deoxidation. Its demand covers the parts of construction
+    // and public utilities where ordinary Steel's short replacement life is a poor choice:
+    // water/sewage equipment, coastal infrastructure, durable fasteners and food-processing
+    // plant. See USGS Aluminum Statistics and worldstainless Infrastructure references.
+    name: "Stainless Steel",
+    warEconomyType: "strategic",
+    tags: ["metal", "industrial", "alloy", "corrosionResistant"],
+    icon: "good-unknown",
+    color: "#a7b0b3",
+    value: 28,
+    chance: 0,
+    recipes: [
+      {
+        Steel: 1,
+        "Chromium Ingot": 0.18,
+        "Nickel Ingot": 0.08,
+        "Molybdenum Ingot": 0.02,
+        "Silicon Ingot": 0.02
+      }
+    ],
+    unit: "bar",
+    demandCoverage: { construction: 0.012, utilities: 0.018 },
+    requiredTechnology: "modernSteelmaking"
+  },
+  {
     name: "Machine Parts",
     warEconomyType: "strategic",
     tags: ["industrial", "tools"],
@@ -3190,6 +3217,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "Nickel Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
   "Molybdenum Ingot": tradeProfile(2, 2, 5, 3, 0, 5, 2),
   "Silicon Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
+  "Stainless Steel": tradeProfile(3, 2, 4, 2, 0, 5, 2),
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
   Fodder: tradeProfile(4, 5, 1, -2, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
@@ -3876,6 +3904,54 @@ export function migrateElectrolyticIndustryGoods(): boolean {
       return Object.fromEntries(resolved);
     });
     good.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
+const ALLOY_STEEL_GOOD_NAMES = [
+  "Chromium Ore",
+  "Nickel Ore",
+  "Molybdenum Ore",
+  "Silicon Ore",
+  "Chromium Ingot",
+  "Nickel Ingot",
+  "Molybdenum Ingot",
+  "Silicon Ingot",
+  "Stainless Steel"
+] as const;
+
+/**
+ * Appends alloying ores, ingots, and their Stainless Steel consumer Good to older catalogues
+ * without creating stock. Resolving the recipe against live ids preserves all existing market
+ * stocks and lets the normal demand-driven workshop path pull materials.
+ */
+export function migrateAlloySteelGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of ALLOY_STEEL_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  const stainlessSteel = goods.find(good => good.name === "Stainless Steel");
+  const template = GOODS_DATA.find(good => good.name === "Stainless Steel");
+  if (stainlessSteel && template?.recipes) {
+    stainlessSteel.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating Stainless Steel`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    stainlessSteel.requiredTechnology = template.requiredTechnology;
   }
   return true;
 }

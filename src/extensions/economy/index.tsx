@@ -104,6 +104,7 @@ import {
   Goods,
   getDefaultGoodTradeProfile,
   isGoodEnabled,
+  migrateAlloySteelGoods,
   migrateChemMedGoods,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
@@ -2561,6 +2562,7 @@ export function init(api: ExtensionAPI): void {
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedElectrical = migrateElectricalGoods();
     const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
+    const migratedAlloySteel = migrateAlloySteelGoods();
     const migratedMercuryChain = migrateMercuryChainGoods();
     const migratedPetroleumChain = migratePetroleumChainGoods();
     const migratedGrapes = migrateGrapesGood();
@@ -2585,6 +2587,7 @@ export function init(api: ExtensionAPI): void {
       migratedSyntheticAmmonia ||
       migratedElectrical ||
       migratedElectrolyticIndustry ||
+      migratedAlloySteel ||
       migratedMercuryChain ||
       migratedPetroleumChain ||
       migratedGrapes ||
@@ -3315,6 +3318,7 @@ export function init(api: ExtensionAPI): void {
     const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
     const migratedElectrical = migrateElectricalGoods();
     const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
+    const migratedAlloySteel = migrateAlloySteelGoods();
     const migratedMercuryChain = migrateMercuryChainGoods();
     const migratedPetroleumChain = migratePetroleumChainGoods();
     const migratedGrapes = migrateGrapesGood();
@@ -3339,6 +3343,7 @@ export function init(api: ExtensionAPI): void {
       migratedSyntheticAmmonia ||
       migratedElectrical ||
       migratedElectrolyticIndustry ||
+      migratedAlloySteel ||
       migratedMercuryChain ||
       migratedPetroleumChain ||
       migratedGrapes ||

@@ -15,6 +15,7 @@ import {
   GOODS_DATA,
   GoodsModule,
   isGoodEnabled,
+  migrateAlloySteelGoods,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
@@ -123,6 +124,24 @@ describe("GoodsModule", () => {
         tags: expect.arrayContaining(["ingot"])
       });
     }
+  });
+
+  it("defines demand-driven Stainless Steel from the mined alloying ingots", () => {
+    const stainlessSteel = GOODS_DATA.find(good => good.name === "Stainless Steel");
+
+    expect(stainlessSteel).toMatchObject({
+      requiredTechnology: "modernSteelmaking",
+      demandCoverage: { construction: 0.012, utilities: 0.018 }
+    });
+    expect(stainlessSteel?.recipes).toEqual([
+      {
+        Steel: 1,
+        "Chromium Ingot": 0.18,
+        "Nickel Ingot": 0.08,
+        "Molybdenum Ingot": 0.02,
+        "Silicon Ingot": 0.02
+      }
+    ]);
   });
 
   it("keeps the current catalogue when rerolling placement", () => {
@@ -379,6 +398,29 @@ describe("GoodsModule", () => {
     expect(aluminum).toMatchObject({ requiredTechnology: "electrolyticIndustry", chance: 0, demandCoverage: {} });
     expect(aluminum?.recipes).toBeUndefined();
     expect(migrateElectrolyticIndustryGoods()).toBe(false);
+  });
+
+  it("appends alloying inputs and Stainless Steel, resolving its recipe to live Good ids", () => {
+    setGoods([{ i: 4, name: "Steel", tags: ["metal"], value: 14, unit: "bar", icon: "steel", color: "#7a8490" }]);
+
+    expect(migrateAlloySteelGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const stainlessSteel = byName.get("Stainless Steel");
+    expect(stainlessSteel).toMatchObject({
+      requiredTechnology: "modernSteelmaking",
+      demandCoverage: { construction: 0.012, utilities: 0.018 }
+    });
+    expect(stainlessSteel?.recipes).toEqual([
+      {
+        [byName.get("Steel")!.i]: 1,
+        [byName.get("Chromium Ingot")!.i]: 0.18,
+        [byName.get("Nickel Ingot")!.i]: 0.08,
+        [byName.get("Molybdenum Ingot")!.i]: 0.02,
+        [byName.get("Silicon Ingot")!.i]: 0.02
+      }
+    ]);
+    expect(migrateAlloySteelGoods()).toBe(false);
   });
 
   // docs/plan/cinnabar-mercury-vertical-slice.md §3.2-3.3, §3.8.
