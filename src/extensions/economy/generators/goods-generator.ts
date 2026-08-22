@@ -301,6 +301,46 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { Highland: 1.4, Nomadic: 0.5 } }
   },
   {
+    name: "Chromium Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-iron",
+    color: "#49665a",
+    value: 7,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.4 } }
+  },
+  {
+    name: "Nickel Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-iron",
+    color: "#879b8c",
+    value: 8,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.2 } }
+  },
+  {
+    name: "Molybdenum Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-stone",
+    color: "#59636b",
+    value: 12,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.4 } }
+  },
+  {
+    name: "Silicon Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-stone",
+    color: "#d8d0bc",
+    value: 3,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.2 } }
+  },
+  {
     name: "Iron Ingot",
     warEconomyType: "strategic",
     tags: ["ingot", "metal", "military"],
@@ -360,6 +400,46 @@ export const GOODS_DATA: GoodData[] = [
     value: 40,
     chance: 0,
     unit: "bullion"
+  },
+  {
+    name: "Chromium Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "alloy"],
+    icon: "good-iron",
+    color: "#49665a",
+    value: 14,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Nickel Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "alloy"],
+    icon: "good-iron",
+    color: "#879b8c",
+    value: 16,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Molybdenum Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "alloy"],
+    icon: "good-stone",
+    color: "#59636b",
+    value: 24,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Silicon Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metalloid", "alloy"],
+    icon: "good-stone",
+    color: "#d8d0bc",
+    value: 6,
+    chance: 0,
+    unit: "wagon"
   },
   {
     name: "Grain",
@@ -3096,12 +3176,20 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "Lead Ore": tradeProfile(5, 5, 3, -1, 0, 5, 3),
   "Silver Ore": tradeProfile(4, 4, 4, 0, 0, 5, 3),
   "Gold Ore": tradeProfile(4, 4, 5, 0, 0, 5, 3),
+  "Chromium Ore": tradeProfile(4, 4, 4, 1, 0, 5, 2),
+  "Nickel Ore": tradeProfile(4, 4, 4, 1, 0, 5, 2),
+  "Molybdenum Ore": tradeProfile(3, 3, 5, 2, 0, 5, 2),
+  "Silicon Ore": tradeProfile(5, 5, 2, -1, 0, 5, 2),
   "Iron Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
   "Copper Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
   "Tin Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
   "Lead Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
   "Silver Ingot": tradeProfile(2, 1, 4, 2, 0, 5, 2),
   "Gold Ingot": tradeProfile(2, 1, 5, 3, 0, 5, 2),
+  "Chromium Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
+  "Nickel Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
+  "Molybdenum Ingot": tradeProfile(2, 2, 5, 3, 0, 5, 2),
+  "Silicon Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
   Fodder: tradeProfile(4, 5, 1, -2, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),

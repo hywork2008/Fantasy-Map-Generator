@@ -114,6 +114,17 @@ describe("GoodsModule", () => {
     expect(rubber).toMatchObject({ tags: expect.arrayContaining(["industrial", "perennialCrop"]) });
   });
 
+  it("defines mine and smelter goods for stainless-steel alloying inputs", () => {
+    for (const metal of ["Chromium", "Nickel", "Molybdenum", "Silicon"]) {
+      expect(GOODS_DATA.find(good => good.name === `${metal} Ore`)).toMatchObject({
+        tags: expect.arrayContaining(["ore"])
+      });
+      expect(GOODS_DATA.find(good => good.name === `${metal} Ingot`)).toMatchObject({
+        tags: expect.arrayContaining(["ingot"])
+      });
+    }
+  });
+
   it("keeps the current catalogue when rerolling placement", () => {
     goodsModule.generate({ randomSeed: 123 });
 

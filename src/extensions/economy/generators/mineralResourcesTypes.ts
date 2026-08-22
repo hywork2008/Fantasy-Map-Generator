@@ -1,5 +1,16 @@
 /** Metals extracted as ore; a later smelter operation turns them into ingots. */
-export const ORE_COMMODITIES = ["iron", "copper", "tin", "lead", "silver", "gold"] as const;
+export const ORE_COMMODITIES = [
+  "iron",
+  "copper",
+  "tin",
+  "lead",
+  "silver",
+  "gold",
+  "chromium",
+  "nickel",
+  "molybdenum",
+  "silicon"
+] as const;
 
 export type OreCommodity = (typeof ORE_COMMODITIES)[number];
 
@@ -37,6 +48,10 @@ export type MineralDistrictType =
   | "graniteTin"
   | "lodeGold"
   | "placer"
+  | "chromite"
+  | "nickelLaterite"
+  | "molybdenumPorphyry"
+  | "quartzVein"
   | "coalSeam"
   | "evaporite"
   | "phosphorite"

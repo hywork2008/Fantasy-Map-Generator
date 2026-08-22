@@ -79,6 +79,18 @@ const DISTRICT_PROFILES: readonly DistrictProfile[] = [
   { type: "sedex", provinces: ["basin"], primary: "lead", commodities: ["lead", "silver"] },
   { type: "graniteTin", provinces: ["granite"], primary: "tin", commodities: ["tin", "copper", "silver"] },
   { type: "bandedIron", provinces: ["shield"], primary: "iron", commodities: ["iron"] },
+  // Alloying minerals for stainless steel and other corrosion-resistant steels. They remain
+  // separate districts so a mine advertises the actual ore it can supply instead of every iron
+  // deposit unrealistically producing all alloying elements.
+  { type: "chromite", provinces: ["orogen", "shield"], primary: "chromium", commodities: ["chromium", "iron"] },
+  { type: "nickelLaterite", provinces: ["shield"], primary: "nickel", commodities: ["nickel", "iron"] },
+  {
+    type: "molybdenumPorphyry",
+    provinces: ["orogen", "granite"],
+    primary: "molybdenum",
+    commodities: ["molybdenum", "copper"]
+  },
+  { type: "quartzVein", provinces: ["granite", "orogen"], primary: "silicon", commodities: ["silicon"] },
   { type: "lodeGold", provinces: ["shield", "orogen"], primary: "gold", commodities: ["gold"] },
   { type: "placer", provinces: ["placer"], primary: "gold", commodities: ["gold"] },
   { type: "coalSeam", provinces: ["basin"], primary: "coal", commodities: ["coal"] },
@@ -106,6 +118,10 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
   "mvt",
   "graniteTin",
   "bandedIron",
+  "chromite",
+  "nickelLaterite",
+  "molybdenumPorphyry",
+  "quartzVein",
   "sedex",
   "porphyry",
   "skarn",
@@ -505,6 +521,10 @@ export class MineralResourcesModule {
       lead: 65,
       silver: 3,
       gold: 1,
+      chromium: 20,
+      nickel: 16,
+      molybdenum: 6,
+      silicon: 100,
       coal: 160,
       saltpeter: 12,
       sulfur: 15,
