@@ -107,6 +107,7 @@ describe("buildInheritedSewerRoutes", () => {
       ],
       cells: {
         i: new Uint16Array([0, 1, 2, 3, 4]),
+        c: [[1, 2], [0, 3], [0], [1], []],
         p: [
           [0, 0],
           [0, 8],
@@ -126,7 +127,7 @@ describe("buildInheritedSewerRoutes", () => {
 
     expect(routes).toEqual([
       expect.objectContaining({ burgId: 1, outfallCell: 2 }),
-      expect.objectContaining({ burgId: 2, joinsRouteId: "roman-sewer-1", outfallCell: 2, destination: [50, 0] })
+      expect.objectContaining({ burgId: 2, joinsRouteId: "roman-sewer-1", outfallCell: 2, destination: [0, 0] })
     ]);
   });
 
@@ -139,25 +140,130 @@ describe("buildInheritedSewerRoutes", () => {
       ],
       cells: {
         i: new Uint16Array([0, 1, 2, 3, 4]),
+        c: [[4], [4], [], [4], [0, 1, 3]],
         p: [
           [0, 0],
           [0, 100],
           [100, 0],
           [100, -100],
-          [200, 0]
+          [50, 50]
         ],
         f: new Uint16Array([1, 1, 1, 1, 1]),
-        h: new Uint16Array([70, 50, 60, 10, 100]),
-        r: new Uint16Array([0, 0, 1, 1, 1]),
+        h: new Uint16Array([70, 50, 100, 10, 50]),
+        r: new Uint16Array([0, 0, 1, 1, 0]),
         haven: new Uint16Array([0, 0, 0, 0, 0]),
         state: new Uint16Array([1, 1, 1, 1, 1])
       },
-      rivers: [{ i: 1, source: 4 }],
+      rivers: [{ i: 1, source: 2 }],
       systems: [inheritedSewer(1), inheritedSewer(2)]
     });
 
     expect(routes[0]).toEqual(
-      expect.objectContaining({ joinsRouteId: "roman-sewer-2", outfallCell: 3, destination: [50, 0] })
+      expect.objectContaining({ joinsRouteId: "roman-sewer-2", outfallCell: 3, destination: [50, 50] })
     );
+  });
+
+  it("stops at the first reachable non-headwater river cell and never climbs across it", () => {
+    const routes = buildInheritedSewerRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 0, y: 0, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3]),
+        c: [[1], [0, 2], [1], []],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [30, 0]
+        ],
+        f: new Uint16Array([1, 1, 1, 1]),
+        h: new Uint16Array([70, 60, 10, 90]),
+        r: new Uint16Array([0, 1, 1, 1]),
+        haven: new Uint16Array([0, 0, 0, 0]),
+        state: new Uint16Array([1, 1, 1, 1])
+      },
+      rivers: [{ i: 1, source: 3 }],
+      systems: [inheritedSewer(1)]
+    });
+
+    expect(routes).toEqual([expect.objectContaining({ outfallCell: 1, cellPath: [0, 1] })]);
+  });
+
+  it("does not build a sewer that must climb before descending to a river", () => {
+    const routes = buildInheritedSewerRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 0, y: 0, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3]),
+        c: [[1], [0, 2], [1], []],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [30, 0]
+        ],
+        f: new Uint16Array([1, 1, 1, 1]),
+        h: new Uint16Array([60, 70, 10, 90]),
+        r: new Uint16Array([0, 0, 1, 1]),
+        haven: new Uint16Array([0, 0, 0, 0]),
+        state: new Uint16Array([1, 1, 1, 1])
+      },
+      rivers: [{ i: 1, source: 3 }],
+      systems: [inheritedSewer(1)]
+    });
+
+    expect(routes).toEqual([]);
+  });
+
+  it("follows the same river downstream when a settlement occupies its source cell", () => {
+    const routes = buildInheritedSewerRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 0, y: 0, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3]),
+        c: [[1, 2], [0], [0], []],
+        p: [
+          [0, 0],
+          [10, 0],
+          [0, 10],
+          [20, 0]
+        ],
+        f: new Uint16Array([1, 1, 1, 1]),
+        h: new Uint16Array([60, 50, 40, 70]),
+        r: new Uint16Array([1, 1, 2, 2]),
+        riverDownstream: new Int32Array([1, -1, -1, -1]),
+        haven: new Uint16Array([0, 0, 0, 0]),
+        state: new Uint16Array([1, 1, 1, 1])
+      },
+      rivers: [
+        { i: 1, source: 0 },
+        { i: 2, source: 3 }
+      ],
+      systems: [inheritedSewer(1)]
+    });
+
+    expect(routes).toEqual([expect.objectContaining({ outfallCell: 1, cellPath: [0, 1] })]);
+  });
+
+  it("draws a coastal sewer to the water cell rather than stopping at the coastal burg cell", () => {
+    const routes = buildInheritedSewerRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 0, y: 4, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3]),
+        c: [[1, 2], [0], [0], []],
+        p: [
+          [0, 0],
+          [10, 0],
+          [0, 5],
+          [20, 0]
+        ],
+        f: new Uint16Array([1, 1, 2, 1]),
+        h: new Uint16Array([30, 20, 17, 70]),
+        r: new Uint16Array([0, 1, 0, 1]),
+        haven: new Uint16Array([2, 0, 0, 0]),
+        state: new Uint16Array([1, 1, 0, 1])
+      },
+      rivers: [{ i: 1, source: 3 }],
+      systems: [inheritedSewer(1)]
+    });
+
+    expect(routes).toEqual([expect.objectContaining({ outfallCell: 2, outfallKind: "coast", cellPath: [0, 2] })]);
   });
 });

@@ -1,3 +1,4 @@
+import FlatQueue from "flatqueue";
 import type { Burg, PackedGraph } from "../../hostTypes";
 import type { UrbanWaterSystem } from "./urbanWaterTypes";
 
@@ -10,18 +11,23 @@ export interface InheritedSewerRoute {
   joinsRouteId?: string;
   source: [number, number];
   destination: [number, number];
+  /** Downhill packed-cell alignment, including its final river, coast, or trunk cell. */
+  cellPath: number[];
+  /** Rendered route points derived from cellPath. */
+  points: [number, number][];
 }
 
 type SewerCells = Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "r" | "state"> & {
   /** Legacy simulation fixtures can omit geometry; fall back to packed-cell proximity there. */
+  c?: PackedGraph["cells"]["c"];
   p?: PackedGraph["cells"]["p"];
+  riverDownstream?: PackedGraph["cells"]["riverDownstream"];
 };
 type RiverMeta = Pick<PackedGraph["rivers"][number], "i" | "source"> &
-  Partial<Pick<PackedGraph["rivers"][number], "mouth">>;
+  Partial<Pick<PackedGraph["rivers"][number], "cells" | "mouth">>;
 type WaterFeature = Pick<PackedGraph["features"][number], "i" | "type" | "closed">;
-type Point = [number, number];
-type SewerJoin = { point: Point; trunkT: number };
 type SewerOutfall = { cell: number; kind: InheritedSewerRoute["outfallKind"] };
+type SewerRouteCandidate = { burg: Burg & { i: number }; system: UrbanWaterSystem };
 
 export type GiantSewerClimateOptions = {
   /** Burgs whose winter freezes exposed treatment while their brief summer can run infiltration beds. */
@@ -30,13 +36,11 @@ export type GiantSewerClimateOptions = {
   features?: readonly WaterFeature[];
 };
 
-const SEWER_MERGE_DISTANCE = 10;
-
 /**
  * Determine the Giant inherited trunk-sewer route for each served settlement.
- * Outfalls stay on the same landmass and must be no higher than the settlement. A river is used
- * only when it is nearer than the coast, preventing a remote river line from crossing lowland
- * that could discharge directly into the nearby sea.
+ * Each route follows adjacent land cells at an equal or lower elevation. It stops at the first
+ * reachable non-headwater river cell, coast, or existing sewer trunk; it never draws a straight
+ * line through a river or another sewer to reach a more distant outlet.
  */
 export function buildInheritedSewerRoutes(args: {
   burgs: readonly (Burg | undefined)[];
@@ -45,26 +49,17 @@ export function buildInheritedSewerRoutes(args: {
   climate?: GiantSewerClimateOptions;
   systems: readonly UrbanWaterSystem[];
 }): InheritedSewerRoute[] {
-  const directRoutes: InheritedSewerRoute[] = [];
+  const candidates: SewerRouteCandidate[] = [];
   for (const system of args.systems) {
     // Older saves used the combined waterworks flag; retain their trunk sewer when loading them.
     if (!(system.hasInheritedRomanSewer ?? system.hasInheritedRomanWaterworks)) continue;
     const burg = args.burgs[system.burgId];
     if (!burg?.i) continue;
-    const outfall = chooseSameLandSewerOutfall(burg, args.cells, args.rivers, args.climate);
-    if (outfall === undefined) continue;
-    const destination = args.cells.p?.[outfall.cell];
-    if (!destination) continue;
-    directRoutes.push({
-      id: `roman-sewer-${burg.i}`,
-      burgId: burg.i,
-      outfallCell: outfall.cell,
-      outfallKind: outfall.kind,
-      source: [burg.x, burg.y],
-      destination: [destination[0], destination[1]]
-    });
+    candidates.push({ burg: burg as Burg & { i: number }, system });
   }
-  return consolidateNearbySewerRoutes(directRoutes, args.cells);
+  return hasSewerGraph(args.cells)
+    ? buildDownhillSewerNetwork(candidates, args.cells, args.rivers, args.climate)
+    : buildLegacySewerRoutes(candidates, args.cells, args.rivers, args.climate);
 }
 
 /** True if a gravity trunk sewer can reach a lower river or coast on the same landmass. */
@@ -74,6 +69,16 @@ export function hasSameLandSewerOutfall(
   rivers?: readonly RiverMeta[],
   climate?: GiantSewerClimateOptions
 ): boolean {
+  if (hasSewerGraph(cells)) {
+    const riverHeadCells = getRiverHeadCells(cells, rivers);
+    const coastalOutlets = getCoastalOutletCells(cells);
+    const closedRiverIds = climate?.seasonalColdBurgIds?.has(burg.i ?? 0)
+      ? getClosedRiverIds(cells, rivers, climate.features)
+      : new Set<number>();
+    return Boolean(
+      findDownhillSewerPath(burg, cells, rivers, riverHeadCells, coastalOutlets, closedRiverIds, new Map(), false)
+    );
+  }
   return chooseSameLandSewerOutfall(burg, cells, rivers, climate) !== undefined;
 }
 
@@ -164,112 +169,273 @@ function getRiverHeadCells(cells: SewerCells, rivers?: readonly RiverMeta[]): Se
   return headCells;
 }
 
-/**
- * Turn intersecting or close parallel drains into a tree of branch sewers and shared trunks.
- * Routes are considered in longest-first order so a short local branch joins the already drawn
- * downstream trunk instead of both routes running independently beside one another to a river.
- */
-function consolidateNearbySewerRoutes(routes: InheritedSewerRoute[], cells: SewerCells): InheritedSewerRoute[] {
-  if (!cells.p?.length || routes.length < 2) return routes;
+/** `haven` points from a coastal land cell to its actual water cell; the latter is the outfall. */
+function getCoastalOutletCells(cells: SewerCells): Set<number> {
+  const outlets = new Set<number>();
+  for (const cell of cells.i) {
+    const outlet = cells.haven?.[cell];
+    if (outlet && outlet >= 0 && outlet < cells.i.length) outlets.add(outlet);
+  }
+  return outlets;
+}
 
-  const network: InheritedSewerRoute[] = [];
-  for (const route of [...routes].sort((a, b) => routeLength(b) - routeLength(a) || a.burgId - b.burgId)) {
-    const join = network
-      .filter(trunk => canShareDownstreamTrunk(route, trunk, cells))
-      .map(trunk => ({ trunk, join: findSewerJoin(route, trunk) }))
-      .filter((candidate): candidate is { trunk: InheritedSewerRoute; join: SewerJoin } => candidate.join !== undefined)
-      .sort((a, b) => a.join.trunkT - b.join.trunkT || a.trunk.burgId - b.trunk.burgId)[0];
+function hasSewerGraph(cells: SewerCells): cells is SewerCells & Required<Pick<SewerCells, "c" | "p">> {
+  return Boolean(cells.i?.length && cells.c?.length && cells.p?.length);
+}
 
-    if (join) {
-      route.destination = join.join.point;
-      route.joinsRouteId = join.trunk.id;
-      // The branch drains through its trunk's actual outfall, so the rendered endpoint and
-      // metadata both describe one shared discharge rather than two parallel discharges.
-      route.outfallCell = join.trunk.outfallCell;
-      route.outfallKind = join.trunk.outfallKind;
+function buildDownhillSewerNetwork(
+  candidates: readonly SewerRouteCandidate[],
+  cells: SewerCells & Required<Pick<SewerCells, "c" | "p">>,
+  rivers: readonly RiverMeta[] | undefined,
+  climate: GiantSewerClimateOptions | undefined
+): InheritedSewerRoute[] {
+  const riverHeadCells = getRiverHeadCells(cells, rivers);
+  const coastalOutlets = getCoastalOutletCells(cells);
+  const trunksByCell = new Map<number, InheritedSewerRoute>();
+  const routes: InheritedSewerRoute[] = [];
+
+  // Establish the low outlets first. Every higher settlement then sees those lines as a terminal
+  // it can join, which makes a directed sewer tree rather than a set of parallel long drains.
+  for (const { burg } of [...candidates].sort(
+    (a, b) => (cells.h[a.burg.cell] ?? 0) - (cells.h[b.burg.cell] ?? 0) || a.burg.i - b.burg.i
+  )) {
+    const seasonalCold = climate?.seasonalColdBurgIds?.has(burg.i) ?? false;
+    const closedRiverIds = seasonalCold ? getClosedRiverIds(cells, rivers, climate?.features) : new Set<number>();
+    const result =
+      findDownhillSewerPath(burg, cells, rivers, riverHeadCells, coastalOutlets, closedRiverIds, trunksByCell, false) ??
+      (seasonalCold
+        ? findDownhillSewerPath(burg, cells, rivers, riverHeadCells, coastalOutlets, closedRiverIds, trunksByCell, true)
+        : undefined);
+    if (!result) continue;
+
+    const trunk = result.joinCell === undefined ? undefined : trunksByCell.get(result.joinCell);
+    const outfallCell = trunk?.outfallCell ?? result.outfall.cell;
+    const outfallKind = trunk?.outfallKind ?? result.outfall.kind;
+    const points = result.cellPath
+      .map(cell => cells.p[cell])
+      .filter((point): point is [number, number] => Boolean(point));
+    if (!samePoint(points[0], [burg.x, burg.y])) points.unshift([burg.x, burg.y]);
+    const destination = points.at(-1)!;
+    const route: InheritedSewerRoute = {
+      id: `roman-sewer-${burg.i}`,
+      burgId: burg.i,
+      outfallCell,
+      outfallKind,
+      joinsRouteId: trunk?.id,
+      source: [burg.x, burg.y],
+      destination,
+      cellPath: result.cellPath,
+      points
+    };
+    routes.push(route);
+    for (const cell of result.cellPath) trunksByCell.set(cell, route);
+  }
+  return routes.sort((a, b) => a.burgId - b.burgId);
+}
+
+function buildLegacySewerRoutes(
+  candidates: readonly SewerRouteCandidate[],
+  cells: SewerCells,
+  rivers: readonly RiverMeta[] | undefined,
+  climate: GiantSewerClimateOptions | undefined
+): InheritedSewerRoute[] {
+  const routes: InheritedSewerRoute[] = [];
+  for (const { burg } of candidates) {
+    const outfall = chooseSameLandSewerOutfall(burg, cells, rivers, climate);
+    const destination = outfall === undefined ? undefined : cells.p?.[outfall.cell];
+    if (!outfall || !destination) continue;
+    routes.push({
+      id: `roman-sewer-${burg.i}`,
+      burgId: burg.i,
+      outfallCell: outfall.cell,
+      outfallKind: outfall.kind,
+      source: [burg.x, burg.y],
+      destination: [destination[0], destination[1]],
+      cellPath: [burg.cell, outfall.cell],
+      points: [
+        [burg.x, burg.y],
+        [destination[0], destination[1]]
+      ]
+    });
+  }
+  return routes;
+}
+
+type DownhillSewerPath = { cellPath: number[]; outfall: SewerOutfall; joinCell?: number };
+
+function findDownhillSewerPath(
+  burg: Burg,
+  cells: SewerCells & Required<Pick<SewerCells, "c" | "p">>,
+  rivers: readonly RiverMeta[] | undefined,
+  riverHeadCells: ReadonlySet<number>,
+  coastalOutlets: ReadonlySet<number>,
+  closedRiverIds: ReadonlySet<number>,
+  trunksByCell: ReadonlyMap<number, InheritedSewerRoute>,
+  allowStorage: boolean
+): DownhillSewerPath | undefined {
+  const start = burg.cell;
+  const landFeature = cells.f[start];
+  const directRiverOutfall = getDownstreamRiverOutfall(start, cells, rivers, riverHeadCells, closedRiverIds);
+  if (directRiverOutfall !== undefined) {
+    return { cellPath: [start, directRiverOutfall], outfall: { cell: directRiverOutfall, kind: "river" } };
+  }
+  const previous = new Int32Array(cells.i.length).fill(-1);
+  const distance = new Float64Array(cells.i.length).fill(Infinity);
+  const queue = new FlatQueue<number>();
+  previous[start] = start;
+  distance[start] = 0;
+  queue.push(start, 0);
+
+  while (queue.length) {
+    const cell = queue.pop()!;
+    const terminal = getSewerTerminal(
+      cell,
+      start,
+      cells,
+      riverHeadCells,
+      coastalOutlets,
+      closedRiverIds,
+      trunksByCell,
+      allowStorage
+    );
+    if (terminal) {
+      return {
+        cellPath: restoreCellPath(cell, start, previous),
+        outfall: terminal.outfall,
+        joinCell: terminal.joinCell
+      };
     }
-    network.push(route);
-  }
-  return network.sort((a, b) => a.burgId - b.burgId);
-}
-
-function canShareDownstreamTrunk(route: InheritedSewerRoute, trunk: InheritedSewerRoute, cells: SewerCells): boolean {
-  if (route.outfallKind !== trunk.outfallKind) return false;
-  if (route.outfallKind === "river") return cells.r[route.outfallCell] === cells.r[trunk.outfallCell];
-  // Coast outfalls do not carry a stable shoreline ID. Limit joining to nearby coastal discharge
-  // points so two distant shores on the same island never become one artificial trunk.
-  return pointDistance(route.destination, trunk.destination) <= SEWER_MERGE_DISTANCE * 3;
-}
-
-function findSewerJoin(route: InheritedSewerRoute, trunk: InheritedSewerRoute): SewerJoin | undefined {
-  const intersection = segmentIntersection(route.source, route.destination, trunk.source, trunk.destination);
-  if (intersection && isInterior(intersection.trunkT) && isInterior(intersection.routeT)) {
-    return { point: pointAt(trunk.source, trunk.destination, intersection.trunkT), trunkT: intersection.trunkT };
-  }
-
-  // A source, midpoint, or discharge point running near a trunk joins it directly. The midpoint
-  // case catches parallel routes whose endpoints are not themselves close to the other segment.
-  const closest = [route.source, midpoint(route.source, route.destination), route.destination]
-    .map(point => projectPointOnSegment(point, trunk.source, trunk.destination))
-    .filter(
-      projection =>
-        isInterior(projection.t) && pointDistance(projection.point, projection.input) <= SEWER_MERGE_DISTANCE
-    )
-    .sort((a, b) => a.t - b.t)[0];
-  if (closest) return { point: closest.point, trunkT: closest.t };
-
-  // Fan-shaped branches aimed at the same river can still be close only near the outfall. Join
-  // them at the earliest common downstream section, which removes the visibly parallel tails.
-  for (const t of [0.5, 0.6, 0.7, 0.8, 0.9, 0.95]) {
-    const branchPoint = pointAt(route.source, route.destination, t);
-    const trunkPoint = pointAt(trunk.source, trunk.destination, t);
-    if (pointDistance(branchPoint, trunkPoint) <= SEWER_MERGE_DISTANCE) return { point: trunkPoint, trunkT: t };
+    // A river is an impermeable boundary for a sewer alignment. If it is not a valid lower
+    // outfall (for example, a same-height reach), the route stops rather than crossing it.
+    if (cell !== start && cells.r[cell]) continue;
+    for (const neighbor of cells.c[cell] ?? []) {
+      if (!isDownhillSewerLandCell(cell, neighbor, landFeature, cells)) continue;
+      const nextDistance = distance[cell]! + cellDistance(cell, neighbor, cells, cell === start ? burg : undefined);
+      if (nextDistance >= distance[neighbor]!) continue;
+      distance[neighbor] = nextDistance;
+      previous[neighbor] = cell;
+      queue.push(neighbor, nextDistance);
+    }
+    const coast = cells.haven?.[cell];
+    if (coast && coastalOutlets.has(coast) && (cells.h[coast] ?? 0) <= (cells.h[cell] ?? 0)) {
+      const nextDistance = distance[cell]! + cellDistance(cell, coast, cells, cell === start ? burg : undefined);
+      if (nextDistance < distance[coast]!) {
+        distance[coast] = nextDistance;
+        previous[coast] = cell;
+        queue.push(coast, nextDistance);
+      }
+    }
   }
   return undefined;
 }
 
-function segmentIntersection(a: Point, b: Point, c: Point, d: Point): { routeT: number; trunkT: number } | undefined {
-  const abx = b[0] - a[0];
-  const aby = b[1] - a[1];
-  const cdx = d[0] - c[0];
-  const cdy = d[1] - c[1];
-  const denominator = abx * cdy - aby * cdx;
-  if (Math.abs(denominator) < 0.0001) return undefined;
-  const acx = c[0] - a[0];
-  const acy = c[1] - a[1];
-  const routeT = (acx * cdy - acy * cdx) / denominator;
-  const trunkT = (acx * aby - acy * abx) / denominator;
-  return routeT >= 0 && routeT <= 1 && trunkT >= 0 && trunkT <= 1 ? { routeT, trunkT } : undefined;
+function getSewerTerminal(
+  cell: number,
+  start: number,
+  cells: SewerCells,
+  riverHeadCells: ReadonlySet<number>,
+  coastalOutlets: ReadonlySet<number>,
+  closedRiverIds: ReadonlySet<number>,
+  trunksByCell: ReadonlyMap<number, InheritedSewerRoute>,
+  allowStorage: boolean
+): { outfall: SewerOutfall; joinCell?: number } | undefined {
+  if (cell !== start && trunksByCell.has(cell)) {
+    const trunk = trunksByCell.get(cell)!;
+    return { outfall: { cell: trunk.outfallCell, kind: trunk.outfallKind }, joinCell: cell };
+  }
+  if (
+    cells.r[cell] &&
+    !riverHeadCells.has(cell) &&
+    !closedRiverIds.has(cells.r[cell]!) &&
+    (cells.h[cell] ?? 0) < (cells.h[start] ?? 0)
+  ) {
+    return { outfall: { cell, kind: "river" } };
+  }
+  if (coastalOutlets.has(cell)) return { outfall: { cell, kind: "coast" } };
+  if (allowStorage && cell !== start && !cells.r[cell] && !cells.haven?.[cell]) {
+    return { outfall: { cell, kind: "storage" } };
+  }
+  return undefined;
 }
 
-function projectPointOnSegment(input: Point, start: Point, end: Point): { input: Point; point: Point; t: number } {
-  const dx = end[0] - start[0];
-  const dy = end[1] - start[1];
-  const lengthSquared = dx * dx + dy * dy;
-  const t = lengthSquared
-    ? Math.max(0, Math.min(1, ((input[0] - start[0]) * dx + (input[1] - start[1]) * dy) / lengthSquared))
-    : 0;
-  return { input, point: pointAt(start, end, t), t };
+function isDownhillSewerLandCell(from: number, to: number, landFeature: number, cells: SewerCells): boolean {
+  if (cells.f[to] !== landFeature) return false;
+  if ((cells.h[to] ?? 0) < 20 && !cells.r[to] && !cells.haven?.[to]) return false;
+  return (cells.h[to] ?? 0) <= (cells.h[from] ?? 0);
 }
 
-function isInterior(t: number): boolean {
-  return t > 0.04 && t < 0.96;
+function restoreCellPath(end: number, start: number, previous: Int32Array): number[] {
+  const path = [end];
+  for (let cell = end; cell !== start; ) {
+    cell = previous[cell];
+    if (cell < 0) return [];
+    path.push(cell);
+  }
+  return path.reverse();
 }
 
-function midpoint(a: Point, b: Point): Point {
-  return pointAt(a, b, 0.5);
+function cellDistance(
+  from: number,
+  to: number,
+  cells: Required<Pick<SewerCells, "p">>,
+  sourceBurg?: Pick<Burg, "x" | "y">
+): number {
+  if (sourceBurg) {
+    const target = cells.p[to];
+    return target ? Math.hypot(target[0] - sourceBurg.x, target[1] - sourceBurg.y) : 1;
+  }
+  const a = cells.p[from];
+  const b = cells.p[to];
+  return a && b ? Math.hypot(a[0] - b[0], a[1] - b[1]) : 1;
 }
 
-function pointAt(start: Point, end: Point, t: number): Point {
-  return [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t];
+function samePoint(a: Point | undefined, b: Point): boolean {
+  return Boolean(a && a[0] === b[0] && a[1] === b[1]);
 }
 
-function pointDistance(a: Point, b: Point): number {
-  return Math.hypot(a[0] - b[0], a[1] - b[1]);
+type Point = [number, number];
+
+/** A settlement on a river source must discharge into that river's next cell, never sidestep into another basin. */
+function getDownstreamRiverOutfall(
+  source: number,
+  cells: SewerCells,
+  rivers: readonly RiverMeta[] | undefined,
+  riverHeadCells: ReadonlySet<number>,
+  closedRiverIds: ReadonlySet<number>
+): number | undefined {
+  const riverId = cells.r[source];
+  if (!riverId || !riverHeadCells.has(source) || closedRiverIds.has(riverId)) return undefined;
+  const downstream = cells.riverDownstream?.[source];
+  if (isEligibleDownstreamRiverCell(downstream, source, riverId, cells, riverHeadCells)) return downstream;
+
+  const river = rivers?.find(candidate => candidate.i === riverId);
+  const index = river?.cells?.indexOf(source) ?? -1;
+  const fromRiverPath = index >= 0 ? river?.cells?.[index + 1] : undefined;
+  if (isEligibleDownstreamRiverCell(fromRiverPath, source, riverId, cells, riverHeadCells)) return fromRiverPath;
+
+  return (cells.c?.[source] ?? [])
+    .filter(cell => isEligibleDownstreamRiverCell(cell, source, riverId, cells, riverHeadCells))
+    .sort(
+      (a, b) =>
+        cellDistance(source, a, cells as Required<Pick<SewerCells, "p">>) -
+        cellDistance(source, b, cells as Required<Pick<SewerCells, "p">>)
+    )[0];
 }
 
-function routeLength(route: InheritedSewerRoute): number {
-  return pointDistance(route.source, route.destination);
+function isEligibleDownstreamRiverCell(
+  cell: number | undefined,
+  source: number,
+  riverId: number,
+  cells: SewerCells,
+  riverHeadCells: ReadonlySet<number>
+): cell is number {
+  return Boolean(
+    cell !== undefined &&
+      cell >= 0 &&
+      cells.r[cell] === riverId &&
+      !riverHeadCells.has(cell) &&
+      (cells.h[cell] ?? 0) <= (cells.h[source] ?? 0)
+  );
 }
 
 function nearestByDistance(candidates: Iterable<number>, burg: Burg, cells: SewerCells): number | undefined {

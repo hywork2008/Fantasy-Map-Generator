@@ -60,9 +60,7 @@ function routeMarkup(route: InheritedSewerRoute, burgName: string): string {
 }
 
 function sewerPath(route: InheritedSewerRoute): string {
-  const [sx, sy] = route.source;
-  const [dx, dy] = route.destination;
-  return `M ${sx},${sy} L ${dx},${dy}`;
+  return route.points.map(([x, y], index) => `${index ? "L" : "M"} ${x},${y}`).join(" ");
 }
 
 function escapeHtml(value: string): string {
