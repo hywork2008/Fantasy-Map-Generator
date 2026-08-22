@@ -701,7 +701,12 @@ const CULTURE_CROP_PREFERENCES: Record<CultureType, Partial<Record<string, numbe
   River: { Rice: 1.55, Wheat: 1.45, Barley: 1.2, "Broad Beans": 1.4, Peas: 1.2, Soybeans: 1.25 },
   Lake: { Oats: 1.4, Barley: 1.2, Peas: 1.4, "Broad Beans": 1.25 },
   Naval: { Wheat: 1.3, Barley: 1.25, Peas: 1.3, "Broad Beans": 1.2 },
-  Nomadic: { Millet: 1.65, Barley: 1.2, Lentils: 1.4, Chickpeas: 1.4 }
+  Nomadic: { Millet: 1.65, Barley: 1.2, Lentils: 1.4, Chickpeas: 1.4 },
+  // Added 2026-08-23 alongside docs/plan/modern-urban-water-treatment-and-governance.md.
+  Desert: { Barley: 1.5, Millet: 1.3, Chickpeas: 1.35, Lentils: 1.3 }, // drought-hardy Fertile-Crescent staples, oasis-irrigated
+  Marsh: { Rice: 1.7, Soybeans: 1.35, "Broad Beans": 1.3, Peas: 1.15 }, // paddy/polder staples
+  Industrial: { Wheat: 1.3, Turnips: 1.35, Peas: 1.2, Barley: 1.15 }, // Agricultural-Revolution root-crop rotation feeding factory towns
+  Colonial: { Wheat: 1.35, Barley: 1.2, Peas: 1.25, "Broad Beans": 1.2 } // transplanted metropole staples, mirrors Naval
 };
 
 const MAIN_CROP_SHARE_WITH_LEGUME = 2 / 3;

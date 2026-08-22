@@ -401,3 +401,54 @@ Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）に
 - 処理済み下水の「安全な放流」は、取水口より下流への放流、容量内の運転、汚泥の処分、放流水の検査を満たす相対的な状態である。流域の生態系・栄養塩・毒性物質まで無害という意味にはしない。
 - 中世・古代風都市に近代処理場を遡及させない。古い都市が持つのは水源保護、重力式導水、沈砂、公共便所、汲み取り、排水であり、濾過・消毒・生物処理は化学・機械・検査・行政記録の積み上げ後に到達する。
 - 魔法で `purifyWater` を採用する場合も、都市全体の処理能力、術者の勤務、取水・配水、下水・汚泥の行き先、監査権限を同じ枠で定義する。魔法は塩素や濾過の工程を代替できても、制度と物流を不要にはしない。
+
+---
+
+## 11. 文化圏ごとの近代化適性（実装済み・下位基盤）
+
+**状態: 実装済み**。「遊牧文化が上下水道を整備する見込みは低い」という直感を、`CultureType` と新規属性 `Culture.modernizationAffinity` として一般化した。本章より前の §1–10（`ModernWaterTreatmentSystem`、`RegionalWaterScheme` 本体）はまだ未実装のままであり、ここで定義する属性はその実装が読み取るための下位基盤に留まる。
+
+### 11.1 問題
+
+既存の `CultureType`（`Generic`/`River`/`Lake`/`Naval`/`Nomadic`/`Hunting`/`Highland`）は生成時の地形コスト・拡張性のためだけに作られており、「この文化圏が恒常的な公共事業へ投資するか」を表す軸を持たなかった。`Nomadic` を上下水道整備から除外したいだけなら `type === "Nomadic"` を特別扱いすれば足りるが、それでは次の二つを取りこぼす。
+
+1. 砂漠のオアシス都市・隊商都市は、河川や港がなければ一律 `Nomadic`（`isNomadicBiome` が砂漠タグと草原タグを区別しない）に分類され、定住的な文化として扱われない。
+2. 「近代化に前向きな文化」と「後ろ向きな文化」の差は `Nomadic` かどうかの二値では表現できない。高地・湿地・沙漠はそれぞれ異なる理由で整備が遅れ、逆に工業化・植民地化を経た文化はむしろ整備が早い。
+
+### 11.2 追加した `CultureType`
+
+`src/types/models.ts` の `CULTURE_TYPES` を7種から11種へ拡張した（`src/generators/cultures-generator.ts` の `defineCultureType` が生成時に判定）。
+
+| 追加した型 | 分岐条件 | 動機 |
+| --- | --- | --- |
+| `Desert` | 砂漠バイオーム（`isDesertBiome`）で、かつ湖・海港・河川のいずれにも該当しない地点 | オアシス・隊商都市。ナイル/チグリス・ユーフラテス型の「砂漠だが河川文化」は従来通り `River`/`Naval` に残る |
+| `Marsh` | 湿地バイオームで、海岸から2セル以内（`cells.t <= 2`） | デルタ・ポルダー型の定住農耕文化。内陸の湿地採集民は従来通り `Hunting` に残る |
+| `Industrial` | `historicalPeriod` が `steamEra` 以降、かつ砂漠・湿地でない地点で確率的に採用 | 蒸気力・工場町文化。近代化の中心的な受益者として新設 |
+| `Colonial` | `initialSettlementPattern === "frontier"` かつ `historicalPeriod` が `ageOfExploration` 以降で確率的に採用（`frontierStartMode === "seaborne"` なら沿岸のみ） | 入植者文化。制度・インフラを本国から移植するため、有機的な `Industrial` とは別に区別する |
+
+`Nomadic` の判定自体も、砂漠タグを除外するよう変更した（草原・サバンナのみを対象とする）。`defineCultureExpansionism`、`getBiomeCost`/`getHeightCost`/`getRiverCost`/`getTypeCost`（拡張コスト）、`culturalHygieneProfile`（`src/extensions/economy/generators/urbanWaterSystem.ts`）、`CULTURE_CROP_PREFERENCES`（`agriculturalLandUse.ts`）、`BASE_HOUSING_RECIPE_BY_CULTURE`（`housingRecipes.ts`）、`KNOWLEDGE_VALUE_PRIOR`（`cultureKnowledgeValue.ts`）を4型分拡張済み。エディタ側は `CulturesEditorDialog`/`StatesEditorDialog`/`BurgEditorDialog` のドロップダウンと `en.json`/`ja.json` を更新済み。
+
+### 11.3 新規属性 `modernizationAffinity`
+
+`knowledgeValue`（学問への価値観、既存）と同じ形の乱数属性を追加した：`Culture.modernizationAffinity?: number`（0..1）。生成時に文化型ごとの事前分布からガウス乱択し、セーブへ永続化する（`src/utils/cultureModernizationAffinity.ts`、読み取りは `getCultureModernizationAffinity()`）。`knowledgeValue` と分けた理由は、両者が独立した問いに答えるためである — 「物知りだが定住しない文化」も「工学的には浅いが投資に前向きな文化」もあり得る。
+
+| `CultureType` | 事前平均 | 根拠 |
+| --- | --- | --- |
+| `Nomadic` | 0.08 | 定住地を持たないため、恒常的な公共事業を置く場所自体がない（本章の出発点） |
+| `Hunting` | 0.15 | 人口密度が低く、定住しても投資規模が小さい |
+| `Desert` | 0.2 | 井戸・季節キャンプ依存が基本だが、隊商都市が富めば整備し得る |
+| `Highland` | 0.3 | 到達可能だが、勾配・低地からの距離で普及が遅れる |
+| `Marsh` | 0.35 | 高密度な定住は可能だが、排水工学の前提条件が河川取水より重い |
+| `Generic` | 0.4 | 中立 |
+| `Lake` | 0.5 | — |
+| `River` / `Naval` | 0.55 | 水力・水運・港湾交易による技術伝播が歴史的に最速 |
+| `Colonial` | 0.7 | 本国基準の移植。ただし都市内の区画間で不均一になり得る点は単一スカラーでは表現できない（§5.4 の留保どおり） |
+| `Industrial` | 0.85 | 本計画が最終的に想定する受益文化そのもの |
+
+### 11.4 §1–10 実装時にどう読むべきか（未実装・提案）
+
+`modernizationAffinity` はまだ何もゲートしていない。§8 の Phase 1 以降を実装する際は、次のように読む案を残す。
+
+- Phase 1（`ModernWaterTreatmentSystem` 新設時）: 初期状態の `drinkingTreatmentTier`/`wastewaterTreatmentTier` を 0 で揃えるのではなく、`modernizationAffinity` が高い Burg ほど Tier 1 相当（水源保護・沈砂・低速砂濾過）の初期投資が既に済んでいる確率を上げる。
+- Phase 2–5（薬品消費・生物処理・広域水道）: `modernizationAffinity` を「同じ予算充足度でも整備が進む速さ」の乗数として使う。ゲートそのもの（薬品・技術ノード・予算）は §4/§8 の技術グラフのままとし、`modernizationAffinity` は技術が使える前提の上での「その文化がどれだけ積極的に予算を割り当てるか」に限定する — 技術的に不可能なことを可能にはしない。
+- `Nomadic`/`Desert` の低い値は「劣っている」ことを意味しない。Nomadic 文化が強制的に定住化された場合（現実史のカザフ人・ベドウィンの定住化に相当する将来イベントがあれば）、`type` を変えずに `modernizationAffinity` だけ再ロールし直す拡張点として残せる。

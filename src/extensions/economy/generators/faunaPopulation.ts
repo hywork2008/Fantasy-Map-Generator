@@ -278,15 +278,18 @@ function getStateMountedHeadcount(stateId: number): number {
   return total;
 }
 
-/** True when `stateId`'s culture is Nomadic (same `CultureType` this file's `getCellCultureType()`
- * reads elsewhere). This game has no separate camel-cavalry unit type, so a state's whole mounted
- * headcount is attributed to whichever species its culture would plausibly field: Nomadic states
- * ride Camels, everyone else rides Horses — mirrors husbandry.ts's own "nomadic" pasture-tag
- * precedent for the same distinction. */
+/** True when `stateId`'s culture is Nomadic or Desert (same `CultureType` this file's
+ * `getCellCultureType()` reads elsewhere; "Desert" split off of Nomadic 2026-08-23, docs/plan/
+ * modern-urban-water-treatment-and-governance.md, but keeps the same camel-riding archetype). This
+ * game has no separate camel-cavalry unit type, so a state's whole mounted headcount is attributed
+ * to whichever species its culture would plausibly field: Nomadic/Desert states ride Camels,
+ * everyone else rides Horses — mirrors husbandry.ts's own "nomadic" pasture-tag precedent for the
+ * same distinction, and mountAvailability.ts's `isCamelState`. */
 function isNomadicState(stateId: number): boolean {
   if (!stateId) return false;
   const cultureId = getWorldContext().pack.states?.[stateId]?.culture;
-  return cultureId !== undefined && getWorldContext().pack.cultures?.[cultureId]?.type === "Nomadic";
+  const type = cultureId !== undefined ? getWorldContext().pack.cultures?.[cultureId]?.type : undefined;
+  return type === "Nomadic" || type === "Desert";
 }
 
 /**

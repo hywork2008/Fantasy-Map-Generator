@@ -6,7 +6,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { isNomadicBiome } from "../data/biomeCatalog";
+import { isDesertBiome, isNomadicBiome } from "../data/biomeCatalog";
 import { getPreferredDispersedFrontierStarts } from "../generators/frontierStartPlacement";
 import { refreshRiverHydrology } from "../generators/riverHydrology";
 import { applyInitialSettlementPattern } from "../generators/settlementPattern";
@@ -586,14 +586,21 @@ function recreateStates(): State[] | null {
             GenerationPipeline.Names as { getCulture(c: number, a: number, b: number, s: string, n: number): string }
           ).getCulture(culture, 3, 6, "", 0);
     const name = GenerationPipeline.Names.getState(basename, culture);
-    const nomadic = isNomadicBiome(worldContext.biomesData, worldContext.pack.cells.biomeCode[capital.cell]);
-    const type = nomadic
-      ? "Nomadic"
-      : worldContext.pack.cultures[culture!].type === "Nomadic"
-        ? "Generic"
-        : worldContext.pack.cultures[culture!].type;
-    const expansionism = rn(Math.random() * useOptionsState.getState().sizeVariety + 1, 1);
+    const capitalBiome = worldContext.pack.cells.biomeCode[capital.cell];
+    // "Desert" (2026-08-23, docs/plan/modern-urban-water-treatment-and-governance.md) split off
+    // of Nomadic — check it first so a manually-placed capital on desert biome doesn't fall into
+    // the steppe-pastoralist branch, mirroring cultures-generator.ts's defineCultureType.
+    const isDesertCell = isDesertBiome(worldContext.biomesData, capitalBiome);
+    const nomadic = !isDesertCell && isNomadicBiome(worldContext.biomesData, capitalBiome);
     const cultureType = worldContext.pack.cultures[culture!].type;
+    const type = isDesertCell
+      ? "Desert"
+      : nomadic
+        ? "Nomadic"
+        : cultureType === "Nomadic" || cultureType === "Desert"
+          ? "Generic"
+          : cultureType;
+    const expansionism = rn(Math.random() * useOptionsState.getState().sizeVariety + 1, 1);
     const coa = GenerationPipeline.COA.generate(capital.coa || null, 0.3, null, cultureType ?? "Generic");
     coa.shield = capital.coa?.shield;
     newStates.push({

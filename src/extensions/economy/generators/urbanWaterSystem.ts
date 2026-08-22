@@ -217,6 +217,64 @@ export function culturalHygieneProfile(cultureType: CultureType | string | undef
       wasteRaw.managedComposting = 0.18;
       wasteRaw.cesspit = 0.15;
       break;
+    // Added 2026-08-23 alongside docs/plan/modern-urban-water-treatment-and-governance.md.
+    case "Desert":
+      // Fixed oasis/caravan settlements minimize water for cleansing (cloth/sand wiping over
+      // washing) but, unlike Nomadic camps, cannot just relocate away from their own waste.
+      cleansingRaw.water = 0.12;
+      cleansingRaw.plant = 0.35;
+      cleansingRaw.cloth = 0.35;
+      cleansingRaw.sharedTool = 0.1;
+      wasteRaw.cesspit = 0.35;
+      wasteRaw.managedComposting = 0.2;
+      wasteRaw.openDisposal = 0.25;
+      wasteRaw.animalScavenging = 0.14;
+      wasteRaw.waterDischarge = 0.04;
+      break;
+    case "Marsh":
+      // Delta/polder life is water-saturated in both directions: highest water cleansing of any
+      // type, and — before any modern treatment exists — the highest raw waterDischarge too
+      // (see docs/plan/epidemic-cholera-and-water-security.md for what that risks downstream).
+      cleansingRaw.water = 0.55;
+      cleansingRaw.plant = 0.3;
+      wasteRaw.waterDischarge = 0.35;
+      wasteRaw.openDisposal = 0.2;
+      wasteRaw.nightSoilCollection = 0.15;
+      wasteRaw.managedComposting = 0.15;
+      wasteRaw.cesspit = 0.1;
+      wasteRaw.animalScavenging = 0.05;
+      break;
+    case "Industrial":
+      // Dense factory-town population with little rural land nearby: organized night-soil
+      // collection stands in for the piped sewer this culture wants but, absent the still-
+      // unimplemented ModernWaterTreatmentSystem (§6 of the doc above), does not yet have.
+      cleansingRaw.water = 0.45;
+      cleansingRaw.cloth = 0.25;
+      cleansingRaw.paper = 0.15;
+      cleansingRaw.plant = 0.1;
+      wasteRaw.nightSoilCollection = 0.3;
+      wasteRaw.waterDischarge = 0.25;
+      wasteRaw.cesspit = 0.2;
+      wasteRaw.openDisposal = 0.15;
+      wasteRaw.managedComposting = 0.06;
+      wasteRaw.animalScavenging = 0.04;
+      break;
+    case "Colonial":
+      // A single scalar profile cannot represent the historical split between a well-served
+      // colonial quarter and a neglected native one (§5.4's own caveat) — this is the administered-
+      // average across both, leaning on imported organization (night-soil rounds, composting) more
+      // than an organic Generic culture would.
+      cleansingRaw.water = 0.4;
+      cleansingRaw.cloth = 0.2;
+      cleansingRaw.paper = 0.1;
+      cleansingRaw.plant = 0.25;
+      wasteRaw.nightSoilCollection = 0.25;
+      wasteRaw.managedComposting = 0.2;
+      wasteRaw.cesspit = 0.2;
+      wasteRaw.openDisposal = 0.2;
+      wasteRaw.waterDischarge = 0.1;
+      wasteRaw.animalScavenging = 0.05;
+      break;
     default:
       break;
   }

@@ -16,6 +16,7 @@ import { getCulturesEditorState, setCulturesEditorState } from "../store/culture
 import { useOptionsState } from "../store/optionsState";
 import type { HierarchyElement } from "../types/HierarchyTree";
 import type { Burg, Culture, CultureType, NameBase, Province, Race, State } from "../types/models";
+import { CULTURE_TYPES } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
@@ -31,7 +32,9 @@ import { toggleBiomes, toggleCultures, toggleProvinces, toggleReligions, toggleS
 import { NamesbaseEditor } from "./namesbase-editor";
 import { editStyle } from "./style";
 
-const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
+// Typed as readonly string[] (not CultureType[]) so `.includes()` can check untyped CSV/import
+// input below without narrowing its argument type first.
+const cultureTypes: readonly string[] = CULTURE_TYPES;
 
 let worldContext: WorldContext;
 let appServices: AppServices;
@@ -218,6 +221,13 @@ export const culturesEditorActions = {
       if (type === "Naval") return "square";
       if (type === "Highland") return "concave";
       if (type === "Nomadic") return "octagon";
+      // Reused shapes below (2026-08-23): only 7 distinct node shapes exist in hierarchy-tree.ts's
+      // shapesMap and the original 7 culture types already claim all of them — color still tells
+      // these apart on the tree.
+      if (type === "Desert") return "octagon"; // arid kinship with Nomadic
+      if (type === "Marsh") return "hexagon"; // water kinship with Lake
+      if (type === "Industrial") return "diamond"; // often grows out of a River culture's site
+      if (type === "Colonial") return "square"; // arrives by sea, like Naval
       if (type === "Hunting") return "pentagon";
       return undefined;
     };

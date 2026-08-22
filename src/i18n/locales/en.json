@@ -2210,7 +2210,11 @@
         "naval": "Naval",
         "nomadic": "Nomadic",
         "hunting": "Hunting",
-        "highland": "Highland"
+        "highland": "Highland",
+        "desert": "Desert",
+        "marsh": "Marsh",
+        "industrial": "Industrial",
+        "colonial": "Colonial"
       },
       "culture": "Culture:",
       "cultureTip": "Select dominant culture",

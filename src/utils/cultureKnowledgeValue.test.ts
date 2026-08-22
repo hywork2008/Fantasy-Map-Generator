@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getCultureKnowledgeValue, KNOWLEDGE_VALUE_PRIOR, rollCultureKnowledgeValue } from "./cultureKnowledgeValue";
 
 describe("KNOWLEDGE_VALUE_PRIOR", () => {
-  it("matches docs/plan/great-library.md KD-2's prior table", () => {
+  it("matches docs/plan/great-library.md KD-2's prior table, extended by modern-urban-water-treatment-and-governance.md §11.3", () => {
     expect(KNOWLEDGE_VALUE_PRIOR).toEqual({
       Generic: 0.45,
       River: 0.5,
@@ -10,7 +10,11 @@ describe("KNOWLEDGE_VALUE_PRIOR", () => {
       Naval: 0.48,
       Highland: 0.4,
       Hunting: 0.28,
-      Nomadic: 0.22
+      Nomadic: 0.22,
+      Desert: 0.42,
+      Marsh: 0.4,
+      Industrial: 0.6,
+      Colonial: 0.5
     });
   });
 });

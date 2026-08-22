@@ -2210,7 +2210,11 @@
         "naval": "海港",
         "nomadic": "遊牧",
         "hunting": "狩猟",
-        "highland": "高地"
+        "highland": "高地",
+        "desert": "砂漠",
+        "marsh": "湿地",
+        "industrial": "工業",
+        "colonial": "植民"
       },
       "culture": "文化：",
       "cultureTip": "支配的な文化を選択します",

@@ -185,6 +185,10 @@ export const BurgEditorDialog: React.FC = () => {
                       <option value="Nomadic">{t("dialogs.burgEditor.types.nomadic")}</option>
                       <option value="Hunting">{t("dialogs.burgEditor.types.hunting")}</option>
                       <option value="Highland">{t("dialogs.burgEditor.types.highland")}</option>
+                      <option value="Desert">{t("dialogs.burgEditor.types.desert")}</option>
+                      <option value="Marsh">{t("dialogs.burgEditor.types.marsh")}</option>
+                      <option value="Industrial">{t("dialogs.burgEditor.types.industrial")}</option>
+                      <option value="Colonial">{t("dialogs.burgEditor.types.colonial")}</option>
                     </select>
                   </td>
                 </tr>
