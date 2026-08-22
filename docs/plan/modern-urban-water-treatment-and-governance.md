@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案（未実装）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
+**設計案（Phase 1 実装済み・Phase 2–5 未実装、§8/§12 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
 
 既存の[都市水利・衛生インフラ設計](./urban-water-and-sanitation-system.md)が扱う開放側溝、被覆暗渠、分流、清掃・放流規制を置き換えない。本書はその後段、すなわち「川の水を都市規模で飲料用に安全化する」「汚水を下流へ移すだけでなく処理して放流する」近代的な工程を定義する。
 
@@ -300,7 +300,7 @@ interface ModernWaterTreatmentSystem {
 
 | Phase | 変更 | 既存資産との接続 |
 | --- | --- | --- |
-| 1 | `ModernWaterTreatmentSystem` と `RegionalWaterScheme`、取水・放流の地理判定、`waterSecurity` / `riverPollutionLoad` の分離 | `UrbanWaterSystem`、疫病水質設計 |
+| 1 | **実装済み（2026-08-23、§12参照）**。`ModernWaterTreatmentSystem` と `RegionalWaterScheme`、取水・放流の地理判定、`waterSecurity` / `riverPollutionLoad` の分離 | `UrbanWaterSystem`、疫病水質設計 |
 | 2 | 水源保護、低速砂濾過、一次沈殿、建設費と運転費の分離 | Burg treasury、清掃税・接続料 |
 | 3 | 流域水道局、参加・補償・水利認可、`toggleWaterSupply` の計画／建設／稼働表示 | Burg/State の行政按分、既存の拡張レイヤー API |
 | 4 | 凝集・急速濾過・`Chlorine` 消費・水質検査 | era 6 の化学工業、`Chlorine` Good |
@@ -452,3 +452,36 @@ Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）に
 - Phase 1（`ModernWaterTreatmentSystem` 新設時）: 初期状態の `drinkingTreatmentTier`/`wastewaterTreatmentTier` を 0 で揃えるのではなく、`modernizationAffinity` が高い Burg ほど Tier 1 相当（水源保護・沈砂・低速砂濾過）の初期投資が既に済んでいる確率を上げる。
 - Phase 2–5（薬品消費・生物処理・広域水道）: `modernizationAffinity` を「同じ予算充足度でも整備が進む速さ」の乗数として使う。ゲートそのもの（薬品・技術ノード・予算）は §4/§8 の技術グラフのままとし、`modernizationAffinity` は技術が使える前提の上での「その文化がどれだけ積極的に予算を割り当てるか」に限定する — 技術的に不可能なことを可能にはしない。
 - `Nomadic`/`Desert` の低い値は「劣っている」ことを意味しない。Nomadic 文化が強制的に定住化された場合（現実史のカザフ人・ベドウィンの定住化に相当する将来イベントがあれば）、`type` を変えずに `modernizationAffinity` だけ再ロールし直す拡張点として残せる。
+
+---
+
+## 12. Phase 1 実装メモ（実装済み・2026-08-23）
+
+**状態: 実装済み**。ただし「巨人の国にだけ最初から上下水道を設置する仕組み」（本書より前に `feature/giants-urban-water` ブランチで実装済み）が、Phase 1 が要求する要素の大半を既に部分的に含んでいた。そのため実装は「新設」より「Giant 専用だった既存ロジックを全 Burg 向けに一般化する」作業が中心になった。以下、当初の想定との差分を明記する。
+
+### 12.1 見つかった既存資産（重複実装を避けた箇所）
+
+| Phase 1 が要求する要素 | 実装前の状態 | 対応 |
+| --- | --- | --- |
+| `thermalRegime`（`temperate`/`seasonalCold`） | `isSeasonalColdBurg()`（`urbanWaterClimate.ts`）が §2.2 と同一の閾値（冬季 ≦ -15°C、夏季 ≧ 10°C）で既に実装済み。ただし Giant の継承下水判定でのみ呼ばれ、`UrbanWaterSystem` に保存されていなかった | `UrbanWaterSystem.thermalRegime` として全 Burg 分を保存するフィールドを追加。計算ロジック自体は変更なし |
+| `basinKind`（`openBasin`/`closedBasin`） | `getClosedRiverIds()`（`urbanSewerage.ts` 内、非公開）が河口標高・`feature.type`・`feature.closed` から既に §2.2 相当の閉鎖流域判定を実装済み。ただし Giant の継承下水路が対象で、**`seasonalCold` の Burg にしか適用されていなかった**（温暖な閉鎖流域は素通りしていた） | `export` して `urbanWaterClimate.ts`（`resolveBurgBasinKind`）から再利用。`seasonalCold` ゲートを外し、全 Burg・全気候で無条件に適用するよう一般化 |
+| `waterSecurity` / `riverPollutionLoad` の分離 | 既に分離済みだった。`waterSecurityScoreFromSystem()`（`drinkingWaterSecurity * 60 + (1 - waterContamination) * 40`）が `Burg.waterSecurity` を書き込み（`docs/plan/epidemic-cholera-and-water-security.md §3.1`）、`downstreamPollutionExport`/`upstreamPollutionImport` が `propagateRiverPollution()` で川沿いに Burg 間を伝播していた | 変更なし。ただし `hasDownstreamOutfall` の地理判定が甘く、伝播の入力自体が不正確だった（§12.2） |
+| `drinkingTreatmentTier` / `wastewaterTreatmentTier` | `UrbanWaterSystem` に既存（Giant は 1、他は 0 固定、進行ロジックなし） | 変更なし。Tier 進行ロジック（低速砂濾過等の投資）は Phase 2 の範囲 |
+
+### 12.2 新規実装
+
+- **`hasDownstreamOutfall` の地理バグ修正**（`urbanWaterSystem.ts`）: 従来は `geography.hasRiver || geography.isCoastal || hasRegionalRomanSewerOutfall` で、川が実際に海へ到達するか（`basinKind`）を一切見ていなかった。内陸で消失する川沿いの Burg でも無条件に「下流放流先あり」と扱われ、`downstreamPollutionExport` を無制限に外部化できてしまっていた。`(geography.hasRiver && basinKind === "openBasin") || geography.isCoastal || hasRegionalRomanSewerOutfall` に修正。`pollutionExport()`（`urbanWaterInstitutions.ts`、既存）は `!hasDownstreamOutfall` のとき既に汚濁を局所化する実装だったため、`sealedStorageAndInfiltration` 相当の容量経済（§6 の `winterStorageFill` 等）を新設しなくても、この一行修正だけで閉鎖流域の Burg は自分の汚水を輸出できなくなる。
+- **Giant 継承下水路の同型バグも修正**（`urbanSewerage.ts`）: `hasSameLandSewerOutfall`/`chooseSameLandSewerOutfall`/`buildDownhillSewerNetwork` の3箇所で `seasonalCold` ゲートを外し、閉鎖流域の回避と貯留地フォールバック（`chooseSameLandStorageSite`）を気候によらず常時適用。温暖な閉鎖流域の Giant 国家が、以前は閉鎖河川へそのまま継承下水路を通せてしまっていた不整合を解消。
+- **`UrbanWaterSystem` に3フィールド追加**: `basinKind`、`thermalRegime`、`effluentDestination`（`"riverOutfall" | "coastalOutfall" | "sealedStorageAndInfiltration"`、`resolveBurgEffluentDestination()` で導出）。いずれも `previous` からの引き継ぎではなく毎年ジオグラフィから再計算する、`hasUpstreamIntake`/`hasDownstreamOutfall` と同じ性質のフィールド。
+- **`RegionalWaterScheme` の型のみ追加**（`urbanWaterTypes.ts`）: §9.4 のインターフェースと完全一致。生成・永続化・参照のいずれも未実装（Phase 3 の範囲）。`Culture.modernizationAffinity`（§11）と同じく「後続フェーズが依拠する型を先に用意する」方針。
+
+### 12.3 `ModernWaterTreatmentSystem` を独立した型にしなかった理由
+
+当初案（§6）は `ModernWaterTreatmentSystem` を `UrbanWaterSystem` とは別の型として新設する想定だった。しかし実装時点で `drinkingTreatmentTier`/`wastewaterTreatmentTier`（Giant 専用初期値として既存）が既に `UrbanWaterSystem` 本体のフィールドとして存在しており、別オブジェクトに分離すると同じ「浄水・下水の整備度」を表す情報が二箇所に分裂する。既存の設計判断（`hasUpstreamIntake`/`hasDownstreamOutfall`/`hasInheritedRomanWaterworks` も全て `UrbanWaterSystem` 直下）に合わせ、`ModernWaterTreatmentSystem` という別名の型は作らず、§6 の該当フィールドを `UrbanWaterSystem` へ直接統合する方針とした。§6 の残りのフィールド（`sourceProtection`、`treatedWaterCapacity`、`chlorineStockCoverage`、`chemicalTestCoverage`、`effluentCompliance`、`combinedSewerOverflow`、`sludgeBacklog`、`winterStorageFill`、`seasonalInfiltrationCapacity`）は、対応する投資・運転ロジック（Phase 2/4/5）が実装される時点で同様に `UrbanWaterSystem` へ追加する想定とし、今回は先行実装しない（AGENTS.md の「今存在しない仕組みのために作らない」方針）。
+
+### 12.4 未着手（Phase 2 以降に残した項目）
+
+- `drinkingTreatmentTier`/`wastewaterTreatmentTier` の投資進行ロジック（低速砂濾過・一次沈殿等）。非 Giant Burg は依然として恒久的に Tier 0。
+- `sealedStorageAndInfiltration` の容量経済（`winterStorageFill`、`seasonalInfiltrationCapacity`）。今回は `effluentDestination` の分類のみで、`hasDownstreamOutfall = false` による汚濁の局所化は既存の `pollutionExport()` に委ねている。
+- `RegionalWaterScheme` のライフサイクル（提案→調査→交渉→資金→建設→試運転→運転）。
+- `modernizationAffinity`（§11）を Tier 初期値・投資速度へ実際に接続すること。

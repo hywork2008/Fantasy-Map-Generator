@@ -98,6 +98,31 @@ describe("buildInheritedSewerRoutes", () => {
     expect(routes).toEqual([expect.objectContaining({ outfallCell: 3, outfallKind: "storage" })]);
   });
 
+  it("uses sealed storage and infiltration for a river that ends inland even in a warm climate (docs/plan/modern-urban-water-treatment-and-governance.md §2.2: closedBasin forbids river discharge regardless of thermalRegime)", () => {
+    const routes = buildInheritedSewerRoutes({
+      burgs: [undefined, { i: 1, cell: 0, x: 0, y: 0, state: 1, type: "Generic" }],
+      cells: {
+        i: new Uint16Array([0, 1, 2, 3]),
+        p: [
+          [0, 0],
+          [20, 0],
+          [30, 0],
+          [8, 8]
+        ],
+        f: new Uint16Array([1, 1, 1, 1]),
+        h: new Uint16Array([60, 50, 20, 10]),
+        r: new Uint16Array([0, 1, 1, 0]),
+        haven: new Uint16Array([0, 0, 0, 0]),
+        state: new Uint16Array([1, 1, 1, 1])
+      },
+      rivers: [{ i: 1, source: 1, mouth: 2 }],
+      // No seasonalColdBurgIds this time — same closed river, warm climate.
+      systems: [inheritedSewer(1)]
+    });
+
+    expect(routes).toEqual([expect.objectContaining({ outfallCell: 3, outfallKind: "storage" })]);
+  });
+
   it("merges nearby parallel drains into one downstream river trunk", () => {
     const routes = buildInheritedSewerRoutes({
       burgs: [

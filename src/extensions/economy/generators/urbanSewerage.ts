@@ -72,9 +72,11 @@ export function hasSameLandSewerOutfall(
   if (hasSewerGraph(cells)) {
     const riverHeadCells = getRiverHeadCells(cells, rivers);
     const coastalOutlets = getCoastalOutletCells(cells);
-    const closedRiverIds = climate?.seasonalColdBurgIds?.has(burg.i ?? 0)
-      ? getClosedRiverIds(cells, rivers, climate.features)
-      : new Set<number>();
+    // Closed-basin avoidance used to apply only to seasonal-cold burgs (the taiga scenario docs/
+    // plan/modern-urban-water-treatment-and-governance.md §9.4 was written for); a river vanishing
+    // inland or into a closed lake is just as invalid an outfall in a warm climate (§2.2's table
+    // forbids "closedBasin" river discharge in both thermal rows) — always compute it now.
+    const closedRiverIds = getClosedRiverIds(cells, rivers, climate?.features);
     return Boolean(
       findDownhillSewerPath(burg, cells, rivers, riverHeadCells, coastalOutlets, closedRiverIds, new Map(), false)
     );
@@ -97,8 +99,11 @@ function chooseSameLandSewerOutfall(
   // The source cell is an inviolate headwater intake. A trunk sewer can join only the second
   // mapped cell or later, even when the source happens to be the closest river point.
   const riverHeadCells = getRiverHeadCells(cells, rivers);
-  const seasonalCold = Boolean(burg.i && climate?.seasonalColdBurgIds?.has(burg.i));
-  const closedRiverIds = seasonalCold ? getClosedRiverIds(cells, rivers, climate?.features) : new Set<number>();
+  // Closed-basin avoidance and the storage fallback used to apply only to seasonal-cold burgs; a
+  // river that vanishes inland or into a closed lake is just as invalid an outfall in a warm
+  // climate, and the doc's warm-closedBasin row (§2.2) also prescribes local storage/infiltration
+  // instead of river discharge — apply both regardless of thermal regime now.
+  const closedRiverIds = getClosedRiverIds(cells, rivers, climate?.features);
   const river = sameLandLower.filter(
     cell => cells.r[cell] && !riverHeadCells.has(cell) && !closedRiverIds.has(cells.r[cell]!)
   );
@@ -106,7 +111,7 @@ function chooseSameLandSewerOutfall(
   const nearestRiver = nearestByDistance(river, burg, cells);
   const nearestCoast = nearestByDistance(coast, burg, cells);
   if (nearestRiver === undefined && nearestCoast === undefined) {
-    const storage = seasonalCold ? chooseSameLandStorageSite(sameLandLower, burg, cells) : undefined;
+    const storage = chooseSameLandStorageSite(sameLandLower, burg, cells);
     return storage === undefined ? undefined : { cell: storage, kind: "storage" };
   }
   if (nearestRiver === undefined) return { cell: nearestCoast!, kind: "coast" };
@@ -124,7 +129,14 @@ function chooseSameLandStorageSite(cells: Iterable<number>, burg: Burg, sewerCel
   );
 }
 
-function getClosedRiverIds(
+/**
+ * Rivers whose mouth does not reach the open sea — elevated inland/desert terminus, a closed
+ * (endorheic) lake, or a non-ocean feature (docs/plan/modern-urban-water-treatment-and-
+ * governance.md §2.2's `closedBasin`). Originally private to this module's Giant-legacy sewer
+ * routing; exported 2026-08-23 so urbanWaterSystem.ts can classify every burg's `basinKind`, not
+ * just Giant/seasonal-cold ones.
+ */
+export function getClosedRiverIds(
   cells: SewerCells,
   rivers?: readonly RiverMeta[],
   features?: readonly WaterFeature[]
@@ -193,19 +205,21 @@ function buildDownhillSewerNetwork(
   const coastalOutlets = getCoastalOutletCells(cells);
   const trunksByCell = new Map<number, InheritedSewerRoute>();
   const routes: InheritedSewerRoute[] = [];
+  // Closed-basin avoidance and the storage fallback used to apply only to seasonal-cold burgs; a
+  // river that vanishes inland or into a closed lake is just as invalid an outfall in a warm
+  // climate, and the doc's warm-closedBasin row (§2.2) also prescribes local storage/infiltration
+  // instead of river discharge — apply both regardless of thermal regime now. Independent of any
+  // one candidate burg, so hoisted out of the loop below.
+  const closedRiverIds = getClosedRiverIds(cells, rivers, climate?.features);
 
   // Establish the low outlets first. Every higher settlement then sees those lines as a terminal
   // it can join, which makes a directed sewer tree rather than a set of parallel long drains.
   for (const { burg } of [...candidates].sort(
     (a, b) => (cells.h[a.burg.cell] ?? 0) - (cells.h[b.burg.cell] ?? 0) || a.burg.i - b.burg.i
   )) {
-    const seasonalCold = climate?.seasonalColdBurgIds?.has(burg.i) ?? false;
-    const closedRiverIds = seasonalCold ? getClosedRiverIds(cells, rivers, climate?.features) : new Set<number>();
     const result =
       findDownhillSewerPath(burg, cells, rivers, riverHeadCells, coastalOutlets, closedRiverIds, trunksByCell, false) ??
-      (seasonalCold
-        ? findDownhillSewerPath(burg, cells, rivers, riverHeadCells, coastalOutlets, closedRiverIds, trunksByCell, true)
-        : undefined);
+      findDownhillSewerPath(burg, cells, rivers, riverHeadCells, coastalOutlets, closedRiverIds, trunksByCell, true);
     if (!result) continue;
 
     const trunk = result.joinCell === undefined ? undefined : trunksByCell.get(result.joinCell);

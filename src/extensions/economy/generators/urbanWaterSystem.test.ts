@@ -81,6 +81,9 @@ function baseSystem(overrides: Partial<UrbanWaterSystem> = {}): UrbanWaterSystem
     odor: 0.4,
     hasUpstreamIntake: false,
     hasDownstreamOutfall: true,
+    basinKind: "openBasin",
+    thermalRegime: "temperate",
+    effluentDestination: "riverOutfall",
     hasSeparateWastewaterRoute: false,
     stormwaterDemand: 0.55,
     wastewaterDemand: 0.5,
@@ -514,6 +517,53 @@ describe("computeUrbanWaterSystem", () => {
       previous: first
     });
     expect(second.tier).toBe(first.tier);
+  });
+
+  it("does not credit a downstream outfall for a river that vanishes inland (closedBasin)", () => {
+    worldContext.pack = {
+      cells: {
+        r: new Uint16Array([1, 1]),
+        f: new Uint16Array([1, 1]),
+        h: new Uint16Array([50, 25])
+      },
+      rivers: [{ i: 1, source: 0, mouth: 1 }]
+    } as unknown as PackedGraph;
+
+    const system = computeUrbanWaterSystem({
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12
+    });
+
+    expect(system.basinKind).toBe("closedBasin");
+    expect(system.hasDownstreamOutfall).toBe(false);
+    expect(system.effluentDestination).toBe("sealedStorageAndInfiltration");
+  });
+
+  it("credits a downstream outfall for a river that reaches the open sea (openBasin)", () => {
+    worldContext.pack = {
+      cells: {
+        r: new Uint16Array([1, 1]),
+        f: new Uint16Array([1, 2]),
+        h: new Uint16Array([50, 5])
+      },
+      rivers: [{ i: 1, source: 0, mouth: 1 }],
+      features: [{ i: 2, type: "ocean" }]
+    } as unknown as PackedGraph;
+
+    const system = computeUrbanWaterSystem({
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12
+    });
+
+    expect(system.basinKind).toBe("openBasin");
+    expect(system.hasDownstreamOutfall).toBe(true);
+    expect(system.effluentDestination).toBe("riverOutfall");
   });
 });
 

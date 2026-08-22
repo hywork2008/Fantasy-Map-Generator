@@ -36,7 +36,7 @@ import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
 import { raceKeyForBurgState, raceKeyForBurgWaterworks } from "./resolveBurgCulture";
 import { hasSameLandSewerOutfall } from "./urbanSewerage";
-import { isSeasonalColdBurg } from "./urbanWaterClimate";
+import { isSeasonalColdBurg, resolveBurgBasinKind, resolveBurgEffluentDestination } from "./urbanWaterClimate";
 import {
   cleaningTaxRevenue,
   evolveInstitutions,
@@ -81,9 +81,11 @@ import {
   WATER_WORKS_PROJECT_LABELS
 } from "./urbanWaterTypes";
 
+export type { RiverBasinKind, WaterEffluentDestination } from "./urbanWaterClimate";
 export { maxInvestableTier, waterTechCeilings } from "./urbanWaterTech";
 export type {
   CulturalHygieneProfile,
+  RegionalWaterScheme,
   UrbanWaterSystem,
   WaterDemandSignal,
   WaterDemandSignalId,
@@ -740,12 +742,30 @@ export function computeUrbanWaterSystem(args: {
   const hasInheritedRomanSewer = previous?.hasInheritedRomanSewer ?? hasInheritedRomanWaterworks;
   const hasRegionalRomanWaterConnection =
     hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
+  // `hasSameLandSewerOutfall` now avoids closed-basin rivers unconditionally (urbanSewerage.ts,
+  // 2026-08-23 — it used to require a seasonalColdBurgIds gate), so no climate filter is needed here.
   const hasRegionalRomanSewerOutfall =
     hasInheritedRomanSewer &&
     hasSameLandSewerOutfall(burg, getWorldContext().pack.cells, getWorldContext().pack.rivers, {
-      seasonalColdBurgIds: isGiantState && isSeasonalColdBurg(getWorldContext(), burg) ? new Set([burg.i!]) : undefined,
       features: getWorldContext().pack.features
     });
+
+  const thermalRegime: "temperate" | "seasonalCold" = isSeasonalColdBurg(getWorldContext(), burg)
+    ? "seasonalCold"
+    : "temperate";
+  // Every burg's own geographic fact (docs/plan/modern-urban-water-treatment-and-governance.md
+  // §2.2), not just Giant/seasonal-cold ones — see resolveBurgBasinKind()'s doc comment.
+  const basinKind = resolveBurgBasinKind({
+    cellId: burg.cell,
+    cells: getWorldContext().pack.cells,
+    rivers: getWorldContext().pack.rivers,
+    features: getWorldContext().pack.features
+  });
+  const effluentDestination = resolveBurgEffluentDestination({
+    hasRiver: geography.hasRiver,
+    isCoastal: geography.isCoastal,
+    basinKind
+  });
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);
@@ -811,7 +831,12 @@ export function computeUrbanWaterSystem(args: {
   irrigationCapacity = clamp01(irrigationCapacity * (1 + organic.fertilizerReturn * 0.12));
   irrigationCapacity = irrigationPollutionPenalty(upstreamPollutionImport, irrigationCapacity);
 
-  const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal || hasRegionalRomanSewerOutfall;
+  // A closed-basin river is not a valid outfall (docs/plan/modern-urban-water-treatment-and-
+  // governance.md §2.2) — only credit the river clause once basinKind confirms it reaches the sea.
+  // Direct coastal discharge and an inherited Roman outfall (which independently avoids closed
+  // rivers — see hasRegionalRomanSewerOutfall above) still count regardless of the river's basin.
+  const hasDownstreamOutfall =
+    (geography.hasRiver && basinKind === "openBasin") || geography.isCoastal || hasRegionalRomanSewerOutfall;
   const hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalRomanWaterConnection;
   const hasSeparateWastewaterRoute = computeSeparateWastewaterRoute({ tier, sanitaryEngineering });
   const mixedLocal = localMixedIntakeOutfall({
@@ -940,6 +965,9 @@ export function computeUrbanWaterSystem(args: {
     odor: rn(odor, 4),
     hasUpstreamIntake,
     hasDownstreamOutfall,
+    basinKind,
+    thermalRegime,
+    effluentDestination,
     hasInheritedRomanWaterworks,
     hasInheritedRomanSewer,
     hasSeparateWastewaterRoute,
@@ -1065,6 +1093,13 @@ function systemDefaults(
     odor: 0.3,
     hasUpstreamIntake: false,
     hasDownstreamOutfall: false,
+    // computeUrbanWaterSystem() always recomputes these three fresh from live geography — these
+    // defaults only matter if a systemDefaults()/giantRomanWaterworksSeed() result is ever read
+    // directly without going through it first. Kept consistent with hasDownstreamOutfall: false
+    // above (no claimed outfall).
+    basinKind: "openBasin",
+    thermalRegime: "temperate",
+    effluentDestination: "sealedStorageAndInfiltration",
     hasInheritedRomanWaterworks: false,
     hasInheritedRomanSewer: false,
     hasSeparateWastewaterRoute: false,
