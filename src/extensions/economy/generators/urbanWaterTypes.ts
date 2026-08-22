@@ -156,6 +156,18 @@ export type UrbanWaterSystem = {
   wastewaterOperationsFunding: number;
   lastModernConstructionSpend: number;
 
+  // ── Modern Phase 4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15): rapid
+  // filtration/coagulation (drinkingTreatmentTier 1→2) and controlled chlorination (2→3). Both new
+  // fields are recomputed fresh every year (not carried forward like sourceProtection/progress
+  // meters) — same "0..1 coverage ratio" shape as treatmentOperationsFunding above. ─────────────
+  /** 0..1 coverage of this year's water-quality testing upkeep (active once drinkingTreatmentTier
+   * ≥ 2 — dosing control is only worth verifying once there is dosing to verify). */
+  chemicalTestCoverage: number;
+  /** 0..1 coverage of this year's Chlorine purchase against demand (active once
+   * drinkingTreatmentTier ≥ 3). Unlike every other funding ratio in this type, this one is capped
+   * by real local Chlorine market stock, not just treasury — see urbanWaterModernTreatment.ts. */
+  chlorineStockCoverage: number;
+
   // ── Phase 3: institutions, organic routes, externalities ─────────────────
   connectionPermitCoverage: number;
   cleaningTaxRate: number;

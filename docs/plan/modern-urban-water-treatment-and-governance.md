@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案（Phase 1–3 実装済み・Phase 4–5 未実装、§8/§12/§13/§14 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
+**設計案（Phase 1–4 実装済み・Phase 5 未実装、§8/§12/§13/§14/§15 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
 
 既存の[都市水利・衛生インフラ設計](./urban-water-and-sanitation-system.md)が扱う開放側溝、被覆暗渠、分流、清掃・放流規制を置き換えない。本書はその後段、すなわち「川の水を都市規模で飲料用に安全化する」「汚水を下流へ移すだけでなく処理して放流する」近代的な工程を定義する。
 
@@ -303,7 +303,7 @@ interface ModernWaterTreatmentSystem {
 | 1 | **実装済み（2026-08-23、§12参照）**。`ModernWaterTreatmentSystem` と `RegionalWaterScheme`、取水・放流の地理判定、`waterSecurity` / `riverPollutionLoad` の分離 | `UrbanWaterSystem`、疫病水質設計 |
 | 2 | **実装済み（2026-08-23、§13参照）**。水源保護、低速砂濾過、一次沈殿、建設費と運転費の分離 | Burg treasury、清掃税・接続料 |
 | 3 | **実装済み（2026-08-23、§14参照）**。流域水道局、参加・補償・水利認可、`toggleWaterSupply` の計画／建設／稼働表示 | Burg/State の行政按分、既存の拡張レイヤー API |
-| 4 | 凝集・急速濾過・`Chlorine` 消費・水質検査 | era 6 の化学工業、`Chlorine` Good |
+| 4 | **実装済み（2026-08-23、§15参照）**。凝集・急速濾過・`Chlorine` 消費・水質検査 | era 6 の化学工業、`Chlorine` Good |
 | 5 | 散水ろ床／活性汚泥、汚泥処理、流域補償、放流水検査、`toggleSewerage` | `sanitaryEngineering`、上流・下流汚染外交 |
 
 Phase 1–2 では「塩素を入れれば直ちに近代水道」という近道を作らない。Phase 4 は `controlledWaterChlorination` が `demonstrated` になった都市だけが試験的に実行でき、`adopted` になった State でも、各 Burg が濾過・薬品・検査・運転費を満たした場合にのみ恒常効果を得る。
@@ -565,3 +565,56 @@ Giant の `hasRegionalRomanWaterConnection`（§12 で確認済み、`hasInherit
 - `compensationReserve`（§9.3 の水源地・通過地補償）— インターフェースには存在するが、このPhaseでは一度も加算されない。
 - 建設費・運転費の Goods 連動（Phase 2 から持ち越し、依然として現金のみ）。
 - `toggleSewerage` 側の `RegionalWaterScheme` 対応（§8 Phase 5 の範囲 — 本 Phase は `toggleWaterSupply` のみ）。
+
+---
+
+## 15. Phase 4 実装メモ（実装済み・2026-08-23）
+
+**状態: 実装済み**。§13.4/§14.4 で「Tier 2以降（急速濾過・塩素消毒）」として持ち越されていた項目。`drinkingTreatmentTier` の型自体は Phase 1 の時点で `0 | 1 | 2 | 3` を許容していたが、Phase 2 が実装した投資ロジックは Tier 0→1 で止まっており、Tier 2・3 へ進める経路はどこにも存在しなかった。Phase 4 はこの2段を追加する。
+
+### 15.1 同じ進捗メーターを使い回す設計
+
+Phase 2 の `drinkingTreatmentUpgradeProgress`（0..1）は Tier 0→1 専用の名前ではなく、汎用の「次の Tier への進捗」を表す値としてすでに設計されていた（Tier 完了時に 0 へリセットされる）。そのため Phase 4 は新しい進捗フィールドを追加せず、同じメーターを Tier 1→2・Tier 2→3 でも再利用する形にした。`urbanWaterModernTreatment.ts` の Step 2 は次のように一般化した：
+
+```text
+現在の drinkingTreatmentTier に応じて次の一歩が解禁されているかを判定
+  0: sourceProtection >= 0.6（Phase 2 から変更なし）
+  1: analyticalChemistry が対象 State で demonstrated 以上（新規）
+  2: catalyticChemistry が対象 State で demonstrated 以上（新規）
+解禁されていれば、その段の建設費（240 / 420 / 560、people でスケール）へ課金し、
+進捗が 1 に達したら drinkingTreatmentTier をインクリメントして進捗を 0 に戻す。
+```
+
+### 15.2 発見・修正した Phase 2 の潜在バグ
+
+`settleModernWaterTreatmentInvestment` の早期リターン条件は元々 `drinkingTreatmentTier >= 1 && wastewaterTreatmentTier >= 1` だった。これは「もう建設することがないなら丸ごと何もしない」つもりだったが、実際には**運転予算（`treatmentOperationsFunding`/`wastewaterOperationsFunding`）の計算も毎年ゼロに固定してしまう**バグだった。両方の Tier が 1 に達した年以降、恒久的にゼロ運転予算が返り続け、`computeUrbanWaterSystem` 側の `drinkingTreatmentTier >= 1 ? 0.2 * treatmentOperationsFunding : 0` のような項が常に無効化される——「施設はあるが安全性は低い」ではなく「施設があっても未来永劫ゼロ」になっていた。
+
+これが Phase 2 のテストで見つからなかった理由は、既存テスト「funds operations only once a tier has actually been reached」が `wastewaterTreatmentTier: 0` を使っており、ガード条件を偶然満たしていなかったため。Phase 4 は Tier を 1 より先へ進める必要があり、この早期リターンをそのまま残すと Tier 2/3 へ絶対に進めなくなるため、ガードを「era/人口ゲートのみ」に絞り込んで修正した（§13.4 のスコープカット一覧には無かった、実装中に発見した独立のバグ）。§14 までの慣行（Phase 1 の `hasDownstreamOutfall` 地理バグ発見と同型）を踏襲し、テスト名にも regression として明記した。
+
+### 15.3 巨人国家への副作用と対策
+
+上記の早期リターン修正により、もう一つの隠れた効果が消えた：巨人国家は `computeUrbanWaterSystem` の `isGiantState` 分岐で毎年 `drinkingTreatmentTier`/`wastewaterTreatmentTier` を強制的に 1 に上書きされる。この結果 `settleModernWaterTreatmentInvestment` に渡る `previous.drinkingTreatmentTier`/`wastewaterTreatmentTier` は常に両方 1 になり、旧ガードはこれを「もう何もしない」と偶然正しく判定していた。ガードを外すと、`analyticalChemistry`/`catalyticChemistry` がたまたま demonstarted になった巨人国家に対して、この関数が Tier 2/3 の建設費を実際に treasury から引き落とし始める——にもかかわらず `computeUrbanWaterSystem` は結果を毎回 1 へ上書きして捨てる、つまり巨人の国庫が無意味に浪費される。
+
+対応として `buildSystems()`（`urbanWaterSystem.ts`）に明示的な分岐を追加し、巨人国家では `settleModernWaterTreatmentInvestment` の呼び出し自体をスキップするようにした。以前のコードのコメントには「No-ops for Giants（already seeded）」と書かれていたが、これは上記の偶然の産物を意図した挙動であるかのように誤記していたもので、Phase 4 で初めて本当に正しい実装になった。
+
+### 15.4 `computeUrbanWaterSystem` への接続
+
+Tier 1 と同じ「運転充足度で効果を減衰させる」パターンを踏襲しつつ、Tier 2・3 独自の追加ゲートを設けた：
+
+| 式 | Tier 2（急速濾過・凝集） | Tier 3（塩素消毒） |
+| --- | --- | --- |
+| `waterContamination` の追加項 | `- 0.1 * treatmentOperationsFunding * chemicalTestCoverage` | `- 0.14 * chlorineStockCoverage * treatmentOperationsFunding` |
+| `drinkingWaterSecurity`（`modernDrinkingBonus`）の追加項 | `+ 0.15 * treatmentOperationsFunding * chemicalTestCoverage` | `+ 0.2 * chlorineStockCoverage * treatmentOperationsFunding` |
+
+Tier 2 は運転資金だけでなく `chemicalTestCoverage`（水質検査の実施状況）にも懸かる——投薬量を検査していない急速濾過は§1の「残留消毒剤の検査…そろえて初めて `drinkingWaterSecurity` を高くできる」という前提に反するため。Tier 3 は実際の `Chlorine` Good 在庫（`chlorineStockCoverage`）と運転資金の両方を要求する。
+
+### 15.5 `Chlorine` の実消費（このフェーズの核心）
+
+Tier 3 のみ、`Markets.consumeForMarketInvestment`（`purchaseProjectMaterials` が Stone/Tools/Brick に使うのと同じ有償引き出しプリミティブ）で Burg の地元市場から `Chlorine` を実際に購入する。これは Phase 2/3 の「現金のみ」路線からの意図的な逸脱であり、§8 が Phase 4 の核心として明記した「`Chlorine` 消費」を Good ベースの実在する希少性として実装するためである。塩素工場（`chlorinePlants.ts`/`chlorAlkaliPlants.ts`）は稼働プラント1つあたり年 0.15〜0.6 バレルしか産出しないため、`chlorineAnnualNeed()` は人口比で小さく（例: 人口5000で年0.06バレル）設定し、大都市の需要でも近隣の塩素プラント1〜2基の産出量に収まる規模にした。地元市場に `Chlorine` の在庫や交易路がなければ、予算があっても `chlorineStockCoverage` は上がらない——化学工業と塩素供給網（既存の `catalyticChemistry` ゲート）へ実在する依存を生む設計とした。
+
+### 15.6 未着手（Phase 5 に残した項目）
+
+- 生物処理（散水ろ床・活性汚泥）、`wastewaterTreatmentTier` の 1 超え。
+- 建設費・運転費・Chlorine 以外の Good（Alum、Lime 等）の連動は依然として現金のみ。
+- `chemicalTestCoverage`/`chlorineStockCoverage` の流域補償・`toggleSewerage` への接続（Phase 5 の範囲）。
+- `rapidFiltrationAndCoagulation`/`controlledWaterChlorination` を §4.1 が示す独立した技術ノードとして技術グラフに追加すること——今回は既存の `analyticalChemistry`/`catalyticChemistry` を再利用するに留めた（Phase 1〜3 が独自の技術ノードを作らなかった前例を踏襲し、UI/セーブ互換への影響を避けるための意図的な選択）。

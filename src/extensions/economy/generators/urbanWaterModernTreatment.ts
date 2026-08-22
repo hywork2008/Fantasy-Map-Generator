@@ -1,10 +1,13 @@
 /**
- * Phase 2 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4): annual investment
- * toward `drinkingTreatmentTier`/`wastewaterTreatmentTier` reaching 1 for ordinary (non-Giant)
- * burgs — upstream source protection, slow sand filtration, and primary wastewater settling
- * (screening, grit removal, primary settling, sludge removal). Giants keep their generation-time
- * seeded Tier 1 (urbanWaterSystem.ts's `computeUrbanWaterSystem`) regardless of this module; this
- * module only ever raises OTHER burgs toward that same floor through play.
+ * Phase 2/4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4, §15): annual
+ * investment toward `drinkingTreatmentTier`/`wastewaterTreatmentTier` for ordinary (non-Giant)
+ * burgs. Phase 2 covers Tier 0→1 (upstream source protection, slow sand filtration, primary
+ * wastewater settling). Phase 4 extends the SAME drinking-water ladder two steps further —
+ * Tier 1→2 (coagulation/rapid filtration) and Tier 2→3 (controlled chlorination) — reusing the
+ * same shared upgrade-progress meter rather than adding a new one per step (§15.1). Giants keep
+ * their generation-time seeded Tier 1 (urbanWaterSystem.ts's `computeUrbanWaterSystem`) regardless
+ * of this module; this module only ever raises OTHER burgs toward and past that same floor through
+ * play. Wastewater stays at Tier 0→1 only — Phase 5 (biological treatment) is out of scope here.
  *
  * Deliberately kept separate from the legacy `WaterWorksProjectKind`/`settleBurgWaterInvestment`
  * machinery (urbanWaterSystem.ts, urbanWaterTech.ts): the legacy system is one unified `tier`
@@ -19,18 +22,31 @@
  * are deliberately tracked apart — §5.1's "四つの財布" — so a built-but-unfunded plant can lose its
  * effective benefit without losing the tier itself (§5.1: "施設はあるが安全性は低い").
  *
- * Scope cuts documented so they are not silently forgotten (§12.4 of the doc):
+ * Phase 4 (§15) adds two real per-State technology gates (`analyticalChemistry` for Tier 1→2,
+ * `catalyticChemistry` for Tier 2→3 — both already exist in technologyDefinitions.ts, matching the
+ * doc's §4.1 technology graph's own prerequisites for `rapidFiltrationAndCoagulation` and
+ * `controlledWaterChlorination`) and one real Good draw: Tier 3 chlorination actually buys
+ * `Chlorine` from the burg's local market (`Markets.consumeForMarketInvestment`, the same paid-draw
+ * primitive `purchaseProjectMaterials` already uses for Stone/Tools/Brick), so a Burg with no local
+ * Chlorine supply or trade route gets little of Tier 3's benefit regardless of budget — Chlorine
+ * plants (chlorinePlants.ts/chlorAlkaliPlants.ts) currently produce ~0.15-0.6 barrels/plant/year,
+ * so this is a genuinely scarce input, not a rubber-stamp gate.
+ *
+ * Scope cuts documented so they are not silently forgotten (§12.4/§15 of the doc):
  * - Construction cost here is cash-only. The legacy system's material purchase machinery
- *   (`purchaseProjectMaterials`, Stone/Tools/Brick) is not threaded through for these two new
- *   projects — a reasonable follow-up once Phase 2 gameplay is validated.
- * - Chemical treatment (coagulation, rapid filtration, chlorination — Phase 4) and biological
- *   wastewater treatment (Phase 5) are out of scope; both require Tier 1 as a prerequisite in the
- *   doc's §4.1 technology graph, which this module does not touch.
+ *   (`purchaseProjectMaterials`, Stone/Tools/Brick) is not threaded through for these projects —
+ *   Chlorine is the one exception, since Good-based scarcity is the actual point of Tier 3.
+ * - Biological wastewater treatment (Phase 5) is out of scope; wastewaterTreatmentTier stays
+ *   capped at 1 here.
  */
 
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { getGoods } from "../economyContext";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
+import { Markets } from "./markets-generator";
 import type { WaterSanitationTier } from "./urbanWaterTypes";
 
 function clamp01(value: number): number {
@@ -40,7 +56,9 @@ function clamp01(value: number): number {
 
 /**
  * §4's Stage B ("低速砂濾過…era 5 の前半") — the earliest era any modern treatment can appear,
- * matching cultures-generator.ts's "Industrial" culture-type era gate (steamEra+).
+ * matching cultures-generator.ts's "Industrial" culture-type era gate (steamEra+). This is the
+ * OUTER gate for the whole ladder; Tier 1→2/2→3 (Phase 4) add per-State technology-stage gates on
+ * top (§15), since a blanket era string can't express "this particular State's chemistry".
  */
 const MODERN_WATER_ERA = new Set(["steamEra", "industrialChemistryEra", "petroleumEra", "rocketryEra"]);
 
@@ -62,6 +80,9 @@ const SOURCE_PROTECTION_MIN_FOR_FILTRATION = 0.6;
 // replacement for it. Both draw from the same Burg treasury each settles in the same annual pass.
 const MODERN_CONSTRUCTION_BUDGET_SHARE = 0.06;
 const MODERN_OPERATIONS_BUDGET_SHARE = 0.03;
+/** Separate, smaller slice for the Tier 3 Chlorine purchase (§15) — a real Good draw, not general
+ *  cash upkeep, so it is not folded into MODERN_OPERATIONS_BUDGET_SHARE above. */
+const MODERN_CHLORINE_BUDGET_SHARE = 0.025;
 
 function projectScale(people: number): number {
   return 0.5 + clamp01(people / 15000);
@@ -70,19 +91,67 @@ function projectScale(people: number): number {
 function sourceProtectionTreasuryCost(people: number): number {
   return rn(70 * projectScale(people), 2);
 }
-function drinkingFiltrationTreasuryCost(people: number): number {
-  return rn(240 * projectScale(people), 2);
+
+/**
+ * Cost of the NEXT drinking-treatment step, keyed by the tier a burg is upgrading FROM. Tier 0→1
+ * (slow sand filtration) and tiers 1→2/2→3 (Phase 4's rapid filtration/coagulation and controlled
+ * chlorination) share one progress meter (`drinkingTreatmentUpgradeProgress`) — see this file's
+ * header — so the meter's cost basis must switch with the current tier rather than being one fixed
+ * constant. Costs rise with each step: later stages need pumps, dosing gear, and a contact tank on
+ * top of the previous stage's works, not instead of them.
+ */
+function drinkingTreatmentStepCost(fromTier: WaterSanitationTier, people: number): number {
+  const scale = projectScale(people);
+  switch (fromTier) {
+    case 0:
+      return rn(240 * scale, 2); // slowSandFiltration
+    case 1:
+      return rn(420 * scale, 2); // rapidFiltrationAndCoagulation
+    case 2:
+      return rn(560 * scale, 2); // controlledWaterChlorination (dosing gear, contact tank, test bench)
+    default:
+      return 0;
+  }
 }
+
 function primaryWastewaterTreasuryCost(people: number): number {
   return rn(260 * projectScale(people), 2);
 }
 
-/** Annual upkeep once a tier has actually been reached — sand renewal, records, sludge removal. */
-function modernDrinkingOperationsNeed(people: number): number {
-  return rn(Math.max(1.5, people * 0.0006), 2);
+/** Annual upkeep once a tier has actually been reached — sand renewal, records, sludge removal.
+ *  Scales up with tier: Tier 2/3 keep running pumps, dosing controllers, and a contact tank on top
+ *  of Tier 1's works, not instead of them. */
+function modernDrinkingOperationsNeed(people: number, tier: WaterSanitationTier): number {
+  const base = Math.max(1.5, people * 0.0006);
+  const tierMultiplier = tier >= 3 ? 2.2 : tier >= 2 ? 1.6 : 1;
+  return rn(base * tierMultiplier, 2);
 }
 function modernWastewaterOperationsNeed(people: number): number {
   return rn(Math.max(1.5, people * 0.0007), 2);
+}
+/** Glass/reagent/record-keeping upkeep for water-quality testing (§1, §3's "測定・記録具" row) —
+ *  active once rapid filtration (Tier ≥ 2) makes dosing control worth verifying. */
+function chemicalTestOperationsNeed(people: number): number {
+  return rn(Math.max(1, people * 0.00025), 2);
+}
+
+/**
+ * Barrels of Chlorine a Tier 3 plant needs per year. Deliberately small: a "service" Chlorine
+ * plant (chlorinePlants.ts) produces only ~0.6 barrels/year, so even a large city's chlorination
+ * demand should sit within reach of ONE regional plant's output, not dwarf it.
+ */
+function chlorineAnnualNeed(people: number): number {
+  return rn(Math.max(0.01, people * 0.000012), 4);
+}
+
+/** §4.1: rapidFiltrationAndCoagulation's prerequisite. Per-State, not a blanket era string. */
+function analyticalChemistryDemonstrated(stateId: number): boolean {
+  return isTechnologyStageAtLeast(getTechnologyStage("analyticalChemistry", stateId), "demonstrated");
+}
+/** §4.1: controlledWaterChlorination's prerequisite (same node chlorinePlants.ts's Chlorine supply
+ *  already requires — Tier 3 is meaningless without a chemistry base that can also supply it). */
+function catalyticChemistryDemonstrated(stateId: number): boolean {
+  return isTechnologyStageAtLeast(getTechnologyStage("catalyticChemistry", stateId), "demonstrated");
 }
 
 export type ModernWaterTreatmentInvestmentResult = {
@@ -93,6 +162,10 @@ export type ModernWaterTreatmentInvestmentResult = {
   wastewaterTreatmentUpgradeProgress: number;
   treatmentOperationsFunding: number;
   wastewaterOperationsFunding: number;
+  /** 0..1: this year's water-quality testing upkeep coverage (Tier ≥ 2 only). */
+  chemicalTestCoverage: number;
+  /** 0..1: this year's Chlorine purchase coverage against chlorineAnnualNeed() (Tier ≥ 3 only). */
+  chlorineStockCoverage: number;
   lastModernConstructionSpend: number;
 };
 
@@ -102,8 +175,13 @@ export type ModernWaterTreatmentInvestmentResult = {
  * pattern). Returns the updated fields; callers merge them into the next `computeUrbanWaterSystem`
  * pass the same way `settleBurgWaterInvestment`'s result is merged today.
  *
- * No-ops (returns `previous` unchanged, spending nothing) once both tiers are already ≥ 1 — Phase 2
- * only reaches Tier 1; Phase 4/5 own what comes after.
+ * No-ops (returns `previous` unchanged, spending nothing) only when the era/population gate fails —
+ * NOT once a tier target is reached: operations funding (and, at Tier 3, the Chlorine purchase)
+ * must keep being paid for every year afterward, or an already-built plant would silently lose its
+ * benefit forever after the one year the outer gate used to stop early (§15.2 fixes this — the
+ * previous guard doubled as "stop constructing" AND "stop funding operations", which was only safe
+ * by accident because no fixture had ever driven both tiers to ≥ 1 in the same year before Phase 4
+ * made that a normal, permanent steady state).
  */
 export function settleModernWaterTreatmentInvestment(args: {
   burg: Burg;
@@ -129,11 +207,7 @@ export function settleModernWaterTreatmentInvestment(args: {
   let drinkingTier = previous.drinkingTreatmentTier;
   let wastewaterTier = previous.wastewaterTreatmentTier;
 
-  if (
-    !isModernWaterEraAvailable(period) ||
-    people < MODERN_WATER_MIN_POPULATION ||
-    (drinkingTier >= 1 && wastewaterTier >= 1)
-  ) {
+  if (!isModernWaterEraAvailable(period) || people < MODERN_WATER_MIN_POPULATION) {
     return {
       drinkingTreatmentTier: drinkingTier,
       wastewaterTreatmentTier: wastewaterTier,
@@ -142,10 +216,13 @@ export function settleModernWaterTreatmentInvestment(args: {
       wastewaterTreatmentUpgradeProgress: previous.wastewaterTreatmentUpgradeProgress,
       treatmentOperationsFunding: 0,
       wastewaterOperationsFunding: 0,
+      chemicalTestCoverage: 0,
+      chlorineStockCoverage: 0,
       lastModernConstructionSpend: 0
     };
   }
 
+  const stateId = burg.state ?? 0;
   const affinity = clamp01(args.modernizationAffinity);
   // Baseline willingness plus contamination pressure (an already-dirty water supply is a stronger
   // reason to invest); affinity is a pure speed multiplier on top, 0.35x .. 1.65x.
@@ -172,28 +249,34 @@ export function settleModernWaterTreatmentInvestment(args: {
     totalConstructionSpend += step;
   }
 
-  // Step 2: slow sand filtration → drinkingTreatmentTier 0→1, gated on source protection being
-  // meaningfully underway (§4.1: slowSandFiltration depends on protectedIntakeAndWaterRecords).
-  if (
-    hasUpstreamIntake &&
-    drinkingTier < 1 &&
-    sourceProtection >= SOURCE_PROTECTION_MIN_FOR_FILTRATION &&
-    spendable > 0
-  ) {
-    const cost = drinkingFiltrationTreasuryCost(people);
-    const step = Math.min(spendable, cost * stepRate);
-    drinkingProgress = clamp01(drinkingProgress + (cost > 0 ? step / cost : 0));
-    spendable -= step;
-    totalConstructionSpend += step;
-    if (drinkingProgress >= 0.999) {
-      drinkingTier = 1;
-      drinkingProgress = 0;
+  // Step 2: the drinking-treatment ladder, Tier 0→1→2→3, one shared progress meter that resets to
+  // 0 each time a tier completes (§15.1). Each step has its own tech-graph prerequisite (§4.1):
+  // Tier 0→1 (slow sand filtration) needs source protection underway; Tier 1→2 (rapid filtration/
+  // coagulation) needs analyticalChemistry demonstrated; Tier 2→3 (controlled chlorination) needs
+  // catalyticChemistry demonstrated — the same node Chlorine's own supply chain requires
+  // (chlorinePlants.ts), so Tier 3 cannot get ahead of the chemistry that would eventually supply it.
+  if (hasUpstreamIntake && drinkingTier < 3 && spendable > 0) {
+    const stepReady =
+      (drinkingTier === 0 && sourceProtection >= SOURCE_PROTECTION_MIN_FOR_FILTRATION) ||
+      (drinkingTier === 1 && analyticalChemistryDemonstrated(stateId)) ||
+      (drinkingTier === 2 && catalyticChemistryDemonstrated(stateId));
+    if (stepReady) {
+      const cost = drinkingTreatmentStepCost(drinkingTier, people);
+      const step = Math.min(spendable, cost * stepRate);
+      drinkingProgress = clamp01(drinkingProgress + (cost > 0 ? step / cost : 0));
+      spendable -= step;
+      totalConstructionSpend += step;
+      if (drinkingProgress >= 0.999) {
+        drinkingTier = (drinkingTier + 1) as WaterSanitationTier;
+        drinkingProgress = 0;
+      }
     }
   }
 
   // Step 3: primary wastewater settling → wastewaterTreatmentTier 0→1. Independent track — needs a
   // legitimate outfall (docs/plan/modern-urban-water-treatment-and-governance.md §2.2's basinKind
-  // gate, urbanWaterSystem.ts's hasDownstreamOutfall), not source protection.
+  // gate, urbanWaterSystem.ts's hasDownstreamOutfall), not source protection. Stays at Tier 0→1
+  // only — biological treatment (Phase 5) is out of this module's scope.
   if (hasDownstreamOutfall && wastewaterTier < 1 && spendable > 0) {
     const cost = primaryWastewaterTreasuryCost(people);
     const step = Math.min(spendable, cost * stepRate);
@@ -209,14 +292,16 @@ export function settleModernWaterTreatmentInvestment(args: {
   if (totalConstructionSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - totalConstructionSpend, 2);
 
   // Operations: recurring, a separate pool from construction above — only relevant once a tier has
-  // actually been reached this year or earlier.
+  // actually been reached this year or earlier. Runs every year regardless of construction status
+  // (see this function's own doc comment on why the old "stop once done" guard was wrong).
   const opsLiquid = Math.max(0, burg.treasury ?? 0);
   const opsCushion = getComfortableTreasuryLevel(burg) * 0.1;
   const opsAvailable = Math.max(0, Math.min(opsLiquid - opsCushion, opsLiquid * MODERN_OPERATIONS_BUDGET_SHARE));
 
-  const drinkingOpsNeed = drinkingTier >= 1 ? modernDrinkingOperationsNeed(people) : 0;
+  const drinkingOpsNeed = drinkingTier >= 1 ? modernDrinkingOperationsNeed(people, drinkingTier) : 0;
   const wastewaterOpsNeed = wastewaterTier >= 1 ? modernWastewaterOperationsNeed(people) : 0;
-  const totalOpsNeed = drinkingOpsNeed + wastewaterOpsNeed;
+  const testOpsNeed = drinkingTier >= 2 ? chemicalTestOperationsNeed(people) : 0;
+  const totalOpsNeed = drinkingOpsNeed + wastewaterOpsNeed + testOpsNeed;
   const opsSpend = Math.min(opsAvailable, totalOpsNeed);
   if (opsSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - opsSpend, 2);
 
@@ -224,6 +309,25 @@ export function settleModernWaterTreatmentInvestment(args: {
     drinkingOpsNeed > 0 ? clamp01((opsSpend * (drinkingOpsNeed / totalOpsNeed)) / drinkingOpsNeed) : 0;
   const wastewaterOperationsFunding =
     wastewaterOpsNeed > 0 ? clamp01((opsSpend * (wastewaterOpsNeed / totalOpsNeed)) / wastewaterOpsNeed) : 0;
+  const chemicalTestCoverage = testOpsNeed > 0 ? clamp01((opsSpend * (testOpsNeed / totalOpsNeed)) / testOpsNeed) : 0;
+
+  // Chlorine purchase (§15): a real Good draw from the local market, not cash-only upkeep — the
+  // mechanic Phase 4 introduces. Drawn from its own small budget slice, separate from the cash ops
+  // pool above, and capped by both that budget and actual market stock (Markets.
+  // consumeForMarketInvestment, the same paid-draw primitive purchaseProjectMaterials uses).
+  let chlorineStockCoverage = 0;
+  if (drinkingTier >= 3) {
+    const marketId = burg.market ?? 0;
+    const chlorineGood = getGoods().find(good => good.name === "Chlorine");
+    const needed = chlorineAnnualNeed(people);
+    if (marketId && chlorineGood && needed > 0) {
+      const chlorineLiquid = Math.max(0, burg.treasury ?? 0);
+      const chlorineBudget = chlorineLiquid * MODERN_CHLORINE_BUDGET_SHARE;
+      const { units, cost } = Markets.consumeForMarketInvestment(marketId, chlorineGood.i, needed, chlorineBudget);
+      if (cost > 0) burg.treasury = rn((burg.treasury ?? 0) - cost, 2);
+      chlorineStockCoverage = clamp01(units / needed);
+    }
+  }
 
   return {
     drinkingTreatmentTier: drinkingTier,
@@ -233,6 +337,8 @@ export function settleModernWaterTreatmentInvestment(args: {
     wastewaterTreatmentUpgradeProgress: rn(wastewaterProgress, 4),
     treatmentOperationsFunding: rn(treatmentOperationsFunding, 4),
     wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
+    chemicalTestCoverage: rn(chemicalTestCoverage, 4),
+    chlorineStockCoverage: rn(chlorineStockCoverage, 4),
     lastModernConstructionSpend: rn(totalConstructionSpend, 2)
   };
 }

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { useOptionsState, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -12,6 +13,7 @@ import {
   setUrbanWaterSystems
 } from "../economyContext";
 import type { Good } from "./goodsGeneratorTypes";
+import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import { raceKeyForBurgWaterworks } from "./resolveBurgCulture";
 import type { BurgWaterGeography } from "./urbanWaterSystem";
@@ -100,6 +102,8 @@ function baseSystem(overrides: Partial<UrbanWaterSystem> = {}): UrbanWaterSystem
     wastewaterTreatmentUpgradeProgress: 0,
     treatmentOperationsFunding: 0,
     wastewaterOperationsFunding: 0,
+    chemicalTestCoverage: 0,
+    chlorineStockCoverage: 0,
     lastModernConstructionSpend: 0,
     connectionPermitCoverage: 0,
     cleaningTaxRate: 0,
@@ -632,6 +636,85 @@ describe("computeUrbanWaterSystem", () => {
     expect(funded.drinkingWaterSecurity).toBeGreaterThan(unfunded.drinkingWaterSecurity);
   });
 
+  it("a funded modern drinkingTreatmentTier 2 (rapid filtration/coagulation) lowers waterContamination and raises drinkingWaterSecurity further than Tier 1 alone (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12
+    };
+    const tier1 = computeUrbanWaterSystem({
+      ...base,
+      drinkingTreatmentTier: 1,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1
+    });
+    const tier2 = computeUrbanWaterSystem({
+      ...base,
+      drinkingTreatmentTier: 2,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1,
+      chemicalTestCoverage: 1
+    });
+
+    expect(tier2.waterContamination).toBeLessThan(tier1.waterContamination);
+    expect(tier2.drinkingWaterSecurity).toBeGreaterThan(tier1.drinkingWaterSecurity);
+  });
+
+  it("a funded Tier 2 without chemicalTestCoverage gives little of Tier 2's benefit (untested dosing is not trusted)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      drinkingTreatmentTier: 2 as const,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1
+    };
+    const untested = computeUrbanWaterSystem({ ...base, chemicalTestCoverage: 0 });
+    const tested = computeUrbanWaterSystem({ ...base, chemicalTestCoverage: 1 });
+
+    expect(tested.drinkingWaterSecurity).toBeGreaterThan(untested.drinkingWaterSecurity);
+  });
+
+  it("a funded modern drinkingTreatmentTier 3 (controlled chlorination) lowers waterContamination and raises drinkingWaterSecurity further than Tier 2 alone", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1,
+      chemicalTestCoverage: 1
+    };
+    const tier2 = computeUrbanWaterSystem({ ...base, drinkingTreatmentTier: 2 });
+    const tier3 = computeUrbanWaterSystem({ ...base, drinkingTreatmentTier: 3, chlorineStockCoverage: 1 });
+
+    expect(tier3.waterContamination).toBeLessThan(tier2.waterContamination);
+    expect(tier3.drinkingWaterSecurity).toBeGreaterThan(tier2.drinkingWaterSecurity);
+  });
+
+  it("a funded Tier 3 without chlorineStockCoverage gives little of Tier 3's benefit (no Chlorine in the local market)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      drinkingTreatmentTier: 3 as const,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1,
+      chemicalTestCoverage: 1
+    };
+    const unstocked = computeUrbanWaterSystem({ ...base, chlorineStockCoverage: 0 });
+    const stocked = computeUrbanWaterSystem({ ...base, chlorineStockCoverage: 1 });
+
+    expect(stocked.drinkingWaterSecurity).toBeGreaterThan(unstocked.drinkingWaterSecurity);
+  });
+
   it("a funded modern wastewaterTreatmentTier lowers downstreamPollutionExport", () => {
     const base = {
       burg: burg({ population: 10, market: 1 }),
@@ -670,11 +753,17 @@ describe("computeUrbanWaterSystem", () => {
       ambientTemperature: 12,
       // Even an explicit "no investment yet" override is overridden by the Giant seed.
       sourceProtection: 0,
-      treatmentOperationsFunding: 0
+      treatmentOperationsFunding: 0,
+      // ...and an explicit attempt to force Phase 4 chemistry is ignored too — Giants stay at
+      // Roman-grade Tier 1, with no chemical dosing or chlorination regime to represent.
+      chemicalTestCoverage: 1,
+      chlorineStockCoverage: 1
     });
     expect(system.drinkingTreatmentTier).toBe(1);
     expect(system.sourceProtection).toBe(1);
     expect(system.treatmentOperationsFunding).toBe(0.9);
+    expect(system.chemicalTestCoverage).toBe(0);
+    expect(system.chlorineStockCoverage).toBe(0);
   });
 });
 
@@ -916,7 +1005,8 @@ describe("UrbanWater module", () => {
     setGoods([
       { i: 1, name: "Stone", value: 2 } as Good,
       { i: 2, name: "Tools", value: 5 } as Good,
-      { i: 3, name: "Brick", value: 3 } as Good
+      { i: 3, name: "Brick", value: 3 } as Good,
+      { i: 4, name: "Chlorine", value: 20 } as Good
     ]);
     setMarkets([
       {
@@ -926,16 +1016,21 @@ describe("UrbanWater module", () => {
         goods: {
           1: { stock: 200, price: 2 },
           2: { stock: 200, price: 5 },
-          3: { stock: 200, price: 3 }
+          3: { stock: 200, price: 3 },
+          4: { stock: 50, price: 20 }
         }
       } as Market
     ]);
     setGuildKnowledgeStocks([]);
     setUrbanWaterSystems([]);
     setUrbanWaterLastSettledYear(-1);
+    setTechnologyProgressForTests([]);
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    clearEconomyContext();
+    setTechnologyProgressForTests([]);
+  });
 
   it("generate assigns systems, skips forts, and writes burg.sanitation", () => {
     UrbanWater.generate();
@@ -1032,6 +1127,54 @@ describe("UrbanWater module", () => {
     expect(system.sourceProtection).toBe(0);
   });
 
+  it("progresses drinkingTreatmentTier to 3 once analyticalChemistry and catalyticChemistry both reach demonstrated for the burg's State, given a Chlorine-stocked market (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15 Phase 4)", () => {
+    worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+    setTechnologyProgressForTests([
+      { technologyId: "analyticalChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+      { technologyId: "catalyticChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    UrbanWater.generate();
+    let year = 999;
+    for (let i = 0; i < 40; i++) {
+      worldContext.pack.burgs[1]!.treasury = 20000;
+      // Chlorine is a real, finite market stock (unlike the cash-only steps) — replenish it too,
+      // or the very first Tier 3 year would exhaust it and every later year would starve.
+      setMarkets([
+        {
+          i: 1,
+          centerBurgId: 1,
+          color: "#000",
+          goods: {
+            1: { stock: 200, price: 2 },
+            2: { stock: 200, price: 5 },
+            3: { stock: 200, price: 3 },
+            4: { stock: 50, price: 20 }
+          }
+        } as Market
+      ]);
+      Markets.sync();
+      setUrbanWaterLastSettledYear(year--);
+      UrbanWater.settleAnnual();
+    }
+    const system = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+    expect(system.drinkingTreatmentTier).toBe(3);
+    expect(system.chemicalTestCoverage).toBeGreaterThan(0);
+    expect(system.chlorineStockCoverage).toBeGreaterThan(0);
+  });
+
+  it("stops drinkingTreatmentTier at 1 without analyticalChemistry/catalyticChemistry, however well-funded", () => {
+    worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+    UrbanWater.generate();
+    let year = 999;
+    for (let i = 0; i < 20; i++) {
+      worldContext.pack.burgs[1]!.treasury = 20000;
+      setUrbanWaterLastSettledYear(year--);
+      UrbanWater.settleAnnual();
+    }
+    const system = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+    expect(system.drinkingTreatmentTier).toBe(1);
+  });
+
   describe("race water tech bias (Giant on Fantasy culture sets)", () => {
     beforeEach(() => {
       // Make State 1 Giant. The capital itself intentionally keeps its generic local culture:
@@ -1091,6 +1234,29 @@ describe("UrbanWater module", () => {
       expect(maintainedCapital.drinkingTreatmentTier).toBe(1);
       expect(maintainedCapital.wastewaterTreatmentTier).toBe(1);
       expect(maintainedCapital.hasInheritedRomanWaterworks).toBe(true);
+    });
+
+    it("never spends Giant burg treasury on Modern Phase 2/4 construction, even when analyticalChemistry/catalyticChemistry are both demonstrated for the Giant State (regression: computeUrbanWaterSystem always overrides a Giant's tier back to 1, so any such spend would be silently wasted — §15.2)", () => {
+      useOptionsState.setState({ culturesSet: "highFantasy" });
+      worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+      setTechnologyProgressForTests([
+        { technologyId: "analyticalChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+        { technologyId: "catalyticChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+      ]);
+      UrbanWater.generate();
+
+      let year = 999;
+      for (let i = 0; i < 10; i++) {
+        worldContext.pack.burgs[1]!.treasury = 20000;
+        setUrbanWaterLastSettledYear(year--);
+        UrbanWater.settleAnnual();
+      }
+      const giantCapital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(giantCapital.drinkingTreatmentTier).toBe(1);
+      expect(giantCapital.lastModernConstructionSpend).toBe(0);
+      // The 20000 refund minus this year's legacy-ladder spend should still be sitting there —
+      // nothing was silently drawn down by a discarded Tier 2/3 attempt.
+      expect(worldContext.pack.burgs[1]!.treasury).toBeGreaterThan(15000);
     });
 
     it("extends the inherited aqueduct and trunk sewer to Giant-state villages and forts", () => {

@@ -706,6 +706,11 @@ export function computeUrbanWaterSystem(args: {
   wastewaterTreatmentUpgradeProgress?: number;
   treatmentOperationsFunding?: number;
   wastewaterOperationsFunding?: number;
+  /** Modern Phase 4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15) overrides —
+   * settleModernWaterTreatmentInvestment()'s Tier 2/3 results, same threading pattern as the
+   * Phase 2 fields above. */
+  chemicalTestCoverage?: number;
+  chlorineStockCoverage?: number;
   lastModernConstructionSpend?: number;
   connectionPermitCoverage?: number;
   cleaningTaxRate?: number;
@@ -755,6 +760,12 @@ export function computeUrbanWaterSystem(args: {
   const wastewaterOperationsFunding = isGiantState
     ? 0.9
     : (args.wastewaterOperationsFunding ?? previous?.wastewaterOperationsFunding ?? 0);
+  // Modern Phase 4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15): Giants stay
+  // at Roman-grade Tier 1 (drinkingTreatmentTier above is locked to 1 for them), so neither field
+  // is ever meaningfully >0 for a Giant burg — 0 here, not a generous seed like the Phase 2 fields
+  // above, since there is no chemical dosing or testing regime to represent at Tier 1.
+  const chemicalTestCoverage = isGiantState ? 0 : (args.chemicalTestCoverage ?? previous?.chemicalTestCoverage ?? 0);
+  const chlorineStockCoverage = isGiantState ? 0 : (args.chlorineStockCoverage ?? previous?.chlorineStockCoverage ?? 0);
   const tier: WaterSanitationTier =
     args.tier ??
     previous?.tier ??
@@ -916,7 +927,13 @@ export function computeUrbanWaterSystem(args: {
       // Modern Phase 2: source protection alone helps a little; a funded slow-sand-filtration
       // plant (drinkingTreatmentTier >= 1) helps a lot more — §4's Stage A vs. Stage B distinction.
       sourceProtection * 0.06 -
-      (drinkingTreatmentTier >= 1 ? 0.12 * clamp01(treatmentOperationsFunding) : 0)
+      (drinkingTreatmentTier >= 1 ? 0.12 * clamp01(treatmentOperationsFunding) : 0) -
+      // Modern Phase 4 (§8, §15): rapid filtration/coagulation (Tier >= 2) needs both funded
+      // operation AND verified dosing (chemicalTestCoverage) to earn its reduction — untested
+      // dosing is not trusted at face value (§1). Controlled chlorination (Tier >= 3) is a further,
+      // real-Chlorine-stock-gated reduction on top, also contingent on the plant actually running.
+      (drinkingTreatmentTier >= 2 ? 0.1 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) : 0) -
+      (drinkingTreatmentTier >= 3 ? 0.14 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0)
   );
 
   const sanitationBurden = clamp01(
@@ -954,8 +971,13 @@ export function computeUrbanWaterSystem(args: {
   });
   // Modern Phase 2: same source-protection/filtration split as waterContamination above — a
   // protected intake helps a little on its own, a funded Tier 1 filtration plant helps a lot more.
+  // Modern Phase 4 (§8, §15): Tier 2/3 add further, gated bonuses — see the matching
+  // waterContamination terms above for the same reasoning.
   const modernDrinkingBonus =
-    sourceProtection * 0.05 + (drinkingTreatmentTier >= 1 ? 0.2 * clamp01(treatmentOperationsFunding) : 0);
+    sourceProtection * 0.05 +
+    (drinkingTreatmentTier >= 1 ? 0.2 * clamp01(treatmentOperationsFunding) : 0) +
+    (drinkingTreatmentTier >= 2 ? 0.15 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) : 0) +
+    (drinkingTreatmentTier >= 3 ? 0.2 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0);
   const drinkingWaterSecurity = clamp01(
     (drinkingBase + tierDrinkBonus + modernDrinkingBonus) *
       maint *
@@ -1043,6 +1065,8 @@ export function computeUrbanWaterSystem(args: {
     wastewaterTreatmentUpgradeProgress: rn(wastewaterTreatmentUpgradeProgress, 4),
     treatmentOperationsFunding: rn(treatmentOperationsFunding, 4),
     wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
+    chemicalTestCoverage: rn(chemicalTestCoverage, 4),
+    chlorineStockCoverage: rn(chlorineStockCoverage, 4),
     lastModernConstructionSpend: rn(args.lastModernConstructionSpend ?? previous?.lastModernConstructionSpend ?? 0, 2),
     connectionPermitCoverage: rn(connectionPermitCoverage, 4),
     cleaningTaxRate: rn(cleaningTaxRate, 4),
@@ -1197,6 +1221,8 @@ function systemDefaults(
     wastewaterTreatmentUpgradeProgress: 0,
     treatmentOperationsFunding: 0,
     wastewaterOperationsFunding: 0,
+    chemicalTestCoverage: 0,
+    chlorineStockCoverage: 0,
     lastModernConstructionSpend: 0,
     connectionPermitCoverage: 0,
     cleaningTaxRate: 0,
@@ -1834,27 +1860,51 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         geography,
         people
       });
-      // Modern Phase 2 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4): runs
-      // after the legacy investment above spends its share of this year's treasury — the legacy
-      // ladder's maintenance/construction needs are more foundational and take priority over this
-      // newer, secondary initiative. No-ops for Giants (already seeded) and for burgs the era/
-      // population/geography gates exclude.
-      const modernInvestment = settleModernWaterTreatmentInvestment({
-        burg,
-        people,
-        period: getWorldContext().options?.historicalPeriod,
-        hasUpstreamIntake: draft.hasUpstreamIntake,
-        hasDownstreamOutfall: draft.hasDownstreamOutfall,
-        modernizationAffinity: modernizationAffinityForBurg(burg),
-        waterContamination: draft.waterContamination,
-        previous: {
-          drinkingTreatmentTier: draft.drinkingTreatmentTier ?? 0,
-          wastewaterTreatmentTier: draft.wastewaterTreatmentTier ?? 0,
-          sourceProtection: draft.sourceProtection,
-          drinkingTreatmentUpgradeProgress: draft.drinkingTreatmentUpgradeProgress,
-          wastewaterTreatmentUpgradeProgress: draft.wastewaterTreatmentUpgradeProgress
-        }
-      });
+      // Modern Phase 2/4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4,
+      // §15.2): runs after the legacy investment above spends its share of this year's treasury —
+      // the legacy ladder's maintenance/construction needs are more foundational and take priority
+      // over this newer, secondary initiative.
+      //
+      // Explicitly skipped for Giants (already seeded, computeUrbanWaterSystem's isGiantState
+      // branch always overrides the tier/funding fields below regardless of what this call would
+      // compute) — NOT because settleModernWaterTreatmentInvestment() no-ops for them on its own.
+      // Before Phase 4 it happened to no-op anyway, because Giants' previous.drinkingTreatmentTier/
+      // wastewaterTreatmentTier both read back as 1 (isGiantState-forced) and the function's old
+      // "both tiers already ≥ 1" early-return caught that immediately. Phase 4 removed that guard
+      // (it also wrongly zeroed ongoing operations funding for any ordinary burg once both tiers
+      // reached 1 — §15.2) so it no longer doubles as a Giant no-op; without this explicit skip,
+      // Giants would spend real treasury on Tier 2/3 construction/ops whose result
+      // computeUrbanWaterSystem discards outright.
+      const modernInvestment =
+        raceKeyForBurgState(burg) === "giant"
+          ? {
+              drinkingTreatmentTier: draft.drinkingTreatmentTier ?? 0,
+              wastewaterTreatmentTier: draft.wastewaterTreatmentTier ?? 0,
+              sourceProtection: draft.sourceProtection,
+              drinkingTreatmentUpgradeProgress: draft.drinkingTreatmentUpgradeProgress,
+              wastewaterTreatmentUpgradeProgress: draft.wastewaterTreatmentUpgradeProgress,
+              treatmentOperationsFunding: draft.treatmentOperationsFunding,
+              wastewaterOperationsFunding: draft.wastewaterOperationsFunding,
+              chemicalTestCoverage: draft.chemicalTestCoverage,
+              chlorineStockCoverage: draft.chlorineStockCoverage,
+              lastModernConstructionSpend: 0
+            }
+          : settleModernWaterTreatmentInvestment({
+              burg,
+              people,
+              period: getWorldContext().options?.historicalPeriod,
+              hasUpstreamIntake: draft.hasUpstreamIntake,
+              hasDownstreamOutfall: draft.hasDownstreamOutfall,
+              modernizationAffinity: modernizationAffinityForBurg(burg),
+              waterContamination: draft.waterContamination,
+              previous: {
+                drinkingTreatmentTier: draft.drinkingTreatmentTier ?? 0,
+                wastewaterTreatmentTier: draft.wastewaterTreatmentTier ?? 0,
+                sourceProtection: draft.sourceProtection,
+                drinkingTreatmentUpgradeProgress: draft.drinkingTreatmentUpgradeProgress,
+                wastewaterTreatmentUpgradeProgress: draft.wastewaterTreatmentUpgradeProgress
+              }
+            });
       draft = computeUrbanWaterSystem({
         burg,
         geography,
@@ -1881,6 +1931,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           wastewaterTreatmentUpgradeProgress: modernInvestment.wastewaterTreatmentUpgradeProgress,
           treatmentOperationsFunding: modernInvestment.treatmentOperationsFunding,
           wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
+          chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
+          chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
           lastModernConstructionSpend: modernInvestment.lastModernConstructionSpend,
           connectionPermitCoverage: investment.connectionPermitCoverage,
           cleaningTaxRate: investment.cleaningTaxRate,
@@ -1910,6 +1962,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         wastewaterTreatmentUpgradeProgress: modernInvestment.wastewaterTreatmentUpgradeProgress,
         treatmentOperationsFunding: modernInvestment.treatmentOperationsFunding,
         wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
+        chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
+        chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
         lastModernConstructionSpend: modernInvestment.lastModernConstructionSpend,
         connectionPermitCoverage: investment.connectionPermitCoverage,
         cleaningTaxRate: investment.cleaningTaxRate,
