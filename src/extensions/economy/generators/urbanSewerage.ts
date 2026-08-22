@@ -6,6 +6,8 @@ export interface InheritedSewerRoute {
   burgId: number;
   outfallCell: number;
   outfallKind: "river" | "coast";
+  /** The downstream trunk this branch joins, when its own route does not reach the outfall. */
+  joinsRouteId?: string;
   source: [number, number];
   destination: [number, number];
 }
@@ -15,6 +17,10 @@ type SewerCells = Pick<PackedGraph["cells"], "f" | "h" | "haven" | "i" | "r" | "
   p?: PackedGraph["cells"]["p"];
 };
 type RiverHead = Pick<PackedGraph["rivers"][number], "i" | "source">;
+type Point = [number, number];
+type SewerJoin = { point: Point; trunkT: number };
+
+const SEWER_MERGE_DISTANCE = 10;
 
 /**
  * Determine the Giant inherited trunk-sewer route for each served settlement.
@@ -28,7 +34,7 @@ export function buildInheritedSewerRoutes(args: {
   rivers?: readonly RiverHead[];
   systems: readonly UrbanWaterSystem[];
 }): InheritedSewerRoute[] {
-  const routes: InheritedSewerRoute[] = [];
+  const directRoutes: InheritedSewerRoute[] = [];
   for (const system of args.systems) {
     // Older saves used the combined waterworks flag; retain their trunk sewer when loading them.
     if (!(system.hasInheritedRomanSewer ?? system.hasInheritedRomanWaterworks)) continue;
@@ -38,7 +44,7 @@ export function buildInheritedSewerRoutes(args: {
     if (outfall === undefined) continue;
     const destination = args.cells.p?.[outfall];
     if (!destination) continue;
-    routes.push({
+    directRoutes.push({
       id: `roman-sewer-${burg.i}`,
       burgId: burg.i,
       outfallCell: outfall,
@@ -47,7 +53,7 @@ export function buildInheritedSewerRoutes(args: {
       destination: [destination[0], destination[1]]
     });
   }
-  return routes;
+  return consolidateNearbySewerRoutes(directRoutes, args.cells);
 }
 
 /** True if a gravity trunk sewer can reach a lower river or coast on the same landmass. */
@@ -103,6 +109,114 @@ function getRiverHeadCells(cells: SewerCells, rivers?: readonly RiverHead[]): Se
   }
   for (const cell of highestByRiver.values()) headCells.add(cell);
   return headCells;
+}
+
+/**
+ * Turn intersecting or close parallel drains into a tree of branch sewers and shared trunks.
+ * Routes are considered in longest-first order so a short local branch joins the already drawn
+ * downstream trunk instead of both routes running independently beside one another to a river.
+ */
+function consolidateNearbySewerRoutes(routes: InheritedSewerRoute[], cells: SewerCells): InheritedSewerRoute[] {
+  if (!cells.p?.length || routes.length < 2) return routes;
+
+  const network: InheritedSewerRoute[] = [];
+  for (const route of [...routes].sort((a, b) => routeLength(b) - routeLength(a) || a.burgId - b.burgId)) {
+    const join = network
+      .filter(trunk => canShareDownstreamTrunk(route, trunk, cells))
+      .map(trunk => ({ trunk, join: findSewerJoin(route, trunk) }))
+      .filter((candidate): candidate is { trunk: InheritedSewerRoute; join: SewerJoin } => candidate.join !== undefined)
+      .sort((a, b) => a.join.trunkT - b.join.trunkT || a.trunk.burgId - b.trunk.burgId)[0];
+
+    if (join) {
+      route.destination = join.join.point;
+      route.joinsRouteId = join.trunk.id;
+      // The branch drains through its trunk's actual outfall, so the rendered endpoint and
+      // metadata both describe one shared discharge rather than two parallel discharges.
+      route.outfallCell = join.trunk.outfallCell;
+      route.outfallKind = join.trunk.outfallKind;
+    }
+    network.push(route);
+  }
+  return network.sort((a, b) => a.burgId - b.burgId);
+}
+
+function canShareDownstreamTrunk(route: InheritedSewerRoute, trunk: InheritedSewerRoute, cells: SewerCells): boolean {
+  if (route.outfallKind !== trunk.outfallKind) return false;
+  if (route.outfallKind === "river") return cells.r[route.outfallCell] === cells.r[trunk.outfallCell];
+  // Coast outfalls do not carry a stable shoreline ID. Limit joining to nearby coastal discharge
+  // points so two distant shores on the same island never become one artificial trunk.
+  return pointDistance(route.destination, trunk.destination) <= SEWER_MERGE_DISTANCE * 3;
+}
+
+function findSewerJoin(route: InheritedSewerRoute, trunk: InheritedSewerRoute): SewerJoin | undefined {
+  const intersection = segmentIntersection(route.source, route.destination, trunk.source, trunk.destination);
+  if (intersection && isInterior(intersection.trunkT) && isInterior(intersection.routeT)) {
+    return { point: pointAt(trunk.source, trunk.destination, intersection.trunkT), trunkT: intersection.trunkT };
+  }
+
+  // A source, midpoint, or discharge point running near a trunk joins it directly. The midpoint
+  // case catches parallel routes whose endpoints are not themselves close to the other segment.
+  const closest = [route.source, midpoint(route.source, route.destination), route.destination]
+    .map(point => projectPointOnSegment(point, trunk.source, trunk.destination))
+    .filter(
+      projection =>
+        isInterior(projection.t) && pointDistance(projection.point, projection.input) <= SEWER_MERGE_DISTANCE
+    )
+    .sort((a, b) => a.t - b.t)[0];
+  if (closest) return { point: closest.point, trunkT: closest.t };
+
+  // Fan-shaped branches aimed at the same river can still be close only near the outfall. Join
+  // them at the earliest common downstream section, which removes the visibly parallel tails.
+  for (const t of [0.5, 0.6, 0.7, 0.8, 0.9, 0.95]) {
+    const branchPoint = pointAt(route.source, route.destination, t);
+    const trunkPoint = pointAt(trunk.source, trunk.destination, t);
+    if (pointDistance(branchPoint, trunkPoint) <= SEWER_MERGE_DISTANCE) return { point: trunkPoint, trunkT: t };
+  }
+  return undefined;
+}
+
+function segmentIntersection(a: Point, b: Point, c: Point, d: Point): { routeT: number; trunkT: number } | undefined {
+  const abx = b[0] - a[0];
+  const aby = b[1] - a[1];
+  const cdx = d[0] - c[0];
+  const cdy = d[1] - c[1];
+  const denominator = abx * cdy - aby * cdx;
+  if (Math.abs(denominator) < 0.0001) return undefined;
+  const acx = c[0] - a[0];
+  const acy = c[1] - a[1];
+  const routeT = (acx * cdy - acy * cdx) / denominator;
+  const trunkT = (acx * aby - acy * abx) / denominator;
+  return routeT >= 0 && routeT <= 1 && trunkT >= 0 && trunkT <= 1 ? { routeT, trunkT } : undefined;
+}
+
+function projectPointOnSegment(input: Point, start: Point, end: Point): { input: Point; point: Point; t: number } {
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared
+    ? Math.max(0, Math.min(1, ((input[0] - start[0]) * dx + (input[1] - start[1]) * dy) / lengthSquared))
+    : 0;
+  return { input, point: pointAt(start, end, t), t };
+}
+
+function isInterior(t: number): boolean {
+  return t > 0.04 && t < 0.96;
+}
+
+function midpoint(a: Point, b: Point): Point {
+  return pointAt(a, b, 0.5);
+}
+
+function pointAt(start: Point, end: Point, t: number): Point {
+  return [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t];
+}
+
+function pointDistance(a: Point, b: Point): number {
+  return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
+
+function routeLength(route: InheritedSewerRoute): number {
+  return pointDistance(route.source, route.destination);
 }
 
 function nearestByDistance(candidates: Iterable<number>, burg: Burg, cells: SewerCells): number | undefined {
