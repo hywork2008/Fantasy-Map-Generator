@@ -3,7 +3,7 @@ import type { Burg, PackedGraph } from "../../hostTypes";
 import { buildInheritedSewerRoutes, type GiantSewerClimateOptions } from "./urbanSewerage";
 import type { UrbanWaterSystem } from "./urbanWaterTypes";
 
-type ServedBurg = Burg & { i: number };
+export type ServedBurg = Burg & { i: number };
 
 // Height values are packed-map terrain steps, rather than metres. These limits deliberately
 // permit shallow Roman cuttings while rejecting a route that simply draws through a mountain.
@@ -85,7 +85,15 @@ export function buildInheritedWaterSupplyRoutes({
   });
 }
 
-function chooseProtectedIntakeCell(
+/**
+ * Picks the highest, protectable same-land/same-State river cell for a group of Burgs to share as
+ * an aqueduct intake — a candidate is rejected if any known sewer outfall could reach it
+ * downstream. Exported for reuse by regionalWaterAuthority.ts (docs/plan/modern-urban-water-
+ * treatment-and-governance.md §9): the physics of "where can this State protect a headwater" is
+ * the same question for a Giant's inherited aqueduct and for an ordinary State's proposed
+ * RegionalWaterScheme.
+ */
+export function chooseProtectedIntakeCell(
   burgs: readonly ServedBurg[],
   riverCells: readonly number[],
   cells: InheritedWaterSupplyRouteInput["cells"],
@@ -111,7 +119,11 @@ function chooseProtectedIntakeCell(
   })[0];
 }
 
-function buildAqueductTree(
+/**
+ * Grows one gravity-feasible tree from `intakeCell` to every Burg in `burgs`, nearest-first.
+ * Exported for reuse by regionalWaterAuthority.ts — see chooseProtectedIntakeCell()'s doc comment.
+ */
+export function buildAqueductTree(
   burgs: readonly ServedBurg[],
   intakeCell: number,
   cells: GravityAqueductCells,

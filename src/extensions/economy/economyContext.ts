@@ -117,7 +117,7 @@ import type {
 import type { TradeSecurityLedger } from "./generators/tradeSecurityTypes";
 import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntakeTypes";
 import type { UrbanPregnancyRecord } from "./generators/urbanPregnancyTypes";
-import type { UrbanWaterSystem } from "./generators/urbanWaterTypes";
+import type { RegionalWaterScheme, UrbanWaterSystem } from "./generators/urbanWaterTypes";
 import type { MerchantVesselOwnership } from "./generators/vesselOwnershipTypes";
 import type { VolcanicOperation } from "./generators/volcanicOperationsTypes";
 
@@ -184,6 +184,7 @@ let _oilRefineryPlantsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _damsLastSettledYearFallback: number | null = null;
 let _leveesLastSettledYearFallback: number | null = null;
+let _regionalWaterSchemesLastSettledYearFallback: number | null = null;
 let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _greatLibraryLastSettledYearFallback: number | null = null;
 let _climateDisastersLastSettledYearFallback: number | null = null;
@@ -258,6 +259,7 @@ export function clearEconomyContext(): void {
   _powerGridInvestmentLastSettledYearFallback = null;
   _damsLastSettledYearFallback = null;
   _leveesLastSettledYearFallback = null;
+  _regionalWaterSchemesLastSettledYearFallback = null;
   _faunaPopulationLastSettledYearFallback = null;
   _greatLibraryLastSettledYearFallback = null;
   _climateDisastersLastSettledYearFallback = null;
@@ -1352,6 +1354,24 @@ export function getUrbanWaterSystems(): UrbanWaterSystem[] {
 }
 export function setUrbanWaterSystems(systems: readonly UrbanWaterSystem[]): void {
   setSliceArray("urbanWaterSystems", systems);
+}
+
+/** Multi-Burg water-supply schemes (docs/plan/modern-urban-water-treatment-and-governance.md §9,
+ *  §14 Phase 3). Same shape as getDams. */
+export function getRegionalWaterSchemes(): RegionalWaterScheme[] {
+  return getSliceArray<RegionalWaterScheme>("regionalWaterSchemes");
+}
+export function setRegionalWaterSchemes(schemes: readonly RegionalWaterScheme[]): void {
+  setSliceArray("regionalWaterSchemes", schemes);
+}
+/** Guards RegionalWaterAuthority.settleAnnual(). Same shape as getDamsLastSettledYear. */
+export function getRegionalWaterSchemesLastSettledYear(): number | null {
+  return yearFromSlice("regionalWaterSchemesLastSettledYear", _regionalWaterSchemesLastSettledYearFallback);
+}
+export function setRegionalWaterSchemesLastSettledYear(year: number): void {
+  writeYearToSlice("regionalWaterSchemesLastSettledYear", year, value => {
+    _regionalWaterSchemesLastSettledYearFallback = value;
+  });
 }
 
 /** Once-per-simulation-year guard for UrbanWater.settleAnnual(). */

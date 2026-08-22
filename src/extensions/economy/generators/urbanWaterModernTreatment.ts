@@ -48,8 +48,11 @@ export function isModernWaterEraAvailable(period: string | undefined): boolean {
   return Boolean(period && MODERN_WATER_ERA.has(period));
 }
 
-/** Below this, a burg is too small for a dedicated filtration/settling plant to be plausible. */
-const MODERN_WATER_MIN_POPULATION = 400;
+/** Below this, a burg is too small for a dedicated filtration/settling plant to be plausible.
+ *  Exported for reuse by regionalWaterAuthority.ts's own eligibility gate (docs/plan/modern-urban-
+ *  water-treatment-and-governance.md §9) — a Burg too small to build its own plant is also too
+ *  small to be worth connecting to a shared one. */
+export const MODERN_WATER_MIN_POPULATION = 400;
 
 /** §4.1's tech-graph dependency: slow sand filtration presupposes a protected, recorded intake. */
 const SOURCE_PROTECTION_MIN_FOR_FILTRATION = 0.6;

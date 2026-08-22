@@ -572,6 +572,22 @@ describe("computeUrbanWaterSystem", () => {
     expect(system.effluentDestination).toBe("riverOutfall");
   });
 
+  it("an operating RegionalWaterScheme grants a landlocked burg the same imported-water credit a Giant's inherited aqueduct gets (docs/plan/modern-urban-water-treatment-and-governance.md §9, §14 Phase 3)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: false, isCoastal: false }),
+      people: 5000,
+      cultureType: "Generic",
+      ambientTemperature: 12
+    };
+    const unconnected = computeUrbanWaterSystem(base);
+    const connected = computeUrbanWaterSystem({ ...base, hasRegionalSchemeConnection: true });
+
+    expect(unconnected.hasUpstreamIntake).toBe(false);
+    expect(connected.hasUpstreamIntake).toBe(true);
+    expect(connected.drinkingWaterSecurity).toBeGreaterThanOrEqual(unconnected.drinkingWaterSecurity);
+  });
+
   it("a funded modern drinkingTreatmentTier lowers waterContamination and raises drinkingWaterSecurity", () => {
     const base = {
       burg: burg({ population: 10, market: 1 }),

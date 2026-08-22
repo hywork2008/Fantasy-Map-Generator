@@ -34,6 +34,7 @@ import { computeNaturalFloodRisk } from "./floodHazard";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
+import { getRegionalSchemeConnectedBurgIds } from "./regionalWaterAuthority";
 import { raceKeyForBurgState, raceKeyForBurgWaterworks } from "./resolveBurgCulture";
 import { hasSameLandSewerOutfall } from "./urbanSewerage";
 import { isSeasonalColdBurg, resolveBurgBasinKind, resolveBurgEffluentDestination } from "./urbanWaterClimate";
@@ -717,6 +718,13 @@ export function computeUrbanWaterSystem(args: {
   lastPollutionCompensationPaid?: number;
   lastPollutionCompensationReceived?: number;
   pollutionDiplomaticStrain?: number;
+  /** Phase 3 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §9, §14): true once this
+   * burg is a member of an "operating" RegionalWaterScheme (regionalWaterAuthority.ts). Computed by
+   * the caller (buildSystems(), one year lagged the same way Dams'/PowerGrid's floor writes are —
+   * see regionalWaterAuthority.ts's header comment) and fed in like every other Phase 2/3 override
+   * above, rather than read from economyContext directly, so this function stays a pure computation
+   * over its args. */
+  hasRegionalSchemeConnection?: boolean;
 }): UrbanWaterSystem {
   const { burg, geography, people, cultureType, previous } = args;
   const hasMarket = (burg.market ?? 0) > 0;
@@ -775,6 +783,11 @@ export function computeUrbanWaterSystem(args: {
   const hasInheritedRomanSewer = previous?.hasInheritedRomanSewer ?? hasInheritedRomanWaterworks;
   const hasRegionalRomanWaterConnection =
     hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
+  // Phase 3: an ordinary (non-Giant) burg gets the same kind of imported-water credit once its
+  // RegionalWaterScheme reaches "operating" (regionalWaterAuthority.ts) — the two are deliberately
+  // ORed into one slot below rather than kept as parallel branches, since both represent the same
+  // underlying fact ("this burg's water didn't originate locally").
+  const hasRegionalWaterConnection = hasRegionalRomanWaterConnection || Boolean(args.hasRegionalSchemeConnection);
   // `hasSameLandSewerOutfall` now avoids closed-basin rivers unconditionally (urbanSewerage.ts,
   // 2026-08-23 — it used to require a seasonalColdBurgIds gate), so no climate filter is needed here.
   const hasRegionalRomanSewerOutfall =
@@ -814,17 +827,13 @@ export function computeUrbanWaterSystem(args: {
   const serviceWaterCapacity = clamp01(
     base.service *
       maint *
-      (geography.hasRiver || geography.isCoastal || hasRegionalRomanWaterConnection ? 1.1 : 0.85) *
+      (geography.hasRiver || geography.isCoastal || hasRegionalWaterConnection ? 1.1 : 0.85) *
       lifting.service
   );
   let irrigationCapacity = clamp01(base.irrigation * maint * geography.irrigationPotential * 1.2 * lifting.irrigation);
   const drinkingBase =
     base.drinking *
-    (geography.hasRiver || geography.isCoastal || hasRegionalRomanWaterConnection
-      ? 1.05
-      : geography.isDry
-        ? 0.75
-        : 0.95) *
+    (geography.hasRiver || geography.isCoastal || hasRegionalWaterConnection ? 1.05 : geography.isDry ? 0.75 : 0.95) *
     lifting.drinking;
 
   const popFactor = clamp01(people / 12000);
@@ -870,7 +879,7 @@ export function computeUrbanWaterSystem(args: {
   // rivers — see hasRegionalRomanSewerOutfall above) still count regardless of the river's basin.
   const hasDownstreamOutfall =
     (geography.hasRiver && basinKind === "openBasin") || geography.isCoastal || hasRegionalRomanSewerOutfall;
-  const hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalRomanWaterConnection;
+  const hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalWaterConnection;
   const hasSeparateWastewaterRoute = computeSeparateWastewaterRoute({ tier, sanitaryEngineering });
   const mixedLocal = localMixedIntakeOutfall({
     hasRiver: geography.hasRiver,
@@ -1781,6 +1790,12 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
   if (mode === "annual") {
     for (const system of getUrbanWaterSystems()) previousByBurg.set(system.burgId, system);
   }
+  // Phase 3 (docs/plan/modern-urban-water-treatment-and-governance.md §9, §14): one year lagged,
+  // same as PowerGridInvestment reading last year's Dam/PowerStation output — RegionalWaterAuthority.
+  // settleAnnual() runs after UrbanWater.settleAnnual() in the same annual tick (index.tsx), so a
+  // scheme that reaches "operating" this tick is only reflected in hasUpstreamIntake etc. starting
+  // next year's buildSystems() call.
+  const regionalSchemeConnectedBurgIds = getRegionalSchemeConnectedBurgIds();
 
   let systems: UrbanWaterSystem[] = [];
   for (const burg of world.pack.burgs) {
@@ -1808,7 +1823,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
       people,
       cultureType: cultureTypeForBurg(burg),
       ambientTemperature,
-      previous
+      previous,
+      hasRegionalSchemeConnection: regionalSchemeConnectedBurgIds.has(burg.i)
     });
 
     if (mode === "annual" && previous) {
@@ -1845,6 +1861,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         people,
         cultureType: cultureTypeForBurg(burg),
         ambientTemperature,
+        hasRegionalSchemeConnection: regionalSchemeConnectedBurgIds.has(burg.i),
         previous: systemDefaults({
           burgId: burg.i,
           tier: investment.tier,

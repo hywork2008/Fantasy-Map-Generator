@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案（Phase 1–2 実装済み・Phase 3–5 未実装、§8/§12/§13 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
+**設計案（Phase 1–3 実装済み・Phase 4–5 未実装、§8/§12/§13/§14 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
 
 既存の[都市水利・衛生インフラ設計](./urban-water-and-sanitation-system.md)が扱う開放側溝、被覆暗渠、分流、清掃・放流規制を置き換えない。本書はその後段、すなわち「川の水を都市規模で飲料用に安全化する」「汚水を下流へ移すだけでなく処理して放流する」近代的な工程を定義する。
 
@@ -302,7 +302,7 @@ interface ModernWaterTreatmentSystem {
 | --- | --- | --- |
 | 1 | **実装済み（2026-08-23、§12参照）**。`ModernWaterTreatmentSystem` と `RegionalWaterScheme`、取水・放流の地理判定、`waterSecurity` / `riverPollutionLoad` の分離 | `UrbanWaterSystem`、疫病水質設計 |
 | 2 | **実装済み（2026-08-23、§13参照）**。水源保護、低速砂濾過、一次沈殿、建設費と運転費の分離 | Burg treasury、清掃税・接続料 |
-| 3 | 流域水道局、参加・補償・水利認可、`toggleWaterSupply` の計画／建設／稼働表示 | Burg/State の行政按分、既存の拡張レイヤー API |
+| 3 | **実装済み（2026-08-23、§14参照）**。流域水道局、参加・補償・水利認可、`toggleWaterSupply` の計画／建設／稼働表示 | Burg/State の行政按分、既存の拡張レイヤー API |
 | 4 | 凝集・急速濾過・`Chlorine` 消費・水質検査 | era 6 の化学工業、`Chlorine` Good |
 | 5 | 散水ろ床／活性汚泥、汚泥処理、流域補償、放流水検査、`toggleSewerage` | `sanitaryEngineering`、上流・下流汚染外交 |
 
@@ -528,3 +528,40 @@ Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）に
 - Tier 2以降（急速濾過・塩素消毒 = Phase 4、生物処理 = Phase 5）。
 - `RegionalWaterScheme` のライフサイクル本体（§9.2 の提案→調査→交渉→資金→建設→試運転→運転）。単独 Burg の `sourceProtection`/Tier 進行は実装したが、複数 Burg にまたがる広域水源・導水路の共同事業はまだ存在しない。
 - `sealedStorageAndInfiltration` の容量経済（`winterStorageFill`、`seasonalInfiltrationCapacity`）— §12 から持ち越し、未着手のまま。
+
+---
+
+## 14. Phase 3 実装メモ（実装済み・2026-08-23）
+
+**状態: 実装済み**。§12.3 で「`RegionalWaterScheme` は §9.4 のインターフェースと完全一致する型のみ先行実装し、生成・永続化・参照はまだ存在しない」と明記した通り、Phase 2 終了時点でこの型は完全に未接続だった。Phase 3 はこの型を初めて構築・永続化・毎年進行させ、かつ「川も海もない Burg がどうやって近代的な取水を得るか」という §1 の問い（単独 Burg では解けない）に、単独 Burg 向けの Phase 2 とは別の経路で答える。
+
+### 14.1 新設ファイル `regionalWaterAuthority.ts`
+
+`RegionalWaterScheme.status` の8状態（proposed → surveying → negotiating → funded → building → commissioning → operating、+ suspended）をそのまま状態機械として実装した。既存資産の再利用を徹底し、新規に書いたのは制度（誰がいつ何を承認・支払うか）の部分のみである:
+
+- **経路探索は流用、新規実装なし**: 巨人の継承水道（`urbanWaterSupply.ts`）がすでに「どの河川セルを保護取水地にすべきか」（`chooseProtectedIntakeCell`）と「そこから各 Burg へ重力流下できる経路」（`buildAqueductTree`、内部で Dijkstra の `findGravityPath` を使用）を実装済みだったため、両関数を `export` して Phase 3 からそのまま再利用した。巨人の遺産水道と交渉済みの `RegionalWaterScheme` は「どの水源をどう護るか」という物理法則を共有しており、別実装を持つ理由がない。
+- **描画も流用**: `RegionalWaterScheme.routeCellIds` は §9.4 の「幹線のみ」の定義通り重複排除済みセル集合として永続化するに留め、点列は永続化しない。`drawWaterSupply.ts` は描画のたびに `sourceCellId`/`memberBurgIds` から `buildAqueductTree` を再実行して枝の形状を再構成する — 巨人の遺産経路が「毎回再計算・非永続化」なのと同じ設計。
+- **循環 import の回避**: `urbanWaterSystem.ts` はこのファイルの `getRegionalSchemeConnectedBurgIds()` を import する（§14.2）。逆方向の import は循環になるため、`urbanWaterSystem.ts` 側にしかなかった `actualUrbanPeople`/`modernizationAffinityForBurg` 相当のロジックはこのファイル内に小さく複製した（ファイル冒頭のコメントに明記）。
+
+### 14.2 `computeUrbanWaterSystem` への接続
+
+Giant の `hasRegionalRomanWaterConnection`（§12 で確認済み、`hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(...)`）が使われている3箇所（`serviceWaterCapacity`、`drinkingBase`、`hasUpstreamIntake`）を、`hasRegionalRomanWaterConnection || hasRegionalSchemeConnection` という1つの `hasRegionalWaterConnection` にまとめた。`hasRegionalSchemeConnection` は `computeUrbanWaterSystem` の新規オプション引数で、呼び出し側（`buildSystems()`）が `getRegionalSchemeConnectedBurgIds()`（`status === "operating"` の全 `memberBurgIds`）から都度計算して渡す — Phase 2 の `drinkingTreatmentTier` 等と同じ「呼び出し側が注入する」パターンを踏襲した。
+
+`RegionalWaterAuthority.settleAnnual()` は `UrbanWater.settleAnnual()` の直後に実行される（index.tsx）。同じ年の `hasUpstreamIntake` を読んでスキームを進行させるため、スキームが `operating` になった効果が実際の `hasUpstreamIntake` に反映されるのは**翌年から**になる — `PowerGridInvestment` が前年の `Dam`/`PowerStation` 出力を読む一年遅れと同じ設計。
+
+### 14.3 制度設計での簡略化（意図的、§13.1 に続く開示）
+
+- `authorityKind` は常に `"stateWaterAuthority"`。State を持たない都市連合（`"charteredWaterUnion"`）は未実装。
+- §9.3 の既定按分（State 50% / 受益 Burg 40% / 起債 10%）を State 60% / Burg 40% に単純化し、起債という別の資金手段は持たない。
+- 交渉（negotiating）は「State が定額の交渉費を払えるか」だけを見る簡略なチェックであり、Burg ごとの水利権・補償交渉は再現していない — 交渉が成立した年に参加 Burg 全員が自動的に `approved` になる。
+- `chooseProtectedIntakeCell` の下水放流地点除外リストは空配列で呼んでいる。既存 Burg の汚水放流点の下流に取水地を選んでしまう可能性を、この Phase ではまだ塞いでいない。
+- `contractedCapacityByBurg` は人口比のみで決め、渇水時配分（§9.3）は未実装。
+
+これらは「まだ存在しない仕組みのために作り込まない」方針に基づく単純化であり、`RegionalWaterAuthority` のファイル冒頭コメントに同じ内容を明記した。
+
+### 14.4 未着手（Phase 4 以降に残した項目）
+
+- §14.3 の全項目（都市連合、起債、Burg 単位の交渉、下水放流点の除外、渇水配分）。
+- `compensationReserve`（§9.3 の水源地・通過地補償）— インターフェースには存在するが、このPhaseでは一度も加算されない。
+- 建設費・運転費の Goods 連動（Phase 2 から持ち越し、依然として現金のみ）。
+- `toggleSewerage` 側の `RegionalWaterScheme` 対応（§8 Phase 5 の範囲 — 本 Phase は `toggleWaterSupply` のみ）。

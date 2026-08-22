@@ -169,6 +169,7 @@ import { PowerGridInvestment } from "./generators/powerGridInvestment";
 import { PowerStations } from "./generators/powerStations";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
+import { RegionalWaterAuthority } from "./generators/regionalWaterAuthority";
 import {
   clearRetailInventory,
   planRetailReplenishment,
@@ -1082,6 +1083,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         InnFacilities.generate();
         InnStays.clear();
         UrbanWater.generate();
+        // Phase 3 (docs/plan/modern-urban-water-treatment-and-governance.md §9, §14): no scheme
+        // survives a regenerate, same as UrbanWater.generate() just above.
+        RegionalWaterAuthority.generate();
       }
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
       if (value.target === "economy" || value.target === "minerals") SmelterOperations.generate();
@@ -1471,6 +1475,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       InnFacilities.clear();
       InnStays.clear();
       UrbanWater.clear();
+      RegionalWaterAuthority.clear();
       clearConstructionHireState();
       clearCullHireState();
       clearCullHiringSession();
@@ -2525,6 +2530,7 @@ export function init(api: ExtensionAPI): void {
           InnFacilities.generate();
           InnStays.clear();
           UrbanWater.generate();
+          RegionalWaterAuthority.generate();
           // Threat cull / pest job board (docs/plan/player-threat-cull-jobs.md PR-2).
           rebuildCullJobPostings({ clearAll: true });
           // Escort (護衛) job board — all culture sets.
@@ -3127,6 +3133,13 @@ export function init(api: ExtensionAPI): void {
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
         urbanWaterChanged = UrbanWater.settleAnnual();
+        // Regional water schemes: advance each scheme's proposed→...→operating lifecycle and
+        // propose new ones for eligible, not-yet-covered burgs. Runs right after UrbanWater above so
+        // it can read this year's freshly-settled hasUpstreamIntake per burg; an operating scheme's
+        // benefit is folded back into hasUpstreamIntake/etc. starting NEXT year's UrbanWater.
+        // settleAnnual() call — same one-year lag as PowerGridInvestment reading last year's Dam/
+        // PowerStation output. docs/plan/modern-urban-water-treatment-and-governance.md §9, §14.
+        RegionalWaterAuthority.settleAnnual();
         // Returns true only when new "railways" route track was laid this call
         // (docs/plan/steam-industrial-implementation.md §7) — drives map.networks below.
         railwayNetworkChanged = SteamIndustry.settleAnnual();
