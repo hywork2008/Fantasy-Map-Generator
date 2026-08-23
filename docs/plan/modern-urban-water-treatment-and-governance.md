@@ -445,13 +445,23 @@ Giant 国家の全 Burg（`capital` / `city` / `town` / `village` / `fort`）に
 | `Colonial` | 0.7 | 本国基準の移植。ただし都市内の区画間で不均一になり得る点は単一スカラーでは表現できない（§5.4 の留保どおり） |
 | `Industrial` | 0.85 | 本計画が最終的に想定する受益文化そのもの |
 
-### 11.4 §1–10 実装時にどう読むべきか（未実装・提案）
+### 11.4 §1–10 実装時にどう読むべきか（提案。実装状況は §11.5 参照）
 
 `modernizationAffinity` はまだ何もゲートしていない。§8 の Phase 1 以降を実装する際は、次のように読む案を残す。
 
 - Phase 1（`ModernWaterTreatmentSystem` 新設時）: 初期状態の `drinkingTreatmentTier`/`wastewaterTreatmentTier` を 0 で揃えるのではなく、`modernizationAffinity` が高い Burg ほど Tier 1 相当（水源保護・沈砂・低速砂濾過）の初期投資が既に済んでいる確率を上げる。
 - Phase 2–5（薬品消費・生物処理・広域水道）: `modernizationAffinity` を「同じ予算充足度でも整備が進む速さ」の乗数として使う。ゲートそのもの（薬品・技術ノード・予算）は §4/§8 の技術グラフのままとし、`modernizationAffinity` は技術が使える前提の上での「その文化がどれだけ積極的に予算を割り当てるか」に限定する — 技術的に不可能なことを可能にはしない。
 - `Nomadic`/`Desert` の低い値は「劣っている」ことを意味しない。Nomadic 文化が強制的に定住化された場合（現実史のカザフ人・ベドウィンの定住化に相当する将来イベントがあれば）、`type` を変えずに `modernizationAffinity` だけ再ロールし直す拡張点として残せる。
+
+### 11.5 §11.4 の3提案の実装状況（2026-08-23 時点でのまとめ）
+
+| 提案 | 状態 | 実装箇所 |
+| --- | --- | --- |
+| Phase 1: Tier 初期値を `modernizationAffinity` が高い Burg ほど上げる | **実装済み** | レガシー `tier` ラダー: §18.2 `initialTier()`。近代ラダー（`drinkingTreatmentTier`/`wastewaterTreatmentTier`）: §20 `modernWaterworksGenerationSeed()`。どちらも Burg 自身の `modernizationAffinityForBurg(burg)` を読む |
+| Phase 2–5: 投資速度の乗数（ゲート自体は変えない） | **実装済み**（§13.1 で先行実装、本書の当初の想定どおり） | `urbanWaterModernTreatment.ts` の `settleModernWaterTreatmentInvestment()`——`speedMultiplier = 0.35 + affinity * 1.3` が `stepRate` を通じて drinking・wastewater 両ラダーの Tier 進捗速度に効く。ゲート（era・技術ノード・予算）には無関係 |
+| Nomadic/Desert の強制定住化時の再ロール拡張点 | **未実装・意図的に据え置き** | 「現実史のカザフ人・ベドウィンの定住化に相当する**将来イベントがあれば**」という条件付きの拡張点として最初から記述されており、その定住化イベント自体が本ロードマップのどこにも存在しない。存在しない仕組みのために作り込まない、という本書一貫の方針（§12.3 等）により保留する。定住化イベントを設計する具体的な要望があれば、その一部として実装する |
+
+Phase 1・Phase 2–5 の2提案は既存 3ターンの作業（§13.1・§18・§20）でカバーされており、`modernizationAffinity` は生成時の初期値（レガシー・近代の両ラダー）と年次投資速度（近代ラダー）の両方に配線済みで、追加の未接続箇所はない。
 
 ---
 
@@ -687,6 +697,8 @@ sludgeBacklog(次年) = sludgeBacklog(前年) * 0.7 + (1 - sludgeOpsFunding) * 0
 
 **状態: 実装済み**。§11.4 が Phase 1 実装時の提案として残していた「文化圏の近代化適性を Tier 初期値へ接続する」方向性とは別の切り口として、historicalPeriod と CultureType という2つの生成時条件から直接シードする経路（§17.1）、Phase 4 が Chlorine のみだった実 Good 消費を Tier 2 へも広げる経路（§17.2、Alum + Lime）、複数の Good 消費経路が同一マーケット在庫を無調整に奪い合う競合を防ぐ経路（§17.3）、`cleaningTaxRate`（Phase 3、§4 相当）を新設の近代ラダーへ接続する経路（§17.4）の4点を追加した。`modernizationAffinity` 自体への接続は §11.4 の提案のまま未着手で残っている——今回追加した4点はいずれもそれとは独立した経路である。
 
+> **2026-08-23 追記: `modernizationAffinity` 自体への接続は §20 で実装済み。** 上の一文は §17 執筆時点（§20 より前）の記述で、歴史的経緯として残す。§11.4 の3提案の最終状態は §11.5 にまとめてある。
+
 ### 17.1 `industrialModernWaterworksSeed()`——rocketryEra × Industrial 国家の生成時シード（§20 で一般化・置換済み）
 
 > **この節は歴史的記録として残す。実装は §20 で `modernWaterworksGenerationSeed()` へ一般化・置換された**（関数名も変更）。era ゲートを `rocketryEra` 固定から `steamEra` 以降の連続スケールへ、文化ゲートを State レベルの `Industrial` 二値判定から Burg レベルの `modernizationAffinity` 連続値へ広げている。以下は置換前の元の設計。
@@ -728,7 +740,7 @@ Giant のシードと異なり、これは**生成時の頭出しのみ**——`
 
 - `Alum`/`Chlorine`/`Lime` 以外の建設費（Stone/Tools/Brick 相当の近代版）は依然として現金のみ。
 - `connectionPermitCoverage`/`dischargeRegulation`（`institutionalTargets` の他2項目）は近代ラダーへ未接続——今回は `cleaningTaxRate` のみに範囲を絞った。
-- `modernizationAffinity`（§11）の**近代ラダー**（`drinkingTreatmentTier`/`wastewaterTreatmentTier`）Tier 初期値への接続は §11.4 の提案のまま未着手。§17.1 の rocketryEra×Industrial シードとは独立した経路として残っている。§18 でレガシー `tier` ラダー側には接続したが、近代ラダー側は別問題として残る。
+- ~~`modernizationAffinity`（§11）の**近代ラダー**（`drinkingTreatmentTier`/`wastewaterTreatmentTier`）Tier 初期値への接続は §11.4 の提案のまま未着手~~ → **§20 で実装済み**（`modernWaterworksGenerationSeed()`）。§11.4 の3提案（Phase 1 初期値・Phase 2-5 投資速度・Nomadic/Desert 再ロール拡張点）の状態は §11.5 にまとめた。
 - Chlorine の購入（Phase 4、Tier 3）には `maxStockShare` を適用していない——Bleaching Powder という潜在的な競合消費先はあるが era-6+ の小規模な化学財で、Phase 4 実装時点では確立した高流通量消費先ではなかったため、既存の挙動を変えずに残した。将来 Bleaching Powder の消費量が増えるようなら再検討する。
 
 ---
@@ -864,4 +876,27 @@ Tier 2 が生成時に立つ——ユーザーが「petroleumEra でも tier 1�
 ### 20.5 未着手（将来拡張）
 
 - レガシー `tier` の扱い（`tier: ABSOLUTE_MAX_WATER_TIER` 無条件）は今回も変更していない——§18.3 で触れた非対称性がそのまま残る。小規模な Burg（例: 人口1,000人・Tier 1相当）でもレガシー `tier` だけ 5 に飛ぶのは、今回のスコープでは意図的に据え置いた。
-- `drawWaterSupply.ts`（`toggleWaterSupply`）は Giant 継承水道と `RegionalWaterScheme` のみ描画する——`sourceProtection`/`hasUpstreamIntake` のような、生成時シードで非ゼロになり得る値を可視化する経路がまだない。今回の修正で `wastewaterTreatmentTier`（下水側）は見えるようになったが、上水側の生成時シードは（`drinkingTreatmentTier` 自体は上がっていても）地図上にまだ見える形で表示されない。
+- ~~`drawWaterSupply.ts`（`toggleWaterSupply`）は Giant 継承水道と `RegionalWaterScheme` のみ描画する~~ → **§21 で対応済み。**
+
+---
+
+## 21. `drawWaterSupply.ts` の上水道側マーカー追加（実装済み・2026-08-23）
+
+**状態: 実装済み**。§20.5 の残課題——`drawSewerage.ts` は §16.5 で `wastewaterTreatmentTier >= 1` の処理場アイコンを追加したのに対し、対になる `drawWaterSupply.ts`（`toggleWaterSupply`）は Giant 継承水道と `RegionalWaterScheme`（交渉が実際に進んだ広域水道のみ）しか描画しておらず、通常 Burg の `drinkingTreatmentTier`/`sourceProtection` を可視化する経路が存在しなかった——を埋めた。
+
+### 21.1 追加したマーカー
+
+`drawSewerage.ts` の `treatmentPlantMarkup()` と対になる関数を `drawWaterSupply.ts` に追加した：
+
+| 状態 | マーカー | 条件 |
+| --- | --- | --- |
+| Tier 1（低速砂濾過） | 🪨 | `drinkingTreatmentTier >= 1` |
+| Tier 2（急速濾過・凝集） | 🌀 | 同上 |
+| Tier 3（塩素消毒） | 🧪 | 同上 |
+| 保護済み取水のみ（Tier 0） | 🛡️（破線円） | `hasUpstreamIntake && sourceProtection >= SOURCE_PROTECTION_MIN_FOR_FILTRATION`（0.6、§4.1 の Tier 0→1 前提としてすでに存在する定数を `urbanWaterModernTreatment.ts` から export して再利用） |
+
+Tier 1-3 のマーカーは `treatmentOperationsFunding` に応じて不透明度を下げる（`drawSewerage.ts` が `sludgeBacklog` で行っているのと同じ「施設はあるが安全性は低い」の可視化——§5.1）。Giant 継承水道の経路（`routedBurgIds`）に含まれる Burg はスキップし、既存のアイコンと重複描画しない。`RegionalWaterScheme` のメンバー Burg は除外していない——広域水道から水を受けていても、その水を処理する自前の設備を併せ持ちうるため。
+
+### 21.2 テスト
+
+`drawWaterSupply.test.ts` を新設（`drawDams.test.ts` と同じ、実 SVG DOM ノードに対して描画し `querySelectorAll`/`textContent`/`title`/`opacity` を検証するパターン）。Tier 1/3 のアイコン・タイトル、資金不足時の不透明度低下、保護済み取水のみの表示、しきい値未満・取水なしでの非表示、をカバーする6ケース。`buildInheritedWaterSupplyRoutes()`/`buildInheritedSewerRoutes()` は河川セルが無ければ即座に `[]` を返す（`urbanWaterSupply.ts`）ため、河川データを持たない最小フィクスチャで Giant 経路生成をバイパスし、今回追加したロジックだけを検証している。

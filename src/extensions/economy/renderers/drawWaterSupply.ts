@@ -2,15 +2,38 @@ import type { Burg } from "../../hostTypes";
 import { getRegionalWaterSchemes, getUrbanWaterSystems, getWaterSupplyLayer, getWorldContext } from "../economyContext";
 import { raceKeyForBurgState } from "../generators/resolveBurgCulture";
 import { getSeasonalColdBurgIds } from "../generators/urbanWaterClimate";
+import { SOURCE_PROTECTION_MIN_FOR_FILTRATION } from "../generators/urbanWaterModernTreatment";
 import {
   buildAqueductTree,
   buildInheritedWaterSupplyRoutes,
   type InheritedWaterSupplyRoute
 } from "../generators/urbanWaterSupply";
-import type { RegionalWaterScheme } from "../generators/urbanWaterTypes";
+import type { RegionalWaterScheme, UrbanWaterSystem, WaterSanitationTier } from "../generators/urbanWaterTypes";
 
 const OUTER_STROKE = "#f5e6b3";
 const WATER_STROKE = "#1677a8";
+const INTAKE_STROKE = "#0b4f6c";
+
+/**
+ * Modern Phase 2/4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4, §15): the
+ * drinking-water counterpart of drawSewerage.ts's treatmentPlantMarkup() — a small marker at every
+ * ordinary (non-Giant-route) Burg with drinkingTreatmentTier >= 1, styled by tier, plus a lighter
+ * marker for a Burg that has secured `sourceProtection` (§13.1) but has not yet reached Tier 1.
+ * Added §20.5 (2026-08-23): before this, drinkingTreatmentTier's generation-time/annual progress
+ * had NO visual representation on the "Water and sewage" layer preset at all — only Giant aqueducts
+ * and negotiated RegionalWaterSchemes drew anything on this layer, so an ordinary Burg's own
+ * treatment plant was invisible regardless of its actual Tier.
+ */
+const DRINKING_TIER_ICON: Partial<Record<WaterSanitationTier, string>> = {
+  1: "🪨",
+  2: "🌀",
+  3: "🧪"
+};
+const DRINKING_TIER_LABEL: Partial<Record<WaterSanitationTier, string>> = {
+  1: "slow sand filtration",
+  2: "rapid filtration / coagulation",
+  3: "controlled chlorination"
+};
 
 /**
  * Visual state per §9.1's table (計画中は細い破線、建設中は点線、停止中は灰色、正常は実線) — the
@@ -60,10 +83,69 @@ export function drawWaterSupply(): void {
     },
     systems
   });
+  const routedBurgIds = new Set(routes.map(route => route.burgId));
   let html = routes.map(route => routeMarkup(route, pack.burgs[route.burgId]?.name ?? `Burg ${route.burgId}`)).join("");
   html += schemeRoutesMarkup(pack.burgs, pack.cells);
+  html += treatmentPlantMarkup(pack.burgs, systems, routedBurgIds);
   layer.html(html);
   layer.style("display", null);
+}
+
+function treatmentPlantMarkup(
+  burgs: readonly (Burg | undefined)[],
+  systems: readonly UrbanWaterSystem[],
+  routedBurgIds: ReadonlySet<number>
+): string {
+  let html = "";
+  for (const system of systems) {
+    if (routedBurgIds.has(system.burgId)) continue;
+    const burg = burgs[system.burgId];
+    if (!burg?.i || burg.removed) continue;
+
+    const tier = system.drinkingTreatmentTier ?? 0;
+    if (tier < 1) {
+      html += protectedIntakeMarkup(burg, system);
+      continue;
+    }
+
+    const funding = Math.max(0, Math.min(1, system.treatmentOperationsFunding ?? 0));
+    const opacity = 1 - Math.min(0.5, (1 - funding) * 0.5);
+    const icon = DRINKING_TIER_ICON[tier as WaterSanitationTier] ?? "🪨";
+    const fundingNote = ` (${Math.round(funding * 100)}% funded)`;
+    const title = escapeHtml(
+      `${burg.name ?? `Burg ${burg.i}`}: drinking water treatment — ${DRINKING_TIER_LABEL[tier as WaterSanitationTier] ?? `Tier ${tier}`}${fundingNote}`
+    );
+    html +=
+      `<g data-burg-id="${burg.i}" opacity="${opacity}">` +
+      `<title>${title}</title>` +
+      `<circle cx="${burg.x}" cy="${burg.y}" r="2.6" fill="#d9f2ff" stroke="${WATER_STROKE}" stroke-width="0.6"/>` +
+      `<text x="${burg.x}" y="${(burg.y ?? 0) + 1.1}" font-size="3.4px" text-anchor="middle">${icon}</text>` +
+      `</g>`;
+  }
+  return html;
+}
+
+/**
+ * A Burg that has secured `hasUpstreamIntake` + `sourceProtection` (§13.1's own Tier 0→1
+ * prerequisite threshold, SOURCE_PROTECTION_MIN_FOR_FILTRATION) but has not reached
+ * drinkingTreatmentTier 1 yet — a real, valuable interim state (a protected, recorded intake earns
+ * a small drinkingWaterSecurity bonus on its own) that would otherwise be entirely invisible
+ * between "nothing" and the first filtration-plant marker above.
+ */
+function protectedIntakeMarkup(burg: Burg, system: UrbanWaterSystem): string {
+  const sourceProtection = Math.max(0, Math.min(1, system.sourceProtection ?? 0));
+  if (!system.hasUpstreamIntake || sourceProtection < SOURCE_PROTECTION_MIN_FOR_FILTRATION) return "";
+
+  const title = escapeHtml(
+    `${burg.name ?? `Burg ${burg.i}`}: protected intake (source protection ${Math.round(sourceProtection * 100)}%, no treatment plant yet)`
+  );
+  return (
+    `<g data-burg-id="${burg.i}" opacity="0.75">` +
+    `<title>${title}</title>` +
+    `<circle cx="${burg.x}" cy="${burg.y}" r="2.2" fill="none" stroke="${INTAKE_STROKE}" stroke-width="0.6" stroke-dasharray="0.8 0.8"/>` +
+    `<text x="${burg.x}" y="${(burg.y ?? 0) + 1}" font-size="2.8px" text-anchor="middle">🛡️</text>` +
+    `</g>`
+  );
 }
 
 /**

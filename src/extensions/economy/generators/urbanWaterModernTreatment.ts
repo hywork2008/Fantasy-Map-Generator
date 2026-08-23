@@ -95,8 +95,11 @@ export function isModernWaterEraAvailable(period: string | undefined): boolean {
  *  small to be worth connecting to a shared one. */
 export const MODERN_WATER_MIN_POPULATION = 400;
 
-/** §4.1's tech-graph dependency: slow sand filtration presupposes a protected, recorded intake. */
-const SOURCE_PROTECTION_MIN_FOR_FILTRATION = 0.6;
+/** §4.1's tech-graph dependency: slow sand filtration presupposes a protected, recorded intake.
+ *  Exported for reuse by drawWaterSupply.ts's own "protected but not yet filtered" marker — the
+ *  same threshold that gates the Tier 0→1 step here is what makes that interim state worth
+ *  showing on the map at all (§13.1's "small drinkingWaterSecurity bonus even before filtration"). */
+export const SOURCE_PROTECTION_MIN_FOR_FILTRATION = 0.6;
 /** §16: trickling filter / biological treatment presupposes meaningful sanitary-engineering
  *  maturity — above the legacy ladder's own Tier 5 gate (SANITARY_ENGINEERING_STOCK_MIN = 0.22 in
  *  urbanWaterTech.ts), since this is a further, more demanding step past that baseline. */
