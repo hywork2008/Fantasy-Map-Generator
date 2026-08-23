@@ -97,6 +97,43 @@ export const PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX = 0.2;
  * See docs/plan/synthetic-ammonia-vertical-slice.md §3.8.
  */
 export const NITROGEN_FERTILIZER_YIELD_BONUS_MAX = 0.3;
+/**
+ * Potash (wood-ash-derived potassium carbonate) applied to fields as a market-purchased soil
+ * amendment, driven by PotashFertilizerInvestment.settleAnnual(). Distinct from the ambient
+ * household-scale ash return already implicit in BASE_NET_YIELD_KG_PER_SOWN_HECTARE. Potassium
+ * mainly affects crop quality/disease resistance/water regulation rather than the
+ * nitrogen-limited fallow cycle (see FOUR_COURSE_FALLOW_REDUCTION_MAX/
+ * NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX below), so this stays yield-only and does not feed
+ * calculateEffectiveSownShare(). Set below FOUR_COURSE_YIELD_BONUS_MAX(0.12) — the
+ * pre-industrial, low-K-concentration (~3-7% K2O by mass) wood-ash source is smaller than either
+ * the industrial fertilizers or a free adopted practice. calibration TBD. See
+ * docs/plan/fallow-reduction-fertilizer-rotation.md §4.
+ */
+export const POTASH_FERTILIZER_YIELD_BONUS_MAX = 0.08;
+/**
+ * Ceiling on the fraction of cultivable land actively cropped in a given year. Even with full
+ * rotation and chemical fertilizer, field margins, drainage, crop-calendar gaps, and equipment
+ * access keep a residual share below 100% — this is not a claim that fallow fully disappears,
+ * only that it shrinks toward a modern-agriculture floor. calibration TBD. See
+ * docs/plan/fallow-reduction-fertilizer-rotation.md §3.2.
+ */
+export const EFFECTIVE_SOWN_SHARE_CEILING = 0.92;
+/**
+ * Norfolk-style four-course rotation replaces bare fallow with a fodder/legume course, so most
+ * of the historical fallow gap closes on rotation alone, before any chemical input exists.
+ * Smaller than NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX because it still relies on a course
+ * being spent on non-staple fodder rather than staple crop. calibration TBD.
+ */
+export const FOUR_COURSE_FALLOW_REDUCTION_MAX = 0.1;
+/**
+ * Synthetic nitrogen replaces the biological nitrogen-fixation that fallow/legume rotation
+ * exists to provide, so nitrogen fertilizer — not phosphate or potash — substitutes for the rest
+ * of the fallow requirement. Phosphate's and potassium's historical roles were yield/quality
+ * boosts unrelated to the soil nitrogen cycle, so PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX and
+ * POTASH_FERTILIZER_YIELD_BONUS_MAX stay yield-only and do not feed this lever. calibration TBD,
+ * same order as FOUR_COURSE_FALLOW_REDUCTION_MAX.
+ */
+export const NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX = 0.15;
 /** One course in the four-year plan is represented as a clover ley. */
 export const FOUR_COURSE_CLOVER_LEY_SHARE = 0.25;
 /** Extra organic-fertility recovery supplied by the clover ley and its livestock cycle. */
@@ -170,6 +207,12 @@ export interface AgriculturalConditions {
    * See docs/plan/synthetic-ammonia-vertical-slice.md §3.7-3.8.
    */
   readonly nitrogenFertilizerStockByCell?: Float32Array;
+  /**
+   * Market-purchased Potash adoption coverage, resolved to cells by DevelopmentPotential from
+   * Market.potashFertilizerStock — same shape as fertilizerStockByCell/nitrogenFertilizerStockByCell.
+   * See docs/plan/fallow-reduction-fertilizer-rotation.md §4.
+   */
+  readonly potashFertilizerStockByCell?: Float32Array;
   /** Resolved once per agricultural pass; callers may provide a cached annual result. */
   readonly irrigation?: RiverIrrigationResults;
 }
@@ -312,6 +355,7 @@ export function calculateAgriculturalLandProfile(
     const effectiveAgTech = getEffectiveAgTech(world, cellId, agTechStockByCell);
     const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
     const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
+    const effectiveSownShare = calculateEffectiveSownShare(conditions, cellId);
 
     const yieldKgPerHa = calculateYieldKgPerHectare(
       world,
@@ -323,7 +367,7 @@ export function calculateAgriculturalLandProfile(
     );
     yieldPerArea[cellId] = yieldKgPerHa;
 
-    const supported = supportedPeople(area, yieldKgPerHa);
+    const supported = supportedPeople(area, yieldKgPerHa, effectiveSownShare);
     ruralFoodCapacity[cellId] = supported / populationRate;
     foodPotential[cellId] = supported * GROSS_FOOD_NEED;
 
@@ -335,7 +379,7 @@ export function calculateAgriculturalLandProfile(
       populationRate,
       demandOptions.includeUrbanFoodDemand !== false
     );
-    const requiredArea = requiredFieldAreaHectares(currentPeople, yieldKgPerHa);
+    const requiredArea = requiredFieldAreaHectares(currentPeople, yieldKgPerHa, effectiveSownShare);
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
     const reservedLaborExportPoints = getReservedLaborExportPoints(
       cells,
@@ -410,11 +454,13 @@ export function calculateAgriculturalLandProfile(
   };
 }
 
-export function requiredFieldAreaHectares(people: number, yieldKgPerHa: number): number {
-  if (people <= 0 || yieldKgPerHa <= 0) return 0;
-  return (
-    (people * STAPLE_NEED_KG_PER_PERSON_YEAR) / (EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK * yieldKgPerHa * ANNUAL_SOWN_SHARE)
-  );
+export function requiredFieldAreaHectares(
+  people: number,
+  yieldKgPerHa: number,
+  sownShare: number = ANNUAL_SOWN_SHARE
+): number {
+  if (people <= 0 || yieldKgPerHa <= 0 || sownShare <= 0) return 0;
+  return (people * STAPLE_NEED_KG_PER_PERSON_YEAR) / (EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK * yieldKgPerHa * sownShare);
 }
 
 /** Children→adult arrivals this year, in rural population points. */
@@ -506,7 +552,11 @@ export function reconcileForestClearanceForAgriculture(
       LABOUR_DAYS_PER_HECTARE *
       (1 - AGTECH_LABOR_SAVINGS_MAX * effectiveAgTech) *
       (1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation);
-    const requiredArea = requiredFieldAreaHectares(residentPeople, yieldKgPerHa);
+    const requiredArea = requiredFieldAreaHectares(
+      residentPeople,
+      yieldKgPerHa,
+      calculateEffectiveSownShare(conditions, cellId)
+    );
     const subsistenceArea = requiredArea * SUBSISTENCE_FIELD_RESERVE;
     const laborAffordableArea =
       yieldKgPerHa > 0
@@ -554,9 +604,13 @@ function getCellFoodDemandPeople(
   return ruralPeople + urbanPeople;
 }
 
-function supportedPeople(cultivableHectares: number, yieldKgPerHa: number): number {
+function supportedPeople(
+  cultivableHectares: number,
+  yieldKgPerHa: number,
+  sownShare: number = ANNUAL_SOWN_SHARE
+): number {
   return (
-    (cultivableHectares * ANNUAL_SOWN_SHARE * yieldKgPerHa * EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK) /
+    (cultivableHectares * sownShare * yieldKgPerHa * EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK) /
     STAPLE_NEED_KG_PER_PERSON_YEAR
   );
 }
@@ -670,7 +724,28 @@ function calculateYieldKgPerHectare(
     (1 + STATE_YIELD_BONUS_MAX * stateProductivity) *
     (1 + FOUR_COURSE_YIELD_BONUS_MAX * (conditions.fourCourseRotationByCell?.[cellId] ?? 0)) *
     (1 + PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX * (conditions.fertilizerStockByCell?.[cellId] ?? 0)) *
-    (1 + NITROGEN_FERTILIZER_YIELD_BONUS_MAX * (conditions.nitrogenFertilizerStockByCell?.[cellId] ?? 0))
+    (1 + NITROGEN_FERTILIZER_YIELD_BONUS_MAX * (conditions.nitrogenFertilizerStockByCell?.[cellId] ?? 0)) *
+    (1 + POTASH_FERTILIZER_YIELD_BONUS_MAX * (conditions.potashFertilizerStockByCell?.[cellId] ?? 0))
+  );
+}
+
+/**
+ * Fraction of cultivable land actively cropped this year. Four-course rotation and nitrogen
+ * fertilizer both substitute for the biological nitrogen-fixation that bare fallow/legume
+ * rotation exists to provide, so they shrink the fallow share; phosphate and potash address other
+ * nutrients and stay yield-only (see POTASH_FERTILIZER_YIELD_BONUS_MAX above). Distinct from
+ * soilFertility (advanceAgriculturalSoils()), which tracks *what* is grown on already-cultivated
+ * land, not *how much* of the cultivable land is cultivated. See
+ * docs/plan/fallow-reduction-fertilizer-rotation.md §3.
+ */
+function calculateEffectiveSownShare(conditions: AgriculturalConditions, cellId: number): number {
+  const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
+  const nitrogenFertilizer = conditions.nitrogenFertilizerStockByCell?.[cellId] ?? 0;
+  return Math.min(
+    EFFECTIVE_SOWN_SHARE_CEILING,
+    ANNUAL_SOWN_SHARE +
+      FOUR_COURSE_FALLOW_REDUCTION_MAX * fourCourseRotation +
+      NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX * nitrogenFertilizer
   );
 }
 

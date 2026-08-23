@@ -59,6 +59,15 @@ export interface Market {
    */
   nitrogenFertilizerStock?: number;
   /**
+   * 0..1 saturating EWMA of annual Potash purchase coverage across this market's cultivated
+   * land. Separate account/stock from agTechStock (Tools), fertilizerStock (Phosphate
+   * Fertilizer), and nitrogenFertilizerStock — three independent stocks sharing a market's
+   * treasury. Feeds yieldPerArea in agriculturalLandUse.ts. Undefined (pre-slice saves, or a
+   * market with no cultivated land yet) is treated as 0.
+   * See docs/plan/fallow-reduction-fertilizer-rotation.md §4.
+   */
+  potashFertilizerStock?: number;
+  /**
    * 0..1 saturating EWMA of this market's electricity-demand coverage from PowerStation
    * generationCapacity. Not a market inventory Good — no unit, price, or recipe. Before powerGrid
    * is adopted in the owning State only same-market PowerStation capacity counts; once adopted,

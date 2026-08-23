@@ -177,6 +177,7 @@ let _steelConverterPlantsLastSettledYearFallback: number | null = null;
 let _fertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _syntheticAmmoniaPlantsLastSettledYearFallback: number | null = null;
 let _nitrogenFertilizerInvestmentLastSettledYearFallback: number | null = null;
+let _potashFertilizerInvestmentLastSettledYearFallback: number | null = null;
 let _powerStationsLastSettledYearFallback: number | null = null;
 let _telegraphLinesLastSettledYearFallback: number | null = null;
 let _electrolysisPlantsLastSettledYearFallback: number | null = null;
@@ -255,6 +256,7 @@ export function clearEconomyContext(): void {
   _fertilizerInvestmentLastSettledYearFallback = null;
   _syntheticAmmoniaPlantsLastSettledYearFallback = null;
   _nitrogenFertilizerInvestmentLastSettledYearFallback = null;
+  _potashFertilizerInvestmentLastSettledYearFallback = null;
   _powerStationsLastSettledYearFallback = null;
   _telegraphLinesLastSettledYearFallback = null;
   _electrolysisPlantsLastSettledYearFallback = null;
@@ -1714,6 +1716,15 @@ export function getNitrogenFertilizerInvestmentLastSettledYear(): number | null 
 export function setNitrogenFertilizerInvestmentLastSettledYear(year: number): void {
   writeYearToSlice("nitrogenFertilizerInvestmentLastSettledYear", year, value => {
     _nitrogenFertilizerInvestmentLastSettledYearFallback = value;
+  });
+}
+/** Guards PotashFertilizerInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */
+export function getPotashFertilizerInvestmentLastSettledYear(): number | null {
+  return yearFromSlice("potashFertilizerInvestmentLastSettledYear", _potashFertilizerInvestmentLastSettledYearFallback);
+}
+export function setPotashFertilizerInvestmentLastSettledYear(year: number): void {
+  writeYearToSlice("potashFertilizerInvestmentLastSettledYear", year, value => {
+    _potashFertilizerInvestmentLastSettledYearFallback = value;
   });
 }
 /** Guards PowerStations.settleAnnual(), same shape as getSteelConverterPlantsLastSettledYear. */

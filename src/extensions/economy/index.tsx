@@ -169,6 +169,7 @@ import { OilRefineryPlants } from "./generators/oilRefineryPlants";
 import { OverseasRelations } from "./generators/overseasRelations";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
+import { PotashFertilizerInvestment } from "./generators/potashFertilizerInvestment";
 import { PowerGridInvestment } from "./generators/powerGridInvestment";
 import { PowerStations } from "./generators/powerStations";
 import { Production } from "./generators/production-generator";
@@ -2954,6 +2955,12 @@ export function init(api: ExtensionAPI): void {
         // investments keep priority over mine/smelter claims together (docs/plan/
         // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
         NitrogenFertilizerInvestment.settleAnnual();
+        // Potash purchase (existing wood-ash Good, otherwise sold for glass/soap), same shared
+        // marketTreasury.balance but a separate stock/budget calculation — runs right after the
+        // other two farm-fertilizer investments so all three keep priority over mine/smelter
+        // claims together (docs/plan/fallow-reduction-fertilizer-rotation.md §4.5; docs/plan/
+        // rural-agtech-investment.md §6.3).
+        PotashFertilizerInvestment.settleAnnual();
         IndustrialTechInvestment.settleAnnual();
         // Allocates last year's PowerStations/GasPowerStations generation capacity (era-6/7 plant
         // block below) to markets by population. Does not touch marketTreasury — PowerStations/
