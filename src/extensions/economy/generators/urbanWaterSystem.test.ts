@@ -1460,4 +1460,66 @@ describe("UrbanWater module", () => {
       expect(ordinaryLocalWaterworks).toBe("human");
     });
   });
+
+  describe("Industrial-culture rocketryEra generation seed (docs/plan/modern-urban-water-treatment-and-governance.md §11)", () => {
+    beforeEach(() => {
+      worldContext.pack.cultures = [
+        { i: 0, type: "Generic" },
+        { i: 1, type: "Industrial" }
+      ] as typeof worldContext.pack.cultures;
+      worldContext.pack.states![0]!.culture = 1;
+      worldContext.options = { historicalPeriod: "rocketryEra" } as typeof worldContext.options;
+    });
+
+    it("seeds a large industrial city (population >= 15000) at drinkingTreatmentTier/wastewaterTreatmentTier 3", () => {
+      // burg 1: population 15 * populationRate 1000 * urbanization 1 = 15000 people.
+      UrbanWater.generate();
+      const capital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(capital.drinkingTreatmentTier).toBe(3);
+      expect(capital.wastewaterTreatmentTier).toBe(3);
+      expect(capital.tier).toBe(5);
+      expect(capital.sourceProtection).toBe(1);
+    });
+
+    it("seeds a mid-size town (4,000-14,999 people) at tier 2", () => {
+      worldContext.pack.burgs[1]!.population = 5; // 5,000 people
+      UrbanWater.generate();
+      const town = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(town.drinkingTreatmentTier).toBe(2);
+      expect(town.wastewaterTreatmentTier).toBe(2);
+    });
+
+    it("seeds a small town just above the population floor at tier 1", () => {
+      worldContext.pack.burgs[1]!.population = 1; // 1,000 people
+      UrbanWater.generate();
+      const town = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(town.drinkingTreatmentTier).toBe(1);
+      expect(town.wastewaterTreatmentTier).toBe(1);
+    });
+
+    it("gives no head start below MODERN_WATER_MIN_POPULATION, even in a qualifying Industrial state", () => {
+      // burg 2: population 0.3 * 1000 * 1 = 300 people, below the 400-person floor
+      // (urbanWaterModernTreatment.ts's MODERN_WATER_MIN_POPULATION).
+      UrbanWater.generate();
+      const hamlet = getUrbanWaterSystems().find(s => s.burgId === 2)!;
+      expect(hamlet.drinkingTreatmentTier).toBe(0);
+      expect(hamlet.wastewaterTreatmentTier).toBe(0);
+    });
+
+    it("does not seed outside rocketryEra, even for an Industrial-culture state", () => {
+      worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+      UrbanWater.generate();
+      const capital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(capital.drinkingTreatmentTier).toBe(0);
+      expect(capital.wastewaterTreatmentTier).toBe(0);
+    });
+
+    it("does not seed at rocketryEra for a non-Industrial-culture state", () => {
+      worldContext.pack.states![0]!.culture = 0; // back to the default Generic-culture state
+      UrbanWater.generate();
+      const capital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(capital.drinkingTreatmentTier).toBe(0);
+      expect(capital.wastewaterTreatmentTier).toBe(0);
+    });
+  });
 });

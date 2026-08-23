@@ -50,7 +50,7 @@ import {
   resolveOrganicPathways,
   tierDrinkingHealthBonus
 } from "./urbanWaterInstitutions";
-import { settleModernWaterTreatmentInvestment } from "./urbanWaterModernTreatment";
+import { MODERN_WATER_MIN_POPULATION, settleModernWaterTreatmentInvestment } from "./urbanWaterModernTreatment";
 import { hasSameLandGravityWaterSource } from "./urbanWaterSupply";
 import {
   applyPollutionDiplomaticAlert,
@@ -77,6 +77,7 @@ import type {
   WaterWorksProjectKind
 } from "./urbanWaterTypes";
 import {
+  ABSOLUTE_MAX_WATER_TIER,
   CLEANSING_MATERIALS,
   MAX_INVESTABLE_TIER,
   ORGANIC_WASTE_ROUTES,
@@ -1313,6 +1314,69 @@ function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
 }
 
 /**
+ * Industrial-culture states that have already reached the rocketryEra generation option begin with
+ * modern drinking/wastewater treatment already built, scaled by each burg's own population — a
+ * large industrial metropolis at the top of the technology tree should not spend the early
+ * centuries of play at Tier 0 while settleModernWaterTreatmentInvestment() (urbanWaterModernTreatment.ts)
+ * slowly catches up from scratch.
+ *
+ * Gated at the STATE level — `state.culture`'s CultureType (docs/plan/
+ * modern-urban-water-treatment-and-governance.md §11.2/§11.3), the same granularity
+ * getStateMaritimeAptitude() (technologyProgress.ts) reads its own cultureType at — not the burg's
+ * own (possibly different, e.g. conquered) local culture. Mirrors giantRomanWaterworksSeed()'s
+ * state-level gate immediately above.
+ *
+ * Unlike the Giant branch (computeUrbanWaterSystem()'s isGiantState, re-asserted every year), this
+ * is a pure generation-time head start: buildSystems()'s mode === "generate" branch reads it once as
+ * `previous`, and ordinary annual maintenance/investment/culture-change governs the burg from there
+ * on like any other — exactly what giantRomanWaterworksSeed()'s own doc comment says of itself,
+ * except here nothing re-locks the tier back down afterward.
+ *
+ * Population bands reuse initialTier()'s own 4,000/15,000 breakpoints (this file, above) rather than
+ * inventing new ones, and MODERN_WATER_MIN_POPULATION (urbanWaterModernTreatment.ts) as the floor
+ * below which no seed applies — a hamlet-sized burg in an Industrial state gets no head start, same
+ * as it would get no annual modern investment either.
+ */
+function industrialModernWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
+  const world = getWorldContext();
+  if (world.options?.historicalPeriod !== "rocketryEra") return null;
+
+  const stateId = burg.state ?? 0;
+  if (!stateId) return null;
+  // Resilient to id-indexed and dense State arrays, same as raceKeyForBurgState()
+  // (resolveBurgCulture.ts) — this file's other state-level gate right above.
+  const state = world.pack.states?.[stateId] ?? world.pack.states?.find(candidate => candidate?.i === stateId);
+  if (!state?.i || state.removed) return null;
+  if (world.pack.cultures?.[state.culture ?? 0]?.type !== "Industrial") return null;
+
+  const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
+  if (people < MODERN_WATER_MIN_POPULATION) return null;
+
+  const tier: WaterSanitationTier = people >= 15000 ? 3 : people >= 4000 ? 2 : 1;
+  const funding = tier >= 3 ? 0.85 : tier >= 2 ? 0.7 : 0.5;
+
+  return systemDefaults({
+    burgId: burg.i!,
+    tier: ABSOLUTE_MAX_WATER_TIER,
+    drinkingTreatmentTier: tier,
+    wastewaterTreatmentTier: tier,
+    maintenanceCondition: 0.85,
+    clogging: 0.05,
+    connectionPermitCoverage: tier >= 3 ? 0.8 : tier >= 2 ? 0.68 : 0.55,
+    dischargeRegulation: tier >= 3 ? 0.78 : tier >= 2 ? 0.65 : 0.5,
+    municipalSanitation: tier >= 3 ? 0.78 : tier >= 2 ? 0.65 : 0.5,
+    sanitaryEngineering: tier >= 3 ? 0.75 : tier >= 2 ? 0.6 : 0.45,
+    waterLifting: 0.6,
+    sourceProtection: 1,
+    treatmentOperationsFunding: funding,
+    wastewaterOperationsFunding: funding,
+    chemicalTestCoverage: tier >= 2 ? funding : 0,
+    chlorineStockCoverage: tier >= 3 ? funding : 0,
+    effluentTestCoverage: tier >= 2 ? funding : 0
+  });
+}
+
+/**
  * Spend burg treasury on market goods for construction (Stone / Tools / Brick).
  * Returns fraction of requested materials obtained (cash-limited separately).
  */
@@ -1860,7 +1924,10 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
   let systems: UrbanWaterSystem[] = [];
   for (const burg of world.pack.burgs) {
     if (!burg?.i || burg.removed) continue;
-    const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : giantRomanWaterworksSeed(burg);
+    const previous =
+      mode === "annual"
+        ? (previousByBurg.get(burg.i) ?? null)
+        : (giantRomanWaterworksSeed(burg) ?? industrialModernWaterworksSeed(burg));
     // Ordinary forts remain non-civic military sites, but Giant forts are supplied by the same
     // inherited aqueduct/trunk sewer network as their villages and cities.
     if (burg.group === "fort" && !previous?.hasInheritedRomanWaterworks) continue;
