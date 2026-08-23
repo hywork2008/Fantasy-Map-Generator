@@ -2116,6 +2116,113 @@ export async function findInlandBurg(
   }, wantPort);
 }
 
+export interface ConnectedBurgPair {
+  aId: number;
+  aName: string;
+  aX: number;
+  aY: number;
+  bId: number;
+  bName: string;
+  bX: number;
+  bY: number;
+}
+
+/**
+ * Find two burgs of the same state, connected by a charted road/trail — same adjacency rule as
+ * the app's own buildLandRouteGraph (src/generators/landRouteGraph.ts): consecutive points of
+ * every "roads"/"trails" pack.routes entry, so a sea-route-only connection never counts here
+ * (pack.cells.routes mixes in searoutes too, so it can't be reused directly). Used by
+ * directions-dialog.spec.ts to exercise the burg-to-burg Directions dialog on a real generated
+ * map instead of hardcoding burg ids that would break if map generation changes.
+ * Returns null if no such pair exists on this map/seed.
+ */
+export async function findConnectedBurgPair(
+  page: Page
+): Promise<ConnectedBurgPair | null> {
+  return page.evaluate(() => {
+    type TestBurg = {
+      i?: number;
+      removed?: boolean;
+      state?: number;
+      x: number;
+      y: number;
+      cell: number;
+      name?: string;
+    };
+    type TestRoute = { group: string; points: [number, number, number][] };
+    const { burgs, routes } = window.fmg.world.pack as unknown as {
+      burgs: TestBurg[];
+      routes: TestRoute[];
+    };
+    if (!routes?.length) return null;
+
+    // Adjacency over every charted roads/trails cell-to-cell edge (land only).
+    const adjacency = new Map<number, Set<number>>();
+    const addEdge = (from: number, to: number) => {
+      (adjacency.get(from) ?? adjacency.set(from, new Set()).get(from)!).add(to);
+      (adjacency.get(to) ?? adjacency.set(to, new Set()).get(to)!).add(from);
+    };
+    for (const route of routes) {
+      if (route.group !== "roads" && route.group !== "trails") continue;
+      for (let i = 0; i < route.points.length - 1; i++) {
+        const cell1 = route.points[i][2];
+        const cell2 = route.points[i + 1][2];
+        if (cell1 !== cell2) addEdge(cell1, cell2);
+      }
+    }
+
+    const liveBurgs = burgs.filter(
+      (b): b is TestBurg & { i: number } => Boolean(b?.i) && !b.removed
+    );
+    const byState = new Map<number, (TestBurg & { i: number })[]>();
+    for (const b of liveBurgs) {
+      const list = byState.get(b.state ?? -1) ?? [];
+      list.push(b);
+      byState.set(b.state ?? -1, list);
+    }
+
+    for (const list of byState.values()) {
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          const a = list[i];
+          const b = list[j];
+          // BFS from a.cell over the route graph, capped small — same-state burgs on a real
+          // generated map are almost always within a handful of hops if connected at all.
+          const seen = new Set<number>([a.cell]);
+          const queue = [a.cell];
+          let found = false;
+          while (queue.length && !found) {
+            const cell = queue.shift()!;
+            for (const next of adjacency.get(cell) ?? []) {
+              if (next === b.cell) {
+                found = true;
+                break;
+              }
+              if (!seen.has(next)) {
+                seen.add(next);
+                queue.push(next);
+              }
+            }
+          }
+          if (found) {
+            return {
+              aId: a.i,
+              aName: a.name ?? `Burg ${a.i}`,
+              aX: a.x,
+              aY: a.y,
+              bId: b.i,
+              bName: b.name ?? `Burg ${b.i}`,
+              bX: b.x,
+              bY: b.y,
+            };
+          }
+        }
+      }
+    }
+    return null;
+  });
+}
+
 /**
  * Zoom to a burg and ensure the burg labels/icons layers are visible.
  * Uses window.fmg.actions for setup (permitted by AGENTS.md §5).

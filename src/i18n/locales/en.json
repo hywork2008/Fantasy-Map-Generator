@@ -90,7 +90,34 @@
     "label": "Map menu",
     "distanceFromHere": "Distance from here",
     "distanceToHere": "Distance to here",
-    "distanceToHereDisabled": "Set Distance from here first"
+    "distanceToHereDisabled": "Set Distance from here first",
+    "distanceFromBurg": "Distance from {{name}}",
+    "distanceToBurg": "Distance to {{name}}"
+  },
+  "directions": {
+    "mode": {
+      "foot": "On foot",
+      "wagon": "By cart",
+      "ship": "By ship"
+    },
+    "route": {
+      "recommended": "Recommended route",
+      "shortest": "Shortest route",
+      "easier": "Easier route"
+    },
+    "reason": {
+      "noLandRoute": "No charted road or trail connects these settlements",
+      "noSeaRoute": "Neither settlement is on a charted sea lane",
+      "sameLocation": "Already there"
+    },
+    "duration": {
+      "daysHours": "{{days}}d {{hours}}h",
+      "hoursMinutes": "{{hours}}h {{minutes}}m",
+      "minutes": "{{minutes}}m"
+    },
+    "gradeSummary": "Max grade: {{maxGrade}}% · Climb: {{ascent}} {{heightUnit}} · Descent: {{descent}} {{heightUnit}} · Difficulty: {{difficulty}}",
+    "noElevation": "Flat sea crossing — no elevation change.",
+    "noRoute": "No charted route connects these settlements."
   },
   "characters": {
     "dialogTitle": "Character Details: {{name}}",
@@ -1715,6 +1742,7 @@
       "exportMap": "Export map data",
       "exportPngTiles": "Export to PNG tiles",
       "cellInfo": "CellInfo",
+      "directions": "Directions: {{from}} → {{to}}",
       "populationOverview": "Population Overview",
       "technologyOverview": "Technology Overview",
       "burgsOverview": "Burgs Overview",

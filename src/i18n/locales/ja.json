@@ -90,7 +90,34 @@
     "label": "地図メニュー",
     "distanceFromHere": "ここからの距離",
     "distanceToHere": "ここまでの距離",
-    "distanceToHereDisabled": "先に「ここからの距離」で開始位置を指定してください"
+    "distanceToHereDisabled": "先に「ここからの距離」で開始位置を指定してください",
+    "distanceFromBurg": "{{name}}からの距離",
+    "distanceToBurg": "{{name}}までの距離"
+  },
+  "directions": {
+    "mode": {
+      "foot": "徒歩",
+      "wagon": "馬車",
+      "ship": "船"
+    },
+    "route": {
+      "recommended": "おすすめルート",
+      "shortest": "最短ルート",
+      "easier": "楽なルート"
+    },
+    "reason": {
+      "noLandRoute": "これらの都市を結ぶ道や小道が見つかりません",
+      "noSeaRoute": "どちらの都市も海路に面していません",
+      "sameLocation": "既に到着しています"
+    },
+    "duration": {
+      "daysHours": "{{days}}日{{hours}}時間",
+      "hoursMinutes": "{{hours}}時間{{minutes}}分",
+      "minutes": "{{minutes}}分"
+    },
+    "gradeSummary": "最大勾配: {{maxGrade}}% ・ 登り: {{ascent}}{{heightUnit}} ・ 下り: {{descent}}{{heightUnit}} ・ 難易度: {{difficulty}}",
+    "noElevation": "平坦な海路です — 標高差はありません。",
+    "noRoute": "これらの都市を結ぶ経路が見つかりません。"
   },
   "characters": {
     "dialogTitle": "人物詳細：{{name}}",
@@ -1715,6 +1742,7 @@
       "exportMap": "地図データを書き出す",
       "exportPngTiles": "PNG タイルに書き出す",
       "cellInfo": "セル情報",
+      "directions": "経路案内：{{from}} → {{to}}",
       "populationOverview": "人口概要",
       "technologyOverview": "技術概要",
       "burgsOverview": "都市概要",

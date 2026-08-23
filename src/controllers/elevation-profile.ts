@@ -1,6 +1,7 @@
 import { worldContext } from "../context/worldContext";
+import type { ChartData } from "../renderers/elevation-profile-renderer";
 import { getHeight } from "../services/cellInfoService";
-import { buildRouteGradeProfile } from "../services/routeGrade";
+import { buildRouteGradeProfile, type RouteGradeProfile } from "../services/routeGrade";
 import { tip } from "../services/tooltipService";
 import { useElevationProfileState } from "../store/elevationProfileState";
 import { useOptionsState } from "../store/optionsState";
@@ -8,13 +9,21 @@ import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { normalizeHeightExponent } from "../utils/height";
 
-export function openElevationProfile(cells: number[], routeLen: number, isRiver: boolean): void {
+export interface ElevationChartData {
+  chartData: ChartData;
+  totalAscent: number;
+  totalDescent: number;
+}
+
+/**
+ * Per-cell chart data (heights/biome/burg markers) + total ascent/descent for a cell path.
+ * Shared by the Rivers/Routes elevation-profile dialog (openElevationProfile below) and the
+ * burg-to-burg Directions dialog (src/services/travelDirections.ts), so the two don't drift.
+ */
+export function buildElevationChartData(cells: number[], isRiver: boolean): ElevationChartData | null {
   const firstCell = cells[0];
   const lastCell = cells.at(-1);
-  if (firstCell === undefined || lastCell === undefined) {
-    tip("Elevation profile: no data", true, "error");
-    return;
-  }
+  if (firstCell === undefined || lastCell === undefined) return null;
 
   let slope = 0;
   if (isRiver) {
@@ -24,7 +33,7 @@ export function openElevationProfile(cells: number[], routeLen: number, isRiver:
     else if (firstH > lastH) slope = -1;
   }
 
-  const chartData = {
+  const chartData: ChartData = {
     biome: [] as number[],
     burg: [] as number[],
     cell: [] as number[],
@@ -87,23 +96,37 @@ export function openElevationProfile(cells: number[], routeLen: number, isRiver:
     chartData.burg[lastBurgIndex] = 0;
   }
 
-  // Land routes only: grade profile uses planar cell spacing + pack heights (meters).
-  let gradeProfile = null;
-  if (!isRiver && cells.length >= 2) {
-    const p = worldContext.pack.cells.p;
-    const segmentLengthsMapUnits: number[] = [];
-    for (let i = 0; i < cells.length - 1; i++) {
-      const [x1, y1] = p[cells[i]];
-      const [x2, y2] = p[cells[i + 1]];
-      segmentLengthsMapUnits.push(Math.hypot(x2 - x1, y2 - y1));
-    }
-    const { heightExponent, distanceScale: optionDistanceScale } = useOptionsState.getState();
-    gradeProfile = buildRouteGradeProfile(cells, segmentLengthsMapUnits, {
-      distanceScale: worldContext.distanceScale || optionDistanceScale || 1,
-      heightExponent: normalizeHeightExponent(heightExponent),
-      heights: worldContext.pack.cells.h
-    });
+  return { chartData, totalAscent, totalDescent };
+}
+
+/** Land routes only: grade profile uses planar cell spacing + pack heights (meters). */
+export function buildGradeProfileForCells(cells: number[]): RouteGradeProfile | null {
+  if (cells.length < 2) return null;
+
+  const p = worldContext.pack.cells.p;
+  const segmentLengthsMapUnits: number[] = [];
+  for (let i = 0; i < cells.length - 1; i++) {
+    const [x1, y1] = p[cells[i]];
+    const [x2, y2] = p[cells[i + 1]];
+    segmentLengthsMapUnits.push(Math.hypot(x2 - x1, y2 - y1));
   }
+  const { heightExponent, distanceScale: optionDistanceScale } = useOptionsState.getState();
+  return buildRouteGradeProfile(cells, segmentLengthsMapUnits, {
+    distanceScale: worldContext.distanceScale || optionDistanceScale || 1,
+    heightExponent: normalizeHeightExponent(heightExponent),
+    heights: worldContext.pack.cells.h
+  });
+}
+
+export function openElevationProfile(cells: number[], routeLen: number, isRiver: boolean): void {
+  const built = buildElevationChartData(cells, isRiver);
+  if (!built) {
+    tip("Elevation profile: no data", true, "error");
+    return;
+  }
+  const { chartData, totalAscent, totalDescent } = built;
+
+  const gradeProfile = isRiver ? null : buildGradeProfileForCells(cells);
 
   useElevationProfileState.getState().open({ chartData, cells, routeLen, totalAscent, totalDescent, gradeProfile });
   closeDialogs("#elevationProfile, .stable");
