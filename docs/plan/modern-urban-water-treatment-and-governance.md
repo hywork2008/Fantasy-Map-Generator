@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案（Phase 1–4 実装済み・Phase 5 未実装、§8/§12/§13/§14/§15 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
+**設計案（Phase 1–5 実装済み、§8/§12/§13/§14/§15/§16 参照）**。未整備の川沿い Burg が、取水・濾過・消毒・配水と、下水収集・処理・安全な放流を段階的に整備するための設定・実装資料である。
 
 既存の[都市水利・衛生インフラ設計](./urban-water-and-sanitation-system.md)が扱う開放側溝、被覆暗渠、分流、清掃・放流規制を置き換えない。本書はその後段、すなわち「川の水を都市規模で飲料用に安全化する」「汚水を下流へ移すだけでなく処理して放流する」近代的な工程を定義する。
 
@@ -304,7 +304,7 @@ interface ModernWaterTreatmentSystem {
 | 2 | **実装済み（2026-08-23、§13参照）**。水源保護、低速砂濾過、一次沈殿、建設費と運転費の分離 | Burg treasury、清掃税・接続料 |
 | 3 | **実装済み（2026-08-23、§14参照）**。流域水道局、参加・補償・水利認可、`toggleWaterSupply` の計画／建設／稼働表示 | Burg/State の行政按分、既存の拡張レイヤー API |
 | 4 | **実装済み（2026-08-23、§15参照）**。凝集・急速濾過・`Chlorine` 消費・水質検査 | era 6 の化学工業、`Chlorine` Good |
-| 5 | 散水ろ床／活性汚泥、汚泥処理、流域補償、放流水検査、`toggleSewerage` | `sanitaryEngineering`、上流・下流汚染外交 |
+| 5 | **実装済み（2026-08-23、§16参照）**。散水ろ床／活性汚泥、汚泥処理、流域補償、放流水検査、`toggleSewerage` | `sanitaryEngineering`、上流・下流汚染外交 |
 
 Phase 1–2 では「塩素を入れれば直ちに近代水道」という近道を作らない。Phase 4 は `controlledWaterChlorination` が `demonstrated` になった都市だけが試験的に実行でき、`adopted` になった State でも、各 Burg が濾過・薬品・検査・運転費を満たした場合にのみ恒常効果を得る。
 
@@ -618,3 +618,65 @@ Tier 3 のみ、`Markets.consumeForMarketInvestment`（`purchaseProjectMaterials
 - 建設費・運転費・Chlorine 以外の Good（Alum、Lime 等）の連動は依然として現金のみ。
 - `chemicalTestCoverage`/`chlorineStockCoverage` の流域補償・`toggleSewerage` への接続（Phase 5 の範囲）。
 - `rapidFiltrationAndCoagulation`/`controlledWaterChlorination` を §4.1 が示す独立した技術ノードとして技術グラフに追加すること——今回は既存の `analyticalChemistry`/`catalyticChemistry` を再利用するに留めた（Phase 1〜3 が独自の技術ノードを作らなかった前例を踏襲し、UI/セーブ互換への影響を避けるための意図的な選択）。
+
+---
+
+## 16. Phase 5 実装メモ（実装済み・2026-08-23）
+
+**状態: 実装済み**。§15.6 で持ち越されていた最後の項目。`wastewaterTreatmentTier` は Phase 2 の Tier 0→1（一次沈殿）で止まっており、Tier 2（生物処理）・Tier 3（活性汚泥）へ進める経路がなかった。Phase 5 はこの2段を追加し、あわせて汚泥処理・放流水検査・流域補償・`toggleSewerage` を実装した。
+
+### 16.1 同じ進捗メーターを使い回す設計（Phase 4 と同型）
+
+`wastewaterTreatmentUpgradeProgress`（0..1）は Phase 2 の時点で Tier 0→1 専用の名前ではなく、汎用の「次の Tier への進捗」として設計されていた。Phase 4 が飲料水側のラダーで確立した「同じメーターを使い回し、Tier 完了時に 0 へリセットする」設計をそのまま下水側にも適用した。`wastewaterTreatmentStepCost(fromTier, people)` が段ごとの建設費（260 / 480 / 640、people でスケール）を返す。
+
+### 16.2 `sanitaryEngineering` を技術ゲートとして再利用（既存資産の発見）
+
+§8 の表が Phase 5 の「既存資産との接続」として明記していた `sanitaryEngineering` は、`urbanWaterTech.ts` の `evolveWaterTechStocks()` がすでに毎年計算している Burg 単位の 0..1 スタックだった（レガシー `tier`（旧梯子）が3以上になり、かつ administration が一定水準を超えないと育たない、意図的に遅い指標）。Phase 4 が `analyticalChemistry`/`catalyticChemistry`（グローバルな State 技術段階）を再利用したのと同じ精神で、Phase 5 は新しい技術ノードを追加せず、この既存スタックをそのままゲートに使う：
+
+| 段階 | ゲート |
+| --- | --- |
+| Tier 0→1（一次沈殿、Phase 2 から変更なし） | `hasDownstreamOutfall` のみ |
+| Tier 1→2（散水ろ床／生物処理） | `sanitaryEngineering >= 0.32` |
+| Tier 2→3（活性汚泥） | `sanitaryEngineering >= 0.5` かつ `generatorAndMotor` が対象 State で known 以上 |
+
+`generatorAndMotor` は dams.ts が自身の電化判定にすでに使っている既存の技術ノードで、"送風機・電力・機械工" という §3.1 の活性汚泥法の要件に対応する。新しい技術ノードは一つも追加していない。
+
+### 16.3 `computeUrbanWaterSystem` への接続——3つの新しい掛け算
+
+Tier 1 の「運転充足度で減衰させる」パターンを踏襲しつつ、Tier 2・3 独自の追加要素を `modernWastewaterTreatmentFactor` に掛け合わせた（値が小さいほど放流負荷を下げる、既存の符号規約どおり）：
+
+| Tier | 追加した乗数 | 意味 |
+| --- | --- | --- |
+| 2（散水ろ床） | `1 - 0.3 * wastewaterOperationsFunding * effluentTestCoverage * sludgeCapacityFactor` | 運転資金と放流水検査の両方が必要（未検証の生物処理は信用しない、Phase 4 の `chemicalTestCoverage` と同じ理由）。`sludgeCapacityFactor`（`1 - sludgeBacklog * 0.6`）で汚泥滞留による能力低下を織り込む |
+| 3（活性汚泥） | `1 - 0.25 * wastewaterOperationsFunding * electricityCoverage` | `Market.electricityStock` の実在するカバレッジで減衰。Chlorine と異なり購入・消費する Good ではなく、他プラントが既に読んでいる共有容量シグナル（`chemMedCommon.ts` の `electricityCoverageForMarket()`）をそのまま流用 |
+
+また `odor` にも `wastewaterTreatmentTier >= 2 ? sludgeBacklog * 0.15 : 0` を追加した——汚泥滞留は下流への輸出量を減らすだけでなく、§3.1 が明記する「汚泥腐敗、悪臭」という局所的な迷惑でもあるため。
+
+**実装中に発見・修正したバグ**: `sludgeCapacityFactor` の符号を最初は逆（`1 - backlog*0.4` をペナルティとして directly 乗算）に書いてしまい、テストで「汚泥が滞留しているのに `downstreamPollutionExport` が下がる」という逆の結果が出て発覚した。§15.2 と同じく、テストが実装のバグを検出した例として明記する。修正後は `sludgeCapacityFactor` を Tier 2 の**便益量そのもの**に掛ける形にし、滞留がどれだけひどくても「Tier 2 が全く無い状態より悪化する」ことはない（下限は Tier 1 相当の乗数）よう設計した。
+
+### 16.4 `sludgeBacklog` は蒸発する係数ではなく実際に評価される在庫
+
+`chemicalTestCoverage`/`chlorineStockCoverage`（Phase 4）や `effluentTestCoverage`（本フェーズ、新規）は毎年ゼロから再計算される「今年の充足率」だが、`sludgeBacklog` だけは `sourceProtection` と同じ「年をまたいで持ち越される実在の在庫」として設計した（`previous.sludgeBacklog` 経由）。EWMA で評価する：
+
+```text
+sludgeBacklog(次年) = sludgeBacklog(前年) * 0.7 + (1 - sludgeOpsFunding) * 0.3
+```
+
+資金が続けば徐々に解消し、途切れれば徐々に積み上がる——「一年未払いで即座に全汚泥が滞留する」でも「一年払えば即座に解消する」でもない、現実的な遅延を表現する。`wastewaterTreatmentTier < 2` の間は毎年 0 にリセットする（生物処理由来の汚泥がまだ存在しないため）。
+
+### 16.5 `toggleSewerage`——意図的に狭くした範囲
+
+§9.1 の `toggleSewerage` 行が示す表示内容（「幹線下水、ポンプ場、雨水吐、**下水処理場**、放流口、汚泥処理地」）のうち、本フェーズが実装したのは「各 Burg 自身の処理場の状態表示」のみである。`RegionalWaterScheme`（Phase 3）に相当する「複数 Burg が交渉して建設する広域下水網」は、ドキュメント中のどこにも明示的なデータ構造（`RegionalSewerScheme` 等）が定義されておらず、今回新設しなかった——存在しない仕組みのために作り込まない、という一連のフェーズの一貫した方針に従う。
+
+代わりに `drawSewerage.ts` を拡張し、`wastewaterTreatmentTier >= 1` の全 Burg（巨人の継承経路を除く）に、Tier に応じたアイコン（🪣 一次沈殿／🌾 生物処理／⚙️ 活性汚泥）と `sludgeBacklog` に応じた不透明度のマーカーを追加した。巨人の継承幹線下水路（`buildInheritedSewerRoutes`、Phase 1 以前から存在）とは別レイヤーの重ね描きとして共存する。
+
+### 16.6 流域補償は追加実装不要だった（既存資産の発見）
+
+§8 が Phase 5 の既存資産として名指ししていた「上流・下流汚染外交」——`urbanWaterTech.ts` の `buildInterstatePollutionEdges`/`settlePollutionCompensation`/`applyPollutionDiplomaticAlert` と、それを呼び出す `urbanWaterSystem.ts` の `applyPollutionDiplomacy()`——は、Phase 1 の監査時点で `downstreamPollutionExport`/`upstreamPollutionImport` を入力に、既に稼働していることを確認済みだった（§12.1）。Phase 2 で `wastewaterTreatmentTier >= 1` が `downstreamPollutionExport` を下げる経路を接続した時点で、この既存の補償システムはすでに間接的に接続されていた。Phase 5 が `wastewaterTreatmentTier` を 2・3 まで伸ばしたことで、同じ経路を通じて上流 Burg の補償負担がさらに下がる——新規のコードを一切書かずに、§8 が求める「流域補償」との接続が完成した。
+
+### 16.7 未着手（将来拡張）
+
+- Phase 4 と同じく、建設費は現金のみ（砕石・送風機などの Good 連動は将来の拡張）。
+- `RegionalSewerScheme`（複数 Burg が交渉する広域下水網）は未実装。単独 Burg の `wastewaterTreatmentTier` 進行のみ。
+- `biologicalWastewaterTreatment`/`activatedSludgeAndEffluentControl` を §4.1 が示す独立した技術ノードとして追加すること——Phase 4 と同じ理由で見送った。
+- 高度処理（栄養塩・微量化学物質除去、§4 の Stage F）は本書の対象外のまま。

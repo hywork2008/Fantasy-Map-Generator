@@ -149,7 +149,7 @@ export type UrbanWaterSystem = {
   wastewaterTreatmentUpgradeProgress: number;
   /** 0..1 coverage of this year's recurring operating cost for drinkingTreatmentTier ≥ 1 (sand
    * renewal, reservoir upkeep, record-keeping) — a separate funding pool from construction above
-   * (§5.1's "四つの財布"). An unfunded Tier 1 plant keeps its tier but loses most of its effective
+   * (§5.1's "four wallets"). An unfunded Tier 1 plant keeps its tier but loses most of its effective
    * benefit — see computeUrbanWaterSystem()'s drinkingWaterSecurity/waterContamination terms. */
   treatmentOperationsFunding: number;
   /** Same as `treatmentOperationsFunding`, for wastewaterTreatmentTier. */
@@ -167,6 +167,20 @@ export type UrbanWaterSystem = {
    * drinkingTreatmentTier ≥ 3). Unlike every other funding ratio in this type, this one is capped
    * by real local Chlorine market stock, not just treasury — see urbanWaterModernTreatment.ts. */
   chlorineStockCoverage: number;
+
+  // ── Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16): trickling
+  // filter / biological treatment (wastewaterTreatmentTier 1→2) and activated sludge / effluent
+  // control (2→3). ─────────────────────────────────────────────────────────────────────────────
+  /** 0..1, active once wastewaterTreatmentTier ≥ 2: unaddressed sludge from biological treatment.
+   * Unlike chemicalTestCoverage/chlorineStockCoverage above, this is a genuinely evolving stock
+   * (carried forward via `previous`, same shape as sourceProtection) rather than a fresh-each-year
+   * coverage ratio — an underfunded plant's sludge does not vanish overnight once removal resumes,
+   * it drains down gradually. Feeds a capacity penalty on treatmentFactor and a local odor bump —
+   * see computeUrbanWaterSystem()'s modernWastewaterTreatmentFactor/odor terms. */
+  sludgeBacklog: number;
+  /** 0..1 coverage of this year's effluent testing upkeep — active once
+   * wastewaterTreatmentTier ≥ 2, same "fresh coverage ratio" shape as chemicalTestCoverage. */
+  effluentTestCoverage: number;
 
   // ── Phase 3: institutions, organic routes, externalities ─────────────────
   connectionPermitCoverage: number;

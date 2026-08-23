@@ -30,6 +30,7 @@ import {
   setUrbanWaterSystems
 } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { electricityCoverageForMarket } from "./chemMedCommon";
 import { computeNaturalFloodRisk } from "./floodHazard";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
@@ -711,6 +712,10 @@ export function computeUrbanWaterSystem(args: {
    * Phase 2 fields above. */
   chemicalTestCoverage?: number;
   chlorineStockCoverage?: number;
+  /** Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16) overrides —
+   * settleModernWaterTreatmentInvestment()'s wastewater Tier 2/3 results. */
+  sludgeBacklog?: number;
+  effluentTestCoverage?: number;
   lastModernConstructionSpend?: number;
   connectionPermitCoverage?: number;
   cleaningTaxRate?: number;
@@ -766,6 +771,11 @@ export function computeUrbanWaterSystem(args: {
   // above, since there is no chemical dosing or testing regime to represent at Tier 1.
   const chemicalTestCoverage = isGiantState ? 0 : (args.chemicalTestCoverage ?? previous?.chemicalTestCoverage ?? 0);
   const chlorineStockCoverage = isGiantState ? 0 : (args.chlorineStockCoverage ?? previous?.chlorineStockCoverage ?? 0);
+  // Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16): Giants stay
+  // at Roman-grade wastewaterTreatmentTier 1 (locked above), so neither field is ever meaningfully
+  // >0 for a Giant burg — same reasoning as the Phase 4 fields directly above.
+  const sludgeBacklog = isGiantState ? 0 : (args.sludgeBacklog ?? previous?.sludgeBacklog ?? 0);
+  const effluentTestCoverage = isGiantState ? 0 : (args.effluentTestCoverage ?? previous?.effluentTestCoverage ?? 0);
   const tier: WaterSanitationTier =
     args.tier ??
     previous?.tier ??
@@ -907,8 +917,25 @@ export function computeUrbanWaterSystem(args: {
   // wastewater treatment plant (wastewaterTreatmentTier >= 1) cuts export further still — this is
   // the direct mechanism that separates riverPollutionLoad from a downstream burg's own
   // waterSecurity (§1's whole premise). Unfunded (treatmentOperationsFunding low) gives none of it.
+  // Modern Phase 5 (§8, §16): Tier >= 2 (trickling filter / biological treatment) cuts export
+  // further still, scaled by both operations funding AND effluentTestCoverage (an unverified
+  // biological process is not trusted at face value, same reasoning as Phase 4's chemicalTest-
+  // Coverage), and de-rated by any sludge backlog (a clogged plant loses effective capacity — §3.1's
+  // "sludge putrefaction, odor, loss of treatment capacity"). Tier >= 3 (activated sludge) is a further cut scaled by
+  // operations funding AND local Market.electricityStock coverage — blowers need real power, not
+  // just budget; this is a shared capacity signal other plants already just read (electricity-
+  // CoverageForMarket), not a purchased/consumed Good like Chlorine.
+  // A capacity multiplier on the Tier 2 BENEFIT amount itself (not a separate, independently
+  // applied factor) — a full backlog erodes the benefit toward 0 but never flips the term negative
+  // (i.e. a fully clogged plant is at worst as bad as no Tier 2 treatment at all, never worse).
+  const sludgeCapacityFactor = wastewaterTreatmentTier >= 2 ? 1 - clamp01(sludgeBacklog) * 0.6 : 1;
+  const electricityCoverage = electricityCoverageForMarket(burg.market ?? 0);
   const modernWastewaterTreatmentFactor =
-    wastewaterTreatmentTier >= 1 ? 1 - 0.35 * clamp01(wastewaterOperationsFunding) : 1;
+    (wastewaterTreatmentTier >= 1 ? 1 - 0.35 * clamp01(wastewaterOperationsFunding) : 1) *
+    (wastewaterTreatmentTier >= 2
+      ? 1 - 0.3 * clamp01(wastewaterOperationsFunding) * clamp01(effluentTestCoverage) * sludgeCapacityFactor
+      : 1) *
+    (wastewaterTreatmentTier >= 3 ? 1 - 0.25 * clamp01(wastewaterOperationsFunding) * electricityCoverage : 1);
   const treatmentFactor =
     (1 - sanitaryEngineering * 0.45 - (hasSeparateWastewaterRoute ? 0.15 : 0)) * modernWastewaterTreatmentFactor;
 
@@ -960,7 +987,10 @@ export function computeUrbanWaterSystem(args: {
       wasteDeficit * 0.25 +
       organic.organicStreetLoad * 0.25 +
       organic.scavengingRisk * 0.1 +
-      clogging * 0.1
+      clogging * 0.1 +
+      // Modern Phase 5 (§8, §16): unaddressed sludge from biological treatment is a local nuisance
+      // in its own right, not just a downstream-export penalty (§3.1's "sludge putrefaction, odor…").
+      (wastewaterTreatmentTier >= 2 ? clamp01(sludgeBacklog) * 0.15 : 0)
   );
 
   const tierDrinkBonus = tierDrinkingHealthBonus({
@@ -1067,6 +1097,8 @@ export function computeUrbanWaterSystem(args: {
     wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
     chemicalTestCoverage: rn(chemicalTestCoverage, 4),
     chlorineStockCoverage: rn(chlorineStockCoverage, 4),
+    sludgeBacklog: rn(sludgeBacklog, 4),
+    effluentTestCoverage: rn(effluentTestCoverage, 4),
     lastModernConstructionSpend: rn(args.lastModernConstructionSpend ?? previous?.lastModernConstructionSpend ?? 0, 2),
     connectionPermitCoverage: rn(connectionPermitCoverage, 4),
     cleaningTaxRate: rn(cleaningTaxRate, 4),
@@ -1223,6 +1255,8 @@ function systemDefaults(
     wastewaterOperationsFunding: 0,
     chemicalTestCoverage: 0,
     chlorineStockCoverage: 0,
+    sludgeBacklog: 0,
+    effluentTestCoverage: 0,
     lastModernConstructionSpend: 0,
     connectionPermitCoverage: 0,
     cleaningTaxRate: 0,
@@ -1887,6 +1921,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
               wastewaterOperationsFunding: draft.wastewaterOperationsFunding,
               chemicalTestCoverage: draft.chemicalTestCoverage,
               chlorineStockCoverage: draft.chlorineStockCoverage,
+              sludgeBacklog: draft.sludgeBacklog,
+              effluentTestCoverage: draft.effluentTestCoverage,
               lastModernConstructionSpend: 0
             }
           : settleModernWaterTreatmentInvestment({
@@ -1897,12 +1933,14 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
               hasDownstreamOutfall: draft.hasDownstreamOutfall,
               modernizationAffinity: modernizationAffinityForBurg(burg),
               waterContamination: draft.waterContamination,
+              sanitaryEngineering: draft.sanitaryEngineering,
               previous: {
                 drinkingTreatmentTier: draft.drinkingTreatmentTier ?? 0,
                 wastewaterTreatmentTier: draft.wastewaterTreatmentTier ?? 0,
                 sourceProtection: draft.sourceProtection,
                 drinkingTreatmentUpgradeProgress: draft.drinkingTreatmentUpgradeProgress,
-                wastewaterTreatmentUpgradeProgress: draft.wastewaterTreatmentUpgradeProgress
+                wastewaterTreatmentUpgradeProgress: draft.wastewaterTreatmentUpgradeProgress,
+                sludgeBacklog: draft.sludgeBacklog
               }
             });
       draft = computeUrbanWaterSystem({
@@ -1933,6 +1971,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
           chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
           chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
+          sludgeBacklog: modernInvestment.sludgeBacklog,
+          effluentTestCoverage: modernInvestment.effluentTestCoverage,
           lastModernConstructionSpend: modernInvestment.lastModernConstructionSpend,
           connectionPermitCoverage: investment.connectionPermitCoverage,
           cleaningTaxRate: investment.cleaningTaxRate,
@@ -1964,6 +2004,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
         chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
         chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
+        sludgeBacklog: modernInvestment.sludgeBacklog,
+        effluentTestCoverage: modernInvestment.effluentTestCoverage,
         lastModernConstructionSpend: modernInvestment.lastModernConstructionSpend,
         connectionPermitCoverage: investment.connectionPermitCoverage,
         cleaningTaxRate: investment.cleaningTaxRate,

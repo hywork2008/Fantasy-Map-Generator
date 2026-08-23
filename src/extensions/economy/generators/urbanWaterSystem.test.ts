@@ -104,6 +104,8 @@ function baseSystem(overrides: Partial<UrbanWaterSystem> = {}): UrbanWaterSystem
     wastewaterOperationsFunding: 0,
     chemicalTestCoverage: 0,
     chlorineStockCoverage: 0,
+    sludgeBacklog: 0,
+    effluentTestCoverage: 0,
     lastModernConstructionSpend: 0,
     connectionPermitCoverage: 0,
     cleaningTaxRate: 0,
@@ -733,6 +735,103 @@ describe("computeUrbanWaterSystem", () => {
     expect(treated.downstreamPollutionExport).toBeLessThanOrEqual(untreated.downstreamPollutionExport);
   });
 
+  it("a funded modern wastewaterTreatmentTier 2 (trickling filter / biological treatment) lowers downstreamPollutionExport further than Tier 1 alone (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      wastewaterOperationsFunding: 1
+    };
+    const tier1 = computeUrbanWaterSystem({ ...base, wastewaterTreatmentTier: 1 });
+    const tier2 = computeUrbanWaterSystem({
+      ...base,
+      wastewaterTreatmentTier: 2,
+      effluentTestCoverage: 1,
+      sludgeBacklog: 0
+    });
+
+    expect(tier2.downstreamPollutionExport).toBeLessThan(tier1.downstreamPollutionExport);
+  });
+
+  it("a funded Tier 2 without effluentTestCoverage gives little of Tier 2's benefit (unverified biological process)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      wastewaterTreatmentTier: 2 as const,
+      wastewaterOperationsFunding: 1,
+      sludgeBacklog: 0
+    };
+    const untested = computeUrbanWaterSystem({ ...base, effluentTestCoverage: 0 });
+    const tested = computeUrbanWaterSystem({ ...base, effluentTestCoverage: 1 });
+
+    expect(tested.downstreamPollutionExport).toBeLessThan(untested.downstreamPollutionExport);
+  });
+
+  it("a high sludgeBacklog erodes Tier 2's export reduction and raises local odor", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      wastewaterTreatmentTier: 2 as const,
+      wastewaterOperationsFunding: 1,
+      effluentTestCoverage: 1
+    };
+    const clean = computeUrbanWaterSystem({ ...base, sludgeBacklog: 0 });
+    const backlogged = computeUrbanWaterSystem({ ...base, sludgeBacklog: 1 });
+
+    expect(backlogged.downstreamPollutionExport).toBeGreaterThan(clean.downstreamPollutionExport);
+    expect(backlogged.odor).toBeGreaterThan(clean.odor);
+  });
+
+  it("a funded modern wastewaterTreatmentTier 3 (activated sludge) with local electricity lowers downstreamPollutionExport further than Tier 2 alone", () => {
+    worldContext.pack = {
+      markets: [{ i: 1, centerBurgId: 1, color: "#000", electricityStock: 1, goods: {} }]
+    } as unknown as PackedGraph;
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      wastewaterOperationsFunding: 1,
+      effluentTestCoverage: 1,
+      sludgeBacklog: 0
+    };
+    const tier2 = computeUrbanWaterSystem({ ...base, wastewaterTreatmentTier: 2 });
+    const tier3 = computeUrbanWaterSystem({ ...base, wastewaterTreatmentTier: 3 });
+
+    expect(tier3.downstreamPollutionExport).toBeLessThan(tier2.downstreamPollutionExport);
+  });
+
+  it("a funded Tier 3 without local electricity gives little of Tier 3's benefit", () => {
+    worldContext.pack = { markets: [] } as unknown as PackedGraph;
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      wastewaterTreatmentTier: 3 as const,
+      wastewaterOperationsFunding: 1,
+      effluentTestCoverage: 1,
+      sludgeBacklog: 0
+    };
+    const noPower = computeUrbanWaterSystem(base);
+    worldContext.pack = {
+      markets: [{ i: 1, centerBurgId: 1, color: "#000", electricityStock: 1, goods: {} }]
+    } as unknown as PackedGraph;
+    const powered = computeUrbanWaterSystem(base);
+
+    expect(powered.downstreamPollutionExport).toBeLessThan(noPower.downstreamPollutionExport);
+  });
+
   it("Giant burgs get full source protection and operations funding regardless of investment args", () => {
     worldContext.pack = {
       states: [undefined, { i: 1, culture: 1 }],
@@ -757,13 +856,20 @@ describe("computeUrbanWaterSystem", () => {
       // ...and an explicit attempt to force Phase 4 chemistry is ignored too — Giants stay at
       // Roman-grade Tier 1, with no chemical dosing or chlorination regime to represent.
       chemicalTestCoverage: 1,
-      chlorineStockCoverage: 1
+      chlorineStockCoverage: 1,
+      // ...and Phase 5 biological treatment is ignored the same way — Giants stay at
+      // wastewaterTreatmentTier 1, with no trickling filter/activated sludge to represent.
+      sludgeBacklog: 1,
+      effluentTestCoverage: 1
     });
     expect(system.drinkingTreatmentTier).toBe(1);
+    expect(system.wastewaterTreatmentTier).toBe(1);
     expect(system.sourceProtection).toBe(1);
     expect(system.treatmentOperationsFunding).toBe(0.9);
     expect(system.chemicalTestCoverage).toBe(0);
     expect(system.chlorineStockCoverage).toBe(0);
+    expect(system.sludgeBacklog).toBe(0);
+    expect(system.effluentTestCoverage).toBe(0);
   });
 });
 
@@ -1175,6 +1281,58 @@ describe("UrbanWater module", () => {
     expect(system.drinkingTreatmentTier).toBe(1);
   });
 
+  it("progresses wastewaterTreatmentTier to 3 once sanitaryEngineering and generatorAndMotor are both ready, given a powered market (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16 Phase 5)", () => {
+    worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+    setTechnologyProgressForTests([
+      { technologyId: "generatorAndMotor", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
+    ]);
+    UrbanWater.generate();
+    let year = 999;
+    for (let i = 0; i < 40; i++) {
+      worldContext.pack.burgs[1]!.treasury = 20000;
+      setMarkets([
+        {
+          i: 1,
+          centerBurgId: 1,
+          color: "#000",
+          electricityStock: 1,
+          goods: {
+            1: { stock: 200, price: 2 },
+            2: { stock: 200, price: 5 },
+            3: { stock: 200, price: 3 }
+          }
+        } as Market
+      ]);
+      Markets.sync();
+      // sanitaryEngineering is a slow-evolving legacy stock (urbanWaterTech.ts) gated on the
+      // legacy tier ladder separately reaching 3+ and administration exceeding 0.95 — neither of
+      // which this fixture drives. Force it directly each year (same idea as forcing treasury
+      // above) so this test isolates the Phase 5 gate/wiring, not the legacy ladder's own pace.
+      const systems = getUrbanWaterSystems();
+      const index = systems.findIndex(s => s.burgId === 1);
+      if (index >= 0) systems[index] = { ...systems[index]!, sanitaryEngineering: 0.9 };
+      setUrbanWaterSystems(systems);
+      setUrbanWaterLastSettledYear(year--);
+      UrbanWater.settleAnnual();
+    }
+    const system = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+    expect(system.wastewaterTreatmentTier).toBe(3);
+    expect(system.effluentTestCoverage).toBeGreaterThan(0);
+  });
+
+  it("stops wastewaterTreatmentTier at 1 without sanitaryEngineering/generatorAndMotor, however well-funded", () => {
+    worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+    UrbanWater.generate();
+    let year = 999;
+    for (let i = 0; i < 20; i++) {
+      worldContext.pack.burgs[1]!.treasury = 20000;
+      setUrbanWaterLastSettledYear(year--);
+      UrbanWater.settleAnnual();
+    }
+    const system = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+    expect(system.wastewaterTreatmentTier).toBe(1);
+  });
+
   describe("race water tech bias (Giant on Fantasy culture sets)", () => {
     beforeEach(() => {
       // Make State 1 Giant. The capital itself intentionally keeps its generic local culture:
@@ -1236,14 +1394,21 @@ describe("UrbanWater module", () => {
       expect(maintainedCapital.hasInheritedRomanWaterworks).toBe(true);
     });
 
-    it("never spends Giant burg treasury on Modern Phase 2/4 construction, even when analyticalChemistry/catalyticChemistry are both demonstrated for the Giant State (regression: computeUrbanWaterSystem always overrides a Giant's tier back to 1, so any such spend would be silently wasted — §15.2)", () => {
+    it("never spends Giant burg treasury on Modern Phase 2/4/5 construction, even when analyticalChemistry/catalyticChemistry/generatorAndMotor are all ready for the Giant State (regression: computeUrbanWaterSystem always overrides a Giant's tiers back to 1, so any such spend would be silently wasted — §15.2)", () => {
       useOptionsState.setState({ culturesSet: "highFantasy" });
       worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
       setTechnologyProgressForTests([
         { technologyId: "analyticalChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
-        { technologyId: "catalyticChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+        { technologyId: "catalyticChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
+        { technologyId: "generatorAndMotor", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
       ]);
       UrbanWater.generate();
+      // Force high sanitaryEngineering too, same trick the Phase 5 progression test uses — a Giant
+      // that already met every other Phase 5 gate should still never spend on wastewater Tier 2/3.
+      const seeded = getUrbanWaterSystems();
+      const giantIndex = seeded.findIndex(s => s.burgId === 1);
+      if (giantIndex >= 0) seeded[giantIndex] = { ...seeded[giantIndex]!, sanitaryEngineering: 0.9 };
+      setUrbanWaterSystems(seeded);
 
       let year = 999;
       for (let i = 0; i < 10; i++) {
@@ -1253,6 +1418,7 @@ describe("UrbanWater module", () => {
       }
       const giantCapital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
       expect(giantCapital.drinkingTreatmentTier).toBe(1);
+      expect(giantCapital.wastewaterTreatmentTier).toBe(1);
       expect(giantCapital.lastModernConstructionSpend).toBe(0);
       // The 20000 refund minus this year's legacy-ladder spend should still be sitting there —
       // nothing was silently drawn down by a discarded Tier 2/3 attempt.

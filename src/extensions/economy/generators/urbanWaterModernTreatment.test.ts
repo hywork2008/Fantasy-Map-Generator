@@ -26,7 +26,8 @@ const noProgress = {
   wastewaterTreatmentTier: 0 as const,
   sourceProtection: 0,
   drinkingTreatmentUpgradeProgress: 0,
-  wastewaterTreatmentUpgradeProgress: 0
+  wastewaterTreatmentUpgradeProgress: 0,
+  sludgeBacklog: 0
 };
 
 describe("isModernWaterEraAvailable", () => {
@@ -464,5 +465,98 @@ describe("Phase 4: rapid filtration/coagulation and controlled chlorination", ()
       });
       expect(result.chlorineStockCoverage).toBe(0);
     });
+  });
+});
+
+describe("Phase 5: trickling filter / biological treatment and activated sludge", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
+    setTechnologyProgressForTests([]);
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+    setTechnologyProgressForTests([]);
+  });
+
+  const wastewaterAtTier1 = { ...noProgress, wastewaterTreatmentTier: 1 as const };
+  const wastewaterAtTier2 = { ...noProgress, wastewaterTreatmentTier: 2 as const };
+
+  function settle(previous: typeof noProgress, sanitaryEngineering: number, overrides: Partial<Burg> = {}) {
+    return settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 50000, state: 1, market: 1, ...overrides }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: false,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      sanitaryEngineering,
+      previous
+    });
+  }
+
+  it("does not progress wastewaterTreatmentTier past 1 without enough sanitaryEngineering", () => {
+    const result = settle(wastewaterAtTier1, 0.1);
+    expect(result.wastewaterTreatmentTier).toBe(1);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+  });
+
+  it("progresses wastewaterTreatmentTier 1 -> 2 once sanitaryEngineering crosses the trickling-filter threshold", () => {
+    const result = settle(wastewaterAtTier1, 0.4);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBeGreaterThan(0);
+    expect(result.lastModernConstructionSpend).toBeGreaterThan(0);
+  });
+
+  it("does not progress wastewaterTreatmentTier past 2 without generatorAndMotor known, even with high sanitaryEngineering", () => {
+    const result = settle(wastewaterAtTier2, 0.9);
+    expect(result.wastewaterTreatmentTier).toBe(2);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+  });
+
+  it("progresses wastewaterTreatmentTier 2 -> 3 once sanitaryEngineering and generatorAndMotor are both ready", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "generatorAndMotor", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
+    ]);
+    const result = settle(wastewaterAtTier2, 0.9);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBeGreaterThan(0);
+    expect(result.lastModernConstructionSpend).toBeGreaterThan(0);
+  });
+
+  it("computes effluentTestCoverage only once wastewaterTreatmentTier reaches 2", () => {
+    const tier1Result = settle(wastewaterAtTier1, 0.4);
+    expect(tier1Result.effluentTestCoverage).toBe(0);
+
+    const tier2Result = settle(wastewaterAtTier2, 0.9);
+    expect(tier2Result.effluentTestCoverage).toBeGreaterThan(0);
+  });
+
+  it("keeps sludgeBacklog at 0 below wastewaterTreatmentTier 2, even if previous carried a nonzero value", () => {
+    const result = settle({ ...wastewaterAtTier1, sludgeBacklog: 0.6 }, 0.4);
+    expect(result.sludgeBacklog).toBe(0);
+  });
+
+  it("evolves sludgeBacklog as an EWMA once wastewaterTreatmentTier >= 2: climbs when underfunded, drains when funded", () => {
+    // Underfunded: no treasury left for sludge-removal ops after everything else is starved too.
+    const underfunded = settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 0, state: 1, market: 1 }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: false,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      sanitaryEngineering: 0.9,
+      previous: { ...wastewaterAtTier2, sludgeBacklog: 0.2 }
+    });
+    expect(underfunded.sludgeBacklog).toBeGreaterThan(0.2);
+
+    // Well-funded: drains back down.
+    const funded = settle({ ...wastewaterAtTier2, sludgeBacklog: 0.8 }, 0.9);
+    expect(funded.sludgeBacklog).toBeLessThan(0.8);
   });
 });
