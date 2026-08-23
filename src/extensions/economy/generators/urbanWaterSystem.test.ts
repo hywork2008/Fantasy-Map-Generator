@@ -220,6 +220,69 @@ describe("initialTier", () => {
     });
     expect(tier).toBeGreaterThanOrEqual(1);
   });
+
+  describe("civic-waterworks bonus (docs/plan/modern-urban-water-treatment-and-governance.md §18.1)", () => {
+    const capital = {
+      people: 20000,
+      geography: baseGeography({ hasRiver: true, naturalFloodRisk: 0.5 }),
+      isCapital: true,
+      hasMarket: true
+    };
+
+    it("leaves tier unchanged without historicalPeriod/modernizationAffinity (defaults preserve pre-existing behavior)", () => {
+      expect(initialTier(capital)).toBe(2);
+    });
+
+    it("leaves tier unchanged at earlyMedieval/highMedieval, even with a high modernizationAffinity", () => {
+      expect(initialTier({ ...capital, historicalPeriod: "earlyMedieval", modernizationAffinity: 0.85 })).toBe(2);
+      expect(initialTier({ ...capital, historicalPeriod: "highMedieval", modernizationAffinity: 0.85 })).toBe(2);
+    });
+
+    it("gives no bonus at lateMedieval itself, even with a high modernizationAffinity (the era is the catalyst's starting line, not already developed)", () => {
+      expect(initialTier({ ...capital, historicalPeriod: "lateMedieval", modernizationAffinity: 0.85 })).toBe(2);
+    });
+
+    it("raises a high-affinity capital's tier toward the absolute max at rocketryEra", () => {
+      // readiness = 1 (rocketryEra) * 0.85 (Industrial-like affinity) -> bonus round(3*0.85) = 3
+      expect(initialTier({ ...capital, historicalPeriod: "rocketryEra", modernizationAffinity: 0.85 })).toBe(5);
+    });
+
+    it("gives a low-affinity culture essentially none of the rocketryEra bonus (the culture never settled into it)", () => {
+      // readiness = 1 * 0.08 (Nomadic-like affinity) -> bonus round(3*0.08) = 0
+      expect(initialTier({ ...capital, historicalPeriod: "rocketryEra", modernizationAffinity: 0.08 })).toBe(2);
+    });
+
+    it("scales gradually at an intermediate era/affinity combination", () => {
+      // techLevelProgress(steamEra) = (5-2)/6 = 0.5; readiness = 0.5*0.85 = 0.425 -> bonus round(1.275) = 1
+      expect(initialTier({ ...capital, historicalPeriod: "steamEra", modernizationAffinity: 0.85 })).toBe(3);
+    });
+
+    it("never grants the bonus below MODERN_WATER_MIN_POPULATION, regardless of era/culture", () => {
+      const hamlet = {
+        people: 200,
+        geography: baseGeography({ isDry: true, naturalFloodRisk: 0.1, slopeAdvantage: 0.1 }),
+        isCapital: false,
+        hasMarket: false
+      };
+      expect(initialTier({ ...hamlet, historicalPeriod: "rocketryEra", modernizationAffinity: 0.85 })).toBe(0);
+    });
+
+    it("regression: raises an ordinary, geography-plain (no river/wetland/capital) town's tier once population/culture/era all qualify, even though it scores 0 on the geography-only baseline (reported: petroleumEra + Industrial produced no visible development on such towns)", () => {
+      const ordinaryTown = {
+        people: 1000, // above MODERN_WATER_MIN_POPULATION, but below baseTier's own 4,000/15,000 breaks
+        geography: baseGeography(), // no river, no wetland, low flood risk, gentle slope — baseTier 0
+        isCapital: false,
+        hasMarket: false
+      };
+      expect(initialTier(ordinaryTown)).toBe(0); // unmodified baseline: no era/culture supplied
+
+      // petroleumEra (techLevelProgress = (7-2)/6 ≈ 0.833) + a high, Industrial-like affinity
+      // (0.85): readiness ≈ 0.708, populationBand 1 (1,000 people) -> bonus round(1*0.708) = 1.
+      expect(
+        initialTier({ ...ordinaryTown, historicalPeriod: "petroleumEra", modernizationAffinity: 0.85 })
+      ).toBeGreaterThan(0);
+    });
+  });
 });
 
 describe("Phase 2 demand signals and projects", () => {
@@ -1205,6 +1268,20 @@ describe("UrbanWater module", () => {
     expect(typeof worldContext.pack.states![0].waterSecurity).toBe("number");
   });
 
+  it("raises a qualifying burg's generation-time tier further when historicalPeriod is lateMedieval or later, scaled by the burg's own culture (docs/plan/modern-urban-water-treatment-and-governance.md §18.1)", () => {
+    worldContext.options = { historicalPeriod: undefined } as typeof worldContext.options;
+    UrbanWater.generate();
+    const withoutEra = getUrbanWaterSystems().find(s => s.burgId === 1)!.tier;
+
+    worldContext.options = { historicalPeriod: "rocketryEra" } as typeof worldContext.options;
+    UrbanWater.generate();
+    const withEra = getUrbanWaterSystems().find(s => s.burgId === 1)!.tier;
+
+    // Burg 1's culture (index 0, "Generic") is unchanged between the two runs — only the
+    // historicalPeriod option differs, isolating initialTier()'s new bonus as the cause.
+    expect(withEra).toBeGreaterThan(withoutEra);
+  });
+
   it("settleAnnual is once-per-year and can invest under demand", () => {
     UrbanWater.generate();
     const tierBefore = getUrbanWaterSystems().find(s => s.burgId === 1)!.tier;
@@ -1505,27 +1582,30 @@ describe("UrbanWater module", () => {
     });
   });
 
-  describe("Industrial-culture rocketryEra generation seed (docs/plan/modern-urban-water-treatment-and-governance.md §11)", () => {
+  describe("modern-ladder generation seed (docs/plan/modern-urban-water-treatment-and-governance.md §11/§19, formerly Industrial-culture rocketryEra-only)", () => {
     beforeEach(() => {
       worldContext.pack.cultures = [
         { i: 0, type: "Generic" },
         { i: 1, type: "Industrial" }
       ] as typeof worldContext.pack.cultures;
-      worldContext.pack.states![0]!.culture = 1;
+      // Gated at the BURG's own local culture (modernizationAffinityForBurg), not the owning
+      // State's — see modernWaterworksGenerationSeed()'s doc comment. burg 1 defaults to population
+      // 15 (15,000 people); burg 2 to population 0.3 (300 people, below MODERN_WATER_MIN_POPULATION).
+      worldContext.pack.burgs[1]!.culture = 1;
       worldContext.options = { historicalPeriod: "rocketryEra" } as typeof worldContext.options;
     });
 
-    it("seeds a large industrial city (population >= 15000) at drinkingTreatmentTier/wastewaterTreatmentTier 3", () => {
-      // burg 1: population 15 * populationRate 1000 * urbanization 1 = 15000 people.
+    it("seeds a large industrial city (population >= 15000) at drinkingTreatmentTier/wastewaterTreatmentTier 3 at rocketryEra", () => {
+      // readiness = techLevelProgress(rocketryEra) 1 * affinity(Industrial prior) 0.85 = 0.85;
+      // populationBand 3 (15,000 people) -> tier round(3*0.85) = 3.
       UrbanWater.generate();
       const capital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
       expect(capital.drinkingTreatmentTier).toBe(3);
       expect(capital.wastewaterTreatmentTier).toBe(3);
-      expect(capital.tier).toBe(5);
       expect(capital.sourceProtection).toBe(1);
     });
 
-    it("seeds a mid-size town (4,000-14,999 people) at tier 2", () => {
+    it("seeds a mid-size town (4,000-14,999 people) at tier 2 at rocketryEra", () => {
       worldContext.pack.burgs[1]!.population = 5; // 5,000 people
       UrbanWater.generate();
       const town = getUrbanWaterSystems().find(s => s.burgId === 1)!;
@@ -1533,7 +1613,7 @@ describe("UrbanWater module", () => {
       expect(town.wastewaterTreatmentTier).toBe(2);
     });
 
-    it("seeds a small town just above the population floor at tier 1", () => {
+    it("seeds a small town just above the population floor at tier 1 at rocketryEra", () => {
       worldContext.pack.burgs[1]!.population = 1; // 1,000 people
       UrbanWater.generate();
       const town = getUrbanWaterSystems().find(s => s.burgId === 1)!;
@@ -1541,25 +1621,35 @@ describe("UrbanWater module", () => {
       expect(town.wastewaterTreatmentTier).toBe(1);
     });
 
-    it("gives no head start below MODERN_WATER_MIN_POPULATION, even in a qualifying Industrial state", () => {
-      // burg 2: population 0.3 * 1000 * 1 = 300 people, below the 400-person floor
-      // (urbanWaterModernTreatment.ts's MODERN_WATER_MIN_POPULATION).
+    it("regression: seeds a large industrial city at petroleumEra too, not just rocketryEra (reported: petroleumEra + Industrial produced no water/sewer at all)", () => {
+      worldContext.options = { historicalPeriod: "petroleumEra" } as typeof worldContext.options;
+      // techLevelProgress(petroleumEra) = (7-5)/3 = 0.667; readiness = 0.667*0.85 = 0.567;
+      // populationBand 3 -> tier round(3*0.567) = round(1.7) = 2.
+      UrbanWater.generate();
+      const capital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+      expect(capital.drinkingTreatmentTier).toBeGreaterThanOrEqual(1);
+      expect(capital.wastewaterTreatmentTier).toBeGreaterThanOrEqual(1);
+    });
+
+    it("gives no head start below MODERN_WATER_MIN_POPULATION, even for an Industrial-culture burg", () => {
+      worldContext.pack.burgs[2]!.culture = 1;
       UrbanWater.generate();
       const hamlet = getUrbanWaterSystems().find(s => s.burgId === 2)!;
       expect(hamlet.drinkingTreatmentTier).toBe(0);
       expect(hamlet.wastewaterTreatmentTier).toBe(0);
     });
 
-    it("does not seed outside rocketryEra, even for an Industrial-culture state", () => {
-      worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
+    it("does not seed before steamEra, even for an Industrial-culture burg (§10: no retroactive modern treatment plant)", () => {
+      worldContext.options = { historicalPeriod: "preIndustrialEra" } as typeof worldContext.options;
       UrbanWater.generate();
       const capital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
       expect(capital.drinkingTreatmentTier).toBe(0);
       expect(capital.wastewaterTreatmentTier).toBe(0);
     });
 
-    it("does not seed at rocketryEra for a non-Industrial-culture state", () => {
-      worldContext.pack.states![0]!.culture = 0; // back to the default Generic-culture state
+    it("gives a low-affinity culture essentially none of the rocketryEra bonus, unlike Industrial", () => {
+      worldContext.pack.cultures!.push({ i: 2, type: "Nomadic" } as (typeof worldContext.pack.cultures)[number]);
+      worldContext.pack.burgs[1]!.culture = 2; // Nomadic prior 0.08, not the Industrial fixture above
       UrbanWater.generate();
       const capital = getUrbanWaterSystems().find(s => s.burgId === 1)!;
       expect(capital.drinkingTreatmentTier).toBe(0);

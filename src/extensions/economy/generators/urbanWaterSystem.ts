@@ -50,7 +50,11 @@ import {
   resolveOrganicPathways,
   tierDrinkingHealthBonus
 } from "./urbanWaterInstitutions";
-import { MODERN_WATER_MIN_POPULATION, settleModernWaterTreatmentInvestment } from "./urbanWaterModernTreatment";
+import {
+  isModernWaterEraAvailable,
+  MODERN_WATER_MIN_POPULATION,
+  settleModernWaterTreatmentInvestment
+} from "./urbanWaterModernTreatment";
 import { hasSameLandGravityWaterSource } from "./urbanWaterSupply";
 import {
   applyPollutionDiplomaticAlert,
@@ -411,14 +415,59 @@ export function tierBaseCapacities(tier: WaterSanitationTier): {
 }
 
 /**
- * Initial tier from geography and settlement size (generation only assigns 0–2).
+ * §18.1 (docs/plan/modern-urban-water-treatment-and-governance.md): historical-period "civic
+ * waterworks readiness" for initialTier()'s generation-time bonus below. `lateMedieval` (~1300-1500,
+ * i18n label) is the earliest period included — the Black Death fell within this window and, in the
+ * doc's own framing, is the plausible catalyst for later organized urban sanitation regulation (§10
+ * still forbids retroactively giving these burgs a modern TREATMENT plant — this only ever raises
+ * the legacy `tier` ladder's own top end: source protection, gravity waterworks, drainage). Earlier
+ * periods (`earlyMedieval`/`highMedieval`) and no-selection (legacy saves) are intentionally absent
+ * from this map so initialTier() falls back to its unmodified pre-existing behavior for them.
+ */
+const CIVIC_WATERWORKS_TECH_LEVEL: Readonly<Partial<Record<string, number>>> = {
+  lateMedieval: 2,
+  ageOfExploration: 3,
+  maritimeEra: 3,
+  preIndustrialEra: 4,
+  steamEra: 5,
+  industrialChemistryEra: 6,
+  petroleumEra: 7,
+  rocketryEra: 8
+};
+const CIVIC_WATERWORKS_TECH_LEVEL_MIN = 2; // lateMedieval
+const CIVIC_WATERWORKS_TECH_LEVEL_MAX = 8; // rocketryEra
+
+/**
+ * Initial tier from geography and settlement size (generation only assigns 0–2 on its own).
  * Large river / wetland / dry-irrigation towns start with more drainage practice.
+ *
+ * §18.1: when `historicalPeriod` is `lateMedieval` or later (docs/plan/modern-urban-water-treatment-
+ * and-governance.md §18), a further bonus of up to +3 tiers is added, scaled by BOTH how far into
+ * the lateMedieval->rocketryEra span the map's chosen backdrop sits AND the burg's own culture
+ * (`modernizationAffinity`, §11) — reusing the exact "technology level" and "culture" readings this
+ * plan's modern-ladder generation seed (modernWaterworksGenerationSeed()) established for
+ * the newer drinkingTreatmentTier/wastewaterTreatmentTier ladder, applied here to the legacy ladder
+ * across its full period range instead. Both factors are required multiplicatively — an
+ * `Industrial`-affinity culture at `lateMedieval` (readiness 0, the era has not caught up yet) and a
+ * `Nomadic`-affinity culture at `rocketryEra` (readiness near 0, the culture never settled into it)
+ * both get essentially none of this bonus, only their unmodified population/geography baseTier.
+ *
+ * Gated on population alone (MODERN_WATER_MIN_POPULATION, same floor settleModernWaterTreatmentInvestment
+ * uses), NOT on baseTier > 0 — deliberately: baseTier's score above rewards river/wetland/flood-risk
+ * geography specifically ("drainage practice"), which is a different question from "is this
+ * settlement big enough and in a late/culturally-modern-enough era for engineered civic waterworks
+ * to make sense regardless of terrain". An early version of this gated on baseTier > 0 and, as a
+ * result, silently gave zero bonus to any inland/flat/non-capital town — most ordinary settlements
+ * on many maps — even at rocketryEra with a fully Industrial culture (regression found via user
+ * report: petroleumEra + Industrial produced no visible development on such towns).
  */
 export function initialTier(args: {
   people: number;
   geography: BurgWaterGeography;
   isCapital: boolean;
   hasMarket: boolean;
+  historicalPeriod?: string;
+  modernizationAffinity?: number;
 }): WaterSanitationTier {
   const { people, geography, isCapital, hasMarket } = args;
   let score = 0;
@@ -433,9 +482,22 @@ export function initialTier(args: {
   if (hasMarket && people >= 1500) score += 1;
   if (geography.slopeAdvantage < 0.15 && !geography.hasRiver) score -= 1;
 
-  if (score >= 5) return 2;
-  if (score >= 2) return 1;
-  return 0;
+  const baseTier: WaterSanitationTier = score >= 5 ? 2 : score >= 2 ? 1 : 0;
+
+  const techLevel = args.historicalPeriod ? CIVIC_WATERWORKS_TECH_LEVEL[args.historicalPeriod] : undefined;
+  if (techLevel === undefined) return baseTier;
+  // Same population bands modernWaterworksGenerationSeed() uses for its own Tier 1/2/3 split — city
+  // scale directly sets how large a bonus is even possible, not just whether one applies at all.
+  const populationBand = people >= 15000 ? 3 : people >= 4000 ? 2 : people >= MODERN_WATER_MIN_POPULATION ? 1 : 0;
+  if (populationBand <= 0) return baseTier;
+
+  const techLevelProgress = clamp01(
+    (techLevel - CIVIC_WATERWORKS_TECH_LEVEL_MIN) / (CIVIC_WATERWORKS_TECH_LEVEL_MAX - CIVIC_WATERWORKS_TECH_LEVEL_MIN)
+  );
+  const affinity = clamp01(args.modernizationAffinity ?? 0);
+  const readiness = techLevelProgress * affinity;
+  const bonus = Math.round(populationBand * readiness);
+  return asTier(Math.min(ABSOLUTE_MAX_WATER_TIER, baseTier + bonus));
 }
 
 /** Project that raises tier from `fromTier` toward `maxTier` (tech-gated). */
@@ -790,7 +852,11 @@ export function computeUrbanWaterSystem(args: {
       people,
       geography,
       isCapital: Boolean(burg.capital),
-      hasMarket
+      hasMarket,
+      // §18.1: the generation-time civic-waterworks bonus (lateMedieval..rocketryEra, scaled by the
+      // burg's own culture) — see initialTier()'s own doc comment.
+      historicalPeriod: getWorldContext().options?.historicalPeriod,
+      modernizationAffinity: modernizationAffinityForBurg(burg)
     });
 
   const maintenanceCondition =
@@ -1334,18 +1400,36 @@ function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
   });
 }
 
+/** steamEra's rank in CIVIC_WATERWORKS_TECH_LEVEL above — the floor for
+ * modernWaterworksGenerationSeed() below, matching isModernWaterEraAvailable()'s own outer gate
+ * for the ongoing annual investment mechanism (§4's Stage B / MODERN_WATER_ERA in
+ * urbanWaterModernTreatment.ts). Deliberately narrower than initialTier()'s civic-waterworks bonus
+ * (lateMedieval-onward, legacy `tier` ladder only) — §10 forbids retroactively giving a pre-
+ * industrial-era city a modern TREATMENT plant, and seeding drinkingTreatmentTier/
+ * wastewaterTreatmentTier below this floor would also be mechanically inert: settleModern
+ * WaterTreatmentInvestment()'s own era gate forces treatmentOperationsFunding etc. to 0 every year
+ * outside MODERN_WATER_ERA, so the seeded tier would show as a frozen, funding-less badge forever. */
+const MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN = 5; // steamEra
+
 /**
- * Industrial-culture states that have already reached the rocketryEra generation option begin with
- * modern drinking/wastewater treatment already built, scaled by each burg's own population — a
- * large industrial metropolis at the top of the technology tree should not spend the early
- * centuries of play at Tier 0 while settleModernWaterTreatmentInvestment() (urbanWaterModernTreatment.ts)
- * slowly catches up from scratch.
+ * Burgs that have already reached a modern-water-era generation option (steamEra or later —
+ * MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN above) begin with modern drinking/wastewater treatment
+ * already built, scaled by population, the burg's own culture (`modernizationAffinity`, §11), and
+ * how far into the steamEra->rocketryEra span the map's chosen backdrop sits — a large,
+ * culturally-modern metropolis late in that span should not spend the early centuries of play at
+ * Tier 0 while settleModernWaterTreatmentInvestment() (urbanWaterModernTreatment.ts) slowly catches
+ * up from scratch. The exact modern-ladder counterpart of initialTier()'s civic-waterworks bonus
+ * (§18.2) — same "population band × techLevelProgress × modernizationAffinity, rounded" shape,
+ * applied to drinkingTreatmentTier/wastewaterTreatmentTier instead of the legacy `tier` ladder, and
+ * gated at the burg's own local culture (not the State's) for the same reason §18.2 reads Burg-level
+ * — a Burg's OWN culture, not its owning State's, is what should decide how eagerly IT builds.
  *
- * Gated at the STATE level — `state.culture`'s CultureType (docs/plan/
- * modern-urban-water-treatment-and-governance.md §11.2/§11.3), the same granularity
- * getStateMaritimeAptitude() (technologyProgress.ts) reads its own cultureType at — not the burg's
- * own (possibly different, e.g. conquered) local culture. Mirrors giantRomanWaterworksSeed()'s
- * state-level gate immediately above.
+ * Originally scoped to `historicalPeriod === "rocketryEra"` and State-level CultureType ===
+ * "Industrial" only (a narrower precursor of this function). Generalized after a user report that
+ * even petroleumEra + every culture forced Industrial (optionsState.ts's `forceIndustrialCultures`)
+ * showed no water/sewer on the map — the map's "sewages" layer preset (drawSewerage.ts's
+ * treatmentPlantMarkup()) draws its plant icon strictly from `wastewaterTreatmentTier >= 1`, a field
+ * only THIS function (or annual play) ever seeds; §18's legacy-`tier` fix was invisible to it.
  *
  * Unlike the Giant branch (computeUrbanWaterSystem()'s isGiantState, re-asserted every year), this
  * is a pure generation-time head start: buildSystems()'s mode === "generate" branch reads it once as
@@ -1355,25 +1439,31 @@ function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
  *
  * Population bands reuse initialTier()'s own 4,000/15,000 breakpoints (this file, above) rather than
  * inventing new ones, and MODERN_WATER_MIN_POPULATION (urbanWaterModernTreatment.ts) as the floor
- * below which no seed applies — a hamlet-sized burg in an Industrial state gets no head start, same
- * as it would get no annual modern investment either.
+ * below which no seed applies — a hamlet-sized burg gets no head start, same as it would get no
+ * annual modern investment either.
  */
-function industrialModernWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
+function modernWaterworksGenerationSeed(burg: Burg): UrbanWaterSystem | null {
   const world = getWorldContext();
-  if (world.options?.historicalPeriod !== "rocketryEra") return null;
-
-  const stateId = burg.state ?? 0;
-  if (!stateId) return null;
-  // Resilient to id-indexed and dense State arrays, same as raceKeyForBurgState()
-  // (resolveBurgCulture.ts) — this file's other state-level gate right above.
-  const state = world.pack.states?.[stateId] ?? world.pack.states?.find(candidate => candidate?.i === stateId);
-  if (!state?.i || state.removed) return null;
-  if (world.pack.cultures?.[state.culture ?? 0]?.type !== "Industrial") return null;
+  const period = world.options?.historicalPeriod;
+  if (!isModernWaterEraAvailable(period)) return null;
 
   const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
   if (people < MODERN_WATER_MIN_POPULATION) return null;
 
-  const tier: WaterSanitationTier = people >= 15000 ? 3 : people >= 4000 ? 2 : 1;
+  const techLevel = period ? CIVIC_WATERWORKS_TECH_LEVEL[period] : undefined;
+  if (techLevel === undefined) return null; // isModernWaterEraAvailable guards this in practice
+  const techLevelProgress = clamp01(
+    (techLevel - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN) /
+      (CIVIC_WATERWORKS_TECH_LEVEL_MAX - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN)
+  );
+  const affinity = clamp01(modernizationAffinityForBurg(burg));
+  const readiness = techLevelProgress * affinity;
+  const populationBand = people >= 15000 ? 3 : people >= 4000 ? 2 : 1;
+  // 3 is drinkingTreatmentTier/wastewaterTreatmentTier's own ceiling (controlled chlorination /
+  // activated sludge, §15/§16) — not MAX_INVESTABLE_TIER (deprecated, legacy-`tier`-ladder-only).
+  const tier = asTier(Math.min(3, Math.round(populationBand * readiness))) as WaterSanitationTier;
+  if (tier <= 0) return null;
+
   const funding = tier >= 3 ? 0.85 : tier >= 2 ? 0.7 : 0.5;
 
   return systemDefaults({
@@ -1956,7 +2046,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
     const previous =
       mode === "annual"
         ? (previousByBurg.get(burg.i) ?? null)
-        : (giantRomanWaterworksSeed(burg) ?? industrialModernWaterworksSeed(burg));
+        : (giantRomanWaterworksSeed(burg) ?? modernWaterworksGenerationSeed(burg));
     // Ordinary forts remain non-civic military sites, but Giant forts are supplied by the same
     // inherited aqueduct/trunk sewer network as their villages and cities.
     if (burg.group === "fort" && !previous?.hasInheritedRomanWaterworks) continue;

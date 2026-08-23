@@ -1133,6 +1133,8 @@
       "petroleumEra": "Petroleum (Era 7)",
       "rocketryEra": "Rocketry and space (Era 8)"
     },
+    "forceIndustrialCultures": "Force all cultures to Industrial",
+    "forceIndustrialCulturesTip": "Debug/override: every culture on the map is assigned the Industrial culture type, ignoring terrain, historical period, and the normal chance of it appearing. Use this to guarantee Industrial-culture nations — and the water/sewer infrastructure their high modernization affinity seeds at generation — show up on the map.",
     "startFirearmsUnstocked": "Start firearms unstocked",
     "startFirearmsUnstockedTip": "New maps normally treat existing musketeer and artillery units as already equipped. Enable this to start their firearm equipment at zero and require state procurement through the economy.",
     "stateLabels": "State labels",

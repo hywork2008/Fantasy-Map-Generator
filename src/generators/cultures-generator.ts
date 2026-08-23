@@ -1268,6 +1268,13 @@ class CulturesModule {
       const biomeCode = this.cells!.biomeCode[i];
       const options = useOptionsState.getState();
       const period = options.historicalPeriod;
+      // Debug/override generation option (optionsState.ts's `forceIndustrialCultures` doc comment,
+      // docs/plan/modern-urban-water-treatment-and-governance.md §19): unconditionally short-
+      // circuits every other branch below, including the hard terrain gates (Nomadic/Highland/
+      // Lake) — this is a deliberate blunt override for guaranteeing Industrial-culture nations
+      // exist on a map (and with them, the water/sewer infrastructure their modernizationAffinity
+      // seeds), not a probability nudge like Industrial's own branch further down.
+      if (options.forceIndustrialCultures) return "Industrial";
       // Grassland/savanna historically defined Nomadic centers; desert cells split off to
       // "Desert" below instead — both used to share the biome's "nomadic" tag, which forced
       // every desert cell into steppe-pastoralist behavior even one that sits on a river or

@@ -131,6 +131,12 @@ export interface WorldOptions {
    * maps as "highMedieval". See optionsState.ts's `historicalPeriod` doc comment for the 6
    * Era-3-8-aligned values added after "ageOfExploration".
    */
+  /**
+   * Debug/override generation option (optionsState.ts's `forceIndustrialCultures` doc comment) —
+   * every culture on the map is assigned CultureType "Industrial" regardless of terrain/era/
+   * probability. Undefined preserves normal probabilistic culture-type assignment.
+   */
+  forceIndustrialCultures?: boolean;
   historicalPeriod?:
     | "earlyMedieval"
     | "highMedieval"

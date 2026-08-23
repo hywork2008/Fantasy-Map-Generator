@@ -1133,6 +1133,8 @@
       "petroleumEra": "石油の時代（Era 7）",
       "rocketryEra": "ロケット・宇宙開発期（Era 8）"
     },
+    "forceIndustrialCultures": "全ての文化をIndustrialにする",
+    "forceIndustrialCulturesTip": "デバッグ／強制オプション：地形・歴史時代・通常の出現確率を無視して、地図上の全ての文化にIndustrialの文化タイプを割り当てます。Industrial文化の国家（および生成時に高いmodernizationAffinityが種付けする上下水道インフラ）を確実に出現させたい場合に使用してください。",
     "startFirearmsUnstocked": "火器を未配備で開始",
     "startFirearmsUnstockedTip": "新しい地図では通常、既存の銃兵と砲兵はすでに装備済みです。有効にすると火器装備を 0 から始め、国家が経済を通じて調達する必要があります。",
     "stateLabels": "国家ラベル",

@@ -687,7 +687,9 @@ sludgeBacklog(次年) = sludgeBacklog(前年) * 0.7 + (1 - sludgeOpsFunding) * 0
 
 **状態: 実装済み**。§11.4 が Phase 1 実装時の提案として残していた「文化圏の近代化適性を Tier 初期値へ接続する」方向性とは別の切り口として、historicalPeriod と CultureType という2つの生成時条件から直接シードする経路（§17.1）、Phase 4 が Chlorine のみだった実 Good 消費を Tier 2 へも広げる経路（§17.2、Alum + Lime）、複数の Good 消費経路が同一マーケット在庫を無調整に奪い合う競合を防ぐ経路（§17.3）、`cleaningTaxRate`（Phase 3、§4 相当）を新設の近代ラダーへ接続する経路（§17.4）の4点を追加した。`modernizationAffinity` 自体への接続は §11.4 の提案のまま未着手で残っている——今回追加した4点はいずれもそれとは独立した経路である。
 
-### 17.1 `industrialModernWaterworksSeed()`——rocketryEra × Industrial 国家の生成時シード
+### 17.1 `industrialModernWaterworksSeed()`——rocketryEra × Industrial 国家の生成時シード（§20 で一般化・置換済み）
+
+> **この節は歴史的記録として残す。実装は §20 で `modernWaterworksGenerationSeed()` へ一般化・置換された**（関数名も変更）。era ゲートを `rocketryEra` 固定から `steamEra` 以降の連続スケールへ、文化ゲートを State レベルの `Industrial` 二値判定から Burg レベルの `modernizationAffinity` 連続値へ広げている。以下は置換前の元の設計。
 
 `urbanWaterSystem.ts` に `giantRomanWaterworksSeed()` と対になる関数を新設した。地図生成オプションの `historicalPeriod` が `rocketryEra` で、かつ Burg の所属 State の `culture`（`state.culture` が指す `Culture.type`、§11.2/§11.3）が `Industrial` の場合のみ、`buildSystems()` の `mode === "generate"` 分岐（`giantRomanWaterworksSeed()` が null を返した場合のフォールバック）で読まれる。
 
@@ -726,5 +728,140 @@ Giant のシードと異なり、これは**生成時の頭出しのみ**——`
 
 - `Alum`/`Chlorine`/`Lime` 以外の建設費（Stone/Tools/Brick 相当の近代版）は依然として現金のみ。
 - `connectionPermitCoverage`/`dischargeRegulation`（`institutionalTargets` の他2項目）は近代ラダーへ未接続——今回は `cleaningTaxRate` のみに範囲を絞った。
-- `modernizationAffinity`（§11）の Tier 初期値への接続は §11.4 の提案のまま未着手。§17.1 の rocketryEra×Industrial シードとは独立した経路として残っている。
+- `modernizationAffinity`（§11）の**近代ラダー**（`drinkingTreatmentTier`/`wastewaterTreatmentTier`）Tier 初期値への接続は §11.4 の提案のまま未着手。§17.1 の rocketryEra×Industrial シードとは独立した経路として残っている。§18 でレガシー `tier` ラダー側には接続したが、近代ラダー側は別問題として残る。
 - Chlorine の購入（Phase 4、Tier 3）には `maxStockShare` を適用していない——Bleaching Powder という潜在的な競合消費先はあるが era-6+ の小規模な化学財で、Phase 4 実装時点では確立した高流通量消費先ではなかったため、既存の挙動を変えずに残した。将来 Bleaching Powder の消費量が増えるようなら再検討する。
+
+---
+
+## 18. レガシー `tier` ラダーの生成時ボーナス——ペスト以降の時代選択×都市規模×文化（実装済み・2026-08-23）
+
+**状態: 実装済み**。「ペストの発生した史実の時代（`lateMedieval`、i18n ラベルでは c. 1300-1500）以降・`rocketryEra` 以前を選んだ場合、都市の規模・文化・技術レベルに応じて上下水道のある都市を発生させる」という要望を実装した。
+
+### 18.1 なぜ近代ラダーではなくレガシー `tier` ラダーか
+
+§10 は「中世・古代風都市に近代処理場を遡及させない——古い都市が持つのは水源保護、重力式導水、沈砂、公共便所、汲み取り、排水であり、濾過・消毒・生物処理は化学・機械・検査・行政記録の積み上げ後に到達する」と明記している。`drinkingTreatmentTier`/`wastewaterTreatmentTier`（近代ラダー、Phase 2/4/5）の運用ゲート `isModernWaterEraAvailable()`（`urbanWaterModernTreatment.ts`）も `steamEra` 以降でしか true にならない——`lateMedieval`/`ageOfExploration`/`maritimeEra`/`preIndustrialEra` でこのラダーに Tier を種付けしても、`settleModernWaterTreatmentInvestment` の era ゲートが `treatmentOperationsFunding` 等を毎年ゼロへ強制し続け、Tier の数字だけが残って便益が一切出ない壊れたシードになる。
+
+そのため今回は、era ゲートを一切持たないレガシー `tier` ラダー（`initialTier()`、開放側溝→衛生分離、既存の `settleBurgWaterInvestment` は era を問わず動く）側に実装した。こちらは「水源保護・重力式導水・排水」という §10 が明示的に中世都市へ許容している範囲そのものであり、ペスト以降の各時代でも矛盾なく機能し、その後の年次投資でも era に関わらず自然に進行し続ける。
+
+### 18.2 `initialTier()` への拡張
+
+`urbanWaterSystem.ts` の `initialTier()`（既存、人口・地理からレガシー `tier` を 0-2 で決める生成時関数）に、`historicalPeriod`/`modernizationAffinity`（§11）の2つの省略可能引数を追加した。省略時（既存の3呼び出し元のテスト、`earlyMedieval`/`highMedieval`/未設定）は既存の挙動と完全に同一——新しい計算パスに一切入らない。
+
+`historicalPeriod` が `lateMedieval` 以降 `rocketryEra` 以下のいずれかで、かつ人口が `MODERN_WATER_MIN_POPULATION`（400人、`settleModernWaterTreatmentInvestment` と同じ床）以上の場合のみ、追加ボーナスを計算する：
+
+```text
+techLevelProgress = clamp01((その時代のランク - lateMedievalのランク2) / (rocketryEraのランク8 - 2))
+readiness = techLevelProgress × modernizationAffinity（burg 自身の文化、§11）
+populationBand = 1〜3（industrialModernWaterworksSeed()、§17.1 と同じ 400/4,000/15,000 人の3段階）
+bonus = round(populationBand × readiness)
+tier = min(ABSOLUTE_MAX_WATER_TIER, baseTier + bonus)
+```
+
+技術レベル（時代の進み具合）と文化（`modernizationAffinity`）を**両方**掛け合わせる設計にした——`Industrial` 文化が `lateMedieval`（時代がまだ追いついていない、`techLevelProgress = 0`）にいても、`Nomadic` 文化が `rocketryEra`（文化がその技術に定着しない、`affinity ≈ 0.08`）にいても、どちらもボーナスをほぼ得ない。`populationBand`（人口の3段階）でボーナスの大きさ自体も「都市の規模」に応じてスケールする——大都市ほど大きなボーナスを得られる。人口が床（400人）未満の集落は、暦がどれだけ進んでも文化がどれだけ近代化志向でも civic waterworks を得ない——規模そのものがゲートとして残る。
+
+**バグ修正（2026-08-23）**: 初版はこのゲートを `baseTier > 0`（人口・地理スコアからの既存 0-2 Tier）としていた。`baseTier` は河川・湿地・洪水リスク・首都といった地理条件に強く依存する既存スコアで、内陸・平坦・非首都の「地理的に平凡な」都市は人口がいくら多くても score < 2 になりやすく、その場合 era/culture ボーナスの計算にすら入らず常に 0 のままだった（ユーザー報告: 「petroleumEra の Industrial でも上下水道が出てこない」）。ゲートを地理依存の `baseTier > 0` から人口のみの `people >= MODERN_WATER_MIN_POPULATION` に差し替え、`bonus` の係数も固定値 `3` から `populationBand`（1-3）に変更した——大都市の固定シナリオ（後述、rocketryEra×Industrial の大都市）では偶然どちらの式でも同じ結果になるため、既存テストは無変更で通っている。
+
+`historicalPeriod`/`modernizationAffinity` は `computeUrbanWaterSystem()` 内の唯一の呼び出し元から、`getWorldContext().options?.historicalPeriod` と既存の `modernizationAffinityForBurg(burg)`（burg 自身の局所文化、§17.1 の州レベルゲートとは異なり Burg 個別）をそのまま渡している。
+
+### 18.3 `industrialModernWaterworksSeed()`（§17.1）との関係
+
+> **2026-08-23 追記: §17.1 は §20 で `modernWaterworksGenerationSeed()` へ一般化された。** 以下は §20 実装前の記述で、歴史的経緯として残す。§20 実装後は、近代ラダー側にも Burg 自身の `modernizationAffinity` によるスケーリングが入ったため、下記の「§17.1 は無条件で `tier = 5`」という記述はレガシー `tier` フィールドについてのみ今も正しい（近代ラダー自体は §20 の式に従う）。
+
+§17.1 の rocketryEra×Industrial 国家シードは、対象 Burg について `previous` を完全に差し替えるため `initialTier()` 自体を呼ばせない（レガシー `tier` を無条件 `ABSOLUTE_MAX_WATER_TIER` に固定）。したがって両者は競合しない——§17.1 は「近代ラダー（drinkingTreatmentTier 等）を rocketryEra×Industrial 国家の Burg に限定して種付けする」経路、§18 は「レガシー `tier` ラダーを lateMedieval 以降のあらゆる時代・文化に一般化して種付けする」経路で、独立した軸（レガシー vs 近代ラダー）と独立した対象集合（§17.1 は国家の文化、§18 は Burg 自身の文化）を持つ。
+
+参考として、rocketryEra×Industrial（`modernizationAffinity` 事前平均 0.85）の大都市（人口15,000人以上、`populationBand = 3`）について両者の結果を突き合わせると: §17.1 は無条件で `tier = 5`。§18 の式では `baseTier`（人口・地理で決まる 0-2）+ `round(3 × 1 × 0.85) = 3` なので、`baseTier = 2` の都市でも `tier = 5` で一致する——ただし §18 は地理条件（河川・湿地等）による `baseTier` の差、および `populationBand` が人口帯で 1-3 に変わる点で、小規模な Industrial 国家の都市では §17.1 ほど高くならない。この差は意図的な簡略化として残す（§17.1 は狭いケースのために先に実装済みのため、今回は変更しなかった）。
+
+### 18.4 未着手（将来拡張）
+
+- §18.2 のボーナスはレガシー `tier` ラダーのみ。近代ラダー（`drinkingTreatmentTier`/`wastewaterTreatmentTier`）への `modernizationAffinity` 接続は §11.4 の提案のまま未着手だったが、**§20 で実装した**（`modernWaterworksGenerationSeed()`）。
+- `techLevelProgress`/`bonus` の具体的な係数（`3`、ランク 2-8 等）は他の近代ラダー係数と同様、実測値の裏付けがない概算。バランス調整の余地を残す。
+- §18.3 で触れた `baseTier` 依存の非対称性（rocketryEra×Industrial の小規模都市が §17.1 経由よりレガシー tier で不利になり得る）は、今回は許容し修正していない。
+
+---
+
+## 19. Generation オプション `forceIndustrialCultures`（実装済み・2026-08-23）
+
+**状態: 実装済み**。§18 のバグ修正後もユーザーから「petroleumEra の Industrial でも上下水道が出てこない」という報告が続いた。原因の切り分けとして、`CultureType: "Industrial"` 自体が §11.2 の通り確率的採用（`steamEra` 以降、砂漠・湿地でない地点で25%）であり、生成された地図に Industrial 文化圏の国家が1つも存在しない可能性を排除できなかった。そのため、地図上の全ての文化を無条件に Industrial にする Generation オプションを追加した。
+
+### 19.1 何を上書きするか
+
+`cultures-generator.ts` の `defineCultureType(i)`（Nomadic/Highland/Lake の地形硬直判定、Colonial、Industrial（確率25%）、Naval/River/Desert/Marsh/Hunting、Generic という既存の分岐チェーン）の**先頭**に、`options.forceIndustrialCultures` が true なら無条件で `"Industrial"` を返す短絡を追加した。地形硬直判定（山岳・湖）すら無視する、意図的に乱暴なデバッグ／強制オプションである——通常の `Industrial` 分岐（25%の確率的採用のみ）とは別物であることを明記する。ロックされた文化（`culture.lock`）は元々 `defineCultureType` 自体を通らないため、このオプションの影響を受けない（既存の挙動を尊重）。
+
+### 19.2 配線
+
+`OptionsState`（`optionsState.ts`）に `forceIndustrialCultures: boolean`（デフォルト `false`）を追加し、既存の boolean 生成オプション（`gunpowderEraEnabled`/`initialFirearmsUnstocked`）と同じ配線パターンを踏襲した：
+
+- `GENERATION_OPTION_KEYS`（optionsState.ts）——エクスポート/インポート対象に含める。
+- `exportGenerationOptions.ts` の `BOOLEAN_KEYS`——JSON インポート時の型バリデーション。
+- `controllers/options.ts` の `persistedOptionKeys` とブール値パース分岐——ロックアイコンでの localStorage 永続化。
+- `WorldState.ts` に `forceIndustrialCultures?: boolean` を追加し、`main.ts`（生成開始時に `useOptionsState` から `worldContext.options` へブリッジ）・`io/load.ts`（保存地図読み込み時に `worldContext.options` から `useOptionsState` へ復元）を接続——ただし `defineCultureType` は `useOptionsState.getState()` を直接読むため、この `worldContext.options` 側の配線は実際の生成ロジックには不要で、他の生成オプションとの一貫性・地図保存後のトレーサビリティのためだけに用意した。
+- `GenerationSettingsTab.tsx` に `historicalPeriod` 選択の直後へチェックボックス行を追加（`LockIconButton` 付き）。
+- `en.json`/`ja.json` にラベル・ツールチップを追加。
+
+### 19.3 未着手（将来拡張）
+
+- `defineCultureType` の1行の短絡自体には専用のユニットテストを追加していない（`generate()` 全体を動かすには pack.cells/features/biomesData 等の重いフィクスチャが要る一方、変更は関数先頭の無条件 `if` 一行のみで、既存のオプション配線テスト（`exportGenerationOptions.test.ts` の `GENERATION_OPTION_KEYS` 一致検証）が配線面はカバーしている）。実際の地図生成で目視確認することを推奨する。
+
+**2026-08-23 追記: 根本原因を特定・修正した（§20）**。§19 導入時点では「このオプションが実際に根本原因だったかは未確認」と記していたが、`forceIndustrialCultures` を有効にしても解決しないというユーザー報告により、真因は文化の存在確率ではなく別の場所にあることが判明した——地図の「Water and sewage」レイヤープリセット（`layersPreset = sewages`）が実際に描画する `drawSewerage.ts` の処理場アイコンは `wastewaterTreatmentTier >= 1`（近代ラダー）だけを見ており、それまでの§18の修正はレガシー `tier` ラダーだけを底上げしていたため、このレイヤーには一切反映されていなかった。かつ近代ラダーの生成時シード（§17.1 `industrialModernWaterworksSeed()`）は `historicalPeriod === "rocketryEra"` に固定されていたため、petroleumEra ではそもそも一度も走っていなかった。§20 で近代ラダー側のシードを一般化し、この節で残っていた懸念を解消した。
+
+---
+
+## 20. `modernWaterworksGenerationSeed()`——近代ラダー生成時シードの一般化（真因修正・2026-08-23）
+
+**状態: 実装済み**。ユーザー報告「petroleumEra + 全文化 Industrial 強制でも上下水道が地図に出ない」の根本原因を特定し修正した。
+
+### 20.1 根本原因
+
+地図の `layersPreset = sewages`（Water and sewage、`controllers/layers.ts`）は `toggleSewerage`/`toggleWaterSupply` の2レイヤーを有効化する。このうち Burg 個別の処理場アイコン（🪣/🌾/⚙️）を描く `drawSewerage.ts` の `treatmentPlantMarkup()` は、
+
+```ts
+const tier = system.wastewaterTreatmentTier ?? 0;
+if (tier < 1 || routedBurgIds.has(system.burgId)) continue;
+```
+
+という条件で、**近代ラダー（`wastewaterTreatmentTier`）だけ**を見ている。§18 で強化したのはレガシー `tier` ラダー（`initialTier()`）で、これはこのレイヤーからは一切参照されない——つまり §18 のバグ修正がどれだけ正しくても、ユーザーが実際に見ているこのレイヤーには**構造的に絶対反映されない**組み合わせだった。
+
+`drawWaterSupply.ts`（`toggleWaterSupply`）も同様で、Giant 継承水道か `RegionalWaterScheme`（Phase 3、実際に交渉が進んだ広域水道のみ）しか描画しない——どちらも生成時点でゼロから存在するとは限らない。
+
+一方、近代ラダーへ生成時に非ゼロ値を書き込む唯一の経路（`industrialModernWaterworksSeed()`、§17.1）は `historicalPeriod === "rocketryEra"` に固定されていた。petroleumEra はこの経路を一度も通らないため、`wastewaterTreatmentTier` は 0 のまま——`forceIndustrialCultures`（§19）で文化を全て Industrial にしても、rocketryEra 以外では素通りされ、何も変わらなかった。
+
+### 20.2 修正: `industrialModernWaterworksSeed()` → `modernWaterworksGenerationSeed()`
+
+関数を全面的に一般化した（関数名も変更）:
+
+| 項目 | 旧（§17.1） | 新（本節） |
+| --- | --- | --- |
+| era ゲート | `historicalPeriod === "rocketryEra"` のみ | `isModernWaterEraAvailable(period)`（`steamEra`/`industrialChemistryEra`/`petroleumEra`/`rocketryEra`、既存の年次投資ゲートと同一集合） |
+| 文化ゲート | State の `culture`（`state.culture`）が `Industrial` かどうかの二値 | Burg 自身の `modernizationAffinity`（`modernizationAffinityForBurg(burg)`）の連続値——§18.2 のレガシーラダー側と同じ粒度・同じ理由（Burg 自身の文化が、その Burg 自身がどれだけ積極的に建設するかを決めるべき） |
+| Tier 算出 | 文化ゲートを通れば人口だけで Tier 1/2/3 が決定 | `techLevelProgress`（steamEra=0..rocketryEra=1）× `modernizationAffinity` の `readiness` に `populationBand`（1-3）を掛けて四捨五入、0..3 にクランプ |
+
+`steamEra` を下限にした理由は2つ: (1) 年次投資側の `isModernWaterEraAvailable()` と同じ集合にすることで、シード後も `settleModernWaterTreatmentInvestment()` が毎年 `treatmentOperationsFunding` 等を正しく更新できる（§10 のもう一段階前の期間まで広げると、年次投資側の era ゲートに弾かれて `funding` が毎年0に強制され、Tier の数字だけが残る「凍った無意味なバッジ」になる）。(2) §10 が明記する「中世・古代風都市に近代処理場を遡及させない」という設計原則——`steamEra` より前は化学消毒・急速濾過という近代処理そのものが時代的に成立しない。
+
+`techLevelProgress` は §18.2 と同じ `CIVIC_WATERWORKS_TECH_LEVEL` ランク表を再利用し、`MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN = 5`（`steamEra`）を分母の起点にした（§18.2 は `lateMedieval` = 2 が起点）。
+
+### 20.3 検算（rocketryEra×Industrial 大都市は旧実装と一致）
+
+`modernizationAffinity` 事前平均 0.85（Industrial）、人口15,000人以上（`populationBand = 3`）、rocketryEra（`techLevelProgress = 1`）:
+
+```text
+readiness = 1 × 0.85 = 0.85
+tier = round(3 × 0.85) = round(2.55) = 3
+```
+
+旧実装（無条件で Tier 3）と完全に一致する——rocketryEra の大都市という既存テストの対象範囲では回帰しない。petroleumEra（`techLevelProgress = (7-5)/3 ≈ 0.667`）の同じ都市では:
+
+```text
+readiness = 0.667 × 0.85 ≈ 0.567
+tier = round(3 × 0.567) = round(1.7) = 2
+```
+
+Tier 2 が生成時に立つ——ユーザーが「petroleumEra でも tier 1くらいは出るかと思った」と述べていた期待を満たし、`wastewaterTreatmentTier >= 1` を見る `drawSewerage.ts` に実際に描画されるようになる。
+
+### 20.4 既存テストへの影響
+
+`urbanWaterSystem.test.ts` の「Industrial-culture rocketryEra generation seed」describe ブロックは、State レベルの `state.culture` 設定に依存していたため（新実装は Burg レベルの `burg.culture` を読む）、4件が最初赤くなった。ブロックごと書き直し、`worldContext.pack.burgs[1]!.culture = 1` を明示的に設定する形に変更した上で、petroleumEra ケース・era 下限（`preIndustrialEra` で不発火）・低 affinity 文化（Nomadic でほぼ0）のケースを追加した。
+
+### 20.5 未着手（将来拡張）
+
+- レガシー `tier` の扱い（`tier: ABSOLUTE_MAX_WATER_TIER` 無条件）は今回も変更していない——§18.3 で触れた非対称性がそのまま残る。小規模な Burg（例: 人口1,000人・Tier 1相当）でもレガシー `tier` だけ 5 に飛ぶのは、今回のスコープでは意図的に据え置いた。
+- `drawWaterSupply.ts`（`toggleWaterSupply`）は Giant 継承水道と `RegionalWaterScheme` のみ描画する——`sourceProtection`/`hasUpstreamIntake` のような、生成時シードで非ゼロになり得る値を可視化する経路がまだない。今回の修正で `wastewaterTreatmentTier`（下水側）は見えるようになったが、上水側の生成時シードは（`drinkingTreatmentTier` 自体は上がっていても）地図上にまだ見える形で表示されない。
