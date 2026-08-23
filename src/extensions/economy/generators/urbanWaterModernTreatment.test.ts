@@ -392,6 +392,99 @@ describe("Phase 4: rapid filtration/coagulation and controlled chlorination", ()
     expect(tier2Result.chemicalTestCoverage).toBeGreaterThan(0);
   });
 
+  describe("Alum purchase (drinkingTreatmentTier 2 only)", () => {
+    const atTier3 = { ...noProgress, drinkingTreatmentTier: 3 as const, sourceProtection: 1 };
+
+    beforeEach(() => {
+      setGoods([
+        {
+          i: 1,
+          name: "Alum",
+          tags: ["mineral"],
+          value: 9,
+          unit: "sack",
+          icon: "good-unknown",
+          color: "#e0d8c8"
+        }
+      ]);
+    });
+
+    it("stays at 0 coagulantStockCoverage when the local market has no Alum stock, regardless of budget", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 0, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.coagulantStockCoverage).toBe(0);
+    });
+
+    it("buys Alum from the local market once at Tier 2, raising coagulantStockCoverage above 0", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const settlement = burg({ treasury: 50000, state: 1, market: 1 });
+      const before = settlement.treasury!;
+      const result = settleModernWaterTreatmentInvestment({
+        burg: settlement,
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.coagulantStockCoverage).toBeGreaterThan(0);
+      expect(settlement.treasury).toBeLessThan(before);
+    });
+
+    it("never buys Alum below drinkingTreatmentTier 2", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier1
+      });
+      expect(result.coagulantStockCoverage).toBe(0);
+    });
+
+    it("keeps buying Alum at Tier 3 too, alongside the Chlorine purchase", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier3
+      });
+      expect(result.coagulantStockCoverage).toBeGreaterThan(0);
+    });
+  });
+
   describe("Chlorine purchase (drinkingTreatmentTier 3 only)", () => {
     const atTier3 = { ...noProgress, drinkingTreatmentTier: 3 as const, sourceProtection: 1 };
 

@@ -712,6 +712,7 @@ export function computeUrbanWaterSystem(args: {
    * settleModernWaterTreatmentInvestment()'s Tier 2/3 results, same threading pattern as the
    * Phase 2 fields above. */
   chemicalTestCoverage?: number;
+  coagulantStockCoverage?: number;
   chlorineStockCoverage?: number;
   /** Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16) overrides —
    * settleModernWaterTreatmentInvestment()'s wastewater Tier 2/3 results. */
@@ -771,6 +772,9 @@ export function computeUrbanWaterSystem(args: {
   // is ever meaningfully >0 for a Giant burg — 0 here, not a generous seed like the Phase 2 fields
   // above, since there is no chemical dosing or testing regime to represent at Tier 1.
   const chemicalTestCoverage = isGiantState ? 0 : (args.chemicalTestCoverage ?? previous?.chemicalTestCoverage ?? 0);
+  const coagulantStockCoverage = isGiantState
+    ? 0
+    : (args.coagulantStockCoverage ?? previous?.coagulantStockCoverage ?? 0);
   const chlorineStockCoverage = isGiantState ? 0 : (args.chlorineStockCoverage ?? previous?.chlorineStockCoverage ?? 0);
   // Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16): Giants stay
   // at Roman-grade wastewaterTreatmentTier 1 (locked above), so neither field is ever meaningfully
@@ -956,11 +960,14 @@ export function computeUrbanWaterSystem(args: {
       // plant (drinkingTreatmentTier >= 1) helps a lot more — §4's Stage A vs. Stage B distinction.
       sourceProtection * 0.06 -
       (drinkingTreatmentTier >= 1 ? 0.12 * clamp01(treatmentOperationsFunding) : 0) -
-      // Modern Phase 4 (§8, §15): rapid filtration/coagulation (Tier >= 2) needs both funded
-      // operation AND verified dosing (chemicalTestCoverage) to earn its reduction — untested
-      // dosing is not trusted at face value (§1). Controlled chlorination (Tier >= 3) is a further,
-      // real-Chlorine-stock-gated reduction on top, also contingent on the plant actually running.
-      (drinkingTreatmentTier >= 2 ? 0.1 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) : 0) -
+      // Modern Phase 4 (§8, §15): rapid filtration/coagulation (Tier >= 2) needs funded operation,
+      // verified dosing (chemicalTestCoverage), AND a real Alum stock (coagulantStockCoverage) to
+      // earn its reduction — untested dosing is not trusted at face value (§1), and dosing gear with
+      // no Alum to dose is inert regardless of budget/testing. Controlled chlorination (Tier >= 3) is
+      // a further, real-Chlorine-stock-gated reduction on top, also contingent on the plant running.
+      (drinkingTreatmentTier >= 2
+        ? 0.1 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) * clamp01(coagulantStockCoverage)
+        : 0) -
       (drinkingTreatmentTier >= 3 ? 0.14 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0)
   );
 
@@ -1007,7 +1014,9 @@ export function computeUrbanWaterSystem(args: {
   const modernDrinkingBonus =
     sourceProtection * 0.05 +
     (drinkingTreatmentTier >= 1 ? 0.2 * clamp01(treatmentOperationsFunding) : 0) +
-    (drinkingTreatmentTier >= 2 ? 0.15 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) : 0) +
+    (drinkingTreatmentTier >= 2
+      ? 0.15 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) * clamp01(coagulantStockCoverage)
+      : 0) +
     (drinkingTreatmentTier >= 3 ? 0.2 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0);
   const drinkingWaterSecurity = clamp01(
     (drinkingBase + tierDrinkBonus + modernDrinkingBonus) *
@@ -1097,6 +1106,7 @@ export function computeUrbanWaterSystem(args: {
     treatmentOperationsFunding: rn(treatmentOperationsFunding, 4),
     wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
     chemicalTestCoverage: rn(chemicalTestCoverage, 4),
+    coagulantStockCoverage: rn(coagulantStockCoverage, 4),
     chlorineStockCoverage: rn(chlorineStockCoverage, 4),
     sludgeBacklog: rn(sludgeBacklog, 4),
     effluentTestCoverage: rn(effluentTestCoverage, 4),
@@ -1255,6 +1265,7 @@ function systemDefaults(
     treatmentOperationsFunding: 0,
     wastewaterOperationsFunding: 0,
     chemicalTestCoverage: 0,
+    coagulantStockCoverage: 0,
     chlorineStockCoverage: 0,
     sludgeBacklog: 0,
     effluentTestCoverage: 0,
@@ -1371,6 +1382,7 @@ function industrialModernWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
     treatmentOperationsFunding: funding,
     wastewaterOperationsFunding: funding,
     chemicalTestCoverage: tier >= 2 ? funding : 0,
+    coagulantStockCoverage: tier >= 2 ? funding : 0,
     chlorineStockCoverage: tier >= 3 ? funding : 0,
     effluentTestCoverage: tier >= 2 ? funding : 0
   });
@@ -1495,7 +1507,13 @@ export function settleBurgWaterInvestment(args: {
     contamination: system.waterContamination,
     sanitationBurden: system.sanitationBurden,
     demandUrgency,
-    administrationBonus: institutionsAdministrationBonus
+    administrationBonus: institutionsAdministrationBonus,
+    // Modern Phase 2/4/5 ladder (docs/plan/modern-urban-water-treatment-and-governance.md §15/§16):
+    // one year lagged, same as every other cross-reference into this year's not-yet-settled modern
+    // tiers within this same annual pass (settleModernWaterTreatmentInvestment() runs after this
+    // function — see buildSystems()'s call order comment).
+    drinkingTreatmentTier: system.drinkingTreatmentTier ?? 0,
+    wastewaterTreatmentTier: system.wastewaterTreatmentTier ?? 0
   });
 
   const taxRevenue = cleaningTaxRevenue({
@@ -1987,6 +2005,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
               treatmentOperationsFunding: draft.treatmentOperationsFunding,
               wastewaterOperationsFunding: draft.wastewaterOperationsFunding,
               chemicalTestCoverage: draft.chemicalTestCoverage,
+              coagulantStockCoverage: draft.coagulantStockCoverage,
               chlorineStockCoverage: draft.chlorineStockCoverage,
               sludgeBacklog: draft.sludgeBacklog,
               effluentTestCoverage: draft.effluentTestCoverage,
@@ -2037,6 +2056,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           treatmentOperationsFunding: modernInvestment.treatmentOperationsFunding,
           wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
           chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
+          coagulantStockCoverage: modernInvestment.coagulantStockCoverage,
           chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
           sludgeBacklog: modernInvestment.sludgeBacklog,
           effluentTestCoverage: modernInvestment.effluentTestCoverage,
@@ -2070,6 +2090,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         treatmentOperationsFunding: modernInvestment.treatmentOperationsFunding,
         wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
         chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
+        coagulantStockCoverage: modernInvestment.coagulantStockCoverage,
         chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
         sludgeBacklog: modernInvestment.sludgeBacklog,
         effluentTestCoverage: modernInvestment.effluentTestCoverage,

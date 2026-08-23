@@ -657,7 +657,8 @@ describe("computeUrbanWaterSystem", () => {
       drinkingTreatmentTier: 2,
       sourceProtection: 1,
       treatmentOperationsFunding: 1,
-      chemicalTestCoverage: 1
+      chemicalTestCoverage: 1,
+      coagulantStockCoverage: 1
     });
 
     expect(tier2.waterContamination).toBeLessThan(tier1.waterContamination);
@@ -673,12 +674,31 @@ describe("computeUrbanWaterSystem", () => {
       ambientTemperature: 12,
       drinkingTreatmentTier: 2 as const,
       sourceProtection: 1,
-      treatmentOperationsFunding: 1
+      treatmentOperationsFunding: 1,
+      coagulantStockCoverage: 1
     };
     const untested = computeUrbanWaterSystem({ ...base, chemicalTestCoverage: 0 });
     const tested = computeUrbanWaterSystem({ ...base, chemicalTestCoverage: 1 });
 
     expect(tested.drinkingWaterSecurity).toBeGreaterThan(untested.drinkingWaterSecurity);
+  });
+
+  it("a funded Tier 2 without coagulantStockCoverage gives little of Tier 2's benefit (no Alum in the local market)", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      drinkingTreatmentTier: 2 as const,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1,
+      chemicalTestCoverage: 1
+    };
+    const unstocked = computeUrbanWaterSystem({ ...base, coagulantStockCoverage: 0 });
+    const stocked = computeUrbanWaterSystem({ ...base, coagulantStockCoverage: 1 });
+
+    expect(stocked.drinkingWaterSecurity).toBeGreaterThan(unstocked.drinkingWaterSecurity);
   });
 
   it("a funded modern drinkingTreatmentTier 3 (controlled chlorination) lowers waterContamination and raises drinkingWaterSecurity further than Tier 2 alone", () => {
@@ -690,7 +710,8 @@ describe("computeUrbanWaterSystem", () => {
       ambientTemperature: 12,
       sourceProtection: 1,
       treatmentOperationsFunding: 1,
-      chemicalTestCoverage: 1
+      chemicalTestCoverage: 1,
+      coagulantStockCoverage: 1
     };
     const tier2 = computeUrbanWaterSystem({ ...base, drinkingTreatmentTier: 2 });
     const tier3 = computeUrbanWaterSystem({ ...base, drinkingTreatmentTier: 3, chlorineStockCoverage: 1 });
@@ -709,7 +730,8 @@ describe("computeUrbanWaterSystem", () => {
       drinkingTreatmentTier: 3 as const,
       sourceProtection: 1,
       treatmentOperationsFunding: 1,
-      chemicalTestCoverage: 1
+      chemicalTestCoverage: 1,
+      coagulantStockCoverage: 1
     };
     const unstocked = computeUrbanWaterSystem({ ...base, chlorineStockCoverage: 0 });
     const stocked = computeUrbanWaterSystem({ ...base, chlorineStockCoverage: 1 });

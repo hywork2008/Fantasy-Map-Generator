@@ -615,7 +615,7 @@ Tier 3 のみ、`Markets.consumeForMarketInvestment`（`purchaseProjectMaterials
 ### 15.6 未着手（Phase 5 に残した項目）
 
 - 生物処理（散水ろ床・活性汚泥）、`wastewaterTreatmentTier` の 1 超え。
-- 建設費・運転費・Chlorine 以外の Good（Alum、Lime 等）の連動は依然として現金のみ。
+- 建設費・運転費・Chlorine 以外の Good の連動は依然として現金のみ（Tier 2 の `Alum` 連動は §17.1 で実装）。
 - `chemicalTestCoverage`/`chlorineStockCoverage` の流域補償・`toggleSewerage` への接続（Phase 5 の範囲）。
 - `rapidFiltrationAndCoagulation`/`controlledWaterChlorination` を §4.1 が示す独立した技術ノードとして技術グラフに追加すること——今回は既存の `analyticalChemistry`/`catalyticChemistry` を再利用するに留めた（Phase 1〜3 が独自の技術ノードを作らなかった前例を踏襲し、UI/セーブ互換への影響を避けるための意図的な選択）。
 
@@ -680,3 +680,45 @@ sludgeBacklog(次年) = sludgeBacklog(前年) * 0.7 + (1 - sludgeOpsFunding) * 0
 - `RegionalSewerScheme`（複数 Burg が交渉する広域下水網）は未実装。単独 Burg の `wastewaterTreatmentTier` 進行のみ。
 - `biologicalWastewaterTreatment`/`activatedSludgeAndEffluentControl` を §4.1 が示す独立した技術ノードとして追加すること——Phase 4 と同じ理由で見送った。
 - 高度処理（栄養塩・微量化学物質除去、§4 の Stage F）は本書の対象外のまま。
+
+---
+
+## 17. Industrial 国家の生成時シード、Alum 消費、近代ラダー税（実装済み・2026-08-23）
+
+**状態: 実装済み**。§11.4 が Phase 1 実装時の提案として残していた「文化圏の近代化適性を Tier 初期値へ接続する」方向性とは別の切り口として、historicalPeriod と CultureType という2つの生成時条件から直接シードする経路（§17.1）、Phase 4 が Chlorine のみだった実 Good 消費を Tier 2 へも広げる経路（§17.2）、`cleaningTaxRate`（Phase 3、§4 相当）を新設の近代ラダーへ接続する経路（§17.3）の3点を追加した。`modernizationAffinity` 自体への接続は §11.4 の提案のまま未着手で残っている——今回追加した3点はいずれもそれとは独立した経路である。
+
+### 17.1 `industrialModernWaterworksSeed()`——rocketryEra × Industrial 国家の生成時シード
+
+`urbanWaterSystem.ts` に `giantRomanWaterworksSeed()` と対になる関数を新設した。地図生成オプションの `historicalPeriod` が `rocketryEra` で、かつ Burg の所属 State の `culture`（`state.culture` が指す `Culture.type`、§11.2/§11.3）が `Industrial` の場合のみ、`buildSystems()` の `mode === "generate"` 分岐（`giantRomanWaterworksSeed()` が null を返した場合のフォールバック）で読まれる。
+
+Burg 人口（`actualUrbanPeople()`、他の近代処理と同じ計算式）で `drinkingTreatmentTier`/`wastewaterTreatmentTier` の初期値を3段階に分けた——`initialTier()`（本ファイル既存、レガシー `tier` の生成時判定）がすでに使っている 4,000/15,000 人のしきい値をそのまま再利用し、新しいしきい値を作らなかった：
+
+| 人口 | 初期 Tier |
+| --- | --- |
+| `MODERN_WATER_MIN_POPULATION`（400人）未満 | シードなし（0のまま） |
+| 400〜3,999人 | 1 |
+| 4,000〜14,999人 | 2 |
+| 15,000人以上 | 3 |
+
+Giant のシードと異なり、これは**生成時の頭出しのみ**——`computeUrbanWaterSystem` の `isGiantState` 分岐のように毎年強制的に上書きし続けることはしない。生成後は通常の Burg と同じく年次投資・維持（`settleModernWaterTreatmentInvestment`）に委ねられる。州レベル（`state.culture`）でゲートする点は `raceKeyForBurgState()`（Giant のゲート）や `getStateMaritimeAptitude()`（Naval CultureType のゲート、`technologyProgress.ts`）と同じ粒度に合わせた——Burg 個別の局所文化ではなく、征服等で局所文化が異なっていても国家全体に適用される。
+
+### 17.2 `Alum` の実消費——Tier 2（急速濾過・凝集）への Good 接続
+
+§15.6/§16.7 で「Chlorine 以外の Good 連動は現金のみ」と持ち越されていた項目のうち、Tier 2（`rapidFiltrationAndCoagulation`）分を実装した。`urbanWaterModernTreatment.ts` に Phase 4 の Chlorine 購入ブロックと対になる `Alum` 購入ブロックを追加し、`coagulantStockCoverage`（0..1）を新設した。`goods-generator.ts` に既存の `Alum`（採掘系ミネラル、Tag: `mineral`）をそのまま流用し、新しい Good は追加していない。
+
+`chlorineAnnualNeed()` が実在する塩素工場の産出量（年0.15〜0.6バレル/プラント）から逆算した具体的な数字を持つのに対し、`Alum` には対応する専用の採掘・精製チェーンが存在しないため、`coagulantAnnualNeed()` は独自の実測値を主張せず、`chlorineAnnualNeed()` と同じ「控えめに小さく保つ」方針だけを踏襲した概算値にとどめている——専用の Alum 産出チェーンができた際は見直しが必要。
+
+`computeUrbanWaterSystem` の Tier 2 の項（`waterContamination`/`drinkingWaterSecurity` 双方）に `coagulantStockCoverage` を3つ目の乗数として追加した——既存の `treatmentOperationsFunding`（運転資金）・`chemicalTestCoverage`（検査充足度）に加え、実際の Alum 在庫がなければ Tier 2 の便益はほとんど得られない、Tier 3 の `chlorineStockCoverage` と同じ設計。
+
+### 17.3 `cleaningTaxRate` の近代ラダー加算
+
+`urbanWaterInstitutions.ts` の `cleaningTaxRate`（Phase 3 で導入済み、レガシー `tier` にのみ連動する自己財源の清掃税）に、`drinkingTreatmentTier`/`wastewaterTreatmentTier`（近代ラダー）に応じた加算項を追加した——塩素消毒・活性汚泥等の実在する経常的維持費を、税収という形で反映する。
+
+既存の Burg（近代ラダーへ未投資、両 Tier とも0）の挙動を一切変えないことを最優先し、レガシー分の上限（`LEGACY_CLEANING_TAX_RATE_CAP = 0.04`、従来の唯一の上限だった値）とキャップの計算を完全に温存したまま、近代ラダー加算分（`MODERN_CLEANING_TAX_SURCHARGE_PER_TIER = 0.005` × 完了 Tier 数）を**その上に加算**し、合算後にのみ新しい上限（`CLEANING_TAX_RATE_CAP = 0.07`）を適用する二段構成にした。両 Tier とも0の Burg は `legacyRate + 0` が必ず旧上限0.04以下に収まるため、旧実装とビット単位で同じ値を返す。
+
+### 17.4 未着手（将来拡張）
+
+- `Lime`（既存 Good、`goods-generator.ts`）はまだ接続していない——コンクリート原料としての既存用途と衝突しないか要検討。
+- `Alum`/`Chlorine` 以外の建設費（Stone/Tools/Brick 相当の近代版）は依然として現金のみ。
+- `connectionPermitCoverage`/`dischargeRegulation`（`institutionalTargets` の他2項目）は近代ラダーへ未接続——今回は `cleaningTaxRate` のみに範囲を絞った。
+- `modernizationAffinity`（§11）の Tier 初期値への接続は §11.4 の提案のまま未着手。§17.1 の rocketryEra×Industrial シードとは独立した経路として残っている。

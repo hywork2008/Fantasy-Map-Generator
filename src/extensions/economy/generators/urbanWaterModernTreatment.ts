@@ -26,12 +26,16 @@
  * Phase 4 (§15) adds two real per-State technology gates (`analyticalChemistry` for Tier 1→2,
  * `catalyticChemistry` for Tier 2→3 — both already exist in technologyDefinitions.ts, matching the
  * doc's §4.1 technology graph's own prerequisites for `rapidFiltrationAndCoagulation` and
- * `controlledWaterChlorination`) and one real Good draw: Tier 3 chlorination actually buys
- * `Chlorine` from the burg's local market (`Markets.consumeForMarketInvestment`, the same paid-draw
- * primitive `purchaseProjectMaterials` already uses for Stone/Tools/Brick), so a Burg with no local
- * Chlorine supply or trade route gets little of Tier 3's benefit regardless of budget — Chlorine
- * plants (chlorinePlants.ts/chlorAlkaliPlants.ts) currently produce ~0.15-0.6 barrels/plant/year,
- * so this is a genuinely scarce input, not a rubber-stamp gate.
+ * `controlledWaterChlorination`) and two real Good draws, one per step: Tier 2 (coagulation/rapid
+ * filtration) buys `Alum` and Tier 3 chlorination buys `Chlorine`, both from the burg's local market
+ * (`Markets.consumeForMarketInvestment`, the same paid-draw primitive `purchaseProjectMaterials`
+ * already uses for Stone/Tools/Brick), so a Burg with no local Alum/Chlorine supply or trade route
+ * gets little of that step's benefit regardless of budget. Chlorine plants (chlorinePlants.ts/
+ * chlorAlkaliPlants.ts) currently produce ~0.15-0.6 barrels/plant/year, so Chlorine is a genuinely
+ * scarce input, not a rubber-stamp gate; Alum (goods-generator.ts) is a generic mined mineral with
+ * no dedicated production chain to size against the way Chlorine's plants do, so
+ * coagulantAnnualNeed() below is deliberately kept small rather than backed by a specific yield
+ * figure — revisit if a dedicated Alum extraction chain is ever added.
  *
  * Phase 5 (§16) reuses the EXISTING `sanitaryEngineering` stock (urbanWaterTech.ts's
  * evolveWaterTechStocks(), a per-Burg 0..1 value already computed every year — §8's table names it
@@ -101,6 +105,8 @@ const MODERN_OPERATIONS_BUDGET_SHARE = 0.03;
 /** Separate, smaller slice for the Tier 3 Chlorine purchase (§15) — a real Good draw, not general
  *  cash upkeep, so it is not folded into MODERN_OPERATIONS_BUDGET_SHARE above. */
 const MODERN_CHLORINE_BUDGET_SHARE = 0.025;
+/** Same idea as MODERN_CHLORINE_BUDGET_SHARE above, for the Tier 2 Alum purchase (§15). */
+const MODERN_COAGULANT_BUDGET_SHARE = 0.02;
 
 function projectScale(people: number): number {
   return 0.5 + clamp01(people / 15000);
@@ -189,6 +195,16 @@ function chlorineAnnualNeed(people: number): number {
   return rn(Math.max(0.01, people * 0.000012), 4);
 }
 
+/**
+ * Sacks of Alum a Tier 2 plant needs per year for coagulation/rapid filtration. Alum has no
+ * dedicated extraction chain to size this against (see this file's header) — kept a small multiple
+ * of chlorineAnnualNeed()'s own deliberately conservative scale rather than an independently
+ * calibrated figure, on the same "genuinely scarce, not a rubber-stamp gate" principle.
+ */
+function coagulantAnnualNeed(people: number): number {
+  return rn(Math.max(0.03, people * 0.00004), 4);
+}
+
 /** §4.1: rapidFiltrationAndCoagulation's prerequisite. Per-State, not a blanket era string. */
 function analyticalChemistryDemonstrated(stateId: number): boolean {
   return isTechnologyStageAtLeast(getTechnologyStage("analyticalChemistry", stateId), "demonstrated");
@@ -214,6 +230,8 @@ export type ModernWaterTreatmentInvestmentResult = {
   wastewaterOperationsFunding: number;
   /** 0..1: this year's water-quality testing upkeep coverage (Tier ≥ 2 only). */
   chemicalTestCoverage: number;
+  /** 0..1: this year's Alum purchase coverage against coagulantAnnualNeed() (Tier ≥ 2 only). */
+  coagulantStockCoverage: number;
   /** 0..1: this year's Chlorine purchase coverage against chlorineAnnualNeed() (Tier ≥ 3 only). */
   chlorineStockCoverage: number;
   /** 0..1: unaddressed sludge backlog (wastewaterTreatmentTier ≥ 2 only) — an evolving stock, not
@@ -277,6 +295,7 @@ export function settleModernWaterTreatmentInvestment(args: {
       treatmentOperationsFunding: 0,
       wastewaterOperationsFunding: 0,
       chemicalTestCoverage: 0,
+      coagulantStockCoverage: 0,
       chlorineStockCoverage: 0,
       sludgeBacklog: wastewaterTier >= 2 ? previous.sludgeBacklog : 0,
       effluentTestCoverage: 0,
@@ -394,6 +413,22 @@ export function settleModernWaterTreatmentInvestment(args: {
   // sludge to backlog yet.
   const sludgeBacklog = wastewaterTier >= 2 ? clamp01(previous.sludgeBacklog * 0.7 + (1 - sludgeOpsFunding) * 0.3) : 0;
 
+  // Alum purchase (§15): same real-Good-draw mechanic as the Chlorine block below, one step
+  // earlier on the drinking ladder — coagulation/rapid filtration (Tier 2) needs Alum, not Chlorine.
+  let coagulantStockCoverage = 0;
+  if (drinkingTier >= 2) {
+    const marketId = burg.market ?? 0;
+    const alumGood = getGoods().find(good => good.name === "Alum");
+    const needed = coagulantAnnualNeed(people);
+    if (marketId && alumGood && needed > 0) {
+      const coagulantLiquid = Math.max(0, burg.treasury ?? 0);
+      const coagulantBudget = coagulantLiquid * MODERN_COAGULANT_BUDGET_SHARE;
+      const { units, cost } = Markets.consumeForMarketInvestment(marketId, alumGood.i, needed, coagulantBudget);
+      if (cost > 0) burg.treasury = rn((burg.treasury ?? 0) - cost, 2);
+      coagulantStockCoverage = clamp01(units / needed);
+    }
+  }
+
   // Chlorine purchase (§15): a real Good draw from the local market, not cash-only upkeep — the
   // mechanic Phase 4 introduces. Drawn from its own small budget slice, separate from the cash ops
   // pool above, and capped by both that budget and actual market stock (Markets.
@@ -421,6 +456,7 @@ export function settleModernWaterTreatmentInvestment(args: {
     treatmentOperationsFunding: rn(treatmentOperationsFunding, 4),
     wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
     chemicalTestCoverage: rn(chemicalTestCoverage, 4),
+    coagulantStockCoverage: rn(coagulantStockCoverage, 4),
     chlorineStockCoverage: rn(chlorineStockCoverage, 4),
     sludgeBacklog: rn(sludgeBacklog, 4),
     effluentTestCoverage: rn(effluentTestCoverage, 4),
