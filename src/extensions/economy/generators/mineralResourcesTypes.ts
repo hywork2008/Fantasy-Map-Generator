@@ -20,7 +20,9 @@ export type OreCommodity = (typeof ORE_COMMODITIES)[number];
  * than renamed (docs/plan/phosphate-fertilizer-vertical-slice.md §3.2). "bauxite" follows the
  * same convention (docs/plan/electrolytic-industry-vertical-slice.md §3.2), as does "cinnabar"
  * (docs/plan/cinnabar-mercury-vertical-slice.md §3.2) and "crude oil"
- * (docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2).
+ * (docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2). "natural gas" rides along
+ * as crude oil's associated-commodity sibling in the same oilField district
+ * (docs/plan/natural-gas-lng-power-generation.md §3.2).
  */
 export const FUEL_MINERAL_COMMODITIES = [
   "coal",
@@ -29,7 +31,8 @@ export const FUEL_MINERAL_COMMODITIES = [
   "phosphate rock",
   "bauxite",
   "cinnabar",
-  "crude oil"
+  "crude oil",
+  "natural gas"
 ] as const;
 
 export type FuelMineralCommodity = (typeof FUEL_MINERAL_COMMODITIES)[number];

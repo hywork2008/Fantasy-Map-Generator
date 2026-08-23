@@ -26,6 +26,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateMercuryChainGoods,
+  migrateNaturalGasChainGoods,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
   migratePomaceDistillationGoods,
@@ -474,6 +475,29 @@ describe("GoodsModule", () => {
     });
     expect(lubricatingOil?.recipes).toBeUndefined();
     expect(migratePetroleumChainGoods()).toBe(false);
+  });
+
+  // docs/plan/natural-gas-lng-power-generation.md §3.2-3.3, §3.12.
+  it("appends Natural Gas (mined, no recipe) and LNG (plant-only, no recipe)", () => {
+    setGoods([
+      { i: 1, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migrateNaturalGasChainGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const naturalGas = byName.get("Natural Gas");
+    const lng = byName.get("LNG");
+    expect(naturalGas).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(naturalGas?.requiredTechnology).toBeUndefined();
+    expect(naturalGas?.recipes).toBeUndefined();
+    expect(lng).toMatchObject({
+      requiredTechnology: "naturalGasLiquefaction",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(lng?.recipes).toBeUndefined();
+    expect(migrateNaturalGasChainGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

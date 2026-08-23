@@ -40,3 +40,20 @@ export interface TelegraphLine {
   lastFundedYear: number;
   lastFailureReason?: PowerFailureReason;
 }
+
+/**
+ * Same shape as PowerStation — the second fuel source (LNG instead of Coal) feeding the same
+ * generationCapacity pool PowerGridInvestment allocates to markets. Design: docs/plan/natural-
+ * gas-lng-power-generation.md §3.9.
+ */
+export interface GasPowerStation {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+  generationCapacity: number;
+  lastFailureReason?: PowerFailureReason;
+}

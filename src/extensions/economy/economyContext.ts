@@ -21,6 +21,7 @@ import type {
   ChlorinePlant,
   ExperimentalWorkshop,
   HospitalInstallation,
+  LNGPlant,
   MedicalCareReliefRow,
   MercuryPlant,
   OilRefineryPlant,
@@ -31,7 +32,7 @@ import type { ConstructionOperation } from "./generators/constructionEmploymentT
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Dam, DamSite } from "./generators/damTypes";
-import type { PowerStation, TelegraphLine } from "./generators/electricalTypes";
+import type { GasPowerStation, PowerStation, TelegraphLine } from "./generators/electricalTypes";
 import type { ChlorAlkaliPlant, ElectrolysisPlant } from "./generators/electrolysisTypes";
 import type {
   EscortActiveContract,
@@ -181,6 +182,8 @@ let _electrolysisPlantsLastSettledYearFallback: number | null = null;
 let _chlorAlkaliPlantsLastSettledYearFallback: number | null = null;
 let _mercuryPlantsLastSettledYearFallback: number | null = null;
 let _oilRefineryPlantsLastSettledYearFallback: number | null = null;
+let _lngPlantsLastSettledYearFallback: number | null = null;
+let _gasPowerStationsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _damsLastSettledYearFallback: number | null = null;
 let _leveesLastSettledYearFallback: number | null = null;
@@ -256,6 +259,8 @@ export function clearEconomyContext(): void {
   _chlorAlkaliPlantsLastSettledYearFallback = null;
   _mercuryPlantsLastSettledYearFallback = null;
   _oilRefineryPlantsLastSettledYearFallback = null;
+  _lngPlantsLastSettledYearFallback = null;
+  _gasPowerStationsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
   _damsLastSettledYearFallback = null;
   _leveesLastSettledYearFallback = null;
@@ -1577,6 +1582,26 @@ export function getOilRefineryPlants(): OilRefineryPlant[] {
 export function setOilRefineryPlants(rows: readonly OilRefineryPlant[]): void {
   setSliceArray("oilRefineryPlants", rows);
 }
+/**
+ * Same shape as getOilRefineryPlants — a single-output liquefaction plant (LNG only).
+ * Design: docs/plan/natural-gas-lng-power-generation.md §3.8.
+ */
+export function getLNGPlants(): LNGPlant[] {
+  return getSliceArray<LNGPlant>("lngPlants");
+}
+export function setLNGPlants(rows: readonly LNGPlant[]): void {
+  setSliceArray("lngPlants", rows);
+}
+/**
+ * Same shape as getPowerStations — the second fuel source (LNG instead of Coal).
+ * Design: docs/plan/natural-gas-lng-power-generation.md §3.9.
+ */
+export function getGasPowerStations(): GasPowerStation[] {
+  return getSliceArray<GasPowerStation>("gasPowerStations");
+}
+export function setGasPowerStations(rows: readonly GasPowerStation[]): void {
+  setSliceArray("gasPowerStations", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1742,6 +1767,30 @@ export function getOilRefineryPlantsLastSettledYear(): number | null {
 export function setOilRefineryPlantsLastSettledYear(year: number): void {
   writeYearToSlice("oilRefineryPlantsLastSettledYear", year, value => {
     _oilRefineryPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards LNGPlants.settleAnnual(), same shape as getOilRefineryPlantsLastSettledYear.
+ * Design: docs/plan/natural-gas-lng-power-generation.md §3.8.
+ */
+export function getLNGPlantsLastSettledYear(): number | null {
+  return yearFromSlice("lngPlantsLastSettledYear", _lngPlantsLastSettledYearFallback);
+}
+export function setLNGPlantsLastSettledYear(year: number): void {
+  writeYearToSlice("lngPlantsLastSettledYear", year, value => {
+    _lngPlantsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards GasPowerStations.settleAnnual(), same shape as getPowerStationsLastSettledYear.
+ * Design: docs/plan/natural-gas-lng-power-generation.md §3.9.
+ */
+export function getGasPowerStationsLastSettledYear(): number | null {
+  return yearFromSlice("gasPowerStationsLastSettledYear", _gasPowerStationsLastSettledYearFallback);
+}
+export function setGasPowerStationsLastSettledYear(year: number): void {
+  writeYearToSlice("gasPowerStationsLastSettledYear", year, value => {
+    _gasPowerStationsLastSettledYearFallback = value;
   });
 }
 /** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */

@@ -971,6 +971,41 @@ const ERA_7: readonly TechnologyDefinition[] = [
     demonstrated: { min: { refinedFuelAccess: 0.25, steelAccess: 0.4, treasury: 360 } },
     adopted: { min: { refinedFuelAccess: 0.35, steelAccess: 0.45, administration: 0.5, treasury: 430 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/natural-gas-lng-power-generation.md §3.5. Same two-prerequisite shape as
+  // oilRefiningAndFractionation (modernDrillingAndFieldOperations + highPressureChemicalApparatus)
+  // — a sibling node, not dependent on oilRefiningAndFractionation. naturalGasAccess's thresholds
+  // sit lower than petroleumAccess's equivalents because Natural Gas is the associated/secondary
+  // commodity in oilField deposits (0.25x Crude Oil's yield scale).
+  {
+    id: "naturalGasLiquefaction",
+    label: "Natural gas liquefaction",
+    era: 7,
+    scope: "state",
+    prerequisites: ["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"],
+    known: { min: { naturalGasAccess: 0.1, experimentRecord: 0.68, treasury: 300 } },
+    demonstrated: { min: { lngPlantTrialYears: 2, naturalGasAccess: 0.12, treasury: 360 } },
+    adopted: { min: { lngPlantInstallations: 1, administration: 0.6, treasury: 420 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/natural-gas-lng-power-generation.md §3.6. Two prerequisites converge here —
+  // naturalGasLiquefaction (the LNG supply chain) and generatorAndMotor (the base electrical-
+  // engineering node PowerStations already requires) — the same shape as generatorAndMotor's own
+  // two-prerequisite convergence. administration sits above both prerequisites' own adopted floors
+  // (naturalGasLiquefaction's 0.6, generatorAndMotor's 0.55) to avoid an automatic pass-through the
+  // instant either one adopts. Unlike internalCombustionEngine's still-unconnected effect, this
+  // node's effect (GasPowerStations) is wired directly into PowerGridInvestment's existing
+  // generationCapacity pool (§3.10) — the first "later oil/gas energy supply" roadmap §9.3 promises.
+  {
+    id: "gasFiredElectricityGeneration",
+    label: "Gas-fired electricity generation",
+    era: 7,
+    scope: "state",
+    prerequisites: ["naturalGasLiquefaction", "generatorAndMotor"],
+    known: { min: { lngAccess: 0.15, treasury: 440 } },
+    demonstrated: { min: { gasPowerStationTrialYears: 2, lngAccess: 0.2, treasury: 500 } },
+    adopted: { min: { gasPowerStationInstallations: 1, administration: 0.65, treasury: 560 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 

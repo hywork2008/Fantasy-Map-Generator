@@ -87,6 +87,14 @@ describe("MineralResourcesModule", () => {
     expect(isMineSuppliedGoodName("Crude Oil")).toBe(true);
   });
 
+  // docs/plan/natural-gas-lng-power-generation.md §3.2, same "bypasses smelting" shape as crude
+  // oil above — natural gas is crude oil's associated-commodity sibling in the same oilField
+  // district.
+  it("maps natural gas to a directly mine-supplied Good, same as crude oil", () => {
+    expect(getMinedGoodName("natural gas")).toBe("natural gas");
+    expect(isMineSuppliedGoodName("Natural Gas")).toBe(true);
+  });
+
   it("derives greater groundwater pressure from rainfall and a river, without using it to relocate deposits", () => {
     const priorGrid = worldContext.grid;
     worldContext.pack.cells.g = Uint16Array.from([0, 1]);

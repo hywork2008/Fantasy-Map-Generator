@@ -2,9 +2,9 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getDams, getPowerGridLayer, getPowerStations, getWorldContext } from "../economyContext";
+import { getDams, getGasPowerStations, getPowerGridLayer, getPowerStations, getWorldContext } from "../economyContext";
 import type { Dam } from "../generators/damTypes";
-import type { PowerStation } from "../generators/electricalTypes";
+import type { GasPowerStation, PowerStation } from "../generators/electricalTypes";
 
 const STATION_FILL = "#fff3cc";
 const STATION_STROKE = "#8a5a00";
@@ -14,16 +14,17 @@ const INACTIVE_OPACITY = 0.4;
 const TRIAL_OPACITY = 0.7;
 
 /**
- * A generation site feeding the electricity pool: either a coal PowerStation or an electrified,
- * active Dam (docs/plan/electric-power-and-telegraph.md §3.9-§3.10 — PowerGridInvestment pools
- * both the same way). Keyed by burgId, the same sponsor/market association the simulation itself
- * uses; a Dam's own physical siteId/location is left to the Dams layer (drawDams.ts) — this layer
- * is about grid connectivity, not restating the dam icon.
+ * A generation site feeding the electricity pool: a coal PowerStation, a gas-fired
+ * GasPowerStation, or an electrified, active Dam (docs/plan/electric-power-and-telegraph.md
+ * §3.9-§3.10, docs/plan/natural-gas-lng-power-generation.md §3.9-§3.10 — PowerGridInvestment
+ * pools all three the same way). Keyed by burgId, the same sponsor/market association the
+ * simulation itself uses; a Dam's own physical siteId/location is left to the Dams layer
+ * (drawDams.ts) — this layer is about grid connectivity, not restating the dam icon.
  */
 interface GenerationSite {
   burgId: number;
   stateId: number;
-  kind: "coal" | "hydro";
+  kind: "coal" | "gas" | "hydro";
   role: "trial" | "service";
   active: boolean;
   utilization: number;
@@ -32,7 +33,8 @@ interface GenerationSite {
 
 /**
  * Visualizes the roadmap §9.3 "送電網・電力事業" node, which previously had no map representation:
- * a ⚡ marker at every Burg hosting an active PowerStation or electrified Dam (発電所), plus —
+ * a ⚡ marker at every Burg hosting an active PowerStation, GasPowerStation, or electrified Dam
+ * (発電所), plus —
  * once a State's `powerGrid` technology reaches `adopted` — schematic hub-and-spoke transmission
  * lines from every active generation site to that State's capital Burg (送電網). The capital is the
  * only plausible hub to draw a line to: `PowerGridInvestment` (§3.10) has no persisted line-by-line
@@ -71,6 +73,15 @@ function collectGenerationSites(burgs: readonly (Burg | undefined)[]): Generatio
     utilization: plant.utilization,
     generationCapacity: plant.generationCapacity
   });
+  const fromGasStation = (plant: GasPowerStation): GenerationSite => ({
+    burgId: plant.burgId,
+    stateId: plant.stateId,
+    kind: "gas",
+    role: plant.role,
+    active: plant.active,
+    utilization: plant.utilization,
+    generationCapacity: plant.generationCapacity
+  });
   const fromDam = (dam: Dam): GenerationSite => ({
     burgId: dam.burgId,
     stateId: dam.stateId,
@@ -85,6 +96,11 @@ function collectGenerationSites(burgs: readonly (Burg | undefined)[]): Generatio
     const burg = burgs[plant.burgId];
     if (!burg?.i || burg.removed) continue;
     sites.push(fromStation(plant));
+  }
+  for (const plant of getGasPowerStations()) {
+    const burg = burgs[plant.burgId];
+    if (!burg?.i || burg.removed) continue;
+    sites.push(fromGasStation(plant));
   }
   for (const dam of getDams()) {
     if (!dam.electrified) continue;
@@ -103,9 +119,9 @@ function siteOpacity(site: GenerationSite): number {
 function stationMarkup(site: GenerationSite, burg: Burg | undefined): string {
   if (!burg?.i) return "";
   const opacity = siteOpacity(site);
-  const icon = site.kind === "hydro" ? "💧⚡" : "⚡";
+  const icon = site.kind === "hydro" ? "💧⚡" : site.kind === "gas" ? "🔥⚡" : "⚡";
   const statusLabel = !site.active ? "idle" : site.role === "trial" ? "trial" : "in service";
-  const fuel = site.kind === "hydro" ? "hydroelectric" : "coal-fired";
+  const fuel = site.kind === "hydro" ? "hydroelectric" : site.kind === "gas" ? "gas-fired" : "coal-fired";
   const title = escapeHtml(
     `${burg.name ?? `Burg ${burg.i}`}: ${fuel} power station — ${statusLabel}` +
       (site.active

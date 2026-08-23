@@ -79,6 +79,19 @@ export const MERCURY_PLANT_BUDGET = 14;
  * See docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
  */
 export const OIL_REFINERY_PLANT_BUDGET = 30;
+/**
+ * calibration TBD — a cryogenic liquefaction plant: compressor/refrigeration machinery is
+ * heavier capital than fractional distillation alone (OIL_REFINERY_PLANT_BUDGET 30), but lighter
+ * than brine electrolysis (CHLOR_ALKALI_PLANT_BUDGET 34).
+ * See docs/plan/natural-gas-lng-power-generation.md §3.8.
+ */
+export const LNG_PLANT_BUDGET = 32;
+/**
+ * calibration TBD — a gas-turbine hall is lighter capital than a full coal-fired boiler+turbine
+ * plant (POWER_STATION_BUDGET 36), but still a serious power-generation asset above
+ * CHLOR_ALKALI_PLANT_BUDGET(34). See docs/plan/natural-gas-lng-power-generation.md §3.9.
+ */
+export const GAS_POWER_STATION_BUDGET = 33;
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;

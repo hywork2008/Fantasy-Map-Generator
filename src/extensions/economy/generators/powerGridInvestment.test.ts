@@ -7,6 +7,7 @@ import {
   getMarkets,
   initEconomyContext,
   setDams,
+  setGasPowerStations,
   setMarkets,
   setPowerStations
 } from "../economyContext";
@@ -172,6 +173,32 @@ describe("PowerGridInvestmentModule", () => {
         electrified: true,
         generationCapacity: TARGET_ELECTRICITY_PER_1000_POPULATION,
         floodProtectionRating: 0.5
+      }
+    ]);
+
+    expect(PowerGridInvestment.settleAnnual()).toBe(true);
+
+    const market = getMarkets().find(entry => entry.i === 1);
+    expect(market?.electricityStock).toBeCloseTo(ELECTRICITY_ADOPTION_RATE, 5);
+  });
+
+  it("pools a GasPowerStation's generationCapacity alongside PowerStation capacity", () => {
+    worldContext.pack = {
+      states: [{ i: 0 }, { i: 1, name: "Volta", removed: false }],
+      burgs: [{ i: 0 }, { i: 1, state: 1, market: 1, population: 1000, removed: false }]
+    } as unknown as PackedGraph;
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
+    setPowerStations([]);
+    setGasPowerStations([
+      {
+        burgId: 1,
+        stateId: 1,
+        role: "service",
+        active: true,
+        utilization: 1,
+        documentedRuns: 5,
+        lastFundedYear: 1889,
+        generationCapacity: TARGET_ELECTRICITY_PER_1000_POPULATION
       }
     ]);
 

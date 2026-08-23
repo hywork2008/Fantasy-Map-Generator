@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-23
+
+- docs/plan/natural-gas-lng-power-generation.md
+
 2026-08-21
 
 - docs/plan/climate-disaster-drought.md

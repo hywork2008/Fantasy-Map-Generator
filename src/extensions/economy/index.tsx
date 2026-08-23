@@ -99,6 +99,7 @@ import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
 import { registerLogHarvest, tickForestRegrowth } from "./generators/forestStock";
+import { GasPowerStations } from "./generators/gasPowerStations";
 import {
   type Good,
   Goods,
@@ -117,6 +118,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateMercuryChainGoods,
+  migrateNaturalGasChainGoods,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
   migratePhosphateGoods,
@@ -145,6 +147,7 @@ import { InnStays } from "./generators/innStays";
 import { LeveeSites } from "./generators/leveeSites";
 import { Levees } from "./generators/levees";
 import { clearLiveAnimalCatchAccumulators } from "./generators/liveAnimalCatch";
+import { LNGPlants } from "./generators/lngPlants";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -2580,6 +2583,7 @@ export function init(api: ExtensionAPI): void {
     const migratedAlloySteel = migrateAlloySteelGoods();
     const migratedMercuryChain = migrateMercuryChainGoods();
     const migratedPetroleumChain = migratePetroleumChainGoods();
+    const migratedNaturalGasChain = migrateNaturalGasChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -2605,6 +2609,7 @@ export function init(api: ExtensionAPI): void {
       migratedAlloySteel ||
       migratedMercuryChain ||
       migratedPetroleumChain ||
+      migratedNaturalGasChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||
@@ -2949,9 +2954,11 @@ export function init(api: ExtensionAPI): void {
         // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
         NitrogenFertilizerInvestment.settleAnnual();
         IndustrialTechInvestment.settleAnnual();
-        // Allocates last year's PowerStations generation capacity (era-6 plant block below) to
-        // markets by population. Does not touch marketTreasury — PowerStations already paid the
-        // capital/operating cost (docs/plan/electric-power-and-telegraph.md §3.10).
+        // Allocates last year's PowerStations/GasPowerStations generation capacity (era-6/7 plant
+        // block below) to markets by population. Does not touch marketTreasury — PowerStations/
+        // GasPowerStations already paid the capital/operating cost
+        // (docs/plan/electric-power-and-telegraph.md §3.10, docs/plan/natural-gas-lng-power-
+        // generation.md §3.10).
         PowerGridInvestment.settleAnnual();
         // Rolls this year's per-State drought/heatwave severity and writes climateFoodStress —
         // must run before updateAnnualAgriculture() so this year's dryness feeds this year's
@@ -3106,6 +3113,10 @@ export function init(api: ExtensionAPI): void {
         // PowerGridInvestment (annualAgTech block above) reads this year's output starting next
         // year (docs/plan/electric-power-and-telegraph.md §3.9).
         PowerStations.settleAnnual();
+        // LNG/Copper Wire/Machine Parts only — the second fuel source joining the same
+        // generationCapacity pool via PowerGridInvestment. docs/plan/natural-gas-lng-power-
+        // generation.md §3.9.
+        GasPowerStations.settleAnnual();
         // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
         TelegraphLines.settleAnnual();
         // Stone/Timber founding/upkeep, plus Copper Wire/Machine Parts once electrified (no Coal —
@@ -3138,6 +3149,9 @@ export function init(api: ExtensionAPI): void {
         // Crude Oil/Coal/Firebrick only, independent of every other plant above — the era-7
         // refining step. docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
         OilRefineryPlants.settleAnnual();
+        // Natural Gas/Coal/Machine Parts only, independent of every other plant above — the
+        // era-7 liquefaction step. docs/plan/natural-gas-lng-power-generation.md §3.8.
+        LNGPlants.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
@@ -3344,6 +3358,7 @@ export function init(api: ExtensionAPI): void {
     const migratedAlloySteel = migrateAlloySteelGoods();
     const migratedMercuryChain = migrateMercuryChainGoods();
     const migratedPetroleumChain = migratePetroleumChainGoods();
+    const migratedNaturalGasChain = migrateNaturalGasChainGoods();
     const migratedGrapes = migrateGrapesGood();
     const migratedPerennialFruits = migratePerennialFruitGoods();
     const migratedRaisins = migrateRaisinsGood();
@@ -3369,6 +3384,7 @@ export function init(api: ExtensionAPI): void {
       migratedAlloySteel ||
       migratedMercuryChain ||
       migratedPetroleumChain ||
+      migratedNaturalGasChain ||
       migratedGrapes ||
       migratedPerennialFruits ||
       migratedRaisins ||

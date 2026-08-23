@@ -3128,6 +3128,40 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "oilRefiningAndFractionation"
   },
   {
+    // Associated natural gas riding along Crude Oil in the same oilField deposits. Cell placement
+    // comes from the same MineralDeposit/MineOperation as Crude Oil (mineralResources.ts) — a
+    // secondary commodity at 0.25x scale, the same "one district, two commodities" shape as
+    // Sulfur/Saltpeter riding the same evaporite deposits. No requiredTechnology, same "raw ore is
+    // never gated" pattern as Bauxite/Cinnabar/Crude Oil. See docs/plan/natural-gas-lng-power-
+    // generation.md §3.2.
+    name: "Natural Gas",
+    warEconomyType: "strategic",
+    tags: ["fuel", "mineral"],
+    icon: "good-unknown",
+    color: "#3a5f6b",
+    value: 5,
+    chance: 0,
+    unit: "therm",
+    demandCoverage: {}
+  },
+  {
+    // Cryogenically liquefied out of Natural Gas by LNGPlants only — no craft-worker recipe, same
+    // "capital-only" reasoning as Kerosene/Mercury/Aluminum: liquefaction needs industrial
+    // compressor/refrigeration equipment a household workshop does not have. Deliberately carries
+    // no demandCoverage — no household natural-gas/heating use is modeled (same simplification as
+    // Kerosene skipping household lamp use). See docs/plan/natural-gas-lng-power-generation.md §3.3.
+    name: "LNG",
+    warEconomyType: "strategic",
+    tags: ["fuel", "industrial"],
+    icon: "good-unknown",
+    color: "#cfe8f0",
+    value: 12,
+    chance: 0,
+    unit: "therm",
+    demandCoverage: {},
+    requiredTechnology: "naturalGasLiquefaction"
+  },
+  {
     // "One Good, two supply sites" like Sulfuric Acid: this recipe is the craft-worker path
     // (production-generator.ts worker loop); PhosphateFertilizerPlants (Phase 2, docs/plan/
     // phosphate-fertilizer-vertical-slice.md §3.7) adds a second, State-funded capital path.
@@ -3991,6 +4025,28 @@ export function migratePetroleumChainGoods(): boolean {
   let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   let changed = false;
   for (const name of PETROLEUM_CHAIN_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  return changed;
+}
+
+const NATURAL_GAS_CHAIN_GOOD_NAMES = ["Natural Gas", "LNG"] as const;
+
+/**
+ * Appends the Natural Gas/LNG chain (docs/plan/natural-gas-lng-power-generation.md §3.2-3.3) to
+ * older catalogues without seeding stock. Same shape as migratePetroleumChainGoods — neither Good
+ * carries a recipe, so no ingredient-id resolution pass is needed.
+ */
+export function migrateNaturalGasChainGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of NATURAL_GAS_CHAIN_GOOD_NAMES) {
     if (goods.some(good => good.name === name)) continue;
     const shipped = Goods.getDefaultGood(name);
     if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);

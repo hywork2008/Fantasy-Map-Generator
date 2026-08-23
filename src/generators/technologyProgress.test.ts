@@ -1091,6 +1091,42 @@ describe("technologyProgress", () => {
     expect(getTechnologyStage("modernDrillingAndFieldOperations", 1)).toBe("locked");
   });
 
+  // docs/plan/natural-gas-lng-power-generation.md §3.5-3.6.
+  it("defines naturalGasLiquefaction as a sibling of oilRefiningAndFractionation and gasFiredElectricityGeneration as its downstream power node", () => {
+    const liquefaction = TECHNOLOGY_DEFINITIONS.find(def => def.id === "naturalGasLiquefaction");
+    expect(liquefaction?.era).toBe(7);
+    expect(liquefaction?.prerequisites).toEqual(["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"]);
+    expect(liquefaction?.known.min?.naturalGasAccess).toBe(0.1);
+    expect(liquefaction?.demonstrated.min?.lngPlantTrialYears).toBe(2);
+    expect(liquefaction?.adopted.min?.lngPlantInstallations).toBe(1);
+
+    const gasPower = TECHNOLOGY_DEFINITIONS.find(def => def.id === "gasFiredElectricityGeneration");
+    expect(gasPower?.era).toBe(7);
+    expect(gasPower?.prerequisites).toEqual(["naturalGasLiquefaction", "generatorAndMotor"]);
+    expect(gasPower?.known.min?.lngAccess).toBe(0.15);
+    expect(gasPower?.demonstrated.min?.gasPowerStationTrialYears).toBe(2);
+    expect(gasPower?.adopted.min?.gasPowerStationInstallations).toBe(1);
+    // administration sits above both prerequisites' own adopted floors (naturalGasLiquefaction's
+    // 0.6, generatorAndMotor's 0.55) so neither one adopting alone auto-passes this node.
+    expect(gasPower?.adopted.min?.administration).toBeGreaterThan(liquefaction?.adopted.min?.administration ?? 0);
+  });
+
+  it("never lets naturalGasLiquefaction progress unless modernDrillingAndFieldOperations has reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      {
+        technologyId: "modernDrillingAndFieldOperations",
+        scope: "state",
+        ownerId: 1,
+        stage: "demonstrated",
+        diffusion: 0
+      }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("naturalGasLiquefaction", 1)).toBe("locked");
+  });
+
   // docs/plan/rocket-and-space-development-vertical-slice.md §3.3.
   it("defines the era-8 rocketry/space chain with militarySignalRockets as an independent leaf, not a prerequisite of any other node", () => {
     const era8 = TECHNOLOGY_DEFINITIONS.filter(def => def.era === 8);
@@ -1223,6 +1259,66 @@ describe("technologyProgress", () => {
     expect(lines.some(line => line.includes("oilRefineryInstallations"))).toBe(false);
   });
 
+  // docs/plan/natural-gas-lng-power-generation.md §3.4 — same shape as the petroleumAccess/
+  // refinedFuelAccess/oilRefineryTrialYears/oilRefineryInstallations test above.
+  it("computes naturalGasAccess/lngAccess/lngPlantTrialYears/lngPlantInstallations from market stock, a ChemistryTrial row, and LNGPlant rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [
+          { i: 70, name: "Natural Gas" },
+          { i: 71, name: "LNG" }
+        ],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: {
+              70: { stock: 10 }, // clamp01(10 / 2) = 1, past every naturalGasAccess threshold
+              71: { stock: 10 } // clamp01(10 / 2) = 1, past every lngAccess threshold
+            }
+          }
+        ],
+        chemistryTrials: [
+          {
+            kind: "lngPlant",
+            burgId: 1,
+            stateId: 1,
+            status: "running",
+            operatingYears: 5,
+            documentedRuns: 5,
+            failureCount: 0,
+            inputsConsumed: 0,
+            outputsDelivered: 0
+          }
+        ],
+        lngPlants: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    setTechnologyProgressForTests([
+      { technologyId: "modernDrillingAndFieldOperations", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "naturalGasLiquefaction");
+    // naturalGasAccess(1) clears known/demonstrated; lngPlantTrialYears(5)>=2 clears demonstrated;
+    // lngPlantInstallations(1)>=1 clears adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("naturalGasAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("lngPlantTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("lngPlantInstallations"))).toBe(false);
+  });
+
   it("computes copperWireAccess/powerStationTrialYears/powerStationInstallations from market stock and PowerStation rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {
     installMinimalWorld();
     simulationContext.extensions = {
@@ -1258,6 +1354,45 @@ describe("technologyProgress", () => {
     expect(lines.some(line => line.includes("copperWireAccess"))).toBe(false);
     expect(lines.some(line => line.includes("powerStationTrialYears"))).toBe(false);
     expect(lines.some(line => line.includes("powerStationInstallations"))).toBe(false);
+  });
+
+  // docs/plan/natural-gas-lng-power-generation.md §3.4 — same shape as the copperWireAccess/
+  // powerStationTrialYears/powerStationInstallations test above.
+  it("computes lngAccess/gasPowerStationTrialYears/gasPowerStationInstallations from market stock and GasPowerStation rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        goods: [{ i: 71, name: "LNG" }],
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 1,
+            goods: { 71: { stock: 10 } } // clamp01(10 / 2) = 1, past every lngAccess threshold
+          }
+        ],
+        gasPowerStations: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200,
+            generationCapacity: 2
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "gasFiredElectricityGeneration");
+    // lngAccess(1) clears known(0.15); gasPowerStationTrialYears(5)>=2 and
+    // gasPowerStationInstallations(1)>=1 clear demonstrated/adopted — none ever appear as unmet.
+    expect(lines.some(line => line.includes("lngAccess"))).toBe(false);
+    expect(lines.some(line => line.includes("gasPowerStationTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("gasPowerStationInstallations"))).toBe(false);
   });
 
   it("computes telegraphLineTrialYears/telegraphLineInstallations from TelegraphLine rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {

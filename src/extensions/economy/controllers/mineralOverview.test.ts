@@ -69,11 +69,12 @@ describe("refreshMineralOverview", () => {
     refreshMineralOverview();
 
     const state = getMineralOverviewState();
-    // 6 ore + coal/saltpeter/sulfur/phosphate rock/bauxite/cinnabar/crude oil (docs/plan/
+    // 10 ore (iron/copper/tin/lead/silver/gold/chromium/nickel/molybdenum/silicon) + coal/
+    // saltpeter/sulfur/phosphate rock/bauxite/cinnabar/crude oil/natural gas (docs/plan/
     // phosphate-fertilizer-vertical-slice.md §3.2, docs/plan/electrolytic-industry-vertical-
     // slice.md §3.2, docs/plan/cinnabar-mercury-vertical-slice.md §3.2, docs/plan/petroleum-and-
-    // internal-combustion-vertical-slice.md §3.2).
-    expect(state.commodities).toHaveLength(13);
+    // internal-combustion-vertical-slice.md §3.2, docs/plan/natural-gas-lng-power-generation.md §3.2).
+    expect(state.commodities).toHaveLength(18);
     expect(state.commodities.find(row => row.commodity === "iron")).toMatchObject({
       depositCount: 1,
       activeMineCount: 1,
@@ -95,6 +96,10 @@ describe("refreshMineralOverview", () => {
       status: "absent"
     });
     expect(state.commodities.find(row => row.commodity === "crude oil")).toMatchObject({
+      depositCount: 0,
+      status: "absent"
+    });
+    expect(state.commodities.find(row => row.commodity === "natural gas")).toMatchObject({
       depositCount: 0,
       status: "absent"
     });

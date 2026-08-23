@@ -3,12 +3,32 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setDams, setPowerStations } from "../economyContext";
+import {
+  clearEconomyContext,
+  initEconomyContext,
+  setDams,
+  setGasPowerStations,
+  setPowerStations
+} from "../economyContext";
 import type { Dam } from "../generators/damTypes";
-import type { PowerStation } from "../generators/electricalTypes";
+import type { GasPowerStation, PowerStation } from "../generators/electricalTypes";
 import { drawPowerGrid } from "./drawPowerGrid";
 
 function station(overrides: Partial<PowerStation> & Pick<PowerStation, "burgId" | "stateId">): PowerStation {
+  return {
+    role: "service",
+    active: true,
+    utilization: 1,
+    documentedRuns: 5,
+    lastFundedYear: 1889,
+    generationCapacity: 2,
+    ...overrides
+  };
+}
+
+function gasStation(
+  overrides: Partial<GasPowerStation> & Pick<GasPowerStation, "burgId" | "stateId">
+): GasPowerStation {
   return {
     role: "service",
     active: true,
@@ -52,6 +72,7 @@ describe("drawPowerGrid", () => {
       ]
     } as unknown as PackedGraph;
     setPowerStations([]);
+    setGasPowerStations([]);
     setDams([]);
   });
 
@@ -80,6 +101,16 @@ describe("drawPowerGrid", () => {
     const group = node.querySelector('g[data-burg-id="2"]');
     expect(Number(group?.getAttribute("opacity"))).toBeLessThan(1);
     expect(group?.querySelector("title")?.textContent).toContain("idle");
+  });
+
+  it("draws a distinct gas marker at an active GasPowerStation's Burg", () => {
+    setGasPowerStations([gasStation({ burgId: 2, stateId: 1 })]);
+
+    drawPowerGrid();
+
+    const group = node.querySelector('g[data-burg-id="2"]');
+    expect(group?.querySelector("text")?.textContent).toBe("🔥⚡");
+    expect(group?.querySelector("title")?.textContent).toContain("gas-fired power station");
   });
 
   it("draws a distinct hydro marker for an electrified Dam", () => {
