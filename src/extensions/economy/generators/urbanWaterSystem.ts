@@ -713,6 +713,7 @@ export function computeUrbanWaterSystem(args: {
    * Phase 2 fields above. */
   chemicalTestCoverage?: number;
   coagulantStockCoverage?: number;
+  limeStockCoverage?: number;
   chlorineStockCoverage?: number;
   /** Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16) overrides —
    * settleModernWaterTreatmentInvestment()'s wastewater Tier 2/3 results. */
@@ -775,6 +776,7 @@ export function computeUrbanWaterSystem(args: {
   const coagulantStockCoverage = isGiantState
     ? 0
     : (args.coagulantStockCoverage ?? previous?.coagulantStockCoverage ?? 0);
+  const limeStockCoverage = isGiantState ? 0 : (args.limeStockCoverage ?? previous?.limeStockCoverage ?? 0);
   const chlorineStockCoverage = isGiantState ? 0 : (args.chlorineStockCoverage ?? previous?.chlorineStockCoverage ?? 0);
   // Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16): Giants stay
   // at Roman-grade wastewaterTreatmentTier 1 (locked above), so neither field is ever meaningfully
@@ -968,6 +970,10 @@ export function computeUrbanWaterSystem(args: {
       (drinkingTreatmentTier >= 2
         ? 0.1 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) * clamp01(coagulantStockCoverage)
         : 0) -
+      // §17.2: Lime is a smaller, INDEPENDENT top-up on the Alum-gated term above, not another
+      // required factor stacked onto it — a Tier 2 plant with Alum but no local Lime still gets the
+      // full Alum-gated reduction above, just misses this smaller pH-correction/softening extra.
+      (drinkingTreatmentTier >= 2 ? 0.03 * clamp01(treatmentOperationsFunding) * clamp01(limeStockCoverage) : 0) -
       (drinkingTreatmentTier >= 3 ? 0.14 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0)
   );
 
@@ -1017,6 +1023,8 @@ export function computeUrbanWaterSystem(args: {
     (drinkingTreatmentTier >= 2
       ? 0.15 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) * clamp01(coagulantStockCoverage)
       : 0) +
+    // §17.2: same independent Lime top-up as the waterContamination term above.
+    (drinkingTreatmentTier >= 2 ? 0.04 * clamp01(treatmentOperationsFunding) * clamp01(limeStockCoverage) : 0) +
     (drinkingTreatmentTier >= 3 ? 0.2 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0);
   const drinkingWaterSecurity = clamp01(
     (drinkingBase + tierDrinkBonus + modernDrinkingBonus) *
@@ -1107,6 +1115,7 @@ export function computeUrbanWaterSystem(args: {
     wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
     chemicalTestCoverage: rn(chemicalTestCoverage, 4),
     coagulantStockCoverage: rn(coagulantStockCoverage, 4),
+    limeStockCoverage: rn(limeStockCoverage, 4),
     chlorineStockCoverage: rn(chlorineStockCoverage, 4),
     sludgeBacklog: rn(sludgeBacklog, 4),
     effluentTestCoverage: rn(effluentTestCoverage, 4),
@@ -1266,6 +1275,7 @@ function systemDefaults(
     wastewaterOperationsFunding: 0,
     chemicalTestCoverage: 0,
     coagulantStockCoverage: 0,
+    limeStockCoverage: 0,
     chlorineStockCoverage: 0,
     sludgeBacklog: 0,
     effluentTestCoverage: 0,
@@ -1383,6 +1393,7 @@ function industrialModernWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
     wastewaterOperationsFunding: funding,
     chemicalTestCoverage: tier >= 2 ? funding : 0,
     coagulantStockCoverage: tier >= 2 ? funding : 0,
+    limeStockCoverage: tier >= 2 ? funding : 0,
     chlorineStockCoverage: tier >= 3 ? funding : 0,
     effluentTestCoverage: tier >= 2 ? funding : 0
   });
@@ -2006,6 +2017,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
               wastewaterOperationsFunding: draft.wastewaterOperationsFunding,
               chemicalTestCoverage: draft.chemicalTestCoverage,
               coagulantStockCoverage: draft.coagulantStockCoverage,
+              limeStockCoverage: draft.limeStockCoverage,
               chlorineStockCoverage: draft.chlorineStockCoverage,
               sludgeBacklog: draft.sludgeBacklog,
               effluentTestCoverage: draft.effluentTestCoverage,
@@ -2057,6 +2069,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
           chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
           coagulantStockCoverage: modernInvestment.coagulantStockCoverage,
+          limeStockCoverage: modernInvestment.limeStockCoverage,
           chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
           sludgeBacklog: modernInvestment.sludgeBacklog,
           effluentTestCoverage: modernInvestment.effluentTestCoverage,
@@ -2091,6 +2104,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
         chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
         coagulantStockCoverage: modernInvestment.coagulantStockCoverage,
+        limeStockCoverage: modernInvestment.limeStockCoverage,
         chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
         sludgeBacklog: modernInvestment.sludgeBacklog,
         effluentTestCoverage: modernInvestment.effluentTestCoverage,

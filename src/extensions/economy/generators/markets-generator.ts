@@ -360,17 +360,28 @@ export class MarketsModule {
 
   /**
    * Buys up to `requestedUnits` of a Good from local market stock at the going customer price,
-   * capped by both available stock and `budget`. Unlike consumeForSmelting/consumeForMilitary
-   * (free draws recorded elsewhere), this spends real money and reports the cost so the caller
-   * can debit its own account (e.g. MarketTreasury.balance in AgTechInvestment.settleAnnual —
-   * docs/plan/rural-agtech-investment.md §3.3). Charges no Deal/tax; this is capital investment
-   * by the market itself, not a Burg purchase.
+   * capped by available stock, `budget`, and (optionally) `maxStockShare`. Unlike
+   * consumeForSmelting/consumeForMilitary (free draws recorded elsewhere), this spends real money
+   * and reports the cost so the caller can debit its own account (e.g. MarketTreasury.balance in
+   * AgTechInvestment.settleAnnual — docs/plan/rural-agtech-investment.md §3.3). Charges no
+   * Deal/tax; this is capital investment by the market itself, not a Burg purchase.
+   *
+   * `maxStockShare` (0..1, default 1 — every existing caller predates this parameter and keeps its
+   * exact prior behavior by omitting it) caps the draw to that fraction of CURRENT stock, the same
+   * "leave the rest for other consumers" idea consumeForConstruction/consumeForMint/
+   * consumeForMilitary/consumeForMetallurg already apply to their own free draws below. Pass it
+   * whenever this Good already has another, more established consumer sharing the same market
+   * stock with no coordination between the two — e.g. urbanWaterModernTreatment.ts's Alum/Lime
+   * purchases, which would otherwise be able to exhaust a market's entire Lime stock ahead of
+   * constructionEmployment.ts's Roman Concrete manufacturing (or vice versa) purely by which one's
+   * settle step happens to run first in a given cycle.
    */
   consumeForMarketInvestment(
     marketId: number,
     goodId: number,
     requestedUnits: number,
-    budget: number
+    budget: number,
+    maxStockShare: number = 1
   ): { units: number; cost: number } {
     const market = this.get(marketId);
     const marketGood = market?.goods[goodId];
@@ -383,7 +394,8 @@ export class MarketsModule {
     if (price <= 0) return { units: 0, cost: 0 };
 
     const affordableUnits = budget / price;
-    const units = rn(Math.min(requestedUnits, marketGood.stock, affordableUnits), 4);
+    const stockCap = marketGood.stock * Math.min(1, Math.max(0, maxStockShare));
+    const units = rn(Math.min(requestedUnits, stockCap, affordableUnits), 4);
     if (units <= 0) return { units: 0, cost: 0 };
 
     const cost = rn(units * price, 2);

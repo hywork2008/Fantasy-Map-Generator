@@ -26,16 +26,23 @@
  * Phase 4 (§15) adds two real per-State technology gates (`analyticalChemistry` for Tier 1→2,
  * `catalyticChemistry` for Tier 2→3 — both already exist in technologyDefinitions.ts, matching the
  * doc's §4.1 technology graph's own prerequisites for `rapidFiltrationAndCoagulation` and
- * `controlledWaterChlorination`) and two real Good draws, one per step: Tier 2 (coagulation/rapid
- * filtration) buys `Alum` and Tier 3 chlorination buys `Chlorine`, both from the burg's local market
+ * `controlledWaterChlorination`) and real Good draws, from the burg's local market
  * (`Markets.consumeForMarketInvestment`, the same paid-draw primitive `purchaseProjectMaterials`
- * already uses for Stone/Tools/Brick), so a Burg with no local Alum/Chlorine supply or trade route
- * gets little of that step's benefit regardless of budget. Chlorine plants (chlorinePlants.ts/
- * chlorAlkaliPlants.ts) currently produce ~0.15-0.6 barrels/plant/year, so Chlorine is a genuinely
- * scarce input, not a rubber-stamp gate; Alum (goods-generator.ts) is a generic mined mineral with
- * no dedicated production chain to size against the way Chlorine's plants do, so
- * coagulantAnnualNeed() below is deliberately kept small rather than backed by a specific yield
- * figure — revisit if a dedicated Alum extraction chain is ever added.
+ * already uses for Stone/Tools/Brick): Tier 2 (coagulation/rapid filtration) buys `Alum` and, as a
+ * smaller secondary draw, `Lime` (§17.2); Tier 3 chlorination buys `Chlorine`. A Burg with no local
+ * supply or trade route for a step's Good(s) gets little of that step's benefit regardless of
+ * budget. Chlorine plants (chlorinePlants.ts/chlorAlkaliPlants.ts) currently produce ~0.15-0.6
+ * barrels/plant/year, so Chlorine is a genuinely scarce input, not a rubber-stamp gate; Alum/Lime
+ * (goods-generator.ts) have no dedicated production chain to size their annual-need constants
+ * against the way Chlorine's plants do, so coagulantAnnualNeed()/limeAnnualNeed() below are
+ * deliberately kept small rather than backed by a specific yield figure — revisit if a dedicated
+ * extraction/manufacturing chain is ever added for either. Unlike Chlorine, Alum and Lime both
+ * already have an ESTABLISHED, higher-volume, uncoordinated consumer sharing the same market stock
+ * (apothecaryWorkshops.ts's adjuncts and constructionEmployment.ts's Roman Concrete feedstock,
+ * respectively) — §17.2 caps both draws to a minority share of current stock
+ * (`MODERN_TREATMENT_GOOD_MAX_STOCK_SHARE`, via `consumeForMarketInvestment`'s `maxStockShare`
+ * parameter) so this module can never exhaust either Good ahead of its established consumer purely
+ * by which settle step happens to run first in a given cycle.
  *
  * Phase 5 (§16) reuses the EXISTING `sanitaryEngineering` stock (urbanWaterTech.ts's
  * evolveWaterTechStocks(), a per-Burg 0..1 value already computed every year — §8's table names it
@@ -107,6 +114,18 @@ const MODERN_OPERATIONS_BUDGET_SHARE = 0.03;
 const MODERN_CHLORINE_BUDGET_SHARE = 0.025;
 /** Same idea as MODERN_CHLORINE_BUDGET_SHARE above, for the Tier 2 Alum purchase (§15). */
 const MODERN_COAGULANT_BUDGET_SHARE = 0.02;
+/** Same idea, for the Tier 2 Lime top-up purchase (§17.2). */
+const MODERN_LIME_BUDGET_SHARE = 0.015;
+/** Caps the Alum/Lime draws below to this fraction of a market's CURRENT stock
+ * (Markets.consumeForMarketInvestment's `maxStockShare`, §17.2/docs/plan/modern-urban-water-
+ * treatment-and-governance.md §17.2) — both Goods already have a more established, higher-volume
+ * consumer sharing the same market stock with no coordination between the two: `Alum` is also an
+ * apothecaryWorkshops.ts adjunct, and `Lime` is constructionEmployment.ts's Roman Concrete
+ * feedstock. Without a cap, this module's uncoordinated draw could exhaust either Good's entire
+ * local stock purely by which settle step happens to run first in a given cycle — this bounds that
+ * to a minority share regardless of ordering, so the established consumer always keeps the
+ * majority. Matches the existing precedent of consumeForMint's 0.2 cap in markets-generator.ts. */
+const MODERN_TREATMENT_GOOD_MAX_STOCK_SHARE = 0.2;
 
 function projectScale(people: number): number {
   return 0.5 + clamp01(people / 15000);
@@ -205,6 +224,15 @@ function coagulantAnnualNeed(people: number): number {
   return rn(Math.max(0.03, people * 0.00004), 4);
 }
 
+/**
+ * Sacks of Lime a Tier 2 plant needs per year for post-coagulation pH correction/softening (§17.2)
+ * — a smaller, secondary draw alongside coagulantAnnualNeed()'s Alum, same "kept conservative, no
+ * dedicated extraction chain to size against" reasoning.
+ */
+function limeAnnualNeed(people: number): number {
+  return rn(Math.max(0.02, people * 0.00002), 4);
+}
+
 /** §4.1: rapidFiltrationAndCoagulation's prerequisite. Per-State, not a blanket era string. */
 function analyticalChemistryDemonstrated(stateId: number): boolean {
   return isTechnologyStageAtLeast(getTechnologyStage("analyticalChemistry", stateId), "demonstrated");
@@ -232,6 +260,9 @@ export type ModernWaterTreatmentInvestmentResult = {
   chemicalTestCoverage: number;
   /** 0..1: this year's Alum purchase coverage against coagulantAnnualNeed() (Tier ≥ 2 only). */
   coagulantStockCoverage: number;
+  /** 0..1: this year's Lime purchase coverage against limeAnnualNeed() (Tier ≥ 2 only) — a smaller,
+   *  secondary pH-correction/softening draw alongside coagulantStockCoverage above (§17.2). */
+  limeStockCoverage: number;
   /** 0..1: this year's Chlorine purchase coverage against chlorineAnnualNeed() (Tier ≥ 3 only). */
   chlorineStockCoverage: number;
   /** 0..1: unaddressed sludge backlog (wastewaterTreatmentTier ≥ 2 only) — an evolving stock, not
@@ -296,6 +327,7 @@ export function settleModernWaterTreatmentInvestment(args: {
       wastewaterOperationsFunding: 0,
       chemicalTestCoverage: 0,
       coagulantStockCoverage: 0,
+      limeStockCoverage: 0,
       chlorineStockCoverage: 0,
       sludgeBacklog: wastewaterTier >= 2 ? previous.sludgeBacklog : 0,
       effluentTestCoverage: 0,
@@ -415,6 +447,8 @@ export function settleModernWaterTreatmentInvestment(args: {
 
   // Alum purchase (§15): same real-Good-draw mechanic as the Chlorine block below, one step
   // earlier on the drinking ladder — coagulation/rapid filtration (Tier 2) needs Alum, not Chlorine.
+  // maxStockShare caps this to a minority of the market's current Alum stock (§17.2) — Alum is
+  // also an apothecaryWorkshops.ts adjunct, an established consumer this draw must not crowd out.
   let coagulantStockCoverage = 0;
   if (drinkingTier >= 2) {
     const marketId = burg.market ?? 0;
@@ -423,16 +457,49 @@ export function settleModernWaterTreatmentInvestment(args: {
     if (marketId && alumGood && needed > 0) {
       const coagulantLiquid = Math.max(0, burg.treasury ?? 0);
       const coagulantBudget = coagulantLiquid * MODERN_COAGULANT_BUDGET_SHARE;
-      const { units, cost } = Markets.consumeForMarketInvestment(marketId, alumGood.i, needed, coagulantBudget);
+      const { units, cost } = Markets.consumeForMarketInvestment(
+        marketId,
+        alumGood.i,
+        needed,
+        coagulantBudget,
+        MODERN_TREATMENT_GOOD_MAX_STOCK_SHARE
+      );
       if (cost > 0) burg.treasury = rn((burg.treasury ?? 0) - cost, 2);
       coagulantStockCoverage = clamp01(units / needed);
+    }
+  }
+
+  // Lime purchase (§17.2): a smaller, secondary Tier 2 draw alongside Alum above, for post-
+  // coagulation pH correction/softening. Same maxStockShare protection — Lime is
+  // constructionEmployment.ts's Roman Concrete feedstock, a much higher-volume established
+  // consumer this draw must not crowd out (the actual case that motivated adding the parameter).
+  let limeStockCoverage = 0;
+  if (drinkingTier >= 2) {
+    const marketId = burg.market ?? 0;
+    const limeGood = getGoods().find(good => good.name === "Lime");
+    const needed = limeAnnualNeed(people);
+    if (marketId && limeGood && needed > 0) {
+      const limeLiquid = Math.max(0, burg.treasury ?? 0);
+      const limeBudget = limeLiquid * MODERN_LIME_BUDGET_SHARE;
+      const { units, cost } = Markets.consumeForMarketInvestment(
+        marketId,
+        limeGood.i,
+        needed,
+        limeBudget,
+        MODERN_TREATMENT_GOOD_MAX_STOCK_SHARE
+      );
+      if (cost > 0) burg.treasury = rn((burg.treasury ?? 0) - cost, 2);
+      limeStockCoverage = clamp01(units / needed);
     }
   }
 
   // Chlorine purchase (§15): a real Good draw from the local market, not cash-only upkeep — the
   // mechanic Phase 4 introduces. Drawn from its own small budget slice, separate from the cash ops
   // pool above, and capped by both that budget and actual market stock (Markets.
-  // consumeForMarketInvestment, the same paid-draw primitive purchaseProjectMaterials uses).
+  // consumeForMarketInvestment, the same paid-draw primitive purchaseProjectMaterials uses). No
+  // maxStockShare here (unlike Alum/Lime above) — Chlorine predates that parameter and has no
+  // comparably established competing consumer yet (Bleaching Powder is itself a small, era-6+
+  // niche good), so this is left as Phase 4 originally shipped it.
   let chlorineStockCoverage = 0;
   if (drinkingTier >= 3) {
     const marketId = burg.market ?? 0;
@@ -457,6 +524,7 @@ export function settleModernWaterTreatmentInvestment(args: {
     wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
     chemicalTestCoverage: rn(chemicalTestCoverage, 4),
     coagulantStockCoverage: rn(coagulantStockCoverage, 4),
+    limeStockCoverage: rn(limeStockCoverage, 4),
     chlorineStockCoverage: rn(chlorineStockCoverage, 4),
     sludgeBacklog: rn(sludgeBacklog, 4),
     effluentTestCoverage: rn(effluentTestCoverage, 4),

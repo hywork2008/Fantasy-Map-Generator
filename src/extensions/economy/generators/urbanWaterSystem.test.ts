@@ -701,6 +701,28 @@ describe("computeUrbanWaterSystem", () => {
     expect(stocked.drinkingWaterSecurity).toBeGreaterThan(unstocked.drinkingWaterSecurity);
   });
 
+  it("Lime adds a small independent top-up to Tier 2's benefit on top of fully-funded Alum coagulation (docs/plan/modern-urban-water-treatment-and-governance.md §17.2) — Lime is an extra, not another required factor on the Alum-gated term", () => {
+    const base = {
+      burg: burg({ population: 10, market: 1 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      drinkingTreatmentTier: 2 as const,
+      sourceProtection: 1,
+      treatmentOperationsFunding: 1,
+      chemicalTestCoverage: 1,
+      coagulantStockCoverage: 1
+    };
+    const withoutLime = computeUrbanWaterSystem({ ...base, limeStockCoverage: 0 });
+    const withLime = computeUrbanWaterSystem({ ...base, limeStockCoverage: 1 });
+
+    // A burg with Alum but no Lime still gets the full Alum-gated benefit above — this is a smaller
+    // top-up on top of it, not a fourth required multiplicative factor.
+    expect(withLime.drinkingWaterSecurity).toBeGreaterThan(withoutLime.drinkingWaterSecurity);
+    expect(withLime.waterContamination).toBeLessThan(withoutLime.waterContamination);
+  });
+
   it("a funded modern drinkingTreatmentTier 3 (controlled chlorination) lowers waterContamination and raises drinkingWaterSecurity further than Tier 2 alone", () => {
     const base = {
       burg: burg({ population: 10, market: 1 }),

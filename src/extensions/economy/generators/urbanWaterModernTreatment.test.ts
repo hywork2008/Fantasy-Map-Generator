@@ -485,6 +485,122 @@ describe("Phase 4: rapid filtration/coagulation and controlled chlorination", ()
     });
   });
 
+  describe("Lime purchase (drinkingTreatmentTier 2 only, §17.2)", () => {
+    const atTier3 = { ...noProgress, drinkingTreatmentTier: 3 as const, sourceProtection: 1 };
+
+    beforeEach(() => {
+      setGoods([
+        {
+          i: 1,
+          name: "Lime",
+          tags: ["construction"],
+          value: 2,
+          unit: "sack",
+          icon: "good-clay",
+          color: "#e8e2d0"
+        }
+      ]);
+    });
+
+    it("stays at 0 limeStockCoverage when the local market has no Lime stock, regardless of budget", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 0, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.limeStockCoverage).toBe(0);
+    });
+
+    it("buys Lime from the local market once at Tier 2, raising limeStockCoverage above 0", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const settlement = burg({ treasury: 50000, state: 1, market: 1 });
+      const before = settlement.treasury!;
+      const result = settleModernWaterTreatmentInvestment({
+        burg: settlement,
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.limeStockCoverage).toBeGreaterThan(0);
+      expect(settlement.treasury).toBeLessThan(before);
+    });
+
+    it("never buys Lime below drinkingTreatmentTier 2", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier1
+      });
+      expect(result.limeStockCoverage).toBe(0);
+    });
+
+    it("keeps buying Lime at Tier 3 too, alongside Alum and Chlorine", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier3
+      });
+      expect(result.limeStockCoverage).toBeGreaterThan(0);
+    });
+
+    it("caps the Lime purchase to a minority share of current stock even when budget and need would allow more (regression: without maxStockShare, this draw could exhaust a market's entire Lime stock ahead of constructionEmployment.ts's Roman Concrete manufacturing purely by which settle step runs first in a given cycle)", () => {
+      // A small stock, a large population (large limeAnnualNeed), and a generous treasury/budget —
+      // isolating maxStockShare as the only binding constraint (need and affordability both allow
+      // far more than the 1-sack stock could ever supply).
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 1, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 500000, state: 1, market: 1 }),
+        people: 50000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      // limeAnnualNeed(50000) = 1 sack; MODERN_TREATMENT_GOOD_MAX_STOCK_SHARE (0.2) caps the actual
+      // draw to 20% of the market's 1-sack stock, well short of both the 1-sack need and budget.
+      expect(result.limeStockCoverage).toBeCloseTo(0.2, 4);
+    });
+  });
+
   describe("Chlorine purchase (drinkingTreatmentTier 3 only)", () => {
     const atTier3 = { ...noProgress, drinkingTreatmentTier: 3 as const, sourceProtection: 1 };
 

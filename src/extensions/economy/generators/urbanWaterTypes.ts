@@ -167,6 +167,10 @@ export type UrbanWaterSystem = {
    * ≥ 2). Same "capped by real local market stock, not just treasury" shape as chlorineStockCoverage
    * below — see urbanWaterModernTreatment.ts. */
   coagulantStockCoverage: number;
+  /** 0..1 coverage of this year's Lime purchase against demand (active once drinkingTreatmentTier
+   * ≥ 2) — a smaller, secondary pH-correction/softening draw alongside coagulantStockCoverage
+   * above (§17.2). Same "capped by real local market stock, not just treasury" shape. */
+  limeStockCoverage: number;
   /** 0..1 coverage of this year's Chlorine purchase against demand (active once
    * drinkingTreatmentTier ≥ 3). Unlike every other funding ratio in this type, this one is capped
    * by real local Chlorine market stock, not just treasury — see urbanWaterModernTreatment.ts. */

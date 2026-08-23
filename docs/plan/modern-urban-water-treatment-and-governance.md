@@ -683,9 +683,9 @@ sludgeBacklog(次年) = sludgeBacklog(前年) * 0.7 + (1 - sludgeOpsFunding) * 0
 
 ---
 
-## 17. Industrial 国家の生成時シード、Alum 消費、近代ラダー税（実装済み・2026-08-23）
+## 17. Industrial 国家の生成時シード、Alum/Lime 消費、近代ラダー税（実装済み・2026-08-23）
 
-**状態: 実装済み**。§11.4 が Phase 1 実装時の提案として残していた「文化圏の近代化適性を Tier 初期値へ接続する」方向性とは別の切り口として、historicalPeriod と CultureType という2つの生成時条件から直接シードする経路（§17.1）、Phase 4 が Chlorine のみだった実 Good 消費を Tier 2 へも広げる経路（§17.2）、`cleaningTaxRate`（Phase 3、§4 相当）を新設の近代ラダーへ接続する経路（§17.3）の3点を追加した。`modernizationAffinity` 自体への接続は §11.4 の提案のまま未着手で残っている——今回追加した3点はいずれもそれとは独立した経路である。
+**状態: 実装済み**。§11.4 が Phase 1 実装時の提案として残していた「文化圏の近代化適性を Tier 初期値へ接続する」方向性とは別の切り口として、historicalPeriod と CultureType という2つの生成時条件から直接シードする経路（§17.1）、Phase 4 が Chlorine のみだった実 Good 消費を Tier 2 へも広げる経路（§17.2、Alum + Lime）、複数の Good 消費経路が同一マーケット在庫を無調整に奪い合う競合を防ぐ経路（§17.3）、`cleaningTaxRate`（Phase 3、§4 相当）を新設の近代ラダーへ接続する経路（§17.4）の4点を追加した。`modernizationAffinity` 自体への接続は §11.4 の提案のまま未着手で残っている——今回追加した4点はいずれもそれとは独立した経路である。
 
 ### 17.1 `industrialModernWaterworksSeed()`——rocketryEra × Industrial 国家の生成時シード
 
@@ -702,23 +702,29 @@ Burg 人口（`actualUrbanPeople()`、他の近代処理と同じ計算式）で
 
 Giant のシードと異なり、これは**生成時の頭出しのみ**——`computeUrbanWaterSystem` の `isGiantState` 分岐のように毎年強制的に上書きし続けることはしない。生成後は通常の Burg と同じく年次投資・維持（`settleModernWaterTreatmentInvestment`）に委ねられる。州レベル（`state.culture`）でゲートする点は `raceKeyForBurgState()`（Giant のゲート）や `getStateMaritimeAptitude()`（Naval CultureType のゲート、`technologyProgress.ts`）と同じ粒度に合わせた——Burg 個別の局所文化ではなく、征服等で局所文化が異なっていても国家全体に適用される。
 
-### 17.2 `Alum` の実消費——Tier 2（急速濾過・凝集）への Good 接続
+### 17.2 `Alum`/`Lime` の実消費——Tier 2（急速濾過・凝集）への Good 接続
 
-§15.6/§16.7 で「Chlorine 以外の Good 連動は現金のみ」と持ち越されていた項目のうち、Tier 2（`rapidFiltrationAndCoagulation`）分を実装した。`urbanWaterModernTreatment.ts` に Phase 4 の Chlorine 購入ブロックと対になる `Alum` 購入ブロックを追加し、`coagulantStockCoverage`（0..1）を新設した。`goods-generator.ts` に既存の `Alum`（採掘系ミネラル、Tag: `mineral`）をそのまま流用し、新しい Good は追加していない。
+§15.6/§16.7 で「Chlorine 以外の Good 連動は現金のみ」と持ち越されていた項目のうち、Tier 2（`rapidFiltrationAndCoagulation`）分を実装した。`urbanWaterModernTreatment.ts` に Phase 4 の Chlorine 購入ブロックと対になる購入ブロックを2つ追加した：主薬剤の `Alum`（`coagulantStockCoverage`、0..1）と、凝集後の pH 調整・軟化用の副次的な `Lime`（`limeStockCoverage`、0..1）。どちらも `goods-generator.ts` の既存 Good をそのまま流用し、新しい Good は追加していない。
 
-`chlorineAnnualNeed()` が実在する塩素工場の産出量（年0.15〜0.6バレル/プラント）から逆算した具体的な数字を持つのに対し、`Alum` には対応する専用の採掘・精製チェーンが存在しないため、`coagulantAnnualNeed()` は独自の実測値を主張せず、`chlorineAnnualNeed()` と同じ「控えめに小さく保つ」方針だけを踏襲した概算値にとどめている——専用の Alum 産出チェーンができた際は見直しが必要。
+`chlorineAnnualNeed()` が実在する塩素工場の産出量（年0.15〜0.6バレル/プラント）から逆算した具体的な数字を持つのに対し、`Alum`/`Lime` にはどちらも対応する専用の採掘・精製チェーンが存在しないため、`coagulantAnnualNeed()`/`limeAnnualNeed()` は独自の実測値を主張せず、`chlorineAnnualNeed()` と同じ「控えめに小さく保つ」方針だけを踏襲した概算値にとどめている——専用の産出チェーンができた際は見直しが必要。
 
-`computeUrbanWaterSystem` の Tier 2 の項（`waterContamination`/`drinkingWaterSecurity` 双方）に `coagulantStockCoverage` を3つ目の乗数として追加した——既存の `treatmentOperationsFunding`（運転資金）・`chemicalTestCoverage`（検査充足度）に加え、実際の Alum 在庫がなければ Tier 2 の便益はほとんど得られない、Tier 3 の `chlorineStockCoverage` と同じ設計。
+`computeUrbanWaterSystem` の Tier 2 の項（`waterContamination`/`drinkingWaterSecurity` 双方）への接続は Alum と Lime で非対称にした。`coagulantStockCoverage`（Alum）は既存の `treatmentOperationsFunding`（運転資金）・`chemicalTestCoverage`（検査充足度）と並ぶ3つ目の**必須**乗数——実際の Alum 在庫がなければ Tier 2 の便益はほとんど得られない、Tier 3 の `chlorineStockCoverage` と同じ設計。一方 `limeStockCoverage`（Lime）はこの乗算項には加えず、**独立した小さな加算ボーナス**（`waterContamination` に `-0.03`、`drinkingWaterSecurity` に `+0.04`、いずれも `treatmentOperationsFunding` とのみ掛け合わせ）として実装した——現実の凝集処理も Alum が主薬剤で Lime は pH 補正の副次工程であることを反映し、また4つの乗数を1つの項に積み重ねると Tier 2 の便益がほぼゼロまで縮む設計上のリスクを避けるため。Alum はあるが Lime が手に入らない Burg でも、Alum 由来の便益はそのまま得られる。
 
-### 17.3 `cleaningTaxRate` の近代ラダー加算
+### 17.3 `Markets.consumeForMarketInvestment` の在庫シェア上限——同一マーケット在庫の無調整競合を防ぐ
+
+実装レビュー中に発見: `Alum` は既存の `apothecaryWorkshops.ts`（アジャンクト材料）の、`Lime` は既存の `constructionEmployment.ts`（Roman Concrete の原料、建設業全体で広く使われる高流通量の財）の、それぞれ確立した消費先を持っていた。`Markets.consumeForMarketInvestment`（Chlorine の購入で Phase 4 から使われている、予算上限付きの有償引き出しプリミティブ）はそれまで在庫シェアの上限を持たず、`requestedUnits`/`budget`/現在庫のいずれか小さい方まで引き出せた——つまり、同一マーケット在庫を調整なしに共有する2つの独立した系のうち、その年のサイクル内でどちらが先に呼ばれるかによって、片方が在庫を独占してしまう可能性があった（`ChlorAlkaliPlants` のコメントが `Salt` 競合について「a modeling nuance, not a blocker」と明記している既存の許容パターンと同型だが、Lime は Roman Concrete という高流通量の既存消費先と競合する点でリスクが大きいと判断した）。
+
+`markets-generator.ts` の `consumeForConstruction`/`consumeForMint`/`consumeForMilitary`/`consumeForMetallurg` が既に持っていた「現在庫の一定シェアまでしか引き出さない」という確立済みパターン（`consumeForMint` の 0.2 上限が先例）を `consumeForMarketInvestment` にも一般化し、任意の `maxStockShare`（0..1、省略時は 1 = 従来どおり無制限）を追加した。既存の全呼び出し元（Chlorine、AgTechInvestment、IndustrialTechInvestment 等、計7箇所）はこの引数を渡していないため、挙動は完全に変わらない。Alum/Lime の新規購入だけが `MODERN_TREATMENT_GOOD_MAX_STOCK_SHARE = 0.2`（`consumeForMint` と同じ値）を渡し、どちらの呼び出し順でも現在庫の20%までしか取れないようにした——確立済みの大口消費先（Roman Concrete/apothecary）が常に大半を確保できる。
+
+### 17.4 `cleaningTaxRate` の近代ラダー加算
 
 `urbanWaterInstitutions.ts` の `cleaningTaxRate`（Phase 3 で導入済み、レガシー `tier` にのみ連動する自己財源の清掃税）に、`drinkingTreatmentTier`/`wastewaterTreatmentTier`（近代ラダー）に応じた加算項を追加した——塩素消毒・活性汚泥等の実在する経常的維持費を、税収という形で反映する。
 
 既存の Burg（近代ラダーへ未投資、両 Tier とも0）の挙動を一切変えないことを最優先し、レガシー分の上限（`LEGACY_CLEANING_TAX_RATE_CAP = 0.04`、従来の唯一の上限だった値）とキャップの計算を完全に温存したまま、近代ラダー加算分（`MODERN_CLEANING_TAX_SURCHARGE_PER_TIER = 0.005` × 完了 Tier 数）を**その上に加算**し、合算後にのみ新しい上限（`CLEANING_TAX_RATE_CAP = 0.07`）を適用する二段構成にした。両 Tier とも0の Burg は `legacyRate + 0` が必ず旧上限0.04以下に収まるため、旧実装とビット単位で同じ値を返す。
 
-### 17.4 未着手（将来拡張）
+### 17.5 未着手（将来拡張）
 
-- `Lime`（既存 Good、`goods-generator.ts`）はまだ接続していない——コンクリート原料としての既存用途と衝突しないか要検討。
-- `Alum`/`Chlorine` 以外の建設費（Stone/Tools/Brick 相当の近代版）は依然として現金のみ。
+- `Alum`/`Chlorine`/`Lime` 以外の建設費（Stone/Tools/Brick 相当の近代版）は依然として現金のみ。
 - `connectionPermitCoverage`/`dischargeRegulation`（`institutionalTargets` の他2項目）は近代ラダーへ未接続——今回は `cleaningTaxRate` のみに範囲を絞った。
 - `modernizationAffinity`（§11）の Tier 初期値への接続は §11.4 の提案のまま未着手。§17.1 の rocketryEra×Industrial シードとは独立した経路として残っている。
+- Chlorine の購入（Phase 4、Tier 3）には `maxStockShare` を適用していない——Bleaching Powder という潜在的な競合消費先はあるが era-6+ の小規模な化学財で、Phase 4 実装時点では確立した高流通量消費先ではなかったため、既存の挙動を変えずに残した。将来 Bleaching Powder の消費量が増えるようなら再検討する。
