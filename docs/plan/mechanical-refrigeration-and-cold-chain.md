@@ -2,12 +2,22 @@
 
 ## 状態
 
-**実装済み（2026-08-23）**。[natural-gas-lng-power-generation.md](./natural-gas-lng-power-generation.md) が実装した
-LNG液化チェーンを土台に、`mechanicalRefrigeration`（機械式冷凍）技術ノードと `ColdStorageDepots` という
-State資本設備を追加し、`Milk`/`Fish`/`Game`/`Shellfish`/6種の果実という `freshFood` タグ付き生鮮 Good が
-「無冷蔵」を理由に長らく禁じられていた**保存**（cellFoodRescue.ts が捨てていた未処理分の市場在庫化）と
-**流通**（tradeOpportunityEstimator.ts の隊商・海上交易禁止）の両方を、技術・資本設備が実際に整うまでという
-条件付きで解禁する。
+**実装済み（2026-08-23、同日中に史実整合の改訂あり）**。
+[natural-gas-lng-power-generation.md](./natural-gas-lng-power-generation.md) が実装したLNG液化チェーンを土台に、
+`mechanicalRefrigeration`（機械式冷凍）技術ノードと `ColdStorageDepots` というState資本設備を追加し、
+`Milk`/`Fish`/`Game`/`Shellfish`/6種の果実という `freshFood` タグ付き生鮮 Good が「無冷蔵」を理由に長らく
+禁じられていた**保存**（cellFoodRescue.ts が捨てていた未処理分の市場在庫化）と**流通**
+（tradeOpportunityEstimator.ts の隊商・海上交易禁止）の両方を、技術・資本設備が実際に整うまでという条件付きで
+解禁する。
+
+**改訂（同日）**: 初版は `mechanicalRefrigeration` を `naturalGasLiquefaction` の子ノードとして実装したが、
+ユーザーからの指摘（「卵が先か鶏が先か、史実準拠にしてほしい。共通の親がいそうな気がする」）を受けて史実を
+再確認した結果、これは誤りだった。実用的な圧縮式冷凍（Carré のアンモニア圧縮式製氷機、1850-60年代；Linde の
+商用圧縮冷凍、1876年）は、工業的な天然ガス液化（Linde 自身の空気液化カスケード、1895年；商用天然ガス液化の
+最初期、1910年代；LNG産業としての確立、1940年代以降）より数十年早い。両者は「どちらかが前提」ではなく、
+共通の熱力学・精密圧縮機工学という親を持つ（実際 Carl von Linde 本人が冷凍→気体液化の両方を手掛けた）。
+§3.3 のとおり `mechanicalRefrigeration` を `naturalGasLiquefaction` と同じ2前提
+（`highPressureChemicalApparatus` + `standardMachineWorks`）を共有する兄弟ノードへ変更した。
 
 ## 1. 目的と非目的
 
@@ -19,10 +29,11 @@ State資本設備を追加し、`Milk`/`Fish`/`Game`/`Shellfish`/6種の果実�
   - `fauna-biome-realism.md` §3「保存不可: 冷蔵技術がないため、Milkはそのままでは流通・保管ができない想定」。
   - `tradeOpportunityEstimator.ts` の `isGoodTradePermitted()` 内コメント「This economy has neither
     refrigeration nor a retail delivery model...」。
-- `mechanicalRefrigeration`（新規、era 7）を、`naturalGasLiquefaction`（LNG液化、圧縮機・低温工学の代理前提）と
-  `standardMachineWorks`（精密機械工作、圧縮機製造の代理前提）の2つを前提とする技術ノードとして実装する。
-  ユーザーの要求どおり「LNGに絡んで」の技術系統にする — 史実でもアンモニア圧縮式冷凍機（Carré, 1850-60年代）は
-  ガス圧縮・低温工学と同系統の工業基盤を共有する。
+- `mechanicalRefrigeration`（新規、era 7）を、`highPressureChemicalApparatus`（化学工学・熱力学の代理前提、
+  `naturalGasLiquefaction` 自身も使う同じノード）と `standardMachineWorks`（精密機械工作、圧縮機製造の代理前提）
+  の2つを前提とする技術ノードとして実装する — `naturalGasLiquefaction` の**兄弟**であり、その子ではない
+  （§3.3、史実整合の改訂）。ユーザーの要求どおり「LNGに絡んで」の関係は、技術ツリー上の前提依存としてではなく、
+  `ColdStorageDepots` の燃料が実際にLNGであるという資源依存として表現する（§3.5・§3.3末尾）。
 - **保存**: 新規 State資本設備 `ColdStorageDepots`（LNG + Machine Parts を消費し `storageCapacity` を産出）を
   実装し、`cellFoodRescue.ts` の既存プランナー（`planCellFoodRescue()`）が「労働力・保存資材の上限を超えた分は
   記録すら残さず失われる」としていた未処理分（`harvestedUnits - producedUnits`）の一部を、変換なしの生 Good
@@ -58,7 +69,7 @@ State資本設備を追加し、`Milk`/`Fish`/`Game`/`Shellfish`/6種の果実�
 | 隊商・海上交易の無条件禁止 | `isGoodTradePermitted()` は `isFreshFoodGood(good)` が真なら、日数や気候を見る前に無条件で `false` を返す。コメントで「This economy has neither refrigeration...」と明記。気候依存の日数上限 `getGoodMaxTradeDurationDays()`（`getFreshFoodMaxTradeDays()` 経由）はこの早期リターンにより到達しない、現状は事実上のデッドコード。 | [tradeOpportunityEstimator.ts:178-214](../../src/extensions/economy/generators/tradeOpportunityEstimator.ts#L178) |
 | `isGoodTradePermitted`/`isGoodTradePermittedForShipment` の呼び出し箇所 | 5箇所すべてで、産地側の Burg（`originBurg`/`startBurg`/`exporterCenter`/`sourceCenter`）が既にスコープ内にあり、`.state` で州IDを直接取得できる。 | [caravans.ts:762-784](../../src/extensions/economy/generators/caravans.ts#L762)（`spawnStrategicProcurement`）、[caravans.ts:908-941](../../src/extensions/economy/generators/caravans.ts#L908)（`createCaravan` 経由 `selectRouteCargo`）、[markets-generator.ts:1671, 1968](../../src/extensions/economy/generators/markets-generator.ts#L1671)（`addDirectMarketTradeOpportunities`/`addSpeculativeGlobalTradeOpportunities`）、[marketTradeOpportunities.ts:100](../../src/extensions/economy/controllers/marketTradeOpportunities.ts#L100) |
 | `PowerStation`/`OilRefineryPlant` 型State資本設備の先例 | `burgId`/`stateId`/`role`/`active`/`utilization`/`documentedRuns`/`lastFundedYear` の共通形。`chemMedCommon.ts` の `consumeNamed`/`debitTreasury`/`marketIdForBurg`/`pickSponsorBurg` をそのまま再利用できる。 | [powerStations.ts](../../src/extensions/economy/generators/powerStations.ts)、[chemMedCommon.ts](../../src/extensions/economy/generators/chemMedCommon.ts) |
-| era 7 の技術ノード群 | `naturalGasLiquefaction`（LNG液化）・`gasFiredElectricityGeneration`（ガス火力発電）が本書の前提となる `naturalGasLiquefaction` を既に実装済み。`lngAccess`（LNG市場在庫カバレッジ）シグナルも既存。 | [technologyDefinitions.ts](../../src/generators/technologyDefinitions.ts)（`ERA_7`）、[natural-gas-lng-power-generation.md](./natural-gas-lng-power-generation.md) §3.4, §3.6 |
+| era 7 の技術ノード群 | `naturalGasLiquefaction`（LNG液化、`prerequisites: [modernDrillingAndFieldOperations, highPressureChemicalApparatus]`）・`gasFiredElectricityGeneration`（ガス火力発電）実装済み。本書は `naturalGasLiquefaction` を前提にせず、その `highPressureChemicalApparatus` 前提を共有する兄弟ノードとして実装する（史実チェック、§3.3）。 | [technologyDefinitions.ts](../../src/generators/technologyDefinitions.ts)（`ERA_7`）、[natural-gas-lng-power-generation.md](./natural-gas-lng-power-generation.md) §3.4, §3.6 |
 
 結論として、State資本設備・技術ノード・市場在庫投入という3層は `PowerStation`/`naturalGasLiquefaction`/
 `addRuralOutput` の先例からそのまま複製できる。本書で実質的に新しいのは「①`cellFoodRescue.ts` の
@@ -75,21 +86,28 @@ State資本設備を追加し、`Milk`/`Fish`/`Game`/`Shellfish`/6種の果実�
   Milk/Fish/Game/Shellfish/6果実 → planCellFoodRescue()（cellFoodRescue.ts、非変更）
     → 家庭消費 + 保存（Cheese/Stockfish/Wine/Dried Fruits等）+ [未処理分は破棄、記録なし]
 
-本書が追加する縦切り:
-  naturalGasLiquefaction（既存）+ standardMachineWorks（既存、era5）
-        │
-        ▼
-  mechanicalRefrigeration（新規、era7）
-    ColdStorageDepots（新規、State資本設備。州に1基、州全体プール）
-      LNG + Machine Parts → storageCapacity（年次、月割りで消費）
-        │
-        ├─→ ① 保存: cellFoodRescue.ts の未処理分(harvestedUnits - producedUnits)のうち
-        │      利用可能な storageCapacity 分だけ、変換なしで Market在庫へ直接投入
-        │      （getChilledFreshFoodExportUnits()、新規純粋関数）
-        │
-        └─→ ② 流通: isGoodTradePermitted() 系3関数に refrigeratedTransport 引数を追加。
-               産地 State が mechanicalRefrigeration を adopted なら
-               freshFood Good の無条件交易禁止と気候依存の日数上限を解除
+本書が追加する縦切り（史実整合の改訂後 — §状態の改訂記録参照）:
+  highPressureChemicalApparatus（既存、era6）+ standardMachineWorks（既存、era5）
+        │                                │
+        ├────────────────┬───────────────┘
+        ▼                ▼
+  naturalGasLiquefaction   mechanicalRefrigeration  ←── 兄弟ノード、互いに依存しない
+  （既存、era7）           （新規、era7）
+                             ColdStorageDepots（新規、State資本設備。州に1基、州全体プール）
+                               LNG + Machine Parts → storageCapacity（年次、月割りで消費）
+                                 │
+                                 ├─→ ① 保存: cellFoodRescue.ts の未処理分(harvestedUnits - producedUnits)のうち
+                                 │      利用可能な storageCapacity 分だけ、変換なしで Market在庫へ直接投入
+                                 │      （getChilledFreshFoodExportUnits()、新規純粋関数）
+                                 │
+                                 └─→ ② 流通: isGoodTradePermitted() 系3関数に refrigeratedTransport 引数を追加。
+                                        産地 State が mechanicalRefrigeration を adopted なら
+                                        freshFood Good の無条件交易禁止と気候依存の日数上限を解除
+
+  燃料としての依存（技術ツリーの前提とは別）:
+    ColdStorageDepots は LNG を消費するため、naturalGasLiquefaction が進んでいない State は
+    mechanicalRefrigeration を "known" にできても実際に storageCapacity を産出できない
+    （§3.3末尾）— 技術的な前提関係なしに、資源供給としての実用的な結びつきが残る。
 ```
 
 ### 3.2 新規シグナル: `coldStorageDepotTrialYears` / `coldStorageDepotInstallations`
@@ -110,6 +128,14 @@ coldStorageDepotInstallations: number;
 
 ### 3.3 技術ノード: `mechanicalRefrigeration`（era 7）
 
+**史実チェック（改訂の根拠）**: 実用的な蒸気圧縮式冷凍は Perkins の特許（1834年）、Carré のアンモニア圧縮式
+製氷機（1850-60年代）、Linde の商用冷凍機（1876年）と、19世紀後半には確立していた。一方、工業的な天然ガス
+液化はそれよりずっと後——Linde 自身によるカスケード式空気液化（1895年）を技術的祖とし、天然ガスの商用液化は
+1910年代、LNG が産業として確立するのは1940年代以降である。つまり「どちらが先か」ではなく、両者は同じ
+熱力学・精密圧縮機工学（低温工学の基礎）を共有する兄弟技術であり、時系列的にはむしろ冷凍の方が数十年先行する。
+本書は `mechanicalRefrigeration` を `naturalGasLiquefaction` の子ノードにせず、`naturalGasLiquefaction` 自身が
+使う前提（`highPressureChemicalApparatus`/`standardMachineWorks`）をそのまま共有する兄弟ノードとして実装する。
+
 `technologyDefinitions.ts` の `ERA_7` 配列末尾（`gasFiredElectricityGeneration` の直後）に追加する:
 
 ```ts
@@ -118,19 +144,28 @@ coldStorageDepotInstallations: number;
   label: "Mechanical refrigeration",
   era: 7,
   scope: "state",
-  prerequisites: ["naturalGasLiquefaction", "standardMachineWorks"],
-  known: { min: { lngAccess: 0.2, metallurgy: 0.72, treasury: 460 } },
-  demonstrated: { min: { coldStorageDepotTrialYears: 2, lngAccess: 0.25, treasury: 520 } },
-  adopted: { min: { coldStorageDepotInstallations: 1, administration: 0.65, treasury: 580 } },
+  prerequisites: ["highPressureChemicalApparatus", "standardMachineWorks"],
+  known: { min: { metallurgy: 0.72, experimentRecord: 0.68, treasury: 340 } },
+  demonstrated: { min: { coldStorageDepotTrialYears: 2, experimentRecord: 0.7, treasury: 400 } },
+  adopted: { min: { coldStorageDepotInstallations: 1, administration: 0.65, treasury: 460 } },
   minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
 }
 ```
 
-`naturalGasLiquefaction`/`gasFiredElectricityGeneration` と同じ「2前提のうち片方だけadoptedでは自動通過しない」
-設計 — `metallurgy`(0.72) は `standardMachineWorks` 自身の adopted 閾値(0.7)より、`treasury`(460/520/580) は
-`naturalGasLiquefaction` 自身の adopted 閾値(420)より、`administration`(0.65) は両前提の adopted 閾値
-（`naturalGasLiquefaction` 0.6、`standardMachineWorks` 0.45）より高く設定する。`lngAccess` はどちらの前提も
-参照しない独立シグナルのため単独でも自動達成のリスクはない。
+`naturalGasLiquefaction`（`prerequisites: ["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"]`）
+と `highPressureChemicalApparatus` を共通の親として共有する——`oilRefiningAndFractionation`/`naturalGasLiquefaction`
+がどちらも同じノードを「chemicalEngineering、thermodynamics」の代理前提として使う先例をそのまま踏襲する。
+「2前提のうち片方だけadoptedでは自動通過しない」設計は不変——`metallurgy`(0.72) は `standardMachineWorks` 自身の
+adopted 閾値(0.7)より、`experimentRecord`(0.68/0.7)・`treasury`(340/400/460) は `highPressureChemicalApparatus`
+自身の adopted 閾値(0.65/290)より、`administration`(0.65) は両前提の adopted 閾値
+（`highPressureChemicalApparatus` 0.6、`standardMachineWorks` 0.45）より高く設定する。
+
+**燃料依存はそのまま残す**: `ColdStorageDepots`（§3.5）の燃料は変わらず `LNG` である——ユーザーが要求した
+「LNGに絡んで」という関係は、技術ツリーの前提依存としてではなく、資本設備が消費する Good の依存として表現する。
+`mechanicalRefrigeration` は `naturalGasLiquefaction` の進捗と無関係に "known" へ進めるが、`ColdStorageDepots`
+は `LNG` が市場に無ければ `consumeNamed("LNG", 2)` が失敗して `utilization` が0.5を下回り、
+`coldStorageDepotTrialYears`/`coldStorageDepotInstallations` が増えないため、"demonstrated"/"adopted" には
+事実上進めない——技術グラフの辺なしに、実用上の結びつきは自然に残る。
 
 ### 3.4 新規型: `ColdStorageDepot`（`coldStorageTypes.ts`）
 
@@ -325,8 +360,9 @@ export function isGoodTradePermittedForShipment(
 
 ## 5. 受け入れ条件
 
-- `mechanicalRefrigeration` は `naturalGasLiquefaction`/`standardMachineWorks` の両方が adopted になるまで
-  `known` にすら進まない。
+- `mechanicalRefrigeration` は `highPressureChemicalApparatus`/`standardMachineWorks` の両方が adopted になる
+  まで `known` にすら進まない。`naturalGasLiquefaction` 自身の技術段階とは無関係に進行できる（史実整合の
+  改訂、§3.3）。
 - `ColdStorageDepots` が稼働していない、または `storageCapacity` が0の State では、`freshFood` Good の挙動は
   完全に従来どおり（未処理分は記録なく失われ、隊商・海上交易は無条件禁止のまま）。
 - `ColdStorageDepots` が稼働し `storageCapacity > 0` になった State では、`harvestedUnits - producedUnits` の
@@ -345,3 +381,8 @@ export function isGoodTradePermittedForShipment(
    純粋関数として実装し、既存の食料安全保障ロジックへの回帰リスクをゼロにする（§3.6）。
 5. **`mechanicalRefrigeration` の技術段階を `cellFoodRescue`側で直接チェックしない**——`storageCapacity` が
    ゲートを兼ねる、`PowerStation`/`Electricity` と同じ設計（§3.7）。
+6. **`mechanicalRefrigeration` は `naturalGasLiquefaction` の子ノードではなく兄弟ノード**（2026-08-23
+   改訂）。実用的な圧縮式冷凍（Linde、1876年）は工業的な天然ガス液化（同じくLinde、1895年以降）より数十年
+   先行する史実に基づく——両者を「片方がもう片方の前提」にせず、同じ `highPressureChemicalApparatus`/
+   `standardMachineWorks` を共有する兄弟として実装した（§3.3）。「LNGに絡んで」というユーザーの要求は
+   技術前提ではなく `ColdStorageDepots` の燃料依存として表現する。

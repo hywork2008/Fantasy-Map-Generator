@@ -1007,25 +1007,38 @@ const ERA_7: readonly TechnologyDefinition[] = [
     adopted: { min: { gasPowerStationInstallations: 1, administration: 0.65, treasury: 560 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   },
-  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.3. Same two-prerequisite shape as
-  // gasFiredElectricityGeneration — naturalGasLiquefaction (compressor/cryogenic engineering) and
-  // standardMachineWorks (precision compressor manufacturing) — a sibling of both
-  // gasFiredElectricityGeneration and oilRefiningAndFractionation, not dependent on either.
-  // metallurgy sits above standardMachineWorks' own adopted floor (0.7); treasury sits above
-  // naturalGasLiquefaction's own adopted floor (420); administration sits above both prerequisites'
-  // own adopted floors (naturalGasLiquefaction's 0.6, standardMachineWorks' 0.45) — none pass
-  // through automatically the instant either prerequisite adopts. Effect (ColdStorageDepots) is
-  // wired directly into settleCellFreshFood()'s cold-chain export lane (§3.6-3.7) and
-  // isGoodTradePermitted()'s refrigeratedTransport gate (§3.8).
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.3 (2026-08-23 revision — history
+  // check). NOT a child of naturalGasLiquefaction: real vapor-compression refrigeration (Perkins
+  // 1834; Carré's ammonia-compression ice machines, 1859-60s; Linde's commercial compression
+  // refrigeration, 1876) is *decades* older than industrial natural-gas liquefaction (Linde's own
+  // air-liquefaction cascade, 1895; first commercial NG liquefaction, ~1915; LNG as an industry,
+  // 1940s+) — the two are not "one first, one second" but share a common thermodynamic/precision-
+  // compressor engineering parent (Carl von Linde himself worked both sides of that lineage). This
+  // node is therefore a sibling of naturalGasLiquefaction, prerequisite on the same
+  // highPressureChemicalApparatus (era6, chemicalEngineering/thermodynamics proxy — see
+  // oilRefiningAndFractionation's identical use) + standardMachineWorks (precision compressor
+  // manufacturing) pair naturalGasLiquefaction itself descends from via
+  // modernDrillingAndFieldOperations's own chain, not from naturalGasLiquefaction directly.
+  // metallurgy sits above standardMachineWorks' own adopted floor (0.7); experimentRecord/treasury
+  // sit above highPressureChemicalApparatus's own adopted floor (0.65/290); administration sits
+  // above both prerequisites' own adopted floors (highPressureChemicalApparatus's 0.6,
+  // standardMachineWorks' 0.45) — none pass through automatically the instant either prerequisite
+  // adopts. ColdStorageDepots' own fuel is still LNG (§3.5) — a state can reach "known" here
+  // without naturalGasLiquefaction, but a depot cannot actually reach utilization>=0.5 (and so
+  // never accumulates coldStorageDepotTrialYears/Installations toward demonstrated/adopted)
+  // without LNG actually flowing, so the practical link to the gas chain survives without a
+  // technology-graph edge forcing it. Effect (ColdStorageDepots) is wired directly into
+  // settleCellFreshFood()'s cold-chain export lane (§3.6-3.7) and isGoodTradePermitted()'s
+  // refrigeratedTransport gate (§3.8).
   {
     id: "mechanicalRefrigeration",
     label: "Mechanical refrigeration",
     era: 7,
     scope: "state",
-    prerequisites: ["naturalGasLiquefaction", "standardMachineWorks"],
-    known: { min: { lngAccess: 0.2, metallurgy: 0.72, treasury: 460 } },
-    demonstrated: { min: { coldStorageDepotTrialYears: 2, lngAccess: 0.25, treasury: 520 } },
-    adopted: { min: { coldStorageDepotInstallations: 1, administration: 0.65, treasury: 580 } },
+    prerequisites: ["highPressureChemicalApparatus", "standardMachineWorks"],
+    known: { min: { metallurgy: 0.72, experimentRecord: 0.68, treasury: 340 } },
+    demonstrated: { min: { coldStorageDepotTrialYears: 2, experimentRecord: 0.7, treasury: 400 } },
+    adopted: { min: { coldStorageDepotInstallations: 1, administration: 0.65, treasury: 460 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];

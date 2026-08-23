@@ -1128,31 +1128,63 @@ describe("technologyProgress", () => {
   });
 
   // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.3.
-  it("defines mechanicalRefrigeration as a sibling of naturalGasLiquefaction/gasFiredElectricityGeneration gated on both its prerequisites' own adopted floors", () => {
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.3 (2026-08-23 history check): real
+  // compression refrigeration (Linde, 1876) predates industrial gas liquefaction (Linde again,
+  // 1895+) by decades, so this node is a SIBLING of naturalGasLiquefaction — not its child —
+  // sharing naturalGasLiquefaction's own highPressureChemicalApparatus parent instead.
+  it("defines mechanicalRefrigeration as a sibling of naturalGasLiquefaction (shares highPressureChemicalApparatus, not a child of it) gated on both its prerequisites' own adopted floors", () => {
     const refrigeration = TECHNOLOGY_DEFINITIONS.find(def => def.id === "mechanicalRefrigeration");
     expect(refrigeration?.era).toBe(7);
-    expect(refrigeration?.prerequisites).toEqual(["naturalGasLiquefaction", "standardMachineWorks"]);
-    expect(refrigeration?.known.min?.lngAccess).toBe(0.2);
+    expect(refrigeration?.prerequisites).toEqual(["highPressureChemicalApparatus", "standardMachineWorks"]);
+    expect(refrigeration?.prerequisites).not.toContain("naturalGasLiquefaction");
     expect(refrigeration?.demonstrated.min?.coldStorageDepotTrialYears).toBe(2);
     expect(refrigeration?.adopted.min?.coldStorageDepotInstallations).toBe(1);
 
-    const liquefaction = TECHNOLOGY_DEFINITIONS.find(def => def.id === "naturalGasLiquefaction");
+    const apparatus = TECHNOLOGY_DEFINITIONS.find(def => def.id === "highPressureChemicalApparatus");
     const machineWorks = TECHNOLOGY_DEFINITIONS.find(def => def.id === "standardMachineWorks");
+    // naturalGasLiquefaction shares the exact same two prerequisites — confirming both are
+    // siblings under a common parent rather than one depending on the other.
+    const liquefaction = TECHNOLOGY_DEFINITIONS.find(def => def.id === "naturalGasLiquefaction");
+    expect(liquefaction?.prerequisites).toContain("highPressureChemicalApparatus");
     // treasury/administration sit above both prerequisites' own adopted floors so neither one
     // adopting alone auto-passes this node.
-    expect(refrigeration?.adopted.min?.treasury).toBeGreaterThan(liquefaction?.adopted.min?.treasury ?? 0);
-    expect(refrigeration?.adopted.min?.administration).toBeGreaterThan(liquefaction?.adopted.min?.administration ?? 0);
+    expect(refrigeration?.adopted.min?.treasury).toBeGreaterThan(apparatus?.adopted.min?.treasury ?? 0);
+    expect(refrigeration?.adopted.min?.administration).toBeGreaterThan(apparatus?.adopted.min?.administration ?? 0);
     expect(refrigeration?.adopted.min?.administration).toBeGreaterThan(machineWorks?.adopted.min?.administration ?? 0);
   });
 
   it("never lets mechanicalRefrigeration progress unless standardMachineWorks has reached adopted", () => {
     installMinimalWorld();
     setTechnologyProgressForTests([
-      { technologyId: "naturalGasLiquefaction", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+      { technologyId: "highPressureChemicalApparatus", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
     ]);
     settleTechnologyAnnual(1200);
 
     expect(getTechnologyStage("mechanicalRefrigeration", 1)).toBe("locked");
+  });
+
+  it("lets mechanicalRefrigeration progress identically whether or not naturalGasLiquefaction has adopted", () => {
+    installMinimalWorld();
+    const sharedPrerequisites: TechnologyProgress[] = [
+      { technologyId: "highPressureChemicalApparatus", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
+      { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ];
+
+    setTechnologyProgressForTests(sharedPrerequisites);
+    settleTechnologyAnnual(1200);
+    const stageWithoutLiquefaction = getTechnologyStage("mechanicalRefrigeration", 1);
+
+    setTechnologyProgressForTests([
+      ...sharedPrerequisites,
+      { technologyId: "naturalGasLiquefaction", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+    const stageWithLiquefaction = getTechnologyStage("mechanicalRefrigeration", 1);
+
+    // naturalGasLiquefaction's own stage has zero effect on mechanicalRefrigeration's progress —
+    // it is not in the prerequisites array and no signal it uniquely drives (e.g. lngAccess) is
+    // referenced by this node's thresholds.
+    expect(stageWithoutLiquefaction).toBe(stageWithLiquefaction);
   });
 
   // docs/plan/rocket-and-space-development-vertical-slice.md §3.3.
