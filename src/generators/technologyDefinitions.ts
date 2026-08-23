@@ -865,6 +865,22 @@ const ERA_6: readonly TechnologyDefinition[] = [
     adopted: { min: { electricityCoverage: 0.35, administration: 0.68, treasury: 500 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   },
+  // docs/plan/electric-power-and-telegraph.md §3.15 (2026-08-23 addendum). Single prerequisite,
+  // same shape as electricTelegraph's own single-node chain — a working power grid is the whole
+  // story a pump needs (motor + reliable supply), no separate metallurgy/chemistry convergence.
+  // Every threshold sits above powerGrid's own adopted floor (administration 0.68/treasury 500/
+  // electricityCoverage 0.35) to avoid an automatic pass-through the instant powerGrid adopts.
+  {
+    id: "electricWaterPumps",
+    label: "Electric water pumps",
+    era: 6,
+    scope: "state",
+    prerequisites: ["powerGrid"],
+    known: { min: { electricityCoverage: 0.38, administration: 0.7, treasury: 480 } },
+    demonstrated: { min: { electricityCoverage: 0.42, administration: 0.74, treasury: 560 } },
+    adopted: { min: { electricityCoverage: 0.48, administration: 0.78, treasury: 640 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
   // docs/plan/electrolytic-industry-vertical-slice.md §3.6. Three prerequisites converge here —
   // practicalElectrochemistry (electrochemistry), highPressureChemicalApparatus (the existing
   // chemicalEngineering proxy catalyticChemistry already reuses), and powerGrid (a stable

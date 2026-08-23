@@ -13,6 +13,8 @@
  * Design: docs/plan/urban-water-and-sanitation-system.md §4–8, §11.
  */
 
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import i18n from "../../../i18n";
 import { getCultureModernizationAffinity, useOptionsState } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
@@ -107,6 +109,14 @@ export {
   WATER_SANITATION_TIER_LABELS,
   WATER_WORKS_PROJECT_LABELS
 } from "./urbanWaterTypes";
+
+/**
+ * §3.15 (docs/plan/electric-power-and-telegraph.md): minimum Market.electricityStock coverage for
+ * an electricWaterPumps-adopted State's Burg to count as having a real electric well pump, not
+ * just a technology flag — same order as SOURCE_PROTECTION_MIN_FOR_FILTRATION (0.6) in
+ * urbanWaterModernTreatment.ts, a real-majority-of-the-time bar rather than a token nonzero value.
+ */
+export const ELECTRIC_PUMP_MIN_COVERAGE = 0.5;
 
 /** Inputs derived from map cells and burg attributes (pure, testable). */
 export type BurgWaterGeography = {
@@ -877,11 +887,24 @@ export function computeUrbanWaterSystem(args: {
   const hasInheritedRomanSewer = previous?.hasInheritedRomanSewer ?? hasInheritedRomanWaterworks;
   const hasRegionalRomanWaterConnection =
     hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
+  // Read once, shared by hasElectricPumpAccess below and the Tier 3 activated-sludge blower factor
+  // further down (used to be computed independently in each spot; both read the same Market fact).
+  const electricityCoverage = electricityCoverageForMarket(burg.market ?? 0);
+  // docs/plan/electric-power-and-telegraph.md §3.15: once a State's electricWaterPumps technology
+  // is adopted AND this Burg's own Market has real, sustained Market.electricityStock coverage
+  // (not the tech flag alone — same "real coverage, not tech flag" principle as every other
+  // electricity-gated term in this file), an electric well pump gives a river-less Burg a genuine
+  // local water source it could otherwise never earn, no matter how long it waited.
+  const hasElectricPumpAccess =
+    isTechnologyStageAtLeast(getTechnologyStage("electricWaterPumps", burg.state ?? 0), "adopted") &&
+    electricityCoverage >= ELECTRIC_PUMP_MIN_COVERAGE;
   // Phase 3: an ordinary (non-Giant) burg gets the same kind of imported-water credit once its
-  // RegionalWaterScheme reaches "operating" (regionalWaterAuthority.ts) — the two are deliberately
-  // ORed into one slot below rather than kept as parallel branches, since both represent the same
-  // underlying fact ("this burg's water didn't originate locally").
-  const hasRegionalWaterConnection = hasRegionalRomanWaterConnection || Boolean(args.hasRegionalSchemeConnection);
+  // RegionalWaterScheme reaches "operating" (regionalWaterAuthority.ts), and now also once it has
+  // a working electric pump — all three are deliberately ORed into one slot below rather than kept
+  // as parallel branches, since all represent the same underlying fact ("this burg's water didn't
+  // depend on a natural river/coastal source to exist").
+  const hasRegionalWaterConnection =
+    hasRegionalRomanWaterConnection || Boolean(args.hasRegionalSchemeConnection) || hasElectricPumpAccess;
   // `hasSameLandSewerOutfall` now avoids closed-basin rivers unconditionally (urbanSewerage.ts,
   // 2026-08-23 — it used to require a seasonalColdBurgIds gate), so no climate filter is needed here.
   const hasRegionalRomanSewerOutfall =
@@ -1002,7 +1025,6 @@ export function computeUrbanWaterSystem(args: {
   // applied factor) — a full backlog erodes the benefit toward 0 but never flips the term negative
   // (i.e. a fully clogged plant is at worst as bad as no Tier 2 treatment at all, never worse).
   const sludgeCapacityFactor = wastewaterTreatmentTier >= 2 ? 1 - clamp01(sludgeBacklog) * 0.6 : 1;
-  const electricityCoverage = electricityCoverageForMarket(burg.market ?? 0);
   const modernWastewaterTreatmentFactor =
     (wastewaterTreatmentTier >= 1 ? 1 - 0.35 * clamp01(wastewaterOperationsFunding) : 1) *
     (wastewaterTreatmentTier >= 2

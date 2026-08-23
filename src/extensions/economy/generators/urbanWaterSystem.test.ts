@@ -1054,6 +1054,68 @@ describe("computeUrbanWaterSystem", () => {
       expect(tier1Unfunded.drinkingWaterSecurity).toBeLessThanOrEqual(tier0.drinkingWaterSecurity);
     });
   });
+
+  describe("electric water pumps (docs/plan/electric-power-and-telegraph.md §3.15)", () => {
+    // An explicit "locked" record (not []) so getTechnologyState()'s lazy seedTechnologyStartProfile()
+    // fallback (triggered only when progress is truly empty) can never override this on a shared
+    // worldContext.pack.states left behind by an earlier test in this file.
+    const notAdopted = [
+      {
+        technologyId: "electricWaterPumps",
+        scope: "state" as const,
+        ownerId: 1,
+        stage: "locked" as const,
+        diffusion: 0
+      }
+    ];
+    const adopted = [
+      {
+        technologyId: "electricWaterPumps",
+        scope: "state" as const,
+        ownerId: 1,
+        stage: "adopted" as const,
+        diffusion: 0
+      }
+    ];
+
+    afterEach(() => setTechnologyProgressForTests([]));
+
+    const riverlessBurg = {
+      burg: burg({ population: 10, market: 1, state: 1 }),
+      geography: baseGeography({ hasRiver: false, isCoastal: false }),
+      people: 5000,
+      cultureType: "Generic",
+      ambientTemperature: 12
+    };
+
+    it("gives a river-less burg no upstream intake before electricWaterPumps is adopted, even with real electricity coverage", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {}, electricityStock: 0.9 }]);
+      setTechnologyProgressForTests(notAdopted);
+
+      expect(computeUrbanWaterSystem(riverlessBurg).hasUpstreamIntake).toBe(false);
+    });
+
+    it("gives a river-less burg no upstream intake once adopted, if its Market lacks real electricity coverage", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {}, electricityStock: 0.1 }]);
+      setTechnologyProgressForTests(adopted);
+
+      expect(computeUrbanWaterSystem(riverlessBurg).hasUpstreamIntake).toBe(false);
+    });
+
+    it("grants a real upstream intake once electricWaterPumps is adopted AND the Market has real electricity coverage", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {}, electricityStock: 0 }]);
+      setTechnologyProgressForTests(notAdopted);
+      const noPump = computeUrbanWaterSystem(riverlessBurg);
+
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {}, electricityStock: 0.9 }]);
+      setTechnologyProgressForTests(adopted);
+      const pumped = computeUrbanWaterSystem(riverlessBurg);
+
+      expect(noPump.hasUpstreamIntake).toBe(false);
+      expect(pumped.hasUpstreamIntake).toBe(true);
+      expect(pumped.drinkingWaterSecurity).toBeGreaterThan(noPump.drinkingWaterSecurity);
+    });
+  });
 });
 
 describe("settleBurgWaterInvestment", () => {

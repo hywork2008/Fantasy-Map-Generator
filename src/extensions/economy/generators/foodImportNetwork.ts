@@ -9,6 +9,7 @@ import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { GROSS_FOOD_NEED } from "./foodConstants";
+import { applyHeatingCapacityBonus } from "./heating";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import { calculateRouteDurationFromDistances } from "./tradeRouteDuration";
@@ -62,6 +63,10 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
   }
 
   if (!markets.length || !pack.routes?.length) {
+    // Composes on top of the resetEffectiveCapacities() baseline above — see
+    // applyHeatingCapacityBonus()'s own doc comment for why it must run after every reset/import
+    // pass in this function, on both the early-return and full-run paths.
+    applyHeatingCapacityBonus(burgs);
     lastFoodFlows = [];
     return lastFoodFlows;
   }
@@ -128,6 +133,9 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
     applyImportCapacity(importer, ledger.satisfiedImport, worldContext);
   }
 
+  // Runs last: composes an additive climate-tech top-up on top of every burg's now-final
+  // (reset + import-bonus-adjusted) effectiveCapacity for this cycle — see its own doc comment.
+  applyHeatingCapacityBonus(burgs);
   lastFoodFlows = flows;
   return lastFoodFlows;
 }
