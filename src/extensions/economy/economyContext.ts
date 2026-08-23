@@ -2478,3 +2478,7 @@ export function getWaterSupplyLayer() {
 export function getSewerageLayer() {
   return getApi().getSvgLayer("sewerage");
 }
+
+export function getPowerGridLayer() {
+  return getApi().getSvgLayer("powerGrid");
+}

@@ -248,6 +248,7 @@ import {
 import { drawDams } from "./renderers/drawDams";
 import { drawLevees } from "./renderers/drawLevees";
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
+import { drawPowerGrid } from "./renderers/drawPowerGrid";
 import { drawSewerage } from "./renderers/drawSewerage";
 import { drawWaterSupply } from "./renderers/drawWaterSupply";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
@@ -398,6 +399,14 @@ export const economyLayers: LayerConfig[] = [
     shortcut: null,
     tooltip: "Sewerage: Giant-settlement trunk sewers and outfalls. Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "sewerage", insertAfter: "waterSupply", display: "none" }]
+  },
+  {
+    id: "togglePowerGrid",
+    name: "Power Grid",
+    shortcut: null,
+    tooltip:
+      "Power Grid: coal power stations and electrified dams, and (once a State's power grid is adopted) the transmission lines pooling their capacity at its capital. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "powerGrid", insertAfter: "sewerage", display: "none" }]
   }
 ];
 
@@ -3291,6 +3300,7 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleLevees", () => document.getElementById("levees"));
   api.registerLayerElement("toggleWaterSupply", () => document.getElementById("waterSupply"));
   api.registerLayerElement("toggleSewerage", () => document.getElementById("sewerage"));
+  api.registerLayerElement("togglePowerGrid", () => document.getElementById("powerGrid"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -3500,6 +3510,19 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("togglePowerGrid", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("togglePowerGrid")) {
+      api.turnLayerOn("togglePowerGrid");
+      // Same reasoning as toggleWaterSupply/toggleSewerage above: power stations and transmission
+      // lines are schematic infrastructure geometry with no deck.gl equivalent yet, so this stays
+      // SVG in both render modes rather than disappearing in hybrid mode.
+      drawPowerGrid();
+    } else {
+      api.getSvgLayer("powerGrid")?.html("");
+      api.turnLayerOff("togglePowerGrid");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // The economy tick publishes extension.economy on every simulated day. A
@@ -3523,6 +3546,7 @@ export function init(api: ExtensionAPI): void {
       api.requestWebglRender();
       if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
       if (api.layerIsOn("toggleSewerage")) drawSewerage();
+      if (api.layerIsOn("togglePowerGrid")) drawPowerGrid();
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
     }
@@ -3533,6 +3557,7 @@ export function init(api: ExtensionAPI): void {
     if (api.layerIsOn("toggleLevees")) drawLevees();
     if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
     if (api.layerIsOn("toggleSewerage")) drawSewerage();
+    if (api.layerIsOn("togglePowerGrid")) drawPowerGrid();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });
 }
