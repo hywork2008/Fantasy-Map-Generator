@@ -900,3 +900,54 @@ Tier 1-3 のマーカーは `treatmentOperationsFunding` に応じて不透明�
 ### 21.2 テスト
 
 `drawWaterSupply.test.ts` を新設（`drawDams.test.ts` と同じ、実 SVG DOM ノードに対して描画し `querySelectorAll`/`textContent`/`title`/`opacity` を検証するパターン）。Tier 1/3 のアイコン・タイトル、資金不足時の不透明度低下、保護済み取水のみの表示、しきい値未満・取水なしでの非表示、をカバーする6ケース。`buildInheritedWaterSupplyRoutes()`/`buildInheritedSewerRoutes()` は河川セルが無ければ即座に `[]` を返す（`urbanWaterSupply.ts`）ため、河川データを持たない最小フィクスチャで Giant 経路生成をバイパスし、今回追加したロジックだけを検証している。
+
+---
+
+## 22. 川の無い農村向けの「衛生知識」ボーナス（実装済み・2026-08-23）
+
+**状態: 実装済み**。ユーザー提起: 「近代化した地図の、川が近くにない農村は、中世の農村よりは知識により衛生関連の運用が改善し、病気にかかりにくくなっているはず（井戸とトイレを離す、年一回以上の塩素消毒など）だが、その仕組みが存在しない」。
+
+### 22.1 発見した構造的な穴
+
+`hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalWaterConnection`（[urbanWaterSystem.ts:976](../../src/extensions/economy/generators/urbanWaterSystem.ts#L976)）は、近代ラダーの投資条件（`settleModernWaterTreatmentInvestment`、[urbanWaterModernTreatment.ts](../../src/extensions/economy/generators/urbanWaterModernTreatment.ts)）の前提そのものである。川も広域水道もない村は、この条件を**どれだけ年月・時代が進んでも一度も満たせない**——`drinkingTreatmentTier`は生成時シード（§20）以外の経路では永久に0のまま。
+
+代替になりそうな`sanitaryEngineering`（era駆動の一般衛生知識ストック、`urbanWaterTech.ts`）も、`args.tier < 3`（レガシー`tier`ラダーが3以上）を満たさない限り一切成長しない（`evolveWaterTechStocks()`の`sanitaryTarget`）。つまり「時代が進めば知識だけで自然に上がる」信号はこれまで一切存在しなかった。
+
+### 22.2 `wellHygieneReadiness()`——資本投資と独立した知識項
+
+`urbanWaterSystem.ts`に`modernizationAffinityForBurg()`と対になる新関数を追加した：
+
+```ts
+function wellHygieneReadiness(burg: Burg, drinkingTreatmentTier: WaterSanitationTier): number {
+  if (drinkingTreatmentTier >= 1) return 0;
+  const period = getWorldContext().options?.historicalPeriod;
+  const techLevel = period ? CIVIC_WATERWORKS_TECH_LEVEL[period] : undefined;
+  if (techLevel === undefined) return 0;
+  const techLevelProgress = clamp01(
+    (techLevel - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN) / (CIVIC_WATERWORKS_TECH_LEVEL_MAX - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN)
+  );
+  return techLevelProgress * clamp01(modernizationAffinityForBurg(burg));
+}
+```
+
+§20 の `modernWaterworksGenerationSeed()` と完全に同じ era スケール（`steamEra` = 0 .. `rocketryEra` = 1）と文化スケール（Burg 自身の `modernizationAffinity`）を再利用している——菌原説・塩素消毒という発想自体が steamEra 以降の知識であり、`lateMedieval` の村が「自然に」知ることはない、という §10 の「近代処理場を遡及させない」原則を知識面にもそのまま適用した。
+
+`drinkingTreatmentTier >= 1`（本物の処理場が建った時点）で即座に0へ落ちる——実際の処理場の効果（0.12/0.2、§13.2）に重複加算しない設計。
+
+### 22.3 `computeUrbanWaterSystem` への接続
+
+```text
+waterContamination    -= wellHygiene * 0.08
+drinkingWaterSecurity（modernDrinkingBonus 経由） += wellHygiene * 0.1
+```
+
+意図的に Tier 1 本体のボーナス（0.12/0.2）より小さい——「井戸とトイレを離す・時々消毒する」という民間の知識と、実際に建設された処理場との質的な差を表現している。`treatmentOperationsFunding`・Good購入のいずれも要求しない——これは知識・行動の変化であって資本投資ではないため、既存の建設費・運転費予算とは競合しない。
+
+### 22.4 テスト
+
+`urbanWaterSystem.test.ts`に`computeUrbanWaterSystem`直下の新規describeブロックを追加（4ケース）: steamEra以前は効果なし、steamEra→rocketryEraで川の無い村の水質が改善すること（かつ`treatmentOperationsFunding`等が0のままであること＝無償であることの確認）、Industrial文化とNomadic文化での効果の差、`drinkingTreatmentTier`が1に達すると本項が消えて実処理場側の項に主導権が移ること。
+
+### 22.5 未着手（将来拡張）
+
+- ユーザーが当初提案していた「塩素消毒」の上乗せ（実在の`Chlorine`在庫を少量要求する追加項）は、本人の希望により今回は実装していない。「知識のみ」の本項とは独立に、後から追加できる。
+- 農村セル（`pack.cells`、Burgに属さない人口）への適用は対象外のまま——`epidemic-cholera-and-water-security.md`の既存方針（`UrbanWaterSystem`はburgスコープ）を踏襲し、village型burgのみを対象にしている。

@@ -1012,6 +1012,14 @@ export function computeUrbanWaterSystem(args: {
   const treatmentFactor =
     (1 - sanitaryEngineering * 0.45 - (hasSeparateWastewaterRoute ? 0.15 : 0)) * modernWastewaterTreatmentFactor;
 
+  // §22 (docs/plan/modern-urban-water-treatment-and-governance.md): general era-driven public-
+  // health knowledge (keeping a well away from a latrine, informal/occasional water treatment) that
+  // helps a Burg with no real drinking-treatment plant yet (drinkingTreatmentTier < 1) — whether it
+  // has no river/regional-scheme intake to ever build one on, or simply hasn't built one yet —
+  // independent of any capital investment. See its own doc comment (below, near
+  // modernizationAffinityForBurg()) for the full reasoning; read here and in modernDrinkingBonus.
+  const wellHygiene = wellHygieneReadiness(burg, drinkingTreatmentTier);
+
   const waterContamination = clamp01(
     wasteDeficit * 0.4 +
       organic.openDisposalShare * 0.18 +
@@ -1040,7 +1048,9 @@ export function computeUrbanWaterSystem(args: {
       // required factor stacked onto it — a Tier 2 plant with Alum but no local Lime still gets the
       // full Alum-gated reduction above, just misses this smaller pH-correction/softening extra.
       (drinkingTreatmentTier >= 2 ? 0.03 * clamp01(treatmentOperationsFunding) * clamp01(limeStockCoverage) : 0) -
-      (drinkingTreatmentTier >= 3 ? 0.14 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0)
+      (drinkingTreatmentTier >= 3 ? 0.14 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0) -
+      // §22: free knowledge, no treatmentOperationsFunding gate — see wellHygiene's own doc comment.
+      wellHygiene * 0.08
   );
 
   const sanitationBurden = clamp01(
@@ -1091,7 +1101,9 @@ export function computeUrbanWaterSystem(args: {
       : 0) +
     // §17.2: same independent Lime top-up as the waterContamination term above.
     (drinkingTreatmentTier >= 2 ? 0.04 * clamp01(treatmentOperationsFunding) * clamp01(limeStockCoverage) : 0) +
-    (drinkingTreatmentTier >= 3 ? 0.2 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0);
+    (drinkingTreatmentTier >= 3 ? 0.2 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0) +
+    // §22: same free knowledge term as the waterContamination term above.
+    wellHygiene * 0.1;
   const drinkingWaterSecurity = clamp01(
     (drinkingBase + tierDrinkBonus + modernDrinkingBonus) *
       maint *
@@ -1290,6 +1302,39 @@ function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {
 function modernizationAffinityForBurg(burg: Burg): number {
   const culture = getWorldContext().pack.cultures?.[burg.culture ?? 0];
   return getCultureModernizationAffinity(culture ?? {});
+}
+
+/**
+ * §22 (docs/plan/modern-urban-water-treatment-and-governance.md): general era-driven public-health
+ * knowledge — keeping a well away from a latrine, informally boiling/treating water — for a Burg
+ * that has no real drinking-treatment plant yet (drinkingTreatmentTier < 1). Answers the "medieval
+ * vs. modern rural village" question for a village with no river/regional-scheme intake to ever
+ * build a Tier 1 plant on: it can still slowly benefit from the era it lives in, just far less than
+ * an actual filtration plant would give it (0.08/0.1 below vs. Tier 1's own 0.12/0.2 — see
+ * computeUrbanWaterSystem()'s waterContamination/modernDrinkingBonus terms that read this).
+ *
+ * Deliberately free — no treatmentOperationsFunding, Good purchase, or treasury spend of any kind,
+ * unlike every drinkingTreatmentTier >= 1 term in this file. This is a knowledge/behavior change,
+ * not capital investment, so it does not compete with construction/operations budgets the way a
+ * real plant does. Zero once drinkingTreatmentTier reaches 1 — at that point the real plant's own,
+ * larger terms take over and this folk-knowledge term would be redundant.
+ *
+ * Reuses modernWaterworksGenerationSeed()'s (§20) exact era-progress scale (steamEra=0..
+ * rocketryEra=1, CIVIC_WATERWORKS_TECH_LEVEL/MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN below) so a
+ * pre-steamEra map gets none of this either — §10's "no retroactive modern treatment" principle
+ * applies to knowledge diffusion as much as to capital plants; germ theory and chlorination are
+ * themselves steamEra-or-later ideas, not something a lateMedieval village could "just know".
+ */
+function wellHygieneReadiness(burg: Burg, drinkingTreatmentTier: WaterSanitationTier): number {
+  if (drinkingTreatmentTier >= 1) return 0;
+  const period = getWorldContext().options?.historicalPeriod;
+  const techLevel = period ? CIVIC_WATERWORKS_TECH_LEVEL[period] : undefined;
+  if (techLevel === undefined) return 0;
+  const techLevelProgress = clamp01(
+    (techLevel - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN) /
+      (CIVIC_WATERWORKS_TECH_LEVEL_MAX - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN)
+  );
+  return techLevelProgress * clamp01(modernizationAffinityForBurg(burg));
 }
 
 function systemDefaults(

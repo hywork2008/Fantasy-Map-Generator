@@ -978,6 +978,82 @@ describe("computeUrbanWaterSystem", () => {
     expect(system.sludgeBacklog).toBe(0);
     expect(system.effluentTestCoverage).toBe(0);
   });
+
+  describe("well hygiene knowledge (docs/plan/modern-urban-water-treatment-and-governance.md §22)", () => {
+    beforeEach(() => {
+      worldContext.pack.cultures = [
+        { i: 0, type: "Generic" },
+        { i: 1, type: "Industrial" },
+        { i: 2, type: "Nomadic" }
+      ] as typeof worldContext.pack.cultures;
+    });
+
+    // No river -> hasUpstreamIntake is permanently false, so this village can never build a real
+    // Tier 1 plant through play — the only path left for it is this knowledge term.
+    const riverlessVillage = {
+      burg: burg({ population: 2, market: 1, capital: 0, culture: 1 }), // 2,000 people, Industrial
+      geography: baseGeography({ hasRiver: false }),
+      people: 2000,
+      cultureType: "Generic",
+      ambientTemperature: 12,
+      drinkingTreatmentTier: 0 as const
+    };
+
+    it("gives a river-less village no bonus before steamEra, even with a high-affinity culture", () => {
+      worldContext.options = { historicalPeriod: "preIndustrialEra" } as typeof worldContext.options;
+      const before = computeUrbanWaterSystem(riverlessVillage);
+
+      worldContext.options = undefined as unknown as typeof worldContext.options;
+      const noPeriod = computeUrbanWaterSystem(riverlessVillage);
+
+      // Same as the pre-steamEra case — neither has reached the era this knowledge requires.
+      expect(before.waterContamination).toBe(noPeriod.waterContamination);
+      expect(before.drinkingWaterSecurity).toBe(noPeriod.drinkingWaterSecurity);
+    });
+
+    it("improves a river-less village's water security further into the steamEra->rocketryEra span, with no capital spend", () => {
+      worldContext.options = { historicalPeriod: "preIndustrialEra" } as typeof worldContext.options;
+      const medieval = computeUrbanWaterSystem(riverlessVillage);
+
+      worldContext.options = { historicalPeriod: "rocketryEra" } as typeof worldContext.options;
+      const modern = computeUrbanWaterSystem(riverlessVillage);
+
+      expect(modern.drinkingWaterSecurity).toBeGreaterThan(medieval.drinkingWaterSecurity);
+      expect(modern.waterContamination).toBeLessThan(medieval.waterContamination);
+      // Free — no treasury/Good spend is modeled by computeUrbanWaterSystem at all, but confirm the
+      // fields this mechanic explicitly avoids gating on stayed exactly as passed in (both 0).
+      expect(modern.treatmentOperationsFunding).toBe(0);
+      expect(modern.chlorineStockCoverage).toBe(0);
+    });
+
+    it("gives a low-affinity (Nomadic) culture far less of the bonus than a high-affinity (Industrial) one, at the same era", () => {
+      worldContext.options = { historicalPeriod: "rocketryEra" } as typeof worldContext.options;
+      const industrial = computeUrbanWaterSystem({
+        ...riverlessVillage,
+        burg: { ...riverlessVillage.burg, culture: 1 }
+      });
+      const nomadic = computeUrbanWaterSystem({ ...riverlessVillage, burg: { ...riverlessVillage.burg, culture: 2 } });
+
+      expect(industrial.drinkingWaterSecurity).toBeGreaterThan(nomadic.drinkingWaterSecurity);
+      expect(industrial.waterContamination).toBeLessThan(nomadic.waterContamination);
+    });
+
+    it("stops applying once drinkingTreatmentTier reaches 1 — the real plant's own terms take over instead of stacking", () => {
+      worldContext.options = { historicalPeriod: "rocketryEra" } as typeof worldContext.options;
+      const tier0 = computeUrbanWaterSystem(riverlessVillage);
+      const tier1Unfunded = computeUrbanWaterSystem({
+        ...riverlessVillage,
+        drinkingTreatmentTier: 1,
+        sourceProtection: 0,
+        treatmentOperationsFunding: 0
+      });
+
+      // An unfunded, freshly-built Tier 1 plant gets none of Tier 1's own (funding-gated) bonus —
+      // and no longer gets the Tier-0-only knowledge term either, so it should NOT end up better off
+      // than the Tier 0 village that still has the free knowledge term active.
+      expect(tier1Unfunded.drinkingWaterSecurity).toBeLessThanOrEqual(tier0.drinkingWaterSecurity);
+    });
+  });
 });
 
 describe("settleBurgWaterInvestment", () => {
