@@ -47,12 +47,23 @@ test.describe("burg-to-burg Directions dialog", () => {
 
     // At least one land mode resolves a real route with a nonzero distance/time.
     const footTab = dialog.locator(".directions-mode", { hasText: "On foot" });
+    const mountedTab = dialog.locator(".directions-mode", { hasText: "Mounted" });
     const cartTab = dialog.locator(".directions-mode", { hasText: "By cart" });
     const enabledTab = (await footTab.isEnabled()) ? footTab : cartTab;
     await expect(enabledTab).toBeEnabled();
     await expect(enabledTab).toContainText("km");
+    await expect(mountedTab).toBeEnabled(); // findConnectedBurgPair guarantees a land route
 
     // The selected route is highlighted on the map.
+    await expect(page.locator("#ruler .directions-route-highlight")).toHaveCount(1);
+
+    // Toggling "avoid sea travel" recomputes without breaking the land route we already have.
+    const avoidSea = dialog.getByRole("checkbox", { name: "Avoid sea travel" });
+    await expect(avoidSea).toBeVisible();
+    await expect(avoidSea).not.toBeChecked();
+    await avoidSea.check();
+    await expect(avoidSea).toBeChecked();
+    await expect(enabledTab).toBeEnabled();
     await expect(page.locator("#ruler .directions-route-highlight")).toHaveCount(1);
 
     // Closing the dialog clears the highlight.

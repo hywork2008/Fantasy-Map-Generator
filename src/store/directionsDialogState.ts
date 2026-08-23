@@ -11,21 +11,23 @@ interface DirectionsDialogOpenData {
 }
 
 interface DirectionsDialogState extends DirectionsDialogOpenData {
-  selectedRouteId: string | null;
+  avoidSea: boolean;
   open: (data: DirectionsDialogOpenData) => void;
   selectMode: (mode: TravelMode) => void;
-  selectRoute: (routeId: string) => void;
+  /** Applied after the caller recomputes `computeDirections(fromBurgId, toBurgId, avoidSea)` —
+   * this store holds state, it doesn't run the pathfinder itself. */
+  applyAvoidSea: (avoidSea: boolean, result: DirectionsResult, selectedMode: TravelMode | null) => void;
   reset: () => void;
 }
 
-const EMPTY_STATE: DirectionsDialogOpenData & { selectedRouteId: string | null } = {
+const EMPTY_STATE: DirectionsDialogOpenData & { avoidSea: boolean } = {
   fromBurgId: 0,
   toBurgId: 0,
   fromName: "",
   toName: "",
   result: null as unknown as DirectionsResult,
   selectedMode: null,
-  selectedRouteId: null
+  avoidSea: false
 };
 
 /**
@@ -36,8 +38,8 @@ const EMPTY_STATE: DirectionsDialogOpenData & { selectedRouteId: string | null }
  */
 export const useDirectionsDialogState = create<DirectionsDialogState>(set => ({
   ...EMPTY_STATE,
-  open: data => set({ ...data, selectedRouteId: null }),
-  selectMode: mode => set({ selectedMode: mode, selectedRouteId: null }),
-  selectRoute: routeId => set({ selectedRouteId: routeId }),
+  open: data => set({ ...data, avoidSea: false }),
+  selectMode: mode => set({ selectedMode: mode }),
+  applyAvoidSea: (avoidSea, result, selectedMode) => set({ avoidSea, result, selectedMode }),
   reset: () => set({ ...EMPTY_STATE })
 }));

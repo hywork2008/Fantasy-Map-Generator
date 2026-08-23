@@ -43,29 +43,21 @@
   opacity: 0.85;
 }
 
-.directions-routes {
+.directions-avoid-sea {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.directions-route {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--dark-solid);
-  background: transparent;
-  color: inherit;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9em;
   cursor: pointer;
-  text-align: left;
+  width: fit-content;
 }
 
-.directions-route.active {
-  background: color-mix(in srgb, var(--dark-solid) 16%, transparent);
-  font-weight: bold;
+.directions-sea-note {
+  font-size: 0.85em;
+  color: var(--warning-color, #b3691a);
 }
 
+.directions-distance-split,
 .directions-grade-summary,
 .directions-flat-note,
 .directions-empty {

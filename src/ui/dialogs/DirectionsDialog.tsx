@@ -6,13 +6,7 @@ import { buildElevationChartData } from "../../controllers/elevation-profile";
 import { ensureRulersReady } from "../../controllers/mapContextMenu";
 import { ElevationProfileRenderer } from "../../renderers/elevation-profile-renderer";
 import { passClassLabel } from "../../services/routeGrade";
-import {
-  bestRoute,
-  type DirectionsRoute,
-  splitTravelDuration,
-  TRAVEL_MODES,
-  type TravelMode
-} from "../../services/travelDirections";
+import { computeDirections, splitTravelDuration, TRAVEL_MODES, type TravelMode } from "../../services/travelDirections";
 import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useDirectionsDialogState } from "../../store/directionsDialogState";
@@ -33,7 +27,7 @@ const Y_OFFSET = 2;
 const BIOMES_HEIGHT = 10;
 const ROUTE_HIGHLIGHT_CLASS = "directions-route-highlight";
 
-const MODE_ICON: Record<TravelMode, string> = { foot: "🚶", wagon: "🐎", ship: "⛵" };
+const MODE_ICON: Record<TravelMode, string> = { foot: "🚶", mounted: "🐎", wagon: "🐴" };
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -47,15 +41,13 @@ function formatDuration(days: number, t: Translate): string {
 export const DirectionsDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("directions"));
-  const { fromName, toName, result, selectedMode, selectedRouteId, selectMode, selectRoute, reset } =
+  const { fromBurgId, toBurgId, fromName, toName, result, selectedMode, avoidSea, selectMode, applyAvoidSea, reset } =
     useDirectionsDialogState();
   const heightUnit = useOptionsState(s => s.heightUnit);
   const distanceUnit = useOptionsState(s => s.distanceUnit);
 
   const modeResult = selectedMode && result ? result[selectedMode] : null;
-  const routes: DirectionsRoute[] = modeResult?.available ? modeResult.routes : [];
-  const selectedRoute: DirectionsRoute | null =
-    routes.find(route => route.id === selectedRouteId) ?? (modeResult ? bestRoute(modeResult) : null);
+  const selectedRoute = modeResult?.available ? modeResult.route : null;
 
   // Highlight the selected route on the map; clear it when it changes or the dialog closes.
   useEffect(() => {
@@ -79,7 +71,7 @@ export const DirectionsDialog: React.FC = () => {
     };
   }, [isOpen, selectedRoute]);
 
-  // Elevation chart for the selected land route (ship routes have no grade profile).
+  // Elevation chart for an all-land route only (see travelDirections.ts's gradeProfile doc comment).
   useEffect(() => {
     if (!isOpen || !selectedRoute?.gradeProfile) return;
     const built = buildElevationChartData(selectedRoute.cells, false);
@@ -109,6 +101,14 @@ export const DirectionsDialog: React.FC = () => {
     closeDialog("directions");
   }
 
+  function handleAvoidSeaChange(checked: boolean): void {
+    // Availability never changes with avoidSea (computeDirections falls back to a sea-inclusive
+    // route rather than failing), so the selected mode tab stays put — only its route changes.
+    const recomputed = computeDirections(fromBurgId, toBurgId, checked);
+    if (!recomputed) return;
+    applyAvoidSea(checked, recomputed, selectedMode);
+  }
+
   return (
     <Dialog
       isOpen={isOpen}
@@ -117,10 +117,15 @@ export const DirectionsDialog: React.FC = () => {
     >
       {result && (
         <div className="directions-dialog">
+          <label className="directions-avoid-sea">
+            <input type="checkbox" checked={avoidSea} onChange={event => handleAvoidSeaChange(event.target.checked)} />
+            {t("directions.avoidSea")}
+          </label>
+
           <div className="directions-modes" role="tablist">
             {TRAVEL_MODES.map(mode => {
               const modeRes = result[mode];
-              const best = bestRoute(modeRes);
+              const route = modeRes.available ? modeRes.route : null;
               return (
                 <button
                   key={mode}
@@ -128,15 +133,15 @@ export const DirectionsDialog: React.FC = () => {
                   role="tab"
                   aria-selected={selectedMode === mode}
                   className={`directions-mode${selectedMode === mode ? " active" : ""}`}
-                  disabled={!best}
+                  disabled={!route}
                   title={!modeRes.available ? t(`directions.reason.${modeRes.reasonKey}`) : undefined}
                   onClick={() => selectMode(mode)}
                 >
                   <span className="directions-mode__icon">{MODE_ICON[mode]}</span>
                   <span className="directions-mode__label">{t(`directions.mode.${mode}`)}</span>
-                  {best && (
+                  {route && (
                     <span className="directions-mode__summary">
-                      {formatDuration(best.durationDays, t)} · {rn(best.distanceKm)} {distanceUnit}
+                      {formatDuration(route.durationDays, t)} · {rn(route.distanceKm)} {distanceUnit}
                     </span>
                   )}
                 </button>
@@ -144,21 +149,17 @@ export const DirectionsDialog: React.FC = () => {
             })}
           </div>
 
-          {routes.length > 1 && (
-            <div className="directions-routes">
-              {routes.map(route => (
-                <button
-                  key={route.id}
-                  type="button"
-                  className={`directions-route${route.id === selectedRoute?.id ? " active" : ""}`}
-                  onClick={() => selectRoute(route.id)}
-                >
-                  <span className="directions-route__label">{t(`directions.route.${route.labelKey}`)}</span>
-                  <span className="directions-route__stats">
-                    {formatDuration(route.durationDays, t)} · {rn(route.distanceKm)} {distanceUnit}
-                  </span>
-                </button>
-              ))}
+          {selectedRoute?.seaRequiredDespiteAvoid && (
+            <div className="directions-sea-note">{t("directions.seaRequiredNote")}</div>
+          )}
+
+          {selectedRoute?.composition === "mixed" && (
+            <div className="directions-distance-split">
+              {t("directions.distanceSplit", {
+                land: rn(selectedRoute.landDistanceKm),
+                sea: rn(selectedRoute.seaDistanceKm),
+                distanceUnit
+              })}
             </div>
           )}
 
@@ -174,6 +175,14 @@ export const DirectionsDialog: React.FC = () => {
                   difficulty: passClassLabel(selectedRoute.gradeProfile.worstClass)
                 })}
               </div>
+            </div>
+          ) : selectedRoute?.composition === "mixed" ? (
+            <div className="directions-grade-summary">
+              {t("directions.landGradeSummary", {
+                ascent: rn(selectedRoute.ascentM),
+                descent: rn(selectedRoute.descentM),
+                heightUnit
+              })}
             </div>
           ) : selectedRoute ? (
             <div className="directions-flat-note">{t("directions.noElevation")}</div>

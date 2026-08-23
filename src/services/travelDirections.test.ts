@@ -2,11 +2,18 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { PackedGraph } from "../types/PackedGraph";
-import { bestRoute, computeDirections, resolveBurg, splitTravelDuration } from "./travelDirections";
+import { computeDirections, pickDefaultMode, resolveBurg, splitTravelDuration } from "./travelDirections";
 
-// Burg A(0) and B(2) are linked by two land routes: a short but very steep pass through
-// waypoint X(1), and a longer but flat detour through waypoints Y(3)/Z(4). Burgs C(5)/D(6) are
-// isolated (no route at all). Ports E(7)/F(9) are linked only by a sea route via water cell 8.
+// Fixture geometry (all distanceScale = 1, so map units == km):
+//
+// - Burg A(0) / B(2): linked by two land routes — a short but very steep pass through waypoint
+//   X(1), and a longer but flat detour through waypoints Y(3)/Z(4). Tests grade-aware routing.
+// - Burg C(5) / D(6): isolated, no route at all.
+// - Burg A2(9) / B2(10): linked by a long (1000 unit) flat land-only detour through W1(11)/W2(12),
+//   AND a much faster land+sea shortcut (50 land + 300 sea + 50 land) via two ports, 7 and 8.
+//   Tests automatic sea use and the avoidSea fallback.
+// - Burg PortE(13) / PortF(15): linked only by a sea route via water cell 14. Tests
+//   seaRequiredDespiteAvoid when avoidSea can't be honored at all.
 function makePack(): PackedGraph {
   const cells = {
     p: [
@@ -17,11 +24,17 @@ function makePack(): PackedGraph {
       [15, 15], // 4: Z, flat detour waypoint
       [100, 100], // 5: burg C, isolated
       [110, 100], // 6: burg D, isolated
-      [0, 50], // 7: port E
-      [10, 50], // 8: water waypoint
-      [20, 50] // 9: port F
+      [50, 1000], // 7: port near A2
+      [350, 1000], // 8: port near B2
+      [0, 1000], // 9: burg A2
+      [400, 1000], // 10: burg B2
+      [0, 700], // 11: W1, long land detour waypoint
+      [400, 700], // 12: W2, long land detour waypoint
+      [0, 50], // 13: burg PortE
+      [10, 50], // 14: water waypoint
+      [20, 50] // 15: burg PortF
     ],
-    h: [25, 95, 25, 25, 25, 25, 25, 25, 10, 25]
+    h: [25, 95, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 10, 25]
   };
 
   const burgs = [
@@ -30,8 +43,10 @@ function makePack(): PackedGraph {
     { cell: 2, x: 20, y: 0, name: "B" },
     { cell: 5, x: 100, y: 100, name: "C" },
     { cell: 6, x: 110, y: 100, name: "D" },
-    { cell: 7, x: 0, y: 50, name: "E" },
-    { cell: 9, x: 20, y: 50, name: "F" }
+    { cell: 9, x: 0, y: 1000, name: "A2" },
+    { cell: 10, x: 400, y: 1000, name: "B2" },
+    { cell: 13, x: 0, y: 50, name: "PortE" },
+    { cell: 15, x: 20, y: 50, name: "PortF" }
   ];
 
   const routes = [
@@ -58,12 +73,50 @@ function makePack(): PackedGraph {
     },
     {
       i: 2,
+      group: "roads",
+      feature: 1,
+      points: [
+        [0, 1000, 9],
+        [50, 1000, 7]
+      ]
+    },
+    {
+      i: 3,
+      group: "roads",
+      feature: 1,
+      points: [
+        [350, 1000, 8],
+        [400, 1000, 10]
+      ]
+    },
+    {
+      i: 4,
+      group: "roads",
+      feature: 1,
+      points: [
+        [0, 1000, 9],
+        [0, 700, 11],
+        [400, 700, 12],
+        [400, 1000, 10]
+      ]
+    },
+    {
+      i: 5,
       group: "searoutes",
       feature: 1,
       points: [
-        [0, 50, 7],
-        [10, 50, 8],
-        [20, 50, 9]
+        [50, 1000, 7],
+        [350, 1000, 8]
+      ]
+    },
+    {
+      i: 6,
+      group: "searoutes",
+      feature: 1,
+      points: [
+        [0, 50, 13],
+        [10, 50, 14],
+        [20, 50, 15]
       ]
     }
   ];
@@ -78,61 +131,84 @@ beforeEach(() => {
 });
 
 describe("computeDirections", () => {
-  it("offers a shortest/steep route and a longer/easier route for foot and wagon", () => {
+  it("picks the grade-aware fastest land route, avoiding a shorter but very steep pass", () => {
     const result = computeDirections(1, 2);
     expect(result).not.toBeNull();
 
-    for (const mode of ["foot", "wagon"] as const) {
+    for (const mode of ["foot", "mounted", "wagon"] as const) {
       const modeResult = result![mode];
       expect(modeResult.available).toBe(true);
       if (!modeResult.available) continue;
 
-      expect(modeResult.routes).toHaveLength(2);
-      const shortest = modeResult.routes.find(r => r.labelKey === "shortest");
-      const easier = modeResult.routes.find(r => r.labelKey === "easier");
-      expect(shortest?.cells).toEqual([0, 1, 2]);
-      expect(easier?.cells).toEqual([0, 3, 4, 2]);
-
-      // The steep pass is dramatically slower despite being shorter in distance.
-      expect(shortest!.distanceKm).toBeLessThan(easier!.distanceKm);
-      expect(easier!.durationDays).toBeLessThan(shortest!.durationDays);
-      expect(shortest!.ascentM).toBeGreaterThan(0);
-
-      // Faster alternate leads the list.
-      expect(modeResult.routes[0].labelKey).toBe("easier");
+      expect(modeResult.route.cells).toEqual([0, 3, 4, 2]); // the flat detour, not the steep pass
+      expect(modeResult.route.composition).toBe("land");
+      expect(modeResult.route.gradeProfile).not.toBeNull();
+      expect(modeResult.route.ascentM).toBe(0);
+      expect(modeResult.route.seaDistanceKm).toBe(0);
+      expect(modeResult.route.seaRequiredDespiteAvoid).toBe(false);
     }
-  });
-
-  it("reports ship unavailable between two inland burgs", () => {
-    const result = computeDirections(1, 2)!;
-    expect(result.ship).toEqual({ available: false, reasonKey: "noSeaRoute" });
   });
 
   it("reports every mode unavailable between two burgs with no connecting network", () => {
     const result = computeDirections(3, 4)!;
-    expect(result.foot).toEqual({ available: false, reasonKey: "noLandRoute" });
-    expect(result.wagon).toEqual({ available: false, reasonKey: "noLandRoute" });
-    expect(result.ship).toEqual({ available: false, reasonKey: "noSeaRoute" });
+    expect(result.foot).toEqual({ available: false, reasonKey: "noRoute" });
+    expect(result.mounted).toEqual({ available: false, reasonKey: "noRoute" });
+    expect(result.wagon).toEqual({ available: false, reasonKey: "noRoute" });
   });
 
-  it("finds a single ship route between two ports and reports land modes unavailable", () => {
+  it("automatically combines land and sea when that's faster than a long land-only detour", () => {
     const result = computeDirections(5, 6)!;
-    expect(result.foot).toEqual({ available: false, reasonKey: "noLandRoute" });
-    expect(result.wagon).toEqual({ available: false, reasonKey: "noLandRoute" });
-    expect(result.ship.available).toBe(true);
-    if (result.ship.available) {
-      expect(result.ship.routes).toHaveLength(1);
-      expect(result.ship.routes[0].cells).toEqual([7, 8, 9]);
-      expect(result.ship.routes[0].gradeProfile).toBeNull();
-      expect(result.ship.routes[0].durationDays).toBeGreaterThan(0);
+    expect(result.wagon.available).toBe(true);
+    if (!result.wagon.available) return;
+
+    const route = result.wagon.route;
+    expect(route.composition).toBe("mixed");
+    expect(route.cells).toEqual([9, 7, 8, 10]);
+    expect(route.kinds).toEqual(["land", "sea", "land"]);
+    expect(route.landDistanceKm).toBeCloseTo(100, 6);
+    expect(route.seaDistanceKm).toBeCloseTo(300, 6);
+    expect(route.distanceKm).toBeCloseTo(400, 6);
+    // 100/32 (land) + 300/60 (sea) + 2 transitions * 2-day port penalty.
+    expect(route.durationDays).toBeCloseTo(100 / 32 + 300 / 60 + 4, 6);
+    expect(route.gradeProfile).toBeNull(); // not an all-land route
+    expect(route.seaRequiredDespiteAvoid).toBe(false);
+  });
+
+  it("falls back to the long land-only detour when avoidSea is set and a land path exists", () => {
+    const result = computeDirections(5, 6, true)!;
+    expect(result.wagon.available).toBe(true);
+    if (!result.wagon.available) return;
+
+    const route = result.wagon.route;
+    expect(route.composition).toBe("land");
+    expect(route.cells).toEqual([9, 11, 12, 10]);
+    expect(route.seaDistanceKm).toBe(0);
+    expect(route.durationDays).toBeCloseTo(1000 / 32, 6); // no port-transfer penalty
+    expect(route.seaRequiredDespiteAvoid).toBe(false); // avoidSea was honorable, so it wasn't overridden
+  });
+
+  it("ignores avoidSea when only a sea route connects the two burgs", () => {
+    const withSea = computeDirections(7, 8, false)!;
+    expect(withSea.wagon.available).toBe(true);
+    if (withSea.wagon.available) {
+      expect(withSea.wagon.route.composition).toBe("sea");
+      expect(withSea.wagon.route.cells).toEqual([13, 14, 15]);
+      expect(withSea.wagon.route.seaRequiredDespiteAvoid).toBe(false);
+    }
+
+    const avoided = computeDirections(7, 8, true)!;
+    expect(avoided.wagon.available).toBe(true);
+    if (avoided.wagon.available) {
+      expect(avoided.wagon.route.composition).toBe("sea");
+      expect(avoided.wagon.route.seaRequiredDespiteAvoid).toBe(true);
     }
   });
 
   it("reports sameLocation for every mode when both burgs share a location", () => {
     const result = computeDirections(1, 1)!;
     expect(result.foot).toEqual({ available: false, reasonKey: "sameLocation" });
+    expect(result.mounted).toEqual({ available: false, reasonKey: "sameLocation" });
     expect(result.wagon).toEqual({ available: false, reasonKey: "sameLocation" });
-    expect(result.ship).toEqual({ available: false, reasonKey: "sameLocation" });
   });
 
   it("returns null when either burg id doesn't resolve", () => {
@@ -165,11 +241,14 @@ describe("splitTravelDuration", () => {
   });
 });
 
-describe("bestRoute", () => {
-  it("picks the lowest-duration route and returns null when unavailable", () => {
+describe("pickDefaultMode", () => {
+  it("picks the fastest available mode (mounted, over the flat land detour)", () => {
     const result = computeDirections(1, 2)!;
-    const best = bestRoute(result.foot);
-    expect(best?.labelKey).toBe("easier");
-    expect(bestRoute({ available: false, reasonKey: "noLandRoute" })).toBeNull();
+    expect(pickDefaultMode(result)).toBe("mounted"); // fastest base speed on an all-flat route
+  });
+
+  it("returns null when every mode is unavailable", () => {
+    const result = computeDirections(3, 4)!;
+    expect(pickDefaultMode(result)).toBeNull();
   });
 });

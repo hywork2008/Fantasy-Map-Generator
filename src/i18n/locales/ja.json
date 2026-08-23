@@ -97,17 +97,11 @@
   "directions": {
     "mode": {
       "foot": "徒歩",
-      "wagon": "馬車",
-      "ship": "船"
-    },
-    "route": {
-      "recommended": "おすすめルート",
-      "shortest": "最短ルート",
-      "easier": "楽なルート"
+      "mounted": "騎馬",
+      "wagon": "荷馬車"
     },
     "reason": {
-      "noLandRoute": "これらの都市を結ぶ道や小道が見つかりません",
-      "noSeaRoute": "どちらの都市も海路に面していません",
+      "noRoute": "これらの都市を結ぶ道・小道・海路が見つかりません",
       "sameLocation": "既に到着しています"
     },
     "duration": {
@@ -115,7 +109,11 @@
       "hoursMinutes": "{{hours}}時間{{minutes}}分",
       "minutes": "{{minutes}}分"
     },
+    "avoidSea": "船を避ける",
+    "seaRequiredNote": "このルートは海路が必須です。陸路網ではこれらの都市を結べないため、「船を避ける」は無視されました。",
+    "distanceSplit": "陸路 {{land}}{{distanceUnit}} ・ 海路 {{sea}}{{distanceUnit}}",
     "gradeSummary": "最大勾配: {{maxGrade}}% ・ 登り: {{ascent}}{{heightUnit}} ・ 下り: {{descent}}{{heightUnit}} ・ 難易度: {{difficulty}}",
+    "landGradeSummary": "登り: {{ascent}}{{heightUnit}} ・ 下り: {{descent}}{{heightUnit}}(陸路区間のみ)",
     "noElevation": "平坦な海路です — 標高差はありません。",
     "noRoute": "これらの都市を結ぶ経路が見つかりません。"
   },

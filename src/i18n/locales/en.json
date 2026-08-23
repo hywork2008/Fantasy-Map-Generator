@@ -97,17 +97,11 @@
   "directions": {
     "mode": {
       "foot": "On foot",
-      "wagon": "By cart",
-      "ship": "By ship"
-    },
-    "route": {
-      "recommended": "Recommended route",
-      "shortest": "Shortest route",
-      "easier": "Easier route"
+      "mounted": "Mounted",
+      "wagon": "By cart"
     },
     "reason": {
-      "noLandRoute": "No charted road or trail connects these settlements",
-      "noSeaRoute": "Neither settlement is on a charted sea lane",
+      "noRoute": "No charted road, trail, or sea lane connects these settlements",
       "sameLocation": "Already there"
     },
     "duration": {
@@ -115,7 +109,11 @@
       "hoursMinutes": "{{hours}}h {{minutes}}m",
       "minutes": "{{minutes}}m"
     },
+    "avoidSea": "Avoid sea travel",
+    "seaRequiredNote": "This route requires a sea crossing — no road network connects these settlements, so \"Avoid sea travel\" is ignored here.",
+    "distanceSplit": "{{land}} {{distanceUnit}} by land · {{sea}} {{distanceUnit}} by sea",
     "gradeSummary": "Max grade: {{maxGrade}}% · Climb: {{ascent}} {{heightUnit}} · Descent: {{descent}} {{heightUnit}} · Difficulty: {{difficulty}}",
+    "landGradeSummary": "Climb: {{ascent}} {{heightUnit}} · Descent: {{descent}} {{heightUnit}} (land legs only)",
     "noElevation": "Flat sea crossing — no elevation change.",
     "noRoute": "No charted route connects these settlements."
   },
