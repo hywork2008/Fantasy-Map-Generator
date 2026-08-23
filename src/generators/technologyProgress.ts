@@ -634,6 +634,8 @@ function emptySignals(): TechnologySignals {
     lngPlantInstallations: 0,
     gasPowerStationTrialYears: 0,
     gasPowerStationInstallations: 0,
+    coldStorageDepotTrialYears: 0,
+    coldStorageDepotInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -1258,6 +1260,25 @@ function applyChemistryMedicineSignals(
     if (signals) signals.gasPowerStationTrialYears = years;
   }
 
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.2 — same shape as the gasPowerStations
+  // block above: ColdStorageDepot holds documentedRuns on itself, no ChemistryTrial indirection.
+  const coldStorageDepotYears = new Map<number, number>();
+  for (const depot of asStockArray(economy.coldStorageDepots)) {
+    if (depot.active === false) continue;
+    const stateId = asNumber(depot.stateId) || burgStateId(asNumber(depot.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.coldStorageDepotInstallations += 1;
+    coldStorageDepotYears.set(
+      stateId,
+      Math.max(coldStorageDepotYears.get(stateId) ?? 0, asNumber(depot.documentedRuns))
+    );
+  }
+  for (const [stateId, years] of coldStorageDepotYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.coldStorageDepotTrialYears = years;
+  }
+
   // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
   for (const plant of asStockArray(economy.phosphateFertilizerPlants)) {
     if (plant.active === false) continue;
@@ -1431,7 +1452,9 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "lngPlantTrialYears",
   "lngPlantInstallations",
   "gasPowerStationTrialYears",
-  "gasPowerStationInstallations"
+  "gasPowerStationInstallations",
+  "coldStorageDepotTrialYears",
+  "coldStorageDepotInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([

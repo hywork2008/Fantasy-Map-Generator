@@ -2189,6 +2189,7 @@
         "internalCombustionEngine": "内燃機関",
         "naturalGasLiquefaction": "天然ガス液化",
         "gasFiredElectricityGeneration": "ガス火力発電",
+        "mechanicalRefrigeration": "機械式冷凍",
         "militarySignalRockets": "軍用・信号用火薬ロケット",
         "rocketDynamicsAndHighTemperatureCombustionResearch": "ロケット力学と高温燃焼研究",
         "liquidPropulsionAndTestFacilities": "液体推進とロケット試験施設",

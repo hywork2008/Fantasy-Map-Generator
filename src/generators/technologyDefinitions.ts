@@ -1006,6 +1006,27 @@ const ERA_7: readonly TechnologyDefinition[] = [
     demonstrated: { min: { gasPowerStationTrialYears: 2, lngAccess: 0.2, treasury: 500 } },
     adopted: { min: { gasPowerStationInstallations: 1, administration: 0.65, treasury: 560 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.3. Same two-prerequisite shape as
+  // gasFiredElectricityGeneration — naturalGasLiquefaction (compressor/cryogenic engineering) and
+  // standardMachineWorks (precision compressor manufacturing) — a sibling of both
+  // gasFiredElectricityGeneration and oilRefiningAndFractionation, not dependent on either.
+  // metallurgy sits above standardMachineWorks' own adopted floor (0.7); treasury sits above
+  // naturalGasLiquefaction's own adopted floor (420); administration sits above both prerequisites'
+  // own adopted floors (naturalGasLiquefaction's 0.6, standardMachineWorks' 0.45) — none pass
+  // through automatically the instant either prerequisite adopts. Effect (ColdStorageDepots) is
+  // wired directly into settleCellFreshFood()'s cold-chain export lane (§3.6-3.7) and
+  // isGoodTradePermitted()'s refrigeratedTransport gate (§3.8).
+  {
+    id: "mechanicalRefrigeration",
+    label: "Mechanical refrigeration",
+    era: 7,
+    scope: "state",
+    prerequisites: ["naturalGasLiquefaction", "standardMachineWorks"],
+    known: { min: { lngAccess: 0.2, metallurgy: 0.72, treasury: 460 } },
+    demonstrated: { min: { coldStorageDepotTrialYears: 2, lngAccess: 0.25, treasury: 520 } },
+    adopted: { min: { coldStorageDepotInstallations: 1, administration: 0.65, treasury: 580 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 

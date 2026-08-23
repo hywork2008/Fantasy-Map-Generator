@@ -1,3 +1,5 @@
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { landTravelLegSpeeds } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
 import { useOptionsState, type WorldContext } from "../../hostCore";
@@ -781,7 +783,12 @@ export class CaravansModule {
     const good = getGoods()[deal.good];
     const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
     const routeMaxTemperatureC = getRouteMaxTemperatureC(routeSegments, world.pack.cells?.g, world.grid.cells?.temp);
-    if (!good || !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC)) return null;
+    const refrigeratedTransport = isTechnologyStageAtLeast(
+      getTechnologyStage("mechanicalRefrigeration", originBurg.state ?? 0),
+      "adopted"
+    );
+    if (!good || !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC, refrigeratedTransport))
+      return null;
     const cargoSlots = good ? deal.units * getGoodCargoSlotsPerUnit(good) : 0;
     const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(deal);
     if (dispatcherMarketId === null) return null;
@@ -931,13 +938,18 @@ export class CaravansModule {
       maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
       shortSeaDistanceKm: logistics.shortSeaDistanceKm
     });
+    const refrigeratedTransport = isTechnologyStageAtLeast(
+      getTechnologyStage("mechanicalRefrigeration", startBurg.state ?? 0),
+      "adopted"
+    );
     const transportedDeals = selectRouteCargo(
       bundle.deals,
       getGoods(),
       durationDays,
       maxLoadingWaitDays,
       maintenanceCost,
-      routeSegments
+      routeSegments,
+      refrigeratedTransport
     );
     if (!transportedDeals.length) return nextId;
 
@@ -1243,7 +1255,8 @@ function selectRouteCargo(
   durationDays: number,
   maxLoadingWaitDays: number,
   maintenanceCost: number,
-  routeSegments: readonly TradeRouteSegment[]
+  routeSegments: readonly TradeRouteSegment[],
+  refrigeratedTransport?: boolean
 ): Deal[] {
   const world = getWorldContext();
   const routeMaxTemperatureC = getRouteMaxTemperatureC(routeSegments, world.pack.cells?.g, world.grid.cells?.temp);
@@ -1251,7 +1264,14 @@ function selectRouteCargo(
     const good = goods[deal.good];
     return Boolean(
       good &&
-        isGoodTradePermittedForShipment(good, durationDays, maxLoadingWaitDays, routeSegments, routeMaxTemperatureC)
+        isGoodTradePermittedForShipment(
+          good,
+          durationDays,
+          maxLoadingWaitDays,
+          routeSegments,
+          routeMaxTemperatureC,
+          refrigeratedTransport
+        )
     );
   });
   if (!eligible.length) return [];

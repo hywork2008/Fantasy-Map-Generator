@@ -28,6 +28,7 @@ import type {
   PhosphateFertilizerPlant,
   SyntheticAmmoniaPlant
 } from "./generators/chemistryTypes";
+import type { ColdStorageDepot } from "./generators/coldStorageTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
@@ -184,6 +185,7 @@ let _mercuryPlantsLastSettledYearFallback: number | null = null;
 let _oilRefineryPlantsLastSettledYearFallback: number | null = null;
 let _lngPlantsLastSettledYearFallback: number | null = null;
 let _gasPowerStationsLastSettledYearFallback: number | null = null;
+let _coldStorageDepotsLastSettledYearFallback: number | null = null;
 let _powerGridInvestmentLastSettledYearFallback: number | null = null;
 let _damsLastSettledYearFallback: number | null = null;
 let _leveesLastSettledYearFallback: number | null = null;
@@ -261,6 +263,7 @@ export function clearEconomyContext(): void {
   _oilRefineryPlantsLastSettledYearFallback = null;
   _lngPlantsLastSettledYearFallback = null;
   _gasPowerStationsLastSettledYearFallback = null;
+  _coldStorageDepotsLastSettledYearFallback = null;
   _powerGridInvestmentLastSettledYearFallback = null;
   _damsLastSettledYearFallback = null;
   _leveesLastSettledYearFallback = null;
@@ -1602,6 +1605,16 @@ export function getGasPowerStations(): GasPowerStation[] {
 export function setGasPowerStations(rows: readonly GasPowerStation[]): void {
   setSliceArray("gasPowerStations", rows);
 }
+/**
+ * Same shape as getPowerStations — a mechanical/refrigeration-engineering capital asset, not
+ * ChemistryTrial-based. Design: docs/plan/mechanical-refrigeration-and-cold-chain.md §3.5.
+ */
+export function getColdStorageDepots(): ColdStorageDepot[] {
+  return getSliceArray<ColdStorageDepot>("coldStorageDepots");
+}
+export function setColdStorageDepots(rows: readonly ColdStorageDepot[]): void {
+  setSliceArray("coldStorageDepots", rows);
+}
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {
   return getSliceArray<ChemMedPracticeRecord>("chemMedPracticeRecords");
 }
@@ -1791,6 +1804,18 @@ export function getGasPowerStationsLastSettledYear(): number | null {
 export function setGasPowerStationsLastSettledYear(year: number): void {
   writeYearToSlice("gasPowerStationsLastSettledYear", year, value => {
     _gasPowerStationsLastSettledYearFallback = value;
+  });
+}
+/**
+ * Guards ColdStorageDepots.settleAnnual(), same shape as getPowerStationsLastSettledYear.
+ * Design: docs/plan/mechanical-refrigeration-and-cold-chain.md §3.5.
+ */
+export function getColdStorageDepotsLastSettledYear(): number | null {
+  return yearFromSlice("coldStorageDepotsLastSettledYear", _coldStorageDepotsLastSettledYearFallback);
+}
+export function setColdStorageDepotsLastSettledYear(year: number): void {
+  writeYearToSlice("coldStorageDepotsLastSettledYear", year, value => {
+    _coldStorageDepotsLastSettledYearFallback = value;
   });
 }
 /** Guards PowerGridInvestment.settleAnnual(), same shape as getFertilizerInvestmentLastSettledYear. */

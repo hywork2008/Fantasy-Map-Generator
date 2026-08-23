@@ -458,6 +458,8 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     // docs/plan/natural-gas-lng-power-generation.md §3.8-3.9.
     "lngPlants",
     "gasPowerStations",
+    // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.5.
+    "coldStorageDepots",
     "chemMedPracticeRecords",
     "medicalCareReliefByBurg",
     // Player technology-bias SoT (docs/plan/player-character-technology-bias.md PR-1).

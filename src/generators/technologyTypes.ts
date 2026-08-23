@@ -180,6 +180,10 @@ export interface TechnologySignals {
   gasPowerStationTrialYears: number;
   /** Count of active GasPowerStation entries, same shape as powerStationInstallations. */
   gasPowerStationInstallations: number;
+  /** ColdStorageDepot.documentedRuns state max, same shape as powerStationTrialYears. */
+  coldStorageDepotTrialYears: number;
+  /** Count of active ColdStorageDepot entries, same shape as powerStationInstallations. */
+  coldStorageDepotInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }

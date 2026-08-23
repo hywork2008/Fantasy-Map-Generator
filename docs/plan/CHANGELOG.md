@@ -2,6 +2,7 @@
 
 2026-08-23
 
+- docs/plan/mechanical-refrigeration-and-cold-chain.md
 - docs/plan/natural-gas-lng-power-generation.md
 
 2026-08-21

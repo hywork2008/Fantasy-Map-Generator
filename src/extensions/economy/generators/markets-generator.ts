@@ -1,6 +1,8 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,
@@ -10,6 +12,7 @@ import {
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import {
+  getColdStorageDepots,
   getDeals,
   getGoodCellColumn,
   getGoods,
@@ -32,7 +35,7 @@ import {
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
-import { planCellFoodRescue } from "./cellFoodRescue";
+import { getChilledFreshFoodExportUnits, planCellFoodRescue } from "./cellFoodRescue";
 import type { CellFreshFoodInput } from "./cellFoodRescueTypes";
 import { consumerCoverageForCategory, recipesForIndustrialDemand } from "./craftDemandCalibration";
 import { ExportStaging } from "./exportStaging";
@@ -879,11 +882,25 @@ export class MarketsModule {
       entriesByCell.set(entry.cellId, group);
     }
 
+    // State-wide cold-chain pool (docs/plan/mechanical-refrigeration-and-cold-chain.md §3.5
+    // decision 1 — no two-stage local/State-wide split like powerGrid). Annual storageCapacity is
+    // month-sliced here and shared across every cell in the same state processed by this call;
+    // an un-adopted State's depots simply do not exist, so its pool is naturally 0 — no separate
+    // technology-stage check is needed (§3.7).
+    const cellStates = this.worldContext.pack.cells.state;
+    const coldStorageCapacityByState = new Map<number, number>();
+    for (const depot of getColdStorageDepots()) {
+      if (!depot.active) continue;
+      const monthly = depot.storageCapacity / 12;
+      coldStorageCapacityByState.set(depot.stateId, (coldStorageCapacityByState.get(depot.stateId) ?? 0) + monthly);
+    }
+
     const reserves = getOrCreateCellFoodReserves();
     for (const [cellId, cellEntries] of entriesByCell) {
       const residentWorkforce = getRuralCellPopulation(cellId);
       const inputs: CellFreshFoodInput[] = [];
       const marketBySourceGood = new Map<number, FreshFoodContribution>();
+      const harvestedBySourceGood = new Map<number, number>();
 
       for (const entry of cellEntries) {
         const sourceGood = Goods.get(entry.goodId);
@@ -914,6 +931,7 @@ export class MarketsModule {
           preservationSuppliesAvailable: reservePath !== null && commercialPath !== null
         });
         marketBySourceGood.set(sourceGood.i, entry);
+        harvestedBySourceGood.set(sourceGood.i, entry.monthlyUnits[monthIndex] ?? 0);
       }
 
       if (!inputs.length) continue;
@@ -946,6 +964,21 @@ export class MarketsModule {
             marketId: market.i,
             burgId: entry.collectionBurgId || undefined
           });
+        }
+
+        // Cold-chain export: rescues the gap the planner otherwise leaves unrecorded
+        // (harvestedUnits - producedUnits) as the raw sourceGood itself, no conversion recipe —
+        // independent of whether a commercial (preserved-good) path/demand exists this month.
+        // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.6-3.7.
+        const stateId = cellStates?.[cellId] ?? 0;
+        const availableColdStorage = coldStorageCapacityByState.get(stateId) ?? 0;
+        if (availableColdStorage > 0) {
+          const harvested = harvestedBySourceGood.get(outcome.sourceGoodId) ?? 0;
+          const chilled = getChilledFreshFoodExportUnits(harvested, outcome.producedUnits, availableColdStorage);
+          if (chilled > 0) {
+            this.addRuralOutput(entry.marketId, entry.collectionBurgId, sourceGood.i, chilled);
+            coldStorageCapacityByState.set(stateId, availableColdStorage - chilled);
+          }
         }
 
         const commercialPath = this.getCellFoodCommercialPath(sourceGood, this.getCellFoodReservePath(sourceGood));
@@ -1670,6 +1703,10 @@ export class MarketsModule {
 
         const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
         const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+        const refrigeratedTransport = isTechnologyStageAtLeast(
+          getTechnologyStage("mechanicalRefrigeration", exporterCenter?.state ?? 0),
+          "adopted"
+        );
 
         for (const importer of importers) {
           const importerGood = this.getMarketGood(importer.market, good);
@@ -1685,7 +1722,8 @@ export class MarketsModule {
               route.durationDays,
               this.getExpectedLoadingWaitDays(route),
               route.segments,
-              route.maxTemperatureC
+              route.maxTemperatureC,
+              refrigeratedTransport
             ) ||
             !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
           ) {
@@ -1967,6 +2005,10 @@ export class MarketsModule {
 
       const exporterCenter = this.worldContext.pack.burgs[exporter.centerBurgId];
       const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+      const refrigeratedTransport = isTechnologyStageAtLeast(
+        getTechnologyStage("mechanicalRefrigeration", exporterCenter?.state ?? 0),
+        "adopted"
+      );
 
       for (const importer of markets) {
         if (importer.i === exporter.i) continue;
@@ -1978,7 +2020,8 @@ export class MarketsModule {
             route.durationDays,
             this.getExpectedLoadingWaitDays(route),
             route.segments,
-            route.maxTemperatureC
+            route.maxTemperatureC,
+            refrigeratedTransport
           ) ||
           !isMarketTradePermitted(exporter, importer, route.durationDays)
         ) {

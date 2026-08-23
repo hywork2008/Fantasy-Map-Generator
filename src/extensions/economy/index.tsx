@@ -67,6 +67,7 @@ import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
 import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
 import { ChlorinePlants } from "./generators/chlorinePlants";
 import { ClimateDisasters } from "./generators/climateDisasters";
+import { ColdStorageDepots } from "./generators/coldStorageDepots";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
   applyCharacterToConstructionJob,
@@ -3152,6 +3153,11 @@ export function init(api: ExtensionAPI): void {
         // Natural Gas/Coal/Machine Parts only, independent of every other plant above — the
         // era-7 liquefaction step. docs/plan/natural-gas-lng-power-generation.md §3.8.
         LNGPlants.settleAnnual();
+        // LNG/Machine Parts only, independent of every other plant above. storageCapacity is a
+        // State-wide pool (no powerGrid-style two-stage abstraction) that settleCellFreshFood()
+        // (markets-generator.ts) reads directly. docs/plan/mechanical-refrigeration-and-cold-
+        // chain.md §3.5.
+        ColdStorageDepots.settleAnnual();
         settleChemMedPracticeDecay();
         // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
         // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).

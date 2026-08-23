@@ -107,3 +107,21 @@ export function planCellFoodRescue(
 
   return { outcomes, nextReserve, processingLaborUsed };
 }
+
+/**
+ * How many of a cell's raw fresh-food harvest units that planCellFoodRescue() could not eat fresh
+ * or preserve (harvestedUnits - producedUnits, the gap the planner above deliberately leaves
+ * unrecorded — see its own doc-comment) can instead reach Market stock directly via cold-chain
+ * capacity, with no conversion recipe. Pure bookkeeping: this does not call planCellFoodRescue()
+ * or touch its plan — the caller (markets-generator.ts's settleCellFreshFood()) is responsible for
+ * tracking and decrementing the shared per-state capacity pool across cells in the same month.
+ * Design: docs/plan/mechanical-refrigeration-and-cold-chain.md §3.6-3.7.
+ */
+export function getChilledFreshFoodExportUnits(
+  harvestedUnits: number,
+  producedUnits: number,
+  availableCapacityUnits: number
+): number {
+  const leftover = positive(harvestedUnits - producedUnits);
+  return Math.min(leftover, positive(availableCapacityUnits));
+}

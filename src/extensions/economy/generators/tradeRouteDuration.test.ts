@@ -173,6 +173,25 @@ describe("trade route duration and viability", () => {
     expect(isGoodTradePermitted(milk, 1, [{ type: "land" }])).toBe(false);
   });
 
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.8.
+  it("permits raw milk to travel once refrigeratedTransport is available", () => {
+    const milk = {
+      i: 1,
+      name: "Milk",
+      value: 10,
+      tags: ["food", "freshFood"],
+      unit: "1,000 L dairy lot",
+      icon: "milk",
+      color: "#fff"
+    };
+
+    expect(isGoodTradePermitted(milk, 1, [{ type: "land" }], undefined, true)).toBe(true);
+    expect(isGoodTradePermittedForShipment(milk, 1, 2, [{ type: "land" }], undefined, true)).toBe(true);
+    // Still governed by the density/duration cap once refrigerated — an absurdly long trip is not
+    // free.
+    expect(isGoodTradePermitted(milk, 100_000, [{ type: "land" }], undefined, true)).toBe(false);
+  });
+
   it("does not reserve hot fresh cargo when loading could outlast its one-day shelf-life", () => {
     const grapes = {
       i: 1,

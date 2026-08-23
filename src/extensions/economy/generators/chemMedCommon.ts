@@ -80,6 +80,13 @@ export const MERCURY_PLANT_BUDGET = 14;
  */
 export const OIL_REFINERY_PLANT_BUDGET = 30;
 /**
+ * calibration TBD — a cold-storage depot: insulated warehouse + compressor, lighter than a
+ * fractional-distillation refinery (OIL_REFINERY_PLANT_BUDGET 30) but heavier than the routine
+ * chemistry plants below PHOSPHATE_FERTILIZER_PLANT_BUDGET(28).
+ * See docs/plan/mechanical-refrigeration-and-cold-chain.md §3.5.
+ */
+export const COLD_STORAGE_DEPOT_BUDGET = 29;
+/**
  * calibration TBD — a cryogenic liquefaction plant: compressor/refrigeration machinery is
  * heavier capital than fractional distillation alone (OIL_REFINERY_PLANT_BUDGET 30), but lighter
  * than brine electrolysis (CHLOR_ALKALI_PLANT_BUDGET 34).

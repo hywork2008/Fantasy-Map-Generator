@@ -1127,6 +1127,34 @@ describe("technologyProgress", () => {
     expect(getTechnologyStage("naturalGasLiquefaction", 1)).toBe("locked");
   });
 
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.3.
+  it("defines mechanicalRefrigeration as a sibling of naturalGasLiquefaction/gasFiredElectricityGeneration gated on both its prerequisites' own adopted floors", () => {
+    const refrigeration = TECHNOLOGY_DEFINITIONS.find(def => def.id === "mechanicalRefrigeration");
+    expect(refrigeration?.era).toBe(7);
+    expect(refrigeration?.prerequisites).toEqual(["naturalGasLiquefaction", "standardMachineWorks"]);
+    expect(refrigeration?.known.min?.lngAccess).toBe(0.2);
+    expect(refrigeration?.demonstrated.min?.coldStorageDepotTrialYears).toBe(2);
+    expect(refrigeration?.adopted.min?.coldStorageDepotInstallations).toBe(1);
+
+    const liquefaction = TECHNOLOGY_DEFINITIONS.find(def => def.id === "naturalGasLiquefaction");
+    const machineWorks = TECHNOLOGY_DEFINITIONS.find(def => def.id === "standardMachineWorks");
+    // treasury/administration sit above both prerequisites' own adopted floors so neither one
+    // adopting alone auto-passes this node.
+    expect(refrigeration?.adopted.min?.treasury).toBeGreaterThan(liquefaction?.adopted.min?.treasury ?? 0);
+    expect(refrigeration?.adopted.min?.administration).toBeGreaterThan(liquefaction?.adopted.min?.administration ?? 0);
+    expect(refrigeration?.adopted.min?.administration).toBeGreaterThan(machineWorks?.adopted.min?.administration ?? 0);
+  });
+
+  it("never lets mechanicalRefrigeration progress unless standardMachineWorks has reached adopted", () => {
+    installMinimalWorld();
+    setTechnologyProgressForTests([
+      { technologyId: "naturalGasLiquefaction", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    settleTechnologyAnnual(1200);
+
+    expect(getTechnologyStage("mechanicalRefrigeration", 1)).toBe("locked");
+  });
+
   // docs/plan/rocket-and-space-development-vertical-slice.md §3.3.
   it("defines the era-8 rocketry/space chain with militarySignalRockets as an independent leaf, not a prerequisite of any other node", () => {
     const era8 = TECHNOLOGY_DEFINITIONS.filter(def => def.era === 8);
@@ -1393,6 +1421,36 @@ describe("technologyProgress", () => {
     expect(lines.some(line => line.includes("lngAccess"))).toBe(false);
     expect(lines.some(line => line.includes("gasPowerStationTrialYears"))).toBe(false);
     expect(lines.some(line => line.includes("gasPowerStationInstallations"))).toBe(false);
+  });
+
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.2 — same shape as the lngAccess/
+  // gasPowerStationTrialYears/gasPowerStationInstallations test above.
+  it("computes coldStorageDepotTrialYears/coldStorageDepotInstallations from ColdStorageDepot rows", () => {
+    installMinimalWorld();
+    simulationContext.extensions = {
+      economy: {
+        coldStorageDepots: [
+          {
+            burgId: 1,
+            stateId: 1,
+            role: "service",
+            active: true,
+            utilization: 1,
+            documentedRuns: 5,
+            lastFundedYear: 1200,
+            storageCapacity: 6
+          }
+        ]
+      }
+    };
+    worldContext.pack.burgs[1].market = 1;
+    settleTechnologyAnnual(1200);
+
+    const lines = explainTechnologyGate(1, "mechanicalRefrigeration");
+    // coldStorageDepotTrialYears(5)>=2 and coldStorageDepotInstallations(1)>=1 clear
+    // demonstrated/adopted — neither ever appears as unmet.
+    expect(lines.some(line => line.includes("coldStorageDepotTrialYears"))).toBe(false);
+    expect(lines.some(line => line.includes("coldStorageDepotInstallations"))).toBe(false);
   });
 
   it("computes telegraphLineTrialYears/telegraphLineInstallations from TelegraphLine rows (docs/plan/electric-power-and-telegraph.md §3.3)", () => {

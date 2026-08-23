@@ -2189,6 +2189,7 @@
         "internalCombustionEngine": "Internal combustion engine",
         "naturalGasLiquefaction": "Natural gas liquefaction",
         "gasFiredElectricityGeneration": "Gas-fired electricity generation",
+        "mechanicalRefrigeration": "Mechanical refrigeration",
         "militarySignalRockets": "Military and signal powder rockets",
         "rocketDynamicsAndHighTemperatureCombustionResearch": "Rocket dynamics and high-temperature combustion research",
         "liquidPropulsionAndTestFacilities": "Liquid propulsion and rocket test facilities",
