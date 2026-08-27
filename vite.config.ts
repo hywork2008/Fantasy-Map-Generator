@@ -11,6 +11,15 @@ export default defineConfig({
         outDir: '../dist',
         assetsDir: './',
         emptyOutDir: false,
+        rollupOptions: {
+            input: {
+                // World map (default). Explicit `input` disables Vite's implicit
+                // `<root>/index.html`, so it must be listed alongside the city page.
+                main: path.resolve(__dirname, 'src/index.html'),
+                // Standalone City Generator page — see docs/city-generator/design.md
+                city: path.resolve(__dirname, 'src/city/index.html'),
+            },
+        },
     },
     publicDir: '../public',
     plugins: [
