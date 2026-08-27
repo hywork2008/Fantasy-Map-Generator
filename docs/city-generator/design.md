@@ -262,7 +262,7 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 | M | 内容 | 検証 |
 | --- | ------ | ------ |
 | **M0 ✅** | MPA スキャフォールド（`src/city/index.html` + `main.ts`、`src/city-generator/ui/CityGeneratorPage.ts` プレースホルダ、`vite.config.ts` に `rollupOptions.input`、`LICENSE-NOTE.md`） | `tsc` 0、`npm run dev` で `/city/` が 200 + プレースホルダ描画（console エラー無し）、`npm run build` が `dist/index.html` と `dist/city/index.html` を出力。city エントリチャンク = 531 B、world バンドルからの import 0（完全分離）。biome / lint:legacy クリーン |
-| M1 | S0 グリッド + SVG 描画 + Grid evolution スライダー（スタンドアロン・preset のみ） | 同一 seed で同一格子、Lloyd 各段が可視 |
+| **M1 ✅** | S0 グリッド + SVG 描画 + Grid evolution スライダー（スタンドアロン・preset のみ）。`core/{types,prng,geom,voronoi,grid,pipeline}.ts`、`site/presets.ts`、`render/{palette,svg}.ts`、`ui/CityGeneratorPage.ts` 実装 | `tsc` 0、`vitest` 5/5（決定論・Lloyd 収束・非退化セル）、biome クリーン。ブラウザ実測: 同一 seed → 同一 SVG パス、scatter↔Lloyd3 が可視差、preset/seed/スライダー/pan-zoom 動作、console エラー無し。build: city payload 20 KB（city 9.4 + delaunator 8.2）、world/d3/three 参照 0 |
 | M2 | S1 海/陸 + S2 河川 + S3 市街 + 進行スライダー（`synthSite` 入力） | archetype 4 種の合成 descriptor で破綻なし、岸/弦位置が保存される |
 | M3 | FMG descriptor 取り込み（sessionStorage handoff + Burg エディタボタン） | 世界地図の複数 burg で「地図にはまる」ことを目視 |
 | M4 | 城壁・門（S4） | `draft.md` 範囲外・別 PR |
@@ -271,9 +271,16 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 
 ## 8. 未決事項
 
-1. 母点散布：spiral（TownGenerator 系）か Poisson blue-noise か。
-2. UI シェルをバニラ DOM のまま進めるか、早めに React 化するか。
-3. 共有リンク（`city/#…`）で descriptor 圧縮が要るか（heightfield 17×17 のサイズ次第）。
-4. fixture の初期セット（どの実 burg をサンプル化するか）。
-5. `BurgSiteDescriptor` 型：city 側にコピーを持つ（推奨・完全デカップル）か、`import type` で
+1. ~~母点散布~~ → **決定（M1）**: ジッタ付き格子 + Lloyd 緩和 3 回（`core/grid.ts`）。spiral は
+   放射状に密度が偏るため不採用。
+2. UI シェルをバニラ DOM のまま進めるか、早めに React 化するか。→ M1 はバニラで着地。継続。
+3. **セル密度**: M1 の preset は `cellSize ≈ cityRadius/10` × 窓 `6×radius` で総 3000〜3600 セル。
+   spec 準拠だが窓外縁が過密。M2 で分類がセルをどう消費するか見てから、窓外縁を粗くするか
+   総数キャップを入れるか判断。
+4. 共有リンク（`city/#…`）で descriptor 圧縮が要るか（heightfield 17×17 のサイズ次第）。
+5. fixture の初期セット（どの実 burg をサンプル化するか）。
+6. `BurgSiteDescriptor` 型：city 側にコピーを持つ（推奨・完全デカップル）か、`import type` で
    FMG service を型参照するか。
+7. M1 の `site/presets.ts`（preset → `CityParams` 直行）は M2 で `site/synthSite.ts`
+   （preset → 完全 `BurgSiteDescriptor`）+ `site/siteInput.ts`（descriptor → `CityParams`）に
+   置き換え／内包する。
