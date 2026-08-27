@@ -41,11 +41,58 @@ export interface GridStage {
   cells: Cell[];
 }
 
-/** Output of `generateCity`. M1 covers S0 only. */
+/** Classification a cell carries in a pipeline snapshot. */
+export type CellTag = "land" | "sea" | "water" | "urban" | "outskirts" | "rural";
+
+/** A river as a wide "road" on the cell graph (design §4.1). M2 keeps the
+ * descriptor centerline; snapping to actual cell edges is deferred to S4. */
+export interface RiverPath {
+  /** Centerline polyline, local meters, upstream → downstream. */
+  points: Point[];
+  /** Per-vertex full width, meters (index-aligned with `points`). */
+  widths: number[];
+  cityBank: "left" | "right";
+}
+
+export type OverlayKind = "shoreline" | "gateBearing";
+
+export interface Overlay {
+  kind: OverlayKind;
+  points: Point[];
+}
+
+export interface SnapshotPath {
+  kind: "river" | "street" | "road";
+  points: Point[];
+  widths: number[];
+}
+
+/** One inspectable stage of the drawing process (S0 grid → S1 → S2 → S3). */
+export interface Snapshot {
+  label: string;
+  cells: { polygon: Point[]; tag: CellTag }[];
+  paths: SnapshotPath[];
+  overlays: Overlay[];
+}
+
+/** Local geography the pipeline classifies against. Built from a
+ * BurgSiteDescriptor (see site/siteInput.ts) or empty for a bare grid. */
+export interface CityGeography {
+  coast: { shoreline: Point[]; waterAzimuthDeg: number } | null;
+  rivers: { centerline: Point[]; widths: number[]; cityBank: "left" | "right" }[];
+  /** Gate-candidate road bearings, compass degrees. */
+  roadBearings: number[];
+}
+
+/** Output of `generateCity`. M2 covers S0–S3. */
 export interface GenerationResult {
   params: CityParams;
   /** S0 evolution: [0] = initial scatter, last = relaxed grid. */
   gridStages: GridStage[];
-  /** Final cells (identical to `gridStages.at(-1).cells`). */
+  /** Drawing-process stages, [0] = base grid, last = urban core. */
+  steps: Snapshot[];
+  /** Final relaxed cells (identical to `gridStages.at(-1).cells`). */
   cells: Cell[];
+  /** River centerlines used by S2, for downstream stages / debugging. */
+  riverPaths: RiverPath[];
 }

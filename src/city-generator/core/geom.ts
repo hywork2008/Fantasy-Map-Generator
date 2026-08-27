@@ -94,3 +94,96 @@ function lerpY(a: Point, b: Point, y: number): Point {
   const t = (y - a[1]) / (b[1] - a[1]);
   return [a[0] + t * (b[0] - a[0]), y];
 }
+
+// --- vectors & polylines -----------------------------------------------------
+
+/** Compass azimuth (0 = north, 90 = east, clockwise) → unit vector in the local
+ * frame (+X east, +Y north). */
+export function azimuthToVec(deg: number): Point {
+  const r = (deg * Math.PI) / 180;
+  return [Math.sin(r), Math.cos(r)];
+}
+
+/** Compass azimuth of a local-frame vector. */
+export function vecToAzimuth(x: number, y: number): number {
+  return ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360;
+}
+
+/** Smallest unsigned difference between two compass azimuths, degrees. */
+export function azimuthDelta(a: number, b: number): number {
+  const d = Math.abs(((a - b) % 360) + 360) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+export interface PolylineHit {
+  /** Closest point on the polyline. */
+  point: Point;
+  /** Index of the segment [i, i+1] the closest point lies on. */
+  segIndex: number;
+  /** Fraction along that segment, [0, 1]. */
+  t: number;
+  /** Distance from the query point to `point`. */
+  dist: number;
+}
+
+/** Closest approach of `p` to an open polyline. */
+export function nearestOnPolyline(p: Point, poly: Point[]): PolylineHit {
+  let best: PolylineHit = { point: poly[0], segIndex: 0, t: 0, dist: Number.POSITIVE_INFINITY };
+  for (let i = 0; i < poly.length - 1; i++) {
+    const a = poly[i];
+    const b = poly[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq === 0 ? 0 : clamp01(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq);
+    const q: Point = [a[0] + dx * t, a[1] + dy * t];
+    const dist = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    if (dist < best.dist) best = { point: q, segIndex: i, t, dist };
+  }
+  return best;
+}
+
+/** Unit downstream tangent of the polyline at segment `segIndex`. */
+export function polylineTangent(poly: Point[], segIndex: number): Point {
+  const a = poly[Math.min(segIndex, poly.length - 2)];
+  const b = poly[Math.min(segIndex + 1, poly.length - 1)];
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  return [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+}
+
+/** Signed side of `p` relative to the polyline's downstream flow: > 0 = left. */
+export function sideOfPolyline(p: Point, poly: Point[]): number {
+  const hit = nearestOnPolyline(p, poly);
+  const t = polylineTangent(poly, hit.segIndex);
+  return t[0] * (p[1] - hit.point[1]) - t[1] * (p[0] - hit.point[0]);
+}
+
+export function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): boolean {
+  const d1 = cross(b2, b1, a1);
+  const d2 = cross(b2, b1, a2);
+  const d3 = cross(a2, a1, b1);
+  const d4 = cross(a2, a1, b2);
+  return (d1 > 0 !== d2 > 0 || d1 === 0 || d2 === 0) && (d3 > 0 !== d4 > 0 || d3 === 0 || d4 === 0);
+}
+
+/** True when segment a-b crosses any segment of the polyline. */
+export function polylineCrossesSegment(poly: Point[], a: Point, b: Point): boolean {
+  for (let i = 0; i < poly.length - 1; i++) {
+    if (segmentsIntersect(a, b, poly[i], poly[i + 1])) return true;
+  }
+  return false;
+}
+
+export function polylineLength(poly: Point[]): number {
+  let sum = 0;
+  for (let i = 0; i < poly.length - 1; i++) sum += Math.hypot(poly[i + 1][0] - poly[i][0], poly[i + 1][1] - poly[i][1]);
+  return sum;
+}
+
+function cross(o: Point, a: Point, b: Point): number {
+  return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+}
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}

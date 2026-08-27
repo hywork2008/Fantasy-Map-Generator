@@ -81,6 +81,8 @@
       top: 12px;
       left: 12px;
       width: 220px;
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
     }
 
     .cg-panel--process {
@@ -88,11 +90,27 @@
       bottom: 12px;
       width: min(680px, calc(100vw - 32px));
       transform: translateX(-50%);
-      gap: 12px;
+      gap: 10px;
     }
 
-    .cg-presets {
+    .cg-subhead {
+      margin: 2px 0 -2px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    .cg-choices {
       display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .cg-nav {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
       gap: 6px;
     }
 
@@ -110,7 +128,7 @@
       background: #3b3936;
     }
 
-    .cg-presets button.is-active {
+    .cg-choices button.is-active {
       background: var(--paper);
       color: var(--ink);
     }

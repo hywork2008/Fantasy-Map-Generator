@@ -189,20 +189,24 @@ FMG は既に **per-burg 立地サーベイ** `BurgSiteDescriptor` を出力す�
 
 #### S2 — 河川パス（セル辺に沿った幅広の道）
 
-1. `crossesSite || throughBurgCell` の各 `rivers[i]` について `segments[]` 中心線（既にローカル m・
-   FMG 側で蛇行済み）を取得。
-2. 中心線に最も近い**セル辺の連なり**をグラフ探索で選び（各中心線点に最近傍の辺を割り当て、
-   隣接する辺どうしを頂点で連結）、`riverPath: Vertex[]` を得る。これは street グラフと
-   同じ頂点・辺の上にある。
-3. river パスの各セグメントに `widthMeters`（`segments[].widthsMeters` の対応値）を持たせる。
-   描画・セットバックはこの幅で「幅広の通り」として扱う（S5 / §5）。
-4. FMG セル解像度未満の蛇行ディテールを river パス頂点に足してよいが、**弦位置（offsetRatio）・
-   流向（axisAzimuthDeg）・岸（cityBank）は descriptor のまま変えない**。
-5. 派生タグ（任意・後段の便宜）:
-   - `water`: 重心が river パスから `widthMeters/2` 以内のセル → 建物を建てない（`smoothVertex` 相当で
-     境界を均す）。
-   - 岸（bank）: セル隣接グラフから river パスの辺を除去 → land セルの連結成分。`cityBank` 側が
-     主市街。
+`TownGeneratorTS/src/towngenerator/building/{Topology,Model}.ts` の `buildStreets` と**同じ手法**で
+河川を「幅を太くした道」として引く（`core/{edgeGraph,riverPath}.ts`）:
+
+1. **セル辺グラフ**を構築（`buildEdgeGraph`）: 全セルポリゴン頂点を座標量子化（0.05 m）で
+   dedup → ノード。セル辺 = 長さ重みのエッジ。= `Topology` 相当。
+2. `crossesSite || throughBurgCell` の各 `rivers[i]` の `segments[]` 中心線の窓入口/出口を
+   最近傍ノードにスナップ。
+3. **A\***（`aStar`、flatqueue）で入口→出口。辺コスト = 長さ × `(1 + 6·(中心線からの距離/セルサイズ)²)`
+   で descriptor 中心線に寄せる（ペナルティ ≥ 0 なので直線距離ヒューリスティックは admissible）。
+   結果 = **実在するセル頂点をセル辺でつないだ折れ線**（`edgePoints`）。
+4. `smoothPath`（窓平均 3 回、端点固定）で `edgePoints` を均す = `smoothVertexEq` 相当。
+   これが描画・セットバック用の river 中心線（`RiverPath.points`）。幅は descriptor から
+   各頂点へ再サンプル。
+5. 分類（`classifyRiver`、`edgePoints` に対して）:
+   - `water`: 重心が `edgePoints` から `max(幅/2, セルサイズ×0.5)` 以内のセル → 建物なし。
+   - 岸（bank）: 重心リンクが `edgePoints` を跨ぐ隣接を切る → land セルの連結成分。
+     `cityBank` 側 = 成分 0（主市街）。
+6. 弦位置（offsetRatio）・流向・岸は descriptor のまま（コスト項が中心線に拘束）。
 
 #### S3 — 市街セル
 
@@ -263,7 +267,7 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 | --- | ------ | ------ |
 | **M0 ✅** | MPA スキャフォールド（`src/city/index.html` + `main.ts`、`src/city-generator/ui/CityGeneratorPage.ts` プレースホルダ、`vite.config.ts` に `rollupOptions.input`、`LICENSE-NOTE.md`） | `tsc` 0、`npm run dev` で `/city/` が 200 + プレースホルダ描画（console エラー無し）、`npm run build` が `dist/index.html` と `dist/city/index.html` を出力。city エントリチャンク = 531 B、world バンドルからの import 0（完全分離）。biome / lint:legacy クリーン |
 | **M1 ✅** | S0 グリッド + SVG 描画 + Grid evolution スライダー（スタンドアロン・preset のみ）。`core/{types,prng,geom,voronoi,grid,pipeline}.ts`、`site/presets.ts`、`render/{palette,svg}.ts`、`ui/CityGeneratorPage.ts` 実装 | `tsc` 0、`vitest` 5/5（決定論・Lloyd 収束・非退化セル）、biome クリーン。ブラウザ実測: 同一 seed → 同一 SVG パス、scatter↔Lloyd3 が可視差、preset/seed/スライダー/pan-zoom 動作、console エラー無し。build: city payload 20 KB（city 9.4 + delaunator 8.2）、world/d3/three 参照 0 |
-| M2 | S1 海/陸 + S2 河川 + S3 市街 + 進行スライダー（`synthSite` 入力） | archetype 4 種の合成 descriptor で破綻なし、岸/弦位置が保存される |
+| **M2 ✅** | S1 海/陸 + S2 河川（**セル辺グラフ A\* + 平滑化 = `buildStreets` 手法**、`core/{edgeGraph,riverPath}.ts`）+ S3 市街 + 進行スライダー（`synthSite` 入力）。`core/{classifySea,classifyRiver,classifyUrban}.ts`、`site/{burgSiteDescriptor,synthSite,siteInput}.ts` 追加。`pipeline.ts` が S0→S3 を実行し `steps: Snapshot[]` を生成。`render/svg.ts` は grid 系 + step 系の 2 グループ。UI は Size/Site type ボタン + Stage スライダー + First/Prev/Next/Last | `tsc` 0、`vitest` 20/20（決定論、archetype 4 種 smoke、harbor は市街が海に非接触、riverCrossing は岸 >85%・弦位置 ±0.25R 保存 ×4 seed、**river パス頂点は実グラフノード + 連続ペアは実エッジ**、平滑ドリフト < 1 セル）、biome クリーン。ブラウザ実測: 河川がセル辺を辿る（240 頂点の折れ線）、4 archetype で S0→S3 描画、Stage/First-Last/Grid evolution 動作、console エラー無し。build: city payload 44 KB、world/d3/three 参照 0 |
 | M3 | FMG descriptor 取り込み（sessionStorage handoff + Burg エディタボタン） | 世界地図の複数 burg で「地図にはまる」ことを目視 |
 | M4 | 城壁・門（S4） | `draft.md` 範囲外・別 PR |
 
@@ -274,13 +278,16 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 1. ~~母点散布~~ → **決定（M1）**: ジッタ付き格子 + Lloyd 緩和 3 回（`core/grid.ts`）。spiral は
    放射状に密度が偏るため不採用。
 2. UI シェルをバニラ DOM のまま進めるか、早めに React 化するか。→ M1 はバニラで着地。継続。
-3. **セル密度**: M1 の preset は `cellSize ≈ cityRadius/10` × 窓 `6×radius` で総 3000〜3600 セル。
-   spec 準拠だが窓外縁が過密。M2 で分類がセルをどう消費するか見てから、窓外縁を粗くするか
-   総数キャップを入れるか判断。
-4. 共有リンク（`city/#…`）で descriptor 圧縮が要るか（heightfield 17×17 のサイズ次第）。
-5. fixture の初期セット（どの実 burg をサンプル化するか）。
-6. `BurgSiteDescriptor` 型：city 側にコピーを持つ（推奨・完全デカップル）か、`import type` で
-   FMG service を型参照するか。
-7. M1 の `site/presets.ts`（preset → `CityParams` 直行）は M2 で `site/synthSite.ts`
-   （preset → 完全 `BurgSiteDescriptor`）+ `site/siteInput.ts`（descriptor → `CityParams`）に
-   置き換え／内包する。
+3. **セル密度**: `siteToParams` は `cellSize ≈ cityRadius/9` × 窓 `6×radius` で総 ~2900 セル。
+   分類は問題なく機能するが窓外縁は依然過密。S4（城壁）着手時に窓外縁を粗くするか判断。
+4. **S3 市街の形**: `GATE_PULL`（門方位のセルにコスト -0.35R）で市街が門へ触手状に伸びる。
+   design 意図どおりだが細く不自然。S4 で城壁クリップ後に再評価。
+5. ~~S2 の river パス~~ → **完了（M2、§4.2 S2 どおり）**: `core/edgeGraph.ts`（セル辺グラフ +
+   A\* + `smoothPath`）+ `core/riverPath.ts`。河川は descriptor 中心線ではなく**実セル辺の折れ線**を
+   平滑化したもの。`water`/岸分割もこの on-edge パスに対して算出。S4 の城壁はこの同じグラフを使う。
+6. ~~`BurgSiteDescriptor` 型~~ → **決定（M2）**: city 側に型のみコピー（`site/burgSiteDescriptor.ts`、
+   `DESCRIPTOR_VERSION` 付き）。
+7. ~~`presets.ts` の置き換え~~ → **完了（M2）**: `presets.ts` は list のみ。
+   `synthSite.ts`（preset+archetype → descriptor）+ `siteInput.ts`（descriptor → params/geography）。
+8. 共有リンク（`city/#…`）で descriptor 圧縮が要るか（heightfield 17×17 のサイズ次第）。
+9. fixture の初期セット（どの実 burg をサンプル化するか）。

@@ -1,13 +1,17 @@
 // City Generator — vanilla DOM shell.
 //
-// M1: standalone, preset-only. Size presets + seed + "Grid evolution" slider over
-// the S0 (grid) snapshots, on a pan/zoom SVG canvas. Generation-step slider,
-// layer toggles and FMG site import arrive in M2/M3 (docs/city-generator/design.md §7).
+// M2: standalone. Size preset + site archetype + seed drive a synthetic
+// BurgSiteDescriptor; the pipeline runs S0–S3. Two sliders: "Drawing process"
+// (S0 grid → S3 urban) with First/Prev/Next/Last, and "Grid evolution" over the
+// S0 Lloyd passes. FMG descriptor import lands in M3 (docs/city-generator/design.md §7).
 
 import { generateCity } from "../core/pipeline";
 import type { GenerationResult } from "../core/types";
-import { renderCity, showStage } from "../render/svg";
-import { PRESETS, type PresetId, presetParams } from "../site/presets";
+import { renderCity, showFamily, showGridStage, showStep } from "../render/svg";
+import type { BurgSiteArchetype } from "../site/burgSiteDescriptor";
+import { PRESETS, type PresetId } from "../site/presets";
+import { siteToGeography, siteToParams } from "../site/siteInput";
+import { synthSite } from "../site/synthSite";
 
 interface View {
   tx: number;
@@ -15,13 +19,23 @@ interface View {
   scale: number;
 }
 
+const ARCHETYPES: { id: BurgSiteArchetype; label: string }[] = [
+  { id: "crossroads", label: "Crossroads" },
+  { id: "riverCrossing", label: "River crossing" },
+  { id: "harbor", label: "Harbor" },
+  { id: "hillTop", label: "Hilltop" }
+];
+
 export function mountCityGenerator(root: HTMLElement): void {
   root.replaceChildren();
 
   let preset: PresetId = "smallCity";
+  let archetype: BurgSiteArchetype = "riverCrossing";
   let seed = randomSeed();
-  let result: GenerationResult = generateCity(presetParams(preset, seed));
-  let stageIndex = result.gridStages.length - 1;
+  let result: GenerationResult = build();
+  let family: "grid" | "step" = "step";
+  let stepIndex = result.steps.length - 1;
+  let gridIndex = result.gridStages.length - 1;
   const view: View = { tx: 0, ty: 0, scale: 1 };
 
   const canvas = div("cg-canvas");
@@ -30,9 +44,15 @@ export function mountCityGenerator(root: HTMLElement): void {
 
   const options = buildOptionsPanel({
     getPreset: () => preset,
+    getArchetype: () => archetype,
     getSeed: () => seed,
     onPreset: id => {
       preset = id;
+      seed = randomSeed();
+      regenerate();
+    },
+    onArchetype: id => {
+      archetype = id;
       seed = randomSeed();
       regenerate();
     },
@@ -47,34 +67,52 @@ export function mountCityGenerator(root: HTMLElement): void {
 
   const process = buildProcessPanel({
     getResult: () => result,
-    getStageIndex: () => stageIndex,
-    onStage: index => {
-      stageIndex = index;
-      showStage(svg(), index);
+    getStepIndex: () => stepIndex,
+    getGridIndex: () => gridIndex,
+    onStep: index => {
+      stepIndex = index;
+      family = "step";
+      showFamily(svg(), "step");
+      showStep(svg(), index);
+    },
+    onGrid: index => {
+      gridIndex = index;
+      if (index < 0) {
+        family = "step";
+        showFamily(svg(), "step");
+        showStep(svg(), stepIndex);
+      } else {
+        family = "grid";
+        showFamily(svg(), "grid");
+        showGridStage(svg(), index);
+      }
     },
     onToggleSites: () => draw()
   });
 
   root.append(canvas, options.root, process.root);
-
   attachPanZoom(canvas, view, applyView);
   draw();
 
+  function build(): GenerationResult {
+    const site = synthSite(preset, archetype, seed);
+    return generateCity(siteToParams(site), siteToGeography(site));
+  }
+
   function regenerate(): void {
-    result = generateCity(presetParams(preset, seed));
-    stageIndex = result.gridStages.length - 1;
+    result = build();
+    stepIndex = result.steps.length - 1;
+    gridIndex = result.gridStages.length - 1;
+    family = "step";
     options.sync();
     process.sync();
     draw();
   }
 
   function draw(): void {
-    const rendered = renderCity(result, {
-      stageIndex,
-      showSites: process.showSites(),
-      showRadius: true
-    });
-    viewport.replaceChildren(rendered);
+    viewport.replaceChildren(
+      renderCity(result, { family, gridIndex, stepIndex, showSites: process.showSites(), showRadius: true })
+    );
     applyView();
   }
 
@@ -88,12 +126,14 @@ export function mountCityGenerator(root: HTMLElement): void {
   }
 }
 
-// --- panels -----------------------------------------------------------------
+// --- options panel ---------------------------------------------------------------
 
 interface OptionsHandlers {
   getPreset(): PresetId;
+  getArchetype(): BurgSiteArchetype;
   getSeed(): string;
   onPreset(id: PresetId): void;
+  onArchetype(id: BurgSiteArchetype): void;
   onSeedInput(value: string): void;
   onGenerate(): void;
 }
@@ -102,16 +142,15 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   const root = div("cg-panel cg-panel--options");
   root.appendChild(heading("Generation options"));
 
-  const presetRow = div("cg-presets");
-  const buttons = PRESETS.map(p => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = p.label;
-    b.addEventListener("click", () => h.onPreset(p.id));
-    presetRow.appendChild(b);
-    return { id: p.id, b };
-  });
-  root.appendChild(presetRow);
+  const presetRow = div("cg-choices");
+  const presetButtons = PRESETS.map(p => choice(p.label, () => h.onPreset(p.id), p.id));
+  for (const c of presetButtons) presetRow.appendChild(c.el);
+  root.append(subheading("Size"), presetRow);
+
+  const archRow = div("cg-choices");
+  const archButtons = ARCHETYPES.map(a => choice(a.label, () => h.onArchetype(a.id), a.id));
+  for (const c of archButtons) archRow.appendChild(c.el);
+  root.append(subheading("Site type"), archRow);
 
   const seedField = div("cg-field");
   const seedLabel = document.createElement("label");
@@ -137,16 +176,21 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
 
   const sync = (): void => {
     seedInput.value = h.getSeed();
-    for (const { id, b } of buttons) b.classList.toggle("is-active", id === h.getPreset());
+    for (const c of presetButtons) c.el.classList.toggle("is-active", c.key === h.getPreset());
+    for (const c of archButtons) c.el.classList.toggle("is-active", c.key === h.getArchetype());
   };
   sync();
   return { root, sync };
 }
 
+// --- drawing-process panel -----------------------------------------------------
+
 interface ProcessHandlers {
   getResult(): GenerationResult;
-  getStageIndex(): number;
-  onStage(index: number): void;
+  getStepIndex(): number;
+  getGridIndex(): number;
+  onStep(index: number): void;
+  onGrid(index: number): void;
   onToggleSites(): void;
 }
 
@@ -154,50 +198,89 @@ function buildProcessPanel(h: ProcessHandlers): { root: HTMLElement; sync(): voi
   const root = div("cg-panel cg-panel--process");
   root.appendChild(heading("Drawing process"));
 
-  const row = div("cg-slider-row");
-  const label = document.createElement("label");
-  label.textContent = "Grid evolution";
-  const status = document.createElement("output");
-  const slider = document.createElement("input");
-  slider.type = "range";
-  slider.min = "0";
-  slider.step = "1";
+  const stepSlider = rangeInput();
+  const gridSlider = rangeInput();
+  const stepStatus = document.createElement("output");
+  const gridStatus = document.createElement("output");
 
-  const setStatus = (): void => {
-    const idx = h.getStageIndex();
+  const setStepStatus = (): void => {
+    stepStatus.textContent = h.getResult().steps[h.getStepIndex()]?.label ?? "";
+  };
+  const setGridStatus = (): void => {
+    const idx = h.getGridIndex();
     const stages = h.getResult().gridStages;
-    status.textContent = idx < 0 ? "hidden" : `${stages[idx].label}  (${stages[idx].cells.length} cells)`;
+    gridStatus.textContent =
+      gridSlider.value === "0" || idx < 0 ? "off" : `${stages[idx].label}  (${stages[idx].cells.length} cells)`;
   };
 
-  slider.addEventListener("input", () => {
-    const value = Number(slider.value);
-    h.onStage(value === 0 ? -1 : value - 1);
-    setStatus();
+  stepSlider.addEventListener("input", () => {
+    gridSlider.value = "0";
+    h.onStep(Number(stepSlider.value));
+    setStepStatus();
+    setGridStatus();
+  });
+  gridSlider.addEventListener("input", () => {
+    const value = Number(gridSlider.value);
+    h.onGrid(value === 0 ? -1 : value - 1);
+    setGridStatus();
   });
 
-  row.append(label, status, slider);
-  root.appendChild(row);
+  const stepRow = div("cg-slider-row");
+  const stepLabel = document.createElement("label");
+  stepLabel.textContent = "Stage";
+  stepRow.append(stepLabel, stepStatus, stepSlider);
+  root.appendChild(stepRow);
+
+  // First / Prev / Next / Last.
+  const nav = div("cg-nav");
+  const jump = (fn: (i: number, last: number) => number): void => {
+    const last = h.getResult().steps.length - 1;
+    stepSlider.value = String(clamp(fn(h.getStepIndex(), last), 0, last));
+    stepSlider.dispatchEvent(new Event("input"));
+  };
+  for (const [text, fn] of [
+    ["First", () => 0],
+    ["Prev", (i: number) => i - 1],
+    ["Next", (i: number) => i + 1],
+    ["Last", (_i: number, last: number) => last]
+  ] as [string, (i: number, last: number) => number][]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = text;
+    b.addEventListener("click", () => jump(fn));
+    nav.appendChild(b);
+  }
+  root.appendChild(nav);
+
+  const gridRow = div("cg-slider-row");
+  const gridLabel = document.createElement("label");
+  gridLabel.textContent = "Grid evolution";
+  gridRow.append(gridLabel, gridStatus, gridSlider);
+  root.appendChild(gridRow);
 
   const sitesRow = div("cg-check-row");
   const sitesLabel = document.createElement("label");
   const sites = document.createElement("input");
   sites.type = "checkbox";
   sites.addEventListener("change", h.onToggleSites);
-  sitesLabel.append(sites, document.createTextNode(" Show sites"));
+  sitesLabel.append(sites, document.createTextNode(" Show sites (grid)"));
   sitesRow.appendChild(sitesLabel);
   root.appendChild(sitesRow);
 
   const sync = (): void => {
-    const count = h.getResult().gridStages.length;
-    slider.max = String(count);
-    slider.value = String(h.getStageIndex() + 1);
-    setStatus();
+    const { steps, gridStages } = h.getResult();
+    stepSlider.max = String(steps.length - 1);
+    stepSlider.value = String(h.getStepIndex());
+    gridSlider.max = String(gridStages.length);
+    gridSlider.value = "0";
+    setStepStatus();
+    setGridStatus();
   };
   sync();
   return { root, sync, showSites: () => sites.checked };
 }
 
-// --- pan / zoom -----------------------------------------------------------------
+// --- pan / zoom ---------------------------------------------------------------
 
 function attachPanZoom(canvas: HTMLElement, view: View, apply: () => void): void {
   let dragging = false;
@@ -234,8 +317,7 @@ function attachPanZoom(canvas: HTMLElement, view: View, apply: () => void): void
       const rect = canvas.getBoundingClientRect();
       const px = e.clientX - rect.left;
       const py = e.clientY - rect.top;
-      const factor = Math.exp(-e.deltaY * 0.0015);
-      const next = clamp(view.scale * factor, 0.25, 12);
+      const next = clamp(view.scale * Math.exp(-e.deltaY * 0.0015), 0.25, 12);
       const applied = next / view.scale;
       view.tx = px - (px - view.tx) * applied;
       view.ty = py - (py - view.ty) * applied;
@@ -246,7 +328,23 @@ function attachPanZoom(canvas: HTMLElement, view: View, apply: () => void): void
   );
 }
 
-// --- helpers -----------------------------------------------------------------
+// --- helpers ---------------------------------------------------------------
+
+function choice<K extends string>(label: string, onClick: () => void, key: K): { el: HTMLButtonElement; key: K } {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.textContent = label;
+  el.addEventListener("click", onClick);
+  return { el, key };
+}
+
+function rangeInput(): HTMLInputElement {
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = "0";
+  input.step = "1";
+  return input;
+}
 
 function div(className: string): HTMLDivElement {
   const node = document.createElement("div");
@@ -258,6 +356,13 @@ function heading(text: string): HTMLElement {
   const h1 = document.createElement("h1");
   h1.textContent = text;
   return h1;
+}
+
+function subheading(text: string): HTMLElement {
+  const p = document.createElement("p");
+  p.className = "cg-subhead";
+  p.textContent = text;
+  return p;
 }
 
 function randomSeed(): string {
