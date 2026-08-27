@@ -61,10 +61,11 @@ export function walkRiver(
     goal,
     rng,
     cellSizeMeters,
-    wander: 0.5,
+    wander: 0.9,
     corridor,
-    corridorPull: 4,
-    maxSteps: 220,
+    corridorPull: 1.5,
+    corridorFalloff: 1.5,
+    maxSteps: 300,
     stop
   });
   if (nodes.length < 3) {

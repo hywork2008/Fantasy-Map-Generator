@@ -10,7 +10,10 @@
 import type { CityGeography, CityParams, Point } from "../core/types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
 
+// A coast's shape comes from the graph walk, so a few control points suffice.
+// A river's bends ARE the intent and must survive down-sampling — keep more.
 const CORRIDOR_POINTS = 8;
+const RIVER_CORRIDOR_POINTS = 22;
 
 export function siteToParams(site: BurgSiteDescriptor): CityParams {
   const { cityRadiusMeters, extentMeters } = site.frame;
@@ -54,8 +57,8 @@ function extractRivers(site: BurgSiteDescriptor): CityGeography["rivers"] {
         }
       }
       return {
-        corridor: downsample(pts, CORRIDOR_POINTS),
-        widths: downsampleScalars(widths, CORRIDOR_POINTS),
+        corridor: downsample(pts, RIVER_CORRIDOR_POINTS),
+        widths: downsampleScalars(widths, RIVER_CORRIDOR_POINTS),
         cityBank: r.cityBank
       };
     })

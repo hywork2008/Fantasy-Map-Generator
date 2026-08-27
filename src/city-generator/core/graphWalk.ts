@@ -23,6 +23,10 @@ export interface WalkOptions {
   corridor?: Point[];
   /** Weight of the corridor-alignment term (0 disables). */
   corridorPull?: number;
+  /** Exponent on the normalised corridor distance in the pull penalty. 2 (default)
+   * springs the path tight to the corridor; ~1.5 lets it bulge between control
+   * points so a meandering corridor reads as a meandering river. */
+  corridorFalloff?: number;
   /** Stop as soon as this returns true for the node just stepped onto. */
   stop?: (nodeId: number, point: Point) => boolean;
   maxSteps?: number;
@@ -40,6 +44,7 @@ export function clampToWindow(p: Point, half: number): Point {
 export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
   const { rng, cellSizeMeters, wander } = opts;
   const corridorPull = opts.corridorPull ?? 0;
+  const corridorFalloff = opts.corridorFalloff ?? 2;
   const maxSteps = opts.maxSteps ?? 400;
   const arrive = cellSizeMeters * 2;
   // Heading alignment dominates the choice; the random term only breaks ties
@@ -73,7 +78,7 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
       if (corridorPull > 0 && opts.corridor) {
         const mid: Point = [(here[0] + there[0]) / 2, (here[1] + there[1]) / 2];
         const d = nearestOnPolyline(mid, opts.corridor).dist;
-        score -= corridorPull * (d / Math.max(cellSizeMeters, 1)) ** 2;
+        score -= corridorPull * (d / Math.max(cellSizeMeters, 1)) ** corridorFalloff;
       }
       if (opts.avoid?.has(to)) score -= 3;
       if (visited.has(to)) score -= 1.5;

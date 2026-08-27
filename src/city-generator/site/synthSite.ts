@@ -3,7 +3,7 @@
 // without the world map. Deterministic in (preset, config, seed). M3 replaces
 // this path with a real FMG descriptor; the pipeline downstream is identical.
 
-import { azimuthToVec, nearestOnPolyline, vecToAzimuth } from "../core/geom";
+import { azimuthToVec, nearestOnPolyline, sideOfPolyline, vecToAzimuth } from "../core/geom";
 import { makeRng, type Rng } from "../core/prng";
 import type { Point } from "../core/types";
 import type {
@@ -27,6 +27,9 @@ interface RiverPlacement {
   /** Signed perpendicular offset as a fraction of cityRadius (+ toward +perp). */
   offsetRatio: number;
   crossesSite: boolean;
+  /** Multiplies the meander amplitude: < 1 keeps two straddling channels tame,
+   * > 1 lets a river that runs well clear of the town (`beside`) wander more. */
+  meanderScale: number;
 }
 
 export function synthSite(preset: PresetId, config: SiteConfig, seed: string): BurgSiteDescriptor {
@@ -55,7 +58,8 @@ export function synthSite(preset: PresetId, config: SiteConfig, seed: string): B
         shape: "through",
         axisDeg: sharedAxis + rng.range(-12, 12),
         offsetRatio: (i === 0 ? -1 : 1) * rng.range(0.35, 0.55),
-        crossesSite: true
+        crossesSite: true,
+        meanderScale: 0.55
       };
     }
     if (shape === "beside") {
@@ -63,19 +67,21 @@ export function synthSite(preset: PresetId, config: SiteConfig, seed: string): B
         shape,
         axisDeg: freeAxis(),
         offsetRatio: (rng() < 0.5 ? -1 : 1) * rng.range(0.85, 1.15),
-        crossesSite: false
+        crossesSite: false,
+        meanderScale: 0.9
       };
     }
     if (shape === "toCoast") {
-      return { shape, axisDeg: 0, offsetRatio: 0, crossesSite: true };
+      return { shape, axisDeg: 0, offsetRatio: 0, crossesSite: true, meanderScale: 0.85 };
     }
     // `through` — flows through the site but keeps the town clearly on one bank
-    // (offset well above the walk's ~1-cell wiggle).
+    // (the meander is clamped so it never crosses onto the town side).
     return {
       shape: "through",
       axisDeg: freeAxis(),
       offsetRatio: (rng() < 0.5 ? -1 : 1) * rng.range(0.28, 0.5),
-      crossesSite: true
+      crossesSite: true,
+      meanderScale: 1
     };
   });
   const rivers = placements.map((p, i) => synthRiver(rng, p, i + 1, half, cityRadiusMeters, waterbody));
@@ -175,6 +181,56 @@ function synthCoast(rng: Rng, shape: CoastShape, half: number, R: number): BurgS
 
 // --- rivers ------------------------------------------------------------------
 
+/**
+ * A multi-point corridor that meanders along `flow`, its centreline offset by
+ * `shift` off the town (origin) on `perp`. A dominant sine (2.5–5 bends across
+ * the corridor) plus 1–2 shorter harmonics give the shape; a `sin(u·π)^0.7`
+ * taper pins the source and mouth so only the middle wanders, and `lat` is
+ * clamped to `nearLimit` so the channel never crosses onto the town's bank.
+ * `scale` tunes the amplitude per placement (see RiverPlacement.meanderScale).
+ */
+function meanderCorridor(
+  rng: Rng,
+  flow: Point,
+  perp: Point,
+  shift: number,
+  span: number,
+  R: number,
+  scale: number,
+  nearLimit: number
+): Point[] {
+  const points = 21;
+  const sgn = shift < 0 ? -1 : 1;
+  // Meander wavelength is set by a bend COUNT across the whole corridor, so the
+  // bends stay short enough to read inside the window (a single long wave just
+  // bows). A dominant low harmonic + 1–2 shorter ones for organic wobble.
+  const bends = rng.range(2.5, 5);
+  const waves = [
+    { amp: rng.range(0.32, 0.58) * R * scale, freq: bends, phase: rng.range(0, Math.PI * 2) },
+    ...Array.from({ length: rng.int(1, 3) }, () => ({
+      amp: rng.range(0.1, 0.26) * R * scale,
+      freq: bends * rng.range(1.7, 2.6),
+      phase: rng.range(0, Math.PI * 2)
+    }))
+  ];
+  const peak = waves.reduce((s, w) => s + w.amp, 0);
+  // Push the centreline out so the meander swings mostly clear of the town
+  // instead of being flattened against `nearLimit` on one side.
+  const base = sgn * Math.max(Math.abs(shift), nearLimit + peak * 0.55);
+  const skew = rng.range(-0.3, 0.3);
+
+  return Array.from({ length: points }, (_, k) => {
+    const u = k / (points - 1);
+    const along = (u - 0.5) * 2 * span;
+    const warp = u + skew * u * (1 - u);
+    const taper = Math.sin(u * Math.PI) ** 0.7;
+    let lat = base;
+    for (const w of waves) lat += w.amp * Math.sin(warp * w.freq * Math.PI * 2 + w.phase) * taper;
+    lat = sgn < 0 ? Math.min(lat, -nearLimit) : Math.max(lat, nearLimit);
+    return [perp[0] * lat + flow[0] * along, perp[1] * lat + flow[1] * along] as Point;
+  });
+}
+
 function synthRiver(
   rng: Rng,
   placement: RiverPlacement,
@@ -183,32 +239,29 @@ function synthRiver(
   R: number,
   waterbody: BurgSiteWaterbody | null
 ): BurgSiteRiver {
-  // A 3-point CORRIDOR: source → chord control → mouth. The pipeline walk fills
-  // in the meander and stops at the shoreline.
-  let corridor: Point[];
-  let cityBank: "left" | "right";
+  // A MEANDERING CORRIDOR: source → … → mouth, sampled along the flow axis with a
+  // tapered sine-sum lateral offset (meanderCorridor). The pipeline walk snaps it
+  // to cell edges and stops at the shoreline; the bends survive because the walk's
+  // corridor pull is soft (riverPath.ts).
+  const flowAz =
+    placement.shape === "toCoast" && waterbody ? waterbody.shoreAzimuthDeg : ((placement.axisDeg % 360) + 360) % 360;
+  const flow = azimuthToVec(flowAz);
+  const perp: Point = [-flow[1], flow[0]];
+  const span = half * 1.35;
+  // `toCoast` carries no authored offset — nudge the channel just off the town
+  // (random bank) so it isn't bisected; the rest use their placement offset.
+  const shift =
+    placement.shape === "toCoast" && waterbody
+      ? (rng() < 0.5 ? -1 : 1) * rng.range(0.22, 0.34) * R
+      : placement.offsetRatio * R;
+  // How close the channel may come to the town: a hair for `through` (town right
+  // on the bank), a fraction of the offset for `beside` (stays clearly apart).
+  const townClear = 0.22 * R;
+  const nearLimit = placement.shape === "beside" ? Math.max(townClear, Math.abs(shift) * 0.6) : townClear;
 
-  if (placement.shape === "toCoast" && waterbody) {
-    const water = azimuthToVec(waterbody.shoreAzimuthDeg);
-    corridor = [
-      [-water[0] * half * 1.3, -water[1] * half * 1.3],
-      [rng.range(-0.1, 0.1) * R, rng.range(-0.1, 0.1) * R],
-      [water[0] * half * 1.3, water[1] * half * 1.3]
-    ];
-    cityBank = "right";
-  } else {
-    const flow = azimuthToVec(((placement.axisDeg % 360) + 360) % 360);
-    const perp: Point = [-flow[1], flow[0]];
-    const shift = placement.offsetRatio * R;
-    const span = half * 1.35;
-    corridor = [
-      [perp[0] * shift - flow[0] * span, perp[1] * shift - flow[1] * span],
-      [perp[0] * shift, perp[1] * shift],
-      [perp[0] * shift + flow[0] * span, perp[1] * shift + flow[1] * span]
-    ];
-    // Town (perp position 0) is on the −sign(shift) side; sideOfPolyline(origin) = −shift.
-    cityBank = shift < 0 ? "left" : "right";
-  }
+  const corridor = meanderCorridor(rng, flow, perp, shift, span, R, placement.meanderScale, nearLimit);
+  // Town is on the −sign(shift) side; sideOfPolyline(origin) has that sign.
+  const cityBank: "left" | "right" = sideOfPolyline([0, 0], corridor) > 0 ? "left" : "right";
 
   const widthsMeters = corridor.map((_, i) => rn(6 + 10 * (i / (corridor.length - 1)) + rng.range(-1, 1), 1));
   const hit = nearestOnPolyline([0, 0], corridor);
