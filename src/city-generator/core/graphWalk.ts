@@ -50,9 +50,15 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
   // Heading alignment dominates the choice; the random term only breaks ties
   // between similarly-aligned edges (so the path heads to the goal but wiggles).
   const ALIGN_WEIGHT = 1.6;
+  // Loop guard: never step back onto the last RECENT_WINDOW nodes. That is what
+  // lets the walk circle around a few cells and tie the river into a knot (the
+  // window is wide enough to also block the looser loops around a sharp corridor
+  // corner). If every neighbour is on that recent trail the walk is boxed in
+  // (typically crowded against the shoreline) — it stops there rather than
+  // spiralling. Rivers never hairpin inside ~20 cells, so nothing legitimate is lost.
+  const RECENT_WINDOW = 20;
 
   let current = nearestNode(graph, opts.start);
-  let previous = -1;
   const path = [current];
   const visited = new Set<number>([current]);
 
@@ -64,10 +70,12 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
     if (gLen < arrive) break;
     const goalDir: Point = [gx / gLen, gy / gLen];
 
+    const recent = new Set(path.slice(Math.max(0, path.length - RECENT_WINDOW)));
+
     let bestTo = -1;
     let bestScore = Number.NEGATIVE_INFINITY;
     for (const { to } of graph.adjacency[current]) {
-      if (to === previous) continue;
+      if (recent.has(to)) continue;
       const there = graph.points[to];
       const ex = there[0] - here[0];
       const ey = there[1] - here[1];
@@ -90,7 +98,6 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
     }
     if (bestTo === -1) break;
 
-    previous = current;
     current = bestTo;
     path.push(current);
     visited.add(current);

@@ -7,7 +7,7 @@
 
 import type { EdgeGraph } from "./edgeGraph";
 import { smoothPath } from "./edgeGraph";
-import { nearestOnPolyline, pointInPolygon } from "./geom";
+import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { clampToWindow, walkGraph } from "./graphWalk";
 import type { Rng } from "./prng";
 import type { Point } from "./types";
@@ -47,12 +47,28 @@ export function walkRiver(
   }
   start = clampToWindow(start, halfExtentMeters);
 
+  // Mouth = where the corridor actually meets the coast. The corridor's LAST
+  // point overshoots the window and, for a meander / great-bend heading, can
+  // land in a corner beyond the ends of the shoreline arc — aiming there sends
+  // the walk skimming the whole coast and tying itself in knots. The corridor
+  // vertex closest to the shoreline is the real landfall.
+  let mouth = corridor[corridor.length - 1];
+  if (waterPolygon && shoreline && shoreline.length >= 2) {
+    let best = Number.POSITIVE_INFINITY;
+    for (const c of corridor) {
+      const d = nearestOnPolyline(c, shoreline).dist;
+      if (d < best) {
+        best = d;
+        mouth = c;
+      }
+    }
+  }
+
   // Goal: with a coast, aim just PAST the shoreline (in the water) so the walk
   // actually reaches it and `stop` fires at the edge; otherwise the rough mouth.
-  const roughMouth = corridor[corridor.length - 1];
-  let goal = clampToWindow(roughMouth, halfExtentMeters);
+  let goal = clampToWindow(mouth, halfExtentMeters);
   if (waterPolygon && shoreline && shoreline.length >= 2) {
-    goal = seawardOf(roughMouth, shoreline, waterPolygon, cellSizeMeters, halfExtentMeters);
+    goal = seawardOf(mouth, shoreline, waterPolygon, cellSizeMeters, halfExtentMeters);
   }
   const stop = waterPolygon ? (_id: number, p: Point) => pointInPolygon(p, waterPolygon) : undefined;
 
@@ -61,7 +77,7 @@ export function walkRiver(
     goal,
     rng,
     cellSizeMeters,
-    wander: 0.9,
+    wander: 0.7,
     corridor,
     corridorPull: 1.5,
     corridorFalloff: 1.5,
@@ -82,7 +98,10 @@ export function walkRiver(
   }
   if (nodes.length < 3) return dead;
 
-  const walked = nodes.map(id => [graph.points[id][0], graph.points[id][1]] as Point);
+  const walked = exciseLoops(
+    nodes.map(id => [graph.points[id][0], graph.points[id][1]] as Point),
+    cellSizeMeters
+  );
   const edgePoints = waterPolygon ? trimAtWater(walked, waterPolygon) : walked;
   if (edgePoints.length < 3) return dead;
 
@@ -92,6 +111,40 @@ export function walkRiver(
     ? rawSmooth.map((p, i) => (i < rawSmooth.length - 1 && pointInPolygon(p, waterPolygon) ? edgePoints[i] : p))
     : rawSmooth;
   return { edgePoints, smoothPoints, widths: resampleWidths(smoothPoints, corridor, widths), fallback: false };
+}
+
+/**
+ * A river never crosses itself, and at this scale it never curls back on itself
+ * either. The biased walk can still do both — spiral a cell cluster where the
+ * corridor kinks, or make a wide excursion that `wander` swings out and `align`
+ * yanks back. Cut out any span that (a) self-crosses, or (b) is a long detour
+ * returning within ~1.5 cells of where it began (a near-loop / hairpin). Join
+ * the ends directly — they are close, so the bridge is short and smoothing
+ * rounds it.
+ */
+function exciseLoops(points: Point[], cell: number): Point[] {
+  const near = cell * 1.5;
+  let out = points;
+  for (let guard = 0; guard < 20; guard++) {
+    let cut = false;
+    for (let i = 0; i < out.length - 3 && !cut; i++) {
+      for (let j = i + 2; j < out.length - 1; j++) {
+        let hit = !(i === 0 && j === out.length - 2) && segmentsIntersect(out[i], out[i + 1], out[j], out[j + 1]);
+        if (!hit && j >= i + 5 && Math.hypot(out[i][0] - out[j][0], out[i][1] - out[j][1]) < near) {
+          let arc = 0;
+          for (let k = i; k < j; k++) arc += Math.hypot(out[k + 1][0] - out[k][0], out[k + 1][1] - out[k][1]);
+          hit = arc > near * 3.5; // travelled far but ended up back near the start
+        }
+        if (hit) {
+          out = [...out.slice(0, i + 1), ...out.slice(j + 1)];
+          cut = true;
+          break;
+        }
+      }
+    }
+    if (!cut) break;
+  }
+  return out;
 }
 
 /** Keep vertices up to and including the first that reaches the water (the mouth). */

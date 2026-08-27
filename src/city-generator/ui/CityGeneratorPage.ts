@@ -36,7 +36,10 @@ const COASTS: { id: CoastShape; label: string }[] = [
 const RIVER_SHAPE_LABELS: { id: RiverShape; label: string }[] = [
   { id: "through", label: "Through" },
   { id: "beside", label: "Beside" },
-  { id: "toCoast", label: "To coast" }
+  { id: "toCoast", label: "To coast" },
+  { id: "straight", label: "Straight" },
+  { id: "meander", label: "Meander" },
+  { id: "greatBend", label: "Great bend" }
 ];
 
 export function mountCityGenerator(root: HTMLElement): void {

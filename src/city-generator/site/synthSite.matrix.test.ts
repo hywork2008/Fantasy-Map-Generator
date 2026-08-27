@@ -17,8 +17,12 @@ const RIVER_SETS: RiverShape[][] = [
   ["through"],
   ["beside"],
   ["toCoast"],
+  ["straight"],
+  ["meander"],
+  ["greatBend"],
   ["through", "through"],
-  ["through", "toCoast"]
+  ["through", "toCoast"],
+  ["meander", "meander"]
 ];
 const VALID_TAGS: CellTag[] = ["land", "sea", "water", "urban", "outskirts", "rural"];
 
