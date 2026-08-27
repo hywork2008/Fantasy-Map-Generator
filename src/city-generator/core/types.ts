@@ -44,10 +44,10 @@ export interface GridStage {
 /** Classification a cell carries in a pipeline snapshot. */
 export type CellTag = "land" | "sea" | "water" | "urban" | "outskirts" | "rural";
 
-/** A river as a wide "road" on the cell graph (design §4.1). M2 keeps the
- * descriptor centerline; snapping to actual cell edges is deferred to S4. */
+/** A river as a wide "road" walked along the Voronoi cell-edge graph (design §4.1),
+ * smoothed for drawing. Stops where it first meets the sea. */
 export interface RiverPath {
-  /** Centerline polyline, local meters, upstream → downstream. */
+  /** Centerline polyline, local meters, upstream → downstream (mouth). */
   points: Point[];
   /** Per-vertex full width, meters (index-aligned with `points`). */
   widths: number[];
@@ -75,11 +75,13 @@ export interface Snapshot {
   overlays: Overlay[];
 }
 
-/** Local geography the pipeline classifies against. Built from a
- * BurgSiteDescriptor (see site/siteInput.ts) or empty for a bare grid. */
+/** Local geography the pipeline classifies against. The coast/river polylines are
+ * ROUGH CORRIDORS (a few control points) — S1/S2 walk the Voronoi edge graph
+ * along them, so the fine shape (and where it exits) is graph-derived, not
+ * authored. Built from a BurgSiteDescriptor (site/siteInput.ts) or empty. */
 export interface CityGeography {
-  coast: { shoreline: Point[]; waterAzimuthDeg: number } | null;
-  rivers: { centerline: Point[]; widths: number[]; cityBank: "left" | "right" }[];
+  coast: { corridor: Point[]; waterAzimuthDeg: number } | null;
+  rivers: { corridor: Point[]; widths: number[]; cityBank: "left" | "right" }[];
   /** Gate-candidate road bearings, compass degrees. */
   roadBearings: number[];
 }
@@ -95,4 +97,8 @@ export interface GenerationResult {
   cells: Cell[];
   /** River centerlines used by S2, for downstream stages / debugging. */
   riverPaths: RiverPath[];
+  /** Detailed graph-walked shoreline, or null when landlocked. */
+  shoreline: Point[] | null;
+  /** Closed polygon whose interior is the water, or null when landlocked. */
+  waterPolygon: Point[] | null;
 }

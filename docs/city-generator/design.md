@@ -120,11 +120,15 @@ FMG は既に **per-burg 立地サーベイ** `BurgSiteDescriptor` を出力す�
 | -------- | ------ | ------ |
 | **世界地図から** | Burg エディタの「都市生成ページを開く」ボタン | `sessionStorage['fmg.citySite']` に stash した descriptor JSON |
 | **共有リンク** | `city/#<base64url(descriptor)>` | ハッシュから復元（heightfield 289 個等でサイズが問題なら圧縮） |
-| **スタンドアロン** | `city/` を直接 or `city/?preset=largeCity&archetype=harbor&seed=abc` | `synthSite.ts` が合成 descriptor を捏造。world map をロードしない高速開発ループ |
+| **スタンドアロン** | `city/` を直接（UI で site を組み立て） | `synthSite.ts` が `SiteConfig` から合成 descriptor を捏造。world map をロードしない高速開発ループ |
 
 - 別ドキュメント間・同一オリジンなので `sessionStorage` が最も素直（`window.open` でもタブ遷移でも残る）。
 - city ページは FMG world コードを import しない。`BurgSiteDescriptor` の**型だけ**をコピーして持つ
   （`version` フィールドで不整合を検出）。
+- **スタンドアロンの site は組み合わせ（M2.5）**: `SiteConfig = { coast: none|straight|bay|cape,
+  rivers: RiverShape[]（0..2、shape ∈ through|beside|toCoast）, relief: boolean }`。archetype 排他は撤去。
+  「harbor + river」「2 河川に挟まれた都市」「河口に達する川」等がすべて表現可能。実 FMG descriptor
+  は元々この一般形（`rivers[]` 複数・`waterbody` と独立）なので M3 は配線のみ。
 
 ### 3.2 descriptor → `draft.md` 各ステップの対応
 
@@ -180,40 +184,53 @@ FMG は既に **per-burg 立地サーベイ** `BurgSiteDescriptor` を出力す�
 4. `voronoi.ts` で構築 → `Cell { id, site, polygon, centroid, neighbors[], onBorder }`。
 5. 「Grid evolution」スライダーはこの前段（初期 Voronoi → 各 Lloyd → 確定格子）の可視化。
 
-#### S1 — 海/陸分類（`waterbody == null` ならスキップ、海セルなし）
+#### 共通機構 — ボロノイ辺グラフの walk（`core/{edgeGraph,graphWalk}.ts`）
 
-1. 海岸線を用意：`waterbody.shoreline` があればそれ（ローカル m）。無ければ `shoreAzimuthDeg` に
-   垂直で、水側に距離 `cityRadiusMeters × (0.8〜1.3)` の緩く蛇行する線を合成。
-2. 各セル重心が海岸線の**水側半平面**なら `sea`、他 `land`。
-3. 近傍多数決を 1–2 パス（sliver 除去）。
+`TownGeneratorTS` の `Topology` + `buildStreets` に対応。海岸線も河川も**この同じ walk で形が決まる**:
+descriptor が与えるのは**ラフなコリドー**（数点の制御点）だけで、細かい形は walk が出す。
 
-#### S2 — 河川パス（セル辺に沿った幅広の道）
+1. **セル辺グラフ** `buildEdgeGraph`: 全セルポリゴン頂点を座標量子化（0.05 m）で dedup → ノード、
+   セル辺 = 長さ重みエッジ。
+2. **`walkGraph`**（バイアス付きランダムウォーク）: 各交差点で次の辺を
+   `1.6·(進行方向との整合) + rng(0..wander) − corridorPull·(コリドーからの距離/セルサイズ)²` で選ぶ。
+   `rng` 項が**分岐で行き先を散らす** ── 同じコリドー・別 seed で別ルート、出口も散る。
+   `goal` は窓内にクランプ（窓外を狙うと maxSteps まで走る）。`stop(node)` で早期終了。
 
-`TownGeneratorTS/src/towngenerator/building/{Topology,Model}.ts` の `buildStreets` と**同じ手法**で
-河川を「幅を太くした道」として引く（`core/{edgeGraph,riverPath}.ts`）:
+#### S1 — 海/陸分類（`classifySea.ts`、`waterbody == null` ならスキップ）
 
-1. **セル辺グラフ**を構築（`buildEdgeGraph`）: 全セルポリゴン頂点を座標量子化（0.05 m）で
-   dedup → ノード。セル辺 = 長さ重みのエッジ。= `Topology` 相当。
-2. `crossesSite || throughBurgCell` の各 `rivers[i]` の `segments[]` 中心線の窓入口/出口を
-   最近傍ノードにスナップ。
-3. **A\***（`aStar`、flatqueue）で入口→出口。辺コスト = 長さ × `(1 + 6·(中心線からの距離/セルサイズ)²)`
-   で descriptor 中心線に寄せる（ペナルティ ≥ 0 なので直線距離ヒューリスティックは admissible）。
+1. **海岸 = 独自の曲率中心をもつ大きな円弧**（`synthSite.synthCoast`）── 都心に合わせて曲げた線
+   ではなく地形。都心は弧の**頂点ではなく側面**（apex 方向を海方位 ±55° ずらす）に、弧の上
+   （or 0〜0.5R 内陸）に置く。「bay / cape」= **弧のどちら側が水か**:
+   - **bay** = 曲率中心が水側、`Rc` ≈ 窓の 1.5〜4 倍 → 陸が水を抱く凹型海岸（大阪湾）。海は窓の
+     ~4 割、都心は湾岸に。
+   - **cape** = 曲率中心が陸側、`Rc` ≈ 窓の 0.4〜0.95 倍 → 陸が小さな円盤（岬）、周囲が海（~6 割）。
+   - **straight** = `Rc` 巨大 → ほぼ直線。
+2. コリドー（弧サンプル）を**レグごとに** `walkGraph`（`corridorPull 2.2`）。窓境界沿いに
+   `shoreAzimuthDeg` 側を歩き戻って**水ポリゴン**に閉じる。重心が内なら `sea`。近傍多数決 1 パス。
+
+#### S2 — 河川（`riverPath.ts` の `walkRiver`）
+
+1. 河川コリドー（source→chord→mouth の 3 点）を `walkGraph`（`wander 0.5`, `corridorPull 4`）。
    結果 = **実在するセル頂点をセル辺でつないだ折れ線**（`edgePoints`）。
-4. `smoothPath`（窓平均 3 回、端点固定）で `edgePoints` を均す = `smoothVertexEq` 相当。
-   これが描画・セットバック用の river 中心線（`RiverPath.points`）。幅は descriptor から
-   各頂点へ再サンプル。
+2. **海がある場合、`goal` を海岸線の少し沖（水ポリゴン内）に設定**（`seawardOf`）── そうしないと
+   窓縁を狙って手前で止まり「海に届かない」。`synthSite` の `through`/`beside` は海がある時
+   軸を `shoreAzimuthDeg` 寄りにして「内陸 → 都心 → 海」へ流す。
+3. **`stop` = 水ポリゴン内**。`trimAtWater` は河口（最初の水没頂点）まで残す ── 河口は海岸線に
+   接し、それより先へは伸びない。全区間が海上なら河川ごと drop。
+4. `smoothPath`（窓平均 3 回）で均す = `RiverPath.points`。海に入る**内部**頂点は元の陸頂点へ
+   スナップし戻す（河口頂点は残す）。幅は descriptor から各頂点へ再サンプル。
 5. 分類（`classifyRiver`、`edgePoints` に対して）:
-   - `water`: 重心が `edgePoints` から `max(幅/2, セルサイズ×0.5)` 以内のセル → 建物なし。
-   - 岸（bank）: 重心リンクが `edgePoints` を跨ぐ隣接を切る → land セルの連結成分。
-     `cityBank` 側 = 成分 0（主市街）。
-6. 弦位置（offsetRatio）・流向・岸は descriptor のまま（コスト項が中心線に拘束）。
+   - `water`: 重心が `edgePoints` から `max(幅/2, セルサイズ×0.5)` 以内。
+   - 岸（bank）: 重心リンクが**全河川の** `edgePoints` を跨ぐ隣接を切る → **原点を含む成分 = 0（主市街）**。
+     「2 河川に挟まれた都市」= 原点が中央の細成分に落ちる。`cityBank` ヒューリスティックは撤去（M2.5）。
 
-#### S3 — 市街セル
+#### S3 — 市街セル（`classifyUrban.ts`）
 
-1. `land`（非 `water` / 非 `sea`）かつ `cityBank` 側の連結成分の中心セルから外向きに flood-fill。
-2. 受理条件：重心が `cityRadiusMeters` 内。かつ `roads[].entryAzimuthDeg` 方向のセルに
-   ボーナス（市街が門まで届くように）。river パスを渡る橋のたもとセルにもボーナス。
-3. 人口由来の目標セル数で停止。`urban` タグ、残りは `outskirts` / `rural`。
+1. `land`（非 `water` / 非 `sea`）かつ原点成分の中心セルから外向きに flood-fill。
+2. 受理条件：`reach(cell) < cityRadiusMeters`。`reach` は内陸なら円距離、**海岸がある場合は
+   海岸線接線方向に伸びた楕円距離**（沿岸方向 1.9R、内陸方向 0.72R）── 海岸都市は帯状。
+   `roads[].entryAzimuthDeg` 方向のセルにボーナス。
+3. `urban` タグ、残りは `outskirts`（街道沿いリボン）/ `rural`。
 
 **S4 以降（`draft.md` の範囲外・別途設計）**
 城壁 = `urban` セル集合の外周（`findCircumference` 相当のセル境界一周。river が市街を割るなら
@@ -268,6 +285,7 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 | **M0 ✅** | MPA スキャフォールド（`src/city/index.html` + `main.ts`、`src/city-generator/ui/CityGeneratorPage.ts` プレースホルダ、`vite.config.ts` に `rollupOptions.input`、`LICENSE-NOTE.md`） | `tsc` 0、`npm run dev` で `/city/` が 200 + プレースホルダ描画（console エラー無し）、`npm run build` が `dist/index.html` と `dist/city/index.html` を出力。city エントリチャンク = 531 B、world バンドルからの import 0（完全分離）。biome / lint:legacy クリーン |
 | **M1 ✅** | S0 グリッド + SVG 描画 + Grid evolution スライダー（スタンドアロン・preset のみ）。`core/{types,prng,geom,voronoi,grid,pipeline}.ts`、`site/presets.ts`、`render/{palette,svg}.ts`、`ui/CityGeneratorPage.ts` 実装 | `tsc` 0、`vitest` 5/5（決定論・Lloyd 収束・非退化セル）、biome クリーン。ブラウザ実測: 同一 seed → 同一 SVG パス、scatter↔Lloyd3 が可視差、preset/seed/スライダー/pan-zoom 動作、console エラー無し。build: city payload 20 KB（city 9.4 + delaunator 8.2）、world/d3/three 参照 0 |
 | **M2 ✅** | S1 海/陸 + S2 河川（**セル辺グラフ A\* + 平滑化 = `buildStreets` 手法**、`core/{edgeGraph,riverPath}.ts`）+ S3 市街 + 進行スライダー（`synthSite` 入力）。`core/{classifySea,classifyRiver,classifyUrban}.ts`、`site/{burgSiteDescriptor,synthSite,siteInput}.ts` 追加。`pipeline.ts` が S0→S3 を実行し `steps: Snapshot[]` を生成。`render/svg.ts` は grid 系 + step 系の 2 グループ。UI は Size/Site type ボタン + Stage スライダー + First/Prev/Next/Last | `tsc` 0、`vitest` 20/20（決定論、archetype 4 種 smoke、harbor は市街が海に非接触、riverCrossing は岸 >85%・弦位置 ±0.25R 保存 ×4 seed、**river パス頂点は実グラフノード + 連続ペアは実エッジ**、平滑ドリフト < 1 セル）、biome クリーン。ブラウザ実測: 河川がセル辺を辿る（240 頂点の折れ線）、4 archetype で S0→S3 描画、Stage/First-Last/Grid evolution 動作、console エラー無し。build: city payload 44 KB、world/d3/three 参照 0 |
+| **M2.5 ✅** | サイト地形レイヤーの一般化（S4 が単一河川・2 値岸を前提にする前に）。archetype enum → `SiteConfig`（`site/siteConfig.ts`）。**S1/S2 を「ラフなコリドー → ボロノイ辺グラフの biased random walk」に全面移行**（`core/{graphWalk}.ts` 新設、`classifySea`/`riverPath` 書き換え）── 海岸線・河川の形がグラフ walk 由来になり、分岐で行き先が散る。**河川は水ポリゴンで stop**（海に入らない）。`classifyRiver` の岸分割を原点成分 = 0 に。Bay = 都心が湾の奥（凹の recess）、Cape = 都心が突端。`GenerationResult` に `shoreline`/`waterPolygon` 追加。UI = Coast/Rivers/River-shape/Relief/Randomize | `tsc` 0、`vitest` 45/45（マトリクス 24 combo×2 seed、河川頂点は水ポリゴン外、urban core は単一連結成分、seed 別に river ルートが散る、toCoast は海岸線到達で停止）、biome クリーン。ブラウザ実測: 海岸線が全域ギザギザ、河川が蛇行し海で止まる、Bay=recess / Cape=headland、seed で river 散る（107–142 頂点、maxSteps 到達なし）、console エラー無し。build: city payload 27.7 KB、world/d3/three 参照 0 |
 | M3 | FMG descriptor 取り込み（sessionStorage handoff + Burg エディタボタン） | 世界地図の複数 burg で「地図にはまる」ことを目視 |
 | M4 | 城壁・門（S4） | `draft.md` 範囲外・別 PR |
 

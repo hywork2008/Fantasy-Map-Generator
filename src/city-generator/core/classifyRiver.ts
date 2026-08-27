@@ -6,7 +6,7 @@
 //    link crosses the on-edge polyline. `bank` component 0 = the `cityBank` side.
 // See docs/city-generator/design.md §4.
 
-import { nearestOnPolyline, polylineCrossesSegment, sideOfPolyline } from "./geom";
+import { nearestOnPolyline, polylineCrossesSegment } from "./geom";
 import type { Cell, Point } from "./types";
 
 export interface RiverBand {
@@ -67,27 +67,21 @@ function splitBanks(cells: Cell[], sea: Set<number>, water: Set<number>, rivers:
     next++;
   }
 
-  const primary = rivers[0];
-  if (!primary || next <= 1) return comp;
+  if (next <= 1) return comp;
 
-  const wantLeft = primary.cityBank === "left";
-  const netSide = new Map<number, number>();
-  const size = new Map<number, number>();
+  // The main (city) side is whichever component the burg sits in — FMG placed the
+  // burg, so the land cell nearest the origin decides. Handles "town between two
+  // rivers" (origin lands in the thin middle sliver) with no bank heuristic.
+  let originComp = -1;
+  let bestR = Number.POSITIVE_INFINITY;
   for (const cell of land) {
-    const c = comp.get(cell.id) as number;
-    netSide.set(c, (netSide.get(c) ?? 0) + Math.sign(sideOfPolyline(cell.centroid, primary.edgePoints)));
-    size.set(c, (size.get(c) ?? 0) + 1);
-  }
-  let mainComp = 0;
-  let bestRank = Number.NEGATIVE_INFINITY;
-  for (const [c, s] of size) {
-    const matches = wantLeft ? (netSide.get(c) ?? 0) > 0 : (netSide.get(c) ?? 0) < 0;
-    const rank = (matches ? 1e6 : 0) + s;
-    if (rank > bestRank) {
-      bestRank = rank;
-      mainComp = c;
+    const r = cell.centroid[0] ** 2 + cell.centroid[1] ** 2;
+    if (r < bestR) {
+      bestR = r;
+      originComp = comp.get(cell.id) as number;
     }
   }
-  for (const [id, c] of comp) comp.set(id, c === mainComp ? 0 : c + 1);
+  if (originComp < 0) return comp;
+  for (const [id, c] of comp) comp.set(id, c === originComp ? 0 : c + 1);
   return comp;
 }

@@ -1,15 +1,23 @@
 // City Generator — vanilla DOM shell.
 //
-// M2: standalone. Size preset + site archetype + seed drive a synthetic
-// BurgSiteDescriptor; the pipeline runs S0–S3. Two sliders: "Drawing process"
-// (S0 grid → S3 urban) with First/Prev/Next/Last, and "Grid evolution" over the
-// S0 Lloyd passes. FMG descriptor import lands in M3 (docs/city-generator/design.md §7).
+// M2.5: standalone. Composable site config (coast shape × 0..2 rivers × relief) +
+// size preset + seed drive a synthetic BurgSiteDescriptor; the pipeline runs
+// S0–S3. Two sliders: "Drawing process" (S0 grid → S3 urban) with
+// First/Prev/Next/Last, and "Grid evolution" over the S0 Lloyd passes.
+// FMG descriptor import lands in M3 (docs/city-generator/design.md §7).
 
 import { generateCity } from "../core/pipeline";
+import { makeRng } from "../core/prng";
 import type { GenerationResult } from "../core/types";
 import { renderCity, showFamily, showGridStage, showStep } from "../render/svg";
-import type { BurgSiteArchetype } from "../site/burgSiteDescriptor";
 import { PRESETS, type PresetId } from "../site/presets";
+import {
+  type CoastShape,
+  DEFAULT_SITE_CONFIG,
+  type RiverShape,
+  randomSiteConfig,
+  type SiteConfig
+} from "../site/siteConfig";
 import { siteToGeography, siteToParams } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
 
@@ -19,18 +27,23 @@ interface View {
   scale: number;
 }
 
-const ARCHETYPES: { id: BurgSiteArchetype; label: string }[] = [
-  { id: "crossroads", label: "Crossroads" },
-  { id: "riverCrossing", label: "River crossing" },
-  { id: "harbor", label: "Harbor" },
-  { id: "hillTop", label: "Hilltop" }
+const COASTS: { id: CoastShape; label: string }[] = [
+  { id: "none", label: "None" },
+  { id: "straight", label: "Straight" },
+  { id: "bay", label: "Bay" },
+  { id: "cape", label: "Cape" }
+];
+const RIVER_SHAPE_LABELS: { id: RiverShape; label: string }[] = [
+  { id: "through", label: "Through" },
+  { id: "beside", label: "Beside" },
+  { id: "toCoast", label: "To coast" }
 ];
 
 export function mountCityGenerator(root: HTMLElement): void {
   root.replaceChildren();
 
   let preset: PresetId = "smallCity";
-  let archetype: BurgSiteArchetype = "riverCrossing";
+  let config: SiteConfig = { ...DEFAULT_SITE_CONFIG };
   let seed = randomSeed();
   let result: GenerationResult = build();
   let family: "grid" | "step" = "step";
@@ -44,16 +57,21 @@ export function mountCityGenerator(root: HTMLElement): void {
 
   const options = buildOptionsPanel({
     getPreset: () => preset,
-    getArchetype: () => archetype,
+    getConfig: () => config,
     getSeed: () => seed,
     onPreset: id => {
       preset = id;
       seed = randomSeed();
       regenerate();
     },
-    onArchetype: id => {
-      archetype = id;
+    onConfig: next => {
+      config = next;
       seed = randomSeed();
+      regenerate();
+    },
+    onRandomize: () => {
+      seed = randomSeed();
+      config = randomSiteConfig(makeRng(`site:${seed}:${randomSeed()}`));
       regenerate();
     },
     onSeedInput: value => {
@@ -95,7 +113,7 @@ export function mountCityGenerator(root: HTMLElement): void {
   draw();
 
   function build(): GenerationResult {
-    const site = synthSite(preset, archetype, seed);
+    const site = synthSite(preset, config, seed);
     return generateCity(siteToParams(site), siteToGeography(site));
   }
 
@@ -130,10 +148,11 @@ export function mountCityGenerator(root: HTMLElement): void {
 
 interface OptionsHandlers {
   getPreset(): PresetId;
-  getArchetype(): BurgSiteArchetype;
+  getConfig(): SiteConfig;
   getSeed(): string;
   onPreset(id: PresetId): void;
-  onArchetype(id: BurgSiteArchetype): void;
+  onConfig(next: SiteConfig): void;
+  onRandomize(): void;
   onSeedInput(value: string): void;
   onGenerate(): void;
 }
@@ -147,10 +166,45 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   for (const c of presetButtons) presetRow.appendChild(c.el);
   root.append(subheading("Size"), presetRow);
 
-  const archRow = div("cg-choices");
-  const archButtons = ARCHETYPES.map(a => choice(a.label, () => h.onArchetype(a.id), a.id));
-  for (const c of archButtons) archRow.appendChild(c.el);
-  root.append(subheading("Site type"), archRow);
+  const patch = (delta: Partial<SiteConfig>): void => h.onConfig({ ...h.getConfig(), ...delta });
+
+  // Coast shape.
+  const coastRow = div("cg-choices");
+  const coastButtons = COASTS.map(c => choice(c.label, () => patch({ coast: c.id }), c.id));
+  for (const c of coastButtons) coastRow.appendChild(c.el);
+  root.append(subheading("Coast"), coastRow);
+
+  // River count.
+  const countRow = div("cg-choices");
+  const countButtons = ([0, 1, 2] as const).map(n =>
+    choice(String(n), () => patch({ rivers: riversOfLength(h.getConfig().rivers, n) }), String(n))
+  );
+  for (const c of countButtons) countRow.appendChild(c.el);
+  root.append(subheading("Rivers"), countRow);
+
+  // Shape of the first river.
+  const shapeRow = div("cg-choices");
+  const shapeButtons = RIVER_SHAPE_LABELS.map(s =>
+    choice(s.label, () => patch({ rivers: withFirstShape(h.getConfig().rivers, s.id) }), s.id)
+  );
+  for (const c of shapeButtons) shapeRow.appendChild(c.el);
+  root.append(subheading("River shape"), shapeRow);
+
+  // Relief + randomize.
+  const reliefRow = div("cg-check-row");
+  const reliefLabel = document.createElement("label");
+  const relief = document.createElement("input");
+  relief.type = "checkbox";
+  relief.addEventListener("change", () => patch({ relief: relief.checked }));
+  reliefLabel.append(relief, document.createTextNode(" Hilltop relief"));
+  reliefRow.appendChild(reliefLabel);
+  root.appendChild(reliefRow);
+
+  const randomize = document.createElement("button");
+  randomize.type = "button";
+  randomize.textContent = "Randomize site";
+  randomize.addEventListener("click", h.onRandomize);
+  root.appendChild(randomize);
 
   const seedField = div("cg-field");
   const seedLabel = document.createElement("label");
@@ -175,12 +229,30 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   root.appendChild(generate);
 
   const sync = (): void => {
+    const cfg = h.getConfig();
     seedInput.value = h.getSeed();
     for (const c of presetButtons) c.el.classList.toggle("is-active", c.key === h.getPreset());
-    for (const c of archButtons) c.el.classList.toggle("is-active", c.key === h.getArchetype());
+    for (const c of coastButtons) c.el.classList.toggle("is-active", c.key === cfg.coast);
+    for (const c of countButtons) c.el.classList.toggle("is-active", c.key === String(cfg.rivers.length));
+    const shapeActive = cfg.rivers[0] ?? null;
+    for (const c of shapeButtons) {
+      c.el.classList.toggle("is-active", c.key === shapeActive);
+      c.el.disabled = cfg.rivers.length === 0;
+    }
+    relief.checked = cfg.relief;
   };
   sync();
   return { root, sync };
+}
+
+/** Grow / shrink the river list to `n`, keeping existing shapes; new slots = "through". */
+function riversOfLength(current: RiverShape[], n: number): RiverShape[] {
+  return Array.from({ length: n }, (_, i) => current[i] ?? "through");
+}
+
+function withFirstShape(current: RiverShape[], shape: RiverShape): RiverShape[] {
+  if (current.length === 0) return [shape];
+  return [shape, ...current.slice(1)];
 }
 
 // --- drawing-process panel -----------------------------------------------------

@@ -14,5 +14,12 @@ export type {
 } from "./core/types";
 export type { BurgSiteArchetype, BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 export { PRESETS, type Preset, type PresetId } from "./site/presets";
+export {
+  type CoastShape,
+  DEFAULT_SITE_CONFIG,
+  type RiverShape,
+  randomSiteConfig,
+  type SiteConfig
+} from "./site/siteConfig";
 export { siteToGeography, siteToParams } from "./site/siteInput";
 export { synthSite } from "./site/synthSite";

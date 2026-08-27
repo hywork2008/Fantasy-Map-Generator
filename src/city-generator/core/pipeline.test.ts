@@ -1,83 +1,127 @@
 import { describe, expect, it } from "vitest";
-import type { BurgSiteArchetype } from "../site/burgSiteDescriptor";
+import type { SiteConfig } from "../site/siteConfig";
 import { siteToGeography, siteToParams } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
 import { nearestOnPolyline, sideOfPolyline } from "./geom";
 import { generateCity } from "./pipeline";
 
-const ARCHETYPES: BurgSiteArchetype[] = ["crossroads", "riverCrossing", "harbor", "hillTop"];
-
-const run = (archetype: BurgSiteArchetype, seed = "m2") => {
-  const site = synthSite("smallCity", archetype, seed);
+const run = (config: SiteConfig, seed = "m25") => {
+  const site = synthSite("smallCity", config, seed);
   const result = generateCity(siteToParams(site), siteToGeography(site));
   return { site, result };
 };
 
-const tags = (result: ReturnType<typeof run>["result"]) => result.steps.map(s => s.cells.map(c => c.tag).join(""));
+const tagString = (r: ReturnType<typeof run>["result"]) => r.steps.map(s => s.cells.map(c => c.tag).join("")).join("|");
+
+const RIVER: SiteConfig = { coast: "none", rivers: ["through"], relief: false };
+const HARBOR: SiteConfig = { coast: "bay", rivers: [], relief: false };
+const DRY: SiteConfig = { coast: "none", rivers: [], relief: false };
 
 describe("pipeline S0–S3", () => {
-  it("is deterministic per (preset, archetype, seed)", () => {
-    for (const a of ARCHETYPES) {
-      expect(tags(run(a).result)).toEqual(tags(run(a).result));
+  it("is deterministic per (preset, config, seed)", () => {
+    for (const cfg of [RIVER, HARBOR, DRY]) {
+      expect(tagString(run(cfg).result)).toEqual(tagString(run(cfg).result));
     }
   });
 
   it("diverges when the seed changes", () => {
-    expect(tags(run("riverCrossing", "a").result)).not.toEqual(tags(run("riverCrossing", "b").result));
+    expect(tagString(run(RIVER, "a").result)).not.toEqual(tagString(run(RIVER, "b").result));
   });
 
-  it.each(ARCHETYPES)("produces four fully-tagged steps and an urban core (%s)", archetype => {
-    const { result } = run(archetype);
-    expect(result.steps).toHaveLength(4);
-    for (const step of result.steps) {
-      expect(step.cells).toHaveLength(result.cells.length);
-      expect(step.cells.every(c => typeof c.tag === "string")).toBe(true);
+  it("produces four fully-tagged steps and an urban core", () => {
+    for (const cfg of [RIVER, HARBOR, DRY]) {
+      const { result } = run(cfg);
+      expect(result.steps).toHaveLength(4);
+      for (const step of result.steps) {
+        expect(step.cells).toHaveLength(result.cells.length);
+        expect(step.cells.every(c => typeof c.tag === "string")).toBe(true);
+      }
+      expect(result.steps[3].cells.filter(c => c.tag === "urban").length).toBeGreaterThan(5);
     }
-    const urban = result.steps[3].cells.filter(c => c.tag === "urban").length;
-    expect(urban).toBeGreaterThan(5);
   });
 
-  it("only the water archetypes carry sea cells; landlocked ones do not", () => {
-    const seaCount = (a: BurgSiteArchetype) => run(a).result.steps[1].cells.filter(c => c.tag === "sea").length;
-    expect(seaCount("harbor")).toBeGreaterThan(10);
-    expect(seaCount("crossroads")).toBe(0);
-    expect(seaCount("hillTop")).toBe(0);
-    expect(seaCount("riverCrossing")).toBe(0);
+  it("carries sea cells only when there is a coast", () => {
+    expect(run(HARBOR).result.steps[1].cells.filter(c => c.tag === "sea").length).toBeGreaterThan(10);
+    expect(run(DRY).result.steps[1].cells.filter(c => c.tag === "sea").length).toBe(0);
+    expect(run(RIVER).result.steps[1].cells.filter(c => c.tag === "sea").length).toBe(0);
   });
 
   it("harbor: the urban core touches no water", () => {
-    const { result } = run("harbor");
-    const core = result.steps[3].cells.filter(c => c.tag === "urban");
-    expect(core.every(c => c.tag === "urban")).toBe(true);
+    const { result } = run(HARBOR);
     expect(result.steps[3].cells.some(c => c.tag === "sea")).toBe(true);
-    // no cell is both urban and sea/water — tags are exclusive by construction
-    const urbanIds = new Set(core.map((_, i) => i));
-    expect(urbanIds.size).toBe(core.length);
+    expect(result.steps[3].cells.filter(c => c.tag === "urban").length).toBeGreaterThan(5);
   });
 
-  it.each(["a", "b", "c", "d"])(
-    "riverCrossing (seed %s): a water band forms and the urban core stays on the descriptor bank",
+  it.each(["l144fd", "hb7ej6", "44pj12"])(
+    "bay (seed %s): a substantial sea, and the urban core is a ribbon along the shore",
     seed => {
-      const { site, result } = run("riverCrossing", seed);
+      const { result } = run(HARBOR, seed);
+      const total = result.cells.length;
+      const seaFrac = result.steps[1].cells.filter(c => c.tag === "sea").length / total;
+      expect(seaFrac).toBeGreaterThan(0.28); // an open bay, not a sliver
+
+      const t = nearestOnPolyline([0, 0], result.shoreline as [number, number][]);
+      const a = (result.shoreline as [number, number][])[t.segIndex];
+      const b = (result.shoreline as [number, number][])[
+        Math.min(t.segIndex + 1, (result.shoreline as unknown[]).length - 1)
+      ];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const tx = (b[0] - a[0]) / len;
+      const ty = (b[1] - a[1]) / len;
+
+      const urban = result.cells.filter((_, i) => result.steps[3].cells[i].tag === "urban").map(c => c.centroid);
+      const along = urban.map(p => p[0] * tx + p[1] * ty);
+      const cross = urban.map(p => -p[0] * ty + p[1] * tx);
+      const span = (v: number[]) => Math.max(...v) - Math.min(...v);
+      expect(span(along) / span(cross)).toBeGreaterThan(1.4); // elongated along the coast
+    }
+  );
+
+  it.each(["a", "b", "c", "d"])(
+    "through river (seed %s): a water band forms and the urban core is one blob on the town bank",
+    seed => {
+      const { site, result } = run(RIVER, seed);
       const river = site.rivers[0];
       const centerline = result.riverPaths[0].points;
       const R = result.params.cityRadiusMeters;
 
-      const water = result.steps[2].cells.filter(c => c.tag === "water");
-      expect(water.length).toBeGreaterThan(4);
+      expect(result.steps[2].cells.filter(c => c.tag === "water").length).toBeGreaterThan(4);
+      expect(Math.abs(nearestOnPolyline([0, 0], centerline).dist - river.offsetMeters)).toBeLessThan(R * 0.4);
 
-      // chord position preserved: the centerline's closest approach to the town
-      // center is near the descriptor offset (within a meander amplitude).
-      expect(Math.abs(nearestOnPolyline([0, 0], centerline).dist - river.offsetMeters)).toBeLessThan(R * 0.25);
+      // Strong invariant: the urban cells are one connected component — the core
+      // never jumps the river.
+      const byId = new Map(result.cells.map(c => [c.id, c]));
+      const idxById = new Map(result.cells.map((c, i) => [c.id, i]));
+      const isUrban = (id: number): boolean => result.steps[3].cells[idxById.get(id) as number].tag === "urban";
+      const urbanIds = result.cells.filter(c => isUrban(c.id)).map(c => c.id);
+      const seen = new Set<number>([urbanIds[0]]);
+      const queue = [urbanIds[0]];
+      while (queue.length > 0) {
+        const c = byId.get(queue.pop() as number) as (typeof result.cells)[number];
+        for (const n of c.neighbors) {
+          if (isUrban(n) && !seen.has(n)) {
+            seen.add(n);
+            queue.push(n);
+          }
+        }
+      }
+      expect(seen.size).toBe(urbanIds.length);
 
-      // bank preserved: > 85% of urban cells sit on the descriptor's cityBank side.
-      const urban = result.steps[3].cells
-        .map((c, i) => ({ c, i }))
-        .filter(x => x.c.tag === "urban")
-        .map(x => result.cells[x.i].centroid);
+      // Soft: the majority of the core sits on the descriptor's bank.
       const wantLeft = river.cityBank === "left";
-      const onBank = urban.filter(p => sideOfPolyline(p, centerline) > 0 === wantLeft).length;
-      expect(onBank / urban.length).toBeGreaterThan(0.85);
+      const onBank = result.cells
+        .filter(c => isUrban(c.id))
+        .filter(c => sideOfPolyline(c.centroid, centerline) > 0 === wantLeft).length;
+      expect(onBank / seen.size).toBeGreaterThan(0.55);
     }
   );
+
+  it("two through rivers: the town sits in the component between them", () => {
+    const { result } = run({ coast: "none", rivers: ["through", "through"], relief: false }, "between");
+    // origin cell is on bank component 0 (the classifier's 'town side')
+    const originCell = [...result.cells].sort((a, b) => Math.hypot(...a.centroid) - Math.hypot(...b.centroid))[0];
+    const tag = result.steps[3].cells[result.cells.indexOf(originCell)].tag;
+    expect(["urban", "outskirts"]).toContain(tag);
+    expect(result.riverPaths).toHaveLength(2);
+  });
 });
