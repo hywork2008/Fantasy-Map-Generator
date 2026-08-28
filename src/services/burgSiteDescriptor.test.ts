@@ -198,4 +198,16 @@ describe("getBurgSiteDescriptor", () => {
     // no crossing river → falls back to crossroads on flat terrain
     expect(descriptor.suggestedArchetype).toBe("crossroads");
   });
+
+  it("uses the same map scale for river widths, centreline and physical banks", () => {
+    const baseline = getBurgSiteDescriptor(1)!.rivers[0];
+    worldContext.distanceScale = 4;
+    const scaled = getBurgSiteDescriptor(1)!.rivers[0];
+
+    expect(scaled.widthMeters).toBeCloseTo(baseline.widthMeters * 4, 0);
+    expect(scaled.rawOffsetMeters).toBeCloseTo(baseline.rawOffsetMeters * 4, 0);
+    expect(scaled.leftBankSegments.some(segment => segment.length >= 2)).toBe(true);
+    expect(scaled.rightBankSegments.some(segment => segment.length >= 2)).toBe(true);
+    expect(scaled.parentRiverId).toBeNull();
+  });
 });

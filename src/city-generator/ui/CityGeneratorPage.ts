@@ -553,12 +553,21 @@ function describeExport(data: CityExport): Node[] {
 function describeDescriptor(d: BurgSiteDescriptor, origin: IncomingOrigin): Node[] {
   const water = d.waterbody ? `${d.waterbody.kind}${d.waterbody.isPort ? " · port" : ""}` : "none";
   const yesNo = (b: boolean): string => (b ? "Yes" : "No");
+  const downstream = d.rivers
+    .filter(r => r.downstream.terminal === "ocean" || r.downstream.terminal === "lake")
+    .sort((a, b) => a.downstream.distanceMeters - b.downstream.distanceMeters)[0]?.downstream;
   const rows: [string, string][] = [
     [origin === "world" ? "From world map" : "From shared link", d.burg.name || "(unnamed burg)"],
     ["Population", d.burg.population.toLocaleString()],
     ["Radius", `${Math.round(d.frame.cityRadiusMeters)} m`],
     ["Coast", water],
     ["Rivers", String(d.rivers.length)],
+    [
+      "Downstream water",
+      downstream
+        ? `${downstream.terminal} · ${(downstream.distanceMeters / 1000).toFixed(1)} km · ${Math.round(downstream.bearingDeg)}°`
+        : "none in river data"
+    ],
     ["Gates", String(d.suggestedGates)],
     ["Walls", yesNo(d.burg.walls)],
     ["Citadel", yesNo(d.burg.citadel)],

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { generateCity } from "../core/pipeline";
 import { DEFAULT_WALL_PLAN } from "../core/types";
-import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
+import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "./burgSiteDescriptor";
 import { buildCityExport, CITY_EXPORT_KIND, type CityExportSource, cityExportFilename } from "./cityExport";
 import { DEFAULT_SITE_CONFIG, type SiteConfig } from "./siteConfig";
 import { resolveWallPlan, siteToGeography, siteToParams, siteToProgram } from "./siteInput";
@@ -34,7 +34,7 @@ function standaloneSource(config: SiteConfig, seed: string): CityExportSource {
 
 function importedDescriptor(overrides: Partial<BurgSiteDescriptor> = {}): BurgSiteDescriptor {
   return {
-    version: 1,
+    version: DESCRIPTOR_VERSION,
     burg: {
       id: 7,
       name: "Port Royal",
@@ -72,6 +72,10 @@ function importedDescriptor(overrides: Partial<BurgSiteDescriptor> = {}): BurgSi
         throughBurgCell: true,
         rawOffsetMeters: 40,
         snappedToBank: true,
+        parentRiverId: null,
+        leftBankSegments: [],
+        rightBankSegments: [],
+        downstream: { terminal: "ocean", distanceMeters: 1200, bearingDeg: 90 },
         segments: [
           {
             points: [
@@ -140,7 +144,7 @@ describe("buildCityExport — standalone", () => {
   it("stamps the envelope", () => {
     expect(data.kind).toBe(CITY_EXPORT_KIND);
     expect(data.exportVersion).toBe(1);
-    expect(data.descriptorVersion).toBe(1);
+    expect(data.descriptorVersion).toBe(DESCRIPTOR_VERSION);
     expect(data.generatedAt).toBe("2026-08-28T12:00:00.000Z");
   });
 

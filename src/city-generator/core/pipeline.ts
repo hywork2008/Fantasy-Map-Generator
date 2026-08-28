@@ -4,7 +4,7 @@
 // stage is captured as an immutable Snapshot for the drawing-process slider.
 
 import { classifyRiver } from "./classifyRiver";
-import { classifyCoast } from "./classifySea";
+import { type CoastResult, classifyCoast } from "./classifySea";
 import { classifyUrban } from "./classifyUrban";
 import { buildEdgeGraph } from "./edgeGraph";
 import { azimuthToVec, nearestOnPolyline } from "./geom";
@@ -57,24 +57,33 @@ export function generateCity(
   const half = params.extentMeters / 2;
 
   // S1 — coastline walk → sea cells.
-  const coast = geo.coast
-    ? classifyCoast(
+  const waterInputs =
+    geo.waterAreas && geo.waterAreas.length > 0
+      ? geo.waterAreas
+      : geo.coast
+        ? [{ ...geo.coast, kind: "ocean" as const }]
+        : [];
+  const coasts = waterInputs
+    .map((water, i) =>
+      classifyCoast(
         graph,
-        geo.coast.corridor,
-        geo.coast.waterAzimuthDeg,
+        water.corridor,
+        water.waterAzimuthDeg,
         cells,
         half,
         params.cellSizeMeters,
-        makeRng(`${params.seed}:coast`)
+        makeRng(`${params.seed}:water:${i}`)
       )
-    : null;
-  const sea = coast?.sea ?? new Set<number>();
+    )
+    .filter((entry): entry is CoastResult => entry !== null);
+  const coast = coasts[0] ?? null;
+  const sea = new Set(coasts.flatMap(result => [...result.sea]));
 
   // S2 — walk each river along its corridor, stopping at the shoreline. A river
   // that can't be placed on the grid (entirely offshore) is dropped.
   const routed = geo.rivers
-    .map((r, i) => ({
-      band: walkRiver(
+    .map((r, i) => {
+      const band = walkRiver(
         graph,
         r.corridor,
         r.widths,
@@ -83,9 +92,12 @@ export function generateCity(
         params.cellSizeMeters,
         half,
         makeRng(`${params.seed}:river:${i}`)
-      ),
-      cityBank: r.cityBank
-    }))
+      );
+      return {
+        band: band.fallback && r.joinsWater ? directJoinFallback(r.corridor, r.widths, coast?.shoreline ?? null) : band,
+        cityBank: r.cityBank
+      };
+    })
     .filter(r => !r.band.fallback);
   const riverPaths: RiverPath[] = routed.map(r => ({
     points: r.band.smoothPoints,
@@ -120,7 +132,7 @@ export function generateCity(
     return "rural";
   };
 
-  const shorelineOverlay: Overlay[] = coast ? [{ kind: "shoreline", points: coast.shoreline }] : [];
+  const shorelineOverlay: Overlay[] = coasts.map(result => ({ kind: "shoreline" as const, points: result.shoreline }));
   const riverSnapshotPaths = riverPaths.map(p => ({ kind: "river" as const, points: p.points, widths: p.widths }));
 
   const steps: Snapshot[] = [
@@ -191,6 +203,23 @@ export function generateCity(
     gates,
     precincts
   };
+}
+
+/** A tributary whose FMG parent is an imported open-water area is already
+ * topologically resolved. Keep a short direct final leg when the stochastic
+ * edge walk cannot hit the exact junction; dropping it loses a real confluence. */
+function directJoinFallback(corridor: Point[], widths: number[], shoreline: Point[] | null) {
+  if (corridor.length < 2 || widths.length !== corridor.length) {
+    return { edgePoints: [], smoothPoints: [], widths: [], fallback: true };
+  }
+  const points = corridor.map(p => [p[0], p[1]] as Point);
+  if (shoreline && shoreline.length >= 2) {
+    const first = nearestOnPolyline(points[0], shoreline);
+    const last = nearestOnPolyline(points.at(-1) as Point, shoreline);
+    if (first.dist < last.dist) points[0] = first.point;
+    else points[points.length - 1] = last.point;
+  }
+  return { edgePoints: points, smoothPoints: points, widths: widths.slice(), fallback: false };
 }
 
 function snapshot(

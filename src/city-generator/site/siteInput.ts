@@ -7,7 +7,7 @@
 // the shape. ~8 control points keeps the corridor's intent (chord, mouth, big
 // bends) while leaving the fine shape to the graph.
 
-import { azimuthToVec } from "../core/geom";
+import { azimuthToVec, nearestOnPolyline } from "../core/geom";
 import type { CityGeography, CityParams, CityProgram, Point, WallPlan } from "../core/types";
 import { DEFAULT_WALL_PLAN } from "../core/types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
@@ -29,9 +29,19 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
 }
 
 export function siteToGeography(site: BurgSiteDescriptor): CityGeography {
+  const openWater = extractOpenWater(site);
+  const coast = extractCoast(site);
+  const waterAreas = [...openWater, ...(coast ? [{ ...coast, kind: site.waterbody?.kind ?? "ocean" }] : [])];
   return {
-    coast: extractCoast(site),
-    rivers: extractRivers(site),
+    // `coast` is retained as the primary boundary for older consumers. Major
+    // rivers come first: tributaries should resolve into the adjacent water
+    // area rather than being forced across an unrelated distant ocean shore.
+    coast: waterAreas[0] ?? null,
+    waterAreas,
+    rivers: extractRivers(
+      site,
+      openWater.map(w => w.riverId)
+    ),
     roadBearings: extractRoadBearings(site),
     roadPaths: site.roads
       .filter(r => r.group !== "searoutes" && r.path.length >= 2)
@@ -63,8 +73,8 @@ export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
  */
 export function siteToWallPlan(site: BurgSiteDescriptor, program: Omit<CityProgram, "wallPlan">): WallPlan {
   const plan: WallPlan = { ...DEFAULT_WALL_PLAN, extent: program.walls ? "full" : "none" };
-  const hasCoast = site.waterbody !== null;
-  const hasRiver = site.rivers.some(r => r.crossesSite || Math.abs(r.offsetRatio) < 1.6);
+  const hasCoast = site.waterbody !== null || extractOpenWater(site).length > 0;
+  const hasRiver = site.rivers.some(r => r.throughBurgCell || r.crossesSite || Math.abs(r.offsetRatio) < 1.6);
   const fortified = program.citadel || program.capital;
 
   if (hasCoast && program.port) {
@@ -129,14 +139,43 @@ function syntheticShoreCorridor(waterAzimuthDeg: number, extentMeters: number): 
   ];
 }
 
-function extractRivers(site: BurgSiteDescriptor): CityGeography["rivers"] {
+const OPEN_WATER_FRACTION = 0.35;
+
+type OpenWaterArea = NonNullable<CityGeography["waterAreas"]>[number] & { riverId: number };
+
+/** Convert a channel that is too wide for the city window into a water area.
+ * The nearest actual drawn bank is the shoreline; the water lies away from the
+ * town, so this preserves FMG's bank placement even when its centreline is off
+ * canvas. */
+function extractOpenWater(site: BurgSiteDescriptor): OpenWaterArea[] {
+  const threshold = site.frame.extentMeters * OPEN_WATER_FRACTION;
+  return site.rivers.flatMap(r => {
+    // Classify from the width at the closest approach, not a width sampled far
+    // down a clipped tributary. The latter can be much wider at its confluence
+    // and would incorrectly turn every feeder at Taris into open water.
+    if (!r.throughBurgCell || r.widthMeters < threshold) return [];
+    const banks = [...r.leftBankSegments, ...r.rightBankSegments]
+      .filter(points => points.length >= 2)
+      .sort((a, b) => nearestOnPolyline([0, 0], a as Point[]).dist - nearestOnPolyline([0, 0], b as Point[]).dist);
+    const bank = banks[0] as Point[] | undefined;
+    if (!bank) return [];
+    // `cityBank` is measured in the downstream local frame. The water lies on
+    // the opposite bank; this is more stable than inferring a normal from a
+    // clipped, bank-snapped segment (which can select the far bank at a bend).
+    const waterAzimuthDeg = (r.axisAzimuthDeg + (r.cityBank === "left" ? 90 : 270)) % 360;
+    return [{ riverId: r.riverId, corridor: downsample(bank, RIVER_CORRIDOR_POINTS), waterAzimuthDeg, kind: "river" }];
+  });
+}
+
+function extractRivers(site: BurgSiteDescriptor, openWaterIds: number[]): CityGeography["rivers"] {
   return (
     site.rivers
+      .filter(r => !openWaterIds.includes(r.riverId))
       .filter(r => r.segments.some(s => s.points.length >= 2))
       // Drop a river that neither crosses the site nor runs near it: real FMG
       // descriptors sometimes list a large river ~2+ radii away (offsetRatio) that
       // has nothing to do with the town plan but would otherwise dominate the window.
-      .filter(r => r.crossesSite || Math.abs(r.offsetRatio) < 1.6)
+      .filter(r => r.throughBurgCell || r.crossesSite || Math.abs(r.offsetRatio) < 1.6)
       .map(r => {
         const pts: Point[] = [];
         const widths: number[] = [];
@@ -149,7 +188,8 @@ function extractRivers(site: BurgSiteDescriptor): CityGeography["rivers"] {
         return {
           corridor: downsample(pts, RIVER_CORRIDOR_POINTS),
           widths: downsampleScalars(widths, RIVER_CORRIDOR_POINTS),
-          cityBank: r.cityBank
+          cityBank: r.cityBank,
+          joinsWater: r.parentRiverId !== null && openWaterIds.includes(r.parentRiverId)
         };
       })
       .filter(r => r.corridor.length >= 2)

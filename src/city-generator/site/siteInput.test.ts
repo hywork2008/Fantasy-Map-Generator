@@ -9,7 +9,7 @@ import { siteToGeography, siteToParams, siteToProgram, siteToWallPlan } from "./
 
 function baseDescriptor(overrides: Partial<BurgSiteDescriptor> = {}): BurgSiteDescriptor {
   return {
-    version: 1,
+    version: 2,
     burg: {
       id: 1,
       name: "Testburg",
@@ -65,6 +65,10 @@ function river(overrides: Partial<BurgSiteRiver>): BurgSiteRiver {
         widthsMeters: [20, 20]
       }
     ],
+    parentRiverId: null,
+    leftBankSegments: [],
+    rightBankSegments: [],
+    downstream: { terminal: "unknown", distanceMeters: 0, bearingDeg: 0 },
     ...overrides
   };
 }
@@ -138,7 +142,9 @@ describe("siteToProgram — verbatim pass-through of the Features flags", () => 
 
 describe("extractRivers — far, non-crossing river", () => {
   it("drops a river that is >1.6 radii away and does not cross the site", () => {
-    const geo = siteToGeography(baseDescriptor({ rivers: [river({ crossesSite: false, offsetRatio: 2.6 })] }));
+    const geo = siteToGeography(
+      baseDescriptor({ rivers: [river({ crossesSite: false, throughBurgCell: false, offsetRatio: 2.6 })] })
+    );
     expect(geo.rivers).toHaveLength(0);
   });
 
@@ -150,5 +156,56 @@ describe("extractRivers — far, non-crossing river", () => {
   it("keeps a crossing river regardless of offset", () => {
     const geo = siteToGeography(baseDescriptor({ rivers: [river({ crossesSite: true, offsetRatio: 3.0 })] }));
     expect(geo.rivers).toHaveLength(1);
+  });
+
+  it("turns a wide on-cell river into a water area at its nearest bank", () => {
+    const geo = siteToGeography(
+      baseDescriptor({
+        rivers: [
+          river({
+            widthMeters: 1000,
+            crossesSite: false,
+            offsetRatio: 8,
+            segments: [],
+            leftBankSegments: [
+              [
+                [-1200, -200],
+                [1200, -200]
+              ]
+            ]
+          })
+        ]
+      })
+    );
+    expect(geo.rivers).toHaveLength(0);
+    expect(geo.waterAreas).toEqual([
+      expect.objectContaining({
+        kind: "river",
+        corridor: [
+          [-1200, -200],
+          [1200, -200]
+        ]
+      })
+    ]);
+    const result = generateCity(
+      siteToParams(
+        baseDescriptor({
+          rivers: [
+            river({
+              widthMeters: 1000,
+              segments: [],
+              leftBankSegments: [
+                [
+                  [-1200, -200],
+                  [1200, -200]
+                ]
+              ]
+            })
+          ]
+        })
+      ),
+      geo
+    );
+    expect(result.steps.at(-1)?.cells.some(cell => cell.tag === "sea")).toBe(true);
   });
 });

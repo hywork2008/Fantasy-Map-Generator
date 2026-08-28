@@ -82,13 +82,40 @@ function parseGeography(value: unknown): CityGeography | null {
     if (
       river.corridor.length < 2 ||
       river.widths.length !== river.corridor.length ||
-      river.widths.some(n => !positive(n))
+      river.widths.some(n => !positive(n)) ||
+      (river.joinsWater !== undefined && typeof river.joinsWater !== "boolean")
     )
       return null;
-    rivers.push({ corridor: river.corridor, widths: river.widths, cityBank: river.cityBank });
+    rivers.push({
+      corridor: river.corridor,
+      widths: river.widths,
+      cityBank: river.cityBank,
+      ...(river.joinsWater === undefined ? {} : { joinsWater: river.joinsWater })
+    });
   }
 
   const geography: CityGeography = { coast, rivers, roadBearings: value.roadBearings };
+  if (value.waterAreas !== undefined) {
+    if (!Array.isArray(value.waterAreas)) return null;
+    const waterAreas: NonNullable<CityGeography["waterAreas"]> = [];
+    for (const water of value.waterAreas) {
+      if (
+        !isRecord(water) ||
+        !pointArray(water.corridor) ||
+        water.corridor.length < 2 ||
+        !finite(water.waterAzimuthDeg) ||
+        !oneOf(water.kind, ["ocean", "lake", "river"])
+      ) {
+        return null;
+      }
+      waterAreas.push({
+        corridor: water.corridor,
+        waterAzimuthDeg: water.waterAzimuthDeg,
+        kind: water.kind as "ocean" | "lake" | "river"
+      });
+    }
+    geography.waterAreas = waterAreas;
+  }
   if (value.roadPaths !== undefined) {
     if (!Array.isArray(value.roadPaths) || !value.roadPaths.every(pointArray)) return null;
     geography.roadPaths = value.roadPaths;

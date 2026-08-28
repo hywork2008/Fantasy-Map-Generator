@@ -154,7 +154,19 @@ export interface Snapshot {
  * authored. Built from a BurgSiteDescriptor (site/siteInput.ts) or empty. */
 export interface CityGeography {
   coast: { corridor: Point[]; waterAzimuthDeg: number } | null;
-  rivers: { corridor: Point[]; widths: number[]; cityBank: "left" | "right" }[];
+  rivers: {
+    corridor: Point[];
+    widths: number[];
+    cityBank: "left" | "right";
+    /** The FMG tributary ends in an imported open-water parent inside this
+     * urban window. A direct final leg is valid if graph walking cannot close
+     * the junction exactly. */
+    joinsWater?: boolean;
+  }[];
+  /** Additional water boundaries. A major river is represented by its town-side
+   * bank here instead of an impossibly wide river stroke. `coast` remains for
+   * backwards-compatible standalone and exported inputs. */
+  waterAreas?: { corridor: Point[]; waterAzimuthDeg: number; kind: "ocean" | "lake" | "river" }[];
   /** Gate-candidate road bearings, compass degrees. */
   roadBearings: number[];
   /** Road centre-lines, used by S4 to choose the corresponding gates. */

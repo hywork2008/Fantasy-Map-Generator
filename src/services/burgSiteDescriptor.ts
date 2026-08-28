@@ -62,6 +62,17 @@ export interface BurgSiteRiver {
    * local meters. widthsMeters[i] is the true width at points[i].
    */
   segments: { points: [number, number][]; widthsMeters: number[] }[];
+  /** FMG's direct downstream/mainstem river, if this is a tributary. */
+  parentRiverId: number | null;
+  /** Actual drawn water edges, clipped to the extent box, local meters. */
+  leftBankSegments: [number, number][][];
+  rightBankSegments: [number, number][][];
+  /** Regional downstream context; it never expands the urban drawing window. */
+  downstream: {
+    terminal: "ocean" | "lake" | "mapEdge" | "confluence" | "unknown";
+    distanceMeters: number;
+    bearingDeg: number;
+  };
 }
 
 export interface BurgSiteRoadEntry {
@@ -114,7 +125,7 @@ export interface BurgSiteTerrain {
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
 export interface BurgSiteDescriptor {
-  version: 1;
+  version: 2;
   burg: {
     id: number;
     name: string;
@@ -151,7 +162,7 @@ export interface BurgSiteDescriptor {
   suggestedArchetype: BurgSiteArchetype;
 }
 
-const DESCRIPTOR_VERSION = 1;
+const DESCRIPTOR_VERSION = 2;
 const HEIGHTFIELD_SIZE = 17;
 /** Typical population density inside medieval town walls, people per hectare. */
 const WALLED_DENSITY_PER_HA = 150;
@@ -193,7 +204,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
     (burg.y - y) * metersPerMapUnit
   ];
 
-  const rivers = collectRivers(burg, toLocal, half, cityRadiusMeters);
+  const rivers = collectRivers(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
   const roads = collectRoadEntries(burg, toLocal, half, cityRadiusMeters, metersPerMapUnit);
   const waterbody = collectWaterbody(burg, toLocal, half);
   const terrain = collectTerrain(burg, half, metersPerMapUnit);
@@ -383,11 +394,32 @@ function closestApproachToOrigin(points: { x: number; y: number }[]): PolylineAp
   return best;
 }
 
+/** Construct physical left/right water edges from the true-width local centreline.
+ * This intentionally does not reuse FMG's exaggerated SVG bank geometry. */
+function getTrueRiverBanks(points: WeightedPoint[]): { left: [number, number][]; right: [number, number][] } {
+  const left: [number, number][] = [];
+  const right: [number, number][] = [];
+  for (let i = 0; i < points.length; i++) {
+    const prev = points[i - 1] ?? points[i];
+    const next = points[i + 1] ?? points[i];
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const nx = -dy / length;
+    const ny = dx / length;
+    const halfWidth = points[i].w / 2;
+    left.push([points[i].x + nx * halfWidth, points[i].y + ny * halfWidth]);
+    right.push([points[i].x - nx * halfWidth, points[i].y - ny * halfWidth]);
+  }
+  return { left, right };
+}
+
 function collectRivers(
   burg: Burg,
   toLocal: (x: number, y: number) => [number, number],
   half: number,
-  cityRadiusMeters: number
+  cityRadiusMeters: number,
+  metersPerMapUnit: number
 ): BurgSiteRiver[] {
   const { pack } = worldContext;
   if (!pack.rivers?.length) return [];
@@ -411,8 +443,10 @@ function collectRivers(
     const banks = Rivers.getRiverBanks(meandered, river.widthFactor ?? 1, river.sourceWidth ?? 0.1);
     let points: WeightedPoint[] = meandered.map(([x, y], index) => {
       const [lx, ly] = toLocal(x, y);
-      const trueWidthKm = Rivers.getWidth(banks.widths[index] / 2);
-      return { x: lx, y: ly, w: Math.max(rn(trueWidthKm * 1000, 1), RIVER_MIN_WIDTH_M) };
+      // `Rivers.getWidth` is in map-distance units. The local frame below is
+      // already scale-normalised to meters, so width must use that same factor.
+      const trueWidthMapUnits = Rivers.getWidth(banks.widths[index] / 2);
+      return { x: lx, y: ly, w: Math.max(rn(trueWidthMapUnits * metersPerMapUnit, 1), RIVER_MIN_WIDTH_M) };
     });
 
     const rawApproach = closestApproachToOrigin(points);
@@ -449,7 +483,17 @@ function collectRivers(
     const approach = (snappedToBank ? closestApproachToOrigin(points) : null) ?? rawApproach;
 
     const segments = clipWeightedPolylineToBox(points, half);
-    if (!segments.length) continue; // never enters the generation window
+    // Use the true-width banks in the same local metre frame as `points`.
+    // FMG's rendered banks are intentionally exaggerated; they are useful for
+    // placing the burg but not for a physical city-scale water boundary.
+    const trueBanks = getTrueRiverBanks(points);
+    const leftBankSegments = clipPolylineToBox(trueBanks.left, half);
+    const rightBankSegments = clipPolylineToBox(trueBanks.right, half);
+    // A very wide on-cell river can have its centreline outside the compact
+    // city window while its actual bank crosses it. Keep it: City Generator
+    // turns that bank into an open-water boundary instead of silently dropping
+    // the waterway.
+    if (!segments.length && !leftBankSegments.length && !rightBankSegments.length) continue;
 
     const offsetMeters = rn(approach.dist, 1);
     results.push({
@@ -465,13 +509,54 @@ function collectRivers(
       throughBurgCell,
       rawOffsetMeters,
       snappedToBank,
-      segments
+      segments,
+      parentRiverId: river.parent && river.parent !== river.i ? river.parent : null,
+      leftBankSegments,
+      rightBankSegments,
+      downstream: getDownstreamContext(river, burg, metersPerMapUnit)
     });
   }
 
   // Closest river first — the primary waterway for bridges and mills.
   results.sort((a, b) => a.offsetMeters - b.offsetMeters);
   return results;
+}
+
+/** Compact downstream fact for the city page's regional context. The urban
+ * window remains local; this is deliberately metadata rather than geometry. */
+function getDownstreamContext(
+  river: { cells: number[]; parent?: number; i: number },
+  burg: Burg,
+  metersPerMapUnit: number
+): BurgSiteRiver["downstream"] {
+  const { pack } = worldContext;
+  const start = river.cells.indexOf(burg.cell);
+  const downstreamCells = river.cells.slice(start >= 0 ? start : Math.max(0, river.cells.length - 1));
+  let distanceMapUnits = 0;
+  for (let i = 1; i < downstreamCells.length; i++) {
+    const a = downstreamCells[i - 1];
+    const b = downstreamCells[i];
+    if (a < 0 || b < 0) continue;
+    const pa = pack.cells.p[a];
+    const pb = pack.cells.p[b];
+    distanceMapUnits += Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+  }
+  const endCell = downstreamCells.at(-1) ?? river.cells.at(-1) ?? -1;
+  const end = endCell >= 0 ? pack.cells.p[endCell] : null;
+  const bearingDeg = end ? azimuthDeg((end[0] - burg.x) * metersPerMapUnit, (burg.y - end[1]) * metersPerMapUnit) : 0;
+  if (endCell < 0) return { terminal: "mapEdge", distanceMeters: rn(distanceMapUnits * metersPerMapUnit), bearingDeg };
+  if (pack.cells.h[endCell] < 20) {
+    const feature = pack.features[pack.cells.f[endCell]];
+    return {
+      terminal: feature?.type === "lake" ? "lake" : "ocean",
+      distanceMeters: rn(distanceMapUnits * metersPerMapUnit),
+      bearingDeg
+    };
+  }
+  if (river.parent && river.parent !== river.i) {
+    return { terminal: "confluence", distanceMeters: rn(distanceMapUnits * metersPerMapUnit), bearingDeg };
+  }
+  return { terminal: "unknown", distanceMeters: rn(distanceMapUnits * metersPerMapUnit), bearingDeg };
 }
 
 /**
@@ -586,6 +671,12 @@ function collectWaterbody(
   if (ring.length > 1) ring.push(ring[0]); // close the ring
 
   const [havenX, havenY] = toLocal(...pack.cells.p[haven]);
+  const shoreline = clipPolylineToBox(ring, half);
+  // `haven` is the hydrological outlet / nearest water reference, not a
+  // guarantee that the burg is coastal. A non-port inland burg can therefore
+  // point at a lake or ocean tens of kilometres away (Taris). Do not turn that
+  // into a fabricated coast inside a 1–4 km urban window.
+  if (!shoreline.length && !burg.port) return null;
 
   return {
     kind,
@@ -593,7 +684,7 @@ function collectWaterbody(
     ...(waterFeature.group ? { group: waterFeature.group } : {}),
     isPort: Boolean(burg.port),
     shoreAzimuthDeg: azimuthDeg(havenX, havenY),
-    shoreline: clipPolylineToBox(ring, half)
+    shoreline
   };
 }
 

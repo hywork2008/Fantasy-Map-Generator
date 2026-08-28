@@ -6,7 +6,7 @@
 // with docs/plan/city-generator/v2/13-fmg-site-input.md; bump DESCRIPTOR_VERSION
 // (and the FMG service) when a field changes meaning.
 
-export const DESCRIPTOR_VERSION = 1;
+export const DESCRIPTOR_VERSION = 2;
 
 export type BurgSiteArchetype = "harbor" | "riverCrossing" | "hillTop" | "crossroads";
 
@@ -34,6 +34,14 @@ export interface BurgSiteRiver {
   snappedToBank: boolean;
   /** Centerline polyline(s) clipped to the window, upstream → downstream, local meters. */
   segments: { points: [number, number][]; widthsMeters: number[] }[];
+  parentRiverId: number | null;
+  leftBankSegments: [number, number][][];
+  rightBankSegments: [number, number][][];
+  downstream: {
+    terminal: "ocean" | "lake" | "mapEdge" | "confluence" | "unknown";
+    distanceMeters: number;
+    bearingDeg: number;
+  };
 }
 
 export interface BurgSiteRoadEntry {
@@ -74,7 +82,7 @@ export interface BurgSiteTerrain {
 }
 
 export interface BurgSiteDescriptor {
-  version: 1;
+  version: 2;
   burg: {
     id: number;
     name: string;

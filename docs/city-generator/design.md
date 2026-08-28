@@ -114,6 +114,10 @@ FMG は既に **per-burg 立地サーベイ** `BurgSiteDescriptor` を出力す�
 `window.fmg.actions.getBurgSiteDescriptor(burgId)`、Burg エディタの Copy ボタン。契約: `docs/plan/city-generator/v2/13-fmg-site-input.md`）。
 これがそのまま city ページの入力になる。
 
+大河・合流・都市窓外の下流海を扱う次段の契約と実装順は
+[`water-context.md`](water-context.md) を正とする。v1 の単一 `waterbody` / 独立 river path は M3 時点の
+実装であり、同文書の descriptor v2 導入まで拡張しない。
+
 ### 3.1 3 つの起動モード
 
 | モード | 起動 | 入力 |

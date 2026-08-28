@@ -463,7 +463,11 @@ function synthRiver(
     throughBurgCell: placement.crossesSite,
     rawOffsetMeters: offsetMeters,
     snappedToBank: true,
-    segments: [{ points: corridor, widthsMeters }]
+    segments: [{ points: corridor, widthsMeters }],
+    parentRiverId: null,
+    leftBankSegments: [],
+    rightBankSegments: [],
+    downstream: { terminal: waterbody ? "ocean" : "mapEdge", distanceMeters: half, bearingDeg: flowAz }
   };
 }
 
