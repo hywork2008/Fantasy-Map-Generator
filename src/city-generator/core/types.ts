@@ -136,7 +136,13 @@ export interface SnapshotPath {
 /** One inspectable stage of the drawing process (S0 grid → S1 → S2 → S3). */
 export interface Snapshot {
   label: string;
-  cells: { polygon: Point[]; tag: CellTag }[];
+  /** The source grid-cell metadata is kept with each snapshot so renderers can
+   * identify a clicked cell without having to infer it from its polygon. */
+  cells: Array<
+    Pick<Cell, "id" | "polygon" | "site" | "centroid" | "neighbors" | "onBorder"> & {
+      tag: CellTag;
+    }
+  >;
   paths: SnapshotPath[];
   overlays: Overlay[];
   precincts: Precinct[];

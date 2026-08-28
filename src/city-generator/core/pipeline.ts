@@ -201,7 +201,7 @@ function snapshot(
   overlays: Overlay[],
   precincts: Snapshot["precincts"] = []
 ): Snapshot {
-  return { label, cells: cells.map(c => ({ polygon: c.polygon, tag: tag(c) })), paths, overlays, precincts };
+  return { label, cells: cells.map(c => ({ ...c, tag: tag(c) })), paths, overlays, precincts };
 }
 
 /** Unit tangent of the shoreline at its closest point to the town centre. */

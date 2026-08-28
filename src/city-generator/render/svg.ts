@@ -21,6 +21,17 @@ export interface RenderOptions {
   showRadius: boolean;
 }
 
+/** Metadata attached to visible SVG features for the click Inspector. */
+export interface SvgPickInfo {
+  layer: string;
+  kind: string;
+  id?: number | string;
+  label: string;
+  [key: string]: unknown;
+}
+
+export type SvgPickHandler = (info: SvgPickInfo | null, element: Element | null) => void;
+
 export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSVGElement {
   const { extentMeters } = result.params;
   const half = extentMeters / 2;
@@ -57,11 +68,32 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
     const g = el("g", { class: "cg-stage", "data-stage": String(i) });
     g.style.display = i === opts.gridIndex ? "inline" : "none";
     for (const cell of stage.cells) {
-      g.appendChild(cellPath(cell.polygon, cell.onBorder ? PALETTE.cellEdge : PALETTE.cell, half));
+      g.appendChild(
+        pickable(cellPath(cell.polygon, cell.onBorder ? PALETTE.cellEdge : PALETTE.cell, half), {
+          layer: "grid",
+          kind: "cell",
+          id: cell.id,
+          label: `grid cell #${cell.id}`,
+          stage: stage.label,
+          site: cell.site,
+          centroid: cell.centroid,
+          neighbors: cell.neighbors,
+          onBorder: cell.onBorder
+        })
+      );
     }
     if (opts.showSites) {
       for (const cell of stage.cells) {
-        g.appendChild(el("circle", { cx: cell.site[0], cy: -cell.site[1], r: half / 260, fill: PALETTE.site }));
+        g.appendChild(
+          pickable(el("circle", { cx: cell.site[0], cy: -cell.site[1], r: half / 260, fill: PALETTE.site }), {
+            layer: "grid",
+            kind: "site",
+            id: cell.id,
+            label: `grid site #${cell.id}`,
+            stage: stage.label,
+            position: cell.site
+          })
+        );
       }
     }
     gridWrap.appendChild(g);
@@ -80,42 +112,133 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
     const g = el("g", { class: "cg-step", "data-step": String(i) });
     g.style.display = i === opts.stepIndex ? "inline" : "none";
     for (const cell of step.cells) {
-      g.appendChild(cellPath(cell.polygon, TAG_FILL[cell.tag] ?? PALETTE.cell, half));
+      g.appendChild(
+        pickable(cellPath(cell.polygon, TAG_FILL[cell.tag] ?? PALETTE.cell, half), {
+          layer: "drawing-process",
+          kind: "cell",
+          id: cell.id,
+          label: `${cell.tag} cell #${cell.id}`,
+          stage: step.label,
+          tag: cell.tag,
+          site: cell.site,
+          centroid: cell.centroid,
+          neighbors: cell.neighbors,
+          onBorder: cell.onBorder
+        })
+      );
     }
     for (const precinct of step.precincts) {
       for (const cellId of precinct.cellIds) {
         const cell = result.cells.find(c => c.id === cellId);
-        if (cell) g.appendChild(precinctNode(cell.polygon, precinct, half));
+        if (cell) {
+          g.appendChild(
+            pickable(precinctNode(cell.polygon, precinct, half), {
+              layer: "precincts",
+              kind: precinct.kind,
+              id: precinct.label,
+              label: precinct.label,
+              stage: step.label,
+              anchor: precinct.anchor,
+              cellIds: precinct.cellIds
+            })
+          );
+        }
       }
     }
-    for (const path of step.paths) {
-      g.appendChild(bandStroke(path, half));
+    for (const [pathIndex, path] of step.paths.entries()) {
+      g.appendChild(
+        pickable(bandStroke(path, half), {
+          layer: "paths",
+          kind: path.kind,
+          id: pathIndex,
+          label: `${path.kind} path #${pathIndex}`,
+          stage: step.label,
+          pointCount: path.points.length,
+          meanWidth: mean(path.widths)
+        })
+      );
     }
     // Optional: the on-edge spine under the river band, so "the band follows the
     // cell edges" is checkable in the drawing-process view too.
     if (opts.showSites && step.paths.some(p => p.kind === "river")) {
-      for (const river of result.riverPaths) g.appendChild(edgeTrackLine(river.edgeTrack, half, 340, 0.5));
+      for (const [riverIndex, river] of result.riverPaths.entries()) {
+        g.appendChild(
+          pickable(edgeTrackLine(river.edgeTrack, half, 340, 0.5), {
+            layer: "drawing-process",
+            kind: "river_edge_track",
+            id: riverIndex,
+            label: `river #${riverIndex} raw edge track`,
+            stage: step.label,
+            pointCount: river.edgeTrack.length
+          })
+        );
+      }
     }
-    for (const overlay of step.overlays) g.appendChild(overlayNode(overlay, half));
+    for (const [overlayIndex, overlay] of step.overlays.entries()) {
+      g.appendChild(
+        pickable(overlayNode(overlay, half), {
+          layer: "overlays",
+          kind: overlay.kind,
+          id: overlayIndex,
+          label: overlayLabel(overlay.kind, overlayIndex),
+          stage: step.label,
+          water: overlay.water ?? false,
+          points: overlay.points
+        })
+      );
+    }
     stepWrap.appendChild(g);
   });
   viewport.appendChild(stepWrap);
 
   if (opts.showRadius) {
     viewport.appendChild(
-      el("circle", {
-        cx: 0,
-        cy: 0,
-        r: result.params.cityRadiusMeters,
-        fill: "none",
-        stroke: PALETTE.radius,
-        "stroke-width": half / 180,
-        opacity: "0.7"
-      })
+      pickable(
+        el("circle", {
+          cx: 0,
+          cy: 0,
+          r: result.params.cityRadiusMeters,
+          fill: "none",
+          stroke: PALETTE.radius,
+          "stroke-width": half / 180,
+          opacity: "0.7"
+        }),
+        {
+          layer: "guides",
+          kind: "city_radius",
+          label: "city radius",
+          radiusMeters: result.params.cityRadiusMeters
+        }
+      )
     );
   }
 
   return svg;
+}
+
+/** Decode the metadata written by `pickable`. Invalid or foreign SVG markup is
+ * simply treated as not pickable. */
+export function parsePickInfo(raw: string | null): SvgPickInfo | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(decodeURIComponent(raw)) as SvgPickInfo;
+  } catch {
+    return null;
+  }
+}
+
+/** Add the click-to-inspect behaviour used by the City Generator UI. */
+export function bindCityInspector(svg: SVGSVGElement, onPick: SvgPickHandler): void {
+  svg.addEventListener("click", event => {
+    const target = event.target instanceof Element ? event.target : null;
+    const host = target?.closest<SVGElement>("[data-pick]");
+    const selected = host && svg.contains(host) ? host : null;
+    svg.querySelectorAll(".cg-is-selected").forEach(node => {
+      node.classList.remove("cg-is-selected");
+    });
+    if (selected) selected.classList.add("cg-is-selected");
+    onPick(selected ? parsePickInfo(selected.getAttribute("data-pick")) : null, selected);
+  });
 }
 
 export function showFamily(svg: SVGSVGElement, family: "grid" | "step"): void {
@@ -165,23 +288,61 @@ function bandStroke(path: SnapshotPath, half: number): SVGElement {
  * context. Sits on top of the bare mesh; unaffected by the stage slider. */
 function riverTrackOverlay(result: GenerationResult, half: number, withNodes: boolean): SVGElement {
   const g = el("g", { class: "cg-grid-river" });
-  if (result.shoreline) g.appendChild(overlayNode({ kind: "shoreline", points: result.shoreline }, half));
-  for (const river of result.riverPaths) {
+  if (result.shoreline) {
     g.appendChild(
-      el("path", {
-        d: polylineData(river.points),
-        fill: "none",
-        stroke: RIVER_TRACK.smooth,
-        "stroke-width": half / 320,
-        "stroke-dasharray": `${half / 90} ${half / 150}`,
-        "stroke-linecap": "round",
-        opacity: "0.9"
+      pickable(overlayNode({ kind: "shoreline", points: result.shoreline }, half), {
+        layer: "grid-inspection",
+        kind: "shoreline",
+        label: "shoreline",
+        points: result.shoreline
       })
     );
-    g.appendChild(edgeTrackLine(river.edgeTrack, half, 240, 1));
+  }
+  for (const [riverIndex, river] of result.riverPaths.entries()) {
+    g.appendChild(
+      pickable(
+        el("path", {
+          d: polylineData(river.points),
+          fill: "none",
+          stroke: RIVER_TRACK.smooth,
+          "stroke-width": half / 320,
+          "stroke-dasharray": `${half / 90} ${half / 150}`,
+          "stroke-linecap": "round",
+          opacity: "0.9"
+        }),
+        {
+          layer: "grid-inspection",
+          kind: "river_smooth_centerline",
+          id: riverIndex,
+          label: `river #${riverIndex} smoothed centerline`,
+          cityBank: river.cityBank,
+          pointCount: river.points.length,
+          meanWidth: mean(river.widths)
+        }
+      )
+    );
+    g.appendChild(
+      pickable(edgeTrackLine(river.edgeTrack, half, 240, 1), {
+        layer: "grid-inspection",
+        kind: "river_edge_track",
+        id: riverIndex,
+        label: `river #${riverIndex} raw edge track`,
+        cityBank: river.cityBank,
+        pointCount: river.edgeTrack.length
+      })
+    );
     if (withNodes) {
-      for (const [x, y] of river.edgeTrack) {
-        g.appendChild(el("circle", { cx: x, cy: -y, r: half / 300, fill: RIVER_TRACK.node }));
+      for (const [nodeIndex, [x, y]] of river.edgeTrack.entries()) {
+        g.appendChild(
+          pickable(el("circle", { cx: x, cy: -y, r: half / 300, fill: RIVER_TRACK.node }), {
+            layer: "grid-inspection",
+            kind: "river_edge_node",
+            id: nodeIndex,
+            label: `river #${riverIndex} edge node #${nodeIndex}`,
+            riverId: riverIndex,
+            position: [x, y]
+          })
+        );
       }
     }
   }
@@ -280,6 +441,22 @@ function setDisplay(node: Element | null, on: boolean): void {
 
 function round(v: number): number {
   return Math.round(v * 10) / 10;
+}
+
+function pickable<T extends SVGElement>(node: T, info: SvgPickInfo): T {
+  node.classList.add("cg-pickable");
+  node.setAttribute("data-pick", encodeURIComponent(JSON.stringify(info)));
+  node.style.cursor = "pointer";
+  return node;
+}
+
+function mean(values: number[]): number {
+  if (!values.length) return 0;
+  return Math.round((values.reduce((total, value) => total + value, 0) / values.length) * 100) / 100;
+}
+
+function overlayLabel(kind: Overlay["kind"], index: number): string {
+  return `${kind.replace(/([A-Z])/g, " $1").toLowerCase()} #${index}`;
 }
 
 function el(tag: string, attrs: Record<string, string | number>): SVGElement {

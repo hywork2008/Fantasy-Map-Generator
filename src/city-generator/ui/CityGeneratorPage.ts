@@ -19,7 +19,7 @@ import {
   DEFAULT_WALL_PLAN,
   type GenerationResult
 } from "../core/types";
-import { renderCity, showFamily, showGridStage, showStep } from "../render/svg";
+import { bindCityInspector, renderCity, type SvgPickInfo, showFamily, showGridStage, showStep } from "../render/svg";
 import type { BurgSiteDescriptor } from "../site/burgSiteDescriptor";
 import { buildCityExport, cityExportFilename } from "../site/cityExport";
 import { CITY_SITE_KEY, type IncomingOrigin, readIncomingSite, siteLinkFor } from "../site/incomingSite";
@@ -155,6 +155,8 @@ export function mountCityGenerator(root: HTMLElement): void {
     }
   });
 
+  const inspector = buildInspectorPanel();
+
   const process = buildProcessPanel({
     getResult: () => result,
     getStepIndex: () => stepIndex,
@@ -164,6 +166,7 @@ export function mountCityGenerator(root: HTMLElement): void {
       family = "step";
       showFamily(svg(), "step");
       showStep(svg(), index);
+      inspector.clear();
     },
     onGrid: index => {
       gridIndex = index;
@@ -176,11 +179,12 @@ export function mountCityGenerator(root: HTMLElement): void {
         showFamily(svg(), "grid");
         showGridStage(svg(), index);
       }
+      inspector.clear();
     },
     onToggleSites: () => draw()
   });
 
-  root.append(canvas, options.root, process.root);
+  root.append(canvas, options.root, process.root, inspector.root);
   attachPanZoom(canvas, view, applyView);
   draw();
 
@@ -218,9 +222,10 @@ export function mountCityGenerator(root: HTMLElement): void {
   }
 
   function draw(): void {
-    viewport.replaceChildren(
-      renderCity(result, { family, gridIndex, stepIndex, showSites: process.showSites(), showRadius: true })
-    );
+    inspector.clear();
+    const map = renderCity(result, { family, gridIndex, stepIndex, showSites: process.showSites(), showRadius: true });
+    bindCityInspector(map, (info, element) => inspector.show(info, element));
+    viewport.replaceChildren(map);
     applyView();
   }
 
@@ -232,6 +237,45 @@ export function mountCityGenerator(root: HTMLElement): void {
     const g = viewport.querySelector<SVGGElement>(".cg-viewport");
     if (g) g.setAttribute("transform", `translate(${view.tx} ${view.ty}) scale(${view.scale})`);
   }
+}
+
+interface InspectorPanel {
+  root: HTMLElement;
+  show(info: SvgPickInfo | null, element: Element | null): void;
+  clear(): void;
+}
+
+function buildInspectorPanel(): InspectorPanel {
+  const root = div("cg-panel cg-panel--inspector");
+  root.hidden = true;
+  root.setAttribute("aria-live", "polite");
+  const title = heading("Inspector");
+  const kind = document.createElement("strong");
+  kind.className = "cg-inspector-kind";
+  const content = document.createElement("pre");
+  content.className = "cg-inspector-content";
+  const clearButton = button("Clear selection", () => clear());
+  root.append(title, kind, content, clearButton);
+  let selected: Element | null = null;
+
+  const clear = (): void => {
+    selected?.classList.remove("cg-is-selected");
+    selected = null;
+    root.hidden = true;
+    kind.textContent = "";
+    content.textContent = "";
+  };
+  const show = (info: SvgPickInfo | null, element: Element | null): void => {
+    if (!info) {
+      clear();
+      return;
+    }
+    selected = element;
+    root.hidden = false;
+    kind.textContent = info.label;
+    content.textContent = JSON.stringify(info, null, 2);
+  };
+  return { root, show, clear };
 }
 
 /** Drop the hand-off so a reload of this tab stays standalone. */
@@ -597,20 +641,31 @@ function buildProcessPanel(h: ProcessHandlers): { root: HTMLElement; sync(): voi
 
 function attachPanZoom(canvas: HTMLElement, view: View, apply: () => void): void {
   let dragging = false;
+  let hasDragged = false;
+  let suppressNextClick = false;
   let lastX = 0;
   let lastY = 0;
 
   canvas.addEventListener("pointerdown", e => {
     if ((e.target as HTMLElement).closest(".cg-panel")) return;
+    if (e.button !== 0) return;
     dragging = true;
+    hasDragged = false;
     lastX = e.clientX;
     lastY = e.clientY;
-    canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener("pointermove", e => {
     if (!dragging) return;
-    view.tx += e.clientX - lastX;
-    view.ty += e.clientY - lastY;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    if (!hasDragged && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+      hasDragged = true;
+      suppressNextClick = true;
+      canvas.setPointerCapture(e.pointerId);
+    }
+    if (!hasDragged) return;
+    view.tx += dx;
+    view.ty += dy;
     lastX = e.clientX;
     lastY = e.clientY;
     apply();
@@ -621,6 +676,19 @@ function attachPanZoom(canvas: HTMLElement, view: View, apply: () => void): void
   };
   canvas.addEventListener("pointerup", endDrag);
   canvas.addEventListener("pointercancel", endDrag);
+
+  // Pointer capture starts only after the movement threshold, preserving normal
+  // SVG click targets for the Inspector while keeping drag gestures click-free.
+  canvas.addEventListener(
+    "click",
+    e => {
+      if (!suppressNextClick) return;
+      e.stopPropagation();
+      e.preventDefault();
+      suppressNextClick = false;
+    },
+    true
+  );
 
   canvas.addEventListener(
     "wheel",
