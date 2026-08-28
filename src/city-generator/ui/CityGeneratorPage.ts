@@ -21,7 +21,8 @@ import {
 } from "../core/types";
 import { bindCityInspector, renderCity, type SvgPickInfo, showFamily, showGridStage, showStep } from "../render/svg";
 import type { BurgSiteDescriptor } from "../site/burgSiteDescriptor";
-import { buildCityExport, cityExportFilename } from "../site/cityExport";
+import { buildCityExport, type CityExport, cityExportFilename } from "../site/cityExport";
+import { parseCityExport } from "../site/cityImport";
 import { CITY_SITE_KEY, type IncomingOrigin, readIncomingSite, siteLinkFor } from "../site/incomingSite";
 import { PRESETS, type PresetId } from "../site/presets";
 import {
@@ -47,7 +48,11 @@ interface View {
 }
 
 /** Where the generation window's geography comes from. */
-type Mode = { kind: "synth" } | { kind: "imported"; descriptor: BurgSiteDescriptor; origin: IncomingOrigin };
+type Mode =
+  | { kind: "synth" }
+  | { kind: "imported"; descriptor: BurgSiteDescriptor; origin: IncomingOrigin }
+  /** A validated Export for AI JSON file. Its resolved inputs are authoritative. */
+  | { kind: "export"; data: CityExport };
 
 /** One generation: the result plus the exact inputs that produced it, so the
  * "Export for AI" file can carry a faithful reproduction key. */
@@ -138,17 +143,33 @@ export function mountCityGenerator(root: HTMLElement): void {
         flash(btn, "Copy failed");
       }
     },
+    onImport: async btn => {
+      const data = await pickCityExport();
+      if (!data) {
+        flash(btn, "Import failed");
+        return;
+      }
+      forgetImportedSite();
+      mode = { kind: "export", data };
+      seed = data.settings.seed;
+      if (data.settings.mode === "standalone") {
+        preset = data.settings.preset?.id ?? preset;
+        config = data.settings.siteConfig ?? config;
+      }
+      regenerate();
+      flash(btn, "Imported");
+    },
     onExport: btn => {
+      const sourceMode = exportSourceMode(mode, preset, config);
       const data = buildCityExport({
-        mode:
-          mode.kind === "imported" ? { kind: "imported", origin: mode.origin } : { kind: "standalone", preset, config },
+        mode: sourceMode,
         seed,
         descriptor: built.descriptor,
         params: built.params,
         geography: built.geo,
         program: built.program,
         result: built.result,
-        link: mode.kind === "imported" ? siteLinkFor(mode.descriptor) : null
+        link: exportLink(mode)
       });
       downloadJson(cityExportFilename(data), data);
       flash(btn, "Exported");
@@ -189,6 +210,11 @@ export function mountCityGenerator(root: HTMLElement): void {
   draw();
 
   function build(): Built {
+    if (mode.kind === "export") {
+      const { descriptor, resolved } = mode.data.settings;
+      const { params, geography: geo, program } = resolved;
+      return { result: generateCity(params, geo, program), descriptor, params, geo, program };
+    }
     if (mode.kind === "imported") {
       // Geography + programme are the real descriptor; the seed still drives grid
       // + street RNG so "Generate" re-rolls the layout for the same burg.
@@ -304,6 +330,7 @@ interface OptionsHandlers {
   onGenerate(): void;
   onUseStandalone(): void;
   onCopyLink(btn: HTMLButtonElement): void;
+  onImport(btn: HTMLButtonElement): Promise<void>;
   onExport(btn: HTMLButtonElement): void;
 }
 
@@ -452,6 +479,11 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   generate.className = "cg-generate";
   root.appendChild(generate);
 
+  // The file picker is created on demand, so it never needs to be part of the
+  // visual layout or the form tab order.
+  const importBtn = button("Import city (JSON)", () => void h.onImport(importBtn));
+  root.appendChild(importBtn);
+
   // Works in both modes — bundles the generation settings + a digest of the
   // generated plan into one JSON file to hand to an assistant (site/cityExport.ts).
   const exportBtn = button("Export for AI (JSON)", () => h.onExport(exportBtn));
@@ -481,13 +513,39 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
       c.el.disabled = cfg.coast === "none"; // a coast wall needs a coast
     }
 
-    const isImported = mode.kind === "imported";
+    const isImported = mode.kind !== "synth";
+    const isExport = mode.kind === "export";
     imported.style.display = isImported ? "grid" : "none";
     for (const node of synthOnly) node.style.display = isImported ? "none" : "";
-    if (isImported) importedText.replaceChildren(...describeDescriptor(mode.descriptor, mode.origin));
+    seedField.style.display = isExport ? "none" : "";
+    generate.style.display = isExport ? "none" : "";
+    copyLink.style.display = mode.kind === "imported" ? "" : "none";
+    if (mode.kind === "imported") importedText.replaceChildren(...describeDescriptor(mode.descriptor, mode.origin));
+    else if (mode.kind === "export") importedText.replaceChildren(...describeExport(mode.data));
   };
   sync();
   return { root, sync };
+}
+
+/** Read-only summary of an imported Export for AI file. */
+function describeExport(data: CityExport): Node[] {
+  const descriptor = data.settings.descriptor;
+  const source = data.settings.mode === "standalone" ? "standalone generator" : "FMG world-map site";
+  const rows: [string, string][] = [
+    ["Imported JSON", descriptor.burg.name || "(unnamed city)"],
+    ["Original source", source],
+    ["Seed", data.settings.seed],
+    ["Reproduction", "Exact resolved inputs"]
+  ];
+  return rows.map(([k, v]) => {
+    const line = div("cg-imported-row");
+    const key = document.createElement("span");
+    key.textContent = k;
+    const val = document.createElement("strong");
+    val.textContent = v;
+    line.append(key, val);
+    return line;
+  });
 }
 
 /** Compact lines summarising what was imported — for the "does it fit the map?" check.
@@ -766,6 +824,58 @@ function subheading(text: string): HTMLElement {
 
 function randomSeed(): string {
   return Math.floor(Math.random() * 0xffffffff).toString(36);
+}
+
+/** Open a JSON file picker and return a validated city-generator export. */
+function pickCityExport(): Promise<CityExport | null> {
+  return new Promise(resolve => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.addEventListener(
+      "change",
+      () => {
+        const file = input.files?.[0];
+        if (!file) {
+          resolve(null);
+          return;
+        }
+        const reader = new FileReader();
+        reader.addEventListener("load", () =>
+          resolve(typeof reader.result === "string" ? parseCityExport(reader.result) : null)
+        );
+        reader.addEventListener("error", () => resolve(null));
+        reader.readAsText(file);
+      },
+      { once: true }
+    );
+    input.click();
+  });
+}
+
+function exportSourceMode(
+  mode: Mode,
+  preset: PresetId,
+  config: SiteConfig
+): { kind: "standalone"; preset: PresetId; config: SiteConfig } | { kind: "imported"; origin: IncomingOrigin } {
+  if (mode.kind === "imported") return { kind: "imported", origin: mode.origin };
+  if (mode.kind === "export" && mode.data.settings.mode === "imported") {
+    return { kind: "imported", origin: mode.data.settings.origin ?? "link" };
+  }
+  if (mode.kind === "export" && mode.data.settings.mode === "standalone") {
+    return {
+      kind: "standalone",
+      preset: mode.data.settings.preset?.id ?? preset,
+      config: mode.data.settings.siteConfig ?? config
+    };
+  }
+  return { kind: "standalone", preset, config };
+}
+
+function exportLink(mode: Mode): string | null {
+  if (mode.kind === "imported") return siteLinkFor(mode.descriptor);
+  if (mode.kind === "export" && mode.data.settings.mode === "imported") return mode.data.settings.shareableLink ?? null;
+  return null;
 }
 
 /** Serialise `data` and hand the browser a download. */

@@ -32,6 +32,7 @@ export {
   type CityExportSource,
   cityExportFilename
 } from "./site/cityExport";
+export { parseCityExport } from "./site/cityImport";
 export {
   CITY_SITE_KEY,
   decodeDescriptor,
