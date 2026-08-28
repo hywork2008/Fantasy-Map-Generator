@@ -74,6 +74,16 @@ M4b（`design.md §4.2` の S4 / `burg-feature-options.md §4.1`）の初回実�
 - `open` でも**エンベロープの海側の辺は残す**（S5/S6 は閉領域を要る）。描画だけ `quay` or 無し。
 - `harborBasin` は水門（`Overlay{gate, water:true}`）を 1、モールは `Overlay{wall}` の短い突堤 2 本。
 - `wallCoast` の既定は §7 の岸 relief 推定 →（無ければ）`port ? "open" : "seaWall"`。UI で上書き可。
+  実装済み（`siteToWallPlan`）：`hasCoast` なら `port && !(citadel||capital) ? "open" : "seaWall"`。
+
+### 3.1 汀線への到達（`reachEnvelopeToShore`）
+
+S3 の `urban` は `cityRadius` 楕円で汀線の 1〜3 セル手前で止まる。エンベロープをそのまま
+なぞると壁が汀線に届かず、`open` の海側は**乾いた浜づたいに市外と地続き**になる。
+そこで S4 で、海（`waterAzimuthDeg` 方向・`reach = min(3.5·cellSize, 0.5·R)` 以内）を向く
+頂点の連続ランを、その両端を汀線へ射影した間の**汀線スライスで丸ごと置換**する
+（トゲの櫛ではなく汀線沿いの滑らかな壁）。左右の陸側壁はそのスライス端で汀線に接する。
+頂点は必ず海側へ広がるだけなので `urban` セルの包含は保たれる。コーストが無ければ no-op。
 
 ---
 
@@ -106,6 +116,16 @@ M4b（`design.md §4.2` の S4 / `burg-feature-options.md §4.1`）の初回実�
 
 `program.walls` は on/off のみ。`on` の中で `full` / `landwardOnly` / `rampart` を選ぶ。
 
+### 5.1 閉包保証（`sealDryGaps` / `buildWallDraw`）
+
+**壁付きの都市は、壁と本物の水（海ポリゴン・汀線際・河川沿い）が合わさって必ず市街を囲う。**
+`wallCoast:open` / `wallExtent:landwardOnly` が落とした未描画ランのうち、端から端まで水に
+面していないものは石壁に戻す。加えて `citadel` 辺は `walls:true` なら主壁に融合（`drawnKind`
+で常に描画）、閉ループの継ぎ目は `smoothRun` が正確に閉じる。これで「障害物が無いのに壁が
+一周しない」「城塞リングが主壁から切れている」ケースが消える。
+※ §2 の「citadel セルをエンベロープに取り込む」は未実装（`notchFilled` の橋渡しが張り出しを
+削るため見送り）。代わりに主壁が `urban` 外周を閉じ、城塞は自身のリングを主壁外側に持つ。
+
 ---
 
 ## 6. セグメント種別（`BorderLoop` の辺タグ）
@@ -125,7 +145,8 @@ export interface BorderLoop {
 
 分類ルール（S4、エンベロープ確定後）:
 
-- `coast` ── 辺の中点が `waterPolygon` 境界の `≤ cellSize` 内、または辺の外側セルが `sea`。
+- `coast` ── 辺が汀線に**沿って**走る（両端とも汀線 `≤ 0.6·cellSize`）、または辺の外側が
+  `waterPolygon` 内。汀線へ**下りる**辺（片端が内陸）は `land` のまま＝描画されて周を閉じる。
 - `river` ── 辺がいずれかの river `edgeTrack` に沿う（`≤ cellSize`）。壁は跨がず、両端に水門。
 - `citadel` ── 辺が citadel precinct の外周と共有（`walls:true` なら主壁に融合、`burg-feature-options.md §4.2`）。
 - 残り ── `land`。

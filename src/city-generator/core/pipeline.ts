@@ -17,6 +17,7 @@ import {
   optimizeJunctions,
   placeGates,
   placePrecincts,
+  reachEnvelopeToShore,
   shapeEnvelope,
   wallOverlaysFor
 } from "./interior";
@@ -161,22 +162,32 @@ export function generateCity(
   const citadel = precincts.find(p => p.kind === "citadel");
   const citadelOutline = citadel ? (buildBorders(interiorCells, new Set(citadel.cellIds))[0]?.points ?? null) : null;
 
-  const borders = envelopes.map(loop =>
-    classifyWallSegments(
-      loop,
-      {
-        shoreline: coast?.shoreline ?? null,
-        waterPolygon: coast?.waterPolygon ?? null,
-        rivers: riverLines,
-        citadelOutline
-      },
-      params.cellSizeMeters
-    )
-  );
+  const segCtx = {
+    shoreline: coast?.shoreline ?? null,
+    waterPolygon: coast?.waterPolygon ?? null,
+    rivers: riverLines,
+    citadelOutline
+  };
+  // A walled town's perimeter must REACH the water — S3 stops the urban fabric a
+  // cell or two short of the sea, so without this the wall ends on open ground
+  // and a `coast: open` town is joined to the outside along the beach
+  // (wall-patterns.md §3.1).
+  const shoreInfo =
+    coast && geo.coast ? { shoreline: coast.shoreline, waterAzimuthDeg: geo.coast.waterAzimuthDeg } : null;
+  const borders = (
+    program.walls
+      ? envelopes.map(loop => reachEnvelopeToShore(loop, shoreInfo, params.cellSizeMeters, params.cityRadiusMeters))
+      : envelopes
+  ).map(loop => classifyWallSegments(loop, segCtx, params.cellSizeMeters));
   const gates = markWaterGate(placeGates(borders, geo), borders, coast?.shoreline ?? null, program.port);
 
+  const wallCtx = {
+    waterPolygon: coast?.waterPolygon ?? null,
+    shoreline: coast?.shoreline ?? null,
+    rivers: riverLines
+  };
   const wallAndTowers: Overlay[] = program.walls
-    ? borders.flatMap(b => wallOverlaysFor(b, plan, gates, params.cellSizeMeters))
+    ? borders.flatMap(b => wallOverlaysFor(b, plan, gates, params.cellSizeMeters, wallCtx))
     : [];
   const citadelRing: Overlay[] = citadelOutline ? [{ kind: "citadelWall", points: close(citadelOutline) }] : [];
   const gateOverlays: Overlay[] = gates.map(gate => ({ kind: "gate", points: [gate.point], water: gate.water }));

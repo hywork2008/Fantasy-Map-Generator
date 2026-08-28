@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SITE_CONFIG, type SiteConfig } from "../site/siteConfig";
 import { siteToGeography, siteToParams, siteToProgram, siteToWallPlan } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
-import { convexHull, pointInPolygon, polygonArea } from "./geom";
+import { convexHull, pointInPolygon, polygonArea, segmentsIntersect } from "./geom";
 import { generateCity } from "./pipeline";
-import type { CityProgram, Overlay, Point, WallPlan } from "./types";
+import type { CityProgram, GenerationResult, Overlay, Point, WallPlan } from "./types";
 import { DEFAULT_WALL_PLAN } from "./types";
 
 function cfg(over: Partial<SiteConfig>): SiteConfig {
@@ -57,6 +57,12 @@ describe("siteToWallPlan — the §8 matrix", () => {
     const f = siteToProgram(harbour);
     expect(siteToWallPlan(harbour, { ...f, port: true, citadel: false, capital: false }).coast).toBe("open");
     expect(siteToWallPlan(harbour, { ...f, port: true, citadel: true }).coast).toBe("seaWall");
+  });
+
+  it("a coastal town with no port still gets a sea wall (its perimeter must close against the water)", () => {
+    const shore = synthSite("smallCity", cfg({ coast: "straight" }), "s");
+    const f = siteToProgram(shore);
+    expect(siteToWallPlan(shore, { ...f, port: false }).coast).toBe("seaWall");
   });
 
   it("a river town takes the notch-filled organic envelope", () => {
@@ -122,6 +128,76 @@ describe("wall coast treatment", () => {
     expect(coastalWallEdges(open)).toBe(0);
     expect(vertexCount(walls(sealed))).toBeGreaterThan(vertexCount(walls(open)));
   });
+});
+
+describe("closure guarantee — a walled town is never joined to the outside by open ground", () => {
+  /** Fraction of urban cells you can walk to from the window edge without
+   * crossing a drawn wall, the citadel ring, or a gate (gates are sealed here so
+   * only GENUINE gaps seep). ~0 when the wall + water enclose the town. */
+  const breachFraction = (r: GenerationResult): number => {
+    const cells = r.steps.at(-1)!.cells;
+    const byId = new Map(cells.map(c => [c.id, c]));
+    const cs = r.params.cellSizeMeters;
+    const bars: [Point, Point][] = [];
+    for (const o of r.steps.at(-1)!.overlays) {
+      if (o.kind !== "wall" && o.kind !== "citadelWall") continue;
+      for (let i = 0; i < o.points.length - 1; i++) bars.push([o.points[i], o.points[i + 1]]);
+    }
+    for (const g of r.gates) {
+      bars.push([
+        [g.point[0] - cs * 1.3, g.point[1] - cs * 1.3],
+        [g.point[0] + cs * 1.3, g.point[1] + cs * 1.3]
+      ]);
+      bars.push([
+        [g.point[0] - cs * 1.3, g.point[1] + cs * 1.3],
+        [g.point[0] + cs * 1.3, g.point[1] - cs * 1.3]
+      ]);
+    }
+    const blocked = (a: Point, b: Point): boolean => bars.some(([p, q]) => segmentsIntersect(a, b, p, q));
+    const seen = new Set<number>();
+    const queue: number[] = [];
+    for (const c of cells) {
+      if (c.onBorder && c.tag !== "sea") {
+        seen.add(c.id);
+        queue.push(c.id);
+      }
+    }
+    while (queue.length) {
+      const c = byId.get(queue.shift()!)!;
+      for (const nId of c.neighbors) {
+        if (seen.has(nId)) continue;
+        const nb = byId.get(nId);
+        if (!nb || nb.tag === "sea" || blocked(c.centroid, nb.centroid)) continue;
+        seen.add(nId);
+        queue.push(nId);
+      }
+    }
+    let urban = 0;
+    let reached = 0;
+    for (const c of cells) {
+      if (c.tag !== "urban") continue;
+      urban++;
+      if (seen.has(c.id)) reached++;
+    }
+    return urban ? reached / urban : 0;
+  };
+
+  const CASES: Array<[string, SiteConfig]> = [
+    ["dry", cfg({ features: { ...cfg({}).features, citadel: true } })],
+    ["coast, no port", cfg({ coast: "straight", features: { ...cfg({}).features, citadel: true } })],
+    ["harbour", cfg({ coast: "bay", features: { ...cfg({}).features, citadel: true, port: true } })],
+    ["cape + river", cfg({ coast: "cape", rivers: ["through"], features: { ...cfg({}).features, citadel: true } })]
+  ];
+
+  for (const [name, config] of CASES) {
+    it(`${name}: the interior stays sealed for every seed`, () => {
+      for (const seed of ["c1", "c2", "c3", "c4", "c5"]) {
+        // A traced perimeter can shed a few fringe cells to a smoothed wall line;
+        // what must never happen is the flood reaching the whole interior.
+        expect(breachFraction(run(config, `${name}-${seed}`)), `${name}/${seed}`).toBeLessThan(0.2);
+      }
+    });
+  }
 });
 
 describe("wall line style", () => {

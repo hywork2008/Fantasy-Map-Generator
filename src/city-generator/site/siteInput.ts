@@ -77,9 +77,13 @@ export function siteToWallPlan(site: BurgSiteDescriptor, program: Omit<CityProgr
   const hasRiver = site.rivers.some(r => r.throughBurgCell || r.crossesSite || Math.abs(r.offsetRatio) < 1.6);
   const fortified = program.citadel || program.capital;
 
+  // Only a plain harbour leaves its sea front open; a landlocked-feeling harbour
+  // town (no port) or a fortified one gets a real sea wall, so the perimeter
+  // still closes against the water (wall-patterns.md §3).
+  if (hasCoast) plan.coast = program.port && !fortified ? "open" : "seaWall";
+
   if (hasCoast && program.port) {
     plan.envelope = "hull";
-    plan.coast = fortified ? "seaWall" : "open";
     plan.line = fortified ? "organic" : "polygonal";
   } else if (hasRiver) {
     plan.envelope = "notchFilled";

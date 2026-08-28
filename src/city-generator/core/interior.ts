@@ -383,6 +383,75 @@ export function shapeEnvelope(loop: BorderLoop, plan: WallPlan, cellSize: number
   return { points, segments: points.map(() => "land" as WallSegmentKind), urbanCellIds: loop.urbanCellIds };
 }
 
+/**
+ * Pull the envelope's sea-facing arc out onto the traced shoreline so a walled
+ * town's perimeter actually meets the water (wall-patterns.md §3.1). S3 stops
+ * the urban fabric a cell or two short of the sea, so without this the wall ends
+ * on open ground and a `coast: open` town is joined to the outside along the
+ * beach. The maximal run of vertices facing (and within `reach` of) the sea is
+ * replaced wholesale by the shoreline slice between its two ends — a smooth wall
+ * along the coast rather than a comb of spikes. The two land walls either side
+ * then meet the shoreline at that slice's ends. Only ever grows the ring
+ * seaward, so it still contains every urban cell. A no-op without a coast.
+ */
+export function reachEnvelopeToShore(
+  loop: BorderLoop,
+  coast: { shoreline: Point[]; waterAzimuthDeg: number } | null,
+  cellSize: number,
+  cityRadiusMeters: number
+): BorderLoop {
+  const shore = coast?.shoreline ?? [];
+  if (shore.length < 2 || loop.points.length < 6) return loop;
+  const reach = Math.min(cellSize * 3.5, cityRadiusMeters * 0.5);
+  const toWater = azimuthToVec(coast!.waterAzimuthDeg);
+  const n = loop.points.length;
+
+  const eligible = loop.points.map(p => {
+    const hit = nearestOnPolyline(p, shore);
+    if (hit.dist > reach) return false;
+    const dx = hit.point[0] - p[0];
+    const dy = hit.point[1] - p[1];
+    const d = Math.hypot(dx, dy) || 1;
+    // Near the water, or facing roughly toward it (not a stray near-approach).
+    return hit.dist < cellSize * 0.25 || (dx / d) * toWater[0] + (dy / d) * toWater[1] > 0.15;
+  });
+  if (eligible.every(Boolean) || !eligible.some(Boolean)) return loop;
+
+  let start = eligible.findIndex((e, i) => e && !eligible[(i - 1 + n) % n]);
+  if (start < 0) start = 0;
+  const out: Point[] = [];
+  for (let k = 0; k < n; ) {
+    const idx = (start + k) % n;
+    if (!eligible[idx]) {
+      out.push([loop.points[idx][0], loop.points[idx][1]]);
+      k++;
+      continue;
+    }
+    const run: number[] = [];
+    while (k < n && eligible[(start + k) % n]) {
+      run.push((start + k) % n);
+      k++;
+    }
+    // A short flush of eligible vertices is noise — leave it as traced.
+    if (run.length < 3) {
+      for (const r of run) out.push([loop.points[r][0], loop.points[r][1]]);
+      continue;
+    }
+    const h0 = nearestOnPolyline(loop.points[run[0]], shore);
+    const h1 = nearestOnPolyline(loop.points[run[run.length - 1]], shore);
+    out.push([h0.point[0], h0.point[1]]);
+    if (h0.segIndex <= h1.segIndex) {
+      for (let s = h0.segIndex + 1; s <= h1.segIndex; s++) out.push([shore[s][0], shore[s][1]]);
+    } else {
+      for (let s = h0.segIndex; s > h1.segIndex; s--) out.push([shore[s][0], shore[s][1]]);
+    }
+    out.push([h1.point[0], h1.point[1]]);
+  }
+  const points = dedupeRing(out);
+  if (points.length < 3 || Math.abs(polygonArea(points)) < 1e-4) return loop;
+  return { points, segments: points.map(() => "land" as WallSegmentKind), urbanCellIds: loop.urbanCellIds };
+}
+
 function notchFilledRing(loop: Point[], maxDepth: number): Point[] {
   if (loop.length < 4) return loop;
   const hull = convexHull(loop);
@@ -401,8 +470,19 @@ function notchFilledRing(loop: Point[], maxDepth: number): Point[] {
     }
     let deepest = 0;
     for (const p of sub) deepest = Math.max(deepest, perpDistanceToLine(p, loop[iA], loop[iB]));
-    // Bridge a deep pocket (keep only its first anchor); otherwise keep the arc.
-    out.push(...(deepest > maxDepth ? [loop[iA]] : sub.slice(0, -1)));
+    // Bridge only a genuine INWARD pocket: its chord runs outside the traced ring.
+    // A `deepest` spike over an outward lobe (a mis-paired hull mark) must keep
+    // its arc, or the envelope drops the urban cells on that lobe.
+    const inward =
+      deepest > maxDepth &&
+      [0.25, 0.5, 0.75].every(
+        f =>
+          !pointInPolygon(
+            [loop[iA][0] + (loop[iB][0] - loop[iA][0]) * f, loop[iA][1] + (loop[iB][1] - loop[iA][1]) * f],
+            loop
+          )
+      );
+    out.push(...(inward ? [loop[iA]] : sub.slice(0, -1)));
   }
   return dedupeRing(out);
 }
@@ -427,22 +507,32 @@ export function classifyWallSegments(loop: BorderLoop, ctx: SegmentContext, cell
     if (ctx.citadelOutline && ctx.citadelOutline.length >= 2 && near(mid, ctx.citadelOutline, cellSize * 0.6)) {
       return "citadel" as WallSegmentKind;
     }
-    if (isCoastEdge(mid, ctx, cellSize)) return "coast" as WallSegmentKind;
+    if (isCoastEdge(a, b, mid, ctx, cellSize)) return "coast" as WallSegmentKind;
     if (ctx.rivers.some(line => line.length >= 2 && near(mid, line, cellSize))) return "river" as WallSegmentKind;
     return "land" as WallSegmentKind;
   });
   return { ...loop, segments };
 }
 
-/** Sea-facing when a point nudged outward (away from the town centre) from the
- * edge midpoint sits in the water, or when the midpoint hugs the shoreline. */
-function isCoastEdge(mid: Point, ctx: SegmentContext, cellSize: number): boolean {
+/**
+ * `coast` means the edge RUNS ALONG the water, so dropping it (`coast: open`)
+ * leaves no walkable ground: either both endpoints hug the traced shoreline
+ * (`reachEnvelopeToShore` puts the sea-facing arc exactly there) or the edge's
+ * outward side lies in the sea polygon. An edge running DOWN to the water keeps
+ * one endpoint inland and stays `land`, so it is still drawn and closes the
+ * perimeter against the shore.
+ */
+function isCoastEdge(a: Point, b: Point, mid: Point, ctx: SegmentContext, cellSize: number): boolean {
+  if (ctx.shoreline && ctx.shoreline.length >= 2) {
+    const t = cellSize * 0.6;
+    if (nearestOnPolyline(a, ctx.shoreline).dist <= t && nearestOnPolyline(b, ctx.shoreline).dist <= t) return true;
+  }
   if (ctx.waterPolygon && ctx.waterPolygon.length >= 3) {
     const len = Math.hypot(mid[0], mid[1]) || 1;
     const out: Point = [mid[0] + (mid[0] / len) * cellSize * 0.6, mid[1] + (mid[1] / len) * cellSize * 0.6];
     if (pointInPolygon(out, ctx.waterPolygon)) return true;
   }
-  return ctx.shoreline !== null && near(mid, ctx.shoreline, cellSize * 1.5);
+  return false;
 }
 
 export interface WallDraw {
@@ -452,21 +542,39 @@ export interface WallDraw {
   towers: Point[];
 }
 
+/** Water that a wall gap may legitimately front instead of masonry. */
+export interface WallDrawContext {
+  waterPolygon: Point[] | null;
+  shoreline: Point[] | null;
+  rivers: Point[][];
+}
+
+const NO_WATER: WallDrawContext = { waterPolygon: null, shoreline: null, rivers: [] };
+
 /** Build the drawn wall for one envelope: pick which segment runs get masonry
  * (`plan.coast` / `plan.extent`), style each run (`plan.line`), space towers.
- * Coast runs vanish for `coast: open` — that is the "don't wall the sea" case. */
-export function buildWallDraw(border: BorderLoop, plan: WallPlan, gates: Gate[], cellSize: number): WallDraw {
+ * Coast runs vanish for `coast: open` — that is the "don't wall the sea" case —
+ * but only where the gap is genuinely fronted by water (`ctx`); any other
+ * undrawn stretch is sealed so the town is never joined to the outside by open
+ * ground (wall-patterns.md §5.1, the closure guarantee). */
+export function buildWallDraw(
+  border: BorderLoop,
+  plan: WallPlan,
+  gates: Gate[],
+  cellSize: number,
+  ctx: WallDrawContext = NO_WATER
+): WallDraw {
   if (plan.extent === "none") return { wallRuns: [], towers: [] };
   const reserved = new Set(gates.map(g => pointKey(g.point)));
 
   const coastDrawn = plan.coast === "seaWall" || plan.coast === "quayWall" || plan.coast === "harborBasin";
   const drawnKind = (kind: WallSegmentKind): boolean => {
-    if (kind === "citadel") return false; // drawn separately as the citadel ring
+    if (kind === "citadel") return true; // fused into the town wall (wall-patterns.md §6)
     if (plan.extent === "landwardOnly") return kind === "land";
     if (kind === "coast") return coastDrawn;
     return true; // land + river
   };
-  const drawn = border.segments.map(drawnKind);
+  const drawn = sealDryGaps(border.points, border.segments.map(drawnKind), ctx, cellSize);
 
   let runs: Point[][];
   if (drawn.every(Boolean)) {
@@ -482,6 +590,47 @@ export function buildWallDraw(border: BorderLoop, plan: WallPlan, gates: Gate[],
   return { wallRuns: styled, towers };
 }
 
+/** The closure guarantee: masonry + genuine water must together enclose the
+ * town. Any maximal run of undrawn edges that is not fronted by water end to end
+ * (in the sea polygon, hugging the shoreline, or along a river) gets walled
+ * after all. */
+function sealDryGaps(points: Point[], drawn: boolean[], ctx: WallDrawContext, cellSize: number): boolean[] {
+  const n = drawn.length;
+  if (n < 3 || drawn.every(Boolean) || !drawn.some(Boolean)) return drawn;
+  const backed = (p: Point): boolean => {
+    if (ctx.waterPolygon && ctx.waterPolygon.length >= 3 && pointInPolygon(p, ctx.waterPolygon)) return true;
+    if (ctx.shoreline && ctx.shoreline.length >= 2 && nearestOnPolyline(p, ctx.shoreline).dist <= cellSize * 0.5) {
+      return true;
+    }
+    return ctx.rivers.some(line => line.length >= 2 && nearestOnPolyline(p, line).dist <= cellSize * 0.6);
+  };
+  const out = drawn.slice();
+  const start = drawn.findIndex((d, i) => d && !drawn[(i - 1 + n) % n]);
+  if (start < 0) return out;
+  let i = start;
+  for (let step = 0; step < n; ) {
+    while (step < n && out[i]) {
+      i = (i + 1) % n;
+      step++;
+    }
+    if (step >= n) break;
+    const run: number[] = [];
+    while (step < n && !out[i]) {
+      run.push(i);
+      i = (i + 1) % n;
+      step++;
+    }
+    let ok = backed(points[run[0]]) && backed(points[(run[run.length - 1] + 1) % n]);
+    for (let r = 0; ok && r < run.length; r++) {
+      const e = run[r];
+      const b = points[(e + 1) % n];
+      ok = backed([(points[e][0] + b[0]) / 2, (points[e][1] + b[1]) / 2]);
+    }
+    if (!ok) for (const e of run) out[e] = true;
+  }
+  return out;
+}
+
 function styleRun(run: Point[], line: WallPlan["line"], reserved: Set<string>, cellSize: number): Point[] {
   if (run.length < 3) return run;
   const closed = isClosedRun(run);
@@ -490,16 +639,20 @@ function styleRun(run: Point[], line: WallPlan["line"], reserved: Set<string>, c
   return polygonalRun(run, reserved, cellSize, closed);
 }
 
-/** Weak closed/open Laplacian; gate vertices and open endpoints stay put. */
+/** Weak closed/open Laplacian; gate vertices and open endpoints stay put. On a
+ * closed run the duplicated seam vertex is smoothed once and re-appended, so the
+ * ring stays exactly closed (no hairline gap at the seam). */
 function smoothRun(pts: Point[], reserved: Set<string>, closed: boolean): Point[] {
-  const n = pts.length;
-  return pts.map((p, i) => {
-    if (reserved.has(pointKey(p))) return p;
-    if (!closed && (i === 0 || i === n - 1)) return p;
-    const prev = pts[(i - 1 + n) % n];
-    const next = pts[(i + 1) % n];
+  const src = closed && pts.length >= 2 && sameKey(pts[0], pts[pts.length - 1]) ? pts.slice(0, -1) : pts;
+  const n = src.length;
+  const out = src.map((p, i) => {
+    if (reserved.has(pointKey(p))) return [p[0], p[1]] as Point;
+    if (!closed && (i === 0 || i === n - 1)) return [p[0], p[1]] as Point;
+    const prev = src[(i - 1 + n) % n];
+    const next = src[(i + 1) % n];
     return [p[0] * 0.8 + (prev[0] + next[0]) * 0.1, p[1] * 0.8 + (prev[1] + next[1]) * 0.1] as Point;
   });
+  return closed && out.length >= 3 ? close(out) : out;
 }
 
 /** Simplify between anchor vertices (gates + run ends) so wall segments are
@@ -593,8 +746,14 @@ function pointKey(point: Point): string {
 }
 
 /** Convenience for pipeline: wall + tower overlays for one envelope. */
-export function wallOverlaysFor(border: BorderLoop, plan: WallPlan, gates: Gate[], cellSize: number): Overlay[] {
-  const draw = buildWallDraw(border, plan, gates, cellSize);
+export function wallOverlaysFor(
+  border: BorderLoop,
+  plan: WallPlan,
+  gates: Gate[],
+  cellSize: number,
+  ctx?: WallDrawContext
+): Overlay[] {
+  const draw = buildWallDraw(border, plan, gates, cellSize, ctx);
   return [
     ...draw.wallRuns.map(points => ({ kind: "wall" as const, points })),
     ...draw.towers.map(point => ({ kind: "tower" as const, points: [point] }))
