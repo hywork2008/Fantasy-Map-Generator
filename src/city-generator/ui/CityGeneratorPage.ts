@@ -12,9 +12,16 @@
 
 import { generateCity } from "../core/pipeline";
 import { makeRng } from "../core/prng";
-import { DEFAULT_WALL_PLAN, type GenerationResult } from "../core/types";
+import {
+  type CityGeography,
+  type CityParams,
+  type CityProgram,
+  DEFAULT_WALL_PLAN,
+  type GenerationResult
+} from "../core/types";
 import { renderCity, showFamily, showGridStage, showStep } from "../render/svg";
 import type { BurgSiteDescriptor } from "../site/burgSiteDescriptor";
+import { buildCityExport, cityExportFilename } from "../site/cityExport";
 import { CITY_SITE_KEY, type IncomingOrigin, readIncomingSite, siteLinkFor } from "../site/incomingSite";
 import { PRESETS, type PresetId } from "../site/presets";
 import {
@@ -42,6 +49,16 @@ interface View {
 /** Where the generation window's geography comes from. */
 type Mode = { kind: "synth" } | { kind: "imported"; descriptor: BurgSiteDescriptor; origin: IncomingOrigin };
 
+/** One generation: the result plus the exact inputs that produced it, so the
+ * "Export for AI" file can carry a faithful reproduction key. */
+interface Built {
+  result: GenerationResult;
+  descriptor: BurgSiteDescriptor;
+  params: CityParams;
+  geo: CityGeography;
+  program: CityProgram;
+}
+
 const COASTS: { id: CoastShape; label: string }[] = [
   { id: "none", label: "None" },
   { id: "straight", label: "Straight" },
@@ -68,7 +85,8 @@ export function mountCityGenerator(root: HTMLElement): void {
   let preset: PresetId = "smallCity";
   let config: SiteConfig = { ...DEFAULT_SITE_CONFIG };
   let seed = incoming ? incoming.descriptor.burg.seed : randomSeed();
-  let result: GenerationResult = build();
+  let built: Built = build();
+  let result: GenerationResult = built.result;
   let family: "grid" | "step" = "step";
   let stepIndex = result.steps.length - 1;
   let gridIndex = result.gridStages.length - 1;
@@ -119,6 +137,21 @@ export function mountCityGenerator(root: HTMLElement): void {
       } catch {
         flash(btn, "Copy failed");
       }
+    },
+    onExport: btn => {
+      const data = buildCityExport({
+        mode:
+          mode.kind === "imported" ? { kind: "imported", origin: mode.origin } : { kind: "standalone", preset, config },
+        seed,
+        descriptor: built.descriptor,
+        params: built.params,
+        geography: built.geo,
+        program: built.program,
+        result: built.result,
+        link: mode.kind === "imported" ? siteLinkFor(mode.descriptor) : null
+      });
+      downloadJson(cityExportFilename(data), data);
+      flash(btn, "Exported");
     }
   });
 
@@ -151,25 +184,31 @@ export function mountCityGenerator(root: HTMLElement): void {
   attachPanZoom(canvas, view, applyView);
   draw();
 
-  function build(): GenerationResult {
+  function build(): Built {
     if (mode.kind === "imported") {
       // Geography + programme are the real descriptor; the seed still drives grid
       // + street RNG so "Generate" re-rolls the layout for the same burg.
-      return generateCity(
-        { ...siteToParams(mode.descriptor), seed },
-        siteToGeography(mode.descriptor),
-        siteToProgram(mode.descriptor)
-      );
+      const descriptor = mode.descriptor;
+      const params: CityParams = { ...siteToParams(descriptor), seed };
+      const geo = siteToGeography(descriptor);
+      const program = siteToProgram(descriptor);
+      return { result: generateCity(params, geo, program), descriptor, params, geo, program };
     }
-    const site = synthSite(preset, config, seed);
-    const program = siteToProgram(site);
+    const descriptor = synthSite(preset, config, seed);
+    const geo = siteToGeography(descriptor);
+    const base = siteToProgram(descriptor);
     // Apply the standalone Wall row on top of the matrix plan (wall-patterns.md).
-    const wallPlan = resolveWallPlan(program.wallPlan ?? DEFAULT_WALL_PLAN, config.wall);
-    return generateCity(siteToParams(site), siteToGeography(site), { ...program, wallPlan });
+    const program: CityProgram = {
+      ...base,
+      wallPlan: resolveWallPlan(base.wallPlan ?? DEFAULT_WALL_PLAN, config.wall)
+    };
+    const params = siteToParams(descriptor);
+    return { result: generateCity(params, geo, program), descriptor, params, geo, program };
   }
 
   function regenerate(): void {
-    result = build();
+    built = build();
+    result = built.result;
     stepIndex = result.steps.length - 1;
     gridIndex = result.gridStages.length - 1;
     family = "step";
@@ -221,6 +260,7 @@ interface OptionsHandlers {
   onGenerate(): void;
   onUseStandalone(): void;
   onCopyLink(btn: HTMLButtonElement): void;
+  onExport(btn: HTMLButtonElement): void;
 }
 
 function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): void } {
@@ -367,6 +407,11 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   const generate = button("Generate", h.onGenerate);
   generate.className = "cg-generate";
   root.appendChild(generate);
+
+  // Works in both modes — bundles the generation settings + a digest of the
+  // generated plan into one JSON file to hand to an assistant (site/cityExport.ts).
+  const exportBtn = button("Export for AI (JSON)", () => h.onExport(exportBtn));
+  root.appendChild(exportBtn);
 
   const sync = (): void => {
     const mode = h.getMode();
@@ -653,6 +698,20 @@ function subheading(text: string): HTMLElement {
 
 function randomSeed(): string {
   return Math.floor(Math.random() * 0xffffffff).toString(36);
+}
+
+/** Serialise `data` and hand the browser a download. */
+function downloadJson(filename: string, data: unknown): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function clamp(v: number, min: number, max: number): number {

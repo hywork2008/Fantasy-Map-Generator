@@ -23,6 +23,16 @@ export {
 } from "./core/types";
 export type { BurgSiteArchetype, BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 export {
+  buildCityExport,
+  CITY_EXPORT_KIND,
+  CITY_EXPORT_VERSION,
+  type CityDigest,
+  type CityExport,
+  type CityExportSettings,
+  type CityExportSource,
+  cityExportFilename
+} from "./site/cityExport";
+export {
   CITY_SITE_KEY,
   decodeDescriptor,
   encodeDescriptor,
