@@ -13,6 +13,17 @@ export type {
   Snapshot
 } from "./core/types";
 export type { BurgSiteArchetype, BurgSiteDescriptor } from "./site/burgSiteDescriptor";
+export {
+  CITY_SITE_KEY,
+  decodeDescriptor,
+  encodeDescriptor,
+  type IncomingOrigin,
+  type IncomingSite,
+  parseDescriptor,
+  readIncomingSite,
+  resolveIncomingSite,
+  siteLinkFor
+} from "./site/incomingSite";
 export { PRESETS, type Preset, type PresetId } from "./site/presets";
 export {
   type CoastShape,

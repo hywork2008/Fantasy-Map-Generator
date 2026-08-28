@@ -273,9 +273,10 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 
 | ファイル | 変更 |
 | ---------- | ------ |
-| `vite.config.ts` | `build.rollupOptions.input` に `main` / `city` を追加（§1.2） |
-| Burg エディタ（`src/ui/dialogs/BurgEditorDialog.tsx` 付近） | 「都市生成ページを開く」ボタン。`getBurgSiteDescriptor(id)` を `sessionStorage['fmg.citySite']` に置き、`window.open(new URL('city/', import.meta.env.BASE_URL))` |
-| `netlify.toml` | `/city/*` の除外リダイレクト（Netlify 配布時のみ） |
+| `vite.config.ts` | `build.rollupOptions.input` に `main` / `city` を追加（§1.2）── M0 で実施済 |
+| `src/ui/dialogs/BurgEditorDialog.tsx` | **M3 実施**: フッタに `#burgOpenCityGenerator`（`icon-sitemap`）ボタン。`#burgCopySiteDescriptor` の隣 |
+| `src/controllers/burg-editor.ts` | **M3 実施**: `burgEditorActions.openCityGenerator()` ── `getBurgSiteDescriptor(id)` を `sessionStorage['fmg.citySite']` に置き `openURL(\`${import.meta.env.BASE_URL}city/\`)`。`window.open` は同一オリジン新規タブに sessionStorage をコピーするので burg ごとに独立、city タブ reload でも同 burg が残る（名前付きターゲットは再ナビゲーションで sessionStorage を再コピーしないため使わない） |
+| `netlify.toml` | `/city/*` の除外リダイレクト（Netlify 配布時のみ）── 未実施 |
 | `main.ts` / `app.ts` | **変更なし**（world app は `city-generator/` を import しない） |
 
 ---
@@ -288,7 +289,7 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 | **M1 ✅** | S0 グリッド + SVG 描画 + Grid evolution スライダー（スタンドアロン・preset のみ）。`core/{types,prng,geom,voronoi,grid,pipeline}.ts`、`site/presets.ts`、`render/{palette,svg}.ts`、`ui/CityGeneratorPage.ts` 実装 | `tsc` 0、`vitest` 5/5（決定論・Lloyd 収束・非退化セル）、biome クリーン。ブラウザ実測: 同一 seed → 同一 SVG パス、scatter↔Lloyd3 が可視差、preset/seed/スライダー/pan-zoom 動作、console エラー無し。build: city payload 20 KB（city 9.4 + delaunator 8.2）、world/d3/three 参照 0 |
 | **M2 ✅** | S1 海/陸 + S2 河川（**セル辺グラフ A\* + 平滑化 = `buildStreets` 手法**、`core/{edgeGraph,riverPath}.ts`）+ S3 市街 + 進行スライダー（`synthSite` 入力）。`core/{classifySea,classifyRiver,classifyUrban}.ts`、`site/{burgSiteDescriptor,synthSite,siteInput}.ts` 追加。`pipeline.ts` が S0→S3 を実行し `steps: Snapshot[]` を生成。`render/svg.ts` は grid 系 + step 系の 2 グループ。UI は Size/Site type ボタン + Stage スライダー + First/Prev/Next/Last | `tsc` 0、`vitest` 20/20（決定論、archetype 4 種 smoke、harbor は市街が海に非接触、riverCrossing は岸 >85%・弦位置 ±0.25R 保存 ×4 seed、**river パス頂点は実グラフノード + 連続ペアは実エッジ**、平滑ドリフト < 1 セル）、biome クリーン。ブラウザ実測: 河川がセル辺を辿る（240 頂点の折れ線）、4 archetype で S0→S3 描画、Stage/First-Last/Grid evolution 動作、console エラー無し。build: city payload 44 KB、world/d3/three 参照 0 |
 | **M2.5 ✅** | サイト地形レイヤーの一般化（S4 が単一河川・2 値岸を前提にする前に）。archetype enum → `SiteConfig`（`site/siteConfig.ts`）。**S1/S2 を「ラフなコリドー → ボロノイ辺グラフの biased random walk」に全面移行**（`core/{graphWalk}.ts` 新設、`classifySea`/`riverPath` 書き換え）── 海岸線・河川の形がグラフ walk 由来になり、分岐で行き先が散る。**河川は水ポリゴンで stop**（海に入らない）。`classifyRiver` の岸分割を原点成分 = 0 に。Bay = 都心が湾の奥（凹の recess）、Cape = 都心が突端。`GenerationResult` に `shoreline`/`waterPolygon` 追加。UI = Coast/Rivers/River-shape/Relief/Randomize | `tsc` 0、`vitest` 45/45（マトリクス 24 combo×2 seed、河川頂点は水ポリゴン外、urban core は単一連結成分、seed 別に river ルートが散る、toCoast は海岸線到達で停止）、biome クリーン。ブラウザ実測: 海岸線が全域ギザギザ、河川が蛇行し海で止まる、Bay=recess / Cape=headland、seed で river 散る（107–142 頂点、maxSteps 到達なし）、console エラー無し。build: city payload 27.7 KB、world/d3/three 参照 0 |
-| M3 | FMG descriptor 取り込み（sessionStorage handoff + Burg エディタボタン） | 世界地図の複数 burg で「地図にはまる」ことを目視 |
+| **M3 ✅** | FMG descriptor 取り込み。`site/incomingSite.ts`（`parseDescriptor` version チェック + base64url codec + `resolveIncomingSite`：hash payload > sessionStorage stash）。Burg エディタに「都市生成ページを開く」ボタン（`burgEditorActions.openCityGenerator` → `sessionStorage['fmg.citySite']` + `openURL(\`${BASE_URL}city/\`)`）。`CityGeneratorPage` に imported モード（geography = 実 descriptor 固定、seed のみ layout 再ロール、synth 系コントロール非表示、Imported-site 読み出し + Copy shareable link + Use standalone site）。共有リンク = `city/#<base64url(JSON)>`（実測 ~4 KB、圧縮不要）。`siteInput` に 2 つの実 descriptor 適応: (a) `waterbody` あるが `shoreline[]` 空（実 FMG が窓外海岸で出す）→ `shoreAzimuthDeg` から直線ラフ海岸を合成（landlocked にしない）、(b) `crossesSite:false` かつ `offsetRatio ≥ 1.6` の遠い川を drop（窓を埋める無関係な大河対策） | `tsc` 0、`vitest` 86/86（+ `incomingSite.test.ts` 15: codec round-trip・version 拒否・resolver 優先順位・decoded → pipeline urban core、+ `siteInput.test.ts` 6: 空 shoreline 合成海岸で sea セル発生・遠い川 drop）、biome / lint:legacy クリーン。ブラウザ実測: `window.open` 実経路で 4 archetype（harbor+大河 / dry crossroads / 2 河川 / 空 shoreline harbor → 合成海岸）が半径内に収まる、共有リンク round-trip（ラベルが "From shared link" に）、seed 再ロールで layout 変化・geography 固定、Use standalone で sessionStorage+hash クリア、console エラー無し。build: city payload 37 KB、world/d3/three 参照 0 |
 | M4 | 城壁・門（S4） | `draft.md` 範囲外・別 PR |
 
 ---
@@ -309,5 +310,13 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
    `DESCRIPTOR_VERSION` 付き）。
 7. ~~`presets.ts` の置き換え~~ → **完了（M2）**: `presets.ts` は list のみ。
    `synthSite.ts`（preset+archetype → descriptor）+ `siteInput.ts`（descriptor → params/geography）。
-8. 共有リンク（`city/#…`）で descriptor 圧縮が要るか（heightfield 17×17 のサイズ次第）。
-9. fixture の初期セット（どの実 burg をサンプル化するか）。
+8. ~~共有リンク（`city/#…`）で descriptor 圧縮~~ → **不要（M3）**: 実 descriptor JSON は ~3 KB
+   （heightfield 17×17 の elevations は同値連続で JSON 化が短い）、base64url で ~4 KB。生の
+   `#<base64url(JSON)>` で十分。
+9. fixture の初期セット（どの実 burg をサンプル化するか）。M3 のブラウザ実測で使ったのは harbor /
+   dry crossroads / 2 河川 inland / 空 shoreline harbor の 4 パターン。
+10. **実 descriptor の river 幅**: FMG `widthMeters` は実寸（大河で 1〜2 km）。`crossesSite` する
+    川がこの幅だと窓を覆う。M3 は「遠い非交差の川を drop」で最悪ケースだけ回避。交差する
+    大河の描画幅クランプ（`render/svg.ts` の帯幅 or `siteInput` の widths 上限）は S4/描画調整で。
+11. **imported モードの seed 初期値**: `descriptor.burg.seed`（watabou プレビュー共有）。UI から
+    burg 本来の seed に戻すボタンは未実装（再入力 or Use standalone → 戻る、で代替可）。

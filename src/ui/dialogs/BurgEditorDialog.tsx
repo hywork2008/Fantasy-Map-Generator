@@ -568,6 +568,13 @@ export const BurgEditorDialog: React.FC = () => {
             ></button>
             <button
               type="button"
+              id="burgOpenCityGenerator"
+              data-tip="Open the City Generator page for this burg (hands off its local site descriptor)"
+              className="icon-sitemap"
+              onClick={() => burgEditorActions.openCityGenerator()}
+            ></button>
+            <button
+              type="button"
               id="burgLocate"
               data-tip="Zoom map and center view in the burg"
               className="icon-target"

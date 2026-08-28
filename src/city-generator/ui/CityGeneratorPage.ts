@@ -1,17 +1,21 @@
 // City Generator — vanilla DOM shell.
 //
-// M2.5: standalone. Composable site config (coast shape × 0..2 rivers × relief) +
-// size preset + seed drive a synthetic BurgSiteDescriptor; the pipeline runs
-// S0–S3. Two sliders: "Drawing process" (S0 grid → S3 urban) with
-// First/Prev/Next/Last, and "Grid evolution" over the S0 Lloyd passes — the
-// latter keeps the river track overlaid (svg.ts riverTrackOverlay) so the
-// river↔grid binding stays visible while scrubbing the passes.
-// FMG descriptor import lands in M3 (docs/city-generator/design.md §7).
+// Two site sources feed the identical S0–S3 pipeline:
+//   • standalone — a composable SiteConfig (coast shape × 0..2 rivers × relief) +
+//     size preset + seed drive a synthetic BurgSiteDescriptor (site/synthSite.ts).
+//   • imported (M3) — a real BurgSiteDescriptor handed off from the FMG world map
+//     via sessionStorage, or carried in a `city/#…` link (site/incomingSite.ts).
+//     Geography is then fixed; only the seed re-rolls the street layout.
+//
+// Two sliders: "Drawing process" (S0 grid → S3 urban) with First/Prev/Next/Last,
+// and "Grid evolution" over the S0 Lloyd passes. See docs/city-generator/design.md.
 
 import { generateCity } from "../core/pipeline";
 import { makeRng } from "../core/prng";
 import type { GenerationResult } from "../core/types";
 import { renderCity, showFamily, showGridStage, showStep } from "../render/svg";
+import type { BurgSiteDescriptor } from "../site/burgSiteDescriptor";
+import { CITY_SITE_KEY, type IncomingOrigin, readIncomingSite, siteLinkFor } from "../site/incomingSite";
 import { PRESETS, type PresetId } from "../site/presets";
 import {
   type CoastShape,
@@ -28,6 +32,9 @@ interface View {
   ty: number;
   scale: number;
 }
+
+/** Where the generation window's geography comes from. */
+type Mode = { kind: "synth" } | { kind: "imported"; descriptor: BurgSiteDescriptor; origin: IncomingOrigin };
 
 const COASTS: { id: CoastShape; label: string }[] = [
   { id: "none", label: "None" },
@@ -47,9 +54,14 @@ const RIVER_SHAPE_LABELS: { id: RiverShape; label: string }[] = [
 export function mountCityGenerator(root: HTMLElement): void {
   root.replaceChildren();
 
+  const incoming = readIncomingSite();
+  let mode: Mode = incoming
+    ? { kind: "imported", descriptor: incoming.descriptor, origin: incoming.origin }
+    : { kind: "synth" };
+
   let preset: PresetId = "smallCity";
   let config: SiteConfig = { ...DEFAULT_SITE_CONFIG };
-  let seed = randomSeed();
+  let seed = incoming ? incoming.descriptor.burg.seed : randomSeed();
   let result: GenerationResult = build();
   let family: "grid" | "step" = "step";
   let stepIndex = result.steps.length - 1;
@@ -61,6 +73,7 @@ export function mountCityGenerator(root: HTMLElement): void {
   canvas.appendChild(viewport);
 
   const options = buildOptionsPanel({
+    getMode: () => mode,
     getPreset: () => preset,
     getConfig: () => config,
     getSeed: () => seed,
@@ -85,6 +98,21 @@ export function mountCityGenerator(root: HTMLElement): void {
     onGenerate: () => {
       if (!seed.trim()) seed = randomSeed();
       regenerate();
+    },
+    onUseStandalone: () => {
+      forgetImportedSite();
+      mode = { kind: "synth" };
+      seed = randomSeed();
+      regenerate();
+    },
+    onCopyLink: async btn => {
+      if (mode.kind !== "imported") return;
+      try {
+        await navigator.clipboard.writeText(siteLinkFor(mode.descriptor));
+        flash(btn, "Link copied");
+      } catch {
+        flash(btn, "Copy failed");
+      }
     }
   });
 
@@ -118,6 +146,11 @@ export function mountCityGenerator(root: HTMLElement): void {
   draw();
 
   function build(): GenerationResult {
+    if (mode.kind === "imported") {
+      // Geography is the real descriptor; the seed still drives grid + street RNG
+      // so "Generate" re-rolls the layout for the same burg.
+      return generateCity({ ...siteToParams(mode.descriptor), seed }, siteToGeography(mode.descriptor));
+    }
     const site = synthSite(preset, config, seed);
     return generateCity(siteToParams(site), siteToGeography(site));
   }
@@ -149,9 +182,22 @@ export function mountCityGenerator(root: HTMLElement): void {
   }
 }
 
+/** Drop the hand-off so a reload of this tab stays standalone. */
+function forgetImportedSite(): void {
+  try {
+    sessionStorage.removeItem(CITY_SITE_KEY);
+  } catch {
+    /* storage blocked — nothing to clear */
+  }
+  if (typeof location !== "undefined" && location.hash) {
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+}
+
 // --- options panel ---------------------------------------------------------------
 
 interface OptionsHandlers {
+  getMode(): Mode;
   getPreset(): PresetId;
   getConfig(): SiteConfig;
   getSeed(): string;
@@ -160,16 +206,27 @@ interface OptionsHandlers {
   onRandomize(): void;
   onSeedInput(value: string): void;
   onGenerate(): void;
+  onUseStandalone(): void;
+  onCopyLink(btn: HTMLButtonElement): void;
 }
 
 function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): void } {
   const root = div("cg-panel cg-panel--options");
   root.appendChild(heading("Generation options"));
 
+  // Imported-site readout (M3) — shown only when a real descriptor drove the run.
+  const imported = div("cg-imported");
+  const importedText = div("cg-imported-body");
+  const copyLink = button("Copy shareable link", () => h.onCopyLink(copyLink));
+  const useStandalone = button("Use standalone site", h.onUseStandalone);
+  imported.append(subheading("Imported site"), importedText, copyLink, useStandalone);
+  root.appendChild(imported);
+
   const presetRow = div("cg-choices");
   const presetButtons = PRESETS.map(p => choice(p.label, () => h.onPreset(p.id), p.id));
   for (const c of presetButtons) presetRow.appendChild(c.el);
-  root.append(subheading("Size"), presetRow);
+  const presetHead = subheading("Size");
+  root.append(presetHead, presetRow);
 
   const patch = (delta: Partial<SiteConfig>): void => h.onConfig({ ...h.getConfig(), ...delta });
 
@@ -177,7 +234,8 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   const coastRow = div("cg-choices");
   const coastButtons = COASTS.map(c => choice(c.label, () => patch({ coast: c.id }), c.id));
   for (const c of coastButtons) coastRow.appendChild(c.el);
-  root.append(subheading("Coast"), coastRow);
+  const coastHead = subheading("Coast");
+  root.append(coastHead, coastRow);
 
   // River count.
   const countRow = div("cg-choices");
@@ -185,7 +243,8 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
     choice(String(n), () => patch({ rivers: riversOfLength(h.getConfig().rivers, n) }), String(n))
   );
   for (const c of countButtons) countRow.appendChild(c.el);
-  root.append(subheading("Rivers"), countRow);
+  const countHead = subheading("Rivers");
+  root.append(countHead, countRow);
 
   // Shape of the first river.
   const shapeRow = div("cg-choices");
@@ -193,7 +252,8 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
     choice(s.label, () => patch({ rivers: withFirstShape(h.getConfig().rivers, s.id) }), s.id)
   );
   for (const c of shapeButtons) shapeRow.appendChild(c.el);
-  root.append(subheading("River shape"), shapeRow);
+  const shapeHead = subheading("River shape");
+  root.append(shapeHead, shapeRow);
 
   // Relief + randomize.
   const reliefRow = div("cg-check-row");
@@ -205,11 +265,22 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   reliefRow.appendChild(reliefLabel);
   root.appendChild(reliefRow);
 
-  const randomize = document.createElement("button");
-  randomize.type = "button";
-  randomize.textContent = "Randomize site";
-  randomize.addEventListener("click", h.onRandomize);
+  const randomize = button("Randomize site", h.onRandomize);
   root.appendChild(randomize);
+
+  // Everything above that only makes sense for the synthetic path.
+  const synthOnly = [
+    presetHead,
+    presetRow,
+    coastHead,
+    coastRow,
+    countHead,
+    countRow,
+    shapeHead,
+    shapeRow,
+    reliefRow,
+    randomize
+  ];
 
   const seedField = div("cg-field");
   const seedLabel = document.createElement("label");
@@ -226,14 +297,12 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   seedField.appendChild(seedLabel);
   root.appendChild(seedField);
 
-  const generate = document.createElement("button");
-  generate.type = "button";
+  const generate = button("Generate", h.onGenerate);
   generate.className = "cg-generate";
-  generate.textContent = "Generate";
-  generate.addEventListener("click", h.onGenerate);
   root.appendChild(generate);
 
   const sync = (): void => {
+    const mode = h.getMode();
     const cfg = h.getConfig();
     seedInput.value = h.getSeed();
     for (const c of presetButtons) c.el.classList.toggle("is-active", c.key === h.getPreset());
@@ -245,9 +314,36 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
       c.el.disabled = cfg.rivers.length === 0;
     }
     relief.checked = cfg.relief;
+
+    const isImported = mode.kind === "imported";
+    imported.style.display = isImported ? "grid" : "none";
+    for (const node of synthOnly) node.style.display = isImported ? "none" : "";
+    if (isImported) importedText.replaceChildren(...describeDescriptor(mode.descriptor, mode.origin));
   };
   sync();
   return { root, sync };
+}
+
+/** Compact lines summarising what was imported — for the "does it fit the map?" check. */
+function describeDescriptor(d: BurgSiteDescriptor, origin: IncomingOrigin): Node[] {
+  const water = d.waterbody ? `${d.waterbody.kind}${d.waterbody.isPort ? " · port" : ""}` : "none";
+  const rows: [string, string][] = [
+    [origin === "world" ? "From world map" : "From shared link", d.burg.name || "(unnamed burg)"],
+    ["Population", d.burg.population.toLocaleString()],
+    ["Radius", `${Math.round(d.frame.cityRadiusMeters)} m`],
+    ["Coast", water],
+    ["Rivers", String(d.rivers.length)],
+    ["Gates", String(d.suggestedGates)]
+  ];
+  return rows.map(([k, v]) => {
+    const line = div("cg-imported-row");
+    const key = document.createElement("span");
+    key.textContent = k;
+    const val = document.createElement("strong");
+    val.textContent = v;
+    line.append(key, val);
+    return line;
+  });
 }
 
 /** Grow / shrink the river list to `n`, keeping existing shapes; new slots = "through". */
@@ -413,6 +509,24 @@ function choice<K extends string>(label: string, onClick: () => void, key: K): {
   el.textContent = label;
   el.addEventListener("click", onClick);
   return { el, key };
+}
+
+function button(label: string, onClick: () => void): HTMLButtonElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.textContent = label;
+  el.addEventListener("click", onClick);
+  return el;
+}
+
+/** Briefly swap a button's label to signal an async action's outcome. */
+function flash(btn: HTMLButtonElement, text: string): void {
+  const original = btn.dataset.label ?? btn.textContent ?? "";
+  btn.dataset.label = original;
+  btn.textContent = text;
+  window.setTimeout(() => {
+    btn.textContent = btn.dataset.label ?? original;
+  }, 1200);
 }
 
 function rangeInput(): HTMLInputElement {

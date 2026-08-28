@@ -408,6 +408,26 @@ export const burgEditorActions = {
       .catch(() => tip("Failed to copy the site input to clipboard", false, "error"));
   },
 
+  openCityGenerator(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const descriptor = getBurgSiteDescriptor(burgId);
+    if (!descriptor) {
+      tip("Cannot build the site descriptor for this burg", false, "error");
+      return;
+    }
+    try {
+      // Handed to the City Generator page (src/city-generator/site/incomingSite.ts,
+      // key CITY_SITE_KEY). window.open below spawns a fresh same-origin tab, which
+      // inherits a copy of this sessionStorage — so each burg's hand-off is
+      // independent and a reload of the city tab keeps showing the same burg.
+      sessionStorage.setItem("fmg.citySite", JSON.stringify(descriptor));
+    } catch {
+      tip("Could not stash the site descriptor (storage blocked)", false, "error");
+      return;
+    }
+    openURL(`${import.meta.env.BASE_URL}city/`);
+  },
+
   setCustomPreview(): void {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
