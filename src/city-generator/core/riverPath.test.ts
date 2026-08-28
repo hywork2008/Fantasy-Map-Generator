@@ -46,15 +46,21 @@ describe("walkRiver", () => {
     }
   });
 
-  it("smooths the chain without pulling far off it, staying in the corridor", () => {
+  it("smooths the chain, keeps it near the corridor, and runs it to the map edge", () => {
     const { graph, corridor, widths } = fixture();
     const river = walkRiver(graph, corridor, widths, null, null, PARAMS.cellSizeMeters, 1500, makeRng("w1"));
 
-    expect(river.smoothPoints).toHaveLength(river.edgePoints.length);
-    const maxDrift = Math.max(
-      ...river.smoothPoints.map((p, i) => Math.hypot(p[0] - river.edgePoints[i][0], p[1] - river.edgePoints[i][1]))
-    );
-    expect(maxDrift).toBeLessThan(PARAMS.cellSizeMeters);
+    // Landlocked: the drawn centreline is the smoothed graph chain, with each end
+    // finalised so it reaches the map edge (within ~1 cell — the "resolved" band).
+    const HALF = 1500;
+    const edgeGap = (p: readonly number[]): number => Math.min(HALF - Math.abs(p[0]), HALF - Math.abs(p[1]));
+    expect(edgeGap(river.smoothPoints[0])).toBeLessThan(PARAMS.cellSizeMeters * 1.6);
+    expect(edgeGap(river.smoothPoints[river.smoothPoints.length - 1])).toBeLessThan(PARAMS.cellSizeMeters * 1.6);
+    expect(river.smoothPoints.length).toBeGreaterThanOrEqual(river.edgePoints.length);
+
+    // Smoothing and the edge extension never pull the centreline far off the corridor.
+    const maxToCorridor = Math.max(...river.smoothPoints.map(p => nearestOnPolyline(p, corridor).dist));
+    expect(maxToCorridor).toBeLessThan(PARAMS.cellSizeMeters * 3);
 
     const meanToCorridor =
       river.edgePoints.reduce((s, p) => s + nearestOnPolyline(p, corridor).dist, 0) / river.edgePoints.length;

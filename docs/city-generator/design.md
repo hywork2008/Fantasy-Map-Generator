@@ -219,14 +219,16 @@ descriptor が与えるのは**ラフなコリドー**（数点の制御点）�
    接し、それより先へは伸びない。全区間が海上なら河川ごと drop。
 4. `smoothPath`（窓平均 3 回）で均す = `RiverPath.points`。海に入る**内部**頂点は元の陸頂点へ
    スナップし戻す（河口頂点は残す）。幅は descriptor から各頂点へ再サンプル。
-5. 分類（`classifyRiver`、`edgePoints` に対して）:
-   - `water`: 重心が `edgePoints` から `max(幅/2, セルサイズ×0.5)` 以内。
+5. 分類（`classifyRiver`、`edgePoints` に対して）── **岸（bank）分割のみ**:
+   - 河川はセル辺の帯として描くだけで、**セルに `water` タグは付けない**（辺に描いた河を
+     セルの塗りで二重表現しても無意味なため。旧 `water` 集合は撤去）。
    - 岸（bank）: 重心リンクが**全河川の** `edgePoints` を跨ぐ隣接を切る → **原点を含む成分 = 0（主市街）**。
      「2 河川に挟まれた都市」= 原点が中央の細成分に落ちる。`cityBank` ヒューリスティックは撤去（M2.5）。
 
 #### S3 — 市街セル（`classifyUrban.ts`）
 
-1. `land`（非 `water` / 非 `sea`）かつ原点成分の中心セルから外向きに flood-fill。
+1. `land`（非 `sea`）かつ原点成分の中心セルから外向きに flood-fill（river は bank 分割で
+   越えられないので `water` 除外は不要）。
 2. 受理条件：`reach(cell) < cityRadiusMeters`。`reach` は内陸なら円距離、**海岸がある場合は
    海岸線接線方向に伸びた楕円距離**（沿岸方向 1.9R、内陸方向 0.72R）── 海岸都市は帯状。
    `roads[].entryAzimuthDeg` 方向のセルにボーナス。

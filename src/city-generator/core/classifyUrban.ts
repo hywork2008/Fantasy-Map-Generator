@@ -1,5 +1,5 @@
 // S3 — urban core. Flood-fill the built-up area outward from the town centre over
-// eligible cells (land, dry, on the main bank), bounded by the city radius but
+// eligible cells (land, on the main bank), bounded by the city radius but
 // pulled toward gate bearings so the fabric reaches the roads. On a coast the
 // bound is an ELLIPSE elongated along the shoreline — a coastal city is a ribbon
 // along the shore, not a disc. A thin `outskirts` ribbon follows each road.
@@ -10,7 +10,6 @@ import type { Cell, Point } from "./types";
 
 export interface UrbanContext {
   sea: Set<number>;
-  water: Set<number>;
   /** land cell id → bank component (0 = city side). */
   bank: Map<number, number>;
 }
@@ -38,7 +37,7 @@ export function classifyUrban(
   const urban = new Set<number>();
   const outskirts = new Set<number>();
 
-  const eligible = (c: Cell): boolean => !ctx.sea.has(c.id) && !ctx.water.has(c.id) && (ctx.bank.get(c.id) ?? 0) === 0;
+  const eligible = (c: Cell): boolean => !ctx.sea.has(c.id) && (ctx.bank.get(c.id) ?? 0) === 0;
 
   // Distance metric: circular inland, elliptical (shore-elongated) on a coast.
   const reach = (c: Cell): number => {

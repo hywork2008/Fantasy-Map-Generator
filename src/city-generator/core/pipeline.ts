@@ -32,7 +32,6 @@ export function generateCity(params: CityParams, geo: CityGeography = EMPTY_GEO)
   const cells = gridStages[gridStages.length - 1].cells;
   const graph = buildEdgeGraph(cells);
   const half = params.extentMeters / 2;
-  const minBand = params.cellSizeMeters * 0.5;
 
   // S1 — coastline walk → sea cells.
   const coast = geo.coast
@@ -67,21 +66,21 @@ export function generateCity(params: CityParams, geo: CityGeography = EMPTY_GEO)
     .filter(r => !r.band.fallback);
   const riverPaths: RiverPath[] = routed.map(r => ({
     points: r.band.smoothPoints,
+    edgeTrack: r.band.edgePoints,
     widths: r.band.widths,
     cityBank: r.cityBank
   }));
   const river = classifyRiver(
     cells,
     sea,
-    routed.map(r => ({ edgePoints: r.band.edgePoints, widths: r.band.widths, cityBank: r.cityBank })),
-    minBand
+    routed.map(r => ({ edgePoints: r.band.edgePoints }))
   );
 
   // Local shoreline tangent at the town — the built-up area elongates along it.
   const shoreTangent = coast ? shorelineTangent(coast.shoreline) : null;
   const { urban, outskirts } = classifyUrban(
     cells,
-    { sea, water: river.water, bank: river.bank },
+    { sea, bank: river.bank },
     geo.roadBearings,
     params.cityRadiusMeters,
     shoreTangent
@@ -89,7 +88,6 @@ export function generateCity(params: CityParams, geo: CityGeography = EMPTY_GEO)
 
   const finalTag = (c: Cell): CellTag => {
     if (sea.has(c.id)) return "sea";
-    if (river.water.has(c.id)) return "water";
     if (urban.has(c.id)) return "urban";
     if (outskirts.has(c.id)) return "outskirts";
     return "rural";
@@ -101,13 +99,7 @@ export function generateCity(params: CityParams, geo: CityGeography = EMPTY_GEO)
   const steps: Snapshot[] = [
     snapshot("S0 · Grid", cells, () => "land", [], []),
     snapshot("S1 · Sea & land", cells, c => (sea.has(c.id) ? "sea" : "land"), [], shorelineOverlay),
-    snapshot(
-      "S2 · River",
-      cells,
-      c => (sea.has(c.id) ? "sea" : river.water.has(c.id) ? "water" : "land"),
-      riverSnapshotPaths,
-      shorelineOverlay
-    ),
+    snapshot("S2 · River", cells, c => (sea.has(c.id) ? "sea" : "land"), riverSnapshotPaths, shorelineOverlay),
     snapshot("S3 · Urban core", cells, finalTag, riverSnapshotPaths, [
       ...shorelineOverlay,
       ...gateBearingOverlays(geo.roadBearings, params.cityRadiusMeters)

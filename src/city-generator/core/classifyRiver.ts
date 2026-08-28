@@ -1,50 +1,29 @@
 // S2 — river classification, given a river already routed onto the cell-edge
-// graph by riverPath.ts:
-//  - `water` cells: centroid within half the local width (or a floor band) of
-//    the on-edge polyline.
-//  - bank split: land cells, adjacency broken where the centroid-to-centroid
-//    link crosses the on-edge polyline. `bank` component 0 = the `cityBank` side.
+// graph by riverPath.ts. The river is drawn as a band on the cell edges, so no
+// cell is tagged as "river water"; the only structural effect is the bank split:
+//  - land cells, adjacency broken where the centroid-to-centroid link crosses
+//    the on-edge polyline. `bank` component 0 = the side the burg sits on.
 // See docs/city-generator/design.md §4.
 
-import { nearestOnPolyline, polylineCrossesSegment } from "./geom";
+import { polylineCrossesSegment } from "./geom";
 import type { Cell, Point } from "./types";
 
 export interface RiverBand {
   /** Polyline that lies on Voronoi cell edges (riverPath.ts `edgePoints`). */
   edgePoints: Point[];
-  /** Full width per `edgePoints` vertex. */
-  widths: number[];
-  cityBank: "left" | "right";
 }
 
 export interface RiverClassification {
-  /** Cells the river runs over — no buildings here. */
-  water: Set<number>;
-  /** land cell id → bank component; 0 = the `cityBank` side. Sea / water omitted. */
+  /** land cell id → bank component; 0 = the burg's side. Sea cells omitted. */
   bank: Map<number, number>;
 }
 
-export function classifyRiver(
-  cells: Cell[],
-  sea: Set<number>,
-  rivers: RiverBand[],
-  minBandMeters: number
-): RiverClassification {
-  const water = new Set<number>();
-  for (const river of rivers) {
-    for (const cell of cells) {
-      if (sea.has(cell.id) || water.has(cell.id)) continue;
-      const hit = nearestOnPolyline(cell.centroid, river.edgePoints);
-      const halfWidth = (river.widths[Math.min(hit.segIndex, river.widths.length - 1)] ?? 0) / 2;
-      if (hit.dist <= Math.max(halfWidth, minBandMeters)) water.add(cell.id);
-    }
-  }
-
-  return { water, bank: splitBanks(cells, sea, water, rivers) };
+export function classifyRiver(cells: Cell[], sea: Set<number>, rivers: RiverBand[]): RiverClassification {
+  return { bank: splitBanks(cells, sea, rivers) };
 }
 
-function splitBanks(cells: Cell[], sea: Set<number>, water: Set<number>, rivers: RiverBand[]): Map<number, number> {
-  const land = cells.filter(c => !sea.has(c.id) && !water.has(c.id));
+function splitBanks(cells: Cell[], sea: Set<number>, rivers: RiverBand[]): Map<number, number> {
+  const land = cells.filter(c => !sea.has(c.id));
   const landSet = new Set(land.map(c => c.id));
   const byId = new Map(cells.map(c => [c.id, c]));
   const comp = new Map<number, number>();

@@ -6,7 +6,7 @@
 // render north-up.
 
 import type { GenerationResult, Overlay, Point, SnapshotPath } from "../core/types";
-import { GATE, PALETTE, RIVER, SHORELINE, TAG_FILL } from "./palette";
+import { GATE, PALETTE, RIVER, RIVER_TRACK, SHORELINE, TAG_FILL } from "./palette";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -66,6 +66,11 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
     }
     gridWrap.appendChild(g);
   });
+  // River overlay, always visible in the grid family so the Grid-evolution slider
+  // can be scrubbed against it: the walk ran on the LAST Lloyd stage's edge graph,
+  // so the raw track traces that mesh's edges and floats free of the earlier
+  // stages — that offset IS the river↔grid relationship to inspect.
+  gridWrap.appendChild(riverTrackOverlay(result, half, opts.showSites));
   viewport.appendChild(gridWrap);
 
   // --- drawing-process family (S0 grid → S3 urban) ---
@@ -78,7 +83,12 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
       g.appendChild(cellPath(cell.polygon, TAG_FILL[cell.tag] ?? PALETTE.cell, half));
     }
     for (const path of step.paths) {
-      for (const stroke of bandStrokes(path, half)) g.appendChild(stroke);
+      g.appendChild(bandStroke(path, half));
+    }
+    // Optional: the on-edge spine under the river band, so "the band follows the
+    // cell edges" is checkable in the drawing-process view too.
+    if (opts.showSites && step.paths.some(p => p.kind === "river")) {
+      for (const river of result.riverPaths) g.appendChild(edgeTrackLine(river.edgeTrack, half, 340, 0.5));
     }
     for (const overlay of step.overlays) g.appendChild(overlayNode(overlay, half));
     stepWrap.appendChild(g);
@@ -129,15 +139,59 @@ function cellPath(poly: Point[], fill: string, half: number): SVGElement {
   });
 }
 
-/** A wide path drawn as two stacked strokes (dark outline + lighter fill). */
-function bandStrokes(path: SnapshotPath, half: number): [SVGElement, SVGElement] {
+/** The river as a single wide stroke on the cell edges — no outline, so
+ * confluences and the sea mouth (where it meets sea cells) read cleanly. */
+function bandStroke(path: SnapshotPath, half: number): SVGElement {
   const width = Math.max(path.widths.reduce((a, b) => a + b, 0) / Math.max(path.widths.length, 1), half / 60);
-  const d = polylineData(path.points);
-  const common = { d, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" };
-  return [
-    el("path", { ...common, stroke: RIVER.outline, "stroke-width": width + half / 90 }),
-    el("path", { ...common, stroke: RIVER.fill, "stroke-width": width })
-  ];
+  return el("path", {
+    d: polylineData(path.points),
+    fill: "none",
+    stroke: RIVER.fill,
+    "stroke-width": width,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  });
+}
+
+/** Inspection overlay for the Grid-evolution view (design §4.3): per river, the
+ * smoothed drawn centerline (dashed), the raw on-edge walk it came from, and —
+ * when sites are shown — a node dot per cell-edge vertex. Plus the shoreline for
+ * context. Sits on top of the bare mesh; unaffected by the stage slider. */
+function riverTrackOverlay(result: GenerationResult, half: number, withNodes: boolean): SVGElement {
+  const g = el("g", { class: "cg-grid-river" });
+  if (result.shoreline) g.appendChild(overlayNode({ kind: "shoreline", points: result.shoreline }, half));
+  for (const river of result.riverPaths) {
+    g.appendChild(
+      el("path", {
+        d: polylineData(river.points),
+        fill: "none",
+        stroke: RIVER_TRACK.smooth,
+        "stroke-width": half / 320,
+        "stroke-dasharray": `${half / 90} ${half / 150}`,
+        "stroke-linecap": "round",
+        opacity: "0.9"
+      })
+    );
+    g.appendChild(edgeTrackLine(river.edgeTrack, half, 240, 1));
+    if (withNodes) {
+      for (const [x, y] of river.edgeTrack) {
+        g.appendChild(el("circle", { cx: x, cy: -y, r: half / 300, fill: RIVER_TRACK.node }));
+      }
+    }
+  }
+  return g;
+}
+
+function edgeTrackLine(points: Point[], half: number, widthDivisor: number, opacity: number): SVGElement {
+  return el("path", {
+    d: polylineData(points),
+    fill: "none",
+    stroke: RIVER_TRACK.track,
+    "stroke-width": half / widthDivisor,
+    "stroke-linejoin": "round",
+    "stroke-linecap": "round",
+    opacity: String(opacity)
+  });
 }
 
 function overlayNode(overlay: Overlay, half: number): SVGElement {

@@ -77,44 +77,41 @@ describe("pipeline S0–S3", () => {
     }
   );
 
-  it.each(["a", "b", "c", "d"])(
-    "through river (seed %s): a water band forms and the urban core is one blob on the town bank",
-    seed => {
-      const { site, result } = run(RIVER, seed);
-      const river = site.rivers[0];
-      const centerline = result.riverPaths[0].points;
-      const R = result.params.cityRadiusMeters;
+  it.each(["a", "b", "c", "d"])("through river (seed %s): the urban core is one blob on the town bank", seed => {
+    const { site, result } = run(RIVER, seed);
+    const river = site.rivers[0];
+    const centerline = result.riverPaths[0].points;
+    const R = result.params.cityRadiusMeters;
 
-      expect(result.steps[2].cells.filter(c => c.tag === "water").length).toBeGreaterThan(4);
-      expect(Math.abs(nearestOnPolyline([0, 0], centerline).dist - river.offsetMeters)).toBeLessThan(R * 0.4);
+    expect(result.riverPaths).toHaveLength(1);
+    expect(Math.abs(nearestOnPolyline([0, 0], centerline).dist - river.offsetMeters)).toBeLessThan(R * 0.4);
 
-      // Strong invariant: the urban cells are one connected component — the core
-      // never jumps the river.
-      const byId = new Map(result.cells.map(c => [c.id, c]));
-      const idxById = new Map(result.cells.map((c, i) => [c.id, i]));
-      const isUrban = (id: number): boolean => result.steps[3].cells[idxById.get(id) as number].tag === "urban";
-      const urbanIds = result.cells.filter(c => isUrban(c.id)).map(c => c.id);
-      const seen = new Set<number>([urbanIds[0]]);
-      const queue = [urbanIds[0]];
-      while (queue.length > 0) {
-        const c = byId.get(queue.pop() as number) as (typeof result.cells)[number];
-        for (const n of c.neighbors) {
-          if (isUrban(n) && !seen.has(n)) {
-            seen.add(n);
-            queue.push(n);
-          }
+    // Strong invariant: the urban cells are one connected component — the core
+    // never jumps the river.
+    const byId = new Map(result.cells.map(c => [c.id, c]));
+    const idxById = new Map(result.cells.map((c, i) => [c.id, i]));
+    const isUrban = (id: number): boolean => result.steps[3].cells[idxById.get(id) as number].tag === "urban";
+    const urbanIds = result.cells.filter(c => isUrban(c.id)).map(c => c.id);
+    const seen = new Set<number>([urbanIds[0]]);
+    const queue = [urbanIds[0]];
+    while (queue.length > 0) {
+      const c = byId.get(queue.pop() as number) as (typeof result.cells)[number];
+      for (const n of c.neighbors) {
+        if (isUrban(n) && !seen.has(n)) {
+          seen.add(n);
+          queue.push(n);
         }
       }
-      expect(seen.size).toBe(urbanIds.length);
-
-      // Soft: the majority of the core sits on the descriptor's bank.
-      const wantLeft = river.cityBank === "left";
-      const onBank = result.cells
-        .filter(c => isUrban(c.id))
-        .filter(c => sideOfPolyline(c.centroid, centerline) > 0 === wantLeft).length;
-      expect(onBank / seen.size).toBeGreaterThan(0.55);
     }
-  );
+    expect(seen.size).toBe(urbanIds.length);
+
+    // Soft: the majority of the core sits on the descriptor's bank.
+    const wantLeft = river.cityBank === "left";
+    const onBank = result.cells
+      .filter(c => isUrban(c.id))
+      .filter(c => sideOfPolyline(c.centroid, centerline) > 0 === wantLeft).length;
+    expect(onBank / seen.size).toBeGreaterThan(0.55);
+  });
 
   it("two through rivers: the town sits in the component between them", () => {
     const { result } = run({ coast: "none", rivers: ["through", "through"], relief: false }, "between");

@@ -107,10 +107,95 @@ export function walkRiver(
 
   const rawSmooth = smoothPath(edgePoints, SMOOTH_ITERATIONS);
   // Smoothing must not push an INTERIOR vertex into the sea (the mouth may sit in it).
-  const smoothPoints = waterPolygon
+  const clamped = waterPolygon
     ? rawSmooth.map((p, i) => (i < rawSmooth.length - 1 && pointInPolygon(p, waterPolygon) ? edgePoints[i] : p))
     : rawSmooth;
+
+  // INVARIANT: both ends of the drawn centreline must be RESOLVED — within ~1
+  // cell of a map edge, or in / at the sea. The walk often stops a little short
+  // of that. finalizeEnds snaps each end to whichever (edge or shoreline) it can
+  // reach with a short, grid-respecting step; if an end can reach neither, the
+  // river is not viable for this geography and the whole thing is dropped.
+  const finalized = finalizeEnds(clamped, halfExtentMeters, cellSizeMeters, waterPolygon, shoreline);
+  if (!finalized) return dead;
+  // A snapped end can, rarely, cross a nearby bend — clear it the same way.
+  const smoothPoints = exciseLoops(finalized, cellSizeMeters);
+  if (smoothPoints.length < 3) return dead;
+
   return { edgePoints, smoothPoints, widths: resampleWidths(smoothPoints, corridor, widths), fallback: false };
+}
+
+/**
+ * Enforce the endpoint invariant. Each end independently: keep it if already
+ * resolved (near a map edge, or in/at the sea); else snap it to the nearest of
+ * {map edge, shoreline} that is within `REACH` and reachable without crossing
+ * water; else the river is unviable — return null so the caller drops it.
+ */
+function finalizeEnds(
+  points: Point[],
+  half: number,
+  cell: number,
+  waterPolygon: Point[] | null,
+  shoreline: Point[] | null
+): Point[] | null {
+  if (points.length < 3) return null;
+  // "Already there" is a fraction of a cell — the river's own stroke width. The
+  // walk routinely stops ~1 cell shy of its goal; a 1-cell gap to the map edge
+  // reads clearly as "the river doesn't reach the edge", so it must be snapped.
+  const RESOLVED = cell * 0.4;
+  // A perpendicular bridge to a map EDGE is a visible straight run that ignores
+  // the cell grid, so keep it short. Snapping a near-shore end ONTO the coastline
+  // just moves the mouth onto the water's edge — no straight run — so that can
+  // reach further.
+  const REACH_EDGE = cell * 5;
+  const REACH_SEA = cell * 9;
+
+  const edgeGap = (p: Point): number => Math.min(half - Math.abs(p[0]), half - Math.abs(p[1]));
+  const seaGap = (p: Point): number =>
+    waterPolygon == null
+      ? Number.POSITIVE_INFINITY
+      : shoreline && shoreline.length >= 2
+        ? nearestOnPolyline(p, shoreline).dist
+        : Number.POSITIVE_INFINITY;
+  const inSea = (p: Point): boolean => waterPolygon != null && pointInPolygon(p, waterPolygon);
+  const dryPath = (a: Point, b: Point): boolean => {
+    if (waterPolygon == null) return true;
+    for (let s = 0; s <= 4; s++) {
+      const p: Point = [a[0] + ((b[0] - a[0]) * s) / 4, a[1] + ((b[1] - a[1]) * s) / 4];
+      if (pointInPolygon(p, waterPolygon)) return false;
+    }
+    return true;
+  };
+
+  /** null = drop river; the point = new tip to prepend/append; undefined = keep as-is. */
+  const resolve = (tip: Point): Point | null | undefined => {
+    if (inSea(tip) || edgeGap(tip) < RESOLVED) return undefined;
+    const eg = edgeGap(tip);
+    const sg = seaGap(tip);
+    // already at the coast — snap exactly onto the shoreline so it reads as a mouth
+    if (sg < RESOLVED && shoreline && shoreline.length >= 2) return nearestOnPolyline(tip, shoreline).point;
+    // nearest map edge, perpendicular (never a long oblique bridge). A landlocked
+    // river MUST span the map, so it always takes this branch regardless of gap.
+    if (waterPolygon == null || (eg <= REACH_EDGE && eg <= sg)) {
+      const gx = half - Math.abs(tip[0]);
+      const gy = half - Math.abs(tip[1]);
+      const edge: Point =
+        gx < gy ? [Math.sign(tip[0]) * half || half, tip[1]] : [tip[0], Math.sign(tip[1]) * half || half];
+      if (dryPath(tip, edge)) return edge;
+    }
+    // else snap onto the shoreline if close-ish — terminates the river at the coast
+    if (sg <= REACH_SEA && shoreline && shoreline.length >= 2) return nearestOnPolyline(tip, shoreline).point;
+    return null;
+  };
+
+  const out = points.map(p => [p[0], p[1]] as Point);
+  const head = resolve(out[0]);
+  if (head === null) return null;
+  if (head) out.unshift(head);
+  const tail = resolve(out[out.length - 1]);
+  if (tail === null) return null;
+  if (tail) out.push(tail);
+  return out;
 }
 
 /**

@@ -3,7 +3,9 @@
 // M2.5: standalone. Composable site config (coast shape × 0..2 rivers × relief) +
 // size preset + seed drive a synthetic BurgSiteDescriptor; the pipeline runs
 // S0–S3. Two sliders: "Drawing process" (S0 grid → S3 urban) with
-// First/Prev/Next/Last, and "Grid evolution" over the S0 Lloyd passes.
+// First/Prev/Next/Last, and "Grid evolution" over the S0 Lloyd passes — the
+// latter keeps the river track overlaid (svg.ts riverTrackOverlay) so the
+// river↔grid binding stays visible while scrubbing the passes.
 // FMG descriptor import lands in M3 (docs/city-generator/design.md §7).
 
 import { generateCity } from "../core/pipeline";
@@ -338,7 +340,7 @@ function buildProcessPanel(h: ProcessHandlers): { root: HTMLElement; sync(): voi
   const sites = document.createElement("input");
   sites.type = "checkbox";
   sites.addEventListener("change", h.onToggleSites);
-  sitesLabel.append(sites, document.createTextNode(" Show sites (grid)"));
+  sitesLabel.append(sites, document.createTextNode(" Show sites + river edge-track"));
   sitesRow.appendChild(sitesLabel);
   root.appendChild(sitesRow);
 

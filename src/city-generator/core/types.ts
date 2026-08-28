@@ -41,14 +41,20 @@ export interface GridStage {
   cells: Cell[];
 }
 
-/** Classification a cell carries in a pipeline snapshot. */
-export type CellTag = "land" | "sea" | "water" | "urban" | "outskirts" | "rural";
+/** Classification a cell carries in a pipeline snapshot. The river is drawn as a
+ * band on the cell edges, not by tagging cells — there is no "river water" tag. */
+export type CellTag = "land" | "sea" | "urban" | "outskirts" | "rural";
 
 /** A river as a wide "road" walked along the Voronoi cell-edge graph (design §4.1),
  * smoothed for drawing. Stops where it first meets the sea. */
 export interface RiverPath {
   /** Centerline polyline, local meters, upstream → downstream (mouth). */
   points: Point[];
+  /** Raw walk before smoothing: the chain of actual final-grid cell-edge vertices
+   * `points` was smoothed from. Every consecutive pair is a real cell edge — this
+   * is what "the river lies on the grid" means, so it is drawn as an inspection
+   * overlay (the smoothed `points` drift up to ~1 cell off it). */
+  edgeTrack: Point[];
   /** Per-vertex full width, meters (index-aligned with `points`). */
   widths: number[];
   cityBank: "left" | "right";

@@ -89,7 +89,10 @@ export function synthSite(preset: PresetId, config: SiteConfig, seed: string): B
       meanderScale: 1
     };
   });
-  const rivers = placements.map((p, i) => synthRiver(rng, p, i + 1, half, cityRadiusMeters, waterbody));
+  // Corridor half-length along the flow axis — just past the window edge so edge
+  // cells still have corridor to project onto.
+  const riverSpan = half * 1.12;
+  const rivers = placements.map((p, i) => synthRiver(rng, p, i + 1, half, cityRadiusMeters, waterbody, riverSpan));
 
   const roads = synthRoads(rng, half, roadBearings(rng, config, waterbody?.shoreAzimuthDeg ?? null, rivers));
 
@@ -367,13 +370,29 @@ function bendCorridor(
   return pts;
 }
 
+/** Move `tip` along the direction `inward → tip` until it meets the [-half,half]²
+ * window boundary (extending out, or pulling a too-far corner point back in). */
+function toWindowEdge(tip: Point, inward: Point, half: number): Point {
+  let dx = tip[0] - inward[0];
+  let dy = tip[1] - inward[1];
+  const len = Math.hypot(dx, dy) || 1;
+  dx /= len;
+  dy /= len;
+  let t = Number.POSITIVE_INFINITY;
+  if (Math.abs(dx) > 1e-6) t = Math.min(t, (Math.sign(dx) * half - tip[0]) / dx);
+  if (Math.abs(dy) > 1e-6) t = Math.min(t, (Math.sign(dy) * half - tip[1]) / dy);
+  // t < 0 means the tip is already outside along this heading — pull it back.
+  return Number.isFinite(t) ? [tip[0] + dx * t, tip[1] + dy * t] : tip;
+}
+
 function synthRiver(
   rng: Rng,
   placement: RiverPlacement,
   id: number,
   half: number,
   R: number,
-  waterbody: BurgSiteWaterbody | null
+  waterbody: BurgSiteWaterbody | null,
+  span: number
 ): BurgSiteRiver {
   // A MEANDERING CORRIDOR: source → … → mouth, sampled along the flow axis with a
   // tapered sine-sum lateral offset (meanderCorridor). The pipeline walk snaps it
@@ -383,7 +402,6 @@ function synthRiver(
     placement.shape === "toCoast" && waterbody ? waterbody.shoreAzimuthDeg : ((placement.axisDeg % 360) + 360) % 360;
   const flow = azimuthToVec(flowAz);
   const perp: Point = [-flow[1], flow[0]];
-  const span = half * 1.35;
   // `toCoast` carries no authored offset — nudge the channel just off the town
   // (random bank) so it isn't bisected; the rest use their placement offset.
   const shift =
@@ -396,7 +414,7 @@ function synthRiver(
   const nearLimit = placement.shape === "beside" ? Math.max(townClear, Math.abs(shift) * 0.6) : townClear;
 
   const seaward = waterbody ? azimuthToVec(waterbody.shoreAzimuthDeg) : null;
-  const corridor =
+  const raw =
     placement.shape === "greatBend"
       ? bendCorridor(rng, flow, perp, shift, span, R, nearLimit, seaward)
       : meanderCorridor(
@@ -410,6 +428,16 @@ function synthRiver(
           nearLimit,
           meanderProfileFor(placement.shape)
         );
+  // Land each end of the corridor EXACTLY on the window boundary along its own
+  // direction, so a river always enters / leaves at a map edge. A raw endpoint
+  // aimed diagonally sits several cells inside the nearest edge even though it is
+  // far out radially — the walk then starts there and the river never reaches the
+  // edge. (`toCoast` / seaward mouths land on the edge inside the sea; the walk
+  // still stops at the water and finalizeEnds snaps the mouth to the shore.)
+  const corridor: Point[] = raw.map(p => [p[0], p[1]] as Point);
+  const n = corridor.length;
+  corridor[0] = toWindowEdge(corridor[0], corridor[1], half);
+  corridor[n - 1] = toWindowEdge(corridor[n - 1], corridor[n - 2], half);
   // Town is on the −sign(shift) side; sideOfPolyline(origin) has that sign.
   const cityBank: "left" | "right" = sideOfPolyline([0, 0], corridor) > 0 ? "left" : "right";
 

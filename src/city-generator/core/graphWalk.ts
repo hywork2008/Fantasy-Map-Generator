@@ -46,19 +46,20 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
   const corridorPull = opts.corridorPull ?? 0;
   const corridorFalloff = opts.corridorFalloff ?? 2;
   const maxSteps = opts.maxSteps ?? 400;
-  const arrive = cellSizeMeters * 2;
+  const arrive = cellSizeMeters;
   // Heading alignment dominates the choice; the random term only breaks ties
   // between similarly-aligned edges (so the path heads to the goal but wiggles).
   const ALIGN_WEIGHT = 1.6;
-  // Loop guard: never step back onto the last RECENT_WINDOW nodes. That is what
-  // lets the walk circle around a few cells and tie the river into a knot (the
-  // window is wide enough to also block the looser loops around a sharp corridor
-  // corner). If every neighbour is on that recent trail the walk is boxed in
-  // (typically crowded against the shoreline) — it stops there rather than
-  // spiralling. Rivers never hairpin inside ~20 cells, so nothing legitimate is lost.
-  const RECENT_WINDOW = 20;
+  // Loop guard: heavily penalise stepping back onto the last RECENT_WINDOW nodes
+  // (this is how the walk circles a few cells and knots the river). It is a
+  // penalty, not a hard block, so a walk that is genuinely boxed in still makes
+  // progress toward the goal instead of stopping short of the map edge; any loop
+  // that slips through is cut afterwards by riverPath.exciseLoops.
+  const RECENT_WINDOW = 14;
+  const RECENT_PENALTY = 6;
 
   let current = nearestNode(graph, opts.start);
+  let previous = -1;
   const path = [current];
   const visited = new Set<number>([current]);
 
@@ -75,7 +76,7 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
     let bestTo = -1;
     let bestScore = Number.NEGATIVE_INFINITY;
     for (const { to } of graph.adjacency[current]) {
-      if (recent.has(to)) continue;
+      if (to === previous) continue;
       const there = graph.points[to];
       const ex = there[0] - here[0];
       const ey = there[1] - here[1];
@@ -90,6 +91,7 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
       }
       if (opts.avoid?.has(to)) score -= 3;
       if (visited.has(to)) score -= 1.5;
+      if (recent.has(to)) score -= RECENT_PENALTY;
 
       if (score > bestScore) {
         bestScore = score;
@@ -98,6 +100,7 @@ export function walkGraph(graph: EdgeGraph, opts: WalkOptions): number[] {
     }
     if (bestTo === -1) break;
 
+    previous = current;
     current = bestTo;
     path.push(current);
     visited.add(current);
