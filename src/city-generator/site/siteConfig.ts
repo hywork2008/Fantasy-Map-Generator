@@ -16,8 +16,23 @@ export type CoastShape = "none" | "straight" | "bay" | "cape";
 // elbow at the town).
 export type RiverShape = "through" | "beside" | "toCoast" | "straight" | "meander" | "greatBend";
 
-/** The editable half of CityProgram — `capital` is never synthesised standalone. */
-export type CityFeatureSet = Omit<CityProgram, "capital">;
+/** The editable half of CityProgram — `capital` / `wallPlan` are never set by the
+ * standalone Feature toggles. */
+export type CityFeatureSet = Omit<CityProgram, "capital" | "wallPlan">;
+
+/** Standalone wall-pattern overrides; "auto" defers to the wall-patterns.md §8
+ * matrix (`siteInput.ts` `siteToWallPlan`). M4b exposes the implemented members. */
+export type WallEnvelopeChoice = "auto" | "hull" | "notchFilled";
+export type WallCoastChoice = "auto" | "open" | "seaWall";
+export type WallLineChoice = "auto" | "polygonal" | "organic";
+
+export interface WallChoice {
+  envelope: WallEnvelopeChoice;
+  coast: WallCoastChoice;
+  line: WallLineChoice;
+}
+
+export const DEFAULT_WALL_CHOICE: WallChoice = { envelope: "auto", coast: "auto", line: "auto" };
 
 export interface SiteConfig {
   coast: CoastShape;
@@ -28,11 +43,16 @@ export interface SiteConfig {
   /** Built programme the standalone user toggles (Port / Walls / …). Written
    * straight onto the synthetic descriptor's `burg.*` flags (synthSite.ts). */
   features: CityFeatureSet;
+  /** Wall-pattern overrides applied on top of the matrix plan (S4 only). */
+  wall: WallChoice;
 }
 
 export const COAST_SHAPES: CoastShape[] = ["none", "straight", "bay", "cape"];
 export const RIVER_SHAPES: RiverShape[] = ["through", "beside", "toCoast", "straight", "meander", "greatBend"];
 export const FEATURE_KEYS: (keyof CityFeatureSet)[] = ["port", "walls", "citadel", "plaza", "temple", "shanty"];
+export const WALL_ENVELOPE_CHOICES: WallEnvelopeChoice[] = ["auto", "hull", "notchFilled"];
+export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall"];
+export const WALL_LINE_CHOICES: WallLineChoice[] = ["auto", "polygonal", "organic"];
 
 /** Plausible initial check state from population — the user is free to change
  * every box once the panel is shown. `port` starts off; the UI raises it when a
@@ -52,14 +72,14 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   coast: "none",
   rivers: ["through"],
   relief: false,
-  features: defaultFeatures(presetPopulation("smallCity"))
+  features: defaultFeatures(presetPopulation("smallCity")),
+  wall: { ...DEFAULT_WALL_CHOICE }
 };
 
-/** A stable string form for RNG seeding / display. Deliberately omits `features`:
- * in M4a they only set descriptor `burg.*` booleans and have no effect on the
- * S0–S3 synth geometry, so folding them in here would only churn the grid /
- * coast / river RNG stream (and the S0–S3 regression net) for no visible gain.
- * A feature that gains a synth-geometry effect later should join this key then. */
+/** A stable string form for RNG seeding / display. Deliberately omits `features`
+ * and `wall`: neither touches the S0–S3 synth geometry, so folding them in would
+ * only churn the grid / coast / river RNG stream (and the S0–S3 regression net)
+ * for no visible gain. */
 export function siteConfigKey(config: SiteConfig): string {
   return `${config.coast}|${config.rivers.join(",") || "-"}|${config.relief ? "relief" : "flat"}`;
 }
@@ -80,5 +100,8 @@ export function randomSiteConfig(rng: Rng): SiteConfig {
     port: coast !== "none" && rng() < 0.7,
     shanty: rng() < 0.35
   };
-  return { coast, rivers, relief: rng() < 0.3, features };
+  // Wall pattern stays on "auto" (the matrix): Randomize varies the SITE, not the
+  // draw style — and `wall` is out of `siteConfigKey`, so rolling it here would
+  // not even be reproducible.
+  return { coast, rivers, relief: rng() < 0.3, features, wall: { ...DEFAULT_WALL_CHOICE } };
 }

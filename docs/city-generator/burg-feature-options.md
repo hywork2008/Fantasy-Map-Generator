@@ -248,26 +248,34 @@ S4 は `walls` に関わらず必ず走る ── 内周ループ `border` と�
 1. **`optimizeJunctions` の移植**（2.2）── 最終グリッドの `Cell.polygon` について辺長
    `< cellSize/6` の隣接頂点を中点に統合し、共有セルの参照を付け替え、重複頂点を除く。
    これを経ないと S7 のセットバックで街路に切れ端・食い違い交差が出る。
-2. **`border` = `urban` セル集合の外周ループ**（`findCircumference` 相当、`Cell.neighbors` で
-   境界辺を一周）。河川が市街を割るなら `classifyRiver` の bank 成分ごとに 1 ループ（`design.md §4.1-4`）。
-3. **門** = descriptor の各 `roads[].path`（無ければ `roadBearings` レイ）が `border` と交わる点。
-   本数を `suggestedGates` に合わせて `border` 頂点を微調整。門頂点の外側セルが 1 個だけなら
+2. **エンベロープ** = `urban` セル集合を囲う単純閉ループ。M4b 初回は外周をそのまま
+   （`findCircumference` 相当、`Cell.neighbors` で境界辺を一周。河川が市街を割るなら bank
+   成分ごとに 1 ループ、`design.md §4.1-4`）だが、`urban` はいびつなので **これを直接なぞると
+   凹んだ長い壁・海側の一様な壁**になる。囲う形（`hull` / `notchFilled` / `sectorPolygon` …）・
+   海岸辺の扱い（`open` / `seaWall` / `harborBasin` …）・壁線の規則性・完全性のオプション体系は
+   **`wall-patterns.md`** に分離。M4b 仕上げで `hull` / `notchFilled` + 海側 `open` + `polygonal` を入れる。
+3. **門** = descriptor の各 `roads[].path`（無ければ `roadBearings` レイ）がループと交わる点。
+   本数を `suggestedGates` に合わせてループ頂点を微調整。門頂点の外側セルが 1 個だけなら
    そのセルを分割して道路用地にする（2.3 手順2）。
-4. `walls: true` → `border` を平滑化（±10%、`reserved` 頂点＝城塞側は動かさない）して `Overlay{wall}` に、
+4. `walls: true` → ループを `wall-patterns.md` の `wallLine` / `wallCoast` に従って描画壁 + 塔に、
    40–70 m 間隔で塔、門脇に一対の塔。川沿いは水門 2 箇所、壁は水域を横断しない。
-   `walls: false` → `border` は不可視境界のまま（描画壁・塔なし）。周縁は outskirts リボンのみ。
+   `walls: false` → ループは不可視境界のまま（描画壁・塔なし。`wallExtent:none` と同義）。
+   周縁は outskirts リボンのみ。`citadel` の内郭リングは `walls` に関わらず描く（§4.2）。
 
 ### 4.2 `citadel`
 
-要塞化された内郭。S4 の `border` に外側から隣接する `land` セルを候補にスコアリング（原点から `0.15R..0.6R`）:
+要塞化された内郭。S4 の `border` に外側から隣接する `land` セル（`sea` は除く。原点から `≥ 0.15R`）を
+候補にスコアリング。TownGeneratorTS 同様「内周のすぐ外側」に置くので上限は設けない
+（`border` ≈ 都市半径なので `0.6R` 上限は付けない）:
 
 | 加点 | 条件 |
 | ---- | ---- |
-| +2.0 | `terrain.heightfield` を centroid でサンプルした標高が近傍極大（`relief` 時に強く効く） |
-| +1.5 | いずれかの river の `edgePoints` 頂点／合流点に隣接（天然の堀） |
-| +1.0 | bearing が「内陸方向」（= 平均 gate 方位の逆、海があれば `shoreAzimuthDeg` の逆）±35° 内 |
-| −1.0 | origin から 0.2R 未満（中心に城は置かない） |
-| −1.0 | plaza / temple アンカーから 2 セル以内 |
+| +2.0 | `terrain.heightfield` を centroid でサンプルした標高が近傍極大（`relief` 時に強く効く）── **未配線**（§12.3） |
+| +1.5 | いずれかの river 折れ線に `≤ 1.2·cellSize`（天然の堀） |
+| +1.0 | bearing が「内陸方向」（= 平均道路方位の逆、海があれば `shoreAzimuthDeg` の逆）±35° 内 |
+| −1.0 | plaza アンカーから `≤ 2·cellSize`（広場と城の取り合いを避ける） |
+
+`< 0.15R` の候補は大きく減点（中心に城は置かない）。同点は cell id 昇順で決定論的に。
 
 argmax のセル + その `neighbors` リング（計 5–9 セル）を `Precinct{citadel}` に。TownGeneratorTS では
 城塞はセル index `nPatches`（`withinCity` だが `withinWalls` ではない＝内周の外側に接するセル）で、

@@ -63,11 +63,13 @@ describe("CityProgram — M4a wiring", () => {
     }
   });
 
-  it("in M4a only `walls` moves the S3 output — citadel/plaza/temple/port/shanty/capital are inert", () => {
+  it("purely-S4/S6 features leave the S0–S3 snapshots unchanged", () => {
+    // `port` is intentionally excluded: like `walls`, it feeds S3 an extra
+    // sea-ward bearing so the built-up area reaches the harbour (design §4.5).
     for (const [name, cfg] of Object.entries(CONFIGS)) {
-      const base = JSON.stringify(run(cfg, "inert"));
-      for (const flag of ["citadel", "plaza", "temple", "port", "shanty", "capital"] as const) {
-        const flipped = JSON.stringify(run(cfg, "inert", { ...DEFAULT_PROGRAM, [flag]: true }));
+      const base = JSON.stringify(run(cfg, "inert").steps.slice(0, 4));
+      for (const flag of ["citadel", "plaza", "temple", "shanty", "capital"] as const) {
+        const flipped = JSON.stringify(run(cfg, "inert", { ...DEFAULT_PROGRAM, [flag]: true }).steps.slice(0, 4));
         expect(flipped, `${name}/${flag}`).toEqual(base);
       }
     }

@@ -5,8 +5,8 @@
 // Local frame is +Y = north; SVG y grows downward, so every y is negated here to
 // render north-up.
 
-import type { GenerationResult, Overlay, Point, SnapshotPath } from "../core/types";
-import { GATE, PALETTE, RIVER, RIVER_TRACK, SHORELINE, TAG_FILL } from "./palette";
+import type { GenerationResult, Overlay, Point, Precinct, SnapshotPath } from "../core/types";
+import { GATE, PALETTE, PRECINCT_FILL, RIVER, RIVER_TRACK, SHORELINE, TAG_FILL, TOWER, WALL } from "./palette";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -81,6 +81,12 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
     g.style.display = i === opts.stepIndex ? "inline" : "none";
     for (const cell of step.cells) {
       g.appendChild(cellPath(cell.polygon, TAG_FILL[cell.tag] ?? PALETTE.cell, half));
+    }
+    for (const precinct of step.precincts) {
+      for (const cellId of precinct.cellIds) {
+        const cell = result.cells.find(c => c.id === cellId);
+        if (cell) g.appendChild(precinctNode(cell.polygon, precinct, half));
+      }
     }
     for (const path of step.paths) {
       g.appendChild(bandStroke(path, half));
@@ -205,6 +211,39 @@ function overlayNode(overlay: Overlay, half: number): SVGElement {
       opacity: "0.8"
     });
   }
+  if (overlay.kind === "wall" || overlay.kind === "citadelWall") {
+    return el("path", {
+      d: polylineData(overlay.points),
+      fill: "none",
+      stroke: WALL,
+      "stroke-width": half / (overlay.kind === "citadelWall" ? 130 : 85),
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round"
+    });
+  }
+  if (overlay.kind === "tower") {
+    const [x, y] = overlay.points[0];
+    return el("circle", {
+      cx: x,
+      cy: -y,
+      r: half / 100,
+      fill: TOWER,
+      stroke: PALETTE.paper,
+      "stroke-width": half / 350
+    });
+  }
+  if (overlay.kind === "gate") {
+    const [x, y] = overlay.points[0];
+    const g = el("g", {});
+    const radius = half / 72;
+    const colour = overlay.water ? RIVER.fill : GATE;
+    g.appendChild(
+      el("circle", { cx: x, cy: -y, r: radius, fill: PALETTE.paper, stroke: colour, "stroke-width": half / 210 })
+    );
+    g.appendChild(el("circle", { cx: x - radius * 1.5, cy: -y, r: radius * 0.45, fill: colour }));
+    g.appendChild(el("circle", { cx: x + radius * 1.5, cy: -y, r: radius * 0.45, fill: colour }));
+    return g;
+  }
   return el("path", {
     d: polylineData(overlay.points),
     fill: "none",
@@ -213,6 +252,18 @@ function overlayNode(overlay: Overlay, half: number): SVGElement {
     "stroke-linecap": "round",
     opacity: "0.85"
   });
+}
+
+function precinctNode(poly: Point[], precinct: Precinct, half: number): SVGElement {
+  const attrs: Record<string, string | number> = {
+    d: polygonData(poly),
+    fill: PRECINCT_FILL[precinct.kind],
+    opacity: precinct.kind === "plaza" ? "0.9" : "0.85",
+    stroke: precinct.kind === "citadel" ? WALL : PALETTE.cellStroke,
+    "stroke-width": half / (precinct.kind === "citadel" ? 150 : 360),
+    "stroke-linejoin": "round"
+  };
+  return el("path", attrs);
 }
 
 function polygonData(poly: Point[]): string {

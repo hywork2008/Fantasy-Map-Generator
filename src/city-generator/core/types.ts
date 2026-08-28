@@ -60,11 +60,71 @@ export interface RiverPath {
   cityBank: "left" | "right";
 }
 
-export type OverlayKind = "shoreline" | "gateBearing";
+export type OverlayKind = "shoreline" | "gateBearing" | "wall" | "citadelWall" | "gate" | "tower";
 
 export interface Overlay {
   kind: OverlayKind;
   points: Point[];
+  /** A port-facing gate; rendered as a water gate rather than a land gate. */
+  water?: boolean;
+}
+
+/** A named, build-free area reserved before streets and wards are generated. */
+export type PrecinctKind = "citadel" | "plaza";
+
+export interface Precinct {
+  kind: PrecinctKind;
+  cellIds: number[];
+  anchor: Point;
+  label: string;
+}
+
+/** Per-edge kind on a wall ring — decides how (and whether) that run is drawn.
+ * See docs/city-generator/wall-patterns.md §6. */
+export type WallSegmentKind = "land" | "coast" | "river" | "citadel";
+
+/**
+ * How S4 shapes and draws the wall ring (docs/city-generator/wall-patterns.md).
+ * M4b implements `envelope` hull|notchFilled, `coast` open|seaWall, `line`
+ * polygonal|organic, `extent` full|none. The remaining members are typed for the
+ * §8 matrix / UI and fall back until M4b.1 (sectorPolygon/denseCore/expanded →
+ * notchFilled, quayWall/harborBasin/setBack → seaWall, geometric → polygonal,
+ * landwardOnly → drop non-land runs, rampart → full).
+ */
+export interface WallPlan {
+  envelope: "hull" | "notchFilled" | "sectorPolygon" | "denseCore" | "expanded";
+  coast: "open" | "quayWall" | "seaWall" | "harborBasin" | "setBack";
+  line: "organic" | "polygonal" | "geometric";
+  extent: "full" | "landwardOnly" | "rampart" | "none";
+  /** Bridge any inward pocket deeper than this × cellSize (envelope step). */
+  notchDepth: number;
+  /** Outer ditch along the land runs. Carried for the matrix; drawn in M4b.1. */
+  moatOnLand: boolean;
+}
+
+export const DEFAULT_WALL_PLAN: WallPlan = {
+  envelope: "notchFilled",
+  coast: "open",
+  line: "polygonal",
+  extent: "full",
+  notchDepth: 3,
+  moatOnLand: false
+};
+
+/** One closed circumference of an urban connected component. `segments[i]` tags
+ * the edge `points[i] → points[(i+1) % n]`; `segments.length === points.length`. */
+export interface BorderLoop {
+  points: Point[];
+  segments: WallSegmentKind[];
+  urbanCellIds: number[];
+}
+
+/** A gate is deliberately a border vertex, ready for S5's graph routing. */
+export interface Gate {
+  point: Point;
+  borderIndex: number;
+  /** The port-facing gate, when the programme has a harbour. */
+  water: boolean;
 }
 
 export interface SnapshotPath {
@@ -79,6 +139,7 @@ export interface Snapshot {
   cells: { polygon: Point[]; tag: CellTag }[];
   paths: SnapshotPath[];
   overlays: Overlay[];
+  precincts: Precinct[];
 }
 
 /** Local geography the pipeline classifies against. The coast/river polylines are
@@ -90,6 +151,10 @@ export interface CityGeography {
   rivers: { corridor: Point[]; widths: number[]; cityBank: "left" | "right" }[];
   /** Gate-candidate road bearings, compass degrees. */
   roadBearings: number[];
+  /** Road centre-lines, used by S4 to choose the corresponding gates. */
+  roadPaths?: Point[][];
+  /** FMG's desired number of land gates. Falls back to road bearings when absent. */
+  suggestedGates?: number;
 }
 
 /**
@@ -117,6 +182,9 @@ export interface CityProgram {
   shanty: boolean;
   /** Capital. A light landmark-rank modifier only. */
   capital: boolean;
+  /** How S4 shapes and draws the wall ring. Absent ⇒ `DEFAULT_WALL_PLAN`.
+   * `site/siteInput.ts` `siteToProgram` fills it from the §8 matrix. */
+  wallPlan?: WallPlan;
 }
 
 export const DEFAULT_PROGRAM: CityProgram = {
@@ -144,4 +212,10 @@ export interface GenerationResult {
   shoreline: Point[] | null;
   /** Closed polygon whose interior is the water, or null when landlocked. */
   waterPolygon: Point[] | null;
+  /** S4 inner perimeters; present even for an unwalled settlement. */
+  borders: BorderLoop[];
+  /** S4 gates on `borders`. */
+  gates: Gate[];
+  /** S4 named inner precincts. */
+  precincts: Precinct[];
 }

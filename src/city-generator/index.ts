@@ -2,17 +2,24 @@
 
 export { generateCity } from "./core/pipeline";
 export {
+  type BorderLoop,
   type Cell,
   type CellTag,
   type CityGeography,
   type CityParams,
   type CityProgram,
   DEFAULT_PROGRAM,
+  DEFAULT_WALL_PLAN,
+  type Gate,
   type GenerationResult,
   type GridStage,
   type Point,
+  type Precinct,
+  type PrecinctKind,
   type RiverPath,
-  type Snapshot
+  type Snapshot,
+  type WallPlan,
+  type WallSegmentKind
 } from "./core/types";
 export type { BurgSiteArchetype, BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 export {
@@ -31,11 +38,13 @@ export {
   type CityFeatureSet,
   type CoastShape,
   DEFAULT_SITE_CONFIG,
+  DEFAULT_WALL_CHOICE,
   defaultFeatures,
   FEATURE_KEYS,
   type RiverShape,
   randomSiteConfig,
-  type SiteConfig
+  type SiteConfig,
+  type WallChoice
 } from "./site/siteConfig";
-export { siteToGeography, siteToParams, siteToProgram } from "./site/siteInput";
+export { resolveWallPlan, siteToGeography, siteToParams, siteToProgram, siteToWallPlan } from "./site/siteInput";
 export { synthSite } from "./site/synthSite";

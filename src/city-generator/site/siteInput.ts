@@ -8,7 +8,8 @@
 // bends) while leaving the fine shape to the graph.
 
 import { azimuthToVec } from "../core/geom";
-import type { CityGeography, CityParams, CityProgram, Point } from "../core/types";
+import type { CityGeography, CityParams, CityProgram, Point, WallPlan } from "../core/types";
+import { DEFAULT_WALL_PLAN } from "../core/types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
 
 // A coast's shape comes from the graph walk, so a few control points suffice.
@@ -31,16 +32,20 @@ export function siteToGeography(site: BurgSiteDescriptor): CityGeography {
   return {
     coast: extractCoast(site),
     rivers: extractRivers(site),
-    roadBearings: extractRoadBearings(site)
+    roadBearings: extractRoadBearings(site),
+    roadPaths: site.roads
+      .filter(r => r.group !== "searoutes" && r.path.length >= 2)
+      .map(r => r.path.map(p => [p[0], p[1]])),
+    suggestedGates: site.suggestedGates
   };
 }
 
-/** The built programme is a straight pass-through of the descriptor's Features
- * flags — no heuristics. Same shape for a real FMG descriptor and a synthetic
- * one (synthSite.ts writes `SiteConfig.features` onto these fields). */
+/** The built programme: the descriptor's Feature flags pass straight through;
+ * `wallPlan` is derived from them + the site by the wall-patterns.md §8 matrix.
+ * Same shape for a real FMG descriptor and a synthetic one. */
 export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
   const b = site.burg;
-  return {
+  const flags = {
     walls: b.walls,
     citadel: b.citadel,
     plaza: b.plaza,
@@ -49,6 +54,49 @@ export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
     shanty: b.shanty,
     capital: b.capital
   };
+  return { ...flags, wallPlan: siteToWallPlan(site, flags) };
+}
+
+/**
+ * Pick a wall pattern from the descriptor (wall-patterns.md §8). M4b only emits
+ * the implemented enum members; the rest are reached via the UI / M4b.1.
+ */
+export function siteToWallPlan(site: BurgSiteDescriptor, program: Omit<CityProgram, "wallPlan">): WallPlan {
+  const plan: WallPlan = { ...DEFAULT_WALL_PLAN, extent: program.walls ? "full" : "none" };
+  const hasCoast = site.waterbody !== null;
+  const hasRiver = site.rivers.some(r => r.crossesSite || Math.abs(r.offsetRatio) < 1.6);
+  const fortified = program.citadel || program.capital;
+
+  if (hasCoast && program.port) {
+    plan.envelope = "hull";
+    plan.coast = fortified ? "seaWall" : "open";
+    plan.line = fortified ? "organic" : "polygonal";
+  } else if (hasRiver) {
+    plan.envelope = "notchFilled";
+    plan.line = "organic";
+  } else if (site.suggestedArchetype === "hillTop") {
+    plan.envelope = "notchFilled"; // sectorPolygon in M4b.1
+    plan.line = "organic";
+  } else if (site.burg.population >= 8_000) {
+    plan.envelope = "notchFilled"; // denseCore / expanded in M4b.1
+    plan.line = "polygonal";
+  } else {
+    plan.envelope = "notchFilled";
+    plan.line = "organic";
+  }
+  return plan;
+}
+
+/** Overlay non-"auto" UI choices on a matrix-derived plan (standalone only). */
+export function resolveWallPlan(
+  base: WallPlan,
+  choice: { envelope?: string; coast?: string; line?: string }
+): WallPlan {
+  const next = { ...base };
+  if (choice.envelope && choice.envelope !== "auto") next.envelope = choice.envelope as WallPlan["envelope"];
+  if (choice.coast && choice.coast !== "auto") next.coast = choice.coast as WallPlan["coast"];
+  if (choice.line && choice.line !== "auto") next.line = choice.line as WallPlan["line"];
+  return next;
 }
 
 function extractCoast(site: BurgSiteDescriptor): CityGeography["coast"] {

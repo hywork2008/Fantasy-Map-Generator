@@ -198,3 +198,80 @@ function cross(o: Point, a: Point, b: Point): number {
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
+
+// --- hulls & simplification -------------------------------------------------
+
+/** Convex hull (Andrew's monotone chain), counter-clockwise, no repeated end
+ * point. Returns the input (copied) when it has fewer than 3 distinct points. */
+export function convexHull(points: Point[]): Point[] {
+  const sorted = points
+    .slice()
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    .filter((p, i, arr) => i === 0 || p[0] !== arr[i - 1][0] || p[1] !== arr[i - 1][1]);
+  if (sorted.length < 3) return sorted.map(p => [p[0], p[1]] as Point);
+
+  const half = (src: Point[]): Point[] => {
+    const out: Point[] = [];
+    for (const p of src) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
+      out.push(p);
+    }
+    out.pop();
+    return out;
+  };
+  const lower = half(sorted);
+  const upper = half(sorted.slice().reverse());
+  return lower.concat(upper).map(p => [p[0], p[1]] as Point);
+}
+
+/** Douglas–Peucker simplification. `closed` splits the ring at its two most
+ * distant vertices, simplifies each arc, and rejoins (never returns < 3). */
+export function simplifyPolyline(points: Point[], tolerance: number, closed = false): Point[] {
+  if (points.length <= 2) return points.map(p => [p[0], p[1]] as Point);
+  if (!closed) return douglasPeucker(points, tolerance);
+  let far = 0;
+  let farDist = -1;
+  for (let i = 1; i < points.length; i++) {
+    const d = Math.hypot(points[i][0] - points[0][0], points[i][1] - points[0][1]);
+    if (d > farDist) {
+      farDist = d;
+      far = i;
+    }
+  }
+  const a = douglasPeucker(points.slice(0, far + 1), tolerance);
+  const b = douglasPeucker(points.slice(far), tolerance);
+  const ring = a.slice(0, -1).concat(b.slice(0, -1));
+  return ring.length >= 3 ? ring : points.map(p => [p[0], p[1]] as Point);
+}
+
+function douglasPeucker(points: Point[], tol: number): Point[] {
+  if (points.length < 3) return points.map(p => [p[0], p[1]] as Point);
+  const end = points.length - 1;
+  let idx = 0;
+  let max = 0;
+  for (let i = 1; i < end; i++) {
+    const d = perpDistanceToLine(points[i], points[0], points[end]);
+    if (d > max) {
+      max = d;
+      idx = i;
+    }
+  }
+  if (max <= tol) {
+    return [
+      [points[0][0], points[0][1]],
+      [points[end][0], points[end][1]]
+    ];
+  }
+  return douglasPeucker(points.slice(0, idx + 1), tol)
+    .slice(0, -1)
+    .concat(douglasPeucker(points.slice(idx), tol));
+}
+
+/** Perpendicular distance from `p` to the infinite line through `a`, `b`. */
+export function perpDistanceToLine(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-9) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+  return Math.abs((p[0] - a[0]) * dy - (p[1] - a[1]) * dx) / len;
+}

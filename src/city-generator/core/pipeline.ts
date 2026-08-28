@@ -9,6 +9,17 @@ import { classifyUrban } from "./classifyUrban";
 import { buildEdgeGraph } from "./edgeGraph";
 import { azimuthToVec, nearestOnPolyline } from "./geom";
 import { buildGrid } from "./grid";
+import {
+  buildBorders,
+  classifyWallSegments,
+  close,
+  markWaterGate,
+  optimizeJunctions,
+  placeGates,
+  placePrecincts,
+  shapeEnvelope,
+  wallOverlaysFor
+} from "./interior";
 import { makeRng } from "./prng";
 import { walkRiver } from "./riverPath";
 import type {
@@ -23,7 +34,7 @@ import type {
   RiverPath,
   Snapshot
 } from "./types";
-import { DEFAULT_PROGRAM } from "./types";
+import { DEFAULT_PROGRAM, DEFAULT_WALL_PLAN } from "./types";
 
 const EMPTY_GEO: CityGeography = { coast: null, rivers: [], roadBearings: [] };
 
@@ -91,10 +102,13 @@ export function generateCity(
   // Local shoreline tangent at the town — the built-up area elongates along it.
   const shoreTangent = coast ? shorelineTangent(coast.shoreline) : null;
   const urbanRadius = program.walls ? params.cityRadiusMeters * WALLED_COMPACTION : params.cityRadiusMeters;
+  // A port pulls the built-up area toward the water: feed S3 an extra "sea-ward"
+  // bearing alongside the roads (design §4.5).
+  const urbanBearings = program.port && coast ? [...geo.roadBearings, geo.coast!.waterAzimuthDeg] : geo.roadBearings;
   const { urban, outskirts } = classifyUrban(
     cells,
     { sea, bank: river.bank },
-    geo.roadBearings,
+    urbanBearings,
     urbanRadius,
     shoreTangent
   );
@@ -119,6 +133,52 @@ export function generateCity(
     ])
   ];
 
+  // S4 works on a junction-cleaned copy so the pre-S4 snapshots stay faithful to
+  // the exact grid classified above. The perimeter is still wholly derived from
+  // that grid's shared cell edges; the wall PATTERN (which area to enclose, coast
+  // treatment, line style) comes from the WallPlan — see wall-patterns.md.
+  const plan = program.wallPlan ?? DEFAULT_WALL_PLAN;
+  const riverLines = riverPaths.map(p => p.points);
+  const interiorCells = optimizeJunctions(cells, params.cellSizeMeters);
+  const traced = buildBorders(interiorCells, urban);
+  const envelopes = traced.map(loop => shapeEnvelope(loop, plan, params.cellSizeMeters));
+  const precincts = placePrecincts(interiorCells, urban, sea, envelopes, geo, params, program, riverLines);
+
+  // The citadel keeps its own enceinte ring whether or not the town is walled
+  // (design §4.2), derived from the same interior cell edges.
+  const citadel = precincts.find(p => p.kind === "citadel");
+  const citadelOutline = citadel ? (buildBorders(interiorCells, new Set(citadel.cellIds))[0]?.points ?? null) : null;
+
+  const borders = envelopes.map(loop =>
+    classifyWallSegments(
+      loop,
+      {
+        shoreline: coast?.shoreline ?? null,
+        waterPolygon: coast?.waterPolygon ?? null,
+        rivers: riverLines,
+        citadelOutline
+      },
+      params.cellSizeMeters
+    )
+  );
+  const gates = markWaterGate(placeGates(borders, geo), borders, coast?.shoreline ?? null, program.port);
+
+  const wallAndTowers: Overlay[] = program.walls
+    ? borders.flatMap(b => wallOverlaysFor(b, plan, gates, params.cellSizeMeters))
+    : [];
+  const citadelRing: Overlay[] = citadelOutline ? [{ kind: "citadelWall", points: close(citadelOutline) }] : [];
+  const gateOverlays: Overlay[] = gates.map(gate => ({ kind: "gate", points: [gate.point], water: gate.water }));
+  steps.push(
+    snapshot(
+      "S4 · Inner perimeter & gates",
+      interiorCells,
+      finalTag,
+      riverSnapshotPaths,
+      [...shorelineOverlay, ...wallAndTowers, ...citadelRing, ...gateOverlays],
+      precincts
+    )
+  );
+
   return {
     params,
     gridStages,
@@ -126,7 +186,10 @@ export function generateCity(
     cells,
     riverPaths,
     shoreline: coast?.shoreline ?? null,
-    waterPolygon: coast?.waterPolygon ?? null
+    waterPolygon: coast?.waterPolygon ?? null,
+    borders,
+    gates,
+    precincts
   };
 }
 
@@ -135,9 +198,10 @@ function snapshot(
   cells: Cell[],
   tag: (c: Cell) => CellTag,
   paths: Snapshot["paths"],
-  overlays: Overlay[]
+  overlays: Overlay[],
+  precincts: Snapshot["precincts"] = []
 ): Snapshot {
-  return { label, cells: cells.map(c => ({ polygon: c.polygon, tag: tag(c) })), paths, overlays };
+  return { label, cells: cells.map(c => ({ polygon: c.polygon, tag: tag(c) })), paths, overlays, precincts };
 }
 
 /** Unit tangent of the shoreline at its closest point to the town centre. */

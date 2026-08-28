@@ -12,7 +12,7 @@
 
 import { generateCity } from "../core/pipeline";
 import { makeRng } from "../core/prng";
-import type { GenerationResult } from "../core/types";
+import { DEFAULT_WALL_PLAN, type GenerationResult } from "../core/types";
 import { renderCity, showFamily, showGridStage, showStep } from "../render/svg";
 import type { BurgSiteDescriptor } from "../site/burgSiteDescriptor";
 import { CITY_SITE_KEY, type IncomingOrigin, readIncomingSite, siteLinkFor } from "../site/incomingSite";
@@ -24,9 +24,13 @@ import {
   FEATURE_KEYS,
   type RiverShape,
   randomSiteConfig,
-  type SiteConfig
+  type SiteConfig,
+  WALL_COAST_CHOICES,
+  WALL_ENVELOPE_CHOICES,
+  WALL_LINE_CHOICES,
+  type WallChoice
 } from "../site/siteConfig";
-import { siteToGeography, siteToParams, siteToProgram } from "../site/siteInput";
+import { resolveWallPlan, siteToGeography, siteToParams, siteToProgram } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
 
 interface View {
@@ -158,7 +162,10 @@ export function mountCityGenerator(root: HTMLElement): void {
       );
     }
     const site = synthSite(preset, config, seed);
-    return generateCity(siteToParams(site), siteToGeography(site), siteToProgram(site));
+    const program = siteToProgram(site);
+    // Apply the standalone Wall row on top of the matrix plan (wall-patterns.md).
+    const wallPlan = resolveWallPlan(program.wallPlan ?? DEFAULT_WALL_PLAN, config.wall);
+    return generateCity(siteToParams(site), siteToGeography(site), { ...program, wallPlan });
   }
 
   function regenerate(): void {
@@ -294,6 +301,29 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   const featureHead = subheading("Features");
   root.append(featureHead, featureRow);
 
+  // Wall pattern (wall-patterns.md). "Auto" = the §8 matrix; the rest override it.
+  const patchWall = (delta: Partial<WallChoice>): void => patch({ wall: { ...h.getConfig().wall, ...delta } });
+  const wallRow = <K extends keyof WallChoice>(
+    label: string,
+    key: K,
+    values: readonly WallChoice[K][]
+  ): { head: HTMLElement; row: HTMLElement; buttons: { el: HTMLButtonElement; key: string }[] } => {
+    const row = div("cg-choices");
+    const buttons = values.map(v =>
+      choice(
+        v === "auto" ? "Auto" : titleCase(String(v)),
+        () => patchWall({ [key]: v } as Partial<WallChoice>),
+        String(v)
+      )
+    );
+    for (const c of buttons) row.appendChild(c.el);
+    return { head: subheading(label), row, buttons };
+  };
+  const wallEnvelope = wallRow("Wall shape", "envelope", WALL_ENVELOPE_CHOICES);
+  const wallCoast = wallRow("Wall coast", "coast", WALL_COAST_CHOICES);
+  const wallLine = wallRow("Wall line", "line", WALL_LINE_CHOICES);
+  root.append(wallEnvelope.head, wallEnvelope.row, wallCoast.head, wallCoast.row, wallLine.head, wallLine.row);
+
   const randomize = button("Randomize site", h.onRandomize);
   root.appendChild(randomize);
 
@@ -310,6 +340,12 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
     reliefRow,
     featureHead,
     featureRow,
+    wallEnvelope.head,
+    wallEnvelope.row,
+    wallCoast.head,
+    wallCoast.row,
+    wallLine.head,
+    wallLine.row,
     randomize
   ];
 
@@ -348,6 +384,12 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
     for (const c of featureButtons) {
       c.el.classList.toggle("is-active", cfg.features[c.key]);
       if (c.key === "port") c.el.disabled = cfg.coast === "none";
+    }
+    for (const c of wallEnvelope.buttons) c.el.classList.toggle("is-active", c.key === cfg.wall.envelope);
+    for (const c of wallLine.buttons) c.el.classList.toggle("is-active", c.key === cfg.wall.line);
+    for (const c of wallCoast.buttons) {
+      c.el.classList.toggle("is-active", c.key === cfg.wall.coast);
+      c.el.disabled = cfg.coast === "none"; // a coast wall needs a coast
     }
 
     const isImported = mode.kind === "imported";
@@ -400,7 +442,13 @@ function withFirstShape(current: RiverShape[], shape: RiverShape): RiverShape[] 
 
 /** "port" → "Port". */
 function featureLabel(key: keyof CityFeatureSet): string {
-  return key.charAt(0).toUpperCase() + key.slice(1);
+  return titleCase(key);
+}
+
+/** "notchFilled" → "Notch filled". */
+function titleCase(s: string): string {
+  const spaced = s.replace(/([a-z])([A-Z])/g, "$1 $2");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 // --- drawing-process panel -----------------------------------------------------

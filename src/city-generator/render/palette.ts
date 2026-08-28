@@ -27,6 +27,12 @@ export const TAG_FILL: Record<string, string> = {
 export const RIVER = { fill: "#8ba2a6" } as const;
 export const SHORELINE = "#5c6a68";
 export const GATE = "#b1443a";
+export const WALL = "#6b6459";
+export const TOWER = "#4f493f";
+export const PRECINCT_FILL: Record<string, string> = {
+  citadel: "#b9a789",
+  plaza: "#e7dfc9"
+};
 
 // Inspection overlay for the Grid-evolution view: the raw on-edge walk (`track`,
 // with a node dot per vertex) vs. the smoothed centerline (`smooth`). Both sit on

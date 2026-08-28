@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { generateCity } from "../core/pipeline";
 import type { BurgSiteDescriptor, BurgSiteRiver } from "./burgSiteDescriptor";
-import { siteToGeography, siteToParams, siteToProgram } from "./siteInput";
+import { siteToGeography, siteToParams, siteToProgram, siteToWallPlan } from "./siteInput";
 
 function baseDescriptor(overrides: Partial<BurgSiteDescriptor> = {}): BurgSiteDescriptor {
   return {
@@ -100,7 +100,7 @@ describe("siteToProgram — verbatim pass-through of the Features flags", () => 
   const withBurg = (flags: Partial<BurgSiteDescriptor["burg"]>): BurgSiteDescriptor =>
     baseDescriptor({ burg: { ...baseDescriptor().burg, ...flags } });
 
-  it("copies each flag as-is, with no heuristics", () => {
+  it("copies each flag as-is, and derives wallPlan from the §8 matrix", () => {
     const site = withBurg({
       capital: true,
       port: true,
@@ -110,7 +110,9 @@ describe("siteToProgram — verbatim pass-through of the Features flags", () => 
       temple: true,
       shanty: false
     });
-    expect(siteToProgram(site)).toEqual({
+    const prog = siteToProgram(site);
+    const { wallPlan, ...flags } = prog;
+    expect(flags).toEqual({
       walls: false,
       citadel: false,
       plaza: true,
@@ -119,6 +121,9 @@ describe("siteToProgram — verbatim pass-through of the Features flags", () => 
       shanty: false,
       capital: true
     });
+    expect(wallPlan).toEqual(siteToWallPlan(site, flags));
+    // walls:false ⇒ nothing is drawn.
+    expect(wallPlan?.extent).toBe("none");
   });
 
   it("round-trips an all-on and an all-off Features set", () => {

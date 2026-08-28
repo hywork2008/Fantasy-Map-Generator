@@ -28,10 +28,10 @@ describe("pipeline S0–S3", () => {
     expect(tagString(run(RIVER, "a").result)).not.toEqual(tagString(run(RIVER, "b").result));
   });
 
-  it("produces four fully-tagged steps and an urban core", () => {
+  it("produces five fully-tagged steps (through S4) and an urban core", () => {
     for (const cfg of [RIVER, HARBOR, DRY]) {
       const { result } = run(cfg);
-      expect(result.steps).toHaveLength(4);
+      expect(result.steps).toHaveLength(5);
       for (const step of result.steps) {
         expect(step.cells).toHaveLength(result.cells.length);
         expect(step.cells.every(c => typeof c.tag === "string")).toBe(true);
