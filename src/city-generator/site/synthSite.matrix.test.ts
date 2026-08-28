@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { nearestOnPolyline, pointInPolygon } from "../core/geom";
 import { generateCity } from "../core/pipeline";
 import type { CellTag, Point } from "../core/types";
-import type { CoastShape, RiverShape, SiteConfig } from "./siteConfig";
+import { type CoastShape, DEFAULT_SITE_CONFIG, type RiverShape, type SiteConfig } from "./siteConfig";
 import { siteToGeography, siteToParams } from "./siteInput";
 import { synthSite } from "./synthSite";
 
@@ -28,7 +28,7 @@ const VALID_TAGS: CellTag[] = ["land", "sea", "urban", "outskirts", "rural"];
 
 const combos: SiteConfig[] = [];
 for (const coast of COASTS) {
-  for (const rivers of RIVER_SETS) combos.push({ coast, rivers, relief: false });
+  for (const rivers of RIVER_SETS) combos.push({ ...DEFAULT_SITE_CONFIG, coast, rivers, relief: false });
 }
 
 const finite = (n: number): boolean => Number.isFinite(n);
@@ -89,7 +89,11 @@ describe("site matrix", () => {
   it("through river with a coast flows out to sea", () => {
     for (const coast of ["straight", "bay", "cape"] as const) {
       for (const seed of ["1809gwj", "m8ss9r", "wo2e70"]) {
-        const site = synthSite("smallCity", { coast, rivers: ["through"], relief: false }, seed);
+        const site = synthSite(
+          "smallCity",
+          { ...DEFAULT_SITE_CONFIG, coast, rivers: ["through"], relief: false },
+          seed
+        );
         const result = generateCity(siteToParams(site), siteToGeography(site));
         expect(result.riverPaths.length).toBe(1);
         const mouth = result.riverPaths[0].points.at(-1) as Point;
@@ -111,7 +115,7 @@ describe("site matrix", () => {
       for (const shape of shapes) {
         for (const seed of ["1btkcma", "lgds9i", "k9eeoz", "ffn8b"]) {
           for (const relief of [false, true]) {
-            const config: SiteConfig = { coast, rivers: [shape, "through"], relief };
+            const config: SiteConfig = { ...DEFAULT_SITE_CONFIG, coast, rivers: [shape, "through"], relief };
             const result = generateCity(...runArgs("smallCity", config, seed));
             const half = result.params.extentMeters / 2;
             const cell = result.params.cellSizeMeters;

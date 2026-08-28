@@ -16,17 +16,29 @@ import type {
   CellTag,
   CityGeography,
   CityParams,
+  CityProgram,
   GenerationResult,
   Overlay,
   Point,
   RiverPath,
   Snapshot
 } from "./types";
+import { DEFAULT_PROGRAM } from "./types";
 
 const EMPTY_GEO: CityGeography = { coast: null, rivers: [], roadBearings: [] };
 
-/** Pure. Same `params` (seed included) + same `geo` => structurally identical result. */
-export function generateCity(params: CityParams, geo: CityGeography = EMPTY_GEO): GenerationResult {
+/** A walled town packs tighter than its road-signalled radius: shrink the S3
+ * urban reach by this factor when `program.walls` is set (design §4.1). */
+const WALLED_COMPACTION = 0.92;
+
+/** Pure. Same `params` (seed included) + same `geo` + same `program` =>
+ * structurally identical result. `program` only bites from S3 onward; with the
+ * default (all false) the output is identical to omitting it. */
+export function generateCity(
+  params: CityParams,
+  geo: CityGeography = EMPTY_GEO,
+  program: CityProgram = DEFAULT_PROGRAM
+): GenerationResult {
   const rng = makeRng(params.seed);
   const gridStages = buildGrid(params, rng);
   const cells = gridStages[gridStages.length - 1].cells;
@@ -78,11 +90,12 @@ export function generateCity(params: CityParams, geo: CityGeography = EMPTY_GEO)
 
   // Local shoreline tangent at the town — the built-up area elongates along it.
   const shoreTangent = coast ? shorelineTangent(coast.shoreline) : null;
+  const urbanRadius = program.walls ? params.cityRadiusMeters * WALLED_COMPACTION : params.cityRadiusMeters;
   const { urban, outskirts } = classifyUrban(
     cells,
     { sea, bank: river.bank },
     geo.roadBearings,
-    params.cityRadiusMeters,
+    urbanRadius,
     shoreTangent
   );
 

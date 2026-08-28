@@ -43,7 +43,6 @@ export function synthSite(preset: PresetId, config: SiteConfig, seed: string): B
   const cityRadiusMeters = clamp(Math.round(Math.sqrt((areaHa * 1e4) / Math.PI)), 80, 1500);
   const extentMeters = clamp(Math.round(cityRadiusMeters * 6), 1500, 4500);
   const half = extentMeters / 2;
-  const walls = population >= 3_000;
 
   const waterbody = config.coast === "none" ? null : synthCoast(rng, config.coast, half, cityRadiusMeters);
 
@@ -96,6 +95,10 @@ export function synthSite(preset: PresetId, config: SiteConfig, seed: string): B
 
   const roads = synthRoads(rng, half, roadBearings(rng, config, waterbody?.shoreAzimuthDeg ?? null, rivers));
 
+  // Features come straight from the SiteConfig toggles — no population heuristics.
+  // `port` still needs somewhere to dock, so it collapses to false without water.
+  const features = config.features;
+
   return {
     version: DESCRIPTOR_VERSION,
     burg: {
@@ -106,12 +109,12 @@ export function synthSite(preset: PresetId, config: SiteConfig, seed: string): B
       seed,
       population,
       capital: false,
-      port: waterbody !== null,
-      citadel: config.relief || (walls && rng() < 0.4),
-      plaza: population >= 1_500,
-      walls,
-      temple: true,
-      shanty: population >= 8_000
+      port: features.port && waterbody !== null,
+      citadel: features.citadel,
+      plaza: features.plaza,
+      walls: features.walls,
+      temple: features.temple,
+      shanty: features.shanty
     },
     frame: { originMapUnits: [0, 0], metersPerMapUnit: 1, extentMeters, cityRadiusMeters },
     climate: { temperatureC: 12, biomeId: 0 },

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { generateCity } from "../core/pipeline";
 import type { BurgSiteDescriptor, BurgSiteRiver } from "./burgSiteDescriptor";
-import { siteToGeography, siteToParams } from "./siteInput";
+import { siteToGeography, siteToParams, siteToProgram } from "./siteInput";
 
 function baseDescriptor(overrides: Partial<BurgSiteDescriptor> = {}): BurgSiteDescriptor {
   return {
@@ -93,6 +93,41 @@ describe("extractCoast — empty-shoreline port burg", () => {
     const seaCount = result.steps[result.steps.length - 1].cells.filter(c => c.tag === "sea").length;
     expect(seaCount).toBeGreaterThan(0);
     expect(result.shoreline).not.toBeNull();
+  });
+});
+
+describe("siteToProgram — verbatim pass-through of the Features flags", () => {
+  const withBurg = (flags: Partial<BurgSiteDescriptor["burg"]>): BurgSiteDescriptor =>
+    baseDescriptor({ burg: { ...baseDescriptor().burg, ...flags } });
+
+  it("copies each flag as-is, with no heuristics", () => {
+    const site = withBurg({
+      capital: true,
+      port: true,
+      citadel: false,
+      plaza: true,
+      walls: false,
+      temple: true,
+      shanty: false
+    });
+    expect(siteToProgram(site)).toEqual({
+      walls: false,
+      citadel: false,
+      plaza: true,
+      temple: true,
+      port: true,
+      shanty: false,
+      capital: true
+    });
+  });
+
+  it("round-trips an all-on and an all-off Features set", () => {
+    const keys = ["walls", "citadel", "plaza", "temple", "port", "shanty", "capital"] as const;
+    for (const value of [true, false]) {
+      const flags = Object.fromEntries(keys.map(k => [k, value])) as Record<(typeof keys)[number], boolean>;
+      const prog = siteToProgram(withBurg(flags));
+      for (const k of keys) expect(prog[k], `${k}=${value}`).toBe(value);
+    }
   });
 });
 

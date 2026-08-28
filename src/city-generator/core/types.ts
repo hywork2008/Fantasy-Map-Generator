@@ -92,6 +92,43 @@ export interface CityGeography {
   roadBearings: number[];
 }
 
+/**
+ * The built programme the Burg-editor Features decide — what to place, as opposed
+ * to the terrain to classify (CityGeography). Orthogonal to geography; all false
+ * = an open settlement with nothing built. Sourced from a BurgSiteDescriptor's
+ * `burg.*` flags (site/siteInput.ts `siteToProgram`).
+ *
+ * M4a wires the type and consumes only `walls` (S3 compaction). `citadel` /
+ * `plaza` land in S4, `temple` / `port` / `shanty` in S6.
+ */
+export interface CityProgram {
+  /** Walled town. Tightens the S3 urban core; S4 promotes the border ring to a
+   * drawn wall. */
+  walls: boolean;
+  /** Fortified inner keep. Placeable with or without a wall. */
+  citadel: boolean;
+  /** Central market square, reserved as a build-free void. */
+  plaza: boolean;
+  /** Cathedral / temple precinct. */
+  temple: boolean;
+  /** Harbour. Only meaningful when a waterbody is present. */
+  port: boolean;
+  /** Extramural shanty (the slum-grade faubourg). */
+  shanty: boolean;
+  /** Capital. A light landmark-rank modifier only. */
+  capital: boolean;
+}
+
+export const DEFAULT_PROGRAM: CityProgram = {
+  walls: false,
+  citadel: false,
+  plaza: false,
+  temple: false,
+  port: false,
+  shanty: false,
+  capital: false
+};
+
 /** Output of `generateCity`. M2 covers S0–S3. */
 export interface GenerationResult {
   params: CityParams;

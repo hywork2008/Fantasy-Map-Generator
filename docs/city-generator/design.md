@@ -137,7 +137,7 @@ FMG は既に **per-burg 立地サーベイ** `BurgSiteDescriptor` を出力す�
 | 領域サイズ（縦×横） | `frame.extentMeters`, `frame.cityRadiusMeters`, `burg.population` |
 | 海岸線・海セル | `waterbody`（`kind` / `shoreAzimuthDeg` / `shoreline[]`）、`terrain.heightfield.waterMask` |
 | 河川・河セル | `rivers[]`（`segments[]` 中心線 + 各点 `widthsMeters` / `axisAzimuthDeg` / `cityBank` / `crossesSite` / `throughBurgCell`） |
-| 市街セル | `frame.cityRadiusMeters`, `roads[].entryAzimuthDeg`（門方位）, `burg.walls` / `citadel` / `plaza` |
+| 市街セル | `frame.cityRadiusMeters`, `roads[].entryAzimuthDeg`（門方位）, `burg.walls` / `citadel` / `plaza` / `temple` / `port` / `shanty` — 割り当ては `burg-feature-options.md` |
 | 決定論シード | `burg.seed`（watabou プレビューと共有） |
 
 座標系は descriptor のローカル系（原点 = burg 位置、+X 東 / +Y 北、単位 m）をそのまま採用。
@@ -234,10 +234,21 @@ descriptor が与えるのは**ラフなコリドー**（数点の制御点）�
    `roads[].entryAzimuthDeg` 方向のセルにボーナス。
 3. `urban` タグ、残りは `outskirts`（街道沿いリボン）/ `rural`。
 
-**S4 以降（`draft.md` の範囲外・別途設計）**
-城壁 = `urban` セル集合の外周（`findCircumference` 相当のセル境界一周。river が市街を割るなら
-成分ごとに 1 ループ）。門 = `roads` の `entryAzimuthDeg` が外周と交わる位置。街区・建物はさらに
-後段。生成後の**頂点変形ブラシ**（クローズド版にある、緑=ブラシ半径・赤=対象頂点の編集 UI）も
+#### S4 以降 — TownGeneratorTS 2.2–2.6 への対応
+
+`~/Projects/TownGeneratorTS/docs/city-generation-and-rendering.md §2` の固定生成順に合わせる。
+`docs/plan/city-generator/v2/` は **不採用**（Voronoi を禁じた失敗案）。参照してよいのは
+TownGeneratorTS の `docs/**`（著者の記述）と公知アルゴリズムのみ。フラグ（`walls` / `citadel` /
+`plaza` / `temple` / `port` / `shanty`）の割り当ては `docs/city-generator/burg-feature-options.md`。
+
+| 本プロジェクト | TownGeneratorTS | 内容 |
+| ---- | ---- | ---- |
+| **S4 内周と門** | 2.2 `optimizeJunctions` + 2.3 `buildWalls` | `Cell.polygon` の近接頂点を統合（辺長 `< cellSize/6` を中点へ、共有参照を付け替え）。`urban` 集合の外周を `border` ループに（`findCircumference` 相当。river が市街を割るなら成分ごとに 1 ループ）。門 = descriptor `roads[].path`（無ければ `roads[].entryAzimuthDeg` レイ）が `border` と交わる点、本数を `suggestedGates` に合わせて `border` 頂点を微調整。`walls:true` なら `border` を平滑化して描画壁 + 塔 + 水門に。`walls:false` でも `border`・門・広場セル・城塞セルは必ず作る（S5 / S6 の前提） |
+| **S5 街路** | 2.4 `buildStreets` | `core/edgeGraph.ts` 上で門→広場を A\*（`streets`）、門方向の遠方ノード→門を街道（`roads`）。`tidyUpRoads` で辺に分解・つなぎ直して `arteries`、中間頂点を平滑化（端点＝門・交差は固定）。**市外 `roads` のみ二重線で描画。市内街路は描かず、S7 のセットバック隙間として現れる** |
+| **S6 街区** | 2.5 `createWards` | 各 `urban` セルにワード型。城塞 = `Castle`、広場 = `Market`、門接 = `GateWard`、以降 `rateLocation`（`Cathedral` / `AdministrationWard` = 広場近く、`MerchantWard` = 中心近く、`Slum` = 中心から遠い…）、キューが尽きたら `Slum`。郊外は 20% で `Farm`、他は空 `Ward`（建物なし） |
+| **S7 敷地** | 2.6 `buildGeometry` | 各セルを通りからのセットバック（壁沿い `MAIN_STREET/2`、動脈・広場沿い `MAIN_STREET/2`、市内 `REGULAR_STREET/2`、郊外 `ALLEY/2`）で inset → 凸は `shrink` / 凹は `buffer` → 地区ごとに再帰分割。**セル辺がここで街路として見える** |
+
+生成後の**頂点変形ブラシ**（クローズド版にある、緑=ブラシ半径・赤=対象頂点の編集 UI）も
 この統一グラフ表現なら後付けしやすい ── ただし本設計の対象外。
 
 ### 4.3 スナップショットとスライダー
@@ -290,7 +301,11 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 | **M2 ✅** | S1 海/陸 + S2 河川（**セル辺グラフ A\* + 平滑化 = `buildStreets` 手法**、`core/{edgeGraph,riverPath}.ts`）+ S3 市街 + 進行スライダー（`synthSite` 入力）。`core/{classifySea,classifyRiver,classifyUrban}.ts`、`site/{burgSiteDescriptor,synthSite,siteInput}.ts` 追加。`pipeline.ts` が S0→S3 を実行し `steps: Snapshot[]` を生成。`render/svg.ts` は grid 系 + step 系の 2 グループ。UI は Size/Site type ボタン + Stage スライダー + First/Prev/Next/Last | `tsc` 0、`vitest` 20/20（決定論、archetype 4 種 smoke、harbor は市街が海に非接触、riverCrossing は岸 >85%・弦位置 ±0.25R 保存 ×4 seed、**river パス頂点は実グラフノード + 連続ペアは実エッジ**、平滑ドリフト < 1 セル）、biome クリーン。ブラウザ実測: 河川がセル辺を辿る（240 頂点の折れ線）、4 archetype で S0→S3 描画、Stage/First-Last/Grid evolution 動作、console エラー無し。build: city payload 44 KB、world/d3/three 参照 0 |
 | **M2.5 ✅** | サイト地形レイヤーの一般化（S4 が単一河川・2 値岸を前提にする前に）。archetype enum → `SiteConfig`（`site/siteConfig.ts`）。**S1/S2 を「ラフなコリドー → ボロノイ辺グラフの biased random walk」に全面移行**（`core/{graphWalk}.ts` 新設、`classifySea`/`riverPath` 書き換え）── 海岸線・河川の形がグラフ walk 由来になり、分岐で行き先が散る。**河川は水ポリゴンで stop**（海に入らない）。`classifyRiver` の岸分割を原点成分 = 0 に。Bay = 都心が湾の奥（凹の recess）、Cape = 都心が突端。`GenerationResult` に `shoreline`/`waterPolygon` 追加。UI = Coast/Rivers/River-shape/Relief/Randomize | `tsc` 0、`vitest` 45/45（マトリクス 24 combo×2 seed、河川頂点は水ポリゴン外、urban core は単一連結成分、seed 別に river ルートが散る、toCoast は海岸線到達で停止）、biome クリーン。ブラウザ実測: 海岸線が全域ギザギザ、河川が蛇行し海で止まる、Bay=recess / Cape=headland、seed で river 散る（107–142 頂点、maxSteps 到達なし）、console エラー無し。build: city payload 27.7 KB、world/d3/three 参照 0 |
 | **M3 ✅** | FMG descriptor 取り込み。`site/incomingSite.ts`（`parseDescriptor` version チェック + base64url codec + `resolveIncomingSite`：hash payload > sessionStorage stash）。Burg エディタに「都市生成ページを開く」ボタン（`burgEditorActions.openCityGenerator` → `sessionStorage['fmg.citySite']` + `openURL(\`${BASE_URL}city/\`)`）。`CityGeneratorPage` に imported モード（geography = 実 descriptor 固定、seed のみ layout 再ロール、synth 系コントロール非表示、Imported-site 読み出し + Copy shareable link + Use standalone site）。共有リンク = `city/#<base64url(JSON)>`（実測 ~4 KB、圧縮不要）。`siteInput` に 2 つの実 descriptor 適応: (a) `waterbody` あるが `shoreline[]` 空（実 FMG が窓外海岸で出す）→ `shoreAzimuthDeg` から直線ラフ海岸を合成（landlocked にしない）、(b) `crossesSite:false` かつ `offsetRatio ≥ 1.6` の遠い川を drop（窓を埋める無関係な大河対策） | `tsc` 0、`vitest` 86/86（+ `incomingSite.test.ts` 15: codec round-trip・version 拒否・resolver 優先順位・decoded → pipeline urban core、+ `siteInput.test.ts` 6: 空 shoreline 合成海岸で sea セル発生・遠い川 drop）、biome / lint:legacy クリーン。ブラウザ実測: `window.open` 実経路で 4 archetype（harbor+大河 / dry crossroads / 2 河川 / 空 shoreline harbor → 合成海岸）が半径内に収まる、共有リンク round-trip（ラベルが "From shared link" に）、seed 再ロールで layout 変化・geography 固定、Use standalone で sessionStorage+hash クリア、console エラー無し。build: city payload 37 KB、world/d3/three 参照 0 |
-| M4 | 城壁・門（S4） | `draft.md` 範囲外・別 PR |
+| **M4a ✅** | `CityProgram` 配線（`core/types.ts` に `CityProgram`/`DEFAULT_PROGRAM`、`generateCity` 第 3 引数 = `program: CityProgram = DEFAULT_PROGRAM` + `siteInput.siteToProgram`（純パススルー）+ `SiteConfig.features: CityFeatureSet`（`Omit<CityProgram,"capital">`）+ `siteConfig.defaultFeatures`/`FEATURE_KEYS` + `synthSite` の population 捏造撤去 → `config.features` をそのまま `burg.*` へ）。UI = Options に Features トグル行（`FEATURE_KEYS` 6 個、synthOnly、Port は coast=none で disabled、coast 選択で port を true へ引き上げ）+ imported 読み出しに Walls/Citadel/Plaza·Temple/Port/Shanty 行。`pipeline.ts` は `program.walls` で `classifyUrban` 半径を `×WALLED_COMPACTION`(0.92)。**視覚変化なし**（`walls:true` で urban 集合が締まるのみ）。詳細 `burg-feature-options.md §10`。**設計との差分**: §3.2 の「`siteConfigKey()` に features を連結」は不採用 ── M4a では features は S0–S3 幾何に無影響で、key に入れると synth RNG stream（= S0–S3 回帰ネット）を無意味に攪乱するため。幾何効果を持つ機能が出たらその時 key に加える | `tsc` 0、`vitest` 98/98（`core/program.test.ts` 4: program 全 false ≡ 無指定でバイト一致 ×3 config×2 seed、`walls:true` で urban が厳密部分集合かつ小さく ×3×3、`citadel`/`plaza`/`temple`/`port`/`shanty`/`capital` は S3 出力に無影響、(params,geo,program) 決定論。`site/siteConfig.test.ts` 6: `defaultFeatures` の population スケール・`randomSiteConfig` の features roll 全 6 フラグ両値・landlocked は port を振らない・key は features 非依存。`site/siteInput.test.ts` +2: `siteToProgram` verbatim パススルー）、biome / lint:legacy クリーン。ブラウザ実測（dev 実経路）: 標準モードで Features 行が population 由来の初期状態（Walls/Plaza/Temple/Shanty on）、トグルで再生成（seed 再ロール + SVG 変化）、Bay 選択で Port が enabled + active、None 復帰で Port disabled、imported（sessionStorage stash）で Features 行非表示・読み出しに descriptor のフラグ 5 行が正しく出る・Use standalone で復帰、console エラー無し。build: city payload 38.5 KB（M3 37 KB から +1.5）、world/d3/three 参照 0 |
+| **M4b** | S4 内周と門（TownGeneratorTS 2.2–2.3、§4.2）── `optimizeJunctions` 移植 + `border` ループ + 門 + `walls:true` の描画壁・塔・水門 + `plaza` セル + `citadel` セル。Snapshot `S4 · 内周と門` | `tsc` 0、`vitest`（`border` は単純閉曲線・`urban` を内包、門数 = `suggestedGates`、河川分断で成分ごとに 1 ループ、`plaza`≠`citadel` セル、`citadel` は `border` 隣接 & 原点から ≥0.15R、`walls:false` で描画壁 Overlay なし、シード安定）、ブラウザ（4 archetype で壁・門・城塞が妥当、`walls` トグルで壁が出入り） |
+| **M5** | S5 街路（TownGeneratorTS 2.4、§4.2）── `core/edgeGraph.ts` の A\* で門→広場、市外 `roads[].path` 二重線描画、`arteries` の中間頂点平滑化。**市内街路は描かない** | `tsc` 0、`vitest`（街路は門と広場を結ぶ・城壁辺 / 城塞辺を通らない、`arteries` は端点固定の平滑化、市外 roads が窓縁から門へ）、ブラウザ |
+| **M6** | S6 街区（TownGeneratorTS 2.5、§4.2）── 各 `urban` セルにワード型、`temple` / `port`(harbor) / `shanty`、`rateLocation`、郊外 `Farm` | `tsc` 0、`vitest`（城塞 = Castle・広場 = Market、`Cathedral` は広場近傍、`Slum` は中心から遠い、`harbor` は `waterbody` 必須、`shanty` は `border` 外側 3–6 セル）、ブラウザ |
+| **M7** | S7 敷地（TownGeneratorTS 2.6、§4.2）── セットバック inset → セル辺が街路化、地区ごと再帰分割、建物ポリゴン | `tsc` 0、`vitest`（セットバック距離が辺種別どおり、凸 / 凹で shrink / buffer、空 Ward は建物なし）、ブラウザ（羊皮紙地図として town に見える） |
 
 ---
 

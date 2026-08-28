@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { generateCity } from "../core/pipeline";
 import { type BurgSiteDescriptor, DESCRIPTOR_VERSION } from "./burgSiteDescriptor";
 import { decodeDescriptor, encodeDescriptor, parseDescriptor, resolveIncomingSite, siteLinkFor } from "./incomingSite";
+import { DEFAULT_SITE_CONFIG } from "./siteConfig";
 import { siteToGeography, siteToParams } from "./siteInput";
 import { synthSite } from "./synthSite";
 
@@ -14,7 +15,13 @@ import { synthSite } from "./synthSite";
 // Normalised through JSON so the fixture equals what actually crosses the wire
 // (e.g. `-0` collapses to `0`).
 const sample: BurgSiteDescriptor = JSON.parse(
-  JSON.stringify(synthSite("largeTown", { coast: "bay", rivers: ["through", "toCoast"], relief: true }, "m3-fixture"))
+  JSON.stringify(
+    synthSite(
+      "largeTown",
+      { ...DEFAULT_SITE_CONFIG, coast: "bay", rivers: ["through", "toCoast"], relief: true },
+      "m3-fixture"
+    )
+  )
 );
 const sampleJson = JSON.stringify(sample);
 
@@ -72,7 +79,9 @@ describe("resolveIncomingSite", () => {
 
   it("prefers the fragment over the stash", () => {
     const other: BurgSiteDescriptor = JSON.parse(
-      JSON.stringify(synthSite("smallCity", { coast: "none", rivers: [], relief: false }, "other"))
+      JSON.stringify(
+        synthSite("smallCity", { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: [], relief: false }, "other")
+      )
     );
     const resolved = resolveIncomingSite({ hash: `#${encodeDescriptor(other)}`, session: sampleJson });
     expect(resolved).toEqual({ descriptor: other, origin: "link" });

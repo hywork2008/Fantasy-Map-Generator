@@ -8,7 +8,7 @@
 // bends) while leaving the fine shape to the graph.
 
 import { azimuthToVec } from "../core/geom";
-import type { CityGeography, CityParams, Point } from "../core/types";
+import type { CityGeography, CityParams, CityProgram, Point } from "../core/types";
 import type { BurgSiteDescriptor } from "./burgSiteDescriptor";
 
 // A coast's shape comes from the graph walk, so a few control points suffice.
@@ -32,6 +32,22 @@ export function siteToGeography(site: BurgSiteDescriptor): CityGeography {
     coast: extractCoast(site),
     rivers: extractRivers(site),
     roadBearings: extractRoadBearings(site)
+  };
+}
+
+/** The built programme is a straight pass-through of the descriptor's Features
+ * flags — no heuristics. Same shape for a real FMG descriptor and a synthetic
+ * one (synthSite.ts writes `SiteConfig.features` onto these fields). */
+export function siteToProgram(site: BurgSiteDescriptor): CityProgram {
+  const b = site.burg;
+  return {
+    walls: b.walls,
+    citadel: b.citadel,
+    plaza: b.plaza,
+    temple: b.temple,
+    port: b.port,
+    shanty: b.shanty,
+    capital: b.capital
   };
 }
 

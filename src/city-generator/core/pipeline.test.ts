@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SiteConfig } from "../site/siteConfig";
+import { DEFAULT_SITE_CONFIG, type SiteConfig } from "../site/siteConfig";
 import { siteToGeography, siteToParams } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
 import { nearestOnPolyline, sideOfPolyline } from "./geom";
@@ -13,9 +13,9 @@ const run = (config: SiteConfig, seed = "m25") => {
 
 const tagString = (r: ReturnType<typeof run>["result"]) => r.steps.map(s => s.cells.map(c => c.tag).join("")).join("|");
 
-const RIVER: SiteConfig = { coast: "none", rivers: ["through"], relief: false };
-const HARBOR: SiteConfig = { coast: "bay", rivers: [], relief: false };
-const DRY: SiteConfig = { coast: "none", rivers: [], relief: false };
+const RIVER: SiteConfig = { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["through"], relief: false };
+const HARBOR: SiteConfig = { ...DEFAULT_SITE_CONFIG, coast: "bay", rivers: [], relief: false };
+const DRY: SiteConfig = { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: [], relief: false };
 
 describe("pipeline S0–S3", () => {
   it("is deterministic per (preset, config, seed)", () => {
@@ -114,7 +114,10 @@ describe("pipeline S0–S3", () => {
   });
 
   it("two through rivers: the town sits in the component between them", () => {
-    const { result } = run({ coast: "none", rivers: ["through", "through"], relief: false }, "between");
+    const { result } = run(
+      { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["through", "through"], relief: false },
+      "between"
+    );
     // origin cell is on bank component 0 (the classifier's 'town side')
     const originCell = [...result.cells].sort((a, b) => Math.hypot(...a.centroid) - Math.hypot(...b.centroid))[0];
     const tag = result.steps[3].cells[result.cells.indexOf(originCell)].tag;

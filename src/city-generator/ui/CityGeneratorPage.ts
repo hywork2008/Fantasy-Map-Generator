@@ -18,13 +18,15 @@ import type { BurgSiteDescriptor } from "../site/burgSiteDescriptor";
 import { CITY_SITE_KEY, type IncomingOrigin, readIncomingSite, siteLinkFor } from "../site/incomingSite";
 import { PRESETS, type PresetId } from "../site/presets";
 import {
+  type CityFeatureSet,
   type CoastShape,
   DEFAULT_SITE_CONFIG,
+  FEATURE_KEYS,
   type RiverShape,
   randomSiteConfig,
   type SiteConfig
 } from "../site/siteConfig";
-import { siteToGeography, siteToParams } from "../site/siteInput";
+import { siteToGeography, siteToParams, siteToProgram } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
 
 interface View {
@@ -147,12 +149,16 @@ export function mountCityGenerator(root: HTMLElement): void {
 
   function build(): GenerationResult {
     if (mode.kind === "imported") {
-      // Geography is the real descriptor; the seed still drives grid + street RNG
-      // so "Generate" re-rolls the layout for the same burg.
-      return generateCity({ ...siteToParams(mode.descriptor), seed }, siteToGeography(mode.descriptor));
+      // Geography + programme are the real descriptor; the seed still drives grid
+      // + street RNG so "Generate" re-rolls the layout for the same burg.
+      return generateCity(
+        { ...siteToParams(mode.descriptor), seed },
+        siteToGeography(mode.descriptor),
+        siteToProgram(mode.descriptor)
+      );
     }
     const site = synthSite(preset, config, seed);
-    return generateCity(siteToParams(site), siteToGeography(site));
+    return generateCity(siteToParams(site), siteToGeography(site), siteToProgram(site));
   }
 
   function regenerate(): void {
@@ -230,9 +236,15 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
 
   const patch = (delta: Partial<SiteConfig>): void => h.onConfig({ ...h.getConfig(), ...delta });
 
-  // Coast shape.
+  // Coast shape. Picking a coast raises the Port toggle (a harbour needs water);
+  // it is not lowered again — the Port button just disables when coast is None.
+  const selectCoast = (coast: CoastShape): void => {
+    const cfg = h.getConfig();
+    const features = coast !== "none" && !cfg.features.port ? { ...cfg.features, port: true } : cfg.features;
+    h.onConfig({ ...cfg, coast, features });
+  };
   const coastRow = div("cg-choices");
-  const coastButtons = COASTS.map(c => choice(c.label, () => patch({ coast: c.id }), c.id));
+  const coastButtons = COASTS.map(c => choice(c.label, () => selectCoast(c.id), c.id));
   for (const c of coastButtons) coastRow.appendChild(c.el);
   const coastHead = subheading("Coast");
   root.append(coastHead, coastRow);
@@ -265,6 +277,23 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   reliefRow.appendChild(reliefLabel);
   root.appendChild(reliefRow);
 
+  // Features — the Burg-editor Feature toggles, standalone-editable (design §3.4).
+  // Port needs water, so it disables when Coast is None.
+  const featureRow = div("cg-choices");
+  const featureButtons = FEATURE_KEYS.map(key =>
+    choice(
+      featureLabel(key),
+      () => {
+        const cur = h.getConfig().features;
+        patch({ features: { ...cur, [key]: !cur[key] } });
+      },
+      key
+    )
+  );
+  for (const c of featureButtons) featureRow.appendChild(c.el);
+  const featureHead = subheading("Features");
+  root.append(featureHead, featureRow);
+
   const randomize = button("Randomize site", h.onRandomize);
   root.appendChild(randomize);
 
@@ -279,6 +308,8 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
     shapeHead,
     shapeRow,
     reliefRow,
+    featureHead,
+    featureRow,
     randomize
   ];
 
@@ -314,6 +345,10 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
       c.el.disabled = cfg.rivers.length === 0;
     }
     relief.checked = cfg.relief;
+    for (const c of featureButtons) {
+      c.el.classList.toggle("is-active", cfg.features[c.key]);
+      if (c.key === "port") c.el.disabled = cfg.coast === "none";
+    }
 
     const isImported = mode.kind === "imported";
     imported.style.display = isImported ? "grid" : "none";
@@ -324,16 +359,23 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   return { root, sync };
 }
 
-/** Compact lines summarising what was imported — for the "does it fit the map?" check. */
+/** Compact lines summarising what was imported — for the "does it fit the map?" check.
+ * Features are read-only here: imported geography (and its programme) is fixed. */
 function describeDescriptor(d: BurgSiteDescriptor, origin: IncomingOrigin): Node[] {
   const water = d.waterbody ? `${d.waterbody.kind}${d.waterbody.isPort ? " · port" : ""}` : "none";
+  const yesNo = (b: boolean): string => (b ? "Yes" : "No");
   const rows: [string, string][] = [
     [origin === "world" ? "From world map" : "From shared link", d.burg.name || "(unnamed burg)"],
     ["Population", d.burg.population.toLocaleString()],
     ["Radius", `${Math.round(d.frame.cityRadiusMeters)} m`],
     ["Coast", water],
     ["Rivers", String(d.rivers.length)],
-    ["Gates", String(d.suggestedGates)]
+    ["Gates", String(d.suggestedGates)],
+    ["Walls", yesNo(d.burg.walls)],
+    ["Citadel", yesNo(d.burg.citadel)],
+    ["Plaza / Temple", `${yesNo(d.burg.plaza)} · ${yesNo(d.burg.temple)}`],
+    ["Port", d.burg.port ? (d.waterbody ? "Yes" : "Yes (no waterbody)") : "No"],
+    ["Shanty", yesNo(d.burg.shanty)]
   ];
   return rows.map(([k, v]) => {
     const line = div("cg-imported-row");
@@ -354,6 +396,11 @@ function riversOfLength(current: RiverShape[], n: number): RiverShape[] {
 function withFirstShape(current: RiverShape[], shape: RiverShape): RiverShape[] {
   if (current.length === 0) return [shape];
   return [shape, ...current.slice(1)];
+}
+
+/** "port" → "Port". */
+function featureLabel(key: keyof CityFeatureSet): string {
+  return key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 // --- drawing-process panel -----------------------------------------------------
