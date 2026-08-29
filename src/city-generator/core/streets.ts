@@ -20,7 +20,7 @@
 // buildings back from.
 
 import { aStar, buildEdgeGraph, MERGE_QUANTUM, nearestNode, smoothPath } from "./edgeGraph";
-import { azimuthDelta, nearestOnPolyline, pointInPolygon, vecToAzimuth } from "./geom";
+import { azimuthDelta, nearestOnPolyline, pointInPolygon, polygonCentroid, vecToAzimuth } from "./geom";
 import { clampToWindow } from "./graphWalk";
 import { close } from "./interior";
 import type { BorderLoop, Cell, CityGeography, Gate, Point, Precinct, StreetNetwork } from "./types";
@@ -41,10 +41,24 @@ export interface StreetInputs {
   halfExtentMeters: number;
 }
 
-const EMPTY: StreetNetwork = { streets: [], roads: [], arteries: [] };
+/**
+ * `StreetNetwork` plus the record of how far `tidyUpRoads` moved each interior
+ * street vertex. `pipeline.ts` folds `vertexShifts` back into the cell polygons
+ * so S6/S7 inset from de-zig-zagged edges — TownGeneratorTS 2.4 gets this for
+ * free because its `smoothStreet` mutates the `Point`s it shares with the patch
+ * polygons; our A* graph is a detached copy, so we replay the move.
+ */
+export interface StreetResult extends StreetNetwork {
+  /** Original urban cell-vertex key → smoothed position. Keyed as
+   * `foldArteriesIntoCells` re-keys the cell vertices. Intramural street runs
+   * only; the extramural roads keep the raw line they are drawn with. */
+  vertexShifts: Map<string, Point>;
+}
+
+const EMPTY: StreetResult = { streets: [], roads: [], arteries: [], vertexShifts: new Map() };
 
 /** Pure. Same interior geometry ⇒ identical network (A* is deterministic; no RNG). */
-export function buildStreets(input: StreetInputs): StreetNetwork {
+export function buildStreets(input: StreetInputs): StreetResult {
   const { cells, urban, borders, gates, precincts, citadelOutline, geo, cellSizeMeters, halfExtentMeters } = input;
   if (!gates.length || !cells.length) return EMPTY;
 
@@ -139,8 +153,12 @@ export function buildStreets(input: StreetInputs): StreetNetwork {
     if (legs) roads.push([...legs, [gate.point[0], gate.point[1]]]);
   }
 
-  const arteries = tidyUpRoads([...streets, ...roads], plazaPolys, cellSizeMeters);
-  return { streets, roads, arteries };
+  const arteries = buildArteries([...streets, ...roads], plazaPolys, cellSizeMeters).arteries;
+  // Fold ONLY the intramural street runs back into the fabric: they are masked to
+  // `urban` nodes, so every shifted key is an urban cell vertex, and the roads —
+  // which are drawn from their raw line — stay put beside the rural blocks.
+  const vertexShifts = buildArteries(streets, plazaPolys, cellSizeMeters).vertexShifts;
+  return { streets, roads, arteries, vertexShifts };
 }
 
 /**
@@ -150,6 +168,19 @@ export function buildStreets(input: StreetInputs): StreetNetwork {
  * gates and junctions — are held fixed).
  */
 export function tidyUpRoads(chains: Point[][], plazaPolys: Point[][], cellSize: number): Point[][] {
+  return buildArteries(chains, plazaPolys, cellSize).arteries;
+}
+
+/**
+ * `tidyUpRoads` plus the record of where each interior vertex moved: `key(raw) →
+ * smoothed`. Endpoints (gates / junctions) are held fixed and never recorded, so
+ * every entry is a genuine displacement `pipeline.ts` can fold into the cells.
+ */
+function buildArteries(
+  chains: Point[][],
+  plazaPolys: Point[][],
+  cellSize: number
+): { arteries: Point[][]; vertexShifts: Map<string, Point> } {
   const key = (p: Point): string => `${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`;
   const coord = new Map<string, Point>();
   const adjacency = new Map<string, Set<string>>();
@@ -178,6 +209,7 @@ export function tidyUpRoads(chains: Point[][], plazaPolys: Point[][], cellSize: 
   const segId = (a: string, b: string): string => (a < b ? `${a}~${b}` : `${b}~${a}`);
   const used = new Set<string>();
   const arteries: Point[][] = [];
+  const vertexShifts = new Map<string, Point>();
   const walk = (start: string, first: string): void => {
     if (used.has(segId(start, first))) return;
     const line: Point[] = [coord.get(start) as Point];
@@ -192,7 +224,13 @@ export function tidyUpRoads(chains: Point[][], plazaPolys: Point[][], cellSize: 
         cur = onward[0];
       } else break;
     }
-    arteries.push(line.length >= 3 ? smoothPath(line, 2) : line.map(p => [p[0], p[1]] as Point));
+    if (line.length >= 3) {
+      const smoothed = smoothPath(line, 2);
+      for (let i = 1; i + 1 < line.length; i++) vertexShifts.set(key(line[i]), smoothed[i]);
+      arteries.push(smoothed);
+    } else {
+      arteries.push(line.map(p => [p[0], p[1]] as Point));
+    }
   };
 
   // Runs anchored at every non-degree-2 node (gates, junctions, dead ends)…
@@ -204,7 +242,57 @@ export function tidyUpRoads(chains: Point[][], plazaPolys: Point[][], cellSize: 
   for (const [node, neighbours] of adjacency) {
     for (const next of neighbours) if (!used.has(segId(node, next))) walk(node, next);
   }
-  return arteries;
+  return { arteries, vertexShifts };
+}
+
+/**
+ * Vertex keys the artery fold must not move: the perimeter ring, the citadel
+ * enceinte and the gates. Keyed exactly as `foldArteriesIntoCells` re-keys the
+ * cell vertices, so a cell vertex sitting on any of them stays pinned and the
+ * wall / citadel overlays keep touching the fabric.
+ */
+export function reservedStreetVertices(
+  borders: BorderLoop[],
+  citadelOutline: Point[] | null,
+  gates: Gate[]
+): Set<string> {
+  const set = new Set<string>();
+  const add = (p: Point): void => {
+    set.add(`${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`);
+  };
+  for (const b of borders) for (const p of b.points) add(p);
+  if (citadelOutline) for (const p of citadelOutline) add(p);
+  for (const g of gates) add(g.point);
+  return set;
+}
+
+/**
+ * Replay TownGeneratorTS 2.4's `smoothStreet` on our detached grid. There it
+ * writes the smoothed coordinates straight into the `Point` objects it shares
+ * with the patch polygons, so 2.6 insets from straightened edges; here the A*
+ * graph is a copy, so we move the matching cell vertices onto the smoothed
+ * street ourselves. `reserved` keys are pinned; cells with no street vertex —
+ * and the whole array when nothing moves — are returned by reference so the
+ * pre-S5 snapshots stay on the raw junction-optimised grid.
+ */
+export function foldArteriesIntoCells(cells: Cell[], vertexShifts: Map<string, Point>, reserved: Set<string>): Cell[] {
+  if (vertexShifts.size === 0) return cells;
+  const key = (p: Point): string => `${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`;
+  let moved = false;
+  const out = cells.map(cell => {
+    let touched = false;
+    const polygon = cell.polygon.map(p => {
+      const k = key(p);
+      const shift = vertexShifts.get(k);
+      if (!shift || reserved.has(k)) return [p[0], p[1]] as Point;
+      touched = true;
+      return [shift[0], shift[1]] as Point;
+    });
+    if (!touched) return cell;
+    moved = true;
+    return { ...cell, polygon, centroid: polygonCentroid(polygon) };
+  });
+  return moved ? out : cells;
 }
 
 function link(adjacency: Map<string, Set<string>>, from: string, to: string): void {

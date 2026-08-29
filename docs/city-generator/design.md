@@ -248,7 +248,7 @@ TownGeneratorTS の `docs/**`（著者の記述）と公知アルゴリズムの
 | 本プロジェクト | TownGeneratorTS | 内容 |
 | ---- | ---- | ---- |
 | **S4 内周と門** | 2.2 `optimizeJunctions` + 2.3 `buildWalls` | `Cell.polygon` の近接頂点を統合（辺長 `< cellSize/6` を中点へ、共有参照を付け替え）。`urban` 集合を囲う単純閉ループ（エンベロープ）を作る。門 = descriptor `roads[].path`（無ければ `roads[].entryAzimuthDeg` レイ）がループと交わる点、本数を `suggestedGates` に合わせて頂点を微調整。`walls:true` ならループを描画壁 + 塔 + 水門に。`walls:false` でもループ・門・広場セル・城塞セルは必ず作る（S5 / S6 の前提）。**囲う形・海岸辺の扱い・壁線の規則性のオプション体系は `wall-patterns.md`**（`urban` をそのままなぞると凹んだ長い壁・海側の一様な壁になるため） |
-| **S5 街路** | 2.4 `buildStreets` | `core/edgeGraph.ts` 上で門→広場を A\*（`streets`）、門方向の遠方ノード→門を街道（`roads`）。`tidyUpRoads` で辺に分解・つなぎ直して `arteries`、中間頂点を平滑化（端点＝門・交差は固定）。**市外 `roads` のみ二重線で描画。市内街路は描かず、S7 のセットバック隙間として現れる** |
+| **S5 街路** | 2.4 `buildStreets` | `core/edgeGraph.ts` 上で門→広場を A\*（`streets`）、門方向の遠方ノード→門を街道（`roads`）。`tidyUpRoads` で辺に分解・つなぎ直して `arteries`、中間頂点を平滑化（端点＝門・交差は固定）。**平滑化した市内街路頂点は `foldArteriesIntoCells` で `fabricCells` の対応頂点へ書き戻す** ── TownGeneratorTS の `smoothStreet` が patch と共有する `Point` を動かし 2.6 がジグザグの取れたセル辺から inset するのと同じ効果。デタッチした A\* グラフを使う本実装では書き戻しが要る。城壁・城塞・門の頂点は `reservedStreetVertices` で固定。S6/S7・S5〜S7 スナップショットは `fabricCells` を使い、S0〜S4 は素の格子のまま。**市外 `roads` のみ二重線で描画。市内街路は描かず、S7 のセットバック隙間として現れる** |
 | **S6 街区** | 2.5 `createWards` | 各 `urban` セルにワード型。城塞 = `Castle`、広場 = `Market`、門接 = `GateWard`、以降 `rateLocation`（`Cathedral` / `AdministrationWard` = 広場近く、`MerchantWard` = 中心近く、`Slum` = 中心から遠い…）、キューが尽きたら `Slum`。郊外は 20% で `Farm`、他は空 `Ward`（建物なし） |
 | **S7 敷地** | 2.6 `buildGeometry` | 各セルを通りからのセットバック（壁沿い `MAIN_STREET/2`、動脈・広場沿い `MAIN_STREET/2`、市内 `REGULAR_STREET/2`、郊外 `ALLEY/2`）で inset → 凸は `shrink` / 凹は `buffer` → 地区ごとに再帰分割。**セル辺がここで街路として見える** |
 

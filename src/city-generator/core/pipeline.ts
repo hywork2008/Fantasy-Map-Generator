@@ -25,7 +25,7 @@ import {
 } from "./interior";
 import { makeRng } from "./prng";
 import { walkRiver } from "./riverPath";
-import { buildStreets } from "./streets";
+import { buildStreets, foldArteriesIntoCells, reservedStreetVertices } from "./streets";
 import type {
   Cell,
   CellTag,
@@ -37,6 +37,7 @@ import type {
   Point,
   RiverPath,
   Snapshot,
+  StreetNetwork,
   WardKind
 } from "./types";
 import { DEFAULT_PROGRAM, DEFAULT_WALL_PLAN } from "./types";
@@ -206,7 +207,7 @@ export function generateCity(
   // as a double line. `arteries` is kept for the S7 setbacks. The snapshot carries
   // the S4 wall / gate / precinct furniture forward so scrubbing to S5 still shows
   // the enclosed town.
-  const streets = buildStreets({
+  const streetResult = buildStreets({
     cells: interiorCells,
     urban,
     borders,
@@ -217,16 +218,33 @@ export function generateCity(
     cellSizeMeters: params.cellSizeMeters,
     halfExtentMeters: half
   });
+  const streets: StreetNetwork = {
+    streets: streetResult.streets,
+    roads: streetResult.roads,
+    arteries: streetResult.arteries
+  };
+  // Fold the smoothed intramural streets back into the cell edges (design §4.2
+  // S5, TownGeneratorTS 2.4): there `smoothStreet` moves the `Point`s it shares
+  // with the patches, so 2.6 insets from straightened streets; our graph is
+  // detached, so we replay the move here. Perimeter / citadel / gate vertices
+  // stay pinned; S0–S4 snapshots keep the untouched junction-optimised grid.
+  const fabricCells = foldArteriesIntoCells(
+    interiorCells,
+    streetResult.vertexShifts,
+    reservedStreetVertices(borders, citadelOutline, gates)
+  );
   const roadPaths = streets.roads.map(points => ({ kind: "road" as const, points, widths: [] as number[] }));
   steps.push(
-    snapshot("S5 · Streets", interiorCells, finalTag, [...riverSnapshotPaths, ...roadPaths], s4Overlays, precincts)
+    snapshot("S5 · Streets", fabricCells, finalTag, [...riverSnapshotPaths, ...roadPaths], s4Overlays, precincts)
   );
 
   // S6 — district types. Named precincts (temple / harbour) join the S4 plaza
   // and citadel; unnamed wards live on the cells. Shanty retags 3–6 cells just
   // outside the wall. The S4 furniture and S5 roads stay visible while scrubbing.
+  // Runs on `fabricCells` — TownGeneratorTS 2.5 likewise assigns wards on the
+  // patches 2.4 has already smoothed.
   const warded = assignWards({
-    cells: interiorCells,
+    cells: fabricCells,
     urban,
     outskirts,
     sea,
@@ -249,7 +267,7 @@ export function generateCity(
   steps.push(
     snapshot(
       "S6 · Wards",
-      interiorCells,
+      fabricCells,
       s6Tag,
       [...riverSnapshotPaths, ...roadPaths],
       s6Overlays,
@@ -261,7 +279,7 @@ export function generateCity(
   // S7 — lots. Cells are inset from streets / walls / rivers, then split per
   // ward. Empty Wards emit nothing; the setback gaps are the intramural streets.
   const buildings = buildGeometry({
-    cells: interiorCells,
+    cells: fabricCells,
     wards: warded.wards,
     urban,
     sea,
@@ -275,7 +293,7 @@ export function generateCity(
   steps.push(
     snapshot(
       "S7 · Lots",
-      interiorCells,
+      fabricCells,
       s6Tag,
       [...riverSnapshotPaths, ...roadPaths],
       s6Overlays,

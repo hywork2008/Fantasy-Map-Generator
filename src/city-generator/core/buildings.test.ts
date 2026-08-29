@@ -85,7 +85,9 @@ describe("S7 lots", () => {
 
   it("sets wall / inner / outskirts setbacks at least half a street width", () => {
     const r = run("s7-setback");
-    const byId = new Map(r.cells.map(c => [c.id, c]));
+    // Measure against the cells buildGeometry actually inset from — the final
+    // snapshot carries the S5 street-folded polygons.
+    const byId = new Map(r.steps.at(-1)!.cells.map(c => [c.id, c]));
     const wall = r.borders[0] ? close(r.borders[0].points) : [];
     const urban = new Set(r.steps[3].cells.filter(c => c.tag === "urban").map(c => c.id));
     const cs = r.params.cellSizeMeters;
@@ -132,7 +134,7 @@ describe("S7 lots", () => {
     const plazaBuildings = r.buildings.filter(b => plaza!.cellIds.includes(b.cellId));
     expect(plazaBuildings.length).toBeGreaterThanOrEqual(1);
     expect(plazaBuildings.length).toBeLessThanOrEqual(plaza!.cellIds.length);
-    const cell = r.cells.find(c => c.id === plaza!.cellIds[0])!;
+    const cell = r.steps.at(-1)!.cells.find(c => c.id === plaza!.cellIds[0])!;
     const cellArea = Math.abs(polygonArea(cell.polygon));
     const built = plazaBuildings.reduce((s, b) => s + Math.abs(polygonArea(b.polygon)), 0);
     expect(built).toBeLessThan(cellArea * 0.25);
@@ -140,7 +142,7 @@ describe("S7 lots", () => {
 
   it("places every building inside its cell", () => {
     const r = run("s7-inside");
-    const byId = new Map(r.cells.map(c => [c.id, c]));
+    const byId = new Map(r.steps.at(-1)!.cells.map(c => [c.id, c]));
     expect(r.buildings.length).toBeGreaterThan(20);
     let inside = 0;
     for (const b of r.buildings) {

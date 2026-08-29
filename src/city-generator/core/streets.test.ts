@@ -6,11 +6,11 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SITE_CONFIG } from "../site/siteConfig";
 import { siteToGeography, siteToParams, siteToProgram } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
-import { nearestOnPolyline, pointInPolygon } from "./geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { close } from "./interior";
 import { generateCity } from "./pipeline";
-import { tidyUpRoads } from "./streets";
-import type { Point } from "./types";
+import { foldArteriesIntoCells, reservedStreetVertices, tidyUpRoads } from "./streets";
+import type { BorderLoop, Cell, Gate, Point } from "./types";
 
 function run(seed: string) {
   const config = {
@@ -153,5 +153,131 @@ describe("tidyUpRoads", () => {
     // the [-1,-1] → [1,-1] hop is a plaza edge and must be gone
     expect(kept.some(p => near(p, [-1, -1]) < 1e-9)).toBe(false);
     expect(kept.some(p => near(p, [8, -1]) < 1e-9)).toBe(true);
+  });
+});
+
+describe("foldArteriesIntoCells", () => {
+  const qkey = (p: Point): string => `${Math.round(p[0] / 0.05)},${Math.round(p[1] / 0.05)}`;
+  const cell = (id: number, polygon: Point[]): Cell => ({
+    id,
+    polygon,
+    site: polygonCentroid(polygon),
+    centroid: polygonCentroid(polygon),
+    neighbors: [],
+    onBorder: false
+  });
+
+  it("moves a street vertex shared by two cells and recomputes the centroid", () => {
+    const left = cell(1, [
+      [0, 0],
+      [10, 0],
+      [10, 4],
+      [0, 8]
+    ]);
+    const right = cell(2, [
+      [10, 0],
+      [22, 0],
+      [22, 8],
+      [10, 4]
+    ]);
+    const shifts = new Map<string, Point>([[qkey([10, 4]), [10, 0.5]]]);
+
+    const [l2, r2] = foldArteriesIntoCells([left, right], shifts, new Set());
+    expect(l2.polygon.some(p => near(p, [10, 0.5]) < 1e-9)).toBe(true);
+    expect(r2.polygon.some(p => near(p, [10, 0.5]) < 1e-9)).toBe(true);
+    expect(l2.polygon.some(p => near(p, [10, 4]) < 1e-9)).toBe(false);
+    expect(near(l2.centroid, left.centroid)).toBeGreaterThan(0);
+  });
+
+  it("pins reserved keys; returns untouched cells and an untouched list by reference", () => {
+    const a = cell(1, [
+      [0, 0],
+      [10, 0],
+      [10, 4],
+      [0, 8]
+    ]);
+    const shifts = new Map<string, Point>([[qkey([10, 4]), [10, 0.5]]]);
+    expect(foldArteriesIntoCells([a], shifts, new Set([qkey([10, 4])]))[0]).toBe(a);
+
+    const b = cell(2, [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10]
+    ]);
+    expect(foldArteriesIntoCells([b], shifts, new Set())[0]).toBe(b);
+
+    const list = [a, b];
+    expect(foldArteriesIntoCells(list, new Map(), new Set())).toBe(list);
+  });
+});
+
+describe("reservedStreetVertices", () => {
+  const key = (p: Point): string => `${Math.round(p[0] / 0.05)},${Math.round(p[1] / 0.05)}`;
+  it("keys the perimeter, citadel and gate vertices, and nothing else", () => {
+    const borders: BorderLoop[] = [
+      {
+        points: [
+          [0, 0],
+          [10, 0],
+          [10, 10]
+        ],
+        segments: ["land", "land", "land"],
+        urbanCellIds: []
+      }
+    ];
+    const citadel: Point[] = [
+      [5, 5],
+      [6, 5]
+    ];
+    const gates: Gate[] = [{ point: [0, 0], borderIndex: 0, water: false }];
+    const set = reservedStreetVertices(borders, citadel, gates);
+    expect(set.has(key([10, 10]))).toBe(true);
+    expect(set.has(key([5, 5]))).toBe(true);
+    expect(set.has(key([0, 0]))).toBe(true);
+    expect(set.has(key([99, 99]))).toBe(false);
+  });
+});
+
+describe("S5 streets fold into the fabric (TownGeneratorTS 2.4)", () => {
+  const s4Of = (r: ReturnType<typeof run>) =>
+    new Map(r.steps.find(s => s.label === "S4 · Inner perimeter & gates")!.cells.map(c => [c.id, c.polygon] as const));
+
+  it("moves only street-adjacent vertices, onto a street route, without inverting cells", () => {
+    const r = run("s5-fold");
+    const cs = r.params.cellSizeMeters;
+    const s4 = s4Of(r);
+    const routes = [...r.streets.streets, ...r.streets.arteries];
+
+    const changed = r.steps.at(-1)!.cells.filter(c => {
+      const before = s4.get(c.id);
+      return before && JSON.stringify(before) !== JSON.stringify(c.polygon);
+    });
+    expect(changed.length).toBeGreaterThan(0);
+
+    for (const c of changed) {
+      const before = s4.get(c.id) as Point[];
+      const ratio = Math.abs(polygonArea(c.polygon)) / Math.max(Math.abs(polygonArea(before)), 1);
+      expect(ratio).toBeGreaterThan(0.6);
+      expect(ratio).toBeLessThan(1.4);
+      for (const p of c.polygon) {
+        if (before.some(q => near(p, q) < 1e-6)) continue; // vertex did not move
+        expect(Math.min(...routes.map(a => nearestOnPolyline(p, a).dist))).toBeLessThan(cs);
+      }
+    }
+  });
+
+  it("keeps the raw junction-optimised grid in the S0–S4 snapshots", () => {
+    const r = run("s5-fold-pre");
+    const s4 = r.steps.find(s => s.label === "S4 · Inner perimeter & gates")!.cells;
+    const s7 = new Map(r.steps.at(-1)!.cells.map(c => [c.id, c.polygon]));
+    const diff = s4.filter(c => JSON.stringify(c.polygon) !== JSON.stringify(s7.get(c.id)));
+    expect(diff.length).toBeGreaterThan(0); // S4 kept its pre-fold geometry; only S5+ folded
+  });
+
+  it("is deterministic through S7", () => {
+    expect(JSON.stringify(run("s5-fold-det").steps.at(-1)!.cells)).toEqual(
+      JSON.stringify(run("s5-fold-det").steps.at(-1)!.cells)
+    );
   });
 });

@@ -167,7 +167,9 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
       // only the plaza void still needs a precinct fill.
       if (lots && precinct.kind !== "plaza") continue;
       for (const cellId of precinct.cellIds) {
-        const cell = result.cells.find(c => c.id === cellId);
+        // Use the stage's own cells: from S5 on they carry the street-folded
+        // polygons, so the plaza void lines up with the straightened streets.
+        const cell = step.cells.find(c => c.id === cellId);
         if (cell) {
           g.appendChild(
             pickable(precinctNode(cell.polygon, precinct, half), {
