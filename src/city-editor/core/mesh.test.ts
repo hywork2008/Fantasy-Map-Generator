@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createDocument, createSizedDocument } from "./document";
-import { faceVertices, mergeFaces, splitFace } from "./mesh";
+import { faceVertices, mergeFaces, splitFace, validate } from "./mesh";
 
 describe("manual city mesh", () => {
   it("keeps the Small preset near its 24 × 24 macro-block target", () => {
-    const count = Object.keys(createSizedDocument("small", "small").mesh.faces).length;
+    const document = createSizedDocument("small", "small");
+    const count = Object.keys(document.mesh.faces).length;
     expect(count).toBeGreaterThanOrEqual(550);
     expect(count).toBeLessThanOrEqual(600);
+    expect(validate(document)).toEqual([]);
   });
 
   it("splits a cell and merges the two parts back", () => {

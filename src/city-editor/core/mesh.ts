@@ -1,29 +1,40 @@
 import type { Cell } from "../../city-generator/core/types";
 import type { CityDocument, Edge, EdgeRef, Face, Id, Mesh, Point, WaterKind } from "./types";
 
-const QUANTUM = 0.001;
+/** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
+ * them before assigning IDs so every face shares the same cleaned topology. */
+const VERTEX_MERGE_METERS = 1;
 
 export function meshFromCells(cells: Cell[]): Mesh {
   const vertices: Mesh["vertices"] = {};
   const edges: Mesh["edges"] = {};
   const faces: Mesh["faces"] = {};
-  const vertexByPoint = new Map<string, Id>();
+  const vertexBins = new Map<string, Id[]>();
   const edgeByEnds = new Map<string, Id>();
   let vertexNo = 0;
   let edgeNo = 0;
 
   const getVertex = (point: Point): Id => {
-    const key = pointKey(point);
-    const existing = vertexByPoint.get(key);
-    if (existing) return existing;
+    const gx = Math.floor(point[0] / VERTEX_MERGE_METERS);
+    const gy = Math.floor(point[1] / VERTEX_MERGE_METERS);
+    for (let y = gy - 1; y <= gy + 1; y++) {
+      for (let x = gx - 1; x <= gx + 1; x++) {
+        for (const id of vertexBins.get(`${x},${y}`) ?? []) {
+          const existing = vertices[id];
+          if (distance(existing.point, point) < VERTEX_MERGE_METERS) return id;
+        }
+      }
+    }
     const id = `v${vertexNo++}`;
-    vertexByPoint.set(key, id);
     vertices[id] = { id, point: [point[0], point[1]], locked: false };
+    const key = `${gx},${gy}`;
+    vertexBins.set(key, [...(vertexBins.get(key) ?? []), id]);
     return id;
   };
 
   for (const cell of cells) {
-    const ids = cell.polygon.map(getVertex);
+    const ids = removeConsecutiveDuplicates(cell.polygon.map(getVertex));
+    if (ids.length < 3 || new Set(ids).size < 3) continue;
     const faceId = `f${cell.id}`;
     const boundary: EdgeRef[] = [];
     for (let i = 0; i < ids.length; i++) {
@@ -279,10 +290,6 @@ export function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-function pointKey(p: Point): string {
-  return `${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`;
-}
-
 function edgeKey(a: Id, b: Id): string {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
@@ -325,4 +332,10 @@ function featureUsesEdge(document: CityDocument, edgeId: Id): boolean {
       if (edgeBetween(document.mesh, group.vertices[i - 1], group.vertices[i])?.id === edgeId) return true;
     return false;
   });
+}
+
+function removeConsecutiveDuplicates(ids: Id[]): Id[] {
+  const result = ids.filter((id, index) => index === 0 || id !== ids[index - 1]);
+  if (result.length > 1 && result[0] === result[result.length - 1]) result.pop();
+  return result;
 }
