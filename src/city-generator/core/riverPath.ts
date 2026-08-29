@@ -6,7 +6,7 @@
 // edge, ending exactly at the mouth. See docs/city-generator/design.md §4.2.
 
 import type { EdgeGraph } from "./edgeGraph";
-import { smoothPath } from "./edgeGraph";
+import { MERGE_QUANTUM, smoothPath, vertexKey } from "./edgeGraph";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { clampToWindow, walkGraph } from "./graphWalk";
 import type { Rng } from "./prng";
@@ -17,6 +17,12 @@ export interface RoutedRiver {
   edgePoints: Point[];
   /** `edgePoints` smoothed — the river's drawn / setback centerline. */
   smoothPoints: Point[];
+  /**
+   * Same length as `edgePoints`: water-clamped `smoothPath` of the walk, before
+   * endpoint snaps. Interior vertices are the positions the grid fold writes
+   * back onto the matching cell-edge vertices.
+   */
+  foldedPoints: Point[];
   /** Full width per vertex, resampled from the corridor. */
   widths: number[];
   /** True when the river could not be walked onto the grid (offshore / degenerate). */
@@ -38,7 +44,7 @@ export function walkRiver(
   halfExtentMeters: number,
   rng: Rng
 ): RoutedRiver {
-  const dead: RoutedRiver = { edgePoints: [], smoothPoints: [], widths: [], fallback: true };
+  const dead: RoutedRiver = { edgePoints: [], smoothPoints: [], foldedPoints: [], widths: [], fallback: true };
   if (corridor.length < 2 || graph.points.length === 0) return dead;
 
   // Start from the first corridor point on land; bail if the whole river is offshore.
@@ -138,7 +144,59 @@ export function walkRiver(
   const smoothPoints = exciseLoops(pruned.length >= 3 ? pruned : finalized, cellSizeMeters);
   if (smoothPoints.length < 3) return dead;
 
-  return { edgePoints, smoothPoints, widths: resampleWidths(smoothPoints, corridor, widths), fallback: false };
+  return {
+    edgePoints,
+    smoothPoints,
+    foldedPoints: clamped,
+    widths: resampleWidths(smoothPoints, corridor, widths),
+    fallback: false
+  };
+}
+
+/**
+ * Interior walk vertices → their smoothed positions, keyed like `vertexKey`.
+ * Endpoints stay put (`smoothPath` already pins them). A vertex claimed by two
+ * rivers (a confluence) takes the average. Displacements larger than ~one cell
+ * are dropped so a later endpoint snap cannot yank a grid vertex off-map.
+ */
+export function riverVertexShifts(
+  rivers: { edgePoints: Point[]; foldedPoints: Point[] }[],
+  cellSizeMeters: number
+): Map<string, Point> {
+  const cap = cellSizeMeters * 0.9;
+  const shifts = new Map<string, Point>();
+  const hits = new Map<string, number>();
+  for (const r of rivers) {
+    const n = Math.min(r.edgePoints.length, r.foldedPoints.length);
+    if (n < 3) continue;
+    for (let i = 1; i < n - 1; i++) {
+      const from = r.edgePoints[i];
+      const to = r.foldedPoints[i];
+      const d = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      if (d < MERGE_QUANTUM || d > cap) continue;
+      const k = vertexKey(from);
+      const prev = shifts.get(k);
+      const count = hits.get(k) ?? 0;
+      if (prev && count > 0) {
+        const nextCount = count + 1;
+        shifts.set(k, [(prev[0] * count + to[0]) / nextCount, (prev[1] * count + to[1]) / nextCount]);
+        hits.set(k, nextCount);
+      } else {
+        shifts.set(k, [to[0], to[1]]);
+        hits.set(k, 1);
+      }
+    }
+  }
+  return shifts;
+}
+
+/** Rewrite a polyline through any vertices that `riverVertexShifts` moved. */
+export function applyVertexShifts(points: Point[], shifts: Map<string, Point>): Point[] {
+  if (shifts.size === 0) return points;
+  return points.map(p => {
+    const s = shifts.get(vertexKey(p));
+    return s ? ([s[0], s[1]] as Point) : p;
+  });
 }
 
 /**

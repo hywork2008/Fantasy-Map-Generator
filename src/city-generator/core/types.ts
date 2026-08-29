@@ -51,10 +51,9 @@ export type CellTag = "land" | "sea" | "urban" | "outskirts" | "rural" | "shanty
 export interface RiverPath {
   /** Centerline polyline, local meters, upstream → downstream (mouth). */
   points: Point[];
-  /** Raw walk before smoothing: the chain of actual final-grid cell-edge vertices
-   * `points` was smoothed from. Every consecutive pair is a real cell edge — this
-   * is what "the river lies on the grid" means, so it is drawn as an inspection
-   * overlay (the smoothed `points` drift up to ~1 cell off it). */
+  /** On-grid spine: the walked cell-edge chain after interior vertices were
+   * folded onto `points`. Consecutive pairs are real cell edges of the river-
+   * aligned mesh. Drawn as an inspection overlay against the smoothed `points`. */
   edgeTrack: Point[];
   /** Per-vertex full width, meters (index-aligned with `points`). */
   widths: number[];
@@ -280,7 +279,8 @@ export interface GenerationResult {
   gridStages: GridStage[];
   /** Drawing-process stages, [0] = base grid, last = urban core. */
   steps: Snapshot[];
-  /** Final relaxed cells (identical to `gridStages.at(-1).cells`). */
+  /** Final cells (identical to `gridStages.at(-1).cells` — Lloyd, or the
+   * river-aligned mesh when a river walk was folded back onto the vertices). */
   cells: Cell[];
   /** River centerlines used by S2, for downstream stages / debugging. */
   riverPaths: RiverPath[];
