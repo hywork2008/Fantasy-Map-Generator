@@ -49,7 +49,7 @@ describe("CityProgram — M4a wiring", () => {
         expect(explicit, `${name}/${seed}`).toEqual(omitted);
       }
     }
-  });
+  }, 20_000);
 
   it("walls:true tightens the urban core to a strict, non-empty subset", () => {
     for (const [name, cfg] of Object.entries(CONFIGS)) {

@@ -1,9 +1,10 @@
 // Pipeline orchestrator: S0 grid → S1 sea/land → S2 river → S3 urban core →
-// S4 perimeter → S5 streets → S6 wards.
+// S4 perimeter → S5 streets → S6 wards → S7 lots.
 // S1 and S2 walk the Voronoi cell-edge graph along rough corridors from the
 // descriptor, so coast and river shape are graph-derived (design §4.2). Each
 // stage is captured as an immutable Snapshot for the drawing-process slider.
 
+import { buildGeometry } from "./buildings";
 import { classifyRiver } from "./classifyRiver";
 import { type CoastResult, classifyCoast } from "./classifySea";
 import { classifyUrban } from "./classifyUrban";
@@ -244,15 +245,43 @@ export function generateCity(
     if (warded.shanty.has(c.id)) return "shanty";
     return finalTag(c);
   };
+  const s6Overlays = [...s4Overlays, ...warded.overlays];
   steps.push(
     snapshot(
       "S6 · Wards",
       interiorCells,
       s6Tag,
       [...riverSnapshotPaths, ...roadPaths],
-      [...s4Overlays, ...warded.overlays],
+      s6Overlays,
       allPrecincts,
       wardById
+    )
+  );
+
+  // S7 — lots. Cells are inset from streets / walls / rivers, then split per
+  // ward. Empty Wards emit nothing; the setback gaps are the intramural streets.
+  const buildings = buildGeometry({
+    cells: interiorCells,
+    wards: warded.wards,
+    urban,
+    sea,
+    borders,
+    precincts: allPrecincts,
+    streets,
+    riverPaths,
+    cellSizeMeters: params.cellSizeMeters,
+    seed: params.seed
+  });
+  steps.push(
+    snapshot(
+      "S7 · Lots",
+      interiorCells,
+      s6Tag,
+      [...riverSnapshotPaths, ...roadPaths],
+      s6Overlays,
+      allPrecincts,
+      wardById,
+      buildings
     )
   );
 
@@ -268,7 +297,8 @@ export function generateCity(
     gates,
     precincts: allPrecincts,
     streets,
-    wards: warded.wards
+    wards: warded.wards,
+    buildings
   };
 }
 
@@ -296,14 +326,16 @@ function snapshot(
   paths: Snapshot["paths"],
   overlays: Overlay[],
   precincts: Snapshot["precincts"] = [],
-  wards: Map<number, WardKind> | null = null
+  wards: Map<number, WardKind> | null = null,
+  buildings: Snapshot["buildings"] = []
 ): Snapshot {
   return {
     label,
     cells: cells.map(c => ({ ...c, tag: tag(c), ward: wards?.get(c.id) ?? null })),
     paths,
     overlays,
-    precincts
+    precincts,
+    buildings
   };
 }
 

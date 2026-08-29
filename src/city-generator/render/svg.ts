@@ -5,8 +5,11 @@
 // Local frame is +Y = north; SVG y grows downward, so every y is negated here to
 // render north-up.
 
-import type { GenerationResult, Overlay, Point, Precinct, SnapshotPath } from "../core/types";
+import type { Building, GenerationResult, Overlay, Point, Precinct, SnapshotPath } from "../core/types";
 import {
+  BUILDING,
+  BUILDING_CASTLE,
+  BUILDING_TEMPLE,
   GATE,
   PALETTE,
   PRECINCT_FILL,
@@ -15,6 +18,7 @@ import {
   RIVER_TRACK,
   ROAD,
   SHORELINE,
+  STREET,
   TAG_FILL,
   TOWER,
   WALL,
@@ -124,8 +128,10 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
   result.steps.forEach((step, i) => {
     const g = el("g", { class: "cg-step", "data-step": String(i) });
     g.style.display = i === opts.stepIndex ? "inline" : "none";
+    const lots = step.buildings.length > 0;
     for (const cell of step.cells) {
-      const fill = (cell.ward && WARD_FILL[cell.ward]) || TAG_FILL[cell.tag] || PALETTE.cell;
+      const streetish = lots && (cell.tag === "urban" || cell.tag === "outskirts" || cell.tag === "shanty");
+      const fill = streetish ? STREET : (cell.ward && WARD_FILL[cell.ward]) || TAG_FILL[cell.tag] || PALETTE.cell;
       const wardBit = cell.ward ? ` · ${cell.ward}` : "";
       g.appendChild(
         pickable(cellPath(cell.polygon, fill, half), {
@@ -143,7 +149,23 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
         })
       );
     }
+    for (const [buildingIndex, building] of step.buildings.entries()) {
+      g.appendChild(
+        pickable(buildingNode(building, half), {
+          layer: "buildings",
+          kind: "building",
+          id: buildingIndex,
+          label: `${building.ward} building #${buildingIndex}`,
+          stage: step.label,
+          ward: building.ward,
+          cellId: building.cellId
+        })
+      );
+    }
     for (const precinct of step.precincts) {
+      // On S7 the buildings already occupy citadel / temple / harbour cells;
+      // only the plaza void still needs a precinct fill.
+      if (lots && precinct.kind !== "plaza") continue;
       for (const cellId of precinct.cellIds) {
         const cell = result.cells.find(c => c.id === cellId);
         if (cell) {
@@ -463,6 +485,19 @@ function overlayNode(overlay: Overlay, half: number): SVGElement {
     "stroke-width": half / 160,
     "stroke-linecap": "round",
     opacity: "0.85"
+  });
+}
+
+function buildingNode(building: Building, half: number): SVGElement {
+  const paint =
+    building.ward === "castle" ? BUILDING_CASTLE : building.ward === "cathedral" ? BUILDING_TEMPLE : BUILDING;
+  const strokeW = building.ward === "castle" ? 150 : building.ward === "cathedral" ? 200 : 280;
+  return el("path", {
+    d: polygonData(building.polygon),
+    fill: paint.fill,
+    stroke: paint.stroke,
+    "stroke-width": half / strokeW,
+    "stroke-linejoin": "round"
   });
 }
 

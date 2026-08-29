@@ -35,6 +35,11 @@ export const GATE = "#b1443a";
 export const WALL = "#6b6459";
 export const TOWER = "#4f493f";
 export const QUAY = "#7c7468";
+/** The visible intramural street: cell fill under S7 buildings. */
+export const STREET = "#d9d0c0";
+export const BUILDING = { fill: "#efe6d4", stroke: "#5c564c" } as const;
+export const BUILDING_CASTLE = { fill: "#f2ead8", stroke: "#4f493f" } as const;
+export const BUILDING_TEMPLE = { fill: "#e8e0ee", stroke: "#5c564c" } as const;
 export const PRECINCT_FILL: Record<string, string> = {
   citadel: "#b9a789",
   plaza: "#e7dfc9",

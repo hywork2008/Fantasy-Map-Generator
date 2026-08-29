@@ -3,6 +3,7 @@
 export { generateCity } from "./core/pipeline";
 export {
   type BorderLoop,
+  type Building,
   type Cell,
   type CellTag,
   type CityGeography,

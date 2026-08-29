@@ -28,10 +28,10 @@ describe("pipeline S0–S3", () => {
     expect(tagString(run(RIVER, "a").result)).not.toEqual(tagString(run(RIVER, "b").result));
   });
 
-  it("produces seven fully-tagged steps (through S6) and an urban core", () => {
+  it("produces eight fully-tagged steps (through S7) and an urban core", () => {
     for (const cfg of [RIVER, HARBOR, DRY]) {
       const { result } = run(cfg);
-      expect(result.steps).toHaveLength(7);
+      expect(result.steps).toHaveLength(8);
       expect(result.steps.map(s => s.label)).toEqual([
         "S0 · Grid",
         "S1 · Sea & land",
@@ -39,7 +39,8 @@ describe("pipeline S0–S3", () => {
         "S3 · Urban core",
         "S4 · Inner perimeter & gates",
         "S5 · Streets",
-        "S6 · Wards"
+        "S6 · Wards",
+        "S7 · Lots"
       ]);
       for (const step of result.steps) {
         expect(step.cells).toHaveLength(result.cells.length);

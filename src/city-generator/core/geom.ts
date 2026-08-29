@@ -284,6 +284,165 @@ export function polygonCompactness(poly: Point[]): number {
   return (4 * Math.PI * area) / (peri * peri);
 }
 
+/** True when every turn has the same sign (collinear vertices ignored). */
+export function polygonIsConvex(poly: Point[]): boolean {
+  if (poly.length < 3) return false;
+  let sign = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const c = poly[(i + 2) % poly.length];
+    const cr = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    if (Math.abs(cr) < 1e-12) continue;
+    const s = cr > 0 ? 1 : -1;
+    if (sign === 0) sign = s;
+    else if (s !== sign) return false;
+  }
+  return sign !== 0;
+}
+
+/** Drop consecutive duplicates and a repeated closing vertex. */
+export function cleanRing(poly: Point[], eps = 1e-4): Point[] {
+  const out: Point[] = [];
+  for (const p of poly) {
+    const last = out[out.length - 1];
+    if (!last || Math.hypot(last[0] - p[0], last[1] - p[1]) > eps) out.push([p[0], p[1]]);
+  }
+  if (out.length > 2 && Math.hypot(out[0][0] - out[out.length - 1][0], out[0][1] - out[out.length - 1][1]) <= eps) {
+    out.pop();
+  }
+  return out.length >= 3 ? out : [];
+}
+
+/** Unit inward normal of edge `a → b` (the side that contains the centroid). */
+export function inwardNormal(a: Point, b: Point, poly: Point[]): Point {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const left: Point = [-dy / len, dx / len];
+  const right: Point = [dy / len, -dx / len];
+  const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const c = polygonCentroid(poly);
+  const vx = c[0] - mid[0];
+  const vy = c[1] - mid[1];
+  return vx * left[0] + vy * left[1] >= vx * right[0] + vy * right[1] ? left : right;
+}
+
+/**
+ * Sutherland–Hodgman clip against the half-plane `(p - origin) · normal >= 0`.
+ * `normal` points toward the kept side.
+ */
+export function clipPolygonHalfPlane(poly: Point[], origin: Point, normal: Point): Point[] {
+  if (poly.length < 3) return [];
+  const inside = (p: Point): boolean => (p[0] - origin[0]) * normal[0] + (p[1] - origin[1]) * normal[1] >= -1e-9;
+  const hit = (a: Point, b: Point): Point => {
+    const da = (a[0] - origin[0]) * normal[0] + (a[1] - origin[1]) * normal[1];
+    const db = (b[0] - origin[0]) * normal[0] + (b[1] - origin[1]) * normal[1];
+    const t = Math.abs(da - db) < 1e-12 ? 0.5 : da / (da - db);
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  };
+  const out: Point[] = [];
+  for (let i = 0; i < poly.length; i++) {
+    const cur = poly[i];
+    const prev = poly[(i + poly.length - 1) % poly.length];
+    const curIn = inside(cur);
+    const prevIn = inside(prev);
+    if (curIn) {
+      if (!prevIn) out.push(hit(prev, cur));
+      out.push(cur);
+    } else if (prevIn) {
+      out.push(hit(prev, cur));
+    }
+  }
+  return cleanRing(out);
+}
+
+/**
+ * Convex inset: clip against each edge's inward-offset half-plane. `dists[i]` is
+ * the inset of edge `poly[i] → poly[i+1]`. Collapses to [] when the offsets eat
+ * the polygon.
+ */
+export function shrinkPolygon(poly: Point[], dists: number[]): Point[] {
+  if (poly.length < 3) return [];
+  let out = poly.map(p => [p[0], p[1]] as Point);
+  for (let i = 0; i < poly.length && out.length >= 3; i++) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const d = Math.max(0, dists[i] ?? dists[0] ?? 0);
+    if (d < 1e-9) continue;
+    const n = inwardNormal(a, b, poly);
+    out = clipPolygonHalfPlane(out, [a[0] + n[0] * d, a[1] + n[1] * d], n);
+  }
+  const area = Math.abs(polygonArea(out));
+  return out.length >= 3 && area > 1e-3 ? out : [];
+}
+
+/**
+ * Concave-tolerant inset: each vertex slides along the inward angle-bisector to
+ * the intersection of the two offset edges. Used when `shrinkPolygon` (half-plane
+ * clip) would over-cut a reflex chain.
+ */
+export function bufferPolygon(poly: Point[], dists: number[]): Point[] {
+  if (poly.length < 3) return [];
+  const n = poly.length;
+  const out: Point[] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = poly[(i - 1 + n) % n];
+    const curr = poly[i];
+    const next = poly[(i + 1) % n];
+    const d0 = Math.max(0, dists[(i - 1 + n) % n] ?? 0);
+    const d1 = Math.max(0, dists[i] ?? 0);
+    const n0 = inwardNormal(prev, curr, poly);
+    const n1 = inwardNormal(curr, next, poly);
+    const a1: Point = [prev[0] + n0[0] * d0, prev[1] + n0[1] * d0];
+    const a2: Point = [curr[0] + n0[0] * d0, curr[1] + n0[1] * d0];
+    const b1: Point = [curr[0] + n1[0] * d1, curr[1] + n1[1] * d1];
+    const b2: Point = [next[0] + n1[0] * d1, next[1] + n1[1] * d1];
+    const hit = lineLineIntersection(a1, a2, b1, b2);
+    if (hit && Number.isFinite(hit[0]) && Number.isFinite(hit[1])) {
+      const drift = Math.hypot(hit[0] - curr[0], hit[1] - curr[1]);
+      const cap = Math.max(d0, d1) * 4 + 1;
+      out.push(drift > cap ? [curr[0] + n0[0] * d0, curr[1] + n0[1] * d0] : hit);
+    } else {
+      const bx = n0[0] + n1[0];
+      const by = n0[1] + n1[1];
+      const bl = Math.hypot(bx, by) || 1;
+      const d = (d0 + d1) / 2;
+      out.push([curr[0] + (bx / bl) * d, curr[1] + (by / bl) * d]);
+    }
+  }
+  const cleaned = cleanRing(out);
+  const area = Math.abs(polygonArea(cleaned));
+  return cleaned.length >= 3 && area > 1e-3 ? cleaned : [];
+}
+
+/** Infinite-line intersection. Null when parallel. */
+export function lineLineIntersection(a: Point, b: Point, c: Point, d: Point): Point | null {
+  const rx = b[0] - a[0];
+  const ry = b[1] - a[1];
+  const sx = d[0] - c[0];
+  const sy = d[1] - c[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const t = ((c[0] - a[0]) * sy - (c[1] - a[1]) * sx) / den;
+  return [a[0] + t * rx, a[1] + t * ry];
+}
+
+/**
+ * Split `poly` by the line through `point` with `normal` pointing to the "left"
+ * piece. `gap` opens a corridor between the two halves (the alley).
+ */
+export function splitPolygon(poly: Point[], point: Point, normal: Point, gap = 0): [Point[], Point[]] {
+  const h = gap / 2;
+  const left = clipPolygonHalfPlane(poly, [point[0] + normal[0] * h, point[1] + normal[1] * h], normal);
+  const right = clipPolygonHalfPlane(
+    poly,
+    [point[0] - normal[0] * h, point[1] - normal[1] * h],
+    [-normal[0], -normal[1]]
+  );
+  return [left, right];
+}
+
 /** Perpendicular distance from `p` to the infinite line through `a`, `b`. */
 export function perpDistanceToLine(p: Point, a: Point, b: Point): number {
   const dx = b[0] - a[0];

@@ -120,6 +120,7 @@ export interface CityDigest {
   gates: { point: Point; bearingDeg: number; compass: string; water: boolean }[];
   precincts: { kind: string; label: string; anchor: Point; cellCount: number }[];
   wards: { kind: string; count: number }[];
+  buildingCount: number;
 }
 
 export interface CityExport {
@@ -260,7 +261,8 @@ function digestCity(
       anchor: roundPoint(p.anchor),
       cellCount: p.cellIds.length
     })),
-    wards: wardTally(result)
+    wards: wardTally(result),
+    buildingCount: result.buildings.length
   };
 }
 
@@ -352,6 +354,7 @@ function describeCity(settings: CityExportSettings, city: CityDigest): string[] 
   if (city.wards.length > 0) {
     lines.push(`Wards: ${city.wards.map(w => `${w.kind} ${w.count}`).join(", ")}.`);
   }
+  lines.push(`${city.buildingCount} building${plural(city.buildingCount)}.`);
 
   lines.push(
     `Cell classification — urban ${city.cellTags.urban}, outskirts ${city.cellTags.outskirts}, ` +

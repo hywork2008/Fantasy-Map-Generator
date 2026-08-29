@@ -108,6 +108,13 @@ export interface WardAssignment {
   kind: WardKind;
 }
 
+/** One building (or tree, statue, farmhouse) emitted by S7. */
+export interface Building {
+  polygon: Point[];
+  ward: WardKind;
+  cellId: number;
+}
+
 /** Per-edge kind on a wall ring — decides how (and whether) that run is drawn.
  * See docs/city-generator/wall-patterns.md §6. */
 export type WallSegmentKind = "land" | "coast" | "river" | "citadel";
@@ -195,6 +202,8 @@ export interface Snapshot {
   paths: SnapshotPath[];
   overlays: Overlay[];
   precincts: Precinct[];
+  /** S7 building footprints. Empty on earlier steps. */
+  buildings: Building[];
 }
 
 /** Local geography the pipeline classifies against. The coast/river polylines are
@@ -291,4 +300,6 @@ export interface GenerationResult {
   /** S6 district types. One entry per cell that received a ward (urban fabric,
    * outskirts farms, the citadel, harbour, and extramural shanty). */
   wards: WardAssignment[];
+  /** S7 building footprints. Empty Ward cells contribute nothing. */
+  buildings: Building[];
 }
