@@ -58,7 +58,7 @@ export function generateCity(
   program: CityProgram = DEFAULT_PROGRAM
 ): GenerationResult {
   const rng = makeRng(params.seed);
-  const gridStages = buildGrid(params, rng);
+  const gridStages = buildGrid(params, geo, rng);
   const cells = gridStages[gridStages.length - 1].cells;
   const graph = buildEdgeGraph(cells);
   const half = params.extentMeters / 2;

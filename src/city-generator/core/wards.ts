@@ -261,14 +261,14 @@ function scaleMix(n: number, rng: Rng): WardKind[] {
   const copies = Math.max(1, Math.ceil(n / WARD_MIX.length));
   const queue: WardKind[] = [];
   for (let i = 0; i < copies; i++) queue.push(...WARD_MIX);
-  // A few adjacent swaps — "slightly shuffled", not a full shuffle.
-  const swaps = Math.max(1, Math.trunc(queue.length / 10));
-  for (let i = 0; i < swaps; i++) {
-    const index = rng.int(0, Math.max(1, queue.length - 1));
-    const next = (index + 1) % queue.length;
-    const tmp = queue[index];
-    queue[index] = queue[next];
-    queue[next] = tmp;
+  // Full Fisher–Yates shuffle: on the coarse ward-scale grid there may be fewer
+  // cells than WARD_MIX is long, so the front of the list must not be all one
+  // kind — every district type has to get a proportional shot.
+  for (let i = queue.length - 1; i > 0; i--) {
+    const j = rng.int(0, i);
+    const tmp = queue[i];
+    queue[i] = queue[j];
+    queue[j] = tmp;
   }
   return queue;
 }
@@ -443,7 +443,9 @@ function pickShanty(
 ): number[] {
   const cityR = params.cityRadiusMeters;
   const borderR = borders.length ? Math.max(...borders.flatMap(b => b.points.map(p => Math.hypot(...p)))) : cityR;
-  const [lo, hi] = walled ? [borderR, borderR * 1.4] : [cityR * 0.95, cityR * 1.4];
+  // Wide enough that the coarse (ward-scale) rural cells still yield 3+ faubourg
+  // candidates in the band just outside the wall.
+  const [lo, hi] = walled ? [borderR * 0.92, borderR * 1.8] : [cityR * 0.9, cityR * 1.8];
   const bearings = busiestBearings(geo, walled ? 2 : 1);
   const closed = borders.map(b => (b.points.length ? [...b.points, b.points[0]] : b.points));
 

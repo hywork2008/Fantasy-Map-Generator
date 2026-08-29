@@ -15,7 +15,8 @@ const PARAMS: CityParams = {
 };
 
 function fixture() {
-  const cells = buildGrid(PARAMS, makeRng(PARAMS.seed)).at(-1)?.cells ?? [];
+  const cells =
+    buildGrid(PARAMS, { coast: null, rivers: [], roadBearings: [] }, makeRng(PARAMS.seed)).at(-1)?.cells ?? [];
   const graph = buildEdgeGraph(cells);
   // A rough west→east corridor through the origin.
   const corridor: Point[] = [

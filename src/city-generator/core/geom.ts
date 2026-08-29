@@ -398,17 +398,21 @@ export function bufferPolygon(poly: Point[], dists: number[]): Point[] {
     const a2: Point = [curr[0] + n0[0] * d0, curr[1] + n0[1] * d0];
     const b1: Point = [curr[0] + n1[0] * d1, curr[1] + n1[1] * d1];
     const b2: Point = [next[0] + n1[0] * d1, next[1] + n1[1] * d1];
+    // Inward bisector — the safe direction to move `curr` under an inset.
+    const bl = Math.hypot(n0[0] + n1[0], n0[1] + n1[1]) || 1;
+    const inx = (n0[0] + n1[0]) / bl;
+    const iny = (n0[1] + n1[1]) / bl;
+    const dm = (d0 + d1) / 2;
     const hit = lineLineIntersection(a1, a2, b1, b2);
-    if (hit && Number.isFinite(hit[0]) && Number.isFinite(hit[1])) {
-      const drift = Math.hypot(hit[0] - curr[0], hit[1] - curr[1]);
-      const cap = Math.max(d0, d1) * 4 + 1;
-      out.push(drift > cap ? [curr[0] + n0[0] * d0, curr[1] + n0[1] * d0] : hit);
+    const drift = hit ? Math.hypot(hit[0] - curr[0], hit[1] - curr[1]) : Number.POSITIVE_INFINITY;
+    // Accept the exact miter only when it moves INWARD and not absurdly far. A
+    // reflex vertex's miter lands on the far side of the original edge; rejecting
+    // it there stops the inset polygon bulging back outward.
+    const miterInward = !!hit && (hit[0] - curr[0]) * inx + (hit[1] - curr[1]) * iny >= 0;
+    if (hit && Number.isFinite(hit[0]) && Number.isFinite(hit[1]) && miterInward && drift <= Math.max(d0, d1) * 4 + 1) {
+      out.push(hit);
     } else {
-      const bx = n0[0] + n1[0];
-      const by = n0[1] + n1[1];
-      const bl = Math.hypot(bx, by) || 1;
-      const d = (d0 + d1) / 2;
-      out.push([curr[0] + (bx / bl) * d, curr[1] + (by / bl) * d]);
+      out.push([curr[0] + inx * dm, curr[1] + iny * dm]);
     }
   }
   const cleaned = cleanRing(out);

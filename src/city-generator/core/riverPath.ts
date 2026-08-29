@@ -23,7 +23,10 @@ export interface RoutedRiver {
   fallback: boolean;
 }
 
-const SMOOTH_ITERATIONS = 3;
+// Two passes, not three: on the coarse ward-scale grid the walked `edgePoints`
+// are already ~one cell apart, so heavier smoothing pulls the drawn centre-line
+// too far off the grid (and out into the sea past `trimAtWater`).
+const SMOOTH_ITERATIONS = 2;
 
 export function walkRiver(
   graph: EdgeGraph,
@@ -118,8 +121,21 @@ export function walkRiver(
   // river is not viable for this geography and the whole thing is dropped.
   const finalized = finalizeEnds(clamped, halfExtentMeters, cellSizeMeters, waterPolygon, shoreline);
   if (!finalized) return dead;
+  // Snapping the mouth onto the shore can strand the previous (smoothed,
+  // unclamped) tip out in the water — drop any INTERIOR point left deep past the
+  // coastline. The two ends are already resolved by finalizeEnds.
+  const pruned =
+    waterPolygon && shoreline && shoreline.length >= 2
+      ? finalized.filter(
+          (p, i) =>
+            i === 0 ||
+            i === finalized.length - 1 ||
+            !pointInPolygon(p, waterPolygon) ||
+            nearestOnPolyline(p, shoreline).dist <= cellSizeMeters * 1.2
+        )
+      : finalized;
   // A snapped end can, rarely, cross a nearby bend — clear it the same way.
-  const smoothPoints = exciseLoops(finalized, cellSizeMeters);
+  const smoothPoints = exciseLoops(pruned.length >= 3 ? pruned : finalized, cellSizeMeters);
   if (smoothPoints.length < 3) return dead;
 
   return { edgePoints, smoothPoints, widths: resampleWidths(smoothPoints, corridor, widths), fallback: false };
@@ -169,7 +185,16 @@ function finalizeEnds(
 
   /** null = drop river; the point = new tip to prepend/append; undefined = keep as-is. */
   const resolve = (tip: Point): Point | null | undefined => {
-    if (inSea(tip) || edgeGap(tip) < RESOLVED) return undefined;
+    if (inSea(tip)) {
+      // A proper mouth sits just past the coastline; a tip left deep in the water
+      // (coarse grid, cape headland) is pulled back onto the shore.
+      if (shoreline && shoreline.length >= 2) {
+        const hit = nearestOnPolyline(tip, shoreline);
+        return hit.dist > cell * 1.5 ? hit.point : undefined;
+      }
+      return undefined;
+    }
+    if (edgeGap(tip) < RESOLVED) return undefined;
     const eg = edgeGap(tip);
     const sg = seaGap(tip);
     // already at the coast — snap exactly onto the shoreline so it reads as a mouth
