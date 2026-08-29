@@ -107,7 +107,7 @@ describe("pipeline on a decoded descriptor", () => {
     const result = generateCity(siteToParams(descriptor!), siteToGeography(descriptor!));
     const finalTags = result.steps[result.steps.length - 1].cells.map(c => c.tag);
     expect(finalTags.filter(t => t === "urban").length).toBeGreaterThan(0);
-    expect(finalTags.every(t => ["sea", "urban", "outskirts", "rural", "land"].includes(t))).toBe(true);
+    expect(finalTags.every(t => ["sea", "urban", "outskirts", "rural", "land", "shanty"].includes(t))).toBe(true);
   });
 
   it("re-rolls the layout when the seed is overridden, geography held fixed", () => {

@@ -267,6 +267,23 @@ function douglasPeucker(points: Point[], tol: number): Point[] {
     .concat(douglasPeucker(points.slice(idx), tol));
 }
 
+/** Closed-ring perimeter (last vertex joins the first). */
+export function polygonPerimeter(poly: Point[]): number {
+  let sum = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    sum += Math.hypot(poly[i][0] - poly[j][0], poly[i][1] - poly[j][1]);
+  }
+  return sum;
+}
+
+/** Isoperimetric quotient `4π·area / peri²`. A circle is 1; 0 on a degenerate ring. */
+export function polygonCompactness(poly: Point[]): number {
+  const peri = polygonPerimeter(poly);
+  const area = Math.abs(polygonArea(poly));
+  if (peri < 1e-9) return 0;
+  return (4 * Math.PI * area) / (peri * peri);
+}
+
 /** Perpendicular distance from `p` to the infinite line through `a`, `b`. */
 export function perpDistanceToLine(p: Point, a: Point, b: Point): number {
   const dx = b[0] - a[0];

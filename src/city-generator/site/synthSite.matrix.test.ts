@@ -24,7 +24,7 @@ const RIVER_SETS: RiverShape[][] = [
   ["through", "toCoast"],
   ["meander", "meander"]
 ];
-const VALID_TAGS: CellTag[] = ["land", "sea", "urban", "outskirts", "rural"];
+const VALID_TAGS: CellTag[] = ["land", "sea", "urban", "outskirts", "rural", "shanty"];
 
 const combos: SiteConfig[] = [];
 for (const coast of COASTS) {
@@ -39,7 +39,7 @@ describe("site matrix", () => {
       const site = synthSite("smallCity", config, seed);
       const result = generateCity(siteToParams(site), siteToGeography(site));
 
-      expect(result.steps).toHaveLength(6);
+      expect(result.steps).toHaveLength(7);
       for (const step of result.steps) {
         expect(step.cells).toHaveLength(result.cells.length);
         for (const cell of step.cells) {

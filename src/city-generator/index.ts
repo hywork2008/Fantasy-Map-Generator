@@ -20,7 +20,9 @@ export {
   type Snapshot,
   type StreetNetwork,
   type WallPlan,
-  type WallSegmentKind
+  type WallSegmentKind,
+  type WardAssignment,
+  type WardKind
 } from "./core/types";
 export type { BurgSiteArchetype, BurgSiteDescriptor } from "./site/burgSiteDescriptor";
 export {

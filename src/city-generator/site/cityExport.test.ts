@@ -163,7 +163,7 @@ describe("buildCityExport — standalone", () => {
     const t = data.city.cellTags;
     expect(data.city.dimensions.cellCount).toBe(src.result.cells.length);
     expect(t.total).toBe(final.cells.length);
-    expect(t.sea + t.urban + t.outskirts + t.rural).toBe(t.total);
+    expect(t.sea + t.urban + t.outskirts + t.rural + t.shanty).toBe(t.total);
     expect(data.city.stages.stepLabels).toEqual(src.result.steps.map(s => s.label));
     expect(data.city.walls.loopCount).toBe(src.result.borders.length);
     expect(data.city.gates).toHaveLength(src.result.gates.length);

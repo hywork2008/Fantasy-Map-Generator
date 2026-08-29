@@ -42,8 +42,9 @@ export interface GridStage {
 }
 
 /** Classification a cell carries in a pipeline snapshot. The river is drawn as a
- * band on the cell edges, not by tagging cells — there is no "river water" tag. */
-export type CellTag = "land" | "sea" | "urban" | "outskirts" | "rural";
+ * band on the cell edges, not by tagging cells — there is no "river water" tag.
+ * `shanty` is the extramural slum-grade faubourg (S6); a sibling of `outskirts`. */
+export type CellTag = "land" | "sea" | "urban" | "outskirts" | "rural" | "shanty";
 
 /** A river as a wide "road" walked along the Voronoi cell-edge graph (design §4.1),
  * smoothed for drawing. Stops where it first meets the sea. */
@@ -60,7 +61,7 @@ export interface RiverPath {
   cityBank: "left" | "right";
 }
 
-export type OverlayKind = "shoreline" | "gateBearing" | "wall" | "citadelWall" | "gate" | "tower";
+export type OverlayKind = "shoreline" | "gateBearing" | "wall" | "citadelWall" | "gate" | "tower" | "quay";
 
 export interface Overlay {
   kind: OverlayKind;
@@ -69,14 +70,42 @@ export interface Overlay {
   water?: boolean;
 }
 
-/** A named, build-free area reserved before streets and wards are generated. */
-export type PrecinctKind = "citadel" | "plaza";
+/** A named, build-free area reserved before streets and wards are generated.
+ * S4 places `citadel` / `plaza`; S6 adds `temple` / `harbor`. */
+export type PrecinctKind = "citadel" | "plaza" | "temple" | "harbor";
 
 export interface Precinct {
   kind: PrecinctKind;
   cellIds: number[];
   anchor: Point;
   label: string;
+}
+
+/**
+ * District type assigned to a cell in S6 (TownGeneratorTS 2.5 `createWards`).
+ * Named precincts (`plaza` / `temple` / `citadel` / `harbor`) are the labelled
+ * projection of a subset of these; the rest live only as a per-cell field.
+ */
+export type WardKind =
+  | "castle"
+  | "market"
+  | "gate"
+  | "cathedral"
+  | "administration"
+  | "merchant"
+  | "craftsmen"
+  | "military"
+  | "patriciate"
+  | "park"
+  | "slum"
+  | "farm"
+  | "empty"
+  | "harbor"
+  | "shanty";
+
+export interface WardAssignment {
+  cellId: number;
+  kind: WardKind;
 }
 
 /** Per-edge kind on a wall ring — decides how (and whether) that run is drawn.
@@ -159,6 +188,8 @@ export interface Snapshot {
   cells: Array<
     Pick<Cell, "id" | "polygon" | "site" | "centroid" | "neighbors" | "onBorder"> & {
       tag: CellTag;
+      /** Set from S6 onward; null on earlier snapshots. */
+      ward: WardKind | null;
     }
   >;
   paths: SnapshotPath[];
@@ -257,4 +288,7 @@ export interface GenerationResult {
   /** S5 street network. Only `streets.roads` is drawn; `streets` / `arteries`
    * feed the S7 setbacks. */
   streets: StreetNetwork;
+  /** S6 district types. One entry per cell that received a ward (urban fabric,
+   * outskirts farms, the citadel, harbour, and extramural shanty). */
+  wards: WardAssignment[];
 }

@@ -106,7 +106,7 @@ export interface CityDigest {
     cellCount: number;
   };
   suggestedArchetype: BurgSiteArchetype;
-  cellTags: { sea: number; urban: number; outskirts: number; rural: number; total: number };
+  cellTags: { sea: number; urban: number; outskirts: number; rural: number; shanty: number; total: number };
   stages: { gridStageCount: number; stepCount: number; stepLabels: string[] };
   coast: {
     waterAzimuthDeg: number;
@@ -119,6 +119,7 @@ export interface CityDigest {
   walls: { loopCount: number; loops: CityWallLoopDigest[] };
   gates: { point: Point; bearingDeg: number; compass: string; water: boolean }[];
   precincts: { kind: string; label: string; anchor: Point; cellCount: number }[];
+  wards: { kind: string; count: number }[];
 }
 
 export interface CityExport {
@@ -194,12 +195,13 @@ function digestCity(
   result: GenerationResult
 ): CityDigest {
   const finalCells = result.steps[result.steps.length - 1]?.cells ?? [];
-  const cellTags = { sea: 0, urban: 0, outskirts: 0, rural: 0, total: finalCells.length };
+  const cellTags = { sea: 0, urban: 0, outskirts: 0, rural: 0, shanty: 0, total: finalCells.length };
   for (const c of finalCells) {
     if (c.tag === "sea") cellTags.sea++;
     else if (c.tag === "urban") cellTags.urban++;
     else if (c.tag === "outskirts") cellTags.outskirts++;
     else if (c.tag === "rural") cellTags.rural++;
+    else if (c.tag === "shanty") cellTags.shanty++;
   }
 
   const coastAz = geo.coast?.waterAzimuthDeg ?? 0;
@@ -257,8 +259,15 @@ function digestCity(
       label: p.label,
       anchor: roundPoint(p.anchor),
       cellCount: p.cellIds.length
-    }))
+    })),
+    wards: wardTally(result)
   };
+}
+
+function wardTally(result: GenerationResult): { kind: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const w of result.wards) counts.set(w.kind, (counts.get(w.kind) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([kind, count]) => ({ kind, count }));
 }
 
 function loopDigest(loop: BorderLoop): CityWallLoopDigest {
@@ -340,9 +349,14 @@ function describeCity(settings: CityExportSettings, city: CityDigest): string[] 
     lines.push(`Reserved precincts: ${city.precincts.map(pr => pr.label || pr.kind).join(", ")}.`);
   }
 
+  if (city.wards.length > 0) {
+    lines.push(`Wards: ${city.wards.map(w => `${w.kind} ${w.count}`).join(", ")}.`);
+  }
+
   lines.push(
     `Cell classification — urban ${city.cellTags.urban}, outskirts ${city.cellTags.outskirts}, ` +
-      `rural ${city.cellTags.rural}, sea ${city.cellTags.sea} (of ${city.cellTags.total}).`
+      `rural ${city.cellTags.rural}, shanty ${city.cellTags.shanty}, sea ${city.cellTags.sea} ` +
+      `(of ${city.cellTags.total}).`
   );
 
   return lines;

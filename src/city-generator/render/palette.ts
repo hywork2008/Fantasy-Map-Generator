@@ -19,7 +19,8 @@ export const TAG_FILL: Record<string, string> = {
   sea: "#9fb2ae",
   urban: "#c7b596",
   outskirts: "#d3c7ac",
-  rural: "#dad4c7"
+  rural: "#dad4c7",
+  shanty: "#d8cdb4"
 };
 
 // The river is a band drawn on the cell edges (no cells are tagged as water).
@@ -33,9 +34,31 @@ export const SHORELINE = "#5c6a68";
 export const GATE = "#b1443a";
 export const WALL = "#6b6459";
 export const TOWER = "#4f493f";
+export const QUAY = "#7c7468";
 export const PRECINCT_FILL: Record<string, string> = {
   citadel: "#b9a789",
-  plaza: "#e7dfc9"
+  plaza: "#e7dfc9",
+  temple: "#c9bfe0",
+  harbor: "#a9b8b0"
+};
+
+/** S6 district fills. Named precincts overlay these; unnamed wards use them as the cell colour. */
+export const WARD_FILL: Record<string, string> = {
+  castle: PRECINCT_FILL.citadel,
+  market: PRECINCT_FILL.plaza,
+  cathedral: PRECINCT_FILL.temple,
+  harbor: PRECINCT_FILL.harbor,
+  gate: "#c4a882",
+  administration: "#c3b49a",
+  merchant: "#d2bc8e",
+  craftsmen: "#c7b596",
+  military: "#b7b0a2",
+  patriciate: "#d4c4a4",
+  park: "#b9c4a8",
+  slum: "#cbbba0",
+  farm: "#c5c2a4",
+  empty: "#d3c7ac",
+  shanty: TAG_FILL.shanty
 };
 
 // Inspection overlay for the Grid-evolution view: the raw on-edge walk (`track`,

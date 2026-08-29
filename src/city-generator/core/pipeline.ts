@@ -1,4 +1,5 @@
-// Pipeline orchestrator: S0 grid → S1 sea/land → S2 river → S3 urban core.
+// Pipeline orchestrator: S0 grid → S1 sea/land → S2 river → S3 urban core →
+// S4 perimeter → S5 streets → S6 wards.
 // S1 and S2 walk the Voronoi cell-edge graph along rough corridors from the
 // descriptor, so coast and river shape are graph-derived (design §4.2). Each
 // stage is captured as an immutable Snapshot for the drawing-process slider.
@@ -34,9 +35,11 @@ import type {
   Overlay,
   Point,
   RiverPath,
-  Snapshot
+  Snapshot,
+  WardKind
 } from "./types";
 import { DEFAULT_PROGRAM, DEFAULT_WALL_PLAN } from "./types";
+import { assignWards } from "./wards";
 
 const EMPTY_GEO: CityGeography = { coast: null, rivers: [], roadBearings: [] };
 
@@ -218,6 +221,41 @@ export function generateCity(
     snapshot("S5 · Streets", interiorCells, finalTag, [...riverSnapshotPaths, ...roadPaths], s4Overlays, precincts)
   );
 
+  // S6 — district types. Named precincts (temple / harbour) join the S4 plaza
+  // and citadel; unnamed wards live on the cells. Shanty retags 3–6 cells just
+  // outside the wall. The S4 furniture and S5 roads stay visible while scrubbing.
+  const warded = assignWards({
+    cells: interiorCells,
+    urban,
+    outskirts,
+    sea,
+    borders,
+    gates,
+    precincts,
+    geo,
+    params,
+    program,
+    shoreline: coast?.shoreline ?? null,
+    waterPolygon: coast?.waterPolygon ?? null
+  });
+  const allPrecincts = [...precincts, ...warded.precincts];
+  const wardById = new Map(warded.wards.map(w => [w.cellId, w.kind]));
+  const s6Tag = (c: Cell): CellTag => {
+    if (warded.shanty.has(c.id)) return "shanty";
+    return finalTag(c);
+  };
+  steps.push(
+    snapshot(
+      "S6 · Wards",
+      interiorCells,
+      s6Tag,
+      [...riverSnapshotPaths, ...roadPaths],
+      [...s4Overlays, ...warded.overlays],
+      allPrecincts,
+      wardById
+    )
+  );
+
   return {
     params,
     gridStages,
@@ -228,8 +266,9 @@ export function generateCity(
     waterPolygon: coast?.waterPolygon ?? null,
     borders,
     gates,
-    precincts,
-    streets
+    precincts: allPrecincts,
+    streets,
+    wards: warded.wards
   };
 }
 
@@ -256,9 +295,16 @@ function snapshot(
   tag: (c: Cell) => CellTag,
   paths: Snapshot["paths"],
   overlays: Overlay[],
-  precincts: Snapshot["precincts"] = []
+  precincts: Snapshot["precincts"] = [],
+  wards: Map<number, WardKind> | null = null
 ): Snapshot {
-  return { label, cells: cells.map(c => ({ ...c, tag: tag(c) })), paths, overlays, precincts };
+  return {
+    label,
+    cells: cells.map(c => ({ ...c, tag: tag(c), ward: wards?.get(c.id) ?? null })),
+    paths,
+    overlays,
+    precincts
+  };
 }
 
 /** Unit tangent of the shoreline at its closest point to the town centre. */

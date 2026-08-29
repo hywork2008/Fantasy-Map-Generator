@@ -45,7 +45,8 @@ describe("S5 streets", () => {
 
   it("keeps every street inside the wall and clear of the citadel enceinte", () => {
     const r = run("s5-mask");
-    const citadelRing = r.steps.at(-1)?.overlays.find(o => o.kind === "citadelWall")?.points as Point[];
+    const citadelRing = r.steps.find(s => s.label === "S5 · Streets")?.overlays.find(o => o.kind === "citadelWall")
+      ?.points as Point[];
     expect(citadelRing).toBeTruthy();
     const cs = r.params.cellSizeMeters;
     // "not outside": inside a wall ring, or hugging its line (spur-gate streets).
@@ -91,7 +92,7 @@ describe("S5 streets", () => {
 
   it("draws the extramural roads but not the intramural streets", () => {
     const r = run("s5-render");
-    const s5 = r.steps.at(-1);
+    const s5 = r.steps.find(s => s.label === "S5 · Streets");
     expect(s5?.label).toBe("S5 · Streets");
     expect(s5?.paths.filter(p => p.kind === "road")).toHaveLength(r.streets.roads.length);
     expect(s5?.paths.some(p => p.kind === "street")).toBe(false);

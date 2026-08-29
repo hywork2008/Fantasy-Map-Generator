@@ -6,7 +6,20 @@
 // render north-up.
 
 import type { GenerationResult, Overlay, Point, Precinct, SnapshotPath } from "../core/types";
-import { GATE, PALETTE, PRECINCT_FILL, RIVER, RIVER_TRACK, ROAD, SHORELINE, TAG_FILL, TOWER, WALL } from "./palette";
+import {
+  GATE,
+  PALETTE,
+  PRECINCT_FILL,
+  QUAY,
+  RIVER,
+  RIVER_TRACK,
+  ROAD,
+  SHORELINE,
+  TAG_FILL,
+  TOWER,
+  WALL,
+  WARD_FILL
+} from "./palette";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -112,14 +125,17 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
     const g = el("g", { class: "cg-step", "data-step": String(i) });
     g.style.display = i === opts.stepIndex ? "inline" : "none";
     for (const cell of step.cells) {
+      const fill = (cell.ward && WARD_FILL[cell.ward]) || TAG_FILL[cell.tag] || PALETTE.cell;
+      const wardBit = cell.ward ? ` · ${cell.ward}` : "";
       g.appendChild(
-        pickable(cellPath(cell.polygon, TAG_FILL[cell.tag] ?? PALETTE.cell, half), {
+        pickable(cellPath(cell.polygon, fill, half), {
           layer: "drawing-process",
           kind: "cell",
           id: cell.id,
-          label: `${cell.tag} cell #${cell.id}`,
+          label: `${cell.tag}${wardBit} cell #${cell.id}`,
           stage: step.label,
           tag: cell.tag,
+          ward: cell.ward,
           site: cell.site,
           centroid: cell.centroid,
           neighbors: cell.neighbors,
@@ -417,6 +433,17 @@ function overlayNode(overlay: Overlay, half: number): SVGElement {
       "stroke-width": half / 350
     });
   }
+  if (overlay.kind === "quay") {
+    return el("path", {
+      d: polylineData(overlay.points),
+      fill: "none",
+      stroke: QUAY,
+      "stroke-width": half / 70,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      opacity: "0.9"
+    });
+  }
   if (overlay.kind === "gate") {
     const [x, y] = overlay.points[0];
     const g = el("g", {});
@@ -444,7 +471,7 @@ function precinctNode(poly: Point[], precinct: Precinct, half: number): SVGEleme
     d: polygonData(poly),
     fill: PRECINCT_FILL[precinct.kind],
     opacity: precinct.kind === "plaza" ? "0.9" : "0.85",
-    stroke: precinct.kind === "citadel" ? WALL : PALETTE.cellStroke,
+    stroke: precinct.kind === "citadel" || precinct.kind === "harbor" ? WALL : PALETTE.cellStroke,
     "stroke-width": half / (precinct.kind === "citadel" ? 150 : 360),
     "stroke-linejoin": "round"
   };

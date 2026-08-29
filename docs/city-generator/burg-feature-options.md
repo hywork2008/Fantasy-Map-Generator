@@ -454,7 +454,7 @@ export const MOAT = RIVER.fill;
 | --- | ---- | ---- |
 | **M4a ✅** | `core/types.ts` に `CityProgram` + `DEFAULT_PROGRAM`。`generateCity(params, geo, program = DEFAULT_PROGRAM)`。`siteInput.siteToProgram`（`burg.*` → `CityProgram` 純パススルー、`index.ts` 再エクスポート）。`SiteConfig.features: CityFeatureSet` + `defaultFeatures(population)` + `FEATURE_KEYS`。`synthSite` は population ヒューリスティック削除 → `config.features` をそのまま `burg.*` へ（`port` のみ `&& waterbody`）。UI = Features トグル行（synthOnly、Port は coast=none で disabled、coast 選択で port を引き上げ）+ imported 読み出し 5 行。`pipeline` は `program.walls` で `classifyUrban` 半径 `×0.92`（`WALLED_COMPACTION`）。**視覚的な新要素なし**（`walls:true` で `urban` 集合が締まるだけ）。§3.2 の `siteConfigKey` への features 連結は見送り（上記） | `tsc` 0、`vitest` 98/98（`core/program.test.ts` 4: 全 false ≡ 無指定でバイト一致、`walls:true` で urban が厳密部分集合かつ小、他 6 フラグは S3 無影響、決定論。`site/siteConfig.test.ts` 6: `defaultFeatures` population スケール・`randomSiteConfig` の 6 フラグ両値 roll・landlocked は port 無し・key は features 非依存。`site/siteInput.test.ts` +2: `siteToProgram` verbatim）、biome / lint:legacy クリーン。ブラウザ実測（dev）: Features 行が初期 Walls/Plaza/Temple/Shanty on、トグルで再生成、Bay 選択で Port enabled+active・None で disabled、imported で Features 行非表示＋読み出しに descriptor フラグ 5 行、console エラー無し。build: city payload 38.5 KB、world/d3/three 参照 0 |
 | **M4b** | S4（`design.md §4.2`）── `optimizeJunctions` 移植 + `border` ループ + 門 + `walls:true` の描画壁・塔・水門 + `plaza` セル + `citadel` セル。Snapshot `S4 · 内周と門` | `tsc` 0、`vitest`（`border` は単純閉曲線・`urban` を内包、門数 = `suggestedGates`、河川分断時は成分ごとに 1 ループ、`plaza`≠`citadel` セル、`citadel` は `border` 隣接かつ原点から ≥0.15R、`walls:false` で描画壁 Overlay なし、シード安定）、ブラウザ（4 archetype で壁・門・城塞が妥当、`walls` トグルで壁が出入り） |
-| **M6** | S6（`design.md §7`）の一部 ── `temple`（`Cathedral` rateLocation）、`port` の harbor 街区 + quay、`shanty` の城壁外配置 | S5（街路）実装後。`vitest`（`temple` は広場近傍・plaza と別セル、`harbor` は `waterbody` 必須・`sea` 隣接、`shanty` は `border` 外側 3–6 セル）、ブラウザ |
+| **M6 ✅** | S6（`design.md §7`）── `temple`（`Cathedral` rateLocation）、`port` の harbor 街区 + quay、`shanty` の城壁外配置。`shanty` は `CellTag` + `WardKind "shanty"`（§12.2） | `vitest`（`temple` は広場近傍・plaza と別セル、`harbor` は `waterbody` 必須・`sea` 隣接、`shanty` は `border` 外側 3–6 セル）、ブラウザ（S6 ワード色、Bay で Harbour+quay） |
 
 M5（街路）と M7（敷地）は本書の対象外 ── `design.md §7` を参照。
 
@@ -476,8 +476,7 @@ M5（街路）と M7（敷地）は本書の対象外 ── `design.md §7` を
 1. **インポートモードで Features を上書きできるか。** v1 は読み取り専用（geography 固定に合わせる）。
    seed 再ロールと同様に「フラグだけ変えて再生成」を許すかは要検討。許すなら
    `Mode.imported` に `programOverride?: Partial<CityProgram>` を足す。
-2. **`shanty` を `CellTag` にするか `Precinct` にするか。** 本書は面クラス（`outskirts` の兄弟）としたが、
-   faubourg リボンと一体で扱うなら `Precinct{kind:"shanty"}` の方が素直かもしれない。M6 で確定。
+2. **`shanty` を `CellTag` にするか `Precinct` にするか。** → **決定（M6）**: `CellTag "shanty"`（`outskirts` の兄弟）+ 同名の `WardKind`。面クラスとして郊外リボン上に置き、名前付き Precinct にはしない（S7 のセットバックは ward を見る）。
 3. **citadel の標高極大判定。** `terrain.heightfield` は 17×17（`synthTerrain`）。セル centroid での
    バイリニア補間で足りるか、`relief: false` のとき +2.0 加点が無効化されて配置が
    「内陸方向の壁縁」一択に寄らないか、実測で確認。
