@@ -1,4 +1,4 @@
-import { CITY_SIZE_PRESETS, type CitySizePreset, createSizedDocument, parseDocument } from "../core/document";
+import { CITY_SIZE_PRESETS, type CitySizePreset, createSizedDocument } from "../core/document";
 import {
   addElement,
   appendEdge,
@@ -22,6 +22,7 @@ import {
   validate
 } from "../core/mesh";
 import type { CityDocument, ElementKind, Id, Tool, WardKind, WaterKind } from "../core/types";
+import { exportCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import { type RenderSelection, renderEditorSvg } from "../render/svg";
 
 const TOOLS: Array<[Tool, string]> = [
@@ -41,6 +42,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let activeGroupId: Id | null = null;
   let dragBefore: CityDocument | null = null;
   let isDragging = false;
+  let notice = "";
   let halfView = documentState.frame.extentMeters / 2;
 
   const canvas = div("ce-canvas");
@@ -84,8 +86,11 @@ export function mountCityEditor(root: HTMLElement): void {
   sizeLabel.className = "ce-size-choice";
   const undoButton = makeButton("Undo", () => restore(history.undo(documentState)));
   const redoButton = makeButton("Redo", () => restore(history.redo(documentState)));
-  const exportButton = makeButton("Export JSON", () => download(documentState));
-  const importButton = makeButton("Import JSON", () => void importDocument());
+  const exportButton = makeButton("Export map", () => {
+    exportCityMap(documentState);
+    showNotice("Map exported");
+  });
+  const importButton = makeButton("Import map", () => void importDocument());
   const scaleInput = numberInput("1", "0.1", "0.1");
   const scaleButton = makeButton("Scale all", () => {
     const factor = Number(scaleInput.value);
@@ -121,6 +126,16 @@ export function mountCityEditor(root: HTMLElement): void {
     isDragging = true;
     selection.vertexId = vertexId;
     map.setPointerCapture(event.pointerId);
+  });
+  map.addEventListener("dragover", event => {
+    event.preventDefault();
+    map.classList.add("ce-map--drop-target");
+  });
+  map.addEventListener("dragleave", () => map.classList.remove("ce-map--drop-target"));
+  map.addEventListener("drop", event => {
+    event.preventDefault();
+    map.classList.remove("ce-map--drop-target");
+    void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
     if (!isDragging || !selection.vertexId) return;
@@ -246,7 +261,7 @@ export function mountCityEditor(root: HTMLElement): void {
     renderInspector();
     renderGroups();
     const errors = validate(documentState);
-    status.textContent = `${Object.keys(documentState.mesh.faces).length} blocks · ${documentState.featureGroups.length} groups${errors.length ? ` · ${errors.join(", ")}` : " · valid"}`;
+    status.textContent = `${Object.keys(documentState.mesh.faces).length} blocks · ${documentState.featureGroups.length} groups${errors.length ? ` · ${errors.join(", ")}` : " · valid"}${notice ? ` · ${notice}` : ""}`;
     refreshScaleBar();
   }
 
@@ -363,11 +378,17 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   async function importDocument(): Promise<void> {
-    const text = await readFile();
-    if (!text) return;
-    const parsed = parseDocument(text);
+    const parsed = await pickCityMap();
+    applyImportedMap(parsed);
+  }
+
+  async function importMapFile(file: File | undefined): Promise<void> {
+    applyImportedMap(await readCityMap(file));
+  }
+
+  function applyImportedMap(parsed: CityDocument | null): void {
     if (!parsed) {
-      status.textContent = "Invalid City Editor JSON";
+      showNotice("Import failed: select a City Editor map JSON file");
       return;
     }
     documentState = parsed;
@@ -375,7 +396,17 @@ export function mountCityEditor(root: HTMLElement): void {
     selection = emptySelection();
     activeGroupId = null;
     halfView = parsed.frame.extentMeters / 2;
+    showNotice("Map imported");
+  }
+
+  function showNotice(value: string): void {
+    notice = value;
     refresh();
+    window.setTimeout(() => {
+      if (notice !== value) return;
+      notice = "";
+      refresh();
+    }, 1800);
   }
 }
 
@@ -465,31 +496,4 @@ function niceScale(targetMeters: number): number {
 
 function formatDistance(meters: number): string {
   return meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
-}
-
-function download(documentState: CityDocument): void {
-  const blob = new Blob([JSON.stringify(documentState, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "city.fmg-city-editor.json";
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function readFile(): Promise<string | null> {
-  return new Promise(resolve => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json,application/json";
-    input.addEventListener("change", () => {
-      const file = input.files?.[0];
-      if (!file) return resolve(null);
-      const reader = new FileReader();
-      reader.addEventListener("load", () => resolve(typeof reader.result === "string" ? reader.result : null));
-      reader.addEventListener("error", () => resolve(null));
-      reader.readAsText(file);
-    });
-    input.click();
-  });
 }
