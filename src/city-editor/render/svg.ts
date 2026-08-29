@@ -14,7 +14,8 @@ export function renderEditorSvg(
   document: CityDocument,
   tool: Tool,
   selection: RenderSelection,
-  viewBox: string
+  viewBox: string,
+  zoom: number
 ): SVGSVGElement {
   const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
   const cells = element("g", { class: "ce-cells" });
@@ -86,7 +87,7 @@ export function renderEditorSvg(
         element("circle", {
           cx: String(vertex.point[0]),
           cy: String(-vertex.point[1]),
-          r: String(Math.max(5, document.frame.extentMeters / 150)),
+          r: String(vertexHandleRadius(zoom)),
           class: `ce-vertex${selection.vertexId === vertex.id ? " ce-selected" : ""}`,
           "data-vertex": vertex.id
         })
@@ -95,6 +96,12 @@ export function renderEditorSvg(
     svg.appendChild(vertices);
   }
   return svg;
+}
+
+/** FMG-style zoom range: a large handle at ×1, reducing to r=2 at ×20. */
+export function vertexHandleRadius(zoom: number): number {
+  const clamped = Math.min(20, Math.max(1, zoom));
+  return 8 - ((clamped - 1) / 19) * 6;
 }
 
 function edgeGroupPoints(document: CityDocument, segments: EdgeRef[]): Point[] {

@@ -88,8 +88,12 @@ export function mountCityEditor(root: HTMLElement): void {
   const importButton = makeButton("Import JSON", () => void importDocument());
   const scaleInput = numberInput("1", "0.1", "0.1");
   const scaleButton = makeButton("Scale all", () => {
-    const next = scaleDocument(documentState, Number(scaleInput.value));
-    if (next) commit(next);
+    const factor = Number(scaleInput.value);
+    const next = scaleDocument(documentState, factor);
+    if (next) {
+      halfView *= factor;
+      commit(next);
+    }
   });
   const finishButton = makeButton("Finish river", () => {
     if (!activeGroupId) return;
@@ -167,10 +171,11 @@ export function mountCityEditor(root: HTMLElement): void {
       event.preventDefault();
       halfView = clamp(
         halfView * Math.exp(event.deltaY * 0.0012),
-        documentState.frame.extentMeters / 12,
-        documentState.frame.extentMeters * 1.5
+        documentState.frame.extentMeters / 40,
+        documentState.frame.extentMeters / 2
       );
       redrawMap();
+      refreshScaleBar();
     },
     { passive: false }
   );
@@ -247,7 +252,7 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function redrawMap(): void {
     const box = `${-halfView} ${-halfView} ${halfView * 2} ${halfView * 2}`;
-    map.replaceChildren(renderEditorSvg(documentState, tool, selection, box));
+    map.replaceChildren(renderEditorSvg(documentState, tool, selection, box, zoomFactor()));
   }
 
   function refreshScaleBar(): void {
@@ -257,7 +262,11 @@ export function mountCityEditor(root: HTMLElement): void {
     const meters = niceScale(metersPerPixel * 120);
     scaleLine.style.width = `${meters / metersPerPixel}px`;
     const blockCount = Math.max(1, Math.round(meters / documentState.frame.blockSizeMeters));
-    scaleLabel.textContent = `${formatDistance(meters)} · ≈ ${blockCount} block${blockCount === 1 ? "" : "s"} (1 cell ≈ ${formatDistance(documentState.frame.blockSizeMeters)})`;
+    scaleLabel.textContent = `×${zoomFactor().toFixed(1)} · ${formatDistance(meters)} · ≈ ${blockCount} block${blockCount === 1 ? "" : "s"} (1 cell ≈ ${formatDistance(documentState.frame.blockSizeMeters)})`;
+  }
+
+  function zoomFactor(): number {
+    return documentState.frame.extentMeters / 2 / halfView;
   }
 
   function renderInspector(): void {
