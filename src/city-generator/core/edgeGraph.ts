@@ -4,11 +4,19 @@
 // vertex chain is smoothed so the zig-zag of cell edges reads as a road.
 
 import FlatQueue from "flatqueue";
+import { polygonCentroid } from "./geom";
 import type { Cell, Point } from "./types";
 
 /** Coincident cell-boundary vertices closer than this merge to one node (m).
  * Far below the cell size, so distinct Voronoi vertices are never merged. */
 export const MERGE_QUANTUM = 0.05;
+
+/** Quantized identity of a shared cell-boundary vertex. Rivers and streets both
+ * key folds with this so a moved vertex stays one vertex on every cell that
+ * owns it. */
+export function vertexKey(p: Point): string {
+  return `${Math.round(p[0] / MERGE_QUANTUM)},${Math.round(p[1] / MERGE_QUANTUM)}`;
+}
 
 export interface EdgeGraph {
   /** node id → coordinate. */
@@ -138,4 +146,34 @@ export function smoothPath(points: Point[], iterations: number): Point[] {
     out = next;
   }
   return out;
+}
+
+/**
+ * Replay a detached-graph vertex move onto the cell polygons that share those
+ * vertices. TownGeneratorTS mutates the `Point`s its streets/rivers share with
+ * the patches; our walk copies coordinates, so pipeline folds the shift back.
+ * `reserved` keys stay pinned. Cells with no matching vertex — and the whole
+ * array when nothing moves — are returned by reference.
+ */
+export function foldVerticesIntoCells(
+  cells: Cell[],
+  vertexShifts: Map<string, Point>,
+  reserved: Set<string> = new Set()
+): Cell[] {
+  if (vertexShifts.size === 0) return cells;
+  let moved = false;
+  const out = cells.map(cell => {
+    let touched = false;
+    const polygon = cell.polygon.map(p => {
+      const k = vertexKey(p);
+      const shift = vertexShifts.get(k);
+      if (!shift || reserved.has(k)) return [p[0], p[1]] as Point;
+      touched = true;
+      return [shift[0], shift[1]] as Point;
+    });
+    if (!touched) return cell;
+    moved = true;
+    return { ...cell, polygon, centroid: polygonCentroid(polygon) };
+  });
+  return moved ? out : cells;
 }

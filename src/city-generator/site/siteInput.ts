@@ -23,8 +23,10 @@ export function siteToParams(site: BurgSiteDescriptor): CityParams {
     seed: site.burg.seed,
     extentMeters,
     cityRadiusMeters,
-    cellSizeMeters: cityRadiusMeters / 9,
-    lloydPasses: 3
+    // Coarse from the start — one Voronoi cell ≈ one ward (TownGeneratorTS patch
+    // scale). One light Lloyd pass keeps organic size/shape variety (design §4.2 S0).
+    cellSizeMeters: cityRadiusMeters / 3.5,
+    lloydPasses: 1
   };
 }
 

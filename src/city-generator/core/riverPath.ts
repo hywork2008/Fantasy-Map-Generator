@@ -6,7 +6,7 @@
 // edge, ending exactly at the mouth. See docs/city-generator/design.md §4.2.
 
 import type { EdgeGraph } from "./edgeGraph";
-import { smoothPath } from "./edgeGraph";
+import { MERGE_QUANTUM, smoothPath, vertexKey } from "./edgeGraph";
 import { nearestOnPolyline, pointInPolygon, segmentsIntersect } from "./geom";
 import { clampToWindow, walkGraph } from "./graphWalk";
 import type { Rng } from "./prng";
@@ -17,13 +17,22 @@ export interface RoutedRiver {
   edgePoints: Point[];
   /** `edgePoints` smoothed — the river's drawn / setback centerline. */
   smoothPoints: Point[];
+  /**
+   * Same length as `edgePoints`: water-clamped `smoothPath` of the walk, before
+   * endpoint snaps. Interior vertices are the positions the grid fold writes
+   * back onto the matching cell-edge vertices.
+   */
+  foldedPoints: Point[];
   /** Full width per vertex, resampled from the corridor. */
   widths: number[];
   /** True when the river could not be walked onto the grid (offshore / degenerate). */
   fallback: boolean;
 }
 
-const SMOOTH_ITERATIONS = 3;
+// Two passes, not three: on the coarse ward-scale grid the walked `edgePoints`
+// are already ~one cell apart, so heavier smoothing pulls the drawn centre-line
+// too far off the grid (and out into the sea past `trimAtWater`).
+const SMOOTH_ITERATIONS = 2;
 
 export function walkRiver(
   graph: EdgeGraph,
@@ -35,7 +44,7 @@ export function walkRiver(
   halfExtentMeters: number,
   rng: Rng
 ): RoutedRiver {
-  const dead: RoutedRiver = { edgePoints: [], smoothPoints: [], widths: [], fallback: true };
+  const dead: RoutedRiver = { edgePoints: [], smoothPoints: [], foldedPoints: [], widths: [], fallback: true };
   if (corridor.length < 2 || graph.points.length === 0) return dead;
 
   // Start from the first corridor point on land; bail if the whole river is offshore.
@@ -118,11 +127,76 @@ export function walkRiver(
   // river is not viable for this geography and the whole thing is dropped.
   const finalized = finalizeEnds(clamped, halfExtentMeters, cellSizeMeters, waterPolygon, shoreline);
   if (!finalized) return dead;
+  // Snapping the mouth onto the shore can strand the previous (smoothed,
+  // unclamped) tip out in the water — drop any INTERIOR point left deep past the
+  // coastline. The two ends are already resolved by finalizeEnds.
+  const pruned =
+    waterPolygon && shoreline && shoreline.length >= 2
+      ? finalized.filter(
+          (p, i) =>
+            i === 0 ||
+            i === finalized.length - 1 ||
+            !pointInPolygon(p, waterPolygon) ||
+            nearestOnPolyline(p, shoreline).dist <= cellSizeMeters * 1.2
+        )
+      : finalized;
   // A snapped end can, rarely, cross a nearby bend — clear it the same way.
-  const smoothPoints = exciseLoops(finalized, cellSizeMeters);
+  const smoothPoints = exciseLoops(pruned.length >= 3 ? pruned : finalized, cellSizeMeters);
   if (smoothPoints.length < 3) return dead;
 
-  return { edgePoints, smoothPoints, widths: resampleWidths(smoothPoints, corridor, widths), fallback: false };
+  return {
+    edgePoints,
+    smoothPoints,
+    foldedPoints: clamped,
+    widths: resampleWidths(smoothPoints, corridor, widths),
+    fallback: false
+  };
+}
+
+/**
+ * Interior walk vertices → their smoothed positions, keyed like `vertexKey`.
+ * Endpoints stay put (`smoothPath` already pins them). A vertex claimed by two
+ * rivers (a confluence) takes the average. Displacements larger than ~one cell
+ * are dropped so a later endpoint snap cannot yank a grid vertex off-map.
+ */
+export function riverVertexShifts(
+  rivers: { edgePoints: Point[]; foldedPoints: Point[] }[],
+  cellSizeMeters: number
+): Map<string, Point> {
+  const cap = cellSizeMeters * 0.9;
+  const shifts = new Map<string, Point>();
+  const hits = new Map<string, number>();
+  for (const r of rivers) {
+    const n = Math.min(r.edgePoints.length, r.foldedPoints.length);
+    if (n < 3) continue;
+    for (let i = 1; i < n - 1; i++) {
+      const from = r.edgePoints[i];
+      const to = r.foldedPoints[i];
+      const d = Math.hypot(to[0] - from[0], to[1] - from[1]);
+      if (d < MERGE_QUANTUM || d > cap) continue;
+      const k = vertexKey(from);
+      const prev = shifts.get(k);
+      const count = hits.get(k) ?? 0;
+      if (prev && count > 0) {
+        const nextCount = count + 1;
+        shifts.set(k, [(prev[0] * count + to[0]) / nextCount, (prev[1] * count + to[1]) / nextCount]);
+        hits.set(k, nextCount);
+      } else {
+        shifts.set(k, [to[0], to[1]]);
+        hits.set(k, 1);
+      }
+    }
+  }
+  return shifts;
+}
+
+/** Rewrite a polyline through any vertices that `riverVertexShifts` moved. */
+export function applyVertexShifts(points: Point[], shifts: Map<string, Point>): Point[] {
+  if (shifts.size === 0) return points;
+  return points.map(p => {
+    const s = shifts.get(vertexKey(p));
+    return s ? ([s[0], s[1]] as Point) : p;
+  });
 }
 
 /**
@@ -169,7 +243,16 @@ function finalizeEnds(
 
   /** null = drop river; the point = new tip to prepend/append; undefined = keep as-is. */
   const resolve = (tip: Point): Point | null | undefined => {
-    if (inSea(tip) || edgeGap(tip) < RESOLVED) return undefined;
+    if (inSea(tip)) {
+      // A proper mouth sits just past the coastline; a tip left deep in the water
+      // (coarse grid, cape headland) is pulled back onto the shore.
+      if (shoreline && shoreline.length >= 2) {
+        const hit = nearestOnPolyline(tip, shoreline);
+        return hit.dist > cell * 1.5 ? hit.point : undefined;
+      }
+      return undefined;
+    }
+    if (edgeGap(tip) < RESOLVED) return undefined;
     const eg = edgeGap(tip);
     const sg = seaGap(tip);
     // already at the coast — snap exactly onto the shoreline so it reads as a mouth

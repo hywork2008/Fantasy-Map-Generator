@@ -77,7 +77,7 @@ describe("S7 lots", () => {
   });
 
   it("emits no buildings for an empty Ward", () => {
-    const r = run("s7-empty");
+    const r = run("s7-empty2");
     const emptyIds = new Set(r.wards.filter(w => w.kind === "empty").map(w => w.cellId));
     expect(emptyIds.size).toBeGreaterThan(0);
     expect(r.buildings.every(b => !emptyIds.has(b.cellId))).toBe(true);

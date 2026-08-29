@@ -116,9 +116,9 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
     gridWrap.appendChild(g);
   });
   // River overlay, always visible in the grid family so the Grid-evolution slider
-  // can be scrubbed against it: the walk ran on the LAST Lloyd stage's edge graph,
-  // so the raw track traces that mesh's edges and floats free of the earlier
-  // stages — that offset IS the river↔grid relationship to inspect.
+  // can be scrubbed against it. The walk ran on the last Lloyd mesh; when a
+  // river was folded back, the final "River-aligned" stage's edges sit on this
+  // overlay, and the earlier stages show the offset the fold closed.
   gridWrap.appendChild(riverTrackOverlay(result, half, opts.showSites));
   viewport.appendChild(gridWrap);
 

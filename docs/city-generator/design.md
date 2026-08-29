@@ -183,10 +183,11 @@ FMG は既に **per-burg 立地サーベイ** `BurgSiteDescriptor` を出力す�
 #### S0 — 領域とグリッド
 
 1. 窓 = `frame.extentMeters` の正方形。
-2. セル数 `N ≈ (extentMeters / targetCellSize)²`、`targetCellSize ≈ cityRadiusMeters / 8〜12`。
-3. 母点を散布（spiral / Poisson blue-noise ── §7 未決）。Lloyd 緩和 2–3 回で均質化。
-4. `voronoi.ts` で構築 → `Cell { id, site, polygon, centroid, neighbors[], onBorder }`。
-5. 「Grid evolution」スライダーはこの前段（初期 Voronoi → 各 Lloyd → 確定格子）の可視化。
+2. `targetCellSize = cityRadiusMeters / 3.5` ── **粗い（1 セル ≒ 1 ワード、TownGeneratorTS 2.1 の patch スケール）**。窓全体で ~130〜460 セル。均一ジッタ格子 + Lloyd 3 回で ~2900 個の準六角セルを作り、後段でワードごとに束ね直す旧方式は撤去（Lloyd が中心も外縁も面積を揃えて多様性を潰し、束ね直したブロックが凹んで不自然になっていた ── 相談記録参照）。
+3. 母点 = **可変半径 Bridson blue-noise**（`grid.ts scatterSites`）。間隔は `targetCellSize`、ただし海岸・河川コリドーから `~1.4·cellSize` 以内は半分に詰める（海岸/河川 walk が縫えるセルを確保）。**Lloyd は 1 回だけ**（スリバー整形。かけ過ぎると格子化して多様性が消える）。
+4. `voronoi.ts` で構築 → `Cell`。面積が `cellSize²·0.015` 未満のスリバーは捨てる。
+5. 「Grid evolution」スライダーは scatter → Lloyd1（確定）の可視化。河川がある場合は S2 のあと頂点を平滑中心線へ書き戻した **River-aligned** 段が末尾に付く。
+6. S4 以降はこのセルをそのまま使う（凸なので凝集・境界再構築は不要）。ワード種キューは完全シャッフル（セル数がキュー長より少ないので前寄せ禁止）。
 
 #### 共通機構 — ボロノイ辺グラフの walk（`core/{edgeGraph,graphWalk}.ts`）
 
@@ -221,9 +222,12 @@ descriptor が与えるのは**ラフなコリドー**（数点の制御点）�
    軸を `shoreAzimuthDeg` 寄りにして「内陸 → 都心 → 海」へ流す。
 3. **`stop` = 水ポリゴン内**。`trimAtWater` は河口（最初の水没頂点）まで残す ── 河口は海岸線に
    接し、それより先へは伸びない。全区間が海上なら河川ごと drop。
-4. `smoothPath`（窓平均 3 回）で均す = `RiverPath.points`。海に入る**内部**頂点は元の陸頂点へ
+4. `smoothPath`（窓平均 2 回）で均す = `RiverPath.points`。海に入る**内部**頂点は元の陸頂点へ
    スナップし戻す（河口頂点は残す）。幅は descriptor から各頂点へ再サンプル。
-5. 分類（`classifyRiver`、`edgePoints` に対して）── **岸（bank）分割のみ**:
+5. **平滑化した内部頂点をセルへ書き戻す**（`foldVerticesIntoCells`、街路の `foldArteriesIntoCells`
+   と同じ機構）。raw edge track の内部頂点を平滑中心線上へ動かし、格子を描き直す。S2 以降と
+   Grid evolution の最終段はこの格子。分類は書き戻し前の `edgePoints` に対して行う。
+6. 分類（`classifyRiver`、`edgePoints` に対して）── **岸（bank）分割のみ**:
    - 河川はセル辺の帯として描くだけで、**セルに `water` タグは付けない**（辺に描いた河を
      セルの塗りで二重表現しても無意味なため。旧 `water` 集合は撤去）。
    - 岸（bank）: 重心リンクが**全河川の** `edgePoints` を跨ぐ隣接を切る → **原点を含む成分 = 0（主市街）**。
@@ -315,11 +319,11 @@ UI の進行スライダーと First / Prev / Next / Last が、対応する `<g
 
 ## 8. 未決事項
 
-1. ~~母点散布~~ → **決定（M1）**: ジッタ付き格子 + Lloyd 緩和 3 回（`core/grid.ts`）。spiral は
-   放射状に密度が偏るため不採用。
+1. ~~母点散布~~ → **再決定（coarse-grid 版）**: `cellSize = cityRadius/3.5`、可変半径 Bridson
+   blue-noise（水コリドー沿いのみ加密）、Lloyd 1 回。旧「ジッタ格子 + Lloyd 3」は Lloyd が
+   全域で面積を揃えて多様性を潰し、ワード束ね直しが必要だった ── その凝集方式は撤去（§4.2 S0）。
 2. UI シェルをバニラ DOM のまま進めるか、早めに React 化するか。→ M1 はバニラで着地。継続。
-3. **セル密度**: `siteToParams` は `cellSize ≈ cityRadius/9` × 窓 `6×radius` で総 ~2900 セル。
-   分類は問題なく機能するが窓外縁は依然過密。S4（城壁）着手時に窓外縁を粗くするか判断。
+3. ~~セル密度~~ → **解消（coarse-grid 版）**: 窓全体で ~130〜460 セル。窓外縁も自然に粗い。
 4. **S3 市街の形**: `GATE_PULL`（門方位のセルにコスト -0.35R）で市街が門へ触手状に伸びる。
    design 意図どおりだが細く不自然。S4 で城壁クリップ後に再評価。
 5. ~~S2 の river パス~~ → **完了（M2、§4.2 S2 どおり）**: `core/edgeGraph.ts`（セル辺グラフ +

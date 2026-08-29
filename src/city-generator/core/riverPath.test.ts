@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildEdgeGraph } from "./edgeGraph";
+import { buildEdgeGraph, foldVerticesIntoCells } from "./edgeGraph";
 import { nearestOnPolyline, pointInPolygon } from "./geom";
 import { buildGrid } from "./grid";
 import { makeRng } from "./prng";
-import { walkRiver } from "./riverPath";
+import { riverVertexShifts, walkRiver } from "./riverPath";
 import type { CityParams, Point } from "./types";
 
 const PARAMS: CityParams = {
@@ -15,7 +15,8 @@ const PARAMS: CityParams = {
 };
 
 function fixture() {
-  const cells = buildGrid(PARAMS, makeRng(PARAMS.seed)).at(-1)?.cells ?? [];
+  const cells =
+    buildGrid(PARAMS, { coast: null, rivers: [], roadBearings: [] }, makeRng(PARAMS.seed)).at(-1)?.cells ?? [];
   const graph = buildEdgeGraph(cells);
   // A rough west→east corridor through the origin.
   const corridor: Point[] = [
@@ -112,5 +113,37 @@ describe("walkRiver", () => {
     const river = walkRiver(graph, corridor, widths, null, null, PARAMS.cellSizeMeters, 1500, makeRng("w1"));
     expect(river.widths).toHaveLength(river.smoothPoints.length);
     expect(river.widths.every(w => w > 0 && Number.isFinite(w))).toBe(true);
+  });
+
+  it("folds interior walk vertices onto the smoothed centreline in every sharing cell", () => {
+    const { cells, graph, corridor, widths } = fixture();
+    const river = walkRiver(graph, corridor, widths, null, null, PARAMS.cellSizeMeters, 1500, makeRng("w1"));
+    expect(river.foldedPoints).toHaveLength(river.edgePoints.length);
+
+    const shifts = riverVertexShifts([river], PARAMS.cellSizeMeters);
+    const folded = foldVerticesIntoCells(cells, shifts);
+    expect(shifts.size).toBeGreaterThan(0);
+    expect(folded).not.toBe(cells);
+
+    // Every interior walk vertex now sits on the matching cell-edge vertex, and
+    // that vertex is the smoothed position (the fold's whole point).
+    const verts = folded.flatMap(c => c.polygon);
+    for (let i = 1; i < river.edgePoints.length - 1; i++) {
+      const target = river.foldedPoints[i];
+      const from = river.edgePoints[i];
+      if (Math.hypot(target[0] - from[0], target[1] - from[1]) < 0.05) continue;
+      const toVert = Math.min(...verts.map(v => Math.hypot(v[0] - target[0], v[1] - target[1])));
+      expect(toVert).toBeLessThan(0.2);
+      const unmoved = cells.flatMap(c => c.polygon);
+      const stillThere = Math.min(...unmoved.map(v => Math.hypot(v[0] - from[0], v[1] - from[1])));
+      expect(stillThere).toBeLessThan(0.2); // original mesh still has the raw vertex
+    }
+
+    // A vertex shared by two cells moved in both, so the edge between them is
+    // still a single shared edge (the river did not detach from the mesh).
+    for (const target of shifts.values()) {
+      const owners = folded.filter(c => c.polygon.some(p => Math.hypot(p[0] - target[0], p[1] - target[1]) < 0.2));
+      expect(owners.length).toBeGreaterThanOrEqual(2);
+    }
   });
 });

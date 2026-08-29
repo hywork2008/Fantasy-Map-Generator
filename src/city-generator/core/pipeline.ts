@@ -8,7 +8,7 @@ import { buildGeometry } from "./buildings";
 import { classifyRiver } from "./classifyRiver";
 import { type CoastResult, classifyCoast } from "./classifySea";
 import { classifyUrban } from "./classifyUrban";
-import { buildEdgeGraph } from "./edgeGraph";
+import { buildEdgeGraph, foldVerticesIntoCells, vertexKey } from "./edgeGraph";
 import { azimuthToVec, nearestOnPolyline } from "./geom";
 import { buildGrid } from "./grid";
 import {
@@ -24,7 +24,7 @@ import {
   wallOverlaysFor
 } from "./interior";
 import { makeRng } from "./prng";
-import { walkRiver } from "./riverPath";
+import { applyVertexShifts, riverVertexShifts, walkRiver } from "./riverPath";
 import { buildStreets, foldArteriesIntoCells, reservedStreetVertices } from "./streets";
 import type {
   Cell,
@@ -58,9 +58,9 @@ export function generateCity(
   program: CityProgram = DEFAULT_PROGRAM
 ): GenerationResult {
   const rng = makeRng(params.seed);
-  const gridStages = buildGrid(params, rng);
-  const cells = gridStages[gridStages.length - 1].cells;
-  const graph = buildEdgeGraph(cells);
+  const gridStages = buildGrid(params, geo, rng);
+  const rawCells = gridStages[gridStages.length - 1].cells;
+  const graph = buildEdgeGraph(rawCells);
   const half = params.extentMeters / 2;
 
   // S1 — coastline walk → sea cells.
@@ -76,7 +76,7 @@ export function generateCity(
         graph,
         water.corridor,
         water.waterAzimuthDeg,
-        cells,
+        rawCells,
         half,
         params.cellSizeMeters,
         makeRng(`${params.seed}:water:${i}`)
@@ -106,17 +106,33 @@ export function generateCity(
       };
     })
     .filter(r => !r.band.fallback);
-  const riverPaths: RiverPath[] = routed.map(r => ({
-    points: r.band.smoothPoints,
-    edgeTrack: r.band.edgePoints,
-    widths: r.band.widths,
-    cityBank: r.cityBank
-  }));
+  // Classification uses the raw on-edge walk (the bank split is topological).
   const river = classifyRiver(
-    cells,
+    rawCells,
     sea,
     routed.map(r => ({ edgePoints: r.band.edgePoints }))
   );
+
+  // Fold the smoothed river vertices back onto the mesh so the cell edges
+  // themselves follow the drawn centreline (design §4.1: the grid is the source
+  // of truth). Street fold later pins these keys so a crossing artery cannot
+  // pull a river vertex off the water.
+  const riverShifts = riverVertexShifts(
+    routed.map(r => r.band),
+    params.cellSizeMeters
+  );
+  const foldedCells = foldVerticesIntoCells(rawCells, riverShifts);
+  if (foldedCells !== rawCells) {
+    gridStages.push({ label: "River-aligned", cells: foldedCells });
+  }
+  const cells = gridStages[gridStages.length - 1].cells;
+
+  const riverPaths: RiverPath[] = routed.map(r => ({
+    points: r.band.smoothPoints,
+    edgeTrack: applyVertexShifts(r.band.edgePoints, riverShifts),
+    widths: r.band.widths,
+    cityBank: r.cityBank
+  }));
 
   // Local shoreline tangent at the town — the built-up area elongates along it.
   const shoreTangent = coast ? shorelineTangent(coast.shoreline) : null;
@@ -125,7 +141,7 @@ export function generateCity(
   // bearing alongside the roads (design §4.5).
   const urbanBearings = program.port && coast ? [...geo.roadBearings, geo.coast!.waterAzimuthDeg] : geo.roadBearings;
   const { urban, outskirts } = classifyUrban(
-    cells,
+    rawCells,
     { sea, bank: river.bank },
     urbanBearings,
     urbanRadius,
@@ -143,8 +159,8 @@ export function generateCity(
   const riverSnapshotPaths = riverPaths.map(p => ({ kind: "river" as const, points: p.points, widths: p.widths }));
 
   const steps: Snapshot[] = [
-    snapshot("S0 · Grid", cells, () => "land", [], []),
-    snapshot("S1 · Sea & land", cells, c => (sea.has(c.id) ? "sea" : "land"), [], shorelineOverlay),
+    snapshot("S0 · Grid", rawCells, () => "land", [], []),
+    snapshot("S1 · Sea & land", rawCells, c => (sea.has(c.id) ? "sea" : "land"), [], shorelineOverlay),
     snapshot("S2 · River", cells, c => (sea.has(c.id) ? "sea" : "land"), riverSnapshotPaths, shorelineOverlay),
     snapshot("S3 · Urban core", cells, finalTag, riverSnapshotPaths, [
       ...shorelineOverlay,
@@ -228,11 +244,9 @@ export function generateCity(
   // with the patches, so 2.6 insets from straightened streets; our graph is
   // detached, so we replay the move here. Perimeter / citadel / gate vertices
   // stay pinned; S0–S4 snapshots keep the untouched junction-optimised grid.
-  const fabricCells = foldArteriesIntoCells(
-    interiorCells,
-    streetResult.vertexShifts,
-    reservedStreetVertices(borders, citadelOutline, gates)
-  );
+  const reserved = reservedStreetVertices(borders, citadelOutline, gates);
+  for (const r of riverPaths) for (const p of r.edgeTrack) reserved.add(vertexKey(p));
+  const fabricCells = foldArteriesIntoCells(interiorCells, streetResult.vertexShifts, reserved);
   const roadPaths = streets.roads.map(points => ({ kind: "road" as const, points, widths: [] as number[] }));
   steps.push(
     snapshot("S5 · Streets", fabricCells, finalTag, [...riverSnapshotPaths, ...roadPaths], s4Overlays, precincts)
@@ -325,7 +339,7 @@ export function generateCity(
  * edge walk cannot hit the exact junction; dropping it loses a real confluence. */
 function directJoinFallback(corridor: Point[], widths: number[], shoreline: Point[] | null) {
   if (corridor.length < 2 || widths.length !== corridor.length) {
-    return { edgePoints: [], smoothPoints: [], widths: [], fallback: true };
+    return { edgePoints: [], smoothPoints: [], foldedPoints: [], widths: [], fallback: true };
   }
   const points = corridor.map(p => [p[0], p[1]] as Point);
   if (shoreline && shoreline.length >= 2) {
@@ -334,7 +348,13 @@ function directJoinFallback(corridor: Point[], widths: number[], shoreline: Poin
     if (first.dist < last.dist) points[0] = first.point;
     else points[points.length - 1] = last.point;
   }
-  return { edgePoints: points, smoothPoints: points, widths: widths.slice(), fallback: false };
+  return {
+    edgePoints: points,
+    smoothPoints: points,
+    foldedPoints: points,
+    widths: widths.slice(),
+    fallback: false
+  };
 }
 
 function snapshot(

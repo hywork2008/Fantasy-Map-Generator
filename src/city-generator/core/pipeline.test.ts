@@ -123,6 +123,25 @@ describe("pipeline S0–S3", () => {
     expect(onBank / seen.size).toBeGreaterThan(0.55);
   });
 
+  it("folds river vertices onto the smoothed centreline and appends a grid stage", () => {
+    const { result } = run(RIVER, "fold");
+    expect(result.gridStages.at(-1)?.label).toMatch(/river-aligned/i);
+    expect(result.cells).toBe(result.gridStages.at(-1)?.cells);
+    const polys = (cells: { polygon: [number, number][] }[]) => cells.map(c => c.polygon);
+    expect(polys(result.steps[0].cells)).not.toEqual(polys(result.cells));
+    expect(polys(result.steps[2].cells)).toEqual(polys(result.cells));
+
+    const verts = result.cells.flatMap(c => c.polygon);
+    for (const path of result.riverPaths) {
+      expect(path.edgeTrack.length).toBeGreaterThan(4);
+      for (const p of path.edgeTrack.slice(1, -1)) {
+        const toVert = Math.min(...verts.map(v => Math.hypot(v[0] - p[0], v[1] - p[1])));
+        expect(toVert).toBeLessThan(0.2);
+        expect(nearestOnPolyline(p, path.points).dist).toBeLessThan(result.params.cellSizeMeters * 0.6);
+      }
+    }
+  });
+
   it("two through rivers: the town sits in the component between them", () => {
     const { result } = run(
       { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: ["through", "through"], relief: false },

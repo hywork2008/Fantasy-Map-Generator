@@ -18,8 +18,8 @@ import {
   bufferPolygon,
   cleanRing,
   clipPolygonHalfPlane,
-  inwardNormal,
   nearestOnPolyline,
+  pointInPolygon,
   polygonArea,
   polygonCentroid,
   polygonIsConvex,
@@ -46,8 +46,13 @@ export const MAIN_STREET = 12;
 export const REGULAR_STREET = 7;
 export const ALLEY = 4;
 
-const MAX_SPLIT_DEPTH = 5;
-const EDGE_NEAR = 0.3; // × cellSize: "this cell edge runs along that line"
+/** Target lot span, metres — the recursive split stops around here. Absolute
+ * (a building frontage), NOT a fraction of the block, so a large ward-scale cell
+ * still divides into many lots. */
+const LOT_SPAN = 28;
+
+const MAX_SPLIT_DEPTH = 6;
+const EDGE_NEAR = 0.22; // × cellSize: "this cell edge runs along that line"
 
 export interface BuildingInputs {
   cells: Cell[];
@@ -88,7 +93,9 @@ export function buildGeometry(input: BuildingInputs): Building[] {
     const block = cityBlock(cell.polygon, dists);
     if (block.length < 3) continue;
     const pieces = geometryFor(kind, block, plazaIds.has(cell.id), rng);
-    const kept = enclosed(cell, urban) ? pieces : filterOutskirts(pieces, cell);
+    const filtered = enclosed(cell, urban) ? pieces : filterOutskirts(pieces, cell);
+    const ring = close(cell.polygon);
+    const kept = filtered.filter(p => withinCell(p, cell.polygon, ring));
     for (const polygon of kept) {
       if (polygon.length >= 3 && Math.abs(polygonArea(polygon)) > 4) {
         out.push({ polygon, ward: kind, cellId: cell.id });
@@ -137,34 +144,33 @@ function edgeSetbacks(
 }
 
 function geometryFor(kind: WardKind, block: Point[], isPlaza: boolean, rng: Rng): Point[][] {
-  const min = Math.sqrt(Math.abs(polygonArea(block)));
   switch (kind) {
     case "empty":
       return [];
     case "market":
-      return isPlaza ? marketObject(block, rng) : createAlleys(block, Math.max(10, min * 0.35), ALLEY / 2, rng);
+      return isPlaza ? marketObject(block, rng) : createAlleys(block, LOT_SPAN * 1.2, ALLEY / 2, rng);
     case "castle":
       return createOrtho(
         cityBlock(
           block,
           block.map(() => MAIN_STREET / 2)
         ),
-        Math.max(16, min * 0.4),
+        LOT_SPAN * 1.6,
         rng
       );
     case "cathedral":
-      return rng() < 0.4 ? ringSlices(block, rng) : createOrtho(block, Math.max(14, min * 0.38), rng);
+      return rng() < 0.4 ? ringSlices(block, rng) : createOrtho(block, LOT_SPAN * 1.4, rng);
     case "park":
       return parkTrees(block, rng);
     case "farm":
       return farmLots(block, rng);
     case "military":
-      return createAlleys(block, Math.max(14, min * 0.42), ALLEY * 0.7, rng);
+      return createAlleys(block, LOT_SPAN * 1.3, ALLEY * 0.7, rng);
     case "slum":
     case "shanty":
-      return createAlleys(block, Math.max(7, min * 0.22), ALLEY / 3, rng);
+      return createAlleys(block, LOT_SPAN * 0.7, ALLEY / 3, rng);
     default:
-      return createAlleys(block, Math.max(10, min * 0.32), ALLEY / 2, rng);
+      return createAlleys(block, LOT_SPAN, ALLEY / 2, rng);
   }
 }
 
@@ -180,9 +186,10 @@ export function createAlleys(poly: Point[], minLen: number, gap: number, rng: Rn
   const b = ring[(index + 1) % ring.length];
   const t = 0.38 + rng() * 0.24;
   const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-  let n = inwardNormal(a, b, ring);
-  const c = polygonCentroid(ring);
-  if ((c[0] - p[0]) * n[0] + (c[1] - p[1]) * n[1] < 0) n = [-n[0], -n[1]];
+  // Bisect PERPENDICULAR to the longest edge: the separating normal is the edge
+  // direction, so both half-planes actually cross the polygon interior.
+  const el = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  const n: Point = [(b[0] - a[0]) / el, (b[1] - a[1]) / el];
 
   const [left, right] = splitPolygon(ring, p, n, gap);
   const kids: Point[][] = [];
@@ -201,9 +208,8 @@ function createOrtho(poly: Point[], minLen: number, rng: Rng, depth = 0): Point[
   const b = ring[(index + 1) % ring.length];
   const t = 0.45 + rng() * 0.1;
   const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-  let n = inwardNormal(a, b, ring);
-  const c = polygonCentroid(ring);
-  if ((c[0] - p[0]) * n[0] + (c[1] - p[1]) * n[1] < 0) n = [-n[0], -n[1]];
+  const el = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  const n: Point = [(b[0] - a[0]) / el, (b[1] - a[1]) / el];
   const [left, right] = splitPolygon(ring, p, n, ALLEY / 3);
   const kids: Point[][] = [];
   if (left.length >= 3) kids.push(...createOrtho(left, minLen, rng, depth + 1));
@@ -313,7 +319,20 @@ function farmLots(block: Point[], rng: Rng): Point[][] {
     block.map(() => Math.sqrt(Math.abs(polygonArea(block))) * (0.12 + rng() * 0.08))
   );
   if (field.length < 3) return [];
-  return createOrtho(field, Math.max(12, Math.sqrt(Math.abs(polygonArea(field))) * 0.5), rng);
+  return createOrtho(field, LOT_SPAN * 2, rng);
+}
+
+/** A building piece is kept only if it sits inside the cell with at least a
+ * minimal setback from every cell edge — guards against the mangled slivers
+ * Sutherland–Hodgman clipping can leave when the recursive split runs on a
+ * concave block. */
+function withinCell(piece: Point[], poly: Point[], ring: Point[]): boolean {
+  const floor = ALLEY / 2 - 0.6;
+  for (const v of piece) {
+    if (!pointInPolygon(v, poly)) return false;
+    if (nearestOnPolyline(v, ring).dist < floor) return false;
+  }
+  return true;
 }
 
 function enclosed(cell: Cell, urban: Set<number>): boolean {

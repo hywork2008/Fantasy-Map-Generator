@@ -19,13 +19,19 @@
 // gates and junctions — stay put) to give `arteries`, the lines S7 sets
 // buildings back from.
 
-import { aStar, buildEdgeGraph, MERGE_QUANTUM, nearestNode, smoothPath } from "./edgeGraph";
-import { azimuthDelta, nearestOnPolyline, pointInPolygon, polygonCentroid, vecToAzimuth } from "./geom";
+import {
+  aStar,
+  buildEdgeGraph,
+  foldVerticesIntoCells,
+  MERGE_QUANTUM,
+  nearestNode,
+  smoothPath,
+  vertexKey
+} from "./edgeGraph";
+import { azimuthDelta, nearestOnPolyline, pointInPolygon, vecToAzimuth } from "./geom";
 import { clampToWindow } from "./graphWalk";
 import { close } from "./interior";
 import type { BorderLoop, Cell, CityGeography, Gate, Point, Precinct, StreetNetwork } from "./types";
-
-const QUANTUM = 0.05;
 
 export interface StreetInputs {
   /** Junction-optimised interior cells — the same basis as `borders` / `gates`. */
@@ -181,7 +187,7 @@ function buildArteries(
   plazaPolys: Point[][],
   cellSize: number
 ): { arteries: Point[][]; vertexShifts: Map<string, Point> } {
-  const key = (p: Point): string => `${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`;
+  const key = vertexKey;
   const coord = new Map<string, Point>();
   const adjacency = new Map<string, Set<string>>();
   const plazaRings = plazaPolys.map(poly => close(poly));
@@ -258,7 +264,7 @@ export function reservedStreetVertices(
 ): Set<string> {
   const set = new Set<string>();
   const add = (p: Point): void => {
-    set.add(`${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`);
+    set.add(vertexKey(p));
   };
   for (const b of borders) for (const p of b.points) add(p);
   if (citadelOutline) for (const p of citadelOutline) add(p);
@@ -276,23 +282,7 @@ export function reservedStreetVertices(
  * pre-S5 snapshots stay on the raw junction-optimised grid.
  */
 export function foldArteriesIntoCells(cells: Cell[], vertexShifts: Map<string, Point>, reserved: Set<string>): Cell[] {
-  if (vertexShifts.size === 0) return cells;
-  const key = (p: Point): string => `${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`;
-  let moved = false;
-  const out = cells.map(cell => {
-    let touched = false;
-    const polygon = cell.polygon.map(p => {
-      const k = key(p);
-      const shift = vertexShifts.get(k);
-      if (!shift || reserved.has(k)) return [p[0], p[1]] as Point;
-      touched = true;
-      return [shift[0], shift[1]] as Point;
-    });
-    if (!touched) return cell;
-    moved = true;
-    return { ...cell, polygon, centroid: polygonCentroid(polygon) };
-  });
-  return moved ? out : cells;
+  return foldVerticesIntoCells(cells, vertexShifts, reserved);
 }
 
 function link(adjacency: Map<string, Set<string>>, from: string, to: string): void {
