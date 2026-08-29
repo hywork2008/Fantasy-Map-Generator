@@ -8,6 +8,7 @@
 | --- | --- |
 | URL / ビルド | Vite MPA の `/city-editor/`。`src/app.ts` / world-map の module graph には入れない |
 | 初期格子 | `city-generator` の最終 Voronoi 格子を変換して使える。空の新規図では同じ Voronoi builder を使う |
+| セル尺度 | 1 Voronoi cell = 1 macro block（目標辺長 50 m）。Small / Medium / Large は同じセル密度で 1.2 / 2.4 / 4.8 km の窓を作る |
 | 編集の真実源 | SVG ではなく、恒久 ID を持つ平面メッシュ + 辺のフィーチャーグループ + 都市要素 |
 | 河川 | **頂点列**を流れの真実源とし、隣接する頂点間の既存セル辺を導出する。海・湖に接する頂点で終端し、水域内の river edge は持たない |
 | 自動生成 | 選択範囲または未固定のセルだけに実行。手で置いた/固定した要素を再生成で失わない |

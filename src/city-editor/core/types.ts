@@ -86,7 +86,7 @@ export interface CityElement {
 export interface CityDocument {
   format: "fmg-city-editor";
   version: 1;
-  frame: { extentMeters: number; cityRadiusMeters: number };
+  frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
   mesh: Mesh;
   featureGroups: FeatureGroup[];
   elements: CityElement[];

@@ -1,4 +1,4 @@
-import { createDocument, parseDocument } from "../core/document";
+import { CITY_SIZE_PRESETS, type CitySizePreset, createSizedDocument, parseDocument } from "../core/document";
 import {
   addElement,
   appendEdge,
@@ -34,7 +34,7 @@ const TOOLS: Array<[Tool, string]> = [
 ];
 
 export function mountCityEditor(root: HTMLElement): void {
-  let documentState = createDocument();
+  let documentState = createSizedDocument("small");
   let history = new DocumentHistory(documentState);
   let tool: Tool = "select";
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
@@ -51,7 +51,12 @@ export function mountCityEditor(root: HTMLElement): void {
   const groups = panel("ce-groups", "Groups");
   const status = document.createElement("output");
   status.className = "ce-status";
-  root.replaceChildren(canvas, toolbar, inspector, groups, status);
+  const scaleBar = div("ce-scale-bar");
+  const scaleLine = div("ce-scale-bar-line");
+  const scaleLabel = document.createElement("output");
+  scaleLabel.className = "ce-scale-bar-label";
+  scaleBar.append(scaleLine, scaleLabel);
+  root.replaceChildren(canvas, toolbar, inspector, groups, status, scaleBar);
 
   const toolButtons = new Map<Tool, HTMLButtonElement>();
   for (const [id, label] of TOOLS) {
@@ -62,14 +67,21 @@ export function mountCityEditor(root: HTMLElement): void {
     toolButtons.set(id, button);
     toolbar.appendChild(button);
   }
-  const newButton = makeButton("New grid", () => {
-    documentState = createDocument();
+  const size = select(Object.keys(CITY_SIZE_PRESETS), "small");
+  for (const option of [...size.options]) {
+    const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
+    option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km · ${preset.cellsAcross}×${preset.cellsAcross} · ~${preset.buildingTarget} buildings`;
+  }
+  const newButton = makeButton("Generate grid", () => {
+    documentState = createSizedDocument(size.value as CitySizePreset);
     history = new DocumentHistory(documentState);
     selection = emptySelection();
     activeGroupId = null;
     halfView = documentState.frame.extentMeters / 2;
     refresh();
   });
+  const sizeLabel = label("Map size", size);
+  sizeLabel.className = "ce-size-choice";
   const undoButton = makeButton("Undo", () => restore(history.undo(documentState)));
   const redoButton = makeButton("Redo", () => restore(history.redo(documentState)));
   const exportButton = makeButton("Export JSON", () => download(documentState));
@@ -86,6 +98,7 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   toolbar.append(
     divider(),
+    sizeLabel,
     newButton,
     undoButton,
     redoButton,
@@ -169,6 +182,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (event.key === "Enter") finishButton.click();
     if (event.key === "Escape") activeGroupId = null;
   });
+  window.addEventListener("resize", refreshScaleBar);
 
   refresh();
 
@@ -227,12 +241,23 @@ export function mountCityEditor(root: HTMLElement): void {
     renderInspector();
     renderGroups();
     const errors = validate(documentState);
-    status.textContent = `${Object.keys(documentState.mesh.faces).length} cells · ${documentState.featureGroups.length} groups${errors.length ? ` · ${errors.join(", ")}` : " · valid"}`;
+    status.textContent = `${Object.keys(documentState.mesh.faces).length} blocks · ${documentState.featureGroups.length} groups${errors.length ? ` · ${errors.join(", ")}` : " · valid"}`;
+    refreshScaleBar();
   }
 
   function redrawMap(): void {
     const box = `${-halfView} ${-halfView} ${halfView * 2} ${halfView * 2}`;
     map.replaceChildren(renderEditorSvg(documentState, tool, selection, box));
+  }
+
+  function refreshScaleBar(): void {
+    const width = map.getBoundingClientRect().width;
+    if (width <= 0) return;
+    const metersPerPixel = (halfView * 2) / width;
+    const meters = niceScale(metersPerPixel * 120);
+    scaleLine.style.width = `${meters / metersPerPixel}px`;
+    const blockCount = Math.max(1, Math.round(meters / documentState.frame.blockSizeMeters));
+    scaleLabel.textContent = `${formatDistance(meters)} · ≈ ${blockCount} block${blockCount === 1 ? "" : "s"} (1 cell ≈ ${formatDistance(documentState.frame.blockSizeMeters)})`;
   }
 
   function renderInspector(): void {
@@ -420,6 +445,17 @@ function divider(): HTMLHRElement {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function niceScale(targetMeters: number): number {
+  const exponent = 10 ** Math.floor(Math.log10(Math.max(targetMeters, 1)));
+  const normalized = targetMeters / exponent;
+  const unit = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return unit * exponent;
+}
+
+function formatDistance(meters: number): string {
+  return meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
 }
 
 function download(documentState: CityDocument): void {

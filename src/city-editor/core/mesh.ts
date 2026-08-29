@@ -236,6 +236,7 @@ export function scaleDocument(document: CityDocument, factor: number): CityDocum
   for (const group of next.featureGroups) group.style.widthMeters *= factor;
   next.frame.extentMeters *= factor;
   next.frame.cityRadiusMeters *= factor;
+  next.frame.blockSizeMeters *= factor;
   return validate(next).length ? null : next;
 }
 
