@@ -18,6 +18,7 @@ export {
   type PrecinctKind,
   type RiverPath,
   type Snapshot,
+  type StreetNetwork,
   type WallPlan,
   type WallSegmentKind
 } from "./core/types";

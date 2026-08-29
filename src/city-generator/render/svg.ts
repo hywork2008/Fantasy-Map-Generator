@@ -6,7 +6,7 @@
 // render north-up.
 
 import type { GenerationResult, Overlay, Point, Precinct, SnapshotPath } from "../core/types";
-import { GATE, PALETTE, PRECINCT_FILL, RIVER, RIVER_TRACK, SHORELINE, TAG_FILL, TOWER, WALL } from "./palette";
+import { GATE, PALETTE, PRECINCT_FILL, RIVER, RIVER_TRACK, ROAD, SHORELINE, TAG_FILL, TOWER, WALL } from "./palette";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -147,7 +147,7 @@ export function renderCity(result: GenerationResult, opts: RenderOptions): SVGSV
     }
     for (const [pathIndex, path] of step.paths.entries()) {
       g.appendChild(
-        pickable(bandStroke(path, half), {
+        pickable(path.kind === "road" ? roadStroke(path, half) : bandStroke(path, half), {
           layer: "paths",
           kind: path.kind,
           id: pathIndex,
@@ -280,6 +280,30 @@ function bandStroke(path: SnapshotPath, half: number): SVGElement {
     "stroke-linecap": "round",
     "stroke-linejoin": "round"
   });
+}
+
+/** Extramural road — the parchment double line (dark casing under a light fill),
+ * the same two-stroke technique as the river band at a smaller width. Intramural
+ * streets (design §4.2 S5) are not drawn: they surface as S7 setback gaps. */
+function roadStroke(path: SnapshotPath, half: number): SVGElement {
+  const inner = Math.max(path.widths.reduce((a, b) => a + b, 0) / Math.max(path.widths.length, 1), half / 150);
+  const g = el("g", {});
+  for (const [stroke, width] of [
+    [ROAD.casing, inner * 2.6],
+    [ROAD.fill, inner]
+  ] as [string, number][]) {
+    g.appendChild(
+      el("path", {
+        d: polylineData(path.points),
+        fill: "none",
+        stroke,
+        "stroke-width": width,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round"
+      })
+    );
+  }
+  return g;
 }
 
 /** Inspection overlay for the Grid-evolution view (design §4.3): per river, the

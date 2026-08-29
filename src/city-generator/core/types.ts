@@ -127,6 +127,24 @@ export interface Gate {
   water: boolean;
 }
 
+/**
+ * S5 street network, all routed with A* over the Voronoi cell-edge graph
+ * (design §4.2 S5, TownGeneratorTS 2.4 `buildStreets`).
+ *
+ * `streets` run gate → plaza (or the town centre when there is no plaza) INSIDE
+ * the perimeter; they are deliberately NOT drawn — they resurface in S7 as the
+ * setback gaps between blocks. `roads` run a far node in the gate's bearing → the
+ * gate OUTSIDE the perimeter and ARE drawn, as a double line. `arteries` is the
+ * tidied union of both (plaza edges dropped, chains split at every junction,
+ * interior vertices smoothed with the endpoints — gates / junctions — fixed):
+ * the "streets" S7 sets buildings back from.
+ */
+export interface StreetNetwork {
+  streets: Point[][];
+  roads: Point[][];
+  arteries: Point[][];
+}
+
 export interface SnapshotPath {
   kind: "river" | "street" | "road";
   points: Point[];
@@ -236,4 +254,7 @@ export interface GenerationResult {
   gates: Gate[];
   /** S4 named inner precincts. */
   precincts: Precinct[];
+  /** S5 street network. Only `streets.roads` is drawn; `streets` / `arteries`
+   * feed the S7 setbacks. */
+  streets: StreetNetwork;
 }

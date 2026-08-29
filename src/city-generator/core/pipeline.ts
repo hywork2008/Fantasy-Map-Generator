@@ -23,6 +23,7 @@ import {
 } from "./interior";
 import { makeRng } from "./prng";
 import { walkRiver } from "./riverPath";
+import { buildStreets } from "./streets";
 import type {
   Cell,
   CellTag,
@@ -191,15 +192,30 @@ export function generateCity(
     : [];
   const citadelRing: Overlay[] = citadelOutline ? [{ kind: "citadelWall", points: close(citadelOutline) }] : [];
   const gateOverlays: Overlay[] = gates.map(gate => ({ kind: "gate", points: [gate.point], water: gate.water }));
+  const s4Overlays = [...shorelineOverlay, ...wallAndTowers, ...citadelRing, ...gateOverlays];
   steps.push(
-    snapshot(
-      "S4 · Inner perimeter & gates",
-      interiorCells,
-      finalTag,
-      riverSnapshotPaths,
-      [...shorelineOverlay, ...wallAndTowers, ...citadelRing, ...gateOverlays],
-      precincts
-    )
+    snapshot("S4 · Inner perimeter & gates", interiorCells, finalTag, riverSnapshotPaths, s4Overlays, precincts)
+  );
+
+  // S5 — streets. Gate → plaza streets stay INSIDE the perimeter and are not
+  // drawn (they surface as S7 setback gaps); only the extramural roads are shown,
+  // as a double line. `arteries` is kept for the S7 setbacks. The snapshot carries
+  // the S4 wall / gate / precinct furniture forward so scrubbing to S5 still shows
+  // the enclosed town.
+  const streets = buildStreets({
+    cells: interiorCells,
+    urban,
+    borders,
+    gates,
+    precincts,
+    citadelOutline,
+    geo,
+    cellSizeMeters: params.cellSizeMeters,
+    halfExtentMeters: half
+  });
+  const roadPaths = streets.roads.map(points => ({ kind: "road" as const, points, widths: [] as number[] }));
+  steps.push(
+    snapshot("S5 · Streets", interiorCells, finalTag, [...riverSnapshotPaths, ...roadPaths], s4Overlays, precincts)
   );
 
   return {
@@ -212,7 +228,8 @@ export function generateCity(
     waterPolygon: coast?.waterPolygon ?? null,
     borders,
     gates,
-    precincts
+    precincts,
+    streets
   };
 }
 

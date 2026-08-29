@@ -8,7 +8,7 @@ import type { Cell, Point } from "./types";
 
 /** Coincident cell-boundary vertices closer than this merge to one node (m).
  * Far below the cell size, so distinct Voronoi vertices are never merged. */
-const MERGE_QUANTUM = 0.05;
+export const MERGE_QUANTUM = 0.05;
 
 export interface EdgeGraph {
   /** node id → coordinate. */

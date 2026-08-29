@@ -25,6 +25,10 @@ export const TAG_FILL: Record<string, string> = {
 // The river is a band drawn on the cell edges (no cells are tagged as water).
 // A hair darker than the sea so the mouth still reads where it meets sea cells.
 export const RIVER = { fill: "#8ba2a6" } as const;
+// Extramural road: the parchment double line (dark casing + pale fill). Only
+// the S5 `roads` are drawn this way; intramural streets are not drawn. Kept
+// clearly darker/lighter than the outskirts cell fill so it reads at map zoom.
+export const ROAD = { casing: "#544a3a", fill: "#eadfc6" } as const;
 export const SHORELINE = "#5c6a68";
 export const GATE = "#b1443a";
 export const WALL = "#6b6459";

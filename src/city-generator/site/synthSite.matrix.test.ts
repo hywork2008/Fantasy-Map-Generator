@@ -39,7 +39,7 @@ describe("site matrix", () => {
       const site = synthSite("smallCity", config, seed);
       const result = generateCity(siteToParams(site), siteToGeography(site));
 
-      expect(result.steps).toHaveLength(5);
+      expect(result.steps).toHaveLength(6);
       for (const step of result.steps) {
         expect(step.cells).toHaveLength(result.cells.length);
         for (const cell of step.cells) {

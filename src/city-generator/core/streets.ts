@@ -1,0 +1,246 @@
+// S5 — the street network (design §4.2 S5, TownGeneratorTS 2.4 `buildStreets`).
+//
+// Everything is routed with A* over the SAME Voronoi cell-edge graph the river
+// and coastline use (core/edgeGraph.ts). Two kinds come out of it:
+//
+//   • streets — gate → plaza (or the town centre when there is no plaza), run
+//     INSIDE the perimeter. Deliberately NOT drawn: they resurface in S7 as the
+//     setback gaps between blocks.
+//   • roads   — a far node in the gate's bearing → the gate, run OUTSIDE the
+//     perimeter. These ARE drawn, as a double line.
+//
+// The A* graph is masked by NODE (this is TownGenerator's `Topology`: build from
+// all cell edges, close off the citadel and the wall line): a street only steps
+// between vertices of `urban` cells and never through the citadel enceinte; a
+// road only steps between NON-urban vertices ("outside the wall" then follows,
+// because the wall wraps the urban fabric). `tidyUpRoads` splits the union of
+// streets + roads at every junction, drops
+// the plaza's own edges and smooths each run's interior vertices (endpoints —
+// gates and junctions — stay put) to give `arteries`, the lines S7 sets
+// buildings back from.
+
+import { aStar, buildEdgeGraph, MERGE_QUANTUM, nearestNode, smoothPath } from "./edgeGraph";
+import { azimuthDelta, nearestOnPolyline, pointInPolygon, vecToAzimuth } from "./geom";
+import { clampToWindow } from "./graphWalk";
+import { close } from "./interior";
+import type { BorderLoop, Cell, CityGeography, Gate, Point, Precinct, StreetNetwork } from "./types";
+
+const QUANTUM = 0.05;
+
+export interface StreetInputs {
+  /** Junction-optimised interior cells — the same basis as `borders` / `gates`. */
+  cells: Cell[];
+  /** Ids of the S3 urban cells (the street graph's passable area). */
+  urban: Set<number>;
+  borders: BorderLoop[];
+  gates: Gate[];
+  precincts: Precinct[];
+  citadelOutline: Point[] | null;
+  geo: CityGeography;
+  cellSizeMeters: number;
+  halfExtentMeters: number;
+}
+
+const EMPTY: StreetNetwork = { streets: [], roads: [], arteries: [] };
+
+/** Pure. Same interior geometry ⇒ identical network (A* is deterministic; no RNG). */
+export function buildStreets(input: StreetInputs): StreetNetwork {
+  const { cells, urban, borders, gates, precincts, citadelOutline, geo, cellSizeMeters, halfExtentMeters } = input;
+  if (!gates.length || !cells.length) return EMPTY;
+
+  const graph = buildEdgeGraph(cells);
+  if (!graph.points.length) return EMPTY;
+
+  const byId = new Map(cells.map(c => [c.id, c]));
+  const citadelRing = citadelOutline && citadelOutline.length >= 3 ? close(citadelOutline) : null;
+
+  // Node lookup keyed exactly as buildEdgeGraph merges its vertices.
+  const nodeAt = new Map<string, number>();
+  const qk = (p: Point): string => `${Math.round(p[0] / MERGE_QUANTUM)},${Math.round(p[1] / MERGE_QUANTUM)}`;
+  for (let i = 0; i < graph.points.length; i++) nodeAt.set(qk(graph.points[i]), i);
+
+  // Passable areas: streets run on vertices of `urban` cells; roads run on
+  // vertices that are not urban. `borderNodes` are the wall-ring vertices — a
+  // street is nudged (not barred) off them so it hugs the wall only where a
+  // spur-shaped gate leaves it no interior vertex to step onto.
+  const urbanNodes = new Set<number>();
+  for (const c of cells) {
+    if (!urban.has(c.id)) continue;
+    for (const v of c.polygon) {
+      const id = nodeAt.get(qk(v));
+      if (id !== undefined) urbanNodes.add(id);
+    }
+  }
+  const borderNodes = new Set<number>();
+  for (const b of borders) {
+    for (const p of b.points) {
+      const id = nodeAt.get(qk(p));
+      if (id !== undefined) borderNodes.add(id);
+    }
+  }
+
+  /** `weight` returns a multiplier on the edge length: `Infinity` bars the edge,
+   * `> 1` discourages it, `1` is neutral. Edges incident to the route's own
+   * endpoints are always free. */
+  const route = (from: Point, to: Point, weight: (a: number, b: number) => number): Point[] | null => {
+    const s = nearestNode(graph, from);
+    const g = nearestNode(graph, to);
+    if (s === g) return null;
+    const ids = aStar(graph, s, g, (a, b, w) => (a === s || b === s || a === g || b === g ? w : w * weight(a, b)));
+    if (!ids || ids.length < 2) return null;
+    return ids.map(id => [graph.points[id][0], graph.points[id][1]] as Point);
+  };
+
+  const clearOfCitadel = (a: number, b: number): boolean => {
+    if (!citadelRing) return true;
+    const pa = graph.points[a];
+    const pb = graph.points[b];
+    return !pointInPolygon([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2], citadelRing);
+  };
+
+  // --- streets: gate → plaza / town centre --------------------------------
+  const plaza = precincts.find(p => p.kind === "plaza");
+  const plazaPolys: Point[][] = (plaza?.cellIds ?? []).flatMap(id => (byId.has(id) ? [byId.get(id)!.polygon] : []));
+  // TownGenerator's street endpoint is the plaza's vertex nearest the centre
+  // (the centre itself when there is no plaza).
+  const plazaVertices: Point[] = [];
+  for (const poly of plazaPolys) for (const v of poly) plazaVertices.push(v);
+  const streetTarget: Point = plazaVertices
+    .slice()
+    .sort((p, q) => Math.hypot(p[0], p[1]) - Math.hypot(q[0], q[1]))[0] ?? [0, 0];
+
+  const streetWeight = (a: number, b: number): number => {
+    if (!(urbanNodes.has(a) && urbanNodes.has(b)) || !clearOfCitadel(a, b)) return Number.POSITIVE_INFINITY;
+    return borderNodes.has(a) || borderNodes.has(b) ? 1.6 : 1;
+  };
+  const streets: Point[][] = [];
+  for (const gate of gates) {
+    const line = route(gate.point, streetTarget, streetWeight);
+    if (line) streets.push(line);
+  }
+
+  // --- roads: window edge → land gate. A road may not enter the built-up area
+  // (`urban`) — "outside the wall" follows because the wall wraps it. Routing
+  // stops one step outside the gate (its own vertex is shared with urban cells,
+  // so A* can't peel off it) and a short radial stub closes onto the gate.
+  const nonUrban = (a: number, b: number): number =>
+    urbanNodes.has(a) || urbanNodes.has(b) ? Number.POSITIVE_INFINITY : 1;
+  const roads: Point[][] = [];
+  for (const gate of gates) {
+    if (gate.water) continue;
+    const out = unit(gate.point);
+    const apron = clampToWindow(
+      [gate.point[0] + out[0] * cellSizeMeters * 1.2, gate.point[1] + out[1] * cellSizeMeters * 1.2],
+      halfExtentMeters
+    );
+    const apronNode = nearestNode(graph, apron);
+    if (urbanNodes.has(apronNode)) continue;
+    const legs = route(farNodeFor(gate, geo, halfExtentMeters), graph.points[apronNode], nonUrban);
+    if (legs) roads.push([...legs, [gate.point[0], gate.point[1]]]);
+  }
+
+  const arteries = tidyUpRoads([...streets, ...roads], plazaPolys, cellSizeMeters);
+  return { streets, roads, arteries };
+}
+
+/**
+ * TownGenerator's `tidyUpRoads`: break the union of streets + roads into cell
+ * edges, drop those that bound the plaza, reconnect the rest into runs that stop
+ * at every junction / dead end, and smooth each run's interior (its endpoints —
+ * gates and junctions — are held fixed).
+ */
+export function tidyUpRoads(chains: Point[][], plazaPolys: Point[][], cellSize: number): Point[][] {
+  const key = (p: Point): string => `${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`;
+  const coord = new Map<string, Point>();
+  const adjacency = new Map<string, Set<string>>();
+  const plazaRings = plazaPolys.map(poly => close(poly));
+  const isPlazaEdge = (a: Point, b: Point): boolean => {
+    const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if (plazaRings.some(r => pointInPolygon(mid, r))) return true;
+    return plazaRings.some(r => onRing(a, r, cellSize) && onRing(b, r, cellSize));
+  };
+
+  for (const chain of chains) {
+    for (let i = 0; i + 1 < chain.length; i++) {
+      const a = chain[i];
+      const b = chain[i + 1];
+      const ka = key(a);
+      const kb = key(b);
+      if (ka === kb) continue;
+      coord.set(ka, [a[0], a[1]]);
+      coord.set(kb, [b[0], b[1]]);
+      if (isPlazaEdge(a, b)) continue;
+      link(adjacency, ka, kb);
+      link(adjacency, kb, ka);
+    }
+  }
+
+  const segId = (a: string, b: string): string => (a < b ? `${a}~${b}` : `${b}~${a}`);
+  const used = new Set<string>();
+  const arteries: Point[][] = [];
+  const walk = (start: string, first: string): void => {
+    if (used.has(segId(start, first))) return;
+    const line: Point[] = [coord.get(start) as Point];
+    let prev = start;
+    let cur = first;
+    for (let guard = 0; guard < 100_000; guard++) {
+      used.add(segId(prev, cur));
+      line.push(coord.get(cur) as Point);
+      const onward = [...(adjacency.get(cur) ?? [])].filter(k => k !== prev && !used.has(segId(cur, k)));
+      if ((adjacency.get(cur)?.size ?? 0) === 2 && onward.length === 1) {
+        prev = cur;
+        cur = onward[0];
+      } else break;
+    }
+    arteries.push(line.length >= 3 ? smoothPath(line, 2) : line.map(p => [p[0], p[1]] as Point));
+  };
+
+  // Runs anchored at every non-degree-2 node (gates, junctions, dead ends)…
+  for (const node of adjacency.keys()) {
+    if ((adjacency.get(node)?.size ?? 0) === 2) continue;
+    for (const next of adjacency.get(node) ?? []) walk(node, next);
+  }
+  // …then any leftover all-degree-2 cycle, seeded from an unused edge.
+  for (const [node, neighbours] of adjacency) {
+    for (const next of neighbours) if (!used.has(segId(node, next))) walk(node, next);
+  }
+  return arteries;
+}
+
+function link(adjacency: Map<string, Set<string>>, from: string, to: string): void {
+  let set = adjacency.get(from);
+  if (!set) {
+    set = new Set();
+    adjacency.set(from, set);
+  }
+  set.add(to);
+}
+
+/**
+ * A far aim point in the gate's bearing, clamped to the window: the descriptor
+ * road whose entry azimuth matches the gate when there is one, else straight out
+ * along the gate's own radius.
+ */
+function farNodeFor(gate: Gate, geo: CityGeography, half: number): Point {
+  const gateAz = vecToAzimuth(gate.point[0], gate.point[1]);
+  const best = (geo.roadPaths ?? [])
+    .filter(p => p.length >= 2)
+    .map(p => ({ end: p[p.length - 1], az: vecToAzimuth(p[p.length - 1][0], p[p.length - 1][1]) }))
+    .sort((a, b) => azimuthDelta(a.az, gateAz) - azimuthDelta(b.az, gateAz))[0];
+  const dir = best && azimuthDelta(best.az, gateAz) < 45 ? unit(best.end) : unit(gate.point);
+  const m = half * 0.985;
+  const reach = half * 1.6;
+  return [
+    Math.max(-m, Math.min(m, gate.point[0] + dir[0] * reach)),
+    Math.max(-m, Math.min(m, gate.point[1] + dir[1] * reach))
+  ];
+}
+
+function unit(p: Point): Point {
+  const len = Math.hypot(p[0], p[1]);
+  return len < 1e-6 ? [0, 1] : [p[0] / len, p[1] / len];
+}
+
+function onRing(p: Point, ring: Point[], cellSize: number): boolean {
+  return nearestOnPolyline(p, ring).dist < cellSize * 0.15;
+}
