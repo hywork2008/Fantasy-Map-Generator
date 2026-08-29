@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>City Editor — Fantasy Map Generator</title>
+    <meta name="description" content="Manual Voronoi city editor for Fantasy Map Generator" />
+    <meta name="robots" content="noindex" />
+    <style>
+      :root { --paper:#d4cbb9; --ink:#28231f; --panel:rgb(239 233 220 / 94%); --line:#756b60; }
+      * { box-sizing:border-box; }
+      html, body { margin:0; width:100%; height:100%; overflow:hidden; color:var(--ink); background:var(--paper); font:13px/1.35 system-ui,sans-serif; }
+      button, input, select { font:inherit; }
+      #city-editor-root { position:fixed; inset:0; }
+      .ce-canvas { position:absolute; inset:0; }
+      .ce-map, .ce-svg { width:100%; height:100%; display:block; touch-action:none; }
+      .ce-svg { background:#d4cbb9; }
+      .ce-face { stroke:none; cursor:pointer; fill:#d8d0c0; }
+      .ce-face--sea, .ce-face--lake, .ce-face--openWater { fill:#94bdd0; }
+      .ce-face.ce-selected { fill:#efd778; }
+      .ce-edge { fill:none; stroke:#756b60; stroke-width:2; vector-effect:non-scaling-stroke; cursor:pointer; }
+      .ce-edge:hover { stroke:#f2b84b; stroke-width:4; }
+      .ce-feature { fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
+      .ce-feature--wall { stroke-dasharray:2 2; }
+      .ce-active-group { filter:drop-shadow(0 0 5px #ffd75c); }
+      .ce-vertex { fill:#fff5d8; stroke:#342a22; stroke-width:2; vector-effect:non-scaling-stroke; cursor:grab; }
+      .ce-vertex:hover, .ce-vertex.ce-selected { fill:#f5b844; }
+      .ce-element { fill:#30251e; font:24px serif; text-anchor:middle; dominant-baseline:central; pointer-events:none; transform:scale(1 -1); transform-origin:center; }
+      .ce-panel { position:absolute; display:grid; gap:7px; padding:10px; max-width:250px; border:2px solid var(--ink); border-radius:7px; background:var(--panel); box-shadow:0 2px 10px #30251e33; }
+      .ce-panel h1 { margin:0 0 2px; font-size:14px; }
+      .ce-toolbar { top:12px; left:12px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .ce-toolbar h1, .ce-toolbar hr { grid-column:1 / -1; }
+      .ce-toolbar hr { width:100%; margin:1px 0; border:0; border-top:1px solid var(--line); }
+      .ce-inspector { top:12px; right:12px; width:220px; }
+      .ce-groups { left:12px; bottom:32px; width:250px; max-height:35vh; overflow:auto; }
+      .ce-group-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:4px; }
+      .ce-group-row span { color:#665b50; font-size:11px; white-space:nowrap; }
+      .ce-status { position:absolute; right:12px; bottom:12px; padding:6px 9px; border-radius:4px; background:var(--panel); font-size:12px; }
+      button { min-height:30px; padding:4px 7px; border:1px solid var(--ink); border-radius:4px; color:var(--ink); background:#f8f1e4; cursor:pointer; }
+      button:hover, button.is-active { background:#42362d; color:#fff7e8; }
+      button:disabled { opacity:.45; cursor:default; }
+      label { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:5px; }
+      input, select { min-width:0; max-width:130px; padding:3px; border:1px solid var(--line); border-radius:3px; background:#fffaf0; }
+      @media (max-width:700px) { .ce-inspector { top:auto; bottom:32px; right:8px; width:190px; max-height:42vh; overflow:auto; } .ce-groups { display:none; } .ce-toolbar { left:8px; top:8px; max-width:190px; } }
+    </style>
+  </head>
+  <body>
+    <div id="city-editor-root"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
