@@ -1,7 +1,26 @@
 import { createDocument, parseDocument } from "../core/document";
-import { addElement, appendEdge, appendRiverVertex, createGroup, finishRiver, removeGroup } from "../core/features";
+import {
+  addElement,
+  appendEdge,
+  appendRiverVertex,
+  createGroup,
+  finishRiver,
+  removeEdgeFromGroup,
+  removeGroup
+} from "../core/features";
 import { DocumentHistory } from "../core/history";
-import { clone, moveVertex, scaleDocument, setFaceElevation, setFaceWater, validate } from "../core/mesh";
+import {
+  clone,
+  faceNeighbors,
+  faceVertices,
+  mergeFaces,
+  moveVertex,
+  scaleDocument,
+  setFaceElevation,
+  setFaceWater,
+  splitFace,
+  validate
+} from "../core/mesh";
 import type { CityDocument, ElementKind, Id, Tool, WardKind, WaterKind } from "../core/types";
 import { type RenderSelection, renderEditorSvg } from "../render/svg";
 
@@ -218,6 +237,22 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function renderInspector(): void {
     inspector.replaceChildren(heading("Inspector"));
+    if (selection.edgeId && activeGroupId) {
+      const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
+      if (group) {
+        inspector.append(
+          text(`Selected edge ${selection.edgeId} in ${group.name}`),
+          makeButton("Delete selected edge", () => {
+            const next = removeEdgeFromGroup(documentState, group.id, selection.edgeId as Id);
+            if (next) {
+              selection.edgeId = null;
+              commit(next);
+            }
+          })
+        );
+        return;
+      }
+    }
     if (!selection.faceId) {
       inspector.appendChild(text("Select a cell to set water, a ward, or an urban element."));
       return;
@@ -240,12 +275,30 @@ export function mountCityEditor(root: HTMLElement): void {
       commit(next);
     });
     const elementKind = select(["plaza", "citadel", "temple", "harbor", "gate", "tower"], "plaza");
+    const vertices = faceVertices(documentState.mesh, face);
+    const splitFrom = select(vertices, vertices[0]);
+    const splitTo = select(vertices, vertices[Math.floor(vertices.length / 2)]);
+    const neighbors = faceNeighbors(documentState.mesh, face.id);
+    const mergeWith = select(neighbors, neighbors[0] ?? "");
     inspector.append(
       label("Elevation", elevation),
       label("Water", water),
       label("Ward", ward),
       label("Element", elementKind),
-      makeButton("Add element", () => commit(addElement(documentState, elementKind.value as ElementKind, face.id)))
+      makeButton("Add element", () => commit(addElement(documentState, elementKind.value as ElementKind, face.id))),
+      divider(),
+      label("Split from", splitFrom),
+      label("Split to", splitTo),
+      makeButton("Split cell", () => {
+        const next = splitFace(documentState, face.id, splitFrom.value, splitTo.value);
+        if (next) commit(next);
+      }),
+      label("Merge with", mergeWith),
+      makeButton("Merge cell", () => {
+        if (!mergeWith.value) return;
+        const next = mergeFaces(documentState, face.id, mergeWith.value);
+        if (next) commit(next);
+      })
     );
   }
 

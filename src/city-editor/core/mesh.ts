@@ -102,6 +102,100 @@ export function vertexTouchesWater(mesh: Mesh, vertexId: Id): boolean {
   return incidentFaces(mesh, vertexId).some(face => face.properties.water !== "land");
 }
 
+/** Face ids sharing a real mesh edge with `faceId`. */
+export function faceNeighbors(mesh: Mesh, faceId: Id): Id[] {
+  const face = mesh.faces[faceId];
+  if (!face) return [];
+  const neighbors = new Set<Id>();
+  for (const ref of face.boundary) {
+    const edge = mesh.edges[ref.edgeId];
+    const other = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
+    if (other) neighbors.add(other);
+  }
+  return [...neighbors];
+}
+
+/**
+ * Divide a face along a diagonal between two existing, non-adjacent vertices.
+ * The original face keeps its id; the second half receives a new face id.
+ */
+export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): CityDocument | null {
+  const next = clone(document);
+  const face = next.mesh.faces[faceId];
+  if (!face || face.properties.locked || a === b) return null;
+  const vertices = faceVertices(next.mesh, face);
+  const ia = vertices.indexOf(a);
+  const ib = vertices.indexOf(b);
+  if (ia < 0 || ib < 0 || areAdjacent(vertices.length, ia, ib) || edgeBetween(next.mesh, a, b)) return null;
+
+  const edgeId = nextNumericId(next.mesh.edges, "e");
+  const forward = a < b;
+  next.mesh.edges[edgeId] = {
+    id: edgeId,
+    a: forward ? a : b,
+    b: forward ? b : a,
+    leftFace: null,
+    rightFace: null,
+    locked: false
+  };
+  const newFaceId = nextNumericId(next.mesh.faces, "f");
+  const fromA = boundarySpan(face.boundary, ia, ib);
+  const fromB = boundarySpan(face.boundary, ib, ia);
+  const closeA = edgeRefFor(next.mesh, edgeId, b);
+  const closeB = edgeRefFor(next.mesh, edgeId, a);
+  if (!closeA || !closeB) return null;
+
+  face.boundary = [...fromA, closeA];
+  next.mesh.faces[newFaceId] = {
+    id: newFaceId,
+    boundary: [...fromB, closeB],
+    site: face.site ? [face.site[0], face.site[1]] : undefined,
+    properties: clone(face.properties)
+  };
+  rebuildFaceSides(next.mesh);
+  return validate(next).length ? null : next;
+}
+
+/** Merge two neighboring faces, unless their shared edge carries a feature. */
+export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId: Id): CityDocument | null {
+  if (keepFaceId === removeFaceId) return null;
+  const next = clone(document);
+  const keep = next.mesh.faces[keepFaceId];
+  const remove = next.mesh.faces[removeFaceId];
+  if (!keep || !remove || keep.properties.locked || remove.properties.locked) return null;
+  const shared = keep.boundary.map(ref => ref.edgeId).filter(id => remove.boundary.some(ref => ref.edgeId === id));
+  if (shared.length !== 1 || featureUsesEdge(next, shared[0])) return null;
+
+  const keepIndex = keep.boundary.findIndex(ref => ref.edgeId === shared[0]);
+  const removeIndex = remove.boundary.findIndex(ref => ref.edgeId === shared[0]);
+  keep.boundary = [
+    ...boundarySpan(keep.boundary, (keepIndex + 1) % keep.boundary.length, keepIndex),
+    ...boundarySpan(remove.boundary, (removeIndex + 1) % remove.boundary.length, removeIndex)
+  ];
+  delete next.mesh.edges[shared[0]];
+  delete next.mesh.faces[removeFaceId];
+  for (const element of next.elements) {
+    element.faceIds = [...new Set(element.faceIds.map(id => (id === removeFaceId ? keepFaceId : id)))];
+  }
+  rebuildFaceSides(next.mesh);
+  return validate(next).length ? null : next;
+}
+
+/** Re-derive edge side references after a structural mesh edit. */
+export function rebuildFaceSides(mesh: Mesh): void {
+  for (const edge of Object.values(mesh.edges)) {
+    edge.leftFace = null;
+    edge.rightFace = null;
+  }
+  for (const face of Object.values(mesh.faces)) {
+    for (const ref of face.boundary) {
+      const edge = mesh.edges[ref.edgeId];
+      if (ref.forward) edge.leftFace = face.id;
+      else edge.rightFace = face.id;
+    }
+  }
+}
+
 export function setFaceWater(document: CityDocument, faceId: Id, water: WaterKind): CityDocument {
   const next = clone(document);
   const face = next.mesh.faces[faceId];
@@ -204,4 +298,30 @@ function area(points: Point[]): number {
     sum += a[0] * b[1] - b[0] * a[1];
   }
   return sum / 2;
+}
+
+function areAdjacent(length: number, a: number, b: number): boolean {
+  return (a + 1) % length === b || (b + 1) % length === a;
+}
+
+/** Directed boundary span from start (inclusive) to end (exclusive), wrapping. */
+function boundarySpan(boundary: EdgeRef[], start: number, end: number): EdgeRef[] {
+  const result: EdgeRef[] = [];
+  for (let cursor = start; cursor !== end; cursor = (cursor + 1) % boundary.length) result.push(boundary[cursor]);
+  return result;
+}
+
+function nextNumericId<T>(records: Record<Id, T>, prefix: string): Id {
+  let n = 0;
+  while (records[`${prefix}${n}`]) n++;
+  return `${prefix}${n}`;
+}
+
+function featureUsesEdge(document: CityDocument, edgeId: Id): boolean {
+  return document.featureGroups.some(group => {
+    if (group.kind !== "river") return group.segments.some(segment => segment.edgeId === edgeId);
+    for (let i = 1; i < group.vertices.length; i++)
+      if (edgeBetween(document.mesh, group.vertices[i - 1], group.vertices[i])?.id === edgeId) return true;
+    return false;
+  });
 }

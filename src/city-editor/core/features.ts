@@ -92,6 +92,51 @@ export function removeGroup(document: CityDocument, groupId: Id): CityDocument {
   return next;
 }
 
+/** Remove one selected route edge. Roads/walls split into contiguous groups; a
+ * river is trimmed on the upstream side so its direction stays unambiguous. */
+export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId: Id): CityDocument | null {
+  const next = clone(document);
+  const index = next.featureGroups.findIndex(group => group.id === groupId);
+  const group = next.featureGroups[index];
+  if (!group || group.locked) return null;
+  if (group.kind === "river") {
+    let segment = -1;
+    for (let i = 1; i < group.vertices.length; i++) {
+      if (edgeBetween(next.mesh, group.vertices[i - 1], group.vertices[i])?.id === edgeId) {
+        segment = i;
+        break;
+      }
+    }
+    if (segment < 0) return null;
+    group.vertices = group.vertices.slice(0, segment);
+    const mouthVertex = group.vertices.at(-1);
+    group.mouth =
+      mouthVertex && vertexTouchesWater(next.mesh, mouthVertex) ? { vertexId: mouthVertex, kind: "water" } : null;
+    if (group.vertices.length < 2) next.featureGroups.splice(index, 1);
+    return next;
+  }
+
+  const segment = group.segments.findIndex(ref => ref.edgeId === edgeId);
+  if (segment < 0) return null;
+  const before = group.segments.slice(0, segment);
+  const after = group.segments.slice(segment + 1);
+  if (!before.length && !after.length) {
+    next.featureGroups.splice(index, 1);
+    return next;
+  }
+  group.segments = before.length ? before : after;
+  if (before.length && after.length) {
+    const kindNumber = next.featureGroups.filter(candidate => candidate.kind === group.kind).length + 1;
+    next.featureGroups.push({
+      ...clone(group),
+      id: nextId(next, group.kind),
+      name: `${group.kind === "road" ? "Road" : "Wall"} #${kindNumber}`,
+      segments: after
+    });
+  }
+  return next;
+}
+
 function nextId(document: CityDocument, prefix: string): Id {
   let n = 1;
   const used = new Set([
