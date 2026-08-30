@@ -192,7 +192,7 @@ export function mountCityEditor(root: HTMLElement): void {
     importButton,
     label("Scale", scaleInput),
     scaleButton,
-    label("Show cell / vertex IDs", showLabelsInput),
+    label("Show cell IDs", showLabelsInput),
     label("Ward brush", wardBrushInput),
     finishButton,
     label("Smoothing", smoothingModeInput),
