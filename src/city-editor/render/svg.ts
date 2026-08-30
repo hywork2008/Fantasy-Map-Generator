@@ -1,5 +1,5 @@
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
-import type { CityDocument, EdgeRef, Id, Point, Tool } from "../core/types";
+import type { CityDocument, EdgeRef, FeatureGroup, Id, Point, Tool } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
 const REFERENCE_LABEL_EXTENT_METERS = 1200;
@@ -10,6 +10,8 @@ export interface RenderSelection {
   edgeId: Id | null;
   vertexId: Id | null;
   groupId: Id | null;
+  hoverGroupId?: Id | null;
+  hoverVertexId?: Id | null;
 }
 
 export function renderEditorSvg(
@@ -63,6 +65,7 @@ export function renderEditorSvg(
   const features = element("g", { class: "ce-features" });
   for (const group of document.featureGroups) {
     const active = selection.groupId === group.id;
+    const hovered = selection.hoverGroupId === group.id;
     const points =
       group.kind === "river"
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
@@ -71,15 +74,18 @@ export function renderEditorSvg(
     features.appendChild(
       element("path", {
         d: line(points),
-        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}`,
+        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${hovered ? " ce-hover-group" : ""}`,
         stroke: group.style.color,
         "stroke-width": String(group.style.widthMeters),
         "data-group": group.id,
-        "pointer-events": "stroke"
+        // Once selected, let the mesh edges below receive clicks so individual
+        // route segments can be added and removed.
+        "pointer-events": active ? "none" : "stroke"
       })
     );
   }
   svg.appendChild(features);
+  svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
   const elements = element("g", { class: "ce-elements" });
   for (const cityElement of document.elements) {
@@ -102,15 +108,17 @@ export function renderEditorSvg(
 
   if (selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 
-  if (tool === "vertex" || tool === "river") {
+  const showAllVertices = tool === "vertex" || tool === "river";
+  if (showAllVertices || selection.hoverVertexId) {
     const vertices = element("g", { class: "ce-vertices" });
     for (const vertex of Object.values(document.mesh.vertices)) {
+      if (!showAllVertices && vertex.id !== selection.hoverVertexId) continue;
       vertices.appendChild(
         element("circle", {
           cx: String(vertex.point[0]),
           cy: String(-vertex.point[1]),
           r: String(vertexHandleRadius(zoom)),
-          class: `ce-vertex${selection.vertexId === vertex.id ? " ce-selected" : ""}`,
+          class: `ce-vertex${selection.hoverVertexId === vertex.id ? " ce-hover-vertex" : ""}${selection.vertexId === vertex.id ? " ce-selected" : ""}`,
           "data-vertex": vertex.id
         })
       );
@@ -210,6 +218,19 @@ function vertexLabelPoint(vertexId: Id, document: CityDocument, fontSize: number
 /** Vertex handles retain a precise, constant map-space radius at every zoom. */
 export function vertexHandleRadius(_zoom: number): number {
   return 2;
+}
+
+/** Create a lightweight overlay path for an uncommitted route preview. */
+export function renderRoutePreview(document: CityDocument, group: FeatureGroup, vertices: Id[]): SVGPathElement | null {
+  const points = vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint);
+  if (points.length < 2) return null;
+  return element("path", {
+    d: line(points),
+    class: `ce-feature ce-route-preview ce-feature--${group.kind}`,
+    stroke: "#ffd75c",
+    "stroke-width": String(group.style.widthMeters),
+    "pointer-events": "none"
+  }) as SVGPathElement;
 }
 
 function edgeGroupPoints(document: CityDocument, segments: EdgeRef[]): Point[] {

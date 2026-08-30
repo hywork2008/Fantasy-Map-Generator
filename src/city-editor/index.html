@@ -23,12 +23,17 @@
       .ce-face.ce-selected { fill:#efd778; }
       .ce-edge { fill:none; stroke:#756b60; stroke-width:2; vector-effect:non-scaling-stroke; cursor:pointer; }
       .ce-edge:hover { stroke:#f2b84b; stroke-width:4; }
-      .ce-feature { fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
+      .ce-feature { fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.9; cursor:pointer; }
       .ce-feature--wall { stroke-dasharray:2 2; }
       .ce-feature--plank { filter:drop-shadow(0 0 1px #332b22); }
       .ce-active-group { filter:drop-shadow(0 0 5px #ffd75c); }
+      .ce-hover-group { opacity:1; filter:drop-shadow(0 0 5px #ffd75c); }
+      .ce-route-preview { opacity:1; filter:drop-shadow(0 0 4px #ffd75c); }
       .ce-vertex { fill:#fff5d8; stroke:#342a22; stroke-width:2; vector-effect:non-scaling-stroke; cursor:grab; }
       .ce-vertex:hover, .ce-vertex.ce-selected { fill:#f5b844; }
+      .ce-hover-vertex { fill:#f5b844; stroke-width:3; }
+      .ce-route-vertex { fill:#ffd75c; stroke:#342a22; stroke-width:3; }
+      .ce-route-target { fill:#fff5d8; opacity:.78; }
       .ce-selection-label { fill:#28231f; font-family:system-ui,sans-serif; font-weight:700; }
       .ce-selection-face-label { fill:#42362d; }
       .ce-element { fill:#30251e; font:24px serif; text-anchor:middle; dominant-baseline:central; pointer-events:none; transform:scale(1 -1); transform-origin:center; }
