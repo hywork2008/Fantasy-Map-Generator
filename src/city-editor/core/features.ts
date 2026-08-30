@@ -1,5 +1,5 @@
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceVertices, validate, vertexTouchesWater } from "./mesh";
-import type { CityDocument, EdgeFeatureGroup, ElementKind, FeatureGroup, Id, Mesh, RiverGroup } from "./types";
+import type { CityDocument, EdgeFeatureGroup, EdgeRef, ElementKind, FeatureGroup, Id, Mesh, RiverGroup } from "./types";
 
 export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]): CityDocument {
   const next = clone(document);
@@ -200,8 +200,13 @@ export function previewRouteAcrossFace(
   const face = document.mesh.faces[faceId];
   if (!group || !face || group.locked) return null;
 
-  const vertices = featureGroupVertices(document, group);
-  const routeEdges = groupEdgeIds(document, group);
+  const route = rotateClosedRouteAwayFromFace(
+    featureGroupVertices(document, group),
+    groupEdgeIds(document, group),
+    face
+  );
+  const vertices = route.vertices;
+  const routeEdges = route.edgeIds;
   if (vertices.length !== routeEdges.length + 1) return null;
   const faceEdges = new Set(face.boundary.map(ref => ref.edgeId));
   const index = anchoredFaceEdgeIndex(vertices, routeEdges, faceEdges, anchor);
@@ -377,6 +382,29 @@ function groupEdgeIds(document: CityDocument, group: FeatureGroup): Id[] {
     edges.push(edge.id);
   }
   return edges;
+}
+
+/**
+ * A wall loop can cross the serialized route's first/last edge boundary. Cut
+ * the loop at an edge outside the hovered face so a face-boundary run (for
+ * example v23→v22→v21) stays contiguous while it is replaced.
+ */
+function rotateClosedRouteAwayFromFace(
+  vertices: Id[],
+  edgeIds: Id[],
+  face: { boundary: EdgeRef[] }
+): { vertices: Id[]; edgeIds: Id[] } {
+  if (vertices[0] !== vertices.at(-1) || !edgeIds.length) return { vertices, edgeIds };
+  const faceEdges = new Set(face.boundary.map(ref => ref.edgeId));
+  const breakIndex = edgeIds.findIndex(edgeId => !faceEdges.has(edgeId));
+  if (breakIndex < 0) return { vertices, edgeIds };
+  const start = (breakIndex + 1) % edgeIds.length;
+  const cycle = vertices.slice(0, -1);
+  const rotated = [...cycle.slice(start), ...cycle.slice(0, start)];
+  return {
+    vertices: [...rotated, rotated[0]],
+    edgeIds: [...edgeIds.slice(start), ...edgeIds.slice(0, start)]
+  };
 }
 
 function anchoredFaceEdgeIndex(

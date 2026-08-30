@@ -60,6 +60,67 @@ function routeDocument(): CityDocument {
   };
 }
 
+function closedRouteDocument(): CityDocument {
+  const vertex = (id: string, point: [number, number]) => ({ id, point, locked: false });
+  const edge = (id: string, a: string, b: string) => ({ id, a, b, leftFace: null, rightFace: null, locked: false });
+  return {
+    format: "fmg-city-editor",
+    version: 1,
+    frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+    mesh: {
+      vertices: {
+        a: vertex("a", [0, 0]),
+        b: vertex("b", [2, 0]),
+        c: vertex("c", [0, 4]),
+        q: vertex("q", [3, 1]),
+        r: vertex("r", [2, 3]),
+        x: vertex("x", [4, -1]),
+        y: vertex("y", [4, 5])
+      },
+      edges: {
+        ab: edge("ab", "a", "b"),
+        bx: edge("bx", "b", "x"),
+        xy: edge("xy", "x", "y"),
+        yc: edge("yc", "y", "c"),
+        ca: edge("ca", "c", "a"),
+        bq: edge("bq", "b", "q"),
+        qr: edge("qr", "q", "r"),
+        rc: edge("rc", "r", "c")
+      },
+      faces: {
+        f0: {
+          id: "f0",
+          boundary: [
+            { edgeId: "ab", forward: true },
+            { edgeId: "bq", forward: true },
+            { edgeId: "qr", forward: true },
+            { edgeId: "rc", forward: true },
+            { edgeId: "ca", forward: true }
+          ],
+          properties: { elevation: 1, water: "land", ward: null, buildable: true, locked: false }
+        }
+      }
+    },
+    featureGroups: [
+      {
+        id: "wall-1",
+        kind: "wall",
+        name: "Wall #1",
+        segments: [
+          { edgeId: "ab", forward: true },
+          { edgeId: "bx", forward: true },
+          { edgeId: "xy", forward: true },
+          { edgeId: "yc", forward: true },
+          { edgeId: "ca", forward: true }
+        ],
+        style: { widthMeters: 7, color: "#342a22" },
+        locked: false
+      }
+    ],
+    elements: []
+  };
+}
+
 describe("route group editing", () => {
   it("reports a group's ordered vertices and used edges", () => {
     const document = routeDocument();
@@ -106,5 +167,10 @@ describe("route group editing", () => {
       "e",
       "c"
     ]);
+  });
+
+  it("replaces a face span that crosses a closed route's serialized boundary", () => {
+    const preview = previewRouteAcrossFace(closedRouteDocument(), "wall-1", "f0", { edgeId: "ab" });
+    expect(preview?.replacementVertices).toEqual(["c", "r", "q", "b"]);
   });
 });
