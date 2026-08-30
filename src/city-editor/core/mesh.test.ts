@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDocument, createSizedDocument } from "./document";
+import { appendEdge, createGroup } from "./features";
 import { faceNeighbors, faceVertices, mergeFaces, mergeVertices, splitFace, validate } from "./mesh";
 
 describe("manual city mesh", () => {
@@ -78,6 +79,30 @@ describe("manual city mesh", () => {
     expect(Object.values(merged.mesh.edges).every(candidate => candidate.a !== edge.b && candidate.b !== edge.b)).toBe(
       true
     );
+    expect(validate(merged)).toEqual([]);
+  });
+
+  it("merges vertices across an unlocked route edge and removes that route segment", () => {
+    const document = createDocument("mesh-route-vertex-merge", 900, 110);
+    const edge = Object.values(document.mesh.edges).find(candidate =>
+      mergeVertices(document, candidate.a, candidate.b)
+    );
+    expect(edge).toBeDefined();
+    if (!edge) return;
+
+    const grouped = createGroup(document, "wall");
+    const groupId = grouped.featureGroups.at(-1)?.id;
+    expect(groupId).toBeDefined();
+    if (!groupId) return;
+    const withWall = appendEdge(grouped, groupId, edge.id);
+    expect(withWall).not.toBeNull();
+    if (!withWall) return;
+
+    const merged = mergeVertices(withWall, edge.a, edge.b);
+
+    expect(merged).not.toBeNull();
+    if (!merged) return;
+    expect(merged.featureGroups.find(group => group.id === groupId)).toBeUndefined();
     expect(validate(merged)).toEqual([]);
   });
 });

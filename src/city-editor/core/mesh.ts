@@ -1,5 +1,5 @@
 import type { Cell } from "../../city-generator/core/types";
-import type { CityDocument, Edge, EdgeRef, Face, Id, Mesh, Point, WaterKind } from "./types";
+import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "./types";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -249,7 +249,8 @@ export function moveVertex(document: CityDocument, vertexId: Id, point: Point): 
 export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVertexId: Id): CityDocument | null {
   if (keepVertexId === removeVertexId) return null;
   const joiningEdge = edgeBetween(document.mesh, keepVertexId, removeVertexId);
-  if (!joiningEdge || featureUsesEdge(document, joiningEdge.id)) return null;
+  if (!joiningEdge) return null;
+  if (document.featureGroups.some(group => group.locked && groupUsesEdge(document, group, joiningEdge.id))) return null;
   const keepVertex = document.mesh.vertices[keepVertexId];
   const removeVertex = document.mesh.vertices[removeVertexId];
   if (!keepVertex || !removeVertex || keepVertex.locked || removeVertex.locked) return null;
@@ -302,6 +303,7 @@ export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVe
     face.boundary = boundary;
   }
 
+  const groups: FeatureGroup[] = [];
   for (const group of next.featureGroups) {
     if (group.kind === "river") {
       group.vertices = removeConsecutiveDuplicates(
@@ -309,10 +311,15 @@ export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVe
       );
       if (group.source?.vertexId === removeVertexId) group.source.vertexId = keepVertexId;
       if (group.mouth?.vertexId === removeVertexId) group.mouth.vertexId = keepVertexId;
+      groups.push(group);
       continue;
     }
+    const usedJoiningEdge = group.segments.some(segment => segment.edgeId === joiningEdge.id);
     const segments: EdgeRef[] = [];
     for (const segment of group.segments) {
+      // The collapsed edge becomes a zero-length route segment. Dropping it
+      // keeps the adjacent route edges contiguous through the surviving vertex.
+      if (segment.edgeId === joiningEdge.id) continue;
       const previousEdge = document.mesh.edges[segment.edgeId];
       const edgeId = edgeReplacements.get(segment.edgeId);
       const edge = edgeId ? edges[edgeId] : null;
@@ -322,7 +329,9 @@ export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVe
       segments.push({ edgeId, forward: edge.a === remappedStart });
     }
     group.segments = segments;
+    if (segments.length || !usedJoiningEdge) groups.push(group);
   }
+  next.featureGroups = groups;
 
   delete next.mesh.vertices[removeVertexId];
   rebuildFaceSides(next.mesh);
@@ -465,12 +474,14 @@ function nextNumericId<T>(records: Record<Id, T>, prefix: string): Id {
 }
 
 function featureUsesEdge(document: CityDocument, edgeId: Id): boolean {
-  return document.featureGroups.some(group => {
-    if (group.kind !== "river") return group.segments.some(segment => segment.edgeId === edgeId);
-    for (let i = 1; i < group.vertices.length; i++)
-      if (edgeBetween(document.mesh, group.vertices[i - 1], group.vertices[i])?.id === edgeId) return true;
-    return false;
-  });
+  return document.featureGroups.some(group => groupUsesEdge(document, group, edgeId));
+}
+
+function groupUsesEdge(document: CityDocument, group: FeatureGroup, edgeId: Id): boolean {
+  if (group.kind !== "river") return group.segments.some(segment => segment.edgeId === edgeId);
+  for (let index = 1; index < group.vertices.length; index++)
+    if (edgeBetween(document.mesh, group.vertices[index - 1], group.vertices[index])?.id === edgeId) return true;
+  return false;
 }
 
 function removeConsecutiveDuplicates(ids: Id[]): Id[] {
