@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDocument, createSizedDocument } from "./document";
-import { faceVertices, mergeFaces, splitFace, validate } from "./mesh";
+import { faceNeighbors, faceVertices, mergeFaces, splitFace, validate } from "./mesh";
 
 describe("manual city mesh", () => {
   it("keeps the Small preset near its 24 × 24 macro-block target", () => {
@@ -28,5 +28,38 @@ describe("manual city mesh", () => {
     const merged = mergeFaces(split, face.id, createdId);
     expect(merged).not.toBeNull();
     expect(Object.keys(merged?.mesh.faces ?? {})).toHaveLength(Object.keys(document.mesh.faces).length);
+  });
+
+  it("merges a previously merged cell with a neighbor sharing multiple edges", () => {
+    const document = createDocument("mesh-consecutive-merge", 900, 110);
+    let firstMerge: ReturnType<typeof mergeFaces> = null;
+    let keepFaceId = "";
+    let nextNeighborId = "";
+
+    for (const face of Object.values(document.mesh.faces)) {
+      for (const neighborId of faceNeighbors(document.mesh, face.id)) {
+        const merged = mergeFaces(document, face.id, neighborId);
+        if (!merged) continue;
+        const keep = merged.mesh.faces[face.id];
+        const nextNeighbor = faceNeighbors(merged.mesh, face.id).find(candidateId => {
+          const candidate = merged.mesh.faces[candidateId];
+          return keep.boundary.filter(ref => candidate.boundary.some(other => other.edgeId === ref.edgeId)).length > 1;
+        });
+        if (!nextNeighbor) continue;
+        firstMerge = merged;
+        keepFaceId = face.id;
+        nextNeighborId = nextNeighbor;
+        break;
+      }
+      if (firstMerge) break;
+    }
+
+    expect(firstMerge).not.toBeNull();
+    if (!firstMerge) return;
+    const mergedAgain = mergeFaces(firstMerge, keepFaceId, nextNeighborId);
+    expect(mergedAgain).not.toBeNull();
+    expect(validate(mergedAgain!)).toEqual([]);
+    const connectedVertices = new Set(Object.values(mergedAgain!.mesh.edges).flatMap(edge => [edge.a, edge.b]));
+    expect(Object.keys(mergedAgain!.mesh.vertices).sort()).toEqual([...connectedVertices].sort());
   });
 });

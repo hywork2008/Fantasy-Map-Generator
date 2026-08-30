@@ -167,7 +167,7 @@ export function splitFace(document: CityDocument, faceId: Id, a: Id, b: Id): Cit
   return validate(next).length ? null : next;
 }
 
-/** Merge two neighboring faces, unless their shared edge carries a feature. */
+/** Merge two neighboring faces, unless a shared edge carries a feature. */
 export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId: Id): CityDocument | null {
   if (keepFaceId === removeFaceId) return null;
   const next = clone(document);
@@ -175,16 +175,21 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
   const remove = next.mesh.faces[removeFaceId];
   if (!keep || !remove || keep.properties.locked || remove.properties.locked) return null;
   const shared = keep.boundary.map(ref => ref.edgeId).filter(id => remove.boundary.some(ref => ref.edgeId === id));
-  if (shared.length !== 1 || featureUsesEdge(next, shared[0])) return null;
+  if (!shared.length || shared.some(edgeId => featureUsesEdge(next, edgeId))) return null;
 
-  const keepIndex = keep.boundary.findIndex(ref => ref.edgeId === shared[0]);
-  const removeIndex = remove.boundary.findIndex(ref => ref.edgeId === shared[0]);
-  keep.boundary = [
-    ...boundarySpan(keep.boundary, (keepIndex + 1) % keep.boundary.length, keepIndex),
-    ...boundarySpan(remove.boundary, (removeIndex + 1) % remove.boundary.length, removeIndex)
-  ];
-  delete next.mesh.edges[shared[0]];
+  // A merged face can touch another face along two or more edges. Removing
+  // every shared edge and re-linking the remaining directed edges gives the
+  // exterior boundary of their union, allowing consecutive merges.
+  const sharedEdges = new Set(shared);
+  const boundary = orderBoundary(
+    next.mesh,
+    [...keep.boundary, ...remove.boundary].filter(ref => !sharedEdges.has(ref.edgeId))
+  );
+  if (!boundary) return null;
+  keep.boundary = boundary;
+  for (const edgeId of sharedEdges) delete next.mesh.edges[edgeId];
   delete next.mesh.faces[removeFaceId];
+  removeOrphanVertices(next);
   for (const element of next.elements) {
     element.faceIds = [...new Set(element.faceIds.map(id => (id === removeFaceId ? keepFaceId : id)))];
   }
@@ -317,6 +322,53 @@ function boundarySpan(boundary: EdgeRef[], start: number, end: number): EdgeRef[
   const result: EdgeRef[] = [];
   for (let cursor = start; cursor !== end; cursor = (cursor + 1) % boundary.length) result.push(boundary[cursor]);
   return result;
+}
+
+/** Order a collection of directed edges into one closed face boundary. */
+function orderBoundary(mesh: Mesh, boundary: EdgeRef[]): EdgeRef[] | null {
+  if (!boundary.length) return null;
+  const byStart = new Map<Id, EdgeRef>();
+  for (const ref of boundary) {
+    const edge = mesh.edges[ref.edgeId];
+    if (!edge) return null;
+    const start = ref.forward ? edge.a : edge.b;
+    if (byStart.has(start)) return null;
+    byStart.set(start, ref);
+  }
+
+  const ordered = [boundary[0]];
+  const first = mesh.edges[boundary[0].edgeId];
+  if (!first) return null;
+  const firstStart = boundary[0].forward ? first.a : first.b;
+  while (ordered.length < boundary.length) {
+    const last = ordered.at(-1);
+    if (!last) return null;
+    const next = byStart.get(edgeEnd(mesh, last));
+    if (!next || ordered.includes(next)) return null;
+    ordered.push(next);
+  }
+  return edgeEnd(mesh, ordered.at(-1) as EdgeRef) === firstStart ? ordered : null;
+}
+
+/** Remove vertices whose incident edges were all removed during a face merge. */
+function removeOrphanVertices(document: CityDocument): void {
+  const { mesh } = document;
+  const used = new Set<Id>();
+  for (const edge of Object.values(mesh.edges)) {
+    used.add(edge.a);
+    used.add(edge.b);
+  }
+  // A one-vertex river has no edge yet, but still needs its selected endpoint
+  // kept intact so the user can continue drawing it after the merge.
+  for (const group of document.featureGroups) {
+    if (group.kind !== "river") continue;
+    for (const vertexId of group.vertices) used.add(vertexId);
+    if (group.source) used.add(group.source.vertexId);
+    if (group.mouth) used.add(group.mouth.vertexId);
+  }
+  for (const vertexId of Object.keys(mesh.vertices)) {
+    if (!used.has(vertexId)) delete mesh.vertices[vertexId];
+  }
 }
 
 function nextNumericId<T>(records: Record<Id, T>, prefix: string): Id {

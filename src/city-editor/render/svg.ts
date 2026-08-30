@@ -1,7 +1,9 @@
-import { edgeEnd, facePoints } from "../core/mesh";
+import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import type { CityDocument, EdgeRef, Id, Point, Tool } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
+const REFERENCE_LABEL_EXTENT_METERS = 1200;
+const REFERENCE_LABEL_FONT_SIZE = 14;
 
 export interface RenderSelection {
   faceId: Id | null;
@@ -98,6 +100,8 @@ export function renderEditorSvg(
   }
   svg.appendChild(elements);
 
+  if (selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
+
   if (tool === "vertex" || tool === "river") {
     const vertices = element("g", { class: "ce-vertices" });
     for (const vertex of Object.values(document.mesh.vertices)) {
@@ -114,6 +118,93 @@ export function renderEditorSvg(
     svg.appendChild(vertices);
   }
   return svg;
+}
+
+/** Show the IDs used by the face-editing controls while a cell is selected. */
+function appendFaceSelectionLabels(svg: SVGSVGElement, document: CityDocument, faceId: Id, zoom: number): void {
+  const selectedFace = document.mesh.faces[faceId];
+  if (!selectedFace) return;
+  const labels = element("g", { class: "ce-selection-labels", "pointer-events": "none" });
+  const fontSize = selectionLabelFontSize(document.frame.extentMeters, zoom);
+
+  for (const vertexId of faceVertices(document.mesh, selectedFace)) {
+    const vertex = document.mesh.vertices[vertexId];
+    if (!vertex) continue;
+    const point = vertexLabelPoint(vertex.id, document, fontSize);
+    labels.appendChild(
+      element(
+        "text",
+        {
+          x: String(point[0]),
+          y: String(-point[1]),
+          "font-size": String(fontSize),
+          "text-anchor": "middle",
+          "dominant-baseline": "central",
+          class: "ce-selection-label ce-selection-vertex-label"
+        },
+        vertex.id
+      )
+    );
+  }
+
+  for (const nearbyFaceId of [selectedFace.id, ...faceNeighbors(document.mesh, selectedFace.id)]) {
+    const face = document.mesh.faces[nearbyFaceId];
+    if (!face) continue;
+    const point = centroid(facePoints(document.mesh, face));
+    labels.appendChild(
+      element(
+        "text",
+        {
+          x: String(point[0]),
+          y: String(-point[1]),
+          "font-size": String(fontSize),
+          "text-anchor": "middle",
+          "dominant-baseline": "central",
+          class: "ce-selection-label ce-selection-face-label"
+        },
+        face.id
+      )
+    );
+  }
+  svg.appendChild(labels);
+}
+
+/**
+ * Label text is expressed in SVG map units. Scale it with the map extent so a
+ * freshly opened large/imported map has the same screen size as a new small
+ * (1200 m) map; compensate for the current zoom afterwards.
+ */
+export function selectionLabelFontSize(extentMeters: number, zoom: number): number {
+  return (REFERENCE_LABEL_FONT_SIZE * Math.max(1, extentMeters)) / (REFERENCE_LABEL_EXTENT_METERS * Math.max(1, zoom));
+}
+
+/**
+ * Keep a vertex label directly on its point unless it would cover a nearby
+ * vertex. In that case, shift it away from the closest point just far enough
+ * for the text to clear it.
+ */
+function vertexLabelPoint(vertexId: Id, document: CityDocument, fontSize: number): Point {
+  const vertex = document.mesh.vertices[vertexId];
+  if (!vertex) return [0, 0];
+  let closest: Point | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of Object.values(document.mesh.vertices)) {
+    if (candidate.id === vertexId) continue;
+    const distance = Math.hypot(candidate.point[0] - vertex.point[0], candidate.point[1] - vertex.point[1]);
+    if (distance < closestDistance) {
+      closest = candidate.point;
+      closestDistance = distance;
+    }
+  }
+
+  // Approximate half the label width, with a small amount of clearance.
+  const labelRadius = Math.max(fontSize * 1.25, vertexId.length * fontSize * 0.38);
+  if (!closest || closestDistance > labelRadius * 1.5) return vertex.point;
+  const dx = vertex.point[0] - closest[0];
+  const dy = vertex.point[1] - closest[1];
+  const distance = Math.hypot(dx, dy) || 1;
+  const displacement = labelRadius + fontSize * 0.3;
+  return [vertex.point[0] + (dx / distance) * displacement, vertex.point[1] + (dy / distance) * displacement];
 }
 
 /** FMG-style zoom range: a large handle at ×1, reducing to r=2 at ×20. */
