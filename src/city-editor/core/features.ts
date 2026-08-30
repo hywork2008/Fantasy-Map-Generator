@@ -1,5 +1,15 @@
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceVertices, validate, vertexTouchesWater } from "./mesh";
-import type { CityDocument, EdgeFeatureGroup, EdgeRef, ElementKind, FeatureGroup, Id, Mesh, RiverGroup } from "./types";
+import type {
+  CityDocument,
+  EdgeFeatureGroup,
+  EdgeRef,
+  ElementKind,
+  FeatureGroup,
+  Id,
+  Mesh,
+  Point,
+  RiverGroup
+} from "./types";
 
 export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]): CityDocument {
   const next = clone(document);
@@ -109,6 +119,154 @@ export function groupUsesEdge(document: CityDocument, group: FeatureGroup, edgeI
     if (index === 0) return false;
     return edgeBetween(document.mesh, group.vertices[index - 1], vertexId)?.id === edgeId;
   });
+}
+
+export type GroupSmoothingMode = "safe" | "includeSharedAndLoops";
+
+/** Smooth every unlocked River, Road, and Wall group in the selected mode. */
+export function smoothFeatureGroups(
+  document: CityDocument,
+  mode: GroupSmoothingMode = "safe",
+  iterations = 2
+): CityDocument | null {
+  return smoothGroups(
+    document,
+    document.featureGroups.map(group => group.id),
+    mode,
+    iterations
+  );
+}
+
+/**
+ * Smooth one group, including closed walls and its shared vertices. Moving a
+ * shared mesh vertex also moves any unlocked routes which use that vertex.
+ */
+export function smoothFeatureGroup(document: CityDocument, groupId: Id, iterations = 2): CityDocument | null {
+  return smoothGroups(document, [groupId], "includeSharedAndLoops", iterations);
+}
+
+function smoothGroups(
+  document: CityDocument,
+  groupIds: Id[],
+  mode: GroupSmoothingMode,
+  iterations: number
+): CityDocument | null {
+  const targets = new Set(groupIds);
+  const runs = document.featureGroups
+    .filter(
+      group =>
+        targets.has(group.id) &&
+        !group.locked &&
+        (group.kind === "river" || group.kind === "road" || group.kind === "wall")
+    )
+    .map(group => {
+      const rawVertices = featureGroupVertices(document, group);
+      const closed = rawVertices.length >= 4 && rawVertices[0] === rawVertices.at(-1);
+      return { group, vertices: closed ? rawVertices.slice(0, -1) : rawVertices, closed };
+    })
+    .filter(run => run.vertices.length >= 3 && (mode === "includeSharedAndLoops" || !run.closed));
+  if (!runs.length) return null;
+
+  const pinned = pinnedSmoothingVertices(document, runs, mode);
+  const targetsByVertex = new Map<Id, { point: Point; count: number }>();
+  const maximumShift = document.frame.blockSizeMeters * 0.9;
+  for (const { vertices, closed } of runs) {
+    const points = vertices.map(vertexId => document.mesh.vertices[vertexId]?.point);
+    if (points.some(point => !point)) continue;
+    const smoothed = smoothRoutePoints(points as Point[], iterations, closed);
+    const start = closed ? 0 : 1;
+    const end = closed ? vertices.length : vertices.length - 1;
+    for (let index = start; index < end; index++) {
+      const vertexId = vertices[index];
+      const point = smoothed[index];
+      const original = document.mesh.vertices[vertexId]?.point;
+      if (
+        !original ||
+        pinned.has(vertexId) ||
+        Math.hypot(point[0] - original[0], point[1] - original[1]) > maximumShift
+      )
+        continue;
+      const previous = targetsByVertex.get(vertexId);
+      targetsByVertex.set(
+        vertexId,
+        previous
+          ? { point: [previous.point[0] + point[0], previous.point[1] + point[1]], count: previous.count + 1 }
+          : { point: [point[0], point[1]], count: 1 }
+      );
+    }
+  }
+
+  // A route vertex can also be part of nearby, unselected cell edges. Apply as
+  // much of the smoothing as the whole mesh accepts, rather than rejecting a
+  // useful gentle adjustment because one nearby edge would become too short.
+  for (let strength = 1; strength >= 1 / 64; strength /= 2) {
+    const next = clone(document);
+    let changed = false;
+    for (const [vertexId, target] of targetsByVertex) {
+      const vertex = next.mesh.vertices[vertexId];
+      if (!vertex) continue;
+      const desired: Point = [target.point[0] / target.count, target.point[1] / target.count];
+      const point: Point = [
+        vertex.point[0] + (desired[0] - vertex.point[0]) * strength,
+        vertex.point[1] + (desired[1] - vertex.point[1]) * strength
+      ];
+      if (Math.hypot(point[0] - vertex.point[0], point[1] - vertex.point[1]) < 0.01) continue;
+      vertex.point = point;
+      changed = true;
+    }
+    if (changed && !validate(next).length) return next;
+  }
+  return null;
+}
+
+function pinnedSmoothingVertices(
+  document: CityDocument,
+  runs: Array<{ group: FeatureGroup; vertices: Id[]; closed: boolean }>,
+  mode: GroupSmoothingMode
+): Set<Id> {
+  const pinned = new Set<Id>();
+  const uses = new Map<Id, number>();
+  const half = document.frame.extentMeters / 2;
+  for (const vertex of Object.values(document.mesh.vertices)) {
+    if (
+      vertex.locked ||
+      Math.abs(Math.abs(vertex.point[0]) - half) < 0.001 ||
+      Math.abs(Math.abs(vertex.point[1]) - half) < 0.001
+    )
+      pinned.add(vertex.id);
+  }
+  for (const group of document.featureGroups) {
+    if (!group.locked) continue;
+    for (const vertexId of featureGroupVertices(document, group)) pinned.add(vertexId);
+  }
+  for (const { vertices, closed } of runs) {
+    if (!closed) {
+      pinned.add(vertices[0]);
+      pinned.add(vertices.at(-1) as Id);
+    }
+    for (const vertexId of new Set(vertices)) uses.set(vertexId, (uses.get(vertexId) ?? 0) + 1);
+  }
+  if (mode === "safe") for (const [vertexId, count] of uses) if (count > 1) pinned.add(vertexId);
+  return pinned;
+}
+
+function smoothRoutePoints(points: Point[], iterations: number, closed: boolean): Point[] {
+  let smoothed = points.map(point => [point[0], point[1]] as Point);
+  for (let pass = 0; pass < iterations; pass++) {
+    const next = smoothed.map(point => [point[0], point[1]] as Point);
+    const start = closed ? 0 : 1;
+    const end = closed ? smoothed.length : smoothed.length - 1;
+    for (let index = start; index < end; index++) {
+      const previous = smoothed[(index - 1 + smoothed.length) % smoothed.length];
+      const following = smoothed[(index + 1) % smoothed.length];
+      next[index] = [
+        (previous[0] + 2 * smoothed[index][0] + following[0]) / 4,
+        (previous[1] + 2 * smoothed[index][1] + following[1]) / 4
+      ];
+    }
+    smoothed = next;
+  }
+  return smoothed;
 }
 
 /**

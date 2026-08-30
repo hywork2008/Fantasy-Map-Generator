@@ -5,7 +5,9 @@ import {
   previewGroupAcrossFace,
   previewRouteAcrossFace,
   rerouteGroupAcrossFace,
-  rerouteGroupVertex
+  rerouteGroupVertex,
+  smoothFeatureGroup,
+  smoothFeatureGroups
 } from "./features";
 import type { CityDocument } from "./types";
 
@@ -143,6 +145,48 @@ describe("route group editing", () => {
 
   it("rejects drops onto a vertex already used by the route", () => {
     expect(rerouteGroupVertex(routeDocument(), "wall-1", "b", "c")).toBeNull();
+  });
+
+  it("folds a route's smoothed interior vertices back into the shared mesh", () => {
+    const document = routeDocument();
+    document.mesh.vertices.b.point = [10, 6];
+
+    const next = smoothFeatureGroups(document);
+
+    expect(next).not.toBeNull();
+    if (!next) return;
+    expect(next.mesh.vertices.a.point).toEqual([0, 0]);
+    expect(next.mesh.vertices.b.point).toEqual([10, 1.5]);
+    expect(next.mesh.vertices.c.point).toEqual([20, 0]);
+  });
+
+  it("smooths a selected route even when its interior vertex is shared", () => {
+    const document = routeDocument();
+    document.mesh.vertices.b.point = [10, 6];
+    document.featureGroups.push({
+      id: "road-2",
+      kind: "road",
+      name: "Road #2",
+      segments: [
+        { edgeId: "ab", forward: true },
+        { edgeId: "bc", forward: true }
+      ],
+      style: { widthMeters: 7, color: "#604a3f" },
+      locked: false
+    });
+
+    expect(smoothFeatureGroups(document)).toBeNull();
+    const next = smoothFeatureGroup(document, "wall-1");
+
+    expect(next?.mesh.vertices.b.point).toEqual([10, 1.5]);
+  });
+
+  it("smooths a selected closed wall as a cycle", () => {
+    const document = closedRouteDocument();
+    const next = smoothFeatureGroup(document, "wall-1");
+
+    expect(next).not.toBeNull();
+    expect(next?.mesh.vertices.b.point).not.toEqual(document.mesh.vertices.b.point);
   });
 
   it("replaces a route's face-boundary span with the opposite cell boundary", () => {

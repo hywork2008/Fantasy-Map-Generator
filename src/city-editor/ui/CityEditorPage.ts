@@ -10,7 +10,9 @@ import {
   previewRouteAcrossFace,
   removeEdgeFromGroup,
   removeGroup,
-  rerouteGroupAcrossFace
+  rerouteGroupAcrossFace,
+  smoothFeatureGroup,
+  smoothFeatureGroups
 } from "../core/features";
 import { DocumentHistory } from "../core/history";
 import {
@@ -173,6 +175,13 @@ export function mountCityEditor(root: HTMLElement): void {
     const next = finishRiver(documentState, activeGroupId);
     if (next) commit(next);
   });
+  const smoothingModeInput = select(["safe", "include loops & shared"], "safe");
+  const smoothGroupsButton = makeButton("Smooth groups", () => {
+    const mode = smoothingModeInput.value === "include loops & shared" ? "includeSharedAndLoops" : "safe";
+    const next = smoothFeatureGroups(documentState, mode);
+    if (next) commit(next);
+    else showNotice("No movable River, Road, or Wall vertices to smooth");
+  });
   toolbar.append(
     divider(),
     sizeLabel,
@@ -185,7 +194,9 @@ export function mountCityEditor(root: HTMLElement): void {
     scaleButton,
     label("Show cell / vertex IDs", showLabelsInput),
     label("Ward brush", wardBrushInput),
-    finishButton
+    finishButton,
+    label("Smoothing", smoothingModeInput),
+    smoothGroupsButton
   );
 
   map.addEventListener("pointerdown", event => {
@@ -759,6 +770,14 @@ export function mountCityEditor(root: HTMLElement): void {
         choose,
         text(group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`)
       );
+      const smooth = makeButton("Smooth", () => {
+        const next = smoothFeatureGroup(documentState, group.id);
+        if (next) commit(next);
+        else showNotice(`${group.name} has no movable vertices to smooth`);
+      });
+      smooth.disabled = group.locked || (group.kind !== "river" && group.kind !== "road" && group.kind !== "wall");
+      smooth.title = "Smooth this group, including its shared vertices and closed loops";
+      row.appendChild(smooth);
       row.appendChild(
         makeButton("×", () => {
           if (activeGroupId === group.id) {
