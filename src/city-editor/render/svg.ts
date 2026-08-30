@@ -207,10 +207,9 @@ function vertexLabelPoint(vertexId: Id, document: CityDocument, fontSize: number
   return [vertex.point[0] + (dx / distance) * displacement, vertex.point[1] + (dy / distance) * displacement];
 }
 
-/** FMG-style zoom range: a large handle at ×1, reducing to r=2 at ×20. */
-export function vertexHandleRadius(zoom: number): number {
-  const clamped = Math.min(20, Math.max(1, zoom));
-  return 8 - ((clamped - 1) / 19) * 6;
+/** Vertex handles retain a precise, constant map-space radius at every zoom. */
+export function vertexHandleRadius(_zoom: number): number {
+  return 2;
 }
 
 function edgeGroupPoints(document: CityDocument, segments: EdgeRef[]): Point[] {
