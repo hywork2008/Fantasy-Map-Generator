@@ -32,13 +32,28 @@ describe("face selection labels", () => {
       "select",
       { faceId: selectedFace.id, edgeId: null, vertexId: null, groupId: null },
       "-200 -200 400 400",
-      1
+      1,
+      true
     );
     const vertexLabels = [...svg.querySelectorAll(".ce-selection-vertex-label")].map(label => label.textContent);
     const faceLabels = [...svg.querySelectorAll(".ce-selection-face-label")].map(label => label.textContent);
 
     expect(vertexLabels.sort()).toEqual(faceVertices(document.mesh, selectedFace).sort());
     expect(faceLabels.sort()).toEqual([selectedFace.id, ...faceNeighbors(document.mesh, selectedFace.id)].sort());
+  });
+
+  it("hides selection labels until the display option is enabled", () => {
+    const document = createDocument("selection-labels-hidden", 400);
+    const face = Object.values(document.mesh.faces)[0];
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: face.id, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+
+    expect(svg.querySelectorAll(".ce-selection-label")).toHaveLength(0);
   });
 
   it("moves a vertex label away from a nearby vertex", () => {
@@ -55,7 +70,8 @@ describe("face selection labels", () => {
       "select",
       { faceId: face.id, edgeId: null, vertexId: null, groupId: null },
       "-200 -200 400 400",
-      1
+      1,
+      true
     );
     const label = [...svg.querySelectorAll<SVGTextElement>(".ce-selection-vertex-label")].find(
       candidate => candidate.textContent === vertexId

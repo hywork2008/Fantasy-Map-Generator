@@ -38,6 +38,7 @@ const TOOLS: Array<[Tool, string]> = [
   ["road", "Road"],
   ["wall", "Wall"],
   ["river", "River"],
+  ["ward", "Ward"],
   ["face", "Face"]
 ];
 
@@ -54,11 +55,16 @@ export function mountCityEditor(root: HTMLElement): void {
   let activeGroupId: Id | null = null;
   let dragBefore: CityDocument | null = null;
   let isVertexDragging = false;
+  let isWardPainting = false;
+  let wardPaintChanged = false;
+  let paintedWardFaceIds = new Set<Id>();
   let routeDrag: { groupId: Id; edgeId: Id; startX: number; startY: number; moved: boolean } | null = null;
   let routePreview: FaceRoutePreview | null = null;
   let routePreviewFaceId: Id | null = null;
   let isPanning = false;
   let isSpacePressed = false;
+  let showSelectionLabels = false;
+  let wardBrush: WardKind | null = "market";
   let hasPanned = false;
   let suppressNextClick = false;
   let lastPanX = 0;
@@ -126,6 +132,19 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   const importButton = makeButton("Import map", () => void importDocument());
   const scaleInput = numberInput("1", "0.1", "0.1");
+  const showLabelsInput = document.createElement("input");
+  showLabelsInput.type = "checkbox";
+  showLabelsInput.addEventListener("change", () => {
+    showSelectionLabels = showLabelsInput.checked;
+    redrawMap();
+  });
+  const wardBrushInput = select(
+    ["market", "castle", "merchant", "craftsmen", "harbor", "park", "empty", "erase"],
+    "market"
+  );
+  wardBrushInput.addEventListener("change", () => {
+    wardBrush = wardBrushInput.value === "erase" ? null : (wardBrushInput.value as WardKind);
+  });
   const scaleButton = makeButton("Scale all", () => {
     const factor = Number(scaleInput.value);
     const next = scaleDocument(documentState, factor);
@@ -149,6 +168,8 @@ export function mountCityEditor(root: HTMLElement): void {
     importButton,
     label("Scale", scaleInput),
     scaleButton,
+    label("Show cell / vertex IDs", showLabelsInput),
+    label("Ward brush", wardBrushInput),
     finishButton
   );
 
@@ -165,8 +186,20 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (event.button !== 0) return;
     const point = localPoint(event);
+    if (tool === "ward") {
+      const faceId = faceAtPoint(point);
+      if (!faceId) return;
+      event.preventDefault();
+      isWardPainting = true;
+      wardPaintChanged = false;
+      paintedWardFaceIds = new Set();
+      paintWardFace(faceId);
+      suppressNextClick = true;
+      map.setPointerCapture(event.pointerId);
+      return;
+    }
     const vertexId = targetId(event, "vertex") ?? (tool === "select" ? closestVertexId(point) : null);
-    if (event.button === 0 && vertexId && (tool === "vertex" || tool === "select")) {
+    if (vertexId && tool === "select") {
       event.preventDefault();
       dragBefore = clone(documentState);
       isVertexDragging = true;
@@ -174,7 +207,7 @@ export function mountCityEditor(root: HTMLElement): void {
       map.setPointerCapture(event.pointerId);
       return;
     }
-    const route = routeAtEvent(event, point, true);
+    const route = tool === "select" ? routeAtEvent(event, point, true) : null;
     if (route) {
       event.preventDefault();
       routeDrag = { ...route, startX: event.clientX, startY: event.clientY, moved: false };
@@ -197,6 +230,11 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
+    if (isWardPainting) {
+      const faceId = faceAtPoint(localPoint(event));
+      if (faceId) paintWardFace(faceId);
+      return;
+    }
     if (routeDrag) {
       if (Math.abs(event.clientX - routeDrag.startX) > 2 || Math.abs(event.clientY - routeDrag.startY) > 2)
         routeDrag.moved = true;
@@ -238,12 +276,14 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   });
   const finishDrag = (event: PointerEvent): void => {
-    if (!isVertexDragging && !isPanning && !routeDrag) return;
+    if (!isVertexDragging && !isWardPainting && !isPanning && !routeDrag) return;
     const wasVertexDragging = isVertexDragging;
+    const wasWardPainting = isWardPainting;
     const draggedRoute = routeDrag;
     const preview = routePreview;
     const previewFaceId = routePreviewFaceId;
     isVertexDragging = false;
+    isWardPainting = false;
     routeDrag = null;
     routePreview = null;
     routePreviewFaceId = null;
@@ -256,7 +296,12 @@ export function mountCityEditor(root: HTMLElement): void {
       history.commit(documentState);
       rebuildEditorIndexes();
     }
+    if (wasWardPainting && wardPaintChanged) {
+      history.commit(documentState);
+      rebuildEditorIndexes();
+    }
     dragBefore = null;
+    paintedWardFaceIds.clear();
     if (draggedRoute) {
       suppressNextClick = draggedRoute.moved;
       if (event.type !== "pointercancel" && draggedRoute.moved && preview && previewFaceId) {
@@ -271,7 +316,7 @@ export function mountCityEditor(root: HTMLElement): void {
       selection.edgeId = null;
     }
     if (event.type === "pointercancel") suppressNextClick = false;
-    if (wasVertexDragging) refresh();
+    if (wasVertexDragging || wasWardPainting) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
@@ -421,8 +466,10 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (event.key === "Enter") finishButton.click();
     if (event.key === "Escape") {
+      selection = emptySelection();
       activeGroupId = null;
       hideContextMenu();
+      refresh();
     }
   });
   window.addEventListener("keyup", event => {
@@ -527,6 +574,7 @@ export function mountCityEditor(root: HTMLElement): void {
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
+    wardBrushInput.disabled = tool !== "ward";
     renderInspector();
     renderGroups();
     const errors = validate(documentState);
@@ -536,7 +584,7 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function redrawMap(): void {
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
-    map.replaceChildren(renderEditorSvg(documentState, tool, selection, box, zoomFactor()));
+    map.replaceChildren(renderEditorSvg(documentState, tool, selection, box, zoomFactor(), showSelectionLabels));
     updateRoutePreview();
   }
 
@@ -746,6 +794,18 @@ export function mountCityEditor(root: HTMLElement): void {
     if (selection.hoverGroupId === route?.groupId && selection.hoverVertexId === vertexId) return;
     selection.hoverGroupId = route?.groupId ?? null;
     selection.hoverVertexId = vertexId;
+    redrawMap();
+  }
+
+  function paintWardFace(faceId: Id): void {
+    if (paintedWardFaceIds.has(faceId)) return;
+    paintedWardFaceIds.add(faceId);
+    const face = documentState.mesh.faces[faceId];
+    if (!face || face.properties.ward === wardBrush) return;
+    const next = clone(documentState);
+    next.mesh.faces[faceId].properties.ward = wardBrush;
+    documentState = next;
+    wardPaintChanged = true;
     redrawMap();
   }
 

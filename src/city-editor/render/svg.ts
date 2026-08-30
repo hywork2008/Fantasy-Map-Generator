@@ -19,7 +19,8 @@ export function renderEditorSvg(
   tool: Tool,
   selection: RenderSelection,
   viewBox: string,
-  zoom: number
+  zoom: number,
+  showSelectionLabels = false
 ): SVGSVGElement {
   const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
   if (document.referenceImage) {
@@ -42,7 +43,7 @@ export function renderEditorSvg(
     cells.appendChild(
       element("path", {
         d: polygon(facePoints(document.mesh, face)),
-        class: `ce-face ce-face--${face.properties.water}${selected ? " ce-selected" : ""}`,
+        class: `ce-face ce-face--${face.properties.water} ce-face--ward-${face.properties.ward ?? "unassigned"}${selected ? " ce-selected" : ""}`,
         "data-face": face.id
       })
     );
@@ -106,7 +107,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(elements);
 
-  if (selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
+  if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 
   const showAllVertices = tool === "vertex" || tool === "river";
   if (showAllVertices || selection.hoverVertexId) {
