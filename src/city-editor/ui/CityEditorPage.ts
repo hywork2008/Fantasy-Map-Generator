@@ -47,6 +47,19 @@ interface ContextMenuAction {
   run: () => void;
 }
 
+type RoutePaintKind = "river" | "road" | "wall";
+
+interface RouteStroke {
+  kind: RoutePaintKind;
+  initialEdgeId: Id;
+  groupId: Id | null;
+  endpointId: Id | null;
+  startPoint: Point;
+  lastPoint: Point;
+  changed: boolean;
+  documentBefore: CityDocument;
+}
+
 export function mountCityEditor(root: HTMLElement): void {
   let documentState = createSizedDocument("small");
   let history = new DocumentHistory(documentState);
@@ -59,6 +72,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let wardPaintChanged = false;
   let paintedWardFaceIds = new Set<Id>();
   let routeDrag: { groupId: Id; edgeId: Id; startX: number; startY: number; moved: boolean } | null = null;
+  let routeStroke: RouteStroke | null = null;
   let routePreview: FaceRoutePreview | null = null;
   let routePreviewFaceId: Id | null = null;
   let isPanning = false;
@@ -75,6 +89,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let halfView = documentState.frame.extentMeters / 2;
   let routeEdgesByGroup = new Map<Id, Id[]>();
   let routeGroupsByEdge = new Map<Id, Id[]>();
+  let edgeIdsByVertex = new Map<Id, Id[]>();
   let faceBuckets = new Map<string, Id[]>();
   let faceBucketSize = documentState.frame.blockSizeMeters * 2;
 
@@ -198,6 +213,25 @@ export function mountCityEditor(root: HTMLElement): void {
       map.setPointerCapture(event.pointerId);
       return;
     }
+    if (isRoutePaintTool(tool)) {
+      const edgeId = closestMeshEdgeId(point, 18);
+      if (edgeId) {
+        event.preventDefault();
+        routeStroke = {
+          kind: tool,
+          initialEdgeId: edgeId,
+          groupId: null,
+          endpointId: null,
+          startPoint: point,
+          lastPoint: point,
+          changed: false,
+          documentBefore: clone(documentState)
+        };
+        suppressNextClick = true;
+        map.setPointerCapture(event.pointerId);
+        return;
+      }
+    }
     const vertexId = targetId(event, "vertex") ?? (tool === "select" ? closestVertexId(point) : null);
     if (vertexId && tool === "select") {
       event.preventDefault();
@@ -233,6 +267,10 @@ export function mountCityEditor(root: HTMLElement): void {
     if (isWardPainting) {
       const faceId = faceAtPoint(localPoint(event));
       if (faceId) paintWardFace(faceId);
+      return;
+    }
+    if (routeStroke) {
+      extendRouteStroke(localPoint(event));
       return;
     }
     if (routeDrag) {
@@ -276,14 +314,16 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   });
   const finishDrag = (event: PointerEvent): void => {
-    if (!isVertexDragging && !isWardPainting && !isPanning && !routeDrag) return;
+    if (!isVertexDragging && !isWardPainting && !isPanning && !routeDrag && !routeStroke) return;
     const wasVertexDragging = isVertexDragging;
     const wasWardPainting = isWardPainting;
+    const stroke = routeStroke;
     const draggedRoute = routeDrag;
     const preview = routePreview;
     const previewFaceId = routePreviewFaceId;
     isVertexDragging = false;
     isWardPainting = false;
+    routeStroke = null;
     routeDrag = null;
     routePreview = null;
     routePreviewFaceId = null;
@@ -299,6 +339,14 @@ export function mountCityEditor(root: HTMLElement): void {
     if (wasWardPainting && wardPaintChanged) {
       history.commit(documentState);
       rebuildEditorIndexes();
+    }
+    if (stroke) {
+      if (event.type === "pointercancel") {
+        documentState = stroke.documentBefore;
+        rebuildEditorIndexes();
+      } else {
+        finishRouteStroke(stroke, localPoint(event));
+      }
     }
     dragBefore = null;
     paintedWardFaceIds.clear();
@@ -316,7 +364,7 @@ export function mountCityEditor(root: HTMLElement): void {
       selection.edgeId = null;
     }
     if (event.type === "pointercancel") suppressNextClick = false;
-    if (wasVertexDragging || wasWardPainting) refresh();
+    if (wasVertexDragging || wasWardPainting || stroke) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
@@ -466,6 +514,11 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (event.key === "Enter") finishButton.click();
     if (event.key === "Escape") {
+      if (routeStroke) {
+        documentState = routeStroke.documentBefore;
+        routeStroke = null;
+        rebuildEditorIndexes();
+      }
       selection = emptySelection();
       activeGroupId = null;
       hideContextMenu();
@@ -620,7 +673,7 @@ export function mountCityEditor(root: HTMLElement): void {
           text(
             group.locked
               ? `${group.name} is locked`
-              : "Route edit: right-drag a highlighted route edge through a cell to reroute it; right-click and release it to delete; click an unused edge at an endpoint to extend it."
+              : "Route drawing: in River, Road, or Wall mode, left-drag from a nearby edge to lay a connected route. In Select mode, left-drag a highlighted route edge through a cell to reroute it; right-click to delete; click an unused edge at an endpoint to extend it."
           )
         );
         return;
@@ -719,7 +772,9 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (activeGroupId)
       groups.appendChild(
-        text("Right-drag a highlighted route edge through a cell to preview and replace that boundary span.")
+        text(
+          "In Select mode, left-drag a highlighted route edge through a cell to preview and replace that boundary span."
+        )
       );
   }
 
@@ -744,8 +799,12 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function rebuildEditorIndexes(): void {
     const edgeByVertices = new Map<string, Id>();
-    for (const edge of Object.values(documentState.mesh.edges))
+    edgeIdsByVertex = new Map();
+    for (const edge of Object.values(documentState.mesh.edges)) {
       edgeByVertices.set(vertexPairKey(edge.a, edge.b), edge.id);
+      edgeIdsByVertex.set(edge.a, [...(edgeIdsByVertex.get(edge.a) ?? []), edge.id]);
+      edgeIdsByVertex.set(edge.b, [...(edgeIdsByVertex.get(edge.b) ?? []), edge.id]);
+    }
 
     routeEdgesByGroup = new Map();
     routeGroupsByEdge = new Map();
@@ -807,6 +866,126 @@ export function mountCityEditor(root: HTMLElement): void {
     documentState = next;
     wardPaintChanged = true;
     redrawMap();
+  }
+
+  function extendRouteStroke(point: Point): void {
+    const stroke = routeStroke;
+    if (!stroke) return;
+    if (!stroke.groupId) initializeRouteStroke(stroke, point);
+    if (!stroke.groupId || !stroke.endpointId) return;
+
+    const edgeId = closestStrokeContinuation(stroke, point);
+    const edge = edgeId ? documentState.mesh.edges[edgeId] : null;
+    if (edge && edgeId) {
+      const nextEndpointId: Id = edge.a === stroke.endpointId ? edge.b : edge.a;
+      const next =
+        stroke.kind === "river"
+          ? appendRiverVertex(documentState, stroke.groupId, nextEndpointId)
+          : appendEdge(documentState, stroke.groupId, edgeId);
+      if (next) {
+        documentState = next;
+        stroke.endpointId = nextEndpointId;
+        stroke.changed = true;
+        selection.groupId = stroke.groupId;
+        activeGroupId = stroke.groupId;
+      }
+    }
+    stroke.lastPoint = point;
+    if (stroke.changed) redrawMap();
+  }
+
+  function initializeRouteStroke(stroke: RouteStroke, point: Point): void {
+    const edge = documentState.mesh.edges[stroke.initialEdgeId];
+    if (!edge) return;
+    const a = documentState.mesh.vertices[edge.a]?.point;
+    const b = documentState.mesh.vertices[edge.b]?.point;
+    if (!a || !b) return;
+    const movement: Point = [point[0] - stroke.startPoint[0], point[1] - stroke.startPoint[1]];
+    const startsAtA = (b[0] - a[0]) * movement[0] + (b[1] - a[1]) * movement[1] >= 0;
+    const startVertexId = startsAtA ? edge.a : edge.b;
+    const endVertexId = startsAtA ? edge.b : edge.a;
+    let next = createGroup(documentState, stroke.kind);
+    const groupId = next.featureGroups.at(-1)?.id;
+    if (!groupId) return;
+
+    if (stroke.kind === "river") {
+      next = appendRiverVertex(next, groupId, startVertexId) ?? next;
+      next = appendRiverVertex(next, groupId, endVertexId) ?? next;
+    } else {
+      next = appendEdge(next, groupId, stroke.initialEdgeId) ?? next;
+      const group = next.featureGroups.find(candidate => candidate.id === groupId);
+      if (group && group.kind !== "river" && group.segments[0]) group.segments[0].forward = startsAtA;
+    }
+    documentState = next;
+    stroke.groupId = groupId;
+    stroke.endpointId = endVertexId;
+    stroke.changed = true;
+    selection.groupId = groupId;
+    activeGroupId = groupId;
+  }
+
+  function finishRouteStroke(stroke: RouteStroke, point: Point): void {
+    if (!stroke.groupId) initializeRouteStroke(stroke, point);
+    if (!stroke.changed) return;
+    history.commit(documentState);
+    rebuildEditorIndexes();
+  }
+
+  function closestStrokeContinuation(stroke: RouteStroke, point: Point): Id | null {
+    const endpointId = stroke.endpointId;
+    if (!endpointId) return null;
+    const endpoint = documentState.mesh.vertices[endpointId]?.point;
+    if (!endpoint || Math.hypot(point[0] - endpoint[0], point[1] - endpoint[1]) < routeHitRadius() * 0.35) return null;
+    const group = documentState.featureGroups.find(candidate => candidate.id === stroke.groupId);
+    if (!group || (group.kind === "river" && group.mouth)) return null;
+    const direction: Point = [point[0] - stroke.lastPoint[0], point[1] - stroke.lastPoint[1]];
+    const directionLength = Math.hypot(direction[0], direction[1]) || 1;
+    let nearest: Id | null = null;
+    let nearestScore = Number.POSITIVE_INFINITY;
+    for (const edgeId of edgeIdsByVertex.get(endpointId) ?? []) {
+      const edge = documentState.mesh.edges[edgeId];
+      if (!edge || groupUsesEdge(documentState, group, edgeId)) continue;
+      const otherId = edge.a === endpointId ? edge.b : edge.a;
+      const other = documentState.mesh.vertices[otherId]?.point;
+      if (!other) continue;
+      const distance = pointToSegmentDistance(point, endpoint, other);
+      if (distance > routeHitRadius() * 1.75) continue;
+      const edgeLength = Math.hypot(other[0] - endpoint[0], other[1] - endpoint[1]) || 1;
+      const alignment =
+        ((other[0] - endpoint[0]) * direction[0] + (other[1] - endpoint[1]) * direction[1]) /
+        (edgeLength * directionLength);
+      // The pointer trajectory is the user's branch choice. Never take a
+      // backward or sideward edge just because it happens to pass closer to
+      // the cursor than the intended forward edge.
+      if (alignment < 0.15) continue;
+      const score = distance + (1 - alignment) * routeHitRadius() * 4;
+      if (score < nearestScore) {
+        nearest = edgeId;
+        nearestScore = score;
+      }
+    }
+    return nearest;
+  }
+
+  function closestMeshEdgeId(point: Point, radiusPixels: number): Id | null {
+    const radius = routeHitRadius(radiusPixels);
+    let nearest: Id | null = null;
+    let nearestDistance = radius;
+    for (const edge of Object.values(documentState.mesh.edges)) {
+      const a = documentState.mesh.vertices[edge.a]?.point;
+      const b = documentState.mesh.vertices[edge.b]?.point;
+      if (!a || !b) continue;
+      const distance = pointToSegmentDistance(point, a, b);
+      if (distance <= nearestDistance) {
+        nearest = edge.id;
+        nearestDistance = distance;
+      }
+    }
+    return nearest;
+  }
+
+  function routeHitRadius(pixels = 18): number {
+    return ((halfView * 2) / Math.max(map.getBoundingClientRect().width, 1)) * pixels;
   }
 
   function routeAtEvent(event: Event, point: Point, allowNearby: boolean): { groupId: Id; edgeId: Id } | null {
@@ -920,6 +1099,10 @@ export function mountCityEditor(root: HTMLElement): void {
 
 function emptySelection(): RenderSelection {
   return { faceId: null, edgeId: null, vertexId: null, groupId: null, hoverGroupId: null, hoverVertexId: null };
+}
+
+function isRoutePaintTool(tool: Tool): tool is RoutePaintKind {
+  return tool === "river" || tool === "road" || tool === "wall";
 }
 
 function targetId(event: Event, kind: "vertex" | "route-vertex" | "edge" | "face" | "group"): Id | null {
