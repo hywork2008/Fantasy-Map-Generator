@@ -242,6 +242,93 @@ export function moveVertex(document: CityDocument, vertexId: Id, point: Point): 
   return validate(next).length ? null : next;
 }
 
+/**
+ * Collapse an edge by keeping one endpoint and reattaching the other endpoint's
+ * incident edges. Faces and feature references are rebuilt around the survivor.
+ */
+export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVertexId: Id): CityDocument | null {
+  if (keepVertexId === removeVertexId) return null;
+  const joiningEdge = edgeBetween(document.mesh, keepVertexId, removeVertexId);
+  if (!joiningEdge || featureUsesEdge(document, joiningEdge.id)) return null;
+  const keepVertex = document.mesh.vertices[keepVertexId];
+  const removeVertex = document.mesh.vertices[removeVertexId];
+  if (!keepVertex || !removeVertex || keepVertex.locked || removeVertex.locked) return null;
+
+  const next = clone(document);
+  const faceVertexIds = new Map<Id, Id[]>();
+  for (const face of Object.values(next.mesh.faces)) {
+    const vertices = removeConsecutiveDuplicates(
+      faceVertices(next.mesh, face).map(vertexId => (vertexId === removeVertexId ? keepVertexId : vertexId))
+    );
+    // Collapsing an edge must not leave a degenerate or self-touching cell.
+    if (vertices.length < 3 || new Set(vertices).size !== vertices.length) return null;
+    faceVertexIds.set(face.id, vertices);
+  }
+
+  const edges: Mesh["edges"] = {};
+  const edgeByEndpoints = new Map<string, Id>();
+  const edgeReplacements = new Map<Id, Id>();
+  for (const edge of Object.values(next.mesh.edges)) {
+    if (edge.id === joiningEdge.id) continue;
+    const a = edge.a === removeVertexId ? keepVertexId : edge.a;
+    const b = edge.b === removeVertexId ? keepVertexId : edge.b;
+    if (a === b) continue;
+    const key = edgeKey(a, b);
+    const existingId = edgeByEndpoints.get(key);
+    if (existingId) {
+      edgeReplacements.set(edge.id, existingId);
+      edges[existingId].locked ||= edge.locked;
+      continue;
+    }
+    edgeByEndpoints.set(key, edge.id);
+    edgeReplacements.set(edge.id, edge.id);
+    edges[edge.id] = { ...edge, a, b, leftFace: null, rightFace: null };
+  }
+  next.mesh.edges = edges;
+
+  for (const face of Object.values(next.mesh.faces)) {
+    const vertices = faceVertexIds.get(face.id);
+    if (!vertices) return null;
+    const boundary: EdgeRef[] = [];
+    for (let index = 0; index < vertices.length; index++) {
+      const start = vertices[index];
+      const end = vertices[(index + 1) % vertices.length];
+      if (!start || !end) return null;
+      const edgeId = edgeByEndpoints.get(edgeKey(start, end));
+      const edge = edgeId ? edges[edgeId] : null;
+      if (!edge || !edgeId) return null;
+      boundary.push({ edgeId, forward: edge.a === start && edge.b === end });
+    }
+    face.boundary = boundary;
+  }
+
+  for (const group of next.featureGroups) {
+    if (group.kind === "river") {
+      group.vertices = removeConsecutiveDuplicates(
+        group.vertices.map(vertexId => (vertexId === removeVertexId ? keepVertexId : vertexId))
+      );
+      if (group.source?.vertexId === removeVertexId) group.source.vertexId = keepVertexId;
+      if (group.mouth?.vertexId === removeVertexId) group.mouth.vertexId = keepVertexId;
+      continue;
+    }
+    const segments: EdgeRef[] = [];
+    for (const segment of group.segments) {
+      const previousEdge = document.mesh.edges[segment.edgeId];
+      const edgeId = edgeReplacements.get(segment.edgeId);
+      const edge = edgeId ? edges[edgeId] : null;
+      if (!previousEdge || !edge || !edgeId) return null;
+      const start = segment.forward ? previousEdge.a : previousEdge.b;
+      const remappedStart = start === removeVertexId ? keepVertexId : start;
+      segments.push({ edgeId, forward: edge.a === remappedStart });
+    }
+    group.segments = segments;
+  }
+
+  delete next.mesh.vertices[removeVertexId];
+  rebuildFaceSides(next.mesh);
+  return validate(next).length ? null : next;
+}
+
 export function scaleDocument(document: CityDocument, factor: number): CityDocument | null {
   if (!Number.isFinite(factor) || factor <= 0) return null;
   const next = clone(document);

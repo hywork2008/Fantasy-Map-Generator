@@ -49,6 +49,10 @@
       .ce-scale-bar { position:absolute; right:12px; bottom:42px; display:grid; gap:4px; justify-items:end; padding:6px 9px; border-radius:4px; background:var(--panel); pointer-events:none; }
       .ce-scale-bar-line { height:8px; min-width:1px; max-width:180px; border:2px solid var(--ink); border-top:0; }
       .ce-scale-bar-label { font-size:11px; white-space:nowrap; }
+      .ce-context-menu { position:fixed; z-index:10; display:grid; gap:4px; min-width:210px; padding:6px; border:2px solid var(--ink); border-radius:6px; background:var(--panel); box-shadow:0 2px 10px #30251e55; }
+      .ce-context-menu[hidden] { display:none; }
+      .ce-context-menu span { padding:4px; color:#665b50; }
+      .ce-context-menu button { text-align:left; }
       button { min-height:30px; padding:4px 7px; border:1px solid var(--ink); border-radius:4px; color:var(--ink); background:#f8f1e4; cursor:pointer; }
       button:hover, button.is-active { background:#42362d; color:#fff7e8; }
       button:disabled { opacity:.45; cursor:default; }

@@ -11,9 +11,11 @@ import {
 import { DocumentHistory } from "../core/history";
 import {
   clone,
+  edgeBetween,
   faceNeighbors,
   faceVertices,
   mergeFaces,
+  mergeVertices,
   moveVertex,
   scaleDocument,
   setFaceElevation,
@@ -34,6 +36,11 @@ const TOOLS: Array<[Tool, string]> = [
   ["face", "Face"]
 ];
 
+interface ContextMenuAction {
+  label: string;
+  run: () => void;
+}
+
 export function mountCityEditor(root: HTMLElement): void {
   let documentState = createSizedDocument("small");
   let history = new DocumentHistory(documentState);
@@ -48,6 +55,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let lastPanX = 0;
   let lastPanY = 0;
   let viewCenter: [number, number] = [0, 0];
+  let closeContextMenuOnPointerMove = false;
   let notice = "";
   let halfView = documentState.frame.extentMeters / 2;
 
@@ -64,7 +72,12 @@ export function mountCityEditor(root: HTMLElement): void {
   const scaleLabel = document.createElement("output");
   scaleLabel.className = "ce-scale-bar-label";
   scaleBar.append(scaleLine, scaleLabel);
-  root.replaceChildren(canvas, toolbar, inspector, groups, status, scaleBar);
+  const contextMenu = div("ce-context-menu");
+  contextMenu.hidden = true;
+  contextMenu.setAttribute("role", "menu");
+  root.replaceChildren(canvas, toolbar, inspector, groups, status, scaleBar, contextMenu);
+  contextMenu.addEventListener("pointerdown", event => event.stopPropagation());
+  contextMenu.addEventListener("contextmenu", event => event.preventDefault());
 
   const toolButtons = new Map<Tool, HTMLButtonElement>();
   for (const [id, label] of TOOLS) {
@@ -126,6 +139,8 @@ export function mountCityEditor(root: HTMLElement): void {
   );
 
   map.addEventListener("pointerdown", event => {
+    if (event.button !== 0) return;
+    hideContextMenu();
     const vertexId = targetId(event, "vertex");
     if (tool === "vertex" && vertexId) {
       event.preventDefault();
@@ -135,7 +150,6 @@ export function mountCityEditor(root: HTMLElement): void {
       map.setPointerCapture(event.pointerId);
       return;
     }
-    if (event.button !== 0) return;
     isPanning = true;
     hasPanned = false;
     lastPanX = event.clientX;
@@ -228,6 +242,44 @@ export function mountCityEditor(root: HTMLElement): void {
     else if (vertexId) selection = { ...selection, vertexId, faceId: null, edgeId: null };
     refresh();
   });
+  map.addEventListener("contextmenu", event => {
+    event.preventDefault();
+    const faceId = targetId(event, "face");
+    const vertexId = targetId(event, "vertex");
+    const actions: ContextMenuAction[] = [];
+
+    if (
+      faceId &&
+      selection.faceId &&
+      faceId !== selection.faceId &&
+      faceNeighbors(documentState.mesh, selection.faceId).includes(faceId)
+    ) {
+      actions.push({
+        label: `Merge ${selection.faceId} with ${faceId}`,
+        run: () => runContextAction(() => mergeFaces(documentState, selection.faceId as Id, faceId))
+      });
+    }
+
+    if (vertexId && selection.vertexId && vertexId !== selection.vertexId) {
+      if (edgeBetween(documentState.mesh, selection.vertexId, vertexId)) {
+        actions.push({
+          label: `Merge ${vertexId} into ${selection.vertexId}`,
+          run: () => runContextAction(() => mergeVertices(documentState, selection.vertexId as Id, vertexId))
+        });
+      } else {
+        for (const face of Object.values(documentState.mesh.faces)) {
+          const vertices = faceVertices(documentState.mesh, face);
+          if (!vertices.includes(selection.vertexId) || !vertices.includes(vertexId)) continue;
+          actions.push({
+            label: `Split ${face.id} from ${selection.vertexId} to ${vertexId}`,
+            run: () => runContextAction(() => splitFace(documentState, face.id, selection.vertexId as Id, vertexId))
+          });
+        }
+      }
+    }
+
+    showContextMenu(event, actions);
+  });
   map.addEventListener(
     "wheel",
     event => {
@@ -248,7 +300,16 @@ export function mountCityEditor(root: HTMLElement): void {
       restore(event.shiftKey ? history.redo(documentState) : history.undo(documentState));
     }
     if (event.key === "Enter") finishButton.click();
-    if (event.key === "Escape") activeGroupId = null;
+    if (event.key === "Escape") {
+      activeGroupId = null;
+      hideContextMenu();
+    }
+  });
+  window.addEventListener("pointerdown", event => {
+    if (event.target instanceof Node && !contextMenu.contains(event.target)) hideContextMenu();
+  });
+  window.addEventListener("pointermove", () => {
+    if (closeContextMenuOnPointerMove) hideContextMenu();
   });
   window.addEventListener("resize", refreshScaleBar);
 
@@ -291,6 +352,37 @@ export function mountCityEditor(root: HTMLElement): void {
   function commit(next: CityDocument): void {
     documentState = history.commit(next);
     refresh();
+  }
+
+  function runContextAction(operation: () => CityDocument | null): void {
+    const next = operation();
+    hideContextMenu();
+    if (next) {
+      commit(next);
+      return;
+    }
+    showNotice("This operation cannot be applied to the selected geometry");
+  }
+
+  function showContextMenu(event: MouseEvent, actions: ContextMenuAction[]): void {
+    contextMenu.replaceChildren();
+    if (actions.length) {
+      for (const action of actions) contextMenu.appendChild(makeButton(action.label, action.run));
+    } else {
+      contextMenu.appendChild(text("No action available here"));
+    }
+    closeContextMenuOnPointerMove = actions.length === 0;
+    contextMenu.hidden = false;
+    contextMenu.style.left = `${event.clientX}px`;
+    contextMenu.style.top = `${event.clientY}px`;
+    const bounds = contextMenu.getBoundingClientRect();
+    contextMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - bounds.width - 8))}px`;
+    contextMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - bounds.height - 8))}px`;
+  }
+
+  function hideContextMenu(): void {
+    contextMenu.hidden = true;
+    closeContextMenuOnPointerMove = false;
   }
 
   function restore(next: CityDocument | null): void {

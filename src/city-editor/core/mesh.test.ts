@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDocument, createSizedDocument } from "./document";
-import { faceNeighbors, faceVertices, mergeFaces, splitFace, validate } from "./mesh";
+import { faceNeighbors, faceVertices, mergeFaces, mergeVertices, splitFace, validate } from "./mesh";
 
 describe("manual city mesh", () => {
   it("keeps the Small preset near its 24 × 24 macro-block target", () => {
@@ -61,5 +61,23 @@ describe("manual city mesh", () => {
     expect(validate(mergedAgain!)).toEqual([]);
     const connectedVertices = new Set(Object.values(mergedAgain!.mesh.edges).flatMap(edge => [edge.a, edge.b]));
     expect(Object.keys(mergedAgain!.mesh.vertices).sort()).toEqual([...connectedVertices].sort());
+  });
+
+  it("merges adjacent vertices while keeping the mesh connected", () => {
+    const document = createDocument("mesh-vertex-merge", 900, 110);
+    const edge = Object.values(document.mesh.edges).find(candidate =>
+      mergeVertices(document, candidate.a, candidate.b)
+    );
+    expect(edge).toBeDefined();
+    if (!edge) return;
+
+    const merged = mergeVertices(document, edge.a, edge.b);
+    expect(merged).not.toBeNull();
+    if (!merged) return;
+    expect(merged.mesh.vertices[edge.b]).toBeUndefined();
+    expect(Object.values(merged.mesh.edges).every(candidate => candidate.a !== edge.b && candidate.b !== edge.b)).toBe(
+      true
+    );
+    expect(validate(merged)).toEqual([]);
   });
 });
