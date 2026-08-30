@@ -58,6 +58,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let routePreview: FaceRoutePreview | null = null;
   let routePreviewFaceId: Id | null = null;
   let isPanning = false;
+  let isSpacePressed = false;
   let hasPanned = false;
   let suppressNextClick = false;
   let lastPanX = 0;
@@ -152,8 +153,17 @@ export function mountCityEditor(root: HTMLElement): void {
   );
 
   map.addEventListener("pointerdown", event => {
-    if (event.button !== 0) return;
     hideContextMenu();
+    if (event.button === 1 || (event.button === 0 && isSpacePressed)) {
+      event.preventDefault();
+      isPanning = true;
+      hasPanned = false;
+      lastPanX = event.clientX;
+      lastPanY = event.clientY;
+      map.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (event.button !== 0) return;
     const point = localPoint(event);
     const vertexId = targetId(event, "vertex") ?? (tool === "select" ? closestVertexId(point) : null);
     if (event.button === 0 && vertexId && (tool === "vertex" || tool === "select")) {
@@ -175,11 +185,6 @@ export function mountCityEditor(root: HTMLElement): void {
       map.setPointerCapture(event.pointerId);
       return;
     }
-    if (event.button !== 0) return;
-    isPanning = true;
-    hasPanned = false;
-    lastPanX = event.clientX;
-    lastPanY = event.clientY;
   });
   map.addEventListener("dragover", event => {
     event.preventDefault();
@@ -409,6 +414,7 @@ export function mountCityEditor(root: HTMLElement): void {
     { passive: false }
   );
   window.addEventListener("keydown", event => {
+    if (event.code === "Space") isSpacePressed = true;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       restore(event.shiftKey ? history.redo(documentState) : history.undo(documentState));
@@ -418,6 +424,12 @@ export function mountCityEditor(root: HTMLElement): void {
       activeGroupId = null;
       hideContextMenu();
     }
+  });
+  window.addEventListener("keyup", event => {
+    if (event.code === "Space") isSpacePressed = false;
+  });
+  window.addEventListener("blur", () => {
+    isSpacePressed = false;
   });
   window.addEventListener("pointerdown", event => {
     if (event.target instanceof Node && !contextMenu.contains(event.target)) hideContextMenu();
