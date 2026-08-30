@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  encloseWardComponentWithWalls,
   featureGroupVertices,
   groupUsesEdge,
   previewGroupAcrossFace,
@@ -124,6 +125,104 @@ function closedRouteDocument(): CityDocument {
 }
 
 describe("route group editing", () => {
+  it("encloses only the edge-connected Ward component with a closed wall", () => {
+    const vertex = (id: string, point: [number, number]) => ({ id, point, locked: false });
+    const edge = (id: string, a: string, b: string, leftFace: string | null, rightFace: string | null) => ({
+      id,
+      a,
+      b,
+      leftFace,
+      rightFace,
+      locked: false
+    });
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+      mesh: {
+        vertices: {
+          a: vertex("a", [0, 0]),
+          b: vertex("b", [10, 0]),
+          c: vertex("c", [20, 0]),
+          d: vertex("d", [0, 10]),
+          e: vertex("e", [10, 10]),
+          f: vertex("f", [20, 10]),
+          g: vertex("g", [40, 0]),
+          h: vertex("h", [50, 0]),
+          i: vertex("i", [50, 10]),
+          j: vertex("j", [40, 10])
+        },
+        edges: {
+          ab: edge("ab", "a", "b", "f0", null),
+          be: edge("be", "b", "e", "f0", "f1"),
+          de: edge("de", "d", "e", null, "f0"),
+          ad: edge("ad", "a", "d", null, "f0"),
+          bc: edge("bc", "b", "c", "f1", null),
+          cf: edge("cf", "c", "f", "f1", null),
+          ef: edge("ef", "e", "f", null, "f1"),
+          gh: edge("gh", "g", "h", "f2", null),
+          hi: edge("hi", "h", "i", "f2", null),
+          ij: edge("ij", "i", "j", "f2", null),
+          gj: edge("gj", "g", "j", null, "f2")
+        },
+        faces: {
+          f0: {
+            id: "f0",
+            boundary: [
+              { edgeId: "ab", forward: true },
+              { edgeId: "be", forward: true },
+              { edgeId: "de", forward: false },
+              { edgeId: "ad", forward: false }
+            ],
+            properties: { elevation: 1, water: "land", ward: "market", buildable: true, locked: false }
+          },
+          f1: {
+            id: "f1",
+            boundary: [
+              { edgeId: "bc", forward: true },
+              { edgeId: "cf", forward: true },
+              { edgeId: "ef", forward: false },
+              { edgeId: "be", forward: false }
+            ],
+            properties: { elevation: 1, water: "land", ward: "market", buildable: true, locked: false }
+          },
+          f2: {
+            id: "f2",
+            boundary: [
+              { edgeId: "gh", forward: true },
+              { edgeId: "hi", forward: true },
+              { edgeId: "ij", forward: true },
+              { edgeId: "gj", forward: false }
+            ],
+            properties: { elevation: 1, water: "land", ward: "market", buildable: true, locked: false }
+          }
+        }
+      },
+      featureGroups: [],
+      elements: []
+    };
+
+    const next = encloseWardComponentWithWalls(document, "f0");
+
+    expect(next).not.toBeNull();
+    if (!next) return;
+    expect(next.featureGroups).toHaveLength(1);
+    const wall = next.featureGroups[0];
+    expect(wall).toMatchObject({ kind: "wall", name: "Wall #1" });
+    expect(wall.kind === "wall" ? wall.segments.map(segment => segment.edgeId) : []).toEqual([
+      "ab",
+      "bc",
+      "cf",
+      "ef",
+      "de",
+      "ad"
+    ]);
+  });
+
+  it("does not create a wall for a cell without a Ward", () => {
+    expect(encloseWardComponentWithWalls(routeDocument(), "f0")).toBeNull();
+  });
+
   it("reports a group's ordered vertices and used edges", () => {
     const document = routeDocument();
     const group = document.featureGroups[0];

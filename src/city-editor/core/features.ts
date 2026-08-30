@@ -4,6 +4,7 @@ import type {
   EdgeFeatureGroup,
   EdgeRef,
   ElementKind,
+  Face,
   FeatureGroup,
   Id,
   Mesh,
@@ -35,6 +36,44 @@ export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]):
           locked: false
         } satisfies EdgeFeatureGroup);
   next.featureGroups.push(group);
+  return next;
+}
+
+/**
+ * Add closed Wall groups along every boundary of the edge-connected Ward
+ * component containing `faceId`. Faces with the same Ward elsewhere in the
+ * map are deliberately left alone.
+ */
+export function encloseWardComponentWithWalls(document: CityDocument, faceId: Id): CityDocument | null {
+  const source = document.mesh.faces[faceId];
+  const ward = source?.properties.ward;
+  if (!source || !ward) return null;
+
+  const component = connectedWardFaces(document, faceId, ward);
+  const boundary = Object.values(document.mesh.faces)
+    .filter(face => component.has(face.id))
+    .flatMap(face =>
+      face.boundary.filter(ref => {
+        const edge = document.mesh.edges[ref.edgeId];
+        const otherFaceId = edge.leftFace === face.id ? edge.rightFace : edge.leftFace;
+        return !otherFaceId || !component.has(otherFaceId);
+      })
+    );
+  const loops = orderedBoundaryLoops(document.mesh, boundary);
+  if (!loops?.length) return null;
+
+  const next = clone(document);
+  const firstNumber = next.featureGroups.filter(group => group.kind === "wall").length + 1;
+  for (const [index, segments] of loops.entries()) {
+    next.featureGroups.push({
+      id: nextId(next, "wall"),
+      kind: "wall",
+      name: `Wall #${firstNumber + index}`,
+      segments,
+      style: edgeGroupStyle("wall"),
+      locked: false
+    });
+  }
   return next;
 }
 
@@ -455,6 +494,60 @@ function edgeGroupStyle(kind: EdgeFeatureGroup["kind"]): EdgeFeatureGroup["style
     wall: { widthMeters: 7, color: "#342a22" },
     plank: { widthMeters: 4, color: "#d8d0c0" }
   }[kind];
+}
+
+function connectedWardFaces(
+  document: CityDocument,
+  startFaceId: Id,
+  ward: NonNullable<Face["properties"]["ward"]>
+): Set<Id> {
+  const component = new Set<Id>([startFaceId]);
+  const pending = [startFaceId];
+  while (pending.length) {
+    const faceId = pending.pop() as Id;
+    const face = document.mesh.faces[faceId];
+    for (const ref of face.boundary) {
+      const edge = document.mesh.edges[ref.edgeId];
+      const otherFaceId = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
+      const other = otherFaceId ? document.mesh.faces[otherFaceId] : null;
+      if (!other || other.properties.ward !== ward || component.has(other.id)) continue;
+      component.add(other.id);
+      pending.push(other.id);
+    }
+  }
+  return component;
+}
+
+/** Turn directed component-boundary edges into one or more closed routes. */
+function orderedBoundaryLoops(mesh: Mesh, boundary: EdgeRef[]): EdgeRef[][] | null {
+  const remaining = new Set(boundary);
+  const byStart = new Map<Id, EdgeRef[]>();
+  for (const ref of boundary) {
+    const edge = mesh.edges[ref.edgeId];
+    if (!edge) return null;
+    const start = ref.forward ? edge.a : edge.b;
+    byStart.set(start, [...(byStart.get(start) ?? []), ref]);
+  }
+
+  const loops: EdgeRef[][] = [];
+  while (remaining.size) {
+    const first = remaining.values().next().value as EdgeRef;
+    const firstEdge = mesh.edges[first.edgeId];
+    if (!firstEdge) return null;
+    const start = first.forward ? firstEdge.a : firstEdge.b;
+    const loop = [first];
+    remaining.delete(first);
+    let end = edgeEnd(mesh, first);
+    while (end !== start) {
+      const next = byStart.get(end)?.find(ref => remaining.has(ref));
+      if (!next) return null;
+      loop.push(next);
+      remaining.delete(next);
+      end = edgeEnd(mesh, next);
+    }
+    loops.push(loop);
+  }
+  return loops;
 }
 
 function rerouteVertices(mesh: Mesh, vertices: Id[], fromVertexId: Id, toVertexId: Id): Id[] | null {

@@ -5,6 +5,7 @@ import {
   appendEdge,
   appendRiverVertex,
   createGroup,
+  encloseWardComponentWithWalls,
   featureGroupVertices,
   finishRiver,
   groupUsesEdge,
@@ -432,7 +433,7 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   map.addEventListener("contextmenu", event => {
     event.preventDefault();
-    const faceId = targetId(event, "face");
+    const faceId = targetId(event, "face") ?? faceAtPoint(localPoint(event));
     const vertexId = targetId(event, "vertex");
     const edgeId = targetId(event, "edge");
     const groupId = targetId(event, "group");
@@ -465,6 +466,14 @@ export function mountCityEditor(root: HTMLElement): void {
             selection.edgeId = null;
             return next;
           })
+      });
+    }
+
+    const wardFace = faceId ? documentState.mesh.faces[faceId] : null;
+    if (wardFace?.properties.ward) {
+      actions.push({
+        label: `Enclose connected ${wardFace.properties.ward} ward with walls`,
+        run: () => runContextAction(() => encloseWardComponentWithWalls(documentState, wardFace.id))
       });
     }
 
