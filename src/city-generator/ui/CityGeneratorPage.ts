@@ -484,9 +484,9 @@ function buildOptionsPanel(h: OptionsHandlers): { root: HTMLElement; sync(): voi
   const importBtn = button("Import city (JSON)", () => void h.onImport(importBtn));
   root.appendChild(importBtn);
 
-  // Works in both modes — bundles the generation settings + a digest of the
-  // generated plan into one JSON file to hand to an assistant (site/cityExport.ts).
-  const exportBtn = button("Export for AI (JSON)", () => h.onExport(exportBtn));
+  // Works in both modes — the JSON keeps the AI/reproduction data and embeds
+  // a native City Editor document, so the same file can be opened there.
+  const exportBtn = button("Export for AI / City Editor (JSON)", () => h.onExport(exportBtn));
   root.appendChild(exportBtn);
 
   const sync = (): void => {

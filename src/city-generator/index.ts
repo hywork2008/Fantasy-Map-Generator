@@ -26,6 +26,7 @@ export {
   type WardKind
 } from "./core/types";
 export type { BurgSiteArchetype, BurgSiteDescriptor } from "./site/burgSiteDescriptor";
+export { buildCityEditorDocument, type CityEditorDocumentExport } from "./site/cityEditorExport";
 export {
   buildCityExport,
   CITY_EXPORT_KIND,
