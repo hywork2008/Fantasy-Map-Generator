@@ -53,7 +53,7 @@ export interface LineStyle {
 
 export interface EdgeFeatureGroup {
   id: Id;
-  kind: "road" | "wall";
+  kind: "road" | "wall" | "plank";
   name: string;
   segments: EdgeRef[];
   style: LineStyle;

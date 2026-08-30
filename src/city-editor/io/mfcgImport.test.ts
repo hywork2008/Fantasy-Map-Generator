@@ -124,6 +124,19 @@ describe("MFCG imports", () => {
               ]
             }
           ]
+        },
+        {
+          type: "GeometryCollection",
+          id: "planks",
+          geometries: [
+            {
+              type: "LineString",
+              coordinates: [
+                [30, 10],
+                [30, -10]
+              ]
+            }
+          ]
         }
       ]
     });
@@ -131,7 +144,11 @@ describe("MFCG imports", () => {
     expect(document).not.toBeNull();
     expect(validate(document!)).toEqual([]);
     expect(Object.keys(document!.mesh.faces)).toHaveLength(4);
-    expect(document!.featureGroups.map(group => group.kind)).toEqual(["road", "wall", "river"]);
+    expect(document!.featureGroups.map(group => group.kind)).toEqual(["road", "wall", "river", "plank"]);
+    expect(document!.featureGroups.at(-1)).toMatchObject({
+      name: "plank-3",
+      style: { widthMeters: 3, color: "#d8d0c0" }
+    });
     expect(document!.elements).toHaveLength(1);
     // The source's north-positive Y coordinates must remain north-positive in
     // the editor; renderEditorSvg performs the SVG-axis inversion itself.

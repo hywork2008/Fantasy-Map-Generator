@@ -37,6 +37,8 @@ export function importMfcgJson(value: unknown): CityDocument | null {
   for (const line of lines(byId("roads"))) state.addEdgeGroup("road", line, roadWidth, "#735238", false);
   for (const ring of polygonRings(byId("walls"))) state.addEdgeGroup("wall", ring, wallWidth, "#41382e", true);
   for (const line of lines(byId("rivers"))) state.addRiver(line, riverWidth);
+  for (const line of lines(byId("planks")))
+    state.addEdgeGroup("plank", line, Math.max(2, roadWidth / 2), "#d8d0c0", false);
 
   const document: CityDocument = {
     format: "fmg-city-editor",
@@ -94,7 +96,13 @@ class MeshBuilder {
     return id;
   }
 
-  addEdgeGroup(kind: "road" | "wall", points: Point[], widthMeters: number, color: string, closed: boolean): void {
+  addEdgeGroup(
+    kind: "road" | "wall" | "plank",
+    points: Point[],
+    widthMeters: number,
+    color: string,
+    closed: boolean
+  ): void {
     const ids = this.pointIds(points);
     if (ids.length < 2) return;
     const segments: EdgeRef[] = [];

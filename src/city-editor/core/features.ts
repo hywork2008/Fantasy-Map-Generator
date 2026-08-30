@@ -19,9 +19,9 @@ export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]):
       : ({
           id: nextId(next, kind),
           kind,
-          name: `${kind === "road" ? "Road" : "Wall"} #${number}`,
+          name: `${edgeGroupLabel(kind)} #${number}`,
           segments: [],
-          style: { widthMeters: kind === "road" ? 10 : 7, color: kind === "road" ? "#6b5137" : "#342a22" },
+          style: edgeGroupStyle(kind),
           locked: false
         } satisfies EdgeFeatureGroup);
   next.featureGroups.push(group);
@@ -130,7 +130,7 @@ export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId:
     next.featureGroups.push({
       ...clone(group),
       id: nextId(next, group.kind),
-      name: `${group.kind === "road" ? "Road" : "Wall"} #${kindNumber}`,
+      name: `${edgeGroupLabel(group.kind)} #${kindNumber}`,
       segments: after
     });
   }
@@ -145,4 +145,16 @@ function nextId(document: CityDocument, prefix: string): Id {
   ]);
   while (used.has(`${prefix}-${n}`)) n++;
   return `${prefix}-${n}`;
+}
+
+function edgeGroupLabel(kind: EdgeFeatureGroup["kind"]): string {
+  return { road: "Road", wall: "Wall", plank: "Pier" }[kind];
+}
+
+function edgeGroupStyle(kind: EdgeFeatureGroup["kind"]): EdgeFeatureGroup["style"] {
+  return {
+    road: { widthMeters: 10, color: "#6b5137" },
+    wall: { widthMeters: 7, color: "#342a22" },
+    plank: { widthMeters: 4, color: "#d8d0c0" }
+  }[kind];
 }
