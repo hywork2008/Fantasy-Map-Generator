@@ -27,11 +27,11 @@ describe("MFCG imports", () => {
           coordinates: [
             [
               [
-                [0, 0],
-                [30, 0],
-                [30, 30],
-                [0, 30],
-                [0, 0]
+                [20, 20],
+                [80, 20],
+                [80, 0],
+                [20, 0],
+                [20, 20]
               ]
             ]
           ]
@@ -105,8 +105,7 @@ describe("MFCG imports", () => {
                   [20, 20],
                   [80, 20],
                   [80, 80],
-                  [20, 80],
-                  [20, 20]
+                  [20, 80]
                 ]
               ]
             }
@@ -137,6 +136,14 @@ describe("MFCG imports", () => {
               ]
             }
           ]
+        },
+        {
+          type: "MultiPoint",
+          id: "trees",
+          coordinates: [
+            [10, 15],
+            [90, 85]
+          ]
         }
       ]
     });
@@ -149,7 +156,13 @@ describe("MFCG imports", () => {
       name: "plank-3",
       style: { widthMeters: 3, color: "#d8d0c0" }
     });
-    expect(document!.elements).toHaveLength(1);
+    const wall = document!.featureGroups.find(group => group.kind === "wall");
+    expect(wall?.kind === "wall" ? wall.segments : []).toHaveLength(3);
+    expect(document!.elements).toHaveLength(3);
+    expect(document!.elements.filter(element => element.kind === "tree")).toEqual([
+      expect.objectContaining({ point: [-40, -35], sizeMeters: 8 }),
+      expect.objectContaining({ point: [40, 35], sizeMeters: 8 })
+    ]);
     // The source's north-positive Y coordinates must remain north-positive in
     // the editor; renderEditorSvg performs the SVG-axis inversion itself.
     expect(document!.mesh.vertices.v0.point[1]).toBeLessThan(0);

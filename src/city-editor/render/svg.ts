@@ -82,8 +82,12 @@ export function renderEditorSvg(
   const elements = element("g", { class: "ce-elements" });
   for (const cityElement of document.elements) {
     const face = document.mesh.faces[cityElement.faceIds[0]];
-    if (!face) continue;
-    const p = centroid(facePoints(document.mesh, face));
+    const p = cityElement.point ?? (face ? centroid(facePoints(document.mesh, face)) : null);
+    if (!p) continue;
+    if (cityElement.kind === "tree") {
+      elements.appendChild(tree(p, cityElement.sizeMeters ?? 8, cityElement.id));
+      continue;
+    }
     elements.appendChild(
       element(
         "text",
@@ -155,5 +159,36 @@ function isPoint(point: Point | undefined): point is Point {
 }
 
 function symbol(kind: string): string {
-  return { plaza: "□", citadel: "♜", temple: "✦", harbor: "⚓", gate: "⌑", tower: "●" }[kind] ?? "•";
+  return { plaza: "□", citadel: "♜", temple: "✦", harbor: "⚓", gate: "⌑", tower: "●", tree: "♣" }[kind] ?? "•";
+}
+
+function tree(point: Point, radius: number, id: Id): SVGElement {
+  const [x, y] = [point[0], -point[1]];
+  const crown = element("g", { class: "ce-tree", "data-element": id, "pointer-events": "none" });
+  crown.append(
+    element("path", {
+      d: `M${x} ${y + radius} L${x} ${y - radius * 0.15}`,
+      class: "ce-tree-trunk",
+      "stroke-width": String(Math.max(1, radius * 0.22))
+    }),
+    element("circle", {
+      cx: String(x - radius * 0.36),
+      cy: String(y - radius * 0.18),
+      r: String(radius * 0.48),
+      class: "ce-tree-crown"
+    }),
+    element("circle", {
+      cx: String(x + radius * 0.36),
+      cy: String(y - radius * 0.18),
+      r: String(radius * 0.48),
+      class: "ce-tree-crown"
+    }),
+    element("circle", {
+      cx: String(x),
+      cy: String(y - radius * 0.58),
+      r: String(radius * 0.52),
+      class: "ce-tree-crown"
+    })
+  );
+  return crown;
 }

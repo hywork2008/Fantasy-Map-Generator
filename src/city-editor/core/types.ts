@@ -74,12 +74,15 @@ export interface RiverGroup {
 
 export type FeatureGroup = EdgeFeatureGroup | RiverGroup;
 
-export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower";
+export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree";
 
 export interface CityElement {
   id: Id;
   kind: ElementKind;
   faceIds: Id[];
+  /** Point-anchored elements such as imported MFCG trees do not belong to a face. */
+  point?: Point;
+  sizeMeters?: number;
   locked: boolean;
 }
 

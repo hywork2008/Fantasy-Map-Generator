@@ -35,10 +35,23 @@ export function importMfcgJson(value: unknown): CityDocument | null {
   const wallWidth = finiteNumber(settings.wallThickness, 8);
   const riverWidth = finiteNumber(settings.riverWidth, 18);
   for (const line of lines(byId("roads"))) state.addEdgeGroup("road", line, roadWidth, "#735238", false);
-  for (const ring of polygonRings(byId("walls"))) state.addEdgeGroup("wall", ring, wallWidth, "#41382e", true);
+  // Walls describe a complete perimeter. MFCG omits only the runs that share
+  // an edge with water; splitting there preserves land walls on both sides.
+  for (const run of wallRuns(byId("walls"), multiPolygonRings(byId("water"))))
+    state.addEdgeGroup("wall", run.points, wallWidth, "#41382e", run.closed);
   for (const line of lines(byId("rivers"))) state.addRiver(line, riverWidth);
   for (const line of lines(byId("planks")))
     state.addEdgeGroup("plank", line, Math.max(2, roadWidth / 2), "#d8d0c0", false);
+
+  const treeSize = finiteNumber(settings.towerRadius, 8);
+  const trees = pointsFrom(byId("trees")?.coordinates).map((point, index) => ({
+    id: `tree-${index}`,
+    kind: "tree" as const,
+    faceIds: [],
+    point: state.transformPoint(point),
+    sizeMeters: treeSize,
+    locked: false
+  }));
 
   const document: CityDocument = {
     format: "fmg-city-editor",
@@ -46,9 +59,12 @@ export function importMfcgJson(value: unknown): CityDocument | null {
     frame: { extentMeters, cityRadiusMeters: extentMeters / 3, blockSizeMeters: 50 },
     mesh: { vertices: state.vertices, edges: state.edges, faces: state.faces },
     featureGroups: state.featureGroups,
-    elements: squareFaces.flatMap((faceId, index) =>
-      faceId ? [{ id: `plaza-${index}`, kind: "plaza" as const, faceIds: [faceId], locked: false }] : []
-    )
+    elements: [
+      ...squareFaces.flatMap((faceId, index) =>
+        faceId ? [{ id: `plaza-${index}`, kind: "plaza" as const, faceIds: [faceId], locked: false }] : []
+      ),
+      ...trees
+    ]
   };
   return validate(document).length === 0 ? document : null;
 }
@@ -86,6 +102,10 @@ class MeshBuilder {
   private groupNumber = 0;
 
   constructor(private readonly transform: (point: Point) => Point) {}
+
+  transformPoint(point: Point): Point {
+    return this.transform(point);
+  }
 
   addFace(points: Point[], properties: FaceProperties): Id | null {
     const ids = this.pointIds(points);
@@ -197,6 +217,53 @@ function polygonRings(feature: JsonRecord | undefined): Point[][] {
   });
 }
 
+function multiPolygonRings(feature: JsonRecord | undefined): Point[][] {
+  if (feature?.type !== "MultiPolygon") return [];
+  return asArray(feature.coordinates).flatMap(polygon =>
+    asArray(polygon).flatMap(ring => {
+      const points = pointsFrom(ring);
+      return points.length >= 3 ? [points] : [];
+    })
+  );
+}
+
+function wallRuns(feature: JsonRecord | undefined, waterRings: Point[][]): Array<{ points: Point[]; closed: boolean }> {
+  const waterEdges = new Set<string>();
+  for (const ring of waterRings) {
+    for (let index = 1; index < ring.length; index++) {
+      waterEdges.add(edgeKey(ring[index - 1], ring[index]));
+    }
+  }
+  return polygonRings(feature).flatMap(ring => splitWallRing(ring, waterEdges));
+}
+
+function splitWallRing(source: Point[], waterEdges: Set<string>): Array<{ points: Point[]; closed: boolean }> {
+  const ring = removeClosingPoint(source);
+  if (ring.length < 3) return [];
+  const segments = ring.map((point, index) => ({
+    from: point,
+    to: ring[(index + 1) % ring.length],
+    water: waterEdges.has(edgeKey(point, ring[(index + 1) % ring.length]))
+  }));
+  const firstWater = segments.findIndex(segment => segment.water);
+  if (firstWater < 0) return [{ points: ring, closed: true }];
+
+  const runs: Point[][] = [];
+  let run: Point[] = [];
+  for (let offset = 1; offset <= segments.length; offset++) {
+    const segment = segments[(firstWater + offset) % segments.length];
+    if (segment.water) {
+      if (run.length >= 2) runs.push(run);
+      run = [];
+      continue;
+    }
+    if (!run.length) run.push(segment.from);
+    run.push(segment.to);
+  }
+  if (run.length >= 2) runs.push(run);
+  return runs.map(points => ({ points, closed: false }));
+}
+
 function lines(feature: JsonRecord | undefined): Point[][] {
   if (feature?.type !== "GeometryCollection") return [];
   return asArray(feature.geometries).flatMap(geometry => {
@@ -244,6 +311,24 @@ function toPoint(value: unknown): Point | null {
   if (!Array.isArray(value) || value.length < 2 || !Number.isFinite(value[0]) || !Number.isFinite(value[1]))
     return null;
   return [value[0], value[1]];
+}
+
+function removeClosingPoint(points: Point[]): Point[] {
+  return points.length > 1 && pointsEqual(points[0], points.at(-1)!) ? points.slice(0, -1) : points;
+}
+
+function edgeKey(a: Point, b: Point): string {
+  const first = pointKey(a);
+  const second = pointKey(b);
+  return first < second ? `${first}|${second}` : `${second}|${first}`;
+}
+
+function pointKey([x, y]: Point): string {
+  return `${x.toFixed(3)},${y.toFixed(3)}`;
+}
+
+function pointsEqual(a: Point, b: Point): boolean {
+  return pointKey(a) === pointKey(b);
 }
 
 function isGeometry(value: unknown): value is Geometry {
