@@ -5,6 +5,7 @@ import {
   appendEdge,
   appendRiverVertex,
   createGroup,
+  featureGroupVertices,
   finishRiver,
   groupUsesEdge,
   previewRouteAcrossFace,
@@ -56,10 +57,10 @@ interface RouteStroke {
   initialEdgeId: Id;
   groupId: Id | null;
   endpointId: Id | null;
+  initialized: boolean;
   startPoint: Point;
   lastPoint: Point;
   changed: boolean;
-  documentBefore: CityDocument;
 }
 
 export function mountCityEditor(root: HTMLElement): void {
@@ -227,16 +228,17 @@ export function mountCityEditor(root: HTMLElement): void {
     if (isRoutePaintTool(tool)) {
       const edgeId = closestMeshEdgeId(point, 18);
       if (edgeId) {
+        const connection = routeEndpointOnEdge(tool, edgeId, point);
         event.preventDefault();
         routeStroke = {
           kind: tool,
           initialEdgeId: edgeId,
-          groupId: null,
-          endpointId: null,
+          groupId: connection?.groupId ?? null,
+          endpointId: connection?.vertexId ?? null,
+          initialized: false,
           startPoint: point,
           lastPoint: point,
-          changed: false,
-          documentBefore: clone(documentState)
+          changed: false
         };
         suppressNextClick = true;
         map.setPointerCapture(event.pointerId);
@@ -352,12 +354,7 @@ export function mountCityEditor(root: HTMLElement): void {
       rebuildEditorIndexes();
     }
     if (stroke) {
-      if (event.type === "pointercancel") {
-        documentState = stroke.documentBefore;
-        rebuildEditorIndexes();
-      } else {
-        finishRouteStroke(stroke, localPoint(event));
-      }
+      if (event.type !== "pointercancel") finishRouteStroke(stroke, localPoint(event));
     }
     dragBefore = null;
     paintedWardFaceIds.clear();
@@ -525,11 +522,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (event.key === "Enter") finishButton.click();
     if (event.key === "Escape") {
-      if (routeStroke) {
-        documentState = routeStroke.documentBefore;
-        routeStroke = null;
-        rebuildEditorIndexes();
-      }
+      routeStroke = null;
       selection = emptySelection();
       activeGroupId = null;
       hideContextMenu();
@@ -890,7 +883,7 @@ export function mountCityEditor(root: HTMLElement): void {
   function extendRouteStroke(point: Point): void {
     const stroke = routeStroke;
     if (!stroke) return;
-    if (!stroke.groupId) initializeRouteStroke(stroke, point);
+    if (!stroke.initialized) initializeRouteStroke(stroke, point);
     if (!stroke.groupId || !stroke.endpointId) return;
 
     const edgeId = closestStrokeContinuation(stroke, point);
@@ -907,6 +900,7 @@ export function mountCityEditor(root: HTMLElement): void {
         stroke.changed = true;
         selection.groupId = stroke.groupId;
         activeGroupId = stroke.groupId;
+        commitRouteStrokeStep();
       }
     }
     stroke.lastPoint = point;
@@ -916,6 +910,25 @@ export function mountCityEditor(root: HTMLElement): void {
   function initializeRouteStroke(stroke: RouteStroke, point: Point): void {
     const edge = documentState.mesh.edges[stroke.initialEdgeId];
     if (!edge) return;
+    if (stroke.groupId && stroke.endpointId) {
+      const group = documentState.featureGroups.find(candidate => candidate.id === stroke.groupId);
+      if (!group || group.locked || group.kind !== stroke.kind || (group.kind === "river" && group.mouth)) return;
+      stroke.initialized = true;
+      if (groupUsesEdge(documentState, group, stroke.initialEdgeId)) return;
+      const nextEndpointId = edge.a === stroke.endpointId ? edge.b : edge.a;
+      const next =
+        stroke.kind === "river"
+          ? appendRiverVertex(documentState, stroke.groupId, nextEndpointId)
+          : appendEdge(documentState, stroke.groupId, stroke.initialEdgeId);
+      if (!next) return;
+      documentState = next;
+      stroke.endpointId = nextEndpointId;
+      stroke.changed = true;
+      selection.groupId = stroke.groupId;
+      activeGroupId = stroke.groupId;
+      commitRouteStrokeStep();
+      return;
+    }
     const a = documentState.mesh.vertices[edge.a]?.point;
     const b = documentState.mesh.vertices[edge.b]?.point;
     if (!a || !b) return;
@@ -938,14 +951,18 @@ export function mountCityEditor(root: HTMLElement): void {
     documentState = next;
     stroke.groupId = groupId;
     stroke.endpointId = endVertexId;
+    stroke.initialized = true;
     stroke.changed = true;
     selection.groupId = groupId;
     activeGroupId = groupId;
+    commitRouteStrokeStep();
   }
 
   function finishRouteStroke(stroke: RouteStroke, point: Point): void {
-    if (!stroke.groupId) initializeRouteStroke(stroke, point);
-    if (!stroke.changed) return;
+    if (!stroke.initialized) initializeRouteStroke(stroke, point);
+  }
+
+  function commitRouteStrokeStep(): void {
     history.commit(documentState);
     rebuildEditorIndexes();
   }
@@ -1001,6 +1018,28 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     return nearest;
+  }
+
+  function routeEndpointOnEdge(kind: RoutePaintKind, edgeId: Id, point: Point): { groupId: Id; vertexId: Id } | null {
+    const edge = documentState.mesh.edges[edgeId];
+    if (!edge) return null;
+    let closest: { groupId: Id; vertexId: Id; distance: number } | null = null;
+    for (const group of documentState.featureGroups) {
+      if (group.kind !== kind || group.locked || (group.kind === "river" && group.mouth)) continue;
+      const vertices = featureGroupVertices(documentState, group);
+      const endpoints = group.kind === "river" ? [vertices.at(-1)] : [vertices[0], vertices.at(-1)];
+      for (const vertexId of new Set(endpoints)) {
+        if (!vertexId || (vertexId !== edge.a && vertexId !== edge.b)) continue;
+        const vertex = documentState.mesh.vertices[vertexId];
+        if (!vertex) continue;
+        const distance = Math.hypot(point[0] - vertex.point[0], point[1] - vertex.point[1]);
+        const activeBonus = group.id === activeGroupId ? routeHitRadius() : 0;
+        if (!closest || distance - activeBonus < closest.distance) {
+          closest = { groupId: group.id, vertexId, distance: distance - activeBonus };
+        }
+      }
+    }
+    return closest;
   }
 
   function routeHitRadius(pixels = 18): number {
