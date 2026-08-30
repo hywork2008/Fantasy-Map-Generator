@@ -41,7 +41,13 @@ export function mountCityEditor(root: HTMLElement): void {
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
   let activeGroupId: Id | null = null;
   let dragBefore: CityDocument | null = null;
-  let isDragging = false;
+  let isVertexDragging = false;
+  let isPanning = false;
+  let hasPanned = false;
+  let suppressNextClick = false;
+  let lastPanX = 0;
+  let lastPanY = 0;
+  let viewCenter: [number, number] = [0, 0];
   let notice = "";
   let halfView = documentState.frame.extentMeters / 2;
 
@@ -80,6 +86,7 @@ export function mountCityEditor(root: HTMLElement): void {
     selection = emptySelection();
     activeGroupId = null;
     halfView = documentState.frame.extentMeters / 2;
+    viewCenter = [0, 0];
     refresh();
   });
   const sizeLabel = label("Map size", size);
@@ -120,12 +127,19 @@ export function mountCityEditor(root: HTMLElement): void {
 
   map.addEventListener("pointerdown", event => {
     const vertexId = targetId(event, "vertex");
-    if (tool !== "vertex" || !vertexId) return;
-    event.preventDefault();
-    dragBefore = clone(documentState);
-    isDragging = true;
-    selection.vertexId = vertexId;
-    map.setPointerCapture(event.pointerId);
+    if (tool === "vertex" && vertexId) {
+      event.preventDefault();
+      dragBefore = clone(documentState);
+      isVertexDragging = true;
+      selection.vertexId = vertexId;
+      map.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (event.button !== 0) return;
+    isPanning = true;
+    hasPanned = false;
+    lastPanX = event.clientX;
+    lastPanY = event.clientY;
   });
   map.addEventListener("dragover", event => {
     event.preventDefault();
@@ -138,25 +152,59 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
-    if (!isDragging || !selection.vertexId) return;
+    if (isVertexDragging && selection.vertexId) {
+      const point = localPoint(event);
+      const next = moveVertex(documentState, selection.vertexId, point);
+      if (!next) return;
+      documentState = next;
+      redrawMap();
+      suppressNextClick = true;
+      return;
+    }
+    if (!isPanning) return;
+    const dx = event.clientX - lastPanX;
+    const dy = event.clientY - lastPanY;
+    if (!hasPanned && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+      hasPanned = true;
+      suppressNextClick = true;
+      map.classList.add("ce-map--panning");
+      map.setPointerCapture(event.pointerId);
+    }
+    if (!hasPanned) return;
     const point = localPoint(event);
-    const next = moveVertex(documentState, selection.vertexId, point);
-    if (!next) return;
-    documentState = next;
+    const previous = localPointAt(lastPanX, lastPanY);
+    viewCenter = [viewCenter[0] - (point[0] - previous[0]), viewCenter[1] - (point[1] - previous[1])];
+    lastPanX = event.clientX;
+    lastPanY = event.clientY;
     redrawMap();
   });
   const finishDrag = (event: PointerEvent): void => {
-    if (!isDragging) return;
-    isDragging = false;
+    if (!isVertexDragging && !isPanning) return;
+    const wasVertexDragging = isVertexDragging;
+    isVertexDragging = false;
+    isPanning = false;
+    hasPanned = false;
+    map.classList.remove("ce-map--panning");
     if (map.hasPointerCapture(event.pointerId)) map.releasePointerCapture(event.pointerId);
-    if (dragBefore && JSON.stringify(dragBefore) !== JSON.stringify(documentState)) history.commit(documentState);
+    if (wasVertexDragging && dragBefore && JSON.stringify(dragBefore) !== JSON.stringify(documentState))
+      history.commit(documentState);
     dragBefore = null;
-    refresh();
+    if (event.type === "pointercancel") suppressNextClick = false;
+    if (wasVertexDragging) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
+  map.addEventListener(
+    "click",
+    event => {
+      if (!suppressNextClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+      suppressNextClick = false;
+    },
+    true
+  );
   map.addEventListener("click", event => {
-    if (isDragging) return;
     const vertexId = targetId(event, "vertex");
     const edgeId = targetId(event, "edge");
     const faceId = targetId(event, "face");
@@ -266,7 +314,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function redrawMap(): void {
-    const box = `${-halfView} ${-halfView} ${halfView * 2} ${halfView * 2}`;
+    const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
     map.replaceChildren(renderEditorSvg(documentState, tool, selection, box, zoomFactor()));
   }
 
@@ -371,9 +419,13 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function localPoint(event: PointerEvent): [number, number] {
+    return localPointAt(event.clientX, event.clientY);
+  }
+
+  function localPointAt(clientX: number, clientY: number): [number, number] {
     const svg = map.querySelector("svg");
     if (!svg) return [0, 0];
-    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(svg.getScreenCTM()?.inverse());
+    const point = new DOMPoint(clientX, clientY).matrixTransform(svg.getScreenCTM()?.inverse());
     return [point.x, -point.y];
   }
 
@@ -396,6 +448,7 @@ export function mountCityEditor(root: HTMLElement): void {
     selection = emptySelection();
     activeGroupId = null;
     halfView = parsed.document.frame.extentMeters / 2;
+    viewCenter = [0, 0];
     showNotice(
       parsed.source === "mfcg-svg"
         ? "SVG imported as a reference image"
