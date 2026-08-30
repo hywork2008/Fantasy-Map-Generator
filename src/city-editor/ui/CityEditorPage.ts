@@ -22,7 +22,7 @@ import {
   validate
 } from "../core/mesh";
 import type { CityDocument, ElementKind, Id, Tool, WardKind, WaterKind } from "../core/types";
-import { exportCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
+import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import { type RenderSelection, renderEditorSvg } from "../render/svg";
 
 const TOOLS: Array<[Tool, string]> = [
@@ -386,17 +386,23 @@ export function mountCityEditor(root: HTMLElement): void {
     applyImportedMap(await readCityMap(file));
   }
 
-  function applyImportedMap(parsed: CityDocument | null): void {
+  function applyImportedMap(parsed: ImportedCityMap | null): void {
     if (!parsed) {
-      showNotice("Import failed: select a City Editor map JSON file");
+      showNotice("Import failed: select a City Editor, MFCG JSON, or SVG file");
       return;
     }
-    documentState = parsed;
-    history = new DocumentHistory(parsed);
+    documentState = parsed.document;
+    history = new DocumentHistory(parsed.document);
     selection = emptySelection();
     activeGroupId = null;
-    halfView = parsed.frame.extentMeters / 2;
-    showNotice("Map imported");
+    halfView = parsed.document.frame.extentMeters / 2;
+    showNotice(
+      parsed.source === "mfcg-svg"
+        ? "SVG imported as a reference image"
+        : parsed.source === "mfcg-json"
+          ? "MFCG map imported"
+          : "Map imported"
+    );
   }
 
   function showNotice(value: string): void {

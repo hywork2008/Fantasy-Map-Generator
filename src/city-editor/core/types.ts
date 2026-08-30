@@ -87,6 +87,8 @@ export interface CityDocument {
   format: "fmg-city-editor";
   version: 1;
   frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
+  /** A non-editable source image, for example an imported MFCG SVG. */
+  referenceImage?: { href: string; width: number; height: number };
   mesh: Mesh;
   featureGroups: FeatureGroup[];
   elements: CityElement[];

@@ -1,7 +1,13 @@
 import { parseDocument } from "../core/document";
 import type { CityDocument } from "../core/types";
+import { importMfcgJson, importMfcgSvg } from "./mfcgImport";
 
 export const CITY_EDITOR_FILE_EXTENSION = ".fmg-city-editor.json";
+
+export interface ImportedCityMap {
+  document: CityDocument;
+  source: "city-editor" | "mfcg-json" | "mfcg-svg";
+}
 
 /** Download the complete editable map, not a rendered SVG snapshot. */
 export function exportCityMap(cityDocument: CityDocument): void {
@@ -14,21 +20,29 @@ export function exportCityMap(cityDocument: CityDocument): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-/** Open a file picker and validate that the selected JSON is an editor map. */
-export function pickCityMap(): Promise<CityDocument | null> {
+/** Open a file picker for native City Editor maps and MFCG exports. */
+export function pickCityMap(): Promise<ImportedCityMap | null> {
   return new Promise(resolve => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = `${CITY_EDITOR_FILE_EXTENSION},application/json`;
+    input.accept = `${CITY_EDITOR_FILE_EXTENSION},application/json,image/svg+xml,.svg`;
     input.addEventListener("change", () => void readCityMap(input.files?.[0]).then(resolve), { once: true });
     input.click();
   });
 }
 
-export async function readCityMap(file: File | undefined): Promise<CityDocument | null> {
+export async function readCityMap(file: File | undefined): Promise<ImportedCityMap | null> {
   if (!file) return null;
   try {
-    return parseDocument(await file.text());
+    const text = await file.text();
+    if (file.name.toLowerCase().endsWith(".svg") || file.type === "image/svg+xml") {
+      const document = importMfcgSvg(text);
+      return document ? { document, source: "mfcg-svg" } : null;
+    }
+    const cityEditor = parseDocument(text);
+    if (cityEditor) return { document: cityEditor, source: "city-editor" };
+    const document = importMfcgJson(JSON.parse(text));
+    return document ? { document, source: "mfcg-json" } : null;
   } catch {
     return null;
   }

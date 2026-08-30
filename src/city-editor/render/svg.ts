@@ -18,6 +18,20 @@ export function renderEditorSvg(
   zoom: number
 ): SVGSVGElement {
   const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
+  if (document.referenceImage) {
+    const { href, width, height } = document.referenceImage;
+    svg.appendChild(
+      element("image", {
+        href,
+        x: String(-width / 2),
+        y: String(-height / 2),
+        width: String(width),
+        height: String(height),
+        class: "ce-reference-image",
+        "pointer-events": "none"
+      })
+    );
+  }
   const cells = element("g", { class: "ce-cells" });
   for (const face of Object.values(document.mesh.faces)) {
     const selected = selection.faceId === face.id;
