@@ -7,71 +7,26 @@
     <meta name="description" content="Manual Voronoi city editor for Fantasy Map Generator" />
     <meta name="robots" content="noindex" />
     <style>
-      :root { --paper:#d4cbb9; --ink:#28231f; --panel:rgb(239 233 220 / 94%); --line:#756b60; }
+      :root { --canvas:#d8d4c9; --ink:#1d2930; --muted:#637078; --panel:rgb(248 250 247 / 94%); --line:#aab4b2; --accent:#168c97; --accent-dark:#0d5761; --warm:#e9a23b; }
       * { box-sizing:border-box; }
-      html, body { margin:0; width:100%; height:100%; overflow:hidden; color:var(--ink); background:var(--paper); font:13px/1.35 system-ui,sans-serif; }
-      button, input, select { font:inherit; }
-      #city-editor-root { position:fixed; inset:0; }
-      .ce-canvas { position:absolute; inset:0; }
-      .ce-map, .ce-svg { width:100%; height:100%; display:block; touch-action:none; }
-      .ce-map--drop-target { outline:4px dashed #f2b84b; outline-offset:-10px; }
-      .ce-map--panning, .ce-map--panning * { cursor:grabbing !important; }
-      .ce-svg { background:#d4cbb9; }
-      .ce-reference-image { opacity:.82; }
-      .ce-face { stroke:none; cursor:pointer; fill:#d8d0c0; }
-      .ce-face--sea, .ce-face--lake, .ce-face--openWater { fill:#94bdd0; }
-      .ce-face--land.ce-face--ward-unassigned { fill:#d8d0c0; }
-      .ce-face--land.ce-face--ward-market { fill:#e8c56f; }
-      .ce-face--land.ce-face--ward-castle { fill:#b79ac8; }
-      .ce-face--land.ce-face--ward-merchant { fill:#d99678; }
-      .ce-face--land.ce-face--ward-craftsmen { fill:#c99562; }
-      .ce-face--land.ce-face--ward-harbor { fill:#76b8c8; }
-      .ce-face--land.ce-face--ward-park { fill:#8eb77d; }
-      .ce-face--land.ce-face--ward-empty { fill:#eee4c8; }
-      .ce-face.ce-selected { fill:#efd778; }
-      .ce-edge { fill:none; stroke:#756b60; stroke-width:2; vector-effect:non-scaling-stroke; cursor:pointer; }
-      .ce-edge:hover { stroke:#f2b84b; stroke-width:4; }
-      .ce-feature { fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.9; cursor:pointer; }
-      .ce-feature--wall { stroke-dasharray:2 2; }
-      .ce-feature--plank { filter:drop-shadow(0 0 1px #332b22); }
-      .ce-active-group { filter:drop-shadow(0 0 5px #ffd75c); }
-      .ce-hover-group { opacity:1; filter:drop-shadow(0 0 5px #ffd75c); }
-      .ce-route-preview { opacity:1; filter:drop-shadow(0 0 4px #ffd75c); }
-      .ce-vertex { fill:#fff5d8; stroke:#342a22; stroke-width:2; vector-effect:non-scaling-stroke; cursor:grab; }
-      .ce-vertex:hover, .ce-vertex.ce-selected { fill:#f5b844; }
-      .ce-hover-vertex { fill:#f5b844; stroke-width:3; }
-      .ce-route-vertex { fill:#ffd75c; stroke:#342a22; stroke-width:3; }
-      .ce-route-target { fill:#fff5d8; opacity:.78; }
-      .ce-selection-label { fill:#28231f; font-family:system-ui,sans-serif; font-weight:700; }
-      .ce-selection-face-label { fill:#42362d; }
-      .ce-element { fill:#30251e; font:24px serif; text-anchor:middle; dominant-baseline:central; pointer-events:none; transform:scale(1 -1); transform-origin:center; }
-      .ce-tree-crown { fill:#69745d; stroke:#393f32; stroke-width:1; }
-      .ce-tree-trunk { fill:none; stroke:#514538; stroke-linecap:round; }
-      .ce-panel { position:absolute; display:grid; gap:7px; padding:10px; max-width:250px; border:2px solid var(--ink); border-radius:7px; background:var(--panel); box-shadow:0 2px 10px #30251e33; }
-      .ce-panel h1 { margin:0 0 2px; font-size:14px; }
-      .ce-toolbar { top:12px; left:12px; grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .ce-toolbar h1, .ce-toolbar hr { grid-column:1 / -1; }
-      .ce-size-choice { grid-column:1 / -1; }
-      .ce-size-choice select { max-width:none; }
-      .ce-toolbar hr { width:100%; margin:1px 0; border:0; border-top:1px solid var(--line); }
-      .ce-inspector { top:12px; right:12px; width:220px; }
-      .ce-groups { left:12px; bottom:32px; width:250px; max-height:35vh; overflow:auto; }
-      .ce-group-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; align-items:center; gap:4px; }
-      .ce-group-row span { color:#665b50; font-size:11px; white-space:nowrap; }
-      .ce-status { position:absolute; right:12px; bottom:12px; padding:6px 9px; border-radius:4px; background:var(--panel); font-size:12px; }
-      .ce-scale-bar { position:absolute; right:12px; bottom:42px; display:grid; gap:4px; justify-items:end; padding:6px 9px; border-radius:4px; background:var(--panel); pointer-events:none; }
-      .ce-scale-bar-line { height:8px; min-width:1px; max-width:180px; border:2px solid var(--ink); border-top:0; }
-      .ce-scale-bar-label { font-size:11px; white-space:nowrap; }
-      .ce-context-menu { position:fixed; z-index:10; display:grid; gap:4px; min-width:210px; padding:6px; border:2px solid var(--ink); border-radius:6px; background:var(--panel); box-shadow:0 2px 10px #30251e55; }
-      .ce-context-menu[hidden] { display:none; }
-      .ce-context-menu span { padding:4px; color:#665b50; }
-      .ce-context-menu button { text-align:left; }
-      button { min-height:30px; padding:4px 7px; border:1px solid var(--ink); border-radius:4px; color:var(--ink); background:#f8f1e4; cursor:pointer; }
-      button:hover, button.is-active { background:#42362d; color:#fff7e8; }
-      button:disabled { opacity:.45; cursor:default; }
-      label { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:5px; }
-      input, select { min-width:0; max-width:130px; padding:3px; border:1px solid var(--line); border-radius:3px; background:#fffaf0; }
-      @media (max-width:700px) { .ce-inspector { top:auto; bottom:32px; right:8px; width:190px; max-height:42vh; overflow:auto; } .ce-groups { display:none; } .ce-toolbar { left:8px; top:8px; max-width:190px; } }
+      html, body { margin:0; width:100%; height:100%; overflow:hidden; color:var(--ink); background:var(--canvas); font:12px/1.4 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+      button, input, select { font:inherit; } #city-editor-root { position:fixed; inset:0; }
+      .ce-canvas { position:absolute; inset:0; background:radial-gradient(circle at 50% 45%,#e8e5da 0,#d4d2c8 66%,#c5c5bf 100%); }
+      .ce-map,.ce-svg { width:100%; height:100%; display:block; touch-action:none; } .ce-map--drop-target { outline:3px dashed var(--warm); outline-offset:-12px; } .ce-map--panning,.ce-map--panning * { cursor:grabbing !important; }
+      .ce-svg { background:transparent; } .ce-reference-image { opacity:.82; }
+      .ce-face { stroke:none; cursor:pointer; fill:#e1dfd4; } .ce-face--sea,.ce-face--lake,.ce-face--openWater { fill:#91c8d3; } .ce-face--land.ce-face--ward-unassigned { fill:#e1dfd4; } .ce-face--land.ce-face--ward-market { fill:#edcf7a; } .ce-face--land.ce-face--ward-castle { fill:#bca7ce; } .ce-face--land.ce-face--ward-merchant { fill:#dfa184; } .ce-face--land.ce-face--ward-craftsmen { fill:#d1a46e; } .ce-face--land.ce-face--ward-harbor { fill:#7cc4d0; } .ce-face--land.ce-face--ward-park { fill:#99c187; } .ce-face--land.ce-face--ward-empty { fill:#f2ead2; } .ce-face.ce-selected { fill:#f4cf68; }
+      .ce-edge { fill:none; stroke:#738083; stroke-width:1; vector-effect:non-scaling-stroke; cursor:pointer; } .ce-edge:hover { stroke:var(--warm); stroke-width:4; } .ce-feature { fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:.9; cursor:pointer; } .ce-feature--wall { stroke-dasharray:2 2; } .ce-feature--plank { filter:drop-shadow(0 0 1px #332b22); } .ce-active-group,.ce-hover-group { filter:drop-shadow(0 0 5px #ffd75c); } .ce-hover-group,.ce-route-preview { opacity:1; } .ce-route-preview { filter:drop-shadow(0 0 4px #ffd75c); }
+      .ce-vertex { fill:#fffdf4; stroke:#1d2930; stroke-width:2; vector-effect:non-scaling-stroke; cursor:grab; } .ce-vertex:hover,.ce-vertex.ce-selected,.ce-hover-vertex { fill:#f5b844; stroke-width:3; } .ce-route-vertex { fill:#ffd75c; stroke:#342a22; stroke-width:3; } .ce-route-target { fill:#fff5d8; opacity:.78; } .ce-selection-label { fill:#1d2930; font-family:system-ui,sans-serif; font-weight:700; } .ce-selection-face-label { fill:#31444a; }
+      .ce-element { fill:#27383d; font:24px serif; text-anchor:middle; dominant-baseline:central; pointer-events:none; transform:scale(1 -1); transform-origin:center; } .ce-tree-crown { fill:#697d64; stroke:#394b40; stroke-width:1; } .ce-tree-trunk { fill:none; stroke:#514538; stroke-linecap:round; }
+      .ce-panel { position:absolute; z-index:4; width:max-content; max-width:270px; min-width:150px; border:1px solid #9da8a7; border-radius:8px; background:var(--panel); box-shadow:0 10px 26px #23313628,0 1px 2px #23313625; overflow:hidden; backdrop-filter:blur(12px); } .ce-panel--dragging { z-index:8; box-shadow:0 18px 38px #23313640; }
+      .ce-panel-titlebar { display:flex; align-items:center; justify-content:space-between; height:29px; padding:0 8px 0 10px; border-bottom:1px solid #cbd2d0; background:linear-gradient(#fff,#edf1ed); cursor:grab; user-select:none; } .ce-panel-titlebar:active { cursor:grabbing; } .ce-panel h1 { margin:0; color:#25383c; font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; } .ce-panel-titlebar span { color:#8b9796; font-size:15px; line-height:1; }
+      .ce-panel-content { display:grid; gap:8px; padding:9px; } .ce-panel-content > span { color:var(--muted); font-size:11px; } .ce-toolbar { top:14px; left:14px; width:116px; } .ce-document { top:14px; left:144px; width:238px; } .ce-inspector { top:14px; right:14px; width:220px; } .ce-groups { left:14px; bottom:36px; width:224px; max-height:35vh; overflow:auto; }
+      .ce-tool-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; } .ce-icon-row { display:flex; flex-wrap:wrap; gap:5px; } .ce-group-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; gap:5px; } .ce-group-row span { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .ce-panel hr { width:100%; margin:0; border:0; border-top:1px solid #d6dddb; } button { min-height:28px; padding:4px 7px; border:1px solid #aab5b3; border-radius:5px; color:var(--ink); background:#fffefa; cursor:pointer; } button:hover,button.is-active { color:white; border-color:var(--accent-dark); background:var(--accent-dark); } button:disabled { opacity:.42; cursor:default; } .ce-icon-button { display:inline-grid; place-items:center; width:30px; min-width:30px; height:30px; min-height:30px; padding:0; color:#294248; font-size:18px; font-weight:600; line-height:1; } .ce-tool-grid .ce-icon-button { width:30px; height:30px; } .ce-group-row .ce-icon-button { width:27px; min-width:27px; height:27px; min-height:27px; font-size:15px; }
+      label { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:6px; color:#4d5d61; font-size:11px; } input,select { min-width:0; max-width:150px; padding:4px 5px; border:1px solid var(--line); border-radius:4px; color:var(--ink); background:#fffefa; } .ce-size-choice { grid-template-columns:1fr; gap:3px; } .ce-size-choice select { max-width:none; }
+      .ce-status { position:absolute; z-index:3; right:14px; bottom:13px; padding:5px 8px; border:1px solid #b7c0be; border-radius:4px; color:#536268; background:var(--panel); font-size:11px; } .ce-scale-bar { position:absolute; z-index:3; right:14px; bottom:41px; display:grid; gap:3px; justify-items:end; padding:5px 8px; border-radius:4px; color:#435257; background:var(--panel); pointer-events:none; } .ce-scale-bar-line { height:7px; min-width:1px; max-width:180px; border:2px solid #435257; border-top:0; } .ce-scale-bar-label { font-size:10px; white-space:nowrap; }
+      .ce-context-menu { position:fixed; z-index:12; display:grid; gap:4px; min-width:210px; padding:6px; border:1px solid #9da8a7; border-radius:6px; background:var(--panel); box-shadow:0 8px 20px #2331363d; } .ce-context-menu[hidden] { display:none; } .ce-context-menu span { padding:4px; color:var(--muted); } .ce-context-menu button { text-align:left; }
+      @media (max-width:760px) { .ce-document { top:14px; left:138px; max-width:200px; } .ce-inspector { top:auto; bottom:38px; right:8px; width:190px; max-height:42vh; overflow:auto; } .ce-groups { display:none; } .ce-toolbar { top:8px; left:8px; } }
     </style>
   </head>
   <body>

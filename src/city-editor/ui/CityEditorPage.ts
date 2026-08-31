@@ -36,14 +36,14 @@ import type { CityDocument, ElementKind, FeatureGroup, Id, Point, Tool, WardKind
 import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import { type RenderSelection, renderEditorSvg, renderRoutePreview } from "../render/svg";
 
-const TOOLS: Array<[Tool, string]> = [
-  ["select", "Select"],
-  ["vertex", "Vertex"],
-  ["road", "Road"],
-  ["wall", "Wall"],
-  ["river", "River"],
-  ["ward", "Ward"],
-  ["face", "Face"]
+const TOOLS: Array<[Tool, string, string]> = [
+  ["select", "Select and move", "↖"],
+  ["vertex", "Edit vertices", "⌘"],
+  ["road", "Draw road", "╱"],
+  ["wall", "Draw wall", "▥"],
+  ["river", "Draw river", "〰"],
+  ["ward", "Paint ward", "◈"],
+  ["face", "Edit cell", "⬡"]
 ];
 
 interface ContextMenuAction {
@@ -62,6 +62,11 @@ interface RouteStroke {
   startPoint: Point;
   lastPoint: Point;
   changed: boolean;
+}
+
+interface FloatingWindow {
+  root: HTMLDivElement;
+  content: HTMLDivElement;
 }
 
 export function mountCityEditor(root: HTMLElement): void {
@@ -100,9 +105,10 @@ export function mountCityEditor(root: HTMLElement): void {
   const canvas = div("ce-canvas");
   const map = div("ce-map");
   canvas.appendChild(map);
-  const toolbar = panel("ce-toolbar", "Tools");
-  const inspector = panel("ce-inspector", "Inspector");
-  const groups = panel("ce-groups", "Groups");
+  const toolbar = floatingWindow("ce-toolbar", "Tools");
+  const documentPanel = floatingWindow("ce-document", "Document");
+  const inspector = floatingWindow("ce-inspector", "Inspector");
+  const groups = floatingWindow("ce-groups", "Objects");
   const status = document.createElement("output");
   status.className = "ce-status";
   const scaleBar = div("ce-scale-bar");
@@ -113,25 +119,36 @@ export function mountCityEditor(root: HTMLElement): void {
   const contextMenu = div("ce-context-menu");
   contextMenu.hidden = true;
   contextMenu.setAttribute("role", "menu");
-  root.replaceChildren(canvas, toolbar, inspector, groups, status, scaleBar, contextMenu);
+  root.replaceChildren(
+    canvas,
+    toolbar.root,
+    documentPanel.root,
+    inspector.root,
+    groups.root,
+    status,
+    scaleBar,
+    contextMenu
+  );
   contextMenu.addEventListener("pointerdown", event => event.stopPropagation());
   contextMenu.addEventListener("contextmenu", event => event.preventDefault());
 
   const toolButtons = new Map<Tool, HTMLButtonElement>();
-  for (const [id, label] of TOOLS) {
-    const button = makeButton(label, () => {
+  const toolGrid = div("ce-tool-grid");
+  for (const [id, label, icon] of TOOLS) {
+    const button = makeIconButton(icon, label, () => {
       tool = id;
       refresh();
     });
     toolButtons.set(id, button);
-    toolbar.appendChild(button);
+    toolGrid.appendChild(button);
   }
+  toolbar.content.appendChild(toolGrid);
   const size = select(Object.keys(CITY_SIZE_PRESETS), "small");
   for (const option of [...size.options]) {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
     option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km · ${preset.cellsAcross}×${preset.cellsAcross} · ~${preset.buildingTarget} buildings`;
   }
-  const newButton = makeButton("Generate grid", () => {
+  const newButton = makeIconButton("✦", "Generate a new Voronoi grid", () => {
     documentState = createSizedDocument(size.value as CitySizePreset);
     history = new DocumentHistory(documentState);
     selection = emptySelection();
@@ -143,13 +160,13 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   const sizeLabel = label("Map size", size);
   sizeLabel.className = "ce-size-choice";
-  const undoButton = makeButton("Undo", () => restore(history.undo(documentState)));
-  const redoButton = makeButton("Redo", () => restore(history.redo(documentState)));
-  const exportButton = makeButton("Export map", () => {
+  const undoButton = makeIconButton("↶", "Undo", () => restore(history.undo(documentState)));
+  const redoButton = makeIconButton("↷", "Redo", () => restore(history.redo(documentState)));
+  const exportButton = makeIconButton("⇩", "Export editable city map", () => {
     exportCityMap(documentState);
     showNotice("Map exported");
   });
-  const importButton = makeButton("Import map", () => void importDocument());
+  const importButton = makeIconButton("⇧", "Import city map or SVG reference", () => void importDocument());
   const scaleInput = numberInput("1", "0.1", "0.1");
   const showLabelsInput = document.createElement("input");
   showLabelsInput.type = "checkbox";
@@ -164,7 +181,7 @@ export function mountCityEditor(root: HTMLElement): void {
   wardBrushInput.addEventListener("change", () => {
     wardBrush = wardBrushInput.value === "erase" ? null : (wardBrushInput.value as WardKind);
   });
-  const scaleButton = makeButton("Scale all", () => {
+  const scaleButton = makeIconButton("⤢", "Scale all map geometry", () => {
     const factor = Number(scaleInput.value);
     const next = scaleDocument(documentState, factor);
     if (next) {
@@ -172,33 +189,31 @@ export function mountCityEditor(root: HTMLElement): void {
       commit(next);
     }
   });
-  const finishButton = makeButton("Finish river", () => {
+  const finishButton = makeIconButton("✓", "Finish active river", () => {
     if (!activeGroupId) return;
     const next = finishRiver(documentState, activeGroupId);
     if (next) commit(next);
   });
   const smoothingModeInput = select(["safe", "include loops & shared"], "safe");
-  const smoothGroupsButton = makeButton("Smooth groups", () => {
+  const smoothGroupsButton = makeIconButton("⌁", "Smooth all routes", () => {
     const mode = smoothingModeInput.value === "include loops & shared" ? "includeSharedAndLoops" : "safe";
     const next = smoothFeatureGroups(documentState, mode);
     if (next) commit(next);
     else showNotice("No movable River, Road, or Wall vertices to smooth");
   });
-  toolbar.append(
-    divider(),
+  const actions = div("ce-icon-row");
+  actions.append(undoButton, redoButton, importButton, exportButton);
+  toolbar.content.append(divider(), actions, label("Ward", wardBrushInput), label("Cell IDs", showLabelsInput));
+  const documentActions = div("ce-icon-row");
+  documentActions.append(newButton, scaleButton, finishButton, smoothGroupsButton);
+  documentPanel.content.append(
     sizeLabel,
-    newButton,
-    undoButton,
-    redoButton,
-    exportButton,
-    importButton,
+    documentActions,
     label("Scale", scaleInput),
-    scaleButton,
-    label("Show cell IDs", showLabelsInput),
-    label("Ward brush", wardBrushInput),
-    finishButton,
     label("Smoothing", smoothingModeInput),
-    smoothGroupsButton
+    text(
+      "Create and tune a Voronoi / Delaunay block mesh. Draw on cells and shared edges; this is vector geometry, not a pixel canvas."
+    )
   );
 
   map.addEventListener("pointerdown", event => {
@@ -678,11 +693,11 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function renderInspector(): void {
-    inspector.replaceChildren(heading("Inspector"));
+    inspector.content.replaceChildren();
     if (activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
-        inspector.appendChild(
+        inspector.content.appendChild(
           text(
             group.locked
               ? `${group.name} is locked`
@@ -695,9 +710,9 @@ export function mountCityEditor(root: HTMLElement): void {
     if (selection.edgeId && activeGroupId) {
       const group = documentState.featureGroups.find(candidate => candidate.id === activeGroupId);
       if (group) {
-        inspector.append(
+        inspector.content.append(
           text(`Selected edge ${selection.edgeId} in ${group.name}`),
-          makeButton("Delete selected edge", () => {
+          makeIconButton("×", "Delete selected edge", () => {
             const next = removeEdgeFromGroup(documentState, group.id, selection.edgeId as Id);
             if (next) {
               selection.edgeId = null;
@@ -709,7 +724,7 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     if (!selection.faceId) {
-      inspector.appendChild(text("Select a cell to set water, a ward, or an urban element."));
+      inspector.content.appendChild(text("Select a cell to set water, a ward, or an urban element."));
       return;
     }
     const face = documentState.mesh.faces[selection.faceId];
@@ -735,21 +750,23 @@ export function mountCityEditor(root: HTMLElement): void {
     const splitTo = select(vertices, vertices[Math.floor(vertices.length / 2)]);
     const neighbors = faceNeighbors(documentState.mesh, face.id);
     const mergeWith = select(neighbors, neighbors[0] ?? "");
-    inspector.append(
+    inspector.content.append(
       label("Elevation", elevation),
       label("Water", water),
       label("Ward", ward),
       label("Element", elementKind),
-      makeButton("Add element", () => commit(addElement(documentState, elementKind.value as ElementKind, face.id))),
+      makeIconButton("＋", "Add selected element to cell", () =>
+        commit(addElement(documentState, elementKind.value as ElementKind, face.id))
+      ),
       divider(),
       label("Split from", splitFrom),
       label("Split to", splitTo),
-      makeButton("Split cell", () => {
+      makeIconButton("✂", "Split cell", () => {
         const next = splitFace(documentState, face.id, splitFrom.value, splitTo.value);
         if (next) commit(next);
       }),
       label("Merge with", mergeWith),
-      makeButton("Merge cell", () => {
+      makeIconButton("⊕", "Merge cell", () => {
         if (!mergeWith.value) return;
         const next = mergeFaces(documentState, face.id, mergeWith.value);
         if (next) commit(next);
@@ -758,21 +775,25 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function renderGroups(): void {
-    groups.replaceChildren(heading("Groups"));
+    groups.content.replaceChildren();
     for (const group of documentState.featureGroups) {
       const row = div("ce-group-row");
-      const choose = makeButton(group.name, () => {
-        activeGroupId = group.id;
-        selection.groupId = group.id;
-        tool = "select";
-        refresh();
-      });
+      const choose = makeIconButton(
+        group.kind === "river" ? "〰" : group.kind === "road" ? "╱" : "▥",
+        `Select ${group.name}`,
+        () => {
+          activeGroupId = group.id;
+          selection.groupId = group.id;
+          tool = "select";
+          refresh();
+        }
+      );
       choose.classList.toggle("is-active", group.id === activeGroupId);
       row.append(
         choose,
         text(group.kind === "river" ? `${group.vertices.length} vertices` : `${group.segments.length} edges`)
       );
-      const smooth = makeButton("Smooth", () => {
+      const smooth = makeIconButton("⌁", `Smooth ${group.name}`, () => {
         const next = smoothFeatureGroup(documentState, group.id);
         if (next) commit(next);
         else showNotice(`${group.name} has no movable vertices to smooth`);
@@ -781,7 +802,7 @@ export function mountCityEditor(root: HTMLElement): void {
       smooth.title = "Smooth this group, including its shared vertices and closed loops";
       row.appendChild(smooth);
       row.appendChild(
-        makeButton("×", () => {
+        makeIconButton("×", `Delete ${group.name}`, () => {
           if (activeGroupId === group.id) {
             activeGroupId = null;
             selection.groupId = null;
@@ -789,10 +810,10 @@ export function mountCityEditor(root: HTMLElement): void {
           commit(removeGroup(documentState, group.id));
         })
       );
-      groups.appendChild(row);
+      groups.content.appendChild(row);
     }
     if (activeGroupId)
-      groups.appendChild(
+      groups.content.appendChild(
         text(
           "In Select mode, left-drag a highlighted route edge through a cell to preview and replace that boundary span."
         )
@@ -1177,10 +1198,14 @@ function targetId(event: Event, kind: "vertex" | "route-vertex" | "edge" | "face
   return target?.getAttribute(`data-${kind}`) ?? null;
 }
 
-function panel(className: string, title: string): HTMLDivElement {
-  const panel = div(`ce-panel ${className}`);
-  panel.appendChild(heading(title));
-  return panel;
+function floatingWindow(className: string, title: string): FloatingWindow {
+  const root = div(`ce-panel ${className}`);
+  const titlebar = div("ce-panel-titlebar");
+  titlebar.append(heading(title), text("⠿"));
+  const content = div("ce-panel-content");
+  root.append(titlebar, content);
+  makeWindowDraggable(root, titlebar);
+  return { root, content };
 }
 
 function div(className = ""): HTMLDivElement {
@@ -1207,6 +1232,48 @@ function makeButton(value: string, onClick: () => void): HTMLButtonElement {
   node.textContent = value;
   node.addEventListener("click", onClick);
   return node;
+}
+
+function makeIconButton(icon: string, label: string, onClick: () => void): HTMLButtonElement {
+  const node = makeButton(icon, onClick);
+  node.className = "ce-icon-button";
+  node.title = label;
+  node.setAttribute("aria-label", label);
+  return node;
+}
+
+function makeWindowDraggable(windowNode: HTMLElement, handle: HTMLElement): void {
+  let startX = 0;
+  let startY = 0;
+  let left = 0;
+  let top = 0;
+  handle.addEventListener("pointerdown", event => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const bounds = windowNode.getBoundingClientRect();
+    startX = event.clientX;
+    startY = event.clientY;
+    left = bounds.left;
+    top = bounds.top;
+    windowNode.classList.add("ce-panel--dragging");
+    handle.setPointerCapture(event.pointerId);
+  });
+  handle.addEventListener("pointermove", event => {
+    if (!handle.hasPointerCapture(event.pointerId)) return;
+    const bounds = windowNode.getBoundingClientRect();
+    const nextLeft = clamp(left + event.clientX - startX, 8, Math.max(8, window.innerWidth - bounds.width - 8));
+    const nextTop = clamp(top + event.clientY - startY, 8, Math.max(8, window.innerHeight - bounds.height - 8));
+    windowNode.style.left = `${nextLeft}px`;
+    windowNode.style.top = `${nextTop}px`;
+    windowNode.style.right = "auto";
+    windowNode.style.bottom = "auto";
+  });
+  const finish = (event: PointerEvent): void => {
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    windowNode.classList.remove("ce-panel--dragging");
+  };
+  handle.addEventListener("pointerup", finish);
+  handle.addEventListener("pointercancel", finish);
 }
 
 function numberInput(value: string, min: string, step: string): HTMLInputElement {
