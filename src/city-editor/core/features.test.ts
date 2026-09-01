@@ -126,16 +126,8 @@ function closedRouteDocument(): CityDocument {
 }
 
 describe("gates", () => {
-  it("anchors gates to road vertices and toggles them there", () => {
+  it("anchors gates to wall vertices and toggles them there", () => {
     const document = routeDocument();
-    document.featureGroups.push({
-      id: "road-1",
-      kind: "road",
-      name: "Road #1",
-      segments: [{ edgeId: "ab", forward: true }],
-      style: { widthMeters: 8, color: "#735238" },
-      locked: false
-    });
     const first = toggleGate(document, "a");
     expect(first?.gates).toEqual([{ id: "gate-1", vertexId: "a", locked: false }]);
 

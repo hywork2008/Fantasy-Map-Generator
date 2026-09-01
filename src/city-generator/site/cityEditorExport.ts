@@ -128,16 +128,16 @@ export function buildCityEditorDocument(result: GenerationResult, program: CityP
     }
   }
 
-  const roadVertices = new Set<Id>();
+  const wallVertices = new Set<Id>();
   for (const group of featureGroups) {
-    if (group.kind !== "road") continue;
+    if (group.kind !== "wall") continue;
     for (const segment of group.segments) {
       const edge = builder.mesh.edges[segment.edgeId];
-      if (edge) roadVertices.add(edge.a).add(edge.b);
+      if (edge) wallVertices.add(edge.a).add(edge.b);
     }
   }
   const gates = result.gates.flatMap((gate, index) => {
-    const vertexId = builder.nearestVertex(gate.point, roadVertices);
+    const vertexId = builder.nearestVertex(gate.point, wallVertices);
     return vertexId ? [{ id: `gate-${index}`, vertexId, locked: false }] : [];
   });
 

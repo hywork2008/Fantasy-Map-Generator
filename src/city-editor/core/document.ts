@@ -58,7 +58,7 @@ export function parseDocument(text: string): CityDocument | null {
     // field; their geometry was already based on the same 50 m default.
     if (!Number.isFinite(value.frame.blockSizeMeters)) value.frame.blockSizeMeters = BLOCK_SIZE_METERS;
     // Gate anchors were introduced after the first editable-map format. Old
-    // documents simply have no gates until the user adds one on a road vertex.
+    // documents simply have no gates until the user adds one on a wall vertex.
     if (!Array.isArray(value.gates)) value.gates = [];
     return validate(value).length === 0 ? value : null;
   } catch {

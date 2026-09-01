@@ -86,7 +86,7 @@ export interface CityElement {
   locked: boolean;
 }
 
-/** A gate is anchored to a road endpoint / junction, never painted inside a cell. */
+/** A gate is an opening in an outer wall, anchored to a Wall route vertex. */
 export interface CityGate {
   id: Id;
   vertexId: Id;

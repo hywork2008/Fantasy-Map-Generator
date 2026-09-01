@@ -393,7 +393,7 @@ export function validate(document: CityDocument): string[] {
   }
   for (const gate of document.gates ?? []) {
     if (!mesh.vertices[gate.vertexId]) errors.push(`Gate ${gate.id} has no vertex`);
-    else if (!gateHasRoad(document, gate.vertexId)) errors.push(`Gate ${gate.id} is not on a road`);
+    else if (!gateHasWall(document, gate.vertexId)) errors.push(`Gate ${gate.id} is not on a wall`);
   }
   return errors;
 }
@@ -489,10 +489,10 @@ function featureUsesEdge(document: CityDocument, edgeId: Id): boolean {
   return document.featureGroups.some(group => groupUsesEdge(document, group, edgeId));
 }
 
-function gateHasRoad(document: CityDocument, vertexId: Id): boolean {
+function gateHasWall(document: CityDocument, vertexId: Id): boolean {
   return document.featureGroups.some(
     group =>
-      group.kind === "road" &&
+      group.kind === "wall" &&
       group.segments.some(segment => {
         const edge = document.mesh.edges[segment.edgeId];
         return edge?.a === vertexId || edge?.b === vertexId;

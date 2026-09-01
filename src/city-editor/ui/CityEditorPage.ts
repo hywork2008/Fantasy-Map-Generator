@@ -15,7 +15,7 @@ import {
   smoothFeatureGroup,
   smoothFeatureGroups,
   toggleGate,
-  vertexHasRoad
+  vertexHasWall
 } from "../core/features";
 import { DocumentHistory } from "../core/history";
 import {
@@ -263,6 +263,14 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     const vertexId = targetId(event, "vertex") ?? (tool === "select" ? closestVertexId(point) : null);
+    if (vertexId && tool === "vertex") {
+      event.preventDefault();
+      selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: null };
+      activeGroupId = null;
+      suppressNextClick = true;
+      refresh();
+      return;
+    }
     if (vertexId && tool === "select") {
       event.preventDefault();
       dragBefore = clone(documentState);
@@ -728,22 +736,22 @@ export function mountCityEditor(root: HTMLElement): void {
       const vertex = documentState.mesh.vertices[selection.vertexId];
       if (!vertex) return;
       const gate = documentState.gates.find(candidate => candidate.vertexId === vertex.id);
-      const roadVertex = vertexHasRoad(documentState, vertex.id);
+      const wallVertex = vertexHasWall(documentState, vertex.id);
       const gateButton = makeIconButton(
         gate ? "⌑" : "＋",
-        gate ? "Remove gate" : "Place gate on this road vertex",
+        gate ? "Remove gate" : "Place gate on this wall vertex",
         () => {
           const next = toggleGate(documentState, vertex.id);
           if (next) commit(next);
         }
       );
-      gateButton.disabled = !roadVertex;
+      gateButton.disabled = !wallVertex;
       inspector.content.append(
         text(`Vertex ${vertex.id}`),
         text(
-          roadVertex
-            ? "A road meets here. Gates are anchored to road vertices."
-            : "Draw a road to this vertex before placing a gate."
+          wallVertex
+            ? "A wall meets here. Gates are openings anchored to wall vertices."
+            : "Draw an outer wall through this vertex before placing a gate."
         ),
         gateButton
       );

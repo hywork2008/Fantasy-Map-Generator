@@ -117,9 +117,9 @@ export function finishRiver(document: CityDocument, groupId: Id): CityDocument |
   return next;
 }
 
-/** Add or remove a gate at a vertex shared by at least one road segment. */
+/** Add or remove a gate at a vertex shared by at least one wall segment. */
 export function toggleGate(document: CityDocument, vertexId: Id): CityDocument | null {
-  if (!document.mesh.vertices[vertexId] || !vertexHasRoad(document, vertexId)) return null;
+  if (!document.mesh.vertices[vertexId] || !vertexHasWall(document, vertexId)) return null;
   const next = clone(document);
   if (!next.gates) next.gates = [];
   const gates = next.gates;
@@ -129,10 +129,10 @@ export function toggleGate(document: CityDocument, vertexId: Id): CityDocument |
   return next;
 }
 
-export function vertexHasRoad(document: CityDocument, vertexId: Id): boolean {
+export function vertexHasWall(document: CityDocument, vertexId: Id): boolean {
   return document.featureGroups.some(
     group =>
-      group.kind === "road" &&
+      group.kind === "wall" &&
       group.segments.some(segment => {
         const edge = document.mesh.edges[segment.edgeId];
         return edge?.a === vertexId || edge?.b === vertexId;
