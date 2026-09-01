@@ -7,6 +7,7 @@ import {
   placeGateOpening,
   previewGroupAcrossFace,
   previewRouteAcrossFace,
+  removeGroup,
   rerouteGroupAcrossFace,
   rerouteGroupVertex,
   smoothFeatureGroup,
@@ -135,6 +136,8 @@ describe("gates", () => {
 
     const second = first ? toggleGate(first, "a") : null;
     expect(second?.gates).toEqual([]);
+    const withGate = toggleGate(document, "a");
+    expect(withGate ? removeGroup(withGate, "wall-1").gates : []).toEqual([]);
     expect(toggleGate(document, "d")).toBeNull();
   });
 

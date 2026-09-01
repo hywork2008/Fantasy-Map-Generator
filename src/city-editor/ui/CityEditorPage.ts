@@ -466,6 +466,16 @@ export function mountCityEditor(root: HTMLElement): void {
     const groupId = targetId(event, "group");
     const actions: ContextMenuAction[] = [];
 
+    // A vertex context click is also an explicit vertex selection. Without
+    // this, the Inspector keeps a previous face or route selection and cannot
+    // offer the wall-gate action for the vertex under the pointer.
+    if (vertexId) {
+      selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: null };
+      activeGroupId = null;
+      tool = "vertex";
+      refresh();
+    }
+
     const activeGroup = activeGroupId ? documentState.featureGroups.find(group => group.id === activeGroupId) : null;
     const routeGroup = groupId ? documentState.featureGroups.find(group => group.id === groupId) : activeGroup;
     const routeEdgeId =

@@ -205,7 +205,9 @@ export function placeGateOpening(document: CityDocument, gateVertexId: Id, candi
 
 export function removeGroup(document: CityDocument, groupId: Id): CityDocument {
   const next = clone(document);
+  const removed = next.featureGroups.find(group => group.id === groupId);
   next.featureGroups = next.featureGroups.filter(group => group.id !== groupId);
+  if (removed?.kind === "wall") pruneGatesWithoutWalls(next);
   return next;
 }
 
@@ -527,6 +529,7 @@ export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId:
   const after = group.segments.slice(segment + 1);
   if (!before.length && !after.length) {
     next.featureGroups.splice(index, 1);
+    if (group.kind === "wall") pruneGatesWithoutWalls(next);
     return next;
   }
   group.segments = before.length ? before : after;
@@ -539,6 +542,7 @@ export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId:
       segments: after
     });
   }
+  if (group.kind === "wall") pruneGatesWithoutWalls(next);
   return next;
 }
 
@@ -572,6 +576,11 @@ function wallEdgeIds(document: CityDocument): Set<Id> {
     for (const segment of group.segments) edgeIds.add(segment.edgeId);
   }
   return edgeIds;
+}
+
+function pruneGatesWithoutWalls(document: CityDocument): void {
+  if (!document.gates) return;
+  document.gates = document.gates.filter(gate => vertexHasWall(document, gate.vertexId));
 }
 
 function connectedWardFaces(
