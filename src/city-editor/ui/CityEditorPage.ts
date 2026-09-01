@@ -7,7 +7,9 @@ import {
   encloseWardComponentWithWalls,
   featureGroupVertices,
   finishRiver,
+  gateOpeningCandidates,
   groupUsesEdge,
+  placeGateOpening,
   previewRouteAcrossFace,
   removeEdgeFromGroup,
   removeGroup,
@@ -50,6 +52,7 @@ const TOOLS: Array<[Tool, string, string]> = [
 interface ContextMenuAction {
   label: string;
   run: () => void;
+  highlight?: { vertexId: Id; edgeId: Id };
 }
 
 type RoutePaintKind = "river" | "road" | "wall";
@@ -517,7 +520,8 @@ export function mountCityEditor(root: HTMLElement): void {
       if (edgeBetween(documentState.mesh, selection.vertexId, vertexId)) {
         actions.push({
           label: `Merge ${vertexId} into ${selection.vertexId}`,
-          run: () => runContextAction(() => mergeVertices(documentState, selection.vertexId as Id, vertexId))
+          run: () => runContextAction(() => mergeVertices(documentState, selection.vertexId as Id, vertexId)),
+          highlight: { vertexId, edgeId: edgeBetween(documentState.mesh, selection.vertexId, vertexId)?.id ?? "" }
         });
       } else {
         for (const face of Object.values(documentState.mesh.faces)) {
@@ -630,24 +634,50 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function showContextMenu(event: MouseEvent, actions: ContextMenuAction[]): void {
+    showContextMenuAt(event.clientX, event.clientY, actions);
+  }
+
+  function showContextMenuAt(clientX: number, clientY: number, actions: ContextMenuAction[]): void {
     contextMenu.replaceChildren();
     if (actions.length) {
-      for (const action of actions) contextMenu.appendChild(makeButton(action.label, action.run));
+      for (const action of actions) {
+        const button = makeButton(action.label, action.run);
+        const highlight = action.highlight;
+        if (highlight) {
+          button.addEventListener("pointerenter", () => setContextHighlight(highlight));
+          button.addEventListener("pointerleave", clearContextHighlight);
+        }
+        contextMenu.appendChild(button);
+      }
     } else {
       contextMenu.appendChild(text("No action available here"));
     }
     closeContextMenuOnPointerMove = actions.length === 0;
     contextMenu.hidden = false;
-    contextMenu.style.left = `${event.clientX}px`;
-    contextMenu.style.top = `${event.clientY}px`;
+    contextMenu.style.left = `${clientX}px`;
+    contextMenu.style.top = `${clientY}px`;
     const bounds = contextMenu.getBoundingClientRect();
-    contextMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - bounds.width - 8))}px`;
-    contextMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - bounds.height - 8))}px`;
+    contextMenu.style.left = `${Math.max(8, Math.min(clientX, window.innerWidth - bounds.width - 8))}px`;
+    contextMenu.style.top = `${Math.max(8, Math.min(clientY, window.innerHeight - bounds.height - 8))}px`;
   }
 
   function hideContextMenu(): void {
     contextMenu.hidden = true;
     closeContextMenuOnPointerMove = false;
+    clearContextHighlight();
+  }
+
+  function setContextHighlight(highlight: { vertexId: Id; edgeId: Id }): void {
+    selection.hoverVertexId = highlight.vertexId;
+    selection.hoverEdgeId = highlight.edgeId;
+    redrawMap();
+  }
+
+  function clearContextHighlight(): void {
+    if (!selection.hoverVertexId && !selection.hoverEdgeId) return;
+    selection.hoverVertexId = null;
+    selection.hoverEdgeId = null;
+    redrawMap();
   }
 
   function restore(next: CityDocument | null): void {
@@ -741,8 +771,32 @@ export function mountCityEditor(root: HTMLElement): void {
         gate ? "⌑" : "＋",
         gate ? "Remove gate" : "Place gate on this wall vertex",
         () => {
-          const next = toggleGate(documentState, vertex.id);
-          if (next) commit(next);
+          if (gate) {
+            const next = toggleGate(documentState, vertex.id);
+            if (next) commit(next);
+            return;
+          }
+          const candidates = gateOpeningCandidates(documentState, vertex.id);
+          if (candidates.length === 1) {
+            const next = placeGateOpening(documentState, vertex.id, candidates[0].vertexId);
+            if (next) commit(next);
+            else showNotice("Cannot create a through-road at this wall vertex");
+            return;
+          }
+          if (!candidates.length) {
+            showNotice("This wall vertex has no edge that can become a gate passage");
+            return;
+          }
+          const bounds = gateButton.getBoundingClientRect();
+          showContextMenuAt(
+            bounds.right + 6,
+            bounds.top,
+            candidates.map(candidate => ({
+              label: `Open via ${candidate.edgeId} → ${candidate.vertexId}`,
+              run: () => runContextAction(() => placeGateOpening(documentState, vertex.id, candidate.vertexId)),
+              highlight: { vertexId: candidate.vertexId, edgeId: candidate.edgeId }
+            }))
+          );
         }
       );
       gateButton.disabled = !wallVertex;
@@ -750,7 +804,7 @@ export function mountCityEditor(root: HTMLElement): void {
         text(`Vertex ${vertex.id}`),
         text(
           wallVertex
-            ? "A wall meets here. Gates are openings anchored to wall vertices."
+            ? "Place a gate to merge a neighboring wall vertex and create a road through the wall."
             : "Draw an outer wall through this vertex before placing a gate."
         ),
         gateButton
@@ -1216,7 +1270,15 @@ export function mountCityEditor(root: HTMLElement): void {
 }
 
 function emptySelection(): RenderSelection {
-  return { faceId: null, edgeId: null, vertexId: null, groupId: null, hoverGroupId: null, hoverVertexId: null };
+  return {
+    faceId: null,
+    edgeId: null,
+    vertexId: null,
+    groupId: null,
+    hoverGroupId: null,
+    hoverVertexId: null,
+    hoverEdgeId: null
+  };
 }
 
 function isRoutePaintTool(tool: Tool): tool is RoutePaintKind {

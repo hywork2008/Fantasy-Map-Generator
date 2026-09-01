@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   encloseWardComponentWithWalls,
   featureGroupVertices,
+  gateOpeningCandidates,
   groupUsesEdge,
+  placeGateOpening,
   previewGroupAcrossFace,
   previewRouteAcrossFace,
   rerouteGroupAcrossFace,
@@ -134,6 +136,55 @@ describe("gates", () => {
     const second = first ? toggleGate(first, "a") : null;
     expect(second?.gates).toEqual([]);
     expect(toggleGate(document, "d")).toBeNull();
+  });
+
+  it("merges a neighboring wall vertex and creates a through-road between the wall runs", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+      mesh: {
+        vertices: {
+          g: { id: "g", point: [0, 0], locked: false },
+          w1: { id: "w1", point: [-10, 0], locked: false },
+          w2: { id: "w2", point: [10, 0], locked: false },
+          w0: { id: "w0", point: [-20, 0], locked: false },
+          p: { id: "p", point: [0, 10], locked: false },
+          a: { id: "a", point: [-10, 10], locked: false }
+        },
+        edges: {
+          wallA: { id: "wallA", a: "g", b: "w1", leftFace: null, rightFace: null, locked: false },
+          wallB: { id: "wallB", a: "g", b: "w2", leftFace: null, rightFace: null, locked: false },
+          wallPrev: { id: "wallPrev", a: "w0", b: "w1", leftFace: null, rightFace: null, locked: false },
+          passage: { id: "passage", a: "g", b: "p", leftFace: null, rightFace: null, locked: false },
+          exitA: { id: "exitA", a: "w1", b: "a", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "wall-1",
+          kind: "wall",
+          name: "Wall #1",
+          segments: [
+            { edgeId: "wallPrev", forward: true },
+            { edgeId: "wallA", forward: false },
+            { edgeId: "wallB", forward: true }
+          ],
+          style: { widthMeters: 7, color: "#342a22" },
+          locked: false
+        }
+      ],
+      gates: [],
+      elements: []
+    };
+
+    expect(gateOpeningCandidates(document, "g")).toEqual([{ edgeId: "wallA", vertexId: "w1" }]);
+    const next = placeGateOpening(document, "g", "w1");
+
+    expect(next?.gates).toEqual([{ id: "gate-1", vertexId: "g", locked: false }]);
+    expect(next?.featureGroups.find(group => group.kind === "road")?.kind).toBe("road");
+    expect(Object.values(next?.mesh.edges ?? {}).filter(edge => edge.a === "g" || edge.b === "g")).toHaveLength(4);
   });
 });
 

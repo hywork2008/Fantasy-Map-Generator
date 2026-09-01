@@ -12,6 +12,7 @@ export interface RenderSelection {
   groupId: Id | null;
   hoverGroupId?: Id | null;
   hoverVertexId?: Id | null;
+  hoverEdgeId?: Id | null;
 }
 
 export function renderEditorSvg(
@@ -56,7 +57,7 @@ export function renderEditorSvg(
     edges.appendChild(
       element("path", {
         d: line([a, b]),
-        class: `ce-edge${selection.edgeId === edge.id ? " ce-selected" : ""}`,
+        class: `ce-edge${selection.edgeId === edge.id || selection.hoverEdgeId === edge.id ? " ce-selected" : ""}`,
         "data-edge": edge.id
       })
     );

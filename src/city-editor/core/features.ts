@@ -1,4 +1,13 @@
-import { clone, edgeBetween, edgeEnd, edgeRefFor, faceVertices, validate, vertexTouchesWater } from "./mesh";
+import {
+  clone,
+  edgeBetween,
+  edgeEnd,
+  edgeRefFor,
+  faceVertices,
+  mergeVertices,
+  validate,
+  vertexTouchesWater
+} from "./mesh";
 import type { CityDocument, EdgeFeatureGroup, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, RiverGroup } from "./types";
 
 export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]): CityDocument {
@@ -138,6 +147,60 @@ export function vertexHasWall(document: CityDocument, vertexId: Id): boolean {
         return edge?.a === vertexId || edge?.b === vertexId;
       })
   );
+}
+
+export interface GateOpeningCandidate {
+  /** The Wall edge to collapse, turning two wall vertices into a four-way gate. */
+  edgeId: Id;
+  vertexId: Id;
+}
+
+/**
+ * Return neighboring Wall vertices that have a non-wall branch of their own.
+ * Collapsing the Wall edge between them combines the inside and outside
+ * branches into a road through the gate, while retaining both wall runs.
+ */
+export function gateOpeningCandidates(document: CityDocument, gateVertexId: Id): GateOpeningCandidate[] {
+  if (!vertexHasWall(document, gateVertexId)) return [];
+  const wallEdges = wallEdgeIds(document);
+  return Object.values(document.mesh.edges)
+    .filter(edge => wallEdges.has(edge.id) && (edge.a === gateVertexId || edge.b === gateVertexId))
+    .map(edge => ({ edgeId: edge.id, vertexId: edge.a === gateVertexId ? edge.b : edge.a }))
+    .filter(candidate => {
+      const incident = Object.values(document.mesh.edges).filter(
+        edge => edge.a === candidate.vertexId || edge.b === candidate.vertexId
+      );
+      return (
+        incident.filter(edge => wallEdges.has(edge.id)).length >= 2 && incident.some(edge => !wallEdges.has(edge.id))
+      );
+    })
+    .sort((a, b) => a.edgeId.localeCompare(b.edgeId));
+}
+
+/**
+ * Collapse the chosen Wall edge, add a through-road on the two remaining non-wall
+ * branches, then place the gate on the retained wall vertex.
+ */
+export function placeGateOpening(document: CityDocument, gateVertexId: Id, candidateVertexId: Id): CityDocument | null {
+  const candidate = gateOpeningCandidates(document, gateVertexId).find(item => item.vertexId === candidateVertexId);
+  if (!candidate) return null;
+  const merged = mergeVertices(document, gateVertexId, candidate.vertexId);
+  if (!merged) return null;
+  const wallEdges = wallEdgeIds(merged);
+  const roadEdges = Object.values(merged.mesh.edges)
+    .filter(edge => !wallEdges.has(edge.id) && (edge.a === gateVertexId || edge.b === gateVertexId))
+    .map(edge => edge.id);
+  if (roadEdges.length !== 2) return null;
+
+  let next = createGroup(merged, "road");
+  const roadId = next.featureGroups.at(-1)?.id;
+  if (!roadId) return null;
+  for (const edgeId of roadEdges) {
+    const appended = appendEdge(next, roadId, edgeId);
+    if (!appended) return null;
+    next = appended;
+  }
+  return toggleGate(next, gateVertexId);
 }
 
 export function removeGroup(document: CityDocument, groupId: Id): CityDocument {
@@ -500,6 +563,15 @@ function edgeGroupStyle(kind: EdgeFeatureGroup["kind"]): EdgeFeatureGroup["style
     wall: { widthMeters: 7, color: "#342a22" },
     plank: { widthMeters: 4, color: "#d8d0c0" }
   }[kind];
+}
+
+function wallEdgeIds(document: CityDocument): Set<Id> {
+  const edgeIds = new Set<Id>();
+  for (const group of document.featureGroups) {
+    if (group.kind !== "wall") continue;
+    for (const segment of group.segments) edgeIds.add(segment.edgeId);
+  }
+  return edgeIds;
 }
 
 function connectedWardFaces(
