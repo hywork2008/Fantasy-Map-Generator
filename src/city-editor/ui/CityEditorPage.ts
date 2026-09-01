@@ -1,7 +1,6 @@
 import { CITY_SIZE_PRESETS, type CitySizePreset, createSizedDocument } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
 import {
-  addElement,
   appendEdge,
   appendRiverVertex,
   createGroup,
@@ -14,7 +13,9 @@ import {
   removeGroup,
   rerouteGroupAcrossFace,
   smoothFeatureGroup,
-  smoothFeatureGroups
+  smoothFeatureGroups,
+  toggleGate,
+  vertexHasRoad
 } from "../core/features";
 import { DocumentHistory } from "../core/history";
 import {
@@ -32,7 +33,7 @@ import {
   splitFace,
   validate
 } from "../core/mesh";
-import type { CityDocument, ElementKind, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
+import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
 import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import { type RenderSelection, renderEditorSvg, renderRoutePreview } from "../render/svg";
 
@@ -723,6 +724,31 @@ export function mountCityEditor(root: HTMLElement): void {
         return;
       }
     }
+    if (selection.vertexId) {
+      const vertex = documentState.mesh.vertices[selection.vertexId];
+      if (!vertex) return;
+      const gate = documentState.gates.find(candidate => candidate.vertexId === vertex.id);
+      const roadVertex = vertexHasRoad(documentState, vertex.id);
+      const gateButton = makeIconButton(
+        gate ? "⌑" : "＋",
+        gate ? "Remove gate" : "Place gate on this road vertex",
+        () => {
+          const next = toggleGate(documentState, vertex.id);
+          if (next) commit(next);
+        }
+      );
+      gateButton.disabled = !roadVertex;
+      inspector.content.append(
+        text(`Vertex ${vertex.id}`),
+        text(
+          roadVertex
+            ? "A road meets here. Gates are anchored to road vertices."
+            : "Draw a road to this vertex before placing a gate."
+        ),
+        gateButton
+      );
+      return;
+    }
     if (!selection.faceId) {
       inspector.content.appendChild(text("Select a cell to set water, a ward, or an urban element."));
       return;
@@ -744,7 +770,6 @@ export function mountCityEditor(root: HTMLElement): void {
       next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
       commit(next);
     });
-    const elementKind = select(["plaza", "citadel", "temple", "harbor", "gate", "tower"], "plaza");
     const vertices = faceVertices(documentState.mesh, face);
     const splitFrom = select(vertices, vertices[0]);
     const splitTo = select(vertices, vertices[Math.floor(vertices.length / 2)]);
@@ -754,10 +779,7 @@ export function mountCityEditor(root: HTMLElement): void {
       label("Elevation", elevation),
       label("Water", water),
       label("Ward", ward),
-      label("Element", elementKind),
-      makeIconButton("＋", "Add selected element to cell", () =>
-        commit(addElement(documentState, elementKind.value as ElementKind, face.id))
-      ),
+      text("Ward automatically controls the landmark drawn in this cell."),
       divider(),
       label("Split from", splitFrom),
       label("Split to", splitTo),

@@ -88,22 +88,32 @@ export function renderEditorSvg(
   svg.appendChild(features);
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
+  const wardLandmarks = element("g", { class: "ce-ward-landmarks", "pointer-events": "none" });
+  for (const face of Object.values(document.mesh.faces)) {
+    const kind = wardLandmarkKind(face.properties.ward);
+    if (!kind || face.properties.water !== "land") continue;
+    wardLandmarks.appendChild(cityElementMarker(centroid(facePoints(document.mesh, face)), kind, `ward-${face.id}`));
+  }
+  svg.appendChild(wardLandmarks);
+
+  const gates = element("g", { class: "ce-gates", "pointer-events": "none" });
+  for (const gate of document.gates ?? []) {
+    const point = document.mesh.vertices[gate.vertexId]?.point;
+    if (point) gates.appendChild(cityElementMarker(point, "gate", gate.id));
+  }
+  svg.appendChild(gates);
+
   const elements = element("g", { class: "ce-elements" });
   for (const cityElement of document.elements) {
-    const face = document.mesh.faces[cityElement.faceIds[0]];
-    const p = cityElement.point ?? (face ? centroid(facePoints(document.mesh, face)) : null);
-    if (!p) continue;
+    // Cell landmarks are determined by Ward. Keep only point decorations from
+    // imported data here so the document has one source of truth per cell.
+    if (!cityElement.point) continue;
+    const p = cityElement.point;
     if (cityElement.kind === "tree") {
       elements.appendChild(tree(p, cityElement.sizeMeters ?? 8, cityElement.id));
       continue;
     }
-    elements.appendChild(
-      element(
-        "text",
-        { x: String(p[0]), y: String(-p[1]), class: "ce-element", "data-element": cityElement.id },
-        symbol(cityElement.kind)
-      )
-    );
+    elements.appendChild(cityElementMarker(p, cityElement.kind, cityElement.id));
   }
   svg.appendChild(elements);
 
@@ -270,8 +280,59 @@ function isPoint(point: Point | undefined): point is Point {
   return point !== undefined;
 }
 
-function symbol(kind: string): string {
-  return { plaza: "□", citadel: "♜", temple: "✦", harbor: "⚓", gate: "⌑", tower: "●", tree: "♣" }[kind] ?? "•";
+/**
+ * Use simple SVG geometry rather than font or emoji glyphs. Browser emoji fonts
+ * are not guaranteed to render in an SVG text node, and CSS text transforms can
+ * move those nodes away from their cell. Every marker is centred at local 0,0.
+ */
+function cityElementMarker(point: Point, kind: string, id: Id): SVGElement {
+  const marker = element("g", {
+    class: `ce-element ce-element--${kind}`,
+    "data-element": id,
+    transform: `translate(${point[0]} ${-point[1]})`,
+    "pointer-events": "none"
+  });
+  marker.appendChild(element("circle", { r: "15", class: "ce-element-halo" }));
+  const common = { class: "ce-element-mark", fill: "none", stroke: "currentColor", "stroke-width": "2.4" };
+
+  switch (kind) {
+    case "plaza":
+      marker.appendChild(element("rect", { ...common, x: "-8", y: "-8", width: "16", height: "16", rx: "1" }));
+      break;
+    case "citadel":
+      marker.appendChild(element("path", { ...common, d: "M-10 9V-8H-6V-12H-2V-8H2V-12H6V-8H10V9ZM-10 1H10" }));
+      break;
+    case "temple":
+      marker.appendChild(element("path", { ...common, d: "M0-12V12M-6-6H6M-9 10H9" }));
+      break;
+    case "harbor":
+      marker.append(
+        element("circle", { ...common, cx: "0", cy: "-7", r: "3" }),
+        element("path", { ...common, d: "M0-4V8M-8 2H8M-11 8C-7 15 7 15 11 8M-11 8L-7 12M11 8L7 12" })
+      );
+      break;
+    case "park":
+      marker.append(
+        element("circle", { ...common, cx: "-5", cy: "-2", r: "5" }),
+        element("circle", { ...common, cx: "5", cy: "-2", r: "5" }),
+        element("path", { ...common, d: "M0 1V11M-8 11H8" })
+      );
+      break;
+    case "gate":
+      marker.appendChild(element("path", { ...common, d: "M-10 10V0A10 10 0 0 1 10 0V10M-13 10H13" }));
+      break;
+    case "tower":
+      marker.appendChild(element("path", { ...common, d: "M-7 11V-9H-4V-12H-1V-9H1V-12H4V-9H7V11ZM-10 11H10" }));
+      break;
+    default:
+      marker.appendChild(element("circle", { ...common, r: "7" }));
+  }
+  return marker;
+}
+
+function wardLandmarkKind(ward: string | null): "plaza" | "citadel" | "harbor" | "park" | null {
+  const landmarks = { market: "plaza", castle: "citadel", harbor: "harbor", park: "park" } as const;
+  return landmarks[ward as keyof typeof landmarks] ?? null;
 }
 
 function tree(point: Point, radius: number, id: Id): SVGElement {

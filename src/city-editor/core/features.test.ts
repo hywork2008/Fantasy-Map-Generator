@@ -8,7 +8,8 @@ import {
   rerouteGroupAcrossFace,
   rerouteGroupVertex,
   smoothFeatureGroup,
-  smoothFeatureGroups
+  smoothFeatureGroups,
+  toggleGate
 } from "./features";
 import type { CityDocument } from "./types";
 
@@ -123,6 +124,26 @@ function closedRouteDocument(): CityDocument {
     elements: []
   };
 }
+
+describe("gates", () => {
+  it("anchors gates to road vertices and toggles them there", () => {
+    const document = routeDocument();
+    document.featureGroups.push({
+      id: "road-1",
+      kind: "road",
+      name: "Road #1",
+      segments: [{ edgeId: "ab", forward: true }],
+      style: { widthMeters: 8, color: "#735238" },
+      locked: false
+    });
+    const first = toggleGate(document, "a");
+    expect(first?.gates).toEqual([{ id: "gate-1", vertexId: "a", locked: false }]);
+
+    const second = first ? toggleGate(first, "a") : null;
+    expect(second?.gates).toEqual([]);
+    expect(toggleGate(document, "d")).toBeNull();
+  });
+});
 
 describe("route group editing", () => {
   it("encloses only the edge-connected Ward component with a closed wall", () => {

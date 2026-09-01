@@ -86,6 +86,13 @@ export interface CityElement {
   locked: boolean;
 }
 
+/** A gate is anchored to a road endpoint / junction, never painted inside a cell. */
+export interface CityGate {
+  id: Id;
+  vertexId: Id;
+  locked: boolean;
+}
+
 export interface CityDocument {
   format: "fmg-city-editor";
   version: 1;
@@ -94,6 +101,8 @@ export interface CityDocument {
   referenceImage?: { href: string; width: number; height: number };
   mesh: Mesh;
   featureGroups: FeatureGroup[];
+  gates: CityGate[];
+  /** Imported point decorations such as trees; Ward landmarks are derived at render time. */
   elements: CityElement[];
 }
 

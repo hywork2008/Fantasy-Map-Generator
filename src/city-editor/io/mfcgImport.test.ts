@@ -158,7 +158,7 @@ describe("MFCG imports", () => {
     });
     const wall = document!.featureGroups.find(group => group.kind === "wall");
     expect(wall?.kind === "wall" ? wall.segments : []).toHaveLength(3);
-    expect(document!.elements).toHaveLength(3);
+    expect(document!.elements).toHaveLength(2);
     expect(document!.elements.filter(element => element.kind === "tree")).toEqual([
       expect.objectContaining({ point: [-40, -35], sizeMeters: 8 }),
       expect.objectContaining({ point: [40, 35], sizeMeters: 8 })

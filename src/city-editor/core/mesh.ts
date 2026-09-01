@@ -332,6 +332,13 @@ export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVe
     if (segments.length || !usedJoiningEdge) groups.push(group);
   }
   next.featureGroups = groups;
+  const gateVertices = new Set<Id>();
+  next.gates = (next.gates ?? []).filter(gate => {
+    if (gate.vertexId === removeVertexId) gate.vertexId = keepVertexId;
+    if (gateVertices.has(gate.vertexId)) return false;
+    gateVertices.add(gate.vertexId);
+    return true;
+  });
 
   delete next.mesh.vertices[removeVertexId];
   rebuildFaceSides(next.mesh);
@@ -383,6 +390,10 @@ export function validate(document: CityDocument): string[] {
         }
       }
     }
+  }
+  for (const gate of document.gates ?? []) {
+    if (!mesh.vertices[gate.vertexId]) errors.push(`Gate ${gate.id} has no vertex`);
+    else if (!gateHasRoad(document, gate.vertexId)) errors.push(`Gate ${gate.id} is not on a road`);
   }
   return errors;
 }
@@ -462,6 +473,7 @@ function removeOrphanVertices(document: CityDocument): void {
     if (group.source) used.add(group.source.vertexId);
     if (group.mouth) used.add(group.mouth.vertexId);
   }
+  for (const gate of document.gates ?? []) used.add(gate.vertexId);
   for (const vertexId of Object.keys(mesh.vertices)) {
     if (!used.has(vertexId)) delete mesh.vertices[vertexId];
   }
@@ -475,6 +487,17 @@ function nextNumericId<T>(records: Record<Id, T>, prefix: string): Id {
 
 function featureUsesEdge(document: CityDocument, edgeId: Id): boolean {
   return document.featureGroups.some(group => groupUsesEdge(document, group, edgeId));
+}
+
+function gateHasRoad(document: CityDocument, vertexId: Id): boolean {
+  return document.featureGroups.some(
+    group =>
+      group.kind === "road" &&
+      group.segments.some(segment => {
+        const edge = document.mesh.edges[segment.edgeId];
+        return edge?.a === vertexId || edge?.b === vertexId;
+      })
+  );
 }
 
 function groupUsesEdge(document: CityDocument, group: FeatureGroup, edgeId: Id): boolean {

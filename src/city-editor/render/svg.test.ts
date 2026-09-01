@@ -12,6 +12,28 @@ describe("vertexHandleRadius", () => {
   });
 });
 
+describe("Ward landmarks", () => {
+  it("renders a Ward landmark as centred SVG geometry instead of a font glyph", () => {
+    const document = createDocument("ward-marker", 400);
+    const face = Object.values(document.mesh.faces)[0];
+    face.properties.ward = "harbor";
+
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+    const harbor = svg.querySelector<SVGGElement>(".ce-ward-landmarks .ce-element--harbor");
+
+    expect(harbor).toBeTruthy();
+    expect(harbor?.getAttribute("transform")).toMatch(/^translate\(/);
+    expect(harbor?.querySelector("text")).toBeNull();
+    expect(harbor?.querySelectorAll("path, circle").length).toBeGreaterThan(1);
+  });
+});
+
 describe("face selection labels", () => {
   it("keeps labels at the small-map display size when an imported map has a larger extent", () => {
     expect(selectionLabelFontSize(1200, 1)).toBe(14);

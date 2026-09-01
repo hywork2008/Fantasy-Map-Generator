@@ -28,7 +28,7 @@ export function importMfcgJson(value: unknown): CityDocument | null {
 
   for (const polygon of polygons(byId("water"))) state.addFace(polygon, WATER);
   for (const polygon of polygons(byId("fields"))) state.addFace(polygon, FIELD);
-  const squareFaces = polygons(byId("squares")).map(polygon => state.addFace(polygon, { ...LAND, ward: "market" }));
+  for (const polygon of polygons(byId("squares"))) state.addFace(polygon, { ...LAND, ward: "market" });
   for (const polygon of polygons(byId("buildings"))) state.addFace(polygon, LAND);
 
   const roadWidth = finiteNumber(settings.roadWidth, 8);
@@ -59,12 +59,10 @@ export function importMfcgJson(value: unknown): CityDocument | null {
     frame: { extentMeters, cityRadiusMeters: extentMeters / 3, blockSizeMeters: 50 },
     mesh: { vertices: state.vertices, edges: state.edges, faces: state.faces },
     featureGroups: state.featureGroups,
-    elements: [
-      ...squareFaces.flatMap((faceId, index) =>
-        faceId ? [{ id: `plaza-${index}`, kind: "plaza" as const, faceIds: [faceId], locked: false }] : []
-      ),
-      ...trees
-    ]
+    gates: [],
+    // Market squares are already represented by their Ward. Point decorations
+    // stay as elements because they do not belong to the cell semantic model.
+    elements: trees
   };
   return validate(document).length === 0 ? document : null;
 }
@@ -85,6 +83,7 @@ export function importMfcgSvg(svg: string): CityDocument | null {
     referenceImage: { href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, width, height },
     mesh: { vertices: {}, edges: {}, faces: {} },
     featureGroups: [],
+    gates: [],
     elements: []
   };
 }

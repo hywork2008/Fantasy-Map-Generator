@@ -64,6 +64,7 @@ export interface CityEditorDocumentExport {
   frame: { extentMeters: number; cityRadiusMeters: number; blockSizeMeters: number };
   mesh: EditorMesh;
   featureGroups: EditorFeatureGroup[];
+  gates: Array<{ id: Id; vertexId: Id; locked: boolean }>;
   elements: Array<{
     id: Id;
     kind: "plaza" | "citadel" | "temple" | "harbor" | "gate";
@@ -127,22 +128,18 @@ export function buildCityEditorDocument(result: GenerationResult, program: CityP
     }
   }
 
-  const faceIds = new Set(Object.keys(builder.mesh.faces));
-  const elements: CityEditorDocumentExport["elements"] = [
-    ...result.precincts.map((precinct, index) => ({
-      id: `${precinct.kind}-${index}`,
-      kind: precinct.kind,
-      faceIds: precinct.cellIds.map(id => `f${id}`).filter(id => faceIds.has(id)),
-      locked: false
-    })),
-    ...result.gates.map((gate, index) => ({
-      id: `gate-${index}`,
-      kind: "gate" as const,
-      faceIds: [],
-      point: copyPoint(gate.point),
-      locked: false
-    }))
-  ];
+  const roadVertices = new Set<Id>();
+  for (const group of featureGroups) {
+    if (group.kind !== "road") continue;
+    for (const segment of group.segments) {
+      const edge = builder.mesh.edges[segment.edgeId];
+      if (edge) roadVertices.add(edge.a).add(edge.b);
+    }
+  }
+  const gates = result.gates.flatMap((gate, index) => {
+    const vertexId = builder.nearestVertex(gate.point, roadVertices);
+    return vertexId ? [{ id: `gate-${index}`, vertexId, locked: false }] : [];
+  });
 
   return {
     format: "fmg-city-editor",
@@ -154,7 +151,8 @@ export function buildCityEditorDocument(result: GenerationResult, program: CityP
     },
     mesh: builder.mesh,
     featureGroups,
-    elements
+    gates,
+    elements: []
   };
 }
 
@@ -197,6 +195,20 @@ class EditorMeshBuilder {
     const segments = vertices.slice(1).map((to, index) => this.edge(vertices[index], to));
     if (closed) segments.push(this.edge(vertices.at(-1)!, vertices[0]));
     return segments;
+  }
+
+  nearestVertex(point: Point, candidates?: ReadonlySet<Id>): Id | null {
+    let nearest: Id | null = null;
+    let distance = Number.POSITIVE_INFINITY;
+    for (const vertex of Object.values(this.mesh.vertices)) {
+      if (candidates && !candidates.has(vertex.id)) continue;
+      const candidate = Math.hypot(vertex.point[0] - point[0], vertex.point[1] - point[1]);
+      if (candidate < distance) {
+        nearest = vertex.id;
+        distance = candidate;
+      }
+    }
+    return nearest;
   }
 
   private vertex(point: Point): Id {

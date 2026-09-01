@@ -1,16 +1,5 @@
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceVertices, validate, vertexTouchesWater } from "./mesh";
-import type {
-  CityDocument,
-  EdgeFeatureGroup,
-  EdgeRef,
-  ElementKind,
-  Face,
-  FeatureGroup,
-  Id,
-  Mesh,
-  Point,
-  RiverGroup
-} from "./types";
+import type { CityDocument, EdgeFeatureGroup, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, RiverGroup } from "./types";
 
 export function createGroup(document: CityDocument, kind: FeatureGroup["kind"]): CityDocument {
   const next = clone(document);
@@ -128,11 +117,27 @@ export function finishRiver(document: CityDocument, groupId: Id): CityDocument |
   return next;
 }
 
-export function addElement(document: CityDocument, kind: ElementKind, faceId: Id): CityDocument {
+/** Add or remove a gate at a vertex shared by at least one road segment. */
+export function toggleGate(document: CityDocument, vertexId: Id): CityDocument | null {
+  if (!document.mesh.vertices[vertexId] || !vertexHasRoad(document, vertexId)) return null;
   const next = clone(document);
-  if (!next.mesh.faces[faceId]) return next;
-  next.elements.push({ id: nextId(next, kind), kind, faceIds: [faceId], locked: true });
+  if (!next.gates) next.gates = [];
+  const gates = next.gates;
+  const index = gates.findIndex(gate => gate.vertexId === vertexId);
+  if (index >= 0) gates.splice(index, 1);
+  else gates.push({ id: nextId(next, "gate"), vertexId, locked: false });
   return next;
+}
+
+export function vertexHasRoad(document: CityDocument, vertexId: Id): boolean {
+  return document.featureGroups.some(
+    group =>
+      group.kind === "road" &&
+      group.segments.some(segment => {
+        const edge = document.mesh.edges[segment.edgeId];
+        return edge?.a === vertexId || edge?.b === vertexId;
+      })
+  );
 }
 
 export function removeGroup(document: CityDocument, groupId: Id): CityDocument {
@@ -478,6 +483,7 @@ function nextId(document: CityDocument, prefix: string): Id {
   let n = 1;
   const used = new Set([
     ...document.featureGroups.map(group => group.id),
+    ...(document.gates ?? []).map(gate => gate.id),
     ...document.elements.map(element => element.id)
   ]);
   while (used.has(`${prefix}-${n}`)) n++;
