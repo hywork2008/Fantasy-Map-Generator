@@ -121,10 +121,11 @@ export function renderEditorSvg(
   if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 
   const showAllVertices = tool === "vertex" || tool === "river";
-  if (showAllVertices || selection.hoverVertexId) {
+  const visibleVertexIds = new Set([selection.vertexId, selection.hoverVertexId].filter((id): id is Id => !!id));
+  if (showAllVertices || visibleVertexIds.size) {
     const vertices = element("g", { class: "ce-vertices" });
     for (const vertex of Object.values(document.mesh.vertices)) {
-      if (!showAllVertices && vertex.id !== selection.hoverVertexId) continue;
+      if (!showAllVertices && !visibleVertexIds.has(vertex.id)) continue;
       vertices.appendChild(
         element("circle", {
           cx: String(vertex.point[0]),

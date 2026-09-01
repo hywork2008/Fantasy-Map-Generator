@@ -12,6 +12,34 @@ describe("vertexHandleRadius", () => {
   });
 });
 
+describe("dragging vertex handles", () => {
+  it("keeps both the dragged vertex and its merge candidate visible", () => {
+    const document = createDocument("drag-handles", 400);
+    const face = Object.values(document.mesh.faces)[0];
+    const [draggedVertexId, candidateVertexId] = face.boundary.map(ref =>
+      ref.forward ? document.mesh.edges[ref.edgeId].a : document.mesh.edges[ref.edgeId].b
+    );
+
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      {
+        faceId: null,
+        edgeId: null,
+        vertexId: draggedVertexId,
+        groupId: null,
+        hoverVertexId: candidateVertexId
+      },
+      "-200 -200 400 400",
+      1
+    );
+
+    expect(svg.querySelectorAll(".ce-vertex")).toHaveLength(2);
+    expect(svg.querySelector(`[data-vertex="${draggedVertexId}"]`)?.classList.contains("ce-selected")).toBe(true);
+    expect(svg.querySelector(`[data-vertex="${candidateVertexId}"]`)?.classList.contains("ce-hover-vertex")).toBe(true);
+  });
+});
+
 describe("Ward landmarks", () => {
   it("renders a Ward landmark as centred SVG geometry instead of a font glyph", () => {
     const document = createDocument("ward-marker", 400);

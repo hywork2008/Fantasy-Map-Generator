@@ -80,6 +80,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
   let activeGroupId: Id | null = null;
   let dragBefore: CityDocument | null = null;
+  let dragMergeCandidateId: Id | null = null;
   let isVertexDragging = false;
   let isWardPainting = false;
   let wardPaintChanged = false;
@@ -278,6 +279,7 @@ export function mountCityEditor(root: HTMLElement): void {
       event.preventDefault();
       dragBefore = clone(documentState);
       isVertexDragging = true;
+      dragMergeCandidateId = null;
       selection.vertexId = vertexId;
       map.setPointerCapture(event.pointerId);
       return;
@@ -332,6 +334,8 @@ export function mountCityEditor(root: HTMLElement): void {
       const next = moveVertex(documentState, selection.vertexId, point);
       if (!next) return;
       documentState = next;
+      dragMergeCandidateId = closestMergeCandidate(selection.vertexId);
+      selection.hoverVertexId = dragMergeCandidateId;
       redrawMap();
       suppressNextClick = true;
       return;
@@ -358,6 +362,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (!isVertexDragging && !isWardPainting && !isPanning && !routeDrag && !routeStroke) return;
     const wasVertexDragging = isVertexDragging;
     const wasWardPainting = isWardPainting;
+    const mergeCandidateId = dragMergeCandidateId;
     const stroke = routeStroke;
     const draggedRoute = routeDrag;
     const preview = routePreview;
@@ -371,12 +376,18 @@ export function mountCityEditor(root: HTMLElement): void {
     updateRoutePreview();
     isPanning = false;
     hasPanned = false;
+    dragMergeCandidateId = null;
     map.classList.remove("ce-map--panning");
     if (map.hasPointerCapture(event.pointerId)) map.releasePointerCapture(event.pointerId);
+    if (event.type !== "pointercancel" && wasVertexDragging && selection.vertexId && mergeCandidateId) {
+      const merged = mergeVertices(documentState, selection.vertexId, mergeCandidateId);
+      if (merged) documentState = merged;
+    }
     if (wasVertexDragging && dragBefore && JSON.stringify(dragBefore) !== JSON.stringify(documentState)) {
       history.commit(documentState);
       rebuildEditorIndexes();
     }
+    selection.hoverVertexId = null;
     if (wasWardPainting && wardPaintChanged) {
       history.commit(documentState);
       rebuildEditorIndexes();
@@ -931,6 +942,27 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     return nearest;
+  }
+
+  function closestMergeCandidate(vertexId: Id): Id | null {
+    const vertex = documentState.mesh.vertices[vertexId];
+    if (!vertex) return null;
+    const radius = (halfView * 26) / Math.max(map.getBoundingClientRect().width, 1);
+    let candidate: Id | null = null;
+    let distance = radius;
+    for (const edgeId of edgeIdsByVertex.get(vertexId) ?? []) {
+      const edge = documentState.mesh.edges[edgeId];
+      if (!edge) continue;
+      const otherId = edge.a === vertexId ? edge.b : edge.a;
+      const other = documentState.mesh.vertices[otherId];
+      if (!other) continue;
+      const candidateDistance = Math.hypot(vertex.point[0] - other.point[0], vertex.point[1] - other.point[1]);
+      if (candidateDistance <= distance) {
+        candidate = otherId;
+        distance = candidateDistance;
+      }
+    }
+    return candidate;
   }
 
   function rebuildEditorIndexes(): void {
