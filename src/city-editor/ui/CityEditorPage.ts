@@ -93,6 +93,10 @@ export function mountCityEditor(root: HTMLElement): void {
   let isSpacePressed = false;
   let showSelectionLabels = false;
   let wardBrush: WardKind | null = "market";
+  // The brush is expressed in macro cells, so its size stays meaningful when
+  // switching between city presets or changing the map scale.
+  let wardBrushRadiusCells = 1;
+  let wardBrushPointer: { clientX: number; clientY: number } | null = null;
   let hasPanned = false;
   let suppressNextClick = false;
   let lastPanX = 0;
@@ -109,7 +113,10 @@ export function mountCityEditor(root: HTMLElement): void {
 
   const canvas = div("ce-canvas");
   const map = div("ce-map");
+  const wardBrushPreview = div("ce-ward-brush-preview");
+  wardBrushPreview.hidden = true;
   canvas.appendChild(map);
+  canvas.appendChild(wardBrushPreview);
   const toolbar = floatingWindow("ce-toolbar", "Tools");
   const documentPanel = floatingWindow("ce-document", "Document");
   const inspector = floatingWindow("ce-inspector", "Inspector");
@@ -186,6 +193,16 @@ export function mountCityEditor(root: HTMLElement): void {
   wardBrushInput.addEventListener("change", () => {
     wardBrush = wardBrushInput.value === "erase" ? null : (wardBrushInput.value as WardKind);
   });
+  const wardBrushSizeInput = rangeInput("1", "0", "8", "0.5");
+  const wardBrushSizeValue = text(wardBrushSizeText());
+  const wardBrushSizeControl = div("ce-brush-size-control");
+  wardBrushSizeControl.append(wardBrushSizeInput, wardBrushSizeValue);
+  const wardBrushSizeLabel = label("Brush radius", wardBrushSizeControl);
+  wardBrushSizeInput.addEventListener("input", () => {
+    wardBrushRadiusCells = Number(wardBrushSizeInput.value);
+    wardBrushSizeValue.textContent = wardBrushSizeText();
+    updateWardBrushPreview();
+  });
   const scaleButton = makeIconButton("⤢", "Scale all map geometry", () => {
     const factor = Number(scaleInput.value);
     const next = scaleDocument(documentState, factor);
@@ -208,7 +225,13 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   const actions = div("ce-icon-row");
   actions.append(undoButton, redoButton, importButton, exportButton);
-  toolbar.content.append(divider(), actions, label("Ward", wardBrushInput), label("Cell IDs", showLabelsInput));
+  toolbar.content.append(
+    divider(),
+    actions,
+    label("Ward", wardBrushInput),
+    wardBrushSizeLabel,
+    label("Cell IDs", showLabelsInput)
+  );
   const documentActions = div("ce-icon-row");
   documentActions.append(newButton, scaleButton, finishButton, smoothGroupsButton);
   documentPanel.content.append(
@@ -235,13 +258,12 @@ export function mountCityEditor(root: HTMLElement): void {
     if (event.button !== 0) return;
     const point = localPoint(event);
     if (tool === "ward") {
-      const faceId = faceAtPoint(point);
-      if (!faceId) return;
+      if (!faceIdsWithinWardBrush(point).length) return;
       event.preventDefault();
       isWardPainting = true;
       wardPaintChanged = false;
       paintedWardFaceIds = new Set();
-      paintWardFace(faceId);
+      paintWardAtPoint(point);
       suppressNextClick = true;
       map.setPointerCapture(event.pointerId);
       return;
@@ -307,9 +329,9 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
+    if (tool === "ward") updateWardBrushPreview(event);
     if (isWardPainting) {
-      const faceId = faceAtPoint(localPoint(event));
-      if (faceId) paintWardFace(faceId);
+      paintWardAtPoint(localPoint(event));
       return;
     }
     if (routeStroke) {
@@ -357,6 +379,9 @@ export function mountCityEditor(root: HTMLElement): void {
     lastPanX = event.clientX;
     lastPanY = event.clientY;
     redrawMap();
+  });
+  map.addEventListener("pointerleave", () => {
+    if (!isWardPainting) hideWardBrushPreview();
   });
   const finishDrag = (event: PointerEvent): void => {
     if (!isVertexDragging && !isWardPainting && !isPanning && !routeDrag && !routeStroke) return;
@@ -568,6 +593,7 @@ export function mountCityEditor(root: HTMLElement): void {
         documentState.frame.extentMeters / 2
       );
       redrawMap();
+      updateWardBrushPreview();
       refreshScaleBar();
     },
     { passive: false }
@@ -712,10 +738,16 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function refresh(): void {
     redrawMap();
+    map.classList.toggle("ce-map--select", tool === "select");
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
     wardBrushInput.disabled = tool !== "ward";
+    wardBrushSizeInput.disabled = tool !== "ward";
+    wardBrushSizeLabel.classList.toggle("is-disabled", tool !== "ward");
+    wardBrushSizeValue.textContent = wardBrushSizeText();
+    if (tool !== "ward") hideWardBrushPreview();
+    else updateWardBrushPreview();
     renderInspector();
     renderGroups();
     const errors = validate(documentState);
@@ -1014,6 +1046,28 @@ export function mountCityEditor(root: HTMLElement): void {
     return null;
   }
 
+  function faceIdsWithinWardBrush(center: Point): Id[] {
+    const radius = wardBrushRadiusMeters();
+    if (radius <= 0) {
+      const faceId = faceAtPoint(center);
+      return faceId ? [faceId] : [];
+    }
+    const faceIds = new Set<Id>();
+    const minX = Math.floor((center[0] - radius) / faceBucketSize);
+    const maxX = Math.floor((center[0] + radius) / faceBucketSize);
+    const minY = Math.floor((center[1] - radius) / faceBucketSize);
+    const maxY = Math.floor((center[1] + radius) / faceBucketSize);
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        for (const faceId of faceBuckets.get(`${x},${y}`) ?? []) faceIds.add(faceId);
+      }
+    }
+    return [...faceIds].filter(faceId => {
+      const face = documentState.mesh.faces[faceId];
+      return !!face && circleIntersectsPolygon(center, radius, facePoints(documentState.mesh, face));
+    });
+  }
+
   function updateHover(event: PointerEvent): void {
     const point = localPoint(event);
     const route = routeAtEvent(event, point, false);
@@ -1024,16 +1078,53 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   }
 
-  function paintWardFace(faceId: Id): void {
-    if (paintedWardFaceIds.has(faceId)) return;
-    paintedWardFaceIds.add(faceId);
-    const face = documentState.mesh.faces[faceId];
-    if (!face || face.properties.ward === wardBrush) return;
+  function paintWardAtPoint(point: Point): void {
+    const faceIds = faceIdsWithinWardBrush(point);
+    if (!faceIds.length) return;
     const next = clone(documentState);
-    next.mesh.faces[faceId].properties.ward = wardBrush;
+    let changed = false;
+    for (const faceId of faceIds) {
+      if (paintedWardFaceIds.has(faceId)) continue;
+      paintedWardFaceIds.add(faceId);
+      const face = next.mesh.faces[faceId];
+      if (!face || face.properties.ward === wardBrush) continue;
+      face.properties.ward = wardBrush;
+      changed = true;
+    }
+    if (!changed) return;
     documentState = next;
     wardPaintChanged = true;
     redrawMap();
+  }
+
+  function wardBrushRadiusMeters(): number {
+    return wardBrushRadiusCells * documentState.frame.blockSizeMeters;
+  }
+
+  function wardBrushSizeText(): string {
+    const unit = wardBrushRadiusCells === 1 ? "cell" : "cells";
+    return `${wardBrushRadiusCells} ${unit} · ${formatDistance(wardBrushRadiusMeters())}`;
+  }
+
+  function updateWardBrushPreview(event?: PointerEvent): void {
+    if (event) wardBrushPointer = { clientX: event.clientX, clientY: event.clientY };
+    if (tool !== "ward" || !wardBrushPointer) {
+      hideWardBrushPreview();
+      return;
+    }
+    const bounds = canvas.getBoundingClientRect();
+    const metersPerPixel = (halfView * 2) / Math.max(map.getBoundingClientRect().width, 1);
+    const radiusPixels = Math.max(5, wardBrushRadiusMeters() / metersPerPixel);
+    wardBrushPreview.style.width = `${radiusPixels * 2}px`;
+    wardBrushPreview.style.height = `${radiusPixels * 2}px`;
+    wardBrushPreview.style.left = `${wardBrushPointer.clientX - bounds.left}px`;
+    wardBrushPreview.style.top = `${wardBrushPointer.clientY - bounds.top}px`;
+    wardBrushPreview.hidden = false;
+  }
+
+  function hideWardBrushPreview(): void {
+    wardBrushPreview.hidden = true;
+    wardBrushPointer = null;
   }
 
   function extendRouteStroke(point: Point): void {
@@ -1419,6 +1510,16 @@ function numberInput(value: string, min: string, step: string): HTMLInputElement
   return node;
 }
 
+function rangeInput(value: string, min: string, max: string, step: string): HTMLInputElement {
+  const node = document.createElement("input");
+  node.type = "range";
+  node.value = value;
+  node.min = min;
+  node.max = max;
+  node.step = step;
+  return node;
+}
+
 function select(values: string[], selected: string): HTMLSelectElement {
   const node = document.createElement("select");
   for (const value of values) {
@@ -1476,6 +1577,15 @@ function pointInPolygon(point: Point, polygon: Point[]): boolean {
     if (point[0] < crossingX) inside = !inside;
   }
   return inside;
+}
+
+/** Whether a circular Ward brush reaches any part of a cell polygon. */
+function circleIntersectsPolygon(center: Point, radius: number, polygon: Point[]): boolean {
+  if (pointInPolygon(center, polygon)) return true;
+  for (let index = 0; index < polygon.length; index++) {
+    if (pointToSegmentDistance(center, polygon[index], polygon[(index + 1) % polygon.length]) <= radius) return true;
+  }
+  return false;
 }
 
 function vertexPairKey(a: Id, b: Id): string {
