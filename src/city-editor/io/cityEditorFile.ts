@@ -15,9 +15,14 @@ export function exportCityMap(cityDocument: CityDocument): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `city-map${CITY_EDITOR_FILE_EXTENSION}`;
+  link.download = `ce-${formatExportTimestamp(new Date())}.json`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function formatExportTimestamp(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
 /** Open a file picker for native City Editor maps and MFCG exports. */
