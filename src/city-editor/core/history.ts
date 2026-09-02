@@ -1,5 +1,5 @@
 import { clone } from "./mesh";
-import type { CityDocument } from "./types";
+import type { CityDocument, CityElement, CityGate, Edge, Face, Id, Vertex } from "./types";
 
 export interface HistoryEntry {
   /** Human-readable name of the edit that produced this state. */
@@ -9,47 +9,81 @@ export interface HistoryEntry {
 }
 
 /**
- * A linear snapshot timeline. `cursor` points at the state currently shown;
- * everything after it is redoable. `commit` past the cursor drops the
- * redo tail, matching a classic undo stack, while `jumpTo` lets the History
- * panel move to any recorded state without walking one step at a time.
+ * A linear history that stores a per-edit *delta* rather than a full document
+ * snapshot. Full states are kept only at index 0 and every Nth entry
+ * ("checkpoints"); any state is rebuilt by cloning the nearest earlier
+ * checkpoint and replaying the deltas after it. `undo` / `redo` / `jumpTo`
+ * therefore cost at most one checkpoint interval of small patch applications,
+ * while a ward-paint or route-draw step costs only its handful of changed
+ * mesh entries instead of ~1 MB per step.
+ *
+ * The public surface (`commit`, `amendTop`, `undo`, `redo`, `jumpTo`,
+ * `entries`, `index`, `canUndo`, `canRedo`, `reset`) is unchanged from the
+ * previous snapshot implementation.
  */
 export class DocumentHistory {
-  private timeline: CityDocument[];
-  private entryList: HistoryEntry[];
-  private cursor: number;
+  private readonly checkpointInterval: number;
+  private checkpoints = new Map<number, CityDocument>();
+  /** `patches[i]` transforms recorded state `i-1` into state `i`; `patches[0]`
+   * is an unused placeholder for the seed. */
+  private patches: (DocPatch | null)[] = [null];
+  private entryList: HistoryEntry[] = [];
+  private cursor = 0;
+  /** Rebuilt state at `cursor`, kept so `commit` can diff in O(changed keys). */
+  private live: CityDocument;
+  /** Rebuilt state at `cursor - 1`, the base an `amendTop` re-diffs against. */
+  private base: CityDocument;
 
-  constructor(initial: CityDocument, label = "Initial state") {
-    this.timeline = [clone(initial)];
+  constructor(initial: CityDocument, label = "Initial state", checkpointInterval?: number) {
+    this.checkpointInterval = Math.max(2, Math.round(checkpointInterval ?? defaultCheckpointInterval(initial)));
+    const seed = clone(initial);
+    this.checkpoints.set(0, clone(seed));
     this.entryList = [{ label, time: Date.now() }];
-    this.cursor = 0;
+    this.live = seed;
+    this.base = clone(seed);
   }
 
   commit(document: CityDocument, label = "Edit"): CityDocument {
-    this.timeline.length = this.cursor + 1;
-    this.entryList.length = this.cursor + 1;
-    this.timeline.push(clone(document));
-    this.entryList.push({ label, time: Date.now() });
-    this.cursor = this.timeline.length - 1;
+    this.truncateAfter(this.cursor);
+    const patch = diffDocument(this.live, document);
+    this.cursor += 1;
+    this.patches[this.cursor] = patch;
+    this.entryList[this.cursor] = { label, time: Date.now() };
+    this.base = this.live;
+    this.live = clone(document);
+    this.checkpointIfDue();
     return document;
   }
 
   /**
-   * Replace the current entry in place instead of pushing a new one. A brush or
-   * drag that mutates the document many times per gesture calls `commit` once
-   * and then `amendTop` for each further step, so the whole stroke collapses to
-   * a single undo entry while the live document never drifts from the timeline.
+   * Replace the current entry in place instead of pushing a new one, re-diffing
+   * against the state before it. A drag that mutates the document many times
+   * per gesture calls `commit` once and then `amendTop` for each further step,
+   * so the whole stroke collapses to a single undo entry.
    */
   amendTop(document: CityDocument, label?: string): CityDocument {
-    this.timeline[this.cursor] = clone(document);
+    if (this.cursor === 0) {
+      // No entry to fold into: treat as reseeding the initial state.
+      this.checkpoints.set(0, clone(document));
+      this.live = clone(document);
+      this.base = clone(document);
+      return document;
+    }
+    this.patches[this.cursor] = diffDocument(this.base, document);
     if (label !== undefined) this.entryList[this.cursor] = { ...this.entryList[this.cursor], label };
+    this.live = clone(document);
+    this.checkpointIfDue();
     return document;
   }
 
   reset(document: CityDocument, label = "Initial state"): void {
-    this.timeline = [clone(document)];
+    const seed = clone(document);
+    this.checkpoints = new Map([[0, clone(seed)]]);
+    this.patches = [null];
     this.entryList = [{ label, time: Date.now() }];
     this.cursor = 0;
+    this.live = seed;
+    this.base = clone(seed);
   }
 
   undo(_current: CityDocument): CityDocument | null {
@@ -63,9 +97,11 @@ export class DocumentHistory {
   /** Move to any recorded state. Returns null when the index is out of range
    * or already current, so callers can skip a needless redraw. */
   jumpTo(index: number): CityDocument | null {
-    if (index < 0 || index >= this.timeline.length || index === this.cursor) return null;
+    if (index < 0 || index >= this.patches.length || index === this.cursor) return null;
+    this.live = this.reconstruct(index);
+    this.base = index > 0 ? this.reconstruct(index - 1) : clone(this.live);
     this.cursor = index;
-    return clone(this.timeline[index]);
+    return clone(this.live);
   }
 
   /** Oldest state first; the entry at `index` is the one currently shown. */
@@ -82,6 +118,115 @@ export class DocumentHistory {
   }
 
   get canRedo(): boolean {
-    return this.cursor < this.timeline.length - 1;
+    return this.cursor < this.patches.length - 1;
   }
+
+  private checkpointIfDue(): void {
+    if (this.cursor % this.checkpointInterval === 0) this.checkpoints.set(this.cursor, clone(this.live));
+  }
+
+  private truncateAfter(index: number): void {
+    this.patches.length = index + 1;
+    this.entryList.length = index + 1;
+    for (const key of [...this.checkpoints.keys()]) if (key > index) this.checkpoints.delete(key);
+  }
+
+  private reconstruct(index: number): CityDocument {
+    let checkpoint = index;
+    while (!this.checkpoints.has(checkpoint)) checkpoint -= 1;
+    const document = clone(this.checkpoints.get(checkpoint) as CityDocument);
+    for (let step = checkpoint + 1; step <= index; step += 1) {
+      const patch = this.patches[step];
+      if (patch) applyPatch(document, patch);
+    }
+    return document;
+  }
+}
+
+/** Bigger meshes checkpoint less often so the retained snapshots stay bounded;
+ * a small mesh can afford frequent checkpoints and keeps jumps short. */
+function defaultCheckpointInterval(document: CityDocument): number {
+  const size =
+    Object.keys(document.mesh.vertices).length +
+    Object.keys(document.mesh.edges).length +
+    Object.keys(document.mesh.faces).length;
+  return Math.max(20, Math.min(150, Math.round(size / 50)));
+}
+
+/** A key set to `null` was removed; otherwise it was added or changed. */
+type RecordPatch<T> = Record<Id, T | null>;
+
+/**
+ * The forward-only change from one recorded state to the next. Only the touched
+ * keys of the three mesh maps are stored; the small top-level sections are kept
+ * whole when they differ.
+ */
+interface DocPatch {
+  frame?: CityDocument["frame"];
+  vertices?: RecordPatch<Vertex>;
+  edges?: RecordPatch<Edge>;
+  faces?: RecordPatch<Face>;
+  featureGroups?: CityDocument["featureGroups"];
+  gates?: CityGate[];
+  elements?: CityElement[];
+}
+
+function equal(a: unknown, b: unknown): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+function diffRecord<T>(previous: Record<Id, T>, next: Record<Id, T>): RecordPatch<T> | undefined {
+  const patch: RecordPatch<T> = {};
+  let changed = false;
+  for (const key of Object.keys(next)) {
+    if (!(key in previous) || !equal(previous[key], next[key])) {
+      patch[key] = clone(next[key]);
+      changed = true;
+    }
+  }
+  for (const key of Object.keys(previous)) {
+    if (!(key in next)) {
+      patch[key] = null;
+      changed = true;
+    }
+  }
+  return changed ? patch : undefined;
+}
+
+function diffDocument(previous: CityDocument, next: CityDocument): DocPatch {
+  const patch: DocPatch = {};
+  if (!equal(previous.frame, next.frame)) patch.frame = clone(next.frame);
+  const vertices = diffRecord(previous.mesh.vertices, next.mesh.vertices);
+  if (vertices) patch.vertices = vertices;
+  const edges = diffRecord(previous.mesh.edges, next.mesh.edges);
+  if (edges) patch.edges = edges;
+  const faces = diffRecord(previous.mesh.faces, next.mesh.faces);
+  if (faces) patch.faces = faces;
+  if (!equal(previous.featureGroups, next.featureGroups)) patch.featureGroups = clone(next.featureGroups);
+  const previousGates = previous.gates ?? [];
+  const nextGates = next.gates ?? [];
+  if (!equal(previousGates, nextGates)) patch.gates = clone(nextGates);
+  const previousElements = previous.elements ?? [];
+  const nextElements = next.elements ?? [];
+  if (!equal(previousElements, nextElements)) patch.elements = clone(nextElements);
+  return patch;
+}
+
+function applyRecord<T>(map: Record<Id, T>, patch: RecordPatch<T> | undefined): void {
+  if (!patch) return;
+  for (const key of Object.keys(patch)) {
+    const value = patch[key];
+    if (value === null) delete map[key];
+    else map[key] = clone(value);
+  }
+}
+
+function applyPatch(document: CityDocument, patch: DocPatch): void {
+  if (patch.frame) document.frame = clone(patch.frame);
+  applyRecord(document.mesh.vertices, patch.vertices);
+  applyRecord(document.mesh.edges, patch.edges);
+  applyRecord(document.mesh.faces, patch.faces);
+  if (patch.featureGroups) document.featureGroups = clone(patch.featureGroups);
+  if (patch.gates) document.gates = clone(patch.gates);
+  if (patch.elements) document.elements = clone(patch.elements);
 }
