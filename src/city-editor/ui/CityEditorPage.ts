@@ -39,7 +39,14 @@ import {
 } from "../core/mesh";
 import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
 import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
-import { type RenderSelection, renderEditorSvg, renderHoverOverlay, renderRoutePreview } from "../render/svg";
+import {
+  faceClassName,
+  type RenderSelection,
+  renderEditorSvg,
+  renderFaceWardLandmark,
+  renderHoverOverlay,
+  renderRoutePreview
+} from "../render/svg";
 
 const TOOLS: Array<[Tool, string, string]> = [
   ["select", "Select and move", "↖"],
@@ -149,6 +156,17 @@ export function mountCityEditor(root: HTMLElement): void {
   // paint, route stroke) into one repaint per animation frame. A full
   // renderEditorSvg() pass rebuilds thousands of nodes on a Medium/Large grid.
   let redrawHandle = 0;
+  // renderHistory() reuses these row nodes across calls instead of rebuilding
+  // the whole list every edit (see renderHistory for why).
+  let historyListEl: HTMLDivElement | null = null;
+  let historySummaryEl: HTMLElement | null = null;
+  let historyRows: HTMLButtonElement[] = [];
+  // Rebuilt every full redrawMap() pass; patchFaceRender() uses these to
+  // update one face's <path>/landmark in place after a ward/sea paint,
+  // instead of a full renderEditorSvg() pass over the whole mesh.
+  let faceElementsById = new Map<Id, SVGPathElement>();
+  let wardLandmarkElementsById = new Map<Id, SVGGElement>();
+  let wardLandmarksGroup: SVGGElement | null = null;
 
   const canvas = div("ce-canvas");
   const map = div("ce-map");
@@ -538,7 +556,11 @@ export function mountCityEditor(root: HTMLElement): void {
         documentState,
         tool === "sea" ? "Paint sea" : wardBrush ? `Paint ${wardBrush} ward` : "Erase wards"
       );
-      rebuildEditorIndexes();
+      // Ward/sea painting only ever touches face.properties — it never adds,
+      // removes, or moves a vertex/edge, and never touches featureGroups — so
+      // the bucket/adjacency indexes rebuildEditorIndexes() computes from
+      // exactly those inputs are still valid. Skipping it turns a single-cell
+      // paint on a Large mesh from an O(mesh) rebuild into effectively free.
     }
     if (wasJunctionPainting && junctionPaintChanged) {
       history.commit(documentState, "Clean junctions");
@@ -568,7 +590,12 @@ export function mountCityEditor(root: HTMLElement): void {
       selection.edgeId = null;
     }
     if (event.type === "pointercancel") suppressNextClick = false;
-    if (wasVertexDragging || wasWardPainting || wasJunctionPainting || circle || stroke) refresh();
+    // Ward/sea painting already patched its own touched faces live (see
+    // paintCellsAtPoint/patchFaceRender) — the SVG is already current, so
+    // only the non-map UI (undo/redo state, history panel, status text...)
+    // needs to catch up here. Every other gesture still needs a full redraw.
+    if (wasWardPainting) refreshUiOnly();
+    else if (wasVertexDragging || wasJunctionPainting || circle || stroke) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
@@ -892,6 +919,16 @@ export function mountCityEditor(root: HTMLElement): void {
 
   function refresh(): void {
     redrawMap();
+    refreshUiOnly();
+  }
+
+  /**
+   * Everything refresh() does except the map redraw. Ward/sea painting calls
+   * this directly after finishing a stroke, since it already kept the SVG
+   * current itself (patchFaceRender) and a redrawMap() pass here would just
+   * redo, over the whole mesh, work already done for the touched cells.
+   */
+  function refreshUiOnly(): void {
     map.classList.toggle("ce-map--select", tool === "select");
     map.classList.toggle("ce-map--brush", isBrushTool(tool) || tool === "wardWall");
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
@@ -944,11 +981,43 @@ export function mountCityEditor(root: HTMLElement): void {
       redrawHandle = 0;
     }
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
-    map.replaceChildren(
-      renderEditorSvg(documentState, tool, selection, box, zoomFactor(), showSelectionLabels, referenceImage)
+    const svg = renderEditorSvg(documentState, tool, selection, box, zoomFactor(), showSelectionLabels, referenceImage);
+    map.replaceChildren(svg);
+    // Index the per-face nodes this pass just built so a later ward/sea paint
+    // can patch just the touched faces (patchFaceRender) instead of forcing
+    // another full pass over the whole mesh.
+    faceElementsById = new Map(
+      Array.from(svg.querySelectorAll<SVGPathElement>(".ce-face"), el => [el.getAttribute("data-face") as Id, el])
+    );
+    wardLandmarksGroup = svg.querySelector<SVGGElement>(".ce-ward-landmarks");
+    wardLandmarkElementsById = new Map(
+      Array.from(wardLandmarksGroup?.children ?? [], el => [
+        (el.getAttribute("data-element") as string).slice("ward-".length),
+        el as SVGGElement
+      ])
     );
     updateRoutePreview();
     updateHoverOverlay();
+  }
+
+  /**
+   * Patch one face's rendered fill and Ward-landmark marker in place, without
+   * a full redrawMap() pass. Only ward/sea painting may call this: it never
+   * adds, removes, or moves a vertex/edge and never touches featureGroups,
+   * gates, or elements, so nothing else the SVG renders can be affected.
+   */
+  function patchFaceRender(faceId: Id): void {
+    const face = documentState.mesh.faces[faceId];
+    if (!face) return;
+    const path = faceElementsById.get(faceId);
+    if (path) path.setAttribute("class", faceClassName(face, selection.faceId === faceId));
+    wardLandmarkElementsById.get(faceId)?.remove();
+    wardLandmarkElementsById.delete(faceId);
+    const landmark = renderFaceWardLandmark(documentState.mesh, face);
+    if (landmark && wardLandmarksGroup) {
+      wardLandmarksGroup.appendChild(landmark);
+      wardLandmarkElementsById.set(faceId, landmark as SVGGElement);
+    }
   }
 
   function updateRoutePreview(): void {
@@ -1169,29 +1238,49 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function renderHistory(): void {
-    historyPanel.content.replaceChildren();
     const entries = history.entries;
     const current = history.index;
-    const list = div("ce-history-list");
+    // A brush stroke commits one entry per edit, so painting a Large mesh one
+    // cell at a time can push this into the hundreds within a session.
+    // Rebuilding every row's DOM on every single commit made this panel cost
+    // O(entries) per edit — O(entries²) over a session — even though only the
+    // newest row (or the current one, via amendTop) actually changed. Reuse
+    // existing row nodes and only patch what changed; fall back to a full
+    // rebuild only when the list actually shrinks (undo-then-branch, or a
+    // fresh document/history).
+    if (!historyListEl || historyRows.length > entries.length) {
+      historyPanel.content.replaceChildren();
+      historyListEl = div("ce-history-list");
+      historySummaryEl = text("");
+      historyPanel.content.append(historyListEl, historySummaryEl);
+      historyRows = [];
+    }
+    const list = historyListEl;
     entries.forEach((entry, index) => {
-      const row = makeButton("", () => jumpToHistory(index));
-      row.className = "ce-history-row";
+      let row = historyRows[index];
+      if (!row) {
+        row = makeButton("", () => jumpToHistory(index));
+        row.className = "ce-history-row";
+        const step = text(String(index));
+        step.className = "ce-history-index";
+        row.append(step, text(""), text(""));
+        (row.children[1] as HTMLElement).className = "ce-history-label";
+        (row.children[2] as HTMLElement).className = "ce-history-time";
+        list.appendChild(row);
+        historyRows[index] = row;
+      }
+      const label = row.children[1] as HTMLElement;
+      const time = row.children[2] as HTMLElement;
+      if (label.textContent !== entry.label) label.textContent = entry.label;
+      const clock = formatClock(entry.time);
+      if (time.textContent !== clock) time.textContent = clock;
+      row.title = `Restore state ${index}: ${entry.label}`;
       row.classList.toggle("is-current", index === current);
       row.classList.toggle("is-future", index > current);
-      row.title = `Restore state ${index}: ${entry.label}`;
-      const step = text(String(index));
-      step.className = "ce-history-index";
-      const name = text(entry.label);
-      name.className = "ce-history-label";
-      const time = text(formatClock(entry.time));
-      time.className = "ce-history-time";
-      row.append(step, name, time);
-      list.appendChild(row);
     });
-    historyPanel.content.appendChild(list);
-    historyPanel.content.appendChild(text(`Step ${current} of ${entries.length - 1} · click a step to restore it`));
+    historySummaryEl!.textContent = `Step ${current} of ${entries.length - 1} · click a step to restore it`;
     // Keep the active step visible as the timeline grows past the panel height.
-    (list.children[current] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
+    historyRows[current]?.scrollIntoView({ block: "nearest" });
   }
 
   function localPoint(event: PointerEvent): [number, number] {
@@ -1353,6 +1442,7 @@ export function mountCityEditor(root: HTMLElement): void {
     // faces the brush actually changes get a fresh object; every untouched
     // face keeps its original reference.
     let faces: CityDocument["mesh"]["faces"] | null = null;
+    const touched: Id[] = [];
     for (const faceId of faceIds) {
       if (paintedWardFaceIds.has(faceId)) continue;
       paintedWardFaceIds.add(faceId);
@@ -1371,11 +1461,15 @@ export function mountCityEditor(root: HTMLElement): void {
         properties.ward = wardBrush;
       }
       faces[faceId] = { ...face, properties };
+      touched.push(faceId);
     }
     if (!faces) return;
     documentState = { ...documentState, mesh: { ...documentState.mesh, faces } };
     wardPaintChanged = true;
-    scheduleRedraw();
+    // Patch just the touched faces' <path>/landmark directly, rather than
+    // scheduling a full redrawMap() pass over the whole mesh next frame — on
+    // a Large mesh a 1-cell brush touches one face out of ~9,000.
+    for (const faceId of touched) patchFaceRender(faceId);
   }
 
   /**

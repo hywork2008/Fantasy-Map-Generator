@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createDocument } from "../core/document";
 import { faceNeighbors, faceVertices } from "../core/mesh";
-import { renderEditorSvg, renderHoverOverlay, selectionLabelFontSize, vertexHandleRadius } from "./svg";
+import {
+  faceClassName,
+  renderEditorSvg,
+  renderFaceWardLandmark,
+  renderHoverOverlay,
+  selectionLabelFontSize,
+  vertexHandleRadius
+} from "./svg";
 
 describe("vertexHandleRadius", () => {
   it("keeps r=2 at every zoom level", () => {
@@ -79,6 +86,66 @@ describe("Ward landmarks", () => {
     expect(harbor?.getAttribute("transform")).toMatch(/^translate\(/);
     expect(harbor?.querySelector("text")).toBeNull();
     expect(harbor?.querySelectorAll("path, circle").length).toBeGreaterThan(1);
+  });
+});
+
+describe("faceClassName / renderFaceWardLandmark", () => {
+  // CityEditorPage patches a single painted face's <path>/landmark with these
+  // two helpers instead of a full renderEditorSvg() pass (see
+  // patchFaceRender). They must keep producing exactly what the bulk render
+  // would have, or a Large-mesh ward paint would silently drift from a full
+  // redraw's output.
+  it("matches the class renderEditorSvg assigns each face's <path>", () => {
+    const document = createDocument("face-class-name", 400);
+    const [a, b] = Object.values(document.mesh.faces);
+    a.properties.ward = "market";
+    b.properties.water = "sea";
+    b.properties.elevation = 0;
+
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: b.id, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+    const pathA = svg.querySelector(`.ce-face[data-face="${a.id}"]`);
+    const pathB = svg.querySelector(`.ce-face[data-face="${b.id}"]`);
+
+    expect(pathA?.getAttribute("class")).toBe(faceClassName(a, false));
+    expect(pathB?.getAttribute("class")).toBe(faceClassName(b, true));
+  });
+
+  it("matches the marker renderEditorSvg builds for a landmark Ward, keyed by ward-<faceId>", () => {
+    const document = createDocument("face-landmark-match", 400);
+    const face = Object.values(document.mesh.faces)[0];
+    face.properties.ward = "park";
+
+    const svg = renderEditorSvg(
+      document,
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      "-200 -200 400 400",
+      1
+    );
+    const bulkMarker = svg.querySelector(`.ce-ward-landmarks [data-element="ward-${face.id}"]`);
+    const patched = renderFaceWardLandmark(document.mesh, face);
+
+    expect(bulkMarker).toBeTruthy();
+    expect(patched).toBeTruthy();
+    expect(patched?.getAttribute("class")).toBe(bulkMarker?.getAttribute("class"));
+    expect(patched?.getAttribute("transform")).toBe(bulkMarker?.getAttribute("transform"));
+  });
+
+  it("omits a landmark for a non-landmark Ward or a non-land cell", () => {
+    const document = createDocument("face-landmark-omit", 400);
+    const [plain, submerged] = Object.values(document.mesh.faces);
+    plain.properties.ward = "empty";
+    submerged.properties.ward = "market";
+    submerged.properties.water = "sea";
+
+    expect(renderFaceWardLandmark(document.mesh, plain)).toBeNull();
+    expect(renderFaceWardLandmark(document.mesh, submerged)).toBeNull();
   });
 });
 

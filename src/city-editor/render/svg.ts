@@ -1,5 +1,5 @@
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
-import type { CityDocument, EdgeRef, FeatureGroup, Id, Point, Tool } from "../core/types";
+import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
 const REFERENCE_LABEL_EXTENT_METERS = 1200;
@@ -44,11 +44,10 @@ export function renderEditorSvg(
   }
   const cells = element("g", { class: "ce-cells" });
   for (const face of Object.values(document.mesh.faces)) {
-    const selected = selection.faceId === face.id;
     cells.appendChild(
       element("path", {
         d: polygon(facePoints(document.mesh, face)),
-        class: `ce-face ce-face--${face.properties.water} ce-face--ward-${face.properties.ward ?? "unassigned"}${selected ? " ce-selected" : ""}`,
+        class: faceClassName(face, selection.faceId === face.id),
         "data-face": face.id
       })
     );
@@ -94,9 +93,8 @@ export function renderEditorSvg(
 
   const wardLandmarks = element("g", { class: "ce-ward-landmarks", "pointer-events": "none" });
   for (const face of Object.values(document.mesh.faces)) {
-    const kind = wardLandmarkKind(face.properties.ward);
-    if (!kind || face.properties.water !== "land") continue;
-    wardLandmarks.appendChild(cityElementMarker(centroid(facePoints(document.mesh, face)), kind, `ward-${face.id}`));
+    const marker = renderFaceWardLandmark(document.mesh, face);
+    if (marker) wardLandmarks.appendChild(marker);
   }
   svg.appendChild(wardLandmarks);
 
@@ -396,6 +394,28 @@ function cityElementMarker(point: Point, kind: string, id: Id): SVGElement {
 function wardLandmarkKind(ward: string | null): "plaza" | "citadel" | "harbor" | "park" | null {
   const landmarks = { market: "plaza", castle: "citadel", harbor: "harbor", park: "park" } as const;
   return landmarks[ward as keyof typeof landmarks] ?? null;
+}
+
+/**
+ * The `class` attribute for one face's `<path>`, exactly as renderEditorSvg
+ * assigns it in bulk. Exposed so a caller that knows precisely which faces
+ * changed (ward/sea painting) can patch the existing `<path>` elements
+ * in place instead of rebuilding the whole SVG — the difference between an
+ * O(painted cells) and an O(mesh) repaint on a Large grid.
+ */
+export function faceClassName(face: Face, selected: boolean): string {
+  return `ce-face ce-face--${face.properties.water} ce-face--ward-${face.properties.ward ?? "unassigned"}${selected ? " ce-selected" : ""}`;
+}
+
+/**
+ * Build one face's Ward landmark marker (the same rule renderEditorSvg uses
+ * to populate `.ce-ward-landmarks` in bulk), or null if this face shouldn't
+ * show one. Pairs with faceClassName() for patching a single changed face.
+ */
+export function renderFaceWardLandmark(mesh: Mesh, face: Face): SVGElement | null {
+  const kind = wardLandmarkKind(face.properties.ward);
+  if (!kind || face.properties.water !== "land") return null;
+  return cityElementMarker(centroid(facePoints(mesh, face)), kind, `ward-${face.id}`);
 }
 
 function tree(point: Point, radius: number, id: Id): SVGElement {

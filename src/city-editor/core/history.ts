@@ -36,11 +36,18 @@ export class DocumentHistory {
 
   constructor(initial: CityDocument, label = "Initial state", checkpointInterval?: number) {
     this.checkpointInterval = Math.max(2, Math.round(checkpointInterval ?? defaultCheckpointInterval(initial)));
+    // `clone(initial)` gives this history its own object graph, independent of
+    // whatever the caller does with `initial` afterwards. From here on every
+    // mutator in mesh.ts/features.ts (and CityEditorPage's own ward-paint
+    // copy-on-write) treats a CityDocument as immutable — clone-then-return,
+    // never mutate-in-place — so `seed` can safely be *shared* (not
+    // re-cloned) across checkpoints/live/base below: nothing will ever touch
+    // it again in place. See commit()/amendTop() for why this matters.
     const seed = clone(initial);
-    this.checkpoints.set(0, clone(seed));
+    this.checkpoints.set(0, seed);
     this.entryList = [{ label, time: Date.now() }];
     this.live = seed;
-    this.base = clone(seed);
+    this.base = seed;
   }
 
   commit(document: CityDocument, label = "Edit"): CityDocument {
@@ -50,7 +57,14 @@ export class DocumentHistory {
     this.patches[this.cursor] = patch;
     this.entryList[this.cursor] = { label, time: Date.now() };
     this.base = this.live;
-    this.live = clone(document);
+    // No clone: `document` is never mutated in place after this point (every
+    // caller is copy-on-write), so storing the reference directly is safe —
+    // and it lets diffDocument's next call short-circuit unchanged records by
+    // identity (previous.mesh.vertices === next.mesh.vertices, etc.) instead
+    // of walking and JSON.stringify-comparing every entry. On a Large mesh a
+    // single-cell ward paint touches one face; before this, every commit paid
+    // for a full structuredClone of the whole document just to store `live`.
+    this.live = document;
     this.checkpointIfDue();
     return document;
   }
@@ -64,26 +78,26 @@ export class DocumentHistory {
   amendTop(document: CityDocument, label?: string): CityDocument {
     if (this.cursor === 0) {
       // No entry to fold into: treat as reseeding the initial state.
-      this.checkpoints.set(0, clone(document));
-      this.live = clone(document);
-      this.base = clone(document);
+      this.checkpoints.set(0, document);
+      this.live = document;
+      this.base = document;
       return document;
     }
     this.patches[this.cursor] = diffDocument(this.base, document);
     if (label !== undefined) this.entryList[this.cursor] = { ...this.entryList[this.cursor], label };
-    this.live = clone(document);
+    this.live = document;
     this.checkpointIfDue();
     return document;
   }
 
   reset(document: CityDocument, label = "Initial state"): void {
     const seed = clone(document);
-    this.checkpoints = new Map([[0, clone(seed)]]);
+    this.checkpoints = new Map([[0, seed]]);
     this.patches = [null];
     this.entryList = [{ label, time: Date.now() }];
     this.cursor = 0;
     this.live = seed;
-    this.base = clone(seed);
+    this.base = seed;
   }
 
   undo(_current: CityDocument): CityDocument | null {
@@ -122,7 +136,11 @@ export class DocumentHistory {
   }
 
   private checkpointIfDue(): void {
-    if (this.cursor % this.checkpointInterval === 0) this.checkpoints.set(this.cursor, clone(this.live));
+    // No clone: `this.live` is already an object nobody will mutate in place
+    // (see commit()), so the checkpoint can share it directly.
+    // reconstruct() clones a checkpoint before patching it, so the stored
+    // reference itself is never touched.
+    if (this.cursor % this.checkpointInterval === 0) this.checkpoints.set(this.cursor, this.live);
   }
 
   private truncateAfter(index: number): void {
@@ -176,6 +194,11 @@ function equal(a: unknown, b: unknown): boolean {
 }
 
 function diffRecord<T>(previous: Record<Id, T>, next: Record<Id, T>): RecordPatch<T> | undefined {
+  // A copy-on-write edit (e.g. ward/sea painting) rebuilds only the mesh
+  // records it actually touches, leaving the others as the exact same
+  // reference. Vertices/edges are untouched by such an edit, so this turns
+  // an O(mesh) walk-and-JSON.stringify into an O(1) check for them.
+  if (previous === next) return undefined;
   const patch: RecordPatch<T> = {};
   let changed = false;
   for (const key of Object.keys(next)) {
