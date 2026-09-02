@@ -153,6 +153,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const documentPanel = floatingWindow("ce-document", "Document");
   const inspector = floatingWindow("ce-inspector", "Inspector");
   const groups = floatingWindow("ce-groups", "Objects");
+  const historyPanel = floatingWindow("ce-history", "History");
   const status = document.createElement("output");
   status.className = "ce-status";
   const scaleBar = div("ce-scale-bar");
@@ -169,6 +170,7 @@ export function mountCityEditor(root: HTMLElement): void {
     documentPanel.root,
     inspector.root,
     groups.root,
+    historyPanel.root,
     status,
     scaleBar,
     contextMenu
@@ -210,7 +212,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
   const newButton = makeIconButton("✦", "Generate a new Voronoi grid", () => {
     documentState = createSizedDocument(size.value as CitySizePreset);
-    history = new DocumentHistory(documentState);
+    history = new DocumentHistory(documentState, "New grid");
     selection = emptySelection();
     activeGroupId = null;
     halfView = documentState.frame.extentMeters / 2;
@@ -265,19 +267,19 @@ export function mountCityEditor(root: HTMLElement): void {
     const next = scaleDocument(documentState, factor);
     if (next) {
       halfView *= factor;
-      commit(next);
+      commit(next, `Scale geometry ×${factor}`);
     }
   });
   const finishButton = makeIconButton("✓", "Finish active river", () => {
     if (!activeGroupId) return;
     const next = finishRiver(documentState, activeGroupId);
-    if (next) commit(next);
+    if (next) commit(next, "Finish river");
   });
   const smoothingModeInput = select(["safe", "include loops & shared"], "safe");
   const smoothGroupsButton = makeIconButton("⌁", "Smooth all routes", () => {
     const mode = smoothingModeInput.value === "include loops & shared" ? "includeSharedAndLoops" : "safe";
     const next = smoothFeatureGroups(documentState, mode);
-    if (next) commit(next);
+    if (next) commit(next, "Smooth all routes");
     else showNotice("No movable River, Road, or Wall vertices to smooth");
   });
   const actions = div("ce-icon-row");
@@ -509,21 +511,24 @@ export function mountCityEditor(root: HTMLElement): void {
       if (merged) documentState = merged;
     }
     if (wasVertexDragging && dragBefore && JSON.stringify(dragBefore) !== JSON.stringify(documentState)) {
-      history.commit(documentState);
+      history.commit(documentState, mergeCandidateId ? "Merge vertices" : "Move vertex");
       rebuildEditorIndexes();
     }
     selection.hoverVertexId = null;
     if (wasWardPainting && wardPaintChanged) {
-      history.commit(documentState);
+      history.commit(
+        documentState,
+        tool === "sea" ? "Paint sea" : wardBrush ? `Paint ${wardBrush} ward` : "Erase wards"
+      );
       rebuildEditorIndexes();
     }
     if (wasJunctionPainting && junctionPaintChanged) {
-      history.commit(documentState);
+      history.commit(documentState, "Clean junctions");
       rebuildEditorIndexes();
     }
     if (circle && event.type !== "pointercancel") {
       const next = encloseCircleWithWalls(documentState, circle.center, circle.radiusMeters);
-      if (next) commit(next);
+      if (next) commit(next, "Circular ward wall");
       else showNotice("Draw a circle over at least one city cell to create a wall");
     }
     if (stroke) {
@@ -539,7 +544,7 @@ export function mountCityEditor(root: HTMLElement): void {
         const next = rerouteGroupAcrossFace(documentState, draggedRoute.groupId, previewFaceId, {
           edgeId: draggedRoute.edgeId
         });
-        if (next) commit(next);
+        if (next) commit(next, "Reroute across cell");
       }
       selection.vertexId = null;
       selection.edgeId = null;
@@ -585,7 +590,7 @@ export function mountCityEditor(root: HTMLElement): void {
       }
       if (activeGroup.kind !== "river") {
         const next = appendEdge(documentState, activeGroup.id, edgeId);
-        if (next) commit(next);
+        if (next) commit(next, `Extend ${activeGroup.name}`);
         else showNotice("Choose an unused edge beside a route endpoint");
         return;
       }
@@ -647,7 +652,7 @@ export function mountCityEditor(root: HTMLElement): void {
             }
             selection.edgeId = null;
             return next;
-          })
+          }, `Delete ${routeGroup.name} edge`)
       });
     }
 
@@ -655,7 +660,11 @@ export function mountCityEditor(root: HTMLElement): void {
     if (wardFace?.properties.ward) {
       actions.push({
         label: `Enclose connected ${wardFace.properties.ward} ward with walls`,
-        run: () => runContextAction(() => encloseWardComponentWithWalls(documentState, wardFace.id))
+        run: () =>
+          runContextAction(
+            () => encloseWardComponentWithWalls(documentState, wardFace.id),
+            `Enclose ${wardFace.properties.ward} ward`
+          )
       });
     }
 
@@ -667,7 +676,7 @@ export function mountCityEditor(root: HTMLElement): void {
     ) {
       actions.push({
         label: `Merge ${selection.faceId} with ${faceId}`,
-        run: () => runContextAction(() => mergeFaces(documentState, selection.faceId as Id, faceId))
+        run: () => runContextAction(() => mergeFaces(documentState, selection.faceId as Id, faceId), "Merge cells")
       });
     }
 
@@ -675,7 +684,8 @@ export function mountCityEditor(root: HTMLElement): void {
       if (edgeBetween(documentState.mesh, selection.vertexId, vertexId)) {
         actions.push({
           label: `Merge ${vertexId} into ${selection.vertexId}`,
-          run: () => runContextAction(() => mergeVertices(documentState, selection.vertexId as Id, vertexId)),
+          run: () =>
+            runContextAction(() => mergeVertices(documentState, selection.vertexId as Id, vertexId), "Merge vertices"),
           highlight: { vertexId, edgeId: edgeBetween(documentState.mesh, selection.vertexId, vertexId)?.id ?? "" }
         });
       } else {
@@ -684,7 +694,11 @@ export function mountCityEditor(root: HTMLElement): void {
           if (!vertices.includes(selection.vertexId) || !vertices.includes(vertexId)) continue;
           actions.push({
             label: `Split ${face.id} from ${selection.vertexId} to ${vertexId}`,
-            run: () => runContextAction(() => splitFace(documentState, face.id, selection.vertexId as Id, vertexId))
+            run: () =>
+              runContextAction(
+                () => splitFace(documentState, face.id, selection.vertexId as Id, vertexId),
+                "Split cell"
+              )
           });
         }
       }
@@ -753,7 +767,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (appended) {
       activeGroupId = groupId;
       selection.groupId = groupId;
-      commit(appended);
+      commit(appended, kind === "wall" ? "Draw wall" : "Draw road");
     }
   }
 
@@ -770,21 +784,21 @@ export function mountCityEditor(root: HTMLElement): void {
     if (appended) {
       activeGroupId = groupId;
       selection = { ...selection, vertexId, groupId };
-      commit(appended);
+      commit(appended, "Draw river");
     }
   }
 
-  function commit(next: CityDocument): void {
-    documentState = history.commit(next);
+  function commit(next: CityDocument, label = "Edit"): void {
+    documentState = history.commit(next, label);
     rebuildEditorIndexes();
     refresh();
   }
 
-  function runContextAction(operation: () => CityDocument | null): void {
+  function runContextAction(operation: () => CityDocument | null, label = "Edit"): void {
     const next = operation();
     hideContextMenu();
     if (next) {
-      commit(next);
+      commit(next, label);
       return;
     }
     showNotice("This operation cannot be applied to the selected geometry");
@@ -846,6 +860,10 @@ export function mountCityEditor(root: HTMLElement): void {
     refresh();
   }
 
+  function jumpToHistory(index: number): void {
+    restore(history.jumpTo(index));
+  }
+
   function refresh(): void {
     redrawMap();
     map.classList.toggle("ce-map--select", tool === "select");
@@ -873,6 +891,7 @@ export function mountCityEditor(root: HTMLElement): void {
     else updateCircularWallPreview();
     renderInspector();
     renderGroups();
+    renderHistory();
     const errors = validate(documentState);
     status.textContent = `${Object.keys(documentState.mesh.faces).length} blocks · ${documentState.featureGroups.length} groups${errors.length ? ` · ${errors.join(", ")}` : " · valid"}${notice ? ` · ${notice}` : ""}`;
     refreshScaleBar();
@@ -941,7 +960,7 @@ export function mountCityEditor(root: HTMLElement): void {
             const next = removeEdgeFromGroup(documentState, group.id, selection.edgeId as Id);
             if (next) {
               selection.edgeId = null;
-              commit(next);
+              commit(next, `Delete edge in ${group.name}`);
             }
           })
         );
@@ -959,13 +978,13 @@ export function mountCityEditor(root: HTMLElement): void {
         () => {
           if (gate) {
             const next = toggleGate(documentState, vertex.id);
-            if (next) commit(next);
+            if (next) commit(next, "Remove gate");
             return;
           }
           const candidates = gateOpeningCandidates(documentState, vertex.id);
           if (candidates.length === 1) {
             const next = placeGateOpening(documentState, vertex.id, candidates[0].vertexId);
-            if (next) commit(next);
+            if (next) commit(next, "Place gate");
             else showNotice("Cannot create a through-road at this wall vertex");
             return;
           }
@@ -979,7 +998,8 @@ export function mountCityEditor(root: HTMLElement): void {
             bounds.top,
             candidates.map(candidate => ({
               label: `Open via ${candidate.edgeId} → ${candidate.vertexId}`,
-              run: () => runContextAction(() => placeGateOpening(documentState, vertex.id, candidate.vertexId)),
+              run: () =>
+                runContextAction(() => placeGateOpening(documentState, vertex.id, candidate.vertexId), "Place gate"),
               highlight: { vertexId: candidate.vertexId, edgeId: candidate.edgeId }
             }))
           );
@@ -1004,10 +1024,12 @@ export function mountCityEditor(root: HTMLElement): void {
     const face = documentState.mesh.faces[selection.faceId];
     if (!face) return;
     const water = select(["land", "sea", "lake", "openWater"], face.properties.water);
-    water.addEventListener("change", () => commit(setFaceWater(documentState, face.id, water.value as WaterKind)));
+    water.addEventListener("change", () =>
+      commit(setFaceWater(documentState, face.id, water.value as WaterKind), `Set water ${water.value}`)
+    );
     const elevation = numberInput(String(face.properties.elevation), "-1000", "1");
     elevation.addEventListener("change", () =>
-      commit(setFaceElevation(documentState, face.id, Number(elevation.value)))
+      commit(setFaceElevation(documentState, face.id, Number(elevation.value)), "Set elevation")
     );
     const ward = select(
       ["", "market", "castle", "merchant", "craftsmen", "harbor", "park", "empty"],
@@ -1016,7 +1038,7 @@ export function mountCityEditor(root: HTMLElement): void {
     ward.addEventListener("change", () => {
       const next = clone(documentState);
       next.mesh.faces[face.id].properties.ward = (ward.value || null) as WardKind | null;
-      commit(next);
+      commit(next, ward.value ? `Set ${ward.value} ward` : "Clear ward");
     });
     const vertices = faceVertices(documentState.mesh, face);
     const splitFrom = select(vertices, vertices[0]);
@@ -1033,13 +1055,13 @@ export function mountCityEditor(root: HTMLElement): void {
       label("Split to", splitTo),
       makeIconButton("✂", "Split cell", () => {
         const next = splitFace(documentState, face.id, splitFrom.value, splitTo.value);
-        if (next) commit(next);
+        if (next) commit(next, "Split cell");
       }),
       label("Merge with", mergeWith),
       makeIconButton("⊕", "Merge cell", () => {
         if (!mergeWith.value) return;
         const next = mergeFaces(documentState, face.id, mergeWith.value);
-        if (next) commit(next);
+        if (next) commit(next, "Merge cells");
       })
     );
   }
@@ -1065,7 +1087,7 @@ export function mountCityEditor(root: HTMLElement): void {
       );
       const smooth = makeIconButton("⌁", `Smooth ${group.name}`, () => {
         const next = smoothFeatureGroup(documentState, group.id);
-        if (next) commit(next);
+        if (next) commit(next, `Smooth ${group.name}`);
         else showNotice(`${group.name} has no movable vertices to smooth`);
       });
       smooth.disabled = group.locked || (group.kind !== "river" && group.kind !== "road" && group.kind !== "wall");
@@ -1073,11 +1095,12 @@ export function mountCityEditor(root: HTMLElement): void {
       row.appendChild(smooth);
       row.appendChild(
         makeIconButton("×", `Delete ${group.name}`, () => {
+          const name = group.name;
           if (activeGroupId === group.id) {
             activeGroupId = null;
             selection.groupId = null;
           }
-          commit(removeGroup(documentState, group.id));
+          commit(removeGroup(documentState, group.id), `Delete ${name}`);
         })
       );
       groups.content.appendChild(row);
@@ -1088,6 +1111,32 @@ export function mountCityEditor(root: HTMLElement): void {
           "In Select mode, left-drag a highlighted route edge through a cell to preview and replace that boundary span."
         )
       );
+  }
+
+  function renderHistory(): void {
+    historyPanel.content.replaceChildren();
+    const entries = history.entries;
+    const current = history.index;
+    const list = div("ce-history-list");
+    entries.forEach((entry, index) => {
+      const row = makeButton("", () => jumpToHistory(index));
+      row.className = "ce-history-row";
+      row.classList.toggle("is-current", index === current);
+      row.classList.toggle("is-future", index > current);
+      row.title = `Restore state ${index}: ${entry.label}`;
+      const step = text(String(index));
+      step.className = "ce-history-index";
+      const name = text(entry.label);
+      name.className = "ce-history-label";
+      const time = text(formatClock(entry.time));
+      time.className = "ce-history-time";
+      row.append(step, name, time);
+      list.appendChild(row);
+    });
+    historyPanel.content.appendChild(list);
+    historyPanel.content.appendChild(text(`Step ${current} of ${entries.length - 1} · click a step to restore it`));
+    // Keep the active step visible as the timeline grows past the panel height.
+    (list.children[current] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
   }
 
   function localPoint(event: PointerEvent): [number, number] {
@@ -1401,7 +1450,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function commitRouteStrokeStep(): void {
-    history.commit(documentState);
+    history.commit(documentState, routeStroke ? `Draw ${routeStroke.kind}` : "Draw route");
     rebuildEditorIndexes();
   }
 
@@ -1567,7 +1616,7 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     documentState = parsed.document;
-    history = new DocumentHistory(parsed.document);
+    history = new DocumentHistory(parsed.document, "Imported map");
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;
@@ -1755,6 +1804,15 @@ function niceScale(targetMeters: number): number {
 
 function formatDistance(meters: number): string {
   return meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
+}
+
+function formatClock(time: number): string {
+  return new Date(time).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
 }
 
 function pointToSegmentDistance(point: Point, a: Point, b: Point): number {
