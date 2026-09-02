@@ -250,7 +250,7 @@ export function mountCityEditor(root: HTMLElement): void {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
     option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km · ${preset.cellsAcross}×${preset.cellsAcross} · ~${preset.buildingTarget} buildings`;
   }
-  const newButton = makeIconButton("✦", "Generate a new Voronoi grid", () => {
+  const newButton = makeIconButton("🆕", "Generate a new Voronoi grid", () => {
     documentState = createSizedDocument(size.value as CitySizePreset);
     history = new DocumentHistory(documentState, "New grid");
     referenceImage = null;
@@ -263,13 +263,13 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   const sizeLabel = label("Map size", size);
   sizeLabel.className = "ce-size-choice";
-  const undoButton = makeIconButton("↶", "Undo", () => restore(history.undo(documentState)));
-  const redoButton = makeIconButton("↷", "Redo", () => restore(history.redo(documentState)));
-  const exportButton = makeIconButton("⇩", "Export editable city map", () => {
+  const undoButton = makeIconButton("🔙", "Undo", () => restore(history.undo(documentState)));
+  const redoButton = makeIconButton("➜]", "Redo", () => restore(history.redo(documentState)));
+  const exportButton = makeIconButton("📥", "Export editable city map", () => {
     exportCityMap(referenceImage ? { ...documentState, referenceImage } : documentState);
     showNotice("Map exported");
   });
-  const importButton = makeIconButton("⇧", "Import city map or SVG reference", () => void importDocument());
+  const importButton = makeIconButton("📤", "Import city map or SVG reference", () => void importDocument());
   const scaleInput = numberInput("1", "0.1", "0.1");
   const showLabelsInput = document.createElement("input");
   showLabelsInput.type = "checkbox";
