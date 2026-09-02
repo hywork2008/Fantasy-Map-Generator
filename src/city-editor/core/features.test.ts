@@ -16,7 +16,8 @@ import {
   rerouteGroupVertex,
   smoothFeatureGroup,
   smoothFeatureGroups,
-  toggleGate
+  toggleGate,
+  vertexHasWallPassage
 } from "./features";
 import type { CityDocument } from "./types";
 
@@ -133,6 +134,60 @@ function closedRouteDocument(): CityDocument {
 }
 
 describe("gates", () => {
+  it("recognizes a wall passing through a four-way vertex", () => {
+    const document: CityDocument = {
+      format: "fmg-city-editor",
+      version: 1,
+      frame: { extentMeters: 100, cityRadiusMeters: 40, blockSizeMeters: 10 },
+      mesh: {
+        vertices: {
+          centre: { id: "centre", point: [0, 0], locked: false },
+          east: { id: "east", point: [10, 0], locked: false },
+          north: { id: "north", point: [0, 10], locked: false },
+          west: { id: "west", point: [-10, 0], locked: false },
+          south: { id: "south", point: [0, -10], locked: false }
+        },
+        edges: {
+          east: { id: "east", a: "centre", b: "east", leftFace: null, rightFace: null, locked: false },
+          north: { id: "north", a: "centre", b: "north", leftFace: null, rightFace: null, locked: false },
+          west: { id: "west", a: "centre", b: "west", leftFace: null, rightFace: null, locked: false },
+          south: { id: "south", a: "centre", b: "south", leftFace: null, rightFace: null, locked: false }
+        },
+        faces: {}
+      },
+      featureGroups: [
+        {
+          id: "wall-1",
+          kind: "wall",
+          name: "Wall #1",
+          segments: [
+            { edgeId: "west", forward: false },
+            { edgeId: "east", forward: true }
+          ],
+          style: { widthMeters: 7, color: "#342a22" },
+          locked: false
+        }
+      ],
+      gates: [],
+      elements: []
+    };
+
+    expect(vertexHasWallPassage(document, "centre")).toBe(true);
+
+    const cornerWall = structuredClone(document);
+    const wall = cornerWall.featureGroups[0];
+    if (wall.kind === "wall")
+      wall.segments = [
+        { edgeId: "north", forward: false },
+        { edgeId: "east", forward: true }
+      ];
+    expect(vertexHasWallPassage(cornerWall, "centre")).toBe(false);
+
+    const threeWay = structuredClone(document);
+    delete threeWay.mesh.edges.south;
+    expect(vertexHasWallPassage(threeWay, "centre")).toBe(false);
+  });
+
   it("anchors gates to wall vertices and toggles them there", () => {
     const document = routeDocument();
     const first = toggleGate(document, "a");

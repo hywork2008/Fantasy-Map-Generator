@@ -19,7 +19,8 @@ import {
   smoothFeatureGroup,
   smoothFeatureGroups,
   toggleGate,
-  vertexHasWall
+  vertexHasWall,
+  vertexHasWallPassage
 } from "../core/features";
 import { DocumentHistory } from "../core/history";
 import {
@@ -670,8 +671,9 @@ export function mountCityEditor(root: HTMLElement): void {
   map.addEventListener("contextmenu", event => {
     event.preventDefault();
     flushRedraw();
+    const isSelectTool = tool === "select";
     const faceId = targetId(event, "face") ?? faceAtPoint(localPoint(event));
-    const vertexId = targetId(event, "vertex");
+    const vertexId = targetId(event, "vertex") ?? (isSelectTool ? closestVertexId(localPoint(event)) : null);
     const edgeId = targetId(event, "edge");
     const groupId = targetId(event, "group");
     const actions: ContextMenuAction[] = [];
@@ -682,8 +684,16 @@ export function mountCityEditor(root: HTMLElement): void {
     if (vertexId) {
       selection = { ...selection, vertexId, faceId: null, edgeId: null, groupId: null };
       activeGroupId = null;
-      tool = "vertex";
+      if (!isSelectTool) tool = "vertex";
       refresh();
+    }
+
+    if (isSelectTool && vertexId && vertexHasWallPassage(documentState, vertexId)) {
+      const gate = documentState.gates.find(candidate => candidate.vertexId === vertexId);
+      actions.push({
+        label: gate ? "Delete gate" : "Draw gate",
+        run: () => runContextAction(() => toggleGate(documentState, vertexId), gate ? "Delete gate" : "Draw gate")
+      });
     }
 
     const activeGroup = activeGroupId ? documentState.featureGroups.find(group => group.id === activeGroupId) : null;

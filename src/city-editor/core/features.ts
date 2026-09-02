@@ -221,6 +221,40 @@ export function vertexHasWall(document: CityDocument, vertexId: Id): boolean {
   );
 }
 
+/**
+ * Whether a Wall passes through a junction rather than ending there. A gate
+ * can be drawn only where exactly two Wall edges divide the remaining incident
+ * edges into an inside and an outside branch.
+ */
+export function vertexHasWallPassage(document: CityDocument, vertexId: Id): boolean {
+  const vertex = document.mesh.vertices[vertexId];
+  if (!vertex) return false;
+
+  const incident = Object.values(document.mesh.edges).filter(edge => edge.a === vertexId || edge.b === vertexId);
+  if (incident.length < 4) return false;
+
+  const wallEdges = wallEdgeIds(document);
+  const wallIncident = incident.filter(edge => wallEdges.has(edge.id));
+  if (wallIncident.length !== 2) return false;
+
+  // The two wall edges must be separated in both directions around the
+  // vertex. Merely having two wall edges at a four-way junction is not enough
+  // when they meet as a corner instead of forming a wall crossing.
+  const ordered = incident
+    .map(edge => {
+      const other = document.mesh.vertices[edge.a === vertexId ? edge.b : edge.a];
+      return {
+        edge,
+        angle: other ? Math.atan2(other.point[1] - vertex.point[1], other.point[0] - vertex.point[0]) : 0
+      };
+    })
+    .sort((a, b) => a.angle - b.angle || a.edge.id.localeCompare(b.edge.id));
+  const firstWallIndex = ordered.findIndex(item => item.edge.id === wallIncident[0].id);
+  const secondWallIndex = ordered.findIndex(item => item.edge.id === wallIncident[1].id);
+  const gap = Math.abs(firstWallIndex - secondWallIndex);
+  return gap > 1 && gap < ordered.length - 1;
+}
+
 export interface GateOpeningCandidate {
   /** The Wall edge to collapse, turning two wall vertices into a four-way gate. */
   edgeId: Id;
