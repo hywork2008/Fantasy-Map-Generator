@@ -112,6 +112,25 @@ describe("DocumentHistory timeline", () => {
     expect(history.canRedo).toBe(false);
   });
 
+  it("clears undo and redo entries while retaining the current document", () => {
+    const base = createDocument("history-seed", 900, 110);
+    const history = new DocumentHistory(base);
+    history.commit(withFaceCount(base, 1), "Step 1");
+    history.commit(withFaceCount(base, 2), "Step 2");
+    const current = history.jumpTo(1);
+
+    expect(current?.frame.extentMeters).toBe(1);
+    history.reset(current!, "History cleared");
+
+    expect(history.entries.map(entry => entry.label)).toEqual(["History cleared"]);
+    expect(history.index).toBe(0);
+    expect(history.canUndo).toBe(false);
+    expect(history.canRedo).toBe(false);
+
+    history.commit(withFaceCount(current!, 3), "Next edit");
+    expect(history.undo(current!)?.frame.extentMeters).toBe(1);
+  });
+
   it("returns cloned snapshots so callers cannot mutate the timeline", () => {
     const base = createDocument("history-seed", 900, 110);
     const history = new DocumentHistory(base);

@@ -160,6 +160,7 @@ export function mountCityEditor(root: HTMLElement): void {
   // the whole list every edit (see renderHistory for why).
   let historyListEl: HTMLDivElement | null = null;
   let historySummaryEl: HTMLElement | null = null;
+  let historyClearButton: HTMLButtonElement | null = null;
   let historyRows: HTMLButtonElement[] = [];
   // Rebuilt every full redrawMap() pass; patchFaceRender() uses these to
   // update one face's <path>/landmark in place after a ward/sea paint,
@@ -1251,8 +1252,17 @@ export function mountCityEditor(root: HTMLElement): void {
     if (!historyListEl || historyRows.length > entries.length) {
       historyPanel.content.replaceChildren();
       historyListEl = div("ce-history-list");
+      const actions = div("ce-history-actions");
+      historyClearButton = makeButton("Clear all history", () => {
+        if (!history.canUndo && !history.canRedo) return;
+        history.reset(documentState, "History cleared");
+        showNotice("History cleared");
+        refreshUiOnly();
+      });
+      historyClearButton.className = "ce-history-clear";
+      actions.appendChild(historyClearButton);
       historySummaryEl = text("");
-      historyPanel.content.append(historyListEl, historySummaryEl);
+      historyPanel.content.append(historyListEl, actions, historySummaryEl);
       historyRows = [];
     }
     const list = historyListEl;
@@ -1278,6 +1288,7 @@ export function mountCityEditor(root: HTMLElement): void {
       row.classList.toggle("is-current", index === current);
       row.classList.toggle("is-future", index > current);
     });
+    historyClearButton!.disabled = entries.length <= 1;
     historySummaryEl!.textContent = `Step ${current} of ${entries.length - 1} · click a step to restore it`;
     // Keep the active step visible as the timeline grows past the panel height.
     historyRows[current]?.scrollIntoView({ block: "nearest" });
