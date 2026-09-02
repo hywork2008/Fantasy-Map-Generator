@@ -29,6 +29,7 @@ import {
   mergeFaces,
   mergeVertices,
   moveVertex,
+  optimizeJunctions,
   scaleDocument,
   setFaceElevation,
   setFaceWater,
@@ -46,6 +47,7 @@ const TOOLS: Array<[Tool, string, string]> = [
   ["wall", "Draw wall", "▥"],
   ["river", "Draw river", "〰"],
   ["ward", "Paint ward", "◈"],
+  ["junction", "Clean short junctions", "⌬"],
   ["face", "Edit cell", "⬡"]
 ];
 
@@ -85,6 +87,8 @@ export function mountCityEditor(root: HTMLElement): void {
   let isWardPainting = false;
   let wardPaintChanged = false;
   let paintedWardFaceIds = new Set<Id>();
+  let isJunctionPainting = false;
+  let junctionPaintChanged = false;
   let routeDrag: { groupId: Id; edgeId: Id; startX: number; startY: number; moved: boolean } | null = null;
   let routeStroke: RouteStroke | null = null;
   let routePreview: FaceRoutePreview | null = null;
@@ -95,7 +99,8 @@ export function mountCityEditor(root: HTMLElement): void {
   let wardBrush: WardKind | null = "market";
   // The brush is expressed in macro cells, so its size stays meaningful when
   // switching between city presets or changing the map scale.
-  let wardBrushRadiusCells = 1;
+  let brushRadiusCells = 1;
+  let junctionMaxGapMeters = 8;
   let wardBrushPointer: { clientX: number; clientY: number } | null = null;
   let hasPanned = false;
   let suppressNextClick = false;
@@ -193,15 +198,31 @@ export function mountCityEditor(root: HTMLElement): void {
   wardBrushInput.addEventListener("change", () => {
     wardBrush = wardBrushInput.value === "erase" ? null : (wardBrushInput.value as WardKind);
   });
-  const wardBrushSizeInput = rangeInput("1", "0", "8", "0.5");
-  const wardBrushSizeValue = text(wardBrushSizeText());
-  const wardBrushSizeControl = div("ce-brush-size-control");
-  wardBrushSizeControl.append(wardBrushSizeInput, wardBrushSizeValue);
-  const wardBrushSizeLabel = label("Brush radius", wardBrushSizeControl);
-  wardBrushSizeInput.addEventListener("input", () => {
-    wardBrushRadiusCells = Number(wardBrushSizeInput.value);
-    wardBrushSizeValue.textContent = wardBrushSizeText();
+  const brushSizeInput = rangeInput("1", "0", "8", "0.5");
+  const brushSizeValue = text(brushSizeText());
+  const brushSizeControl = div("ce-brush-size-control");
+  brushSizeControl.append(brushSizeInput, brushSizeValue);
+  const brushSizeLabel = label("Brush radius", brushSizeControl);
+  brushSizeInput.addEventListener("input", () => {
+    brushRadiusCells = Number(brushSizeInput.value);
+    brushSizeValue.textContent = brushSizeText();
     updateWardBrushPreview();
+  });
+  const junctionMaxGapInput = rangeInput("8", "1", "50", "1");
+  const junctionMaxGapValue = text(formatDistance(junctionMaxGapMeters));
+  const junctionMaxGapSliderRow = div("ce-brush-size-control");
+  junctionMaxGapSliderRow.append(junctionMaxGapInput, junctionMaxGapValue);
+  const junctionGapScale = div("ce-junction-gap-scale");
+  const junctionGapLine = div("ce-junction-gap-line");
+  const junctionGapLength = text("");
+  junctionGapScale.append(junctionGapLine, junctionGapLength);
+  const junctionMaxGapControl = div("ce-junction-gap-control");
+  junctionMaxGapControl.append(junctionMaxGapSliderRow, junctionGapScale);
+  const junctionMaxGapLabel = label("Max junction gap", junctionMaxGapControl);
+  junctionMaxGapInput.addEventListener("input", () => {
+    junctionMaxGapMeters = Number(junctionMaxGapInput.value);
+    junctionMaxGapValue.textContent = formatDistance(junctionMaxGapMeters);
+    refreshJunctionGapScale();
   });
   const scaleButton = makeIconButton("⤢", "Scale all map geometry", () => {
     const factor = Number(scaleInput.value);
@@ -229,7 +250,8 @@ export function mountCityEditor(root: HTMLElement): void {
     divider(),
     actions,
     label("Ward", wardBrushInput),
-    wardBrushSizeLabel,
+    brushSizeLabel,
+    junctionMaxGapLabel,
     label("Cell IDs", showLabelsInput)
   );
   const documentActions = div("ce-icon-row");
@@ -264,6 +286,15 @@ export function mountCityEditor(root: HTMLElement): void {
       wardPaintChanged = false;
       paintedWardFaceIds = new Set();
       paintWardAtPoint(point);
+      suppressNextClick = true;
+      map.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (tool === "junction") {
+      event.preventDefault();
+      isJunctionPainting = true;
+      junctionPaintChanged = false;
+      optimizeJunctionsAtPoint(point);
       suppressNextClick = true;
       map.setPointerCapture(event.pointerId);
       return;
@@ -329,9 +360,13 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
-    if (tool === "ward") updateWardBrushPreview(event);
+    if (isBrushTool(tool)) updateWardBrushPreview(event);
     if (isWardPainting) {
       paintWardAtPoint(localPoint(event));
+      return;
+    }
+    if (isJunctionPainting) {
+      optimizeJunctionsAtPoint(localPoint(event));
       return;
     }
     if (routeStroke) {
@@ -381,12 +416,13 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   });
   map.addEventListener("pointerleave", () => {
-    if (!isWardPainting) hideWardBrushPreview();
+    if (!isWardPainting && !isJunctionPainting) hideWardBrushPreview();
   });
   const finishDrag = (event: PointerEvent): void => {
-    if (!isVertexDragging && !isWardPainting && !isPanning && !routeDrag && !routeStroke) return;
+    if (!isVertexDragging && !isWardPainting && !isJunctionPainting && !isPanning && !routeDrag && !routeStroke) return;
     const wasVertexDragging = isVertexDragging;
     const wasWardPainting = isWardPainting;
+    const wasJunctionPainting = isJunctionPainting;
     const mergeCandidateId = dragMergeCandidateId;
     const stroke = routeStroke;
     const draggedRoute = routeDrag;
@@ -394,6 +430,7 @@ export function mountCityEditor(root: HTMLElement): void {
     const previewFaceId = routePreviewFaceId;
     isVertexDragging = false;
     isWardPainting = false;
+    isJunctionPainting = false;
     routeStroke = null;
     routeDrag = null;
     routePreview = null;
@@ -417,6 +454,10 @@ export function mountCityEditor(root: HTMLElement): void {
       history.commit(documentState);
       rebuildEditorIndexes();
     }
+    if (wasJunctionPainting && junctionPaintChanged) {
+      history.commit(documentState);
+      rebuildEditorIndexes();
+    }
     if (stroke) {
       if (event.type !== "pointercancel") finishRouteStroke(stroke, localPoint(event));
     }
@@ -436,7 +477,7 @@ export function mountCityEditor(root: HTMLElement): void {
       selection.edgeId = null;
     }
     if (event.type === "pointercancel") suppressNextClick = false;
-    if (wasVertexDragging || wasWardPainting || stroke) refresh();
+    if (wasVertexDragging || wasWardPainting || wasJunctionPainting || stroke) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
@@ -739,14 +780,18 @@ export function mountCityEditor(root: HTMLElement): void {
   function refresh(): void {
     redrawMap();
     map.classList.toggle("ce-map--select", tool === "select");
+    map.classList.toggle("ce-map--brush", isBrushTool(tool));
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
     wardBrushInput.disabled = tool !== "ward";
-    wardBrushSizeInput.disabled = tool !== "ward";
-    wardBrushSizeLabel.classList.toggle("is-disabled", tool !== "ward");
-    wardBrushSizeValue.textContent = wardBrushSizeText();
-    if (tool !== "ward") hideWardBrushPreview();
+    brushSizeInput.disabled = !isBrushTool(tool);
+    brushSizeLabel.classList.toggle("is-disabled", !isBrushTool(tool));
+    brushSizeValue.textContent = brushSizeText();
+    junctionMaxGapInput.disabled = tool !== "junction";
+    junctionMaxGapLabel.classList.toggle("is-disabled", tool !== "junction");
+    junctionMaxGapValue.textContent = formatDistance(junctionMaxGapMeters);
+    if (!isBrushTool(tool)) hideWardBrushPreview();
     else updateWardBrushPreview();
     renderInspector();
     renderGroups();
@@ -778,6 +823,16 @@ export function mountCityEditor(root: HTMLElement): void {
     scaleLine.style.width = `${meters / metersPerPixel}px`;
     const blockCount = Math.max(1, Math.round(meters / documentState.frame.blockSizeMeters));
     scaleLabel.textContent = `×${zoomFactor().toFixed(1)} · ${formatDistance(meters)} · ≈ ${blockCount} block${blockCount === 1 ? "" : "s"} (1 cell ≈ ${formatDistance(documentState.frame.blockSizeMeters)})`;
+    refreshJunctionGapScale();
+  }
+
+  function refreshJunctionGapScale(): void {
+    const width = map.getBoundingClientRect().width;
+    if (width <= 0) return;
+    const metersPerPixel = (halfView * 2) / width;
+    const pixelLength = Math.max(1, junctionMaxGapMeters / metersPerPixel);
+    junctionGapLine.style.width = `${pixelLength}px`;
+    junctionGapLength.textContent = `${formatDistance(junctionMaxGapMeters)} edge threshold`;
   }
 
   function zoomFactor(): number {
@@ -1047,7 +1102,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function faceIdsWithinWardBrush(center: Point): Id[] {
-    const radius = wardBrushRadiusMeters();
+    const radius = brushRadiusMeters();
     if (radius <= 0) {
       const faceId = faceAtPoint(center);
       return faceId ? [faceId] : [];
@@ -1097,24 +1152,32 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   }
 
-  function wardBrushRadiusMeters(): number {
-    return wardBrushRadiusCells * documentState.frame.blockSizeMeters;
+  function brushRadiusMeters(): number {
+    return brushRadiusCells * documentState.frame.blockSizeMeters;
   }
 
-  function wardBrushSizeText(): string {
-    const unit = wardBrushRadiusCells === 1 ? "cell" : "cells";
-    return `${wardBrushRadiusCells} ${unit} · ${formatDistance(wardBrushRadiusMeters())}`;
+  function brushSizeText(): string {
+    const unit = brushRadiusCells === 1 ? "cell" : "cells";
+    return `${brushRadiusCells} ${unit} · ${formatDistance(brushRadiusMeters())}`;
+  }
+
+  function optimizeJunctionsAtPoint(point: Point): void {
+    const next = optimizeJunctions(documentState, point, brushRadiusMeters(), junctionMaxGapMeters);
+    if (!next) return;
+    documentState = next;
+    junctionPaintChanged = true;
+    redrawMap();
   }
 
   function updateWardBrushPreview(event?: PointerEvent): void {
     if (event) wardBrushPointer = { clientX: event.clientX, clientY: event.clientY };
-    if (tool !== "ward" || !wardBrushPointer) {
+    if (!isBrushTool(tool) || !wardBrushPointer) {
       hideWardBrushPreview();
       return;
     }
     const bounds = canvas.getBoundingClientRect();
     const metersPerPixel = (halfView * 2) / Math.max(map.getBoundingClientRect().width, 1);
-    const radiusPixels = Math.max(5, wardBrushRadiusMeters() / metersPerPixel);
+    const radiusPixels = Math.max(5, brushRadiusMeters() / metersPerPixel);
     wardBrushPreview.style.width = `${radiusPixels * 2}px`;
     wardBrushPreview.style.height = `${radiusPixels * 2}px`;
     wardBrushPreview.style.left = `${wardBrushPointer.clientX - bounds.left}px`;
@@ -1416,6 +1479,10 @@ function emptySelection(): RenderSelection {
 
 function isRoutePaintTool(tool: Tool): tool is RoutePaintKind {
   return tool === "river" || tool === "road" || tool === "wall";
+}
+
+function isBrushTool(tool: Tool): tool is "ward" | "junction" {
+  return tool === "ward" || tool === "junction";
 }
 
 function targetId(event: Event, kind: "vertex" | "route-vertex" | "edge" | "face" | "group"): Id | null {

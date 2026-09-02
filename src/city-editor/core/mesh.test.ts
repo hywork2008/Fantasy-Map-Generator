@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDocument, createSizedDocument } from "./document";
 import { appendEdge, createGroup } from "./features";
-import { faceNeighbors, faceVertices, mergeFaces, mergeVertices, splitFace, validate } from "./mesh";
+import { faceNeighbors, faceVertices, mergeFaces, mergeVertices, optimizeJunctions, splitFace, validate } from "./mesh";
 
 describe("manual city mesh", () => {
   it("keeps the Small preset near its 24 × 24 macro-block target", () => {
@@ -104,5 +104,63 @@ describe("manual city mesh", () => {
     if (!merged) return;
     expect(merged.featureGroups.find(group => group.id === groupId)).toBeUndefined();
     expect(validate(merged)).toEqual([]);
+  });
+
+  it("cleans short junctions only inside the cleanup brush and centers the survivor", () => {
+    const document = {
+      format: "fmg-city-editor" as const,
+      version: 1 as const,
+      frame: { extentMeters: 100, cityRadiusMeters: 30, blockSizeMeters: 10 },
+      mesh: {
+        vertices: {
+          a: { id: "a", point: [0, 0] as [number, number], locked: false },
+          b: { id: "b", point: [5, 0] as [number, number], locked: false },
+          c: { id: "c", point: [20, 0] as [number, number], locked: false },
+          d: { id: "d", point: [0, 10] as [number, number], locked: false },
+          e: { id: "e", point: [5, 10] as [number, number], locked: false },
+          f: { id: "f", point: [20, 10] as [number, number], locked: false }
+        },
+        edges: {
+          ab: { id: "ab", a: "a", b: "b", leftFace: "f0", rightFace: null, locked: false },
+          be: { id: "be", a: "b", b: "e", leftFace: "f0", rightFace: "f1", locked: false },
+          de: { id: "de", a: "d", b: "e", leftFace: null, rightFace: "f0", locked: false },
+          ad: { id: "ad", a: "a", b: "d", leftFace: null, rightFace: "f0", locked: false },
+          bc: { id: "bc", a: "b", b: "c", leftFace: "f1", rightFace: null, locked: false },
+          cf: { id: "cf", a: "c", b: "f", leftFace: "f1", rightFace: null, locked: false },
+          ef: { id: "ef", a: "e", b: "f", leftFace: "f1", rightFace: null, locked: false }
+        },
+        faces: {
+          f0: {
+            id: "f0",
+            boundary: [
+              { edgeId: "ab", forward: true },
+              { edgeId: "be", forward: true },
+              { edgeId: "de", forward: false },
+              { edgeId: "ad", forward: false }
+            ],
+            properties: { elevation: 1, water: "land" as const, ward: null, buildable: true, locked: false }
+          },
+          f1: {
+            id: "f1",
+            boundary: [
+              { edgeId: "bc", forward: true },
+              { edgeId: "cf", forward: true },
+              { edgeId: "ef", forward: false },
+              { edgeId: "be", forward: false }
+            ],
+            properties: { elevation: 1, water: "land" as const, ward: null, buildable: true, locked: false }
+          }
+        }
+      },
+      featureGroups: [],
+      gates: [],
+      elements: []
+    };
+
+    expect(optimizeJunctions(document, [50, 50], 2, 8)).toBeNull();
+    const cleaned = optimizeJunctions(document, [2.5, 0], 1, 8);
+    expect(cleaned?.mesh.vertices.b).toBeUndefined();
+    expect(cleaned?.mesh.vertices.a.point).toEqual([2.5, 0]);
+    expect(validate(cleaned!)).toEqual([]);
   });
 });

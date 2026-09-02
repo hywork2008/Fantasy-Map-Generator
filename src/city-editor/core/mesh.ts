@@ -345,6 +345,76 @@ export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVe
   return validate(next).length ? null : next;
 }
 
+/**
+ * Collapse short mesh edges touched by a circular brush. The retained vertex
+ * moves to the edge midpoint before the next candidate is considered, matching
+ * TownGenerator's junction cleanup while preserving City Editor route and gate
+ * references through {@link mergeVertices}.
+ */
+export function optimizeJunctions(
+  document: CityDocument,
+  center: Point,
+  radiusMeters: number,
+  maxEdgeLengthMeters = 8
+): CityDocument | null {
+  if (radiusMeters < 0 || maxEdgeLengthMeters <= 0) return null;
+  let next = document;
+  let changed = false;
+  const skippedEdgeIds = new Set<Id>();
+
+  // One collapse can expose another small junction. Re-scan until the brush
+  // contains no eligible short edge, just as the generator cleans each patch
+  // after every vertex replacement.
+  while (true) {
+    const candidate = Object.values(next.mesh.edges)
+      .filter(edge => {
+        const a = next.mesh.vertices[edge.a];
+        const b = next.mesh.vertices[edge.b];
+        return (
+          !!a &&
+          !!b &&
+          !skippedEdgeIds.has(edge.id) &&
+          !a.locked &&
+          !b.locked &&
+          distance(a.point, b.point) < maxEdgeLengthMeters &&
+          pointToSegmentDistance(center, a.point, b.point) <= radiusMeters
+        );
+      })
+      .sort((a, b) => {
+        const aStart = next.mesh.vertices[a.a];
+        const aEnd = next.mesh.vertices[a.b];
+        const bStart = next.mesh.vertices[b.a];
+        const bEnd = next.mesh.vertices[b.b];
+        return distance(aStart!.point, aEnd!.point) - distance(bStart!.point, bEnd!.point);
+      })[0];
+    if (!candidate) break;
+
+    const a = next.mesh.vertices[candidate.a];
+    const b = next.mesh.vertices[candidate.b];
+    if (!a || !b) break;
+    const midpoint: Point = [(a.point[0] + b.point[0]) / 2, (a.point[1] + b.point[1]) / 2];
+    const merged = mergeVertices(next, candidate.a, candidate.b);
+    if (!merged) {
+      // An edge can be structurally protected by its adjacent cells or a
+      // locked route. Do not retry it in this brush stroke.
+      skippedEdgeIds.add(candidate.id);
+      continue;
+    }
+    const positioned = moveVertex(merged, candidate.a, midpoint);
+    if (!positioned) {
+      // Keep the valid topological merge even if centering it would invalidate
+      // a neighboring face; this is safer than retaining the sliver edge.
+      next = merged;
+    } else {
+      next = positioned;
+    }
+    changed = true;
+  }
+
+  if (!changed) return null;
+  return next;
+}
+
 export function scaleDocument(document: CityDocument, factor: number): CityDocument | null {
   if (!Number.isFinite(factor) || factor <= 0) return null;
   const next = clone(document);
@@ -408,6 +478,15 @@ function edgeKey(a: Id, b: Id): string {
 
 function distance(a: Point, b: Point): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
+
+function pointToSegmentDistance(point: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const lengthSquared = dx * dx + dy * dy;
+  if (!lengthSquared) return distance(point, a);
+  const ratio = Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSquared));
+  return distance(point, [a[0] + ratio * dx, a[1] + ratio * dy]);
 }
 
 function area(points: Point[]): number {
