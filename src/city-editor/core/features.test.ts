@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDocument } from "./document";
 import {
+  appendEdge,
   encloseCircleWithWalls,
   encloseWardComponentWithWalls,
   featureGroupVertices,
@@ -311,6 +312,17 @@ describe("route group editing", () => {
     expect(featureGroupVertices(document, group)).toEqual(["a", "b", "c"]);
     expect(groupUsesEdge(document, group, "ab")).toBe(true);
     expect(groupUsesEdge(document, group, "ad")).toBe(false);
+  });
+
+  it("returns the same document when appending an edge the group already has", () => {
+    const document = routeDocument();
+    // "ab" and "bc" are already the wall's segments.
+    expect(appendEdge(document, "wall-1", "ab")).toBe(document);
+    expect(appendEdge(document, "wall-1", "bc")).toBe(document);
+    // A genuinely new edge still returns a fresh document.
+    const extended = appendEdge(document, "wall-1", "ad");
+    expect(extended).not.toBeNull();
+    expect(extended).not.toBe(document);
   });
 
   it("reroutes an internal wall vertex over the shortest replacement edges", () => {

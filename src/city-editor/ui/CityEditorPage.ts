@@ -81,6 +81,9 @@ interface RouteStroke {
   startPoint: Point;
   lastPoint: Point;
   changed: boolean;
+  /** True once the stroke has pushed its single history entry; further steps
+   * amend that entry in place so one drag is one undo. */
+  committed: boolean;
 }
 
 interface CircularWallStroke {
@@ -97,6 +100,11 @@ interface FloatingWindow {
 export function mountCityEditor(root: HTMLElement): void {
   let documentState = createSizedDocument("small");
   let history = new DocumentHistory(documentState);
+  // An imported MFCG SVG backdrop can be a multi-megabyte data URL. Keep it out
+  // of `documentState` so it is never cloned into a history snapshot or an
+  // undo/redo step; it is re-attached only for export and passed to the
+  // renderer separately.
+  let referenceImage: CityDocument["referenceImage"] | null = null;
   let tool: Tool = "select";
   let selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
   let activeGroupId: Id | null = null;
@@ -218,6 +226,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const newButton = makeIconButton("✦", "Generate a new Voronoi grid", () => {
     documentState = createSizedDocument(size.value as CitySizePreset);
     history = new DocumentHistory(documentState, "New grid");
+    referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
     halfView = documentState.frame.extentMeters / 2;
@@ -230,7 +239,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const undoButton = makeIconButton("↶", "Undo", () => restore(history.undo(documentState)));
   const redoButton = makeIconButton("↷", "Redo", () => restore(history.redo(documentState)));
   const exportButton = makeIconButton("⇩", "Export editable city map", () => {
-    exportCityMap(documentState);
+    exportCityMap(referenceImage ? { ...documentState, referenceImage } : documentState);
     showNotice("Map exported");
   });
   const importButton = makeIconButton("⇧", "Import city map or SVG reference", () => void importDocument());
@@ -371,7 +380,8 @@ export function mountCityEditor(root: HTMLElement): void {
           initialized: false,
           startPoint: point,
           lastPoint: point,
-          changed: false
+          changed: false,
+          committed: false
         };
         suppressNextClick = true;
         map.setPointerCapture(event.pointerId);
@@ -798,6 +808,13 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function commit(next: CityDocument, label = "Edit"): void {
+    // A no-op edit (re-selecting the same ward, scale ×1, re-applying "sea" to a
+    // sea cell) returns the document unchanged. Skip the snapshot so it does not
+    // add an empty undo step or a History-panel row.
+    if (next === documentState) {
+      refresh();
+      return;
+    }
     documentState = history.commit(next, label);
     rebuildEditorIndexes();
     refresh();
@@ -927,7 +944,9 @@ export function mountCityEditor(root: HTMLElement): void {
       redrawHandle = 0;
     }
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
-    map.replaceChildren(renderEditorSvg(documentState, tool, selection, box, zoomFactor(), showSelectionLabels));
+    map.replaceChildren(
+      renderEditorSvg(documentState, tool, selection, box, zoomFactor(), showSelectionLabels, referenceImage)
+    );
     updateRoutePreview();
     updateHoverOverlay();
   }
@@ -1450,7 +1469,7 @@ export function mountCityEditor(root: HTMLElement): void {
         stroke.changed = true;
         selection.groupId = stroke.groupId;
         activeGroupId = stroke.groupId;
-        commitRouteStrokeStep();
+        commitRouteStrokeStep(stroke);
       }
     }
     stroke.lastPoint = point;
@@ -1476,7 +1495,7 @@ export function mountCityEditor(root: HTMLElement): void {
       stroke.changed = true;
       selection.groupId = stroke.groupId;
       activeGroupId = stroke.groupId;
-      commitRouteStrokeStep();
+      commitRouteStrokeStep(stroke);
       return;
     }
     const a = documentState.mesh.vertices[edge.a]?.point;
@@ -1505,15 +1524,23 @@ export function mountCityEditor(root: HTMLElement): void {
     stroke.changed = true;
     selection.groupId = groupId;
     activeGroupId = groupId;
-    commitRouteStrokeStep();
+    commitRouteStrokeStep(stroke);
   }
 
   function finishRouteStroke(stroke: RouteStroke, point: Point): void {
     if (!stroke.initialized) initializeRouteStroke(stroke, point);
   }
 
-  function commitRouteStrokeStep(): void {
-    history.commit(documentState, routeStroke ? `Draw ${routeStroke.kind}` : "Draw route");
+  function commitRouteStrokeStep(stroke: RouteStroke): void {
+    // One drag = one undo entry. The first step of the stroke pushes it; every
+    // later step rewrites that same entry so the History panel and memory only
+    // ever see a single "Draw wall/road/river" per gesture.
+    if (!stroke.committed) {
+      history.commit(documentState, `Draw ${stroke.kind}`);
+      stroke.committed = true;
+    } else {
+      history.amendTop(documentState, `Draw ${stroke.kind}`);
+    }
     rebuildEditorIndexes();
   }
 
@@ -1678,6 +1705,10 @@ export function mountCityEditor(root: HTMLElement): void {
       showNotice("Import failed: select a City Editor, MFCG JSON, or SVG file");
       return;
     }
+    // Lift the (possibly multi-MB) backdrop out of the edited document before it
+    // seeds the history, then keep it only in the closure for render + export.
+    referenceImage = parsed.document.referenceImage ?? null;
+    delete parsed.document.referenceImage;
     documentState = parsed.document;
     history = new DocumentHistory(parsed.document, "Imported map");
     rebuildEditorIndexes();

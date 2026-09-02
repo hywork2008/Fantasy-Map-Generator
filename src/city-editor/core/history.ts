@@ -34,6 +34,18 @@ export class DocumentHistory {
     return document;
   }
 
+  /**
+   * Replace the current entry in place instead of pushing a new one. A brush or
+   * drag that mutates the document many times per gesture calls `commit` once
+   * and then `amendTop` for each further step, so the whole stroke collapses to
+   * a single undo entry while the live document never drifts from the timeline.
+   */
+  amendTop(document: CityDocument, label?: string): CityDocument {
+    this.timeline[this.cursor] = clone(document);
+    if (label !== undefined) this.entryList[this.cursor] = { ...this.entryList[this.cursor], label };
+    return document;
+  }
+
   reset(document: CityDocument, label = "Initial state"): void {
     this.timeline = [clone(document)];
     this.entryList = [{ label, time: Date.now() }];

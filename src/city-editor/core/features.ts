@@ -150,7 +150,9 @@ export function appendEdge(document: CityDocument, groupId: Id, edgeId: Id): Cit
   const group = next.featureGroups.find(candidate => candidate.id === groupId);
   const edge = next.mesh.edges[edgeId];
   if (!group || !edge || group.kind === "river" || group.locked) return null;
-  if (group.segments.some(segment => segment.edgeId === edgeId)) return next;
+  // Re-adding an edge the group already has is a no-op; hand back the original
+  // document so the caller can skip the history snapshot.
+  if (group.segments.some(segment => segment.edgeId === edgeId)) return document;
   if (group.segments.length === 0) group.segments.push({ edgeId, forward: true });
   else {
     const end = edgeEnd(next.mesh, group.segments[group.segments.length - 1]);

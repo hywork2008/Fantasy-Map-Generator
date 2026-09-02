@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createDocument, createSizedDocument } from "./document";
 import { appendEdge, createGroup } from "./features";
-import { faceNeighbors, faceVertices, mergeFaces, mergeVertices, optimizeJunctions, splitFace, validate } from "./mesh";
+import {
+  faceNeighbors,
+  faceVertices,
+  mergeFaces,
+  mergeVertices,
+  optimizeJunctions,
+  scaleDocument,
+  setFaceWater,
+  splitFace,
+  validate
+} from "./mesh";
 
 describe("manual city mesh", () => {
   it("keeps the Small preset near its 24 × 24 macro-block target", () => {
@@ -162,5 +172,17 @@ describe("manual city mesh", () => {
     expect(cleaned?.mesh.vertices.b).toBeUndefined();
     expect(cleaned?.mesh.vertices.a.point).toEqual([2.5, 0]);
     expect(validate(cleaned!)).toEqual([]);
+  });
+
+  it("returns the same document for a no-op edit so history can skip the snapshot", () => {
+    const document = createDocument("mesh-noop", 900, 110);
+    const landFaceId = Object.keys(document.mesh.faces)[0];
+
+    expect(scaleDocument(document, 1)).toBe(document);
+    expect(setFaceWater(document, landFaceId, "land")).toBe(document);
+
+    const sea = setFaceWater(document, landFaceId, "sea");
+    expect(sea).not.toBe(document);
+    expect(setFaceWater(sea, landFaceId, "sea")).toBe(sea);
   });
 });

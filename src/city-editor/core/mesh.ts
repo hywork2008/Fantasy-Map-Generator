@@ -213,6 +213,12 @@ export function rebuildFaceSides(mesh: Mesh): void {
 }
 
 export function setFaceWater(document: CityDocument, faceId: Id, water: WaterKind): CityDocument {
+  const current = document.mesh.faces[faceId];
+  // Re-applying the same water class (and its forced sea-level elevation) is a
+  // no-op; return the original so the caller can skip a history snapshot.
+  if (current && current.properties.water === water && (water === "land" || current.properties.elevation === 0)) {
+    return document;
+  }
   const next = clone(document);
   const face = next.mesh.faces[faceId];
   if (face) {
@@ -417,6 +423,7 @@ export function optimizeJunctions(
 
 export function scaleDocument(document: CityDocument, factor: number): CityDocument | null {
   if (!Number.isFinite(factor) || factor <= 0) return null;
+  if (factor === 1) return document;
   const next = clone(document);
   for (const vertex of Object.values(next.mesh.vertices))
     vertex.point = [vertex.point[0] * factor, vertex.point[1] * factor];

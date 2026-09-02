@@ -21,11 +21,15 @@ export function renderEditorSvg(
   selection: RenderSelection,
   viewBox: string,
   zoom: number,
-  showSelectionLabels = false
+  showSelectionLabels = false,
+  /** The MFCG backdrop is held outside `document` so it never enters history;
+   * fall back to the document field for a freshly parsed file. */
+  referenceImage: CityDocument["referenceImage"] | null = null
 ): SVGSVGElement {
   const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
-  if (document.referenceImage) {
-    const { href, width, height } = document.referenceImage;
+  const backdrop = referenceImage ?? document.referenceImage;
+  if (backdrop) {
+    const { href, width, height } = backdrop;
     svg.appendChild(
       element("image", {
         href,
