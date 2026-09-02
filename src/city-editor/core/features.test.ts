@@ -10,6 +10,7 @@ import {
   placeGateOpening,
   previewGroupAcrossFace,
   previewRouteAcrossFace,
+  removeEdgesFromGroups,
   removeGroup,
   rerouteGroupAcrossFace,
   rerouteGroupVertex,
@@ -323,6 +324,31 @@ describe("route group editing", () => {
     const extended = appendEdge(document, "wall-1", "ad");
     expect(extended).not.toBeNull();
     expect(extended).not.toBe(document);
+  });
+
+  it("removes several brush-selected edges, including segments in split routes", () => {
+    const document = routeDocument();
+    document.featureGroups.push({
+      id: "road-1",
+      kind: "road",
+      name: "Road #1",
+      segments: [
+        { edgeId: "ad", forward: true },
+        { edgeId: "de", forward: true },
+        { edgeId: "ec", forward: true }
+      ],
+      style: { widthMeters: 7, color: "#604a3f" },
+      locked: false
+    });
+
+    const next = removeEdgesFromGroups(document, ["bc", "de"]);
+
+    expect(next).not.toBeNull();
+    if (!next) return;
+    expect(
+      next.featureGroups.every(group => !groupUsesEdge(next, group, "bc") && !groupUsesEdge(next, group, "de"))
+    ).toBe(true);
+    expect(next.featureGroups.filter(group => group.kind === "road")).toHaveLength(2);
   });
 
   it("reroutes an internal wall vertex over the shortest replacement edges", () => {

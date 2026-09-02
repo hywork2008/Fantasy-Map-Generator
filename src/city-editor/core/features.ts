@@ -618,6 +618,29 @@ export function removeEdgeFromGroup(document: CityDocument, groupId: Id, edgeId:
   return next;
 }
 
+/**
+ * Remove every unlocked route segment using one of `edgeIds`. This is the
+ * multi-edge counterpart to removeEdgeFromGroup(), intended for brush-based
+ * editing: each affected route is re-evaluated after a split so every segment
+ * under the brush is removed in one document change.
+ */
+export function removeEdgesFromGroups(document: CityDocument, edgeIds: Iterable<Id>): CityDocument | null {
+  let next = document;
+  let changed = false;
+  for (const edgeId of new Set(edgeIds)) {
+    const groupIds = next.featureGroups
+      .filter(group => !group.locked && groupUsesEdge(next, group, edgeId))
+      .map(group => group.id);
+    for (const groupId of groupIds) {
+      const updated = removeEdgeFromGroup(next, groupId, edgeId);
+      if (!updated) continue;
+      next = updated;
+      changed = true;
+    }
+  }
+  return changed ? next : null;
+}
+
 function nextId(document: CityDocument, prefix: string): Id {
   let n = 1;
   const used = new Set([

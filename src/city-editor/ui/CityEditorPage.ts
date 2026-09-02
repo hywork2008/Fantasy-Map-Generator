@@ -13,6 +13,7 @@ import {
   placeGateOpening,
   previewRouteAcrossFace,
   removeEdgeFromGroup,
+  removeEdgesFromGroups,
   removeGroup,
   rerouteGroupAcrossFace,
   smoothFeatureGroup,
@@ -78,6 +79,7 @@ interface ContextMenuAction {
 }
 
 type RoutePaintKind = "river" | "road" | "wall";
+type EraseTarget = "cells" | "edges" | "both";
 
 interface RouteStroke {
   kind: RoutePaintKind;
@@ -120,7 +122,9 @@ export function mountCityEditor(root: HTMLElement): void {
   let isVertexDragging = false;
   let isWardPainting = false;
   let wardPaintChanged = false;
+  let edgePaintChanged = false;
   let paintedWardFaceIds = new Set<Id>();
+  let paintedEdgeIds = new Set<Id>();
   let isJunctionPainting = false;
   let junctionPaintChanged = false;
   let circularWallStroke: CircularWallStroke | null = null;
@@ -132,6 +136,9 @@ export function mountCityEditor(root: HTMLElement): void {
   let isSpacePressed = false;
   let showSelectionLabels = false;
   let wardBrush: WardKind | null = "market";
+  // Erase remains a Ward brush so it can use the same size and preview, but it
+  // may also remove routes placed on mesh edges.
+  let eraseTarget: EraseTarget = "both";
   // The brush is expressed in macro cells, so its size stays meaningful when
   // switching between city presets or changing the map scale.
   let brushSizeCells = 1;
@@ -279,6 +286,15 @@ export function mountCityEditor(root: HTMLElement): void {
     brushSizeValue.textContent = brushSizeText();
     updateWardBrushPreview();
   });
+  const eraseTargetInput = select(["both", "cells", "edges"], "both");
+  for (const option of [...eraseTargetInput.options]) {
+    option.textContent =
+      option.value === "both" ? "Cells and edges" : `${option.value[0].toUpperCase()}${option.value.slice(1)} only`;
+  }
+  const eraseTargetLabel = label("Erase", eraseTargetInput);
+  eraseTargetInput.addEventListener("change", () => {
+    eraseTarget = eraseTargetInput.value as EraseTarget;
+  });
   const junctionMaxGapInput = rangeInput("8", "1", "50", "1");
   const junctionMaxGapValue = text(formatDistance(junctionMaxGapMeters));
   const junctionMaxGapSliderRow = div("ce-brush-size-control");
@@ -323,6 +339,7 @@ export function mountCityEditor(root: HTMLElement): void {
     text("Paint cells"),
     paintGrid,
     brushSizeLabel,
+    eraseTargetLabel,
     junctionMaxGapLabel,
     label("Cell IDs", showLabelsInput)
   );
@@ -367,11 +384,13 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     if (isPaintBrushTool(tool)) {
-      if (!faceIdsWithinWardBrush(point).length) return;
+      if (!canPaintAtPoint(point)) return;
       event.preventDefault();
       isWardPainting = true;
       wardPaintChanged = false;
+      edgePaintChanged = false;
       paintedWardFaceIds = new Set();
+      paintedEdgeIds = new Set();
       paintCellsAtPoint(point);
       suppressNextClick = true;
       map.setPointerCapture(event.pointerId);
@@ -553,15 +572,8 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     selection.hoverVertexId = null;
     if (wasWardPainting && wardPaintChanged) {
-      history.commit(
-        documentState,
-        tool === "sea" ? "Paint sea" : wardBrush ? `Paint ${wardBrush} ward` : "Erase wards"
-      );
-      // Ward/sea painting only ever touches face.properties — it never adds,
-      // removes, or moves a vertex/edge, and never touches featureGroups — so
-      // the bucket/adjacency indexes rebuildEditorIndexes() computes from
-      // exactly those inputs are still valid. Skipping it turns a single-cell
-      // paint on a Large mesh from an O(mesh) rebuild into effectively free.
+      history.commit(documentState, paintHistoryLabel());
+      if (edgePaintChanged) rebuildEditorIndexes();
     }
     if (wasJunctionPainting && junctionPaintChanged) {
       history.commit(documentState, "Clean junctions");
@@ -577,6 +589,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     dragBefore = null;
     paintedWardFaceIds.clear();
+    paintedEdgeIds.clear();
     if (draggedRoute) {
       suppressNextClick = draggedRoute.moved;
       if (event.type !== "pointercancel" && draggedRoute.moved && preview && previewFaceId) {
@@ -591,12 +604,12 @@ export function mountCityEditor(root: HTMLElement): void {
       selection.edgeId = null;
     }
     if (event.type === "pointercancel") suppressNextClick = false;
-    // Ward/sea painting already patched its own touched faces live (see
-    // paintCellsAtPoint/patchFaceRender) — the SVG is already current, so
-    // only the non-map UI (undo/redo state, history panel, status text...)
-    // needs to catch up here. Every other gesture still needs a full redraw.
-    if (wasWardPainting) refreshUiOnly();
-    else if (wasVertexDragging || wasJunctionPainting || circle || stroke) refresh();
+    // Cell-only painting patches its faces live. Edge erasing changes route
+    // groups, so it needs one full redraw once the stroke is complete.
+    if (wasWardPainting) {
+      if (edgePaintChanged) refresh();
+      else refreshUiOnly();
+    } else if (wasVertexDragging || wasJunctionPainting || circle || stroke) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
@@ -1401,7 +1414,10 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function faceIdsWithinWardBrush(center: Point): Id[] {
-    const radius = paintBrushRadiusMeters();
+    return faceIdsWithinBrush(center, paintBrushRadiusMeters());
+  }
+
+  function faceIdsWithinBrush(center: Point, radius: number): Id[] {
     if (radius <= 0) {
       const faceId = faceAtPoint(center);
       return faceId ? [faceId] : [];
@@ -1443,8 +1459,10 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function paintCellsAtPoint(point: Point): void {
-    const faceIds = faceIdsWithinWardBrush(point);
-    if (!faceIds.length) return;
+    const erasing = tool === "ward" && wardBrush === null;
+    const eraseCells = !erasing || eraseTarget !== "edges";
+    const eraseEdges = erasing && eraseTarget !== "cells";
+    const faceIds = eraseCells ? faceIdsWithinWardBrush(point) : [];
     // Copy-on-write: a stroke fires this on every pointermove, so cloning the
     // whole document (all vertices/edges plus every face's boundary) here
     // would scale with total mesh size instead of the handful of cells the
@@ -1474,13 +1492,61 @@ export function mountCityEditor(root: HTMLElement): void {
       faces[faceId] = { ...face, properties };
       touched.push(faceId);
     }
-    if (!faces) return;
-    documentState = { ...documentState, mesh: { ...documentState.mesh, faces } };
+    if (faces) {
+      documentState = { ...documentState, mesh: { ...documentState.mesh, faces } };
+      wardPaintChanged = true;
+      // Patch just the touched faces' <path>/landmark directly, rather than
+      // scheduling a full redrawMap() pass over the whole mesh next frame — on
+      // a Large mesh a 1-cell brush touches one face out of ~9,000.
+      for (const faceId of touched) patchFaceRender(faceId);
+    }
+    if (eraseEdges) eraseEdgesAtPoint(point);
+  }
+
+  function canPaintAtPoint(point: Point): boolean {
+    if (tool !== "ward" || wardBrush !== null) return faceIdsWithinWardBrush(point).length > 0;
+    return (
+      (eraseTarget !== "edges" && faceIdsWithinWardBrush(point).length > 0) ||
+      (eraseTarget !== "cells" && edgeIdsWithinEraseBrush(point).length > 0)
+    );
+  }
+
+  /** Return mesh edges under the visible brush diameter, not just the cell
+   * under its centre. This lets a 1-cell erase brush clear route segments on
+   * that cell's perimeter, while larger brushes expand naturally. */
+  function edgeIdsWithinEraseBrush(point: Point): Id[] {
+    const radius = brushSizeMeters() / 2;
+    const edgeIds = new Set<Id>();
+    for (const faceId of faceIdsWithinBrush(point, radius)) {
+      const face = documentState.mesh.faces[faceId];
+      if (face) for (const ref of face.boundary) edgeIds.add(ref.edgeId);
+    }
+    return [...edgeIds].filter(edgeId => {
+      const edge = documentState.mesh.edges[edgeId];
+      const a = edge && documentState.mesh.vertices[edge.a]?.point;
+      const b = edge && documentState.mesh.vertices[edge.b]?.point;
+      return !!a && !!b && pointToSegmentDistance(point, a, b) <= radius;
+    });
+  }
+
+  function eraseEdgesAtPoint(point: Point): void {
+    const edgeIds = edgeIdsWithinEraseBrush(point).filter(edgeId => !paintedEdgeIds.has(edgeId));
+    if (!edgeIds.length) return;
+    for (const edgeId of edgeIds) paintedEdgeIds.add(edgeId);
+    const next = removeEdgesFromGroups(documentState, edgeIds);
+    if (!next) return;
+    documentState = next;
     wardPaintChanged = true;
-    // Patch just the touched faces' <path>/landmark directly, rather than
-    // scheduling a full redrawMap() pass over the whole mesh next frame — on
-    // a Large mesh a 1-cell brush touches one face out of ~9,000.
-    for (const faceId of touched) patchFaceRender(faceId);
+    edgePaintChanged = true;
+    // Route groups cannot be patched face-by-face, so coalesce redraws while
+    // dragging and finish with one final redraw on pointerup.
+    scheduleRedraw();
+  }
+
+  function paintHistoryLabel(): string {
+    if (tool === "sea") return "Paint sea";
+    if (wardBrush) return `Paint ${wardBrush} ward`;
+    return eraseTarget === "cells" ? "Erase cells" : eraseTarget === "edges" ? "Erase edges" : "Erase cells and edges";
   }
 
   /**
