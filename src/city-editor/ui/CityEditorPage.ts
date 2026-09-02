@@ -46,9 +46,20 @@ const TOOLS: Array<[Tool, string, string]> = [
   ["road", "Draw road", "╱"],
   ["wall", "Draw wall", "▥"],
   ["river", "Draw river", "〰"],
-  ["ward", "Paint ward", "◈"],
   ["junction", "Clean short junctions", "⌬"],
   ["face", "Edit cell", "⬡"]
+];
+
+const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> = [
+  { kind: "market", label: "💰" },
+  { kind: "castle", label: "🏰" },
+  { kind: "merchant", label: "⚖️" },
+  { kind: "craftsmen", label: "🛠️" },
+  { kind: "harbor", label: "⚓" },
+  { kind: "park", label: "🌳" },
+  { kind: "empty", label: "󠁪󠁪 " },
+  { kind: "erase", label: "🧹" },
+  { kind: "sea", label: "🌊" }
 ];
 
 interface ContextMenuAction {
@@ -150,7 +161,7 @@ export function mountCityEditor(root: HTMLElement): void {
   contextMenu.addEventListener("contextmenu", event => event.preventDefault());
 
   const toolButtons = new Map<Tool, HTMLButtonElement>();
-  const toolGrid = div("ce-tool-grid");
+  const toolGrid = div("ce-icon-row");
   for (const [id, label, icon] of TOOLS) {
     const button = makeIconButton(icon, label, () => {
       tool = id;
@@ -160,6 +171,22 @@ export function mountCityEditor(root: HTMLElement): void {
     toolGrid.appendChild(button);
   }
   toolbar.content.appendChild(toolGrid);
+  const paintButtons = new Map<WardKind | "sea" | "erase", HTMLButtonElement>();
+  const paintGrid = div("ce-icon-row");
+  for (const { kind, label: paintLabel } of PAINT_BRUSHES) {
+    const paintButton = makeButton(paintLabel, () => {
+      if (kind === "sea") tool = "sea";
+      else {
+        wardBrush = kind === "erase" ? null : kind;
+        tool = "ward";
+      }
+      refresh();
+    });
+    paintButton.title = kind === "erase" ? "Erase ward assignments" : `Paint ${kind.toLowerCase()} cells`;
+    paintButton.className = "ce-icon-button";
+    paintButtons.set(kind, paintButton);
+    paintGrid.appendChild(paintButton);
+  }
   const size = select(Object.keys(CITY_SIZE_PRESETS), "small");
   for (const option of [...size.options]) {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
@@ -190,13 +217,6 @@ export function mountCityEditor(root: HTMLElement): void {
   showLabelsInput.addEventListener("change", () => {
     showSelectionLabels = showLabelsInput.checked;
     redrawMap();
-  });
-  const wardBrushInput = select(
-    ["market", "castle", "merchant", "craftsmen", "harbor", "park", "empty", "erase"],
-    "market"
-  );
-  wardBrushInput.addEventListener("change", () => {
-    wardBrush = wardBrushInput.value === "erase" ? null : (wardBrushInput.value as WardKind);
   });
   const brushSizeInput = rangeInput("1", "0", "8", "0.5");
   const brushSizeValue = text(brushSizeText());
@@ -249,7 +269,8 @@ export function mountCityEditor(root: HTMLElement): void {
   toolbar.content.append(
     divider(),
     actions,
-    label("Ward", wardBrushInput),
+    text("Paint cells"),
+    paintGrid,
     brushSizeLabel,
     junctionMaxGapLabel,
     label("Cell IDs", showLabelsInput)
@@ -279,13 +300,13 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (event.button !== 0) return;
     const point = localPoint(event);
-    if (tool === "ward") {
+    if (isPaintBrushTool(tool)) {
       if (!faceIdsWithinWardBrush(point).length) return;
       event.preventDefault();
       isWardPainting = true;
       wardPaintChanged = false;
       paintedWardFaceIds = new Set();
-      paintWardAtPoint(point);
+      paintCellsAtPoint(point);
       suppressNextClick = true;
       map.setPointerCapture(event.pointerId);
       return;
@@ -362,7 +383,7 @@ export function mountCityEditor(root: HTMLElement): void {
   map.addEventListener("pointermove", event => {
     if (isBrushTool(tool)) updateWardBrushPreview(event);
     if (isWardPainting) {
-      paintWardAtPoint(localPoint(event));
+      paintCellsAtPoint(localPoint(event));
       return;
     }
     if (isJunctionPainting) {
@@ -784,7 +805,14 @@ export function mountCityEditor(root: HTMLElement): void {
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
-    wardBrushInput.disabled = tool !== "ward";
+    for (const [kind, button] of paintButtons) {
+      button.classList.toggle(
+        "is-active",
+        kind === "sea"
+          ? tool === "sea"
+          : tool === "ward" && (kind === "erase" ? wardBrush === null : wardBrush === kind)
+      );
+    }
     brushSizeInput.disabled = !isBrushTool(tool);
     brushSizeLabel.classList.toggle("is-disabled", !isBrushTool(tool));
     brushSizeValue.textContent = brushSizeText();
@@ -1133,7 +1161,7 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   }
 
-  function paintWardAtPoint(point: Point): void {
+  function paintCellsAtPoint(point: Point): void {
     const faceIds = faceIdsWithinWardBrush(point);
     if (!faceIds.length) return;
     const next = clone(documentState);
@@ -1142,8 +1170,16 @@ export function mountCityEditor(root: HTMLElement): void {
       if (paintedWardFaceIds.has(faceId)) continue;
       paintedWardFaceIds.add(faceId);
       const face = next.mesh.faces[faceId];
-      if (!face || face.properties.ward === wardBrush) continue;
-      face.properties.ward = wardBrush;
+      if (!face) continue;
+      if (tool === "sea") {
+        if (face.properties.water === "sea" && face.properties.elevation === 0) continue;
+        // Match the Inspector's Water = sea operation exactly.
+        face.properties.water = "sea";
+        face.properties.elevation = 0;
+      } else {
+        if (face.properties.ward === wardBrush) continue;
+        face.properties.ward = wardBrush;
+      }
       changed = true;
     }
     if (!changed) return;
@@ -1481,8 +1517,12 @@ function isRoutePaintTool(tool: Tool): tool is RoutePaintKind {
   return tool === "river" || tool === "road" || tool === "wall";
 }
 
-function isBrushTool(tool: Tool): tool is "ward" | "junction" {
-  return tool === "ward" || tool === "junction";
+function isBrushTool(tool: Tool): tool is "ward" | "sea" | "junction" {
+  return isPaintBrushTool(tool) || tool === "junction";
+}
+
+function isPaintBrushTool(tool: Tool): tool is "ward" | "sea" {
+  return tool === "ward" || tool === "sea";
 }
 
 function targetId(event: Event, kind: "vertex" | "route-vertex" | "edge" | "face" | "group"): Id | null {
