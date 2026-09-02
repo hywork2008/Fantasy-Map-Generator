@@ -1345,26 +1345,35 @@ export function mountCityEditor(root: HTMLElement): void {
   function paintCellsAtPoint(point: Point): void {
     const faceIds = faceIdsWithinWardBrush(point);
     if (!faceIds.length) return;
-    const next = clone(documentState);
-    let changed = false;
+    // Copy-on-write: a stroke fires this on every pointermove, so cloning the
+    // whole document (all vertices/edges plus every face's boundary) here
+    // would scale with total mesh size instead of the handful of cells the
+    // brush actually touches — on a Large mesh that's ~16x the work of Small
+    // for the same brush. Only the faces map is shallow-copied, and only the
+    // faces the brush actually changes get a fresh object; every untouched
+    // face keeps its original reference.
+    let faces: CityDocument["mesh"]["faces"] | null = null;
     for (const faceId of faceIds) {
       if (paintedWardFaceIds.has(faceId)) continue;
       paintedWardFaceIds.add(faceId);
-      const face = next.mesh.faces[faceId];
+      const face = documentState.mesh.faces[faceId];
       if (!face) continue;
       if (tool === "sea") {
         if (face.properties.water === "sea" && face.properties.elevation === 0) continue;
+      } else if (face.properties.ward === wardBrush) continue;
+      if (!faces) faces = { ...documentState.mesh.faces };
+      const properties = { ...face.properties };
+      if (tool === "sea") {
         // Match the Inspector's Water = sea operation exactly.
-        face.properties.water = "sea";
-        face.properties.elevation = 0;
+        properties.water = "sea";
+        properties.elevation = 0;
       } else {
-        if (face.properties.ward === wardBrush) continue;
-        face.properties.ward = wardBrush;
+        properties.ward = wardBrush;
       }
-      changed = true;
+      faces[faceId] = { ...face, properties };
     }
-    if (!changed) return;
-    documentState = next;
+    if (!faces) return;
+    documentState = { ...documentState, mesh: { ...documentState.mesh, faces } };
     wardPaintChanged = true;
     scheduleRedraw();
   }
