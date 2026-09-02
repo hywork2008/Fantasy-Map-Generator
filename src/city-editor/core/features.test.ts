@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createDocument } from "./document";
 import {
+  encloseCircleWithWalls,
   encloseWardComponentWithWalls,
   featureGroupVertices,
   gateOpeningCandidates,
@@ -288,6 +290,19 @@ describe("route group editing", () => {
 
   it("does not create a wall for a cell without a Ward", () => {
     expect(encloseWardComponentWithWalls(routeDocument(), "f0")).toBeNull();
+  });
+
+  it("encloses the cells nearest a drawn circle with a closed wall", () => {
+    const document = createDocument("circular-wall", 400, 50);
+    const next = encloseCircleWithWalls(document, [0, 0], 100);
+
+    expect(next).not.toBeNull();
+    const wall = next?.featureGroups.find(group => group.kind === "wall");
+    expect(wall?.kind).toBe("wall");
+    if (!next || !wall || wall.kind !== "wall") return;
+    const vertices = featureGroupVertices(next, wall);
+    expect(vertices.length).toBeGreaterThan(3);
+    expect(vertices[0]).toBe(vertices.at(-1));
   });
 
   it("reports a group's ordered vertices and used edges", () => {

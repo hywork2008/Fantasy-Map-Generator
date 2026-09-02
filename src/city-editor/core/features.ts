@@ -3,6 +3,7 @@ import {
   edgeBetween,
   edgeEnd,
   edgeRefFor,
+  facePoints,
   faceVertices,
   mergeVertices,
   validate,
@@ -57,6 +58,75 @@ export function encloseWardComponentWithWalls(document: CityDocument, faceId: Id
         return !otherFaceId || !component.has(otherFaceId);
       })
     );
+  const loops = orderedBoundaryLoops(document.mesh, boundary);
+  if (!loops?.length) return null;
+
+  const next = clone(document);
+  const firstNumber = next.featureGroups.filter(group => group.kind === "wall").length + 1;
+  for (const [index, segments] of loops.entries()) {
+    next.featureGroups.push({
+      id: nextId(next, "wall"),
+      kind: "wall",
+      name: `Wall #${firstNumber + index}`,
+      segments,
+      style: edgeGroupStyle("wall"),
+      locked: false
+    });
+  }
+  return next;
+}
+
+/**
+ * Enclose the mesh cells nearest a dragged circle with a closed Wall route.
+ * Cell centres inside the circle form the enclosed component, so the resulting
+ * wall follows real mesh edges instead of cutting through city blocks.
+ */
+export function encloseCircleWithWalls(
+  document: CityDocument,
+  center: Point,
+  radiusMeters: number
+): CityDocument | null {
+  if (!Number.isFinite(radiusMeters) || radiusMeters < 0) return null;
+  const faces = Object.values(document.mesh.faces);
+  if (!faces.length) return null;
+
+  const centreOf = (face: Face): Point => {
+    const points = facePoints(document.mesh, face);
+    const sum = points.reduce<[number, number]>((total, point) => [total[0] + point[0], total[1] + point[1]], [0, 0]);
+    return [sum[0] / points.length, sum[1] / points.length];
+  };
+  const distanceToCenter = (face: Face): number => {
+    const point = centreOf(face);
+    return Math.hypot(point[0] - center[0], point[1] - center[1]);
+  };
+  const nearest = faces.reduce((best, face) => (distanceToCenter(face) < distanceToCenter(best) ? face : best));
+  const selected = new Set(faces.filter(face => distanceToCenter(face) <= radiusMeters).map(face => face.id));
+  selected.add(nearest.id);
+
+  // Keep only the connected region under the dragged circle that contains its
+  // centre. This guarantees that its exposed mesh boundary is a closed loop.
+  const component = new Set<Id>([nearest.id]);
+  const pending = [nearest.id];
+  while (pending.length) {
+    const faceId = pending.pop() as Id;
+    const face = document.mesh.faces[faceId];
+    for (const ref of face.boundary) {
+      const edge = document.mesh.edges[ref.edgeId];
+      const otherId = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
+      if (!otherId || !selected.has(otherId) || component.has(otherId)) continue;
+      component.add(otherId);
+      pending.push(otherId);
+    }
+  }
+
+  const boundary = [...component].flatMap(faceId => {
+    const face = document.mesh.faces[faceId];
+    return face.boundary.filter(ref => {
+      const edge = document.mesh.edges[ref.edgeId];
+      const otherId = edge.leftFace === faceId ? edge.rightFace : edge.leftFace;
+      return !otherId || !component.has(otherId);
+    });
+  });
   const loops = orderedBoundaryLoops(document.mesh, boundary);
   if (!loops?.length) return null;
 

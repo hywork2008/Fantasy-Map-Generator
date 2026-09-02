@@ -4,6 +4,7 @@ import {
   appendEdge,
   appendRiverVertex,
   createGroup,
+  encloseCircleWithWalls,
   encloseWardComponentWithWalls,
   featureGroupVertices,
   finishRiver,
@@ -46,6 +47,7 @@ const TOOLS: Array<[Tool, string, string]> = [
   ["road", "Draw road", "╱"],
   ["wall", "Draw wall", "▥"],
   ["river", "Draw river", "〰"],
+  ["wardWall", "Draw circular ward wall", "◯"],
   ["junction", "Clean short junctions", "⌬"],
   ["face", "Edit cell", "⬡"]
 ];
@@ -81,6 +83,12 @@ interface RouteStroke {
   changed: boolean;
 }
 
+interface CircularWallStroke {
+  center: Point;
+  centerClient: { clientX: number; clientY: number };
+  radiusMeters: number;
+}
+
 interface FloatingWindow {
   root: HTMLDivElement;
   content: HTMLDivElement;
@@ -100,6 +108,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let paintedWardFaceIds = new Set<Id>();
   let isJunctionPainting = false;
   let junctionPaintChanged = false;
+  let circularWallStroke: CircularWallStroke | null = null;
   let routeDrag: { groupId: Id; edgeId: Id; startX: number; startY: number; moved: boolean } | null = null;
   let routeStroke: RouteStroke | null = null;
   let routePreview: FaceRoutePreview | null = null;
@@ -113,6 +122,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let brushSizeCells = 1;
   let junctionMaxGapMeters = 8;
   let wardBrushPointer: { clientX: number; clientY: number } | null = null;
+  let circularWallPointer: { clientX: number; clientY: number } | null = null;
   let hasPanned = false;
   let suppressNextClick = false;
   let lastPanX = 0;
@@ -131,8 +141,14 @@ export function mountCityEditor(root: HTMLElement): void {
   const map = div("ce-map");
   const wardBrushPreview = div("ce-ward-brush-preview");
   wardBrushPreview.hidden = true;
+  const circularWallPreview = div("ce-wall-circle-preview");
+  circularWallPreview.hidden = true;
+  const circularWallCenter = div("ce-wall-center-marker");
+  circularWallCenter.textContent = "+";
+  circularWallCenter.hidden = true;
   canvas.appendChild(map);
   canvas.appendChild(wardBrushPreview);
+  canvas.append(circularWallPreview, circularWallCenter);
   const toolbar = floatingWindow("ce-toolbar", "Tools");
   const documentPanel = floatingWindow("ce-document", "Document");
   const inspector = floatingWindow("ce-inspector", "Inspector");
@@ -300,6 +316,18 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     if (event.button !== 0) return;
     const point = localPoint(event);
+    if (tool === "wardWall") {
+      event.preventDefault();
+      circularWallStroke = {
+        center: point,
+        centerClient: { clientX: event.clientX, clientY: event.clientY },
+        radiusMeters: 0
+      };
+      updateCircularWallPreview(event);
+      suppressNextClick = true;
+      map.setPointerCapture(event.pointerId);
+      return;
+    }
     if (isPaintBrushTool(tool)) {
       if (!faceIdsWithinWardBrush(point).length) return;
       event.preventDefault();
@@ -381,6 +409,8 @@ export function mountCityEditor(root: HTMLElement): void {
     void importMapFile(event.dataTransfer?.files[0]);
   });
   map.addEventListener("pointermove", event => {
+    if (tool === "wardWall" || circularWallStroke) updateCircularWallPreview(event);
+    if (circularWallStroke) return;
     if (isBrushTool(tool)) updateWardBrushPreview(event);
     if (isWardPainting) {
       paintCellsAtPoint(localPoint(event));
@@ -438,12 +468,23 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   map.addEventListener("pointerleave", () => {
     if (!isWardPainting && !isJunctionPainting) hideWardBrushPreview();
+    if (!circularWallStroke) hideCircularWallPreview();
   });
   const finishDrag = (event: PointerEvent): void => {
-    if (!isVertexDragging && !isWardPainting && !isJunctionPainting && !isPanning && !routeDrag && !routeStroke) return;
+    if (
+      !isVertexDragging &&
+      !isWardPainting &&
+      !isJunctionPainting &&
+      !circularWallStroke &&
+      !isPanning &&
+      !routeDrag &&
+      !routeStroke
+    )
+      return;
     const wasVertexDragging = isVertexDragging;
     const wasWardPainting = isWardPainting;
     const wasJunctionPainting = isJunctionPainting;
+    const circle = circularWallStroke;
     const mergeCandidateId = dragMergeCandidateId;
     const stroke = routeStroke;
     const draggedRoute = routeDrag;
@@ -452,6 +493,7 @@ export function mountCityEditor(root: HTMLElement): void {
     isVertexDragging = false;
     isWardPainting = false;
     isJunctionPainting = false;
+    circularWallStroke = null;
     routeStroke = null;
     routeDrag = null;
     routePreview = null;
@@ -479,6 +521,11 @@ export function mountCityEditor(root: HTMLElement): void {
       history.commit(documentState);
       rebuildEditorIndexes();
     }
+    if (circle && event.type !== "pointercancel") {
+      const next = encloseCircleWithWalls(documentState, circle.center, circle.radiusMeters);
+      if (next) commit(next);
+      else showNotice("Draw a circle over at least one city cell to create a wall");
+    }
     if (stroke) {
       if (event.type !== "pointercancel") finishRouteStroke(stroke, localPoint(event));
     }
@@ -498,7 +545,7 @@ export function mountCityEditor(root: HTMLElement): void {
       selection.edgeId = null;
     }
     if (event.type === "pointercancel") suppressNextClick = false;
-    if (wasVertexDragging || wasWardPainting || wasJunctionPainting || stroke) refresh();
+    if (wasVertexDragging || wasWardPainting || wasJunctionPainting || circle || stroke) refresh();
   };
   map.addEventListener("pointerup", finishDrag);
   map.addEventListener("pointercancel", finishDrag);
@@ -656,6 +703,7 @@ export function mountCityEditor(root: HTMLElement): void {
       );
       redrawMap();
       updateWardBrushPreview();
+      updateCircularWallPreview();
       refreshScaleBar();
     },
     { passive: false }
@@ -801,7 +849,7 @@ export function mountCityEditor(root: HTMLElement): void {
   function refresh(): void {
     redrawMap();
     map.classList.toggle("ce-map--select", tool === "select");
-    map.classList.toggle("ce-map--brush", isBrushTool(tool));
+    map.classList.toggle("ce-map--brush", isBrushTool(tool) || tool === "wardWall");
     for (const [id, button] of toolButtons) button.classList.toggle("is-active", id === tool);
     undoButton.disabled = !history.canUndo;
     redoButton.disabled = !history.canRedo;
@@ -821,6 +869,8 @@ export function mountCityEditor(root: HTMLElement): void {
     junctionMaxGapValue.textContent = formatDistance(junctionMaxGapMeters);
     if (!isBrushTool(tool)) hideWardBrushPreview();
     else updateWardBrushPreview();
+    if (tool !== "wardWall") hideCircularWallPreview();
+    else updateCircularWallPreview();
     renderInspector();
     renderGroups();
     const errors = validate(documentState);
@@ -1233,6 +1283,39 @@ export function mountCityEditor(root: HTMLElement): void {
   function hideWardBrushPreview(): void {
     wardBrushPreview.hidden = true;
     wardBrushPointer = null;
+  }
+
+  function updateCircularWallPreview(event?: PointerEvent): void {
+    if (event) circularWallPointer = { clientX: event.clientX, clientY: event.clientY };
+    if (tool !== "wardWall" || !circularWallPointer) {
+      hideCircularWallPreview();
+      return;
+    }
+    const bounds = canvas.getBoundingClientRect();
+    const stroke = circularWallStroke;
+    const centerClient = stroke?.centerClient ?? circularWallPointer;
+    circularWallCenter.style.left = `${centerClient.clientX - bounds.left}px`;
+    circularWallCenter.style.top = `${centerClient.clientY - bounds.top}px`;
+    circularWallCenter.hidden = false;
+    if (!stroke) {
+      circularWallPreview.hidden = true;
+      return;
+    }
+    const pointer = event ? localPoint(event) : stroke.center;
+    stroke.radiusMeters = Math.hypot(pointer[0] - stroke.center[0], pointer[1] - stroke.center[1]);
+    const metersPerPixel = (halfView * 2) / Math.max(map.getBoundingClientRect().width, 1);
+    const radiusPixels = stroke.radiusMeters / metersPerPixel;
+    circularWallPreview.style.width = `${radiusPixels * 2}px`;
+    circularWallPreview.style.height = `${radiusPixels * 2}px`;
+    circularWallPreview.style.left = `${centerClient.clientX - bounds.left}px`;
+    circularWallPreview.style.top = `${centerClient.clientY - bounds.top}px`;
+    circularWallPreview.hidden = radiusPixels < 1;
+  }
+
+  function hideCircularWallPreview(): void {
+    circularWallPreview.hidden = true;
+    circularWallCenter.hidden = true;
+    circularWallPointer = null;
   }
 
   function extendRouteStroke(point: Point): void {

@@ -106,4 +106,4 @@ export interface CityDocument {
   elements: CityElement[];
 }
 
-export type Tool = "select" | "vertex" | "road" | "wall" | "river" | "ward" | "sea" | "junction" | "face";
+export type Tool = "select" | "vertex" | "road" | "wall" | "river" | "ward" | "sea" | "wardWall" | "junction" | "face";
