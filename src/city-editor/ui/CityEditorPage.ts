@@ -110,7 +110,7 @@ export function mountCityEditor(root: HTMLElement): void {
   let wardBrush: WardKind | null = "market";
   // The brush is expressed in macro cells, so its size stays meaningful when
   // switching between city presets or changing the map scale.
-  let brushRadiusCells = 1;
+  let brushSizeCells = 1;
   let junctionMaxGapMeters = 8;
   let wardBrushPointer: { clientX: number; clientY: number } | null = null;
   let hasPanned = false;
@@ -218,13 +218,13 @@ export function mountCityEditor(root: HTMLElement): void {
     showSelectionLabels = showLabelsInput.checked;
     redrawMap();
   });
-  const brushSizeInput = rangeInput("1", "0", "8", "0.5");
+  const brushSizeInput = rangeInput("1", "1", "8", "1");
   const brushSizeValue = text(brushSizeText());
   const brushSizeControl = div("ce-brush-size-control");
   brushSizeControl.append(brushSizeInput, brushSizeValue);
-  const brushSizeLabel = label("Brush radius", brushSizeControl);
+  const brushSizeLabel = label("Brush size", brushSizeControl);
   brushSizeInput.addEventListener("input", () => {
-    brushRadiusCells = Number(brushSizeInput.value);
+    brushSizeCells = Number(brushSizeInput.value);
     brushSizeValue.textContent = brushSizeText();
     updateWardBrushPreview();
   });
@@ -1130,7 +1130,7 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function faceIdsWithinWardBrush(center: Point): Id[] {
-    const radius = brushRadiusMeters();
+    const radius = paintBrushRadiusMeters();
     if (radius <= 0) {
       const faceId = faceAtPoint(center);
       return faceId ? [faceId] : [];
@@ -1188,17 +1188,26 @@ export function mountCityEditor(root: HTMLElement): void {
     redrawMap();
   }
 
-  function brushRadiusMeters(): number {
-    return brushRadiusCells * documentState.frame.blockSizeMeters;
+  /**
+   * The control expresses the visible painted diameter, not a geometric radius.
+   * A point brush already covers the cell under the pointer, so subtract that
+   * first cell before expanding into neighbouring cells.
+   */
+  function paintBrushRadiusMeters(): number {
+    return Math.max(0, (brushSizeMeters() - documentState.frame.blockSizeMeters) / 2);
+  }
+
+  function brushSizeMeters(): number {
+    return brushSizeCells * documentState.frame.blockSizeMeters;
   }
 
   function brushSizeText(): string {
-    const unit = brushRadiusCells === 1 ? "cell" : "cells";
-    return `${brushRadiusCells} ${unit} · ${formatDistance(brushRadiusMeters())}`;
+    const unit = brushSizeCells === 1 ? "cell" : "cells";
+    return `${brushSizeCells} ${unit} · ${formatDistance(brushSizeMeters())}`;
   }
 
   function optimizeJunctionsAtPoint(point: Point): void {
-    const next = optimizeJunctions(documentState, point, brushRadiusMeters(), junctionMaxGapMeters);
+    const next = optimizeJunctions(documentState, point, brushSizeMeters() / 2, junctionMaxGapMeters);
     if (!next) return;
     documentState = next;
     junctionPaintChanged = true;
@@ -1213,7 +1222,7 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     const bounds = canvas.getBoundingClientRect();
     const metersPerPixel = (halfView * 2) / Math.max(map.getBoundingClientRect().width, 1);
-    const radiusPixels = Math.max(5, brushRadiusMeters() / metersPerPixel);
+    const radiusPixels = Math.max(5, brushSizeMeters() / 2 / metersPerPixel);
     wardBrushPreview.style.width = `${radiusPixels * 2}px`;
     wardBrushPreview.style.height = `${radiusPixels * 2}px`;
     wardBrushPreview.style.left = `${wardBrushPointer.clientX - bounds.left}px`;
