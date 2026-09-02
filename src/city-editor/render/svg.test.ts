@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDocument } from "../core/document";
 import { faceNeighbors, faceVertices } from "../core/mesh";
-import { renderEditorSvg, selectionLabelFontSize, vertexHandleRadius } from "./svg";
+import { renderEditorSvg, renderHoverOverlay, selectionLabelFontSize, vertexHandleRadius } from "./svg";
 
 describe("vertexHandleRadius", () => {
   it("keeps r=2 at every zoom level", () => {
@@ -19,24 +19,44 @@ describe("dragging vertex handles", () => {
     const [draggedVertexId, candidateVertexId] = face.boundary.map(ref =>
       ref.forward ? document.mesh.edges[ref.edgeId].a : document.mesh.edges[ref.edgeId].b
     );
+    const selection = {
+      faceId: null,
+      edgeId: null,
+      vertexId: draggedVertexId,
+      groupId: null,
+      hoverVertexId: candidateVertexId
+    };
 
-    const svg = renderEditorSvg(
-      document,
-      "select",
-      {
-        faceId: null,
-        edgeId: null,
-        vertexId: draggedVertexId,
-        groupId: null,
-        hoverVertexId: candidateVertexId
-      },
-      "-200 -200 400 400",
-      1
-    );
+    const svg = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1);
+    // Hover marks render into the dedicated overlay layer, as they do live.
+    svg.querySelector(".ce-hover-layer")?.append(...renderHoverOverlay(document, selection, 1));
 
     expect(svg.querySelectorAll(".ce-vertex")).toHaveLength(2);
     expect(svg.querySelector(`[data-vertex="${draggedVertexId}"]`)?.classList.contains("ce-selected")).toBe(true);
     expect(svg.querySelector(`[data-vertex="${candidateVertexId}"]`)?.classList.contains("ce-hover-vertex")).toBe(true);
+  });
+});
+
+describe("renderHoverOverlay", () => {
+  it("keeps hover marks out of the base render so pointermove can repaint just the overlay", () => {
+    const document = createDocument("hover-overlay", 400);
+    const vertexId = Object.keys(document.mesh.vertices)[0];
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null, hoverVertexId: vertexId };
+
+    const base = renderEditorSvg(document, "select", selection, "-200 -200 400 400", 1);
+    expect(base.querySelector(".ce-hover-vertex")).toBeNull();
+    expect(base.querySelector(".ce-hover-layer")).toBeTruthy();
+
+    const [circle] = renderHoverOverlay(document, selection, 1);
+    expect(circle?.tagName).toBe("circle");
+    expect(circle?.getAttribute("data-vertex")).toBe(vertexId);
+    expect(circle?.classList.contains("ce-hover-vertex")).toBe(true);
+  });
+
+  it("emits nothing when no hover target is set", () => {
+    const document = createDocument("hover-overlay-empty", 400);
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    expect(renderHoverOverlay(document, selection, 1)).toHaveLength(0);
   });
 });
 

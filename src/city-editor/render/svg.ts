@@ -57,7 +57,7 @@ export function renderEditorSvg(
     edges.appendChild(
       element("path", {
         d: line([a, b]),
-        class: `ce-edge${selection.edgeId === edge.id || selection.hoverEdgeId === edge.id ? " ce-selected" : ""}`,
+        class: `ce-edge${selection.edgeId === edge.id ? " ce-selected" : ""}`,
         "data-edge": edge.id
       })
     );
@@ -67,7 +67,6 @@ export function renderEditorSvg(
   const features = element("g", { class: "ce-features" });
   for (const group of document.featureGroups) {
     const active = selection.groupId === group.id;
-    const hovered = selection.hoverGroupId === group.id;
     const points =
       group.kind === "river"
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
@@ -76,7 +75,7 @@ export function renderEditorSvg(
     features.appendChild(
       element("path", {
         d: line(points),
-        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}${hovered ? " ce-hover-group" : ""}`,
+        class: `ce-feature ce-feature--${group.kind}${active ? " ce-active-group" : ""}`,
         stroke: group.style.color,
         "stroke-width": String(group.style.widthMeters),
         "data-group": group.id,
@@ -121,7 +120,7 @@ export function renderEditorSvg(
   if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 
   const showAllVertices = tool === "vertex" || tool === "river";
-  const visibleVertexIds = new Set([selection.vertexId, selection.hoverVertexId].filter((id): id is Id => !!id));
+  const visibleVertexIds = new Set([selection.vertexId].filter((id): id is Id => !!id));
   if (showAllVertices || visibleVertexIds.size) {
     const vertices = element("g", { class: "ce-vertices" });
     for (const vertex of Object.values(document.mesh.vertices)) {
@@ -131,14 +130,72 @@ export function renderEditorSvg(
           cx: String(vertex.point[0]),
           cy: String(-vertex.point[1]),
           r: String(vertexHandleRadius(zoom)),
-          class: `ce-vertex${selection.hoverVertexId === vertex.id ? " ce-hover-vertex" : ""}${selection.vertexId === vertex.id ? " ce-selected" : ""}`,
+          class: `ce-vertex${selection.vertexId === vertex.id ? " ce-selected" : ""}`,
           "data-vertex": vertex.id
         })
       );
     }
     svg.appendChild(vertices);
   }
+
+  // Hover feedback lives in its own thin layer so the editor can repaint it on
+  // pointermove without rebuilding every cell/edge/vertex node. Populated by
+  // renderHoverOverlay(); see the ce-route-preview-layer for the same pattern.
+  svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
   return svg;
+}
+
+/**
+ * Build just the hover-highlight marks (glowing route, edge, and nearest-vertex
+ * handle). The editor drops these into the `.ce-hover-layer` group on every
+ * pointer move, which is far cheaper than a full renderEditorSvg() pass on a
+ * Medium/Large grid.
+ */
+export function renderHoverOverlay(document: CityDocument, selection: RenderSelection, zoom: number): SVGElement[] {
+  const nodes: SVGElement[] = [];
+  if (selection.hoverGroupId) {
+    const group = document.featureGroups.find(candidate => candidate.id === selection.hoverGroupId);
+    if (group) {
+      const points =
+        group.kind === "river"
+          ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
+          : edgeGroupPoints(document, group.segments);
+      if (points.length >= 2) {
+        nodes.push(
+          element("path", {
+            d: line(points),
+            class: `ce-feature ce-feature--${group.kind} ce-hover-group`,
+            stroke: group.style.color,
+            "stroke-width": String(group.style.widthMeters),
+            "pointer-events": "none"
+          })
+        );
+      }
+    }
+  }
+  if (selection.hoverEdgeId) {
+    const edge = document.mesh.edges[selection.hoverEdgeId];
+    const a = edge ? document.mesh.vertices[edge.a]?.point : undefined;
+    const b = edge ? document.mesh.vertices[edge.b]?.point : undefined;
+    if (a && b) {
+      nodes.push(element("path", { d: line([a, b]), class: "ce-edge ce-selected", "pointer-events": "none" }));
+    }
+  }
+  if (selection.hoverVertexId) {
+    const vertex = document.mesh.vertices[selection.hoverVertexId];
+    if (vertex) {
+      nodes.push(
+        element("circle", {
+          cx: String(vertex.point[0]),
+          cy: String(-vertex.point[1]),
+          r: String(vertexHandleRadius(zoom)),
+          class: "ce-vertex ce-hover-vertex",
+          "data-vertex": vertex.id
+        })
+      );
+    }
+  }
+  return nodes;
 }
 
 /** Show the IDs used by the face-editing controls while a cell is selected. */

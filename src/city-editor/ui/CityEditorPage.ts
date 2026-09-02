@@ -39,7 +39,7 @@ import {
 } from "../core/mesh";
 import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind } from "../core/types";
 import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
-import { type RenderSelection, renderEditorSvg, renderRoutePreview } from "../render/svg";
+import { type RenderSelection, renderEditorSvg, renderHoverOverlay, renderRoutePreview } from "../render/svg";
 
 const TOOLS: Array<[Tool, string, string]> = [
   ["select", "Select and move", "↖"],
@@ -135,7 +135,12 @@ export function mountCityEditor(root: HTMLElement): void {
   let routeGroupsByEdge = new Map<Id, Id[]>();
   let edgeIdsByVertex = new Map<Id, Id[]>();
   let faceBuckets = new Map<string, Id[]>();
+  let vertexBuckets = new Map<string, Id[]>();
   let faceBucketSize = documentState.frame.blockSizeMeters * 2;
+  // Coalesce the map redraws that fire on every pointermove (pan, vertex drag,
+  // paint, route stroke) into one repaint per animation frame. A full
+  // renderEditorSvg() pass rebuilds thousands of nodes on a Medium/Large grid.
+  let redrawHandle = 0;
 
   const canvas = div("ce-canvas");
   const map = div("ce-map");
@@ -307,6 +312,9 @@ export function mountCityEditor(root: HTMLElement): void {
 
   map.addEventListener("pointerdown", event => {
     hideContextMenu();
+    // A wheel-zoom just before this click may still be waiting on its frame;
+    // hit-testing below reads the SVG, so settle it first.
+    flushRedraw();
     if (event.button === 1 || (event.button === 0 && isSpacePressed)) {
       event.preventDefault();
       isPanning = true;
@@ -446,7 +454,7 @@ export function mountCityEditor(root: HTMLElement): void {
       documentState = next;
       dragMergeCandidateId = closestMergeCandidate(selection.vertexId);
       selection.hoverVertexId = dragMergeCandidateId;
-      redrawMap();
+      scheduleRedraw();
       suppressNextClick = true;
       return;
     }
@@ -466,7 +474,7 @@ export function mountCityEditor(root: HTMLElement): void {
     viewCenter = [viewCenter[0] - (point[0] - previous[0]), viewCenter[1] - (point[1] - previous[1])];
     lastPanX = event.clientX;
     lastPanY = event.clientY;
-    redrawMap();
+    scheduleRedraw();
   });
   map.addEventListener("pointerleave", () => {
     if (!isWardPainting && !isJunctionPainting) hideWardBrushPreview();
@@ -610,6 +618,7 @@ export function mountCityEditor(root: HTMLElement): void {
   });
   map.addEventListener("contextmenu", event => {
     event.preventDefault();
+    flushRedraw();
     const faceId = targetId(event, "face") ?? faceAtPoint(localPoint(event));
     const vertexId = targetId(event, "vertex");
     const edgeId = targetId(event, "edge");
@@ -715,7 +724,7 @@ export function mountCityEditor(root: HTMLElement): void {
         documentState.frame.extentMeters / 40,
         documentState.frame.extentMeters / 2
       );
-      redrawMap();
+      scheduleRedraw();
       updateWardBrushPreview();
       updateCircularWallPreview();
       refreshScaleBar();
@@ -841,14 +850,14 @@ export function mountCityEditor(root: HTMLElement): void {
   function setContextHighlight(highlight: { vertexId: Id; edgeId: Id }): void {
     selection.hoverVertexId = highlight.vertexId;
     selection.hoverEdgeId = highlight.edgeId;
-    redrawMap();
+    updateHoverOverlay();
   }
 
   function clearContextHighlight(): void {
     if (!selection.hoverVertexId && !selection.hoverEdgeId) return;
     selection.hoverVertexId = null;
     selection.hoverEdgeId = null;
-    redrawMap();
+    updateHoverOverlay();
   }
 
   function restore(next: CityDocument | null): void {
@@ -897,10 +906,30 @@ export function mountCityEditor(root: HTMLElement): void {
     refreshScaleBar();
   }
 
+  /** Repaint on the next frame, collapsing bursts of pointermove events. */
+  function scheduleRedraw(): void {
+    if (redrawHandle) return;
+    redrawHandle = requestAnimationFrame(() => {
+      redrawHandle = 0;
+      redrawMap();
+    });
+  }
+
+  /** Force a pending frame-deferred repaint now, before code reads the SVG
+   *  (hit-testing, getScreenCTM) and would otherwise see stale geometry. */
+  function flushRedraw(): void {
+    if (redrawHandle) redrawMap();
+  }
+
   function redrawMap(): void {
+    if (redrawHandle) {
+      cancelAnimationFrame(redrawHandle);
+      redrawHandle = 0;
+    }
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
     map.replaceChildren(renderEditorSvg(documentState, tool, selection, box, zoomFactor(), showSelectionLabels));
     updateRoutePreview();
+    updateHoverOverlay();
   }
 
   function updateRoutePreview(): void {
@@ -910,6 +939,13 @@ export function mountCityEditor(root: HTMLElement): void {
     if (!routePreview) return;
     const path = renderRoutePreview(documentState, routePreview.group, routePreview.replacementVertices);
     if (path) layer.appendChild(path);
+  }
+
+  /** Repaint only the hover marks (glowing route, edge, nearest vertex). */
+  function updateHoverOverlay(): void {
+    const layer = map.querySelector<SVGGElement>(".ce-hover-layer");
+    if (!layer) return;
+    layer.replaceChildren(...renderHoverOverlay(documentState, selection, zoomFactor()));
   }
 
   function refreshScaleBar(): void {
@@ -1146,13 +1182,22 @@ export function mountCityEditor(root: HTMLElement): void {
   function closestVertexId(point: [number, number]): Id | null {
     // Accept a roughly 12 px drop target regardless of the current zoom.
     const radius = (halfView * 24) / Math.max(map.getBoundingClientRect().width, 1);
+    const span = Math.max(1, Math.ceil(radius / faceBucketSize));
+    const originX = Math.floor(point[0] / faceBucketSize);
+    const originY = Math.floor(point[1] / faceBucketSize);
     let nearest: Id | null = null;
     let nearestDistance = radius;
-    for (const vertex of Object.values(documentState.mesh.vertices)) {
-      const distance = Math.hypot(vertex.point[0] - point[0], vertex.point[1] - point[1]);
-      if (distance <= nearestDistance) {
-        nearest = vertex.id;
-        nearestDistance = distance;
+    for (let x = originX - span; x <= originX + span; x++) {
+      for (let y = originY - span; y <= originY + span; y++) {
+        for (const vertexId of vertexBuckets.get(`${x},${y}`) ?? []) {
+          const vertex = documentState.mesh.vertices[vertexId];
+          if (!vertex) continue;
+          const distance = Math.hypot(vertex.point[0] - point[0], vertex.point[1] - point[1]);
+          if (distance <= nearestDistance) {
+            nearest = vertex.id;
+            nearestDistance = distance;
+          }
+        }
       }
     }
     return nearest;
@@ -1217,6 +1262,14 @@ export function mountCityEditor(root: HTMLElement): void {
         }
       }
     }
+
+    // Same grid, keyed by vertex position, so closestVertexId() can scan a
+    // handful of nearby buckets instead of every vertex on each hover move.
+    vertexBuckets = new Map();
+    for (const vertex of Object.values(documentState.mesh.vertices)) {
+      const key = `${Math.floor(vertex.point[0] / faceBucketSize)},${Math.floor(vertex.point[1] / faceBucketSize)}`;
+      vertexBuckets.set(key, [...(vertexBuckets.get(key) ?? []), vertex.id]);
+    }
   }
 
   function faceAtPoint(point: Point): Id | null {
@@ -1251,13 +1304,23 @@ export function mountCityEditor(root: HTMLElement): void {
   }
 
   function updateHover(event: PointerEvent): void {
-    const point = localPoint(event);
-    const route = routeAtEvent(event, point, false);
-    const vertexId = tool === "select" ? closestVertexId(point) : null;
-    if (selection.hoverGroupId === route?.groupId && selection.hoverVertexId === vertexId) return;
-    selection.hoverGroupId = route?.groupId ?? null;
-    selection.hoverVertexId = vertexId;
-    redrawMap();
+    // Only Select, Edit-vertices, and the route tools show a hover highlight
+    // (route glow / nearest-vertex handle). The brush tools (ward, sea,
+    // junction, circular wall) track the cursor with a lightweight CSS ring, so
+    // recomputing hover for them here is pure waste.
+    const usesHover = tool === "select" || tool === "vertex" || isRoutePaintTool(tool);
+    const point = usesHover ? localPoint(event) : null;
+    const route = point ? routeAtEvent(event, point, false) : null;
+    const nextGroupId = route?.groupId ?? null;
+    const nextVertexId = point && tool === "select" ? closestVertexId(point) : null;
+    // Compare against the normalised value: without this, an idle pointer over
+    // empty canvas (route === null → groupId undefined) never matches the
+    // stored null and forces a repaint on every move.
+    if (selection.hoverGroupId === nextGroupId && selection.hoverVertexId === nextVertexId) return;
+    selection.hoverGroupId = nextGroupId;
+    selection.hoverVertexId = nextVertexId;
+    // Hover marks live in their own layer now, so this never rebuilds the mesh.
+    updateHoverOverlay();
   }
 
   function paintCellsAtPoint(point: Point): void {
@@ -1284,7 +1347,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (!changed) return;
     documentState = next;
     wardPaintChanged = true;
-    redrawMap();
+    scheduleRedraw();
   }
 
   /**
@@ -1310,7 +1373,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (!next) return;
     documentState = next;
     junctionPaintChanged = true;
-    redrawMap();
+    scheduleRedraw();
   }
 
   function updateWardBrushPreview(event?: PointerEvent): void {
@@ -1391,7 +1454,7 @@ export function mountCityEditor(root: HTMLElement): void {
       }
     }
     stroke.lastPoint = point;
-    if (stroke.changed) redrawMap();
+    if (stroke.changed) scheduleRedraw();
   }
 
   function initializeRouteStroke(stroke: RouteStroke, point: Point): void {
