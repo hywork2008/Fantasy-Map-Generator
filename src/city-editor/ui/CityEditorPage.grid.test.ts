@@ -30,15 +30,28 @@ const docButton = (fragment: string): HTMLButtonElement => {
   if (!b) throw new Error(`document-panel button "${fragment}" not found`);
   return b;
 };
-const gridSlider = (): HTMLInputElement => q<HTMLInputElement>(".ce-grid-controls input[type='range']");
+/** The stage-scrub slider (not the parameter sliders). */
+const gridSlider = (): HTMLInputElement => q<HTMLInputElement>(".ce-grid-step");
+/** One of the parameter sliders, in panel order: 0 nPatches, 1 relaxCount, 2 relaxPasses. */
+const paramSlider = (index: number): HTMLInputElement => {
+  const sliders = [...root.querySelectorAll<HTMLInputElement>(".ce-grid-slider-control input[type='range']")];
+  if (!sliders[index]) throw new Error(`grid parameter slider ${index} not found`);
+  return sliders[index];
+};
+const drag = (input: HTMLInputElement, value: string): void => {
+  input.value = value;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+};
 const gridStatus = (): string => q(".ce-grid-evo-status").textContent ?? "";
 const svgCount = (sel: string): number => root.querySelector("svg.ce-svg")?.querySelectorAll(sel).length ?? 0;
 const faceCount = (): number => svgCount(".ce-cells .ce-face");
 const preview = (): void => docButton("Preview grid evolution").click();
 
 describe("Document panel — Grid evolution (Phase G1)", () => {
-  it("has the controls, disabled until a preview is built", () => {
+  it("has three parameter sliders; the scrub slider is disabled until a preview is built", () => {
     expect(root.querySelector(".ce-grid-controls")).not.toBeNull();
+    expect(root.querySelectorAll(".ce-grid-slider-control input[type='range']")).toHaveLength(3);
+    expect(paramSlider(0).value).toBe("15"); // DEFAULT_PATCH_PARAMS.nPatches
     expect(gridSlider().disabled).toBe(true);
     expect(docButton("この格子を採用").disabled).toBe(true);
     expect(gridStatus()).toBe("");
@@ -94,13 +107,25 @@ describe("Document panel — Grid evolution (Phase G1)", () => {
     expect(faceCount()).toBe(before);
   });
 
-  it("changing nPatches invalidates a stale preview", () => {
-    preview();
-    expect(gridSlider().disabled).toBe(false);
-    const nPatches = q<HTMLInputElement>(".ce-grid-controls input[type='number']");
-    nPatches.value = "10";
-    nPatches.dispatchEvent(new Event("change", { bubbles: true }));
+  it("dragging a parameter slider builds/rebuilds the preview live and lands on the final stage", () => {
+    // No "Preview" click needed — the first drag builds it.
     expect(gridSlider().disabled).toBe(true);
-    expect(root.querySelector(".ce-grid-evolution")).toBeNull();
+    drag(paramSlider(0), "8"); // nPatches
+    expect(gridSlider().disabled).toBe(false);
+    expect(gridStatus()).toMatch(/· final$/);
+    const cellsAt8 = svgCount(".ce-grid-evolution .ce-grid-cell");
+    expect(cellsAt8).toBeGreaterThan(3);
+
+    // A bigger nPatches rebuilds with more cells; still on the final stage.
+    drag(paramSlider(0), "40");
+    expect(gridStatus()).toMatch(/· final$/);
+    expect(svgCount(".ce-grid-evolution .ce-grid-cell")).toBeGreaterThan(cellsAt8);
+  });
+
+  it("the parameter slider readout tracks the value", () => {
+    const nPatches = paramSlider(0);
+    const readout = nPatches.nextElementSibling as HTMLElement;
+    drag(nPatches, "22");
+    expect(readout.textContent).toBe("22");
   });
 });

@@ -409,25 +409,25 @@ export function mountCityEditor(root: HTMLElement): void {
   documentActions.append(newButton, scaleButton, finishButton, smoothGroupsButton);
 
   // --- Grid evolution (Phase G1): step through the TownGeneratorTS-style
-  //     buildPatches pipeline one for-loop iteration at a time. ---
-  const gridNPatchesInput = numberInput(String(gridEvoParams.nPatches), "4", "1");
-  const gridRelaxCountInput = numberInput(String(gridEvoParams.relaxCount), "0", "1");
-  const gridRelaxPassesInput = numberInput(String(gridEvoParams.relaxPasses), "0", "1");
-  for (const [input, key] of [
-    [gridNPatchesInput, "nPatches"],
-    [gridRelaxCountInput, "relaxCount"],
-    [gridRelaxPassesInput, "relaxPasses"]
+  //     buildPatches pipeline one for-loop iteration at a time. Dragging a
+  //     parameter slider rebuilds the preview live and lands on the final
+  //     stage — the same result as the "Preview grid evolution" button. ---
+  const gridParamLabels: HTMLLabelElement[] = [];
+  for (const { key, caption, min, max } of [
+    { key: "nPatches", caption: "Patches (nPatches)", min: 6, max: 48 },
+    { key: "relaxCount", caption: "Relax K (centre sites)", min: 0, max: 200 },
+    { key: "relaxPasses", caption: "Relax passes", min: 0, max: 100 }
   ] as const) {
-    input.addEventListener("change", () => {
-      const n = Math.round(Number(input.value));
-      if (!Number.isFinite(n) || n < Number(input.min)) {
-        input.value = String(gridEvoParams[key]);
-        return;
-      }
-      gridEvoParams[key] = n;
-      // The captured stages are now stale — force an explicit re-preview.
-      clearGridEvo();
+    const slider = rangeInput(String(gridEvoParams[key]), String(min), String(max), "1");
+    const readout = text(String(gridEvoParams[key]));
+    const control = div("ce-grid-slider-control");
+    control.append(slider, readout);
+    slider.addEventListener("input", () => {
+      gridEvoParams[key] = Number(slider.value);
+      readout.textContent = slider.value;
+      runGridEvo(); // live — same output as the Preview button (~25 ms)
     });
+    gridParamLabels.push(label(caption, control));
   }
   const gridEvoBuildButton = makeButton("▶ Preview grid evolution", () => runGridEvo());
   const gridEvoReseedButton = makeIconButton("🎲", "New scatter seed", () => {
@@ -435,6 +435,7 @@ export function mountCityEditor(root: HTMLElement): void {
     if (gridEvoStages) runGridEvo();
   });
   const gridEvoSlider = rangeInput("0", "0", "0", "1");
+  gridEvoSlider.className = "ce-grid-step";
   const gridEvoFirstButton = makeIconButton("⏮", "First stage", () => stepGridEvo(-Infinity));
   const gridEvoPrevButton = makeIconButton("◀", "Previous stage", () => stepGridEvo(-1));
   const gridEvoNextButton = makeIconButton("▶", "Next stage", () => stepGridEvo(1));
@@ -467,9 +468,7 @@ export function mountCityEditor(root: HTMLElement): void {
   gridEvoBuildRow.append(gridEvoBuildButton, gridEvoReseedButton);
   const gridEvoControls = div("ce-grid-controls");
   gridEvoControls.append(
-    label("Patches (nPatches)", gridNPatchesInput),
-    label("Relax K (centre sites)", gridRelaxCountInput),
-    label("Relax passes", gridRelaxPassesInput),
+    ...gridParamLabels,
     gridEvoBuildRow,
     gridEvoSliderRow,
     gridEvoLabel,
@@ -2270,8 +2269,9 @@ export function mountCityEditor(root: HTMLElement): void {
   // --- Grid evolution (Phase G1) --------------------------------------------
 
   /** Rebuild the captured stages for the current params + seed, and jump to the
-   * final one. Cheap enough to run on the button (one Delaunay pass per stage),
-   * not per frame. */
+   * final one. Runs on the Preview button and live on every parameter-slider
+   * `input` — `buildGridEvolution` is ~25 ms (stage count is capped), fast
+   * enough to run per tick. */
   function runGridEvo(): void {
     try {
       gridEvoStages = buildGridEvolution(
