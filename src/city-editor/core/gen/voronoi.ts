@@ -47,6 +47,35 @@ export function computeVoronoiCells(points: Point[]): RawCell[] {
   return cells;
 }
 
+/**
+ * The Delaunay triangulation edges over `points`, as de-duplicated `[i, j]` site
+ * index pairs (`i < j`). For the "2.1 Delaunay / Voronoi" grid-evolution overlay
+ * (docs/city-editor/実装計画.md Phase G1) — added here in G1; not used by the
+ * frozen `src/city-generator/` copy.
+ */
+export function computeDelaunayEdges(points: Point[]): [number, number][] {
+  const { triangles } = Delaunator.from(points);
+  const seen = new Set<number>();
+  const edges: [number, number][] = [];
+  for (let t = 0; t < triangles.length; t += 3) {
+    for (const [u, v] of [
+      [t, t + 1],
+      [t + 1, t + 2],
+      [t + 2, t]
+    ] as const) {
+      const a = triangles[u];
+      const b = triangles[v];
+      const lo = a < b ? a : b;
+      const hi = a < b ? b : a;
+      const key = lo * points.length + hi;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push([lo, hi]);
+    }
+  }
+  return edges;
+}
+
 const nextHalfedge = (e: number): number => (e % 3 === 2 ? e - 2 : e + 1);
 const triangleOfEdge = (e: number): number => Math.floor(e / 3);
 

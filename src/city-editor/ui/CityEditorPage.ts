@@ -22,6 +22,9 @@ import {
   vertexHasWall,
   vertexHasWallPassage
 } from "../core/features";
+import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
+import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
+import { makeRng } from "../core/gen/prng";
 import {
   type CityFeatureSet,
   defaultGenerationSettings,
@@ -51,6 +54,7 @@ import {
   faceVertices,
   mergeFaces,
   mergeVertices,
+  meshFromCells,
   moveVertex,
   optimizeJunctions,
   scaleDocument,
@@ -63,6 +67,7 @@ import type { CityDocument, FeatureGroup, Id, Point, Tool, WardKind, WaterKind }
 import { exportCityMap, type ImportedCityMap, pickCityMap, readCityMap } from "../io/cityEditorFile";
 import {
   faceClassName,
+  type GridOverlay,
   type RenderSelection,
   renderEditorSvg,
   renderFaceWardLandmark,
@@ -191,6 +196,15 @@ export function mountCityEditor(root: HTMLElement): void {
   let stepIndex = -1;
   let urbanCoreHighlight: Set<Id> | null = null;
   let stepOverlayPaths: Point[][] | null = null;
+  // Document panel "Grid evolution" (Phase G1): the TownGeneratorTS-style
+  // spiral-scatter → incremental-Voronoi → central-relax pipeline captured one
+  // for-loop iteration at a time. `gridEvoStages` is a transient preview overlay
+  // (not on the document) until "採用" adopts a stage's cells as the new mesh.
+  const gridEvoParams: Omit<PatchParams, "extentMeters"> = { ...DEFAULT_PATCH_PARAMS };
+  let gridEvoSeed = randomSeed();
+  let gridEvoStages: GridEvolutionStage[] | null = null;
+  let gridEvoIndex = 0;
+  const gridEvoLayers = { showCells: true, showDelaunay: false, showSites: true };
   let halfView = documentState.frame.extentMeters / 2;
   let routeEdgesByGroup = new Map<Id, Id[]>();
   let routeGroupsByEdge = new Map<Id, Id[]>();
@@ -304,6 +318,7 @@ export function mountCityEditor(root: HTMLElement): void {
     urbanCoreHighlight = null;
     stepOverlayPaths = null;
     stepStatus.textContent = "";
+    clearGridEvo();
     rebuildEditorIndexes();
     refresh();
   });
@@ -392,6 +407,76 @@ export function mountCityEditor(root: HTMLElement): void {
   );
   const documentActions = div("ce-icon-row");
   documentActions.append(newButton, scaleButton, finishButton, smoothGroupsButton);
+
+  // --- Grid evolution (Phase G1): step through the TownGeneratorTS-style
+  //     buildPatches pipeline one for-loop iteration at a time. ---
+  const gridNPatchesInput = numberInput(String(gridEvoParams.nPatches), "4", "1");
+  const gridRelaxCountInput = numberInput(String(gridEvoParams.relaxCount), "0", "1");
+  const gridRelaxPassesInput = numberInput(String(gridEvoParams.relaxPasses), "0", "1");
+  for (const [input, key] of [
+    [gridNPatchesInput, "nPatches"],
+    [gridRelaxCountInput, "relaxCount"],
+    [gridRelaxPassesInput, "relaxPasses"]
+  ] as const) {
+    input.addEventListener("change", () => {
+      const n = Math.round(Number(input.value));
+      if (!Number.isFinite(n) || n < Number(input.min)) {
+        input.value = String(gridEvoParams[key]);
+        return;
+      }
+      gridEvoParams[key] = n;
+      // The captured stages are now stale — force an explicit re-preview.
+      clearGridEvo();
+    });
+  }
+  const gridEvoBuildButton = makeButton("▶ Preview grid evolution", () => runGridEvo());
+  const gridEvoReseedButton = makeIconButton("🎲", "New scatter seed", () => {
+    gridEvoSeed = randomSeed();
+    if (gridEvoStages) runGridEvo();
+  });
+  const gridEvoSlider = rangeInput("0", "0", "0", "1");
+  const gridEvoFirstButton = makeIconButton("⏮", "First stage", () => stepGridEvo(-Infinity));
+  const gridEvoPrevButton = makeIconButton("◀", "Previous stage", () => stepGridEvo(-1));
+  const gridEvoNextButton = makeIconButton("▶", "Next stage", () => stepGridEvo(1));
+  const gridEvoLastButton = makeIconButton("⏭", "Last stage", () => stepGridEvo(Infinity));
+  const gridEvoLabel = document.createElement("output");
+  gridEvoLabel.className = "ce-grid-evo-status";
+  const gridEvoSliderRow = div("ce-brush-size-control");
+  gridEvoSliderRow.append(gridEvoSlider, gridEvoFirstButton, gridEvoPrevButton, gridEvoNextButton, gridEvoLastButton);
+  gridEvoSlider.addEventListener("input", () => {
+    gridEvoIndex = Number(gridEvoSlider.value);
+    syncGridEvoUi();
+    redrawMap();
+  });
+  const gridLayerInputs = new Map<keyof typeof gridEvoLayers, HTMLInputElement>();
+  const gridLayerRow = div("ce-grid-layers");
+  for (const [key, caption] of [
+    ["showCells", "Voronoi"],
+    ["showDelaunay", "Delaunay"],
+    ["showSites", "Sites"]
+  ] as const) {
+    const input = checkbox(gridEvoLayers[key], checked => {
+      gridEvoLayers[key] = checked;
+      redrawMap();
+    });
+    gridLayerInputs.set(key, input);
+    gridLayerRow.append(toggleLabel(caption, input));
+  }
+  const gridEvoAdoptButton = makeButton("この格子を採用", () => adoptGridEvo());
+  const gridEvoBuildRow = div("ce-icon-row");
+  gridEvoBuildRow.append(gridEvoBuildButton, gridEvoReseedButton);
+  const gridEvoControls = div("ce-grid-controls");
+  gridEvoControls.append(
+    label("Patches (nPatches)", gridNPatchesInput),
+    label("Relax K (centre sites)", gridRelaxCountInput),
+    label("Relax passes", gridRelaxPassesInput),
+    gridEvoBuildRow,
+    gridEvoSliderRow,
+    gridEvoLabel,
+    gridLayerRow,
+    gridEvoAdoptButton
+  );
+
   documentPanel.content.append(
     sizeLabel,
     documentActions,
@@ -399,8 +484,14 @@ export function mountCityEditor(root: HTMLElement): void {
     label("Smoothing", smoothingModeInput),
     text(
       "Create and tune a Voronoi / Delaunay block mesh. Draw on cells and shared edges; this is vector geometry, not a pixel canvas."
-    )
+    ),
+    divider(),
+    text(
+      "Grid evolution — the TownGeneratorTS spiral scatter → incremental Voronoi → central relax, one loop iteration per step. 「採用」 replaces the mesh with the shown stage (feature groups are cleared)."
+    ),
+    gridEvoControls
   );
+  syncGridEvoUi();
 
   const coastSelect = select(["none", "straight", "bay", "cape"], generateSettings.config.coast);
   coastSelect.addEventListener("change", () => {
@@ -997,6 +1088,9 @@ export function mountCityEditor(root: HTMLElement): void {
       refresh();
       return;
     }
+    // Any real edit invalidates a Grid-evolution preview built against the old
+    // mesh/frame — dismiss it rather than leave a stale overlay on screen.
+    clearGridEvo();
     documentState = history.commit(next, label);
     rebuildEditorIndexes();
     refresh();
@@ -1065,6 +1159,7 @@ export function mountCityEditor(root: HTMLElement): void {
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;
+    clearGridEvo();
     refresh();
   }
 
@@ -1145,7 +1240,8 @@ export function mountCityEditor(root: HTMLElement): void {
       showSelectionLabels,
       referenceImage,
       urbanCoreHighlight,
-      stepOverlayPaths
+      stepOverlayPaths,
+      gridOverlayForRender()
     );
     map.replaceChildren(svg);
     // Index the per-face nodes this pass just built so a later ward/sea paint
@@ -2045,6 +2141,7 @@ export function mountCityEditor(root: HTMLElement): void {
     rebuildEditorIndexes();
     selection = emptySelection();
     activeGroupId = null;
+    clearGridEvo();
     halfView = parsed.document.frame.extentMeters / 2;
     viewCenter = [0, 0];
     showNotice(
@@ -2168,6 +2265,104 @@ export function mountCityEditor(root: HTMLElement): void {
     activeGroupId = null;
     rebuildEditorIndexes();
     refresh(); // rebuildEditorIndexes() only rebuilds lookup tables — this repaints the SVG.
+  }
+
+  // --- Grid evolution (Phase G1) --------------------------------------------
+
+  /** Rebuild the captured stages for the current params + seed, and jump to the
+   * final one. Cheap enough to run on the button (one Delaunay pass per stage),
+   * not per frame. */
+  function runGridEvo(): void {
+    try {
+      gridEvoStages = buildGridEvolution(
+        { extentMeters: documentState.frame.extentMeters, ...gridEvoParams },
+        makeRng(gridEvoSeed)
+      );
+    } catch (error) {
+      console.error(error);
+      gridEvoStages = null;
+      showNotice("Grid evolution failed");
+    }
+    gridEvoIndex = gridEvoStages ? gridEvoStages.length - 1 : 0;
+    syncGridEvoUi();
+    redrawMap();
+  }
+
+  function stepGridEvo(delta: number): void {
+    if (!gridEvoStages?.length) return;
+    const last = gridEvoStages.length - 1;
+    gridEvoIndex = delta === -Infinity ? 0 : delta === Infinity ? last : clamp(gridEvoIndex + delta, 0, last);
+    syncGridEvoUi();
+    redrawMap();
+  }
+
+  function clearGridEvo(): void {
+    if (!gridEvoStages) return;
+    gridEvoStages = null;
+    gridEvoIndex = 0;
+    syncGridEvoUi();
+    redrawMap();
+  }
+
+  function syncGridEvoUi(): void {
+    const stages = gridEvoStages;
+    const has = !!stages && stages.length > 0;
+    for (const button of [
+      gridEvoSlider,
+      gridEvoFirstButton,
+      gridEvoPrevButton,
+      gridEvoNextButton,
+      gridEvoLastButton,
+      gridEvoAdoptButton
+    ]) {
+      button.disabled = !has;
+    }
+    if (!has || !stages) {
+      gridEvoLabel.textContent = "";
+      return;
+    }
+    gridEvoIndex = clamp(gridEvoIndex, 0, stages.length - 1);
+    gridEvoSlider.max = String(stages.length - 1);
+    gridEvoSlider.value = String(gridEvoIndex);
+    gridEvoLabel.textContent = `${gridEvoIndex + 1} / ${stages.length} · ${stages[gridEvoIndex].label}`;
+  }
+
+  function gridOverlayForRender(): GridOverlay | null {
+    if (!gridEvoStages?.length) return null;
+    const stage = gridEvoStages[clamp(gridEvoIndex, 0, gridEvoStages.length - 1)];
+    return { stage, ...gridEvoLayers };
+  }
+
+  /** Replace the document mesh with the shown stage's cells. Topology changes
+   * wholesale, so feature groups / gates / elements are cleared (design §5.1
+   * transfer report is a later milestone). */
+  function adoptGridEvo(): void {
+    const stages = gridEvoStages;
+    if (!stages?.length) return;
+    const stage = stages[clamp(gridEvoIndex, 0, stages.length - 1)];
+    const mesh = meshFromCells(stage.cells);
+    if (Object.keys(mesh.faces).length < 3) {
+      showNotice("This stage has too few cells to use as a grid");
+      return;
+    }
+    const next: CityDocument = { ...documentState, mesh, featureGroups: [], gates: [], elements: [] };
+    if (validate(next).length) {
+      showNotice("The rebuilt grid failed validation");
+      return;
+    }
+    clearGridEvo();
+    documentState = history.commit(next, `Rebuild grid · ${stage.label}`);
+    referenceImage = null;
+    selection = emptySelection();
+    activeGroupId = null;
+    activeStepStage = null;
+    stepIndex = -1;
+    urbanCoreHighlight = null;
+    stepOverlayPaths = null;
+    stepStatus.textContent = "";
+    rebuildEditorIndexes();
+    refresh();
+    showNotice(`Grid rebuilt · ${Object.keys(mesh.faces).length} cells`);
   }
 }
 

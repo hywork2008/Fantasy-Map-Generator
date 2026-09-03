@@ -1,7 +1,18 @@
+import type { GridEvolutionStage } from "../core/gen/gridEvolution";
 import { edgeEnd, faceNeighbors, facePoints, faceVertices } from "../core/mesh";
 import type { CityDocument, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, Tool } from "../core/types";
 
 const NS = "http://www.w3.org/2000/svg";
+
+/** A "Grid evolution" step drawn as a translucent overlay above the mesh while
+ * the Document panel scrubs `buildGridEvolution` (Phase G1). Not part of the
+ * document — a transient view of one algorithm iteration. */
+export interface GridOverlay {
+  stage: Pick<GridEvolutionStage, "sites" | "delaunay" | "cells">;
+  showCells: boolean;
+  showDelaunay: boolean;
+  showSites: boolean;
+}
 const REFERENCE_LABEL_EXTENT_METERS = 1200;
 const REFERENCE_LABEL_FONT_SIZE = 14;
 
@@ -36,7 +47,9 @@ export function renderEditorSvg(
    * walk, not a set of cells, so there is nothing on the document itself to
    * highlight while scrubbing partway through one. Each entry is its own SVG
    * subpath so unrelated walks never draw a connecting line between them. */
-  stepWalkPaths: readonly (readonly Point[])[] | null = null
+  stepWalkPaths: readonly (readonly Point[])[] | null = null,
+  /** Document panel "Grid evolution" scrub overlay (Phase G1). */
+  gridOverlay: GridOverlay | null = null
 ): SVGSVGElement {
   const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;
@@ -173,11 +186,49 @@ export function renderEditorSvg(
     svg.appendChild(walk);
   }
 
+  if (gridOverlay) svg.appendChild(renderGridOverlay(gridOverlay));
+
   // Hover feedback lives in its own thin layer so the editor can repaint it on
   // pointermove without rebuilding every cell/edge/vertex node. Populated by
   // renderHoverOverlay(); see the ce-route-preview-layer for the same pattern.
   svg.appendChild(element("g", { class: "ce-hover-layer", "pointer-events": "none" }));
   return svg;
+}
+
+/** The translucent "Grid evolution" scrub layer: Voronoi cells, Delaunay edges
+ * and sites for one `buildGridEvolution` stage, drawn on top of the mesh. */
+function renderGridOverlay(overlay: GridOverlay): SVGGElement {
+  const layer = element("g", { class: "ce-grid-evolution", "pointer-events": "none" }) as SVGGElement;
+  if (overlay.showCells) {
+    const cells = element("g", { class: "ce-grid-cells" });
+    for (const cell of overlay.stage.cells) {
+      if (cell.polygon.length >= 3)
+        cells.appendChild(element("path", { d: polygon(cell.polygon), class: "ce-grid-cell" }));
+    }
+    layer.appendChild(cells);
+  }
+  if (overlay.showDelaunay) {
+    const tris = element("g", { class: "ce-grid-delaunay" });
+    for (const [a, b] of overlay.stage.delaunay) {
+      tris.appendChild(element("path", { d: line([a, b]), class: "ce-grid-delaunay-edge" }));
+    }
+    layer.appendChild(tris);
+  }
+  if (overlay.showSites) {
+    const sites = element("g", { class: "ce-grid-sites" });
+    overlay.stage.sites.forEach((p, i) => {
+      sites.appendChild(
+        element("circle", {
+          cx: String(p[0]),
+          cy: String(-p[1]),
+          r: i === overlay.stage.sites.length - 1 ? "4" : "2.4",
+          class: `ce-grid-site${i === overlay.stage.sites.length - 1 ? " ce-grid-site--latest" : ""}`
+        })
+      );
+    });
+    layer.appendChild(sites);
+  }
+  return layer;
 }
 
 /**
