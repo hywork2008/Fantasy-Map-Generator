@@ -22,6 +22,19 @@ import {
   vertexHasWall,
   vertexHasWallPassage
 } from "../core/features";
+import {
+  type CityFeatureSet,
+  defaultGenerationSettings,
+  FEATURE_KEYS,
+  GENERATION_STAGES,
+  type GenerationSettings,
+  type GenerationStage,
+  generateStageOnDocument,
+  randomGeography,
+  randomSeed,
+  riversForCount,
+  type SiteConfig
+} from "../core/generate";
 import { DocumentHistory } from "../core/history";
 import {
   clone,
@@ -153,6 +166,12 @@ export function mountCityEditor(root: HTMLElement): void {
   let viewCenter: [number, number] = [0, 0];
   let closeContextMenuOnPointerMove = false;
   let notice = "";
+  const generateSettings: GenerationSettings = defaultGenerationSettings();
+  // The current random town. Internal only — never shown or typed. Re-rolled
+  // solely by the "🎲 新しい都市" button; every stage regenerates THIS town so
+  // ①→⑦ stay consistent with each other.
+  let generateSeed = randomSeed();
+  let lastGeneratedStep: number | null = null;
   let halfView = documentState.frame.extentMeters / 2;
   let routeEdgesByGroup = new Map<Id, Id[]>();
   let routeGroupsByEdge = new Map<Id, Id[]>();
@@ -194,6 +213,7 @@ export function mountCityEditor(root: HTMLElement): void {
   const inspector = floatingWindow("ce-inspector", "Inspector");
   const groups = floatingWindow("ce-groups", "Objects");
   const historyPanel = floatingWindow("ce-history", "History");
+  const generatePanel = floatingWindow("ce-generate", "Generate");
   const status = document.createElement("output");
   status.className = "ce-status";
   const scaleBar = div("ce-scale-bar");
@@ -211,6 +231,7 @@ export function mountCityEditor(root: HTMLElement): void {
     inspector.root,
     groups.root,
     historyPanel.root,
+    generatePanel.root,
     status,
     scaleBar,
     contextMenu
@@ -355,6 +376,56 @@ export function mountCityEditor(root: HTMLElement): void {
       "Create and tune a Voronoi / Delaunay block mesh. Draw on cells and shared edges; this is vector geometry, not a pixel canvas."
     )
   );
+
+  const coastSelect = select(["none", "straight", "bay", "cape"], generateSettings.config.coast);
+  coastSelect.addEventListener("change", () => {
+    generateSettings.config.coast = coastSelect.value as SiteConfig["coast"];
+    generateSettings.config.rivers = riversForCount(generateSettings.config, generateSettings.config.rivers.length);
+  });
+  const riversSelect = select(["0", "1", "2"], String(generateSettings.config.rivers.length));
+  riversSelect.addEventListener("change", () => {
+    generateSettings.config.rivers = riversForCount(generateSettings.config, Number(riversSelect.value));
+  });
+  const reliefInput = checkbox(generateSettings.config.relief, checked => {
+    generateSettings.config.relief = checked;
+  });
+  const featureInputs = new Map<keyof CityFeatureSet, HTMLInputElement>();
+  const featureGrid = div("ce-generate-features");
+  for (const key of FEATURE_KEYS) {
+    const input = checkbox(generateSettings.config.features[key], checked => {
+      generateSettings.config.features[key] = checked;
+    });
+    featureInputs.set(key, input);
+    featureGrid.appendChild(toggleLabel(key, input));
+  }
+  const stageButtons = div("ce-generate-stages");
+  for (const stage of GENERATION_STAGES) {
+    const button = makeButton(stage.label, () => runGenerationStage(stage));
+    button.title = stage.hint;
+    stageButtons.appendChild(button);
+  }
+  generatePanel.content.append(
+    makeButton("🎲 新しい都市", () => rollNewTown()),
+    divider(),
+    label("Coast", coastSelect),
+    label("Rivers", riversSelect),
+    toggleLabel("Relief (hilltop)", reliefInput),
+    text("Features"),
+    featureGrid,
+    makeButton("🎲 Randomize geography", () => {
+      generateSettings.config = randomGeography();
+      syncGenerateControls();
+      generateSeed = randomSeed();
+      rerunLastStage();
+      showNotice("Geography randomized");
+    }),
+    divider(),
+    text(
+      "Works on the CURRENT block mesh (make it in the Document panel first) — it never rebuilds the grid or resizes the map. Press ① then ② … in order; each writes the plan up to that process onto the mesh, clearing the generated layers first. Pressing a stage again is idempotent; use 「🎲 新しい都市」 for a different town. Coast / Rivers / Features are kept."
+    ),
+    stageButtons
+  );
+  syncGenerateControls();
 
   map.addEventListener("pointerdown", event => {
     hideContextMenu();
@@ -1924,6 +1995,57 @@ export function mountCityEditor(root: HTMLElement): void {
       refresh();
     }, 1800);
   }
+
+  function syncGenerateControls(): void {
+    coastSelect.value = generateSettings.config.coast;
+    riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
+    reliefInput.checked = generateSettings.config.relief;
+    for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
+  }
+
+  /** Roll a new random town, then re-show it at whatever stage is on screen. */
+  function rollNewTown(): void {
+    generateSeed = randomSeed();
+    if (lastGeneratedStep === null) {
+      showNotice("New town rolled — press ① to build it");
+      return;
+    }
+    rerunLastStage();
+  }
+
+  function rerunLastStage(): void {
+    if (lastGeneratedStep === null) return;
+    const stage = GENERATION_STAGES.find(s => s.step === lastGeneratedStep);
+    if (stage) runGenerationStage(stage);
+  }
+
+  function runGenerationStage(stage: GenerationStage): void {
+    // Recompute the plan up to this process ON the current mesh (the Document
+    // panel owns the grid; generation never rebuilds it or resizes the map).
+    let next: CityDocument | null = null;
+    try {
+      next = generateStageOnDocument(documentState, generateSettings, generateSeed, stage.step);
+    } catch (error) {
+      console.error(error);
+    }
+    if (!next) {
+      showNotice(`Generation failed at ${stage.label}`);
+      return;
+    }
+    lastGeneratedStep = stage.step;
+    // Re-pressing the same stage on the same town is a no-op: keep the history
+    // (and the undo timeline) clean.
+    if (JSON.stringify(next) === JSON.stringify(documentState)) {
+      showNotice(`Already at ${stage.label}`);
+      return;
+    }
+    documentState = history.commit(next, `Generate ${stage.label}`);
+    referenceImage = null;
+    selection = emptySelection();
+    activeGroupId = null;
+    rebuildEditorIndexes();
+    showNotice(`Generated up to ${stage.label}`);
+  }
 }
 
 function emptySelection(): RenderSelection {
@@ -2049,6 +2171,21 @@ function rangeInput(value: string, min: string, max: string, step: string): HTML
   node.min = min;
   node.max = max;
   node.step = step;
+  return node;
+}
+
+function checkbox(checked: boolean, onChange: (checked: boolean) => void): HTMLInputElement {
+  const node = document.createElement("input");
+  node.type = "checkbox";
+  node.checked = checked;
+  node.addEventListener("change", () => onChange(node.checked));
+  return node;
+}
+
+function toggleLabel(caption: string, input: HTMLInputElement): HTMLLabelElement {
+  const node = document.createElement("label");
+  node.className = "ce-toggle";
+  node.append(input, document.createTextNode(caption));
   return node;
 }
 

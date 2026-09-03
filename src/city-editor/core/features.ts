@@ -735,7 +735,7 @@ function connectedWardFaces(
 }
 
 /** Turn directed component-boundary edges into one or more closed routes. */
-function orderedBoundaryLoops(mesh: Mesh, boundary: EdgeRef[]): EdgeRef[][] | null {
+export function orderedBoundaryLoops(mesh: Mesh, boundary: EdgeRef[]): EdgeRef[][] | null {
   const remaining = new Set(boundary);
   const byStart = new Map<Id, EdgeRef[]>();
   for (const ref of boundary) {
@@ -801,7 +801,7 @@ function rerouteOpenVertices(mesh: Mesh, vertices: Id[], fromVertexId: Id, toVer
 }
 
 /** Breadth-first search gives the least number of cell edges and is deterministic by edge id. */
-function shortestPath(mesh: Mesh, from: Id, to: Id, blocked: ReadonlySet<Id>): Id[] | null {
+export function shortestPath(mesh: Mesh, from: Id, to: Id, blocked: ReadonlySet<Id> = new Set()): Id[] | null {
   const adjacent = new Map<Id, Id[]>();
   for (const edge of Object.values(mesh.edges)) {
     if (!adjacent.has(edge.a)) adjacent.set(edge.a, []);
