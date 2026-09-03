@@ -467,6 +467,38 @@ export function shapeEnvelope(loop: BorderLoop, plan: WallPlan, cellSize: number
 }
 
 /**
+ * Round the traced wall's own vertices — this is what actually reads as
+ * "gatagata" in towngen-comparison.md §2.1/§2.3, and neither `shapeEnvelope`
+ * (which only bridges pockets) nor `smoothInteriorVertices` in edgeGraph.ts
+ * (§3.C, which explicitly excludes the border) ever touches it. Read
+ * TownGeneratorTS's `CurtainWall` constructor for reference
+ * (~/Projects/TownGeneratorTS/src/towngenerator/building/CurtainWall.ts +
+ * geom/Polygon.ts `smoothVertex`; this is an original reimplementation from
+ * that description, not a port) — each non-reserved vertex moves to
+ * `(prev + v·f + next) / (2 + f)`, with `f = min(1, 40 / n)` for a ring of `n`
+ * vertices. TownGen's own patch scatter gives it a ~15-vertex wall, so f is
+ * usually 1 there (a plain 3-point average); our finer Voronoi grid gives a
+ * much larger n, so f — and with it the smoothing strength — scales down to
+ * compensate, self-calibrating to how jagged the trace actually is instead of
+ * needing A-2's grid coarsening to already have happened. `reserved` (e.g. the
+ * citadel's own ring) stays fixed, matching TownGen's citadel-reserves-the-
+ * main-wall relationship (Model.ts).
+ */
+export function smoothWallShape(loop: BorderLoop, reserved: Point[] = []): BorderLoop {
+  const n = loop.points.length;
+  if (n < 5) return loop;
+  const f = Math.min(1, 40 / n);
+  const isReserved = (p: Point): boolean => reserved.some(r => sameKey(p, r));
+  const points = loop.points.map((v, i) => {
+    if (isReserved(v)) return [v[0], v[1]] as Point;
+    const prev = loop.points[(i - 1 + n) % n];
+    const next = loop.points[(i + 1) % n];
+    return [(prev[0] + v[0] * f + next[0]) / (2 + f), (prev[1] + v[1] * f + next[1]) / (2 + f)] as Point;
+  });
+  return { points, segments: points.map(() => "land" as WallSegmentKind), urbanCellIds: loop.urbanCellIds };
+}
+
+/**
  * Pull the envelope's sea-facing arc out onto the traced shoreline so a walled
  * town's perimeter actually meets the water (wall-patterns.md §3.1). S3 stops
  * the urban fabric a cell or two short of the sea, so without this the wall ends

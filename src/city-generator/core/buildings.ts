@@ -137,7 +137,12 @@ function edgeSetbacks(
     const a = poly[i];
     const b = poly[(i + 1) % poly.length];
     const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    const alongWall = ctx.wallRings.some(r => nearestOnPolyline(mid, r).dist < ctx.near);
+    const alongWall = ctx.wallRings.some(
+      r =>
+        nearestOnPolyline(mid, r).dist < ctx.near ||
+        nearestOnPolyline(a, r).dist < ctx.near * 0.6 ||
+        nearestOnPolyline(b, r).dist < ctx.near * 0.6
+    );
     const alongPlaza = ctx.plazaRings.some(r => nearestOnPolyline(mid, r).dist < ctx.near);
     const alongArtery = ctx.arteries.some(r => nearestOnPolyline(mid, r).dist < ctx.near);
     const alongRiver = ctx.rivers.some(r => nearestOnPolyline(mid, r.points).dist < ctx.near + mean(r.widths) * 0.35);

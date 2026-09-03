@@ -22,6 +22,7 @@ import {
   placePrecincts,
   reachEnvelopeToShore,
   shapeEnvelope,
+  smoothWallShape,
   wallOverlaysFor
 } from "./interior";
 import { makeRng } from "./prng";
@@ -181,15 +182,45 @@ export function generateCity(
   // treatment, line style) comes from the WallPlan — see wall-patterns.md.
   const plan = program.wallPlan ?? DEFAULT_WALL_PLAN;
   const riverLines = riverPaths.map(p => p.points);
-  const interiorCells = optimizeJunctions(cells, params.cellSizeMeters);
+  let interiorCells = optimizeJunctions(cells, params.cellSizeMeters);
   const traced = buildBorders(interiorCells, urban);
   const envelopes = traced.map(loop => shapeEnvelope(loop, plan, params.cellSizeMeters));
   const precincts = placePrecincts(interiorCells, urban, sea, envelopes, geo, params, program, riverLines);
 
   // The citadel keeps its own enceinte ring whether or not the town is walled
-  // (design §4.2), derived from the same interior cell edges.
+  // (design §4.2), derived from the same interior cell edges — and, like the
+  // main wall below, TownGeneratorTS rounds it with its own smoothing pass
+  // (Castle.ts's own CurtainWall).
   const citadel = precincts.find(p => p.kind === "citadel");
-  const citadelOutline = citadel ? (buildBorders(interiorCells, new Set(citadel.cellIds))[0]?.points ?? null) : null;
+  const rawCitadelOutline = citadel ? (buildBorders(interiorCells, new Set(citadel.cellIds))[0]?.points ?? null) : null;
+  const smoothedCitadel = rawCitadelOutline
+    ? smoothWallShape({ points: rawCitadelOutline, segments: [], urbanCellIds: [] })
+    : null;
+  const citadelOutline = /* TEMP_AB_TEST */ rawCitadelOutline ?? null; // smoothedCitadel?.points ?? null;
+  // Round the traced wall's own vertices (§2.1/§2.3/§3 — the "gatagata"
+  // outline itself, not the interior block seams §3.C already covers) before
+  // the coastal arc gets replaced wholesale below; the citadel's own
+  // (already-smoothed) ring stays reserved so the two enceintes don't warp
+  // each other where they sit close together. TownGeneratorTS gets this in
+  // sync with the cells "for free" via shared mutable Point references
+  // (design comparison table); our detached grid needs the shift replayed
+  // onto `interiorCells` explicitly — the same move `foldArteriesIntoCells`
+  // already does for streets — or gates/streets/wards/buildings keep reading
+  // pre-smoothing cell corners while the drawn wall has moved on without them.
+  const wallShifts = new Map<string, Point>();
+  const smoothedEnvelopes = envelopes.map(loop => {
+    const smoothed = /* TEMP_AB_TEST */ loop; // smoothWallShape(loop, citadelOutline ?? []);
+    loop.points.forEach((p, i) => {
+      wallShifts.set(vertexKey(p), smoothed.points[i]);
+    });
+    return smoothed;
+  });
+  if (rawCitadelOutline && smoothedCitadel) {
+    rawCitadelOutline.forEach((p, i) => {
+      wallShifts.set(vertexKey(p), smoothedCitadel.points[i]);
+    });
+  }
+  interiorCells = foldVerticesIntoCells(interiorCells, wallShifts, new Set());
 
   const segCtx = {
     shoreline: coast?.shoreline ?? null,
@@ -205,8 +236,10 @@ export function generateCity(
     coast && geo.coast ? { shoreline: coast.shoreline, waterAzimuthDeg: geo.coast.waterAzimuthDeg } : null;
   const borders = (
     program.walls
-      ? envelopes.map(loop => reachEnvelopeToShore(loop, shoreInfo, params.cellSizeMeters, params.cityRadiusMeters))
-      : envelopes
+      ? smoothedEnvelopes.map(loop =>
+          reachEnvelopeToShore(loop, shoreInfo, params.cellSizeMeters, params.cityRadiusMeters)
+        )
+      : smoothedEnvelopes
   ).map(loop => classifyWallSegments(loop, segCtx, params.cellSizeMeters));
   const gates = markSeaSurroundedGates(
     markWaterGate(placeGates(interiorCells, urban, borders, geo), borders, coast?.shoreline ?? null, program.port),

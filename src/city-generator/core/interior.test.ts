@@ -3,9 +3,9 @@ import { DEFAULT_SITE_CONFIG } from "../site/siteConfig";
 import { siteToGeography, siteToParams, siteToProgram } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
 import { pointInPolygon } from "./geom";
-import { markSeaSurroundedGates } from "./interior";
+import { markSeaSurroundedGates, smoothWallShape } from "./interior";
 import { generateCity } from "./pipeline";
-import type { Gate, Point } from "./types";
+import type { BorderLoop, Gate, Point } from "./types";
 
 function run(seed: string, walls = true) {
   const config = {
@@ -44,10 +44,14 @@ describe("S4 interior perimeter", () => {
     expect(result.gates.length).toBeLessThanOrEqual(7);
     expect(new Set(result.gates.map(g => `${g.borderIndex}:${g.point.join(",")}`)).size).toBe(result.gates.length);
     // Every gate sits where >= 2 urban cells meet — a real block corner, not an
-    // arbitrary point along a straight wall run.
-    const urbanIds = new Set(result.steps[3].cells.flatMap((c, i) => (c.tag === "urban" ? [result.cells[i].id] : [])));
+    // arbitrary point along a straight wall run. Checked against the S4 snapshot,
+    // not `result.cells` (an earlier, pre-wall-smoothing stage — §3 rounds the
+    // wall and folds the shift into the cells, so gate points only line up with
+    // block corners from S4 onward; see the wall-smoothing pipeline in pipeline.ts).
+    const s4Cells = result.steps.find(s => s.label === "S4 · Inner perimeter & gates")!.cells;
+    const urbanIds = new Set(result.steps[3].cells.filter(c => c.tag === "urban").map(c => c.id));
     for (const gate of result.gates) {
-      const sharing = result.cells.filter(
+      const sharing = s4Cells.filter(
         c => urbanIds.has(c.id) && c.polygon.some(v => Math.hypot(v[0] - gate.point[0], v[1] - gate.point[1]) < 1)
       );
       expect(sharing.length, `gate ${gate.point.join()} sits at a block corner`).toBeGreaterThanOrEqual(2);
@@ -126,6 +130,86 @@ describe("S4 interior perimeter", () => {
     expect(overlays.some(o => o.kind === "citadelWall")).toBe(true);
     expect(open.borders.length).toBeGreaterThan(0);
     expect(open.gates.length).toBeGreaterThan(0);
+  });
+});
+
+/** Sum of |turning angle| at every ring vertex — a standard "how zigzag is
+ * this outline" measure: 0 for a straight run, larger for a jagged trace. */
+function totalTurning(points: Point[]): number {
+  const n = points.length;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const prev = points[(i - 1 + n) % n];
+    const v = points[i];
+    const next = points[(i + 1) % n];
+    const a1 = Math.atan2(v[1] - prev[1], v[0] - prev[0]);
+    const a2 = Math.atan2(next[1] - v[1], next[0] - v[0]);
+    let d = a2 - a1;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    sum += Math.abs(d);
+  }
+  return sum;
+}
+
+describe("smoothWallShape (towngen-comparison.md §2.1/§2.3/§3 — the wall's own vertices, not the interior block seams §3.C covers)", () => {
+  // A jagged 12-vertex ring around a roughly circular town wall — enough
+  // vertices to keep f < 1 (the adaptive strength actually engaging).
+  function jaggedRing(n: number, radius: number, jag: number): Point[] {
+    return Array.from({ length: n }, (_, i) => {
+      const a = (i / n) * Math.PI * 2;
+      const r = radius + (i % 2 === 0 ? jag : -jag);
+      return [Math.cos(a) * r, Math.sin(a) * r] as Point;
+    });
+  }
+  const loop = (points: Point[]): BorderLoop => ({ points, segments: [], urbanCellIds: [] });
+
+  it("is a no-op below 5 vertices (too small a ring to meaningfully smooth)", () => {
+    const tiny = loop(jaggedRing(4, 100, 20));
+    expect(smoothWallShape(tiny).points).toEqual(tiny.points);
+  });
+
+  it("reduces the total turning angle — the ring reads as measurably less jagged", () => {
+    const jagged = jaggedRing(30, 100, 20);
+    const before = totalTurning(jagged);
+    const after = totalTurning(smoothWallShape(loop(jagged)).points);
+    expect(after).toBeLessThan(before * 0.7);
+  });
+
+  it("never moves a reserved point, but still moves its unreserved neighbours", () => {
+    const jagged = jaggedRing(20, 100, 20);
+    const reserved = [jagged[3], jagged[10]];
+    const out = smoothWallShape(loop(jagged), reserved).points;
+    expect(out[3]).toEqual(jagged[3]);
+    expect(out[10]).toEqual(jagged[10]);
+    expect(out[0]).not.toEqual(jagged[0]);
+  });
+
+  it("f = min(1, 40/n): a ~15-vertex ring (TownGeneratorTS's own scale) uses the plain 3-point average", () => {
+    // At f=1, v' = (prev + v + next) / 3 exactly.
+    const points = jaggedRing(15, 100, 20);
+    const out = smoothWallShape(loop(points)).points;
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+      const prev = points[(i - 1 + n) % n];
+      const v = points[i];
+      const next = points[(i + 1) % n];
+      const expected: Point = [(prev[0] + v[0] + next[0]) / 3, (prev[1] + v[1] + next[1]) / 3];
+      expect(out[i][0]).toBeCloseTo(expected[0], 6);
+      expect(out[i][1]).toBeCloseTo(expected[1], 6);
+    }
+  });
+
+  it("a much finer ring (our own scale, not TownGen's) uses a smaller f — stronger smoothing per vertex", () => {
+    // f = min(1, 40/n): a 200-vertex ring (our finer Voronoi grid) computes a
+    // markedly smaller f, hence a markedly smaller self-weight f/(2+f), than a
+    // 15-vertex one (TownGen's own reference scale) — the self-calibration
+    // the design doc's A-1/§3 improvement is meant to provide.
+    const selfWeight = (n: number): number => {
+      const f = Math.min(1, 40 / n);
+      return f / (2 + f);
+    };
+    expect(selfWeight(200)).toBeLessThan(selfWeight(15) * 0.3);
   });
 });
 
