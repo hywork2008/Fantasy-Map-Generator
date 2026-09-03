@@ -45,7 +45,7 @@ import { markWaterGate, placeGates, placePrecincts } from "../../city-generator/
 import { makeRng } from "../../city-generator/core/prng";
 import { type RoutedRiver, walkRiver } from "../../city-generator/core/riverPath";
 import { buildStreets } from "../../city-generator/core/streets";
-import type { Cell, UrbanStage } from "../../city-generator/core/types";
+import type { Cell, UrbanStage, WardAssignment } from "../../city-generator/core/types";
 import { assignWards } from "../../city-generator/core/wards";
 import { orderedBoundaryLoops, shortestPath } from "./features";
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
@@ -220,10 +220,209 @@ export function generateUrbanPatchStep(
   };
 }
 
+/**
+ * One ◀/▶ scrub step for one of the other five processes (①②④⑤⑥). Mirrors
+ * `UrbanPatchStep`'s shape but stays generic, since "one loop iteration" means
+ * something different in each: a walked graph vertex (①/②), a placed gate (④),
+ * a routed road (⑤), an assigned cell (⑥). See
+ * docs/city-generator/towngen-comparison.md.
+ */
+export interface GenerationStepResult {
+  /** The document with only this step's cumulative result shown — null if the
+   * mesh is unusable or the result fails validation. */
+  document: CityDocument | null;
+  /** Total iterations for this `(document, settings, seed)` (0 = nothing to
+   * step through, e.g. no coastline configured, or Walls is off for ④). */
+  total: number;
+  /** The step actually shown, clamped to `[0, total - 1]` (-1 when `total` is 0). */
+  index: number;
+  /** A short label for what this step is (e.g. "vertex 4/12", "gate 2/5"), or
+   * null when `total` is 0. */
+  detail: string | null;
+  /** Raw graph-walk polylines to draw as an overlay (① a single shoreline, ②
+   * one per configured river) — omitted for ④⑤⑥, whose partial result is
+   * already visible on `document` itself (gates / roads / ward colours). */
+  overlayPaths?: Point[][];
+}
+
+/**
+ * Step through the ① coastline walk one graph vertex at a time. `shoreline` IS
+ * the walk in walked order (design §4.2) — the exact mechanism behind the
+ * "gatagata" outline complaint in towngen-comparison.md §2.3/2.4, visible here
+ * before any smoothing or polygon-closing. `document` never shows a partial
+ * sea while scrubbing (there is no meaningful "sea so far" mid-walk) — press
+ * ① itself for the classified result.
+ */
+export function generateCoastWalkStep(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  stepIndex: number
+): GenerationStepResult {
+  const faces = Object.values(document.mesh.faces);
+  if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
+
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 1);
+  const shownDoc = applyPlan(document, cells, faceIdOf, { ...plan, sea: new Set() }, program, 1);
+  const total = plan.coastPath.length;
+  if (total === 0) return { document: shownDoc, total: 0, index: -1, detail: null, overlayPaths: [] };
+  const index = Math.max(0, Math.min(stepIndex, total - 1));
+  return {
+    document: shownDoc,
+    total,
+    index,
+    detail: `vertex ${index + 1}/${total}`,
+    overlayPaths: [plan.coastPath.slice(0, index + 1)]
+  };
+}
+
+/**
+ * Step through the ② river walk(s) one graph vertex at a time, same idea as
+ * `generateCoastWalkStep`. A corridor can carry more than one river: steps run
+ * through them in configured order, one river's walk completing before the
+ * next begins. No partial river feature group is drawn while scrubbing —
+ * press ② itself for the smoothed, classified result.
+ */
+export function generateRiverWalkStep(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  stepIndex: number
+): GenerationStepResult {
+  const faces = Object.values(document.mesh.faces);
+  if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
+
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 2);
+  const shownDoc = applyPlan(document, cells, faceIdOf, { ...plan, rivers: [] }, program, 2);
+  const lengths = plan.rivers.map(r => r.edgePoints.length);
+  const total = lengths.reduce((sum, n) => sum + n, 0);
+  if (total === 0) return { document: shownDoc, total: 0, index: -1, detail: null, overlayPaths: [] };
+  const index = Math.max(0, Math.min(stepIndex, total - 1));
+
+  // Which river this step falls in, and how far into its walk.
+  let remaining = index;
+  let riverIndex = 0;
+  while (riverIndex < lengths.length - 1 && remaining >= lengths[riverIndex]) {
+    remaining -= lengths[riverIndex];
+    riverIndex++;
+  }
+  const overlayPaths = plan.rivers.map((r, i) =>
+    i < riverIndex ? r.edgePoints : i === riverIndex ? r.edgePoints.slice(0, remaining + 1) : []
+  );
+  const riverTag = plan.rivers.length > 1 ? `river ${riverIndex + 1} · ` : "";
+  return {
+    document: shownDoc,
+    total,
+    index,
+    detail: `${riverTag}vertex ${remaining + 1}/${lengths[riverIndex]}`,
+    overlayPaths
+  };
+}
+
+/**
+ * Step through ④'s gate placement one gate at a time, in the same
+ * bearing-match greedy order `placeGates` runs in (towngen-comparison.md
+ * §2.2). The wall outline, plaza and citadel are single atomic picks, not a
+ * loop — they stay fully drawn as context throughout; only the gates
+ * accumulate. Like the ④ stage button itself, a gate only renders once it
+ * sits on a drawn wall, so this needs the Walls feature on to show anything.
+ */
+export function generateGateStep(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  stepIndex: number
+): GenerationStepResult {
+  const faces = Object.values(document.mesh.faces);
+  if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
+
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 4);
+  const total = plan.gates.length;
+  if (total === 0) {
+    return { document: applyPlan(document, cells, faceIdOf, plan, program, 4), total: 0, index: -1, detail: null };
+  }
+  const index = Math.max(0, Math.min(stepIndex, total - 1));
+  const stepped: Plan = { ...plan, gates: plan.gates.slice(0, index + 1) };
+  return {
+    document: applyPlan(document, cells, faceIdOf, stepped, program, 4),
+    total,
+    index,
+    detail: `gate ${index + 1}/${total}`
+  };
+}
+
+/** Step through ⑤'s approach roads one gate's road at a time, in the same
+ * per-gate order `buildStreets` routes them in. */
+export function generateRoadStep(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  stepIndex: number
+): GenerationStepResult {
+  const faces = Object.values(document.mesh.faces);
+  if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
+
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 5);
+  const total = plan.roads.length;
+  if (total === 0) {
+    return { document: applyPlan(document, cells, faceIdOf, plan, program, 5), total: 0, index: -1, detail: null };
+  }
+  const index = Math.max(0, Math.min(stepIndex, total - 1));
+  const stepped: Plan = { ...plan, roads: plan.roads.slice(0, index + 1) };
+  return {
+    document: applyPlan(document, cells, faceIdOf, stepped, program, 5),
+    total,
+    index,
+    detail: `road ${index + 1}/${total}`
+  };
+}
+
+/**
+ * Step through ⑥'s district assignment one cell at a time, in
+ * `assignWards`'s actual decision order (harbour → temple → gate wards → the
+ * shuffled mix loop → outer gate wards → outskirts → shanty) rather than
+ * sorted by cell id. Reserved precincts (plaza / citadel / temple / harbour)
+ * are single atomic picks made before the per-cell loop, so — like ④'s wall
+ * and gates — they stay fully drawn as context throughout.
+ */
+export function generateWardStep(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  stepIndex: number
+): GenerationStepResult {
+  const faces = Object.values(document.mesh.faces);
+  if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
+
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 6);
+  const total = plan.wardOrder.length;
+  if (total === 0) {
+    return { document: applyPlan(document, cells, faceIdOf, plan, program, 6), total: 0, index: -1, detail: null };
+  }
+  const index = Math.max(0, Math.min(stepIndex, total - 1));
+  const prefix = plan.wardOrder.slice(0, index + 1);
+  const stepped: Plan = { ...plan, wards: new Map(prefix.map(w => [w.cellId, w.kind])) };
+  const last = prefix[index];
+  return {
+    document: applyPlan(document, cells, faceIdOf, stepped, program, 6),
+    total,
+    index,
+    detail: `${last.kind} · cell #${last.cellId} — ${index + 1}/${total}`
+  };
+}
+
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
 
 interface Plan {
   sea: Set<number>;
+  /** S1's raw graph walk (upstream → downstream), before it is closed into
+   * `sea`'s water polygon. Empty before S1 runs. See `generateCoastWalkStep`. */
+  coastPath: Point[];
   rivers: RoutedRiver[];
   urban: Set<number>;
   outskirts: Set<number>;
@@ -236,6 +435,9 @@ interface Plan {
   citadelOutline: Point[] | null;
   roads: Point[][];
   wards: Map<number, WardKind>;
+  /** `wards`' source data, in decision order rather than sorted by cell id. Empty
+   * before S6 runs. See `generateWardStep`. */
+  wardOrder: WardAssignment[];
   templeHarbor: Precinct[];
 }
 
@@ -261,6 +463,7 @@ function runPlan(
 ): Plan {
   const empty: Plan = {
     sea: new Set(),
+    coastPath: [],
     rivers: [],
     urban: new Set(),
     outskirts: new Set(),
@@ -271,13 +474,17 @@ function runPlan(
     citadelOutline: null,
     roads: [],
     wards: new Map(),
+    wardOrder: [],
     templeHarbor: []
   };
   if (!cells.length) return empty;
   const graph = buildEdgeGraph(cells);
   if (!graph.points.length) return empty;
 
-  // S1 — coast.
+  // S1 — coast. `coast.shoreline` is the raw graph walk in walked order — the
+  // ① per-loop scrub in `generateCoastWalkStep` steps through it directly, no
+  // separate instrumentation needed (unlike S3's flood-fill, a walk's own
+  // return value already IS its step sequence).
   const waterInputs =
     geo.waterAreas && geo.waterAreas.length > 0
       ? geo.waterAreas
@@ -290,8 +497,9 @@ function runPlan(
     )
     .filter((c): c is CoastResult => c !== null);
   const coast = coasts[0] ?? null;
+  const coastPath = coast?.shoreline ?? [];
   const sea = new Set<number>(coasts.flatMap(c => [...c.sea]));
-  if (stageStep < 2) return { ...empty, sea };
+  if (stageStep < 2) return { ...empty, sea, coastPath };
 
   // S2 — river along the cell-edge graph (no fold-back into the mesh).
   const rivers = geo.rivers
@@ -313,7 +521,7 @@ function runPlan(
     sea,
     rivers.map(band => ({ edgePoints: band.edgePoints }))
   );
-  if (stageStep < 3) return { ...empty, sea, rivers };
+  if (stageStep < 3) return { ...empty, sea, coastPath, rivers };
 
   // S3 — urban core. `params.urbanNPatches` (debug/tuning override) caps the
   // fill to a fixed cell count instead of the radius; `urbanStages` records each
@@ -333,7 +541,7 @@ function runPlan(
     shoreTangent,
     params.urbanNPatches ?? null
   );
-  if (stageStep < 4) return { ...empty, sea, rivers, urban, outskirts, urbanStages };
+  if (stageStep < 4) return { ...empty, sea, coastPath, rivers, urban, outskirts, urbanStages };
 
   // S4 — outline the urban blob along real mesh edges, gates, plaza & citadel.
   const riverLines = rivers.map(band => band.smoothPoints);
@@ -346,7 +554,19 @@ function runPlan(
     : null;
   const gates = markWaterGate(placeGates(genBorders, geo), genBorders, coast?.shoreline ?? null, program.port);
   if (stageStep < 5) {
-    return { ...empty, sea, rivers, urban, outskirts, urbanStages, borderLoops, gates, precincts, citadelOutline };
+    return {
+      ...empty,
+      sea,
+      coastPath,
+      rivers,
+      urban,
+      outskirts,
+      urbanStages,
+      borderLoops,
+      gates,
+      precincts,
+      citadelOutline
+    };
   }
 
   // S5 — approach roads (raw A* on the same graph; not smoothed into the mesh).
@@ -366,6 +586,7 @@ function runPlan(
     return {
       ...empty,
       sea,
+      coastPath,
       rivers,
       urban,
       outskirts,
@@ -395,6 +616,7 @@ function runPlan(
   });
   return {
     sea,
+    coastPath,
     rivers,
     urban,
     outskirts,
@@ -405,6 +627,7 @@ function runPlan(
     citadelOutline,
     roads,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
+    wardOrder: warded.assignmentOrder,
     templeHarbor: warded.precincts
   };
 }

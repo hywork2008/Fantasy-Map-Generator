@@ -29,7 +29,14 @@ export function renderEditorSvg(
    * Generate panel's nPatches step-through / stage just marked buildable, so the
    * flood-fill is visible on the mesh (docs/city-generator/towngen-comparison.md
    * §2.1). Not part of the document — a transient view of the current step. */
-  urbanCoreHighlight: ReadonlySet<Id> | null = null
+  urbanCoreHighlight: ReadonlySet<Id> | null = null,
+  /** Raw graph-walk polylines (one per river for ②; a single one for ①) to draw
+   * as a growing dotted trail — the ①/② step-by-step debug view
+   * (docs/city-generator/towngen-comparison.md): those two processes are a
+   * walk, not a set of cells, so there is nothing on the document itself to
+   * highlight while scrubbing partway through one. Each entry is its own SVG
+   * subpath so unrelated walks never draw a connecting line between them. */
+  stepWalkPaths: readonly (readonly Point[])[] | null = null
 ): SVGSVGElement {
   const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;
@@ -143,6 +150,27 @@ export function renderEditorSvg(
       );
     }
     svg.appendChild(vertices);
+  }
+
+  const nonEmptyWalks = stepWalkPaths?.filter(p => p.length) ?? [];
+  if (nonEmptyWalks.length) {
+    const walk = element("g", { class: "ce-generate-step-path", "pointer-events": "none" });
+    const lastPath = nonEmptyWalks[nonEmptyWalks.length - 1];
+    for (const path of nonEmptyWalks) {
+      if (path.length >= 2) walk.appendChild(element("path", { d: line(path as Point[]), class: "ce-step-path-line" }));
+      path.forEach((p, i) => {
+        const current = path === lastPath && i === path.length - 1;
+        walk.appendChild(
+          element("circle", {
+            cx: String(p[0]),
+            cy: String(-p[1]),
+            r: current ? "4.5" : "2.5",
+            class: `ce-step-path-point${current ? " ce-step-path-point--current" : ""}`
+          })
+        );
+      });
+    }
+    svg.appendChild(walk);
   }
 
   // Hover feedback lives in its own thin layer so the editor can repaint it on

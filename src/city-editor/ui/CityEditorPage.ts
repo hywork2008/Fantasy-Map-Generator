@@ -29,8 +29,14 @@ import {
   GENERATION_STAGES,
   type GenerationSettings,
   type GenerationStage,
+  type GenerationStepResult,
+  generateCoastWalkStep,
+  generateGateStep,
+  generateRiverWalkStep,
+  generateRoadStep,
   generateStageOnDocument,
   generateUrbanPatchStep,
+  generateWardStep,
   randomGeography,
   randomSeed,
   riversForCount,
@@ -173,13 +179,18 @@ export function mountCityEditor(root: HTMLElement): void {
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
   let lastGeneratedStep: number | null = null;
-  // ③ urban-core per-loop scrub (towngen-comparison.md §2.1): which flood-fill
-  // iteration ◀/▶ is showing on the mesh right now (-1 = none shown yet, so the
-  // first ▶ press lands on the first admitted cell), and the exact face ids that
-  // step marked buildable — a transient render tint, not part of the document,
-  // cleared once any other stage runs.
-  let urbanStepIndex = -1;
+  // Per-loop process scrub (towngen-comparison.md): ◀/▶ steps through
+  // WHICHEVER of the six processes was last activated (by pressing its stage
+  // button, or by ◀/▶ itself), one loop iteration at a time. `stepIndex` is
+  // -1 = nothing stepped yet, so the first ▶ press lands on iteration 0.
+  // `urbanCoreHighlight` / `stepOverlayPaths` are transient render tints for
+  // the two stages with nothing else on the document to show a partial result
+  // (③'s `buildable` has no fill of its own; ①/② are a walk, not cells) —
+  // cleared whenever a different stage becomes active.
+  let activeStepStage: GenerationStage["id"] | null = null;
+  let stepIndex = -1;
   let urbanCoreHighlight: Set<Id> | null = null;
+  let stepOverlayPaths: Point[][] | null = null;
   let halfView = documentState.frame.extentMeters / 2;
   let routeEdgesByGroup = new Map<Id, Id[]>();
   let routeGroupsByEdge = new Map<Id, Id[]>();
@@ -287,10 +298,12 @@ export function mountCityEditor(root: HTMLElement): void {
     activeGroupId = null;
     halfView = documentState.frame.extentMeters / 2;
     viewCenter = [0, 0];
-    // A fresh mesh may reuse the old town's face ids — drop any stale ③ highlight.
-    urbanStepIndex = -1;
+    // A fresh mesh may reuse the old town's face ids — drop any stale step state.
+    activeStepStage = null;
+    stepIndex = -1;
     urbanCoreHighlight = null;
-    urbanStepStatus.textContent = "";
+    stepOverlayPaths = null;
+    stepStatus.textContent = "";
     rebuildEditorIndexes();
     refresh();
   });
@@ -417,9 +430,8 @@ export function mountCityEditor(root: HTMLElement): void {
     stageButtons.appendChild(button);
   }
 
-  // ③ urban-core patch tuning (towngen-comparison.md §2.1): an nPatches count
-  // cutoff, and ◀/▶ to scrub the flood-fill one admitted cell at a time on the
-  // actual mesh — so a tweak to the cost function / cutoff can be checked by eye.
+  // ③'s nPatches count cutoff (towngen-comparison.md §2.1) — the one tunable
+  // knob among the six processes so far; the ◀/▶ scrub below applies to all six.
   const urbanNPatchesInput = numberInput("", "1", "1");
   urbanNPatchesInput.placeholder = "auto";
   urbanNPatchesInput.title = "Cap ③'s flood-fill to the first N cells instead of the radius cutoff";
@@ -436,12 +448,16 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     generateSettings.urbanNPatches = n;
   });
-  const urbanStepStatus = document.createElement("output");
-  urbanStepStatus.className = "ce-generate-urbanstep-status";
-  const urbanPrevButton = makeIconButton("◀", "Previous urban-core patch", () => runUrbanPatchStep(-1));
-  const urbanNextButton = makeIconButton("▶", "Next urban-core patch", () => runUrbanPatchStep(1));
-  const urbanStepRow = div("ce-icon-row");
-  urbanStepRow.append(urbanPrevButton, urbanStepStatus, urbanNextButton);
+
+  // One shared ◀/▶ scrub for whichever of the six processes was last activated
+  // (pressing its stage button, or ◀/▶ itself) — towngen-comparison.md's
+  // per-loop verification tool, generalised from ③'s to all six.
+  const stepStatus = document.createElement("output");
+  stepStatus.className = "ce-generate-step-status";
+  const stepPrevButton = makeIconButton("◀", "Previous step", () => runStep(-1));
+  const stepNextButton = makeIconButton("▶", "Next step", () => runStep(1));
+  const stepRow = div("ce-icon-row");
+  stepRow.append(stepPrevButton, stepStatus, stepNextButton);
 
   generatePanel.content.append(
     makeButton("🎲 新しい都市", () => rollNewTown()),
@@ -455,7 +471,7 @@ export function mountCityEditor(root: HTMLElement): void {
       generateSettings.config = randomGeography();
       syncGenerateControls();
       generateSeed = randomSeed();
-      urbanStepIndex = -1;
+      stepIndex = -1;
       rerunLastStage();
       showNotice("Geography randomized");
     }),
@@ -465,9 +481,9 @@ export function mountCityEditor(root: HTMLElement): void {
     ),
     stageButtons,
     divider(),
-    text("③ urban-core patch tuning"),
-    label("nPatches (blank = radius cutoff)", urbanNPatchesInput),
-    urbanStepRow
+    label("③ nPatches (blank = radius cutoff)", urbanNPatchesInput),
+    text("Step through the last-pressed process one loop iteration at a time"),
+    stepRow
   );
   syncGenerateControls();
 
@@ -1128,7 +1144,8 @@ export function mountCityEditor(root: HTMLElement): void {
       zoomFactor(),
       showSelectionLabels,
       referenceImage,
-      urbanCoreHighlight
+      urbanCoreHighlight,
+      stepOverlayPaths
     );
     map.replaceChildren(svg);
     // Index the per-face nodes this pass just built so a later ward/sea paint
@@ -2060,8 +2077,9 @@ export function mountCityEditor(root: HTMLElement): void {
   /** Roll a new random town, then re-show it at whatever stage is on screen. */
   function rollNewTown(): void {
     generateSeed = randomSeed();
-    urbanStepIndex = -1;
-    urbanStepStatus.textContent = "";
+    stepIndex = -1;
+    stepOverlayPaths = null;
+    stepStatus.textContent = "";
     if (lastGeneratedStep === null) {
       showNotice("New town rolled — press ① to build it");
       return;
@@ -2089,9 +2107,15 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     lastGeneratedStep = stage.step;
-    // ③ itself keeps showing the debug tint on its finished core; any other
-    // stage (walls / roads / wards give their own visual cues) drops it.
+    // This stage becomes the ◀/▶ scrub's target, reset to "not stepped yet".
+    activeStepStage = stage.id;
+    stepIndex = -1;
+    stepStatus.textContent = "";
+    // ③ itself keeps showing the debug tint on its finished core (nothing else
+    // marks `buildable` on the document); every other stage already has its
+    // own visual cue (river / walls+gates / roads / ward colours) and needs none.
     urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
+    stepOverlayPaths = null;
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
@@ -2106,39 +2130,88 @@ export function mountCityEditor(root: HTMLElement): void {
     showNotice(`Generated up to ${stage.label}`);
   }
 
-  /** ◀/▶: scrub the ③ urban-core flood-fill one admitted cell at a time, right
-   * on the mesh (towngen-comparison.md §2.1) — independent of the ①…⑥ stage
-   * buttons, which still jump straight to the finished core (+ outskirts). */
-  function runUrbanPatchStep(delta: number): void {
-    let result: ReturnType<typeof generateUrbanPatchStep>;
+  /** ◀/▶: scrub whichever process ①…⑥ was last activated one loop iteration at
+   * a time, right on the mesh (towngen-comparison.md) — independent of the
+   * stage buttons themselves, which still jump straight to the finished result. */
+  function runStep(delta: number): void {
+    if (!activeStepStage) {
+      showNotice("Press a stage button (①–⑥) first");
+      return;
+    }
+    const stage = activeStepStage;
+    const label = GENERATION_STAGES.find(s => s.id === stage)?.label ?? "";
+    let result: UiStepResult;
     try {
-      result = generateUrbanPatchStep(documentState, generateSettings, generateSeed, urbanStepIndex + delta);
+      result = STEP_FNS[stage](documentState, generateSettings, generateSeed, stepIndex + delta);
     } catch (error) {
       console.error(error);
-      showNotice("Urban-core step failed");
+      showNotice("Step failed");
       return;
     }
     if (!result.document || result.total === 0) {
-      showNotice("No eligible land for an urban core");
+      showNotice(`Nothing to step through for ${label}`);
       return;
     }
-    urbanStepIndex = result.index;
-    lastGeneratedStep = 3;
-    urbanCoreHighlight = buildableLandFaceIds(result.document);
-    urbanStepStatus.textContent = `${result.index + 1}/${result.total} · cell #${result.cellId}`;
+    stepIndex = result.index;
+    lastGeneratedStep = GENERATION_STAGES.find(s => s.id === stage)?.step ?? lastGeneratedStep;
+    urbanCoreHighlight = result.highlightFaces ?? null;
+    stepOverlayPaths = result.overlayPaths ?? null;
+    stepStatus.textContent = `${label}: ${result.detail ?? ""}`;
     // Stepping past either end re-shows the same document: keep the history clean.
     if (JSON.stringify(result.document) === JSON.stringify(documentState)) {
-      showNotice(`Already at patch ${result.index + 1}/${result.total}`);
+      showNotice(`Already at step ${result.index + 1}/${result.total}`);
       return;
     }
-    documentState = history.commit(result.document, `Urban patch ${result.index + 1}/${result.total}`);
+    documentState = history.commit(result.document, `${label} step ${result.index + 1}/${result.total}`);
     referenceImage = null;
     selection = emptySelection();
     activeGroupId = null;
     rebuildEditorIndexes();
-    showNotice(`③ patch ${result.index + 1}/${result.total}`);
+    refresh(); // rebuildEditorIndexes() only rebuilds lookup tables — this repaints the SVG.
   }
 }
+
+/** A ◀/▶ step result, unified across all six processes — mirrors
+ * `GenerationStepResult` but also carries ③'s face-tint highlight, since that
+ * one adapts `generateUrbanPatchStep`'s own (slightly different) shape. */
+interface UiStepResult {
+  document: CityDocument | null;
+  total: number;
+  index: number;
+  detail: string | null;
+  highlightFaces?: Set<Id> | null;
+  overlayPaths?: Point[][] | null;
+}
+
+type StepFn = (document: CityDocument, settings: GenerationSettings, seed: string, stepIndex: number) => UiStepResult;
+
+function asUiStep(result: GenerationStepResult): UiStepResult {
+  return {
+    document: result.document,
+    total: result.total,
+    index: result.index,
+    detail: result.detail,
+    overlayPaths: result.overlayPaths ?? null
+  };
+}
+
+const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
+  coast: (doc, settings, seed, idx) => asUiStep(generateCoastWalkStep(doc, settings, seed, idx)),
+  river: (doc, settings, seed, idx) => asUiStep(generateRiverWalkStep(doc, settings, seed, idx)),
+  urban: (doc, settings, seed, idx) => {
+    const r = generateUrbanPatchStep(doc, settings, seed, idx);
+    return {
+      document: r.document,
+      total: r.total,
+      index: r.index,
+      detail: r.total > 0 ? `cell #${r.cellId} — ${r.index + 1}/${r.total}` : null,
+      highlightFaces: r.document ? buildableLandFaceIds(r.document) : null
+    };
+  },
+  walls: (doc, settings, seed, idx) => asUiStep(generateGateStep(doc, settings, seed, idx)),
+  streets: (doc, settings, seed, idx) => asUiStep(generateRoadStep(doc, settings, seed, idx)),
+  wards: (doc, settings, seed, idx) => asUiStep(generateWardStep(doc, settings, seed, idx))
+};
 
 /** The exact land faces a Generate press just marked buildable — the ③ urban-
  * core debug highlight's source set (towngen-comparison.md §2.1). */
