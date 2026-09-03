@@ -19,7 +19,15 @@ import {
   DEFAULT_WALL_PLAN,
   type GenerationResult
 } from "../core/types";
-import { bindCityInspector, renderCity, type SvgPickInfo, showFamily, showGridStage, showStep } from "../render/svg";
+import {
+  bindCityInspector,
+  renderCity,
+  type SvgPickInfo,
+  showFamily,
+  showGridStage,
+  showStep,
+  showUrbanStage
+} from "../render/svg";
 import type { BurgSiteDescriptor } from "../site/burgSiteDescriptor";
 import { buildCityExport, type CityExport, cityExportFilename } from "../site/cityExport";
 import { parseCityExport } from "../site/cityImport";
@@ -90,11 +98,16 @@ export function mountCityGenerator(root: HTMLElement): void {
   let preset: PresetId = "smallCity";
   let config: SiteConfig = { ...DEFAULT_SITE_CONFIG };
   let seed = incoming ? incoming.descriptor.burg.seed : randomSeed();
+  // S3 urban-core debug override (towngen-comparison.md §2.1): unset = the
+  // normal radius cutoff; set = TownGeneratorTS-style "first nPatches" count
+  // cutoff, tunable live from the Drawing-process panel.
+  let urbanNPatches: number | null = null;
   let built: Built = build();
   let result: GenerationResult = built.result;
-  let family: "grid" | "step" = "step";
+  let family: "grid" | "step" | "urban" = "step";
   let stepIndex = result.steps.length - 1;
   let gridIndex = result.gridStages.length - 1;
+  let urbanIndex = -1;
   const view: View = { tx: 0, ty: 0, scale: 1 };
 
   const canvas = div("cg-canvas");
@@ -182,6 +195,8 @@ export function mountCityGenerator(root: HTMLElement): void {
     getResult: () => result,
     getStepIndex: () => stepIndex,
     getGridIndex: () => gridIndex,
+    getUrbanIndex: () => urbanIndex,
+    getNPatches: () => urbanNPatches,
     onStep: index => {
       stepIndex = index;
       family = "step";
@@ -202,6 +217,23 @@ export function mountCityGenerator(root: HTMLElement): void {
       }
       inspector.clear();
     },
+    onUrban: index => {
+      urbanIndex = index;
+      if (index < 0) {
+        family = "step";
+        showFamily(svg(), "step");
+        showStep(svg(), stepIndex);
+      } else {
+        family = "urban";
+        showFamily(svg(), "urban");
+        showUrbanStage(svg(), index);
+      }
+      inspector.clear();
+    },
+    onNPatches: value => {
+      urbanNPatches = value;
+      regenerate();
+    },
     onToggleSites: () => draw()
   });
 
@@ -209,17 +241,23 @@ export function mountCityGenerator(root: HTMLElement): void {
   attachPanZoom(canvas, view, applyView);
   draw();
 
+  /** The S3 debug override on top of whatever params a mode branch derives. */
+  function withNPatches(params: CityParams): CityParams {
+    return urbanNPatches != null ? { ...params, urbanNPatches } : params;
+  }
+
   function build(): Built {
     if (mode.kind === "export") {
       const { descriptor, resolved } = mode.data.settings;
-      const { params, geography: geo, program } = resolved;
+      const { geography: geo, program } = resolved;
+      const params = withNPatches(resolved.params);
       return { result: generateCity(params, geo, program), descriptor, params, geo, program };
     }
     if (mode.kind === "imported") {
       // Geography + programme are the real descriptor; the seed still drives grid
       // + street RNG so "Generate" re-rolls the layout for the same burg.
       const descriptor = mode.descriptor;
-      const params: CityParams = { ...siteToParams(descriptor), seed };
+      const params = withNPatches({ ...siteToParams(descriptor), seed });
       const geo = siteToGeography(descriptor);
       const program = siteToProgram(descriptor);
       return { result: generateCity(params, geo, program), descriptor, params, geo, program };
@@ -232,7 +270,7 @@ export function mountCityGenerator(root: HTMLElement): void {
       ...base,
       wallPlan: resolveWallPlan(base.wallPlan ?? DEFAULT_WALL_PLAN, config.wall)
     };
-    const params = siteToParams(descriptor);
+    const params = withNPatches(siteToParams(descriptor));
     return { result: generateCity(params, geo, program), descriptor, params, geo, program };
   }
 
@@ -241,6 +279,7 @@ export function mountCityGenerator(root: HTMLElement): void {
     result = built.result;
     stepIndex = result.steps.length - 1;
     gridIndex = result.gridStages.length - 1;
+    urbanIndex = -1;
     family = "step";
     options.sync();
     process.sync();
@@ -249,7 +288,14 @@ export function mountCityGenerator(root: HTMLElement): void {
 
   function draw(): void {
     inspector.clear();
-    const map = renderCity(result, { family, gridIndex, stepIndex, showSites: process.showSites(), showRadius: true });
+    const map = renderCity(result, {
+      family,
+      gridIndex,
+      stepIndex,
+      urbanIndex,
+      showSites: process.showSites(),
+      showRadius: true
+    });
     bindCityInspector(map, (info, element) => inspector.show(info, element));
     viewport.replaceChildren(map);
     applyView();
@@ -613,8 +659,14 @@ interface ProcessHandlers {
   getResult(): GenerationResult;
   getStepIndex(): number;
   getGridIndex(): number;
+  getUrbanIndex(): number;
+  /** The live `urbanNPatches` debug override, or null when unset (radius cutoff). */
+  getNPatches(): number | null;
   onStep(index: number): void;
   onGrid(index: number): void;
+  onUrban(index: number): void;
+  /** Changes the S3 count cutoff and regenerates the town. */
+  onNPatches(value: number | null): void;
   onToggleSites(): void;
 }
 
@@ -624,8 +676,10 @@ function buildProcessPanel(h: ProcessHandlers): { root: HTMLElement; sync(): voi
 
   const stepSlider = rangeInput();
   const gridSlider = rangeInput();
+  const urbanSlider = rangeInput();
   const stepStatus = document.createElement("output");
   const gridStatus = document.createElement("output");
+  const urbanStatus = document.createElement("output");
 
   const setStepStatus = (): void => {
     stepStatus.textContent = h.getResult().steps[h.getStepIndex()]?.label ?? "";
@@ -636,16 +690,35 @@ function buildProcessPanel(h: ProcessHandlers): { root: HTMLElement; sync(): voi
     gridStatus.textContent =
       gridSlider.value === "0" || idx < 0 ? "off" : `${stages[idx].label}  (${stages[idx].cells.length} cells)`;
   };
+  const setUrbanStatus = (): void => {
+    const idx = h.getUrbanIndex();
+    const stages = h.getResult().urbanStages;
+    urbanStatus.textContent =
+      urbanSlider.value === "0" || idx < 0
+        ? "off"
+        : `step ${idx + 1}/${stages.length}  (${stages[idx].urban.length} cells, #${stages[idx].cellId} added)`;
+  };
 
   stepSlider.addEventListener("input", () => {
     gridSlider.value = "0";
+    urbanSlider.value = "0";
     h.onStep(Number(stepSlider.value));
     setStepStatus();
     setGridStatus();
+    setUrbanStatus();
   });
   gridSlider.addEventListener("input", () => {
+    urbanSlider.value = "0";
     const value = Number(gridSlider.value);
     h.onGrid(value === 0 ? -1 : value - 1);
+    setGridStatus();
+    setUrbanStatus();
+  });
+  urbanSlider.addEventListener("input", () => {
+    gridSlider.value = "0";
+    const value = Number(urbanSlider.value);
+    h.onUrban(value === 0 ? -1 : value - 1);
+    setUrbanStatus();
     setGridStatus();
   });
 
@@ -682,6 +755,40 @@ function buildProcessPanel(h: ProcessHandlers): { root: HTMLElement; sync(): voi
   gridRow.append(gridLabel, gridStatus, gridSlider);
   root.appendChild(gridRow);
 
+  // S3 urban-core debug tool (towngen-comparison.md §2.1): a count cutoff to try
+  // in place of the radius cutoff, and a per-cell step-through of the flood-fill
+  // so a tweak to the cost function / the cutoff can be checked by eye.
+  const nPatchesField = div("cg-field");
+  const nPatchesLabel = document.createElement("label");
+  nPatchesLabel.textContent = "Urban nPatches (blank = radius cutoff)";
+  const nPatchesInput = document.createElement("input");
+  nPatchesInput.type = "number";
+  nPatchesInput.min = "1";
+  nPatchesInput.step = "1";
+  nPatchesInput.placeholder = "auto";
+  nPatchesInput.addEventListener("change", () => {
+    const raw = nPatchesInput.value.trim();
+    if (raw === "") {
+      h.onNPatches(null);
+      return;
+    }
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || n < 1) {
+      nPatchesInput.value = h.getNPatches() != null ? String(h.getNPatches()) : "";
+      return;
+    }
+    h.onNPatches(n);
+  });
+  nPatchesLabel.appendChild(nPatchesInput);
+  nPatchesField.appendChild(nPatchesLabel);
+  root.appendChild(nPatchesField);
+
+  const urbanRow = div("cg-slider-row");
+  const urbanLabel = document.createElement("label");
+  urbanLabel.textContent = "Urban core evolution";
+  urbanRow.append(urbanLabel, urbanStatus, urbanSlider);
+  root.appendChild(urbanRow);
+
   const sitesRow = div("cg-check-row");
   const sitesLabel = document.createElement("label");
   const sites = document.createElement("input");
@@ -692,13 +799,18 @@ function buildProcessPanel(h: ProcessHandlers): { root: HTMLElement; sync(): voi
   root.appendChild(sitesRow);
 
   const sync = (): void => {
-    const { steps, gridStages } = h.getResult();
+    const { steps, gridStages, urbanStages } = h.getResult();
     stepSlider.max = String(steps.length - 1);
     stepSlider.value = String(h.getStepIndex());
     gridSlider.max = String(gridStages.length);
     gridSlider.value = "0";
+    urbanSlider.max = String(urbanStages.length);
+    urbanSlider.value = "0";
+    const patches = h.getNPatches();
+    nPatchesInput.value = patches != null ? String(patches) : "";
     setStepStatus();
     setGridStatus();
+    setUrbanStatus();
   };
   sync();
   return { root, sync, showSites: () => sites.checked };

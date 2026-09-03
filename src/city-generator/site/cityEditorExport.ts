@@ -3,7 +3,7 @@
 // City Generator remains usable on its own, while the emitted JSON is accepted
 // by City Editor's fixed `parseDocument` contract.
 
-import type { Cell, CityProgram, GenerationResult, Point, WardKind } from "../core/types";
+import type { Cell, CityProgram, GenerationResult, Point, Precinct, WardKind } from "../core/types";
 
 type Id = string;
 type EditorWard = "market" | "castle" | "merchant" | "craftsmen" | "harbor" | "park" | "empty";
@@ -74,46 +74,80 @@ export interface CityEditorDocumentExport {
   }>;
 }
 
-/** Build a complete, editable City Editor document from Generator's final S7 plan. */
-export function buildCityEditorDocument(result: GenerationResult, program: CityProgram): CityEditorDocumentExport {
-  const snapshot = result.steps.at(-1);
+/** Index into `result.steps` at which each plan layer first appears. Matches the
+ * S0…S7 order `pipeline.ts` builds the snapshot list in. */
+const STEP = { grid: 0, sea: 1, river: 2, urban: 3, perimeter: 4, streets: 5, wards: 6, lots: 7 } as const;
+
+export interface CityEditorProjectionOptions {
+  /**
+   * Project the plan only up to `result.steps[stage]`: cell polygons, water and
+   * ward tags come from that snapshot, and a later layer is withheld until its
+   * own stage is reached — river at S2, walls / gates / precincts at S4, roads at
+   * S5, wards at S6. Out-of-range values clamp. Defaults to the last step, i.e.
+   * the historical whole-plan projection.
+   */
+  stage?: number;
+}
+
+/**
+ * Build an editable City Editor document from a generated plan. With no
+ * `options.stage` this is the complete final-plan projection; pass a stage to
+ * get the partial plan the City Editor's step-by-step "Generate" panel applies
+ * one process at a time.
+ */
+export function buildCityEditorDocument(
+  result: GenerationResult,
+  program: CityProgram,
+  options: CityEditorProjectionOptions = {}
+): CityEditorDocumentExport {
+  const lastStep = result.steps.length - 1;
+  const stage = Math.max(0, Math.min(options.stage ?? lastStep, lastStep));
+  const snapshot = result.steps[stage] ?? result.steps.at(-1);
   const cells = snapshot?.cells ?? result.cells;
   const tags = new Map(snapshot?.cells.map(cell => [cell.id, cell.tag]) ?? []);
-  const wards = new Map(result.wards.map(ward => [ward.cellId, ward.kind]));
+  const wards =
+    stage >= STEP.wards ? new Map(result.wards.map(ward => [ward.cellId, ward.kind])) : new Map<number, WardKind>();
   const builder = new EditorMeshBuilder();
 
   for (const cell of cells) builder.addFace(cell, tags.get(cell.id) ?? "land", wards.get(cell.id));
 
   const featureGroups: EditorFeatureGroup[] = [];
-  for (const [index, river] of result.riverPaths.entries()) {
-    const vertices = builder.pathVertices(river.edgeTrack.length >= 2 ? river.edgeTrack : river.points);
-    if (vertices.length < 2) continue;
-    featureGroups.push({
-      id: `river-${index}`,
-      kind: "river",
-      name: `River ${index + 1}`,
-      vertices,
-      source: null,
-      mouth: null,
-      style: { widthMeters: average(river.widths, Math.max(8, result.params.cellSizeMeters * 0.2)), color: "#4f8aad" },
-      locked: false
-    });
+  if (stage >= STEP.river) {
+    for (const [index, river] of result.riverPaths.entries()) {
+      const vertices = builder.pathVertices(river.edgeTrack.length >= 2 ? river.edgeTrack : river.points);
+      if (vertices.length < 2) continue;
+      featureGroups.push({
+        id: `river-${index}`,
+        kind: "river",
+        name: `River ${index + 1}`,
+        vertices,
+        source: null,
+        mouth: null,
+        style: {
+          widthMeters: average(river.widths, Math.max(8, result.params.cellSizeMeters * 0.2)),
+          color: "#4f8aad"
+        },
+        locked: false
+      });
+    }
   }
 
-  for (const [index, road] of result.streets.roads.entries()) {
-    const segments = builder.pathSegments(road);
-    if (!segments.length) continue;
-    featureGroups.push({
-      id: `road-${index}`,
-      kind: "road",
-      name: `Road ${index + 1}`,
-      segments,
-      style: { widthMeters: Math.max(5, result.params.cellSizeMeters * 0.12), color: "#735238" },
-      locked: false
-    });
+  if (stage >= STEP.streets) {
+    for (const [index, road] of result.streets.roads.entries()) {
+      const segments = builder.pathSegments(road);
+      if (!segments.length) continue;
+      featureGroups.push({
+        id: `road-${index}`,
+        kind: "road",
+        name: `Road ${index + 1}`,
+        segments,
+        style: { widthMeters: Math.max(5, result.params.cellSizeMeters * 0.12), color: "#735238" },
+        locked: false
+      });
+    }
   }
 
-  if (program.walls) {
+  if (program.walls && stage >= STEP.perimeter) {
     for (const [index, wall] of result.borders.entries()) {
       const segments = builder.pathSegments(wall.points, true);
       if (!segments.length) continue;
@@ -136,10 +170,17 @@ export function buildCityEditorDocument(result: GenerationResult, program: CityP
       if (edge) wallVertices.add(edge.a).add(edge.b);
     }
   }
-  const gates = result.gates.flatMap((gate, index) => {
-    const vertexId = builder.nearestVertex(gate.point, wallVertices);
-    return vertexId ? [{ id: `gate-${index}`, vertexId, locked: false }] : [];
-  });
+  // A gate anchor must sit on a drawn wall vertex (City Editor's validate()), so
+  // gates only travel with the wall runs.
+  const gates =
+    wallVertices.size > 0
+      ? result.gates.flatMap((gate, index) => {
+          const vertexId = builder.nearestVertex(gate.point, wallVertices);
+          return vertexId ? [{ id: `gate-${index}`, vertexId, locked: false }] : [];
+        })
+      : [];
+
+  const elements = stage >= STEP.perimeter ? precinctElements(snapshot?.precincts ?? []) : [];
 
   return {
     format: "fmg-city-editor",
@@ -152,7 +193,7 @@ export function buildCityEditorDocument(result: GenerationResult, program: CityP
     mesh: builder.mesh,
     featureGroups,
     gates,
-    elements: []
+    elements
   };
 }
 
@@ -253,6 +294,20 @@ class EditorMeshBuilder {
     }
     return { edgeId: id, forward };
   }
+}
+
+/** S4/S6 reserved precincts, as point-anchored City Editor landmark elements. */
+function precinctElements(precincts: Precinct[]): CityEditorDocumentExport["elements"] {
+  const drawn: Precinct["kind"][] = ["plaza", "citadel", "temple", "harbor"];
+  return precincts
+    .filter(precinct => drawn.includes(precinct.kind))
+    .map((precinct, index) => ({
+      id: `precinct-${index}`,
+      kind: precinct.kind as "plaza" | "citadel" | "temple" | "harbor",
+      faceIds: precinct.cellIds.map(id => `f${id}`),
+      point: copyPoint(precinct.anchor),
+      locked: false
+    }));
 }
 
 function editorWard(ward: WardKind | undefined): EditorWard | null {

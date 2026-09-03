@@ -36,12 +36,30 @@ interface RiverPlacement {
   meanderScale: number;
 }
 
-export function synthSite(preset: PresetId, config: SiteConfig, seed: string): BurgSiteDescriptor {
+/** Pin the descriptor frame to an existing window instead of deriving it from
+ * population — the City Editor generates into the map it already has, and must
+ * not resize it. All synth geometry (coast arc, river corridors, roads) scales
+ * to these values. */
+export interface SynthFrameOverride {
+  extentMeters: number;
+  cityRadiusMeters: number;
+}
+
+export function synthSite(
+  preset: PresetId,
+  config: SiteConfig,
+  seed: string,
+  frame?: SynthFrameOverride
+): BurgSiteDescriptor {
   const rng = makeRng(`${preset}|${siteConfigKey(config)}|${seed}`);
   const population = presetPopulation(preset);
   const areaHa = Math.max(population, 50) / WALLED_DENSITY_PER_HA;
-  const cityRadiusMeters = clamp(Math.round(Math.sqrt((areaHa * 1e4) / Math.PI)), 80, 1500);
-  const extentMeters = clamp(Math.round(cityRadiusMeters * 6), 1500, 4500);
+  const cityRadiusMeters = frame
+    ? Math.max(1, Math.round(frame.cityRadiusMeters))
+    : clamp(Math.round(Math.sqrt((areaHa * 1e4) / Math.PI)), 80, 1500);
+  const extentMeters = frame
+    ? Math.max(1, Math.round(frame.extentMeters))
+    : clamp(Math.round(cityRadiusMeters * 6), 1500, 4500);
   const half = extentMeters / 2;
 
   const waterbody = config.coast === "none" ? null : synthCoast(rng, config.coast, half, cityRadiusMeters);

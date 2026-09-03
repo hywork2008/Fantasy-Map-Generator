@@ -26,7 +26,11 @@ export {
   type WardKind
 } from "./core/types";
 export type { BurgSiteArchetype, BurgSiteDescriptor } from "./site/burgSiteDescriptor";
-export { buildCityEditorDocument, type CityEditorDocumentExport } from "./site/cityEditorExport";
+export {
+  buildCityEditorDocument,
+  type CityEditorDocumentExport,
+  type CityEditorProjectionOptions
+} from "./site/cityEditorExport";
 export {
   buildCityExport,
   CITY_EXPORT_KIND,
@@ -63,4 +67,4 @@ export {
   type WallChoice
 } from "./site/siteConfig";
 export { resolveWallPlan, siteToGeography, siteToParams, siteToProgram, siteToWallPlan } from "./site/siteInput";
-export { synthSite } from "./site/synthSite";
+export { type SynthFrameOverride, synthSite } from "./site/synthSite";

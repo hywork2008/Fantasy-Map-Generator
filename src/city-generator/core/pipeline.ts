@@ -140,12 +140,17 @@ export function generateCity(
   // A port pulls the built-up area toward the water: feed S3 an extra "sea-ward"
   // bearing alongside the roads (design §4.5).
   const urbanBearings = program.port && coast ? [...geo.roadBearings, geo.coast!.waterAzimuthDeg] : geo.roadBearings;
-  const { urban, outskirts } = classifyUrban(
+  const {
+    urban,
+    outskirts,
+    stages: urbanStages
+  } = classifyUrban(
     rawCells,
     { sea, bank: river.bank },
     urbanBearings,
     urbanRadius,
-    shoreTangent
+    shoreTangent,
+    params.urbanNPatches ?? null
   );
 
   const finalTag = (c: Cell): CellTag => {
@@ -320,6 +325,7 @@ export function generateCity(
   return {
     params,
     gridStages,
+    urbanStages,
     steps,
     cells,
     riverPaths,

@@ -6,7 +6,7 @@
 // See docs/city-generator/design.md §4.2.
 
 import { azimuthDelta, vecToAzimuth } from "./geom";
-import type { Cell, Point } from "./types";
+import type { Cell, Point, UrbanStage } from "./types";
 
 export interface UrbanContext {
   sea: Set<number>;
@@ -17,6 +17,10 @@ export interface UrbanContext {
 export interface UrbanClassification {
   urban: Set<number>;
   outskirts: Set<number>;
+  /** S3 flood-fill in fill order, one entry per cell admitted to `urban` — lets
+   * the "Urban core evolution" debug slider step through the growth one loop
+   * at a time (towngen-comparison.md §2.1). */
+  stages: UrbanStage[];
 }
 
 const GATE_CONE_DEG = 22;
@@ -32,10 +36,15 @@ export function classifyUrban(
   ctx: UrbanContext,
   roadBearings: number[],
   cityRadiusMeters: number,
-  shoreTangent: Point | null = null
+  shoreTangent: Point | null = null,
+  /** TownGeneratorTS-style count cutoff (towngen-comparison.md §2.1, A-1): take
+   * the first `nPatches` cells in ascending-cost fill order instead of
+   * stopping at `cityRadiusMeters`. Unset = the existing radius cutoff. */
+  nPatches: number | null = null
 ): UrbanClassification {
   const urban = new Set<number>();
   const outskirts = new Set<number>();
+  const stages: UrbanStage[] = [];
 
   const eligible = (c: Cell): boolean => !ctx.sea.has(c.id) && (ctx.bank.get(c.id) ?? 0) === 0;
 
@@ -57,15 +66,17 @@ export function classifyUrban(
 
   const byId = new Map(cells.map(c => [c.id, c]));
   const center = cells.filter(eligible).sort((a, b) => reach(a) - reach(b))[0];
-  if (!center) return { urban, outskirts };
+  if (!center) return { urban, outskirts, stages };
 
   const frontier: Cell[] = [center];
   const seen = new Set<number>([center.id]);
   while (frontier.length > 0) {
+    if (nPatches != null && urban.size >= nPatches) break;
     frontier.sort((a, b) => cost(a) - cost(b));
     const cell = frontier.shift() as Cell;
-    if (cost(cell) > cityRadiusMeters) continue;
+    if (nPatches == null && cost(cell) > cityRadiusMeters) continue;
     urban.add(cell.id);
+    stages.push({ cellId: cell.id, urban: [...urban] });
     for (const nId of cell.neighbors) {
       if (seen.has(nId)) continue;
       const nb = byId.get(nId);
@@ -82,5 +93,5 @@ export function classifyUrban(
     if (Math.min(...roadBearings.map(b => azimuthDelta(az, b))) <= RIBBON_CONE_DEG) outskirts.add(cell.id);
   }
 
-  return { urban, outskirts };
+  return { urban, outskirts, stages };
 }
