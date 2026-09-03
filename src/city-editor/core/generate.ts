@@ -45,7 +45,7 @@ import { markWaterGate, placeGates, placePrecincts } from "../../city-generator/
 import { makeRng } from "../../city-generator/core/prng";
 import { type RoutedRiver, walkRiver } from "../../city-generator/core/riverPath";
 import { buildStreets } from "../../city-generator/core/streets";
-import type { Cell } from "../../city-generator/core/types";
+import type { Cell, UrbanStage } from "../../city-generator/core/types";
 import { assignWards } from "../../city-generator/core/wards";
 import { orderedBoundaryLoops, shortestPath } from "./features";
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
@@ -89,6 +89,13 @@ export const GENERATION_STAGES: GenerationStage[] = [
  * here — the panel holds the seed, and the frame is the document's. */
 export interface GenerationSettings {
   config: SiteConfig;
+  /**
+   * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
+   * first N cells in ascending-cost fill order (TownGeneratorTS-style "first
+   * nPatches") instead of stopping at the radius. Unset = the normal radius
+   * cutoff. See docs/city-generator/towngen-comparison.md §2.1.
+   */
+  urbanNPatches?: number;
 }
 
 /** A random internal seed for one town. Never shown, typed, or persisted. */
@@ -115,22 +122,10 @@ export function riversForCount(config: SiteConfig, count: number): SiteConfig["r
 
 // --- main ---------------------------------------------------------------------
 
-/**
- * Recompute the plan up to `stageStep` on `document`'s own mesh and return a new
- * document with the result written in — the mesh (vertices / edges / faces
- * topology and geometry) and the map frame are left untouched. `null` if the
- * result fails the editor's document validation. Deterministic in
- * `(document, settings, seed, stageStep)`, so re-pressing a stage is a no-op.
- */
-export function generateStageOnDocument(
-  document: CityDocument,
-  settings: GenerationSettings,
-  seed: string,
-  stageStep: number
-): CityDocument | null {
-  const faces = Object.values(document.mesh.faces);
-  if (faces.length < 3) return null;
-
+/** Everything `runPlan` needs, derived once from the document + the deliberate
+ * inputs. Shared by `generateStageOnDocument` and `generateUrbanPatchStep` so
+ * both read the exact same geography for a given `(document, settings, seed)`. */
+function prepareRun(document: CityDocument, settings: GenerationSettings, seed: string) {
   const frame = document.frame;
   const half = frame.extentMeters / 2;
   const cellSize = Math.max(1, frame.blockSizeMeters);
@@ -149,12 +144,80 @@ export function generateStageOnDocument(
     extentMeters: frame.extentMeters,
     cityRadiusMeters: frame.cityRadiusMeters,
     cellSizeMeters: cellSize,
-    lloydPasses: 1
+    lloydPasses: 1,
+    urbanNPatches: settings.urbanNPatches
   };
-
   const { cells, faceIdOf } = cellsFromMesh(document.mesh, half);
+  return { cells, faceIdOf, geo, program, params, half, cellSize };
+}
+
+/**
+ * Recompute the plan up to `stageStep` on `document`'s own mesh and return a new
+ * document with the result written in — the mesh (vertices / edges / faces
+ * topology and geometry) and the map frame are left untouched. `null` if the
+ * result fails the editor's document validation. Deterministic in
+ * `(document, settings, seed, stageStep)`, so re-pressing a stage is a no-op.
+ */
+export function generateStageOnDocument(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  stageStep: number
+): CityDocument | null {
+  const faces = Object.values(document.mesh.faces);
+  if (faces.length < 3) return null;
+
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
   const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, stageStep);
   return applyPlan(document, cells, faceIdOf, plan, program, stageStep);
+}
+
+/** One ③ urban-core flood-fill iteration, as shown on the document's mesh. */
+export interface UrbanPatchStep {
+  /** The document with only THIS step's cumulative cells marked buildable — null
+   * if the mesh is unusable or the result fails validation. */
+  document: CityDocument | null;
+  /** Total flood-fill iterations for this `(document, settings, seed)` (0 when
+   * there is no eligible land at all). */
+  total: number;
+  /** The step actually shown, clamped to `[0, total - 1]` (-1 when `total` is 0). */
+  index: number;
+  /** The cell id admitted to the urban core at this step, or null. */
+  cellId: number | null;
+}
+
+/**
+ * Step through the ③ urban-core flood-fill one admitted cell at a time, directly
+ * on the document's existing (Voronoi-filled) mesh — the debug tool for tuning
+ * the S3 cost function / `settings.urbanNPatches` by eye, one loop iteration at a
+ * time (docs/city-generator/towngen-comparison.md §2.1). `stepIndex` is clamped
+ * into range; outskirts are not shown mid-fill (they are a final, downstream
+ * ribbon — press ③ once patching is done to see them).
+ */
+export function generateUrbanPatchStep(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  stepIndex: number
+): UrbanPatchStep {
+  const faces = Object.values(document.mesh.faces);
+  if (faces.length < 3) return { document: null, total: 0, index: -1, cellId: null };
+
+  const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 3);
+  const total = plan.urbanStages.length;
+  if (total === 0) {
+    return { document: applyPlan(document, cells, faceIdOf, plan, program, 3), total: 0, index: -1, cellId: null };
+  }
+  const index = Math.max(0, Math.min(stepIndex, total - 1));
+  const stage = plan.urbanStages[index];
+  const stepped: Plan = { ...plan, urban: new Set(stage.urban), outskirts: new Set() };
+  return {
+    document: applyPlan(document, cells, faceIdOf, stepped, program, 3),
+    total,
+    index,
+    cellId: stage.cellId
+  };
 }
 
 // --- classifier chain (a trimmed pipeline.ts, no mesh-mutating steps) ---------
@@ -164,6 +227,9 @@ interface Plan {
   rivers: RoutedRiver[];
   urban: Set<number>;
   outskirts: Set<number>;
+  /** S3 flood-fill in fill order, one entry per cell admitted to `urban`. Empty
+   * before S3 runs. See `UrbanPatchStep`. */
+  urbanStages: UrbanStage[];
   borderLoops: MeshBorderLoop[];
   gates: Gate[];
   precincts: Precinct[];
@@ -198,6 +264,7 @@ function runPlan(
     rivers: [],
     urban: new Set(),
     outskirts: new Set(),
+    urbanStages: [],
     borderLoops: [],
     gates: [],
     precincts: [],
@@ -248,18 +315,25 @@ function runPlan(
   );
   if (stageStep < 3) return { ...empty, sea, rivers };
 
-  // S3 — urban core.
+  // S3 — urban core. `params.urbanNPatches` (debug/tuning override) caps the
+  // fill to a fixed cell count instead of the radius; `urbanStages` records each
+  // admitted cell in fill order for `generateUrbanPatchStep`'s per-loop scrub.
   const shoreTangent = coast ? shorelineTangentAt(coast.shoreline) : null;
   const urbanRadius = program.walls ? params.cityRadiusMeters * 0.92 : params.cityRadiusMeters;
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;
-  const { urban, outskirts } = classifyUrban(
+  const {
+    urban,
+    outskirts,
+    stages: urbanStages
+  } = classifyUrban(
     cells,
     { sea, bank: river.bank },
     urbanBearings,
     urbanRadius,
-    shoreTangent
+    shoreTangent,
+    params.urbanNPatches ?? null
   );
-  if (stageStep < 4) return { ...empty, sea, rivers, urban, outskirts };
+  if (stageStep < 4) return { ...empty, sea, rivers, urban, outskirts, urbanStages };
 
   // S4 — outline the urban blob along real mesh edges, gates, plaza & citadel.
   const riverLines = rivers.map(band => band.smoothPoints);
@@ -272,7 +346,7 @@ function runPlan(
     : null;
   const gates = markWaterGate(placeGates(genBorders, geo), genBorders, coast?.shoreline ?? null, program.port);
   if (stageStep < 5) {
-    return { ...empty, sea, rivers, urban, outskirts, borderLoops, gates, precincts, citadelOutline };
+    return { ...empty, sea, rivers, urban, outskirts, urbanStages, borderLoops, gates, precincts, citadelOutline };
   }
 
   // S5 — approach roads (raw A* on the same graph; not smoothed into the mesh).
@@ -289,7 +363,19 @@ function runPlan(
   });
   const roads = streetResult.roads;
   if (stageStep < 6) {
-    return { ...empty, sea, rivers, urban, outskirts, borderLoops, gates, precincts, citadelOutline, roads };
+    return {
+      ...empty,
+      sea,
+      rivers,
+      urban,
+      outskirts,
+      urbanStages,
+      borderLoops,
+      gates,
+      precincts,
+      citadelOutline,
+      roads
+    };
   }
 
   // S6 — wards.
@@ -312,6 +398,7 @@ function runPlan(
     rivers,
     urban,
     outskirts,
+    urbanStages,
     borderLoops,
     gates,
     precincts,

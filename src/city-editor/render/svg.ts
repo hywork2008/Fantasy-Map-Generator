@@ -24,7 +24,12 @@ export function renderEditorSvg(
   showSelectionLabels = false,
   /** The MFCG backdrop is held outside `document` so it never enters history;
    * fall back to the document field for a freshly parsed file. */
-  referenceImage: CityDocument["referenceImage"] | null = null
+  referenceImage: CityDocument["referenceImage"] | null = null,
+  /** Face ids to tint as the ③ urban-core debug highlight — the exact cells the
+   * Generate panel's nPatches step-through / stage just marked buildable, so the
+   * flood-fill is visible on the mesh (docs/city-generator/towngen-comparison.md
+   * §2.1). Not part of the document — a transient view of the current step. */
+  urbanCoreHighlight: ReadonlySet<Id> | null = null
 ): SVGSVGElement {
   const svg = element("svg", { viewBox, class: "ce-svg", "aria-label": "City editor canvas" }) as SVGSVGElement;
   const backdrop = referenceImage ?? document.referenceImage;
@@ -47,7 +52,7 @@ export function renderEditorSvg(
     cells.appendChild(
       element("path", {
         d: polygon(facePoints(document.mesh, face)),
-        class: faceClassName(face, selection.faceId === face.id),
+        class: faceClassName(face, selection.faceId === face.id, urbanCoreHighlight?.has(face.id) ?? false),
         "data-face": face.id
       })
     );
@@ -403,8 +408,8 @@ function wardLandmarkKind(ward: string | null): "plaza" | "citadel" | "harbor" |
  * in place instead of rebuilding the whole SVG — the difference between an
  * O(painted cells) and an O(mesh) repaint on a Large grid.
  */
-export function faceClassName(face: Face, selected: boolean): string {
-  return `ce-face ce-face--${face.properties.water} ce-face--ward-${face.properties.ward ?? "unassigned"}${selected ? " ce-selected" : ""}`;
+export function faceClassName(face: Face, selected: boolean, urbanCoreHighlighted = false): string {
+  return `ce-face ce-face--${face.properties.water} ce-face--ward-${face.properties.ward ?? "unassigned"}${urbanCoreHighlighted ? " ce-face--urban-step" : ""}${selected ? " ce-selected" : ""}`;
 }
 
 /**

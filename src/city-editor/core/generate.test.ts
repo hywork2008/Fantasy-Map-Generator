@@ -6,6 +6,7 @@ import {
   GENERATION_STAGES,
   type GenerationSettings,
   generateStageOnDocument,
+  generateUrbanPatchStep,
   randomSeed,
   riversForCount
 } from "./generate";
@@ -143,6 +144,107 @@ describe("generateStageOnDocument", () => {
 
   it("covers every stage id in GENERATION_STAGES", () => {
     expect(GENERATION_STAGES.map(s => s.step)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+});
+
+/** Buildable land face ids — the ③ urban-core marker this module writes. */
+function buildableLandFaceIds(document: CityDocument): Set<string> {
+  return new Set(
+    Object.values(document.mesh.faces)
+      .filter(f => f.properties.water === "land" && f.properties.buildable)
+      .map(f => f.id)
+  );
+}
+
+describe("generateUrbanPatchStep — per-loop urban-core scrub (towngen-comparison.md §2.1)", () => {
+  const base = createSizedDocument("small", "mesh-fixture");
+  const baseline = meshSkeleton(base);
+  const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
+
+  it("valid document, mesh & frame untouched, for the first/middle/last step", () => {
+    for (const seed of SEEDS) {
+      const { total } = generateUrbanPatchStep(base, scenario, seed, 0);
+      expect(total).toBeGreaterThan(5);
+      for (const idx of [0, 1, Math.floor(total / 2), total - 1]) {
+        const step = generateUrbanPatchStep(base, scenario, seed, idx);
+        expect(step.document, `step ${idx} returned null`).not.toBeNull();
+        if (!step.document) continue;
+        expect(validate(step.document)).toEqual([]);
+        expect(meshSkeleton(step.document)).toBe(baseline);
+        expect(step.document.frame).toEqual(base.frame);
+      }
+    }
+  });
+
+  it("admits exactly one more buildable land cell per step, strictly growing", () => {
+    const seed = "ce-patch-a";
+    const { total } = generateUrbanPatchStep(base, scenario, seed, 0);
+    let prev: Set<string> | null = null;
+    for (let i = 0; i < Math.min(total, 20); i++) {
+      const step = generateUrbanPatchStep(base, scenario, seed, i);
+      const buildable = buildableLandFaceIds(step.document as CityDocument);
+      expect(step.index).toBe(i);
+      expect(buildable.size).toBe(i + 1);
+      if (prev) for (const id of prev) expect(buildable.has(id)).toBe(true);
+      prev = buildable;
+    }
+  });
+
+  it("reports the admitted cell id as the sole newly-buildable face between two steps", () => {
+    const seed = "ce-patch-b";
+    const prevStep = generateUrbanPatchStep(base, scenario, seed, 3);
+    const nextStep = generateUrbanPatchStep(base, scenario, seed, 4);
+    const prevBuildable = buildableLandFaceIds(prevStep.document as CityDocument);
+    const nextBuildable = buildableLandFaceIds(nextStep.document as CityDocument);
+    const added = [...nextBuildable].filter(id => !prevBuildable.has(id));
+    expect(added).toHaveLength(1);
+    expect(nextStep.cellId).not.toBeNull();
+  });
+
+  it("clamps an out-of-range step index to the last / first admitted cell", () => {
+    const seed = "ce-patch-c";
+    const { total } = generateUrbanPatchStep(base, scenario, seed, 0);
+    expect(generateUrbanPatchStep(base, scenario, seed, total + 50).index).toBe(total - 1);
+    expect(generateUrbanPatchStep(base, scenario, seed, -10).index).toBe(0);
+  });
+
+  it("is deterministic in (document, settings, seed, stepIndex)", () => {
+    const a = generateUrbanPatchStep(base, scenario, "stable", 6);
+    const b = generateUrbanPatchStep(base, scenario, "stable", 6);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it("a mid-fill step's buildable cells stay a subset of the ordinary ③ stage's result", () => {
+    const seed = "ce-patch-d";
+    const { total } = generateUrbanPatchStep(base, scenario, seed, 0);
+    const full = generateStageOnDocument(base, scenario, seed, 3) as CityDocument;
+    const fullBuildable = buildableLandFaceIds(full);
+    const stepped = generateUrbanPatchStep(base, scenario, seed, total - 1).document as CityDocument;
+    for (const id of buildableLandFaceIds(stepped)) expect(fullBuildable.has(id)).toBe(true);
+  });
+});
+
+describe("GenerationSettings.urbanNPatches — the ③ count-cutoff override", () => {
+  const base = createSizedDocument("small", "mesh-fixture");
+  const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
+
+  it("caps the flood-fill total to exactly N when N is well inside the eligible area", () => {
+    const capped: GenerationSettings = { ...scenario, urbanNPatches: 8 };
+    expect(generateUrbanPatchStep(base, capped, "ce-npatches", 0).total).toBe(8);
+  });
+
+  it("is unset by default; setting it shrinks the total relative to the radius cutoff", () => {
+    const withCap = generateUrbanPatchStep(base, { ...scenario, urbanNPatches: 6 }, "ce-npatches-2", 0).total;
+    const uncapped = generateUrbanPatchStep(base, scenario, "ce-npatches-2", 0).total;
+    expect(withCap).toBe(6);
+    expect(withCap).toBeLessThan(uncapped);
+  });
+
+  it("also caps the ordinary ③ stage button's urban footprint (not only the stepper)", () => {
+    const capped: GenerationSettings = { ...scenario, urbanNPatches: 5 };
+    const uncappedOut = generateStageOnDocument(base, scenario, "ce-npatches-3", 3) as CityDocument;
+    const cappedOut = generateStageOnDocument(base, capped, "ce-npatches-3", 3) as CityDocument;
+    expect(buildableLandFaceIds(cappedOut).size).toBeLessThan(buildableLandFaceIds(uncappedOut).size);
   });
 });
 

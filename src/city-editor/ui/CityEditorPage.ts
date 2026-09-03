@@ -30,6 +30,7 @@ import {
   type GenerationSettings,
   type GenerationStage,
   generateStageOnDocument,
+  generateUrbanPatchStep,
   randomGeography,
   randomSeed,
   riversForCount,
@@ -172,6 +173,13 @@ export function mountCityEditor(root: HTMLElement): void {
   // ①→⑦ stay consistent with each other.
   let generateSeed = randomSeed();
   let lastGeneratedStep: number | null = null;
+  // ③ urban-core per-loop scrub (towngen-comparison.md §2.1): which flood-fill
+  // iteration ◀/▶ is showing on the mesh right now (-1 = none shown yet, so the
+  // first ▶ press lands on the first admitted cell), and the exact face ids that
+  // step marked buildable — a transient render tint, not part of the document,
+  // cleared once any other stage runs.
+  let urbanStepIndex = -1;
+  let urbanCoreHighlight: Set<Id> | null = null;
   let halfView = documentState.frame.extentMeters / 2;
   let routeEdgesByGroup = new Map<Id, Id[]>();
   let routeGroupsByEdge = new Map<Id, Id[]>();
@@ -279,6 +287,10 @@ export function mountCityEditor(root: HTMLElement): void {
     activeGroupId = null;
     halfView = documentState.frame.extentMeters / 2;
     viewCenter = [0, 0];
+    // A fresh mesh may reuse the old town's face ids — drop any stale ③ highlight.
+    urbanStepIndex = -1;
+    urbanCoreHighlight = null;
+    urbanStepStatus.textContent = "";
     rebuildEditorIndexes();
     refresh();
   });
@@ -404,6 +416,33 @@ export function mountCityEditor(root: HTMLElement): void {
     button.title = stage.hint;
     stageButtons.appendChild(button);
   }
+
+  // ③ urban-core patch tuning (towngen-comparison.md §2.1): an nPatches count
+  // cutoff, and ◀/▶ to scrub the flood-fill one admitted cell at a time on the
+  // actual mesh — so a tweak to the cost function / cutoff can be checked by eye.
+  const urbanNPatchesInput = numberInput("", "1", "1");
+  urbanNPatchesInput.placeholder = "auto";
+  urbanNPatchesInput.title = "Cap ③'s flood-fill to the first N cells instead of the radius cutoff";
+  urbanNPatchesInput.addEventListener("change", () => {
+    const raw = urbanNPatchesInput.value.trim();
+    if (raw === "") {
+      generateSettings.urbanNPatches = undefined;
+      return;
+    }
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || n < 1) {
+      urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
+      return;
+    }
+    generateSettings.urbanNPatches = n;
+  });
+  const urbanStepStatus = document.createElement("output");
+  urbanStepStatus.className = "ce-generate-urbanstep-status";
+  const urbanPrevButton = makeIconButton("◀", "Previous urban-core patch", () => runUrbanPatchStep(-1));
+  const urbanNextButton = makeIconButton("▶", "Next urban-core patch", () => runUrbanPatchStep(1));
+  const urbanStepRow = div("ce-icon-row");
+  urbanStepRow.append(urbanPrevButton, urbanStepStatus, urbanNextButton);
+
   generatePanel.content.append(
     makeButton("🎲 新しい都市", () => rollNewTown()),
     divider(),
@@ -416,6 +455,7 @@ export function mountCityEditor(root: HTMLElement): void {
       generateSettings.config = randomGeography();
       syncGenerateControls();
       generateSeed = randomSeed();
+      urbanStepIndex = -1;
       rerunLastStage();
       showNotice("Geography randomized");
     }),
@@ -423,7 +463,11 @@ export function mountCityEditor(root: HTMLElement): void {
     text(
       "Works on the CURRENT block mesh (make it in the Document panel first) — it never rebuilds the grid or resizes the map. Press ① then ② … in order; each writes the plan up to that process onto the mesh, clearing the generated layers first. Pressing a stage again is idempotent; use 「🎲 新しい都市」 for a different town. Coast / Rivers / Features are kept."
     ),
-    stageButtons
+    stageButtons,
+    divider(),
+    text("③ urban-core patch tuning"),
+    label("nPatches (blank = radius cutoff)", urbanNPatchesInput),
+    urbanStepRow
   );
   syncGenerateControls();
 
@@ -1076,7 +1120,16 @@ export function mountCityEditor(root: HTMLElement): void {
       redrawHandle = 0;
     }
     const box = `${viewCenter[0] - halfView} ${-viewCenter[1] - halfView} ${halfView * 2} ${halfView * 2}`;
-    const svg = renderEditorSvg(documentState, tool, selection, box, zoomFactor(), showSelectionLabels, referenceImage);
+    const svg = renderEditorSvg(
+      documentState,
+      tool,
+      selection,
+      box,
+      zoomFactor(),
+      showSelectionLabels,
+      referenceImage,
+      urbanCoreHighlight
+    );
     map.replaceChildren(svg);
     // Index the per-face nodes this pass just built so a later ward/sea paint
     // can patch just the touched faces (patchFaceRender) instead of forcing
@@ -2001,11 +2054,14 @@ export function mountCityEditor(root: HTMLElement): void {
     riversSelect.value = String(Math.min(2, generateSettings.config.rivers.length));
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
+    urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
   }
 
   /** Roll a new random town, then re-show it at whatever stage is on screen. */
   function rollNewTown(): void {
     generateSeed = randomSeed();
+    urbanStepIndex = -1;
+    urbanStepStatus.textContent = "";
     if (lastGeneratedStep === null) {
       showNotice("New town rolled — press ① to build it");
       return;
@@ -2033,6 +2089,9 @@ export function mountCityEditor(root: HTMLElement): void {
       return;
     }
     lastGeneratedStep = stage.step;
+    // ③ itself keeps showing the debug tint on its finished core; any other
+    // stage (walls / roads / wards give their own visual cues) drops it.
+    urbanCoreHighlight = stage.id === "urban" ? buildableLandFaceIds(next) : null;
     // Re-pressing the same stage on the same town is a no-op: keep the history
     // (and the undo timeline) clean.
     if (JSON.stringify(next) === JSON.stringify(documentState)) {
@@ -2046,6 +2105,49 @@ export function mountCityEditor(root: HTMLElement): void {
     rebuildEditorIndexes();
     showNotice(`Generated up to ${stage.label}`);
   }
+
+  /** ◀/▶: scrub the ③ urban-core flood-fill one admitted cell at a time, right
+   * on the mesh (towngen-comparison.md §2.1) — independent of the ①…⑥ stage
+   * buttons, which still jump straight to the finished core (+ outskirts). */
+  function runUrbanPatchStep(delta: number): void {
+    let result: ReturnType<typeof generateUrbanPatchStep>;
+    try {
+      result = generateUrbanPatchStep(documentState, generateSettings, generateSeed, urbanStepIndex + delta);
+    } catch (error) {
+      console.error(error);
+      showNotice("Urban-core step failed");
+      return;
+    }
+    if (!result.document || result.total === 0) {
+      showNotice("No eligible land for an urban core");
+      return;
+    }
+    urbanStepIndex = result.index;
+    lastGeneratedStep = 3;
+    urbanCoreHighlight = buildableLandFaceIds(result.document);
+    urbanStepStatus.textContent = `${result.index + 1}/${result.total} · cell #${result.cellId}`;
+    // Stepping past either end re-shows the same document: keep the history clean.
+    if (JSON.stringify(result.document) === JSON.stringify(documentState)) {
+      showNotice(`Already at patch ${result.index + 1}/${result.total}`);
+      return;
+    }
+    documentState = history.commit(result.document, `Urban patch ${result.index + 1}/${result.total}`);
+    referenceImage = null;
+    selection = emptySelection();
+    activeGroupId = null;
+    rebuildEditorIndexes();
+    showNotice(`③ patch ${result.index + 1}/${result.total}`);
+  }
+}
+
+/** The exact land faces a Generate press just marked buildable — the ③ urban-
+ * core debug highlight's source set (towngen-comparison.md §2.1). */
+function buildableLandFaceIds(document: CityDocument): Set<Id> {
+  const ids = new Set<Id>();
+  for (const face of Object.values(document.mesh.faces)) {
+    if (face.properties.water === "land" && face.properties.buildable) ids.add(face.id);
+  }
+  return ids;
 }
 
 function emptySelection(): RenderSelection {
