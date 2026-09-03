@@ -8,13 +8,14 @@ import { buildGeometry } from "./buildings";
 import { classifyRiver } from "./classifyRiver";
 import { type CoastResult, classifyCoast } from "./classifySea";
 import { classifyUrban } from "./classifyUrban";
-import { buildEdgeGraph, foldVerticesIntoCells, vertexKey } from "./edgeGraph";
+import { buildEdgeGraph, foldVerticesIntoCells, smoothInteriorVertices, vertexKey } from "./edgeGraph";
 import { azimuthToVec, nearestOnPolyline } from "./geom";
 import { buildGrid } from "./grid";
 import {
   buildBorders,
   classifyWallSegments,
   close,
+  markSeaSurroundedGates,
   markWaterGate,
   optimizeJunctions,
   placeGates,
@@ -150,7 +151,8 @@ export function generateCity(
     urbanBearings,
     urbanRadius,
     shoreTangent,
-    params.urbanNPatches ?? null
+    params.urbanNPatches ?? null,
+    params.cellSizeMeters
   );
 
   const finalTag = (c: Cell): CellTag => {
@@ -206,7 +208,11 @@ export function generateCity(
       ? envelopes.map(loop => reachEnvelopeToShore(loop, shoreInfo, params.cellSizeMeters, params.cityRadiusMeters))
       : envelopes
   ).map(loop => classifyWallSegments(loop, segCtx, params.cellSizeMeters));
-  const gates = markWaterGate(placeGates(borders, geo), borders, coast?.shoreline ?? null, program.port);
+  const gates = markSeaSurroundedGates(
+    markWaterGate(placeGates(interiorCells, urban, borders, geo), borders, coast?.shoreline ?? null, program.port),
+    coast?.waterPolygon ?? null,
+    params.cellSizeMeters
+  );
 
   const wallCtx = {
     waterPolygon: coast?.waterPolygon ?? null,
@@ -231,6 +237,8 @@ export function generateCity(
   const streetResult = buildStreets({
     cells: interiorCells,
     urban,
+    sea,
+    waterPolygon: coast?.waterPolygon ?? null,
     borders,
     gates,
     precincts,
@@ -251,7 +259,20 @@ export function generateCity(
   // stay pinned; S0–S4 snapshots keep the untouched junction-optimised grid.
   const reserved = reservedStreetVertices(borders, citadelOutline, gates);
   for (const r of riverPaths) for (const p of r.edgeTrack) reserved.add(vertexKey(p));
-  const fabricCells = foldArteriesIntoCells(interiorCells, streetResult.vertexShifts, reserved);
+  let fabricCells = foldArteriesIntoCells(interiorCells, streetResult.vertexShifts, reserved);
+  // Weak Laplacian over the urban block seams no street or river ever routed
+  // over (§2.3 / §3.C): the fold above only smooths vertices a street/river
+  // actually touched, so the countless short Voronoi edges on neither stay raw
+  // zig-zag without this. `reserved` (the perimeter, citadel, gates, rivers)
+  // still holds, and only urban cells go in — rural/sea geometry is untouched.
+  const smoothedUrban = new Map(
+    smoothInteriorVertices(
+      fabricCells.filter(c => urban.has(c.id)),
+      reserved,
+      2
+    ).map(c => [c.id, c])
+  );
+  fabricCells = fabricCells.map(c => smoothedUrban.get(c.id) ?? c);
   const roadPaths = streets.roads.map(points => ({ kind: "road" as const, points, widths: [] as number[] }));
   steps.push(
     snapshot("S5 · Streets", fabricCells, finalTag, [...riverSnapshotPaths, ...roadPaths], s4Overlays, precincts)
@@ -302,6 +323,7 @@ export function generateCity(
     wards: warded.wards,
     urban,
     sea,
+    waterPolygon: coast?.waterPolygon ?? null,
     borders,
     precincts: allPrecincts,
     streets,

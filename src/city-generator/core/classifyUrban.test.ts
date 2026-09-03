@@ -7,8 +7,45 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SITE_CONFIG, type SiteConfig } from "../site/siteConfig";
 import { siteToGeography, siteToParams } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
+import { classifyUrban } from "./classifyUrban";
 import { generateCity } from "./pipeline";
-import type { CityParams } from "./types";
+import type { Cell, CityParams } from "./types";
+
+/** A dense unit-square grid over [-half, half]² (4-connected), fine enough
+ * that `classifyUrban`'s count target is never starved for eligible cells. */
+function squareGrid(half: number): Cell[] {
+  const cells: Cell[] = [];
+  const idOf = new Map<string, number>();
+  let n = 0;
+  for (let y = -half; y < half; y++) for (let x = -half; x < half; x++) idOf.set(`${x},${y}`, n++);
+  for (let y = -half; y < half; y++) {
+    for (let x = -half; x < half; x++) {
+      const id = idOf.get(`${x},${y}`) as number;
+      const neighbors = [
+        idOf.get(`${x + 1},${y}`),
+        idOf.get(`${x - 1},${y}`),
+        idOf.get(`${x},${y + 1}`),
+        idOf.get(`${x},${y - 1}`)
+      ].filter((n2): n2 is number => n2 !== undefined);
+      const cx = x + 0.5;
+      const cy = y + 0.5;
+      cells.push({
+        id,
+        site: [cx, cy],
+        centroid: [cx, cy],
+        polygon: [
+          [x, y],
+          [x + 1, y],
+          [x + 1, y + 1],
+          [x, y + 1]
+        ],
+        neighbors,
+        onBorder: x === -half || y === -half || x === half - 1 || y === half - 1
+      });
+    }
+  }
+  return cells;
+}
 
 const DRY: SiteConfig = { ...DEFAULT_SITE_CONFIG, coast: "none", rivers: [], relief: false };
 
@@ -22,11 +59,34 @@ const run = (params: Partial<CityParams>, config: SiteConfig = DRY, seed = "urba
 const urbanCount = (r: ReturnType<typeof run>) => r.steps[3].cells.filter(c => c.tag === "urban").length;
 
 describe("classifyUrban — urbanNPatches count cutoff", () => {
-  it("is unset by default and leaves the radius cutoff unchanged", () => {
+  it("an unset override and an explicit undefined both fall back to the same default N", () => {
     const withDefault = run({});
     const withExplicitUndefined = run({ urbanNPatches: undefined });
     expect(urbanCount(withDefault)).toBe(urbanCount(withExplicitUndefined));
     expect(withDefault.steps[3].cells.map(c => c.tag)).toEqual(withExplicitUndefined.steps[3].cells.map(c => c.tag));
+  });
+
+  it("A-1: with no override, N defaults to π·(R/cellSize)² — a stable COUNT, not a radius", () => {
+    const result = run({});
+    const { cityRadiusMeters, cellSizeMeters } = result.params;
+    const expectedN = Math.round(Math.PI * (cityRadiusMeters / cellSizeMeters) ** 2);
+    // program.walls compacts the radius classifyUrban actually sees (WALLED_COMPACTION,
+    // pipeline.ts), so the count tracks the formula within that factor, not exactly.
+    expect(urbanCount(result)).toBeGreaterThan(expectedN * 0.7);
+    expect(urbanCount(result)).toBeLessThanOrEqual(expectedN);
+  });
+
+  it("A-1: on a fixed grid, halving cellSizeMeters ~quadruples N — the formula, not a radius wall", () => {
+    // A radius cutoff wouldn't move at all here (same cells, same radius); the
+    // count-cutoff's target scales as 1/cellSize², so it should ~4x.
+    const cells = squareGrid(20);
+    const ctx = { sea: new Set<number>(), bank: new Map<number, number>() };
+    const coarse = classifyUrban(cells, ctx, [], 20, null, null, 4);
+    const fine = classifyUrban(cells, ctx, [], 20, null, null, 2);
+    expect(coarse.urban.size).toBeGreaterThan(0);
+    const ratio = fine.urban.size / coarse.urban.size;
+    expect(ratio).toBeGreaterThan(3);
+    expect(ratio).toBeLessThan(5);
   });
 
   it("caps the urban core to exactly N cells when N is well inside the eligible area", () => {
@@ -96,7 +156,7 @@ describe("classifyUrban — urbanStages (step-through debug capture)", () => {
     expect(new Set(result.urbanStages.at(-1)?.urban)).toEqual(finalUrban);
   });
 
-  it("is captured for the default radius cutoff too, not only the count cutoff", () => {
+  it("is captured for the default (formula-derived) N too, not only an explicit override", () => {
     const result = run({});
     expect(result.urbanStages.length).toBe(urbanCount(result));
     expect(result.urbanStages.length).toBeGreaterThan(5);

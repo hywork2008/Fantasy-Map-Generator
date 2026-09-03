@@ -177,3 +177,56 @@ export function foldVerticesIntoCells(
   });
   return moved ? out : cells;
 }
+
+/**
+ * Weak Laplacian on the urban block-edge topology (towngen-comparison.md §2.3
+ * / §3.C): `reserved` vertices excepted, each free vertex moves to the mean of
+ * itself and its topological neighbours, `p' = (Σneighbour + p) / (deg + 1)`.
+ * `smoothPath`/`foldArteriesIntoCells` only ever touch cell edges a street or
+ * river actually walked; the countless short Voronoi edges that lie on
+ * NEITHER stay raw zig-zag — this is the general fill-in for those, run once
+ * over every `cells` vertex (callers restrict which cells go in; S5 passes
+ * only the urban ones so rural/sea geometry is untouched). No-op at 0 passes.
+ */
+export function smoothInteriorVertices(cells: Cell[], reserved: Set<string>, passes: number): Cell[] {
+  let current = cells;
+  for (let pass = 0; pass < passes; pass++) {
+    const position = new Map<string, Point>();
+    const neighbours = new Map<string, Map<string, Point>>();
+    const link = (aKey: string, b: Point): void => {
+      let m = neighbours.get(aKey);
+      if (!m) {
+        m = new Map();
+        neighbours.set(aKey, m);
+      }
+      m.set(vertexKey(b), b);
+    };
+    for (const cell of current) {
+      const poly = cell.polygon;
+      const n = poly.length;
+      for (let i = 0; i < n; i++) {
+        const a = poly[i];
+        const b = poly[(i + 1) % n];
+        const ka = vertexKey(a);
+        const kb = vertexKey(b);
+        if (ka === kb) continue;
+        position.set(ka, a);
+        position.set(kb, b);
+        link(ka, b);
+        link(kb, a);
+      }
+    }
+    const shifts = new Map<string, Point>();
+    for (const [key, p] of position) {
+      if (reserved.has(key)) continue;
+      const ns = [...(neighbours.get(key)?.values() ?? [])];
+      if (!ns.length) continue;
+      const sum = ns.reduce<Point>((s, q) => [s[0] + q[0], s[1] + q[1]], [0, 0]);
+      const deg = ns.length;
+      shifts.set(key, [(sum[0] + p[0]) / (deg + 1), (sum[1] + p[1]) / (deg + 1)]);
+    }
+    if (!shifts.size) break;
+    current = foldVerticesIntoCells(current, shifts, reserved);
+  }
+  return current;
+}

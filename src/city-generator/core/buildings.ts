@@ -59,6 +59,10 @@ export interface BuildingInputs {
   wards: WardAssignment[];
   urban: Set<number>;
   sea: Set<number>;
+  /** Closed water polygon, same source as `sea`. A coastal LAND cell's inset
+   * can still leave a sliver over the water near the curved shoreline (§2.5 /
+   * §3.D.3) even though the cell itself is not `sea` — this clips those. */
+  waterPolygon: Point[] | null;
   borders: BorderLoop[];
   precincts: Precinct[];
   streets: StreetNetwork;
@@ -69,7 +73,8 @@ export interface BuildingInputs {
 
 /** Pure. Same interior geometry + wards + seed ⇒ identical buildings. */
 export function buildGeometry(input: BuildingInputs): Building[] {
-  const { cells, wards, urban, sea, borders, precincts, streets, riverPaths, cellSizeMeters, seed } = input;
+  const { cells, wards, urban, sea, waterPolygon, borders, precincts, streets, riverPaths, cellSizeMeters, seed } =
+    input;
   if (!cells.length || !wards.length) return [];
 
   const byId = new Map(cells.map(c => [c.id, c]));
@@ -95,7 +100,7 @@ export function buildGeometry(input: BuildingInputs): Building[] {
     const pieces = geometryFor(kind, block, plazaIds.has(cell.id), rng);
     const filtered = enclosed(cell, urban) ? pieces : filterOutskirts(pieces, cell);
     const ring = close(cell.polygon);
-    const kept = filtered.filter(p => withinCell(p, cell.polygon, ring));
+    const kept = filtered.filter(p => withinCell(p, cell.polygon, ring, waterPolygon));
     for (const polygon of kept) {
       if (polygon.length >= 3 && Math.abs(polygonArea(polygon)) > 4) {
         out.push({ polygon, ward: kind, cellId: cell.id });
@@ -325,8 +330,11 @@ function farmLots(block: Point[], rng: Rng): Point[][] {
 /** A building piece is kept only if it sits inside the cell with at least a
  * minimal setback from every cell edge — guards against the mangled slivers
  * Sutherland–Hodgman clipping can leave when the recursive split runs on a
- * concave block. */
-function withinCell(piece: Point[], poly: Point[], ring: Point[]): boolean {
+ * concave block — and, separately, is not itself out over the water: a coastal
+ * LAND cell's polygon can dip slightly into the curved shoreline even though
+ * the cell is not tagged `sea` (§2.5 / §3.D.3). */
+function withinCell(piece: Point[], poly: Point[], ring: Point[], waterPolygon: Point[] | null): boolean {
+  if (waterPolygon && waterPolygon.length >= 3 && pointInPolygon(polygonCentroid(piece), waterPolygon)) return false;
   const floor = ALLEY / 2 - 0.6;
   for (const v of piece) {
     if (!pointInPolygon(v, poly)) return false;

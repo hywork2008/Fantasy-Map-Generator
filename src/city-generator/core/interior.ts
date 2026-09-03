@@ -12,6 +12,7 @@ import {
   perpDistanceToLine,
   pointInPolygon,
   polygonArea,
+  polylineLength,
   simplifyPolyline,
   vecToAzimuth
 } from "./geom";
@@ -197,28 +198,88 @@ function sameKey(a: Point, b: Point): boolean {
   return Math.hypot(a[0] - b[0], a[1] - b[1]) < QUANTUM;
 }
 
-export function placeGates(borders: BorderLoop[], geo: CityGeography): Gate[] {
-  const count = Math.max(0, Math.round(geo.suggestedGates ?? geo.roadBearings.length));
-  const candidates = borders.flatMap((border, borderIndex) =>
-    border.points.map((point, pointIndex) => ({ point, borderIndex, pointIndex }))
-  );
+/**
+ * TownGeneratorTS only opens a gate onto a block CORNER — a wall vertex where
+ * two or more urban patches actually meet (`CurtainWall.entrances`) — never
+ * onto the middle of a straight run, and takes noticeably fewer of them than
+ * FMG's road count suggests. `placeGates` follows the same shape (design
+ * towngen-comparison.md §3.B): corner candidates, a target count DERIVED from
+ * (not equal to) `suggestedGates`, and greedy bearing-match selection that
+ * thins out anything too close, along the wall, to an already-chosen gate.
+ */
+export function placeGates(cells: Cell[], urban: Set<number>, borders: BorderLoop[], geo: CityGeography): Gate[] {
+  if (!borders.length) return [];
+
+  // A block corner: >= 2 urban cells share this wall vertex (a Voronoi vertex
+  // is usually shared by 3 cells; 1 urban neighbour means the wall just runs
+  // past it straight, 2+ means urban territory itself turns a corner there).
+  const cornerVotes = new Map<string, number>();
+  const qk = (p: Point): string => `${Math.round(p[0] / QUANTUM)},${Math.round(p[1] / QUANTUM)}`;
+  for (const cell of cells) {
+    if (!urban.has(cell.id)) continue;
+    for (const v of cell.polygon) cornerVotes.set(qk(v), (cornerVotes.get(qk(v)) ?? 0) + 1);
+  }
+
+  interface Candidate {
+    point: Point;
+    borderIndex: number;
+    arc: number;
+  }
+  const loopLength = borders.map(b => polylineLength([...b.points, b.points[0]]));
+  const perLoop: Candidate[][] = borders.map((border, borderIndex) => {
+    const arcs = cumulativeArcLengths(border.points);
+    const all = border.points.map((point, i) => ({ point, borderIndex, arc: arcs[i] }));
+    const corners = all.filter(c => (cornerVotes.get(qk(c.point)) ?? 0) >= 2);
+    // A border too simple to have any real corner (rare, tiny blobs) falls
+    // back to every vertex rather than producing zero gates.
+    return corners.length >= 3 ? corners : all;
+  });
+  let pool: Candidate[] = ([] as Candidate[]).concat(...perLoop);
+  if (!pool.length) return [];
+
+  const wet = !!geo.coast || (geo.waterAreas?.length ?? 0) > 0 || geo.rivers.length > 0;
+  const suggested = geo.suggestedGates ?? geo.roadBearings.length;
+  const target = Math.max(3, Math.min(6, Math.round(suggested * 0.7))) + (wet ? 1 : 0);
+
   const bearings = geo.roadPaths?.filter(p => p.length >= 2).map(p => vecToAzimuth(p.at(-1)![0], p.at(-1)![1])) ?? [];
   const targets = bearings.length ? bearings : geo.roadBearings;
-  const available = new Set(candidates.map(c => `${c.borderIndex}:${c.pointIndex}`));
+
   const gates: Gate[] = [];
-  for (let i = 0; i < count && available.size; i++) {
-    const bearing = targets.length ? targets[i % targets.length] : (i * 360) / count;
-    const choice = candidates
-      .filter(c => available.has(`${c.borderIndex}:${c.pointIndex}`))
-      .sort((a, b) => {
-        const ad = azimuthDelta(vecToAzimuth(a.point[0], a.point[1]), bearing);
-        const bd = azimuthDelta(vecToAzimuth(b.point[0], b.point[1]), bearing);
-        return ad - bd || Math.hypot(...a.point) - Math.hypot(...b.point);
-      })[0];
-    available.delete(`${choice.borderIndex}:${choice.pointIndex}`);
+  for (let i = 0; i < target && pool.length; i++) {
+    const bearing = targets.length ? targets[i % targets.length] : (i * 360) / target;
+    const byBearingMatch = (a: Candidate, b: Candidate): number => {
+      const ad = azimuthDelta(vecToAzimuth(a.point[0], a.point[1]), bearing);
+      const bd = azimuthDelta(vecToAzimuth(b.point[0], b.point[1]), bearing);
+      return ad - bd || Math.hypot(a.point[0], a.point[1]) - Math.hypot(b.point[0], b.point[1]);
+    };
+    const choice = pool.slice().sort(byBearingMatch)[0];
     gates.push({ point: choice.point, borderIndex: choice.borderIndex, water: false });
+    // Thin out anything within one gate-spacing of the one just chosen, along
+    // the SAME loop (TownGen's splice-out-the-neighbours step), so gates don't
+    // bunch up when two candidate corners happen to share a bearing.
+    const spacing = loopLength[choice.borderIndex] / (target + 1);
+    pool = pool.filter(
+      c =>
+        c.borderIndex !== choice.borderIndex ||
+        circularArcDelta(c.arc, choice.arc, loopLength[choice.borderIndex]) >= spacing
+    );
   }
   return gates;
+}
+
+/** `points[i]`'s distance along the OPEN polyline from `points[0]`. */
+function cumulativeArcLengths(points: Point[]): number[] {
+  const arcs = [0];
+  for (let i = 1; i < points.length; i++) {
+    arcs.push(arcs[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+  }
+  return arcs;
+}
+
+/** Shortest distance between two arc positions on a closed loop of length `loopLength`. */
+function circularArcDelta(a: number, b: number, loopLength: number): number {
+  const d = Math.abs(a - b);
+  return Math.min(d, loopLength - d);
 }
 
 export function placePrecincts(
@@ -354,6 +415,28 @@ export function markWaterGate(gates: Gate[], borders: BorderLoop[], shoreline: P
   return gates.map((gate, i) =>
     i === move ? { point: anchor, borderIndex: targetBorder, water: true } : { ...gate, water: false }
   );
+}
+
+/**
+ * A "land" gate whose immediate surroundings are entirely water (a spit, a
+ * narrow neck the wall trace clips across) cannot actually lead anywhere on
+ * foot — reclassify it as a water gate regardless of `port` (§2.5 / §3.D.4).
+ * Independent of `markWaterGate`, which only ever promotes ONE gate and only
+ * when `port` is set; this is a plain geometric correction, so it can apply to
+ * more than one gate, or none.
+ */
+export function markSeaSurroundedGates(gates: Gate[], waterPolygon: Point[] | null, cellSizeMeters: number): Gate[] {
+  if (!waterPolygon || waterPolygon.length < 3 || !gates.length) return gates;
+  const reach = cellSizeMeters * 1.5;
+  const seaSurrounded = (point: Point): boolean => {
+    for (let a = 0; a < 8; a++) {
+      const rad = (a / 8) * Math.PI * 2;
+      const probe: Point = [point[0] + Math.cos(rad) * reach, point[1] + Math.sin(rad) * reach];
+      if (!pointInPolygon(probe, waterPolygon)) return false;
+    }
+    return true;
+  };
+  return gates.map(gate => (gate.water || !seaSurrounded(gate.point) ? gate : { ...gate, water: true }));
 }
 
 // --- wall pattern (docs/city-generator/wall-patterns.md) --------------------

@@ -41,7 +41,7 @@ import { type CoastResult, classifyCoast } from "../../city-generator/core/class
 import { classifyUrban } from "../../city-generator/core/classifyUrban";
 import { buildEdgeGraph } from "../../city-generator/core/edgeGraph";
 import { polygonCentroid, polygonTouchesRectEdge } from "../../city-generator/core/geom";
-import { markWaterGate, placeGates, placePrecincts } from "../../city-generator/core/interior";
+import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "../../city-generator/core/interior";
 import { makeRng } from "../../city-generator/core/prng";
 import { type RoutedRiver, walkRiver } from "../../city-generator/core/riverPath";
 import { buildStreets } from "../../city-generator/core/streets";
@@ -539,7 +539,8 @@ function runPlan(
     urbanBearings,
     urbanRadius,
     shoreTangent,
-    params.urbanNPatches ?? null
+    params.urbanNPatches ?? null,
+    params.cellSizeMeters
   );
   if (stageStep < 4) return { ...empty, sea, coastPath, rivers, urban, outskirts, urbanStages };
 
@@ -552,7 +553,11 @@ function runPlan(
   const citadelOutline = citadel
     ? (componentBorderLoops(mesh, faceIdOf, new Set(citadel.cellIds))[0]?.points ?? null)
     : null;
-  const gates = markWaterGate(placeGates(genBorders, geo), genBorders, coast?.shoreline ?? null, program.port);
+  const gates = markSeaSurroundedGates(
+    markWaterGate(placeGates(cells, urban, genBorders, geo), genBorders, coast?.shoreline ?? null, program.port),
+    coast?.waterPolygon ?? null,
+    cellSize
+  );
   if (stageStep < 5) {
     return {
       ...empty,
@@ -573,6 +578,8 @@ function runPlan(
   const streetResult = buildStreets({
     cells,
     urban,
+    sea,
+    waterPolygon: coast?.waterPolygon ?? null,
     borders: genBorders,
     gates,
     precincts,

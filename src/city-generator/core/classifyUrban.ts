@@ -37,10 +37,18 @@ export function classifyUrban(
   roadBearings: number[],
   cityRadiusMeters: number,
   shoreTangent: Point | null = null,
-  /** TownGeneratorTS-style count cutoff (towngen-comparison.md §2.1, A-1): take
-   * the first `nPatches` cells in ascending-cost fill order instead of
-   * stopping at `cityRadiusMeters`. Unset = the existing radius cutoff. */
-  nPatches: number | null = null
+  /**
+   * TownGeneratorTS-style count cutoff (towngen-comparison.md §2.1, A-1): take
+   * the first N cells in ascending-cost fill order, rather than every cell
+   * under a radius threshold — a defined-size "15 fat patches" core reads as a
+   * stable, deliberate town outline; a radius boundary lets the fill fray into
+   * the fine cells right at its edge. Unset (the default) derives N from the
+   * disc a city of this radius would cover at this grid's cell size,
+   * `π·(R/cellSize)²` (TownGen's 15 for its own reference scale); pass an
+   * explicit count to override it (the ③ debug stepper's nPatches field).
+   */
+  nPatches: number | null = null,
+  cellSizeMeters = cityRadiusMeters / 3.5
 ): UrbanClassification {
   const urban = new Set<number>();
   const outskirts = new Set<number>();
@@ -68,13 +76,12 @@ export function classifyUrban(
   const center = cells.filter(eligible).sort((a, b) => reach(a) - reach(b))[0];
   if (!center) return { urban, outskirts, stages };
 
+  const targetN = nPatches ?? Math.max(1, Math.round(Math.PI * (cityRadiusMeters / Math.max(1, cellSizeMeters)) ** 2));
   const frontier: Cell[] = [center];
   const seen = new Set<number>([center.id]);
-  while (frontier.length > 0) {
-    if (nPatches != null && urban.size >= nPatches) break;
+  while (frontier.length > 0 && urban.size < targetN) {
     frontier.sort((a, b) => cost(a) - cost(b));
     const cell = frontier.shift() as Cell;
-    if (nPatches == null && cost(cell) > cityRadiusMeters) continue;
     urban.add(cell.id);
     stages.push({ cellId: cell.id, urban: [...urban] });
     for (const nId of cell.neighbors) {
