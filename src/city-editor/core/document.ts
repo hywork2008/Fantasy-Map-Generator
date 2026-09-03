@@ -1,6 +1,6 @@
-import { buildGrid } from "../../city-generator/core/grid";
-import { makeRng } from "../../city-generator/core/prng";
-import type { CityGeography, CityParams } from "../../city-generator/core/types";
+import { buildGrid } from "./gen/grid";
+import { makeRng } from "./gen/prng";
+import type { CityGeography, CityParams } from "./gen/types";
 import { meshFromCells, validate } from "./mesh";
 import type { CityDocument } from "./types";
 

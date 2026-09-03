@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { SiteConfig } from "../../city-generator";
 import { createSizedDocument } from "./document";
 import {
   defaultGenerationSettings,
@@ -13,7 +12,8 @@ import {
   generateUrbanPatchStep,
   generateWardStep,
   randomSeed,
-  riversForCount
+  riversForCount,
+  type SiteConfig
 } from "./generate";
 import { validate } from "./mesh";
 import type { CityDocument } from "./types";

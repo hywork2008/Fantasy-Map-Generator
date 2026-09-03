@@ -1,4 +1,4 @@
-import type { Cell } from "../../city-generator/core/types";
+import type { Cell } from "./gen/types";
 import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "./types";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge

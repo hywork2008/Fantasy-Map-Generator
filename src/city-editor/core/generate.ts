@@ -1,8 +1,10 @@
 // Step-by-step random city generation for the City Editor.
 //
-// This runs the City Generator engine's classifiers/builders (src/city-generator)
-// ON THE DOCUMENT'S EXISTING MESH — it never rebuilds the block grid (that is the
-// Document panel's job) and never resizes the map. Each stage button recomputes
+// This runs a City-Editor-local generation engine (./gen/ — a vendored MIT copy
+// of the former src/city-generator/core, see ./gen/LICENSE-NOTE.md) — classifiers
+// and builders run ON THE DOCUMENT'S EXISTING MESH; it never rebuilds the block
+// grid (that is the Document panel's job) and never resizes the map. Each stage
+// button recomputes
 // the plan up to its own process from an internal random seed and writes only the
 // visible result back onto a clone of the current document:
 //
@@ -18,40 +20,37 @@
 // or persisted); "🎲 新しい都市" rolls a new one. Coast / Rivers / Features are
 // the deliberate inputs and are kept across presses.
 
-import {
-  type CityGeography,
-  type CityParams,
-  type CityProgram,
-  DEFAULT_SITE_CONFIG,
-  DEFAULT_WALL_PLAN,
-  FEATURE_KEYS,
-  type Gate,
-  type Precinct,
-  randomSiteConfig,
-  resolveWallPlan,
-  type SiteConfig,
-  siteToGeography,
-  siteToProgram,
-  synthSite,
-  type WallSegmentKind,
-  type WardKind
-} from "../../city-generator";
-import { classifyRiver } from "../../city-generator/core/classifyRiver";
-import { type CoastResult, classifyCoast } from "../../city-generator/core/classifySea";
-import { classifyUrban } from "../../city-generator/core/classifyUrban";
-import { buildEdgeGraph } from "../../city-generator/core/edgeGraph";
-import { polygonCentroid, polygonTouchesRectEdge } from "../../city-generator/core/geom";
-import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "../../city-generator/core/interior";
-import { makeRng } from "../../city-generator/core/prng";
-import { type RoutedRiver, walkRiver } from "../../city-generator/core/riverPath";
-import { buildStreets } from "../../city-generator/core/streets";
-import type { Cell, UrbanStage, WardAssignment } from "../../city-generator/core/types";
-import { assignWards } from "../../city-generator/core/wards";
 import { orderedBoundaryLoops, shortestPath } from "./features";
+import { classifyRiver } from "./gen/classifyRiver";
+import { type CoastResult, classifyCoast } from "./gen/classifySea";
+import { classifyUrban } from "./gen/classifyUrban";
+import { buildEdgeGraph } from "./gen/edgeGraph";
+import { polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
+import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
+import { makeRng } from "./gen/prng";
+import { type RoutedRiver, walkRiver } from "./gen/riverPath";
+import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
+import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
+import { synthSite } from "./gen/site/synthSite";
+import { buildStreets } from "./gen/streets";
+import type {
+  Cell,
+  CityGeography,
+  CityParams,
+  CityProgram,
+  Gate,
+  Precinct,
+  UrbanStage,
+  WallSegmentKind,
+  WardAssignment,
+  WardKind
+} from "./gen/types";
+import { DEFAULT_WALL_PLAN } from "./gen/types";
+import { assignWards } from "./gen/wards";
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "./types";
 
-export type { CityFeatureSet, SiteConfig } from "../../city-generator";
+export type { CityFeatureSet, SiteConfig } from "./gen/site/siteConfig";
 export { FEATURE_KEYS };
 
 /** All feature groups / gates / elements this module owns carry this id prefix,
