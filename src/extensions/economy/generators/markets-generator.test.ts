@@ -19,6 +19,7 @@ import { DEMAND_TARGET_FACTORS, type Good, Goods } from "./goods-generator";
 import { getCommercialRecipeByproducts, MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import type { MetallurgWorkOrder } from "./metallurgWorkTypes";
+import { applyPriceElasticity } from "./priceElasticity";
 import { validateRetailInventory } from "./retailInventory";
 
 vi.mock("./goods-generator", async importOriginal => {
@@ -426,6 +427,90 @@ describe("MarketsModule", () => {
       expect(costBasis).toBeGreaterThan(0);
       expect(scarcePrice).toBeGreaterThan(glutPrice);
       expect(glutPrice - costBasis!).toBeLessThan(scarcePrice - costBasis!);
+    });
+
+    it("relaxes prices toward the demand/stock target instead of snapping (L1)", () => {
+      const spice = {
+        i: 1,
+        name: "Spice",
+        value: 10,
+        tags: [],
+        unit: "sack",
+        icon: "icon",
+        color: "#fff",
+        distribution: "1",
+        recipes: [],
+        demandCoverage: { utilities: 1 },
+        priceElasticity: 0
+      };
+      worldContext.pack = { ...worldContext.pack, goods: [...getGoods(), spice] } as unknown as PackedGraph;
+      Goods.sync();
+
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 1: { stock: 0, price: 10 } }
+      };
+      setMarkets([market]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, population: 100, market: 1 } as unknown as Burg];
+
+      marketsModule.initializeMarketPrices();
+
+      // Empty stock would snap to the 3× ceiling without relaxation; a single cycle only
+      // closes PRICE_ADJUSTMENT_RATE of that gap (local-trade bias may nudge it further).
+      expect(market.goods[1].price).toBeGreaterThan(10);
+      expect(market.goods[1].price).toBeLessThan(30);
+    });
+
+    it("drops demand and eases the price spike when an elastic good's stock is halved (L1)", () => {
+      const silk = {
+        i: 1,
+        name: "Silk",
+        value: 10,
+        tags: [],
+        unit: "bolt",
+        icon: "icon",
+        color: "#fff",
+        distribution: "1",
+        recipes: [],
+        demandCoverage: { utilities: 1 },
+        priceElasticity: -1
+      };
+      worldContext.pack = { ...worldContext.pack, goods: [...getGoods(), silk] } as unknown as PackedGraph;
+      Goods.sync();
+
+      const glut: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 1: { stock: 40, price: 10 } }
+      };
+      const scarce: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 1: { stock: 20, price: 10 } }
+      };
+      setMarkets([glut, scarce]);
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, population: 100, market: 1 } as unknown as Burg,
+        { i: 2, population: 100, market: 2 } as unknown as Burg
+      ];
+
+      marketsModule.initializeMarketPrices();
+
+      const glutPrice = glut.goods[1].price;
+      const scarcePrice = scarce.goods[1].price;
+      expect(scarcePrice).toBeGreaterThan(glutPrice);
+
+      const glutDemand = applyPriceElasticity(15, silk, glutPrice);
+      const scarceDemand = applyPriceElasticity(15, silk, scarcePrice);
+      expect(scarceDemand).toBeLessThan(glutDemand);
+
+      marketsModule.initializeMarketPrices();
+      expect(scarce.goods[1].price).toBeGreaterThan(glut.goods[1].price);
     });
 
     it("runGlobalTrade() should skip low-value trades beyond their value-density day limit", () => {

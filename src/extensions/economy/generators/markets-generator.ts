@@ -67,6 +67,7 @@ import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
   getRuralCellPopulation,
   getRuralProductionContributions,
@@ -1157,10 +1158,18 @@ export class MarketsModule {
           population,
           textilePopulationByMarket[market.i] || population,
           consumerDemand,
-          industrialDemand
+          industrialDemand,
+          marketGood.price
         );
         const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
-        marketGood.price = rn(good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR), 2);
+        const targetPrice = good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
+        const prevPrice = marketGood.price > 0 ? marketGood.price : good.value;
+        marketGood.price = relaxMarketPrice(
+          prevPrice,
+          targetPrice,
+          good.value * PRICE_FLOOR_FACTOR,
+          good.value * PRICE_CEILING_FACTOR
+        );
       }
 
       // Second pass: manufactured goods - average local ingredient cost + demand-scaled value-added.
@@ -1197,15 +1206,20 @@ export class MarketsModule {
           population,
           textilePopulationByMarket[market.i] || population,
           consumerDemand,
-          industrialDemand
+          industrialDemand,
+          marketGood.price
         );
         const supplyRatio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
 
         const demandPrice = avgMarketCost + demandMarkup;
-        marketGood.price = rn(
-          minmax(demandPrice, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR),
-          2
+        const targetPrice = minmax(demandPrice, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR);
+        const prevPrice = marketGood.price > 0 ? marketGood.price : good.value;
+        marketGood.price = relaxMarketPrice(
+          prevPrice,
+          targetPrice,
+          good.value * PRICE_FLOOR_FACTOR,
+          good.value * PRICE_CEILING_FACTOR
         );
       }
     }
@@ -1585,9 +1599,16 @@ export class MarketsModule {
     industrialDemandFactor: number,
     ctx: GlobalTradeContext
   ): number {
+    const laggedPrice = this.get(marketId)?.goods[good.i]?.price;
     return (
-      this.calculateGoodDemand(good, population, textilePopulation, consumerDemandFactor, industrialDemandFactor) +
-      this.getStrategicFinishedGoodDemand(ctx, marketId, good.i)
+      this.calculateGoodDemand(
+        good,
+        population,
+        textilePopulation,
+        consumerDemandFactor,
+        industrialDemandFactor,
+        laggedPrice
+      ) + this.getStrategicFinishedGoodDemand(ctx, marketId, good.i)
     );
   }
 
@@ -2330,11 +2351,16 @@ export class MarketsModule {
     urbanPopulation: number,
     textilePopulation: number,
     consumerDemand: number,
-    industrialDemand: number
+    industrialDemand: number,
+    laggedPrice?: number
   ): number {
     const clothingFactor = good.demandCoverage?.clothing ? DEMAND_TARGET_FACTORS.clothing : 0;
     const nonClothingConsumerDemand = Math.max(0, consumerDemand - clothingFactor);
-    return urbanPopulation * (nonClothingConsumerDemand + industrialDemand) + textilePopulation * clothingFactor;
+    const baseDemand =
+      urbanPopulation * (nonClothingConsumerDemand + industrialDemand) + textilePopulation * clothingFactor;
+    // 1-period lag: this cycle's demand uses last cycle's price (Stewardship-style).
+    // docs/plan/economy-coupling-audit.md L1.
+    return applyPriceElasticity(baseDemand, good, laggedPrice);
   }
 }
 

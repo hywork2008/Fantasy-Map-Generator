@@ -109,6 +109,14 @@ export interface Good {
    */
   requiredTechnology?: string;
 
+  /**
+   * Own-price elasticity of market demand. 0 = inelastic (legacy). Negative values cut
+   * demand when price is above `value` and raise it when cheap.
+   * Unset goods fall back to tag defaults in `getPriceElasticity` (food ≈ -0.2, luxury ≈ -1.2).
+   * docs/plan/economy-coupling-audit.md L1.
+   */
+  priceElasticity?: number;
+
   // lore
   name: string;
   tags: string[];
