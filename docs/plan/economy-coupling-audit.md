@@ -30,6 +30,7 @@
 | L7 | 貨幣供給(`MintLedger.circulation`)が物価・取引と無関係 | 中 | `minting.ts:45` |
 | L8 | 道路網が交易量に対して外生。公共事業の財政費目も無い | 中 | `routes-generator.ts` / `treasuryAllocation.ts:32` |
 | L9 | 徴税強度・征服がノーコスト(不満・逃散・資本破壊が無い) | 中 | `domainFiscalPolicy.ts:20` / `localDefense.ts:44` |
+| L10 | 交易課税が輸出側のみ。輸入関税・通行税が存在しない | 中 | `markets-generator.ts:1699` / `taxes-generator.ts:137` |
 
 ### Part 2: 密すぎる結合(コードでは密 ⇔ 本来は疎にできる)
 
@@ -569,6 +570,80 @@ applyGreatLibraryConquestDisruption(burgId);
 
 ---
 
+## L10. 輸入関税・通行税が存在しない — 交易課税は輸出側にしか無い
+
+**現状**
+
+国境をまたぐ取引に課税する経路は3箇所あるが、**すべて輸出側の税率だけを見る**。
+
+1. 市場間交易の主経路(`markets-generator.ts:1699`, `globalTrade` 本体):
+
+   ```ts
+   const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+   ```
+
+2. 同じ計算のフォールバック経路(`markets-generator.ts:2005`,
+   `addSpeculativeGlobalTradeOpportunities`)— 需給が拮抗して通常の輸出入判定に
+   ヒットしないときの投機的機会探索で、まったく同じ式を独立に再実装している。
+3. 国内小売(`production-generator.ts:1206`, `1491`)も `getSalesTax(state.burg)` —
+   売り手側の国。
+
+`Deal.tax` はこうして決まった額がそのまま `taxes-generator.ts:137` の
+`getSellerStateId(deal, burgs)` で**売り手の国**に計上される
+(`markets-generator.ts:315` の `getSellerStateId` も同じく売り手側を返す)。
+
+**輸入側の国は、自国内で消費・転売される交易から1コインも徴収できない。**
+第三国を素通りするだけの中継ルートに至っては、通行税を課す仕組み自体が存在しない
+(`transit`/`toll` に該当する実装なし — `caravans.ts` の `"transit"` は
+キャラバンの移動フェーズを表す文字列で、課税とは無関係)。
+
+**唯一「tariff」を名乗る実装** `tradeSanctions.ts` は、対外債務がデフォルトした国に対する
+二国間の**制裁**(`TRADE_SANCTION_CREDITOR_SKIM`)であり、一般の輸入関税ではない。
+
+**現実との齟齬**: 前近代国家の交易収入の主力は、輸出国の内国消費税ではなく
+**入市税・橋税・渡河税・市場使用料**のような、自国の市門・街道・港を通過する荷そのものへの
+従量課税だった。中継貿易で栄えた都市(隊商都市、ハンザ都市、河港)の財政的合理性は
+まさにこれで、「よそへ売った量」だけが収入源のこのモデルには再現しようがない。
+
+**ゲーム的帰結**:
+
+- 自国が生産も消費もしない通過交易には、経済的な旨味が国家財政側に一切無い。
+  街道・港湾がどの国の中を通るかに政治的重みが生まれない(L8 の道路網外生性とも合流する)。
+- 輸入国は「関税で自国産業を保護する」という前近代・近世を通じて最も一般的だった
+  政策レバーを持てない。`domainFiscalPolicy.ts` の `extract`/`fortify` のような
+  領主レバー(L9-a)はあるのに、国家レベルの通商政策レバーが無い。
+- 中継貿易路の争奪という、隣国同士の対立動機の一つが丸ごと欠落している。
+
+**修正案**
+
+1. **輸入側課税を追加する。** `State` に `importDuty`(既定 `salesTax` と同程度)を持たせ、
+   `unitProfit` の式に輸入側の関税項を足す:
+
+   ```ts
+   const importerDutyPerUnit = this.getImportDuty(importerCenter) * importerGood.price;
+   const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit + importerDutyPerUnit);
+   ```
+
+   徴収先は輸入側の国。`Deal` に `importTax` のような第2の税額フィールドを足すか、
+   `tax` を `{ exportTax, importTax }` に分けるかは実装時の判断。
+   `taxes-generator.ts` の収税ループも輸入側の国を同時に処理するよう変える必要がある。
+2. **投機的経路(`addSpeculativeGlobalTradeOpportunities`)も同時に直す。** 同じ式が
+   独立に複製されているので、片方だけ直すと投機的機会だけ関税の無い抜け道になる。
+   本来は共通ヘルパに切り出すべき箇所(密結合側の T1 と同種の重複)。
+3. **通行税は任意機能として別枠にする。** 第三国越境ルートへの通行税は、
+   輸入関税より設計判断が重い(誰の街道を通るかのルーティング情報が要る)。
+   L8 の `publicWorks` 部門・道路網の実行時昇格と合わせて設計する方が筋が良く、
+   本項の最小修正には含めない。
+4. **`domainFiscalPolicy.ts` との整合**: 領主の `domainLevyRate`(L9-a)は人頭税の乗数であり、
+   関税とは独立の徴収源なので統合しない。
+
+**判断が必要な点**: 輸入関税を素朴に足すと、`unitProfit` がマイナスに転びやすくなり
+交易量が全体的に減る可能性がある。`goods-unit-scale.md` の価格キャリブレーションと
+同様に、`importDuty` の既定値は小さく(例えば `salesTax` の半分程度)から始めて
+交易総量の変化を確認すべき。
+
+---
+
 # Part 2: 密すぎる結合
 
 ## T1. 巨大な単一 `economy.tick` が約50サブシステムを手書き順序で駆動
@@ -1005,9 +1080,11 @@ L3 の実装時に判明した点:
 
 13. **L6**: 輸送コストの嵩ベース化(`goods-unit-scale.md` の再キャリブレーションを伴う)
 14. **L9**: `Burg.discontent` + 征服時の物的破壊
-15. **L8 段階2**: `publicWorks` 予算部門と街道の実行時昇格
-16. **L2 Phase 2/3**: 家計財布の導入(人頭税を創造から移転へ)
-17. **L7**: 貨幣供給の物価接続(**着手しない判断も妥当**。その場合は
+15. **L10**: 輸入関税の導入(輸出税と同じ `unitProfit` 計算に相乗りするため、
+    `goods-unit-scale.md` の再キャリブレーションが必要な点で L6 と同種)
+16. **L8 段階2**: `publicWorks` 予算部門と街道の実行時昇格(L10 の通行税を導入するならここと合流)
+17. **L2 Phase 2/3**: 家計財布の導入(人頭税を創造から移転へ)
+18. **L7**: 貨幣供給の物価接続(**着手しない判断も妥当**。その場合は
     `minting.ts` に「`circulation` は意図的に観測専用」と明記する)
 
 ---
