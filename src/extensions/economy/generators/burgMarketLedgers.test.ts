@@ -13,6 +13,7 @@ import {
 import {
   BURG_MARKET_MERCHANT_ROLE_KIND,
   clearBurgMarketLedgers,
+  creditHouseholdIncome,
   getBurgMarketLedger,
   getDominantMerchant,
   syncBurgMarketLedgers
@@ -177,5 +178,16 @@ describe("burg market ledgers", () => {
           character.roles?.some(role => role.kind === BURG_MARKET_MERCHANT_ROLE_KIND && role.entityId === 2)
       )
     ).toBe(false);
+  });
+
+  it("accumulates householdIncome across syncs (L2 Phase 1 wage receipts)", () => {
+    creditHouseholdIncome(1, 4);
+    expect(getBurgMarketLedger(1)?.householdIncome).toBe(4);
+
+    syncMarketManagers();
+    syncBurgMarketLedgers();
+    creditHouseholdIncome(1, 2.5);
+
+    expect(getBurgMarketLedger(1)?.householdIncome).toBeCloseTo(6.5, 6);
   });
 });

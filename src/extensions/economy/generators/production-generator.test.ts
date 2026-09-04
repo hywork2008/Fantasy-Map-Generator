@@ -3,8 +3,9 @@ import { simulationContext } from "../../../context/simulationContext";
 import { createEmptyTechnologySimulationState } from "../../../generators/technologyTypes";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
+import { clearEconomyContext, getBurgMarketLedgers, initEconomyContext, setGoods, setMarkets } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { getGoodDemandCalibration, laborPointsForLots } from "./craftDemandCalibration";
 import { type Good, Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -26,7 +27,7 @@ type ManufactureHarness = {
       records: ProductionRecord[];
       ingredientCosts: number;
       smithingProgramByGood: Map<string, never>;
-      strategicLaborMarket: undefined;
+      strategicLaborMarket: { wageByOccupation: Record<string, number> } | undefined;
       strategicDemandByGood: ReadonlyMap<number, { stateFunded?: boolean }>;
     },
     index: { demandCoverageByGood: number[][] },
@@ -395,5 +396,123 @@ describe("ProductionModule byproducts", () => {
     // A different state without the technology still gets the plain guild-only bonus (1×).
     const other = production.executeManufacture(stateFor(2), { demandCoverageByGood: [] }, decision, 1);
     expect(other.yieldLots).toBeCloseTo(1, 6);
+  });
+});
+
+describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase 1)", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    setEconomyCalibrationState({ applyCalibration: false });
+    setGoods([{ i: 1, name: "Barrels", tags: [], value: 2, unit: "barrel", icon: "", color: "" }]);
+    Goods.sync();
+    worldContext.pack = {
+      burgs: [{ i: 0 }, { i: 1, cell: 0, market: 1, treasury: 10 }]
+    } as unknown as PackedGraph;
+  });
+
+  afterEach(() => {
+    setEconomyCalibrationState({ applyCalibration: false });
+    clearEconomyContext();
+  });
+
+  function decision() {
+    return {
+      action: {
+        good: Goods.get(1)!,
+        ingredients: [] as { goodId: number; amount: number }[],
+        byproducts: [] as { goodId: number; amount: number }[],
+        maxYield: 100,
+        ingredientCostPerUnit: 0,
+        smithingProgram: null
+      },
+      candidates: [] as never[],
+      goalGoodId: 1,
+      laborProductivity: 1
+    };
+  }
+
+  function stateWithWage(wage: number, treasury: number) {
+    worldContext.pack.burgs[1].treasury = treasury;
+    return {
+      burg: worldContext.pack.burgs[1] as {
+        i: number;
+        cell: number;
+        treasury: number;
+        state?: number;
+        market?: number;
+      },
+      market: { i: 1, goods: {} },
+      inventory: [] as number[],
+      demandCoverage: [] as number[],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: {
+        marketId: 1,
+        workersByOccupation: {},
+        wageByOccupation: { forestry: wage },
+        skillByOccupation: {},
+        capacityByOccupation: {}
+      },
+      strategicDemandByGood: new Map<number, never>()
+    };
+  }
+
+  it("does not charge wages when no labor market has been reconciled", () => {
+    const production = new ProductionModule() as unknown as ManufactureHarness;
+    const state = stateWithWage(4, 10);
+    state.strategicLaborMarket = undefined;
+
+    const { yieldLots } = production.executeManufacture(state, { demandCoverageByGood: [] }, decision(), 1);
+
+    expect(yieldLots).toBeCloseTo(1, 6);
+    expect(worldContext.pack.burgs[1].treasury).toBe(10);
+    expect(getBurgMarketLedger(1)?.householdIncome ?? 0).toBe(0);
+  });
+
+  it("deducts laborUsed × wageRate from burg.treasury and credits householdIncome", () => {
+    const production = new ProductionModule() as unknown as ManufactureHarness;
+    const state = stateWithWage(4, 10);
+
+    const { laborUsed } = production.executeManufacture(state, { demandCoverageByGood: [] }, decision(), 1);
+
+    expect(laborUsed).toBeCloseTo(1, 6);
+    expect(worldContext.pack.burgs[1].treasury).toBeCloseTo(6, 6);
+    expect(getBurgMarketLedger(1)?.householdIncome).toBeCloseTo(4, 6);
+  });
+
+  it("produces more in a cheap-labor market than a tight one on the same purse", () => {
+    const production = new ProductionModule() as unknown as ManufactureHarness;
+
+    const cheap = production.executeManufacture(stateWithWage(1, 5), { demandCoverageByGood: [] }, decision(), 10);
+    const expensive = production.executeManufacture(stateWithWage(5, 5), { demandCoverageByGood: [] }, decision(), 10);
+
+    expect(cheap.yieldLots).toBeGreaterThan(expensive.yieldLots);
+    expect(cheap.yieldLots).toBeCloseTo(5, 6);
+    expect(expensive.yieldLots).toBeCloseTo(1, 6);
+  });
+
+  it("pays State-funded military manufacture wages from the State treasury", () => {
+    const stateTreasury = 20;
+    worldContext.pack = {
+      burgs: [{ i: 0 } as Burg, { i: 1, cell: 0, state: 1, market: 1, treasury: 50 } as Burg],
+      states: [{ i: 0 } as State, { i: 1, treasury: stateTreasury } as State]
+    } as unknown as PackedGraph;
+    const production = new ProductionModule() as unknown as ManufactureHarness;
+    const state = stateWithWage(3, 50);
+    state.burg = worldContext.pack.burgs[1] as {
+      i: number;
+      cell: number;
+      treasury: number;
+      state: number;
+      market: number;
+    };
+    state.strategicDemandByGood = new Map([[1, { stateFunded: true }]]);
+
+    production.executeManufacture(state, { demandCoverageByGood: [] }, decision(), 1);
+
+    expect(worldContext.pack.burgs[1].treasury).toBe(50);
+    expect(worldContext.pack.states[1].treasury).toBeCloseTo(stateTreasury - 3, 6);
+    expect(getBurgMarketLedgers().find(ledger => ledger.burgId === 1)?.householdIncome).toBeCloseTo(3, 6);
   });
 });

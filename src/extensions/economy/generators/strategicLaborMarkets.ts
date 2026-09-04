@@ -92,6 +92,23 @@ export function reconcileStrategicLaborMarkets(
   });
 }
 
+/**
+ * Coins per population-point of manufacturing labor (docs/plan/economy-coupling-audit.md L2 Phase 1).
+ *
+ * Strategic goods (Wood/Sails/Ropes/Tar) use that occupation's live `wageByOccupation`.
+ * Other crafts use the local forestry wage as the unskilled baseline, so a tight labor
+ * market still raises general manufacturing cost. Missing labor market → 0, matching
+ * tests and Economy-off paths that never reconciled a cohort.
+ */
+export function getManufactureWageRate(laborMarket: LaborMarket | undefined, good: Pick<Good, "name">): number {
+  if (!laborMarket) return 0;
+  const occupation = getStrategicOccupation(good);
+  const occupied = occupation ? laborMarket.wageByOccupation[occupation] : undefined;
+  if (typeof occupied === "number" && Number.isFinite(occupied) && occupied > 0) return occupied;
+  const baseline = laborMarket.wageByOccupation.forestry ?? 1;
+  return typeof baseline === "number" && Number.isFinite(baseline) && baseline > 0 ? baseline : 0;
+}
+
 /** Returns the output multiplier earned by an established strategic cohort. */
 export function getStrategicLaborProductivity(
   laborMarket: LaborMarket | undefined,

@@ -27,7 +27,7 @@ import {
   setStrategicLaborMarkets
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
-import { syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { creditHouseholdIncome, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
 import { CELL_FOOD_PRESERVATION_LABOR_SHARE } from "./cellFoodRescue";
 import {
@@ -106,6 +106,7 @@ import {
 } from "./smithingProductProgram";
 import { SmithingWorkshopAccounting } from "./smithingWorkshopLedger";
 import {
+  getManufactureWageRate,
   getStrategicLaborProductivity,
   getStrategicOccupation,
   type LaborMarket,
@@ -1012,6 +1013,8 @@ export class ProductionModule {
     let actualYield = Math.min(desiredLots, maxYield);
     const fundingState = this.getStateMilitaryManufacturingFund(state, decision.goalGoodId);
     const availableFunds = fundingState?.treasury ?? state.burg.treasury ?? 0;
+    const wageRate = getManufactureWageRate(state.strategicLaborMarket, good);
+    const wageCostPerLot = laborPerLot * wageRate;
 
     if (good.name === "Garments") {
       actualYield = Math.min(actualYield, getGarmentProductionHeadroom(state.market, state.inventory[good.i] || 0));
@@ -1021,12 +1024,15 @@ export class ProductionModule {
       getFoodProcessingProductionHeadroom(state.market, good.name, state.inventory[good.i] || 0)
     );
 
-    // Cap production by what the Burg can actually afford. Without this, ingredient purchases below
-    // had no budget check (Markets.buy() defaults to an unlimited budget) and a Burg could keep
-    // manufacturing at a loss indefinitely, sinking burg.treasury unboundedly negative — mirrors the
-    // budget cap fillDemandFromMarket already applies to demand-fulfillment purchases.
-    if (ingredientCostPerUnit > 0) {
-      const affordableYield = Math.max(0, availableFunds) / ingredientCostPerUnit;
+    // Cap production by what the Burg (or State military fund) can actually afford. Without this,
+    // ingredient purchases below had no budget check (Markets.buy() defaults to an unlimited budget)
+    // and a Burg could keep manufacturing at a loss indefinitely, sinking burg.treasury unboundedly
+    // negative — mirrors the budget cap fillDemandFromMarket already applies to demand-fulfillment
+    // purchases. L2 Phase 1 adds wages to the same cap so labor-intensive goods stop where labor
+    // is expensive and the purse is empty (docs/plan/economy-coupling-audit.md L2).
+    const costPerLot = ingredientCostPerUnit + wageCostPerLot;
+    if (costPerLot > 0) {
+      const affordableYield = Math.max(0, availableFunds) / costPerLot;
       actualYield = Math.min(actualYield, affordableYield);
     }
     if (actualYield <= 0.001) return { yieldLots: 0, laborUsed: 0 };
@@ -1103,6 +1109,13 @@ export class ProductionModule {
 
       state.inventory[ingredientId] = Math.max(0, (state.inventory[ingredientId] || 0) - fromInventory);
       this.addDemandCoverage(state.demandCoverage, ingredientId, -fromInventory, index.demandCoverageByGood);
+    }
+
+    const wageBill = rn(laborUsed * wageRate, 2);
+    if (wageBill > 0) {
+      if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - wageBill), 2);
+      else state.burg.treasury = rn((state.burg.treasury || 0) - wageBill, 2);
+      creditHouseholdIncome(state.burg.i, wageBill);
     }
 
     state.inventory[good.i] = (state.inventory[good.i] || 0) + produced;

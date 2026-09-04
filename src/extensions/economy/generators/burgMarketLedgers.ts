@@ -139,6 +139,27 @@ export function getBurgMarketLedger(burgId: number | undefined): BurgMarketLedge
   return getBurgMarketLedgers().find(ledger => ledger.burgId === burgId);
 }
 
+/** Credits manufacturing wages to the Burg's anonymous household receipts (L2 Phase 1). */
+export function creditHouseholdIncome(burgId: number | undefined, amount: number): void {
+  if (!burgId || !(amount > 0) || !Number.isFinite(amount)) return;
+  const ledgers = getBurgMarketLedgers();
+  const existing = ledgers.find(ledger => ledger.burgId === burgId);
+  if (existing) {
+    existing.householdIncome = rn((existing.householdIncome ?? 0) + amount, 2);
+    return;
+  }
+  const burg = getWorldContext().pack.burgs?.[burgId];
+  setBurgMarketLedgers([
+    ...ledgers,
+    {
+      burgId,
+      marketId: burg?.market ?? 0,
+      merchants: [],
+      householdIncome: rn(amount, 2)
+    }
+  ]);
+}
+
 export function getDominantMerchant(ledger: BurgMarketLedger | undefined): BurgMarketMerchantEntry | undefined {
   if (!ledger?.merchants.length) return undefined;
   return [...ledger.merchants].sort((a, b) => b.share - a.share || b.revenue - a.revenue)[0];

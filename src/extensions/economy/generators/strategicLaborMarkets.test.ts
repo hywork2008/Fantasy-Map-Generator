@@ -3,6 +3,7 @@ import type { Burg } from "../../hostTypes";
 import type { Good } from "./goods-generator";
 import type { Market } from "./marketTypes";
 import {
+  getManufactureWageRate,
   getStrategicLaborProductivity,
   type LaborMarket,
   reconcileStrategicLaborMarkets
@@ -67,6 +68,15 @@ describe("strategic labor markets", () => {
     expect(laborMarkets[0].capacityByOccupation.sailmaking).toBeGreaterThan(
       laborMarkets[0].workersByOccupation.sailmaking ?? 0
     );
+  });
+
+  it("reads wageByOccupation for manufacture: occupation wage, else forestry baseline, else 0", () => {
+    const [laborMarket] = reconcile([sailOrder()]);
+
+    expect(getManufactureWageRate(undefined, { name: "Sails" })).toBe(0);
+    expect(getManufactureWageRate(laborMarket, { name: "Sails" })).toBe(laborMarket.wageByOccupation.sailmaking);
+    expect(getManufactureWageRate(laborMarket, { name: "Barrels" })).toBe(laborMarket.wageByOccupation.forestry);
+    expect(getManufactureWageRate({ ...laborMarket, wageByOccupation: {} }, { name: "Barrels" })).toBe(1);
   });
 
   it("drops cohorts whose markets no longer exist", () => {
