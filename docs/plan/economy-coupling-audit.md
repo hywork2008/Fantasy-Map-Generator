@@ -882,8 +882,8 @@ if (migrated) { Goods.sync(); Markets.initializeMarketPrices(); }
 ### 第2波 — 構造の整備(後続の前提になる)
 
 5. **T1 段階1** ✅ 実装済み(2026-09-04)。`economy.tick` を12システムの `after` チェーンに分割
-6. **T2**: 年次ゲートを `settleAnnualOnce(key, fn)` に統合(セーブ移行1パス)
-7. **T1 段階2**: 各システムの `reads` / `writes` を正しく宣言
+6. **T2**: ✅ 実装済み(2026-09-04) 年次ゲートを `settleAnnualOnce(key, fn)` に統合(セーブ移行1パス)
+7. **T1 段階2**: ✅ 実装済み(2026-09-05) 各システムの `reads` / `writes` を正しく宣言
 
 T1 段階1 の実装時に判明した点:
 

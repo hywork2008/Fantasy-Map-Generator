@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-04
+
+- docs/plan/economy-coupling-audit.md
+
 2026-08-21
 
 - docs/plan/climate-disaster-drought.md
