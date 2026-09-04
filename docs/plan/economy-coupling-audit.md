@@ -881,9 +881,38 @@ if (migrated) { Goods.sync(); Markets.initializeMarketPrices(); }
 
 ### 第2波 — 構造の整備(後続の前提になる)
 
-5. **T1 段階1**: `economy.tick` の10ブロックを10システムに分割し `after` で順序を明示
+5. **T1 段階1** ✅ 実装済み(2026-09-04)。`economy.tick` を12システムの `after` チェーンに分割
 6. **T2**: 年次ゲートを `settleAnnualOnce(key, fn)` に統合(セーブ移行1パス)
 7. **T1 段階2**: 各システムの `reads` / `writes` を正しく宣言
+
+T1 段階1 の実装時に判明した点:
+
+- **分割数は10ではなく12。** `economy:annualUrbanKnowledge`(130行・25呼び出し)を
+  本書の指示どおり3つ以上に割った結果、`annualUrbanLabor` / `annualPlants` /
+  `annualInfrastructure` / `annualKnowledge` / `annualBurgGroups` の5つになった。
+  実行順は `src/extensions/economy/tickSystemIds.ts` に一覧として宣言し、
+  `registerEconomyTickSystem` が登録位置とその一覧を突き合わせて検証する
+  ——「呼び出しが並んでいる順」ではなく「宣言された順」が正になる。
+- **「挙動は完全に同一」は正しくなかった。** 本書の §T1 段階1 はそう書いていたが、
+  ホストの RNG は `deriveSystemStreamSeed(masterSeed, {systemId, tick, year, month, day})`
+  (`src/runtime/simulationRng.ts:164`)でシステム **ID ごとに独立ストリーム**を導出する。
+  1システムを12に割れば ID が変わるので、同じマップシードでも乱数列が変わる。
+  ロジック・実行順・トピックは完全に保存されるが、既存セーブの以後の乱数結果は再現しない。
+  ID をまたいでストリームを固定する仕組みはホスト側に無く、あれば per-system 分離という
+  設計意図自体を壊すので、そのまま受け入れた。**第3波以降のバランス検証は、この分割の
+  後に取り直した基準値と比較すること。**
+- **本書が警告した unregister の順序制約は実在した。** チェーンは線形なので
+  先頭から解除すると `cannot be removed` で throw する。`cleanup()` を逆順ループに変え、
+  その2性質(チェーン順に解決される・shipbuilding.tick より前に走る／逆順解除が必要)を
+  `tickSystemOrder.test.ts` でホストレジストリに対して直接検証している。
+- **移植の忠実性を機械照合した。** 分割前の `run()` 本体と分割後12システムの本体から
+  コメント・スキャフォールドを除いた実行文を突き合わせ、139文がすべて対応することを確認した。
+  差分は `let` → `const` 化と、旧 `if (burgGroupsChanged || settledAdults > 0 || urbanWaterChanged)`
+  の 1 箇所が各フラグを持つ3システムの個別 `if` に分かれた分のみ(トピックは重複除去されるので
+  結果は同一)。
+- **ブラウザでの実地確認はできていない。** この環境ではマップ生成が cells 生成後に
+  停止するが、**clean master でも同一に再現する**ため本変更とは無関係。
+  実機確認は別途必要。
 
 ### 第3波 — 経済モデルの穴を埋める(**ここが本命**)
 

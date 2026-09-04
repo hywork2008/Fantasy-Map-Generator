@@ -249,6 +249,7 @@ import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds, resetDisplayedGoodSelection } from "./store/goodsDisplaySelection";
+import { ECONOMY_TICK_SYSTEM_IDS, type EconomyTickSystemId } from "./tickSystemIds";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { BurgEditorGoodsTab } from "./ui/components/BurgEditorGoodsTab";
 import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
@@ -654,7 +655,7 @@ let _unregisterPatronageFundCommand: (() => void) | null = null;
 let _unregisterPatronageHireCommand: (() => void) | null = null;
 let _unregisterPatronageFuelCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
-let _unregisterTickSystem: (() => void) | null = null;
+const _unregisterTickSystems: (() => void)[] = [];
 let _unregisterMarketTerritorySystem: (() => void) | null = null;
 
 function isMountedCapacityRequest(value: unknown): value is { stateId: number; capacity?: number; handled: boolean } {
@@ -2864,375 +2865,449 @@ export function init(api: ExtensionAPI): void {
   // ordinary expansion has incorporated it into a market area.
   let daysSinceLastProspecting = 0;
   const PROSPECTING_INTERVAL_DAYS = 365;
-  // Phase: economy. Lexical id `economy.tick` runs before `shipbuilding.tick` in the
-  // same phase so forest regrowth is ordered before logging within one tick.
-  _unregisterTickSystem = api.registerSimulationSystem({
-    id: "economy.tick",
-    phase: "economy",
+  /**
+   * The economy tick, as a chain of `after`-ordered simulation systems rather than one
+   * `economy.tick` run() with ~50 hand-sequenced calls inside it.
+   *
+   * The host registry already resolves order from declared dependencies
+   * (src/generators/simulationSystem.ts), so the sequencing that used to live only in prose
+   * comments — "Must run before updateAnnualAgriculture()", "Must run after
+   * reconcileAnnualBasicEmploymentWorkers()" — is now `after: [previousId]` the registry
+   * enforces, and each step gets its own profiler row instead of hiding inside one
+   * `economy:annualUrbanKnowledge` bucket that spanned chemistry plants through great libraries.
+   *
+   * Ordering constraints that still hold, and why the chain is strictly linear rather than a
+   * sparser dependency graph: this is step 1 of docs/plan/economy-coupling-audit.md T1, whose
+   * whole point is to freeze *today's* execution order in a machine-readable form before anyone
+   * re-derives which of those orderings are real. Relaxing an edge is a deliberate follow-up,
+   * not something to guess at during the extraction.
+   *
+   * Every id sorts lexically before `shipbuilding.tick`, which the registry's tie-break relies on
+   * to keep forest regrowth (`economy.forestProspect`) ahead of Shipbuilding's logging in the same
+   * phase — the constraint the old single-system comment recorded. Keep the `economy.` prefix.
+   *
+   * `reads`/`writes` stay the union the single system declared. Narrowing them per system is
+   * step 2 of the same plan item; widening the allowlist here would be the only way to break
+   * behaviour, so it is deliberately left alone.
+   */
+  const ECONOMY_TICK_READS = [
+    "map.politics",
     // map.annotations / simulation.cells: cull resolve may mutate monsters, markers, danger
     // (docs/plan/player-threat-cull-jobs.md K18 / PR-3b).
-    reads: [
-      "map.politics",
-      "map.annotations",
-      "extension.economy",
-      "simulation.burgs",
-      "simulation.states",
-      "simulation.cells"
-    ],
-    writes: [
-      "extension.economy",
-      "simulation.burgs",
-      "simulation.states",
-      "map.settlements",
-      "simulation.cells",
-      "map.annotations",
-      // Railway links materialize as "railways"-group pack.routes once railwayOperations
-      // is adopted (steamIndustry.ts's settleRailways) — see docs/plan/
-      // steam-industrial-implementation.md §7.
-      "map.networks"
-    ],
-    cadence: { every: 1 },
-    profileLabel: "economy",
-    run: (context, writer) => {
-      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    "map.annotations",
+    "extension.economy",
+    "simulation.burgs",
+    "simulation.states",
+    "simulation.cells"
+  ] as const;
+  const ECONOMY_TICK_WRITES = [
+    "extension.economy",
+    "simulation.burgs",
+    "simulation.states",
+    "map.settlements",
+    "simulation.cells",
+    "map.annotations",
+    // Railway links materialize as "railways"-group pack.routes once railwayOperations
+    // is adopted (steamIndustry.ts's settleRailways) — see docs/plan/
+    // steam-industrial-implementation.md §7.
+    "map.networks"
+  ] as const;
 
-      const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
-      const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
-      // Incorporate last tick's political claims before this cycle's rural
-      // production. Same-tick claims are stamped in the finalize-phase sync.
-      measureTickStep("economy:marketTerritories", () => {
-        if (Markets.syncStateBoundedTerritories()) {
-          syncBurgMarketLedgers();
-          markProductionDirty();
+  type EconomyTickSystem = Parameters<typeof api.registerSimulationSystem>[0];
+
+  let nextEconomyTickSystemIndex = 0;
+  /**
+   * Appends one step to the chain. Each step re-declares the shared topic allowlist, marks the
+   * two topics the old single system always marked, and depends on the step registered before
+   * it. Unregister handles are collected so cleanup() can drop them in reverse — the registry
+   * refuses to remove a system another one still declares `after`.
+   *
+   * The id must match ECONOMY_TICK_SYSTEM_IDS at this position: that list, not the order these
+   * calls happen to appear in below, is the declared execution order, and a call inserted at the
+   * wrong place in a 3,700-line file would otherwise silently reorder the tick.
+   */
+  const registerEconomyTickSystem = (id: EconomyTickSystemId, run: EconomyTickSystem["run"]): void => {
+    const index = nextEconomyTickSystemIndex++;
+    if (ECONOMY_TICK_SYSTEM_IDS[index] !== id) {
+      throw new Error(
+        `Economy tick system '${id}' registered at position ${index}, ` +
+          `where tickSystemIds.ts declares '${ECONOMY_TICK_SYSTEM_IDS[index] ?? "(past the end)"}'`
+      );
+    }
+    const previous = index > 0 ? ECONOMY_TICK_SYSTEM_IDS[index - 1] : null;
+    const after = previous ? [previous] : undefined;
+    _unregisterTickSystems.push(
+      api.registerSimulationSystem({
+        id,
+        phase: "economy",
+        reads: [...ECONOMY_TICK_READS],
+        writes: [...ECONOMY_TICK_WRITES],
+        after,
+        cadence: { every: 1 },
+        profileLabel: id.replace("economy.", "economy:"),
+        run: (context, writer) => {
+          if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+          run(context, writer);
+          writer.markChanged("extension.economy", "simulation.states");
         }
-      });
-      // Must run before updateAnnualAgriculture() so this year's Tools investment feeds
-      // this year's yieldPerArea/farmLaborRequired recompute, not next year's
-      // (docs/plan/rural-agtech-investment.md §3.5). Industrial tech runs right after so
-      // mine/smelter investment claims each market's treasury only after farms have (§6.3).
-      let agricultureRefreshed = false;
-      measureTickStep("economy:annualAgTech", () => {
-        AgTechInvestment.settleAnnual();
-        // Phosphate Fertilizer purchase, same shared marketTreasury.balance as Tools above but a
-        // separate stock/budget calculation — runs before industrial tech so farm investment
-        // (Tools + Fertilizer) keeps priority over mine/smelter claims (docs/plan/
-        // phosphate-fertilizer-vertical-slice.md §3.8; docs/plan/rural-agtech-investment.md §6.3).
-        FertilizerInvestment.settleAnnual();
-        // Nitrogen Fertilizer purchase, same shared marketTreasury.balance but a separate
-        // stock/budget calculation — runs right after Phosphate Fertilizer so both farm-fertilizer
-        // investments keep priority over mine/smelter claims together (docs/plan/
-        // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
-        NitrogenFertilizerInvestment.settleAnnual();
-        IndustrialTechInvestment.settleAnnual();
-        // Allocates last year's PowerStations generation capacity (era-6 plant block below) to
-        // markets by population. Does not touch marketTreasury — PowerStations already paid the
-        // capital/operating cost (docs/plan/electric-power-and-telegraph.md §3.10).
-        PowerGridInvestment.settleAnnual();
-        // Rolls this year's per-State drought/heatwave severity and writes climateFoodStress —
-        // must run before updateAnnualAgriculture() so this year's dryness feeds this year's
-        // harvest, not next year's (unlike Dam/Levee's floodProtectionByCell, which the comment on
-        // Dams.settleAnnual() below explains is allowed to lag a year).
-        // docs/plan/climate-disaster-drought.md §3.1.
-        ClimateDisasters.settleAnnual(context.rng);
-        // Must run before the quarter's food ledger so annual demographic changes
-        // alter cultivated area and farm labour without waiting an extra quarter.
-        agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
-        // Fauna population cohort update (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2):
-        // its own once-per-year guard, independent of agriculture's — no-ops entirely when
-        // options.ruralEcosystemDetail === "simplified" (§11.3).
-        updateAnnualFaunaCohorts();
-        // Only release this year's freshly recomputed migratableAdults surplus — running on a
-        // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
-        // Options -> Simulation "Settlement growth" gate: "independent" keeps the classic
-        // births-only-toward-own-capacity behavior with no deliberate rural→urban movement.
-        if (agricultureRefreshed && useOptionsState.getState().ruralUrbanMigration === "megacity") {
-          releaseRuralLaborSurplus(getWorldContext());
+      })
+    );
+  };
+
+  registerEconomyTickSystem("economy.marketTerritorySync", (_context, _writer) => {
+    // Incorporate last tick's political claims before this cycle's rural
+    // production. Same-tick claims are stamped in the finalize-phase sync.
+    if (Markets.syncStateBoundedTerritories()) {
+      syncBurgMarketLedgers();
+      markProductionDirty();
+    }
+  });
+
+  registerEconomyTickSystem("economy.annualAgTech", (context, _writer) => {
+    // Must run before updateAnnualAgriculture() so this year's Tools investment feeds
+    // this year's yieldPerArea/farmLaborRequired recompute, not next year's
+    // (docs/plan/rural-agtech-investment.md §3.5). Industrial tech runs right after so
+    // mine/smelter investment claims each market's treasury only after farms have (§6.3).
+    let agricultureRefreshed = false;
+    AgTechInvestment.settleAnnual();
+    // Phosphate Fertilizer purchase, same shared marketTreasury.balance as Tools above but a
+    // separate stock/budget calculation — runs before industrial tech so farm investment
+    // (Tools + Fertilizer) keeps priority over mine/smelter claims (docs/plan/
+    // phosphate-fertilizer-vertical-slice.md §3.8; docs/plan/rural-agtech-investment.md §6.3).
+    FertilizerInvestment.settleAnnual();
+    // Nitrogen Fertilizer purchase, same shared marketTreasury.balance but a separate
+    // stock/budget calculation — runs right after Phosphate Fertilizer so both farm-fertilizer
+    // investments keep priority over mine/smelter claims together (docs/plan/
+    // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
+    NitrogenFertilizerInvestment.settleAnnual();
+    IndustrialTechInvestment.settleAnnual();
+    // Allocates last year's PowerStations generation capacity (era-6 plant block below) to
+    // markets by population. Does not touch marketTreasury — PowerStations already paid the
+    // capital/operating cost (docs/plan/electric-power-and-telegraph.md §3.10).
+    PowerGridInvestment.settleAnnual();
+    // Rolls this year's per-State drought/heatwave severity and writes climateFoodStress —
+    // must run before updateAnnualAgriculture() so this year's dryness feeds this year's
+    // harvest, not next year's (unlike Dam/Levee's floodProtectionByCell, which the comment on
+    // Dams.settleAnnual() below explains is allowed to lag a year).
+    // docs/plan/climate-disaster-drought.md §3.1.
+    ClimateDisasters.settleAnnual(context.rng);
+    // Must run before the quarter's food ledger so annual demographic changes
+    // alter cultivated area and farm labour without waiting an extra quarter.
+    agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
+    // Fauna population cohort update (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2):
+    // its own once-per-year guard, independent of agriculture's — no-ops entirely when
+    // options.ruralEcosystemDetail === "simplified" (§11.3).
+    updateAnnualFaunaCohorts();
+    // Only release this year's freshly recomputed migratableAdults surplus — running on a
+    // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
+    // Options -> Simulation "Settlement growth" gate: "independent" keeps the classic
+    // births-only-toward-own-capacity behavior with no deliberate rural→urban movement.
+    if (agricultureRefreshed && useOptionsState.getState().ruralUrbanMigration === "megacity") {
+      releaseRuralLaborSurplus(getWorldContext());
+    }
+  });
+
+  registerEconomyTickSystem("economy.caravans", (context, _writer) => {
+    const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
+    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    const caravanTick = measureTickStep("economy:caravanMovement", () => Caravans.tick(effectiveDays));
+    measureTickStep("economy:retailInventory", () => tickRetailInventory());
+    measureTickStep("economy:strategicProcurement", () =>
+      StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost)
+    );
+    // Trade animation redraw is owned by registerDrawLayerHook after extension.economy
+    // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
+  });
+
+  registerEconomyTickSystem("economy.warIntensity", (context, _writer) => {
+    const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
+    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    // Only conflicts that are currently progressing affect the wartime economy.
+    const states = getWorldContext().pack.states;
+    const statesAtWar = new Set<number>();
+    if (states) {
+      for (const state of states) {
+        if (!state.removed && isStateInActiveConflict(state.i)) {
+          statesAtWar.add(state.i);
         }
-      });
+      }
+    }
 
-      measureTickStep("economy:caravans", () => {
-        const caravanTick = measureTickStep("economy:caravanMovement", () => Caravans.tick(effectiveDays));
-        measureTickStep("economy:retailInventory", () => tickRetailInventory());
-        measureTickStep("economy:strategicProcurement", () =>
-          StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost)
-        );
-      });
-      // Trade animation redraw is owned by registerDrawLayerHook after extension.economy
-      // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
+    // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
+    const ledgers = getBurgMarketLedgers();
+    const burgs = getWorldContext().pack.burgs;
+    const supplyByState = new Map<number, { sum: number; n: number }>();
+    if (ledgers.length && burgs) {
+      for (const ledger of ledgers) {
+        const burg = burgs[ledger.burgId];
+        if (!burg || burg.removed) continue;
 
-      measureTickStep("economy:warIntensity", () => {
-        // Only conflicts that are currently progressing affect the wartime economy.
-        const states = getWorldContext().pack.states;
-        const statesAtWar = new Set<number>();
-        if (states) {
-          for (const state of states) {
-            if (!state.removed && isStateInActiveConflict(state.i)) {
-              statesAtWar.add(state.i);
-            }
+        if (burg.state && statesAtWar.has(burg.state)) {
+          ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
+          ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
+        } else if (ledger.warIntensity && ledger.warIntensity > 0) {
+          ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
+          if (ledger.warIntensity <= 0.001) {
+            ledger.warIntensity = 0;
+            ledger.warDurationTicks = 0;
           }
         }
 
-        // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
-        const ledgers = getBurgMarketLedgers();
-        const burgs = getWorldContext().pack.burgs;
-        const supplyByState = new Map<number, { sum: number; n: number }>();
-        if (ledgers.length && burgs) {
-          for (const ledger of ledgers) {
-            const burg = burgs[ledger.burgId];
-            if (!burg || burg.removed) continue;
-
-            if (burg.state && statesAtWar.has(burg.state)) {
-              ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
-              ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
-            } else if (ledger.warIntensity && ledger.warIntensity > 0) {
-              ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
-              if (ledger.warIntensity <= 0.001) {
-                ledger.warIntensity = 0;
-                ledger.warDurationTicks = 0;
-              }
-            }
-
-            if (burg.state && ledger.warIntensity) {
-              const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
-              entry.sum += ledger.warIntensity;
-              entry.n += 1;
-              supplyByState.set(burg.state, entry);
-            }
-          }
+        if (burg.state && ledger.warIntensity) {
+          const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
+          entry.sum += ledger.warIntensity;
+          entry.n += 1;
+          supplyByState.set(burg.state, entry);
         }
-        // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
-        if (states) {
-          for (const state of states) {
-            if (!state?.i || state.removed) continue;
-            const entry = supplyByState.get(state.i);
-            state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
-          }
-        }
-      });
+      }
+    }
+    // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
+    if (states) {
+      for (const state of states) {
+        if (!state?.i || state.removed) continue;
+        const entry = supplyByState.get(state.i);
+        state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
+      }
+    }
+  });
 
-      const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-      let settledAdultsFromMobility = 0;
-      let urbanWaterChanged = false;
-      let railwayNetworkChanged = false;
-      let burgGroupsChanged = false;
-      let cullTopics: readonly DataTopic[] = [];
-      let escortTopics: readonly string[] = [];
-      measureTickStep("economy:dailyHiringPregnancy", () => {
-        // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
-        // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
-        tickUrbanPregnancy(effectiveDeltaYears);
-        // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
-        tickConstructionHiring(effectiveDays);
-        // Research workshop / mine-labor hire lag (technology-bias PR-3).
-        tickResearchHiring(effectiveDays);
-        tickInstructMissions(effectiveDays, { spreadNeighborhood: true });
-        // Threat cull / pest job board expiry + monthly top-up (PR-2).
-        tickCullJobBoard(effectiveDays);
-        // Cull hire lag / accept / combat resolve + ecology (PR-3b).
-        cullTopics = tickCullHiring(effectiveDays, context.rng).topics;
-        // Escort (護衛) board + hire resolve — all culture sets.
-        tickEscortJobBoard(effectiveDays);
-        escortTopics = tickEscortHiring(effectiveDays, context.rng).topics;
-      });
-      measureTickStep("economy:annualUrbanKnowledge", () => {
-        const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
-        settledAdultsFromMobility = urbanMobility?.settledAdults ?? 0;
-        // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
-        // transition) so administration/mining/smelting employment reconciles annually, not
-        // every economy tick.
-        if (urbanMobility) {
-          reconcileAnnualBasicEmploymentWorkers();
-          // Must run after reconciliation, not before: it clamps effectiveCapacity from this
-          // year's buildingStock (docs/plan/urban-construction-industry.md §3.3, decision §7.1-2b).
+  registerEconomyTickSystem("economy.dailyHiring", (context, writer) => {
+    const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
+    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+    // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
+    // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
+    tickUrbanPregnancy(effectiveDeltaYears);
+    // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
+    tickConstructionHiring(effectiveDays);
+    // Research workshop / mine-labor hire lag (technology-bias PR-3).
+    tickResearchHiring(effectiveDays);
+    tickInstructMissions(effectiveDays, { spreadNeighborhood: true });
+    // Threat cull / pest job board expiry + monthly top-up (PR-2).
+    tickCullJobBoard(effectiveDays);
+    // Cull hire lag / accept / combat resolve + ecology (PR-3b).
+    const cullTopics: readonly DataTopic[] = tickCullHiring(effectiveDays, context.rng).topics;
+    // Escort (護衛) board + hire resolve — all culture sets.
+    tickEscortJobBoard(effectiveDays);
+    const escortTopics: readonly string[] = tickEscortHiring(effectiveDays, context.rng).topics;
+
+    // Cull ecology topics (cells/annotations) — only when resolve actually mutated host data.
+    if (cullTopics.length) {
+      const hostTopics = cullTopics.filter(t => t === "simulation.cells" || t === "map.annotations");
+      if (hostTopics.length) writer.markChanged(...hostTopics);
+    }
+    // Escort resolve already mutates extension.economy + simulation.states (marked above).
+    void escortTopics;
+  });
+
+  registerEconomyTickSystem("economy.annualUrbanLabor", (context, writer) => {
+    const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
+    const settledAdultsFromMobility = urbanMobility?.settledAdults ?? 0;
+    // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
+    // transition) so administration/mining/smelting employment reconciles annually, not
+    // every economy tick.
+    if (urbanMobility) {
+      reconcileAnnualBasicEmploymentWorkers();
+      // Must run after reconciliation, not before: it clamps effectiveCapacity from this
+      // year's buildingStock (docs/plan/urban-construction-industry.md §3.3, decision §7.1-2b).
+      ConstructionOperations.constrainEffectiveCapacity();
+    }
+    // Inn facilities use the same local builders and Wood/Stone/Brick market stock as
+    // construction, but settle through their own non-dwelling work orders.
+    InnFacilities.settleAnnual();
+    // Cold-climate knowledge advances from accumulated local heating exposure before
+    // health is recalculated, so new insulation/hearth techniques affect future fuel use
+    // while this year's coal smoke remains visible in the civic health score.
+    settleAnnualColdClimateKnowledge();
+
+    if (settledAdultsFromMobility > 0) writer.markChanged("simulation.burgs", "map.settlements");
+  });
+
+  registerEconomyTickSystem("economy.annualPlants", (_context, _writer) => {
+    // Chemistry / medicine workshops and hospitals must publish headcount and
+    // burg.medicalCare before Guild/Academy EWMA and UrbanWater sanitation writes.
+    // docs/plan/chemistry-medicine-knowledge-accumulation.md §9
+    dropExpiredHints();
+    decayInstructionResidues();
+    ApothecaryWorkshops.settleAnnual();
+    ExperimentalWorkshops.settleAnnual();
+    HospitalInstallations.settleAnnual();
+    AcidPlants.settleAnnual();
+    // Depends on AcidPlants's Sulfuric Acid output for its own recipe
+    // (docs/plan/phosphate-fertilizer-vertical-slice.md §3.7); runs right after.
+    PhosphateFertilizerPlants.settleAnnual();
+    // Also depends on AcidPlants's Sulfuric Acid output (catalytic Deacon-process oxidation
+    // with Salt); runs alongside PhosphateFertilizerPlants for the same reason.
+    // docs/plan/chlorine-production-vertical-slice.md §3.6.
+    ChlorinePlants.settleAnnual();
+    // Bessemer-converter Steel supply — independent of the chemistry plants above; the
+    // second supply route for the existing Steel Good (docs/plan/modern-steelmaking-and-
+    // high-pressure-apparatus.md §3.2).
+    SteelConverters.settleAnnual();
+    // Consumes only Coke (hydrogen source + process-energy proxy), independent of the plants
+    // above — grouped here as the era 6 plant block (docs/plan/synthetic-ammonia-vertical-
+    // slice.md §3.6).
+    SyntheticAmmoniaPlants.settleAnnual();
+    // Coal/Copper Wire/Machine Parts only, independent of the other era-6 plants above.
+    // PowerGridInvestment (annualAgTech block above) reads this year's output starting next
+    // year (docs/plan/electric-power-and-telegraph.md §3.9).
+    PowerStations.settleAnnual();
+    // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
+    TelegraphLines.settleAnnual();
+    // Stone/Timber founding/upkeep, plus Copper Wire/Machine Parts once electrified (no Coal —
+    // water is the fuel). Runs after AgTechInvestment (annualAgTech block above, earlier in
+    // this same tick) so its floodProtectionByCell floor is applied on top of, not overwritten
+    // by, that block's own EWMA write. PowerGridInvestment reads this year's generationCapacity
+    // starting next year, the same one-year lag PowerStations already has.
+    // docs/plan/dam-flood-control-and-hydropower.md §3.
+    Dams.settleAnnual();
+    // Stone/Timber founding/upkeep, no electrification stage. Runs right after Dams so its
+    // floodProtectionByCell floor is applied on top of both Dams' and AgTechInvestment's
+    // writes earlier in this same tick. docs/plan/river-levee-and-flood-damage.md §3.
+    Levees.settleAnnual();
+    // Reads this year's Market.electricityStock, already written by PowerGridInvestment
+    // earlier in this same annual tick (investment block runs before this production block).
+    // Alumina/Coke/Firebrick consumption is independent of the other era-6 plants above.
+    // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
+    ElectrolysisPlants.settleAnnual();
+    // Chlor-alkali brine electrolysis — a THIRD supply route for Chlorine/Caustic Soda
+    // (craft-worker recipes + ChlorinePlants' Deacon-process route already exist). Consumes
+    // Salt/Firebrick/Market.electricityStock only — no Coal, no Sulfuric Acid, no AcidPlants
+    // dependency — independent of every other era-6 plant above. Competes with ChlorinePlants
+    // and the craft-worker Chlorine recipe for the same Salt Good (a modeling nuance, not a
+    // blocker). docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.1.
+    ChlorAlkaliPlants.settleAnnual();
+    // Cinnabar/Coal/Firebrick only, independent of every other era-6 plant above — a small,
+    // deliberately minor-scale chemistry plant (§9.5's "少量生産"), not a bulk industrial
+    // process. docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
+    MercuryPlants.settleAnnual();
+    // Crude Oil/Coal/Firebrick only, independent of every other plant above — the era-7
+    // refining step. docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
+    OilRefineryPlants.settleAnnual();
+    settleChemMedPracticeDecay();
+  });
+
+  registerEconomyTickSystem("economy.annualInfrastructure", (_context, writer) => {
+    // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
+    // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
+    const urbanWaterChanged = UrbanWater.settleAnnual();
+    // Returns true only when new "railways" route track was laid this call
+    // (docs/plan/steam-industrial-implementation.md §7) — drives map.networks below.
+    const railwayNetworkChanged = SteamIndustry.settleAnnual();
+
+    if (urbanWaterChanged) writer.markChanged("simulation.burgs", "map.settlements");
+    // New railway track was laid into pack.routes/pack.cells.routes this tick
+    // (steamIndustry.ts's settleRailways) — redraw routes and invalidate the WebGL cache.
+    if (railwayNetworkChanged) writer.markChanged("map.networks");
+  });
+
+  registerEconomyTickSystem("economy.annualKnowledge", (context, _writer) => {
+    // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
+    // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
+    // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
+    // once per simulation year regardless of how often this tick runs.
+    GuildKnowledge.settleAnnual();
+    GuildChapters.settleAnnual(context.rng);
+    // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
+    // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
+    // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.
+    // One-time working-capital + starter-material seed for every guild that got its first-ever
+    // master this pass — otherwise a brand-new guild has no funding source but its own finished
+    // goods clearing the market at a margin, which can stay permanently at 0 (unlike a Province
+    // Lord, who always draws from their seated Burg regardless of any other pool).
+    for (const { burgId, domain } of GuildSuccession.settleAnnual(probability => context.rng.P(probability))) {
+      GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
+    }
+    // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
+    // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
+    // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
+    // simulation year.
+    AcademyKnowledge.settleAnnual();
+    // Spends state.treasury before StateSecretKnowledge below sees it, deliberately
+    // (docs/plan/great-library.md 年次フロー: "威信を火薬より先に請求"). No ordering dependency on
+    // reconcileAnnualBasicEmploymentWorkers() — reads state.treasury/diplomacy/ruler directly.
+    GreatLibrary.settleAnnual(context.rng);
+    // No ordering dependency on reconcileAnnualBasicEmploymentWorkers() (unlike Guild/Academy
+    // above) — it reads MilitaryResourceLedger and state.treasury, not a headcount reconciliation
+    // output. Self-gates to once per simulation year (docs/plan/knowledge-guild-system.md §9 Phase 4).
+    StateSecretKnowledge.settleAnnual();
+    // Reads state.military directly (not a reconciled employment record), so no ordering
+    // dependency either — self-gates to once per simulation year (docs/plan/
+    // knowledge-guild-system.md §9 Phase 5).
+    MartialDisciplineKnowledge.settleAnnual();
+    // Builds on the freshly-settled State training stock, but only creates records for
+    // named commanders; ordinary regiment members remain aggregate headcount.
+    MartialIndividualMastery.settleAnnual();
+    // No ordering dependency on the guild/academy settles above — sweeps burg.treasury surplus
+    // into market/state treasury regardless of guild presence. Self-gates to once per simulation
+    // year (docs/plan/burg-treasury-equilibrium.md §3.3).
+    GuildTreasury.settleAnnual();
+  });
+
+  registerEconomyTickSystem("economy.annualBurgGroups", (_context, writer) => {
+    const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
+
+    if (burgGroupsChanged) writer.markChanged("simulation.burgs", "map.settlements");
+  });
+
+  registerEconomyTickSystem("economy.forestProspect", (context, _writer) => {
+    const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
+    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+    const forestChanged = tickForestRegrowth(effectiveDeltaYears, getForestRegrowthMultiplier);
+    if (forestChanged) markProductionDirty();
+
+    daysSinceLastProspecting += effectiveDays;
+    if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
+      daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
+      const discoveries = runStateProspecting(api, () => context.rng.rand());
+      const reanchoredOperations = MineOperations.reanchorOperations();
+      const openedOperations = MineOperations.openDiscoveredAccessibleOperations();
+      if (discoveries || openedOperations || reanchoredOperations) SmelterOperations.generate();
+    }
+  });
+
+  registerEconomyTickSystem("economy.foodCalendar", (context, _writer) => {
+    const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
+    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    const monthsDue = Math.floor((daysSinceLastProduction + effectiveDays) / 30);
+    const firstSettlementMonth = (((api.simulationContext.currentMonth - monthsDue) % 12) + 12) % 12;
+    let elapsedDays = 0;
+    let settledMonths = 0;
+    let foodSettlementsThisTick = 0;
+    while (elapsedDays < effectiveDays) {
+      const daysUntilMonthlySettlement = 30 - daysSinceLastProduction;
+      const step = Math.min(effectiveDays - elapsedDays, daysUntilMonthlySettlement);
+      daysSinceLastProduction += step;
+      elapsedDays += step;
+
+      // On a shared boundary, households finish the month before the new
+      // quarter's harvest arrives. This preserves the same order for Advance
+      // Day, Month, and Year rather than overfilling storage first.
+      if (daysSinceLastProduction >= 30) {
+        daysSinceLastProduction -= 30;
+        const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
+        settleMonthlyFoodConsumption(settlementMonth);
+        FoodProduction.generateMonthlyLedger(settlementMonth);
+        settledMonths++;
+        foodSettlementsThisTick++;
+        if (settlementMonth % 3 === 0) {
+          currentQuarterIndex = (currentQuarterIndex + 1) % 4;
+          // A quarterly import update may raise capacity above a construction
+          // ceiling, so retain the existing post-harvest re-clamp.
           ConstructionOperations.constrainEffectiveCapacity();
+          UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
+          recordQuarterlyNonFoodDemand();
         }
-        // Inn facilities use the same local builders and Wood/Stone/Brick market stock as
-        // construction, but settle through their own non-dwelling work orders.
-        InnFacilities.settleAnnual();
-        // Cold-climate knowledge advances from accumulated local heating exposure before
-        // health is recalculated, so new insulation/hearth techniques affect future fuel use
-        // while this year's coal smoke remains visible in the civic health score.
-        settleAnnualColdClimateKnowledge();
-        // Chemistry / medicine workshops and hospitals must publish headcount and
-        // burg.medicalCare before Guild/Academy EWMA and UrbanWater sanitation writes.
-        // docs/plan/chemistry-medicine-knowledge-accumulation.md §9
-        dropExpiredHints();
-        decayInstructionResidues();
-        ApothecaryWorkshops.settleAnnual();
-        ExperimentalWorkshops.settleAnnual();
-        HospitalInstallations.settleAnnual();
-        AcidPlants.settleAnnual();
-        // Depends on AcidPlants's Sulfuric Acid output for its own recipe
-        // (docs/plan/phosphate-fertilizer-vertical-slice.md §3.7); runs right after.
-        PhosphateFertilizerPlants.settleAnnual();
-        // Also depends on AcidPlants's Sulfuric Acid output (catalytic Deacon-process oxidation
-        // with Salt); runs alongside PhosphateFertilizerPlants for the same reason.
-        // docs/plan/chlorine-production-vertical-slice.md §3.6.
-        ChlorinePlants.settleAnnual();
-        // Bessemer-converter Steel supply — independent of the chemistry plants above; the
-        // second supply route for the existing Steel Good (docs/plan/modern-steelmaking-and-
-        // high-pressure-apparatus.md §3.2).
-        SteelConverters.settleAnnual();
-        // Consumes only Coke (hydrogen source + process-energy proxy), independent of the plants
-        // above — grouped here as the era 6 plant block (docs/plan/synthetic-ammonia-vertical-
-        // slice.md §3.6).
-        SyntheticAmmoniaPlants.settleAnnual();
-        // Coal/Copper Wire/Machine Parts only, independent of the other era-6 plants above.
-        // PowerGridInvestment (annualAgTech block above) reads this year's output starting next
-        // year (docs/plan/electric-power-and-telegraph.md §3.9).
-        PowerStations.settleAnnual();
-        // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
-        TelegraphLines.settleAnnual();
-        // Stone/Timber founding/upkeep, plus Copper Wire/Machine Parts once electrified (no Coal —
-        // water is the fuel). Runs after AgTechInvestment (annualAgTech block above, earlier in
-        // this same tick) so its floodProtectionByCell floor is applied on top of, not overwritten
-        // by, that block's own EWMA write. PowerGridInvestment reads this year's generationCapacity
-        // starting next year, the same one-year lag PowerStations already has.
-        // docs/plan/dam-flood-control-and-hydropower.md §3.
-        Dams.settleAnnual();
-        // Stone/Timber founding/upkeep, no electrification stage. Runs right after Dams so its
-        // floodProtectionByCell floor is applied on top of both Dams' and AgTechInvestment's
-        // writes earlier in this same tick. docs/plan/river-levee-and-flood-damage.md §3.
-        Levees.settleAnnual();
-        // Reads this year's Market.electricityStock, already written by PowerGridInvestment
-        // earlier in this same annual tick (investment block runs before this production block).
-        // Alumina/Coke/Firebrick consumption is independent of the other era-6 plants above.
-        // docs/plan/electrolytic-industry-vertical-slice.md §3.7.
-        ElectrolysisPlants.settleAnnual();
-        // Chlor-alkali brine electrolysis — a THIRD supply route for Chlorine/Caustic Soda
-        // (craft-worker recipes + ChlorinePlants' Deacon-process route already exist). Consumes
-        // Salt/Firebrick/Market.electricityStock only — no Coal, no Sulfuric Acid, no AcidPlants
-        // dependency — independent of every other era-6 plant above. Competes with ChlorinePlants
-        // and the craft-worker Chlorine recipe for the same Salt Good (a modeling nuance, not a
-        // blocker). docs/plan/chlor-alkali-electrolysis-vertical-slice.md §3.1.
-        ChlorAlkaliPlants.settleAnnual();
-        // Cinnabar/Coal/Firebrick only, independent of every other era-6 plant above — a small,
-        // deliberately minor-scale chemistry plant (§9.5's "少量生産"), not a bulk industrial
-        // process. docs/plan/cinnabar-mercury-vertical-slice.md §3.7.
-        MercuryPlants.settleAnnual();
-        // Crude Oil/Coal/Firebrick only, independent of every other plant above — the era-7
-        // refining step. docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
-        OilRefineryPlants.settleAnnual();
-        settleChemMedPracticeDecay();
-        // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
-        // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
-        urbanWaterChanged = UrbanWater.settleAnnual();
-        // Returns true only when new "railways" route track was laid this call
-        // (docs/plan/steam-industrial-implementation.md §7) — drives map.networks below.
-        railwayNetworkChanged = SteamIndustry.settleAnnual();
-        // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
-        // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
-        // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
-        // once per simulation year regardless of how often this tick runs.
-        GuildKnowledge.settleAnnual();
-        GuildChapters.settleAnnual(context.rng);
-        // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
-        // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
-        // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.
-        // One-time working-capital + starter-material seed for every guild that got its first-ever
-        // master this pass — otherwise a brand-new guild has no funding source but its own finished
-        // goods clearing the market at a margin, which can stay permanently at 0 (unlike a Province
-        // Lord, who always draws from their seated Burg regardless of any other pool).
-        for (const { burgId, domain } of GuildSuccession.settleAnnual(probability => context.rng.P(probability))) {
-          GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
-        }
-        // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
-        // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
-        // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
-        // simulation year.
-        AcademyKnowledge.settleAnnual();
-        // Spends state.treasury before StateSecretKnowledge below sees it, deliberately
-        // (docs/plan/great-library.md 年次フロー: "威信を火薬より先に請求"). No ordering dependency on
-        // reconcileAnnualBasicEmploymentWorkers() — reads state.treasury/diplomacy/ruler directly.
-        GreatLibrary.settleAnnual(context.rng);
-        // No ordering dependency on reconcileAnnualBasicEmploymentWorkers() (unlike Guild/Academy
-        // above) — it reads MilitaryResourceLedger and state.treasury, not a headcount reconciliation
-        // output. Self-gates to once per simulation year (docs/plan/knowledge-guild-system.md §9 Phase 4).
-        StateSecretKnowledge.settleAnnual();
-        // Reads state.military directly (not a reconciled employment record), so no ordering
-        // dependency either — self-gates to once per simulation year (docs/plan/
-        // knowledge-guild-system.md §9 Phase 5).
-        MartialDisciplineKnowledge.settleAnnual();
-        // Builds on the freshly-settled State training stock, but only creates records for
-        // named commanders; ordinary regiment members remain aggregate headcount.
-        MartialIndividualMastery.settleAnnual();
-        // No ordering dependency on the guild/academy settles above — sweeps burg.treasury surplus
-        // into market/state treasury regardless of guild presence. Self-gates to once per simulation
-        // year (docs/plan/burg-treasury-equilibrium.md §3.3).
-        GuildTreasury.settleAnnual();
-        burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
-      });
-
-      measureTickStep("economy:forestProspect", () => {
-        const forestChanged = tickForestRegrowth(effectiveDeltaYears, getForestRegrowthMultiplier);
-        if (forestChanged) markProductionDirty();
-
-        daysSinceLastProspecting += effectiveDays;
-        if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
-          daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
-          const discoveries = runStateProspecting(api, () => context.rng.rand());
-          const reanchoredOperations = MineOperations.reanchorOperations();
-          const openedOperations = MineOperations.openDiscoveredAccessibleOperations();
-          if (discoveries || openedOperations || reanchoredOperations) SmelterOperations.generate();
-        }
-      });
-
-      const monthsDue = Math.floor((daysSinceLastProduction + effectiveDays) / 30);
-      const firstSettlementMonth = (((api.simulationContext.currentMonth - monthsDue) % 12) + 12) % 12;
-      let elapsedDays = 0;
-      let settledMonths = 0;
-      let foodSettlementsThisTick = 0;
-      measureTickStep("economy:foodCalendar", () => {
-        while (elapsedDays < effectiveDays) {
-          const daysUntilMonthlySettlement = 30 - daysSinceLastProduction;
-          const step = Math.min(effectiveDays - elapsedDays, daysUntilMonthlySettlement);
-          daysSinceLastProduction += step;
-          elapsedDays += step;
-
-          // On a shared boundary, households finish the month before the new
-          // quarter's harvest arrives. This preserves the same order for Advance
-          // Day, Month, and Year rather than overfilling storage first.
-          if (daysSinceLastProduction >= 30) {
-            daysSinceLastProduction -= 30;
-            const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
-            settleMonthlyFoodConsumption(settlementMonth);
-            FoodProduction.generateMonthlyLedger(settlementMonth);
-            settledMonths++;
-            foodSettlementsThisTick++;
-            if (settlementMonth % 3 === 0) {
-              currentQuarterIndex = (currentQuarterIndex + 1) % 4;
-              // A quarterly import update may raise capacity above a construction
-              // ceiling, so retain the existing post-harvest re-clamp.
-              ConstructionOperations.constrainEffectiveCapacity();
-              UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
-              recordQuarterlyNonFoodDemand();
-            }
-          }
-        }
-      });
-
-      if (settledMonths > 0) {
-        productionSettlementsDue += settledMonths;
-        foodSettlementsAlreadyApplied += foodSettlementsThisTick;
-        // Queue after all synchronous simulation systems have run, so logging events from
-        // Shipbuilding (same tick, economy phase after this system by lexical id) are included.
-        scheduleProductionSettlement();
       }
+    }
 
-      writer.markChanged("extension.economy", "simulation.states");
-      if (burgGroupsChanged || settledAdultsFromMobility > 0 || urbanWaterChanged) {
-        writer.markChanged("simulation.burgs", "map.settlements");
-      }
-      // New railway track was laid into pack.routes/pack.cells.routes this tick
-      // (steamIndustry.ts's settleRailways) — redraw routes and invalidate the WebGL cache.
-      if (railwayNetworkChanged) writer.markChanged("map.networks");
-      // Cull ecology topics (cells/annotations) — only when resolve actually mutated host data.
-      if (cullTopics.length) {
-        const hostTopics = cullTopics.filter(t => t === "simulation.cells" || t === "map.annotations");
-        if (hostTopics.length) writer.markChanged(...hostTopics);
-      }
-      // Escort resolve already mutates extension.economy + simulation.states (marked above).
-      void escortTopics;
+    if (settledMonths > 0) {
+      productionSettlementsDue += settledMonths;
+      foodSettlementsAlreadyApplied += foodSettlementsThisTick;
+      // Queue after all synchronous simulation systems have run, so logging events from
+      // Shipbuilding (same tick, economy phase after this system by lexical id) are included.
+      scheduleProductionSettlement();
     }
   });
 
@@ -3505,8 +3580,10 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterCommerceTradeCommand = null;
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
-  _unregisterTickSystem?.();
-  _unregisterTickSystem = null;
+  // Reverse order: the registry refuses to remove a system while another still declares it in
+  // `after`, and the tick systems form a linear chain (see registerEconomyTickSystem).
+  for (const unregister of _unregisterTickSystems.reverse()) unregister();
+  _unregisterTickSystems.length = 0;
   _unregisterMarketTerritorySystem?.();
   _unregisterMarketTerritorySystem = null;
   if (_unsubscribe) {
