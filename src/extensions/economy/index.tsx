@@ -296,6 +296,58 @@ function withRegenerateConfirmation(featureName: string, _id: string, onConfirm:
 export const ECONOMY_EXTENSION_ID = "economy";
 const economyWebglLayerSpec = createEconomyWebglLayerSpec();
 
+/**
+ * Goods-catalog migrations replayed on every map load, oldest first.
+ *
+ * Each entry returns true when it actually rewrote something; if any did, the caller re-syncs
+ * Goods and re-prices markets once. They run unconditionally rather than against a saved schema
+ * version because each is individually idempotent and cheap on an already-migrated map — a
+ * version gate is the eventual improvement, but it needs a stored version these maps do not
+ * carry yet. Order matters where one migration's output is another's input (the metals chain
+ * before the smelting fuel/ash split, the crop goods before the fresh-food tags).
+ *
+ * Registry form is deliberate: the previous shape declared one `const migratedX` per migration
+ * and OR-ed all of them in a 21-term condition, so adding a migration meant editing three places
+ * and forgetting the third silently skipped the re-sync.
+ * docs/plan/economy-coupling-audit.md T5.
+ */
+const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
+  migrateLegacyOreIngotGoods,
+  migrateLiveCatsGood,
+  migrateLiveDogsGood,
+  migrateIndustrialSteamGoods,
+  migrateChemMedGoods,
+  migratePhosphateGoods,
+  migrateSyntheticAmmoniaGoods,
+  migrateElectricalGoods,
+  migrateElectrolyticIndustryGoods,
+  migrateMercuryChainGoods,
+  migratePetroleumChainGoods,
+  migrateGrapesGood,
+  migratePerennialFruitGoods,
+  migrateRaisinsGood,
+  migrateStapleCropGoods,
+  migrateWineRecipe,
+  migrateSmeltingFuelAndAshGoods,
+  migratePomaceDistillationGoods,
+  migrateFoodProcessingLotContracts,
+  migrateFreshFoodTags,
+  migrateLiveAnimalTags
+];
+
+/**
+ * Runs every goods-catalog migration in order and reports whether any changed the catalog.
+ * Never short-circuits: a later migration may still have work to do after an earlier one
+ * already returned true.
+ */
+function runGoodsCatalogMigrations(): boolean {
+  let changed = false;
+  for (const migrate of GOODS_CATALOG_MIGRATIONS) {
+    if (migrate()) changed = true;
+  }
+  return changed;
+}
+
 const ECONOMY_PRESETS: Record<string, { label: string; layers: string[] }> = {
   goods: {
     label: "Goods map",
@@ -2535,52 +2587,10 @@ export function init(api: ExtensionAPI): void {
     Goods.sync();
     Markets.sync();
     clearStateFiscalReports();
-    const migratedLegacyMetals = migrateLegacyOreIngotGoods();
-    const migratedLiveCats = migrateLiveCatsGood();
-    const migratedLiveDogs = migrateLiveDogsGood();
-    const migratedIndustrialSteam = migrateIndustrialSteamGoods();
-    const migratedChemMed = migrateChemMedGoods();
-    const migratedPhosphate = migratePhosphateGoods();
-    const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
-    const migratedElectrical = migrateElectricalGoods();
-    const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
-    const migratedMercuryChain = migrateMercuryChainGoods();
-    const migratedPetroleumChain = migratePetroleumChainGoods();
-    const migratedGrapes = migrateGrapesGood();
-    const migratedPerennialFruits = migratePerennialFruitGoods();
-    const migratedRaisins = migrateRaisinsGood();
-    const migratedStapleCrops = migrateStapleCropGoods();
-    const migratedWineRecipe = migrateWineRecipe();
-    const migratedSmeltingFuelAndAsh = migrateSmeltingFuelAndAshGoods();
-    const migratedPomaceDistillation = migratePomaceDistillationGoods();
-    const migratedFoodLots = migrateFoodProcessingLotContracts();
-    const migratedFreshFoodTags = migrateFreshFoodTags();
-    const migratedLiveAnimalTags = migrateLiveAnimalTags();
+    const migratedGoodsCatalog = runGoodsCatalogMigrations();
     Caravans.discardFreshCargo();
     Caravans.refreshLoadingPolicies();
-    if (
-      migratedLegacyMetals ||
-      migratedLiveCats ||
-      migratedLiveDogs ||
-      migratedIndustrialSteam ||
-      migratedChemMed ||
-      migratedPhosphate ||
-      migratedSyntheticAmmonia ||
-      migratedElectrical ||
-      migratedElectrolyticIndustry ||
-      migratedMercuryChain ||
-      migratedPetroleumChain ||
-      migratedGrapes ||
-      migratedPerennialFruits ||
-      migratedRaisins ||
-      migratedStapleCrops ||
-      migratedWineRecipe ||
-      migratedSmeltingFuelAndAsh ||
-      migratedPomaceDistillation ||
-      migratedFoodLots ||
-      migratedFreshFoodTags ||
-      migratedLiveAnimalTags
-    ) {
+    if (migratedGoodsCatalog) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }
@@ -3287,52 +3297,10 @@ export function init(api: ExtensionAPI): void {
     Goods.sync();
     Markets.sync();
     attachSvgClickHandlers();
-    const migratedLegacyMetals = migrateLegacyOreIngotGoods();
-    const migratedLiveCats = migrateLiveCatsGood();
-    const migratedLiveDogs = migrateLiveDogsGood();
-    const migratedIndustrialSteam = migrateIndustrialSteamGoods();
-    const migratedChemMed = migrateChemMedGoods();
-    const migratedPhosphate = migratePhosphateGoods();
-    const migratedSyntheticAmmonia = migrateSyntheticAmmoniaGoods();
-    const migratedElectrical = migrateElectricalGoods();
-    const migratedElectrolyticIndustry = migrateElectrolyticIndustryGoods();
-    const migratedMercuryChain = migrateMercuryChainGoods();
-    const migratedPetroleumChain = migratePetroleumChainGoods();
-    const migratedGrapes = migrateGrapesGood();
-    const migratedPerennialFruits = migratePerennialFruitGoods();
-    const migratedRaisins = migrateRaisinsGood();
-    const migratedStapleCrops = migrateStapleCropGoods();
-    const migratedWineRecipe = migrateWineRecipe();
-    const migratedSmeltingFuelAndAsh = migrateSmeltingFuelAndAshGoods();
-    const migratedPomaceDistillation = migratePomaceDistillationGoods();
-    const migratedFoodLots = migrateFoodProcessingLotContracts();
-    const migratedFreshFoodTags = migrateFreshFoodTags();
-    const migratedLiveAnimalTags = migrateLiveAnimalTags();
+    const migratedGoodsCatalog = runGoodsCatalogMigrations();
     Caravans.discardFreshCargo();
     Caravans.refreshLoadingPolicies();
-    if (
-      migratedLegacyMetals ||
-      migratedLiveCats ||
-      migratedLiveDogs ||
-      migratedIndustrialSteam ||
-      migratedChemMed ||
-      migratedPhosphate ||
-      migratedSyntheticAmmonia ||
-      migratedElectrical ||
-      migratedElectrolyticIndustry ||
-      migratedMercuryChain ||
-      migratedPetroleumChain ||
-      migratedGrapes ||
-      migratedPerennialFruits ||
-      migratedRaisins ||
-      migratedStapleCrops ||
-      migratedWineRecipe ||
-      migratedSmeltingFuelAndAsh ||
-      migratedPomaceDistillation ||
-      migratedFoodLots ||
-      migratedFreshFoodTags ||
-      migratedLiveAnimalTags
-    ) {
+    if (migratedGoodsCatalog) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }

@@ -3212,7 +3212,7 @@
       "stewardshipSvc": "Stewardship Svc",
       "stewardshipSvcTip": "PR-17b: smoothed 0-100% liquidity-based service level — drives administrative upkeep/tax efficiency in taxes-generator.ts, one cycle lagged",
       "spymasterySvc": "Spymastery Svc",
-      "spymasterySvcTip": "PR-17b/17d: smoothed 0-100% liquidity-based service level — drives this state's espionage/intrigue effectiveness (floor 40%)",
+      "spymasterySvcTip": "PR-17b/17d: smoothed 0-100% liquidity-based service level — informants and road watchers. A starved Spymastery raises bandit risk on this state's trade routes by up to 50% (tradeSecurity.ts); 100% is the neutral baseline",
       "ecclesiasticaSvc": "Ecclesiastica Svc",
       "ecclesiasticaSvcTip": "PR-17b: smoothed 0-100% liquidity-based service level for Ecclesiastica",
       "deptRemit": "Dept Remit",

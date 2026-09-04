@@ -4,6 +4,7 @@ import { clearEconomyContext, initEconomyContext } from "../../economy/economyCo
 import { CaravanMovement } from "../../economy/generators/caravanMovement";
 import { TradeAnimation } from "../../economy/generators/trade-animation";
 import { worldContext } from "../../hostCore";
+import * as hostServices from "../../hostServices";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import * as hostUi from "../../hostUi";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
@@ -12,6 +13,7 @@ import {
   applyCharacterArrival,
   beginPlayerTravel,
   estimateTravelBetweenBurgs,
+  isTravelRoutingAvailable,
   requestTravelToBurg,
   tickPlayerTravel
 } from "./playerCharacterTravel";
@@ -181,5 +183,40 @@ describe("playerCharacterTravel", () => {
     requestTravelToBurg(1);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  // Economy is an optional dependency (docs/plan/economy-coupling-audit.md T4). Route estimation
+  // reaches into its caravan pathfinder, whose module context throws once cleared, so a user who
+  // turned Economy off used to get an uncaught exception instead of a message.
+  describe("without the Economy extension", () => {
+    beforeEach(() => {
+      clearEconomyContext();
+    });
+
+    it("reports unavailable routing instead of throwing", () => {
+      expect(isTravelRoutingAvailable()).toBe(false);
+      expect(() => estimateTravelBetweenBurgs(1, 2)).not.toThrow();
+      expect(estimateTravelBetweenBurgs(1, 2)).toBeNull();
+    });
+
+    it("still answers the same-burg case from host data alone", () => {
+      expect(estimateTravelBetweenBurgs(1, 1)).toEqual({
+        sourceBurgId: 1,
+        destinationBurgId: 1,
+        durationDays: 0,
+        destinationName: "Startford"
+      });
+    });
+
+    it("tells the user Economy is required rather than blaming a missing road", () => {
+      const confirmSpy = vi.spyOn(hostUi, "openConfirm").mockImplementation(() => {});
+      const tipSpy = vi.spyOn(hostServices, "tip").mockImplementation(() => {});
+
+      expect(() => requestTravelToBurg(2)).not.toThrow();
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(tipSpy).toHaveBeenCalledTimes(1);
+      expect(tipSpy.mock.calls[0][0]).toMatch(/Economy extension/);
+    });
   });
 });

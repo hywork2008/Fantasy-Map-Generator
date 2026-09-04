@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
-import { clearEconomyContext, getMarketById, initEconomyContext, setMarkets } from "./economyContext";
+import {
+  clearEconomyContext,
+  getAgTechLastSettledYear,
+  getFoodPotential,
+  getMarketById,
+  initEconomyContext,
+  setAgTechLastSettledYear,
+  setFoodPotential,
+  setMarkets
+} from "./economyContext";
 import type { Market } from "./generators/marketTypes";
 
 function market(i: number): Market {
@@ -40,5 +49,25 @@ describe("getMarketById", () => {
     setMarkets([market(2)]);
     expect(getMarketById(1)).toBeUndefined();
     expect(getMarketById(2)).toBeDefined();
+  });
+});
+
+/**
+ * The accessors' module-scope fallbacks live in the per-domain `./context/*` modules now, and
+ * `clearEconomyContext()` runs them through a registry instead of assigning each one by name
+ * (docs/plan/economy-coupling-audit.md T3). A domain module that forgets to register its reset
+ * would leak state between tests silently, so assert the wiring rather than the list.
+ */
+describe("clearEconomyContext", () => {
+  it("resets fallbacks owned by the domain context modules", () => {
+    setFoodPotential(Float32Array.from([1, 2, 3]));
+    setAgTechLastSettledYear(1234);
+    expect(getFoodPotential()).toHaveLength(3);
+    expect(getAgTechLastSettledYear()).toBe(1234);
+
+    clearEconomyContext();
+
+    expect(getFoodPotential()).toHaveLength(0);
+    expect(getAgTechLastSettledYear()).toBeNull();
   });
 });

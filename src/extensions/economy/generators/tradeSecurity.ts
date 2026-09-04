@@ -1,3 +1,4 @@
+import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getApi, getTradeSecurityLedgers, getWorldContext, setTradeSecurityLedgers } from "../economyContext";
 import type { TradeSecurityLedger } from "./tradeSecurityTypes";
@@ -8,6 +9,24 @@ export type { TradeSecurityLedger } from "./tradeSecurityTypes";
 const BASE_BANDIT_RISK_PER_DAY = 0.001;
 const SECURITY_UPKEEP_BASE = 0.2;
 const SECURITY_UPKEEP_PER_BURG = 0.05;
+/**
+ * Extra bandit risk a fully-neglected Spymastery (`departmentServiceLevel.spymastery` sustained
+ * at 0) adds to its state's roads, as a fraction of the otherwise-computed risk.
+ *
+ * Spymastery was the one funded department with no downstream effect at all: marshalcy pays
+ * troop upkeep, chancery drives `diplomaticReliability`, stewardship drives tax efficiency and
+ * administrative upkeep, ecclesiastica drives `religiousUnrest` — spymastery's budget and
+ * service level were tracked and then read by nothing. Knowing which passes are held and which
+ * villages are sheltering outlaws is exactly that department's job, so its neglect surfaces here.
+ * docs/plan/economy-coupling-audit.md L8.
+ *
+ * Deliberately a neglect penalty only, never a bonus: `departmentServiceLevel` is clamped to
+ * 0..1 with 1 = healthy (treasuryAllocation.ts's `updateDepartmentServiceLevel`), so a state at
+ * the default level 1 gets a multiplier of exactly 1 and its risk is unchanged — the same shape
+ * as PR-17b's Stewardship shortfall. Sized well under the existing frontier (up to 1.25) and
+ * map-danger (up to 4x) multipliers so intelligence modulates route risk without dominating it.
+ */
+const SPYMASTERY_NEGLECT_RISK_MAX = 0.5;
 const FRONTIER_WILDERNESS = 0;
 const FRONTIER_OUTPOST = 1;
 const FRONTIER_SETTLEMENT = 2;
@@ -78,7 +97,7 @@ export class TradeSecurityModule {
    * incorporated by default, even when the optional frontier simulation is absent.
    */
   getBanditRiskPerDay(destinationBurgId: number, warIntensity: number): number {
-    const { burgs, cells } = getWorldContext().pack;
+    const { burgs, cells, states } = getWorldContext().pack;
     const burg = burgs[destinationBurgId];
     if (!burg || burg.removed || !Number.isInteger(burg.cell)) return 0;
 
@@ -99,14 +118,30 @@ export class TradeSecurityModule {
     // from static map danger so an improved route-security budget can still counter it.
     const banditMultiplier = 1 + (UrbanLaborIntake.getBanditPressureByState().get(stateId) ?? 0);
     const securityMultiplier = 1 - this.getEffectiveInvestment(stateId);
+    // Patrol budget (securityMultiplier) is money on the road; Spymastery is knowing where to
+    // put it. Separate levers, so a separate factor rather than folding into the investment term.
+    const spymasteryMultiplier = this.getSpymasteryRiskMultiplier(states?.[stateId]);
     return this.clampUnit(
       BASE_BANDIT_RISK_PER_DAY *
         warMultiplier *
         frontierMultiplier *
         dangerMultiplier *
         banditMultiplier *
-        securityMultiplier
+        securityMultiplier *
+        spymasteryMultiplier
     );
+  }
+
+  /**
+   * Road-risk multiplier from a state's Spymastery funding. 1.0 at the healthy default level of
+   * 1 (and for a neutral / missing state), rising to 1 + SPYMASTERY_NEGLECT_RISK_MAX as the
+   * department's smoothed service level falls to 0.
+   */
+  getSpymasteryRiskMultiplier(state: State | undefined): number {
+    if (!state || state.removed || !state.i) return 1;
+    const level = state.departmentServiceLevel?.spymastery ?? 1;
+    const shortfall = 1 - this.clampUnit(level);
+    return 1 + shortfall * SPYMASTERY_NEGLECT_RISK_MAX;
   }
 
   getMonthlyUpkeep(stateId: number): number {

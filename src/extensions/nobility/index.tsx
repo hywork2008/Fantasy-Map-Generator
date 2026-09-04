@@ -38,6 +38,12 @@ import { resolveCharacterRegenerationSeed } from "./resolveCharacterRegeneration
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 
 export const NOBILITY_EXTENSION_ID = "nobility";
+/**
+ * Declared locally rather than imported from `../economy` so this extension does not pull the
+ * whole economy entry module into its own bundle just to name a dependency — same pattern as
+ * `ui/components/PlayerCharacterPanel.tsx`.
+ */
+const ECONOMY_EXTENSION_ID = "economy";
 
 let _unsubscribe: (() => void) | null = null;
 let _unregisterMapReadyTask: (() => void) | null = null;
@@ -116,7 +122,18 @@ export function init(api: ExtensionAPI): void {
       description: "Adds ruler characters and central government offices for each state.",
       // Nobility assigns titles/offices to, and runs political AI over, characters generated
       // by the Characters extension — it never generates or stores character data itself.
-      dependencies: [{ id: CHARACTERS_EXTENSION_ID, required: true }]
+      //
+      // Economy is optional but real: conquest disrupts a captured burg's guild/academy technique
+      // stocks (localDefense.ts), regiments fight on Economy's martial-discipline and individual
+      // mastery multipliers, player travel routes on Economy's caravan pathfinder, and new
+      // characters are seeded with Economy's starting wealth. Every one of those degrades to a
+      // no-op without Economy, so it is not `required` — but leaving it undeclared meant the
+      // Extensions tab could not tell the user any of it was missing.
+      // docs/plan/economy-coupling-audit.md T4.
+      dependencies: [
+        { id: CHARACTERS_EXTENSION_ID, required: true },
+        { id: ECONOMY_EXTENSION_ID, required: false }
+      ]
     },
     false
   );

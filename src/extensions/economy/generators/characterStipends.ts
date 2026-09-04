@@ -6,7 +6,13 @@ import { rand, rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getRegimentCommander } from "../../nobility/generators/officerAssignment";
 import { getRulerId } from "../../nobility/nobilityContext";
-import { getGuildKnowledgeStocks, getMarkets, getWorldContext, setGuildKnowledgeStocks } from "../economyContext";
+import {
+  getGuildKnowledgeStocks,
+  getMarkets,
+  getWorldContext,
+  isEconomyContextReady,
+  setGuildKnowledgeStocks
+} from "../economyContext";
 import { findApprentices, findMaster } from "./guildSuccession";
 import { raceHoardBonus } from "./raceWealthBias";
 import { SmithingWorkshopAccounting } from "./smithingWorkshopLedger";
@@ -297,9 +303,14 @@ export function backPayCycles(): number {
  * market manager/rival wealth has its own creation-time seed in marketManagers.ts instead of a
  * loop here, since by the time this function runs they may already hold a live-paid (but
  * pool-starved) balance that this guard would then skip topping up.
+ *
+ * Cross-extension caller (Nobility's `regenerateNobilityData`) may run before, or entirely
+ * without, this extension's own init having run — degrade to a no-op instead of letting
+ * `getWorldContext()` throw, the same guard `applyConquestDisruption()` uses.
+ * docs/plan/economy-coupling-audit.md T4.
  */
 export function seedMissingCharacterWealth(): void {
-  if (!hasCharactersContext()) return;
+  if (!isEconomyContextReady() || !hasCharactersContext()) return;
   const characters = getCharacters();
   const { pack } = getWorldContext();
 

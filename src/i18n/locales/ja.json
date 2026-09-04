@@ -3212,7 +3212,7 @@
       "stewardshipSvc": "財務サービス",
       "stewardshipSvcTip": "PR-17b：流動性に基づく平滑化 0–100% — taxes-generator.ts の行政維持／徴税効率を 1 期遅れで駆動",
       "spymasterySvc": "諜報サービス",
-      "spymasterySvcTip": "PR-17b/17d：流動性に基づく平滑化 0–100% — この国家の諜報／謀略効率（下限 40%）",
+      "spymasterySvcTip": "PR-17b/17d：流動性に基づく平滑化 0–100% — 密偵と街道監視。諜報部門を餓えさせると自国の交易路の盗賊リスクが最大 50% 上昇する（tradeSecurity.ts）。100% が基準値",
       "ecclesiasticaSvc": "宗務サービス",
       "ecclesiasticaSvcTip": "PR-17b：宗務の流動性に基づく平滑化 0–100% サービス水準",
       "deptRemit": "部門還流",

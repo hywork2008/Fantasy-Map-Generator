@@ -1,5 +1,6 @@
 import { pointer } from "d3";
 import { usePlayerCharacterState } from "../../characters/store/playerCharacterState";
+import { isEconomyContextReady } from "../../economy/economyContext";
 import type { TradeRouteSegment } from "../../economy/generators/marketTypes";
 import { TradeAnimation } from "../../economy/generators/trade-animation";
 import { calculateRouteDurationDays } from "../../economy/generators/tradeRouteDuration";
@@ -14,6 +15,17 @@ export interface TravelEstimate {
   /** Whole simulation days (ceiled caravan-route duration). */
   durationDays: number;
   destinationName: string;
+}
+
+/**
+ * Route estimation runs on Economy's caravan pathfinder, and Economy is an optional dependency
+ * (see this extension's `registerExtension` call). Its module context throws outright once
+ * `cleanup()` has cleared it, so every reach into `TradeAnimation` has to be gated on this —
+ * the same guard `applyConquestDisruption()` uses on the conquest path.
+ * docs/plan/economy-coupling-audit.md T4.
+ */
+export function isTravelRoutingAvailable(): boolean {
+  return isEconomyContextReady();
 }
 
 /** True when the map is in pure SVG mode (move selection uses SVG viewbox clicks). */
@@ -57,6 +69,10 @@ export function estimateTravelBetweenBurgs(sourceBurgId: number, destinationBurg
   }
 
   if (!world.pack.cells?.routes) return null;
+
+  // Everything above answers from host data alone, so a same-burg / same-cell move still works
+  // with Economy off. Only the pathfinder below needs it.
+  if (!isTravelRoutingAvailable()) return null;
 
   const routePath = TradeAnimation.findRoutePath(source.cell, target.cell);
   if (!routePath || routePath.segments.length === 0) return null;
@@ -194,6 +210,12 @@ export function requestTravelToBurg(destinationBurgId: number): void {
 
   const estimate = estimateTravelBetweenBurgs(character.location, destinationBurgId);
   if (!estimate) {
+    // Distinguish "no route exists" from "the extension that computes routes is off" — the
+    // second is a setting the user can change, and reporting it as a missing road is misleading.
+    if (!isTravelRoutingAvailable()) {
+      tip("Travel needs the Economy extension enabled to plan a route", false, "error");
+      return;
+    }
     tip("No trade route connects the current location to that burg", false, "error");
     return;
   }

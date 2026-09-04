@@ -93,4 +93,49 @@ describe("TradeSecurityModule", () => {
     expect(getCaravans()).toHaveLength(1);
     expect(TradeSecurity.getBanditRiskPerDay(1, 1)).toBe(0);
   });
+
+  // docs/plan/economy-coupling-audit.md L8: Spymastery was the only funded department whose
+  // service level nothing downstream read.
+  describe("Spymastery funding", () => {
+    it("leaves risk unchanged at the healthy default service level", () => {
+      const state = worldContext.pack.states[1];
+      const baseline = TradeSecurity.getBanditRiskPerDay(1, 1);
+
+      state.departmentServiceLevel = { marshalcy: 1, chancery: 1, stewardship: 1, spymastery: 1, ecclesiastica: 1 };
+
+      expect(TradeSecurity.getSpymasteryRiskMultiplier(state)).toBe(1);
+      expect(TradeSecurity.getBanditRiskPerDay(1, 1)).toBeCloseTo(baseline, 10);
+    });
+
+    it("treats a state with no departmentServiceLevel as healthy", () => {
+      const state = worldContext.pack.states[1];
+      state.departmentServiceLevel = undefined;
+      expect(TradeSecurity.getSpymasteryRiskMultiplier(state)).toBe(1);
+    });
+
+    it("raises road risk as Spymastery is starved, up to the neglect ceiling", () => {
+      const state = worldContext.pack.states[1];
+      // Danger 255 already pushes the baseline to the 0.01 seen above; drop it so the
+      // spymastery term is visible rather than lost to clamping.
+      (worldContext.pack.cells.danger as Uint8Array)[0] = 0;
+      const healthy = TradeSecurity.getBanditRiskPerDay(1, 1);
+
+      state.departmentServiceLevel = {
+        marshalcy: 1,
+        chancery: 1,
+        stewardship: 1,
+        spymastery: 0.5,
+        ecclesiastica: 1
+      };
+      expect(TradeSecurity.getBanditRiskPerDay(1, 1)).toBeCloseTo(healthy * 1.25, 10);
+
+      state.departmentServiceLevel.spymastery = 0;
+      expect(TradeSecurity.getSpymasteryRiskMultiplier(state)).toBe(1.5);
+      expect(TradeSecurity.getBanditRiskPerDay(1, 1)).toBeCloseTo(healthy * 1.5, 10);
+    });
+
+    it("does not modulate risk for the neutral state", () => {
+      expect(TradeSecurity.getSpymasteryRiskMultiplier(worldContext.pack.states[0])).toBe(1);
+    });
+  });
 });
