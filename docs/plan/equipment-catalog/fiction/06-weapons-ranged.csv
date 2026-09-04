@@ -1,0 +1,8 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,effective_range_m,origin_region,period,attestation,rpg_examples,notes
+slingshot,Slingshot,パチンコ,wrist rocket,main_hand,main_hand,1H,elastic,20-30,0.1-0.3,15-40,modern,modern,rpg_common,late setting,中世以前には無い
+throwing_star,Throwing star,手裏剣（車）,shaken,ammo,ammo,thrown,thrown,5-12,0.05-0.15,5-15,Japan,Edo image,rpg_common,ninja,
+bowgun,Bowgun,ボウガン,Japanese RPG crossbow name,two_hand,main_hand+off_hand,2H,crossbow,60-90,2.0-4.0,40-80,rpg,n/a,rpg_common,DQ クロスボウ / ボウガン,日本RPGでの弩の通称
+elven_bow,Elven bow,エルフの弓,long composite fantasy,two_hand,main_hand+off_hand,2H,bow,150-180,game-light,120-300,fantasy,n/a,rpg_common,TES; LotR-like,品質帯
+heavy_bow,Heavy bow,ヘビーボウ,great bow,two_hand,main_hand+off_hand,2H,bow,180-220,1.2-2.0,80-200,fantasy / longbow analog,n/a,rpg_common,Dark Souls Greatbow,ゲームでは巨大矢
+greatbow,Greatbow,グレートボウ,,two_hand,main_hand+off_hand,2H,bow,200-250,2.0-4.0,game,fantasy,n/a,rpg_common,Souls,対大型。歴史長弓の誇張
+short_crossbow,Short crossbow,ショートクロスボウ,,two_hand,main_hand+off_hand,2H,crossbow,50-70,1.5-3.0,30-60,rpg,n/a,rpg_common,FF,

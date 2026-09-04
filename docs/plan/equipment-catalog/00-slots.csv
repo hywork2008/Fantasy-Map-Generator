@@ -1,0 +1,24 @@
+slot_id,name_en,name_ja,anatomical_region,handedness,fmg_v1_slot,typical_items,pair_count,notes
+head,Head,頭部,skull and scalp,worn,body,"helmet; hat; hood; circlet; kabuto",1,多くのRPGで独立欄。甲冑一式のときは body に畳むこともある
+face,Face,顔面,face and jaw,worn,body,"visor; menpo; bevor; mask; eyepatch",1,head に統合されることが多い。暗視ゴーグル等は eyes 扱い
+eyes,Eyes,眼,eyes,worn,accessory,"goggles; lenses; blindfold",1,D&D 3.5 / Pathfinder の独立欄
+neck,Neck,首,throat and nape,worn,accessory,"gorget; nodowa; amulet; torque; necklace",1,防具としては gorget、装身具としては amulet
+shoulders,Shoulders,肩,shoulders and upper arm,worn,body,"pauldron; sode; cloak pin area; mantle",1,WoW/Diablo で独立。外套そのものは back
+back,Back,背,upper back,worn,accessory,"cloak; cape; mantle; quiver worn on back",1,防具の背板は body（cuirass）側
+chest,Chest,胸,thorax front,worn,body,"breastplate; plackart; pectoral",1,body と分けるシステム（PF chest vs body）向け
+body,Body,胴,torso front and back,worn,body,"cuirass; hauberk; robe; do; gambeson",1,FMG v1 の主スロット。衣服と鎧を兼ねる
+waist,Waist,腰,waist and hips,worn,body,"belt; sash; fauld; tassets; obi",1,ベルトは装身具、fauld は甲冑部品
+legs,Legs,脚,thighs to shins,worn,body,"chausses; greaves; haidate; suneate; trousers",1,Dark Souls 等では下半身一括
+feet,Feet,足,feet,worn,body,"boots; sabatons; kogake; sandals",1,
+wrists,Wrists,手首,forearms and wrists,worn,body,"bracers; vambraces; kote cuff",1,手袋と分けるRPGが多い
+hands,Hands,手,hands,worn,body,"gauntlets; gloves; kote",1,両手で1欄が普通
+main_hand,Main hand,利き手,wielded right or dominant,1H or versatile,weapon,"sword; axe; mace; wand; tool-weapon",1,Versatile は両手持ちに切替可
+off_hand,Off hand,非利き手,wielded left or off,1H,weapon,"shield; parrying dagger; buckler; orb; tome",1,盾・補助武器・魔道具。両手武器装備時は空かない
+two_hand,Two-hand,両手,both hands,2H,weapon,"greatsword; bow; polearm; staff; crossbow",1,main_hand と off_hand を同時占有
+shield,Shield,盾,off-hand or planted,1H or planted,weapon,"buckler to pavise",1,off_hand の特殊化。据え置きパヴィースは planted
+ranged,Ranged,遠隔,wielded two-hand usually,2H,weapon,"bow; crossbow; sling; firearm",1,WoW 等の独立遠隔欄。本カタログでは two_hand または main_hand
+ammo,Ammunition,弾薬,worn at hip or back,worn,accessory,"quiver; bolt case; pouch; powder horn",1,矢・ボルト・弾。武器ではなく消耗枠
+ring,Ring,指輪,fingers,worn,accessory,"ring; signet",2,RPGでは左右2枠が定番
+accessory,Accessory,装身具,varies,worn,accessory,"amulet; charm; trinket; relic",1-2,FF/DQ の包括欄。指輪・首をここに畳む実装もある
+instrument,Instrument,楽器,wielded or worn,1H or 2H,weapon,"lute; harp; flute",1,bard 用。weapon または accessory
+mount,Mount,乗騎,ridden,n/a,mount,"horse; tack as related gear",1,FMG v1.1。馬具単体は accessories

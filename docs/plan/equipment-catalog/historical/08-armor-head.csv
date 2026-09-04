@@ -1,0 +1,57 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+skullcap,Skullcap,スカルキャップ,cervelliere,head,crown,metal,0.4-1.0,Europe,12C-14C,historical,under-helm,大兜の下や単独
+cervelliere,Cervelliere,セルヴェリエール,,head,crown,steel,0.5-1.2,Europe,12C-14C,historical,,密着半球
+nasal_helm,Nasal helm,ナーザルヘルム,Norman nasal,head,crown and nose,steel/iron,1.2-2.0,Western Europe,10C-12C,both,generic iron helm,鼻当て付き円錐。ノルマン
+conical_helm,Conical helm,円錐兜,spangen or one-piece,head,crown,iron,1.2-2.2,Eurasia,Migration-High Medieval,historical,,
+spangenhelm,Spangenhelm,シュパンゲンヘルム,segmented helm,head,crown cheeks sometimes,iron,1.5-2.5,Europe / Steppe,Late Antiquity-Early Medieval,historical,TES hide/iron,帯金で板を組む
+great_helm,Great helm,グレートヘルム,heaume; pot helm,head,full head,steel,2.0-4.0,Western Europe,13C-14C,both,DQ グレートヘルム,筒型。重いが視界狭い。バシネットの上に被ることも
+sugarloaf_helm,Sugarloaf helm,シュガーローフ,peaked great helm,head,full head,steel,2.0-3.5,Europe,13C-14C,historical,,
+bascinet,Bascinet,バシネット,bacinet,head,skull and cheeks,steel,1.5-3.0,Western Europe,14C-15C,both,knight kits,尖り。ハウンドスカルバイザー付きが多い
+hounskull,Hounskull,ハウンドスカル,pig-faced bascinet,head,full head with visor,steel,2.0-3.5,Europe,14C,historical,,犬顔バイザー
+kettle_hat,Kettle hat,ケトルハット,chapel-de-fer; war hat,head,crown and brim,steel,1.2-2.5,Europe,12C-16C,both,archer/infantry,つば広。弓兵・歩兵
+sallet,Sallet,サレット,schaller,head,skull nape tail,steel,1.5-3.0,German / Italy,15C,both,late plate,後ろが長い。ベヴァーと組む
+barbute,Barbute,バルビュート,Italian barbuta,head,face opening T or Y,steel,1.5-2.8,Italy,15C,historical,Corinthian revival,コリント風の開口
+armet,Armet,アーメット,,head,full enclosed,steel,2.0-3.5,Italy,15C-16C,historical,close combat,蝶番で開く密閉
+close_helm,Close helm,クローズヘルム,,head,full enclosed,steel,2.5-4.0,Europe,16C,both,joust and field,アーメット系の後世名
+burgonet,Burgonet,バーゴネット,,head,open face with brim and cheek,steel,1.5-2.5,Europe,16C-17C,historical,light cavalry,
+morion,Morion,モリオン,comb morion,head,brim peaked,steel,1.2-2.0,Spain / Europe,16C-17C,historical,conquistador,後期。中世ファンタジーには遅い
+cabasset,Cabasset,カバセット,,head,pear-shaped,steel,1.0-1.8,Europe,16C-17C,historical,,
+zischagge,Zischagge,ツィシャッゲ,lobster-tailed pot,head,skull nape tail nasal,steel,1.5-2.5,Eastern Europe,17C,historical,hussar,中世末期〜近世
+secret_helm,Secret,シークレット,skull lining,head,crown under hat,steel,0.4-0.8,Europe,16C-18C,historical,,帽子の下
+boars_tusk_helm,Boar's tusk helmet,猪牙兜,Mycenaean,head,skull,tusk on leather,0.8-1.5,Aegean,Bronze Age,historical,Homeric,ホメロスの描写
+corinthian_helm,Corinthian helmet,コリント式兜,,head,full face slit,bronze,1.5-2.5,Greece,Archaic-Classical,both,hoplite,被ると顔が隠れる
+illyrian_helm,Illyrian helmet,イリュリア式兜,,head,open face,bronze,1.2-2.0,Greece / Balkans,Archaic,historical,,
+chalcidian_helm,Chalcidian helmet,カルキス式兜,,head,open with cheek,bronze,1.2-2.0,Greece,Classical,historical,,
+attic_helm,Attic helmet,アッティカ式兜,,head,open ornate,bronze,1.2-2.0,Greece,Classical-Hellenistic,historical,,
+phrygian_helm,Phrygian helmet,フリギア式兜,Thracian,head,forward peak,bronze,1.2-2.0,Thrace / Hellenistic,4C-2C BC,historical,,
+montefortino,Montefortino helmet,モンテフォルティノ,,head,jockey with cheek,bronze,1.0-1.8,Italy / Gaul / Rome,4C-1C BC,historical,,
+coolus,Coolus helmet,クールス,,head,brim cheek,bronze,1.0-1.8,Rome,1C BC-1C AD,historical,,
+imperial_gallic,Imperial Gallic helmet,帝国ガリア式兜,Weisenau,head,skull cheek brow,iron,1.5-2.5,Rome,1C-3C AD,historical,legionary,
+ridge_helm,Ridge helmet,リッジヘルム,Late Roman,head,ridge construction,iron,1.5-2.5,Late Rome / Byzantium,4C-7C,historical,,
+kabuto,Kabuto,兜（かぶと）,samurai helmet,head,skull and neck (shikoro),iron/leather,2.0-4.0,Japan,Heian-Edo,both,sengoku RPGs,しころ付き。頭全体
+hoshi_kabuto,Hoshi kabuto,星兜,riveted bowl,head,skull,iron,2.0-3.5,Japan,Heian-Kamakura,historical,,
+suji_kabuto,Suji kabuto,筋兜,ridged,head,skull,iron,2.0-3.5,Japan,Kamakura-Sengoku,historical,,
+kawari_kabuto,Kawari kabuto,変わり兜,exotic,head,skull plus crest,iron,2.0-5.0,Japan,Sengoku,historical,display,巨大な前立は戦闘より威嚇
+jingasa,Jingasa,陣笠,war hat,head,brim,iron/leather/lacquer,0.6-1.5,Japan,Sengoku-Edo,historical,ashigaru,足軽の笠
+happuri,Happuri,半首,,face,forehead cheeks,iron,0.4-0.8,Japan,Heian-Kamakura,historical,,顔の前当て
+menpo,Menpo,面頬,mempo,face,face and throat,iron,0.5-1.2,Japan,Sengoku-Edo,both,samurai,head と併用
+hanbo,Hanbo (mask),半頬,half mask,face,chin and cheeks,iron,0.3-0.7,Japan,Sengoku,historical,,
+hoate,Hoate,頬当,,face,cheeks,iron,0.3-0.6,Japan,Sengoku,historical,,
+chinese_dou,Dou,冑 / 兜（中国）,Chinese helmet,head,skull nape,iron/bronze/lamellar,1.5-3.0,China,Bronze Age-Ming,both,wuxia,
+korean_helmet,Korean helmet,朝鮮兜,jogak,head,skull,iron,1.5-2.8,Korea,Joseon,historical,,
+kulah_khud,Kulah khud,クラー・フド,Persian bowl,head,skull camail,steel,1.5-2.5,Iran / India,Medieval-Early Modern,historical,,
+turban_helmet,Turban helmet,ターバンヘルム,,head,fluted bowl,steel,1.8-3.0,Ottoman / Iran,15C-16C,historical,,
+top_helmet,Top,トップ（インド兜）,Indian helmet,head,skull nasal,steel,1.5-2.5,India,Medieval-Early Modern,historical,,
+chichak,Chichak,チチャク,Ottoman,head,bowl cheek nasal,steel,1.5-2.5,Ottoman,16C,historical,,
+leather_cap,Leather cap,レザーキャップ,hide cap,head,crown,leather,0.3-0.8,universal,universal,both,DQ 皮の帽子,軽装
+padded_coif,Padded coif,パッドコイフ,arming cap,head,skull neck,textile,0.3-0.7,Europe,Medieval,historical,under armor,鎧の下
+mail_coif,Mail coif,メイルコイフ,chain coif,head,skull neck throat,mail,1.5-3.0,Europe / Islamic,Medieval,both,TES,頭＋首。gorget の代替
+hood,Hood,フード,cowl,head,skull neck,cloth,0.2-0.5,universal,Medieval,both,mage kits,防具というより衣服
+crown,Crown,冠,tiara,head,crown,metal,0.3-1.5,universal,Ancient onward,both,ruler,装身具。head を占有
+winged_helm,Winged helm,翼兜,Vendel analog,head,skull,metal,1.5-2.5,Vendel / fantasy,6C-8C / rpg,both,LotR-like,ヴェンデル期に装飾翼の例
+mask,Mask,仮面,war mask,face,face,metal/wood,0.3-1.0,universal,universal,both,OnI; theater,head または face
+visor,Visor,バイザー,beaver adjacent,face,face,steel,0.4-1.0,Europe,Late Medieval,historical,part of helm,単独より兜の部品
+bevor,Bevor,ベヴァー,bevor plate,face or neck,chin neck,steel,0.6-1.5,Europe,15C,historical,with sallet,サレットと組んで顔面
+gorget_note,Gorget,ゴルゲット,see limbs/neck,neck,throat,steel,0.8-2.0,Europe,15C-17C,historical,10 参照,
+shikoro,Shikoro,しころ,neck guard of kabuto,neck,nape,lamellar,included in kabuto,Japan,Heian-Edo,historical,kabuto の一部,独立スロットにはしないことが多い
+laurel,Laurel wreath,月桂冠,,head,brow,plant/metal,0.05-0.2,Rome,Classical,both,status,戦闘用ではない

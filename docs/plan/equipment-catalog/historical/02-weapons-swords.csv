@@ -1,0 +1,71 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+khopesh,Khopesh,コペシュ,khepesh; sickle-sword,main_hand,main_hand,1H,sickle-sword,50-70,0.7-1.3,Egypt / Levant,Bronze Age,both,D&D khopesh,内側に湾曲した刃。斧と剣の中間
+naue_ii,Naue II sword,ナウエII型剣,grip-tongue sword,main_hand,main_hand,1H,straight_double,60-85,0.7-1.2,Europe,Late Bronze Age,historical,,欧州青銅器末の標準剣
+xiphos,Xiphos,クシフォス,greek short sword,main_hand,main_hand,1H,straight_double,50-70,0.7-1.1,Greece,Archaic-Classical,both,hoplite sidearm,葉形刃の短剣。主武器は槍
+kopis,Kopis,コピス,cleaver sword,main_hand,main_hand,1H,forward_curved,50-70,0.8-1.3,Greece,Classical-Hellenistic,historical,D&D kopis,前方加重の片手刀。騎兵向き
+machaira,Machaira,マカイラ,makhaira,main_hand,main_hand,1H,forward_curved,45-70,0.7-1.2,Greece,Classical,historical,,コピスと文献上ほぼ同義に使われる
+falcata,Falcata,ファルカタ,hispanic saber,main_hand,main_hand,1H,forward_curved,50-70,0.8-1.4,Iberia,Iron Age,both,D&D falcata,イベリアの内反刀。スクトゥムを裂いた記録あり
+gladius_hispaniensis,Gladius Hispaniensis,グラディウス・ヒスパニエンシス,early gladius,main_hand,main_hand,1H,straight_double,75-85,0.9-1.3,Rome / Iberia,3C-1C BC,historical,,最長のグラディウス型
+gladius_mainz,Mainz gladius,マインツ型グラディウス,,main_hand,main_hand,1H,straight_double,65-75,0.8-1.2,Rome,1C BC-1C AD,historical,,長い切先と腰
+gladius_pompeii,Pompeii gladius,ポンペイ型グラディウス,gladius,main_hand,main_hand,1H,straight_double,60-70,0.7-1.1,Rome,1C-3C AD,both,D&D shortsword analog,平行刃の短剣。盾と組む突き主体
+spatha,Spatha,スパタ,late roman long sword,main_hand,main_hand,1H,straight_double,75-100,0.9-1.4,Rome,1C-5C,both,TES Imperial sword,騎兵から歩兵へ。中世剣の祖
+seax,Seax,セアックス,sax; scramasax,main_hand,main_hand,1H,single_edge_knife_sword,20-80,0.3-1.2,Northern Europe,Migration-Viking,both,short seax as dagger,短はナイフ、長は剣代用
+viking_sword,Viking / Carolingian sword,ヴァイキング剣,Norse sword; Petersen types,main_hand,main_hand,1H,straight_double,90-100,0.9-1.4,Northern Europe,8C-11C,both,Skyrim iron/steel sword,片手両刃。円盾と組む
+arming_sword,Arming sword,アーミングソード,knightly sword; knight's sword,main_hand,main_hand,1H,straight_double,90-105,0.9-1.3,Western Europe,High Medieval,both,D&D longsword (confusingly),盾と組む騎士の片手剣。RPGのロングソードはこちらを指すことが多い
+longsword,Longsword,ロングソード,hand-and-a-half; bastard sword; langschwert,two_hand,main_hand+off_hand,versatile_2H,straight_double,110-140,1.2-1.8,Western Europe,Late Medieval,both,D&D greatsword is heavier; souls longsword,両手または片手半。RPGの「ロングソード」より長い
+bastard_sword,Bastard sword,バスタードソード,hand-and-a-half,two_hand,main_hand or both,versatile,straight_double,110-130,1.2-1.7,Western Europe,14C-16C,both,D&D bastard; FF,longsword とほぼ同型のRPG名
+greatsword,Greatsword,グレートソード,two-handed sword,two_hand,main_hand+off_hand,2H,straight_double,140-175,1.8-3.0,Western Europe,15C-16C,both,D&D greatsword 6lb; DQ,実在両手剣は2kg前後が多く、ゲームの6lbは重め
+zweihander,Zweihänder,ツヴァイヘンダー,bidenhänder; flamberge (wavy),two_hand,main_hand+off_hand,2H,straight_double,150-180,2.0-3.5,German lands,16C,both,FF Zweihander; Dark Souls,ランツクネヒト。波刃はフランベルジェ
+claymore,Claymore,クレイモア,claidheamh-mòr,two_hand,main_hand+off_hand,2H,straight_double,140-160,2.0-2.8,Scotland,15C-17C,both,DQ クレイモア,Highland 両手剣。後世のバスケットヒルトとは別
+basket_hilt_broadsword,Basket-hilt broadsword,バスケットヒルト・ブロードソード,Highland broadsword,main_hand,main_hand,1H,straight_double,90-110,1.0-1.5,Britain,17C-18C,historical,RPG broadsword,籠手護拳の片手両刃
+backsword,Backsword,バックソード,,main_hand,main_hand,1H,single_edge,90-110,0.9-1.4,Britain / Europe,Early Modern,historical,,片刃の軍剣
+falchion,Falchion,ファルシオン,fauchon,main_hand,main_hand,1H,single_edge_cleaver,80-100,0.9-1.5,Western Europe,13C-16C,both,D&D falchion,片刃の斬撃剣
+messer,Messer,メッサー,langes Messer; Kriegsmesser,main_hand,main_hand,1H or 2H,single_edge,70-130,0.9-1.8,German lands,14C-16C,historical,HEMA,ナイフ構造の剣。大は両手
+katzbalger,Katzbalger,カッツバルガー,,main_hand,main_hand,1H,straight_double,70-90,0.9-1.3,German lands,16C,historical,,ランツクネヒトの短めサイドアーム
+estoc,Estoc,エストック,tuck,two_hand,main_hand+off_hand,1H or 2H,thrust_rigid,110-140,1.2-1.8,Western Europe,15C-16C,both,D&D estoc,装甲の隙間を突く剛剣。刃がほとんどない
+rapier,Rapier,レイピア,espada ropera,main_hand,main_hand,1H,thrust_complex_hilt,110-130,1.0-1.5,Western Europe,16C-17C,both,D&D rapier finesse,突き主体。バックラーやダガーと組む
+sidesword,Sidesword,サイドソード,spada da lato,main_hand,main_hand,1H,cut_and_thrust,100-120,1.0-1.4,Italy,16C,historical,HEMA,レイピア以前の斬突両用
+smallsword,Smallsword,スモールソード,court sword,main_hand,main_hand,1H,thrust_light,90-100,0.4-0.7,Western Europe,17C-18C,historical,late RPG,軽量の突剣。中世ファンタジーには遅い
+cutlass,Cutlass,カトラス,hanger,main_hand,main_hand,1H,single_edge_short,70-85,0.8-1.3,Atlantic,17C-19C,both,pirate RPGs,艦上の短い湾刀
+sabre,Sabre,サーベル,saber,main_hand,main_hand,1H,curved_single,90-110,0.9-1.3,Eastern/Western Europe,Early Modern,both,cavalry RPG,騎兵刀の総称
+pala,Pala,パラ,Ottoman sabre,main_hand,main_hand,1H,curved_single,80-100,0.9-1.3,Ottoman,Early Modern,historical,,
+kilij,Kilij,キリジ,kilic,main_hand,main_hand,1H,curved_yelman,90-110,0.9-1.4,Ottoman / Turkic,Medieval-Early Modern,both,scimitar family,先端が広がるイェルマン
+shamshir,Shamshir,シャムシール,Persian saber,main_hand,main_hand,1H,deeply_curved,90-105,0.8-1.2,Iran,Medieval-Early Modern,both,D&D scimitar analog,深い湾曲。シミターの核
+scimitar,Scimitar,シミター,scymitar (umbrella),main_hand,main_hand,1H,curved_single,80-110,0.8-1.4,Islamic world (exonym),Medieval,both,D&D scimitar; DQ シミター,西洋側の包括名。シャムシール・キリジ・サーイフを束ねる
+saif,Saif,サイフ,sayf,main_hand,main_hand,1H,curved_or_straight,80-100,0.8-1.3,Arabian,Medieval,historical,,アラビア語の剣一般
+yatagan,Yatagan,ヤタガン,yataghan,main_hand,main_hand,1H,forward_curved_no_guard,60-80,0.7-1.1,Ottoman,16C-19C,historical,, Inner curve の短刀剣
+takouba,Takouba,タクーバ,Tuareg sword,main_hand,main_hand,1H,straight_double,90-110,1.0-1.4,Sahel,Early Modern (type older),historical,,トゥアレグ
+kaskara,Kaskara,カスカラ,Sudanese sword,main_hand,main_hand,1H,straight_double,90-110,1.0-1.4,Sudan,Medieval-Early Modern,historical,,十字鍔の直剣
+shotel,Shotel,ショテル,Ethiopian sickle-sword,main_hand,main_hand,1H,strongly_curved,70-100,0.9-1.5,Ethiopia,Medieval-Early Modern,both,D&D shotel,盾を回り込む大湾曲
+akrafena,Akrafena,アクラフェナ,Akan sword,main_hand,main_hand,1H,leaf_or_curved,70-90,1.0-1.6,West Africa,Early Modern,historical,,アカンの儀礼・戦剣
+talwar,Talwar,タルワール,tulwar,main_hand,main_hand,1H,curved_disk_pommel,80-100,0.9-1.3,South Asia,Medieval-Early Modern,both,Indian RPGs,円盤柄頭の湾刀
+khanda,Khanda,カンダ,Indian broadsword,main_hand,main_hand,1H or 2H,straight_broad,90-110,1.2-1.8,South Asia,Medieval,both,,両刃広身。柄が長いものあり
+pata,Pata,パタ,gauntlet-sword,main_hand,main_hand,1H,straight_gauntlet,100-140,1.3-2.0,India,Early Modern,historical,niche,籠手が柄になった突斬剣
+urumi,Urumi,ウルミ,flexible sword,main_hand,main_hand,1H,flexible_whip_sword,120-160,0.8-1.5,South India,Medieval-Early Modern,both,exotic RPG,帯状の柔軟剣。取り回し危険
+firangi,Firangi,フィランギ,Indian European-blade,main_hand,main_hand,1H,straight_or_slight,90-110,1.0-1.4,India,Early Modern,historical,,輸入欧州刃にインド柄
+jian,Jian,剣（けん / ジャン）,Chinese straight sword,main_hand,main_hand,1H,straight_double,70-110,0.7-1.1,China,Zhou onward,both,wuxia; FF ジャン,両刃直剣。文人剣のイメージ
+dao,Dao,刀（とう / ダオ）,Chinese saber (umbrella),main_hand,main_hand,1H,single_edge,70-100,0.8-1.4,China,Han onward,both,wuxia,片刃刀の総称
+liuyedao,Liuyedao,柳葉刀,willow-leaf saber,main_hand,main_hand,1H,moderate_curve,80-100,0.8-1.2,China,Ming-Qing,historical,,標準的軍刀
+yanmaodao,Yanmaodao,雁毛刀,goose-quill saber,main_hand,main_hand,1H,straightish_then_curve,80-100,0.8-1.3,China,Ming,historical,,
+piandao,Piandao,片刀,slashing saber,main_hand,main_hand,1H,deep_curve,70-90,0.8-1.2,China,Ming,historical,,シャムシールに近い
+niuweidao,Niuweidao,牛尾刀,oxtail saber,main_hand,main_hand,1H,broad_flaring,80-100,0.9-1.4,China,Qing-modern,historical,kung fu,武術用の幅広い刀
+dadao,Dadao,大刀,Chinese great saber,main_hand,main_hand,1H or 2H,broad_chopping,80-100,1.2-2.0,China,Ming-20C,both,,厚い斬撃刀
+zhanmadao,Zhanmadao,斬馬刀,horse-cutting saber,two_hand,main_hand+off_hand,2H,long_single,120-160,1.5-2.5,China,Song onward,both,anti-cavalry,長柄寄りの両手刀
+miaodao,Miaodao,苗刀,Chinese two-hand saber,two_hand,main_hand+off_hand,2H,long_single,120-140,1.2-1.8,China,Ming-Qing,historical,,
+chokuto,Chokuto,直刀,straight Japanese sword,main_hand,main_hand,1H,straight_single,70-90,0.7-1.1,Japan,Kofun-Nara,historical,,日本刀以前の直刀
+tsurugi,Tsurugi / ken,剣（つるぎ）,Japanese double-edge,main_hand,main_hand,1H,straight_double,60-90,0.7-1.2,Japan,Kofun,legendary/historical,mythic,直両刃。神器イメージ
+tachi,Tachi,太刀,,main_hand,main_hand,1H,curved_single,90-110,0.9-1.4,Japan,Heian-Kamakura,both,FF Tachi,刃を下にして吊る騎乗刀
+katana,Katana,刀（かたな）,uchigatana,main_hand,main_hand,1H or 2H,curved_single,90-110 overall blade 60-80,1.0-1.4,Japan,Muromachi onward,both,FF/DQ カタナ; D&D longsword analog,両手で振るうのが本式。RPGでは片手扱いも多い
+wakizashi,Wakizashi,脇差,,main_hand,main_hand or off_hand,1H,curved_single,50-80,0.5-0.9,Japan,Muromachi onward,both,off-hand in ninja kits,打刀と対の短刀。短剣欄にも入る
+kodachi,Kodachi,小太刀,,main_hand,main_hand,1H,curved_single,60-80,0.6-1.0,Japan,Kamakura-Muromachi,both,,
+nodachi,Nodachi,野太刀,odachi,two_hand,main_hand+off_hand,2H,curved_single,150-180+,1.8-2.8,Japan,Kamakura-Sengoku,both,FF Nodachi; Souls,野戦・対騎馬の大太刀。携行しにくい
+hwando,Hwando,環刀,Korean saber,main_hand,main_hand,1H,slight_curve,80-100,0.8-1.2,Korea,Joseon,historical,,
+ssangsudo,Ssangsudo,双手刀,Korean two-hand saber,two_hand,main_hand+off_hand,2H,long_single,140-160,1.5-2.5,Korea,Joseon,historical,,
+kris_sword,Kris (long),クリス（長）,keris panjang,main_hand,main_hand,1H,wavy,50-80,0.6-1.1,Malay world,Medieval,both,DQ クリス,短は短剣。波刃
+kampilan,Kampilan,カンピラン,,main_hand,main_hand,1H or 2H,tapered_single,90-110,0.9-1.4,Philippines,precolonial-Early Modern,historical,,
+klewang,Klewang,クレワング,,main_hand,main_hand,1H,single_machete,60-80,0.7-1.2,Indonesia,Early Modern,historical,,
+dha,Dha,ダー,daab; Thai-Burmese sword,main_hand,main_hand,1H,slight_curve,70-90,0.7-1.2,Mainland SE Asia,Medieval-Early Modern,historical,,
+macuahuitl,Macuahuitl,マクアフティル,obsidian-edged club-sword,main_hand,main_hand,1H or 2H,obsidian_edges,70-100,1.0-2.5,Mesoamerica,Postclassic,both,Mesoamerican RPGs,黒曜石刃を並べた木剣。片手・両手
+flamberge,Flamberge,フランベルジェ,flambard,two_hand,main_hand+off_hand,2H,wavy_two_hand,140-170,2.0-3.2,German lands,16C,both,FF,波刃の両手剣またはレイピア
+cinquedea,Cinquedea,チンクエデア,five-finger sword,main_hand,main_hand,1H,broad_base,40-60,0.7-1.2,Italy,15C-16C,historical,,基部が手幅ほどもある短剣寄りの剣
+executioner_sword,Executioner's sword,処刑剣,heading sword,two_hand,main_hand+off_hand,2H,straight_no_point,100-120,1.5-2.5,Europe,16C-18C,historical,edgy RPGs,戦場剣ではなく司法具。切先がない

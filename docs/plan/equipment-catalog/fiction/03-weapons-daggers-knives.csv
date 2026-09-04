@@ -1,0 +1,7 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+poignard,Poignard,ポニャード,poniard,main_hand,main_hand,1H,thrust,25-40,0.2-0.5,Western Europe,Renaissance,rpg_common,FF ポニャード,
+kunai,Kunai,苦無,,main_hand,main_hand,1H,utility_trowel,20-30,0.2-0.4,Japan,historical tool / rpg weapon,rpg_common,ninja games,本来は農業・工作具。RPGでは投擲武器
+push_dagger,Push dagger,プッシュダガー,fist knife,main_hand,main_hand,1H,T_grip,15-25,0.2-0.4,various / rpg,modern analog,rpg_common,,
+hunting_knife,Hunting knife,ハンティングナイフ,bowie analog,main_hand,main_hand,1H,single,20-35,0.2-0.5,universal,universal,rpg_common,survival RPGs,
+assassin_dagger,Assassin's dagger,アサシンダガー,poison dagger,main_hand,main_hand,1H,fantasy,20-35,0.2-0.4,fantasy,n/a,rpg_common,DQ/FF,毒・急所のゲーム効果
+mythril_knife,Mythril knife,ミスリルナイフ,,main_hand,main_hand,1H,fantasy,20-35,game-light,fantasy,n/a,rpg_common,FF,

@@ -1,0 +1,28 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+achilles_armor,Armor of Achilles,アキレウスの甲,Hephaestus panoply,body,full,divine bronze and gold,n/a,Greece,Homeric,epic,Greek,Achilles; Patroclus; Hector,Iliad 16-19,God of War analog,ヘパイストスが新造。旧一式はパトロクロスが借りヘクトルが奪う。盾・胸・兜・脛
+nemean_lion_skin,Nemean lion skin,ネメアの獅子皮,Heracles' pelt,body,torso and head,impenetrable hide,n/a,Greece,Archaic,mythology,Greek,Heracles,Apollodorus; vase painting,D&D hide analog,通常の武器を通さない。頭はフード状に被る
+shirt_of_nessus,Shirt of Nessus,ネッソスの衣,poisoned tunic,body,torso,poisoned cloth,n/a,Greece,Archaic,mythology,Greek,Heracles; Deianeira; Nessus,Sophocles Trachiniae,rare,ケンタウロスの血に浸した衣。着ると焼け死ぬ
+beowulf_mail,Mail of Beowulf,ベオウルフの鎖帷子,Weland's mail,body,torso,mail by Weland,n/a,England,Early Medieval,epic,Anglo-Saxon,Beowulf,Beowulf,rare,ウェイランド作とされる鎖。海底でも身を守る
+siegfried_horny_skin,Siegfried's horny skin,ジークフリートの角質の肌,dragon-blood bath,body,whole except a spot,dragon blood,n/a,Germany,Medieval,epic,Nibelungenlied,Siegfried,Nibelungenlied,Siegfried legends; RPGs invul,竜血を浴びて刃を通さない。肩の葉陰が弱点
+diomedes_corselet,Corselet of Diomedes,ディオメーデースの胸甲,Hephaestus-made,body,torso,divine,n/a,Greece,Homeric,epic,Greek,Diomedes,Iliad,rare,ヘパイストス作の胸甲という言及
+memnon_armor,Armor of Memnon,メムノーンの甲,Hephaestus for Eos' son,body,full,divine,n/a,Greece,Epic Cycle,epic,Greek,Memnon,Aethiopis tradition,rare, Dawn の子。アキレウスと対
+golden_fleece,Golden Fleece,金羊毛,Colchian fleece,body or accessory,n/a,golden ram wool,n/a,Greece,Archaic,mythology,Greek,Jason; Phrixus,Argonautica,rare,王権と加護の対象。着るというより奪取目標
+freyja_falcon_cloak,Valshamr,フレイヤの鷹の衣,falcon cloak,back or body,body as bird,feather,n/a,Scandinavia,Medieval,mythology,Norse,Freyja; Loki (borrowed),Skáldskaparmál; Þrymskviða,rare,羽衣。着ると鷹になる
+swan_cloak,Swan cloak,白鳥の衣,valkyrie pelt,body,body as swan,feather,n/a,Scandinavia,Medieval,mythology,Norse,valkyries; swan maidens,Völundarkviða,rare,奪うと妻とする民話型
+feather_robe_hagoromo,Hagoromo,羽衣,tennin robe,body,body,feather,n/a,Japan,otogi / Noh,folklore,Japanese folktale,tennyo,Hagoromo legend,jRPGs,天女の衣。着なければ昇天できない
+osiris_mummy_wrappings,Mummy wrappings of Osiris,オシリスの包帯,djed cult,body,full,linen,n/a,Egypt,Pharaonic,mythology,Egyptian,Osiris,funerary myth,rare,死と再生の装束。戦闘甲ではない
+armor_of_duryodhana,Armor of Duryodhana / Karna kavacha,カルナの先天甲,kavacha and kundala,body,torso,innate golden armor,n/a,India,epic,epic,Hindu,Karna,Mahabharata,rare,生まれながらの甲と耳飾。インドラに譲り無防備になる
+kavacha_kundala,Kavacha and Kundala,カヴァチャとクンダラ,see Karna,body and accessory,torso and ears,golden innate,n/a,India,epic,epic,Hindu,Karna; Surya,Mahabharata,rare,太陽神の子の先天防具
+coat_of_padarn,Coat of Padarn Beisrudd,パダルンの赤衣,Thirteen Treasures,body,torso,cloth that fits only the noble,n/a,Wales,Medieval Welsh,mythology,Welsh Triads,Padarn,Thirteen Treasures,rare,身分に合う者にだけフィットする
+armor_of_achilles_old,Old panoply of Peleus,ペレウスの旧甲,first Achilles set,body,full,divine,n/a,Greece,Homeric,epic,Greek,Peleus; Achilles; Patroclus; Hector,Iliad 16-17,rare,新作の前の一式。ヘクトルが剥ぐ
+yoroi_of_tametomo,Tametomo's armor,為朝の鎧,otogi,body,torso,yoroi,n/a,Japan,Heike / later,folklore,Japanese heroic legend,Minamoto no Tametomo,otogi zōshi,jRPGs,強弓の源為朝。甲の固有名は弱い
+lion_skin_as_hood,Nemean skin (head),獅子の頭巾,see Nemean,head,head,hide,n/a,Greece,Archaic,mythology,Greek,Heracles,art,same,獅子皮を頭から被る図像。body と head を兼ねる
+chain_of_lugh,not body armor,ルグの鎧は四秘宝に含まれない,,,,,,,,,,,,,
+ichcahuipilli_god,Cotton armor of Aztec gods,神々の綿甲,mythic ichcahuipilli,body,torso,cotton,n/a,Mesoamerica,Postclassic,mythology,Aztec,warrior gods,codices,rare,実在綿甲の神格化。historical の ichcahuipilli と対
+sun_wukong_armor,Golden chain mail of Wukong,孫悟空の黄金鎖子甲,dragon-king gift,body,torso,golden mail,n/a,China,Ming novel,epic,Chinese,Sun Wukong,Journey to the West,Xiyou games,東海龍王から鳳翅紫金冠・鎖子甲・歩雲履と一式
+wukong_crown,Phoenix-wing gold crown,鳳翅紫金冠,see head,head,head,gold,n/a,China,Ming novel,epic,Chinese,Sun Wukong,Journey to the West,same,緊箍児とは別の冠
+tightening_fillet,Tightening fillet,緊箍児,gold headband,head,brow,gold band,n/a,China,Ming novel,epic,Chinese,Sun Wukong; Tang Sanzang,Journey to the West,same,緊箍咒で締め付ける。防具というより拘束
+fulad_zereh_armor,Fulad-zereh's enchanted armor,フラード・ゼレの魔鎧,only emerald shamshir cuts,body,full,enchanted,n/a,Iran,folktale,folklore,Persian,Fulad-zereh,Amir Arsalan cycle,rare,エメラルドのシャムシール以外通さない
+golden_bough_not_armor,Golden Bough,金枝,Aeneas,accessory,n/a,n/a,n/a,Italy,Roman epic,epic,Roman,Aeneas,Aeneid 6,rare,冥界通行の枝。甲ではない
+yoroi_tatenashi,Tatenashi,楯無,Minamoto armor name,body,torso,oyoroi,n/a,Japan,Heian-Kamakura lore,folklore,Minamoto clan,Minamoto no Yoshiie and heirs,war tales,jRPGs,源氏の重代。盾が要らないという名
+yoroi_usugane,Usugane,薄金,Taira heirloom armor,body,torso,oyoroi,n/a,Japan,Heike,epic,Taira clan,Taira no Kiyomori line,Heike Monogatari,jRPGs,平家の重代鎧

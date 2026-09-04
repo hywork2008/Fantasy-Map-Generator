@@ -1,0 +1,23 @@
+id,kind,title_or_work,author_or_org,url,used_for,notes,corpus
+s01,encyclopedia,Scutum,Wikipedia,https://en.wikipedia.org/wiki/Scutum,shields,Polybius 寸法（幅76cm 長さ120cm）。Dura-Europos 残欠 105.5cm。重量約10kgの記述,historical
+s02,article,The Shield: Its Use and Development,myArmoury,https://myarmoury.com/feature_shield.html,shields,カイトからヒーターへの形状変化。パヴィースの弩兵用途,historical
+s03,museum_notes,Basic Stats of Four Original Medieval Shields,Tobias Capwell / Marburg notes via Patreon summary,https://www.patreon.com/posts/basic-stats-of-36465569,shields,Marburg 残欠ヒーター: 高さ60-82cm 残重1.8-3.5kg。板厚7-12mm,historical
+s04,article,On the Spithame in the Military Treatises,historical metrology notes,https://www.patreon.com/posts/on-spithame-in-42413166,shields,9-11C ビザンツ図像の円・楕円・カイト寸法。Dura 楕円107-118cm。パヴィース96-143cm,historical
+s05,paper,Fit for the task: Equipment sizes and the transmission of military lore,Haldon / related Byzantine military,https://www.researchgate.net/publication/233499138,shields,skoutarion 寸法のスパン換算問題,historical
+s06,encyclopedia,Components of medieval armour,Wikipedia,https://en.wikipedia.org/wiki/Components_of_medieval_armour,armor-limbs,ポールドロン・ゴルゲット・キュイラス等の部位名,historical
+s07,encyclopedia,Classification of swords,Wikipedia,https://en.wikipedia.org/wiki/Classification_of_swords,swords,直剣・刀の大分類,historical
+s08,encyclopedia,Dao (Chinese sword),Wikipedia,https://en.wikipedia.org/wiki/Dao_(Chinese_sword),swords,柳葉刀・片刀等,historical
+s09,encyclopedia,Chinese polearm,Wikipedia,https://en.wikipedia.org/wiki/Chinese_polearm,polearms,戈・槍・戟。関刀,historical
+s10,encyclopedia,Pole weapon,Wikipedia / Diagram Group tradition,https://en.wikipedia.org/wiki/Pole_weapon,polearms,ハルバード・グレイブ・ビル等,historical
+s11,article,Telling apart Chinese polearms,Great Ming Military,https://greatmingmilitary.blogspot.com/2019/03/telling-apart-chinese-polearms-quick.html,polearms,偃月刀と戟の区別,historical
+s13,museum,Gokstad shields,Nicolaysen 1882 and later reassessments,https://en.wikipedia.org/wiki/Gokstad_ship,shields,円盾直径約90-94cm,historical
+s14,reconstruction,Viking round shield replica weights,combat archaeology / HEMA practice,https://heydenwall.de/en/anleitungen/schildbau,shields,復元円盾 概ね3-5kg。バックラー30cm約0.8kg,historical
+s15,glossary,Samurai Armour Glossary,Nihon-no-katchu / militaria notes,http://www.militaria.co.za/articles/Samurai_Armour_Glossary_2013.pdf,japanese armor,kabuto do sode kote haidate suneate,historical
+s16,book,Weapons: An International Encyclopedia from 5000 BC to 2000 AD,The Diagram Group,n/a,typology,長柄・斧の図版分類の通説源,historical
+s17,book,Armour and Weapons,Charles Ffoulkes (Gutenberg),https://www.gutenberg.org/ebooks/41676,plate parts,ポールドロン・ゴルゲットの組み立て,historical
+s18,project,character-loadout-and-readiness.md,FMG plan,docs/plan/character-loadout-and-readiness.md,slot mapping,v1 スロット body/weapon/accessory/mount。史実・フィクション双方の落とし込み先,shared
+s19,project,longbow.md,FMG plan,docs/plan/longbow.md,ranged,ロングボウ材と温帯落葉樹林,historical
+s21,museum,Dura-Europos scutum,Yale / Wikipedia summary,https://en.wikipedia.org/wiki/Scutum,shields,曲面矩形の現物寸法,historical
+s22,treatise,Polybius Histories VI (panoply),Polybius,n/a,shields,共和政スクトゥムの寸法記述,historical
+s23,encyclopedia,Aspis / Hoplon conventional dimensions,standard classical archaeology summaries,n/a,shields,直径約80-100cm 重量復元6-8kg級,historical
+s24,caution,RPG weights vs historical,compiler note,n/a,all,D&D パイク18lb・グレートクラブ10lbは歴史復元より重いことが多い。attestation列で分離,shared

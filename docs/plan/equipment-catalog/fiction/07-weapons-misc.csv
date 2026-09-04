@@ -1,0 +1,19 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+tekko_kagi,Tekko-kagi,鉄鉤,ninja claws,hands,hands,worn,unarmed,20-40,0.3-0.7,Japan,Edo image,rpg_common,ninja climb+attack,
+knuckles,Knuckles,ナックル,brass knuckles,hands,hands,worn,unarmed,10,0.2-0.5,various / rpg,modern analog,rpg_common,FF ナックル,
+gauntlet_weapon,Spiked gauntlet,スパイクガントレット,,hands,hands,worn,unarmed,glove,0.5-1.5,Europe / rpg,Late Medieval,rpg_common,D&D,籠手自体が武器
+scythe,Scythe,サイズ / 大鎌,grim reaper,two_hand,main_hand+off_hand,2H,farm_war,150-180,1.5-3.0,Europe,Medieval image,rpg_common,DQ 大鎌,農具のまま振るうと使いづらい。戦鎌は polearms
+hooked_hammer,Gnome hooked hammer,フックハンマー,double tool,two_hand,main_hand+off_hand,2H,double,n/a,n/a,rpg,n/a,rpg_common,D&D gnome,完全にRPG創作
+spiked_chain,Spiked chain,スパイクチェーン,,two_hand,main_hand+off_hand,2H,flexible,120-180,2.0-4.0,rpg,n/a,rpg_common,D&D 3.5,歴史鎖分銅の誇張
+whip_sword,Whip sword,ウィップソード,urumi analog,main_hand,main_hand,1H,flexible_blade,n/a,n/a,rpg / India,n/a,rpg_common,FF,ウルミが実在核
+staff_mage,Mage staff,魔法の杖,quarterstaff implement,two_hand,main_hand+off_hand,2H,implement,150-180,0.8-2.0,fantasy,n/a,rpg_common,FF 杖; D&D,打撃兼触媒
+grimoire,Grimoire,魔導書,spellbook off-hand,off_hand,off_hand,1H,implement,25-40,0.5-1.5,fantasy,n/a,rpg_common,FF 魔導書; WoW,盾の代わりの知力オフハンド
+tome,Tome,トーム,codex,off_hand,off_hand,1H,implement,25-40,0.8-2.0,fantasy,n/a,rpg_common,,
+orb,Orb,オーブ,crystal ball,off_hand,off_hand,1H,implement,8-15,0.3-0.8,fantasy,n/a,rpg_common,FF オーブ,caster off-hand
+torch,Torch,松明,,main_hand,main_hand,1H,improvised,40-60,0.3-0.6,universal,universal,rpg_common,dungeon,光源兼打撃
+tool_hammer,Work hammer,作業槌,,main_hand,main_hand,1H,tool,30-40,0.5-1.0,universal,universal,rpg_common,improvised,
+brawler_glove,Brawler gloves,格闘グローブ,,hands,hands,worn,unarmed,n/a,0.2-0.6,rpg,n/a,rpg_common,FF グラブ,
+battle_wire,Battle wire,ワイヤー,garrote,main_hand,main_hand,2H,garrote,50-80,0.05-0.2,various,various,rpg_common,assassin,絞殺具。公然装備ではない
+stake,Stake,杭,vampire stake,main_hand,main_hand,1H,thrust,30-50,0.2-0.5,fantasy,n/a,rpg_common,undead kits,対不死のRPG小道具
+holy_water,Holy water,聖水,,ammo,ammo,thrown,consumable,flask,0.2-0.4,fantasy / Christian analog,Medieval analog,rpg_common,D&D,消耗品。装備というより投擲弾
+oil_flask,Oil flask,油瓶,,ammo,ammo,thrown,consumable,flask,0.3-0.5,universal,Ancient onward,rpg_common,D&D,火計

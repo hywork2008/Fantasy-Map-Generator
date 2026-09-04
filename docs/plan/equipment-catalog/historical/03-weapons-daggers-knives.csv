@@ -1,0 +1,40 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+dagger,Dagger,ダガー,generic,main_hand,main_hand or off_hand,1H,double_or_single,20-40,0.2-0.5,universal,universal,both,D&D dagger; DQ ダガー,RPG最短の刺突武器。投擲可が多い
+knife,Knife,ナイフ,utility knife,main_hand,main_hand,1H,single,15-30,0.1-0.4,universal,universal,both,simple weapon,工具兼用
+stiletto,Stiletto,スティレット,needle dagger,main_hand,main_hand or off_hand,1H,thrust_narrow,25-40,0.15-0.4,Italy,15C-17C,both,rogue kits,装甲の隙間・マント貫通
+rondel_dagger,Rondel dagger,ロンデルダガー,roundel,main_hand,main_hand or off_hand,1H,thrust_rigid,30-50,0.3-0.6,Western Europe,14C-16C,both,HEMA; Dark Souls,円盤鍔。甲冑に対するグラップル補助
+baselard,Baselard,バゼラード,baselard,main_hand,main_hand,1H,dagger_to_short,30-70,0.3-0.8,Western Europe,13C-16C,historical,,H字またはI字柄。市民の帯刀
+ballock_dagger,Ballock dagger,バロックダガー,kidney dagger,main_hand,main_hand,1H,single_or_double,30-45,0.3-0.5,Northern Europe,14C-16C,historical,,
+cinquedea_dagger,Cinquedea (short),チンクエデア（短）,,main_hand,main_hand,1H,broad,30-45,0.4-0.8,Italy,15C,historical,,剣欄の短寸
+main_gauche,Main gauche,マインゴーシュ,parrying dagger,off_hand,off_hand,1H,parry,30-45,0.4-0.7,Western Europe,16C-17C,both,rapier off-hand,左手受け専用。盾の代替
+dirk,Dirk,ダーク,Highland dirk,main_hand,main_hand,1H,single,30-50,0.3-0.6,Scotland,Early Modern,both,,
+sgian_dubh,Sgian-dubh,スキーアン・ドゥー,,main_hand,main_hand,1H,small_knife,15-22,0.1-0.2,Scotland,Early Modern,historical,,靴下に差す小刀
+kukri,Kukri,ククリ,khukuri,main_hand,main_hand,1H,forward_curved,30-45,0.4-0.9,Nepal,Early Modern (type older),both,D&D; Gurkha kits,前方加重の entrenching ナイフ
+kris,Kris,クリス,keris,main_hand,main_hand or off_hand,1H,wavy_or_straight,30-50,0.3-0.7,Malay world,Medieval,both,DQ クリス,儀礼性が高い短剣
+kris_dagger,Kris dagger,クリス短剣,,main_hand,main_hand,1H,wavy,25-40,0.2-0.5,Malay world,Medieval,both,,
+tanto,Tanto,短刀,,main_hand,main_hand or off_hand,1H,single,20-35,0.2-0.5,Japan,Heian onward,both,ninja/samurai RPGs,
+aikuchi,Aikuchi,合口,,main_hand,main_hand,1H,no_tsuba,20-30,0.2-0.4,Japan,Edo,historical,,鍔なし
+kaiken,Kaiken,懐剣,,main_hand,main_hand,1H,small,15-25,0.15-0.3,Japan,Edo,historical,,懐に隠す
+kozuka,Kozuka,小柄,,main_hand,main_hand,1H,utility,15-20,0.05-0.15,Japan,Muromachi onward,historical,,鞘に仕込んだ工作刀
+yoroidoshi,Yoroidoshi,鎧通し,,main_hand,main_hand,1H,thick_thrust,20-30,0.3-0.6,Japan,Sengoku,historical,armor piercer,厚い刺突短刀
+shuriken,Shuriken,手裏剣,throwing star/needle,main_hand,ammo or thrown,thrown,thrown,5-15,0.05-0.2,Japan,Sengoku-Edo,both,ninja,武器というより消耗弾。slot は ammo
+sai,Sai,釵,jutte-like fork,main_hand,main_hand or paired,1H paired,parry_fork,40-55,0.6-1.2,Ryukyu / China analog,Early Modern,both,FF サイ,受けと打撃。二丁
+jitte,Jitte,十手,jutte,main_hand,main_hand,1H,truncheon_hook,30-45,0.4-0.8,Japan,Edo,historical,police,捕具。鉤で刀を受ける
+kama_hand,Kama,鎌（手持ち）,sickle,main_hand,main_hand or paired,1H,hook_sickle,30-50,0.4-0.8,Japan / East Asia,universal farm,both,ninja dual kama,農具由来
+katar,Katar,カタール,punch dagger,main_hand,main_hand,1H,horizontal_grip,40-70,0.7-1.3,India,Medieval-Early Modern,both,D&D katar,水平柄の突短剣
+chilanum,Chilanum,チラナム,khanjarli related,main_hand,main_hand,1H,recurved,30-45,0.3-0.6,India,Early Modern,historical,,
+khanjar,Khanjar,ハンジャル,jambiya related,main_hand,main_hand,1H,curved,25-40,0.3-0.6,Near East / India,Medieval,both,,
+jambiya,Jambiya,ジャンビーヤ,janbiya,main_hand,main_hand,1H,curved,25-40,0.3-0.6,Arabia / Yemen,Medieval,historical,,
+kindjal,Kindjal,キンジャール,qama,main_hand,main_hand,1H,double,30-50,0.3-0.6,Caucasus,Early Modern,historical,,
+pesh_kabz,Pesh-kabz,ペシュカブズ,,main_hand,main_hand,1H,armor_piercing,30-45,0.3-0.6,Persia / India,Early Modern,historical,,T字断面の刺突
+bichuwa,Bichuwa,ビチュワ,scorpion knife,main_hand,main_hand,1H,recurved,20-35,0.2-0.4,India,Early Modern,historical,,
+misericorde,Misericorde,ミセリコルデ,mercy dagger,main_hand,main_hand,1H,thin_thrust,30-50,0.2-0.4,Western Europe,Late Medieval,both,coup de grace,甲冑の隙間に止めを刺す
+stiletto_rondel,Armor-piercing dagger,鎧通し短剣,estoc dagger,main_hand,main_hand,1H,rigid,30-45,0.3-0.6,Europe,Late Medieval,both,,
+parrying_dagger,Parrying dagger,受けダガー,left-hand dagger,off_hand,off_hand,1H,parry,30-45,0.4-0.8,Europe,Renaissance,both,off-hand slot,盾の代わりに off_hand
+trident_dagger,Trident dagger,トライデントダガー,spring dagger,off_hand,off_hand,1H,forking,30-45,0.5-0.9,Europe,16C-17C,historical,niche,開く側刃で相手剣を挟む
+throwing_knife,Throwing knife,スローイングナイフ,,main_hand,main_hand or ammo,thrown,thrown,15-30,0.15-0.4,Africa / universal,various,both,D&D dart adjacent,複数所持が普通
+assegai_short,Iklwa,イクルワ,Zulu short spear (listed also in spears),main_hand,main_hand,1H,stabbing_spear,100-130,0.8-1.3,Southern Africa,18C-19C,historical,,短槍だが短剣欄ではなく槍。参照用
+obsidian_knife,Obsidian knife,黒曜石ナイフ,tecpatl,main_hand,main_hand,1H,ritual_and_war,15-25,0.1-0.3,Mesoamerica,Postclassic,historical,,儀礼用が多い
+bronze_dagger,Bronze dagger,青銅短剣,,main_hand,main_hand,1H,leaf,20-35,0.2-0.5,Old World,Bronze Age,both,starter RPG,最初期の金属武器
+pugio,Pugio,プギオ,Roman dagger,main_hand,main_hand,1H,leaf,20-35,0.3-0.6,Rome,1C BC-3C AD,historical,,軍団の短剣
+sica,Sica,シカ,Thracian curved dagger,main_hand,main_hand,1H,inward_curve,30-45,0.3-0.6,Thrace / Illyria,Iron Age-Roman,historical,gladiator,内側湾曲。トラキア闘士

@@ -1,0 +1,5 @@
+id,kind,title_or_work,author_or_org,url,used_for,notes,corpus
+s12,rules,D&D 5e / 2024 SRD weapons table,Wizards of the Coast SRD,https://5e24srd.com/equipment/weapons.html,rpg names,欧米RPGの型名と重量lb（ゲーム値）,fiction
+s18,project,character-loadout-and-readiness.md,FMG plan,docs/plan/character-loadout-and-readiness.md,slot mapping,v1 スロット body/weapon/accessory/mount。史実・フィクション双方の落とし込み先,shared
+s20,general,RPG slot conventions,DQ/FF/TES/WoW/Souls/PF player-facing equipment screens,n/a,00-rpg-slot-systems,各作品の装備欄はUI上の公開情報に基づく要約,fiction
+s24,caution,RPG weights vs historical,compiler note,n/a,all,D&D パイク18lb・グレートクラブ10lbは歴史復元より重いことが多い。attestation列で分離,shared

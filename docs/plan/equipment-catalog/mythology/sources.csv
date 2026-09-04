@@ -1,0 +1,20 @@
+id,kind,title_or_work,author_or_org,url,used_for,notes,corpus
+m01,encyclopedia,List of mythological objects,Wikipedia,https://en.wikipedia.org/wiki/List_of_mythological_objects,all,甲冑・盾・武具の固有名の横断一覧,mythology
+m02,encyclopedia,架空の武器,Wikipedia,https://ja.wikipedia.org/wiki/架空の武器,weapons,ギリシア・北欧・ケルト・インド・日本・アーサー・カロリング,mythology
+m03,encyclopedia,List of named weapons armour and treasures in Germanic heroic legend,Wikipedia,"https://en.wikipedia.org/wiki/List_of_named_weapons,_armour_and_treasures_in_Germanic_heroic_legend",germanic,グラム・ティルヴィング・エーギスヒャルムル等,mythology
+m04,epic,Iliad (esp. books 16-19),Homer,n/a,greek,アキレウスの甲と盾。アイアースの七層盾。アポローンの弓,mythology
+m05,epic,Odyssey,Homer,n/a,greek,オデュッセウスの弓。キルケーの杖。ヘパイストスの網,mythology
+m06,mythography,Bibliotheca,Apollodorus,n/a,greek,ハーデースの隠れ兜。十二功業の棍・獅子皮・帯,mythology
+m07,poem,Poetic Edda / Prose Edda,Snorri and anonymous,n/a,norse,ミョルニル・グングニル・ドラウプニル・ブリーシンガメン,mythology
+m08,saga,Völsunga saga / Nibelungenlied,anonymous,n/a,germanic,グラム／バルムンク。アンドヴァラナウト。角質の肌,mythology
+m09,cycle,Ulster Cycle / Mythological Cycle,medieval Irish,n/a,celtic,ゲイ・ボルク。カラドボルグ。フラガラッハ。四秘宝,mythology
+m10,cycle,Arthurian romances (Geoffrey; Vulgate; Malory; Culhwch),various,n/a,arthurian,エクスカリバーとその鞘。ロンゴミニアド。カルンウェナン,mythology
+m11,chanson,Chanson de Roland,anonymous,n/a,carolingian,デュランダル。ジョワイユーズ。オートクレール,mythology
+m12,chronicle,Kojiki / Nihon Shoki,n/a,n/a,japanese,草薙剣。天之瓊矛。三種の神器,mythology
+m13,epic,Mahabharata / Ramayana,Vyasa / Valmiki traditions,n/a,hindu,ガーンディーヴァ。アストラ類。ナンダカ。トリシューラ,mythology
+m14,novel,Sanguo yanyi (Romance of the Three Kingdoms),Luo Guanzhong,n/a,chinese epic,青龍偃月刀。蛇矛。方天画戟,mythology
+m15,novel,Xiyou ji (Journey to the West),Wu Cheng'en,n/a,chinese epic,如意金箍棒。芭蕉扇。龍宮の冠甲履,mythology
+m16,scripture,Hebrew Bible / New Testament,n/a,n/a,abrahamic,ダビデの石投げ。エデンの炎の剣。ロンギヌス伝承の核,mythology
+m17,hadith_epic,Zulfiqar tradition,Islamic,n/a,islamic,アリーの剣ズルフィカール,mythology
+m18,project,character-loadout-and-readiness.md,FMG plan,docs/plan/character-loadout-and-readiness.md,slot mapping,v1 スロットへの落とし込み,shared
+m19,caution,Literary size vs archaeology,compiler note,n/a,shields,アイアースの七層・関羽の82斤は文学的誇張。寸法は目安にしない,mythology

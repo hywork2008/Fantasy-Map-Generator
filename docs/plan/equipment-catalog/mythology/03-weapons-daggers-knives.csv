@@ -1,0 +1,13 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+carnwennan,Carnwennan,カルンウェナン,Carnwenhau; little white hilt,main_hand,main_hand or off_hand,1H,dagger,n/a,n/a,Wales,Medieval Welsh,epic,Welsh Arthurian,Arthur,Culhwch and Olwen; Welsh Triads,rare,アーサーの短剣。影に隠れる力を持つとする後世解釈あり
+knife_of_llawfrodedd,Knife of Llawfrodedd the Horseman,ラウヴロデッズのナイフ,Thirteen Treasures,main_hand,main_hand,1H,carving_knife,n/a,n/a,Wales,Medieval Welsh,mythology,Welsh Triads,Llawfrodedd,Thirteen Treasures of Britain,rare,二十四人分の肉を捌けるという宝
+keris_taming_sari,Taming Sari,タミング・サリ,Kris Taming Sari,main_hand,main_hand,1H,kris,n/a,n/a,Malay world,Malay epic,epic,Malay,Hang Tuah,Hikayat Hang Tuah,rare,持ち手が傷つかないという伝説のクリス
+mpu_gandring,Kris of Mpu Gandring,ガンドリンのクリス,cursed kris of Ken Arok,main_hand,main_hand,1H,kris,n/a,n/a,Java,Pararaton,folklore,Javanese,Mpu Gandring; Ken Arok,Pararaton,rare,完成を急がせた呪い。五代にわたり主を殺す
+kogitsune_maru,Kogitsunemaru,小狐丸,little fox,main_hand,main_hand,1H,tachi_or_dagger_lore,n/a,n/a,Japan,Heian sword legend,folklore,Japanese sword lore,Sanjo Munechika; Inari fox,later sword tales,jRPGs,稲荷の狐が手伝って鍛えたという。短刀というより刀
+parazonium_mars,Parazonium,パラゾニウム,ceremonial dagger of virtus,main_hand,main_hand,1H,dagger,n/a,n/a,Rome,Imperial iconography,mythology,Roman,Virtus; Mars,coins and statues,rare,神々の属性としての短剣。実在の士官短剣が神格化
+sisera_peg,Jael's tent peg,ヤエルの杭,,main_hand,main_hand,1H,improvised,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,Jael; Sisera,Judges 4-5,rare,武器というより即興の杭。伝承上の殺害具
+kris_naga,Naga kris (mythic naga blade),ナーガのクリス,serpent kris,main_hand,main_hand,1H,kris,n/a,n/a,Malay / Java,folklore,folklore,Austronesian,naga spirits,kris lore,DQ クリス analog,波刃を蛇神と結ぶ職人伝承。固有一本というより型の神話化
+dagger_of_ruthlessness,Dagger of Jack the Giant Killer,巨人殺しのナイフ,folktale blade,main_hand,main_hand,1H,knife,n/a,n/a,England,folktale,folklore,English folktale,Jack,Jack tales,rare,七里靴と並ぶ民話小道具
+yoroidoshi_raiko,Yorimitsu's dirk,頼光の短刀,Oni-cutting knife in otogi,main_hand,main_hand,1H,tanto,n/a,n/a,Japan,otogizōshi,folklore,Japanese heroic legend,Minamoto no Yorimitsu,Shuten dōji tales,jRPGs,酒呑童子譚で首を斬るのは童子切だが、短刀も供奉が使う
+pugio_caesar_legend,Dagger of Brutus (anecdote),ブルトゥスの短剣,Ides of March,main_hand,main_hand,1H,pugio,n/a,n/a,Rome,Roman history as legend,folklore,Roman anecdote,Brutus; Caesar,Plutarch; Suetonius,rare,史実の暗殺具が後世の劇的小道具化。神器ではない
+carnwennan_shadow,Carnwennan (shadow charm),カルンウェナンの隠れ,see Carnwennan,main_hand,main_hand,1H,dagger,n/a,n/a,Wales,later interpretation,epic,Arthurian,Arthur,modern retellings of Culhwch,rare,隠形は後世の読み。原典は固有名の列挙が主

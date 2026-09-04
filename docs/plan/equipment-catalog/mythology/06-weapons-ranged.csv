@@ -1,0 +1,31 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,effective_range_m,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+apollo_bow,Bow of Apollo,アポローンの弓,silver bow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Greece,Homeric,mythology,Greek,Apollo,Iliad 1; Homeric hymns,SMITE,瘟疫と遠矢。銀の弓
+artemis_bow,Bow of Artemis,アルテミスの弓,golden bow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Greece,Archaic,mythology,Greek,Artemis,Homeric hymns,SMITE,狩りの金弓。月神図像
+heracles_bow,Bow of Heracles,ヘーラクレースの弓,Hydra-poisoned arrows,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Greece,Archaic,mythology,Greek,Heracles; Philoctetes,Sophocles Philoctetes; Apollodorus,rare,ヒュドラの毒矢。ピロクテテスがトロイアで使う
+odysseus_bow,Bow of Odysseus,オデュッセウスの弓,contest bow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Greece,Homeric,epic,Greek,Odysseus,Odyssey 21,rare,弦を張れるのは主のみ。求婚者殺し
+houyi_bow,Bow of Hou Yi,后羿の弓,nine-suns bow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,China,ancient myth,mythology,Chinese,Hou Yi,Huainanzi and later,rare,十の太陽のうち九を射落とす
+gandiva,Gandiva,ガーンディーヴァ,Arjuna's bow,two_hand,main_hand+off_hand,2H,divine_bow,n/a,n/a,n/a,India,epic,epic,Hindu,Arjuna; Varuna; Agni,Mahabharata,rare,百年の眠りでも疲れない。百の弦の伝承あり
+vijaya_bow,Vijaya,ヴィジャヤ,Karna's bow,two_hand,main_hand+off_hand,2H,divine_bow,n/a,n/a,n/a,India,epic,epic,Hindu,Karna; Indra; Parashurama,Mahabharata,rare,勝利の弓。カルナがパラシュラーマから
+pinaka,Pinaka,ピナーカ,Shiva's bow,two_hand,main_hand+off_hand,2H,divine_bow,n/a,n/a,n/a,India,epic,mythology,Hindu,Shiva; broken by Rama,Ramayana (Sita svayamvara),rare,シーターの求婚でラーマが折る（ヴィシュヌの弓との混線あり）
+sharanga,Sharanga,シャーランガ,Vishnu's bow,two_hand,main_hand+off_hand,2H,divine_bow,n/a,n/a,n/a,India,epic / Puranic,mythology,Hindu,Vishnu; Rama,Ramayana; Puranas,rare,ヴィシュヌの弓
+failnaught,Fail-not,フェイルノット,Tristan's bow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Britain / Brittany,Medieval,epic,Arthurian / Tristan,Tristan,Tristan romances,rare,外さない弓
+arash_bow,Bow of Arash,アーラシュの弓,Turanian-border arrow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Iran,epic,epic,Persian,Arash the Archer,later Iranian tradition,Fate,矢一射で国境を決し、射手は力尽きる
+ullr_bow,Ullr's bow,ウルの弓,ski-hunter bow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Ullr,skaldic kennings; Gylfaginning,SMITE,スキーと弓の神。固有名より属性
+cupid_bow,Bow of Eros / Cupid,エロースの弓,love arrows,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Greece / Rome,Hellenistic-Roman,mythology,Greek / Roman,Eros; Cupid,Ovid; Anacreontic,rare,金の矢は恋、鉛の矢は嫌悪
+brahmastra,Brahmastra,ブラフマーストラ,Brahma's missile,ammo,ammo,n/a,divine_missile,n/a,n/a,n/a,India,epic,mythology,Hindu,Brahma; many heroes,Mahabharata; Ramayana,rare,核に譬えられる必殺の神矢。乱用は世界を焼く
+pashupatastra,Pashupatastra,パシュパターストラ,Shiva's personal astra,ammo,ammo,n/a,divine_missile,n/a,n/a,n/a,India,epic,mythology,Hindu,Shiva; Arjuna,Mahabharata,rare,シヴァがアルジュナに授ける最高のアストラ
+agneyastra,Agneyastra,アーグネーヤストラ,fire missile,ammo,ammo,n/a,divine_missile,n/a,n/a,n/a,India,epic,mythology,Hindu,Agni; various,Mahabharata,rare,火のアストラの代表
+varunastra,Varunastra,ヴァルーナストラ,water missile,ammo,ammo,n/a,divine_missile,n/a,n/a,n/a,India,epic,mythology,Hindu,Varuna,Mahabharata,rare,水で火矢を打ち消す
+ichaival,Ichaival,イハイヴァル,Odin's bow (modern lists),two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Scandinavia,modern compilation,folklore,Norse (late lists),Odin,modern myth lists more than Edda,FF イハイヴァル,古エッダに固有名としては稀。ゲーム経由で有名
+houyi_arrows,Arrows of Hou Yi,后羿の矢,sun-slaying,ammo,ammo,n/a,arrow,n/a,n/a,n/a,China,ancient myth,mythology,Chinese,Hou Yi,Huainanzi,rare,太陽を落とす矢。本体は弓
+indra_vajra_ranged,Vajra as thrown,ヴァジュラ（投擲）,see misc,main_hand,thrown,thrown,thunderbolt,n/a,n/a,n/a,India,Vedic,mythology,Hindu,Indra,Rigveda,same as vajra,棍とも雷とも。投擲神器
+teucer_bow,Bow of Teucer,テウクロスの弓,Ajax's brother,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Greece,Homeric,epic,Greek,Teucer,Iliad,rare,アイアースの盾の陰から射る
+pandarus_bow,Bow of Pandarus,パンダロスの弓,from horn of wild goat,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Greece,Homeric,epic,Greek,Pandarus,Iliad 4,rare,休戦を破る一矢。角弓
+yamato_bow,Yumi of Yorimasa,頼政の弓,Nue-slaying,two_hand,main_hand+off_hand,2H,yumi,historical analog,historical analog,n/a,Japan,Heian legend,folklore,Japanese heroic legend,Minamoto no Yorimasa,Heike / later,jRPGs,鵺退治。実在和弓＋伝承
+nasu_no_yoichi,Yoichi's arrow,那須与一の矢,fan shot,ammo,ammo,n/a,arrow,historical analog,historical analog,n/a,Japan,Gempei,epic,Japanese heroic legend,Nasu no Yoichi,Heike Monogatari,jRPGs,扇の的。史実弓技の叙事詩化
+arjuna_arrows,Arjuna's inexhaustible quiver,アルジュナの矢筒,see accessories,ammo,ammo,n/a,quiver,n/a,n/a,n/a,India,epic,epic,Hindu,Arjuna,Mahabharata,rare,ガーンディーヴァと対。矢が尽きない
+skadi_bow,Skaði's bow,スカジの弓,winter huntress,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Skaði,Edda,rare,スキーと狩りの女神。固有名より属性
+david_sling,Sling of David,ダビデの石投げ,shepherd sling,main_hand,main_hand,1H,sling,n/a,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,David,1 Samuel 17,rare,ゴリアテを倒す。実在スリングの伝承的使用
+apollo_arrows_plague,Plague arrows,アポローンの疫病矢,see Apollo bow,ammo,ammo,n/a,arrow,n/a,n/a,n/a,Greece,Homeric,mythology,Greek,Apollo,Iliad 1,rare,ギリシア軍に疫病を降らす
+rama_bow,Kodanda,コーダンダ,Rama's bow,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,India,epic,epic,Hindu,Rama,Ramayana,rare,ラーマの常の弓。ピナーカを折った後の帯弓
+kamadeva_bow,Bow of Kamadeva,カーマデーヴァの弓,sugarcane bow and flower arrows,two_hand,main_hand+off_hand,2H,bow,n/a,n/a,n/a,India,Puranic,mythology,Hindu,Kamadeva,Puranas,rare,恋の神。サトウキビの弓と花の矢

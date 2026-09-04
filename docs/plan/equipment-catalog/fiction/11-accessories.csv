@@ -1,0 +1,39 @@
+id,name_en,name_ja,alt_names,slot,occupies,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+magic_ring,Magic ring,魔法の指輪,,ring,ring,0.01-0.05,fantasy,n/a,rpg_common,LotR analog; DQ,品質・効果帯
+talisman,Talisman,タリスマン,,neck or accessory,accessory,0.05-0.3,universal,universal,rpg_common,FF,amulet とほぼ同義
+anklet,Anklet,アンクレット,,feet or accessory,accessory,0.02-0.15,South Asia / universal,Ancient onward,rpg_common,,
+cape,Cape,ケープ,short cloak,back,back,0.5-1.5,universal,universal,rpg_common,FF,短い外套
+mantle,Mantle,マント,MH mantle analog,back or shoulders,back,1.0-3.0,universal / rpg,n/a,rpg_common,Monster Hunter mantle,一時効果の肩掛けもある
+scarf,Scarf,スカーフ,muffler,neck or accessory,accessory,0.1-0.4,universal,universal,rpg_common,jRPG fashion,
+sash,Sash,サッシュ,obi analog,waist,waist,0.1-0.4,universal,universal,rpg_common,monk,
+backpack,Backpack,バックパック,knapsack,back,back,0.5-2.0 empty,universal,universal,rpg_common,D&D,carry 容量
+monocle,Monocle,モノクル,,eyes,eyes,0.02,Early Modern,n/a,rpg_common,scholar,
+blindfold,Blindfold,目隠し,,eyes,eyes,0.02,rpg,n/a,rpg_common,mystic,
+circlet_acc,Circlet,サークレット,,head,head,0.1-0.4,fantasy,n/a,rpg_common,PF headband of intellect,
+tiara,Tiara,ティアラ,,head,head,0.1-0.5,universal,Ancient onward,rpg_common,,
+charm,Charm,チャーム,MH charm,accessory,accessory,0.05-0.2,rpg,n/a,rpg_common,Monster Hunter,スキル石
+trinket,Trinket,トリンケット,WoW trinket,accessory,accessory,0.05-0.4,rpg,n/a,rpg_common,WoW x2,発動型アクセ
+relic,Relic,レリック,,accessory,accessory,0.1-0.8,fantasy,n/a,rpg_common,FF relic,武器強化素材にもなる名
+orb_acc,Orb (worn),オーブ（所持）,,accessory or off_hand,off_hand,0.3-0.8,fantasy,n/a,rpg_common,see 07,
+medal,Medal,勲章,order,neck or accessory,accessory,0.02-0.1,Early Modern,n/a,rpg_common,status,
+earring_single,Single earring,片耳ピアス,,accessory,accessory,0.01,rpg,n/a,rpg_common,pirate/elf,
+gloves_silk,Silk gloves,絹手袋,,hands,hands,0.05-0.15,universal,Medieval,rpg_common,noble,
+cape_hero,Hero cape,英雄のマント,,back,back,1.0-2.0,fantasy,n/a,rpg_common,DQ,見た目装備
+amulet_of_life,Life amulet,命の首飾り,,neck,neck,0.1,fantasy,n/a,rpg_common,DQ いのりのゆびわ系,効果帯の例
+ring_of_protection,Ring of protection,守護の指輪,,ring,ring,0.02,fantasy,n/a,rpg_common,D&D,
+cloak_of_elvenkind,Cloak of elvenkind,エルフの外套,,back,back,1.0,fantasy,n/a,rpg_common,D&D,隠密
+boots_of_speed,Boots of speed,スピードブーツ,,feet,feet,0.8,fantasy,n/a,rpg_common,D&D,足スロットの魔法
+gauntlets_of_ogre,Gauntlets of ogre power,オーガパワーの籠手,,hands,hands,1.0,fantasy,n/a,rpg_common,D&D,手スロットの魔法
+headband_intellect,Headband of intellect,知力のヘッドバンド,,head,head,0.1,fantasy,n/a,rpg_common,PF/D&D,
+ioun_stone,Ioun stone,アイウンストーン,,accessory,orbiting,0.02,fantasy,n/a,rpg_common,D&D,部位を塞がない特殊
+familiar_token,Familiar token,使い魔の印,,accessory,accessory,0.05,fantasy,n/a,rpg_common,,
+spell_component_pouch,Component pouch,成分ポーチ,,waist,waist,0.2-0.5,fantasy,n/a,rpg_common,D&D caster,
+focus_crystal,Arcane focus,秘術フォーカス,,off_hand or accessory,off_hand,0.2-0.6,fantasy,n/a,rpg_common,D&D 5e,
+lycanthropy_ward,Amulet vs curse,呪い除け,,neck,neck,0.1,fantasy,n/a,rpg_common,,
+goggles_acc,Goggles,ゴーグル,see head,eyes,eyes,0.1-0.3,modern/rpg,n/a,rpg_common,08 と重複可,
+eyepatch_acc,Eyepatch,眼帯,,eyes,eyes,0.02,universal,universal,rpg_common,,
+key_ring,Keys,鍵束,,waist,accessory,0.1-0.4,universal,Medieval,rpg_common,dungeon,道具
+torch_acc,Torch,松明,see misc,main_hand,main_hand,0.3-0.6,universal,universal,rpg_common,,
+phial,Phial / vial,小瓶,potion,ammo or accessory,accessory,0.05-0.2,fantasy / alchemy,Medieval analog,rpg_common,consumable,装備というより消耗
+scroll_case,Scroll case,巻物筒,,waist,accessory,0.2-0.5,universal,Ancient onward,rpg_common,mage,
+wand_holster,Wand holster,ワンドホルスター,,waist,waist,0.1,fantasy,n/a,rpg_common,,

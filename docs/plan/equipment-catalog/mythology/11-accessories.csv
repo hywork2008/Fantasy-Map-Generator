@@ -1,0 +1,58 @@
+id,name_en,name_ja,alt_names,slot,occupies,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+draupnir,Draupnir,ドラウプニル,dripper ring,ring,ring,n/a,Scandinavia,Medieval,mythology,Norse,Odin,Gylfaginning; Skáldskaparmál,God of War,九夜ごとに同形の指輪を八つ滴らせる。バルドルの火葬に置かれる
+andvaranaut,Andvaranaut,アンドヴァラナウト,Andvari's ring; Rhinegold,ring,ring,n/a,Scandinavia / Germany,Medieval,mythology,Norse / Nibelung,Andvari; Fáfnir; Sigurd; Siegfried,Völsunga; Nibelungenlied; Wagner,Wagner; Tolkien-adjacent discussion,拾えば富、呪えば死。ニーベルンゲンの指環の核
+brisingamen,Brísingamen,ブリーシンガメン,necklace of the Brísingar,neck,neck,n/a,Scandinavia,Medieval,mythology,Norse,Freyja,Þrymskviða; Sörla þáttr,SMITE,ドワーフ四人が鍛えた首飾。フレイヤが代価を払う
+yasakani_no_magatama,Yasakani no Magatama,八尺瓊勾玉,Yasakani,neck,neck,n/a,Japan,Kojiki,mythology,Shinto,Amaterasu; Imperial house,Kojiki; Nihon Shoki,jRPGs,三種の神器の勾玉。天岩戸で鏡と対
+yata_no_kagami,Yata no Kagami,八咫鏡,sacred mirror,off_hand or sanctuary,off_hand,n/a,Japan,Kojiki,mythology,Shinto,Amaterasu; Imperial house,Kojiki; Nihon Shoki,rare as accessory,三種の神器の鏡。盾ファイルにも記載
+excalibur_scabbard,Scabbard of Excalibur,エクスカリバーの鞘,more precious than the sword,waist,waist,n/a,Britain,Medieval,epic,Arthurian,Arthur; Morgan le Fay,Vulgate; Malory,rare,傷を負っても血が流れない。モルガンが盗む
+ring_of_gyges,Ring of Gyges,ギュゲスの指環,invisibility ring,ring,ring,n/a,Greece / Lydia,Classical philosophy as legend,folklore,Greek,Gyges,Plato Republic 2,D&D rings of invisibility analog,指輪を回すと姿が消える。道徳論の寓話
+solomon_ring,Ring of Solomon,ソロモンの指輪,see Seal of Solomon,ring,ring,n/a,Near East,medieval legend,religious_legend,Jewish / Islamic,Solomon,Testament of Solomon; Islamic lore,RPGs,ジンと風を封ずる
+harmonia_necklace,Necklace of Harmonia,ハルモニアの首飾,cursed,neck,neck,n/a,Greece,Archaic,mythology,Greek,Harmonia; Cadmus; later Theban house,Apollodorus; Statius,rare,ヘパイストスの呪い。所有者の家系に禍
+idunn_apples,Apples of Iðunn,イズンの林檎,youth apples,accessory,accessory,n/a,Scandinavia,Medieval,mythology,Norse,Iðunn; Loki; giants,Gylfaginning,rare,神々の若さを保つ。装備というより所持神器
+holy_grail,Holy Grail,聖杯,Sangreal; Grail,n/a,n/a,n/a,Britain / France,Medieval,religious_legend,Arthurian / Christian,Joseph of Arimathea; Galahad; Percival,Chrétien; Vulgate Queste,RPGs,杯。装備欄には乗らない探索対象
+sampo,Sampo,サンポ,mill of plenty,n/a,n/a,n/a,Finland,Kalevala,epic,Kalevala,Ilmarinen; Väinämöinen; Louhi,Kalevala,rare,富を生む装置。装備ではない
+three_sacred_treasures,Three Sacred Treasures,三種の神器,Sanshu no Jingi,set,set,n/a,Japan,Kojiki,mythology,Shinto,Imperial house,Kojiki; Nihon Shoki,jRPGs,鏡・玉・剣の組。個別行と併用
+nibelung_hoard,Nibelung hoard,ニーベルンゲンの財宝,Rhine gold,n/a,n/a,n/a,Germany / Scandinavia,Medieval,epic,Nibelung,Alberich; Hagen; Siegfried,Nibelungenlied; Völsunga,Wagner,沈めた黄金。装備セットではない
+eye_of_horus,Eye of Horus,ホルスの目,Wadjet eye,accessory,accessory,n/a,Egypt,Pharaonic,mythology,Egyptian,Horus; Thoth,funerary texts,RPGs amulets,治癒と王権の護符
+ankh,Ankh,アンク,key of life,off_hand or neck,accessory,n/a,Egypt,Pharaonic,mythology,Egyptian,gods,reliefs,RPGs,生命記号。misc にも
+brisingamen_theft,Loki steals Brísingamen,ロキが奪う話,see Brísingamen,neck,neck,n/a,Scandinavia,Medieval,mythology,Norse,Loki; Heimdallr,Húsdrápa tradition,same,海でHeimdallと争う
+gullinbursti,Gullinbursti,グリンブルスティ,golden-bristle boar,mount,mount,n/a,Scandinavia,Medieval,mythology,Norse,Freyr,Skáldskaparmál,rare,乗騎。夜も輝く
+sleipnir,Sleipnir,スレイプニル,eight-legged horse,mount,mount,n/a,Scandinavia,Medieval,mythology,Norse,Odin,Edda,God of War,乗騎そのもの
+pegasus,Pegasus,ペガサス,,mount,mount,n/a,Greece,Archaic,mythology,Greek,Bellerophon; later Muses,Hesiod; Pindar,RPGs,乗騎
+buraq,Buraq,ブラーク,Isra mount,mount,mount,n/a,Islamic,early Islamic,religious_legend,Islamic,Muhammad,Isra and Mi'raj narratives,rare,夜の旅の乗騎
+ring_of_the_nibelung,Ring of the Nibelung,ニーベルングの指環,Wagner's ring,ring,ring,n/a,Germany,19C opera,epic,Wagner,Alberich; Wotan; Siegfried; Brünnhilde,Der Ring des Nibelungen,Wagner; games,アンドヴァラナウトの歌劇化。世界支配と呪い
+kusanagi_set,Kusanagi as regalia,草薙（神器）,,main_hand,main_hand,n/a,Japan,Kojiki,mythology,Shinto,Emperor,Nihon Shoki,same as sword,熱田神宮伝来伝承。剣欄と重複可
+magatama_generic,Magatama,勾玉,comma jewel,neck,neck,n/a,Japan,Yayoi-Kofun cult,mythology,Shinto,kami; elites,Kojiki; archaeology,jRPGs,実在装身具が神話化。八尺瓊は固有
+brooch_of_ulster,Brooch in Irish sagas,アルスターのブローチ,rarely unique,shoulders,accessory,n/a,Ireland,Medieval Irish,epic,Ulster Cycle,various,sagas,rare,衣服留め。固有神器は少ない
+torque_of_the_gaels,Mythic torc,神話のトルク,kingship,neck,neck,n/a,Celtic,Iron Age cult + legend,mythology,Celtic,gods and heroes,iconography; later saga,rare,実在トルクの王権象徴
+cornucopia,Cornucopia,コルヌコピア,horn of plenty,off_hand,off_hand,n/a,Greece / Rome,Hellenistic,mythology,Greco-Roman,Amalthea; Fortuna,art,rare,豊穣の角。武器ではない
+aegis_gorgoneion_pendant,Gorgoneion amulet,ゴルゴネイオン護符,Medusa amulet,neck,neck,n/a,Greece,Archaic onward,mythology,Greek,Athena,art,RPGs,首に下げる魔除け
+holy_lance_acc,Holy Lance as relic,聖槍（遺物）,see polearms,two_hand,two_hand,n/a,Europe,Medieval,religious_legend,Christian,emperors,relic cult,same,所持が帝国の正統
+true_cross,True Cross relics,真の十字架,staurotheke,accessory,accessory,n/a,Levant / Europe,Medieval,religious_legend,Christian,Helena legend,church histories,rare,破片を納めた胸十字
+holy_nails,Holy Nails,聖釘,crucifixion nails,accessory,accessory,n/a,Levant / Europe,Medieval,religious_legend,Christian,Helena legend,same,轡や冠に加工したという王権伝承,
+girdle_of_mary,Girdle of Thomas,聖母の帯,Holy Belt,waist,waist,n/a,Christian,Medieval,religious_legend,Christian,Mary; Thomas,apocrypha; Prato relic,rare,昇天の際にトマスへ。防具ではない
+fjalar_and_galar_kettle,Kvasir's mead vessels,クヴァシルの蜜酒,Óðrerir,n/a,n/a,n/a,Scandinavia,Medieval,mythology,Norse,dwarves; Odin,Skáldskaparmál,rare,詩の蜜酒。装備ではない
+odrerir,Óðrerir,オードレリル,mead kettle,n/a,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Odin,same,詩神の釜,
+mimir_head,Head of Mímir,ミーミルの首,oracular head,accessory,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Odin; Mímir,Völuspá; Ynglinga saga,rare,井戸に置く知恵の首。装備ではない
+tamatebako,Tamatebako,玉手箱,Urashima box,accessory,accessory,n/a,Japan,folktale,folklore,Japanese folktale,Urashima Tarō,otogi,jRPGs,開けると老いる。武器ではない
+kanzashi_orochi,Kusanagi from tail,蛇尾から出た剣は剣欄,n/a,n/a,n/a,Japan,Kojiki,mythology,Shinto,Susanoo,Kojiki,same,装身具ではなく剣の出自,
+nemean_not_acc,lion skin is body,獅子皮は胴,,,,,,,,,,,,
+draupnir_armring,Draupnir as arm-ring,腕輪としてのドラウプニル,armring,wrists,wrists,n/a,Scandinavia,Medieval,mythology,Norse,Odin,skaldic,same,指輪とも腕輪とも。富の環
+kundala_karna,Kundala,クンダラ,Karna's earrings,accessory,accessory,n/a,India,epic,epic,Hindu,Karna,Mahabharata,rare,先天の耳飾。甲と対
+arjuna_quiver,Inexhaustible quiver,尽きぬ矢筒,Gandiva set,ammo,back,n/a,India,epic,epic,Hindu,Arjuna; Agni,Mahabharata,rare,ガーンディーヴァと組
+heracles_quiver,Quiver of Heracles,ヘーラクレースの矢筒,Hephaestus work,ammo,back,n/a,Greece,Archaic,mythology,Greek,Heracles; Philoctetes,later epic,rare,毒矢を納める
+torc_of_queen_mede,Medb's finery,メイヴの装身具,un-named,neck,neck,n/a,Ireland,Medieval Irish,epic,Ulster Cycle,Medb,Táin,rare,固有神器名は弱い
+fidchell_not_gear,board game,フィドケルは盤上遊戯,,,,,,,,,,,,
+lia_fail,Lia Fáil,リーア・フォール,Stone of Destiny,n/a,n/a,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,kings of Tara,Lebor Gabála,rare,王を叫んで認める石。装備ではない
+four_treasures_tuatha,Four Treasures of the Tuatha,トゥアハの四秘宝,stone spear sword cauldron,set,set,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,Tuatha Dé Danann,Lebor Gabála; Cath Maige Tuired,rare,ファルの石・ルグの槍・ヌアザの剣・ダグザの釜
+dagda_cauldron,Cauldron of the Dagda,ダグザの大釜,Undry,n/a,n/a,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,The Dagda,same,誰も空腹で帰さない。装備ではない,
+cauldron_of_rebirth,Peir Dadeni,再生の釜, Pair Dadeni,n/a,n/a,n/a,Wales,Mabinogi,mythology,Welsh,Brân; Irish war,Branwen ferch Llŷr,rare,死者を生き返らせるが啞になる
+philosopher_stone,Philosopher's stone,賢者の石,alchemical,accessory,accessory,n/a,Europe,Medieval alchemy,folklore,Western alchemy,adepts,alchemical texts,RPGs,装備というより物質。フィクション寄りだが伝承に置く
+elixir_of_life,Elixir of life,不老の霊薬,kimdan; amrita,n/a,n/a,n/a,Eurasia,various,mythology,Chinese / Hindu / Islamic,immortals; gods,various,RPGs potions,アムリタ／金丹。消耗品
+amrita,Amrita,アムリタ,nectar of immortality,n/a,n/a,n/a,India,epic,mythology,Hindu,gods vs asuras,Samudra Manthana,rare,乳海攪拌。装備ではない
+mead_of_poetry,Mead of Poetry,詩の蜜酒,see Óðrerir,n/a,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Odin,Skáldskaparmál,rare,飲むと詩人になる
+sun_wukong_gourd,Jade flask / gourd in Xiyou,宝葫蘆,various,off_hand,off_hand,n/a,China,Ming novel,epic,Chinese,various immortals,Journey to the West,Xiyou games,人を吸い込む瓢箪など。話ごとに別名
+wukong_armor_set,Wukong's three gifts,悟空の龍宮三品,crown mail boots,set,set,n/a,China,Ming novel,epic,Chinese,Sun Wukong,Journey to the West,same,鳳翅紫金冠・鎖子甲・歩雲履
+benkei_seven_weapons,Benkei's seven weapons,弁慶の七つ道具,naginata plus,set,set,n/a,Japan,medieval legend,folklore,Japanese heroic legend,Benkei,Gikeiki later lists,jRPGs,薙刀・薙鎌・鎖鎌等を背に。後世の図像
+yoshitsune_flute,Yoshitsune's flute,義経の笛,Aoba or similar later names,instrument,instrument,n/a,Japan,Heike,epic,Japanese heroic legend,Minamoto no Yoshitsune,Heike / Gikeiki,jRPGs,五条橋で弁慶と会う前の貴公子属性
+draupnir_baldr,Draupnir on Baldr's pyre,バルドルの火葬,see Draupnir,ring,ring,n/a,Scandinavia,Medieval,mythology,Norse,Odin; Hermóðr,Gylfaginning,same,ヘルへ持って帰り、バルドルがオーズに返す

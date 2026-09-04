@@ -1,0 +1,48 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+cloth_tunic,Tunic / cloth armor,チュニック / 布衣,shirt,body,torso,cloth,0.5-1.5,universal,universal,both,DQ ぬののふく,最低の胴。FMG Garments Q1-2
+padded_armor,Padded armor,パデッドアーマー,gambeson; aketon; arming doublet,body,torso upper arm,quilted textile,2.0-6.0,Europe,12C-15C,both,D&D padded,単体でも使える中綿胴着。板金の下にも着る
+gambeson,Gambeson,ガンベソン,pourpoint,body,torso arms,quilted,2.0-6.0,Europe,High-Late Medieval,historical,same as padded,
+linothorax,Linothorax,リノソラックス,glued linen cuirass,body,torso,layered linen,3.0-6.0,Greece,Classical,historical,hoplite light,復元説が複数
+hide_armor,Hide armor,ハイドアーマー,pelt,body,torso,hide,5.0-10.0,universal,universal,both,D&D hide; barbarian,毛皮・生皮
+lamellar,Lamellar armor,ラメラー,laced plates,body,torso,small plates laced,8.0-16.0,Steppe / East Asia / Byzantium,Iron Age-Medieval,both,TES; Asian kits,小札を紐で綴じる。日本の小札も同類
+scale_armor,Scale armor,スケイルアーマー,lorica squamata; scale mail,body,torso,scales on backing,8.0-16.0,Near East / Rome / Eurasia,Bronze Age-Medieval,both,D&D scale mail,鱗状。ラメラーとは固定法が違う
+lorica_squamata,Lorica squamata,ロリカ・スクアマタ,,body,torso,bronze/iron scales,8.0-12.0,Rome,1C-3C AD,historical,,
+lorica_hamata,Lorica hamata,ロリカ・ハマタ,Roman mail,body,torso,mail,9.0-15.0,Rome,Republic-Empire,historical,legionary mail,肩倍の鎖帷子
+lorica_segmentata,Lorica segmentata,ロリカ・セグメンタタ,banded plate,body,torso,iron hoops,5.5-9.0,Rome,1C-3C AD,both,iconic legionary,意外と軽い帯板。普及時期は限定
+mail_shirt,Mail shirt,メイルシャツ,chain shirt,body,torso,mail,7.0-12.0,Eurasia,Iron Age-Medieval,both,D&D chain shirt,袖なし〜半袖
+hauberk,Hauberk,ホーバーク,mail hauberk,body,torso to knee and arms,mail,10.0-15.0,Western Europe,11C-13C,both,D&D chain mail,膝丈・長袖が典型。重量は10kg前後が多い
+haubergeon,Haubergeon,ホーバージョン,short mail,body,torso,mail,7.0-11.0,Europe,13C-14C,historical,,ホーバークより短い
+byrnie,Byrnie,バーニー,short mail,body,torso,mail,8.0-12.0,Northern Europe,Early Medieval,historical,Viking,
+brigandine,Brigandine,ブリガンダイン,coated plates,body,torso,plates inside cloth,8.0-14.0,Europe,14C-16C,both,late medieval infantry,布や革の裏に小札。スタデッドレザーの実体
+coat_of_plates,Coat of plates,コートオブプレート,pair of plates ancestor,body,torso,plates in garment,8.0-14.0,Europe,13C-14C,historical,Wisby,板金甲の過渡
+breastplate,Breastplate,ブレストプレート,cuirass front,chest or body,chest,plate,2.0-5.0,Europe,14C-17C,both,D&D breastplate,単独なら軽めの中装
+backplate,Backplate,バックプレート,,body,back,plate,2.0-4.0,Europe,14C-17C,historical,with breastplate,胸と組んで cuirass
+cuirass,Cuirass,キュイラス / 胴甲,breast and back,body,torso,plate,4.0-8.0,Europe,14C-17C,both,cavalry,胸甲＋背甲
+plackart,Plackart,プラッカート,fauld-related belly plate,chest,abdomen,plate,1.0-2.5,Europe,15C,historical,reinforces breastplate,
+full_plate,Full plate,フルプレート,plate harness; white harness,body,full body when complete,plate,18.0-30.0,Western Europe,15C-16C,both,D&D plate; DQ プレート,実戦甲は20-25kg程度で均等分散。動きは想像より良い
+gothic_plate,Gothic plate,ゴシックプレート,German gothic,body,full,plate,18.0-25.0,German lands,15C,historical,fluted, ripple で剛性
+milanese_plate,Milanese plate,ミラノプレート,Italian round,body,full,plate,18.0-26.0,Italy,15C,historical,,丸み
+jousting_plate,Jousting plate,ジョスト用甲,stechenzueg,body,full specialized,plate,30.0-45.0,Europe,15C-16C,historical,not field,競技専用で重い。戦場甲と別
+mirror_armor,Mirror armor,ミラーアーマー,chahar-aina; char-aina,body,torso over mail,four plates,mail 10 + plates 3-6,Iran / India / Russia,Medieval-Early Modern,historical,Islamic kits,鎖の上に胸背脇の鏡板
+kazaghand,Kazaghand,カザガンド,mail in cloth,body,torso,mail quilted in,8.0-14.0,Islamic world,Medieval,historical,,表は布に見える
+dingjia,Dingjia,釘甲 / 布面甲,Chinese brigandine,body,torso,plates in cloth,10.0-16.0,China,Ming-Qing,historical,,
+shanwenjia,Shanwenjia,山文甲,mountain-pattern,body,torso,interlocking stars,10.0-16.0,China,Tang-Ming,historical,wuxia,星形札
+paper_armor,Paper armor,紙甲,paper lamellar,body,torso,layered paper,4.0-8.0,China / Korea,Medieval,historical,rare,多層紙。湿気に弱い
+oyoroi,O-yoroi,大鎧,,body,torso with o-sode,lamellar,18.0-30.0,Japan,Heian-Kamakura,both,genpei,騎射用の箱型。重い
+domaru,Do-maru,胴丸,,body,torso wrapping,lamellar,10.0-16.0,Japan,Kamakura-Muromachi,historical,infantry samurai,右で合わせる
+haramaki,Haramaki,腹巻,,body,torso back-opening,lamellar,8.0-14.0,Japan,Nanbokucho-Sengoku,historical,,背で合わせる
+tosei_gusoku,Tosei gusoku,当世具足,modern armor,body,torso,plate/lamellar mix,8.0-15.0,Japan,Sengoku-Edo,both,sengoku RPGs,鉄砲時代の実用甲
+niimai_do,Nimai-do,二枚胴,clamshell do,body,torso,iron two-piece,6.0-12.0,Japan,Sengoku,historical,,
+tatami_gusoku,Tatami gusoku,畳具足,folding armor,body,torso,mail and small plates,5.0-10.0,Japan,Sengoku-Edo,historical,travel,携帯用
+keiko,Keiko,挂甲,lamellar of ritsuryo,body,torso,lamellar,8.0-14.0,Japan,Nara-Heian,historical,,律令期
+tanko,Tanko,短甲,vertical-plate cuirass,body,torso,iron plates,6.0-12.0,Japan,Kofun,historical,,
+korean_gapgap,Gapgap / gabgap,甲（朝鮮）,Korean armor,body,torso,brigandine/mail,8.0-16.0,Korea,Joseon,historical,,
+ichcahuipilli,Ichcahuipilli,イチカウイピリ,Aztec quilted,body,torso,cotton quilted,2.0-5.0,Mesoamerica,Postclassic,historical,Mesoamerican,綿の中綿甲。鉄より軽い
+tlahiztli,Tlahuiztli,トラウィストリ,warrior suit,body,full costume,cloth plus cotton,2.0-6.0,Mesoamerica,Postclassic,historical,status suit,階級の全身衣
+boiled_leather,Cuir bouilli,キュイ・ブイ,hardened leather,body,torso,leather,4.0-8.0,Europe,Medieval,historical,leather armor core,湯や蝋で硬化
+white_armor,White armor,ホワイトアーマー,uncovered plate,body,full,bare steel,18.0-25.0,Europe,15C,historical,surcoat discarded,布を着ない磨き板金
+surcoat,Surcoat,サーコート,tabard,body over armor,torso,cloth,0.5-1.5,Europe,12C-14C,historical,heraldry,甲の上の衣服。単独ACは低い
+tabard,Tabard,タバード,,body,torso,cloth,0.4-1.0,Europe,14C-16C,historical,,
+jupon,Jupon,ジュポン,tight surcoat,body,torso,cloth,0.4-1.0,Europe,14C,historical,,
+clothes,Clothes / garments,衣服,everyday,body,torso,cloth,0.5-2.0,universal,universal,both,FMG Garments,非戦闘。FMG v1 body の既定
+fine_garments,Fine garments,上等な衣服,court dress,body,torso,cloth/silk,1.0-3.0,universal,universal,both,FMG Q4-5,防具ではなく地位

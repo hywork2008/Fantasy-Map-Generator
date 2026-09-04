@@ -1,0 +1,17 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+hat,Hat,帽子,feathered cap,head,crown,cloth/felt,0.1-0.4,universal,universal,rpg_common,bard,AC は低い
+circlet,Circlet,サークレット,diadem,head,brow,metal,0.1-0.4,universal / fantasy,Ancient analog,rpg_common,mage; PF headband,魔法枠。防具ではない
+bandana,Bandana,バンダナ,headband,head,brow,cloth,0.05-0.1,rpg,n/a,rpg_common,monk/pirate,
+wizard_hat,Wizard hat,魔法使いの帽子,pointed hat,head,crown,cloth,0.2-0.4,fantasy,n/a,rpg_common,FF/DQ,caster 定番
+iron_helm,Iron helm,アイアンヘルム,generic,head,skull,iron,1.5-2.5,rpg,Medieval analog,rpg_common,DQ 鉄の兜,材質接頭辞
+steel_helm,Steel helm,スチールヘルム,,head,skull,steel,1.8-3.0,rpg,n/a,rpg_common,DQ 鋼の兜,
+mythril_helm,Mythril helm,ミスリルヘルム,,head,skull,fantasy,game-light,fantasy,n/a,rpg_common,FF,
+dragon_helm,Dragon helm,ドラゴンヘルム,,head,skull,fantasy,n/a,fantasy,n/a,rpg_common,DQ,
+horned_helm,Horned helm,角兜,winged helm,head,skull plus horns,metal,2.0-3.5,fantasy (Viking myth),n/a,rpg_common,DQ; Wagner,実在ヴァイキング兜に角はほぼ無い
+open_helm,Open helm,オープンヘルム,visored open,head,skull face open,metal,1.5-2.5,rpg,n/a,rpg_common,generic open-faced helm,視界は広いが顔面は弱い RPG 型名
+full_helm,Full helm,フルヘルム,closed,head,full head,metal,2.0-4.0,rpg,n/a,rpg_common,DQ フルフェイス,グレートヘルム／クローズヘルムのRPG名
+casque,Casque,カスク,generic helmet,head,skull,metal,1.5-2.5,rpg / French,n/a,rpg_common,FF カスク,
+eyepatch,Eyepatch,眼帯,,eyes,one eye,cloth,0.02,universal,universal,rpg_common,pirate,eyes スロット
+goggles,Goggles,ゴーグル,,eyes,eyes,glass/leather,0.1-0.3,modern / rpg,n/a,rpg_common,steampunk,
+hachimaki,Hachimaki,鉢巻,,head,brow,cloth,0.05,Japan,universal,rpg_common,samurai flavor,防具効果はほぼ無い
+helmet_generic,Helmet,ヘルメット,helm,head,skull,varies,1.0-3.0,rpg,n/a,rpg_common,generic,RPG包括名

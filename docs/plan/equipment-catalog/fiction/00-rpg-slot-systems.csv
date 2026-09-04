@@ -1,0 +1,24 @@
+system,region_or_era,slots,shield_handling,weapon_handling,notes
+Dungeons and Dragons 5e,tabletop,armor; shield; weapons (carried); magic items not strictly slotted,shield is a distinct armor add-on,versatile/two-handed/light dual-wield,PHB 武器表は本カタログの欧米RPG名の基準
+Dungeons and Dragons 3.5 / Pathfinder 1e,tabletop,armor; shield; head; headband; eyes; shoulders; neck; chest; body; belt; wrists; hands; ring x2; feet,shield slot separate from armor,main and off-hand,魔法アイテム欄が部位対応の最も細かい西洋TRPG
+Pathfinder 2e,tabletop,similar worn items plus invested cap,shield with Raise a Shield action,1H/2H/versatile,投資上限あり
+Dragon Quest,Japan console,weapon; shield; head; armor; accessory,shield independent,one weapon,DQ1–3 系の古典4欄＋アクセ。日本RPGの原型
+Final Fantasy (classic FF1-FF6),Japan console,weapon; shield; head; body; arms; accessory,shield in off-hand,job-restricted,FF1 は両手剣で盾不可。後年は accessory 増
+Final Fantasy XIV,MMORPG,main hand; off hand; head; body; hands; legs; feet; earrings; necklace; bracelets; rings x2,off-hand for shield jobs,job weapon,盾職のみ off-hand が盾
+The Elder Scrolls,Western RPG,head; cuirass; gauntlets; boots; shield; weapon; amulet; ring x2,shield slot,1H+shield or 2H,Arena/Daggerfall 以降の定番
+Dark Souls / Elden Ring,Japan action RPG,right hand x2-3; left hand x2-3; head; chest; hands; legs; rings x2-4,left-hand shield or weapon,infusable,防具4部位＋両手スワップ
+World of Warcraft,MMORPG,head; neck; shoulder; back; chest; wrist; hands; waist; legs; feet; finger x2; trinket x2; main hand; off hand or ranged,shield occupies off-hand,ranged was separate then folded,部位が最も多い主流MMOの一つ
+Diablo II / III / IV,Western ARPG,head; torso; shoulders; hands; waist; legs; feet; main; off; neck; rings; bracers,off-hand shield/source/quiver,class weapons,矢筒はオフハンド
+Monster Hunter,Japan action,weapon; head; chest; arms; waist; legs; charm; mantle,weapon class includes lance+shield as one,one weapon class,盾は武器種に内包（ランス・片手剣）
+Fire Emblem,Japan SRPG,inventory weapons/staves no worn armor slots,no personal shield slot,weapon triangle,個人装備欄ではなく武器ランク
+Ultima,Western CRPG,helm; armor; weapon; shield; rings,shield slot,1H/2H,初期CRPGの部位モデル
+Wizardry,Western/Japan CRPG,weapon; shield; helmet; armor; gauntlets; boots; accessory,shield,class-restricted,日本のDRPG移植経由でDQ/FFに影響
+The Bard's Tale / Might and Magic,Western CRPG,weapon; shield; helm; armor; misc,shield,1H/2H,Gold Box 系もほぼ同型
+Ragnarok Online,Korea MMORPG,headgear (top/mid/low); armor; weapon; shield; garment; shoes; accessory x2,shield,1H/2H,頭を上中下に分割
+Dragon Age,Western RPG,helm; armor; gloves; boots; weapon set; ring; amulet; belt,off-hand,weapon sets swappable,
+Mount and Blade,Western sim,head; body; leg; gloves; boots; weapon slots x4; shield,shield in weapon slots,multi weapon slots,盾は武器スロットの1つ
+Path of Exile,Western ARPG,weapon; off; helm; body; gloves; boots; belt; amulet; rings x2; flasks,shield off-hand,two-hand occupies both,
+GURPS / RuneQuest / Rolemaster,tabletop,hit-location armor pieces,shield as skill item,skill per weapon,部位HPと防具 loc が対応
+D&D Baldur's Gate / IE games,CRPG,helmet; armor; shield; weapon; rings; amulet; cloak; gloves; belt; boots,shield,quick weapon slots,Infinity Engine が PF/3.5 スロットの普及源
+Pokemon-like monster RPGs,various,held item only,n/a,n/a,人間装備スロットを持たない対照例
+FMG Character.loadout v1,this project,body; weapon; accessory; mount,folded into weapon for now,single primary weapon,細分化時は本カタログの slot_id を styleKey または将来スロットに使う

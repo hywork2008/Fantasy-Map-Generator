@@ -1,0 +1,21 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+mjolnir,Mjölnir,ミョルニル,Mjöllnir; Thor's hammer,main_hand,main_hand,1H,warhammer,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Thor,Prose Edda; Poetic Edda,Marvel; God of War; SMITE,柄が短い。投げて戻り、雷を起こす。鉄の手袋と力帯と揃えて使う
+sharur,Sharur,シャルール,Sumerian talking mace,main_hand,main_hand,1H,talking_mace,n/a,n/a,Mesopotamia,3rd millennium tradition,mythology,Sumerian,Ninurta,Ninurta myths; Lugale,rare,話す戦棍。主に助言し敵を砕く
+kaumodaki,Kaumodaki,カウモーダキー,Vishnu's mace,main_hand,main_hand,1H,gada,n/a,n/a,India,Puranic,mythology,Hindu,Vishnu; Krishna,Puranas; iconography,SMITE,ヴィシュヌ四属性の一（剣・円盤・法螺・棍）
+gada_bhima,Bhima's gada,ビーマのガダ,mace of Vayu's son,two_hand,main_hand+off_hand,2H,gada,n/a,n/a,India,epic,epic,Hindu,Bhima,Mahabharata,rare,パーンダヴァの剛力。棍術の英雄
+hanuman_gada,Hanuman's gada,ハヌマーンのガダ,,two_hand,main_hand+off_hand,2H,gada,n/a,n/a,India,epic,epic,Hindu,Hanuman,Ramayana tradition,SMITE,後世図像で定番化
+parashu_rama,Parashu of Parashurama,パラシュラーマの斧,axe of Rama-with-the-axe,main_hand,main_hand,1H or 2H,divine_axe,n/a,n/a,India,epic,mythology,Hindu,Parashurama; Shiva,Mahabharata; Puranas,rare,クシャトリヤを滅ぼす斧。シヴァから授与
+dagda_club,Lorg Mór,ダグザの大棍,club of the Dagda,two_hand,main_hand+off_hand,2H,life_death_club,n/a,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,The Dagda,Cath Maige Tuired; later glosses,rare,一端は殺し一端は生かす。八人を薙ぎ倒すほど大きい
+heracles_club,Club of Heracles,ヘーラクレースの棍棒,olive-wood club,two_hand,main_hand+off_hand,2H,club,n/a,n/a,Greece,Archaic,mythology,Greek,Heracles,vase painting; Apollodorus,D&D greatclub analog,ネメアの獅子と対の図像。野生のオリーブ
+ukko_hammer,Ukko's hammer,ウッコの鎚,Ukonvasara,main_hand,main_hand,1H,thunder_hammer,n/a,n/a,Finland,folk / Kalevala,mythology,Finnish,Ukko,folk belief; Kalevala,rare,雷神の鎚。ミョルニルと類型
+perun_axe,Axe of Perun,ペルーンの斧,thunder axe,main_hand,main_hand,1H,thunder_axe,n/a,n/a,Slavic,folk,mythology,Slavic,Perun,folk amulets; later reconstruction,rare,雷斧の護符が考古で出る。神器名は後世の再構成を含む
+shango_oshe,Oshe of Shango,シャンゴのオシェ,double thunder axe,main_hand,main_hand,1H,dance_axe,n/a,n/a,Yoruba,living tradition,mythology,Yoruba,Shango,orisha cult,rare,両刃の儀礼斧。雷と正義
+ruyi_jingu_bang,Ruyi Jingu Bang,如意金箍棒,as-you-wish golden cudgel,two_hand,main_hand+off_hand,2H,size_changing_staff,n/a,n/a,China,Ming novel,epic,Chinese,Sun Wukong,Journey to the West,Black Myth; many games,海の定海神針。意のままに伸び縮み
+hephaestus_hammer,Hammer of Hephaestus,ヘパイストスの鎚,smith hammer,main_hand,main_hand,1H,smith_hammer,n/a,n/a,Greece,Archaic,mythology,Greek,Hephaestus,Homeric hymns; art,God of War,武器というより鍛冶具。神器を打つ
+labrys_zeus,Labrys (mythic),ラブリュス（神話）,double axe of the thunder god,two_hand,main_hand+off_hand,2H,double_axe,n/a,n/a,Crete / Anatolia / Greece,Bronze Age cult + myth,mythology,Aegean,Zeus Labraundos; Minoan cult,cult images,rare,実在儀礼斧は historical。ここでは雷神属性
+mwindo_adze,Mwindo's adze,ムウィンドのチョウナ,conga-righteous adule,main_hand,main_hand,1H,talking_adze,n/a,n/a,Nyanga (Congo),epic,epic,Nyanga,Mwindo,Mwindo Epic,rare,話すチョウナ。英雄誕生譚の神器
+ogun_iron,Ogun's iron,オグンの鉄,path-clearing machete,main_hand,main_hand,1H,iron_tool_weapon,n/a,n/a,Yoruba,living tradition,mythology,Yoruba,Ogun,orisha cult,rare,鉄・戦争・道開きの神の属性
+gridarvolr,Gríðarvölr,グリーズの杖,Grid's staff,two_hand,main_hand+off_hand,2H,staff,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Gríðr; Thor,Prose Edda (Skáldskaparmál),rare,ゲイルロズ訪問でトールが借りる杖。手袋・力帯と一組
+goibniu_axe,Axe of Goibniu,ゴヴニウの斧,smith of the Tuatha,main_hand,main_hand,1H,smith_axe,n/a,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,Goibniu,Mythological Cycle,rare,三鍛冶神の一。武器を打ち、饗宴の酒は不死
+thunder_axe_lei,Leigong's hammer,雷公の槌,Chinese thunder mallet,main_hand,main_hand,1H,thunder_mallet,n/a,n/a,China,Daoist,mythology,Chinese,Leigong,Daoist iconography,wuxia,鼓と槌で雷を起こす
+gofannon_hammer,Hammer of Gofannon,ゴヴァノンの鎚,Welsh smith god,main_hand,main_hand,1H,smith_hammer,n/a,n/a,Wales,Medieval Welsh,mythology,Welsh,Gofannon,Mabinogi-related,rare,ゴヴニウと同源の鍛冶神

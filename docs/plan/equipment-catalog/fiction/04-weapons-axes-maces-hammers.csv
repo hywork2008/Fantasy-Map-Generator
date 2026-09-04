@@ -1,0 +1,6 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+mace_and_chain,Mace and chain,メイスアンドチェーン,ball and chain,main_hand,main_hand,1H,flexible,50-70 plus chain,1.5-3.0,rpg,n/a,rpg_common,DQ トゲボール,歴史フレイルよりゲーム的
+spiked_club,Spiked club,スパイククラブ,,main_hand,main_hand,1H,blunt,60-90,1.0-2.0,universal,universal,rpg_common,starter,モーニングスターの簡易名
+holy_mace,Holy mace,聖なるメイス,priest mace,main_hand,main_hand,1H,blunt,50-80,1.0-1.6,fantasy,n/a,rpg_common,cleric kits,聖職者が刃を避けるというRPG慣習
+wand,Wand,ワンド,magic wand,main_hand,main_hand,1H,implement,20-40,0.1-0.3,fantasy,n/a,rpg_common,D&D; FF,魔法触媒。打撃力は低い
+rod,Rod,ロッド,magic rod,main_hand,main_hand,1H,implement,40-80,0.4-1.0,fantasy,n/a,rpg_common,FF ロッド,ワンドと杖の中間

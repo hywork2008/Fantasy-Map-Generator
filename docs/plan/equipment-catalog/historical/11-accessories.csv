@@ -1,0 +1,47 @@
+id,name_en,name_ja,alt_names,slot,occupies,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+ring,Ring,指輪,finger ring,ring,ring,0.01-0.05,universal,Bronze Age onward,both,D&D; FF; DQ,RPGでは左右2枠。魔法効果の定番
+signet_ring,Signet ring,印章指輪,,ring,ring,0.01-0.04,universal,Ancient onward,historical,status,封印と身分
+amulet,Amulet,アミュレット,charm,neck,neck,0.05-0.3,universal,Ancient onward,both,D&D; TES,首。守護
+necklace,Necklace,ネックレス,pendant,neck,neck,0.05-0.4,universal,universal,both,WoW neck,装身具
+torque_acc,Torque,トルク,,neck,neck,0.2-1.0,Celtic,Iron Age,historical,status,10 の防具と重複しうる
+holy_symbol_neck,Holy symbol (worn),聖印（首）,,neck,neck,0.05-0.3,Medieval analog,Medieval,both,cleric,off_hand にも置ける
+reliquary,Reliquary,聖遺物入れ,,neck or accessory,neck,0.1-0.5,Christian Europe,Medieval,historical,cleric,
+brooch,Brooch,ブローチ,fibula,shoulders or accessory,accessory,0.02-0.2,Europe,Iron Age-Medieval,historical,cloak fastener,
+pendant,Pendant,ペンダント,,neck,neck,0.02-0.2,universal,universal,both,,
+earrings,Earrings,耳飾り,,accessory,accessory,0.01-0.05,universal,Ancient onward,both,FFXIV ears,独立欄があるMMOあり
+bracelet,Bracelet,ブレスレット,bangle,wrists or accessory,accessory,0.02-0.2,universal,Ancient onward,both,FFXIV,
+cloak,Cloak,クローク,mantle,back,back,1.0-2.5,universal,universal,both,D&D cloak of protection,肩から。防寒兼魔法枠
+belt_pouch,Belt pouch,ポーチ,belt bag,waist,waist,0.1-0.3,universal,Medieval,both,inventory not AC,所持枠。装備ACではない
+satchel,Satchel,サッチェル,,back or waist,accessory,0.3-1.0,universal,Medieval,historical,,
+quiver_acc,Quiver,矢筒,see ranged,ammo,back or waist,0.3-0.8,universal,universal,both,sometimes off-hand,06 と重複。装具
+baldric_acc,Baldric,バルドリック,,shoulders,shoulders,0.3-0.7,Europe,Medieval,historical,weapon hang,
+sheath,Sheath / scabbard,鞘,,waist,waist,0.2-0.8,universal,Bronze Age onward,historical,not usually a slot,刀剣に付属
+shield_guige,Guige,ギーグ,,neck,neck,0.1-0.3,Europe,Medieval,historical,01 notes,盾の吊り紐
+eyeglasses,Eyeglasses,眼鏡,,eyes,eyes,0.03-0.08,Europe,13C onward,historical,late medieval possible,1280s イタリア以降
+crown_acc,Crown,王冠,,head,head,0.3-1.5,universal,Ancient onward,both,ruler,head と競合
+rosary,Rosary,ロザリオ,prayer beads,neck or hands,accessory,0.05-0.2,Christian / Buddhist analog,Medieval,both,cleric/monk,数珠は East Asia
+juzu,Juzu,数珠,mala,hands or accessory,accessory,0.05-0.2,East Asia,Medieval,historical,monk,
+inro,Inro,印籠,,waist,waist,0.1-0.3,Japan,Edo,historical,inventory,薬入れ
+netsuke,Netsuke,根付,,waist,accessory,0.02-0.1,Japan,Edo,historical,,
+kanzashi,Kanzashi,簪,,head,head,0.02-0.1,Japan,universal,historical,fashion,戦闘非推奨
+jewelry_generic,Jewelry,装身具,FMG Jewelry good,accessory,accessory,varies,universal,universal,both,FMG accessory v1,経済財 Jewelry の装備側
+torc_gold,Gold torc,金トルク,,neck,neck,0.3-1.2,Celtic,Iron Age,historical,treasure,富の可視
+fibula_acc,Fibula,フィブラ,,shoulders,accessory,0.03-0.2,Rome / Migration,Ancient-Early Medieval,historical,,
+pectoral,Pectoral,ペクトラル,chest ornament,chest or neck,chest,0.2-1.5,Egypt / Andes,Bronze Age,historical,status,胸飾り。軽装の上
+ushnisha_note,Crown/ushnisha ornaments,宝冠,,head,head,varies,South/East Asia,Ancient onward,historical,temple,戦闘用ではない
+horse_tack_acc,Horse tack set,馬具一式,,mount,mount,10.0-20.0,universal,Ancient onward,historical,FMG mount,鞍・手綱・鐙のまとめ
+horseshoe,Horseshoe,蹄鉄,,mount,mount,0.3-0.5 each,Europe,High Medieval onward,historical,economy good,装備欄というより整備
+spur,Spur,拍車,,feet,feet,0.1-0.3 pair,Europe,Medieval,historical,cavalry,靴に付ける
+mask_festival,Festival mask,祭礼面,,face,face,0.2-0.8,universal,universal,both,OnI,戦闘面とは別
+belt_buckle,Belt buckle,バックル,,waist,waist,0.05-0.2,universal,Iron Age onward,historical,sometimes ornate,
+lantern,Lantern,ランタン,,off_hand or belt,off_hand,0.5-1.5,universal,Ancient onward,both,dungeon,片手を塞ぐ光源
+waterskin,Waterskin,水筒,,waist,accessory,0.2 empty,universal,Ancient onward,both,travel,生存具
+cloak_clasp,Cloak clasp,マント留め,,shoulders,accessory,0.03-0.15,universal,Medieval,historical,,
+wineskin,Wineskin,革袋,,waist,accessory,0.2 empty,Mediterranean,Ancient,historical,,
+tabard_heraldic,Heraldic tabard,紋章タバード,,body,body,0.4-1.0,Europe,Late Medieval,historical,over armor,09 surcoat と近縁
+order_chain,Collar of an order,騎士団の鎖,,neck,neck,0.2-0.8,Europe,Late Medieval-Early Modern,historical,prestige,
+gunpowder_flask,Powder flask,火薬瓶,,waist,ammo,0.2-0.6,Early Modern,16C,historical,with firearms,
+bandolier,Bandolier,バンドリエ,apostles,chest,chest,0.5-1.5,Europe,16C-17C,historical,musketeer,弾薬管を胸に
+crampons,Crampons,アイゼン,ice spikes,feet,feet,0.3-0.8 pair,Europe,Medieval onward,historical,alpine,足スロットの特殊
+snowshoes,Snowshoes,かんじき,,feet,feet,1.0-2.0 pair,universal cold,Ancient onward,historical,travel,
+skis,Skis,スキー,,feet,feet,2.0-4.0 pair,North Eurasia,Medieval analog,historical,travel,戦闘装備ではない

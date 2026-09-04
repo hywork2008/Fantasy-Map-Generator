@@ -1,0 +1,22 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+helm_of_hades,Helm of Hades,ハーデースの隠れ兜,Cap of Invisibility; Kyneē; Helmet of Pluto,head,full head,dog-skin or divine helm,n/a,Greece,Archaic,mythology,Greek,Hades; Perseus; Athena; Hermes,Apollodorus; later classical,invisibility helms in RPGs,キュクロープスが鍛える。被ると神々にも見えない。ペルセウスがメドゥサ退治に借用
+aegishjalmr,Ægishjálmr,エーギスヒャルムル,Helm of Awe,head,brow or magical stave,terror-helm,n/a,Scandinavia,Medieval,mythology,Norse,Fáfnir; Sigurd,Fáfnismál; Gylfaginning,rare,恐怖を与える。竜の頭にあった。近世アイスランドでは魔方陣の杖記号
+tarnhelm,Tarnhelm,タルンヘルム,Tarnkappe (cape form),head or back,head or body,shape-shift / invisibility,n/a,Germany,Medieval / Wagner,epic,Nibelung / Wagner,Alberich; Siegfried,Nibelungenlied (cloak); Wagner (helm),Wagner; RPGs,中世は隠れ蓑（タルンカッペ）。ワーグナーが兜に変えた
+hulidshjalmr,Huliðshjálmr,フリズスヒャルムル,concealing helm of dwarves,head,head,invisibility,n/a,Scandinavia,Medieval,mythology,Norse,dwarves,skaldic / later lists,rare,隠す兜。タルンヘルムと類型
+hildegrim,Hildegrim,ヒルデグリム,Hildebrand's helm,head,head,helm,n/a,Germany,Medieval,epic,Germanic,Hildebrand,Þiðrekssaga / MHG,rare,固有名の兜
+beowulf_helm,Helm of Beowulf,ベオウルフの兜,boar-crested,head,head,boar helm,n/a,England,Early Medieval,epic,Anglo-Saxon,Beowulf,Beowulf,rare,猪の紋。ウェイランド作の鎖と対で語られることがある
+mambrino_helm,Helmet of Mambrino,マンブリーノの兜,barber's basin,head,head,gold helm in chivalric parody,n/a,Spain / Italy,Renaissance epic / parody,epic,Carolingian parody,Don Quixote; Orlando tradition,Ariosto; Cervantes,rare,金の兜という rumore。セルバンテスでは理髪鉢
+achilles_helm,Helm of Achilles,アキレウスの兜,Hephaestus helm,head,head,gold-ridged bronze,n/a,Greece,Homeric,epic,Greek,Achilles,Iliad 18,rare,金の鶏冠。新作甲の一部
+heracles_adamant_helm,Adamant helm of Heracles,ヘーラクレースの金剛兜,see Shield of Heracles,head,head,adamant,n/a,Greece,Archaic,epic,Greek,Heracles,Hesiodic Shield,rare,頭に密着する金剛の兜
+minamoto_kabuto_legend,Yorimitsu's kabuto,頼光の兜,otogi panoply,head,head,kabuto,n/a,Japan,otogizōshi,folklore,Japanese heroic legend,Minamoto no Yorimitsu,Shuten dōji,jRPGs,酒呑童子譚の源氏武者甲。固有神器名は弱い
+uraeus_crown,Uraeus crown,ウラエウス冠,see misc uraeus,head,brow,cobra on nemes or crown,n/a,Egypt,Pharaonic,mythology,Egyptian,pharaoh; gods,regalia,rare,頭のコブラ。焼く視線
+nemes,Nemes of the gods,ネメス,pharaonic cloth crown,head,skull,cloth,n/a,Egypt,Pharaonic,mythology,Egyptian,pharaoh; Osiris,funerary art,rare,神と王の頭衣
+crown_of_immortality,Crown of Immortality,不死の冠,laurel cosmic,head,brow,laurel or stellar,n/a,Mediterranean,Hellenistic-Roman,mythology,Greco-Roman,deified rulers; personifications,art,rare,永遠の象徴。戦闘用ではない
+boar_tusk_odysseus,Boar-tusk helm of Odysseus,オデュッセウスの猪牙兜,Autolykos heirloom,head,skull,boar tusk on leather,n/a,Greece,Homeric,epic,Greek,Odysseus; Meriones,Iliad 10,rare,実在ミケーネ型が叙事詩に残る。神器というより家宝
+helmet_of_togail,Helm in Irish lists,アイルランド一覧の兜,rarely named,head,head,n/a,n/a,Ireland,Medieval Irish,epic,Ulster Cycle,various,weapon-lists in sagas,rare,固有名は剣槍より少ない
+crown_of_twelve_stars,Crown of twelve stars,十二の星の冠,Woman of the Apocalypse,head,brow,stars,n/a,Levant / Christian,Biblical,religious_legend,Christian,Woman of Revelation 12,Revelation 12,rare,戦闘装備ではない幻視
+jingasa_benkei,Benkei's headgear,弁慶の頭巾,sohei cowl,head,skull,cloth,n/a,Japan,medieval legend,folklore,Japanese heroic legend,Benkei,Gikeiki,jRPGs,武蔵坊の山伏頭巾
+athena_helm,Corinthian helm of Athena,アテナの兜,crested,head,head,bronze,n/a,Greece,Classical art,mythology,Greek,Athena,sculpture,SMITE,図像属性。固有名はアイギスほど強くない
+yoshitsune_eboshi,Yoshitsune's eboshi,義経の烏帽子,court cap in legend,head,head,cloth,n/a,Japan,Heike,epic,Japanese heroic legend,Minamoto no Yoshitsune,Heike / Gikeiki,jRPGs,五条橋以前の貴公子姿
+horned_helm_myth,Horned helm (Wagnerian),ワーグナーの角兜,not Viking historical,head,head,horned,n/a,Germany,19C,epic,Wagnerian,Valkyries; Vikings in art,costume tradition,DQ 角兜,19世紀舞台が「ヴァイキング＝角兜」を定着させた。考古は historical の否定項
+tarnkappe_as_hood,Tarnkappe,タルンカッペ,cloak of invisibility,back or head,body,cloth,n/a,Germany,Medieval,epic,Nibelungenlied,Siegfried; Alberich,Nibelungenlied,invisibility cloaks,隠れ蓑。頭ではなく背／外套スロットが近い

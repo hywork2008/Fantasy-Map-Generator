@@ -1,0 +1,22 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+jarngreipr,Járngreipr,ヤールングレイプル,Járnglófar; Thor's iron gloves,hands,hands,iron,n/a,Scandinavia,Medieval,mythology,Norse,Thor,Gylfaginning; Skáldskaparmál,Marvel; SMITE,ミョルニルを扱うために必須。鉄の手袋
+megingjord,Megingjörð,メギンギョルズ,Megingjord; belt of strength,waist,waist,divine belt,n/a,Scandinavia,Medieval,mythology,Norse,Thor,Gylfaginning,Marvel; SMITE,力を倍加する帯。鎚・手袋と三具
+talaria,Talaria,タラリア,winged sandals of Hermes,feet,feet,winged,n/a,Greece,Archaic,mythology,Greek,Hermes; Perseus (loan),Homeric hymns; Apollodorus,RPGs boots of flying,空を飛ぶ翼のサンダル。ペルセウスも借用
+vidarr_shoes,Shoes of Víðarr,ヴィーザルの靴,thick shoe,feet,feet,leather scraps,n/a,Scandinavia,Medieval,mythology,Norse,Víðarr,Gylfaginning,rare,捨て革を集めて作る厚い靴。ラグナロクでフェンリルの顎を踏む
+achilles_greaves,Greaves of Achilles,アキレウスの脛当て,tin greaves by Hephaestus,legs,shins,tin / divine,n/a,Greece,Homeric,epic,Greek,Achilles,Iliad 18,rare,錫で打ち出した脛甲。新作甲の一部
+hippolyta_girdle,Girdle of Hippolyta,ヒッポリュテの帯,Amazon zestos,waist,waist,royal belt,n/a,Greece,Archaic,mythology,Greek,Hippolyta; Heracles,Apollodorus (labours),rare,アマゾン女王の帯。九番目の功業
+aphrodite_cestus,Cestus of Aphrodite,アプロディーテーのケストス,girdle of love,waist,waist,embroidered,n/a,Greece,Homeric,mythology,Greek,Aphrodite; Hera borrows,Iliad 14,rare,欲望を起こす胸帯／腰帯。ヘラがゼウスを惑わすため借りる
+seven_league_boots,Seven-league boots,七里靴,bottes de sept lieues,feet,feet,leather magic,n/a,France / Europe,folktale,folklore,European folktale,Hop-o'-My-Thumb; various,Perrault; later fairy tales,RPGs boots of speed,一歩で七リーグ。民話定番
+cloud_walking_boots,Cloud-walking boots,歩雲履,Wukong's shoes,feet,feet,silk/cloud,n/a,China,Ming novel,epic,Chinese,Sun Wukong,Journey to the West,Xiyou games,龍王からの一式。雲を踏む
+veland_smith_greaves,Weland work (unnamed limbs),ウェイランド作の肢甲,see Beowulf mail,legs,legs,smith-work,n/a,England / Germanic,Medieval,epic,Germanic,Weland,Beowulf; Völundarkviða,rare,肢単体の固有名は稀
+girdle_of_brynhild,Brynhild's byrnie,ブリュンヒルドの鎖,valkyrie mail,body,torso,mail,n/a,Scandinavia,Medieval,mythology,Norse,Brynhildr / Sigrdrífa,Sigrdrífumál; Völsunga,rare,睡る盾の壁の中。頭・胴にまたがる
+iunn_apples_not,Idunn's apples are accessory/consumable,イズンの林檎は装身具・消耗,,,,,,,,,,,,,
+pegasus_bridle,Bridle of Pegasus,ペガサスの手綱,golden bridle,mount,horse,gold,n/a,Greece,Archaic,mythology,Greek,Bellerophon; Athena,Pindar; Apollodorus,rare,アテナが与える。乗騎スロット
+barding_of_bayard,Bayard (horse) legend,バヤール,Charlemagne cycle horse,mount,horse,n/a,n/a,France,Medieval,epic,Carolingian,Renaud de Montauban,chansons,rare,人語を解す名馬。甲ではなく乗騎
+nemean_paws,Lion skin paws,獅子皮の前足,see Nemean,hands,hands,hide,n/a,Greece,Archaic,mythology,Greek,Heracles,art,same,前足を結び目にする図像
+boots_of_loki,skoe of Loki (rare),ロキの靴は資料が薄い,,,,,,,,,,,,,
+jason_sandals,Single sandal of Jason,イアソンの片サンダル,oracle token,feet,one foot,leather,n/a,Greece,Archaic,mythology,Greek,Jason,Argonautica tradition,rare,片足だけ靴を失い予言が成就する。防具ではない
+kothornos_dionysus,Kothornoi of Dionysus,ディオニューソスの厚底靴,tragic boot,feet,feet,cloth/leather,n/a,Greece,Classical,mythology,Greek,Dionysus; actors,theatre,rare,悲劇靴。戦闘用ではない
+suneate_raiko,Yorimitsu suneate,頼光の脛当,otogi,legs,shins,suneate,n/a,Japan,otogizōshi,folklore,Japanese heroic legend,Raikō,Shuten dōji,jRPGs,源氏武者の一式。固有名は弱い
+gauntlets_of_ogre_myth,not myth,D&D 創作は fiction,,,,,,,,,,,,,
+megingjord_marvel,Marvel naming Megingjord,ゲーム表記,waist,waist,belt,n/a,modern pop,modern,fiction-adjacent,keep in mythology as the Eddaic belt,Thor,Gylfaginning,Marvel,綴りゆれ。本体は megingjord 行,

@@ -1,0 +1,47 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+handaxe,Handaxe,ハンドアックス,hatchet,main_hand,main_hand,1H,axe_thrown,30-50,0.5-1.0,universal,Stone Age onward,both,D&D handaxe,投擲可の片手斧
+battleaxe,Battleaxe,バトルアックス,war axe 1H,main_hand,main_hand,1H,axe,60-90,0.8-1.5,universal,Iron Age-Medieval,both,D&D battleaxe versatile,RPGでは versatil が多い。実在の片手戦斧は1-1.5kg程度
+greataxe,Greataxe,グレートアックス,two-handed axe,two_hand,main_hand+off_hand,2H,axe,120-160,1.8-3.0,Northern Europe / rpg,Viking analog,both,D&D greataxe 7lb,ゲームの7lbは重め。実在両手斧は2-3kgが多い
+dane_axe,Dane axe,デーンアックス,Danish axe; long axe,two_hand,main_hand+off_hand,2H,thin_bearded_or_wide,120-170,1.5-2.5,Scandinavia / England,10C-12C,both,Viking RPGs,薄い刃で意外と軽い。ハスカール
+bearded_axe,Bearded axe,ビアデッドアックス,skeggox,main_hand,main_hand,1H,bearded,50-80,0.7-1.3,Northern Europe,Viking,both,,顎状の刃で手が滑りにくい
+francisca,Francisca,フランキスカ,Frankish throwing axe,main_hand,main_hand or ammo,thrown_1H,thrown_axe,40-50,0.5-0.9,Frankish Europe,5C-8C,both,throwing axe,投擲専用に近い戦斧
+tomahawk,Tomahawk,トマホーク,,main_hand,main_hand,1H,axe_thrown,40-60,0.4-0.9,North America,Early Modern,both,colonial fantasy,RPGでは投擲斧枠
+sagaris,Sagaris,サガリス,Scythian axe,main_hand,main_hand,1H,pick_or_axe,50-70,0.6-1.2,Steppe,Iron Age,historical,,スキタイ・ペルシア
+labrys,Labrys,ラブリュス,double axe,two_hand,main_hand+off_hand,2H,double_bitted,80-120,1.5-3.0,Aegean,Bronze Age,legendary/historical,ritual,儀礼斧のイメージが強い
+parashu,Parashu,パラシュ,Indian battle axe,main_hand,main_hand or 2H,1H or 2H,axe,70-120,1.0-2.5,India,Ancient-Medieval,both,Hindu myth RPGs,
+tabarzin,Tabarzin,タバルジン,Persian saddle axe,main_hand,main_hand,1H,axe,40-70,0.7-1.3,Iran / Islamic world,Medieval,historical,,鞍下の騎斧
+poleaxe_axehead,See polearms,（長柄は polearms ファイル）,,two_hand,main_hand+off_hand,2H,polearm,n/a,n/a,Europe,Late Medieval,historical,,ポールアックスは 05 を参照
+adze_weapon,Adze,手斧（チョウナ型）,,main_hand,main_hand,1H,adze,40-70,0.6-1.2,universal,Bronze Age onward,historical,,工具由来
+club,Club,クラブ,cudgel,main_hand,main_hand,1H,blunt,50-80,0.5-1.5,universal,universal,both,D&D club,最簡の打撃
+greatclub,Greatclub,グレートクラブ,war club 2H,two_hand,main_hand+off_hand,2H,blunt,120-160,2.0-5.0,universal / rpg,n/a,both,D&D greatclub 10lb,ゲーム値はかなり重い
+mace,Mace,メイス,simple mace,main_hand,main_hand,1H,blunt,50-80,0.8-1.6,universal,Bronze Age-Medieval,both,D&D mace,フランジやノブ付き
+flanged_mace,Flanged mace,フランジメイス,winged mace,main_hand,main_hand,1H,blunt_flanged,50-75,1.0-1.8,Europe / Islamic,High-Late Medieval,both,armor crusher,板金に対して鈍器が有効というRPG根拠
+knobbed_mace,Knobbed mace,ノブメイス,bulbous,main_hand,main_hand,1H,blunt,50-70,0.9-1.6,universal,Bronze Age onward,historical,,
+morningstar,Morningstar,モーニングスター,goedendag adjacent,main_hand,main_hand,1H,spiked_blunt,50-80,1.2-2.0,Europe,14C-16C,both,D&D morningstar,棘付き。フレイルと混同されやすい
+goedendag,Goedendag,フーデンダグ,good dagger,two_hand,main_hand+off_hand,2H,club_spike,130-180,2.0-3.5,Flanders,14C,historical,,棍棒に槍先。民兵
+flail,Flail,フレイル,military flail,main_hand,main_hand,1H,flexible,50-80 plus chain,1.0-2.0,Europe,13C-16C,both,D&D flail,農具殻竿由来。連打はゲーム誇張が多い
+two_handed_flail,Two-handed flail,両手フレイル,peasant flail,two_hand,main_hand+off_hand,2H,flexible,150-180,2.0-4.0,Europe,Medieval,historical,Hussite,ハシト戦争の農民兵器
+nunchaku,Nunchaku,ヌンチャク,nunchuks,main_hand,main_hand or paired,1H,flexible,30+chain+30,0.3-0.6,Ryukyu / China analog,Early Modern,both,FF ヌンチャク,農具由来。RPGではMonk
+warhammer,Warhammer,ウォーハンマー,knightly hammer 1H,main_hand,main_hand,1H,hammer_pick,50-80,1.0-2.0,Europe,14C-16C,both,D&D warhammer,反対側がピックのことが多い
+maul,Maul,モール,two-handed hammer,two_hand,main_hand+off_hand,2H,hammer,80-120,3.0-6.0,Europe,Late Medieval,both,D&D maul 10lb,木割槌の戦用。重い
+lucerne_note,Lucerne hammer,ルツェルンハンマー,see polearms,two_hand,main_hand+off_hand,2H,polearm,n/a,n/a,Switzerland,15C-16C,historical,,長柄。05 参照
+pick,War pick,ウォーピック,military pick,main_hand,main_hand,1H,pick,50-70,0.8-1.5,Europe / Near East,Medieval,both,D&D war pick,装甲穿孔
+horseman_pick,Horseman's pick,騎兵ピック,nadziak,main_hand,main_hand,1H,pick,60-80,1.0-1.8,Eastern Europe / Ottoman,15C-17C,historical,,
+bec_de_corbin,Bec de corbin,ベック・ド・コルバン,raven's beak,two_hand,main_hand+off_hand,2H,pole_hammer,140-180,1.8-2.8,France,14C-16C,historical,polearm family,長柄鎚＋嘴
+kanabo,Kanabo,金砕棒,tetsubo,two_hand,main_hand+off_hand,2H,studded_club,140-180,4.0-8.0,Japan,Medieval-Edo image,both,Oni; Souls,鬼の棍。実在の金砕棒はもっと多様な重量
+tetsubo,Tetsubo,鉄棒,,two_hand,main_hand+off_hand,2H,iron_staff,150-180,4.0-10.0,Japan,rpg/historical mix,both,FF 鉄棒,ゲームでは非常に重い
+hanbo,Hanbo,半棒,,main_hand,main_hand,1H or 2H,staff,90,0.4-0.7,Japan,Edo,historical,monk,半棒術
+quarterstaff,Quarterstaff,クォータースタッフ,short staff,two_hand,main_hand+off_hand,versatile,staff,180-270,1.0-2.0,Europe,Medieval-Renaissance,both,D&D quarterstaff,木の棒。最も安い両手武器
+bo,Bo,棒,rokushakubo,two_hand,main_hand+off_hand,2H,staff,180,0.6-1.2,Japan,universal,both,monk RPGs,六尺棒
+gun_staff,Gun (staff),棍,Chinese staff,two_hand,main_hand+off_hand,2H,staff,180-270,0.8-1.5,China,universal,both,wuxia,
+tonfa,Tonfa,トンファー,tuifa,main_hand,main_hand or paired,1H paired,truncheon,40-50,0.5-0.8,Ryukyu,Early Modern,both,FF トンファー,
+club_macana,Macana,マカナ,taihuitol,main_hand,main_hand,1H,hardwood_club,50-90,0.8-1.8,Americas,pre-Columbian,historical,,硬木棍。マクアフティルの無刃版
+mere,Mere,メレ,patu analog,main_hand,main_hand,1H,short_club,30-40,0.5-1.0,Maori,precolonial,historical,Oceania kits,石または硬木の短棍
+patu,Patu,パトゥ,,main_hand,main_hand,1H,short_club,30-40,0.5-1.0,Maori,precolonial,historical,,
+tepoztopilli_note,Tepoztopilli,テポストピリ,see polearms file,two_hand,main_hand+off_hand,2H,polearm,150-220,1.5-2.5,Mesoamerica,Postclassic,historical,05-weapons-polearms-spears.csv,長柄なので詳細は polearms を参照
+shillelagh,Shillelagh,シレイリー,blackthorn club,main_hand,main_hand,1H,club,80-110,0.8-1.5,Ireland,Early Modern,both,D&D spell name,RPGでは棍棒かつ呪文名
+ankus,Ankus,アンクス,elephant goad,main_hand,main_hand,1H,hook_goad,40-60,0.4-0.8,India,Ancient-Medieval,historical,niche,象使いの鉤棒が武器化
+chigiriki,Chigiriki,契木,,main_hand,main_hand,1H,chain_weight,staff plus chain,1.0-2.0,Japan,Edo,historical,ninja,鎖分銅の一種
+kusarigama_note,Kusarigama,鎖鎌,see misc,main_hand,main_hand,1H,chain,n/a,n/a,Japan,Edo,both,07 参照,
+meteor_hammer,Meteor hammer,流星錘,liuxing chui,two_hand,main_hand+off_hand,2H,flexible_weights,chain 200-350,1.5-3.0,China,Medieval,both,wuxia,両端分銅。misc にも近い
+scepter,Scepter,セプター,royal mace,main_hand,main_hand,1H,blunt_status,40-70,0.6-1.4,universal,Ancient onward,both,ruler kits,権威の棒が武器扱いされる

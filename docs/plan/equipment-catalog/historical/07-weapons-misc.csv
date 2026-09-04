@@ -1,0 +1,30 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+whip,Whip,ウィップ,bullwhip,main_hand,main_hand,1H,flexible,150-300,0.3-0.8,universal,Ancient onward,both,D&D whip reach,リーチはあるが殺傷は限定的
+scourge,Scourge,スカウジ,flail-whip,main_hand,main_hand,1H,flexible,80-150,0.4-1.0,Mediterranean,Ancient,historical,cleric dark kits,
+chain_whip,Chain whip,九節鞭,jiujiebian,main_hand,main_hand,1H,flexible,120-180,1.0-2.0,China,Medieval,both,wuxia,
+kusarigama,Kusarigama,鎖鎌,,main_hand,main_hand,1H,chain_sickle,kama 30-40 plus chain 200-300,1.0-2.0,Japan,Edo,both,ninja RPGs,鎌＋鎖分銅。両手扱いの術もある
+manriki,Manrikigusari,万力鎖,kusari-fundo,main_hand,main_hand,1H,chain_weight,60-90,0.4-0.9,Japan,Edo,historical,ninja,隠し武器
+claw,Claw,クロー,bagh nakh analog,hands or main_hand,hands or main_hand,1H,unarmed_enhance,10-20,0.2-0.5,India / rpg,Medieval / rpg,both,FF クロー; monk,手に装着する型は hands スロット
+bagh_nakh,Bagh nakh,バグナウ,tiger claws,hands,hands,worn,unarmed,8-15,0.2-0.4,India,Early Modern,historical,,
+cestus,Cestus,ケストゥス,caestus,hands,hands,worn,unarmed,glove,0.3-1.0,Rome / Greece,Ancient,both,monk/gladiator,革と金具の拳
+pata_note,Pata,パタ,see swords,main_hand,main_hand,1H,gauntlet_sword,n/a,n/a,India,Early Modern,historical,02 参照,
+fan_war,War fan,鉄扇,tessen; gunbai,main_hand,main_hand or off_hand,1H,parry_status,20-40,0.3-0.8,Japan,Sengoku-Edo,both,ninja/noble,鉄扇は護身、軍配は指揮
+tessen,Tessen,鉄扇,,main_hand,main_hand,1H,parry,20-30,0.3-0.6,Japan,Edo,historical,,
+gunbai,Gunbai,軍配,,main_hand,main_hand,1H,signal,30-50,0.4-0.8,Japan,Sengoku,historical,,武器というより指揮具
+sai_note,Sai,釵,see daggers,main_hand,paired,1H,parry,n/a,n/a,Ryukyu,Early Modern,both,03 参照,
+sickle,Sickle,シックル,kama analog,main_hand,main_hand,1H,hook,30-50,0.3-0.7,universal,Neolithic onward,both,D&D sickle,
+cane,Cane / walking stick,杖（ステッキ）,swordstick,main_hand,main_hand,1H,conceal,80-100,0.4-0.9,Early Modern / rpg,n/a,both,gentleman,仕込み剣は estoc 短
+holy_symbol,Holy symbol,聖印,reliquary,off_hand or neck,off_hand or neck,worn or 1H,implement,5-15,0.1-0.4,fantasy / historical,Medieval analog,both,D&D cleric,首掛けなら neck
+instrument_lute,Lute,リュート,,instrument,main_hand+off_hand,2H,instrument,70-90,0.5-1.2,Europe,Medieval,both,bard,bard 武器欄
+instrument_harp,Harp,ハープ,,instrument,two_hand,2H,instrument,varies,1.0-8.0,universal,Ancient onward,both,FF ハープ,
+instrument_flute,Flute,フルート,pipe,instrument,main_hand,1H,instrument,30-60,0.1-0.3,universal,universal,both,,
+shield_bash,Shield (as weapon),盾攻撃,umbo punch,shield,off_hand,1H,blunt,n/a,n/a,universal,universal,both,D&D shield bash,ボス突きは実在。別武器ではなく盾の用法
+pitchfork,Pitchfork,ピッチフォーク,,two_hand,main_hand+off_hand,2H,peasant,150-180,1.5-2.5,Europe,Medieval,both,militia,民兵
+torch_lantern_shield,see lantern shield,ランタンシールド,01-shields,shield,off_hand,1H,combo,n/a,n/a,Italy,16C,historical,,
+unarmed,Unarmed,素手,fist,hands,hands,n/a,unarmed,n/a,n/a,universal,universal,both,monk,装備なし。籠手で強化
+rope_dart,Rope dart,縄標 / 繩鏢,shengbiao,main_hand,main_hand,1H,flexible,rope 300-400,0.5-1.2,China,Medieval,both,wuxia,
+hook_sword,Hook swords,鉤鎌槍（双鉤）,shuang gou,main_hand,paired,1H paired,hook_pair,80-100,0.8-1.3 each,China,Qing martial,both,wuxia,二丁の鉤剣
+wind_fire_wheel,Wind-and-fire wheels,風火輪,,main_hand,paired,1H paired,ring_blades,30-40,0.8-1.5 each,China,martial,historical,wuxia,
+surujin,Surujin,スルジン,Okinawan chain,main_hand,main_hand,1H,chain,150-240,0.5-1.0,Ryukyu,Early Modern,historical,,
+caltrop,Caltrop,撒菱 / 鉄菱,makibishi,ammo,ammo,placed,area,3-5,0.02-0.05,Old World,Ancient-Medieval,both,ninja/trap,足元罠。ammo 扱い
+makibishi,Makibishi,撒菱,,ammo,ammo,placed,area,2-4,0.01-0.03,Japan,Sengoku,historical,ninja,

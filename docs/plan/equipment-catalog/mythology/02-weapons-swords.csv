@@ -1,0 +1,72 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+harpe,Harpe,ハルペー,harpe sickle-sword,main_hand,main_hand,1H,sickle-sword,n/a,n/a,Greece,Archaic myth,mythology,Greek,Perseus; Kronos; Hermes,Hesiod; Apollodorus,God of War; Clash of the Titans,鎌状の湾曲剣。クロノスがウラノスを、ペルセウスがメドゥサを斬る。コペシュに近いイメージ
+excalibur,Excalibur,エクスカリバー,Caliburn; Caledfwlch; Caliburnus; Escalibor,main_hand,main_hand,1H,arming_or_long,n/a,n/a,Britain,Medieval legend,epic,Arthurian,Arthur,Geoffrey of Monmouth; Vulgate Cycle; Malory,FF; DQ; SoulCalibur,王権の剣。湖の乙女から授与される系統と石から抜く系統が混線。鞘の方が傷を防ぐとする話が強い
+sword_in_the_stone,Sword in the Stone,石に刺さった剣,Sword of the Stone,main_hand,main_hand,1H,arming,n/a,n/a,Britain,Medieval legend,epic,Arthurian,Arthur,Robert de Boron; later cycles,Disney; many RPGs,後期伝承ではエクスカリバーと別物。抜いた者が王になる選定剣
+clarent,Clarent,クラレント,sword of peace,main_hand,main_hand,1H,ceremonial,n/a,n/a,Britain,Medieval legend,epic,Arthurian,Arthur; Mordred,Alliterative Morte Arthure,rare,叙任・儀礼用。モルドレッドが盗みアーサーを刺す
+galatine,Galatine,ガラティーン,Galatin,main_hand,main_hand,1H,knightly,n/a,n/a,Britain,Medieval legend,epic,Arthurian,Gawain,French prose cycles,Fate; some RPGs,ガウェインの剣。太陽とともに力が増す伝承と結びつくことがある
+arondight,Arondight,アロンダイト,Aroundight,main_hand,main_hand,1H,knightly,n/a,n/a,Britain / France,Medieval legend,epic,Arthurian,Lancelot,later romance,Fate; FF-adjacent,ランスロットの剣として後世に定着した名
+caledfwlch,Caledfwlch,カレドヴールフ,see Excalibur,main_hand,main_hand,1H,knightly,n/a,n/a,Wales,Medieval Welsh,epic,Welsh Arthurian,Arthur,Culhwch and Olwen,n/a,ウェールズ側の原型名。カラドボルグとの関係が議論される
+dyrnwyn,Dyrnwyn,デルンウィン,White-Hilt,main_hand,main_hand,1H,flaming_sword,n/a,n/a,Wales,Medieval Welsh,mythology,Welsh Triads,Rhydderch Hael,Thirteen Treasures of the Island of Britain,rare,抜くと炎。正しき者以外は焼かれる
+caladbolg,Caladbolg,カラドボルグ,Caladcholg; lightning sword,two_hand,main_hand+off_hand,2H,greatsword,n/a,n/a,Ireland,Medieval Irish,mythology,Ulster Cycle / Mythological Cycle,Fergus mac Róich; Nuada,Táin Bó Cúailnge,Fate,丘を平らに斬る。エクスカリバーの語源候補の一つ
+fragarach,Fragarach,フラガラッハ,Answerer; Retaliator,main_hand,main_hand,1H,sword,n/a,n/a,Ireland,Medieval Irish,mythology,Mythological Cycle,Manannán; Lugh; Conn of the Hundred Battles,Irish mythological cycle,D&D-adjacent names,風を起こし、喉に突きつけると嘘をつけない。誰の鎧も貫く
+claioomh_solais,Claíomh Solais,クラウ・ソラス,Sword of Light,main_hand,main_hand,1H,shining_sword,n/a,n/a,Ireland / Scotland,folktale,folklore,Gaelic folktale,various heroes,Irish/Scottish wonder tales,Secret of Kells-adjacent; RPGs,光の剣。民話で巨人や魔女から奪う定型
+orna,Orna,オルナ,,main_hand,main_hand,1H,sword,n/a,n/a,Ireland,Medieval Irish,mythology,Mythological Cycle,Tethra; Ogma,Cath Maige Tuired,rare,死者の数を語るフォモールの剣。オグマが得る
+mac_an_luin,Mac an Luin,マク・アン・ルイン,Son of the Waves,main_hand,main_hand,1H,sword,n/a,n/a,Ireland,Fenian,epic,Fenian Cycle,Fionn mac Cumhaill,Fenian lays,rare,フィンの愛剣
+moralltach,Moralltach,モラールタハ,Great Fury,main_hand,main_hand,1H,sword,n/a,n/a,Ireland,Fenian,epic,Fenian Cycle,Diarmuid Ua Duibhne,Tóraigheacht Dhiarmada agus Ghráinne,rare,マンナーンから授かった大剣。一撃必殺
+beagalltach,Beagalltach,ベガールタハ,Little Fury,main_hand,main_hand,1H,short_sword,n/a,n/a,Ireland,Fenian,epic,Fenian Cycle,Diarmuid Ua Duibhne,same,rare,小剣。日常用で、大剣を持たず死ぬ話と結びつく
+gram,Gram,グラム,Gramr; Balmung; Nothung,main_hand,main_hand,1H,migration_sword,n/a,n/a,Scandinavia / Germany,Medieval,epic,Völsunga / Nibelungen,Odin; Sigmund; Sigurd/Siegfried,Völsunga saga; Nibelungenlied; Wagner,FF グラム; Fate,オーディンが樹に刺した選定剣。ファーヴニルを屠る。独ではバルムンク
+tyrfing,Tyrfing,ティルヴィング,Tirfing,main_hand,main_hand,1H,cursed_sword,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Svafrlami; Angantyr; Hervor,Hervarar saga,rare RPGs,ドワーフが鍛えた。抜くと人を殺し、三つの禍をなす呪い
+dainsleif,Dáinsleif,ダーインスレイフ,Dain's legacy,main_hand,main_hand,1H,cursed_sword,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Högni,Skáldskaparmál,FF-adjacent,抜くと死人が出るまで収められない。傷は癒えない
+skofnung,Skofnung,スコフヌング,,main_hand,main_hand,1H,sword,n/a,n/a,Scandinavia,Medieval,epic,Norse saga,Hrólfr Kraki,Hrólfs saga kraka; Landnámabók,rare,デンマーク王の剣。刃に従士の魂が宿る。鞘から離すな・女に触れるな等の戒め
+freyrs_sword,Freyr's sword,フレイの剣,Sumarbrandr (modern label),main_hand,main_hand,1H,self_fighting,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Freyr,Skírnismál; Gylfaginning,God of War; SMITE,自ら戦う剣。ゲルズへの求婚のため失い、ラグナロクで無武装になる
+laevateinn,Lævateinn,レーヴァテイン,wounding wand; sometimes Surtr's fire-sword,main_hand,main_hand,1H,wand_or_sword,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Loki; Surtr (later ID),Fjölsvinnsmál,FF レーヴァテイン,詩では杖／剣が曖昧。後世がスルトの炎剣と同一視
+angurvadal,Angurvadal,アングルヴァダル,Stream of Anguish,main_hand,main_hand,1H,rune_sword,n/a,n/a,Scandinavia,Medieval,epic,Norse saga,Víkingr; Þorsteinn; Friðþjófr,Þorsteins saga; Friðþjófs saga,rare,戦時にルーンが輝き、平時は薄く光る
+hrunting,Hrunting,フルンティング,,main_hand,main_hand,1H,sword,n/a,n/a,England,Early Medieval,epic,Anglo-Saxon,Unferth; Beowulf,Beowulf,rare,ウンフェルスが貸す。グレンデルの母には効かない
+naegling,Nægling,ナイリング,,main_hand,main_hand,1H,sword,n/a,n/a,England,Early Medieval,epic,Anglo-Saxon,Beowulf,Beowulf,rare,竜戦で折れる古剣
+beowulf_giant_sword,Giant's sword (Beowulf),巨人の剣,eotenisc sword,two_hand,main_hand+off_hand,2H,giant_blade,n/a,n/a,England,Early Medieval,epic,Anglo-Saxon,Beowulf,Beowulf,Souls giant weapons analog,湖底の巨人剣。グレンデルの母を屠るが血で刃が溶ける
+mimung,Mimung,ミムング,Mimmung,main_hand,main_hand,1H,smith_sword,n/a,n/a,Germany / Scandinavia,Medieval,epic,Germanic,Weland / Völundr; Wittich,Þiðrekssaga,rare,ウェイランドが鍛えた
+durandal,Durandal,デュランダル,Durendal; Durlindana,main_hand,main_hand,1H,knightly,n/a,n/a,France,Medieval,epic,Carolingian,Roland,Chanson de Roland,FF デュランダル,聖遺物を柄に封じたという。ロンスヴォーで岩を裂く
+joyeuse,Joyeuse,ジョワイユーズ,Charlemagne's sword,main_hand,main_hand,1H,knightly,n/a,n/a,France,Medieval,epic,Carolingian,Charlemagne,chansons de geste; later inventories,rare RPGs,シャルルマーニュの剣。ルーヴルの儀礼剣は後世の寄せ集め
+hauteclere,Hauteclere,オートクレール,Halteclere,main_hand,main_hand,1H,knightly,n/a,n/a,France,Medieval,epic,Carolingian,Olivier,Chanson de Roland,rare,オリヴィエの剣。水晶の柄
+almace,Almace,アルマス,Almice; Almacia,main_hand,main_hand,1H,knightly,n/a,n/a,France,Medieval,epic,Carolingian,Turpin,Chanson de Roland,rare,トゥルパン大司教の剣
+courtain,Courtain,クルタン,Cortain; Curtana,main_hand,main_hand,1H,shortened,n/a,n/a,France / England,Medieval,epic,Carolingian,Ogier the Dane,chansons; English regalia,rare,先が折れた／短い剣。英国儀礼のカートゥアナと結びつく
+murgleis,Murgleis,ミュルグレイス,Murgleys,main_hand,main_hand,1H,knightly,n/a,n/a,France,Medieval,epic,Carolingian,Ganelon,Chanson de Roland,rare,ガヌロンの剣
+tizona,Tizona,ティソナ,,main_hand,main_hand,1H,knightly,n/a,n/a,Iberia,Medieval,epic,Spanish epic,El Cid,Cantar de mio Cid,rare,エル・シドの剣。現物主張は後世
+colada,Colada,コラーダ,,main_hand,main_hand,1H,knightly,n/a,n/a,Iberia,Medieval,epic,Spanish epic,El Cid,Cantar de mio Cid,rare,ティソナと対の名剣
+kusanagi,Kusanagi-no-Tsurugi,草薙剣,Ame-no-Murakumo-no-Tsurugi; Kusanagi,main_hand,main_hand,1H,straight_sacred,n/a,n/a,Japan,Kojiki-Nihon Shoki,mythology,Shinto,Susanoo; Yamato Takeru; Imperial house,Kojiki; Nihon Shoki,FF クサナギ; many jRPGs,八岐大蛇の尾から出た天叢雲剣。日本武尊が草を薙ぎ火を払う。三種の神器
+totsuka,Totsuka-no-Tsurugi,十拳剣,Ame-no-Habakiri; Totsuka,main_hand,main_hand,1H,straight_sacred,n/a,n/a,Japan,Kojiki-Nihon Shoki,mythology,Shinto,Susanoo; Izanagi,Kojiki,Naruto-adjacent popular,拳十握りの神剣。スサノオが八岐大蛇を斬る（天羽々斬）
+futsunomitama,Futsunomitama,布都御魂,Futsunomitama-no-tsurugi,main_hand,main_hand,1H,sacred_sword,n/a,n/a,Japan,Kojiki-Nihon Shoki,mythology,Shinto,Takemikazuchi; Emperor Jimmu,Nihon Shoki; Kojiki,rare,神武東征で霊剣として授与。石上神宮の神体伝承
+ame_no_ohabari,Ame-no-Ohabari,天の尾羽張,Itsu-no-ohabari,main_hand,main_hand,1H,sacred_sword,n/a,n/a,Japan,Kojiki,mythology,Shinto,Izanagi,Kojiki,rare,カグツチを斬った神剣
+ganjiang_moye,Gan Jiang and Mo Ye,干将・莫耶,Ganjiang; Moye,main_hand,main_hand,1H,paired_swords,n/a,n/a,China,Spring and Autumn legend,folklore,Chinese legend,Gan Jiang; Mo Ye; King of Wu,Wu Yue Chunqiu; later tales,wuxia,夫婦の剣工。雄剣雌剣。魚腸など呉越の名剣群と並ぶ
+xuanyuan_sword,Xuanyuan sword,軒轅剣,Sword of the Yellow Emperor,main_hand,main_hand,1H,sacred_sword,n/a,n/a,China,mythic antiquity,mythology,Chinese,Yellow Emperor,later myth compilations,Taiwan RPG 軒轅劍,黄帝の剣として後世に神器化
+yuchang,Yuchang,魚腸剣,fish-intestine sword,main_hand,main_hand,1H,short_assassin,n/a,n/a,China,Spring and Autumn legend,folklore,Chinese legend,Zhuan Zhu; Helü of Wu,Wu Yue Chunqiu,wuxia,短い魚腸。専諸が闔閭のため王僚を刺す
+zhanlu,Zhanlu,湛盧,,main_hand,main_hand,1H,sacred_sword,n/a,n/a,China,Spring and Autumn legend,folklore,Chinese legend,Ou Yezi,Wu Yue Chunqiu,wuxia,欧冶子の名剣の一
+asi,Asi,アシ,primordial sword,main_hand,main_hand,1H,divine_sword,n/a,n/a,India,epic,mythology,Hindu,Rudra/Shiva; later heroes,Mahabharata (creation of Asi),rare,最初に創造された剣。無知を断つ
+nandaka,Nandaka,ナンダカ,Nandaki,main_hand,main_hand,1H,divine_sword,n/a,n/a,India,Puranic,mythology,Hindu,Vishnu,Puranas; iconography,SMITE,ヴィシュヌの剣。知恵の刃
+chandrahasa,Chandrahasa,チャンドラハース,moon-smile sword,main_hand,main_hand,1H,divine_sword,n/a,n/a,India,epic,mythology,Hindu,Ravana,Ramayana tradition,rare,シヴァがラーヴァナに与えた
+zulfiqar,Zulfiqar,ズルフィカール,Dhu al-Faqar; Zulfiqar,main_hand,main_hand,1H,forked_sword,n/a,n/a,Arabia / Islam,7C onward,religious_legend,Islamic,Ali ibn Abi Talib; Muhammad,hadith and later epic,various games,分岐した刃の伝承図像で有名。アリーの剣
+shamshir_zomorrod,Shamshir-e Zomorrodnegar,エメラルドを刻んだシャムシール,Persian emerald shamshir,main_hand,main_hand,1H,shamshir,n/a,n/a,Iran,folktale,folklore,Persian,Amir Arsalan cycle; Fulad-zereh,Persian romances,rare,魔女の呪文を破る。蛇王フラード・ゼレの鎧を唯一斬る
+kladenets,Sword-kladenets,魔剣クラデネツ,samosek; self-swinging sword,main_hand,main_hand,1H,magic_sword,n/a,n/a,East Slavic,folktale,folklore,Slavic,bogatyrs (Ilya etc.),Russian skazki,rare,自ら斬る宝剣。石の下や頭に隠される定型
+flaming_sword_eden,Flaming sword of Eden,エデンの炎の剣,cherubim sword,main_hand,varies,n/a,flaming,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,cherubim,Genesis 3:24,DQ 炎の剣 analog,生命の木を守る。回転する炎の剣
+goliath_sword,Goliath's sword,ゴリアテの剣,,main_hand,main_hand,1H,greatsword,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,Goliath; David,1 Samuel 17; 21,rare,ダビデが後にノブの聖所から取り出す
+khanda_mythic,Khanda (sacred),カンダ（聖剣象徴）,Sikh/Hindu emblem,main_hand,main_hand,1H or 2H,straight_broad,n/a,n/a,South Asia,early modern emblem from older type,religious_legend,Sikh / Hindu,Khalsa symbolism,Sikh iconography,n/a,実在型は historical。ここでは無知を断つ象徴としての聖剣
+honjo_masamune,Honjo Masamune,本庄正宗,Masamune (legendary smith),main_hand,main_hand,1H,katana,n/a,n/a,Japan,Kamakura smith + Edo lore,folklore,Japanese sword lore,Masamune; Tokugawa,sword records and later legend,jRPGs 正宗,実在刀工への伝説がRPGの「正宗」型名になる。神器ではなく伝承
+muramasa_legend,Muramasa (cursed),村正（呪い刀）,blood-thirsty blade,main_hand,main_hand,1H,katana,n/a,n/a,Japan,Muromachi smith + Edo lore,folklore,Japanese sword lore,Muramasa; Tokugawa taboo,Edo anecdotes,FF 村正; ninja games,実在流派。徳川に不吉という江戸期の伝承が呪い刀イメージの核
+dojigiri,Dojigiri Yasutsuna,童子切安綱,Onikiri,main_hand,main_hand,1H,tachi,n/a,n/a,Japan,Heian-Kamakura lore,folklore,Japanese heroic legend,Minamoto no Yorimitsu; Watanabe no Tsuna,otogizōshi; Tenka Goken,jRPGs,酒呑童子を斬ったという天下五剣
+higekiri_hizamaru,Higekiri and Hizamaru,髭切・膝丸,Onikiri; Kumokiri,main_hand,main_hand,1H,tachi,n/a,n/a,Japan,Heian lore,folklore,Minamoto clan legend,Minamoto no Yorimitsu; Raikō,Heike-related sets; otogi,jRPGs,源氏の兄弟刀。改名伝承が多い
+kogarasu_maru,Kogarasu Maru,小烏丸,little crow,main_hand,main_hand,1H,kissaki-moroha,n/a,n/a,Japan,Heian attribution,folklore,Japanese sword lore,Amakuni (legend),later sword catalogs,rare,両刃に近い特異な刃。天国作の伝承
+nothung,Nothung,ノートゥング,see Gram,main_hand,main_hand,1H,opera_sword,n/a,n/a,Germany,19C opera on medieval matter,epic,Wagner / Nibelung,Siegmund; Siegfried,Der Ring des Nibelungen,FF ノートゥング,ヴァーグナー名。中世のグラム／バルムンクと同一系統
+balmung,Balmung,バルムンク,see Gram,main_hand,main_hand,1H,epic_sword,n/a,n/a,Germany,Medieval,epic,Nibelungenlied,Siegfried,Nibelungenlied,FF バルムンク,ニーベルンゲンの歌での名
+precieuse,Precieuse,プレシューズ,Baligant's sword,main_hand,main_hand,1H,knightly,n/a,n/a,France,Medieval,epic,Carolingian,Baligant,Chanson de Roland,rare,イスラム側王の剣としてロランの歌に出る
+crocea_mors,Crocea Mors,クロケア・モルス,Yellow Death,main_hand,main_hand,1H,roman_named,n/a,n/a,Britain / Rome,Medieval chronicle,epic,pseudo-historical,Julius Caesar; Nennius,Historia Brittonum,rare,カエサルの剣がブリトンに渡るという後世伝説
+curtana_regalia,Curtana,カートゥアナ,Sword of Mercy,main_hand,main_hand,1H,ceremonial,n/a,n/a,England,Medieval-modern,religious_legend,English regalia,English coronation,regalia inventories,n/a,先を丸めた慈悲の剣。クルタン伝承と結びつく儀礼剣
+ame_no_murakumo,Ame-no-Murakumo-no-Tsurugi,天叢雲剣,see Kusanagi,main_hand,main_hand,1H,sacred,n/a,n/a,Japan,Kojiki,mythology,Shinto,Susanoo,Kojiki,same as Kusanagi,草薙の旧名。雲を叢らせる
+seven_branched,Seven-branched sword,七支刀,Shichishito,main_hand,main_hand,1H,ceremonial,n/a,n/a,Korea/Japan,4C object + Nihon Shoki,religious_legend,East Asian,Baekje gift to Yamato,Nihon Shoki; Isonokami relic,rare,実物が石上神宮に残る。神話というより伝世の儀礼剣
+rostam_sword,Sword of Rostam,ロスタムの剣,,main_hand,main_hand,1H,shamshir,n/a,n/a,Iran,epic,epic,Persian,Rostam,Shahnameh,rare,シャナーメの英雄。具体名より豪勇の剣として語られる
+cuchulainn_sword,Cruaidín Catutchenn,クルアイディーン,Hard-headed,main_hand,main_hand,1H,sword,n/a,n/a,Ireland,Medieval Irish,epic,Ulster Cycle,Cú Chulainn,Táin and later lists,rare,クー・フーリンの剣の名として挙がる
+nuada_sword,Sword of Nuada,ヌアザの剣,Claíomh Solais associated,main_hand,main_hand,1H,king_sword,n/a,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,Nuada,Lebor Gabála; Cath Maige Tuired,rare,四秘宝の一。誰も逃れられない。光の剣と同一視されることあり
+lugh_sword,Sword of Lugh,ルグの剣,Freagarthach sometimes,main_hand,main_hand,1H,sword,n/a,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,Lugh,later lists of the four treasures,rare,槍の方が本命。剣名はフラガラッハと混線しやすい
+damocles_sword,Sword of Damocles,ダモクレスの剣,,n/a,n/a,n/a,anecdote,n/a,n/a,Sicily / Greece,Classical anecdote,folklore,Greek anecdote,Damocles; Dionysius II,Cicero (Tusc. Disp.),metaphor,装備というより権力の危うさの寓話。頭上に吊るす
+kullervo_sword,Kullervo's sword,クレルヴォの剣,,main_hand,main_hand,1H,talking_sword,n/a,n/a,Finland,19C epic from folk song,epic,Kalevala,Kullervo,Kalevala,rare,主人公に語りかける。自死に用いられる
+kalevipoeg_sword,Sword of Kalevipoeg,カレヴィポエグの剣,cursed edge,main_hand,main_hand,1H,cursed_sword,n/a,n/a,Estonia,19C epic from folk,epic,Estonian,Kalevipoeg,Kreutzwald Kalevipoeg,rare,鍛冶が呪い、持ち主の脚を斬る
+vains_sword,Väinämöinen's sword,ヴァイナモイネンの剣,,main_hand,main_hand,1H,sword,n/a,n/a,Finland,Kalevala,epic,Kalevala,Väinämöinen,Kalevala,rare,知識のシャーマン英雄の帯剣

@@ -1,0 +1,22 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+robe,Robe,ローブ,mage robe,body,torso to shin,cloth,1.0-3.0,universal / fantasy,Medieval analog,rpg_common,FF ローブ,caster の胴。動きやすいが防御低い
+cloak_as_body,Cloak (worn as body),外套を胴扱い,travel cloak,back or body,back,cloth,1.0-2.5,universal,universal,rpg_common,some jRPGs fold cloak into armor,本来は back
+leather_armor,Leather armor,レザーアーマー,cuir bouilli,body,torso,leather,3.0-8.0,universal / rpg,Medieval analog,rpg_common,D&D leather; DQ 皮のよろい,硬化革。RPG軽装の標準
+studded_leather,Studded leather,スタデッドレザー,ring-studded,body,torso,leather plus metal,8.0-12.0,rpg (brigandine analog),n/a,rpg_common,D&D studded,実在は brigandine / ring mail に近いゲーム簡略
+ring_mail,Ring mail,リングメイル,rings sewn on leather,body,torso,leather plus rings,8.0-12.0,rpg / rare historical,n/a,rpg_common,D&D ring mail,歴史実在は限定的。RPG用語
+splint_armor,Splint armor,スプリントアーマー,splinted,body,torso limbs,splints on leather,12.0-18.0,rpg / Eastern analog,n/a,rpg_common,D&D splint,腕脚の副子甲を胴に拡張したゲーム型
+half_plate,Half plate,ハーフプレート,3/4 plate,body,torso and upper limbs,plate plus mail,12.0-20.0,Europe / rpg,15C analog,rpg_common,D&D half plate,完全甲の簡易
+field_plate,Field plate,フィールドプレート,battle plate,body,full,plate,20.0-28.0,Europe,16C,rpg_common,lighter than joust,
+bone_armor,Bone armor,ボーンアーマー,,body,torso,bone,4.0-10.0,arctic / rpg,various,rpg_common,barbarian,実在は限定。RPG素材
+dragon_scale,Dragon scale,ドラゴンスケイル,,body,torso,fantasy,n/a,fantasy,n/a,rpg_common,DQ/FF,スケイルの上位
+mythril_mail,Mythril mail,ミスリルメイル,,body,torso,fantasy,game-light,fantasy,n/a,rpg_common,FF,鎖の上位材
+plate_mail,Plate mail,プレートメイル,misnomer,body,torso,plate plus mail,16.0-25.0,rpg,n/a,rpg_common,D&D older; DQ,歴史用語としては不正確（plate と mail の混成をゲームが固定名に）
+silk_armor,Silk armor,絹の鎧,padded silk,body,torso,silk layers,2.0-5.0,Mongolia / China analog,Medieval,rpg_common,arrow catch folklore,矢の引き抜きを楽にするという話がRPG化
+rags,Rags,ぼろ,cloth scraps,body,torso,cloth,0.3-0.8,universal,universal,rpg_common,FMG Q1,最低品質
+chain_mail,Chain mail,チェインメイル,mail generic,body,torso,mail,10.0-15.0,rpg name,Medieval analog,rpg_common,DQ チェインメイル,英語圏では mail が正。chain mail は重複語だがRPG定着
+iron_armor,Iron armor,アイアンアーマー,generic metal,body,torso,iron,12.0-20.0,rpg,n/a,rpg_common,DQ 鉄のよろい,材質接頭辞
+steel_armor,Steel armor,スチールアーマー,,body,torso,steel,14.0-22.0,rpg,n/a,rpg_common,DQ 鋼のよろい,
+gold_armor,Gold armor,ゴールドアーマー,ornate,body,torso,gilded,heavy,fantasy / parade,n/a,rpg_common,DQ 金のよろい,実戦の純金甲は無意味。鍍金または儀礼
+crystal_armor,Crystal armor,クリスタルアーマー,,body,torso,fantasy,n/a,fantasy,n/a,rpg_common,FF,
+robe_of_the_archmage,Archmage robe,大魔道士のローブ,,body,torso,fantasy,n/a,fantasy,n/a,rpg_common,D&D; FF,衣服型の最上位胴
+kenpo_gi,Martial arts gi,道着,monk clothes,body,torso,cloth,0.5-1.5,East Asia / rpg,n/a,rpg_common,monk,AC低・回避高のゲーム慣習

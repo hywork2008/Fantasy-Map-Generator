@@ -1,0 +1,61 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+gorget,Gorget,ゴルゲット,collar plate,neck,throat clavicles,plate,0.8-2.0,Europe,15C-17C,both,PF neck sometimes,首の板。兜と胸の隙間
+nodowa,Nodowa,喉輪,Japanese gorget,neck,throat,lamellar/plate,0.3-0.8,Japan,Muromachi-Edo,historical,,
+mail_standard,Standard,スタンダード（首の鎖）,mail collar,neck,throat,mail,0.8-1.5,Europe,14C-16C,historical,,
+torque,Torque,トルク,torc,neck,neck,metal,0.2-1.0,Celtic,Iron Age,both,status,防具というより装身具
+pauldron,Pauldron,ポールドロン,large shoulder,shoulders,shoulder armpit,plate,1.0-2.5 each,Europe,15C-16C,both,WoW shoulders,左右非対称（右が小さい）ことが多い
+spaulder,Spaulder,スポールダー,smaller shoulder,shoulders,shoulder upper arm,plate,0.4-1.0 each,Europe,14C-15C,historical,lighter than pauldron,
+sode,Sode,袖（そで）,Japanese shoulder guards,shoulders,shoulder,lamellar,0.6-1.5 each,Japan,Heian-Edo,both,o-yoroi has large o-sode,大鎧の大袖は箱型で大きい
+besagew,Besagew,ベサジュー,rondel at armpit,shoulders,armpit,plate,0.2-0.4 each,Europe,15C,historical,,
+gardbrace,Gardbrace,ガードブレイス,,shoulders,front of pauldron,plate,0.3-0.6,Europe,15C,historical,,
+rerebrace,Rerebrace,リアブレイス,upper cannon,wrists/arms,upper arm,plate,0.4-0.8 each,Europe,14C-16C,historical,,
+couter,Couter,クーター,elbow cop,wrists/arms,elbow,plate,0.3-0.6 each,Europe,14C-16C,historical,,
+vambrace,Vambrace,ヴァンブレイス,lower cannon,wrists,forearm,plate,0.4-0.9 each,Europe,14C-16C,both,D&D bracers analog,前腕。RPGのブレイサー
+kote,Kote,籠手（こて）,Japanese armored sleeves,hands and wrists,arm and hand,mail/plate on cloth,0.8-1.5 each,Japan,Kamakura-Edo,both,samurai,腕から手まで一体
+gauntlets,Gauntlets,ガントレット,plate gloves,hands,hands,plate,0.6-1.2 pair,Europe,14C-16C,both,DQ ガントレット; TES,指の可動が難しい
+hourglass_gauntlet,Hourglass gauntlet,砂時計ガントレット,,hands,hands flared cuff,plate,0.7-1.3 pair,Europe,14C,historical,,
+mitten_gauntlet,Mitten gauntlet,ミトングァントレット,,hands,hands as mitten,plate,0.8-1.4 pair,Europe,15C,historical,better protection worse dex,
+gloves,Gloves,グローブ,leather gloves,hands,hands,leather,0.1-0.4 pair,universal,universal,both,thief kits,軽装
+mail_mittens,Mail mittens,メイルミトン,,hands,hands,mail,0.5-1.0 pair,Europe,13C-14C,historical,,
+dastana,Dastana,ダスタナ,Indian vambrace,wrists,forearm,plate,0.5-1.0 each,India,Mughal,historical,,
+fauld,Fauld,フォールド,taces,waist,hips abdomen,lames,0.8-1.5,Europe,15C-16C,historical,,胸甲下の横札
+culet,Culet,キュレット,,waist,buttocks,lames,0.4-1.0,Europe,15C-16C,historical,,
+tassets,Tassets,タセット,tuilles,waist or legs,upper thigh,plate,0.5-1.2 each,Europe,15C-16C,both,,
+kusazuri,Kusazuri,草摺,Japanese fauld,waist,hips thighs,lamellar,1.0-2.0,Japan,Heian-Edo,historical,hangs from do,
+belt,Belt,ベルト,sword belt,waist,waist,leather,0.2-0.6,universal,universal,both,D&D belt of giant strength,装身具兼帯刀
+obi,Obi,帯,,waist,waist,cloth,0.2-0.5,Japan,universal,both,,
+sword_belt,Sword belt,ソードベルト,baldric,waist or back,waist,leather,0.3-0.7,Europe,Medieval,historical,,baldric は肩から
+baldric,Baldric,バルドリック,shoulder belt,shoulders or waist,torso diagonal,leather,0.3-0.7,Europe,Medieval-Early Modern,historical,,
+chausses,Chausses,ショース,mail legs,legs,legs,mail,3.0-6.0 pair,Europe,12C-14C,historical,,
+cuisse,Cuisse,キュイス,thigh plate,legs,thigh,plate,0.8-1.5 each,Europe,14C-16C,historical,,
+poleyn,Poleyn,ポレイン,knee cop,legs,knee,plate,0.3-0.6 each,Europe,14C-16C,historical,,
+greave,Greave,グリーヴ,jambeau,legs,shin (closed = full),plate,0.6-1.2 each,Europe / Ancient,Ancient and Medieval,both,hoplite bronze greaves,古代は脛のみ、中世後期は前後閉じ
+schynbald,Schynbald,シンバルド,shin only,legs,shin front,plate,0.4-0.8 each,Europe,13C-15C,historical,,
+haidate,Haidate,佩楯,Japanese thigh guard,legs,thigh,mail/plates on cloth,0.8-1.5 pair,Japan,Muromachi-Edo,historical,,
+suneate,Suneate,脛当,Japanese greaves,legs,shin,splint/plate,0.5-1.2 pair,Japan,Kamakura-Edo,historical,naginata adds this in kendo analog,
+mail_hose,Mail hose,メイルホーズ,,legs,legs,mail,3.0-5.0 pair,Europe,13C,historical,,
+sabaton,Sabaton,サバトン,solleret,feet,foot,plate,0.6-1.2 pair,Europe,14C-16C,both,plate feet,熊手型や箱型
+solleret,Solleret,ソレレット,same as sabaton,feet,foot,plate,0.6-1.2 pair,Europe,14C-16C,historical,,
+kogake,Kogake,甲懸,Japanese sabaton,feet,foot,lamellar/mail,0.3-0.8 pair,Japan,Sengoku-Edo,historical,,
+boots,Boots,ブーツ,riding boots,feet,foot calf,leather,0.8-2.0 pair,universal,universal,both,TES; DQ,軽装の足。魔法枠にもなる
+shoes,Shoes,靴,turnshoes,feet,foot,leather,0.4-0.8 pair,universal,Medieval,historical,,
+sandals,Sandals,サンダル,caligae,feet,foot,leather,0.3-0.7 pair,Mediterranean / Japan,Ancient,both,monk/gladiator,caligae は軍靴
+caligae,Caligae,カリガエ,Roman military sandal,feet,foot,leather hobnails,0.5-1.0 pair,Rome,1C-2C AD,historical,,
+waraji,Waraji,草鞋,,feet,foot,straw,0.1-0.3 pair,Japan,universal,historical,ashigaru,
+mail_voiders,Voiders,ヴォイダー,mail at gaps,wrists,armpit elbow,mail,0.3-0.8,Europe,15C,historical,not a slot,隙間用。独立装備欄にはしにくい
+arming_points,Arming points,アーミングポイント,laces,n/a,n/a,cord,n/a,Europe,Late Medieval,historical,,甲をダブレットに結ぶ点
+arming_doublet,Arming doublet,アーミングダブレット,under-plate,body,torso,quilted,1.5-3.0,Europe,15C-16C,historical,under full plate,板金の下地。padded の一種
+lames,Lames,レイム,overlapping strips,n/a,joints,plate,n/a,Europe,Late Medieval,historical,construction term,部品名。スロットではない
+rerebrace_vambrace_set,Arm harness,腕甲一式,full arm,wrists,whole arm,plate,1.5-3.0 each,Europe,15C,historical,RPG often folds into body or gloves,
+leg_harness,Leg harness,脚甲一式,full leg,legs,thigh to foot,plate,3.0-6.0 pair,Europe,15C,historical,Dark Souls legs slot,
+manica,Manica,マニカ,Roman arm guard,wrists,arm,segmented,1.0-2.0,Rome / gladiator,1C-2C AD,historical,gladiator,帯板の腕
+ocrea,Ocrea,オクレア,ancient greave,legs,shin,bronze,0.6-1.2 each,Greece / Rome,Ancient,historical,hoplite,
+pteruges,Pteruges,プテルゲス,leather lappets,waist,hips upper arm,leather,0.5-1.5,Greece / Rome,Ancient,historical,under cuirass skirt,
+cloak_fastener,Fibula,フィブラ,brooch,shoulders,cloak pin,metal,0.05-0.3,Europe,Iron Age-Medieval,historical,accessory,外套を留める。shoulders ではなく装身具
+horse_barding,Barding,バーディング,horse armor,mount,mount body,mail/plate/cloth,15.0-40.0,Eurasia,Ancient-Medieval,both,D&D barding,乗騎スロット。騎士本人ではない
+chanfron,Chanfron,シャンフロン,horse head plate,mount,horse head,plate,2.0-5.0,Europe,13C-16C,historical,part of barding,
+peytral,Peytral,ペイトラル,horse chest,mount,horse chest,plate,4.0-10.0,Europe,14C-16C,historical,,
+crupper,Crupper (armor),クラッパー（馬の臀部甲）,,mount,horse rump,plate,3.0-8.0,Europe,15C-16C,historical,,
+saddle,Saddle,鞍,,mount,horse,leather/wood,8.0-15.0,universal,Ancient onward,historical,related gear,乗騎の一部
+stirrup,Stirrup,鐙,,mount,horse,iron,0.5-1.5 pair,Eurasia,Early Medieval onward,historical,,騎槍戦を可能にした装具
+bit_and_bridle,Bit and bridle,手綱・銜,,mount,horse head,leather/metal,0.5-1.5,universal,Ancient onward,historical,,

@@ -1,0 +1,44 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,effective_range_m,origin_region,period,attestation,rpg_examples,notes
+shortbow,Shortbow,ショートボウ,self short bow,two_hand,main_hand+off_hand,2H,bow,80-120,0.4-0.8,30-80,universal,Mesolithic onward,both,D&D shortbow; DQ,騎馬・密林向き。ドローが短い
+longbow,Longbow,ロングボウ,English war bow,two_hand,main_hand+off_hand,2H,bow,170-200,0.7-1.5,80-200,Wales / England,13C-16C,both,D&D longbow; this project's longbow.md,イチイ等。ドロー 80-150lb 級もあり。矢は ammo
+recurve_bow,Recurve bow,リカーブボウ,composite recurve,two_hand,main_hand+off_hand,2H,bow,90-140,0.5-1.0,80-200,Steppe / Near East,Bronze Age onward,both,TES; mounted archer,短いが強力。騎射の本命
+composite_bow,Composite bow,コンポジットボウ,horn-sinew-wood,two_hand,main_hand+off_hand,2H,bow,90-130,0.5-1.0,80-250,Steppe / Near East / East Asia,Bronze Age onward,historical,same as recurve often,湿度に弱い
+mongol_bow,Mongol bow,モンゴル弓,steppe composite,two_hand,main_hand+off_hand,2H,bow,120-140,0.6-1.1,100-250,Mongolia,Medieval,both,,
+japanese_yumi,Yumi,弓（ゆみ）,daikyu,two_hand,main_hand+off_hand,2H,asymmetric_bow,200-230,0.6-1.2,50-150,Japan,Yayoi-Edo,both,sengoku; kyudo,握りが下寄り。長弓だが複合・竹
+hankyu,Hankyu,半弓,Japanese short bow,two_hand,main_hand+off_hand,2H,bow,80-120,0.4-0.8,30-80,Japan,Sengoku-Edo,historical,castle/indoor,
+crossbow_light,Light crossbow,ライトクロスボウ,hand spanning,two_hand,main_hand+off_hand,2H,crossbow,60-80,2.0-3.5,40-80,Europe / China,Medieval,both,D&D light crossbow,足掛けまたは手でコッキング
+crossbow_heavy,Heavy crossbow,ヘビークロスボウ,windlass / cranequin,two_hand,main_hand+off_hand,2H,crossbow,70-100,4.0-8.0,80-150,Europe,13C-16C,both,D&D heavy 18lb,巻き上げ器必須。装填が遅い
+crossbow_hand,Hand crossbow,ハンドクロスボウ,latch,main_hand,main_hand,1H,crossbow,30-50,1.0-2.0,15-40,Europe,16C-17C,both,D&D hand crossbow,RPGの片手弩。歴史品は小型狩猟・決闘
+arbalest,Arbalest,アーバレスト,steel-prod crossbow,two_hand,main_hand+off_hand,2H,crossbow,80-110,5.0-9.0,80-150,Europe,14C-16C,both,DQ アーバレスト,鋼のプロッド
+chu_ko_nu,Chu-ko-nu,連弩,repeating crossbow,two_hand,main_hand+off_hand,2H,repeating,60-90,2.0-4.0,20-50,China,Warring States-Qing,both,exotic RPG,弱く速い。諸葛亮伝承で有名
+chinese_crossbow,Chinese crossbow,弩（ど）,nu,two_hand,main_hand+off_hand,2H,crossbow,70-100,3.0-6.0,80-200,China,Warring States onward,historical,mass infantry,規模運用が欧州より早い
+sling,Sling,スリング,shepherd sling,main_hand,main_hand,1H,sling,strip 60-100,0.05-0.2,50-150,universal,Neolithic onward,both,D&D sling; Balearic,弾薬は石または鉛弾（glandes）
+staff_sling,Staff sling,スタッフスリング,fustibalus,two_hand,main_hand+off_hand,2H,sling,120-150,0.8-1.5,80-150,Mediterranean,Ancient-Medieval,historical,siege light,棒先のスリング。投石機の個人版
+blowgun,Blowgun,吹き矢,blowpipe,two_hand,main_hand+off_hand,2H,blow,100-200,0.2-0.6,10-30,Amazonia / SE Asia,precolonial,both,D&D blowgun,毒針。ダメージはゲームでは低い
+atlatl,Atlatl,アトラトル,spear-thrower,main_hand,main_hand,1H,lever,40-70,0.2-0.5,20-80,Americas / Upper Paleolithic world,Paleolithic-pre-Columbian,both,Mesoamerican,投槍の射程を伸ばす補助具。dart が ammo
+woomera,Woomera,ウーメラ,Australian spear-thrower,main_hand,main_hand,1H,lever,60-90,0.3-0.6,20-80,Australia,precolonial,historical,,盾代わりの広い型あり
+throwing_spear,Throwing spear,投槍,see javelin,main_hand,main_hand,thrown,thrown,120-180,0.5-1.2,20-40,universal,universal,both,,
+plumbata,Plumbata,プルンバタ,martiobarbuli,ammo,ammo,thrown,dart,30-50,0.2-0.4,20-40,Late Rome,4C-5C,historical,,鉛付き投げ矢。盾の裏に複数
+dart,Dart,ダーツ,thrown dart,main_hand,ammo,thrown,thrown,15-40,0.05-0.3,10-20,universal,universal,both,D&D dart,
+throwing_axe,Throwing axe,投斧,see francisca,main_hand,ammo,thrown,thrown,30-50,0.4-0.9,10-25,Europe,Early Medieval,both,D&D handaxe,
+bolas,Bolas,ボーラ,boleadoras,main_hand,main_hand,thrown,entangle,cords 80-120,0.4-1.0,10-30,South America,pre-Columbian,both,entangle,足絡め
+net,Net,ネット,retiarius net,main_hand,main_hand or off_hand,thrown,entangle,300 diameter spread,1.0-3.0,5-10,Mediterranean,Ancient,both,D&D net; gladiator,オフハンドまたは投擲。拘束
+lasso,Lasso,投げ縄,riata,main_hand,main_hand,thrown,entangle,rope 800-1500,1.0-2.0,5-15,Steppe / Americas,various,both,,
+boomerang,Boomerang,ブーメラン,throwing stick,main_hand,main_hand,thrown,thrown,40-80,0.2-0.6,20-50,Australia,precolonial,both,returning is hunting light type,戦争用は戻らない重い型
+chakram,Chakram,チャクラム,war quoit,main_hand,ammo,thrown,thrown,ring 12-30,0.2-0.5,20-40,India,Ancient-Early Modern,both,D&D; Xena analog,輪状の投擲刃
+hunga_munga,Hunga munga,フンガムンガ,African throwing blade,main_hand,ammo,thrown,thrown,40-70,0.4-1.0,20-40,Central Africa,Iron Age-Early Modern,historical,,複雑形状の投刃
+kestros,Kestros,ケストロス,kestrosphendone,main_hand,main_hand,1H,sling_dart,sling plus dart,0.3-0.6,40-80,Hellenistic,2C BC,historical,,ダーツ用スリング
+arrow,Arrow,矢,shaft arrow,ammo,ammo,n/a,ammo,60-100,0.02-0.05,n/a,universal,universal,both,quiver contents,slot は ammo。鏃形状で用途が変わる
+bodkin_arrow,Bodkin arrow,ボドキン矢,armor-piercing,ammo,ammo,n/a,ammo,70-90,0.03-0.06,n/a,Europe,Late Medieval,historical,,細く硬い鏃
+broadhead_arrow,Broadhead,ブロードヘッド,hunting/war cutting,ammo,ammo,n/a,ammo,70-90,0.03-0.07,n/a,universal,universal,historical,,
+bolt,Bolt / quarrel,ボルト / クォレル,crossbow bolt,ammo,ammo,n/a,ammo,30-45,0.03-0.08,n/a,Europe / China,Medieval,both,,
+sling_bullet,Sling bullet,スリング弾,glandes,ammo,ammo,n/a,ammo,3-5,0.03-0.06,n/a,Mediterranean,Ancient,historical,lead acorns,
+quiver,Quiver,矢筒,yazutsu,ammo,back or waist,worn,container,40-80,0.3-0.8,n/a,universal,universal,both,TES quiver is off-hand in some games,装具。矢 12-24 本程度
+musket,Musket,マスケット,matchlock/flintlock,two_hand,main_hand+off_hand,2H,firearm,120-160,4.0-6.5,50-80,Europe / Ottoman / East Asia,16C-18C,both,D&D 2024 musket; this project gunpowder era,本カタログは中世限界＋初期火器のみ代表
+arquebus,Arquebus,アルケブス,harquebus; tanegashima,two_hand,main_hand+off_hand,2H,firearm,100-140,3.0-5.0,40-70,Europe / Japan,15C-17C,historical,sengoku,種子島
+handgonne,Handgonne,手砲,hand cannon,two_hand,main_hand+off_hand,2H,firearm,30-80,2.0-5.0,20-40,Europe / China,14C-15C,historical,early gun,火縄以前の筒
+pistol_wheellock,Wheellock pistol,ホイールロックピストル,,main_hand,main_hand,1H,firearm,30-50,1.2-2.0,10-20,Europe,16C-17C,historical,late medieval edge,
+stone,Thrown stone,投石,,main_hand,ammo,thrown,thrown,n/a,0.2-0.5,10-25,universal,universal,both,improvised,スリングなしの手投げ
+fire_arrow,Fire arrow,火箭 / 火矢,incendiary,ammo,ammo,n/a,ammo,70-90,0.04-0.08,n/a,China / Europe,Ancient-Medieval,historical,siege,攻城。個人戦闘では稀
+bullet,Bullet (early),弾丸,lead ball,ammo,ammo,n/a,ammo,1-2,0.01-0.03,n/a,Early Modern,16C,historical,gunpowder era goods,
+powder_horn,Powder horn,火薬入れ,,ammo,waist,worn,container,20-40,0.3-0.8,n/a,Early Modern,16C,historical,,火器の ammo 容器

@@ -1,0 +1,7 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+ninjato,Ninjato,忍者刀,ninja-to,main_hand,main_hand,1H,straight_short,50-70,0.7-1.1,Japan (modern image),modern/rpg,rpg_common,ninja games,実在の標準型は疑わしい。短い直刀のRPG型
+shortsword,Shortsword,ショートソード,short sword generic,main_hand,main_hand,1H,straight,50-70,0.7-1.2,rpg (gladius analog),n/a,rpg_common,D&D shortsword; DQ,グラディウス／脇差相当のRPG名
+broadsword,Broadsword,ブロードソード,generic wide sword,main_hand,main_hand,1H,straight_broad,90-110,1.0-1.6,rpg / Early Modern,n/a,rpg_common,DQ ブロードソード,歴史用語としてはバスケットヒルト。RPGでは幅広い片手剣
+runesword,Rune sword,ルーンソード,magic inscribed,main_hand,varies,1H or 2H,fantasy,n/a,n/a,fantasy,n/a,rpg_common,DQ/FF,品質・魔法接頭
+holy_sword,Holy sword,聖剣,sacred sword,main_hand,varies,1H or 2H,fantasy,n/a,n/a,fantasy,n/a,rpg_common,DQ はてんのつるぎ,固有名ではなく型として流通
+demon_blade,Demon blade,魔剣,cursed sword,main_hand,varies,1H or 2H,fantasy,n/a,n/a,fantasy,n/a,rpg_common,FF デモンズ,

@@ -1,0 +1,37 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,tradition,associated_figure,source_text,rpg_examples,notes
+keraunos,Keraunos,ケラウノス,thunderbolt of Zeus,main_hand,main_hand,1H,thunderbolt,n/a,n/a,Greece,Archaic,mythology,Greek,Zeus,Hesiod; vase painting,God of War; SMITE,キュクロープスが鍛える。投擲する雷
+vajra,Vajra,ヴァジュラ,Indra's thunder-club,main_hand,main_hand,1H,thunderbolt,n/a,n/a,India,Vedic,mythology,Hindu / Buddhist,Indra; later Vajrapani,Rigveda; Buddhist tantra,SMITE; DQ 金剛,金剛杵。雷と不可壊。仏教では法具
+sudarshana,Sudarshana Chakra,スダルシャナ・チャクラ,Vishnu's discus,main_hand,thrown,thrown,chakra,n/a,n/a,India,epic / Puranic,mythology,Hindu,Vishnu; Krishna,Mahabharata; Puranas,SMITE,常に回り、命じれば敵の首を取る
+caduceus,Caduceus,カドゥケウス,kerykeion,main_hand,main_hand,1H,herald_staff,n/a,n/a,Greece,Archaic,mythology,Greek,Hermes,Homeric hymns; art,rarely a weapon,二蛇の伝令杖。武器というより職能標識
+thyrsus,Thyrsus,テュルソス,fennel staff with pine-cone,two_hand,main_hand+off_hand,2H,ritual_staff,n/a,n/a,Greece,Classical,mythology,Greek,Dionysus; maenads,Euripides Bacchae,rare,祭杖。 bacchant が武器化することあり
+was_scepter,Was sceptre,ウアス笏,was,main_hand,main_hand,1H,scepter,n/a,n/a,Egypt,Pharaonic,mythology,Egyptian,gods and pharaohs,temple reliefs,rare,神と王の権杖。動物頭の柄
+crook_and_flail,Crook and flail,鉤杖と殻竿,heka and nekhakha,main_hand,paired,1H paired,royal_regalia,n/a,n/a,Egypt,Pharaonic,mythology,Egyptian,Osiris; pharaoh,funerary art,rare,オシリスの王権。両手の対
+manaiakalani,Manaiakalani,マナイアカラニ,Maui's fishhook,main_hand,main_hand,1H,fishhook,n/a,n/a,Polynesia,oral tradition,mythology,Polynesian,Maui,Hawaiian and Māori cycles,Moana-adjacent,島を釣り上げ、太陽を縛る
+gleipnir,Gleipnir,グレイプニル,fetter of Fenrir,n/a,n/a,n/a,binding,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Fenrir; dwarves,Gylfaginning,rare,猫の足音等で編んだ細い縛。装備ではなく拘束具
+net_of_hephaestus,Net of Hephaestus,ヘパイストスの網,unbreakable snare,n/a,n/a,n/a,net,n/a,n/a,Greece,Odyssey,mythology,Greek,Hephaestus; Ares; Aphrodite,Odyssey 8,D&D net analog,姦通を捕える不可壊の網
+khatvanga,Khatvanga,カトヴァーンガ,Shiva/wrathful staff,two_hand,main_hand+off_hand,2H,skull_staff,n/a,n/a,India / Tibet,tantric,mythology,Hindu / Buddhist,Shiva; wrathful deities,tantric iconography,rare,髑髏を付けた棒。武器兼法具
+nine_toothed_rake,Nine-toothed rake,九歯釘耙,Zhu Bajie's rake,two_hand,main_hand+off_hand,2H,rake,n/a,n/a,China,Ming novel,epic,Chinese,Zhu Bajie,Journey to the West,games of Xiyou,元は海の神器。豚八戒
+crescent_spade,Monk's spade of Sha Wujing,沙悟浄の月牙鏟,crescent-moon spade,two_hand,main_hand+off_hand,2H,spade,n/a,n/a,China,Ming novel,epic,Chinese,Sha Wujing,Journey to the West,same,月牙鏟
+imhullu,Imhullu,イムフルー,Marduk's wind weapon,main_hand,main_hand,1H,storm_weapon,n/a,n/a,Mesopotamia,2nd millennium,mythology,Babylonian,Marduk,Enuma Elish,rare,ティアマトを仕留める暴風の武器
+tablet_of_destinies,Tablet of Destinies,天命のタブレット,Dup Shimati,accessory,n/a,n/a,cosmic_object,n/a,n/a,Mesopotamia,2nd millennium,mythology,Mesopotamian,Enlil; Anzu; Marduk,Anzu myth; Enuma Elish,rare,宇宙の支配権。身に着けるというより所持
+seal_of_solomon,Seal of Solomon,ソロモンの封印,ring-seal of jinn,ring,ring,n/a,seal,n/a,n/a,Near East,medieval legend,religious_legend,Jewish / Islamic,Solomon,Talmudic and Islamic lore; 1001 Nights,RPGs,ジンを封ずる印章。指輪欄
+aladdin_lamp,Lamp of Aladdin,アラジンのランプ,jinni lamp,off_hand,off_hand,1H,vessel,n/a,n/a,Near East / France,1704 Galland from Arabic,folklore,1001 Nights cycle,Aladdin,Les Mille et Une Nuits,RPGs,民話小道具。武器ではない
+ogre_iron_club,Kanabo of oni,鬼の金砕棒,folktale tetsubo,two_hand,main_hand+off_hand,2H,kanabo,n/a,n/a,Japan,folktale,folklore,Japanese folktale,oni,otogi zōshi; proverb,Souls,ことわざ「鬼に金棒」。実在金砕棒は historical
+shakujou,Shakujō of wandering hijiri,錫杖（修行者）,khakkhara,two_hand,main_hand+off_hand,2H,staff,n/a,n/a,East Asia,Buddhist,religious_legend,Buddhist,monks; Jizō,sutra and iconography,jRPGs,環が鳴る杖。武器化は物語上
+nyoi,Nyoi / ruyi,如意,wish-fulfilling scepter,main_hand,main_hand,1H,scepter,n/a,n/a,China / Japan,Buddhist-Daoist,mythology,East Asian,bodhisattvas; Sun Wukong staff name,iconography,same as ruyi staff,金箍棒の「如意」はこの権杖語
+gorgon_head,Head of Medusa,メドゥサの首,gorgoneion as weapon,off_hand,off_hand,1H,trophy,n/a,n/a,Greece,Archaic,mythology,Greek,Perseus; Athena,Apollodorus; Metamorphoses,Clash of the Titans,見る者を石にする。盾に装着すれば aegis
+bagua_fan,Banana-leaf fan,芭蕉扇,Princess Iron Fan,main_hand,main_hand,1H,fan,n/a,n/a,China,Ming novel,epic,Chinese,Raksasi / Iron Fan Princess,Journey to the West,Xiyou games,火焔山を消す。一扇で風
+sun_wukong_hairs,Wukong's hairs,孫悟空の体毛,clone hairs,ammo,ammo,n/a,transform,n/a,n/a,China,Ming novel,epic,Chinese,Sun Wukong,Journey to the West,games,噛んで吹くと分身。武器というより神通
+kagura_suuzu,Kagura bells,神楽鈴,suzu,main_hand,main_hand,1H,ritual,n/a,n/a,Japan,Shinto,mythology,Shinto,miko; Ame-no-Uzume,ritual practice,jRPGs,戦闘用ではない祭具
+gjallarhorn_as_instrument,Gjallarhorn,ギャッラルホルン,Heimdall's horn,instrument,two_hand,2H,horn,n/a,n/a,Scandinavia,Medieval,mythology,Norse,Heimdallr,Völuspá; Gylfaginning,God of War,ラグナロクを告げる。武器ではない
+uaithne,Uaithne,ウアイネ,Dagda's harp,instrument,two_hand,2H,harp,n/a,n/a,Ireland,Medieval Irish,mythology,Tuatha Dé Danann,The Dagda,Cath Maige Tuired,rare,三つの調べで涙・笑い・眠り
+samson_jawbone,Jawbone of an ass,ろばの顎骨,Samson's weapon,main_hand,main_hand,1H,improvised,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,Samson,Judges 15,rare,千人を討つ即興武器
+wand_of_circe,Wand of Circe,キルケーの杖,transforming wand,main_hand,main_hand,1H,wand,n/a,n/a,Greece,Homeric,epic,Greek,Circe,Odyssey 10,D&D wand analog,人を豚に変える
+rod_of_aaron,Rod of Aaron,アロンの杖,budding staff,main_hand,main_hand,1H,staff,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,Aaron; Moses,Exodus; Numbers,rare,蛇に変わり、芽吹く
+moses_staff,Staff of Moses,モーセの杖,see Aaron in some strands,main_hand,main_hand,1H,staff,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,Moses,Exodus,rare,海を分け、岩から水
+nehushtan,Nehushtan,ネフシュタン,bronze serpent,n/a,n/a,n/a,standard,n/a,n/a,Levant,Biblical,religious_legend,Abrahamic,Moses,Numbers 21; 2 Kings 18,rare,掲げて蛇の害を癒す。後に偶像として砕かれる
+thunderbird_club,Thunderbird club,サンダーバードの棍,Pacific Northwest,two_hand,main_hand+off_hand,2H,club,n/a,n/a,Pacific Northwest,oral,mythology,Indigenous NW Coast,Thunderbird,oral traditions,rare,雷鳥伝承の打撃具。地域差が大きい
+kongo_sho,Vajra (kongōsho),金剛杵,see Vajra,main_hand,main_hand,1H,ritual_bolt,n/a,n/a,Japan / Tibet,Buddhist,religious_legend,Buddhist,vajra deities,tantric implements,jRPGs,独鈷・三鈷・五鈷。法具がRPG武器化
+sistrum,Sistrum of Hathor,シストルム,ritual rattle,main_hand,main_hand,1H,rattle,n/a,n/a,Egypt,Pharaonic,mythology,Egyptian,Hathor; Isis,temple cult,rare,武器ではなく祭楽器
+ankh_as_held,Ankh,アンク,key of life,off_hand,off_hand,1H,symbol,n/a,n/a,Egypt,Pharaonic,mythology,Egyptian,gods,reliefs,RPGs,神が死者に差し出す生命記号。武器ではない
+eye_of_ra_uraeus,Uraeus,ウラエウス,rearing cobra,head or off_hand,head,worn,serpent,n/a,n/a,Egypt,Pharaonic,mythology,Egyptian,Ra; pharaoh,regalia,rare,王冠のコブラ。敵を焼く目

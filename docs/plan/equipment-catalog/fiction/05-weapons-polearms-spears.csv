@@ -1,0 +1,2 @@
+id,name_en,name_ja,alt_names,slot,occupies,handedness,category,typical_length_cm,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+bisento,Bisento,眉尖刀,,two_hand,main_hand+off_hand,2H,heavy_glaive,180-250,2.5-4.5,Japan / China analog,Sengoku image,rpg_common,heavy naginata,重量薙刀のRPG型。中国の眉尖刀に相当する名。聖槍・海神のトライデントの固有は mythology/05-weapons-polearms-spears.csv

@@ -1,0 +1,11 @@
+id,name_en,name_ja,alt_names,slot,covers,material_class,typical_weight_kg,origin_region,period,attestation,rpg_examples,notes
+bracers,Bracers,ブレイサー,archery guard,wrists,forearm,leather/metal,0.2-0.6 each,universal / rpg,Ancient onward,rpg_common,D&D; TES,弓の弦除けが武器化・魔法枠化
+girdle,Girdle,ガードル,waist cinch,waist,waist,cloth/leather,0.2-0.5,universal,universal,rpg_common,PF belt slot,
+trousers,Trousers / hose,ズボン / ホーズ,cloth legs,legs,legs,cloth,0.4-1.0,universal,universal,rpg_common,when legs are a slot,
+tabi,Tabi,足袋,,feet,foot,cloth,0.1-0.2 pair,Japan,universal,rpg_common,ninja,
+spaulders_rpg,Shoulders (RPG),ショルダーアーマー,pauldrons generic,shoulders,shoulder,varies,1.0-3.0 pair,rpg,n/a,rpg_common,WoW; Diablo,独立欄があるゲーム用
+pants_rpg,Pants / greaves slot,レッグアーマー,legs generic,legs,legs,varies,2.0-8.0,rpg,n/a,rpg_common,Souls legs; FFXIV,下半身一括
+boots_rpg,Boots slot,ブーツ欄,feet generic,feet,feet,varies,0.8-2.5,rpg,n/a,rpg_common,TES boots,
+gloves_rpg,Gloves slot,グローブ欄,hands generic,hands,hands,varies,0.2-1.5,rpg,n/a,rpg_common,TES gauntlets,
+belt_rpg,Belt slot,ベルト欄,,waist,waist,varies,0.2-1.0,rpg,n/a,rpg_common,Diablo; PF,
+wrist_rpg,Wrist slot,リスト欄,bracers,wrists,wrists,varies,0.2-1.0,rpg,n/a,rpg_common,WoW wrists,
