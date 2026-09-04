@@ -116,7 +116,10 @@ describe("market trade opportunities", () => {
     expect(rows[0].landDistance).toBe(250);
     expect(rows[0].seaDistance).toBe(150);
     expect(rows[0].transferCount).toBe(2);
-    expect(rows[0].transportCost).toBeCloseTo(1.41, 2);
+    // Transport cost is now (distance/mapDiagonal) * DISTANCE_COST_FACTOR * (weight+bulk), not
+    // * good.value (docs/plan/economy-coupling-audit.md L6). Silk's catalog trade profile is
+    // weight 1 / bulk 2 (goods-generator.ts's GOOD_TRADE_PROFILES): (400/1414.2136) * 0.5 * 3 ≈ 0.42.
+    expect(rows[0].transportCost).toBeCloseTo(0.42, 2);
   });
 
   it("skips low-value trade opportunities that exceed their value-density day limit", () => {

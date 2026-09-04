@@ -97,8 +97,32 @@ const DEFAULT_TRADE_PROFILE: GoodTradeProfile = {
   lossRisk: 2
 };
 
-export function getTransportCost(distance: number, mapDiagonal: number): number {
-  return (distance / mapDiagonal) * DISTANCE_COST_FACTOR;
+/**
+ * Freight rate per (weight+bulk) point per unit of distance/mapDiagonal, calibrated against the
+ * real Goods catalog rather than picked arbitrarily. Across the 190-good catalog, a good's own
+ * `value / (weight + bulk)` ratio has a **median** of 1 (bulk staples — Grain, Wood, Stone — sit
+ * at 0.1-0.2; precious goods — Gold/Silver Ingot — sit at 7-13; the mean is pulled to ~3 only by a
+ * handful of high-value vehicles like Steamship/Galleon, which is why median is the right central
+ * tendency here, not mean). FREIGHT_RATE = 1 keeps a median-ratio good's transport cost
+ * numerically unchanged from the old value-proportional formula, so most goods see only a modest
+ * shift while the two tails move in the intended direction (bulk goods costlier to haul relative
+ * to their price, precious goods cheaper). docs/plan/economy-coupling-audit.md L6.
+ */
+const FREIGHT_RATE = 1;
+
+/**
+ * Per-unit transport cost for one map-unit-scaled distance. Proportional to the good's physical
+ * bulk (`weight + bulk` from its trade profile), not its price — a wagon or hold's capacity is
+ * set by volume and weight, not value, so hauling a low-value bulky good (Grain, Wood, Stone)
+ * costs more per unit of *value* than hauling something light and expensive (Gold Ingot, Silk).
+ * Before this, transport cost was `distanceFactor * good.value`, which made the identical trip
+ * ~50x more expensive for Gold than for Grain purely because gold is worth more — backwards from
+ * how freight actually prices, and it left `GoodTradeProfile.weight`/`.bulk` used only for
+ * caravan cargo-slot capacity (`tradeCargo.ts`), never for cost. docs/plan/economy-coupling-audit.md L6.
+ */
+export function getTransportCost(distance: number, mapDiagonal: number, good: Good): number {
+  const trade = good.trade ?? getDefaultGoodTradeProfile(good);
+  return (distance / mapDiagonal) * DISTANCE_COST_FACTOR * (trade.weight + trade.bulk) * FREIGHT_RATE;
 }
 
 export function getLocalTradePriceMultiplier({ good, marketId, stock, population }: LocalPriceBiasInput): number {
@@ -251,7 +275,7 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
       : Infinity);
   if (!isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC)) return null;
 
-  const transportCost = getTransportCost(distance, mapDiagonal) * good.value;
+  const transportCost = getTransportCost(distance, mapDiagonal, good);
   const demandWeight = getDemandWeight(good);
   const sourceReserve = Math.max(1, sourcePopulation * demandWeight);
   const targetReserve = Math.max(1, targetPopulation * demandWeight);

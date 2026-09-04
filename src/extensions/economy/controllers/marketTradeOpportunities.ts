@@ -145,7 +145,7 @@ export function refresh(): void {
       )
         continue;
 
-      const transportCost = getTransportCost(distance.total, mapDiagonal) * good.value;
+      const transportCost = getTransportCost(distance.total, mapDiagonal, good);
       const unitProfit = rn(sellPrice - buyPrice - transportCost, 2);
       if (unitProfit <= 0) {
         const estimate = estimateSpeculativeTrade({

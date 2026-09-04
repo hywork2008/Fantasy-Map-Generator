@@ -418,6 +418,55 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 
 ---
 
+**実装済み(2026-09-05)** — `tradeOpportunityEstimator.ts` の `getTransportCost()` を
+`(distance/mapDiagonal) * DISTANCE_COST_FACTOR * (trade.weight + trade.bulk) * FREIGHT_RATE` に
+差し替え、呼び出し側4箇所の `* good.value` を削除した。
+
+実装時に判明した点:
+
+- **呼び出し側は3箇所ではなく4箇所だった。** 本書は `markets-generator.ts:1683`,
+  `strategicProcurement.ts:440`, `marketTradeOpportunities.ts:148` の3つを挙げていたが、
+  `tradeOpportunityEstimator.ts` 自身の `estimateSpeculativeTrade()`
+  (`markets-generator.ts` の `addSpeculativeGlobalTradeOpportunities` から呼ばれる投機的経路)
+  にも同じ `getTransportCost(...) * good.value` があった。3箇所だけ直すと、
+  通常の需給が拮抗して投機的経路に落ちたときだけ旧式(価格比例)の運賃に戻る
+  抜け道になるため、4箇所とも同時に変更した。
+- **`FREIGHT_RATE` はカタログ実測の中央値から決めた。** 平均値ではなく中央値を使う理由:
+  実カタログ190品目の `value / (weight+bulk)` は**中央値 1**(穀物・木材・石材のような嵩物は
+  0.1〜0.2、金塊・銀塊のような貴金属は7〜13)だが、**平均値は 2.98**まで引き上げられており、
+  これは Steamship(value 640, wb 4)や Galleon(value 480, wb 10)のような極端な高額品
+  数点だけが原因(上位5%・下位5%を切り落とした調整平均でも 1.57)。
+  平均を使うと大多数の commonな商品の運賃が過大になるため、`FREIGHT_RATE = 1`
+  (中央値ベース)を採用した。これは「中央値の商品では運賃総額がほぼ変わらない」という
+  本書の要件を字義通り満たす。
+- **崖(`densityLimit`)と `stapleFood` の `Infinity` 特例は、あえて触れなかった。**
+  本書はこの2つを「緩めてよい」「削除できる」という許容形で書いており(必須ではない)、
+  実際に調べると運賃の連続コスト化だけで既に狙った効果(嵩物ほど長距離が不利になる)は
+  達成されていた — `stapleFood` の陸路は元々 `Number.POSITIVE_INFINITY`(無期限)で、
+  実質的な上限は商人組織の行程日数キャップ(local 12日 / regional 25日 / major 50日、
+  `merchantOrganizations.ts`)だけだったため、穀物のような嵩物は「日数の壁」ではなく
+  「利益が出るか(`unitProfit <= 0`)」で自然に長距離が弾かれるようになった。
+  一方、`densityLimit` を緩めると穀物の非食料版(Wood value=1/wb=9, Stone value=1/wb=10 等)
+  が届く日数を大きく引き上げる必要があり(現行 6日 → 50日相当にするには
+  `VALUE_DENSITY_BASE_MAX_DAYS * VALUE_DENSITY_MULTIPLIER` を10倍以上にする)、
+  これは L3 で実装済みの飢饉→人口動態カップリングに影響する食料交易網の挙動を
+  大きく動かすリスクがあり、L6 自体の検証基準(重量差での到達距離の変化、総交易額 ±20%)
+  ではカバーされない。よって最小の必須変更(運賃式そのもの)だけを実装し、
+  `densityLimit` の緩和と `stapleFood` 特例の削除は独立した follow-up として残した。
+- **既存テストの期待値2件を更新した。** `strategicProcurement.test.ts`
+  (`treasury: 95.86` → `95.87`、Wood のカタログ上書き `weight 4 / bulk 5`)と
+  `marketTradeOpportunities.test.ts`(`transportCost: 1.41` → `0.42`、Silk のカタログ上書き
+  `weight 1 / bulk 2`)。どちらも `GOOD_TRADE_PROFILES`(`goods-generator.ts`)に
+  個別上書きが定義されている商品で、ヒューリスティック既定値(`weight 3 / bulk 3`)からは
+  ズレる。新しい期待値は実装後のコードから逆算し、コメントに計算根拠を残した。
+- **検証はユニットのみ。** `getTransportCost()` に4本のユニットテストを追加
+  (価格に非依存であること、嵩物が線形に高く付くこと、距離に線形比例すること、
+  デフォルトのトレードプロファイルへのフォールバック)。`trade-cargo-capacity-and-diversity.md`
+  の実マップシナリオでの総交易額 ±20% 確認は未実施(実機確認が必要)。
+  全テストスイート(3401件)・`tsc`・`biome`・アーキテクチャ lint・本番ビルドは通過を確認済み。
+
+---
+
 ## L7. 貨幣供給が物価・取引と無関係
 
 **現状**
@@ -1078,7 +1127,8 @@ L3 の実装時に判明した点:
 
 ### 第4波 — 大きな設計判断を伴うもの
 
-13. **L6**: 輸送コストの嵩ベース化(`goods-unit-scale.md` の再キャリブレーションを伴う)
+13. **L6** ✅ 実装済み(2026-09-05)。輸送コストの嵩ベース化(`FREIGHT_RATE = 1`、
+    カタログ中央値からキャリブレーション。`densityLimit`/`stapleFood` 特例は未着手のまま残す判断)
 14. **L9**: `Burg.discontent` + 征服時の物的破壊
 15. **L10**: 輸入関税の導入(輸出税と同じ `unitProfit` 計算に相乗りするため、
     `goods-unit-scale.md` の再キャリブレーションが必要な点で L6 と同種)

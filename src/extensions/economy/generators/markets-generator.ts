@@ -1719,7 +1719,7 @@ export class MarketsModule {
             continue;
           }
 
-          const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
+          const transportCost = getTransportCost(route.distance, mapDiagonal, good);
           const quotedImporterPrice = this.getTradeQuotedPrice(importer.market, good, importerGood.price);
           const unitProfit = quotedImporterPrice - (quotedExporterPrice + transportCost + exporterTaxPerUnit);
           if (unitProfit <= 0) continue;

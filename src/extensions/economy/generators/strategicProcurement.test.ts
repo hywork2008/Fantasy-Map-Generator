@@ -95,7 +95,11 @@ describe("StrategicProcurementModule", () => {
       status: "inTransit"
     });
     // The state pays the landed price: supplier price plus the route's transport cost.
-    expect(worldContext.pack.states[1].treasury).toBeCloseTo(95.86, 2);
+    // Transport cost is now weight+bulk based, not value based (docs/plan/economy-coupling-audit.md
+    // L6). Wood's catalog trade profile is weight 4 / bulk 5 (goods-generator.ts's
+    // GOOD_TRADE_PROFILES): landed = 10 + (10/141.4214) * 0.5 * 9 ≈ 10.3182; spend on 0.4 units
+    // ≈ 4.1273; treasury 100 − 4.1273 ≈ 95.87.
+    expect(worldContext.pack.states[1].treasury).toBeCloseTo(95.87, 2);
     expect(worldContext.pack.burgs[2].treasury).toBe(4);
     expect(getMarkets()[1].goods[1].stock).toBe(0.6);
     expect(getMarkets()[0].goods[1].stock).toBe(0);
