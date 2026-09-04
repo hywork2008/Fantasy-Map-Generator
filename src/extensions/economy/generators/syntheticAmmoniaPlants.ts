@@ -7,14 +7,14 @@ import { getTechnologyProgressEntries, getTechnologyStage } from "../../../gener
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getChemistryTrials,
   getSimulationYear,
   getSyntheticAmmoniaPlants,
-  getSyntheticAmmoniaPlantsLastSettledYear,
   getWorldContext,
   setChemistryTrials,
   setSyntheticAmmoniaPlants,
-  setSyntheticAmmoniaPlantsLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import type { ChemistryTrial } from "./chemistryTypes";
 import {
@@ -60,8 +60,7 @@ function trialFor(stateId: number, trials: ChemistryTrial[]): ChemistryTrial {
 export class SyntheticAmmoniaPlantsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getSyntheticAmmoniaPlantsLastSettledYear() === year) return false;
-    setSyntheticAmmoniaPlantsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.syntheticAmmoniaPlants)) return false;
 
     const plants = [...getSyntheticAmmoniaPlants()];
     const trials = [...getChemistryTrials()];

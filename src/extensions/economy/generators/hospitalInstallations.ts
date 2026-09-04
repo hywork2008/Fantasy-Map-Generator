@@ -7,13 +7,13 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getHospitalInstallations,
-  getHospitalInstallationsLastSettledYear,
   getSimulationYear,
   getWorldContext,
   setHospitalInstallations,
-  setHospitalInstallationsLastSettledYear,
-  setMedicalCareReliefByBurg
+  setMedicalCareReliefByBurg,
+  settleAnnualOnce
 } from "../economyContext";
 import type { HospitalInstallation, MedicalCareReliefRow } from "./chemistryTypes";
 import {
@@ -85,8 +85,7 @@ function ratedCareFor(role: HospitalInstallation["role"]): number {
 export class HospitalInstallationsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getHospitalInstallationsLastSettledYear() === year) return false;
-    setHospitalInstallationsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.hospitalInstallations)) return false;
 
     const hospitals = [...getHospitalInstallations()];
     const states = getWorldContext().pack.states ?? [];

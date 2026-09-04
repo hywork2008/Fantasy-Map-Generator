@@ -8,11 +8,12 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
+  getAnnualGateYear,
   getGoods,
   getMarkets,
   getRailwayLinks,
   getSimulationYear,
-  getSteamInstallationsLastSettledYear,
   getUrbanWaterSystems,
   getWorldContext,
   setRailwayLinks,
@@ -154,13 +155,13 @@ function settleWaterworks(year: number): void {
 export class SteamIndustryModule {
   /**
    * Settles this year's steam industry (mine pumps / railway links / waterworks), at most
-   * once per simulation year (self-gated on `getSteamInstallationsLastSettledYear`). Returns
+   * once per simulation year (through the shared `steamInstallations` annual gate). Returns
    * true when `settleRailways` materialized new "railways" route track this call, so the
    * caller can invalidate the `map.networks` topic and redraw the map.
    */
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getSteamInstallationsLastSettledYear() === year) return false;
+    if (getAnnualGateYear(ANNUAL_GATE.steamInstallations) === year) return false;
     SteamInstallations.settleAnnual();
     const railwayNetworkChanged = settleRailways(year);
     settleWaterworks(year);

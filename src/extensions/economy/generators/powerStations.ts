@@ -13,12 +13,12 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getPowerStations,
-  getPowerStationsLastSettledYear,
   getSimulationYear,
   getWorldContext,
   setPowerStations,
-  setPowerStationsLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { consumeNamed, debitTreasury, marketIdForBurg, POWER_STATION_BUDGET, pickSponsorBurg } from "./chemMedCommon";
 import { upsertInstruments } from "./experimentalWorkshops";
@@ -38,8 +38,7 @@ const POWER_STATION_INSTRUMENT_WORKERS = 2;
 export class PowerStationsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getPowerStationsLastSettledYear() === year) return false;
-    setPowerStationsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.powerStations)) return false;
 
     const plants = [...getPowerStations()];
     const states = getWorldContext().pack.states ?? [];

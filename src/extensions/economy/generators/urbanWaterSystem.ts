@@ -18,15 +18,16 @@ import { useOptionsState } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getBurgProductionRecords,
   getGoods,
   getGuildKnowledgeStocks,
   getMarkets,
   getSimulationYear,
-  getUrbanWaterLastSettledYear,
   getUrbanWaterSystems,
   getWorldContext,
-  setUrbanWaterLastSettledYear,
+  setAnnualGateYear,
+  settleAnnualOnce,
   setUrbanWaterSystems
 } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
@@ -1723,7 +1724,7 @@ class UrbanWaterSystemModule {
   generate(): void {
     setUrbanWaterSystems(buildSystems("generate"));
     rollupProvinceAndStateCivicScores();
-    setUrbanWaterLastSettledYear(getSimulationYear());
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, getSimulationYear());
   }
 
   /**
@@ -1731,9 +1732,7 @@ class UrbanWaterSystemModule {
    * Runs before GuildTreasury surplus sweep so investment can use working capital.
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getUrbanWaterLastSettledYear() === year) return false;
-    setUrbanWaterLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.urbanWater)) return false;
 
     if (!getUrbanWaterSystems().length) {
       this.generate();
@@ -1747,7 +1746,7 @@ class UrbanWaterSystemModule {
 
   clear(): void {
     setUrbanWaterSystems([]);
-    setUrbanWaterLastSettledYear(-1);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, -1);
   }
 }
 

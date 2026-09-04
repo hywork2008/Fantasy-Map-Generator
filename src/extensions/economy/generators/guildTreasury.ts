@@ -1,13 +1,12 @@
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
-  getBurgTreasuryLastSettledYear,
+  ANNUAL_GATE,
   getGoods,
   getGuildKnowledgeStocks,
-  getSimulationYear,
   getWorldContext,
-  setBurgTreasuryLastSettledYear,
-  setGuildKnowledgeStocks
+  setGuildKnowledgeStocks,
+  settleAnnualOnce
 } from "../economyContext";
 import { backPayCycles, GUILD_MASTER_STIPEND } from "./characterStipends";
 import { getEconomyStartProfile } from "./economyStartMode";
@@ -193,9 +192,7 @@ export class GuildTreasuryModule {
    * simulation year, same pattern as GuildKnowledge.settleAnnual().
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getBurgTreasuryLastSettledYear() === year) return false;
-    setBurgTreasuryLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.burgTreasury)) return false;
 
     const { burgs, states } = getWorldContext().pack;
     for (const burg of burgs) {

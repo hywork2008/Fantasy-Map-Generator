@@ -7,14 +7,14 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getApothecaryWorkshops,
-  getApothecaryWorkshopsLastSettledYear,
   getChemistryTrials,
   getSimulationYear,
   getWorldContext,
   setApothecaryWorkshops,
-  setApothecaryWorkshopsLastSettledYear,
-  setChemistryTrials
+  setChemistryTrials,
+  settleAnnualOnce
 } from "../economyContext";
 import type { ChemistryTrial } from "./chemistryTypes";
 import { APOTHECARY_BUDGET, consumeNamed, debitTreasury, marketIdForBurg, pickSponsorBurg } from "./chemMedCommon";
@@ -30,8 +30,7 @@ function trialKey(stateId: number): (trial: ChemistryTrial) => boolean {
 export class ApothecaryWorkshopsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getApothecaryWorkshopsLastSettledYear() === year) return false;
-    setApothecaryWorkshopsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.apothecaryWorkshops)) return false;
 
     const workshops = [...getApothecaryWorkshops()];
     const trials = [...getChemistryTrials()];

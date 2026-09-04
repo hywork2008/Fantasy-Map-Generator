@@ -1,13 +1,12 @@
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getCultivatedArea,
-  getFertilizerInvestmentLastSettledYear,
   getGoods,
   getMarketCellColumn,
   getMarkets,
-  getSimulationYear,
   getWorldContext,
-  setFertilizerInvestmentLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -37,9 +36,7 @@ export class FertilizerInvestmentModule {
    * DevelopmentPotential.updateAnnualAgriculture().
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getFertilizerInvestmentLastSettledYear() === year) return false;
-    setFertilizerInvestmentLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.fertilizerInvestment)) return false;
 
     const fertilizerGood = getGoods().find(good => good.name === "Phosphate Fertilizer");
     if (!fertilizerGood || !isGoodEnabled(fertilizerGood)) return true;

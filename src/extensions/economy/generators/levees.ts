@@ -9,15 +9,15 @@
 import type { PackedGraphCells } from "../../../types/PackedGraph";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getFloodProtection,
   getLeveeSites,
   getLevees,
-  getLeveesLastSettledYear,
   getSimulationYear,
   getWorldContext,
   setFloodProtection,
   setLevees,
-  setLeveesLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { consumeNamed, debitTreasury, LEVEE_BUDGET, marketIdForBurg } from "./chemMedCommon";
 import type { Levee, LeveeSite } from "./leveeTypes";
@@ -37,8 +37,7 @@ export class LeveesModule {
 
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getLeveesLastSettledYear() === year) return false;
-    setLeveesLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.levees)) return false;
 
     const { cells, states } = getWorldContext().pack;
     const sitesById = new Map(getLeveeSites().map(site => [site.i, site]));

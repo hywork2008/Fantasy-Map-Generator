@@ -1,12 +1,11 @@
 import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getMilitaryResourceLedgers,
-  getSimulationYear,
-  getStateSecretLastSettledYear,
   getStateSecretStocks,
   getWorldContext,
-  setStateSecretLastSettledYear,
-  setStateSecretStocks
+  setStateSecretStocks,
+  settleAnnualOnce
 } from "../economyContext";
 import type { StateSecretDomain, StateSecretStock } from "./stateSecretTypes";
 
@@ -44,9 +43,7 @@ export class StateSecretKnowledgeModule {
    * to once per simulation year regardless of how often the caller's tick runs.
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getStateSecretLastSettledYear() === year) return false;
-    setStateSecretLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.stateSecret)) return false;
 
     const states = getWorldContext().pack.states;
     const remaining = new Map(getStateSecretStocks().map(entry => [keyOf(entry.stateId, entry.domain), entry]));

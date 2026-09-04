@@ -1,6 +1,6 @@
 import { rn } from "../../hostUtils";
 import {
-  getAgTechLastSettledYear,
+  ANNUAL_GATE,
   getCultivatedArea,
   getFieldDrainage,
   getFloodProtection,
@@ -8,15 +8,14 @@ import {
   getIrrigationDevelopment,
   getMarketCellColumn,
   getMarkets,
-  getSimulationYear,
   getStateAgriculturalProductivity,
   getWorldContext,
-  setAgTechLastSettledYear,
   setFieldDrainage,
   setFloodProtection,
   setIrrigationConveyanceEfficiency,
   setIrrigationDevelopment,
-  setStateAgriculturalProductivity
+  setStateAgriculturalProductivity,
+  settleAnnualOnce
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -51,9 +50,7 @@ export class AgTechInvestmentModule {
 
   /** Runs at most once per simulation year; must be called before DevelopmentPotential.updateAnnualAgriculture(). */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getAgTechLastSettledYear() === year) return false;
-    setAgTechLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.agTech)) return false;
 
     const toolsGood = getGoods().find(good => good.name === "Tools");
     if (!toolsGood || !isGoodEnabled(toolsGood)) return true;

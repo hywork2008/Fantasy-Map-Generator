@@ -1,16 +1,17 @@
 import type { Burg } from "../../hostTypes";
 import {
+  ANNUAL_GATE,
   getConstructionOperations,
   getGoods,
   getInnConstructionOrders,
   getInnFacilities,
-  getInnFacilitiesLastSettledYear,
   getMarkets,
   getSimulationYear,
   getWorldContext,
+  setAnnualGateYear,
   setInnConstructionOrders,
   setInnFacilities,
-  setInnFacilitiesLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import {
@@ -388,7 +389,7 @@ class InnFacilitiesModule {
       })
     );
     setInnConstructionOrders([]);
-    setInnFacilitiesLastSettledYear(getSimulationYear());
+    setAnnualGateYear(ANNUAL_GATE.innFacilities, getSimulationYear());
   }
 
   /**
@@ -397,9 +398,7 @@ class InnFacilitiesModule {
    * while keeping its work order completely separate from permanent dwelling construction.
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getInnFacilitiesLastSettledYear() === year) return false;
-    setInnFacilitiesLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.innFacilities)) return false;
 
     const world = getWorldContext();
     const desired = generateInnFacilitiesForBurgs({
@@ -419,7 +418,7 @@ class InnFacilitiesModule {
   clear(): void {
     setInnFacilities([]);
     setInnConstructionOrders([]);
-    setInnFacilitiesLastSettledYear(-1);
+    setAnnualGateYear(ANNUAL_GATE.innFacilities, -1);
   }
 }
 

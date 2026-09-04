@@ -7,12 +7,12 @@ import { isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import type { Burg } from "../../hostTypes";
 import { P } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getGuildKnowledgeStocks,
-  getGuildSuccessionLastSettledYear,
   getSimulationYear,
   getWorldContext,
   setGuildKnowledgeStocks,
-  setGuildSuccessionLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import {
@@ -417,8 +417,7 @@ export class GuildSuccessionModule {
    */
   settleAnnual(chance: (probability: number) => boolean = P): NewGuildMaster[] {
     const year = getSimulationYear();
-    if (getGuildSuccessionLastSettledYear() === year) return [];
-    setGuildSuccessionLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.guildSuccession)) return [];
 
     const { pack } = getWorldContext();
     pack.characters ??= [];

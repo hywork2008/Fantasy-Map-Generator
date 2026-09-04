@@ -1,13 +1,12 @@
 import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getCraftDomainEmploymentRecords,
-  getGuildKnowledgeLastSettledYear,
   getGuildKnowledgeStocks,
-  getSimulationYear,
   getSmelterOperations,
   getWorldContext,
-  setGuildKnowledgeLastSettledYear,
-  setGuildKnowledgeStocks
+  setGuildKnowledgeStocks,
+  settleAnnualOnce
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import { guildSaturationPoints, peopleToPoints } from "./craftScale";
@@ -120,9 +119,7 @@ export class GuildKnowledgeModule {
    * Phase 1).
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getGuildKnowledgeLastSettledYear() === year) return false;
-    setGuildKnowledgeLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.guildKnowledge)) return false;
 
     const practitioners = collectGuildPractitioners();
     const remaining = new Map(getGuildKnowledgeStocks().map(entry => [keyOf(entry.burgId, entry.domain), entry]));

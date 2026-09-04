@@ -508,6 +508,20 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
       throw new Error("Archive simulation.extensions.economy.lodgingStyle is invalid");
     }
   }
+  if (slice.annualGateYears !== undefined) {
+    if (
+      typeof slice.annualGateYears !== "object" ||
+      slice.annualGateYears === null ||
+      Array.isArray(slice.annualGateYears)
+    ) {
+      throw new Error("Archive simulation.extensions.economy.annualGateYears must be a record");
+    }
+    for (const [key, year] of Object.entries(slice.annualGateYears as Record<string, unknown>)) {
+      if (!key || typeof year !== "number" || !Number.isFinite(year)) {
+        throw new Error(`Archive simulation.extensions.economy.annualGateYears.${key} must be a finite number`);
+      }
+    }
+  }
   if (slice.innFacilitiesLastSettledYear !== undefined) {
     const year = slice.innFacilitiesLastSettledYear;
     if (typeof year !== "number" || !Number.isFinite(year)) {

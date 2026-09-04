@@ -5,18 +5,18 @@ import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import {
+  ANNUAL_GATE,
   getAcademyKnowledgeStocks,
   getApi,
-  getGreatLibraryLastSettledYear,
   getGreatLibraryNextId,
   getGreatLibraryProjects,
   getSimulationYear,
   getWorldContext,
   isEconomyContextReady,
   setAcademyKnowledgeStocks,
-  setGreatLibraryLastSettledYear,
   setGreatLibraryNextId,
-  setGreatLibraryProjects
+  setGreatLibraryProjects,
+  settleAnnualOnce
 } from "../economyContext";
 import {
   checkGreatLibraryEligibility,
@@ -223,8 +223,7 @@ export class GreatLibraryModule {
   /** Runs at most once per simulation year (docs/plan/great-library.md §年次フロー). */
   settleAnnual(rng: Pick<RNGService, "P" | "rand">): boolean {
     const year = getSimulationYear();
-    if (getGreatLibraryLastSettledYear() === year) return false;
-    setGreatLibraryLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.greatLibrary)) return false;
 
     const world = getWorldContext();
     const states = world.pack.states;

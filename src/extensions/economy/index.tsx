@@ -22,6 +22,8 @@ import { getBurgEconomySummary } from "./burgEconomySummary";
 import { recordAdvanceBalanceSnapshot, recordInitialBalanceSnapshot } from "./controllers/balance-history";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import {
+  ANNUAL_GATE,
+  clearAnnualGateYear,
   clearEconomyContext,
   getBurgMarketLedgers,
   getCaravans,
@@ -40,16 +42,15 @@ import {
   getTradeSecurityLedgers,
   getWorldContext,
   initEconomyContext,
+  migrateLegacyAnnualGateYears,
   setBurgMarketLedgers,
   setCaravans,
   setDeals,
   setGoodCellColumn,
   setGoods,
-  setGreatLibraryLastSettledYear,
   setGreatLibraryNextId,
   setGreatLibraryProjects,
   setGuildChapters,
-  setGuildChaptersLastSettledYear,
   setIndividualSkills,
   setMarketCellColumn,
   setMarkets,
@@ -1544,9 +1545,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearTreasuryAllocationSnapshots();
       StrategicProcurement.clear();
       setGuildChapters([]);
-      setGuildChaptersLastSettledYear(null);
+      clearAnnualGateYear(ANNUAL_GATE.guildChapters);
       setGreatLibraryProjects([]);
-      setGreatLibraryLastSettledYear(null);
+      clearAnnualGateYear(ANNUAL_GATE.greatLibrary);
       setGreatLibraryNextId(1);
       setIndividualSkills([]);
       setSmithingWorkshopLedgers([]);
@@ -1718,6 +1719,8 @@ function getStateRulerId(state: unknown): number | undefined {
 
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
+  const economySlice = api.simulationContext?.extensions?.economy;
+  if (economySlice) migrateLegacyAnnualGateYears(economySlice);
   registerEconomyCommands(api);
   const regenerate = (target: EconomyRegenerationTarget) =>
     api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "regenerate", payload: { target } });

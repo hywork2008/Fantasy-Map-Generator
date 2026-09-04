@@ -13,12 +13,12 @@ import type { PackedGraphCells } from "../../../types/PackedGraph";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
-  getClimateDisastersLastSettledYear,
+  ANNUAL_GATE,
   getIrrigationDevelopment,
   getSimulationYear,
   getWorldContext,
-  setClimateDisastersLastSettledYear,
-  setClimateFoodStress
+  setClimateFoodStress,
+  settleAnnualOnce
 } from "../economyContext";
 import { clamp01 } from "./chemMedCommon";
 
@@ -199,8 +199,7 @@ class ClimateDisastersModule {
    */
   settleAnnual(rng: Pick<RNGService, "gauss">): boolean {
     const year = getSimulationYear();
-    if (getClimateDisastersLastSettledYear() === year) return false;
-    setClimateDisastersLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.climateDisasters)) return false;
 
     const world = getWorldContext();
     const { cells, states } = world.pack;

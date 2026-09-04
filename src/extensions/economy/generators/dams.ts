@@ -11,15 +11,15 @@ import { isTechnologyStageAtLeast, type TechnologyStage } from "../../../generat
 import type { PackedGraphCells } from "../../../types/PackedGraph";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getDamSites,
   getDams,
-  getDamsLastSettledYear,
   getFloodProtection,
   getSimulationYear,
   getWorldContext,
   setDams,
-  setDamsLastSettledYear,
-  setFloodProtection
+  setFloodProtection,
+  settleAnnualOnce
 } from "../economyContext";
 import { consumeNamed, DAM_BUDGET, debitTreasury, marketIdForBurg } from "./chemMedCommon";
 import type { Dam, DamSite } from "./damTypes";
@@ -48,8 +48,7 @@ export class DamsModule {
 
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getDamsLastSettledYear() === year) return false;
-    setDamsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.dams)) return false;
 
     const { cells, states } = getWorldContext().pack;
     const sitesById = new Map(getDamSites().map(site => [site.i, site]));

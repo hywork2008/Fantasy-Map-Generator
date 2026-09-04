@@ -1,12 +1,11 @@
 import { rn } from "../../hostUtils";
 import {
-  getMartialDisciplineLastSettledYear,
+  ANNUAL_GATE,
   getMartialDisciplineStocks,
-  getSimulationYear,
   getWorldContext,
   isEconomyContextReady,
-  setMartialDisciplineLastSettledYear,
-  setMartialDisciplineStocks
+  setMartialDisciplineStocks,
+  settleAnnualOnce
 } from "../economyContext";
 import type { MartialDisciplineDomain, MartialDisciplineStock } from "./martialDisciplineTypes";
 
@@ -43,9 +42,7 @@ type Practitioners = { stateId: number; domain: MartialDisciplineDomain; headcou
 export class MartialDisciplineKnowledgeModule {
   /** Runs at most once per simulation year. Self-gates regardless of how often the caller's tick runs. */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getMartialDisciplineLastSettledYear() === year) return false;
-    setMartialDisciplineLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.martialDiscipline)) return false;
 
     const practitioners = this.collectPractitioners();
     const remaining = new Map(getMartialDisciplineStocks().map(entry => [keyOf(entry.stateId, entry.domain), entry]));

@@ -1,13 +1,12 @@
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getGoods,
-  getIndustrialTechLastSettledYear,
   getMarketById,
   getMineOperations,
   getMineralDeposits,
-  getSimulationYear,
   getSmelterOperations,
-  setIndustrialTechLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -40,9 +39,7 @@ export class IndustrialTechInvestmentModule {
    * the same year so farm investment claims each market's treasury first (docs/plan/rural-agtech-investment.md §6.3).
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getIndustrialTechLastSettledYear() === year) return false;
-    setIndustrialTechLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.industrialTech)) return false;
 
     const toolsGood = getGoods().find(good => good.name === "Tools");
     if (!toolsGood || !isGoodEnabled(toolsGood)) return true;

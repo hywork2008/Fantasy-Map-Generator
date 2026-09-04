@@ -14,12 +14,12 @@ import { getTechnologyProgressEntries, getTechnologyStage } from "../../../gener
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getChlorAlkaliPlants,
-  getChlorAlkaliPlantsLastSettledYear,
   getSimulationYear,
   getWorldContext,
   setChlorAlkaliPlants,
-  setChlorAlkaliPlantsLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import {
   addNamedStock,
@@ -56,8 +56,7 @@ function worldHasChemicalIndustryFoundation(): boolean {
 export class ChlorAlkaliPlantsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getChlorAlkaliPlantsLastSettledYear() === year) return false;
-    setChlorAlkaliPlantsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.chlorAlkaliPlants)) return false;
 
     const plants = [...getChlorAlkaliPlants()];
     const states = getWorldContext().pack.states ?? [];

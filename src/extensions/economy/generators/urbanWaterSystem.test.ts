@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useOptionsState, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
+  ANNUAL_GATE,
   clearEconomyContext,
   getUrbanWaterSystems,
   initEconomyContext,
+  setAnnualGateYear,
   setGoods,
   setGuildKnowledgeStocks,
   setMarkets,
-  setUrbanWaterLastSettledYear,
   setUrbanWaterSystems
 } from "../economyContext";
 import type { Good } from "./goodsGeneratorTypes";
@@ -770,7 +771,7 @@ describe("UrbanWater module", () => {
     ]);
     setGuildKnowledgeStocks([]);
     setUrbanWaterSystems([]);
-    setUrbanWaterLastSettledYear(-1);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, -1);
   });
 
   afterEach(() => clearEconomyContext());
@@ -802,7 +803,7 @@ describe("UrbanWater module", () => {
     UrbanWater.generate();
     const tierBefore = getUrbanWaterSystems().find(s => s.burgId === 1)!.tier;
     expect(UrbanWater.settleAnnual()).toBe(false);
-    setUrbanWaterLastSettledYear(999);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, 999);
     const treasuryBefore = worldContext.pack.burgs[1]!.treasury!;
     expect(UrbanWater.settleAnnual()).toBe(true);
     const after = getUrbanWaterSystems().find(s => s.burgId === 1)!;
@@ -817,19 +818,19 @@ describe("UrbanWater module", () => {
     UrbanWater.generate();
     // Starve the capital.
     worldContext.pack.burgs[1]!.treasury = 0;
-    setUrbanWaterLastSettledYear(999);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, 999);
     UrbanWater.settleAnnual();
-    setUrbanWaterLastSettledYear(998);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, 998);
     UrbanWater.settleAnnual();
-    setUrbanWaterLastSettledYear(997);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, 997);
     UrbanWater.settleAnnual();
     const starved = getUrbanWaterSystems().find(s => s.burgId === 1)!;
 
     // Re-fund and settle a few years.
     worldContext.pack.burgs[1]!.treasury = 5000;
-    setUrbanWaterLastSettledYear(996);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, 996);
     UrbanWater.settleAnnual();
-    setUrbanWaterLastSettledYear(995);
+    setAnnualGateYear(ANNUAL_GATE.urbanWater, 995);
     UrbanWater.settleAnnual();
     const recovered = getUrbanWaterSystems().find(s => s.burgId === 1)!;
 
@@ -858,7 +859,7 @@ describe("UrbanWater module", () => {
 
     function settleYears(count: number): void {
       for (let i = 0; i < count; i++) {
-        setUrbanWaterLastSettledYear(999 - i);
+        setAnnualGateYear(ANNUAL_GATE.urbanWater, 999 - i);
         UrbanWater.settleAnnual();
       }
     }

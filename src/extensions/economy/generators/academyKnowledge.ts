@@ -1,15 +1,14 @@
 import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
-  getAcademyKnowledgeLastSettledYear,
+  ANNUAL_GATE,
   getAcademyKnowledgeStocks,
   getAdministrationEmployment,
   getApothecaryWorkshops,
   getExperimentalWorkshops,
   getHospitalInstallations,
-  getSimulationYear,
   getWorldContext,
-  setAcademyKnowledgeLastSettledYear,
-  setAcademyKnowledgeStocks
+  setAcademyKnowledgeStocks,
+  settleAnnualOnce
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import type { AcademyKnowledgeStock, ScholarlyKnowledgeDomain } from "./academyKnowledgeTypes";
@@ -59,9 +58,7 @@ export class AcademyKnowledgeModule {
    * as GuildKnowledge.settleAnnual() (docs/plan/knowledge-guild-system.md §9 Phase 3).
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getAcademyKnowledgeLastSettledYear() === year) return false;
-    setAcademyKnowledgeLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.academyKnowledge)) return false;
 
     const practitioners = this.collectPractitioners();
     const remaining = new Map(getAcademyKnowledgeStocks().map(entry => [keyOf(entry.burgId, entry.domain), entry]));

@@ -1,12 +1,13 @@
 import type { RNGService } from "../../../context/appServices";
 import {
+  ANNUAL_GATE,
   getGuildChapters,
-  getGuildChaptersLastSettledYear,
   getGuildKnowledgeStocks,
   getSimulationYear,
   getWorldContext,
+  setAnnualGateYear,
   setGuildChapters,
-  setGuildChaptersLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { buildGuildChapterSuitabilityContext, scoreGuildChapterSuitability } from "./guildChapterSuitability";
 import type { GuildChapter } from "./guildChapterTypes";
@@ -111,14 +112,13 @@ export class GuildChaptersModule {
     }
 
     setGuildChapters(chapters);
-    setGuildChaptersLastSettledYear(year);
+    setAnnualGateYear(ANNUAL_GATE.guildChapters, year);
   }
 
   /** Refreshes location quality and makes at most one probabilistic founding per state/domain/year. */
   settleAnnual(rng: Pick<RNGService, "P">): boolean {
     const year = getSimulationYear();
-    if (getGuildChaptersLastSettledYear() === year) return false;
-    setGuildChaptersLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.guildChapters)) return false;
 
     const context = buildGuildChapterSuitabilityContext();
     const stocks = new Map(getGuildKnowledgeStocks().map(stock => [keyOf(stock.burgId, stock.domain), stock]));

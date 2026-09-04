@@ -5,13 +5,13 @@
 
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
+  getAnnualGateYear,
   getExperimentalWorkshops,
-  getExperimentalWorkshopsLastSettledYear,
   getMarkets,
   getMineOperations,
   getPatronageDeposits,
   getSimulationYear,
-  getSteamInstallationsLastSettledYear,
   getSteamPumpTrials,
   getWorldContext,
   setExperimentalWorkshops,
@@ -119,7 +119,7 @@ export function fundWorkshop(args: { characterId: number; burgId: number; amount
   if (!paid.ok) return paid;
 
   const year = getSimulationYear();
-  const alreadySettled = getExperimentalWorkshopsLastSettledYear() === year;
+  const alreadySettled = getAnnualGateYear(ANNUAL_GATE.experimentalWorkshops) === year;
   const deposits = [...getPatronageDeposits()];
   deposits.push({
     i: nextDepositId(deposits),
@@ -196,7 +196,7 @@ export function fuelTrial(args: { characterId: number; mineOperationId: number }
   if (!paid.ok) return paid;
 
   const year = getSimulationYear();
-  const alreadySettled = getSteamInstallationsLastSettledYear() === year;
+  const alreadySettled = getAnnualGateYear(ANNUAL_GATE.steamInstallations) === year;
   const deposits = [...getPatronageDeposits()];
   deposits.push({
     i: nextDepositId(deposits),

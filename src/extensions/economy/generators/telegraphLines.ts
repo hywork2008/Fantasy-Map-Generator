@@ -11,20 +11,19 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getSimulationYear,
   getTelegraphLines,
-  getTelegraphLinesLastSettledYear,
   getWorldContext,
   setTelegraphLines,
-  setTelegraphLinesLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { consumeNamed, debitTreasury, marketIdForBurg, pickSponsorBurg, TELEGRAPH_LINE_BUDGET } from "./chemMedCommon";
 
 export class TelegraphLinesModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getTelegraphLinesLastSettledYear() === year) return false;
-    setTelegraphLinesLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.telegraphLines)) return false;
 
     const lines = [...getTelegraphLines()];
     const states = getWorldContext().pack.states ?? [];

@@ -2,13 +2,12 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getDams,
   getMarkets,
-  getPowerGridInvestmentLastSettledYear,
   getPowerStations,
-  getSimulationYear,
   getWorldContext,
-  setPowerGridInvestmentLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { marketIdForBurg } from "./chemMedCommon";
 
@@ -39,9 +38,7 @@ export class PowerGridInvestmentModule {
    * SyntheticAmmoniaPlants.
    */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getPowerGridInvestmentLastSettledYear() === year) return false;
-    setPowerGridInvestmentLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.powerGridInvestment)) return false;
 
     const pack = getWorldContext().pack;
     const burgs = pack.burgs ?? [];

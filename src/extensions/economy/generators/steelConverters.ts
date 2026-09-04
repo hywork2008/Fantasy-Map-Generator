@@ -10,12 +10,12 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getSimulationYear,
   getSteelConverterPlants,
-  getSteelConverterPlantsLastSettledYear,
   getWorldContext,
   setSteelConverterPlants,
-  setSteelConverterPlantsLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { addNamedStock, consumeNamed, debitTreasury, marketIdForBurg, pickSponsorBurg } from "./chemMedCommon";
 
@@ -28,8 +28,7 @@ export const STEEL_CONVERTER_PLANT_BUDGET = 32;
 export class SteelConvertersModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getSteelConverterPlantsLastSettledYear() === year) return false;
-    setSteelConverterPlantsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.steelConverterPlants)) return false;
 
     const plants = [...getSteelConverterPlants()];
     const states = getWorldContext().pack.states ?? [];

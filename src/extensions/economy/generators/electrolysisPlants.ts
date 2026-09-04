@@ -9,12 +9,12 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getElectrolysisPlants,
-  getElectrolysisPlantsLastSettledYear,
   getSimulationYear,
   getWorldContext,
   setElectrolysisPlants,
-  setElectrolysisPlantsLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import {
   addNamedStock,
@@ -29,8 +29,7 @@ import {
 export class ElectrolysisPlantsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getElectrolysisPlantsLastSettledYear() === year) return false;
-    setElectrolysisPlantsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.electrolysisPlants)) return false;
 
     const plants = [...getElectrolysisPlants()];
     const states = getWorldContext().pack.states ?? [];

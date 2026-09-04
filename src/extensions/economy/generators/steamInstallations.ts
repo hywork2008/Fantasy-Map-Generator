@@ -8,17 +8,17 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { isDeepMineRequirementRelaxed, rn, scaleCountRequirement } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getGoods,
   getMineOperations,
   getMineralDeposits,
   getSimulationYear,
   getSteamInstallations,
-  getSteamInstallationsLastSettledYear,
   getSteamPumpTrials,
   getWorldContext,
   setSteamInstallations,
-  setSteamInstallationsLastSettledYear,
-  setSteamPumpTrials
+  setSteamPumpTrials,
+  settleAnnualOnce
 } from "../economyContext";
 import { addNamedStock } from "./chemMedCommon";
 import { isGoodEnabled } from "./goods-generator";
@@ -69,8 +69,7 @@ function operateSite(marketId: number, needsBuildIron: boolean): { coal: number;
 export class SteamInstallationsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getSteamInstallationsLastSettledYear() === year) return false;
-    setSteamInstallationsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.steamInstallations)) return false;
 
     const states = getWorldContext().pack.states ?? [];
     const trials = [...getSteamPumpTrials()];

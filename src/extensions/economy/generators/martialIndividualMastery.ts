@@ -1,14 +1,14 @@
 import type { Character } from "../../characters/characterTypes";
 import type { MilitaryRegiment } from "../../hostTypes";
 import {
+  ANNUAL_GATE,
   getIndividualSkills,
   getMartialDisciplineStocks,
-  getMartialIndividualMasteryLastSettledYear,
   getSimulationYear,
   getWorldContext,
   isEconomyContextReady,
   setIndividualSkills,
-  setMartialIndividualMasteryLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { discardIndividualSkill, getIndividualSkill } from "./individualSkillMastery";
 import type { AptitudeTier, CharacterDomainSkill } from "./individualSkillTypes";
@@ -138,9 +138,7 @@ export function getCommanderMartialSkillMultiplier(commander: Character, regimen
 export class MartialIndividualMasteryModule {
   /** Creates and advances skills only for living officers who actively command a regiment. */
   settleAnnual(): boolean {
-    const year = getSimulationYear();
-    if (getMartialIndividualMasteryLastSettledYear() === year) return false;
-    setMartialIndividualMasteryLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.martialIndividualMastery)) return false;
 
     const { pack, options } = getWorldContext();
     const characters = pack.characters ?? [];

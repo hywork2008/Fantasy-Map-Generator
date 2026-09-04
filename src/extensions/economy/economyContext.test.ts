@@ -2,14 +2,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import {
+  ANNUAL_GATE,
   clearEconomyContext,
-  getAgTechLastSettledYear,
+  getAnnualGateYear,
   getFoodPotential,
   getMarketById,
   initEconomyContext,
-  setAgTechLastSettledYear,
+  migrateLegacyAnnualGateYears,
+  setAnnualGateYear,
   setFoodPotential,
-  setMarkets
+  setMarkets,
+  settleAnnualOnce
 } from "./economyContext";
 import type { Market } from "./generators/marketTypes";
 
@@ -61,13 +64,33 @@ describe("getMarketById", () => {
 describe("clearEconomyContext", () => {
   it("resets fallbacks owned by the domain context modules", () => {
     setFoodPotential(Float32Array.from([1, 2, 3]));
-    setAgTechLastSettledYear(1234);
+    setAnnualGateYear(ANNUAL_GATE.agTech, 1234);
     expect(getFoodPotential()).toHaveLength(3);
-    expect(getAgTechLastSettledYear()).toBe(1234);
+    expect(getAnnualGateYear(ANNUAL_GATE.agTech)).toBe(1234);
 
     clearEconomyContext();
 
     expect(getFoodPotential()).toHaveLength(0);
-    expect(getAgTechLastSettledYear()).toBeNull();
+    expect(getAnnualGateYear(ANNUAL_GATE.agTech)).toBeNull();
+  });
+});
+
+describe("annual gate registry", () => {
+  it("runs each key once per calendar year", () => {
+    let runs = 0;
+
+    expect(settleAnnualOnce(ANNUAL_GATE.agTech, () => runs++)).toBe(true);
+    expect(settleAnnualOnce(ANNUAL_GATE.agTech, () => runs++)).toBe(false);
+    expect(runs).toBe(1);
+  });
+
+  it("migrates legacy fields without overwriting a newer registry value", () => {
+    const slice: Record<string, unknown> = {
+      agTechLastSettledYear: 1234,
+      annualGateYears: { agTech: 1235 }
+    };
+
+    expect(migrateLegacyAnnualGateYears(slice)).toBe(true);
+    expect(slice).toEqual({ annualGateYears: { agTech: 1235 } });
   });
 });

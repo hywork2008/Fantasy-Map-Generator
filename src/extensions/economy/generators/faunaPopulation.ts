@@ -42,9 +42,9 @@ import type { BiomeTag } from "../../../types/biome";
 import type { BiomesData } from "../../../types/WorldState";
 import { DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import {
+  ANNUAL_GATE,
   getCaravans,
   getCultivatedArea,
-  getFaunaPopulationLastSettledYear,
   getGoods,
   getMarketCellColumn,
   getMarkets,
@@ -53,9 +53,8 @@ import {
   getOrCreateNonFoodFaunaDemandHistory,
   getOrCreateNonFoodFaunaDemandSnapshot,
   getOrCreateNonFoodFaunaProductionSnapshot,
-  getSimulationYear,
   getWorldContext,
-  setFaunaPopulationLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { calculateBurgBuiltAreaHectares, calculatePhysicalAreaHectares } from "./agriculturalLandUse";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
@@ -613,9 +612,7 @@ function advanceStockOneYear(
 export function updateAnnualFaunaCohorts(): boolean {
   if (getRuralEcosystemDetail() !== "detailed") return false;
 
-  const year = getSimulationYear();
-  if (getFaunaPopulationLastSettledYear() === year) return false;
-  setFaunaPopulationLastSettledYear(year);
+  if (!settleAnnualOnce(ANNUAL_GATE.faunaPopulation)) return false;
 
   const world = getWorldContext();
   const cells = world.pack.cells;

@@ -9,7 +9,9 @@ import {
 } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
-  clearSettlementDevelopmentLastEvaluatedYear,
+  ANNUAL_GATE,
+  clearAnnualGateYear,
+  getAnnualGateYear,
   getClimateFoodStress,
   getCultivableArea,
   getCultivatedArea,
@@ -29,13 +31,13 @@ import {
   getRuralFoodCapacity,
   getRuralReleasePressure,
   getSeasonalLaborShortage,
-  getSettlementDevelopmentLastEvaluatedYear,
   getSettlementDevelopmentPotential,
   getSimulationYear,
   getSoilFertility,
   getStateAgriculturalProductivity,
   getWorldContext,
   getYieldPerArea,
+  setAnnualGateYear,
   setClimateFoodStress,
   setCultivableArea,
   setCultivatedArea,
@@ -60,7 +62,6 @@ import {
   setRuralFoodCapacity,
   setRuralReleasePressure,
   setSeasonalLaborShortage,
-  setSettlementDevelopmentLastEvaluatedYear,
   setSettlementDevelopmentPotential,
   setSoilFertility,
   setViticultureRequiredWorkers,
@@ -273,13 +274,13 @@ export class DevelopmentPotentialModule {
     setHusbandryWorkers(new Float32Array());
     setHusbandryRequiredWorkers(new Float32Array());
     setSettlementDevelopmentPotential(new Float32Array());
-    clearSettlementDevelopmentLastEvaluatedYear();
+    clearAnnualGateYear(ANNUAL_GATE.settlementDevelopment);
   }
 
   /** Recomputes current crop area and farm labour once per year before food ledgers settle. */
   updateAnnualAgriculture(): boolean {
     const year = getSimulationYear();
-    if (getSettlementDevelopmentLastEvaluatedYear() === year) return false;
+    if (getAnnualGateYear(ANNUAL_GATE.settlementDevelopment) === year) return false;
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
@@ -303,7 +304,7 @@ export class DevelopmentPotentialModule {
   /** Reclassifies unlocked burgs at most once per simulation year. */
   updateAnnualBurgGroups(): boolean {
     const year = getSimulationYear();
-    if (getSettlementDevelopmentLastEvaluatedYear() === year) return false;
+    if (getAnnualGateYear(ANNUAL_GATE.settlementDevelopment) === year) return false;
 
     let changed = false;
     for (const burg of getWorldContext().pack.burgs) {
@@ -312,7 +313,7 @@ export class DevelopmentPotentialModule {
       Burgs.changeGroup(burg);
       changed ||= burg.group !== before;
     }
-    setSettlementDevelopmentLastEvaluatedYear(year);
+    setAnnualGateYear(ANNUAL_GATE.settlementDevelopment, year);
     return changed;
   }
 

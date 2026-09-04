@@ -7,14 +7,14 @@ import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
+  ANNUAL_GATE,
   getCraftDomainEmploymentRecords,
   getExperimentalWorkshops,
-  getExperimentalWorkshopsLastSettledYear,
   getSimulationYear,
   getWorldContext,
   setCraftDomainEmploymentRecords,
   setExperimentalWorkshops,
-  setExperimentalWorkshopsLastSettledYear
+  settleAnnualOnce
 } from "../economyContext";
 import { consumeNamed, debitTreasury, EXPERIMENTAL_BUDGET, marketIdForBurg, pickSponsorBurg } from "./chemMedCommon";
 import { getPracticeForState, recordLabGlassPractice, recordObsidianPractice } from "./chemMedPractice";
@@ -51,8 +51,7 @@ export function upsertInstruments(burgId: number, workers: number): void {
 export class ExperimentalWorkshopsModule {
   settleAnnual(): boolean {
     const year = getSimulationYear();
-    if (getExperimentalWorkshopsLastSettledYear() === year) return false;
-    setExperimentalWorkshopsLastSettledYear(year);
+    if (!settleAnnualOnce(ANNUAL_GATE.experimentalWorkshops)) return false;
 
     const workshops = [...getExperimentalWorkshops()];
     const states = getWorldContext().pack.states ?? [];
