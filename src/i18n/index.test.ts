@@ -24,7 +24,7 @@ describe("internationalization", () => {
     expect(i18n.t("generation.settlementPattern")).toBe("集落パターン");
     expect(i18n.t("generationProgress.generateEntireMap")).toBe("地図をすべて生成");
     expect(i18n.t("generationProgress.stages.landscape.title")).toBe("地形の輪郭");
-    expect(i18n.t("layersTab.names.toggleBiomes")).toBe("バイオーム");
+    expect(i18n.t("layersTab.names.toggleBiomes")).toBe("生物群系");
     expect(i18n.t("tools.edit")).toBe("編集");
     expect(i18n.t("dialogs.titles.advanceTime")).toBe("時間を進める");
     expect(i18n.t("dialogs.titles.cellInfo")).toBe("セル情報");
