@@ -10,13 +10,19 @@ import {
   getMarketCellColumn,
   getMarkets,
   initEconomyContext,
+  setBurgMarketLedgers,
   setGoods,
   setMarkets,
   setMetallurgWorkOrders
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { DEMAND_TARGET_FACTORS, type Good, Goods } from "./goods-generator";
-import { getCommercialRecipeByproducts, MarketsModule } from "./markets-generator";
+import {
+  getCommercialRecipeByproducts,
+  isWartimeImportDemandGood,
+  MarketsModule,
+  wartimeTradeReserveMultiplier
+} from "./markets-generator";
 import type { Market } from "./marketTypes";
 import type { MetallurgWorkOrder } from "./metallurgWorkTypes";
 import { applyPriceElasticity } from "./priceElasticity";
@@ -40,6 +46,22 @@ vi.mock("./production-utils", () => ({
   getRuralProductionContributions: vi.fn(() => []),
   getSeasonalFoodProductionMultiplier: vi.fn(() => 1)
 }));
+
+describe("wartime trade demand (docs/plan/economy-coupling-audit.md L5)", () => {
+  it("hoards military and essential goods, not luxury", () => {
+    expect(isWartimeImportDemandGood({ name: "Arms", tags: ["military"], warEconomyType: "military" })).toBe(true);
+    expect(isWartimeImportDemandGood({ name: "Grain", tags: ["food"], warEconomyType: "essential" })).toBe(true);
+    expect(isWartimeImportDemandGood({ name: "Silk", tags: ["luxury"], warEconomyType: "luxury" })).toBe(false);
+    expect(isWartimeImportDemandGood({ name: "Timber", tags: ["construction"] })).toBe(false);
+  });
+
+  it("scales the import reserve with warIntensity only for hoarded goods", () => {
+    const arms = { name: "Arms", tags: ["military"], warEconomyType: "military" as const };
+    expect(wartimeTradeReserveMultiplier(0, arms)).toBe(1);
+    expect(wartimeTradeReserveMultiplier(2, arms)).toBe(2);
+    expect(wartimeTradeReserveMultiplier(2, { name: "Silk", tags: ["luxury"], warEconomyType: "luxury" })).toBe(1);
+  });
+});
 
 describe("MarketsModule", () => {
   it("keeps Wine pomace when cell-local grape processing supplies a market directly", () => {
@@ -173,6 +195,57 @@ describe("MarketsModule", () => {
       // Goods remain in transit until the spawned caravan reaches the importer.
       expect(market2.goods[0].stock).toBe(0);
       expect(market1.goods[0].stock).toBeLessThan(100);
+    });
+
+    it("imports more military goods into a warIntensity=2 market than an otherwise identical peacetime market", () => {
+      Object.assign(getGoods()[0], {
+        name: "Arms",
+        tags: ["military"],
+        warEconomyType: "military",
+        demandCoverage: { military: 1 }
+      });
+      Goods.sync();
+
+      const exporter: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 200, price: 5 } }
+      };
+      const peaceImporter: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 20 } }
+      };
+      const warImporter: Market = {
+        i: 3,
+        centerBurgId: 3,
+        color: "#0000ff",
+        goods: { 0: { stock: 0, price: 20 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
+      const burg3: Burg = { i: 3, x: 300, y: 100, population: 100, market: 3 } as unknown as Burg;
+      setMarkets([exporter, peaceImporter, warImporter]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2, burg3];
+      setBurgMarketLedgers([
+        { burgId: 1, marketId: 1, merchants: [], warIntensity: 0 },
+        { burgId: 2, marketId: 2, merchants: [], warIntensity: 0 },
+        { burgId: 3, marketId: 3, merchants: [], warIntensity: 2 }
+      ]);
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [undefined as unknown as Market, exporter, peaceImporter, warImporter];
+
+      marketsModule.runGlobalTrade();
+
+      const imported = (marketId: number) =>
+        getDeals()
+          .filter(deal => deal.sellerType === "market" && deal.buyerType === "market" && deal.buyer === marketId)
+          .reduce((sum, deal) => sum + deal.units, 0);
+
+      expect(imported(3)).toBeGreaterThan(imported(2));
+      expect(imported(3)).toBeGreaterThan(0);
     });
 
     it("routes finished armory goods to a market with an outstanding State order", () => {

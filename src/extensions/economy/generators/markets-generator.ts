@@ -98,6 +98,22 @@ const PRICE_CEILING_FACTOR = 3.0;
 const LAPLACE_PRICE_SMOOTHING = 5;
 const MARKET_PRESSURE_FACTOR = 0.01;
 const MARKET_MARGIN = 0.1;
+/** Extra import-reserve share per point of burg warIntensity for military/essential goods. */
+export const WARTIME_TRADE_RESERVE_PER_INTENSITY = 0.5;
+
+/** Military and essential goods are hoarded in wartime; luxury/strategic are not. */
+export function isWartimeImportDemandGood(good: Pick<Good, "warEconomyType" | "name" | "tags">): boolean {
+  const warType = good.warEconomyType ?? GOODS_DATA.find(candidate => candidate.name === good.name)?.warEconomyType;
+  return warType === "military" || warType === "essential" || Boolean(good.tags?.includes("military"));
+}
+
+export function wartimeTradeReserveMultiplier(
+  intensity: number,
+  good: Pick<Good, "warEconomyType" | "name" | "tags">
+): number {
+  if (!(intensity > 0) || !isWartimeImportDemandGood(good)) return 1;
+  return 1 + intensity * WARTIME_TRADE_RESERVE_PER_INTENSITY;
+}
 
 /** Returns the outputs accompanying a cell-local recipe conversion. */
 export function getCommercialRecipeByproducts(
@@ -1656,7 +1672,8 @@ export class MarketsModule {
         industrialDemandFactors[good.i] || 0,
         ctx
       );
-      const reserve = demand * (1 + tradeReserveFactor);
+      const warIntensity = getBurgMarketLedger(market.centerBurgId)?.warIntensity ?? 0;
+      const reserve = demand * (1 + tradeReserveFactor) * wartimeTradeReserveMultiplier(warIntensity, good);
 
       const marketGood = this.getMarketGood(market, good);
       if (marketGood.stock > reserve) {
@@ -1678,6 +1695,7 @@ export class MarketsModule {
         if (available < minUnit) continue;
 
         const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
+        const quotedExporterPrice = this.getTradeQuotedPrice(exporter.market, good, exporterGood.price);
         const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
 
         for (const importer of importers) {
@@ -1702,7 +1720,8 @@ export class MarketsModule {
           }
 
           const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
-          const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
+          const quotedImporterPrice = this.getTradeQuotedPrice(importer.market, good, importerGood.price);
+          const unitProfit = quotedImporterPrice - (quotedExporterPrice + transportCost + exporterTaxPerUnit);
           if (unitProfit <= 0) continue;
           const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
 
@@ -1836,9 +1855,13 @@ export class MarketsModule {
       units = floorToRetailLot(units, getRetailLotSize(good));
       if (units < minUnit) continue;
 
+      const quotedExporterPrice = this.getTradeQuotedPrice(opportunity.exporter, good, exporterGood.price);
+      const quotedImporterPrice = this.getTradeQuotedPrice(opportunity.importer, good, importerGood.price);
+      const quotedLandedCost = quotedExporterPrice + opportunity.transportCost + opportunity.exporterTaxPerUnit;
+      const quotedSalePrice = opportunity.targetSalePrice ?? quotedImporterPrice;
+      if (quotedSalePrice - quotedLandedCost <= 0) continue;
+
       const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
-      const targetSalePrice = opportunity.targetSalePrice ?? importerGood.price;
-      if (targetSalePrice - landedCost <= 0) continue;
 
       const deals = getDeals();
       const deal: Deal = {
@@ -1975,6 +1998,10 @@ export class MarketsModule {
       if (exporterGood.stock < getMarketTradeMinimumUnits(good)) continue;
 
       const exporterCenter = this.worldContext.pack.burgs[exporter.centerBurgId];
+      const quotedExporterGood = {
+        ...exporterGood,
+        price: this.getTradeQuotedPrice(exporter, good, exporterGood.price)
+      };
       const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
 
       for (const importer of markets) {
@@ -1995,12 +2022,16 @@ export class MarketsModule {
         }
 
         const importerGood = this.getMarketGood(importer, good);
+        const quotedImporterGood = {
+          ...importerGood,
+          price: this.getTradeQuotedPrice(importer, good, importerGood.price)
+        };
         const estimate = estimateSpeculativeTrade({
           good,
           sourceMarketId: exporter.i,
           targetMarketId: importer.i,
-          sourceGood: exporterGood,
-          targetGood: importerGood,
+          sourceGood: quotedExporterGood,
+          targetGood: quotedImporterGood,
           sourcePopulation: populationByMarket[exporter.i] || 0,
           targetPopulation: populationByMarket[importer.i] || 0,
           distance: route.distance,
@@ -2011,7 +2042,7 @@ export class MarketsModule {
         });
         if (!estimate) continue;
 
-        const landedCost = exporterGood.price + estimate.transportCost + exporterTaxPerUnit;
+        const landedCost = quotedExporterGood.price + estimate.transportCost + exporterTaxPerUnit;
         const unitProfit = estimate.sellPrice - landedCost;
         const totalProfit = estimate.totalProfit;
 
@@ -2154,8 +2185,13 @@ export class MarketsModule {
     this.tradeRouteCache = null;
   }
 
+  /** Mid-market price as traders value it, including wartime scarcity — not the retail margin. */
+  private getTradeQuotedPrice(market: Market, good: Good, midPrice: number): number {
+    return midPrice * this.getWarPriceModifier(market.centerBurgId, good.i);
+  }
+
   getWarPriceModifier(burgId: number | undefined, goodId: number | undefined): number {
-    if (!burgId || !goodId) {
+    if (!burgId || goodId === undefined || goodId === null) {
       return 1;
     }
     const ledger = getBurgMarketLedger(burgId);
