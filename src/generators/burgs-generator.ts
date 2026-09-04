@@ -1011,7 +1011,14 @@ class BurgModule {
     const population = burg.population ?? 0;
     const resolvedCapacity = capacity ?? burg.demographics?.capacity ?? population;
     const effectiveCapacity = burg.demographics?.effectiveCapacity ?? resolvedCapacity;
-    burg.demographics = buildBurgDemographics(population, resolvedCapacity, burg.group, effectiveCapacity);
+    const seedCapacity = burg.demographics?.seedCapacity ?? resolvedCapacity;
+    burg.demographics = buildBurgDemographics(
+      population,
+      resolvedCapacity,
+      burg.group,
+      effectiveCapacity,
+      seedCapacity
+    );
   }
 
   private defineEmblem(burg: Burg) {

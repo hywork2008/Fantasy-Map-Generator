@@ -221,6 +221,13 @@ export interface BurgGroup {
 export interface BurgDemographics {
   capacity: number;
   /**
+   * Generation-time carrying capacity. Terrain, capital status, and connectivity are
+   * baked in once; annual food reconcile clamps live `capacity` around this anchor.
+   * Missing on old saves — treat as "not yet migrated" and leave `capacity` unchanged
+   * for that year (docs/plan/economy-coupling-audit.md L4).
+   */
+  seedCapacity?: number;
+  /**
    * Population capacity after temporary, external support such as food imports.
    * Falls back to `capacity` for maps saved before this field was introduced.
    */

@@ -18,6 +18,7 @@ import {
   CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE,
   ConstructionOperations,
   estimateDwellingsUnderConstruction,
+  getConstructionCapacityMultiplier,
   getConstructionProductivityMultiplier,
   getConstructionRequiredPeople,
   getConstructionRequiredWorkers,
@@ -26,6 +27,7 @@ import {
   getMasonShare,
   getRequiredDwellings,
   getTargetBuildingStock,
+  MAX_CONSTRUCTION_CAPACITY_SHARE,
   normalizeConstructionOperation
 } from "./constructionEmployment";
 import type { ConstructionOperation, LegacyConstructionOperation } from "./constructionEmploymentTypes";
@@ -389,6 +391,17 @@ describe("getConstructionProductivityMultiplier", () => {
   });
 });
 
+describe("getConstructionCapacityMultiplier", () => {
+  it("is neutral (1) when there is no operation yet", () => {
+    expect(getConstructionCapacityMultiplier(undefined)).toBe(1);
+  });
+
+  it("ranges from 0.5 at buildingStock=0 to 1.3 at buildingStock=1", () => {
+    expect(getConstructionCapacityMultiplier({ buildingStock: 0 })).toBeCloseTo(0.5, 5);
+    expect(getConstructionCapacityMultiplier({ buildingStock: 1 })).toBeCloseTo(MAX_CONSTRUCTION_CAPACITY_SHARE, 5);
+  });
+});
+
 describe("ConstructionOperationsModule", () => {
   beforeEach(() => initEconomyContext({ worldContext } as unknown as ExtensionAPI));
   afterEach(() => {
@@ -583,6 +596,36 @@ describe("ConstructionOperationsModule", () => {
 
     const burg = worldContext.pack.burgs[1];
     expect(burg.demographics.effectiveCapacity).toBeCloseTo(500, 5);
+  });
+
+  it("keeps import-boosted effectiveCapacity when housing is full, up to 1.3× capacity", () => {
+    setUpWorld();
+    ConstructionOperations.generate();
+    const [operation] = getConstructionOperations();
+    operation.buildingStock = 1;
+    operation.dwellingStock = getRequiredDwellings(5, 1000);
+    const burg = worldContext.pack.burgs[1];
+    burg.demographics.effectiveCapacity = 1200;
+
+    ConstructionOperations.constrainEffectiveCapacity();
+
+    expect(burg.demographics.effectiveCapacity).toBeCloseTo(1200, 5);
+
+    burg.demographics.effectiveCapacity = 2000;
+    ConstructionOperations.constrainEffectiveCapacity();
+    expect(burg.demographics.effectiveCapacity).toBeCloseTo(1000 * MAX_CONSTRUCTION_CAPACITY_SHARE, 5);
+  });
+
+  it("floors effectiveCapacity at half of food-derived capacity", () => {
+    setUpWorld();
+    ConstructionOperations.generate();
+    const [operation] = getConstructionOperations();
+    operation.buildingStock = 1;
+    worldContext.pack.burgs[1].demographics.effectiveCapacity = 100;
+
+    ConstructionOperations.constrainEffectiveCapacity();
+
+    expect(worldContext.pack.burgs[1].demographics.effectiveCapacity).toBeCloseTo(500, 5);
   });
 
   it("produces no operations once cleared", () => {

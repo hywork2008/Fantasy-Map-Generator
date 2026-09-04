@@ -65,8 +65,8 @@ export const ECONOMY_TICK_TOPIC_CONTRACTS: Readonly<Record<EconomyTickSystemId, 
     writes: ["extension.economy", "simulation.burgs"]
   },
   "economy.annualAgTech": {
-    reads: ["map.politics", "extension.economy", "simulation.states", "simulation.cells"],
-    writes: ["extension.economy", "simulation.states", "simulation.cells"]
+    reads: ["map.politics", "extension.economy", "simulation.states", "simulation.cells", "simulation.burgs"],
+    writes: ["extension.economy", "simulation.states", "simulation.cells", "simulation.burgs"]
   },
   "economy.caravans": {
     reads: [

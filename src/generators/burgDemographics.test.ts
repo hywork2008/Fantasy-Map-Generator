@@ -27,6 +27,7 @@ describe("burgDemographics", () => {
     const pop = 10;
     const demo = buildBurgDemographics(pop, 12, "fort");
     expect(demo.capacity).toBe(12);
+    expect(demo.seedCapacity).toBe(12);
     expect(demo.children).toBe(0);
     expect(demo.maleAdults).toBeCloseTo(7.2);
     expect(demo.femaleAdults).toBeCloseTo(1.8);

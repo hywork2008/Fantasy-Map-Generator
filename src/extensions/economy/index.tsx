@@ -223,6 +223,7 @@ import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
 import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
+import { reconcileUrbanCapacityFromFood } from "./generators/urbanFoodCapacity";
 import { UrbanLaborIntake } from "./generators/urbanLaborIntake";
 import {
   clearUrbanPregnancy,
@@ -2947,7 +2948,7 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
-  registerEconomyTickSystem("economy.annualAgTech", (context, _writer) => {
+  registerEconomyTickSystem("economy.annualAgTech", (context, writer) => {
     // Must run before updateAnnualAgriculture() so this year's Tools investment feeds
     // this year's yieldPerArea/farmLaborRequired recompute, not next year's
     // (docs/plan/rural-agtech-investment.md §3.5). Industrial tech runs right after so
@@ -2978,6 +2979,13 @@ export function init(api: ExtensionAPI): void {
     // Must run before the quarter's food ledger so annual demographic changes
     // alter cultivated area and farm labour without waiting an extra quarter.
     agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
+    // Urban counterpart of reconcileSubsistenceCapacityFromFood: hinterland surplus +
+    // last-quarter imports rewrite burg.demographics.capacity around seedCapacity.
+    // Must run on the same annual refresh so this year's AgTech / drought / fertilizer
+    // already sit in ruralFoodCapacity. docs/plan/economy-coupling-audit.md L4.
+    if (agricultureRefreshed && reconcileUrbanCapacityFromFood()) {
+      writer.markChanged("simulation.burgs");
+    }
     // Fauna population cohort update (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2):
     // its own once-per-year guard, independent of agriculture's — no-ops entirely when
     // options.ruralEcosystemDetail === "simplified" (§11.3).

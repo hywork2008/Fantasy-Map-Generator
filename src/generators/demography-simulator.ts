@@ -447,7 +447,8 @@ function promoteRuralSettlements(
     const { moved, remaining } = splitDemographicBuckets(getCellDemographics(cells, candidate.cellId), ratio);
     setCellDemographics(cells, candidate.cellId, remaining);
     burg.population = candidate.settlementPopulation;
-    burg.demographics = { capacity: candidate.settlementPopulation * 1.5, ...moved };
+    const capacity = candidate.settlementPopulation * 1.5;
+    burg.demographics = { capacity, seedCapacity: capacity, ...moved };
     Burgs.changeGroup(burg);
     newBurgsAdded = true;
     routesAdded = Boolean(result.newRoute) || routesAdded;

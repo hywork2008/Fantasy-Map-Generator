@@ -95,12 +95,14 @@ export function buildBurgDemographics(
   population: number,
   capacity: number,
   group?: string | null,
-  effectiveCapacity = capacity
+  effectiveCapacity = capacity,
+  seedCapacity = capacity
 ): BurgDemographics {
   const shares = getDemographicShares(group);
   return {
     capacity,
     effectiveCapacity,
+    seedCapacity,
     children: rn(population * shares.children, 4),
     maleAdults: rn(population * shares.maleAdults, 4),
     femaleAdults: rn(population * shares.femaleAdults, 4),

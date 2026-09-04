@@ -1,6 +1,6 @@
 import { getBurgDemographics, useOptionsState } from "../../hostCore";
 import type { CultureType } from "../../hostTypes";
-import { rn } from "../../hostUtils";
+import { minmax, rn } from "../../hostUtils";
 import {
   getConstructionNamedSeats,
   getConstructionOperations,
@@ -44,9 +44,16 @@ const ROMAN_CONCRETE_STONE_EFFICIENCY = 2;
 /** Share of the remaining housing gap a fully-staffed, fully-supplied operation closes in one year. */
 export const BASE_ANNUAL_STOCK_GROWTH = 0.25;
 /**
- * Floor on the annual `effectiveCapacity` ceiling: undeveloped towns still reach half capacity.
+ * Floor on the housing-scaled `effectiveCapacity` band: undeveloped towns still reach half
+ * of food-derived capacity.
  */
 const MIN_CAPACITY_SHARE = 0.5;
+/**
+ * Ceiling share when `buildingStock` is 1. Above 1 so housing can keep import-boosted
+ * `effectiveCapacity` instead of clipping it back to generation-time `capacity`.
+ * docs/plan/economy-coupling-audit.md L4.
+ */
+export const MAX_CONSTRUCTION_CAPACITY_SHARE = 1.3;
 
 /** Urban household size for dwelling derivation (docs/analytics/population.md; K18). */
 export const HOUSEHOLD_SIZE_URBAN = 4.5;
@@ -210,12 +217,24 @@ export function getConstructionRequiredPeople(
 /**
  * Dynamic stand-in for the static cosmetic `burg.shanty` flag: underdeveloped burgs produce at a
  * reduced local-bonus rate. Undefined operation → no penalty (pre-system / disabled economy).
+ * Stays in [0.5, 1.0]: full housing is "no penalty", not a production bonus.
  */
 export function getConstructionProductivityMultiplier(
   operation: Pick<ConstructionOperation, "buildingStock"> | undefined
 ): number {
   if (!operation) return 1;
   return MIN_CAPACITY_SHARE + (1 - MIN_CAPACITY_SHARE) * clamp01(operation.buildingStock);
+}
+
+/**
+ * Housing band on `effectiveCapacity`. [0.5, 1.3] so a fully built town can hold import
+ * headroom above food-derived `capacity`, while an undeveloped town is still floored at half.
+ */
+export function getConstructionCapacityMultiplier(
+  operation: Pick<ConstructionOperation, "buildingStock"> | undefined
+): number {
+  if (!operation) return 1;
+  return MIN_CAPACITY_SHARE + (MAX_CONSTRUCTION_CAPACITY_SHARE - MIN_CAPACITY_SHARE) * clamp01(operation.buildingStock);
 }
 
 /**
@@ -541,8 +560,10 @@ export class ConstructionOperationsModule {
   }
 
   /**
-   * Annual ceiling on `effectiveCapacity` from write-through `buildingStock`.
-   * Independent layer on top of foodImportNetwork's quarterly import capacity.
+   * Housing band on `effectiveCapacity` from write-through `buildingStock`.
+   * Independent layer on top of foodImportNetwork's quarterly import capacity:
+   * clamps into [0.5, housingMultiplier] × food-derived `capacity` so housing
+   * can keep import headroom instead of only shrinking the town.
    */
   constrainEffectiveCapacity(): void {
     const burgs = getWorldContext().pack.burgs;
@@ -552,8 +573,11 @@ export class ConstructionOperationsModule {
       if (!burg?.demographics) continue;
       const operation = normalizeConstructionOperation(raw, burg, populationRate);
       const base = burg.demographics.capacity;
-      const ceiling = base * getConstructionProductivityMultiplier(operation);
-      burg.demographics.effectiveCapacity = Math.min(burg.demographics.effectiveCapacity ?? base, ceiling);
+      const multiplier = getConstructionCapacityMultiplier(operation);
+      const floor = base * MIN_CAPACITY_SHARE;
+      const ceiling = base * multiplier;
+      const current = burg.demographics.effectiveCapacity ?? base;
+      burg.demographics.effectiveCapacity = minmax(current, floor, ceiling);
     }
   }
 }
