@@ -2,9 +2,17 @@
 
 ## 状態
 
-**Phase 1–8 実装済み（全分野が実装済み — ロードマップ完成）**（2026-08-20 更新。ロケット・宇宙開発チェーン（§11、
+**Phase 1–8 実装済み（全段階に到達済み。ただし §17 の欠落中間ノード9件が未実装）**（2026-08-20 更新。ロケット・宇宙開発チェーン（§11、
 `militarySignalRockets`/`rocketDynamicsAndHighTemperatureCombustionResearch`/`liquidPropulsionAndTestFacilities`/
-`guidanceAndAttitudeControl`/`stagingAndOrbitalInsertion`）の実装により Phase 8 が完了し、本書の全段階が実装済みとなった）
+`guidanceAndAttitudeControl`/`stagingAndOrbitalInsertion`）の実装により Phase 8 が完了し、段階0〜8のすべてに到達可能となった）
+
+**2026-09-05 更新（重要）**: 技術グラフの中間ノード監査を実施し、**「発明 A と発明 C はあるが、両者をつなぐべき
+中間ノード B が無い」箇所を9件検出した**（§17）。うち3件（熱力学、精密機器製造、工業的アルカリ）は、既存ノードの
+コメント自身が「別ノードで代用している」と明記しているもの、2件（軽量構造材・導体、石油化学）は本書の表に行があるのに
+ノード化されていないもの、残る4件は本書が必要技能・必要資源として挙げている `thermodynamics`/`physicalChemistry`/
+`cryogenics`/`electronics`/`controlTheory`/`saltpeter` に対応物が無いものである。該当する各節の表に「未実装」行として
+追記済み（§5.1 / §8 / §9.1 / §9.4 / §10 / §11）。根拠と実装計画は
+[technology-graph-missing-intermediates.md](./technology-graph-missing-intermediates.md) を正とする。
 
 | Phase | 内容 | 状態 |
 | --- | --- | --- |
@@ -182,6 +190,7 @@
 | ノード | 前提知識・技能 | 資源・設備・制度 | 結果 |
 | --- | --- | --- | --- |
 | 黒色火薬の調合 | pyrotechnics State Secret、chemistry / naturalPhilosophy | saltpeter、sulfur、charcoal、試験場 | 少量の爆薬・信号・工兵用途 |
+| 硝石生産・硝石丘（`saltpeterProduction`、**未実装** — §17 M9） | pyrotechnics、administration、農業・都市廃棄物の管理 | 厩肥・灰・石灰、硝石丘、都市人口、監督官 | 硝石鉱床を持たない State でも Saltpeter を自給できる。火薬の量産（`cornedPowder`/`massFirearms`）の資源ゲート |
 | 火薬の粒状化・品質管理 | pyrotechnics、printing / records、administration | 精製設備、標準配合、兵器廠 | 安定した軍需 Good としての Gunpowder |
 | 砲鋳造 | smelting、blacksmithing、metallurgy Guild | 良質な銅／鉄、炉、熟練労働、Treasury | 大砲の試作・限定配備 |
 | 砲兵術 | artillery Engineering State Secret、mathematics、Martial Discipline | 訓練場、弾薬供給、士官、戦争需要 | 砲の命中・運用・補給を改善 |
@@ -251,6 +260,8 @@ Shipbuilding 拡張が所有する船体・港・建造キューと、Economy �
 | --- | --- | --- | --- |
 | 初期蒸気排水機関 | mechanics、precisionMachining、smelting、naturalPhilosophy | 浸水鉱山など限定地点 | 鉱山の深部化、石炭・金属供給増 |
 | 高効率蒸気機関 | thermodynamics、precisionMachining、highPressureMetallurgy | 大工房・炭田 State | 燃料効率上昇、固定動力として利用可能 |
+| 熱力学の確立（`thermodynamics`、**未実装** — §17 M1） | naturalPhilosophy、mathematics、Academy Knowledge、稼働中の蒸気機関 | 研究機関、計測器、記録、長期投資 | 熱効率・気体・高温燃焼の理論知。触媒化学・分留・内燃機関・ロケット力学の共通前提 |
+| 精密機器製造（`precisionInstrumentMaking`、**未実装** — §17 M2） | precisionMachining、glassware、instruments Guild | 良質鋼・ガラス・工具、時計・光学・測量・電気計器の工房 | 計測器・電気計器・高圧計装の供給。`instruments` 組織知の実際の産出源 |
 | 機械紡績・機械織機 | textiles、mechanics、factory organization | 繊維都市・水力／蒸気利用地 | Cloth 生産量増、職人構成と都市雇用の変化 |
 | 蒸気輸送 | civilEngineering、mechanics、administration | 高額な公共投資をできる State | 港・鉱山・都市間の輸送費低下 |
 | 鉄道 | railEngineering、steelmaking、蒸気輸送 | 鉄・石炭・土地・国家投資 | 市場統合、軍事・人口移動の加速 |
@@ -269,6 +280,9 @@ Shipbuilding 拡張が所有する船体・港・建造キューと、Economy �
 | --- | --- | --- | --- |
 | 化学工業の基礎 | chemistry、laboratoryTechnique、Academy Knowledge | 学術機関、酸・アルカリ原料、記録・投資 | 染料、薬品、爆薬、肥料の基盤 |
 | 工業的硫酸 | chemistry、chemicalEngineering、耐酸設備の技法 | Sulfur / 黄鉄鉱、燃料、鉛・ガラス・耐酸容器、標準化された工場 | リン肥料、染料、金属処理、後続化学の中間財 |
+| 工業的アルカリ（`industrialAlkali`、**未実装** — §17 M3） | chemistry、chemicalEngineering、工業的硫酸 | Salt、Lime、燃料、Sulfuric Acid、ソーダ工場 | Soda Ash / Caustic Soda。ガラス・石鹸・製紙・漂白・**アルミナ精製**の共通原料 |
+| 有機化学・合成染料（`organicChemistryAndDyes`、**未実装** — §17 M4） | chemistry、laboratoryTechnique、Academy / corporate research | Coal Tar（コークス炉副産物）、硫酸、アルカリ、繊維需要 | Coal Tar の最初の消費先。合成染料・近代医薬・石油化学の起点 |
+| 空気液化・工業ガス（`airLiquefactionAndIndustrialGases`、**未実装** — §17 M5） | thermodynamics、cryogenics、chemicalEngineering、precisionMachining | 高圧圧縮機、断熱容器、精密計装、大電力 | 工業窒素（合成アンモニアの原料）と**液体酸素**（液体ロケットの酸化剤）を同時に解禁する |
 | リン酸肥料 | 工業的硫酸、agricultural chemistry、administration | リン鉱石、硫酸工場、肥料流通、食料需要 | 合成アンモニア以前からの農業生産性上昇 |
 | 近代製鋼 | steelmaking、precisionMachining、industrial Guild | 鉄鉱石、石炭／コークス、工場、輸送 | 高品質な機械・鉄道・耐圧容器 |
 | 高圧化学装置 | highPressureMetallurgy、chemicalEngineering、precisionMachining | 高品質鋼、計測器、工場、安全規制 | 高圧反応の安定運用 |
@@ -317,11 +331,11 @@ Alumina + 氷晶石・炭素電極 + 大量かつ安定した Electricity
   → Aluminum
 ```
 
-| ノード | 前提 | 結果 |
-| --- | --- | --- |
-| ボーキサイト精製 | 化学工業、アルカリ、耐食容器、熱源 | `Alumina` の継続生産 |
-| 電解アルミニウム | 電解工業、電力網、炭素電極、氷晶石または代替フラックス | `Aluminum` の量産 |
-| 軽量構造材・導体 | aluminum metallurgy、precisionMachining、electricalEngineering | 送電、輸送、航空、後続の宇宙機器の材料選択肢 |
+| ノード | 前提 | 結果 | 実装 |
+| --- | --- | --- | --- |
+| ボーキサイト精製 | 化学工業、アルカリ、耐食容器、熱源 | `Alumina` の継続生産 | 専用ノード無し。§17 M3 の `industrialAlkali` が「アルカリ」を担い、`Alumina` Good のゲートになる |
+| 電解アルミニウム | 電解工業、電力網、炭素電極、氷晶石または代替フラックス | `Aluminum` の量産 | `electrolyticIndustry` ✅ |
+| 軽量構造材・導体（`lightweightStructuresAndConductors`） | aluminum metallurgy、precisionMachining、electricalEngineering | 送電、輸送、航空、後続の宇宙機器の材料選択肢 | **未実装**（§17 M6）。現状 `Aluminum` は消費先を持たず、`stagingAndOrbitalInsertion` は `electrolyticIndustry` を代用としている |
 
 アルミニウム工場は、原料だけでなく毎年（または月次）の電力容量を大きく消費する大口需要家とする。電力不足で停止・減産するため、水力に恵まれる地域、石炭火力を大量建設できる地域、強い送電網を持つ地域に立地上の意味が生まれる。
 
@@ -350,7 +364,7 @@ Alumina + 氷晶石・炭素電極 + 大量かつ安定した Electricity
 | 近代掘削・油田運営 | drillingEngineering、mechanics、administration | 鋼管、ポンプ、道路／港、労働者、安全設備 | 安定した Crude Oil 生産 |
 | 製油・分留 | chemicalEngineering、thermodynamics、precisionMachining | 製油所、熱源、タンク、輸送 | Kerosene、Fuel Oil、Lubricants、軽質燃料などへ分離 |
 | 内燃機関 | mechanics、precisionMachining、thermodynamics | 軽質燃料、潤滑油、量産部品、整備網 | 車両・船舶・発電・後続航空の動力 |
-| 石油化学 | chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、化学プラント、研究投資 | 合成材料・溶剤・高性能燃料などの後続原料 |
+| 石油化学（`petrochemicals`、**未実装** — §17 M8） | chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、化学プラント、研究投資 | 合成材料・溶剤・高性能燃料などの後続原料 |
 
 製油所は、分留・変換・処理の三段階を持つ重い産業設備とする。原油の採掘だけでは内燃機関もロケット燃料も利用できず、目的に合う留分と品質管理が必要になる。石油への依存は、油田・港湾・パイプライン・海路の戦略的重要性も生む。
 
@@ -365,6 +379,7 @@ Alumina + 氷晶石・炭素電極 + 大量かつ安定した Electricity
 | 軍用・信号用火薬ロケット | pyrotechnics、砲兵術、木工／金属加工 | Gunpowder、標準化された筒体、訓練 | 限定的な信号・軍事用途。宇宙開発の直接解禁にはしない |
 | ロケット力学・高温燃焼研究 | advancedMathematics、physics、thermodynamics、Academy Knowledge | 大学・研究所、計測器、計算能力、長期研究 | 高性能推進の設計候補 |
 | 液体推進・試験設備 | chemicalEngineering、cryogenics、precisionMachining、highTemperatureMaterials | 精製燃料・酸化剤、ポンプ、耐熱材料、隔離試験場、大電力 | 大型液体ロケットの実証 |
+| 無線通信・電子管（`radioAndElectronics`、**未実装** — §17 M7） | electricalEngineering、electronics、precisionMachining | 電信網、真空管・増幅、精密計器、送電網 | 無線通信・電子計測・増幅。誘導・姿勢制御の直接の前提。技術普及速度の第2段ボーナス |
 | 誘導・姿勢制御 | electricalEngineering、electronics、controlTheory、precisionMachining | センサー、通信、計算装置、試験設備 | 制御可能な長距離ロケット |
 | 多段化・軌道投入 | 上記技術群、lightweightStructures、systemsEngineering | 大規模製造、発射場、追跡網、国家計画 | 人工衛星・宇宙機の打上げ候補 |
 
@@ -559,6 +574,10 @@ interface TechnologyDefinition {
 14. 帝政ローマ的な技術水準は、成熟中世の開始状態を上回る要素（水硬性コンクリート建築、都市上水網、常備軍団、地中海規模の統一貨幣圏、広い識字率・行政記録密度）と、下回る要素（重量有輪犂、三圃式、鐙、騎士制度）の両方を持つ非単調な前史として扱う。「古代の方が単純に技術が低い」という単調な描写にはしない。
 15. 古代の衰退期（前2）は、新規ノードの発見ではなく主に「維持投資の途絶による退行」として表現する。退行は既存の `TechnologyStage` 列挙内を逆方向（例: `diffused`/`adopted` → `known`）に遷移させることで表し、§12 のデータ契約に新たな状態値は追加しない。この退行則は前史専用の追加ルールであり、実装済みの段階0〜8には適用しない。
 16. 帝政ローマ期に失われた広域インフラ・組織技術（都市上水網、統一交易圏、常備軍、行政記録密度、陸上輸送網）は、前史側で個別に再導入・再実装しない。既存の段階1・2・3・4・5（本書 §4・§5・§6・§7・§8）が、新技術として再到達または超過達成する形で扱う（§16.4 対応表）。前史専用の効果・Good・シグナルとして重複実装しない。
+17. 技術ノードのコメントが「別ノードを代用（proxy）としている」と明記している箇所は、恒久的な設計ではなく**未実装の中間ノードの記録**として扱う。本来のノードを追加した時点で辺を差し替え、代用ノードは新ノードの前提として推移的に残す（§17）。
+18. 各表の「前提知識・技能」列に現れる技能名は、対応する技術ノードか既存の組織知シグナルのいずれかに必ず対応させる。どちらにも対応しない技能名（`thermodynamics`／`physicalChemistry`／`cryogenics`／`electronics`／`controlTheory`／`lightweightStructures`）を表に残したままにしない。
+19. `requiredTechnology` を持つ Good は、レシピ材料・プラント入力・`demandCoverage` のいずれかに消費先を持たせる。消費先ゼロの Good は「その Good を使うはずの後続ノードが欠けている」ことの指標として扱い、Good を消すのではなく後続ノードを設計する（§17 M4・M6）。
+20. Good の `requiredTechnology` は、そのレシピが要求する材料の `requiredTechnology` より手前に置かない。ゲート順序の逆転（§17 M3）は仕様ではなくバグとして扱う。
 
 ---
 
@@ -656,3 +675,43 @@ interface TechnologyDefinition {
 - 本章はあくまで「開始時点をどこに置くか」の選択肢を増やす拡張であり、既存の既定シナリオ（§2 を開始点とする現行の生成）を変更しない（決定事項1・2は不変）。「古代ローマ開始」シナリオを追加する場合も、既定シナリオとは別の `WorldContext.options` 分岐として実装し、既存セーブ・既存テストに影響を与えない設計とする。
 
 **実装状況（2026-08-21）**: 上記18ノードのデータ層（`TechnologyDefinition` 相当の型・thresholds・prerequisites・`affectsMaintenanceOf` 情報メタデータ・純粋関数 `advancePrehistoryStage`/`prehistoryThresholdsMet`/`prehistoryPrerequisitesMet`）は [`src/generators/technologyPrehistory.ts`](../../src/generators/technologyPrehistory.ts) に実装済み。上記3点の留意点はいずれも守られている（`technologyTypes.ts`/`technologyDefinitions.ts` 未変更、段階0〜8のノード・シグナルを再実装せず、既定シナリオ・セーブ・既存テストへの接続なし）。未着手なのは、退行を実際に適用する評価器、「古代ローマ開始」の `WorldContext.options` 分岐、および世界生成 UI。
+
+---
+
+## 17. 技術グラフの欠落中間ノード監査（2026-09-05）
+
+§4〜§11 の全ノード表と実装（[`technologyDefinitions.ts`](../../src/generators/technologyDefinitions.ts) の77ノード、
+および `requiredTechnology` を持つ Good 群）を突き合わせ、**「発明 A と発明 C は存在するが、両者をつなぐべき
+中間ノード B が無い」箇所**を洗い出した。詳細な根拠・提案する `TechnologyDefinition`・実装計画は
+[technology-graph-missing-intermediates.md](./technology-graph-missing-intermediates.md) を正とする。
+本節はその索引である。
+
+### 17.1 欠落している中間ノード（9件、いずれも未実装）
+
+| # | 欠落ノード | A（既存の上流） | C（既存の下流） | 検出根拠 |
+| --- | --- | --- | --- | --- |
+| M1 | 熱力学の確立 `thermodynamics`（era 5、§8） | `highEfficiencySteamEngine` / `experimentalNaturalPhilosophy` | `catalyticChemistry` / `oilRefiningAndFractionation` / `internalCombustionEngine` / `rocketDynamics…` | 実装コメントが「`highPressureChemicalApparatus` が thermodynamics の代用」と明記。高効率機関は理論知シグナルを一切参照しない |
+| M2 | 精密機器製造 `precisionInstrumentMaking`（era 5、§8） | `precisionBoringAndMeasurement` / `laboratoryGlassware` | `practicalElectrochemistry` / `generatorAndMotor` / `highPressureChemicalApparatus` | `instruments` シグナルを閾値に取るノードは8つあるが、それを育てるノードはゼロ。レシピ側の唯一の産出源が `Liquor`（蒸留酒） |
+| M3 | 工業的アルカリ `industrialAlkali`（era 6、§9.1） | `industrialSulfuricAcid` | `Alumina` → `electrolyticIndustry`、`Soda Ash`、`Caustic Soda` | `Soda Ash` が自分のレシピ材料（`Sulfuric Acid`）より手前の技術でゲートされている（決定事項20違反） |
+| M4 | 有機化学・合成染料 `organicChemistryAndDyes`（era 6、§9.1） | `chemicalIndustryFoundation` / `coalCarbonization` | `petrochemicals`、近代医薬 | `Coal Tar` が消費先ゼロ（決定事項19違反）。§9.1 の「染料」「薬品」の枝が未実装 |
+| M5 | 空気液化・工業ガス `airLiquefactionAndIndustrialGases`（era 6、§9.1） | `thermodynamics` / `highPressureChemicalApparatus` | `syntheticAmmonia`（窒素源）、`liquidPropulsionAndTestFacilities`（液体酸素） | §9.2 の「水素源・窒素」と §11 の `cryogenics`・「酸化剤」に対応物が無い。1ノードで2系列を同時に解禁する |
+| M6 | 軽量構造材・導体 `lightweightStructuresAndConductors`（era 7、§9.4） | `electrolyticIndustry` | `stagingAndOrbitalInsertion`、送電線 | §9.4 の表に行があるのにノード化されていない。`Aluminum` が消費先ゼロで、`stagingAndOrbitalInsertion` は `electrolyticIndustry` を代用としている |
+| M7 | 無線通信・電子管 `radioAndElectronics`（era 7、§11） | `electricTelegraph` / `precisionInstrumentMaking` / `powerGrid` | `guidanceAndAttitudeControl` | 誘導装置の唯一の通信祖先が1837年相当の電信。§11 の `electronics`・`controlTheory`・「センサー、通信、計算装置」に対応物が無い |
+| M8 | 石油化学 `petrochemicals`（era 7、§10） | `oilRefiningAndFractionation` / `catalyticChemistry` | 合成材料・溶剤・高性能燃料 | §10 の表5行のうちこの1行だけノード化されていない（既知の先送り） |
+| M9 | 硝石生産・硝石丘 `saltpeterProduction`（era 2、§5.1） | `blackPowder` | `cornedPowder` / `massFirearms` | 原料依存の全系列が持つ `xAccess` ゲートが火薬系列にだけ無い。`Saltpeter` は `basin` 属州の鉱床のみが供給源で、硝石丘法の経路が存在しない |
+
+### 17.2 ノードはあるが、本書が要求する前提が落ちている（4件）
+
+| # | 内容 | 本書の該当箇所 |
+| --- | --- | --- |
+| E1 | `railEngineering` が `metallurgy` / `steelAccess` を一切要求しない | §8「鉄道 \| railEngineering、**steelmaking**、蒸気輸送」 |
+| E2 | `modernDrillingAndFieldOperations` が鋼管・動力ポンプを要求しない | §10「近代掘削・油田運営 \| … \| **鋼管、ポンプ**、道路／港…」 |
+| E3 | `generatorAndMotor` が `practicalElectrochemistry`（電池・電気計測）を前提にしない | §9.3 の3行の並び |
+| E4 | `Steel` Good のゲート（`standardMachineWorks`）と製鋼ノード（`modernSteelmaking`）の不一致が、意図的な二段階設計だとどこにも書かれていない | §9.1「近代製鋼」 |
+
+### 17.3 実装順
+
+Phase 9-A（`thermodynamics` + `precisionInstrumentMaking`）が他のほぼ全 Phase の前提になるため最初に着手する。
+以降は 9-B（アルカリ・有機化学）→ 9-C（空気液化）→ 9-D（電子工学・軽合金・石油化学）→ 9-E（硝石・E1〜E4）。
+各 Phase の変更点・テスト要件・決定事項は
+[technology-graph-missing-intermediates.md](./technology-graph-missing-intermediates.md) §4 を参照。
