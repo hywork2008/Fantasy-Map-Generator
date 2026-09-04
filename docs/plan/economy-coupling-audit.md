@@ -916,7 +916,7 @@ T1 段階1 の実装時に判明した点:
 
 ### 第3波 — 経済モデルの穴を埋める(**ここが本命**)
 
-8. **L3**: `Burg.foodSecurity` を新設し、飢饉を人口動態に接続(疫病と同じ構図)
+8. **L3** ✅ 実装済み(2026-09-05)。`Burg.foodSecurity` を新設し、飢饉を人口動態に接続(疫病と同じ構図)
 9. **L4**: 都市 capacity の年次リコンサイル + 建設ストックの上方クランプ
 10. **L2 Phase 1**: 製造に労賃費目を追加し、`wageByOccupation` を生かす
 11. **L1**: 価格弾力性 + 価格の緩和更新
@@ -925,6 +925,26 @@ T1 段階1 の実装時に判明した点:
 L3 → L4 → L1 の順が重要。L3 で「食料不足が痛い」状態を作ってから L4 で
 「農業改良が都市を成長させる」を入れ、最後に L1 で価格が調整弁として働くようにすると、
 各段階でバランスを確認しながら進められる。逆順だと壊れた挙動が相殺し合って原因が特定できない。
+
+L3 の実装時に判明した点:
+
+- **ホストは四半期カウンタを読まない。** 本書の疑似コードは `foodSecurity < FOOD_SECURE_THRESHOLD`
+  の一本だが、死亡を2四半期ゲートするには持続期間を `foodSecurity` 自体へ焼き込む必要があった
+  (`urbanSevereDeficitQuarters` は Food Ledger 上にしか無く、ホストが Economy を import しない
+  という制約を守るため)。Economy は四半期末に
+  `computeUrbanFoodSecurity(urbanShortfallRate, urbanSevereDeficitQuarters)` を全 market burg へ書く。
+  0–1 四半期は `foodSecurity >= 0.85`(出生減のみ)、2四半期目から 0.85 未満(死亡も)。
+  ホスト側は疫病と同じく Burg 上の 0..1 フィールドだけを読む。
+- **出生減は死亡より先に効く。** `foodSecurity < 1` で `replacementAwareBirths` の結果に乗数を掛け、
+  0.85 未満になって初めて `famine` バケットへ死亡を足す。置換出生フロアも飢饉時は削る
+  (食べられていない都市が自然減を埋め直すのはおかしい)。
+- **死亡率は疫病より緩い。** 疫病は `waterSecurity 0` で年率 ~12%(2乗ランプ)。飢饉は
+  `foodSecurity 0` で年率 ~8%(同じく2乗)。単月の在庫ブレで都市が消えない、という本書の要件に合わせた。
+- **検証はユニットで、フルマップの輸入切断シナリオではない。** `demography-famine.test.ts` が
+  `foodSecurity = 0` の大都市が5年で縮小し、同条件の `foodSecurity = 1` は成長することを確認する。
+  `foodLedgerConsumption.test.ts` が空在庫1四半期では死亡バンド以上、2四半期でバンド割れ、
+  充足四半期で 1 に戻ることを確認する。`megacity-food-import-economy.md` の実マップ輸入切断は
+  別途の実機確認。
 
 ### 第4波 — 大きな設計判断を伴うもの
 

@@ -40,6 +40,25 @@ const EPIDEMIC_WATER_SAFE_THRESHOLD = 50;
  * (waterSecurity 0) costs ~12%/year, the same order of magnitude as a severe multi-year famine.
  */
 const EPIDEMIC_RATE_SCALE = 0.12;
+/**
+ * Burg.foodSecurity at/above this carries no fertility penalty. Economy-off and pre-L3
+ * saves omit the field, which is treated as 1.
+ * docs/plan/economy-coupling-audit.md L3.
+ */
+const FOOD_SECURE_THRESHOLD = 1;
+/**
+ * Burg.foodSecurity at/above this carries no ledger-driven famine mortality — births may
+ * already have been cut. Economy keeps foodSecurity in this band until two consecutive
+ * severe-deficit quarters, so a single empty month cannot erase a city.
+ * Keep in lockstep with URBAN_FOOD_FAMINE_DEATH_BAND in foodLedgerConsumption.ts.
+ */
+const FOOD_FAMINE_DEATH_THRESHOLD = 0.85;
+/**
+ * Slower ramp than epidemic (0.12 at waterSecurity 0). Full collapse (foodSecurity 0)
+ * costs ~8%/year, so a megacity cut off from imports shrinks over several years rather
+ * than vanishing after one bad harvest.
+ */
+const FAMINE_RATE_SCALE = 0.08;
 
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
@@ -228,6 +247,12 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const currentTotal = children + maleAdults + femaleAdults + elders;
     const roomForGrowth = effectiveCapacity > 0 ? Math.max(-0.5, 1 - currentTotal / effectiveCapacity) : 0;
 
+    // Economy writes burg.foodSecurity (0..1) from the food ledger. Unset means Economy
+    // is off (or a pre-L3 save) — treat as fully fed. Independent of roomForGrowth:
+    // a city under its housing/import cap can still starve if the granary is empty.
+    const foodSecurity = typeof burg.foodSecurity === "number" ? burg.foodSecurity : FOOD_SECURE_THRESHOLD;
+    const fertilityMultiplier = foodSecurity < FOOD_SECURE_THRESHOLD ? Math.max(0, Math.min(1, foodSecurity)) : 1;
+
     if (roomForGrowth >= 0) {
       // Garrison forts have negligible resident families — suppress natural increase.
       if (burg.group !== "fort") {
@@ -246,14 +271,15 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
                 deltaYears
               })
             : 0;
-        children += replacementAwareBirths({
-          femaleAdults,
-          baseGrowthRate,
-          deltaYears,
-          roomForGrowth,
-          naturalDeaths: elderDeaths + childDeaths,
-          extraFloor: birthsFromPregnancy
-        });
+        children +=
+          replacementAwareBirths({
+            femaleAdults,
+            baseGrowthRate,
+            deltaYears,
+            roomForGrowth,
+            naturalDeaths: elderDeaths + childDeaths,
+            extraFloor: birthsFromPregnancy
+          }) * fertilityMultiplier;
       }
     } else {
       const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
@@ -263,6 +289,21 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       femaleAdults *= 1 - starvationRate;
       elders *= 1 - starvationRate;
       addLoss(faminePts, stateId, before - (children + maleAdults + femaleAdults + elders));
+    }
+
+    // Ledger-driven famine: independent of carrying-capacity starvation above. Economy
+    // only writes foodSecurity below FOOD_FAMINE_DEATH_THRESHOLD after two consecutive
+    // severe-deficit quarters, so a single empty month cannot erase a city. Rural cells
+    // are fed through subsistenceCapacity and are intentionally excluded.
+    if (foodSecurity < FOOD_FAMINE_DEATH_THRESHOLD) {
+      const pressure = (FOOD_FAMINE_DEATH_THRESHOLD - foodSecurity) / FOOD_FAMINE_DEATH_THRESHOLD;
+      const famineRate = Math.min(0.99, pressure * pressure * deltaYears * FAMINE_RATE_SCALE);
+      const beforeFamine = children + maleAdults + femaleAdults + elders;
+      children *= 1 - famineRate;
+      maleAdults *= 1 - famineRate;
+      femaleAdults *= 1 - famineRate;
+      elders *= 1 - famineRate;
+      addLoss(faminePts, stateId, beforeFamine - (children + maleAdults + femaleAdults + elders));
     }
 
     // Epidemic mortality: independent of food supply/roomForGrowth above — a well-fed, growing

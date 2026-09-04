@@ -15,6 +15,17 @@ import { drawStapleCropFood } from "./stapleCropInventory";
 
 const STRESS_THRESHOLD = 0.05;
 const SEVERE_DEFICIT_THRESHOLD = 0.1;
+/**
+ * Consecutive severe-deficit quarters before foodSecurity drops into the famine-death
+ * band. One bad quarter only cuts births; two in a row can start killing.
+ * Keep in lockstep with the 2-quarter gate described in economy-coupling-audit.md L3.
+ */
+const SEVERE_DEFICIT_QUARTERS_BEFORE_DEATH = 2;
+/**
+ * Host demography (`demography-simulator.ts` FOOD_FAMINE_DEATH_THRESHOLD) applies
+ * famine deaths only below this foodSecurity. Keep the two constants in lockstep.
+ */
+export const URBAN_FOOD_FAMINE_DEATH_BAND = 0.85;
 const PRICE_FLOOR = 0.8;
 const PRICE_CEILING = 2.0;
 const SHORTFALL_JITTER_MIN = 0.8;
@@ -137,8 +148,32 @@ function updateStressCounters(ledger: FoodLedger, ruralShortfallRate: number, ur
 }
 
 /**
+ * Maps this quarter's urban shortfall and consecutive severe-deficit streak onto
+ * Burg.foodSecurity (0 = famine, 1 = fully fed). Duration gating lives here so
+ * the host only reads a 0..1 field:
+ * - 0–1 consecutive severe quarters: foodSecurity stays at or above
+ *   URBAN_FOOD_FAMINE_DEATH_BAND, so demography reduces births but not deaths.
+ * - 2+ consecutive severe quarters: foodSecurity drops below that band and
+ *   demography applies famine mortality. Intensity deepens toward 0 over ~5
+ *   quarters of total shortfall so a single empty granary does not erase a city.
+ */
+export function computeUrbanFoodSecurity(urbanShortfallRate: number, urbanSevereDeficitQuarters: number): number {
+  const shortfall = minmax(urbanShortfallRate, 0, 1);
+  if (shortfall <= 0) return 1;
+
+  if (urbanSevereDeficitQuarters < SEVERE_DEFICIT_QUARTERS_BEFORE_DEATH) {
+    return rn(1 - shortfall * (1 - URBAN_FOOD_FAMINE_DEATH_BAND), 4);
+  }
+
+  const durationFactor = minmax((urbanSevereDeficitQuarters - 1) / 4, 0.25, 1);
+  const belowBand = URBAN_FOOD_FAMINE_DEATH_BAND * shortfall * durationFactor;
+  return rn(minmax(URBAN_FOOD_FAMINE_DEATH_BAND - belowBand, 0, URBAN_FOOD_FAMINE_DEATH_BAND), 4);
+}
+
+/**
  * Monthly Food Ledger settlement: tops up each burg's local reserve, settles rural household
- * provisions before Market fallback, prices Grain, and routes urban retail revenue to the market's treasury.
+ * provisions before Market fallback, prices Grain, routes urban retail revenue to the market's treasury,
+ * and writes `burg.foodSecurity` at quarter-end for host demography (economy-coupling-audit.md L3).
  * Called once per month from the "production.settle" command, after `Production.produce()`.
  */
 export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMonth()): void {
@@ -204,17 +239,18 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
     if (isQuarterEnd) {
       const totalUnmetNeed = Math.max(0, ruralMonthlyNeed - ruralDrawn) + Math.max(0, urbanMonthlyNeed - urbanDrawn);
       const totalNeed = ruralMonthlyNeed + urbanMonthlyNeed;
+      let ruralShortfallRate = 0;
+      let urbanShortfallRate = 0;
       if (totalNeed > 0 && totalUnmetNeed > 0) {
         const commonShortfallRate = minmax(totalUnmetNeed / totalNeed, 0, 1);
         const jitter = getShortfallJitter(market.i, settlementMonth);
-        const ruralShortfallRate = minmax(commonShortfallRate * jitter, 0, 1);
+        ruralShortfallRate = minmax(commonShortfallRate * jitter, 0, 1);
         const ruralUnmet = ruralMonthlyNeed * ruralShortfallRate;
-        const urbanShortfallRate =
-          urbanMonthlyNeed > 0 ? minmax((totalUnmetNeed - ruralUnmet) / urbanMonthlyNeed, 0, 1) : 0;
-        updateStressCounters(ledger, ruralShortfallRate, urbanShortfallRate);
-      } else {
-        updateStressCounters(ledger, 0, 0);
+        urbanShortfallRate = urbanMonthlyNeed > 0 ? minmax((totalUnmetNeed - ruralUnmet) / urbanMonthlyNeed, 0, 1) : 0;
       }
+      updateStressCounters(ledger, ruralShortfallRate, urbanShortfallRate);
+      const foodSecurity = computeUrbanFoodSecurity(urbanShortfallRate, ledger.urbanSevereDeficitQuarters);
+      for (const burg of marketBurgs) burg.foodSecurity = foodSecurity;
     }
 
     if (stapleFoodGood) {

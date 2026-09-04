@@ -301,6 +301,14 @@ export interface Burg {
    * See docs/plan/epidemic-cholera-and-water-security.md §3.1.
    */
   waterSecurity?: number;
+  /**
+   * Urban staple-food security from 0 (famine) to 1 (fully fed). Economy writes this at
+   * food-ledger quarter-end from `urbanShortfallRate` and `urbanSevereDeficitQuarters`.
+   * Missing on old saves and Economy-off maps — treat as 1 (no famine pressure).
+   * Host demography reads this without importing Economy (same shape as `waterSecurity`).
+   * docs/plan/economy-coupling-audit.md L3.
+   */
+  foodSecurity?: number;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;
   market?: number;

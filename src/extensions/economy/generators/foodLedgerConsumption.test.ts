@@ -21,7 +21,11 @@ import {
   getSimulationMonth,
   getWorldContext
 } from "../economyContext";
-import { settleMonthlyFoodConsumption } from "./foodLedgerConsumption";
+import {
+  computeUrbanFoodSecurity,
+  settleMonthlyFoodConsumption,
+  URBAN_FOOD_FAMINE_DEATH_BAND
+} from "./foodLedgerConsumption";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
 
@@ -290,5 +294,78 @@ describe("settleMonthlyFoodConsumption", () => {
     vi.mocked(getSimulationMonth).mockReturnValue(3);
     settleMonthlyFoodConsumption();
     expect(market.foodLedger!.urbanSevereDeficitQuarters).toBe(1);
+  });
+
+  it("writes burg.foodSecurity at quarter-end from urban shortfall and the severe-deficit streak", () => {
+    const burg = { i: 1, market: 1, removed: false, population: 100_000, foodReserve: 0 } as any;
+    mockWorldContext.pack.burgs = [burg];
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: {},
+      foodLedger: makeLedger({ foodStockAge0: 0 })
+    } as Market;
+    setMarket(market);
+
+    settleMonthlyFoodConsumption(1);
+    expect(burg.foodSecurity).toBeUndefined();
+
+    settleMonthlyFoodConsumption(3);
+    expect(market.foodLedger!.urbanSevereDeficitQuarters).toBe(1);
+    expect(burg.foodSecurity).toBeGreaterThanOrEqual(URBAN_FOOD_FAMINE_DEATH_BAND);
+    expect(burg.foodSecurity).toBeLessThan(1);
+
+    settleMonthlyFoodConsumption(6);
+    expect(market.foodLedger!.urbanSevereDeficitQuarters).toBe(2);
+    expect(burg.foodSecurity).toBeLessThan(URBAN_FOOD_FAMINE_DEATH_BAND);
+  });
+
+  it("restores foodSecurity to 1 when the quarter ends fully fed", () => {
+    const burg = {
+      i: 1,
+      market: 1,
+      removed: false,
+      population: 10,
+      foodReserve: 0,
+      foodSecurity: 0.4
+    } as any;
+    mockWorldContext.pack.burgs = [burg];
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: {},
+      foodLedger: makeLedger({
+        foodStockAge0: 1_000_000,
+        urbanSevereDeficitQuarters: 4
+      })
+    } as Market;
+    setMarket(market);
+
+    settleMonthlyFoodConsumption(3);
+
+    expect(market.foodLedger!.urbanSevereDeficitQuarters).toBe(0);
+    expect(burg.foodSecurity).toBe(1);
+  });
+});
+
+describe("computeUrbanFoodSecurity", () => {
+  it("is fully secure when there is no shortfall", () => {
+    expect(computeUrbanFoodSecurity(0, 0)).toBe(1);
+    expect(computeUrbanFoodSecurity(0, 8)).toBe(1);
+  });
+
+  it("stays at or above the famine-death band for the first severe-deficit quarter", () => {
+    expect(computeUrbanFoodSecurity(1, 0)).toBeGreaterThanOrEqual(URBAN_FOOD_FAMINE_DEATH_BAND);
+    expect(computeUrbanFoodSecurity(1, 1)).toBeGreaterThanOrEqual(URBAN_FOOD_FAMINE_DEATH_BAND);
+    expect(computeUrbanFoodSecurity(0.1, 1)).toBeGreaterThan(URBAN_FOOD_FAMINE_DEATH_BAND);
+  });
+
+  it("drops below the famine-death band once two severe-deficit quarters have stacked", () => {
+    expect(computeUrbanFoodSecurity(0.1, 2)).toBeLessThan(URBAN_FOOD_FAMINE_DEATH_BAND);
+    expect(computeUrbanFoodSecurity(1, 2)).toBeLessThan(computeUrbanFoodSecurity(0.1, 2));
+    expect(computeUrbanFoodSecurity(1, 5)).toBeLessThan(computeUrbanFoodSecurity(1, 2));
+    expect(computeUrbanFoodSecurity(1, 5)).toBe(0);
   });
 });
