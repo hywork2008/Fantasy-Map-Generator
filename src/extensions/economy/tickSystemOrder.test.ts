@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSimulationSystemRegistry, type SimulationSystem } from "../../generators/simulationSystem";
-import { ECONOMY_TICK_SYSTEM_IDS } from "./tickSystemIds";
+import { ECONOMY_TICK_SYSTEM_IDS, ECONOMY_TICK_TOPIC_CONTRACTS } from "./tickSystemIds";
 
 /**
  * The economy tick is a linear chain of `after`-ordered systems (index.tsx's
@@ -27,6 +27,27 @@ function registerChain(registry: ReturnType<typeof createSimulationSystemRegistr
 }
 
 describe("economy tick system chain", () => {
+  it("gives every extracted step a distinct, non-empty topic contract", () => {
+    expect(Object.keys(ECONOMY_TICK_TOPIC_CONTRACTS)).toEqual([...ECONOMY_TICK_SYSTEM_IDS]);
+
+    for (const id of ECONOMY_TICK_SYSTEM_IDS) {
+      const { reads, writes } = ECONOMY_TICK_TOPIC_CONTRACTS[id];
+      expect(reads.length).toBeGreaterThan(0);
+      expect(writes.length).toBeGreaterThan(0);
+      expect(new Set(reads).size).toBe(reads.length);
+      expect(new Set(writes).size).toBe(writes.length);
+    }
+  });
+
+  it("does not retain economy.tick's blanket topic contract", () => {
+    expect(ECONOMY_TICK_TOPIC_CONTRACTS["economy.annualBurgGroups"]).toEqual({
+      reads: ["map.settlements", "simulation.burgs"],
+      writes: ["map.settlements", "simulation.burgs"]
+    });
+    expect(ECONOMY_TICK_TOPIC_CONTRACTS["economy.dailyHiring"].writes).toContain("map.annotations");
+    expect(ECONOMY_TICK_TOPIC_CONTRACTS["economy.dailyHiring"].writes).toContain("simulation.cells");
+  });
+
   it("resolves to registration order and still runs before shipbuilding.tick", () => {
     const registry = createSimulationSystemRegistry();
     // Shipbuilding declares no ordering edge to economy; it stays last only because every

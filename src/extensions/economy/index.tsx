@@ -250,7 +250,7 @@ import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds, resetDisplayedGoodSelection } from "./store/goodsDisplaySelection";
-import { ECONOMY_TICK_SYSTEM_IDS, type EconomyTickSystemId } from "./tickSystemIds";
+import { ECONOMY_TICK_SYSTEM_IDS, ECONOMY_TICK_TOPIC_CONTRACTS, type EconomyTickSystemId } from "./tickSystemIds";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { BurgEditorGoodsTab } from "./ui/components/BurgEditorGoodsTab";
 import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
@@ -2889,41 +2889,16 @@ export function init(api: ExtensionAPI): void {
    * to keep forest regrowth (`economy.forestProspect`) ahead of Shipbuilding's logging in the same
    * phase — the constraint the old single-system comment recorded. Keep the `economy.` prefix.
    *
-   * `reads`/`writes` stay the union the single system declared. Narrowing them per system is
-   * step 2 of the same plan item; widening the allowlist here would be the only way to break
-   * behaviour, so it is deliberately left alone.
+   * Each step's reads/writes contract lives beside this ordering list in tickSystemIds.ts. This
+   * keeps the execution edge and the data edge independently reviewable.
    */
-  const ECONOMY_TICK_READS = [
-    "map.politics",
-    // map.annotations / simulation.cells: cull resolve may mutate monsters, markers, danger
-    // (docs/plan/player-threat-cull-jobs.md K18 / PR-3b).
-    "map.annotations",
-    "extension.economy",
-    "simulation.burgs",
-    "simulation.states",
-    "simulation.cells"
-  ] as const;
-  const ECONOMY_TICK_WRITES = [
-    "extension.economy",
-    "simulation.burgs",
-    "simulation.states",
-    "map.settlements",
-    "simulation.cells",
-    "map.annotations",
-    // Railway links materialize as "railways"-group pack.routes once railwayOperations
-    // is adopted (steamIndustry.ts's settleRailways) — see docs/plan/
-    // steam-industrial-implementation.md §7.
-    "map.networks"
-  ] as const;
-
   type EconomyTickSystem = Parameters<typeof api.registerSimulationSystem>[0];
 
   let nextEconomyTickSystemIndex = 0;
   /**
-   * Appends one step to the chain. Each step re-declares the shared topic allowlist, marks the
-   * two topics the old single system always marked, and depends on the step registered before
-   * it. Unregister handles are collected so cleanup() can drop them in reverse — the registry
-   * refuses to remove a system another one still declares `after`.
+   * Appends one step to the chain with its own topic contract, and depends on the step registered
+   * before it. Unregister handles are collected so cleanup() can drop them in reverse — the
+   * registry refuses to remove a system another one still declares `after`.
    *
    * The id must match ECONOMY_TICK_SYSTEM_IDS at this position: that list, not the order these
    * calls happen to appear in below, is the declared execution order, and a call inserted at the
@@ -2939,19 +2914,25 @@ export function init(api: ExtensionAPI): void {
     }
     const previous = index > 0 ? ECONOMY_TICK_SYSTEM_IDS[index - 1] : null;
     const after = previous ? [previous] : undefined;
+    const topics = ECONOMY_TICK_TOPIC_CONTRACTS[id];
     _unregisterTickSystems.push(
       api.registerSimulationSystem({
         id,
         phase: "economy",
-        reads: [...ECONOMY_TICK_READS],
-        writes: [...ECONOMY_TICK_WRITES],
+        reads: topics.reads,
+        writes: topics.writes,
         after,
         cadence: { every: 1 },
         profileLabel: id.replace("economy.", "economy:"),
         run: (context, writer) => {
           if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
           run(context, writer);
-          writer.markChanged("extension.economy", "simulation.states");
+          // Compatibility mutations are still direct. Preserve the previous per-tick
+          // Economy/State invalidation, but only for a system that declares that topic.
+          const compatibilityWrites = topics.writes.filter(
+            topic => topic === "extension.economy" || topic === "simulation.states"
+          );
+          if (compatibilityWrites.length) writer.markChanged(...compatibilityWrites);
         }
       })
     );
