@@ -324,7 +324,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
   it("🆕 a brand new grid drops any stale tint / overlay and deactivates the scrub", () => {
     let hadTint = false;
     for (let i = 0; i < 12 && !hadTint; i++) {
-      if (i > 0) iconButton("Generate a new Voronoi grid").click();
+      if (i > 0) iconButton("Generate a new grid").click();
       stageButton("③").click();
       nextStep();
       hadTint = count(".ce-face--urban-step") > 0;
@@ -332,7 +332,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(hadTint).toBe(true);
     expect(stepStatusText()).not.toBe("");
 
-    iconButton("Generate a new Voronoi grid").click();
+    iconButton("Generate a new grid").click();
     expect(count(".ce-face--urban-step")).toBe(0);
     expect(stepStatusText()).toBe("");
 

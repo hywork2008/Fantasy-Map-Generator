@@ -1,4 +1,4 @@
-import { CITY_SIZE_PRESETS, type CitySizePreset, createSizedDocument } from "../core/document";
+import { CITY_SIZE_PRESETS, type CitySizePreset, createGridDocument, type GridKind } from "../core/document";
 import type { FaceRoutePreview } from "../core/features";
 import {
   appendEdge,
@@ -23,6 +23,7 @@ import {
   vertexHasWallPassage
 } from "../core/features";
 import { buildGridEvolution, type GridEvolutionStage } from "../core/gen/gridEvolution";
+import { DEFAULT_HEX_SIZE_METERS, HEX_SIZE_MAX_METERS, HEX_SIZE_MIN_METERS } from "../core/gen/hexGrid";
 import { DEFAULT_PATCH_PARAMS, type PatchParams } from "../core/gen/patches";
 import { makeRng } from "../core/gen/prng";
 import {
@@ -133,7 +134,9 @@ interface FloatingWindow {
 }
 
 export function mountCityEditor(root: HTMLElement): void {
-  let documentState = createSizedDocument("small");
+  let documentState = createGridDocument({ size: "small", grid: "hex" });
+  let gridKind: GridKind = "hex";
+  let hexSizeMeters = DEFAULT_HEX_SIZE_METERS;
   let history = new DocumentHistory(documentState);
   // An imported MFCG SVG backdrop can be a multi-megabyte data URL. Keep it out
   // of `documentState` so it is never cloned into a history snapshot or an
@@ -304,8 +307,45 @@ export function mountCityEditor(root: HTMLElement): void {
     const preset = CITY_SIZE_PRESETS[option.value as CitySizePreset];
     option.textContent = `${preset.label} · ${preset.extentMeters / 1000} km · ${preset.cellsAcross}×${preset.cellsAcross} · ~${preset.buildingTarget} buildings`;
   }
-  const newButton = makeIconButton("🆕", "Generate a new Voronoi grid", () => {
-    documentState = createSizedDocument(size.value as CitySizePreset);
+  const gridKindSelect = select(["hex", "voronoi", "evolution"], "hex");
+  gridKindSelect.className = "ce-grid-kind";
+  for (const option of [...gridKindSelect.options]) {
+    option.textContent =
+      option.value === "hex" ? "Hexagonal" : option.value === "voronoi" ? "Voronoi" : "Grid evolution";
+  }
+  const hexSizeInput = rangeInput(
+    String(DEFAULT_HEX_SIZE_METERS),
+    String(HEX_SIZE_MIN_METERS),
+    String(HEX_SIZE_MAX_METERS),
+    "1"
+  );
+  hexSizeInput.className = "ce-hex-size";
+  hexSizeInput.title = "Side length of each regular hexagon, metres";
+  const hexSizeValue = text(formatDistance(DEFAULT_HEX_SIZE_METERS));
+  const hexSizeControl = div("ce-brush-size-control");
+  hexSizeControl.append(hexSizeInput, hexSizeValue);
+  const hexSizeLabel = label("Hex size", hexSizeControl);
+  hexSizeInput.addEventListener("input", () => {
+    hexSizeMeters = Number(hexSizeInput.value);
+    hexSizeValue.textContent = formatDistance(hexSizeMeters);
+  });
+  const gridKindLabel = label("Grid", gridKindSelect);
+  gridKindLabel.className = "ce-size-choice";
+  const syncGridKindUi = (): void => {
+    hexSizeLabel.hidden = gridKind !== "hex";
+  };
+  gridKindSelect.addEventListener("change", () => {
+    gridKind = gridKindSelect.value as GridKind;
+    syncGridKindUi();
+  });
+  syncGridKindUi();
+  const newButton = makeIconButton("🆕", "Generate a new grid", () => {
+    documentState = createGridDocument({
+      size: size.value as CitySizePreset,
+      grid: gridKind,
+      hexSizeMeters,
+      patchParams: { ...gridEvoParams }
+    });
     history = new DocumentHistory(documentState, "New grid");
     referenceImage = null;
     selection = emptySelection();
@@ -478,11 +518,13 @@ export function mountCityEditor(root: HTMLElement): void {
 
   documentPanel.content.append(
     sizeLabel,
+    gridKindLabel,
+    hexSizeLabel,
     documentActions,
     label("Scale", scaleInput),
     label("Smoothing", smoothingModeInput),
     text(
-      "Create and tune a Voronoi / Delaunay block mesh. Draw on cells and shared edges; this is vector geometry, not a pixel canvas."
+      "Choose a grid, then press 🆕 to start a new city. Hexagonal tiles regular flat-top hexes; Voronoi is the Poisson scatter; Grid evolution uses the spiral-scatter parameters below (the same mesh as 「この格子を採用」)."
     ),
     divider(),
     text(

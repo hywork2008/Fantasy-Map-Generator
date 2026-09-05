@@ -129,3 +129,79 @@ describe("Document panel — Grid evolution (Phase G1)", () => {
     expect(readout.textContent).toBe("22");
   });
 });
+
+describe("Document panel — new-city grid kind", () => {
+  const gridKindSelect = (): HTMLSelectElement => q<HTMLSelectElement>("select.ce-grid-kind");
+  const hexSizeSlider = (): HTMLInputElement => q<HTMLInputElement>("input.ce-hex-size");
+  const hexSizeLabel = (): HTMLLabelElement => {
+    const label = [...root.querySelectorAll("label")].find(el => el.textContent?.startsWith("Hex size"));
+    if (!label) throw new Error("Hex size label not found");
+    return label;
+  };
+  const newGrid = (): void => {
+    const b = root.querySelector<HTMLButtonElement>('button[title="Generate a new grid"]');
+    if (!b) throw new Error("new-grid button not found");
+    b.click();
+  };
+  const chooseGrid = (value: string): void => {
+    const sel = gridKindSelect();
+    sel.value = value;
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const pathPointCount = (d: string): number => (d.match(/[ML]/gi) ?? []).length;
+  const facePointCounts = (): number[] =>
+    [...(root.querySelector("svg.ce-svg")?.querySelectorAll(".ce-cells .ce-face") ?? [])].map(el =>
+      pathPointCount(el.getAttribute("d") ?? "")
+    );
+
+  it("defaults to hexagonal, with the hex-size slider visible", () => {
+    expect(gridKindSelect().value).toBe("hex");
+    expect(hexSizeLabel().hidden).toBe(false);
+    expect(hexSizeSlider().value).toBe("50");
+    const counts = facePointCounts();
+    const hexes = counts.filter(n => n === 6).length;
+    expect(hexes).toBeGreaterThan(counts.length * 0.5);
+  });
+
+  it("hides the hex-size slider for Voronoi and Grid evolution", () => {
+    chooseGrid("voronoi");
+    expect(hexSizeLabel().hidden).toBe(true);
+    expect(getComputedStyle(hexSizeLabel()).display).toBe("none");
+    chooseGrid("evolution");
+    expect(hexSizeLabel().hidden).toBe(true);
+    expect(getComputedStyle(hexSizeLabel()).display).toBe("none");
+    chooseGrid("hex");
+    expect(hexSizeLabel().hidden).toBe(false);
+    expect(getComputedStyle(hexSizeLabel()).display).not.toBe("none");
+  });
+
+  it("🆕 with Voronoi replaces the hex mesh with an irregular grid", () => {
+    const hexFaces = faceCount();
+    chooseGrid("voronoi");
+    newGrid();
+    const after = faceCount();
+    expect(after).toBeGreaterThan(400);
+    expect(after).not.toBe(hexFaces);
+    const counts = facePointCounts();
+    const hexes = counts.filter(n => n === 6).length;
+    expect(hexes).toBeLessThan(counts.length * 0.5);
+  });
+
+  it("🆕 with Grid evolution uses the spiral-scatter mesh (same family as 「採用」)", () => {
+    chooseGrid("evolution");
+    newGrid();
+    const after = faceCount();
+    expect(after).toBeGreaterThan(20);
+    expect(after).toBeLessThan(200);
+  });
+
+  it("the hex-size slider changes generated cell count", () => {
+    drag(hexSizeSlider(), "80");
+    newGrid();
+    const coarse = faceCount();
+    drag(hexSizeSlider(), "30");
+    newGrid();
+    const dense = faceCount();
+    expect(dense).toBeGreaterThan(coarse * 2);
+  });
+});
