@@ -27,6 +27,11 @@
 | `src/store/` | Zustand ストア |
 | `src/extensions/` | 組み込み拡張と動的 ZIP 拡張の基盤 |
 
+## 削除したAIへの指示
+
+Date: Thu Aug 20 2026 15:12:06 GMT+0900 (Japan Standard Time)
+git hash `9b543876880a03f71477d5a7c0363289867dd46b`で古い指示を一括で削除した。
+
 ## 状態コンテキスト
 
 | Context | 主な内容 |

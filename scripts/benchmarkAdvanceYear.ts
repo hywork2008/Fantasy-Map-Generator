@@ -7,6 +7,11 @@
  * via the same day-step path as Tools → Advance Year, and writes a tick-profiler
  * report under docs/analytics/.
  *
+ * Also captures a population/economy snapshot before and after the advance
+ * (docs/plan/advance-time-fast-forward.md Phase 0) — the same headline figures used to
+ * calibrate Fast-Forward preset growth rates. See scripts/calibrateFastAdvance.ts for the
+ * multi-seed version of this measurement.
+ *
  * Usage:
  *   npm run perf:advance-year
  *   npm run perf:advance-year -- --extensions=economy,shipbuilding,nobility
@@ -18,15 +23,17 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { chromium, type Page } from "playwright";
-
-interface TickProfileEntry {
-  label: string;
-  calls: number;
-  totalMs: number;
-  lastMs: number;
-  maxMs: number;
-}
+import type { Page } from "playwright";
+import {
+  BASE_URL,
+  captureEconomySnapshot,
+  enableExtensions,
+  type EconomySnapshot,
+  launchBrowser,
+  newInstrumentedContext,
+  openMap,
+  type TickProfileEntry
+} from "./lib/advanceYearHarness";
 
 interface ScenarioResult {
   name: string;
@@ -45,9 +52,20 @@ interface ScenarioResult {
   caravanCount: number;
   profile: TickProfileEntry[];
   topTotalShare: Array<{ label: string; totalMs: number; sharePct: number; calls: number; avgMs: number }>;
+  economySnapshot: {
+    before: EconomySnapshot;
+    after: EconomySnapshot;
+    elapsedYears: number;
+    /** `(after/before)^(1/elapsedYears) - 1`, as a percentage — see annualizedGrowthPct(). */
+    annualizedGrowthPct: {
+      population: number;
+      totalStateTreasury: number;
+      goodsTotalStock: number;
+      stockWeightedAvgPrice: number;
+    };
+  };
 }
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5173";
 const OUT_PATH = path.resolve("docs/analytics/advance-year-benchmark-latest.json");
 
 function parseArgs(argv: string[]) {
@@ -68,53 +86,9 @@ function parseArgs(argv: string[]) {
   };
 }
 
-async function waitForMap(page: Page, timeout = 120_000): Promise<void> {
-  await page.waitForFunction(
-    () =>
-      (typeof window.fmg !== "undefined" && window.fmg.world.mapId !== undefined) ||
-      Array.from(document.querySelectorAll("button")).some(button => button.textContent === "Generate entire map"),
-    { timeout }
-  );
-  if (await page.getByRole("button", { name: "Generate entire map", exact: true }).isVisible()) {
-    await page.getByRole("button", { name: "Generate entire map", exact: true }).click();
-  }
-  await page.waitForFunction(() => typeof window.fmg !== "undefined" && window.fmg.world.mapId !== undefined, {
-    timeout
-  });
-}
-
-async function enableExtensions(page: Page, ids: string[]): Promise<void> {
-  // Characters must precede Economy / Nobility when present.
-  const order = [...ids].sort((a, b) => {
-    const rank = (id: string) => (id === "characters" ? 0 : id === "economy" ? 1 : 2);
-    return rank(a) - rank(b);
-  });
-
-  for (const id of order) {
-    await page.evaluate(extId => {
-      const api = window.fmg.extensionAPI;
-      if (!api.isExtensionEnabled(extId)) api.toggleExtension(extId, true);
-    }, id);
-  }
-
-  // Economy enable path generates data synchronously when goods are empty; give
-  // it a moment and wait until markets exist when economy is in the set.
-  if (order.includes("economy")) {
-    await page.waitForFunction(
-      () => {
-        const pack = window.fmg.world.pack as { markets?: unknown[] } | undefined;
-        // markets live on extension slice; fall back to goods length via evaluate packing
-        const markets = (window.fmg.world as unknown as { pack: { markets?: unknown[] } }).pack.markets;
-        // Economy stores markets in extension state, not pack.markets — probe via goods on pack burgs with market ids.
-        const burgs = window.fmg.world.pack.burgs ?? [];
-        return burgs.some(b => b && typeof b.market === "number" && b.market > 0);
-      },
-      { timeout: 180_000 }
-    );
-  }
-}
-
-async function runBulkYear(page: Page): Promise<{ wallClockMs: number; profile: TickProfileEntry[] } & Record<string, number>> {
+async function runBulkYear(
+  page: Page
+): Promise<{ wallClockMs: number; profile: TickProfileEntry[] } & Record<string, number>> {
   return page.evaluate(() => {
     const actions = window.fmg.actions;
     actions.resetTickProfile();
@@ -148,7 +122,9 @@ async function runBulkYear(page: Page): Promise<{ wallClockMs: number; profile: 
   });
 }
 
-async function runUiYear(page: Page): Promise<{ wallClockMs: number; profile: TickProfileEntry[] } & Record<string, number>> {
+async function runUiYear(
+  page: Page
+): Promise<{ wallClockMs: number; profile: TickProfileEntry[] } & Record<string, number>> {
   const startMeta = await page.evaluate(() => ({
     year: window.fmg.simulation.currentYear,
     tick: window.fmg.simulation.tickCount,
@@ -220,31 +196,27 @@ function withShares(profile: TickProfileEntry[]) {
   }));
 }
 
+function growthPct(before: number, after: number): number {
+  if (!(before > 0)) return 0;
+  return ((after - before) / before) * 100;
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  console.log(`[perf:advance-year] baseURL=${BASE_URL} seed=${args.seed} extensions=${args.extensions.join(",")} path=${args.path}`);
+  console.log(
+    `[perf:advance-year] baseURL=${BASE_URL} seed=${args.seed} extensions=${args.extensions.join(",")} path=${args.path}`
+  );
 
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: args.width, height: args.height } });
-  // tickProfiler only records when DEBUG.tickProfiler is set (TIME defaults to false in the
-  // app build to avoid console.time overhead) — set it before any page script runs so the
-  // module-load-time DEBUG snapshot in src/utils/debug.ts picks it up.
-  await context.addInitScript(() => {
-    localStorage.setItem("debug", JSON.stringify({ tickProfiler: true }));
-  });
-  const page = await context.newPage();
-  page.on("console", msg => {
-    if (msg.type() === "error") console.error("[browser]", msg.text());
-  });
-  page.on("pageerror", err => console.error("[pageerror]", err.message));
-
-  const url = `${BASE_URL}/?seed=${encodeURIComponent(args.seed)}&width=${args.width}&height=${args.height}`;
-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  await waitForMap(page);
+  const browser = await launchBrowser();
+  const context = await newInstrumentedContext(browser, args.width, args.height);
+  const page = await openMap(context, args.seed, args.width, args.height);
   await enableExtensions(page, args.extensions);
 
+  const before = await captureEconomySnapshot(page);
   const measured = args.path === "ui" ? await runUiYear(page) : await runBulkYear(page);
+  const after = await captureEconomySnapshot(page);
 
+  const elapsedYears = measured.daysAdvanced / 365.2425;
   const result: ScenarioResult = {
     name: `advance-year-${args.path}`,
     extensions: args.extensions,
@@ -261,7 +233,20 @@ async function main(): Promise<void> {
     marketCount: measured.marketCount,
     caravanCount: measured.caravanCount,
     profile: measured.profile,
-    topTotalShare: withShares(measured.profile)
+    topTotalShare: withShares(measured.profile),
+    economySnapshot: {
+      before,
+      after,
+      elapsedYears,
+      annualizedGrowthPct: {
+        population: growthPct(before.population.total, after.population.total) / Math.max(elapsedYears, 1e-6),
+        totalStateTreasury:
+          growthPct(before.totalStateTreasury, after.totalStateTreasury) / Math.max(elapsedYears, 1e-6),
+        goodsTotalStock: growthPct(before.goodsTotalStock, after.goodsTotalStock) / Math.max(elapsedYears, 1e-6),
+        stockWeightedAvgPrice:
+          growthPct(before.stockWeightedAvgPrice, after.stockWeightedAvgPrice) / Math.max(elapsedYears, 1e-6)
+      }
+    }
   };
 
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
@@ -285,6 +270,8 @@ async function main(): Promise<void> {
   console.log(`calendar ${result.startYear} → ${result.endYear}-${result.endMonth}-${result.endDay}`);
   console.log("\nTop steps by totalMs:");
   console.table(result.topTotalShare.slice(0, 25));
+  console.log("\nEconomy/population snapshot (annualized growth %, Phase 0 calibration input):");
+  console.table(result.economySnapshot.annualizedGrowthPct);
   console.log(`\nWrote ${OUT_PATH}`);
 
   await browser.close();
