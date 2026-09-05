@@ -36,6 +36,13 @@ export const DOMAIN_LEVY_RATE_STEP = 0.25;
 export const DOMAIN_POLL_MULT_MIN = 0.9;
 export const DOMAIN_POLL_MULT_MAX = 1.1;
 
+/**
+ * Share of burg.treasury destroyed each tax cycle at `domainLevyRate` 1.5 (linear in the
+ * excess above 1.0). Deadweight — evasion, resistance, collection cost — not remitted to the
+ * state, so raising the levy is no longer a free lever (docs/plan/economy-coupling-audit.md L9-a).
+ */
+export const HEAVY_LEVY_TREASURY_CUT_AT_MAX = 0.02;
+
 export interface DomainPolicyApplication {
   burgId: number;
   policy: DomainFiscalPolicy;
@@ -45,6 +52,8 @@ export interface DomainPolicyApplication {
   securityGain: number;
   worksProgressGain: number;
   worksCompleted: boolean;
+  /** Treasury destroyed by levy above 1.0 this cycle (not paid to anyone). */
+  heavyLevyCut: number;
 }
 
 export function clampDomainLevyRate(value: number | undefined): number {
@@ -136,8 +145,23 @@ function completeDomainWorksTarget(burg: Burg): DomainWorksTarget {
   return target;
 }
 
+/** Destroy a share of burg.treasury when levy exceeds 1.0. Returns the amount cut. */
+export function applyHeavyLevyLocalCost(burg: Burg): number {
+  const levy = clampDomainLevyRate(burg.domainLevyRate);
+  const excess = Math.max(0, levy - DOMAIN_LEVY_RATE_DEFAULT);
+  const span = DOMAIN_LEVY_RATE_MAX - DOMAIN_LEVY_RATE_DEFAULT;
+  if (!(excess > 0) || !(span > 0)) return 0;
+  const treasury = burg.treasury || 0;
+  if (!(treasury > 0)) return 0;
+  const cut = rn(treasury * HEAVY_LEVY_TREASURY_CUT_AT_MAX * (excess / span), 2);
+  if (!(cut > 0)) return 0;
+  burg.treasury = rn(Math.max(0, treasury - cut), 2);
+  return cut;
+}
+
 /**
  * Apply one seat's domain policy. Mutates burg (+ state / lord when extract).
+ * Heavy-levy deadweight runs for every policy, including balanced, so levy 1.5 is never free.
  */
 export function applyDomainPolicyToBurg(
   burg: Burg,
@@ -154,7 +178,8 @@ export function applyDomainPolicyToBurg(
     fortifySpent: 0,
     securityGain: 0,
     worksProgressGain: 0,
-    worksCompleted: false
+    worksCompleted: false,
+    heavyLevyCut: applyHeavyLevyLocalCost(burg)
   };
 
   if (policy === "balanced") return result;
@@ -227,7 +252,10 @@ export function applyAllDomainFiscalPolicies(): DomainPolicyApplication[] {
       if (!province?.i || province.removed || province.state !== state.i || !province.burg) continue;
       const burg = pack.burgs?.[province.burg];
       if (!burg || burg.removed) continue;
-      if (normalizeDomainFiscalPolicy(burg.domainFiscalPolicy) === "balanced") continue;
+      const policy = normalizeDomainFiscalPolicy(burg.domainFiscalPolicy);
+      const levy = clampDomainLevyRate(burg.domainLevyRate);
+      // Balanced + default levy is still a no-op; levy above 1.0 has a local cost even then.
+      if (policy === "balanced" && levy <= DOMAIN_LEVY_RATE_DEFAULT) continue;
 
       const lord = characters.find(
         character =>

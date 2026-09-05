@@ -15,6 +15,7 @@ import {
   setMobileAdultCohorts,
   setUrbanLaborIntakes
 } from "../economyContext";
+import { getDiscontentOutflowRate } from "./burgDiscontent";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { InnStays } from "./innStays";
 import type { FoodLedger } from "./marketTypes";
@@ -72,6 +73,7 @@ export class UrbanLaborIntakeModule {
     const year = getSimulationYear();
     if (getUrbanLaborIntakes().some(intake => intake.year === year)) return null;
     this.generateAnnualIntakes(world, rng);
+    this.emitDiscontentOutflow(world);
     return this.resolveMobileAdults(world, rng);
   }
 
@@ -124,6 +126,41 @@ export class UrbanLaborIntakeModule {
 
     setUrbanLaborIntakes(intakes);
     return intakes;
+  }
+
+  /**
+   * Adults leaving a high-discontent burg join the same mobile queue as rural displacement, so
+   * they can try another city the same year. The origin burg is skipped when placing them
+   * (placeInNearbyBurgs) so they do not immediately walk back in.
+   * docs/plan/economy-coupling-audit.md L9-b.
+   */
+  emitDiscontentOutflow(world: Readonly<WorldContext>): number {
+    let left = 0;
+    for (const burg of world.pack.burgs || []) {
+      if (!burg?.i || burg.removed || !burg.demographics) continue;
+      const rate = getDiscontentOutflowRate(burg.discontent);
+      if (!(rate > 0)) continue;
+      const male = Math.max(0, burg.demographics.maleAdults ?? 0);
+      const female = Math.max(0, burg.demographics.femaleAdults ?? 0);
+      const adults = male + female;
+      const leaving = adults * rate;
+      if (!(leaving > 0.001)) continue;
+      const maleLeave = adults > 0 ? leaving * (male / adults) : 0;
+      const femaleLeave = leaving - maleLeave;
+      burg.demographics.maleAdults = Math.max(0, male - maleLeave);
+      burg.demographics.femaleAdults = Math.max(0, female - femaleLeave);
+      burg.population = Math.max(0, (burg.population ?? 0) - leaving);
+      this.enqueueRuralDisplacement({
+        originCell: burg.cell,
+        originState: burg.state ?? 0,
+        maleAdults: maleLeave,
+        femaleAdults: femaleLeave,
+        yearsSearching: 0,
+        excludeBurgId: burg.i
+      });
+      left += leaving;
+    }
+    return left;
   }
 
   /** Stores rural excess without deciding its outcome; Phase 2 will call this after protecting farm labour. */
@@ -273,7 +310,8 @@ export class UrbanLaborIntakeModule {
       .filter(intake => intake.remainingAdults > 0)
       .map(intake => ({ intake, burg: world.pack.burgs[intake.burgId] }))
       .filter((candidate): candidate is { intake: UrbanLaborIntakeRecord; burg: Burg } => {
-        return candidate.burg !== undefined && nearbyBurgIds.has(candidate.burg.i);
+        if (!candidate.burg || !nearbyBurgIds.has(candidate.burg.i)) return false;
+        return cohort.excludeBurgId === undefined || candidate.burg.i !== cohort.excludeBurgId;
       })
       .slice(0, MAX_CITY_SEARCHES);
 

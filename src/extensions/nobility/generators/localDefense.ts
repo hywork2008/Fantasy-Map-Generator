@@ -40,8 +40,12 @@ export function canOccupyBurg(
  * new conquest — only a first-time-for-this-owner capture disrupts the burg's Economy-owned
  * technique stocks (docs/plan/knowledge-guild-system.md §9 Phase 7); recapturing your own city
  * doesn't inflict a second disruption on top of whatever it already suffered when it was lost.
+ *
+ * `occupyingDiscipline` is the sack-mitigation multiplier from `occupyingDisciplineMultiplier`
+ * (commander Martial via commanderPowerMultiplier). 1 = no commander. Passed through to
+ * Economy's physical loot (docs/plan/economy-coupling-audit.md L9-c).
  */
-export function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number): void {
+export function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number, occupyingDiscipline = 1): void {
   const isNewConquest = !(burg.stateHistory ?? []).includes(winnerStateId);
 
   burg.state = winnerStateId;
@@ -52,7 +56,9 @@ export function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number
     }
   }
 
-  if (isNewConquest && burg.i !== undefined) applyConquestDisruption(burg.i);
+  if (isNewConquest && burg.i !== undefined) {
+    applyConquestDisruption(burg.i, { disciplineMultiplier: occupyingDiscipline });
+  }
 }
 
 /**
@@ -78,6 +84,19 @@ export function commanderPowerMultiplier(characters: Character[], regiment: Mili
   return (
     commanderMultiplier * individualSkillMultiplier * getMartialDisciplineMultiplier(regiment.state, regiment.u || {})
   );
+}
+
+/** Headcount-weighted mean of commanderPowerMultiplier for the regiments that still hold the town. */
+export function occupyingDisciplineMultiplier(characters: Character[], regiments: readonly MilitaryRegiment[]): number {
+  let weight = 0;
+  let acc = 0;
+  for (const regiment of regiments) {
+    const strength = Math.max(0, regiment.a || 0);
+    if (!(strength > 0)) continue;
+    acc += commanderPowerMultiplier(characters, regiment) * strength;
+    weight += strength;
+  }
+  return weight > 0 ? acc / weight : 1;
 }
 
 /** The marching/sailing radius a regiment can reinforce from, based on its composition. */

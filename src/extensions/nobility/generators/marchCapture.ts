@@ -104,7 +104,7 @@ export function tryCaptureOnPassing(r: MilitaryRegiment, cell: number): boolean 
   const defense = estimateLocalDefendingForce(pack, burg, characters, seaRouteGraph, populationRate, urbanization);
   if (power < defense * PASSING_CAPTURE_RATIO) return false;
 
-  captureBurg(pack, burg, r.state);
+  captureBurg(pack, burg, r.state, commanderPowerMultiplier(characters, r));
   logPassingCapture(ownState, targetState, burg);
   return true;
 }

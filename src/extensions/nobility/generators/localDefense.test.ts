@@ -11,7 +11,13 @@ import {
 } from "../../economy/economyContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, MilitaryRegiment, PackedGraph } from "../../hostTypes";
-import { burgPopulationPeople, canOccupyBurg, captureBurg, commanderPowerMultiplier } from "./localDefense";
+import {
+  burgPopulationPeople,
+  canOccupyBurg,
+  captureBurg,
+  commanderPowerMultiplier,
+  occupyingDisciplineMultiplier
+} from "./localDefense";
 
 const burg = { population: 20 } as Burg;
 
@@ -23,6 +29,18 @@ describe("local burg defense", () => {
   it("requires an occupying force based on inhabitants, not raw population points", () => {
     expect(canOccupyBurg(burg, 999, 1000, 1)).toBe(false);
     expect(canOccupyBurg(burg, 1000, 1000, 1)).toBe(true);
+  });
+});
+
+describe("occupyingDisciplineMultiplier()", () => {
+  it("returns 1 when no occupying regiment remains", () => {
+    expect(occupyingDisciplineMultiplier([], [])).toBe(1);
+  });
+
+  it("ignores routed (a = 0) regiments and returns 1 with no commander bonus", () => {
+    const routed = { state: 1, a: 0, u: { infantry: 0 } } as unknown as MilitaryRegiment;
+    const living = { state: 1, a: 20, u: { infantry: 20 } } as unknown as MilitaryRegiment;
+    expect(occupyingDisciplineMultiplier([], [routed, living])).toBe(1);
   });
 });
 

@@ -2,6 +2,7 @@ import type { Burg } from "../../hostTypes";
 import { gauss, rn, TIME } from "../../hostUtils";
 import { getDeals, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { settleAllBurgDiscontent } from "./burgDiscontent";
 import { updateDiplomaticReliability } from "./chanceryDiplomacy";
 import { applyCharacterLivingCosts } from "./characterLivingCosts";
 import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
@@ -333,6 +334,9 @@ export class TaxesModule {
     }
     // PR-7 domain policies (extract / fortify) after all province lord stipends this cycle.
     applyAllDomainFiscalPolicies();
+    // L9: burg discontent from food / tax / war, after levy costs and ecclesiastica service
+    // levels for this cycle are already on the records.
+    settleAllBurgDiscontent();
     _voyageIncomeByState.clear();
     _strategicProcurementExpenseByState.clear();
 

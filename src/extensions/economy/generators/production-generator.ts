@@ -27,6 +27,7 @@ import {
   setStrategicLaborMarkets
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
 import { CELL_FOOD_PRESERVATION_LABOR_SHARE } from "./cellFoodRescue";
@@ -1048,12 +1049,14 @@ export class ProductionModule {
     // itself — mechanization improved the whole weaving trade, and Garments/Sails are woven from it.
     const technologyBonus =
       domain === "textiles" && state.burg.state ? getMechanizedTextilesOutputMultiplier(state.burg.state) : 1;
+    const discontentMultiplier = getDiscontentLaborMultiplier(state.burg.discontent);
     const produced = rn(
       actualYield *
         cultureModifier *
         guildBonus *
         technologyBonus *
         decision.laborProductivity *
+        discontentMultiplier *
         (smithingProgram?.outputMultiplier ?? 1),
       2
     );

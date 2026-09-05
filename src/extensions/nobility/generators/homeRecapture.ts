@@ -102,7 +102,7 @@ export function tryRecaptureHomeBurg(r: MilitaryRegiment, cell: number): boolean
     if (power < defense * requiredRatio) return false;
   }
 
-  captureBurg(pack, burg, r.state);
+  captureBurg(pack, burg, r.state, commanderPowerMultiplier(characters, r));
   logHomeRecapture(ownState, targetState, burg);
   return true;
 }

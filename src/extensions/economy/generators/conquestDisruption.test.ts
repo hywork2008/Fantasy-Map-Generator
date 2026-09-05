@@ -6,13 +6,22 @@ import {
   getAcademyKnowledgeStocks,
   getGreatLibraryProjects,
   getGuildKnowledgeStocks,
+  getMarkets,
   initEconomyContext,
   setAcademyKnowledgeStocks,
+  setGoods,
   setGreatLibraryProjects,
-  setGuildKnowledgeStocks
+  setGuildKnowledgeStocks,
+  setMarkets
 } from "../economyContext";
-import { applyConquestDisruption } from "./conquestDisruption";
+import {
+  applyConquestDisruption,
+  CONQUEST_BASE_LOOT_SHARE,
+  CONQUEST_CONFISCATE_FRACTION,
+  getConquestLootShare
+} from "./conquestDisruption";
 import type { GreatLibraryProject } from "./greatLibraryTypes";
+import type { Market } from "./marketTypes";
 
 describe("applyConquestDisruption()", () => {
   afterEach(() => clearEconomyContext());
@@ -133,6 +142,73 @@ describe("applyConquestDisruption()", () => {
       applyConquestDisruption(1);
 
       expect(getGreatLibraryProjects()[0]).toEqual(project({ status: "ruined", ruinedYear: 400, progress: 6 }));
+    });
+  });
+
+  describe("physical loot (docs/plan/economy-coupling-audit.md L9-c)", () => {
+    it("shrinks loot share as occupying discipline rises", () => {
+      expect(getConquestLootShare(1)).toBeCloseTo(CONQUEST_BASE_LOOT_SHARE, 4);
+      expect(getConquestLootShare(1.5)).toBeLessThan(getConquestLootShare(1));
+      expect(getConquestLootShare(0)).toBeCloseTo(CONQUEST_BASE_LOOT_SHARE, 4);
+    });
+
+    it("confiscates burg treasury to the conqueror and destroys the rest of the taken share", () => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      const burg = { i: 1, state: 2, treasury: 100 } as PackedGraph["burgs"][number];
+      const conqueror = { i: 2, treasury: 10 };
+      worldContext.pack = {
+        burgs: [{ i: 0 }, burg],
+        states: [{ i: 0 }, { i: 1 }, conqueror]
+      } as unknown as PackedGraph;
+      setMarkets([]);
+      setGoods([]);
+
+      applyConquestDisruption(1);
+
+      const share = CONQUEST_BASE_LOOT_SHARE;
+      const confiscated = 100 * share * CONQUEST_CONFISCATE_FRACTION;
+      const destroyed = 100 * share * (1 - CONQUEST_CONFISCATE_FRACTION);
+      expect(burg.treasury).toBeCloseTo(100 - confiscated - destroyed, 6);
+      expect(conqueror.treasury).toBeCloseTo(10 + confiscated, 6);
+    });
+
+    it("sacks the market-center stock and credits its confiscated value to the conqueror", () => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      const burg = { i: 1, state: 2, treasury: 0 } as PackedGraph["burgs"][number];
+      const conqueror = { i: 2, treasury: 0 };
+      worldContext.pack = {
+        burgs: [{ i: 0 }, burg],
+        states: [{ i: 0 }, { i: 1 }, conqueror]
+      } as unknown as PackedGraph;
+      setGoods([{ i: 1, name: "Cloth", value: 4, tags: [], unit: "bolt", icon: "", color: "" }]);
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#000",
+        goods: { 1: { stock: 20, price: 5 } }
+      };
+      setMarkets([market]);
+
+      applyConquestDisruption(1);
+
+      const taken = 20 * CONQUEST_BASE_LOOT_SHARE;
+      expect(getMarkets()[0].goods[1].stock).toBeCloseTo(20 - taken, 6);
+      expect(conqueror.treasury).toBeCloseTo(taken * CONQUEST_CONFISCATE_FRACTION * 5, 6);
+    });
+
+    it("sacks less of the treasury when the occupying army is well led", () => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      const burg = { i: 1, state: 2, treasury: 100 } as PackedGraph["burgs"][number];
+      worldContext.pack = {
+        burgs: [{ i: 0 }, burg],
+        states: [{ i: 0 }, { i: 1 }, { i: 2, treasury: 0 }]
+      } as unknown as PackedGraph;
+      setMarkets([]);
+      setGoods([]);
+
+      applyConquestDisruption(1, { disciplineMultiplier: 2 });
+
+      expect(burg.treasury).toBeGreaterThan(100 - 100 * CONQUEST_BASE_LOOT_SHARE);
     });
   });
 });

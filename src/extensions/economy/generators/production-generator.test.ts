@@ -515,4 +515,13 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
     expect(worldContext.pack.states[1].treasury).toBeCloseTo(stateTreasury - 3, 6);
     expect(getBurgMarketLedgers().find(ledger => ledger.burgId === 1)?.householdWealth).toBeCloseTo(3, 6);
   });
+
+  it("cuts manufacture output when burg.discontent is high (L9-b)", () => {
+    const production = new ProductionModule() as unknown as ManufactureHarness;
+    const calm = production.executeManufacture(stateWithWage(0, 10), { demandCoverageByGood: [] }, decision(), 1);
+    worldContext.pack.burgs[1].discontent = 100;
+    const restless = production.executeManufacture(stateWithWage(0, 10), { demandCoverageByGood: [] }, decision(), 1);
+    expect(restless.yieldLots).toBeLessThan(calm.yieldLots);
+    expect(restless.yieldLots).toBeCloseTo(calm.yieldLots * 0.85, 2);
+  });
 });

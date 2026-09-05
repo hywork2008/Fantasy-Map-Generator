@@ -316,6 +316,14 @@ export interface Burg {
    * docs/plan/economy-coupling-audit.md L3.
    */
   foodSecurity?: number;
+  /**
+   * Civic discontent from 0 (quiet) to 100 (open unrest). Economy writes this each tax cycle
+   * from food stress, effective tax, and war intensity, and drains it from treasury slack and
+   * Ecclesiastica funding. Missing on old saves and Economy-off maps — treat as 0.
+   * Distinct from `state.militaryDiscontent` and `state.religiousUnrest`.
+   * docs/plan/economy-coupling-audit.md L9.
+   */
+  discontent?: number;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;
   /**

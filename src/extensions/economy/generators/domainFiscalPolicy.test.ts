@@ -10,7 +10,8 @@ import {
   DOMAIN_EXTRACT_PERSONAL_RATE,
   DOMAIN_EXTRACT_REMIT_RATE,
   DOMAIN_FORTIFY_SPEND_RATE,
-  domainLevyToPollMultiplier
+  domainLevyToPollMultiplier,
+  HEAVY_LEVY_TREASURY_CUT_AT_MAX
 } from "./domainFiscalPolicy";
 
 describe("domainFiscalPolicy (PR-7)", () => {
@@ -91,7 +92,7 @@ describe("domainFiscalPolicy (PR-7)", () => {
     expect(domainLevyToPollMultiplier(1.5)).toBeGreaterThan(1);
   });
 
-  it("scales extract by domain levy rate", () => {
+  it("scales extract by domain levy rate after the heavy-levy deadweight cut", () => {
     const burg = {
       i: 5,
       treasury: 100,
@@ -100,13 +101,29 @@ describe("domainFiscalPolicy (PR-7)", () => {
     } as unknown as Burg;
     const state = { i: 1, treasury: 0 } as unknown as State;
     const result = applyDomainPolicyToBurg(burg, state, { wealth: 0 });
-    expect(result.remittedToState).toBe(100 * DOMAIN_EXTRACT_REMIT_RATE * 1.5);
+    const afterCut = 100 - 100 * HEAVY_LEVY_TREASURY_CUT_AT_MAX;
+    expect(result.heavyLevyCut).toBeCloseTo(100 * HEAVY_LEVY_TREASURY_CUT_AT_MAX, 6);
+    expect(result.remittedToState).toBeCloseTo(afterCut * DOMAIN_EXTRACT_REMIT_RATE * 1.5, 6);
   });
 
-  it("balanced is a no-op", () => {
+  it("balanced is a no-op at the default levy", () => {
     const burg = { i: 5, treasury: 100, domainFiscalPolicy: "balanced" } as unknown as Burg;
     const result = applyDomainPolicyToBurg(burg, { i: 1, treasury: 0 } as State, { wealth: 0 });
     expect(result.remittedToState).toBe(0);
+    expect(result.heavyLevyCut).toBe(0);
     expect(burg.treasury).toBe(100);
+  });
+
+  it("cuts burg.treasury as deadweight when levy is 1.5 even under a balanced policy (L9-a)", () => {
+    const burg = {
+      i: 5,
+      treasury: 100,
+      domainFiscalPolicy: "balanced",
+      domainLevyRate: 1.5
+    } as unknown as Burg;
+    const result = applyDomainPolicyToBurg(burg, { i: 1, treasury: 0 } as State, { wealth: 0 });
+    expect(result.remittedToState).toBe(0);
+    expect(result.heavyLevyCut).toBeCloseTo(100 * HEAVY_LEVY_TREASURY_CUT_AT_MAX, 6);
+    expect(burg.treasury).toBeCloseTo(100 - result.heavyLevyCut, 6);
   });
 });

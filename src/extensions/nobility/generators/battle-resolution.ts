@@ -1,11 +1,12 @@
 import type { Character } from "../../characters/characterTypes";
 import { applyDemographicCasualties, appServices, buildSeaRouteGraph, type StrategicGoal } from "../../hostCore";
-import type { ChronicleEvent } from "../../hostTypes";
+import type { ChronicleEvent, MilitaryRegiment } from "../../hostTypes";
 import { getRulerId, getWorldContext } from "../nobilityContext";
 import {
   calculateEffectiveSiegePower,
   captureBurg,
   commanderPowerMultiplier,
+  occupyingDisciplineMultiplier,
   regimentDistanceTo,
   regimentReinforcementRadius
 } from "./localDefense";
@@ -83,7 +84,7 @@ export const BattleResolutionGenerator = {
     // marine-embark logic) count only if a charted sea route actually reaches the target
     // port; see docs/plan/naval-sea-lanes.md.
     let attackerPower = 0;
-    const attackingRegiments = [];
+    const attackingRegiments: MilitaryRegiment[] = [];
 
     for (const regiment of attackerState.military || []) {
       if (regiment.a <= 0) continue;
@@ -240,7 +241,7 @@ export const BattleResolutionGenerator = {
     let rawText = "";
 
     if (cityCaptured) {
-      captureBurg(pack, targetBurg, attackerId);
+      captureBurg(pack, targetBurg, attackerId, occupyingDisciplineMultiplier(characters, attackingRegiments));
       console.warn(`🏆 City ${targetBurg.name} has fallen to ${attackerState.name}!`);
       actionText = "captured the city";
       rawText = `${attackerState.name} captured ${targetBurg.name} from ${targetState.name}. Casualties: ~${Math.round(attackerCasualties + defenderCasualties)}.`;

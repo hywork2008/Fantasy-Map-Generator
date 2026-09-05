@@ -15,6 +15,8 @@ export interface MobileAdultCohort {
   maleAdults: number;
   femaleAdults: number;
   yearsSearching: number;
+  /** Discontent leavers skip this burg so they do not immediately walk back in. */
+  excludeBurgId?: number;
 }
 
 /** People outside a burg or rural cell who subsist through predation until later security work resolves them. */

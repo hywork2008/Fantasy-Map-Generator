@@ -14,6 +14,7 @@ import {
   canOccupyBurg,
   captureBurg,
   commanderPowerMultiplier,
+  occupyingDisciplineMultiplier,
   regimentDistanceTo,
   regimentReinforcementRadius
 } from "./localDefense";
@@ -263,7 +264,17 @@ export class LocalSkirmishGenerator {
                 console.warn(`⚔️ BACKGROUND COMBAT: ${stateB.name} annihilated ${stateA.name}'s ${r.name}.`);
                 const burg = findGarrisonedBurg(pack, r, stateA.i);
                 const captured = burg && canOccupyBurg(burg, totalB, populationRate, urbanization);
-                if (captured) captureBurg(pack, burg, stateB.i);
+                if (captured) {
+                  captureBurg(
+                    pack,
+                    burg,
+                    stateB.i,
+                    occupyingDisciplineMultiplier(
+                      characters,
+                      regsB.filter(regiment => regiment.a > 0)
+                    )
+                  );
+                }
                 logSkirmish(stateA, stateB, captured ? burg.name : undefined);
               }
             }
@@ -272,7 +283,17 @@ export class LocalSkirmishGenerator {
                 console.warn(`⚔️ BACKGROUND COMBAT: ${stateA.name} annihilated ${stateB.name}'s ${r.name}.`);
                 const burg = findGarrisonedBurg(pack, r, stateB.i);
                 const captured = burg && canOccupyBurg(burg, totalA, populationRate, urbanization);
-                if (captured) captureBurg(pack, burg, stateA.i);
+                if (captured) {
+                  captureBurg(
+                    pack,
+                    burg,
+                    stateA.i,
+                    occupyingDisciplineMultiplier(
+                      characters,
+                      regsA.filter(regiment => regiment.a > 0)
+                    )
+                  );
+                }
                 logSkirmish(stateB, stateA, captured ? burg.name : undefined);
               }
             }

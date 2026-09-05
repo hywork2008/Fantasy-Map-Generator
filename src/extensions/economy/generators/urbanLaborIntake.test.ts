@@ -14,6 +14,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
+import { DISCONTENT_OUTFLOW_MAX_RATE } from "./burgDiscontent";
 import {
   calculateAnnualUrbanLaborIntake,
   calculateAnnualUrbanLaborIntakeFromEmploymentDemand,
@@ -254,6 +255,58 @@ describe("employment-demand-driven intake (Phase 4, §5.1 decision 4)", () => {
     new UrbanLaborIntakeModule().generateAnnualIntakes(world as never, neutralRandom);
 
     expect(getUrbanLaborIntakes()[0].offeredAdults).toBe(0);
+  });
+});
+
+describe("discontent outflow (docs/plan/economy-coupling-audit.md L9-b)", () => {
+  it("does not move adults at discontent 0 and pushes them out at 100", () => {
+    const world = {
+      graphWidth: 100,
+      graphHeight: 100,
+      pack: {
+        cells: {
+          p: [
+            [0, 0],
+            [50, 0]
+          ]
+        },
+        burgs: [
+          { cell: 0 },
+          {
+            i: 1,
+            cell: 0,
+            state: 1,
+            x: 0,
+            y: 0,
+            population: 100,
+            discontent: 0,
+            demographics: {
+              capacity: 200,
+              effectiveCapacity: 200,
+              children: 0,
+              maleAdults: 50,
+              femaleAdults: 50,
+              elders: 0
+            }
+          }
+        ]
+      }
+    };
+    initEconomyContext({
+      worldContext: world,
+      simulationContext: { currentYear: 100, extensions: {} }
+    } as unknown as ExtensionAPI);
+    const intake = new UrbanLaborIntakeModule();
+
+    expect(intake.emitDiscontentOutflow(world as never)).toBe(0);
+    expect(getMobileAdultCohorts()).toHaveLength(0);
+
+    world.pack.burgs[1].discontent = 100;
+    const left = intake.emitDiscontentOutflow(world as never);
+    expect(left).toBeCloseTo(100 * DISCONTENT_OUTFLOW_MAX_RATE, 6);
+    expect(world.pack.burgs[1].population).toBeCloseTo(100 - left, 6);
+    expect(getMobileAdultCohorts()).toHaveLength(1);
+    expect(getMobileAdultCohorts()[0].originCell).toBe(0);
   });
 });
 
