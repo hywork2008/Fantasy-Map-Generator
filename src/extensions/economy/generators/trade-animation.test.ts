@@ -162,6 +162,39 @@ describe("findRoutePath", () => {
     ]);
   });
 
+  it("prefers a paved road over a trail of the same length (economy-coupling-audit.md L8 stage 2)", () => {
+    // Two equal-length two-hop paths from cell 0 to cell 3: via cell 1 on trails, via cell 2 on
+    // roads. Only the surface differs, so the road has to win.
+    worldContext.pack = makePack(
+      {
+        0: { 1: 0, 2: 2 },
+        1: { 0: 0, 3: 1 },
+        2: { 0: 2, 3: 3 },
+        3: { 1: 1, 2: 3 }
+      },
+      [
+        { i: 0, group: "trails" },
+        { i: 1, group: "trails" },
+        { i: 2, group: "roads" },
+        { i: 3, group: "roads" }
+      ],
+      [
+        [0, 0],
+        [50, 50],
+        [50, -50],
+        [100, 0]
+      ]
+    ) as unknown as PackedGraph;
+
+    const result = ta.findRoutePath(0, 3);
+
+    expect(result?.points).toEqual([
+      [0, 0],
+      [50, -50],
+      [100, 0]
+    ]);
+  });
+
   it("caches results for a (startCell, endCell) pair instead of recomputing every call", () => {
     worldContext.pack = makePack({ 0: { 1: 0 }, 1: { 0: 0 } }, [{ i: 0, group: "roads" }]) as unknown as PackedGraph;
     const first = ta.findRoutePath(0, 1);

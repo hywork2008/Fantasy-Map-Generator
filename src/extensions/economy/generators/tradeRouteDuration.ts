@@ -9,6 +9,63 @@ import { getRailwayTravelMultiplier } from "./railwayTravel";
 /** Time spent loading or unloading when a route switches between land and sea. */
 export const PORT_TRANSFER_PENALTY_DAYS = 2;
 
+/**
+ * Speed a fully unpaved land leg loses against metalled track (docs/plan/economy-coupling-audit.md
+ * L8 stage 2). Before this, `Route.group` had no runtime effect on trade at all — generation-time
+ * `Routes.getConnectivityRate` and map styling were its only readers — so promoting a trail to a
+ * road would have been a purely cosmetic use of the Public Works budget.
+ *
+ * Framed as a penalty on trails rather than a bonus on roads deliberately: most inter-burg trade
+ * already runs over generated `roads`, so a bonus would have made land trade across every existing
+ * map ~25% faster overnight and invalidated the current calibration. This way paved travel keeps
+ * exactly the speed it had, and only the trails a state has not yet paved are slower.
+ */
+export const UNPAVED_ROAD_SPEED_PENALTY = 0.2;
+
+/**
+ * Travel-speed multiplier for a land segment that is `pavedShare` (0..1) on `roads`/`railways`
+ * track: 1 when fully paved, `1 − UNPAVED_ROAD_SPEED_PENALTY` on a bare trail. An unknown share
+ * (segments planned before L8 stage 2, and wilderness paths that follow no route at all) keeps
+ * the pre-change speed rather than being penalised on a guess.
+ */
+export function getSurfaceSpeedMultiplier(pavedShare: number | undefined): number {
+  if (pavedShare === undefined) return 1;
+  return 1 - UNPAVED_ROAD_SPEED_PENALTY * (1 - Math.max(0, Math.min(1, pavedShare)));
+}
+
+/**
+ * Share of the mode-transfer penalty a fully built-out harbour (`Burg.publicWorks.harbor` = 1)
+ * removes. Quays, cranes and a dredged basin let a hull be worked alongside instead of lightered
+ * ashore — the Public Works budget's port line (docs/plan/economy-coupling-audit.md L8 stage 2).
+ */
+export const HARBOR_WORKS_MAX_TRANSFER_SAVING = 0.5;
+
+/**
+ * Days lost changing between land and water at `cellId`. Falls back to the flat
+ * PORT_TRANSFER_PENALTY_DAYS whenever the transfer point is unknown, carries no burg, or that
+ * burg has no harbour works yet — so a map that has never funded Public Works behaves exactly
+ * as it did before.
+ */
+export function getPortTransferPenaltyDays(cellId: number | undefined): number {
+  if (cellId === undefined) return PORT_TRANSFER_PENALTY_DAYS;
+  let harbor = 0;
+  try {
+    const pack = getWorldContext().pack;
+    const burgId = pack?.cells?.burg?.[cellId];
+    harbor = (burgId && pack.burgs?.[burgId]?.publicWorks?.harbor) || 0;
+  } catch {
+    return PORT_TRANSFER_PENALTY_DAYS;
+  }
+  if (!(harbor > 0)) return PORT_TRANSFER_PENALTY_DAYS;
+  return PORT_TRANSFER_PENALTY_DAYS * (1 - HARBOR_WORKS_MAX_TRANSFER_SAVING * Math.min(1, harbor));
+}
+
+/** Cell id a segment boundary sits on, when the polyline carries one. */
+function getSegmentStartCell(segment: TradeRouteSegment): number | undefined {
+  const point = segment.points[0];
+  return point && point.length > 2 ? point[2] : undefined;
+}
+
 export interface RouteDurationOptions {
   heights?: ArrayLike<number>;
   heightExponent?: number;
@@ -133,7 +190,7 @@ export function calculateRouteDurationDays(
     if (segment.type === "land") {
       const days = getLandSegmentTravelDays(segment.points, distanceScale, options);
       if (!Number.isFinite(days)) return Infinity;
-      duration += days;
+      duration += days / getSurfaceSpeedMultiplier(segment.pavedShare);
     } else if (segment.type === "river") {
       if (movement.riverKmPerDay <= 0) return Infinity;
       duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / movement.riverKmPerDay;
@@ -141,7 +198,9 @@ export function calculateRouteDurationDays(
       if (movement.seaKmPerDay <= 0) return Infinity;
       duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / movement.seaKmPerDay;
     }
-    if (index > 0 && segment.type !== segments[index - 1].type) duration += PORT_TRANSFER_PENALTY_DAYS;
+    if (index > 0 && segment.type !== segments[index - 1].type) {
+      duration += getPortTransferPenaltyDays(getSegmentStartCell(segment));
+    }
   }
 
   // A caravan is progressed in whole simulation days, so a partial final day consumes a full

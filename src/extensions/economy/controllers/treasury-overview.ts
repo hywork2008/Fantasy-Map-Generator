@@ -7,6 +7,7 @@ import { getWorldContext } from "../economyContext";
 import { peekCreditPoolBalance } from "../generators/creditPool";
 import { sumForeignDebtPrincipal } from "../generators/foreignDebt";
 import { getPrimaryMoneylenderLabel } from "../generators/moneylenders";
+import { getPublicWorksSettlements } from "../generators/publicWorks";
 import { getTreasuryAllocationSnapshots, sumDepartmentBalances } from "../generators/treasuryAllocation";
 import { setTreasuryOverviewState, type TreasuryOverviewRow } from "../store/treasuryOverviewState";
 
@@ -34,15 +35,23 @@ export function refreshTreasuryOverview(): void {
   const world = getWorldContext();
   const states = world.pack.states ?? [];
 
+  const publicWorksByState = new Map(getPublicWorksSettlements().map(settlement => [settlement.stateId, settlement]));
+
   const rows: TreasuryOverviewRow[] = [];
   for (const snapshot of getTreasuryAllocationSnapshots()) {
     const state = states[snapshot.stateId];
     if (!state?.i || state.removed) continue;
 
     const nominalDepartments = rn(
-      snapshot.marshalcy + snapshot.chancery + snapshot.stewardship + snapshot.spymastery + snapshot.ecclesiastica,
+      snapshot.marshalcy +
+        snapshot.chancery +
+        snapshot.stewardship +
+        snapshot.spymastery +
+        snapshot.ecclesiastica +
+        snapshot.publicWorks,
       2
     );
+    const publicWorks = publicWorksByState.get(state.i);
 
     rows.push({
       id: state.i,
@@ -83,14 +92,20 @@ export function refreshTreasuryOverview(): void {
       stewardship: snapshot.stewardship,
       spymastery: snapshot.spymastery,
       ecclesiastica: snapshot.ecclesiastica,
+      publicWorks: snapshot.publicWorks,
+      publicWorksBalance: rn(state.departmentBalances?.publicWorks ?? 0, 2),
+      publicWorksSpent: rn(publicWorks?.spent ?? 0, 2),
+      roadsPaved: publicWorks?.roadsPaved ?? 0,
       chanceryServiceLevel: rn(state.departmentServiceLevel?.chancery ?? 1, 3),
       stewardshipServiceLevel: rn(state.departmentServiceLevel?.stewardship ?? 1, 3),
       spymasteryServiceLevel: rn(state.departmentServiceLevel?.spymastery ?? 1, 3),
       ecclesiasticaServiceLevel: rn(state.departmentServiceLevel?.ecclesiastica ?? 1, 3),
+      publicWorksServiceLevel: rn(state.departmentServiceLevel?.publicWorks ?? 1, 3),
       chanceryBudgetMultiplier: rn(state.departmentBudgetMultiplier?.chancery ?? 1, 2),
       stewardshipBudgetMultiplier: rn(state.departmentBudgetMultiplier?.stewardship ?? 1, 2),
       spymasteryBudgetMultiplier: rn(state.departmentBudgetMultiplier?.spymastery ?? 1, 2),
       ecclesiasticaBudgetMultiplier: rn(state.departmentBudgetMultiplier?.ecclesiastica ?? 1, 2),
+      publicWorksBudgetMultiplier: rn(state.departmentBudgetMultiplier?.publicWorks ?? 1, 2),
       departmentBalanceRemit: rn(snapshot.departmentBalanceRemit, 2),
       diplomaticReliability: rn(state.diplomaticReliability ?? 100, 1),
       religiousUnrest: rn(state.religiousUnrest || 0, 1),

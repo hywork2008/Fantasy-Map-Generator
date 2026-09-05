@@ -559,6 +559,71 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 `steamIndustry.ts` の `settleRailways` が既に確立した「実行時に `pack.routes` へ
 グループを追加する」パターンをそのまま流用するのが安全。
 
+**段階2 の実装記録(2026-09-05)**
+
+`publicWorks.ts` を新設し、`economy.annualInfrastructure` の年次ステップに組み込んだ
+(`settleAnnualOnce(ANNUAL_GATE.publicWorks)`)。予算は L3a
+`state.departmentBalances.publicWorks`。実装時に本書の記述と異なっていた点:
+
+- **街道昇格に効果を持たせるには、まず `Route.group` を実行時に意味のあるものにする必要があった。**
+  本書は「ルートは下流に強く効く」と書いたが、実際に `Route.group` を読んでいるのは
+  生成時の `Routes.getConnectivityRate()`(`burgs-generator.ts` の初期 capacity)、
+  `hasRoad`/`isCrossroad`(マーカー生成)、そして描画スタイルだけで、
+  **実行時の交易には roads と trails の区別が一切無かった**。
+  L4 で入れた年次 capacity リコンサイル(`urbanFoodCapacity.ts`)も連結度を読まない。
+  つまりそのまま昇格させても純粋に見た目だけの支出になる。
+  そこで `TradeRouteSegment.pavedShare`(0..1、経路計画時にスナップショット)と
+  `getSurfaceSpeedMultiplier()` を追加し、陸路の所要日数に反映させた。
+  **「roads を速くする」ではなく「trails を遅くする」向き**にしてある
+  (`UNPAVED_ROAD_SPEED_PENALTY = 0.2`)——既存マップの都市間交易はほぼ生成時 `roads` の上を
+  走っているので、ボーナス方式にすると全マップの陸上交易が一夜で 25% 速くなり
+  既存のキャリブレーションが全部ずれる。ペナルティ方式なら舗装済みの速度は現状のままで、
+  未舗装の小径だけが遅い。`pavedShare` 未記録(旧セーブ・原野経路)は 1 扱い=現状維持。
+  適用箇所は3つ:`calculateRouteDurationDays()`(ETA/取引成立判定)、
+  `TradeAnimation.getEdgeTravelDays()`(Dijkstra のエッジコスト。同距離なら街道を選ぶ)、
+  `bakeCaravanTravelLegs()`(実際の移動速度。ここを外すと ETA と実移動がずれる)。
+- **交易量の記録先は `Route.traffic`(ホスト側モデル)にした。** economy スライスに
+  ルート id → 交易量の表を持つ案もあったが、キャラバン出発ごとの O(1) 更新に
+  インデックスの再水和が要る。`pack.routes` は `JSON.stringify` でそのまま保存されるので、
+  optional な数値フィールドを足すだけでセーブ・ロードに乗る。記録は**到着ではなく出発時**
+  (`caravans.ts` の2箇所——商業キャラバンの出航と国家調達)。盗賊に奪われ続ける街道も
+  「使われている」と数えるべきなので。年次で `ROUTE_TRAFFIC_ANNUAL_RETENTION = 0.7` 減衰。
+- **`Burg.port` に「容量」という概念は存在しなかった。** `port` は水域 feature id であって
+  スカラーではない。代わりに `Burg.publicWorks.harbor`(0..1)を新設し、
+  陸↔水の積み替えペナルティ(`PORT_TRANSFER_PENALTY_DAYS = 2`)を最大 50% 短縮する形にした。
+  積み替え地点の cell から burg を引くので、港湾工事を持つ港だけが速くなる。
+- **備蓄容量は `foodProduction.ts` ではなく `foodLedgerConsumption.ts` に効かせた。**
+  `BURG_TARGET_RESERVE_DAYS` を実際に目標値として使うのは
+  `topUpBurgFoodReserve()` の側で、`foodProduction.ts:272` はマップ生成時のシードでしかない
+  (シード時点では works は 0 なので乗数は 1)。`Burg.publicWorks.granary` = 1 で目標日数が
+  2倍(`GRANARY_MAX_RESERVE_BONUS = 1`)になり、L3 の `foodSecurity` 側に効く。
+- **`publicWorks` は L3a 残高上限(`DEPARTMENT_BALANCE_CAP_CYCLES`)から除外した。**
+  既存4部門の上限は「使い道が無いので溜め込ませない」ための措置だが、街道1本の舗装費は
+  小国の年間事業予算を超えうるので、6サイクル分で頭打ちにすると
+  一番必要な国が永久に舗装できなくなる。marshalcy と同じ理由の免除として
+  `CAPPED_DEPARTMENT_KEYS` を新設し、`NON_MARSHALCY_DEPARTMENT_KEYS`
+  (サービス水準・プレイヤー乗数・議会承認の対象)とは分けた。
+- **政体別配分は marshalcy / household / chancery を一切動かさずに捻出した。**
+  `publicWorks` の原資は stewardship / spymastery / ecclesiastica からのみ取っている
+  (Monarchy 0.07 / Republic 0.10 / Theocracy 0.05 / Union 0.08 / Anarchy 0.02)。
+  既存テストの期待値が marshalcy・household・chancery に集中していたので、
+  そこを触らないことでテスト差分を Theocracy の ecclesiastica 0.48→0.43 まわりに限定できた
+  ——差分が小さいほど、テストが落ちたときに本物の回帰かどうかが判別しやすい。
+- **年次の実行順は「劣化 → 支出 → 交易量減衰」。** works の劣化を支出より前に置くのは
+  「予算が劣化を補修する」という筋にするため。交易量の減衰を支出より**後**に置くのは、
+  昇格判定を「前回決算以降に実際に運んだ量」に対して行うため(先に減衰させると
+  閾値が実質 `threshold / retention` に嵩上げされてしまう)。
+- **未着手のまま残した部分**: (a) 交易の途絶による roads → trails の**降格**。本書 L8 の
+  現状分析には書かれているが修正案の段階2 には含まれておらず、生成時 `roads` まで
+  劣化させ始めるとマップの初期状態そのものが崩れるので、昇格のみに絞った。
+  (b) L10 の**通行税**との合流。ルーティング情報を要する別設計判断のまま。
+  (c) 実マップでのバランス確認(閾値 24・舗装費 12 SP/cell・港湾 150 SP/step・
+  穀物倉 100 SP/step は机上のキャリブレーション)。検証はユニットのみ:
+  `publicWorks.test.ts`(14本)、`tradeRouteDuration.test.ts` に舗装速度と港湾工事の2本、
+  `trade-animation.test.ts` に「同距離なら街道を選ぶ」1本。
+  全テストスイート(3426件)・`tsc`・`biome`・アーキテクチャ lint・`madge` 循環チェック・
+  本番ビルドは通過を確認済み。
+
 ---
 
 ## L9. 徴税強度・征服がノーコスト
@@ -1190,7 +1255,8 @@ L3 の実装時に判明した点:
 14. **L9**: `Burg.discontent` + 征服時の物的破壊
 15. **L10** ✅ 実装済み(2026-09-05)。輸入関税の導入(`State.importDuty` = `salesTax × 0.5`、
     国境を越える交易にのみ課税、`Deal.importTax` として買い手側国庫に計上。通行税は未着手のまま)
-16. **L8 段階2**: `publicWorks` 予算部門と街道の実行時昇格(L10 の通行税を導入するならここと合流)
+16. **L8 段階2** ✅ 実装済み(2026-09-05)。`publicWorks` 予算部門と街道の実行時昇格
+    (`publicWorks.ts`。港湾工事・公共穀物倉も同予算。通行税との合流は未着手)
 17. **L2 Phase 2/3**: 家計財布の導入(人頭税を創造から移転へ)
 18. **L7**: 貨幣供給の物価接続(**着手しない判断も妥当**。その場合は
     `minting.ts` に「`circulation` は意図的に観測専用」と明記する)
@@ -1207,6 +1273,7 @@ L3 の実装時に判明した点:
   `docs/plan/extension-dependencies.md` の理想形そのもの。触らない。
 - **`Dams` / `Levees` が市場財源で建つ**ことは、国家予算(L8 段階2)とは別系統でよい。
   現実の堤防も領主・都市・国家が並行して建てた。統合しない。
+  (L8 段階2 実装時もこの判断どおり `publicWorks.ts` からは触っていない。)
 - **鮮度・腐敗による交易日数上限**(`PERISHABLE_MAX_TRADE_DAYS`,
   `FRESH_FOOD_*`)は物理制約であり、L6 で連続コスト化しても残すべき。
   価値密度ゲート(`densityLimit`)だけが経済制約の代用品なので、それだけを外す。

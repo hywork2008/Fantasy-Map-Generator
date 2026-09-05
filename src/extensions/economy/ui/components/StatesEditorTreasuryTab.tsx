@@ -17,7 +17,8 @@ const COUNCIL_CUT_LINE_BY_DEPARTMENT: Record<NonMarshalcyDepartmentKey, keyof No
     chancery: "cutChancery",
     stewardship: "cutStewardship",
     spymastery: "cutSpymastery",
-    ecclesiastica: "cutEcclesiastica"
+    ecclesiastica: "cutEcclesiastica",
+    publicWorks: "cutPublicWorks"
   };
 
 /**
@@ -171,12 +172,15 @@ export const StatesEditorTreasuryTab: React.FC = () => {
             <th data-tip="Ecclesiastica (religious patronage) budget as a % of baseline — a deliberate cut lever, not redistributed elsewhere">
               Ecclesiastica
             </th>
+            <th data-tip="Public works (roads, harbours, granaries) budget as a % of baseline — a deliberate cut lever, not redistributed elsewhere">
+              Public Works
+            </th>
           </tr>
         </thead>
         <tbody>
           {sortedStates.length === 0 ? (
             <tr>
-              <td colSpan={13}>No states found</td>
+              <td colSpan={14}>No states found</td>
             </tr>
           ) : (
             sortedStates.map(s => {
@@ -260,6 +264,7 @@ export const StatesEditorTreasuryTab: React.FC = () => {
                     label="Ecclesiastica"
                     onChange={rerender}
                   />
+                  <DepartmentBudgetCell state={s} department="publicWorks" label="Public works" onChange={rerender} />
                 </tr>
               );
             })

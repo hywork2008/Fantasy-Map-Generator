@@ -47,14 +47,18 @@ export const ANNUAL_GATE = {
   levees: "levees",
   faunaPopulation: "faunaPopulation",
   greatLibrary: "greatLibrary",
-  climateDisasters: "climateDisasters"
+  climateDisasters: "climateDisasters",
+  publicWorks: "publicWorks"
 } as const;
 
 export type AnnualGateKey = (typeof ANNUAL_GATE)[keyof typeof ANNUAL_GATE];
 type AnnualGateYears = Record<string, number>;
 
-/** Legacy slice field → durable registry key. Kept only for idempotent save migration. */
-const LEGACY_GATE_FIELDS: Readonly<Record<AnnualGateKey, string>> = {
+/**
+ * Legacy slice field → durable registry key. Kept only for idempotent save migration, so gates
+ * introduced after T2 (which never had a pre-registry slice field) have no entry here.
+ */
+const LEGACY_GATE_FIELDS: Readonly<Partial<Record<AnnualGateKey, string>>> = {
   settlementDevelopment: "settlementDevelopmentLastEvaluatedYear",
   agTech: "agTechLastSettledYear",
   industrialTech: "industrialTechLastSettledYear",
@@ -109,6 +113,7 @@ export function migrateLegacyAnnualGateYears(slice: Record<string, unknown>): bo
   let changed = !isRecord(existing);
 
   for (const [key, legacyField] of Object.entries(LEGACY_GATE_FIELDS) as [AnnualGateKey, string][]) {
+    if (!legacyField) continue;
     const legacyYear = slice[legacyField];
     if (typeof legacyYear === "number" && Number.isFinite(legacyYear) && years[key] === undefined) {
       years[key] = legacyYear;

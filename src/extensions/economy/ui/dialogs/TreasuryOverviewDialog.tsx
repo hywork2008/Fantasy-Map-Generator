@@ -445,6 +445,33 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip={t("extensions.treasuryOverview.deptBudgetTip")}
               />
               <SortableHeader
+                field="publicWorks"
+                label={t("extensions.treasuryOverview.publicWorks")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip={t("extensions.treasuryOverview.deptBudgetTip")}
+              />
+              <SortableHeader
+                field="publicWorksBalance"
+                label={t("extensions.treasuryOverview.worksBal")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip={t("extensions.treasuryOverview.worksBalTip")}
+              />
+              <SortableHeader
+                field="publicWorksSpent"
+                label={t("extensions.treasuryOverview.worksSpent")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip={t("extensions.treasuryOverview.worksSpentTip")}
+              />
+              <SortableHeader
                 field="chanceryServiceLevel"
                 label={t("extensions.treasuryOverview.chancerySvc")}
                 sortBy={sortBy}
@@ -479,6 +506,15 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 onSort={toggleSortBy}
                 numeric
                 tip={t("extensions.treasuryOverview.ecclesiasticaSvcTip")}
+              />
+              <SortableHeader
+                field="publicWorksServiceLevel"
+                label={t("extensions.treasuryOverview.publicWorksSvc")}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip={t("extensions.treasuryOverview.publicWorksSvcTip")}
               />
               <SortableHeader
                 field="departmentBalanceRemit"
@@ -663,6 +699,13 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => {
       <td className="numeric">{row.stewardship.toFixed(2)}</td>
       <td className="numeric">{row.spymastery.toFixed(2)}</td>
       <td className="numeric">{row.ecclesiastica.toFixed(2)}</td>
+      <td className="numeric">{row.publicWorks.toFixed(2)}</td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.worksBalTip")}>
+        {row.publicWorksBalance > 0 ? row.publicWorksBalance.toFixed(2) : "—"}
+      </td>
+      <td className="numeric" data-tip={t("extensions.treasuryOverview.worksSpentCell", { roads: row.roadsPaved })}>
+        {row.publicWorksSpent > 0 ? row.publicWorksSpent.toFixed(2) : "—"}
+      </td>
       <td
         className="numeric"
         data-tip={t("extensions.treasuryOverview.budgetMult", {
@@ -694,6 +737,14 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => {
         })}
       >
         {(row.ecclesiasticaServiceLevel * 100).toFixed(0)}%
+      </td>
+      <td
+        className="numeric"
+        data-tip={t("extensions.treasuryOverview.budgetMult", {
+          value: row.publicWorksBudgetMultiplier.toFixed(2)
+        })}
+      >
+        {(row.publicWorksServiceLevel * 100).toFixed(0)}%
       </td>
       <td className="numeric" data-tip={t("extensions.treasuryOverview.remitCell")}>
         {row.departmentBalanceRemit > 0 ? row.departmentBalanceRemit.toFixed(2) : "—"}

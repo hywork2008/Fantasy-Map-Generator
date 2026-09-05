@@ -50,6 +50,7 @@ import type {
 } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
 import {
   buildCargoManifests,
@@ -65,7 +66,7 @@ import {
   isGoodTradePermittedForShipment,
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
-import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
+import { calculateRouteDurationDays, getRouteDistanceKm, getSurfaceSpeedMultiplier } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import {
   decideSailDeparture,
@@ -457,6 +458,9 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   caravan.transportDispatcherMarketId = reservation?.dispatcherMarketId ?? dispatcherMarketId;
   caravan.merchantOrganizationId ??= resolveMerchantOrganizationId(dispatcherMarketId);
   caravan.state = "transit";
+  // A departing shipment is what wears a road in; recorded at departure rather than arrival so a
+  // corridor whose caravans keep getting robbed still counts as used traffic (L8 stage 2).
+  recordRouteTraffic(caravan.routeSegments);
   caravan.loading = undefined;
   if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
   return "departed";
@@ -598,6 +602,9 @@ export function bakeCaravanTravelLegs(
     }
 
     // Land: per-hop grade-adjusted speeds when cells + heights are available.
+    // The paved-surface multiplier is applied to the baked speeds too, so a caravan actually
+    // travels at the pace calculateRouteDurationDays quoted it (economy-coupling-audit.md L8-2).
+    const surface = getSurfaceSpeedMultiplier(seg.pavedShare);
     if (heights && movement.gradeEffectStrength > 0) {
       const { legs: landLegs } = landTravelLegSpeeds(seg.points, {
         distanceScale,
@@ -612,7 +619,7 @@ export function bakeCaravanTravelLegs(
       for (const hop of landLegs) {
         if (hop.runKm <= 0) continue;
         cursorKm += hop.runKm;
-        legs.push({ endKm: cursorKm, speedKmPerDay: hop.speedKmPerDay });
+        legs.push({ endKm: cursorKm, speedKmPerDay: hop.speedKmPerDay * surface });
       }
     } else {
       let runKm = 0;
@@ -622,7 +629,7 @@ export function bakeCaravanTravelLegs(
         runKm += Math.hypot(x2 - x1, y2 - y1) * distanceScale;
       }
       if (runKm <= 0) continue;
-      const speed = movement.landKmPerDay * animal.speedMultiplier;
+      const speed = movement.landKmPerDay * animal.speedMultiplier * surface;
       cursorKm += runKm;
       legs.push({ endKm: cursorKm, speedKmPerDay: Math.max(speed, 1e-6) });
     }
@@ -833,6 +840,7 @@ export class CaravansModule {
     };
 
     getCaravans().push(caravan);
+    recordRouteTraffic(routeSegments);
     if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
     setNextCaravanId(caravan.i + 1);
     deal.remainingUnits = 0;
@@ -917,7 +925,10 @@ export class CaravansModule {
     const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
       type: segment.type,
       // Preserve cell ids for grade-aware duration (Phase 1).
-      points: segment.points.map(toTradeRoutePoint)
+      points: segment.points.map(toTradeRoutePoint),
+      // Paved share of this leg at planning time — Public Works road promotions make the same
+      // journey faster (docs/plan/economy-coupling-audit.md L8 stage 2).
+      pavedShare: segment.pavedShare
     }));
     const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
     if (distance <= 0) return nextId;

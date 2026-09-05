@@ -288,6 +288,7 @@ export class TaxesModule {
         stewardshipTransfer: allocation.departmentActualCredit.stewardship,
         spymasteryTransfer: allocation.departmentActualCredit.spymastery,
         ecclesiasticaTransfer: allocation.departmentActualCredit.ecclesiastica,
+        publicWorksTransfer: allocation.departmentActualCredit.publicWorks,
         militaryUpkeep: militarySpend.fromTreasury,
         strategicProcurement: paidProcurement,
         titheTransfer: mix.titheToEcclesiastica,

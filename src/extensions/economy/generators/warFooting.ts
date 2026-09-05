@@ -66,7 +66,8 @@ export function applyWarFootingToBaseline(
       "chancery",
       "stewardship",
       "spymastery",
-      "ecclesiastica"
+      "ecclesiastica",
+      "publicWorks"
     ].filter(key => key !== secondary?.key) as (keyof DepartmentBaselineAllocation)[];
 
     let donorSum = 0;
@@ -86,7 +87,7 @@ export function applyWarFootingToBaseline(
   if (secondary && next[secondary.key] < secondary.floor) {
     const need = rn(secondary.floor - next[secondary.key], 4);
     const donors: (keyof DepartmentBaselineAllocation)[] = (
-      ["chancery", "stewardship", "spymastery", "ecclesiastica"] as const
+      ["chancery", "stewardship", "spymastery", "ecclesiastica", "publicWorks"] as const
     ).filter(key => key !== secondary.key);
     let donorSum = 0;
     for (const key of donors) donorSum += next[key];
@@ -107,7 +108,8 @@ export function applyWarFootingToBaseline(
     "chancery",
     "stewardship",
     "spymastery",
-    "ecclesiastica"
+    "ecclesiastica",
+    "publicWorks"
   ];
   let sum = 0;
   for (const key of keys) sum += next[key];

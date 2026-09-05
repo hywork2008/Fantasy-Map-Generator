@@ -50,6 +50,8 @@ const EXPENSE_LABELS: Readonly<Record<string, string>> = {
   stewardshipTransfer: "Stewardship funding transfer",
   spymasteryTransfer: "Spymastery funding transfer",
   ecclesiasticaTransfer: "Ecclesiastica funding transfer",
+  // docs/plan/economy-coupling-audit.md L8 stage 2 — roads, harbours and public granaries.
+  publicWorksTransfer: "Public works funding transfer",
   militaryUpkeep: "Military upkeep from treasury",
   strategicProcurement: "Strategic procurement",
   titheTransfer: "Ecclesiastical tithe transfer",

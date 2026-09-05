@@ -203,7 +203,7 @@ describe("treasuryAllocation", () => {
       expect(allocation.officeStipendsPaid).toBe(0);
       expect(allocation.departmentBalancesCredit).toBe(750);
       expect(state.departmentBalances?.marshalcy).toBe(350);
-      expect(state.departmentBalances?.ecclesiastica).toBe(80);
+      expect(state.departmentBalances?.ecclesiastica).toBe(60);
       expect(state.treasury).toBe(0);
     });
   });
@@ -258,7 +258,7 @@ describe("treasuryAllocation", () => {
       worldContext.pack = { states: [] } as unknown as PackedGraph;
     });
 
-    it("splits domestic income across all 6 departments per the form's baseline table", () => {
+    it("splits domestic income across all 7 departments per the form's baseline table", () => {
       const state = { i: 1, form: "Theocracy", diplomacy: [] } as unknown as State;
 
       const allocation = allocateTreasury(state, 1000);
@@ -268,7 +268,8 @@ describe("treasuryAllocation", () => {
       expect(allocation.chancery).toBe(120);
       expect(allocation.stewardship).toBe(120);
       expect(allocation.spymastery).toBe(50);
-      expect(allocation.ecclesiastica).toBe(480);
+      expect(allocation.ecclesiastica).toBe(430);
+      expect(allocation.publicWorks).toBe(50);
     });
 
     it("scales the Marshalcy Budget down by the structural multiplier for a vassal", () => {
@@ -652,7 +653,7 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      expect(allocation.ecclesiastica).toBe(240); // 1000 × 0.48 × 0.5, halved from the unmodified 480
+      expect(allocation.ecclesiastica).toBe(215); // 1000 × 0.43 × 0.5, halved from the unmodified 430
       expect(allocation.marshalcy).toBe(150); // untouched — no compensating boost
       expect(allocation.chancery).toBe(120);
       expect(allocation.stewardship).toBe(120);
@@ -669,7 +670,7 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      expect(allocation.ecclesiastica).toBe(rn(1000 * 0.48 * DEPARTMENT_BUDGET_MULTIPLIER_MAX, 2));
+      expect(allocation.ecclesiastica).toBe(rn(1000 * 0.43 * DEPARTMENT_BUDGET_MULTIPLIER_MAX, 2));
       expect(allocation.chancery).toBe(rn(1000 * 0.12 * DEPARTMENT_BUDGET_MULTIPLIER_MIN, 2));
     });
 
@@ -701,7 +702,7 @@ describe("treasuryAllocation", () => {
       allocateTreasury(baselineState, 1000);
 
       expect(baselineState.treasury).toBe(0); // fully committed away, as before this PR
-      expect(cutState.treasury).toBe(240); // exactly the freed ecclesiastica share (480 − 240)
+      expect(cutState.treasury).toBe(215); // exactly the freed ecclesiastica share (430 − 215)
     });
 
     it("is a no-op when departmentBudgetMultiplier is unset (existing states/saves unaffected)", () => {
@@ -709,7 +710,7 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      expect(allocation.ecclesiastica).toBe(480);
+      expect(allocation.ecclesiastica).toBe(430);
     });
 
     describe("council approval gate (PR-17f)", () => {
@@ -738,7 +739,7 @@ describe("treasuryAllocation", () => {
 
         const allocation = allocateTreasury(state, 1000);
 
-        expect(allocation.ecclesiastica).toBe(480); // unmodified baseline — the cut did not go through
+        expect(allocation.ecclesiastica).toBe(430); // unmodified baseline — the cut did not go through
       });
 
       it("applies a cut once the department's council line is approved", () => {
@@ -752,7 +753,7 @@ describe("treasuryAllocation", () => {
 
         const allocation = allocateTreasury(state, 1000);
 
-        expect(allocation.ecclesiastica).toBe(240);
+        expect(allocation.ecclesiastica).toBe(215);
       });
 
       it("never gates a boost (multiplier ≥ 1) regardless of council approval", () => {
@@ -766,7 +767,7 @@ describe("treasuryAllocation", () => {
 
         const allocation = allocateTreasury(state, 1000);
 
-        expect(allocation.ecclesiastica).toBe(720); // 480 × 1.5, unaffected by the (irrelevant) cut line
+        expect(allocation.ecclesiastica).toBe(645); // 430 × 1.5, unaffected by the (irrelevant) cut line
       });
 
       it("defaults to permissive when no council snapshot exists yet (pre-PR-17f behavior preserved)", () => {
@@ -780,7 +781,7 @@ describe("treasuryAllocation", () => {
 
         const allocation = allocateTreasury(state, 1000);
 
-        expect(allocation.ecclesiastica).toBe(240);
+        expect(allocation.ecclesiastica).toBe(215);
       });
     });
   });
@@ -805,7 +806,8 @@ describe("treasuryAllocation", () => {
         chancery: 1,
         stewardship: 1,
         spymastery: 1,
-        ecclesiastica: 1
+        ecclesiastica: 1,
+        publicWorks: 1
       });
       expect(state.departmentServiceLevel).toEqual(allocation.departmentServiceLevel);
     });
@@ -827,10 +829,11 @@ describe("treasuryAllocation", () => {
       allocateTreasury(state, 1000);
       expect(state.departmentServiceLevel?.chancery).toBeLessThan(0.5625);
       expect(state.departmentServiceLevel?.chancery).toBeGreaterThan(0);
-      // The uniform pro-rata scale applies identically to all 4 non-marshalcy departments.
+      // The uniform pro-rata scale applies identically to all 5 non-marshalcy departments.
       expect(state.departmentServiceLevel?.stewardship).toBe(state.departmentServiceLevel?.chancery);
       expect(state.departmentServiceLevel?.spymastery).toBe(state.departmentServiceLevel?.chancery);
       expect(state.departmentServiceLevel?.ecclesiastica).toBe(state.departmentServiceLevel?.chancery);
+      expect(state.departmentServiceLevel?.publicWorks).toBe(state.departmentServiceLevel?.chancery);
     });
 
     it("does not update departmentServiceLevel when this cycle's domestic income is 0 (no data to anchor the scale to)", () => {
@@ -839,7 +842,13 @@ describe("treasuryAllocation", () => {
         form: "Monarchy",
         diplomacy: [],
         treasury: 0,
-        departmentServiceLevel: { chancery: 0.4, stewardship: 0.4, spymastery: 0.4, ecclesiastica: 0.4 }
+        departmentServiceLevel: {
+          chancery: 0.4,
+          stewardship: 0.4,
+          spymastery: 0.4,
+          ecclesiastica: 0.4,
+          publicWorks: 0.4
+        }
       } as unknown as State;
 
       // income 0 → desiredDeptTotal 0 → deptFundingScale defaults to 1 (no penalty applied),
@@ -871,7 +880,8 @@ describe("treasuryAllocation", () => {
         chancery: 120,
         stewardship: 120,
         spymastery: 50,
-        ecclesiastica: 480
+        ecclesiastica: 430,
+        publicWorks: 50
       });
     });
 
@@ -886,7 +896,8 @@ describe("treasuryAllocation", () => {
         chancery: 60,
         stewardship: 60,
         spymastery: 25,
-        ecclesiastica: 240
+        ecclesiastica: 215,
+        publicWorks: 25
       });
       const sum = Object.values(allocation.departmentActualCredit).reduce((total, value) => total + value, 0);
       expect(sum).toBe(allocation.departmentBalancesCredit);
@@ -1069,7 +1080,7 @@ describe("treasuryAllocation", () => {
       allocateTreasury(state, 1000);
       const [snapshot] = getTreasuryAllocationSnapshots();
 
-      expect(snapshot).toMatchObject({ stateId: 7, domesticIncome: 1000, marshalcy: 350, ecclesiastica: 80 });
+      expect(snapshot).toMatchObject({ stateId: 7, domesticIncome: 1000, marshalcy: 350, ecclesiastica: 60 });
     });
 
     it("overwrites rather than accumulates on repeated calls for the same state", () => {

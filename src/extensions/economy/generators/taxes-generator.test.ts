@@ -316,7 +316,8 @@ describe("TaxesModule", () => {
         (state1.departmentBalances?.chancery || 0) +
         (state1.departmentBalances?.stewardship || 0) +
         (state1.departmentBalances?.spymastery || 0) +
-        (state1.departmentBalances?.ecclesiastica || 0);
+        (state1.departmentBalances?.ecclesiastica || 0) +
+        (state1.departmentBalances?.publicWorks || 0);
       expect(deptSum).toBeCloseTo(75 - 3.75 - (state1.lastTaxFarmLeak || 0) - (state1.treasury || 0), 1);
       expect(deptSum).toBeGreaterThan(60);
     });

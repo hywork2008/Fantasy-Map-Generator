@@ -462,7 +462,8 @@ export class StrategicProcurementModule {
     const segments: TradeRouteSegment[] = routePath?.segments?.length
       ? routePath.segments.map(segment => ({
           type: segment.type,
-          points: segment.points.map(([x, y]) => [x, y])
+          points: segment.points.map(([x, y]) => [x, y]),
+          pavedShare: segment.pavedShare
         }))
       : [
           {

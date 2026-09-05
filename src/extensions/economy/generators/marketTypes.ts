@@ -377,6 +377,14 @@ export type TradeRouteSegment = {
   /** `water` is retained only for caravans saved before sea and river legs were separated. */
   type: "land" | "water" | "sea" | "river";
   points: TradeRoutePoint[];
+  /**
+   * Land segments only: 0..1 share of this leg's hops that run on paved `roads`/`railways`
+   * track rather than `trails` or open country, snapshotted when the path was planned. Feeds
+   * tradeRouteDuration.ts's getSurfaceSpeedMultiplier(). Absent on segments planned before
+   * docs/plan/economy-coupling-audit.md L8 stage 2, and on wilderness paths that follow no
+   * route at all — both travel at the unpaved speed.
+   */
+  pavedShare?: number;
 };
 
 /** Port / yard accumulation before a commercial shipment sails. */

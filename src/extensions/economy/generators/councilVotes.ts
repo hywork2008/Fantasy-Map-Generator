@@ -30,7 +30,8 @@ export type CouncilBudgetLine =
   | "cutChancery"
   | "cutStewardship"
   | "cutSpymastery"
-  | "cutEcclesiastica";
+  | "cutEcclesiastica"
+  | "cutPublicWorks";
 
 export interface CouncilFactionShares {
   court: number;
@@ -194,6 +195,17 @@ export function factionYesLean(
       if (faction === "court") return state.form === "Theocracy" ? 0.1 : 0.4;
       if (faction === "military") return 0.55;
       if (faction === "merchants") return 0.55;
+      return 0.5;
+    }
+    case "cutPublicWorks": {
+      // Roads, harbours and granaries (docs/plan/economy-coupling-audit.md L8 stage 2).
+      // Merchants defend it hardest — paved roads and dredged quays are their trade routes.
+      // The military relies on the same roads for marching, so it is only mildly in favour;
+      // the court, which pays for it out of revenue it would rather keep, is the readiest to cut.
+      if (faction === "merchants") return 0.1;
+      if (faction === "military") return 0.35;
+      if (faction === "clergy") return 0.45;
+      if (faction === "court") return 0.5;
       return 0.5;
     }
     default:

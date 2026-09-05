@@ -318,6 +318,22 @@ export interface Burg {
   foodSecurity?: number;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;
+  /**
+   * State public-works stock built out of the Public Works department budget
+   * (`departmentBalances.publicWorks`, docs/plan/economy-coupling-audit.md L8 stage 2). Each
+   * level is 0..1, decays a little every year without funding, and is absent until the burg has
+   * received its first works grant — treat a missing object or key as 0 (no works).
+   */
+  publicWorks?: {
+    /**
+     * Quays, cranes and dredging at a port burg. Shortens the mode-transfer penalty a caravan
+     * pays when it changes between land and water at this burg (tradeRouteDuration.ts).
+     * Only ever raised on burgs with `port` set.
+     */
+    harbor?: number;
+    /** Public granaries. Raises this burg's target `foodReserve` in days of urban need. */
+    granary?: number;
+  };
   market?: number;
   demographics?: BurgDemographics;
   /**
@@ -647,6 +663,14 @@ export interface Route {
   length?: number;
   /** Runtime: set by user in editor */
   lock?: boolean;
+  /**
+   * Accumulated commercial traffic on this route: one point per caravan that departed along it,
+   * decayed each simulation year (`ROUTE_TRAFFIC_ANNUAL_RETENTION`). Written by the Economy
+   * extension only; absent on maps that never ran a trade cycle. Public Works promotes a busy
+   * enough `trails` route to `roads` once its owning state can pay for the paving
+   * (docs/plan/economy-coupling-audit.md L8 stage 2).
+   */
+  traffic?: number;
 }
 
 export interface Campaign {
@@ -733,6 +757,13 @@ export interface State {
     stewardship: number;
     spymastery: number;
     ecclesiastica: number;
+    /**
+     * Public Works (roads, harbours, granaries). Like marshalcy — and unlike the other four —
+     * this balance has a real spending sink and is exempt from the L3a over-cap remit, so a
+     * small state can save toward one paving project across several years
+     * (docs/plan/economy-coupling-audit.md L8 stage 2).
+     */
+    publicWorks: number;
   };
   /**
    * 0..1 EWMA gauge of how well-funded each non-marshalcy department has *been* recently
@@ -747,6 +778,7 @@ export interface State {
     stewardship: number;
     spymastery: number;
     ecclesiastica: number;
+    publicWorks: number;
   };
   /**
    * Player policy lever (PR-17c): per-department multiplier (0.5-1.5) on top of the form
@@ -761,6 +793,7 @@ export interface State {
     stewardship?: number;
     spymastery?: number;
     ecclesiastica?: number;
+    publicWorks?: number;
   };
   /** Fraction of population-equivalent grain paid to the suzerain each generation (Vassal states only). */
   tributeRate?: number;
@@ -1038,6 +1071,7 @@ export interface State {
     cutStewardship: boolean;
     cutSpymastery: boolean;
     cutEcclesiastica: boolean;
+    cutPublicWorks: boolean;
   };
   /** PR-8: whether the last wartime assembly vetoed part of revenue. */
   councilLastFailed?: boolean;

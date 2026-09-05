@@ -28,6 +28,7 @@ export interface CouncilBudgetApprovals {
   cutStewardship: boolean;
   cutSpymastery: boolean;
   cutEcclesiastica: boolean;
+  cutPublicWorks: boolean;
   support: number;
 }
 
@@ -42,7 +43,10 @@ export const COUNCIL_LINE_THRESHOLDS = {
   cutChancery: 30,
   cutStewardship: 30,
   cutSpymastery: 25,
-  cutEcclesiastica: 40
+  cutEcclesiastica: 40,
+  // Public Works sits between the two: less politically charged than the Church's budget, but
+  // the merchant bloc that funds the assembly notices a paving programme being cancelled.
+  cutPublicWorks: 35
 } as const;
 
 function lineClearsSupport(line: CouncilBudgetLine, support: number, atWar: boolean): boolean {
@@ -63,6 +67,8 @@ function lineClearsSupport(line: CouncilBudgetLine, support: number, atWar: bool
       return support >= COUNCIL_LINE_THRESHOLDS.cutSpymastery;
     case "cutEcclesiastica":
       return support >= COUNCIL_LINE_THRESHOLDS.cutEcclesiastica;
+    case "cutPublicWorks":
+      return support >= COUNCIL_LINE_THRESHOLDS.cutPublicWorks;
     default:
       return false;
   }
@@ -85,6 +91,7 @@ export function getCouncilBudgetApprovals(state: State): CouncilBudgetApprovals 
   const voteCutStewardship = simulateCouncilVote(state, "cutStewardship");
   const voteCutSpymastery = simulateCouncilVote(state, "cutSpymastery");
   const voteCutEcclesiastica = simulateCouncilVote(state, "cutEcclesiastica");
+  const voteCutPublicWorks = simulateCouncilVote(state, "cutPublicWorks");
 
   return {
     support,
@@ -96,7 +103,8 @@ export function getCouncilBudgetApprovals(state: State): CouncilBudgetApprovals 
     cutChancery: lineClearsSupport("cutChancery", support, atWar) && voteCutChancery.passed,
     cutStewardship: lineClearsSupport("cutStewardship", support, atWar) && voteCutStewardship.passed,
     cutSpymastery: lineClearsSupport("cutSpymastery", support, atWar) && voteCutSpymastery.passed,
-    cutEcclesiastica: lineClearsSupport("cutEcclesiastica", support, atWar) && voteCutEcclesiastica.passed
+    cutEcclesiastica: lineClearsSupport("cutEcclesiastica", support, atWar) && voteCutEcclesiastica.passed,
+    cutPublicWorks: lineClearsSupport("cutPublicWorks", support, atWar) && voteCutPublicWorks.passed
   };
 }
 
@@ -115,7 +123,8 @@ export function refreshCouncilBudgetApprovals(state: State): CouncilBudgetApprov
     cutChancery: approvals.cutChancery,
     cutStewardship: approvals.cutStewardship,
     cutSpymastery: approvals.cutSpymastery,
-    cutEcclesiastica: approvals.cutEcclesiastica
+    cutEcclesiastica: approvals.cutEcclesiastica,
+    cutPublicWorks: approvals.cutPublicWorks
   };
   return approvals;
 }

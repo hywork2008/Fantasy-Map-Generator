@@ -2118,7 +2118,8 @@ export class MarketsModule {
           // Preserve cell ids for grade-aware duration / pathfinding consistency (Phase 1).
           points: segment.points.map((p): TradeRouteSegment["points"][number] =>
             typeof p[2] === "number" ? [p[0], p[1], p[2]] : [p[0], p[1]]
-          )
+          ),
+          pavedShare: segment.pavedShare
         }))
       : [
           {

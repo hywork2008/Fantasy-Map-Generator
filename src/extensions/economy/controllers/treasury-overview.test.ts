@@ -50,13 +50,14 @@ describe("refreshTreasuryOverview", () => {
       householdPurse: 250,
       departmentBalancesStock: 250,
       rulerPersonal: 0,
-      nominalDepartments: 350 + 150 + 120 + 50 + 80,
+      nominalDepartments: 350 + 150 + 80 + 40 + 60 + 70,
       household: 0,
       marshalcy: 350,
       chancery: 150,
-      stewardship: 120,
-      spymastery: 50,
-      ecclesiastica: 80
+      stewardship: 80,
+      spymastery: 40,
+      ecclesiastica: 60,
+      publicWorks: 70
     });
 
     const theocracyRow = rows.find(row => row.id === 2);
@@ -68,7 +69,7 @@ describe("refreshTreasuryOverview", () => {
       householdPurse: 80,
       departmentBalancesStock: 0,
       marshalcy: 150,
-      ecclesiastica: 480
+      ecclesiastica: 430
     });
 
     // Both public 0; sort falls back to marshalcy (monarchy 350 > theocracy 150).

@@ -12,6 +12,7 @@ export type {
   Province,
   Race,
   RaceKey,
+  Route,
   State,
   Zone
 } from "../types/models";

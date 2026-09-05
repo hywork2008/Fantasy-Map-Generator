@@ -168,6 +168,7 @@ import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generator
 import { PowerGridInvestment } from "./generators/powerGridInvestment";
 import { PowerStations } from "./generators/powerStations";
 import { Production } from "./generators/production-generator";
+import { clearPublicWorksSettlements, PublicWorks } from "./generators/publicWorks";
 import { QuarryOperations } from "./generators/quarryOperations";
 import {
   clearRetailInventory,
@@ -1544,6 +1545,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearViticultureAllocationShares();
       clearStrategicProcurementExpenses();
       clearTreasuryAllocationSnapshots();
+      clearPublicWorksSettlements();
       StrategicProcurement.clear();
       setGuildChapters([]);
       clearAnnualGateYear(ANNUAL_GATE.guildChapters);
@@ -2479,6 +2481,7 @@ export function init(api: ExtensionAPI): void {
           clearVoyageIncome();
           clearStrategicProcurementExpenses();
           clearTreasuryAllocationSnapshots();
+          clearPublicWorksSettlements();
           clearStateFiscalReports();
           StrategicProcurement.clear();
           TradeAnimation.clearRouteCache();
@@ -3186,11 +3189,20 @@ export function init(api: ExtensionAPI): void {
     // Returns true only when new "railways" route track was laid this call
     // (docs/plan/steam-industrial-implementation.md §7) — drives map.networks below.
     const railwayNetworkChanged = SteamIndustry.settleAnnual();
+    // Spends state.departmentBalances.publicWorks on road promotions, harbour works and public
+    // granaries; true only when a trail was promoted to "roads" this call
+    // (docs/plan/economy-coupling-audit.md L8 stage 2). Self-gates once per simulation year.
+    const publicWorks = PublicWorks.settleAnnual();
 
     if (urbanWaterChanged) writer.markChanged("simulation.burgs", "map.settlements");
     // New railway track was laid into pack.routes/pack.cells.routes this tick
-    // (steamIndustry.ts's settleRailways) — redraw routes and invalidate the WebGL cache.
-    if (railwayNetworkChanged) writer.markChanged("map.networks");
+    // (steamIndustry.ts's settleRailways), or a trail changed group to "roads"
+    // (publicWorks.ts) — redraw routes and invalidate the WebGL cache.
+    if (railwayNetworkChanged || publicWorks.networkChanged) writer.markChanged("map.networks");
+    // Public works also move Burg.publicWorks levels, which feed food reserves and port throughput,
+    // and draw this year's spend out of state.departmentBalances.publicWorks.
+    if (publicWorks.worksChanged) writer.markChanged("simulation.burgs");
+    if (publicWorks.settled) writer.markChanged("simulation.states");
   });
 
   registerEconomyTickSystem("economy.annualKnowledge", (context, _writer) => {
@@ -3676,6 +3688,7 @@ export function cleanup(api: ExtensionAPI): void {
   clearVoyageIncome();
   clearStrategicProcurementExpenses();
   clearTreasuryAllocationSnapshots();
+  clearPublicWorksSettlements();
   clearLiveAnimalCatchAccumulators();
   clearFaunaPopulation();
   clearViticultureAllocationShares();

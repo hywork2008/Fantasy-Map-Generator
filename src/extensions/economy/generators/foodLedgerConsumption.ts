@@ -11,6 +11,7 @@ import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, getStapleFoodGood } from "./foodProduction";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
+import { getGranaryReserveMultiplier } from "./publicWorks";
 import { drawStapleCropFood } from "./stapleCropInventory";
 
 const STRESS_THRESHOLD = 0.05;
@@ -76,7 +77,10 @@ function getTemporaryLodgerDailyNeed(populationPoints: number, populationRate: n
 
 /** Tops up a burg's small local reserve from the market pool, capped by what the market can spare. */
 function topUpBurgFoodReserve(burg: Burg, ledger: FoodLedger, populationRate: number, urbanization: number): void {
-  const target = getBurgDailyNeed(burg, populationRate, urbanization) * BURG_TARGET_RESERVE_DAYS;
+  // A state-funded public granary deepens the buffer this burg tries to hold, which is what makes
+  // the Public Works budget matter to the L3 famine loop (economy-coupling-audit.md L8 stage 2).
+  const target =
+    getBurgDailyNeed(burg, populationRate, urbanization) * BURG_TARGET_RESERVE_DAYS * getGranaryReserveMultiplier(burg);
   const shortfall = Math.max(0, target - (burg.foodReserve ?? 0));
   if (shortfall <= 0) return;
   const drawn = drawFromLedgerFifo(ledger, shortfall);

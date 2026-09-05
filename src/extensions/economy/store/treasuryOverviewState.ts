@@ -79,6 +79,14 @@ export interface TreasuryOverviewRow {
   stewardship: number;
   spymastery: number;
   ecclesiastica: number;
+  /** Nominal Public Works budget this cycle (docs/plan/economy-coupling-audit.md L8 stage 2). */
+  publicWorks: number;
+  /** L3a Public Works balance still unspent — a state saving up for a paving project. */
+  publicWorksBalance: number;
+  /** Silver spent on roads/harbours/granaries at the last annual public-works settlement. */
+  publicWorksSpent: number;
+  /** Trails promoted to roads at the last annual public-works settlement. */
+  roadsPaved: number;
   /**
    * PR-17b — smoothed 0..1 liquidity-based service level per non-marshalcy department.
    * 1 = fully funded recently, 0 = the treasury could not afford it. Feeds real gameplay effects
@@ -89,11 +97,13 @@ export interface TreasuryOverviewRow {
   stewardshipServiceLevel: number;
   spymasteryServiceLevel: number;
   ecclesiasticaServiceLevel: number;
+  publicWorksServiceLevel: number;
   /** PR-17c — player's per-department budget multiplier, 1 = unchanged from form baseline. */
   chanceryBudgetMultiplier: number;
   stewardshipBudgetMultiplier: number;
   spymasteryBudgetMultiplier: number;
   ecclesiasticaBudgetMultiplier: number;
+  publicWorksBudgetMultiplier: number;
   /** PR-17a — cash remitted L3a → L2 this cycle because a non-marshalcy balance hit its cap. */
   departmentBalanceRemit: number;
   /**

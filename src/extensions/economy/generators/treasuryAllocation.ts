@@ -32,21 +32,47 @@ export const BASELINE_ALLOCATION_BY_FORM: Record<string, DepartmentBaselineAlloc
     marshalcy: 0.35,
     household: 0.25,
     chancery: 0.15,
-    stewardship: 0.12,
-    spymastery: 0.05,
-    ecclesiastica: 0.08
+    stewardship: 0.08,
+    spymastery: 0.04,
+    ecclesiastica: 0.06,
+    publicWorks: 0.07
   },
-  Republic: { marshalcy: 0.3, household: 0.05, chancery: 0.3, stewardship: 0.2, spymastery: 0.12, ecclesiastica: 0.03 },
+  Republic: {
+    marshalcy: 0.3,
+    household: 0.05,
+    chancery: 0.3,
+    stewardship: 0.14,
+    spymastery: 0.08,
+    ecclesiastica: 0.03,
+    publicWorks: 0.1
+  },
   Theocracy: {
     marshalcy: 0.15,
     household: 0.08,
     chancery: 0.12,
     stewardship: 0.12,
     spymastery: 0.05,
-    ecclesiastica: 0.48
+    ecclesiastica: 0.43,
+    publicWorks: 0.05
   },
-  Union: { marshalcy: 0.2, household: 0.08, chancery: 0.4, stewardship: 0.2, spymastery: 0.1, ecclesiastica: 0.02 },
-  Anarchy: { marshalcy: 0.75, household: 0.15, chancery: 0.02, stewardship: 0.02, spymastery: 0.06, ecclesiastica: 0 }
+  Union: {
+    marshalcy: 0.2,
+    household: 0.08,
+    chancery: 0.4,
+    stewardship: 0.15,
+    spymastery: 0.07,
+    ecclesiastica: 0.02,
+    publicWorks: 0.08
+  },
+  Anarchy: {
+    marshalcy: 0.75,
+    household: 0.15,
+    chancery: 0.02,
+    stewardship: 0.02,
+    spymastery: 0.04,
+    ecclesiastica: 0,
+    publicWorks: 0.02
+  }
 };
 const DEFAULT_BASELINE_ALLOCATION = BASELINE_ALLOCATION_BY_FORM.Monarchy;
 
@@ -83,7 +109,13 @@ export function applyRulerPersonalityToBaseline(
   // Pull the opposite of each delta from the largest other non-target pools.
   const absorb = -greedDelta - boldDelta;
   if (Math.abs(absorb) > 0.0001) {
-    const donors: (keyof DepartmentBaselineAllocation)[] = ["chancery", "stewardship", "spymastery", "ecclesiastica"];
+    const donors: (keyof DepartmentBaselineAllocation)[] = [
+      "chancery",
+      "stewardship",
+      "spymastery",
+      "ecclesiastica",
+      "publicWorks"
+    ];
     let donorSum = 0;
     for (const key of donors) donorSum += next[key];
     if (donorSum > 0) {
@@ -99,7 +131,8 @@ export function applyRulerPersonalityToBaseline(
     "chancery",
     "stewardship",
     "spymastery",
-    "ecclesiastica"
+    "ecclesiastica",
+    "publicWorks"
   ];
   let sum = 0;
   for (const key of keys) sum += next[key];
@@ -184,6 +217,11 @@ function isDepartmentCutApproved(state: Pick<State, "councilApprovals">, key: No
       return approvals.cutSpymastery;
     case "ecclesiastica":
       return approvals.cutEcclesiastica;
+    case "publicWorks":
+      // Saves written before L8 stage 2 have no cutPublicWorks key; treat that the same way a
+      // missing councilApprovals object is treated above (permissive) rather than as a veto.
+      // refreshCouncilBudgetApprovals() rewrites the whole snapshot on the next tax cycle.
+      return approvals.cutPublicWorks ?? true;
     default:
       return true;
   }
@@ -368,7 +406,7 @@ export const CENTRAL_OFFICE_STIPEND_CAP = 9.0;
 
 export type DepartmentBalanceKey = keyof Pick<
   DepartmentBaselineAllocation,
-  "marshalcy" | "chancery" | "stewardship" | "spymastery" | "ecclesiastica"
+  "marshalcy" | "chancery" | "stewardship" | "spymastery" | "ecclesiastica" | "publicWorks"
 >;
 
 export type DepartmentBalances = Record<DepartmentBalanceKey, number>;
@@ -378,11 +416,12 @@ export const DEPARTMENT_BALANCE_KEYS: readonly DepartmentBalanceKey[] = [
   "chancery",
   "stewardship",
   "spymastery",
-  "ecclesiastica"
+  "ecclesiastica",
+  "publicWorks"
 ] as const;
 
 export function emptyDepartmentBalances(): DepartmentBalances {
-  return { marshalcy: 0, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0 };
+  return { marshalcy: 0, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0, publicWorks: 0 };
 }
 
 /** Ensure `state.departmentBalances` exists (mutates state). */
@@ -451,22 +490,38 @@ export const NON_MARSHALCY_DEPARTMENT_KEYS: readonly NonMarshalcyDepartmentKey[]
   "chancery",
   "stewardship",
   "spymastery",
+  "ecclesiastica",
+  "publicWorks"
+] as const;
+
+/**
+ * The departments capDepartmentBalances() actually caps. Marshalcy is excluded for the reason
+ * in DEPARTMENT_BALANCE_CAP_CYCLES' doc comment, and Public Works for the same one: publicWorks.ts
+ * draws it down every year on paving/harbour/granary projects, and a single road can cost more
+ * than a small state's whole annual works budget, so capping it at 6 cycles of nominal spend
+ * would make multi-year projects unaffordable exactly where they matter most
+ * (docs/plan/economy-coupling-audit.md L8 stage 2).
+ */
+export const CAPPED_DEPARTMENT_KEYS: readonly NonMarshalcyDepartmentKey[] = [
+  "chancery",
+  "stewardship",
+  "spymastery",
   "ecclesiastica"
 ] as const;
 
 /**
- * PR-17a (docs/plan/department-budget-spending-effects.md §6) — non-marshalcy department
+ * PR-17a (docs/plan/department-budget-spending-effects.md §6) — the four capped department
  * balances (Chancery/Stewardship/Spymastery/Ecclesiastica) have no spending sink beyond
  * payCentralOfficeStipends' 12% personal-stipend share, so without a cap they accumulate
  * forever with zero further gameplay effect. Marshalcy is deliberately exempt: it is actively
  * drawn down every cycle by troop upkeep and field-commander pay (payMilitaryUpkeep /
  * payFieldCommanderStipends), so an unbounded balance there is a real war chest, not dead
- * weight.
+ * weight. Public Works is exempt for the same reason — see CAPPED_DEPARTMENT_KEYS.
  */
 export const DEPARTMENT_BALANCE_CAP_CYCLES = 6;
 
 /**
- * Caps each non-marshalcy department balance at this cycle's nominal budget × CAP_CYCLES,
+ * Caps each CAPPED_DEPARTMENT_KEYS balance at this cycle's nominal budget × CAP_CYCLES,
  * remitting any excess back to L2 `state.treasury` — framed as "the office cannot spend faster
  * than this," not a penalty; the cash is never destroyed. Skips a department whose nominal
  * budget this cycle is 0 (no income to anchor the cap to) rather than stripping an existing
@@ -475,7 +530,7 @@ export const DEPARTMENT_BALANCE_CAP_CYCLES = 6;
 export function capDepartmentBalances(state: State, nominal: DepartmentBalances): number {
   const balances = ensureDepartmentBalances(state);
   let remitted = 0;
-  for (const key of NON_MARSHALCY_DEPARTMENT_KEYS) {
+  for (const key of CAPPED_DEPARTMENT_KEYS) {
     const nominalBudget = nominal[key] || 0;
     if (!(nominalBudget > 0)) continue;
     const cap = rn(nominalBudget * DEPARTMENT_BALANCE_CAP_CYCLES, 2);
@@ -504,7 +559,7 @@ export function capDepartmentBalances(state: State, nominal: DepartmentBalances)
 export type DepartmentServiceLevel = Record<NonMarshalcyDepartmentKey, number>;
 
 export function emptyDepartmentServiceLevel(): DepartmentServiceLevel {
-  return { chancery: 1, stewardship: 1, spymastery: 1, ecclesiastica: 1 };
+  return { chancery: 1, stewardship: 1, spymastery: 1, ecclesiastica: 1, publicWorks: 1 };
 }
 
 /** Ensure `state.departmentServiceLevel` exists, defaulting missing keys to 1 (healthy). */
@@ -707,6 +762,12 @@ export interface TreasuryAllocationBreakdown {
   stewardship: number;
   spymastery: number;
   ecclesiastica: number;
+  /**
+   * Nominal Public Works Budget this cycle. Unlike the four above it funds no office holder —
+   * publicWorks.ts spends the L3a balance directly on roads/harbours/granaries once a year
+   * (docs/plan/economy-coupling-audit.md L8 stage 2).
+   */
+  publicWorks: number;
   /** Marshalcy Budget ÷ Need, mirrors state.militaryFundingRatio after this call. */
   militaryFundingRatio: number;
   /**
@@ -799,17 +860,19 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
   const stewardship = rn(income * baseline.stewardship, 2);
   const spymastery = rn(income * baseline.spymastery, 2);
   const ecclesiastica = rn(income * baseline.ecclesiastica, 2);
+  const publicWorks = rn(income * baseline.publicWorks, 2);
   const nominalDepartments: DepartmentBalances = {
     marshalcy: marshalcyBudget,
     chancery,
     stewardship,
     spymastery,
-    ecclesiastica
+    ecclesiastica,
+    publicWorks
   };
   const departmentBalancesCredit = creditDepartmentBalances(state, nominalDepartments);
   // PR-17b: liquidity scale this cycle (creditDepartmentBalances applies the same pro-rata
   // scale to every key, marshalcy included, when L2 is short) feeds departmentServiceLevel.
-  const desiredDeptTotal = rn(marshalcyBudget + chancery + stewardship + spymastery + ecclesiastica, 2);
+  const desiredDeptTotal = rn(marshalcyBudget + chancery + stewardship + spymastery + ecclesiastica + publicWorks, 2);
   const deptFundingScale = desiredDeptTotal > 0 ? Math.min(1, rn(departmentBalancesCredit / desiredDeptTotal, 4)) : 1;
   const departmentServiceLevel = updateDepartmentServiceLevel(state, deptFundingScale);
   const departmentActualCredit: DepartmentBalances = {
@@ -817,7 +880,8 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
     chancery: rn(chancery * deptFundingScale, 2),
     stewardship: rn(stewardship * deptFundingScale, 2),
     spymastery: rn(spymastery * deptFundingScale, 2),
-    ecclesiastica: rn(ecclesiastica * deptFundingScale, 2)
+    ecclesiastica: rn(ecclesiastica * deptFundingScale, 2),
+    publicWorks: rn(publicWorks * deptFundingScale, 2)
   };
 
   const breakdown: TreasuryAllocationBreakdown = {
@@ -829,6 +893,7 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
     stewardship,
     spymastery,
     ecclesiastica,
+    publicWorks,
     militaryFundingRatio: fundingRatio,
     departmentBalancesCredit,
     departmentActualCredit,

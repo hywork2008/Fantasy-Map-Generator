@@ -10,7 +10,13 @@ import {
   isGoodTradePermitted,
   isGoodTradePermittedForShipment
 } from "./tradeOpportunityEstimator";
-import { calculateRouteDurationDays, calculateRouteDurationFromDistances } from "./tradeRouteDuration";
+import {
+  calculateRouteDurationDays,
+  calculateRouteDurationFromDistances,
+  HARBOR_WORKS_MAX_TRANSFER_SAVING,
+  PORT_TRANSFER_PENALTY_DAYS,
+  UNPAVED_ROAD_SPEED_PENALTY
+} from "./tradeRouteDuration";
 
 describe("trade route duration and viability", () => {
   beforeEach(() => {
@@ -56,6 +62,62 @@ describe("trade route duration and viability", () => {
         1
       )
     ).toBe(4);
+  });
+
+  it("travels a paved land leg faster than the same trail, and leaves an unknown surface alone (L8 stage 2)", () => {
+    const points: [number, number][] = [
+      [0, 0],
+      [320, 0]
+    ];
+    const unknownSurface = calculateRouteDurationDays([{ type: "land", points }], 1);
+    const paved = calculateRouteDurationDays([{ type: "land", points, pavedShare: 1 }], 1);
+    const trail = calculateRouteDurationDays([{ type: "land", points, pavedShare: 0 }], 1);
+    const halfPaved = calculateRouteDurationDays([{ type: "land", points, pavedShare: 0.5 }], 1);
+
+    // Fully paved keeps exactly the pre-change speed; a segment with no recorded surface too.
+    expect(paved).toBe(10);
+    expect(unknownSurface).toBe(10);
+    expect(trail).toBe(Math.ceil(10 / (1 - UNPAVED_ROAD_SPEED_PENALTY)));
+    expect(halfPaved).toBeGreaterThan(paved);
+    expect(halfPaved).toBeLessThanOrEqual(trail);
+  });
+
+  it("shortens the port transfer penalty at a burg with harbour works, and only there", () => {
+    worldContext.pack = {
+      cells: { h: [20, 20], burg: [0, 1] },
+      burgs: [{ i: 0 }, { i: 1, publicWorks: { harbor: 1 } }]
+    } as unknown as PackedGraph;
+
+    // The transfer happens at the first point of the second segment — cell 1, burg 1.
+    const withWorks = calculateRouteDurationDays(
+      [
+        { type: "land", points: [[0, 0, 0]] },
+        {
+          type: "water",
+          points: [
+            [0, 0, 1],
+            [0, 60, 1]
+          ]
+        }
+      ],
+      1
+    );
+    // Same route, but the transfer point carries no burg at all.
+    const withoutWorks = calculateRouteDurationDays(
+      [
+        { type: "land", points: [[0, 0, 0]] },
+        {
+          type: "water",
+          points: [
+            [0, 0, 0],
+            [0, 60, 0]
+          ]
+        }
+      ],
+      1
+    );
+
+    expect(withoutWorks - withWorks).toBe(PORT_TRANSFER_PENALTY_DAYS * HARBOR_WORKS_MAX_TRANSFER_SAVING);
   });
 
   it("uses the independent downstream-river speed", () => {

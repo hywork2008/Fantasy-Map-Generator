@@ -383,7 +383,8 @@ function travelDays(origin: MarketBurg, destination: MarketBurg): number {
         type: segment.type,
         points: segment.points.map(point =>
           typeof point[2] === "number" ? [point[0], point[1], point[2]] : [point[0], point[1]]
-        )
+        ),
+        pavedShare: segment.pavedShare
       })),
       distanceScale
     );

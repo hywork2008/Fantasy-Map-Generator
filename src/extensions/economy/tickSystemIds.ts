@@ -97,7 +97,9 @@ export const ECONOMY_TICK_TOPIC_CONTRACTS: Readonly<Record<EconomyTickSystemId, 
   },
   "economy.annualInfrastructure": {
     reads: ["map.networks", "extension.economy", "simulation.burgs", "simulation.states", "simulation.cells"],
-    writes: ["map.settlements", "map.networks", "extension.economy", "simulation.burgs"]
+    // simulation.states: publicWorks.ts draws this year's works spend out of
+    // state.departmentBalances.publicWorks (docs/plan/economy-coupling-audit.md L8 stage 2).
+    writes: ["map.settlements", "map.networks", "extension.economy", "simulation.burgs", "simulation.states"]
   },
   "economy.annualKnowledge": {
     reads: ["map.politics", "extension.economy", "simulation.burgs", "simulation.states", "simulation.military"],

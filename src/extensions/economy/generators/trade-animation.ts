@@ -5,13 +5,16 @@ import { buildRiverNavigationGraph, type Point, useOptionsState } from "../../ho
 import { getWorldContext } from "../economyContext";
 import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
 import type { TradeRoutePoint } from "./marketTypes";
-import { PORT_TRANSFER_PENALTY_DAYS } from "./tradeRouteDuration";
+import { getPortTransferPenaltyDays, getSurfaceSpeedMultiplier } from "./tradeRouteDuration";
 
 type DrawFn = () => Promise<void>;
 type ClearFn = () => void;
 type RouteSegmentType = "land" | "sea" | "river";
-type RoutePath = { points: Point[]; segments: { type: RouteSegmentType; points: TradeRoutePoint[] }[] };
-type RouteGeometry = { points: number[][] };
+type RoutePath = {
+  points: Point[];
+  segments: { type: RouteSegmentType; points: TradeRoutePoint[]; pavedShare?: number }[];
+};
+type RouteGeometry = { points: number[][]; group?: string };
 
 export type TradeAnimationOptions = {
   displayType: string;
@@ -44,7 +47,11 @@ export class TradeAnimationModule {
   // (re)generation or a caravan-speed / grade setting change, so cache results between those
   // points instead of re-running the search for every call. See clearRouteCache().
   private routePathCache = new Map<string, RoutePath | null>();
-  private routeLookupCache: { isSeaRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } | null = null;
+  private routeLookupCache: {
+    isSeaRoute: Map<number, boolean>;
+    isPavedRoute: Map<number, boolean>;
+    routeById: Map<number, RouteGeometry>;
+  } | null = null;
 
   bind(deps: { draw: DrawFn; clear: ClearFn; isLayerOn: () => boolean }): void {
     this.drawFn = deps.draw;
@@ -126,15 +133,22 @@ export class TradeAnimationModule {
     this.routeLookupCache = null;
   }
 
-  private getRouteLookup(): { isSeaRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } {
+  private getRouteLookup(): {
+    isSeaRoute: Map<number, boolean>;
+    isPavedRoute: Map<number, boolean>;
+    routeById: Map<number, RouteGeometry>;
+  } {
     if (this.routeLookupCache) return this.routeLookupCache;
     const isSeaRoute = new Map<number, boolean>();
+    const isPavedRoute = new Map<number, boolean>();
     const routeById = new Map<number, RouteGeometry>();
     for (const route of getWorldContext().pack.routes) {
       isSeaRoute.set(route.i, route.group === "searoutes");
+      // Public Works promotes busy trails to "roads"; railways are metalled by definition.
+      isPavedRoute.set(route.i, route.group === "roads" || route.group === "railways");
       routeById.set(route.i, route);
     }
-    this.routeLookupCache = { isSeaRoute, routeById };
+    this.routeLookupCache = { isSeaRoute, isPavedRoute, routeById };
     return this.routeLookupCache;
   }
 
@@ -323,7 +337,8 @@ export class TradeAnimationModule {
     const world = getWorldContext();
     const movement = CaravanMovement.getOptions();
     const points = this.extractEdgePoints(fromCell, toCell, routeId, routeById);
-    const transferDays = previousType !== undefined && previousType !== type ? PORT_TRANSFER_PENALTY_DAYS : 0;
+    // The mode change happens at fromCell, so that burg's harbour works are what shorten it.
+    const transferDays = previousType !== undefined && previousType !== type ? getPortTransferPenaltyDays(fromCell) : 0;
 
     if (type === "sea" || type === "river") {
       const speed = type === "river" ? movement.riverKmPerDay : movement.seaKmPerDay;
@@ -352,7 +367,17 @@ export class TradeAnimationModule {
       routePreference: movement.merchantRoutePreference
     });
     if (!Number.isFinite(days)) return Infinity;
-    return days + transferDays;
+    // Trails are slower than metalled track, so Dijkstra prefers a road over a parallel trail of
+    // equal length — the same multiplier calculateRouteDurationDays applies to the resulting
+    // segment. An off-route wilderness hop has no surface to judge and keeps the plain speed.
+    const surface = routeId === undefined ? 1 : getSurfaceSpeedMultiplier(this.isPavedRouteId(routeId) ? 1 : 0);
+    return days / surface + transferDays;
+  }
+
+  /** True when this route id is metalled track (`roads`/`railways`) rather than a trail. */
+  private isPavedRouteId(routeId: number | undefined): boolean {
+    if (routeId === undefined) return false;
+    return this.getRouteLookup().isPavedRoute.get(routeId) === true;
   }
 
   private buildPathResult(terminalState: number, prevCellArr: Int32Array, prevStateArr: Int32Array): RoutePath {
@@ -373,16 +398,23 @@ export class TradeAnimationModule {
 
     const { routeById } = this.getRouteLookup();
 
-    const segments: { type: RouteSegmentType; points: TradeRoutePoint[] }[] = [];
+    const segments: { type: RouteSegmentType; points: TradeRoutePoint[]; pavedShare?: number }[] = [];
     let currentType: RouteSegmentType = edgeTypes[0];
+    // Hop tally for the segment being assembled, so a land leg can record what share of it runs
+    // on metalled track (docs/plan/economy-coupling-audit.md L8 stage 2).
+    let hops = 0;
+    let pavedHops = 0;
+    const closeSegment = (type: RouteSegmentType, points: TradeRoutePoint[]): void => {
+      segments.push({ type, points, ...(type === "land" && hops > 0 ? { pavedShare: pavedHops / hops } : {}) });
+      hops = 0;
+      pavedHops = 0;
+    };
 
-    const firstEdge = this.extractEdgePoints(
-      cells[0],
-      cells[1],
-      getWorldContext().pack.cells.routes[cells[0]]?.[cells[1]],
-      routeById
-    );
+    const firstRouteId = getWorldContext().pack.cells.routes[cells[0]]?.[cells[1]];
+    const firstEdge = this.extractEdgePoints(cells[0], cells[1], firstRouteId, routeById);
     let currentPoints: TradeRoutePoint[] = firstEdge.map(p => [p[0], p[1], p[2]] as TradeRoutePoint);
+    hops = 1;
+    pavedHops = this.isPavedRouteId(firstRouteId) ? 1 : 0;
 
     for (let i = 1; i < cells.length - 1; i++) {
       const fromCell = cells[i];
@@ -390,17 +422,16 @@ export class TradeAnimationModule {
       const type: RouteSegmentType = edgeTypes[i];
 
       if (type !== currentType) {
-        segments.push({ type: currentType, points: currentPoints });
+        const closingPoints = currentPoints;
         currentPoints = [currentPoints[currentPoints.length - 1]];
+        closeSegment(currentType, closingPoints);
         currentType = type;
       }
 
-      const edgePoints = this.extractEdgePoints(
-        fromCell,
-        toCell,
-        getWorldContext().pack.cells.routes[fromCell]?.[toCell],
-        routeById
-      );
+      const routeId = getWorldContext().pack.cells.routes[fromCell]?.[toCell];
+      hops++;
+      if (this.isPavedRouteId(routeId)) pavedHops++;
+      const edgePoints = this.extractEdgePoints(fromCell, toCell, routeId, routeById);
 
       let k = 0;
       while (k < edgePoints.length && edgePoints[k][2] === fromCell) k++;
@@ -410,7 +441,7 @@ export class TradeAnimationModule {
         currentPoints.push([edgePoints[k][0], edgePoints[k][1], edgePoints[k][2]]);
       }
     }
-    segments.push({ type: currentType, points: currentPoints });
+    closeSegment(currentType, currentPoints);
 
     const firstSeg = segments[0].points;
     const lastSeg = segments[segments.length - 1].points;

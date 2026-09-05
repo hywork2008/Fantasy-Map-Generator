@@ -30,7 +30,13 @@ describe("warFooting (PR-6)", () => {
       expect(next.marshalcy).toBeGreaterThanOrEqual(WAR_FOOTING_MARSHALCY_FLOOR - 0.001);
       expect(next.household).toBeLessThan(baseline.household);
       const sum =
-        next.marshalcy + next.household + next.chancery + next.stewardship + next.spymastery + next.ecclesiastica;
+        next.marshalcy +
+        next.household +
+        next.chancery +
+        next.stewardship +
+        next.spymastery +
+        next.ecclesiastica +
+        next.publicWorks;
       expect(sum).toBeCloseTo(1, 3);
     });
 
