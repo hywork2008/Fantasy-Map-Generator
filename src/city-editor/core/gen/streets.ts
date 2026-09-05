@@ -13,11 +13,12 @@
 // all cell edges, close off the citadel and the wall line): a street only steps
 // between vertices of `urban` cells and never through the citadel enceinte; a
 // road only steps between NON-urban vertices ("outside the wall" then follows,
-// because the wall wraps the urban fabric). `tidyUpRoads` splits the union of
-// streets + roads at every junction, drops
-// the plaza's own edges and smooths each run's interior vertices (endpoints —
-// gates and junctions — stay put) to give `arteries`, the lines S7 sets
-// buildings back from.
+// because the wall wraps the urban fabric). River-walked cell edges are a
+// never-exempted hard bar for both (design §3.1: river + road may not share an
+// edge — not a high cost). `tidyUpRoads` splits the union of streets + roads at
+// every junction, drops the plaza's own edges and smooths each run's interior
+// vertices (endpoints — gates and junctions — stay put) to give `arteries`, the
+// lines S7 sets buildings back from.
 
 import {
   aStar,
@@ -51,6 +52,13 @@ export interface StreetInputs {
   geo: CityGeography;
   cellSizeMeters: number;
   halfExtentMeters: number;
+  /**
+   * Walked river polylines (`walkRiver` `edgePoints`, not the smoothed
+   * centreline). Consecutive pairs that match graph nodes are hard-barred for
+   * streets and roads — never a `weight` multiplier, never exempted at
+   * endpoints (Phase G7 / design §3.1). Omit or `[]` when there is no river.
+   */
+  rivers?: Point[][];
 }
 
 /**
@@ -82,7 +90,8 @@ export function buildStreets(input: StreetInputs): StreetResult {
     citadelOutline,
     geo,
     cellSizeMeters,
-    halfExtentMeters
+    halfExtentMeters,
+    rivers: riverPolylines = []
   } = input;
   if (!gates.length || !cells.length) return EMPTY;
 
@@ -126,6 +135,20 @@ export function buildStreets(input: StreetInputs): StreetResult {
     }
   }
   const crossesSea = (a: number, b: number): boolean => seaNodes.has(a) || seaNodes.has(b);
+
+  // River-walked graph edges. Keyed undirected so A* either direction is barred.
+  // Mapping is the same MERGE_QUANTUM as `nodeAt` — `edgePoints` are graph vertices.
+  const undirectedKey = (a: number, b: number): string => (a < b ? `${a},${b}` : `${b},${a}`);
+  const riverEdgeSet = new Set<string>();
+  for (const line of riverPolylines) {
+    for (let i = 0; i + 1 < line.length; i++) {
+      const a = nodeAt.get(qk(line[i]));
+      const b = nodeAt.get(qk(line[i + 1]));
+      if (a === undefined || b === undefined || a === b) continue;
+      riverEdgeSet.add(undirectedKey(a, b));
+    }
+  }
+  const onRiver = (a: number, b: number): boolean => riverEdgeSet.has(undirectedKey(a, b));
 
   /** `weight` returns a multiplier on the edge length: `Infinity` bars the edge,
    * `> 1` discourages it, `1` is neutral. Edges incident to the route's own
@@ -176,9 +199,10 @@ export function buildStreets(input: StreetInputs): StreetResult {
     return borderNodes.has(a) || borderNodes.has(b) ? 1.6 : 1;
   };
   const crossesCitadel = (a: number, b: number): boolean => !clearOfCitadel(a, b);
+  const streetsHardBar = (a: number, b: number): boolean => crossesCitadel(a, b) || onRiver(a, b);
   const streets: Point[][] = [];
   for (const gate of gates) {
-    const line = route(gate.point, streetTarget, streetWeight, crossesCitadel);
+    const line = route(gate.point, streetTarget, streetWeight, streetsHardBar);
     if (line) streets.push(line);
   }
 
@@ -190,6 +214,7 @@ export function buildStreets(input: StreetInputs): StreetResult {
   // radial stub closes onto the gate.
   const nonUrban = (a: number, b: number): number =>
     urbanNodes.has(a) || urbanNodes.has(b) ? Number.POSITIVE_INFINITY : 1;
+  const roadsHardBar = (a: number, b: number): boolean => crossesSea(a, b) || onRiver(a, b);
   const roads: Point[][] = [];
   for (const gate of gates) {
     if (gate.water) continue;
@@ -201,8 +226,13 @@ export function buildStreets(input: StreetInputs): StreetResult {
     const apronNode = nearestNode(graph, apron);
     if (urbanNodes.has(apronNode) || seaNodes.has(apronNode)) continue;
     const goal = farNodeFor(gate, geo, halfExtentMeters, waterPolygon);
-    const legs = route(goal, graph.points[apronNode], nonUrban, crossesSea);
-    if (legs) roads.push([...legs, [gate.point[0], gate.point[1]]]);
+    const legs = route(goal, graph.points[apronNode], nonUrban, roadsHardBar);
+    if (!legs) continue;
+    // The radial stub onto the gate is not an A* hop — bar it separately so a
+    // river along the wall cannot become the road's first edge.
+    const gateNode = nearestNode(graph, gate.point);
+    const line = onRiver(apronNode, gateNode) ? legs : [...legs, [gate.point[0], gate.point[1]] as Point];
+    roads.push(line);
   }
 
   const arteries = buildArteries([...streets, ...roads], plazaPolys, cellSizeMeters).arteries;

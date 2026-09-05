@@ -105,6 +105,10 @@ export function edgeEnd(mesh: Mesh, ref: EdgeRef): Id {
   return ref.forward ? edge.b : edge.a;
 }
 
+export function incidentEdges(mesh: Mesh, vertexId: Id): Edge[] {
+  return Object.values(mesh.edges).filter(edge => edge.a === vertexId || edge.b === vertexId);
+}
+
 export function incidentFaces(mesh: Mesh, vertexId: Id): Face[] {
   return Object.values(mesh.faces).filter(face => faceVertices(mesh, face).includes(vertexId));
 }

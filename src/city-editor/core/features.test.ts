@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createDocument } from "./document";
 import {
   appendEdge,
+  appendRiverVertex,
+  createGroup,
   encloseCircleWithWalls,
   encloseWardComponentWithWalls,
   featureGroupVertices,
@@ -379,6 +381,58 @@ describe("route group editing", () => {
     const extended = appendEdge(document, "wall-1", "ad");
     expect(extended).not.toBeNull();
     expect(extended).not.toBe(document);
+  });
+
+  it("rejects appending a road onto a river-derived edge", () => {
+    const document = routeDocument();
+    document.featureGroups.push({
+      id: "river-1",
+      kind: "river",
+      name: "River #1",
+      vertices: ["a", "d"],
+      source: { vertexId: "a", kind: "spring" },
+      mouth: null,
+      style: { widthMeters: 12, color: "#4f8aad" },
+      locked: false
+    });
+    const withRoad = createGroup(document, "road");
+    const roadId = withRoad.featureGroups.at(-1)?.id as string;
+    expect(appendEdge(withRoad, roadId, "ad")).toBeNull();
+    expect(appendEdge(withRoad, roadId, "de")).not.toBeNull();
+  });
+
+  it("allows a wall to occupy a river-derived edge", () => {
+    const document = routeDocument();
+    document.featureGroups.push({
+      id: "river-1",
+      kind: "river",
+      name: "River #1",
+      vertices: ["a", "d"],
+      source: { vertexId: "a", kind: "spring" },
+      mouth: null,
+      style: { widthMeters: 12, color: "#4f8aad" },
+      locked: false
+    });
+    expect(appendEdge(document, "wall-1", "ad")).not.toBeNull();
+  });
+
+  it("rejects appending a river vertex across a road edge", () => {
+    const document = routeDocument();
+    document.featureGroups.push({
+      id: "road-1",
+      kind: "road",
+      name: "Road #1",
+      segments: [{ edgeId: "ad", forward: true }],
+      style: { widthMeters: 7, color: "#735238" },
+      locked: false
+    });
+    const withRiver = createGroup(document, "river");
+    const riverId = withRiver.featureGroups.at(-1)?.id as string;
+    const started = appendRiverVertex(withRiver, riverId, "a");
+    expect(started).not.toBeNull();
+    if (!started) return;
+    expect(appendRiverVertex(started, riverId, "d")).toBeNull();
+    expect(appendRiverVertex(started, riverId, "b")).not.toBeNull();
   });
 
   it("removes several brush-selected edges, including segments in split routes", () => {

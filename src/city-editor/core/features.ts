@@ -150,6 +150,10 @@ export function appendEdge(document: CityDocument, groupId: Id, edgeId: Id): Cit
   const group = next.featureGroups.find(candidate => candidate.id === groupId);
   const edge = next.mesh.edges[edgeId];
   if (!group || !edge || group.kind === "river" || group.locked) return null;
+  // design §3.1: a road may not occupy a river-derived edge. Walls may.
+  if (group.kind === "road" && next.featureGroups.some(g => g.kind === "river" && groupUsesEdge(next, g, edgeId))) {
+    return null;
+  }
   // Re-adding an edge the group already has is a no-op; hand back the original
   // document so the caller can skip the history snapshot.
   if (group.segments.some(segment => segment.edgeId === edgeId)) return document;
@@ -177,6 +181,11 @@ export function appendRiverVertex(document: CityDocument, groupId: Id, vertexId:
   const last = group.vertices.at(-1);
   if (last && !edgeBetween(next.mesh, last, vertexId)) return null;
   if (last === vertexId) return next;
+  // design §3.1: the new river interval may not sit on a road edge.
+  if (last) {
+    const edge = edgeBetween(next.mesh, last, vertexId);
+    if (edge && next.featureGroups.some(g => g.kind === "road" && groupUsesEdge(next, g, edge.id))) return null;
+  }
   group.vertices.push(vertexId);
   group.source ??= { vertexId, kind: "spring" };
   if (group.vertices.length >= 2 && vertexTouchesWater(next.mesh, vertexId)) group.mouth = { vertexId, kind: "water" };

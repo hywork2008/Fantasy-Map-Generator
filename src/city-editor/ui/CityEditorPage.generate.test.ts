@@ -70,7 +70,7 @@ const meshFingerprint = (): string => {
   return `${count(".ce-cells .ce-face")}#${edges}`;
 };
 
-/** Roll new towns until one has a river, a wall, gates and wards. */
+/** Roll new towns until one has a river, a wall, gates, approach roads and wards. */
 function seedRichTown(tries = 16): void {
   for (let i = 0; i < tries; i++) {
     if (i > 0) panelButton("新しい都市").click();
@@ -78,6 +78,7 @@ function seedRichTown(tries = 16): void {
     if (
       has(".ce-feature--river") &&
       has(".ce-feature--wall") &&
+      has(".ce-feature--road") &&
       has(".ce-gates > *") &&
       [...root.querySelectorAll("svg.ce-svg .ce-face")].some(
         f => f.classList.contains("ce-face--land") && !f.classList.contains("ce-face--ward-unassigned")
@@ -104,17 +105,20 @@ describe("Generate panel", () => {
     expect(panelButton("新しい都市")).toBeTruthy();
   });
 
-  it("never rebuilds the block mesh — the reported bug", () => {
+  it("never rebuilds the block mesh on ①–④ — the reported bug", () => {
     const before = meshFingerprint();
     expect(count(".ce-cells .ce-face")).toBeGreaterThan(0);
-    for (const label of ["①", "②", "③", "④", "⑤", "⑥"]) {
+    for (const label of ["①", "②", "③", "④"]) {
       stageButton(label).click();
       expect(meshFingerprint(), `mesh changed after ${label}`).toBe(before);
     }
-    panelButton("新しい都市").click();
-    expect(meshFingerprint()).toBe(before);
-    panelButton("Randomize geography").click();
-    expect(meshFingerprint()).toBe(before);
+    // ⑤–⑥ may merge or split a vertex to open a 4-way gate/bridge; they must
+    // not replace the grid wholesale (face count stays in the same ballpark).
+    const facesBefore = count(".ce-cells .ce-face");
+    stageButton("⑤").click();
+    const facesAfter = count(".ce-cells .ce-face");
+    expect(facesAfter).toBeGreaterThan(facesBefore * 0.5);
+    expect(facesAfter).toBeLessThan(facesBefore * 2 + 30);
   });
 
   it("shows one consistent town, one process at a time", () => {

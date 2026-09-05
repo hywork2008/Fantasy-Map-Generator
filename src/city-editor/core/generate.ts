@@ -48,6 +48,7 @@ import type {
 import { DEFAULT_WALL_PLAN } from "./gen/types";
 import { assignWards } from "./gen/wards";
 import { clone, edgeBetween, edgeEnd, edgeRefFor, faceNeighbors, facePoints, validate } from "./mesh";
+import { kindEdgeIds, openBarrierPassage, openGeneratedPassages } from "./passages";
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "./types";
 
 export type { CityFeatureSet, SiteConfig } from "./gen/site/siteConfig";
@@ -152,10 +153,11 @@ function prepareRun(document: CityDocument, settings: GenerationSettings, seed: 
 
 /**
  * Recompute the plan up to `stageStep` on `document`'s own mesh and return a new
- * document with the result written in — the mesh (vertices / edges / faces
- * topology and geometry) and the map frame are left untouched. `null` if the
- * result fails the editor's document validation. Deterministic in
- * `(document, settings, seed, stageStep)`, so re-pressing a stage is a no-op.
+ * document with the result written in. Stages ①–④ leave the mesh topology
+ * untouched. From ⑤, vertices where a road meets a wall or river may be merged
+ * or split so the meeting becomes a 4-way gate/bridge (opposite edges); river,
+ * road and wall still never share an edge. `null` if the result fails validation.
+ * Deterministic in `(document, settings, seed, stageStep)`.
  */
 export function generateStageOnDocument(
   document: CityDocument,
@@ -585,7 +587,8 @@ function runPlan(
     citadelOutline,
     geo,
     cellSizeMeters: cellSize,
-    halfExtentMeters: half
+    halfExtentMeters: half,
+    rivers: rivers.map(band => band.edgePoints)
   });
   const roads = streetResult.roads;
   if (stageStep < 6) {
@@ -648,8 +651,8 @@ function applyPlan(
   program: CityProgram,
   stageStep: number
 ): CityDocument | null {
-  const next = clone(source);
-  const mesh = next.mesh;
+  let next = clone(source);
+  let mesh = next.mesh;
 
   // Clear this module's previous output + every non-locked face tag, so the
   // stages read as a scrub through the process rather than an accumulation.
@@ -747,10 +750,20 @@ function applyPlan(
     }
   }
 
-  // ⑤ roads
+  // ⑤ roads. First open 4-way wall passages at gates (merge nearest wall
+  // neighbour or split a cell) so a road can pass through on opposite edges.
+  // Then snap roads, never onto a river or wall edge. Finally open river
+  // bridges at remaining road–river meetings and thread the road through.
   if (stageStep >= 5) {
+    for (const gate of next.gates ?? []) {
+      const opened = openBarrierPassage(next, gate.vertexId, "wall");
+      if (opened) next = opened;
+    }
+    mesh = next.mesh;
+    const nearestAfter = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
+    const banned = new Set<Id>([...kindEdgeIds(next, "river"), ...kindEdgeIds(next, "wall")]);
     plan.roads.forEach((polyline, i) => {
-      const segments = polylineToEdgeRefs(mesh, polyline, nearest);
+      const segments = longestUnbannedRun(polylineToEdgeRefs(mesh, polyline, nearestAfter), banned);
       if (segments.length < 1) return;
       next.featureGroups.push({
         id: `${GEN_PREFIX}road-${i}`,
@@ -761,6 +774,8 @@ function applyPlan(
         locked: false
       });
     });
+    next = openGeneratedPassages(next);
+    mesh = next.mesh;
   }
 
   // ⑥ wards
@@ -994,6 +1009,20 @@ function polylineToVertexPath(mesh: Mesh, polyline: Point[], nearest: NearestVer
     else break; // give up cleanly at the first unbridgeable gap
   }
   return out;
+}
+
+/** Keep the longest contiguous run whose `edgeId`s are not in `banned`. */
+function longestUnbannedRun(segments: EdgeRef[], banned: Set<Id>): EdgeRef[] {
+  if (banned.size === 0) return segments;
+  let best: EdgeRef[] = [];
+  let current: EdgeRef[] = [];
+  for (const segment of segments) {
+    if (banned.has(segment.edgeId)) {
+      if (current.length > best.length) best = current;
+      current = [];
+    } else current.push(segment);
+  }
+  return current.length > best.length ? current : best;
 }
 
 /** Generator polyline → contiguous mesh EdgeRefs (for a road). Truncates at the
