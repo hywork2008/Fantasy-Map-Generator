@@ -51,6 +51,7 @@ export type { Point } from "../generators/voronoi";
 export { BordersRenderer } from "../renderers/draw-borders";
 export { MilitaryRenderer } from "../renderers/draw-military";
 export { StatesRenderer } from "../renderers/draw-states";
+export { isFastAdvanceActive, resolveFastAdvanceRates } from "../store/fastAdvanceState";
 export { useOptionsState } from "../store/optionsState";
 export { getCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 export { getCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";

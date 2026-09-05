@@ -1870,7 +1870,18 @@
       "advanceMonthTip": "世界のシミュレーション時計を指定月数進めます",
       "daysTip": "進める日数",
       "advanceDay": "日を進める",
-      "advanceDayTip": "世界のシミュレーション時計を指定日数進めます"
+      "advanceDayTip": "世界のシミュレーション時計を指定日数進めます",
+      "fastForwardEnable": "⚡ 高速進行(近似)",
+      "fastForwardEnableTip": "毎月の経済決済と人口成長を、実計算の代わりに年間一定率で近似します。複数日の進行(週/月/年)にのみ適用され、1日ごとのAdvance Dayは常に正確な計算のままです。",
+      "fastForwardPresetLabel": "プリセット",
+      "fastForwardPresets": {
+        "collapse": "崩壊",
+        "decline": "衰退",
+        "stagnant": "停滞",
+        "steady": "標準",
+        "growth": "成長",
+        "boom": "好況"
+      }
     },
     "save": {
       "saveTo": "地図の保存先",

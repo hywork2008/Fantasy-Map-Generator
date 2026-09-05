@@ -26,6 +26,7 @@ import {
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
+import { isFastAdvanceActive, resolveFastAdvanceRates } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
@@ -33,6 +34,7 @@ import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
 import { advanceDungeonEcology } from "./dungeonEcology";
+import { applyFastForwardPopulation } from "./fastAdvance/fastAdvancePopulation";
 import { advanceFrontierExpansion, snapshotFrontierBudgets } from "./frontierExpansion";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
@@ -823,7 +825,15 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   };
   if (sim.simDemographics) {
     topics.push("simulation.cells", "simulation.states", "simulation.burgs");
-    result = measureTickStep("core:demographics", () => simulateDemographics(effectiveDeltaYears));
+    // Fast-Forward (docs/plan/advance-time-fast-forward.md §4.3(a)): during a multi-day batch with
+    // Fast-Forward enabled, replace the real cohort-aging/births/migration model with a flat
+    // annual growth rate. isBulkTimeAdvance() is already defined above this point in the file (the
+    // `bulkAdvance` local a few lines down hasn't been computed yet), so call it directly here.
+    result = measureTickStep("core:demographics", () =>
+      isFastAdvanceActive(isBulkTimeAdvance())
+        ? applyFastForwardPopulation(effectiveDeltaYears, resolveFastAdvanceRates(), appServices.rng)
+        : simulateDemographics(effectiveDeltaYears)
+    );
   }
 
   if (result.bordersChanged) topics.push("map.politics");

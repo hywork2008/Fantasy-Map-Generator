@@ -1870,7 +1870,18 @@
       "advanceMonthTip": "Click to advance the world's simulation clock by a number of months",
       "daysTip": "Days to advance",
       "advanceDay": "Advance Day",
-      "advanceDayTip": "Click to advance the world's simulation clock by a number of days"
+      "advanceDayTip": "Click to advance the world's simulation clock by a number of days",
+      "fastForwardEnable": "⚡ Fast-Forward (approximate)",
+      "fastForwardEnableTip": "Approximate the monthly Economy settlement and population growth with a flat annual rate instead of full simulation. Only affects multi-day advances (Week/Month/Year) — a single Advance Day step is always exact.",
+      "fastForwardPresetLabel": "Preset",
+      "fastForwardPresets": {
+        "collapse": "Collapse",
+        "decline": "Decline",
+        "stagnant": "Stagnant",
+        "steady": "Steady",
+        "growth": "Growth",
+        "boom": "Boom"
+      }
     },
     "save": {
       "saveTo": "Save map to",

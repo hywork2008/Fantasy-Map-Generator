@@ -4,6 +4,7 @@ import { createEmptyFrontierSimulationState, simulationContext } from "../contex
 import { worldContext } from "../context/worldContext";
 import { runDaily } from "../runtime/simulationRunner";
 import { stepDaySimulation } from "../runtime/worldRuntime";
+import { useFastAdvanceState } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
 import { Routes } from "./routes-generator";
 import { listRegisteredSimulationSystemIds, registerSimulationSystem, registerTimeTickHook } from "./timeEngine";
@@ -302,5 +303,86 @@ describe("timeEngine simulation system registration (P2-7)", () => {
     }
 
     expect(observed).toEqual([false, true, true, true]);
+  });
+
+  it("Fast-Forward replaces core:demographics with a flat rate only inside a multi-day batch (docs/plan/advance-time-fast-forward.md §4.3(a))", () => {
+    worldContext.seed = "fast-advance-population";
+    worldContext.options = { year: 1000, month: 1, day: 1, era: "Test" } as never;
+    worldContext.nameBases = [];
+    worldContext.biomesData = { habitability: [0] } as never;
+    worldContext.notes = [];
+    worldContext.grid = {} as never;
+    worldContext.mapCoordinates = { latN: 40, latS: 20 } as never;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.pack = {
+      states: [
+        { i: 0, diplomacy: [] },
+        { i: 1, diplomacy: [] }
+      ],
+      burgs: [],
+      routes: [],
+      cells: {
+        i: [0, 1],
+        state: [0, 1],
+        province: [0, 5],
+        pop: [0, 100],
+        maleAdults: new Float32Array([0, 22]),
+        femaleAdults: new Float32Array([0, 23]),
+        children: new Float32Array([0, 40]),
+        elders: new Float32Array([0, 15]),
+        capacity: [0, 500],
+        h: new Uint8Array([25, 25]),
+        f: new Uint16Array([1, 1]),
+        c: [[], []],
+        p: [
+          [0, 0],
+          [1, 1]
+        ]
+      }
+    } as never;
+
+    simulationContext.currentYear = 1000;
+    simulationContext.currentMonth = 1;
+    simulationContext.currentDay = 1;
+    simulationContext.tickCount = 0;
+    simulationContext.frontier = createEmptyFrontierSimulationState();
+    simulationContext.populationLoss = { simDay: 0, history: [] };
+    simulationContext.intelligence = {};
+    simulationContext.strategicGoals = {};
+    simulationContext.navalTechBonus = {};
+    initRng("fast-advance-population");
+    useOptionsState.setState({ simDemographics: true, simManpower: false, simMilitaryRecovery: false });
+
+    // 0% growth, 0% jitter: an unmistakable "did nothing" signature for the fake path, versus the
+    // real cohort-aging model which still moves cohorts even at a single day's tiny deltaYears.
+    useFastAdvanceState.setState({
+      enabled: true,
+      preset: "custom",
+      customRates: {
+        populationGrowthPctPerYear: 0,
+        priceInflationPctPerYear: 0,
+        goodsStockGrowthPctPerYear: 0,
+        treasuryGrowthPctPerYear: 0,
+        variancePct: 0,
+        stockFloorMultiplier: 0.2,
+        stockCapMultiplier: 5.0
+      }
+    });
+
+    try {
+      // A lone Advance Day: isBulkAdvance is false, so Fast-Forward must not engage even though
+      // it's enabled — the real simulateDemographics() runs and moves cohorts via aging/births.
+      stepDaySimulation();
+      expect(worldContext.pack.cells.maleAdults[1]).not.toBe(22);
+
+      // A multi-day batch: isBulkAdvance is true, so Fast-Forward's 0%-growth/0%-jitter rate
+      // applies instead — cohorts stay exactly where the lone day left them.
+      const beforeBulk = worldContext.pack.cells.maleAdults[1];
+      runDaily(3, { notify: false });
+      expect(worldContext.pack.cells.maleAdults[1]).toBe(beforeBulk);
+    } finally {
+      useFastAdvanceState.setState({ enabled: false, preset: "steady" });
+    }
   });
 });
