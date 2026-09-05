@@ -7,8 +7,10 @@ import {
   getSimulationMonth,
   getWorldContext
 } from "../economyContext";
+import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, getStapleFoodGood } from "./foodProduction";
+import { creditRuralHouseholdWealth } from "./householdWealth";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
 import { getGranaryReserveMultiplier } from "./publicWorks";
@@ -87,15 +89,24 @@ function topUpBurgFoodReserve(burg: Burg, ledger: FoodLedger, populationRate: nu
   burg.foodReserve = rn((burg.foodReserve ?? 0) + drawn, 2);
 }
 
-/** Draws a burg's monthly urban need from its own reserve first, then the market pool for any shortfall. */
+/**
+ * Draws a burg's monthly urban need from its own reserve first, then the market pool for any
+ * shortfall — capped by `maxAffordableUnits` (docs/plan/economy-coupling-audit.md L2 Phase 2/3):
+ * a population whose household wallet cannot cover this month's retail bill simply does not eat
+ * the rest, physical stock notwithstanding. That shortfall then reads exactly like any other
+ * unmet urban need to `updateStressCounters`/`computeUrbanFoodSecurity` below — no separate L3
+ * wiring needed, an empty purse already becomes a food-stress quarter.
+ */
 function drawBurgMonthlyNeed(
   burg: Burg,
   ledger: FoodLedger,
-  monthlyNeed: number
+  monthlyNeed: number,
+  maxAffordableUnits: number
 ): { satisfied: number; needed: number } {
-  const fromReserve = Math.min(burg.foodReserve ?? 0, monthlyNeed);
+  const affordableNeed = Math.max(0, Math.min(monthlyNeed, maxAffordableUnits));
+  const fromReserve = Math.min(burg.foodReserve ?? 0, affordableNeed);
   burg.foodReserve = rn((burg.foodReserve ?? 0) - fromReserve, 2);
-  const stillNeeded = monthlyNeed - fromReserve;
+  const stillNeeded = affordableNeed - fromReserve;
   const fromMarket = stillNeeded > 0 ? drawFromLedgerFifo(ledger, stillNeeded) : 0;
   return { satisfied: rn(fromReserve + fromMarket, 2), needed: rn(monthlyNeed, 2) };
 }
@@ -217,10 +228,14 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
     for (const burg of marketBurgs) {
       const burgId = burg.i ?? 0;
       const monthlyNeed = getBurgDailyNeed(burg, populationRate, urbanization) * (DAYS_PER_YEAR / 12);
-      const { satisfied, needed } = drawBurgMonthlyNeed(burg, ledger, monthlyNeed);
+      // L2 Phase 2/3: residents pay for their own food out of their own wallet, capped by what it
+      // holds — unlike temporary lodgers below, whose spending is external money brought into the
+      // local economy and stays a pure credit to the market (docs/plan/economy-coupling-audit.md).
+      const affordableUnits = retailPrice > 0 ? getHouseholdWealth(burgId) / retailPrice : monthlyNeed;
+      const { satisfied, needed } = drawBurgMonthlyNeed(burg, ledger, monthlyNeed, affordableUnits);
       urbanMonthlyNeed += needed;
       urbanDrawn += satisfied;
-      urbanRevenue += satisfied * retailPrice;
+      urbanRevenue += debitHouseholdWealth(burgId, rn(satisfied * retailPrice, 2));
 
       const temporaryMonthlyNeed =
         getTemporaryLodgerDailyNeed(temporaryLodgersByBurg.get(burgId) ?? 0, populationRate, urbanization) *
@@ -314,4 +329,8 @@ function settleUrbanRevenue(market: Market, revenue: number): void {
   treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable - repayment, 2);
   treasury.balance = rn(treasury.balance + (revenue - repayment), 2);
   market.marketTreasury = treasury;
+
+  // L2 Phase 2: repaying the rural IOU is the deferred half of the farmgate payment finally
+  // reaching farmers' own wallet (docs/plan/economy-coupling-audit.md).
+  creditRuralHouseholdWealth(market, repayment);
 }

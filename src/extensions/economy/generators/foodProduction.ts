@@ -15,6 +15,7 @@ import { getEconomyStartProfile } from "./economyStartMode";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
+import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { FoodLedger, Market } from "./marketTypes";
 import { getCropHarvestWeight } from "./production-utils";
 import { markRetailInventoryDirty } from "./retailInventory";
@@ -327,6 +328,12 @@ export class FoodProductionModule {
     treasury.balance = rn(treasury.balance - paidFromBalance, 2);
     treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable + (cost - paidFromBalance), 2);
     market.marketTreasury = treasury;
+
+    // L2 Phase 2 (docs/plan/economy-coupling-audit.md): this payment used to vanish once it left
+    // the market's treasury. Only the cash portion actually paid this cycle reaches farmers now —
+    // the ruralGrainPayable remainder is an IOU settleUrbanRevenue() credits later, once retail
+    // sales repay it.
+    creditRuralHouseholdWealth(market, paidFromBalance);
   }
 
   /**

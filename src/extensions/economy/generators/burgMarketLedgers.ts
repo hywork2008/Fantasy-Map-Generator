@@ -3,6 +3,7 @@ import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import { getBurgMarketLedgers, getDeals, getMarkets, getWorldContext, setBurgMarketLedgers } from "../economyContext";
 import type { BurgMarketLedger, BurgMarketMerchantEntry } from "./burgMarketLedgersTypes";
+import { getEconomyStartProfile } from "./economyStartMode";
 import type { Deal, Market } from "./marketTypes";
 import { clearMerchantOrganizations, syncMerchantOrganizations } from "./merchantOrganizations";
 
@@ -139,25 +140,69 @@ export function getBurgMarketLedger(burgId: number | undefined): BurgMarketLedge
   return getBurgMarketLedgers().find(ledger => ledger.burgId === burgId);
 }
 
-/** Credits manufacturing wages to the Burg's anonymous household receipts (L2 Phase 1). */
-export function creditHouseholdIncome(burgId: number | undefined, amount: number): void {
-  if (!burgId || !(amount > 0) || !Number.isFinite(amount)) return;
+/**
+ * One-time bootstrap for a Burg's pooled household wallet (docs/plan/economy-coupling-audit.md
+ * L2 Phase 2), from the same population-point scale as `burgTreasuryPerPopulation` — see that
+ * profile field's doc comment. Called lazily on first touch, not at map generation, so it applies
+ * uniformly regardless of when a Burg's BurgMarketLedger row first appears.
+ */
+function seedHouseholdWealth(burg: Burg | undefined): number {
+  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
+  return rn((burg?.population ?? 0) * profile.householdWealthPerPopulation, 2);
+}
+
+/** Looks a Burg up by id — `.find()`, not `pack.burgs[burgId]` indexing, since nothing here can rely on the array being index-aligned with `.i` (most real maps are, but not every fixture/caller). */
+function findBurg(burgId: number): Burg | undefined {
+  return getWorldContext().pack.burgs?.find(burg => burg.i === burgId);
+}
+
+/**
+ * Finds (or creates) burgId's BurgMarketLedger row and returns its seeded household wealth.
+ * Reading or spending a Burg's wallet must not depend on `syncBurgMarketLedgers()` having already
+ * run this session — a fresh row with a seeded wallet is created here on first touch precisely
+ * because callers like foodLedgerConsumption.ts can run before that sync ever has.
+ */
+function ensureLedgerWithHouseholdWealth(burgId: number): { ledger: BurgMarketLedger; wealth: number } {
   const ledgers = getBurgMarketLedgers();
   const existing = ledgers.find(ledger => ledger.burgId === burgId);
   if (existing) {
-    existing.householdIncome = rn((existing.householdIncome ?? 0) + amount, 2);
-    return;
+    const wealth = existing.householdWealth ?? seedHouseholdWealth(findBurg(burgId));
+    existing.householdWealth = wealth;
+    return { ledger: existing, wealth };
   }
-  const burg = getWorldContext().pack.burgs?.[burgId];
-  setBurgMarketLedgers([
-    ...ledgers,
-    {
-      burgId,
-      marketId: burg?.market ?? 0,
-      merchants: [],
-      householdIncome: rn(amount, 2)
-    }
-  ]);
+  const burg = findBurg(burgId);
+  const wealth = seedHouseholdWealth(burg);
+  const ledger: BurgMarketLedger = { burgId, marketId: burg?.market ?? 0, merchants: [], householdWealth: wealth };
+  setBurgMarketLedgers([...ledgers, ledger]);
+  return { ledger, wealth };
+}
+
+/** Reads a Burg's current pooled household wallet balance, seeding it (and its ledger row) on first touch. */
+export function getHouseholdWealth(burgId: number | undefined): number {
+  if (!burgId) return 0;
+  return Math.max(0, ensureLedgerWithHouseholdWealth(burgId).wealth);
+}
+
+/**
+ * Debits up to `amount` from a Burg's household wallet (poll tax collection / urban food retail
+ * purchases, L2 Phase 2/3). Returns the amount actually available and debited — callers must
+ * treat any shortfall as "this population could not pay this cycle," not a debt carried forward.
+ */
+export function debitHouseholdWealth(burgId: number | undefined, amount: number): number {
+  if (!burgId || !(amount > 0)) return 0;
+  const { ledger, wealth } = ensureLedgerWithHouseholdWealth(burgId);
+  const available = Math.max(0, wealth);
+  const debited = rn(Math.min(available, amount), 2);
+  if (debited <= 0) return 0;
+  ledger.householdWealth = rn(available - debited, 2);
+  return debited;
+}
+
+/** Credits manufacturing wages to the Burg's household wallet (L2 Phase 1, drained per Phase 2/3). */
+export function creditHouseholdWealth(burgId: number | undefined, amount: number): void {
+  if (!burgId || !(amount > 0) || !Number.isFinite(amount)) return;
+  const { ledger, wealth } = ensureLedgerWithHouseholdWealth(burgId);
+  ledger.householdWealth = rn(wealth + amount, 2);
 }
 
 export function getDominantMerchant(ledger: BurgMarketLedger | undefined): BurgMarketMerchantEntry | undefined {

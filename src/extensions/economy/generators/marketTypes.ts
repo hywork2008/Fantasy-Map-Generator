@@ -223,6 +223,15 @@ export interface FoodLedger {
   ruralSevereDeficitQuarters: number;
   /** Consecutive quarters the urban population's food need went unmet by >=10%. Reset below 10%. */
   urbanSevereDeficitQuarters: number;
+  /**
+   * The rural population's own pooled cash under this Market's catchment (docs/plan/
+   * economy-coupling-audit.md L2 Phase 2). Credited by farmgate payments in foodProduction.ts
+   * (both the immediate cash portion and, later, the deferred `ruralGrainPayable` IOU once urban
+   * retail repays it) and debited by householdWealth.ts's state-level poll tax draw. Undefined
+   * means "not yet seeded" — see householdWealth.ts's lazy seed from rural `cells.pop` under this
+   * Market, not literally 0.
+   */
+  ruralHouseholdWealth?: number;
 }
 
 export interface Deal {

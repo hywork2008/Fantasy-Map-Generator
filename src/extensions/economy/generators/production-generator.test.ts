@@ -467,10 +467,10 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
 
     expect(yieldLots).toBeCloseTo(1, 6);
     expect(worldContext.pack.burgs[1].treasury).toBe(10);
-    expect(getBurgMarketLedger(1)?.householdIncome ?? 0).toBe(0);
+    expect(getBurgMarketLedger(1)?.householdWealth ?? 0).toBe(0);
   });
 
-  it("deducts laborUsed × wageRate from burg.treasury and credits householdIncome", () => {
+  it("deducts laborUsed × wageRate from burg.treasury and credits householdWealth", () => {
     const production = new ProductionModule() as unknown as ManufactureHarness;
     const state = stateWithWage(4, 10);
 
@@ -478,7 +478,7 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
 
     expect(laborUsed).toBeCloseTo(1, 6);
     expect(worldContext.pack.burgs[1].treasury).toBeCloseTo(6, 6);
-    expect(getBurgMarketLedger(1)?.householdIncome).toBeCloseTo(4, 6);
+    expect(getBurgMarketLedger(1)?.householdWealth).toBeCloseTo(4, 6);
   });
 
   it("produces more in a cheap-labor market than a tight one on the same purse", () => {
@@ -513,6 +513,6 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
 
     expect(worldContext.pack.burgs[1].treasury).toBe(50);
     expect(worldContext.pack.states[1].treasury).toBeCloseTo(stateTreasury - 3, 6);
-    expect(getBurgMarketLedgers().find(ledger => ledger.burgId === 1)?.householdIncome).toBeCloseTo(3, 6);
+    expect(getBurgMarketLedgers().find(ledger => ledger.burgId === 1)?.householdWealth).toBeCloseTo(3, 6);
   });
 });

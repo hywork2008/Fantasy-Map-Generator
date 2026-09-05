@@ -22,6 +22,16 @@ export interface EconomyStartProfile {
   stateAdministrativeUpkeepShare: number;
   /** Monthly Market infrastructure cost per Burg population point. */
   marketMaintenancePerPopulation: number;
+  /**
+   * Initial pooled household cash per population point, urban (`Burg.population`, via
+   * `BurgMarketLedger.householdWealth`) and rural (`cells.pop` under a Market's catchment, via
+   * `FoodLedger.ruralHouseholdWealth`) alike — same population-point scale as
+   * `burgTreasuryPerPopulation`, not real headcounts. Bootstraps L2 Phase 2's household wallet
+   * (docs/plan/economy-coupling-audit.md) so poll tax and urban food retail have something to
+   * draw from before the first wage/farmgate payment lands. Placeholder magnitude, not yet
+   * calibrated against a live map's actual monthly poll-tax + retail-food burden per head.
+   */
+  householdWealthPerPopulation: number;
 }
 
 const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
@@ -35,7 +45,8 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
     comfortableTreasuryMultiplier: 4,
     stateRemittanceShare: 0.5,
     stateAdministrativeUpkeepShare: 0,
-    marketMaintenancePerPopulation: 0
+    marketMaintenancePerPopulation: 0,
+    householdWealthPerPopulation: 12
   },
   // A normal pre-gunpowder polity: ordinary revenues mostly keep institutions running.
   //
@@ -60,7 +71,8 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
     comfortableTreasuryMultiplier: 3,
     stateRemittanceShare: 0.1,
     stateAdministrativeUpkeepShare: 0.88,
-    marketMaintenancePerPopulation: 0.06
+    marketMaintenancePerPopulation: 0.06,
+    householdWealthPerPopulation: 8
   },
   // Cities can feed themselves from seeded staple reserves, but have almost no spare capital.
   subsistence: {
@@ -72,7 +84,8 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
     comfortableTreasuryMultiplier: 2,
     stateRemittanceShare: 0.03,
     stateAdministrativeUpkeepShare: 0.95,
-    marketMaintenancePerPopulation: 0.12
+    marketMaintenancePerPopulation: 0.12,
+    householdWealthPerPopulation: 0.8
   }
 };
 

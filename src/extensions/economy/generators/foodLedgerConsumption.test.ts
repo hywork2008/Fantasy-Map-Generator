@@ -6,7 +6,9 @@ vi.mock("../economyContext", () => ({
   getMarketCellColumn: vi.fn(),
   getSimulationMonth: vi.fn(),
   getGoods: vi.fn(() => []),
-  getRuralHouseholdFoodStock: vi.fn(() => new Float32Array())
+  getRuralHouseholdFoodStock: vi.fn(() => new Float32Array()),
+  getBurgMarketLedgers: vi.fn(),
+  setBurgMarketLedgers: vi.fn()
 }));
 
 vi.mock("./innStays", () => ({
@@ -14,13 +16,16 @@ vi.mock("./innStays", () => ({
 }));
 
 import {
+  getBurgMarketLedgers,
   getGoods,
   getMarketCellColumn,
   getMarkets,
   getRuralHouseholdFoodStock,
   getSimulationMonth,
-  getWorldContext
+  getWorldContext,
+  setBurgMarketLedgers
 } from "../economyContext";
+import type { BurgMarketLedger } from "./burgMarketLedgersTypes";
 import {
   computeUrbanFoodSecurity,
   settleMonthlyFoodConsumption,
@@ -62,9 +67,17 @@ describe("settleMonthlyFoodConsumption", () => {
     vi.mocked(getGoods).mockReturnValue([]);
     vi.mocked(getTemporaryLodgerPopulationPointsByBurg).mockReturnValue(new Map());
     vi.mocked(getSimulationMonth).mockReturnValue(1);
+    // Stateful stub for the household wallet's own store (docs/plan/economy-coupling-audit.md L2
+    // Phase 2/3) — burgMarketLedgers.ts reads/writes through these two accessors.
+    let burgMarketLedgers: BurgMarketLedger[] = [];
+    vi.mocked(getBurgMarketLedgers).mockImplementation(() => burgMarketLedgers);
+    vi.mocked(setBurgMarketLedgers).mockImplementation(next => {
+      burgMarketLedgers = next as BurgMarketLedger[];
+    });
     mockWorldContext = {
       populationRate: 1,
       urbanization: 1,
+      options: {},
       pack: {
         burgs: [],
         cells: { i: [], h: [], pop: [] }

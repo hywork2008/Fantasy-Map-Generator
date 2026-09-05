@@ -13,9 +13,11 @@ import {
 import {
   BURG_MARKET_MERCHANT_ROLE_KIND,
   clearBurgMarketLedgers,
-  creditHouseholdIncome,
+  creditHouseholdWealth,
+  debitHouseholdWealth,
   getBurgMarketLedger,
   getDominantMerchant,
+  getHouseholdWealth,
   syncBurgMarketLedgers
 } from "./burgMarketLedgers";
 import { syncMarketManagers } from "./marketManagers";
@@ -180,14 +182,27 @@ describe("burg market ledgers", () => {
     ).toBe(false);
   });
 
-  it("accumulates householdIncome across syncs (L2 Phase 1 wage receipts)", () => {
-    creditHouseholdIncome(1, 4);
-    expect(getBurgMarketLedger(1)?.householdIncome).toBe(4);
+  it("seeds a fresh Burg's householdWealth from population, then accumulates across syncs (L2 Phase 2/3)", () => {
+    // provisioned profile (the test's default): 30 population points × 12/head = 360 seed.
+    creditHouseholdWealth(1, 4);
+    expect(getBurgMarketLedger(1)?.householdWealth).toBeCloseTo(364, 6);
 
     syncMarketManagers();
     syncBurgMarketLedgers();
-    creditHouseholdIncome(1, 2.5);
+    creditHouseholdWealth(1, 2.5);
 
-    expect(getBurgMarketLedger(1)?.householdIncome).toBeCloseTo(6.5, 6);
+    expect(getBurgMarketLedger(1)?.householdWealth).toBeCloseTo(366.5, 6);
+  });
+
+  it("debits householdWealth up to the available balance, never past it (L2 Phase 2/3)", () => {
+    creditHouseholdWealth(1, 4); // 360 seed + 4 = 364
+
+    const debited = debitHouseholdWealth(1, 10);
+    expect(debited).toBeCloseTo(10, 6);
+    expect(getHouseholdWealth(1)).toBeCloseTo(354, 6);
+
+    const overdrawn = debitHouseholdWealth(1, 10_000);
+    expect(overdrawn).toBeCloseTo(354, 6);
+    expect(getHouseholdWealth(1)).toBe(0);
   });
 });

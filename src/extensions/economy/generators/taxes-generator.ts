@@ -10,6 +10,13 @@ import { applyAllDomainFiscalPolicies, getStateDomainPollTaxMultiplier } from ".
 import { updateReligiousUnrest } from "./ecclesiasticaUnrest";
 import { getEconomyStartProfile } from "./economyStartMode";
 import { applyFiscalEvents } from "./fiscalEvents";
+import {
+  drawStateRuralHouseholdWealth,
+  drawStateUrbanHouseholdWealth,
+  resetRuralHouseholdWealthCycleTracking,
+  stateHasBurgs,
+  stateOwnsRuralLand
+} from "./householdWealth";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
@@ -141,6 +148,10 @@ export class TaxesModule {
     const openingTreasuryByState = new Map<number, number>();
     const salesTaxByState = new Map<number, number>();
     const importDutyByState = new Map<number, number>();
+    // L2 Phase 2/3: a fresh rural poll-tax bookkeeping baseline for this cycle's state loop below
+    // — see householdWealth.ts's doc comment for why a border-straddling Market's catchment needs
+    // this reset every cycle.
+    resetRuralHouseholdWealthCycleTracking();
     for (const state of states) {
       if (state?.i) openingTreasuryByState.set(state.i, state.treasury || 0);
     }
@@ -178,7 +189,6 @@ export class TaxesModule {
 
     for (const state of states) {
       if (!state.i) continue;
-      const population = (state.rural || 0) + (state.urban || 0);
       const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
       const procurementExpense = _strategicProcurementExpenseByState.get(state.i) ?? 0;
       const militaryUpkeep = getStateMilitaryUpkeep(state);
@@ -195,7 +205,22 @@ export class TaxesModule {
       // PR-12: domain levy intensity across province seats scales poll-tax collection.
       const domainPollMult = getStateDomainPollTaxMultiplier(state);
       state.domainPollTaxMultiplier = domainPollMult;
-      const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus * domainPollMult;
+      const pollTaxRatePerHead = (state.pollTax || 0) * administrationBonus * domainPollMult;
+      // L2 Phase 2/3 (docs/plan/economy-coupling-audit.md): poll tax is a transfer out of the
+      // population's own pooled wallet (BurgMarketLedger.householdWealth / FoodLedger.
+      // ruralHouseholdWealth), not pure creation — urban and rural population draw from separate
+      // wallet pools (householdWealth.ts), so each is capped independently. A State with no Burg
+      // (urban leg) or no owned rural land (rural leg) at all has no such wallet to draw from — it
+      // keeps the pre-Phase-2 creation model for that leg rather than losing the revenue outright.
+      const urbanPollTaxDemand = pollTaxRatePerHead * (state.urban || 0);
+      const ruralPollTaxDemand = pollTaxRatePerHead * (state.rural || 0);
+      const urbanPollTaxRevenue = stateHasBurgs(state.i)
+        ? drawStateUrbanHouseholdWealth(state.i, urbanPollTaxDemand)
+        : urbanPollTaxDemand;
+      const ruralPollTaxRevenue = stateOwnsRuralLand(state.i)
+        ? drawStateRuralHouseholdWealth(state.i, ruralPollTaxDemand)
+        : ruralPollTaxDemand;
+      const pollTaxRevenue = rn(urbanPollTaxRevenue + ruralPollTaxRevenue, 2);
       // PR-15: voyage income is trade-exposed; poll tax stays domestic.
       const voyageKept = applyTradeSanctionToIncome(state, voyageIncome);
       const rawDomesticIncome = pollTaxRevenue + voyageKept;

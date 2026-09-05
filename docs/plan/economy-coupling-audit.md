@@ -1257,9 +1257,42 @@ L3 の実装時に判明した点:
     国境を越える交易にのみ課税、`Deal.importTax` として買い手側国庫に計上。通行税は未着手のまま)
 16. **L8 段階2** ✅ 実装済み(2026-09-05)。`publicWorks` 予算部門と街道の実行時昇格
     (`publicWorks.ts`。港湾工事・公共穀物倉も同予算。通行税との合流は未着手)
-17. **L2 Phase 2/3**: 家計財布の導入(人頭税を創造から移転へ)
+17. **L2 Phase 2/3** ✅ 実装済み(2026-09-05)。家計財布の導入(人頭税・都市食料小売を創造から移転へ)
 18. **L7**: 貨幣供給の物価接続(**着手しない判断も妥当**。その場合は
     `minting.ts` に「`circulation` は意図的に観測専用」と明記する)
+
+L2 Phase 2/3 の実装時に判明した点:
+
+- **`BurgMarketLedger.householdWealth`(旧 `householdIncome` から改名)は都市専用。** 農村人口は
+  Burg に属さないため、`FoodLedger.ruralHouseholdWealth`(Market 単位)という別フィールドで
+  並行して持つ。統合せず、`householdWealth.ts` が両方の状態別按分・引き落としをまとめる。
+  `State.householdPurse`(君主家政費、`treasuryAllocation.ts`)とは全くの別概念——命名衝突を
+  避けるため `householdWealth` とした。
+- **農村側の按分は Market の中心 Burg の所属国ではなく `cells.state` で行う。** Market の集荷圏は
+  国境をまたぐことがあり、`minting.ts` の造幣所選定と同じ「中心 Burg の国」ヒューリスティックを
+  流用すると、按分ミスが起きる。`cells.pop` の人口比で按分し、按分後に一方の国が全額引き出しても
+  もう一方の取り分に影響しないよう、サイクル内の既収額を `resetRuralHouseholdWealthCycleTracking()`
+  でベースラインへ足し戻す(引き出し順で結果が変わるバグを実装中に発見・修正)。
+- **Burg も Market も無い State は移転モデルにフォールバックしない。** `stateHasBurgs` /
+  `stateOwnsRuralLand` が false の場合(財政計算だけを検証する最小フィクスチャ、または
+  Burg を持たない蛮族領のような State)、その脚だけ Phase 2 以前の創造モデルを維持する。
+  ウォレットが存在しない State の税収をゼロにする方が実害が大きいと判断した。
+  `taxes-generator.test.ts` の既存フィクスチャ(`burgs: []` が大半)はこの分岐のおかげで無改修。
+  実際のマップでは State が土地も Burg も持たない状況はまれなので、大半のプレイでは
+  素直に「財布から引き落とす」実装が効く。
+- **都市食料小売は「財布が空なら現物があっても食べられない」を物理的な購入量そのものに掛けた。**
+  `drawBurgMonthlyNeed()` の引数に `maxAffordableUnits` を追加し、備蓄・市場からの引き出し量を
+  先にキャップする。これにより `urbanShortfallRate`→`computeUrbanFoodSecurity()` という既存の
+  L3 経路がそのまま「財布が空 → 食料ストレス」の配線を兼ねる——Phase 3 用の新しい配線は不要だった。
+  宿泊客(temporary lodger)の食費だけは対象外(外部から持ち込まれる現金という扱いを維持)。
+- **家計財布には初期シードが要る。** `EconomyStartProfile.householdWealthPerPopulation` を新設
+  (`burgTreasuryPerPopulation` と同じ人口ポイント尺度)。無シードだと初月の人頭税・食料購入が
+  即座にゼロに張り付く。数値は placeholder(実マップでの月次負担からの逆算は未実施)。
+- **検証はユニットのみ。** `householdWealth.test.ts`(按分・サイクル跨ぎバグの回帰含む)、
+  `burgMarketLedgers.test.ts`、`foodLedgerConsumption.test.ts`、`taxes-generator.test.ts` を
+  更新・追加。経済拡張 212 ファイル・1638 件、全体 424 ファイル・3427 件のテストスイート、
+  `tsc`、`biome`、アーキテクチャ/ワールドライター lint、本番ビルドは通過を確認済み。
+  実マップでの治安裁量的な破産・飢饉カスケードの体感バランスは実機確認が必要。
 
 ---
 

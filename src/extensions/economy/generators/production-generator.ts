@@ -27,7 +27,7 @@ import {
   setStrategicLaborMarkets
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
-import { creditHouseholdIncome, syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
 import { CELL_FOOD_PRESERVATION_LABOR_SHARE } from "./cellFoodRescue";
 import {
@@ -1115,7 +1115,7 @@ export class ProductionModule {
     if (wageBill > 0) {
       if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - wageBill), 2);
       else state.burg.treasury = rn((state.burg.treasury || 0) - wageBill, 2);
-      creditHouseholdIncome(state.burg.i, wageBill);
+      creditHouseholdWealth(state.burg.i, wageBill);
     }
 
     state.inventory[good.i] = (state.inventory[good.i] || 0) + produced;

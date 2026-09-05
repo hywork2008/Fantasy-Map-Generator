@@ -7,11 +7,17 @@ export interface BurgMarketLedger {
   warIntensity?: number;
   warDurationTicks?: number;
   /**
-   * Cumulative manufacturing wages paid to anonymous urban labor at this Burg.
-   * Phase 1 of docs/plan/economy-coupling-audit.md L2 writes here; Phase 2 will
-   * drain it into `householdPurse`. Missing on old saves — treat as 0.
+   * The anonymous urban population's own pooled cash at this Burg (docs/plan/economy-coupling-audit.md
+   * L2). Phase 1 only credited manufacturing wages here (cumulative, never drained). Phase 2/3 turn
+   * it into a real running balance: still credited by wages, now also debited by poll tax collection
+   * (taxes-generator.ts, via householdWealth.ts's state-level draw) and by urban food retail
+   * purchases (foodLedgerConsumption.ts) — the latter capping how much food a Burg can actually
+   * afford, which is what connects an empty purse to L3 food stress. Undefined means "not yet
+   * seeded"; see burgMarketLedgers.ts's lazy seed from `EconomyStartProfile.householdWealthPerPopulation`
+   * — not literally 0. Renamed from the old write-only `householdIncome` (its cumulative total was
+   * never read anywhere), so an old save simply re-seeds fresh rather than inheriting it.
    */
-  householdIncome?: number;
+  householdWealth?: number;
 }
 
 export interface BurgMarketMerchantEntry {
