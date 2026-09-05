@@ -754,9 +754,12 @@ Phase 1は実装完了。設計通りに動くことをユニットテスト・t
 
 ### 9.6 残タスク（次の検証計画）
 
-1. **バルク経路での実測比較**: `npm run perf:advance-year`をFast-Forward ON/OFF双方で再実行し、UIのrAFループ
-   ではなく単発`advanceTime()`経由での短縮率を§1.1の表と並べて記録する（現状はUIのrAFループ経由の実測のみ、
-   §9.3）。
+1. ~~**バルク経路での実測比較**: `npm run perf:advance-year`をFast-Forward ON/OFF双方で再実行し、UIのrAFループ
+   ではなく単発`advanceTime()`経由での短縮率を§1.1の表と並べて記録する。~~ **完了（2026-09-06、§9.9）。**
+   `benchmarkAdvanceYear.ts`に`--warmupYears`/`--fastForward`を追加し実測。バルク経路 **8378→1869ms（4.48×、
+   −78%）** / **7313→1666ms（4.39×）**、UI経路 10108→3063ms（3.30×）。「トータルではほぼ改善していない」という
+   体感との乖離の分析も§9.9に記載（結論: 大幅改善は実在。体感差はUI経路のrAF/描画オーバーヘッドと、改善後に
+   相対的に目立つ日次ゲート系24項目——`simManpower`等、§1.2で元々スコープ外——のため）。
 2. **決定性テスト**: 同一シード・同一プリセットでの2回実行比較は`fastAdvancePopulation.test.ts`/
    `fastAdvanceEconomy.test.ts`内のユニットレベルでは確認済み。実ブラウザでのend-to-end決定性確認は未実施。
 3. ~~**§9.4の国庫合成問題の是正**（Phase 3）。~~ **完了（2026-09-06、§9.8.1）。**
@@ -860,6 +863,48 @@ Fast-Forward中も実計算のまま走る系統（§2.2）について、`Produ
   ため経済指標には波及しない。復帰後の実計算で維持費（案A後のレート）が課され始める。
 - 非chemMedの小規模ドレイン（`wildernessEcology` -27/yr、`portDevelopment` -10/yr等）は止めていない。§2診断で
   「6.9% / ほぼ均衡」に含まれる水準で、プリセット-13%に対する誤差としては小さい。
+
+### 9.9 バルク経路での短縮率実測（2026-09-06、§9.6 item 1）
+
+`scripts/benchmarkAdvanceYear.ts`に`--warmupYears=N`（計測前に実Advance Yearを走らせて経済に質量を持たせる）と
+`--fastForward=<preset>`（ウォームアップ後にAdvance Timeダイアログ経由でFast-Forwardを有効化）を追加し
+（`scripts/lib/advanceYearHarness.ts#enableFastForwardViaUI`）、同一シード・同一ウォームアップでON/OFFを実測した。
+
+| シード | 経路 | FF OFF | FF ON「標準」 | 短縮率 |
+| :--- | :--- | ---: | ---: | ---: |
+| `ff-perf-1`（5242 cells / 608 burgs、8年ウォームアップ） | バルク（`advanceTime(1)`） | 8378 ms | **1869 ms** | **4.48× / −78%** |
+| `ff-perf-1` | UI（rAF日ループ、`--path=ui`） | 10108 ms | **3063 ms** | **3.30× / −70%** |
+| `ff-perf-2`（4407 cells / 594 burgs、6年ウォームアップ） | バルク | 7313 ms | **1666 ms** | **4.39× / −77%** |
+
+生データ: `docs/analytics/advance-year-benchmark-latest.json`（FF OFF）/ `advance-year-benchmark-ff-steady.json`
+（FF ON）。
+
+**プロファイルの変化（`ff-perf-1`バルク、totalMs）**:
+
+| ラベル | FF OFF | FF ON | 備考 |
+| :--- | ---: | ---: | :--- |
+| `production:settle`一式（`produce`+`finishCycle`+…） | 約5762（×12） | **約62（×1）** | 月次決済クラスタが消滅——設計通り（§1.2の最優先ターゲット） |
+| `production:produce` | 4667 | 1.9 | |
+| `core:demographics` | 500（×365） | **103（×365）** | `applyFastForwardPopulation()`は`simulateDemographics()`より**軽い**——日次処理はむしろ速くなっている |
+| `core:manpower`（`simManpower`） | 424（×365） | 424（×365） | 不変。FF対象外（§2.2）。**FF後は単独最大項（残1869msの23%）** |
+| `economy:dailyHiring` | 327（×365） | 320（×365） | 不変。FF対象外。FF後2位（17%） |
+| `economy:foodCalendar` | 194 | 200 | 不変 |
+| `economy:annualAgTech` | 189 | 188 | 不変（年次自己ゲート、treasuryドレインは§9.8.1でガード済みだが処理自体は走る） |
+
+**「トータルではほぼ改善していない」という体感との乖離について**: 実測では**バルク−78%・UI−70%の大幅改善が
+実在する**。体感差の要因は2つと考えられる:
+
+1. **日次処理は「重くなって」いない**——`core:demographics`はむしろ500→103msに軽くなっている。ただし月次
+   クラスタ（5762ms）が消えた結果、**残った日次ゲート系24項目（`simManpower` 424ms・`dailyHiring` 320ms・
+   `foodCalendar` 200ms・`annualAgTech` 188ms・`caravans` 153ms…）が相対的に前面化**し、「日次が重い／月次と
+   同等」という印象になる。これらは§1.2で明示的にFFスコープ外とした項目で、絶対時間は不変。
+2. **UI（rAFループ）経路は圧縮率が低い**（3.3× vs バルク4.5×）。365日を最低365フレーム回す構造上、
+   1フレーム16msとしても約6秒の下限があり、そこにレイヤー再描画等が乗る。600 burg級の大きなマップでは
+   FF後でもUI経路3秒は残り、「まだ待たされる」感覚になりやすい。
+
+**次の一手（任意、Phase 4相当）**: FF後の新ボトルネックは`simManpower`（週次間引き後もなお424ms）と
+`economy:dailyHiring`。§8のPhase 4「追加レバー」でこれらもFF時に間引く／プリセット化すれば、バルク経路は
+さらに1869→約900ms程度まで縮む見込み。
 
 ## 10. オープンクエスチョン
 

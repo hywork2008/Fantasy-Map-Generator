@@ -28,6 +28,7 @@ import {
   BASE_URL,
   captureEconomySnapshot,
   enableExtensions,
+  enableFastForwardViaUI,
   type EconomySnapshot,
   launchBrowser,
   newInstrumentedContext,
@@ -39,6 +40,8 @@ interface ScenarioResult {
   name: string;
   extensions: string[];
   seed: string;
+  warmupYears: number;
+  fastForward: string;
   wallClockMs: number;
   daysAdvanced: number;
   startYear: number;
@@ -66,7 +69,13 @@ interface ScenarioResult {
   };
 }
 
-const OUT_PATH = path.resolve("docs/analytics/advance-year-benchmark-latest.json");
+const OUT_DIR = path.resolve("docs/analytics");
+function outPathFor(fastForward: string): string {
+  return path.join(
+    OUT_DIR,
+    fastForward ? `advance-year-benchmark-ff-${fastForward}.json` : "advance-year-benchmark-latest.json"
+  );
+}
 
 function parseArgs(argv: string[]) {
   const get = (key: string, fallback: string) => {
@@ -82,7 +91,15 @@ function parseArgs(argv: string[]) {
       .map(s => s.trim())
       .filter(Boolean),
     /** UI day-loop (rAF) vs public advanceTime bulk day expansion. */
-    path: get("path", "bulk") as "bulk" | "ui"
+    path: get("path", "bulk") as "bulk" | "ui",
+    /** Real Advance Year(s) to run (discarded) before the measured year, so the economy has mass. */
+    warmupYears: Number(get("warmupYears", "0")),
+    /**
+     * Empty = measure the real simulation (default). A preset id ("steady", "boom", …) enables
+     * Fast-Forward via the Advance Time dialog AFTER warmup, so the measured year runs the
+     * approximate path (docs/plan/advance-time-fast-forward.md §9.6 item 1).
+     */
+    fastForward: get("fastForward", "")
   };
 }
 
@@ -204,7 +221,8 @@ function growthPct(before: number, after: number): number {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   console.log(
-    `[perf:advance-year] baseURL=${BASE_URL} seed=${args.seed} extensions=${args.extensions.join(",")} path=${args.path}`
+    `[perf:advance-year] baseURL=${BASE_URL} seed=${args.seed} extensions=${args.extensions.join(",")} ` +
+      `path=${args.path} warmupYears=${args.warmupYears} fastForward=${args.fastForward || "(off)"}`
   );
 
   const browser = await launchBrowser();
@@ -212,15 +230,27 @@ async function main(): Promise<void> {
   const page = await openMap(context, args.seed, args.width, args.height);
   await enableExtensions(page, args.extensions);
 
+  if (args.warmupYears > 0) {
+    console.log(`[perf:advance-year] warming up ${args.warmupYears} real year(s)…`);
+    await page.evaluate(years => window.fmg.actions.advanceTime(years), args.warmupYears);
+    await page.evaluate(() => Promise.resolve());
+  }
+  if (args.fastForward) {
+    console.log(`[perf:advance-year] enabling Fast-Forward preset "${args.fastForward}" via the Advance Time dialog`);
+    await enableFastForwardViaUI(page, args.fastForward);
+  }
+
   const before = await captureEconomySnapshot(page);
   const measured = args.path === "ui" ? await runUiYear(page) : await runBulkYear(page);
   const after = await captureEconomySnapshot(page);
 
   const elapsedYears = measured.daysAdvanced / 365.2425;
   const result: ScenarioResult = {
-    name: `advance-year-${args.path}`,
+    name: `advance-year-${args.path}${args.fastForward ? `-ff-${args.fastForward}` : ""}`,
     extensions: args.extensions,
     seed: args.seed,
+    warmupYears: args.warmupYears,
+    fastForward: args.fastForward,
     wallClockMs: measured.wallClockMs,
     daysAdvanced: measured.daysAdvanced,
     startYear: measured.startYear,
@@ -249,9 +279,10 @@ async function main(): Promise<void> {
     }
   };
 
-  fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
+  const outPath = outPathFor(args.fastForward);
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(
-    OUT_PATH,
+    outPath,
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
@@ -272,7 +303,7 @@ async function main(): Promise<void> {
   console.table(result.topTotalShare.slice(0, 25));
   console.log("\nEconomy/population snapshot (annualized growth %, Phase 0 calibration input):");
   console.table(result.economySnapshot.annualizedGrowthPct);
-  console.log(`\nWrote ${OUT_PATH}`);
+  console.log(`\nWrote ${outPath}`);
 
   await browser.close();
 }

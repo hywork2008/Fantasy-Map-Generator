@@ -119,6 +119,25 @@ export async function enableExtensions(page: Page, ids: string[]): Promise<void>
 }
 
 /**
+ * Flip the Fast-Forward opt-in toggle + preset the way a user would (Tools → Advance Time dialog →
+ * "⚡ Fast-Forward" checkbox → preset <select>), so the persisted zustand store
+ * (src/store/fastAdvanceState.ts) really changes. Called AFTER warmup so the real economy has mass
+ * before the measured Fast-Forward year — enabling it earlier would let the warmup itself run on
+ * preset rates. docs/plan/advance-time-fast-forward.md §9.6 item 1.
+ */
+export async function enableFastForwardViaUI(page: Page, preset: string): Promise<void> {
+  await page.locator("#stickedAdvanceTimeButton").click();
+  const dialog = page.locator(".fmg-dialog", {
+    has: page.locator(".fmg-dialog-title", { hasText: "Advance Time" })
+  });
+  await dialog.waitFor({ state: "visible", timeout: 15_000 });
+  await dialog.getByRole("checkbox").first().check();
+  await dialog.getByRole("combobox").selectOption(preset);
+  // Close the dialog again so it can't intercept anything during the measured run.
+  await page.locator("#stickedAdvanceTimeButton").click();
+}
+
+/**
  * Reads population + economy aggregates straight out of `window.fmg.world`/`window.fmg.simulation`.
  * Markets/Goods live on the economy extension's namespaced simulation slice
  * (`simulation.extensions.economy`, see src/extensions/economy/context/economyApi.ts
