@@ -19,7 +19,16 @@ export const KNOWLEDGE_VALUE_PRIOR: Record<CultureType, number> = {
   Naval: 0.48,
   Highland: 0.4,
   Hunting: 0.28,
-  Nomadic: 0.22
+  Nomadic: 0.22,
+  // Added 2026-08-23 alongside docs/plan/modern-urban-water-treatment-and-governance.md's culture
+  // additions (cultures-generator.ts's defineCultureType). Desert/Marsh keep the same "settled
+  // trade/agrarian culture" range as River/Lake, since oasis caravan hubs and delta farming both
+  // historically produced literate administrative centers. Industrial/Colonial trend high:
+  // engineering culture and imported institutions respectively.
+  Desert: 0.42,
+  Marsh: 0.4,
+  Industrial: 0.6,
+  Colonial: 0.5
 };
 
 const DEFAULT_PRIOR = KNOWLEDGE_VALUE_PRIOR.Generic;

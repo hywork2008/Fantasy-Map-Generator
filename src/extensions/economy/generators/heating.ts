@@ -243,3 +243,52 @@ export function getForestRegrowthMultiplier(cellId: number): number {
   const forestryKnowledge = getHeatingLedger(marketId)?.forestryKnowledge ?? 0;
   return 1 + clamp01(forestryKnowledge) * MAX_MANAGED_FOREST_REGROWTH_BONUS;
 }
+
+/**
+ * calibration TBD — same order of magnitude as MAX_HEATING_TECH_FUEL_REDUCTION (0.25) and
+ * raceWaterTechBias.ts's ceilingBonus.waterLifting (0.3): a real but bounded uplift, not a
+ * multiplier that dwarfs the natural-geography baseline.
+ */
+export const MAX_HEATING_CLIMATE_CAPACITY_BONUS = 0.25;
+
+/**
+ * Raises a Burg's `demographics.effectiveCapacity` when its Market has real, accumulated
+ * cold-climate knowledge (`heatingTechnology`/`insulationTechnology`, built up by
+ * `settleAnnualColdClimateKnowledge()` above from years of actually surviving cold winters on
+ * Wood/Coal). Before this, `settleMonthlyHeating()`'s fuel/comfort simulation had no connection at
+ * all to the settlement-capacity ceiling: a State could burn Coal to keep a cold-climate Burg
+ * warm for centuries and its population cap would behave exactly as if that never happened.
+ *
+ * No separate "is this Burg cold" gate is needed: heatingTechnology/insulationTechnology are
+ * already near-zero for a temperate Burg, since `coldExposureMonths` (their upstream driver) only
+ * accrues below COLD_EXPOSURE_TEMPERATURE_C — the bonus self-limits to places actually cold enough
+ * for the knowledge to have built up.
+ *
+ * Must be called AFTER `foodImportNetwork.ts`'s `resolveFoodImportNetwork()` has finished its own
+ * `resetEffectiveCapacities()` + `applyImportCapacity()` pass for this cycle — that function always
+ * *reassigns* `effectiveCapacity` from `capacity` fresh (not an increment), so calling this first
+ * would have its bonus silently discarded. `resolveFoodImportNetwork()` calls this itself, last.
+ * Design: docs/plan/electric-power-and-telegraph.md §3.15.
+ */
+export function applyHeatingCapacityBonus(
+  burgs: readonly {
+    i?: number;
+    removed?: boolean;
+    market?: number;
+    demographics?: { capacity: number; effectiveCapacity?: number };
+  }[]
+): void {
+  for (const burg of burgs) {
+    if (!burg?.i || burg.removed || !burg.demographics) continue;
+    const ledger = getHeatingLedger(burg.market ?? 0);
+    if (!ledger) continue;
+    const climateKnowledge = clamp01((ledger.heatingTechnology + ledger.insulationTechnology) / 2);
+    if (climateKnowledge <= 0) continue;
+    const baseCapacity = Math.max(0, burg.demographics.capacity ?? 0);
+    const current = burg.demographics.effectiveCapacity ?? baseCapacity;
+    burg.demographics.effectiveCapacity = rn(
+      current + baseCapacity * climateKnowledge * MAX_HEATING_CLIMATE_CAPACITY_BONUS,
+      3
+    );
+  }
+}

@@ -1,6 +1,29 @@
 import type { Point } from "lineclip";
 
-export const CULTURE_TYPES = ["Generic", "Hunting", "Highland", "River", "Lake", "Naval", "Nomadic"] as const;
+/**
+ * "Desert", "Marsh", "Industrial" and "Colonial" (2026-08-23,
+ * docs/plan/modern-urban-water-treatment-and-governance.md) extend the original geography-driven
+ * set: "Desert" splits arid oasis/caravan settlement off of "Nomadic" (both used to share the
+ * biome's "nomadic" tag, forcing every desert cell into steppe-pastoralist behavior even next to
+ * a river or harbor — see cultures-generator.ts's defineCultureType), "Marsh" splits coastal
+ * delta/polder farmers off of "Hunting" (which otherwise lumps them in with inland swamp
+ * foragers), and "Industrial"/"Colonial" are era-gated archetypes that can only appear once
+ * `historicalPeriod` is late enough — see cultures-generator.ts's defineCultureType for the exact
+ * gates. None of these change the meaning of the pre-existing seven values.
+ */
+export const CULTURE_TYPES = [
+  "Generic",
+  "Hunting",
+  "Highland",
+  "River",
+  "Lake",
+  "Naval",
+  "Nomadic",
+  "Desert",
+  "Marsh",
+  "Industrial",
+  "Colonial"
+] as const;
 export const DEFAULT_CULTURE_TYPE: CultureType = "Generic";
 export type CultureType = (typeof CULTURE_TYPES)[number];
 
@@ -106,6 +129,16 @@ export type CharacterRaceAppearance =
   | { kind: "demon"; hornAnimal: DemonHornAnimal }
   | { kind: "beastfolk"; animal: BeastfolkAnimal; furryScale: number };
 
+/** Species-level exceptions to ordinary human environmental carrying capacity. */
+export interface RaceEnvironmentalSurvival {
+  /** The folk can survive without agricultural or other local food capacity. */
+  foodIndependent: boolean;
+  /** Ambient temperature does not itself make a place uninhabitable for the folk. */
+  temperatureIndependent: boolean;
+  /** Maximum local population capacity relative to an equivalent human settlement. */
+  populationCapacityMultiplier: number;
+}
+
 /**
  * Species / folk traits, independent of culture (language, names, expansion).
  * Index 0 is "Unknown" (Wildlands / unset).
@@ -138,6 +171,8 @@ export interface Race {
   fertility?: RaceFertility;
   /** Character-level fantasy appearance options (for example Demon horns). */
   characterAppearance?: RaceCharacterAppearance;
+  /** Species-level food, temperature, and low-density survival rules. */
+  environmentalSurvival?: RaceEnvironmentalSurvival;
   lock?: boolean;
   removed?: boolean;
 }
@@ -418,6 +453,17 @@ export interface Culture {
    * rather than directly, so legacy saves without this field fall back to the type's prior.
    */
   knowledgeValue?: number;
+  /**
+   * How readily this culture's people adopt permanent modern infrastructure and institutions
+   * (piped water, sewers, chartered municipal government, …), 0..1. Rolled once at generation
+   * from a per-CultureType prior (docs/plan/modern-urban-water-treatment-and-governance.md) and
+   * persisted so it stays stable across saves. Read via `getCultureModernizationAffinity()`
+   * (src/utils/cultureModernizationAffinity.ts) rather than directly, so legacy saves without
+   * this field fall back to the type's prior. A low value (e.g. Nomadic) is not "backward" —
+   * it reflects that a mobile lifestyle has no fixed site to invest permanent works into, and a
+   * settled culture forced onto that lifestyle can regain a high value once it resettles.
+   */
+  modernizationAffinity?: number;
 }
 
 export interface PackedGraphFeature {

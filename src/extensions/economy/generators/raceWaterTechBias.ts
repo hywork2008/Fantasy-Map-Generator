@@ -7,11 +7,10 @@
  * `urbanWaterTech.ts` / `urbanWaterSystem.ts` already evaluate from real burg
  * conditions (geography, treasury, masonry stock). It never bypasses the
  * `hasOutfall` / population gates in `canStartAdvancedProject()` — a burg with
- * nowhere to drain still cannot build a sewer network, race or no race. Any
- * burg that *can* plausibly support Roman-grade works (river/coastal, enough
- * people) will reach and hold them fast; a landlocked hamlet will not, which
- * is the intended (and more defensible) behavior — see the design discussion
- * that replaced an earlier hard-floor draft.
+ * nowhere to drain still cannot build a new sewer network, race or no race.
+ * The separate generation-only Roman inheritance for every Giant-State Burg
+ * lives in `urbanWaterSystem.ts`; settlements are placed below a high water
+ * source by the core burg generator before that inheritance is applied.
  */
 import { isFantasyCulturesSet } from "../../../data/raceCivicStance";
 import type { RaceKey } from "../../hostTypes";

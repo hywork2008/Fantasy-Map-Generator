@@ -491,6 +491,7 @@ export function applyStoredOptions(): void {
     "year",
     "era",
     "historicalPeriod",
+    "forceIndustrialCultures",
     "cultures",
     "culturesSet",
     "statesNumber",
@@ -556,7 +557,7 @@ export function applyStoredOptions(): void {
 
     if (isPersistedOptionKey(key)) {
       const parsedValue =
-        key === "gunpowderEraEnabled" || key === "initialFirearmsUnstocked"
+        key === "gunpowderEraEnabled" || key === "initialFirearmsUnstocked" || key === "forceIndustrialCultures"
           ? value === "true"
           : Number.isNaN(+value)
             ? value

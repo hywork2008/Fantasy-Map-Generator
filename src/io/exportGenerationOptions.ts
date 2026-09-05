@@ -54,7 +54,12 @@ const FRONTIER_START_MODES = ["landOrigin", "seaborne"] as const;
 const FRONTIER_SPACINGS = ["dispersed", "clustered"] as const;
 const CONFLICT_AUTONOMIES = ["playerDirected", "autonomous"] as const;
 
-const BOOLEAN_KEYS = ["gunpowderEraEnabled", "initialFirearmsUnstocked", "dangerEnabled"] as const;
+const BOOLEAN_KEYS = [
+  "gunpowderEraEnabled",
+  "initialFirearmsUnstocked",
+  "forceIndustrialCultures",
+  "dangerEnabled"
+] as const;
 
 const STRING_KEYS = ["seed", "mapName", "era", "template", "culturesSet", "emblemShape"] as const;
 

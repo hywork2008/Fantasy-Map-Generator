@@ -1,6 +1,6 @@
 import type React from "react";
 import { useMemo } from "react";
-import { showDataTip } from "../services/tooltipService";
+import { hideDataTip, showDataTip } from "../services/tooltipService";
 import { useViewState } from "../store";
 import { debounce } from "../utils";
 import { ExitCustomization } from "./components/ExitCustomization";
@@ -26,7 +26,7 @@ export const App = () => {
   );
 
   return (
-    <div id="react-ui-container" onMouseMove={handleMouseMove}>
+    <div id="react-ui-container" onMouseMove={handleMouseMove} onMouseOut={e => hideDataTip(e.nativeEvent)}>
       <ToastContainer />
       <MapContextMenu />
       <ZoomLevelIndicator />

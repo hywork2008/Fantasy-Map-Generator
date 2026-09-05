@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { culturesEditorActions } from "../../controllers/cultures-editor";
 import { COA } from "../../generators/emblem/generator";
 import { useCulturesEditorState } from "../../store/culturesEditorState";
+import { CULTURE_TYPES } from "../../types/models";
 import { capitalize, rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
@@ -13,7 +14,7 @@ import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
-const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting", "Highland"];
+const cultureTypes: readonly string[] = CULTURE_TYPES;
 
 const shapeOptions: string[] = Object.keys(COA.shields.types).flatMap(type =>
   Object.keys((COA.shields as Record<string, Record<string, number>>)[type])

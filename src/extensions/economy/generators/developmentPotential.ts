@@ -135,6 +135,24 @@ function resolveNitrogenFertilizerStockByCell(cellCount: number): Float32Array {
 }
 
 /**
+ * Broadcasts each Market's potashFertilizerStock (docs/plan/fallow-reduction-fertilizer-rotation.md
+ * §4) to its cells, same shape as resolveFertilizerStockByCell.
+ */
+function resolvePotashFertilizerStockByCell(cellCount: number): Float32Array {
+  const stockByCell = new Float32Array(cellCount);
+  const marketCellColumn = getMarketCellColumn();
+  if (!marketCellColumn.length) return stockByCell;
+
+  const stockByMarketId = new Map(getMarkets().map(market => [market.i, market.potashFertilizerStock ?? 0]));
+  for (let cellId = 0; cellId < cellCount; cellId++) {
+    const marketId = marketCellColumn[cellId];
+    if (!marketId) continue;
+    stockByCell[cellId] = stockByMarketId.get(marketId) ?? 0;
+  }
+  return stockByCell;
+}
+
+/**
  * Broadcasts each State's stateAgriculturalProductivity (docs/plan/rural-agtech-investment.md
  * §6.1) to its cells via cells.state, so calculateAgriculturalLandProfile stays State-unaware.
  */
@@ -379,7 +397,8 @@ export class DevelopmentPotentialModule {
       floodProtectionByCell: getFloodProtection(),
       climateFoodStressByCell: getClimateFoodStress(),
       fertilizerStockByCell: resolveFertilizerStockByCell(cellCount),
-      nitrogenFertilizerStockByCell: resolveNitrogenFertilizerStockByCell(cellCount)
+      nitrogenFertilizerStockByCell: resolveNitrogenFertilizerStockByCell(cellCount),
+      potashFertilizerStockByCell: resolvePotashFertilizerStockByCell(cellCount)
     };
   }
 

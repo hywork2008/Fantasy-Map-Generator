@@ -53,3 +53,4 @@ export { MilitaryRenderer } from "../renderers/draw-military";
 export { StatesRenderer } from "../renderers/draw-states";
 export { useOptionsState } from "../store/optionsState";
 export { getCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
+export { getCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";

@@ -865,6 +865,22 @@ const ERA_6: readonly TechnologyDefinition[] = [
     adopted: { min: { electricityCoverage: 0.35, administration: 0.68, treasury: 500 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   },
+  // docs/plan/electric-power-and-telegraph.md §3.15 (2026-08-23 addendum). Single prerequisite,
+  // same shape as electricTelegraph's own single-node chain — a working power grid is the whole
+  // story a pump needs (motor + reliable supply), no separate metallurgy/chemistry convergence.
+  // Every threshold sits above powerGrid's own adopted floor (administration 0.68/treasury 500/
+  // electricityCoverage 0.35) to avoid an automatic pass-through the instant powerGrid adopts.
+  {
+    id: "electricWaterPumps",
+    label: "Electric water pumps",
+    era: 6,
+    scope: "state",
+    prerequisites: ["powerGrid"],
+    known: { min: { electricityCoverage: 0.38, administration: 0.7, treasury: 480 } },
+    demonstrated: { min: { electricityCoverage: 0.42, administration: 0.74, treasury: 560 } },
+    adopted: { min: { electricityCoverage: 0.48, administration: 0.78, treasury: 640 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
   // docs/plan/electrolytic-industry-vertical-slice.md §3.6. Three prerequisites converge here —
   // practicalElectrochemistry (electrochemistry), highPressureChemicalApparatus (the existing
   // chemicalEngineering proxy catalyticChemistry already reuses), and powerGrid (a stable
@@ -955,6 +971,75 @@ const ERA_7: readonly TechnologyDefinition[] = [
     demonstrated: { min: { refinedFuelAccess: 0.25, steelAccess: 0.4, treasury: 360 } },
     adopted: { min: { refinedFuelAccess: 0.35, steelAccess: 0.45, administration: 0.5, treasury: 430 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  // docs/plan/natural-gas-lng-power-generation.md §3.5. Same two-prerequisite shape as
+  // oilRefiningAndFractionation (modernDrillingAndFieldOperations + highPressureChemicalApparatus)
+  // — a sibling node, not dependent on oilRefiningAndFractionation. naturalGasAccess's thresholds
+  // sit lower than petroleumAccess's equivalents because Natural Gas is the associated/secondary
+  // commodity in oilField deposits (0.25x Crude Oil's yield scale).
+  {
+    id: "naturalGasLiquefaction",
+    label: "Natural gas liquefaction",
+    era: 7,
+    scope: "state",
+    prerequisites: ["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"],
+    known: { min: { naturalGasAccess: 0.1, experimentRecord: 0.68, treasury: 300 } },
+    demonstrated: { min: { lngPlantTrialYears: 2, naturalGasAccess: 0.12, treasury: 360 } },
+    adopted: { min: { lngPlantInstallations: 1, administration: 0.6, treasury: 420 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/natural-gas-lng-power-generation.md §3.6. Two prerequisites converge here —
+  // naturalGasLiquefaction (the LNG supply chain) and generatorAndMotor (the base electrical-
+  // engineering node PowerStations already requires) — the same shape as generatorAndMotor's own
+  // two-prerequisite convergence. administration sits above both prerequisites' own adopted floors
+  // (naturalGasLiquefaction's 0.6, generatorAndMotor's 0.55) to avoid an automatic pass-through the
+  // instant either one adopts. Unlike internalCombustionEngine's still-unconnected effect, this
+  // node's effect (GasPowerStations) is wired directly into PowerGridInvestment's existing
+  // generationCapacity pool (§3.10) — the first "later oil/gas energy supply" roadmap §9.3 promises.
+  {
+    id: "gasFiredElectricityGeneration",
+    label: "Gas-fired electricity generation",
+    era: 7,
+    scope: "state",
+    prerequisites: ["naturalGasLiquefaction", "generatorAndMotor"],
+    known: { min: { lngAccess: 0.15, treasury: 440 } },
+    demonstrated: { min: { gasPowerStationTrialYears: 2, lngAccess: 0.2, treasury: 500 } },
+    adopted: { min: { gasPowerStationInstallations: 1, administration: 0.65, treasury: 560 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.3 (2026-08-23 revision — history
+  // check). NOT a child of naturalGasLiquefaction: real vapor-compression refrigeration (Perkins
+  // 1834; Carré's ammonia-compression ice machines, 1859-60s; Linde's commercial compression
+  // refrigeration, 1876) is *decades* older than industrial natural-gas liquefaction (Linde's own
+  // air-liquefaction cascade, 1895; first commercial NG liquefaction, ~1915; LNG as an industry,
+  // 1940s+) — the two are not "one first, one second" but share a common thermodynamic/precision-
+  // compressor engineering parent (Carl von Linde himself worked both sides of that lineage). This
+  // node is therefore a sibling of naturalGasLiquefaction, prerequisite on the same
+  // highPressureChemicalApparatus (era6, chemicalEngineering/thermodynamics proxy — see
+  // oilRefiningAndFractionation's identical use) + standardMachineWorks (precision compressor
+  // manufacturing) pair naturalGasLiquefaction itself descends from via
+  // modernDrillingAndFieldOperations's own chain, not from naturalGasLiquefaction directly.
+  // metallurgy sits above standardMachineWorks' own adopted floor (0.7); experimentRecord/treasury
+  // sit above highPressureChemicalApparatus's own adopted floor (0.65/290); administration sits
+  // above both prerequisites' own adopted floors (highPressureChemicalApparatus's 0.6,
+  // standardMachineWorks' 0.45) — none pass through automatically the instant either prerequisite
+  // adopts. ColdStorageDepots' own fuel is still LNG (§3.5) — a state can reach "known" here
+  // without naturalGasLiquefaction, but a depot cannot actually reach utilization>=0.5 (and so
+  // never accumulates coldStorageDepotTrialYears/Installations toward demonstrated/adopted)
+  // without LNG actually flowing, so the practical link to the gas chain survives without a
+  // technology-graph edge forcing it. Effect (ColdStorageDepots) is wired directly into
+  // settleCellFreshFood()'s cold-chain export lane (§3.6-3.7) and isGoodTradePermitted()'s
+  // refrigeratedTransport gate (§3.8).
+  {
+    id: "mechanicalRefrigeration",
+    label: "Mechanical refrigeration",
+    era: 7,
+    scope: "state",
+    prerequisites: ["highPressureChemicalApparatus", "standardMachineWorks"],
+    known: { min: { metallurgy: 0.72, experimentRecord: 0.68, treasury: 340 } },
+    demonstrated: { min: { coldStorageDepotTrialYears: 2, experimentRecord: 0.7, treasury: 400 } },
+    adopted: { min: { coldStorageDepotInstallations: 1, administration: 0.65, treasury: 460 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
 

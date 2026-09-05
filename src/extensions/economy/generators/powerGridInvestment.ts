@@ -4,6 +4,7 @@ import { rn } from "../../hostUtils";
 import {
   ANNUAL_GATE,
   getDams,
+  getGasPowerStations,
   getMarkets,
   getPowerStations,
   getWorldContext,
@@ -59,6 +60,16 @@ export class PowerGridInvestmentModule {
     const capacityByMarket = new Map<number, number>();
     const capacityByState = new Map<number, number>();
     for (const plant of getPowerStations()) {
+      if (!plant.active) continue;
+      const marketId = marketIdForBurg(plant.burgId);
+      if (marketId) capacityByMarket.set(marketId, (capacityByMarket.get(marketId) ?? 0) + plant.generationCapacity);
+      if (plant.stateId) {
+        capacityByState.set(plant.stateId, (capacityByState.get(plant.stateId) ?? 0) + plant.generationCapacity);
+      }
+    }
+    // GasPowerStation joins the same pool as coal PowerStations — the "later oil/gas energy
+    // supply" roadmap §9.3 promises. docs/plan/natural-gas-lng-power-generation.md §3.10.
+    for (const plant of getGasPowerStations()) {
       if (!plant.active) continue;
       const marketId = marketIdForBurg(plant.burgId);
       if (marketId) capacityByMarket.set(marketId, (capacityByMarket.get(marketId) ?? 0) + plant.generationCapacity);

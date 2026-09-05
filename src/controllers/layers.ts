@@ -147,6 +147,7 @@ const DEFAULT_PRESET_LABELS: Record<string, string> = {
   religions: "Religions map",
   provinces: "Provinces map",
   biomes: "Biomes map",
+  sewages: "Water and sewage",
   heightmap: "Heightmap",
   physical: "Physical map",
   poi: "Places of interest",
@@ -163,6 +164,7 @@ function getDefaultPresets(): Record<string, string[]> {
     religions: ["toggleBorders", "toggleBurgIcons", "toggleLabels", "toggleReligions", "toggleRivers", "toggleRoutes"],
     provinces: ["toggleBorders", "toggleBurgIcons", "toggleProvinces", "toggleRivers"],
     biomes: ["toggleBiomes", "toggleIce", "toggleRivers"],
+    sewages: ["toggleRivers", "toggleSewerage", "toggleWaterSupply"],
     heightmap: ["toggleHeight", "toggleRivers"],
     physical: ["toggleCoordinates", "toggleHeight", "toggleIce", "toggleRivers"],
     poi: [

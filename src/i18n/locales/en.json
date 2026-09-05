@@ -90,7 +90,32 @@
     "label": "Map menu",
     "distanceFromHere": "Distance from here",
     "distanceToHere": "Distance to here",
-    "distanceToHereDisabled": "Set Distance from here first"
+    "distanceToHereDisabled": "Set Distance from here first",
+    "distanceFromBurg": "Distance from {{name}}",
+    "distanceToBurg": "Distance to {{name}}"
+  },
+  "directions": {
+    "mode": {
+      "foot": "On foot",
+      "mounted": "Mounted",
+      "wagon": "By cart"
+    },
+    "reason": {
+      "noRoute": "No charted road, trail, or sea lane connects these settlements",
+      "sameLocation": "Already there"
+    },
+    "duration": {
+      "daysHours": "{{days}}d {{hours}}h",
+      "hoursMinutes": "{{hours}}h {{minutes}}m",
+      "minutes": "{{minutes}}m"
+    },
+    "avoidSea": "Avoid sea travel",
+    "seaRequiredNote": "This route requires a sea crossing — no road network connects these settlements, so \"Avoid sea travel\" is ignored here.",
+    "distanceSplit": "{{land}} {{distanceUnit}} by land · {{sea}} {{distanceUnit}} by sea",
+    "gradeSummary": "Max grade: {{maxGrade}}% · Climb: {{ascent}} {{heightUnit}} · Descent: {{descent}} {{heightUnit}} · Difficulty: {{difficulty}}",
+    "landGradeSummary": "Climb: {{ascent}} {{heightUnit}} · Descent: {{descent}} {{heightUnit}} (land legs only)",
+    "noElevation": "Flat sea crossing — no elevation change.",
+    "noRoute": "No charted route connects these settlements."
   },
   "characters": {
     "dialogTitle": "Character Details: {{name}}",
@@ -715,6 +740,7 @@
         "Locomotive": "Locomotive",
         "Linen": "Linen",
         "Liquor": "Liquor",
+        "LNG": "LNG",
         "Lubricating Oil": "Lubricating Oil",
         "Machine Parts": "Machine Parts",
         "Mahogany": "Mahogany",
@@ -728,6 +754,7 @@
         "Millet": "Millet",
         "Rice": "Rice",
         "Muskets": "Muskets",
+        "Natural Gas": "Natural Gas",
         "Nitric Acid": "Nitric Acid",
         "Nitrogen Fertilizer": "Nitrogen Fertilizer",
         "Oats": "Oats",
@@ -1133,6 +1160,8 @@
       "petroleumEra": "Petroleum (Era 7)",
       "rocketryEra": "Rocketry and space (Era 8)"
     },
+    "forceIndustrialCultures": "Force all cultures to Industrial",
+    "forceIndustrialCulturesTip": "Debug/override: every culture on the map is assigned the Industrial culture type, ignoring terrain, historical period, and the normal chance of it appearing. Use this to guarantee Industrial-culture nations — and the water/sewer infrastructure their high modernization affinity seeds at generation — show up on the map.",
     "startFirearmsUnstocked": "Start firearms unstocked",
     "startFirearmsUnstockedTip": "New maps normally treat existing musketeer and artillery units as already equipped. Enable this to start their firearm equipment at zero and require state procurement through the economy.",
     "stateLabels": "State labels",
@@ -1711,6 +1740,7 @@
       "exportMap": "Export map data",
       "exportPngTiles": "Export to PNG tiles",
       "cellInfo": "CellInfo",
+      "directions": "Directions: {{from}} → {{to}}",
       "populationOverview": "Population Overview",
       "technologyOverview": "Technology Overview",
       "burgsOverview": "Burgs Overview",
@@ -2183,6 +2213,9 @@
         "modernDrillingAndFieldOperations": "Modern drilling and oil-field operations",
         "oilRefiningAndFractionation": "Oil refining and fractional distillation",
         "internalCombustionEngine": "Internal combustion engine",
+        "naturalGasLiquefaction": "Natural gas liquefaction",
+        "gasFiredElectricityGeneration": "Gas-fired electricity generation",
+        "mechanicalRefrigeration": "Mechanical refrigeration",
         "militarySignalRockets": "Military and signal powder rockets",
         "rocketDynamicsAndHighTemperatureCombustionResearch": "Rocket dynamics and high-temperature combustion research",
         "liquidPropulsionAndTestFacilities": "Liquid propulsion and rocket test facilities",
@@ -2210,7 +2243,11 @@
         "naval": "Naval",
         "nomadic": "Nomadic",
         "hunting": "Hunting",
-        "highland": "Highland"
+        "highland": "Highland",
+        "desert": "Desert",
+        "marsh": "Marsh",
+        "industrial": "Industrial",
+        "colonial": "Colonial"
       },
       "culture": "Culture:",
       "cultureTip": "Select dominant culture",

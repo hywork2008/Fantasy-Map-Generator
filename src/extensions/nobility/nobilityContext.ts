@@ -13,6 +13,7 @@ import type { CharacterGenerationBias } from "../characters/characterTypes";
 import type { ConflictAuthorization } from "./types";
 
 let _api: ExtensionAPI | null = null;
+let _talentAllocationLastSettledYearFallback: number | null = null;
 
 export function initNobilityContext(api: ExtensionAPI): void {
   _api = api;
@@ -20,6 +21,7 @@ export function initNobilityContext(api: ExtensionAPI): void {
 
 export function clearNobilityContext(): void {
   _api = null;
+  _talentAllocationLastSettledYearFallback = null;
 }
 
 /** Supports pure generator helpers that are exercised without the extension lifecycle in unit tests. */
@@ -110,6 +112,25 @@ export function setRulerId(state: State, rulerId: number | undefined): void {
   const legacyState = state as unknown as Record<string, unknown>;
   if (rulerId === undefined) delete legacyState.rulerId;
   else legacyState.rulerId = rulerId;
+}
+
+/** Once-per-year guard for the ruler/culture-led named-personnel allocation pass. */
+export function getTalentAllocationLastSettledYear(): number | null {
+  const slice = getNobilitySlice();
+  if (slice) {
+    const value = slice.talentAllocationLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _talentAllocationLastSettledYearFallback;
+}
+
+export function setTalentAllocationLastSettledYear(year: number): void {
+  const slice = getNobilitySlice();
+  if (slice) {
+    slice.talentAllocationLastSettledYear = year;
+    return;
+  }
+  _talentAllocationLastSettledYearFallback = year;
 }
 
 /** Nobility-owned player conflict records, stored by state ID. */

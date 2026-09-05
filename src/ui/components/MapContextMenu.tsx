@@ -10,7 +10,7 @@ const MENU_OFFSET = 2;
 export function MapContextMenu() {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
-  const { isOpen, clientX, clientY, mapX, mapY, distanceFrom } = useMapContextMenuState();
+  const { isOpen, clientX, clientY, mapX, mapY, distanceFrom, targetBurgName } = useMapContextMenuState();
 
   useEffect(() => {
     const map = document.getElementById("map");
@@ -62,6 +62,13 @@ export function MapContextMenu() {
 
   if (!isOpen) return null;
 
+  const fromLabel = targetBurgName
+    ? t("mapContextMenu.distanceFromBurg", { name: targetBurgName })
+    : t("mapContextMenu.distanceFromHere");
+  const toLabel = targetBurgName
+    ? t("mapContextMenu.distanceToBurg", { name: targetBurgName })
+    : t("mapContextMenu.distanceToHere");
+
   return (
     <div
       ref={menuRef}
@@ -72,7 +79,7 @@ export function MapContextMenu() {
       onContextMenu={event => event.preventDefault()}
     >
       <button type="button" role="menuitem" className="map-context-menu__item" onClick={onFromHere}>
-        {t("mapContextMenu.distanceFromHere")}
+        {fromLabel}
       </button>
       <button
         type="button"
@@ -82,7 +89,7 @@ export function MapContextMenu() {
         disabled={!distanceFrom}
         title={!distanceFrom ? t("mapContextMenu.distanceToHereDisabled") : undefined}
       >
-        {t("mapContextMenu.distanceToHere")}
+        {toLabel}
       </button>
     </div>
   );

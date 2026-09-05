@@ -79,6 +79,18 @@ const DISTRICT_PROFILES: readonly DistrictProfile[] = [
   { type: "sedex", provinces: ["basin"], primary: "lead", commodities: ["lead", "silver"] },
   { type: "graniteTin", provinces: ["granite"], primary: "tin", commodities: ["tin", "copper", "silver"] },
   { type: "bandedIron", provinces: ["shield"], primary: "iron", commodities: ["iron"] },
+  // Alloying minerals for stainless steel and other corrosion-resistant steels. They remain
+  // separate districts so a mine advertises the actual ore it can supply instead of every iron
+  // deposit unrealistically producing all alloying elements.
+  { type: "chromite", provinces: ["orogen", "shield"], primary: "chromium", commodities: ["chromium", "iron"] },
+  { type: "nickelLaterite", provinces: ["shield"], primary: "nickel", commodities: ["nickel", "iron"] },
+  {
+    type: "molybdenumPorphyry",
+    provinces: ["orogen", "granite"],
+    primary: "molybdenum",
+    commodities: ["molybdenum", "copper"]
+  },
+  { type: "quartzVein", provinces: ["granite", "orogen"], primary: "silicon", commodities: ["silicon"] },
   { type: "lodeGold", provinces: ["shield", "orogen"], primary: "gold", commodities: ["gold"] },
   { type: "placer", provinces: ["placer"], primary: "gold", commodities: ["gold"] },
   { type: "coalSeam", provinces: ["basin"], primary: "coal", commodities: ["coal"] },
@@ -86,10 +98,13 @@ const DISTRICT_PROFILES: readonly DistrictProfile[] = [
   // Sedimentary phosphorite, same "basin" province as coalSeam/evaporite (docs/plan/
   // phosphate-fertilizer-vertical-slice.md §3.2).
   { type: "phosphorite", provinces: ["basin"], primary: "phosphate rock", commodities: ["phosphate rock"] },
-  // Sedimentary source-rock petroleum, same "basin" province as coalSeam/evaporite/phosphorite —
-  // no new GeologicalProvinceKind needed. docs/plan/petroleum-and-internal-combustion-vertical-
-  // slice.md §3.2.
-  { type: "oilField", provinces: ["basin"], primary: "crude oil", commodities: ["crude oil"] },
+  // Sedimentary source-rock petroleum + associated natural gas, same "basin" province as
+  // coalSeam/evaporite/phosphorite — no new GeologicalProvinceKind needed. Natural gas rides along
+  // as a secondary commodity (0.25x scale via createYield's primary flag below), the same
+  // "one district, two commodities" shape evaporite already uses for sulfur/saltpeter.
+  // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.2,
+  // docs/plan/natural-gas-lng-power-generation.md §3.2.
+  { type: "oilField", provinces: ["basin"], primary: "crude oil", commodities: ["crude oil", "natural gas"] },
   // Lateritic bauxite weathering crust, same "shield" province as bandedIron/lodeGold — no new
   // GeologicalProvinceKind added (docs/plan/electrolytic-industry-vertical-slice.md §3.2).
   { type: "laterite", provinces: ["shield"], primary: "bauxite", commodities: ["bauxite"] },
@@ -106,6 +121,10 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
   "mvt",
   "graniteTin",
   "bandedIron",
+  "chromite",
+  "nickelLaterite",
+  "molybdenumPorphyry",
+  "quartzVein",
   "sedex",
   "porphyry",
   "skarn",
@@ -505,13 +524,21 @@ export class MineralResourcesModule {
       lead: 65,
       silver: 3,
       gold: 1,
+      chromium: 20,
+      nickel: 16,
+      molybdenum: 6,
+      silicon: 100,
       coal: 160,
       saltpeter: 12,
       sulfur: 15,
       "phosphate rock": 140, // calibration TBD — bulk sedimentary rock, slightly below coal's scale
       bauxite: 120, // calibration TBD — bulk lateritic ore, below Phosphate Rock's scale
       cinnabar: 5, // calibration TBD — rare hydrothermal ore, well below Sulfur(15)/Saltpeter(12)
-      "crude oil": 70 // calibration TBD — bulk fuel mineral like Coal(160)/Bauxite(120), but scarcer at this era
+      "crude oil": 70, // calibration TBD — bulk fuel mineral like Coal(160)/Bauxite(120), but scarcer at this era
+      "natural gas": 50 // calibration TBD — same order of magnitude as Crude Oil(70); the 0.25x
+      // secondary-commodity discount (createYield's primary flag) applies on top, same as
+      // saltpeter riding along evaporite's primary sulfur. docs/plan/natural-gas-lng-power-
+      // generation.md §3.2.
     };
     const capacity = baseAnnualCapacity[commodity] * richness * (primary ? 1 : 0.25);
     const mineLifeYears = 60 + Math.floor(this.hash(seed, `${commodity}:life`, cell) * 190);

@@ -108,6 +108,8 @@ Nobility/Characters 無効または `hasCharactersContext() === false` または
 | Hunting | 0.28 |
 | Nomadic | 0.22 |
 
+`CultureType` は2026-08-23に `Desert`(0.42) / `Marsh`(0.4) / `Industrial`(0.6) / `Colonial`(0.5) の4種で拡張された（docs/plan/modern-urban-water-treatment-and-governance.md §11 — `Nomadic` からの砂漠切り出しと、近代化に伴い生まれた文化圏の追加）。`KNOWLEDGE_VALUE_PRIOR` の正本は常に `src/utils/cultureKnowledgeValue.ts` であり、この表は要約に過ぎない。
+
 生成: `clamp01(gauss(prior, 0.12))`。閾値 **`GREAT_LIBRARY_CULTURE_MIN = 0.55`**。
 
 ヘルパ **`getCultureKnowledgeValue(culture)`**: **host 側専用**モジュール `src/utils/cultureKnowledgeValue.ts`（prior 表 + getter）。`knowledgeValue` が有限ならそれを、でなければ prior（セーブ互換）。`cultures-generator.ts` と Economy の両方がここを import する。**Economy に prior 表を置かない**（core generator → economy 依存を禁止）。すべての culture 生成・複製経路で永続フィールドを埋める（§API / PR1）。

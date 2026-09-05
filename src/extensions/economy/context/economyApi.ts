@@ -260,6 +260,18 @@ export function getLeveesLayer() {
   return getApi().getSvgLayer("levees");
 }
 
+export function getWaterSupplyLayer() {
+  return getApi().getSvgLayer("waterSupply");
+}
+
+export function getSewerageLayer() {
+  return getApi().getSvgLayer("sewerage");
+}
+
+export function getPowerGridLayer() {
+  return getApi().getSvgLayer("powerGrid");
+}
+
 /**
  * The `productionByBurg` sub-slice, created on demand. Reaches `_api` nullsafely rather than
  * through `getApi()` so a caller with no simulation context gets null instead of a throw —

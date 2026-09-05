@@ -2,7 +2,7 @@
 
 ## 状態
 
-**実装済み（2026-08-20）**。[technology-development-roadmap.md](./technology-development-roadmap.md) L134「6. 電化・近代化学」の
+**実装済み（2026-08-20）、地図レイヤー表示を追加（2026-08-23、§3.14）、電動井戸ポンプ＋寒冷地容量ボーナスを追加（2026-08-23、§3.15-3.16）**。[technology-development-roadmap.md](./technology-development-roadmap.md) L134「6. 電化・近代化学」の
 era 表と、§9.3「電力・電気化学」（L279-291）のノード表を対象に、発電・送電・電信を実際の `TechnologyDefinition` /
 State資本設備 / 市場カバレッジへ落とし込む。era 6 の技術グラフは
 [synthetic-ammonia-vertical-slice.md](./synthetic-ammonia-vertical-slice.md) の `syntheticAmmonia` で一度完結しており
@@ -523,6 +523,51 @@ const TELEGRAPH_DIFFUSION_BONUS_MAX = 0.5;
 `ELECTRICAL_GOOD_NAMES = ["Copper Wire"] as const` を `goods-generator.ts` に追加し、`migrateSyntheticAmmoniaGoods()`（[goods-generator.ts:3334-3352](../../src/extensions/economy/generators/goods-generator.ts#L3334-L3352)）と同型の `migrateElectricalGoods()` を実装する。`index.tsx` の両方の呼び出し箇所（[index.tsx:2463-2464, 3144-3145](../../src/extensions/economy/index.tsx#L2463-L2464)、`migrateSyntheticAmmoniaGoods()` の直後）に追加する。
 
 新規配列 `powerStations`/`telegraphLines` は §3.9 のとおり `extensionStateSlices.ts` へ登録する。新規スカラー `Market.electricityStock` は既存の `Market` 型の optional フィールドであり、追加のマイグレーション関数は不要（`fertilizerStock`/`nitrogenFertilizerStock` と同じく `undefined` は 0 として扱う）。
+
+### 3.14 地図レイヤー表示: `togglePowerGrid` / `drawPowerGrid.ts`
+
+追加（2026-08-23）: §3.9-§3.10 の実装完了時点では、`PowerStation`/電化 `Dam`/`powerGrid` 採用のいずれも地図上に一切表示されなかった
+（`drawWaterSupply.ts`/`drawSewerage.ts`/`drawDams.ts` のような専用レイヤーが存在しなかった）。`drawWaterSupply.ts` の
+`treatmentPlantMarkup()`/`schemeRoutesMarkup()` と同じ「own SVG layer, emoji icon」の形で、新規レイヤー
+`togglePowerGrid`（SVG `<g id="powerGrid">`, `waterSupply`/`sewerage` と同じく両レンダーモードで SVG のまま — 発電所・送電網の
+deck.gl 表現はまだ存在しない）を追加する:
+
+- **発電所マーカー**: 稼働中／trial の `PowerStation` を持つ Burg に ⚡ アイコン、電化された `Dam`（`electrified: true`）を持つ
+  Burg に 💧⚡ アイコン。非稼働（`active: false`）は drawDams.ts と同じ規約でマーカーを消さずに `INACTIVE_OPACITY` へ暗くする。
+  `Dam` 自体の物理位置（`DamSite` の川沿いの座標）は `toggleDams` レイヤーが既に描画しているため、このレイヤーでは `Dam.burgId`
+  （出資 Burg、州・市場との紐付け先）にマーカーを置く — 二重の座標系を持ち込まず、グリッド接続性の表示に専念する。
+- **送電網（送電線）**: `PowerGridInvestment`（§3.10）は Burg 間の個別路線ではなく州単位の容量プールしか持たないため、実在しない
+  経路を捏造する代わりに、州の `powerGrid` が `adopted` 以上になった場合にのみ、稼働中の各発電拠点からその州の首都 Burg
+  （`state.capital`）への模式的なハブ＆スポーク線を描く。`adopted` 前は `PowerGridInvestment` が自市場内にしか供給しない
+  （§3.10 のコメント "Before powerGrid: only PowerStations sharing this exact market can serve it"）ため、線は一切描かない —
+  発電所マーカー単体が「その市場内だけの供給」を暗に表す。
+- 首都自身が発電拠点を持つ、または少なくとも1本のフィーダー線を受ける場合にのみ、首都に「グリッドハブ」マーカー（同心円）を追加する。
+
+実装: [economyContext.ts](../../src/extensions/economy/economyContext.ts) の `getPowerGridLayer()`、
+[drawPowerGrid.ts](../../src/extensions/economy/renderers/drawPowerGrid.ts)、`index.tsx` の `economyLayers` 配列・
+`registerLayerElement`/`registerLayerToggle`/`registerDrawLayerHook` への `togglePowerGrid` 追加。テストは
+[drawPowerGrid.test.ts](../../src/extensions/economy/renderers/drawPowerGrid.test.ts)（`drawWaterSupply.test.ts` と同じ形）。
+
+### 3.15 電動井戸ポンプ: `electricWaterPumps` と河川のない Burg の水源
+
+追加（2026-08-23）: §3.10 の電力カバレッジ実装が完了した時点で、都市の上下水道（[urban-water-and-sanitation-system.md](./urban-water-and-sanitation-system.md)）側には接続する経路が無かった。`urbanWaterSystem.ts` の `hasUpstreamIntake`
+（河川または Regional Water Scheme への接続がある Burg だけが `true` になり、`drinkingTreatmentTier` の実質的な進展・`waterContamination`/`drinkingWaterSecurity` の主要項を左右する）は、河川のない Burg には未来永劫 `false` のままだった。史実的には電動ポンプによる深井戸汲み上げがまさにこの制約を外した技術であり、`powerGrid`（§3.8）が実装済みの今、単一の新規ノードで自然に接続できる。
+
+- 新規 `TechnologyDefinition`: `electricWaterPumps`（era 6、`prerequisites: ["powerGrid"]` のみ — `electricTelegraph` と同じ単一前提の形）。`known`/`demonstrated`/`adopted` の各閾値は `powerGrid` 自身の `adopted` 閾値（administration 0.68 / treasury 500 / electricityCoverage 0.35）を上回る値に設定し、前提が `adopted` した瞬間に自動通過しないようにしている（`electrolyticIndustry` などと同じ規約）。
+- `computeUrbanWaterSystem()`（[urbanWaterSystem.ts](../../src/extensions/economy/generators/urbanWaterSystem.ts)）に `hasElectricPumpAccess` を追加: その Burg の State で `electricWaterPumps` が `adopted` 以上、かつ **その Burg 自身の Market が実際に** `Market.electricityStock >= ELECTRIC_PUMP_MIN_COVERAGE(0.5)` を満たす場合にのみ `true` になる。技術フラグだけで即座に効果が出る実装を避ける、本書と `modern-urban-water-treatment-and-governance.md` に共通の原則をそのまま踏襲（電力網が「その州のどこかで」動いているだけでは不十分 — 実際にそのBurgへ電力が届いている必要がある）。
+- `hasElectricPumpAccess` は既存の `hasRegionalWaterConnection`（Regional Water Scheme 接続 / 継承 Roman 水道と同じスロット）に OR で合流する。「この Burg の水は自前の河川に依存していない」という同じ事実を表すため。結果として `hasUpstreamIntake` だけでなく `serviceWaterCapacity`/`drinkingBase` の係数（河川/沿岸/regional接続で得る 1.1x/1.05x のボーナス）も同様に得る。
+- Dam の電化と同様、これは「技術ノードの adopted」自体ではなく「実際に届いている電力」でゲートされる点が重要 — `PowerGridInvestment`（§3.10）がまだ電力を配れていない Burg では、たとえ State 全体で `electricWaterPumps` が adopted でも `hasElectricPumpAccess` は `false` のままである。
+
+テストは [urbanWaterSystem.test.ts](../../src/extensions/economy/generators/urbanWaterSystem.test.ts) の `describe("electric water pumps ...")`（未adopted/adoptedだが電力不足/両方満たすの3ケース）。
+
+### 3.16 暖房・断熱知識による寒冷地の実効容量ボーナス
+
+追加（2026-08-23）: `heating.ts` の `settleAnnualColdClimateKnowledge()` は既に何年も前から寒冷地の Burg で `heatingTechnology`/`insulationTechnology`（0..1 の年次蓄積ストック）を積み上げていたが、これは燃料効率・快適さにしか効かず、Burg の入植可能人口の上限（`burg.demographics.effectiveCapacity`）には一切接続されていなかった。石炭で何世紀も暖を取り続けても、集落の成長上限は「その石炭が存在しないかのように」振る舞っていた。
+
+- 新規 `applyHeatingCapacityBonus()`（[heating.ts](../../src/extensions/economy/generators/heating.ts)）: `(heatingTechnology + insulationTechnology) / 2` を「気候知識」スコアとし、`effectiveCapacity` に `baseCapacity * climateKnowledge * MAX_HEATING_CLIMATE_CAPACITY_BONUS(0.25)` を加算する。寒冷地でない Burg は `coldExposureMonths`（`heatingTechnology`/`insulationTechnology` の上流駆動因子）がそもそも蓄積しないため、追加の気候ゲートなしで自然に無効化される。
+- 呼び出し順序が本質的に重要: `effectiveCapacity` の唯一の書き手だった `foodImportNetwork.ts`（[foodImportNetwork.ts](../../src/extensions/economy/generators/foodImportNetwork.ts)）の `resolveFoodImportNetwork()` は、四半期ごとに `resetEffectiveCapacities()` → （必要な Market だけ）`applyImportCapacity()` という「毎回ゼロから再代入」する形で `effectiveCapacity` を決定している。`applyHeatingCapacityBonus()` はこの関数の**最後**（早期returnパスも含む）で呼び、常に「その四半期の確定値」に加算する — 順序を誤ると（先に呼ぶと）食料輸入側の再代入で気候ボーナスが黙って消える。
+
+テストは [heating.test.ts](../../src/extensions/economy/generators/heating.test.ts) の `describe("applyHeatingCapacityBonus", ...)`（比例ボーナス、既存値への加算合成、温暖な市場での無効化、`heatingLedger` 未settle時のスキップ）。
 
 ## 4. Phase分割
 

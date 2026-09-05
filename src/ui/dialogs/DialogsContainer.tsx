@@ -21,6 +21,7 @@ import { CulturesEditorDialog } from "./CulturesEditorDialog";
 import { DiplomacyHistoryDialog } from "./DiplomacyHistoryDialog";
 import { DiplomacyMatrixDialog } from "./DiplomacyMatrixDialog";
 import { DiplomacyRelationDialog } from "./DiplomacyRelationDialog";
+import { DirectionsDialog } from "./DirectionsDialog";
 import { ElevationProfileDialog } from "./ElevationProfileDialog";
 import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
@@ -126,6 +127,7 @@ export const DialogsContainer: React.FC = () => {
           <DiplomacyHistoryDialog />
           <DiplomacyMatrixDialog />
           <DiplomacyRelationDialog />
+          <DirectionsDialog />
           <ElevationProfileDialog />
           <ExportMapDialog />
           <ExportToPngTilesDialog />

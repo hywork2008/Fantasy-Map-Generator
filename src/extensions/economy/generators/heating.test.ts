@@ -9,7 +9,13 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
-import { getForestRegrowthMultiplier, settleAnnualColdClimateKnowledge, settleMonthlyHeating } from "./heating";
+import {
+  applyHeatingCapacityBonus,
+  getForestRegrowthMultiplier,
+  MAX_HEATING_CLIMATE_CAPACITY_BONUS,
+  settleAnnualColdClimateKnowledge,
+  settleMonthlyHeating
+} from "./heating";
 import { healthPressureFromSanitation } from "./urbanWaterInstitutions";
 
 function installMarket(temperature: number, woodStock: number, coalStock: number): void {
@@ -126,5 +132,131 @@ describe("household heating", () => {
     expect(market.heatingLedger!.heatingTechnology).toBeGreaterThan(0);
     expect(market.heatingLedger!.insulationTechnology).toBeGreaterThan(0);
     expect(getForestRegrowthMultiplier(0)).toBeGreaterThan(1);
+  });
+});
+
+describe("applyHeatingCapacityBonus", () => {
+  beforeEach(() => {
+    simulationContext.currentYear = 1000;
+    simulationContext.currentMonth = 1;
+    simulationContext.currentDay = 1;
+    simulationContext.extensions = {};
+    initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+    simulationContext.extensions = {};
+  });
+
+  it("raises effectiveCapacity in proportion to accumulated heating/insulation knowledge", () => {
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#fff",
+        goods: {},
+        heatingLedger: {
+          populationLots: 1,
+          effectiveTemperature: -5,
+          heatingDemand: 1,
+          woodConsumption: 1,
+          coalConsumption: 0,
+          unmetHeating: 0,
+          coalSmokeExposure: 0,
+          coldExposureMonths: 36,
+          forestryKnowledge: 0.4,
+          heatingTechnology: 0.8,
+          insulationTechnology: 0.6,
+          cumulativeWoodConsumption: 0,
+          cumulativeCoalConsumption: 0,
+          cumulativeUnmetHeating: 0
+        }
+      }
+    ]);
+    const burgs = [{ i: 1, market: 1, demographics: { capacity: 100, effectiveCapacity: 100 } }];
+
+    applyHeatingCapacityBonus(burgs);
+
+    // climateKnowledge = (0.8 + 0.6) / 2 = 0.7
+    expect(burgs[0].demographics.effectiveCapacity).toBeCloseTo(
+      100 + 100 * 0.7 * MAX_HEATING_CLIMATE_CAPACITY_BONUS,
+      3
+    );
+  });
+
+  it("composes additively on top of an existing effectiveCapacity, never overwrites it", () => {
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#fff",
+        goods: {},
+        heatingLedger: {
+          populationLots: 1,
+          effectiveTemperature: -5,
+          heatingDemand: 1,
+          woodConsumption: 1,
+          coalConsumption: 0,
+          unmetHeating: 0,
+          coalSmokeExposure: 0,
+          coldExposureMonths: 36,
+          forestryKnowledge: 0.4,
+          heatingTechnology: 1,
+          insulationTechnology: 1,
+          cumulativeWoodConsumption: 0,
+          cumulativeCoalConsumption: 0,
+          cumulativeUnmetHeating: 0
+        }
+      }
+    ]);
+    // effectiveCapacity already raised above the natural capacity by another mechanism
+    // (e.g. foodImportNetwork.ts's import bonus) — this must add on top, not reset to it.
+    const burgs = [{ i: 1, market: 1, demographics: { capacity: 100, effectiveCapacity: 140 } }];
+
+    applyHeatingCapacityBonus(burgs);
+
+    expect(burgs[0].demographics.effectiveCapacity).toBeCloseTo(140 + 100 * 1 * MAX_HEATING_CLIMATE_CAPACITY_BONUS, 3);
+  });
+
+  it("leaves a temperate market's effectiveCapacity untouched (no accumulated climate knowledge)", () => {
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#fff",
+        goods: {},
+        heatingLedger: {
+          populationLots: 1,
+          effectiveTemperature: 22,
+          heatingDemand: 0,
+          woodConsumption: 0,
+          coalConsumption: 0,
+          unmetHeating: 0,
+          coalSmokeExposure: 0,
+          coldExposureMonths: 0,
+          forestryKnowledge: 0,
+          heatingTechnology: 0,
+          insulationTechnology: 0,
+          cumulativeWoodConsumption: 0,
+          cumulativeCoalConsumption: 0,
+          cumulativeUnmetHeating: 0
+        }
+      }
+    ]);
+    const burgs = [{ i: 1, market: 1, demographics: { capacity: 100, effectiveCapacity: 100 } }];
+
+    applyHeatingCapacityBonus(burgs);
+
+    expect(burgs[0].demographics.effectiveCapacity).toBe(100);
+  });
+
+  it("skips a burg whose market has never settled a heatingLedger", () => {
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {} }]);
+    const burgs = [{ i: 1, market: 1, demographics: { capacity: 100, effectiveCapacity: 100 } }];
+
+    applyHeatingCapacityBonus(burgs);
+
+    expect(burgs[0].demographics.effectiveCapacity).toBe(100);
   });
 });

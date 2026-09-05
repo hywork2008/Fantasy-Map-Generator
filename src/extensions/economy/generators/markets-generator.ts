@@ -1,6 +1,8 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,
@@ -10,6 +12,7 @@ import {
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import {
+  getColdStorageDepots,
   getDeals,
   getGoodCellColumn,
   getGoods,
@@ -32,7 +35,7 @@ import {
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
-import { planCellFoodRescue } from "./cellFoodRescue";
+import { getChilledFreshFoodExportUnits, planCellFoodRescue } from "./cellFoodRescue";
 import type { CellFreshFoodInput } from "./cellFoodRescueTypes";
 import { consumerCoverageForCategory, recipesForIndustrialDemand } from "./craftDemandCalibration";
 import { getMoneyPriceLevelForMarket } from "./currencySufficiency";
@@ -396,17 +399,28 @@ export class MarketsModule {
 
   /**
    * Buys up to `requestedUnits` of a Good from local market stock at the going customer price,
-   * capped by both available stock and `budget`. Unlike consumeForSmelting/consumeForMilitary
-   * (free draws recorded elsewhere), this spends real money and reports the cost so the caller
-   * can debit its own account (e.g. MarketTreasury.balance in AgTechInvestment.settleAnnual —
-   * docs/plan/rural-agtech-investment.md §3.3). Charges no Deal/tax; this is capital investment
-   * by the market itself, not a Burg purchase.
+   * capped by available stock, `budget`, and (optionally) `maxStockShare`. Unlike
+   * consumeForSmelting/consumeForMilitary (free draws recorded elsewhere), this spends real money
+   * and reports the cost so the caller can debit its own account (e.g. MarketTreasury.balance in
+   * AgTechInvestment.settleAnnual — docs/plan/rural-agtech-investment.md §3.3). Charges no
+   * Deal/tax; this is capital investment by the market itself, not a Burg purchase.
+   *
+   * `maxStockShare` (0..1, default 1 — every existing caller predates this parameter and keeps its
+   * exact prior behavior by omitting it) caps the draw to that fraction of CURRENT stock, the same
+   * "leave the rest for other consumers" idea consumeForConstruction/consumeForMint/
+   * consumeForMilitary/consumeForMetallurg already apply to their own free draws below. Pass it
+   * whenever this Good already has another, more established consumer sharing the same market
+   * stock with no coordination between the two — e.g. urbanWaterModernTreatment.ts's Alum/Lime
+   * purchases, which would otherwise be able to exhaust a market's entire Lime stock ahead of
+   * constructionEmployment.ts's Roman Concrete manufacturing (or vice versa) purely by which one's
+   * settle step happens to run first in a given cycle.
    */
   consumeForMarketInvestment(
     marketId: number,
     goodId: number,
     requestedUnits: number,
-    budget: number
+    budget: number,
+    maxStockShare: number = 1
   ): { units: number; cost: number } {
     const market = this.get(marketId);
     const marketGood = market?.goods[goodId];
@@ -419,7 +433,8 @@ export class MarketsModule {
     if (price <= 0) return { units: 0, cost: 0 };
 
     const affordableUnits = budget / price;
-    const units = rn(Math.min(requestedUnits, marketGood.stock, affordableUnits), 4);
+    const stockCap = marketGood.stock * Math.min(1, Math.max(0, maxStockShare));
+    const units = rn(Math.min(requestedUnits, stockCap, affordableUnits), 4);
     if (units <= 0) return { units: 0, cost: 0 };
 
     const cost = rn(units * price, 2);
@@ -903,11 +918,25 @@ export class MarketsModule {
       entriesByCell.set(entry.cellId, group);
     }
 
+    // State-wide cold-chain pool (docs/plan/mechanical-refrigeration-and-cold-chain.md §3.5
+    // decision 1 — no two-stage local/State-wide split like powerGrid). Annual storageCapacity is
+    // month-sliced here and shared across every cell in the same state processed by this call;
+    // an un-adopted State's depots simply do not exist, so its pool is naturally 0 — no separate
+    // technology-stage check is needed (§3.7).
+    const cellStates = this.worldContext.pack.cells.state;
+    const coldStorageCapacityByState = new Map<number, number>();
+    for (const depot of getColdStorageDepots()) {
+      if (!depot.active) continue;
+      const monthly = depot.storageCapacity / 12;
+      coldStorageCapacityByState.set(depot.stateId, (coldStorageCapacityByState.get(depot.stateId) ?? 0) + monthly);
+    }
+
     const reserves = getOrCreateCellFoodReserves();
     for (const [cellId, cellEntries] of entriesByCell) {
       const residentWorkforce = getRuralCellPopulation(cellId);
       const inputs: CellFreshFoodInput[] = [];
       const marketBySourceGood = new Map<number, FreshFoodContribution>();
+      const harvestedBySourceGood = new Map<number, number>();
 
       for (const entry of cellEntries) {
         const sourceGood = Goods.get(entry.goodId);
@@ -938,6 +967,7 @@ export class MarketsModule {
           preservationSuppliesAvailable: reservePath !== null && commercialPath !== null
         });
         marketBySourceGood.set(sourceGood.i, entry);
+        harvestedBySourceGood.set(sourceGood.i, entry.monthlyUnits[monthIndex] ?? 0);
       }
 
       if (!inputs.length) continue;
@@ -970,6 +1000,21 @@ export class MarketsModule {
             marketId: market.i,
             burgId: entry.collectionBurgId || undefined
           });
+        }
+
+        // Cold-chain export: rescues the gap the planner otherwise leaves unrecorded
+        // (harvestedUnits - producedUnits) as the raw sourceGood itself, no conversion recipe —
+        // independent of whether a commercial (preserved-good) path/demand exists this month.
+        // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.6-3.7.
+        const stateId = cellStates?.[cellId] ?? 0;
+        const availableColdStorage = coldStorageCapacityByState.get(stateId) ?? 0;
+        if (availableColdStorage > 0) {
+          const harvested = harvestedBySourceGood.get(outcome.sourceGoodId) ?? 0;
+          const chilled = getChilledFreshFoodExportUnits(harvested, outcome.producedUnits, availableColdStorage);
+          if (chilled > 0) {
+            this.addRuralOutput(entry.marketId, entry.collectionBurgId, sourceGood.i, chilled);
+            coldStorageCapacityByState.set(stateId, availableColdStorage - chilled);
+          }
         }
 
         const commercialPath = this.getCellFoodCommercialPath(sourceGood, this.getCellFoodReservePath(sourceGood));
@@ -1737,6 +1782,10 @@ export class MarketsModule {
         const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
         const quotedExporterPrice = this.getTradeQuotedPrice(exporter.market, good, exporterGood.price);
         const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+        const refrigeratedTransport = isTechnologyStageAtLeast(
+          getTechnologyStage("mechanicalRefrigeration", exporterCenter?.state ?? 0),
+          "adopted"
+        );
 
         for (const importer of importers) {
           const importerGood = this.getMarketGood(importer.market, good);
@@ -1752,7 +1801,8 @@ export class MarketsModule {
               route.durationDays,
               this.getExpectedLoadingWaitDays(route),
               route.segments,
-              route.maxTemperatureC
+              route.maxTemperatureC,
+              refrigeratedTransport
             ) ||
             !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
           ) {
@@ -2056,6 +2106,10 @@ export class MarketsModule {
         price: this.getTradeQuotedPrice(exporter, good, exporterGood.price)
       };
       const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+      const refrigeratedTransport = isTechnologyStageAtLeast(
+        getTechnologyStage("mechanicalRefrigeration", exporterCenter?.state ?? 0),
+        "adopted"
+      );
 
       for (const importer of markets) {
         if (importer.i === exporter.i) continue;
@@ -2067,7 +2121,8 @@ export class MarketsModule {
             route.durationDays,
             this.getExpectedLoadingWaitDays(route),
             route.segments,
-            route.maxTemperatureC
+            route.maxTemperatureC,
+            refrigeratedTransport
           ) ||
           !isMarketTradePermitted(exporter, importer, route.durationDays)
         ) {

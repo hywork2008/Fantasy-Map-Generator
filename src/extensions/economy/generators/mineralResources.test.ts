@@ -58,6 +58,14 @@ describe("MineralResourcesModule", () => {
     expect(isMineSuppliedGoodName("Tools")).toBe(false);
   });
 
+  it("supports the chromium, nickel, molybdenum, and silicon inputs needed for stainless steel", () => {
+    for (const commodity of ["chromium", "nickel", "molybdenum", "silicon"] as const) {
+      expect(getMinedGoodName(commodity)).toBe(`${commodity} ore`);
+      expect(isMineSuppliedGoodName(`${commodity} ore`)).toBe(true);
+      expect(isMineSuppliedGoodName(`${commodity} ingot`)).toBe(true);
+    }
+  });
+
   // docs/plan/electrolytic-industry-vertical-slice.md §3.2, same "bypasses smelting" shape as coal/
   // phosphate rock above.
   it("maps bauxite to a directly mine-supplied Good, same as phosphate rock", () => {
@@ -77,6 +85,14 @@ describe("MineralResourcesModule", () => {
   it("maps crude oil to a directly mine-supplied Good, same as cinnabar", () => {
     expect(getMinedGoodName("crude oil")).toBe("crude oil");
     expect(isMineSuppliedGoodName("Crude Oil")).toBe(true);
+  });
+
+  // docs/plan/natural-gas-lng-power-generation.md §3.2, same "bypasses smelting" shape as crude
+  // oil above — natural gas is crude oil's associated-commodity sibling in the same oilField
+  // district.
+  it("maps natural gas to a directly mine-supplied Good, same as crude oil", () => {
+    expect(getMinedGoodName("natural gas")).toBe("natural gas");
+    expect(isMineSuppliedGoodName("Natural Gas")).toBe(true);
   });
 
   it("derives greater groundwater pressure from rainfall and a river, without using it to relocate deposits", () => {
@@ -176,7 +192,9 @@ describe("MineralResourcesModule", () => {
 
     const ironDeposits = getMineralDeposits().filter(deposit => deposit.commodities.includes("iron"));
     expect(ironDeposits.length).toBeGreaterThanOrEqual(8);
-    expect(ironDeposits.every(deposit => deposit.type === "bandedIron" || deposit.type === "skarn")).toBe(true);
+    expect(
+      ironDeposits.every(deposit => ["bandedIron", "skarn", "chromite", "nickelLaterite"].includes(deposit.type))
+    ).toBe(true);
   });
 
   it("generates river iron sand downstream from a reachable primary iron deposit", () => {

@@ -301,6 +301,46 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { Highland: 1.4, Nomadic: 0.5 } }
   },
   {
+    name: "Chromium Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-iron",
+    color: "#49665a",
+    value: 7,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.4 } }
+  },
+  {
+    name: "Nickel Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-iron",
+    color: "#879b8c",
+    value: 8,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.2 } }
+  },
+  {
+    name: "Molybdenum Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-stone",
+    color: "#59636b",
+    value: 12,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.4 } }
+  },
+  {
+    name: "Silicon Ore",
+    tags: ["ore", "mineral", "alloy"],
+    icon: "good-stone",
+    color: "#d8d0bc",
+    value: 3,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.2 } }
+  },
+  {
     name: "Iron Ingot",
     warEconomyType: "strategic",
     tags: ["ingot", "metal", "military"],
@@ -360,6 +400,46 @@ export const GOODS_DATA: GoodData[] = [
     value: 40,
     chance: 0,
     unit: "bullion"
+  },
+  {
+    name: "Chromium Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "alloy"],
+    icon: "good-iron",
+    color: "#49665a",
+    value: 14,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Nickel Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "alloy"],
+    icon: "good-iron",
+    color: "#879b8c",
+    value: 16,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Molybdenum Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "alloy"],
+    icon: "good-stone",
+    color: "#59636b",
+    value: 24,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Silicon Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metalloid", "alloy"],
+    icon: "good-stone",
+    color: "#d8d0bc",
+    value: 6,
+    chance: 0,
+    unit: "wagon"
   },
   {
     name: "Grain",
@@ -2612,6 +2692,33 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "standardMachineWorks"
   },
   {
+    // Corrosion-resistant alloy steel. The modest Chromium/Nickel additions represent the
+    // common austenitic family; Molybdenum is a small but valuable addition for chloride/wet
+    // service and Silicon represents deoxidation. Its demand covers the parts of construction
+    // and public utilities where ordinary Steel's short replacement life is a poor choice:
+    // water/sewage equipment, coastal infrastructure, durable fasteners and food-processing
+    // plant. See USGS Aluminum Statistics and worldstainless Infrastructure references.
+    name: "Stainless Steel",
+    warEconomyType: "strategic",
+    tags: ["metal", "industrial", "alloy", "corrosionResistant"],
+    icon: "good-unknown",
+    color: "#a7b0b3",
+    value: 28,
+    chance: 0,
+    recipes: [
+      {
+        Steel: 1,
+        "Chromium Ingot": 0.18,
+        "Nickel Ingot": 0.08,
+        "Molybdenum Ingot": 0.02,
+        "Silicon Ingot": 0.02
+      }
+    ],
+    unit: "bar",
+    demandCoverage: { construction: 0.012, utilities: 0.018 },
+    requiredTechnology: "modernSteelmaking"
+  },
+  {
     name: "Machine Parts",
     warEconomyType: "strategic",
     tags: ["industrial", "tools"],
@@ -3021,6 +3128,40 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "oilRefiningAndFractionation"
   },
   {
+    // Associated natural gas riding along Crude Oil in the same oilField deposits. Cell placement
+    // comes from the same MineralDeposit/MineOperation as Crude Oil (mineralResources.ts) — a
+    // secondary commodity at 0.25x scale, the same "one district, two commodities" shape as
+    // Sulfur/Saltpeter riding the same evaporite deposits. No requiredTechnology, same "raw ore is
+    // never gated" pattern as Bauxite/Cinnabar/Crude Oil. See docs/plan/natural-gas-lng-power-
+    // generation.md §3.2.
+    name: "Natural Gas",
+    warEconomyType: "strategic",
+    tags: ["fuel", "mineral"],
+    icon: "good-unknown",
+    color: "#3a5f6b",
+    value: 5,
+    chance: 0,
+    unit: "therm",
+    demandCoverage: {}
+  },
+  {
+    // Cryogenically liquefied out of Natural Gas by LNGPlants only — no craft-worker recipe, same
+    // "capital-only" reasoning as Kerosene/Mercury/Aluminum: liquefaction needs industrial
+    // compressor/refrigeration equipment a household workshop does not have. Deliberately carries
+    // no demandCoverage — no household natural-gas/heating use is modeled (same simplification as
+    // Kerosene skipping household lamp use). See docs/plan/natural-gas-lng-power-generation.md §3.3.
+    name: "LNG",
+    warEconomyType: "strategic",
+    tags: ["fuel", "industrial"],
+    icon: "good-unknown",
+    color: "#cfe8f0",
+    value: 12,
+    chance: 0,
+    unit: "therm",
+    demandCoverage: {},
+    requiredTechnology: "naturalGasLiquefaction"
+  },
+  {
     // "One Good, two supply sites" like Sulfuric Acid: this recipe is the craft-worker path
     // (production-generator.ts worker loop); PhosphateFertilizerPlants (Phase 2, docs/plan/
     // phosphate-fertilizer-vertical-slice.md §3.7) adds a second, State-funded capital path.
@@ -3096,12 +3237,21 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "Lead Ore": tradeProfile(5, 5, 3, -1, 0, 5, 3),
   "Silver Ore": tradeProfile(4, 4, 4, 0, 0, 5, 3),
   "Gold Ore": tradeProfile(4, 4, 5, 0, 0, 5, 3),
+  "Chromium Ore": tradeProfile(4, 4, 4, 1, 0, 5, 2),
+  "Nickel Ore": tradeProfile(4, 4, 4, 1, 0, 5, 2),
+  "Molybdenum Ore": tradeProfile(3, 3, 5, 2, 0, 5, 2),
+  "Silicon Ore": tradeProfile(5, 5, 2, -1, 0, 5, 2),
   "Iron Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
   "Copper Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
   "Tin Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
   "Lead Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
   "Silver Ingot": tradeProfile(2, 1, 4, 2, 0, 5, 2),
   "Gold Ingot": tradeProfile(2, 1, 5, 3, 0, 5, 2),
+  "Chromium Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
+  "Nickel Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
+  "Molybdenum Ingot": tradeProfile(2, 2, 5, 3, 0, 5, 2),
+  "Silicon Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
+  "Stainless Steel": tradeProfile(3, 2, 4, 2, 0, 5, 2),
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
   Fodder: tradeProfile(4, 5, 1, -2, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
@@ -3792,6 +3942,54 @@ export function migrateElectrolyticIndustryGoods(): boolean {
   return true;
 }
 
+const ALLOY_STEEL_GOOD_NAMES = [
+  "Chromium Ore",
+  "Nickel Ore",
+  "Molybdenum Ore",
+  "Silicon Ore",
+  "Chromium Ingot",
+  "Nickel Ingot",
+  "Molybdenum Ingot",
+  "Silicon Ingot",
+  "Stainless Steel"
+] as const;
+
+/**
+ * Appends alloying ores, ingots, and their Stainless Steel consumer Good to older catalogues
+ * without creating stock. Resolving the recipe against live ids preserves all existing market
+ * stocks and lets the normal demand-driven workshop path pull materials.
+ */
+export function migrateAlloySteelGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of ALLOY_STEEL_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  if (!changed) return false;
+
+  const idByName = new Map(goods.map(good => [good.name, good.i]));
+  const stainlessSteel = goods.find(good => good.name === "Stainless Steel");
+  const template = GOODS_DATA.find(good => good.name === "Stainless Steel");
+  if (stainlessSteel && template?.recipes) {
+    stainlessSteel.recipes = template.recipes.map(recipe => {
+      const resolved = Object.entries(recipe).map(([ingredient, amount]) => {
+        const id = idByName.get(ingredient);
+        if (id === undefined) throw new Error(`Unknown ingredient ${ingredient} while migrating Stainless Steel`);
+        return [id, amount];
+      });
+      return Object.fromEntries(resolved);
+    });
+    stainlessSteel.requiredTechnology = template.requiredTechnology;
+  }
+  return true;
+}
+
 const MERCURY_CHAIN_GOOD_NAMES = ["Cinnabar", "Mercury"] as const;
 
 /**
@@ -3827,6 +4025,28 @@ export function migratePetroleumChainGoods(): boolean {
   let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   let changed = false;
   for (const name of PETROLEUM_CHAIN_GOOD_NAMES) {
+    if (goods.some(good => good.name === name)) continue;
+    const shipped = Goods.getDefaultGood(name);
+    if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);
+    shipped.i = nextId++;
+    goods.push(shipped);
+    changed = true;
+  }
+  return changed;
+}
+
+const NATURAL_GAS_CHAIN_GOOD_NAMES = ["Natural Gas", "LNG"] as const;
+
+/**
+ * Appends the Natural Gas/LNG chain (docs/plan/natural-gas-lng-power-generation.md §3.2-3.3) to
+ * older catalogues without seeding stock. Same shape as migratePetroleumChainGoods — neither Good
+ * carries a recipe, so no ingredient-id resolution pass is needed.
+ */
+export function migrateNaturalGasChainGoods(): boolean {
+  const goods = getGoods();
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  let changed = false;
+  for (const name of NATURAL_GAS_CHAIN_GOOD_NAMES) {
     if (goods.some(good => good.name === name)) continue;
     const shipped = Goods.getDefaultGood(name);
     if (!shipped) throw new Error(`${name} must be present in the shipped goods catalogue`);

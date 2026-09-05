@@ -1,0 +1,771 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
+import { worldContext } from "../../hostCore";
+import type { Burg, ExtensionAPI } from "../../hostTypes";
+import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
+import { Goods } from "./goods-generator";
+import { Markets } from "./markets-generator";
+import { isModernWaterEraAvailable, settleModernWaterTreatmentInvestment } from "./urbanWaterModernTreatment";
+
+function burg(overrides: Partial<Burg> = {}): Burg {
+  return {
+    i: 1,
+    cell: 0,
+    x: 0,
+    y: 0,
+    population: 10,
+    type: "Generic",
+    treasury: 5000,
+    product: 400,
+    ...overrides
+  };
+}
+
+const noProgress = {
+  drinkingTreatmentTier: 0 as const,
+  wastewaterTreatmentTier: 0 as const,
+  sourceProtection: 0,
+  drinkingTreatmentUpgradeProgress: 0,
+  wastewaterTreatmentUpgradeProgress: 0,
+  sludgeBacklog: 0
+};
+
+describe("isModernWaterEraAvailable", () => {
+  it("is available from steamEra onward, not before", () => {
+    expect(isModernWaterEraAvailable("lateMedieval")).toBe(false);
+    expect(isModernWaterEraAvailable("ageOfExploration")).toBe(false);
+    expect(isModernWaterEraAvailable("preIndustrialEra")).toBe(false);
+    expect(isModernWaterEraAvailable("steamEra")).toBe(true);
+    expect(isModernWaterEraAvailable("industrialChemistryEra")).toBe(true);
+    expect(isModernWaterEraAvailable("rocketryEra")).toBe(true);
+    expect(isModernWaterEraAvailable(undefined)).toBe(false);
+  });
+});
+
+describe("settleModernWaterTreatmentInvestment", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
+    setTechnologyProgressForTests([]);
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+    setTechnologyProgressForTests([]);
+  });
+
+  it("does not invest before the modern water era", () => {
+    const settlement = burg();
+    const before = settlement.treasury!;
+    const result = settleModernWaterTreatmentInvestment({
+      burg: settlement,
+      people: 5000,
+      period: "lateMedieval",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: noProgress
+    });
+    expect(result.sourceProtection).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+    expect(settlement.treasury).toBe(before);
+  });
+
+  it("does not invest below the minimum population even in the modern era", () => {
+    const settlement = burg({ population: 1 });
+    const result = settleModernWaterTreatmentInvestment({
+      burg: settlement,
+      people: 50,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: noProgress
+    });
+    expect(result.sourceProtection).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+  });
+
+  it("stops spending on construction once nothing is left to build (source protection maxed, no tech for the next drinking tier, wastewater at its Phase 2 ceiling) but keeps funding operations every year (regression: the pre-Phase-4 build treated 'both tiers >= 1' as a permanent no-op, silently zeroing ongoing operations funding forever after)", () => {
+    const settlement = burg({ treasury: 20000 });
+    const before = settlement.treasury!;
+    const result = settleModernWaterTreatmentInvestment({
+      burg: settlement,
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      // sourceProtection already at 1 (nothing left for step 1); analyticalChemistry is locked
+      // (setTechnologyProgressForTests([]) in beforeEach), so the drinkingTier 1->2 step cannot
+      // start either; wastewaterTreatmentTier is already at this module's Phase 2 ceiling.
+      previous: { ...noProgress, drinkingTreatmentTier: 1, wastewaterTreatmentTier: 1, sourceProtection: 1 }
+    });
+    expect(result.lastModernConstructionSpend).toBe(0);
+    expect(result.drinkingTreatmentTier).toBe(1);
+    expect(settlement.treasury).toBeLessThan(before); // ops spend still happened
+    expect(result.treatmentOperationsFunding).toBeGreaterThan(0);
+    expect(result.wastewaterOperationsFunding).toBeGreaterThan(0);
+  });
+
+  it("spends toward source protection first, before any drinking-tier progress, when hasUpstreamIntake", () => {
+    const settlement = burg();
+    const before = settlement.treasury!;
+    // Low affinity/contamination keeps this year's step small, so a fresh (sourceProtection: 0)
+    // burg cannot cross SOURCE_PROTECTION_MIN_FOR_FILTRATION in the same call — isolates step 1.
+    const result = settleModernWaterTreatmentInvestment({
+      burg: settlement,
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 0,
+      waterContamination: 0,
+      previous: noProgress
+    });
+    expect(result.sourceProtection).toBeGreaterThan(0);
+    expect(result.sourceProtection).toBeLessThan(0.6);
+    expect(result.drinkingTreatmentUpgradeProgress).toBe(0);
+    expect(result.drinkingTreatmentTier).toBe(0);
+    expect(result.lastModernConstructionSpend).toBeGreaterThan(0);
+    expect(settlement.treasury).toBeLessThan(before);
+  });
+
+  it("can cascade straight from source protection into drinking-tier progress within the same year when urgency/affinity are high enough to cross the threshold", () => {
+    const result = settleModernWaterTreatmentInvestment({
+      burg: burg(),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: noProgress
+    });
+    expect(result.sourceProtection).toBeGreaterThanOrEqual(0.6);
+    expect(result.drinkingTreatmentUpgradeProgress).toBeGreaterThan(0);
+  });
+
+  it("never invests toward source protection or drinking tier without an upstream intake", () => {
+    const settlement = burg();
+    const result = settleModernWaterTreatmentInvestment({
+      burg: settlement,
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: false,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: noProgress
+    });
+    expect(result.sourceProtection).toBe(0);
+    expect(result.drinkingTreatmentUpgradeProgress).toBe(0);
+  });
+
+  it("does not progress drinking-tier filtration until source protection crosses its threshold", () => {
+    // Low affinity/contamination keeps this year's own step-1 addition small, so the pre-existing
+    // sourceProtection value (not this year's top-up) decides which side of the threshold it lands.
+    const belowThreshold = settleModernWaterTreatmentInvestment({
+      burg: burg(),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 0,
+      waterContamination: 0,
+      previous: { ...noProgress, sourceProtection: 0.4 }
+    });
+    expect(belowThreshold.sourceProtection).toBeLessThan(0.6);
+    expect(belowThreshold.drinkingTreatmentUpgradeProgress).toBe(0);
+
+    const aboveThreshold = settleModernWaterTreatmentInvestment({
+      burg: burg(),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 0,
+      waterContamination: 0,
+      previous: { ...noProgress, sourceProtection: 0.7 }
+    });
+    expect(aboveThreshold.drinkingTreatmentUpgradeProgress).toBeGreaterThan(0);
+  });
+
+  it("raises drinkingTreatmentTier to 1 once upgrade progress completes", () => {
+    const result = settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 50000 }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: { ...noProgress, sourceProtection: 1, drinkingTreatmentUpgradeProgress: 0.99 }
+    });
+    expect(result.drinkingTreatmentTier).toBe(1);
+    expect(result.drinkingTreatmentUpgradeProgress).toBe(0);
+  });
+
+  it("progresses wastewaterTreatmentTier independently of sourceProtection, gated on hasDownstreamOutfall", () => {
+    const withOutfall = settleModernWaterTreatmentInvestment({
+      burg: burg(),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: false,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: noProgress
+    });
+    expect(withOutfall.wastewaterTreatmentUpgradeProgress).toBeGreaterThan(0);
+
+    const withoutOutfall = settleModernWaterTreatmentInvestment({
+      burg: burg(),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: false,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: noProgress
+    });
+    expect(withoutOutfall.wastewaterTreatmentUpgradeProgress).toBe(0);
+  });
+
+  it("invests faster with higher modernizationAffinity, all else equal", () => {
+    const low = settleModernWaterTreatmentInvestment({
+      burg: burg(),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 0.05,
+      waterContamination: 0.5,
+      previous: noProgress
+    });
+    const high = settleModernWaterTreatmentInvestment({
+      burg: burg(),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 0.95,
+      waterContamination: 0.5,
+      previous: noProgress
+    });
+    expect(high.sourceProtection).toBeGreaterThan(low.sourceProtection);
+  });
+
+  it("funds operations only once a tier has actually been reached, from a separate pool than construction", () => {
+    const settlement = burg({ treasury: 20000 });
+    const result = settleModernWaterTreatmentInvestment({
+      burg: settlement,
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.3,
+      previous: { ...noProgress, drinkingTreatmentTier: 1, wastewaterTreatmentTier: 0 }
+    });
+    expect(result.treatmentOperationsFunding).toBeGreaterThan(0);
+    expect(result.wastewaterOperationsFunding).toBe(0);
+  });
+});
+
+describe("Phase 4: rapid filtration/coagulation and controlled chlorination", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
+    setTechnologyProgressForTests([]);
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+    setTechnologyProgressForTests([]);
+  });
+
+  const atTier1 = { ...noProgress, drinkingTreatmentTier: 1 as const, sourceProtection: 1 };
+  const atTier2 = { ...noProgress, drinkingTreatmentTier: 2 as const, sourceProtection: 1 };
+
+  it("does not progress drinkingTreatmentTier past 1 without analyticalChemistry demonstrated for the burg's State", () => {
+    const result = settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 50000, state: 1 }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: atTier1
+    });
+    expect(result.drinkingTreatmentTier).toBe(1);
+    expect(result.drinkingTreatmentUpgradeProgress).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+  });
+
+  it("progresses drinkingTreatmentTier 1 -> 2 once analyticalChemistry reaches demonstrated for the burg's State", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "analyticalChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const result = settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 50000, state: 1 }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: atTier1
+    });
+    expect(result.drinkingTreatmentUpgradeProgress).toBeGreaterThan(0);
+    expect(result.lastModernConstructionSpend).toBeGreaterThan(0);
+  });
+
+  it("does not progress drinkingTreatmentTier past 2 without catalyticChemistry demonstrated, even with analyticalChemistry adopted", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "analyticalChemistry", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
+    ]);
+    const result = settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 50000, state: 1 }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: atTier2
+    });
+    expect(result.drinkingTreatmentTier).toBe(2);
+    expect(result.drinkingTreatmentUpgradeProgress).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+  });
+
+  it("progresses drinkingTreatmentTier 2 -> 3 once catalyticChemistry reaches demonstrated for the burg's State", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "catalyticChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
+    ]);
+    const result = settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 50000, state: 1 }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      previous: atTier2
+    });
+    expect(result.drinkingTreatmentUpgradeProgress).toBeGreaterThan(0);
+    expect(result.lastModernConstructionSpend).toBeGreaterThan(0);
+  });
+
+  it("computes chemicalTestCoverage only once drinkingTreatmentTier reaches 2", () => {
+    const settlementAtTier1 = burg({ treasury: 50000, state: 1 });
+    const tier1Result = settleModernWaterTreatmentInvestment({
+      burg: settlementAtTier1,
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.3,
+      previous: atTier1
+    });
+    expect(tier1Result.chemicalTestCoverage).toBe(0);
+
+    const settlementAtTier2 = burg({ treasury: 50000, state: 1 });
+    const tier2Result = settleModernWaterTreatmentInvestment({
+      burg: settlementAtTier2,
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: true,
+      hasDownstreamOutfall: false,
+      modernizationAffinity: 1,
+      waterContamination: 0.3,
+      previous: atTier2
+    });
+    expect(tier2Result.chemicalTestCoverage).toBeGreaterThan(0);
+  });
+
+  describe("Alum purchase (drinkingTreatmentTier 2 only)", () => {
+    const atTier3 = { ...noProgress, drinkingTreatmentTier: 3 as const, sourceProtection: 1 };
+
+    beforeEach(() => {
+      setGoods([
+        {
+          i: 1,
+          name: "Alum",
+          tags: ["mineral"],
+          value: 9,
+          unit: "sack",
+          icon: "good-unknown",
+          color: "#e0d8c8"
+        }
+      ]);
+    });
+
+    it("stays at 0 coagulantStockCoverage when the local market has no Alum stock, regardless of budget", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 0, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.coagulantStockCoverage).toBe(0);
+    });
+
+    it("buys Alum from the local market once at Tier 2, raising coagulantStockCoverage above 0", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const settlement = burg({ treasury: 50000, state: 1, market: 1 });
+      const before = settlement.treasury!;
+      const result = settleModernWaterTreatmentInvestment({
+        burg: settlement,
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.coagulantStockCoverage).toBeGreaterThan(0);
+      expect(settlement.treasury).toBeLessThan(before);
+    });
+
+    it("never buys Alum below drinkingTreatmentTier 2", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier1
+      });
+      expect(result.coagulantStockCoverage).toBe(0);
+    });
+
+    it("keeps buying Alum at Tier 3 too, alongside the Chlorine purchase", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 9 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier3
+      });
+      expect(result.coagulantStockCoverage).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Lime purchase (drinkingTreatmentTier 2 only, §17.2)", () => {
+    const atTier3 = { ...noProgress, drinkingTreatmentTier: 3 as const, sourceProtection: 1 };
+
+    beforeEach(() => {
+      setGoods([
+        {
+          i: 1,
+          name: "Lime",
+          tags: ["construction"],
+          value: 2,
+          unit: "sack",
+          icon: "good-clay",
+          color: "#e8e2d0"
+        }
+      ]);
+    });
+
+    it("stays at 0 limeStockCoverage when the local market has no Lime stock, regardless of budget", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 0, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.limeStockCoverage).toBe(0);
+    });
+
+    it("buys Lime from the local market once at Tier 2, raising limeStockCoverage above 0", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const settlement = burg({ treasury: 50000, state: 1, market: 1 });
+      const before = settlement.treasury!;
+      const result = settleModernWaterTreatmentInvestment({
+        burg: settlement,
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.limeStockCoverage).toBeGreaterThan(0);
+      expect(settlement.treasury).toBeLessThan(before);
+    });
+
+    it("never buys Lime below drinkingTreatmentTier 2", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier1
+      });
+      expect(result.limeStockCoverage).toBe(0);
+    });
+
+    it("keeps buying Lime at Tier 3 too, alongside Alum and Chlorine", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier3
+      });
+      expect(result.limeStockCoverage).toBeGreaterThan(0);
+    });
+
+    it("caps the Lime purchase to a minority share of current stock even when budget and need would allow more (regression: without maxStockShare, this draw could exhaust a market's entire Lime stock ahead of constructionEmployment.ts's Roman Concrete manufacturing purely by which settle step runs first in a given cycle)", () => {
+      // A small stock, a large population (large limeAnnualNeed), and a generous treasury/budget —
+      // isolating maxStockShare as the only binding constraint (need and affordability both allow
+      // far more than the 1-sack stock could ever supply).
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 1, price: 2 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 500000, state: 1, market: 1 }),
+        people: 50000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      // limeAnnualNeed(50000) = 1 sack; MODERN_TREATMENT_GOOD_MAX_STOCK_SHARE (0.2) caps the actual
+      // draw to 20% of the market's 1-sack stock, well short of both the 1-sack need and budget.
+      expect(result.limeStockCoverage).toBeCloseTo(0.2, 4);
+    });
+  });
+
+  describe("Chlorine purchase (drinkingTreatmentTier 3 only)", () => {
+    const atTier3 = { ...noProgress, drinkingTreatmentTier: 3 as const, sourceProtection: 1 };
+
+    beforeEach(() => {
+      setGoods([
+        {
+          i: 1,
+          name: "Chlorine",
+          tags: ["industrial", "mineral"],
+          value: 20,
+          unit: "barrel",
+          icon: "good-unknown",
+          color: "#c9e066"
+        }
+      ]);
+    });
+
+    it("stays at 0 chlorineStockCoverage when the local market has no Chlorine stock, regardless of budget", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 0, price: 20 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier3
+      });
+      expect(result.chlorineStockCoverage).toBe(0);
+    });
+
+    it("buys Chlorine from the local market once at Tier 3, raising chlorineStockCoverage above 0", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 20 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const settlement = burg({ treasury: 50000, state: 1, market: 1 });
+      const before = settlement.treasury!;
+      const result = settleModernWaterTreatmentInvestment({
+        burg: settlement,
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier3
+      });
+      expect(result.chlorineStockCoverage).toBeGreaterThan(0);
+      expect(settlement.treasury).toBeLessThan(before);
+    });
+
+    it("never buys Chlorine below drinkingTreatmentTier 3", () => {
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 1: { stock: 50, price: 20 } } }]);
+      Goods.sync();
+      Markets.sync();
+
+      const result = settleModernWaterTreatmentInvestment({
+        burg: burg({ treasury: 50000, state: 1, market: 1 }),
+        people: 5000,
+        period: "steamEra",
+        hasUpstreamIntake: true,
+        hasDownstreamOutfall: false,
+        modernizationAffinity: 1,
+        waterContamination: 0.3,
+        previous: atTier2
+      });
+      expect(result.chlorineStockCoverage).toBe(0);
+    });
+  });
+});
+
+describe("Phase 5: trickling filter / biological treatment and activated sludge", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
+    setTechnologyProgressForTests([]);
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+    setTechnologyProgressForTests([]);
+  });
+
+  const wastewaterAtTier1 = { ...noProgress, wastewaterTreatmentTier: 1 as const };
+  const wastewaterAtTier2 = { ...noProgress, wastewaterTreatmentTier: 2 as const };
+
+  function settle(previous: typeof noProgress, sanitaryEngineering: number, overrides: Partial<Burg> = {}) {
+    return settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 50000, state: 1, market: 1, ...overrides }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: false,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      sanitaryEngineering,
+      previous
+    });
+  }
+
+  it("does not progress wastewaterTreatmentTier past 1 without enough sanitaryEngineering", () => {
+    const result = settle(wastewaterAtTier1, 0.1);
+    expect(result.wastewaterTreatmentTier).toBe(1);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+  });
+
+  it("progresses wastewaterTreatmentTier 1 -> 2 once sanitaryEngineering crosses the trickling-filter threshold", () => {
+    const result = settle(wastewaterAtTier1, 0.4);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBeGreaterThan(0);
+    expect(result.lastModernConstructionSpend).toBeGreaterThan(0);
+  });
+
+  it("does not progress wastewaterTreatmentTier past 2 without generatorAndMotor known, even with high sanitaryEngineering", () => {
+    const result = settle(wastewaterAtTier2, 0.9);
+    expect(result.wastewaterTreatmentTier).toBe(2);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBe(0);
+    expect(result.lastModernConstructionSpend).toBe(0);
+  });
+
+  it("progresses wastewaterTreatmentTier 2 -> 3 once sanitaryEngineering and generatorAndMotor are both ready", () => {
+    setTechnologyProgressForTests([
+      { technologyId: "generatorAndMotor", scope: "state", ownerId: 1, stage: "known", diffusion: 0 }
+    ]);
+    const result = settle(wastewaterAtTier2, 0.9);
+    expect(result.wastewaterTreatmentUpgradeProgress).toBeGreaterThan(0);
+    expect(result.lastModernConstructionSpend).toBeGreaterThan(0);
+  });
+
+  it("computes effluentTestCoverage only once wastewaterTreatmentTier reaches 2", () => {
+    const tier1Result = settle(wastewaterAtTier1, 0.4);
+    expect(tier1Result.effluentTestCoverage).toBe(0);
+
+    const tier2Result = settle(wastewaterAtTier2, 0.9);
+    expect(tier2Result.effluentTestCoverage).toBeGreaterThan(0);
+  });
+
+  it("keeps sludgeBacklog at 0 below wastewaterTreatmentTier 2, even if previous carried a nonzero value", () => {
+    const result = settle({ ...wastewaterAtTier1, sludgeBacklog: 0.6 }, 0.4);
+    expect(result.sludgeBacklog).toBe(0);
+  });
+
+  it("evolves sludgeBacklog as an EWMA once wastewaterTreatmentTier >= 2: climbs when underfunded, drains when funded", () => {
+    // Underfunded: no treasury left for sludge-removal ops after everything else is starved too.
+    const underfunded = settleModernWaterTreatmentInvestment({
+      burg: burg({ treasury: 0, state: 1, market: 1 }),
+      people: 5000,
+      period: "steamEra",
+      hasUpstreamIntake: false,
+      hasDownstreamOutfall: true,
+      modernizationAffinity: 1,
+      waterContamination: 0.8,
+      sanitaryEngineering: 0.9,
+      previous: { ...wastewaterAtTier2, sludgeBacklog: 0.2 }
+    });
+    expect(underfunded.sludgeBacklog).toBeGreaterThan(0.2);
+
+    // Well-funded: drains back down.
+    const funded = settle({ ...wastewaterAtTier2, sludgeBacklog: 0.8 }, 0.9);
+    expect(funded.sludgeBacklog).toBeLessThan(0.8);
+  });
+});

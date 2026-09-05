@@ -13,6 +13,20 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+/** Legacy-ladder-only cleaning tax rate cap — unchanged from before the modern-ladder surcharge
+ *  below existed, so a burg with no drinkingTreatmentTier/wastewaterTreatmentTier progress sees a
+ *  byte-identical cleaningTaxRate to before that addition. */
+const LEGACY_CLEANING_TAX_RATE_CAP = 0.04;
+/** Per completed drinkingTreatmentTier/wastewaterTreatmentTier step (docs/plan/modern-urban-water-
+ *  treatment-and-governance.md §15/§16 — coagulation/rapid filtration, chlorination, biological
+ *  treatment, activated sludge), the recurring municipal overhead those plants carry justifies its
+ *  own small surcharge on top of the legacy-ladder rate above, capped separately below. */
+const MODERN_CLEANING_TAX_SURCHARGE_PER_TIER = 0.005;
+/** Combined cap once the modern-ladder surcharge is added — above the legacy-only
+ *  LEGACY_CLEANING_TAX_RATE_CAP so a fully-modernized city (Tier 3/3) can actually realize the
+ *  surcharge instead of being silently absorbed by a cap sized for the legacy ladder alone. */
+const CLEANING_TAX_RATE_CAP = 0.07;
+
 /** Target institutional settings implied by tier and pressures (before annual EWMA). */
 export function institutionalTargets(args: {
   tier: WaterSanitationTier;
@@ -21,18 +35,31 @@ export function institutionalTargets(args: {
   demandUrgency: number;
   /** Academy administration bonus multiplier, typically ~1.0–1.2. */
   administrationBonus: number;
+  /** Modern Phase 2/4/5 ladder (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15,
+   *  §16), read alongside the legacy `tier` above, not instead of it — see
+   *  MODERN_CLEANING_TAX_SURCHARGE_PER_TIER. Optional/defaulted to 0 so existing callers that only
+   *  track the legacy ladder keep compiling and keep their existing cleaningTaxRate unchanged. */
+  drinkingTreatmentTier?: WaterSanitationTier;
+  wastewaterTreatmentTier?: WaterSanitationTier;
 }): {
   connectionPermitCoverage: number;
   cleaningTaxRate: number;
   dischargeRegulation: number;
 } {
   const { tier, contamination, sanitationBurden, demandUrgency, administrationBonus } = args;
+  const drinkingTreatmentTier = args.drinkingTreatmentTier ?? 0;
+  const wastewaterTreatmentTier = args.wastewaterTreatmentTier ?? 0;
   const pressure = clamp01(contamination * 0.45 + sanitationBurden * 0.35 + demandUrgency * 0.35);
   const admin = Math.max(0.85, Math.min(1.35, administrationBonus));
 
-  // Cleaning tax appears with any organised drains; grows with pressure.
-  const cleaningTaxRate =
-    tier <= 0 ? 0 : clamp01((0.008 + tier * 0.004 + pressure * 0.012) * admin) * (tier >= 1 ? 1 : 0);
+  // Cleaning tax appears with any organised drains; grows with pressure. Modern-ladder surcharge is
+  // strictly additive on top (see the two constants above), so a burg still at
+  // drinkingTreatmentTier/wastewaterTreatmentTier 0 gets +0 and an identical result to before.
+  const legacyCleaningTaxRate =
+    tier <= 0 ? 0 : Math.min(LEGACY_CLEANING_TAX_RATE_CAP, clamp01((0.008 + tier * 0.004 + pressure * 0.012) * admin));
+  const modernCleaningTaxSurcharge =
+    tier <= 0 ? 0 : (drinkingTreatmentTier + wastewaterTreatmentTier) * MODERN_CLEANING_TAX_SURCHARGE_PER_TIER * admin;
+  const cleaningTaxRate = Math.min(CLEANING_TAX_RATE_CAP, legacyCleaningTaxRate + modernCleaningTaxSurcharge);
 
   // Connection permits are a management tier (design Tier 4 idea), soft-started at tier 3.
   const connectionPermitCoverage =
@@ -48,7 +75,7 @@ export function institutionalTargets(args: {
 
   return {
     connectionPermitCoverage: rn(connectionPermitCoverage, 4),
-    cleaningTaxRate: rn(Math.min(0.04, cleaningTaxRate), 4),
+    cleaningTaxRate: rn(cleaningTaxRate, 4),
     dischargeRegulation: rn(dischargeRegulation, 4)
   };
 }
@@ -61,6 +88,9 @@ export function evolveInstitutions(args: {
   sanitationBurden: number;
   demandUrgency: number;
   administrationBonus: number;
+  /** See institutionalTargets()'s own doc on these two — forwarded straight through. */
+  drinkingTreatmentTier?: WaterSanitationTier;
+  wastewaterTreatmentTier?: WaterSanitationTier;
 }): {
   connectionPermitCoverage: number;
   cleaningTaxRate: number;

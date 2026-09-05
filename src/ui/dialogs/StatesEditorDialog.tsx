@@ -379,6 +379,11 @@ export const StatesEditorContent: React.FC = () => {
                             <option value="Naval">Naval</option>
                             <option value="Nomadic">Nomadic</option>
                             <option value="Highland">Highland</option>
+                            <option value="Hunting">Hunting</option>
+                            <option value="Desert">Desert</option>
+                            <option value="Marsh">Marsh</option>
+                            <option value="Industrial">Industrial</option>
+                            <option value="Colonial">Colonial</option>
                           </select>
                         )}
                       </td>

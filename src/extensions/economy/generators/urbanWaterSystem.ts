@@ -13,8 +13,10 @@
  * Design: docs/plan/urban-water-and-sanitation-system.md §4–8, §11.
  */
 
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import i18n from "../../../i18n";
-import { useOptionsState } from "../../hostCore";
+import { getCultureModernizationAffinity, useOptionsState } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -31,11 +33,15 @@ import {
   setUrbanWaterSystems
 } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { electricityCoverageForMarket } from "./chemMedCommon";
 import { computeNaturalFloodRisk } from "./floodHazard";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import { waterTechRaceBiasFor } from "./raceWaterTechBias";
-import { raceKeyForBurg } from "./resolveBurgCulture";
+import { getRegionalSchemeConnectedBurgIds } from "./regionalWaterAuthority";
+import { raceKeyForBurgState, raceKeyForBurgWaterworks } from "./resolveBurgCulture";
+import { hasSameLandSewerOutfall } from "./urbanSewerage";
+import { isSeasonalColdBurg, resolveBurgBasinKind, resolveBurgEffluentDestination } from "./urbanWaterClimate";
 import {
   cleaningTaxRevenue,
   evolveInstitutions,
@@ -47,6 +53,12 @@ import {
   resolveOrganicPathways,
   tierDrinkingHealthBonus
 } from "./urbanWaterInstitutions";
+import {
+  isModernWaterEraAvailable,
+  MODERN_WATER_MIN_POPULATION,
+  settleModernWaterTreatmentInvestment
+} from "./urbanWaterModernTreatment";
+import { hasSameLandGravityWaterSource } from "./urbanWaterSupply";
 import {
   applyPollutionDiplomaticAlert,
   buildInterstatePollutionEdges,
@@ -72,6 +84,7 @@ import type {
   WaterWorksProjectKind
 } from "./urbanWaterTypes";
 import {
+  ABSOLUTE_MAX_WATER_TIER,
   CLEANSING_MATERIALS,
   MAX_INVESTABLE_TIER,
   ORGANIC_WASTE_ROUTES,
@@ -79,9 +92,11 @@ import {
   WATER_WORKS_PROJECT_LABELS
 } from "./urbanWaterTypes";
 
+export type { RiverBasinKind, WaterEffluentDestination } from "./urbanWaterClimate";
 export { maxInvestableTier, waterTechCeilings } from "./urbanWaterTech";
 export type {
   CulturalHygieneProfile,
+  RegionalWaterScheme,
   UrbanWaterSystem,
   WaterDemandSignal,
   WaterDemandSignalId,
@@ -95,6 +110,14 @@ export {
   WATER_SANITATION_TIER_LABELS,
   WATER_WORKS_PROJECT_LABELS
 } from "./urbanWaterTypes";
+
+/**
+ * §3.15 (docs/plan/electric-power-and-telegraph.md): minimum Market.electricityStock coverage for
+ * an electricWaterPumps-adopted State's Burg to count as having a real electric well pump, not
+ * just a technology flag — same order as SOURCE_PROTECTION_MIN_FOR_FILTRATION (0.6) in
+ * urbanWaterModernTreatment.ts, a real-majority-of-the-time bar rather than a token nonzero value.
+ */
+export const ELECTRIC_PUMP_MIN_COVERAGE = 0.5;
 
 /** Inputs derived from map cells and burg attributes (pure, testable). */
 export type BurgWaterGeography = {
@@ -214,6 +237,64 @@ export function culturalHygieneProfile(cultureType: CultureType | string | undef
       wasteRaw.animalScavenging = 0.2;
       wasteRaw.managedComposting = 0.18;
       wasteRaw.cesspit = 0.15;
+      break;
+    // Added 2026-08-23 alongside docs/plan/modern-urban-water-treatment-and-governance.md.
+    case "Desert":
+      // Fixed oasis/caravan settlements minimize water for cleansing (cloth/sand wiping over
+      // washing) but, unlike Nomadic camps, cannot just relocate away from their own waste.
+      cleansingRaw.water = 0.12;
+      cleansingRaw.plant = 0.35;
+      cleansingRaw.cloth = 0.35;
+      cleansingRaw.sharedTool = 0.1;
+      wasteRaw.cesspit = 0.35;
+      wasteRaw.managedComposting = 0.2;
+      wasteRaw.openDisposal = 0.25;
+      wasteRaw.animalScavenging = 0.14;
+      wasteRaw.waterDischarge = 0.04;
+      break;
+    case "Marsh":
+      // Delta/polder life is water-saturated in both directions: highest water cleansing of any
+      // type, and — before any modern treatment exists — the highest raw waterDischarge too
+      // (see docs/plan/epidemic-cholera-and-water-security.md for what that risks downstream).
+      cleansingRaw.water = 0.55;
+      cleansingRaw.plant = 0.3;
+      wasteRaw.waterDischarge = 0.35;
+      wasteRaw.openDisposal = 0.2;
+      wasteRaw.nightSoilCollection = 0.15;
+      wasteRaw.managedComposting = 0.15;
+      wasteRaw.cesspit = 0.1;
+      wasteRaw.animalScavenging = 0.05;
+      break;
+    case "Industrial":
+      // Dense factory-town population with little rural land nearby: organized night-soil
+      // collection stands in for the piped sewer this culture wants but, absent the still-
+      // unimplemented ModernWaterTreatmentSystem (§6 of the doc above), does not yet have.
+      cleansingRaw.water = 0.45;
+      cleansingRaw.cloth = 0.25;
+      cleansingRaw.paper = 0.15;
+      cleansingRaw.plant = 0.1;
+      wasteRaw.nightSoilCollection = 0.3;
+      wasteRaw.waterDischarge = 0.25;
+      wasteRaw.cesspit = 0.2;
+      wasteRaw.openDisposal = 0.15;
+      wasteRaw.managedComposting = 0.06;
+      wasteRaw.animalScavenging = 0.04;
+      break;
+    case "Colonial":
+      // A single scalar profile cannot represent the historical split between a well-served
+      // colonial quarter and a neglected native one (§5.4's own caveat) — this is the administered-
+      // average across both, leaning on imported organization (night-soil rounds, composting) more
+      // than an organic Generic culture would.
+      cleansingRaw.water = 0.4;
+      cleansingRaw.cloth = 0.2;
+      cleansingRaw.paper = 0.1;
+      cleansingRaw.plant = 0.25;
+      wasteRaw.nightSoilCollection = 0.25;
+      wasteRaw.managedComposting = 0.2;
+      wasteRaw.cesspit = 0.2;
+      wasteRaw.openDisposal = 0.2;
+      wasteRaw.waterDischarge = 0.1;
+      wasteRaw.animalScavenging = 0.05;
       break;
     default:
       break;
@@ -345,14 +426,59 @@ export function tierBaseCapacities(tier: WaterSanitationTier): {
 }
 
 /**
- * Initial tier from geography and settlement size (generation only assigns 0–2).
+ * §18.1 (docs/plan/modern-urban-water-treatment-and-governance.md): historical-period "civic
+ * waterworks readiness" for initialTier()'s generation-time bonus below. `lateMedieval` (~1300-1500,
+ * i18n label) is the earliest period included — the Black Death fell within this window and, in the
+ * doc's own framing, is the plausible catalyst for later organized urban sanitation regulation (§10
+ * still forbids retroactively giving these burgs a modern TREATMENT plant — this only ever raises
+ * the legacy `tier` ladder's own top end: source protection, gravity waterworks, drainage). Earlier
+ * periods (`earlyMedieval`/`highMedieval`) and no-selection (legacy saves) are intentionally absent
+ * from this map so initialTier() falls back to its unmodified pre-existing behavior for them.
+ */
+const CIVIC_WATERWORKS_TECH_LEVEL: Readonly<Partial<Record<string, number>>> = {
+  lateMedieval: 2,
+  ageOfExploration: 3,
+  maritimeEra: 3,
+  preIndustrialEra: 4,
+  steamEra: 5,
+  industrialChemistryEra: 6,
+  petroleumEra: 7,
+  rocketryEra: 8
+};
+const CIVIC_WATERWORKS_TECH_LEVEL_MIN = 2; // lateMedieval
+const CIVIC_WATERWORKS_TECH_LEVEL_MAX = 8; // rocketryEra
+
+/**
+ * Initial tier from geography and settlement size (generation only assigns 0–2 on its own).
  * Large river / wetland / dry-irrigation towns start with more drainage practice.
+ *
+ * §18.1: when `historicalPeriod` is `lateMedieval` or later (docs/plan/modern-urban-water-treatment-
+ * and-governance.md §18), a further bonus of up to +3 tiers is added, scaled by BOTH how far into
+ * the lateMedieval->rocketryEra span the map's chosen backdrop sits AND the burg's own culture
+ * (`modernizationAffinity`, §11) — reusing the exact "technology level" and "culture" readings this
+ * plan's modern-ladder generation seed (modernWaterworksGenerationSeed()) established for
+ * the newer drinkingTreatmentTier/wastewaterTreatmentTier ladder, applied here to the legacy ladder
+ * across its full period range instead. Both factors are required multiplicatively — an
+ * `Industrial`-affinity culture at `lateMedieval` (readiness 0, the era has not caught up yet) and a
+ * `Nomadic`-affinity culture at `rocketryEra` (readiness near 0, the culture never settled into it)
+ * both get essentially none of this bonus, only their unmodified population/geography baseTier.
+ *
+ * Gated on population alone (MODERN_WATER_MIN_POPULATION, same floor settleModernWaterTreatmentInvestment
+ * uses), NOT on baseTier > 0 — deliberately: baseTier's score above rewards river/wetland/flood-risk
+ * geography specifically ("drainage practice"), which is a different question from "is this
+ * settlement big enough and in a late/culturally-modern-enough era for engineered civic waterworks
+ * to make sense regardless of terrain". An early version of this gated on baseTier > 0 and, as a
+ * result, silently gave zero bonus to any inland/flat/non-capital town — most ordinary settlements
+ * on many maps — even at rocketryEra with a fully Industrial culture (regression found via user
+ * report: petroleumEra + Industrial produced no visible development on such towns).
  */
 export function initialTier(args: {
   people: number;
   geography: BurgWaterGeography;
   isCapital: boolean;
   hasMarket: boolean;
+  historicalPeriod?: string;
+  modernizationAffinity?: number;
 }): WaterSanitationTier {
   const { people, geography, isCapital, hasMarket } = args;
   let score = 0;
@@ -367,9 +493,22 @@ export function initialTier(args: {
   if (hasMarket && people >= 1500) score += 1;
   if (geography.slopeAdvantage < 0.15 && !geography.hasRiver) score -= 1;
 
-  if (score >= 5) return 2;
-  if (score >= 2) return 1;
-  return 0;
+  const baseTier: WaterSanitationTier = score >= 5 ? 2 : score >= 2 ? 1 : 0;
+
+  const techLevel = args.historicalPeriod ? CIVIC_WATERWORKS_TECH_LEVEL[args.historicalPeriod] : undefined;
+  if (techLevel === undefined) return baseTier;
+  // Same population bands modernWaterworksGenerationSeed() uses for its own Tier 1/2/3 split — city
+  // scale directly sets how large a bonus is even possible, not just whether one applies at all.
+  const populationBand = people >= 15000 ? 3 : people >= 4000 ? 2 : people >= MODERN_WATER_MIN_POPULATION ? 1 : 0;
+  if (populationBand <= 0) return baseTier;
+
+  const techLevelProgress = clamp01(
+    (techLevel - CIVIC_WATERWORKS_TECH_LEVEL_MIN) / (CIVIC_WATERWORKS_TECH_LEVEL_MAX - CIVIC_WATERWORKS_TECH_LEVEL_MIN)
+  );
+  const affinity = clamp01(args.modernizationAffinity ?? 0);
+  const readiness = techLevelProgress * affinity;
+  const bonus = Math.round(populationBand * readiness);
+  return asTier(Math.min(ABSOLUTE_MAX_WATER_TIER, baseTier + bonus));
 }
 
 /** Project that raises tier from `fromTier` toward `maxTier` (tech-gated). */
@@ -633,6 +772,27 @@ export function computeUrbanWaterSystem(args: {
   lastMaintenanceCoverage?: number;
   lastMaintenanceSpend?: number;
   lastConstructionSpend?: number;
+  /** Modern Phase 2 (docs/plan/modern-urban-water-treatment-and-governance.md §8) overrides —
+   * settleModernWaterTreatmentInvestment()'s result, mirrors the legacy overrides above. */
+  drinkingTreatmentTier?: WaterSanitationTier;
+  wastewaterTreatmentTier?: WaterSanitationTier;
+  sourceProtection?: number;
+  drinkingTreatmentUpgradeProgress?: number;
+  wastewaterTreatmentUpgradeProgress?: number;
+  treatmentOperationsFunding?: number;
+  wastewaterOperationsFunding?: number;
+  /** Modern Phase 4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15) overrides —
+   * settleModernWaterTreatmentInvestment()'s Tier 2/3 results, same threading pattern as the
+   * Phase 2 fields above. */
+  chemicalTestCoverage?: number;
+  coagulantStockCoverage?: number;
+  limeStockCoverage?: number;
+  chlorineStockCoverage?: number;
+  /** Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16) overrides —
+   * settleModernWaterTreatmentInvestment()'s wastewater Tier 2/3 results. */
+  sludgeBacklog?: number;
+  effluentTestCoverage?: number;
+  lastModernConstructionSpend?: number;
   connectionPermitCoverage?: number;
   cleaningTaxRate?: number;
   dischargeRegulation?: number;
@@ -644,9 +804,58 @@ export function computeUrbanWaterSystem(args: {
   lastPollutionCompensationPaid?: number;
   lastPollutionCompensationReceived?: number;
   pollutionDiplomaticStrain?: number;
+  /** Phase 3 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §9, §14): true once this
+   * burg is a member of an "operating" RegionalWaterScheme (regionalWaterAuthority.ts). Computed by
+   * the caller (buildSystems(), one year lagged the same way Dams'/PowerGrid's floor writes are —
+   * see regionalWaterAuthority.ts's header comment) and fed in like every other Phase 2/3 override
+   * above, rather than read from economyContext directly, so this function stays a pure computation
+   * over its args. */
+  hasRegionalSchemeConnection?: boolean;
 }): UrbanWaterSystem {
   const { burg, geography, people, cultureType, previous } = args;
   const hasMarket = (burg.market ?? 0) > 0;
+  // Giants retain basic potable-water and wastewater treatment as a State capability, even when
+  // a burg has a different local culture or an old save did not yet store the two tier fields.
+  const isGiantState = raceKeyForBurgState(burg) === "giant";
+  const drinkingTreatmentTier: WaterSanitationTier = isGiantState
+    ? 1
+    : (args.drinkingTreatmentTier ?? previous?.drinkingTreatmentTier ?? 0);
+  const wastewaterTreatmentTier: WaterSanitationTier = isGiantState
+    ? 1
+    : (args.wastewaterTreatmentTier ?? previous?.wastewaterTreatmentTier ?? 0);
+  // Modern Phase 2 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4): Giants
+  // inherit source protection and funding at the same generous level as their other institutional
+  // seeds (giantRomanWaterworksSeed()'s connectionPermitCoverage: 0.86 etc.) rather than going
+  // through settleModernWaterTreatmentInvestment(), which only ever raises other burgs toward this
+  // same floor. Non-Giants read the settled values (or 0 for a fresh, not-yet-invested burg).
+  const sourceProtection = isGiantState ? 1 : (args.sourceProtection ?? previous?.sourceProtection ?? 0);
+  const drinkingTreatmentUpgradeProgress = isGiantState
+    ? 0
+    : (args.drinkingTreatmentUpgradeProgress ?? previous?.drinkingTreatmentUpgradeProgress ?? 0);
+  const wastewaterTreatmentUpgradeProgress = isGiantState
+    ? 0
+    : (args.wastewaterTreatmentUpgradeProgress ?? previous?.wastewaterTreatmentUpgradeProgress ?? 0);
+  const treatmentOperationsFunding = isGiantState
+    ? 0.9
+    : (args.treatmentOperationsFunding ?? previous?.treatmentOperationsFunding ?? 0);
+  const wastewaterOperationsFunding = isGiantState
+    ? 0.9
+    : (args.wastewaterOperationsFunding ?? previous?.wastewaterOperationsFunding ?? 0);
+  // Modern Phase 4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §15): Giants stay
+  // at Roman-grade Tier 1 (drinkingTreatmentTier above is locked to 1 for them), so neither field
+  // is ever meaningfully >0 for a Giant burg — 0 here, not a generous seed like the Phase 2 fields
+  // above, since there is no chemical dosing or testing regime to represent at Tier 1.
+  const chemicalTestCoverage = isGiantState ? 0 : (args.chemicalTestCoverage ?? previous?.chemicalTestCoverage ?? 0);
+  const coagulantStockCoverage = isGiantState
+    ? 0
+    : (args.coagulantStockCoverage ?? previous?.coagulantStockCoverage ?? 0);
+  const limeStockCoverage = isGiantState ? 0 : (args.limeStockCoverage ?? previous?.limeStockCoverage ?? 0);
+  const chlorineStockCoverage = isGiantState ? 0 : (args.chlorineStockCoverage ?? previous?.chlorineStockCoverage ?? 0);
+  // Modern Phase 5 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §16): Giants stay
+  // at Roman-grade wastewaterTreatmentTier 1 (locked above), so neither field is ever meaningfully
+  // >0 for a Giant burg — same reasoning as the Phase 4 fields directly above.
+  const sludgeBacklog = isGiantState ? 0 : (args.sludgeBacklog ?? previous?.sludgeBacklog ?? 0);
+  const effluentTestCoverage = isGiantState ? 0 : (args.effluentTestCoverage ?? previous?.effluentTestCoverage ?? 0);
   const tier: WaterSanitationTier =
     args.tier ??
     previous?.tier ??
@@ -654,7 +863,11 @@ export function computeUrbanWaterSystem(args: {
       people,
       geography,
       isCapital: Boolean(burg.capital),
-      hasMarket
+      hasMarket,
+      // §18.1: the generation-time civic-waterworks bonus (lateMedieval..rocketryEra, scaled by the
+      // burg's own culture) — see initialTier()'s own doc comment.
+      historicalPeriod: getWorldContext().options?.historicalPeriod,
+      modernizationAffinity: modernizationAffinityForBurg(burg)
     });
 
   const maintenanceCondition =
@@ -669,6 +882,54 @@ export function computeUrbanWaterSystem(args: {
   const waterLifting = args.waterLifting ?? previous?.waterLifting ?? 0;
   const municipalSanitation = args.municipalSanitation ?? previous?.municipalSanitation ?? 0;
   const sanitaryEngineering = args.sanitaryEngineering ?? previous?.sanitaryEngineering ?? 0;
+  const hasInheritedRomanWaterworks = previous?.hasInheritedRomanWaterworks ?? false;
+  // `hasInheritedRomanWaterworks` used to record both facilities. Keep it as the migration
+  // default while storing aqueduct and trunk-sewer connectivity independently from now on.
+  const hasInheritedRomanSewer = previous?.hasInheritedRomanSewer ?? hasInheritedRomanWaterworks;
+  const hasRegionalRomanWaterConnection =
+    hasInheritedRomanWaterworks && hasSameLandGravityWaterSource(burg, getWorldContext().pack.cells);
+  // Read once, shared by hasElectricPumpAccess below and the Tier 3 activated-sludge blower factor
+  // further down (used to be computed independently in each spot; both read the same Market fact).
+  const electricityCoverage = electricityCoverageForMarket(burg.market ?? 0);
+  // docs/plan/electric-power-and-telegraph.md §3.15: once a State's electricWaterPumps technology
+  // is adopted AND this Burg's own Market has real, sustained Market.electricityStock coverage
+  // (not the tech flag alone — same "real coverage, not tech flag" principle as every other
+  // electricity-gated term in this file), an electric well pump gives a river-less Burg a genuine
+  // local water source it could otherwise never earn, no matter how long it waited.
+  const hasElectricPumpAccess =
+    isTechnologyStageAtLeast(getTechnologyStage("electricWaterPumps", burg.state ?? 0), "adopted") &&
+    electricityCoverage >= ELECTRIC_PUMP_MIN_COVERAGE;
+  // Phase 3: an ordinary (non-Giant) burg gets the same kind of imported-water credit once its
+  // RegionalWaterScheme reaches "operating" (regionalWaterAuthority.ts), and now also once it has
+  // a working electric pump — all three are deliberately ORed into one slot below rather than kept
+  // as parallel branches, since all represent the same underlying fact ("this burg's water didn't
+  // depend on a natural river/coastal source to exist").
+  const hasRegionalWaterConnection =
+    hasRegionalRomanWaterConnection || Boolean(args.hasRegionalSchemeConnection) || hasElectricPumpAccess;
+  // `hasSameLandSewerOutfall` now avoids closed-basin rivers unconditionally (urbanSewerage.ts,
+  // 2026-08-23 — it used to require a seasonalColdBurgIds gate), so no climate filter is needed here.
+  const hasRegionalRomanSewerOutfall =
+    hasInheritedRomanSewer &&
+    hasSameLandSewerOutfall(burg, getWorldContext().pack.cells, getWorldContext().pack.rivers, {
+      features: getWorldContext().pack.features
+    });
+
+  const thermalRegime: "temperate" | "seasonalCold" = isSeasonalColdBurg(getWorldContext(), burg)
+    ? "seasonalCold"
+    : "temperate";
+  // Every burg's own geographic fact (docs/plan/modern-urban-water-treatment-and-governance.md
+  // §2.2), not just Giant/seasonal-cold ones — see resolveBurgBasinKind()'s doc comment.
+  const basinKind = resolveBurgBasinKind({
+    cellId: burg.cell,
+    cells: getWorldContext().pack.cells,
+    rivers: getWorldContext().pack.rivers,
+    features: getWorldContext().pack.features
+  });
+  const effluentDestination = resolveBurgEffluentDestination({
+    hasRiver: geography.hasRiver,
+    isCoastal: geography.isCoastal,
+    basinKind
+  });
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);
@@ -682,12 +943,15 @@ export function computeUrbanWaterSystem(args: {
   const permitBoost = 1 + connectionPermitCoverage * 0.12 + municipalSanitation * 0.08;
   const wastewaterCapacity = clamp01(base.wastewater * maint * clearFactor * permitBoost);
   const serviceWaterCapacity = clamp01(
-    base.service * maint * (geography.hasRiver || geography.isCoastal ? 1.1 : 0.85) * lifting.service
+    base.service *
+      maint *
+      (geography.hasRiver || geography.isCoastal || hasRegionalWaterConnection ? 1.1 : 0.85) *
+      lifting.service
   );
   let irrigationCapacity = clamp01(base.irrigation * maint * geography.irrigationPotential * 1.2 * lifting.irrigation);
   const drinkingBase =
     base.drinking *
-    (geography.hasRiver || geography.isCoastal ? 1.05 : geography.isDry ? 0.75 : 0.95) *
+    (geography.hasRiver || geography.isCoastal || hasRegionalWaterConnection ? 1.05 : geography.isDry ? 0.75 : 0.95) *
     lifting.drinking;
 
   const popFactor = clamp01(people / 12000);
@@ -727,8 +991,13 @@ export function computeUrbanWaterSystem(args: {
   irrigationCapacity = clamp01(irrigationCapacity * (1 + organic.fertilizerReturn * 0.12));
   irrigationCapacity = irrigationPollutionPenalty(upstreamPollutionImport, irrigationCapacity);
 
-  const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal;
-  const hasUpstreamIntake = geography.hasRiver && !geography.isWetland;
+  // A closed-basin river is not a valid outfall (docs/plan/modern-urban-water-treatment-and-
+  // governance.md §2.2) — only credit the river clause once basinKind confirms it reaches the sea.
+  // Direct coastal discharge and an inherited Roman outfall (which independently avoids closed
+  // rivers — see hasRegionalRomanSewerOutfall above) still count regardless of the river's basin.
+  const hasDownstreamOutfall =
+    (geography.hasRiver && basinKind === "openBasin") || geography.isCoastal || hasRegionalRomanSewerOutfall;
+  const hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalWaterConnection;
   const hasSeparateWastewaterRoute = computeSeparateWastewaterRoute({ tier, sanitaryEngineering });
   const mixedLocal = localMixedIntakeOutfall({
     hasRiver: geography.hasRiver,
@@ -740,8 +1009,39 @@ export function computeUrbanWaterSystem(args: {
     ? 0.18 + organic.waterDischargeShare * 0.28 * (1 - dischargeRegulation * 0.7)
     : organic.waterDischargeShare * 0.05 * (1 - sanitaryEngineering * 0.5);
 
-  // Sanitary engineering treats / dilutes export and protects intake when separate.
-  const treatmentFactor = 1 - sanitaryEngineering * 0.45 - (hasSeparateWastewaterRoute ? 0.15 : 0);
+  // Sanitary engineering treats / dilutes export and protects intake when separate. Modern Phase 2
+  // (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4): a funded primary
+  // wastewater treatment plant (wastewaterTreatmentTier >= 1) cuts export further still — this is
+  // the direct mechanism that separates riverPollutionLoad from a downstream burg's own
+  // waterSecurity (§1's whole premise). Unfunded (treatmentOperationsFunding low) gives none of it.
+  // Modern Phase 5 (§8, §16): Tier >= 2 (trickling filter / biological treatment) cuts export
+  // further still, scaled by both operations funding AND effluentTestCoverage (an unverified
+  // biological process is not trusted at face value, same reasoning as Phase 4's chemicalTest-
+  // Coverage), and de-rated by any sludge backlog (a clogged plant loses effective capacity — §3.1's
+  // "sludge putrefaction, odor, loss of treatment capacity"). Tier >= 3 (activated sludge) is a further cut scaled by
+  // operations funding AND local Market.electricityStock coverage — blowers need real power, not
+  // just budget; this is a shared capacity signal other plants already just read (electricity-
+  // CoverageForMarket), not a purchased/consumed Good like Chlorine.
+  // A capacity multiplier on the Tier 2 BENEFIT amount itself (not a separate, independently
+  // applied factor) — a full backlog erodes the benefit toward 0 but never flips the term negative
+  // (i.e. a fully clogged plant is at worst as bad as no Tier 2 treatment at all, never worse).
+  const sludgeCapacityFactor = wastewaterTreatmentTier >= 2 ? 1 - clamp01(sludgeBacklog) * 0.6 : 1;
+  const modernWastewaterTreatmentFactor =
+    (wastewaterTreatmentTier >= 1 ? 1 - 0.35 * clamp01(wastewaterOperationsFunding) : 1) *
+    (wastewaterTreatmentTier >= 2
+      ? 1 - 0.3 * clamp01(wastewaterOperationsFunding) * clamp01(effluentTestCoverage) * sludgeCapacityFactor
+      : 1) *
+    (wastewaterTreatmentTier >= 3 ? 1 - 0.25 * clamp01(wastewaterOperationsFunding) * electricityCoverage : 1);
+  const treatmentFactor =
+    (1 - sanitaryEngineering * 0.45 - (hasSeparateWastewaterRoute ? 0.15 : 0)) * modernWastewaterTreatmentFactor;
+
+  // §22 (docs/plan/modern-urban-water-treatment-and-governance.md): general era-driven public-
+  // health knowledge (keeping a well away from a latrine, informal/occasional water treatment) that
+  // helps a Burg with no real drinking-treatment plant yet (drinkingTreatmentTier < 1) — whether it
+  // has no river/regional-scheme intake to ever build one on, or simply hasn't built one yet —
+  // independent of any capital investment. See its own doc comment (below, near
+  // modernizationAffinityForBurg()) for the full reasoning; read here and in modernDrinkingBonus.
+  const wellHygiene = wellHygieneReadiness(burg, drinkingTreatmentTier);
 
   const waterContamination = clamp01(
     wasteDeficit * 0.4 +
@@ -754,7 +1054,26 @@ export function computeUrbanWaterSystem(args: {
       (hasUpstreamIntake && !mixedLocal ? 0.14 : hasUpstreamIntake ? 0.05 : 0) -
       connectionPermitCoverage * 0.06 -
       dischargeRegulation * 0.08 -
-      sanitaryEngineering * 0.1
+      sanitaryEngineering * 0.1 -
+      // Modern Phase 2: source protection alone helps a little; a funded slow-sand-filtration
+      // plant (drinkingTreatmentTier >= 1) helps a lot more — §4's Stage A vs. Stage B distinction.
+      sourceProtection * 0.06 -
+      (drinkingTreatmentTier >= 1 ? 0.12 * clamp01(treatmentOperationsFunding) : 0) -
+      // Modern Phase 4 (§8, §15): rapid filtration/coagulation (Tier >= 2) needs funded operation,
+      // verified dosing (chemicalTestCoverage), AND a real Alum stock (coagulantStockCoverage) to
+      // earn its reduction — untested dosing is not trusted at face value (§1), and dosing gear with
+      // no Alum to dose is inert regardless of budget/testing. Controlled chlorination (Tier >= 3) is
+      // a further, real-Chlorine-stock-gated reduction on top, also contingent on the plant running.
+      (drinkingTreatmentTier >= 2
+        ? 0.1 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) * clamp01(coagulantStockCoverage)
+        : 0) -
+      // §17.2: Lime is a smaller, INDEPENDENT top-up on the Alum-gated term above, not another
+      // required factor stacked onto it — a Tier 2 plant with Alum but no local Lime still gets the
+      // full Alum-gated reduction above, just misses this smaller pH-correction/softening extra.
+      (drinkingTreatmentTier >= 2 ? 0.03 * clamp01(treatmentOperationsFunding) * clamp01(limeStockCoverage) : 0) -
+      (drinkingTreatmentTier >= 3 ? 0.14 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0) -
+      // §22: free knowledge, no treatmentOperationsFunding gate — see wellHygiene's own doc comment.
+      wellHygiene * 0.08
   );
 
   const sanitationBurden = clamp01(
@@ -781,7 +1100,10 @@ export function computeUrbanWaterSystem(args: {
       wasteDeficit * 0.25 +
       organic.organicStreetLoad * 0.25 +
       organic.scavengingRisk * 0.1 +
-      clogging * 0.1
+      clogging * 0.1 +
+      // Modern Phase 5 (§8, §16): unaddressed sludge from biological treatment is a local nuisance
+      // in its own right, not just a downstream-export penalty (§3.1's "sludge putrefaction, odor…").
+      (wastewaterTreatmentTier >= 2 ? clamp01(sludgeBacklog) * 0.15 : 0)
   );
 
   const tierDrinkBonus = tierDrinkingHealthBonus({
@@ -790,8 +1112,23 @@ export function computeUrbanWaterSystem(args: {
     dischargeRegulation,
     hasUpstreamIntake
   });
+  // Modern Phase 2: same source-protection/filtration split as waterContamination above — a
+  // protected intake helps a little on its own, a funded Tier 1 filtration plant helps a lot more.
+  // Modern Phase 4 (§8, §15): Tier 2/3 add further, gated bonuses — see the matching
+  // waterContamination terms above for the same reasoning.
+  const modernDrinkingBonus =
+    sourceProtection * 0.05 +
+    (drinkingTreatmentTier >= 1 ? 0.2 * clamp01(treatmentOperationsFunding) : 0) +
+    (drinkingTreatmentTier >= 2
+      ? 0.15 * clamp01(treatmentOperationsFunding) * clamp01(chemicalTestCoverage) * clamp01(coagulantStockCoverage)
+      : 0) +
+    // §17.2: same independent Lime top-up as the waterContamination term above.
+    (drinkingTreatmentTier >= 2 ? 0.04 * clamp01(treatmentOperationsFunding) * clamp01(limeStockCoverage) : 0) +
+    (drinkingTreatmentTier >= 3 ? 0.2 * clamp01(chlorineStockCoverage) * clamp01(treatmentOperationsFunding) : 0) +
+    // §22: same free knowledge term as the waterContamination term above.
+    wellHygiene * 0.1;
   const drinkingWaterSecurity = clamp01(
-    (drinkingBase + tierDrinkBonus) *
+    (drinkingBase + tierDrinkBonus + modernDrinkingBonus) *
       maint *
       (1 - waterContamination * 0.55) *
       (geography.isDry && !geography.hasRiver ? 0.7 : 1) *
@@ -841,6 +1178,8 @@ export function computeUrbanWaterSystem(args: {
   return {
     burgId: burg.i!,
     tier,
+    drinkingTreatmentTier,
+    wastewaterTreatmentTier,
     drinkingWaterSecurity: rn(drinkingWaterSecurity, 4),
     serviceWaterCapacity: rn(serviceWaterCapacity, 4),
     irrigationCapacity: rn(irrigationCapacity, 4),
@@ -854,6 +1193,11 @@ export function computeUrbanWaterSystem(args: {
     odor: rn(odor, 4),
     hasUpstreamIntake,
     hasDownstreamOutfall,
+    basinKind,
+    thermalRegime,
+    effluentDestination,
+    hasInheritedRomanWaterworks,
+    hasInheritedRomanSewer,
     hasSeparateWastewaterRoute,
     stormwaterDemand: rn(stormwaterDemand, 4),
     wastewaterDemand: rn(wastewaterDemand, 4),
@@ -865,6 +1209,18 @@ export function computeUrbanWaterSystem(args: {
     lastMaintenanceCoverage: rn(args.lastMaintenanceCoverage ?? previous?.lastMaintenanceCoverage ?? 1, 4),
     lastMaintenanceSpend: rn(args.lastMaintenanceSpend ?? previous?.lastMaintenanceSpend ?? 0, 2),
     lastConstructionSpend: rn(args.lastConstructionSpend ?? previous?.lastConstructionSpend ?? 0, 2),
+    sourceProtection: rn(sourceProtection, 4),
+    drinkingTreatmentUpgradeProgress: rn(drinkingTreatmentUpgradeProgress, 4),
+    wastewaterTreatmentUpgradeProgress: rn(wastewaterTreatmentUpgradeProgress, 4),
+    treatmentOperationsFunding: rn(treatmentOperationsFunding, 4),
+    wastewaterOperationsFunding: rn(wastewaterOperationsFunding, 4),
+    chemicalTestCoverage: rn(chemicalTestCoverage, 4),
+    coagulantStockCoverage: rn(coagulantStockCoverage, 4),
+    limeStockCoverage: rn(limeStockCoverage, 4),
+    chlorineStockCoverage: rn(chlorineStockCoverage, 4),
+    sludgeBacklog: rn(sludgeBacklog, 4),
+    effluentTestCoverage: rn(effluentTestCoverage, 4),
+    lastModernConstructionSpend: rn(args.lastModernConstructionSpend ?? previous?.lastModernConstructionSpend ?? 0, 2),
     connectionPermitCoverage: rn(connectionPermitCoverage, 4),
     cleaningTaxRate: rn(cleaningTaxRate, 4),
     dischargeRegulation: rn(dischargeRegulation, 4),
@@ -958,10 +1314,58 @@ function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {
   return culture?.type;
 }
 
+/**
+ * Culture.modernizationAffinity (0..1, docs/plan/modern-urban-water-treatment-and-governance.md
+ * §11) for the burg's OWN culture — deliberately not `cultureTypeForBurg`'s `burg.type` override
+ * (that field is a growth-model type override for a manually-reassigned burg, not a culture
+ * identity change; modernization affinity is a trait of the people, not the terrain). Falls back
+ * to the Generic prior when the burg has no resolvable culture (getCultureModernizationAffinity's
+ * own contract), same as every other legacy-save-safe read in this file.
+ */
+function modernizationAffinityForBurg(burg: Burg): number {
+  const culture = getWorldContext().pack.cultures?.[burg.culture ?? 0];
+  return getCultureModernizationAffinity(culture ?? {});
+}
+
+/**
+ * §22 (docs/plan/modern-urban-water-treatment-and-governance.md): general era-driven public-health
+ * knowledge — keeping a well away from a latrine, informally boiling/treating water — for a Burg
+ * that has no real drinking-treatment plant yet (drinkingTreatmentTier < 1). Answers the "medieval
+ * vs. modern rural village" question for a village with no river/regional-scheme intake to ever
+ * build a Tier 1 plant on: it can still slowly benefit from the era it lives in, just far less than
+ * an actual filtration plant would give it (0.08/0.1 below vs. Tier 1's own 0.12/0.2 — see
+ * computeUrbanWaterSystem()'s waterContamination/modernDrinkingBonus terms that read this).
+ *
+ * Deliberately free — no treatmentOperationsFunding, Good purchase, or treasury spend of any kind,
+ * unlike every drinkingTreatmentTier >= 1 term in this file. This is a knowledge/behavior change,
+ * not capital investment, so it does not compete with construction/operations budgets the way a
+ * real plant does. Zero once drinkingTreatmentTier reaches 1 — at that point the real plant's own,
+ * larger terms take over and this folk-knowledge term would be redundant.
+ *
+ * Reuses modernWaterworksGenerationSeed()'s (§20) exact era-progress scale (steamEra=0..
+ * rocketryEra=1, CIVIC_WATERWORKS_TECH_LEVEL/MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN below) so a
+ * pre-steamEra map gets none of this either — §10's "no retroactive modern treatment" principle
+ * applies to knowledge diffusion as much as to capital plants; germ theory and chlorination are
+ * themselves steamEra-or-later ideas, not something a lateMedieval village could "just know".
+ */
+function wellHygieneReadiness(burg: Burg, drinkingTreatmentTier: WaterSanitationTier): number {
+  if (drinkingTreatmentTier >= 1) return 0;
+  const period = getWorldContext().options?.historicalPeriod;
+  const techLevel = period ? CIVIC_WATERWORKS_TECH_LEVEL[period] : undefined;
+  if (techLevel === undefined) return 0;
+  const techLevelProgress = clamp01(
+    (techLevel - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN) /
+      (CIVIC_WATERWORKS_TECH_LEVEL_MAX - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN)
+  );
+  return techLevelProgress * clamp01(modernizationAffinityForBurg(burg));
+}
+
 function systemDefaults(
   partial: Partial<UrbanWaterSystem> & Pick<UrbanWaterSystem, "burgId" | "tier">
 ): UrbanWaterSystem {
   return {
+    drinkingTreatmentTier: 0,
+    wastewaterTreatmentTier: 0,
     drinkingWaterSecurity: 0.5,
     serviceWaterCapacity: 0.3,
     irrigationCapacity: 0.2,
@@ -975,6 +1379,15 @@ function systemDefaults(
     odor: 0.3,
     hasUpstreamIntake: false,
     hasDownstreamOutfall: false,
+    // computeUrbanWaterSystem() always recomputes these three fresh from live geography — these
+    // defaults only matter if a systemDefaults()/giantRomanWaterworksSeed() result is ever read
+    // directly without going through it first. Kept consistent with hasDownstreamOutfall: false
+    // above (no claimed outfall).
+    basinKind: "openBasin",
+    thermalRegime: "temperate",
+    effluentDestination: "sealedStorageAndInfiltration",
+    hasInheritedRomanWaterworks: false,
+    hasInheritedRomanSewer: false,
     hasSeparateWastewaterRoute: false,
     stormwaterDemand: 0.3,
     wastewaterDemand: 0.3,
@@ -986,6 +1399,21 @@ function systemDefaults(
     lastMaintenanceCoverage: 1,
     lastMaintenanceSpend: 0,
     lastConstructionSpend: 0,
+    // As with basinKind et al. above: computeUrbanWaterSystem() always recomputes the Giant branch
+    // fresh, and settleModernWaterTreatmentInvestment() drives the non-Giant one — these only
+    // matter for a raw, un-recomputed read.
+    sourceProtection: 0,
+    drinkingTreatmentUpgradeProgress: 0,
+    wastewaterTreatmentUpgradeProgress: 0,
+    treatmentOperationsFunding: 0,
+    wastewaterOperationsFunding: 0,
+    chemicalTestCoverage: 0,
+    coagulantStockCoverage: 0,
+    limeStockCoverage: 0,
+    chlorineStockCoverage: 0,
+    sludgeBacklog: 0,
+    effluentTestCoverage: 0,
+    lastModernConstructionSpend: 0,
     connectionPermitCoverage: 0,
     cleaningTaxRate: 0,
     dischargeRegulation: 0,
@@ -1006,6 +1434,127 @@ function systemDefaults(
     pollutionDiplomaticStrain: 0,
     ...partial
   };
+}
+
+/**
+ * Giant states in a Fantasy cultures set begin with functioning Roman-grade urban works.
+ * The legacy trunk may run to a distant source/outfall, so the local cell need not itself be
+ * river or coastal. This is only a generation seed: ordinary annual maintenance can still
+ * degrade its effective capacity, while tier 5 sanitary engineering remains unavailable.
+ */
+function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
+  const stateRace = raceKeyForBurgState(burg);
+  const isGiantFantasyState =
+    stateRace === "giant" && waterTechRaceBiasFor(stateRace, useOptionsState.getState().culturesSet) !== null;
+  if (!isGiantFantasyState) return null;
+
+  return systemDefaults({
+    burgId: burg.i!,
+    tier: 4,
+    drinkingTreatmentTier: 1,
+    wastewaterTreatmentTier: 1,
+    maintenanceCondition: 0.94,
+    clogging: 0.03,
+    connectionPermitCoverage: 0.86,
+    cleaningTaxRate: 0.025,
+    dischargeRegulation: 0.8,
+    waterLifting: 0.72,
+    municipalSanitation: 0.82,
+    sourceProtection: 1,
+    treatmentOperationsFunding: 0.9,
+    wastewaterOperationsFunding: 0.9,
+    hasInheritedRomanWaterworks: true,
+    hasInheritedRomanSewer: true
+  });
+}
+
+/** steamEra's rank in CIVIC_WATERWORKS_TECH_LEVEL above — the floor for
+ * modernWaterworksGenerationSeed() below, matching isModernWaterEraAvailable()'s own outer gate
+ * for the ongoing annual investment mechanism (§4's Stage B / MODERN_WATER_ERA in
+ * urbanWaterModernTreatment.ts). Deliberately narrower than initialTier()'s civic-waterworks bonus
+ * (lateMedieval-onward, legacy `tier` ladder only) — §10 forbids retroactively giving a pre-
+ * industrial-era city a modern TREATMENT plant, and seeding drinkingTreatmentTier/
+ * wastewaterTreatmentTier below this floor would also be mechanically inert: settleModern
+ * WaterTreatmentInvestment()'s own era gate forces treatmentOperationsFunding etc. to 0 every year
+ * outside MODERN_WATER_ERA, so the seeded tier would show as a frozen, funding-less badge forever. */
+const MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN = 5; // steamEra
+
+/**
+ * Burgs that have already reached a modern-water-era generation option (steamEra or later —
+ * MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN above) begin with modern drinking/wastewater treatment
+ * already built, scaled by population, the burg's own culture (`modernizationAffinity`, §11), and
+ * how far into the steamEra->rocketryEra span the map's chosen backdrop sits — a large,
+ * culturally-modern metropolis late in that span should not spend the early centuries of play at
+ * Tier 0 while settleModernWaterTreatmentInvestment() (urbanWaterModernTreatment.ts) slowly catches
+ * up from scratch. The exact modern-ladder counterpart of initialTier()'s civic-waterworks bonus
+ * (§18.2) — same "population band × techLevelProgress × modernizationAffinity, rounded" shape,
+ * applied to drinkingTreatmentTier/wastewaterTreatmentTier instead of the legacy `tier` ladder, and
+ * gated at the burg's own local culture (not the State's) for the same reason §18.2 reads Burg-level
+ * — a Burg's OWN culture, not its owning State's, is what should decide how eagerly IT builds.
+ *
+ * Originally scoped to `historicalPeriod === "rocketryEra"` and State-level CultureType ===
+ * "Industrial" only (a narrower precursor of this function). Generalized after a user report that
+ * even petroleumEra + every culture forced Industrial (optionsState.ts's `forceIndustrialCultures`)
+ * showed no water/sewer on the map — the map's "sewages" layer preset (drawSewerage.ts's
+ * treatmentPlantMarkup()) draws its plant icon strictly from `wastewaterTreatmentTier >= 1`, a field
+ * only THIS function (or annual play) ever seeds; §18's legacy-`tier` fix was invisible to it.
+ *
+ * Unlike the Giant branch (computeUrbanWaterSystem()'s isGiantState, re-asserted every year), this
+ * is a pure generation-time head start: buildSystems()'s mode === "generate" branch reads it once as
+ * `previous`, and ordinary annual maintenance/investment/culture-change governs the burg from there
+ * on like any other — exactly what giantRomanWaterworksSeed()'s own doc comment says of itself,
+ * except here nothing re-locks the tier back down afterward.
+ *
+ * Population bands reuse initialTier()'s own 4,000/15,000 breakpoints (this file, above) rather than
+ * inventing new ones, and MODERN_WATER_MIN_POPULATION (urbanWaterModernTreatment.ts) as the floor
+ * below which no seed applies — a hamlet-sized burg gets no head start, same as it would get no
+ * annual modern investment either.
+ */
+function modernWaterworksGenerationSeed(burg: Burg): UrbanWaterSystem | null {
+  const world = getWorldContext();
+  const period = world.options?.historicalPeriod;
+  if (!isModernWaterEraAvailable(period)) return null;
+
+  const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
+  if (people < MODERN_WATER_MIN_POPULATION) return null;
+
+  const techLevel = period ? CIVIC_WATERWORKS_TECH_LEVEL[period] : undefined;
+  if (techLevel === undefined) return null; // isModernWaterEraAvailable guards this in practice
+  const techLevelProgress = clamp01(
+    (techLevel - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN) /
+      (CIVIC_WATERWORKS_TECH_LEVEL_MAX - MODERN_WATERWORKS_SEED_TECH_LEVEL_MIN)
+  );
+  const affinity = clamp01(modernizationAffinityForBurg(burg));
+  const readiness = techLevelProgress * affinity;
+  const populationBand = people >= 15000 ? 3 : people >= 4000 ? 2 : 1;
+  // 3 is drinkingTreatmentTier/wastewaterTreatmentTier's own ceiling (controlled chlorination /
+  // activated sludge, §15/§16) — not MAX_INVESTABLE_TIER (deprecated, legacy-`tier`-ladder-only).
+  const tier = asTier(Math.min(3, Math.round(populationBand * readiness))) as WaterSanitationTier;
+  if (tier <= 0) return null;
+
+  const funding = tier >= 3 ? 0.85 : tier >= 2 ? 0.7 : 0.5;
+
+  return systemDefaults({
+    burgId: burg.i!,
+    tier: ABSOLUTE_MAX_WATER_TIER,
+    drinkingTreatmentTier: tier,
+    wastewaterTreatmentTier: tier,
+    maintenanceCondition: 0.85,
+    clogging: 0.05,
+    connectionPermitCoverage: tier >= 3 ? 0.8 : tier >= 2 ? 0.68 : 0.55,
+    dischargeRegulation: tier >= 3 ? 0.78 : tier >= 2 ? 0.65 : 0.5,
+    municipalSanitation: tier >= 3 ? 0.78 : tier >= 2 ? 0.65 : 0.5,
+    sanitaryEngineering: tier >= 3 ? 0.75 : tier >= 2 ? 0.6 : 0.45,
+    waterLifting: 0.6,
+    sourceProtection: 1,
+    treatmentOperationsFunding: funding,
+    wastewaterOperationsFunding: funding,
+    chemicalTestCoverage: tier >= 2 ? funding : 0,
+    coagulantStockCoverage: tier >= 2 ? funding : 0,
+    limeStockCoverage: tier >= 2 ? funding : 0,
+    chlorineStockCoverage: tier >= 3 ? funding : 0,
+    effluentTestCoverage: tier >= 2 ? funding : 0
+  });
 }
 
 /**
@@ -1109,8 +1658,11 @@ export function settleBurgWaterInvestment(args: {
 
   // Race-conditioned bias (Fantasy culture sets only) — see raceWaterTechBias.ts. This is a
   // demand/gate bias applied on top of ordinary conditions, never a bypass of geography/scale
-  // gates: a burg with nowhere to drain still cannot build a sewer network.
-  const raceBias = waterTechRaceBiasFor(raceKeyForBurg(burg), useOptionsState.getState().culturesSet);
+  // gates: a burg with nowhere to drain still cannot build a sewer network. A Roman waterworks
+  // inheritance belongs to the Giant State that operates its aqueducts and trunk sewer, so it
+  // continues to receive that State's technical bias even if a local burg culture differs.
+  const waterTechRace = raceKeyForBurgWaterworks(burg, system.hasInheritedRomanWaterworks);
+  const raceBias = waterTechRaceBiasFor(waterTechRace, useOptionsState.getState().culturesSet);
   const effectiveUrgencyThreshold = WATER_PROJECT_URGENCY_THRESHOLD * (raceBias?.urgencyThresholdMultiplier ?? 1);
 
   // Institutional head start feeds connectionPermitCoverage/dischargeRegulation targets only
@@ -1124,7 +1676,13 @@ export function settleBurgWaterInvestment(args: {
     contamination: system.waterContamination,
     sanitationBurden: system.sanitationBurden,
     demandUrgency,
-    administrationBonus: institutionsAdministrationBonus
+    administrationBonus: institutionsAdministrationBonus,
+    // Modern Phase 2/4/5 ladder (docs/plan/modern-urban-water-treatment-and-governance.md §15/§16):
+    // one year lagged, same as every other cross-reference into this year's not-yet-settled modern
+    // tiers within this same annual pass (settleModernWaterTreatmentInvestment() runs after this
+    // function — see buildSystems()'s call order comment).
+    drinkingTreatmentTier: system.drinkingTreatmentTier ?? 0,
+    wastewaterTreatmentTier: system.wastewaterTreatmentTier ?? 0
   });
 
   const taxRevenue = cleaningTaxRevenue({
@@ -1543,11 +2101,23 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
   if (mode === "annual") {
     for (const system of getUrbanWaterSystems()) previousByBurg.set(system.burgId, system);
   }
+  // Phase 3 (docs/plan/modern-urban-water-treatment-and-governance.md §9, §14): one year lagged,
+  // same as PowerGridInvestment reading last year's Dam/PowerStation output — RegionalWaterAuthority.
+  // settleAnnual() runs after UrbanWater.settleAnnual() in the same annual tick (index.tsx), so a
+  // scheme that reaches "operating" this tick is only reflected in hasUpstreamIntake etc. starting
+  // next year's buildSystems() call.
+  const regionalSchemeConnectedBurgIds = getRegionalSchemeConnectedBurgIds();
 
   let systems: UrbanWaterSystem[] = [];
   for (const burg of world.pack.burgs) {
     if (!burg?.i || burg.removed) continue;
-    if (burg.group === "fort") continue;
+    const previous =
+      mode === "annual"
+        ? (previousByBurg.get(burg.i) ?? null)
+        : (giantRomanWaterworksSeed(burg) ?? modernWaterworksGenerationSeed(burg));
+    // Ordinary forts remain non-civic military sites, but Giant forts are supplied by the same
+    // inherited aqueduct/trunk sewer network as their villages and cities.
+    if (burg.group === "fort" && !previous?.hasInheritedRomanWaterworks) continue;
 
     const geography = readBurgWaterGeography({
       cellId: burg.cell,
@@ -1558,7 +2128,6 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
       gridPrec: world.grid?.cells?.prec
     });
     const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
-    const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : null;
     const ambientTemperature = ambientTemperatureForBurg(burg);
 
     // First pass metrics (for demand / investment decisions).
@@ -1568,7 +2137,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
       people,
       cultureType: cultureTypeForBurg(burg),
       ambientTemperature,
-      previous
+      previous,
+      hasRegionalSchemeConnection: regionalSchemeConnectedBurgIds.has(burg.i)
     });
 
     if (mode === "annual" && previous) {
@@ -1578,12 +2148,64 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         geography,
         people
       });
+      // Modern Phase 2/4 (docs/plan/modern-urban-water-treatment-and-governance.md §8, §12.4,
+      // §15.2): runs after the legacy investment above spends its share of this year's treasury —
+      // the legacy ladder's maintenance/construction needs are more foundational and take priority
+      // over this newer, secondary initiative.
+      //
+      // Explicitly skipped for Giants (already seeded, computeUrbanWaterSystem's isGiantState
+      // branch always overrides the tier/funding fields below regardless of what this call would
+      // compute) — NOT because settleModernWaterTreatmentInvestment() no-ops for them on its own.
+      // Before Phase 4 it happened to no-op anyway, because Giants' previous.drinkingTreatmentTier/
+      // wastewaterTreatmentTier both read back as 1 (isGiantState-forced) and the function's old
+      // "both tiers already ≥ 1" early-return caught that immediately. Phase 4 removed that guard
+      // (it also wrongly zeroed ongoing operations funding for any ordinary burg once both tiers
+      // reached 1 — §15.2) so it no longer doubles as a Giant no-op; without this explicit skip,
+      // Giants would spend real treasury on Tier 2/3 construction/ops whose result
+      // computeUrbanWaterSystem discards outright.
+      const modernInvestment =
+        raceKeyForBurgState(burg) === "giant"
+          ? {
+              drinkingTreatmentTier: draft.drinkingTreatmentTier ?? 0,
+              wastewaterTreatmentTier: draft.wastewaterTreatmentTier ?? 0,
+              sourceProtection: draft.sourceProtection,
+              drinkingTreatmentUpgradeProgress: draft.drinkingTreatmentUpgradeProgress,
+              wastewaterTreatmentUpgradeProgress: draft.wastewaterTreatmentUpgradeProgress,
+              treatmentOperationsFunding: draft.treatmentOperationsFunding,
+              wastewaterOperationsFunding: draft.wastewaterOperationsFunding,
+              chemicalTestCoverage: draft.chemicalTestCoverage,
+              coagulantStockCoverage: draft.coagulantStockCoverage,
+              limeStockCoverage: draft.limeStockCoverage,
+              chlorineStockCoverage: draft.chlorineStockCoverage,
+              sludgeBacklog: draft.sludgeBacklog,
+              effluentTestCoverage: draft.effluentTestCoverage,
+              lastModernConstructionSpend: 0
+            }
+          : settleModernWaterTreatmentInvestment({
+              burg,
+              people,
+              period: getWorldContext().options?.historicalPeriod,
+              hasUpstreamIntake: draft.hasUpstreamIntake,
+              hasDownstreamOutfall: draft.hasDownstreamOutfall,
+              modernizationAffinity: modernizationAffinityForBurg(burg),
+              waterContamination: draft.waterContamination,
+              sanitaryEngineering: draft.sanitaryEngineering,
+              previous: {
+                drinkingTreatmentTier: draft.drinkingTreatmentTier ?? 0,
+                wastewaterTreatmentTier: draft.wastewaterTreatmentTier ?? 0,
+                sourceProtection: draft.sourceProtection,
+                drinkingTreatmentUpgradeProgress: draft.drinkingTreatmentUpgradeProgress,
+                wastewaterTreatmentUpgradeProgress: draft.wastewaterTreatmentUpgradeProgress,
+                sludgeBacklog: draft.sludgeBacklog
+              }
+            });
       draft = computeUrbanWaterSystem({
         burg,
         geography,
         people,
         cultureType: cultureTypeForBurg(burg),
         ambientTemperature,
+        hasRegionalSchemeConnection: regionalSchemeConnectedBurgIds.has(burg.i),
         previous: systemDefaults({
           burgId: burg.i,
           tier: investment.tier,
@@ -1596,6 +2218,20 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           lastMaintenanceCoverage: investment.lastMaintenanceCoverage,
           lastMaintenanceSpend: investment.lastMaintenanceSpend,
           lastConstructionSpend: investment.lastConstructionSpend,
+          drinkingTreatmentTier: modernInvestment.drinkingTreatmentTier,
+          wastewaterTreatmentTier: modernInvestment.wastewaterTreatmentTier,
+          sourceProtection: modernInvestment.sourceProtection,
+          drinkingTreatmentUpgradeProgress: modernInvestment.drinkingTreatmentUpgradeProgress,
+          wastewaterTreatmentUpgradeProgress: modernInvestment.wastewaterTreatmentUpgradeProgress,
+          treatmentOperationsFunding: modernInvestment.treatmentOperationsFunding,
+          wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
+          chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
+          coagulantStockCoverage: modernInvestment.coagulantStockCoverage,
+          limeStockCoverage: modernInvestment.limeStockCoverage,
+          chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
+          sludgeBacklog: modernInvestment.sludgeBacklog,
+          effluentTestCoverage: modernInvestment.effluentTestCoverage,
+          lastModernConstructionSpend: modernInvestment.lastModernConstructionSpend,
           connectionPermitCoverage: investment.connectionPermitCoverage,
           cleaningTaxRate: investment.cleaningTaxRate,
           dischargeRegulation: investment.dischargeRegulation,
@@ -1603,6 +2239,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           waterLifting: investment.waterLifting,
           municipalSanitation: investment.municipalSanitation,
           sanitaryEngineering: investment.sanitaryEngineering,
+          hasInheritedRomanWaterworks: previous.hasInheritedRomanWaterworks,
+          hasInheritedRomanSewer: previous.hasInheritedRomanSewer ?? previous.hasInheritedRomanWaterworks,
           pollutionDiplomaticStrain: previous?.pollutionDiplomaticStrain ?? 0
         }),
         tier: investment.tier,
@@ -1615,6 +2253,20 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         lastMaintenanceCoverage: investment.lastMaintenanceCoverage,
         lastMaintenanceSpend: investment.lastMaintenanceSpend,
         lastConstructionSpend: investment.lastConstructionSpend,
+        drinkingTreatmentTier: modernInvestment.drinkingTreatmentTier,
+        wastewaterTreatmentTier: modernInvestment.wastewaterTreatmentTier,
+        sourceProtection: modernInvestment.sourceProtection,
+        drinkingTreatmentUpgradeProgress: modernInvestment.drinkingTreatmentUpgradeProgress,
+        wastewaterTreatmentUpgradeProgress: modernInvestment.wastewaterTreatmentUpgradeProgress,
+        treatmentOperationsFunding: modernInvestment.treatmentOperationsFunding,
+        wastewaterOperationsFunding: modernInvestment.wastewaterOperationsFunding,
+        chemicalTestCoverage: modernInvestment.chemicalTestCoverage,
+        coagulantStockCoverage: modernInvestment.coagulantStockCoverage,
+        limeStockCoverage: modernInvestment.limeStockCoverage,
+        chlorineStockCoverage: modernInvestment.chlorineStockCoverage,
+        sludgeBacklog: modernInvestment.sludgeBacklog,
+        effluentTestCoverage: modernInvestment.effluentTestCoverage,
+        lastModernConstructionSpend: modernInvestment.lastModernConstructionSpend,
         connectionPermitCoverage: investment.connectionPermitCoverage,
         cleaningTaxRate: investment.cleaningTaxRate,
         dischargeRegulation: investment.dischargeRegulation,

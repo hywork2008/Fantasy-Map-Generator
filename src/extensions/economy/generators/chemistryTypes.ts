@@ -11,7 +11,8 @@ export type ChemistryTrialKind =
   | "syntheticAmmoniaPlant"
   | "chlorinePlant"
   | "mercuryPlant"
-  | "oilRefineryPlant";
+  | "oilRefineryPlant"
+  | "lngPlant";
 
 export type ChemistryFailureReason =
   | "materialShortage"
@@ -147,6 +148,21 @@ export interface MercuryPlant {
  * Design: docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.6-3.7.
  */
 export interface OilRefineryPlant {
+  burgId: number;
+  stateId: number;
+  role: "trial" | "service";
+  active: boolean;
+  utilization: number;
+  documentedRuns: number;
+  lastFundedYear: number;
+}
+
+/**
+ * Same shape as OilRefineryPlant, minus the second output — a cryogenic liquefaction plant that
+ * turns Natural Gas into the single Good LNG. Design: docs/plan/natural-gas-lng-power-
+ * generation.md §3.7-3.8.
+ */
+export interface LNGPlant {
   burgId: number;
   stateId: number;
   role: "trial" | "service";

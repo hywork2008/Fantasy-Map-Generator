@@ -1,4 +1,6 @@
 import FlatQueue from "flatqueue";
+import { getTechnologyStage } from "../../../generators/technologyProgress";
+import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 
 import { buildRiverNavigationGraph } from "../../hostCore";
 import type { Burg, PackedGraph } from "../../hostTypes";
@@ -99,6 +101,10 @@ export function refresh(): void {
 
     const sourceCenter = world.pack.burgs[source.centerBurgId];
     if (!sourceCenter) continue;
+    const refrigeratedTransport = isTechnologyStageAtLeast(
+      getTechnologyStage("mechanicalRefrigeration", sourceCenter.state ?? 0),
+      "adopted"
+    );
 
     for (const target of markets) {
       if (target.i === source.i) continue;
@@ -140,7 +146,7 @@ export function refresh(): void {
         world.grid.cells?.temp
       );
       if (
-        !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC) ||
+        !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC, refrigeratedTransport) ||
         !isMarketTradePermitted(source, target, durationDays)
       )
         continue;

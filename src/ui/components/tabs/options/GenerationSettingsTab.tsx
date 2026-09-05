@@ -810,6 +810,24 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip={t("generation.forceIndustrialCulturesTip")}>
+            <td>
+              <LockIconButton id="forceIndustrialCultures" />
+            </td>
+            <th>
+              <label htmlFor="forceIndustrialCultures">{t("generation.forceIndustrialCultures")}</label>
+            </th>
+            <td>
+              <input
+                id="forceIndustrialCultures"
+                type="checkbox"
+                checked={options.forceIndustrialCultures}
+                onChange={event => updateOptionAndLock("forceIndustrialCultures", event.target.checked)}
+              />
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip={t("generation.startFirearmsUnstockedTip")}>
             <td>
               <LockIconButton id="initialFirearmsUnstocked" />

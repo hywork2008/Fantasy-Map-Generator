@@ -45,6 +45,16 @@ describe("races catalog", () => {
     }
   });
 
+  it("records Giants' food- and temperature-independent low-density survival", () => {
+    const expected = {
+      foodIndependent: true,
+      temperatureIndependent: true,
+      populationCapacityMultiplier: 0.1
+    };
+    expect(RACE_DEFINITIONS.find(race => race.key === "giant")?.environmentalSurvival).toEqual(expected);
+    expect(createDefaultRaces().find(race => race.key === "giant")?.environmentalSurvival).toEqual(expected);
+  });
+
   it("defines randomized Demon horns and Beastfolk animal ancestry with furry scale 1–10", () => {
     const races = createDefaultRaces();
     const demon = races.find(race => race.key === "demon")!;

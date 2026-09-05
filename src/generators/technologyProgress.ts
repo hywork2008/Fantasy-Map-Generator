@@ -628,6 +628,14 @@ function emptySignals(): TechnologySignals {
     refinedFuelAccess: 0,
     oilRefineryTrialYears: 0,
     oilRefineryInstallations: 0,
+    naturalGasAccess: 0,
+    lngAccess: 0,
+    lngPlantTrialYears: 0,
+    lngPlantInstallations: 0,
+    gasPowerStationTrialYears: 0,
+    gasPowerStationInstallations: 0,
+    coldStorageDepotTrialYears: 0,
+    coldStorageDepotInstallations: 0,
     atWar: false,
     capitalPort: false
   };
@@ -933,6 +941,8 @@ function applyChemistryMedicineSignals(
   const cinnabarId = goodIdByName(economy, "Cinnabar");
   const crudeOilId = goodIdByName(economy, "Crude Oil");
   const keroseneId = goodIdByName(economy, "Kerosene");
+  const naturalGasId = goodIdByName(economy, "Natural Gas");
+  const lngId = goodIdByName(economy, "LNG");
 
   const waterByBurg = new Map<number, Record<string, unknown>>();
   for (const water of asStockArray(economy.urbanWaterSystems)) {
@@ -986,6 +996,8 @@ function applyChemistryMedicineSignals(
   const cinnabarStockByState = stateMarketStockByGood(economy, marketOwners, cinnabarId);
   const crudeOilStockByState = stateMarketStockByGood(economy, marketOwners, crudeOilId);
   const keroseneStockByState = stateMarketStockByGood(economy, marketOwners, keroseneId);
+  const naturalGasStockByState = stateMarketStockByGood(economy, marketOwners, naturalGasId);
+  const lngStockByState = stateMarketStockByGood(economy, marketOwners, lngId);
 
   for (const [stateId, signals] of map) {
     const urbanPop = Math.max(signals.urbanPopulation, 1);
@@ -1025,6 +1037,11 @@ function applyChemistryMedicineSignals(
     // Same shape, reading Kerosene instead — the demand-pull for internalCombustionEngine.
     signals.refinedFuelAccess = clamp01((keroseneStockByState.get(stateId) ?? 0) / 2);
 
+    // docs/plan/natural-gas-lng-power-generation.md §3.4 — same market-stock-coverage shape as
+    // petroleumAccess/refinedFuelAccess.
+    signals.naturalGasAccess = clamp01((naturalGasStockByState.get(stateId) ?? 0) / 2);
+    signals.lngAccess = clamp01((lngStockByState.get(stateId) ?? 0) / 2);
+
     signals.pumiceCoverage = clamp01((pumiceStockByState.get(stateId) ?? 0) / 1);
     signals.labVesselQuality = clamp01(signals.glassware * (0.7 + 0.3 * signals.pumiceCoverage));
     signals.medicineDemandPressure = clamp01(
@@ -1056,6 +1073,9 @@ function applyChemistryMedicineSignals(
   // docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.4 — same ChemistryTrial
   // indirection as mercuryPlantYears above.
   const oilRefineryYears = new Map<number, number>();
+  // docs/plan/natural-gas-lng-power-generation.md §3.4 — same ChemistryTrial indirection as
+  // oilRefineryYears above.
+  const lngPlantYears = new Map<number, number>();
   for (const trial of asStockArray(economy.chemistryTrials)) {
     if (String(trial.status ?? "") !== "running") continue;
     const stateId = asNumber(trial.stateId);
@@ -1074,6 +1094,9 @@ function applyChemistryMedicineSignals(
     }
     if (kind === "oilRefineryPlant") {
       oilRefineryYears.set(stateId, Math.max(oilRefineryYears.get(stateId) ?? 0, runs));
+    }
+    if (kind === "lngPlant") {
+      lngPlantYears.set(stateId, Math.max(lngPlantYears.get(stateId) ?? 0, runs));
     }
   }
   for (const [stateId, years] of compoundingYears) {
@@ -1099,6 +1122,10 @@ function applyChemistryMedicineSignals(
   for (const [stateId, years] of oilRefineryYears) {
     const signals = map.get(stateId);
     if (signals) signals.oilRefineryTrialYears = years;
+  }
+  for (const [stateId, years] of lngPlantYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.lngPlantTrialYears = years;
   }
 
   const hospitalYears = new Map<number, number>();
@@ -1205,6 +1232,51 @@ function applyChemistryMedicineSignals(
     const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
     const signals = map.get(stateId);
     if (signals) signals.oilRefineryInstallations += 1;
+  }
+
+  // docs/plan/natural-gas-lng-power-generation.md §3.4 — same shape as the oilRefineryPlants
+  // block above.
+  for (const plant of asStockArray(economy.lngPlants)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (signals) signals.lngPlantInstallations += 1;
+  }
+
+  // docs/plan/natural-gas-lng-power-generation.md §3.4 — same shape as the powerStations/
+  // telegraphLines blocks above: GasPowerStation holds documentedRuns on itself, no ChemistryTrial
+  // indirection.
+  const gasPowerStationYears = new Map<number, number>();
+  for (const plant of asStockArray(economy.gasPowerStations)) {
+    if (plant.active === false) continue;
+    const stateId = asNumber(plant.stateId) || burgStateId(asNumber(plant.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.gasPowerStationInstallations += 1;
+    gasPowerStationYears.set(stateId, Math.max(gasPowerStationYears.get(stateId) ?? 0, asNumber(plant.documentedRuns)));
+  }
+  for (const [stateId, years] of gasPowerStationYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.gasPowerStationTrialYears = years;
+  }
+
+  // docs/plan/mechanical-refrigeration-and-cold-chain.md §3.2 — same shape as the gasPowerStations
+  // block above: ColdStorageDepot holds documentedRuns on itself, no ChemistryTrial indirection.
+  const coldStorageDepotYears = new Map<number, number>();
+  for (const depot of asStockArray(economy.coldStorageDepots)) {
+    if (depot.active === false) continue;
+    const stateId = asNumber(depot.stateId) || burgStateId(asNumber(depot.burgId));
+    const signals = map.get(stateId);
+    if (!signals) continue;
+    signals.coldStorageDepotInstallations += 1;
+    coldStorageDepotYears.set(
+      stateId,
+      Math.max(coldStorageDepotYears.get(stateId) ?? 0, asNumber(depot.documentedRuns))
+    );
+  }
+  for (const [stateId, years] of coldStorageDepotYears) {
+    const signals = map.get(stateId);
+    if (signals) signals.coldStorageDepotTrialYears = years;
   }
 
   // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6.
@@ -1376,7 +1448,13 @@ const COUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([
   "mercuryPlantTrialYears",
   "mercuryPlantInstallations",
   "oilRefineryTrialYears",
-  "oilRefineryInstallations"
+  "oilRefineryInstallations",
+  "lngPlantTrialYears",
+  "lngPlantInstallations",
+  "gasPowerStationTrialYears",
+  "gasPowerStationInstallations",
+  "coldStorageDepotTrialYears",
+  "coldStorageDepotInstallations"
 ]);
 
 const AMOUNT_SIGNAL_KEYS: ReadonlySet<keyof TechnologySignals> = new Set([

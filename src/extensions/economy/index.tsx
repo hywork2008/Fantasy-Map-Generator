@@ -68,6 +68,7 @@ import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
 import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
 import { ChlorinePlants } from "./generators/chlorinePlants";
 import { ClimateDisasters } from "./generators/climateDisasters";
+import { ColdStorageDepots } from "./generators/coldStorageDepots";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
   applyCharacterToConstructionJob,
@@ -100,11 +101,13 @@ import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
 import { registerLogHarvest, tickForestRegrowth } from "./generators/forestStock";
+import { GasPowerStations } from "./generators/gasPowerStations";
 import {
   type Good,
   Goods,
   getDefaultGoodTradeProfile,
   isGoodEnabled,
+  migrateAlloySteelGoods,
   migrateChemMedGoods,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
@@ -117,6 +120,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateMercuryChainGoods,
+  migrateNaturalGasChainGoods,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
   migratePhosphateGoods,
@@ -145,6 +149,7 @@ import { InnStays } from "./generators/innStays";
 import { LeveeSites } from "./generators/leveeSites";
 import { Levees } from "./generators/levees";
 import { clearLiveAnimalCatchAccumulators } from "./generators/liveAnimalCatch";
+import { LNGPlants } from "./generators/lngPlants";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -165,11 +170,13 @@ import { OilRefineryPlants } from "./generators/oilRefineryPlants";
 import { OverseasRelations } from "./generators/overseasRelations";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
+import { PotashFertilizerInvestment } from "./generators/potashFertilizerInvestment";
 import { PowerGridInvestment } from "./generators/powerGridInvestment";
 import { PowerStations } from "./generators/powerStations";
 import { Production } from "./generators/production-generator";
 import { clearPublicWorksSettlements, PublicWorks } from "./generators/publicWorks";
 import { QuarryOperations } from "./generators/quarryOperations";
+import { RegionalWaterAuthority } from "./generators/regionalWaterAuthority";
 import {
   clearRetailInventory,
   planRetailReplenishment,
@@ -249,6 +256,9 @@ import {
 import { drawDams } from "./renderers/drawDams";
 import { drawLevees } from "./renderers/drawLevees";
 import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
+import { drawPowerGrid } from "./renderers/drawPowerGrid";
+import { drawSewerage } from "./renderers/drawSewerage";
+import { drawWaterSupply } from "./renderers/drawWaterSupply";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds, resetDisplayedGoodSelection } from "./store/goodsDisplaySelection";
@@ -325,8 +335,10 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateSyntheticAmmoniaGoods,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
+  migrateAlloySteelGoods,
   migrateMercuryChainGoods,
   migratePetroleumChainGoods,
+  migrateNaturalGasChainGoods,
   migrateGrapesGood,
   migratePerennialFruitGoods,
   migrateRaisinsGood,
@@ -435,6 +447,29 @@ export const economyLayers: LayerConfig[] = [
     tooltip:
       "Levees: State-built embankments protecting high-hazard river reaches from flooding. Click to toggle, drag to raise or lower the layer.",
     svgLayers: [{ id: "levees", insertBefore: "icons", display: "none" }]
+  },
+  {
+    id: "toggleWaterSupply",
+    name: "Water Supply",
+    shortcut: null,
+    tooltip:
+      "Water Supply: Roman aqueducts serving Giant-settlement waterworks. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "waterSupply", insertAfter: "rivers", display: "none" }]
+  },
+  {
+    id: "toggleSewerage",
+    name: "Sewerage",
+    shortcut: null,
+    tooltip: "Sewerage: Giant-settlement trunk sewers and outfalls. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "sewerage", insertAfter: "waterSupply", display: "none" }]
+  },
+  {
+    id: "togglePowerGrid",
+    name: "Power Grid",
+    shortcut: null,
+    tooltip:
+      "Power Grid: coal power stations and electrified dams, and (once a State's power grid is adopted) the transmission lines pooling their capacity at its capital. Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "powerGrid", insertAfter: "sewerage", display: "none" }]
   }
 ];
 
@@ -1120,6 +1155,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         InnFacilities.generate();
         InnStays.clear();
         UrbanWater.generate();
+        // Phase 3 (docs/plan/modern-urban-water-treatment-and-governance.md §9, §14): no scheme
+        // survives a regenerate, same as UrbanWater.generate() just above.
+        RegionalWaterAuthority.generate();
       }
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
       if (value.target === "economy" || value.target === "minerals") SmelterOperations.generate();
@@ -1509,6 +1547,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       InnFacilities.clear();
       InnStays.clear();
       UrbanWater.clear();
+      RegionalWaterAuthority.clear();
       clearConstructionHireState();
       clearCullHireState();
       clearCullHiringSession();
@@ -2567,6 +2606,7 @@ export function init(api: ExtensionAPI): void {
           InnFacilities.generate();
           InnStays.clear();
           UrbanWater.generate();
+          RegionalWaterAuthority.generate();
           // Threat cull / pest job board (docs/plan/player-threat-cull-jobs.md PR-2).
           rebuildCullJobPostings({ clearAll: true });
           // Escort (護衛) job board — all culture sets.
@@ -2968,10 +3008,18 @@ export function init(api: ExtensionAPI): void {
     // investments keep priority over mine/smelter claims together (docs/plan/
     // synthetic-ammonia-vertical-slice.md §3.7; docs/plan/rural-agtech-investment.md §6.3).
     NitrogenFertilizerInvestment.settleAnnual();
+    // Potash purchase (existing wood-ash Good, otherwise sold for glass/soap), same shared
+    // marketTreasury.balance but a separate stock/budget calculation — runs right after the
+    // other two farm-fertilizer investments so all three keep priority over mine/smelter
+    // claims together (docs/plan/fallow-reduction-fertilizer-rotation.md §4.5; docs/plan/
+    // rural-agtech-investment.md §6.3).
+    PotashFertilizerInvestment.settleAnnual();
     IndustrialTechInvestment.settleAnnual();
-    // Allocates last year's PowerStations generation capacity (era-6 plant block below) to
-    // markets by population. Does not touch marketTreasury — PowerStations already paid the
-    // capital/operating cost (docs/plan/electric-power-and-telegraph.md §3.10).
+    // Allocates last year's PowerStations/GasPowerStations generation capacity (era-6/7 plant
+    // block below) to markets by population. Does not touch marketTreasury — PowerStations/
+    // GasPowerStations already paid the capital/operating cost
+    // (docs/plan/electric-power-and-telegraph.md §3.10, docs/plan/natural-gas-lng-power-
+    // generation.md §3.10).
     PowerGridInvestment.settleAnnual();
     // Rolls this year's per-State drought/heatwave severity and writes climateFoodStress —
     // must run before updateAnnualAgriculture() so this year's dryness feeds this year's
@@ -3147,6 +3195,10 @@ export function init(api: ExtensionAPI): void {
     // PowerGridInvestment (annualAgTech block above) reads this year's output starting next
     // year (docs/plan/electric-power-and-telegraph.md §3.9).
     PowerStations.settleAnnual();
+    // LNG/Copper Wire/Machine Parts only — the second fuel source joining the same
+    // generationCapacity pool via PowerGridInvestment. docs/plan/natural-gas-lng-power-
+    // generation.md §3.9.
+    GasPowerStations.settleAnnual();
     // Copper Wire/Machine Parts only, no fuel — grouped here as part of the era-6 plant block.
     TelegraphLines.settleAnnual();
     // Stone/Timber founding/upkeep, plus Copper Wire/Machine Parts once electrified (no Coal —
@@ -3179,6 +3231,14 @@ export function init(api: ExtensionAPI): void {
     // Crude Oil/Coal/Firebrick only, independent of every other plant above — the era-7
     // refining step. docs/plan/petroleum-and-internal-combustion-vertical-slice.md §3.7.
     OilRefineryPlants.settleAnnual();
+    // Natural Gas/Coal/Machine Parts only, independent of every other plant above — the
+    // era-7 liquefaction step. docs/plan/natural-gas-lng-power-generation.md §3.8.
+    LNGPlants.settleAnnual();
+    // LNG/Machine Parts only, independent of every other plant above. storageCapacity is a
+    // State-wide pool (no powerGrid-style two-stage abstraction) that settleCellFreshFood()
+    // (markets-generator.ts) reads directly. docs/plan/mechanical-refrigeration-and-cold-
+    // chain.md §3.5.
+    ColdStorageDepots.settleAnnual();
     settleChemMedPracticeDecay();
   });
 
@@ -3186,6 +3246,13 @@ export function init(api: ExtensionAPI): void {
     // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
     // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
     const urbanWaterChanged = UrbanWater.settleAnnual();
+    // Regional water schemes: advance each scheme's proposed→...→operating lifecycle and
+    // propose new ones for eligible, not-yet-covered burgs. Runs right after UrbanWater above so
+    // it can read this year's freshly-settled hasUpstreamIntake per burg; an operating scheme's
+    // benefit is folded back into hasUpstreamIntake/etc. starting NEXT year's UrbanWater
+    // settleAnnual() call — same one-year lag as PowerGridInvestment reading last year's Dam/
+    // PowerStation output. docs/plan/modern-urban-water-treatment-and-governance.md §9, §14.
+    RegionalWaterAuthority.settleAnnual();
     // Returns true only when new "railways" route track was laid this call
     // (docs/plan/steam-industrial-implementation.md §7) — drives map.networks below.
     const railwayNetworkChanged = SteamIndustry.settleAnnual();
@@ -3345,6 +3412,9 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleMineralDeposits", () => document.getElementById("mineralDeposits"));
   api.registerLayerElement("toggleDams", () => document.getElementById("dams"));
   api.registerLayerElement("toggleLevees", () => document.getElementById("levees"));
+  api.registerLayerElement("toggleWaterSupply", () => document.getElementById("waterSupply"));
+  api.registerLayerElement("toggleSewerage", () => document.getElementById("sewerage"));
+  api.registerLayerElement("togglePowerGrid", () => document.getElementById("powerGrid"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -3486,6 +3556,43 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("toggleWaterSupply", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleWaterSupply")) {
+      api.turnLayerOn("toggleWaterSupply");
+      // The supply layer is SVG in both render modes: it is infrastructure geometry that has no
+      // deck.gl equivalent yet, so hiding it in hybrid mode would make the feature disappear.
+      drawWaterSupply();
+    } else {
+      api.getSvgLayer("waterSupply")?.html("");
+      api.turnLayerOff("toggleWaterSupply");
+    }
+  });
+
+  api.registerLayerToggle("toggleSewerage", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleSewerage")) {
+      api.turnLayerOn("toggleSewerage");
+      // Like aqueducts, trunk sewers are an SVG overlay in both render modes until deck.gl owns
+      // utility infrastructure geometry.
+      drawSewerage();
+    } else {
+      api.getSvgLayer("sewerage")?.html("");
+      api.turnLayerOff("toggleSewerage");
+    }
+  });
+
+  api.registerLayerToggle("togglePowerGrid", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("togglePowerGrid")) {
+      api.turnLayerOn("togglePowerGrid");
+      // Same reasoning as toggleWaterSupply/toggleSewerage above: power stations and transmission
+      // lines are schematic infrastructure geometry with no deck.gl equivalent yet, so this stays
+      // SVG in both render modes rather than disappearing in hybrid mode.
+      drawPowerGrid();
+    } else {
+      api.getSvgLayer("powerGrid")?.html("");
+      api.turnLayerOff("togglePowerGrid");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // The economy tick publishes extension.economy on every simulated day. A
@@ -3507,6 +3614,9 @@ export function init(api: ExtensionAPI): void {
       api.getSvgLayer("dams")?.style("display", "none");
       api.getSvgLayer("levees")?.style("display", "none");
       api.requestWebglRender();
+      if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
+      if (api.layerIsOn("toggleSewerage")) drawSewerage();
+      if (api.layerIsOn("togglePowerGrid")) drawPowerGrid();
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
     }
@@ -3515,6 +3625,9 @@ export function init(api: ExtensionAPI): void {
     if (api.layerIsOn("toggleMineralDeposits")) drawMineralDeposits();
     if (api.layerIsOn("toggleDams")) drawDams();
     if (api.layerIsOn("toggleLevees")) drawLevees();
+    if (api.layerIsOn("toggleWaterSupply")) drawWaterSupply();
+    if (api.layerIsOn("toggleSewerage")) drawSewerage();
+    if (api.layerIsOn("togglePowerGrid")) drawPowerGrid();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });
 }

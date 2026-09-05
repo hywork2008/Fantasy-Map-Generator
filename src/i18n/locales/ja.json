@@ -90,7 +90,32 @@
     "label": "地図メニュー",
     "distanceFromHere": "ここからの距離",
     "distanceToHere": "ここまでの距離",
-    "distanceToHereDisabled": "先に「ここからの距離」で開始位置を指定してください"
+    "distanceToHereDisabled": "先に「ここからの距離」で開始位置を指定してください",
+    "distanceFromBurg": "{{name}}からの距離",
+    "distanceToBurg": "{{name}}までの距離"
+  },
+  "directions": {
+    "mode": {
+      "foot": "徒歩",
+      "mounted": "騎馬",
+      "wagon": "荷馬車"
+    },
+    "reason": {
+      "noRoute": "これらの都市を結ぶ道・小道・海路が見つかりません",
+      "sameLocation": "既に到着しています"
+    },
+    "duration": {
+      "daysHours": "{{days}}日{{hours}}時間",
+      "hoursMinutes": "{{hours}}時間{{minutes}}分",
+      "minutes": "{{minutes}}分"
+    },
+    "avoidSea": "船を避ける",
+    "seaRequiredNote": "このルートは海路が必須です。陸路網ではこれらの都市を結べないため、「船を避ける」は無視されました。",
+    "distanceSplit": "陸路 {{land}}{{distanceUnit}} ・ 海路 {{sea}}{{distanceUnit}}",
+    "gradeSummary": "最大勾配: {{maxGrade}}% ・ 登り: {{ascent}}{{heightUnit}} ・ 下り: {{descent}}{{heightUnit}} ・ 難易度: {{difficulty}}",
+    "landGradeSummary": "登り: {{ascent}}{{heightUnit}} ・ 下り: {{descent}}{{heightUnit}}(陸路区間のみ)",
+    "noElevation": "平坦な海路です — 標高差はありません。",
+    "noRoute": "これらの都市を結ぶ経路が見つかりません。"
   },
   "characters": {
     "dialogTitle": "人物詳細：{{name}}",
@@ -715,6 +740,7 @@
         "Linen": "リネン",
         "Liquor": "蒸留酒",
         "Locomotive": "機関車",
+        "LNG": "LNG",
         "Lubricating Oil": "潤滑油",
         "Machine Parts": "機械部品",
         "Mahogany": "マホガニー",
@@ -728,6 +754,7 @@
         "Millet": "キビ",
         "Rice": "米",
         "Muskets": "マスケット銃",
+        "Natural Gas": "天然ガス",
         "Nitric Acid": "硝酸",
         "Nitrogen Fertilizer": "窒素肥料",
         "Oats": "エンバク",
@@ -1133,6 +1160,8 @@
       "petroleumEra": "石油の時代（Era 7）",
       "rocketryEra": "ロケット・宇宙開発期（Era 8）"
     },
+    "forceIndustrialCultures": "全ての文化をIndustrialにする",
+    "forceIndustrialCulturesTip": "デバッグ／強制オプション：地形・歴史時代・通常の出現確率を無視して、地図上の全ての文化にIndustrialの文化タイプを割り当てます。Industrial文化の国家（および生成時に高いmodernizationAffinityが種付けする上下水道インフラ）を確実に出現させたい場合に使用してください。",
     "startFirearmsUnstocked": "火器を未配備で開始",
     "startFirearmsUnstockedTip": "新しい地図では通常、既存の銃兵と砲兵はすでに装備済みです。有効にすると火器装備を 0 から始め、国家が経済を通じて調達する必要があります。",
     "stateLabels": "国家ラベル",
@@ -1711,6 +1740,7 @@
       "exportMap": "地図データを書き出す",
       "exportPngTiles": "PNG タイルに書き出す",
       "cellInfo": "セル情報",
+      "directions": "経路案内：{{from}} → {{to}}",
       "populationOverview": "人口概要",
       "technologyOverview": "技術概要",
       "burgsOverview": "都市概要",
@@ -2183,6 +2213,9 @@
         "modernDrillingAndFieldOperations": "近代掘削と油田操業",
         "oilRefiningAndFractionation": "石油精製と分留",
         "internalCombustionEngine": "内燃機関",
+        "naturalGasLiquefaction": "天然ガス液化",
+        "gasFiredElectricityGeneration": "ガス火力発電",
+        "mechanicalRefrigeration": "機械式冷凍",
         "militarySignalRockets": "軍用・信号用火薬ロケット",
         "rocketDynamicsAndHighTemperatureCombustionResearch": "ロケット力学と高温燃焼研究",
         "liquidPropulsionAndTestFacilities": "液体推進とロケット試験施設",
@@ -2210,7 +2243,11 @@
         "naval": "海港",
         "nomadic": "遊牧",
         "hunting": "狩猟",
-        "highland": "高地"
+        "highland": "高地",
+        "desert": "砂漠",
+        "marsh": "湿地",
+        "industrial": "工業",
+        "colonial": "植民"
       },
       "culture": "文化：",
       "cultureTip": "支配的な文化を選択します",

@@ -22,7 +22,7 @@ import {
   LODGING_STYLES,
   type LodgingStyle
 } from "../generators/innFacilityTypes";
-import type { UrbanWaterSystem } from "../generators/urbanWaterTypes";
+import type { RegionalWaterScheme, UrbanWaterSystem } from "../generators/urbanWaterTypes";
 import { getEconomySlice, getLegacyPackFields, getSliceArray, setSliceArray } from "./economyApi";
 
 /** Commercial short-stay lodging stock. It is intentionally separate from permanent dwellings. */
@@ -76,4 +76,14 @@ export function getUrbanWaterSystems(): UrbanWaterSystem[] {
 
 export function setUrbanWaterSystems(systems: readonly UrbanWaterSystem[]): void {
   setSliceArray("urbanWaterSystems", systems);
+}
+
+/** Multi-Burg water-supply schemes (docs/plan/modern-urban-water-treatment-and-governance.md §9,
+ *  §14 Phase 3). Same shape as getDams. */
+export function getRegionalWaterSchemes(): RegionalWaterScheme[] {
+  return getSliceArray<RegionalWaterScheme>("regionalWaterSchemes");
+}
+
+export function setRegionalWaterSchemes(schemes: readonly RegionalWaterScheme[]): void {
+  setSliceArray("regionalWaterSchemes", schemes);
 }

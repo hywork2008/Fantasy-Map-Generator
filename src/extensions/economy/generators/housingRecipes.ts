@@ -25,7 +25,12 @@ export const BASE_HOUSING_RECIPE_BY_CULTURE: Record<CultureType, HousingRecipe> 
   Naval: { wood: 0.55, stone: 0.25, brick: 0.2 },
   Hunting: { wood: 0.7, stone: 0.15, brick: 0.15 },
   Nomadic: { wood: 0.8, stone: 0.05, brick: 0.15 },
-  Generic: { wood: 0.45, stone: 0.35, brick: 0.2 }
+  Generic: { wood: 0.45, stone: 0.35, brick: 0.2 },
+  // Added 2026-08-23 alongside docs/plan/modern-urban-water-treatment-and-governance.md.
+  Desert: { wood: 0.15, stone: 0.25, brick: 0.6 }, // mudbrick/adobe dominant, timber scarce
+  Marsh: { wood: 0.55, stone: 0.1, brick: 0.35 }, // reed/stilt construction over soft ground, brick for permanent structures
+  Industrial: { wood: 0.1, stone: 0.2, brick: 0.7 }, // mass-produced brick terraces, the era's defining material
+  Colonial: { wood: 0.5, stone: 0.2, brick: 0.3 } // transplanted metropole styles, more masonry than Naval's vernacular timber
 };
 
 export function normalize3(wood: number, stone: number, brick: number): HousingRecipe {

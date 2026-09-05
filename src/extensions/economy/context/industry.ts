@@ -24,15 +24,17 @@ import type {
   ChlorinePlant,
   ExperimentalWorkshop,
   HospitalInstallation,
+  LNGPlant,
   MedicalCareReliefRow,
   MercuryPlant,
   OilRefineryPlant,
   PhosphateFertilizerPlant,
   SyntheticAmmoniaPlant
 } from "../generators/chemistryTypes";
+import type { ColdStorageDepot } from "../generators/coldStorageTypes";
 import type { ConstructionOperation } from "../generators/constructionEmploymentTypes";
 import type { Dam, DamSite } from "../generators/damTypes";
-import type { PowerStation, TelegraphLine } from "../generators/electricalTypes";
+import type { GasPowerStation, PowerStation, TelegraphLine } from "../generators/electricalTypes";
 import type { ChlorAlkaliPlant, ElectrolysisPlant } from "../generators/electrolysisTypes";
 import type { Levee, LeveeSite } from "../generators/leveeTypes";
 import type {
@@ -322,6 +324,42 @@ export function getOilRefineryPlants(): OilRefineryPlant[] {
 
 export function setOilRefineryPlants(rows: readonly OilRefineryPlant[]): void {
   setSliceArray("oilRefineryPlants", rows);
+}
+
+/**
+ * Same shape as getOilRefineryPlants — a single-output liquefaction plant (LNG only).
+ * Design: docs/plan/natural-gas-lng-power-generation.md §3.8.
+ */
+export function getLNGPlants(): LNGPlant[] {
+  return getSliceArray<LNGPlant>("lngPlants");
+}
+
+export function setLNGPlants(rows: readonly LNGPlant[]): void {
+  setSliceArray("lngPlants", rows);
+}
+
+/**
+ * Same shape as getPowerStations — the second fuel source (LNG instead of Coal).
+ * Design: docs/plan/natural-gas-lng-power-generation.md §3.9.
+ */
+export function getGasPowerStations(): GasPowerStation[] {
+  return getSliceArray<GasPowerStation>("gasPowerStations");
+}
+
+export function setGasPowerStations(rows: readonly GasPowerStation[]): void {
+  setSliceArray("gasPowerStations", rows);
+}
+
+/**
+ * Same shape as getPowerStations — a mechanical/refrigeration-engineering capital asset, not
+ * ChemistryTrial-based. Design: docs/plan/mechanical-refrigeration-and-cold-chain.md §3.5.
+ */
+export function getColdStorageDepots(): ColdStorageDepot[] {
+  return getSliceArray<ColdStorageDepot>("coldStorageDepots");
+}
+
+export function setColdStorageDepots(rows: readonly ColdStorageDepot[]): void {
+  setSliceArray("coldStorageDepots", rows);
 }
 
 export function getChemMedPracticeRecords(): ChemMedPracticeRecord[] {

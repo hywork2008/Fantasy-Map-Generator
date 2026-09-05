@@ -128,6 +128,9 @@ export const RiversOverviewDialog: React.FC = () => {
       } else if (sortBy === "length") {
         valA = a.length || 0;
         valB = b.length || 0;
+      } else if (sortBy === "elevation") {
+        valA = a.sourceElevation ?? 0;
+        valB = b.sourceElevation ?? 0;
       } else if (sortBy === "width") {
         valA = a.width || 0;
         valB = b.width || 0;
@@ -146,16 +149,18 @@ export const RiversOverviewDialog: React.FC = () => {
 
   const averageDischarge = rn(mean(filteredRivers.map(r => r.discharge)) ?? 0) || 0;
   const averageLength = rn(mean(filteredRivers.map(r => r.length)) ?? 0) || 0;
+  const averageElevation = rn(mean(filteredRivers.map(r => r.sourceElevation ?? 0)) ?? 0) || 0;
   const averageWidth = rn(mean(filteredRivers.map(r => r.width)) ?? 0, 3) || 0;
 
   function downloadRiversData(): void {
-    let data = "Id,River,Type,Discharge,Length,Width,Basin\n";
+    let data = "Id,River,Type,Discharge,Length,Elevation,Width,Basin\n";
     filteredRivers.forEach(d => {
       const discharge = `${d.discharge} m³/s`;
       const length = `${rn((d.length || 0) * worldContext.distanceScale)} ${unit}`;
+      const elevation = `${rn(d.sourceElevation ?? 0)} m`;
       const width = `${rn((d.width || 0) * worldContext.distanceScale, 3)} ${unit}`;
       const basin = riversById.get(d.basin)?.name || "";
-      data += `${[d.i, d.name, d.type, discharge, length, width, basin].join(",")}\n`;
+      data += `${[d.i, d.name, d.type, discharge, length, elevation, width, basin].join(",")}\n`;
     });
 
     // Create link directly as downloadFile is in editors.ts and expects DOM
@@ -206,6 +211,13 @@ export const RiversOverviewDialog: React.FC = () => {
                   onClick={() => toggleSortBy("length")}
                 >
                   Length
+                </th>
+                <th
+                  data-tip="Click to sort by river source elevation"
+                  className={`sortable ${sortBy === "elevation" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
+                  onClick={() => toggleSortBy("elevation")}
+                >
+                  Elevation
                 </th>
                 <th
                   data-tip="Click to sort by river mouth width"
@@ -264,6 +276,11 @@ export const RiversOverviewDialog: React.FC = () => {
                       </div>
                     </td>
                     <td className="numeric">
+                      <div data-tip="River source elevation above sea level" className="biomeArea">
+                        {`${rn(r.sourceElevation ?? 0)} m`}
+                      </div>
+                    </td>
+                    <td className="numeric">
                       <div data-tip="River mouth width" className="biomeArea">
                         {`${rn(r.width * worldContext.distanceScale, 3)} ${unit}`}
                       </div>
@@ -307,6 +324,9 @@ export const RiversOverviewDialog: React.FC = () => {
           <div data-tip="Average length">
             Length:
             <span id="riversFooterLength">{`${averageLength * worldContext.distanceScale} ${unit}`}</span>
+          </div>
+          <div data-tip="Average source elevation">
+            Elevation:<span id="riversFooterElevation">{`${averageElevation} m`}</span>
           </div>
           <div data-tip="Average mouth width">
             Width:

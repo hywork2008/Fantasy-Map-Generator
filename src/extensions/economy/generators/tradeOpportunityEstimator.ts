@@ -176,7 +176,8 @@ function getFreshFoodMaxTradeDays(routeMaxTemperatureC: number | undefined): num
 export function getGoodMaxTradeDurationDays(
   good: Good,
   routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
-  routeMaxTemperatureC?: number
+  routeMaxTemperatureC?: number,
+  refrigeratedTransport?: boolean
 ): number {
   const trade = good.trade ?? getDefaultGoodTradeProfile(good);
   const densityLimit = Math.max(1, VALUE_DENSITY_BASE_MAX_DAYS * getGoodValueDensity(good) * VALUE_DENSITY_MULTIPLIER);
@@ -193,6 +194,10 @@ export function getGoodMaxTradeDurationDays(
   }
 
   if (isFreshFoodGood(good)) {
+    // Once refrigerated transport exists (mechanicalRefrigeration adopted at the origin, §3.8),
+    // treat this good like any other durable good instead of routing through the climate-based
+    // cap — docs/plan/mechanical-refrigeration-and-cold-chain.md §3.8.
+    if (refrigeratedTransport) return densityLimit;
     return Math.min(densityLimit, getFreshFoodMaxTradeDays(routeMaxTemperatureC));
   }
 
@@ -203,15 +208,18 @@ export function isGoodTradePermitted(
   good: Good,
   durationDays: number,
   routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
-  routeMaxTemperatureC?: number
+  routeMaxTemperatureC?: number,
+  refrigeratedTransport?: boolean
 ): boolean {
-  // This economy has neither refrigeration nor a retail delivery model that can sell a raw
-  // cargo on its arrival day. Fresh goods must therefore be consumed or processed locally;
-  // only their preserved recipes are eligible for inter-market caravan trade.
-  if (isFreshFoodGood(good)) return false;
+  // Without refrigeration nor a retail delivery model that can sell a raw cargo on its arrival
+  // day, fresh goods must be consumed or processed locally; only their preserved recipes are
+  // eligible for inter-market caravan trade. Once the origin State has adopted
+  // mechanicalRefrigeration, refrigeratedTransport lifts this ban — docs/plan/mechanical-
+  // refrigeration-and-cold-chain.md §3.8.
+  if (isFreshFoodGood(good) && !refrigeratedTransport) return false;
   if (
     !Number.isFinite(durationDays) ||
-    durationDays > getGoodMaxTradeDurationDays(good, routeSegments, routeMaxTemperatureC)
+    durationDays > getGoodMaxTradeDurationDays(good, routeSegments, routeMaxTemperatureC, refrigeratedTransport)
   )
     return false;
   return (
@@ -231,10 +239,11 @@ export function isGoodTradePermittedForShipment(
   durationDays: number,
   maxLoadingWaitDays: number,
   routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
-  routeMaxTemperatureC?: number
+  routeMaxTemperatureC?: number,
+  refrigeratedTransport?: boolean
 ): boolean {
   const elapsedDays = isFreshFoodGood(good) ? durationDays + Math.max(0, maxLoadingWaitDays) : durationDays;
-  return isGoodTradePermitted(good, elapsedDays, routeSegments, routeMaxTemperatureC);
+  return isGoodTradePermitted(good, elapsedDays, routeSegments, routeMaxTemperatureC, refrigeratedTransport);
 }
 
 export function getCaravanMaintenanceCost(durationDays: number): number {

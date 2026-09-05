@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCellFoodRescue } from "./cellFoodRescue";
+import { getChilledFreshFoodExportUnits, planCellFoodRescue } from "./cellFoodRescue";
 import type { CellFreshFoodInput } from "./cellFoodRescueTypes";
 
 const milk: CellFreshFoodInput = {
@@ -94,5 +94,35 @@ describe("planCellFoodRescue", () => {
     expect(outcome.spoiledForMissingSuppliesUnits).toBe(8);
     expect(outcome.reserveInputUnits).toBe(0);
     expect(outcome.exportOutputUnits).toBe(0);
+  });
+});
+
+// docs/plan/mechanical-refrigeration-and-cold-chain.md §3.6-3.7.
+describe("getChilledFreshFoodExportUnits", () => {
+  it("rescues exactly the gap planCellFoodRescue left unrecorded, when capacity covers it fully", () => {
+    // Same fixture as "does not turn the whole cell population into food processors" above:
+    // harvested 1,000, producedUnits 152 — an 848-unit gap the planner never records.
+    const plan = planCellFoodRescue([{ ...milk, harvestedUnits: 1_000, exportDemandUnits: 1_000 }], { 1: 6 }, 100);
+    const [outcome] = plan.outcomes;
+
+    expect(getChilledFreshFoodExportUnits(1_000, outcome.producedUnits, 10_000)).toBe(848);
+  });
+
+  it("caps the rescued amount at the available cold-storage capacity", () => {
+    expect(getChilledFreshFoodExportUnits(1_000, 152, 200)).toBe(200);
+  });
+
+  it("returns 0 when the harvest was already fully eaten or preserved", () => {
+    expect(getChilledFreshFoodExportUnits(30, 30, 100)).toBe(0);
+    expect(getChilledFreshFoodExportUnits(10, 12, 100)).toBe(0); // producedUnits never exceeds harvestedUnits in practice
+  });
+
+  it("returns 0 when no cold-storage capacity is available", () => {
+    expect(getChilledFreshFoodExportUnits(1_000, 152, 0)).toBe(0);
+  });
+
+  it("treats non-finite or negative inputs as zero", () => {
+    expect(getChilledFreshFoodExportUnits(Number.NaN, 0, 100)).toBe(0);
+    expect(getChilledFreshFoodExportUnits(100, 0, -5)).toBe(0);
   });
 });

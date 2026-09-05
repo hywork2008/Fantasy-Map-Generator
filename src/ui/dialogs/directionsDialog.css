@@ -1,0 +1,66 @@
+.directions-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 22rem;
+}
+
+.directions-modes {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.directions-mode {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0.3rem;
+  border: 1px solid var(--dark-solid);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.directions-mode.active {
+  background: color-mix(in srgb, var(--dark-solid) 16%, transparent);
+  font-weight: bold;
+}
+
+.directions-mode:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.directions-mode__icon {
+  font-size: 1.2em;
+}
+
+.directions-mode__summary {
+  font-size: 0.8em;
+  opacity: 0.85;
+}
+
+.directions-avoid-sea {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9em;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.directions-sea-note {
+  font-size: 0.85em;
+  color: var(--warning-color, #b3691a);
+}
+
+.directions-distance-split,
+.directions-grade-summary,
+.directions-flat-note,
+.directions-empty {
+  font-size: 0.9em;
+  margin: 0.2rem 0;
+}

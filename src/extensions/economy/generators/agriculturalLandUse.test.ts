@@ -5,14 +5,20 @@ import {
   AGTECH_NO_DRAFT_EFFECT_SHARE,
   AGTECH_YIELD_BONUS_MAX,
   type AgriculturalConditions,
+  ANNUAL_SOWN_SHARE,
   advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
+  EFFECTIVE_SOWN_SHARE_CEILING,
   FOUR_COURSE_CLOVER_LEY_SHARE,
+  FOUR_COURSE_FALLOW_REDUCTION_MAX,
   getCropMix,
   MEGACITY_LABOR_EXPORT_SHARE,
+  NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX,
   NITROGEN_FERTILIZER_YIELD_BONUS_MAX,
   PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX,
+  POTASH_FERTILIZER_YIELD_BONUS_MAX,
   reconcileForestClearanceForAgriculture,
+  requiredFieldAreaHectares,
   STATE_YIELD_BONUS_MAX
 } from "./agriculturalLandUse";
 import type { Good } from "./goods-generator";
@@ -108,6 +114,31 @@ describe("agricultural land use", () => {
     expect(after.cultivableArea[0]).toBeGreaterThan(before.cultivableArea[0]);
     expect(after.cultivatedArea[0]).toBeCloseTo(after.cultivableArea[0], 4);
     expect(after.cultivableArea[0]).toBeGreaterThanOrEqual(after.cultivatedArea[0]);
+  });
+
+  // docs/plan/fallow-reduction-fertilizer-rotation.md §3.6: intensified land use needs less
+  // total footprint (sown + fallow-equivalent) to feed the same population, so it clears less forest.
+  it("clears less forest for the same population when Nitrogen Fertilizer raises the effective sown share", () => {
+    // Sparse labour (few adults) relative to population keeps the subsistence-demand target
+    // (which shrinks with a higher effective sown share) below the labour-affordable ceiling,
+    // so this isolates the sown-share effect on required clearing rather than a labour cap.
+    const baselineWorld = createWorld();
+    baselineWorld.pack.cells.forestStock = new Float32Array([0.9, 0]);
+    baselineWorld.pack.cells.pop[0] = 4;
+    baselineWorld.pack.cells.maleAdults[0] = 0.05;
+    baselineWorld.pack.cells.femaleAdults[0] = 0.05;
+
+    const fertilizedWorld = createWorld();
+    fertilizedWorld.pack.cells.forestStock = new Float32Array([0.9, 0]);
+    fertilizedWorld.pack.cells.pop[0] = 4;
+    fertilizedWorld.pack.cells.maleAdults[0] = 0.05;
+    fertilizedWorld.pack.cells.femaleAdults[0] = 0.05;
+    const conditions = { nitrogenFertilizerStockByCell: new Float32Array([1, 1]) };
+
+    reconcileForestClearanceForAgriculture(baselineWorld);
+    reconcileForestClearanceForAgriculture(fertilizedWorld, undefined, undefined, {}, conditions);
+
+    expect(fertilizedWorld.pack.cells.forestStock[0]).toBeGreaterThan(baselineWorld.pack.cells.forestStock[0]);
   });
 
   it("reserves local Grain fields for a burg's residents except in Megacity mode", () => {
@@ -315,6 +346,66 @@ describe("agricultural land use", () => {
     expect(withZeroStock.farmLaborRequired).toEqual(withoutField.farmLaborRequired);
   });
 
+  // docs/plan/fallow-reduction-fertilizer-rotation.md §4.
+  it("raises yield with purchased Potash, independent of the fallow-share axis", () => {
+    const world = createWorld();
+    const baseline = calculateAgriculturalLandProfile(world);
+    const withPotash = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        potashFertilizerStockByCell: new Float32Array([0, 1])
+      }
+    );
+    const withAll = calculateAgriculturalLandProfile(
+      world,
+      new Float32Array([0, 1]),
+      new Float32Array([0, 1]),
+      {},
+      {
+        fertilizerStockByCell: new Float32Array([0, 1]),
+        nitrogenFertilizerStockByCell: new Float32Array([0, 1]),
+        potashFertilizerStockByCell: new Float32Array([0, 1])
+      }
+    );
+
+    const potashBonusMultiplier = 1 + POTASH_FERTILIZER_YIELD_BONUS_MAX;
+    const combinedMultiplier =
+      (1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE) *
+      (1 + STATE_YIELD_BONUS_MAX) *
+      (1 + PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX) *
+      (1 + NITROGEN_FERTILIZER_YIELD_BONUS_MAX) *
+      potashBonusMultiplier;
+    expect(withPotash.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * potashBonusMultiplier, 4);
+    expect(withAll.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
+    // Yield-only, like Phosphate Fertilizer: no labor-savings or draft-animal gating.
+    expect(withPotash.farmLaborRequired[1]).toBeCloseTo(baseline.farmLaborRequired[1], 4);
+    // Cell 0's potashFertilizerStockByCell entry is 0, so it is untouched.
+    expect(withPotash.yieldPerArea[0]).toBe(baseline.yieldPerArea[0]);
+    // Unlike the four-course/nitrogen fallow-reduction axis, Potash does not raise the effective
+    // sown share: ruralFoodCapacity grows by exactly the yield multiplier, no extra factor.
+    expect(withPotash.ruralFoodCapacity[1]).toBeCloseTo(baseline.ruralFoodCapacity[1] * potashBonusMultiplier, 4);
+  });
+
+  it("matches the no-argument call when potashFertilizerStockByCell is omitted from conditions (back-compat)", () => {
+    const world = createWorld();
+    const withoutField = calculateAgriculturalLandProfile(world, undefined, undefined, {}, {});
+    const withZeroStock = calculateAgriculturalLandProfile(
+      world,
+      undefined,
+      undefined,
+      {},
+      {
+        potashFertilizerStockByCell: new Float32Array(2)
+      }
+    );
+
+    expect(withZeroStock.yieldPerArea).toEqual(withoutField.yieldPerArea);
+    expect(withZeroStock.farmLaborRequired).toEqual(withoutField.farmLaborRequired);
+  });
+
   it("turns adopted four-course rotation into clover forage, yield, labour, and fertility effects", () => {
     const world = createWorld();
     const crops = [cropGood(1, "Wheat", "cereal"), cropGood(2, "Peas", "legume")];
@@ -339,6 +430,113 @@ describe("agricultural land use", () => {
       fourCourseConditions
     );
     expect(rotatedSoil.soilFertility[1]).toBeGreaterThan(baselineSoil.soilFertility[1]);
+  });
+
+  // docs/plan/fallow-reduction-fertilizer-rotation.md §3.
+  describe("effective sown share (fallow reduction)", () => {
+    it("raises ruralFoodCapacity beyond the yield-only effect when four-course rotation is adopted", () => {
+      const world = createWorld();
+      const baseline = calculateAgriculturalLandProfile(world);
+      const withRotation = calculateAgriculturalLandProfile(
+        world,
+        undefined,
+        undefined,
+        {},
+        { fourCourseRotationByCell: new Float32Array([0, 1]) }
+      );
+
+      const yieldMultiplier = withRotation.yieldPerArea[1] / baseline.yieldPerArea[1];
+      const sownShareMultiplier = (ANNUAL_SOWN_SHARE + FOUR_COURSE_FALLOW_REDUCTION_MAX) / ANNUAL_SOWN_SHARE;
+      expect(withRotation.ruralFoodCapacity[1]).toBeCloseTo(
+        baseline.ruralFoodCapacity[1] * yieldMultiplier * sownShareMultiplier,
+        4
+      );
+      // Cell 0's fourCourseRotationByCell entry is 0, so its sown share is untouched.
+      expect(withRotation.ruralFoodCapacity[0]).toBe(baseline.ruralFoodCapacity[0]);
+    });
+
+    it("raises ruralFoodCapacity beyond the yield-only effect when Nitrogen Fertilizer is adopted", () => {
+      const world = createWorld();
+      const baseline = calculateAgriculturalLandProfile(world);
+      const withNitrogen = calculateAgriculturalLandProfile(
+        world,
+        undefined,
+        undefined,
+        {},
+        { nitrogenFertilizerStockByCell: new Float32Array([0, 1]) }
+      );
+
+      const yieldMultiplier = withNitrogen.yieldPerArea[1] / baseline.yieldPerArea[1];
+      const sownShareMultiplier = (ANNUAL_SOWN_SHARE + NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX) / ANNUAL_SOWN_SHARE;
+      expect(withNitrogen.ruralFoodCapacity[1]).toBeCloseTo(
+        baseline.ruralFoodCapacity[1] * yieldMultiplier * sownShareMultiplier,
+        4
+      );
+    });
+
+    it("clamps the combined effective sown share at EFFECTIVE_SOWN_SHARE_CEILING", () => {
+      const world = createWorld();
+      const baseline = calculateAgriculturalLandProfile(world);
+      const withBoth = calculateAgriculturalLandProfile(
+        world,
+        undefined,
+        undefined,
+        {},
+        {
+          fourCourseRotationByCell: new Float32Array([0, 1]),
+          nitrogenFertilizerStockByCell: new Float32Array([0, 1])
+        }
+      );
+
+      // Both maxed out lands exactly on the ceiling in the current calibration
+      // (0.67 + 0.10 + 0.15 = 0.92), so the clamp is exercised without over/under-shooting.
+      const yieldMultiplier = withBoth.yieldPerArea[1] / baseline.yieldPerArea[1];
+      const sownShareMultiplier = EFFECTIVE_SOWN_SHARE_CEILING / ANNUAL_SOWN_SHARE;
+      expect(withBoth.ruralFoodCapacity[1]).toBeCloseTo(
+        baseline.ruralFoodCapacity[1] * yieldMultiplier * sownShareMultiplier,
+        4
+      );
+    });
+
+    it("does not raise the effective sown share from Phosphate Fertilizer or Potash alone", () => {
+      const world = createWorld();
+      const baseline = calculateAgriculturalLandProfile(world);
+      const withPhosphateAndPotash = calculateAgriculturalLandProfile(
+        world,
+        undefined,
+        undefined,
+        {},
+        {
+          fertilizerStockByCell: new Float32Array([0, 1]),
+          potashFertilizerStockByCell: new Float32Array([0, 1])
+        }
+      );
+
+      // Only the yield axis moves — ruralFoodCapacity grows by exactly the yield multiplier.
+      const yieldMultiplier = withPhosphateAndPotash.yieldPerArea[1] / baseline.yieldPerArea[1];
+      expect(withPhosphateAndPotash.ruralFoodCapacity[1]).toBeCloseTo(
+        baseline.ruralFoodCapacity[1] * yieldMultiplier,
+        4
+      );
+    });
+
+    it("matches the no-argument call when the third sownShare argument is omitted (back-compat)", () => {
+      expect(requiredFieldAreaHectares(100, 500)).toBeCloseTo(
+        requiredFieldAreaHectares(100, 500, ANNUAL_SOWN_SHARE),
+        8
+      );
+    });
+
+    it("shrinks the required (fallow-inclusive) field footprint for the same population when adopted", () => {
+      // Isolates requiredFieldAreaHectares(): same people/yield, only sownShare differs.
+      const withoutRotation = requiredFieldAreaHectares(100, 500, ANNUAL_SOWN_SHARE);
+      const withRotation = requiredFieldAreaHectares(
+        100,
+        500,
+        ANNUAL_SOWN_SHARE + NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX
+      );
+      expect(withRotation).toBeLessThan(withoutRotation);
+    });
   });
 
   it("selects one culture-weighted staple and one legume for a three-field plan without an initial soil penalty", () => {

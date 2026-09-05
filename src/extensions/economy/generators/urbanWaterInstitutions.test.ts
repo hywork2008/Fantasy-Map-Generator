@@ -53,6 +53,62 @@ describe("institutions", () => {
     expect(second.cleaningTaxRate).toBeGreaterThanOrEqual(first.cleaningTaxRate);
     expect(cleaningTaxRevenue({ cleaningTaxRate: 0.02, people: 5000, product: 100 })).toBeGreaterThan(0);
   });
+
+  it("adds a cleaningTaxRate surcharge for a burg's own modern drinkingTreatmentTier/wastewaterTreatmentTier, on top of the legacy tier (docs/plan/modern-urban-water-treatment-and-governance.md §15/§16)", () => {
+    const legacyOnly = institutionalTargets({
+      tier: 3,
+      contamination: 0.8,
+      sanitationBurden: 0.7,
+      demandUrgency: 0.8,
+      administrationBonus: 1
+    });
+    const modernized = institutionalTargets({
+      tier: 3,
+      contamination: 0.8,
+      sanitationBurden: 0.7,
+      demandUrgency: 0.8,
+      administrationBonus: 1,
+      drinkingTreatmentTier: 3,
+      wastewaterTreatmentTier: 3
+    });
+    expect(modernized.cleaningTaxRate).toBeGreaterThan(legacyOnly.cleaningTaxRate);
+  });
+
+  it("leaves cleaningTaxRate unchanged when drinkingTreatmentTier/wastewaterTreatmentTier are omitted (byte-identical to before the modern-ladder surcharge)", () => {
+    const omitted = institutionalTargets({
+      tier: 5,
+      contamination: 0.9,
+      sanitationBurden: 0.85,
+      demandUrgency: 0.9,
+      administrationBonus: 1.35
+    });
+    const explicitZero = institutionalTargets({
+      tier: 5,
+      contamination: 0.9,
+      sanitationBurden: 0.85,
+      demandUrgency: 0.9,
+      administrationBonus: 1.35,
+      drinkingTreatmentTier: 0,
+      wastewaterTreatmentTier: 0
+    });
+    expect(omitted.cleaningTaxRate).toBe(explicitZero.cleaningTaxRate);
+    // Same value the pre-surcharge legacy formula/cap would have produced for this high-pressure,
+    // high-tier, high-admin combination (previously clipped at 0.04).
+    expect(omitted.cleaningTaxRate).toBe(0.04);
+  });
+
+  it("charges no cleaningTaxRate surcharge without any organised drains, even at a high modern tier (no institution to attach the tax to)", () => {
+    const result = institutionalTargets({
+      tier: 0,
+      contamination: 0.8,
+      sanitationBurden: 0.7,
+      demandUrgency: 0.8,
+      administrationBonus: 1,
+      drinkingTreatmentTier: 3,
+      wastewaterTreatmentTier: 3
+    });
+    expect(result.cleaningTaxRate).toBe(0);
+  });
 });
 
 describe("intake/outfall and tier drinking bonus", () => {

@@ -15,6 +15,7 @@ import {
   GOODS_DATA,
   GoodsModule,
   isGoodEnabled,
+  migrateAlloySteelGoods,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
@@ -25,6 +26,7 @@ import {
   migrateLiveCatsGood,
   migrateLiveDogsGood,
   migrateMercuryChainGoods,
+  migrateNaturalGasChainGoods,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
   migratePomaceDistillationGoods,
@@ -112,6 +114,35 @@ describe("GoodsModule", () => {
     expect(cocoa?.perennialCrop?.kind).toBe("orchard");
     expect(coffee?.perennialCrop?.kind).toBe("orchard");
     expect(rubber).toMatchObject({ tags: expect.arrayContaining(["industrial", "perennialCrop"]) });
+  });
+
+  it("defines mine and smelter goods for stainless-steel alloying inputs", () => {
+    for (const metal of ["Chromium", "Nickel", "Molybdenum", "Silicon"]) {
+      expect(GOODS_DATA.find(good => good.name === `${metal} Ore`)).toMatchObject({
+        tags: expect.arrayContaining(["ore"])
+      });
+      expect(GOODS_DATA.find(good => good.name === `${metal} Ingot`)).toMatchObject({
+        tags: expect.arrayContaining(["ingot"])
+      });
+    }
+  });
+
+  it("defines demand-driven Stainless Steel from the mined alloying ingots", () => {
+    const stainlessSteel = GOODS_DATA.find(good => good.name === "Stainless Steel");
+
+    expect(stainlessSteel).toMatchObject({
+      requiredTechnology: "modernSteelmaking",
+      demandCoverage: { construction: 0.012, utilities: 0.018 }
+    });
+    expect(stainlessSteel?.recipes).toEqual([
+      {
+        Steel: 1,
+        "Chromium Ingot": 0.18,
+        "Nickel Ingot": 0.08,
+        "Molybdenum Ingot": 0.02,
+        "Silicon Ingot": 0.02
+      }
+    ]);
   });
 
   it("keeps the current catalogue when rerolling placement", () => {
@@ -370,6 +401,29 @@ describe("GoodsModule", () => {
     expect(migrateElectrolyticIndustryGoods()).toBe(false);
   });
 
+  it("appends alloying inputs and Stainless Steel, resolving its recipe to live Good ids", () => {
+    setGoods([{ i: 4, name: "Steel", tags: ["metal"], value: 14, unit: "bar", icon: "steel", color: "#7a8490" }]);
+
+    expect(migrateAlloySteelGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const stainlessSteel = byName.get("Stainless Steel");
+    expect(stainlessSteel).toMatchObject({
+      requiredTechnology: "modernSteelmaking",
+      demandCoverage: { construction: 0.012, utilities: 0.018 }
+    });
+    expect(stainlessSteel?.recipes).toEqual([
+      {
+        [byName.get("Steel")!.i]: 1,
+        [byName.get("Chromium Ingot")!.i]: 0.18,
+        [byName.get("Nickel Ingot")!.i]: 0.08,
+        [byName.get("Molybdenum Ingot")!.i]: 0.02,
+        [byName.get("Silicon Ingot")!.i]: 0.02
+      }
+    ]);
+    expect(migrateAlloySteelGoods()).toBe(false);
+  });
+
   // docs/plan/cinnabar-mercury-vertical-slice.md §3.2-3.3, §3.8.
   it("appends Cinnabar (mined, no recipe) and Mercury (plant-only, no recipe)", () => {
     setGoods([
@@ -421,6 +475,29 @@ describe("GoodsModule", () => {
     });
     expect(lubricatingOil?.recipes).toBeUndefined();
     expect(migratePetroleumChainGoods()).toBe(false);
+  });
+
+  // docs/plan/natural-gas-lng-power-generation.md §3.2-3.3, §3.12.
+  it("appends Natural Gas (mined, no recipe) and LNG (plant-only, no recipe)", () => {
+    setGoods([
+      { i: 1, name: "Coal", tags: ["mineral", "fuel"], value: 3, unit: "wain", icon: "good-coal", color: "#2b2b2b" }
+    ]);
+
+    expect(migrateNaturalGasChainGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const naturalGas = byName.get("Natural Gas");
+    const lng = byName.get("LNG");
+    expect(naturalGas).toMatchObject({ chance: 0, demandCoverage: {} });
+    expect(naturalGas?.requiredTechnology).toBeUndefined();
+    expect(naturalGas?.recipes).toBeUndefined();
+    expect(lng).toMatchObject({
+      requiredTechnology: "naturalGasLiquefaction",
+      chance: 0,
+      demandCoverage: {}
+    });
+    expect(lng?.recipes).toBeUndefined();
+    expect(migrateNaturalGasChainGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

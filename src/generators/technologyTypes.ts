@@ -163,6 +163,27 @@ export interface TechnologySignals {
   oilRefineryTrialYears: number;
   /** Count of active OilRefineryPlant entries, same shape as mercuryPlantInstallations. */
   oilRefineryInstallations: number;
+  /**
+   * 0..1 market-stock coverage of Natural Gas, same shape as petroleumAccess. Natural Gas is the
+   * associated/secondary commodity in oilField deposits (0.25x Crude Oil's yield scale), so
+   * naturalGasLiquefaction's thresholds read this at a lower bar than oilRefiningAndFractionation
+   * reads petroleumAccess. See docs/plan/natural-gas-lng-power-generation.md §3.4.
+   */
+  naturalGasAccess: number;
+  /** 0..1 market-stock coverage of LNG, same shape as refinedFuelAccess — the demand-pull for gasFiredElectricityGeneration. */
+  lngAccess: number;
+  /** LNGPlant's ChemistryTrial documentedRuns state max, same shape as oilRefineryTrialYears. */
+  lngPlantTrialYears: number;
+  /** Count of active LNGPlant entries, same shape as oilRefineryInstallations. */
+  lngPlantInstallations: number;
+  /** GasPowerStation.documentedRuns state max, same shape as powerStationTrialYears. */
+  gasPowerStationTrialYears: number;
+  /** Count of active GasPowerStation entries, same shape as powerStationInstallations. */
+  gasPowerStationInstallations: number;
+  /** ColdStorageDepot.documentedRuns state max, same shape as powerStationTrialYears. */
+  coldStorageDepotTrialYears: number;
+  /** Count of active ColdStorageDepot entries, same shape as powerStationInstallations. */
+  coldStorageDepotInstallations: number;
   atWar: boolean;
   capitalPort: boolean;
 }

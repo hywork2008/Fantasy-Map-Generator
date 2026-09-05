@@ -6,7 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
+import { isDesertBiome, isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { defaultMonoRacialForRaceKey, isFantasyCulturesSet } from "../data/raceCivicStance";
 import { applyRacePersonNameSpheres } from "../data/racePersonNameConfig";
 import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
@@ -17,6 +17,7 @@ import type { WorldState } from "../types/WorldState";
 import { openAlert } from "../ui/dialogs/dialogService";
 import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw } from "../utils";
 import { rollCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
+import { rollCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
@@ -1237,16 +1238,81 @@ class CulturesModule {
       return cellId;
     };
 
+    // historicalPeriod is ordered oldest → newest; used to era-gate "Industrial"/"Colonial" below
+    // (docs/plan/modern-urban-water-treatment-and-governance.md — modernization-born cultures
+    // should never appear on an earlyMedieval map). Kept local rather than importing
+    // technologyProgress.ts's HISTORICAL_PERIOD_FRONTIER_ERA to avoid a new cross-module
+    // dependency for what is otherwise a single ordered-index check.
+    const HISTORICAL_PERIOD_ORDER = [
+      "earlyMedieval",
+      "highMedieval",
+      "lateMedieval",
+      "ageOfExploration",
+      "maritimeEra",
+      "preIndustrialEra",
+      "steamEra",
+      "industrialChemistryEra",
+      "petroleumEra",
+      "rocketryEra"
+    ] as const;
+    const isPeriodAtLeast = (period: string | undefined, threshold: (typeof HISTORICAL_PERIOD_ORDER)[number]) => {
+      const index = HISTORICAL_PERIOD_ORDER.indexOf(
+        (period ?? "earlyMedieval") as (typeof HISTORICAL_PERIOD_ORDER)[number]
+      );
+      return index >= HISTORICAL_PERIOD_ORDER.indexOf(threshold);
+    };
+
     // set culture type based on culture center position
     const defineCultureType = (i: number) => {
       const { biomesData } = this.worldContext;
       const biomeCode = this.cells!.biomeCode[i];
-      // Hot/cold desert + grassland historically defined Nomadic centers
-      if (this.cells!.h[i] < 70 && isNomadicBiome(biomesData, biomeCode) && !isForestBiome(biomesData, biomeCode))
+      const options = useOptionsState.getState();
+      const period = options.historicalPeriod;
+      // Debug/override generation option (optionsState.ts's `forceIndustrialCultures` doc comment,
+      // docs/plan/modern-urban-water-treatment-and-governance.md §19): unconditionally short-
+      // circuits every other branch below, including the hard terrain gates (Nomadic/Highland/
+      // Lake) — this is a deliberate blunt override for guaranteeing Industrial-culture nations
+      // exist on a map (and with them, the water/sewer infrastructure their modernizationAffinity
+      // seeds), not a probability nudge like Industrial's own branch further down.
+      if (options.forceIndustrialCultures) return "Industrial";
+      // Grassland/savanna historically defined Nomadic centers; desert cells split off to
+      // "Desert" below instead — both used to share the biome's "nomadic" tag, which forced
+      // every desert cell into steppe-pastoralist behavior even one that sits on a river or
+      // harbor (see the Desert branch, checked after Naval/River get first claim on those cells).
+      if (
+        this.cells!.h[i] < 70 &&
+        isNomadicBiome(biomesData, biomeCode) &&
+        !isDesertBiome(biomesData, biomeCode) &&
+        !isForestBiome(biomesData, biomeCode)
+      )
         return "Nomadic";
       if (this.cells!.h[i] > 50) return "Highland"; // no penalty for hills and mountains, high for other elevations
       const f = pack.features[this.cells!.f[this.cells!.haven[i]]]; // opposite feature
       if (f.type === "lake" && f.cells > 5) return "Lake"; // low water cross penalty and high for growth not along coastline
+
+      // Colonial: a seaborne or overland settler culture claiming frontier land, only once the
+      // era and settlement pattern actually model colonization (docs/plan/modern-urban-water-
+      // treatment-and-governance.md §5.4's "移植された近代化" archetype). Checked before Naval so
+      // a colonial landing site doesn't just get folded into the generic seafaring-trade culture.
+      if (options.initialSettlementPattern === "frontier" && isPeriodAtLeast(period, "ageOfExploration")) {
+        const isCoastalHaven = Boolean(this.cells!.harbor[i]) && f.type !== "lake";
+        const canLandHere = options.frontierStartMode === "seaborne" ? isCoastalHaven : true;
+        if (canLandHere && P(0.35)) return "Colonial";
+      }
+
+      // Industrial: an era-gated factory/mill-town culture that competes with Naval/River/Generic
+      // for the same lowland cells once the world is late enough (docs/plan/modern-urban-water-
+      // treatment-and-governance.md's highest modernizationAffinity archetype) — real industrial
+      // revolutions grew out of river and port towns, they didn't avoid them. Excluded from
+      // desert/wetland so it never steals a Desert/Marsh cell below.
+      if (
+        isPeriodAtLeast(period, "steamEra") &&
+        !isDesertBiome(biomesData, biomeCode) &&
+        !isWetlandBiome(biomesData, biomeCode) &&
+        P(0.25)
+      )
+        return "Industrial";
+
       if (
         (this.cells!.harbor[i] && f.type !== "lake" && P(0.1)) ||
         (this.cells!.harbor[i] === 1 && P(0.6)) ||
@@ -1254,6 +1320,13 @@ class CulturesModule {
       )
         return "Naval"; // low water cross penalty and high for non-along-coastline growth
       if (this.cells!.r[i] && this.cells!.fl[i] > 100) return "River"; // no River cross penalty, penalty for non-River growth
+      // Desert: arid oasis/caravan settlement — whatever desert-biome cells Naval/River above
+      // didn't already claim as a coastal or riverine desert city (e.g. a Nile- or Red-Sea-style
+      // settlement, which should read as River/Naval, not caravan-trade Desert).
+      if (isDesertBiome(biomesData, biomeCode)) return "Desert";
+      // Marsh: coastal/river-mouth delta and polder farmers, distinct from the inland swamp
+      // foragers the Hunting branch below still covers.
+      if (isWetlandBiome(biomesData, biomeCode) && this.cells!.t[i] <= 2) return "Marsh";
       // Hunting: savanna, rainforests, taiga, tundra, wetland — non-arable frontier biomes
       if (
         this.cells!.t[i] > 2 &&
@@ -1274,6 +1347,13 @@ class CulturesModule {
       else if (type === "Nomadic") base = 1.5;
       else if (type === "Hunting") base = 0.7;
       else if (type === "Highland") base = 1.2;
+      else if (type === "Desert")
+        base = 1.1; // caravan trade networks extend reach beyond a settled culture's usual pace
+      else if (type === "Marsh")
+        base = 0.75; // dense but geographically hemmed in by flood/drainage limits
+      else if (type === "Industrial")
+        base = 1.3; // industrial-era economic growth drives fast annexation
+      else if (type === "Colonial") base = 1.4; // aggressive claiming of "unclaimed" frontier land
       return rn(((Math.random() * useOptionsState.getState().sizeVariety) / 2 + 1) * base, 1);
     };
 
@@ -1294,6 +1374,11 @@ class CulturesModule {
         if (typeof c.knowledgeValue !== "number" || !Number.isFinite(c.knowledgeValue)) {
           c.knowledgeValue = rollCultureKnowledgeValue(c.type);
         }
+        // Same hydration for modernizationAffinity (docs/plan/modern-urban-water-treatment-and-
+        // governance.md), added alongside knowledgeValue above.
+        if (typeof c.modernizationAffinity !== "number" || !Number.isFinite(c.modernizationAffinity)) {
+          c.modernizationAffinity = rollCultureModernizationAffinity(c.type);
+        }
         return;
       }
 
@@ -1308,6 +1393,7 @@ class CulturesModule {
       c.color = colors[i];
       c.type = defineCultureType(center);
       c.knowledgeValue = rollCultureKnowledgeValue(c.type);
+      c.modernizationAffinity = rollCultureModernizationAffinity(c.type);
       c.expansionism = defineCultureExpansionism(c.type);
       c.origins = [0];
       c.code = abbreviate(c.name, codes);
@@ -1436,6 +1522,7 @@ class CulturesModule {
       if (cells.biomeCode[cultures[c].center as number] === biome) return 10; // tiny penalty for native biome
       if (type === "Hunting") return biomesData.cost[biome] * 5; // non-native biome penalty for hunters
       if (type === "Nomadic" && isForestBiome(biomesData, biome)) return biomesData.cost[biome] * 10; // forest tag penalty for nomads
+      if (type === "Desert" && isForestBiome(biomesData, biome)) return biomesData.cost[biome] * 6; // forest tag penalty for desert cultures, mirrors Nomadic
       return biomesData.cost[biome] * 2; // general non-native biome penalty
     };
 
@@ -1444,7 +1531,10 @@ class CulturesModule {
         a = cells.area[i];
       if (type === "Lake" && f.type === "lake") return 10; // no lake crossing penalty for Lake cultures
       if (type === "Naval" && h < 20) return a * 2; // low sea/lake crossing penalty for Naval cultures
+      if (type === "Colonial" && h < 20) return a * 2; // colonial cultures keep sea lanes to the metropole, like Naval
+      if (type === "Marsh" && h < 20) return a * 3; // water-adapted delta/polder cultures, slightly above Naval
       if (type === "Nomadic" && h < 20) return a * 50; // giant sea/lake crossing penalty for Nomads
+      if (type === "Desert" && h < 20) return a * 20; // arid caravan cultures dislike water crossings, less severely than Nomadic
       if (h < 20) return a * 6; // general sea/lake crossing penalty
       if (type === "Highland" && h < 44) return 3000; // giant penalty for highlanders on lowlands
       if (type === "Highland" && h < 62) return 200; // giant penalty for highlanders on lowhills
@@ -1456,14 +1546,16 @@ class CulturesModule {
 
     const getRiverCost = (riverId: number, cellId: number, type: string) => {
       if (type === "River") return riverId ? 0 : 100; // penalty for river cultures
+      if (type === "Marsh") return riverId ? 0 : 50; // deltas follow river distributaries, but less strictly than River culture
       if (!riverId) return 0; // no penalty for others if there is no river
       return minmax(cells.fl[cellId] / 10, 20, 100); // river penalty from 20 to 100 based on flux
     };
 
     const getTypeCost = (t: number, type: string) => {
-      if (t === 1) return type === "Naval" || type === "Lake" ? 0 : type === "Nomadic" ? 60 : 20; // penalty for coastline
-      if (t === 2) return type === "Naval" || type === "Nomadic" ? 30 : 0; // low penalty for land level 2 for Navals and nomads
-      if (t !== -1) return type === "Naval" || type === "Lake" ? 100 : 0; // penalty for mainland for navals
+      const isSeaComfortable = type === "Naval" || type === "Colonial" || type === "Marsh";
+      if (t === 1) return isSeaComfortable || type === "Lake" ? 0 : type === "Nomadic" ? 60 : 20; // penalty for coastline
+      if (t === 2) return type === "Naval" || type === "Nomadic" || type === "Colonial" ? 30 : 0; // low penalty for land level 2
+      if (t !== -1) return type === "Naval" || type === "Lake" ? 100 : type === "Colonial" ? 60 : 0; // penalty for mainland
       return 0;
     };
 

@@ -48,6 +48,17 @@ export interface OptionsState {
     | "industrialChemistryEra"
     | "petroleumEra"
     | "rocketryEra";
+  /**
+   * Debug/override generation option (docs/plan/modern-urban-water-treatment-and-governance.md
+   * §11.2/§19): when enabled, cultures-generator.ts's `defineCultureType` skips its normal
+   * terrain/era/probability-based decision entirely and assigns every culture on the map
+   * `CultureType: "Industrial"` — the single highest `modernizationAffinity` prior (0.85, §11.3),
+   * guaranteeing Industrial-culture nations (and the generation-time water/sewer infrastructure
+   * their affinity seeds — industrialModernWaterworksSeed()/initialTier()'s civic-waterworks bonus)
+   * appear regardless of how few/no cells would otherwise roll "Industrial" on their own. Default
+   * `false` preserves normal probabilistic culture-type assignment.
+   */
+  forceIndustrialCultures: boolean;
   template: string;
   /** Restricts unlocked random heightmap selection by the templates' mean land coverage. */
   templateRandomization: HeightmapTemplateRandomization;
@@ -389,6 +400,7 @@ export const GENERATION_OPTION_KEYS = [
   "year",
   "era",
   "historicalPeriod",
+  "forceIndustrialCultures",
   "template",
   "templateRandomization",
   "resolveDepressionsSteps",
@@ -466,6 +478,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   year: 100,
   era: "Era",
   historicalPeriod: "ageOfExploration",
+  forceIndustrialCultures: false,
   template: "highIsland",
   templateRandomization: "all",
   cultures: 12,

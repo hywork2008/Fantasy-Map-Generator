@@ -587,6 +587,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     zustandUpdates.gunpowderEraEnabled = worldContext.options.gunpowderEraEnabled !== false;
     zustandUpdates.initialFirearmsUnstocked = worldContext.options.initialFirearmsUnstocked === true;
     zustandUpdates.historicalPeriod = worldContext.options.historicalPeriod ?? "highMedieval";
+    zustandUpdates.forceIndustrialCultures = worldContext.options.forceIndustrialCultures === true;
     zustandUpdates.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
     zustandUpdates.initialSettlementPattern = worldContext.options.initialSettlementPattern;
     zustandUpdates.initialPolityRealmSize = normalizeInitialPolityRealmSize(

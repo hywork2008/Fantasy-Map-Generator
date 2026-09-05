@@ -12,15 +12,19 @@ function cohortTotal(cohorts: { young: number; breeding: number; old: number }):
   return Math.max(0, cohorts.young) + Math.max(0, cohorts.breeding) + Math.max(0, cohorts.old);
 }
 
-function isNomadicState(stateId: number): boolean {
+// "Desert" (added 2026-08-23, docs/plan/modern-urban-water-treatment-and-governance.md — split off
+// of Nomadic so oasis/caravan cultures no longer force steppe-pastoralist growth costs) belongs
+// here too: arid caravan states default to camels at least as strongly as grassland Nomadic ones.
+function isCamelState(stateId: number): boolean {
   const { pack } = getWorldContext();
   const cultureId = pack.states[stateId]?.culture;
-  return cultureId !== undefined && pack.cultures[cultureId]?.type === "Nomadic";
+  const type = cultureId !== undefined ? pack.cultures[cultureId]?.type : undefined;
+  return type === "Nomadic" || type === "Desert";
 }
 
 function getDomesticMountStock(stateId: number): number | undefined {
   const { pack } = getWorldContext();
-  const species = isNomadicState(stateId) ? "Camels" : "Horses";
+  const species = isCamelState(stateId) ? "Camels" : "Horses";
   const table = getOrCreateFaunaStockTable();
   if (!table) return undefined;
 
