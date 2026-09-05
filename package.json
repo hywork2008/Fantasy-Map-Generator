@@ -34,6 +34,7 @@
     "perf:webgl-layers": "tsx scripts/benchmarkWebglLayers.ts",
     "perf:advance-year": "tsx scripts/benchmarkAdvanceYear.ts",
     "calibrate:fast-advance": "tsx scripts/calibrateFastAdvance.ts",
+    "diagnose:treasury": "tsx scripts/diagnoseTreasuryDecline.ts",
     "diagnose:wealth": "tsx scripts/diagnoseCharacterWealth.ts",
     "extract:fmg": "tsx scripts/extractFmgArchive.ts"
   },
