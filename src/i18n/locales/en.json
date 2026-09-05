@@ -1880,8 +1880,27 @@
         "stagnant": "Stagnant",
         "steady": "Steady",
         "growth": "Growth",
-        "boom": "Boom"
-      }
+        "boom": "Boom",
+        "custom": "Custom"
+      },
+      "fastForwardSettings": "Fast-Forward Settings",
+      "fastForwardSettingsTip": "Open the Fast-Forward preset and growth-rate settings",
+      "fastForwardAdvanced": "Advanced",
+      "fastForwardCustomHint": "Only \"Custom\" is editable — other presets show their values read-only.",
+      "fastForwardPopulationGrowth": "Population growth",
+      "fastForwardPopulationGrowthTip": "Net annual population growth applied to both rural cells and burgs.",
+      "fastForwardPriceInflation": "Price inflation",
+      "fastForwardPriceInflationTip": "Annual drift applied to every market Good's price.",
+      "fastForwardGoodsStockGrowth": "Goods stock growth",
+      "fastForwardGoodsStockGrowthTip": "Annual growth of market Good stock — a trade-volume proxy.",
+      "fastForwardTreasuryGrowth": "Treasury growth",
+      "fastForwardTreasuryGrowthTip": "Annual growth of State and Burg treasuries. Other still-real economy systems also move the treasury, so the observed rate is a blend.",
+      "fastForwardVariance": "Per-burg variation",
+      "fastForwardVarianceTip": "Random spread applied per burg and per market around the computed factor.",
+      "fastForwardPctPerYear": "%/yr",
+      "fastForwardPct": "%",
+      "fastForwardWarning": "Approximate mode replaces the monthly production/tax settlement and population growth with a flat annual rate. Turn it off for exact per-Good simulation. Only affects multi-day advances (Week/Month/Year) — single Advance Day steps are always exact.",
+      "fastForwardReset": "Reset"
     },
     "save": {
       "saveTo": "Save map to",

@@ -32,6 +32,18 @@ describe("fastAdvanceState", () => {
     expect(rates.priceInflationPctPerYear).toBe(FAST_ADVANCE_PRESETS.steady.priceInflationPctPerYear);
   });
 
+  it("resetCustomRates restores the custom vector to the steady defaults", () => {
+    useFastAdvanceState.getState().setPreset("custom");
+    useFastAdvanceState.getState().setCustomRate("populationGrowthPctPerYear", 42);
+    useFastAdvanceState.getState().setCustomRate("variancePct", 50);
+
+    useFastAdvanceState.getState().resetCustomRates();
+
+    expect(useFastAdvanceState.getState().customRates).toEqual(FAST_ADVANCE_PRESETS.steady);
+    // preset is untouched — Reset only rewinds the editable vector.
+    expect(useFastAdvanceState.getState().preset).toBe("custom");
+  });
+
   it("is active only when enabled AND the batch is a multi-day (isBulkAdvance) advance", () => {
     expect(isFastAdvanceActive(true)).toBe(false); // disabled
     expect(isFastAdvanceActive(false)).toBe(false); // disabled

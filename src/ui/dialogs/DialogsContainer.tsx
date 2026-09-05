@@ -26,6 +26,7 @@ import { ElevationProfileDialog } from "./ElevationProfileDialog";
 import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { EDITOR_REGISTRY } from "./editorRegistry";
+import { FastAdvanceSettingsDialog } from "./FastAdvanceSettingsDialog";
 import { FontDialog } from "./FontDialog";
 import { FrontierOperationsDialog } from "./FrontierOperationsDialog";
 import { GenerationErrorDialog } from "./GenerationErrorDialog";
@@ -131,6 +132,7 @@ export const DialogsContainer: React.FC = () => {
           <ElevationProfileDialog />
           <ExportMapDialog />
           <ExportToPngTilesDialog />
+          <FastAdvanceSettingsDialog />
           <FontDialog />
           <FrontierOperationsDialog />
           <GenerationErrorDialog />

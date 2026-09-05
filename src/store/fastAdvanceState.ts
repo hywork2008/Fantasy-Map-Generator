@@ -24,6 +24,8 @@ interface FastAdvanceState {
   setEnabled: (enabled: boolean) => void;
   setPreset: (preset: FastAdvancePresetId) => void;
   setCustomRate: <K extends keyof FastAdvanceRates>(key: K, value: FastAdvanceRates[K]) => void;
+  /** Restore the custom rate vector to the default ("steady") preset — the ⚙ dialog's Reset button. */
+  resetCustomRates: () => void;
 }
 
 export const useFastAdvanceState = create<FastAdvanceState>()(
@@ -34,7 +36,8 @@ export const useFastAdvanceState = create<FastAdvanceState>()(
       customRates: { ...FAST_ADVANCE_PRESETS[DEFAULT_FAST_ADVANCE_PRESET] },
       setEnabled: enabled => set({ enabled }),
       setPreset: preset => set({ preset }),
-      setCustomRate: (key, value) => set(state => ({ customRates: { ...state.customRates, [key]: value } }))
+      setCustomRate: (key, value) => set(state => ({ customRates: { ...state.customRates, [key]: value } })),
+      resetCustomRates: () => set({ customRates: { ...FAST_ADVANCE_PRESETS[DEFAULT_FAST_ADVANCE_PRESET] } })
     }),
     { name: "fmg-fast-advance" }
   )

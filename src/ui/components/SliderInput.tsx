@@ -9,6 +9,7 @@ interface SliderInputProps {
   onChange?: (value: string) => void;
   className?: string;
   children?: ReactNode;
+  disabled?: boolean;
   "data-stored"?: string;
 }
 
@@ -21,6 +22,7 @@ export const SliderInput = ({
   onChange,
   className,
   children,
+  disabled,
   "data-stored": dataStored
 }: SliderInputProps) => {
   const [value, setValue] = useState(String(valueProp));
@@ -46,6 +48,7 @@ export const SliderInput = ({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         data-stored={dataStored}
         onChange={handleChange}
       />
@@ -55,6 +58,7 @@ export const SliderInput = ({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         data-stored={dataStored}
         onChange={handleChange}
       />

@@ -1880,8 +1880,27 @@
         "stagnant": "停滞",
         "steady": "標準",
         "growth": "成長",
-        "boom": "好況"
-      }
+        "boom": "好況",
+        "custom": "カスタム"
+      },
+      "fastForwardSettings": "高速進行の設定",
+      "fastForwardSettingsTip": "高速進行のプリセットと成長率を設定します",
+      "fastForwardAdvanced": "詳細設定",
+      "fastForwardCustomHint": "編集できるのは「カスタム」のみです。他のプリセットは値の表示のみになります。",
+      "fastForwardPopulationGrowth": "人口成長率",
+      "fastForwardPopulationGrowthTip": "農村セルと都市の両方に適用される年間の純人口成長率です。",
+      "fastForwardPriceInflation": "価格上昇率",
+      "fastForwardPriceInflationTip": "すべての市場の産物価格に適用される年間のドリフトです。",
+      "fastForwardGoodsStockGrowth": "在庫成長率",
+      "fastForwardGoodsStockGrowthTip": "市場の産物在庫の年間成長率(交易量の代理指標)です。",
+      "fastForwardTreasuryGrowth": "国庫成長率",
+      "fastForwardTreasuryGrowthTip": "国家と都市の金庫の年間成長率です。実計算のまま残る他の経済システムも国庫を増減させるため、観測される実際の成長率は両者の合成になります。",
+      "fastForwardVariance": "都市ごとのばらつき",
+      "fastForwardVarianceTip": "計算された倍率に対して、都市ごと・市場ごとにかかるランダムなばらつき幅です。",
+      "fastForwardPctPerYear": "%/年",
+      "fastForwardPct": "%",
+      "fastForwardWarning": "近似モードは毎月の生産・税決済と人口成長を年間一定率に置き換えます。産物ごとの正確なシミュレーションを行うにはオフにしてください。複数日の進行(週/月/年)にのみ適用され、1日ごとのAdvance Dayは常に正確な計算のままです。",
+      "fastForwardReset": "リセット"
     },
     "save": {
       "saveTo": "地図の保存先",

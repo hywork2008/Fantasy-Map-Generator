@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { simulationContext } from "../../context/simulationContext";
 import {
-  FAST_ADVANCE_PRESET_IDS,
-  type NamedFastAdvancePresetId
+  FAST_ADVANCE_PRESET_SELECT_IDS,
+  type FastAdvancePresetId
 } from "../../generators/fastAdvance/fastAdvancePresets";
 import { useDialogState } from "../../store/dialogState";
 import { useFastAdvanceState } from "../../store/fastAdvanceState";
 import { useTimeSimulationState } from "../../store/timeSimulationState";
 import { Dialog } from "./Dialog";
-import { closeDialog } from "./dialogService";
+import { closeDialog, openDialog } from "./dialogService";
 
 export const AdvanceTimeDialog: React.FC = () => {
   const { t } = useTranslation();
@@ -77,18 +77,30 @@ export const AdvanceTimeDialog: React.FC = () => {
               {t("dialogs.advanceTime.fastForwardEnable")}
             </span>
           </label>
-          <select
-            value={fastAdvancePreset === "custom" ? "steady" : fastAdvancePreset}
-            disabled={!fastAdvanceEnabled}
-            onChange={e => setFastAdvancePreset(e.target.value as NamedFastAdvancePresetId)}
-            data-tip={t("dialogs.advanceTime.fastForwardPresetLabel")}
-          >
-            {FAST_ADVANCE_PRESET_IDS.map(id => (
-              <option key={id} value={id}>
-                {t(`dialogs.advanceTime.fastForwardPresets.${id}`)}
-              </option>
-            ))}
-          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <select
+              value={fastAdvancePreset}
+              disabled={!fastAdvanceEnabled}
+              onChange={e => setFastAdvancePreset(e.target.value as FastAdvancePresetId)}
+              data-tip={t("dialogs.advanceTime.fastForwardPresetLabel")}
+              style={{ flex: 1 }}
+            >
+              {FAST_ADVANCE_PRESET_SELECT_IDS.map(id => (
+                <option key={id} value={id}>
+                  {t(`dialogs.advanceTime.fastForwardPresets.${id}`)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={!fastAdvanceEnabled}
+              onClick={() => openDialog("fastAdvanceSettings")}
+              data-tip={t("dialogs.advanceTime.fastForwardSettingsTip")}
+              aria-label={t("dialogs.advanceTime.fastForwardSettings")}
+            >
+              ⚙
+            </button>
+          </div>
         </div>
         {isRunning ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "5px" }}>

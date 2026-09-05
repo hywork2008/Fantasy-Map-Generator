@@ -26,6 +26,12 @@ calibrate:fast-advance`）で複数シード・複数年のウォームアップ
 プリセット通りにならない既知の限界（§9.4）と、`Production.produce()`スキップへの依存監査の必要性（§9.2.2）を
 Phase 3のスコープとして明記した。
 
+**Phase 2（設定UI）完了（2026-09-06、ユーザー指示）。** §6のワイヤーフレーム通り、`FastAdvanceSettingsDialog.tsx`
+（7プリセットのラジオ＋詳細スライダー5本、`custom`時のみ編集可）を新設し、`AdvanceTimeDialog`に⚙導線を追加、
+i18n（en/ja）を拡張した。`tsc`/`biome`/lint/`madge`/`build`/ユニットスイート（3718件）/i18nキー一致テスト、および
+新規E2E`tests/e2e/fast-advance-settings.spec.ts`すべてgreen。新しい数値ロジックは足していない（UI配線のみ）ため
+Phase 1のようなライブ限定バグは無し。詳細は§9.7。
+
 `docs/plan/advance-time-loop-reduction.md` §3 Phase 3 が「本当に1コールで月/年を進めたい要望が別途強くあるなら」
 の条件付きで留保していた「明示的な Fast-Forward 専用パス」を、ユーザーからの明確な要望を受けて具体化するもの。
 本書はその Phase 3 を置き換える——ただし後述 §3.4 の理由により、Phase 3 が前提としていた「既存ボタンとは
@@ -605,8 +611,8 @@ export function resolveFastAdvanceRates(): FastAdvanceRates {
 | **Phase 0** | ✅ **完全に完了（2026-09-06）**。`scripts/benchmarkAdvanceYear.ts`にAdvance Year前後の人口/国庫/在庫/価格スナップショットを追加し、新規`scripts/calibrateFastAdvance.ts`（`npm run calibrate:fast-advance`）で5シード×ウォームアップ10年→計測5年の実測を実施。「標準」プリセットの4項目（人口/価格/在庫/国庫）を全て確定（§5.2, §5.3）。国庫成長率は途中で想定と符号ごと異なる恒常的赤字（-42%/yr）が判明したため、経済バランス側の原因調査・是正（下記）を挟んで確定した |
 | **（派生）経済バランス是正「案A」** | ✅ **完了（2026-09-06）**。`docs/plan/treasury-structural-deficit-investigation.md`として調査・実装。国庫赤字を平均-42.5%/yr→-19.0%/yr（中央値-12.9%/yr）まで改善。**「案B」は実装しないことに決定（2026-09-06）** ——Aのみ適用後の値を「標準」プリセットとして確定した |
 | **Phase 1** | ✅ **実装完了（2026-09-06）**。詳細は§9.5 |
-| **Phase 2** | `FastAdvanceSettingsDialog.tsx`の詳細スライダー・i18n・`AdvanceTimeDialog.tsx`のワイヤーフレーム実装（§6） |
-| **Phase 3** | §2.3の周辺システム依存監査（`MetallurgWork.*`等）を個別に確認し、必要ならスキップ/ダミー化を追加 |
+| **Phase 2** | ✅ **実装完了（2026-09-06）**。`FastAdvanceSettingsDialog.tsx`（プリセットラジオ＋詳細スライダー）・i18n拡張・`AdvanceTimeDialog.tsx`への⚙導線（§6）。詳細は§9.7 |
+| **Phase 3** | §2.3の周辺システム依存監査（`MetallurgWork.*`等）を個別に確認し、必要ならスキップ/ダミー化を追加。加えて§9.2.2の`Production.produce()`依存の網羅監査・§9.4の国庫合成問題の是正 |
 | **Phase 4（任意）** | manpower成長率・discontentドリフト・technology進行倍率など追加レバー。v1スコープ外（§10） |
 
 ## 9. 検証計画・Phase 1実装記録
@@ -745,6 +751,33 @@ Phase 1は実装完了。設計通りに動くことをユニットテスト・t
 3. **§9.4の国庫合成問題の是正**（Phase 3）。
 4. **§9.2.2で見つかった「produce()依存」リスクの網羅監査**（Phase 3、§2.2の残り約18システム）。
 
+### 9.7 Phase 2実装記録（2026-09-06）
+
+§6のUIを実装した。Phase 1で`AdvanceTimeDialog`に暫定的に置いた「トグル＋プリセット`<select>`（詳細スライダー
+無し）」を、§6.2の2枚のワイヤーフレーム通りに拡張した。
+
+| ファイル | 内容 | §6設計からの変更 |
+| :--- | :--- | :--- |
+| `src/ui/dialogs/FastAdvanceSettingsDialog.tsx` | 新規。7プリセットのラジオグループ＋`<details open>`の「Advanced」セクションに5本のスライダー（人口成長/価格上昇/在庫成長/国庫成長/ばらつき）。`custom`選択時のみ編集可、名前付きプリセット選択時は`disabled`でそのプリセットのレートベクトルを表示。フッターは`[Reset][Close]`。ダイアログid`"fastAdvanceSettings"`を`useDialogState`/`openDialog`で開閉（§6.3の想定通り、`EDITOR_REGISTRY`不要） | スライダーの可動域を§5.1の「編集用の狭い帯」ではなく**全名前付きプリセット値を表示できる幅**に広げた（国庫は§5.3.3のキャリブレーション後-65〜+15にわたるため-80〜+20、在庫-10〜+25）。§5.1の`stockFloorMultiplier`/`stockCapMultiplier`は§6.2ワイヤーフレームに無いためv1のUIには出さず、プリセット既定値（0.2/5.0）のまま |
+| `src/ui/components/SliderInput.tsx` | 共有コンポーネントに`disabled?: boolean`を追加（range/number両方の`<input>`へ伝播）。オプショナルで既定`undefined`のため既存の全呼び出し元は無影響 | §6.3は「`SliderInput`をそのまま流用」としていたが、読み取り専用表示のために最小限の非破壊拡張が必要だった |
+| `src/store/fastAdvanceState.ts` | `resetCustomRates()`を追加（`customRates`を`steady`既定へ巻き戻す。`preset`は触らない）——⚙ダイアログのResetボタン用 | §6.3のインターフェース列挙になかったが、Reset挙動の置き場所としてstoreが自然 |
+| `src/generators/fastAdvance/fastAdvancePresets.ts` | `FAST_ADVANCE_PRESET_SELECT_IDS`（名前付き6種＋`custom`）を追加。両ダイアログのプリセット列挙が共有 | なし |
+| `src/ui/dialogs/AdvanceTimeDialog.tsx` | プリセット`<select>`の隣に⚙ボタンを追加（`openDialog("fastAdvanceSettings")`）。`<select>`は`custom`も選択肢に含めるようになり、Phase 1の`custom→steady`読み替えを撤去。⚙と`<select>`はFast-Forward無効時は`disabled` | なし |
+| `src/ui/dialogs/DialogsContainer.tsx` | `<FastAdvanceSettingsDialog />`を登録 | なし |
+| `src/i18n/locales/{en,ja}.json` | `dialogs.advanceTime.fastForwardPresets.custom`＋`fastForwardSettings`/`fastForwardSettingsTip`/`fastForwardAdvanced`/`fastForwardCustomHint`/5スライダーのラベル＋Tip/`fastForwardPctPerYear`/`fastForwardPct`/`fastForwardWarning`/`fastForwardReset` | §6.4は`fastForward.*`のネスト名前空間を提案していたが、Phase 1が既に`fastForwardEnable`等のフラット命名で実装済みだったためそれに揃えた |
+
+**検証**: `tsc`・`biome`・`lint:legacy`（legacy-ui/world-writers/architecture）・`madge`・`npm run build`すべてクリーン。
+ユニットスイート447ファイル・3718件green（`fastAdvanceState.test.ts`に`resetCustomRates`のテスト1件追加、6 skipは既存）。
+i18nのen/jaキー一致テスト（`src/i18n/index.test.ts`）もgreen。新規E2Eスペック`tests/e2e/fast-advance-settings.spec.ts`
+を追加し、実ブラウザで「⚙ボタンの有効/無効」「ダイアログ開閉」「7プリセットのラジオ表示」「名前付きプリセット時は
+スライダー`disabled`かつそのプリセット値（Boom=人口+3）を表示」「`custom`選択でスライダー編集可＋`localStorage`
+（`fmg-fast-advance`）へ永続化」「Resetで`customRates`が`steady`既定へ巻き戻り`preset`は`custom`のまま」を確認——
+全てpass。Phase 1の§9.2のようなライブ限定バグは今回は無し（Phase 2は新しい数値ロジックを一切足しておらず、
+UI配線のみのため）。
+
+**未対応（意図的にv1スコープ外）**: `stockFloorMultiplier`/`stockCapMultiplier`の詳細スライダー（§5.1で
+「詳細設定のみ」とされていたが§6.2ワイヤーフレームに無い）。必要になれば別途追加。
+
 ## 10. オープンクエスチョン
 
 - 在庫/価格を全Good一律倍率で動かす設計（§2.3）でよいか、Good種別（食料/資源/製品）ごとに別レートを持たせる
@@ -796,5 +829,11 @@ Phase 1は実装完了。設計通りに動くことをユニットテスト・t
    ——ユニットテスト・timeEngine統合テスト・実ブラウザでのライブ確認の3段階で検証し、ライブ確認でのみ顕在化
    したジッター複利複合バグ（人口暴走）を発見・修正した（§9.2.1）。国庫の「他システムとの合成」問題（§9.4）
    と`Production.produce()`依存の網羅監査（§9.2.2）はPhase 3に持ち越し。
-5. **未着手・要ユーザー判断**: Phase 2（詳細スライダーUI・i18n拡張・`FastAdvanceSettingsDialog.tsx`）に
-   進むか、それより先にPhase 3（§9.4/§9.2.2の是正）を優先するか、あるいはここで一区切りとするかを確認する。
+5. ~~**未着手・要ユーザー判断**: Phase 2（詳細スライダーUI・i18n拡張・`FastAdvanceSettingsDialog.tsx`）に
+   進むか、それより先にPhase 3（§9.4/§9.2.2の是正）を優先するか、あるいはここで一区切りとするかを確認する。~~
+   **Phase 2実装完了（2026-09-06、ユーザー指示）** ——詳細は§9.7。`tsc`/`biome`/lint/`madge`/`build`/ユニット
+   スイート（3718件）/i18nキー一致テスト、および新規E2E`tests/e2e/fast-advance-settings.spec.ts`すべてgreen。
+6. **未着手・要ユーザー判断**: Phase 3（§2.3の周辺システム依存監査＋§9.2.2の`Production.produce()`依存の
+   網羅監査＋§9.4の国庫合成問題の是正）に進むか、あるいはここで一区切りとするか。加えて§9.6の残タスク
+   （バルク経路での短縮率実測、実ブラウザでのend-to-end決定性確認）と、§10の未決事項（Collapse〜Boomの
+   非「標準」プリセットのプレイテスト検証、Good種別ごとのレート分岐、都市化ドリフト）。

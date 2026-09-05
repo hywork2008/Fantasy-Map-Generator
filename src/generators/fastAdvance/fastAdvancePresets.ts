@@ -42,6 +42,9 @@ export const FAST_ADVANCE_PRESET_IDS: readonly NamedFastAdvancePresetId[] = [
   "boom"
 ];
 
+/** Every preset the UI offers, in display order — the named presets plus the user-editable "custom". */
+export const FAST_ADVANCE_PRESET_SELECT_IDS: readonly FastAdvancePresetId[] = [...FAST_ADVANCE_PRESET_IDS, "custom"];
+
 /** Shared across every named preset — only "steady" has been individually calibrated (§5.1). */
 const STOCK_SAFETY_RAILS = { stockFloorMultiplier: 0.2, stockCapMultiplier: 5.0 } as const;
 
