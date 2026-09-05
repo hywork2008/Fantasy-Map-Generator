@@ -106,7 +106,8 @@ export class SyntheticAmmoniaPlantsModule {
 
       const marketId = marketIdForBurg(plant.burgId);
       // Coke stands in for both the hydrogen source and the process-energy demand of the
-      // high-pressure catalytic reaction — no dedicated Hydrogen Good, no Steam Power capacity
+      // High-pressure catalytic reaction — air liquefaction represents its nitrogen source;
+      // hydrogen and steam-power remain non-inventory infrastructure.
       // service (docs/plan/synthetic-ammonia-vertical-slice.md §7 decisions 1, 2, 6). Amount
       // calibration TBD.
       const coke = consumeNamed(marketId, "Coke", 1.2);

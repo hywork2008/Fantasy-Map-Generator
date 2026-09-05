@@ -1552,6 +1552,12 @@ export class ProductionModule {
     let bestPlan: GoalActionPlan | null = null;
 
     for (const recipe of recipeList) {
+      if (
+        recipe.requiredTechnology &&
+        !isTechnologyStageAtLeast(getTechnologyStage(recipe.requiredTechnology, state.burg.state || 0), "adopted")
+      ) {
+        continue;
+      }
       const immediate = this.buildImmediateManufactureCandidate(
         state,
         recipe,
@@ -1750,7 +1756,12 @@ export class ProductionModule {
             return Boolean(byproduct && isGoodEnabled(byproduct));
           })
           .map(entry => ({ goodId: entry.goodId, amount: entry.units }));
-        recipes.push({ good, ingredients: entries, byproducts });
+        recipes.push({
+          good,
+          ingredients: entries,
+          byproducts,
+          requiredTechnology: good.recipeTechnologies?.[recipeIndex]
+        });
       }
     }
     return recipes;
@@ -1791,7 +1802,7 @@ type PlannedAction = {
   smithingProgram: SmithingProductProgram | null;
 };
 
-type Recipe = { good: Good; ingredients: Ingredient[]; byproducts: Ingredient[] };
+type Recipe = { good: Good; ingredients: Ingredient[]; byproducts: Ingredient[]; requiredTechnology?: string };
 
 type ProductionIndex = {
   goods: Good[];

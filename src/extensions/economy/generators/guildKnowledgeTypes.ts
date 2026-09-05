@@ -76,10 +76,10 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Ceramics: "glassware",
   Glass: "glassware",
   "Lab Glassware": "glassware",
+  "Precision Instruments": "instruments",
   Paper: "printing",
   Ink: "printing",
-  Books: "printing",
-  Liquor: "instruments"
+  Books: "printing"
 };
 
 /** null when the Good has no guild-craft domain (unmapped recipe good, or a raw resource). */

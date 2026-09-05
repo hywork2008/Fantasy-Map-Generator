@@ -68,6 +68,8 @@ export interface Good {
    */
   biomeOutputByTag?: Partial<Record<BiomeTag, number>>;
   recipes?: Record<number, number>[];
+  /** Optional state-technology gate for the recipe at the same index. */
+  recipeTechnologies?: (string | undefined)[];
   /** Outputs produced alongside the recipe at the matching array index. */
   byproducts?: (Record<number, number> | undefined)[];
 

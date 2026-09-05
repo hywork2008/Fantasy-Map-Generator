@@ -262,7 +262,7 @@ const ERA_2: readonly TechnologyDefinition[] = [
     prerequisites: ["blackPowder", "recordReplication"],
     worldGates: ["gunpowderWorld"],
     known: { min: { pyrotechnics: 0.2, printing: 0.15 } },
-    demonstrated: { min: { pyrotechnics: 0.4, administration: 0.3, gunpowderDemand: 1 } },
+    demonstrated: { min: { pyrotechnics: 0.4, saltpeterAccess: 0.25, administration: 0.3, gunpowderDemand: 1 } },
     adopted: { min: { pyrotechnics: 0.55, administration: 0.4, gunpowderDemand: 2, treasury: 80 } }
   },
   {
@@ -295,8 +295,31 @@ const ERA_2: readonly TechnologyDefinition[] = [
     prerequisites: ["cornedPowder", "cannonFoundry", "commercialFinance"],
     worldGates: ["gunpowderWorld"],
     known: { min: { metallurgy: 0.5, pyrotechnics: 0.4, treasury: 100 } },
-    demonstrated: { min: { metallurgy: 0.6, pyrotechnics: 0.55, gunpowderDemand: 3, treasury: 140 } },
-    adopted: { min: { metallurgy: 0.7, pyrotechnics: 0.7, gunpowderDemand: 5, treasury: 200, administration: 0.45 } }
+    demonstrated: {
+      min: { metallurgy: 0.6, pyrotechnics: 0.55, saltpeterAccess: 0.3, gunpowderDemand: 3, treasury: 140 }
+    },
+    adopted: {
+      min: {
+        metallurgy: 0.7,
+        pyrotechnics: 0.7,
+        saltpeterAccess: 0.4,
+        gunpowderDemand: 5,
+        treasury: 200,
+        administration: 0.45
+      }
+    }
+  },
+  {
+    id: "saltpeterProduction",
+    label: "Saltpeter beds and refining",
+    era: 2,
+    scope: "state",
+    prerequisites: ["blackPowder"],
+    worldGates: ["gunpowderWorld"],
+    known: { min: { pyrotechnics: 0.4, urbanPopulation: 15, administration: 0.3, treasury: 60 } },
+    demonstrated: { min: { pyrotechnics: 0.5, urbanPopulation: 20, administration: 0.4, treasury: 100 } },
+    adopted: { min: { pyrotechnics: 0.6, urbanPopulation: 28, administration: 0.5, treasury: 150 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
   },
   {
     id: "gunpowderFortification",
@@ -583,9 +606,9 @@ const ERA_5: readonly TechnologyDefinition[] = [
     era: 5,
     scope: "state",
     prerequisites: ["steamTransport", "standardMachineWorks"],
-    known: { min: { treasury: 140, masonry: 0.3 } },
-    demonstrated: { min: { treasury: 180, masonry: 0.4, administration: 0.4 } },
-    adopted: { min: { treasury: 220, masonry: 0.5, administration: 0.5 } }
+    known: { min: { metallurgy: 0.72, treasury: 140, masonry: 0.3 } },
+    demonstrated: { min: { metallurgy: 0.75, treasury: 180, masonry: 0.4, administration: 0.4 } },
+    adopted: { min: { metallurgy: 0.78, treasury: 220, masonry: 0.5, administration: 0.5 } }
   },
   {
     id: "railwayOperations",
@@ -639,6 +662,28 @@ const ERA_5: readonly TechnologyDefinition[] = [
     known: { min: { portCount: 2, completedHulls: 4, treasury: 160 } },
     demonstrated: { min: { portCount: 2, completedHulls: 6, shipTechPoints: 80, treasury: 200 } },
     adopted: { min: { portCount: 3, completedHulls: 8, shipTechPoints: 120, treasury: 260 } }
+  },
+  {
+    id: "thermodynamics",
+    label: "Thermodynamics",
+    era: 5,
+    scope: "state",
+    prerequisites: ["highEfficiencySteamEngine", "experimentalNaturalPhilosophy"],
+    known: { min: { experimentRecord: 0.45, naturalPhilosophy: 0.45, steamInstallations: 1, treasury: 150 } },
+    demonstrated: { min: { experimentRecord: 0.52, naturalPhilosophy: 0.5, instruments: 0.3, treasury: 200 } },
+    adopted: { min: { experimentRecord: 0.58, naturalPhilosophy: 0.55, administration: 0.5, treasury: 250 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  {
+    id: "precisionInstrumentMaking",
+    label: "Precision instrument making",
+    era: 5,
+    scope: "state",
+    prerequisites: ["precisionBoringAndMeasurement", "laboratoryGlassware"],
+    known: { min: { instruments: 0.25, metallurgy: 0.7, glassware: 0.5, treasury: 130 } },
+    demonstrated: { min: { instruments: 0.32, glassware: 0.55, experimentRecord: 0.45, treasury: 180 } },
+    adopted: { min: { instruments: 0.38, glassware: 0.6, administration: 0.45, treasury: 230 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
   }
 ];
 
@@ -683,6 +728,28 @@ const ERA_6: readonly TechnologyDefinition[] = [
     demonstrated: { min: { acidPlantTrialYears: 2, sulfurAccess: 0.35, treasury: 140 } },
     adopted: { min: { acidPlantInstallations: 1, sulfurAccess: 0.4, treasury: 180 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  {
+    id: "industrialAlkali",
+    label: "Industrial alkali (soda process)",
+    era: 6,
+    scope: "state",
+    prerequisites: ["industrialSulfuricAcid"],
+    known: { min: { sulfurAccess: 0.45, administration: 0.45, treasury: 200 } },
+    demonstrated: { min: { experimentRecord: 0.6, sulfurAccess: 0.5, treasury: 260 } },
+    adopted: { min: { experimentRecord: 0.65, sulfurAccess: 0.55, administration: 0.55, treasury: 320 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  {
+    id: "organicChemistryAndDyes",
+    label: "Organic chemistry and synthetic dyes",
+    era: 6,
+    scope: "state",
+    prerequisites: ["chemicalIndustryFoundation", "coalCarbonization", "industrialAlkali"],
+    known: { min: { experimentRecord: 0.6, textiles: 0.5, treasury: 240 } },
+    demonstrated: { min: { experimentRecord: 0.66, textiles: 0.55, treasury: 300 } },
+    adopted: { min: { experimentRecord: 0.7, administration: 0.58, treasury: 370 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
   },
   // docs/plan/phosphate-fertilizer-vertical-slice.md §3.5. demonstrated/adopted read
   // phosphateFertilizerTrialYears/phosphateFertilizerPlantCount, sourced from
@@ -735,7 +802,7 @@ const ERA_6: readonly TechnologyDefinition[] = [
     label: "High-pressure chemical apparatus",
     era: 6,
     scope: "state",
-    prerequisites: ["modernSteelmaking", "industrialSulfuricAcid"],
+    prerequisites: ["modernSteelmaking", "industrialSulfuricAcid", "precisionInstrumentMaking"],
     known: { min: { steelAccess: 0.3, instruments: 0.3, administration: 0.5, treasury: 190 } },
     demonstrated: { min: { experimentRecord: 0.6, steelAccess: 0.35, treasury: 240 } },
     adopted: { min: { experimentRecord: 0.65, steelAccess: 0.4, administration: 0.6, treasury: 290 } },
@@ -755,7 +822,7 @@ const ERA_6: readonly TechnologyDefinition[] = [
     label: "Catalytic chemistry",
     era: 6,
     scope: "state",
-    prerequisites: ["highPressureChemicalApparatus"],
+    prerequisites: ["highPressureChemicalApparatus", "thermodynamics"],
     known: { min: { experimentRecord: 0.65, naturalPhilosophy: 0.5, instruments: 0.4, treasury: 320 } },
     demonstrated: { min: { experimentRecord: 0.7, naturalPhilosophy: 0.55, treasury: 380 } },
     adopted: { min: { experimentRecord: 0.75, naturalPhilosophy: 0.6, administration: 0.65, treasury: 450 } },
@@ -773,7 +840,7 @@ const ERA_6: readonly TechnologyDefinition[] = [
     label: "Synthetic ammonia",
     era: 6,
     scope: "state",
-    prerequisites: ["catalyticChemistry"],
+    prerequisites: ["catalyticChemistry", "airLiquefactionAndIndustrialGases"],
     known: {
       min: { fertilizerCoverageGap: 0.3, administration: 0.65, instruments: 0.45, treasury: 500 }
     },
@@ -814,7 +881,7 @@ const ERA_6: readonly TechnologyDefinition[] = [
     label: "Practical batteries and electrical measurement",
     era: 6,
     scope: "state",
-    prerequisites: ["electricalExperiments"],
+    prerequisites: ["electricalExperiments", "precisionInstrumentMaking"],
     known: { min: { copperWireAccess: 0.15, instruments: 0.4, treasury: 130 } },
     demonstrated: { min: { naturalPhilosophy: 0.58, instruments: 0.45, treasury: 160 } },
     adopted: { min: { naturalPhilosophy: 0.62, instruments: 0.5, administration: 0.4, treasury: 200 } },
@@ -845,7 +912,12 @@ const ERA_6: readonly TechnologyDefinition[] = [
     label: "Generator and motor",
     era: 6,
     scope: "state",
-    prerequisites: ["electricalExperiments", "modernSteelmaking"],
+    prerequisites: [
+      "electricalExperiments",
+      "practicalElectrochemistry",
+      "modernSteelmaking",
+      "precisionInstrumentMaking"
+    ],
     known: { min: { copperWireAccess: 0.35, steelAccess: 0.3, instruments: 0.4, treasury: 260 } },
     demonstrated: { min: { powerStationTrialYears: 2, steelAccess: 0.35, treasury: 320 } },
     adopted: { min: { powerStationInstallations: 1, administration: 0.55, treasury: 380 } },
@@ -894,10 +966,21 @@ const ERA_6: readonly TechnologyDefinition[] = [
     label: "Electrolytic industry",
     era: 6,
     scope: "state",
-    prerequisites: ["practicalElectrochemistry", "highPressureChemicalApparatus", "powerGrid"],
+    prerequisites: ["practicalElectrochemistry", "highPressureChemicalApparatus", "powerGrid", "industrialAlkali"],
     known: { min: { electricityCoverage: 0.4, administration: 0.7, treasury: 550 } },
     demonstrated: { min: { electrolysisPlantTrialYears: 2, electricityCoverage: 0.45, treasury: 650 } },
     adopted: { min: { electrolysisPlantInstallations: 1, administration: 0.75, treasury: 800 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  {
+    id: "airLiquefactionAndIndustrialGases",
+    label: "Air liquefaction and industrial gases",
+    era: 6,
+    scope: "state",
+    prerequisites: ["thermodynamics", "highPressureChemicalApparatus", "precisionInstrumentMaking"],
+    known: { min: { experimentRecord: 0.68, instruments: 0.45, steelAccess: 0.4, treasury: 380 } },
+    demonstrated: { min: { experimentRecord: 0.72, instruments: 0.5, treasury: 450 } },
+    adopted: { min: { experimentRecord: 0.76, administration: 0.62, treasury: 540 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
@@ -932,15 +1015,14 @@ const ERA_7: readonly TechnologyDefinition[] = [
     label: "Modern drilling and oil-field operations",
     era: 7,
     scope: "state",
-    prerequisites: ["petroleumGeologyAndExploration"],
-    known: { min: { petroleumAccess: 0.15, treasury: 200 } },
-    demonstrated: { min: { petroleumAccess: 0.25, administration: 0.45, treasury: 260 } },
-    adopted: { min: { petroleumAccess: 0.35, administration: 0.5, treasury: 320 } },
+    prerequisites: ["petroleumGeologyAndExploration", "standardMachineWorks"],
+    known: { min: { petroleumAccess: 0.15, steelAccess: 0.3, treasury: 200 } },
+    demonstrated: { min: { petroleumAccess: 0.25, steelAccess: 0.35, administration: 0.45, treasury: 260 } },
+    adopted: { min: { petroleumAccess: 0.35, steelAccess: 0.4, administration: 0.5, treasury: 320 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
   },
-  // §3.5. highPressureChemicalApparatus stands in for roadmap §10's "chemicalEngineering、
-  // thermodynamics、precisionMachining" — the same high-pressure/precision apparatus node
-  // electrolyticIndustry/catalyticChemistry already reuse. known's experimentRecord (0.68) and
+  // §3.5. highPressureChemicalApparatus provides chemical-engineering apparatus, while
+  // thermodynamics supplies the heat theory required by the roadmap. known's experimentRecord (0.68) and
   // treasury (320) sit above highPressureChemicalApparatus's own adopted floor (0.65/290) so this
   // node is not automatically satisfied the instant its prerequisite adopts. demonstrated/adopted
   // read oilRefineryTrialYears/oilRefineryInstallations, sourced from OilRefineryPlant (§3.7) via
@@ -950,7 +1032,7 @@ const ERA_7: readonly TechnologyDefinition[] = [
     label: "Oil refining and fractional distillation",
     era: 7,
     scope: "state",
-    prerequisites: ["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"],
+    prerequisites: ["modernDrillingAndFieldOperations", "highPressureChemicalApparatus", "thermodynamics"],
     known: { min: { petroleumAccess: 0.3, experimentRecord: 0.68, treasury: 320 } },
     demonstrated: { min: { oilRefineryTrialYears: 2, petroleumAccess: 0.35, treasury: 380 } },
     adopted: { min: { oilRefineryInstallations: 1, administration: 0.62, treasury: 450 } },
@@ -966,7 +1048,7 @@ const ERA_7: readonly TechnologyDefinition[] = [
     label: "Internal combustion engine",
     era: 7,
     scope: "state",
-    prerequisites: ["oilRefiningAndFractionation", "standardMachineWorks"],
+    prerequisites: ["oilRefiningAndFractionation", "standardMachineWorks", "thermodynamics"],
     known: { min: { refinedFuelAccess: 0.15, steelAccess: 0.35, treasury: 300 } },
     demonstrated: { min: { refinedFuelAccess: 0.25, steelAccess: 0.4, treasury: 360 } },
     adopted: { min: { refinedFuelAccess: 0.35, steelAccess: 0.45, administration: 0.5, treasury: 430 } },
@@ -1015,8 +1097,7 @@ const ERA_7: readonly TechnologyDefinition[] = [
   // 1940s+) — the two are not "one first, one second" but share a common thermodynamic/precision-
   // compressor engineering parent (Carl von Linde himself worked both sides of that lineage). This
   // node is therefore a sibling of naturalGasLiquefaction, prerequisite on the same
-  // highPressureChemicalApparatus (era6, chemicalEngineering/thermodynamics proxy — see
-  // oilRefiningAndFractionation's identical use) + standardMachineWorks (precision compressor
+  // highPressureChemicalApparatus (era6 chemical-engineering apparatus) + standardMachineWorks (precision compressor
   // manufacturing) pair naturalGasLiquefaction itself descends from via
   // modernDrillingAndFieldOperations's own chain, not from naturalGasLiquefaction directly.
   // metallurgy sits above standardMachineWorks' own adopted floor (0.7); experimentRecord/treasury
@@ -1039,6 +1120,39 @@ const ERA_7: readonly TechnologyDefinition[] = [
     known: { min: { metallurgy: 0.72, experimentRecord: 0.68, treasury: 340 } },
     demonstrated: { min: { coldStorageDepotTrialYears: 2, experimentRecord: 0.7, treasury: 400 } },
     adopted: { min: { coldStorageDepotInstallations: 1, administration: 0.65, treasury: 460 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  {
+    id: "radioAndElectronics",
+    label: "Radio and electron tubes",
+    era: 7,
+    scope: "state",
+    prerequisites: ["electricTelegraph", "precisionInstrumentMaking", "powerGrid"],
+    known: { min: { copperWireAccess: 0.38, instruments: 0.5, electricityCoverage: 0.4, treasury: 500 } },
+    demonstrated: { min: { copperWireAccess: 0.42, instruments: 0.55, administration: 0.7, treasury: 600 } },
+    adopted: { min: { copperWireAccess: 0.46, instruments: 0.6, administration: 0.74, treasury: 720 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
+  },
+  {
+    id: "lightweightStructuresAndConductors",
+    label: "Lightweight structures and conductors",
+    era: 7,
+    scope: "state",
+    prerequisites: ["electrolyticIndustry", "precisionInstrumentMaking"],
+    known: { min: { lightAlloyAccess: 0.15, electricityCoverage: 0.45, treasury: 850 } },
+    demonstrated: { min: { lightAlloyAccess: 0.25, administration: 0.78, treasury: 950 } },
+    adopted: { min: { lightAlloyAccess: 0.35, administration: 0.8, treasury: 1050 } },
+    minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
+  },
+  {
+    id: "petrochemicals",
+    label: "Petrochemicals",
+    era: 7,
+    scope: "state",
+    prerequisites: ["oilRefiningAndFractionation", "catalyticChemistry", "organicChemistryAndDyes"],
+    known: { min: { refinedFuelAccess: 0.4, experimentRecord: 0.76, treasury: 620 } },
+    demonstrated: { min: { refinedFuelAccess: 0.45, experimentRecord: 0.8, treasury: 720 } },
+    adopted: { min: { refinedFuelAccess: 0.5, administration: 0.7, treasury: 850 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   }
 ];
@@ -1063,17 +1177,21 @@ const ERA_8: readonly TechnologyDefinition[] = [
     adopted: { min: { pyrotechnics: 0.75, gunpowderDemand: 4, administration: 0.45, treasury: 150 } },
     minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 3 }
   },
-  // §3.3. mathAstronomyGeography/electricalExperiments/highPressureChemicalApparatus stand in for
-  // roadmap §11's "advancedMathematics、physics、thermodynamics、Academy Knowledge" — the same
-  // highPressureChemicalApparatus proxy oilRefiningAndFractionation already reuses for
-  // thermodynamics/precisionMachining. Pure knowledge-convergence node, no Good gate, same pattern
+  // §3.3. mathAstronomyGeography/electricalExperiments/highPressureChemicalApparatus plus
+  // thermodynamics cover roadmap §11's "advancedMathematics、physics、thermodynamics、Academy
+  // Knowledge". Pure knowledge-convergence node, no Good gate, same pattern
   // as catalyticChemistry (era 6, §2 of the vertical-slice doc).
   {
     id: "rocketDynamicsAndHighTemperatureCombustionResearch",
     label: "Rocket dynamics and high-temperature combustion research",
     era: 8,
     scope: "state",
-    prerequisites: ["mathAstronomyGeography", "electricalExperiments", "highPressureChemicalApparatus"],
+    prerequisites: [
+      "mathAstronomyGeography",
+      "electricalExperiments",
+      "highPressureChemicalApparatus",
+      "thermodynamics"
+    ],
     known: { min: { experimentRecord: 0.68, naturalPhilosophy: 0.58, instruments: 0.4, treasury: 320 } },
     demonstrated: { min: { experimentRecord: 0.72, naturalPhilosophy: 0.62, treasury: 400 } },
     adopted: { min: { experimentRecord: 0.78, administration: 0.65, treasury: 480 } },
@@ -1086,27 +1204,32 @@ const ERA_8: readonly TechnologyDefinition[] = [
     label: "Liquid propulsion and rocket test facilities",
     era: 8,
     scope: "state",
-    prerequisites: ["rocketDynamicsAndHighTemperatureCombustionResearch", "oilRefiningAndFractionation", "powerGrid"],
+    prerequisites: [
+      "rocketDynamicsAndHighTemperatureCombustionResearch",
+      "oilRefiningAndFractionation",
+      "powerGrid",
+      "airLiquefactionAndIndustrialGases"
+    ],
     known: { min: { refinedFuelAccess: 0.35, electricityCoverage: 0.38, treasury: 560 } },
     demonstrated: { min: { refinedFuelAccess: 0.42, electricityCoverage: 0.42, administration: 0.7, treasury: 650 } },
     adopted: { min: { refinedFuelAccess: 0.48, electricityCoverage: 0.46, administration: 0.74, treasury: 750 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   },
-  // §3.3. copperWireAccess/instruments + electricTelegraph stand in for roadmap §11's
-  // "electricalEngineering、electronics、controlTheory" and "センサー、通信、計算装置".
+  // §3.3. radioAndElectronics supplies the electronics and communications layer required for
+  // guidance; its ancestry retains the earlier telegraph and precision-instrument branches.
   {
     id: "guidanceAndAttitudeControl",
     label: "Guidance and attitude control",
     era: 8,
     scope: "state",
-    prerequisites: ["liquidPropulsionAndTestFacilities", "electricTelegraph"],
+    prerequisites: ["liquidPropulsionAndTestFacilities", "radioAndElectronics"],
     known: { min: { copperWireAccess: 0.4, instruments: 0.55, treasury: 800 } },
     demonstrated: { min: { copperWireAccess: 0.45, instruments: 0.6, administration: 0.76, treasury: 900 } },
     adopted: { min: { copperWireAccess: 0.5, instruments: 0.65, administration: 0.8, treasury: 1000 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 5 }
   },
-  // §3.3. electrolyticIndustry (Aluminum) stands in for "lightweightStructures" — roadmap §9.4
-  // already names Aluminum as future "航空、後続の宇宙機器の材料選択肢". administration/treasury
+  // §3.3. lightweightStructuresAndConductors supplies the lightweight-structure layer; its
+  // ancestry retains electrolyticIndustry (Aluminum). administration/treasury
   // carry "systemsEngineering"/"国家計画" (national-scale organization), same shape as
   // electrolyticIndustry/powerGrid's own high-threshold + long minimumYearsAtPreviousStage.
   // Effect (getStagingAndOrbitalInsertionEffect) intentionally left unconsumed — vertical-slice
@@ -1116,7 +1239,7 @@ const ERA_8: readonly TechnologyDefinition[] = [
     label: "Multi-stage rockets and orbital insertion",
     era: 8,
     scope: "state",
-    prerequisites: ["guidanceAndAttitudeControl", "electrolyticIndustry"],
+    prerequisites: ["guidanceAndAttitudeControl", "lightweightStructuresAndConductors"],
     known: { min: { administration: 0.82, experimentRecord: 0.82, treasury: 1100 } },
     demonstrated: { min: { administration: 0.85, experimentRecord: 0.85, treasury: 1300 } },
     adopted: { min: { administration: 0.88, experimentRecord: 0.88, treasury: 1600 } },

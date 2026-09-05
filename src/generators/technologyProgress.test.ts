@@ -123,6 +123,28 @@ describe("technologyProgress", () => {
     useOptionsState.setState({ technologyDevelopmentSpeed: 1, technologyRequirementEase: 1 });
   });
 
+  it("keeps technology prerequisites resolvable, non-cyclic, and within their era", () => {
+    const byId = new Map(TECHNOLOGY_DEFINITIONS.map(definition => [definition.id, definition]));
+    const visiting = new Set<string>();
+    const visited = new Set<string>();
+    const visit = (id: string): void => {
+      if (visited.has(id)) return;
+      expect(visiting.has(id), `technology prerequisite cycle at ${id}`).toBe(false);
+      visiting.add(id);
+      const definition = byId.get(id);
+      expect(definition, `missing technology ${id}`).toBeDefined();
+      for (const prerequisiteId of definition!.prerequisites) {
+        const prerequisite = byId.get(prerequisiteId);
+        expect(prerequisite, `${id} references missing prerequisite ${prerequisiteId}`).toBeDefined();
+        expect(prerequisite!.era).toBeLessThanOrEqual(definition!.era);
+        visit(prerequisiteId);
+      }
+      visiting.delete(id);
+      visited.add(id);
+    };
+    for (const definition of TECHNOLOGY_DEFINITIONS) visit(definition.id);
+  });
+
   it("seeds mature-medieval start profile as diffused for every live state", () => {
     seedTechnologyStartProfile(1200);
     expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused");
@@ -698,7 +720,11 @@ describe("technologyProgress", () => {
     );
     expect(highPressureChemicalApparatus?.era).toBe(6);
     // Requires both era-6 metallurgy and chemistry lineages adopted before it can even reach known.
-    expect(highPressureChemicalApparatus?.prerequisites).toEqual(["modernSteelmaking", "industrialSulfuricAcid"]);
+    expect(highPressureChemicalApparatus?.prerequisites).toEqual([
+      "modernSteelmaking",
+      "industrialSulfuricAcid",
+      "precisionInstrumentMaking"
+    ]);
     expect(highPressureChemicalApparatus?.known.min?.steelAccess).toBe(0.3);
     expect(highPressureChemicalApparatus?.known.min?.instruments).toBe(0.3);
     // No new Good/facility: the "trial years" stand-in reuses ExperimentalWorkshops'
@@ -750,7 +776,7 @@ describe("technologyProgress", () => {
   it("defines catalyticChemistry as an era-6 node gated behind highPressureChemicalApparatus with no new signals", () => {
     const catalyticChemistry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "catalyticChemistry");
     expect(catalyticChemistry?.era).toBe(6);
-    expect(catalyticChemistry?.prerequisites).toEqual(["highPressureChemicalApparatus"]);
+    expect(catalyticChemistry?.prerequisites).toEqual(["highPressureChemicalApparatus", "thermodynamics"]);
     // Every threshold sits above what highPressureChemicalApparatus's own adopted stage already
     // guarantees (experimentRecord 0.65, instruments 0.3, administration 0.6), so reaching the
     // prerequisite does not automatically satisfy this node too.
@@ -791,7 +817,7 @@ describe("technologyProgress", () => {
     expect(syntheticAmmonia?.era).toBe(6);
     // prerequisitesMet() already requires catalyticChemistry adopted, which transitively requires
     // its own ancestor chain adopted — no need to re-list highPressureChemicalApparatus etc.
-    expect(syntheticAmmonia?.prerequisites).toEqual(["catalyticChemistry"]);
+    expect(syntheticAmmonia?.prerequisites).toEqual(["catalyticChemistry", "airLiquefactionAndIndustrialGases"]);
     expect(syntheticAmmonia?.known.min?.fertilizerCoverageGap).toBe(0.3);
     expect(syntheticAmmonia?.known.min?.administration).toBe(0.65);
     expect(syntheticAmmonia?.known.min?.instruments).toBe(0.45);
@@ -879,7 +905,7 @@ describe("technologyProgress", () => {
 
     const practicalElectrochemistry = TECHNOLOGY_DEFINITIONS.find(def => def.id === "practicalElectrochemistry");
     expect(practicalElectrochemistry?.era).toBe(6);
-    expect(practicalElectrochemistry?.prerequisites).toEqual(["electricalExperiments"]);
+    expect(practicalElectrochemistry?.prerequisites).toEqual(["electricalExperiments", "precisionInstrumentMaking"]);
     // known deliberately omits naturalPhilosophy — electricalExperiments' own adopted already
     // requires it >= 0.55, so a lower known threshold would be met the instant the prerequisite
     // adopts (§3.5).
@@ -896,7 +922,12 @@ describe("technologyProgress", () => {
 
     const generatorAndMotor = TECHNOLOGY_DEFINITIONS.find(def => def.id === "generatorAndMotor");
     expect(generatorAndMotor?.era).toBe(6);
-    expect(generatorAndMotor?.prerequisites).toEqual(["electricalExperiments", "modernSteelmaking"]);
+    expect(generatorAndMotor?.prerequisites).toEqual([
+      "electricalExperiments",
+      "practicalElectrochemistry",
+      "modernSteelmaking",
+      "precisionInstrumentMaking"
+    ]);
     expect(generatorAndMotor?.demonstrated.min?.powerStationTrialYears).toBe(2);
     expect(generatorAndMotor?.adopted.min?.powerStationInstallations).toBe(1);
 
@@ -914,7 +945,8 @@ describe("technologyProgress", () => {
     expect(electrolyticIndustry?.prerequisites).toEqual([
       "practicalElectrochemistry",
       "highPressureChemicalApparatus",
-      "powerGrid"
+      "powerGrid",
+      "industrialAlkali"
     ]);
     expect(electrolyticIndustry?.demonstrated.min?.electrolysisPlantTrialYears).toBe(2);
     expect(electrolyticIndustry?.adopted.min?.electrolysisPlantInstallations).toBe(1);
@@ -1053,19 +1085,23 @@ describe("technologyProgress", () => {
 
     const drilling = TECHNOLOGY_DEFINITIONS.find(def => def.id === "modernDrillingAndFieldOperations");
     expect(drilling?.era).toBe(7);
-    expect(drilling?.prerequisites).toEqual(["petroleumGeologyAndExploration"]);
+    expect(drilling?.prerequisites).toEqual(["petroleumGeologyAndExploration", "standardMachineWorks"]);
     expect(drilling?.known.min?.petroleumAccess).toBe(0.15);
     expect(drilling?.adopted.min?.petroleumAccess).toBe(0.35);
 
     const refining = TECHNOLOGY_DEFINITIONS.find(def => def.id === "oilRefiningAndFractionation");
     expect(refining?.era).toBe(7);
-    expect(refining?.prerequisites).toEqual(["modernDrillingAndFieldOperations", "highPressureChemicalApparatus"]);
+    expect(refining?.prerequisites).toEqual([
+      "modernDrillingAndFieldOperations",
+      "highPressureChemicalApparatus",
+      "thermodynamics"
+    ]);
     expect(refining?.demonstrated.min?.oilRefineryTrialYears).toBe(2);
     expect(refining?.adopted.min?.oilRefineryInstallations).toBe(1);
 
     const ice = TECHNOLOGY_DEFINITIONS.find(def => def.id === "internalCombustionEngine");
     expect(ice?.era).toBe(7);
-    expect(ice?.prerequisites).toEqual(["oilRefiningAndFractionation", "standardMachineWorks"]);
+    expect(ice?.prerequisites).toEqual(["oilRefiningAndFractionation", "standardMachineWorks", "thermodynamics"]);
     expect(ice?.known.min?.refinedFuelAccess).toBe(0.15);
 
     expect(getInternalCombustionEngineEffect(1)).toBe(0);
@@ -1217,22 +1253,24 @@ describe("technologyProgress", () => {
     expect(dynamics?.prerequisites).toEqual([
       "mathAstronomyGeography",
       "electricalExperiments",
-      "highPressureChemicalApparatus"
+      "highPressureChemicalApparatus",
+      "thermodynamics"
     ]);
 
     const liquid = TECHNOLOGY_DEFINITIONS.find(def => def.id === "liquidPropulsionAndTestFacilities");
     expect(liquid?.prerequisites).toEqual([
       "rocketDynamicsAndHighTemperatureCombustionResearch",
       "oilRefiningAndFractionation",
-      "powerGrid"
+      "powerGrid",
+      "airLiquefactionAndIndustrialGases"
     ]);
     expect(liquid?.known.min?.refinedFuelAccess).toBe(0.35);
 
     const guidance = TECHNOLOGY_DEFINITIONS.find(def => def.id === "guidanceAndAttitudeControl");
-    expect(guidance?.prerequisites).toEqual(["liquidPropulsionAndTestFacilities", "electricTelegraph"]);
+    expect(guidance?.prerequisites).toEqual(["liquidPropulsionAndTestFacilities", "radioAndElectronics"]);
 
     const staging = TECHNOLOGY_DEFINITIONS.find(def => def.id === "stagingAndOrbitalInsertion");
-    expect(staging?.prerequisites).toEqual(["guidanceAndAttitudeControl", "electrolyticIndustry"]);
+    expect(staging?.prerequisites).toEqual(["guidanceAndAttitudeControl", "lightweightStructuresAndConductors"]);
     expect(staging?.adopted.min?.treasury).toBe(1600);
 
     expect(getMilitarySignalRocketsEffect(1)).toBe(0);

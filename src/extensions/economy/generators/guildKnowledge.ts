@@ -92,17 +92,9 @@ export function collectGuildPractitioners(): Map<string, GuildPractitioners> {
   }
   for (const record of getCraftDomainEmploymentRecords()) {
     // Manufacture-only employment (P1) is never capped here — it is the real, uncontested guild
-    // labor signal. The sole exception is "instruments": it has no manufacture-craft-employment
-    // source of its own today (CRAFT_DOMAIN_BY_GOOD_NAME maps only Liquor to it), so its entries in
-    // this table come entirely from authored real-people headcounts — experimentalWorkshops.ts's
-    // upsertInstruments() (P9/P12 researcher count) and, since docs/plan/electric-power-and-
-    // telegraph.md §3.11, powerStations.ts's own upsertInstruments() call — not manufacturing
-    // labor, and must be converted like any other closed-inventory source.
-    const workers =
-      applyCalibration && record.domain === "instruments"
-        ? peopleToPoints(record.workers, populationRate)
-        : record.workers;
-    add(record.burgId, record.domain, workers);
+    // labor signal. Precision Instruments now supplies the instruments domain, so it follows the
+    // same calibrated craft-employment unit as every other manufactured Good.
+    add(record.burgId, record.domain, record.workers);
   }
   for (const { burgId, domain, extraWorkers } of getDerivedExtraWorkers().values()) {
     if (isCraftKnowledgeDomain(domain)) add(burgId, domain, extraWorkers);

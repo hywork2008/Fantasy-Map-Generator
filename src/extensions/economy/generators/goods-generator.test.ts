@@ -145,6 +145,15 @@ describe("GoodsModule", () => {
     ]);
   });
 
+  it("connects formerly stranded industrial goods to technology-gated recipe consumers", () => {
+    const byName = new Map(GOODS_DATA.map(good => [good.name, good]));
+    expect(byName.get("Precision Instruments")).toMatchObject({ requiredTechnology: "precisionInstrumentMaking" });
+    expect(byName.get("Synthetic Dye")?.recipes?.[0]).toMatchObject({ "Coal Tar": 1 });
+    expect(byName.get("Light Alloy Parts")?.recipes?.[0]).toMatchObject({ Aluminum: 1 });
+    expect(byName.get("Synthetic Resin")?.recipes?.[0]).toMatchObject({ Kerosene: 0.6 });
+    expect(byName.get("Saltpeter")?.recipeTechnologies).toEqual(["saltpeterProduction"]);
+  });
+
   it("keeps the current catalogue when rerolling placement", () => {
     goodsModule.generate({ randomSeed: 123 });
 
@@ -220,9 +229,15 @@ describe("GoodsModule", () => {
     expect(cloth.recipes).toEqual([
       { [byName.get("Wool")!.i]: 6 },
       { [byName.get("Hemp")!.i]: 6 },
-      { [byName.get("Cotton")!.i]: 6 }
+      { [byName.get("Cotton")!.i]: 6 },
+      { [byName.get("Wool")!.i]: 6, [byName.get("Synthetic Dye")!.i]: 0.1 }
     ]);
-    expect(garments.recipes).toEqual([{ [cloth.i]: 1 }, { [linen.i]: 0.75 }, { [cloth.i]: 0.5, [furs.i]: 1 }]);
+    expect(garments.recipes).toEqual([
+      { [cloth.i]: 1 },
+      { [linen.i]: 0.75 },
+      { [cloth.i]: 0.5, [furs.i]: 1 },
+      { [cloth.i]: 1, [byName.get("Synthetic Dye")!.i]: 0.15 }
+    ]);
     expect(garments).toMatchObject({ value: 20, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
     expect(cloth.recipes?.some(recipe => Object.hasOwn(recipe, silk.i))).toBe(false);
   });
@@ -392,7 +407,7 @@ describe("GoodsModule", () => {
     expect(bauxite).toMatchObject({ chance: 0, demandCoverage: {} });
     expect(bauxite?.requiredTechnology).toBeUndefined();
     expect(bauxite?.recipes).toBeUndefined();
-    expect(alumina).toMatchObject({ requiredTechnology: "chemicalIndustryFoundation", chance: 0 });
+    expect(alumina).toMatchObject({ requiredTechnology: "industrialAlkali", chance: 0 });
     expect(alumina?.recipes).toEqual([
       { [bauxite!.i]: 1, 1: 0.3, 2: 0.2 } // Bauxite / Caustic Soda / Coal, resolved to this catalogue's ids
     ]);

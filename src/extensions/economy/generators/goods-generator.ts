@@ -1127,6 +1127,10 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e6e3e3",
     value: 4,
     chance: 0,
+    // Evaporite deposits remain an ungated raw-mineral supply. Saltpeter beds are a separate,
+    // state-gated craft route for states without a basin deposit.
+    recipes: [{ Lime: 0.4, Potash: 0.3 }],
+    recipeTechnologies: ["saltpeterProduction"],
     unit: "barrel",
     demandCoverage: {}
   },
@@ -1349,7 +1353,7 @@ export const GOODS_DATA: GoodData[] = [
     // Silk remains a luxury textile rather than an input that can be downgraded into common cloth.
     value: 15,
     chance: 0,
-    recipes: [{ Wool: 6 }, { Hemp: 6 }, { Cotton: 6 }],
+    recipes: [{ Wool: 6 }, { Hemp: 6 }, { Cotton: 6 }, { Wool: 6, "Synthetic Dye": 0.1 }],
     unit: "wardrobe bolt"
   },
   {
@@ -1364,7 +1368,7 @@ export const GOODS_DATA: GoodData[] = [
     // garment. Dyed apparel belongs with luxury consumption rather than making every household's
     // replacement clothing depend on expensive dye and alum. Silk remains an independently traded
     // luxury good and is used directly by high-status character loadouts and luxury crafts.
-    recipes: [{ Cloth: 1 }, { Linen: 0.75 }, { Cloth: 0.5, Furs: 1 }],
+    recipes: [{ Cloth: 1 }, { Linen: 0.75 }, { Cloth: 0.5, Furs: 1 }, { Cloth: 1, "Synthetic Dye": 0.15 }],
     unit: "wardrobe lot",
     demandCoverage: { clothing: 1 }
   },
@@ -2689,6 +2693,8 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ "Iron Ingot": 1, Coke: 0.6, Lime: 0.2 }],
     unit: "bar",
     demandCoverage: { construction: 0.05 },
+    // This is small-batch crucible/cementation steel. ModernSteelmaking plus a
+    // SteelConverterPlant represents the later mass-production route.
     requiredTechnology: "standardMachineWorks"
   },
   {
@@ -2832,6 +2838,19 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "laboratoryGlassware"
   },
   {
+    name: "Precision Instruments",
+    warEconomyType: "strategic",
+    tags: ["industrial", "tools"],
+    icon: "good-unknown",
+    color: "#9aa6ae",
+    value: 28,
+    chance: 0,
+    recipes: [{ Steel: 0.4, Glass: 0.3, Tools: 0.3 }],
+    unit: "case",
+    demandCoverage: {},
+    requiredTechnology: "precisionInstrumentMaking"
+  },
+  {
     name: "Medicines",
     warEconomyType: "strategic",
     tags: ["luxury"],
@@ -2940,6 +2959,21 @@ export const GOODS_DATA: GoodData[] = [
     requiredTechnology: "chemicalIndustryFoundation"
   },
   {
+    // Coal-tar dyestuffs provide a parallel, industrial textile route without replacing natural
+    // dyes. Their consumption is in Cloth/Garments' final recipe alternatives above.
+    name: "Synthetic Dye",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown",
+    color: "#76508f",
+    value: 24,
+    chance: 0,
+    recipes: [{ "Coal Tar": 1, "Sulfuric Acid": 0.4, "Soda Ash": 0.3 }],
+    unit: "vat",
+    demandCoverage: {},
+    requiredTechnology: "organicChemistryAndDyes"
+  },
+  {
     // Leblanc process (1791): Salt roasted with Sulfuric Acid and burnt with Lime and Coal
     // yields soda ash, compressing the historical two furnace stages (salt-cake, then black-ash)
     // into one recipe — same abstraction level Sulfuric Acid/Chlorine above already use for
@@ -2957,7 +2991,7 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Salt: 1, Lime: 0.3, Coal: 0.3, "Sulfuric Acid": 0.1 }],
     unit: "barrel",
     demandCoverage: {},
-    requiredTechnology: "chemicalIndustryFoundation"
+    requiredTechnology: "industrialAlkali"
   },
   {
     // Causticization: Soda Ash boiled with Slaked Lime swaps calcium and sodium hydroxides,
@@ -2977,7 +3011,7 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ "Soda Ash": 1, "Slaked Lime": 0.3 }],
     unit: "barrel",
     demandCoverage: {},
-    requiredTechnology: "chemicalIndustryFoundation"
+    requiredTechnology: "industrialAlkali"
   },
   {
     // Raw phosphorite. Cell placement comes from MineralDeposit/MineOperation
@@ -3022,7 +3056,7 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Bauxite: 1, "Caustic Soda": 0.3, Coal: 0.2 }],
     unit: "sack",
     demandCoverage: {},
-    requiredTechnology: "chemicalIndustryFoundation"
+    requiredTechnology: "industrialAlkali"
   },
   {
     // Electrolytically reduced from Alumina — no craft-worker recipe exists (unlike Steel/
@@ -3041,6 +3075,19 @@ export const GOODS_DATA: GoodData[] = [
     unit: "bar",
     demandCoverage: {},
     requiredTechnology: "electrolyticIndustry"
+  },
+  {
+    name: "Light Alloy Parts",
+    warEconomyType: "strategic",
+    tags: ["industrial", "metal"],
+    icon: "good-unknown",
+    color: "#c2ccd6",
+    value: 48,
+    chance: 0,
+    recipes: [{ Aluminum: 1, "Machine Parts": 0.3 }],
+    unit: "crate",
+    demandCoverage: {},
+    requiredTechnology: "lightweightStructuresAndConductors"
   },
   {
     // Raw cinnabar (mercuric sulfide) ore. Cell placement comes from MineralDeposit/MineOperation
@@ -3111,6 +3158,19 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: {},
     requiredTechnology: "oilRefiningAndFractionation"
+  },
+  {
+    name: "Synthetic Resin",
+    warEconomyType: "strategic",
+    tags: ["industrial", "chemical"],
+    icon: "good-unknown",
+    color: "#bd9a5d",
+    value: 22,
+    chance: 0,
+    recipes: [{ Kerosene: 0.6, "Sulfuric Acid": 0.2, "Soda Ash": 0.2 }],
+    unit: "barrel",
+    demandCoverage: {},
+    requiredTechnology: "petrochemicals"
   },
   {
     // The small byproduct cut of the same OilRefineryPlants distillation run that yields Kerosene

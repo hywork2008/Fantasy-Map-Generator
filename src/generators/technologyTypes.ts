@@ -64,6 +64,8 @@ export interface TechnologySignals {
   naturalPhilosophy: number;
   medicine: number;
   sulfurAccess: number;
+  /** 0..1 market-stock coverage of Saltpeter, same shape as sulfurAccess. */
+  saltpeterAccess: number;
   urbanSanitationPressure: number;
   epidemicPressure: number;
   battleWoundPressure: number;
@@ -121,6 +123,8 @@ export interface TechnologySignals {
    * phosphateRockAccess. See docs/plan/electric-power-and-telegraph.md §3.3.
    */
   copperWireAccess: number;
+  /** 0..1 market-stock coverage of Light Alloy Parts, same shape as steelAccess. */
+  lightAlloyAccess: number;
   /** PowerStation.documentedRuns state max, same shape as modernSteelmakingTrialYears. */
   powerStationTrialYears: number;
   /** Count of active PowerStation entries, same shape as modernSteelmakingInstallations. */

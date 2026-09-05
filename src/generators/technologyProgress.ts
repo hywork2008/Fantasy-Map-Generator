@@ -60,6 +60,8 @@ const DIFFUSION_ANNUAL_GAIN = 0.15;
  * stageOf() closure prerequisitesMet() already reads, not a new TechnologySignals field.
  */
 const TELEGRAPH_DIFFUSION_BONUS_MAX = 0.5;
+/** Radio and electronic communication extend the telegraph-era diffusion gain. */
+const RADIO_ELECTRONICS_DIFFUSION_BONUS_MAX = 0.5;
 /** Demonstrated blackPowder without war can still advance if treasury demand is high. */
 const WAR_OPTIONAL_TREASURY = 100;
 
@@ -584,6 +586,7 @@ function emptySignals(): TechnologySignals {
     naturalPhilosophy: 0,
     medicine: 0,
     sulfurAccess: 0,
+    saltpeterAccess: 0,
     urbanSanitationPressure: 0,
     epidemicPressure: 0,
     battleWoundPressure: 0,
@@ -614,6 +617,7 @@ function emptySignals(): TechnologySignals {
     syntheticAmmoniaTrialYears: 0,
     syntheticAmmoniaInstallations: 0,
     copperWireAccess: 0,
+    lightAlloyAccess: 0,
     powerStationTrialYears: 0,
     powerStationInstallations: 0,
     telegraphLineTrialYears: 0,
@@ -935,9 +939,11 @@ function applyChemistryMedicineSignals(
   const glassId = goodIdByName(economy, "Glass");
   const pumiceId = goodIdByName(economy, "Pumice");
   const sulfurId = goodIdByName(economy, "Sulfur");
+  const saltpeterId = goodIdByName(economy, "Saltpeter");
   const phosphateRockId = goodIdByName(economy, "Phosphate Rock");
   const steelId = goodIdByName(economy, "Steel");
   const copperWireId = goodIdByName(economy, "Copper Wire");
+  const lightAlloyPartsId = goodIdByName(economy, "Light Alloy Parts");
   const cinnabarId = goodIdByName(economy, "Cinnabar");
   const crudeOilId = goodIdByName(economy, "Crude Oil");
   const keroseneId = goodIdByName(economy, "Kerosene");
@@ -989,10 +995,12 @@ function applyChemistryMedicineSignals(
   const soapStockByState = stateMarketStockByGood(economy, marketOwners, soapId);
   const glassStockByState = stateMarketStockByGood(economy, marketOwners, glassId);
   const sulfurStockByState = stateMarketStockByGood(economy, marketOwners, sulfurId);
+  const saltpeterStockByState = stateMarketStockByGood(economy, marketOwners, saltpeterId);
   const pumiceStockByState = stateMarketStockByGood(economy, marketOwners, pumiceId);
   const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, phosphateRockId);
   const steelStockByState = stateMarketStockByGood(economy, marketOwners, steelId);
   const copperWireStockByState = stateMarketStockByGood(economy, marketOwners, copperWireId);
+  const lightAlloyPartsStockByState = stateMarketStockByGood(economy, marketOwners, lightAlloyPartsId);
   const cinnabarStockByState = stateMarketStockByGood(economy, marketOwners, cinnabarId);
   const crudeOilStockByState = stateMarketStockByGood(economy, marketOwners, crudeOilId);
   const keroseneStockByState = stateMarketStockByGood(economy, marketOwners, keroseneId);
@@ -1013,6 +1021,7 @@ function applyChemistryMedicineSignals(
     const marketCoverage = clamp01(sulfurStock / 2);
     const militaryCoverage = signals.gunpowderDemand > 0 ? 1 - signals.gunpowderSulfurPressure : 0;
     signals.sulfurAccess = Math.max(militaryCoverage, marketCoverage);
+    signals.saltpeterAccess = clamp01((saltpeterStockByState.get(stateId) ?? 0) / 2);
 
     // docs/plan/phosphate-fertilizer-vertical-slice.md §3.6 — same market-stock-coverage shape
     // as sulfurAccess, no military-demand analog (Phosphate Rock has no war use).
@@ -1025,6 +1034,7 @@ function applyChemistryMedicineSignals(
     // docs/plan/electric-power-and-telegraph.md §3.3 — same market-stock-coverage shape as
     // sulfurAccess/steelAccess/phosphateRockAccess.
     signals.copperWireAccess = clamp01((copperWireStockByState.get(stateId) ?? 0) / 2);
+    signals.lightAlloyAccess = clamp01((lightAlloyPartsStockByState.get(stateId) ?? 0) / 2);
 
     // docs/plan/cinnabar-mercury-vertical-slice.md §3.4 — same market-stock-coverage shape as
     // sulfurAccess/steelAccess/phosphateRockAccess/copperWireAccess.
@@ -1589,9 +1599,13 @@ function advanceStage(
     const telegraphBonus = isTechnologyStageAtLeast(stageOf("electricTelegraph"), "adopted")
       ? TELEGRAPH_DIFFUSION_BONUS_MAX
       : 0;
+    const radioBonus = isTechnologyStageAtLeast(stageOf("radioAndElectronics"), "adopted")
+      ? RADIO_ELECTRONICS_DIFFUSION_BONUS_MAX
+      : 0;
     entry.diffusion = Math.min(
       1,
-      (entry.diffusion || 0) + DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed() * (1 + telegraphBonus)
+      (entry.diffusion || 0) +
+        DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed() * (1 + telegraphBonus + radioBonus)
     );
     if (entry.diffusion >= 1) stage = "diffused";
   }
