@@ -18,6 +18,9 @@ interface ReportGroup {
 
 const INCOME_LABELS: Readonly<Record<string, string>> = {
   salesTax: "Sales tax",
+  // docs/plan/economy-coupling-audit.md L10: duty this state charged on goods imported from
+  // another state's markets — distinct from salesTax above, which the *exporting* state keeps.
+  importDuty: "Import duty",
   pollTax: "Poll tax",
   voyageIncome: "Voyage income",
   wartimeSubsidy: "Wartime subsidy",

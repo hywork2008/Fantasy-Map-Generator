@@ -174,6 +174,7 @@ interface MarketTradeOpportunity {
   reserveImporter: number;
   transportCost: number;
   exporterTaxPerUnit: number;
+  importerDutyPerUnit: number;
   units: number;
   unitProfit: number;
   /** Net of the route's shared maintenanceCost (see routeKey/isRouteViable below). */
@@ -232,6 +233,23 @@ export class MarketsModule {
     const stateId = burg.state || 0;
     if (!stateId) return 0;
     return this.worldContext.pack.states?.[stateId]?.salesTax ?? 0;
+  }
+
+  /**
+   * Import duty the importer's state charges on this trade — 0 whenever the trade is domestic
+   * (both center burgs belong to the same state, including both neutral/unclaimed). Unlike
+   * `getSalesTax`, which taxes every sale regardless of who the buyer is, a duty only exists at
+   * a border: taxing a state's own internal inter-market trade as if it were foreign would be
+   * backwards. docs/plan/economy-coupling-audit.md L10.
+   */
+  private getImportDuty(
+    exporterCenter: { state?: number } | undefined,
+    importerCenter: { state?: number } | undefined
+  ): number {
+    const exporterStateId = exporterCenter?.state || 0;
+    const importerStateId = importerCenter?.state || 0;
+    if (!importerStateId || importerStateId === exporterStateId) return 0;
+    return this.worldContext.pack.states?.[importerStateId]?.importDuty ?? 0;
   }
 
   private marketById: Market[] = [];
@@ -1719,9 +1737,12 @@ export class MarketsModule {
             continue;
           }
 
+          const importerCenter = this.worldContext.pack.burgs[importer.market.centerBurgId];
+          const importerDutyPerUnit = this.getImportDuty(exporterCenter, importerCenter) * importerGood.price;
           const transportCost = getTransportCost(route.distance, mapDiagonal, good);
           const quotedImporterPrice = this.getTradeQuotedPrice(importer.market, good, importerGood.price);
-          const unitProfit = quotedImporterPrice - (quotedExporterPrice + transportCost + exporterTaxPerUnit);
+          const unitProfit =
+            quotedImporterPrice - (quotedExporterPrice + transportCost + exporterTaxPerUnit + importerDutyPerUnit);
           if (unitProfit <= 0) continue;
           const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
 
@@ -1732,6 +1753,7 @@ export class MarketsModule {
             reserveImporter: importer.reserve,
             transportCost,
             exporterTaxPerUnit,
+            importerDutyPerUnit,
             units,
             unitProfit,
             totalProfit,
@@ -1857,11 +1879,19 @@ export class MarketsModule {
 
       const quotedExporterPrice = this.getTradeQuotedPrice(opportunity.exporter, good, exporterGood.price);
       const quotedImporterPrice = this.getTradeQuotedPrice(opportunity.importer, good, importerGood.price);
-      const quotedLandedCost = quotedExporterPrice + opportunity.transportCost + opportunity.exporterTaxPerUnit;
+      const quotedLandedCost =
+        quotedExporterPrice +
+        opportunity.transportCost +
+        opportunity.exporterTaxPerUnit +
+        opportunity.importerDutyPerUnit;
       const quotedSalePrice = opportunity.targetSalePrice ?? quotedImporterPrice;
       if (quotedSalePrice - quotedLandedCost <= 0) continue;
 
-      const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
+      const landedCost =
+        exporterGood.price +
+        opportunity.transportCost +
+        opportunity.exporterTaxPerUnit +
+        opportunity.importerDutyPerUnit;
 
       const deals = getDeals();
       const deal: Deal = {
@@ -1875,6 +1905,7 @@ export class MarketsModule {
         remainingUnits: units,
         price: landedCost,
         tax: opportunity.exporterTaxPerUnit * units,
+        importTax: opportunity.importerDutyPerUnit * units,
         distance: rn(opportunity.distanceKm, 2),
         durationDays: opportunity.durationDays,
         maintenanceCost: rn(opportunity.maintenanceCost, 2),
@@ -2026,6 +2057,8 @@ export class MarketsModule {
           ...importerGood,
           price: this.getTradeQuotedPrice(importer, good, importerGood.price)
         };
+        const importerCenter = this.worldContext.pack.burgs[importer.centerBurgId];
+        const importerDutyPerUnit = this.getImportDuty(exporterCenter, importerCenter) * importerGood.price;
         const estimate = estimateSpeculativeTrade({
           good,
           sourceMarketId: exporter.i,
@@ -2042,7 +2075,7 @@ export class MarketsModule {
         });
         if (!estimate) continue;
 
-        const landedCost = quotedExporterGood.price + estimate.transportCost + exporterTaxPerUnit;
+        const landedCost = quotedExporterGood.price + estimate.transportCost + exporterTaxPerUnit + importerDutyPerUnit;
         const unitProfit = estimate.sellPrice - landedCost;
         const totalProfit = estimate.totalProfit;
 
@@ -2053,6 +2086,7 @@ export class MarketsModule {
           reserveImporter: importerGood.stock + estimate.maxUnits,
           transportCost: estimate.transportCost,
           exporterTaxPerUnit,
+          importerDutyPerUnit,
           units: estimate.maxUnits,
           unitProfit,
           totalProfit,

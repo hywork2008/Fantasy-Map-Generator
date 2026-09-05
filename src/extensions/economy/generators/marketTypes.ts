@@ -235,6 +235,12 @@ export interface Deal {
   units: number;
   price: number;
   tax: number;
+  /**
+   * Import duty owed to the importer's state, distinct from `tax` (the exporter's sales tax).
+   * Zero/undefined for a domestic deal (both markets in the same state) — see
+   * `MarketsModule.getImportDuty()`. docs/plan/economy-coupling-audit.md L10.
+   */
+  importTax?: number;
   distance?: number;
   durationDays?: number;
   maintenanceCost?: number;

@@ -413,6 +413,74 @@ describe("MarketsModule", () => {
       expect(tradeDeal!.accountingPeriodDays).toBe(7);
     });
 
+    // docs/plan/economy-coupling-audit.md L10
+    it("runGlobalTrade() should add the importer state's import duty to landed cost and record it on the deal", () => {
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 20 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1, state: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2, state: 2 } as unknown as Burg;
+      setMarkets([market1, market2]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+      worldContext.pack.states = [
+        { i: 0, salesTax: 0 },
+        { i: 1, salesTax: 0 },
+        { i: 2, salesTax: 0, importDuty: 0.1 }
+      ] as unknown as PackedGraph["states"];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market2];
+      marketsModule.runGlobalTrade();
+
+      const tradeDeal = getDeals().find(d => d.sellerType === "market" && d.seller === 1 && d.buyerType === "market");
+      expect(tradeDeal).toBeDefined();
+      // Duty is on the importer's own stock price (20), not the exporter's: 0.1 * 20 = 2/unit.
+      expect(tradeDeal!.importTax).toBeGreaterThan(0);
+      expect(tradeDeal!.importTax).toBeCloseTo(0.1 * 20 * tradeDeal!.units, 1);
+      // Exporter state 1 has salesTax 0, so the whole tax burden is state 2's import duty.
+      expect(tradeDeal!.tax).toBe(0);
+      expect(tradeDeal!.price).toBeGreaterThan(5);
+    });
+
+    it("runGlobalTrade() should not charge import duty on trade between two markets in the same state", () => {
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 20 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1, state: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2, state: 1 } as unknown as Burg;
+      setMarkets([market1, market2]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+      // Both markets belong to state 1 — its own importDuty must not tax its own internal trade.
+      worldContext.pack.states = [
+        { i: 0, salesTax: 0 },
+        { i: 1, salesTax: 0, importDuty: 0.1 }
+      ] as unknown as PackedGraph["states"];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market2];
+      marketsModule.runGlobalTrade();
+
+      const tradeDeal = getDeals().find(d => d.sellerType === "market" && d.seller === 1 && d.buyerType === "market");
+      expect(tradeDeal).toBeDefined();
+      expect(tradeDeal!.importTax ?? 0).toBe(0);
+    });
+
     it("initializeMarketPrices() should create local price spread for nearby markets with equal stock", () => {
       const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: { 0: { stock: 10, price: 10 } } };
       const market2: Market = { i: 2, centerBurgId: 2, color: "#00ff00", goods: { 0: { stock: 10, price: 10 } } };

@@ -693,6 +693,64 @@ applyGreatLibraryConquestDisruption(burgId);
 
 ---
 
+**実装済み(2026-09-05)** — `State.importDuty`(既定 `salesTax × 0.5`)を新設し、
+`markets-generator.ts` の交易パス2箇所(主経路 `globalTrade` + フォールバックの
+`addSpeculativeGlobalTradeOpportunities`)に `importerDutyPerUnit` を追加、
+`Deal.importTax` として輸入側の国庫に計上されるよう `taxes-generator.ts` の
+`collectTaxes()` を拡張した。
+
+実装時に判明した点:
+
+- **国境を越える取引だけに課税するガードが必須だった。** 本書の疑似コードは
+  `importerDutyPerUnit = getImportDuty(importerCenter) * importerGood.price` と書いていたが、
+  これをそのまま実装すると**同一国内の市場間交易にまで関税がかかってしまう**
+  (`isMarketTradePermitted` には同一国限定の制約が無く、国内交易の方がむしろ主流のため)。
+  自国の内国交易を「輸入」として課税するのは L10 の趣旨(「国境をまたぐ取引」)そのものに反するので、
+  `getImportDuty(exporterCenter, importerCenter)` を輸出側・輸入側**両方**の burg を受け取る形にし、
+  両者が同じ `state` のときは常に 0 を返すよう修正した。この結果、既存の大多数のテスト
+  (同一国内の2都市間交易を前提にしたもの)は輸入側 state に `importDuty` が
+  設定されていても一切影響を受けない ——実際、全1614件の既存テストが無改修で通過した。
+- **呼び出し箇所は本書が挙げた2つに加え、Deal 生成の合流点も直す必要があった。**
+  `globalTrade` 本体と `addSpeculativeGlobalTradeOpportunities` の2つの機会収集ループに
+  `importerDutyPerUnit` を追加するだけでなく、両方の機会 (`MarketTradeOpportunity`) が
+  最終的に合流する Deal 生成ループ(`landedCost`/`quotedLandedCost` の計算と
+  `Deal.tax` の代入箇所)にも `opportunity.importerDutyPerUnit` を加算し、
+  `Deal.importTax` フィールドを新設して書き込む必要があった。既存の `exporterTaxPerUnit` が
+  `landedCost` に**含まれた上で**別途 `tax` としても計上される(価格へのマークアップと
+  国庫計上が二重会計ではなく整合している)パターンに `importerDutyPerUnit` も揃えた。
+- **`taxes-generator.ts` は売り手用の `getSellerStateId` の対になる `getBuyerStateId` が必要だった。**
+  `Deal.tax`(売り手の国が徴収)と `Deal.importTax`(買い手の国が徴収)は独立の歳入で、
+  それぞれ別の国の `applyTradeSanctionToIncome`(対外債務制裁のヘアカット)を個別に適用する
+  ——一方の国が制裁下でも、もう一方の国の歳入には影響しない。
+- **`defineTaxRates()` の冪等性ゲートを二重化する必要があった。** 既存のゲートは
+  `state.salesTax !== undefined` で本体全体をスキップする形だったため、
+  L10 以前に生成済みの(`salesTax` が既に設定済みの)マップでは `importDuty` が
+  永久にバックフィルされない。`salesTax`/`pollTax`/`treasury` のブロックと
+  `importDuty` のブロックを別々の `if` に分離し、後者は前者と独立に
+  「未設定なら本人の(編集済みかもしれない)`salesTax` から半分を初期値にする」
+  形にした ——これは `registerMapReinitHook` が `defineTaxRates()` 全体を
+  「毎回呼んでも安全なバックフィル」として扱っている既存方針と一致する。
+- **UI ラベルは英語決め打ちの箇所だった。** `StateFiscalReportTab.tsx` の `INCOME_LABELS` は
+  i18n 化されておらずハードコードされた英語文字列のマップだったので、L8 のような
+  i18n JSON 更新ではなく、同じファイル内に `importDuty: "Import duty"` を追加するだけで済んだ。
+  未知のキーは `labels[key] ?? key` で生キー名にフォールバックする作りなので、
+  ラベルを足さなくても壊れはしなかったが、一貫性のため追加した。
+- **通行税(L10 修正案 §3)は計画通り着手していない。** 第三国越境ルートへの通行税は
+  ルーティング情報が要る別設計判断であり、L8 の `publicWorks` 段階2と合わせて設計する
+  という本書の判断のまま、今回のスコープには含めていない。
+- **検証はユニットのみ。** `markets-generator.test.ts` に、国境を越える交易では
+  輸入側の在庫価格に対して関税がかかり `Deal.importTax`/`Deal.price` に反映されること、
+  同一国内の交易では `importDuty` が設定されていても一切課税されないこと、の2本。
+  `taxes-generator.test.ts` に、`defineTaxRates()` の新規シード・ジッター後の比例関係・
+  既存マップへのバックフィル・編集済み値の非上書きの4本と、`collectTaxes()` が
+  `Deal.importTax` を売り手側の `Deal.tax` とは独立に買い手側の国庫へ計上し
+  `StateFiscalReport.income.importDuty` にも反映されることを確認する2本を追加した。
+  `goods-unit-scale.md` 観点での交易総量への実際の影響(既定値 0.5 が妥当かどうか)は
+  実マップでの確認が必要で未実施。
+  全テストスイート(3409件)・`tsc`・`biome`・アーキテクチャ lint・本番ビルドは通過を確認済み。
+
+---
+
 # Part 2: 密すぎる結合
 
 ## T1. 巨大な単一 `economy.tick` が約50サブシステムを手書き順序で駆動
@@ -1130,8 +1188,8 @@ L3 の実装時に判明した点:
 13. **L6** ✅ 実装済み(2026-09-05)。輸送コストの嵩ベース化(`FREIGHT_RATE = 1`、
     カタログ中央値からキャリブレーション。`densityLimit`/`stapleFood` 特例は未着手のまま残す判断)
 14. **L9**: `Burg.discontent` + 征服時の物的破壊
-15. **L10**: 輸入関税の導入(輸出税と同じ `unitProfit` 計算に相乗りするため、
-    `goods-unit-scale.md` の再キャリブレーションが必要な点で L6 と同種)
+15. **L10** ✅ 実装済み(2026-09-05)。輸入関税の導入(`State.importDuty` = `salesTax × 0.5`、
+    国境を越える交易にのみ課税、`Deal.importTax` として買い手側国庫に計上。通行税は未着手のまま)
 16. **L8 段階2**: `publicWorks` 予算部門と街道の実行時昇格(L10 の通行税を導入するならここと合流)
 17. **L2 Phase 2/3**: 家計財布の導入(人頭税を創造から移転へ)
 18. **L7**: 貨幣供給の物価接続(**着手しない判断も妥当**。その場合は

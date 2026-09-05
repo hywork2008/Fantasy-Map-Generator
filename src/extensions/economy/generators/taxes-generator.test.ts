@@ -127,6 +127,62 @@ describe("TaxesModule", () => {
       expect(state.salesTax).toBe(0.99);
       expect(state.pollTax).toBe(0.01);
     });
+
+    // docs/plan/economy-coupling-audit.md L10
+    it("seeds importDuty as half of salesTax for a brand-new state", () => {
+      const state: State = { i: 1, name: "Freehold", form: "Anarchy" } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+
+      taxesModule.defineTaxRates();
+
+      expect(state.salesTax).toBe(0);
+      expect(state.importDuty).toBe(0);
+    });
+
+    it("seeds importDuty from a jittered salesTax proportionally", () => {
+      const state: State = { i: 1, name: "Theocracy of X", form: "Theocracy" } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+
+      taxesModule.defineTaxRates();
+
+      // 1-decimal tolerance: importDuty is rn(salesTax * 0.5, 2), so an already-rounded salesTax
+      // can land importDuty one hundredth off plain-JS (salesTax * 0.5) at the rounding boundary.
+      expect(state.importDuty).toBeCloseTo((state.salesTax ?? 0) * 0.5, 1);
+    });
+
+    it("backfills importDuty on an already-migrated state whose salesTax predates this feature", () => {
+      // Simulates a map saved before L10 existed: salesTax already set (so the salesTax/pollTax/
+      // treasury block above never re-enters), importDuty never seeded.
+      const state: State = {
+        i: 1,
+        name: "Old Save",
+        form: "Republic",
+        salesTax: 0.2,
+        pollTax: 0.4
+      } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+
+      taxesModule.defineTaxRates();
+
+      expect(state.salesTax).toBe(0.2); // untouched
+      expect(state.importDuty).toBe(0.1); // backfilled from the state's own (possibly edited) salesTax
+    });
+
+    it("does not overwrite an already-set (possibly user-edited) importDuty", () => {
+      const state: State = {
+        i: 1,
+        name: "Edited",
+        form: "Republic",
+        salesTax: 0.2,
+        pollTax: 0.4,
+        importDuty: 0.75
+      } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state];
+
+      taxesModule.defineTaxRates();
+
+      expect(state.importDuty).toBe(0.75);
+    });
   });
 
   describe("collectTaxes()", () => {
@@ -173,6 +229,67 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
 
       expect(state1.treasury).toBe(7);
+    });
+
+    // docs/plan/economy-coupling-audit.md L10
+    it("credits deal.importTax from market-buy (global trade) deals to the buyer's state, independently of deal.tax to the seller's state", () => {
+      const sellerState: State = { i: 1, salesTax: 0.2, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      const buyerState: State = { i: 2, salesTax: 0.1, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, sellerState, buyerState];
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, state: 1 } as unknown as Burg,
+        { i: 2, state: 2 } as unknown as Burg
+      ];
+      setMarkets([
+        { i: 1, centerBurgId: 1, color: "#fff", goods: {} } as Market,
+        { i: 2, centerBurgId: 2, color: "#fff", goods: {} } as Market
+      ]);
+      setDeals([
+        {
+          i: 0,
+          seller: 1,
+          sellerType: "market",
+          buyer: 2,
+          buyerType: "market",
+          good: 0,
+          units: 5,
+          price: 10,
+          tax: 7,
+          importTax: 9
+        }
+      ]);
+      Markets.sync();
+
+      taxesModule.collectTaxes();
+
+      expect(sellerState.treasury).toBe(7);
+      expect(buyerState.treasury).toBe(9);
+      const report = getStateFiscalReportState().reports.find(r => r.stateId === 2);
+      expect(report?.income.importDuty).toBe(9);
+    });
+
+    it("does not credit import duty anywhere for a deal with no importTax", () => {
+      const sellerState: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      const buyerState: State = { i: 2, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, sellerState, buyerState];
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, state: 1 } as unknown as Burg,
+        { i: 2, state: 2 } as unknown as Burg
+      ];
+      setMarkets([
+        { i: 1, centerBurgId: 1, color: "#fff", goods: {} } as Market,
+        { i: 2, centerBurgId: 2, color: "#fff", goods: {} } as Market
+      ]);
+      setDeals([
+        { i: 0, seller: 1, sellerType: "market", buyer: 2, buyerType: "market", good: 0, units: 5, price: 10, tax: 0 }
+      ]);
+      Markets.sync();
+
+      taxesModule.collectTaxes();
+
+      expect(buyerState.treasury).toBe(0);
     });
 
     it("adds poll tax based on rural + urban population", () => {

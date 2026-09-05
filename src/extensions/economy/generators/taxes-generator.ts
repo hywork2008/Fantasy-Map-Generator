@@ -41,6 +41,15 @@ const DEFAULT_TAX_BY_FORM: Record<string, TaxBases> = {
 const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;
 
 /**
+ * `State.importDuty` is seeded as this share of the state's own `salesTax`, not an independent
+ * gauss-jittered rate — a deliberately small starting point (docs/plan/economy-coupling-audit.md
+ * L10's own risk note) since a naive full-size duty would make cross-border `unitProfit` swing
+ * negative easily and could suppress inter-state trade volume more than intended. Revisit this
+ * constant, not the duty's economic wiring, if cross-state trade volume needs recalibrating.
+ */
+const IMPORT_DUTY_SALES_TAX_SHARE = 0.5;
+
+/**
  * PR-17b (docs/plan/department-budget-spending-effects.md §3.1) — Stewardship's funding effect.
  * A fully-neglected Stewardship (departmentServiceLevel.stewardship sustained at 0) raises
  * effective administrative upkeep by up to this many share-points and shrinks the administration
@@ -88,20 +97,30 @@ export class TaxesModule {
   }
 
   /**
-   * Seeds salesTax, pollTax, and a start-mode public reserve for any non-neutral
-   * State that does not have rates yet. Idempotent — never overwrites an already-set
-   * or user-edited rate / treasury.
+   * Seeds salesTax, pollTax, importDuty, and a start-mode public reserve for any non-neutral
+   * State that does not have rates yet. Idempotent — never overwrites an already-set or
+   * user-edited rate / treasury. importDuty is gated independently of salesTax/pollTax/treasury
+   * so a map saved before docs/plan/economy-coupling-audit.md L10 existed — which already has
+   * salesTax set, so the block above never re-enters — still gets importDuty backfilled from its
+   * own (possibly user-edited) salesTax on the next call, the same load-time backfill pattern
+   * `index.tsx`'s `registerMapReinitHook` already uses for this method as a whole.
    */
   defineTaxRates(): void {
     for (const state of this.worldContext.pack.states) {
-      if (!state.i || state.salesTax !== undefined) continue;
+      if (!state.i) continue;
 
-      const { salesTax, pollTax } = DEFAULT_TAX_BY_FORM[state.form || ""] || DEFAULT_TAX;
-      state.salesTax = rn(gauss(salesTax, salesTax * 0.15, salesTax * 0.5, salesTax * 1.5, 4), 2);
-      state.pollTax = rn(gauss(pollTax, pollTax * 0.15, pollTax * 0.5, pollTax * 1.5, 4), 2);
-      const population = (state.rural || 0) + (state.urban || 0);
-      const profile = getEconomyStartProfile(this.worldContext.options);
-      state.treasury = rn(population * profile.stateTreasuryPerPopulation, 2);
+      if (state.salesTax === undefined) {
+        const { salesTax, pollTax } = DEFAULT_TAX_BY_FORM[state.form || ""] || DEFAULT_TAX;
+        state.salesTax = rn(gauss(salesTax, salesTax * 0.15, salesTax * 0.5, salesTax * 1.5, 4), 2);
+        state.pollTax = rn(gauss(pollTax, pollTax * 0.15, pollTax * 0.5, pollTax * 1.5, 4), 2);
+        const population = (state.rural || 0) + (state.urban || 0);
+        const profile = getEconomyStartProfile(this.worldContext.options);
+        state.treasury = rn(population * profile.stateTreasuryPerPopulation, 2);
+      }
+
+      if (state.importDuty === undefined) {
+        state.importDuty = rn(state.salesTax * IMPORT_DUTY_SALES_TAX_SHARE, 2);
+      }
     }
   }
 
@@ -121,6 +140,7 @@ export class TaxesModule {
     const deals = getDeals();
     const openingTreasuryByState = new Map<number, number>();
     const salesTaxByState = new Map<number, number>();
+    const importDutyByState = new Map<number, number>();
     for (const state of states) {
       if (state?.i) openingTreasuryByState.set(state.i, state.treasury || 0);
     }
@@ -133,15 +153,27 @@ export class TaxesModule {
     }
 
     for (const deal of deals) {
-      if (!deal.tax) continue;
-      const sellerStateId = this.getSellerStateId(deal, burgs);
-      if (!sellerStateId) continue;
-      const state = states[sellerStateId];
-      if (!state) continue;
-      // PR-15: foreign-debt sanctions haircut deal-tax receipts.
-      const keptTax = applyTradeSanctionToIncome(state, deal.tax);
-      state.treasury = rn((state.treasury || 0) + keptTax, 2);
-      salesTaxByState.set(sellerStateId, rn((salesTaxByState.get(sellerStateId) ?? 0) + keptTax, 2));
+      const sellerStateId = deal.tax ? this.getSellerStateId(deal, burgs) : undefined;
+      const sellerState = sellerStateId ? states[sellerStateId] : undefined;
+      if (deal.tax && sellerStateId && sellerState) {
+        // PR-15: foreign-debt sanctions haircut deal-tax receipts.
+        const keptTax = applyTradeSanctionToIncome(sellerState, deal.tax);
+        sellerState.treasury = rn((sellerState.treasury || 0) + keptTax, 2);
+        salesTaxByState.set(sellerStateId, rn((salesTaxByState.get(sellerStateId) ?? 0) + keptTax, 2));
+      }
+
+      // Import duty (docs/plan/economy-coupling-audit.md L10) is collected by the *buyer's*
+      // state, independently of deal.tax above (the seller's own sales tax) — a cross-border
+      // deal pays both, into two different treasuries. Domestic deals never carry importTax
+      // (Markets.getImportDuty() returns 0 when exporter/importer share a state), so this is a
+      // no-op for the overwhelming majority of deals.
+      const buyerStateId = deal.importTax ? this.getBuyerStateId(deal, burgs) : undefined;
+      const buyerState = buyerStateId ? states[buyerStateId] : undefined;
+      if (deal.importTax && buyerStateId && buyerState) {
+        const keptDuty = applyTradeSanctionToIncome(buyerState, deal.importTax);
+        buyerState.treasury = rn((buyerState.treasury || 0) + keptDuty, 2);
+        importDutyByState.set(buyerStateId, rn((importDutyByState.get(buyerStateId) ?? 0) + keptDuty, 2));
+      }
     }
 
     for (const state of states) {
@@ -222,6 +254,8 @@ export class TaxesModule {
       const openingTreasury = openingTreasuryByState.get(state.i) ?? 0;
       const income = {
         salesTax: salesTaxByState.get(state.i) ?? 0,
+        // L10: this state's own duty on goods it imported from another state's markets this cycle.
+        importDuty: importDutyByState.get(state.i) ?? 0,
         pollTax: pollTaxRevenue,
         voyageIncome: voyageKept,
         wartimeSubsidy: mix.wartimeSubsidy,
@@ -316,6 +350,15 @@ export class TaxesModule {
     if (deal.sellerType === "burg") return burgs[deal.seller]?.state;
 
     const market = Markets.get(deal.seller);
+    if (!market) return undefined;
+    return burgs[market.centerBurgId]?.state;
+  }
+
+  /** Mirrors getSellerStateId for the buyer side — deal.importTax's collection target (L10). */
+  private getBuyerStateId(deal: Deal, burgs: Burg[]): number | undefined {
+    if (deal.buyerType === "burg") return burgs[deal.buyer]?.state;
+
+    const market = Markets.get(deal.buyer);
     if (!market) return undefined;
     return burgs[market.centerBurgId]?.state;
   }

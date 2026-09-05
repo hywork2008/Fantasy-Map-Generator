@@ -706,6 +706,13 @@ export interface State {
   alert?: number;
   salesTax?: number;
   pollTax?: number;
+  /**
+   * Duty this state levies on goods a market inside its territory imports from a market in a
+   * *different* state (no charge on inter-market trade within the same state). Seeded from
+   * `salesTax` (`IMPORT_DUTY_SALES_TAX_SHARE`) — see `taxes-generator.ts`'s `defineTaxRates()`.
+   * docs/plan/economy-coupling-audit.md L10.
+   */
+  importDuty?: number;
   /** L2 public treasury stock (institutional cash). */
   treasury?: number;
   /**
