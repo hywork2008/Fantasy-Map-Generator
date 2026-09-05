@@ -1,5 +1,6 @@
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { getMoneyTradeCapacityFactorForMarket } from "./currencySufficiency";
 import type { Market } from "./marketTypes";
 
 /**
@@ -36,7 +37,8 @@ export function allocateMarketProcurementBudgets(
   for (const [marketId, marketBurgs] of burgsByMarket) {
     const market = marketById.get(marketId)!;
     const maintenanceReach = 0.25 + 0.75 * (market.maintenanceCondition ?? 1);
-    const available = rn(Math.max(0, market.marketTreasury!.balance) * maintenanceReach, 2);
+    const moneyReach = getMoneyTradeCapacityFactorForMarket(market);
+    const available = rn(Math.max(0, market.marketTreasury!.balance) * maintenanceReach * moneyReach, 2);
     if (!(available > 0)) continue;
 
     const totalWeight = marketBurgs.reduce(

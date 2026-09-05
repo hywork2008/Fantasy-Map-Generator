@@ -13,9 +13,11 @@ import {
   setBurgMarketLedgers,
   setGoods,
   setMarkets,
-  setMetallurgWorkOrders
+  setMetallurgWorkOrders,
+  setMintLedgers
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
+import { MONEY_PRICE_CEILING, MONEY_PRICE_FLOOR } from "./currencySufficiency";
 import { DEMAND_TARGET_FACTORS, type Good, Goods } from "./goods-generator";
 import {
   getCommercialRecipeByproducts,
@@ -652,6 +654,144 @@ describe("MarketsModule", () => {
 
       marketsModule.initializeMarketPrices();
       expect(scarce.goods[1].price).toBeGreaterThan(glut.goods[1].price);
+    });
+
+    it("does not shift prices when mint circulation is in the 6–12 month band (L7)", () => {
+      const market: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: { 0: { stock: 10, price: 10 } } };
+      const burg: Burg = { i: 1, population: 100, market: 1, state: 1 } as unknown as Burg;
+      setMarkets([market]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
+      worldContext.pack.states = [{ i: 0 }, { i: 1 }] as unknown as PackedGraph["states"];
+
+      marketsModule.initializeMarketPrices();
+      const unledgeredPrice = market.goods[0].price;
+
+      market.goods[0].price = 10;
+      setMintLedgers([
+        {
+          stateId: 1,
+          mintMarketId: 1,
+          currencyDemand: 10,
+          circulation: 60,
+          lastMintedValue: 0,
+          totalMintedValue: 0,
+          lastSeigniorage: 0
+        }
+      ]);
+      marketsModule.initializeMarketPrices();
+      expect(market.goods[0].price).toBe(unledgeredPrice);
+
+      market.goods[0].price = 10;
+      setMintLedgers([
+        {
+          stateId: 1,
+          mintMarketId: 1,
+          currencyDemand: 10,
+          circulation: 120,
+          lastMintedValue: 0,
+          totalMintedValue: 0,
+          lastSeigniorage: 0
+        }
+      ]);
+      marketsModule.initializeMarketPrices();
+      expect(market.goods[0].price).toBe(unledgeredPrice);
+    });
+
+    it("lowers prices when mint circulation is empty and raises them when it is excessive (L7)", () => {
+      const market: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: { 0: { stock: 10, price: 10 } } };
+      const burg: Burg = { i: 1, population: 100, market: 1, state: 1 } as unknown as Burg;
+      setMarkets([market]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
+      worldContext.pack.states = [{ i: 0 }, { i: 1 }] as unknown as PackedGraph["states"];
+      setMintLedgers([
+        {
+          stateId: 1,
+          mintMarketId: 1,
+          currencyDemand: 10,
+          circulation: 120,
+          lastMintedValue: 0,
+          totalMintedValue: 0,
+          lastSeigniorage: 0
+        }
+      ]);
+
+      marketsModule.initializeMarketPrices();
+      const fullPrice = market.goods[0].price;
+
+      market.goods[0].price = 10;
+      setMintLedgers([
+        {
+          stateId: 1,
+          mintMarketId: 1,
+          currencyDemand: 10,
+          circulation: 0,
+          lastMintedValue: 0,
+          totalMintedValue: 0,
+          lastSeigniorage: 0
+        }
+      ]);
+      marketsModule.initializeMarketPrices();
+      const emptyPrice = market.goods[0].price;
+      expect(emptyPrice).toBeLessThan(fullPrice);
+      expect(emptyPrice / fullPrice).toBeCloseTo(MONEY_PRICE_FLOOR, 2);
+
+      market.goods[0].price = 10;
+      setMintLedgers([
+        {
+          stateId: 1,
+          mintMarketId: 1,
+          currencyDemand: 10,
+          circulation: 240,
+          lastMintedValue: 0,
+          totalMintedValue: 0,
+          lastSeigniorage: 0
+        }
+      ]);
+      marketsModule.initializeMarketPrices();
+      const excessPrice = market.goods[0].price;
+      expect(excessPrice).toBeGreaterThan(fullPrice);
+      expect(excessPrice / fullPrice).toBeCloseTo(MONEY_PRICE_CEILING, 2);
+    });
+
+    it("leaves stapleFood prices untouched by mint circulation (L7)", () => {
+      const grain = {
+        i: 1,
+        name: "Grain",
+        value: 1,
+        tags: ["food", "stapleFood"],
+        unit: "wain",
+        icon: "icon",
+        color: "#fff",
+        distribution: "1",
+        recipes: []
+      };
+      worldContext.pack = { ...worldContext.pack, goods: [...getGoods(), grain] } as unknown as PackedGraph;
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 10, price: 10 }, 1: { stock: 500, price: 1.23 } }
+      };
+      setMarkets([market]);
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, population: 100, market: 1, state: 1 } as unknown as Burg
+      ];
+      setMintLedgers([
+        {
+          stateId: 1,
+          mintMarketId: 1,
+          currencyDemand: 10,
+          circulation: 0,
+          lastMintedValue: 0,
+          totalMintedValue: 0,
+          lastSeigniorage: 0
+        }
+      ]);
+
+      marketsModule.initializeMarketPrices();
+
+      expect(market.goods[grain.i].price).toBe(1.23);
     });
 
     it("runGlobalTrade() should skip low-value trades beyond their value-density day limit", () => {

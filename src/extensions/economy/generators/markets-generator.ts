@@ -35,6 +35,7 @@ import { CaravanMovement } from "./caravanMovement";
 import { planCellFoodRescue } from "./cellFoodRescue";
 import type { CellFreshFoodInput } from "./cellFoodRescueTypes";
 import { consumerCoverageForCategory, recipesForIndustrialDemand } from "./craftDemandCalibration";
+import { getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
 import {
   recordCellFoodHouseholdConsumption,
@@ -1258,6 +1259,7 @@ export class MarketsModule {
       }
     }
     this.applyLocalTradePriceBias(populationByMarket);
+    this.applyMoneySupplyPriceLevel();
   }
 
   public get(marketId: number | undefined): Market | undefined {
@@ -1284,6 +1286,26 @@ export class MarketsModule {
         });
         marketGood.price = rn(
           minmax(good.value * PRICE_FLOOR_FACTOR, marketGood.price * multiplier, good.value * PRICE_CEILING_FACTOR),
+          2
+        );
+      }
+    }
+  }
+
+  /**
+   * L7: scale every non-staple mid-price by the state's mint sufficiency. Missing ledgers and
+   * the 6–12 month band are a no-op (`getMoneyPriceLevel` = 1), so existing tests and a healthy
+   * mint do not move. stapleFood stays on the food-ledger grain price.
+   */
+  private applyMoneySupplyPriceLevel(): void {
+    for (const market of getMarkets()) {
+      const multiplier = getMoneyPriceLevelForMarket(market);
+      if (multiplier === 1) continue;
+      for (const good of getGoods().filter(isGoodEnabled)) {
+        if (good.tags.includes("stapleFood")) continue;
+        const marketGood = this.getMarketGood(market, good);
+        marketGood.price = rn(
+          minmax(marketGood.price * multiplier, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR),
           2
         );
       }

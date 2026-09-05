@@ -511,6 +511,29 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 
 ---
 
+**実装済み(2026-09-05)** — `circulation` を物価水準と商人の流動性に接続した。
+数量説そのものは入れず、本書が指定した ±15% の物価乗数と、貨幣不足時の取引キャップだけ。
+
+- **物価**: `initializeMarketPrices()` の末尾、`applyLocalTradePriceBias` の直後に
+  `applyMoneySupplyPriceLevel()` を追加。充足率
+  `circulation / (currencyDemand * TARGET_MONTHS_OF_CURRENCY)` を
+  `[0.85, 1.15]` の乗数へ写す。`stapleFood` は従来どおり Food Ledger の穀物価格専用で対象外。
+- **取引**: `MerchantTradeCapital.availableCapital` / `lock` と
+  `allocateMarketProcurementBudgets` に同じ充足率から出した流動性係数を掛ける。
+  帳簿上の working capital は減らさず、新たにロックできる額と生産者買い付け現金だけを絞る。
+- **キャリブレーションを動かさない帯**: 充足率 0.5〜1.0(生成時 6ヶ月分〜造幣目標 12ヶ月分)は
+  乗数 1・流動性 1。レジャーが無い(テスト・Economy オフ・旧セーブの途中)ときも 1。
+  枯渇(0)で物価 0.85・流動性 0.4、過剰(24ヶ月分)で物価 1.15。流動性は不足側にしか効かない。
+- **定数の置き場**: `TARGET_MONTHS_OF_CURRENCY` / `INITIAL_MONTHS_OF_CURRENCY` は
+  `currencySufficiency.ts` に移し、`minting.ts` がそこから読む。造幣ロジック自体は変更していない。
+- **検証はユニットのみ。** `currencySufficiency.test.ts` が写像、
+  `markets-generator.test.ts` が空循環で物価が下がり過剰で上がること・6–12ヶ月帯と
+  stapleFood が不変なこと、`merchantTradeCapital.test.ts` と
+  `marketProcurementBudget.test.ts` が空循環で大口取引と生産者買い付けが絞られること。
+  実マップでの貴金属枯渇→長期デフレの観測は未実施。
+
+---
+
 ## L8. 道路網が交易量に対して外生。公共事業の財政費目が無い
 
 **現状**
@@ -1258,8 +1281,9 @@ L3 の実装時に判明した点:
 16. **L8 段階2** ✅ 実装済み(2026-09-05)。`publicWorks` 予算部門と街道の実行時昇格
     (`publicWorks.ts`。港湾工事・公共穀物倉も同予算。通行税との合流は未着手)
 17. **L2 Phase 2/3** ✅ 実装済み(2026-09-05)。家計財布の導入(人頭税・都市食料小売を創造から移転へ)
-18. **L7**: 貨幣供給の物価接続(**着手しない判断も妥当**。その場合は
-    `minting.ts` に「`circulation` は意図的に観測専用」と明記する)
+18. **L7** ✅ 実装済み(2026-09-05)。貨幣供給を物価水準(±15%)と商人流動性に接続
+    (`currencySufficiency.ts`。6–12ヶ月帯は乗数 1 で既存キャリブレーションを維持。
+    数量説そのものは入れていない)
 
 L2 Phase 2/3 の実装時に判明した点:
 

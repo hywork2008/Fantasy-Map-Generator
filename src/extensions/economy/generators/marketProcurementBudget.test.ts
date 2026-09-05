@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
-import type { Burg } from "../../hostTypes";
+import { afterEach, describe, expect, it } from "vitest";
+import { worldContext } from "../../hostCore";
+import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
+import { clearEconomyContext, initEconomyContext, setMintLedgers } from "../economyContext";
+import { MONEY_TRADE_CAPACITY_FLOOR } from "./currencySufficiency";
 import { allocateMarketProcurementBudgets } from "./marketProcurementBudget";
 import type { Market } from "./marketTypes";
 
 describe("allocateMarketProcurementBudgets", () => {
+  afterEach(() => clearEconomyContext());
+
   it("reserves shared Market cash by population before villages and cities are produced", () => {
     const market: Market = {
       i: 1,
@@ -33,5 +38,35 @@ describe("allocateMarketProcurementBudgets", () => {
     const budgets = allocateMarketProcurementBudgets([{ i: 1, market: 1, population: 1 } as Burg], [market]);
 
     expect(budgets.get(1)).toBe(25);
+  });
+
+  it("reduces producer-purchase cash when mint circulation is empty (L7)", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {
+      burgs: [{ i: 0 } as Burg, { i: 1, market: 1, population: 1, state: 1 } as Burg],
+      states: [{ i: 0 } as State, { i: 1 } as State]
+    } as unknown as PackedGraph;
+    setMintLedgers([
+      {
+        stateId: 1,
+        mintMarketId: 1,
+        currencyDemand: 10,
+        circulation: 0,
+        lastMintedValue: 0,
+        totalMintedValue: 0,
+        lastSeigniorage: 0
+      }
+    ]);
+    const market: Market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#000",
+      goods: {},
+      marketTreasury: { balance: 100, ruralGrainPayable: 0 }
+    };
+
+    const budgets = allocateMarketProcurementBudgets([{ i: 1, market: 1, population: 1, state: 1 } as Burg], [market]);
+
+    expect(budgets.get(1)).toBeCloseTo(100 * MONEY_TRADE_CAPACITY_FLOOR, 2);
   });
 });

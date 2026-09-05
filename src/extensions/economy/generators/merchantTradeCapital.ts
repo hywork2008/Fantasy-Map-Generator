@@ -7,6 +7,7 @@
 
 import { rn } from "../../hostUtils";
 import { getMarkets, getWorldContext } from "../economyContext";
+import { getMoneyTradeCapacityFactorForMarket } from "./currencySufficiency";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { Market, MarketTreasury } from "./marketTypes";
 
@@ -44,6 +45,17 @@ function normalizeTreasury(treasury: MarketTreasury): MarketTreasury {
   treasury.tradeWorkingCapital = Math.max(0, treasury.tradeWorkingCapital ?? 0);
   treasury.tradeCapitalLocked = Math.max(0, treasury.tradeCapitalLocked ?? 0);
   return treasury;
+}
+
+/**
+ * Working capital the mint will actually let this market deploy. Locked bookings stay;
+ * a coin shortage only blocks new locks. docs/plan/economy-coupling-audit.md L7.
+ */
+function spendableWorkingCapital(market: Market, treasury: MarketTreasury): number {
+  const working = treasury.tradeWorkingCapital ?? 0;
+  const locked = treasury.tradeCapitalLocked ?? 0;
+  const liquid = working * getMoneyTradeCapacityFactorForMarket(market);
+  return Math.max(0, liquid - locked);
 }
 
 export class MerchantTradeCapitalModule {
@@ -87,7 +99,7 @@ export class MerchantTradeCapitalModule {
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market) return 0;
     const treasury = this.ensureTradeCapital(market);
-    return Math.max(0, (treasury.tradeWorkingCapital ?? 0) - (treasury.tradeCapitalLocked ?? 0));
+    return spendableWorkingCapital(market, treasury);
   }
 
   /** Lock capital when booking export cargo. Returns false if insufficient. */
@@ -96,7 +108,7 @@ export class MerchantTradeCapitalModule {
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market) return false;
     const treasury = this.ensureTradeCapital(market);
-    const available = (treasury.tradeWorkingCapital ?? 0) - (treasury.tradeCapitalLocked ?? 0);
+    const available = spendableWorkingCapital(market, treasury);
     if (available + UNIT_EPSILON < amount) return false;
     treasury.tradeCapitalLocked = rn((treasury.tradeCapitalLocked ?? 0) + amount, 2);
     return true;

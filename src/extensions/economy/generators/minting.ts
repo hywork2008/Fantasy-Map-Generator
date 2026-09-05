@@ -1,5 +1,6 @@
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets, getMintLedgers, getWorldContext, setMintLedgers } from "../economyContext";
+import { INITIAL_MONTHS_OF_CURRENCY, TARGET_MONTHS_OF_CURRENCY } from "./currencySufficiency";
 import { Markets } from "./markets-generator";
 import type { MintLedger } from "./mintingTypes";
 
@@ -11,11 +12,13 @@ const METAL_COIN_VALUES = [
   ["copper ingot", 1]
 ] as const;
 const CIRCULATION_MONTHLY_RETENTION = 0.995;
-const TARGET_MONTHS_OF_CURRENCY = 12;
-const INITIAL_MONTHS_OF_CURRENCY = 6;
 const SEIGNIORAGE_RATE = 0.02;
 
-/** Converts Gold / Silver / Copper Ingot market stock into a state currency ledger. */
+/**
+ * Converts Gold / Silver / Copper Ingot market stock into a state currency ledger.
+ * `circulation` is the L7 money-supply input (`currencySufficiency.ts`); only seigniorage
+ * credits the fiscal treasury, so metal / coin / treasury are not the same wealth thrice.
+ */
 export class MintingModule {
   generate(): void {
     const priorByState = new Map(getMintLedgers().map(ledger => [ledger.stateId, ledger]));
