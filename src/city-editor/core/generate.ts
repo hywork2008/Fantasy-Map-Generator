@@ -108,8 +108,8 @@ export interface GenerationSettings {
   /**
    * Debug/tuning override for the ③ urban-core stage: cap its flood-fill to the
    * first N cells in ascending-cost fill order (TownGeneratorTS-style "first
-   * nPatches") instead of stopping at the radius. Unset = the normal radius
-   * cutoff. See docs/city-generator/towngen-comparison.md §2.1.
+   * nPatches") instead of the default `π R² / mean cell area` count. Unset =
+   * that area-derived count. See docs/city-generator/towngen-comparison.md §2.1.
    */
   urbanNPatches?: number;
   /** Phase G2 street-extension / sea-avoidance knobs. Unset = `defaultStreetSettings()`. */
@@ -562,8 +562,9 @@ function runPlan(
   if (stageStep < 3) return { ...empty, sea, coastPath, waterPolygon, rivers };
 
   // S3 — urban core. `params.urbanNPatches` (debug/tuning override) caps the
-  // fill to a fixed cell count instead of the radius; `urbanStages` records each
-  // admitted cell in fill order for `generateUrbanPatchStep`'s per-loop scrub.
+  // fill to a fixed cell count; unset derives N from π R² / mean cell area.
+  // `urbanStages` records each admitted cell in fill order for
+  // `generateUrbanPatchStep`'s per-loop scrub.
   const shoreTangent = coast ? shorelineTangentAt(coast.shoreline) : null;
   const urbanRadius = program.walls ? params.cityRadiusMeters * 0.92 : params.cityRadiusMeters;
   const urbanBearings = program.port && geo.coast ? [...geo.roadBearings, geo.coast.waterAzimuthDeg] : geo.roadBearings;

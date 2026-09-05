@@ -568,7 +568,8 @@ export function mountCityEditor(root: HTMLElement): void {
   const urbanNPatchesInput = numberInput("", "1", "1");
   urbanNPatchesInput.className = "ce-generate-npatches";
   urbanNPatchesInput.placeholder = "auto";
-  urbanNPatchesInput.title = "Cap ③'s flood-fill to the first N cells instead of the radius cutoff";
+  urbanNPatchesInput.title =
+    "Cap ③'s flood-fill to the first N cells instead of the auto count (city area / mean cell area)";
   urbanNPatchesInput.addEventListener("change", () => {
     const raw = urbanNPatchesInput.value.trim();
     if (raw === "") {
@@ -660,7 +661,7 @@ export function mountCityEditor(root: HTMLElement): void {
     ),
     stageButtons,
     divider(),
-    label("③ nPatches (blank = radius cutoff)", urbanNPatchesInput),
+    label("③ nPatches (blank = auto)", urbanNPatchesInput),
     toggleLabel("Avoid sea", avoidSeaInput),
     label("Street far end", farNodeSelect),
     bearingsLabel,

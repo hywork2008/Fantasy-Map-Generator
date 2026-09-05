@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createSizedDocument } from "./document";
+import { createGridDocument, createSizedDocument } from "./document";
 import { featureGroupVertices } from "./features";
+import { polygonArea } from "./gen/geom";
 import {
   defaultGenerationSettings,
   GENERATION_STAGES,
@@ -16,7 +17,7 @@ import {
   riversForCount,
   type SiteConfig
 } from "./generate";
-import { edgeBetween, incidentEdges, validate } from "./mesh";
+import { edgeBetween, facePoints, incidentEdges, validate } from "./mesh";
 import type { CityDocument, FeatureGroup } from "./types";
 
 const S = { coast: 1, river: 2, urban: 3, walls: 4, streets: 5, wards: 6 } as const;
@@ -322,7 +323,7 @@ describe("GenerationSettings.urbanNPatches — the ③ count-cutoff override", (
     expect(generateUrbanPatchStep(base, capped, "ce-npatches", 0).total).toBe(8);
   });
 
-  it("is unset by default; setting it shrinks the total relative to the radius cutoff", () => {
+  it("is unset by default; setting it shrinks the total relative to the auto count", () => {
     const withCap = generateUrbanPatchStep(base, { ...scenario, urbanNPatches: 6 }, "ce-npatches-2", 0).total;
     const uncapped = generateUrbanPatchStep(base, scenario, "ce-npatches-2", 0).total;
     expect(withCap).toBe(6);
@@ -334,6 +335,49 @@ describe("GenerationSettings.urbanNPatches — the ③ count-cutoff override", (
     const uncappedOut = generateStageOnDocument(base, scenario, "ce-npatches-3", 3) as CityDocument;
     const cappedOut = generateStageOnDocument(base, capped, "ce-npatches-3", 3) as CityDocument;
     expect(buildableLandFaceIds(cappedOut).size).toBeLessThan(buildableLandFaceIds(uncappedOut).size);
+  });
+});
+
+describe("③ auto core area is grid-agnostic (π R² / mean cell area)", () => {
+  const scenario = SCENARIOS["landlocked, one river, walls + citadel"];
+  const seed = "ce-urban-area";
+
+  const builtArea = (document: CityDocument): number =>
+    Object.values(document.mesh.faces)
+      .filter(face => face.properties.water === "land" && face.properties.buildable)
+      .reduce((sum, face) => sum + Math.abs(polygonArea(facePoints(document.mesh, face))), 0);
+
+  it("hex 50 m and Voronoi Small towns cover a similar built-up area", () => {
+    const hex = createGridDocument({ size: "small", grid: "hex", hexSizeMeters: 50, seed });
+    const voronoi = createGridDocument({ size: "small", grid: "voronoi", seed });
+    const hexOut = generateStageOnDocument(hex, scenario, seed, 3) as CityDocument;
+    const voronoiOut = generateStageOnDocument(voronoi, scenario, seed, 3) as CityDocument;
+    const hexArea = builtArea(hexOut);
+    const voronoiArea = builtArea(voronoiOut);
+    expect(hexArea).toBeGreaterThan(0);
+    expect(voronoiArea).toBeGreaterThan(0);
+    expect(hexArea / voronoiArea).toBeGreaterThan(0.7);
+    expect(hexArea / voronoiArea).toBeLessThan(1.4);
+  });
+
+  it("hex 50 m walls stay inside the Small frame", () => {
+    const hex = createGridDocument({ size: "small", grid: "hex", hexSizeMeters: 50, seed });
+    const out = generateStageOnDocument(hex, scenario, seed, 4) as CityDocument;
+    const half = out.frame.extentMeters / 2;
+    const walls = out.featureGroups.filter(group => group.kind === "wall");
+    expect(walls.length).toBeGreaterThan(0);
+    let maxAbs = 0;
+    for (const group of walls) {
+      if (group.kind !== "wall") continue;
+      for (const segment of group.segments) {
+        const edge = out.mesh.edges[segment.edgeId];
+        for (const id of [edge.a, edge.b]) {
+          const [x, y] = out.mesh.vertices[id].point;
+          maxAbs = Math.max(maxAbs, Math.abs(x), Math.abs(y));
+        }
+      }
+    }
+    expect(maxAbs).toBeLessThan(half * 0.9);
   });
 });
 

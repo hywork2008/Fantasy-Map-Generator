@@ -21,9 +21,9 @@ export interface CityParams {
   /**
    * Debug/tuning override for S3's urban-core growth (`classifyUrban`): cap the
    * flood-fill to the first N cells in ascending-cost fill order — the
-   * TownGeneratorTS "first nPatches" approach — instead of stopping at
-   * `cityRadiusMeters`. Unset = the existing radius cutoff (default, unchanged
-   * behaviour). See docs/city-generator/towngen-comparison.md §2.1 (A-1).
+   * TownGeneratorTS "first nPatches" approach — instead of the default
+   * `π R² / mean cell area` count. Unset = that area-derived count.
+   * See docs/city-generator/towngen-comparison.md §2.1 (A-1).
    */
   urbanNPatches?: number;
 }

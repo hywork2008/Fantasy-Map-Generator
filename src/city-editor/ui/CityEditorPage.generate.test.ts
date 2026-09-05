@@ -195,7 +195,7 @@ describe("③ urban-core patch tuning (towngen-comparison.md §2.1)", () => {
     expect(count(".ce-face--urban-step")).toBe(0);
   });
 
-  it("nPatches caps ③'s tinted core to fewer cells than the radius cutoff", () => {
+  it("nPatches caps ③'s tinted core to fewer cells than the auto count", () => {
     let uncapped = 0;
     for (let i = 0; i < 12 && uncapped < 8; i++) {
       if (i > 0) panelButton("新しい都市").click();
@@ -209,7 +209,7 @@ describe("③ urban-core patch tuning (towngen-comparison.md §2.1)", () => {
     expect(count(".ce-face--urban-step")).toBeLessThan(uncapped);
     expect(count(".ce-face--urban-step")).toBeGreaterThan(0);
 
-    // Clearing the field falls back to the (larger) radius-based core.
+    // Clearing the field falls back to the (larger) area-derived auto count.
     setInputValue(nPatchesInput(), "");
     stageButton("③").click();
     expect(count(".ce-face--urban-step")).toBe(uncapped);

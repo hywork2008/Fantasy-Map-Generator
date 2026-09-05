@@ -1,11 +1,13 @@
 // S3 — urban core. Flood-fill the built-up area outward from the town centre over
-// eligible cells (land, on the main bank), bounded by the city radius but
-// pulled toward gate bearings so the fabric reaches the roads. On a coast the
-// bound is an ELLIPSE elongated along the shoreline — a coastal city is a ribbon
-// along the shore, not a disc. A thin `outskirts` ribbon follows each road.
+// eligible cells (land, on the main bank). The default stop is a cell COUNT
+// derived from the intended city disc: N = π R² / mean cell area, so hex and
+// Voronoi meshes of different cell size cover the same urban area. Pulled
+// toward gate bearings so the fabric reaches the roads. On a coast the cost is
+// an ELLIPSE elongated along the shoreline — a coastal city is a ribbon along
+// the shore, not a disc. A thin `outskirts` ribbon follows each road.
 // See docs/city-generator/design.md §4.2.
 
-import { azimuthDelta, vecToAzimuth } from "./geom";
+import { azimuthDelta, polygonArea, vecToAzimuth } from "./geom";
 import type { Cell, Point, UrbanStage } from "./types";
 
 export interface UrbanContext {
@@ -43,11 +45,12 @@ export function classifyUrban(
    * under a radius threshold — a defined-size "15 fat patches" core reads as a
    * stable, deliberate town outline; a radius boundary lets the fill fray into
    * the fine cells right at its edge. Unset (the default) derives N from the
-   * disc a city of this radius would cover at this grid's cell size,
-   * `π·(R/cellSize)²` (TownGen's 15 for its own reference scale); pass an
+   * disc a city of this radius would cover given this mesh's mean cell area,
+   * `π·R² / meanArea` (TownGen's 15 for its own reference scale); pass an
    * explicit count to override it (the ③ debug stepper's nPatches field).
    */
   nPatches: number | null = null,
+  /** Fallback when every cell polygon is degenerate; otherwise ignored. */
   cellSizeMeters = cityRadiusMeters / 3.5
 ): UrbanClassification {
   const urban = new Set<number>();
@@ -76,7 +79,7 @@ export function classifyUrban(
   const center = cells.filter(eligible).sort((a, b) => reach(a) - reach(b))[0];
   if (!center) return { urban, outskirts, stages };
 
-  const targetN = nPatches ?? Math.max(1, Math.round(Math.PI * (cityRadiusMeters / Math.max(1, cellSizeMeters)) ** 2));
+  const targetN = nPatches ?? autoPatchCount(cells, cityRadiusMeters, cellSizeMeters);
   const frontier: Cell[] = [center];
   const seen = new Set<number>([center.id]);
   while (frontier.length > 0 && urban.size < targetN) {
@@ -101,4 +104,24 @@ export function classifyUrban(
   }
 
   return { urban, outskirts, stages };
+}
+
+/** How many cells fill a disc of radius `cityRadiusMeters` on this mesh. */
+function autoPatchCount(cells: Cell[], cityRadiusMeters: number, cellSizeMeters: number): number {
+  const meanArea = meanCellArea(cells);
+  const cellArea = meanArea > 0 ? meanArea : Math.max(1, cellSizeMeters) ** 2;
+  return Math.max(1, Math.round((Math.PI * cityRadiusMeters * cityRadiusMeters) / cellArea));
+}
+
+function meanCellArea(cells: Cell[]): number {
+  let sum = 0;
+  let n = 0;
+  for (const cell of cells) {
+    if (cell.polygon.length < 3) continue;
+    const area = Math.abs(polygonArea(cell.polygon));
+    if (!(area > 0) || !Number.isFinite(area)) continue;
+    sum += area;
+    n++;
+  }
+  return n > 0 ? sum / n : 0;
 }
