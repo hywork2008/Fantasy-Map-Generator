@@ -32,6 +32,17 @@ i18n（en/ja）を拡張した。`tsc`/`biome`/lint/`madge`/`build`/ユニット
 新規E2E`tests/e2e/fast-advance-settings.spec.ts`すべてgreen。新しい数値ロジックは足していない（UI配線のみ）ため
 Phase 1のようなライブ限定バグは無し。詳細は§9.7。
 
+**Phase 3（周辺システム依存監査＋§9.4国庫合成問題の是正）完了（2026-09-06、ユーザー指示）。** §9.4の是正方針は
+ユーザー選択により「系統的な流出を停止」を採用——Fast-Forward中に実計算のまま残る年次システム群のうち、
+`state.treasury`/`burg.treasury`を直接減らす**系統的な支出**（`chemMedCommon.debitTreasury()`を共有する
+約20の化学/医療/土木インフラ施設モジュール＋`StateSecretKnowledge`＋`GreatLibrary`）の**treasury書き込みだけ**を
+Fast-Forward中スキップし、非treasuryの処理（技術・知識の進捗、施設の建設/稼働状態）とRNG消費は一切変更しない
+機構を新設した（`fastAdvanceEconomyGuard.ts`のtick単位フラグ）。ライブA/B実測（同一シード、実5年ウォームアップ後の
+1年）で、実Advance Yearの国庫比 0.565 に対しFast-Forward「標準」は **0.832**（Phase 3前は実の二重ドレインで
+約0.49相当に沈んでいた）——プリセットの-13%近傍に整合。§2.3の`MetallurgWork.*`はFast-Forward中そもそも
+呼ばれない（`production.settle`パスごとスキップ済み）ことを確認、§9.2.2の`Production.produce()`依存も網羅監査した
+（詳細は§9.8）。
+
 `docs/plan/advance-time-loop-reduction.md` §3 Phase 3 が「本当に1コールで月/年を進めたい要望が別途強くあるなら」
 の条件付きで留保していた「明示的な Fast-Forward 専用パス」を、ユーザーからの明確な要望を受けて具体化するもの。
 本書はその Phase 3 を置き換える——ただし後述 §3.4 の理由により、Phase 3 が前提としていた「既存ボタンとは
@@ -612,7 +623,7 @@ export function resolveFastAdvanceRates(): FastAdvanceRates {
 | **（派生）経済バランス是正「案A」** | ✅ **完了（2026-09-06）**。`docs/plan/treasury-structural-deficit-investigation.md`として調査・実装。国庫赤字を平均-42.5%/yr→-19.0%/yr（中央値-12.9%/yr）まで改善。**「案B」は実装しないことに決定（2026-09-06）** ——Aのみ適用後の値を「標準」プリセットとして確定した |
 | **Phase 1** | ✅ **実装完了（2026-09-06）**。詳細は§9.5 |
 | **Phase 2** | ✅ **実装完了（2026-09-06）**。`FastAdvanceSettingsDialog.tsx`（プリセットラジオ＋詳細スライダー）・i18n拡張・`AdvanceTimeDialog.tsx`への⚙導線（§6）。詳細は§9.7 |
-| **Phase 3** | §2.3の周辺システム依存監査（`MetallurgWork.*`等）を個別に確認し、必要ならスキップ/ダミー化を追加。加えて§9.2.2の`Production.produce()`依存の網羅監査・§9.4の国庫合成問題の是正 |
+| **Phase 3** | ✅ **実装完了（2026-09-06）**。§9.4の国庫合成問題を「系統的な流出を停止」方針で是正（`fastAdvanceEconomyGuard.ts`＋`chemMedCommon.debitTreasury`/`StateSecretKnowledge`/`GreatLibrary`のFF時treasuryスキップ）。§2.3/§9.2.2の依存監査も実施。詳細は§9.8 |
 | **Phase 4（任意）** | manpower成長率・discontentドリフト・technology進行倍率など追加レバー。v1スコープ外（§10） |
 
 ## 9. 検証計画・Phase 1実装記録
@@ -748,8 +759,9 @@ Phase 1は実装完了。設計通りに動くことをユニットテスト・t
    §9.3）。
 2. **決定性テスト**: 同一シード・同一プリセットでの2回実行比較は`fastAdvancePopulation.test.ts`/
    `fastAdvanceEconomy.test.ts`内のユニットレベルでは確認済み。実ブラウザでのend-to-end決定性確認は未実施。
-3. **§9.4の国庫合成問題の是正**（Phase 3）。
-4. **§9.2.2で見つかった「produce()依存」リスクの網羅監査**（Phase 3、§2.2の残り約18システム）。
+3. ~~**§9.4の国庫合成問題の是正**（Phase 3）。~~ **完了（2026-09-06、§9.8.1）。**
+4. ~~**§9.2.2で見つかった「produce()依存」リスクの網羅監査**（Phase 3、§2.2の残り約18システム）。~~
+   **完了（2026-09-06、§9.8.3）。** 追加ガードが必要な新規事例は無し（`urbanWaterSystem`等は許容範囲の凍結ドリフト）。
 
 ### 9.7 Phase 2実装記録（2026-09-06）
 
@@ -778,6 +790,77 @@ UI配線のみのため）。
 **未対応（意図的にv1スコープ外）**: `stockFloorMultiplier`/`stockCapMultiplier`の詳細スライダー（§5.1で
 「詳細設定のみ」とされていたが§6.2ワイヤーフレームに無い）。必要になれば別途追加。
 
+### 9.8 Phase 3実装記録（2026-09-06）
+
+#### 9.8.1 §9.4の是正 — 「系統的な流出を停止」
+
+ユーザー選択（`AskUserQuestion`、2026-09-06）で3案（絶対軌道で上書き / 系統的な流出を停止 / プリセットの意味を
+再校正）のうち **「系統的な流出を停止」** を採用した。実装:
+
+| ファイル | 内容 |
+| :--- | :--- |
+| `src/extensions/economy/generators/fastAdvanceEconomyGuard.ts` | 新規。`setFastForwardTickActive(bool)` / `isFastForwardTickActive()` のtick単位モジュールフラグ。economy tickの実行中かつそのtickがFast-Forward対象バッチの一部である間だけ`true`。 |
+| `src/extensions/economy/index.tsx`（`registerEconomyTickSystem`のラッパ） | 各economy tickの`run()`呼び出しを`setFastForwardTickActive(isFastAdvanceActive(context.isBulkAdvance))` → `try { run } finally { setFastForwardTickActive(false) }`で囲む。`context`（＝`isBulkAdvance`）を持つ唯一の共通地点。 |
+| `src/extensions/economy/generators/chemMedCommon.ts`（`debitTreasury()`） | Fast-Forward tick中は`state.treasury`に触れず`true`を返す（＝「支払い済み」扱い）。この共有ヘルパーを使う約20モジュール（`dams`・`levees`・`acidPlants`・`hospitalInstallations`・`experimentalWorkshops`・`apothecaryWorkshops`ほか——treasury-deficit調査「案A」適用後で残存ドレインの約68%）を一括で処理する。返り値`true`により施設は建設/稼働を継続（非treasuryの処理はそのまま走る）。 |
+| `src/extensions/economy/generators/stateSecretKnowledge.ts:70` | `spend`/`coverage`/在庫EWMAの計算はプリセット駆動のtreasuryを読んだまま（＝pyrotechnics知識は進み続ける）、`state.treasury -= spend`の一行だけをFF時スキップ。§2診断で非chemMed最大の系統ドレイン（-89/yr相当）。 |
+| `src/extensions/economy/generators/greatLibrary.ts:378,457` | 同上パターン。建設進捗（`settleBuilding`）と維持基金（`settleCompleted`）の`coverage`計算は不変、`state.treasury -= spend`の2行だけをFF時スキップ。 |
+
+**新規テスト**: `fastAdvanceEconomyGuard.test.ts`（4件：フラグの往復、`debitTreasury`の通常時/FF時挙動、FF時でも
+不正stateや非正amountは拒否）。`stateSecretKnowledge.test.ts`・`greatLibrary.test.ts`に各1件（FF時は在庫/進捗は
+伸びるがtreasuryは減らないことをアサート）。
+
+**RNG決定性**: どのガードも`isFastForwardTickActive()`のみで分岐（プリセット非依存）し、**RNG消費行は一切
+削っていない**（`state.treasury = …`の代入だけをスキップ）。したがってFF-ONの決定性（同一シード+プリセット）は
+保たれ、RNGストリームは「FFパスからtreasury代入だけ抜いたもの」とバイト一致する。
+
+**ライブA/B実測**（`tests/e2e/fast-advance-phase3.spec.ts`、seed=`fast-advance-phase3`、実5年ウォームアップ後の
+1 Advance Year）:
+
+| | 国庫比（後/前） | 年率換算 |
+| :--- | ---: | ---: |
+| 実Advance Year（FF-OFF） | 0.565 | 約-43.5%/yr（このシードは§5.3.2レンジの急な側） |
+| Fast-Forward「標準」（FF-ON、Phase 3後） | **0.832** | 約-16.8%/yr（プリセット-13%＋シード固有傾向＋ジッター） |
+| （参考）Phase 3前のFF-ON推定 | ≈0.49 | 実ドレインがプリセットに複利で乗る二重計上 |
+
+#### 9.8.2 §2.3（`MetallurgWork.*`）の監査結果 — 対応不要
+
+`MetallurgWork.fulfillFromMarkets()` / `.settleMonthly()` / `requestMetallurgMaterials()` / `.refreshMaterialForecasts()`
+は全て`production.settle`コマンド（[index.tsx](../../src/extensions/economy/index.tsx)）の中だけで呼ばれており、
+Fast-Forward時は`production.settleFastForward`が代わりに走って`production.settle`自体を一切実行しない
+（§4.3(b)）。したがって**Fast-Forward中`MetallurgWork.*`はそもそも動かず、スタブ化/スキップの追加は不要**。
+
+#### 9.8.3 §9.2.2（`Production.produce()`依存）の網羅監査結果
+
+Fast-Forward中も実計算のまま走る系統（§2.2）について、`Production.produce()`が毎月更新する出力
+（`getBurgProductionRecords()` / `ProductionRecord` / craft・employment記録 / `burg.product`）への依存を洗い出した。
+
+| 依存箇所 | 状況 | 対応 |
+| :--- | :--- | :--- |
+| `economy:annualUrbanLabor`（`UrbanLaborIntake.updateAnnualState`） | burg間の人口再配分を古いcraft/employment記録で駆動 → Phase 1のライブ確認で人口暴走の副次要因 | **Phase 1でガード済み**（`isFastAdvanceActive`で`updateAnnualState`ごとスキップ、`reconcileAnnualBasicEmploymentWorkers`/`ConstructionOperations.constrainEffectiveCapacity`も`urbanMobility`がnullで自動スキップ） |
+| `urbanWaterSystem.ts`（`workshopIntensity`、`UrbanWater.settleAnnual`経由） | `getBurgProductionRecords(burg)`で工房稼働度を見積もり`burg.sanitation` civic scoreへ | **許容**。記録が凍結されても`burg.sanitation`が横ばいになるだけで複利的な暴走要因は無い。空配列時は`burg.product`フォールバックがあり破綻しない。近似モードの明示された制限（§3.2）の範囲内 |
+| `economyTotals.ts` / `economyApi.getProductionTable()` | Overview系ダイアログ・Balance Snapshotが読む集計 | **許容**。Fast-Forward区間の生産内訳が凍結値で表示されるが、これは「近似モード」としてUI警告済み（§6.2 warning）。treasury/stock/populationの集計はフェイク値が正しく反映される |
+| `civilAdministration` / `revenueMix` / `fiscalEvents` / `legitimacyWar` | いずれも`Taxes.collectTaxes()`の内部でのみ呼ばれる | **Fast-Forward中は不活性**（`production.settle`パスごとスキップ）。追加対応不要 |
+| `minting`（seigniorage収入）/ `smelterOperations`（upkeep）/ production-generator内のwage・market debit | `Production.produce()`の内部 | **Fast-Forward中は不活性**。追加対応不要 |
+| `reconcileAnnualBasicEmploymentWorkers()` | craft/employment記録を消費 | `annualUrbanLabor`で`urbanMobility`がnullの時（＝FF時）呼ばれない。追加対応不要 |
+
+**意図的に実計算のまま残したtreasury書き込み**（系統的ドレインではない、あるいは净额ゼロの内部振替）:
+`foreignDebt` / `bondMarket` / `publicDebtActions` / `creditPool` / `foreignDebtDiplomacy` / `tradeSanctions`（既存
+債務の利払い・償還——過去の借入という現実の債務であり止めるべきでない）、`playerCommerce`（プレイヤー操作の
+売上税）、`escortHire`（護衛契約のエスクロー）、`guildTreasury` / `treasuryAllocation` / `domainFiscalPolicy` /
+`urbanWaterSystem`（burg↔state/部局間の内部再配分——净额ほぼゼロ、§2診断でも非表示レベル）、
+`strategicProcurement`（財の購入と在庫移動が連動した取引で純粋なドレインではない）、`agTechInvestment`（§2診断
+-1.6/3yr＝ノイズ、主支出は`marketTreasury.balance`で`state.treasury`ではない）、`climateDisasters`の救援支出
+（§2診断-8/3yr＝ノイズ、旱魃severityのロールは維持すべき）、`wildernessEcology`（core側、州のモンスター狩り
+補助——§2.2で「実計算のまま」と明記、-27/yr程度）。
+
+#### 9.8.4 残る既知の限界
+
+- `chemMedCommon.debitTreasury`のFF no-opは**新設debitも**スキップするため、Fast-Forward中は施設が実質無料で
+  建設される。長期Fast-Forwardで施設数が「本来より多い」状態になりうるが、treasury/stockはプリセットが支配する
+  ため経済指標には波及しない。復帰後の実計算で維持費（案A後のレート）が課され始める。
+- 非chemMedの小規模ドレイン（`wildernessEcology` -27/yr、`portDevelopment` -10/yr等）は止めていない。§2診断で
+  「6.9% / ほぼ均衡」に含まれる水準で、プリセット-13%に対する誤差としては小さい。
+
 ## 10. オープンクエスチョン
 
 - 在庫/価格を全Good一律倍率で動かす設計（§2.3）でよいか、Good種別（食料/資源/製品）ごとに別レートを持たせる
@@ -796,15 +879,16 @@ UI配線のみのため）。
   （§5.2）。
 - Collapse〜Boomの5プリセットのうち「標準」以外は未実測の相対見積もりのまま（§5.2）——実際にプレイして
   違和感がないか、Phase 2実装後にプレイテストで検証する必要がある。
-- **（Phase 1実装のライブ確認で新規発見、§9.4）** Fast-Forward中も実計算のまま残す§2.2のシステム群
-  （`AgTechInvestment`・`civilAdministration`・`stateSecretKnowledge`・ダム/堤防等のrenewal debit・
-  `fiscalEvents`等）が、Fast-Forwardの`treasuryGrowthPctPerYear`と並行して`state.treasury`/`burg.treasury`を
-  直接書き換え続けるため、プリセットの国庫成長率が字面通りの結果を生まない（Boom実測でほぼ相殺、§9.3/§9.4）。
-  Phase 3で是正方針を決める必要がある。
-- **（Phase 1実装のライブ確認で新規発見、§9.2.2）** `Production.produce()`をスキップすることで、それに依存する
-  §2.2の「対象外」システム（`economy:annualUrbanLabor`は確認・ガード済み、残り約18システムは未監査）が古い
-  データを参照し続けるリスクが実証された。§2.3が予期していたリスクだが、実際に重大な副作用（人口暴走の
-  副次的疑い要因）を伴う具体例が見つかったのはPhase 1実装時が初めて。Phase 3で網羅監査が必要。
+- ~~**（Phase 1実装のライブ確認で新規発見、§9.4）** Fast-Forward中も実計算のまま残す§2.2のシステム群が
+  Fast-Forwardの`treasuryGrowthPctPerYear`と並行して`state.treasury`/`burg.treasury`を直接書き換え続けるため、
+  プリセットの国庫成長率が字面通りの結果を生まない。~~ **Phase 3で是正（2026-09-06、§9.8.1）。** ユーザー選択
+  「系統的な流出を停止」方針で、`debitTreasury`家族＋`StateSecretKnowledge`＋`GreatLibrary`のFF時treasury書き込みを
+  スキップ。ライブ実測でFF「標準」の国庫比が0.832（プリセット-13%近傍）に整合。
+- ~~**（Phase 1実装のライブ確認で新規発見、§9.2.2）** `Production.produce()`をスキップすることで、それに依存する
+  §2.2の「対象外」システムが古いデータを参照し続けるリスク。~~ **Phase 3で網羅監査（2026-09-06、§9.8.3）。**
+  `annualUrbanLabor`（Phase 1でガード済み）以外に追加ガードが必要な事例は無し——`urbanWaterSystem.workshopIntensity`
+  等の凍結ドリフトは`burg.sanitation`等の civic score を横ばいにするだけで複利的暴走は無く、近似モードの
+  明示された制限の範囲内。`MetallurgWork.*`・`civilAdministration`・`minting`等はFF中そもそも不活性。
 
 ## 11. 次のアクション
 
@@ -833,7 +917,13 @@ UI配線のみのため）。
    進むか、それより先にPhase 3（§9.4/§9.2.2の是正）を優先するか、あるいはここで一区切りとするかを確認する。~~
    **Phase 2実装完了（2026-09-06、ユーザー指示）** ——詳細は§9.7。`tsc`/`biome`/lint/`madge`/`build`/ユニット
    スイート（3718件）/i18nキー一致テスト、および新規E2E`tests/e2e/fast-advance-settings.spec.ts`すべてgreen。
-6. **未着手・要ユーザー判断**: Phase 3（§2.3の周辺システム依存監査＋§9.2.2の`Production.produce()`依存の
-   網羅監査＋§9.4の国庫合成問題の是正）に進むか、あるいはここで一区切りとするか。加えて§9.6の残タスク
-   （バルク経路での短縮率実測、実ブラウザでのend-to-end決定性確認）と、§10の未決事項（Collapse〜Boomの
-   非「標準」プリセットのプレイテスト検証、Good種別ごとのレート分岐、都市化ドリフト）。
+6. ~~**未着手・要ユーザー判断**: Phase 3（§2.3の周辺システム依存監査＋§9.2.2の`Production.produce()`依存の
+   網羅監査＋§9.4の国庫合成問題の是正）に進むか、あるいはここで一区切りとするか。~~ **Phase 3実装完了
+   （2026-09-06、ユーザー指示。§9.4の方針は`AskUserQuestion`で「系統的な流出を停止」を選択）** ——詳細は§9.8。
+   `tsc`/`biome`/`lint:legacy`/`madge`/`build`/ユニットスイート（3730件、448ファイル）green、新規E2E
+   `tests/e2e/fast-advance-phase3.spec.ts`（実5年ウォームアップ後の実 vs FF「標準」A/B）もgreen——FF「標準」の
+   国庫比0.832がプリセット-13%近傍に整合することをライブ確認。
+7. **未着手・要ユーザー判断**: ここで一区切りとするか、さらに§9.6の残タスク（バルク経路`npm run perf:advance-year`
+   でのFF ON/OFF短縮率実測、実ブラウザでのend-to-end決定性確認）や§10の未決事項（Collapse〜Boomの非「標準」
+   プリセットのプレイテスト検証、Good種別ごとのレート分岐、都市化ドリフト、セーブ来歴、`isBulkAdvance`のみの
+   ゲートで十分かの判断）に進むか。

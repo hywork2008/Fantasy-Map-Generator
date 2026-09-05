@@ -6,6 +6,7 @@
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets, getWorldContext } from "../economyContext";
 import type { ChemistryFailureReason } from "./chemistryTypes";
+import { isFastForwardTickActive } from "./fastAdvanceEconomyGuard";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 
@@ -166,6 +167,15 @@ export function addNamedStock(marketId: number, name: string, amount: number): n
 export function debitTreasury(stateId: number, amount: number): boolean {
   const state = getWorldContext().pack.states?.[stateId];
   if (!state?.i || state.removed || amount <= 0) return false;
+  // Fast-Forward (docs/plan/advance-time-fast-forward.md §9.4 / Phase 3): every founding/renewal
+  // debit through this shared helper — the ~20 chemistry/medicine/civil-infrastructure facility
+  // modules, ~68% of the residual State treasury decline after the treasury-deficit "fix A" — is
+  // reported as paid without touching state.treasury. applyFastForwardEconomySettlement() moves
+  // treasury by the flat preset rate instead; letting these keep debiting on top of it was the
+  // dominant cause of Fast-Forward's treasury trajectory not matching the chosen preset (§9.4).
+  // Returning true keeps facilities founded/active (their non-treasury work still runs), which is
+  // the intended approximation for a smooth multi-decade fast-forward.
+  if (isFastForwardTickActive()) return true;
   if ((state.treasury ?? 0) < amount) return false;
   state.treasury = rn((state.treasury ?? 0) - amount, 2);
   return true;

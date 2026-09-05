@@ -7,6 +7,7 @@ import {
   initEconomyContext,
   setMilitaryResourceLedgers
 } from "../economyContext";
+import { setFastForwardTickActive } from "./fastAdvanceEconomyGuard";
 import {
   getStateSecretMaterialMultiplier,
   STATE_SECRET_TARGET_ANNUAL_SPEND,
@@ -51,6 +52,22 @@ describe("StateSecretKnowledgeModule", () => {
 
     // Treasury is large (1000), so the 5% budget share exceeds the target — spend caps at the target.
     expect(worldContext.pack.states[1].treasury).toBe(1000 - STATE_SECRET_TARGET_ANNUAL_SPEND);
+  });
+
+  it("under Fast-Forward, still grows the stock but leaves treasury to the preset rate", () => {
+    setMilitaryResourceLedgers([ledger()]);
+    setFastForwardTickActive(true);
+    try {
+      StateSecretKnowledge.settleAnnual();
+    } finally {
+      setFastForwardTickActive(false);
+    }
+
+    // Coverage math is unchanged (stock still advances) — only the treasury debit is suppressed
+    // so applyFastForwardEconomySettlement()'s preset trajectory isn't drained on top (§9.4).
+    expect(worldContext.pack.states[1].treasury).toBe(1000);
+    const stock = getStateSecretStocks().find(entry => entry.stateId === 1 && entry.domain === "pyrotechnics");
+    expect(stock?.stock).toBeGreaterThan(0);
   });
 
   it("does not spend or grow the stock for a state with no active gunpowder demand", () => {

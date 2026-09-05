@@ -18,6 +18,7 @@ import {
   setGreatLibraryProjects,
   settleAnnualOnce
 } from "../economyContext";
+import { isFastForwardTickActive } from "./fastAdvanceEconomyGuard";
 import {
   checkGreatLibraryEligibility,
   checkGreatLibraryMaintain,
@@ -375,7 +376,10 @@ export class GreatLibraryModule {
 
     const availableTreasury = Math.max(0, state.treasury ?? 0);
     const spend = rn(Math.min(availableTreasury * GREAT_LIBRARY_BUDGET_SHARE, GREAT_LIBRARY_TARGET_ANNUAL_SPEND), 2);
-    state.treasury = rn(Math.max(0, availableTreasury - spend), 2);
+    // Fast-Forward (docs/plan/advance-time-fast-forward.md §9.4 / Phase 3): keep spend/coverage
+    // scaling with the preset-driven treasury (the project keeps building) but leave the treasury
+    // balance to applyFastForwardEconomySettlement()'s preset rate.
+    if (!isFastForwardTickActive()) state.treasury = rn(Math.max(0, availableTreasury - spend), 2);
 
     const coverage = spend / GREAT_LIBRARY_TARGET_ANNUAL_SPEND;
     const wartimeFactor = isStateInActiveConflict(state.i) ? GREAT_LIBRARY_WARTIME_PROGRESS_FACTOR : 1;
@@ -454,7 +458,9 @@ export class GreatLibraryModule {
     const spendCap = rn(GREAT_LIBRARY_TARGET_ANNUAL_SPEND * GREAT_LIBRARY_ENDOWMENT_MAINTAIN_SPEND_FACTOR, 2);
     const availableTreasury = Math.max(0, state.treasury ?? 0);
     const spend = Math.min(availableTreasury, spendCap);
-    if (spend > 0) state.treasury = rn(availableTreasury - spend, 2);
+    // Fast-Forward: see the matching guard in settleBuilding() above — endowment coverage still
+    // tracks the preset-driven treasury, the balance itself is the preset's to move.
+    if (spend > 0 && !isFastForwardTickActive()) state.treasury = rn(availableTreasury - spend, 2);
 
     // Same EWMA shape as Academy/StateSecret's investment-driven stocks: coverage=1 (full upkeep
     // funded) nudges endowment toward 1, coverage=0 (treasury can't afford it) decays it toward 0.

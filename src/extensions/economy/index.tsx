@@ -92,6 +92,7 @@ import { clearEscortHireState, rebuildEscortJobPostings, tickEscortJobBoard } fr
 import { ExperimentalWorkshops } from "./generators/experimentalWorkshops";
 import { ExportStaging } from "./generators/exportStaging";
 import { applyFastForwardEconomySettlement } from "./generators/fastAdvanceEconomy";
+import { setFastForwardTickActive } from "./generators/fastAdvanceEconomyGuard";
 import {
   clearFaunaPopulation,
   recordQuarterlyNonFoodDemand,
@@ -3031,7 +3032,18 @@ export function init(api: ExtensionAPI): void {
         profileLabel: id.replace("economy.", "economy:"),
         run: (context, writer) => {
           if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-          run(context, writer);
+          // Fast-Forward (docs/plan/advance-time-fast-forward.md §9.4 / Phase 3): while this tick
+          // runs as part of an active Fast-Forward bulk advance, the systematic annual treasury
+          // spenders inside it (chemMedCommon.debitTreasury() family, StateSecretKnowledge,
+          // GreatLibrary) skip only their treasury mutation — applyFastForwardEconomySettlement()
+          // owns the treasury trajectory in that mode. Reset in finally so a throwing system can't
+          // leave the flag stuck on for the next (non-Fast-Forward) tick.
+          setFastForwardTickActive(isFastAdvanceActive(context.isBulkAdvance));
+          try {
+            run(context, writer);
+          } finally {
+            setFastForwardTickActive(false);
+          }
           // Compatibility mutations are still direct. Preserve the previous per-tick
           // Economy/State invalidation, but only for a system that declares that topic.
           const compatibilityWrites = topics.writes.filter(

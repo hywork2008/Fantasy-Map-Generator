@@ -10,6 +10,7 @@ import {
   initEconomyContext,
   setGreatLibraryProjects
 } from "../economyContext";
+import { setFastForwardTickActive } from "./fastAdvanceEconomyGuard";
 import { GreatLibrary } from "./greatLibrary";
 import {
   GREAT_LIBRARY_BUILD_POINTS,
@@ -165,6 +166,28 @@ describe("GreatLibraryModule.settleAnnual", () => {
     GreatLibrary.settleAnnual(NO_FIRE_RNG);
 
     expect(getGreatLibraryProjects()).toEqual(afterFirstCall);
+  });
+
+  it("under Fast-Forward, the project still builds but its treasury is left to the preset rate", () => {
+    GreatLibrary.settleAnnual(NO_FIRE_RNG); // year 500: planning (no spend)
+    const treasuryBeforeBuilding = state().treasury;
+
+    setFastForwardTickActive(true);
+    try {
+      for (let year = 501; year <= 505; year++) {
+        worldContext.options = { year };
+        GreatLibrary.settleAnnual(NO_FIRE_RNG);
+      }
+    } finally {
+      setFastForwardTickActive(false);
+    }
+
+    // Five building years elapsed and progressed (coverage math untouched)...
+    expect(project()?.status).toBe("building");
+    expect(project()?.progress).toBeCloseTo(5, 4);
+    // ...but applyFastForwardEconomySettlement() owns treasury during Fast-Forward, so this
+    // module didn't draw it down (§9.4 / Phase 3).
+    expect(state().treasury).toBe(treasuryBeforeBuilding);
   });
 
   it("completes in exactly 13 calendar years at full coverage (1 planning + 12 building), per docs/plan/great-library.md KD-5", () => {
