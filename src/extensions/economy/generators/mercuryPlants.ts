@@ -24,6 +24,7 @@ import {
   clamp01,
   consumeNamed,
   debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
   MERCURY_PLANT_BUDGET,
   marketIdForBurg,
   pickSponsorBurg
@@ -103,7 +104,7 @@ export class MercuryPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, MERCURY_PLANT_BUDGET)) {
+      if (!debitTreasury(state.i, rn(MERCURY_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "mercuryPlant" && entry.stateId === state.i && entry.status === "running"

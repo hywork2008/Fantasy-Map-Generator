@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import {
   clearEconomyContext,
   getChemistryTrials,
@@ -12,7 +13,7 @@ import {
   setMarkets,
   setMercuryPlants
 } from "../economyContext";
-import { MERCURY_PLANT_BUDGET } from "./chemMedCommon";
+import { FACILITY_MAINTENANCE_RATE, MERCURY_PLANT_BUDGET } from "./chemMedCommon";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import { MercuryPlants } from "./mercuryPlants";
@@ -72,7 +73,11 @@ describe("MercuryPlantsModule", () => {
     expect(plants[0]).toMatchObject({ stateId: 1, role: "trial", active: true, utilization: 1, contamination: 0.048 });
     // Same double-debit shape as PhosphateFertilizerPlants: one charge to found the plant, one for
     // this year's operation.
-    expect(worldContext.pack.states[1].treasury).toBe(100 - MERCURY_PLANT_BUDGET * 2);
+    // One full charge to found the plant, one reduced FACILITY_MAINTENANCE_RATE renewal charge for
+    // this year's operation (docs/plan/treasury-structural-deficit-investigation.md §8.2, fix "A").
+    expect(worldContext.pack.states[1].treasury).toBe(
+      100 - MERCURY_PLANT_BUDGET - rn(MERCURY_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2)
+    );
 
     const market = getMarkets().find(entry => entry.i === 1);
     expect(market?.goods[1]?.stock).toBe(100 - 0.3); // Cinnabar consumed
@@ -198,7 +203,9 @@ describe("MercuryPlantsModule", () => {
   });
 
   it("leaves contamination unrelieved when the State cannot afford the cleanup bill, but still forces the stoppage", () => {
-    worldContext.pack.states[1].treasury = MERCURY_PLANT_BUDGET * 2; // enough for the two normal debits, not the cleanup
+    // Enough for the reduced annual FACILITY_MAINTENANCE_RATE renewal debit (1.4), not the 1.5x
+    // cleanup bill (21) — docs/plan/treasury-structural-deficit-investigation.md §8.2, fix "A".
+    worldContext.pack.states[1].treasury = MERCURY_PLANT_BUDGET;
     setMercuryPlants([
       {
         burgId: 1,

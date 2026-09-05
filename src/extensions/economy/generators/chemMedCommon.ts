@@ -100,6 +100,28 @@ export const LNG_PLANT_BUDGET = 32;
  */
 export const GAS_POWER_STATION_BUDGET = 33;
 
+/**
+ * Annual renewal debit for civil-engineering infrastructure (Dams, Levees) as a fraction of the
+ * facility's original build budget — a routine-upkeep rate, not the full capital cost repeated
+ * every year. Historical dam/hydraulic-infrastructure O&M benchmarks cluster around 0.14-0.35%/yr
+ * for routine maintenance alone, up to 1-7%/yr in broader hydropower project estimates; 2% sits in
+ * the lower-middle of that range. See docs/plan/treasury-structural-deficit-investigation.md §8.2
+ * for sources and the investigation that found the un-reduced full-budget-every-year charge was
+ * responsible for ~93% of a persistent ~-42%/yr State treasury decline (fix option "A").
+ */
+export const CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE = 0.02;
+
+/**
+ * Annual renewal debit for every other facility sharing this module's BUDGET constants (industrial
+ * plants, workshops, hospitals, telegraph lines, power stations) as a fraction of the original
+ * build budget. Chemical/industrial process-plant maintenance is documented at 5-15%/yr of fixed
+ * capital cost, with 10% the standard textbook preliminary estimate — applied here to every
+ * non-civil-infrastructure facility for lack of a more specific per-category benchmark (hospitals
+ * in particular don't really fit a %-of-capital-cost model at all; see the investigation doc's
+ * caveats). docs/plan/treasury-structural-deficit-investigation.md §8.2.
+ */
+export const FACILITY_MAINTENANCE_RATE = 0.1;
+
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));

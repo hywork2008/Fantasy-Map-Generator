@@ -22,6 +22,7 @@ import {
   addNamedStock,
   consumeNamed,
   debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
@@ -85,7 +86,7 @@ export class AcidPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, ACID_PLANT_BUDGET)) {
+      if (!debitTreasury(state.i, rn(ACID_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "acidPlant" && entry.stateId === state.i && entry.status === "running"

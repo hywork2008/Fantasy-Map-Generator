@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import {
   clearEconomyContext,
   getColdStorageDepots,
@@ -10,7 +11,7 @@ import {
   setGoods,
   setMarkets
 } from "../economyContext";
-import { COLD_STORAGE_DEPOT_BUDGET } from "./chemMedCommon";
+import { COLD_STORAGE_DEPOT_BUDGET, FACILITY_MAINTENANCE_RATE } from "./chemMedCommon";
 import { COLD_STORAGE_DEPOT_BASE_CAPACITY, ColdStorageDepots } from "./coldStorageDepots";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -67,7 +68,11 @@ describe("ColdStorageDepotsModule", () => {
     // Trial-role capacity: COLD_STORAGE_DEPOT_BASE_CAPACITY * 0.25 * utilization(1).
     expect(depots[0]?.storageCapacity).toBe(COLD_STORAGE_DEPOT_BASE_CAPACITY * 0.25);
     // Same double-debit shape as PowerStations: one charge to found, one for this year's run.
-    expect(worldContext.pack.states[1].treasury).toBe(200 - COLD_STORAGE_DEPOT_BUDGET * 2);
+    // One full charge to found the depot, one reduced FACILITY_MAINTENANCE_RATE renewal charge for
+    // this year's operation (docs/plan/treasury-structural-deficit-investigation.md §8.2, fix "A").
+    expect(worldContext.pack.states[1].treasury).toBe(
+      200 - COLD_STORAGE_DEPOT_BUDGET - rn(COLD_STORAGE_DEPOT_BUDGET * FACILITY_MAINTENANCE_RATE, 2)
+    );
 
     const market = getMarkets().find(entry => entry.i === 1);
     expect(market?.goods[1]?.stock).toBe(100 - 2); // LNG consumed

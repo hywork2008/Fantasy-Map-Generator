@@ -27,6 +27,7 @@ import {
   consumeNamed,
   debitTreasury,
   electricityCoverageForMarket,
+  FACILITY_MAINTENANCE_RATE,
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
@@ -84,7 +85,7 @@ export class ChlorAlkaliPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, CHLOR_ALKALI_PLANT_BUDGET)) {
+      if (!debitTreasury(state.i, rn(CHLOR_ALKALI_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         continue;

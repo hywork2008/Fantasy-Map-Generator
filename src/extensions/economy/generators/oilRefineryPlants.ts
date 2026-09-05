@@ -23,6 +23,7 @@ import {
   addNamedStock,
   consumeNamed,
   debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
   marketIdForBurg,
   OIL_REFINERY_PLANT_BUDGET,
   pickSponsorBurg
@@ -92,7 +93,7 @@ export class OilRefineryPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, OIL_REFINERY_PLANT_BUDGET)) {
+      if (!debitTreasury(state.i, rn(OIL_REFINERY_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "oilRefineryPlant" && entry.stateId === state.i && entry.status === "running"

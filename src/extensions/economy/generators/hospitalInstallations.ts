@@ -20,6 +20,7 @@ import {
   clamp01,
   consumeNamed,
   debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
   HOSPITAL_BUDGET,
   marketIdForBurg,
   pickSponsorBurg
@@ -153,7 +154,7 @@ export class HospitalInstallationsModule {
     const relief: MedicalCareReliefRow[] = [];
     for (const hospital of hospitals) {
       if (!hospital.active) continue;
-      if (!debitTreasury(hospital.stateId, HOSPITAL_BUDGET)) {
+      if (!debitTreasury(hospital.stateId, rn(HOSPITAL_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         hospital.active = false;
         hospital.utilization = 0;
         relief.push({ burgId: hospital.burgId, relief: 0 });

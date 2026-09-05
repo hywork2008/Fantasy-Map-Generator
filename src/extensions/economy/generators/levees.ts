@@ -19,7 +19,13 @@ import {
   setLevees,
   settleAnnualOnce
 } from "../economyContext";
-import { consumeNamed, debitTreasury, LEVEE_BUDGET, marketIdForBurg } from "./chemMedCommon";
+import {
+  CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE,
+  consumeNamed,
+  debitTreasury,
+  LEVEE_BUDGET,
+  marketIdForBurg
+} from "./chemMedCommon";
 import type { Levee, LeveeSite } from "./leveeTypes";
 
 /** A State may maintain several levee reaches at once — looser than Dam's 3, since a reach is
@@ -101,7 +107,7 @@ export class LeveesModule {
   }
 
   private settleLevee(levee: Levee, year: number): void {
-    if (!debitTreasury(levee.stateId, LEVEE_BUDGET)) {
+    if (!debitTreasury(levee.stateId, rn(LEVEE_BUDGET * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2))) {
       levee.active = false;
       levee.lastFailureReason = "fundingCut";
       levee.utilization = 0;

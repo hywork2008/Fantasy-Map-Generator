@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import {
   clearEconomyContext,
   getCraftDomainEmploymentRecords,
@@ -11,7 +12,7 @@ import {
   setGoods,
   setMarkets
 } from "../economyContext";
-import { POWER_STATION_BUDGET } from "./chemMedCommon";
+import { FACILITY_MAINTENANCE_RATE, POWER_STATION_BUDGET } from "./chemMedCommon";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import { POWER_STATION_BASE_CAPACITY, PowerStations } from "./powerStations";
@@ -72,7 +73,11 @@ describe("PowerStationsModule", () => {
     // Trial-role capacity: POWER_STATION_BASE_CAPACITY * 0.25 * utilization(1).
     expect(plants[0]?.generationCapacity).toBe(POWER_STATION_BASE_CAPACITY * 0.25);
     // Same double-debit shape as SteelConverters: one charge to found, one for this year's run.
-    expect(worldContext.pack.states[1].treasury).toBe(200 - POWER_STATION_BUDGET * 2);
+    // One full charge to found the plant, one reduced FACILITY_MAINTENANCE_RATE renewal charge for
+    // this year's operation (docs/plan/treasury-structural-deficit-investigation.md §8.2, fix "A").
+    expect(worldContext.pack.states[1].treasury).toBe(
+      200 - POWER_STATION_BUDGET - rn(POWER_STATION_BUDGET * FACILITY_MAINTENANCE_RATE, 2)
+    );
 
     const market = getMarkets().find(entry => entry.i === 1);
     expect(market?.goods[1]?.stock).toBe(100 - 4); // Coal consumed

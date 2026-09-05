@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import {
   clearEconomyContext,
   getFloodProtection,
@@ -12,7 +13,7 @@ import {
   setLeveeSites,
   setMarkets
 } from "../economyContext";
-import { LEVEE_BUDGET } from "./chemMedCommon";
+import { CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, LEVEE_BUDGET } from "./chemMedCommon";
 import { Goods } from "./goods-generator";
 import { Levees, MAX_LEVEES_PER_STATE } from "./levees";
 import type { LeveeSite } from "./leveeTypes";
@@ -84,7 +85,12 @@ describe("LeveesModule", () => {
     });
     expect(levees[0].protectionRating).toBeGreaterThan(0);
     // Same double-debit shape as Dams: one charge to found, one for this year's run.
-    expect(worldContext.pack.states[1].treasury).toBe(200 - LEVEE_BUDGET * 2);
+    // One full charge to found the levee, one reduced CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE renewal
+    // charge for this year's operation (docs/plan/treasury-structural-deficit-investigation.md
+    // §8.2, fix "A").
+    expect(worldContext.pack.states[1].treasury).toBe(
+      200 - LEVEE_BUDGET - rn(LEVEE_BUDGET * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2)
+    );
 
     const market = getMarkets().find(entry => entry.i === 1);
     expect(market?.goods[1]?.stock).toBe(100 - 1); // Stone consumed

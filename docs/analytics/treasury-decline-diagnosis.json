@@ -1,144 +1,112 @@
 {
-  "generatedAt": "2026-09-05T14:15:31.994Z",
+  "generatedAt": "2026-09-05T15:10:58.702Z",
   "baseURL": "http://localhost:5173",
   "seed": "treasury-diagnosis-1",
   "warmupYears": 10,
   "measurementYears": 3,
-  "before": 5356.07,
-  "after": 2109.3299999999995,
-  "actualDelta": -3246.7400000000002,
-  "sumOfLoggedDeltas": -3246.739999999986,
+  "before": 5365.990000000001,
+  "after": 3848.1,
+  "actualDelta": -1517.8900000000008,
+  "sumOfLoggedDeltas": -1517.8899999999787,
   "bySite": [
     {
-      "site": "DamsModule.settleDam (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/dams.ts?t=1788596661790:82:8)",
+      "site": "StateSecretKnowledgeModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/stateSecretKnowledge.ts?t=1788621010450:57:34)",
       "income": 0,
-      "expense": -884,
-      "net": -884,
-      "incomeEvents": 0,
-      "expenseEvents": 34
-    },
-    {
-      "site": "applyFiscalEvents (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/fiscalEvents.ts?t=1788596661790:152:20)",
-      "income": 0,
-      "expense": -871.14,
-      "net": -871.14,
-      "incomeEvents": 0,
-      "expenseEvents": 36
-    },
-    {
-      "site": "applyCivilAdministrationUpkeep (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/civilAdministration.ts?t=1788596661787:112:18)",
-      "income": 0,
-      "expense": -500.6700000000005,
-      "net": -500.6700000000005,
-      "incomeEvents": 0,
-      "expenseEvents": 67
-    },
-    {
-      "site": "DamsModule.foundNewDams (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/dams.ts?t=1788596661790:64:20)",
-      "income": 0,
-      "expense": -468,
-      "net": -468,
-      "incomeEvents": 0,
-      "expenseEvents": 18
-    },
-    {
-      "site": "ExperimentalWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/experimentalWorkshops.ts?t=1788596661790:67:22)",
-      "income": 0,
-      "expense": -416,
-      "net": -416,
-      "incomeEvents": 0,
-      "expenseEvents": 26
-    },
-    {
-      "site": "ApothecaryWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/apothecaryWorkshops.ts?t=1788596661790:47:16)",
-      "income": 0,
-      "expense": -312,
-      "net": -312,
-      "incomeEvents": 0,
-      "expenseEvents": 26
-    },
-    {
-      "site": "StateSecretKnowledgeModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/stateSecretKnowledge.ts?t=1788596661790:57:34)",
-      "income": 0,
-      "expense": -267.49999999999994,
-      "net": -267.49999999999994,
+      "expense": -421.40000000000003,
+      "net": -421.40000000000003,
       "incomeEvents": 0,
       "expenseEvents": 42
     },
     {
-      "site": "ExperimentalWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/experimentalWorkshops.ts?t=1788596661790:53:22)",
+      "site": "DamsModule.foundNewDams (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/dams.ts?t=1788621010450:64:20)",
       "income": 0,
-      "expense": -240.00000000000003,
-      "net": -240.00000000000003,
+      "expense": -337.99999999999994,
+      "net": -337.99999999999994,
+      "incomeEvents": 0,
+      "expenseEvents": 13
+    },
+    {
+      "site": "applyCivilAdministrationUpkeep (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/civilAdministration.ts?t=1788621010450:112:18)",
+      "income": 0,
+      "expense": -325.2099999999999,
+      "net": -325.2099999999999,
+      "incomeEvents": 0,
+      "expenseEvents": 83
+    },
+    {
+      "site": "ExperimentalWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/experimentalWorkshops.ts?t=1788621010450:53:22)",
+      "income": 0,
+      "expense": -208,
+      "net": -208,
+      "incomeEvents": 0,
+      "expenseEvents": 13
+    },
+    {
+      "site": "ApothecaryWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/apothecaryWorkshops.ts?t=1788621010450:36:21)",
+      "income": 0,
+      "expense": -180,
+      "net": -180,
       "incomeEvents": 0,
       "expenseEvents": 15
     },
     {
-      "site": "LeveesModule.settleLevee (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/levees.ts?t=1788596661790:61:8)",
+      "site": "applyFiscalEvents (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/fiscalEvents.ts?t=1788621010450:103:19)",
       "income": 0,
-      "expense": -240,
-      "net": -240,
+      "expense": -128.94000000000005,
+      "net": -128.94000000000005,
       "incomeEvents": 0,
-      "expenseEvents": 24
+      "expenseEvents": 28
     },
     {
-      "site": "applyFiscalEvents (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/fiscalEvents.ts?t=1788596661790:103:19)",
+      "site": "LeveesModule.foundNewLevees (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/levees.ts?t=1788621010450:47:20)",
       "income": 0,
-      "expense": -211.83000000000004,
-      "net": -211.83000000000004,
+      "expense": -110,
+      "net": -110,
       "incomeEvents": 0,
-      "expenseEvents": 46
+      "expenseEvents": 11
     },
     {
-      "site": "ApothecaryWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/apothecaryWorkshops.ts?t=1788596661790:36:21)",
+      "site": "ProductionModule.executeManufacture (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/production-generator.ts?t=1788621010450:844:45)",
       "income": 0,
-      "expense": -204,
-      "net": -204,
+      "expense": -89.84999999999943,
+      "net": -89.84999999999943,
       "incomeEvents": 0,
-      "expenseEvents": 17
+      "expenseEvents": 357
     },
     {
-      "site": "LeveesModule.foundNewLevees (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/levees.ts?t=1788596661790:47:20)",
+      "site": "applyFormRevenueMix (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/revenueMix.ts?t=1788621010450:64:19)",
       "income": 0,
-      "expense": -140,
-      "net": -140,
+      "expense": -86.06000000000017,
+      "net": -86.06000000000017,
       "incomeEvents": 0,
-      "expenseEvents": 14
+      "expenseEvents": 54
     },
     {
-      "site": "applyFormRevenueMix (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/revenueMix.ts?t=1788596661790:64:19)",
+      "site": "ExperimentalWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/experimentalWorkshops.ts?t=1788621010450:70:22)",
       "income": 0,
-      "expense": -131.7999999999999,
-      "net": -131.7999999999999,
+      "expense": -51.19999999999964,
+      "net": -51.19999999999964,
       "incomeEvents": 0,
-      "expenseEvents": 27
+      "expenseEvents": 32
     },
     {
-      "site": "HospitalInstallationsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/hospitalInstallations.ts?t=1788596661790:129:9)",
+      "site": "creditDepartmentBalances (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788621010450:402:17)",
       "income": 0,
-      "expense": -80,
-      "net": -80,
+      "expense": -50.81000000000071,
+      "net": -50.81000000000071,
       "incomeEvents": 0,
-      "expenseEvents": 4
+      "expenseEvents": 78
     },
     {
-      "site": "creditDepartmentBalances (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788596661790:402:17)",
+      "site": "ApothecaryWorkshopsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/apothecaryWorkshops.ts?t=1788621010450:47:16)",
       "income": 0,
-      "expense": -77.50000000000094,
-      "net": -77.50000000000094,
+      "expense": -43.20000000000031,
+      "net": -43.20000000000031,
       "incomeEvents": 0,
-      "expenseEvents": 62
+      "expenseEvents": 36
     },
     {
-      "site": "advanceWildernessEcology (http://localhost:5173/Fantasy-Map-Generator/generators/wildernessEcology.ts?t=1788596661787:97:19)",
-      "income": 0,
-      "expense": -69,
-      "net": -69,
-      "incomeEvents": 0,
-      "expenseEvents": 12
-    },
-    {
-      "site": "HospitalInstallationsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/hospitalInstallations.ts?t=1788596661790:80:19)",
+      "site": "HospitalInstallationsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/hospitalInstallations.ts?t=1788621010450:80:19)",
       "income": 0,
       "expense": -40,
       "net": -40,
@@ -146,39 +114,47 @@
       "expenseEvents": 2
     },
     {
-      "site": "advancePortDevelopment (http://localhost:5173/Fantasy-Map-Generator/generators/portDevelopment.ts?t=1788596661790:22:19)",
+      "site": "advanceWildernessEcology (http://localhost:5173/Fantasy-Map-Generator/generators/wildernessEcology.ts?t=1788621010450:97:19)",
       "income": 0,
-      "expense": -30,
-      "net": -30,
+      "expense": -28,
+      "net": -28,
       "incomeEvents": 0,
-      "expenseEvents": 3
+      "expenseEvents": 5
     },
     {
-      "site": "applyFiscalEvents (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/fiscalEvents.ts?t=1788596661790:130:19)",
+      "site": "DamsModule.settleDam (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/dams.ts?t=1788621010450:82:8)",
       "income": 0,
-      "expense": -26.46999999999999,
-      "net": -26.46999999999999,
+      "expense": -25.480000000000047,
+      "net": -25.480000000000047,
       "incomeEvents": 0,
-      "expenseEvents": 36
+      "expenseEvents": 49
     },
     {
-      "site": "advanceWildernessEcology (http://localhost:5173/Fantasy-Map-Generator/generators/wildernessEcology.ts?t=1788596661787:68:18)",
+      "site": "HospitalInstallationsModule.settleAnnual (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/hospitalInstallations.ts?t=1788621010450:129:9)",
       "income": 0,
-      "expense": -12,
-      "net": -12,
+      "expense": -24,
+      "net": -24,
       "incomeEvents": 0,
-      "expenseEvents": 3
+      "expenseEvents": 12
     },
     {
-      "site": "applyFiscalEvents (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/fiscalEvents.ts?t=1788596661790:116:19)",
+      "site": "advancePortDevelopment (http://localhost:5173/Fantasy-Map-Generator/generators/portDevelopment.ts?t=1788621010450:22:19)",
       "income": 0,
-      "expense": -9.749999999999869,
-      "net": -9.749999999999869,
+      "expense": -20,
+      "net": -20,
       "incomeEvents": 0,
-      "expenseEvents": 35
+      "expenseEvents": 2
     },
     {
-      "site": "spendAvailableTreasury (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/climateDisasters.ts?t=1788596661790:113:32)",
+      "site": "ProductionModule.executeManufacture (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/production-generator.ts?t=1788621010450:858:44)",
+      "income": 0,
+      "expense": -13.19000000000051,
+      "net": -13.19000000000051,
+      "incomeEvents": 0,
+      "expenseEvents": 185
+    },
+    {
+      "site": "spendAvailableTreasury (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/climateDisasters.ts?t=1788621010450:113:32)",
       "income": 0,
       "expense": -8,
       "net": -8,
@@ -186,83 +162,91 @@
       "expenseEvents": 1
     },
     {
-      "site": "drawFromMarshalcyThenTreasury (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788596661790:578:18)",
+      "site": "drawFromMarshalcyThenTreasury (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788621010450:578:18)",
       "income": 0,
-      "expense": -7.429999999999996,
-      "net": -7.429999999999996,
+      "expense": -7.980000000000359,
+      "net": -7.980000000000359,
       "incomeEvents": 0,
-      "expenseEvents": 34
+      "expenseEvents": 37
     },
     {
-      "site": "creditHouseholdPurseFromNominal (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788596661790:731:17)",
+      "site": "LeveesModule.settleLevee (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/levees.ts?t=1788621010450:61:8)",
       "income": 0,
-      "expense": -6.659999999999665,
-      "net": -6.659999999999665,
+      "expense": -7.600000000000094,
+      "net": -7.600000000000094,
       "incomeEvents": 0,
-      "expenseEvents": 58
+      "expenseEvents": 38
     },
     {
-      "site": "AgTechInvestmentModule.settleStates (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/agTechInvestment.ts?t=1788596661790:103:34)",
+      "site": "applyFiscalEvents (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/fiscalEvents.ts?t=1788621010450:116:19)",
       "income": 0,
-      "expense": -1.6200000000000045,
-      "net": -1.6200000000000045,
+      "expense": -6.279999999999919,
+      "net": -6.279999999999919,
+      "incomeEvents": 0,
+      "expenseEvents": 25
+    },
+    {
+      "site": "creditHouseholdPurseFromNominal (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788621010450:731:17)",
+      "income": 0,
+      "expense": -4.389999999999553,
+      "net": -4.389999999999553,
+      "incomeEvents": 0,
+      "expenseEvents": 49
+    },
+    {
+      "site": "advanceWildernessEcology (http://localhost:5173/Fantasy-Map-Generator/generators/wildernessEcology.ts?t=1788621010450:68:18)",
+      "income": 0,
+      "expense": -4,
+      "net": -4,
       "incomeEvents": 0,
       "expenseEvents": 1
     },
     {
-      "site": "ProductionModule.executeManufacture (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/production-generator.ts?t=1788596661790:858:44)",
+      "site": "AgTechInvestmentModule.settleStates (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/agTechInvestment.ts?t=1788621010450:103:34)",
       "income": 0,
-      "expense": -0.029999999999972715,
-      "net": -0.029999999999972715,
+      "expense": -3.510000000000005,
+      "net": -3.510000000000005,
       "incomeEvents": 0,
       "expenseEvents": 1
     },
     {
-      "site": "ProductionModule.executeManufacture (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/production-generator.ts?t=1788596661790:844:45)",
-      "income": 0,
-      "expense": -0.01999999999998181,
-      "net": -0.01999999999998181,
-      "incomeEvents": 0,
-      "expenseEvents": 1
-    },
-    {
-      "site": "Object.setStateTreasury (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/urbanWaterSystem.ts?t=1788596661790:1491:43)",
-      "income": 34.110000000000184,
-      "expense": -34.11000000000021,
-      "net": -2.398081733190338e-14,
+      "site": "Object.setStateTreasury (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/urbanWaterSystem.ts?t=1788621010450:1491:43)",
+      "income": 36.84000000000003,
+      "expense": -36.83999999999995,
+      "net": 8.526512829121202e-14,
       "incomeEvents": 12,
       "expenseEvents": 12
     },
     {
-      "site": "applyFormRevenueMix (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/revenueMix.ts?t=1788596661790:55:19)",
-      "income": 31.78000000000018,
+      "site": "TaxesModule.collectTaxes (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/taxes-generator.ts?t=1788621010450:163:26)",
+      "income": 1.490000000000066,
       "expense": 0,
-      "net": 31.78000000000018,
-      "incomeEvents": 27,
+      "net": 1.490000000000066,
+      "incomeEvents": 35,
       "expenseEvents": 0
     },
     {
-      "site": "capDepartmentBalances (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788596661790:457:18)",
-      "income": 174.89999999999958,
+      "site": "applyFormRevenueMix (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/revenueMix.ts?t=1788621010450:55:19)",
+      "income": 20.080000000000084,
       "expense": 0,
-      "net": 174.89999999999958,
-      "incomeEvents": 57,
+      "net": 20.080000000000084,
+      "incomeEvents": 18,
       "expenseEvents": 0
     },
     {
-      "site": "TaxesModule.collectTaxes (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/taxes-generator.ts?t=1788596661790:211:19)",
-      "income": 877.0000000000011,
+      "site": "capDepartmentBalances (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/treasuryAllocation.ts?t=1788621010450:457:18)",
+      "income": 116.39000000000087,
       "expense": 0,
-      "net": 877.0000000000011,
-      "incomeEvents": 72,
+      "net": 116.39000000000087,
+      "incomeEvents": 73,
       "expenseEvents": 0
     },
     {
-      "site": "applyFiscalEvents (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/fiscalEvents.ts?t=1788596661790:183:20)",
-      "income": 925,
+      "site": "TaxesModule.collectTaxes (http://localhost:5173/Fantasy-Map-Generator/extensions/economy/generators/taxes-generator.ts?t=1788621010450:211:19)",
+      "income": 569.2499999999998,
       "expense": 0,
-      "net": 925,
-      "incomeEvents": 37,
+      "net": 569.2499999999998,
+      "incomeEvents": 91,
       "expenseEvents": 0
     }
   ]

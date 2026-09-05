@@ -18,7 +18,14 @@ import {
   setTelegraphLines,
   settleAnnualOnce
 } from "../economyContext";
-import { consumeNamed, debitTreasury, marketIdForBurg, pickSponsorBurg, TELEGRAPH_LINE_BUDGET } from "./chemMedCommon";
+import {
+  consumeNamed,
+  debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
+  marketIdForBurg,
+  pickSponsorBurg,
+  TELEGRAPH_LINE_BUDGET
+} from "./chemMedCommon";
 
 export class TelegraphLinesModule {
   settleAnnual(): boolean {
@@ -51,7 +58,7 @@ export class TelegraphLinesModule {
         line.role = "service";
       }
 
-      if (!debitTreasury(state.i, TELEGRAPH_LINE_BUDGET)) {
+      if (!debitTreasury(state.i, rn(TELEGRAPH_LINE_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         line.active = false;
         line.lastFailureReason = "fundingCut";
         continue;

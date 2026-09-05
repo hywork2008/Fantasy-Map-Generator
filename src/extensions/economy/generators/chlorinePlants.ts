@@ -24,6 +24,7 @@ import {
   CHLORINE_PLANT_BUDGET,
   consumeNamed,
   debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
@@ -86,7 +87,7 @@ export class ChlorinePlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, CHLORINE_PLANT_BUDGET)) {
+      if (!debitTreasury(state.i, rn(CHLORINE_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "chlorinePlant" && entry.stateId === state.i && entry.status === "running"

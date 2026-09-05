@@ -17,7 +17,14 @@ import {
   setSteelConverterPlants,
   settleAnnualOnce
 } from "../economyContext";
-import { addNamedStock, consumeNamed, debitTreasury, marketIdForBurg, pickSponsorBurg } from "./chemMedCommon";
+import {
+  addNamedStock,
+  consumeNamed,
+  debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
+  marketIdForBurg,
+  pickSponsorBurg
+} from "./chemMedCommon";
 
 /**
  * calibration TBD — higher than ACID_PLANT_BUDGET (24) / PHOSPHATE_FERTILIZER_PLANT_BUDGET (28):
@@ -56,7 +63,7 @@ export class SteelConvertersModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, STEEL_CONVERTER_PLANT_BUDGET)) {
+      if (!debitTreasury(state.i, rn(STEEL_CONVERTER_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         continue;

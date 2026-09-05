@@ -24,6 +24,7 @@ import {
   COLD_STORAGE_DEPOT_BUDGET,
   consumeNamed,
   debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
@@ -67,7 +68,7 @@ export class ColdStorageDepotsModule {
         depot.role = "service";
       }
 
-      if (!debitTreasury(state.i, COLD_STORAGE_DEPOT_BUDGET)) {
+      if (!debitTreasury(state.i, rn(COLD_STORAGE_DEPOT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         depot.active = false;
         depot.lastFailureReason = "fundingCut";
         depot.storageCapacity = 0;

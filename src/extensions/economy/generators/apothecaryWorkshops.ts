@@ -17,7 +17,14 @@ import {
   settleAnnualOnce
 } from "../economyContext";
 import type { ChemistryTrial } from "./chemistryTypes";
-import { APOTHECARY_BUDGET, consumeNamed, debitTreasury, marketIdForBurg, pickSponsorBurg } from "./chemMedCommon";
+import {
+  APOTHECARY_BUDGET,
+  consumeNamed,
+  debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
+  marketIdForBurg,
+  pickSponsorBurg
+} from "./chemMedCommon";
 import { recordObsidianPractice } from "./chemMedPractice";
 
 const ADJUNCTS = ["Honey", "Vinegar", "Salt", "Alum", "Soap"] as const;
@@ -55,7 +62,7 @@ export class ApothecaryWorkshopsModule {
           lastFundedYear: year
         };
         workshops.push(workshop);
-      } else if (!debitTreasury(state.i, APOTHECARY_BUDGET)) {
+      } else if (!debitTreasury(state.i, rn(APOTHECARY_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         workshop.active = false;
         const trial = trials.find(trialKey(state.i));
         if (trial) {

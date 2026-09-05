@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import {
   clearEconomyContext,
   getDams,
@@ -13,7 +14,7 @@ import {
   setGoods,
   setMarkets
 } from "../economyContext";
-import { DAM_BUDGET } from "./chemMedCommon";
+import { CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, DAM_BUDGET } from "./chemMedCommon";
 import { Dams, HYDRO_BASE_CAPACITY, MAX_DAMS_PER_STATE } from "./dams";
 import type { DamSite } from "./damTypes";
 import { Goods } from "./goods-generator";
@@ -96,7 +97,12 @@ describe("DamsModule", () => {
     });
     expect(dams[0].floodProtectionRating).toBeGreaterThan(0);
     // Same double-debit shape as PowerStations: one charge to found, one for this year's run.
-    expect(worldContext.pack.states[1].treasury).toBe(200 - DAM_BUDGET * 2);
+    // One full charge to found the dam, one reduced CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE renewal
+    // charge for this year's operation (docs/plan/treasury-structural-deficit-investigation.md
+    // §8.2, fix "A").
+    expect(worldContext.pack.states[1].treasury).toBe(
+      200 - DAM_BUDGET - rn(DAM_BUDGET * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2)
+    );
 
     const market = getMarkets().find(entry => entry.i === 1);
     expect(market?.goods[1]?.stock).toBe(100 - 3); // Stone consumed

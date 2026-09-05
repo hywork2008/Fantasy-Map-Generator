@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import {
   clearEconomyContext,
   getChemistryTrials,
@@ -11,7 +12,7 @@ import {
   setGoods,
   setMarkets
 } from "../economyContext";
-import { LNG_PLANT_BUDGET } from "./chemMedCommon";
+import { FACILITY_MAINTENANCE_RATE, LNG_PLANT_BUDGET } from "./chemMedCommon";
 import { Goods } from "./goods-generator";
 import { LNGPlants } from "./lngPlants";
 import { Markets } from "./markets-generator";
@@ -71,7 +72,11 @@ describe("LNGPlantsModule", () => {
     expect(plants[0]).toMatchObject({ stateId: 1, role: "trial", active: true, utilization: 1 });
     // Same double-debit shape as OilRefineryPlants: one charge to found the plant, one for this
     // year's operation.
-    expect(worldContext.pack.states[1].treasury).toBe(200 - LNG_PLANT_BUDGET * 2);
+    // One full charge to found the plant, one reduced FACILITY_MAINTENANCE_RATE renewal charge for
+    // this year's operation (docs/plan/treasury-structural-deficit-investigation.md §8.2, fix "A").
+    expect(worldContext.pack.states[1].treasury).toBe(
+      200 - LNG_PLANT_BUDGET - rn(LNG_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2)
+    );
 
     const market = getMarkets().find(entry => entry.i === 1);
     expect(market?.goods[1]?.stock).toBe(100 - 1.0); // Natural Gas consumed

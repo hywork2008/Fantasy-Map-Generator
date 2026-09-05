@@ -20,7 +20,14 @@ import {
   setPowerStations,
   settleAnnualOnce
 } from "../economyContext";
-import { consumeNamed, debitTreasury, marketIdForBurg, POWER_STATION_BUDGET, pickSponsorBurg } from "./chemMedCommon";
+import {
+  consumeNamed,
+  debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
+  marketIdForBurg,
+  POWER_STATION_BUDGET,
+  pickSponsorBurg
+} from "./chemMedCommon";
 import { upsertInstruments } from "./experimentalWorkshops";
 
 /**
@@ -67,7 +74,7 @@ export class PowerStationsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, POWER_STATION_BUDGET)) {
+      if (!debitTreasury(state.i, rn(POWER_STATION_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         plant.generationCapacity = 0;

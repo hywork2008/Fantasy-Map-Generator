@@ -21,7 +21,13 @@ import {
   setFloodProtection,
   settleAnnualOnce
 } from "../economyContext";
-import { consumeNamed, DAM_BUDGET, debitTreasury, marketIdForBurg } from "./chemMedCommon";
+import {
+  CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE,
+  consumeNamed,
+  DAM_BUDGET,
+  debitTreasury,
+  marketIdForBurg
+} from "./chemMedCommon";
 import type { Dam, DamSite } from "./damTypes";
 import { upsertInstruments } from "./experimentalWorkshops";
 
@@ -118,7 +124,7 @@ export class DamsModule {
     year: number,
     generatorAndMotorStageByState: Map<number, TechnologyStage>
   ): void {
-    if (!debitTreasury(dam.stateId, DAM_BUDGET)) {
+    if (!debitTreasury(dam.stateId, rn(DAM_BUDGET * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2))) {
       dam.active = false;
       dam.lastFailureReason = "fundingCut";
       dam.utilization = 0;

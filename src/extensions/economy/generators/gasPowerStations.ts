@@ -20,6 +20,7 @@ import {
 import {
   consumeNamed,
   debitTreasury,
+  FACILITY_MAINTENANCE_RATE,
   GAS_POWER_STATION_BUDGET,
   marketIdForBurg,
   pickSponsorBurg
@@ -66,7 +67,7 @@ export class GasPowerStationsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, GAS_POWER_STATION_BUDGET)) {
+      if (!debitTreasury(state.i, rn(GAS_POWER_STATION_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         plant.generationCapacity = 0;

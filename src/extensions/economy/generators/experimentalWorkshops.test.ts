@@ -13,7 +13,7 @@ import {
   setPatronageDeposits,
   setResearchNamedSeats
 } from "../economyContext";
-import { EXPERIMENTAL_BUDGET } from "./chemMedCommon";
+import { EXPERIMENTAL_BUDGET, FACILITY_MAINTENANCE_RATE } from "./chemMedCommon";
 import { ExperimentalWorkshops } from "./experimentalWorkshops";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -75,10 +75,12 @@ describe("ExperimentalWorkshopsModule", () => {
     ]);
   }
 
-  it("debits the full experimental budget when patronage deposits are empty", () => {
+  it("debits the reduced annual maintenance rate when patronage deposits are empty", () => {
+    // Renewal year (not founding): the State owes FACILITY_MAINTENANCE_RATE of EXPERIMENTAL_BUDGET,
+    // not the full budget again — docs/plan/treasury-structural-deficit-investigation.md §8.2, fix "A".
     seedWorkshop();
     expect(ExperimentalWorkshops.settleAnnual()).toBe(true);
-    expect(worldContext.pack.states[1].treasury).toBe(80 - EXPERIMENTAL_BUDGET);
+    expect(worldContext.pack.states[1].treasury).toBe(80 - rn(EXPERIMENTAL_BUDGET * FACILITY_MAINTENANCE_RATE, 2));
     expect(getExperimentalWorkshops().find(row => row.sponsorStateId === 1)?.active).toBe(true);
   });
 

@@ -16,7 +16,14 @@ import {
   setExperimentalWorkshops,
   settleAnnualOnce
 } from "../economyContext";
-import { consumeNamed, debitTreasury, EXPERIMENTAL_BUDGET, marketIdForBurg, pickSponsorBurg } from "./chemMedCommon";
+import {
+  consumeNamed,
+  debitTreasury,
+  EXPERIMENTAL_BUDGET,
+  FACILITY_MAINTENANCE_RATE,
+  marketIdForBurg,
+  pickSponsorBurg
+} from "./chemMedCommon";
 import { getPracticeForState, recordLabGlassPractice, recordObsidianPractice } from "./chemMedPractice";
 import type { CraftDomainEmploymentRecord } from "./guildKnowledgeTypes";
 import { biasExperimentRecordRate, getWorkshopPatronageAppliedGold } from "./technologyBiasApply";
@@ -79,8 +86,15 @@ export class ExperimentalWorkshopsModule {
         };
         workshops.push(workshop);
       } else {
-        // Patronage gold is appliedGold; empty deposits still debit the full 16.
-        const need = Math.max(0, EXPERIMENTAL_BUDGET - getWorkshopPatronageAppliedGold(workshop.burgId, state.i, year));
+        // Renewal year, not the founding year: the State owes upkeep (FACILITY_MAINTENANCE_RATE of
+        // the original budget), not the full EXPERIMENTAL_BUDGET again — see
+        // docs/plan/treasury-structural-deficit-investigation.md §8.2/fix "A". Patronage gold is
+        // appliedGold; empty deposits still debit the full upkeep amount.
+        const need = Math.max(
+          0,
+          rn(EXPERIMENTAL_BUDGET * FACILITY_MAINTENANCE_RATE, 2) -
+            getWorkshopPatronageAppliedGold(workshop.burgId, state.i, year)
+        );
         if (need > 0 && !debitTreasury(state.i, need)) {
           workshop.active = false;
           continue;
