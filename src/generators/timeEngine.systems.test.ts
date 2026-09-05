@@ -385,4 +385,99 @@ describe("timeEngine simulation system registration (P2-7)", () => {
       useFastAdvanceState.setState({ enabled: false, preset: "steady" });
     }
   });
+
+  it("Fast-Forward coarsens the manpower.tick gate from 7 to 30 days inside a multi-day batch (docs/plan/advance-time-fast-forward.md §8 Phase 4)", () => {
+    worldContext.seed = "fast-advance-manpower-gate";
+    worldContext.options = { year: 1000, month: 1, day: 1, era: "Test" } as never;
+    worldContext.nameBases = [];
+    worldContext.biomesData = { habitability: [0] } as never;
+    worldContext.notes = [];
+    worldContext.grid = {} as never;
+    worldContext.mapCoordinates = { latN: 40, latS: 20 } as never;
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 2;
+
+    const regiment = {
+      i: 0,
+      t: 100,
+      a: 100,
+      s: 1,
+      cell: 1,
+      x: 1,
+      y: 1,
+      bx: 1,
+      by: 1,
+      u: { infantry: 100 },
+      n: 0,
+      type: "melee",
+      state: 1,
+      name: "Test"
+    };
+    worldContext.pack = {
+      states: [
+        { i: 0, diplomacy: [] },
+        {
+          i: 1,
+          name: "A",
+          expansionism: 1,
+          capital: 1,
+          type: "Generic",
+          center: 1,
+          culture: 1,
+          coa: null,
+          rural: 800,
+          urban: 200,
+          military: [regiment],
+          diplomacy: []
+        }
+      ],
+      burgs: [],
+      routes: [],
+      cells: {
+        i: [0, 1, 2],
+        state: [0, 1, 1],
+        province: [0, 5, 9],
+        pop: [0, 100, 50],
+        maleAdults: new Float32Array([0, 22, 11]),
+        femaleAdults: new Float32Array([0, 23, 12]),
+        children: new Float32Array([0, 40, 20]),
+        elders: new Float32Array([0, 15, 7]),
+        h: new Uint8Array([25, 25, 25]),
+        f: new Uint16Array([1, 1, 1]),
+        c: [[], [], []],
+        p: [
+          [0, 0],
+          [1, 1],
+          [2, 2]
+        ]
+      }
+    } as never;
+
+    simulationContext.currentYear = 1000;
+    simulationContext.currentMonth = 1;
+    simulationContext.currentDay = 1;
+    simulationContext.tickCount = 0;
+    simulationContext.frontier = createEmptyFrontierSimulationState();
+    simulationContext.populationLoss = { simDay: 0, history: [] };
+    simulationContext.intelligence = {};
+    simulationContext.strategicGoals = {};
+    simulationContext.navalTechBonus = {};
+    initRng("fast-advance-manpower-gate");
+    // simDemographics off so population (and therefore the troop target) is static — the only
+    // thing that can move regiment.t is tickManpower's own draft branch on a tick it runs.
+    useOptionsState.setState({ simDemographics: false, simManpower: true, simMilitaryRecovery: false });
+    useFastAdvanceState.setState({ enabled: true, preset: "steady" });
+
+    try {
+      // 29 days of a Fast-Forward multi-day batch: the coarsened 30-day gate has not been crossed.
+      runDaily(29, { notify: false });
+      expect(regiment.t).toBe(100);
+
+      // Day 30: the accumulator crosses the Fast-Forward gate and tickManpower runs once.
+      runDaily(1, { notify: false });
+      expect(regiment.t).toBeGreaterThan(100);
+    } finally {
+      useFastAdvanceState.setState({ enabled: false, preset: "steady" });
+    }
+  });
 });

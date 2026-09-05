@@ -196,6 +196,15 @@ registerSimulationSystem({
  * manpower body actually executes does.
  */
 const MANPOWER_GATE_DAYS = 7;
+/**
+ * Fast-Forward (docs/plan/advance-time-fast-forward.md §8 Phase 4): a coarser manpower gate while a
+ * Fast-Forward bulk advance is running. `tickManpower` closes a fixed fraction of the draft/
+ * demobilization gap per year scaled by deltaYears, so a monthly slice (39.7% annual draft) is
+ * within ~0.4pp of the weekly slice (39.3%) — negligible for an already-approximate mode — while
+ * running the O(states × (cells + burgs)) body ~4× less often (the single largest surviving
+ * per-tick cost once Phase 1-3 removed the monthly production cluster).
+ */
+const MANPOWER_FAST_ADVANCE_GATE_DAYS = 30;
 let manpowerDaysAccumulated = 0;
 
 registerSimulationSystem({
@@ -216,7 +225,8 @@ registerSimulationSystem({
 
     const { years, months, days } = context.delta;
     manpowerDaysAccumulated += years * DAYS_PER_YEAR + months * DAYS_PER_MONTH + days;
-    if (manpowerDaysAccumulated < MANPOWER_GATE_DAYS) return;
+    const gateDays = isFastAdvanceActive(context.isBulkAdvance) ? MANPOWER_FAST_ADVANCE_GATE_DAYS : MANPOWER_GATE_DAYS;
+    if (manpowerDaysAccumulated < gateDays) return;
 
     const dueDeltaYears = manpowerDaysAccumulated / DAYS_PER_YEAR;
     manpowerDaysAccumulated = 0;

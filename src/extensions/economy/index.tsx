@@ -2730,6 +2730,15 @@ export function init(api: ExtensionAPI): void {
   // mixed batch (partly Fast-Forward, partly not — shouldn't normally happen within one flush, but
   // isn't assumed) stays Fast-Forward once any contributing tick asked for it.
   let productionSettlementsFastForward = false;
+  // Fast-Forward (docs/plan/advance-time-fast-forward.md §8 Phase 4): accumulated simulated days the
+  // economy.dailyHiring body still owes. While a Fast-Forward bulk advance runs, that body (job-board
+  // lag, cull/escort hiring, urban pregnancy — all driven by an `effectiveDays` argument, so
+  // batching is exactly the code path an Advance Month step already exercises) runs once every
+  // ~30 accumulated days instead of every simulated day, the same coarsening manpower.tick uses.
+  // Left at 0 and unused outside Fast-Forward, where the gate below is 1 day (i.e. every tick, no
+  // deferral — identical to the pre-Phase-4 behavior).
+  let hiringDaysAccumulated = 0;
+  const HIRING_FAST_ADVANCE_GATE_DAYS = 30;
 
   const markProductionDirty = () => {
     productionDirty = true;
@@ -3189,8 +3198,22 @@ export function init(api: ExtensionAPI): void {
 
   registerEconomyTickSystem("economy.dailyHiring", (context, writer) => {
     const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
-    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
-    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+    const tickDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+    // Fast-Forward Phase 4 (docs/plan/advance-time-fast-forward.md §8): defer the hire-board body to
+    // a ~monthly cadence during a Fast-Forward bulk advance. Outside Fast-Forward nothing changes —
+    // `effectiveDays`/`effectiveDeltaYears` keep their exact previous expressions and the body runs
+    // every tick. Everything below is scaled by `effectiveDays`, so one batched call is the same
+    // shape an Advance Month step already produces.
+    const ffActive = isFastAdvanceActive(context.isBulkAdvance);
+    if (ffActive) {
+      hiringDaysAccumulated += tickDays;
+      if (hiringDaysAccumulated < HIRING_FAST_ADVANCE_GATE_DAYS) return;
+    }
+    const effectiveDays = ffActive ? hiringDaysAccumulated : tickDays;
+    const effectiveDeltaYears = ffActive
+      ? hiringDaysAccumulated / 365.2425
+      : deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+    if (ffActive) hiringDaysAccumulated = 0;
     // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
     // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
     tickUrbanPregnancy(effectiveDeltaYears);

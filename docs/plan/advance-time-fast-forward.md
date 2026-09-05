@@ -624,7 +624,7 @@ export function resolveFastAdvanceRates(): FastAdvanceRates {
 | **Phase 1** | ✅ **実装完了（2026-09-06）**。詳細は§9.5 |
 | **Phase 2** | ✅ **実装完了（2026-09-06）**。`FastAdvanceSettingsDialog.tsx`（プリセットラジオ＋詳細スライダー）・i18n拡張・`AdvanceTimeDialog.tsx`への⚙導線（§6）。詳細は§9.7 |
 | **Phase 3** | ✅ **実装完了（2026-09-06）**。§9.4の国庫合成問題を「系統的な流出を停止」方針で是正（`fastAdvanceEconomyGuard.ts`＋`chemMedCommon.debitTreasury`/`StateSecretKnowledge`/`GreatLibrary`のFF時treasuryスキップ）。§2.3/§9.2.2の依存監査も実施。詳細は§9.8 |
-| **Phase 4（任意）** | manpower成長率・discontentドリフト・technology進行倍率など追加レバー。v1スコープ外（§10） |
+| **Phase 4（任意）** | ✅ **実装完了（2026-09-07）**。Phase 1-3後の残ボトルネックである日次ゲート系のうち、`core:manpower`（週次ゲート→FF時は30日ゲート）と`economy:dailyHiring`（毎tick→FF時は約30日ごとに`effectiveDays`をまとめて処理）のカデンス粗化。非FF経路は完全に不変。詳細は§9.9 |
 
 ## 9. 検証計画・Phase 1実装記録
 
@@ -879,6 +879,10 @@ Fast-Forward中も実計算のまま走る系統（§2.2）について、`Produ
 生データ: `docs/analytics/advance-year-benchmark-latest.json`（FF OFF）/ `advance-year-benchmark-ff-steady.json`
 （FF ON）。
 
+**（2026-09-07追記）** `benchmarkAdvanceYear.ts`への`--warmupYears`/`--fastForward`追加および
+`enableFastForwardViaUI`ヘルパーはユーザー判断でリバートされた（本節の実測値そのものは有効）。以後の
+FF ON/OFF実測は使い捨てのPlaywrightスペックで行う（Phase 4の§9.10も同方式）。
+
 **プロファイルの変化（`ff-perf-1`バルク、totalMs）**:
 
 | ラベル | FF OFF | FF ON | 備考 |
@@ -904,7 +908,44 @@ Fast-Forward中も実計算のまま走る系統（§2.2）について、`Produ
 
 **次の一手（任意、Phase 4相当）**: FF後の新ボトルネックは`simManpower`（週次間引き後もなお424ms）と
 `economy:dailyHiring`。§8のPhase 4「追加レバー」でこれらもFF時に間引く／プリセット化すれば、バルク経路は
-さらに1869→約900ms程度まで縮む見込み。
+さらに1869→約900ms程度まで縮む見込み。→ **§9.10で実装（2026-09-07）。**
+
+### 9.10 Phase 4実装記録（2026-09-07）
+
+§9.9で「FF後の新ボトルネック」と特定した日次ゲート系のうち、上位2項目のカデンスをFF時のみ粗くした。
+**追加レバー（`manpower成長率`等の"プリセット値"化）ではなく、既存処理の呼び出し頻度を落とすだけ**にとどめ、
+FF後も各システムの挙動（軍役の徴募・除隊、雇用ボードのラグ処理）は近似的に維持する。
+
+| ファイル | 変更 | 非FF経路への影響 |
+| :--- | :--- | :--- |
+| `src/generators/timeEngine.ts`（`manpower.tick`） | ゲート日数を`isFastAdvanceActive(context.isBulkAdvance)`時のみ7日→**30日**（`MANPOWER_FAST_ADVANCE_GATE_DAYS`）。`tickManpower`は「gapの一定割合/年 × deltaYears」の線形式なので、月次スライス（年徴募率39.7%）は週次スライス（39.3%）と±0.4pt——近似モードでは無視できる。O(states × (cells + burgs))の本体呼び出しが約1/4に | 完全に不変（`gateDays`は非FF時`MANPOWER_GATE_DAYS`=7のまま、`dueDeltaYears`計算も不変） |
+| `src/extensions/economy/index.tsx`（`economy.dailyHiring`） | FF時のみ`hiringDaysAccumulated`に日数を溜め、**約30日ごとに1回**だけ本体を実行（溜めた`effectiveDays`をまとめて渡す）。ボード期限・採用ラグ等は全て`effectiveDays`スケールで、これは既存の「Advance Month」経路が毎回通しているコードパスそのもの | 完全に不変（`ffActive`偽の分岐で`effectiveDays`/`effectiveDeltaYears`は従来式のまま毎tick実行） |
+
+**新規テスト**: `timeEngine.systems.test.ts`に1件——FF有効＋多日バッチ（`runDaily`）で`manpower.tick`のゲートが
+30日になる（29日目まで`regiment.t`不変、30日目で増加）ことを既存の「7日ゲート」テストと対で確認。
+
+**RNG決定性**: `manpower.tick`は確率ロールを一切含まない（線形式のみ）。`economy.dailyHiring`は
+`tickCullHiring`/`tickEscortHiring`が`context.rng`を消費するが、FF-ON時に一貫して月次化されるだけなので
+FF-ON同士の決定性（同一シード＋プリセット）は保たれる（§4.7、FF-ON≠FF-OFFは元々許容）。非FF経路はRNG消費列も含めて完全に不変。
+
+**ライブ実測**（使い捨てPlaywrightスペック、seed=`ff-perf-phase4`、実6年ウォームアップ、`tickProfiler`有効、
+バルク`advanceTime(1)`）:
+
+| 指標 | FF OFF | FF ON「標準」（Phase 4後） |
+| :--- | ---: | ---: |
+| wall | 2511 ms | **824 ms**（3.05× / −67%） |
+| `production:settle`一式 | 1411 ms | 6 ms |
+| `core:manpower` | 211 ms | **55 ms**（−74%） |
+| `economy:dailyHiring` | 172 ms | **100 ms**（−42%） |
+
+このマップ（`ff-perf-1`/`ff-perf-2`より小規模）でPhase 4の寄与は約-228 ms（Phase 4なしなら FF ON ≈ 1050 ms
+だったところ 824 ms）。大きいマップ（`core:manpower` 424 ms・`dailyHiring` 320 ms）では絶対削減幅も比例して
+大きくなる（推定 -440 ms 前後、§9.9の「1869→約900 ms」見込みに整合）。
+
+**残るFF後ボトルネック**（Phase 4スコープ外・許容）: `economy:foodCalendar`（毎日`daysSinceLastProduction`を
+進めて月次決済境界を検出する構造上、呼び出し自体を粗くできない——約200 ms はほぼ純粋なループオーバーヘッド）、
+`economy:annualAgTech`（既に年次自己ゲート、188 ms は年1回の農業tech再計算そのもの）、
+`economy:caravans`/`economy:retailInventory`（§4.6で在庫消費の粒度維持のため実行継続と明記）。
 
 ## 10. オープンクエスチョン
 
