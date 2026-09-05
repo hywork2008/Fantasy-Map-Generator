@@ -29,10 +29,14 @@ import {
   smoothPath,
   vertexKey
 } from "./edgeGraph";
-import { azimuthDelta, nearestOnPolyline, pointInPolygon, vecToAzimuth } from "./geom";
+import { azimuthDelta, azimuthToVec, nearestOnPolyline, pointInPolygon, vecToAzimuth } from "./geom";
 import { clampToWindow } from "./graphWalk";
 import { close } from "./interior";
+import { landwardFarNode } from "./plausibility";
 import type { BorderLoop, Cell, CityGeography, Gate, Point, Precinct, StreetNetwork } from "./types";
+
+/** How `farNodeFor` picks the extramural road's window-edge aim (Phase G2). */
+export type FarNodeMode = "descriptorEnd" | "radial" | "manualBearings";
 
 export interface StreetInputs {
   /** Junction-optimised interior cells — the same basis as `borders` / `gates`. */
@@ -59,6 +63,19 @@ export interface StreetInputs {
    * endpoints (Phase G7 / design §3.1). Omit or `[]` when there is no river.
    */
   rivers?: Point[][];
+  /** Graph-walked shoreline, used with `avoidSea` to pull a wet far-aim onto land. */
+  shoreline?: Point[] | null;
+  /** Far-aim policy. Default `"descriptorEnd"`. */
+  farNode?: FarNodeMode;
+  /** Per-gate compass bearings when `farNode` is `"manualBearings"`. */
+  manualBearings?: number[];
+  /**
+   * When true (the default), sea-cell vertices are a never-exempted hard bar
+   * for roads, a wet far-aim is pulled onto the shoreline, and A* that still
+   * returns null simply drops the road (Phase G2 / §3.E). Set false to restore
+   * the historical "roads may cross the bay" behaviour for comparison.
+   */
+  avoidSea?: boolean;
 }
 
 /**
@@ -91,7 +108,11 @@ export function buildStreets(input: StreetInputs): StreetResult {
     geo,
     cellSizeMeters,
     halfExtentMeters,
-    rivers: riverPolylines = []
+    rivers: riverPolylines = [],
+    shoreline = null,
+    farNode = "descriptorEnd",
+    manualBearings,
+    avoidSea = true
   } = input;
   if (!gates.length || !cells.length) return EMPTY;
 
@@ -134,7 +155,7 @@ export function buildStreets(input: StreetInputs): StreetResult {
       if (id !== undefined) seaNodes.add(id);
     }
   }
-  const crossesSea = (a: number, b: number): boolean => seaNodes.has(a) || seaNodes.has(b);
+  const crossesSea = (a: number, b: number): boolean => avoidSea && (seaNodes.has(a) || seaNodes.has(b));
 
   // River-walked graph edges. Keyed undirected so A* either direction is barred.
   // Mapping is the same MERGE_QUANTUM as `nodeAt` — `edgePoints` are graph vertices.
@@ -216,7 +237,8 @@ export function buildStreets(input: StreetInputs): StreetResult {
     urbanNodes.has(a) || urbanNodes.has(b) ? Number.POSITIVE_INFINITY : 1;
   const roadsHardBar = (a: number, b: number): boolean => crossesSea(a, b) || onRiver(a, b);
   const roads: Point[][] = [];
-  for (const gate of gates) {
+  for (let gi = 0; gi < gates.length; gi++) {
+    const gate = gates[gi];
     if (gate.water) continue;
     const out = unit(gate.point);
     const apron = clampToWindow(
@@ -224,14 +246,28 @@ export function buildStreets(input: StreetInputs): StreetResult {
       halfExtentMeters
     );
     const apronNode = nearestNode(graph, apron);
-    if (urbanNodes.has(apronNode) || seaNodes.has(apronNode)) continue;
-    const goal = farNodeFor(gate, geo, halfExtentMeters, waterPolygon);
+    if (urbanNodes.has(apronNode) || (avoidSea && seaNodes.has(apronNode))) continue;
+    const goal = farNodeFor(
+      gate,
+      geo,
+      halfExtentMeters,
+      waterPolygon,
+      shoreline,
+      cellSizeMeters,
+      avoidSea,
+      farNode,
+      manualBearings?.[gi]
+    );
     const legs = route(goal, graph.points[apronNode], nonUrban, roadsHardBar);
     if (!legs) continue;
     // The radial stub onto the gate is not an A* hop — bar it separately so a
-    // river along the wall cannot become the road's first edge.
+    // river along the wall cannot become the road's first edge, and so a shore
+    // gate does not grow a last hop across the water (Phase G2).
     const gateNode = nearestNode(graph, gate.point);
-    const line = onRiver(apronNode, gateNode) ? legs : [...legs, [gate.point[0], gate.point[1]] as Point];
+    const apronPt = graph.points[apronNode];
+    const stubMid: Point = [(apronPt[0] + gate.point[0]) / 2, (apronPt[1] + gate.point[1]) / 2];
+    const stubWet = avoidSea && waterPolygon && waterPolygon.length >= 3 && pointInPolygon(stubMid, waterPolygon);
+    const line = onRiver(apronNode, gateNode) || stubWet ? legs : [...legs, [gate.point[0], gate.point[1]] as Point];
     roads.push(line);
   }
 
@@ -371,36 +407,46 @@ function link(adjacency: Map<string, Set<string>>, from: string, to: string): vo
 }
 
 /**
- * A far aim point in the gate's bearing, clamped to the window: the descriptor
- * road whose entry azimuth matches the gate when there is one, else straight out
- * along the gate's own radius.
+ * A far aim point in the gate's bearing, clamped to the window.
+ *
+ * - `descriptorEnd` (default): the descriptor road whose entry azimuth matches
+ *   the gate, else straight out along the gate's own radius.
+ * - `radial`: always along the gate's radius.
+ * - `manualBearings`: the caller-supplied compass bearing, else radial.
+ *
+ * When `avoidSea` is on and that aim lands in the water, replace it with the
+ * `goal→gate` × shoreline intersection, one `cellSize` landward (§3.E.1).
  */
-/**
- * A far aim point in the gate's bearing, clamped to the window: the descriptor
- * road whose entry azimuth matches the gate when there is one, else straight
- * out along the gate's own radius. When that straight-out aim lands in the
- * water (a shore-facing gate), walk it back along the SAME bearing to just
- * short of the water instead — so the road still reaches the gate along dry
- * land (§2.4 / §3.D.1) rather than aiming at a goal `crossesSea` can never
- * let the A* search reach, which silently drops the road.
- */
-function farNodeFor(gate: Gate, geo: CityGeography, half: number, waterPolygon: Point[] | null): Point {
+function farNodeFor(
+  gate: Gate,
+  geo: CityGeography,
+  half: number,
+  waterPolygon: Point[] | null,
+  shoreline: Point[] | null,
+  cellSize: number,
+  avoidSea: boolean,
+  mode: FarNodeMode,
+  manualBearing: number | undefined
+): Point {
   const gateAz = vecToAzimuth(gate.point[0], gate.point[1]);
-  const best = (geo.roadPaths ?? [])
-    .filter(p => p.length >= 2)
-    .map(p => ({ end: p[p.length - 1], az: vecToAzimuth(p[p.length - 1][0], p[p.length - 1][1]) }))
-    .sort((a, b) => azimuthDelta(a.az, gateAz) - azimuthDelta(b.az, gateAz))[0];
-  const dir = best && azimuthDelta(best.az, gateAz) < 45 ? unit(best.end) : unit(gate.point);
+  let dir: Point;
+  if (mode === "radial") {
+    dir = unit(gate.point);
+  } else if (mode === "manualBearings" && manualBearing != null && Number.isFinite(manualBearing)) {
+    dir = azimuthToVec(manualBearing);
+  } else {
+    const best = (geo.roadPaths ?? [])
+      .filter(p => p.length >= 2)
+      .map(p => ({ end: p[p.length - 1], az: vecToAzimuth(p[p.length - 1][0], p[p.length - 1][1]) }))
+      .sort((a, b) => azimuthDelta(a.az, gateAz) - azimuthDelta(b.az, gateAz))[0];
+    dir = best && azimuthDelta(best.az, gateAz) < 45 ? unit(best.end) : unit(gate.point);
+  }
   const m = half * 0.985;
   const reach = half * 1.6;
   const clamp = (p: Point): Point => [Math.max(-m, Math.min(m, p[0])), Math.max(-m, Math.min(m, p[1]))];
   const raw: Point = [gate.point[0] + dir[0] * reach, gate.point[1] + dir[1] * reach];
-  if (!waterPolygon || waterPolygon.length < 3 || !pointInPolygon(raw, waterPolygon)) return clamp(raw);
-  for (let t = 0.9; t > 0; t -= 0.05) {
-    const p: Point = [gate.point[0] + dir[0] * reach * t, gate.point[1] + dir[1] * reach * t];
-    if (!pointInPolygon(p, waterPolygon)) return clamp(p);
-  }
-  return gate.point; // fully surrounded by water — route() sees s === g and skips it
+  if (!avoidSea) return clamp(raw);
+  return landwardFarNode(gate.point, raw, waterPolygon, shoreline, cellSize, clamp);
 }
 
 function unit(p: Point): Point {

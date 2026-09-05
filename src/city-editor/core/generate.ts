@@ -27,12 +27,18 @@ import { classifyUrban } from "./gen/classifyUrban";
 import { buildEdgeGraph } from "./gen/edgeGraph";
 import { polygonCentroid, polygonTouchesRectEdge } from "./gen/geom";
 import { markSeaSurroundedGates, markWaterGate, placeGates, placePrecincts } from "./gen/interior";
+import {
+  clipPolylinesToLand,
+  majorityLandGatesUnserved,
+  remakeUnreachableLandGates,
+  splitDryWallRuns
+} from "./gen/plausibility";
 import { makeRng } from "./gen/prng";
 import { type RoutedRiver, walkRiver } from "./gen/riverPath";
 import { DEFAULT_SITE_CONFIG, FEATURE_KEYS, randomSiteConfig, type SiteConfig } from "./gen/site/siteConfig";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "./gen/site/siteInput";
 import { synthSite } from "./gen/site/synthSite";
-import { buildStreets } from "./gen/streets";
+import { buildStreets, type FarNodeMode } from "./gen/streets";
 import type {
   Cell,
   CityGeography,
@@ -52,6 +58,7 @@ import { kindEdgeIds, openBarrierPassage, openGeneratedPassages } from "./passag
 import type { CityDocument, EdgeRef, Id, Mesh, Point } from "./types";
 
 export type { CityFeatureSet, SiteConfig } from "./gen/site/siteConfig";
+export type { FarNodeMode };
 export { FEATURE_KEYS };
 
 /** All feature groups / gates / elements this module owns carry this id prefix,
@@ -87,6 +94,15 @@ export const GENERATION_STAGES: GenerationStage[] = [
 
 /** The deliberate inputs the user picks. Neither the seed nor the map size is
  * here — the panel holds the seed, and the frame is the document's. */
+export interface StreetSettings {
+  farNode: FarNodeMode;
+  manualBearings?: number[];
+  /** When true (default), roads / walls / buildings may not sit in `waterPolygon`. */
+  avoidSea: boolean;
+  /** Phase G5: fold smoothed artery vertices back into the mesh. Default true. */
+  foldSmoothing: boolean;
+}
+
 export interface GenerationSettings {
   config: SiteConfig;
   /**
@@ -96,6 +112,16 @@ export interface GenerationSettings {
    * cutoff. See docs/city-generator/towngen-comparison.md §2.1.
    */
   urbanNPatches?: number;
+  /** Phase G2 street-extension / sea-avoidance knobs. Unset = `defaultStreetSettings()`. */
+  streets?: Partial<StreetSettings>;
+}
+
+export function defaultStreetSettings(): StreetSettings {
+  return { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+}
+
+export function resolveStreetSettings(settings: GenerationSettings): StreetSettings {
+  return { ...defaultStreetSettings(), ...settings.streets };
 }
 
 /** A random internal seed for one town. Never shown, typed, or persisted. */
@@ -104,7 +130,7 @@ export function randomSeed(): string {
 }
 
 export function defaultGenerationSettings(): GenerationSettings {
-  return { config: structuredClone(DEFAULT_SITE_CONFIG) };
+  return { config: structuredClone(DEFAULT_SITE_CONFIG), streets: defaultStreetSettings() };
 }
 
 /** A fresh coherent random coast / rivers / relief / feature combination. */
@@ -169,7 +195,7 @@ export function generateStageOnDocument(
   if (faces.length < 3) return null;
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, stageStep);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, stageStep);
   return applyPlan(document, cells, faceIdOf, plan, program, stageStep);
 }
 
@@ -205,7 +231,7 @@ export function generateUrbanPatchStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, cellId: null };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 3);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 3);
   const total = plan.urbanStages.length;
   if (total === 0) {
     return { document: applyPlan(document, cells, faceIdOf, plan, program, 3), total: 0, index: -1, cellId: null };
@@ -264,7 +290,7 @@ export function generateCoastWalkStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 1);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 1);
   const shownDoc = applyPlan(document, cells, faceIdOf, { ...plan, sea: new Set() }, program, 1);
   const total = plan.coastPath.length;
   if (total === 0) return { document: shownDoc, total: 0, index: -1, detail: null, overlayPaths: [] };
@@ -295,7 +321,7 @@ export function generateRiverWalkStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null, overlayPaths: [] };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 2);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 2);
   const shownDoc = applyPlan(document, cells, faceIdOf, { ...plan, rivers: [] }, program, 2);
   const lengths = plan.rivers.map(r => r.edgePoints.length);
   const total = lengths.reduce((sum, n) => sum + n, 0);
@@ -340,7 +366,7 @@ export function generateGateStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 4);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 4);
   const total = plan.gates.length;
   if (total === 0) {
     return { document: applyPlan(document, cells, faceIdOf, plan, program, 4), total: 0, index: -1, detail: null };
@@ -367,7 +393,7 @@ export function generateRoadStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 5);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 5);
   const total = plan.roads.length;
   if (total === 0) {
     return { document: applyPlan(document, cells, faceIdOf, plan, program, 5), total: 0, index: -1, detail: null };
@@ -400,7 +426,7 @@ export function generateWardStep(
   if (faces.length < 3) return { document: null, total: 0, index: -1, detail: null };
 
   const { cells, faceIdOf, geo, program, params, half, cellSize } = prepareRun(document, settings, seed);
-  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, 6);
+  const plan = runPlan(document.mesh, faceIdOf, cells, geo, program, params, seed, half, cellSize, settings, 6);
   const total = plan.wardOrder.length;
   if (total === 0) {
     return { document: applyPlan(document, cells, faceIdOf, plan, program, 6), total: 0, index: -1, detail: null };
@@ -424,6 +450,12 @@ interface Plan {
   /** S1's raw graph walk (upstream → downstream), before it is closed into
    * `sea`'s water polygon. Empty before S1 runs. See `generateCoastWalkStep`. */
   coastPath: Point[];
+  /** Closed water polygon from S1, or null when landlocked. Used by the G2
+   * plausibility filter in `applyPlan` (wet wall edges) and tests. */
+  waterPolygon: Point[] | null;
+  /** Resolved `settings.streets.avoidSea` so `applyPlan` can drop wet walls
+   * without taking the whole settings object. */
+  avoidSea: boolean;
   rivers: RoutedRiver[];
   urban: Set<number>;
   outskirts: Set<number>;
@@ -460,11 +492,15 @@ function runPlan(
   seed: string,
   half: number,
   cellSize: number,
+  settings: GenerationSettings,
   stageStep: number
 ): Plan {
+  const streetOpts = resolveStreetSettings(settings);
   const empty: Plan = {
     sea: new Set(),
     coastPath: [],
+    waterPolygon: null,
+    avoidSea: streetOpts.avoidSea,
     rivers: [],
     urban: new Set(),
     outskirts: new Set(),
@@ -499,8 +535,9 @@ function runPlan(
     .filter((c): c is CoastResult => c !== null);
   const coast = coasts[0] ?? null;
   const coastPath = coast?.shoreline ?? [];
+  const waterPolygon = coast?.waterPolygon ?? null;
   const sea = new Set<number>(coasts.flatMap(c => [...c.sea]));
-  if (stageStep < 2) return { ...empty, sea, coastPath };
+  if (stageStep < 2) return { ...empty, sea, coastPath, waterPolygon };
 
   // S2 — river along the cell-edge graph (no fold-back into the mesh).
   const rivers = geo.rivers
@@ -522,7 +559,7 @@ function runPlan(
     sea,
     rivers.map(band => ({ edgePoints: band.edgePoints }))
   );
-  if (stageStep < 3) return { ...empty, sea, coastPath, rivers };
+  if (stageStep < 3) return { ...empty, sea, coastPath, waterPolygon, rivers };
 
   // S3 — urban core. `params.urbanNPatches` (debug/tuning override) caps the
   // fill to a fixed cell count instead of the radius; `urbanStages` records each
@@ -543,7 +580,7 @@ function runPlan(
     params.urbanNPatches ?? null,
     params.cellSizeMeters
   );
-  if (stageStep < 4) return { ...empty, sea, coastPath, rivers, urban, outskirts, urbanStages };
+  if (stageStep < 4) return { ...empty, sea, coastPath, waterPolygon, rivers, urban, outskirts, urbanStages };
 
   // S4 — outline the urban blob along real mesh edges, gates, plaza & citadel.
   const riverLines = rivers.map(band => band.smoothPoints);
@@ -554,16 +591,19 @@ function runPlan(
   const citadelOutline = citadel
     ? (componentBorderLoops(mesh, faceIdOf, new Set(citadel.cellIds))[0]?.points ?? null)
     : null;
-  const gates = markSeaSurroundedGates(
-    markWaterGate(placeGates(cells, urban, genBorders, geo), genBorders, coast?.shoreline ?? null, program.port),
-    coast?.waterPolygon ?? null,
-    cellSize
+  const placed = markWaterGate(
+    placeGates(cells, urban, genBorders, geo),
+    genBorders,
+    coast?.shoreline ?? null,
+    program.port
   );
+  const gates = streetOpts.avoidSea ? markSeaSurroundedGates(placed, waterPolygon, cellSize) : placed;
   if (stageStep < 5) {
     return {
       ...empty,
       sea,
       coastPath,
+      waterPolygon,
       rivers,
       urban,
       outskirts,
@@ -576,11 +616,12 @@ function runPlan(
   }
 
   // S5 — approach roads (raw A* on the same graph; not smoothed into the mesh).
-  const streetResult = buildStreets({
+  const streetInput = {
     cells,
     urban,
     sea,
-    waterPolygon: coast?.waterPolygon ?? null,
+    waterPolygon,
+    shoreline: coast?.shoreline ?? null,
     borders: genBorders,
     gates,
     precincts,
@@ -588,20 +629,45 @@ function runPlan(
     geo,
     cellSizeMeters: cellSize,
     halfExtentMeters: half,
-    rivers: rivers.map(band => band.edgePoints)
-  });
-  const roads = streetResult.roads;
+    rivers: rivers.map(band => band.edgePoints),
+    farNode: streetOpts.farNode,
+    manualBearings: streetOpts.manualBearings,
+    avoidSea: streetOpts.avoidSea
+  };
+  let streetResult = buildStreets(streetInput);
+  let routedGates = gates;
+  let streetGeo = geo;
+  if (streetOpts.avoidSea && majorityLandGatesUnserved(routedGates, streetResult.roads, cellSize)) {
+    const retry = synthSite(NOMINAL_PRESET, settings.config, `${seed}:roads-retry`, {
+      extentMeters: params.extentMeters,
+      cityRadiusMeters: params.cityRadiusMeters
+    });
+    const retryGeo = siteToGeography(retry);
+    streetGeo = { ...geo, roadBearings: retryGeo.roadBearings, roadPaths: retryGeo.roadPaths };
+    streetResult = buildStreets({ ...streetInput, geo: streetGeo });
+  }
+  let roads = streetResult.roads;
+  if (streetOpts.avoidSea) {
+    roads = clipPolylinesToLand(roads, waterPolygon);
+    streetResult = {
+      ...streetResult,
+      roads,
+      arteries: clipPolylinesToLand(streetResult.arteries, waterPolygon)
+    };
+    routedGates = remakeUnreachableLandGates(routedGates, roads, cellSize);
+  }
   if (stageStep < 6) {
     return {
       ...empty,
       sea,
       coastPath,
+      waterPolygon,
       rivers,
       urban,
       outskirts,
       urbanStages,
       borderLoops,
-      gates,
+      gates: routedGates,
       precincts,
       citadelOutline,
       roads
@@ -615,23 +681,25 @@ function runPlan(
     outskirts,
     sea,
     borders: genBorders,
-    gates,
+    gates: routedGates,
     precincts,
-    geo,
+    geo: streetGeo,
     params,
     program,
     shoreline: coast?.shoreline ?? null,
-    waterPolygon: coast?.waterPolygon ?? null
+    waterPolygon
   });
   return {
     sea,
     coastPath,
+    waterPolygon,
+    avoidSea: streetOpts.avoidSea,
     rivers,
     urban,
     outskirts,
     urbanStages,
     borderLoops,
-    gates,
+    gates: routedGates,
     precincts,
     citadelOutline,
     roads,
@@ -710,18 +778,28 @@ function applyPlan(
     });
   }
 
-  // ④ walls + gates + plaza / citadel
+  // ④ walls + gates + plaza / citadel. When avoidSea is on, drop edges whose
+  // midpoint sits in the water so the sea side is left open (§3.E.2), splitting
+  // the remainder into contiguous runs (`validate` requires that).
   if (stageStep >= 4 && program.walls) {
-    plan.borderLoops.forEach((loop, i) => {
-      if (loop.segments.length < 3) return;
-      next.featureGroups.push({
-        id: `${GEN_PREFIX}wall-${i}`,
-        kind: "wall",
-        name: `Wall ${i + 1}`,
-        segments: loop.segments,
-        style: { widthMeters: Math.max(4, source.frame.blockSizeMeters * 0.14), color: "#41382e" },
-        locked: false
-      });
+    let wallIndex = 0;
+    plan.borderLoops.forEach(loop => {
+      const runs =
+        plan.avoidSea && plan.waterPolygon
+          ? splitDryWallRuns(loop.points, loop.segments, plan.waterPolygon)
+          : [loop.segments];
+      for (const segments of runs) {
+        if (segments.length < 1) continue;
+        next.featureGroups.push({
+          id: `${GEN_PREFIX}wall-${wallIndex}`,
+          kind: "wall",
+          name: `Wall ${wallIndex + 1}`,
+          segments,
+          style: { widthMeters: Math.max(4, source.frame.blockSizeMeters * 0.14), color: "#41382e" },
+          locked: false
+        });
+        wallIndex++;
+      }
     });
   }
   if (stageStep >= 4) {

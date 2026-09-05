@@ -166,6 +166,75 @@ export function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): b
   return (d1 > 0 !== d2 > 0 || d1 === 0 || d2 === 0) && (d3 > 0 !== d4 > 0 || d3 === 0 || d4 === 0);
 }
 
+/** Intersection of two finite segments. Null when they miss or are parallel. `t` is
+ * the parameter along `a1→a2` in `[0, 1]`. */
+export function segmentSegmentHit(a1: Point, a2: Point, b1: Point, b2: Point): { point: Point; t: number } | null {
+  const rx = a2[0] - a1[0];
+  const ry = a2[1] - a1[1];
+  const sx = b2[0] - b1[0];
+  const sy = b2[1] - b1[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const t = ((b1[0] - a1[0]) * sy - (b1[1] - a1[1]) * sx) / den;
+  const u = ((b1[0] - a1[0]) * ry - (b1[1] - a1[1]) * rx) / den;
+  if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) return null;
+  return { point: [a1[0] + t * rx, a1[1] + t * ry], t: Math.max(0, Math.min(1, t)) };
+}
+
+/** First intersection of segment `a→b` with the polyline (open, or a closed ring
+ * if the last vertex repeats the first). Null when they miss. */
+export function segmentPolylineIntersection(a: Point, b: Point, poly: Point[]): Point | null {
+  if (poly.length < 2) return null;
+  let best: { point: Point; t: number } | null = null;
+  for (let i = 0; i < poly.length - 1; i++) {
+    const hit = segmentSegmentHit(a, b, poly[i], poly[i + 1]);
+    if (hit && (!best || hit.t < best.t)) best = hit;
+  }
+  return best?.point ?? null;
+}
+
+/**
+ * True when the open segment `a→b` has an interior sample inside `poly`. A
+ * segment that only touches the boundary (shoreline-hugging) is not a crossing.
+ */
+export function segmentInteriorInPolygon(a: Point, b: Point, poly: Point[]): boolean {
+  if (poly.length < 3) return false;
+  const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  if (!pointInPolygon(mid, poly)) return false;
+  const ring =
+    poly[0][0] === poly[poly.length - 1][0] && poly[0][1] === poly[poly.length - 1][1] ? poly : [...poly, poly[0]];
+  return nearestOnPolyline(mid, ring).dist > 1e-4;
+}
+
+/** Drop any run of `line` whose segment midpoints sit inside `poly`. Each
+ * remaining dry stretch is returned as its own polyline (length ≥ 2). */
+export function clipPolylineOutsidePolygon(line: Point[], poly: Point[]): Point[][] {
+  if (line.length < 2) return [];
+  if (poly.length < 3) return [line.map(p => [p[0], p[1]] as Point)];
+  const runs: Point[][] = [];
+  let current: Point[] = [];
+  for (let i = 0; i + 1 < line.length; i++) {
+    const a = line[i];
+    const b = line[i + 1];
+    if (segmentInteriorInPolygon(a, b, poly)) {
+      if (current.length >= 2) runs.push(current);
+      current = [];
+    } else {
+      if (!current.length) current.push([a[0], a[1]]);
+      current.push([b[0], b[1]]);
+    }
+  }
+  if (current.length >= 2) runs.push(current);
+  return runs;
+}
+
+/** The longest dry run of `line` outside `poly`, or null when every segment is wet. */
+export function longestDryRun(line: Point[], poly: Point[]): Point[] | null {
+  const runs = clipPolylineOutsidePolygon(line, poly);
+  if (!runs.length) return null;
+  return runs.reduce((best, run) => (polylineLength(run) > polylineLength(best) ? run : best));
+}
+
 /** True when segment a-b crosses any segment of the polyline. */
 export function polylineCrossesSegment(poly: Point[], a: Point, b: Point): boolean {
   for (let i = 0; i < poly.length - 1; i++) {

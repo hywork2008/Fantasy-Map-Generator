@@ -41,7 +41,7 @@ function iconButton(title: string): HTMLButtonElement {
 }
 
 const nPatchesInput = (): HTMLInputElement =>
-  root.querySelector<HTMLInputElement>('.ce-generate input[type="number"]') as HTMLInputElement;
+  root.querySelector<HTMLInputElement>(".ce-generate-npatches") as HTMLInputElement;
 const stepStatusText = (): string => root.querySelector(".ce-generate-step-status")?.textContent ?? "";
 /** The panel starts landlocked (DEFAULT_SITE_CONFIG.coast === "none") — the ①
  * coastline tests need an actual coast, found by the option only Coast has. */
@@ -94,15 +94,26 @@ describe("Generate panel", () => {
   it("renders six ordered process buttons (no grid step) and no seed / size field", () => {
     const labels = [...root.querySelectorAll(".ce-generate-stages button")].map(b => b.textContent);
     expect(labels).toEqual(["① 海岸線と海", "② 河川", "③ 市街地コア", "④ 城壁・門・城郭", "⑤ 街路", "⑥ 地区割り当て"]);
-    // No seed / size field — but the ③ urban-core "nPatches" debug override
-    // (towngen-comparison.md §2.1) is a deliberate, sole exception.
-    const typedInputs = [...root.querySelectorAll<HTMLInputElement>(".ce-generate input")].filter(
-      i => i.type === "text" || i.type === "number"
-    );
-    expect(typedInputs).toHaveLength(1);
-    expect(typedInputs[0].placeholder).toBe("auto");
+    // No seed / size field — nPatches is the count cutoff; G2 adds a hidden
+    // bearings text field that only shows for "Manual bearings".
+    expect(nPatchesInput().placeholder).toBe("auto");
+    expect(root.querySelector(".ce-generate-avoidsea")).toBeTruthy();
+    expect(root.querySelector(".ce-generate-farnode")).toBeTruthy();
     expect([...root.querySelectorAll(".ce-generate label")].some(l => l.textContent?.includes("Size"))).toBe(false);
     expect(panelButton("新しい都市")).toBeTruthy();
+  });
+
+  it("exposes Avoid sea and the three far-end modes (Phase G2)", () => {
+    const avoid = root.querySelector<HTMLInputElement>(".ce-generate-avoidsea");
+    expect(avoid?.checked).toBe(true);
+    const far = root.querySelector<HTMLSelectElement>(".ce-generate-farnode");
+    expect([...(far?.options ?? [])].map(o => o.value)).toEqual(["descriptorEnd", "radial", "manualBearings"]);
+    const bearings = root.querySelector<HTMLInputElement>(".ce-generate-bearings");
+    expect(bearings).toBeTruthy();
+    expect(bearings?.closest("label")?.style.display).toBe("none");
+    far!.value = "manualBearings";
+    far!.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(bearings?.closest("label")?.style.display).not.toBe("none");
   });
 
   it("never rebuilds the block mesh on ①–④ — the reported bug", () => {

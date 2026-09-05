@@ -29,6 +29,7 @@ import { makeRng } from "../core/gen/prng";
 import {
   type CityFeatureSet,
   defaultGenerationSettings,
+  type FarNodeMode,
   FEATURE_KEYS,
   GENERATION_STAGES,
   type GenerationSettings,
@@ -565,6 +566,7 @@ export function mountCityEditor(root: HTMLElement): void {
   // ③'s nPatches count cutoff (towngen-comparison.md §2.1) — the one tunable
   // knob among the six processes so far; the ◀/▶ scrub below applies to all six.
   const urbanNPatchesInput = numberInput("", "1", "1");
+  urbanNPatchesInput.className = "ce-generate-npatches";
   urbanNPatchesInput.placeholder = "auto";
   urbanNPatchesInput.title = "Cap ③'s flood-fill to the first N cells instead of the radius cutoff";
   urbanNPatchesInput.addEventListener("change", () => {
@@ -580,6 +582,51 @@ export function mountCityEditor(root: HTMLElement): void {
     }
     generateSettings.urbanNPatches = n;
   });
+
+  if (!generateSettings.streets)
+    generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+  const streets = generateSettings.streets;
+  const avoidSeaInput = checkbox(streets.avoidSea !== false, checked => {
+    streets.avoidSea = checked;
+  });
+  avoidSeaInput.className = "ce-generate-avoidsea";
+  avoidSeaInput.title = "Keep roads, walls and buildings off the water (towngen-comparison.md §3.E)";
+  const FAR_NODE_MODES: { value: FarNodeMode; label: string }[] = [
+    { value: "descriptorEnd", label: "Descriptor end" },
+    { value: "radial", label: "Radial" },
+    { value: "manualBearings", label: "Manual bearings" }
+  ];
+  const farNodeSelect = document.createElement("select");
+  farNodeSelect.className = "ce-generate-farnode";
+  for (const mode of FAR_NODE_MODES) {
+    const option = document.createElement("option");
+    option.value = mode.value;
+    option.textContent = mode.label;
+    option.selected = mode.value === (streets.farNode ?? "descriptorEnd");
+    farNodeSelect.appendChild(option);
+  }
+  const bearingsInput = document.createElement("input");
+  bearingsInput.type = "text";
+  bearingsInput.className = "ce-generate-bearings";
+  bearingsInput.placeholder = "90, 180, 270";
+  bearingsInput.title = "Comma-separated compass bearings (degrees) for each land gate";
+  const bearingsLabel = label("Manual bearings", bearingsInput);
+  const syncBearingsRow = (): void => {
+    bearingsLabel.style.display = farNodeSelect.value === "manualBearings" ? "" : "none";
+  };
+  farNodeSelect.addEventListener("change", () => {
+    streets.farNode = farNodeSelect.value as FarNodeMode;
+    syncBearingsRow();
+  });
+  bearingsInput.addEventListener("change", () => {
+    const parsed = bearingsInput.value
+      .split(/[,\s]+/)
+      .map(s => Number(s))
+      .filter(n => Number.isFinite(n));
+    streets.manualBearings = parsed.length ? parsed.map(n => ((n % 360) + 360) % 360) : undefined;
+    bearingsInput.value = streets.manualBearings?.map(n => String(n)).join(", ") ?? "";
+  });
+  syncBearingsRow();
 
   // One shared ◀/▶ scrub for whichever of the six processes was last activated
   // (pressing its stage button, or ◀/▶ itself) — towngen-comparison.md's
@@ -614,6 +661,9 @@ export function mountCityEditor(root: HTMLElement): void {
     stageButtons,
     divider(),
     label("③ nPatches (blank = radius cutoff)", urbanNPatchesInput),
+    toggleLabel("Avoid sea", avoidSeaInput),
+    label("Street far end", farNodeSelect),
+    bearingsLabel,
     text("Step through the last-pressed process one loop iteration at a time"),
     stepRow
   );
@@ -2210,6 +2260,13 @@ export function mountCityEditor(root: HTMLElement): void {
     reliefInput.checked = generateSettings.config.relief;
     for (const [key, input] of featureInputs) input.checked = generateSettings.config.features[key];
     urbanNPatchesInput.value = generateSettings.urbanNPatches != null ? String(generateSettings.urbanNPatches) : "";
+    if (!generateSettings.streets) {
+      generateSettings.streets = { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true };
+    }
+    avoidSeaInput.checked = generateSettings.streets.avoidSea !== false;
+    farNodeSelect.value = generateSettings.streets.farNode ?? "descriptorEnd";
+    bearingsInput.value = generateSettings.streets.manualBearings?.map(n => String(n)).join(", ") ?? "";
+    bearingsLabel.style.display = farNodeSelect.value === "manualBearings" ? "" : "none";
   }
 
   /** Roll a new random town, then re-show it at whatever stage is on screen. */
