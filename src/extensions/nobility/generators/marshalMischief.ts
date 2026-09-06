@@ -1,3 +1,4 @@
+import { getWarPreference } from "../../characters/characterMotivation";
 import type { Character, TitleHolding } from "../../characters/characterTypes";
 import { simulationContext } from "../../hostCore";
 import type { State } from "../../hostTypes";
@@ -73,15 +74,16 @@ function pickProvokeTarget(state: State, states: readonly State[]): number | und
   };
 
   diplomacy.forEach((rel, id) => {
-    consider(id, rel);
+    consider(id, typeof rel === "string" ? rel : undefined);
   });
   for (const id of state.neighbors ?? []) {
-    consider(id, diplomacy[id] ?? "Neutral");
+    const rel = diplomacy[id];
+    consider(id, typeof rel === "string" ? rel : "Neutral");
   }
   return bestId;
 }
 
-function ensureDiplomacy(state: State): string[] {
+function ensureDiplomacy(state: State): NonNullable<State["diplomacy"]> {
   if (!state.diplomacy) state.diplomacy = [];
   return state.diplomacy;
 }
@@ -90,10 +92,17 @@ function ensureDiplomacy(state: State): string[] {
  * Manufacture an interstate war so the idle hawk has a fight. No-ops under
  * player-directed conflict policy, or when every neighbor is already allied or at war.
  */
-export function tryProvokeWar(args: { state: State; states: readonly State[] }): boolean {
+export function tryProvokeWar(args: { state: State; states: readonly State[]; marshal?: Character }): boolean {
   const { state, states } = args;
   if (!state.i) return false;
   if (hasNobilityContext() && !mayAdvanceAutonomousConflict()) return false;
+
+  // Personality chooses the attempt; competence and contacts determine whether it works.
+  if (args.marshal) {
+    if (getWarPreference(args.marshal) < 60 || args.marshal.personality.guile < 60) return false;
+    const chance = Math.min(0.9, 0.1 + args.marshal.skills.intrigue * 0.006 + args.marshal.skills.diplomacy * 0.002);
+    if (Math.random() >= chance) return false;
+  }
 
   const targetId = pickProvokeTarget(state, states);
   if (targetId === undefined) return false;

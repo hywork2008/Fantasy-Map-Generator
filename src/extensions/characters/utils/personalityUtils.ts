@@ -1,9 +1,10 @@
 import type React from "react";
 import type { CharacterPersonality } from "../characterTypes";
 
+/** Coarse conduct display, not a moral verdict on sociability, faith, or indirect methods. */
 export function calculateCharacterTraits(p: CharacterPersonality) {
-  const good = ((p.compassion ?? 0) + (p.honor ?? 0) + (p.sociability ?? 0)) / 3;
-  const bad = ((p.greed ?? 0) + (p.guile ?? 0) + (p.vengefulness ?? 0) + (p.zeal ?? 0)) / 4;
+  const good = ((p.compassion ?? 50) + (p.honor ?? 50)) / 2;
+  const bad = ((p.greed ?? 50) + (p.vengefulness ?? 50)) / 2;
   return { good, bad };
 }
 

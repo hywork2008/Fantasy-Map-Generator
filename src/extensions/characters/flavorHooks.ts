@@ -75,7 +75,7 @@ export function hasStratumRoleContrast(stratum: SocialStratum | "unknown", role:
 }
 
 /**
- * Build 1–3 structured hooks (ids + params). Text is resolved via i18n in the UI.
+ * Build structured identity, taste, relationship, and lineage hooks (ids + params). Text is resolved via i18n in the UI.
  */
 export function generateCharacterHooks(character: Character): CharacterFlavorHook[] {
   const hooks: CharacterFlavorHook[] = [];
@@ -120,7 +120,8 @@ export function generateCharacterHooks(character: Character): CharacterFlavorHoo
     hooks.push({ id: "house.tongue", params: { house } });
   }
 
-  return hooks.slice(0, 3);
+  // Keep relationship and lineage hooks; truncation used to discard them after three generic lines.
+  return hooks;
 }
 
 export function applyCharacterHooks(character: Character): void {
@@ -151,7 +152,7 @@ function stratumLabel(stratum: string | undefined, t: TFunction): string {
 }
 
 function roleClause(role: string | undefined, t: TFunction): string {
-  const key = role && role.length ? role : "ordinary";
+  const key = role?.length ? role : "ordinary";
   return t(`characters.flavorLines.role.${key}`, {
     defaultValue: t("characters.flavorLines.role.ordinary")
   });

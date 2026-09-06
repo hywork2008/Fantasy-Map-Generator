@@ -54,8 +54,9 @@ function normalizedExposure(exposure: number): number {
 function tasteById(tastes: readonly CharacterTaste[] | undefined): Map<string, CharacterTaste> {
   const result = new Map<string, CharacterTaste>();
   for (const taste of tastes ?? []) {
-    const current = result.get(taste.id);
-    if (!current || taste.intensity > current.intensity) result.set(taste.id, taste);
+    const key = `${taste.aspect ?? "preference"}:${taste.id}`;
+    const current = result.get(key);
+    if (!current || taste.intensity > current.intensity) result.set(key, taste);
   }
   return result;
 }
@@ -134,15 +135,16 @@ export function assessTasteRelationship(
   const counterpartTastes = tasteById(counterpart.backstory?.tastes);
   const evidence: TasteRelationshipEvidence[] = [];
 
-  for (const tasteId of new Set(context.exposedTasteIds)) {
-    const observerTaste = observerTastes.get(tasteId);
-    const counterpartTaste = counterpartTastes.get(tasteId);
-    if (!observerTaste || !counterpartTaste) continue;
+  const exposed = new Set(context.exposedTasteIds);
+  for (const [key, observerTaste] of observerTastes) {
+    if (!exposed.has(observerTaste.id)) continue;
+    const counterpartTaste = counterpartTastes.get(key);
+    if (!counterpartTaste) continue;
     evidence.push(evidenceForSharedTaste(observer, observerTaste, counterpartTaste, context, exposure));
   }
 
   for (const traitId of new Set(context.counterpartTraits ?? [])) {
-    const observerTaste = observerTastes.get(traitId);
+    const observerTaste = observerTastes.get(`value:${traitId}`) ?? observerTastes.get(`preference:${traitId}`);
     if (observerTaste?.polarity !== "dislike") continue;
     evidence.push({
       tasteId: traitId,

@@ -55,6 +55,18 @@ describe("assessTasteRelationship", () => {
     expect(hidden.compatibility).toBe(0);
   });
 
+  it("does not confuse a private preference with an ethical objection to the same subject", () => {
+    const a = person([
+      { id: "wine", polarity: "like", intensity: 90 },
+      { id: "wine", polarity: "dislike", intensity: 80, aspect: "value" }
+    ]);
+    const b = person([{ id: "wine", polarity: "like", intensity: 90 }]);
+    const result = assessTasteRelationship(a, b, { situation: "socialVisit", exposedTasteIds: ["wine"], exposure: 1 });
+    expect(result.evidence).toHaveLength(1);
+    expect(result.evidence[0]?.kind).toBe("sharedLike");
+    expect(result.compatibility).toBeGreaterThan(0);
+  });
+
   it("values a shared dislike less than a shared like", () => {
     const likeA = person([{ id: "debate", polarity: "like", intensity: 100 }]);
     const likeB = person([{ id: "debate", polarity: "like", intensity: 100 }]);

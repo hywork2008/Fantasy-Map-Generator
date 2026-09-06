@@ -50,3 +50,8 @@ Drawn to hunting and sport; turns cold at merchants.
 - Locale-specific hook tables  
 - Event-driven hook refresh after major life events  
 - Longer template biographies using the same axes  
+
+
+## 2026-09-06 人物表現の改訂
+
+`generateCharacterHooks` の先頭3件切り捨てを廃止。人物・献身・嗜好の後に生成された関係や家門のフックも残す。具体的な目標、行動規範、戦争信条、実際の退職履歴は Details/CSV の独立行で表示し、架空の過去をフレーバーから逆算しない。詳細は [人物表現の改訂](character-expression-revision.md)。

@@ -371,6 +371,63 @@ describe("StrategicPlannerGenerator.advanceTension — stale goalTargetBurg clea
     clearNobilityContext();
   });
 
+  it("drops a saved expansion when a peaceful ruler takes over, but preserves existing wars", () => {
+    const pack = makeFrontierPack({
+      defenderBurgPopulation: 1,
+      defenderBulkRegimentPower: 100,
+      attackerPower: 100,
+      fortified: false
+    });
+    pack.states[1]!.rulerId = 1;
+    pack.states[1]!.diplomacy![2] = "Rival";
+    pack.characters = [
+      {
+        i: 1,
+        personality: {
+          boldness: 100,
+          greed: 20,
+          compassion: 80,
+          honor: 80,
+          rationality: 70,
+          sociability: 50,
+          vengefulness: 20,
+          zeal: 50,
+          energy: 50,
+          piety: 50,
+          guile: 50,
+          confidence: 50
+        },
+        backstory: {
+          principles: ["reject_aggression"],
+          commitment: { primary: { kind: "people" }, intensity: 80 },
+          tastes: []
+        }
+      }
+    ] as PackedGraph["characters"];
+    worldContext.pack = pack;
+    const regiment = pack.states[1]!.military![0]!;
+    regiment.goalTargetBurg = 1;
+    const goal = {
+      targetBurg: 1,
+      targetState: 2,
+      type: "siege" as const,
+      tension: 40,
+      expectedCasualties: "moderate" as const,
+      justification: "border_expansion",
+      requiredAttackForce: 10
+    };
+    simulationContext.strategicGoals = { 1: [{ ...goal }] };
+    planner.advanceTension();
+    expect(simulationContext.strategicGoals[1]).toHaveLength(0);
+    expect(regiment.goalTargetBurg).toBeUndefined();
+
+    // A former plan may still be needed once fighting has actually begun.
+    pack.states[1]!.diplomacy![2] = "Enemy";
+    simulationContext.strategicGoals = { 1: [{ ...goal }] };
+    planner.advanceTension();
+    expect(simulationContext.strategicGoals[1]).toHaveLength(1);
+  });
+
   it("clears a regiment's goalTargetBurg tag once its target burg is already owned by the state", () => {
     const regiment = { i: 0, a: 100, state: 1, goalTargetBurg: 1, x: 0, y: 0, u: {} };
     worldContext.pack = {

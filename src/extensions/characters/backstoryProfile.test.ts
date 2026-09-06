@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import Alea from "alea";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import {
@@ -218,42 +219,22 @@ describe("isWorldlyClericProfile", () => {
   });
 });
 
-describe("female social tastes", () => {
-  it("biases sociable women toward gossip and salon rather than feast/company", () => {
-    let gossip = 0;
-    let salon = 0;
-    let feast = 0;
-    let company = 0;
-    for (let i = 0; i < 40; i++) {
-      const c = baseCharacter({
-        i: 200 + i,
-        name: `Lady${i}`,
-        gender: "female",
-        personality: {
-          boldness: 40,
-          compassion: 55,
-          greed: 40,
-          honor: 60,
-          rationality: 50,
-          sociability: 85,
-          vengefulness: 30,
-          zeal: 40,
-          energy: 50,
-          piety: 45,
-          guile: 50,
-          confidence: 55
-        }
-      });
-      applyCharacterBackstory(c, { roleClass: "ordinary", formName: "Monarchy", capitalBurgId: 1 });
-      const likes = c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id);
-      if (likes.includes("gossip")) gossip++;
-      if (likes.includes("salon")) salon++;
-      if (likes.includes("feast")) feast++;
-      if (likes.includes("company")) company++;
+describe("social tastes", () => {
+  it("allows the same private interests regardless of gender with identical inputs and seed", () => {
+    for (const seed of ["social-a", "social-b", "social-c"]) {
+      const male = baseCharacter({ i: 200, name: "A", gender: "male" });
+      const female = baseCharacter({ i: 201, name: "B", gender: "female" });
+      male.personality.sociability = female.personality.sociability = 85;
+      const random = vi.spyOn(Math, "random").mockImplementation(Alea(seed));
+      try {
+        applyCharacterBackstory(male, { roleClass: "ordinary", capitalBurgId: 1 });
+        random.mockImplementation(Alea(seed));
+        applyCharacterBackstory(female, { roleClass: "ordinary", capitalBurgId: 1 });
+        expect(female.backstory!.tastes).toEqual(male.backstory!.tastes);
+      } finally {
+        random.mockRestore();
+      }
     }
-    expect(gossip).toBeGreaterThan(25);
-    expect(salon).toBeGreaterThan(20);
-    expect(gossip + salon).toBeGreaterThan(feast + company);
   });
 });
 
@@ -722,7 +703,7 @@ describe("computeInitialSolidarity", () => {
     expect(avg).toBeGreaterThan(0);
   });
 
-  it("makes high vengefulness+greed cold and disliked, but guile softens being disliked", () => {
+  it("makes high vengefulness+greed cold and disliked, but intrigue can conceal those traits", () => {
     const cold = baseCharacter({
       i: 1,
       name: "Cold",
@@ -744,7 +725,8 @@ describe("computeInitialSolidarity", () => {
     const masked = baseCharacter({
       i: 2,
       name: "Masked",
-      personality: { ...cold.personality, guile: 95 }
+      personality: { ...cold.personality, guile: 95 },
+      skills: { ...cold.skills, intrigue: 95 }
     });
     const observer = baseCharacter({
       i: 3,
@@ -1338,33 +1320,15 @@ describe("historical origin / role biases", () => {
     }
   });
 
-  it("never assigns opposite polarities to feast and company", () => {
-    for (let i = 0; i < 80; i++) {
-      const c = baseCharacter({
-        i: 3000 + i,
-        name: `FeastCompany${i}`,
-        gender: i % 2 === 0 ? "male" : "female",
-        personality: {
-          boldness: 30 + (i % 50),
-          compassion: 40,
-          greed: 40 + (i % 40),
-          honor: 40,
-          rationality: 40,
-          sociability: 10 + (i % 85),
-          vengefulness: 30,
-          zeal: 40,
-          energy: 40,
-          piety: 20 + (i % 70),
-          guile: 40,
-          confidence: 50
-        }
-      });
-      applyCharacterBackstory(c, { roleClass: "ordinary", formName: "Monarchy", capitalBurgId: 1 });
-      const likes = new Set(c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id));
-      const dislikes = new Set(c.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id));
-      expect(likes.has("feast") && dislikes.has("company")).toBe(false);
-      expect(likes.has("company") && dislikes.has("feast")).toBe(false);
-    }
+  it("preserves enjoyment of dining alongside dislike of company", () => {
+    const c = baseCharacter({ i: 3000, name: "Solitary gourmand" });
+    applyCharacterBackstory(c, { roleClass: "ordinary", capitalBurgId: 1 });
+    c.backstory!.tastes = [
+      { id: "feast", polarity: "like", intensity: 90 },
+      { id: "company", polarity: "dislike", intensity: 80 }
+    ];
+    applyCharacterBackstory(c, { onlyIfMissing: true });
+    expect(c.backstory!.tastes).toHaveLength(2);
   });
 
   it("biases high-learning characters toward correspondence (not by office)", () => {

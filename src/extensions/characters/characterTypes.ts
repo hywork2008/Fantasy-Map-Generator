@@ -57,6 +57,7 @@ export interface CharacterSkills {
 }
 
 export interface CharacterPersonality {
+  /** Willingness to accept risk, not a desire for war. */
   boldness: number;
   compassion: number;
   greed: number;
@@ -64,9 +65,11 @@ export interface CharacterPersonality {
   rationality: number;
   sociability: number;
   vengefulness: number;
+  /** General dedication; commitment supplies its direction. */
   zeal: number;
   energy: number;
   piety: number;
+  /** Preference for concealment and indirect methods; execution uses skills.intrigue. */
   guile: number;
   confidence: number;
 }
@@ -199,6 +202,8 @@ export interface CharacterCommitment {
 export type TastePolarity = "like" | "dislike";
 
 export interface CharacterTaste {
+  /** Personal enjoyment, an ethical judgement, or fear; omission is a legacy preference. */
+  aspect?: "preference" | "value" | "fear";
   id: string;
   polarity: TastePolarity;
   intensity: number;
@@ -207,6 +212,9 @@ export interface CharacterTaste {
 
 export interface CharacterOrigin {
   socialStratum: SocialStratum;
+  /** Independent of class: a noble may be an immigrant or raised in a monastery. */
+  migration?: "native" | "immigrant" | "exile";
+  familyOccupation?: "agriculture" | "trade" | "craft" | "military" | "administration" | "religion";
   estateStatus: EstateStatus;
   birthBurgId?: number;
   birthProvinceId?: number;
@@ -253,8 +261,46 @@ export interface CharacterFlavorHook {
   params?: Record<string, string>;
 }
 
+export type CharacterGoalKind =
+  | "complete_service"
+  | "gain_office"
+  | "gain_wealth"
+  | "protect_people"
+  | "restore_homeland"
+  | "return_home"
+  | "reunite_family"
+  | "master_craft"
+  | "serve_faith";
+
+export interface CharacterGoal {
+  kind: CharacterGoalKind;
+  intensity: number;
+  status: "active" | "completed" | "abandoned";
+  target?: { type: "character" | "state" | "burg"; id: number };
+}
+
+export type CharacterPrinciple = "keep_oaths" | "protect_civilians" | "spare_prisoners" | "reject_aggression";
+export type CompassionScope = "everyone" | "community" | "faith" | "family";
+
+/** Recorded events, never invented from present-day personality scores. */
+export interface CharacterLifeEvent {
+  kind: "office_exit";
+  year: number;
+  title: string;
+  reason: string;
+  entityType: "state" | "province";
+  entityId: number;
+}
+
 export interface CharacterBackstory {
   origin: CharacterOrigin;
+  /** Optional for old saves. Goals describe ambitions, not skill or moral worth. */
+  goals?: CharacterGoal[];
+  principles?: CharacterPrinciple[];
+  compassionScope?: CompassionScope;
+  /** Personal assent, independent of piety, culture, and faction membership. */
+  religiousWar?: "unspecified" | "defensive" | "holy_war" | "sacrificial";
+  lifeEvents?: CharacterLifeEvent[];
   commitment: CharacterCommitment;
   tastes: CharacterTaste[];
   bonds?: CharacterBond[];

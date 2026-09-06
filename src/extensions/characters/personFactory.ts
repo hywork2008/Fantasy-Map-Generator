@@ -572,8 +572,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   if (usesCk3Systems) {
     const guile = rand(1, 100);
     const piety = isReligiousRole ? rand(60, 100) : rand(1, 100);
-    // Religious figures are typically zealous, unless they are highly guileful (deceitful)
-    const zeal = isReligiousRole && guile < 70 ? rand(50, 100) : rand(1, 100);
+    // Dedication and indirect methods are independent: sincere schemers exist.
+    const zeal = isReligiousRole ? rand(50, 100) : rand(1, 100);
     Object.assign(
       skills,
       rollCharacterSkills({

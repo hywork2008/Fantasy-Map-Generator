@@ -2,10 +2,12 @@
  * Character backstory profile: origin, commitment, tastes, favor, and gifts.
  * Spec: docs/plan/characters/backstory-profile.md
  */
+
 import { isBoundServitorRaceKey } from "../../data/raceBoundServitors";
 import { getRaceById } from "../../data/races";
 import { P, rand } from "../hostUtils";
 import { attractiveness, isSameRace } from "./appearance";
+import { getCompassionFor, seedCharacterMotivation } from "./characterMotivation";
 import {
   getWorldContext,
   hasCharactersContext,
@@ -40,6 +42,7 @@ import {
   getFormPack,
   isSlaveryCommonForm
 } from "./cultureFormPacks";
+import { buildDailyTastes, DAILY_TASTE_GOODS, DAILY_TASTE_IDS, retainTastes } from "./dailyTastes";
 import { seedCharacterLoadout } from "./loadoutSeed";
 import { applyBackgroundSkillBias, syncCk3AbilityProfileSkills } from "./skillGeneration";
 import { assessTasteRelationship, projectTasteRelationshipDelta } from "./tasteRelationship";
@@ -590,7 +593,8 @@ function buildCommitment(
 // Tastes
 // ---------------------------------------------------------------------------
 
-const TASTE_CATALOG = [
+export const TASTE_CATALOG = [
+  ...DAILY_TASTE_IDS,
   "wine",
   "feast",
   "lust",
@@ -639,6 +643,7 @@ const TASTE_CATALOG = [
  * Ceramics/Glass cover pottery and glassware as objets d'art under `art`.
  */
 export const TASTE_GOOD_MATCH: Readonly<Record<string, readonly string[]>> = {
+  ...DAILY_TASTE_GOODS,
   wine: ["Wine", "Liquor", "Beer"],
   feast: ["Spices", "Wine", "Cheese", "Honey"],
   salon: ["Honey", "Spices", "Perfume", "Silk", "Cheese"],
@@ -666,38 +671,14 @@ function isPopularVicesStratum(stratum?: SocialStratum): boolean {
   return stratum === "commoner" || stratum === "freedman" || stratum === "slave_born";
 }
 
-/**
- * Gender × rank multipliers for popular vices (historically flavoured priors).
- *
- * - Wine: both ranks drink; elite feast culture keeps wine high upstream.
- * - Lust: double standard exists, but elite male mistress culture stays substantial;
- *   women are damped, not erased.
- * - Gambling: ruinous high-stakes play is an *elite* pattern; commoners play more
- *   often at low stakes (lower intensity in the vice path).
- */
+/** Access to leisure varies with upbringing; gender does not determine private appetites. */
 function popularViceMultipliers(
-  gender: Character["gender"],
+  _gender: Character["gender"],
   stratum: SocialStratum | undefined
 ): { wine: number; lust: number; gambling: number } {
-  const female = gender === "female";
-
-  if (isPopularVicesStratum(stratum)) {
-    return female ? { wine: 0.7, lust: 0.45, gambling: 0.4 } : { wine: 1.15, lust: 1.05, gambling: 0.85 };
-  }
-  if (stratum === "merchant_born" || stratum === "gentry") {
-    return female ? { wine: 0.65, lust: 0.4, gambling: 0.45 } : { wine: 1.05, lust: 0.95, gambling: 1.0 };
-  }
-  if (stratum === "minor_noble") {
-    return female ? { wine: 0.6, lust: 0.38, gambling: 0.5 } : { wine: 1.05, lust: 1.0, gambling: 1.05 };
-  }
-  if (stratum === "high_noble") {
-    return female ? { wine: 0.55, lust: 0.35, gambling: 0.55 } : { wine: 1.0, lust: 0.95, gambling: 1.1 };
-  }
-  if (stratum === "royal") {
-    return female ? { wine: 0.5, lust: 0.32, gambling: 0.45 } : { wine: 0.95, lust: 0.9, gambling: 0.95 };
-  }
-  // foreigner / clergy_orphan / unknown: moderate, not automatic street culture
-  return female ? { wine: 0.55, lust: 0.35, gambling: 0.4 } : { wine: 0.9, lust: 0.85, gambling: 0.85 };
+  if (isPopularVicesStratum(stratum)) return { wine: 1.0, lust: 0.8, gambling: 0.7 };
+  if (stratum === "royal" || stratum === "high_noble") return { wine: 0.9, lust: 0.8, gambling: 1.0 };
+  return { wine: 0.9, lust: 0.8, gambling: 0.8 };
 }
 
 function tryViceLike(
@@ -715,39 +696,18 @@ function tryViceLike(
   }
 }
 
-/**
- * Gambling needs appetite for variance and excitement. High rationality, low boldness,
- * low energy, and low confidence suppress dice even when greed is high (greedy engineers
- * want sure coin, not a game of chance).
- */
-export function gamblingPersonalityMult(p: Character["personality"], skills: Character["skills"]): number {
+/** Appetite for variance and excitement. Knowledge and reasoning are not dislike of games. */
+export function gamblingPersonalityMult(p: Character["personality"], _skills: Character["skills"]): number {
   let m = 1;
-
-  if (p.rationality >= 85) m *= 0.12;
-  else if (p.rationality >= 70) m *= 0.28;
-  else if (p.rationality >= 55) m *= 0.55;
-  else if (p.rationality <= 30) m *= 1.3;
-
   if (p.boldness <= 20) m *= 0.15;
   else if (p.boldness <= 35) m *= 0.35;
   else if (p.boldness <= 50) m *= 0.65;
   else if (p.boldness >= 75) m *= 1.2;
-
   if (p.energy <= 20) m *= 0.25;
   else if (p.energy <= 35) m *= 0.45;
   else if (p.energy >= 75) m *= 1.15;
-
   if (p.confidence <= 25) m *= 0.3;
   else if (p.confidence <= 40) m *= 0.55;
-
-  // Methodical greed: accumulate, don't wager
-  if (p.greed >= 70 && p.rationality >= 70) m *= 0.2;
-  if (p.greed >= 70 && p.boldness <= 30) m *= 0.35;
-
-  if (skills.engineering >= 75) m *= 0.45;
-  if (skills.stewardship >= 75 && p.rationality >= 55) m *= 0.55;
-  if (skills.learning >= 75 && p.rationality >= 60) m *= 0.7;
-
   return Math.min(1.6, Math.max(0.02, m));
 }
 
@@ -901,50 +861,13 @@ function pushTaste(
   intensity: number
 ): void {
   if (likes.some(t => t.id === id) || dislikes.some(t => t.id === id)) return;
-  if (feastCompanyConflict(likes, dislikes, id, polarity)) return;
   const list = polarity === "like" ? likes : dislikes;
-  list.push({ id, polarity, intensity: Math.max(1, Math.min(100, Math.round(intensity))) });
-}
-
-/**
- * feast = cuisine / fine dining; company = people / socializing.
- * Both as likes or both as dislikes is fine; opposite polarities are not.
- */
-function feastCompanyConflict(
-  likes: CharacterTaste[],
-  dislikes: CharacterTaste[],
-  id: string,
-  polarity: TastePolarity
-): boolean {
-  if (id === "feast") {
-    if (polarity === "like" && dislikes.some(t => t.id === "company")) return true;
-    if (polarity === "dislike" && likes.some(t => t.id === "company")) return true;
-  }
-  if (id === "company") {
-    if (polarity === "like" && dislikes.some(t => t.id === "feast")) return true;
-    if (polarity === "dislike" && likes.some(t => t.id === "feast")) return true;
-  }
-  return false;
-}
-
-/** Safety net if older paths left opposite feast/company polarities. */
-function resolveFeastCompanyConflict(likes: CharacterTaste[], dislikes: CharacterTaste[]): void {
-  const drop = (list: CharacterTaste[], tasteId: string) => {
-    const i = list.findIndex(t => t.id === tasteId);
-    if (i >= 0) list.splice(i, 1);
-  };
-  const feastLike = likes.find(t => t.id === "feast");
-  const feastDis = dislikes.find(t => t.id === "feast");
-  const companyLike = likes.find(t => t.id === "company");
-  const companyDis = dislikes.find(t => t.id === "company");
-  if (feastLike && companyDis) {
-    if (feastLike.intensity >= companyDis.intensity) drop(dislikes, "company");
-    else drop(likes, "feast");
-  }
-  if (companyLike && feastDis) {
-    if (companyLike.intensity >= feastDis.intensity) drop(dislikes, "feast");
-    else drop(likes, "company");
-  }
+  list.push({
+    id,
+    polarity,
+    aspect: ["mercy", "cruelty", "corruption"].includes(id) ? "value" : "preference",
+    intensity: Math.max(1, Math.min(100, Math.round(intensity)))
+  });
 }
 
 function buildTastes(
@@ -964,13 +887,14 @@ function buildTastes(
   // foreigner/unknown are not automatic tavern culture; street raisedIn still is.
   const popularVices = isPopularVicesStratum(stratum) || raisedIn === "street";
   const merchantBorn = stratum === "merchant_born";
-  const female = character.gender === "female";
+  // Social settings are sampled below independently of gender.
+  const salonStyle = P(0.5);
   const viceMul = popularViceMultipliers(character.gender, stratum);
   const gambleMul = viceMul.gambling * gamblingPersonalityMult(p, s);
   const streetBoost = raisedIn === "street" ? 1.15 : 1;
   const worldlyCleric = isWorldlyClericProfile(character, roleClass, formName);
   const sincereCleric = roleClass === "religious" && !worldlyCleric && p.piety >= 60 && p.zeal >= 55;
-  const gamblingAverse = p.rationality >= 75 && p.boldness <= 35 && p.energy <= 40;
+  const gamblingAverse = p.boldness <= 35 && p.energy <= 40;
   const formPackId = getFormPack(formName).id;
   const like = (id: string, intensity: number) => pushTaste(likes, dislikes, id, "like", intensity);
   const dislike = (id: string, intensity: number) => pushTaste(likes, dislikes, id, "dislike", intensity);
@@ -980,9 +904,9 @@ function buildTastes(
     tryViceLike(likes, dislikes, id, baseChance, mult, lo, hi);
   };
 
-  // Social style: men lean tavern company / banquets; women lean gossip / salon
+  // Social setting: sample company/banquets or salons independently of gender.
   if (p.sociability >= 75) {
-    if (female) {
+    if (salonStyle) {
       like("gossip", rand(60, 95));
       if (P(0.75)) like("salon", rand(55, 92));
       if (P(0.3)) like("company", rand(45, 80));
@@ -996,19 +920,19 @@ function buildTastes(
       if (P(0.25)) like("gossip", rand(40, 75));
     }
     dislike("solitude", rand(40, 80));
-  } else if (p.sociability >= 55 && female) {
+  } else if (p.sociability >= 55 && salonStyle) {
     if (P(0.55)) like("gossip", rand(50, 88));
     if (P(0.4)) like("salon", rand(45, 85));
   } else if (p.sociability <= 25) {
     like("solitude", rand(60, 95));
     if (P(0.5)) like("books", rand(50, 90));
-    dislike(female && P(0.55) ? "salon" : "company", rand(50, 90));
+    dislike(salonStyle && P(0.55) ? "salon" : "company", rand(50, 90));
   }
 
-  // Gossip: women and high-intrigue characters (courtiers, spies)
+  // Gossip: conversational setting and information-oriented occupations.
   if (!likes.some(t => t.id === "gossip")) {
     const gossipChance =
-      (female ? 0.22 : 0.06) +
+      (salonStyle ? 0.22 : 0.06) +
       (p.sociability >= 60 ? 0.12 : 0) +
       (s.intrigue >= 70 ? 0.35 : s.intrigue >= 55 ? 0.15 : 0) +
       (roleClass === "central_officer" || characterHasSpymasterOffice(character) ? 0.12 : 0);
@@ -1125,7 +1049,7 @@ function buildTastes(
         (p.boldness >= 70 ? 0.08 : 0) +
         (character.appearance >= 70 ? 0.08 : 0) +
         (popularVices ? 0.12 : 0) +
-        (isNobleStratum(stratum) && !female ? 0.08 : 0)) *
+        (isNobleStratum(stratum) ? 0.04 : 0)) *
       viceMul.lust;
     if (P(Math.min(0.7, lustChance))) {
       like("lust", rand(45, 92));
@@ -1140,7 +1064,7 @@ function buildTastes(
   }
 
   if (s.martial >= 75 || roleClass === "commander") {
-    like("sport", rand(50, 90));
+    if (P(0.7)) like("sport", rand(50, 90));
     if (P(0.5)) like("hunting", rand(50, 90));
     if (P(0.4)) like("soldiers", rand(50, 90));
     if (p.piety < 65) vice("wine", 0.45, viceMul.wine, 45, 85);
@@ -1173,7 +1097,7 @@ function buildTastes(
     // Literate mid-sociability: personal letter culture, not tavern company
     like("correspondence", rand(45, 85));
   }
-  if (!likes.some(t => t.id === "correspondence") && female && isNobleStratum(stratum) && s.learning >= 40 && P(0.3)) {
+  if (!likes.some(t => t.id === "correspondence") && isNobleStratum(stratum) && s.learning >= 40 && P(0.3)) {
     like("correspondence", rand(45, 88));
   }
   if (
@@ -1198,8 +1122,7 @@ function buildTastes(
       0.14 +
       (p.compassion >= 65 ? 0.2 : 0) +
       (p.sociability <= 30 ? 0.1 : 0) +
-      (raisedIn === "capital_court" || stratum === "high_noble" || stratum === "royal" ? 0.08 : 0) +
-      (female ? 0.06 : 0);
+      (raisedIn === "capital_court" || stratum === "high_noble" || stratum === "royal" ? 0.08 : 0);
     if (P(Math.min(0.55, petsChance))) {
       like("pets", rand(40, 90));
     } else if (p.compassion <= 20 && likes.some(t => t.id === "cruelty") && P(0.2)) {
@@ -1234,7 +1157,7 @@ function buildTastes(
   }
 
   if (roleClass === "merchant") {
-    like("gold", rand(70, 100));
+    if (P(0.55)) like("gold", rand(70, 100));
     if (P(0.4)) like("merchants", rand(50, 85));
     // Armed traders / high martial are less likely to despise soldiers
     if (s.martial < 55 && P(0.25)) dislike("soldiers", rand(40, 75));
@@ -1255,10 +1178,10 @@ function buildTastes(
 
   // Devout high nobility: public piety may reject dice/lust — only if not already liked
   if (!worldlyCleric && (stratum === "royal" || stratum === "high_noble") && p.piety >= 70 && P(0.35)) {
-    if (!likes.some(t => t.id === "lust") && P(female ? 0.5 : 0.3)) {
+    if (!likes.some(t => t.id === "lust") && P(0.4)) {
       dislike("lust", rand(35, 70));
     }
-    if (!likes.some(t => t.id === "gambling") && P(female ? 0.45 : 0.3)) {
+    if (!likes.some(t => t.id === "gambling") && P(0.4)) {
       dislike("gambling", rand(35, 75));
     }
   }
@@ -1268,10 +1191,6 @@ function buildTastes(
   }
 
   // --- Integrity guards (spec §8.2 G3 / G4) ---
-  if (roleClass === "merchant" && !likes.some(t => t.id === "gold") && !likes.some(t => t.id === "craft")) {
-    if (P(0.55)) like("gold", rand(60, 90));
-    else like("machinery", rand(50, 85)); // craft-adjacent when gold not forced
-  }
   // G4: extreme sociability should not permanently dislike company/salon without dampening
   if (p.sociability >= 90) {
     const socialDislike = dislikes.find(t => t.id === "company" || t.id === "salon");
@@ -1280,7 +1199,7 @@ function buildTastes(
     }
   }
 
-  // Pad to 2–4 likes and 1–3 dislikes
+  // Pad sparse profiles before adding everyday interests; never truncate saved candidates.
   const canPadLustLike = (p.piety < 65 || worldlyCleric) && !sincereCleric && viceMul.lust >= 0.25;
   const canPadLustDislike = (p.piety >= 55 || sincereCleric) && !worldlyCleric;
   const canPadGamblingLike = (p.piety < 65 || worldlyCleric) && !sincereCleric && !gamblingAverse && gambleMul >= 0.12;
@@ -1307,7 +1226,7 @@ function buildTastes(
     }
     return popularPadPool[popularPadPool.length - 1]!;
   };
-  const femalePadPool = (["gossip", "salon", "music", "luxury", "art", "correspondence"] as const).filter(
+  const salonStylePadPool = (["gossip", "salon", "music", "luxury", "art", "correspondence"] as const).filter(
     id => !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id)
   );
   // Role-conditioned pad pools reduce pure catalog noise
@@ -1322,10 +1241,10 @@ function buildTastes(
   if (formPackId === "theocracy") rolePadPool.push("theology", "ceremony", "piety_practice");
   const filteredRolePad = rolePadPool.filter(id => !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id));
 
-  while (likes.length < 2) {
+  for (let attempts = 0; likes.length < 2 && attempts < 20; attempts++) {
     let id: string | null = null;
-    if (female && femalePadPool.length && P(0.55)) {
-      id = femalePadPool[rand(0, femalePadPool.length - 1)]!;
+    if (salonStyle && salonStylePadPool.length && P(0.55)) {
+      id = salonStylePadPool[rand(0, salonStylePadPool.length - 1)]!;
     } else if (filteredRolePad.length && P(0.45)) {
       id = filteredRolePad[rand(0, filteredRolePad.length - 1)]!;
     } else if ((popularVices || worldlyCleric) && P(worldlyCleric ? 0.75 : 0.55)) {
@@ -1334,8 +1253,7 @@ function buildTastes(
     if (!id) id = TASTE_CATALOG[rand(0, TASTE_CATALOG.length - 1)]!;
     if (id === "lust" && !canPadLustLike) continue;
     if (id === "gambling" && !canPadGamblingLike) continue;
-    if (female && (id === "feast" || id === "company") && P(0.55)) continue;
-    if (feastCompanyConflict(likes, dislikes, id, "like")) continue;
+    if (salonStyle && (id === "feast" || id === "company") && P(0.55)) continue;
     if (
       (worldlyCleric || likes.some(t => t.id === "corruption")) &&
       id === "theology" &&
@@ -1348,15 +1266,14 @@ function buildTastes(
       like(id, rand(40, 75));
     } else break;
   }
-  while (dislikes.length < 1) {
+  for (let attempts = 0; dislikes.length < 1 && attempts < 20; attempts++) {
     const id = TASTE_CATALOG[rand(0, TASTE_CATALOG.length - 1)]!;
     if (id === "lust" && !canPadLustDislike) continue;
     if (id === "gambling" && !canPadGamblingDislike) continue;
-    if (feastCompanyConflict(likes, dislikes, id, "dislike")) continue;
     if (
       (popularVices || worldlyCleric || likes.some(t => t.id === "corruption")) &&
       (id === "wine" || id === "lust" || id === "gambling" || id === "corruption" || id === "gold") &&
-      (worldlyCleric || likes.some(t => t.id === "corruption") || (!female && p.piety < 60))
+      (worldlyCleric || likes.some(t => t.id === "corruption") || (!salonStyle && p.piety < 60))
     ) {
       continue;
     }
@@ -1365,10 +1282,7 @@ function buildTastes(
     } else break;
   }
 
-  resolveFeastCompanyConflict(likes, dislikes);
-
-  const sortByIntensity = (list: CharacterTaste[]) => list.sort((a, b) => b.intensity - a.intensity);
-  return [...sortByIntensity(likes.slice(0, 4)), ...sortByIntensity(dislikes.slice(0, 3))];
+  return retainTastes([...likes, ...dislikes, ...buildDailyTastes()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -1376,6 +1290,10 @@ function buildTastes(
 // ---------------------------------------------------------------------------
 
 export interface ApplyBackstoryOptions {
+  socialStratum?: SocialStratum;
+  raisedIn?: RaisedIn;
+  migration?: CharacterOrigin["migration"];
+  familyOccupation?: CharacterOrigin["familyOccupation"];
   roleClass?: CharacterRoleClass;
   isReligiousRole?: boolean;
   formName?: string;
@@ -1395,7 +1313,7 @@ function buildOrigin(
 ): CharacterOrigin {
   const capital = options.capitalBurgId;
   const location = character.location;
-  const stratum = pickWeighted(stratumWeights(roleClass, options.formName, character));
+  const stratum = options.socialStratum ?? pickWeighted(stratumWeights(roleClass, options.formName, character));
   const estateStatus = estateForRole(roleClass, stratum);
   const hasCapital = capital !== undefined && capital > 0;
   const packId = getFormPack(options.formName).id;
@@ -1422,7 +1340,7 @@ function buildOrigin(
     homeBurgId ??= location ?? capital;
   }
 
-  const raisedIn = raisedInFor(roleClass, stratum, hasCapital, options.formName);
+  const raisedIn = options.raisedIn ?? raisedInFor(roleClass, stratum, hasCapital, options.formName);
   const birthStateId = character.birthStateId ?? character.state;
 
   // Rulers of non-royal strata (doges, elective heads) are office-holders, not dynastic claimants by default.
@@ -1432,6 +1350,11 @@ function buildOrigin(
 
   return {
     socialStratum: stratum,
+    migration:
+      options.migration ??
+      character.backstory?.origin.migration ??
+      (birthStateId > 0 && character.state > 0 && birthStateId !== character.state ? "immigrant" : undefined),
+    familyOccupation: options.familyOccupation ?? character.backstory?.origin.familyOccupation,
     estateStatus,
     birthBurgId: birthBurgId && birthBurgId > 0 ? birthBurgId : undefined,
     birthStateId,
@@ -1474,10 +1397,13 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
   }
 
   character.backstory = {
+    ...character.backstory,
     origin,
     commitment,
     tastes
   } satisfies CharacterBackstory;
+
+  seedCharacterMotivation(character);
 
   character.birthStateId ??= origin.birthStateId;
   character.nationalityStateId ??= character.state;
@@ -1756,8 +1682,8 @@ function getInitialCounterpartTraits(from: Character, to: Character, toClass: Ch
  * guile/honor/greed dynamics pull many court pairs into friction or rivalry.
  */
 export function computeInitialSolidarity(from: Character, to: Character): number {
-  const fp = from.personality;
-  const tp = to.personality;
+  const fp = { ...from.personality, compassion: getCompassionFor(from, to) };
+  const tp = { ...to.personality, compassion: getCompassionFor(to, from) };
   const fromClass = inferRoleClass(from);
   const toClass = inferRoleClass(to);
   let score = rand(-12, 8); // slight negative prior: politics is cold
@@ -1784,7 +1710,7 @@ export function computeInitialSolidarity(from: Character, to: Character): number
           score += rand(8, 16);
         } else {
           if (tp.guile >= 70 && tp.honor <= 45) score -= rand(10, 25);
-          if (tp.honor >= 70 && tp.guile <= 40) score += rand(5, 15);
+          if (tp.honor >= 70) score += rand(5, 15);
         }
       } else if (!fromRuler && toRuler) {
         // Subject viewing ruler: loyalty / fear / resentment
@@ -1794,7 +1720,7 @@ export function computeInitialSolidarity(from: Character, to: Character): number
           // Fawns on the sovereign rather than resenting power for greed/guile
           score += rand(10, 20);
         } else {
-          if (fp.greed >= 70 || fp.guile >= 70) score -= rand(5, 18);
+          if (fp.greed >= 70) score -= rand(5, 18);
         }
         if (fp.vengefulness >= 70) score -= rand(5, 15);
       }
@@ -1833,13 +1759,12 @@ export function computeInitialSolidarity(from: Character, to: Character): number
       }
       // Still competing for the same dark corridors
       if (isCourtPowerPlayer(from) && isCourtPowerPlayer(to)) score -= rand(5, 15);
-    } else if (tp.guile <= 35 || tp.rationality <= 35) {
-      // Contempt for the thoughtless or transparent
+    } else if (fp.compassion <= 35 && to.skills.intrigue <= 35) {
+      // Contempt requires an unkind observer and actual lack of skill.
       score -= rand(18, 40);
     }
-  } else if (fp.guile <= 35 && tp.guile >= 70) {
-    // Naive actor distrusts / fears the schemer — unless guile is high enough to stay liked on surface
-    // (distrust of schemers is about from's reading of to; to's guile does not fully erase suspicion)
+  } else if (fp.guile <= 35 && tp.guile >= 70 && tp.honor <= 35) {
+    // A direct actor distrusts an indirect counterpart who also disregards obligations.
     score -= rand(12, 28);
   }
 
@@ -1855,9 +1780,9 @@ export function computeInitialSolidarity(from: Character, to: Character): number
   if (fp.vengefulness >= 70 && fp.greed >= 70) {
     score -= rand(10, 22);
   }
-  // ...and are disliked by others — but high guile masks those traits
+  // ...and are disliked by others — but Intrigue can conceal those traits.
   if (tp.vengefulness >= 70 && tp.greed >= 70) {
-    const mask = Math.min(1, Math.max(0, (tp.guile - 40) / 50)); // 0@40 → 1@90
+    const mask = Math.min(1, Math.max(0, (to.skills.intrigue - 40) / 50)); // 0@40 → 1@90
     const rawPenalty = rand(12, 28);
     score -= Math.round(rawPenalty * (1 - mask * 0.85));
   }

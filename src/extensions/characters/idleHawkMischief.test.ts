@@ -80,8 +80,14 @@ describe("chooseIdleHawkMischief", () => {
     expect(chooseIdleHawkMischief(marshal, king, 1)).toBe("coup");
   });
 
-  it("picks war-provocation when intrigue or guile is high", () => {
+  it("requires war appetite and guile, while skill alone cannot cause provocation", () => {
+    const backstory: NonNullable<Character["backstory"]> = {
+      origin: { socialStratum: "commoner", estateStatus: "officer", birthStateId: 1, raisedIn: "military_camp" },
+      commitment: { primary: { kind: "self" }, intensity: 80, conflictPolicy: "primary_wins" },
+      tastes: [{ id: "war", polarity: "like", intensity: 90 }]
+    };
     const schemer = person({
+      backstory,
       solidarity: { 1: -50 },
       personality: personality({ guile: 80 }),
       skills: { ...SKILLS, intrigue: 40 }
@@ -89,10 +95,11 @@ describe("chooseIdleHawkMischief", () => {
     expect(chooseIdleHawkMischief(schemer, king, 1)).toBe("provoke-war");
 
     const spymind = person({
+      backstory,
       solidarity: { 1: -40 },
       personality: personality({ guile: 40 }),
       skills: { ...SKILLS, intrigue: 75 }
     });
-    expect(chooseIdleHawkMischief(spymind, king, 1)).toBe("provoke-war");
+    expect(chooseIdleHawkMischief(spymind, king, 1)).toBe("coup");
   });
 });

@@ -5,6 +5,7 @@ import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { dnd5ePreset, getDnd5eAbilityModifier } from "../../abilityPresets";
 import { attractiveness } from "../../appearance";
+import { backstoryDetailRows, formatCharacterTaste } from "../../backstoryDetails";
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
 import { getCharacterHealth, HEALTH_FULL } from "../../characterHealth";
 import { getApi, getCharacters, getSelectedAbilityPreset, getWorldContext } from "../../charactersContext";
@@ -459,6 +460,13 @@ export const CharacterDetailsDialog: React.FC = () => {
   }
 
   const backstory = character.backstory;
+  const profileRows = backstory
+    ? backstoryDetailRows(backstory, t, (type, id) => {
+        if (type === "character") return characters.find(c => c.i === id)?.name ?? t("characters.unknown");
+        if (type === "state") return states[id]?.name ?? t("characters.unknown");
+        return formatBurgPlace(id);
+      })
+    : [];
   const dynasty =
     backstory?.origin.lineageId !== undefined ? dynasties.find(d => d.i === backstory.origin.lineageId) : undefined;
   const mapRelationEntries = (map: Record<number, number> | undefined) =>
@@ -803,10 +811,8 @@ export const CharacterDetailsDialog: React.FC = () => {
         .filter(taste => taste.polarity === "dislike")
         .slice()
         .sort((a, b) => b.intensity - a.intensity);
-      const formatTaste = (taste: { id: string; intensity: number }) => {
-        const label = t(`characters.tasteNames.${taste.id}`, { defaultValue: taste.id });
-        return `${label} (${String(taste.intensity)})`;
-      };
+      const formatTaste = (taste: (typeof backstory.tastes)[number]) => formatCharacterTaste(taste, t);
+      for (const row of profileRows) rows.push(`${row.label}, ${row.value}`);
       if (likes.length) {
         rows.push(`${t("characters.likes")}, ${likes.map(formatTaste).join("; ")}`);
       }
@@ -1536,6 +1542,12 @@ export const CharacterDetailsDialog: React.FC = () => {
                   <th style={{ padding: "4px 0" }}>{t("characters.conflictPolicy")}</th>
                   <td>{t(`characters.conflictPolicyNames.${backstory.commitment.conflictPolicy}`)}</td>
                 </tr>
+                {profileRows.map(row => (
+                  <tr key={row.key}>
+                    <th style={{ padding: "4px 0", verticalAlign: "top" }}>{row.label}</th>
+                    <td>{row.value}</td>
+                  </tr>
+                ))}
                 <tr>
                   <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.likes")}</th>
                   <td>
@@ -1544,8 +1556,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                       .slice()
                       .sort((a, b) => b.intensity - a.intensity)
                       .map(taste => {
-                        const label = t(`characters.tasteNames.${taste.id}`, { defaultValue: taste.id });
-                        return `${label} (${String(taste.intensity)})`;
+                        return formatCharacterTaste(taste, t);
                       })
                       .join(", ") || t("characters.notAvailable")}
                   </td>
@@ -1558,8 +1569,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                       .slice()
                       .sort((a, b) => b.intensity - a.intensity)
                       .map(taste => {
-                        const label = t(`characters.tasteNames.${taste.id}`, { defaultValue: taste.id });
-                        return `${label} (${String(taste.intensity)})`;
+                        return formatCharacterTaste(taste, t);
                       })
                       .join(", ") || t("characters.notAvailable")}
                   </td>

@@ -4,6 +4,7 @@ import {
   seedCharacterRelations,
   seedRelationsWithPeers
 } from "../../characters/backstoryProfile";
+import { getWarPreference } from "../../characters/characterMotivation";
 import {
   applyCharacterCorruption,
   evaluateDynasticMarriage,
@@ -17,6 +18,7 @@ import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
 import {
   combineStateWarlike,
   officeResignationReason,
+  personalOfficeExitCause,
   shouldResignFromMartialEnnui
 } from "../../characters/officeResignation";
 import { createPerson, enforcePerfectAppearanceCap } from "../../characters/personFactory";
@@ -455,7 +457,7 @@ function processResignationsAndSuccessions(deltaYears: number): void {
             const threat = evaluateStateThreat(state.i);
 
             // Purged / Deposed by rivals
-            if (threat > 5 && character.personality.guile < 40 && character.personality.honor > 60) {
+            if (threat > 5 && character.skills.intrigue < 40 && character.personality.honor > 60) {
               if (P(0.015 * deltaYears)) {
                 title.endYear = getCurrentYear();
                 title.reason = "Deposed by political rivals";
@@ -474,26 +476,43 @@ function processResignationsAndSuccessions(deltaYears: number): void {
             const ruler = pack.characters.find(c => c.i === getRulerId(state));
             const resignationCtx = {
               races: pack.races,
+              stateId: state.i,
+              characters: pack.characters,
               title: title.title,
               primarySkill: officeDef?.primarySkill,
-              stateWarlike: combineStateWarlike(ruler?.personality.boldness, threat)
+              stateWarlike: combineStateWarlike(getWarPreference(ruler), threat),
+              policyWarPreference: getWarPreference(ruler)
             };
 
             const closeOffice = (reason: string): void => {
               title.endYear = getCurrentYear();
               title.reason = reason;
               character.pastTitles.push(title);
-              character.titles.splice(i, 1);
-              const stateBurgs = pack.burgs.filter(b => b.state === state.i && !b.removed);
-              if (stateBurgs.length > 0) {
-                character.location = stateBurgs[rand(0, stateBurgs.length - 1)].i;
+              if (character.backstory) {
+                character.backstory.lifeEvents ??= [];
+                character.backstory.lifeEvents.push({
+                  kind: "office_exit",
+                  year: title.endYear,
+                  title: title.title,
+                  reason,
+                  entityType: title.entityType,
+                  entityId: title.entityId
+                });
               }
+              character.titles.splice(i, 1);
+              // Leaving office does not complete a travel/family goal or teleport the person.
             };
+
+            const personalCause = personalOfficeExitCause(character, resignationCtx);
+            if (personalCause && P(0.1 * deltaYears)) {
+              closeOffice(officeResignationReason(character, { ...resignationCtx, cause: personalCause }));
+              continue;
+            }
 
             // Stress: high threat + low office skill + low boldness
             const stress = threat * 10 + (100 - skillValue) * 0.5 + (100 - character.personality.boldness) * 0.5;
             if (stress > 150 && P(0.1 * deltaYears)) {
-              closeOffice(officeResignationReason(character, resignationCtx));
+              closeOffice(officeResignationReason(character, { ...resignationCtx, cause: "stress" }));
               continue;
             }
 
@@ -504,10 +523,14 @@ function processResignationsAndSuccessions(deltaYears: number): void {
                 continue;
               }
               if (plot === "provoke-war") {
-                if (tryProvokeWar({ state, states: pack.states })) continue;
-                if (tryMilitaryCoup({ marshal: character, ruler, state, marshalTitle: title })) continue;
+                if (tryProvokeWar({ state, states: pack.states, marshal: character })) continue;
+                if (
+                  character.personality.boldness >= 65 &&
+                  tryMilitaryCoup({ marshal: character, ruler, state, marshalTitle: title })
+                )
+                  continue;
               }
-              closeOffice(officeResignationReason(character, resignationCtx));
+              closeOffice(officeResignationReason(character, { ...resignationCtx, cause: "boredom" }));
             }
           }
         }

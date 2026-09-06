@@ -304,7 +304,7 @@ export interface MarshalComplianceBreakdown {
   relationPull: number;      // Enemy 15, Rival 10, Suspicion 5, else 0 — folded into veteran before clamp
   pull: number;              // weighted sum, clamp 0–100
   rulerHonor: number;        // ruler.personality.honor, weight 0.30 of push
-  rulerPeace: number;        // 100 - boldness, weight 0.25
+  rulerPeace: number;        // 100 - getWarPreference(ruler), weight 0.25
   rulerPrestige: number;     // weight 0.20
   liegeLoyalty: number;      // mean relationToHundred(getSolidarity(officer, ruler.i)), empty → 50, weight 0.25
   push: number;              // 0–100
@@ -373,7 +373,7 @@ const goal: StrategicGoal = {
   targetState: defenderId,
   type: "siege",
   tension: 100, // getActiveSiegeTargets() が即日返す
-  expectedCasualties: marshal.personality.boldness > 70 ? "low" : "moderate",
+  expectedCasualties: localAttackerPower >= requiredAttackForce * 1.5 ? "low" : "moderate",
   justification: "marshal_usurpation",
   requiredAttackForce: Math.max(1, loyalSiegePower) // 同じ単位。生の a と混在させない
 };
@@ -406,7 +406,7 @@ const goal: StrategicGoal = {
 
 カウンタープレイ（`nobility.characterLifecycle`、CK3 分岐、`processResignationsAndSuccessions` の直後）:
 
-- 独走認可が残っている間、ruler.boldness < 40 かつ honor ≥ 55 なら **毎ティック** `P(0.2 * deltaYears)` で更迭/逮捕を再試行（idle-hawk と同じ時計）。Marshal が `location !== capital` なら失敗。
+- 独走認可が残っている間、getWarPreference(ruler) < 40 かつ honor ≥ 55 なら **毎ティック** `P(0.2 * deltaYears)` で更迭/逮捕を再試行（idle-hawk と同じ時計）。Marshal が `location !== capital` なら失敗。
 - 独走開始以降に `captured the city`（from = 自国）が 1 件でも付いたら、更迭率を半分（`P(0.1 * deltaYears)`）にし solidarity を +10 まで戻す。
 - Marshal 死亡、または中央軍務称号喪失: **`isAnnualBoundary()`**（day=1, month=1）で `endPlayerConflict({attacker, defender})` を呼ぶ。防御側の `"player"` ミラーも消える。外交が Enemy のままならバッジは Suspended。飛行中の独走 goal / marshal 行軍は `endPlayerConflict` の既存 `discardStrategicGoals` が捨てる。追認は Editor で `"player"` 認可を出し直す。
 - クーデター成功後、独走 origin は `"player"` に昇格しない（履歴）。終戦は和平 / Editor。
@@ -681,3 +681,15 @@ v1 の製品分岐は Key Decisions に閉じた。実装中にユーザー判�
 - **テスト**: フィールド無しセーブでもスコア計算可。書き戻し後は victories 項がプロキシより優先。
 
 PR1 は既存プレイヤー戦争を壊さない読み取り拡張。PR3 で「王冠が独走に吸い寄せられない」を UI より先に固定する。PR4 が初めて Provoke を見せ、そのクリックは既に stamp + 述語 + 注入を通る。
+
+
+## 人物表現の改訂（2026-09-06）
+
+[人物表現の改訂](characters/character-expression-revision.md) を本草案にも適用する。
+
+- Boldness は危険許容。和平志向・開戦欲求には `getWarPreference()` を使う。D9 の軍事的な危険判断では引き続き Boldness を利用できる。
+- 工作を選ぶ動機と、Intrigue / Diplomacy による実行成否を分離する。技能だけで独走を選ばせない。
+- 軍人の服従判定には本人の目標・行動規範・対象への忠誠を含める。高愛国心の反君主、高 Honor の拒命、清廉な野心家を可能にする。
+- 損害の予測は戦力・地形・補給・情報から計算する。Boldness は損害を受け入れる傾向にのみ使い、自信や誤情報に基づく主観的予測は別途設計する。
+- 辞任理由は重圧・退屈だけでなく、任務完了、政策不一致、帰郷、家族、健康を使う。良心・忠誠衝突・待遇不満・粛清回避は理由語彙を用意済みだが、命令・待遇・危機の具体的なイベントが発生する経路で `cause` を渡す必要がある。
+- 現行 NPC 工作の成否追加は、草案の危機・証拠・連隊服従システムの実装を意味しない。

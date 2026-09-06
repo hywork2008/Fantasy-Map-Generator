@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import Alea from "alea";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
@@ -59,6 +60,7 @@ function stressedOfficer(overrides: Partial<Character> & Pick<Character, "i" | "
 
 describe("Characters (nobility characterLifecycle)", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     clearNobilityContext();
     clearCharactersContext();
   });
@@ -235,7 +237,7 @@ describe("Characters (nobility characterLifecycle)", () => {
 
     expect(reasonOf("Human Marshal")).toBe("Resigned (Stress)");
     expect(reasonOf("Elf Marshal")).toBe("Resigned (Stress)");
-    expect(reasonOf("Elf Chancellor")).toBe("Resigned (Boredom)");
+    expect(reasonOf("Elf Chancellor")).toBe("Resigned (Stress)");
     expect(worldContext.pack.characters.find(c => c.name === "King")?.titles[0]?.title).toBe("King");
   });
 
@@ -269,12 +271,30 @@ describe("Characters (nobility characterLifecycle)", () => {
       })
     ];
 
+    for (const c of worldContext.pack.characters) {
+      if (!c.titles.some(t => !t.landed)) continue;
+      c.backstory = {
+        origin: { socialStratum: "commoner", estateStatus: "officer", birthStateId: 1, raisedIn: "military_camp" },
+        commitment: { primary: { kind: "self" }, intensity: 80, conflictPolicy: "primary_wins" },
+        tastes: [{ id: "war", polarity: "like", intensity: 100 }]
+      };
+    }
+    vi.spyOn(Math, "random").mockImplementation(Alea("office-exit-tests"));
     Characters.processResignationsAndSuccessions(10);
 
     const reasonOf = (name: string) => worldContext.pack.characters.find(c => c.name === name)?.pastTitles[0]?.reason;
 
     expect(reasonOf("Human Marshal")).toBe("Resigned (Boredom)");
     expect(reasonOf("Wolf Marshal")).toBe("Resigned (Boredom)");
+    const retired = worldContext.pack.characters.find(c => c.name === "Human Marshal")!;
+    expect(retired.backstory!.lifeEvents).toContainEqual(
+      expect.objectContaining({
+        kind: "office_exit",
+        title: "Marshal",
+        reason: "Resigned (Boredom)",
+        entityId: 1
+      })
+    );
   });
 
   it("lets a disloyal ambitious hawk marshal coup a peaceful court instead of resigning", () => {
@@ -300,6 +320,15 @@ describe("Characters (nobility characterLifecycle)", () => {
       })
     ];
 
+    for (const c of worldContext.pack.characters) {
+      if (!c.titles.some(t => !t.landed)) continue;
+      c.backstory = {
+        origin: { socialStratum: "commoner", estateStatus: "officer", birthStateId: 1, raisedIn: "military_camp" },
+        commitment: { primary: { kind: "self" }, intensity: 80, conflictPolicy: "primary_wins" },
+        tastes: [{ id: "war", polarity: "like", intensity: 100 }]
+      };
+    }
+    vi.spyOn(Math, "random").mockImplementation(Alea("office-exit-tests"));
     Characters.processResignationsAndSuccessions(10);
 
     const king = worldContext.pack.characters.find(c => c.name === "King")!;
@@ -337,10 +366,19 @@ describe("Characters (nobility characterLifecycle)", () => {
       })
     ];
 
+    for (const c of worldContext.pack.characters) {
+      if (!c.titles.some(t => !t.landed)) continue;
+      c.backstory = {
+        origin: { socialStratum: "commoner", estateStatus: "officer", birthStateId: 1, raisedIn: "military_camp" },
+        commitment: { primary: { kind: "self" }, intensity: 80, conflictPolicy: "primary_wins" },
+        tastes: [{ id: "war", polarity: "like", intensity: 100 }]
+      };
+    }
     const king = worldContext.pack.characters[0]!;
     const schemerBefore = worldContext.pack.characters[1]!;
     expect(chooseIdleHawkMischief(schemerBefore, king, 1)).toBe("provoke-war");
 
+    vi.spyOn(Math, "random").mockImplementation(Alea("office-exit-tests"));
     Characters.processResignationsAndSuccessions(10);
 
     const schemer = worldContext.pack.characters.find(c => c.name === "Schemer")!;

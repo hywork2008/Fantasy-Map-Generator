@@ -4,8 +4,10 @@
  *
  * Pure helpers over Character data; call sites live in Nobility / Economy.
  */
+
 import { attractiveness, isSameRace } from "./appearance";
 import { adjustSolidarity, getFavor, getSolidarity, offerGift } from "./backstoryProfile";
+import { getWarPreference, hasPrinciple } from "./characterMotivation";
 import { type Character, type CommitmentKind, isCk3Character } from "./characterTypes";
 
 // ---------------------------------------------------------------------------
@@ -22,7 +24,7 @@ export function getEffectivePatriotism(character: Character): number {
   const p = character.personality;
   const primary = character.backstory?.commitment.primary.kind;
   const secondary = character.backstory?.commitment.secondary?.kind;
-  let score = p.honor * 0.35 + (100 - p.greed) * 0.15 + (100 - p.guile) * 0.1;
+  let score = p.honor * 0.35 + (100 - p.greed) * 0.15 + 5;
 
   const boost = (kind: CommitmentKind | undefined, weight: number) => {
     if (kind === "state" || kind === "people" || kind === "liege" || kind === "nation_culture") {
@@ -53,6 +55,8 @@ export interface WarDriveContext {
   historicallyOwn: boolean;
   /** Target state's primary culture id when known. */
   targetCulture?: number;
+  /** Known conflict with a personally endorsed doctrine; never inferred from culture. */
+  religiousConflict?: boolean;
 }
 
 export interface WarDriveModifiers {
@@ -112,14 +116,16 @@ export function getWarDriveModifiers(ruler: Character | undefined, context: WarD
     justification = "blood_feud";
   }
 
-  // Holy war: faith + zeal, especially vs different culture
+  // Faith alone does not supply a violent doctrine, nor does culture identify a creed.
   const faithDriven = primary === "faith" || (secondary === "faith" && intensity >= 70);
-  const cultureClash =
-    context.targetCulture !== undefined &&
-    context.targetCulture !== 0 &&
-    ruler.culture !== 0 &&
-    context.targetCulture !== ruler.culture;
-  if (faithDriven && p.zeal >= 65 && (cultureClash || p.piety >= 70)) {
+  const warDoctrine = ruler.backstory?.religiousWar;
+  if (
+    faithDriven &&
+    p.zeal >= 65 &&
+    context.religiousConflict === true &&
+    (warDoctrine === "holy_war" || warDoctrine === "sacrificial") &&
+    !hasPrinciple(ruler, "reject_aggression")
+  ) {
     forceMul *= 0.9;
     tensionBonus += 6 + p.zeal / 12;
     tensionSpeed *= 1.1 + p.zeal / 300;
@@ -132,6 +138,11 @@ export function getWarDriveModifiers(ruler: Character | undefined, context: WarD
     tensionSpeed *= 0.92;
     if (patriotism >= 70) forceMul *= 1.05;
   }
+
+  // War appetite changes pressure; Boldness below changes accepted military risk only.
+  const warPreference = getWarPreference(ruler);
+  tensionBonus += Math.max(0, (warPreference - 50) * 0.2);
+  tensionSpeed *= 0.8 + warPreference / 250;
 
   // Recklessness vs caution
   if (p.rationality <= 30 && p.boldness >= 60) {
@@ -186,13 +197,17 @@ export function evaluateDynasticMarriage(
   let weight = 0.5;
   let reason = "default";
 
-  // Faith first: refuse different culture as proxy for creed mismatch
-  if (primary === "faith" || (p.piety >= 80 && p.zeal >= 70)) {
-    if (otherRuler && otherRuler.culture !== ruler.culture && otherRuler.culture !== 0 && ruler.culture !== 0) {
-      return { accept: false, weight: 0, reason: "faith_culture_mismatch" };
+  // Personal religious commitment uses actual known religions, not cultural identity.
+  if (primary === "faith") {
+    const ownReligion = ruler.backstory?.origin.religionId;
+    const otherReligion = otherRuler?.backstory?.origin.religionId;
+    if (ownReligion && otherReligion && ownReligion !== otherReligion) {
+      weight -= 0.2;
+      reason = "faith_mismatch";
+    } else if (ownReligion && ownReligion === otherReligion) {
+      weight += 0.1;
+      reason = "faith_compatible";
     }
-    weight += 0.1;
-    reason = "faith_compatible";
   }
 
   // House first: refuse large prestige downgrade
@@ -268,7 +283,7 @@ export interface CorruptionEvent {
 
 /**
  * Officers with high greed, low honor, and wealth/self/office commitment skim
- * from state.treasury into personal wealth. High guile reduces detection.
+ * from state.treasury into personal wealth. High Intrigue reduces detection.
  * Detected skims sour solidarity with the ruler.
  */
 export function applyCharacterCorruption(characters: Character[], deltaYears: number): CorruptionEvent[] {
@@ -319,7 +334,7 @@ export function applyCharacterCorruption(characters: Character[], deltaYears: nu
 
       if (!motive) continue;
 
-      // Chance per year scaled by greed and guile (hiding opportunity)
+      // Desire to skim follows greed; ability to hide it is evaluated separately.
       const chance = ((p.greed - 50) / 100) * 0.35 * deltaYears * (likesCorruption ? 1.4 : 1);
       if (Math.random() > Math.min(0.55, Math.max(0.02, chance))) continue;
 
@@ -327,8 +342,8 @@ export function applyCharacterCorruption(characters: Character[], deltaYears: nu
       const amount = Math.round((base + Math.random() * 15) * Math.min(2, deltaYears) * 100) / 100;
       if (!(amount > 0)) continue;
 
-      // Detection: low guile or high zeal for justice
-      const detectChance = Math.max(0.05, 0.55 - p.guile / 150 - (p.rationality > 70 ? 0.05 : 0));
+      // Detection depends on Intrigue and planning, not preference for indirect methods.
+      const detectChance = Math.max(0.05, 0.55 - c.skills.intrigue / 150 - (p.rationality > 70 ? 0.05 : 0));
       const detected = Math.random() < detectChance;
 
       events.push({ characterId: c.i, stateId: c.state, amount, detected });

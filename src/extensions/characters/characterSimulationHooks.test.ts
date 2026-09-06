@@ -53,7 +53,7 @@ function baseCharacter(overrides: Partial<Character> & Pick<Character, "i" | "na
 }
 
 describe("getWarDriveModifiers", () => {
-  it("marks faith+zeal rulers as holy_war against other cultures", () => {
+  it("requires an endorsed doctrine and a known religious conflict for holy war", () => {
     const ruler = baseCharacter({
       i: 1,
       name: "Zealot",
@@ -78,10 +78,16 @@ describe("getWarDriveModifiers", () => {
     ruler.backstory!.commitment.primary = { kind: "faith", weight: 100 };
     ruler.backstory!.commitment.intensity = 90;
 
+    expect(
+      getWarDriveModifiers(ruler, { isCornered: false, historicallyOwn: false, targetCulture: 2 }).justification
+    ).not.toBe("holy_war");
+    ruler.backstory!.religiousWar = "holy_war";
+    ruler.backstory!.principles = [];
     const mods = getWarDriveModifiers(ruler, {
       isCornered: false,
       historicallyOwn: false,
-      targetCulture: 2
+      targetCulture: 2,
+      religiousConflict: true
     });
     expect(mods.justification).toBe("holy_war");
     expect(mods.tensionSpeedMultiplier).toBeGreaterThan(1);
@@ -140,7 +146,7 @@ describe("getWarDriveModifiers", () => {
 });
 
 describe("evaluateDynasticMarriage", () => {
-  it("rejects faith-first rulers marrying different culture", () => {
+  it("does not treat different culture as incompatible faith", () => {
     const a = baseCharacter({
       i: 1,
       name: "A",
@@ -166,8 +172,8 @@ describe("evaluateDynasticMarriage", () => {
     a.backstory!.commitment.primary = { kind: "faith", weight: 100 };
 
     const result = evaluateDynasticMarriage(a, b);
-    expect(result.accept).toBe(false);
-    expect(result.reason).toBe("faith_culture_mismatch");
+    expect(result.accept).toBe(true);
+    expect(result.reason).not.toBe("faith_mismatch");
   });
 
   it("rejects house-first rulers marrying far lower prestige", () => {

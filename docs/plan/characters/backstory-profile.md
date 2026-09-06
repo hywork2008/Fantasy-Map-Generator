@@ -1,6 +1,8 @@
 # キャラクター・バックストーリー属性設計
 
 **Status**: Phase A–E 実装済み（生成・Solidarity/Favor・贈答・芸術 Good・Details/CSV・戦略AI/結婚/汚職・Dynasty/Bonds/文化パック/フレーバー）。  
+**Revision (2026-09-06)**: 現行仕様の差分は [人物表現の改訂](character-expression-revision.md)。下記の初期設計・履歴と食い違う場合、改訂を優先する。基本能力値は維持し、目標・規範・戦争信条・日常嗜好・実際の退職履歴を追加。
+
 **Related**: `docs/plan/characters.md`, `docs/plan/char-economy.md`, `docs/plan/char.md`, `src/extensions/characters/characterTypes.ts`, `src/extensions/characters/backstoryProfile.ts`, `src/extensions/characters/personFactory.ts`  
 **Goal**: 能力・性格だけでは書けない「何に仕えて生きているか」「何が好きで何が嫌いか」「どこから来た誰か」「誰をどれだけ好むか（ギャルゲー式好感度）」「何を贈ると心が動く／逆に嫌われるか」をデータ化し、フレーバー文・伝記・政治/経済AIの動機付けの共通基盤にする。
 
@@ -357,8 +359,8 @@ interface TasteTag {
 
 1人あたりの目安:
 
-- likes: 2〜4
-- dislikes: 1〜3
+- likes / dislikes: 生成した嗜好を保存。4件・3件の切り捨ては廃止。
+- 別カテゴリから日常嗜好を3件（like 2 / dislike 1）追加。詳細画面・CSVでは全件を表示。
 - 同じ id を like と dislike の両方に持たない
 - `intensity ≥ 80` を「特徴的嗜好」としてフレーバー文の主役にする
 
@@ -395,11 +397,11 @@ interface TasteTag {
 | id | 表示例 | 関連 |
 | :--- | :--- | :--- |
 | `company` | 人付き合い・宴席 | sociability（男性寄り） |
-| `salon` | お茶会・サロン | sociability（女性寄り） |
+| `salon` | お茶会・サロン | sociability と会話の場 |
 | `solitude` | 孤独・静謐 | low sociability |
 | `flattery` | 追従されること | confidence, greed |
 | `debate` | 議論 | diplomacy, learning |
-| `gossip` | 噂話 | intrigue, sociability（女性・廷臣寄り） |
+| `gossip` | 噂話 | intrigue, sociability（会話の場・廷臣） |
 | `ceremony` | 儀式・儀礼・閲兵 | piety, prestige, honor（高位武官 like / 下級武人 dislike） |
 
 #### D. 職業・階層への態度（カテゴリ好悪）
@@ -434,8 +436,8 @@ interface TasteTag {
 
 | 条件 | 出やすい like | 出やすい dislike |
 | :--- | :--- | :--- |
-| `sociability ≥ 75`（男） | company, feast, wine | solitude |
-| `sociability ≥ 75`（女） | gossip, salon, music（賭博もゼロにはしない） | solitude |
+| `sociability ≥ 75`（歓談型・性別とは独立） | company, feast, wine | solitude |
+| `sociability ≥ 75`（サロン型・性別とは独立） | gossip, salon, music（賭博もゼロにはしない） | solitude |
 | `sociability ≤ 25` | solitude, books, maps | company / salon, feast, ceremony |
 | `greed ≥ 75` | gold, luxury, land（rational/steward 寄り） | mercy（低確率） |
 | 高 greed でも高 rationality + 低 boldness/energy/confidence（＋工学/統治） | **gambling は抑制**（`gamblingPersonalityMult` / `gamblingAverse`）。確かな金・土地寄り | gambling dislike 寄り |
@@ -496,8 +498,8 @@ interface TasteTag {
 2. **国家中枢は「同じ国家を支える仲間でありながら、権力を競うライバル」**。中央官職同士は同僚ボーナスより **権限争いペナルティ** が勝りやすい。  
 3. **Personality で複雑な好悪を出す**  
    - 高 Guile × 高 Guile: 理性が高ければ **冷たい相互尊重**、低ければ **暗闘ライバル**  
-   - 高 Guile × 低 Guile/低 Rationality: 策士が浅慮な相手を **軽蔑**  
-   - 低 Guile × 高 Guile: 素朴な側が策士を **警戒・不信**  
+   - 高 Guile × 低 Intrigue: 低 Compassion の策士に限り、技能の低い相手への軽蔑が生じる
+   - 低 Guile × 高 Guile・低 Honor: 率直な側が誓約を軽んじる策略家を警戒する。低 Guile 自体は低技能ではない
    - 高 Honor × 低 Honor、高 Greed 同士、信仰差、Commitment 衝突なども摩擦  
 4. **Favor は恋愛専用**。外見・好色 Taste・社交性で疎にシード。一般的な「Friendly だらけ」を Favor に載せない。  
 5. 贈り物・賄賂は原則 **連帯感** を動かす（`intent: romance` のときのみ Favor も動く）。
@@ -1166,3 +1168,16 @@ skills/personality の凸凹
 | **Hooks** | 一言でどんな人物か | 手動解釈に依存 |
 
 同郷・同軍属は「連帯フラグ」ではなく **favor の初期補正**。贈り物は常に加点ではなく、清廉な人物への賄賂は **嫌悪（マイナス好感度）** になる。これらをロール別・階層別・文化別の偏り付きで持つことで、フレーバーテキストと政治・経済 AI の双方に「人物の芯」と「対人関係の温度」を供給できる。
+
+
+## 14. 人物表現の改訂
+
+実装・データ互換性・既存草案への接続は [character-expression-revision.md](character-expression-revision.md) に集約する。
+
+- `goals` / `principles` / `compassionScope` / `religiousWar` / `lifeEvents` は任意追加。旧セーブの欠落から架空の経験を補わない。
+- `origin.migration` / `familyOccupation` と `ApplyBackstoryOptions.socialStratum` / `raisedIn` により、外国出身貴族・商家生まれの修道院育ちを独立に指定できる。legacy の `foreigner` / `clergy_orphan` は読み込み互換性のため残す。
+- 日常嗜好の46項目は `dailyTastes.ts` が正本。従来40項目と合わせ86項目。保存時は全候補を強度順に整理し、先に生成した好みを優先しない。
+- `CharacterTaste.aspect` は preference / value / fear。省略は旧形式の preference。一般的な好みと価値判断は別の項目として併存できる。通常生成の mercy / cruelty / corruption は value。
+- 性別から私的嗜好を固定せず、職業による gold / sport の付与も確率的にする。高技能や高 Rationality だけで賭博嫌いを決めない。
+- cuisine と company の反対符号は禁止しない。料理好きの一人好きが成立する。
+- フレーバーは先頭3文で打ち切らず、Bonds・家門のフックも保持する。

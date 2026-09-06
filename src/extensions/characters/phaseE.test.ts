@@ -175,7 +175,7 @@ describe("bonds and hooks", () => {
     );
   });
 
-  it("generateCharacterHooks returns 1–3 structured hooks", () => {
+  it("generateCharacterHooks retains structured identity and relationship hooks", () => {
     const c = baseCharacter({
       i: 1,
       name: "Test",
@@ -185,7 +185,7 @@ describe("bonds and hooks", () => {
     c.backstory!.origin.lineageName = "House Test";
     const hooks = generateCharacterHooks(c);
     expect(hooks.length).toBeGreaterThanOrEqual(1);
-    expect(hooks.length).toBeLessThanOrEqual(3);
+    expect(hooks.length).toBeLessThanOrEqual(5);
     expect(hooks[0]).toMatchObject({ id: expect.any(String) });
   });
 

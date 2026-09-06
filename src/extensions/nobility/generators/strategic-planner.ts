@@ -1,3 +1,4 @@
+import { getWarPreference } from "../../characters/characterMotivation";
 import { getWarDriveModifiers } from "../../characters/characterSimulationHooks";
 import {
   analyzeFrontiers,
@@ -172,6 +173,9 @@ export class StrategicPlannerGenerator {
         let requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
 
         const historicallyOwn = !!targetBurgData?.stateHistory?.includes(attacker.i);
+        // A peace commitment prevents starting an expansion, not responding to an existing war.
+        if (!historicallyOwn && attacker.diplomacy?.[targetStateId] !== "Enemy" && getWarPreference(ruler) < 20)
+          continue;
         const warDrive = getWarDriveModifiers(ruler, {
           isCornered,
           historicallyOwn,
@@ -183,8 +187,8 @@ export class StrategicPlannerGenerator {
         if (isCornered) {
           expectedCasualties = "high_cornered";
           requiredAttackForce *= 2; // Need overwhelming force to crush a fight-to-the-death
-        } else if (boldness > 70) {
-          expectedCasualties = "low"; // Bold rulers are optimistic
+        } else if (localAttackerPower >= requiredAttackForce * 1.5) {
+          expectedCasualties = "low"; // Estimate from the force advantage, not risk appetite.
         }
 
         // Win Condition
@@ -252,9 +256,8 @@ export class StrategicPlannerGenerator {
       const state = pack.states[stateId];
       if (!state) continue;
 
-      // Attacker ruler personality + commitment-driven war pace
+      // Desired policy drives escalation; willingness to risk losses is evaluated separately.
       const ruler = characters.find(c => c.i === getRulerId(state));
-      const boldness = ruler?.personality.boldness ?? 50;
 
       // Filter out goals that are no longer valid (e.g., target already captured)
       const validGoals = [];
@@ -283,6 +286,18 @@ export class StrategicPlannerGenerator {
 
         const targetStateObj = pack.states[goal.targetState];
         const historicallyOwn = !!pack.burgs[goal.targetBurg]?.stateHistory?.includes(stateId);
+        // Reevaluate saved expansion plans after a succession or a change of convictions.
+        if (
+          !historicallyOwn &&
+          currentDiplomacy !== "Enemy" &&
+          goal.justification !== "marshal_provocation" &&
+          getWarPreference(ruler) < 20
+        ) {
+          for (const regiment of state.military || []) {
+            if (regiment.goalTargetBurg === goal.targetBurg) regiment.goalTargetBurg = undefined;
+          }
+          continue;
+        }
         const warDrive = getWarDriveModifiers(ruler, {
           isCornered: false,
           historicallyOwn,
@@ -290,8 +305,8 @@ export class StrategicPlannerGenerator {
         });
 
         // Tension calculation — top-down (ruler ambition) plus bottom-up (ground reality).
-        // Base increment per year: +1 to +5 based on boldness
-        const baseIncrement = (1 + boldness / 25) * warDrive.tensionSpeedMultiplier;
+        // Base increment per year follows war appetite, not bravery.
+        const baseIncrement = (1 + getWarPreference(ruler) / 25) * warDrive.tensionSpeedMultiplier;
         // Add random noise so they don't all progress identically
         const noise = appServices.rng.rand() * 4;
 

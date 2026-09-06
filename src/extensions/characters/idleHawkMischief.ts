@@ -1,13 +1,10 @@
 import { getSolidarity } from "./backstoryProfile";
-import { getEffectivePatriotism } from "./characterSimulationHooks";
-import type { Character, CommitmentKind } from "./characterTypes";
+import { getPersonalAmbition, getWarPreference, hasPrinciple } from "./characterMotivation";
+import type { Character } from "./characterTypes";
 
 export const IDLE_HAWK_LOYALTY_MAX = 40;
 export const IDLE_HAWK_AMBITION_MIN = 55;
 export const IDLE_HAWK_GUILE_MIN = 60;
-export const IDLE_HAWK_INTRIGUE_MIN = 60;
-
-const AMBITIOUS_COMMITMENTS = new Set<CommitmentKind>(["self", "house", "domain", "office", "wealth"]);
 
 export type IdleHawkPlot = "none" | "coup" | "provoke-war";
 
@@ -15,25 +12,18 @@ function relationToHundred(score: number): number {
   return (score + 100) / 2;
 }
 
-/** 0–100 loyalty to the realm and its ruler. Low = willing to plot. */
+/** Loyalty to this ruler. Love of the realm must not mask opposition to its ruler. */
 export function idleHawkLoyalty(marshal: Character, ruler: Character | undefined, stateId: number): number {
-  const patriotism = getEffectivePatriotism(marshal);
-  const toRuler = ruler ? relationToHundred(getSolidarity(marshal, ruler.i)) : patriotism;
-  const affinity = marshal.affinities?.[stateId];
-  const toState = typeof affinity === "number" ? relationToHundred(affinity) : toRuler;
-  return Math.max(1, Math.min(100, Math.round((patriotism + toRuler + toState) / 3)));
+  if (!ruler) return 50;
+  const focus = marshal.backstory?.commitment.primary;
+  const personalOath = focus?.kind === "liege" && focus.targetId === ruler.i;
+  const institutionalOath =
+    hasPrinciple(marshal, "keep_oaths") && focus?.kind === "state" && focus.targetId === stateId;
+  const relationship = relationToHundred(getSolidarity(marshal, ruler.i));
+  return Math.min(100, relationship + (personalOath || institutionalOath ? 25 : 0));
 }
 
-/** 0–100 personal ambition (greed, energy, power-seeking commitments). */
-export function idleHawkAmbition(marshal: Character): number {
-  const p = marshal.personality;
-  let score = p.greed * 0.45 + p.energy * 0.2;
-  const primary = marshal.backstory?.commitment.primary.kind;
-  const secondary = marshal.backstory?.commitment.secondary?.kind;
-  if (primary && AMBITIOUS_COMMITMENTS.has(primary)) score += 28;
-  if (secondary && AMBITIOUS_COMMITMENTS.has(secondary)) score += 12;
-  return Math.max(1, Math.min(100, Math.round(score)));
-}
+export const idleHawkAmbition = getPersonalAmbition;
 
 /**
  * A hawk marshal with idle hands: loyal ones leave, disloyal ambitious ones plot.
@@ -47,9 +37,8 @@ export function chooseIdleHawkMischief(
   if (idleHawkLoyalty(marshal, ruler, stateId) >= IDLE_HAWK_LOYALTY_MAX) return "none";
   if (idleHawkAmbition(marshal) < IDLE_HAWK_AMBITION_MIN) return "none";
 
-  const guile = marshal.personality.guile;
-  const intrigue = marshal.skills.intrigue;
-  if (guile >= IDLE_HAWK_GUILE_MIN || intrigue >= IDLE_HAWK_INTRIGUE_MIN) return "provoke-war";
+  // Skill determines execution, never desire. Low-skill schemers may still attempt and fail.
+  if (marshal.personality.guile >= IDLE_HAWK_GUILE_MIN && getWarPreference(marshal) >= 60) return "provoke-war";
   if (marshal.personality.boldness >= 65) return "coup";
   return "none";
 }

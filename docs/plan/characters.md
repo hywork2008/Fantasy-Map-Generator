@@ -27,7 +27,7 @@
 * **Martial (軍事)**: 軍隊の指揮能力。高いほど戦争時の部隊の戦闘力や移動速度にプラスの補正がかかります。
 * **Stewardship (管理)**: 領地の内政能力。税収の増加や、都市（Burg）の発展速度に影響します。
 * **Intrigue (謀略)**: 陰謀の立案および防衛能力。敵対国家の要人暗殺や、スパイ活動の成功率に関わります。
-* **Learning (学識)**: 知識や教養、宗教的権威。技術の発展や、宗教的な影響力の拡大に寄与します。
+* **Learning (学識)**: 知識・教養、教義や法などの理解。宗教的な役職・権限・支持そのものとは区別します。
 * **Prowess (武勇)**: 個人の戦闘能力。暗殺者からの襲撃を生き延びたり、決闘で勝利する確率に影響します。
 * **Artistry (芸術)**: 芸術や審美眼に関する能力。単に文化的威信を高めるだけでなく、Greed（強欲）と合わさると名物を巡る戦争の火種になったり、国家予算の浪費（散財）を招くリスクがあります。
 * **Engineering (工学)**: 治水や建築、インフラ設計の能力。君主自身が使う機会は少ないものの、配下の役人の仕事を正確に評価し、土木事業をスムーズに進めるための理解力として機能します。
@@ -38,20 +38,24 @@
 AIによる国家の行動パターン（AI Personality）を決定づける最重要パラメーターです。（1〜100）
 これらの数値の組み合わせにより、「好戦的な覇王」や「臆病な暗君」などの行動指針が生成されます。
 
-* **Boldness (大胆さ)**: リスクを取る傾向。高いほど勝算が薄くても戦争を仕掛けやすくなります。
-* **Compassion (慈悲)**: 他者への思いやり。低いと反乱の無慈悲な鎮圧や、捕虜の処刑を躊躇しません。
-* **Greed (強欲)**: 領土や富への執着。高いキャラクターが君主の場合、周辺国への侵略戦争（領土要求）を頻発させます。
-* **Guile (狡猾 / 悪知恵)**: 嘘や策略を巡らす能力および傾向。高いほど正面からの衝突を避け、暗殺、離間工作、反乱の扇動など背後での暗躍を好むようになります。逆に低いと愚直で他国の罠に掛かりやすくなります。
-* **Honor (名誉)**: 誓約や同盟を重んじる傾向。低い（=不名誉な）キャラクターは、平気で同盟を破棄して背後から騙し討ちを行います。
-* **Piety (信仰心)**: 宗教的権威や教義への傾倒度。高いほど世俗的な実利よりも宗教的価値観を優先し、国内での寺院保護や他宗教への不寛容に繋がります（Zealと合わさることで聖戦の引き金になります）。低いと物質主義的・世俗的になります。
-* **Rationality (合理性)**: 感情よりも論理を優先する度合い。低いと些細な侮辱で激怒し、非合理的な戦争を引き起こします。
-* **Sociability (社交性)**: 他国と関わろうとする外交的な積極性。
-* **Vengefulness (復讐心)**: 過去の恨み（戦争での敗北や暗殺未遂など）を記憶し、報復の機会を狙う執念深さ。高いと世代を超えた血みどろの報復戦争の原因になります。
-* **Zeal (狂信)**: 宗教的な熱狂度。高いほど異教徒の国家に対して「聖戦」を宣言しやすくなります。
-* **Energy (活力)**: 行動の頻度。Economic Archetypeなどのベースにもなり、高いほど国際社会に対して頻繁に何らかのアクション（外交・戦争・謀略など）を起こします。
-* **Confidence (自己受容・自己肯定感)**: 自分自身の能力や限界をどれだけ受け入れているかを示す指標。能力の平均値をベースに算出されます。極端に低いと実力があっても自己卑下（インポスター症候群）に陥り、逆に実力が伴わないのに高いと根拠のない自信（ダニング＝クルーガー効果）として振る舞い、外交や内政のノイズとなります。
-* **Patriotism (愛国心)**: 自分が属する国家やコミュニティに対する忠誠心や愛着の強さ。高いと国家のために自己犠牲を厭わない一方、他国への排他性（ショーヴィニズム）に繋がるリスクがあります。
-* **Loyalty Target (忠誠の対象)**: 愛国心や忠誠が具体的に「どの国・組織・人物」に向いているかを示すパラメーター。通常は自国ですが、他国のロビー活動による買収、宗教的結びつき、個人的な恩義などにより「他国」に向く場合があります（例：自国の国益を犠牲にしてでも、忠誠先の他国へ資金や軍事支援を注ぎ込む政治家など）。
+* **Boldness (大胆さ)**: 危険を引き受ける傾向。戦争を望む強さとは別。勇敢な和平派も慎重な好戦派も成立する。
+* **Compassion (思いやり)**: 他者の苦痛を気にする強さ。対象範囲は Backstory の `compassionScope`。低値は加虐趣味を意味しない。
+* **Greed (強欲)**: 財産・資源への執着。地位・名声への野心は具体的な目標や嗜好でも表現する。
+* **Guile (策略志向)**: 本心を隠し、間接的な手段を選ぶ傾向。善悪・忠誠・工作能力とは別。工作の成功・隠蔽・看破は **Intrigue**。
+* **Honor (誓約・規範の遵守)**: 自分の誓約・行動規範を守る傾向。守る対象は Commitment / principles で指定する。
+* **Piety (敬虔さ)**: 信仰・宗教実践を重く見る傾向。高値だけで排他性・好戦性・結社への服従を与えない。
+* **Rationality (合理性)**: 証拠や見通しを検討する傾向。賭博嫌い、感情の乏しさ、道徳的な善さと同一視しない。
+* **Sociability (社交性)**: 他者と関わることを好む傾向。外交能力は Diplomacy、善悪は別。
+* **Vengefulness (復讐心)**: 恨みを保持し、報復を望む傾向。実際の仇や因縁は Bonds / 目標で補う。
+* **Zeal (熱意)**: 宗教に限らない献身の熱量。向き先は Commitment。`commitment.intensity` は対象への個別の熱量で、生成時のみ Zeal を初期値として使う。
+* **Energy (活力)**: 行動の頻度。勤勉さ・自制・目標の内容とは別。
+* **Confidence (自信)**: 自分なら遂行できるという見込み。現生成は平均 Skill + ノイズ。自己価値・自己受容の診断値として扱わない。
+
+**Patriotism / Loyalty Target** は基本 Personality を追加せず、Commitment・対象への関係から導く。国家への献身と現君主への忠誠を平均して一つにしない。Guile の高さで愛国心を減点しない。
+
+人物一覧と引退後の地域貢献に使う簡易指標は、Compassion/Honor と Greed/Vengefulness の比較。Guile・Zeal・Sociability は善悪の加点対象にしない。この指標は人物全体の道徳評価ではない。
+
+9 Skills / 12 Personality は維持する。Leadership や分野別専門性、自制・開放性は追加候補だが、独立した利用場面と調整が必要なため今回の必須数値には含めない。人物表現の責務と実装範囲は [人物表現の改訂](characters/character-expression-revision.md) を参照。
 
 ## 5. 家族構成 (Family)
 
@@ -78,18 +82,16 @@ AIによる国家の行動パターン（AI Personality）を決定づける最�
   * **辞任理由のフレーバーと「手持ち無沙汰な鷹」の悪戯（実装済み）**:
     官職離脱のラベルと、軍務卿が平和な宮廷で起こす謀略は `Characters.processResignationsAndSuccessions()`（`src/extensions/nobility/generators/characterLifecycle.ts`）が毎ティック処理する。君主（`getRulerId` と一致する人物）は対象外。CK3 宮廷（`usesCourtSystems()` / `ck3e`）でのみ動く。プレイヤーが軍務卿として君主の意に反し国を戦争へ引きずり込む設計は別紙 [`docs/plan/marshal-player-unauthorized-war.md`](marshal-player-unauthorized-war.md)。
 
-    * **辞任理由ラベル**（`src/extensions/characters/officeResignation.ts`、ライフサイクルから `officeResignationReason()` を呼ぶ）:
-      同じ辞任イベントでも `pastTitles.reason` は `Resigned (Stress)` か `Resigned (Boredom)` になる。デフォルトは種族フレーバーで、エルフ（`elf` / `dark_elf`）と肉食 Beastfolk（`cat` / `dog` / `fox` / `lion` / `otter` / `tiger` / `wolf` — `CARNIVOROUS_BEASTFOLK_ANIMALS` in `src/data/races.ts`）は Boredom、それ以外（人間、熊・アライグマ、草食 Beastfolk など）は Stress。Honor / Piety / Rationality（実直）対 Energy / Boldness（落ち着きのなさ）を一般的な判別軸にする案は議論されたが、**まだ配線していない**。
-    * **軍務の食い違い**（Marshal / Minister of War / General、または `primarySkill === "martial"`。判定は `isMartialOffice()`）:
-      国家の好戦度 `stateWarlike` は `combineStateWarlike(ruler.personality.boldness, threat)` = `max(君主の Boldness, 現在の Enemy/Rival 脅威を 0–100 にスケールしたもの)`。脅威は `evaluateStateThreat()` が Enemy +5 / Rival +2 で数え、`threat * 10` を 100 でキャップする。`MARTIAL_WAR_MISMATCH = 25`。ホーク軍務卿（自身の Boldness が国家の好戦度より 25 以上高い）は人間でも Boredom、ハト軍務卿（25 以上低い）は戦争寄りの国家ではエルフでも Stress。食い違いが閾値未満なら種族フレーバーに戻る。
-      ホークが平和な宮廷にいる場合は、別トリガー `shouldResignFromMartialEnnui()` がある。旧ストレス式 `threat * 10 + (100 - skill) * 0.5 + (100 - boldness) * 0.5 > 150` は、高 Boldness・高技能・低脅威では絶対に発火しないため。
-    * **手持ち無沙汰な鷹の悪戯**（判定 `src/extensions/characters/idleHawkMischief.ts`、効果 `src/extensions/nobility/generators/marshalMischief.ts`）:
-      ホークかつ `shouldResignFromMartialEnnui` が真のとき、年あたり `P(0.1 * deltaYears)` でロールする。忠誠が高い（愛国心 + 君主への solidarity + 国家への affinity の平均 ≥ `IDLE_HAWK_LOYALTY_MAX` 40）か、野心が低い（貪欲/活力 + self/house/domain/office/wealth への commitment < `IDLE_HAWK_AMBITION_MIN` 55）ホークは謀らず Boredom で辞任する。
-      低忠誠かつ高野心なら、高 Guile（≥ 60）または高 Intrigue（≥ 60）は隣国外交を Enemy にし、戦略目標 `marshal_provocation` を立てて戦争を製造する（`tryProvokeWar()`）。これは `mayAdvanceAutonomousConflict()` を尊重し、`playerDirected` では AI 戦争を起こさない。そうでなく Boldness ≥ 65 なら軍事クーデター（君主の landed 称号を `Deposed by military coup`、軍務卿側は `Seized the throne`）。戦争を起こせなければクーデター、それも失敗すれば Boredom 辞任へフォールバックする。
+    * **原因に基づく辞任** (`officeResignation.ts`): Stress を原因に起きた辞任は種族によらず `Resigned (Stress)`。Boredom も実際の退屈トリガーだけで記録する。
+    * **戦争への希望と役務の不一致**: `getWarPreference()` は war/peace の嗜好、Greed、Compassion、目標、個人的な戦争教義を使う。Boldness と Skill は含めない。`stateWarlike = max(君主の戦争志向, threat * 10)` は役務の負荷。戦争志向 ≥60 かつ国家との差 ≥25 の軍務官が退屈の候補となる。
+    * **個人的な理由**: 健康 ≤25、担当国に対する任務完了目標、強い帰郷目標、所在の異なる実在の家族への再会目標、好戦政策と本人の和平信条の不一致を判定する。外敵からの脅威だけで君主を好戦派扱いしない。
+    * **独走**: 君主への忠誠 <40・野心 ≥55 の軍務官が対象。野心は地位・財産の目標や栄誉の嗜好からも生じる。`office` への献身だけで加点しない。戦争志向 ≥60 と Guile ≥60 で工作を選び、Intrigue / Diplomacy で成否を判定する。Intrigue が高いだけでは戦争を欲しない。Boldness ≥65 はクーデターの危険を受け入れる条件。工作失敗後のクーデターもこの条件を再評価する。
+    * **履歴と位置**: 辞任は `pastTitles` と、Backstory があれば `lifeEvents` に記録する。退職だけで現在地を移したり、帰郷・家族再会の目標を達成扱いにしない。
+
 
 * **引退したキャラクターによる地域貢献（Local Development Bonus）**:
   役職を辞任し、公的な地位から退いたキャラクターは、余生を過ごす都市（Burg）に対して、自身の能力や性格に基づいた様々な恩恵をもたらします。
-  * **人口増加と地域の繁栄**: 慈愛や名誉、社交性といった「善良な特性」が強欲や狡猾さなどの「悪辣な特性」を上回っており、かつ高い管理能力（Stewardship）を持つキャラクターは、地元の名士として慕われます。その結果、安定した統治によって地域の人口や収容能力（Capacity）が向上します。
+  * **人口増加と地域の繁栄**: Compassion/Honor の簡易指標が Greed/Vengefulness の指標を上回っており、かつ高い管理能力（Stewardship）を持つキャラクターは、地元の名士として慕われます。その結果、安定した統治によって地域の人口や収容能力（Capacity）が向上します。
   * **インフラの整備と都市の防衛**: 工学（Engineering）に長けたキャラクターは、その知識を活かして都市の城壁（Walls）などの防衛・インフラ設備の拡充に貢献します。
   * **文化と宗教の振興**: 芸術（Artistry）や外交（Diplomacy）に優れたキャラクターは広場（Plaza）などの公共・文化施設の建設を後押しし、学識（Learning）や信仰心（Piety）が高いキャラクターは寺院（Temple）の建立など、精神的・宗教的な発展に寄与します。
 
