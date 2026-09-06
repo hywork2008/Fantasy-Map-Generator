@@ -75,6 +75,18 @@ AIによる国家の行動パターン（AI Personality）を決定づける最�
   * **能力（Skills）のミスマッチ解消**: 例えば `Martial`（軍事）スキルが極めて高いのに外交官などの非軍事役職に就いているキャラクターは、国家の危機や戦争の気配を察知すると、軍務卿（Marshal）などのより自身の実力を発揮できる（あるいは名誉を得られる）役職へと積極的に鞍替えを試みます。
   * **適性不足による辞任・更迭**: 逆に、`Martial` や `Boldness` が低いのに軍務卿に就いているなど、自身の能力・性格と役職の責任が見合っていないキャラクターは、老衰を待たずに重圧から自発的に辞任して別の閑職へ移ったり、有事に際して他の有能（あるいは野心的）なキャラクターによって高い地位から強制的に引き摺り下ろされる（更迭される）ことがあります。
 
+  * **辞任理由のフレーバーと「手持ち無沙汰な鷹」の悪戯（実装済み）**:
+    官職離脱のラベルと、軍務卿が平和な宮廷で起こす謀略は `Characters.processResignationsAndSuccessions()`（`src/extensions/nobility/generators/characterLifecycle.ts`）が毎ティック処理する。君主（`getRulerId` と一致する人物）は対象外。CK3 宮廷（`usesCourtSystems()` / `ck3e`）でのみ動く。プレイヤーが軍務卿として君主の意に反し国を戦争へ引きずり込む設計は別紙 [`docs/plan/marshal-player-unauthorized-war.md`](marshal-player-unauthorized-war.md)。
+
+    * **辞任理由ラベル**（`src/extensions/characters/officeResignation.ts`、ライフサイクルから `officeResignationReason()` を呼ぶ）:
+      同じ辞任イベントでも `pastTitles.reason` は `Resigned (Stress)` か `Resigned (Boredom)` になる。デフォルトは種族フレーバーで、エルフ（`elf` / `dark_elf`）と肉食 Beastfolk（`cat` / `dog` / `fox` / `lion` / `otter` / `tiger` / `wolf` — `CARNIVOROUS_BEASTFOLK_ANIMALS` in `src/data/races.ts`）は Boredom、それ以外（人間、熊・アライグマ、草食 Beastfolk など）は Stress。Honor / Piety / Rationality（実直）対 Energy / Boldness（落ち着きのなさ）を一般的な判別軸にする案は議論されたが、**まだ配線していない**。
+    * **軍務の食い違い**（Marshal / Minister of War / General、または `primarySkill === "martial"`。判定は `isMartialOffice()`）:
+      国家の好戦度 `stateWarlike` は `combineStateWarlike(ruler.personality.boldness, threat)` = `max(君主の Boldness, 現在の Enemy/Rival 脅威を 0–100 にスケールしたもの)`。脅威は `evaluateStateThreat()` が Enemy +5 / Rival +2 で数え、`threat * 10` を 100 でキャップする。`MARTIAL_WAR_MISMATCH = 25`。ホーク軍務卿（自身の Boldness が国家の好戦度より 25 以上高い）は人間でも Boredom、ハト軍務卿（25 以上低い）は戦争寄りの国家ではエルフでも Stress。食い違いが閾値未満なら種族フレーバーに戻る。
+      ホークが平和な宮廷にいる場合は、別トリガー `shouldResignFromMartialEnnui()` がある。旧ストレス式 `threat * 10 + (100 - skill) * 0.5 + (100 - boldness) * 0.5 > 150` は、高 Boldness・高技能・低脅威では絶対に発火しないため。
+    * **手持ち無沙汰な鷹の悪戯**（判定 `src/extensions/characters/idleHawkMischief.ts`、効果 `src/extensions/nobility/generators/marshalMischief.ts`）:
+      ホークかつ `shouldResignFromMartialEnnui` が真のとき、年あたり `P(0.1 * deltaYears)` でロールする。忠誠が高い（愛国心 + 君主への solidarity + 国家への affinity の平均 ≥ `IDLE_HAWK_LOYALTY_MAX` 40）か、野心が低い（貪欲/活力 + self/house/domain/office/wealth への commitment < `IDLE_HAWK_AMBITION_MIN` 55）ホークは謀らず Boredom で辞任する。
+      低忠誠かつ高野心なら、高 Guile（≥ 60）または高 Intrigue（≥ 60）は隣国外交を Enemy にし、戦略目標 `marshal_provocation` を立てて戦争を製造する（`tryProvokeWar()`）。これは `mayAdvanceAutonomousConflict()` を尊重し、`playerDirected` では AI 戦争を起こさない。そうでなく Boldness ≥ 65 なら軍事クーデター（君主の landed 称号を `Deposed by military coup`、軍務卿側は `Seized the throne`）。戦争を起こせなければクーデター、それも失敗すれば Boredom 辞任へフォールバックする。
+
 * **引退したキャラクターによる地域貢献（Local Development Bonus）**:
   役職を辞任し、公的な地位から退いたキャラクターは、余生を過ごす都市（Burg）に対して、自身の能力や性格に基づいた様々な恩恵をもたらします。
   * **人口増加と地域の繁栄**: 慈愛や名誉、社交性といった「善良な特性」が強欲や狡猾さなどの「悪辣な特性」を上回っており、かつ高い管理能力（Stewardship）を持つキャラクターは、地元の名士として慕われます。その結果、安定した統治によって地域の人口や収容能力（Capacity）が向上します。

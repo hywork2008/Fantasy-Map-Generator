@@ -1,11 +1,61 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
+import type { Character } from "../../characters/characterTypes";
+import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
 import "../../characters/types";
+import { createDefaultRaces, raceIdByKey } from "../../../data/races";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
 import "../types";
 import { Characters } from "./characterLifecycle";
+
+const ZERO_SKILLS = {
+  artistry: 1,
+  diplomacy: 1,
+  engineering: 1,
+  geography: 1,
+  intrigue: 1,
+  learning: 1,
+  martial: 1,
+  prowess: 1,
+  stewardship: 1
+};
+
+const ZERO_PERSONALITY = {
+  boldness: 1,
+  compassion: 1,
+  greed: 1,
+  honor: 1,
+  rationality: 1,
+  sociability: 1,
+  vengefulness: 1,
+  zeal: 1,
+  energy: 1,
+  piety: 1,
+  guile: 1,
+  confidence: 1
+};
+
+function stressedOfficer(overrides: Partial<Character> & Pick<Character, "i" | "name">): Character {
+  return {
+    age: 40,
+    gender: "male",
+    culture: 0,
+    titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1, startYear: 990 }],
+    affinities: {},
+    marriages: [],
+    state: 1,
+    skills: { ...ZERO_SKILLS },
+    personality: { ...ZERO_PERSONALITY },
+    family: { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 },
+    appearance: 50,
+    prestige: 50,
+    wealth: 0,
+    pastTitles: [],
+    ...overrides
+  };
+}
 
 describe("Characters (nobility characterLifecycle)", () => {
   afterEach(() => {
@@ -154,5 +204,151 @@ describe("Characters (nobility characterLifecycle)", () => {
 
     expect(worldContext.pack.characters.some(c => c.i === 99 && c.roles?.[0]?.kind === "marketManager")).toBe(true);
     expect(worldContext.pack.characters).toHaveLength(13);
+  });
+
+  it("records a dove marshal in a warlike state as stress, even if elf", () => {
+    const races = createDefaultRaces();
+    worldContext.pack.races = races;
+    worldContext.pack.burgs = [{ i: 1, name: "Foo", state: 1, cell: 0, x: 0, y: 0 }];
+    worldContext.pack.states[1]!.diplomacy = ["Enemy", "Enemy", "Enemy", "Enemy"];
+    worldContext.pack.states[1]!.rulerId = 1;
+    worldContext.pack.characters = [
+      stressedOfficer({
+        i: 1,
+        name: "King",
+        titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+        personality: { ...ZERO_PERSONALITY, boldness: 80 }
+      }),
+      stressedOfficer({ i: 2, name: "Human Marshal", race: raceIdByKey(races, "human") }),
+      stressedOfficer({ i: 3, name: "Elf Marshal", race: raceIdByKey(races, "elf") }),
+      stressedOfficer({
+        i: 4,
+        name: "Elf Chancellor",
+        race: raceIdByKey(races, "elf"),
+        titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1, startYear: 990 }]
+      })
+    ];
+
+    Characters.processResignationsAndSuccessions(10);
+
+    const reasonOf = (name: string) => worldContext.pack.characters.find(c => c.name === name)?.pastTitles[0]?.reason;
+
+    expect(reasonOf("Human Marshal")).toBe("Resigned (Stress)");
+    expect(reasonOf("Elf Marshal")).toBe("Resigned (Stress)");
+    expect(reasonOf("Elf Chancellor")).toBe("Resigned (Boredom)");
+    expect(worldContext.pack.characters.find(c => c.name === "King")?.titles[0]?.title).toBe("King");
+  });
+
+  it("records a hawk marshal in a peaceful state as boredom, even if human", () => {
+    const races = createDefaultRaces();
+    worldContext.pack.races = races;
+    worldContext.pack.burgs = [{ i: 1, name: "Foo", state: 1, cell: 0, x: 0, y: 0 }];
+    worldContext.pack.states[1]!.diplomacy = [];
+    worldContext.pack.states[1]!.rulerId = 1;
+    worldContext.pack.characters = [
+      stressedOfficer({
+        i: 1,
+        name: "King",
+        titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+        personality: { ...ZERO_PERSONALITY, boldness: 20 }
+      }),
+      stressedOfficer({
+        i: 2,
+        name: "Human Marshal",
+        race: raceIdByKey(races, "human"),
+        personality: { ...ZERO_PERSONALITY, boldness: 80 },
+        skills: { ...ZERO_SKILLS, martial: 80 }
+      }),
+      stressedOfficer({
+        i: 3,
+        name: "Wolf Marshal",
+        race: raceIdByKey(races, "beastfolk"),
+        raceAppearance: { kind: "beastfolk", animal: "wolf", furryScale: 6 },
+        personality: { ...ZERO_PERSONALITY, boldness: 85 },
+        skills: { ...ZERO_SKILLS, martial: 80 }
+      })
+    ];
+
+    Characters.processResignationsAndSuccessions(10);
+
+    const reasonOf = (name: string) => worldContext.pack.characters.find(c => c.name === name)?.pastTitles[0]?.reason;
+
+    expect(reasonOf("Human Marshal")).toBe("Resigned (Boredom)");
+    expect(reasonOf("Wolf Marshal")).toBe("Resigned (Boredom)");
+  });
+
+  it("lets a disloyal ambitious hawk marshal coup a peaceful court instead of resigning", () => {
+    const races = createDefaultRaces();
+    worldContext.pack.races = races;
+    worldContext.pack.burgs = [{ i: 1, name: "Foo", state: 1, cell: 0, x: 0, y: 0 }];
+    worldContext.pack.states[1]!.diplomacy = [];
+    worldContext.pack.states[1]!.rulerId = 1;
+    worldContext.pack.characters = [
+      stressedOfficer({
+        i: 1,
+        name: "King",
+        titles: [{ title: "King", landed: true, entityType: "state", entityId: 1, startYear: 980 }],
+        personality: { ...ZERO_PERSONALITY, boldness: 20, honor: 70 }
+      }),
+      stressedOfficer({
+        i: 2,
+        name: "Usurper",
+        race: raceIdByKey(races, "human"),
+        personality: { ...ZERO_PERSONALITY, boldness: 85, greed: 90, energy: 80, honor: 15, guile: 25 },
+        skills: { ...ZERO_SKILLS, martial: 80 },
+        solidarity: { 1: -60 }
+      })
+    ];
+
+    Characters.processResignationsAndSuccessions(10);
+
+    const king = worldContext.pack.characters.find(c => c.name === "King")!;
+    const usurper = worldContext.pack.characters.find(c => c.name === "Usurper")!;
+    expect(king.titles.some(t => t.landed)).toBe(false);
+    expect(king.pastTitles.some(t => t.reason === "Deposed by military coup")).toBe(true);
+    expect(usurper.titles.some(t => t.landed && t.title === "King")).toBe(true);
+    expect(usurper.pastTitles.some(t => t.reason === "Seized the throne")).toBe(true);
+    expect(worldContext.pack.states[1]!.rulerId).toBe(2);
+  });
+
+  it("lets a scheming hawk marshal manufacture a war instead of resigning", () => {
+    const races = createDefaultRaces();
+    worldContext.options.conflictAutonomy = "autonomous";
+    worldContext.pack.races = races;
+    worldContext.pack.burgs = [{ i: 1, name: "Foo", state: 1, cell: 0, x: 0, y: 0 }];
+    worldContext.pack.states[1]!.diplomacy = [undefined, "x", "Neutral"] as never;
+    worldContext.pack.states[1]!.neighbors = [2];
+    worldContext.pack.states[2]!.diplomacy = [undefined, "Neutral", "x"] as never;
+    worldContext.pack.states[1]!.rulerId = 1;
+    worldContext.pack.characters = [
+      stressedOfficer({
+        i: 1,
+        name: "King",
+        titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+        personality: { ...ZERO_PERSONALITY, boldness: 20, honor: 70 }
+      }),
+      stressedOfficer({
+        i: 2,
+        name: "Schemer",
+        race: raceIdByKey(races, "human"),
+        personality: { ...ZERO_PERSONALITY, boldness: 80, greed: 90, energy: 80, honor: 15, guile: 80 },
+        skills: { ...ZERO_SKILLS, martial: 80, intrigue: 70 },
+        solidarity: { 1: -50 }
+      })
+    ];
+
+    const king = worldContext.pack.characters[0]!;
+    const schemerBefore = worldContext.pack.characters[1]!;
+    expect(chooseIdleHawkMischief(schemerBefore, king, 1)).toBe("provoke-war");
+
+    Characters.processResignationsAndSuccessions(10);
+
+    const schemer = worldContext.pack.characters.find(c => c.name === "Schemer")!;
+    expect(worldContext.pack.states[1]!.diplomacy?.[2]).toBe("Enemy");
+    expect(worldContext.pack.states[2]!.diplomacy?.[1]).toBe("Enemy");
+    expect(schemer.titles.some(t => t.landed)).toBe(false);
+    expect(schemer.titles.some(t => t.entityType === "state")).toBe(true);
+    expect(schemer.pastTitles.some(t => t.reason === "Resigned (Boredom)")).toBe(false);
+    expect(worldContext.pack.states[1]!.rulerId).toBe(1);
   });
 });

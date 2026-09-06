@@ -23,6 +23,7 @@
  */
 import type {
   AppearanceAxes,
+  BeastfolkAnimal,
   CharacterGenderMode,
   CharacterRaceAppearance,
   Race,
@@ -363,6 +364,26 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     }
   }
 ] as const;
+
+/**
+ * Predator / meat-eating Beastfolk ancestries. Herbivores and true omnivores
+ * (bear, raccoon, cattle, deer, goat, hare, horse) are excluded.
+ */
+export const CARNIVOROUS_BEASTFOLK_ANIMALS = [
+  "cat",
+  "dog",
+  "fox",
+  "lion",
+  "otter",
+  "tiger",
+  "wolf"
+] as const satisfies readonly BeastfolkAnimal[];
+
+const CARNIVOROUS_BEASTFOLK_ANIMAL_SET: ReadonlySet<string> = new Set(CARNIVOROUS_BEASTFOLK_ANIMALS);
+
+export function isCarnivorousBeastfolkAnimal(animal: string | undefined): animal is BeastfolkAnimal {
+  return animal !== undefined && CARNIVOROUS_BEASTFOLK_ANIMAL_SET.has(animal);
+}
 
 export const DEFAULT_RACE_KEY: RaceKey = "human";
 export const UNKNOWN_RACE_ID = 0;

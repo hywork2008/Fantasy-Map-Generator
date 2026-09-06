@@ -13,6 +13,12 @@ import {
 import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
+import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
+import {
+  combineStateWarlike,
+  officeResignationReason,
+  shouldResignFromMartialEnnui
+} from "../../characters/officeResignation";
 import { createPerson, enforcePerfectAppearanceCap } from "../../characters/personFactory";
 import {
   careerStartAge,
@@ -41,6 +47,7 @@ import {
   getWorldContext,
   setRulerId
 } from "../nobilityContext";
+import { tryMilitaryCoup, tryProvokeWar } from "./marshalMischief";
 
 /** True when the state's culture race is enemy-dedicated (goblin warbands, etc.). */
 function stateIsEnemyDedicated(state: Pick<State, "culture">): boolean {
@@ -464,20 +471,43 @@ function processResignationsAndSuccessions(deltaYears: number): void {
                 ? { title: "Regent", primarySkill: "stewardship" as keyof CharacterSkills }
                 : undefined);
             const skillValue = officeDef ? character.skills[officeDef.primarySkill!] : 50;
+            const ruler = pack.characters.find(c => c.i === getRulerId(state));
+            const resignationCtx = {
+              races: pack.races,
+              title: title.title,
+              primarySkill: officeDef?.primarySkill,
+              stateWarlike: combineStateWarlike(ruler?.personality.boldness, threat)
+            };
 
-            // Stress calculation: High threat + low specific skill + low boldness
-            const stress = threat * 10 + (100 - skillValue) * 0.5 + (100 - character.personality.boldness) * 0.5;
-            if (stress > 150 && P(0.1 * deltaYears)) {
+            const closeOffice = (reason: string): void => {
               title.endYear = getCurrentYear();
-              title.reason = "Resigned (Stress)";
+              title.reason = reason;
               character.pastTitles.push(title);
               character.titles.splice(i, 1);
-
-              // Move to a random burg in their homeland state (if any) or capital
               const stateBurgs = pack.burgs.filter(b => b.state === state.i && !b.removed);
               if (stateBurgs.length > 0) {
                 character.location = stateBurgs[rand(0, stateBurgs.length - 1)].i;
               }
+            };
+
+            // Stress: high threat + low office skill + low boldness
+            const stress = threat * 10 + (100 - skillValue) * 0.5 + (100 - character.personality.boldness) * 0.5;
+            if (stress > 150 && P(0.1 * deltaYears)) {
+              closeOffice(officeResignationReason(character, resignationCtx));
+              continue;
+            }
+
+            // Hawk marshal in a peaceful court: loyal ones leave; disloyal ambitious ones plot
+            if (shouldResignFromMartialEnnui(character, resignationCtx) && P(0.1 * deltaYears)) {
+              const plot = chooseIdleHawkMischief(character, ruler, state.i);
+              if (plot === "coup" && tryMilitaryCoup({ marshal: character, ruler, state, marshalTitle: title })) {
+                continue;
+              }
+              if (plot === "provoke-war") {
+                if (tryProvokeWar({ state, states: pack.states })) continue;
+                if (tryMilitaryCoup({ marshal: character, ruler, state, marshalTitle: title })) continue;
+              }
+              closeOffice(officeResignationReason(character, resignationCtx));
             }
           }
         }

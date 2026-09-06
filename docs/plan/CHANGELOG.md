@@ -3,6 +3,8 @@
 2026-09-06
 
 - docs/plan/advance-time-history-mode.md
+- docs/plan/fanatic-player-sacrificial-conflict.md - 狂信者の宗教結社プレイ、国家間工作・兵器後援・聖戦と奉納の設計
+- docs/plan/marshal-player-unauthorized-war.md
 - docs/plan/underground-realm-and-supernatural-areas.md
 - docs/plan/world-history-depth.md
 
