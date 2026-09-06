@@ -1900,6 +1900,42 @@
       "fastForwardPctPerYear": "%/yr",
       "fastForwardPct": "%",
       "fastForwardWarning": "Approximate mode replaces the monthly production/tax settlement and population growth with a flat annual rate. Turn it off for exact per-Good simulation. Only affects multi-day advances (Week/Month/Year) — single Advance Day steps are always exact.",
+      "historyModeLabel": "History mode",
+      "historyProfiles": {
+        "off": "Off",
+        "chronicle": "Chronicle",
+        "dynastyOnly": "Dynasties only",
+        "custom": "Custom"
+      },
+      "historyProfileHints": {
+        "off": "Advance Time behaves exactly as usual.",
+        "chronicle": "Specialised for producing a record of people, states and wars. Most of the economy and infrastructure is switched off and time moves a month at a time; technology still progresses.",
+        "dynastyOnly": "Births, deaths and successions only, as fast as possible. No economy, no technology, no armies.",
+        "custom": "Your own stride, stub income and list of switched-off systems."
+      },
+      "historyAutonomousConflictNote": "AI realms declare war on their own during the run. A player-directed conflict policy is ignored while it lasts, and restored afterwards.",
+      "historyStride": "Tick length",
+      "historyStrideTip": "How much time one simulation pass covers. A month is about 30x fewer passes per year, and still lands on every monthly and annual calendar step.",
+      "historyStrides": {
+        "day": "1 day",
+        "month": "1 month"
+      },
+      "historyStubFunding": "Use stub income",
+      "historyStubFundingTip": "Replaces Fast-Forward's multiplicative treasury rate with population-proportional income. Without it every realm goes bankrupt within a few decades, stops expanding, and the run produces no history.",
+      "historyStubRevenue": "Income per head",
+      "historyStubRevenueTip": "Nominal annual treasury income per head of population.",
+      "historyStubUpkeep": "Upkeep ratio",
+      "historyStubUpkeepTip": "Standing expenditure as a share of income. 1.0 balances the books; above 1.0 is a structural deficit.",
+      "historyStubWarUpkeep": "Wartime upkeep",
+      "historyStubWarUpkeepTip": "Extra multiplier on upkeep while a realm is at war. Together with the upkeep ratio this is what makes a long war bankrupt a realm and end its expansion.",
+      "historyStubFloor": "Treasury floor",
+      "historyStubFloorTip": "Treasury never drops below this share of one year's income. 0 allows realms to go bankrupt and decline.",
+      "historyDisabledSystems": "Switched-off systems ({{total}})",
+      "historyDisabledSystemsHint": "Systems skipped for the whole run. They neither execute nor draw random numbers.",
+      "generationLength": "One generation on this map is about {{years}} years.",
+      "generationTip": "Measured from the median remaining lifespan of this map's living rulers, so long-lived folk make for longer generations.",
+      "advanceGenerations_one": "{{count}} generation ({{years}} yr)",
+      "advanceGenerations_other": "{{count}} generations ({{years}} yr)",
       "fastForwardReset": "Reset"
     },
     "save": {

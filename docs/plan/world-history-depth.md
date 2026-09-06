@@ -22,6 +22,7 @@
 | :--- | :--- |
 | `docs/plan/fictional-map-feature-gaps.md` §2 | 本書の親。「掘り下げる際の論点」4点に §4/§5/§6/§7 で回答する |
 | `docs/plan/advance-time-fast-forward.md` | Layer C の実行基盤。FF が何を実計算のまま残すかの一覧が §5.2 の根拠 |
+| `docs/plan/advance-time-history-mode.md` | **Layer C の実装基盤(2026-09-06 追加)**。系統マスク・月ストライド・スタブ歳入。§0 の加齢バグは Layer C の前提 |
 | `docs/plan/technology-prehistory-rome-medieval.md`(roadmap §16) | `technologyPrehistory.ts` の18ノード。Layer C の技術側入力候補(§5.5) |
 | `docs/plan/characters/backstory-profile.md` | `CharacterOrigin` / `socialStratum` / `lineageId`。Layer A2 の前職生成が接続する先 |
 | `docs/plan/diplomacy-history.md` | 既存の戦争年代記。Layer B の取り込み元 |
@@ -381,6 +382,39 @@ E2E:世界生成 → 適当な国の元首を開き、"since" が現在年と異
 
 ### 4.2 `pack.chronicle` の導入
 
+**訂正(2026-09-06、`advance-time-history-mode.md` 執筆時の再調査)**: 本節の初稿は
+`ChronicleEvent` 型を新設する前提で書いていたが、**同名の型は既に
+[`types/models.ts:749`](src/types/models.ts#L749) に存在する**。しかも実行時のイベント群
+(小競り合い `localSkirmish.ts:47`、行軍捕獲 `marchCapture.ts:43`、戦闘解決
+`battle-resolution.ts:260`、本拠奪還 `homeRecapture.ts:49`、海外関係
+`overseasRelations.ts:380`、方針変更 `conflictDirector.ts:187`)が**既にこの型で年代記に
+追記している**。したがって Layer B は新設ではなく**既存型の拡張と移設**である。
+
+既存の形は最小限で、以下の弱点がある。
+
+```ts
+// 現行 — types/models.ts:749
+export interface ChronicleEvent {
+  id: string;
+  yearsAgo: number;   // ← 絶対年ではなく相対年
+  from: number;       // ← 国家 id 固定。バーグ/人物を指せない
+  to: number;
+  fromBurg?: number;
+  toBurg?: number;
+  action: string;     // ← 自由文字列。種別の型がない
+  rawText: string;    // ← 英語決め打ち。i18n 不可
+}
+```
+
+- **`yearsAgo` が相対年**なので、年が進むたびに
+  [`timeEngine.ts:817-832`](src/generators/timeEngine.ts#L817-L832) が**全イベントを走査して
+  加算している**。O(イベント数 × 年数) であり、長期走行でボトルネックになる
+  (`advance-time-history-mode.md` §9.4)。
+- **`rawText` が英語固定**で i18n されていない。
+- **格納先が `states[0].diplomacy`** という間借り([:864](src/generators/states-generator.ts#L864))。
+
+Layer B のやることは、この3点の解消である。
+
 ```ts
 export type ChronicleEventKind =
   | "war.declared" | "war.joined" | "war.ended"
@@ -390,9 +424,12 @@ export type ChronicleEventKind =
   | "house.founded"
   | "disaster";
 
+/** 既存 ChronicleEvent の拡張。yearsAgo/from/to/action/rawText は移行期間中そのまま残す。 */
 export interface ChronicleEvent {
   id: string;
-  year: number;                 // 暦年(負可、§3.5)
+  /** 新規:絶対暦年(負可、§3.5)。yearsAgo は year から導出する派生値に降格させる。 */
+  year: number;
+  /** 新規:型付きの種別。既存の自由文字列 `action` を置き換える。 */
   kind: ChronicleEventKind;
   /** 関与主体。存在する id のみ入れる(削除済みエンティティは name を残して id を落とす)。 */
   stateIds?: number[];
@@ -412,15 +449,19 @@ export interface ChronicleEvent {
 
 移行手順:
 
-1. `generateDiplomacy()` の `war` 配列生成を `ChronicleEvent[]` の生成に置き換える。
+1. `ChronicleEvent` に `year` / `kind` / i18n フィールドを**追加**する(既存フィールドは残す)。
+   イベントを作る既存6箇所(§4.2 冒頭の訂正で列挙)に `year` と `kind` を埋めさせ、
+   `yearsAgo` は `currentYear - year` の導出に切り替える。これで
+   [`timeEngine.ts:817-832`](src/generators/timeEngine.ts#L817-L832) の全件走査加算が**丸ごと削除できる**。
+2. 格納先を `states[0].diplomacy` から `pack.chronicle` に移す。
    `states[0].diplomacy` への push は**互換のため当面残す**(`DiplomacyHistoryDialog` の読み出しを
    `pack.chronicle` に切り替えた次のリリースで削除)。
-2. `State.campaigns` は**残す**。`frontierAnalysis.ts:97`、`zones-generator.ts:74`、
+3. `State.campaigns` は**残す**。`frontierAnalysis.ts:97`、`zones-generator.ts:74`、
    `demography-simulator.ts:574`、`military-generator.ts:1310`、`markers-generator.ts:985` が
    依存しており、置換は本レイヤのスコープ外。`campaigns` は `chronicle` へ**射影**する
    (chronicle が上位ビュー、campaigns が既存の下位インデックス)。
-3. Layer A2 が生成した `pastTitles` から `ruler.acceded` / `ruler.died` イベントを射影する。
-4. `io/save.ts` / `io/load.ts` にフィールドを追加。`auto-update.ts` に「chronicle 欠落時は
+4. Layer A2 が生成した `pastTitles` から `ruler.acceded` / `ruler.died` イベントを射影する。
+5. `io/save.ts` / `io/load.ts` にフィールドを追加。`auto-update.ts` に「chronicle 欠落時は
    campaigns から再構築」のマイグレーションを1本足す(`v1.3 added campaigns` と同じ形
    — [auto-update.ts:339](src/io/auto-update.ts#L339))。
 
@@ -457,6 +498,13 @@ export interface ChronicleEvent {
 **Fast-Forward が実装された今、第3の選択肢「本物のシミュレーションを短時間走らせる」が最も安い。**
 
 ### 5.1 方式
+
+> **前提(2026-09-06 追記)**: 本節が想定する「N年走らせれば代替わりが起きる」は、
+> `docs/plan/advance-time-history-mode.md` §0 の**加齢バグが直っていることが条件**である。
+> 現行の Advance Time では `character.age` が1日刻みの丸めで一度も増えないため、
+> 何年進めても老衰による襲位は発生しない。同書 Phase H0 が Layer C の必須前提となる。
+> 走行の具体機構(系統マスク・月ストライド・スタブ歳入)は同書に委ね、本節は方式のみを述べる。
+
 
 ```
 1. 通常どおり世界を生成する。ただし options.year = Y_target − N を設定する。
@@ -534,7 +582,7 @@ Layer C を入れて初めて「国境が実際に動いた履歴」が存在す
 | **B1** | `pack.chronicle` 型定義 + `generateDiplomacy()` の出力先変更 + save/load + マイグレーション | — | 中 |
 | **B2** | `pastTitles` → chronicle 射影、`addRuins()` の因果接続、`DiplomacyHistoryDialog` の年代記化 | A2, B1 | 中 |
 | **C0** | 前史 N 年走行のコスト実測(既存 `scripts/lib/advanceYearHarness.ts` を流用) | B1 | 小 |
-| **C1** | 前史走行の生成パイプライン組み込み + §5.4 の抑制 + 生成設定のオプトイン UI | C0 | 大 |
+| **C1** | 前史走行の生成パイプライン組み込み + §5.4 の抑制 + 生成設定のオプトイン UI | C0, `advance-time-history-mode.md` H0–H5 | 大 |
 | **D** | 国境差分の記録と年代スライダー | C1 | 大 |
 
 **A0 → A1 だけで、ユーザーが指摘した「老齢の為政者が今年即位している」問題は解決する。**

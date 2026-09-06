@@ -26,15 +26,24 @@ import {
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
-import { isFastAdvanceActive, resolveFastAdvanceRates } from "../store/fastAdvanceState";
+import { isFastAdvanceActive, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
+import { isStateInActiveConflict } from "./activeConflict";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
 import { advanceDungeonEcology } from "./dungeonEcology";
 import { applyFastForwardPopulation } from "./fastAdvance/fastAdvancePopulation";
+import { strideStepDays } from "./fastAdvance/historyModeProfiles";
+import {
+  beginHistoryModeRun,
+  endHistoryModeRun,
+  getActiveHistoryModeRun,
+  isSystemDisabledByHistoryMode
+} from "./fastAdvance/historyModeRun";
+import { applyHistoryStubFunding } from "./fastAdvance/historyStubFunding";
 import { advanceFrontierExpansion, snapshotFrontierBudgets } from "./frontierExpansion";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
@@ -70,6 +79,28 @@ export type TimeTickHook = (
   deltaDays: number
 ) => readonly DataTopic[] | undefined;
 const timeTickSystems = createSimulationSystemRegistry();
+// History mode masks whole subsystems off for the duration of a run — see
+// docs/plan/advance-time-history-mode.md §5.1. Outside a history-mode run
+// isSystemDisabledByHistoryMode() is always false, so this filter is a no-op.
+timeTickSystems.setFilter(system => !isSystemDisabledByHistoryMode(system.id));
+
+/**
+ * Calendar days from the live clock to the 1st of the next month (1 when already on the 1st of a
+ * month with a single day left in it). The unit a history-mode "month" stride advances by — see
+ * strideStepDays() for why landing on the 1st matters.
+ */
+function daysUntilNextMonthStart(): number {
+  const { currentYear, currentMonth, currentDay } = simulationContext;
+  return getDaysInMonth(currentYear, currentMonth) - currentDay + 1;
+}
+
+/** Days the next tick should cover, given how many remain in this advance. */
+function nextStrideDays(remainingDays: number): number {
+  const run = getActiveHistoryModeRun();
+  if (!run) return 1;
+  return strideStepDays(run.stride, remainingDays, daysUntilNextMonthStart());
+}
+
 let nextLegacyHookId = 0;
 const legacyHookIds: string[] = [];
 
@@ -113,7 +144,7 @@ registerSimulationAdvanceHandler(({ deltaYears, deltaMonths, deltaDays }) =>
   advanceTimeMutation(deltaYears, deltaMonths, deltaDays)
 );
 
-registerSimulationStepDayHandler(() => stepDayMutation());
+registerSimulationStepDayHandler(request => stepDayMutation(request?.days ?? 1));
 
 /**
  * @deprecated Prefer `registerSimulationSystem()` with explicit phase, cadence,
@@ -233,6 +264,36 @@ registerSimulationSystem({
     manpowerDaysAccumulated = 0;
     tickManpower(worldContext.pack, dueDeltaYears, worldContext.populationRate);
     writer.markChanged("simulation.states", "simulation.military");
+  }
+});
+
+/**
+ * Stub treasury income while a history-mode run is in progress
+ * (docs/plan/advance-time-history-mode.md §6).
+ *
+ * Registered as a host system rather than an economy step on purpose: the `dynastyOnly` profile
+ * masks the entire economy tick off, and treasuries still need to be solvent for frontier
+ * governance and war to keep producing history. Outside a history-mode run this returns
+ * immediately, so it costs one null check per ordinary tick.
+ *
+ * It runs in the "economy" phase, before politics, so the frontier/expansion decisions later in
+ * the same tick see this tick's balance.
+ */
+registerSimulationSystem({
+  id: "history.stubFunding",
+  phase: "economy",
+  reads: ["simulation.cells", "simulation.burgs", "simulation.states"],
+  writes: ["simulation.states", "simulation.burgs"],
+  cadence: { every: 1 },
+  profileLabel: "core:historyStubFunding",
+  run: (context, writer) => {
+    const run = getActiveHistoryModeRun();
+    if (!run?.stubFunding.enabled || !worldContext.pack?.states) return;
+
+    const { years, months, days } = context.delta;
+    const yearsElapsed = years + months / 12 + days / DAYS_PER_YEAR;
+    const result = applyHistoryStubFunding(worldContext.pack, yearsElapsed, run.stubFunding, isStateInActiveConflict);
+    if (result.statesFunded > 0) writer.markChanged("simulation.states", "simulation.burgs");
   }
 });
 
@@ -542,15 +603,19 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   );
   if (totalDays <= 0) return;
 
-  // Batch the rollback snapshot across the whole run instead of once per day.
+  // Batch the rollback snapshot across the whole run instead of once per day. enterDayBatch also
+  // opens the history-mode bracket, so the stride below is already resolved by the time it runs.
   enterDayBatch(totalDays);
   let failed = false;
   try {
-    for (let i = 0; i < totalDays; i++) {
-      const commit = stepDaySimulation();
+    for (let elapsed = 0; elapsed < totalDays; ) {
+      // 1 for an ordinary advance; a whole month at a time under history mode (§4).
+      const days = nextStrideDays(totalDays - elapsed);
+      const commit = stepDaySimulation(days);
       if (!commit) return;
-      // Always report a one-day delta so listeners match the UI daily path.
-      notifyAfterDayStep(0, 0, 1);
+      elapsed += days;
+      // notifyAfterDayStep's delta parameter already documents tolerance for a multi-day report.
+      notifyAfterDayStep(0, 0, days);
     }
   } catch (error) {
     failed = true;
@@ -643,12 +708,22 @@ let dayBatchCommittedDays = 0;
 /** How many calendar days the outermost active batch spans; 1 outside any batch. */
 let activeDayBatchTotalDays = 1;
 
+/** True when the outermost batch opened a history-mode bracket that its exit must close. */
+let dayBatchOpenedHistoryRun = false;
+
 function enterDayBatch(totalDays = 1): void {
   dayBatchDepth++;
   if (dayBatchDepth === 1) {
     activeDayBatchSnapshot = takeDaySnapshot();
     dayBatchCommittedDays = 0;
     activeDayBatchTotalDays = totalDays;
+    // Every multi-day entry point (advanceTime, the UI rAF loop, headless runDaily) opens its
+    // batch here, so this is the one place that has to resolve history mode. A lone Advance Day
+    // never qualifies, which is what keeps single-day stepping identical to before
+    // (docs/plan/advance-time-history-mode.md §3.1, §9.2).
+    const profile = totalDays > 1 ? resolveHistoryModeProfile() : null;
+    dayBatchOpenedHistoryRun = profile !== null;
+    if (profile) beginHistoryModeRun(profile);
   }
 }
 
@@ -657,6 +732,10 @@ function exitDayBatch(): void {
   if (dayBatchDepth === 0) {
     activeDayBatchSnapshot = null;
     activeDayBatchTotalDays = 1;
+    if (dayBatchOpenedHistoryRun) {
+      endHistoryModeRun();
+      dayBatchOpenedHistoryRun = false;
+    }
   }
 }
 
@@ -713,7 +792,8 @@ function publishBulkRunFinishedRedraw(): void {
 registerDayBatchController({
   enter: enterDayBatch,
   exit: exitDayBatch,
-  exitAfterFailure: exitDayBatchAfterFailure
+  exitAfterFailure: exitDayBatchAfterFailure,
+  strideDays: nextStrideDays
 });
 
 /**
@@ -721,12 +801,12 @@ registerDayBatchController({
  * rolls back the day without publishing a revision (plan §5.2 / §6). Reuses the
  * active batch snapshot (see above) when called as part of a multi-day run.
  */
-function stepDayMutation(): { result: SimulationStepResult; topics: readonly DataTopic[] } {
+function stepDayMutation(days = 1): { result: SimulationStepResult; topics: readonly DataTopic[] } {
   const inBatch = activeDayBatchSnapshot !== null;
   const snapshot = activeDayBatchSnapshot ?? takeDaySnapshot();
   try {
-    const outcome = advanceTimeMutation(0, 0, 1);
-    if (inBatch) dayBatchCommittedDays++;
+    const outcome = advanceTimeMutation(0, 0, days);
+    if (inBatch) dayBatchCommittedDays += days;
     if (!outcome.topics.length) {
       // advanceTimeMutation returns empty topics only for non-positive deltas; stepDay is always 1 day.
       return {
@@ -997,9 +1077,11 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
         daysThisFrame < MAX_DAYS_PER_FRAME &&
         performance.now() - chunkStartedAt < FRAME_BUDGET_MS
       ) {
-        const commit = stepDaySimulation();
+        // 1 for an ordinary advance; a whole month at a time under history mode (§4).
+        const days = nextStrideDays(totalDays - currentProgress - daysThisFrame);
+        const commit = stepDaySimulation(days);
         if (!commit) break; // e.g. blocked by a concurrent world.generate dispatch.
-        daysThisFrame++;
+        daysThisFrame += days;
       }
     } catch (error) {
       exitDayBatchAfterFailure();

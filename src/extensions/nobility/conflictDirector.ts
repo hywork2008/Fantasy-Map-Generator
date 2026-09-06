@@ -1,4 +1,4 @@
-import { type StrategicGoal, simulationContext } from "../hostCore";
+import { historyModeForcesAutonomousConflict, type StrategicGoal, simulationContext } from "../hostCore";
 import type { ChronicleEvent, ConflictAutonomy } from "../hostTypes";
 import { normalizeConflictAutonomy } from "../hostUtils";
 import {
@@ -26,9 +26,16 @@ export function getConflictAutonomy(): ConflictAutonomy {
   return normalizeConflictAutonomy(getWorldContext().options.conflictAutonomy);
 }
 
-/** Whether Nobility may create or advance AI-originated interstate conflict this tick. */
+/**
+ * Whether Nobility may create or advance AI-originated interstate conflict this tick.
+ *
+ * A history-mode run (docs/plan/advance-time-history-mode.md §5.4) answers yes regardless of the
+ * map's saved policy: the run exists to produce a record of wars, and a player-directed map would
+ * otherwise sit out the entire advance. The saved `conflictAutonomy` option is never rewritten —
+ * this override lapses the moment the run's bracket closes.
+ */
 export function mayAdvanceAutonomousConflict(): boolean {
-  return getConflictAutonomy() === "autonomous";
+  return historyModeForcesAutonomousConflict() || getConflictAutonomy() === "autonomous";
 }
 
 /** True when this state pair may fight under the map's current conflict-autonomy policy. */

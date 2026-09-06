@@ -1,5 +1,6 @@
 import type { FastAdvanceRates } from "../../../generators/fastAdvance/fastAdvancePresets";
 import type { RNGService } from "../../../utils/probabilityUtils";
+import { isHistoryModeRunActive } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import { getMarkets, getWorldContext } from "../economyContext";
 
@@ -64,6 +65,13 @@ export function applyFastForwardEconomySettlement(
       entry.stock = Math.max(0, rn(baselineStock * stockFactor, 2));
     }
   }
+
+  // History mode owns the treasury trajectory outright (docs/plan/advance-time-history-mode.md
+  // §6.4): its additive stub income replaces this multiplicative rate, which cannot sustain a
+  // decades-long run (0.87^50 ≈ 0.001, and 0 is an absorbing state here). Goods stock and prices
+  // above still follow the preset — freezing those would leave the economy visibly wrong the
+  // moment the user drops back out of history mode.
+  if (isHistoryModeRunActive()) return;
 
   const treasuryFactor = (1 + rates.treasuryGrowthPctPerYear / 100) ** yearsElapsed;
   const { pack } = getWorldContext();

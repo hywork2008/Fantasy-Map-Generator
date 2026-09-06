@@ -78,8 +78,20 @@ export interface SimulationSystemRunResult {
   readonly topics: readonly DataTopic[];
 }
 
+/**
+ * Predicate consulted before each system runs. Returning false skips the system entirely for that
+ * tick — it does not run, and it draws no RNG.
+ *
+ * Injected rather than baked in so the scheduler stays free of feature knowledge; Advance Time's
+ * history mode installs one to mask whole subsystems off during a decades-long run
+ * (docs/plan/advance-time-history-mode.md §5.1).
+ */
+export type SimulationSystemFilter = (system: SimulationSystem, context: SimulationStepContext) => boolean;
+
 export interface SimulationSystemRegistry {
   register(system: SimulationSystem): () => void;
+  /** Installs (or clears, with `null`) the per-tick system filter. */
+  setFilter(filter: SimulationSystemFilter | null): void;
   run(
     context: SimulationStepContext,
     execute?: (system: SimulationSystem, writer: TransactionWriter) => void
@@ -92,6 +104,11 @@ export type { TransactionWriter };
 class OrderedSimulationSystemRegistry implements SimulationSystemRegistry {
   private readonly systems = new Map<string, SimulationSystem>();
   private running = false;
+  private filter: SimulationSystemFilter | null = null;
+
+  setFilter(filter: SimulationSystemFilter | null): void {
+    this.filter = filter;
+  }
 
   register(system: SimulationSystem): () => void {
     this.assertCanRegister(system);
@@ -128,6 +145,7 @@ class OrderedSimulationSystemRegistry implements SimulationSystemRegistry {
       const executed: SimulationSystemRunResult[] = [];
       for (const system of this.resolveOrder()) {
         if (!runsOnTick(system.cadence, context.tick)) continue;
+        if (this.filter && !this.filter(system, context)) continue;
         const writer = createTransactionWriter(system.writes);
         execute(system, writer);
         executed.push({ system, topics: writer.changedTopics });

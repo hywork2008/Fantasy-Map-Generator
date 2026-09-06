@@ -36,6 +36,7 @@ import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
 import { clearNobilityContext, getApi, getWorldContext, initNobilityContext } from "./nobilityContext";
 import { resolveCharacterRegenerationSeed } from "./resolveCharacterRegenerationSeed";
+import { NOBILITY_TICK_SYSTEM_IDS, NOBILITY_TICK_TOPIC_CONTRACTS, type NobilityTickSystemId } from "./tickSystemIds";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 
 export const NOBILITY_EXTENSION_ID = "nobility";
@@ -53,7 +54,8 @@ let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
 let _playerConflictRequestedHandler: ((e: Event) => void) | null = null;
 let _playerConflictEndedHandler: ((e: Event) => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
-let _unregisterTickSystem: (() => void) | null = null;
+/** Unregister handles for the NOBILITY_TICK_SYSTEM_IDS chain, dropped in reverse on cleanup. */
+const _unregisterTickSystems: (() => void)[] = [];
 
 type NobilityRegenerationMode = "bootstrap" | "full";
 
@@ -289,126 +291,159 @@ export function init(api: ExtensionAPI): void {
 
   // Military phase runs after economy systems (logging / voyage intel events) so
   // same-tick voyage intel feeds Espionage.generate on this step.
-  _unregisterTickSystem = api.registerSimulationSystem({
-    id: "nobility.tick",
-    phase: "military",
-    reads: [
-      "map.politics",
-      "map.settlements",
-      "simulation.military",
-      "simulation.states",
-      "extension.characters",
-      "extension.nobility",
-      "extension.shipbuilding"
-    ],
-    writes: [
-      "extension.characters",
-      "extension.nobility",
-      "map.politics",
-      "map.settlements",
-      "simulation.military",
-      "simulation.states"
-    ],
-    cadence: { every: 1 },
-    profileLabel: "nobility",
-    run: (context, writer) => {
-      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+  // docs/plan/advance-time-history-mode.md Phase H1: the tick used to be one `nobility.tick`
+  // system. Splitting it along NOBILITY_TICK_SYSTEM_IDS keeps the exact same step order (each
+  // step declares `after: [previous]`) while letting history mode disable individual steps.
+  type NobilityTickSystem = Parameters<typeof api.registerSimulationSystem>[0];
+  type NobilityTickContext = Parameters<NobilityTickSystem["run"]>[0];
 
-      const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
-      const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-
-      // Resolve sickness/health before aging so this same tick's mortality roll already
-      // sees any fresh affliction (see characterHealth.ts's diseaseDeathRiskFor()).
-      advanceCharacterHealth(effectiveDeltaYears);
-      advanceCharacterAging(effectiveDeltaYears);
-      // Annual maintenance, independent of ability preset: sweep long-dead characters nothing
-      // still references (see characterPruning.ts) so the roster — and the full-pack/simulation
-      // snapshot timeEngine.ts clones once per Advance action — doesn't grow without bound over
-      // a long session.
-      if (api.simulationContext.currentDay === 1 && api.simulationContext.currentMonth === 1) {
-        pruneDeadCharactersAnnual();
-      }
-      if (getSelectedAbilityPresetId() !== "ck3e") {
-        // D&D characters have no CK3 court attributes or political-AI participation.
-        tickPlayerTravel(deltaDays);
-        return;
-      }
-      Characters.processResignationsAndSuccessions(effectiveDeltaYears);
-      // Phase D: greed/commitment-driven skimming and court bribes.
-      Characters.processCharacterCorruption(effectiveDeltaYears);
-      assignOfficers();
-      assignProvinceLords();
-      // A capable, humane court (or a culture that values learning) can correct one obvious
-      // named-personnel mismatch each year. It runs after ordinary officer vacancy assignment
-      // so it only fills a command the regular system left open.
-      if (api.simulationContext.currentDay === 1 && api.simulationContext.currentMonth === 1) {
-        HumanCapitalAllocation.settleAnnual();
-      }
-      // Consume in-flight player travel days; location updates on arrival.
-      tickPlayerTravel(deltaDays);
-
-      // Loop-reduction Phase 1b (docs/plan/advance-time-loop-reduction.md): a multi-day
-      // fast-forward (Advance Week/Month/Year, isBulkAdvance) under player-directed conflict
-      // policy means the player is explicitly not resolving turn-by-turn warfare right now —
-      // armies do not need to plan, besiege, skirmish, or move for those days. Confirmed with
-      // the user (2026-08-13) as an intentional divergence from day-by-day stepping: Advance Day
-      // always resolves military in full; Advance Week/Month/Year skips it while
-      // conflictAutonomy is "playerDirected". Autonomous-policy maps are unaffected — the
-      // political AI needs continuous resolution regardless of batch size.
-      const suppressConflictAdvance = shouldSuppressConflictAdvance(context.isBulkAdvance);
-      const canAdvanceConflict = mayAdvanceAnyConflict() && !suppressConflictAdvance;
-      if (api.simulationContext.currentDay === 1) {
-        // Frontier governance is a separate choice from war planning: rulers
-        // spend on recovery and border works before choosing fresh campaigns.
-        // It deliberately runs only when Nobility is enabled; the host frontier
-        // loop remains usable without this optional strategic layer.
-        if (api.simulationContext.currentMonth === 1) {
-          advanceFrontierGovernance(api.worldContext, api.simulationContext, context.rng);
-          writer.markChanged("simulation.states");
-        }
-        if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
-        Mobilization.conscript(api.worldContext.pack);
-      }
-
-      Espionage.generate();
-      if (canAdvanceConflict) StrategicPlanner.generate();
-      const siegeOccurred = canAdvanceConflict ? StrategicPlanner.advanceTension() : false;
-      const skirmishOccurred = canAdvanceConflict
-        ? LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays)
-        : false;
-      const bordersChanged = siegeOccurred || skirmishOccurred;
-
-      Military.updateDynamic(api.worldContext, effectiveDeltaYears);
-
-      // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
-      // bordersChanged — armies keep advancing toward their destination continuously rather than
-      // teleporting instantly when borders change. Skipped entirely when suppressConflictAdvance
-      // (also avoids advanceAllRegimentMovement's route-graph rebuild, its dominant cost).
-      let marchCaptureOccurred = false;
-      const regimentsMoved = suppressConflictAdvance
-        ? false
-        : advanceAllRegimentMovement(
-            api.worldContext.pack,
-            api.worldContext,
-            effectiveDeltaYears,
-            (r, cell) => {
-              if (!canAdvanceConflict) return;
-              if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
-            },
-            canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
-          );
-
-      const settlementsChanged = bordersChanged || marchCaptureOccurred;
-      const militaryChanged = settlementsChanged || regimentsMoved;
-
-      refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
-      // Keep the top-right player HUD honest after death/succession/title swaps.
-      refreshPlayerCharacterSelection();
-
-      writer.markChanged("extension.characters", "extension.nobility");
-      if (settlementsChanged) writer.markChanged("map.politics", "map.settlements");
-      if (militaryChanged) writer.markChanged("simulation.military");
+  let nextNobilityTickSystemIndex = 0;
+  const registerNobilityTickSystem = (id: NobilityTickSystemId, run: NobilityTickSystem["run"]): void => {
+    const index = nextNobilityTickSystemIndex++;
+    if (NOBILITY_TICK_SYSTEM_IDS[index] !== id) {
+      throw new Error(
+        `Nobility tick system '${id}' registered at position ${index}, ` +
+          `where tickSystemIds.ts declares '${NOBILITY_TICK_SYSTEM_IDS[index] ?? "(past the end)"}'`
+      );
     }
+    const previous = index > 0 ? NOBILITY_TICK_SYSTEM_IDS[index - 1] : null;
+    const topics = NOBILITY_TICK_TOPIC_CONTRACTS[id];
+    _unregisterTickSystems.push(
+      api.registerSimulationSystem({
+        id,
+        phase: "military",
+        reads: topics.reads,
+        writes: topics.writes,
+        after: previous ? [previous] : undefined,
+        cadence: { every: 1 },
+        profileLabel: id.replace("nobility.", "nobility:"),
+        run: (context, writer) => {
+          if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+          run(context, writer);
+        }
+      })
+    );
+  };
+
+  /** Years covered by one tick — the same expression every former inline step used. */
+  const tickYears = (context: NobilityTickContext): number =>
+    context.delta.years + context.delta.months / 12 + context.delta.days / 365.2425;
+  const isAnnualBoundary = (): boolean =>
+    api.simulationContext.currentDay === 1 && api.simulationContext.currentMonth === 1;
+  /** CK3 courts only: D&D characters have no court attributes or political-AI participation. */
+  const usesCourtSystems = (): boolean => getSelectedAbilityPresetId() === "ck3e";
+  /**
+   * Loop-reduction Phase 1b (docs/plan/advance-time-loop-reduction.md): a multi-day fast-forward
+   * (Advance Week/Month/Year, isBulkAdvance) under player-directed conflict policy means the
+   * player is explicitly not resolving turn-by-turn warfare right now — armies do not need to
+   * plan, besiege, skirmish, or move for those days. Confirmed with the user (2026-08-13) as an
+   * intentional divergence from day-by-day stepping: Advance Day always resolves military in
+   * full; Advance Week/Month/Year skips it while conflictAutonomy is "playerDirected".
+   * Autonomous-policy maps are unaffected — the political AI needs continuous resolution
+   * regardless of batch size.
+   */
+  const canAdvanceConflictThisTick = (context: NobilityTickContext): boolean =>
+    mayAdvanceAnyConflict() && !shouldSuppressConflictAdvance(context.isBulkAdvance);
+
+  registerNobilityTickSystem("nobility.characterLifecycle", (context, _writer) => {
+    const effectiveDeltaYears = tickYears(context);
+    // Resolve sickness/health before aging so this same tick's mortality roll already
+    // sees any fresh affliction (see characterHealth.ts's diseaseDeathRiskFor()).
+    advanceCharacterHealth(effectiveDeltaYears);
+    advanceCharacterAging(effectiveDeltaYears);
+    // Annual maintenance, independent of ability preset: sweep long-dead characters nothing
+    // still references (see characterPruning.ts) so the roster — and the full-pack/simulation
+    // snapshot timeEngine.ts clones once per Advance action — doesn't grow without bound over
+    // a long session.
+    if (isAnnualBoundary()) pruneDeadCharactersAnnual();
+    if (!usesCourtSystems()) return;
+    Characters.processResignationsAndSuccessions(effectiveDeltaYears);
+    // Phase D: greed/commitment-driven skimming and court bribes.
+    Characters.processCharacterCorruption(effectiveDeltaYears);
+  });
+
+  registerNobilityTickSystem("nobility.appointments", (_context, _writer) => {
+    if (!usesCourtSystems()) return;
+    assignOfficers();
+    assignProvinceLords();
+    // A capable, humane court (or a culture that values learning) can correct one obvious
+    // named-personnel mismatch each year. It runs after ordinary officer vacancy assignment
+    // so it only fills a command the regular system left open.
+    if (isAnnualBoundary()) HumanCapitalAllocation.settleAnnual();
+  });
+
+  registerNobilityTickSystem("nobility.playerTravel", (context, _writer) => {
+    // Consume in-flight player travel days; location updates on arrival. Runs for every ability
+    // preset — the pre-split tick reached this both in the D&D early-return branch and at the
+    // end of the CK3 branch.
+    tickPlayerTravel(context.delta.days);
+  });
+
+  registerNobilityTickSystem("nobility.frontierGovernance", (context, writer) => {
+    if (!usesCourtSystems()) return;
+    // Frontier governance is a separate choice from war planning: rulers
+    // spend on recovery and border works before choosing fresh campaigns.
+    // It deliberately runs only when Nobility is enabled; the host frontier
+    // loop remains usable without this optional strategic layer.
+    if (api.simulationContext.currentDay !== 1 || api.simulationContext.currentMonth !== 1) return;
+    advanceFrontierGovernance(api.worldContext, api.simulationContext, context.rng);
+    writer.markChanged("simulation.states");
+  });
+
+  registerNobilityTickSystem("nobility.strategy", (context, _writer) => {
+    if (!usesCourtSystems()) return;
+    if (api.simulationContext.currentDay === 1) {
+      if (canAdvanceConflictThisTick(context)) StrategicPlanner.evaluatePlans();
+      Mobilization.conscript(api.worldContext.pack);
+    }
+    Espionage.generate();
+    if (canAdvanceConflictThisTick(context)) StrategicPlanner.generate();
+  });
+
+  registerNobilityTickSystem("nobility.combat", (context, writer) => {
+    if (!usesCourtSystems()) return;
+    const canAdvanceConflict = canAdvanceConflictThisTick(context);
+    const siegeOccurred = canAdvanceConflict ? StrategicPlanner.advanceTension() : false;
+    const skirmishOccurred = canAdvanceConflict
+      ? LocalSkirmish.resolve(tickYears(context), context.delta.months, context.delta.days)
+      : false;
+
+    Military.updateDynamic(api.worldContext, tickYears(context));
+
+    if (siegeOccurred || skirmishOccurred) {
+      writer.markChanged("map.politics", "map.settlements", "simulation.military");
+    }
+  });
+
+  registerNobilityTickSystem("nobility.regimentMovement", (context, writer) => {
+    if (!usesCourtSystems()) return;
+    // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
+    // bordersChanged — armies keep advancing toward their destination continuously rather than
+    // teleporting instantly when borders change. Skipped entirely when suppressConflictAdvance
+    // (also avoids advanceAllRegimentMovement's route-graph rebuild, its dominant cost).
+    if (shouldSuppressConflictAdvance(context.isBulkAdvance)) return;
+    const canAdvanceConflict = canAdvanceConflictThisTick(context);
+    let marchCaptureOccurred = false;
+    const regimentsMoved = advanceAllRegimentMovement(
+      api.worldContext.pack,
+      api.worldContext,
+      tickYears(context),
+      (r, cell) => {
+        if (!canAdvanceConflict) return;
+        if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
+      },
+      canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
+    );
+
+    if (marchCaptureOccurred) writer.markChanged("map.politics", "map.settlements");
+    if (marchCaptureOccurred || regimentsMoved) writer.markChanged("simulation.military");
+  });
+
+  registerNobilityTickSystem("nobility.finalize", (_context, writer) => {
+    refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
+    // Keep the top-right player HUD honest after death/succession/title swaps.
+    refreshPlayerCharacterSelection();
+    writer.markChanged("extension.characters", "extension.nobility");
   });
 }
 
@@ -440,8 +475,8 @@ export function cleanup(api: ExtensionAPI): void {
   clearVoyageIntel();
   _unregisterRegenerateCommand?.();
   _unregisterRegenerateCommand = null;
-  _unregisterTickSystem?.();
-  _unregisterTickSystem = null;
+  // Reverse order: the registry refuses to remove a system another one still declares `after`.
+  while (_unregisterTickSystems.length) _unregisterTickSystems.pop()?.();
 
   api.unregisterExtension(NOBILITY_EXTENSION_ID);
   clearNobilityContext();

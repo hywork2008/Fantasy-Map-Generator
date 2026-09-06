@@ -174,16 +174,24 @@ export interface SimulationStepResult {
   readonly day: number;
 }
 
+/** Optional stride for one `simulation.stepDay` dispatch. Absent means exactly one day. */
+export interface StepDayRequest {
+  /** Calendar days this single step covers. Must be a positive integer; defaults to 1. */
+  readonly days: number;
+}
+
 /**
- * Target one-day simulation command (unite-data-and-map §6). Payload is empty —
- * the step always advances exactly one calendar day from the live clock.
+ * Target simulation step command (unite-data-and-map §6). It advances exactly one calendar day
+ * from the live clock unless a `days` stride is supplied — Advance Time's history mode steps a
+ * whole month at a time so a decades-long run costs 12 ticks a year rather than 365
+ * (docs/plan/advance-time-history-mode.md §4).
  */
 export interface StepDayCommand {
   readonly type: "simulation.stepDay";
-  readonly payload?: undefined;
+  readonly payload?: StepDayRequest;
 }
 
-export type SimulationStepDayHandler = () => LegacyMutationOutcome<SimulationStepResult>;
+export type SimulationStepDayHandler = (request?: StepDayRequest) => LegacyMutationOutcome<SimulationStepResult>;
 
 export type HeightmapFinalizeMode = "erase" | "keep" | "risk";
 
@@ -1042,7 +1050,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     }
 
     if (command.type === "simulation.stepDay") {
-      return this.stepDay() as LegacyMutationOutcome<T>;
+      return this.stepDay(command.payload) as LegacyMutationOutcome<T>;
     }
 
     if (command.type === "heightmap.finalize") {
@@ -2263,11 +2271,14 @@ class LegacyWorldRuntime implements WorldRuntime {
     return this.simulationAdvanceHandler(request);
   }
 
-  private stepDay(): LegacyMutationOutcome<SimulationStepResult> {
+  private stepDay(request?: StepDayRequest): LegacyMutationOutcome<SimulationStepResult> {
     if (!this.simulationStepDayHandler) {
       throw new Error("simulation.stepDay has no registered handler");
     }
-    return this.simulationStepDayHandler();
+    if (request && (!Number.isInteger(request.days) || request.days < 1)) {
+      throw new Error("simulation.stepDay requires a positive integer day stride");
+    }
+    return this.simulationStepDayHandler(request);
   }
 
   private extensionCommandKey(extensionId: string, name: string): string {
@@ -2414,9 +2425,14 @@ export function registerSimulationStepDayHandler(handler: SimulationStepDayHandl
   return worldRuntime.registerSimulationStepDayHandler(handler);
 }
 
-/** Dispatches one canonical calendar day through `simulation.stepDay`. */
-export function stepDaySimulation(): WorldCommit<SimulationStepResult> | null {
-  return (worldRuntime as LegacyWorldRuntime).execute({ type: "simulation.stepDay" });
+/**
+ * Dispatches one canonical calendar day through `simulation.stepDay`, or a `days`-long stride
+ * when Advance Time is running with a coarser tick (docs/plan/advance-time-history-mode.md §4).
+ */
+export function stepDaySimulation(days = 1): WorldCommit<SimulationStepResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute(
+    days === 1 ? { type: "simulation.stepDay" } : { type: "simulation.stepDay", payload: { days } }
+  );
 }
 
 /** Dispatches one compatibility simulation step through the named command seam. */

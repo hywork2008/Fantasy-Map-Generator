@@ -54,6 +54,7 @@ Fast-Forward中スキップし、非treasuryの処理（技術・知識の進捗
 | :--- | :--- |
 | `docs/analytics/advance-year-benchmark-latest.json` | 本設計の調査対象データ（2026-09-05実測、4154cells/143burgs/characters+economy） |
 | `docs/analytics/perf-economy.md` | 上記の人間可読サマリ |
+| `docs/plan/advance-time-history-mode.md` | **本書の機能拡張(2026-09-06 起票、未実装)**。歴史生成に特化したプロファイル:系統マスク・月ストライド・スタブ歳入 |
 | `docs/plan/advance-time-loop-reduction.md` | Phase 1a（manpower間引き）/ Phase 1b（多日バッチでの軍事解決スキップ、`isBulkAdvance`の初出） / Phase 3（本書の前身の留保事項） |
 | `docs/simulation/advance-time.md` | Advance Time全体の仕様・RNG決定性契約（§7） |
 | `src/generators/timeEngine.ts` | `advanceTimeMutation()`、`isBulkTimeAdvance()`、demographics/systems呼び出し地点 |

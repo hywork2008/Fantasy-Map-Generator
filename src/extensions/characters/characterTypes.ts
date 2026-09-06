@@ -334,6 +334,19 @@ export interface Character {
   i: number;
   name: string;
   age: number;
+  /**
+   * Sub-year remainder carried between aging passes, in years (just under 1 at most, and slightly
+   * negative for one tick after a leap-day boundary is absorbed — see AGE_YEAR_EPSILON).
+   *
+   * advanceCharacterAging() is called once per simulated calendar day with deltaYears ~ 1/365, so
+   * rounding `age + deltaYears` to an integer on every call would leave `age` frozen forever (it
+   * did, until docs/plan/advance-time-history-mode.md Phase H0). The remainder accumulates here
+   * instead and `age` advances only when it crosses a whole year, which makes a year of daily
+   * steps and a single one-year step produce the same age.
+   *
+   * Optional so pre-H0 saves load unchanged (absent === 0).
+   */
+  ageFraction?: number;
   gender: Gender;
   /** pack.cultures id — drives name generation / cultural identity. */
   culture: number;

@@ -19,6 +19,18 @@ import {
 import { type Character, type CharacterRoleClass, type CharacterSkills, isCk3Character } from "./characterTypes";
 import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
+/**
+ * Slack allowed when deciding whether the age accumulator has crossed a whole year: half a day.
+ *
+ * Elapsed time reaches this function as `days / 365.2425` (the mean Gregorian year every
+ * delta-driven system uses), but the calendar advances in whole days, so a span of N calendar
+ * years lands a fraction of a day *short* of N whenever it contains fewer leap days than the
+ * 0.2425 average — measured at 0.9991 after 50 years. Without this the UI would say five years
+ * passed while a character aged four, until the next tick nudged it over. Half a day cannot cause
+ * a spurious extra year: the smallest real step is a full day (0.0027 years).
+ */
+const AGE_YEAR_EPSILON = 0.5 / 365.2425;
+
 /** Physical decline sets in past this age for short-lived (human-scale) races only. */
 export const DECLINE_AGE_THRESHOLD = 35;
 /** Legacy scalar appearance decline (characters without `looks` axes). Matches vitality axis rate. */
@@ -112,7 +124,13 @@ export function advanceCharacterAging(deltaYears: number): void {
     const usesCk3Systems = isCk3Character(character);
 
     const oldAge = character.age;
-    const newAge = Math.round(oldAge + deltaYears);
+    // Sub-year remainders are carried on the character (docs/plan/advance-time-history-mode.md
+    // §0): this runs once per simulated day with deltaYears ~ 1/365, and rounding the sum to an
+    // integer every call left `age` frozen at its generated value forever. Accumulating the
+    // remainder makes 365 daily calls and one single-year call agree exactly.
+    const accumulated = (character.ageFraction ?? 0) + deltaYears;
+    const wholeYears = Math.floor(accumulated + AGE_YEAR_EPSILON);
+    const newAge = oldAge + wholeYears;
     const skipAgePenalty = characterIgnoresAgeDecline(character);
 
     const appearanceDecline =
@@ -127,6 +145,7 @@ export function advanceCharacterAging(deltaYears: number): void {
       declineAt(newAge, prowessRate, skipAgePenalty) - declineAt(oldAge, prowessRate, skipAgePenalty);
 
     character.age = newAge;
+    character.ageFraction = accumulated - wholeYears;
     if (appearanceDecline > 0) {
       // Prefer axis decline (vitality) + own-race Appearance cache when looks exist.
       if (character.looks) {
@@ -185,9 +204,13 @@ export function advanceCharacterAging(deltaYears: number): void {
     const profile = resolveRaceAgeProfile(raceId);
     const maturity = getRaceMaturityAge(raceId);
     const youngAdultCap = scaleHumanAgeToRace(25, profile);
-    if (usesCk3Systems && newAge <= youngAdultCap && deltaYears > 0) {
+    // Growth is driven by whole elapsed years, not the raw delta: at the daily cadence
+    // `Math.floor(growthMax * 1/365)` was always 0, so young characters never grew either (§0.2).
+    // Skipping the block entirely on the ~364 days that complete no year also saves the rand()
+    // draws it used to burn per character per day.
+    if (usesCk3Systems && newAge <= youngAdultCap && wholeYears > 0) {
       const growthMax = newAge <= maturity ? rand(3, 8) : rand(0, 2);
-      const growth = Math.floor(growthMax * deltaYears);
+      const growth = Math.floor(growthMax * wholeYears);
       if (growth > 0) {
         for (const key of Object.keys(character.skills) as (keyof typeof character.skills)[]) {
           if (character.skills[key] < 100 && P(0.5)) {
@@ -202,7 +225,7 @@ export function advanceCharacterAging(deltaYears: number): void {
 
       // Personality drift for children (personalities become more extreme/defined as they grow)
       if (newAge <= maturity) {
-        const drift = Math.floor(rand(1, 4) * deltaYears);
+        const drift = Math.floor(rand(1, 4) * wholeYears);
         for (const key of Object.keys(character.personality) as (keyof typeof character.personality)[]) {
           if (key === "confidence") continue; // Handled above
           let val = (character.personality as unknown as Record<string, number>)[key as string];

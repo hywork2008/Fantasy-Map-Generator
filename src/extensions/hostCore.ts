@@ -9,6 +9,11 @@ export { Burgs } from "../generators/burgs-generator";
 export { getBurgDemographics, getCellDemographics, setCellDemographics } from "../generators/demographicTransfer";
 export { applyDemographicCasualties, CHILD_COHORT_YEARS } from "../generators/demography-simulator";
 export {
+  getActiveHistoryModeRun,
+  historyModeForcesAutonomousConflict,
+  isHistoryModeRunActive
+} from "../generators/fastAdvance/historyModeRun";
+export {
   analyzeFrontiers,
   analyzeSeaFrontiers,
   getProvinceThreats,

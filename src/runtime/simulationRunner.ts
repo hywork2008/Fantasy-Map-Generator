@@ -66,6 +66,13 @@ export interface DayBatchController {
    * commit if earlier days in this run already committed before the failure.
    */
   exitAfterFailure(): void;
+  /**
+   * Calendar days the next step should cover, given how many remain. Always 1 for an ordinary
+   * advance; Advance Time's history mode returns a whole month so a decades-long run costs 12
+   * ticks a year instead of 365 (docs/plan/advance-time-history-mode.md §4). Optional so a host
+   * that never installs history mode keeps the plain one-day-per-step contract.
+   */
+  strideDays?(remainingDays: number): number;
 }
 
 /**
@@ -85,11 +92,12 @@ export function registerDayBatchController(controller: DayBatchController): void
  * One canonical calendar day via `simulation.stepDay` (failed-day rollback).
  * With `notify: true` (default) also runs the registered day observer.
  */
-export function stepDay(options?: { readonly notify?: boolean }): boolean {
-  const commit = stepDaySimulation();
+export function stepDay(options?: { readonly notify?: boolean; readonly days?: number }): boolean {
+  const days = options?.days ?? 1;
+  const commit = stepDaySimulation(days);
   if (!commit) return false;
   if (options?.notify !== false) {
-    dayObserver?.(0, 0, 1);
+    dayObserver?.(0, 0, days);
   }
   return true;
 }
@@ -109,14 +117,15 @@ export function runDaily(days: number, options: DailyRunOptions = {}): DailyRunR
 
   dayBatchController?.enter(totalDays);
   try {
-    for (let i = 0; i < totalDays; i++) {
+    while (completed < totalDays) {
       if (options.shouldStop?.()) {
         return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
       }
-      if (!stepDay({ notify })) {
+      const days = dayBatchController?.strideDays?.(totalDays - completed) ?? 1;
+      if (!stepDay({ notify, days })) {
         return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
       }
-      completed++;
+      completed += days;
       options.onDayComplete?.({ day: completed, totalDays });
     }
 

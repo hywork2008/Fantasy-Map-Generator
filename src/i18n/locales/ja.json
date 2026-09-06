@@ -1900,6 +1900,42 @@
       "fastForwardPctPerYear": "%/年",
       "fastForwardPct": "%",
       "fastForwardWarning": "近似モードは毎月の生産・税決済と人口成長を年間一定率に置き換えます。産物ごとの正確なシミュレーションを行うにはオフにしてください。複数日の進行(週/月/年)にのみ適用され、1日ごとのAdvance Dayは常に正確な計算のままです。",
+      "historyModeLabel": "歴史モード",
+      "historyProfiles": {
+        "off": "オフ",
+        "chronicle": "年代記",
+        "dynastyOnly": "王朝のみ",
+        "custom": "カスタム"
+      },
+      "historyProfileHints": {
+        "off": "Advance Time は通常どおりに動作します。",
+        "chronicle": "人物・国家・戦争の記録を作ることに特化します。経済とインフラの大半を停止し、1ヶ月単位で進めます。技術の進歩は続きます。",
+        "dynastyOnly": "誕生・死亡・継承のみを最速で進めます。経済も技術も軍隊もありません。",
+        "custom": "刻み・スタブ歳入・停止する系統を自分で設定します。"
+      },
+      "historyAutonomousConflictNote": "走行中は AI 国家が自律的に開戦します。プレイヤー主導の交戦方針は走行中のみ無視され、終了後に元へ戻ります。",
+      "historyStride": "1ティックの長さ",
+      "historyStrideTip": "1回のシミュレーション処理が進める時間です。1ヶ月にすると年あたりの処理回数が約30分の1になり、月次・年次のカレンダー処理はすべて従来どおり発火します。",
+      "historyStrides": {
+        "day": "1日",
+        "month": "1ヶ月"
+      },
+      "historyStubFunding": "スタブ歳入を使う",
+      "historyStubFundingTip": "Fast-Forward の乗算式の国庫増減を、人口比例の歳入に置き換えます。使わない場合は数十年で全国家が破産し、拡張が止まって歴史が生まれません。",
+      "historyStubRevenue": "1人あたり歳入",
+      "historyStubRevenueTip": "人口1人あたりの年間名目歳入です。",
+      "historyStubUpkeep": "恒常支出比",
+      "historyStubUpkeepTip": "歳入に対する恒常支出の比率です。1.0 で収支均衡、1.0 超で構造的赤字になります。",
+      "historyStubWarUpkeep": "戦時支出倍率",
+      "historyStubWarUpkeepTip": "交戦中の国家に掛かる支出の追加倍率です。恒常支出比と合わせて、長期戦争が国庫を食い潰して拡張を止める仕組みになります。",
+      "historyStubFloor": "国庫下限比",
+      "historyStubFloorTip": "国庫が年間歳入のこの比率を下回らないようにします。0 なら破産と衰退が起こり得ます。",
+      "historyDisabledSystems": "停止する系統({{total}})",
+      "historyDisabledSystemsHint": "走行中まるごとスキップされる系統です。処理も乱数消費も行いません。",
+      "generationLength": "この地図の1世代は約 {{years}} 年です。",
+      "generationTip": "存命の為政者の残り寿命の中央値から算出しています。長命種族の世界ほど1世代が長くなります。",
+      "advanceGenerations_one": "{{count}}世代({{years}}年)",
+      "advanceGenerations_other": "{{count}}世代({{years}}年)",
       "fastForwardReset": "リセット"
     },
     "save": {

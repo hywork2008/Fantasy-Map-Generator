@@ -2,10 +2,12 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { simulationContext } from "../../context/simulationContext";
+import { worldContext } from "../../context/worldContext";
 import {
   FAST_ADVANCE_PRESET_SELECT_IDS,
   type FastAdvancePresetId
 } from "../../generators/fastAdvance/fastAdvancePresets";
+import { yearsPerRulerGeneration } from "../../generators/fastAdvance/rulerGeneration";
 import { useDialogState } from "../../store/dialogState";
 import { useFastAdvanceState } from "../../store/fastAdvanceState";
 import { useTimeSimulationState } from "../../store/timeSimulationState";
@@ -20,6 +22,7 @@ export const AdvanceTimeDialog: React.FC = () => {
   const fastAdvancePreset = useFastAdvanceState(state => state.preset);
   const setFastAdvanceEnabled = useFastAdvanceState(state => state.setEnabled);
   const setFastAdvancePreset = useFastAdvanceState(state => state.setPreset);
+  const historyProfile = useFastAdvanceState(state => state.historyProfile);
 
   const [simulationClock, setSimulationClock] = useState(() => ({
     currentYear: simulationContext.currentYear,
@@ -30,6 +33,12 @@ export const AdvanceTimeDialog: React.FC = () => {
   const [advanceYears, setAdvanceYears] = useState(1);
   const [advanceMonths, setAdvanceMonths] = useState(1);
   const [advanceDays, setAdvanceDays] = useState(1);
+  /**
+   * Generation buttons (docs/plan/advance-time-history-mode.md §7). Only shown under a history
+   * profile, where advancing far enough to bury the current cast is the whole point. Measured
+   * from the map's own rulers, so an elven realm asks for centuries and a human one for decades.
+   */
+  const yearsPerGeneration = isOpen && historyProfile !== "off" ? yearsPerRulerGeneration(worldContext.pack) : 0;
 
   useEffect(() => {
     const onSimulationUpdated = (e: Event) => {
@@ -119,6 +128,40 @@ export const AdvanceTimeDialog: React.FC = () => {
           </div>
         ) : (
           <>
+            {yearsPerGeneration > 0 ? (
+              <div style={{ display: "grid", gap: "4px" }}>
+                <span style={{ opacity: 0.75, fontSize: "0.9em" }} data-tip={t("dialogs.advanceTime.generationTip")}>
+                  {t("dialogs.advanceTime.generationLength", { years: yearsPerGeneration })}
+                </span>
+                <div style={{ display: "flex", gap: "5px" }}>
+                  {[1, 2, 3].map(generations => (
+                    <button
+                      key={generations}
+                      type="button"
+                      style={{ flex: 1 }}
+                      data-tip={t("dialogs.advanceTime.generationTip")}
+                      onClick={() => {
+                        document.dispatchEvent(
+                          new CustomEvent("react-tool-action", {
+                            detail: {
+                              action: "advanceTimeButton",
+                              years: yearsPerGeneration * generations,
+                              months: 0,
+                              days: 0
+                            }
+                          })
+                        );
+                      }}
+                    >
+                      {t("dialogs.advanceTime.advanceGenerations", {
+                        count: generations,
+                        years: yearsPerGeneration * generations
+                      })}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div style={{ display: "flex", gap: "5px" }}>
               <input
                 type="number"

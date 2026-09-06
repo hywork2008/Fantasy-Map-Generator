@@ -2,6 +2,7 @@
 
 2026-09-06
 
+- docs/plan/advance-time-history-mode.md
 - docs/plan/underground-realm-and-supernatural-areas.md
 - docs/plan/world-history-depth.md
 
