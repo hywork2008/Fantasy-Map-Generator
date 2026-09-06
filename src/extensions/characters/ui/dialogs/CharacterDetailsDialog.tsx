@@ -518,9 +518,7 @@ export const CharacterDetailsDialog: React.FC = () => {
           </th>
           <td>
             {character.appearance ?? t("characters.notAvailable")}
-            <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
-              ({t("characters.appearanceSameRaceHint")})
-            </span>
+            <span style={{ fontSize: "0.85em", marginLeft: 6 }}>({t("characters.appearanceSameRaceHint")})</span>
           </td>
         </tr>
         {viewFromPlayer && appearanceToYouKindKey ? (
@@ -530,12 +528,8 @@ export const CharacterDetailsDialog: React.FC = () => {
             </th>
             <td>
               {viewFromPlayer.score}
-              <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
-                ({t(`characters.${appearanceToYouKindKey}`)})
-              </span>
-              <div style={{ color: "#868e96", fontSize: "0.85em", marginTop: 2, lineHeight: 1.35 }}>
-                {viewFromPlayer.reaction}
-              </div>
+              <span style={{ fontSize: "0.85em", marginLeft: 6 }}>({t(`characters.${appearanceToYouKindKey}`)})</span>
+              <div style={{ fontSize: "0.85em", marginTop: 2, lineHeight: 1.35 }}>{viewFromPlayer.reaction}</div>
             </td>
           </tr>
         ) : null}
@@ -626,9 +620,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                       entity: getTitleEntityName(titleHolding)
                     })}{" "}
                     ({titleHolding.startYear ?? "?"} - {titleHolding.endYear ?? "?"})
-                    {titleHolding.reason ? (
-                      <span style={{ color: "#adb5bd", fontStyle: "italic" }}> - {titleHolding.reason}</span>
-                    ) : null}
+                    {titleHolding.reason ? <span style={{ fontStyle: "italic" }}> - {titleHolding.reason}</span> : null}
                   </li>
                 ))}
               </ul>
@@ -1138,7 +1130,7 @@ export const CharacterDetailsDialog: React.FC = () => {
 
         {activeTab === "craftSkills" && (
           <div>
-            <p style={{ color: "#adb5bd", fontSize: "0.9em", marginTop: 0 }}>{t("characters.craftSkillsHint")}</p>
+            <p style={{ fontSize: "0.9em", marginTop: 0 }}>{t("characters.craftSkillsHint")}</p>
             {craftSkills.length ? (
               <table className="fmg-table character-details__table">
                 <thead>
@@ -1215,7 +1207,7 @@ export const CharacterDetailsDialog: React.FC = () => {
 
         {activeTab === "loadout" && (
           <div>
-            <p style={{ color: "#adb5bd", fontSize: "0.9em", marginTop: 0 }}>{t("characters.loadoutHint")}</p>
+            <p style={{ fontSize: "0.9em", marginTop: 0 }}>{t("characters.loadoutHint")}</p>
             {equipError ? (
               <p style={{ color: "#ff6b6b", fontSize: "0.9em" }} role="alert">
                 {equipError}
@@ -1252,13 +1244,13 @@ export const CharacterDetailsDialog: React.FC = () => {
                             </svg>{" "}
                             {goodName}
                             {item.styleKey ? (
-                              <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
+                              <span style={{ fontSize: "0.85em", marginLeft: 6 }}>
                                 ({t(`characters.styleKeys.${item.styleKey}`, { defaultValue: item.styleKey })})
                               </span>
                             ) : null}
                           </>
                         ) : (
-                          <span style={{ color: "#868e96" }}>{goodName}</span>
+                          goodName
                         )}
                       </td>
                       <td>
@@ -1319,9 +1311,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                             ))}
                           </select>
                         ) : !item ? (
-                          <span style={{ color: "#868e96", fontSize: "0.85em" }}>
-                            {t("characters.noEligibleInventory")}
-                          </span>
+                          <span style={{ fontSize: "0.85em" }}>{t("characters.noEligibleInventory")}</span>
                         ) : null}
                       </td>
                     </tr>
@@ -1386,7 +1376,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                               {t("characters.equip")}
                             </button>
                           ) : (
-                            <span style={{ color: "#868e96" }}>{t("characters.notAvailable")}</span>
+                            t("characters.notAvailable")
                           )}
                         </td>
                       </tr>
@@ -1467,9 +1457,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     <th style={{ padding: "4px 0" }}>{t("characters.lineage")}</th>
                     <td>
                       {backstory.origin.lineageName ?? dynasty?.name}
-                      {dynasty?.motto ? (
-                        <span style={{ color: "#868e96", fontStyle: "italic" }}> — {dynasty.motto}</span>
-                      ) : null}
+                      {dynasty?.motto ? <span style={{ fontStyle: "italic" }}> — {dynasty.motto}</span> : null}
                     </td>
                   </tr>
                 )}
@@ -1584,7 +1572,7 @@ export const CharacterDetailsDialog: React.FC = () => {
         {activeTab === "relationships" && (
           <>
             <h3>{t("characters.characterSolidarity")}</h3>
-            <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.solidarityHint")}</p>
+            <p style={{ marginTop: 0, fontSize: "0.9em" }}>{t("characters.solidarityHint")}</p>
             {solidarityEntries.length > 0 ? (
               <div style={{ overflow: "auto", maxHeight: "280px", marginBottom: "10px" }}>
                 <table className="fmg-table character-details__table character-details__relation-table">
@@ -1649,7 +1637,7 @@ export const CharacterDetailsDialog: React.FC = () => {
             )}
 
             <h3>{t("characters.characterFavor")}</h3>
-            <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.favorHint")}</p>
+            <p style={{ marginTop: 0, fontSize: "0.9em" }}>{t("characters.favorHint")}</p>
             {favorEntries.length > 0 ? (
               <div style={{ overflow: "auto", maxHeight: "280px", marginBottom: "10px" }}>
                 <table className="fmg-table character-details__table character-details__relation-table">
