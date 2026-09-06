@@ -174,5 +174,27 @@ export const Threats = {
         note.legend += `\n\nHistorians estimate that the presence of this creature has resulted in the deaths of approximately ${deathStr} people, with countless more displaced from the surrounding region.`;
       }
     }
+  },
+
+  /**
+   * Appends monsters generated after the normal Threats.generate pass (Deep Worms — docs/plan/
+   * underground-realm-and-supernatural-areas.md §4.3a/§3.1 — need cave systems to exist first,
+   * which run after Threats.generate in the pipeline) and rebuilds the danger field with the
+   * same options generate() used, so the new monsters' influence is reflected before Cultures/
+   * Settlement Foundation read `cells.danger`.
+   */
+  appendMonstersAndRebuildDanger(worldContext: WorldContext, newMonsters: readonly Monster[]) {
+    if (!newMonsters.length) return;
+    const { pack } = worldContext;
+    const { cells } = pack;
+    pack.monsters = [...(pack.monsters ?? []), ...newMonsters];
+
+    const options = useOptionsState.getState();
+    const threatCalculation = resolveThreatCalculation(options);
+    rebuildDangerField(cells, pack.monsters, threatCalculation, {
+      biomesData: worldContext.biomesData,
+      biomePredatorScale: biomePredatorScaleForMode(resolveThreatCultureMode(options.culturesSet)),
+      reducePredatorsOnGovernedLand: true
+    });
   }
 };

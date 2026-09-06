@@ -143,6 +143,18 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
       interbirthYears: 30,
       litterMean: 1.05,
       litterMax: 2
+    },
+    // Underground hold placement (docs/plan/underground-realm-and-supernatural-areas.md §3.4,
+    // §4.4). Unlike Giant, food/temperature independence here is not a bypass — it says the
+    // surface subsistence/climate screen in settlementFoundation.ts's collectSites() does not
+    // apply, because seedDwarfHoldOikoumene.ts feeds `cells.capacity` from
+    // undergroundFoodWeb.ts's computed formula instead. `populationCapacityMultiplier` is a
+    // calibration safety ceiling on that formula's output (§7.1), carried over from dwarf.md §6's
+    // flat 0.3, not the formula itself.
+    environmentalSurvival: {
+      foodIndependent: true,
+      temperatureIndependent: true,
+      populationCapacityMultiplier: 0.3
     }
   },
   {

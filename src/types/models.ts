@@ -396,6 +396,17 @@ export interface Burg {
    * saves made before this field existed; absence means "unknown", not "founded at year 0".
    */
   foundedYear?: number;
+  /**
+   * Where the settlement's living quarters actually are: on the surface, or inside a
+   * SubterraneanDomain reached through `entranceCell` (docs/plan/
+   * underground-realm-and-supernatural-areas.md §2.1/§7.5). Undefined/"surface" behaves exactly
+   * like today. `Burg.type` (CultureType) is unrelated and stays "Highland" for Dwarf holds —
+   * this field is about the map/city-generator site, not the culture economy table.
+   */
+  settlementSite?: "surface" | "underground";
+  /** Surface cell this underground Burg opens onto. Equal to `cell` until a dedicated entrance
+   *  placement exists (docs/temp/races/dwarf.md §5). */
+  entranceCell?: number;
 }
 
 export interface Culture {
@@ -1187,6 +1198,30 @@ export interface Zone {
   cells: number[];
   color: string;
   hidden?: boolean;
+}
+
+/**
+ * A face of super-natural/underground geography projected onto surface cells
+ * (docs/plan/underground-realm-and-supernatural-areas.md §2.2, §5.1/§5.3).
+ * Distinct from `Zone` (a manual, unstructured map annotation): this is generator-owned,
+ * causal data — economy, danger, and political systems read and write it.
+ */
+export type SubterraneanDomainKind = "dwarfHold" | "wildCavern" | "chasmHive" | "wormReach";
+
+export interface SubterraneanDomain {
+  i: number;
+  kind: SubterraneanDomainKind;
+  name?: string;
+  /** Owning race (unclaimed wildCavern has none). Independent of `cells.state`. */
+  raceId?: number;
+  /** Surface cells this domain occupies the underside of — the "face" of the domain. */
+  cells: number[];
+  /** Surface cells where the domain opens to daylight (Burg / cave marker placement). */
+  entrances: number[];
+  /** Deepest reachable layer: 1 shallow, 2 deep, 3 abyssal (docs §1.2). */
+  depth: 1 | 2 | 3;
+  /** Abstract total cavity volume — Σ area × void × depth factor. Physical ceiling on capacity. */
+  voidVolume: number;
 }
 
 export interface MilitaryUnit {

@@ -64,6 +64,12 @@ export function createViewLayers(): void {
     null,
     undefined
   >;
+  const underground = viewbox.append("g").attr("id", "underground").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
   const cells = viewbox.append("g").attr("id", "cells") as Selection<SVGGElement, unknown, null, undefined>;
   const gridOverlay = viewbox.append("g").attr("id", "gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
@@ -229,6 +235,7 @@ export function createViewLayers(): void {
     railways,
     temperature,
     danger,
+    underground,
     combatDeaths,
     coastline,
     ice,
@@ -384,6 +391,15 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
     railways = routes.append("g").attr("id", "railways") as Selection<SVGGElement, unknown, null, undefined>;
   const temperature = viewbox.select("#temperature") as Selection<SVGGElement, unknown, null, undefined>;
   const danger = viewbox.select("#danger") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this layer existed won't have #underground — append it so old saves gain it too.
+  let underground = viewbox.select("#underground") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!underground.size())
+    underground = viewbox.append("g").attr("id", "underground").style("display", "none") as Selection<
+      SVGGElement,
+      unknown,
+      null,
+      undefined
+    >;
   const coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
   // Keep older saved maps consistent with the startup stack. Coastline has a deliberately wide
   // transparent hit stroke, so routes need to follow it in DOM order to remain directly editable.
@@ -483,6 +499,7 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
     railways,
     temperature,
     danger,
+    underground,
     combatDeaths,
     coastline,
     ice,

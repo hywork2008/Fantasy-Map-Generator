@@ -1,9 +1,59 @@
 import { describe, expect, it } from "vitest";
+import type { SettlementFoundationPlan, SettlementNode } from "../types/settlementFoundation";
 import {
   assignInitialPolities,
+  ensureMandatoryCapitals,
   getInitialPolityCapitalCount,
   selectInitialPolityCapitalNodes
 } from "./initialPolities";
+
+describe("ensureMandatoryCapitals", () => {
+  const plan: SettlementFoundationPlan = {
+    regions: [
+      { id: 0, kind: "river", center: 0, cells: [0, 1] },
+      { id: 1, kind: "mountain", center: 10, cells: [10, 11] }
+    ],
+    nodes: [
+      { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
+      { id: 1, regionId: 0, cell: 1, role: "village", score: 5 },
+      { id: 2, regionId: 1, cell: 10, role: "center", score: 1, mandatoryCapital: true }
+    ],
+    links: []
+  };
+
+  it("returns selection unchanged when nothing is mandatory", () => {
+    const noMandatoryPlan: SettlementFoundationPlan = {
+      ...plan,
+      nodes: plan.nodes.map(node => ({ ...node, mandatoryCapital: undefined }))
+    };
+    const selected: SettlementNode[] = [plan.nodes[0]!];
+    expect(ensureMandatoryCapitals(noMandatoryPlan, selected)).toEqual(selected);
+  });
+
+  it("returns selection unchanged when the mandatory node is already present", () => {
+    const selected = [plan.nodes[2]!, plan.nodes[0]!];
+    expect(ensureMandatoryCapitals(plan, selected)).toEqual(selected);
+  });
+
+  it("swaps in the missing mandatory node, replacing the trailing pick, keeping length", () => {
+    const selected = [plan.nodes[0]!, plan.nodes[1]!];
+    const result = ensureMandatoryCapitals(plan, selected);
+    expect(result).toHaveLength(2);
+    expect(result.map(n => n.id)).toContain(2);
+    expect(result[0]!.id).toBe(2);
+  });
+
+  it("never grows the capital count beyond the original selection length", () => {
+    const selected = [plan.nodes[1]!];
+    const result = ensureMandatoryCapitals(plan, selected);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe(2);
+  });
+
+  it("returns an empty selection unchanged (statesNumber = 0 means no capitals at all)", () => {
+    expect(ensureMandatoryCapitals(plan, [])).toEqual([]);
+  });
+});
 
 describe("Initial Polities Module", () => {
   it("derives territory from a materialized route and compact settlement service area", () => {

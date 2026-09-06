@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-06
+
+- docs/plan/underground-realm-and-supernatural-areas.md
+
 2026-09-05
 
 - docs/plan/fictional-map-feature-gaps.md - フィクション地図と比較した際に欠けている地図要素8項目の概要と掘り下げポイント

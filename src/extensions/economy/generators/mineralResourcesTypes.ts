@@ -38,7 +38,13 @@ export const FUEL_MINERAL_COMMODITIES = [
 export type FuelMineralCommodity = (typeof FUEL_MINERAL_COMMODITIES)[number];
 export type MineralCommodity = OreCommodity | FuelMineralCommodity;
 
-export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer" | "volcanic";
+// Re-exported from core (docs/plan/underground-realm-and-supernatural-areas.md §3.2): the
+// underground-realm generator (cave systems / SubterraneanDomain) shares the same geology
+// classification, and core generators cannot import from this extension, so the definition lives
+// in `generators/geologicalProvinces.ts` and this module re-exports it for existing callers.
+import type { GeologicalProvinceKind } from "../../../generators/geologicalProvinces";
+
+export type { GeologicalProvinceKind };
 export type MineralDistrictType =
   | "bandedIron"
   | "ironSand"

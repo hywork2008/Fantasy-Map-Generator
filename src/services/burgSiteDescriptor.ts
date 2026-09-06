@@ -131,6 +131,13 @@ export interface BurgSiteDescriptor {
     walls: boolean;
     temple: boolean;
     shanty: boolean;
+    /**
+     * Underground realm site (docs/plan/underground-realm-and-supernatural-areas.md §3.4/§7.5,
+     * §2.1). Omitted/"surface" behaves exactly like today — City Generator has no dedicated
+     * underground layout yet, so it falls back to the existing surface generation regardless of
+     * this value (MVP: the map still shows a surface entrance icon, not a cavern plan).
+     */
+    settlementSite: "surface" | "underground";
   };
   frame: {
     /** Burg position in FMG map units (the local origin). */
@@ -216,7 +223,8 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
       plaza: Boolean(burg.plaza),
       walls: Boolean(burg.walls),
       temple: Boolean(burg.temple),
-      shanty: Boolean(burg.shanty)
+      shanty: Boolean(burg.shanty),
+      settlementSite: burg.settlementSite ?? "surface"
     },
     frame: {
       originMapUnits: [burg.x, burg.y],

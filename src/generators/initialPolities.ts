@@ -173,6 +173,34 @@ export function getInitialPolityCapitalCount(plan: SettlementFoundationPlan, sta
 }
 
 /**
+ * Guarantees every `mandatoryCapital` node in the plan ends up in the final capital list, without
+ * touching the farthest-point/frontier selection algorithms themselves
+ * (docs/plan/underground-realm-and-supernatural-areas.md §3.4/§7.3) — a Dwarf hold's region needs
+ * a capital regardless of how it scores against ordinary capacity/climate sites, since its whole
+ * point is to exist where those sites are normally zero.
+ *
+ * Keeps the original selection length: missing mandatory nodes replace the lowest-priority
+ * (trailing) non-mandatory picks rather than growing the capital count. Returns `selected`
+ * unchanged when it is empty (statesNumber = 0 means no capitals at all, mandatory or not).
+ */
+export function ensureMandatoryCapitals(
+  plan: SettlementFoundationPlan,
+  selected: readonly SettlementNode[]
+): SettlementNode[] {
+  if (!selected.length) return [...selected];
+  const mandatory = plan.nodes.filter(node => node.mandatoryCapital);
+  if (!mandatory.length) return [...selected];
+
+  const selectedIds = new Set(selected.map(node => node.id));
+  const missing = mandatory.filter(node => !selectedIds.has(node.id)).slice(0, selected.length);
+  if (!missing.length) return [...selected];
+
+  const keep = selected.filter(node => !node.mandatoryCapital);
+  const trimmedKeep = keep.slice(0, Math.max(0, selected.length - missing.length));
+  return [...missing, ...trimmedKeep];
+}
+
+/**
  * Selects capital sites from Foundation nodes without turning one settlement
  * cluster into a row of adjacent States. Every regional center is considered
  * before village nodes, and each phase uses farthest-point selection.

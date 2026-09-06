@@ -236,6 +236,7 @@ class ViewLayerServiceImpl {
       toggleRoutes: viewContext.routes,
       toggleTemperature: viewContext.temperature,
       toggleDanger: viewContext.danger,
+      toggleUnderground: viewContext.underground,
       toggleCombatDeaths: viewContext.combatDeaths,
       togglePrecipitation: viewContext.prec,
       togglePopulation: viewContext.population,

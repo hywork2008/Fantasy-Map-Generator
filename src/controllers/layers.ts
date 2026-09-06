@@ -38,6 +38,7 @@ import {
   StatesRenderer,
   TemperatureLayerRenderer,
   TextureRenderer,
+  UndergroundRenderer,
   ZonesRenderer
 } from "../renderers";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -373,6 +374,7 @@ export function paintSvgMapLayers(): void {
   if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleDanger")) DangerRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleUnderground")) UndergroundRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCombatDeaths")) CombatDeathsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleEnclosure")) EnclosureRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
@@ -1055,6 +1057,26 @@ export function toggleScaleBar(event?: MouseEvent): void {
   }
 }
 
+/**
+ * Underground realm overlay (docs/plan/underground-realm-and-supernatural-areas.md §5.2).
+ * Not WebGL-managed — every domain is empty on non-Fantasy maps, so this stays a plain SVG
+ * toggle rather than earning a spot in the deck.gl hybrid pipeline.
+ */
+export function toggleUnderground(event?: MouseEvent): void {
+  if (!layerIsOn("toggleUnderground")) {
+    turnButtonOn("toggleUnderground");
+    UndergroundRenderer.render(worldContext, viewContext, appServices);
+    if (event && isCtrlClick(event)) editStyle("underground");
+  } else {
+    if (event && isCtrlClick(event)) {
+      editStyle("underground");
+      return;
+    }
+    turnButtonOff("toggleUnderground");
+    UndergroundRenderer.clear?.(viewContext);
+  }
+}
+
 export function toggleZones(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleZones", "zones", event)) return;
 
@@ -1126,6 +1148,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleHeight,
   toggleTemperature,
   toggleDanger,
+  toggleUnderground,
   toggleCombatDeaths,
   toggleEnclosure,
   toggleBiomes,

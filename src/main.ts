@@ -9,6 +9,7 @@ import {
   getTemperateLatitudeBound
 } from "./data/earthConfig";
 import { getEarthRegion } from "./data/earthRegions";
+import { isFantasyCulturesSet } from "./data/raceCivicStance";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
 import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
@@ -37,8 +38,10 @@ import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } 
 import { applyStyleOnLoad } from "./controllers/style";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
+import { generateCaveSystems } from "./generators/caveSystems";
 import { Cultures } from "./generators/cultures-generator";
 import { dangerSuitabilityMultiplier } from "./generators/dangerExpandPolicy";
+import { spawnDeepWorms } from "./generators/deepWormEcology";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
 import { Dungeons } from "./generators/dungeons-generator";
 import { Features } from "./generators/features";
@@ -59,6 +62,7 @@ import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
 import { advanceSeasonalClimate } from "./generators/seasonalClimate";
+import { seedDwarfHoldOikoumene, withDwarfMountainRegion } from "./generators/seedDwarfHoldOikoumene";
 import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
 import { generateSubsistenceCapacity } from "./generators/subsistenceCapacity";
@@ -1137,9 +1141,34 @@ function getGenerationStages(): Array<() => Promise<void>> {
       Threats.generate(worldContext, viewContext, appServices, state);
       rankCells();
       generateSubsistenceCapacity(worldContext);
+      // Underground realm Phase 1 (docs/plan/underground-realm-and-supernatural-areas.md §3.1,
+      // §3.3): cave systems must exist before Cultures.generate/expand so a Dwarf culture's
+      // territory can be moved into one below, and non-Fantasy maps skip it entirely (empty
+      // domains ⇒ every downstream reader treats it like a legacy save).
+      worldContext.pack.subterraneanDomains = isFantasyCulturesSet(useOptionsState.getState().culturesSet)
+        ? generateCaveSystems(worldContext.seed, worldContext.pack.cells, worldContext.biomesData)
+        : [];
+      // Phase 4 (docs §4.3a): Deep Worms are ordinary Monsters confined to underground domain
+      // cells, so the generic danger field + player/threat-cull-job pipeline picks them up with
+      // no further wiring. Spawned right after cave systems exist, before anything (Cultures'
+      // expansion cost, Settlement Foundation's danger suitability) reads `cells.danger`.
+      Threats.appendMonstersAndRebuildDanger(
+        worldContext,
+        spawnDeepWorms(worldContext.pack.subterraneanDomains, (worldContext.pack.monsters?.length ?? 0) + 1)
+      );
       Cultures.generate(worldContext, viewContext, appServices, state);
       Cultures.expand(state);
       const optionsSnap = useOptionsState.getState();
+      // Phase 2 (docs §3.4): claims the best cave system for the Dwarf culture and computes its
+      // underground food-web capacity, before Settlement Foundation runs below. `dwarfHold` is
+      // spliced into the Foundation plan after it is built (§7.3 — must not wait until
+      // Burgs.generate the way the Giant precedent does, or frontier/marches get a one-cell
+      // Dwarf enclave with no capital).
+      const dwarfHold = seedDwarfHoldOikoumene(
+        worldContext,
+        optionsSnap.culturesSet,
+        optionsSnap.initialPopulationSaturation / 100
+      );
       const preferredFrontierStarts =
         optionsSnap.initialSettlementPattern === "frontier" && optionsSnap.frontierPolitySpacing === "dispersed"
           ? getPreferredDispersedFrontierStarts({
@@ -1163,7 +1192,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
         preferredFrontierStarts?.cells,
         preferredFrontierStarts?.landmassOrder
       );
-      if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
+      if (settlementPattern.plan)
+        worldContext.pack.settlementFoundation = withDwarfMountainRegion(settlementPattern.plan, dwarfHold);
       else delete worldContext.pack.settlementFoundation;
       Burgs.generate(worldContext, viewContext, appServices, state);
     },

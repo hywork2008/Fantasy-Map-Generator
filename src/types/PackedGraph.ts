@@ -16,6 +16,7 @@ import type {
   River,
   Route,
   State,
+  SubterraneanDomain,
   Zone
 } from "./models";
 import type { SettlementFoundationPlan } from "./settlementFoundation";
@@ -101,6 +102,18 @@ export interface PackedGraphCells {
   maleAdults: TypedArray; // cell male adults pop
   femaleAdults: TypedArray; // cell female adults pop
   elders: TypedArray; // cell elders pop
+  /**
+   * Underground realm columns (docs/plan/underground-realm-and-supernatural-areas.md §2.1).
+   * Absent on non-Fantasy maps and legacy saves — treat as "no underground geography".
+   */
+  /** Cavity fraction 0..1, from geology + hash jitter (+ any dwarven excavation added later). */
+  subterraneanVoid?: Float32Array;
+  /** Deepest reachable layer at this cell: 0 none, 1 shallow, 2 deep, 3 abyssal. */
+  subterraneanReach?: Uint8Array;
+  /** SubterraneanDomain id occupying this cell's underside (0 = none). Indexes pack.subterraneanDomains. */
+  subterraneanDomain?: Uint16Array;
+  /** Food-derived capacity contributed by the underground food web (§4). Additive with surface subsistence. */
+  subterraneanCapacity?: Float32Array;
 }
 
 export interface PackedGraphVertices {
@@ -149,4 +162,10 @@ export interface PackedGraph {
    * adapter.
    */
   settlementFoundation?: SettlementFoundationPlan;
+  /**
+   * Underground realm domains (cave systems, Dwarf holds, wild fauna reaches) projected onto
+   * surface cells. Absent/empty on non-Fantasy maps and legacy saves.
+   * Spec: docs/plan/underground-realm-and-supernatural-areas.md
+   */
+  subterraneanDomains?: SubterraneanDomain[];
 }

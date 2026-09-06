@@ -54,7 +54,9 @@ import type {
   Race,
   River,
   Route,
-  SeaRouteGenerationMode
+  SeaRouteGenerationMode,
+  SubterraneanDomain,
+  SubterraneanDomainKind
 } from "../types/models";
 import { closeDialogs, openAlert, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
@@ -733,6 +735,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
   restoreStrategicEconomyState(data[52]);
   restoreMineralResourceState(data[55]);
+  restoreUndergroundRealmState(data[58]);
 
   {
     // Demography arrays (capacity, age-structure breakdown) were added after this save format was
@@ -1368,6 +1371,81 @@ function restoreMineralResourceState(serialized: string | undefined): void {
     pack.tradeSecurityLedgers = Array.isArray(record.tradeSecurityLedgers) ? record.tradeSecurityLedgers : [];
   } catch {
     Object.assign(pack, empty);
+  }
+}
+
+/**
+ * Restores the optional underground realm state slot (docs/plan/
+ * underground-realm-and-supernatural-areas.md §2, §9-2). Absent/empty on non-Fantasy maps and
+ * every save made before this feature existed — that must read exactly like "no underground
+ * geography", not throw or leave stale columns from a previous load in place.
+ * `domain.cells` is reconstructed from `domainByCell` rather than stored (§9-2: not duplicated).
+ */
+function restoreUndergroundRealmState(serialized: string | undefined): void {
+  const cellCount = worldContext.pack.cells.i.length;
+  worldContext.pack.subterraneanDomains = [];
+  delete worldContext.pack.cells.subterraneanVoid;
+  delete worldContext.pack.cells.subterraneanReach;
+  delete worldContext.pack.cells.subterraneanDomain;
+  delete worldContext.pack.cells.subterraneanCapacity;
+  if (!serialized) return;
+
+  try {
+    const parsed: unknown = JSON.parse(serialized);
+    if (!isRecord(parsed)) return;
+
+    const domainByCellRaw = typeof parsed.domainByCell === "string" ? parsed.domainByCell : "";
+    const domainByCell = domainByCellRaw ? Uint16Array.from(domainByCellRaw.split(","), Number) : undefined;
+    if (domainByCell && domainByCell.length === cellCount) worldContext.pack.cells.subterraneanDomain = domainByCell;
+
+    const voidRaw = Array.isArray(parsed.voidFraction) ? (parsed.voidFraction as unknown[]) : [];
+    if (voidRaw.length === cellCount) worldContext.pack.cells.subterraneanVoid = Float32Array.from(voidRaw as number[]);
+
+    const reachRaw = typeof parsed.reach === "string" ? parsed.reach : "";
+    if (reachRaw) {
+      const reach = Uint8Array.from(reachRaw.split(","), Number);
+      if (reach.length === cellCount) worldContext.pack.cells.subterraneanReach = reach;
+    }
+
+    const capacityRaw = Array.isArray(parsed.capacity) ? (parsed.capacity as unknown[]) : [];
+    if (capacityRaw.length === cellCount)
+      worldContext.pack.cells.subterraneanCapacity = Float32Array.from(capacityRaw as number[]);
+
+    const domainsRaw = Array.isArray(parsed.domains) ? (parsed.domains as Record<string, unknown>[]) : [];
+    if (!domainsRaw.length || !domainByCell) return;
+
+    const cellsByDomain = new Map<number, number[]>();
+    for (let cellId = 0; cellId < domainByCell.length; cellId++) {
+      const domainId = domainByCell[cellId];
+      if (!domainId) continue;
+      const list = cellsByDomain.get(domainId);
+      if (list) list.push(cellId);
+      else cellsByDomain.set(domainId, [cellId]);
+    }
+
+    const validKinds: readonly SubterraneanDomainKind[] = ["dwarfHold", "wildCavern", "chasmHive", "wormReach"];
+    const validDepths = [1, 2, 3] as const;
+    worldContext.pack.subterraneanDomains = domainsRaw
+      .map((entry): SubterraneanDomain | undefined => {
+        const i = Number(entry.i);
+        const kind = validKinds.find(candidate => candidate === entry.kind);
+        const depth = validDepths.find(candidate => candidate === entry.depth);
+        if (!Number.isFinite(i) || !kind || !depth) return undefined;
+        return {
+          i,
+          kind,
+          name: typeof entry.name === "string" ? entry.name : undefined,
+          raceId: typeof entry.raceId === "number" ? entry.raceId : undefined,
+          cells: cellsByDomain.get(i) ?? [],
+          entrances: Array.isArray(entry.entrances) ? (entry.entrances as number[]) : [],
+          depth,
+          voidVolume: typeof entry.voidVolume === "number" ? entry.voidVolume : 0
+        };
+      })
+      .filter((domain): domain is SubterraneanDomain => domain !== undefined);
+  } catch {
+    // A malformed optional slot must not block loading the host map.
+    worldContext.pack.subterraneanDomains = [];
   }
 }
 

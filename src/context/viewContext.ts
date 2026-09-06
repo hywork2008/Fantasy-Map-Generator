@@ -61,6 +61,11 @@ export interface EnvironmentLayers {
   danger: SvgGroup;
   /** Rolling combat-death heatmap (battlefield cells); SVG overlay, not WebGL-managed. */
   combatDeaths: SvgGroup;
+  /**
+   * Underground realm overlay (cave systems / dwarf holds / other SubterraneanDomain kinds).
+   * Empty on non-Fantasy maps (docs/plan/underground-realm-and-supernatural-areas.md §3.3, §5.2).
+   */
+  underground: SvgGroup;
 }
 
 /** Political and cultural division layers. */

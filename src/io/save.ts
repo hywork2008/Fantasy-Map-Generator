@@ -233,6 +233,29 @@ function prepareMapDataFromSvg(): string {
     tradeSecurityLedgers: legacyEconomy.tradeSecurityLedgers
   });
 
+  // [58] Underground realm state (docs/plan/underground-realm-and-supernatural-areas.md §2, §9-2).
+  // Absent/empty on non-Fantasy maps and legacy saves. `domain.cells` is intentionally omitted —
+  // it is fully reconstructable from `domainByCell`, so it is not duplicated in the save.
+  const undergroundRealm = JSON.stringify({
+    domains: (worldContext.pack.subterraneanDomains ?? []).map(domain => ({
+      i: domain.i,
+      kind: domain.kind,
+      name: domain.name,
+      raceId: domain.raceId,
+      entrances: domain.entrances,
+      depth: domain.depth,
+      voidVolume: rn(domain.voidVolume, 2)
+    })),
+    voidFraction: Array.from(worldContext.pack.cells.subterraneanVoid ?? []).map(v => rn(v, 3)),
+    reach: worldContext.pack.cells.subterraneanReach
+      ? Array.from(worldContext.pack.cells.subterraneanReach).join(",")
+      : "",
+    domainByCell: worldContext.pack.cells.subterraneanDomain
+      ? Array.from(worldContext.pack.cells.subterraneanDomain).join(",")
+      : "",
+    capacity: Array.from(worldContext.pack.cells.subterraneanCapacity ?? []).map(v => rn(v, 4))
+  });
+
   // store name array only if not the same as default
   const defaultNB = Names.getNameBases();
   const namesData = worldContext.nameBases
@@ -308,7 +331,8 @@ function prepareMapDataFromSvg(): string {
     worldContext.pack.cells.nearshoreHabitat ? Array.from(worldContext.pack.cells.nearshoreHabitat).join(",") : "", // [54] nearshore habitat codes
     mineralResources, // [55] Economy mineral-resource state
     races, // [56] pack.races (species table; optional on legacy maps)
-    JSON.stringify(worldContext.pack.lavaFlows ?? []) // [57] pack.lavaFlows (optional on legacy maps)
+    JSON.stringify(worldContext.pack.lavaFlows ?? []), // [57] pack.lavaFlows (optional on legacy maps)
+    undergroundRealm // [58] underground realm state (optional on legacy/non-Fantasy maps)
   ].join("\r\n");
 
   return mapData;

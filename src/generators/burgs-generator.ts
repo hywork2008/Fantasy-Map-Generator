@@ -49,6 +49,7 @@ import {
 import { evaluateHarborElevation } from "./harborSiteConditions";
 import {
   collectStartingRealmCells,
+  ensureMandatoryCapitals,
   getInitialPolityCapitalCount,
   selectInitialPolityCapitalNodes
 } from "./initialPolities";
@@ -779,7 +780,12 @@ class BurgModule {
           pack.settlementFoundation!,
           useOptionsState.getState().statesNumber
         );
-        const plannedCapitals =
+        // ensureMandatoryCapitals (docs/plan/underground-realm-and-supernatural-areas.md §3.4/
+        // §7.3) guarantees the Dwarf hold's "mountain" region node is a capital even when it
+        // loses farthest-point/frontier-start scoring — without it, a non-standard pattern could
+        // reproduce the one-cell-enclave failure the design doc warns Giant's approach risks.
+        const plannedCapitals = ensureMandatoryCapitals(
+          pack.settlementFoundation!,
           this.worldContext.options.initialSettlementPattern === "frontier"
             ? selectFrontierStartCapitals({
                 plan: pack.settlementFoundation!,
@@ -789,7 +795,8 @@ class BurgModule {
                 realmSize: normalizeInitialPolityRealmSize(this.worldContext.options.initialPolityRealmSize),
                 spacing: this.worldContext.options.frontierPolitySpacing
               })
-            : selectInitialPolityCapitalNodes(pack.settlementFoundation!, cells.p, capitalsNumber);
+            : selectInitialPolityCapitalNodes(pack.settlementFoundation!, cells.p, capitalsNumber)
+        );
         for (const node of plannedCapitals) {
           const cell = node.cell;
           const [x, y] = cells.p[cell];
@@ -804,6 +811,7 @@ class BurgModule {
           burg.feature = cells.f[burg.cell];
           burg.capital = 1;
           cells.burg[burg.cell] = burgId;
+          markUndergroundSettlementSite(burg);
         });
         return;
       }
@@ -843,7 +851,22 @@ class BurgModule {
         burg.feature = cells.f[burg.cell];
         burg.capital = 1;
         cells.burg[burg.cell] = burgId;
+        markUndergroundSettlementSite(burg);
       });
+    };
+
+    // A capital cell that is a Dwarf hold's entrance (docs/plan/
+    // underground-realm-and-supernatural-areas.md §2.1, §7.5) is placed on the map at its surface
+    // entrance, not "underground" spatially, but the settlement itself lives below. Covers both
+    // the planned-Foundation path (mountain region capital) and the `standard` legacy path (won
+    // via the `cells.s` strategic-score boost in seedDwarfHoldOikoumene instead).
+    const dwarfHoldEntranceCells = new Set(
+      (pack.subterraneanDomains ?? []).filter(domain => domain.kind === "dwarfHold").flatMap(domain => domain.entrances)
+    );
+    const markUndergroundSettlementSite = (burg: Burg): void => {
+      if (!dwarfHoldEntranceCells.has(burg.cell)) return;
+      burg.settlementSite = "underground";
+      burg.entranceCell = burg.cell;
     };
 
     const generateTowns = () => {

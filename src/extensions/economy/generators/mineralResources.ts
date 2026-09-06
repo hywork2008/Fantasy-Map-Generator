@@ -1,4 +1,4 @@
-import { biomeHasTag } from "../../../data/biomeCatalog";
+import { generateGeologicalProvinces, PROVINCE_ORDER } from "../../../generators/geologicalProvinces";
 import {
   getMineralDeposits,
   getMineralDistricts,
@@ -138,16 +138,6 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
   "cinnabarVein"
 ];
 
-const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
-  "orogen",
-  "shield",
-  "granite",
-  "carbonate",
-  "basin",
-  "placer",
-  "volcanic"
-];
-
 const DEFAULT_IRON_DEPOSITS_PER_STATE = 0.4;
 const MIN_IRON_DEPOSITS_PER_STATE = 0.3;
 const MAX_IRON_DEPOSITS_PER_STATE = 0.8;
@@ -167,14 +157,10 @@ export class MineralResourcesModule {
     const world = getWorldContext();
     const cells = world.pack.cells;
     const seed = world.seed || "0";
-    const provinceCells = new Map<GeologicalProvinceKind, number[]>(PROVINCE_ORDER.map(kind => [kind, []]));
-
-    for (const cellId of cells.i) {
-      if (cells.h[cellId] < 20) continue;
-      provinceCells.get(this.classifyProvince(seed, cellId))!.push(cellId);
-    }
-
-    const provinces = PROVINCE_ORDER.map((kind, index) => ({ i: index + 1, kind, cells: provinceCells.get(kind)! }));
+    // Classification itself lives in core (docs/plan/underground-realm-and-supernatural-areas.md
+    // §3.2) so the underground-realm generator can share it without importing an extension.
+    // Delegated verbatim (same hash, same branches) — must not change this module's output.
+    const provinces = generateGeologicalProvinces(seed, cells, world.biomesData);
     const provinceByKind = new Map(provinces.map(province => [province.kind, province]));
     const landCells = provinces.flatMap(province => province.cells);
     // Scales with land area (docs/plan/mineral-resource-system.md §6.1); deliberately
@@ -279,29 +265,6 @@ export class MineralResourcesModule {
       for (const commodity of deposit.commodities) commodities[commodity] = (commodities[commodity] ?? 0) + 1;
     }
     return { provinces, districts, commodities };
-  }
-
-  private classifyProvince(seed: string, cellId: number): GeologicalProvinceKind {
-    const world = getWorldContext();
-    const cells = world.pack.cells;
-    const height = cells.h[cellId] ?? 0;
-    const regional = this.hash(seed, "province", Math.floor(cellId / 23));
-    // Real volcano signal (docs/plan/volcanic-biome-goods.md §3.1), checked first: a cell
-    // whose assigned biome carries the "volcanic" tag (volcanicBarrens/lavaField/volcanicSoil)
-    // was actually placed by HeightmapModule.finalizeVolcanoes + biomeAssignment.ts, not
-    // guessed from height. Replaces the old independent "height>=75 && 6% hash" heuristic,
-    // which predated any per-cell volcanic flag and had no relationship to real volcanoes.
-    // Guarded for cells.biomeCode/biomesData.tags being absent (pre-biome-assignment state,
-    // or older test fixtures) — falls through to the height bands below in that case.
-    const biomeCode = cells.biomeCode?.[cellId];
-    if (biomeCode !== undefined && world.biomesData.tags && biomeHasTag(world.biomesData, biomeCode, "volcanic")) {
-      return "volcanic";
-    }
-    if (cells.r[cellId] && height >= 20 && height < 48) return "placer";
-    if (height >= 70) return regional < 0.36 ? "granite" : "orogen";
-    if (height >= 53) return regional < 0.3 ? "granite" : regional < 0.7 ? "orogen" : "shield";
-    if (height >= 38) return regional < 0.42 ? "carbonate" : regional < 0.72 ? "shield" : "basin";
-    return regional < 0.28 ? "carbonate" : "basin";
   }
 
   private pickProfile(

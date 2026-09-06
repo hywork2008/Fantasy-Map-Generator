@@ -109,6 +109,13 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Danger: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleUnderground",
+    name: <>Underground</>,
+    shortcut: null,
+    tooltip:
+      "Underground realm: cave systems and Dwarf holds (Fantasy culture sets only; empty otherwise). Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
     id: "toggleEnclosure",
     name: <>Enclosure</>,
     shortcut: null,

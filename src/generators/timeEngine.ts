@@ -46,6 +46,7 @@ import { createSimulationSystemRegistry, type SimulationStepContext, type Simula
 import { seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
+import { advanceUndergroundEcology } from "./undergroundEcology";
 import { advanceWildernessEcology } from "./wildernessEcology";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
@@ -331,6 +332,22 @@ registerSimulationSystem({
       simulation: simulationContext,
       rng: context.rng
     });
+    if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
+
+// Underground realm Phase 4 (docs/plan/underground-realm-and-supernatural-areas.md §4.3a): Deep
+// Worms slowly dig, raising cavity void at their cell/neighbors. No-ops on non-Fantasy maps
+// (subterraneanVoid absent) and whenever no Deep Worm monster is alive.
+registerSimulationSystem({
+  id: "underground-ecology.tick",
+  phase: "politics",
+  reads: ["map.annotations", "simulation.cells"],
+  writes: ["simulation.cells"],
+  cadence: { every: 1 },
+  profileLabel: "undergroundEcology",
+  run: (_context, writer) => {
+    const result = advanceUndergroundEcology({ world: worldContext, simulation: simulationContext });
     if (result.topics.length) writer.markChanged(...result.topics);
   }
 });
