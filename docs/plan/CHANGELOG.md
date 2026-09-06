@@ -3,6 +3,7 @@
 2026-09-06
 
 - docs/plan/underground-realm-and-supernatural-areas.md
+- docs/plan/world-history-depth.md
 
 2026-09-05
 
