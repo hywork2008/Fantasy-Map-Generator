@@ -103,6 +103,7 @@ import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
 import { registerLogHarvest, tickForestRegrowth } from "./generators/forestStock";
+import { FortificationMastery } from "./generators/fortificationMastery";
 import { GasPowerStations } from "./generators/gasPowerStations";
 import {
   type Good,
@@ -1202,6 +1203,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       // Construction depends on QuarryOperations' hasQuarryAccess snapshot, so it regenerates
       // right after (docs/plan/urban-construction-industry.md §3.3).
       if (value.target === "economy" || value.target === "minerals") ConstructionOperations.generate();
+      if (value.target === "economy") FortificationMastery.generate();
       if (value.target === "economy" || value.target === "currency") Minting.generate();
       if (value.target === "economy") MilitaryResources.generate();
       if (value.target === "economy") TradeSecurity.generate();
@@ -2631,6 +2633,7 @@ export function init(api: ExtensionAPI): void {
           for (const { burgId, domain } of GuildSuccession.settleAnnual()) {
             GuildTreasury.seedNewGuildWorkingCapital(burgId, domain);
           }
+          FortificationMastery.generate();
           const commerceSynced = await synchronizePlayerCommerceIncrementally({ isCancelled });
           if (!commerceSynced || isCancelled()) return;
           GuildChapters.seedAfterGenerate();
@@ -3417,6 +3420,7 @@ export function init(api: ExtensionAPI): void {
     // Builds on the freshly-settled State training stock, but only creates records for
     // named commanders; ordinary regiment members remain aggregate headcount.
     MartialIndividualMastery.settleAnnual();
+    FortificationMastery.settleAnnual();
     // No ordering dependency on the guild/academy settles above — sweeps burg.treasury surplus
     // into market/state treasury regardless of guild presence. Self-gates to once per simulation
     // year (docs/plan/burg-treasury-equilibrium.md §3.3).

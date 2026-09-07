@@ -108,6 +108,26 @@ describe("specializations and language model", () => {
       validateSpecializationProfile(result, languageWorld());
     }
   });
+  it("gives high-engineering commanders fortification design and a craft-skill reference", () => {
+    const character = expertiseCharacter();
+    character.skills.engineering = 80;
+    character.skills.martial = 70;
+    const result = generateSpecializations(character, "martial", languageWorld(), "commander");
+    expect(result.domains.map(domain => domain.domainId)).toEqual(
+      expect.arrayContaining(["engineering.civil", "engineering.architecture", "engineering.civil.fortification"])
+    );
+    const craft = result.domains.find(domain => domain.domainId === "engineering.civil.fortification");
+    expect(craft?.practiceRef).toEqual({ owner: "economy", domain: "fortification" });
+    expect(craft?.practice).toBeUndefined();
+    expect(result.domains.filter(domain => domain.domainId.startsWith("martial.")).length).toBe(3);
+    validateSpecializationProfile(result, languageWorld());
+  });
+  it("does not add fortification specializations to commanders of ordinary engineering", () => {
+    const character = expertiseCharacter();
+    const result = generateSpecializations(character, "martial", languageWorld(), "commander");
+    expect(result.domains).toHaveLength(3);
+    expect(result.domains.every(domain => domain.domainId.startsWith("martial."))).toBe(true);
+  });
   it("keeps old skill values and distinguishes a known zero from missing expertise", () => {
     const character = expertiseCharacter();
     delete character.specializations;

@@ -69,6 +69,7 @@
 | swordsmanship | swordsmanship | `martial` / `prowess` とは別の実技 |
 | archery | archery | 弓の製造技能とは別 |
 | horsemanship | horsemanship | 馬の取り扱いと騎兵運用の個人技 |
+| masonry | fortification | 築城の設計・施工監督。軍人で工学が高い指揮官に付与。成果は Burg/FrontierFort の `fortificationQuality` |
 
 一人の人物が複数技能を持つことは許可する。ただし重要 Character の生成時には、主技能 1 個と副技能 0〜1 個を基本にして「何でもできる人物」の量産を避ける。
 

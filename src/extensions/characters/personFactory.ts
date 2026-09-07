@@ -689,7 +689,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     character.specializations = generateSpecializations(
       character,
       primarySkill,
-      hasCharactersContext() ? getWorldContext().pack.languageWorld : undefined
+      hasCharactersContext() ? getWorldContext().pack.languageWorld : undefined,
+      skillRoleClass
     );
 
   return character;

@@ -84,6 +84,7 @@ describe("domainFiscalPolicy (PR-7)", () => {
     // PR-12 completes only the queued target, not every fortification flag.
     expect(burg.citadel).toBe(0);
     expect(burg.domainWorksProgress).toBe(0);
+    expect(burg.fortificationQuality).toBeGreaterThanOrEqual(50);
   });
 
   it("maps domain levy to poll-tax multiplier", () => {

@@ -182,6 +182,42 @@ export function estimateLocalDefendingForce(
 }
 
 /**
+ * Identity quality for the classic 3× siege ratio. Missing `fortificationQuality` on old
+ * saves is treated as this so existing maps keep the same attack bar.
+ */
+export const DEFAULT_FORTIFICATION_QUALITY = 50;
+/** Classic attacker:defender ratio against typical walls/citadel (quality 50). */
+export const FORTIFIED_ATTACK_RATIO = 3;
+/** Quality above 50: 50 → 3.0, 100 → 4.2. */
+const FORTIFICATION_RATIO_PER_QUALITY_HIGH = 0.024;
+/** Quality below 50: 0 → 2.4, 50 → 3.0. Poor works still beat an open field. */
+const FORTIFICATION_RATIO_PER_QUALITY_LOW = 0.012;
+
+export function isBurgFortified(burg: { citadel?: unknown; walls?: unknown } | undefined): boolean {
+  return !!(burg?.citadel || burg?.walls);
+}
+
+export function resolvedFortificationQuality(burg: { fortificationQuality?: number } | undefined): number {
+  const quality = burg?.fortificationQuality;
+  if (typeof quality === "number" && Number.isFinite(quality)) return Math.max(0, Math.min(100, quality));
+  return DEFAULT_FORTIFICATION_QUALITY;
+}
+
+/**
+ * Attacker:defender ratio required to take `burg`. Unfortified towns use `fieldRatio`.
+ * Fortified towns scale with stored design quality; missing quality keeps the classic 3×.
+ */
+export function fortificationAttackRatio(
+  burg: { citadel?: unknown; walls?: unknown; fortificationQuality?: number } | undefined,
+  fieldRatio: number
+): number {
+  if (!isBurgFortified(burg)) return fieldRatio;
+  const qualityOffset = resolvedFortificationQuality(burg) - DEFAULT_FORTIFICATION_QUALITY;
+  const slope = qualityOffset >= 0 ? FORTIFICATION_RATIO_PER_QUALITY_HIGH : FORTIFICATION_RATIO_PER_QUALITY_LOW;
+  return FORTIFIED_ATTACK_RATIO + qualityOffset * slope;
+}
+
+/**
  * Calculates the effective combat headcount of a regiment during a siege.
  *
  * TODO [Future Demotion System]:

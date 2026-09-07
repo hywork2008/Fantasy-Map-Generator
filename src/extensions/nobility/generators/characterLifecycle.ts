@@ -41,6 +41,8 @@ import {
 import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import { EXPERTISE_TASKS, evaluateExpertise, specializationScore } from "../../characters/specializations";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
+import { isEconomyContextReady } from "../../economy/economyContext";
+import { ensureFortificationSkill, FortificationMastery } from "../../economy/generators/fortificationMastery";
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
@@ -231,6 +233,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   pack.dynasties = dynasties;
 
   pack.characters = characters;
+  if (isEconomyContextReady()) FortificationMastery.generate();
   TIME && console.timeEnd("generateCharacters");
 }
 
@@ -356,6 +359,7 @@ function createOfficer(
     capitalBurgId: state.capital
   });
   pack.characters.push(officer);
+  if (isEconomyContextReady()) ensureFortificationSkill(officer);
   seedMilitaryWarRecordForPeer(officer, pack.states, getCurrentYear());
   seedRelationsWithPeers(officer, pack.characters);
   finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
@@ -580,9 +584,10 @@ function processRetiredCharacterEffects(character: Character, deltaYears: number
     burg.population = (burg.population || 0) + boost;
   }
 
-  // Fortifications
+  // Fortifications — retired military engineers raise both the flag and the stored design quality.
   if (skills.engineering > 70 && P(0.01 * deltaYears)) {
     burg.walls = (burg.walls || 0) + 1;
+    burg.fortificationQuality = Math.max(burg.fortificationQuality ?? 0, Math.min(100, skills.engineering));
   }
   // Plaza
   if ((skills.artistry > 70 || skills.diplomacy > 70) && P(0.01 * deltaYears)) {

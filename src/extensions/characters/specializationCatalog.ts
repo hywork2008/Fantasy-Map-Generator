@@ -652,6 +652,15 @@ export const SPECIALIZATION_DEFINITIONS: readonly SpecializationDefinition[] = [
     practice: "仕立て",
     targets: "仕立て",
     economyDomain: "tailoring"
+  },
+  {
+    id: "engineering.civil.fortification",
+    skill: "engineering",
+    label: { en: "Fortification", ja: "築城" },
+    knowledge: "築城設計、防御線、堀・城門・稜堡",
+    practice: "設計、施工監督、改修",
+    targets: "城壁、城塞、砦",
+    economyDomain: "fortification"
   }
 ];
 export const SPECIALIZATIONS = new Map(SPECIALIZATION_DEFINITIONS.map(definition => [definition.id, definition]));

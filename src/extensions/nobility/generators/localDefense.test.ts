@@ -17,10 +17,35 @@ import {
   canOccupyBurg,
   captureBurg,
   commanderPowerMultiplier,
+  DEFAULT_FORTIFICATION_QUALITY,
+  FORTIFIED_ATTACK_RATIO,
+  fortificationAttackRatio,
+  isBurgFortified,
   occupyingDisciplineMultiplier
 } from "./localDefense";
 
 const burg = { population: 20 } as Burg;
+
+describe("fortificationAttackRatio", () => {
+  it("keeps the field ratio for an unfortified town", () => {
+    expect(isBurgFortified({})).toBe(false);
+    expect(fortificationAttackRatio({}, 1.3)).toBe(1.3);
+  });
+
+  it("uses the classic 3× ratio when walls exist but quality is missing", () => {
+    expect(isBurgFortified({ walls: 1 })).toBe(true);
+    expect(fortificationAttackRatio({ walls: 1 }, 1.3)).toBe(FORTIFIED_ATTACK_RATIO);
+    expect(fortificationAttackRatio({ citadel: 1, fortificationQuality: DEFAULT_FORTIFICATION_QUALITY }, 1.5)).toBe(
+      FORTIFIED_ATTACK_RATIO
+    );
+  });
+
+  it("raises the required ratio for excellent design and lowers it only toward the fortified floor", () => {
+    expect(fortificationAttackRatio({ walls: 1, fortificationQuality: 100 }, 1.3)).toBeCloseTo(4.2, 5);
+    expect(fortificationAttackRatio({ walls: 1, fortificationQuality: 0 }, 1.3)).toBeCloseTo(2.4, 5);
+    expect(fortificationAttackRatio({ walls: 1, fortificationQuality: 0 }, 1.3)).toBeGreaterThan(1.3);
+  });
+});
 
 describe("local burg defense", () => {
   it("converts a burg's population points to inhabitants", () => {

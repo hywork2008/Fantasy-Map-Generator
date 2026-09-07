@@ -83,7 +83,7 @@ type CraftSkillSnapshot = Readonly<{
   lastPracticedYear?: number;
   reconstructionLeads?: readonly CraftTechniqueLeadSnapshot[];
 }>;
-const CRAFT_SKILL_DOMAINS = ["blacksmithing", "smelting", "weaving", "tailoring"] as const;
+const CRAFT_SKILL_DOMAINS = ["blacksmithing", "smelting", "weaving", "tailoring", "fortification"] as const;
 type CharacterDetailsTab =
   | "profile"
   | "skills"

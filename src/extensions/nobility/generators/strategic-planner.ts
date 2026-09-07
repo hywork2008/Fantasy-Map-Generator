@@ -18,15 +18,17 @@ import {
   calculateEffectiveSiegePower,
   commanderPowerMultiplier,
   estimateLocalDefendingForce,
+  fortificationAttackRatio,
+  isBurgFortified,
   regimentReinforcementRadius
 } from "./localDefense";
 
 /**
  * Attack-force multiplier required over the perceived defense. A fortified target
- * (citadel or walls) needs the classic 3x siege ratio; an unfortified town in the open
- * only needs a solid numerical edge — sieging doctrine doesn't apply to field battles.
+ * (citadel or walls) needs the classic 3x siege ratio at typical quality; an unfortified
+ * town in the open only needs a solid numerical edge — sieging doctrine doesn't apply
+ * to field battles. Excellent military-engineer design raises the fortified bar.
  */
-const FORTIFIED_ATTACK_RATIO = 3;
 const FIELD_ATTACK_RATIO = 1.3;
 
 export class StrategicPlannerGenerator {
@@ -124,7 +126,7 @@ export class StrategicPlannerGenerator {
         if (targetBurg === -1) continue;
 
         const targetBurgData = pack.burgs[targetBurg];
-        const isFortified = !!(targetBurgData?.citadel || targetBurgData?.walls);
+        const isFortified = isBurgFortified(targetBurgData);
         const militaryOptions = options.military || [];
 
         // Calculate local attacker power. Sea segments only count naval regiments (fleets,
@@ -168,9 +170,9 @@ export class StrategicPlannerGenerator {
           urbanization
         );
 
-        // Fortified targets (citadel/walls) need the classic 3x siege ratio; an
-        // unfortified town in the open only needs a solid numerical edge.
-        let requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
+        // Fortified targets (citadel/walls) need the classic 3x siege ratio at typical
+        // quality; an unfortified town in the open only needs a solid numerical edge.
+        let requiredAttackForce = perceivedDefense * fortificationAttackRatio(targetBurgData, FIELD_ATTACK_RATIO);
 
         const historicallyOwn = !!targetBurgData?.stateHistory?.includes(attacker.i);
         // A peace commitment prevents starting an expansion, not responding to an existing war.
@@ -334,7 +336,7 @@ export class StrategicPlannerGenerator {
           // Check if enough troops have arrived to initiate the siege
           let arrivedAttackerPower = 0;
           const targetBurgObj = pack.burgs[goal.targetBurg];
-          const isFortified = !!(targetBurgObj?.citadel || targetBurgObj?.walls);
+          const isFortified = isBurgFortified(targetBurgObj);
           const characters = pack.characters || [];
           const militaryOptions = getWorldContext().options.military || [];
 
@@ -433,7 +435,7 @@ export class StrategicPlannerGenerator {
           continue;
         }
 
-        const isFortified = !!(targetBurgObj.citadel || targetBurgObj.walls);
+        const isFortified = isBurgFortified(targetBurgObj);
 
         let localAttackerPower = 0;
         for (const regiment of attacker.military || []) {
@@ -453,7 +455,7 @@ export class StrategicPlannerGenerator {
           populationRate,
           urbanization
         );
-        const requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
+        const requiredAttackForce = perceivedDefense * fortificationAttackRatio(targetBurgObj, FIELD_ATTACK_RATIO);
 
         // If the attacker force is less than 80% of required, cancel the goal
         if (localAttackerPower < requiredAttackForce * 0.8) {

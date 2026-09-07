@@ -216,7 +216,8 @@
       "blacksmithing": "鍛冶",
       "smelting": "製錬",
       "weaving": "織布",
-      "tailoring": "仕立て"
+      "tailoring": "仕立て",
+      "fortification": "築城"
     },
     "craftSkillAptitudeNames": {
       "poor": "低い",

@@ -2,6 +2,7 @@ import { getCharacters, hasCharactersContext } from "../../characters/characters
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { applyFortificationQualityOnWorks } from "./fortificationMastery";
 
 /**
  * Multi-ledger PR-7/PR-8/PR-12 — thin domain fiscal policy for province seats (L3b).
@@ -133,6 +134,7 @@ function completeDomainWorksTarget(burg: Burg): DomainWorksTarget {
   if (target === "walls") burg.walls = 1;
   else if (target === "citadel") burg.citadel = 1;
   else if (target === "plaza") burg.plaza = 1;
+  if (target === "walls" || target === "citadel") applyFortificationQualityOnWorks(burg);
   // Advance queue to the next target that is still missing (thin circular queue).
   let next = cycleDomainWorksTarget(target);
   for (let i = 0; i < DOMAIN_WORKS_TARGETS.length; i++) {

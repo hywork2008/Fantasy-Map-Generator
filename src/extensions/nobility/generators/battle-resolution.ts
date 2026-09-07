@@ -7,6 +7,8 @@ import {
   calculateEffectiveSiegePower,
   captureBurg,
   commanderPowerMultiplier,
+  fortificationAttackRatio,
+  isBurgFortified,
   occupyingDisciplineMultiplier,
   regimentDistanceTo,
   regimentReinforcementRadius
@@ -31,7 +33,7 @@ export const BattleResolutionGenerator = {
 
     if (!attackerState || !targetState || !targetBurg) return;
 
-    const isFortified = !!(targetBurg.citadel || targetBurg.walls);
+    const isFortified = isBurgFortified(targetBurg);
     const seaRouteGraph = buildSeaRouteGraph(pack);
 
     // 1. Detection Phase (Spymaster vs Spymaster)
@@ -144,7 +146,7 @@ export const BattleResolutionGenerator = {
     } else {
       // BLOODY SIEGE
       const forceRatio = attackerPower / Math.max(1, defendingForceArrived);
-      const requiredRatio = isFortified ? 3.0 : 1.5;
+      const requiredRatio = fortificationAttackRatio(targetBurg, 1.5);
 
       console.warn(
         `⚔️ BLOODY SIEGE on ${targetBurg.name}! Fortified: ${isFortified}, Force ratio: ${forceRatio.toFixed(2)} (Arrived Defenders: ${Math.floor(defendingForceArrived)})`

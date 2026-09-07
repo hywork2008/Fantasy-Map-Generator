@@ -216,7 +216,8 @@
       "blacksmithing": "Blacksmithing",
       "smelting": "Smelting",
       "weaving": "Weaving",
-      "tailoring": "Tailoring"
+      "tailoring": "Tailoring",
+      "fortification": "Fortification"
     },
     "craftSkillAptitudeNames": {
       "poor": "Poor",

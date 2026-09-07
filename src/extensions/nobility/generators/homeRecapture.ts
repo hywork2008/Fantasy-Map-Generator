@@ -3,7 +3,13 @@ import { isOccupiedHomeBurg } from "../../hostCore";
 import type { Burg, ChronicleEvent, MilitaryRegiment, PackedGraph, State } from "../../hostTypes";
 import { mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
-import { calculateEffectiveSiegePower, captureBurg, commanderPowerMultiplier } from "./localDefense";
+import {
+  calculateEffectiveSiegePower,
+  captureBurg,
+  commanderPowerMultiplier,
+  fortificationAttackRatio,
+  isBurgFortified
+} from "./localDefense";
 
 /**
  * map units — how close an occupier's own regiment must be to a domestically-recaptured burg to
@@ -21,7 +27,6 @@ const HOME_DEFENSE_DETECTION_RADIUS = 400;
  * used to be. Walls/citadel still raise the bar in that case: the fortifications are real, even
  * if the people manning them are the only ones actually loyal to the occupier.
  */
-const FORTIFIED_RECAPTURE_RATIO = 3;
 const FIELD_RECAPTURE_RATIO = 1.3;
 
 /**
@@ -95,10 +100,10 @@ export function tryRecaptureHomeBurg(r: MilitaryRegiment, cell: number): boolean
 
   if (defense > 0) {
     const militaryOptions = options.military || [];
-    const isFortified = !!(burg.citadel || burg.walls);
+    const isFortified = isBurgFortified(burg);
     const power =
       calculateEffectiveSiegePower(r, isFortified, militaryOptions) * commanderPowerMultiplier(characters, r);
-    const requiredRatio = isFortified ? FORTIFIED_RECAPTURE_RATIO : FIELD_RECAPTURE_RATIO;
+    const requiredRatio = fortificationAttackRatio(burg, FIELD_RECAPTURE_RATIO);
     if (power < defense * requiredRatio) return false;
   }
 

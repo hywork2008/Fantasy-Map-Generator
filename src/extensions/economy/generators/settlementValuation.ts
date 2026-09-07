@@ -47,8 +47,24 @@ export function unitCost(recipe: HousingRecipe): number {
   return wood + stone + brick;
 }
 
-export function fortificationPremium(burg: { walls?: number | boolean; citadel?: number | boolean }): number {
-  return (burg.walls ? WALLS_PREMIUM : 0) + (burg.citadel ? CITADEL_PREMIUM : 0);
+const DEFAULT_FORTIFICATION_QUALITY = 50;
+
+function qualityFactor(burg: { fortificationQuality?: number }): number {
+  const quality = burg.fortificationQuality;
+  const resolved =
+    typeof quality === "number" && Number.isFinite(quality)
+      ? Math.max(0, Math.min(100, quality))
+      : DEFAULT_FORTIFICATION_QUALITY;
+  // Quality 50 keeps the historical 0.15/0.25 premiums; 0 → half, 100 → 1.5×.
+  return 0.5 + resolved / 100;
+}
+
+export function fortificationPremium(burg: {
+  walls?: number | boolean;
+  citadel?: number | boolean;
+  fortificationQuality?: number;
+}): number {
+  return ((burg.walls ? WALLS_PREMIUM : 0) + (burg.citadel ? CITADEL_PREMIUM : 0)) * qualityFactor(burg);
 }
 
 /**

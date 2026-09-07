@@ -292,6 +292,12 @@ export interface Burg {
   citadel?: number;
   plaza?: number;
   walls?: number;
+  /**
+   * Design/construction quality of walls and citadel, 0–100. Missing on old saves and
+   * unfortified burgs — treat as 50 (the classic 3× siege ratio). Higher values come from
+   * military engineers with fortification craft skill plus local masonry technique.
+   */
+  fortificationQuality?: number;
   shanty?: number;
   temple?: number;
   group?: string;
@@ -558,6 +564,12 @@ export interface FrontierFort {
   neighborState: number;
   /** Snapshot of FrontierSegment.threatWeight at generation time. */
   threatWeight: number;
+  /**
+   * Design/construction quality of this chokepoint fort, 0–100. Missing on old saves —
+   * treat as 50, same default as a burg's walls. Seeded from the owning state's military
+   * engineers when Economy is enabled.
+   */
+  fortificationQuality?: number;
   name: string;
   icon: string;
   pin: string;

@@ -1,6 +1,13 @@
 import type { WorldLanguages } from "../../types/worldLanguages";
 import { conversationScore } from "../../utils/worldLanguages";
-import type { Character, CharacterSkills, EstateStatus, RaisedIn, SocialStratum } from "./characterTypes";
+import type {
+  Character,
+  CharacterRoleClass,
+  CharacterSkills,
+  EstateStatus,
+  RaisedIn,
+  SocialStratum
+} from "./characterTypes";
 import { SPECIALIZATION_DEFINITIONS, SPECIALIZATIONS } from "./specializationCatalog";
 import type {
   CharacterSpecializationProfile,
@@ -18,11 +25,41 @@ export function emptySpecializations(): CharacterSpecializationProfile {
   return { version: 1, domains: [], familiarities: [], languages: [], experience: [], experienceYears: {} };
 }
 
+const MILITARY_ENGINEERING_THRESHOLD = 65;
+const FORTIFICATION_SPECIALIZATIONS = [
+  "engineering.civil",
+  "engineering.architecture",
+  "engineering.civil.fortification"
+] as const;
+
+function addMilitaryFortificationSpecializations(
+  character: Character,
+  profile: CharacterSpecializationProfile,
+  roleClass?: CharacterRoleClass
+): void {
+  if (roleClass !== "commander" || character.skills.engineering < MILITARY_ENGINEERING_THRESHOLD) return;
+  const engineering = character.skills.engineering;
+  for (const [index, domainId] of FORTIFICATION_SPECIALIZATIONS.entries()) {
+    if (profile.domains.some(domain => domain.domainId === domainId)) continue;
+    const definition = SPECIALIZATIONS.get(domainId);
+    if (!definition) continue;
+    const theoryFirst = (character.i + index) % 2 === 0;
+    profile.domains.push({
+      domainId,
+      knowledge: clampExpertise(engineering * (theoryFirst ? 1 : 0.7)),
+      ...(definition.economyDomain
+        ? { practiceRef: { owner: "economy" as const, domain: definition.economyDomain } }
+        : { practice: clampExpertise(engineering * (theoryFirst ? 0.55 : 0.95)) })
+    });
+  }
+}
+
 /** Deterministic generation only, never called by load or by a read accessor. */
 export function generateSpecializations(
   character: Character,
   primary?: keyof CharacterSkills,
-  world?: WorldLanguages
+  world?: WorldLanguages,
+  roleClass?: CharacterRoleClass
 ): CharacterSpecializationProfile {
   const profile = emptySpecializations();
   const focus =
@@ -45,6 +82,7 @@ export function generateSpecializations(
       ...(definition.appraisal ? { appraisal: clampExpertise(baseline * 0.7) } : {})
     });
   }
+  addMilitaryFortificationSpecializations(character, profile, roleClass);
   const cultural = world?.cultures.find(entry => entry.cultureId === character.culture);
   if (cultural && world) {
     // A weighted native language; no literacy inferred from language or species.
@@ -265,6 +303,11 @@ export const EXPERTISE_TASKS: Record<string, readonly ExpertiseRequirement[]> = 
   construction: [
     { domainId: "engineering.civil", axis: "knowledge", weight: 1 },
     { domainId: "engineering.architecture", axis: "practice", weight: 2 }
+  ],
+  fortification: [
+    { domainId: "engineering.civil.fortification", axis: "practice", weight: 2 },
+    { domainId: "engineering.civil", axis: "knowledge", weight: 1 },
+    { domainId: "engineering.architecture", axis: "knowledge", weight: 1 }
   ],
   navigation: [
     { domainId: "geography.navigation", axis: "practice", weight: 2 },
