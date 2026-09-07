@@ -1,6 +1,6 @@
 import type { WorldLanguages } from "../../types/worldLanguages";
 import { conversationScore } from "../../utils/worldLanguages";
-import type { Character, CharacterSkills } from "./characterTypes";
+import type { Character, CharacterSkills, EstateStatus, RaisedIn, SocialStratum } from "./characterTypes";
 import { SPECIALIZATION_DEFINITIONS, SPECIALIZATIONS } from "./specializationCatalog";
 import type {
   CharacterSpecializationProfile,
@@ -74,13 +74,57 @@ export function generateSpecializations(
   return profile;
 }
 
-/** Adds only educational context from known upbringing. No invented campaigns. */
+const EDUCATED_UPBRINGINGS: ReadonlySet<RaisedIn> = new Set([
+  "capital_court",
+  "monastery",
+  "foreign_court",
+  "merchant_quarter"
+]);
+const LITERATE_STRATA: ReadonlySet<SocialStratum> = new Set([
+  "royal",
+  "high_noble",
+  "minor_noble",
+  "gentry",
+  "clergy_orphan"
+]);
+const LITERATE_ESTATES: ReadonlySet<EstateStatus> = new Set([
+  "reigning_dynasty",
+  "court_noble",
+  "landed_noble",
+  "official",
+  "cleric"
+]);
+
+function hasLiteracyAccess(character: Character): boolean {
+  const origin = character.backstory?.origin;
+  if (!origin) return false;
+  return (
+    EDUCATED_UPBRINGINGS.has(origin.raisedIn) ||
+    LITERATE_STRATA.has(origin.socialStratum) ||
+    LITERATE_ESTATES.has(origin.estateStatus)
+  );
+}
+
+function nativeLiteracyScores(character: Character): { reading: number; writing: number } {
+  const stratum = character.backstory?.origin.socialStratum;
+  let reading = 20 + character.skills.learning * 0.65;
+  let writing = 10 + character.skills.learning * 0.55;
+  if (stratum === "royal" || stratum === "high_noble") {
+    reading = Math.max(reading, 45);
+    writing = Math.max(writing, 35);
+  } else if (stratum === "minor_noble" || stratum === "gentry") {
+    reading = Math.max(reading, 30);
+    writing = Math.max(writing, 20);
+  }
+  return { reading: clampExpertise(reading), writing: clampExpertise(writing) };
+}
+
+/** Adds languages and literacy from upbringing and station. Oral languages stay without scripts. */
 export function applySpecializationEducation(character: Character, world?: WorldLanguages): void {
   const profile = character.specializations;
   const origin = character.backstory?.origin;
   if (!profile || !origin || !world) return;
-  const educated = ["capital_court", "monastery", "foreign_court", "merchant_quarter"].includes(origin.raisedIn);
-  if (!educated) return;
+  const educated = EDUCATED_UPBRINGINGS.has(origin.raisedIn);
   if (["foreign_court", "merchant_quarter"].includes(origin.raisedIn) && profile.languages.length === 1) {
     const alternatives = world.languages.filter(
       language => !profile.languages.some(entry => entry.languageId === language.id)
@@ -95,15 +139,15 @@ export function applySpecializationEducation(character: Character, world?: World
         acquisition: "learned"
       });
   }
+  if (!hasLiteracyAccess(character)) return;
+  const scores = nativeLiteracyScores(character);
   for (const language of profile.languages) {
     if (language.literacy.length) continue;
+    // Class and office grant letters in the mother tongue; formal schooling can also teach a learned language.
+    if (!educated && language.acquisition === "learned") continue;
     const scriptId = world.languages.find(entry => entry.id === language.languageId)?.scriptIds[0];
-    if (scriptId)
-      language.literacy.push({
-        scriptId,
-        reading: clampExpertise(20 + character.skills.learning * 0.65),
-        writing: clampExpertise(10 + character.skills.learning * 0.55)
-      });
+    if (!scriptId) continue;
+    language.literacy.push({ scriptId, reading: scores.reading, writing: scores.writing });
   }
 }
 

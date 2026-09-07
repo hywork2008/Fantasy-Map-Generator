@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { CharacterLanguageSkill, WorldLanguages } from "../../types/worldLanguages";
 import { conversationScore, literacyScore, validateWorldLanguages } from "../../utils/worldLanguages";
-import type { Character } from "./characterTypes";
+import type { Character, CharacterOrigin, EstateStatus, RaisedIn, SocialStratum } from "./characterTypes";
 import { SPECIALIZATION_DEFINITIONS, SPECIALIZATION_SKILLS } from "./specializationCatalog";
 import { advanceSpecializationLearning } from "./specializationLearning";
 import {
+  applySpecializationEducation,
   decaySpecializations,
   EXPERTISE_TASKS,
   emptySpecializations,
@@ -29,6 +30,36 @@ function expertiseCharacter(i = 1): Character {
 }
 function languageSkill(languageId: string, score = 70): CharacterLanguageSkill {
   return { languageId, speaking: score, listening: score, literacy: [], acquisition: "learned" };
+}
+function origin(overrides: Partial<CharacterOrigin> = {}): CharacterOrigin {
+  return {
+    socialStratum: "commoner",
+    estateStatus: "freeman",
+    birthStateId: 1,
+    raisedIn: "rural_manor",
+    ...overrides
+  };
+}
+function educatedCharacter(
+  stratum: SocialStratum,
+  raisedIn: RaisedIn,
+  estateStatus: EstateStatus = "freeman"
+): Character {
+  const character = expertiseCharacter();
+  character.backstory = {
+    origin: origin({ socialStratum: stratum, raisedIn, estateStatus }),
+    commitment: { primary: { kind: "self" }, intensity: 50, conflictPolicy: "primary_wins" },
+    tastes: []
+  };
+  character.specializations = emptySpecializations();
+  character.specializations.languages.push({
+    languageId: "a",
+    speaking: 85,
+    listening: 90,
+    acquisition: "native",
+    literacy: []
+  });
+  return character;
 }
 function languageWorld(): WorldLanguages {
   return {
@@ -284,5 +315,53 @@ describe("diplomatic language policies", () => {
     expect(resolveCommunication(a, b, world).score).toBe(90);
     world.states[1].diplomaticLanguageIds = [];
     expect(resolveCommunication(a, b, world, [], { diplomatic: true }).score).toBe(90);
+  });
+});
+
+describe("initial literacy from station and upbringing", () => {
+  it("gives high nobles native letters even when raised away from court, but not on oral languages", () => {
+    const manorLord = educatedCharacter("high_noble", "rural_manor", "landed_noble");
+    applySpecializationEducation(manorLord, languageWorld());
+    expect(manorLord.specializations!.languages[0].literacy[0]).toMatchObject({
+      scriptId: "shared",
+      reading: 59,
+      writing: 43
+    });
+    expect(manorLord.specializations!.languages).toHaveLength(1);
+
+    const campMarshal = educatedCharacter("high_noble", "military_camp", "officer");
+    campMarshal.skills.learning = 20;
+    applySpecializationEducation(campMarshal, languageWorld());
+    expect(literacyScore(campMarshal.specializations!.languages, "a", "shared", "reading")).toBe(45);
+    expect(literacyScore(campMarshal.specializations!.languages, "a", "shared", "writing")).toBe(35);
+
+    const oralLord = educatedCharacter("high_noble", "rural_manor", "landed_noble");
+    oralLord.specializations!.languages[0].languageId = "oral";
+    applySpecializationEducation(oralLord, languageWorld());
+    expect(oralLord.specializations!.languages[0].literacy).toEqual([]);
+  });
+  it("leaves unschooled commoners illiterate while monastery, office and court still teach letters", () => {
+    const peasant = educatedCharacter("commoner", "rural_manor");
+    applySpecializationEducation(peasant, languageWorld());
+    expect(peasant.specializations!.languages[0].literacy).toEqual([]);
+
+    const monk = educatedCharacter("commoner", "monastery");
+    applySpecializationEducation(monk, languageWorld());
+    expect(literacyScore(monk.specializations!.languages, "a", "shared", "reading")).toBe(59);
+
+    const clerk = educatedCharacter("commoner", "capital_city", "official");
+    applySpecializationEducation(clerk, languageWorld());
+    expect(clerk.specializations!.languages[0].literacy).toHaveLength(1);
+
+    const courtier = educatedCharacter("minor_noble", "provincial_seat", "court_noble");
+    applySpecializationEducation(courtier, languageWorld());
+    expect(literacyScore(courtier.specializations!.languages, "a", "shared", "reading")).toBe(59);
+  });
+  it("does not invent literacy in a privately learned tongue without schooling", () => {
+    const noble = educatedCharacter("high_noble", "rural_manor", "landed_noble");
+    noble.specializations!.languages.push(languageSkill("b", 40));
+    applySpecializationEducation(noble, languageWorld());
+    expect(noble.specializations!.languages[0].literacy).toHaveLength(1);
+    expect(noble.specializations!.languages[1].literacy).toEqual([]);
   });
 });
