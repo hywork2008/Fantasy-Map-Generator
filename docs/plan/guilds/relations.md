@@ -196,7 +196,7 @@ Module の Interface をテスト面にする。乱数を使わないため、�
 
 ### Apprentice prestige
 
-`createApprentice` の直後に、生成時のランダムな prestige を上書きする。
+`createApprentice` は `applyCharacterBackstory` のあと、公開ブランドの一般式を `getInitialApprenticePrestige` で上書きする。見習いは未証明なので、一般式の ordinary 帯よりさらに低くする。
 
 | Engineering | 初期 prestige | 意味 |
 | --- | --- | --- |

@@ -178,6 +178,21 @@ export function scaleHumanDurationToRace(
   return Math.max(0, Math.round(humanYears * (adultRace / adultHuman)));
 }
 
+/**
+ * Inverse of scaleHumanDurationToRace, kept fractional so exponential prestige curves
+ * authored in human years do not collapse long-lived 1-year steps to zero.
+ */
+export function scaleRaceDurationToHuman(
+  raceYears: number,
+  profile: RaceAgeProfile,
+  humanMaturity = REFERENCE_HUMAN_MATURITY,
+  humanLifespan = REFERENCE_HUMAN_LIFESPAN
+): number {
+  const adultHuman = Math.max(1, humanLifespan - humanMaturity);
+  const adultRace = Math.max(1, profile.lifespan - profile.maturity);
+  return Math.max(0, raceYears * (adultHuman / adultRace));
+}
+
 /** Inclusive random age in a human band, scaled to the race. */
 export function rollRaceAgeFromHumanBand(raceId: number | undefined, humanMin: number, humanMax: number): number {
   const profile = resolveRaceAgeProfile(raceId);

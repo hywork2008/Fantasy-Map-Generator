@@ -3,7 +3,7 @@
 **Status**: Phase A–E 実装済み（生成・Solidarity/Favor・贈答・芸術 Good・Details/CSV・戦略AI/結婚/汚職・Dynasty/Bonds/文化パック/フレーバー）。  
 **Revision (2026-09-06)**: 現行仕様の差分は [人物表現の改訂](character-expression-revision.md)。下記の初期設計・履歴と食い違う場合、改訂を優先する。基本能力値は維持し、目標・規範・戦争信条・日常嗜好・実際の退職履歴を追加。
 
-**Related**: `docs/plan/characters.md`, `docs/plan/char-economy.md`, `docs/plan/char.md`, `src/extensions/characters/characterTypes.ts`, `src/extensions/characters/backstoryProfile.ts`, `src/extensions/characters/personFactory.ts`  
+**Related**: `docs/plan/characters.md`, `docs/plan/characters/prestige.md`, `docs/plan/char-economy.md`, `docs/plan/char.md`, `src/extensions/characters/characterTypes.ts`, `src/extensions/characters/backstoryProfile.ts`, `src/extensions/characters/prestige.ts`, `src/extensions/characters/personFactory.ts`  
 **Goal**: 能力・性格だけでは書けない「何に仕えて生きているか」「何が好きで何が嫌いか」「どこから来た誰か」「誰をどれだけ好むか（ギャルゲー式好感度）」「何を贈ると心が動く／逆に嫌われるか」をデータ化し、フレーバー文・伝記・政治/経済AIの動機付けの共通基盤にする。
 
 ---
@@ -199,18 +199,9 @@ street          // 路上・孤児
 
 ### 3.4 Prestige との関係
 
-| socialStratum | prestige の生成バイアス（目安） |
-| :--- | :--- |
-| royal | 70–100 |
-| high_noble | 55–95 |
-| minor_noble | 35–80 |
-| gentry | 25–65 |
-| merchant_born | 15–70（成功商人は上振れ） |
-| commoner | 5–45 |
-| freedman / slave_born | 1–30 |
-| unknown | 1–50（謎めいた高名声も可） |
+現行の初期値は身分帯への寄せではない。家名（低い帯）+ 公開官職 + 成人キャリアの公開実績。若い人物は実績がほぼ 0。Spymaster の職務成功は公開実績に入らない。定数・実測は [prestige.md](prestige.md)。
 
-`prestige` は「家柄そのもの」ではなく **現在の社会的ブランド** とする。成り上がりは `socialStratum=commoner` かつ `estateStatus=landed_noble` かつ prestige 高、で表現する。
+成り上がりは `socialStratum=commoner` かつ `estateStatus=landed_noble` かつ prestige 高、で表現する（公開の官職と長い公開キャリアがそれを作る）。
 
 ---
 
@@ -831,7 +822,7 @@ CommitmentKind 自体は時代不変。**重み表とラベル** が時代・文
 3. buildOrigin(character, context)
    - socialStratum / estateStatus をロール表から抽選
    - birth/home を地理ルールで決定
-   - prestige を stratum で再ロール or 補正（オプション）
+   - prestige を家名 + 公開官職 + 公開キャリアで設定（[prestige.md](prestige.md)）
 4. buildCommitment(character, context)
    - ロール×階層の重み表
    - personality 補正
@@ -854,7 +845,7 @@ CommitmentKind 自体は時代不変。**重み表とラベル** が時代・文
 | ルール | 内容 |
 | :--- | :--- |
 | G1 | primary=`faith` なのに piety < 20 → piety を底上げ or primary 再抽選（実装済み・soft） |
-| G2 | socialStratum=`royal` なのに Ruler 以外かつ prestige < 40 → prestige 補正（stratum 帯への soft re-roll） |
+| G2 | 若い royal は家名帯（22–38）に留まってよい。40 未満への強制かさ上げはしない（[prestige.md](prestige.md)） |
 | G3 | Merchant なのに like に `gold` も craft 相当も無い → 強制追加（実装済み） |
 | G4 | dislike `company`/`salon` と sociability ≥ 90 が同居 → dislike intensity を弱める（実装済み） |
 | G5 | location が capital 固定の中央官職で birth が国外ばかりにならないよう、国外率に上限 |

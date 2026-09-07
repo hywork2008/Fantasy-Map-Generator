@@ -1,6 +1,6 @@
 # 人物表現の改訂 — 動機・手段・技能・経験
 
-更新: 2026-09-06。実装済み範囲と後続設計を分ける。本書は `characters.md` / `backstory-profile.md` の初期設計と競合する場合の現行仕様。
+更新: 2026-09-06。実装済み範囲と後続設計を分ける。本書は `characters.md` / `backstory-profile.md` の初期設計と競合する場合の現行仕様。Prestige 初期値は [prestige.md](prestige.md)。
 
 ## 1. 責務
 

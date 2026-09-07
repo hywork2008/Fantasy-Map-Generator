@@ -458,6 +458,11 @@ export interface Character {
    * Cross-race romantic judgment must not use this alone.
    */
   appearance: number;
+  /**
+   * Public social brand (1–100), not lineage and not court influence.
+   * Seeded at generation from inherited name + visible office + reconstructed public career.
+   * See docs/plan/characters/prestige.md.
+   */
   prestige: number;
   /**
    * Personal wealth, distinct from state.treasury — a ruler's household stipend

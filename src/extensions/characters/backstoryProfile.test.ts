@@ -245,6 +245,7 @@ describe("ceremony by military rank", () => {
       const c = baseCharacter({
         i: 300 + i,
         name: `Captain${i}`,
+        age: 26,
         prestige: 30,
         titles: [{ title: "Captain", landed: false, entityType: "state", entityId: 1 }],
         skills: {
@@ -273,7 +274,12 @@ describe("ceremony by military rank", () => {
           confidence: 50
         }
       });
-      applyCharacterBackstory(c, { roleClass: "commander", formName: "Monarchy", capitalBurgId: 1 });
+      applyCharacterBackstory(c, {
+        roleClass: "commander",
+        socialStratum: "commoner",
+        formName: "Monarchy",
+        capitalBurgId: 1
+      });
       const dislikes = c.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id);
       if (dislikes.includes("ceremony")) dislikeCeremony++;
     }
@@ -286,6 +292,7 @@ describe("ceremony by military rank", () => {
       const c = baseCharacter({
         i: 400 + i,
         name: `Marshal${i}`,
+        age: 55,
         prestige: 85,
         titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }],
         skills: {
@@ -314,9 +321,12 @@ describe("ceremony by military rank", () => {
           confidence: 70
         }
       });
-      applyCharacterBackstory(c, { roleClass: "commander", formName: "Monarchy", capitalBurgId: 1 });
-      // High prestige may be overwritten by origin stratum prestige — force after apply
-      // (origin rebuilds prestige). Re-check via tastes only from generation path with royal stratum bias.
+      applyCharacterBackstory(c, {
+        roleClass: "commander",
+        socialStratum: "high_noble",
+        formName: "Monarchy",
+        capitalBurgId: 1
+      });
       const likes = c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id);
       if (likes.includes("ceremony")) likeCeremony++;
     }

@@ -666,6 +666,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     looks,
     ...(raceAppearance ? { raceAppearance } : {}),
     appearance,
+    // Placeholder; CK3 characters are overwritten in applyCharacterBackstory.
     prestige: rand(1, 100),
     wealth: 0,
     titles: [],

@@ -2,6 +2,7 @@
 
 2026-09-07
 
+- docs/plan/characters/prestige.md
 - docs/plan/characters/skill-specializations.md
 
 2026-09-06
