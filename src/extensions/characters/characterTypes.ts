@@ -313,6 +313,13 @@ export interface CharacterFlavorHook {
   params?: Record<string, string>;
 }
 
+/** Passing Human whose Arcane can exceed the species cap of 10. Not shown as a race. */
+export type InfernalAtavismFlavor = "blueBlood" | "pactHouse";
+export interface ArcaneLineage {
+  kind: "infernal_atavism";
+  flavor: InfernalAtavismFlavor;
+}
+
 export type CharacterGoalKind =
   | "complete_service"
   | "gain_office"
@@ -495,6 +502,11 @@ export interface Character {
   arcaneWorkingsSpent?: number;
   /** Calendar year of the last 90+ working. One 90+ working per state per year. */
   arcaneLastHighYear?: number;
+  /**
+   * Hidden infernal atavism on a passing Human (no Demon looks). Flavor only in backstory hooks.
+   * See docs/plan/characters/arcane.md.
+   */
+  arcaneLineage?: ArcaneLineage;
   /** Optional detailed knowledge, practice, experience and language profile. */
   specializations?: CharacterSpecializationProfile;
   personality: CharacterPersonality;

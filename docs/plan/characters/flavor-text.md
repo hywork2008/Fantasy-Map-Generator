@@ -22,6 +22,7 @@ Turn structured character data (origin, commitment, tastes, bonds, dynasty) into
 | `militaryRecord.epithetId` | War nickname when reconstructed service earned one |
 | `courtEpithetId` | Court nickname (愚王 / 暴君 / 賢王 / 仁君 / 名君 / 佞臣). 賢／愚の日本語は称号屈折 |
 | `epithets[]` | Occupation nicknames (軍神 / 名工 / 神童 / 豪商 / 悪徳商人 / 能吏) |
+| `arcaneLineage` | Passing Human atavism whisper only: 「青い血」or「契約の家」— never names Demon |
 
 ## Output
 

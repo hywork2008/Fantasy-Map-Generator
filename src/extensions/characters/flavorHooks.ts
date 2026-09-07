@@ -123,6 +123,12 @@ export function generateCharacterHooks(character: Character): CharacterFlavorHoo
     hooks.push({ id: "house.tongue", params: { house } });
   }
 
+  if (character.arcaneLineage?.kind === "infernal_atavism") {
+    hooks.push({
+      id: character.arcaneLineage.flavor === "pactHouse" ? "lineage.pactHouse" : "lineage.blueBlood"
+    });
+  }
+
   const courtEpithetId = character.courtEpithetId;
   if (courtEpithetId) {
     hooks.push({ id: `epithet.${courtEpithetId}` });

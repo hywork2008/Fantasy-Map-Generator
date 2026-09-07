@@ -70,6 +70,8 @@ Socially (in fiction):
 
 Household child counts use **race fertility** (maturity age, interbirth spacing, litter size), not a single human “one child every four years” rule. Elves have sparse, late generations; goblins and arachnid folk breed faster and in larger clutches. See the race catalog and the design doc for numbers.
 
+Cross-folk children are treated as extreme deviance except among a small minority. **Humans** are the folk who can still leave offspring with many other races. Human–elf children are rare and sterile (like a liger: pairing is possible, further children are not). Descendants of Human–Demon unions may look entirely Human; the only tell is Arcane above the Human cap, whispered as “blue blood” or “a house of the contract,” never as Demon ancestry. See [arcane.md](../../plan/characters/arcane.md).
+
 **Long-lived pairing is episodic**, not lifelong continuous marriage: co-parenting bonds matter while raising young; most of a multi-century life is unpaired. Children may exist without a current spouse, and need not all share the same co-parent. Short-lived folk keep a more familiar continuous-household snapshot. **Dwarves** are the exception among long-lived races: continuous monogamy (clan household culture).
 
 ### Civic stance (who lives with whom)

@@ -38,6 +38,25 @@ Draconic barely *use* Arcane. Their deterrence is durability. Giants are less ex
 
 Typical elves sit near 50 (6th–7th analog). **Meteor Swarm (9th) is the 90–94 tail**, not the court median.
 
+## Passing Humans (infernal atavism)
+
+Cross-folk children are shunned except by a small deviant minority. Humans are the unusually fertile exception. Elf-human offspring are rare and sterile (liger-like). Demon-human descendants can look fully Human while carrying Arcane above the Human cap of 10 (ceiling **90**, never Demon 100).
+
+### Why a Demon sires a Human child
+
+Killing **one’s own folk** thickens a Demon’s power, and is **forbidden**. A Human-sired child is not kin under that law. Slaying them yields a **thinner** gain than true kin-slaying, but it does not break the taboo. That is the loophole — not courtship, and not a state breeding policy.
+
+Infernal polities stay Distant: closed doors, not human stock-farms. The practice is a **secret vice of some casters** who want the gain without the crime. Other Demons may still call it base or cowardly even when it is technically clean, which is why it stays rare instead of becoming every court’s industry.
+
+Human realms often draft the strong-Arcane few into **demon-hunting**. From the Human side that is how you house a dangerous talent. From the Demon side it is convenient recovery: the marked blood walks to the frontier in hunter colors. The person themselves usually does not know. High Fantasy treats this as a rare scandal; Dark Fantasy can let hunter companies become a de facto recovery net. No extra simulation yet — generation rate and flavor hooks are enough.
+
+At named-character generation, a Human has a **0.6%** chance to roll on that table (`HUMAN_INFERNAL_ATAVISM`). Looks, durability, and race id stay Human (no horns). The sheet does **not** say “Demon blood.” Backstory flavor is one whisper, chosen at roll:
+
+- `lineage.blueBlood` — 「青い血」
+- `lineage.pactHouse` — 「契約の家」
+
+An internal `arcaneLineage` flag keeps the hook stable. In-world, even the court only hears the rumor.
+
 ## Bands (potency / recovery / path)
 
 | Arcane | Band | D&D analog | Casualties | Range | Recovery | Path |

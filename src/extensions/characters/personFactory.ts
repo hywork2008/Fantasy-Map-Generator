@@ -16,7 +16,13 @@ import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
 import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
 import { ownRaceAppearanceScore, rollLooksForRace } from "./appearance";
-import { isFantasySupernaturalEnabled, rollCharacterArcane, scaleArcaneForMinor } from "./arcane";
+import {
+  HUMAN_INFERNAL_ATAVISM,
+  isFantasySupernaturalEnabled,
+  maybeHumanInfernalAtavism,
+  rollCharacterArcane,
+  scaleArcaneForMinor
+} from "./arcane";
 import { HEALTH_FULL } from "./characterHealth";
 import {
   getAbilityPreset,
@@ -686,16 +692,20 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   };
 
   if (isFantasySupernaturalEnabled()) {
+    const infernalFlavor = maybeHumanInfernalAtavism(raceDef?.key, true);
     let arcane = rollCharacterArcane({
       raceKey: raceDef?.key,
       lifespan: raceDef?.lifespan ?? raceLifespan,
-      supernatural: raceDef?.supernatural
+      supernatural: infernalFlavor ? HUMAN_INFERNAL_ATAVISM : raceDef?.supernatural
     });
     if (isRaceMinor(age, race)) {
       const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
       arcane = scaleArcaneForMinor(arcane, age, maturity);
     }
     character.arcane = arcane;
+    if (infernalFlavor) {
+      character.arcaneLineage = { kind: "infernal_atavism", flavor: infernalFlavor };
+    }
   }
 
   character.abilityProfile = buildAbilityProfile(presetId, skills, personality);

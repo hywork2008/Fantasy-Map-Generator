@@ -15,7 +15,10 @@ import { createDefaultRaces } from "../../data/races";
 import { useOptionsState } from "../hostCore";
 import {
   arcaneBand,
+  HUMAN_INFERNAL_ATAVISM,
+  HUMAN_INFERNAL_ATAVISM_CHANCE,
   isFantasySupernaturalEnabled,
+  maybeHumanInfernalAtavism,
   mundaneIncomingCasualtyFactor,
   rollCharacterArcane,
   supernaturalAttackForceMultiplier,
@@ -117,6 +120,29 @@ describe("war-working scale", () => {
     expect(arcaneHuntPowerReduced(90, chunk, 50)).toBe(7);
     expect(arcaneHuntPowerReduced(100, chunk, 50)).toBe(49);
     expect(arcaneHuntPowerReduced(95, chunk, 50)).toBe(21);
+  });
+});
+
+describe("human infernal atavism", () => {
+  it("is rare, Human-only, and picks one of the two whisper flavors", () => {
+    expect(HUMAN_INFERNAL_ATAVISM_CHANCE).toBeGreaterThan(0);
+    expect(HUMAN_INFERNAL_ATAVISM_CHANCE).toBeLessThanOrEqual(0.01);
+    expect(maybeHumanInfernalAtavism("elf", true, () => true)).toBeUndefined();
+    expect(maybeHumanInfernalAtavism("human", false, () => true)).toBeUndefined();
+    expect(maybeHumanInfernalAtavism("human", true, () => false)).toBeUndefined();
+    expect(maybeHumanInfernalAtavism("human", true, () => true)).toBe("blueBlood");
+    let n = 0;
+    expect(maybeHumanInfernalAtavism("human", true, () => ++n === 1)).toBe("pactHouse");
+  });
+
+  it("rolls Arcane above the Human ceiling and at or below 90, without changing durability", () => {
+    const samples = Array.from({ length: 80 }, () =>
+      rollCharacterArcane({ raceKey: "human", lifespan: 75, supernatural: HUMAN_INFERNAL_ATAVISM })
+    );
+    expect(Math.max(...samples)).toBeLessThanOrEqual(90);
+    expect(samples.reduce((s, n) => s + n, 0) / samples.length).toBeGreaterThan(10);
+    expect(HUMAN_INFERNAL_ATAVISM.durability).toBe(1);
+    expect(HUMAN_INFERNAL_ATAVISM.arcaneCap).toBe(90);
   });
 });
 

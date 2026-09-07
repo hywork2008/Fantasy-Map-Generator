@@ -364,6 +364,10 @@
       "house": {
         "tongue": "{{house}} is never far from the tongue."
       },
+      "lineage": {
+        "blueBlood": "Blue blood is whispered, never claimed at table.",
+        "pactHouse": "The house is said to keep a contract older than its name."
+      },
       "epithet": {
         "guardian": "Soldiers call this one a guardian spirit — the one who brings the living home.",
         "last_guard": "Known for covering the retreat so others could live.",
