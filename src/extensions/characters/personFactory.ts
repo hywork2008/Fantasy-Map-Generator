@@ -586,7 +586,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     );
 
     // Physical decline for personal combat ability past peak age (human-scale races only).
-    // Career soldiers / martial primaries use half the civilian rate (see advanceAge.ts).
+    // Warriors keep form; laborers slow; indoor clerks fade (see advanceAge.ts).
     if (!skipAgePenalty && age > DECLINE_AGE_THRESHOLD) {
       const prowessRate = prowessDeclineRateForCreation(skillRoleClass, primarySkill);
       skills.prowess = Math.max(1, skills.prowess - Math.floor((age - DECLINE_AGE_THRESHOLD) * prowessRate));

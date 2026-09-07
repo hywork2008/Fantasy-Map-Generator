@@ -16,7 +16,13 @@ import {
   replaceCharacters,
   setPersonalTechnologyKnowledge
 } from "./charactersContext";
-import { type Character, type CharacterRoleClass, type CharacterSkills, isCk3Character } from "./characterTypes";
+import {
+  type Character,
+  type CharacterRoleClass,
+  type CharacterSkills,
+  isCk3Character,
+  type RaisedIn
+} from "./characterTypes";
 import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
 /**
@@ -35,13 +41,22 @@ const AGE_YEAR_EPSILON = 0.5 / 365.2425;
 export const DECLINE_AGE_THRESHOLD = 35;
 /** Legacy scalar appearance decline (characters without `looks` axes). Matches vitality axis rate. */
 export const APPEARANCE_DECLINE_PER_YEAR = LOOKS_VITALITY_DECLINE_PER_YEAR;
-/** Civilian / non-military personal combat decline after peak age. */
-export const PROWESS_DECLINE_PER_YEAR = 2;
 /**
- * Career soldiers keep form longer: half the civilian rate.
- * Applied to commanders, martial offices, bodyguards, etc.
+ * Prowess aging: warriors keep form, laborers slow, indoor clerks fade.
+ * Human 60-year-old career soldier at peak 90 still sits near 80 — old generals can fight.
  */
-export const PROWESS_DECLINE_PER_YEAR_MILITARY = 1;
+export type ProwessLifestyle = "warrior" | "labor" | "indoor";
+
+/** Indoor / clerical personal combat decline after peak age. */
+export const PROWESS_DECLINE_PER_YEAR_INDOOR = 2;
+/** Farm, craft, and other bodily work — slower than a desk career, faster than drill. */
+export const PROWESS_DECLINE_PER_YEAR_LABOR = 1;
+/** Daily arms practice. ~0.4/year from 35 → −10 by 60, −14 by 70. */
+export const PROWESS_DECLINE_PER_YEAR_WARRIOR = 0.4;
+/** @deprecated Use PROWESS_DECLINE_PER_YEAR_INDOOR. */
+export const PROWESS_DECLINE_PER_YEAR = PROWESS_DECLINE_PER_YEAR_INDOOR;
+/** @deprecated Use PROWESS_DECLINE_PER_YEAR_WARRIOR. */
+export const PROWESS_DECLINE_PER_YEAR_MILITARY = PROWESS_DECLINE_PER_YEAR_WARRIOR;
 
 /**
  * Races with typical lifespan at or above this skip human-scale age decline
@@ -69,10 +84,20 @@ export function characterIgnoresAgeDecline(character: Pick<Character, "race" | "
 const MILITARY_TITLE_RE = /Commander|Admiral|Marshal|General|Warlord|Minister of War/i;
 /** Economy / extension roles that are professional fighters rather than desk careers. */
 const MILITARY_ROLE_KIND_RE = /bodyguard|soldier|guard|regiment|garrison/i;
+/** Craft and haul work — smiths, apprentices, miners, sailors, farmhands. */
+const LABOR_ROLE_KIND_RE =
+  /guildMaster|guildApprentice|blacksmith|smelt|miner|mason|carpenter|farmer|herder|sailor|fisher|labour|labor/i;
+const LABOR_RAISED_IN = new Set<RaisedIn>(["rural_manor", "frontier_burg", "street", "military_camp"]);
+
+const PROWESS_DECLINE_RATE: Record<ProwessLifestyle, number> = {
+  warrior: PROWESS_DECLINE_PER_YEAR_WARRIOR,
+  labor: PROWESS_DECLINE_PER_YEAR_LABOR,
+  indoor: PROWESS_DECLINE_PER_YEAR_INDOOR
+};
 
 /**
- * True for characters whose living is fighting or command — they age slower in prowess.
- * Uses current titles/roles only (retired officers use the civilian rate).
+ * True for characters whose living is fighting or command.
+ * Uses current titles/roles only (retired officers lose the warrior rate when they stop drilling).
  */
 export function isMilitaryCareerCharacter(character: Pick<Character, "titles" | "roles">): boolean {
   if (character.titles.some(t => MILITARY_TITLE_RE.test(t.title))) return true;
@@ -80,21 +105,47 @@ export function isMilitaryCareerCharacter(character: Pick<Character, "titles" | 
   return false;
 }
 
-/** Per-year prowess decline rate for a living character (military ≈ half of civilian). */
-export function prowessDeclineRateForCharacter(character: Pick<Character, "titles" | "roles">): number {
-  return isMilitaryCareerCharacter(character) ? PROWESS_DECLINE_PER_YEAR_MILITARY : PROWESS_DECLINE_PER_YEAR;
+function isPhysicalLaborCharacter(character: Pick<Character, "titles" | "roles" | "backstory">): boolean {
+  if (character.roles?.some(r => LABOR_ROLE_KIND_RE.test(r.kind))) return true;
+  const occupation = character.backstory?.origin.familyOccupation;
+  if (occupation === "agriculture" || occupation === "craft") return true;
+  const raisedIn = character.backstory?.origin.raisedIn;
+  return raisedIn !== undefined && LABOR_RAISED_IN.has(raisedIn);
 }
 
 /**
- * Generation-time rate before titles exist: commander / martial-primary careers use the military rate.
+ * How this person uses their body day to day. Warrior > labor > indoor for keeping prowess.
  */
+export function prowessLifestyleForCharacter(
+  character: Pick<Character, "titles" | "roles" | "backstory">
+): ProwessLifestyle {
+  if (isMilitaryCareerCharacter(character)) return "warrior";
+  if (isPhysicalLaborCharacter(character)) return "labor";
+  return "indoor";
+}
+
+export function prowessLifestyleForCreation(
+  roleClass?: CharacterRoleClass,
+  primarySkill?: keyof CharacterSkills
+): ProwessLifestyle {
+  if (roleClass === "commander") return "warrior";
+  if (primarySkill === "martial" || primarySkill === "prowess") return "warrior";
+  if (roleClass === "province_lord") return "labor";
+  if (primarySkill === "engineering") return "labor";
+  return "indoor";
+}
+
+/** Per-year prowess decline rate for a living character. */
+export function prowessDeclineRateForCharacter(character: Pick<Character, "titles" | "roles" | "backstory">): number {
+  return PROWESS_DECLINE_RATE[prowessLifestyleForCharacter(character)];
+}
+
+/** Generation-time rate before titles exist. */
 export function prowessDeclineRateForCreation(
   roleClass?: CharacterRoleClass,
   primarySkill?: keyof CharacterSkills
 ): number {
-  if (roleClass === "commander") return PROWESS_DECLINE_PER_YEAR_MILITARY;
-  if (primarySkill === "martial" || primarySkill === "prowess") return PROWESS_DECLINE_PER_YEAR_MILITARY;
-  return PROWESS_DECLINE_PER_YEAR;
+  return PROWESS_DECLINE_RATE[prowessLifestyleForCreation(roleClass, primarySkill)];
 }
 
 /**

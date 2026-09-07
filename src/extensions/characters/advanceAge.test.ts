@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
-import { advanceCharacterAging } from "./advanceAge";
+import {
+  advanceCharacterAging,
+  declineAt,
+  PROWESS_DECLINE_PER_YEAR_INDOOR,
+  PROWESS_DECLINE_PER_YEAR_LABOR,
+  PROWESS_DECLINE_PER_YEAR_WARRIOR,
+  prowessDeclineRateForCreation,
+  prowessLifestyleForCharacter,
+  prowessLifestyleForCreation
+} from "./advanceAge";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import "./types";
 
@@ -186,32 +195,45 @@ describe("advanceCharacterAging", () => {
     expect(character.skills.prowess).toBe(76); // civilian: 80 - floor(2 * 2)
   });
 
-  it("declines prowess at half rate for military careers", () => {
+  it("declines prowess slowly for military careers so veterans stay dangerous", () => {
     worldContext.pack.characters = [
       {
         i: 0,
         age: 34,
         appearance: 80,
         skills: { prowess: 80 } as never,
-        // A real character always carries personality data — the mortality roll below reads it
-        // (sociability/boldness) when deciding a death reason for titled characters. Values kept
-        // well inside the "neither assassinated nor slain" band so this test's outcome doesn't
-        // depend on which death reason (if any) got picked.
         personality: { sociability: 50, boldness: 50 } as never,
         titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }],
-        // A real character always carries pastTitles too (personFactory.ts seeds it): the death
-        // branch moves titles into it, so omitting it makes this fixture throw whenever the
-        // mortality roll happens to land on death.
         pastTitles: []
       } as never
     ];
 
-    advanceCharacterAging(3); // 34 -> 37, 2 years past threshold at rate 1
+    advanceCharacterAging(11); // 34 -> 45, 10 years past threshold at 0.4/year
 
     const character = worldContext.pack.characters[0];
-    expect(character.age).toBe(37);
-    expect(character.appearance).toBe(79); // appearance is unchanged by military status
-    expect(character.skills.prowess).toBe(78); // military: 80 - floor(2 * 1)
+    expect(character.age).toBe(45);
+    expect(character.appearance).toBe(75); // 80 - floor(10 * 0.55)
+    expect(character.skills.prowess).toBe(76); // warrior: 80 - floor(10 * 0.4)
+  });
+
+  it("declines prowess slower for guild labor than for indoor clerks", () => {
+    worldContext.pack.characters = [
+      {
+        i: 0,
+        age: 34,
+        appearance: 80,
+        skills: { prowess: 80 } as never,
+        personality: { sociability: 50, boldness: 50 } as never,
+        titles: [],
+        roles: [{ source: "economy", kind: "guildMaster", entityType: "burg", entityId: 1, label: "Guild Master" }],
+        pastTitles: []
+      } as never
+    ];
+
+    advanceCharacterAging(3); // 34 -> 37, 2 years past threshold at labor 1/year
+
+    const character = worldContext.pack.characters[0];
+    expect(character.skills.prowess).toBe(78); // 80 - floor(2 * 1)
   });
 
   it("does not decline appearance/prowess while still under the age-35 threshold", () => {
@@ -283,5 +305,62 @@ describe("advanceCharacterAging", () => {
     }
 
     expect(sickDeaths).toBeGreaterThan(healthyDeaths);
+  });
+});
+
+describe("prowess lifestyle decline", () => {
+  it("keeps a sixty-year-old warrior near peak while indoor clerks collapse", () => {
+    expect(declineAt(60, PROWESS_DECLINE_PER_YEAR_WARRIOR)).toBe(10);
+    expect(declineAt(60, PROWESS_DECLINE_PER_YEAR_LABOR)).toBe(25);
+    expect(declineAt(60, PROWESS_DECLINE_PER_YEAR_INDOOR)).toBe(50);
+    expect(declineAt(70, PROWESS_DECLINE_PER_YEAR_WARRIOR)).toBe(14);
+  });
+
+  it("ranks warrior above labor above indoor at creation", () => {
+    expect(prowessLifestyleForCreation("commander", "martial")).toBe("warrior");
+    expect(prowessLifestyleForCreation("ordinary", "engineering")).toBe("labor");
+    expect(prowessLifestyleForCreation("province_lord")).toBe("labor");
+    expect(prowessLifestyleForCreation("central_officer", "stewardship")).toBe("indoor");
+    expect(prowessDeclineRateForCreation("commander")).toBe(PROWESS_DECLINE_PER_YEAR_WARRIOR);
+    expect(prowessDeclineRateForCreation("ordinary", "engineering")).toBe(PROWESS_DECLINE_PER_YEAR_LABOR);
+    expect(prowessDeclineRateForCreation("merchant", "stewardship")).toBe(PROWESS_DECLINE_PER_YEAR_INDOOR);
+  });
+
+  it("reads living titles and craft roles, not retired offices", () => {
+    expect(
+      prowessLifestyleForCharacter({
+        titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }],
+        roles: [],
+        pastTitles: []
+      } as never)
+    ).toBe("warrior");
+    expect(
+      prowessLifestyleForCharacter({
+        titles: [],
+        roles: [{ source: "economy", kind: "guildApprentice", entityType: "burg", entityId: 1, label: "Apprentice" }],
+        backstory: {
+          origin: { socialStratum: "commoner", estateStatus: "freeman", birthStateId: 1, raisedIn: "capital_city" }
+        }
+      } as never)
+    ).toBe("labor");
+    expect(
+      prowessLifestyleForCharacter({
+        titles: [{ title: "Steward", landed: false, entityType: "state", entityId: 1 }],
+        roles: [],
+        backstory: {
+          origin: { socialStratum: "gentry", estateStatus: "official", birthStateId: 1, raisedIn: "capital_court" }
+        }
+      } as never)
+    ).toBe("indoor");
+    expect(
+      prowessLifestyleForCharacter({
+        titles: [],
+        roles: [],
+        pastTitles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }],
+        backstory: {
+          origin: { socialStratum: "commoner", estateStatus: "freeman", birthStateId: 1, raisedIn: "rural_manor" }
+        }
+      } as never)
+    ).toBe("labor");
   });
 });
