@@ -140,6 +140,7 @@ guild apprentice のみ
 | 商家の Dynasty 判定（merchant_born かつ ≥55） | 確立した商人に寄る |
 | ギルド親方の評判（Prestige 10%） | 公開ブランドは補助。本業は熟練 |
 | 兵の服従（独走戦争） | 民衆 `prestige` ではなく `militaryStanding` |
+| 生成時の戦歴 | 従軍の戦い方で Prestige を加減。勝ち負けそのものではない。[military-war-record.md](military-war-record.md) |
 
 ## 7. 今後足さないもの / 後で足すもの
 

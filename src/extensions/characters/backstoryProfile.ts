@@ -1686,8 +1686,18 @@ export function computeInitialSolidarity(from: Character, to: Character): number
         score += rand(0, 8);
         const sycophantSubordinate = isMinisterLike(toClass) && isSycophantProfile(tp);
         if (sycophantSubordinate) {
-          // Enjoys the flattery; less quick to read polished guile as pure threat
-          score += rand(8, 16);
+          const seesThrough = fp.rationality >= 65 && from.skills.intrigue >= 55;
+          const takenIn = fp.rationality <= 40 || from.skills.intrigue <= 35;
+          if (seesThrough) {
+            // 賢王: polish reads as a bid, not devotion
+            score -= rand(8, 20);
+          } else if (takenIn) {
+            // 愚王: honeyed words outweigh the council
+            score += rand(14, 28);
+          } else {
+            // Average sovereign enjoys court polish
+            score += rand(6, 14);
+          }
         } else {
           if (tp.guile >= 70 && tp.honor <= 45) score -= rand(10, 25);
           if (tp.honor >= 70) score += rand(5, 15);

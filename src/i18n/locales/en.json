@@ -356,11 +356,44 @@
       },
       "bonds": {
         "nemesis": "Keeps a private ledger of enemies who will not be forgiven.",
-        "rival": "Treats certain peers as ladders — or obstacles."
+        "rival": "Treats certain peers as ladders — or obstacles.",
+        "favorite": "A favorite's honeyed words weigh more than the council.",
+        "sycophant": "Feeds on a sovereign's ear, and keeps the heart elsewhere."
       },
       "house": {
         "tongue": "{{house}} is never far from the tongue."
+      },
+      "epithet": {
+        "guardian": "Soldiers call this one a guardian spirit — the one who brings the living home.",
+        "last_guard": "Known for covering the retreat so others could live.",
+        "wall": "Holds ground until the line itself seems made of iron.",
+        "vanguard": "First into the dust, and last to yield the front.",
+        "idle_banner": "Present on the rolls of every war, and missing from every fight.",
+        "foolish_king": "Called the Fool: the ear opens for honey, and closes for the ledgers.",
+        "wise_king": "Called the Wise: counsel is weighed, and flattery is measured.",
+        "sycophant": "Keeps the sovereign's ear, and owes that sovereign nothing.",
+        "default": "Known as {{epithet}}."
       }
+    },
+    "epithetNames": {
+      "guardian": "Guardian",
+      "last_guard": "Rear Guard",
+      "wall": "Iron Wall",
+      "vanguard": "Vanguard",
+      "idle_banner": "the Absent",
+      "foolish_king": "the Fool",
+      "wise_king": "the Wise",
+      "sycophant": "the Sycophant"
+    },
+    "warRecord": "War record",
+    "warRecordWars": "{{count}} campaigns served",
+    "warConduct": {
+      "rear_idle": "stayed in the rear",
+      "front_assault": "led from the front",
+      "rearguard_rescue": "covered a retreat and saved allies",
+      "defensive_hold": "held the line",
+      "costly_push": "pushed hard at a bloody cost",
+      "cautious_avoid": "kept out of the fighting"
     },
     "bonds": "Bonds",
     "bondKindNames": {
@@ -373,6 +406,7 @@
       "ward": "Ward",
       "patron": "Patron",
       "client": "Client",
+      "favorite": "Favorite",
       "blood_feud": "Blood feud",
       "comrade": "Comrade",
       "hometown_kin": "Hometown kin"

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { SortableHeader } from "../../../../hostUi";
 import { formatPrice } from "../../../../hostUtils";
 import type { CharacterRowData } from "../../../controllers/characters-overview";
+import { getCharacterEpithetSuffix } from "../../../utils/characterLabels";
 import { getCharacterRowStyle } from "../../../utils/personalityUtils";
 
 export interface CharactersTableProps {
@@ -128,6 +129,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
                         onClick={() => onCharacterClick(c.i)}
                       >
                         {c.name}
+                        {getCharacterEpithetSuffix(c)}
                       </span>
                     </td>
                     <td className="numeric">{c.age}</td>

@@ -17,8 +17,10 @@ Turn structured character data (origin, commitment, tastes, bonds, dynasty) into
 | `titles` / role class | Role verb phrase (crown, corridors, border, coin…) |
 | `commitment.primary` | Core motive sentence |
 | top `tastes` (likes / dislikes) | Habit / aversion line |
-| `bonds` (rival / nemesis) | Enemy ledger line |
+| `bonds` (rival / nemesis / favorite) | Enemy ledger, or a foolish sovereign's favorite |
 | `origin.lineageName` | House name on the tongue |
+| `militaryRecord.epithetId` | War nickname when reconstructed service earned one |
+| `courtEpithetId` | Court nickname (愚王 / 賢王 / 佞臣) |
 
 ## Output
 

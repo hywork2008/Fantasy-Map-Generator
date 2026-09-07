@@ -356,11 +356,44 @@
       },
       "bonds": {
         "nemesis": "決して許さない敵の名を、私的な帳簿に記している。",
-        "rival": "ある同僚を、梯子——あるいは障害——として扱う。"
+        "rival": "ある同僚を、梯子——あるいは障害——として扱う。",
+        "favorite": "寵臣の甘言が、会議よりも重い。",
+        "sycophant": "主君の耳を糧にし、忠義は別の場所に置いている。"
       },
       "house": {
         "tongue": "{{house}}の名は、舌の先から離れない。"
+      },
+      "epithet": {
+        "guardian": "兵は守護神と呼ぶ。生きて帰れる道を、この者が残すからだ。",
+        "last_guard": "殿を務め、味方を生きて帰したことで知られる。",
+        "wall": "陣が鉄でできたかのように、その場を離れない。",
+        "vanguard": "砂塵の先に立ち、前線を最後まで譲らない。",
+        "idle_banner": "どの戦の名簿にも名があり、どの戦場にもいなかった。",
+        "foolish_king": "廷臣は愚王と呼ぶ。耳は甘言に開き、国の帳簿には閉じる。",
+        "wise_king": "賢王と呼ばれる。諫言を聞き、甘い言葉を測る。",
+        "sycophant": "主君の耳を握り、その主君には何も負っていない。",
+        "default": "{{epithet}}と呼ばれる。"
       }
+    },
+    "epithetNames": {
+      "guardian": "守護神",
+      "last_guard": "殿軍",
+      "wall": "鉄壁",
+      "vanguard": "先鋒",
+      "idle_banner": "控えの将",
+      "foolish_king": "愚王",
+      "wise_king": "賢王",
+      "sycophant": "佞臣"
+    },
+    "warRecord": "戦歴",
+    "warRecordWars": "{{count}}回の従軍",
+    "warConduct": {
+      "rear_idle": "後方に下がって動かなかった",
+      "front_assault": "前線で指揮した",
+      "rearguard_rescue": "撤退を支え、味方を助けた",
+      "defensive_hold": "防衛線を守った",
+      "costly_push": "突っ込んだが犠牲が大きかった",
+      "cautious_avoid": "戦闘を避けた"
     },
     "bonds": "関係ラベル",
     "bondKindNames": {
@@ -373,6 +406,7 @@
       "ward": "被後見人",
       "patron": "後援者",
       "client": "取り巻き",
+      "favorite": "寵臣",
       "blood_feud": "血仇",
       "comrade": "戦友",
       "hometown_kin": "同郷"

@@ -15,6 +15,7 @@ import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
+import { seedMilitaryWarRecordForPeer, seedMilitaryWarRecords } from "../../characters/militaryWarRecord";
 import {
   combineStateWarlike,
   officeResignationReason,
@@ -218,6 +219,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     }
   }
 
+  seedMilitaryWarRecords(characters, states, currentYear);
   calculateAffinities(characters);
   seedCharacterRelations(characters);
 
@@ -345,7 +347,7 @@ function createOfficer(
     landed: false,
     entityType: "state",
     entityId: state.i,
-    startYear: getCurrentYear()
+    startYear: getCurrentYear() - rand(0, Math.max(0, officer.age - careerStartAge(ids.raceId)))
   });
   applyCharacterBackstory(officer, {
     roleClass: "commander",
@@ -354,6 +356,7 @@ function createOfficer(
     capitalBurgId: state.capital
   });
   pack.characters.push(officer);
+  seedMilitaryWarRecordForPeer(officer, pack.states, getCurrentYear());
   seedRelationsWithPeers(officer, pack.characters);
   finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
   return officer;
@@ -389,7 +392,7 @@ function createProvinceLord(
     landed: true,
     entityType: "province",
     entityId: province.i,
-    startYear: getCurrentYear()
+    startYear: getCurrentYear() - rand(0, Math.max(0, lord.age - careerStartAge(ids.raceId)))
   });
   applyCharacterBackstory(lord, {
     roleClass: "province_lord",
@@ -400,6 +403,7 @@ function createProvinceLord(
     birthBurgId: province.burg
   });
   pack.characters.push(lord);
+  seedMilitaryWarRecordForPeer(lord, pack.states, getCurrentYear());
   seedRelationsWithPeers(lord, pack.characters);
   finalizeCharacterSocietyForPeer(lord, pack.characters, societyContext());
   return lord;
@@ -834,7 +838,7 @@ function processSuccessions(): void {
         landed: false,
         entityType: "state",
         entityId: state.i,
-        startYear: getCurrentYear()
+        startYear: getCurrentYear() - rand(0, Math.max(0, officer.age - careerStartAge(ids.raceId)))
       });
       applyCharacterBackstory(officer, {
         roleClass: officerRoleClass,
@@ -843,6 +847,9 @@ function processSuccessions(): void {
         capitalBurgId: state.capital
       });
       pack.characters.push(officer);
+      if (officerRoleClass === "commander") {
+        seedMilitaryWarRecordForPeer(officer, pack.states, getCurrentYear());
+      }
       seedRelationsWithPeers(officer, pack.characters);
       finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
       fillBudget--;

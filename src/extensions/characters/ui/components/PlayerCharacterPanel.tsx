@@ -4,7 +4,7 @@ import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import { selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
-import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
+import { getCharacterEpithetSuffix, getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import "./playerCharacterPanel.css";
 
@@ -56,7 +56,10 @@ export const PlayerCharacterPanel: React.FC = () => {
         <>
           <div className="pcp-content">
             <div className="pcp-name-row">
-              <h2 className="pcp-name">{character.name}</h2>
+              <h2 className="pcp-name">
+                {character.name}
+                {getCharacterEpithetSuffix(character)}
+              </h2>
               <button
                 type="button"
                 className="icon-cw"

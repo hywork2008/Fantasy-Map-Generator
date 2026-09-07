@@ -1,5 +1,6 @@
 import i18n from "../../../i18n";
-import type { CharacterRole, CharacterRoleClass } from "../characterTypes";
+import type { Character, CharacterRole, CharacterRoleClass } from "../characterTypes";
+import { characterPublicEpithetId } from "../courtFavorite";
 
 /** Stable filter options for the Characters Overview title/role dropdown. */
 export const CHARACTER_ROLE_CLASS_FILTERS: readonly CharacterRoleClass[] = [
@@ -154,4 +155,10 @@ export function getCharacterOverviewRoleFilterLabel(filter: CharacterOverviewRol
     return i18n.t(`characters.roleFilterNames.${filter}`);
   }
   return getCharacterRoleClassLabel(filter);
+}
+
+/** ` (二つ名)` suffix, or empty when the character has no public epithet. */
+export function getCharacterEpithetSuffix(character: Pick<Character, "courtEpithetId" | "militaryRecord">): string {
+  const id = characterPublicEpithetId(character);
+  return id ? ` (${i18n.t(`characters.epithetNames.${id}`)})` : "";
 }

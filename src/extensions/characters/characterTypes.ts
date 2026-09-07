@@ -13,6 +13,34 @@ export type { AppearanceAxes, AppearanceAxisId, CharacterRaceAppearance } from "
  */
 export type CharacterGenerationBias = "none" | "youngMaleHeavy" | "youngFemaleHeavy";
 
+/** How a person actually fought in a reconstructed campaign — not the state's win/loss. */
+export type WarConductKind =
+  | "rear_idle"
+  | "front_assault"
+  | "rearguard_rescue"
+  | "defensive_hold"
+  | "costly_push"
+  | "cautious_avoid";
+
+export type MilitaryEpithetId = "guardian" | "last_guard" | "wall" | "vanguard" | "idle_banner";
+
+/** Public court nickname — distinct from war-conduct epithets on `militaryRecord`. */
+export type CourtEpithetId = "foolish_king" | "wise_king" | "sycophant";
+
+export interface CharacterWarService {
+  campaignName: string;
+  year: number;
+  opponentStateId: number;
+  side: "attacker" | "defender";
+  conduct: WarConductKind;
+}
+
+export interface CharacterMilitaryRecord {
+  wars: number;
+  services: CharacterWarService[];
+  epithetId?: MilitaryEpithetId;
+}
+
 export interface TitleHolding {
   /** Gender-resolved display title, e.g. "King", "Prime Minister", "Khan". */
   title: string;
@@ -238,6 +266,7 @@ export type CharacterBondKind =
   | "ward"
   | "patron"
   | "client"
+  | "favorite"
   | "blood_feud"
   | "comrade"
   | "hometown_kin";
@@ -504,6 +533,16 @@ export interface Character {
   affliction?: CharacterAffliction;
   /** Illnesses survived — optional flavor/prestige signal ("weathered the pox twice"). */
   timesIllness?: number;
+  /**
+   * Reconstructed personal war service from Relations-history campaigns.
+   * Campaign `end` is not a victory. Conduct is how they fought, not whether the state "won".
+   */
+  militaryRecord?: CharacterMilitaryRecord;
+  /**
+   * Public court nickname (愚王 / 賢王 / 佞臣). Distinct from `militaryRecord.epithetId`.
+   * Assigned at society finalize from governing competence and the foolish-ruler / sycophant pair.
+   */
+  courtEpithetId?: CourtEpithetId;
 }
 
 /** Quality band shared by attire and weapons (1 = rags / farm tool … 5 = royal / masterwork). */

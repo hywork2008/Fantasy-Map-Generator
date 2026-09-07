@@ -19,7 +19,7 @@ import { militaryStanding, officeSphereVisibility, type ReputationLabel, reputat
 import { specializationCsvRows } from "../../specializationExport";
 import { readEconomyPractice } from "../../specializationRuntime";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
-import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
+import { getCharacterEpithetSuffix, getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
 import { SpecializationPanel } from "../components/SpecializationPanel";
@@ -617,6 +617,21 @@ export const CharacterDetailsDialog: React.FC = () => {
             </td>
           </tr>
         ) : null}
+        {character.militaryRecord?.services.length ? (
+          <tr>
+            <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.warRecord")}</th>
+            <td>
+              {t("characters.warRecordWars", { count: character.militaryRecord.wars })}
+              <ul style={{ margin: "4px 0 0", paddingLeft: "1.2em" }}>
+                {character.militaryRecord.services.map(service => (
+                  <li key={`${service.year}-${service.campaignName}-${service.opponentStateId}`}>
+                    {service.year} {service.campaignName}: {t(`characters.warConduct.${service.conduct}`)}
+                  </li>
+                ))}
+              </ul>
+            </td>
+          </tr>
+        ) : null}
         {character.family ? (
           <tr>
             <th style={{ padding: "4px 0" }}>{t("characters.family")}</th>
@@ -698,7 +713,7 @@ export const CharacterDetailsDialog: React.FC = () => {
 
     // Basic Info
     rows.push(t("characters.personalInformation"));
-    rows.push(`${t("characters.name")}, ${character.name}`);
+    rows.push(`${t("characters.name")}, ${character.name}${getCharacterEpithetSuffix(character)}`);
     rows.push(`${t("characters.age")}, ${character.age}`);
     rows.push(`${t("characters.gender")}, ${t(`characters.${character.gender}`)}`);
     rows.push(`${t("characters.status")}, ${statusText}`);
@@ -732,6 +747,14 @@ export const CharacterDetailsDialog: React.FC = () => {
       rows.push(
         `${t("characters.reputationAmongYou")}, ${t(reputationLabelI18nKey(foreignReputation.label))} (${t("characters.reputationHonor", { honor: foreignReputation.honor })}${foreignReputation.dread > 0 ? `; ${t("characters.reputationDread", { dread: foreignReputation.dread })}` : ""})`
       );
+    }
+    if (character.militaryRecord?.services.length) {
+      rows.push(
+        `${t("characters.warRecord")}, ${t("characters.warRecordWars", { count: character.militaryRecord.wars })}`
+      );
+      for (const service of character.militaryRecord.services) {
+        rows.push(`${service.year} ${service.campaignName}, ${t(`characters.warConduct.${service.conduct}`)}`);
+      }
     }
     rows.push(`${t("characters.wealth")}, ${character.wealth ?? 0}`);
 
@@ -1002,7 +1025,9 @@ export const CharacterDetailsDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={t("characters.dialogTitle", { name: character.name })}
+      title={t("characters.dialogTitle", {
+        name: `${character.name}${getCharacterEpithetSuffix(character)}`
+      })}
       onClose={handleClose}
       buttons={dialogButtons}
     >
@@ -1012,7 +1037,10 @@ export const CharacterDetailsDialog: React.FC = () => {
           <tbody>
             <tr>
               <th style={{ width: "120px", padding: "4px 0" }}>{t("characters.name")}</th>
-              <td>{character.name}</td>
+              <td>
+                {character.name}
+                {getCharacterEpithetSuffix(character)}
+              </td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.age")}</th>

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import i18n from "../../../i18n";
 import {
+  getCharacterEpithetSuffix,
   getCharacterOverviewRoleFilterLabel,
   getCharacterRoleClassLabel,
   getCharacterRoleLabel,
@@ -32,6 +33,20 @@ describe("character labels", () => {
     await i18n.changeLanguage("ja");
     expect(getCharacterRoleClassLabel("ruler")).toBe("国家元首");
     expect(getCharacterRoleClassLabel("central_officer")).toBe("宮廷官");
+  });
+
+  it("prefers a court nickname over a war-conduct epithet", async () => {
+    expect(getCharacterEpithetSuffix({ courtEpithetId: "foolish_king" })).toBe(" (the Fool)");
+    expect(
+      getCharacterEpithetSuffix({
+        courtEpithetId: "wise_king",
+        militaryRecord: { wars: 1, services: [], epithetId: "vanguard" }
+      })
+    ).toBe(" (the Wise)");
+
+    await i18n.changeLanguage("ja");
+    expect(getCharacterEpithetSuffix({ courtEpithetId: "foolish_king" })).toBe(" (愚王)");
+    expect(getCharacterEpithetSuffix({ courtEpithetId: "sycophant" })).toBe(" (佞臣)");
   });
 
   it("localizes guild-specific overview filter choices", async () => {
