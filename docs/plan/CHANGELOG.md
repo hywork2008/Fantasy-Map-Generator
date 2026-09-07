@@ -1,5 +1,14 @@
 # 追加したドキュメント
 
+2026-09-07
+
+- docs/plan/characters/court-favorite.md
+- docs/plan/characters/military-war-record.md
+- docs/plan/characters/occupation-epithets.md
+- docs/plan/characters/prestige.md
+- docs/plan/characters/skill-specializations.md
+- docs/plan/unscrupulous-merchant-goods-market.md - 悪徳商人による市場の操作
+
 2026-09-06
 
 - docs/plan/advance-time-history-mode.md

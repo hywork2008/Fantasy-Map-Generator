@@ -67,6 +67,7 @@ import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../u
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { layerIsOn } from "../utils/nodeUtils";
+import { validateWorldLanguages } from "../utils/worldLanguages";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
 import { Cloud } from "./cloud";
@@ -736,6 +737,14 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   restoreStrategicEconomyState(data[52]);
   restoreMineralResourceState(data[55]);
   restoreUndergroundRealmState(data[58]);
+  delete worldContext.pack.languageWorld;
+  if (data[59]) {
+    const languages: unknown = JSON.parse(data[59]);
+    if (languages !== null) {
+      validateWorldLanguages(languages);
+      worldContext.pack.languageWorld = languages;
+    }
+  }
 
   {
     // Demography arrays (capacity, age-structure breakdown) were added after this save format was

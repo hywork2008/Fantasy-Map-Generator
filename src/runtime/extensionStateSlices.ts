@@ -1,5 +1,6 @@
 import type { ExtensionStateSlices, SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { validateSpecializationProfile } from "../extensions/characters/specializationValidation";
 import { getTechnologyDefinition } from "../generators/technologyDefinitions";
 import type { CoreReference } from "./extensionArchiveTypes";
 import {
@@ -395,6 +396,11 @@ function validateCharactersSlice(slice: Record<string, unknown>): void {
     }
   }
   validatePersonalTechnologyKnowledge(slice.personalTechnologyKnowledge);
+  if (Array.isArray(slice.characters)) {
+    for (const character of slice.characters) {
+      if (isRecord(character)) validateSpecializationProfile(character.specializations);
+    }
+  }
 }
 
 function validateEconomySlice(slice: Record<string, unknown>, world: WorldContext): void {
@@ -752,7 +758,13 @@ export function assertValidExtensionStateSlices(world: WorldContext, simulation:
   }
 
   const characters = simulation.extensions.characters;
-  if (characters) validateCharactersSlice(characters);
+  if (characters) {
+    validateCharactersSlice(characters);
+    if (Array.isArray(characters.characters))
+      for (const character of characters.characters) {
+        if (isRecord(character)) validateSpecializationProfile(character.specializations, world.pack.languageWorld);
+      }
+  }
 
   const economy = simulation.extensions.economy;
   if (economy) validateEconomySlice(economy, world);

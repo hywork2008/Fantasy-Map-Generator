@@ -1,15 +1,19 @@
 import type { Character } from "../../characters/characterTypes";
+import { recordSpecializationExperience, specializationScore } from "../../characters/specializations";
 import { applyDemographicCasualties, appServices, buildSeaRouteGraph, type StrategicGoal } from "../../hostCore";
 import type { ChronicleEvent, MilitaryRegiment } from "../../hostTypes";
-import { getRulerId, getWorldContext } from "../nobilityContext";
+import { getApi, getRulerId, getWorldContext } from "../nobilityContext";
 import {
   calculateEffectiveSiegePower,
   captureBurg,
   commanderPowerMultiplier,
+  fortificationAttackRatio,
+  isBurgFortified,
   occupyingDisciplineMultiplier,
   regimentDistanceTo,
   regimentReinforcementRadius
 } from "./localDefense";
+import { getRegimentCommander } from "./officerAssignment";
 
 /** Living character holding `title` for `stateId`, e.g. the state's Spymaster. */
 function findOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
@@ -29,7 +33,7 @@ export const BattleResolutionGenerator = {
 
     if (!attackerState || !targetState || !targetBurg) return;
 
-    const isFortified = !!(targetBurg.citadel || targetBurg.walls);
+    const isFortified = isBurgFortified(targetBurg);
     const seaRouteGraph = buildSeaRouteGraph(pack);
 
     // 1. Detection Phase (Spymaster vs Spymaster)
@@ -39,8 +43,10 @@ export const BattleResolutionGenerator = {
       findOfficeHolder(characters, goal.targetState, "Spymaster") ??
       characters.find(c => c.i === getRulerId(targetState));
 
-    const attackerGuile = attackerSpymaster?.skills.intrigue ?? 50;
-    const defenderGuile = defenderSpymaster?.skills.intrigue ?? 50;
+    const attackerGuile = attackerSpymaster ? specializationScore(attackerSpymaster, "intrigue.covertOperations") : 50;
+    const defenderGuile = defenderSpymaster
+      ? specializationScore(defenderSpymaster, "intrigue.counterintelligence")
+      : 50;
 
     const attackerRoll = appServices.rng.rand() * 100 + attackerGuile;
     const defenderRoll = appServices.rng.rand() * 100 + defenderGuile;
@@ -50,6 +56,7 @@ export const BattleResolutionGenerator = {
     // 2. Response Time Logic
     let defendingForceArrived = 0;
     const defendingRegiments = targetState.military || [];
+    const arrivedDefendingRegiments: MilitaryRegiment[] = [];
 
     // We assume city garrison is always there
     const cityGarrison = (targetBurg.population || 0) * 0.05; // 5% of pop as militia
@@ -73,7 +80,9 @@ export const BattleResolutionGenerator = {
       }
 
       if (arrives) {
-        defendingForceArrived += regiment.a * commanderPowerMultiplier(characters, regiment);
+        arrivedDefendingRegiments.push(regiment);
+        defendingForceArrived +=
+          regiment.a * commanderPowerMultiplier(characters, regiment, [{ kind: "terrain", id: "urban" }]);
       }
     }
 
@@ -101,11 +110,24 @@ export const BattleResolutionGenerator = {
 
       if (reachable) {
         const effectivePower = calculateEffectiveSiegePower(regiment, isFortified, militaryOptions);
-        attackerPower += effectivePower * commanderPowerMultiplier(characters, regiment);
+        attackerPower +=
+          effectivePower * commanderPowerMultiplier(characters, regiment, [{ kind: "terrain", id: "urban" }]);
         regiment.actionStatus = "battled";
         attackingRegiments.push(regiment);
       }
     }
+
+    // Snapshot the actual participants before casualties change their troop mix or command scale.
+    const participants = [...attackingRegiments, ...arrivedDefendingRegiments].map(regiment => ({
+      regiment,
+      targets: [
+        { kind: "terrain" as const, id: "urban" },
+        { kind: "commandScale" as const, id: regiment.n ? "fleet" : regiment.a >= 1000 ? "army" : "regiment" },
+        ...Object.entries(regiment.u ?? {})
+          .filter(([, count]) => count > 0)
+          .map(([id]) => ({ kind: "troop" as const, id }))
+      ]
+    }));
 
     // 4. Resolution
     let attackerCasualties = 0;
@@ -124,7 +146,7 @@ export const BattleResolutionGenerator = {
     } else {
       // BLOODY SIEGE
       const forceRatio = attackerPower / Math.max(1, defendingForceArrived);
-      const requiredRatio = isFortified ? 3.0 : 1.5;
+      const requiredRatio = fortificationAttackRatio(targetBurg, 1.5);
 
       console.warn(
         `⚔️ BLOODY SIEGE on ${targetBurg.name}! Fortified: ${isFortified}, Force ratio: ${forceRatio.toFixed(2)} (Arrived Defenders: ${Math.floor(defendingForceArrived)})`
@@ -235,6 +257,24 @@ export const BattleResolutionGenerator = {
     const battlefieldCell = targetBurg.cell;
     if (attackerDead > 0) applyDemographicCasualties(attackerId, attackerDead, battlefieldCell);
     if (defenderDead > 0) applyDemographicCasualties(goal.targetState, defenderDead, battlefieldCell);
+
+    const simulation = getApi().simulationContext;
+    const battleYear = simulation?.currentYear ?? Number(options.year);
+    for (const { regiment, targets } of participants) {
+      const commander = getRegimentCommander(characters, regiment);
+      if (!commander) continue;
+      recordSpecializationExperience(commander, {
+        id: `siege:${battleYear}:${simulation?.currentMonth ?? 0}:${simulation?.currentDay ?? 0}:${attackerId}:${targetBurg.i}:${regiment.state}:${regiment.i}`,
+        domainId: "martial.siege",
+        year: battleYear,
+        coverage: 0.02,
+        mode: "battle",
+        role: "commander",
+        outcome: cityCaptured === (regiment.state === attackerId) ? "victory" : "defeat",
+        source: "simulation",
+        targets
+      });
+    }
 
     // Handle City Capture
     let actionText = "";

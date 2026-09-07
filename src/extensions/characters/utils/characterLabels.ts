@@ -1,5 +1,6 @@
 import i18n from "../../../i18n";
-import type { CharacterRole, CharacterRoleClass } from "../characterTypes";
+import type { Character, CharacterRole, CharacterRoleClass } from "../characterTypes";
+import { characterPublicEpithetId, formatEpithetLabel, UNDER_REGENCY_SUFFIX } from "../epithetCatalog";
 
 /** Stable filter options for the Characters Overview title/role dropdown. */
 export const CHARACTER_ROLE_CLASS_FILTERS: readonly CharacterRoleClass[] = [
@@ -122,7 +123,7 @@ const ROLE_KEY_BY_LABEL: Readonly<Record<string, string>> = {
   "Merchant Company Agent": "merchantCompanyAgent"
 };
 
-const UNDER_REGENCY_SUFFIX = " (Under Regency)";
+export { UNDER_REGENCY_SUFFIX };
 
 /** Resolves the English title saved in world data without changing that persisted data. */
 export function getCharacterTitleLabel(title: string): string {
@@ -154,4 +155,12 @@ export function getCharacterOverviewRoleFilterLabel(filter: CharacterOverviewRol
     return i18n.t(`characters.roleFilterNames.${filter}`);
   }
   return getCharacterRoleClassLabel(filter);
+}
+
+/** ` (二つ名)` suffix, or empty when the character has no public epithet. */
+export function getCharacterEpithetSuffix(
+  character: Pick<Character, "titles" | "roles" | "courtEpithetId" | "militaryRecord" | "epithets">
+): string {
+  const id = characterPublicEpithetId(character);
+  return id ? ` (${formatEpithetLabel(id, character)})` : "";
 }

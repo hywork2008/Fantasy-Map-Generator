@@ -12,6 +12,7 @@ import type {
   CommitmentKind,
   SocialStratum
 } from "./characterTypes";
+import { formatEpithetLabel, hasOccupationEpithet } from "./epithetCatalog";
 
 function topTastes(tastes: CharacterTaste[], polarity: "like" | "dislike", n = 2): CharacterTaste[] {
   return tastes
@@ -114,10 +115,25 @@ export function generateCharacterHooks(character: Character): CharacterFlavorHoo
   const rival = bonds.find(b => b.kind === "rival");
   if (nemesis) hooks.push({ id: "bonds.nemesis" });
   else if (rival) hooks.push({ id: "bonds.rival" });
+  if (bonds.some(b => b.kind === "favorite")) hooks.push({ id: "bonds.favorite" });
+  if (character.courtEpithetId === "sycophant") hooks.push({ id: "bonds.sycophant" });
 
   const house = origin?.lineageName;
   if (house && (origin?.socialStratum === "royal" || origin?.socialStratum === "high_noble")) {
     hooks.push({ id: "house.tongue", params: { house } });
+  }
+
+  const courtEpithetId = character.courtEpithetId;
+  if (courtEpithetId) {
+    hooks.push({ id: `epithet.${courtEpithetId}` });
+  }
+  for (const entry of character.epithets ?? []) {
+    hooks.push({ id: `epithet.${entry.id}` });
+  }
+  const militaryEpithetId = character.militaryRecord?.epithetId;
+  const suppressGuardian = hasOccupationEpithet(character, "war_god") && militaryEpithetId === "guardian";
+  if (militaryEpithetId && militaryEpithetId !== courtEpithetId && !suppressGuardian) {
+    hooks.push({ id: `epithet.${militaryEpithetId}` });
   }
 
   // Keep relationship and lineage hooks; truncation used to discard them after three generic lines.
@@ -161,7 +177,11 @@ function roleClause(role: string | undefined, t: TFunction): string {
 /**
  * Resolve a stored hook (structured or legacy English string) for the current locale.
  */
-export function formatFlavorHook(hook: CharacterFlavorHook | string, t: TFunction): string {
+export function formatFlavorHook(
+  hook: CharacterFlavorHook | string,
+  t: TFunction,
+  character?: Pick<Character, "titles">
+): string {
   if (typeof hook === "string") return hook;
 
   const id = hook.id;
@@ -209,9 +229,20 @@ export function formatFlavorHook(hook: CharacterFlavorHook | string, t: TFunctio
 
   if (id === "bonds.nemesis") return t("characters.flavorLines.bonds.nemesis");
   if (id === "bonds.rival") return t("characters.flavorLines.bonds.rival");
+  if (id === "bonds.favorite") return t("characters.flavorLines.bonds.favorite");
+  if (id === "bonds.sycophant") return t("characters.flavorLines.bonds.sycophant");
 
   if (id === "house.tongue") {
     return t("characters.flavorLines.house.tongue", { house: params.house ?? "" });
+  }
+
+  if (id.startsWith("epithet.")) {
+    const epithetId = id.slice("epithet.".length);
+    const epithet = formatEpithetLabel(epithetId, character ?? { titles: [] });
+    return t(`characters.flavorLines.${id}`, {
+      epithet,
+      defaultValue: t("characters.flavorLines.epithet.default", { epithet })
+    });
   }
 
   return t(`characters.flavorLines.${id}`, { ...params, defaultValue: id });

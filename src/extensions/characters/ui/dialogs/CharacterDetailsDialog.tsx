@@ -15,10 +15,29 @@ import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { getAbilityValue } from "../../personFactory";
+import { militaryStanding, officeSphereVisibility, type ReputationLabel, reputationAmong } from "../../prestige";
+import { specializationCsvRows } from "../../specializationExport";
+import { readEconomyPractice } from "../../specializationRuntime";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
-import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
+import { getCharacterEpithetSuffix, getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
+import { SpecializationPanel } from "../components/SpecializationPanel";
+
+function reputationLabelI18nKey(label: ReputationLabel): string {
+  switch (label) {
+    case "home":
+      return "characters.reputationLabelHome";
+    case "hero":
+      return "characters.reputationLabelHero";
+    case "infamous":
+      return "characters.reputationLabelInfamous";
+    case "unknown":
+      return "characters.reputationLabelUnknown";
+    case "noted":
+      return "characters.reputationLabelNoted";
+  }
+}
 
 /** Primary office label for overview/relation tables (first title, else first role). */
 function getOfficeLabel(character: Character): string {
@@ -64,7 +83,7 @@ type CraftSkillSnapshot = Readonly<{
   lastPracticedYear?: number;
   reconstructionLeads?: readonly CraftTechniqueLeadSnapshot[];
 }>;
-const CRAFT_SKILL_DOMAINS = ["blacksmithing", "smelting", "weaving", "tailoring"] as const;
+const CRAFT_SKILL_DOMAINS = ["blacksmithing", "smelting", "weaving", "tailoring", "fortification"] as const;
 type CharacterDetailsTab =
   | "profile"
   | "skills"
@@ -356,6 +375,13 @@ export const CharacterDetailsDialog: React.FC = () => {
             ? "appearanceToYouKindPartial"
             : "appearanceToYouKindAlien";
 
+  const militaryVis = officeSphereVisibility(character, "military");
+  const armyStanding = militaryStanding(character);
+  const foreignReputation =
+    playerCharacter && playerCharacter.state !== character.state
+      ? reputationAmong(character, playerCharacter.state)
+      : null;
+
   const handleClose = () => {
     closeDialog("characterDetails");
     // History is cleared by the isOpen effect above.
@@ -562,9 +588,50 @@ export const CharacterDetailsDialog: React.FC = () => {
           </tr>
         ) : null}
         <tr>
-          <th style={{ padding: "4px 0" }}>{t("characters.prestige")}</th>
+          <th style={{ padding: "4px 0" }} data-tip={t("characters.prestigeTip")}>
+            {t("characters.prestige")}
+          </th>
           <td>{character.prestige ?? t("characters.notAvailable")}</td>
         </tr>
+        {militaryVis >= 0.4 ? (
+          <tr>
+            <th style={{ padding: "4px 0" }} data-tip={t("characters.militaryStandingTip")}>
+              {t("characters.militaryStanding")}
+            </th>
+            <td>{armyStanding}</td>
+          </tr>
+        ) : null}
+        {foreignReputation && foreignReputation.label !== "home" ? (
+          <tr>
+            <th style={{ padding: "4px 0" }} data-tip={t("characters.reputationAmongYouTip")}>
+              {t("characters.reputationAmongYou")}
+            </th>
+            <td>
+              {t(reputationLabelI18nKey(foreignReputation.label))}
+              <span style={{ fontSize: "0.85em", marginLeft: 6 }}>
+                {t("characters.reputationHonor", { honor: foreignReputation.honor })}
+                {foreignReputation.dread > 0
+                  ? ` · ${t("characters.reputationDread", { dread: foreignReputation.dread })}`
+                  : ""}
+              </span>
+            </td>
+          </tr>
+        ) : null}
+        {character.militaryRecord?.services.length ? (
+          <tr>
+            <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.warRecord")}</th>
+            <td>
+              {t("characters.warRecordWars", { count: character.militaryRecord.wars })}
+              <ul style={{ margin: "4px 0 0", paddingLeft: "1.2em" }}>
+                {character.militaryRecord.services.map(service => (
+                  <li key={`${service.year}-${service.campaignName}-${service.opponentStateId}`}>
+                    {service.year} {service.campaignName}: {t(`characters.warConduct.${service.conduct}`)}
+                  </li>
+                ))}
+              </ul>
+            </td>
+          </tr>
+        ) : null}
         {character.family ? (
           <tr>
             <th style={{ padding: "4px 0" }}>{t("characters.family")}</th>
@@ -646,7 +713,7 @@ export const CharacterDetailsDialog: React.FC = () => {
 
     // Basic Info
     rows.push(t("characters.personalInformation"));
-    rows.push(`${t("characters.name")}, ${character.name}`);
+    rows.push(`${t("characters.name")}, ${character.name}${getCharacterEpithetSuffix(character)}`);
     rows.push(`${t("characters.age")}, ${character.age}`);
     rows.push(`${t("characters.gender")}, ${t(`characters.${character.gender}`)}`);
     rows.push(`${t("characters.status")}, ${statusText}`);
@@ -673,6 +740,22 @@ export const CharacterDetailsDialog: React.FC = () => {
       );
     }
     rows.push(`${t("characters.prestige")}, ${character.prestige ?? t("characters.notAvailable")}`);
+    if (militaryVis >= 0.4) {
+      rows.push(`${t("characters.militaryStanding")}, ${armyStanding}`);
+    }
+    if (foreignReputation && foreignReputation.label !== "home") {
+      rows.push(
+        `${t("characters.reputationAmongYou")}, ${t(reputationLabelI18nKey(foreignReputation.label))} (${t("characters.reputationHonor", { honor: foreignReputation.honor })}${foreignReputation.dread > 0 ? `; ${t("characters.reputationDread", { dread: foreignReputation.dread })}` : ""})`
+      );
+    }
+    if (character.militaryRecord?.services.length) {
+      rows.push(
+        `${t("characters.warRecord")}, ${t("characters.warRecordWars", { count: character.militaryRecord.wars })}`
+      );
+      for (const service of character.militaryRecord.services) {
+        rows.push(`${service.year} ${service.campaignName}, ${t(`characters.warConduct.${service.conduct}`)}`);
+      }
+    }
     rows.push(`${t("characters.wealth")}, ${character.wealth ?? 0}`);
 
     // Family
@@ -822,7 +905,7 @@ export const CharacterDetailsDialog: React.FC = () => {
 
       if (backstory.hooks?.length) {
         rows.push(t("characters.flavorHooks"));
-        for (const hook of backstory.hooks) rows.push(formatFlavorHook(hook, t));
+        for (const hook of backstory.hooks) rows.push(formatFlavorHook(hook, t, character));
       }
 
       if (backstory.bonds?.length) {
@@ -904,6 +987,8 @@ export const CharacterDetailsDialog: React.FC = () => {
       }
     }
 
+    if (!hasDnd5eTab)
+      rows.push(...specializationCsvRows(character, getWorldContext().pack.languageWorld, readEconomyPractice));
     const csvContent = rows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -940,7 +1025,9 @@ export const CharacterDetailsDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={t("characters.dialogTitle", { name: character.name })}
+      title={t("characters.dialogTitle", {
+        name: `${character.name}${getCharacterEpithetSuffix(character)}`
+      })}
       onClose={handleClose}
       buttons={dialogButtons}
     >
@@ -950,7 +1037,10 @@ export const CharacterDetailsDialog: React.FC = () => {
           <tbody>
             <tr>
               <th style={{ width: "120px", padding: "4px 0" }}>{t("characters.name")}</th>
-              <td>{character.name}</td>
+              <td>
+                {character.name}
+                {getCharacterEpithetSuffix(character)}
+              </td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.age")}</th>
@@ -1101,6 +1191,7 @@ export const CharacterDetailsDialog: React.FC = () => {
             ) : (
               <p>{t("characters.noSkills")}</p>
             )}
+            <SpecializationPanel key={character.i} character={character} />
           </div>
         )}
 
@@ -1473,7 +1564,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     <td>
                       <ul style={{ margin: 0, paddingLeft: "1.1em" }}>
                         {backstory.hooks.map((hook, index) => {
-                          const text = formatFlavorHook(hook, t);
+                          const text = formatFlavorHook(hook, t, character);
                           return <li key={typeof hook === "string" ? hook : `${hook.id}-${index}`}>{text}</li>;
                         })}
                       </ul>

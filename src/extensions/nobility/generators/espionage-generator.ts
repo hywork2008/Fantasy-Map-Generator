@@ -1,3 +1,4 @@
+import { specializationScore } from "../../characters/specializations";
 import { appServices, type IntelligenceReport, simulationContext } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { getRulerId, getWorldContext } from "../nobilityContext";
@@ -97,8 +98,8 @@ export class EspionageGenerator {
       // entirely (SPYMASTERY_EFFECTIVENESS_FLOOR) — the office still runs on old contacts.
       const spymasteryEffectiveness = getSpymasteryEffectiveness(observer);
       const observerIntrigue =
-        ((observerSpymaster?.skills.intrigue ?? 5) * 1.5 +
-          (observerRuler?.skills.intrigue ?? 5) +
+        ((observerSpymaster ? specializationScore(observerSpymaster, "intrigue.analysis") : 5) * 1.5 +
+          (observerRuler ? specializationScore(observerRuler, "intrigue.analysis") : 5) +
           (observerRuler?.personality.guile ?? 5)) *
         spymasteryEffectiveness;
 
@@ -126,8 +127,8 @@ export class EspionageGenerator {
         );
 
         const targetIntrigue =
-          (targetSpymaster?.skills.intrigue ?? 5) * 1.5 +
-          (targetRuler?.skills.intrigue ?? 5) +
+          (targetSpymaster ? specializationScore(targetSpymaster, "intrigue.counterintelligence") : 5) * 1.5 +
+          (targetRuler ? specializationScore(targetRuler, "intrigue.counterintelligence") : 5) +
           (targetRuler?.personality.guile ?? 5);
 
         // Actual values

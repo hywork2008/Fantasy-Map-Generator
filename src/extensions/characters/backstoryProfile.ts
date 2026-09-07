@@ -1,3 +1,4 @@
+import { applySpecializationEducation, specializationScore } from "./specializations";
 /**
  * Character backstory profile: origin, commitment, tastes, favor, and gifts.
  * Spec: docs/plan/characters/backstory-profile.md
@@ -44,6 +45,7 @@ import {
 } from "./cultureFormPacks";
 import { buildDailyTastes, DAILY_TASTE_GOODS, DAILY_TASTE_IDS, retainTastes } from "./dailyTastes";
 import { seedCharacterLoadout } from "./loadoutSeed";
+import { rollInitialPrestige } from "./prestige";
 import { applyBackgroundSkillBias, syncCk3AbilityProfileSkills } from "./skillGeneration";
 import { assessTasteRelationship, projectTasteRelationshipDelta } from "./tasteRelationship";
 
@@ -192,32 +194,6 @@ function pickWeighted<T extends string>(weights: Partial<Record<T, number>>): T 
     if (roll <= 0) return key;
   }
   return entries[entries.length - 1]![0];
-}
-
-function prestigeForStratum(stratum: SocialStratum): number {
-  switch (stratum) {
-    case "royal":
-      return rand(70, 100);
-    case "high_noble":
-      return rand(55, 95);
-    case "minor_noble":
-      return rand(35, 80);
-    case "gentry":
-      return rand(25, 65);
-    case "merchant_born":
-      return rand(15, 70);
-    case "commoner":
-      return rand(5, 45);
-    case "freedman":
-    case "slave_born":
-      return rand(1, 30);
-    case "clergy_orphan":
-      return rand(20, 60);
-    case "foreigner":
-      return rand(10, 55);
-    case "unknown":
-      return rand(1, 50);
-  }
 }
 
 function estateForRole(roleClass: CharacterRoleClass, stratum: SocialStratum): EstateStatus {
@@ -1366,7 +1342,7 @@ function buildOrigin(
 }
 
 /**
- * Populate `character.backstory`, align birthStateId/nationality, and bias prestige by stratum.
+ * Populate `character.backstory`, align birthStateId/nationality, and set public prestige.
  * Safe to call after titles, roles, and location are assigned.
  */
 export function applyCharacterBackstory(character: Character, options: ApplyBackstoryOptions = {}): void {
@@ -1380,6 +1356,13 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
     options.roleClass ?? (options.isReligiousRole ? "religious" : undefined) ?? inferRoleClass(character);
 
   const origin = buildOrigin(character, options, roleClass);
+  // Stratum + raisedIn nudge skills after occupation roll, before prestige and tastes.
+  // createPerson already applied roleClass / primarySkill medians.
+  if (applySkillBackground) {
+    applyBackgroundSkillBias(character.skills, origin.socialStratum, origin.raisedIn);
+    syncCk3AbilityProfileSkills(character);
+    character.prestige = rollInitialPrestige(character, roleClass, origin.socialStratum);
+  }
   const commitment = buildCommitment(character, roleClass, options.formName, origin.socialStratum);
   const cultureType = resolveCultureTypeForLoadout(character.culture);
   const tastes = buildTastes(character, roleClass, commitment, origin, options.formName, cultureType);
@@ -1387,13 +1370,6 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
   // Integrity: faith commitment with very low piety → boost piety slightly (G1 soft)
   if (commitment.primary.kind === "faith" && character.personality.piety < 20) {
     character.personality.piety = rand(20, 40);
-  }
-
-  // Stratum (家業・出自) + raisedIn (成育環境) nudge skills after occupation roll.
-  // createPerson already applied roleClass / primarySkill medians.
-  if (applySkillBackground) {
-    applyBackgroundSkillBias(character.skills, origin.socialStratum, origin.raisedIn);
-    syncCk3AbilityProfileSkills(character);
   }
 
   character.backstory = {
@@ -1404,14 +1380,18 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
   } satisfies CharacterBackstory;
 
   seedCharacterMotivation(character);
+  if (applySkillBackground) {
+    let languageWorld: import("../../types/worldLanguages").WorldLanguages | undefined;
+    try {
+      languageWorld = getWorldContext().pack.languageWorld;
+    } catch {
+      /* Pure generator tests. */
+    }
+    applySpecializationEducation(character, languageWorld);
+  }
 
   character.birthStateId ??= origin.birthStateId;
   character.nationalityStateId ??= character.state;
-
-  // Soft prestige re-roll toward stratum band (keep some existing variance)
-  const band = prestigeForStratum(origin.socialStratum);
-  character.prestige = Math.round(character.prestige * 0.35 + band * 0.65);
-  character.prestige = Math.max(1, Math.min(100, character.prestige));
 
   // Household attire + martial kit (docs/plan/character-loadout-and-readiness.md EQ-1).
   // Runs after origin/estate so dignity floors apply; does not mint inventory units.
@@ -1706,8 +1686,18 @@ export function computeInitialSolidarity(from: Character, to: Character): number
         score += rand(0, 8);
         const sycophantSubordinate = isMinisterLike(toClass) && isSycophantProfile(tp);
         if (sycophantSubordinate) {
-          // Enjoys the flattery; less quick to read polished guile as pure threat
-          score += rand(8, 16);
+          const seesThrough = fp.rationality >= 65 && from.skills.intrigue >= 55;
+          const takenIn = fp.rationality <= 40 || from.skills.intrigue <= 35;
+          if (seesThrough) {
+            // 賢王: polish reads as a bid, not devotion
+            score -= rand(8, 20);
+          } else if (takenIn) {
+            // 愚王: honeyed words outweigh the council
+            score += rand(14, 28);
+          } else {
+            // Average sovereign enjoys court polish
+            score += rand(6, 14);
+          }
         } else {
           if (tp.guile >= 70 && tp.honor <= 45) score -= rand(10, 25);
           if (tp.honor >= 70) score += rand(5, 15);
@@ -2026,7 +2016,16 @@ function tasteMatchScore(recipient: Character, goodName: string | undefined): nu
     score += taste.polarity === "like" ? 40 * weight : -45 * weight;
   }
   if (/artwork|sculpture|tapestry|instrument|ceramic|glass/i.test(goodName)) {
-    score += (recipient.skills.artistry - 40) * 0.35;
+    const domain = /ceramic/i.test(goodName)
+      ? "artistry.ceramics"
+      : /sculpture/i.test(goodName)
+        ? "artistry.sculpture"
+        : /instrument/i.test(goodName)
+          ? "artistry.music"
+          : /tapestry|glass/i.test(goodName)
+            ? "artistry.decorativeArts"
+            : "artistry.painting";
+    score += (specializationScore(recipient, domain, "appraisal") - 40) * 0.35;
   }
   if (/book|paper|ink/i.test(goodName)) score += (recipient.skills.learning - 40) * 0.25;
   if (/wine|liquor|beer/i.test(goodName) && recipient.personality.sociability >= 60) score += 10;

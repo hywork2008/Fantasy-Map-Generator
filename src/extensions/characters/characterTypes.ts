@@ -1,4 +1,5 @@
 import type { AppearanceAxes, CharacterRaceAppearance } from "../../types/models";
+import type { CharacterSpecializationProfile } from "./specializationTypes";
 
 export type Gender = "male" | "female";
 export type { AppearanceAxes, AppearanceAxisId, CharacterRaceAppearance } from "../../types/models";
@@ -11,6 +12,56 @@ export type { AppearanceAxes, AppearanceAxisId, CharacterRaceAppearance } from "
  * See createPerson() in personFactory.ts for where each axis is biased.
  */
 export type CharacterGenerationBias = "none" | "youngMaleHeavy" | "youngFemaleHeavy";
+
+/** How a person actually fought in a reconstructed campaign — not the state's win/loss. */
+export type WarConductKind =
+  | "rear_idle"
+  | "front_assault"
+  | "rearguard_rescue"
+  | "defensive_hold"
+  | "costly_push"
+  | "cautious_avoid";
+
+export type MilitaryEpithetId = "guardian" | "last_guard" | "wall" | "vanguard" | "idle_banner";
+
+/** Public court nickname — distinct from war-conduct epithets on `militaryRecord`. */
+export type CourtEpithetId =
+  | "foolish_king"
+  | "wise_king"
+  | "sycophant"
+  | "benevolent_king"
+  | "renowned_king"
+  | "tyrant_king";
+
+export type EpithetLineage = "court" | "war_conduct" | "war_legend" | "craft" | "commerce" | "office";
+
+/** v1 occupation nicknames. Future ids (learned_divine, virtuoso, …) stay out of this union. */
+export type OccupationEpithetId =
+  | "war_god"
+  | "master_artisan"
+  | "prodigy"
+  | "magnate"
+  | "unscrupulous_merchant"
+  | "able_minister";
+
+export interface CharacterEpithet {
+  lineage: Exclude<EpithetLineage, "court" | "war_conduct">;
+  id: OccupationEpithetId;
+}
+
+export interface CharacterWarService {
+  campaignName: string;
+  year: number;
+  opponentStateId: number;
+  side: "attacker" | "defender";
+  conduct: WarConductKind;
+}
+
+export interface CharacterMilitaryRecord {
+  wars: number;
+  services: CharacterWarService[];
+  epithetId?: MilitaryEpithetId;
+}
 
 export interface TitleHolding {
   /** Gender-resolved display title, e.g. "King", "Prime Minister", "Khan". */
@@ -237,6 +288,7 @@ export type CharacterBondKind =
   | "ward"
   | "patron"
   | "client"
+  | "favorite"
   | "blood_feud"
   | "comrade"
   | "hometown_kin";
@@ -432,6 +484,8 @@ export interface Character {
   nationalityStateId?: number;
   roles?: CharacterRole[];
   skills: CharacterSkills;
+  /** Optional detailed knowledge, practice, experience and language profile. */
+  specializations?: CharacterSpecializationProfile;
   personality: CharacterPersonality;
   /**
    * Ability-score profile from the Characters extension's current global ability
@@ -455,6 +509,10 @@ export interface Character {
    * Cross-race romantic judgment must not use this alone.
    */
   appearance: number;
+  /**
+   * Home-public honor (1–100), not lineage, court influence, army esteem, or foreign fame.
+   * Observer-relative hero/infamy is derived — see docs/plan/characters/prestige.md.
+   */
   prestige: number;
   /**
    * Personal wealth, distinct from state.treasury — a ruler's household stipend
@@ -497,6 +555,21 @@ export interface Character {
   affliction?: CharacterAffliction;
   /** Illnesses survived — optional flavor/prestige signal ("weathered the pox twice"). */
   timesIllness?: number;
+  /**
+   * Reconstructed personal war service from Relations-history campaigns.
+   * Campaign `end` is not a victory. Conduct is how they fought, not whether the state "won".
+   */
+  militaryRecord?: CharacterMilitaryRecord;
+  /**
+   * Public court nickname (愚王 / 賢王 / 佞臣). Distinct from `militaryRecord.epithetId`.
+   * Assigned at society finalize from governing competence and the foolish-ruler / sycophant pair.
+   */
+  courtEpithetId?: CourtEpithetId;
+  /**
+   * Occupation nicknames other than court and war-conduct (軍神 / 名工 / 豪商 / 悪徳商人 / …).
+   * At most one id per lineage. Missing means unused — load does not backfill.
+   */
+  epithets?: CharacterEpithet[];
 }
 
 /** Quality band shared by attire and weapons (1 = rags / farm tool … 5 = royal / masterwork). */

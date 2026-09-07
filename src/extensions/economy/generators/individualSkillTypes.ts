@@ -10,7 +10,8 @@ export const INDIVIDUAL_SKILL_DOMAINS = [
   "tailoring",
   "swordsmanship",
   "archery",
-  "horsemanship"
+  "horsemanship",
+  "fortification"
 ] as const;
 
 export type IndividualSkillDomain = (typeof INDIVIDUAL_SKILL_DOMAINS)[number];

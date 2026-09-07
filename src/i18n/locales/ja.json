@@ -154,6 +154,18 @@
     "looksVitality": "生気",
     "looksOrnament": "装飾・傷跡",
     "prestige": "名声",
+    "prestigeTip": "自国民衆から見た名誉です。宮廷の実効力、軍部の評価、外国での評判とは別です。",
+    "militaryStanding": "軍部評価",
+    "militaryStandingTip": "軍がこの人物をどう見るかです。宮廷の寵児より、野戦の指揮官の方が高くなることがあります。",
+    "reputationAmongYou": "あなたの国から見た評価",
+    "reputationAmongYouTip": "同じ伝説を自国の宮廷がどう読むかです。味方には英雄、敵には悪名と恐れ。保存された第二の名声ではありません。",
+    "reputationLabelHome": "自国民衆",
+    "reputationLabelHero": "英雄",
+    "reputationLabelInfamous": "悪名",
+    "reputationLabelUnknown": "国外では無名",
+    "reputationLabelNoted": "国外で名が通る",
+    "reputationHonor": "名誉 {{honor}}",
+    "reputationDread": "恐れ {{dread}}",
     "wealth": "資産",
     "wealthTip": "個人が保有する資産です。国家の財務とは別に扱われます。",
     "health": "健康",
@@ -204,7 +216,8 @@
       "blacksmithing": "鍛冶",
       "smelting": "製錬",
       "weaving": "織布",
-      "tailoring": "仕立て"
+      "tailoring": "仕立て",
+      "fortification": "築城"
     },
     "craftSkillAptitudeNames": {
       "poor": "低い",
@@ -344,11 +357,78 @@
       },
       "bonds": {
         "nemesis": "決して許さない敵の名を、私的な帳簿に記している。",
-        "rival": "ある同僚を、梯子——あるいは障害——として扱う。"
+        "rival": "ある同僚を、梯子——あるいは障害——として扱う。",
+        "favorite": "寵臣の甘言が、会議よりも重い。",
+        "sycophant": "主君の耳を糧にし、忠義は別の場所に置いている。"
       },
       "house": {
         "tongue": "{{house}}の名は、舌の先から離れない。"
+      },
+      "epithet": {
+        "guardian": "兵は守護神と呼ぶ。生きて帰れる道を、この者が残すからだ。",
+        "last_guard": "殿を務め、味方を生きて帰したことで知られる。",
+        "wall": "陣が鉄でできたかのように、その場を離れない。",
+        "vanguard": "砂塵の先に立ち、前線を最後まで譲らない。",
+        "idle_banner": "どの戦の名簿にも名があり、どの戦場にもいなかった。",
+        "foolish_king": "{{epithet}}と呼ばれる。耳は甘言に開き、国の帳簿には閉じる。",
+        "wise_king": "{{epithet}}と呼ばれる。諫言を聞き、甘い言葉を測る。",
+        "sycophant": "主君の耳を握り、その主君には何も負っていない。",
+        "benevolent_king": "{{epithet}}と呼ばれる。民の痛みを、遠い噂にはしない。",
+        "tyrant_king": "{{epithet}}と呼ばれる。慈悲は薄く、怒りと欲が政を決める。",
+        "renowned_king": "{{epithet}}と呼ばれる。名はすでに市と祠にある。",
+        "war_god": "武勇と指揮の伝説であり、もう一つの祀りではない。",
+        "master_artisan": "仕事そのものが、市にこの名を教えた。",
+        "prodigy": "席ができる前から、神童と呼ばれている。",
+        "magnate": "この名が口に上ると、金が動く。",
+        "unscrupulous_merchant": "請負と高利が、市にこの名を教えた。",
+        "able_minister": "帳簿も使節も、この者に答える。",
+        "default": "{{epithet}}と呼ばれる。"
       }
+    },
+    "epithetNames": {
+      "guardian": "守護神",
+      "last_guard": "殿軍",
+      "wall": "鉄壁",
+      "vanguard": "先鋒",
+      "idle_banner": "控えの将",
+      "foolish_king": "the Fool",
+      "wise_king": "the Wise",
+      "sycophant": "佞臣",
+      "benevolent_king": "仁君",
+      "tyrant_king": "暴君",
+      "renowned_king": "名君",
+      "war_god": "軍神",
+      "master_artisan": "名工",
+      "prodigy": "神童",
+      "magnate": "豪商",
+      "unscrupulous_merchant": "悪徳商人",
+      "able_minister": "能吏"
+    },
+    "epithetStems": {
+      "wise_king": {
+        "king": "賢王",
+        "queen": "賢女王",
+        "emperor": "賢帝",
+        "empress": "賢女帝",
+        "lord": "賢君"
+      },
+      "foolish_king": {
+        "king": "愚王",
+        "queen": "愚女王",
+        "emperor": "愚帝",
+        "empress": "愚女帝",
+        "lord": "愚君"
+      }
+    },
+    "warRecord": "戦歴",
+    "warRecordWars": "{{count}}回の従軍",
+    "warConduct": {
+      "rear_idle": "後方に下がって動かなかった",
+      "front_assault": "前線で指揮した",
+      "rearguard_rescue": "撤退を支え、味方を助けた",
+      "defensive_hold": "防衛線を守った",
+      "costly_push": "突っ込んだが犠牲が大きかった",
+      "cautious_avoid": "戦闘を避けた"
     },
     "bonds": "関係ラベル",
     "bondKindNames": {
@@ -361,6 +441,7 @@
       "ward": "被後見人",
       "patron": "後援者",
       "client": "取り巻き",
+      "favorite": "寵臣",
       "blood_feud": "血仇",
       "comrade": "戦友",
       "hometown_kin": "同郷"
@@ -756,7 +837,133 @@
     "lifeEvents": "人生の出来事",
     "migration": "移住・亡命",
     "familyOccupation": "家業",
-    "resignedFor": "辞任：{{reason}}"
+    "resignedFor": "辞任：{{reason}}",
+    "expertise": {
+      "title": "専門分野",
+      "legacy": "この人物の詳細能力は未設定です。既存の概要値を概算として使用します。",
+      "editHint": "編集：知識・実践・鑑賞を個別に設定できます。空欄は不明、0は未習得です。",
+      "task": "任務適性",
+      "approximate": "概算（概要値を含む）",
+      "detailed": "詳細能力による評価",
+      "missing": "未設定の専門",
+      "domain": "分野",
+      "knowledge": "知識",
+      "practice": "実践",
+      "appraisal": "鑑賞・鑑定",
+      "unknown": "不明",
+      "sharedPractice": "既存の個人熟練を参照する共通値です。",
+      "add": "追加",
+      "save": "保存",
+      "familiarities": "得意な環境・対象",
+      "target": "対象",
+      "targetId": "対象名",
+      "selectedDomain": "選択中の分野",
+      "languages": "言語",
+      "language": "言語",
+      "listening": "聞き取り",
+      "speaking": "会話",
+      "literacy": "文字別の読み書き",
+      "reading": "読解",
+      "writing": "作文",
+      "chooseLanguage": "言語を選択",
+      "worldSettings": "世界の言語設定",
+      "native": "母語",
+      "learned": "学習言語",
+      "heritage": "継承言語",
+      "acquisition": "習得背景",
+      "experience": "経験",
+      "experienceHint": "時間経過による実務と実際の戦闘を記録します。勝利数だけで成長は決まりません。",
+      "year": "年",
+      "mode": "活動",
+      "duration": "従事年数",
+      "outcome": "結果",
+      "worldHint": "言語は複数の文化・国家で共有できます。言語政策を保存しても人物の習熟度は変わりません。",
+      "scripts": "文字体系",
+      "script": "文字",
+      "newScript": "新しい文字",
+      "addScript": "文字を追加",
+      "newLanguage": "新しい言語",
+      "addLanguage": "言語を追加",
+      "culture": "文化",
+      "share": "比率",
+      "sharesHint": "日常言語の比率は合計1にしてください。文字を選択しない言語は口承言語です。",
+      "literaryLanguageIds": "文芸言語",
+      "liturgicalLanguageIds": "典礼言語",
+      "administrativeLanguageIds": "行政言語",
+      "courtLanguageIds": "宮廷言語",
+      "diplomaticLanguageIds": "外交言語",
+      "recognizedLanguageIds": "承認言語",
+      "statePolicy": "国家の言語政策",
+      "saveWorld": "世界の言語設定を保存",
+      "tasks": {
+        "command": "部隊指揮",
+        "operations": "作戦立案",
+        "siege": "攻城戦",
+        "naval": "艦隊指揮",
+        "treaty": "条約起草",
+        "negotiation": "交渉",
+        "tax": "税務",
+        "intelligence": "情報分析",
+        "ceramics": "陶器鑑定",
+        "construction": "建設",
+        "navigation": "航法",
+        "combat": "剣での戦闘",
+        "teaching": "教育"
+      },
+      "targets": {
+        "terrain": "地形",
+        "climate": "気候",
+        "troop": "兵科",
+        "region": "地域",
+        "culture": "文化",
+        "institution": "制度",
+        "weapon": "武器",
+        "artSchool": "芸術流派",
+        "material": "素材",
+        "commandScale": "指揮規模",
+        "languagePair": "翻訳言語対"
+      },
+      "modes": {
+        "study": "座学",
+        "training": "訓練",
+        "service": "実務",
+        "battle": "実戦",
+        "appraisal": "鑑賞"
+      },
+      "outcomes": {
+        "service": "実務に従事",
+        "victory": "勝利",
+        "defeat": "敗北",
+        "lesson": "学習"
+      },
+      "learning": "座学・訓練",
+      "learningHint": "同じ場所にいる教師から時間経過に応じて学習し、年間の最大4分の1を使用します。工芸の実技は既存の師弟制度で学びます。",
+      "teacher": "教師",
+      "chooseTeacher": "同じ場所の教師を選択",
+      "learningActive": "学習中",
+      "learningPaused": "休止中：教師または意思疎通の条件不足",
+      "stopLearning": "学習を停止",
+      "startLearning": "学習を開始",
+      "learningUnavailable": "同じ場所にいる教師の詳細熟練が50以上必要です。説明には共通言語が必要です。口頭言語は実際の会話から学べます。",
+      "subjects": {
+        "plain": "平原",
+        "forest": "森林",
+        "hill": "丘陵",
+        "mountain": "山岳",
+        "desert": "砂漠",
+        "wetland": "湿地",
+        "urban": "都市",
+        "river": "河川",
+        "coast": "沿岸",
+        "ocean": "外洋",
+        "cold": "寒冷",
+        "hot": "酷暑",
+        "rainy": "雨季",
+        "regiment": "連隊",
+        "army": "軍団",
+        "fleet": "艦隊"
+      }
+    }
   },
   "economy": {
     "goods": {
@@ -4236,8 +4443,14 @@
       "previewNth": "{{n}} セルに 1 つ",
       "previewRandom": "{{n}}% の確率",
       "fn": {
-        "biome": { "label": "バイオーム", "description": "指定したバイオームのセル" },
-        "biomeTag": { "label": "バイオームタグ", "description": "選んだ意味タグを持つバイオームのセル" },
+        "biome": {
+          "label": "バイオーム",
+          "description": "指定したバイオームのセル"
+        },
+        "biomeTag": {
+          "label": "バイオームタグ",
+          "description": "選んだ意味タグを持つバイオームのセル"
+        },
         "minHeight": {
           "label": "最低標高",
           "paramLabel": "標高（0–100）",
@@ -4267,13 +4480,22 @@
           "description": "水域への近さでセルを選ぶ",
           "note": "−1：浅海、−2：深海、1：沿岸陸地、2：沿岸近くの陸地。"
         },
-        "type": { "label": "水域の種類", "description": "水域の種類でセルを選ぶ" },
-        "coastalHabitat": { "label": "沿岸生息地", "description": "選んだ沿岸生息地を持つ陸地セル" },
+        "type": {
+          "label": "水域の種類",
+          "description": "水域の種類でセルを選ぶ"
+        },
+        "coastalHabitat": {
+          "label": "沿岸生息地",
+          "description": "選んだ沿岸生息地を持つ陸地セル"
+        },
         "nearshoreHabitat": {
           "label": "近海生息地",
           "description": "選んだ近海生息地を持つ浅海セル"
         },
-        "river": { "label": "河川", "description": "川が流れるセル" },
+        "river": {
+          "label": "河川",
+          "description": "川が流れるセル"
+        },
         "minHabitability": {
           "label": "最低居住性",
           "paramLabel": "居住性（0–100）",

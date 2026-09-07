@@ -257,3 +257,77 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(staged.mapData).toEqual(["1.0.0|license", "settings", '<svg id="map">\n</svg>']);
   });
 });
+
+describe("character expertise archive", () => {
+  it("round-trips host languages and character expertise without rerolling or double storing practice", async () => {
+    const world = sampleWorld();
+    world.pack.cultures = [{ i: 1, name: "Shared culture", base: 1, shield: "round" }];
+    world.pack.languageWorld = {
+      version: 1,
+      languages: [{ id: "trade", name: "Trade tongue", scriptIds: ["letters"] }],
+      scripts: [{ id: "letters", name: "Letters" }],
+      cultures: [
+        {
+          cultureId: 1,
+          languages: [{ languageId: "trade", share: 1 }],
+          literaryLanguageIds: [],
+          liturgicalLanguageIds: []
+        }
+      ],
+      states: [
+        {
+          stateId: 1,
+          administrativeLanguageIds: ["trade"],
+          courtLanguageIds: [],
+          diplomaticLanguageIds: ["trade"],
+          recognizedLanguageIds: []
+        }
+      ]
+    };
+    const simulation = sampleSimulation();
+    simulation.extensions = {
+      characters: {
+        characters: [
+          {
+            i: 1,
+            skills: { martial: 70 },
+            specializations: {
+              version: 1,
+              domains: [
+                { domainId: "martial.command", knowledge: 90, practice: 0 },
+                {
+                  domainId: "engineering.metallurgy.blacksmithing",
+                  practiceRef: { owner: "economy", domain: "blacksmithing" }
+                }
+              ],
+              languages: [
+                {
+                  languageId: "trade",
+                  listening: 80,
+                  speaking: 60,
+                  literacy: [{ scriptId: "letters", reading: 70, writing: 20 }],
+                  acquisition: "native"
+                }
+              ],
+              familiarities: [],
+              experience: [],
+              experienceYears: {}
+            }
+          }
+        ]
+      }
+    };
+    const document = createWorldDocument(world, simulation, createPresentationData(), []);
+    const codec = new ChunkedWorldCodecAdapter();
+    const blob = await codec.encode(document);
+    const result = await codec.decode({ header: new Uint8Array(await blob.slice(0, 4).arrayBuffer()), blob });
+    expect(result.document.world.pack.languageWorld).toEqual(world.pack.languageWorld);
+    expect(result.document.simulation.extensions.characters).toEqual(simulation.extensions.characters);
+    const invalid = structuredClone(document);
+    invalid.world.pack.languageWorld!.languages = [];
+    await expect(codec.encode(invalid)).rejects.toThrow();
+    const wrongCulture = structuredClone(document);
+    wrongCulture.world.pack.languageWorld!.cultures[0].cultureId = 999;
+    await expect(codec.encode(wrongCulture)).rejects.toThrow(/cultureId/);
+  });
+});

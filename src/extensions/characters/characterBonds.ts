@@ -6,7 +6,7 @@ import { P, rand } from "../hostUtils";
 import { getFavor, getSolidarity, inferRoleClass } from "./backstoryProfile";
 import type { Character, CharacterBond, CharacterBondKind } from "./characterTypes";
 
-function pushBond(character: Character, bond: CharacterBond): void {
+function pushBond(character: Character, bond: CharacterBond, options?: { ignoreCap?: boolean }): void {
   if (!character.backstory) return;
   character.backstory.bonds ??= [];
   // Avoid duplicate kind+target
@@ -17,9 +17,24 @@ function pushBond(character: Character, bond: CharacterBond): void {
   ) {
     return;
   }
-  // Cap bonds per character
-  if (character.backstory.bonds.length >= 6) return;
+  // Cap bonds per character unless a featured court pair must always appear.
+  if (!options?.ignoreCap && character.backstory.bonds.length >= 6) return;
   character.backstory.bonds.push(bond);
+}
+
+/** Featured relationships (愚王–佞臣) ignore the usual sparse-bond cap. */
+export function addCharacterBond(character: Character, bond: CharacterBond, ignoreCap = false): void {
+  pushBond(character, bond, { ignoreCap });
+}
+
+export function removeCharacterBond(
+  character: Character,
+  match: Pick<CharacterBond, "kind" | "targetType" | "targetId">
+): void {
+  if (!character.backstory?.bonds) return;
+  character.backstory.bonds = character.backstory.bonds.filter(
+    b => !(b.kind === match.kind && b.targetType === match.targetType && b.targetId === match.targetId)
+  );
 }
 
 function isMilitary(character: Character): boolean {

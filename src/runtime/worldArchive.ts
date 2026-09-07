@@ -11,6 +11,7 @@ import type { BiomesData } from "../types/WorldState";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
+import { validateWorldLanguages } from "../utils/worldLanguages";
 import {
   CORE_ENTITY_KINDS,
   type CoreEntityKind,
@@ -259,6 +260,19 @@ function assertOptionalReference(
 }
 
 function assertEntityTableReferences(pack: Record<string, unknown>, cellCount: number): void {
+  validateWorldLanguages(pack.languageWorld);
+  if (pack.languageWorld) {
+    for (const [profiles, table, field] of [
+      [pack.languageWorld.cultures, pack.cultures, "cultureId"],
+      [pack.languageWorld.states, pack.states, "stateId"]
+    ] as const) {
+      for (const profile of profiles) {
+        const id = (profile as unknown as Record<string, number>)[field];
+        if (!Array.isArray(table) || !table.some(entity => isRecord(entity) && entity.i === id))
+          throw new Error(`languageWorld: unknown ${field} ${id}`);
+      }
+    }
+  }
   const burgs = pack.burgs as unknown[];
   const states = pack.states as unknown[];
   const cultures = Array.isArray(pack.cultures) ? pack.cultures.length : 0;

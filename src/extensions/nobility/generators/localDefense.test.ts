@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Burg } from "../../../types/models";
 import type { Character } from "../../characters/characterTypes";
+import { emptySpecializations, recordSpecializationExperience } from "../../characters/specializations";
 import {
   clearEconomyContext,
   getGuildKnowledgeStocks,
@@ -16,10 +17,35 @@ import {
   canOccupyBurg,
   captureBurg,
   commanderPowerMultiplier,
+  DEFAULT_FORTIFICATION_QUALITY,
+  FORTIFIED_ATTACK_RATIO,
+  fortificationAttackRatio,
+  isBurgFortified,
   occupyingDisciplineMultiplier
 } from "./localDefense";
 
 const burg = { population: 20 } as Burg;
+
+describe("fortificationAttackRatio", () => {
+  it("keeps the field ratio for an unfortified town", () => {
+    expect(isBurgFortified({})).toBe(false);
+    expect(fortificationAttackRatio({}, 1.3)).toBe(1.3);
+  });
+
+  it("uses the classic 3× ratio when walls exist but quality is missing", () => {
+    expect(isBurgFortified({ walls: 1 })).toBe(true);
+    expect(fortificationAttackRatio({ walls: 1 }, 1.3)).toBe(FORTIFIED_ATTACK_RATIO);
+    expect(fortificationAttackRatio({ citadel: 1, fortificationQuality: DEFAULT_FORTIFICATION_QUALITY }, 1.5)).toBe(
+      FORTIFIED_ATTACK_RATIO
+    );
+  });
+
+  it("raises the required ratio for excellent design and lowers it only toward the fortified floor", () => {
+    expect(fortificationAttackRatio({ walls: 1, fortificationQuality: 100 }, 1.3)).toBeCloseTo(4.2, 5);
+    expect(fortificationAttackRatio({ walls: 1, fortificationQuality: 0 }, 1.3)).toBeCloseTo(2.4, 5);
+    expect(fortificationAttackRatio({ walls: 1, fortificationQuality: 0 }, 1.3)).toBeGreaterThan(1.3);
+  });
+});
 
 describe("local burg defense", () => {
   it("converts a burg's population points to inhabitants", () => {
@@ -140,4 +166,31 @@ describe("captureBurg()", () => {
       expect(getGuildKnowledgeStocks()[0].stock).toBe(0.8);
     });
   });
+});
+
+it("uses newly acquired siege expertise only in the relevant siege evaluation", () => {
+  const commander = {
+    i: 7,
+    skills: { martial: 50 },
+    titles: [{ title: "Commander", entityType: "state", entityId: 1 }],
+    specializations: emptySpecializations()
+  } as unknown as Character;
+  commander.specializations!.domains = [{ domainId: "martial.siege", practice: 20 }];
+  const regiment = { commanderId: 7, state: 1, a: 100, u: { infantry: 100 } } as unknown as MilitaryRegiment;
+  const terrain = [{ kind: "terrain" as const, id: "urban" }];
+  const before = commanderPowerMultiplier([commander], regiment, terrain);
+  const field = commanderPowerMultiplier([commander], regiment);
+  recordSpecializationExperience(commander, {
+    id: "siege",
+    year: 1000,
+    domainId: "martial.siege",
+    coverage: 0.2,
+    mode: "battle",
+    role: "commander",
+    outcome: "defeat",
+    source: "simulation",
+    targets: []
+  });
+  expect(commanderPowerMultiplier([commander], regiment, terrain)).toBeGreaterThan(before);
+  expect(commanderPowerMultiplier([commander], regiment)).toBe(field);
 });

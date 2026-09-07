@@ -512,12 +512,12 @@ describe("shipyardQueue", () => {
     expect(completed).toEqual(["sloop"]);
   });
 
-  it("boosts tech point accumulation with the state ruler's Engineering skill", () => {
+  it("boosts tech point accumulation with the state ruler's shipbuilding knowledge", () => {
     const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
     const states = makeStates([{ i: 1, rulerId: 42 }]);
     const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
     const engineering100: GetEffectiveSkillFn = (characterId, skill) =>
-      characterId === 42 && skill === "engineering" ? 100 : 0;
+      characterId === 42 && skill === "engineering.shipbuilding" ? 100 : 0;
 
     // 1 shipyard * 1 point/year * 10 years * (1 + 100/100) = 20, vs. 10 with no bonus
     runShipyardTick(candidates, burgs, states, 10, engineering100);

@@ -1,3 +1,4 @@
+import { EXPERTISE_TASKS, evaluateExpertise, resolveCommunication } from "../../characters/specializations";
 import { P } from "../../hostUtils";
 import { getRulerId, getWorldContext } from "../nobilityContext";
 
@@ -67,6 +68,8 @@ export function applyAffinitiesToDiplomacy() {
           pack.states[other.i].diplomacy![state.i] = "Suspicion";
         }
       } else if (affinity >= 50) {
+        const peer = pack.characters.find(character => character.i === getRulerId(other));
+        if (peer && !canNegotiate(ruler, peer, pack)) continue;
         // High affinity -> Alliance or Peace
         if (currentRel === "Enemy" && P(0.5)) {
           state.diplomacy![other.i] = "Neutral";
@@ -76,6 +79,8 @@ export function applyAffinitiesToDiplomacy() {
           pack.states[other.i].diplomacy![state.i] = "Ally";
         }
       } else if (affinity >= 20) {
+        const peer = pack.characters.find(character => character.i === getRulerId(other));
+        if (peer && !canNegotiate(ruler, peer, pack)) continue;
         // Mild affinity -> Improve relations
         if (currentRel === "Enemy" && P(0.2)) {
           state.diplomacy![other.i] = "Suspicion";
@@ -87,4 +92,23 @@ export function applyAffinitiesToDiplomacy() {
       }
     }
   }
+}
+
+function canNegotiate(
+  ruler: import("../../characters/characterTypes").Character,
+  peer: import("../../characters/characterTypes").Character,
+  pack: import("../../hostTypes").PackedGraph
+): boolean {
+  if (!pack.languageWorld && !ruler.specializations) return true;
+  const interpreters = (pack.characters ?? []).filter(
+    character =>
+      !character.dead &&
+      character.location !== undefined &&
+      (character.location === ruler.location || character.location === peer.location)
+  );
+  const route = resolveCommunication(ruler, peer, pack.languageWorld, interpreters, { diplomatic: true });
+  if (route.score < 20) return false;
+  return (
+    evaluateExpertise(ruler, EXPERTISE_TASKS.negotiation, [{ kind: "culture", id: String(peer.culture) }]).score >= 20
+  );
 }

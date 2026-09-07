@@ -1,3 +1,4 @@
+import { specializationScore } from "../../characters/specializations";
 /**
  * Rebuilds the non-persistent extraWorkers scratchpad from seats and residues.
  * Not saved (docs/plan/player-character-technology-bias.md §5.4 / K18).
@@ -73,7 +74,8 @@ export function extraWorkersFromResidue(stock: number, saturation: number): numb
 
 function readCharacterEngineering(characterId: number): number | null {
   if (!hasCharactersContext()) return null;
-  const value = getCharacters().find(character => character.i === characterId)?.skills?.engineering;
+  const character = getCharacters().find(character => character.i === characterId);
+  const value = character ? specializationScore(character, "engineering.mechanics", "knowledge") : undefined;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 

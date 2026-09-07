@@ -119,6 +119,12 @@ describe("unitCost / fortificationPremium", () => {
     expect(fortificationPremium({ citadel: 1 })).toBeCloseTo(0.25, 5);
     expect(fortificationPremium({ walls: 1, citadel: 1 })).toBeCloseTo(0.4, 5);
   });
+
+  it("scales the premium with stored fortification quality, keeping 50 as the historical identity", () => {
+    expect(fortificationPremium({ walls: 1, fortificationQuality: 50 })).toBeCloseTo(0.15, 5);
+    expect(fortificationPremium({ walls: 1, fortificationQuality: 100 })).toBeCloseTo(0.225, 5);
+    expect(fortificationPremium({ walls: 1, fortificationQuality: 0 })).toBeCloseTo(0.075, 5);
+  });
 });
 
 describe("getBurgSettlementValue", () => {

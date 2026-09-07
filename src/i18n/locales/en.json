@@ -154,6 +154,18 @@
     "looksVitality": "Vitality",
     "looksOrnament": "Ornament / marks",
     "prestige": "Prestige",
+    "prestigeTip": "Honor among this person's own populace. Not court influence, army esteem, or foreign reputation.",
+    "militaryStanding": "Military standing",
+    "militaryStandingTip": "How the army regards this person. A field commander can outrank a court favorite here.",
+    "reputationAmongYou": "Reputation to you",
+    "reputationAmongYouTip": "How your court reads the same legend: hero to friends, infamy and dread to enemies. Not a second stored prestige.",
+    "reputationLabelHome": "home public",
+    "reputationLabelHero": "hero",
+    "reputationLabelInfamous": "infamous",
+    "reputationLabelUnknown": "unknown abroad",
+    "reputationLabelNoted": "known abroad",
+    "reputationHonor": "Honor {{honor}}",
+    "reputationDread": "Dread {{dread}}",
     "wealth": "Wealth",
     "wealthTip": "Personal wealth (held money), distinct from state treasury.",
     "health": "Health",
@@ -204,7 +216,8 @@
       "blacksmithing": "Blacksmithing",
       "smelting": "Smelting",
       "weaving": "Weaving",
-      "tailoring": "Tailoring"
+      "tailoring": "Tailoring",
+      "fortification": "Fortification"
     },
     "craftSkillAptitudeNames": {
       "poor": "Poor",
@@ -344,11 +357,78 @@
       },
       "bonds": {
         "nemesis": "Keeps a private ledger of enemies who will not be forgiven.",
-        "rival": "Treats certain peers as ladders — or obstacles."
+        "rival": "Treats certain peers as ladders — or obstacles.",
+        "favorite": "A favorite's honeyed words weigh more than the council.",
+        "sycophant": "Feeds on a sovereign's ear, and keeps the heart elsewhere."
       },
       "house": {
         "tongue": "{{house}} is never far from the tongue."
+      },
+      "epithet": {
+        "guardian": "Soldiers call this one a guardian spirit — the one who brings the living home.",
+        "last_guard": "Known for covering the retreat so others could live.",
+        "wall": "Holds ground until the line itself seems made of iron.",
+        "vanguard": "First into the dust, and last to yield the front.",
+        "idle_banner": "Present on the rolls of every war, and missing from every fight.",
+        "foolish_king": "Called {{epithet}}: the ear opens for honey, and closes for the ledgers.",
+        "wise_king": "Called {{epithet}}: counsel is weighed, and flattery is measured.",
+        "sycophant": "Keeps the sovereign's ear, and owes that sovereign nothing.",
+        "benevolent_king": "Called {{epithet}}: the realm's pain is not a distant rumor.",
+        "tyrant_king": "Called {{epithet}}: mercy is thin, and spite or appetite writes the law.",
+        "renowned_king": "Called {{epithet}}: the name already lives in the market and the chapel.",
+        "war_god": "A legend of command and personal steel — not a shrine.",
+        "master_artisan": "The work itself taught the city this name.",
+        "prodigy": "Already spoken of as a prodigy, before the hall has a chair.",
+        "magnate": "Coin moves when this name is spoken.",
+        "unscrupulous_merchant": "Farmed taxes and dear credit taught the city this name.",
+        "able_minister": "Ledgers and envoys both answer to this one.",
+        "default": "Known as {{epithet}}."
       }
+    },
+    "epithetNames": {
+      "guardian": "Guardian",
+      "last_guard": "Rear Guard",
+      "wall": "Iron Wall",
+      "vanguard": "Vanguard",
+      "idle_banner": "the Absent",
+      "foolish_king": "the Fool",
+      "wise_king": "the Wise",
+      "sycophant": "the Sycophant",
+      "benevolent_king": "the Benevolent",
+      "tyrant_king": "the Tyrant",
+      "renowned_king": "the Renowned",
+      "war_god": "the War God",
+      "master_artisan": "the Master",
+      "prodigy": "the Prodigy",
+      "magnate": "the Magnate",
+      "unscrupulous_merchant": "the Profiteer",
+      "able_minister": "the Able"
+    },
+    "epithetStems": {
+      "wise_king": {
+        "king": "the Wise",
+        "queen": "the Wise",
+        "emperor": "the Wise",
+        "empress": "the Wise",
+        "lord": "the Wise"
+      },
+      "foolish_king": {
+        "king": "the Fool",
+        "queen": "the Fool",
+        "emperor": "the Fool",
+        "empress": "the Fool",
+        "lord": "the Fool"
+      }
+    },
+    "warRecord": "War record",
+    "warRecordWars": "{{count}} campaigns served",
+    "warConduct": {
+      "rear_idle": "stayed in the rear",
+      "front_assault": "led from the front",
+      "rearguard_rescue": "covered a retreat and saved allies",
+      "defensive_hold": "held the line",
+      "costly_push": "pushed hard at a bloody cost",
+      "cautious_avoid": "kept out of the fighting"
     },
     "bonds": "Bonds",
     "bondKindNames": {
@@ -361,6 +441,7 @@
       "ward": "Ward",
       "patron": "Patron",
       "client": "Client",
+      "favorite": "Favorite",
       "blood_feud": "Blood feud",
       "comrade": "Comrade",
       "hometown_kin": "Hometown kin"
@@ -756,7 +837,133 @@
     "lifeEvents": "Life events",
     "migration": "Migration",
     "familyOccupation": "Family occupation",
-    "resignedFor": "Resigned: {{reason}}"
+    "resignedFor": "Resigned: {{reason}}",
+    "expertise": {
+      "title": "Specializations",
+      "legacy": "Detailed skills are not set for this character. Existing overview scores are used as estimates.",
+      "editHint": "Editor: change knowledge, practice and appraisal independently. Blank means unknown; zero means untrained.",
+      "task": "Task suitability",
+      "approximate": "Estimate (includes overview scores)",
+      "detailed": "Detailed expertise",
+      "missing": "Missing expertise",
+      "domain": "Field",
+      "knowledge": "Knowledge",
+      "practice": "Practice",
+      "appraisal": "Appraisal",
+      "unknown": "Unknown",
+      "sharedPractice": "Shared with the existing practical skill; not a separate score.",
+      "add": "Add",
+      "save": "Save",
+      "familiarities": "Specialist environments and subjects",
+      "target": "Subject",
+      "targetId": "Subject name",
+      "selectedDomain": "Selected field",
+      "languages": "Languages",
+      "language": "Language",
+      "listening": "Listening",
+      "speaking": "Speaking",
+      "literacy": "Literacy by script",
+      "reading": "Reading",
+      "writing": "Writing",
+      "chooseLanguage": "Choose language",
+      "worldSettings": "World language settings",
+      "native": "Native",
+      "learned": "Learned",
+      "heritage": "Heritage",
+      "acquisition": "Acquisition",
+      "experience": "Experience",
+      "experienceHint": "Actual service and battles are recorded as time passes. Victories alone do not determine growth.",
+      "year": "Year",
+      "mode": "Activity",
+      "duration": "Years of activity",
+      "outcome": "Outcome",
+      "worldHint": "Languages can be shared across cultures and countries. Saving policies does not change anyone’s language proficiency.",
+      "scripts": "Writing systems",
+      "script": "Script",
+      "newScript": "New script",
+      "addScript": "Add script",
+      "newLanguage": "New language",
+      "addLanguage": "Add language",
+      "culture": "Culture",
+      "share": "Share",
+      "sharesHint": "Daily language shares must sum to 1. Leave all script checkboxes clear for an oral language.",
+      "literaryLanguageIds": "Literary languages",
+      "liturgicalLanguageIds": "Liturgical languages",
+      "administrativeLanguageIds": "Administration",
+      "courtLanguageIds": "Court",
+      "diplomaticLanguageIds": "Diplomacy",
+      "recognizedLanguageIds": "Recognized languages",
+      "statePolicy": "Country language policy",
+      "saveWorld": "Save world language settings",
+      "tasks": {
+        "command": "Command",
+        "operations": "Operations planning",
+        "siege": "Siege",
+        "naval": "Naval command",
+        "treaty": "Treaty drafting",
+        "negotiation": "Negotiation",
+        "tax": "Tax administration",
+        "intelligence": "Intelligence analysis",
+        "ceramics": "Ceramics appraisal",
+        "construction": "Construction",
+        "navigation": "Navigation",
+        "combat": "Sword combat",
+        "teaching": "Teaching"
+      },
+      "targets": {
+        "terrain": "Terrain",
+        "climate": "Climate",
+        "troop": "Troop",
+        "region": "Region",
+        "culture": "Culture",
+        "institution": "Institution",
+        "weapon": "Weapon",
+        "artSchool": "Artschool",
+        "material": "Material",
+        "commandScale": "Commandscale",
+        "languagePair": "Languagepair"
+      },
+      "modes": {
+        "study": "Study",
+        "training": "Training",
+        "service": "Service",
+        "battle": "Battle",
+        "appraisal": "Appraisal"
+      },
+      "outcomes": {
+        "service": "Service completed",
+        "victory": "Victory",
+        "defeat": "Defeat",
+        "lesson": "Study completed"
+      },
+      "learning": "Study and training",
+      "learningHint": "Learn from a teacher in the same place as time advances, using up to one quarter of each year. Guild practice uses the existing apprenticeship system.",
+      "teacher": "Teacher",
+      "chooseTeacher": "Choose a local teacher",
+      "learningActive": "Learning",
+      "learningPaused": "Paused: teacher or communication unavailable",
+      "stopLearning": "Stop learning",
+      "startLearning": "Start learning",
+      "learningUnavailable": "Requires a living local teacher with detailed proficiency of at least 50. Explanations require a shared language; oral immersion is also available.",
+      "subjects": {
+        "plain": "Plain",
+        "forest": "Forest",
+        "hill": "Hills",
+        "mountain": "Mountain",
+        "desert": "Desert",
+        "wetland": "Wetland",
+        "urban": "Urban",
+        "river": "River",
+        "coast": "Coast",
+        "ocean": "Open sea",
+        "cold": "Cold",
+        "hot": "Hot",
+        "rainy": "Rainy",
+        "regiment": "Regiment",
+        "army": "Army",
+        "fleet": "Fleet"
+      }
+    }
   },
   "economy": {
     "goods": {
@@ -4236,8 +4443,14 @@
       "previewNth": "1 in {{n}} cells",
       "previewRandom": "{{n}}% chance",
       "fn": {
-        "biome": { "label": "Biome", "description": "Cells in specific biomes" },
-        "biomeTag": { "label": "Biome Tag", "description": "Cells in biomes with any selected semantic tag" },
+        "biome": {
+          "label": "Biome",
+          "description": "Cells in specific biomes"
+        },
+        "biomeTag": {
+          "label": "Biome Tag",
+          "description": "Cells in biomes with any selected semantic tag"
+        },
         "minHeight": {
           "label": "Min Height",
           "paramLabel": "Height (0–100)",
@@ -4267,13 +4480,22 @@
           "description": "Cells by proximity to water",
           "note": "-1: shallow ocean, -2: deep ocean, 1: coastal land, 2: near coast land."
         },
-        "type": { "label": "Waterbody Type", "description": "Cells by waterbody type" },
-        "coastalHabitat": { "label": "Coastal Habitat", "description": "Land cells with any selected coastal habitat" },
+        "type": {
+          "label": "Waterbody Type",
+          "description": "Cells by waterbody type"
+        },
+        "coastalHabitat": {
+          "label": "Coastal Habitat",
+          "description": "Land cells with any selected coastal habitat"
+        },
         "nearshoreHabitat": {
           "label": "Nearshore Habitat",
           "description": "Shallow-water cells with any selected nearshore habitat"
         },
-        "river": { "label": "River", "description": "Cells that have a river flowing" },
+        "river": {
+          "label": "River",
+          "description": "Cells that have a river flowing"
+        },
         "minHabitability": {
           "label": "Min Habitability",
           "paramLabel": "Habitability (0–100)",

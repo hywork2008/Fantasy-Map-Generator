@@ -21,6 +21,7 @@ export const ANNUAL_GATE = {
   stateSecret: "stateSecret",
   martialDiscipline: "martialDiscipline",
   martialIndividualMastery: "martialIndividualMastery",
+  fortificationMastery: "fortificationMastery",
   guildSuccession: "guildSuccession",
   burgTreasury: "burgTreasury",
   innFacilities: "innFacilities",

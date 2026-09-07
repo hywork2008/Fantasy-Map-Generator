@@ -10,7 +10,8 @@ import {
   resolveRaceAgeProfile,
   rollDefaultAdultAge,
   scaleHumanAgeToRace,
-  scaleHumanDurationToRace
+  scaleHumanDurationToRace,
+  scaleRaceDurationToHuman
 } from "./raceAge";
 
 describe("raceAge scaling", () => {
@@ -62,6 +63,7 @@ describe("raceAge scaling", () => {
     const gap = scaleHumanDurationToRace(20, profile);
     expect(gap).toBeGreaterThan(100);
     expect(gap).toBeLessThan(300);
+    expect(scaleRaceDurationToHuman(gap, profile)).toBeCloseTo(20, 0);
   });
 
   it("treats chronological 40-year-old elves as minors", () => {

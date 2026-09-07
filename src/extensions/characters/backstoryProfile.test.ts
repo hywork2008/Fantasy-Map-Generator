@@ -245,6 +245,7 @@ describe("ceremony by military rank", () => {
       const c = baseCharacter({
         i: 300 + i,
         name: `Captain${i}`,
+        age: 26,
         prestige: 30,
         titles: [{ title: "Captain", landed: false, entityType: "state", entityId: 1 }],
         skills: {
@@ -273,7 +274,12 @@ describe("ceremony by military rank", () => {
           confidence: 50
         }
       });
-      applyCharacterBackstory(c, { roleClass: "commander", formName: "Monarchy", capitalBurgId: 1 });
+      applyCharacterBackstory(c, {
+        roleClass: "commander",
+        socialStratum: "commoner",
+        formName: "Monarchy",
+        capitalBurgId: 1
+      });
       const dislikes = c.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id);
       if (dislikes.includes("ceremony")) dislikeCeremony++;
     }
@@ -286,6 +292,7 @@ describe("ceremony by military rank", () => {
       const c = baseCharacter({
         i: 400 + i,
         name: `Marshal${i}`,
+        age: 55,
         prestige: 85,
         titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }],
         skills: {
@@ -314,9 +321,12 @@ describe("ceremony by military rank", () => {
           confidence: 70
         }
       });
-      applyCharacterBackstory(c, { roleClass: "commander", formName: "Monarchy", capitalBurgId: 1 });
-      // High prestige may be overwritten by origin stratum prestige — force after apply
-      // (origin rebuilds prestige). Re-check via tastes only from generation path with royal stratum bias.
+      applyCharacterBackstory(c, {
+        roleClass: "commander",
+        socialStratum: "high_noble",
+        formName: "Monarchy",
+        capitalBurgId: 1
+      });
       const likes = c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id);
       if (likes.includes("ceremony")) likeCeremony++;
     }
@@ -670,6 +680,82 @@ describe("computeInitialSolidarity", () => {
     // Sycophants should not sit deep-negative toward their sovereign on average
     expect(avgToRuler).toBeGreaterThan(0);
     expect(avgToFlatterer).toBeGreaterThan(-5);
+  });
+
+  it("lets a low-judgment ruler warm to flattery and a wise ruler cool", () => {
+    const fool = baseCharacter({
+      i: 1,
+      name: "Fool",
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+      skills: { ...baseCharacter({ i: 1, name: "x" }).skills, intrigue: 20 },
+      personality: {
+        boldness: 50,
+        compassion: 40,
+        greed: 40,
+        honor: 45,
+        rationality: 22,
+        sociability: 55,
+        vengefulness: 30,
+        zeal: 40,
+        energy: 50,
+        piety: 40,
+        guile: 25,
+        confidence: 70
+      }
+    });
+    const sage = baseCharacter({
+      i: 1,
+      name: "Sage",
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+      skills: { ...baseCharacter({ i: 1, name: "x" }).skills, intrigue: 80 },
+      personality: {
+        boldness: 45,
+        compassion: 60,
+        greed: 30,
+        honor: 70,
+        rationality: 85,
+        sociability: 55,
+        vengefulness: 20,
+        zeal: 50,
+        energy: 60,
+        piety: 50,
+        guile: 40,
+        confidence: 65
+      }
+    });
+    const flatterer = baseCharacter({
+      i: 2,
+      name: "Flatterer",
+      titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }],
+      personality: {
+        boldness: 40,
+        compassion: 30,
+        greed: 80,
+        honor: 35,
+        rationality: 55,
+        sociability: 85,
+        vengefulness: 40,
+        zeal: 30,
+        energy: 60,
+        piety: 25,
+        guile: 80,
+        confidence: 70
+      }
+    });
+    applyCharacterBackstory(fool, { roleClass: "ruler", capitalBurgId: 1 });
+    applyCharacterBackstory(sage, { roleClass: "ruler", capitalBurgId: 1 });
+    applyCharacterBackstory(flatterer, { roleClass: "central_officer", capitalBurgId: 1 });
+
+    const foolScores: number[] = [];
+    const sageScores: number[] = [];
+    for (let trial = 0; trial < 25; trial++) {
+      foolScores.push(computeInitialSolidarity(fool, flatterer));
+      sageScores.push(computeInitialSolidarity(sage, flatterer));
+    }
+    const avgFool = foolScores.reduce((s, n) => s + n, 0) / foolScores.length;
+    const avgSage = sageScores.reduce((s, n) => s + n, 0) / sageScores.length;
+    expect(avgFool).toBeGreaterThan(avgSage + 10);
+    expect(avgSage).toBeLessThan(5);
   });
 
   it("warms sociable compassionate pairs", () => {

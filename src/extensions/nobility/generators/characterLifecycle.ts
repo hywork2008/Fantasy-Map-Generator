@@ -15,6 +15,7 @@ import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { chooseIdleHawkMischief } from "../../characters/idleHawkMischief";
+import { seedMilitaryWarRecordForPeer, seedMilitaryWarRecords } from "../../characters/militaryWarRecord";
 import {
   combineStateWarlike,
   officeResignationReason,
@@ -38,7 +39,10 @@ import {
   selectCentralOffices
 } from "../../characters/raceRoster";
 import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
+import { EXPERTISE_TASKS, evaluateExpertise, specializationScore } from "../../characters/specializations";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
+import { isEconomyContextReady } from "../../economy/economyContext";
+import { ensureFortificationSkill, FortificationMastery } from "../../economy/generators/fortificationMastery";
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
@@ -217,6 +221,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     }
   }
 
+  seedMilitaryWarRecords(characters, states, currentYear);
   calculateAffinities(characters);
   seedCharacterRelations(characters);
 
@@ -228,6 +233,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   pack.dynasties = dynasties;
 
   pack.characters = characters;
+  if (isEconomyContextReady()) FortificationMastery.generate();
   TIME && console.timeEnd("generateCharacters");
 }
 
@@ -344,7 +350,7 @@ function createOfficer(
     landed: false,
     entityType: "state",
     entityId: state.i,
-    startYear: getCurrentYear()
+    startYear: getCurrentYear() - rand(0, Math.max(0, officer.age - careerStartAge(ids.raceId)))
   });
   applyCharacterBackstory(officer, {
     roleClass: "commander",
@@ -353,6 +359,8 @@ function createOfficer(
     capitalBurgId: state.capital
   });
   pack.characters.push(officer);
+  if (isEconomyContextReady()) ensureFortificationSkill(officer);
+  seedMilitaryWarRecordForPeer(officer, pack.states, getCurrentYear());
   seedRelationsWithPeers(officer, pack.characters);
   finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
   return officer;
@@ -388,7 +396,7 @@ function createProvinceLord(
     landed: true,
     entityType: "province",
     entityId: province.i,
-    startYear: getCurrentYear()
+    startYear: getCurrentYear() - rand(0, Math.max(0, lord.age - careerStartAge(ids.raceId)))
   });
   applyCharacterBackstory(lord, {
     roleClass: "province_lord",
@@ -399,6 +407,7 @@ function createProvinceLord(
     birthBurgId: province.burg
   });
   pack.characters.push(lord);
+  seedMilitaryWarRecordForPeer(lord, pack.states, getCurrentYear());
   seedRelationsWithPeers(lord, pack.characters);
   finalizeCharacterSocietyForPeer(lord, pack.characters, societyContext());
   return lord;
@@ -551,7 +560,13 @@ function processRetiredCharacterEffects(character: Character, deltaYears: number
   const burg = pack.burgs[character.location];
   if (!burg || burg.removed) return;
 
-  const skills = character.skills;
+  const skills = {
+    ...character.skills,
+    stewardship: evaluateExpertise(character, EXPERTISE_TASKS.tax).score,
+    engineering: evaluateExpertise(character, EXPERTISE_TASKS.construction).score,
+    artistry: specializationScore(character, "artistry.spatialDesign"),
+    learning: specializationScore(character, "learning.theology", "knowledge")
+  };
   const p = character.personality;
 
   // Population Growth (Benevolent elder)
@@ -569,9 +584,10 @@ function processRetiredCharacterEffects(character: Character, deltaYears: number
     burg.population = (burg.population || 0) + boost;
   }
 
-  // Fortifications
+  // Fortifications — retired military engineers raise both the flag and the stored design quality.
   if (skills.engineering > 70 && P(0.01 * deltaYears)) {
     burg.walls = (burg.walls || 0) + 1;
+    burg.fortificationQuality = Math.max(burg.fortificationQuality ?? 0, Math.min(100, skills.engineering));
   }
   // Plaza
   if ((skills.artistry > 70 || skills.diplomacy > 70) && P(0.01 * deltaYears)) {
@@ -602,7 +618,18 @@ function evaluateOfficeAttractiveness(
   threat: number
 ): number {
   if (!office) return 0;
-  const skillVal = office.primarySkill ? character.skills[office.primarySkill] : 50;
+  const officeDomain = {
+    diplomacy: "diplomacy.negotiation",
+    martial: "martial.operations",
+    stewardship: "stewardship.administration",
+    intrigue: "intrigue.networks",
+    learning: "learning.theology",
+    prowess: "prowess.defense",
+    artistry: "artistry.spatialDesign",
+    engineering: "engineering.civil",
+    geography: "geography.geopolitics"
+  };
+  const skillVal = office.primarySkill ? specializationScore(character, officeDomain[office.primarySkill]) : 50;
   let score = skillVal;
 
   // War-mongers want martial positions during high threat
@@ -816,7 +843,7 @@ function processSuccessions(): void {
         landed: false,
         entityType: "state",
         entityId: state.i,
-        startYear: getCurrentYear()
+        startYear: getCurrentYear() - rand(0, Math.max(0, officer.age - careerStartAge(ids.raceId)))
       });
       applyCharacterBackstory(officer, {
         roleClass: officerRoleClass,
@@ -825,6 +852,9 @@ function processSuccessions(): void {
         capitalBurgId: state.capital
       });
       pack.characters.push(officer);
+      if (officerRoleClass === "commander") {
+        seedMilitaryWarRecordForPeer(officer, pack.states, getCurrentYear());
+      }
       seedRelationsWithPeers(officer, pack.characters);
       finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
       fillBudget--;

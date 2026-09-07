@@ -28,6 +28,13 @@ const ALLOWED_COMPATIBILITY_WRITERS = new Map<string, AllowlistEntry>([
     }
   ],
   [
+    "src/extensions/characters/specializationRuntime.ts",
+    {
+      scope: "extension",
+      reason: "validated world-language replacement inside registered characters.setWorldLanguages WorldRuntime command"
+    }
+  ],
+  [
     "src/extensions/characters/charactersContext.ts",
     {
       scope: "extension",

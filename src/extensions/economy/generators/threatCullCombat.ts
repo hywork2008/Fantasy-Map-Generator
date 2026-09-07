@@ -1,3 +1,4 @@
+import { specializationScore } from "../../characters/specializations";
 /**
  * Pure combat resolution for threat cull / pest contracts.
  * Spec: docs/plan/player-threat-cull-jobs.md §5; equipment + domain bonuses:
@@ -91,7 +92,9 @@ function clampQuality(value: number): EquipmentQuality {
  */
 export function combatScore(character: Character, domainBonus = 0): number {
   const s = character.skills;
-  const base = 0.55 * (s?.prowess ?? 50) + 0.45 * (s?.martial ?? 50);
+  const defense = character.specializations ? specializationScore(character, "prowess.defense") : (s?.prowess ?? 50);
+  const tactics = character.specializations ? specializationScore(character, "martial.tactics") : (s?.martial ?? 50);
+  const base = 0.55 * defense + 0.45 * tactics;
   return base + domainBonus + equipmentBonusFromLoadout(character.loadout);
 }
 
