@@ -229,10 +229,11 @@ i18n は **入れ子の stem 表** にする。裸の `epithetNames.wise_king` �
 
 | id | 日本語 | 英語 | 軸 | 付与帯 | 同時に付かないもの |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `foolish_king` | 愚王／愚帝／愚君／愚女王／愚女帝 | the Fool | 低判断 | 現行: 合理性 ≤35、かつ統治 ≤42 または Intrigue ≤35 | wise / 仁 / 名 |
-| `wise_king` | 賢王／賢帝／賢君／賢女王／賢女帝 | the Wise | 合理性＋文治＋看破 | 現行: 合理性 ≥70、統治 ≥65、Intrigue ≥50 | foolish |
-| `benevolent_king` | 仁君 | the Benevolent | Compassion（＋最低限の統治） | Compassion ≥70、統治 ≥50、foolish でない。Commitment 第一が `people`、`goals` に `protect_people`、または `compassionScope` が `everyone` / `community` なら加点（必須にしない） | foolish。佞臣とも組まない |
-| `renowned_king` | 名君 | the Renowned | 公開の確立した治世 | 下記。賢より稀か同程度 | foolish。佞臣とも組まない |
+| `foolish_king` | 愚王／愚帝／愚君／愚女王／愚女帝 | the Fool | 低判断 | 現行: 合理性 ≤35、かつ統治 ≤42 または Intrigue ≤35 | wise / 仁 / 名 / 暴 |
+| `tyrant_king` | 暴君 | the Tyrant | 性格の悪さ（仁の反対） | Compassion ≤30、かつ Vengefulness ≥70 または（Honor ≤35 かつ Greed ≥65）。Guile / Sociability は使わない。統治能力は問わない | foolish（愚が先）。仁 |
+| `wise_king` | 賢王／賢帝／賢君／賢女王／賢女帝 | the Wise | 合理性＋文治＋看破 | 現行: 合理性 ≥70、統治 ≥65、Intrigue ≥50 | foolish / 暴 |
+| `benevolent_king` | 仁君 | the Benevolent | Compassion（＋最低限の統治） | Compassion ≥70、統治 ≥50、foolish / tyrant でない | foolish / 暴。佞臣とも組まない |
+| `renowned_king` | 名君 | the Renowned | 公開の確立した治世 | 下記。賢より稀か同程度 | foolish / 暴。佞臣とも組まない |
 | `sycophant` | 佞臣 | the Sycophant | 技能＋忠誠の所在 | 現行の技能条件。**候補から元首を除外** | 元首 |
 
 **名君の帯（実際に稀にする）:**
@@ -248,18 +249,21 @@ i18n は **入れ子の stem 表** にする。裸の `epithetNames.wise_king` �
 **宮廷系統は一人一条。** 付与ウォーターフォール:
 
 1. `foolish_king`
-2. `wise_king`
-3. `benevolent_king`
-4. `renowned_king`
-5. なし
+2. `tyrant_king`（有能な残忍は賢王より暴君。無能な残忍は愚王のまま）
+3. `wise_king`
+4. `benevolent_king`
+5. `renowned_king`
+6. なし
+
+**仁君・暴君は屈折しない。** 暴王は使えるが、仁君に合わせて「君」で固定する。英語 `the Tyrant`。
 
 **佞臣ペア（`selectCourtFavorite` を明示する）:**
 
 ```ts
 export function selectCourtFavorite(ruler: Character, court: readonly Character[]): Character | undefined {
   if (!isSovereignRuler(ruler)) return undefined;
-  // 仁君・名君・賢王には新しい佞臣を付けない。未設定のだまされやすい君主と愚王だけ。
-  if (ruler.courtEpithetId && ruler.courtEpithetId !== "foolish_king") return undefined;
+  // 仁君・名君・賢王には新しい佞臣を付けない。未設定のだまされやすい君主と愚王・だまされやすい暴君だけ。
+  if (ruler.courtEpithetId && ruler.courtEpithetId !== "foolish_king" && ruler.courtEpithetId !== "tyrant_king") return undefined;
   if (ruler.courtEpithetId !== "foolish_king" && !isGullibleSovereign(ruler)) return undefined;
   if (isWiseSovereign(ruler) || ruler.courtEpithetId === "wise_king") return undefined;
 
@@ -342,7 +346,7 @@ Marshal 55 歳・martial 90 でも standing は ≈60。royal Warlord が martia
 
 | 職業／役職 | 対応 | 適格 | 理由 | 例 | 根拠フィールド | 屈折 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 君主（King/Queen） | landed state | **court: yes** | visibility 1.00 | `wise_king` 賢王／賢女王, `foolish_king`, `benevolent_king` 仁君, `renowned_king` 名君 | rationality, governingCompetence, intrigue, compassion, prestige, career, diplomacy | 賢／愚のみ |
+| 君主（King/Queen） | landed state | **court: yes** | visibility 1.00 | `wise_king` 賢王／賢女王, `foolish_king`, `tyrant_king` 暴君, `benevolent_king` 仁君, `renowned_king` 名君 | rationality, governingCompetence, intrigue, compassion, vengefulness, honor, greed, prestige, career, diplomacy | 賢／愚のみ。暴／仁／名は屈折しない |
 | 皇帝（Emperor/Empress） | landed state | **court: yes** | 同上 | 表示 賢帝／賢女帝 | 同上 | emperor / empress |
 | Tsar / Tsarina | landed state | **court: yes** | Tsar は帝、Tsarina はツァリーツァ | Tsar 賢帝、Tsarina 賢君 | 同上 | Tsar=emperor, Tsarina=lord |
 | Khan / Khatun / Khagan / Bey / Emir | landed state | **court: yes** | 元首は民衆に見える | 賢君 / 愚君 / 仁君 / 名君 | 同上 | lord |
@@ -686,8 +690,8 @@ standing は軍部評価の既存導出で、「伝説」に見える。
 3. **系統を残す。系統あたり 1 id。** court と war_conduct は現行フィールド。新系統は `epithets[]`。
 4. **名前行は 1 つ。** court > war_legend > craft > commerce > office > war_conduct。`war_god` 時は guardian フレーバーを抑制。先鋒・鉄壁は共存可。
 5. **賢／愚は同一 id の表示屈折。** stem は landed 称号文字列（King/Queen/Emperor/Empress/Tsar/それ以外）。照合前に `UNDER_REGENCY_SUFFIX` を剥がす（`"King (Under Regency)"` → 賢王）。Tsarina は lord（ツァリーツァ ≠ 女帝）。英語は屈折しない。court-favorite.md を改正する。
-6. **仁君・名君は屈折しない別 id。** 宮廷は一人一条、愚 → 賢 → 仁 → 名。名君は prestige ≥95・統治 ≥70・Diplomacy ≥75・キャリア ≥25。
-7. **佞臣は愚王（または未設定の gullible）にだけ付ける。** 仁君・名君・賢王は結ばない。`isCourtierDeceiver` は元首を除外する。
+6. **仁君・暴君・名君は屈折しない別 id。** 宮廷は一人一条、愚 → 暴 → 賢 → 仁 → 名。暴君は Compassion/Honor 対 Greed/Vengefulness。Guile は使わない。有能でも残忍なら賢王より暴君。
+7. **佞臣は愚王、だまされやすい暴君、または未設定の gullible に付ける。** 仁君・名君・賢王は結ばない。`isCourtierDeceiver` は元首を除外する。
 8. **`isSovereignRuler` は landed state。** `inferRoleClass` は変えない。
 9. **軍神は war_legend。証拠は称号＋martial≥80＋prowess≥75＋キャリア≥25＋従軍≥1。`militaryStanding` は使わない。** Shogun を `MILITARY_TITLE_RE` と `MARTIAL_COURT_TITLE_RE`（従軍 0.88、Warlord と同じ）に足す。`isMartialCommandTitle` には足さない。控えの将と排他。Admiral に海神は作らない。
 10. **名工 v1 は冶金親方のみ。** Characters は Economy を import せず `readEconomyCraftSkill` を使う。Economy 無効ならスキップ。見習いは神童以外 no。

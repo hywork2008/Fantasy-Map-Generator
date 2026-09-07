@@ -25,7 +25,13 @@ export type WarConductKind =
 export type MilitaryEpithetId = "guardian" | "last_guard" | "wall" | "vanguard" | "idle_banner";
 
 /** Public court nickname — distinct from war-conduct epithets on `militaryRecord`. */
-export type CourtEpithetId = "foolish_king" | "wise_king" | "sycophant" | "benevolent_king" | "renowned_king";
+export type CourtEpithetId =
+  | "foolish_king"
+  | "wise_king"
+  | "sycophant"
+  | "benevolent_king"
+  | "renowned_king"
+  | "tyrant_king";
 
 export type EpithetLineage = "court" | "war_conduct" | "war_legend" | "craft" | "commerce" | "office";
 

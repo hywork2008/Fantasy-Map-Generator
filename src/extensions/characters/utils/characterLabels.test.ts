@@ -40,6 +40,7 @@ describe("character labels", () => {
       titles: [{ title: "King" as const, landed: true as const, entityType: "state" as const, entityId: 1 }]
     };
     expect(getCharacterEpithetSuffix({ ...king, courtEpithetId: "foolish_king" })).toBe(" (the Fool)");
+    expect(getCharacterEpithetSuffix({ ...king, courtEpithetId: "tyrant_king" })).toBe(" (the Tyrant)");
     expect(
       getCharacterEpithetSuffix({
         ...king,
@@ -57,6 +58,7 @@ describe("character labels", () => {
       })
     ).toBe(" (賢帝)");
     expect(getCharacterEpithetSuffix({ courtEpithetId: "sycophant" })).toBe(" (佞臣)");
+    expect(getCharacterEpithetSuffix({ ...king, courtEpithetId: "tyrant_king" })).toBe(" (暴君)");
   });
 
   it("localizes guild-specific overview filter choices", async () => {

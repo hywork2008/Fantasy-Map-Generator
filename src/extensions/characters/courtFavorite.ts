@@ -85,15 +85,26 @@ export function isCourtierDeceiver(character: Character): boolean {
   return DISLOYAL_TO_RULER.has(kind);
 }
 
+/**
+ * 暴君: publicly cruel, not merely indirect or unsociable.
+ * Compassion/Honor vs Greed/Vengefulness — Guile is not a moral score.
+ */
+export function isTyrantSovereign(character: Character): boolean {
+  if (!isSovereignRuler(character)) return false;
+  const p = character.personality;
+  if (p.compassion > 30) return false;
+  return p.vengefulness >= 70 || (p.honor <= 35 && p.greed >= 65);
+}
+
 export function isBenevolentSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
-  if (isFoolishSovereign(character)) return false;
+  if (isFoolishSovereign(character) || isTyrantSovereign(character)) return false;
   return character.personality.compassion >= 70 && governingCompetence(character) >= 50;
 }
 
 export function isRenownedSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
-  if (isFoolishSovereign(character)) return false;
+  if (isFoolishSovereign(character) || isTyrantSovereign(character)) return false;
   if (humanCareerYears(character) < 25) return false;
   if ((character.prestige ?? 0) < 95) return false;
   if (governingCompetence(character) < 70) return false;
@@ -103,15 +114,21 @@ export function isRenownedSovereign(character: Character): boolean {
 export function chooseRulerEpithet(character: Character): CourtEpithetId | undefined {
   if (!isSovereignRuler(character)) return undefined;
   if (isFoolishSovereign(character)) return "foolish_king";
+  if (isTyrantSovereign(character)) return "tyrant_king";
   if (isWiseSovereign(character)) return "wise_king";
   if (isBenevolentSovereign(character)) return "benevolent_king";
   if (isRenownedSovereign(character)) return "renowned_king";
   return undefined;
 }
 
+function courtAllowsFavorite(ruler: Character): boolean {
+  const id = ruler.courtEpithetId;
+  return !id || id === "foolish_king" || id === "tyrant_king";
+}
+
 export function selectCourtFavorite(ruler: Character, court: readonly Character[]): Character | undefined {
   if (!isSovereignRuler(ruler)) return undefined;
-  if (ruler.courtEpithetId && ruler.courtEpithetId !== "foolish_king") return undefined;
+  if (!courtAllowsFavorite(ruler)) return undefined;
   if (ruler.courtEpithetId !== "foolish_king" && !isGullibleSovereign(ruler)) return undefined;
   if (isWiseSovereign(ruler) || ruler.courtEpithetId === "wise_king") return undefined;
 
