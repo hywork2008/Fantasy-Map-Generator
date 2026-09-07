@@ -7,6 +7,8 @@ import { getSolidarity, inferRoleClass, setSolidarity } from "./backstoryProfile
 import { addCharacterBond, removeCharacterBond } from "./characterBonds";
 import type { Character, CharacterRoleClass, CommitmentKind, CourtEpithetId } from "./characterTypes";
 import { isCk3Character } from "./characterTypes";
+import { characterPublicEpithetId, isSovereignRuler } from "./epithetCatalog";
+import { humanCareerYears } from "./prestige";
 
 /** Solidarity floor: the sovereign dotes on the favorite (solid band starts at 50). */
 export const RULER_TO_FAVORITE_MIN = 58;
@@ -39,9 +41,7 @@ export function beguileScore(character: Character): number {
   );
 }
 
-export function isSovereignRuler(character: Character): boolean {
-  return inferRoleClass(character) === "ruler";
-}
+export { characterPublicEpithetId, isSovereignRuler };
 
 function isMinisterLike(character: Character): boolean {
   return MINISTER_ROLES.has(inferRoleClass(character));
@@ -75,6 +75,7 @@ export function isGullibleSovereign(character: Character): boolean {
  * Greed is not required — a house-first or office-first operator still qualifies.
  */
 export function isCourtierDeceiver(character: Character): boolean {
+  if (isSovereignRuler(character)) return false;
   if (!isMinisterLike(character)) return false;
   const p = character.personality;
   if (p.guile < 60 || p.sociability < 55 || p.honor > 55) return false;
@@ -84,28 +85,41 @@ export function isCourtierDeceiver(character: Character): boolean {
   return DISLOYAL_TO_RULER.has(kind);
 }
 
+export function isBenevolentSovereign(character: Character): boolean {
+  if (!isSovereignRuler(character)) return false;
+  if (isFoolishSovereign(character)) return false;
+  return character.personality.compassion >= 70 && governingCompetence(character) >= 50;
+}
+
+export function isRenownedSovereign(character: Character): boolean {
+  if (!isSovereignRuler(character)) return false;
+  if (isFoolishSovereign(character)) return false;
+  if (humanCareerYears(character) < 25) return false;
+  if ((character.prestige ?? 0) < 95) return false;
+  if (governingCompetence(character) < 70) return false;
+  return character.skills.diplomacy >= 75;
+}
+
 export function chooseRulerEpithet(character: Character): CourtEpithetId | undefined {
-  if (isWiseSovereign(character)) return "wise_king";
+  if (!isSovereignRuler(character)) return undefined;
   if (isFoolishSovereign(character)) return "foolish_king";
+  if (isWiseSovereign(character)) return "wise_king";
+  if (isBenevolentSovereign(character)) return "benevolent_king";
+  if (isRenownedSovereign(character)) return "renowned_king";
   return undefined;
 }
 
-/** Name-line nickname: court label outranks a war-conduct epithet. */
-export function characterPublicEpithetId(
-  character: Pick<Character, "courtEpithetId" | "militaryRecord">
-): string | undefined {
-  return character.courtEpithetId ?? character.militaryRecord?.epithetId;
-}
-
 export function selectCourtFavorite(ruler: Character, court: readonly Character[]): Character | undefined {
-  if (!isGullibleSovereign(ruler) && ruler.courtEpithetId !== "foolish_king") return undefined;
+  if (!isSovereignRuler(ruler)) return undefined;
+  if (ruler.courtEpithetId && ruler.courtEpithetId !== "foolish_king") return undefined;
+  if (ruler.courtEpithetId !== "foolish_king" && !isGullibleSovereign(ruler)) return undefined;
   if (isWiseSovereign(ruler) || ruler.courtEpithetId === "wise_king") return undefined;
 
   const peers = court.filter(c => c.i !== ruler.i && !c.dead && c.state === ruler.state);
   const existing = peers.find(c => c.courtEpithetId === "sycophant");
   if (existing) return existing;
 
-  const candidates = peers.filter(isCourtierDeceiver);
+  const candidates = peers.filter(c => isCourtierDeceiver(c) && !isSovereignRuler(c));
   if (!candidates.length) return undefined;
   return candidates.slice().sort((a, b) => {
     const delta = beguileScore(b) - beguileScore(a);

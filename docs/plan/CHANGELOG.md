@@ -4,6 +4,7 @@
 
 - docs/plan/characters/court-favorite.md
 - docs/plan/characters/military-war-record.md
+- docs/plan/characters/occupation-epithets.md
 - docs/plan/characters/prestige.md
 - docs/plan/characters/skill-specializations.md
 

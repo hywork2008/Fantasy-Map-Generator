@@ -36,16 +36,26 @@ describe("character labels", () => {
   });
 
   it("prefers a court nickname over a war-conduct epithet", async () => {
-    expect(getCharacterEpithetSuffix({ courtEpithetId: "foolish_king" })).toBe(" (the Fool)");
+    const king = {
+      titles: [{ title: "King" as const, landed: true as const, entityType: "state" as const, entityId: 1 }]
+    };
+    expect(getCharacterEpithetSuffix({ ...king, courtEpithetId: "foolish_king" })).toBe(" (the Fool)");
     expect(
       getCharacterEpithetSuffix({
+        ...king,
         courtEpithetId: "wise_king",
         militaryRecord: { wars: 1, services: [], epithetId: "vanguard" }
       })
     ).toBe(" (the Wise)");
 
     await i18n.changeLanguage("ja");
-    expect(getCharacterEpithetSuffix({ courtEpithetId: "foolish_king" })).toBe(" (愚王)");
+    expect(getCharacterEpithetSuffix({ ...king, courtEpithetId: "foolish_king" })).toBe(" (愚王)");
+    expect(
+      getCharacterEpithetSuffix({
+        titles: [{ title: "Emperor", landed: true, entityType: "state", entityId: 1 }],
+        courtEpithetId: "wise_king"
+      })
+    ).toBe(" (賢帝)");
     expect(getCharacterEpithetSuffix({ courtEpithetId: "sycophant" })).toBe(" (佞臣)");
   });
 

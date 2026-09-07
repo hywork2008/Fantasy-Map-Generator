@@ -6,6 +6,7 @@ import {
   applyMilitaryWarRecord,
   chooseWarConduct,
   epithetFromServices,
+  isWarRecordEligible,
   prestigeDeltaForConduct,
   reconstructMilitaryWarRecord,
   SEASONED_CAREER_YEARS
@@ -68,6 +69,14 @@ function war(overrides: Partial<Campaign> = {}): Campaign {
     ...overrides
   };
 }
+
+describe("war-record eligibility", () => {
+  it("treats Shogun as a military career like Warlord", () => {
+    expect(
+      isWarRecordEligible(character({ titles: [{ title: "Shogun", landed: true, entityType: "state", entityId: 1 }] }))
+    ).toBe(true);
+  });
+});
 
 describe("war conduct is not state win/loss", () => {
   it("does not treat campaign.end as a personal victory", () => {

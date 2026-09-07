@@ -20,7 +20,7 @@
 
 統治能力は Diplomacy / Stewardship / Learning / Geography の平均。Martial や Prowess は入れない。武勇のある暗君と、文治の賢王を分けておくため。
 
-共和政の元首にも同じ id を付ける。英語は王号に依存しない。日本語はユーザー指定の愚王・賢王を使う。
+共和政の元首にも同じ id を付ける。英語は王号に依存しない（`the Wise` / `the Fool`）。日本語は landed 称号で屈折する（賢王／賢帝／賢君、愚王／愚帝／愚君）。Queen／Empress は賢女王／賢女帝。Martial は統治能力に入れない。詳細は [occupation-epithets.md](occupation-epithets.md)。
 
 ## 佞臣
 

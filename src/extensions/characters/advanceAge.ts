@@ -81,7 +81,7 @@ export function characterIgnoresAgeDecline(character: Pick<Character, "race" | "
 }
 
 /** Active military title patterns (field + court war offices). */
-const MILITARY_TITLE_RE = /Commander|Admiral|Marshal|General|Warlord|Minister of War/i;
+const MILITARY_TITLE_RE = /Commander|Admiral|Marshal|General|Warlord|Minister of War|Shogun/i;
 /** Economy / extension roles that are professional fighters rather than desk careers. */
 const MILITARY_ROLE_KIND_RE = /bodyguard|soldier|guard|regiment|garrison/i;
 /** Craft and haul work — smiths, apprentices, miners, sailors, farmhands. */

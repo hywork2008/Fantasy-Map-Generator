@@ -252,6 +252,54 @@ describe("court favorite pairing", () => {
     expect(whisper.backstory?.bonds?.some(b => b.kind === "benefactor" && b.targetId === ruler.i)).toBe(false);
   });
 
+  it("does not let a benevolent sovereign take a sycophant as favorite", () => {
+    const ruler = character({
+      i: 1,
+      name: "Kind",
+      skills: {
+        artistry: 40,
+        diplomacy: 60,
+        engineering: 30,
+        geography: 55,
+        intrigue: 45,
+        learning: 55,
+        martial: 40,
+        prowess: 30,
+        stewardship: 55
+      },
+      personality: {
+        boldness: 40,
+        compassion: 80,
+        greed: 25,
+        honor: 70,
+        rationality: 55,
+        sociability: 60,
+        vengefulness: 20,
+        zeal: 50,
+        energy: 55,
+        piety: 50,
+        guile: 30,
+        confidence: 50
+      }
+    });
+    const whisper = deceiver();
+    seedCourtFavorites([ruler, whisper], 1200);
+    expect(ruler.courtEpithetId).toBe("benevolent_king");
+    expect(whisper.courtEpithetId).toBeUndefined();
+    expect(selectCourtFavorite(ruler, [ruler, whisper])).toBeUndefined();
+  });
+
+  it("never treats a landed Warlord as a sycophant candidate", () => {
+    const king = fool();
+    const warlord = deceiver({
+      i: 2,
+      titles: [{ title: "Warlord", landed: true, entityType: "state", entityId: 1 }]
+    });
+    expect(isCourtierDeceiver(warlord)).toBe(false);
+    seedCourtFavorites([king, warlord], 1200);
+    expect(warlord.courtEpithetId).not.toBe("sycophant");
+  });
+
   it("does not let a wise sovereign take a sycophant as favorite", () => {
     const ruler = sage();
     const whisper = deceiver();

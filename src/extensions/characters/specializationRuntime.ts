@@ -8,18 +8,43 @@ import { decaySpecializations, emptySpecializations, recordSpecializationExperie
 import { validateSpecializationProfile } from "./specializationValidation";
 import { useCharactersUiState } from "./ui/charactersUiState";
 
-/** Structural read keeps the optional Economy extension out of the module dependency graph. */
-export function readEconomyPractice(characterId: number, domain: string): number | undefined {
+export type AptitudeTierName = "poor" | "ordinary" | "promising" | "gifted" | "exceptional";
+
+export interface EconomyCraftSkillRead {
+  proficiency: number;
+  aptitude?: AptitudeTierName;
+}
+
+const APTITUDE_TIERS: ReadonlySet<string> = new Set(["poor", "ordinary", "promising", "gifted", "exceptional"]);
+
+function readEconomySkillEntry(characterId: number, domain: string): Record<string, unknown> | undefined {
   if (getApi().isExtensionEnabled && !getApi().isExtensionEnabled("economy")) return undefined;
   const economy = getApi().simulationContext?.extensions?.economy;
   if (!Array.isArray(economy?.individualSkills)) return undefined;
-  const entry = economy.individualSkills.find((entry: unknown) => {
-    if (!entry || typeof entry !== "object") return false;
-    const value = entry as Record<string, unknown>;
+  const entry = economy.individualSkills.find((candidate: unknown) => {
+    if (!candidate || typeof candidate !== "object") return false;
+    const value = candidate as Record<string, unknown>;
     return value.characterId === characterId && value.domain === domain;
-  }) as { proficiency?: number } | undefined;
-  const value = entry?.proficiency;
+  });
+  return entry && typeof entry === "object" ? (entry as Record<string, unknown>) : undefined;
+}
+
+/** Structural read keeps the optional Economy extension out of the module dependency graph. */
+export function readEconomyPractice(characterId: number, domain: string): number | undefined {
+  const value = readEconomySkillEntry(characterId, domain)?.proficiency;
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 ? value : undefined;
+}
+
+/** Proficiency plus aptitude for craft epithets. Undefined when Economy is off or the person has no skill. */
+export function readEconomyCraftSkill(characterId: number, domain: string): EconomyCraftSkillRead | undefined {
+  const entry = readEconomySkillEntry(characterId, domain);
+  const proficiency = entry?.proficiency;
+  if (typeof proficiency !== "number" || !Number.isFinite(proficiency) || proficiency < 0 || proficiency > 100) {
+    return undefined;
+  }
+  const aptitude =
+    typeof entry?.aptitude === "string" && APTITUDE_TIERS.has(entry.aptitude) ? entry.aptitude : undefined;
+  return { proficiency, aptitude: aptitude as AptitudeTierName | undefined };
 }
 
 export function validateLanguageWorldReferences(world: WorldLanguages): void {

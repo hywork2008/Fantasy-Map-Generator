@@ -10,6 +10,7 @@ import { seedCourtFavorites, seedCourtFavoritesForPeer } from "./courtFavorite";
 import { assignDynasties } from "./dynastyGenerator";
 import { applyCharacterHooks } from "./flavorHooks";
 import { normalizeCharacterLoadoutInPlace, seedCharacterLoadout } from "./loadoutSeed";
+import { seedOccupationEpithets, seedOccupationEpithetsForPeer } from "./occupationEpithets";
 
 export interface FinalizeSocietyContext {
   stateNames: Record<number, string>;
@@ -29,6 +30,7 @@ export function finalizeCharacterSociety(
   const dynasties = assignDynasties(ck3Characters, { stateNames: context.stateNames });
   seedCharacterBonds(ck3Characters, context.currentYear);
   seedCourtFavorites(ck3Characters, context.currentYear);
+  seedOccupationEpithets(ck3Characters);
   const catalog = resolveLoadoutGoodsCatalog();
   for (const character of ck3Characters) {
     if (character.dead) continue;
@@ -57,6 +59,7 @@ export function finalizeCharacterSocietyForPeer(
   allCharacters = allCharacters.filter(isCk3Character);
   seedBondsForCharacter(character, allCharacters, context.currentYear);
   seedCourtFavoritesForPeer(character, allCharacters, context.currentYear);
+  seedOccupationEpithetsForPeer(character, allCharacters);
   if (!character.dead) {
     seedCharacterLoadout(character, {
       catalog: resolveLoadoutGoodsCatalog(),

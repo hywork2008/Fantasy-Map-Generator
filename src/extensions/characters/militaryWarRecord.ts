@@ -20,7 +20,7 @@ import { emptySpecializations } from "./specializations";
 /** Human-equivalent career years before we backfill a war ledger (about age 45). */
 export const SEASONED_CAREER_YEARS = 25;
 
-const MARTIAL_COURT_TITLE_RE = /^(Marshal|General|Warlord|Minister of War)$/i;
+const MARTIAL_COURT_TITLE_RE = /^(Marshal|General|Warlord|Minister of War|Shogun)$/i;
 const FIELD_TITLE_RE = /^(Commander|Admiral)$/i;
 
 export const PRESTIGE_DELTA_FOR_CONDUCT: Record<WarConductKind, number> = {

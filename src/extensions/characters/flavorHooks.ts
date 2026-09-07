@@ -12,6 +12,7 @@ import type {
   CommitmentKind,
   SocialStratum
 } from "./characterTypes";
+import { formatEpithetLabel, hasOccupationEpithet } from "./epithetCatalog";
 
 function topTastes(tastes: CharacterTaste[], polarity: "like" | "dislike", n = 2): CharacterTaste[] {
   return tastes
@@ -126,8 +127,12 @@ export function generateCharacterHooks(character: Character): CharacterFlavorHoo
   if (courtEpithetId) {
     hooks.push({ id: `epithet.${courtEpithetId}` });
   }
+  for (const entry of character.epithets ?? []) {
+    hooks.push({ id: `epithet.${entry.id}` });
+  }
   const militaryEpithetId = character.militaryRecord?.epithetId;
-  if (militaryEpithetId && militaryEpithetId !== courtEpithetId) {
+  const suppressGuardian = hasOccupationEpithet(character, "war_god") && militaryEpithetId === "guardian";
+  if (militaryEpithetId && militaryEpithetId !== courtEpithetId && !suppressGuardian) {
     hooks.push({ id: `epithet.${militaryEpithetId}` });
   }
 
@@ -172,7 +177,11 @@ function roleClause(role: string | undefined, t: TFunction): string {
 /**
  * Resolve a stored hook (structured or legacy English string) for the current locale.
  */
-export function formatFlavorHook(hook: CharacterFlavorHook | string, t: TFunction): string {
+export function formatFlavorHook(
+  hook: CharacterFlavorHook | string,
+  t: TFunction,
+  character?: Pick<Character, "titles">
+): string {
   if (typeof hook === "string") return hook;
 
   const id = hook.id;
@@ -228,11 +237,11 @@ export function formatFlavorHook(hook: CharacterFlavorHook | string, t: TFunctio
   }
 
   if (id.startsWith("epithet.")) {
+    const epithetId = id.slice("epithet.".length);
+    const epithet = formatEpithetLabel(epithetId, character ?? { titles: [] });
     return t(`characters.flavorLines.${id}`, {
-      epithet: t(`characters.epithetNames.${id.slice("epithet.".length)}`),
-      defaultValue: t("characters.flavorLines.epithet.default", {
-        epithet: t(`characters.epithetNames.${id.slice("epithet.".length)}`)
-      })
+      epithet,
+      defaultValue: t("characters.flavorLines.epithet.default", { epithet })
     });
   }
 

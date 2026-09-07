@@ -369,9 +369,16 @@
         "wall": "Holds ground until the line itself seems made of iron.",
         "vanguard": "First into the dust, and last to yield the front.",
         "idle_banner": "Present on the rolls of every war, and missing from every fight.",
-        "foolish_king": "Called the Fool: the ear opens for honey, and closes for the ledgers.",
-        "wise_king": "Called the Wise: counsel is weighed, and flattery is measured.",
+        "foolish_king": "Called {{epithet}}: the ear opens for honey, and closes for the ledgers.",
+        "wise_king": "Called {{epithet}}: counsel is weighed, and flattery is measured.",
         "sycophant": "Keeps the sovereign's ear, and owes that sovereign nothing.",
+        "benevolent_king": "Called {{epithet}}: the realm's pain is not a distant rumor.",
+        "renowned_king": "Called {{epithet}}: the name already lives in the market and the chapel.",
+        "war_god": "A legend of command and personal steel — not a shrine.",
+        "master_artisan": "The work itself taught the city this name.",
+        "prodigy": "Already spoken of as a prodigy, before the hall has a chair.",
+        "magnate": "Coin moves when this name is spoken.",
+        "able_minister": "Ledgers and envoys both answer to this one.",
         "default": "Known as {{epithet}}."
       }
     },
@@ -383,7 +390,30 @@
       "idle_banner": "the Absent",
       "foolish_king": "the Fool",
       "wise_king": "the Wise",
-      "sycophant": "the Sycophant"
+      "sycophant": "the Sycophant",
+      "benevolent_king": "the Benevolent",
+      "renowned_king": "the Renowned",
+      "war_god": "the War God",
+      "master_artisan": "the Master",
+      "prodigy": "the Prodigy",
+      "magnate": "the Magnate",
+      "able_minister": "the Able"
+    },
+    "epithetStems": {
+      "wise_king": {
+        "king": "the Wise",
+        "queen": "the Wise",
+        "emperor": "the Wise",
+        "empress": "the Wise",
+        "lord": "the Wise"
+      },
+      "foolish_king": {
+        "king": "the Fool",
+        "queen": "the Fool",
+        "emperor": "the Fool",
+        "empress": "the Fool",
+        "lord": "the Fool"
+      }
     },
     "warRecord": "War record",
     "warRecordWars": "{{count}} campaigns served",

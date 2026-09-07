@@ -905,7 +905,7 @@ export const CharacterDetailsDialog: React.FC = () => {
 
       if (backstory.hooks?.length) {
         rows.push(t("characters.flavorHooks"));
-        for (const hook of backstory.hooks) rows.push(formatFlavorHook(hook, t));
+        for (const hook of backstory.hooks) rows.push(formatFlavorHook(hook, t, character));
       }
 
       if (backstory.bonds?.length) {
@@ -1564,7 +1564,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     <td>
                       <ul style={{ margin: 0, paddingLeft: "1.1em" }}>
                         {backstory.hooks.map((hook, index) => {
-                          const text = formatFlavorHook(hook, t);
+                          const text = formatFlavorHook(hook, t, character);
                           return <li key={typeof hook === "string" ? hook : `${hook.id}-${index}`}>{text}</li>;
                         })}
                       </ul>

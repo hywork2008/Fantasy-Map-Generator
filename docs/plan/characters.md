@@ -10,7 +10,7 @@
 * **Age (年齢)**: キャラクターの年齢。寿命や後継者問題に直結します。
 * **Gender (性別)**: 男性・女性。国家の継承法や文化によって扱いが変わる場合があります。
 * **Culture (文化/種族)**: キャラクターの属する文化圏や種族（例: 人間、エルフ、ゴブリンなど）。寿命や繁殖力、他文化との相性に影響します。
-* **Title (役職)**: 君主（Ruler）、軍務卿（Marshal）、諜報長官（Spymaster）などの中央官職に加え、前線・部隊レベルのNPC（連隊指揮官の Commander/Admiral、辺境州の領主）も同じ `TitleHolding` の仕組みで表現される。詳細は `docs/plan/char.md` を参照。高齢の武人は Relations history の戦争から従軍と戦い方を再構成し、守護神などの二つ名が付くことがある。詳細は [military-war-record.md](characters/military-war-record.md)。治世の渾名（愚王・賢王）と、忠誠が主君に向かない佞臣との寵愛関係は [court-favorite.md](characters/court-favorite.md)。
+* **Title (役職)**: 君主（Ruler）、軍務卿（Marshal）、諜報長官（Spymaster）などの中央官職に加え、前線・部隊レベルのNPC（連隊指揮官の Commander/Admiral、辺境州の領主）も同じ `TitleHolding` の仕組みで表現される。詳細は `docs/plan/char.md` を参照。高齢の武人は Relations history の戦争から従軍と戦い方を再構成し、守護神などの二つ名が付くことがある。詳細は [military-war-record.md](characters/military-war-record.md)。治世の渾名（愚王・賢王）と、忠誠が主君に向かない佞臣との寵愛関係は [court-favorite.md](characters/court-favorite.md)。公開二つ名を付けてよい職業のカタログは [occupation-epithets.md](characters/occupation-epithets.md)。
 
 ## 2. トロフィー価値 (Trophy Value)
 

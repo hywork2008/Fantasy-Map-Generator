@@ -25,7 +25,17 @@ export type WarConductKind =
 export type MilitaryEpithetId = "guardian" | "last_guard" | "wall" | "vanguard" | "idle_banner";
 
 /** Public court nickname — distinct from war-conduct epithets on `militaryRecord`. */
-export type CourtEpithetId = "foolish_king" | "wise_king" | "sycophant";
+export type CourtEpithetId = "foolish_king" | "wise_king" | "sycophant" | "benevolent_king" | "renowned_king";
+
+export type EpithetLineage = "court" | "war_conduct" | "war_legend" | "craft" | "commerce" | "office";
+
+/** v1 occupation nicknames. Future ids (learned_divine, virtuoso, …) stay out of this union. */
+export type OccupationEpithetId = "war_god" | "master_artisan" | "prodigy" | "magnate" | "able_minister";
+
+export interface CharacterEpithet {
+  lineage: Exclude<EpithetLineage, "court" | "war_conduct">;
+  id: OccupationEpithetId;
+}
 
 export interface CharacterWarService {
   campaignName: string;
@@ -543,6 +553,11 @@ export interface Character {
    * Assigned at society finalize from governing competence and the foolish-ruler / sycophant pair.
    */
   courtEpithetId?: CourtEpithetId;
+  /**
+   * Occupation nicknames other than court and war-conduct (軍神 / 名工 / 豪商 / …).
+   * At most one id per lineage. Missing means unused — load does not backfill.
+   */
+  epithets?: CharacterEpithet[];
 }
 
 /** Quality band shared by attire and weapons (1 = rags / farm tool … 5 = royal / masterwork). */

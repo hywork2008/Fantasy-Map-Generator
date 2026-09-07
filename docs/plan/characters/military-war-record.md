@@ -10,7 +10,7 @@
 
 ## 対象
 
-- 軍職（Marshal / Commander / Admiral 等）または辺境の地方領主
+- 軍職（Marshal / Commander / Admiral / Warlord / Shogun 等）または辺境の地方領主
 - 人間換算のキャリアが 25 年以上（およそ 45 歳以上）
 - 所属国の `state.campaigns` が在任期間と重なる
 
