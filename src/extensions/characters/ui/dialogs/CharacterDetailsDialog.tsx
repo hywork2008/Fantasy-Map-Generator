@@ -15,6 +15,7 @@ import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { getAbilityValue } from "../../personFactory";
+import { militaryStanding, officeSphereVisibility, type ReputationLabel, reputationAmong } from "../../prestige";
 import { specializationCsvRows } from "../../specializationExport";
 import { readEconomyPractice } from "../../specializationRuntime";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
@@ -22,6 +23,21 @@ import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/chara
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
 import { SpecializationPanel } from "../components/SpecializationPanel";
+
+function reputationLabelI18nKey(label: ReputationLabel): string {
+  switch (label) {
+    case "home":
+      return "characters.reputationLabelHome";
+    case "hero":
+      return "characters.reputationLabelHero";
+    case "infamous":
+      return "characters.reputationLabelInfamous";
+    case "unknown":
+      return "characters.reputationLabelUnknown";
+    case "noted":
+      return "characters.reputationLabelNoted";
+  }
+}
 
 /** Primary office label for overview/relation tables (first title, else first role). */
 function getOfficeLabel(character: Character): string {
@@ -359,6 +375,13 @@ export const CharacterDetailsDialog: React.FC = () => {
             ? "appearanceToYouKindPartial"
             : "appearanceToYouKindAlien";
 
+  const militaryVis = officeSphereVisibility(character, "military");
+  const armyStanding = militaryStanding(character);
+  const foreignReputation =
+    playerCharacter && playerCharacter.state !== character.state
+      ? reputationAmong(character, playerCharacter.state)
+      : null;
+
   const handleClose = () => {
     closeDialog("characterDetails");
     // History is cleared by the isOpen effect above.
@@ -565,9 +588,35 @@ export const CharacterDetailsDialog: React.FC = () => {
           </tr>
         ) : null}
         <tr>
-          <th style={{ padding: "4px 0" }}>{t("characters.prestige")}</th>
+          <th style={{ padding: "4px 0" }} data-tip={t("characters.prestigeTip")}>
+            {t("characters.prestige")}
+          </th>
           <td>{character.prestige ?? t("characters.notAvailable")}</td>
         </tr>
+        {militaryVis >= 0.4 ? (
+          <tr>
+            <th style={{ padding: "4px 0" }} data-tip={t("characters.militaryStandingTip")}>
+              {t("characters.militaryStanding")}
+            </th>
+            <td>{armyStanding}</td>
+          </tr>
+        ) : null}
+        {foreignReputation && foreignReputation.label !== "home" ? (
+          <tr>
+            <th style={{ padding: "4px 0" }} data-tip={t("characters.reputationAmongYouTip")}>
+              {t("characters.reputationAmongYou")}
+            </th>
+            <td>
+              {t(reputationLabelI18nKey(foreignReputation.label))}
+              <span style={{ fontSize: "0.85em", marginLeft: 6 }}>
+                {t("characters.reputationHonor", { honor: foreignReputation.honor })}
+                {foreignReputation.dread > 0
+                  ? ` · ${t("characters.reputationDread", { dread: foreignReputation.dread })}`
+                  : ""}
+              </span>
+            </td>
+          </tr>
+        ) : null}
         {character.family ? (
           <tr>
             <th style={{ padding: "4px 0" }}>{t("characters.family")}</th>
@@ -676,6 +725,14 @@ export const CharacterDetailsDialog: React.FC = () => {
       );
     }
     rows.push(`${t("characters.prestige")}, ${character.prestige ?? t("characters.notAvailable")}`);
+    if (militaryVis >= 0.4) {
+      rows.push(`${t("characters.militaryStanding")}, ${armyStanding}`);
+    }
+    if (foreignReputation && foreignReputation.label !== "home") {
+      rows.push(
+        `${t("characters.reputationAmongYou")}, ${t(reputationLabelI18nKey(foreignReputation.label))} (${t("characters.reputationHonor", { honor: foreignReputation.honor })}${foreignReputation.dread > 0 ? `; ${t("characters.reputationDread", { dread: foreignReputation.dread })}` : ""})`
+      );
+    }
     rows.push(`${t("characters.wealth")}, ${character.wealth ?? 0}`);
 
     // Family

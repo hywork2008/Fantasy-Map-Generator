@@ -9,6 +9,7 @@ import { attractiveness, isSameRace } from "./appearance";
 import { adjustSolidarity, getFavor, getSolidarity, offerGift } from "./backstoryProfile";
 import { getWarPreference, hasPrinciple } from "./characterMotivation";
 import { type Character, type CommitmentKind, isCk3Character } from "./characterTypes";
+import { marriageTrophyValue } from "./prestige";
 
 // ---------------------------------------------------------------------------
 // Derived patriotism (no stored field — orientation from Commitment + honor)
@@ -181,12 +182,12 @@ export interface MarriageEvaluation {
 
 /**
  * Evaluate whether `ruler` would form a dynastic marriage with `otherRuler`'s state.
- * Uses commitment (house/faith), prestige gap, romantic favor, and personality.
+ * Uses commitment (house/faith), observer-relative trophy value, romantic favor, and personality.
  */
 export function evaluateDynasticMarriage(
   ruler: Character,
   otherRuler: Character | undefined,
-  options: { otherStatePrestige?: number } = {}
+  options: { otherStatePrestige?: number; relation?: string } = {}
 ): MarriageEvaluation {
   if (!isCk3Character(ruler) || (otherRuler !== undefined && !isCk3Character(otherRuler))) {
     return { accept: false, weight: 0, reason: "non_ck3_character" };
@@ -210,13 +211,21 @@ export function evaluateDynasticMarriage(
     }
   }
 
-  // House first: refuse large prestige downgrade
+  // House first: refuse infamy and large trophy downgrades as this court sees the other.
   if (primary === "house") {
-    const otherPrestige = otherRuler?.prestige ?? options.otherStatePrestige ?? 40;
-    if (otherPrestige < ruler.prestige - 25) {
+    const otherTrophy = otherRuler
+      ? marriageTrophyValue(otherRuler, ruler.state, {
+          relation: options.relation,
+          fallback: options.otherStatePrestige
+        })
+      : (options.otherStatePrestige ?? 40);
+    if (otherTrophy < 0) {
+      return { accept: false, weight: 0, reason: "house_infamy" };
+    }
+    if (otherTrophy < ruler.prestige - 25) {
       return { accept: false, weight: 0, reason: "house_prestige_gap" };
     }
-    if (otherPrestige >= ruler.prestige) {
+    if (otherTrophy >= ruler.prestige) {
       weight += 0.15;
       reason = "house_advantageous";
     }

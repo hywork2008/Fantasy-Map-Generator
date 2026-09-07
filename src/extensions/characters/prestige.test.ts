@@ -5,7 +5,19 @@ import type { ExtensionAPI } from "../hostTypes";
 import { applyCharacterBackstory } from "./backstoryProfile";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import type { Character, CharacterRoleClass, SocialStratum } from "./characterTypes";
-import { breakdownInitialPrestige, humanCareerYears, publicOfficeContribution, rollInitialPrestige } from "./prestige";
+import {
+  breakdownInitialPrestige,
+  courtKnownness,
+  diplomacyValence,
+  humanCareerYears,
+  internationalKnownness,
+  marriageTrophyValue,
+  militaryStanding,
+  publicOfficeContribution,
+  reputationAmong,
+  resolveOfficeKind,
+  rollInitialPrestige
+} from "./prestige";
 
 function character(overrides: Partial<Character> = {}): Character {
   return {
@@ -408,5 +420,129 @@ describe("rollInitialPrestige bounds", () => {
         expect(prestige).toBeLessThanOrEqual(100);
       }
     }
+  });
+});
+
+describe("observer-relative standing", () => {
+  const marshal = () =>
+    character({
+      age: 55,
+      state: 1,
+      backstory: {
+        origin: {
+          socialStratum: "minor_noble",
+          estateStatus: "officer",
+          raisedIn: "military_camp"
+        },
+        commitment: { primary: { kind: "office", weight: 80 }, intensity: 70, conflictPolicy: "primary_wins" },
+        tastes: []
+      } as Character["backstory"],
+      skills: {
+        artistry: 30,
+        diplomacy: 50,
+        engineering: 30,
+        geography: 50,
+        intrigue: 40,
+        learning: 40,
+        martial: 90,
+        prowess: 70,
+        stewardship: 40
+      },
+      titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
+    });
+
+  const spy = () =>
+    character({
+      age: 50,
+      state: 1,
+      backstory: {
+        origin: {
+          socialStratum: "commoner",
+          estateStatus: "official",
+          raisedIn: "capital_city"
+        },
+        commitment: { primary: { kind: "liege", weight: 70 }, intensity: 60, conflictPolicy: "primary_wins" },
+        tastes: []
+      } as Character["backstory"],
+      skills: {
+        artistry: 40,
+        diplomacy: 40,
+        engineering: 40,
+        geography: 40,
+        intrigue: 95,
+        learning: 40,
+        martial: 35,
+        prowess: 40,
+        stewardship: 40
+      },
+      titles: [{ title: "Spymaster", landed: false, entityType: "state", entityId: 1 }]
+    });
+
+  it("classifies marshal and spy offices", () => {
+    expect(resolveOfficeKind(marshal(), "commander")).toBe("marshal");
+    expect(resolveOfficeKind(spy(), "central_officer")).toBe("spymaster");
+  });
+
+  it("gives the army a higher standing for a veteran marshal than public prestige reconstruction alone", () => {
+    const m = marshal();
+    expect(militaryStanding(m, "commander")).toBeGreaterThan(internationalKnownness(m, "commander") * 0.5);
+    expect(militaryStanding(m, "commander")).toBeGreaterThan(40);
+  });
+
+  it("keeps spy success out of military and international knownness", () => {
+    const s = spy();
+    expect(internationalKnownness(s, "central_officer")).toBe(0);
+    expect(militaryStanding(s, "central_officer")).toBeLessThanOrEqual(8);
+    expect(courtKnownness(s, "central_officer")).toBeGreaterThan(militaryStanding(s, "central_officer"));
+  });
+
+  it("makes a steward far less internationally known than a marshal", () => {
+    const steward = character({
+      age: 50,
+      state: 1,
+      backstory: marshal()!.backstory,
+      titles: [{ title: "Steward", landed: false, entityType: "state", entityId: 1 }]
+    });
+    expect(internationalKnownness(marshal(), "commander")).toBeGreaterThan(
+      internationalKnownness(steward, "central_officer") + 15
+    );
+  });
+
+  it("flips the same marshal legend from hero to infamy with dread", () => {
+    const m = marshal();
+    m.prestige = 63;
+    const ally = reputationAmong(m, 2, { relation: "Ally", roleClass: "commander" });
+    const enemy = reputationAmong(m, 3, { relation: "Enemy", roleClass: "commander" });
+    expect(ally.knownness).toBe(enemy.knownness);
+    expect(ally.honor).toBeGreaterThan(0);
+    expect(enemy.honor).toBe(-ally.honor);
+    expect(ally.dread).toBe(0);
+    expect(enemy.dread).toBeGreaterThan(0);
+    expect(ally.label).toBe("hero");
+    expect(enemy.label).toBe("infamous");
+  });
+
+  it("treats home observers as public prestige, not a foreign reading", () => {
+    const m = marshal();
+    m.prestige = 63;
+    const home = reputationAmong(m, 1, { roleClass: "commander" });
+    expect(home.label).toBe("home");
+    expect(home.honor).toBe(63);
+    expect(home.dread).toBe(0);
+  });
+
+  it("uses signed infamy as a marriage trophy when the observer is an enemy", () => {
+    const m = marshal();
+    m.state = 2;
+    expect(marriageTrophyValue(m, 1, { relation: "Enemy", roleClass: "commander" })).toBeLessThan(0);
+    expect(marriageTrophyValue(m, 1, { relation: "Ally", roleClass: "commander" })).toBeGreaterThan(0);
+  });
+
+  it("maps diplomacy labels to valence without storing per-state prestige", () => {
+    expect(diplomacyValence("Ally")).toBe(1);
+    expect(diplomacyValence("Enemy")).toBe(-1);
+    expect(diplomacyValence("Suspicion")).toBe(-0.4);
+    expect(diplomacyValence("Neutral")).toBe(0.2);
+    expect(diplomacyValence(undefined)).toBe(0.2);
   });
 });

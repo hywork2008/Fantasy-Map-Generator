@@ -459,9 +459,8 @@ export interface Character {
    */
   appearance: number;
   /**
-   * Public social brand (1–100), not lineage and not court influence.
-   * Seeded at generation from inherited name + visible office + reconstructed public career.
-   * See docs/plan/characters/prestige.md.
+   * Home-public honor (1–100), not lineage, court influence, army esteem, or foreign fame.
+   * Observer-relative hero/infamy is derived — see docs/plan/characters/prestige.md.
    */
   prestige: number;
   /**

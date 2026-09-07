@@ -199,7 +199,7 @@ street          // 路上・孤児
 
 ### 3.4 Prestige との関係
 
-現行の初期値は身分帯への寄せではない。家名（低い帯）+ 公開官職 + 成人キャリアの公開実績。若い人物は実績がほぼ 0。Spymaster の職務成功は公開実績に入らない。定数・実測は [prestige.md](prestige.md)。
+現行の初期値は身分帯への寄せではない。家名（低い帯）+ 公開官職 + 成人キャリアの公開実績。若い人物は実績がほぼ 0。Spymaster の職務成功は公開実績に入らない。宮廷評価は Solidarity、軍部と外国は導出。定数・実測は [prestige.md](prestige.md)。
 
 成り上がりは `socialStratum=commoner` かつ `estateStatus=landed_noble` かつ prestige 高、で表現する（公開の官職と長い公開キャリアがそれを作る）。
 

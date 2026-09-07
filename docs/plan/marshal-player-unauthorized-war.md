@@ -113,7 +113,7 @@ v1 プロキシ（クリック時 1 回、対象隣国 `targetId` 付き）:
 - **在任期間**: `titles` + `pastTitles` のうち称号が `CENTRAL_MARTIAL_TITLE_RE`（`/Marshal|Minister of War|General/i`）にマッチする区間。`startYear` 欠落は区間に入れない。現行職の `endYear` は `getCurrentYear()`。年齢フィルタは掛けない（在任が重なっていればその人物は存在していた）。
 - **warsVsTarget（従軍・関係史）**: `state.campaigns` のうち `(attacker, defender)` が `(marshalState, targetId)` または逆の件数。`characterLifecycle.calculateAffinities` と同じ数え方。年代記の宣戦イベントは **数えない**（同じ戦争が二重に入る）。
 - **victories（戦勝）**: 年代記 `ChronicleEvent` のうち `action === "captured the city"`（完全一致。`"failed to capture the city"` / `"declared a war on its rival"` / `"avoided entering the war"` / `"joined the war on attackers side"` は除外）かつ `event.from === marshalState`。暦年は `simulationContext.currentYear - event.yearsAgo`。その年が在任期間と重なれば 1 勝。`to === targetId` なら対その隣国の勝利として victories 項に使い、他国への勝利は使わない。`campaign.end` は見ない。
-- **prestige**: `Character.prestige`（1–100）を独立項。
+- **prestige 項**: 民衆 `Character.prestige` ではなく `militaryStanding(marshal)`（1–100）。兵が従うかは軍部評価。
 
 v1.1 で optional `Character.militaryRecord?: { wars: number; victories: number; lastVictoryYear?: number }` を `battle-resolution.ts` が `captured the city` 時に在任中央軍務官へ書き戻す。undefined なら上記プロキシ。
 
@@ -295,7 +295,7 @@ export function regimentMayTakeAiOrder(
 
 ```ts
 export interface MarshalComplianceBreakdown {
-  prestige: number;          // Character.prestige, weight 0.25
+  prestige: number;          // militaryStanding(marshal), weight 0.25 — not public prestige
   veteran: number;           // warsVsTarget + years in central martial office, weight 0.20
   victories: number;         // captured the city vs target during tenure, weight 0.15
   officerSolidarity: number; // mean relationToHundred(getSolidarity(marshal, officer.i)), empty → 50, weight 0.15
@@ -337,7 +337,7 @@ else:
     titled Commander/Admiral: marshal iff
       relationToHundred(getSolidarity(officer, marshal.i)) を使わず生の -100..100 で
       getSolidarity(officer, marshal) - getSolidarity(officer, ruler)
-        + marshal.prestige * 0.3 + officer.personality.boldness * 0.2
+        + militaryStanding(marshal) * 0.3 + officer.personality.boldness * 0.2
         ≥ 30 + ruler.personality.honor * 0.25
       （過半帯でも有官はこの式。嫌っている司令は王冠に残る）
   if count(marshal && !guard && !n && a > 0) === 0: fail (no marching land)

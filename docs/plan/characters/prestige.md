@@ -1,7 +1,7 @@
 # Prestige — 民衆から見た社会的ブランド
 
-**Status**: 初期値の生成ルールを実装済み（2026-09-07）。  
-**Code**: `src/extensions/characters/prestige.ts`, applied from `applyCharacterBackstory()`.  
+**Status**: 初期値の生成と観察者相対の導出クエリを実装済み（2026-09-07）。  
+**Code**: `src/extensions/characters/prestige.ts`（生成は `applyCharacterBackstory()`）。  
 **Related**: [characters.md](../characters.md) §2, [backstory-profile.md](backstory-profile.md) §3.4, [guilds/relations.md](../guilds/relations.md)（見習い上書き）
 
 ## 1. 定義
@@ -14,8 +14,9 @@
 | 民衆が知る官職（王冠・元帥・宰相） | 宮廷内の実効力（Solidarity・官職・Intrigue） |
 | 成人後に公開の場で積んだと推定される実績 | `personality.honor`（誓約を守るか） |
 | | 諜報の成功・失敗 |
+| | 軍部評価・外国での英雄／悪名（導出。§8） |
 
-宮廷評価用の第2ステータスは置かない。Spymaster の実効力は官職・Intrigue・為政者との Solidarity で表す。
+保存フィールドは `prestige` のみ。宮廷の為政者からの評価は Solidarity。軍部と外国は `militaryStanding` / `reputationAmong` で導出する。Spymaster の職務成功は為政者と直属の Solidarity にだけ残す。
 
 生成後の加齢だけでは上がらない。初期値は **これまで公開の場にいた人生の要約** であり、以後は公開イベントでのみ動かす。
 
@@ -133,11 +134,12 @@ guild apprentice のみ
 
 | 利用 | 影響 |
 | :--- | :--- |
-| 政略結婚 `house_prestige_gap`（差 25） | 若い王同士は通りやすく、老王が低名家を拒みやすい |
+| 政略結婚 | 観察国から見た `marriageTrophyValue`。味方・中立は国際知名度、敵は悪名（負）。差 25 で拒否。悪名は `house_infamy` |
 | 商人シェア `prestige * 0.3` | 若手商人はやや小さい。技能項の方が大きい |
 | 儀式の好き嫌い | 確定 Prestige を読む。若い下級将校は儀式嫌い、高位の閲兵指揮官は好き |
 | 商家の Dynasty 判定（merchant_born かつ ≥55） | 確立した商人に寄る |
 | ギルド親方の評判（Prestige 10%） | 公開ブランドは補助。本業は熟練 |
+| 兵の服従（独走戦争） | 民衆 `prestige` ではなく `militaryStanding` |
 
 ## 7. 今後足さないもの / 後で足すもの
 
@@ -147,10 +149,90 @@ guild apprentice のみ
 - Spymaster の在任年数・Intrigue の公開換算
 - 身分帯 70–100 を家名に戻すこと
 - `personality.honor` を足すこと
-- 宮廷評価用の新ステータス
+- `courtPrestige` / `militaryPrestige` / `foreignPrestige` を人物に保存すること
+- 敵国の数だけ署名付きスコアを持つこと
+- 恐れを名誉に混ぜること
 
 後続:
 
-- 戦勝・条約・公開土木など、公開イベントでの増減
+- 戦勝・条約・公開土木など、公開イベントでの増減（民衆 `prestige` と軍部評価を別々に）
 - 商人の成功（wealth / share）による上振れ。生成時の代理は Stewardship × キャリア
 - 若い騎士の武勇名声は、必要になってから狭く
+- 宮廷の集団平均 Solidarity が必要になってから圏集計を足す
+
+## 8. 観察者相対 — 知名度・符号・対人
+
+観客の数だけ Prestige を持たない。同じ軍務卿が味方の英雄で敵の悪名なのは、別の人生ではなく **同じ伝説の符号が観察者で反転する**。
+
+| 層 | 問うこと | 実装 |
+| :--- | :--- | :--- |
+| 知名度 | その圏で名前が通っているか | 民衆は `prestige`。軍部・国際は導出 |
+| 評価の符号 | 英雄か悪名か | `diplomacyValence` × 国際知名度 |
+| 対人関係 | この人がこの人をどう思うか | `solidarity` / `favor` |
+| 恐れ | 敵が怖がるか | `dread`。名誉のマイナスではない |
+
+### 8.1 4つの観客
+
+| 観客 | 何を見るか | 持ち方 |
+| :--- | :--- | :--- |
+| 国内民衆 | 公開の官職と戦勝の名誉 | 保存 `prestige` |
+| 宮廷の為政者 | 個人ごと。忠誠・脅威・儀礼 | **Solidarity**。`courtKnownness` は「職が見えるか」だけ |
+| 軍部 | 勝つか、兵を無駄にしないか | `militaryStanding`（導出。無名兵士キャラはいない） |
+| 友好国 | 同じ戦歴を英雄として読む | `reputationAmong` … 国際知名度 × 正 |
+| 敵対国 | 同じ戦歴を悪名／恐れとして読む | 同じ関数 … 国際知名度 × 負 + dread |
+
+パレード型の軍務卿は民衆 Prestige と宮廷 Solidarity が高く、軍部評価が低いことがある。泥の軍務卿はその逆。
+
+スパイ:
+
+- 民衆 `prestige` … 家名だけ
+- 宮廷 knownness … 職があることは見える（deeds は入らない）
+- 職務成功 … 為政者と直属の Solidarity のみ
+- 軍部・国際 … 0（露見時だけ国際が跳ねる。未実装）
+
+### 8.2 圏の公開度
+
+`SPHERE_VISIBILITY`（`OfficeKind` × public / court / military / international）:
+
+| 職務 | 民衆 | 宮廷 | 軍部 | 国際 |
+| :--- | ---: | ---: | ---: | ---: |
+| 君主 | 1.00 | 1.00 | 0.50 | 1.00 |
+| 軍務卿 | 0.90 | 0.80 | 1.00 | 0.85 |
+| 野戦指揮官 | 0.80 | 0.20 | 0.90 | 0.40 |
+| 宰相 | 0.70 | 0.90 | 0.10 | 0.55 |
+| 財務 | 0.50 | 0.70 | 0.10 | 0.15 |
+| Spymaster | 0 | 0.35 | 0 | 0 |
+
+### 8.3 導出クエリ
+
+```
+militaryStanding     = 0.35 × 家名中央値 + 軍部官職加点 + record(軍 vis, Martial)
+internationalKnownness = 家名中央値 × 国際漏れ + 官職加点 × (国際 vis / 民衆 vis) + record(国際 vis, 公開技能)
+  国際漏れ: royal/high_noble 0.85, minor_noble/gentry 0.50, 他 0.25
+  Spymaster は 0
+
+diplomacyValence(Ally/Friendly/Vassal/Suzerain) = +1
+diplomacyValence(Enemy/Rival) = −1
+diplomacyValence(Suspicion) = −0.4
+diplomacyValence(Neutral / 未設定) = +0.2
+
+reputationAmong(人物, 観察国):
+  自国 → honor = prestige, dread = 0, label home
+  他国 → knownness = internationalKnownness
+         honor = knownness × valence
+         dread = valence < 0 のとき knownness × 軍事脅威
+         label: unknown / hero / infamous / noted
+
+marriageTrophyValue:
+  自国 → prestige
+  valence < 0 → honor（悪名は負）
+  それ以外 → knownness（中立の名君も婚資になる）
+```
+
+コード: `src/extensions/characters/prestige.ts`。生成後も乱数を使わず、家名は帯の中央値。
+
+身内（家門）用の Prestige は置かない。家名は民衆 `prestige` の inherited、家の中の序列は Solidarity と称号。
+
+### 8.4 UI
+
+人物詳細の Prestige は自国民衆。軍 vis ≥ 0.4 なら軍部評価を並べる。プレイヤー人物が別国なら「あなたの国から見た評価」（英雄／悪名／恐れ）。宮廷評価の数値行は出さない（関係タブの Solidarity）。

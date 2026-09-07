@@ -190,6 +190,27 @@ describe("evaluateDynasticMarriage", () => {
     expect(result.reason).toBe("house_prestige_gap");
   });
 
+  it("rejects house-first rulers marrying an infamous enemy even when the enemy is famous at home", () => {
+    const a = baseCharacter({ i: 1, name: "A", prestige: 70, state: 1 });
+    const b = baseCharacter({
+      i: 2,
+      name: "B",
+      prestige: 90,
+      state: 2,
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 2 }]
+    });
+    applyCharacterBackstory(a, { roleClass: "ruler", socialStratum: "royal", capitalBurgId: 1 });
+    applyCharacterBackstory(b, { roleClass: "ruler", socialStratum: "royal", capitalBurgId: 2 });
+    a.backstory!.commitment.primary = { kind: "house", weight: 100 };
+    a.prestige = 70;
+    b.prestige = 90;
+    b.state = 2;
+
+    const result = evaluateDynasticMarriage(a, b, { relation: "Enemy" });
+    expect(result.accept).toBe(false);
+    expect(result.reason).toBe("house_infamy");
+  });
+
   it("rejects cross-race dynastic marriage as deviant", () => {
     const a = baseCharacter({ i: 1, name: "Human ruler", race: 1, prestige: 80 });
     const b = baseCharacter({ i: 2, name: "Orc ruler", race: 6, prestige: 85 });
