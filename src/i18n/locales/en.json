@@ -379,6 +379,7 @@
         "master_artisan": "The work itself taught the city this name.",
         "prodigy": "Already spoken of as a prodigy, before the hall has a chair.",
         "magnate": "Coin moves when this name is spoken.",
+        "unscrupulous_merchant": "Farmed taxes and dear credit taught the city this name.",
         "able_minister": "Ledgers and envoys both answer to this one.",
         "default": "Known as {{epithet}}."
       }
@@ -399,6 +400,7 @@
       "master_artisan": "the Master",
       "prodigy": "the Prodigy",
       "magnate": "the Magnate",
+      "unscrupulous_merchant": "the Profiteer",
       "able_minister": "the Able"
     },
     "epithetStems": {

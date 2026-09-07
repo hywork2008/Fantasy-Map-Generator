@@ -166,7 +166,14 @@ export function eligibilityFor(character: Character, lineage: EpithetLineage): E
   if (lineage === "craft") return "no";
   if (lineage === "commerce") {
     const office = resolveOfficeKind(character);
-    if (hasRole(character, "merchantOrganizationHead") || office === "merchant") return "rare";
+    if (
+      hasRole(character, "merchantOrganizationHead") ||
+      hasRole(character, "marketManager") ||
+      hasRole(character, "marketRivalMerchant") ||
+      office === "merchant"
+    ) {
+      return "rare";
+    }
     return "no";
   }
   if (lineage === "office") {

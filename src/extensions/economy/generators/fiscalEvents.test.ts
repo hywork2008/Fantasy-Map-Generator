@@ -1,24 +1,54 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
+import type { Character } from "../../characters/characterTypes";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import { clearEconomyContext, initEconomyContext, setMarkets } from "../economyContext";
 import {
   applyFiscalEvents,
   COUNCIL_FAILURE_INCOME_SCALE,
   fiscalEventRoll,
+  getTaxFarmPersonalityFactor,
   PUBLIC_DEBT_INTEREST_RATE,
   TAX_FARM_RATE_BY_FORM,
   WAR_DEBT_ISSUE_AMOUNT
 } from "./fiscalEvents";
+import type { Market } from "./marketTypes";
+
+function makeManager(greed: number, honor: number): Character {
+  return {
+    i: 9,
+    name: "Manager",
+    age: 40,
+    gender: "male",
+    culture: 0,
+    titles: [],
+    affinities: {},
+    marriages: [],
+    state: 1,
+    dead: false,
+    skills: {} as Character["skills"],
+    personality: { greed, honor } as Character["personality"],
+    family: {} as Character["family"],
+    appearance: 50,
+    prestige: 40,
+    wealth: 10,
+    pastTitles: []
+  };
+}
 
 describe("fiscalEvents (PR-7)", () => {
   afterEach(() => {
     clearEconomyContext();
+    clearCharactersContext();
   });
 
   beforeEach(() => {
-    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    const api = { worldContext } as unknown as ExtensionAPI;
+    initEconomyContext(api);
+    initCharactersContext(api);
     worldContext.pack = { states: [], burgs: [] } as unknown as PackedGraph;
+    setMarkets([]);
   });
 
   it("does not run council failure in peacetime without war footing", () => {
@@ -91,6 +121,60 @@ describe("fiscalEvents (PR-7)", () => {
     expect(state.treasury).toBeCloseTo(100 - result.taxFarmLeak, 5);
     // PR-9: majority of farm skim lands in the credit pool, not only the capital burg.
     expect(state.creditPoolBalance).toBeGreaterThan(10);
+  });
+
+  it("leaves the tax-farm factor at 1 when greed and honor are neutral", () => {
+    expect(getTaxFarmPersonalityFactor(50, 50)).toBe(1);
+    expect(getTaxFarmPersonalityFactor(undefined, undefined)).toBe(1);
+  });
+
+  it("raises the tax-farm leak for a greedy low-honor capital-market manager", () => {
+    const greedy = makeManager(100, 0);
+    const honest = makeManager(0, 100);
+    const capital = { i: 1, treasury: 0, removed: false } as unknown as Burg;
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: {},
+      managerCharacterId: 9
+    } as Market;
+
+    const greedyState = {
+      i: 2,
+      form: "Republic",
+      diplomacy: [],
+      treasury: 100,
+      capital: 1,
+      creditPoolBalance: 10
+    } as unknown as State;
+    worldContext.pack = {
+      characters: [greedy],
+      states: [undefined, greedyState],
+      burgs: [undefined, capital]
+    } as unknown as PackedGraph;
+    setMarkets([market]);
+    const greedyResult = applyFiscalEvents(greedyState, 100);
+
+    const honestState = {
+      i: 2,
+      form: "Republic",
+      diplomacy: [],
+      treasury: 100,
+      capital: 1,
+      creditPoolBalance: 10
+    } as unknown as State;
+    worldContext.pack = {
+      characters: [honest],
+      states: [undefined, honestState],
+      burgs: [undefined, capital]
+    } as unknown as PackedGraph;
+    setMarkets([market]);
+    const honestResult = applyFiscalEvents(honestState, 100);
+
+    expect(greedyResult.taxFarmLeak).toBeGreaterThan(honestResult.taxFarmLeak);
+    expect(getTaxFarmPersonalityFactor(100, 0)).toBeGreaterThan(1);
+    expect(getTaxFarmPersonalityFactor(0, 100)).toBeLessThan(1);
   });
 
   it("services public debt interest from L2 into the credit pool and repays surplus principal", () => {

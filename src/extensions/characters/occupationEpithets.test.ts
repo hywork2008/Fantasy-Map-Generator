@@ -202,6 +202,65 @@ describe("seedOccupationEpithets", () => {
     expect(chancellor.epithets?.some(e => e.id === "able_minister")).toBe(true);
   });
 
+  it("assigns unscrupulous_merchant from greed and thin honor, taking commerce over magnate", () => {
+    const profiteer = character({
+      i: 7,
+      titles: [],
+      prestige: 70,
+      wealth: 200,
+      skills: { ...character().skills, stewardship: 80 },
+      personality: { ...character().personality, greed: 88, honor: 20 },
+      roles: [
+        {
+          source: "economy",
+          kind: "merchantOrganizationHead",
+          entityType: "state",
+          entityId: 1,
+          label: "Merchant Company Head"
+        }
+      ]
+    });
+    const rival = character({
+      i: 8,
+      titles: [],
+      prestige: 40,
+      wealth: 20,
+      personality: { ...character().personality, greed: 80, honor: 25 },
+      roles: [
+        {
+          source: "economy",
+          kind: "marketRivalMerchant",
+          entityType: "market",
+          entityId: 1,
+          label: "Market Rival Merchant"
+        }
+      ]
+    });
+    const honest = character({
+      i: 9,
+      titles: [],
+      prestige: 70,
+      wealth: 200,
+      skills: { ...character().skills, stewardship: 80 },
+      personality: { ...character().personality, greed: 30, honor: 80 },
+      roles: [
+        {
+          source: "economy",
+          kind: "merchantOrganizationHead",
+          entityType: "state",
+          entityId: 1,
+          label: "Merchant Company Head"
+        }
+      ]
+    });
+    seedOccupationEpithets([profiteer, rival, honest]);
+    expect(profiteer.epithets?.some(e => e.id === "unscrupulous_merchant")).toBe(true);
+    expect(profiteer.epithets?.some(e => e.id === "magnate")).toBeFalsy();
+    expect(rival.epithets?.some(e => e.id === "unscrupulous_merchant")).toBe(true);
+    expect(honest.epithets?.some(e => e.id === "magnate")).toBe(true);
+    expect(honest.epithets?.some(e => e.id === "unscrupulous_merchant")).toBeFalsy();
+  });
+
   it("assigns prodigy to a high-engineering metallurgy apprentice", () => {
     const apprentice = character({
       age: 16,

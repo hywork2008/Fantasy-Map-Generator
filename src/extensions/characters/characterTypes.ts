@@ -36,7 +36,13 @@ export type CourtEpithetId =
 export type EpithetLineage = "court" | "war_conduct" | "war_legend" | "craft" | "commerce" | "office";
 
 /** v1 occupation nicknames. Future ids (learned_divine, virtuoso, …) stay out of this union. */
-export type OccupationEpithetId = "war_god" | "master_artisan" | "prodigy" | "magnate" | "able_minister";
+export type OccupationEpithetId =
+  | "war_god"
+  | "master_artisan"
+  | "prodigy"
+  | "magnate"
+  | "unscrupulous_merchant"
+  | "able_minister";
 
 export interface CharacterEpithet {
   lineage: Exclude<EpithetLineage, "court" | "war_conduct">;
@@ -560,7 +566,7 @@ export interface Character {
    */
   courtEpithetId?: CourtEpithetId;
   /**
-   * Occupation nicknames other than court and war-conduct (軍神 / 名工 / 豪商 / …).
+   * Occupation nicknames other than court and war-conduct (軍神 / 名工 / 豪商 / 悪徳商人 / …).
    * At most one id per lineage. Missing means unused — load does not backfill.
    */
   epithets?: CharacterEpithet[];

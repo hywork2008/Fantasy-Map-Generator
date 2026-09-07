@@ -1,3 +1,4 @@
+import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
@@ -7,7 +8,12 @@ import { refreshCouncilBudgetApprovals } from "./councilBudget";
 import { formatFactionVoteSummary, recordCouncilSession } from "./councilSession";
 import { captureCouncilSessionSnapshot } from "./councilSessionReplay";
 import { tickCoupLegitimacyAndUnrest } from "./coupAftermath";
-import { lendFromCreditPool, payCreditorsWithSyndicate, routeTaxFarmProceeds } from "./creditPool";
+import {
+  lendFromCreditPool,
+  payCreditorsWithSyndicate,
+  resolveCapitalMarket,
+  routeTaxFarmProceeds
+} from "./creditPool";
 import { tryDebtCoup } from "./debtCoup";
 import { canIssueDebtWhileNotInDefault, updateDebtDefaultStatus } from "./debtDefault";
 import { applyDebtDefaultConsequences } from "./debtDefaultConsequences";
@@ -45,6 +51,13 @@ export const TAX_FARM_RATE_BY_FORM: Record<string, number> = {
   Theocracy: 0,
   Anarchy: 0
 };
+
+/** Max relative leak premium from a greed-100 capital-market manager. Neutral greed 50 is 1.0. */
+export const TAX_FARM_GREED_PREMIUM_MAX = 0.35;
+/** Max relative leak discount from an honor-100 manager. Neutral honor 50 is 1.0. */
+export const TAX_FARM_HONOR_DISCOUNT_MAX = 0.25;
+export const TAX_FARM_PERSONALITY_FACTOR_MIN = 0.6;
+export const TAX_FARM_PERSONALITY_FACTOR_MAX = 1.5;
 
 /** Annualized-style monthly interest on publicDebt principal. */
 export const PUBLIC_DEBT_INTEREST_RATE = 0.02;
@@ -90,6 +103,33 @@ export function getCouncilFailureChance(form: string | undefined): number {
 
 export function getTaxFarmRate(form: string | undefined): number {
   return TAX_FARM_RATE_BY_FORM[form || ""] ?? 0;
+}
+
+/**
+ * Scale the form tax-farm rate by the capital-market manager's greed / honor.
+ * Missing or unset personality is treated as 50/50 so existing tests without a
+ * named manager keep a factor of 1.
+ */
+export function getTaxFarmPersonalityFactor(greed: number | undefined, honor: number | undefined): number {
+  const g = typeof greed === "number" && Number.isFinite(greed) ? greed : 50;
+  const h = typeof honor === "number" && Number.isFinite(honor) ? honor : 50;
+  const greedFactor = 1 + ((g - 50) / 50) * TAX_FARM_GREED_PREMIUM_MAX;
+  const honorFactor = 1 - ((h - 50) / 50) * TAX_FARM_HONOR_DISCOUNT_MAX;
+  const raw = greedFactor * honorFactor;
+  return rn(Math.max(TAX_FARM_PERSONALITY_FACTOR_MIN, Math.min(TAX_FARM_PERSONALITY_FACTOR_MAX, raw)), 4);
+}
+
+function taxFarmPersonalityFactorForState(state: Pick<State, "capital">): number {
+  if (!hasCharactersContext()) return 1;
+  const market = resolveCapitalMarket(state);
+  if (!market?.managerCharacterId) return 1;
+  try {
+    const manager = getCharacters().find(character => character.i === market.managerCharacterId && !character.dead);
+    if (!manager?.personality) return 1;
+    return getTaxFarmPersonalityFactor(manager.personality.greed, manager.personality.honor);
+  } catch {
+    return 1;
+  }
 }
 
 /**
@@ -142,10 +182,12 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
 
   // ── Tax farming leak → credit pool + capital market / manager (PR-9) ────
   // PR-8 calibration: support slightly reduces farming abuse when assemblies are strong.
+  // Capital-market manager greed raises the leak; honor lowers it. Absent manager → 1.0.
   const farmRate = getTaxFarmRate(state.form);
   const farmSupportFactor = state.form === "Republic" || state.form === "Union" ? 1 - (councilSupport - 50) / 400 : 1;
+  const farmPersonalityFactor = taxFarmPersonalityFactorForState(state);
   if (farmRate > 0 && income > 0) {
-    const desired = rn(income * farmRate * incomeScale * Math.max(0.5, farmSupportFactor), 2);
+    const desired = rn(income * farmRate * incomeScale * Math.max(0.5, farmSupportFactor) * farmPersonalityFactor, 2);
     const available = state.treasury || 0;
     taxFarmLeak = rn(Math.min(desired, available), 2);
     if (taxFarmLeak > 0) {

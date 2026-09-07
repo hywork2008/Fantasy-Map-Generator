@@ -96,7 +96,7 @@ flowchart TB
     warEv["militaryRecord.services[].conduct"]
     legendEv["title + martial + prowess + career + services≥1"]
     craftEv["guildMaster metallurgy + blacksmithing via seam"]
-    tradeEv["merchant role + wealth + prestige + stewardship"]
+    tradeEv["merchant role + wealth/prestige/stewardship or greed/honor + fiscal face"]
     officeEv["office kind + public skill + career"]
   end
   subgraph lineage [保存系統]
@@ -132,7 +132,7 @@ flowchart TB
 | `war_conduct` | 従軍の戦い方 | guardian, last_guard, wall, vanguard, idle_banner | なし（軍神は入れない） |
 | `war_legend` | 個人武勇＋指揮の伝説 | なし | war_god 軍神 |
 | `craft` | 同業と市井が呼ぶ職人渾名 | なし | master_artisan 名工, prodigy 神童 |
-| `commerce` | 市井が呼ぶ商人渾名 | なし | magnate 豪商 |
+| `commerce` | 市井が呼ぶ商人渾名 | なし | magnate 豪商, unscrupulous_merchant 悪徳商人 |
 | `office` | 公開官職の能吏的渾名 | なし（佞臣は court） | able_minister 能吏 |
 
 碩学・名優・名匠（非冶金）・名船匠・名医はカタログの将来行であり、v1 の union に載せない。
@@ -390,8 +390,8 @@ Marshal 55 歳・martial 90 でも standing は ≈60。royal Warlord が martia
 | ギルド親方・その他ドメイン | 未生成 | **rare / 将来** | 名医と同じ。人物がいない | 名匠マップは将来用（§7.4） | `SUCCESSION_DOMAINS` が伸びてから yes に反転 | — |
 | ギルド見習い（冶金） | guildApprentice | **no**（神童のみ例外） | Prestige 1–5（[guilds/relations.md](docs/plan/guilds/relations.md)） | `prodigy` 神童 | `skills.engineering` ≥90。実践 proficiency は使わない | なし |
 | 一般工匠 craftsperson | characterPopulation | **no** | ギルド外の無名職人 | — | — | — |
-| 商人 merchant / marketManager / rival | merchant vis 0.45 | **commerce: rare** | 豪商は自然。露店はおかしい | `magnate` 豪商 | stewardship ≥70, prestige ≥55, 同市の上側 wealth | なし |
-| 商会代表 merchantOrganizationHead | 同上 | **commerce: rare** | 豪商の第一候補 | `magnate` | 同上 | なし |
+| 商人 merchant / marketManager / rival | merchant vis 0.45 | **commerce: rare** | 豪商は自然。露店はおかしい。請負・高利の顔は悪徳商人 | `magnate` 豪商, `unscrupulous_merchant` 悪徳商人 | 豪商: stewardship ≥70, prestige ≥55, 同市の上側 wealth。悪徳商人: greed ≥75, honor ≤35（系統は 1 id。悪徳が先） | なし |
+| 商会代表 merchantOrganizationHead | 同上 | **commerce: rare** | 豪商の第一候補。悪徳商人にもなりうる | `magnate`, `unscrupulous_merchant` | 同上 | なし |
 | 宗教者（非元首の Vicar/Dean 等） | religious | **rare / 将来** | 列聖は no | — | Piety 単独では付けない | — |
 | 冒険者 adventurer | kind adventurer | **no**（将来 rare） | 英雄譚ログなし | — | — | — |
 | 狩人 hunter | kind hunter | **no** | 狩猟ログなし | — | — | — |
@@ -535,6 +535,7 @@ export type OccupationEpithetId =
   | "master_artisan"
   | "prodigy"
   | "magnate"
+  | "unscrupulous_merchant"
   | "able_minister";
 
 export interface CharacterEpithet {
@@ -589,6 +590,7 @@ i18n（ja）:
   "master_artisan": "名工",
   "prodigy": "神童",
   "magnate": "豪商",
+  "unscrupulous_merchant": "悪徳商人",
   "able_minister": "能吏"
 },
 "epithetStems": {
@@ -797,6 +799,12 @@ standing は軍部評価の既存導出で、「伝説」に見える。
 - **Files**: `occupationEpithets.ts`, `epithetCatalog.ts`, i18n, tests
 - **Depends on**: PR5
 - **Description**: 商会代表・高 prestige 商人に `magnate`。Chancellor / 外務は chancellor 帯、Prime Minister / Steward / 財務は steward 帯。sycophant には能吏を付けない。Chancellor＋Spymaster は可、Intrigue は証拠にしない。室内下級官・露店・商会書記は no。
+
+### 悪徳商人（commerce の負極）
+
+- **実装済み**: `unscrupulous_merchant`。系統は magnate と同じ `commerce` なので 1 人 1 id。`greed ≥ 75` かつ `honor ≤ 35` の財政商人（`merchantOrganizationHead` / `marketManager` / `marketRivalMerchant`）は悪徳が勝ち、豪商は付かない。
+- **経済**: 二つ名は生成時の人格＋役職。実害は Advance Time の請負漏出。`fiscalEvents.getTaxFarmPersonalityFactor` が首都市場管理者の greed/honor で漏出を動かす（中立 50/50 は係数 1）。高利は既存の `moneylenders` シンジケート greed。Characters は Economy を import しない。
+- **非対象**: 物の市場での暴利・売り惜しみ・品質偽装。調査メモは [unscrupulous-merchant-goods-market.md](../unscrupulous-merchant-goods-market.md)。
 
 医師・船大工・名優・名伯・聖主・非冶金名匠は、職業生成または証拠イベントのあと。そのときカタログ行を rare→yes に更新し、union に id を足す。
 

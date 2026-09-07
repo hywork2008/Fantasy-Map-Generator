@@ -379,6 +379,7 @@
         "master_artisan": "仕事そのものが、市にこの名を教えた。",
         "prodigy": "席ができる前から、神童と呼ばれている。",
         "magnate": "この名が口に上ると、金が動く。",
+        "unscrupulous_merchant": "請負と高利が、市にこの名を教えた。",
         "able_minister": "帳簿も使節も、この者に答える。",
         "default": "{{epithet}}と呼ばれる。"
       }
@@ -399,6 +400,7 @@
       "master_artisan": "名工",
       "prodigy": "神童",
       "magnate": "豪商",
+      "unscrupulous_merchant": "悪徳商人",
       "able_minister": "能吏"
     },
     "epithetStems": {

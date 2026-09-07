@@ -1,5 +1,5 @@
 /**
- * Occupation-lineage epithets (軍神 / 名工 / 豪商 / 能吏).
+ * Occupation-lineage epithets (軍神 / 名工 / 豪商 / 悪徳商人 / 能吏).
  * Spec: docs/plan/characters/occupation-epithets.md
  */
 import { type Character, type EpithetLineage, isCk3Character, type OccupationEpithetId } from "./characterTypes";
@@ -54,9 +54,22 @@ function isProdigyEligible(character: Character): boolean {
   return character.skills.engineering >= 90;
 }
 
+function hasMerchantRole(character: Character, kind: string): boolean {
+  return (character.roles ?? []).some(r => r.kind === kind && r.endYear === undefined);
+}
+
 function isMerchantLike(character: Character): boolean {
-  if ((character.roles ?? []).some(r => r.kind === "merchantOrganizationHead")) return true;
+  if (hasMerchantRole(character, "merchantOrganizationHead")) return true;
   return resolveOfficeKind(character) === "merchant";
+}
+
+/** Capital-market faces of tax farming and the moneylender syndicate. */
+function isFiscalMerchant(character: Character): boolean {
+  return (
+    hasMerchantRole(character, "merchantOrganizationHead") ||
+    hasMerchantRole(character, "marketManager") ||
+    hasMerchantRole(character, "marketRivalMerchant")
+  );
 }
 
 function isMagnateEligible(character: Character, all: readonly Character[]): boolean {
@@ -68,6 +81,14 @@ function isMagnateEligible(character: Character, all: readonly Character[]): boo
   const sorted = peers.map(c => c.wealth ?? 0).sort((a, b) => b - a);
   const cutoff = sorted[Math.max(0, Math.floor(sorted.length * 0.25))] ?? 0;
   return (character.wealth ?? 0) >= Math.max(40, cutoff);
+}
+
+function isUnscrupulousMerchantEligible(character: Character): boolean {
+  if (eligibilityFor(character, "commerce") === "no") return false;
+  if (!isFiscalMerchant(character) && !isMerchantLike(character)) return false;
+  const greed = character.personality.greed ?? 50;
+  const honor = character.personality.honor ?? 50;
+  return greed >= 75 && honor <= 35;
 }
 
 function isAbleMinisterEligible(character: Character): boolean {
@@ -88,7 +109,8 @@ function assignOccupationEpithetsFor(character: Character, all: readonly Charact
   if (isWarGodEligible(character)) tryAssign(character, "war_god", "war_legend");
   if (isMasterArtisanEligible(character)) tryAssign(character, "master_artisan", "craft");
   else if (isProdigyEligible(character)) tryAssign(character, "prodigy", "craft");
-  if (isMagnateEligible(character, all)) tryAssign(character, "magnate", "commerce");
+  if (isUnscrupulousMerchantEligible(character)) tryAssign(character, "unscrupulous_merchant", "commerce");
+  else if (isMagnateEligible(character, all)) tryAssign(character, "magnate", "commerce");
   if (isAbleMinisterEligible(character)) tryAssign(character, "able_minister", "office");
 }
 
