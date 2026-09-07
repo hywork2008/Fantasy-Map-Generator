@@ -7,6 +7,7 @@
 - docs/plan/characters/occupation-epithets.md
 - docs/plan/characters/prestige.md
 - docs/plan/characters/skill-specializations.md
+- docs/plan/unscrupulous-merchant-goods-market.md - 悪徳商人による市場の操作
 
 2026-09-06
 
