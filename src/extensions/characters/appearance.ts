@@ -175,9 +175,10 @@ export function physiqueSimilarity(a: AppearanceAxes, b: AppearanceAxes): number
 export const CROSS_RACE_AESTHETIC_READABILITY: Readonly<Partial<Record<RaceKey, Partial<Record<RaceKey, number>>>>> = {
   human: {
     elf: 0.8,
-    dark_elf: 0.58,
+    dark_elf: 0.68,
     amazones: 0.42,
     dwarf: 0.18,
+    demon: 0.92,
     wyrmkin: 0.12
   },
   elf: {
