@@ -104,6 +104,8 @@ If one soldier ≈ one soldier, long-lived races cannot absorb endless attrition
 | Mixed court sampling | Human/elf/dwarf only |
 | Enemy-colony roster | Martial offices only; no merchants/guilds |
 | Diplomacy AI modifiers by stance | **Not yet** |
+| Sparse long-lived census + troop quality | **Not yet** — investigation: [long-lived-race-population-and-roster.md](../../plan/long-lived-race-population-and-roster.md) |
+| Arcane + folk durability (fantasy only) | **Implemented** — [arcane.md](../../plan/characters/arcane.md). Not a 10th skill. Dwarf runes are Engineering. |
 
 ---
 

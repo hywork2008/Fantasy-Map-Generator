@@ -33,6 +33,7 @@ import type {
   RaceFertility,
   RaceKey
 } from "../types/models";
+import { supernaturalForRaceKey } from "./raceSupernatural";
 
 export interface RaceDefinition {
   key: RaceKey;
@@ -137,7 +138,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { build: 1.2, vitality: 0.9, ornament: 0.6, symmetry: 0.7, stature: -0.4, refinement: 0.2 }
     },
-    // R_max ≈ 4.2 (slow recovery, stable clans)
+    // R_max ≈ 4.2 (slow recovery, stable clans). Clan runes are Engineering (`engineering.runes`), not Arcane.
     fertility: {
       fertilityStart: 40,
       fertilityEnd: 160,
@@ -410,7 +411,8 @@ function definitionToRace(def: RaceDefinition, i: number): Race {
     beautyIdeal: { weights: { ...def.beautyIdeal.weights } },
     fertility: { ...def.fertility },
     ...(def.characterAppearance ? { characterAppearance: cloneCharacterAppearance(def.characterAppearance) } : {}),
-    ...(def.environmentalSurvival ? { environmentalSurvival: { ...def.environmentalSurvival } } : {})
+    ...(def.environmentalSurvival ? { environmentalSurvival: { ...def.environmentalSurvival } } : {}),
+    supernatural: { ...supernaturalForRaceKey(def.key) }
   };
   if (def.characterGender) race.characterGender = def.characterGender;
   return race;
@@ -435,10 +437,12 @@ export function applyCatalogRaceDefaults(race: Race): Race {
     race.maxLifespan = def.maxLifespan;
     race.fertility = { ...def.fertility };
     race.environmentalSurvival = def.environmentalSurvival ? { ...def.environmentalSurvival } : undefined;
+    race.supernatural = { ...supernaturalForRaceKey(def.key) };
   } else {
     if (race.lifespan === undefined) race.lifespan = DEFAULT_RACE_LIFESPAN;
     if (race.maxLifespan === undefined) race.maxLifespan = DEFAULT_RACE_MAX_LIFESPAN;
     if (!race.fertility) race.fertility = { ...DEFAULT_RACE_FERTILITY };
+    if (!race.supernatural) race.supernatural = { ...supernaturalForRaceKey(race.key) };
   }
   if (race.maxLifespan! < race.lifespan!) {
     race.maxLifespan = race.lifespan;

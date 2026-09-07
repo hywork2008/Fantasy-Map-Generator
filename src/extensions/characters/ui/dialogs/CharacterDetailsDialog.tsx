@@ -1,10 +1,20 @@
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isFantasyCulturesSet } from "../../../../data/raceCivicStance";
+import { getRaceById } from "../../../../data/races";
+import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { dnd5ePreset, getDnd5eAbilityModifier } from "../../abilityPresets";
 import { attractiveness } from "../../appearance";
+import {
+  ARCANE_CALAMITY_MIN,
+  arcaneBand,
+  arcaneRangeMeters,
+  lifetimeCalamityBudget,
+  resolveRaceSupernatural
+} from "../../arcane";
 import { backstoryDetailRows, formatCharacterTaste } from "../../backstoryDetails";
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
 import { getCharacterHealth, HEALTH_FULL } from "../../characterHealth";
@@ -237,6 +247,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const consumePendingDetailsTab = useCharactersUiState(state => state.consumePendingDetailsTab);
   useCharactersUiState(state => state.refreshToken);
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
+  const culturesSet = useOptionsState(state => state.culturesSet);
   const [activeTab, setActiveTab] = useState<CharacterDetailsTab>("skills");
   const [, setInventoryRevision] = useState(0);
   const [, setLoadoutRevision] = useState(0);
@@ -444,6 +455,11 @@ export const CharacterDetailsDialog: React.FC = () => {
   const cultureName = cultures[character.culture]?.name ?? t("characters.unknown");
   // Prefer shared resolver: Wildlands/Unknown (race 0) displays as Human, not catalog "Unknown".
   const raceName = resolveCharacterRaceName(character, races, cultures);
+  const showSupernatural = isFantasyCulturesSet(culturesSet);
+  const supernaturalRace = getRaceById(races, character.race ?? cultures[character.culture]?.race);
+  const supernatural = resolveRaceSupernatural(supernaturalRace);
+  const arcaneScore = character.arcane ?? 0;
+  const bandId = arcaneBand(character.arcane);
   const looks = character.looks;
   const raceAppearanceText =
     character.raceAppearance?.kind === "demon"
@@ -725,6 +741,20 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`${t("characters.culture")}, ${cultureName}`);
     rows.push(`${t("characters.race")}, ${raceName}`);
     if (raceAppearanceText) rows.push(`${t("characters.raceAppearance")}, ${raceAppearanceText}`);
+    if (showSupernatural) {
+      rows.push(
+        `${t("characters.arcane")}, ${arcaneScore} (${t(`characters.arcaneBand.${bandId}`)}; ${t("characters.arcaneRange", { meters: arcaneRangeMeters(arcaneScore) })})`
+      );
+      if (arcaneScore >= ARCANE_CALAMITY_MIN) {
+        rows.push(
+          `${t("characters.arcaneWorkings", {
+            spent: character.arcaneWorkingsSpent ?? 0,
+            budget: lifetimeCalamityBudget(supernaturalRace?.lifespan)
+          })}`
+        );
+      }
+      rows.push(`${t("characters.durability")}, ${supernatural.durability.toFixed(2)}`);
+    }
     rows.push(`${t("characters.location")}, ${locationStr}`);
     rows.push(
       `${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")} (${t("characters.appearanceSameRaceHint")})`
@@ -1063,6 +1093,44 @@ export const CharacterDetailsDialog: React.FC = () => {
                 <th style={{ padding: "4px 0" }}>{t("characters.raceAppearance")}</th>
                 <td>{raceAppearanceText}</td>
               </tr>
+            ) : null}
+            {showSupernatural ? (
+              <>
+                <tr>
+                  <th style={{ padding: "4px 0" }} data-tip={t("characters.arcaneTip")}>
+                    {t("characters.arcane")}
+                  </th>
+                  <td>
+                    {arcaneScore}
+                    <span style={{ fontSize: "0.85em", marginLeft: 6 }}>
+                      ({t(`characters.arcaneBand.${bandId}`)}
+                      {arcaneScore > 0
+                        ? ` · ${t("characters.arcaneRange", { meters: arcaneRangeMeters(arcaneScore) })}`
+                        : ""}
+                      )
+                    </span>
+                    {character.arcaneReadyYear !== undefined ? (
+                      <div style={{ fontSize: "0.85em", marginTop: 2 }}>
+                        {t("characters.arcaneReadyYear", { year: Math.ceil(character.arcaneReadyYear) })}
+                      </div>
+                    ) : null}
+                    {arcaneScore >= ARCANE_CALAMITY_MIN ? (
+                      <div style={{ fontSize: "0.85em", marginTop: 2 }}>
+                        {t("characters.arcaneWorkings", {
+                          spent: character.arcaneWorkingsSpent ?? 0,
+                          budget: lifetimeCalamityBudget(supernaturalRace?.lifespan)
+                        })}
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }} data-tip={t("characters.durabilityTip")}>
+                    {t("characters.durability")}
+                  </th>
+                  <td>{supernatural.durability.toFixed(2)}</td>
+                </tr>
+              </>
             ) : null}
             <tr>
               <th style={{ padding: "4px 0" }} data-tip={t("characters.wealthTip")}>

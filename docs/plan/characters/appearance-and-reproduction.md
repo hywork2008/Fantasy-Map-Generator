@@ -1,7 +1,7 @@
 # Appearance axes & reproductive biology
 
 Status: **design** (not implemented)  
-Related: `personFactory.ts` (`appearance`, `generateFamily`), `backstoryProfile.ts` (favor / lust), `data/races.ts` (lifespan), `docs/plan/characters/marriage.md`
+Related: `personFactory.ts` (`appearance`, `generateFamily`), `backstoryProfile.ts` (favor / lust), `data/races.ts` (lifespan), `docs/plan/characters/marriage.md`, [long-lived-race-population-and-roster.md](../long-lived-race-population-and-roster.md) (macro census vs `RaceFertility`, Fast-Forward roster bloat)
 
 ---
 

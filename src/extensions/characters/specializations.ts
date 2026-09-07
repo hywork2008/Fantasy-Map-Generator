@@ -26,6 +26,23 @@ const FORTIFICATION_SPECIALIZATIONS = [
   "engineering.civil.fortification"
 ] as const;
 
+function addDwarfRuneSpecializations(
+  character: Character,
+  profile: CharacterSpecializationProfile,
+  raceKey?: string
+): void {
+  if (raceKey !== "dwarf") return;
+  if (profile.domains.some(domain => domain.domainId === "engineering.runes")) return;
+  const definition = SPECIALIZATIONS.get("engineering.runes");
+  if (!definition) return;
+  const engineering = character.skills.engineering || 50;
+  profile.domains.push({
+    domainId: "engineering.runes",
+    knowledge: clampExpertise(engineering * 0.95),
+    practice: clampExpertise(engineering * 0.8)
+  });
+}
+
 function addMilitaryFortificationSpecializations(
   character: Character,
   profile: CharacterSpecializationProfile,
@@ -53,7 +70,8 @@ export function generateSpecializations(
   character: Character,
   primary?: keyof CharacterSkills,
   world?: WorldLanguages,
-  roleClass?: CharacterRoleClass
+  roleClass?: CharacterRoleClass,
+  raceKey?: string
 ): CharacterSpecializationProfile {
   const profile = emptySpecializations();
   const focus =
@@ -62,7 +80,7 @@ export function generateSpecializations(
       (a, b) => character.skills[b] - character.skills[a]
     )[0];
   const candidates = SPECIALIZATION_DEFINITIONS.filter(
-    definition => definition.skill === focus && !definition.economyDomain
+    definition => definition.skill === focus && !definition.economyDomain && !definition.raceKeys?.length
   );
   const start = (character.i * 37 + Math.floor(character.skills[focus])) % candidates.length;
   for (let offset = 0; offset < Math.min(3, candidates.length); offset++) {
@@ -77,6 +95,7 @@ export function generateSpecializations(
     });
   }
   addMilitaryFortificationSpecializations(character, profile, roleClass);
+  addDwarfRuneSpecializations(character, profile, raceKey);
   const cultural = world?.cultures.find(entry => entry.cultureId === character.culture);
   if (cultural && world) {
     // A weighted native language; no literacy inferred from language or species.

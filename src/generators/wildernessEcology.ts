@@ -16,6 +16,7 @@ import type { DataTopic } from "../runtime/worldRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type { Monster, State } from "../types/models";
 import type { RNGService } from "../utils/probabilityUtils";
+import { applyArcaneHuntAssist } from "./arcaneHuntAssist";
 import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 import { biomePredatorScaleForMode, rebuildDangerField, type ThreatCalculationMode } from "./dangerField";
 import { dungeonsAsDangerSources } from "./dungeons-generator";
@@ -120,7 +121,7 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
     state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
     project.progressYears += 1;
     const beforeDanger = cells.danger?.[project.cellId] ?? 0;
-    const result = applyHuntProgress(project, monsters, rng);
+    const result = applyHuntProgress(project, monsters, rng, world, year);
     const afterLocal = estimateLocalDangerDrop(beforeDanger, result.powerReduced);
     project.dangerReduced += afterLocal;
 
@@ -162,7 +163,7 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
         dangerReduced: 0
       };
       // First funded year applies immediately so annual advance always shows progress.
-      const firstYear = applyHuntProgress(project, monsters, rng);
+      const firstYear = applyHuntProgress(project, monsters, rng, world, year);
       project.progressYears = 1;
       project.dangerReduced = estimateLocalDangerDrop(cells.danger?.[project.cellId] ?? 0, firstYear.powerReduced);
       if (firstYear.cleared) {
@@ -254,7 +255,9 @@ function annualHuntCost(project: ThreatCullProject, monsters: readonly Monster[]
 function applyHuntProgress(
   project: ThreatCullProject,
   monsters: Monster[],
-  rng: RNGService
+  rng: RNGService,
+  world: WorldContext,
+  year: number
 ): { cleared: boolean; powerReduced: number } {
   if (project.monsterId === null) {
     // No living target (already cleared elsewhere) — close the project.
@@ -271,7 +274,20 @@ function applyHuntProgress(
   const swing = rng.rand() < 0.25 ? 1 : 0;
   const before = monster.power;
   monster.power = Math.max(0, monster.power - chunk - swing);
-  const powerReduced = before - monster.power;
+  let powerReduced = before - monster.power;
+
+  if (monster.power > 0) {
+    const extra = applyArcaneHuntAssist({
+      stateId: project.stateId,
+      monster,
+      armyYearChunk: chunk,
+      year,
+      characters: (world.pack as { characters?: ArcaneHuntCaster[] }).characters,
+      races: world.pack.races,
+      rand: () => rng.rand()
+    });
+    powerReduced += extra;
+  }
 
   if (monster.power <= 0) {
     monster.power = 0;
@@ -284,6 +300,16 @@ function applyHuntProgress(
   }
   return { cleared: false, powerReduced };
 }
+
+type ArcaneHuntCaster = {
+  dead?: boolean;
+  state?: number;
+  race?: number;
+  arcane?: number;
+  arcaneReadyYear?: number;
+  arcaneWorkingsSpent?: number;
+  arcaneLastHighYear?: number;
+};
 
 type HuntTarget = { cellId: number; monsterId: number | null; rarity: number; score: number };
 

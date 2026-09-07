@@ -181,6 +181,9 @@ export function filterAndSortCharacters(
       case "race":
         result = a.raceName.localeCompare(b.raceName);
         break;
+      case "arcane":
+        result = (a.c.arcane ?? 0) - (b.c.arcane ?? 0);
+        break;
       case "gender":
         result = a.c.gender.localeCompare(b.c.gender);
         break;

@@ -2,11 +2,13 @@
 
 2026-09-07
 
+- docs/plan/characters/arcane.md - High/Dark Fantasy の Arcane（第10スキルにしない）と種族耐久
 - docs/plan/characters/court-favorite.md
 - docs/plan/characters/military-war-record.md
 - docs/plan/characters/occupation-epithets.md
 - docs/plan/characters/prestige.md
 - docs/plan/characters/skill-specializations.md
+- docs/plan/long-lived-race-population-and-roster.md - 長寿種族の初期人口・軍事均衡・Fast-Forward後の名前付き人物肥大の調査と4層補償方針
 - docs/plan/unscrupulous-merchant-goods-market.md - 悪徳商人による市場の操作
 
 2026-09-06

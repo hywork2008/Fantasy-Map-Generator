@@ -64,6 +64,18 @@ export function getCurrentYear(): number {
   return Number(getWorldContext().options.year) || 1000;
 }
 
+export function getCurrentMonth(): number {
+  const month = _api?.simulationContext?.currentMonth;
+  if (typeof month === "number" && Number.isFinite(month)) return month;
+  return 1;
+}
+
+export function getCurrentDay(): number {
+  const day = _api?.simulationContext?.currentDay;
+  if (typeof day === "number" && Number.isFinite(day)) return day;
+  return 1;
+}
+
 type NobilitySlice = Record<string, unknown>;
 type StateValueTable<T> = Record<number, T>;
 

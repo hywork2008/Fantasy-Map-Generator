@@ -16,6 +16,8 @@ export interface CharactersTableProps {
   onCharacterClick: (characterId: number) => void;
   /** Fantasy culture sets only — show Race after Wealth. */
   showRace?: boolean;
+  /** Fantasy culture sets only — show Arcane after Race. Not a CharacterSkills column. */
+  showArcane?: boolean;
   /** CK3 only — show the age-derived Family and Children columns. */
   showFamily?: boolean;
 }
@@ -27,6 +29,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
   onSort,
   onCharacterClick,
   showRace = false,
+  showArcane = false,
   showFamily = true
 }) => {
   const { t } = useTranslation();
@@ -42,7 +45,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
   const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
   const paddingBottom =
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
-  const colSpan = 8 + Number(showRace) + (showFamily ? 2 : 0);
+  const colSpan = 8 + Number(showRace) + Number(showArcane) + (showFamily ? 2 : 0);
 
   function SortHeader({
     field,
@@ -80,6 +83,9 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
             <SortHeader field="prestige" label={t("extensions.charactersOverview.prestige")} numeric width="4em" />
             <SortHeader field="wealth" label={t("extensions.charactersOverview.wealth")} numeric width="6em" />
             {showRace && <SortHeader field="race" label={t("extensions.charactersOverview.race")} width="7em" />}
+            {showArcane && (
+              <SortHeader field="arcane" label={t("extensions.charactersOverview.arcane")} numeric width="5em" />
+            )}
             <SortHeader field="gender" label={t("extensions.charactersOverview.gender")} width="6em" />
             {showFamily ? (
               <SortHeader field="maritalStatus" label={t("extensions.charactersOverview.family")} width="7em" />
@@ -139,6 +145,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
                       {formatPrice(c.wealth ?? 0)}
                     </td>
                     {showRace && <td>{raceName}</td>}
+                    {showArcane && <td className="numeric">{c.arcane ?? ""}</td>}
                     <td>{c.gender}</td>
                     {showFamily ? <td>{(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried"}</td> : null}
                     {showFamily ? <td className="numeric">{c.family?.children ?? 0}</td> : null}

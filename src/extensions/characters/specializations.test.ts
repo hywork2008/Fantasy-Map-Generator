@@ -108,6 +108,16 @@ describe("specializations and language model", () => {
       validateSpecializationProfile(result, languageWorld());
     }
   });
+  it("gives dwarves rune-craft as Engineering, not a generic engineering roll", () => {
+    const character = expertiseCharacter();
+    character.skills.engineering = 70;
+    const dwarf = generateSpecializations(character, "engineering", languageWorld(), "ordinary", "dwarf");
+    expect(dwarf.domains.some(domain => domain.domainId === "engineering.runes")).toBe(true);
+    const human = generateSpecializations(character, "engineering", languageWorld(), "ordinary", "human");
+    expect(human.domains.some(domain => domain.domainId === "engineering.runes")).toBe(false);
+    expect(human.domains).toHaveLength(3);
+  });
+
   it("gives high-engineering commanders fortification design and a craft-skill reference", () => {
     const character = expertiseCharacter();
     character.skills.engineering = 80;

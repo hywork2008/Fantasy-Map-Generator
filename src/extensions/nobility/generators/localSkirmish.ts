@@ -1,3 +1,9 @@
+import {
+  isFantasySupernaturalEnabled,
+  mundaneIncomingCasualtyFactor,
+  stateDurability,
+  trySpendArcaneWarWorking
+} from "../../characters/arcane";
 import type { Character } from "../../characters/characterTypes";
 import {
   applyDemographicCasualties,
@@ -9,7 +15,7 @@ import {
 } from "../../hostCore";
 import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, PackedGraph, State } from "../../hostTypes";
 import { mayAdvanceConflict } from "../conflictDirector";
-import { getWorldContext } from "../nobilityContext";
+import { getCurrentDay, getCurrentMonth, getCurrentYear, getWorldContext } from "../nobilityContext";
 import {
   canOccupyBurg,
   captureBurg,
@@ -101,6 +107,24 @@ function calculateRegimentPower(reg: MilitaryRegiment, militaryOptions: Military
   }
   // Phase 5: green recruits fight below paper strength
   return power * regimentQualityMultiplier(reg);
+}
+
+/** Remove up to `dead` headcount from a cluster, proportional within each regiment. */
+function applyHeadcountCasualties(regs: MilitaryRegiment[], dead: number): number {
+  let remaining = Math.max(0, Math.floor(dead));
+  for (const regiment of regs) {
+    if (remaining <= 0 || regiment.a <= 0) continue;
+    const take = Math.min(regiment.a, remaining);
+    const factor = (regiment.a - take) / regiment.a;
+    let survivors = 0;
+    for (const unit in regiment.u) {
+      regiment.u[unit] = Math.floor(regiment.u[unit] * factor);
+      survivors += regiment.u[unit];
+    }
+    remaining -= Math.max(0, regiment.a - survivors);
+    regiment.a = survivors;
+  }
+  return Math.max(0, Math.floor(dead) - remaining);
 }
 
 /** Apply attrition; returns headcount killed. */
@@ -208,8 +232,14 @@ export class LocalSkirmishGenerator {
             const lethalityB = appServices.rng.rand() * 0.05 + 0.05;
             const absoluteCasualtiesA = defense * lethalityB;
             const absoluteCasualtiesB = attack * lethalityA;
-            const casualtiesA = Math.min(1.0, absoluteCasualtiesA / (attack || 1));
-            const casualtiesB = Math.min(1.0, absoluteCasualtiesB / (defense || 1));
+            const durabilityA = isFantasySupernaturalEnabled()
+              ? mundaneIncomingCasualtyFactor(stateDurability(stateA, pack))
+              : 1;
+            const durabilityB = isFantasySupernaturalEnabled()
+              ? mundaneIncomingCasualtyFactor(stateDurability(stateB, pack))
+              : 1;
+            const casualtiesA = Math.min(1.0, (absoluteCasualtiesA / (attack || 1)) * durabilityA);
+            const casualtiesB = Math.min(1.0, (absoluteCasualtiesB / (defense || 1)) * durabilityB);
 
             // An isolated side facing overwhelming force is routed outright this tick instead of
             // grinding through the normal gradual roll — see ANNIHILATION_RATIO above. Zeroed
@@ -252,6 +282,45 @@ export class LocalSkirmishGenerator {
             // Attribute battlefield deaths to the contact seed's cell (cluster centroid alternative
             // would need pack.cells lookup; seed cell is stable and already on the regiment).
             const battlefieldCell = regA.cell;
+
+            if (isFantasySupernaturalEnabled() && !annihilateA && !annihilateB) {
+              const year = getCurrentYear();
+              const month = getCurrentMonth();
+              const day = getCurrentDay();
+              const rand = () => appServices.rng.rand();
+              const commandersA = regsA.map(r => r.commanderId).filter((id): id is number => id !== undefined);
+              const commandersB = regsB.map(r => r.commanderId).filter((id): id is number => id !== undefined);
+              const workingA = trySpendArcaneWarWorking({
+                characters,
+                stateId: stateA.i,
+                battlefieldCell,
+                currentYear: year,
+                currentMonth: month,
+                currentDay: day,
+                races: pack.races,
+                burgs: pack.burgs,
+                commanderIds: commandersA,
+                rand,
+                kind: "daily"
+              });
+              const workingB = trySpendArcaneWarWorking({
+                characters,
+                stateId: stateB.i,
+                battlefieldCell,
+                currentYear: year,
+                currentMonth: month,
+                currentDay: day,
+                races: pack.races,
+                burgs: pack.burgs,
+                commanderIds: commandersB,
+                rand,
+                kind: "daily"
+              });
+              if (workingA) deadB += applyHeadcountCasualties(regsB, workingA.casualties);
+              if (workingB) deadA += applyHeadcountCasualties(regsA, workingB.casualties);
+              totalA = regsA.reduce((sum, r) => sum + r.a, 0);
+              totalB = regsB.reduce((sum, r) => sum + r.a, 0);
+            }
             if (deadA > 0) applyDemographicCasualties(stateA.i, deadA, battlefieldCell);
             if (deadB > 0) applyDemographicCasualties(stateB.i, deadB, battlefieldCell);
 

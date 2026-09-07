@@ -45,6 +45,18 @@ describe("races catalog", () => {
     }
   });
 
+  it("attaches fantasy Arcane caps and durability (Amazones 20, dwarf runes stay off Arcane)", () => {
+    const races = createDefaultRaces();
+    const byKey = Object.fromEntries(races.map(race => [race.key, race]));
+    expect(byKey.demon?.supernatural?.arcaneCap).toBe(100);
+    expect(byKey.elf?.supernatural?.arcaneCap).toBe(95);
+    expect(byKey.amazones?.supernatural?.arcaneCap).toBe(20);
+    expect(byKey.human?.supernatural?.arcaneCap).toBe(10);
+    expect(byKey.dwarf?.supernatural?.arcaneCap).toBe(10);
+    expect(byKey.draconic?.supernatural?.durability).toBeGreaterThan(byKey.giant?.supernatural?.durability ?? 0);
+    expect(byKey.draconic?.supernatural?.arcaneInclination).toBeLessThan(0.1);
+  });
+
   it("records Giants' food- and temperature-independent low-density survival", () => {
     const expected = {
       foodIndependent: true,

@@ -484,6 +484,17 @@ export interface Character {
   nationalityStateId?: number;
   roles?: CharacterRole[];
   skills: CharacterSkills;
+  /**
+   * Cosmic Arcane 0–100. Omitted on non-fantasy maps. Not a CharacterSkills axis —
+   * human cap is 10, Demon cap is 100. See docs/plan/characters/arcane.md.
+   */
+  arcane?: number;
+  /** Fractional calendar year when the next working may be spent. Missing = ready. */
+  arcaneReadyYear?: number;
+  /** Calamity (95+) workings spent this lifetime. Lower bands have no lifetime cap. */
+  arcaneWorkingsSpent?: number;
+  /** Calendar year of the last 90+ working. One 90+ working per state per year. */
+  arcaneLastHighYear?: number;
   /** Optional detailed knowledge, practice, experience and language profile. */
   specializations?: CharacterSpecializationProfile;
   personality: CharacterPersonality;

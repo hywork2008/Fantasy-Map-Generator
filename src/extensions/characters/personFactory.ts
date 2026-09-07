@@ -16,6 +16,7 @@ import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
 import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
 import { ownRaceAppearanceScore, rollLooksForRace } from "./appearance";
+import { isFantasySupernaturalEnabled, rollCharacterArcane, scaleArcaneForMinor } from "./arcane";
 import { HEALTH_FULL } from "./characterHealth";
 import {
   getAbilityPreset,
@@ -684,13 +685,27 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     health: HEALTH_FULL
   };
 
+  if (isFantasySupernaturalEnabled()) {
+    let arcane = rollCharacterArcane({
+      raceKey: raceDef?.key,
+      lifespan: raceDef?.lifespan ?? raceLifespan,
+      supernatural: raceDef?.supernatural
+    });
+    if (isRaceMinor(age, race)) {
+      const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
+      arcane = scaleArcaneForMinor(arcane, age, maturity);
+    }
+    character.arcane = arcane;
+  }
+
   character.abilityProfile = buildAbilityProfile(presetId, skills, personality);
   if (usesCk3Systems)
     character.specializations = generateSpecializations(
       character,
       primarySkill,
       hasCharactersContext() ? getWorldContext().pack.languageWorld : undefined,
-      skillRoleClass
+      skillRoleClass,
+      raceDef?.key
     );
 
   return character;
