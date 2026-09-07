@@ -1,5 +1,4 @@
 import type { Quadtree } from "d3";
-
 import type {
   Burg,
   Culture,
@@ -20,6 +19,7 @@ import type {
   Zone
 } from "./models";
 import type { SettlementFoundationPlan } from "./settlementFoundation";
+import type { WorldLanguages } from "./worldLanguages";
 
 export type TypedArray = Uint8Array | Uint16Array | Uint32Array | Int8Array | Int16Array | Float32Array | Float64Array;
 
@@ -138,6 +138,7 @@ export interface PackedGraph {
   burgs: Burg[];
   states: State[];
   cultures: Culture[];
+  languageWorld?: WorldLanguages;
   /**
    * Species / folk table. Culture.race and Character.race index into this array.
    * Absent only on legacy maps until load migration seeds the default catalog.

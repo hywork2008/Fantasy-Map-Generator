@@ -38,6 +38,7 @@ import {
   selectCentralOffices
 } from "../../characters/raceRoster";
 import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
+import { EXPERTISE_TASKS, evaluateExpertise, specializationScore } from "../../characters/specializations";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
@@ -551,7 +552,13 @@ function processRetiredCharacterEffects(character: Character, deltaYears: number
   const burg = pack.burgs[character.location];
   if (!burg || burg.removed) return;
 
-  const skills = character.skills;
+  const skills = {
+    ...character.skills,
+    stewardship: evaluateExpertise(character, EXPERTISE_TASKS.tax).score,
+    engineering: evaluateExpertise(character, EXPERTISE_TASKS.construction).score,
+    artistry: specializationScore(character, "artistry.spatialDesign"),
+    learning: specializationScore(character, "learning.theology", "knowledge")
+  };
   const p = character.personality;
 
   // Population Growth (Benevolent elder)
@@ -602,7 +609,18 @@ function evaluateOfficeAttractiveness(
   threat: number
 ): number {
   if (!office) return 0;
-  const skillVal = office.primarySkill ? character.skills[office.primarySkill] : 50;
+  const officeDomain = {
+    diplomacy: "diplomacy.negotiation",
+    martial: "martial.operations",
+    stewardship: "stewardship.administration",
+    intrigue: "intrigue.networks",
+    learning: "learning.theology",
+    prowess: "prowess.defense",
+    artistry: "artistry.spatialDesign",
+    engineering: "engineering.civil",
+    geography: "geography.geopolitics"
+  };
+  const skillVal = office.primarySkill ? specializationScore(character, officeDomain[office.primarySkill]) : 50;
   let score = skillVal;
 
   // War-mongers want martial positions during high threat

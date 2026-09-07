@@ -756,7 +756,133 @@
     "lifeEvents": "人生の出来事",
     "migration": "移住・亡命",
     "familyOccupation": "家業",
-    "resignedFor": "辞任：{{reason}}"
+    "resignedFor": "辞任：{{reason}}",
+    "expertise": {
+      "title": "専門分野",
+      "legacy": "この人物の詳細能力は未設定です。既存の概要値を概算として使用します。",
+      "editHint": "編集：知識・実践・鑑賞を個別に設定できます。空欄は不明、0は未習得です。",
+      "task": "任務適性",
+      "approximate": "概算（概要値を含む）",
+      "detailed": "詳細能力による評価",
+      "missing": "未設定の専門",
+      "domain": "分野",
+      "knowledge": "知識",
+      "practice": "実践",
+      "appraisal": "鑑賞・鑑定",
+      "unknown": "不明",
+      "sharedPractice": "既存の個人熟練を参照する共通値です。",
+      "add": "追加",
+      "save": "保存",
+      "familiarities": "得意な環境・対象",
+      "target": "対象",
+      "targetId": "対象名",
+      "selectedDomain": "選択中の分野",
+      "languages": "言語",
+      "language": "言語",
+      "listening": "聞き取り",
+      "speaking": "会話",
+      "literacy": "文字別の読み書き",
+      "reading": "読解",
+      "writing": "作文",
+      "chooseLanguage": "言語を選択",
+      "worldSettings": "世界の言語設定",
+      "native": "母語",
+      "learned": "学習言語",
+      "heritage": "継承言語",
+      "acquisition": "習得背景",
+      "experience": "経験",
+      "experienceHint": "時間経過による実務と実際の戦闘を記録します。勝利数だけで成長は決まりません。",
+      "year": "年",
+      "mode": "活動",
+      "duration": "従事年数",
+      "outcome": "結果",
+      "worldHint": "言語は複数の文化・国家で共有できます。言語政策を保存しても人物の習熟度は変わりません。",
+      "scripts": "文字体系",
+      "script": "文字",
+      "newScript": "新しい文字",
+      "addScript": "文字を追加",
+      "newLanguage": "新しい言語",
+      "addLanguage": "言語を追加",
+      "culture": "文化",
+      "share": "比率",
+      "sharesHint": "日常言語の比率は合計1にしてください。文字を選択しない言語は口承言語です。",
+      "literaryLanguageIds": "文芸言語",
+      "liturgicalLanguageIds": "典礼言語",
+      "administrativeLanguageIds": "行政言語",
+      "courtLanguageIds": "宮廷言語",
+      "diplomaticLanguageIds": "外交言語",
+      "recognizedLanguageIds": "承認言語",
+      "statePolicy": "国家の言語政策",
+      "saveWorld": "世界の言語設定を保存",
+      "tasks": {
+        "command": "部隊指揮",
+        "operations": "作戦立案",
+        "siege": "攻城戦",
+        "naval": "艦隊指揮",
+        "treaty": "条約起草",
+        "negotiation": "交渉",
+        "tax": "税務",
+        "intelligence": "情報分析",
+        "ceramics": "陶器鑑定",
+        "construction": "建設",
+        "navigation": "航法",
+        "combat": "剣での戦闘",
+        "teaching": "教育"
+      },
+      "targets": {
+        "terrain": "地形",
+        "climate": "気候",
+        "troop": "兵科",
+        "region": "地域",
+        "culture": "文化",
+        "institution": "制度",
+        "weapon": "武器",
+        "artSchool": "芸術流派",
+        "material": "素材",
+        "commandScale": "指揮規模",
+        "languagePair": "翻訳言語対"
+      },
+      "modes": {
+        "study": "座学",
+        "training": "訓練",
+        "service": "実務",
+        "battle": "実戦",
+        "appraisal": "鑑賞"
+      },
+      "outcomes": {
+        "service": "実務に従事",
+        "victory": "勝利",
+        "defeat": "敗北",
+        "lesson": "学習"
+      },
+      "learning": "座学・訓練",
+      "learningHint": "同じ場所にいる教師から時間経過に応じて学習し、年間の最大4分の1を使用します。工芸の実技は既存の師弟制度で学びます。",
+      "teacher": "教師",
+      "chooseTeacher": "同じ場所の教師を選択",
+      "learningActive": "学習中",
+      "learningPaused": "休止中：教師または意思疎通の条件不足",
+      "stopLearning": "学習を停止",
+      "startLearning": "学習を開始",
+      "learningUnavailable": "同じ場所にいる教師の詳細熟練が50以上必要です。説明には共通言語が必要です。口頭言語は実際の会話から学べます。",
+      "subjects": {
+        "plain": "平原",
+        "forest": "森林",
+        "hill": "丘陵",
+        "mountain": "山岳",
+        "desert": "砂漠",
+        "wetland": "湿地",
+        "urban": "都市",
+        "river": "河川",
+        "coast": "沿岸",
+        "ocean": "外洋",
+        "cold": "寒冷",
+        "hot": "酷暑",
+        "rainy": "雨季",
+        "regiment": "連隊",
+        "army": "軍団",
+        "fleet": "艦隊"
+      }
+    }
   },
   "economy": {
     "goods": {
@@ -4236,8 +4362,14 @@
       "previewNth": "{{n}} セルに 1 つ",
       "previewRandom": "{{n}}% の確率",
       "fn": {
-        "biome": { "label": "バイオーム", "description": "指定したバイオームのセル" },
-        "biomeTag": { "label": "バイオームタグ", "description": "選んだ意味タグを持つバイオームのセル" },
+        "biome": {
+          "label": "バイオーム",
+          "description": "指定したバイオームのセル"
+        },
+        "biomeTag": {
+          "label": "バイオームタグ",
+          "description": "選んだ意味タグを持つバイオームのセル"
+        },
         "minHeight": {
           "label": "最低標高",
           "paramLabel": "標高（0–100）",
@@ -4267,13 +4399,22 @@
           "description": "水域への近さでセルを選ぶ",
           "note": "−1：浅海、−2：深海、1：沿岸陸地、2：沿岸近くの陸地。"
         },
-        "type": { "label": "水域の種類", "description": "水域の種類でセルを選ぶ" },
-        "coastalHabitat": { "label": "沿岸生息地", "description": "選んだ沿岸生息地を持つ陸地セル" },
+        "type": {
+          "label": "水域の種類",
+          "description": "水域の種類でセルを選ぶ"
+        },
+        "coastalHabitat": {
+          "label": "沿岸生息地",
+          "description": "選んだ沿岸生息地を持つ陸地セル"
+        },
         "nearshoreHabitat": {
           "label": "近海生息地",
           "description": "選んだ近海生息地を持つ浅海セル"
         },
-        "river": { "label": "河川", "description": "川が流れるセル" },
+        "river": {
+          "label": "河川",
+          "description": "川が流れるセル"
+        },
         "minHabitability": {
           "label": "最低居住性",
           "paramLabel": "居住性（0–100）",

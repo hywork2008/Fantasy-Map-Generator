@@ -54,6 +54,7 @@ import {
 import { rollCharacterPersonality } from "./racePersonalityBias";
 import { isEnemyDedicatedRaceKey, isEnemyDedicatedRole } from "./raceSkillBias";
 import { rollCharacterSkills } from "./skillGeneration";
+import { generateSpecializations } from "./specializations";
 
 /**
  * Historical scalar appearance mean/σ (own-race cache still clusters near this for humans).
@@ -683,6 +684,12 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   };
 
   character.abilityProfile = buildAbilityProfile(presetId, skills, personality);
+  if (usesCk3Systems)
+    character.specializations = generateSpecializations(
+      character,
+      primarySkill,
+      hasCharactersContext() ? getWorldContext().pack.languageWorld : undefined
+    );
 
   return character;
 }

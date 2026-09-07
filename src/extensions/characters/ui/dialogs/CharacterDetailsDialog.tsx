@@ -15,10 +15,13 @@ import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { getAbilityValue } from "../../personFactory";
+import { specializationCsvRows } from "../../specializationExport";
+import { readEconomyPractice } from "../../specializationRuntime";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
+import { SpecializationPanel } from "../components/SpecializationPanel";
 
 /** Primary office label for overview/relation tables (first title, else first role). */
 function getOfficeLabel(character: Character): string {
@@ -904,6 +907,8 @@ export const CharacterDetailsDialog: React.FC = () => {
       }
     }
 
+    if (!hasDnd5eTab)
+      rows.push(...specializationCsvRows(character, getWorldContext().pack.languageWorld, readEconomyPractice));
     const csvContent = rows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -1101,6 +1106,7 @@ export const CharacterDetailsDialog: React.FC = () => {
             ) : (
               <p>{t("characters.noSkills")}</p>
             )}
+            <SpecializationPanel key={character.i} character={character} />
           </div>
         )}
 

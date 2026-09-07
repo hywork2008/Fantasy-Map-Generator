@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-07
+
+- docs/plan/characters/skill-specializations.md
+
 2026-09-06
 
 - docs/plan/advance-time-history-mode.md

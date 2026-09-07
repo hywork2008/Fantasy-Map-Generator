@@ -756,7 +756,133 @@
     "lifeEvents": "Life events",
     "migration": "Migration",
     "familyOccupation": "Family occupation",
-    "resignedFor": "Resigned: {{reason}}"
+    "resignedFor": "Resigned: {{reason}}",
+    "expertise": {
+      "title": "Specializations",
+      "legacy": "Detailed skills are not set for this character. Existing overview scores are used as estimates.",
+      "editHint": "Editor: change knowledge, practice and appraisal independently. Blank means unknown; zero means untrained.",
+      "task": "Task suitability",
+      "approximate": "Estimate (includes overview scores)",
+      "detailed": "Detailed expertise",
+      "missing": "Missing expertise",
+      "domain": "Field",
+      "knowledge": "Knowledge",
+      "practice": "Practice",
+      "appraisal": "Appraisal",
+      "unknown": "Unknown",
+      "sharedPractice": "Shared with the existing practical skill; not a separate score.",
+      "add": "Add",
+      "save": "Save",
+      "familiarities": "Specialist environments and subjects",
+      "target": "Subject",
+      "targetId": "Subject name",
+      "selectedDomain": "Selected field",
+      "languages": "Languages",
+      "language": "Language",
+      "listening": "Listening",
+      "speaking": "Speaking",
+      "literacy": "Literacy by script",
+      "reading": "Reading",
+      "writing": "Writing",
+      "chooseLanguage": "Choose language",
+      "worldSettings": "World language settings",
+      "native": "Native",
+      "learned": "Learned",
+      "heritage": "Heritage",
+      "acquisition": "Acquisition",
+      "experience": "Experience",
+      "experienceHint": "Actual service and battles are recorded as time passes. Victories alone do not determine growth.",
+      "year": "Year",
+      "mode": "Activity",
+      "duration": "Years of activity",
+      "outcome": "Outcome",
+      "worldHint": "Languages can be shared across cultures and countries. Saving policies does not change anyone’s language proficiency.",
+      "scripts": "Writing systems",
+      "script": "Script",
+      "newScript": "New script",
+      "addScript": "Add script",
+      "newLanguage": "New language",
+      "addLanguage": "Add language",
+      "culture": "Culture",
+      "share": "Share",
+      "sharesHint": "Daily language shares must sum to 1. Leave all script checkboxes clear for an oral language.",
+      "literaryLanguageIds": "Literary languages",
+      "liturgicalLanguageIds": "Liturgical languages",
+      "administrativeLanguageIds": "Administration",
+      "courtLanguageIds": "Court",
+      "diplomaticLanguageIds": "Diplomacy",
+      "recognizedLanguageIds": "Recognized languages",
+      "statePolicy": "Country language policy",
+      "saveWorld": "Save world language settings",
+      "tasks": {
+        "command": "Command",
+        "operations": "Operations planning",
+        "siege": "Siege",
+        "naval": "Naval command",
+        "treaty": "Treaty drafting",
+        "negotiation": "Negotiation",
+        "tax": "Tax administration",
+        "intelligence": "Intelligence analysis",
+        "ceramics": "Ceramics appraisal",
+        "construction": "Construction",
+        "navigation": "Navigation",
+        "combat": "Sword combat",
+        "teaching": "Teaching"
+      },
+      "targets": {
+        "terrain": "Terrain",
+        "climate": "Climate",
+        "troop": "Troop",
+        "region": "Region",
+        "culture": "Culture",
+        "institution": "Institution",
+        "weapon": "Weapon",
+        "artSchool": "Artschool",
+        "material": "Material",
+        "commandScale": "Commandscale",
+        "languagePair": "Languagepair"
+      },
+      "modes": {
+        "study": "Study",
+        "training": "Training",
+        "service": "Service",
+        "battle": "Battle",
+        "appraisal": "Appraisal"
+      },
+      "outcomes": {
+        "service": "Service completed",
+        "victory": "Victory",
+        "defeat": "Defeat",
+        "lesson": "Study completed"
+      },
+      "learning": "Study and training",
+      "learningHint": "Learn from a teacher in the same place as time advances, using up to one quarter of each year. Guild practice uses the existing apprenticeship system.",
+      "teacher": "Teacher",
+      "chooseTeacher": "Choose a local teacher",
+      "learningActive": "Learning",
+      "learningPaused": "Paused: teacher or communication unavailable",
+      "stopLearning": "Stop learning",
+      "startLearning": "Start learning",
+      "learningUnavailable": "Requires a living local teacher with detailed proficiency of at least 50. Explanations require a shared language; oral immersion is also available.",
+      "subjects": {
+        "plain": "Plain",
+        "forest": "Forest",
+        "hill": "Hills",
+        "mountain": "Mountain",
+        "desert": "Desert",
+        "wetland": "Wetland",
+        "urban": "Urban",
+        "river": "River",
+        "coast": "Coast",
+        "ocean": "Open sea",
+        "cold": "Cold",
+        "hot": "Hot",
+        "rainy": "Rainy",
+        "regiment": "Regiment",
+        "army": "Army",
+        "fleet": "Fleet"
+      }
+    }
   },
   "economy": {
     "goods": {
@@ -4236,8 +4362,14 @@
       "previewNth": "1 in {{n}} cells",
       "previewRandom": "{{n}}% chance",
       "fn": {
-        "biome": { "label": "Biome", "description": "Cells in specific biomes" },
-        "biomeTag": { "label": "Biome Tag", "description": "Cells in biomes with any selected semantic tag" },
+        "biome": {
+          "label": "Biome",
+          "description": "Cells in specific biomes"
+        },
+        "biomeTag": {
+          "label": "Biome Tag",
+          "description": "Cells in biomes with any selected semantic tag"
+        },
         "minHeight": {
           "label": "Min Height",
           "paramLabel": "Height (0–100)",
@@ -4267,13 +4399,22 @@
           "description": "Cells by proximity to water",
           "note": "-1: shallow ocean, -2: deep ocean, 1: coastal land, 2: near coast land."
         },
-        "type": { "label": "Waterbody Type", "description": "Cells by waterbody type" },
-        "coastalHabitat": { "label": "Coastal Habitat", "description": "Land cells with any selected coastal habitat" },
+        "type": {
+          "label": "Waterbody Type",
+          "description": "Cells by waterbody type"
+        },
+        "coastalHabitat": {
+          "label": "Coastal Habitat",
+          "description": "Land cells with any selected coastal habitat"
+        },
         "nearshoreHabitat": {
           "label": "Nearshore Habitat",
           "description": "Shallow-water cells with any selected nearshore habitat"
         },
-        "river": { "label": "River", "description": "Cells that have a river flowing" },
+        "river": {
+          "label": "River",
+          "description": "Cells that have a river flowing"
+        },
         "minHabitability": {
           "label": "Min Habitability",
           "paramLabel": "Habitability (0–100)",

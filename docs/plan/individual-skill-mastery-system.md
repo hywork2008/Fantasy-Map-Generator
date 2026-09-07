@@ -197,6 +197,8 @@ resultQuality = individualProficiencyFactor
 
 ## 7. 既存 CharacterSkills との関係
 
+後続の [能力の専門分野・経験・言語設計](characters/skill-specializations.md)（2026-09-07、専門プロフィール・言語・主要判定を実装済み）は、全9能力の座学・実務・対象別経験と言語を具体化する。本書の実践熟練・適性・技法を正本として参照し、同じ技能を二重保存しない。
+
 `CharacterSkills` は削除しない。用途を以下のように再定義する。
 
 | 既存値 | 今後の主な役割 | DomainSkill との関係 |

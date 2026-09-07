@@ -1,4 +1,5 @@
 import type { AppearanceAxes, CharacterRaceAppearance } from "../../types/models";
+import type { CharacterSpecializationProfile } from "./specializationTypes";
 
 export type Gender = "male" | "female";
 export type { AppearanceAxes, AppearanceAxisId, CharacterRaceAppearance } from "../../types/models";
@@ -432,6 +433,8 @@ export interface Character {
   nationalityStateId?: number;
   roles?: CharacterRole[];
   skills: CharacterSkills;
+  /** Optional detailed knowledge, practice, experience and language profile. */
+  specializations?: CharacterSpecializationProfile;
   personality: CharacterPersonality;
   /**
    * Ability-score profile from the Characters extension's current global ability

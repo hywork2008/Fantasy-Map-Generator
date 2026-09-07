@@ -87,6 +87,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
     ["culture.id", "religion.id", "state.id", "province.id", "burg.id"],
     "reassign"
   ),
+  map("pack.languageWorld", "map.politics", "language.id", ["culture.id", "state.id"], "orphan"),
   map("pack.cells.r", "map.networks", "cell.id", ["river.id"], "reassign"),
   map("pack.cells.routes", "map.networks", "cell.id", ["route.id"], "cascade"),
   simulation("pack.cells.pop", "simulation.cells", "cell.id"),

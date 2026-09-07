@@ -332,7 +332,8 @@ function prepareMapDataFromSvg(): string {
     mineralResources, // [55] Economy mineral-resource state
     races, // [56] pack.races (species table; optional on legacy maps)
     JSON.stringify(worldContext.pack.lavaFlows ?? []), // [57] pack.lavaFlows (optional on legacy maps)
-    undergroundRealm // [58] underground realm state (optional on legacy/non-Fantasy maps)
+    undergroundRealm, // [58] underground realm state (optional on legacy/non-Fantasy maps)
+    JSON.stringify(worldContext.pack.languageWorld ?? null) // [59] world languages
   ].join("\r\n");
 
   return mapData;

@@ -1733,8 +1733,8 @@ function runStateProspecting(api: ExtensionAPI, random: () => number): number {
     // is incorporated or abandoned.
     if (frontierMode && !canStateStartFrontierSurvey(frontier, state.i)) continue;
     const rulerId = getStateRulerId(state);
-    const geography = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "geography");
-    const engineering = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "engineering");
+    const geography = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "geography.physical");
+    const engineering = rulerId === undefined ? 0 : api.getEffectiveSkill(rulerId, "engineering.mining");
     const rivalExpertise = Math.max(
       0,
       ...(state.neighbors ?? []).map(neighborId => {
@@ -1742,8 +1742,8 @@ function runStateProspecting(api: ExtensionAPI, random: () => number): number {
         const neighborRulerId = neighbor ? getStateRulerId(neighbor) : undefined;
         if (neighborRulerId === undefined) return 0;
         return (
-          (api.getEffectiveSkill(neighborRulerId, "geography") +
-            api.getEffectiveSkill(neighborRulerId, "engineering")) /
+          (api.getEffectiveSkill(neighborRulerId, "geography.physical") +
+            api.getEffectiveSkill(neighborRulerId, "engineering.mining")) /
           2
         );
       })

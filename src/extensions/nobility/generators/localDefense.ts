@@ -1,4 +1,6 @@
 import type { Character } from "../../characters/characterTypes";
+import { EXPERTISE_TASKS, evaluateExpertise } from "../../characters/specializations";
+import type { SpecializationTarget } from "../../characters/specializationTypes";
 import { applyConquestDisruption } from "../../economy/generators/conquestDisruption";
 import { getMartialDisciplineMultiplier } from "../../economy/generators/martialDisciplineKnowledge";
 import { getCommanderMartialSkillMultiplier } from "../../economy/generators/martialIndividualMastery";
@@ -77,9 +79,27 @@ export const REINFORCEMENT_RADIUS = { cavalry: 50, infantry: 50, naval: 500 } as
  * headcount the same way a good commander does. This only scales the power total used to decide
  * a battle's outcome; actual casualties are still applied against real troop counts.
  */
-export function commanderPowerMultiplier(characters: Character[], regiment: MilitaryRegiment): number {
+export function commanderPowerMultiplier(
+  characters: Character[],
+  regiment: MilitaryRegiment,
+  targets: readonly SpecializationTarget[] = []
+): number {
   const commander = getRegimentCommander(characters, regiment);
-  const commanderMultiplier = commander ? 1 + (commander.skills.martial / 100) * 0.5 : 1;
+  const troopTargets: SpecializationTarget[] = Object.entries(regiment.u ?? {})
+    .filter(([, count]) => count > 0)
+    .map(([id]) => ({ kind: "troop", id }));
+  const score = commander
+    ? evaluateExpertise(
+        commander,
+        regiment.n
+          ? EXPERTISE_TASKS.naval
+          : targets.some(target => target.kind === "terrain" && target.id === "urban")
+            ? EXPERTISE_TASKS.siege
+            : EXPERTISE_TASKS.command,
+        [...targets, ...troopTargets, { kind: "commandScale", id: regiment.a >= 1000 ? "army" : "regiment" }]
+      ).score
+    : 0;
+  const commanderMultiplier = commander ? 1 + (score / 100) * 0.5 : 1;
   const individualSkillMultiplier = commander ? getCommanderMartialSkillMultiplier(commander, regiment) : 1;
   return (
     commanderMultiplier * individualSkillMultiplier * getMartialDisciplineMultiplier(regiment.state, regiment.u || {})

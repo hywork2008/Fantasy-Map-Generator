@@ -379,7 +379,7 @@ function getEngineeringMultiplier(
 ): number {
   const rulerId = getRulerId(states[stateId]);
   if (!rulerId) return 1;
-  return 1 + getEffectiveSkill(rulerId, "engineering") / 100;
+  return 1 + getEffectiveSkill(rulerId, "engineering.shipbuilding") / 100;
 }
 
 function completedHullKey(owner: ShipHullOwner, ownerId: number, shipClassId: string): string {

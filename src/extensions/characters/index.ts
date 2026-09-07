@@ -1,3 +1,10 @@
+import { SPECIALIZATIONS } from "./specializationCatalog";
+import {
+  readEconomyPractice,
+  registerSpecializationCommands,
+  registerSpecializationSimulation
+} from "./specializationRuntime";
+import { evaluateExpertise } from "./specializations";
 import "./types"; // activate module augmentation for PackedGraph.characters
 
 import type { ExtensionAPI } from "../../types/extension-api";
@@ -26,6 +33,8 @@ export const CHARACTERS_EXTENSION_ID = "characters";
 let _unsubscribe: (() => void) | null = null;
 let _unregisterSkillModifier: (() => void) | null = null;
 let _unregisterClearCommand: (() => void) | null = null;
+let _unregisterExpertiseSimulation: (() => void) | null = null;
+let _unregisterSpecializations: (() => void) | null = null;
 let _unregisterLoadoutCommands: (() => void) | null = null;
 
 function resolveGoodsCatalogForEquip(api: ExtensionAPI): NamedGoodRef[] {
@@ -112,6 +121,8 @@ function isApplyPrepTemplateRequest(value: unknown): value is { characterId: num
 
 export function init(api: ExtensionAPI): void {
   initCharactersContext(api);
+  _unregisterSpecializations = registerSpecializationCommands(api);
+  _unregisterExpertiseSimulation = registerSpecializationSimulation(api);
 
   _unregisterClearCommand = api.registerExtensionCommand({
     extensionId: CHARACTERS_EXTENSION_ID,
@@ -258,6 +269,9 @@ export function init(api: ExtensionAPI): void {
   _unregisterSkillModifier = api.registerSkillModifier(CHARACTERS_EXTENSION_ID, (characterId, skill, currentValue) => {
     const character = getCharacters().find(c => c.i === characterId);
     if (!character) return currentValue;
+    if (SPECIALIZATIONS.has(skill))
+      return evaluateExpertise(character, [{ domainId: skill, axis: "knowledge", weight: 1 }], [], readEconomyPractice)
+        .score;
     const value = character.skills[skill as keyof CharacterSkills];
     return value ?? currentValue;
   });
@@ -365,6 +379,10 @@ export function cleanup(api: ExtensionAPI): void {
     _unregisterSkillModifier();
     _unregisterSkillModifier = null;
   }
+  _unregisterExpertiseSimulation?.();
+  _unregisterExpertiseSimulation = null;
+  _unregisterSpecializations?.();
+  _unregisterSpecializations = null;
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
   _unregisterLoadoutCommands?.();

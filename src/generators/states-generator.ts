@@ -27,6 +27,7 @@ import {
   trimVowels
 } from "../utils";
 import { TIME } from "../utils/debug";
+import { generateWorldLanguages } from "../utils/worldLanguages";
 import { getStateExpandDangerCost } from "./dangerExpandPolicy";
 import { COA } from "./emblem/generator";
 import { enforceGiantWaterSourceSovereignty } from "./giantWaterSourceSovereignty";
@@ -140,6 +141,24 @@ class StatesModule {
     this.getPoles(state);
     this.findNeighbors();
     this.assignColors(this.worldContext, this.viewContext, this.appServices);
+    if (!pack.languageWorld) pack.languageWorld = generateWorldLanguages(pack.cultures, pack.states);
+    else {
+      // State regeneration preserves language identities and policies already chosen by the editor.
+      for (const state of pack.states) {
+        if (!state.i || state.removed || pack.languageWorld.states.some(policy => policy.stateId === state.i)) continue;
+        const ids =
+          pack.languageWorld.cultures
+            .find(profile => profile.cultureId === state.culture)
+            ?.languages.map(entry => entry.languageId) ?? [];
+        pack.languageWorld.states.push({
+          stateId: state.i,
+          administrativeLanguageIds: [...ids],
+          courtLanguageIds: [...ids],
+          diplomaticLanguageIds: [...ids],
+          recognizedLanguageIds: [...ids]
+        });
+      }
+    }
     this.generateCampaigns();
     this.generateDiplomacy();
 

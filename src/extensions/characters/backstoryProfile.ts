@@ -1,3 +1,4 @@
+import { applySpecializationEducation, specializationScore } from "./specializations";
 /**
  * Character backstory profile: origin, commitment, tastes, favor, and gifts.
  * Spec: docs/plan/characters/backstory-profile.md
@@ -1404,6 +1405,15 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
   } satisfies CharacterBackstory;
 
   seedCharacterMotivation(character);
+  if (applySkillBackground) {
+    let languageWorld: import("../../types/worldLanguages").WorldLanguages | undefined;
+    try {
+      languageWorld = getWorldContext().pack.languageWorld;
+    } catch {
+      /* Pure generator tests. */
+    }
+    applySpecializationEducation(character, languageWorld);
+  }
 
   character.birthStateId ??= origin.birthStateId;
   character.nationalityStateId ??= character.state;
@@ -2026,7 +2036,16 @@ function tasteMatchScore(recipient: Character, goodName: string | undefined): nu
     score += taste.polarity === "like" ? 40 * weight : -45 * weight;
   }
   if (/artwork|sculpture|tapestry|instrument|ceramic|glass/i.test(goodName)) {
-    score += (recipient.skills.artistry - 40) * 0.35;
+    const domain = /ceramic/i.test(goodName)
+      ? "artistry.ceramics"
+      : /sculpture/i.test(goodName)
+        ? "artistry.sculpture"
+        : /instrument/i.test(goodName)
+          ? "artistry.music"
+          : /tapestry|glass/i.test(goodName)
+            ? "artistry.decorativeArts"
+            : "artistry.painting";
+    score += (specializationScore(recipient, domain, "appraisal") - 40) * 0.35;
   }
   if (/book|paper|ink/i.test(goodName)) score += (recipient.skills.learning - 40) * 0.25;
   if (/wine|liquor|beer/i.test(goodName) && recipient.personality.sociability >= 60) score += 10;
