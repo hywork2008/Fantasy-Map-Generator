@@ -33,6 +33,7 @@ Dwarf **runes** are `engineering.runes`, not Arcane.
 | Arachnid | 5 | 2 | 0.12 | 0.9 |
 | Orc | 4 | 1 | 0.05 | 1.25 |
 | Beastfolk | 3 | 1 | 0.08 | 1.15 |
+| Half Elf | 95 | 3 | 0.12 | 1 |
 
 Draconic barely *use* Arcane. Their deterrence is durability. Giants are less extreme but still dangerous in the flesh; their Arcane is primordial, not scholarship.
 

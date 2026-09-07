@@ -34,6 +34,8 @@ export const DEFAULT_RACE_PERSON_NAME_SPHERES: Readonly<Record<string, RacePerso
   draconic: { primary: 11 }, // Chinese
   // Same linguistic sphere as host dragons (no free culture of their own).
   wyrmkin: { primary: 11 }, // Chinese
+  // Slave-folk of elf realms: host elf spheres (Greek / Celtic).
+  half_elf: { primary: 7, alternate: 22 },
   amazones: { primary: 7 }, // Greek (antique / high fantasy Amazones)
   // Long-lived infernal courts: Mesopotamian mythic (places stay Infernal Markov)
   demon: { primary: 23 },

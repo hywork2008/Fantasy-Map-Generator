@@ -11,6 +11,7 @@
  * managed distance (not dark-elf power plots); calculated, unhurried, confident
  * divine pride — not orc-hot raid greed.
  */
+import { hybridNumericRecord } from "../../data/hybridRaceTraits";
 import { gauss } from "../hostUtils";
 import type { CharacterPersonality } from "./characterTypes";
 import { skillStddevForRace } from "./raceSkillBias";
@@ -162,7 +163,14 @@ const PERSONALITY_KEYS: readonly (keyof CharacterPersonality)[] = [
 
 export function racePersonalityBiasForKey(raceKey: string | undefined | null): PersonalityBiasTable {
   if (!raceKey) return {};
+  if (raceKey === "half_elf") {
+    return hybridPersonalityBias(RACE_PERSONALITY_BIAS.human ?? {}, RACE_PERSONALITY_BIAS.elf ?? {});
+  }
   return RACE_PERSONALITY_BIAS[raceKey] ?? {};
+}
+
+function hybridPersonalityBias(human: PersonalityBiasTable, elf: PersonalityBiasTable): PersonalityBiasTable {
+  return hybridNumericRecord(human, elf, PERSONALITY_KEYS, 0);
 }
 
 function clampTrait(value: number): number {

@@ -23,6 +23,7 @@ describe("raceCivicStance", () => {
     expect(raceCivicStance("orc")).toBe("enemy_colony");
     expect(raceCivicStance("arachnid")).toBe("enemy_colony");
     expect(raceCivicStance("wyrmkin")).toBe("bound");
+    expect(raceCivicStance("half_elf")).toBe("bound");
   });
 
   it("allows mixed courts only for human/elf/dwarf", () => {
@@ -35,6 +36,7 @@ describe("raceCivicStance", () => {
     expect(canAppearInMixedCourt("demon")).toBe(false);
     expect(canAppearInMixedCourt("beastfolk")).toBe(false);
     expect(canAppearInMixedCourt("wyrmkin")).toBe(false);
+    expect(canAppearInMixedCourt("half_elf")).toBe(false);
   });
 
   it("gives only diplomatic-core races a nonzero mixed-polity chance", () => {

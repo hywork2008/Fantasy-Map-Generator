@@ -252,7 +252,17 @@ export function rollSkillValue(mean: number, min = 1, max = 100, stddev: number 
 export function skillMeanFor(
   skill: keyof CharacterSkills,
   options: RollSkillsOptions = {}
-): { mean: number; min: number } {
+): { mean: number; min: number; max: number } {
+  if (options.raceKey === "half_elf") {
+    const human = skillMeanFor(skill, { ...options, raceKey: "human" });
+    const elf = skillMeanFor(skill, { ...options, raceKey: "elf" });
+    return {
+      mean: Math.min(human.mean, elf.mean),
+      min: Math.min(human.min, elf.min),
+      max: Math.max(human.max, elf.max)
+    };
+  }
+
   const roleBias = (options.roleClass ? ROLE_SKILL_BIAS[options.roleClass][skill] : undefined) ?? 0;
   const raceBias = raceSkillBiasForKey(options.raceKey)[skill] ?? 0;
   const isPrimary = options.primarySkill === skill;
@@ -271,7 +281,7 @@ export function skillMeanFor(
     min = PRIMARY_SKILL_MIN;
   }
 
-  return { mean, min };
+  return { mean, min, max: 100 };
 }
 
 /** Roll a full CharacterSkills block for a new person. */
@@ -279,8 +289,8 @@ export function rollCharacterSkills(options: RollSkillsOptions = {}): CharacterS
   const stddev = skillStddevForRace(options.lifespan);
   const skills = {} as CharacterSkills;
   for (const skill of ALL_SKILLS) {
-    const { mean, min } = skillMeanFor(skill, options);
-    skills[skill] = rollSkillValue(mean, min, 100, stddev);
+    const { mean, min, max } = skillMeanFor(skill, options);
+    skills[skill] = rollSkillValue(mean, min, max, stddev);
   }
   return skills;
 }

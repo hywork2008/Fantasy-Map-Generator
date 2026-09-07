@@ -7,6 +7,7 @@
  * Spec: docs/plan/characters/arcane.md
  */
 import type { RaceSupernatural } from "../types/models";
+import { hybridMinMaxMedian } from "./hybridRaceTraits";
 
 export const HUMAN_SUPERNATURAL: RaceSupernatural = {
   arcaneCap: 10,
@@ -29,7 +30,14 @@ export const RACE_SUPERNATURAL: Readonly<Record<string, RaceSupernatural>> = {
   amazones: { arcaneCap: 20, arcaneMedian: 8, arcaneInclination: 0.2, durability: 1.2 },
   wyrmkin: { arcaneCap: 12, arcaneMedian: 5, arcaneInclination: 0.15, durability: 1.1 },
   demon: { arcaneCap: 100, arcaneMedian: 55, arcaneInclination: 0.7, durability: 2.5 },
-  beastfolk: { arcaneCap: 3, arcaneMedian: 1, arcaneInclination: 0.08, durability: 1.15 }
+  beastfolk: { arcaneCap: 3, arcaneMedian: 1, arcaneInclination: 0.08, durability: 1.15 },
+  // Human × Elf: cap/durability ceiling = higher parent; typical Arcane = lower parent.
+  half_elf: {
+    arcaneCap: hybridMinMaxMedian(10, 95).max,
+    arcaneMedian: hybridMinMaxMedian(3, 50).median,
+    arcaneInclination: hybridMinMaxMedian(0.12, 0.55).median,
+    durability: hybridMinMaxMedian(1, 1.15).median
+  }
 };
 
 export function supernaturalForRaceKey(key: string | undefined | null): RaceSupernatural {

@@ -10,6 +10,7 @@ import {
   warWorkingCasualties,
   warWorkingRecoveryYears
 } from "../../data/arcaneWorking";
+import { HALF_ELF_SERVITOR_CHANCE } from "../../data/raceBoundServitors";
 import { RACE_SUPERNATURAL } from "../../data/raceSupernatural";
 import { createDefaultRaces } from "../../data/races";
 import { useOptionsState } from "../hostCore";
@@ -61,6 +62,16 @@ describe("fantasy Arcane catalog", () => {
     expect(RACE_SUPERNATURAL.amazones.arcaneCap).toBe(20);
     expect(RACE_SUPERNATURAL.human.arcaneCap).toBe(10);
     expect(RACE_SUPERNATURAL.dwarf.arcaneCap).toBe(10);
+  });
+
+  it("gives Half Elf the higher Human/Elf Arcane cap and the lower median, inclination, and durability", () => {
+    const human = RACE_SUPERNATURAL.human;
+    const elf = RACE_SUPERNATURAL.elf;
+    const half = RACE_SUPERNATURAL.half_elf;
+    expect(half.arcaneCap).toBe(Math.max(human.arcaneCap, elf.arcaneCap));
+    expect(half.arcaneMedian).toBe(Math.min(human.arcaneMedian, elf.arcaneMedian));
+    expect(half.arcaneInclination).toBe(Math.min(human.arcaneInclination, elf.arcaneInclination));
+    expect(half.durability).toBe(Math.min(human.durability, elf.durability));
   });
 
   it("gives dragons the highest mundane durability and elves only a slight edge over humans", () => {
@@ -127,6 +138,7 @@ describe("human infernal atavism", () => {
   it("is rare, Human-only, and picks one of the two whisper flavors", () => {
     expect(HUMAN_INFERNAL_ATAVISM_CHANCE).toBeGreaterThan(0);
     expect(HUMAN_INFERNAL_ATAVISM_CHANCE).toBeLessThanOrEqual(0.01);
+    expect(HUMAN_INFERNAL_ATAVISM_CHANCE).toBe(HALF_ELF_SERVITOR_CHANCE);
     expect(maybeHumanInfernalAtavism("elf", true, () => true)).toBeUndefined();
     expect(maybeHumanInfernalAtavism("human", false, () => true)).toBeUndefined();
     expect(maybeHumanInfernalAtavism("human", true, () => false)).toBeUndefined();

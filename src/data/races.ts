@@ -23,6 +23,7 @@
  */
 import type {
   AppearanceAxes,
+  AppearanceRanges,
   BeastfolkAnimal,
   CharacterGenderMode,
   CharacterRaceAppearance,
@@ -33,6 +34,7 @@ import type {
   RaceFertility,
   RaceKey
 } from "../types/models";
+import { hybridAppearance, hybridBeautyIdeal, hybridMinMaxMedian } from "./hybridRaceTraits";
 import { supernaturalForRaceKey } from "./raceSupernatural";
 
 export interface RaceDefinition {
@@ -42,6 +44,8 @@ export interface RaceDefinition {
   lifespan: number;
   maxLifespan: number;
   looksBaseline: AppearanceAxes;
+  /** Per-axis looks roll clamp. Half Elf uses Human×Elf min/max; others omit (1–100). */
+  looksRange?: AppearanceRanges;
   beautyIdeal: RaceBeautyIdeal;
   fertility: RaceFertility;
   characterAppearance?: RaceCharacterAppearance;
@@ -71,6 +75,24 @@ const humanIdeal: RaceBeautyIdeal = {
   weights: { symmetry: 1.2, refinement: 0.8, vitality: 0.9, stature: 0.3, build: 0.2, ornament: 0.2 }
 };
 
+const elfLooks: AppearanceAxes = {
+  stature: 55,
+  build: 35,
+  symmetry: 65,
+  refinement: 75,
+  vitality: 60,
+  ornament: 40
+};
+
+const elfIdeal: RaceBeautyIdeal = {
+  weights: { refinement: 1.4, symmetry: 1.1, stature: 0.4, build: -0.6, vitality: 0.5, ornament: 0.2 }
+};
+
+const halfElfLooks = hybridAppearance(humanLooks, elfLooks);
+const halfElfIdeal = hybridBeautyIdeal(humanIdeal, elfIdeal);
+const halfElfLife = hybridMinMaxMedian(75, 750);
+const halfElfMaxLife = hybridMinMaxMedian(100, 1000);
+
 /**
  * Stable catalog order → race `i` at generation / migration.
  */
@@ -98,10 +120,8 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     name: "Elf",
     lifespan: 750,
     maxLifespan: 1000,
-    looksBaseline: { stature: 55, build: 35, symmetry: 65, refinement: 75, vitality: 60, ornament: 40 },
-    beautyIdeal: {
-      weights: { refinement: 1.4, symmetry: 1.1, stature: 0.4, build: -0.6, vitality: 0.5, ornament: 0.2 }
-    },
+    looksBaseline: { ...elfLooks },
+    beautyIdeal: { weights: { ...elfIdeal.weights } },
     // R_max ≈ 2.5 (near-replacement; low adult mortality ⇒ must not explode)
     fertility: {
       fertilityStart: 100,
@@ -363,6 +383,26 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
       litterMean: 2.4,
       litterMax: 4
     }
+  },
+  {
+    // Bound slave-folk of elf realms only — no independent cultures/states.
+    // Rare named spawn (same rate as Human 「青い血」); liger-like sterile hybrids.
+    // Looks/ability medians take the lower Human/Elf parent; caps take the higher.
+    key: "half_elf",
+    name: "Half Elf",
+    lifespan: halfElfLife.median,
+    maxLifespan: halfElfMaxLife.max,
+    looksBaseline: { ...halfElfLooks.baseline },
+    looksRange: { ...halfElfLooks.range },
+    beautyIdeal: { weights: { ...halfElfIdeal.weights } },
+    // Sterile (Human–Elf liger): pairing exists in lore, further children do not.
+    fertility: {
+      fertilityStart: 16,
+      fertilityEnd: 16,
+      interbirthYears: 3.5,
+      litterMean: 0,
+      litterMax: 0
+    }
   }
 ] as const;
 
@@ -410,6 +450,7 @@ function definitionToRace(def: RaceDefinition, i: number): Race {
     looksBaseline: { ...def.looksBaseline },
     beautyIdeal: { weights: { ...def.beautyIdeal.weights } },
     fertility: { ...def.fertility },
+    ...(def.looksRange ? { looksRange: cloneLooksRange(def.looksRange) } : {}),
     ...(def.characterAppearance ? { characterAppearance: cloneCharacterAppearance(def.characterAppearance) } : {}),
     ...(def.environmentalSurvival ? { environmentalSurvival: { ...def.environmentalSurvival } } : {}),
     supernatural: { ...supernaturalForRaceKey(def.key) }
@@ -448,6 +489,7 @@ export function applyCatalogRaceDefaults(race: Race): Race {
     race.maxLifespan = race.lifespan;
   }
   if (!race.looksBaseline && def) race.looksBaseline = { ...def.looksBaseline };
+  if (!race.looksRange && def?.looksRange) race.looksRange = cloneLooksRange(def.looksRange);
   if (!race.beautyIdeal && def) race.beautyIdeal = { weights: { ...def.beautyIdeal.weights } };
   if (!race.characterAppearance && def?.characterAppearance) {
     race.characterAppearance = cloneCharacterAppearance(def.characterAppearance);
@@ -486,6 +528,16 @@ export function getRaceFertility(races: readonly Race[] | undefined, raceId: num
   if (race?.fertility) return race.fertility;
   const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
   return def ? { ...def.fertility } : { ...DEFAULT_RACE_FERTILITY };
+}
+
+export function getRaceLooksRange(
+  races: readonly Race[] | undefined,
+  raceId: number | undefined
+): AppearanceRanges | undefined {
+  const race = getRaceById(races, raceId);
+  if (race?.looksRange) return race.looksRange;
+  const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
+  return def?.looksRange ? cloneLooksRange(def.looksRange) : undefined;
 }
 
 export function getRaceLooksBaseline(races: readonly Race[] | undefined, raceId: number | undefined): AppearanceAxes {
@@ -532,6 +584,15 @@ export function rollCharacterRaceAppearance(
   const min = Math.max(1, Math.ceil(appearance.furryScale.min));
   const max = Math.max(min, Math.min(10, Math.floor(appearance.furryScale.max)));
   return { kind: "beastfolk", animal, furryScale: randomInt(min, max) };
+}
+
+function cloneLooksRange(range: AppearanceRanges): AppearanceRanges {
+  const out: AppearanceRanges = {};
+  for (const [axis, span] of Object.entries(range) as [keyof AppearanceRanges, { min: number; max: number }][]) {
+    if (!span) continue;
+    out[axis] = { min: span.min, max: span.max };
+  }
+  return out;
 }
 
 function cloneCharacterAppearance(appearance: RaceCharacterAppearance): RaceCharacterAppearance {

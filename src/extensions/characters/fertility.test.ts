@@ -50,6 +50,14 @@ describe("race fertility", () => {
     expect(goblinR).toBeGreaterThan(humanR * 2);
   });
 
+  it("treats Half Elf as sterile (Human–Elf liger)", () => {
+    const races = createDefaultRaces();
+    const half = getRaceFertility(races, races.find(r => r.key === "half_elf")!.i);
+    expect(lifetimeExpectedBirths(half)).toBe(0);
+    expect(sampleLitter(half)).toBe(0);
+    expect(expectedChildrenFromFertility(30, 1, half)).toBe(0);
+  });
+
   it("samples litter within [1, litterMax]", () => {
     const fert = { ...DEFAULT_RACE_FERTILITY, litterMean: 2.5, litterMax: 5 };
     for (let i = 0; i < 40; i++) {

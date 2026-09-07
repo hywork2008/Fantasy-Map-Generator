@@ -4,7 +4,7 @@
  * - **diplomatic** (human, elf, dwarf): can war *or* ally; rare mixed polities.
  * - **distant** (dark elf, giant, draconic, amazones, demon, beastfolk): civilized but keep distance; mono.
  * - **enemy_colony** (goblin, orc, arachnid): own colonies/lairs; hostile ecology; mono war courts.
- * - **bound** (wyrmkin): no free polities; only under a host race (see raceBoundServitors).
+ * - **bound** (wyrmkin, half_elf): no free polities; only under a host race (see raceBoundServitors).
  *
  * Multi-race states are uncommon — mono is the map default.
  * Lore: docs/world/help/multi-race-geopolitics.md

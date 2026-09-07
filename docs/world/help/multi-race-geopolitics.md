@@ -12,7 +12,8 @@ Related: race fertility & lifespan (`src/data/races.ts`), civic stance (`src/dat
 3. **Dark elf, giant, draconic, Amazones, Demon, Beastfolk** keep **distance** — not open enemy, not open melting-pot. Strong cultures, closed doors.
 4. **Goblin, orc, arachnid** live in **enemy colonies** (raids, war-clans, predatory nests). They do not staff mixed courts or peaceful markets.
 5. **Wyrmkin** are **bound servitors** of **draconic** realms only — no free kingdoms. They run markets, craft halls, and desk work dragons will not do themselves.
-6. Slow-fertility long-lived folk still cannot survive endless total war — limited wars and frontiers matter — but **coexistence is usually “next door,” not “same crown.”**
+6. **Half Elves** are **bound slave-folk** of **elf** realms only — no free kingdoms. They appear as named ordinary folk at the same rarity as Human 「青い血」 (0.6%). Human–Elf children are sterile (liger-like).
+7. Slow-fertility long-lived folk still cannot survive endless total war — limited wars and frontiers matter — but **coexistence is usually “next door,” not “same crown.”**
 
 ---
 
@@ -23,7 +24,7 @@ Related: race fertility & lifespan (`src/data/races.ts`), civic stance (`src/dat
 | **Diplomatic core** | Human, Elf, Dwarf | Mostly mono; **rare** mixed (~10–18%) | War *or* alliance; trade and treaties normal |
 | **Distant** | Dark Elf, Giant, Draconic, Amazones, Demon, Beastfolk | Always mono | Formal distance; trade possible, mixed cities rare/absent |
 | **Enemy colony** | Goblin, Orc, Arachnid | Always mono; war/nest courts only | Hostile ecology; containment, not co-citizenship |
-| **Bound** | Wyrmkin | Never independent | Live only under a host race (draconic); thrall stock for trade/craft |
+| **Bound** | Wyrmkin, Half Elf | Never independent | Live only under a host race (draconic / elf); thrall or slave stock |
 
 Implementation: `src/data/raceCivicStance.ts`. Enemy-colony characters: martial mono rosters only (`raceSkillBias` / `raceRoster`).
 
@@ -75,6 +76,17 @@ They get full (non-merchant-war-only) mono courts — civilizations, just not co
 | Origins | Heavy **slave_born / freedman** stratum weights |
 
 Implementation: `src/data/raceBoundServitors.ts`, applied in `createPerson` / `sampleRaceIdForState`.
+
+### Bound slave-folk (Half Elf)
+
+| | |
+| :--- | :--- |
+| Host | **Elf** cultures only |
+| Map | No independent culture/state templates |
+| Named roles | `ordinary`, `merchant`, `religious`, `central_officer` may resolve to Half Elf at **0.6%** (same rate as Human infernal atavism / 「青い血」) |
+| Host keeps | Rulers, commanders, province lords |
+| Origins | Heavy **slave_born / freedman** stratum weights |
+| Biology | Sterile (Human–Elf liger). Looks and ability **medians** take the lower Human/Elf parent; **caps** take the higher. |
 
 ---
 

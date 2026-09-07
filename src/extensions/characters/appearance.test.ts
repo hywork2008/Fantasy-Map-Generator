@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDefaultRaces, HUMAN_RACE_ID, raceIdByKey } from "../../data/races";
+import { APPEARANCE_AXIS_IDS } from "../../types/models";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import {
@@ -241,5 +242,22 @@ describe("appearance / attractiveness", () => {
     expect(humanViewsElf.kind).toBe("cross_race_aesthetic");
     expect(elfViewsHuman.kind).toBe("cross_race_aesthetic");
     expect(humanViewsElf.score).toBeGreaterThan(elfViewsHuman.score);
+  });
+
+  it("rolls Half Elf looks between the Human and Elf baselines, typically at the lower parent", () => {
+    const races = createDefaultRaces();
+    const halfId = raceIdByKey(races, "half_elf");
+    const half = races.find(r => r.key === "half_elf")!;
+    const range = half.looksRange!;
+    for (let i = 0; i < 80; i++) {
+      const { looks } = rollLooksForRace(halfId, 20, 35);
+      for (const axis of APPEARANCE_AXIS_IDS) {
+        const span = range[axis]!;
+        expect(looks[axis]).toBeGreaterThanOrEqual(span.min);
+        expect(looks[axis]).toBeLessThanOrEqual(span.max);
+      }
+    }
+    expect(crossRaceAestheticReadability(raceIdByKey(races, "human"), halfId, races)).toBeGreaterThan(0.5);
+    expect(crossRaceAestheticReadability(raceIdByKey(races, "elf"), halfId, races)).toBeGreaterThan(0.5);
   });
 });

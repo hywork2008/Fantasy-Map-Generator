@@ -14,8 +14,21 @@
  * Spec: docs/plan/characters/appearance-and-reproduction.md
  * Lore: docs/world/help/races-beauty-and-pairing.md
  */
-import { getRaceBeautyIdeal, getRaceById, getRaceLooksBaseline, HUMAN_RACE_ID } from "../../data/races";
-import type { AppearanceAxes, AppearanceAxisId, Race, RaceBeautyIdeal, RaceKey } from "../../types/models";
+import {
+  getRaceBeautyIdeal,
+  getRaceById,
+  getRaceLooksBaseline,
+  getRaceLooksRange,
+  HUMAN_RACE_ID
+} from "../../data/races";
+import type {
+  AppearanceAxes,
+  AppearanceAxisId,
+  AppearanceRanges,
+  Race,
+  RaceBeautyIdeal,
+  RaceKey
+} from "../../types/models";
 import { APPEARANCE_AXIS_IDS } from "../../types/models";
 import { gauss } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
@@ -56,14 +69,18 @@ export const LOOKS_SOFT_DECLINE_PER_YEAR = 0.18;
 export function rollPeakLooks(
   baseline: AppearanceAxes,
   biasBoost = 0,
-  idealWeights?: RaceBeautyIdeal["weights"]
+  idealWeights?: RaceBeautyIdeal["weights"],
+  axisRange?: AppearanceRanges
 ): AppearanceAxes {
   const out = {} as AppearanceAxes;
   for (const axis of APPEARANCE_AXIS_IDS) {
     const weight = idealWeights?.[axis];
     const direction = !weight ? 0 : weight > 0 ? 1 : -1;
-    const mean = (baseline[axis] ?? 50) + direction * biasBoost;
-    out[axis] = Math.max(1, Math.min(100, gauss(mean, APPEARANCE_AXIS_STDDEV, 1, 100, 0)));
+    const span = axisRange?.[axis];
+    const lo = span?.min ?? 1;
+    const hi = Math.max(lo, span?.max ?? 100);
+    const mean = Math.max(lo, Math.min(hi, (baseline[axis] ?? 50) + direction * biasBoost));
+    out[axis] = Math.max(lo, Math.min(hi, gauss(mean, APPEARANCE_AXIS_STDDEV, lo, hi, 0)));
   }
   return out;
 }
@@ -175,6 +192,7 @@ export function physiqueSimilarity(a: AppearanceAxes, b: AppearanceAxes): number
 export const CROSS_RACE_AESTHETIC_READABILITY: Readonly<Partial<Record<RaceKey, Partial<Record<RaceKey, number>>>>> = {
   human: {
     elf: 0.8,
+    half_elf: 0.72,
     dark_elf: 0.68,
     amazones: 0.42,
     dwarf: 0.18,
@@ -183,8 +201,15 @@ export const CROSS_RACE_AESTHETIC_READABILITY: Readonly<Partial<Record<RaceKey, 
   },
   elf: {
     human: 0.32,
+    half_elf: 0.7,
     dark_elf: 0.55,
     amazones: 0.28
+  },
+  half_elf: {
+    human: 0.5,
+    elf: 0.62,
+    dark_elf: 0.4,
+    amazones: 0.3
   },
   dark_elf: {
     human: 0.28,
@@ -356,7 +381,8 @@ export function rollLooksForRace(
   const races = hasCharactersContext() ? getWorldContext().pack.races : undefined;
   const baseline = getRaceLooksBaseline(races, raceId);
   const ideal = getRaceBeautyIdeal(races, raceId);
-  const peak = rollPeakLooks(baseline, appearanceBiasBoost, ideal.weights);
+  const range = getRaceLooksRange(races, raceId);
+  const peak = rollPeakLooks(baseline, appearanceBiasBoost, ideal.weights, range);
   const looks = applyLooksAgeDecline(peak, age, declineAgeThreshold);
   const appearance = ownRaceAppearanceScore(looks, raceId, races);
   return { looks, appearance };

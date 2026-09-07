@@ -69,9 +69,19 @@ describe("sampleRaceIdForState", () => {
     const forbidden = new Set(
       races
         .filter(r =>
-          ["goblin", "orc", "arachnid", "dark_elf", "giant", "draconic", "amazones", "demon", "beastfolk"].includes(
-            r.key
-          )
+          [
+            "goblin",
+            "orc",
+            "arachnid",
+            "dark_elf",
+            "giant",
+            "draconic",
+            "amazones",
+            "demon",
+            "beastfolk",
+            "wyrmkin",
+            "half_elf"
+          ].includes(r.key)
         )
         .map(r => r.i)
     );
@@ -121,6 +131,42 @@ describe("sampleRaceIdForState", () => {
         expect(id).toBe(majority);
       }
     }
+  });
+
+  it("rarely staffs elf ordinary as half_elf and never swaps elf rulers", () => {
+    const races = createDefaultRaces();
+    const elf = races.find(r => r.key === "elf")!.i;
+    const halfElf = races.find(r => r.key === "half_elf")!.i;
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: elf, monoRacial: true }, races, {
+        roleClass: "ordinary",
+        chanceRoll: () => true
+      })
+    ).toBe(halfElf);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: elf, monoRacial: true }, races, {
+        roleClass: "ordinary",
+        chanceRoll: () => false
+      })
+    ).toBe(elf);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: elf, monoRacial: true }, races, {
+        roleClass: "ruler",
+        chanceRoll: () => true
+      })
+    ).toBe(elf);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: elf, monoRacial: true }, races, {
+        roleClass: "merchant",
+        chanceRoll: () => true
+      })
+    ).toBe(halfElf);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: elf, monoRacial: true }, races, {
+        roleClass: "commander",
+        chanceRoll: () => true
+      })
+    ).toBe(elf);
   });
 
   it("staffs draconic mono merchants as wyrmkin, rulers as draconic", () => {

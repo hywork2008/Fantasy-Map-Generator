@@ -19,6 +19,7 @@ export function resolveFertilityForRace(raceId: number | undefined): RaceFertili
 
 /** Sample live births for one pregnancy/clutch. */
 export function sampleLitter(fertility: RaceFertility): number {
+  if (fertility.litterMax < 1 || fertility.litterMean <= 0) return 0;
   const raw = gauss(
     fertility.litterMean,
     Math.max(0.25, fertility.litterMean * 0.35),

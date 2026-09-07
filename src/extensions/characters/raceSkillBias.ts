@@ -13,6 +13,7 @@
  *   non-involvement (controlled distance / intermediaries), not dark-elf court plots.
  * - Goblin / orc / arachnid: enemy-colony roster (martial mono courts only).
  */
+import { hybridNumericRecord } from "../../data/hybridRaceTraits";
 import { isEnemyColonyRaceKey } from "../../data/raceCivicStance";
 import type { RaceKey } from "../../types/models";
 import type { CharacterRoleClass, CharacterSkills } from "./characterTypes";
@@ -150,8 +151,23 @@ export const LONG_LIVED_SKILL_STDDEV = 22;
 /** Lifespan at which wider skill variance applies (matches episodic / mythic thresholds). */
 export const LONG_LIVED_SKILL_VARIANCE_LIFESPAN_MIN = 150;
 
+const SKILL_BIAS_KEYS: readonly (keyof CharacterSkills)[] = [
+  "artistry",
+  "diplomacy",
+  "engineering",
+  "geography",
+  "intrigue",
+  "learning",
+  "martial",
+  "prowess",
+  "stewardship"
+];
+
 export function raceSkillBiasForKey(raceKey: RaceKey | string | undefined | null): RaceSkillMeanTable {
   if (!raceKey) return {};
+  if (raceKey === "half_elf") {
+    return hybridNumericRecord(RACE_SKILL_BIAS.human ?? {}, RACE_SKILL_BIAS.elf ?? {}, SKILL_BIAS_KEYS, 0);
+  }
   return RACE_SKILL_BIAS[raceKey] ?? {};
 }
 

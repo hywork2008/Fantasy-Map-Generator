@@ -56,6 +56,8 @@ export type RaceKey =
   | "beastfolk"
   /** Bound servitors of draconic realms — no free polities (see raceBoundServitors). */
   | "wyrmkin"
+  /** Bound slave-folk of elf realms — no free polities (see raceBoundServitors). */
+  | "half_elf"
   | "arachnid"
   | "amazones"
   | (string & {});
@@ -64,6 +66,9 @@ export type RaceKey =
 export const APPEARANCE_AXIS_IDS = ["stature", "build", "symmetry", "refinement", "vitality", "ornament"] as const;
 export type AppearanceAxisId = (typeof APPEARANCE_AXIS_IDS)[number];
 export type AppearanceAxes = Record<AppearanceAxisId, number>;
+/** Optional per-axis roll clamp. Omitted axes use the global 1–100 looks range. */
+export type AppearanceAxisRange = { min: number; max: number };
+export type AppearanceRanges = Partial<Record<AppearanceAxisId, AppearanceAxisRange>>;
 
 /**
  * Race-default weights over phenotype axes when judging same-race beauty.
@@ -185,6 +190,8 @@ export interface Race {
   maxLifespan?: number;
   /** Mean phenotype at generation (axes still get individual noise). */
   looksBaseline?: Partial<AppearanceAxes>;
+  /** Per-axis min/max for looks rolls. When set, `rollPeakLooks` clamps to this instead of 1–100. */
+  looksRange?: AppearanceRanges;
   /** Same-race beauty ideal weights. */
   beautyIdeal?: RaceBeautyIdeal;
   /** Reproductive biology defaults. */

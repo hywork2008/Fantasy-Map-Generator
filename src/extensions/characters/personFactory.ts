@@ -511,7 +511,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
 
   // Race resolve order:
   // 1) culture host (or raceOverride for mixed courts / explicit callers)
-  // 2) bound servitor swap when culture host is e.g. draconic and role is merchant/ordinary
+  // 2) bound servitor swap when culture host is e.g. draconic (wyrmkin) or elf (rare half_elf)
   // 3) enemy-colony peaceful roles fall back to Human
   const cultureHostRace = resolveRaceIdForCulture(cultureId);
   const packRaces = (() => {
@@ -524,9 +524,12 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   let race: number;
   if (roleUsesBoundServitor(skillRoleClass)) {
     // Always key off the culture’s majority race so draconic markets never spawn dragon merchants.
-    race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces);
+    race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces, P);
+  } else if (raceOverride !== undefined) {
+    race = raceOverride;
   } else {
-    race = raceOverride ?? cultureHostRace;
+    // Rare bound overlays (Half Elf under Elf) may apply to non-merchant desks too.
+    race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces, P);
   }
   const peekRaceKey = (() => {
     try {
