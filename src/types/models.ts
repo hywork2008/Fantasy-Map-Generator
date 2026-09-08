@@ -444,7 +444,15 @@ export interface Burg {
   entranceCell?: number;
 }
 
+/** Optional cultural context for character romance descriptions; not a marriage simulation policy. */
+export interface CultureRomanceNorms {
+  marriage?: "monogamous" | "plural" | "episodic";
+  /** 0–100: social importance of looks, distinct from a race's beauty ideal. Unset = unknown. */
+  appearanceImportance?: number;
+}
+
 export interface Culture {
+  romanceNorms?: CultureRomanceNorms;
   name: string;
   i: number;
   base: number;

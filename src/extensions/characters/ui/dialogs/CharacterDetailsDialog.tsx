@@ -24,7 +24,6 @@ import { resolveCharacterRaceName } from "../../controllers/characters-overview"
 import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
-import { getPersonalityDescriptionKeys } from "../../personalityDescription";
 import { getAbilityValue } from "../../personFactory";
 import { militaryStanding, officeSphereVisibility, type ReputationLabel, reputationAmong } from "../../prestige";
 import { specializationCsvRows } from "../../specializationExport";
@@ -33,6 +32,7 @@ import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import { getCharacterEpithetSuffix, getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
+import { PersonalityFlavorTabs } from "../components/PersonalityFlavorTabs";
 import { SpecializationPanel } from "../components/SpecializationPanel";
 
 function reputationLabelI18nKey(label: ReputationLabel): string {
@@ -1366,13 +1366,11 @@ export const CharacterDetailsDialog: React.FC = () => {
                     { axis: t("characters.zeal"), value: character.personality.zeal }
                   ]}
                 />
-                <div style={{ marginTop: 12, lineHeight: 1.7 }}>
-                  {getPersonalityDescriptionKeys(character.personality).map(key => (
-                    <p key={key} style={{ margin: "4px 0" }}>
-                      {t(key)}
-                    </p>
-                  ))}
-                </div>
+                <PersonalityFlavorTabs
+                  key={character.i}
+                  character={character}
+                  norms={cultures.find(culture => culture.i === character.culture)?.romanceNorms}
+                />
               </>
             ) : (
               <p>{t("characters.noPersonality")}</p>

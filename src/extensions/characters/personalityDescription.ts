@@ -19,6 +19,18 @@ interface PersonalityProfile {
   veryLow: (trait: Trait) => boolean;
   veryHigh: (trait: Trait) => boolean;
 }
+export function createPersonalityProfile(personality: CharacterPersonality): PersonalityProfile {
+  const band = (key: Trait) => getPersonalityBand(personality[key]);
+  const low = (key: Trait) => band(key) === "low" || band(key) === "veryLow";
+  const high = (key: Trait) => band(key) === "high" || band(key) === "veryHigh";
+  return {
+    low,
+    high,
+    veryLow: key => band(key) === "veryLow",
+    veryHigh: key => band(key) === "veryHigh"
+  };
+}
+
 interface DescriptionRule {
   key: string;
   when: (profile: PersonalityProfile) => boolean;
@@ -99,15 +111,8 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
  * Moderate scores stay situational; missing legacy values are treated as neutral.
  */
 export function getPersonalityDescriptionKeys(personality: CharacterPersonality): string[] {
-  const band = (key: Trait) => getPersonalityBand(personality[key]);
-  const low = (key: Trait) => band(key) === "low" || band(key) === "veryLow";
-  const high = (key: Trait) => band(key) === "high" || band(key) === "veryHigh";
-  const profile: PersonalityProfile = {
-    low,
-    high,
-    veryLow: key => band(key) === "veryLow",
-    veryHigh: key => band(key) === "veryHigh"
-  };
+  const profile = createPersonalityProfile(personality);
+  const { low, high } = profile;
 
   const action =
     low("energy") && high("boldness")
