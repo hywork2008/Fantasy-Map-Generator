@@ -24,6 +24,7 @@ import { resolveCharacterRaceName } from "../../controllers/characters-overview"
 import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
+import { getPersonalityDescriptionKeys } from "../../personalityDescription";
 import { getAbilityValue } from "../../personFactory";
 import { militaryStanding, officeSphereVisibility, type ReputationLabel, reputationAmong } from "../../prestige";
 import { specializationCsvRows } from "../../specializationExport";
@@ -1348,22 +1349,31 @@ export const CharacterDetailsDialog: React.FC = () => {
         {activeTab === "personality" && (
           <div>
             {character.personality ? (
-              <RadarChart
-                data={[
-                  { axis: t("characters.boldness"), value: character.personality.boldness },
-                  { axis: t("characters.compassion"), value: character.personality.compassion },
-                  { axis: t("characters.confidence"), value: character.personality.confidence ?? 0 },
-                  { axis: t("characters.energy"), value: character.personality.energy },
-                  { axis: t("characters.greed"), value: character.personality.greed },
-                  { axis: t("characters.guile"), value: character.personality.guile },
-                  { axis: t("characters.honor"), value: character.personality.honor },
-                  { axis: t("characters.piety"), value: character.personality.piety },
-                  { axis: t("characters.rationality"), value: character.personality.rationality },
-                  { axis: t("characters.sociability"), value: character.personality.sociability },
-                  { axis: t("characters.vengefulness"), value: character.personality.vengefulness },
-                  { axis: t("characters.zeal"), value: character.personality.zeal }
-                ]}
-              />
+              <>
+                <RadarChart
+                  data={[
+                    { axis: t("characters.boldness"), value: character.personality.boldness },
+                    { axis: t("characters.compassion"), value: character.personality.compassion },
+                    { axis: t("characters.confidence"), value: character.personality.confidence ?? 0 },
+                    { axis: t("characters.energy"), value: character.personality.energy },
+                    { axis: t("characters.greed"), value: character.personality.greed },
+                    { axis: t("characters.guile"), value: character.personality.guile },
+                    { axis: t("characters.honor"), value: character.personality.honor },
+                    { axis: t("characters.piety"), value: character.personality.piety },
+                    { axis: t("characters.rationality"), value: character.personality.rationality },
+                    { axis: t("characters.sociability"), value: character.personality.sociability },
+                    { axis: t("characters.vengefulness"), value: character.personality.vengefulness },
+                    { axis: t("characters.zeal"), value: character.personality.zeal }
+                  ]}
+                />
+                <div style={{ marginTop: 12, lineHeight: 1.7 }}>
+                  {getPersonalityDescriptionKeys(character.personality).map(key => (
+                    <p key={key} style={{ margin: "4px 0" }}>
+                      {t(key)}
+                    </p>
+                  ))}
+                </div>
+              </>
             ) : (
               <p>{t("characters.noPersonality")}</p>
             )}
