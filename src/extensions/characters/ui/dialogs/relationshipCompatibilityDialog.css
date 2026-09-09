@@ -1,0 +1,119 @@
+/* A single content container: do not apply the shared table-dialog rule that
+   gives every direct child (including labels) an equal share of the height. */
+.fmg-dialog.relationship-compatibility-dialog {
+  width: min(68rem, calc(100vw - 2rem));
+  height: min(44rem, 85vh);
+  min-width: min(24rem, calc(100vw - 2rem));
+  min-height: min(24rem, 75vh);
+}
+
+.relationship-compatibility-dialog > .fmg-dialog-content {
+  min-width: 0;
+  overflow: auto;
+}
+
+.relationship-compatibility-layout {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  gap: 0.75rem;
+}
+
+.relationship-compatibility-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.relationship-compatibility-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.relationship-compatibility-controls input,
+.relationship-compatibility-controls select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+.relationship-compatibility-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.relationship-compatibility-panel > h3,
+.relationship-compatibility-panel > p {
+  margin: 0;
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
+}
+
+.relationship-compatibility-panel > button {
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+
+/* A useful minimum keeps rows readable in short windows. The outer content
+   then scrolls so controls and the load-more button remain reachable. */
+.relationship-compatibility-results {
+  flex: 1 0 12rem;
+  height: 12rem;
+  min-width: 0;
+  overflow: auto;
+}
+
+.relationship-compatibility-dialog .relationship-compatibility-table {
+  width: 100%;
+  min-width: 42rem;
+  table-layout: fixed;
+  text-align: left;
+}
+
+.relationship-compatibility-dialog .relationship-compatibility-table th,
+.relationship-compatibility-dialog .relationship-compatibility-table td {
+  padding: 0.4rem 0.5rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  line-height: 1.4;
+}
+
+.relationship-compatibility-dialog .relationship-compatibility-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-light-solid, #eee);
+  z-index: 1;
+}
+
+.relationship-compatibility-dialog .relationship-compatibility-table th:nth-child(1),
+.relationship-compatibility-dialog .relationship-compatibility-table th:nth-child(2) {
+  width: 18%;
+}
+.relationship-compatibility-dialog .relationship-compatibility-table th:nth-child(3) {
+  width: 34%;
+}
+.relationship-compatibility-dialog .relationship-compatibility-table th:nth-child(n+4) {
+  width: 10%;
+}
+.relationship-compatibility-dialog .relationship-compatibility-table button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.relationship-compatibility-dialog .relationship-compatibility-table ul {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}

@@ -118,6 +118,96 @@
     "noRoute": "No charted route connects these settlements."
   },
   "characters": {
+    "compatibility": {
+      "subject": "Subject character",
+      "subjectSearch": "Filter subjects by name",
+      "title": "Compatibility prospects",
+      "ownType": "This character’s types: {{type}}",
+      "hint": "Personality descriptions suggest how friendship, romance and friction might develop if these people meet. These are not current feelings, established relationships or success probabilities.",
+      "search": "Search by name",
+      "scope": "Scope",
+      "contacts": "Known people and potential contacts",
+      "all": "All living characters",
+      "sort": "Sort by tendency",
+      "count": "Showing {{shown}} of {{total}} people",
+      "type": "Compatibility types",
+      "outlook": "Prospect",
+      "reasonsLabel": "Reasons",
+      "conditional": "Romance depends on attraction",
+      "empty": "No matching characters. Try changing the scope or search.",
+      "more": "Show 30 more",
+      "social": {
+        "caring": "Caring",
+        "principled": "Principled",
+        "analytical": "Analytical",
+        "adventurous": "Adventurous",
+        "guarded": "Guarded",
+        "ambitious": "Ambitious",
+        "reserved": "Reserved",
+        "balanced": "Balanced"
+      },
+      "romantic": {
+        "withdrawn": "Withdrawn",
+        "devoted": "Devoted",
+        "passionate": "Passionate",
+        "plural": "Plural-seeking",
+        "independent": "Independent",
+        "measured": "Measured"
+      },
+      "axes": {
+        "friendship": "Friendship",
+        "romance": "Romance",
+        "friction": "Friction"
+      },
+      "strength": {
+        "high": "High",
+        "moderate": "Moderate",
+        "low": "Low"
+      },
+      "tendency": {
+        "friendship": "Friendship likely to grow",
+        "romance": "Romance likely to grow",
+        "both": "Friendship or romance may grow",
+        "friction": "Prone to friction",
+        "volatile": "Attraction with friction",
+        "situational": "Depends on contact and circumstances"
+      },
+      "reasons": {
+        "mutualCare": "Mutual care makes it easier to rely on each other.",
+        "gentleSpace": "Care and a quiet pace allow comfortable closeness.",
+        "trustAndCare": "Commitment and care support trust.",
+        "sharedReasoning": "Shared reliance on explanations favors friendship and mutual advice.",
+        "reliablePartners": "Reasoning and responsibility favor dependable companionship before romance.",
+        "sharedQuiet": "A shared quiet pace is comfortable but creates few romantic openings.",
+        "sharedAdventure": "Shared adventures can build closeness, though impulsive choices may clash.",
+        "sharedPromises": "Both value promises, providing a foundation for trust.",
+        "competingRewards": "Competing for rewards or recognition can displace cooperation.",
+        "mutualSuspicion": "Mutual concealment can turn caution into suspicion.",
+        "dutyAndAdvantage": "Different priorities for duty and gain can breed distrust.",
+        "opennessAndSecrets": "Clear commitments and selective disclosure can work at cross purposes.",
+        "reasonAndImpulse": "A need for reasons can conflict with a preference to act first.",
+        "differentPace": "Quiet routine and a hunger for novelty favor different paces and distances.",
+        "careAndDemand": "Uneven care and demands can build resentment.",
+        "lastingBond": "Shared respect for commitments can sustain affection when expectations align.",
+        "mutualPassion": "Mutual romantic energy makes it easier to deepen a bond.",
+        "devotionAndPassion": "Dedication and passion can reinforce one another.",
+        "comfortableIndependence": "Respect for independence favors easy friendship, including between men and women.",
+        "neitherInitiates": "Neither readily advances courtship, so closeness may settle into friendship.",
+        "pursuitAndRetreat": "Eager pursuit may burden someone who prefers to retreat.",
+        "closenessAndFreedom": "Desires for intense closeness and independent time may not align.",
+        "conflictingCommitments": "Commitment to relationship norms can conflict with seeking multiple affections ahead of promises.",
+        "sharedAppetite": "Shared interest in multiple affections does not prevent conflict over secrecy or attention.",
+        "romanceDistance": "At least one person keeps distance from romance, limiting a shift from closeness to love.",
+        "restrainedJealousy": "Jealousy may linger, while compassion restrains accusation and retaliation.",
+        "jealousyRisk": "Jealousy and resentment can prolong disagreements even in a close bond.",
+        "sameGenderFriendship": "Without recorded romantic interest between these same-gender characters, friendship is the initial prospect. Personality does not determine orientation.",
+        "recordedInterest": "Recorded interest from at least one same-gender character allows a romantic prospect; it does not establish reciprocity.",
+        "differentGenderPossibility": "Different genders alone add no romantic bonus; the type pairing shapes the prospect.",
+        "differentRaceNorms": "This world places social barriers on cross-race romance, beyond personality compatibility.",
+        "romanceExcluded": "Self, deceased people and close relatives are not treated as future romantic prospects.",
+        "situationalFit": "No strong type match or clash stands out; contact and shared experience will matter."
+      }
+    },
     "personalityFlavorTabs": {
       "label": "Personality descriptions",
       "general": "General",
@@ -3064,6 +3154,7 @@
         "label": "Domain poll",
         "tooltip": "Click to open Domain Poll Detail — per-burg levy contribution to state poll tax"
       },
+      "characters-relationship-compatibility": {"label": "Character Compatibility", "tooltip": "Inspect personality compatibility used in solidarity calculations"},
       "characters-view-characters": {
         "label": "Characters",
         "tooltip": "Click to view the generated character roster"

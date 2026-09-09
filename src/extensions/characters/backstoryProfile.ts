@@ -46,6 +46,7 @@ import {
 import { buildDailyTastes, DAILY_TASTE_GOODS, DAILY_TASTE_IDS, retainTastes } from "./dailyTastes";
 import { seedCharacterLoadout } from "./loadoutSeed";
 import { rollInitialPrestige } from "./prestige";
+import { getCompatibilitySolidarityModifier } from "./relationshipCompatibility";
 import { applyBackgroundSkillBias, syncCk3AbilityProfileSkills } from "./skillGeneration";
 import { assessTasteRelationship, projectTasteRelationshipDelta } from "./tasteRelationship";
 
@@ -1840,6 +1841,15 @@ export function computeInitialSolidarity(from: Character, to: Character): number
     maxNegative: 12,
     currentScore: score
   });
+
+  // Use the same target-relative compassion as the other personality contributions.
+  const cultures = hasCharactersContext() ? getWorldContext().pack.cultures : [];
+  score += getCompatibilitySolidarityModifier(
+    { ...from, personality: fp },
+    { ...to, personality: tp },
+    { norms: cultures?.find(culture => culture.i === from.culture)?.romanceNorms },
+    { norms: cultures?.find(culture => culture.i === to.culture)?.romanceNorms }
+  );
 
   return clampRelation(score);
 }

@@ -118,6 +118,96 @@
     "noRoute": "これらの都市を結ぶ経路が見つかりません。"
   },
   "characters": {
+    "compatibility": {
+      "subject": "比較元の人物",
+      "subjectSearch": "比較元を名前で絞り込み",
+      "title": "相性の見立て",
+      "ownType": "この人物の型：{{type}}",
+      "hint": "性格の描写から、出会った場合の友情・恋愛・衝突の育ちやすさを見立てます。現在の感情や成立済みの関係、成功確率を示すものではありません。",
+      "search": "名前で検索",
+      "scope": "対象",
+      "contacts": "知人・接点のある人物",
+      "all": "すべての存命人物",
+      "sort": "優先する傾向",
+      "count": "{{total}}人中 {{shown}}人を表示",
+      "type": "相性の型",
+      "outlook": "関係の見立て",
+      "reasonsLabel": "判定の理由",
+      "conditional": "恋愛は好意次第",
+      "empty": "該当する人物がいません。対象や検索条件を変更できます。",
+      "more": "さらに30人表示",
+      "social": {
+        "caring": "気遣い型",
+        "principled": "信義型",
+        "analytical": "理詰め型",
+        "adventurous": "冒険型",
+        "guarded": "駆け引き型",
+        "ambitious": "利得追求型",
+        "reserved": "静穏型",
+        "balanced": "調整型"
+      },
+      "romantic": {
+        "withdrawn": "恋愛回避型",
+        "devoted": "約束重視型",
+        "passionate": "情熱型",
+        "plural": "多情型",
+        "independent": "自立型",
+        "measured": "歩調調整型"
+      },
+      "axes": {
+        "friendship": "友情",
+        "romance": "恋愛",
+        "friction": "衝突"
+      },
+      "strength": {
+        "high": "高い",
+        "moderate": "中程度",
+        "low": "低い"
+      },
+      "tendency": {
+        "friendship": "友情を育みやすい",
+        "romance": "恋愛へ進みやすい",
+        "both": "友情にも恋愛にも育ちやすい",
+        "friction": "反発・不和になりやすい",
+        "volatile": "惹かれ合っても衝突しやすい",
+        "situational": "接し方やきっかけ次第"
+      },
+      "reasons": {
+        "mutualCare": "互いの負担を気遣い、安心して頼り合いやすい。",
+        "gentleSpace": "気遣いと静かな距離感が噛み合い、無理なく親しめる。",
+        "trustAndCare": "約束を守る姿勢と気遣いが、信頼を支えやすい。",
+        "sharedReasoning": "根拠を言葉にして確かめる者同士で、相談相手や友人になりやすい。",
+        "reliablePartners": "筋道と責任を尊ぶため、恋愛以前に頼れる仲間になりやすい。",
+        "sharedQuiet": "互いに静かな時間を守れる一方、恋を進めるきっかけは生まれにくい。",
+        "sharedAdventure": "新しい経験を共に楽しめるが、勢いがぶつかることもある。",
+        "sharedPromises": "交わした約束を重く見る点が共通し、信頼の土台を作りやすい。",
+        "competingRewards": "求める取り分や評価が重なると、協力より競争が前に出やすい。",
+        "mutualSuspicion": "互いに本音を隠しやすく、探り合いが信頼を妨げることがある。",
+        "dutyAndAdvantage": "守るべき筋と得られる利益の優先順位が違い、不信を招きやすい。",
+        "opennessAndSecrets": "約束の明確さを求める側と、本音を選んで見せる側で行き違いやすい。",
+        "reasonAndImpulse": "理由を確かめたい側と先に動きたい側で、判断の進め方がぶつかりやすい。",
+        "differentPace": "静かな日常を守りたい側と刺激を求める側で、心地よい距離や速度が違う。",
+        "careAndDemand": "気遣う側に負担が偏ると、要求する側への不満が積もりやすい。",
+        "lastingBond": "互いに関係の約束を大切にし、合意が揃えば長い愛情を育てやすい。",
+        "mutualPassion": "互いに恋へ時間と熱意を向けやすく、関係を進める力が噛み合う。",
+        "devotionAndPassion": "関係を守る姿勢と恋を深める熱意が支え合いやすい。",
+        "comfortableIndependence": "互いの時間を尊重でき、男女でも恋愛より気楽な友情を育てやすい。",
+        "neitherInitiates": "双方とも恋を進める労力を避けやすく、親しくても友人のまま落ち着きやすい。",
+        "pursuitAndRetreat": "近づきたい熱意が、距離を置きたい側には負担になりやすい。",
+        "closenessAndFreedom": "濃い関わりを求める側と自由な時間を求める側で、愛情表現の量が合いにくい。",
+        "conflictingCommitments": "関係の規範を守る側と、約束より複数の愛情を求める側で期待が衝突しやすい。",
+        "sharedAppetite": "複数の愛情への関心は共通するが、秘密や取り分をめぐる衝突までは防げない。",
+        "romanceDistance": "少なくとも一方が恋愛から距離を置くため、親しさが恋に変わるとは限らない。",
+        "restrainedJealousy": "嫉妬は残りやすいが、思いやりが責め立てや報復への傾きを抑える。",
+        "jealousyRisk": "強い嫉妬と恨みが行き違いを長引かせ、親しくても衝突する可能性がある。",
+        "sameGenderFriendship": "同性同士で恋愛感情の記録がないため、まず友情として見立てる。性格から恋愛対象を断定するものではない。",
+        "recordedInterest": "同性同士だが、少なくとも一方に恋愛感情の記録があるため恋愛の相性も評価する。両想いとは限らない。",
+        "differentGenderPossibility": "異性同士でも恋愛への加点はせず、型の組み合わせが友情か恋愛かの見立てを左右する。",
+        "differentRaceNorms": "この世界では異種族間の恋愛に社会的な障壁があり、性格が合うだけでは進みにくい。",
+        "romanceExcluded": "本人・亡くなった人物・近親者との組み合わせは、今後の恋愛候補として扱わない。",
+        "situationalFit": "型だけでは強い一致や対立が見られず、実際の接し方や共有する経験に左右されやすい。"
+      }
+    },
     "personalityFlavorTabs": {
       "label": "性格の描写",
       "general": "一般",
@@ -3064,6 +3154,7 @@
         "label": "領内人頭税",
         "tooltip": "領内人頭税の詳細を開きます — 都市ごとの国家人頭税への寄与"
       },
+      "characters-relationship-compatibility": {"label": "人物の相性", "tooltip": "連帯感の計算に使う性格の相性を確認します"},
       "characters-view-characters": {
         "label": "人物",
         "tooltip": "生成された人物名簿を表示します"

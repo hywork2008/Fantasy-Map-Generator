@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-08
+
+- docs/plan/characters/relationship-compatibility.md
+
 2026-09-07
 
 - docs/plan/characters/arcane.md - High/Dark Fantasy の Arcane（第10スキルにしない）と種族耐久
