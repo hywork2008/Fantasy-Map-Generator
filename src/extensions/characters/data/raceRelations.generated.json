@@ -1,0 +1,122 @@
+[
+  {
+    "observerKey": "amazones",
+    "targetKey": "dark_elf",
+    "readability": 0.3
+  },
+  {
+    "observerKey": "amazones",
+    "targetKey": "elf",
+    "readability": 0.35
+  },
+  {
+    "observerKey": "amazones",
+    "targetKey": "human",
+    "readability": 0.4
+  },
+  {
+    "observerKey": "amazones",
+    "targetKey": "orc",
+    "readability": 0.4
+  },
+  {
+    "observerKey": "dark_elf",
+    "targetKey": "amazones",
+    "readability": 0.25
+  },
+  {
+    "observerKey": "dark_elf",
+    "targetKey": "elf",
+    "readability": 0.55
+  },
+  {
+    "observerKey": "dark_elf",
+    "targetKey": "human",
+    "readability": 0.28
+  },
+  {
+    "observerKey": "dwarf",
+    "targetKey": "elf",
+    "readability": 0.1
+  },
+  {
+    "observerKey": "dwarf",
+    "targetKey": "human",
+    "readability": 0.22
+  },
+  {
+    "observerKey": "elf",
+    "targetKey": "amazones",
+    "readability": 0.28
+  },
+  {
+    "observerKey": "elf",
+    "targetKey": "dark_elf",
+    "readability": 0.55
+  },
+  {
+    "observerKey": "elf",
+    "targetKey": "half_elf",
+    "readability": 0.7
+  },
+  {
+    "observerKey": "elf",
+    "targetKey": "human",
+    "readability": 0.32
+  },
+  {
+    "observerKey": "half_elf",
+    "targetKey": "amazones",
+    "readability": 0.3
+  },
+  {
+    "observerKey": "half_elf",
+    "targetKey": "dark_elf",
+    "readability": 0.4
+  },
+  {
+    "observerKey": "half_elf",
+    "targetKey": "elf",
+    "readability": 0.62
+  },
+  {
+    "observerKey": "half_elf",
+    "targetKey": "human",
+    "readability": 0.5
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "amazones",
+    "readability": 0.42
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "dark_elf",
+    "readability": 0.68
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "demon",
+    "readability": 0.92
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "dwarf",
+    "readability": 0.18
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "elf",
+    "readability": 0.8
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "half_elf",
+    "readability": 0.72
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "wyrmkin",
+    "readability": 0.12
+  }
+]

@@ -8,15 +8,15 @@
  * Spec intent: population-sim + fantasy maturity (elf ~100, dwarf ~40, …).
  */
 import {
-  DEFAULT_RACE_FERTILITY,
-  DEFAULT_RACE_LIFESPAN,
+  getDefaultRaceFertility,
+  getDefaultRaceLifespan,
   getRaceById,
   getRaceFertility,
-  getRaceLifespan,
-  RACE_DEFINITIONS
-} from "../../data/races";
+  getRaceLifespan
+} from "../hostRaces";
 import { rand } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
+import { raceCatalog, raceCatalogEntry } from "./data/raceCatalog";
 
 /** Human reference used when authoring role age bands. */
 export const REFERENCE_HUMAN_LIFESPAN = 75;
@@ -87,14 +87,14 @@ export interface RaceAgeProfile {
 export function resolveRaceAgeProfile(raceId: number | undefined): RaceAgeProfile {
   if (raceId === undefined) {
     return {
-      maturity: DEFAULT_RACE_FERTILITY.fertilityStart,
-      lifespan: DEFAULT_RACE_LIFESPAN
+      maturity: getDefaultRaceFertility().fertilityStart,
+      lifespan: getDefaultRaceLifespan()
     };
   }
   if (!hasCharactersContext()) {
     return {
-      maturity: DEFAULT_RACE_FERTILITY.fertilityStart,
-      lifespan: DEFAULT_RACE_LIFESPAN
+      maturity: getDefaultRaceFertility().fertilityStart,
+      lifespan: getDefaultRaceLifespan()
     };
   }
   try {
@@ -109,13 +109,13 @@ export function resolveRaceAgeProfile(raceId: number | undefined): RaceAgeProfil
     const maturity = Math.max(1, fertility.fertilityStart);
     // Ensure adult span is positive even if catalog is odd.
     if (lifespan <= maturity + 5) {
-      lifespan = maturity + Math.max(20, DEFAULT_RACE_LIFESPAN - DEFAULT_RACE_FERTILITY.fertilityStart);
+      lifespan = maturity + Math.max(20, getDefaultRaceLifespan() - getDefaultRaceFertility().fertilityStart);
     }
     return { maturity, lifespan };
   } catch {
     return {
-      maturity: DEFAULT_RACE_FERTILITY.fertilityStart,
-      lifespan: DEFAULT_RACE_LIFESPAN
+      maturity: getDefaultRaceFertility().fertilityStart,
+      lifespan: getDefaultRaceLifespan()
     };
   }
 }
@@ -293,13 +293,13 @@ export function raceUsesEpisodicPairing(raceId: number | undefined): boolean {
   try {
     if (hasCharactersContext()) {
       const race = getRaceById(getWorldContext().pack.races, raceId);
-      if (race?.key === "dwarf") return false;
+      if (raceCatalogEntry(race?.key)?.continuousMonogamy) return false;
     }
   } catch {
     // fall through to catalog
   }
   // Stable catalog ids match createDefaultRaces() order even without pack context.
-  const catalog = RACE_DEFINITIONS[raceId];
-  if (catalog?.key === "dwarf") return false;
+  const catalog = raceCatalog[raceId];
+  if (catalog?.continuousMonogamy) return false;
   return true;
 }

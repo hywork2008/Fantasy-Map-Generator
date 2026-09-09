@@ -5,7 +5,7 @@ import {
   isBoundServitorRaceKey,
   resolveRaceIdWithBoundServitor,
   roleUsesBoundServitor
-} from "./raceBoundServitors";
+} from "../extensions/characters/raceBoundServitors";
 import { canAppearInMixedCourt, raceCivicStance } from "./raceCivicStance";
 import { createDefaultRaces, raceIdByKey } from "./races";
 

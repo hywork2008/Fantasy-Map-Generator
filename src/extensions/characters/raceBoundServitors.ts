@@ -11,8 +11,9 @@
  *
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
-import type { Race, RaceKey } from "../types/models";
-import { raceIdByKey } from "./races";
+import type { Race, RaceKey } from "../../types/models";
+import { raceIdByKey } from "../hostRaces";
+import { raceCatalog } from "./data/raceCatalog";
 
 export interface BoundServitorSpec {
   raceKey: string;
@@ -29,19 +30,15 @@ export interface BoundServitorSpec {
 }
 
 /** Same rare named-character rate as Human infernal atavism (`HUMAN_INFERNAL_ATAVISM_CHANCE`). */
-export const HALF_ELF_SERVITOR_CHANCE = 0.006;
+export const HALF_ELF_SERVITOR_CHANCE =
+  raceCatalog.find(def => def.boundServitor?.raceKey === "half_elf")?.boundServitor?.chance ?? 0;
 
 const DEFAULT_BOUND_SERVITOR_ROLES = ["merchant", "ordinary"] as const;
 
 /** Host race key → bound servitor spec. */
-export const BOUND_SERVITOR_BY_HOST: Readonly<Record<string, BoundServitorSpec>> = {
-  draconic: { raceKey: "wyrmkin" },
-  elf: {
-    raceKey: "half_elf",
-    roles: ["ordinary", "merchant", "religious", "central_officer"],
-    chance: HALF_ELF_SERVITOR_CHANCE
-  }
-};
+export const BOUND_SERVITOR_BY_HOST: Readonly<Record<string, BoundServitorSpec>> = Object.fromEntries(
+  raceCatalog.filter(def => def.boundServitor).map(def => [def.key, def.boundServitor!])
+);
 
 /** All bound servitor keys (never majority culture / mixed-court free agents). */
 export const BOUND_SERVITOR_RACE_KEYS: ReadonlySet<string> = new Set(

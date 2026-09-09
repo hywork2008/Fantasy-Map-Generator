@@ -10,28 +10,31 @@
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
 import type { RaceKey } from "../types/models";
-import { isBoundServitorRaceKey } from "./raceBoundServitors";
+export function isBoundServitorRaceKey(key: string | undefined | null): boolean {
+  return raceCatalogEntry(key)?.civicStance === "bound";
+}
+
+import { raceCatalog, raceCatalogEntry } from "./raceCatalog";
 
 export type RaceCivicStance = "diplomatic" | "distant" | "enemy_colony" | "bound";
 
 /** Human / high elf / dwarf — “still people you can talk to” relative to other folk. */
-export const DIPLOMATIC_CORE_RACE_KEYS: ReadonlySet<string> = new Set(["human", "elf", "dwarf"]);
+export const DIPLOMATIC_CORE_RACE_KEYS: ReadonlySet<string> = new Set(
+  raceCatalog.filter(def => def.civicStance === "diplomatic").map(def => def.key)
+);
 
 /** Keep their own realms; not full enemies, not open multi-folk cities. */
-export const DISTANT_RACE_KEYS: ReadonlySet<string> = new Set([
-  "dark_elf",
-  "giant",
-  "draconic",
-  "amazones",
-  "demon",
-  "beastfolk"
-]);
+export const DISTANT_RACE_KEYS: ReadonlySet<string> = new Set(
+  raceCatalog.filter(def => def.civicStance === "distant").map(def => def.key)
+);
 
 /**
  * Self-contained hostile colonies / nests / warbands.
  * No mixed-court staffing; martial mono courts only (see characters raceSkillBias).
  */
-export const ENEMY_COLONY_RACE_KEYS: ReadonlySet<string> = new Set(["goblin", "orc", "arachnid"]);
+export const ENEMY_COLONY_RACE_KEYS: ReadonlySet<string> = new Set(
+  raceCatalog.filter(def => def.civicStance === "enemy_colony").map(def => def.key)
+);
 
 export function raceCivicStance(raceKey: RaceKey | string | undefined | null): RaceCivicStance {
   if (!raceKey) return "diplomatic";
@@ -70,9 +73,7 @@ export function isFantasyCulturesSet(culturesSet: string | undefined | null): bo
 export function mixedPolityChanceForRaceKey(raceKey: RaceKey | string | undefined | null): number {
   if (isBoundServitorRaceKey(raceKey)) return 0;
   if (!isDiplomaticCoreRaceKey(raceKey)) return 0;
-  if (raceKey === "human") return 0.18;
-  if (raceKey === "elf" || raceKey === "dwarf") return 0.1;
-  return 0;
+  return raceCatalogEntry(raceKey)?.mixedPolityChance ?? 0;
 }
 
 /**

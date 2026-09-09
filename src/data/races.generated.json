@@ -1,5 +1,15 @@
 [
   {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 10,
+      "arcaneMedian": 3,
+      "arcaneInclination": 0.12,
+      "durability": 1
+    },
+    "mixedPolityChance": 0,
     "lifespan": 75,
     "maxLifespan": 100,
     "fertility": {
@@ -27,10 +37,21 @@
         "ornament": 0.2
       }
     },
+    "civicStance": "distant",
     "key": "unknown",
     "name": "Unknown"
   },
   {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 10,
+      "arcaneMedian": 3,
+      "arcaneInclination": 0.12,
+      "durability": 1
+    },
+    "mixedPolityChance": 0.18,
     "lifespan": 75,
     "maxLifespan": 100,
     "fertility": {
@@ -58,10 +79,22 @@
         "ornament": 0.2
       }
     },
+    "civicStance": "diplomatic",
     "key": "human",
     "name": "Human"
   },
   {
+    "personNameSpheres": {
+      "primary": 7,
+      "alternate": 22
+    },
+    "supernatural": {
+      "arcaneCap": 95,
+      "arcaneMedian": 50,
+      "arcaneInclination": 0.55,
+      "durability": 1.15
+    },
+    "mixedPolityChance": 0.1,
     "lifespan": 750,
     "maxLifespan": 1000,
     "fertility": {
@@ -89,10 +122,22 @@
         "ornament": 0.2
       }
     },
+    "civicStance": "diplomatic",
     "key": "elf",
     "name": "Elf"
   },
   {
+    "personNameSpheres": {
+      "primary": 23,
+      "alternate": 42
+    },
+    "supernatural": {
+      "arcaneCap": 85,
+      "arcaneMedian": 48,
+      "arcaneInclination": 0.6,
+      "durability": 1.1
+    },
+    "mixedPolityChance": 0,
     "lifespan": 700,
     "maxLifespan": 950,
     "fertility": {
@@ -120,10 +165,22 @@
         "ornament": 0.7
       }
     },
+    "civicStance": "distant",
     "key": "dark_elf",
     "name": "Dark Elf"
   },
   {
+    "personNameSpheres": {
+      "primary": 6,
+      "alternate": 0
+    },
+    "supernatural": {
+      "arcaneCap": 10,
+      "arcaneMedian": 2,
+      "arcaneInclination": 0.05,
+      "durability": 1.35
+    },
+    "mixedPolityChance": 0.1,
     "lifespan": 350,
     "maxLifespan": 450,
     "fertility": {
@@ -156,10 +213,21 @@
       "foodIndependent": true,
       "temperatureIndependent": true
     },
+    "civicStance": "diplomatic",
     "key": "dwarf",
     "name": "Dwarf"
   },
   {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 6,
+      "arcaneMedian": 2,
+      "arcaneInclination": 0.15,
+      "durability": 0.85
+    },
+    "mixedPolityChance": 0,
     "lifespan": 50,
     "maxLifespan": 70,
     "fertility": {
@@ -187,10 +255,21 @@
         "ornament": 0.8
       }
     },
+    "civicStance": "enemy_colony",
     "key": "goblin",
     "name": "Goblin"
   },
   {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 4,
+      "arcaneMedian": 1,
+      "arcaneInclination": 0.05,
+      "durability": 1.25
+    },
+    "mixedPolityChance": 0,
     "lifespan": 60,
     "maxLifespan": 80,
     "fertility": {
@@ -218,10 +297,21 @@
         "ornament": 0.8
       }
     },
+    "civicStance": "enemy_colony",
     "key": "orc",
     "name": "Orc"
   },
   {
+    "personNameSpheres": {
+      "primary": 6
+    },
+    "supernatural": {
+      "arcaneCap": 90,
+      "arcaneMedian": 45,
+      "arcaneInclination": 0.35,
+      "durability": 3.5
+    },
+    "mixedPolityChance": 0,
     "lifespan": 800,
     "maxLifespan": 1200,
     "fertility": {
@@ -254,10 +344,21 @@
       "foodIndependent": true,
       "temperatureIndependent": true
     },
+    "civicStance": "distant",
     "key": "giant",
     "name": "Giant"
   },
   {
+    "personNameSpheres": {
+      "primary": 11
+    },
+    "supernatural": {
+      "arcaneCap": 40,
+      "arcaneMedian": 18,
+      "arcaneInclination": 0.08,
+      "durability": 8
+    },
+    "mixedPolityChance": 0,
     "lifespan": 1200,
     "maxLifespan": 2000,
     "fertility": {
@@ -285,10 +386,21 @@
         "ornament": 0.8
       }
     },
+    "civicStance": "distant",
     "key": "draconic",
     "name": "Draconic"
   },
   {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 5,
+      "arcaneMedian": 2,
+      "arcaneInclination": 0.12,
+      "durability": 0.9
+    },
+    "mixedPolityChance": 0,
     "lifespan": 60,
     "maxLifespan": 100,
     "fertility": {
@@ -316,10 +428,21 @@
         "ornament": 1.3
       }
     },
+    "civicStance": "enemy_colony",
     "key": "arachnid",
     "name": "Arachnid"
   },
   {
+    "personNameSpheres": {
+      "primary": 7
+    },
+    "supernatural": {
+      "arcaneCap": 20,
+      "arcaneMedian": 8,
+      "arcaneInclination": 0.2,
+      "durability": 1.2
+    },
+    "mixedPolityChance": 0,
     "lifespan": 80,
     "maxLifespan": 110,
     "fertility": {
@@ -347,11 +470,22 @@
         "ornament": 0.3
       }
     },
+    "civicStance": "distant",
     "key": "amazones",
     "name": "Amazones",
     "characterGender": "female_only"
   },
   {
+    "personNameSpheres": {
+      "primary": 11
+    },
+    "supernatural": {
+      "arcaneCap": 12,
+      "arcaneMedian": 5,
+      "arcaneInclination": 0.15,
+      "durability": 1.1
+    },
+    "mixedPolityChance": 0,
     "lifespan": 55,
     "maxLifespan": 75,
     "fertility": {
@@ -379,10 +513,21 @@
         "ornament": 1.3
       }
     },
+    "civicStance": "bound",
     "key": "wyrmkin",
     "name": "Wyrmkin"
   },
   {
+    "personNameSpheres": {
+      "primary": 23
+    },
+    "supernatural": {
+      "arcaneCap": 100,
+      "arcaneMedian": 55,
+      "arcaneInclination": 0.7,
+      "durability": 2.5
+    },
+    "mixedPolityChance": 0,
     "lifespan": 180,
     "maxLifespan": 3000,
     "fertility": {
@@ -410,6 +555,7 @@
         "ornament": 1.3
       }
     },
+    "civicStance": "distant",
     "key": "demon",
     "name": "Demon",
     "characterAppearance": {
@@ -428,6 +574,16 @@
     }
   },
   {
+    "personNameSpheres": {
+      "primary": null
+    },
+    "supernatural": {
+      "arcaneCap": 3,
+      "arcaneMedian": 1,
+      "arcaneInclination": 0.08,
+      "durability": 1.15
+    },
+    "mixedPolityChance": 0,
     "lifespan": 40,
     "maxLifespan": 60,
     "fertility": {
@@ -478,10 +634,16 @@
         "wolf"
       ]
     },
+    "civicStance": "distant",
     "key": "beastfolk",
     "name": "Beastfolk"
   },
   {
+    "personNameSpheres": {
+      "primary": 7,
+      "alternate": 22
+    },
+    "mixedPolityChance": 0,
     "fertility": {
       "fertilityStart": 16,
       "fertilityEnd": 16,
@@ -489,6 +651,7 @@
       "litterMean": 0,
       "litterMax": 0
     },
+    "civicStance": "bound",
     "key": "half_elf",
     "name": "Half Elf",
     "lifespan": 75,
@@ -536,6 +699,12 @@
         "vitality": 0.5,
         "ornament": 0.2
       }
+    },
+    "supernatural": {
+      "arcaneCap": 95,
+      "arcaneMedian": 3,
+      "arcaneInclination": 0.12,
+      "durability": 1
     }
   }
 ]

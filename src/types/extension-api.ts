@@ -1,3 +1,4 @@
+import type { RaceService } from "./race-service";
 /**
  * ExtensionAPI — the single dependency-injection contract between the host app
  * and dynamically loaded extensions.
@@ -172,6 +173,8 @@ export interface ExtensionWebglLayerSpec {
 }
 
 export interface ExtensionAPI {
+  /** Read-only host species queries; supplied to built-in and dynamically loaded extensions. */
+  races: RaceService;
   // ── Core contexts ────────────────────────────────────────────────────────
   /** Readonly reference to the host app's world context — same object, shared state. */
   readonly worldContext: WorldContext;

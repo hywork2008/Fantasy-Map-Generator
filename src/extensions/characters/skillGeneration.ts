@@ -8,6 +8,7 @@
  */
 import { gauss } from "../hostUtils";
 import type { Character, CharacterRoleClass, CharacterSkills, RaisedIn, SocialStratum } from "./characterTypes";
+import { raceCatalogEntry } from "./data/raceCatalog";
 import { raceSkillBiasForKey, skillStddevForRace } from "./raceSkillBias";
 
 /** Baseline median for untrained skills (1–100 scale). */
@@ -253,9 +254,10 @@ export function skillMeanFor(
   skill: keyof CharacterSkills,
   options: RollSkillsOptions = {}
 ): { mean: number; min: number; max: number } {
-  if (options.raceKey === "half_elf") {
-    const human = skillMeanFor(skill, { ...options, raceKey: "human" });
-    const elf = skillMeanFor(skill, { ...options, raceKey: "elf" });
+  const parents = raceCatalogEntry(options.raceKey)?.hybridParents;
+  if (parents) {
+    const human = skillMeanFor(skill, { ...options, raceKey: parents[0] });
+    const elf = skillMeanFor(skill, { ...options, raceKey: parents[1] });
     return {
       mean: Math.min(human.mean, elf.mean),
       min: Math.min(human.min, elf.min),

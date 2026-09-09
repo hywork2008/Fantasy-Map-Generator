@@ -1,4 +1,4 @@
-import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../../data/raceCivicStance";
+import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../hostRaces";
 import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";

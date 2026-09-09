@@ -10,7 +10,6 @@ import {
   warWorkingCasualties,
   warWorkingRecoveryYears
 } from "../../data/arcaneWorking";
-import { HALF_ELF_SERVITOR_CHANCE } from "../../data/raceBoundServitors";
 import { RACE_SUPERNATURAL } from "../../data/raceSupernatural";
 import { createDefaultRaces } from "../../data/races";
 import { useOptionsState } from "../hostCore";
@@ -26,6 +25,7 @@ import {
   trySpendArcaneWarWorking
 } from "./arcane";
 import type { Character } from "./characterTypes";
+import { HALF_ELF_SERVITOR_CHANCE } from "./raceBoundServitors";
 
 function caster(overrides: Partial<Character> = {}): Character {
   return {

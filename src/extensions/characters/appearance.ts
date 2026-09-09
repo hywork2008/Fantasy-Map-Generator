@@ -14,13 +14,7 @@
  * Spec: docs/plan/characters/appearance-and-reproduction.md
  * Lore: docs/world/help/races-beauty-and-pairing.md
  */
-import {
-  getRaceBeautyIdeal,
-  getRaceById,
-  getRaceLooksBaseline,
-  getRaceLooksRange,
-  HUMAN_RACE_ID
-} from "../../data/races";
+
 import type {
   AppearanceAxes,
   AppearanceAxisId,
@@ -30,9 +24,11 @@ import type {
   RaceKey
 } from "../../types/models";
 import { APPEARANCE_AXIS_IDS } from "../../types/models";
+import { getRaceBeautyIdeal, getRaceById, getRaceLooksBaseline, getRaceLooksRange, HUMAN_RACE_ID } from "../hostRaces";
 import { gauss } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
+import raceRelations from "./data/raceRelations.generated.json";
 
 /** Per-axis noise around race looks baseline (before age decline). */
 export const APPEARANCE_AXIS_STDDEV = 12;
@@ -189,44 +185,12 @@ export function physiqueSimilarity(a: AppearanceAxes, b: AppearanceAxes): number
  * elf baseline scored on the human ideal+baseline scale lands well above 50.
  * Reverse pairs are weaker (not symmetric court flattery).
  */
-export const CROSS_RACE_AESTHETIC_READABILITY: Readonly<Partial<Record<RaceKey, Partial<Record<RaceKey, number>>>>> = {
-  human: {
-    elf: 0.8,
-    half_elf: 0.72,
-    dark_elf: 0.68,
-    amazones: 0.42,
-    dwarf: 0.18,
-    demon: 0.92,
-    wyrmkin: 0.12
-  },
-  elf: {
-    human: 0.32,
-    half_elf: 0.7,
-    dark_elf: 0.55,
-    amazones: 0.28
-  },
-  half_elf: {
-    human: 0.5,
-    elf: 0.62,
-    dark_elf: 0.4,
-    amazones: 0.3
-  },
-  dark_elf: {
-    human: 0.28,
-    elf: 0.55,
-    amazones: 0.25
-  },
-  dwarf: {
-    human: 0.22,
-    elf: 0.1
-  },
-  amazones: {
-    human: 0.4,
-    elf: 0.35,
-    dark_elf: 0.3,
-    orc: 0.4
-  }
-};
+export const CROSS_RACE_AESTHETIC_READABILITY: Readonly<Partial<Record<RaceKey, Partial<Record<RaceKey, number>>>>> =
+  raceRelations.reduce<Record<string, Record<string, number>>>((table, relation) => {
+    table[relation.observerKey] ??= {};
+    table[relation.observerKey][relation.targetKey] = relation.readability;
+    return table;
+  }, {});
 
 /** Soft cap so cross-race aesthetic never quite equals same-race legendary court ranking. */
 export const CROSS_RACE_AESTHETIC_SCORE_CAP_BASE = 82;

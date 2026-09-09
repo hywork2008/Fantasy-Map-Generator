@@ -6,10 +6,9 @@
  *
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
-import { isBoundServitorRaceKey, resolveRaceIdWithBoundServitor } from "../../data/raceBoundServitors";
-import { canAppearInMixedCourt, isDiplomaticCoreRaceKey } from "../../data/raceCivicStance";
-import { HUMAN_RACE_ID, UNKNOWN_RACE_ID } from "../../data/races";
+
 import type { Culture, Race, State, StateRacialComposition } from "../../types/models";
+import { canAppearInMixedCourt, HUMAN_RACE_ID, isDiplomaticCoreRaceKey, UNKNOWN_RACE_ID } from "../hostRaces";
 import { P } from "../hostUtils";
 import {
   getWorldContext,
@@ -17,6 +16,7 @@ import {
   isCharacterRaceAllowed,
   resolveAllowedCharacterRaceId
 } from "./charactersContext";
+import { isBoundServitorRaceKey, resolveRaceIdWithBoundServitor } from "./raceBoundServitors";
 import { isEnemyDedicatedRaceKey } from "./raceSkillBias";
 
 /** Weighted pick among positive weights keyed by id. */

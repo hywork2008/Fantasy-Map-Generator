@@ -1,3 +1,5 @@
+import { bindRaceService } from "../hostRaces";
+
 /**
  * Module-level context holder for the characters extension.
  * Populated once by init(api) in index.ts; read by all characters sub-modules.
@@ -6,11 +8,11 @@
  * module instances when the extension is loaded via a blob URL.
  */
 
-import { RACE_DEFINITIONS } from "../../data/races";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Race } from "../../types/models";
 import { ck3Preset, dnd5ePreset } from "./abilityPresets";
 import type { AbilityPreset, Character } from "./characterTypes";
+import { raceCatalog } from "./data/raceCatalog";
 import {
   buildLoadoutGoodsCatalog,
   FALLBACK_LOADOUT_GOOD_IDS,
@@ -28,12 +30,11 @@ const _presets = new Map<string, AbilityPreset>([
 
 const DEFAULT_ABILITY_PRESET_ID = ck3Preset.id;
 let _fallbackAbilityPresetId = DEFAULT_ABILITY_PRESET_ID;
-const DEFAULT_ALLOWED_CHARACTER_RACE_KEYS = RACE_DEFINITIONS.filter(race => race.key !== "unknown").map(
-  race => race.key
-);
+const DEFAULT_ALLOWED_CHARACTER_RACE_KEYS = raceCatalog.filter(race => race.key !== "unknown").map(race => race.key);
 let _fallbackAllowedCharacterRaceKeys = [...DEFAULT_ALLOWED_CHARACTER_RACE_KEYS];
 
 export function initCharactersContext(api: ExtensionAPI): void {
+  if (api.races) bindRaceService(api.races);
   _api = api;
 }
 

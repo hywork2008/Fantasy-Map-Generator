@@ -1,11 +1,11 @@
 import { applySpecializationEducation, specializationScore } from "./specializations";
+
 /**
  * Character backstory profile: origin, commitment, tastes, favor, and gifts.
  * Spec: docs/plan/characters/backstory-profile.md
  */
 
-import { isBoundServitorRaceKey } from "../../data/raceBoundServitors";
-import { getRaceById } from "../../data/races";
+import { getRaceById } from "../hostRaces";
 import { P, rand } from "../hostUtils";
 import { attractiveness, isSameRace } from "./appearance";
 import { getCompassionFor, seedCharacterMotivation } from "./characterMotivation";
@@ -46,6 +46,7 @@ import {
 import { buildDailyTastes, DAILY_TASTE_GOODS, DAILY_TASTE_IDS, retainTastes } from "./dailyTastes";
 import { seedCharacterLoadout } from "./loadoutSeed";
 import { rollInitialPrestige } from "./prestige";
+import { isBoundServitorRaceKey } from "./raceBoundServitors";
 import { getCompatibilitySolidarityModifier } from "./relationshipCompatibility";
 import { applyBackgroundSkillBias, syncCk3AbilityProfileSkills } from "./skillGeneration";
 import { assessTasteRelationship, projectTasteRelationshipDelta } from "./tasteRelationship";

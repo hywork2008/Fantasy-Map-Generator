@@ -1,9 +1,8 @@
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { isFantasyCulturesSet } from "../../../../data/raceCivicStance";
-import { getRaceById } from "../../../../data/races";
 import { useOptionsState } from "../../../hostCore";
+import { getRaceById, isFantasyCulturesSet } from "../../../hostRaces";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { dnd5ePreset, getDnd5eAbilityModifier } from "../../abilityPresets";

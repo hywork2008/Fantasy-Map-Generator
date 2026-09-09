@@ -19,34 +19,33 @@ import {
   warWorkingCasualties,
   workingAllowedOnPath
 } from "../../data/arcaneWorking";
-import { isFantasyCulturesSet } from "../../data/raceCivicStance";
-import { HUMAN_SUPERNATURAL, supernaturalForRaceKey } from "../../data/raceSupernatural";
-import { getRaceById } from "../../data/races";
 import type { Culture, Race, RaceSupernatural, State } from "../../types/models";
 import { useOptionsState } from "../hostCore";
+import { getRaceById, HUMAN_SUPERNATURAL, isFantasyCulturesSet, supernaturalForRaceKey } from "../hostRaces";
 import { gauss, P } from "../hostUtils";
 import type { Character, InfernalAtavismFlavor } from "./characterTypes";
+import { raceCatalogEntry } from "./data/raceCatalog";
 import { skillStddevForRace } from "./raceSkillBias";
 
 /** Named-character chance a Human is rolled on the infernal-atavism Arcane table. */
-export const HUMAN_INFERNAL_ATAVISM_CHANCE = 0.006;
+export const HUMAN_INFERNAL_ATAVISM_CHANCE = raceCatalogEntry("human")!.infernalAtavism!.chance;
 
 /** Cap 90, median well above the Human 10 ceiling. Looks and durability stay Human. */
-export const HUMAN_INFERNAL_ATAVISM: RaceSupernatural = {
-  arcaneCap: 90,
-  arcaneMedian: 42,
-  arcaneInclination: 0.35,
-  durability: 1
-};
+export const HUMAN_INFERNAL_ATAVISM: RaceSupernatural = raceCatalogEntry("human")!.infernalAtavism!.supernatural;
+
+export function infernalAtavismSupernaturalForRaceKey(key: string | undefined): RaceSupernatural | undefined {
+  return raceCatalogEntry(key)?.infernalAtavism?.supernatural;
+}
 
 export function maybeHumanInfernalAtavism(
   raceKey: string | undefined,
   enabled: boolean,
   chanceRoll: (p: number) => boolean = P
 ): InfernalAtavismFlavor | undefined {
-  if (!enabled || raceKey !== "human") return undefined;
-  if (!chanceRoll(HUMAN_INFERNAL_ATAVISM_CHANCE)) return undefined;
-  return chanceRoll(0.5) ? "blueBlood" : "pactHouse";
+  const profile = raceCatalogEntry(raceKey)?.infernalAtavism;
+  if (!enabled || !profile) return undefined;
+  if (!chanceRoll(profile.chance)) return undefined;
+  return chanceRoll(profile.blueBloodChance) ? "blueBlood" : "pactHouse";
 }
 
 export type { ArcaneBandId, ArcaneWorkingKind } from "../../data/arcaneWorking";

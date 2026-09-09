@@ -1,4 +1,4 @@
-import { getRaceById } from "../../data/races";
+import { getRaceById } from "../hostRaces";
 import { P, rand } from "../hostUtils";
 import {
   LOOKS_SOFT_DECLINE_PER_YEAR,

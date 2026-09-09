@@ -25,6 +25,7 @@ import {
   unregisterPreset,
   unregisterToolAction
 } from "./controllers/layers";
+import { raceService } from "./services/raceService";
 import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
@@ -113,6 +114,7 @@ function buildExtensionAPI(): ExtensionAPI {
   });
 
   return {
+    races: raceService,
     worldContext,
     viewContext,
     appServices,

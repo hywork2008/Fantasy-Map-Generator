@@ -1,5 +1,7 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
-import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "../../data/raceBoundServitors";
+import type { RaceFertility } from "../../types/models";
+import { APPEARANCE_AXIS_IDS } from "../../types/models";
+import { Names } from "../hostCore";
 import {
   DEFAULT_RACE_KEY,
   getRaceBeautyIdeal,
@@ -8,16 +10,13 @@ import {
   raceIdByKey,
   rollCharacterRaceAppearance,
   UNKNOWN_RACE_ID
-} from "../../data/races";
-import type { RaceFertility } from "../../types/models";
-import { APPEARANCE_AXIS_IDS } from "../../types/models";
-import { Names } from "../hostCore";
+} from "../hostRaces";
 import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
 import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
 import { ownRaceAppearanceScore, rollLooksForRace } from "./appearance";
 import {
-  HUMAN_INFERNAL_ATAVISM,
+  infernalAtavismSupernaturalForRaceKey,
   isFantasySupernaturalEnabled,
   maybeHumanInfernalAtavism,
   rollCharacterArcane,
@@ -58,6 +57,7 @@ import {
   rollDefaultAdultAge,
   rollYoungAdultAge
 } from "./raceAge";
+import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "./raceBoundServitors";
 import { rollCharacterPersonality } from "./racePersonalityBias";
 import { isEnemyDedicatedRaceKey, isEnemyDedicatedRole } from "./raceSkillBias";
 import { rollCharacterSkills } from "./skillGeneration";
@@ -699,7 +699,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     let arcane = rollCharacterArcane({
       raceKey: raceDef?.key,
       lifespan: raceDef?.lifespan ?? raceLifespan,
-      supernatural: infernalFlavor ? HUMAN_INFERNAL_ATAVISM : raceDef?.supernatural
+      supernatural: infernalFlavor ? infernalAtavismSupernaturalForRaceKey(raceDef?.key) : raceDef?.supernatural
     });
     if (isRaceMinor(age, race)) {
       const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);

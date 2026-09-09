@@ -1,0 +1,316 @@
+[
+  {
+    "key": "unknown",
+    "skillBias": {},
+    "personalityBias": {}
+  },
+  {
+    "key": "human",
+    "skillBias": {},
+    "personalityBias": {},
+    "infernalAtavism": {
+      "chance": 0.006,
+      "blueBloodChance": 0.5,
+      "supernatural": {
+        "arcaneCap": 90,
+        "arcaneMedian": 42,
+        "arcaneInclination": 0.35,
+        "durability": 1
+      }
+    }
+  },
+  {
+    "key": "elf",
+    "skillBias": {
+      "artistry": 5,
+      "diplomacy": 3,
+      "geography": 3,
+      "learning": 10,
+      "martial": -8,
+      "prowess": 6
+    },
+    "personalityBias": {
+      "boldness": -12,
+      "compassion": 5,
+      "greed": -12,
+      "honor": 4,
+      "rationality": 8,
+      "vengefulness": -10,
+      "zeal": -4,
+      "energy": -6
+    },
+    "boundServitor": {
+      "chance": 0.006,
+      "raceKey": "half_elf",
+      "roles": [
+        "ordinary",
+        "merchant",
+        "religious",
+        "central_officer"
+      ]
+    }
+  },
+  {
+    "key": "dark_elf",
+    "skillBias": {
+      "artistry": 2,
+      "diplomacy": -4,
+      "intrigue": 6,
+      "learning": 3,
+      "martial": -6,
+      "prowess": 3
+    },
+    "personalityBias": {
+      "boldness": -4,
+      "compassion": -6,
+      "greed": -2,
+      "honor": -2,
+      "sociability": -6,
+      "vengefulness": 4,
+      "guile": 8
+    }
+  },
+  {
+    "key": "dwarf",
+    "continuousMonogamy": true,
+    "skillBias": {
+      "engineering": 8,
+      "learning": 1,
+      "martial": -3,
+      "prowess": 1,
+      "stewardship": 2
+    },
+    "personalityBias": {
+      "boldness": -4,
+      "greed": -4,
+      "honor": 4,
+      "rationality": 3,
+      "vengefulness": -2,
+      "energy": -2
+    }
+  },
+  {
+    "key": "goblin",
+    "skillBias": {
+      "artistry": -4,
+      "diplomacy": -12,
+      "engineering": -3,
+      "intrigue": 4,
+      "learning": -6,
+      "martial": 2,
+      "prowess": 6,
+      "stewardship": -5
+    },
+    "personalityBias": {
+      "boldness": 6,
+      "compassion": -6,
+      "greed": 10,
+      "honor": -6,
+      "vengefulness": 4,
+      "energy": 8,
+      "guile": 6
+    }
+  },
+  {
+    "key": "orc",
+    "skillBias": {
+      "artistry": -4,
+      "diplomacy": -10,
+      "engineering": -2,
+      "intrigue": -2,
+      "learning": -4,
+      "martial": 0,
+      "prowess": 10,
+      "stewardship": -3
+    },
+    "personalityBias": {
+      "boldness": 10,
+      "compassion": -8,
+      "greed": 6,
+      "rationality": -4,
+      "vengefulness": 8,
+      "energy": 6
+    }
+  },
+  {
+    "key": "giant",
+    "skillBias": {
+      "artistry": 4,
+      "diplomacy": -6,
+      "engineering": 8,
+      "intrigue": 4,
+      "learning": -3,
+      "martial": -8,
+      "prowess": 14
+    },
+    "personalityBias": {
+      "boldness": 2,
+      "compassion": -6,
+      "greed": -2,
+      "honor": 2,
+      "rationality": 4,
+      "sociability": -8,
+      "vengefulness": 2,
+      "zeal": 2,
+      "energy": -2,
+      "guile": 6,
+      "confidence": 6
+    }
+  },
+  {
+    "key": "draconic",
+    "skillBias": {
+      "artistry": 1,
+      "diplomacy": -8,
+      "engineering": -6,
+      "intrigue": 2,
+      "learning": 2,
+      "martial": -12,
+      "prowess": 14
+    },
+    "personalityBias": {
+      "boldness": 4,
+      "compassion": -8,
+      "greed": 8,
+      "honor": 2,
+      "rationality": 4,
+      "sociability": -10,
+      "vengefulness": 2
+    },
+    "boundServitor": {
+      "chance": 1,
+      "raceKey": "wyrmkin",
+      "roles": [
+        "merchant",
+        "ordinary"
+      ]
+    }
+  },
+  {
+    "key": "arachnid",
+    "skillBias": {
+      "artistry": -4,
+      "diplomacy": -14,
+      "engineering": 2,
+      "geography": 3,
+      "intrigue": 8,
+      "learning": -4,
+      "martial": -4,
+      "prowess": 6,
+      "stewardship": -6
+    },
+    "personalityBias": {
+      "boldness": -2,
+      "compassion": -12,
+      "greed": 4,
+      "sociability": -12,
+      "vengefulness": 6,
+      "energy": 2,
+      "guile": 8
+    }
+  },
+  {
+    "key": "amazones",
+    "skillBias": {
+      "diplomacy": -3,
+      "learning": -1,
+      "martial": 2,
+      "prowess": 4,
+      "stewardship": 1
+    },
+    "personalityBias": {
+      "boldness": 6,
+      "compassion": 2,
+      "greed": -2,
+      "honor": 4,
+      "vengefulness": 2,
+      "energy": 4
+    }
+  },
+  {
+    "key": "wyrmkin",
+    "skillBias": {
+      "artistry": 1,
+      "diplomacy": 4,
+      "intrigue": 2,
+      "learning": -1,
+      "martial": -2,
+      "prowess": -4,
+      "stewardship": 6
+    },
+    "personalityBias": {
+      "boldness": -6,
+      "compassion": 2,
+      "greed": 2,
+      "honor": -2,
+      "sociability": 4,
+      "zeal": -2,
+      "energy": 2,
+      "guile": 4,
+      "confidence": -4
+    }
+  },
+  {
+    "key": "demon",
+    "skillBias": {
+      "intrigue": 6,
+      "learning": 4,
+      "prowess": 8
+    },
+    "personalityBias": {
+      "compassion": -12,
+      "greed": 6,
+      "honor": -2,
+      "sociability": -4,
+      "vengefulness": -8,
+      "zeal": 8,
+      "guile": 6,
+      "confidence": 6
+    }
+  },
+  {
+    "key": "beastfolk",
+    "carnivorousAnimals": [
+      "cat",
+      "dog",
+      "fox",
+      "lion",
+      "otter",
+      "tiger",
+      "wolf"
+    ],
+    "skillBias": {
+      "diplomacy": -2,
+      "geography": 3,
+      "learning": -3,
+      "prowess": 4,
+      "stewardship": -2
+    },
+    "personalityBias": {
+      "boldness": 4,
+      "compassion": 2,
+      "greed": -2,
+      "honor": 2,
+      "rationality": -2,
+      "sociability": 4,
+      "energy": 6
+    }
+  },
+  {
+    "key": "half_elf",
+    "hybridParents": [
+      "human",
+      "elf"
+    ],
+    "skillBias": {
+      "martial": -8
+    },
+    "personalityBias": {
+      "boldness": -12,
+      "greed": -12,
+      "vengefulness": -10,
+      "zeal": -4,
+      "energy": -6
+    }
+  }
+]

@@ -43,3 +43,8 @@ if (typeof localStorage === "undefined" || typeof localStorage.getItem !== "func
     }
   };
 }
+
+// Tests cross the same injection boundary as extension init; no production fallback imports.
+const { bindRaceService } = await import("./extensions/hostRaces");
+const { raceService } = await import("./services/raceService");
+bindRaceService(raceService);

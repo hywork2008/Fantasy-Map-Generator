@@ -2,18 +2,19 @@
  * Race fertility helpers for household generation.
  * Spec: docs/plan/characters/appearance-and-reproduction.md §3
  */
-import { DEFAULT_RACE_FERTILITY, getRaceFertility } from "../../data/races";
+
 import type { RaceFertility } from "../../types/models";
+import { getDefaultRaceFertility, getRaceFertility } from "../hostRaces";
 import { gauss, rand } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 
 export function resolveFertilityForRace(raceId: number | undefined): RaceFertility {
-  if (raceId === undefined) return { ...DEFAULT_RACE_FERTILITY };
-  if (!hasCharactersContext()) return { ...DEFAULT_RACE_FERTILITY };
+  if (raceId === undefined) return { ...getDefaultRaceFertility() };
+  if (!hasCharactersContext()) return { ...getDefaultRaceFertility() };
   try {
     return getRaceFertility(getWorldContext().pack.races, raceId);
   } catch {
-    return { ...DEFAULT_RACE_FERTILITY };
+    return { ...getDefaultRaceFertility() };
   }
 }
 

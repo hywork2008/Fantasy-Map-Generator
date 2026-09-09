@@ -5,7 +5,7 @@
  * but people should not inherit the Unknown race — prefer any real culture, then a
  * Human-majority culture on the map.
  */
-import { getRaceById, HUMAN_RACE_ID } from "../../../data/races";
+import { getRaceById, HUMAN_RACE_ID } from "../../hostRaces";
 import type { Burg, RaceKey } from "../../hostTypes";
 import { getWorldContext } from "../economyContext";
 

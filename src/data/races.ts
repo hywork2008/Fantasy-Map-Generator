@@ -24,60 +24,24 @@
 import type {
   AppearanceAxes,
   AppearanceRanges,
-  BeastfolkAnimal,
-  CharacterGenderMode,
   CharacterRaceAppearance,
   Race,
   RaceBeautyIdeal,
   RaceCharacterAppearance,
-  RaceEnvironmentalSurvival,
   RaceFertility,
   RaceKey
 } from "../types/models";
+import { raceCatalog } from "./raceCatalog";
+import type { RaceDefinition } from "./raceDefinition";
 import { supernaturalForRaceKey } from "./raceSupernatural";
-import catalog from "./races.generated.json";
 
-export interface RaceDefinition {
-  key: RaceKey;
-  name: string;
-  characterGender?: CharacterGenderMode;
-  lifespan: number;
-  maxLifespan: number;
-  looksBaseline: AppearanceAxes;
-  /** Per-axis looks roll clamp. Half Elf uses Human×Elf min/max; others omit (1–100). */
-  looksRange?: AppearanceRanges;
-  beautyIdeal: RaceBeautyIdeal;
-  fertility: RaceFertility;
-  characterAppearance?: RaceCharacterAppearance;
-  /** Persistent species traits used by settlement and population generators. */
-  environmentalSurvival?: RaceEnvironmentalSurvival;
-}
+export type { RaceDefinition } from "./raceDefinition";
 
 /** Generated from docs/plan/data/races.csv by npm run races:import. */
-export const RACE_DEFINITIONS: readonly RaceDefinition[] = catalog as RaceDefinition[];
+export const RACE_DEFINITIONS: readonly RaceDefinition[] = raceCatalog;
 const humanLooks = RACE_DEFINITIONS[1].looksBaseline;
 const humanIdeal = RACE_DEFINITIONS[1].beautyIdeal;
 const humanFertility = RACE_DEFINITIONS[1].fertility;
-
-/**
- * Predator / meat-eating Beastfolk ancestries. Herbivores and true omnivores
- * (bear, raccoon, cattle, deer, goat, hare, horse) are excluded.
- */
-export const CARNIVOROUS_BEASTFOLK_ANIMALS = [
-  "cat",
-  "dog",
-  "fox",
-  "lion",
-  "otter",
-  "tiger",
-  "wolf"
-] as const satisfies readonly BeastfolkAnimal[];
-
-const CARNIVOROUS_BEASTFOLK_ANIMAL_SET: ReadonlySet<string> = new Set(CARNIVOROUS_BEASTFOLK_ANIMALS);
-
-export function isCarnivorousBeastfolkAnimal(animal: string | undefined): animal is BeastfolkAnimal {
-  return animal !== undefined && CARNIVOROUS_BEASTFOLK_ANIMAL_SET.has(animal);
-}
 
 export const DEFAULT_RACE_KEY: RaceKey = "human";
 export const UNKNOWN_RACE_ID = 0;

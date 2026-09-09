@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getRaceById } from "../../../../data/races";
+import { getRaceById } from "../../../hostRaces";
 import { getApi, getWorldContext } from "../../charactersContext";
 import type { Character } from "../../characterTypes";
 import { SPECIALIZATION_DEFINITIONS, SPECIALIZATION_SKILLS, SPECIALIZATIONS } from "../../specializationCatalog";

@@ -1,9 +1,16 @@
-import { APPEARANCE_AXIS_IDS, CHARACTER_GENDER_MODES } from "../types/models";
-import { hybridAppearance, hybridBeautyIdeal } from "./hybridRaceTraits";
-import type { RaceDefinition } from "./races";
+import { APPEARANCE_AXIS_IDS, CHARACTER_GENDER_MODES } from "../../src/types/models";
+import { hybridAppearance, hybridBeautyIdeal, hybridNumericRecord } from "../../src/data/hybridRaceTraits";
+import {
+  RACE_PARAMETER_NUMERIC_COLUMNS,
+  RACE_PERSONALITY_AXES,
+  RACE_SKILL_AXES,
+  validateRaceParameters
+} from "./raceParameters";
+import type { RaceDefinition } from "./raceParameters";
 
 const axes = APPEARANCE_AXIS_IDS;
 const numericColumns: Record<string, string> = {
+  ...RACE_PARAMETER_NUMERIC_COLUMNS,
   lifespan_years: "lifespan",
   max_lifespan_years: "maxLifespan",
   fertility_start_years: "fertility.fertilityStart",
@@ -19,16 +26,21 @@ const numericColumns: Record<string, string> = {
   furry_scale_max: "characterAppearance.furryScale.max"
 };
 const textColumns: Record<string, string> = {
+  civic_stance: "civicStance",
+  bound_servitor_key: "boundServitor.raceKey",
   key: "key",
   name: "name",
   character_gender: "characterGender",
   appearance_kind: "characterAppearance.kind"
 };
 const boolColumns: Record<string, string> = {
+  continuous_monogamy: "continuousMonogamy",
   food_independent: "environmentalSurvival.foodIndependent",
   temperature_independent: "environmentalSurvival.temperatureIndependent"
 };
 const listColumns: Record<string, string> = {
+  carnivorous_animals: "carnivorousAnimals",
+  bound_servitor_roles: "boundServitor.roles",
   horn_animals: "characterAppearance.hornAnimals",
   animals: "characterAppearance.animals"
 };
@@ -39,12 +51,20 @@ export const RACE_CSV_HEADERS = [
   "hybrid_parent_a",
   "hybrid_parent_b",
   "character_gender",
+  "civic_stance",
+  "bound_servitor_key",
+  "person_name_primary",
+  "person_name_alternate",
   ...Object.keys(numericColumns),
   "appearance_kind",
   ...Object.keys(listColumns),
   ...Object.keys(boolColumns)
 ];
-const paths = { ...numericColumns, ...textColumns, ...boolColumns, ...listColumns };
+const nullableColumns: Record<string, string> = {
+  person_name_primary: "personNameSpheres.primary",
+  person_name_alternate: "personNameSpheres.alternate"
+};
+const paths = { ...nullableColumns, ...numericColumns, ...textColumns, ...boolColumns, ...listColumns };
 const stableKeys = [
   "unknown",
   "human",
@@ -64,7 +84,7 @@ const stableKeys = [
 ];
 
 /** RFC 4180 records, including BOM, CRLF, escaped quotes and embedded newlines. */
-function records(csv: string): string[][] {
+export function parseCsvRecords(csv: string): string[][] {
   csv = csv.replace(/^\uFEFF/, "");
   const rows: string[][] = [];
   let row: string[] = [],
@@ -117,7 +137,7 @@ function get(object: unknown, path: string): unknown {
 }
 
 export function parseRacesCsv(csv: string): RaceDefinition[] {
-  const [headers, ...rows] = records(csv);
+  const [headers, ...rows] = parseCsvRecords(csv);
   if (
     !headers ||
     headers.length !== RACE_CSV_HEADERS.length ||
@@ -133,11 +153,14 @@ export function parseRacesCsv(csv: string): RaceDefinition[] {
       if (cells.length !== headers.length) fail(`expected ${headers.length} columns, got ${cells.length}`);
       const row = Object.fromEntries(headers.map((h, i) => [h, cells[i].trim()]));
       if (!/^\d+$/.test(row.id)) fail("id must be a non-negative integer");
-      const def: Record<string, unknown> = {};
+      const def: Record<string, unknown> = { skillBias: {}, personalityBias: {}, personNameSpheres: { primary: null } };
       for (const [column, path] of Object.entries(paths)) {
         const value = row[column];
         if (!value) continue;
-        if (column in numericColumns) {
+        if (column in nullableColumns) {
+          if (value !== "null" && !/^\d+$/.test(value)) fail(`${column}: expected null or non-negative integer`);
+          set(def, path, value === "null" ? null : Number(value));
+        } else if (column in numericColumns) {
           if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value) || !Number.isFinite(Number(value)))
             fail(`${column}: invalid number '${value}'`);
           set(def, path, Number(value));
@@ -167,9 +190,8 @@ export function parseRacesCsv(csv: string): RaceDefinition[] {
     if (visiting.has(def.key)) fail("cyclic hybrid parents");
     visiting.add(def.key);
     if (row.hybrid_parent_a) {
-      for (const column of Object.keys(numericColumns).filter(
-        c => c.startsWith("looks_") || c.startsWith("beauty_") || c === "lifespan_years" || c === "max_lifespan_years"
-      )) {
+      def.hybridParents = [row.hybrid_parent_a, row.hybrid_parent_b];
+      for (const column of Object.keys(numericColumns).filter(c => isHybridDerivedColumn(c))) {
         if (row[column]) fail(`${column}: must be blank for a hybrid (derived from parents)`);
       }
       const parents = [row.hybrid_parent_a, row.hybrid_parent_b].map(key => {
@@ -184,6 +206,14 @@ export function parseRacesCsv(csv: string): RaceDefinition[] {
       def.looksBaseline = looks.baseline;
       def.looksRange = looks.range;
       def.beautyIdeal = hybridBeautyIdeal(a.beautyIdeal, b.beautyIdeal);
+      def.skillBias = hybridNumericRecord(a.skillBias, b.skillBias, RACE_SKILL_AXES);
+      def.personalityBias = hybridNumericRecord(a.personalityBias, b.personalityBias, RACE_PERSONALITY_AXES);
+      def.supernatural = {
+        arcaneCap: Math.max(a.supernatural.arcaneCap, b.supernatural.arcaneCap),
+        arcaneMedian: Math.min(a.supernatural.arcaneMedian, b.supernatural.arcaneMedian),
+        arcaneInclination: Math.min(a.supernatural.arcaneInclination, b.supernatural.arcaneInclination),
+        durability: Math.min(a.supernatural.durability, b.supernatural.durability)
+      };
     }
     const number = (path: string, min: number, max = Infinity, integer = false) => {
       const value = get(def, path);
@@ -196,6 +226,7 @@ export function parseRacesCsv(csv: string): RaceDefinition[] {
       )
         fail(`${path}: expected ${integer ? "integer" : "number"} in [${min}, ${max}]`);
     };
+    validateRaceParameters(def, number, fail);
     number("lifespan", 1);
     number("maxLifespan", def.lifespan);
     number("fertility.fertilityStart", 0, def.maxLifespan);
@@ -244,21 +275,67 @@ export function parseRacesCsv(csv: string): RaceDefinition[] {
         number("characterAppearance.furryScale.max", appearance.furryScale.min, 10, true);
       }
     }
+    if (
+      def.carnivorousAnimals &&
+      (def.characterAppearance?.kind !== "beastfolk" ||
+        new Set(def.carnivorousAnimals).size !== def.carnivorousAnimals.length ||
+        def.carnivorousAnimals.some(
+          animal => def.characterAppearance?.kind !== "beastfolk" || !def.characterAppearance.animals.includes(animal)
+        ))
+    )
+      fail("carnivorous_animals must be unique members of the beastfolk animals list");
     visiting.delete(def.key);
     resolved.add(def.key);
     return def;
   }
-  return entries.map(resolve);
+  const definitions = entries.map(resolve);
+  const boundTargets = new Set<string>();
+  for (const { def, fail } of entries) {
+    const spec = def.boundServitor;
+    if (!spec) continue;
+    const target = definitions.find(d => d.key === spec.raceKey);
+    if (!target || target.key === def.key || target.civicStance !== "bound" || def.civicStance === "bound")
+      fail("bound_servitor_key must reference another bound race from a non-bound host");
+    if (boundTargets.has(spec.raceKey)) fail("a bound servitor race can only have one host");
+    boundTargets.add(spec.raceKey);
+  }
+  for (const { def, fail } of entries)
+    if (def.civicStance === "bound" && !boundTargets.has(def.key)) fail("bound race requires a host");
+  if (!definitions[1].infernalAtavism)
+    throw new Error("CSV: human infernal atavism profile required (set chance to 0 to disable)");
+  return definitions;
 }
 
-/** Export resolved source/game catalog values; hybrid formulas become explicit values. */
+export function isHybridDerivedColumn(column: string): boolean {
+  return (
+    column.startsWith("looks_") ||
+    column.startsWith("beauty_") ||
+    column.startsWith("skill_bias_") ||
+    column.startsWith("personality_bias_") ||
+    [
+      "lifespan_years",
+      "max_lifespan_years",
+      "arcane_cap",
+      "arcane_median",
+      "arcane_inclination",
+      "durability"
+    ].includes(column)
+  );
+}
+
+/** Export catalog parameters while retaining hybrid parent rules for editable round-trips. */
 export function exportRacesCsv(definitions: readonly RaceDefinition[]): string {
   const escapeCell = (value: unknown) => {
     const text = value === undefined ? "" : Array.isArray(value) ? value.join("|") : String(value);
     return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
   const rows = definitions.map((def, id) =>
-    RACE_CSV_HEADERS.map(h => escapeCell(h === "id" ? id : paths[h] ? get(def, paths[h]) : undefined)).join(",")
+    RACE_CSV_HEADERS.map(h => {
+      if (h === "hybrid_parent_a") return escapeCell(def.hybridParents?.[0]);
+      if (h === "hybrid_parent_b") return escapeCell(def.hybridParents?.[1]);
+      if (def.hybridParents && isHybridDerivedColumn(h)) return "";
+      return escapeCell(h === "id" ? id : paths[h] ? get(def, paths[h]) : undefined);
+    }).join(",")
   );
   const csv = `${RACE_CSV_HEADERS.join(",")}\n${rows.join("\n")}\n`;
   parseRacesCsv(csv);
