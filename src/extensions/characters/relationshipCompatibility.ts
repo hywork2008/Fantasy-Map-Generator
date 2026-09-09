@@ -1,4 +1,4 @@
-import type { Character, CharacterPersonality } from "./characterTypes";
+import type { Character, CharacterOrigin, CharacterPersonality } from "./characterTypes";
 import { getPersonalityDescriptionKeys } from "./personalityDescription";
 import { getRomanceDescriptionKeys, type RomanceDescriptionContext } from "./romanceDescription";
 
@@ -99,9 +99,11 @@ const socialRules: PairRule<SocialCompatibilityType>[] = [
   { types: ["caring", "caring"], friendship: 30, romance: 10, friction: -15, reason: "mutualCare" },
   { types: ["caring", "reserved"], friendship: 25, romance: 5, friction: -10, reason: "gentleSpace" },
   { types: ["caring", "principled"], friendship: 25, romance: 10, friction: -10, reason: "trustAndCare" },
+  { types: ["caring", "balanced"], friendship: 25, romance: 5, friction: -15, reason: "mutualCare" },
   { types: ["analytical", "analytical"], friendship: 30, romance: 0, friction: -10, reason: "sharedReasoning" },
   { types: ["analytical", "principled"], friendship: 25, romance: 0, friction: -5, reason: "reliablePartners" },
   { types: ["reserved", "reserved"], friendship: 25, romance: -10, friction: -10, reason: "sharedQuiet" },
+  { types: ["reserved", "balanced"], friendship: 20, romance: 0, friction: -10, reason: "gentleSpace" },
   { types: ["adventurous", "adventurous"], friendship: 25, romance: 15, friction: 10, reason: "sharedAdventure" },
   { types: ["principled", "principled"], friendship: 25, romance: 5, friction: -10, reason: "sharedPromises" },
   { types: ["ambitious", "ambitious"], friendship: 5, romance: 0, friction: 30, reason: "competingRewards" },
@@ -116,6 +118,7 @@ const romanticRules: PairRule<RomanticCompatibilityType>[] = [
   { types: ["devoted", "devoted"], friendship: 10, romance: 30, friction: -10, reason: "lastingBond" },
   { types: ["passionate", "passionate"], friendship: 5, romance: 35, friction: 10, reason: "mutualPassion" },
   { types: ["devoted", "passionate"], friendship: 10, romance: 25, friction: 5, reason: "devotionAndPassion" },
+  { types: ["devoted", "measured"], friendship: 15, romance: 20, friction: -5, reason: "lastingBond" },
   {
     types: ["independent", "independent"],
     friendship: 20,
@@ -123,6 +126,14 @@ const romanticRules: PairRule<RomanticCompatibilityType>[] = [
     friction: -10,
     reason: "comfortableIndependence"
   },
+  {
+    types: ["independent", "measured"],
+    friendship: 20,
+    romance: 0,
+    friction: -10,
+    reason: "comfortableIndependence"
+  },
+  { types: ["measured", "measured"], friendship: 0, romance: 15, friction: 0, reason: "measuredSteadiness" },
   { types: ["withdrawn", "withdrawn"], friendship: 15, romance: -35, friction: -10, reason: "neitherInitiates" },
   { types: ["withdrawn", "passionate"], friendship: -10, romance: -25, friction: 25, reason: "pursuitAndRetreat" },
   { types: ["independent", "passionate"], friendship: -5, romance: 5, friction: 20, reason: "closenessAndFreedom" },
@@ -131,8 +142,13 @@ const romanticRules: PairRule<RomanticCompatibilityType>[] = [
 ];
 
 export type CompatibilityCharacter = Pick<Character, "i" | "gender" | "personality" | "appearance"> &
-  Partial<Pick<Character, "family" | "favor" | "dead" | "race">>;
+  Partial<Pick<Character, "family" | "favor" | "dead" | "race" | "age" | "culture" | "backstory">> & {
+    origin?: CharacterOrigin;
+  };
 export type CompatibilityTendency = "friendship" | "romance" | "both" | "friction" | "volatile" | "situational";
+export interface RelationshipCompatibilityContext extends RomanceDescriptionContext {
+  historicalPeriod?: string;
+}
 export interface RelationshipCompatibility {
   from: CompatibilityProfile;
   to: CompatibilityProfile;
@@ -147,21 +163,46 @@ export interface RelationshipCompatibility {
 function closeFamily(a: CompatibilityCharacter, b: CompatibilityCharacter): boolean {
   const parentsA = [a.family?.fatherId, a.family?.motherId].filter((id): id is number => id !== undefined && id > 0);
   const parentsB = [b.family?.fatherId, b.family?.motherId].filter((id): id is number => id !== undefined && id > 0);
+  const childrenA = a.family?.childIds ?? [];
+  const childrenB = b.family?.childIds ?? [];
   return (
     parentsA.includes(b.i) ||
     parentsB.includes(a.i) ||
     parentsA.some(id => parentsB.includes(id)) ||
-    !!a.family?.childIds?.includes(b.i) ||
-    !!b.family?.childIds?.includes(a.i)
+    childrenA.includes(b.i) ||
+    childrenB.includes(a.i) ||
+    childrenB.some(cid => parentsA.includes(cid)) ||
+    childrenA.some(cid => parentsB.includes(cid))
   );
+}
+
+type SocialTier = "elite" | "middle" | "lower";
+
+function getSocialTier(char: CompatibilityCharacter): SocialTier {
+  const origin = char.origin ?? char.backstory?.origin;
+  const stratum = origin?.socialStratum;
+  const estate = origin?.estateStatus;
+  if (
+    stratum === "royal" ||
+    stratum === "high_noble" ||
+    estate === "reigning_dynasty" ||
+    estate === "court_noble" ||
+    estate === "landed_noble"
+  ) {
+    return "elite";
+  }
+  if (stratum === "slave_born" || stratum === "commoner" || estate === "serf" || estate === "slave") {
+    return "lower";
+  }
+  return "middle";
 }
 
 /** Pure assessment if the pair meet; callers can project it into solidarity without creating edges here. */
 export function getRelationshipCompatibility(
   a: CompatibilityCharacter,
   b: CompatibilityCharacter,
-  contextA: RomanceDescriptionContext = {},
-  contextB: RomanceDescriptionContext = {}
+  contextA: RelationshipCompatibilityContext = {},
+  contextB: RelationshipCompatibilityContext = {}
 ): RelationshipCompatibility {
   const from = getCompatibilityProfile(a.personality, { appearance: a.appearance, ...contextA });
   const to = getCompatibilityProfile(b.personality, { appearance: b.appearance, ...contextB });
@@ -169,6 +210,8 @@ export function getRelationshipCompatibility(
   let romance = 35;
   let friction = 20;
   const reasons: string[] = [];
+  let pairRuleMatched = false;
+
   function apply<T>(rules: PairRule<T>[], x: T, y: T) {
     const rule = rules.find(r => (r.types[0] === x && r.types[1] === y) || (r.types[0] === y && r.types[1] === x));
     if (!rule) return;
@@ -176,9 +219,11 @@ export function getRelationshipCompatibility(
     romance += rule.romance;
     friction += rule.friction;
     reasons.push(rule.reason);
+    pairRuleMatched = true;
   }
   apply(socialRules, from.social, to.social);
   apply(romanticRules, from.romantic, to.romantic);
+
   if (from.romantic === "withdrawn" || to.romantic === "withdrawn") {
     romance = Math.min(romance, 25);
     reasons.push("romanceDistance");
@@ -190,9 +235,33 @@ export function getRelationshipCompatibility(
   }
   if (from.compassionate && to.compassionate) friction -= 10;
 
+  // Social stratum / Estate gap and Historical Period
+  const tierA = getSocialTier(a);
+  const tierB = getSocialTier(b);
+  const recordedInterest = (a.favor?.[b.i] ?? 0) > 0 || (b.favor?.[a.i] ?? 0) > 0;
+  const isClassDivide = (tierA === "elite" && tierB === "lower") || (tierA === "lower" && tierB === "elite");
+  if (isClassDivide) {
+    const period = contextA.historicalPeriod ?? contextB.historicalPeriod ?? "earlyMedieval";
+    const isModern = ["preIndustrialEra", "steamEra", "industrialChemistryEra", "petroleumEra", "rocketryEra"].includes(
+      period
+    );
+    const isEarlyModern = ["ageOfExploration", "maritimeEra"].includes(period);
+    if (isModern) {
+      friction += 10;
+      reasons.push("classDivideModern");
+    } else if (isEarlyModern) {
+      friction += 25;
+      if (!recordedInterest) romance = Math.min(romance, 35);
+      reasons.push("classDivideEarlyModern");
+    } else {
+      friction += 35;
+      if (!recordedInterest) romance = Math.min(romance, 25);
+      reasons.push("classDivideMedieval");
+    }
+  }
+
   // Matches the current world's default route, not an inferred sexual orientation.
   // Existing directed favor permits same-gender romantic prospects without claiming reciprocity.
-  const recordedInterest = (a.favor?.[b.i] ?? 0) > 0 || (b.favor?.[a.i] ?? 0) > 0;
   const romanceConditional = a.gender === b.gender && !recordedInterest;
   if (romanceConditional) {
     romance = Math.min(romance, 45);
@@ -206,10 +275,67 @@ export function getRelationshipCompatibility(
     romance = Math.min(romance, 25);
     reasons.push("differentRaceNorms");
   }
-  if (a.i === b.i || a.dead || b.dead || closeFamily(a, b)) {
+
+  // Age gap, norms, and perverse / peculiar interests
+  const isSelf = a.i === b.i;
+  const isCloseFamily = closeFamily(a, b);
+  const isUnderage = (a.age !== undefined && a.age < 15) || (b.age !== undefined && b.age < 15);
+  const isDeceased = !!a.dead || !!b.dead;
+  const isSpouse = !!a.family?.spouseIds?.includes(b.i) || !!b.family?.spouseIds?.includes(a.i);
+
+  if (a.age !== undefined && b.age !== undefined && !isUnderage && !isSelf && !isCloseFamily) {
+    const ageDiff = Math.abs(a.age - b.age);
+    const isLecherousElder = (age: number, p: CharacterPersonality) =>
+      age >= 45 && p.honor <= 35 && p.piety <= 35 && (p.boldness >= 65 || p.greed >= 65 || p.guile >= 65);
+    const isYoungAdult = (age: number) => age >= 15 && age <= 22;
+    const isMatureAdmirer = (age: number, p: CharacterPersonality) =>
+      age >= 18 && age <= 30 && (p.honor <= 35 || p.zeal >= 65);
+    const isMatureTarget = (age: number) => age >= 45;
+    const isNormAbiding = (p: CharacterPersonality) => p.honor >= 65 || p.piety >= 65 || p.rationality >= 65;
+
+    const lecheryMatch =
+      (isLecherousElder(a.age, a.personality) && isYoungAdult(b.age)) ||
+      (isLecherousElder(b.age, b.personality) && isYoungAdult(a.age));
+
+    const matureAffectionMatch =
+      (isMatureAdmirer(a.age, a.personality) && isMatureTarget(b.age) && ageDiff >= 20) ||
+      (isMatureAdmirer(b.age, b.personality) && isMatureTarget(a.age) && ageDiff >= 20);
+
+    if (lecheryMatch) {
+      romance += 25;
+      friction += 35;
+      reasons.push("lecherousPursuit");
+    } else if (matureAffectionMatch) {
+      romance += 20;
+      friction += 15;
+      reasons.push("matureAffection");
+    } else if (isNormAbiding(a.personality) || isNormAbiding(b.personality)) {
+      if (ageDiff <= 10) {
+        friction -= 10;
+        reasons.push("orderlyGenerations");
+      } else if (ageDiff >= 20) {
+        romance -= 25;
+        friction += 20;
+        reasons.push("generationGapConcern");
+      }
+    }
+  }
+
+  // Special restrictions for self, close family, underage and deceased
+  if (isSelf || isCloseFamily) {
     romance = 0;
     reasons.push("romanceExcluded");
+  } else if (isUnderage) {
+    romance = 0;
+    reasons.push("underageProtection");
+  } else if (isDeceased) {
+    if (isSpouse || recordedInterest) {
+      reasons.push("bereavedLove");
+    } else {
+      reasons.push("deceased");
+    }
   }
+
   const clamp = (value: number) => Math.max(0, Math.min(100, value));
   friendship = clamp(friendship);
   romance = clamp(romance);
@@ -226,7 +352,9 @@ export function getRelationshipCompatibility(
           : friendship >= 60
             ? "friendship"
             : "situational";
-  if (reasons.length === 1) reasons.unshift("situationalFit");
+  if (!pairRuleMatched) {
+    reasons.unshift("situationalFit");
+  }
   return { from, to, friendship, romance, friction, tendency, romanceConditional, reasons };
 }
 
@@ -236,8 +364,8 @@ export function getRelationshipCompatibility(
 export function getCompatibilitySolidarityModifier(
   a: CompatibilityCharacter,
   b: CompatibilityCharacter,
-  contextA: RomanceDescriptionContext = {},
-  contextB: RomanceDescriptionContext = {}
+  contextA: RelationshipCompatibilityContext = {},
+  contextB: RelationshipCompatibilityContext = {}
 ): number {
   const { friendship, friction } = getRelationshipCompatibility(a, b, contextA, contextB);
   return Math.max(-20, Math.min(20, Math.round((friendship - 45 - (friction - 20)) / 4)));

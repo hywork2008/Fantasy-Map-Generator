@@ -121,11 +121,13 @@ describe("relationship compatibility", () => {
     expect(b.favor).toBeUndefined();
   });
 
-  it("does not recommend romantic prospects for self, deceased people or close family", () => {
+  it("excludes self and close family from romantic prospects, but preserves compatibility for deceased partners", () => {
     const a = person(1, passionate);
     const b = person(2, passionate, "female");
     expect(getRelationshipCompatibility(a, a).romance).toBe(0);
-    expect(getRelationshipCompatibility(a, { ...b, dead: true }).romance).toBe(0);
+    expect(getRelationshipCompatibility(a, a).reasons).toContain("romanceExcluded");
+
+    // Close family is excluded
     const family = { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 };
     expect(getRelationshipCompatibility(a, { ...b, family: { ...family, fatherId: 1 } }).romance).toBe(0);
     expect(
@@ -134,6 +136,92 @@ describe("relationship compatibility", () => {
         { ...b, family: { ...family, motherId: 9 } }
       ).romance
     ).toBe(0);
+
+    // Deceased strangers maintain personality compatibility but get marked as deceased
+    const deceasedStranger = getRelationshipCompatibility(a, { ...b, dead: true });
+    expect(deceasedStranger.romance).toBeGreaterThan(0);
+    expect(deceasedStranger.reasons).toContain("deceased");
+
+    // Deceased partners (married or recorded favor) get marked with bereavedLove
+    const marriedA = { ...a, family: { ...family, spouseIds: [2] } };
+    const bereavedMatch = getRelationshipCompatibility(marriedA, { ...b, dead: true });
+    expect(bereavedMatch.romance).toBeGreaterThan(0);
+    expect(bereavedMatch.reasons).toContain("bereavedLove");
+  });
+
+  it("protects minors under 15 years old by setting romance to zero", () => {
+    const adult = { ...person(1, passionate), age: 30 };
+    const child = { ...person(2, passionate, "female"), age: 12 };
+    const result = getRelationshipCompatibility(adult, child);
+    expect(result.romance).toBe(0);
+    expect(result.reasons).toContain("underageProtection");
+    expect(result.friendship).toBeGreaterThan(0);
+  });
+
+  it("applies orderly generational harmony or gap concerns for norm-abiding characters", () => {
+    const knight = { ...person(1, { honor: 80, piety: 80 }), age: 30 };
+    const peer = { ...person(2, { honor: 80, piety: 80 }, "female"), age: 28 };
+    const elderPeer = { ...person(3, { honor: 80, piety: 80 }, "female"), age: 55 };
+
+    const peerMatch = getRelationshipCompatibility(knight, peer);
+    expect(peerMatch.reasons).toContain("orderlyGenerations");
+
+    const elderMatch = getRelationshipCompatibility(knight, elderPeer);
+    expect(elderMatch.reasons).toContain("generationGapConcern");
+    expect(elderMatch.friction).toBeGreaterThan(peerMatch.friction);
+  });
+
+  it("reflects scandalous lecherous pursuits and mature affections across age gaps", () => {
+    const lecherousElder = {
+      ...person(1, { honor: 20, piety: 20, boldness: 80, greed: 80 }),
+      age: 55
+    };
+    const youngAdult = {
+      ...person(2, { honor: 50 }, "female"),
+      age: 19
+    };
+    const lecheryResult = getRelationshipCompatibility(lecherousElder, youngAdult);
+    expect(lecheryResult.reasons).toContain("lecherousPursuit");
+    expect(lecheryResult.friction).toBeGreaterThanOrEqual(50);
+
+    const matureAdmirer = {
+      ...person(3, { honor: 25, zeal: 80 }),
+      age: 22
+    };
+    const calmElder = {
+      ...person(4, { compassion: 80, sociability: 20 }, "female"),
+      age: 50
+    };
+    const admirationResult = getRelationshipCompatibility(matureAdmirer, calmElder);
+    expect(admirationResult.reasons).toContain("matureAffection");
+    expect(admirationResult.romance).toBeGreaterThan(35);
+  });
+
+  it("reflects social estate divides across historical periods", () => {
+    const royal = {
+      ...person(1, passionate),
+      origin: {
+        socialStratum: "royal",
+        estateStatus: "reigning_dynasty",
+        birthStateId: 1,
+        raisedIn: "capital_court"
+      } as const
+    };
+    const serf = {
+      ...person(2, passionate, "female"),
+      origin: { socialStratum: "commoner", estateStatus: "serf", birthStateId: 1, raisedIn: "rural_manor" } as const
+    };
+
+    // Medieval period: strict class barrier
+    const medieval = getRelationshipCompatibility(royal, serf, { historicalPeriod: "highMedieval" });
+    expect(medieval.reasons).toContain("classDivideMedieval");
+    expect(medieval.romance).toBeLessThanOrEqual(25);
+    expect(medieval.friction).toBeGreaterThanOrEqual(50);
+
+    // Modern period: class barriers soften
+    const modern = getRelationshipCompatibility(royal, serf, { historicalPeriod: "preIndustrialEra" });
+    expect(modern.reasons).toContain("classDivideModern");
+    expect(modern.friction).toBeLessThan(medieval.friction);
   });
 
   it("respects the existing world's cross-race barrier without confusing it with poor friendship", () => {

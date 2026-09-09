@@ -118,6 +118,7 @@
     "noRoute": "No charted route connects these settlements."
   },
   "characters": {
+    "dead": "Deceased",
     "compatibility": {
       "subject": "Subject character",
       "subjectSearch": "Filter subjects by name",
@@ -134,6 +135,7 @@
       "outlook": "Prospect",
       "reasonsLabel": "Reasons",
       "conditional": "Romance depends on attraction",
+      "deceased": "Deceased",
       "empty": "No matching characters. Try changing the scope or search.",
       "more": "Show 30 more",
       "social": {
@@ -203,8 +205,19 @@
         "sameGenderFriendship": "Without recorded romantic interest between these same-gender characters, friendship is the initial prospect. Personality does not determine orientation.",
         "recordedInterest": "Recorded interest from at least one same-gender character allows a romantic prospect; it does not establish reciprocity.",
         "differentGenderPossibility": "Different genders alone add no romantic bonus; the type pairing shapes the prospect.",
-        "differentRaceNorms": "This world places social barriers on cross-race romance, beyond personality compatibility.",
-        "romanceExcluded": "Self, deceased people and close relatives are not treated as future romantic prospects.",
+        "romanceExcluded": "Self and close relatives are not treated as romantic prospects.",
+        "underageProtection": "Individuals under 15 years of age are excluded from romantic prospects.",
+        "orderlyGenerations": "A shared generation fosters comfortable harmony and orderly, norm-abiding trust.",
+        "generationGapConcern": "A large generational gap brings friction and strong hesitation regarding romance due to social norms and differing perspectives.",
+        "lecherousPursuit": "An elder's licentious pursuit creates intense friction due to public scandal and discomfort for the pursued.",
+        "matureAffection": "Drawn to the steady presence and mature comfort of an elder, fostering affectionate devotion across years.",
+        "classDivideMedieval": "Rigid medieval social estates impose severe social backlash and barriers against cross-class romance.",
+        "classDivideEarlyModern": "Social standing and family prestige remain entrenched, creating noticeable friction for cross-class relationships.",
+        "classDivideModern": "Modernization has softened class barriers, though lingering pedigree awareness may still spark occasional friction.",
+        "bereavedLove": "Enduring devotion and cherished memory for a departed partner, transcending death.",
+        "deceased": "As a departed soul, no further relationship development can occur.",
+        "balancedHarmonizer": "Both seek balance and conciliation, fostering gentle company with very little friction.",
+        "measuredSteadiness": "Both advance with measured patience, allowing a calm, enduring bond to form without haste.",
         "situationalFit": "No strong type match or clash stands out; contact and shared experience will matter."
       }
     },

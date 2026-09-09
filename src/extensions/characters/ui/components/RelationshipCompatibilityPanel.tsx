@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Culture } from "../../../../types/models";
 import { canHaveDirectSolidarity } from "../../backstoryProfile";
+import { getWorldContext, hasCharactersContext } from "../../charactersContext";
 import type { Character } from "../../characterTypes";
 import { getCompatibilityProfile, getRelationshipCompatibility } from "../../relationshipCompatibility";
 
@@ -21,39 +22,68 @@ export function RelationshipCompatibilityPanel({
   const [scope, setScope] = useState("contacts");
   const [sort, setSort] = useState<"friendship" | "romance" | "friction">("friendship");
   const [limit, setLimit] = useState(30);
-  const cultureById = new Map(cultures.map(culture => [culture.i, culture]));
-  const contextFor = (person: Character) => ({
-    appearance: person.appearance,
-    norms: cultureById.get(person.culture)?.romanceNorms
-  });
-  const profile = getCompatibilityProfile(character.personality, contextFor(character));
+
+  const cultureById = useMemo(() => new Map(cultures.map(culture => [culture.i, culture])), [cultures]);
+  const historicalPeriod = hasCharactersContext() ? getWorldContext().options?.historicalPeriod : undefined;
+
+  const contextFor = useCallback(
+    (person: Character) => ({
+      appearance: person.appearance,
+      norms: cultureById.get(person.culture)?.romanceNorms,
+      historicalPeriod
+    }),
+    [cultureById, historicalPeriod]
+  );
+
+  const profile = useMemo(
+    () => getCompatibilityProfile(character.personality, contextFor(character)),
+    [character, contextFor]
+  );
   const profileLabel = (p: typeof profile) =>
     `${t(`characters.compatibility.social.${p.social}`)} / ${t(`characters.compatibility.romantic.${p.romantic}`)}`;
-  const candidates = characters.filter(other => {
-    if (other.i === character.i || other.dead || !other.personality) return false;
-    if (query && !other.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) return false;
-    return (
-      scope === "all" ||
-      character.solidarity?.[other.i] !== undefined ||
-      character.favor?.[other.i] !== undefined ||
-      other.solidarity?.[character.i] !== undefined ||
-      other.favor?.[character.i] !== undefined ||
-      (character.location !== undefined && character.location > 0 && character.location === other.location) ||
-      canHaveDirectSolidarity(character, other)
-    );
-  });
-  const resolvedRace = (person: Character) => person.race ?? cultureById.get(person.culture)?.race;
-  const matches = candidates
-    .map(other => ({
-      other,
-      match: getRelationshipCompatibility(
-        { ...character, race: resolvedRace(character) },
-        { ...other, race: resolvedRace(other) },
-        contextFor(character),
-        contextFor(other)
-      )
-    }))
-    .sort((a, b) => b.match[sort] - a.match[sort] || a.other.i - b.other.i);
+
+  const resolvedRace = useCallback(
+    (person: Character) => person.race ?? cultureById.get(person.culture)?.race,
+    [cultureById]
+  );
+
+  const matches = useMemo(() => {
+    const candidates = characters.filter(other => {
+      if (other.i === character.i || !other.personality) return false;
+      if (query && !other.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) return false;
+
+      const isSpouseOrTied =
+        character.family?.spouseIds?.includes(other.i) ||
+        other.family?.spouseIds?.includes(character.i) ||
+        character.favor?.[other.i] !== undefined ||
+        character.solidarity?.[other.i] !== undefined ||
+        other.favor?.[character.i] !== undefined ||
+        other.solidarity?.[character.i] !== undefined;
+
+      // Allow deceased partners/ties, but skip unconnected deceased strangers
+      if (other.dead && !isSpouseOrTied) return false;
+
+      return (
+        scope === "all" ||
+        isSpouseOrTied ||
+        (character.location !== undefined && character.location > 0 && character.location === other.location) ||
+        canHaveDirectSolidarity(character, other)
+      );
+    });
+
+    return candidates
+      .map(other => ({
+        other,
+        match: getRelationshipCompatibility(
+          { ...character, race: resolvedRace(character) },
+          { ...other, race: resolvedRace(other) },
+          contextFor(character),
+          contextFor(other)
+        )
+      }))
+      .sort((a, b) => b.match[sort] - a.match[sort] || a.other.i - b.other.i);
+  }, [character, characters, contextFor, query, resolvedRace, scope, sort]);
+
   const strength = (score: number) =>
     t(`characters.compatibility.strength.${score >= 60 ? "high" : score >= 35 ? "moderate" : "low"}`);
 
@@ -129,6 +159,9 @@ export function RelationshipCompatibilityPanel({
                     <button type="button" onClick={() => onOpenCharacter(other.i)}>
                       {other.name}
                     </button>
+                    {other.dead && (
+                      <small style={{ opacity: 0.7, marginLeft: "4px" }}>({t("characters.dead", "Deceased")})</small>
+                    )}
                   </td>
                   <td>{profileLabel(match.to)}</td>
                   <td>
@@ -143,8 +176,8 @@ export function RelationshipCompatibilityPanel({
                     </details>
                   </td>
                   {(["friendship", "romance", "friction"] as const).map(axis => (
-                    <td key={axis}>
-                      {strength(match[axis])}
+                    <td key={axis} title={`${match[axis]} / 100`}>
+                      {strength(match[axis])} <small>({match[axis]})</small>
                       {axis === "romance" && match.romanceConditional && (
                         <small style={{ display: "block" }}>{t("characters.compatibility.conditional")}</small>
                       )}
