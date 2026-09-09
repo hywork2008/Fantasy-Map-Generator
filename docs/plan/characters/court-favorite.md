@@ -14,7 +14,7 @@
 
 | id | 条件 | 日本語 | 英語 |
 | :--- | :--- | :--- | :--- |
-| `foolish_king` | 君主。合理性 ≤35、かつ統治能力 ≤42 または Intrigue ≤35 | 愚王 | the Fool |
+| `foolish_king` | 君主。合理性 ≤35、統治能力 ≤40、Intrigue ≤40、Martial ≤45（全能力が低水準な無能君主） | 愚王 | the Fool |
 | `tyrant_king` | 君主。Compassion ≤20、Honor ≤45、かつ以下のいずれか：<br>1. 唯我独尊・覇道型（Boldness ≥70 かつ Confidence ≥70 かつ Vengefulness ≥55）<br>2. 苛烈な報復型（Vengefulness ≥75 かつ Boldness ≥45 かつ（Boldness ≥60 または Confidence ≥60））<br>3. 強欲と苛政型（Honor ≤30 かつ Greed ≥70 かつ（Vengefulness ≥50 または Boldness ≥50））<br>4. 猜疑と粛清型（Vengefulness ≥70 かつ Guile ≥65 かつ Sociability ≤45）<br>5. 狂信的弾圧型（Zeal ≥75 かつ Piety ≥65 かつ Vengefulness ≥50） | 暴君 | the Tyrant |
 | `wise_king` | 君主。合理性 ≥70、統治能力 ≥65、Intrigue ≥50 | 賢王 | the Wise |
 | `sycophant` | 愚王、またはだまされやすい暴君の宮廷で選ばれた佞臣、最大1人 | 佞臣 | the Sycophant |

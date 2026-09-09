@@ -280,30 +280,4 @@ describe("seedOccupationEpithets", () => {
     seedOccupationEpithets([apprentice]);
     expect(apprentice.epithets?.some(e => e.id === "prodigy")).toBe(true);
   });
-
-  it("assigns blundering_schemer when guile outstrips intrigue with boldness or zeal", () => {
-    const boldBlunderer = character({
-      i: 10,
-      titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }],
-      skills: { ...character().skills, intrigue: 25, diplomacy: 40 },
-      personality: { ...character().personality, guile: 75, boldness: 70, energy: 60 }
-    });
-    const zealousBlunderer = character({
-      i: 11,
-      titles: [{ title: "Minister of War", landed: false, entityType: "state", entityId: 1 }],
-      skills: { ...character().skills, intrigue: 20, diplomacy: 40 },
-      personality: { ...character().personality, guile: 75, zeal: 75, energy: 60 }
-    });
-    const competentSchemer = character({
-      i: 12,
-      titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }],
-      skills: { ...character().skills, intrigue: 80, diplomacy: 40 },
-      personality: { ...character().personality, guile: 75, boldness: 70, energy: 60 }
-    });
-
-    seedOccupationEpithets([boldBlunderer, zealousBlunderer, competentSchemer]);
-    expect(boldBlunderer.epithets?.some(e => e.id === "blundering_schemer")).toBe(true);
-    expect(zealousBlunderer.epithets?.some(e => e.id === "blundering_schemer")).toBe(true);
-    expect(competentSchemer.epithets?.some(e => e.id === "blundering_schemer")).toBeFalsy();
-  });
 });

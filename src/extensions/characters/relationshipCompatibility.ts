@@ -115,7 +115,6 @@ export function getCompatibilityProfile(
                   "headlongRush",
                   "ruthlessVengeance",
                   "openHostility",
-                  "blunderingSchemer",
                   "capriciousTerror"
                 )
               ? "adventurous"

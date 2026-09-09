@@ -42,8 +42,7 @@ export type OccupationEpithetId =
   | "prodigy"
   | "magnate"
   | "unscrupulous_merchant"
-  | "able_minister"
-  | "blundering_schemer";
+  | "able_minister";
 
 export interface CharacterEpithet {
   lineage: Exclude<EpithetLineage, "court" | "war_conduct">;

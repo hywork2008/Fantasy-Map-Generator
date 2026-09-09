@@ -47,12 +47,19 @@ function isMinisterLike(character: Character): boolean {
   return MINISTER_ROLES.has(inferRoleClass(character));
 }
 
-/** Low judgment, and either poor governance or inability to read a plot. */
+/**
+ * 愚王・暗君: 全体的な統治能力・判断力・軍事・謀略が低水準な無能君主。
+ * いずれかの分野で人並み以上の才覚を発揮している君主は愚君にしない。
+ */
 export function isFoolishSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
   const p = character.personality;
+  const s = character.skills;
   if (p.rationality > 35) return false;
-  return governingCompetence(character) <= 42 || character.skills.intrigue <= 35;
+  if (governingCompetence(character) > 40) return false;
+  if (s.intrigue > 40) return false;
+  if (s.martial > 45) return false;
+  return true;
 }
 
 /** High judgment, competent at the desk, and not blind to intrigue. */
@@ -66,6 +73,7 @@ export function isWiseSovereign(character: Character): boolean {
 export function isGullibleSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
   if (isWiseSovereign(character)) return false;
+  if (governingCompetence(character) > 55) return false;
   const p = character.personality;
   return p.rationality <= 40 && (character.skills.intrigue <= 45 || governingCompetence(character) <= 45);
 }

@@ -72,19 +72,6 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
     { key: "minimalEffort", when: p => p.veryLow("energy") }
   ],
   social: [
-    {
-      key: "blunderingSchemer",
-      when: (p, ctx) => {
-        if (!p.high("guile")) return false;
-        const blunderDrive =
-          p.high("boldness") || p.high("zeal") || p.high("confidence") || p.high("energy") || p.low("rationality");
-        if (!blunderDrive) return false;
-        if (ctx?.skills) {
-          return ctx.skills.intrigue <= 40;
-        }
-        return p.veryLow("rationality");
-      }
-    },
     { key: "ruthlessDominance", when: p => p.low("compassion") && p.high("boldness") },
     { key: "coldCalculation", when: p => p.low("compassion") && p.high("guile") },
     { key: "discreetCompassion", when: p => p.veryHigh("compassion") && p.high("guile") },

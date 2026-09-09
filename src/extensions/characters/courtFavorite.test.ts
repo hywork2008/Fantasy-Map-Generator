@@ -7,6 +7,7 @@ import {
   characterPublicEpithetId,
   chooseRulerEpithet,
   FAVORITE_TO_RULER_MIN,
+  isBenevolentSovereign,
   isCourtierDeceiver,
   isFoolishSovereign,
   isTyrantSovereign,
@@ -339,6 +340,40 @@ describe("ruler epithets", () => {
     expect(isFoolishSovereign(cruelFool)).toBe(true);
     expect(isTyrantSovereign(cruelFool)).toBe(true);
     expect(chooseRulerEpithet(cruelFool)).toBe("foolish_king");
+  });
+
+  it("does not brand competent governors like Eurryroe as the Fool", () => {
+    const eurryroe = character({
+      skills: {
+        artistry: 86,
+        diplomacy: 61,
+        engineering: 83,
+        geography: 66,
+        intrigue: 22,
+        learning: 67,
+        martial: 66,
+        prowess: 24,
+        stewardship: 100
+      },
+      personality: {
+        boldness: 55,
+        compassion: 89,
+        confidence: 79,
+        energy: 45,
+        greed: 5,
+        guile: 91,
+        honor: 26,
+        piety: 89,
+        rationality: 23,
+        sociability: 31,
+        vengefulness: 1,
+        zeal: 83
+      }
+    });
+    expect(isFoolishSovereign(eurryroe)).toBe(false);
+    expect(isTyrantSovereign(eurryroe)).toBe(false);
+    expect(isBenevolentSovereign(eurryroe)).toBe(true);
+    expect(chooseRulerEpithet(eurryroe)).toBe("benevolent_king");
   });
 
   it("does not treat a martial specialist as wise from prowess alone", () => {

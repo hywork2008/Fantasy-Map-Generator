@@ -178,17 +178,7 @@ export function eligibilityFor(character: Character, lineage: EpithetLineage): E
   }
   if (lineage === "office") {
     const office = resolveOfficeKind(character);
-    if (
-      office === "chancellor" ||
-      office === "steward" ||
-      office === "chaplain" ||
-      office === "spymaster" ||
-      office === "marshal" ||
-      office === "central_officer" ||
-      isSovereignRuler(character)
-    ) {
-      return "rare";
-    }
+    if (office === "chancellor" || office === "steward" || office === "chaplain") return "rare";
     return "no";
   }
   return "no";

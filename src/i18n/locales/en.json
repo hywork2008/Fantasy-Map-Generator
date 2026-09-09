@@ -351,7 +351,6 @@
       "defensive": "Never seeks out quarrels of their own accord, yet stands firm when unprovoked trouble arrives. Seeks practical resolution rather than lingering vendettas.",
       "tyrannicalWill": "Treats their own will as paramount, riding roughshod over doubts or objections from others. Carries intense conviction, viewing resistance as mere weakness or impediment.",
       "rationalSkeptic": "Refuses blind obedience to religious or customary dogma, judging affairs by tangible evidence and reason. Values demonstrable facts above vows of faith.",
-      "blunderingSchemer": "Tends to plot in secret yet lacks the cunning to cover their tracks, leaving schemes transparent to all. Launching clumsy ploys with great zeal or daring, they frequently invite disbelief and bemusement.",
       "capriciousTerror": "Rules through volatile impulses and sudden fury, keeping subjects paralyzed under unpredictable terror. Prone to explosive rages, dispensing extreme punishments over trivial displeasure.",
       "paranoidPurger": "Suspects treachery behind every whisper, meeting any perceived defiance or doubt with preemptive, ruthless purges. Never genuinely trusts even the most faithful of servants.",
       "zealousInquisitor": "Elevates dogma into unquestioned law, treating dissenters and nonbelievers as evils deserving of unsparing suppression. Knows no hesitation when inflicting severe retribution in the name of piety or righteous cause."
@@ -624,7 +623,6 @@
         "magnate": "Coin moves when this name is spoken.",
         "unscrupulous_merchant": "Farmed taxes and dear credit taught the city this name.",
         "able_minister": "Ledgers and envoys both answer to this one.",
-        "blundering_schemer": "Called {{epithet}}: ever spinning plots that unravel at the seams, drawing rueful smiles from the court.",
         "default": "Known as {{epithet}}."
       }
     },
@@ -645,8 +643,7 @@
       "prodigy": "the Prodigy",
       "magnate": "the Magnate",
       "unscrupulous_merchant": "the Profiteer",
-      "able_minister": "the Able",
-      "blundering_schemer": "the Blundering Schemer"
+      "able_minister": "the Able"
     },
     "epithetStems": {
       "wise_king": {
