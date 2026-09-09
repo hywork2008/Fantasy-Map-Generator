@@ -233,6 +233,30 @@ describe("ruler epithets", () => {
     expect(chooseRulerEpithet(schemer)).not.toBe("tyrant_king");
   });
 
+  it("does not call an honorable or timid vengeful ruler a tyrant", () => {
+    const honorableRuler = character({
+      personality: { ...character().personality, compassion: 20, vengefulness: 80, honor: 75 }
+    });
+    expect(isTyrantSovereign(honorableRuler)).toBe(false);
+
+    const timidVengeful = character({
+      personality: { ...character().personality, compassion: 20, vengefulness: 80, honor: 20, boldness: 20 }
+    });
+    expect(isTyrantSovereign(timidVengeful)).toBe(false);
+
+    const passiveGreedy = character({
+      personality: {
+        ...character().personality,
+        compassion: 20,
+        honor: 20,
+        greed: 80,
+        vengefulness: 20,
+        boldness: 20
+      }
+    });
+    expect(isTyrantSovereign(passiveGreedy)).toBe(false);
+  });
+
   it("keeps an incompetent sovereign the Fool rather than the Tyrant", () => {
     const cruelFool = fool({
       personality: { ...fool().personality, compassion: 15, vengefulness: 80, honor: 20, greed: 80 }

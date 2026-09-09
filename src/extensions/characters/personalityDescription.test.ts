@@ -50,10 +50,29 @@ describe("personality descriptions", () => {
 
   it("prioritizes specific combinations over isolated extremes", () => {
     expect(describePerson({ boldness: 90, rationality: 90 })[0]).toBe("audaciousCalculation");
+    expect(describePerson({ boldness: 90, energy: 90, rationality: 20 })[0]).toBe("headlongRush");
     expect(describePerson({ compassion: 90, guile: 90 })[1]).toBe("discreetCompassion");
+    expect(describePerson({ compassion: 20, boldness: 90 })[1]).toBe("ruthlessDominance");
     expect(describePerson({ greed: 90, honor: 90 })[2]).toBe("unyieldingFairShare");
-    expect(describePerson({ zeal: 90, confidence: 10 })[3]).toBe("doggedDoubt");
+    expect(describePerson({ greed: 90, honor: 20, compassion: 20 })[2]).toBe("predatoryGreed");
     expect(describePerson({ vengefulness: 90, guile: 90 })[3]).toBe("patientRetribution");
+    expect(describePerson({ vengefulness: 90, boldness: 90, compassion: 20 })[3]).toBe("ruthlessVengeance");
+    expect(describePerson({ zeal: 90, confidence: 10 })[4]).toBe("doggedDoubt");
+    expect(describePerson({ confidence: 90, compassion: 20 })[4]).toBe("tyrannicalWill");
+  });
+
+  it("characterizes tyrannical personalities with appropriately ruthless descriptions", () => {
+    const tyrant = describePerson({
+      compassion: 18,
+      vengefulness: 85,
+      boldness: 75,
+      greed: 75,
+      honor: 25,
+      confidence: 80
+    });
+    expect(tyrant[1]).toBe("ruthlessDominance");
+    expect(tyrant[2]).toBe("predatoryGreed");
+    expect(tyrant[3]).toBe("ruthlessVengeance");
   });
 
   it("gives both extremes of every trait a distinct description", () => {
@@ -64,7 +83,13 @@ describe("personality descriptions", () => {
   });
 
   it("explains moderate personalities in concrete situational terms", () => {
-    expect(describePerson({})).toEqual(["measured", "socialMeasured", "negotiator", "selectiveCommitment"]);
+    expect(describePerson({})).toEqual([
+      "measured",
+      "socialMeasured",
+      "negotiator",
+      "defensive",
+      "selectiveCommitment"
+    ]);
   });
 
   it("distinguishes sudden impulses from reserved willingness to take risks", () => {
@@ -76,7 +101,7 @@ describe("personality descriptions", () => {
   it("preserves tensions between traits instead of equating them", () => {
     expect(describePerson({ sociability: 20, compassion: 80 })[1]).toBe("quietCare");
     expect(describePerson({ greed: 80, honor: 80 })[2]).toBe("principledAmbition");
-    expect(describePerson({ zeal: 80, confidence: 20 })[3]).toBe("uncertainCommitment");
+    expect(describePerson({ zeal: 80, confidence: 20 })[4]).toBe("uncertainCommitment");
     expect(describePerson({ energy: 80, boldness: 20 })[0]).toBe("busyCautious");
   });
 
@@ -84,7 +109,7 @@ describe("personality descriptions", () => {
     expect(describePerson({ confidence: undefined, energy: Number.NaN })).toEqual(describePerson({}));
   });
 
-  it("returns four distinct translated sentences consistently without mutating input", () => {
+  it("returns five distinct translated sentences consistently without mutating input", () => {
     // Exhaust all triples across five bands, keeping other traits neutral.
     // Covers ordered combination rules without enumerating 5 ** 12 personalities.
     const fields = Object.keys(neutral) as (keyof CharacterPersonality)[];
@@ -97,7 +122,7 @@ describe("personality descriptions", () => {
               for (const third of [10, 25, 50, 75, 90]) {
                 const personality = { ...neutral, [fields[a]]: first, [fields[b]]: second, [fields[c]]: third };
                 const keys = getPersonalityDescriptionKeys(personality);
-                expect(new Set(keys).size).toBe(4);
+                expect(new Set(keys).size).toBe(5);
                 for (const key of keys) seen.add(key.split(".").at(-1)!);
               }
             }
@@ -113,6 +138,6 @@ describe("personality descriptions", () => {
     expect([...seen].sort()).toEqual(Object.keys(en.characters.personalityDescription).sort());
     const frozen = Object.freeze({ ...neutral });
     expect(getPersonalityDescriptionKeys(frozen)).toEqual(getPersonalityDescriptionKeys(frozen));
-    expect(new Set(getPersonalityDescriptionKeys(frozen)).size).toBe(4);
+    expect(new Set(getPersonalityDescriptionKeys(frozen)).size).toBe(5);
   });
 });

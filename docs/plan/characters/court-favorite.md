@@ -15,7 +15,7 @@
 | id | 条件 | 日本語 | 英語 |
 | :--- | :--- | :--- | :--- |
 | `foolish_king` | 君主。合理性 ≤35、かつ統治能力 ≤42 または Intrigue ≤35 | 愚王 | the Fool |
-| `tyrant_king` | 君主。Compassion ≤30、かつ Vengefulness ≥70 または（Honor ≤35 かつ Greed ≥65）。Guile は使わない | 暴君 | the Tyrant |
+| `tyrant_king` | 君主。Compassion ≤30、Honor ≤60、かつ（Vengefulness ≥70 かつ Boldness ≥35）または（Honor ≤35 かつ Greed ≥65 かつ（Vengefulness ≥50 または Boldness ≥50））。Guile は使わない | 暴君 | the Tyrant |
 | `wise_king` | 君主。合理性 ≥70、統治能力 ≥65、Intrigue ≥50 | 賢王 | the Wise |
 | `sycophant` | 愚王、またはだまされやすい暴君の宮廷で選ばれた佞臣、最大1人 | 佞臣 | the Sycophant |
 

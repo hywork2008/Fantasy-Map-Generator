@@ -88,12 +88,16 @@ export function isCourtierDeceiver(character: Character): boolean {
 /**
  * 暴君: publicly cruel, not merely indirect or unsociable.
  * Compassion/Honor vs Greed/Vengefulness — Guile is not a moral score.
+ * Requires sufficient boldness or energy so inactive/timid or overly honorable characters are not branded tyrants.
  */
 export function isTyrantSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
   const p = character.personality;
   if (p.compassion > 30) return false;
-  return p.vengefulness >= 70 || (p.honor <= 35 && p.greed >= 65);
+  if (p.honor > 60) return false;
+  const ruthlessRetaliation = p.vengefulness >= 70 && p.boldness >= 35;
+  const tyrannicalGreed = p.honor <= 35 && p.greed >= 65 && (p.vengefulness >= 50 || p.boldness >= 50);
+  return ruthlessRetaliation || tyrannicalGreed;
 }
 
 export function isBenevolentSovereign(character: Character): boolean {

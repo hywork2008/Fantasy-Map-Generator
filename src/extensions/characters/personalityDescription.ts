@@ -35,7 +35,7 @@ interface DescriptionRule {
   key: string;
   when: (profile: PersonalityProfile) => boolean;
 }
-type DescriptionAspect = "action" | "social" | "interests" | "conflict";
+export type DescriptionAspect = "action" | "social" | "morality" | "conflict" | "conviction";
 
 /** Ordered within each aspect: specific combinations precede single-trait extremes.
  * Additional contexts (such as skills) can extend rule predicates without changing the UI.
@@ -51,8 +51,10 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
         p.low("rationality") &&
         (p.veryLow("energy") || p.veryHigh("boldness") || p.veryLow("rationality"))
     },
+    { key: "headlongRush", when: p => p.high("boldness") && p.high("energy") && p.low("rationality") },
     { key: "rareDaring", when: p => p.veryLow("energy") && p.high("boldness") },
     { key: "relentlessPreparation", when: p => p.veryHigh("energy") && p.low("boldness") },
+    { key: "deliberateMethod", when: p => p.low("boldness") && p.high("rationality") },
     { key: "audaciousCalculation", when: p => p.veryHigh("boldness") && p.high("rationality") },
     { key: "rigorousReasoning", when: p => p.veryHigh("rationality") },
     { key: "emotionLed", when: p => p.veryLow("rationality") },
@@ -62,6 +64,8 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
     { key: "minimalEffort", when: p => p.veryLow("energy") }
   ],
   social: [
+    { key: "ruthlessDominance", when: p => p.low("compassion") && p.high("boldness") },
+    { key: "coldCalculation", when: p => p.low("compassion") && p.high("guile") },
     { key: "discreetCompassion", when: p => p.veryHigh("compassion") && p.high("guile") },
     { key: "shelteredCompassion", when: p => p.veryLow("sociability") && p.high("compassion") },
     { key: "socialMask", when: p => p.veryHigh("guile") && p.high("sociability") },
@@ -72,7 +76,11 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
     { key: "seeksCompany", when: p => p.veryHigh("sociability") },
     { key: "solitary", when: p => p.veryLow("sociability") }
   ],
-  interests: [
+  morality: [
+    {
+      key: "predatoryGreed",
+      when: p => p.high("greed") && p.low("honor") && p.low("compassion")
+    },
     {
       key: "unyieldingFairShare",
       when: p => p.high("greed") && p.high("honor") && (p.veryHigh("greed") || p.veryHigh("honor"))
@@ -81,14 +89,33 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
       key: "profitBeforePromises",
       when: p => p.high("greed") && p.low("honor") && (p.veryHigh("greed") || p.veryLow("honor"))
     },
+    {
+      key: "nobleChivalry",
+      when: p => p.high("honor") && p.low("greed") && (p.veryHigh("honor") || p.veryLow("greed"))
+    },
     { key: "insatiable", when: p => p.veryHigh("greed") },
     { key: "uncompromisingHonor", when: p => p.veryHigh("honor") },
     { key: "indifferentToGain", when: p => p.veryLow("greed") },
     { key: "discardedPromises", when: p => p.veryLow("honor") }
   ],
   conflict: [
+    {
+      key: "ruthlessVengeance",
+      when: p => p.high("vengefulness") && p.high("boldness") && p.low("compassion")
+    },
     { key: "patientRetribution", when: p => p.veryHigh("vengefulness") && p.high("guile") },
+    {
+      key: "openHostility",
+      when: p => p.high("vengefulness") && p.low("guile") && (p.veryHigh("vengefulness") || p.veryLow("guile"))
+    },
     { key: "consumingGrudge", when: p => p.veryHigh("vengefulness") },
+    { key: "noRetaliation", when: p => p.veryLow("vengefulness") }
+  ],
+  conviction: [
+    {
+      key: "tyrannicalWill",
+      when: p => p.high("confidence") && p.low("compassion") && (p.veryHigh("confidence") || p.veryLow("compassion"))
+    },
     {
       key: "unyieldingDevotion",
       when: p => p.high("piety") && p.high("zeal") && (p.veryHigh("piety") || p.veryHigh("zeal"))
@@ -99,7 +126,6 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
     },
     { key: "allConsumingCommitment", when: p => p.veryHigh("zeal") },
     { key: "quickDisengagement", when: p => p.veryLow("zeal") },
-    { key: "noRetaliation", when: p => p.veryLow("vengefulness") },
     { key: "unyieldingConfidence", when: p => p.veryHigh("confidence") },
     { key: "persistentDoubt", when: p => p.veryLow("confidence") },
     { key: "faithFirst", when: p => p.veryHigh("piety") },
@@ -135,23 +161,23 @@ export function getPersonalityDescriptionKeys(personality: CharacterPersonality)
               ? "unhurried"
               : "measured";
 
-  const social = high("guile")
-    ? high("sociability")
-      ? "socialIndirect"
-      : "privateIndirect"
-    : high("compassion")
-      ? low("sociability")
-        ? "quietCare"
-        : "helpful"
-      : low("compassion")
-        ? "detached"
+  const social = high("compassion")
+    ? low("sociability")
+      ? "quietCare"
+      : "helpful"
+    : low("compassion")
+      ? "detached"
+      : high("guile")
+        ? high("sociability")
+          ? "socialIndirect"
+          : "privateIndirect"
         : high("sociability")
           ? "sociable"
           : low("sociability")
             ? "private"
             : "socialMeasured";
 
-  const interests = high("greed")
+  const morality = high("greed")
     ? high("honor")
       ? "principledAmbition"
       : low("honor")
@@ -169,25 +195,29 @@ export function getPersonalityDescriptionKeys(personality: CharacterPersonality)
     ? high("guile")
       ? "hiddenGrudge"
       : "grudge"
-    : high("zeal")
-      ? high("piety")
-        ? "devoutCommitment"
-        : low("confidence")
-          ? "uncertainCommitment"
-          : "committed"
-      : low("vengefulness")
-        ? "forgiving"
-        : low("confidence")
-          ? "seeksReassurance"
-          : high("confidence")
-            ? "selfAssured"
-            : high("piety")
-              ? "devout"
-              : low("zeal")
-                ? "pragmaticEffort"
-                : "selectiveCommitment";
+    : low("vengefulness")
+      ? "forgiving"
+      : "defensive";
 
-  const fallback: Record<DescriptionAspect, string> = { action, social, interests, conflict };
+  const conviction = high("zeal")
+    ? high("piety")
+      ? "devoutCommitment"
+      : low("confidence")
+        ? "uncertainCommitment"
+        : "committed"
+    : low("confidence")
+      ? "seeksReassurance"
+      : high("confidence")
+        ? "selfAssured"
+        : high("piety")
+          ? "devout"
+          : low("piety") && high("rationality")
+            ? "rationalSkeptic"
+            : low("zeal")
+              ? "pragmaticEffort"
+              : "selectiveCommitment";
+
+  const fallback: Record<DescriptionAspect, string> = { action, social, morality, conflict, conviction };
   return (Object.keys(fallback) as DescriptionAspect[]).map(aspect => {
     const key = extremeRules[aspect].find(rule => rule.when(profile))?.key ?? fallback[aspect];
     return `characters.personalityDescription.${key}`;

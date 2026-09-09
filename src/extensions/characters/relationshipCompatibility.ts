@@ -73,13 +73,28 @@ export function getCompatibilityProfile(
     "discreetCompassion"
   )
     ? "caring"
-    : has("uncompromisingHonor", "honorable", "principledAmbition", "unyieldingFairShare")
+    : has("uncompromisingHonor", "honorable", "principledAmbition", "unyieldingFairShare", "nobleChivalry")
       ? "principled"
-      : has("rigorousReasoning", "calculatedRisk", "audaciousCalculation", "reasonedAffection")
+      : has(
+            "rigorousReasoning",
+            "calculatedRisk",
+            "audaciousCalculation",
+            "reasonedAffection",
+            "deliberateMethod",
+            "rationalSkeptic"
+          )
         ? "analytical"
-        : has("socialMask", "guardedIntentions", "socialIndirect", "privateIndirect", "guardedAffection")
+        : has(
+              "socialMask",
+              "guardedIntentions",
+              "socialIndirect",
+              "privateIndirect",
+              "guardedAffection",
+              "coldCalculation",
+              "ruthlessDominance"
+            )
           ? "guarded"
-          : has("insatiable", "opportunist", "bargainer", "profitBeforePromises")
+          : has("insatiable", "opportunist", "bargainer", "profitBeforePromises", "predatoryGreed", "tyrannicalWill")
             ? "ambitious"
             : has(
                   "impulsive",
@@ -88,7 +103,10 @@ export function getCompatibilityProfile(
                   "daring",
                   "riskSeeking",
                   "romanticRush",
-                  "ardentPursuit"
+                  "ardentPursuit",
+                  "headlongRush",
+                  "ruthlessVengeance",
+                  "openHostility"
                 )
               ? "adventurous"
               : has(
