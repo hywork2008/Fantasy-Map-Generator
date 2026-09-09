@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-09
+
+- docs/plan/data/races.md - 種族データCSVのimport/export手順
+
 2026-09-08
 
 - docs/plan/characters/relationship-compatibility.md

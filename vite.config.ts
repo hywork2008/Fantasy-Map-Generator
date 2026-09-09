@@ -1,3 +1,4 @@
+import { compileRaceCatalog, raceCsvPath } from "./scripts/lib/raceCatalog";
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -14,6 +15,22 @@ export default defineConfig({
     },
     publicDir: '../public',
     plugins: [
+        {
+            name: 'race-csv-catalog',
+            buildStart() { compileRaceCatalog(); },
+            configureServer(server) {
+                server.watcher.add(raceCsvPath);
+                server.watcher.on('change', file => {
+                    if (file !== raceCsvPath) return;
+                    try { compileRaceCatalog(); }
+                    catch (error) {
+                        const message = String(error);
+                        server.config.logger.error(message);
+                        server.ws.send({ type: 'error', err: { message, stack: '' } });
+                    }
+                });
+            }
+        },
         react(),
         VitePWA({
             strategies: 'injectManifest',

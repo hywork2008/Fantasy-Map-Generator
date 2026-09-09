@@ -1,0 +1,16 @@
+id,key,name,hybrid_parent_a,hybrid_parent_b,character_gender,lifespan_years,max_lifespan_years,fertility_start_years,fertility_end_years,interbirth_years,litter_mean,litter_max,looks_stature,looks_build,looks_symmetry,looks_refinement,looks_vitality,looks_ornament,beauty_weight_stature,beauty_weight_build,beauty_weight_symmetry,beauty_weight_refinement,beauty_weight_vitality,beauty_weight_ornament,looks_stature_min,looks_stature_max,looks_build_min,looks_build_max,looks_symmetry_min,looks_symmetry_max,looks_refinement_min,looks_refinement_max,looks_vitality_min,looks_vitality_max,looks_ornament_min,looks_ornament_max,population_capacity_multiplier,furry_scale_min,furry_scale_max,appearance_kind,horn_animals,animals,food_independent,temperature_independent
+0,unknown,Unknown,,,,75,100,16,45,3.5,1.05,3,50,50,50,50,55,45,0.3,0.2,1.2,0.8,0.9,0.2,,,,,,,,,,,,,,,,,,,,
+1,human,Human,,,,75,100,16,45,3.5,1.05,3,50,50,50,50,55,45,0.3,0.2,1.2,0.8,0.9,0.2,,,,,,,,,,,,,,,,,,,,
+2,elf,Elf,,,,750,1000,100,400,120,1,2,55,35,65,75,60,40,0.4,-0.6,1.1,1.4,0.5,0.2,,,,,,,,,,,,,,,,,,,,
+3,dark_elf,Dark Elf,,,,700,950,80,380,100,1,2,50,40,60,70,50,55,0.3,-0.3,1,1.2,0.4,0.7,,,,,,,,,,,,,,,,,,,,
+4,dwarf,Dwarf,,,,350,450,40,160,30,1.05,2,30,70,50,45,60,50,-0.4,1.2,0.7,0.2,0.9,0.6,,,,,,,,,,,,,0.3,,,,,,true,true
+5,goblin,Goblin,,,,50,70,10,35,1.5,2,5,25,40,40,30,50,55,0.2,0.5,0.3,-0.4,1,0.8,,,,,,,,,,,,,,,,,,,,
+6,orc,Orc,,,,60,80,12,40,2.5,1.3,4,65,75,45,30,65,60,1,1.4,0.2,-0.7,0.9,0.8,,,,,,,,,,,,,,,,,,,,
+7,giant,Giant,,,,800,1200,100,450,130,1,2,90,80,45,35,55,40,1.5,1,0.4,-0.3,0.7,0.2,,,,,,,,,,,,,0.1,,,,,,true,true
+8,draconic,Draconic,,,,1200,2000,100,500,160,1,3,70,65,55,50,70,55,0.9,0.7,0.5,0.4,1.2,0.8,,,,,,,,,,,,,,,,,,,,
+9,arachnid,Arachnid,,,,60,100,8,30,1.2,3,8,40,45,35,40,55,70,0.3,0.4,-0.2,0.5,0.8,1.3,,,,,,,,,,,,,,,,,,,,
+10,amazones,Amazones,,,female_only,80,110,16,42,3,1.1,3,55,60,52,50,65,50,0.6,1,0.7,0.4,1.2,0.3,,,,,,,,,,,,,,,,,,,,
+11,wyrmkin,Wyrmkin,,,,55,75,14,40,2.5,1.2,3,38,42,48,42,55,68,-0.2,0.3,0.5,0.4,0.8,1.3,,,,,,,,,,,,,,,,,,,,
+12,demon,Demon,,,,180,3000,24,110,12,1,2,55,58,55,52,68,72,0.5,0.4,0.7,0.2,1,1.3,,,,,,,,,,,,,,,,demon,antelope|bison|buffalo|gazelle|goat|ibex|oryx|ram|yak,,,
+13,beastfolk,Beastfolk,,,,40,60,12,30,2,2.4,4,52,57,50,46,68,65,0.4,0.6,0.3,0.1,1.2,1,,,,,,,,,,,,,,1,10,beastfolk,,bear|cat|cattle|deer|dog|fox|goat|hare|horse|lion|otter|raccoon|tiger|wolf,,
+14,half_elf,Half Elf,human,elf,,,,16,16,3.5,0,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
