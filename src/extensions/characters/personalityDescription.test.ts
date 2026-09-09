@@ -73,6 +73,18 @@ describe("personality descriptions", () => {
     expect(tyrant[1]).toBe("ruthlessDominance");
     expect(tyrant[2]).toBe("predatoryGreed");
     expect(tyrant[3]).toBe("ruthlessVengeance");
+
+    // Capricious Terror (volatile impulse with cruelty)
+    const capricious = describePerson({ boldness: 80, rationality: 25, compassion: 15 });
+    expect(capricious[0]).toBe("capriciousTerror");
+
+    // Paranoid Purger (ruthless intrigue and retribution)
+    const purger = describePerson({ vengefulness: 85, guile: 80, compassion: 15 });
+    expect(purger[3]).toBe("paranoidPurger");
+
+    // Zealous Inquisitor (uncompromising dogma and cruelty)
+    const inquisitor = describePerson({ zeal: 85, piety: 80, compassion: 15 });
+    expect(inquisitor[4]).toBe("zealousInquisitor");
   });
 
   it("describes blundering schemers when guile outstrips intrigue with boldness or zeal", () => {

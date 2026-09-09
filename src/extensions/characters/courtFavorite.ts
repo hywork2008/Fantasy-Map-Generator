@@ -98,12 +98,19 @@ export function isTyrantSovereign(character: Character): boolean {
   // An honorable sovereign or devout moralist is not a tyrant.
   if (p.honor > 45) return false;
 
+  // 1. 唯我独尊・覇道型 (Tyrannical Dominance)
+  const tyrannicalDominance = p.boldness >= 70 && (p.confidence ?? 50) >= 70 && p.vengefulness >= 55;
+  // 2. 苛烈な報復型 (Ruthless Retaliation)
   const ruthlessRetaliation =
     p.vengefulness >= 75 && p.boldness >= 45 && (p.boldness >= 60 || (p.confidence ?? 50) >= 60);
+  // 3. 強欲と苛政型 (Tyrannical Greed)
   const tyrannicalGreed = p.honor <= 30 && p.greed >= 70 && (p.vengefulness >= 50 || p.boldness >= 50);
-  const tyrannicalDominance = p.boldness >= 70 && (p.confidence ?? 50) >= 70 && p.vengefulness >= 55;
+  // 4. 猜疑と粛清型 (Paranoid Purge)
+  const paranoidPurge = p.vengefulness >= 70 && p.guile >= 65 && p.sociability <= 45;
+  // 5. 狂信的弾圧型 (Zealous Inquisitor)
+  const zealousPurge = p.zeal >= 75 && p.piety >= 65 && p.vengefulness >= 50;
 
-  return ruthlessRetaliation || tyrannicalGreed || tyrannicalDominance;
+  return tyrannicalDominance || ruthlessRetaliation || tyrannicalGreed || paranoidPurge || zealousPurge;
 }
 
 export function isBenevolentSovereign(character: Character): boolean {

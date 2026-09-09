@@ -73,7 +73,14 @@ export function getCompatibilityProfile(
     "discreetCompassion"
   )
     ? "caring"
-    : has("uncompromisingHonor", "honorable", "principledAmbition", "unyieldingFairShare", "nobleChivalry")
+    : has(
+          "uncompromisingHonor",
+          "honorable",
+          "principledAmbition",
+          "unyieldingFairShare",
+          "nobleChivalry",
+          "zealousInquisitor"
+        )
       ? "principled"
       : has(
             "rigorousReasoning",
@@ -91,7 +98,8 @@ export function getCompatibilityProfile(
               "privateIndirect",
               "guardedAffection",
               "coldCalculation",
-              "ruthlessDominance"
+              "ruthlessDominance",
+              "paranoidPurger"
             )
           ? "guarded"
           : has("insatiable", "opportunist", "bargainer", "profitBeforePromises", "predatoryGreed", "tyrannicalWill")
@@ -107,7 +115,8 @@ export function getCompatibilityProfile(
                   "headlongRush",
                   "ruthlessVengeance",
                   "openHostility",
-                  "blunderingSchemer"
+                  "blunderingSchemer",
+                  "capriciousTerror"
                 )
               ? "adventurous"
               : has(

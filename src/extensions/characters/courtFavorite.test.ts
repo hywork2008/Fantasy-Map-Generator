@@ -257,6 +257,49 @@ describe("ruler epithets", () => {
     expect(isTyrantSovereign(passiveGreedy)).toBe(false);
   });
 
+  it("identifies paranoid purgers and zealous inquisitors as tyrants", () => {
+    const paranoidPurger = character({
+      personality: {
+        ...character().personality,
+        compassion: 15,
+        honor: 30,
+        vengefulness: 80,
+        guile: 75,
+        sociability: 25,
+        boldness: 35
+      }
+    });
+    expect(isTyrantSovereign(paranoidPurger)).toBe(true);
+    expect(chooseRulerEpithet(paranoidPurger)).toBe("tyrant_king");
+
+    const zealousInquisitor = character({
+      personality: {
+        ...character().personality,
+        compassion: 15,
+        honor: 35,
+        zeal: 85,
+        piety: 80,
+        vengefulness: 65,
+        boldness: 35
+      }
+    });
+    expect(isTyrantSovereign(zealousInquisitor)).toBe(true);
+    expect(chooseRulerEpithet(zealousInquisitor)).toBe("tyrant_king");
+
+    // Devout with normal or high compassion is not an inquisitorial tyrant
+    const devoutMerciful = character({
+      personality: {
+        ...character().personality,
+        compassion: 60,
+        honor: 70,
+        zeal: 85,
+        piety: 80,
+        vengefulness: 65
+      }
+    });
+    expect(isTyrantSovereign(devoutMerciful)).toBe(false);
+  });
+
   it("does not brand moderate or devout sovereigns like Fjolvar as tyrants", () => {
     const fjolvar = character({
       skills: {

@@ -55,6 +55,10 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
         p.low("rationality") &&
         (p.veryLow("energy") || p.veryHigh("boldness") || p.veryLow("rationality"))
     },
+    {
+      key: "capriciousTerror",
+      when: p => p.high("boldness") && p.low("rationality") && p.low("compassion")
+    },
     { key: "headlongRush", when: p => p.high("boldness") && p.high("energy") && p.low("rationality") },
     { key: "rareDaring", when: p => p.veryLow("energy") && p.high("boldness") },
     { key: "relentlessPreparation", when: p => p.veryHigh("energy") && p.low("boldness") },
@@ -120,6 +124,10 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
       key: "ruthlessVengeance",
       when: p => p.high("vengefulness") && p.high("boldness") && p.low("compassion")
     },
+    {
+      key: "paranoidPurger",
+      when: p => p.high("vengefulness") && p.high("guile") && p.low("compassion")
+    },
     { key: "patientRetribution", when: p => p.veryHigh("vengefulness") && p.high("guile") },
     {
       key: "openHostility",
@@ -129,6 +137,10 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
     { key: "noRetaliation", when: p => p.veryLow("vengefulness") }
   ],
   conviction: [
+    {
+      key: "zealousInquisitor",
+      when: p => p.high("zeal") && p.high("piety") && p.low("compassion")
+    },
     {
       key: "tyrannicalWill",
       when: p => p.high("confidence") && p.low("compassion") && (p.veryHigh("confidence") || p.veryLow("compassion"))
