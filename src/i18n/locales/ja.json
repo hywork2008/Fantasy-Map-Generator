@@ -1757,7 +1757,16 @@
     "faunaPopulationModel": "動物個体群モデル",
     "faunaPopulationModelTip": "獣肉と家畜生産の背後にある動物個体群モデルの詳細度です。詳細はセルごとの年次コホート（繁殖、加齢、年齢選択的な間引き、収容力）を回し、無制限のレートではなく実頭数で産出を上限します。簡易はそのモデルを飛ばし、人口上限のない労働／レート式のままです。大きな地図向けの性能オプションです。次の地図生成で適用されます。",
     "faunaDetailed": "詳細（動物個体群モデル）",
-    "faunaSimplified": "簡易（高速）"
+    "faunaSimplified": "簡易（高速）",
+    "sectionRomanceDiversity": "7. キャラクターの恋愛性向・多様化要因",
+    "romanceDiversityUpbringing": "生い立ち",
+    "romanceDiversityUpbringingTip": "育った環境（修道院・宮廷・路地裏など）が恋愛姿勢に影響します。修道院育ちは禁欲的・奥手に、宮廷育ちは奔放・多情に、路地裏育ちは自立・警戒心に傾きます。",
+    "romanceDiversityCommitment": "人生の捧げ先",
+    "romanceDiversityCommitmentTip": "人生の主眼（快楽・家族・信仰など）が恋愛観に反映されます。快楽志向は多情や情熱へ、家族志向は約束重視へ、信仰や規範志向は純潔・貞潔へ傾きます。",
+    "romanceDiversitySkills": "スキル・技能",
+    "romanceDiversitySkillsTip": "感情と駆け引きの技能（芸術性・策謀など）が影響します。芸術性が高い人物は性格が合理的でもロマンチストに、策謀が高い人物は秘密の情事を好みやすくなります。",
+    "romanceDiversityUniqueOffset": "固有オフセット",
+    "romanceDiversityUniqueOffsetTip": "同じ性格値を持つキャラクターであっても、生まれつきの個人差により異なる恋愛スタイルや公私のギャップを持ちます。"
   },
   "simulation": {
     "heading": "シミュレーション設定：",

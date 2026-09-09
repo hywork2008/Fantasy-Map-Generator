@@ -280,3 +280,63 @@ describe("compatibility contribution to solidarity", () => {
       }
   });
 });
+
+describe("romance diversity factors and options", () => {
+  it("allows upbringing (e.g. monastery) to make a character withdrawn in romance while keeping their social type", () => {
+    const monk = {
+      ...person(1, { rationality: 80 }),
+      origin: { raisedIn: "monastery" } as any
+    };
+    const profileWith = getCompatibilityProfile(monk, { diversityConfig: { upbringing: true } });
+    expect(profileWith.social).toBe("analytical");
+    expect(profileWith.romantic).toBe("withdrawn");
+
+    const profileWithout = getCompatibilityProfile(monk, { diversityConfig: { upbringing: false } });
+    expect(profileWithout.social).toBe("analytical");
+    expect(profileWithout.romantic).toBe("independent");
+  });
+
+  it("allows life commitment (e.g. pleasure) to skew romance toward plural/passionate", () => {
+    const hedonist = {
+      ...person(1, { honor: 80, compassion: 80 }),
+      backstory: { commitment: { kind: "pleasure" } } as any
+    };
+    const profileWith = getCompatibilityProfile(hedonist, { diversityConfig: { commitment: true } });
+    expect(profileWith.social).toBe("caring");
+    expect(profileWith.romantic).toBe("plural");
+
+    const profileWithout = getCompatibilityProfile(hedonist, { diversityConfig: { commitment: false } });
+    expect(profileWithout.social).toBe("caring");
+    expect(profileWithout.romantic).toBe("devoted");
+  });
+
+  it("allows skills (e.g. artistry) to unlock passionate romance in analytical characters", () => {
+    const poetScholar = {
+      ...person(1, { rationality: 80 }),
+      skills: { artistry: 95, intrigue: 20, learning: 80 } as any
+    };
+    const profileWith = getCompatibilityProfile(poetScholar, { diversityConfig: { skills: true } });
+    expect(profileWith.social).toBe("analytical");
+    expect(profileWith.romantic).toBe("passionate");
+
+    const profileWithout = getCompatibilityProfile(poetScholar, { diversityConfig: { skills: false } });
+    expect(profileWithout.social).toBe("analytical");
+    expect(profileWithout.romantic).toBe("independent");
+  });
+
+  it("allows unique offset to give distinct romantic profiles to identical characters, and falls back identically when disabled", () => {
+    const twin1 = person(101);
+    const twin2 = person(102);
+
+    const p1 = getCompatibilityProfile(twin1, { diversityConfig: { uniqueOffset: true } });
+    const p2 = getCompatibilityProfile(twin2, { diversityConfig: { uniqueOffset: true } });
+    expect(p1.romantic !== p2.romantic || p1.romantic !== "measured").toBe(true);
+
+    const offConfig = { upbringing: false, commitment: false, skills: false, uniqueOffset: false };
+    const p1Off = getCompatibilityProfile(twin1, { diversityConfig: offConfig });
+    const p2Off = getCompatibilityProfile(twin2, { diversityConfig: offConfig });
+    expect(p1Off.romantic).toBe("measured");
+    expect(p2Off.romantic).toBe("measured");
+    expect(p1Off.social).toBe(p2Off.social);
+  });
+});

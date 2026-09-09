@@ -48,6 +48,11 @@ export interface OptionsState {
     | "industrialChemistryEra"
     | "petroleumEra"
     | "rocketryEra";
+  /** Romance diversity options shaping character romantic compatibility */
+  romanceDiversityUpbringing: boolean;
+  romanceDiversityCommitment: boolean;
+  romanceDiversitySkills: boolean;
+  romanceDiversityUniqueOffset: boolean;
   /**
    * Debug/override generation option (docs/plan/modern-urban-water-treatment-and-governance.md
    * §11.2/§19): when enabled, cultures-generator.ts's `defineCultureType` skips its normal
@@ -400,6 +405,10 @@ export const GENERATION_OPTION_KEYS = [
   "year",
   "era",
   "historicalPeriod",
+  "romanceDiversityUpbringing",
+  "romanceDiversityCommitment",
+  "romanceDiversitySkills",
+  "romanceDiversityUniqueOffset",
   "forceIndustrialCultures",
   "template",
   "templateRandomization",
@@ -478,6 +487,10 @@ export const useOptionsState = create<OptionsState>(set => ({
   year: 100,
   era: "Era",
   historicalPeriod: "ageOfExploration",
+  romanceDiversityUpbringing: true,
+  romanceDiversityCommitment: true,
+  romanceDiversitySkills: true,
+  romanceDiversityUniqueOffset: true,
   forceIndustrialCultures: false,
   template: "highIsland",
   templateRandomization: "all",

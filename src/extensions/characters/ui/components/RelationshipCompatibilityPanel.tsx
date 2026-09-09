@@ -24,21 +24,33 @@ export function RelationshipCompatibilityPanel({
   const [limit, setLimit] = useState(30);
 
   const cultureById = useMemo(() => new Map(cultures.map(culture => [culture.i, culture])), [cultures]);
-  const historicalPeriod = hasCharactersContext() ? getWorldContext().options?.historicalPeriod : undefined;
+  const options = hasCharactersContext() ? getWorldContext().options : undefined;
+  const diversityConfig = useMemo(
+    () => ({
+      upbringing: options?.romanceDiversityUpbringing ?? true,
+      commitment: options?.romanceDiversityCommitment ?? true,
+      skills: options?.romanceDiversitySkills ?? true,
+      uniqueOffset: options?.romanceDiversityUniqueOffset ?? true
+    }),
+    [
+      options?.romanceDiversityUpbringing,
+      options?.romanceDiversityCommitment,
+      options?.romanceDiversitySkills,
+      options?.romanceDiversityUniqueOffset
+    ]
+  );
 
   const contextFor = useCallback(
     (person: Character) => ({
       appearance: person.appearance,
       norms: cultureById.get(person.culture)?.romanceNorms,
-      historicalPeriod
+      historicalPeriod: options?.historicalPeriod,
+      diversityConfig
     }),
-    [cultureById, historicalPeriod]
+    [cultureById, options?.historicalPeriod, diversityConfig]
   );
 
-  const profile = useMemo(
-    () => getCompatibilityProfile(character.personality, contextFor(character)),
-    [character, contextFor]
-  );
+  const profile = useMemo(() => getCompatibilityProfile(character, contextFor(character)), [character, contextFor]);
   const profileLabel = (p: typeof profile) =>
     `${t(`characters.compatibility.social.${p.social}`)} / ${t(`characters.compatibility.romantic.${p.romantic}`)}`;
 

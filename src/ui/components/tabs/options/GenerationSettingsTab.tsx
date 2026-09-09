@@ -914,6 +914,74 @@ export const GenerationSettingsTab: React.FC = () => {
               </select>
             </td>
           </tr>
+
+          <tr>
+            <th colSpan={4}>{t("generation.sectionRomanceDiversity")}</th>
+          </tr>
+          <tr data-tip={t("generation.romanceDiversityUpbringingTip")}>
+            <td>
+              <LockIconButton id="romanceDiversityUpbringing" />
+            </td>
+            <th>
+              <label htmlFor="romanceDiversityUpbringing">{t("generation.romanceDiversityUpbringing")}</label>
+            </th>
+            <td colSpan={2}>
+              <input
+                type="checkbox"
+                id="romanceDiversityUpbringing"
+                checked={options.romanceDiversityUpbringing}
+                onChange={e => updateOptionAndLock("romanceDiversityUpbringing", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("generation.romanceDiversityCommitmentTip")}>
+            <td>
+              <LockIconButton id="romanceDiversityCommitment" />
+            </td>
+            <th>
+              <label htmlFor="romanceDiversityCommitment">{t("generation.romanceDiversityCommitment")}</label>
+            </th>
+            <td colSpan={2}>
+              <input
+                type="checkbox"
+                id="romanceDiversityCommitment"
+                checked={options.romanceDiversityCommitment}
+                onChange={e => updateOptionAndLock("romanceDiversityCommitment", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("generation.romanceDiversitySkillsTip")}>
+            <td>
+              <LockIconButton id="romanceDiversitySkills" />
+            </td>
+            <th>
+              <label htmlFor="romanceDiversitySkills">{t("generation.romanceDiversitySkills")}</label>
+            </th>
+            <td colSpan={2}>
+              <input
+                type="checkbox"
+                id="romanceDiversitySkills"
+                checked={options.romanceDiversitySkills}
+                onChange={e => updateOptionAndLock("romanceDiversitySkills", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip={t("generation.romanceDiversityUniqueOffsetTip")}>
+            <td>
+              <LockIconButton id="romanceDiversityUniqueOffset" />
+            </td>
+            <th>
+              <label htmlFor="romanceDiversityUniqueOffset">{t("generation.romanceDiversityUniqueOffset")}</label>
+            </th>
+            <td colSpan={2}>
+              <input
+                type="checkbox"
+                id="romanceDiversityUniqueOffset"
+                checked={options.romanceDiversityUniqueOffset}
+                onChange={e => updateOptionAndLock("romanceDiversityUniqueOffset", e.target.checked)}
+              />
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

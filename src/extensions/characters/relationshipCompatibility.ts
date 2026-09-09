@@ -1,4 +1,11 @@
-import type { Character, CharacterOrigin, CharacterPersonality } from "./characterTypes";
+import { getWorldContext, hasCharactersContext } from "./charactersContext";
+import type {
+  Character,
+  CharacterBackstory,
+  CharacterOrigin,
+  CharacterPersonality,
+  CharacterSkills
+} from "./characterTypes";
 import { getPersonalityDescriptionKeys } from "./personalityDescription";
 import { getRomanceDescriptionKeys, type RomanceDescriptionContext } from "./romanceDescription";
 
@@ -20,11 +27,39 @@ export interface CompatibilityProfile {
   flavorKeys: string[];
 }
 
-/** Stable semantic flavor IDs, never translated prose, supply the classification evidence. */
+export interface RomanceDiversityConfig {
+  upbringing?: boolean;
+  commitment?: boolean;
+  skills?: boolean;
+  uniqueOffset?: boolean;
+}
+
+export interface RomanceCompatibilityContext extends RomanceDescriptionContext {
+  characterId?: number;
+  origin?: CharacterOrigin;
+  backstory?: CharacterBackstory;
+  skills?: CharacterSkills;
+  diversityConfig?: RomanceDiversityConfig;
+}
+
+/** Stable semantic flavor IDs, never translated prose, supply the classification evidence.
+ * When diversity options are enabled, upbringing, commitment, skills and unique offsets
+ * allow general and romantic profiles to diverge (e.g. analytical at court but passionate in private).
+ */
 export function getCompatibilityProfile(
-  personality: CharacterPersonality,
-  context: RomanceDescriptionContext = {}
+  personalityOrCharacter: CharacterPersonality | CompatibilityCharacter,
+  context: RomanceCompatibilityContext = {}
 ): CompatibilityProfile {
+  const isChar = "personality" in personalityOrCharacter;
+  const personality = isChar ? personalityOrCharacter.personality : personalityOrCharacter;
+  const char = isChar ? (personalityOrCharacter as CompatibilityCharacter) : undefined;
+
+  const charOrigin = context.origin ?? char?.origin ?? char?.backstory?.origin;
+  const charBackstory = context.backstory ?? char?.backstory;
+  const charSkills = context.skills ?? char?.skills;
+  const charId = context.characterId ?? char?.i ?? 0;
+  const diversityConfig = context.diversityConfig;
+
   const flavorKeys = [
     ...getPersonalityDescriptionKeys(personality),
     ...getRomanceDescriptionKeys(personality, context)
@@ -67,17 +102,114 @@ export function getCompatibilityProfile(
                   )
                 ? "reserved"
                 : "balanced";
-  const romantic: RomanticCompatibilityType = has("retreatFromRomance", "passiveRomance")
-    ? "withdrawn"
-    : has("hiddenLovers", "insatiableAffection", "multipleLovers")
-      ? "plural"
-      : has("faithfulMonogamy", "honorablePlurality", "honorableSeasons", "localPromises")
-        ? "devoted"
-        : has("romanticRush", "ardentPursuit", "absorbingAffection", "quietLonging")
-          ? "passionate"
-          : has("selfDefinedBonds", "independentAffection", "reasonedAffection")
-            ? "independent"
-            : "measured";
+
+  // Base scores reflecting personality-driven evidence
+  const scores: Record<RomanticCompatibilityType, number> = {
+    withdrawn: has("retreatFromRomance", "passiveRomance") ? 50 : 0,
+    plural: has("hiddenLovers", "insatiableAffection", "multipleLovers") ? 45 : 0,
+    devoted: has("faithfulMonogamy", "honorablePlurality", "honorableSeasons", "localPromises") ? 40 : 0,
+    passionate: has("romanticRush", "ardentPursuit", "absorbingAffection", "quietLonging") ? 35 : 0,
+    independent: has("selfDefinedBonds", "independentAffection", "reasonedAffection") ? 30 : 0,
+    measured: 10
+  };
+
+  // 1. Upbringing (origin.raisedIn)
+  if (diversityConfig?.upbringing && charOrigin?.raisedIn) {
+    const r = charOrigin.raisedIn;
+    if (r === "monastery") {
+      scores.withdrawn += 45;
+      scores.measured += 20;
+      scores.passionate -= 25;
+      scores.plural -= 30;
+    } else if (r === "capital_court" || r === "foreign_court") {
+      scores.plural += 35;
+      scores.passionate += 20;
+      scores.measured -= 10;
+    } else if (r === "street") {
+      scores.independent += 35;
+      scores.devoted += 15;
+    } else if (r === "military_camp") {
+      scores.independent += 25;
+      scores.measured += 25;
+    } else if (r === "rural_manor") {
+      scores.measured += 25;
+      scores.devoted += 20;
+    }
+  }
+
+  // 2. Life Commitment (backstory.commitment.primary.kind)
+  if (diversityConfig?.commitment && charBackstory?.commitment) {
+    const commitmentObj = charBackstory.commitment as unknown as { kind?: string; primary?: { kind?: string } };
+    const k = commitmentObj.kind ?? commitmentObj.primary?.kind;
+    if (k === "pleasure" || k === "hedonism") {
+      scores.plural += 55;
+      scores.passionate += 25;
+      scores.devoted -= 25;
+    } else if (k === "family" || k === "house") {
+      scores.devoted += 45;
+      scores.plural -= 25;
+    } else if (k === "code" || k === "faith" || k === "ideology") {
+      scores.devoted += 35;
+      scores.withdrawn += 20;
+      scores.plural -= 35;
+    } else if (k === "self") {
+      scores.independent += 45;
+      scores.devoted -= 15;
+    } else if (k === "order" || k === "realm" || k === "state" || k === "domain" || k === "office") {
+      scores.independent += 25;
+      scores.measured += 25;
+      scores.passionate -= 15;
+    }
+  }
+
+  // 3. Skills (artistry, intrigue, learning)
+  if (diversityConfig?.skills && charSkills) {
+    if (charSkills.artistry >= 65) {
+      scores.passionate += Math.round((charSkills.artistry - 40) * 1.2);
+    }
+    if (charSkills.intrigue >= 65) {
+      scores.plural += Math.round((charSkills.intrigue - 40) * 1.1);
+    }
+    if (charSkills.learning >= 65) {
+      scores.independent += 20;
+      scores.measured += 20;
+    }
+  }
+
+  // 4. Unique Romantic Temperament Offset (deterministic character ID hash)
+  if (diversityConfig?.uniqueOffset && charId > 0) {
+    const hash = (seed: number, salt: number) => {
+      let x = (Math.imul(seed ^ (salt * 0x45d9f3b), 1103515245) + 12345) & 0x7fffffff;
+      x = ((x >>> 16) ^ x) * 0x45d9f3b;
+      x = ((x >>> 16) ^ x) & 0x7fffffff;
+      return (x % 51) - 25; // -25 .. +25
+    };
+    scores.passionate += hash(charId, 1);
+    scores.devoted += hash(charId, 2);
+    scores.independent += hash(charId, 3);
+    scores.withdrawn += hash(charId, 4);
+    scores.plural += hash(charId, 5);
+    scores.measured += hash(charId, 6);
+  }
+
+  // Select the highest-scoring romantic type
+  const romanticTypes: RomanticCompatibilityType[] = [
+    "withdrawn",
+    "plural",
+    "devoted",
+    "passionate",
+    "independent",
+    "measured"
+  ];
+  let romantic: RomanticCompatibilityType = "measured";
+  let maxScore = -Infinity;
+  for (const t of romanticTypes) {
+    if (scores[t] > maxScore) {
+      maxScore = scores[t];
+      romantic = t;
+    }
+  }
+
   return {
     social,
     romantic,
@@ -142,11 +274,11 @@ const romanticRules: PairRule<RomanticCompatibilityType>[] = [
 ];
 
 export type CompatibilityCharacter = Pick<Character, "i" | "gender" | "personality" | "appearance"> &
-  Partial<Pick<Character, "family" | "favor" | "dead" | "race" | "age" | "culture" | "backstory">> & {
+  Partial<Pick<Character, "family" | "favor" | "dead" | "race" | "age" | "culture" | "backstory" | "skills">> & {
     origin?: CharacterOrigin;
   };
 export type CompatibilityTendency = "friendship" | "romance" | "both" | "friction" | "volatile" | "situational";
-export interface RelationshipCompatibilityContext extends RomanceDescriptionContext {
+export interface RelationshipCompatibilityContext extends RomanceCompatibilityContext {
   historicalPeriod?: string;
 }
 export interface RelationshipCompatibility {
@@ -204,8 +336,23 @@ export function getRelationshipCompatibility(
   contextA: RelationshipCompatibilityContext = {},
   contextB: RelationshipCompatibilityContext = {}
 ): RelationshipCompatibility {
-  const from = getCompatibilityProfile(a.personality, { appearance: a.appearance, ...contextA });
-  const to = getCompatibilityProfile(b.personality, { appearance: b.appearance, ...contextB });
+  const defaultDiversityConfig: RomanceDiversityConfig = {
+    upbringing: hasCharactersContext() ? (getWorldContext().options?.romanceDiversityUpbringing ?? true) : false,
+    commitment: hasCharactersContext() ? (getWorldContext().options?.romanceDiversityCommitment ?? true) : false,
+    skills: hasCharactersContext() ? (getWorldContext().options?.romanceDiversitySkills ?? true) : false,
+    uniqueOffset: hasCharactersContext() ? (getWorldContext().options?.romanceDiversityUniqueOffset ?? true) : false
+  };
+
+  const from = getCompatibilityProfile(a, {
+    appearance: a.appearance,
+    diversityConfig: contextA.diversityConfig ?? defaultDiversityConfig,
+    ...contextA
+  });
+  const to = getCompatibilityProfile(b, {
+    appearance: b.appearance,
+    diversityConfig: contextB.diversityConfig ?? defaultDiversityConfig,
+    ...contextB
+  });
   let friendship = 45;
   let romance = 35;
   let friction = 20;

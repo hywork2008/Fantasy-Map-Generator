@@ -1757,7 +1757,16 @@
     "faunaPopulationModel": "Fauna population model",
     "faunaPopulationModelTip": "Detail level of the fauna population model backing Game and livestock production. Detailed runs an annual per-cell wildlife/livestock cohort model (breeding, aging, age-selective culling, carrying capacity) that caps output by an actual headcount instead of an unlimited rate. Simplified skips that model and keeps the cheaper labour/rate-gated formula with no population ceiling — a performance option for large maps. Apply on next map generation.",
     "faunaDetailed": "Detailed (fauna population model)",
-    "faunaSimplified": "Simplified (faster)"
+    "faunaSimplified": "Simplified (faster)",
+    "sectionRomanceDiversity": "7. Character romance diversity",
+    "romanceDiversityUpbringing": "Upbringing",
+    "romanceDiversityUpbringingTip": "Upbringing (monastery, court, streets, etc.) influences romantic attitudes: monastery leans toward ascetic withdrawal, court toward passion and multiple lovers, and streets toward independence.",
+    "romanceDiversityCommitment": "Life commitment",
+    "romanceDiversityCommitmentTip": "Primary life focus (pleasure, family, faith, etc.) shapes relationship expectations: pleasure commitments favor passion and plurality, family favors devotion, and faith/code favor fidelity.",
+    "romanceDiversitySkills": "Skills",
+    "romanceDiversitySkillsTip": "Emotional and diplomatic skills (artistry, intrigue, etc.) matter: high artistry fosters romantic passion even in analytical minds, while high intrigue opens doors to affairs.",
+    "romanceDiversityUniqueOffset": "Unique offset",
+    "romanceDiversityUniqueOffsetTip": "Assigns unique deterministic romantic skews so characters with identical general personalities express distinct romantic styles."
   },
   "simulation": {
     "heading": "Simulation Settings:",
