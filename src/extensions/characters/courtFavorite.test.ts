@@ -257,6 +257,38 @@ describe("ruler epithets", () => {
     expect(isTyrantSovereign(passiveGreedy)).toBe(false);
   });
 
+  it("does not brand moderate or devout sovereigns like Fjolvar as tyrants", () => {
+    const fjolvar = character({
+      skills: {
+        artistry: 49,
+        diplomacy: 94,
+        engineering: 90,
+        geography: 53,
+        intrigue: 57,
+        learning: 42,
+        martial: 21,
+        prowess: 79,
+        stewardship: 79
+      },
+      personality: {
+        boldness: 48,
+        compassion: 30,
+        confidence: 48,
+        energy: 46,
+        greed: 48,
+        guile: 2,
+        honor: 48,
+        piety: 100,
+        rationality: 61,
+        sociability: 49,
+        vengefulness: 71,
+        zeal: 55
+      }
+    });
+    expect(isTyrantSovereign(fjolvar)).toBe(false);
+    expect(chooseRulerEpithet(fjolvar)).not.toBe("tyrant_king");
+  });
+
   it("keeps an incompetent sovereign the Fool rather than the Tyrant", () => {
     const cruelFool = fool({
       personality: { ...fool().personality, compassion: 15, vengefulness: 80, honor: 20, greed: 80 }

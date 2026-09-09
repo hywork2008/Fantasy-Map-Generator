@@ -86,18 +86,24 @@ export function isCourtierDeceiver(character: Character): boolean {
 }
 
 /**
- * 暴君: publicly cruel, not merely indirect or unsociable.
- * Compassion/Honor vs Greed/Vengefulness — Guile is not a moral score.
- * Requires sufficient boldness or energy so inactive/timid or overly honorable characters are not branded tyrants.
+ * 暴君: publicly cruel, not merely strict, observant, or calculating.
+ * Requires genuine cruelty (compassion <= 20), thin moral restraint (honor <= 45),
+ * and an aggressive impulse to oppress (ruthless retaliation, predatory greed, or domineering boldness).
  */
 export function isTyrantSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
   const p = character.personality;
-  if (p.compassion > 30) return false;
-  if (p.honor > 60) return false;
-  const ruthlessRetaliation = p.vengefulness >= 70 && p.boldness >= 35;
-  const tyrannicalGreed = p.honor <= 35 && p.greed >= 65 && (p.vengefulness >= 50 || p.boldness >= 50);
-  return ruthlessRetaliation || tyrannicalGreed;
+  // Genuine lack of mercy — 30 is merely pragmatic/detached, not cruel.
+  if (p.compassion > 20) return false;
+  // An honorable sovereign or devout moralist is not a tyrant.
+  if (p.honor > 45) return false;
+
+  const ruthlessRetaliation =
+    p.vengefulness >= 75 && p.boldness >= 45 && (p.boldness >= 60 || (p.confidence ?? 50) >= 60);
+  const tyrannicalGreed = p.honor <= 30 && p.greed >= 70 && (p.vengefulness >= 50 || p.boldness >= 50);
+  const tyrannicalDominance = p.boldness >= 70 && (p.confidence ?? 50) >= 70 && p.vengefulness >= 55;
+
+  return ruthlessRetaliation || tyrannicalGreed || tyrannicalDominance;
 }
 
 export function isBenevolentSovereign(character: Character): boolean {
