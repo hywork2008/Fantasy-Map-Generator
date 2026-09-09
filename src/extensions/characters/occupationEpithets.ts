@@ -105,6 +105,25 @@ function isAbleMinisterEligible(character: Character): boolean {
   return false;
 }
 
+export function isBlunderingSchemerEligible(character: Character): boolean {
+  if (eligibilityFor(character, "office") === "no") return false;
+  const p = character.personality;
+  const s = character.skills;
+  if (!p || !s) return false;
+  if (p.guile < 60 || s.intrigue > 40) return false;
+
+  let blunderDrive = 0;
+  if (p.boldness >= 60) blunderDrive += 1;
+  if (p.zeal >= 60) blunderDrive += 1;
+  if (p.confidence >= 60) blunderDrive += 1;
+  if (p.rationality <= 45) blunderDrive += 1;
+  if (p.energy >= 55) blunderDrive += 1;
+
+  const gap = p.guile - s.intrigue;
+  const threshold = gap >= 40 ? 1 : 2;
+  return blunderDrive >= threshold;
+}
+
 function assignOccupationEpithetsFor(character: Character, all: readonly Character[]): void {
   if (isWarGodEligible(character)) tryAssign(character, "war_god", "war_legend");
   if (isMasterArtisanEligible(character)) tryAssign(character, "master_artisan", "craft");
@@ -112,6 +131,7 @@ function assignOccupationEpithetsFor(character: Character, all: readonly Charact
   if (isUnscrupulousMerchantEligible(character)) tryAssign(character, "unscrupulous_merchant", "commerce");
   else if (isMagnateEligible(character, all)) tryAssign(character, "magnate", "commerce");
   if (isAbleMinisterEligible(character)) tryAssign(character, "able_minister", "office");
+  else if (isBlunderingSchemerEligible(character)) tryAssign(character, "blundering_schemer", "office");
 }
 
 /** Generation and peer-add only. Load does not call this. Fill-if-empty per lineage. */

@@ -106,7 +106,8 @@ export function getCompatibilityProfile(
                   "ardentPursuit",
                   "headlongRush",
                   "ruthlessVengeance",
-                  "openHostility"
+                  "openHostility",
+                  "blunderingSchemer"
                 )
               ? "adventurous"
               : has(

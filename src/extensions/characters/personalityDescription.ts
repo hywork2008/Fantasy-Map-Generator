@@ -1,6 +1,10 @@
-import type { CharacterPersonality } from "./characterTypes";
+import type { CharacterPersonality, CharacterSkills } from "./characterTypes";
 
 export type PersonalityBand = "veryLow" | "low" | "moderate" | "high" | "veryHigh";
+
+export interface PersonalityDescriptionContext {
+  skills?: CharacterSkills;
+}
 
 /** Keep the original low/high boundaries; reserve the outer 15 points for extremes. */
 export function getPersonalityBand(score: number | undefined): PersonalityBand {
@@ -33,7 +37,7 @@ export function createPersonalityProfile(personality: CharacterPersonality): Per
 
 interface DescriptionRule {
   key: string;
-  when: (profile: PersonalityProfile) => boolean;
+  when: (profile: PersonalityProfile, context?: PersonalityDescriptionContext) => boolean;
 }
 export type DescriptionAspect = "action" | "social" | "morality" | "conflict" | "conviction";
 
@@ -64,6 +68,19 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
     { key: "minimalEffort", when: p => p.veryLow("energy") }
   ],
   social: [
+    {
+      key: "blunderingSchemer",
+      when: (p, ctx) => {
+        if (!p.high("guile")) return false;
+        const blunderDrive =
+          p.high("boldness") || p.high("zeal") || p.high("confidence") || p.high("energy") || p.low("rationality");
+        if (!blunderDrive) return false;
+        if (ctx?.skills) {
+          return ctx.skills.intrigue <= 40;
+        }
+        return p.veryLow("rationality");
+      }
+    },
     { key: "ruthlessDominance", when: p => p.low("compassion") && p.high("boldness") },
     { key: "coldCalculation", when: p => p.low("compassion") && p.high("guile") },
     { key: "discreetCompassion", when: p => p.veryHigh("compassion") && p.high("guile") },
@@ -136,7 +153,10 @@ const extremeRules: Record<DescriptionAspect, DescriptionRule[]> = {
 /** Display-only interpretation: no randomness, stored text, or changes to simulation behavior.
  * Moderate scores stay situational; missing legacy values are treated as neutral.
  */
-export function getPersonalityDescriptionKeys(personality: CharacterPersonality): string[] {
+export function getPersonalityDescriptionKeys(
+  personality: CharacterPersonality,
+  context?: PersonalityDescriptionContext
+): string[] {
   const profile = createPersonalityProfile(personality);
   const { low, high } = profile;
 
@@ -219,7 +239,7 @@ export function getPersonalityDescriptionKeys(personality: CharacterPersonality)
 
   const fallback: Record<DescriptionAspect, string> = { action, social, morality, conflict, conviction };
   return (Object.keys(fallback) as DescriptionAspect[]).map(aspect => {
-    const key = extremeRules[aspect].find(rule => rule.when(profile))?.key ?? fallback[aspect];
+    const key = extremeRules[aspect].find(rule => rule.when(profile, context))?.key ?? fallback[aspect];
     return `characters.personalityDescription.${key}`;
   });
 }

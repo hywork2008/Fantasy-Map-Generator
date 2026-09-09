@@ -75,6 +75,33 @@ describe("personality descriptions", () => {
     expect(tyrant[3]).toBe("ruthlessVengeance");
   });
 
+  it("describes blundering schemers when guile outstrips intrigue with boldness or zeal", () => {
+    const dummySkills = {
+      artistry: 40,
+      diplomacy: 40,
+      engineering: 40,
+      geography: 40,
+      intrigue: 25,
+      learning: 40,
+      martial: 40,
+      prowess: 40,
+      stewardship: 40
+    };
+    // High guile + low intrigue + high boldness
+    const boldBlunderer = getPersonalityDescriptionKeys(
+      { ...neutral, guile: 75, boldness: 70 },
+      { skills: dummySkills }
+    ).map(key => key.split(".").at(-1));
+    expect(boldBlunderer[1]).toBe("blunderingSchemer");
+
+    // High guile + low intrigue + high zeal
+    const zealousBlunderer = getPersonalityDescriptionKeys(
+      { ...neutral, guile: 75, zeal: 70 },
+      { skills: dummySkills }
+    ).map(key => key.split(".").at(-1));
+    expect(zealousBlunderer[1]).toBe("blunderingSchemer");
+  });
+
   it("gives both extremes of every trait a distinct description", () => {
     for (const trait of Object.keys(neutral) as (keyof CharacterPersonality)[]) {
       expect(describePerson({ [trait]: 10 })).not.toEqual(describePerson({ [trait]: 25 }));

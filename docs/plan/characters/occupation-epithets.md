@@ -133,7 +133,7 @@ flowchart TB
 | `war_legend` | 個人武勇＋指揮の伝説 | なし | war_god 軍神 |
 | `craft` | 同業と市井が呼ぶ職人渾名 | なし | master_artisan 名工, prodigy 神童 |
 | `commerce` | 市井が呼ぶ商人渾名 | なし | magnate 豪商, unscrupulous_merchant 悪徳商人 |
-| `office` | 公開官職の能吏的渾名 | なし（佞臣は court） | able_minister 能吏 |
+| `office` | 公開官職の能吏・政務渾名 | なし（佞臣は court） | able_minister 能吏, blundering_schemer 見透かされた策士 |
 
 碩学・名優・名匠（非冶金）・名船匠・名医はカタログの将来行であり、v1 の union に載せない。
 

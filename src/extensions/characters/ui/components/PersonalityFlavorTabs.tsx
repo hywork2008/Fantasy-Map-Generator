@@ -11,7 +11,7 @@ export function PersonalityFlavorTabs({
   character,
   norms
 }: {
-  character: Pick<Character, "personality" | "appearance">;
+  character: Pick<Character, "personality" | "appearance"> & { skills?: Character["skills"] };
   norms?: CultureRomanceNorms;
 }) {
   const { t } = useTranslation();
@@ -19,7 +19,7 @@ export function PersonalityFlavorTabs({
   const [active, setActive] = useState<(typeof tabs)[number]>("general");
   const keys =
     active === "general"
-      ? getPersonalityDescriptionKeys(character.personality)
+      ? getPersonalityDescriptionKeys(character.personality, { skills: character.skills })
       : getRomanceDescriptionKeys(character.personality, { appearance: character.appearance, norms });
 
   return (

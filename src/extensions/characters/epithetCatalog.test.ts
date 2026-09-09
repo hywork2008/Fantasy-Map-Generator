@@ -97,6 +97,7 @@ describe("sovereign stem", () => {
         character({ titles: [{ title: "Queen", landed: true, entityType: "state", entityId: 1 }] })
       )
     ).toBe("愚女王");
+    expect(formatEpithetLabel("blundering_schemer", character())).toBe("見透かされた策士");
   });
 
   it("keeps English labels title-agnostic", () => {
@@ -106,6 +107,7 @@ describe("sovereign stem", () => {
         character({ titles: [{ title: "Emperor", landed: true, entityType: "state", entityId: 1 }] })
       )
     ).toBe("the Wise");
+    expect(formatEpithetLabel("blundering_schemer", character())).toBe("the Blundering Schemer");
   });
 });
 
