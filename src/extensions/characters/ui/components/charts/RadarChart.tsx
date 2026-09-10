@@ -11,12 +11,20 @@ export interface RadarData {
 
 export interface RadarChartProps {
   data: RadarData[];
+  /** A subdued series drawn between the grid and the primary (blue) Human series. */
+  overlayData?: RadarData[];
   width?: number;
   height?: number;
   maxValue?: number;
 }
 
-export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, height = 320, maxValue = 100 }) => {
+export const RadarChart: React.FC<RadarChartProps> = ({
+  data,
+  overlayData,
+  width = 320,
+  height = 320,
+  maxValue = 100
+}) => {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement>(null);
   const radarChartColor = useOptionsState(state => state.radarChartColor);
@@ -108,6 +116,19 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, heigh
 
     const blobWrapper = g.append("g").attr("class", "radarWrapper");
 
+    if (overlayData?.length === data.length) {
+      blobWrapper
+        .append("path")
+        .datum(overlayData)
+        .attr("class", "radarArea radarArea--demon")
+        .attr("d", radarLine)
+        .style("fill", "none")
+        .style("stroke", "#d64545")
+        .style("stroke-opacity", 0.48)
+        .style("stroke-linejoin", "round")
+        .style("stroke-width", 1.5);
+    }
+
     blobWrapper
       .append("path")
       .datum(data)
@@ -168,7 +189,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, heigh
         return offsetRadius * Math.sin(angleSlice * i - Math.PI / 2);
       })
       .text(d => d.value);
-  }, [data, width, height, maxValue, radarChartColor]);
+  }, [data, overlayData, width, height, maxValue, radarChartColor]);
 
   return (
     <div style={{ display: "flex", justifyContent: "center", margin: "10px 0" }}>

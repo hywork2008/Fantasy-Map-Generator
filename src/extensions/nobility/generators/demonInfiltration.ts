@@ -1,5 +1,5 @@
 import { applyCharacterBackstory } from "../../characters/backstoryProfile";
-import type { Character, CharacterRole, DemonCoverStratum } from "../../characters/characterTypes";
+import type { Character, CharacterRole, DemonCoverStratum, DemonIdentity } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import { rollDefaultAdultAge } from "../../characters/raceAge";
 import { getRaceDefinitions, HUMAN_RACE_ID, rollCharacterRaceAppearance } from "../../hostRaces";
@@ -112,6 +112,22 @@ function rollDemonAppearance():
   return appearance?.kind === "demon" ? appearance : { kind: "demon", hornAnimal: "goat" };
 }
 
+/** Deep-copy a complete sheet without recursively capturing an existing disguise. */
+function cloneIdentity(character: Character): DemonIdentity {
+  const identity = structuredClone(character);
+  delete identity.demonInfiltration;
+  return identity;
+}
+
+const DEMON_ARCANE_FIELDS = ["arcane", "arcaneReadyYear", "arcaneWorkingsSpent", "arcaneLastHighYear"] as const;
+
+/** Overlay the Demon’s active Arcane state without discarding the stored Human cover value. */
+function applyDemonArcaneIdentity(infiltrator: Character): void {
+  const identity = infiltrator.demonInfiltration?.demonIdentity;
+  if (!identity) return;
+  for (const field of DEMON_ARCANE_FIELDS) infiltrator[field] = identity[field];
+}
+
 export interface SeedDemonInfiltrationOptions {
   characters: Character[];
   states: State[];
@@ -129,6 +145,7 @@ function turnIntoDemonInfiltrator(
   options: Pick<SeedDemonInfiltrationOptions, "pack" | "currentYear">
 ): Character {
   const { pack } = options;
+  const coverIdentity = cloneIdentity(infiltrator);
   // Existing public figures may originate in another folk's court. Their visible body is Human.
   const demonRaceId = pack.races?.find(race => race.key === "demon")?.i;
   const wasOpenDemon = demonRaceId !== undefined && infiltrator.race === demonRaceId;
@@ -149,6 +166,7 @@ function turnIntoDemonInfiltrator(
     ...(trueFormSource.looks ? { looks: structuredClone(trueFormSource.looks) } : {}),
     raceAppearance
   };
+  const demonIdentity = cloneIdentity(trueFormSource);
   const actualAge = wasOpenDemon
     ? infiltrator.age
     : demonRaceId !== undefined
@@ -166,9 +184,12 @@ function turnIntoDemonInfiltrator(
     coverStratum: stratum,
     objective: "maximizeHumanDeaths",
     actualAge,
+    demonIdentity,
+    coverIdentity,
     trueForm,
     collaboratorIds: []
   };
+  applyDemonArcaneIdentity(infiltrator);
   return infiltrator;
 }
 

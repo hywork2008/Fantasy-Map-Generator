@@ -34,6 +34,10 @@ describe("demon infiltration allocation", () => {
       state: 1,
       titles: [],
       appearance: 91,
+      arcane: 87,
+      skills: { martial: 93, intrigue: 84 } as never,
+      personality: { greed: 72, guile: 95 } as never,
+      inventory: { 4: 12 },
       looks: { stature: 88, build: 77, symmetry: 66, refinement: 55, vitality: 99, ornament: 44 },
       raceAppearance: { kind: "demon", hornAnimal: "ram" }
     } as never;
@@ -56,6 +60,22 @@ describe("demon infiltration allocation", () => {
       raceAppearance: { kind: "demon", hornAnimal: "ram" }
     });
     expect(infiltrator.raceAppearance).toBeUndefined();
+    expect(infiltrator.arcane).toBe(87);
+    expect(infiltrator.demonInfiltration?.demonIdentity).toMatchObject({
+      name: "Azram",
+      race: 4,
+      arcane: 87,
+      skills: { martial: 93, intrigue: 84 },
+      personality: { greed: 72, guile: 95 },
+      inventory: { 4: 12 }
+    });
+    expect(infiltrator.demonInfiltration?.coverIdentity).toMatchObject({
+      name: "Azram",
+      arcane: 87,
+      skills: { martial: 93, intrigue: 84 },
+      personality: { greed: 72, guile: 95 },
+      inventory: { 4: 12 }
+    });
     vi.restoreAllMocks();
   });
 

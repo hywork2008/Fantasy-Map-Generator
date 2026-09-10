@@ -464,10 +464,14 @@ export const CharacterDetailsDialog: React.FC = () => {
   // Prefer shared resolver: Wildlands/Unknown (race 0) displays as Human, not catalog "Unknown".
   const raceName = resolveCharacterRaceName(character, races, cultures);
   const showSupernatural = isFantasyCulturesSet(culturesSet);
-  const supernaturalRace = getRaceById(races, character.race ?? cultures[character.culture]?.race);
+  const demonIdentity = character.demonInfiltration?.demonIdentity;
+  const supernaturalRace = getRaceById(
+    races,
+    demonIdentity?.race ?? character.race ?? cultures[character.culture]?.race
+  );
   const supernatural = resolveRaceSupernatural(supernaturalRace);
-  const arcaneScore = character.arcane ?? 0;
-  const bandId = arcaneBand(character.arcane);
+  const arcaneScore = demonIdentity?.arcane ?? character.arcane ?? 0;
+  const bandId = arcaneBand(arcaneScore);
   const looks = character.looks;
   const demonTrueForm = character.demonInfiltration?.trueForm;
   const demonTrueLooks = demonTrueForm?.looks;
@@ -1346,6 +1350,21 @@ export const CharacterDetailsDialog: React.FC = () => {
                   { axis: t("characters.prowess"), value: character.skills.prowess },
                   { axis: t("characters.stewardship"), value: character.skills.stewardship }
                 ]}
+                overlayData={
+                  demonIdentity
+                    ? [
+                        { axis: t("characters.artistry"), value: demonIdentity.skills.artistry },
+                        { axis: t("characters.diplomacy"), value: demonIdentity.skills.diplomacy },
+                        { axis: t("characters.engineering"), value: demonIdentity.skills.engineering },
+                        { axis: t("characters.geography"), value: demonIdentity.skills.geography },
+                        { axis: t("characters.intrigue"), value: demonIdentity.skills.intrigue },
+                        { axis: t("characters.learning"), value: demonIdentity.skills.learning },
+                        { axis: t("characters.martial"), value: demonIdentity.skills.martial },
+                        { axis: t("characters.prowess"), value: demonIdentity.skills.prowess },
+                        { axis: t("characters.stewardship"), value: demonIdentity.skills.stewardship }
+                      ]
+                    : undefined
+                }
               />
             ) : (
               <p>{t("characters.noSkills")}</p>
@@ -1455,6 +1474,24 @@ export const CharacterDetailsDialog: React.FC = () => {
                     { axis: t("characters.vengefulness"), value: character.personality.vengefulness },
                     { axis: t("characters.zeal"), value: character.personality.zeal }
                   ]}
+                  overlayData={
+                    demonIdentity
+                      ? [
+                          { axis: t("characters.boldness"), value: demonIdentity.personality.boldness },
+                          { axis: t("characters.compassion"), value: demonIdentity.personality.compassion },
+                          { axis: t("characters.confidence"), value: demonIdentity.personality.confidence ?? 0 },
+                          { axis: t("characters.energy"), value: demonIdentity.personality.energy },
+                          { axis: t("characters.greed"), value: demonIdentity.personality.greed },
+                          { axis: t("characters.guile"), value: demonIdentity.personality.guile },
+                          { axis: t("characters.honor"), value: demonIdentity.personality.honor },
+                          { axis: t("characters.piety"), value: demonIdentity.personality.piety },
+                          { axis: t("characters.rationality"), value: demonIdentity.personality.rationality },
+                          { axis: t("characters.sociability"), value: demonIdentity.personality.sociability },
+                          { axis: t("characters.vengefulness"), value: demonIdentity.personality.vengefulness },
+                          { axis: t("characters.zeal"), value: demonIdentity.personality.zeal }
+                        ]
+                      : undefined
+                  }
                 />
                 <PersonalityFlavorTabs
                   key={character.i}

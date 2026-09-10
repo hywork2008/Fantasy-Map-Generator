@@ -112,6 +112,18 @@ export interface DemonInfiltration {
   objective: "maximizeHumanDeaths";
   /** Chronological Demon age; `Character.age` is the age of the Human guise. */
   actualAge?: number;
+  /**
+   * Complete character sheet of the Demon. The outer Character remains the
+   * active Human cover so ordinary civic systems continue to see the disguise;
+   * consumers of infernal information opt in to this record instead.
+   */
+  demonIdentity?: DemonIdentity;
+  /**
+   * Complete sheet of the current Human whose identity is being worn. It keeps
+   * the Human Arcane value too, even though the visible Arcane readout is
+   * intentionally overridden by `demonIdentity.arcane`.
+   */
+  coverIdentity?: DemonIdentity;
   /** The Demon's immutable body, kept separately from its current Human cover. */
   trueForm?: {
     appearance: number;
@@ -630,6 +642,9 @@ export interface Character {
    */
   epithets?: CharacterEpithet[];
 }
+
+/** A full character sheet stored inside a Demon infiltration record, without nested disguises. */
+export type DemonIdentity = Omit<Character, "demonInfiltration">;
 
 /** Quality band shared by attire and weapons (1 = rags / farm tool … 5 = royal / masterwork). */
 export type EquipmentQuality = 1 | 2 | 3 | 4 | 5;

@@ -402,6 +402,101 @@ describe("Demon cover replacement", () => {
     expect(replaceAgedDemonCover(demon, [demon, employedHuman], 1200)).toBeUndefined();
     expect(employedHuman.dead).toBeUndefined();
   });
+
+  it("keeps full Demon and Human sheets separate when changing covers", () => {
+    const demon = {
+      i: 1,
+      name: "Lady Mira",
+      age: 70,
+      gender: "female",
+      culture: 1,
+      race: 1,
+      state: 2,
+      location: 9,
+      appearance: 60,
+      arcane: 88,
+      skills: { martial: 22, intrigue: 31 } as never,
+      personality: { greed: 40, guile: 35 } as never,
+      family: { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 },
+      marriages: [],
+      affinities: {},
+      titles: [{ title: "Spymaster", landed: false, entityType: "state", entityId: 2 }],
+      pastTitles: [],
+      demonInfiltration: {
+        coverStratum: "influential",
+        objective: "maximizeHumanDeaths",
+        actualAge: 198,
+        demonIdentity: {
+          i: 1,
+          name: "Kharaz",
+          age: 198,
+          gender: "male",
+          culture: 1,
+          race: 4,
+          state: 2,
+          appearance: 90,
+          arcane: 88,
+          skills: { martial: 92, intrigue: 79 } as never,
+          personality: { greed: 83, guile: 91 } as never
+        } as never,
+        coverIdentity: {
+          i: 1,
+          name: "Lady Mira",
+          age: 70,
+          gender: "female",
+          culture: 1,
+          race: 1,
+          state: 2,
+          appearance: 60,
+          arcane: 3,
+          skills: { martial: 22, intrigue: 31 } as never,
+          personality: { greed: 40, guile: 35 } as never
+        } as never,
+        collaboratorIds: []
+      }
+    } as never;
+    const victim = {
+      i: 2,
+      name: "Nera",
+      age: 24,
+      gender: "female",
+      culture: 3,
+      race: 1,
+      state: 2,
+      location: 9,
+      appearance: 75,
+      arcane: 2,
+      skills: { martial: 47, intrigue: 63 } as never,
+      personality: { greed: 67, guile: 55 } as never,
+      family: { spouses: 1, children: 0, grandchildren: 0, greatGrandchildren: 0 },
+      marriages: [2],
+      affinities: { 2: 50 },
+      titles: [],
+      pastTitles: []
+    } as never;
+
+    replaceAgedDemonCover(demon, [demon, victim], 1200);
+
+    expect(demon.name).toBe("Nera");
+    expect(demon.skills).toMatchObject({ martial: 47, intrigue: 63 });
+    expect(demon.personality).toMatchObject({ greed: 67, guile: 55 });
+    expect(demon.arcane).toBe(88);
+    expect(demon.demonInfiltration.demonIdentity).toMatchObject({
+      name: "Kharaz",
+      race: 4,
+      arcane: 88,
+      skills: { martial: 92, intrigue: 79 },
+      personality: { greed: 83, guile: 91 }
+    });
+    expect(demon.demonInfiltration.coverIdentity).toMatchObject({
+      name: "Nera",
+      race: 1,
+      arcane: 2,
+      skills: { martial: 47, intrigue: 63 },
+      personality: { greed: 67, guile: 55 }
+    });
+    expect(demon.titles[0].title).toBe("Spymaster");
+  });
 });
 
 describe("prowess lifestyle decline", () => {
