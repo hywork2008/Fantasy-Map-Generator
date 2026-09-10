@@ -16,13 +16,21 @@ import {
 } from "../../arcane";
 import { backstoryDetailRows, formatCharacterTaste } from "../../backstoryDetails";
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
+import { formatCharacterAge } from "../../characterAge";
 import { getCharacterHealth, HEALTH_FULL } from "../../characterHealth";
-import { getApi, getCharacters, getSelectedAbilityPreset, getWorldContext } from "../../charactersContext";
+import {
+  getApi,
+  getCharacters,
+  getCurrentYear,
+  getSelectedAbilityPreset,
+  getWorldContext
+} from "../../charactersContext";
 import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
 import { resolveCharacterRaceName } from "../../controllers/characters-overview";
 import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
+import { serviceStartYearForDisplay } from "../../militaryWarRecord";
 import { getAbilityValue } from "../../personFactory";
 import { militaryStanding, officeSphereVisibility, type ReputationLabel, reputationAmong } from "../../prestige";
 import { specializationCsvRows } from "../../specializationExport";
@@ -461,6 +469,32 @@ export const CharacterDetailsDialog: React.FC = () => {
   const arcaneScore = character.arcane ?? 0;
   const bandId = arcaneBand(character.arcane);
   const looks = character.looks;
+  const demonTrueForm = character.demonInfiltration?.trueForm;
+  const demonTrueLooks = demonTrueForm?.looks;
+  const demonIdentityReplacements = character.demonInfiltration?.identityReplacements ?? [];
+  const formatDemonIdentityReplacement = (replacement: (typeof demonIdentityReplacements)[number]) =>
+    t("characters.demonIdentityReplacement", {
+      year: replacement.year,
+      previousCover: replacement.previousCoverName,
+      victimName: replacement.victimName,
+      victimId: replacement.victimId
+    });
+  const formatWarService = (service: NonNullable<Character["militaryRecord"]>["services"][number]) => {
+    const serviceStartYear = serviceStartYearForDisplay(character, service, getCurrentYear());
+    const conduct = t(`characters.warConduct.${service.conduct}`);
+    return serviceStartYear === service.year
+      ? t("characters.warRecordService", { year: serviceStartYear, campaign: service.campaignName, conduct })
+      : t("characters.warRecordServiceWithCampaignStart", {
+          serviceYear: serviceStartYear,
+          campaignYear: service.year,
+          campaign: service.campaignName,
+          conduct
+        });
+  };
+  const demonTrueHorns =
+    demonTrueForm?.raceAppearance?.kind === "demon"
+      ? t("characters.demonHorns", { animal: demonTrueForm.raceAppearance.hornAnimal })
+      : t("characters.notAvailable");
   const raceAppearanceText =
     character.raceAppearance?.kind === "demon"
       ? t("characters.demonHorns", { animal: character.raceAppearance.hornAnimal })
@@ -524,8 +558,8 @@ export const CharacterDetailsDialog: React.FC = () => {
 
   const statusText = character.dead
     ? character.deathYear
-      ? t("characters.deceasedWithYear", { age: character.age, year: character.deathYear })
-      : t("characters.deceased", { age: character.age })
+      ? t("characters.deceasedWithYear", { age: formatCharacterAge(character), year: character.deathYear })
+      : t("characters.deceased", { age: formatCharacterAge(character) })
     : t("characters.alive");
 
   const healthValue = getCharacterHealth(character);
@@ -539,6 +573,20 @@ export const CharacterDetailsDialog: React.FC = () => {
   const characterProfileContent = (
     <table className="fmg-table fmg-property-table character-details__table">
       <tbody>
+        {demonIdentityReplacements.length ? (
+          <tr>
+            <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.demonIdentityHistory")}</th>
+            <td>
+              <ol style={{ margin: 0, paddingLeft: "1.2em" }}>
+                {demonIdentityReplacements.map(replacement => (
+                  <li key={`${replacement.year}-${replacement.victimId}-${replacement.previousCoverName}`}>
+                    {formatDemonIdentityReplacement(replacement)}
+                  </li>
+                ))}
+              </ol>
+            </td>
+          </tr>
+        ) : null}
         <tr>
           <th style={{ width: "120px", padding: "4px 0" }}>{t("characters.status")}</th>
           <td>
@@ -603,6 +651,36 @@ export const CharacterDetailsDialog: React.FC = () => {
             </td>
           </tr>
         ) : null}
+        {demonTrueForm ? (
+          <>
+            <tr>
+              <th style={{ padding: "4px 0" }}>{t("characters.demonTrueAppearance")}</th>
+              <td>{demonTrueForm.appearance}</td>
+            </tr>
+            <tr>
+              <th style={{ padding: "4px 0" }}>{t("characters.demonTrueHorns")}</th>
+              <td>{demonTrueHorns}</td>
+            </tr>
+            {demonTrueLooks ? (
+              <tr>
+                <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.demonTrueLooks")}</th>
+                <td style={{ fontSize: "0.9em", lineHeight: 1.45 }}>
+                  {t("characters.looksStature")}: {demonTrueLooks.stature}
+                  <br />
+                  {t("characters.looksBuild")}: {demonTrueLooks.build}
+                  <br />
+                  {t("characters.looksSymmetry")}: {demonTrueLooks.symmetry}
+                  <br />
+                  {t("characters.looksRefinement")}: {demonTrueLooks.refinement}
+                  <br />
+                  {t("characters.looksVitality")}: {demonTrueLooks.vitality}
+                  <br />
+                  {t("characters.looksOrnament")}: {demonTrueLooks.ornament}
+                </td>
+              </tr>
+            ) : null}
+          </>
+        ) : null}
         <tr>
           <th style={{ padding: "4px 0" }} data-tip={t("characters.prestigeTip")}>
             {t("characters.prestige")}
@@ -641,7 +719,7 @@ export const CharacterDetailsDialog: React.FC = () => {
               <ul style={{ margin: "4px 0 0", paddingLeft: "1.2em" }}>
                 {character.militaryRecord.services.map(service => (
                   <li key={`${service.year}-${service.campaignName}-${service.opponentStateId}`}>
-                    {service.year} {service.campaignName}: {t(`characters.warConduct.${service.conduct}`)}
+                    {formatWarService(service)}
                   </li>
                 ))}
               </ul>
@@ -730,7 +808,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     // Basic Info
     rows.push(t("characters.personalInformation"));
     rows.push(`${t("characters.name")}, ${character.name}${getCharacterEpithetSuffix(character)}`);
-    rows.push(`${t("characters.age")}, ${character.age}`);
+    rows.push(`${t("characters.age")}, ${formatCharacterAge(character)}`);
     rows.push(`${t("characters.gender")}, ${t(`characters.${character.gender}`)}`);
     rows.push(`${t("characters.status")}, ${statusText}`);
     if (!character.dead) {
@@ -769,6 +847,19 @@ export const CharacterDetailsDialog: React.FC = () => {
         `${t("characters.looks")}, stature ${looks.stature}, build ${looks.build}, symmetry ${looks.symmetry}, refinement ${looks.refinement}, vitality ${looks.vitality}, ornament ${looks.ornament}`
       );
     }
+    if (demonTrueForm) {
+      rows.push(`${t("characters.demonTrueAppearance")}, ${demonTrueForm.appearance}`);
+      rows.push(`${t("characters.demonTrueHorns")}, ${demonTrueHorns}`);
+      if (demonTrueLooks) {
+        rows.push(
+          `${t("characters.demonTrueLooks")}, stature ${demonTrueLooks.stature}, build ${demonTrueLooks.build}, symmetry ${demonTrueLooks.symmetry}, refinement ${demonTrueLooks.refinement}, vitality ${demonTrueLooks.vitality}, ornament ${demonTrueLooks.ornament}`
+        );
+      }
+    }
+    if (demonIdentityReplacements.length) {
+      rows.push(t("characters.demonIdentityHistory"));
+      for (const replacement of demonIdentityReplacements) rows.push(formatDemonIdentityReplacement(replacement));
+    }
     rows.push(`${t("characters.prestige")}, ${character.prestige ?? t("characters.notAvailable")}`);
     if (militaryVis >= 0.4) {
       rows.push(`${t("characters.militaryStanding")}, ${armyStanding}`);
@@ -783,7 +874,7 @@ export const CharacterDetailsDialog: React.FC = () => {
         `${t("characters.warRecord")}, ${t("characters.warRecordWars", { count: character.militaryRecord.wars })}`
       );
       for (const service of character.militaryRecord.services) {
-        rows.push(`${service.year} ${service.campaignName}, ${t(`characters.warConduct.${service.conduct}`)}`);
+        rows.push(formatWarService(service));
       }
     }
     rows.push(`${t("characters.wealth")}, ${character.wealth ?? 0}`);
@@ -975,7 +1066,7 @@ export const CharacterDetailsDialog: React.FC = () => {
             String(score),
             t(`characters.solidarityBand.${band}`),
             getOfficeLabel(other) || t("characters.notAvailable"),
-            String(other.age),
+            formatCharacterAge(other),
             t(`characters.${other.gender}`),
             stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable"),
             sameCountry ? t("characters.yes") : t("characters.no")
@@ -1008,7 +1099,7 @@ export const CharacterDetailsDialog: React.FC = () => {
             String(score),
             t(`characters.favorBand.${band}`),
             getOfficeLabel(other) || t("characters.notAvailable"),
-            String(other.age),
+            formatCharacterAge(other),
             t(`characters.${other.gender}`),
             stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable"),
             sameCountry ? t("characters.yes") : t("characters.no")
@@ -1074,7 +1165,7 @@ export const CharacterDetailsDialog: React.FC = () => {
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.age")}</th>
-              <td>{character.age}</td>
+              <td>{formatCharacterAge(character)}</td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.gender")}</th>
@@ -1796,7 +1887,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                           <td style={{ textAlign: "right" }}>{score}</td>
                           <td>{t(`characters.solidarityBand.${band}`)}</td>
                           <td>{office || t("characters.notAvailable")}</td>
-                          <td style={{ textAlign: "right" }}>{other.age}</td>
+                          <td style={{ textAlign: "right" }}>{formatCharacterAge(other)}</td>
                           <td>{t(`characters.${other.gender}`)}</td>
                           <td>
                             {stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable")}
@@ -1861,7 +1952,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                           <td style={{ textAlign: "right" }}>{score}</td>
                           <td>{t(`characters.favorBand.${band}`)}</td>
                           <td>{office || t("characters.notAvailable")}</td>
-                          <td style={{ textAlign: "right" }}>{other.age}</td>
+                          <td style={{ textAlign: "right" }}>{formatCharacterAge(other)}</td>
                           <td>{t(`characters.${other.gender}`)}</td>
                           <td>
                             {stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable")}

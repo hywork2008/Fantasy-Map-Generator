@@ -9,7 +9,8 @@ import {
   isWarRecordEligible,
   prestigeDeltaForConduct,
   reconstructMilitaryWarRecord,
-  SEASONED_CAREER_YEARS
+  SEASONED_CAREER_YEARS,
+  serviceStartYearForDisplay
 } from "./militaryWarRecord";
 import { humanCareerYears } from "./prestige";
 
@@ -190,6 +191,42 @@ describe("epithet and prestige from conduct", () => {
 });
 
 describe("applyMilitaryWarRecord", () => {
+  it("records when the person joined an ongoing campaign, separately from the campaign start", () => {
+    let officer = character({
+      age: 55,
+      titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1, startYear: 1035 }]
+    });
+    let record = reconstructMilitaryWarRecord(officer, [war({ start: 1010, end: undefined })], 1040);
+    for (let i = 2; i < 80 && !record; i++) {
+      officer = character({
+        i,
+        age: 55,
+        titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1, startYear: 1035 }]
+      });
+      record = reconstructMilitaryWarRecord(officer, [war({ start: 1010, end: undefined })], 1040);
+    }
+    expect(record?.services[0]).toMatchObject({ year: 1010, serviceStartYear: 1035 });
+    expect(serviceStartYearForDisplay(officer, record!.services[0]!, 1040)).toBe(1035);
+  });
+
+  it("infers a plausible display date for an old record without rewriting it", () => {
+    const officer = character({
+      age: 51,
+      titles: [],
+      roles: [
+        { source: "characters", kind: "soldier", entityType: "burg", entityId: 1, label: "Soldier", startYear: 1040 }
+      ]
+    });
+    const legacyService = {
+      campaignName: "Long War",
+      year: 1010,
+      opponentStateId: 2,
+      side: "attacker" as const,
+      conduct: "costly_push" as const
+    };
+    expect(serviceStartYearForDisplay(officer, legacyService, 1040)).toBe(1040);
+  });
+
   it("skips young officers even when the state has old wars", () => {
     const young = character({
       age: 28,

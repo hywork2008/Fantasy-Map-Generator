@@ -9,7 +9,8 @@ import {
   PROWESS_DECLINE_PER_YEAR_WARRIOR,
   prowessDeclineRateForCreation,
   prowessLifestyleForCharacter,
-  prowessLifestyleForCreation
+  prowessLifestyleForCreation,
+  replaceAgedDemonCover
 } from "./advanceAge";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import "./types";
@@ -305,6 +306,101 @@ describe("advanceCharacterAging", () => {
     }
 
     expect(sickDeaths).toBeGreaterThan(healthyDeaths);
+  });
+});
+
+describe("Demon cover replacement", () => {
+  it("murders a nearby young Human and assumes their public identity", () => {
+    const demon = {
+      i: 1,
+      name: "Old Cover",
+      age: 70,
+      gender: "male",
+      culture: 1,
+      race: 1,
+      state: 2,
+      location: 9,
+      appearance: 20,
+      family: { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 },
+      marriages: [],
+      affinities: {},
+      titles: [{ title: "Spymaster", landed: false, entityType: "state", entityId: 2 }],
+      demonInfiltration: {
+        coverStratum: "influential",
+        objective: "maximizeHumanDeaths",
+        actualAge: 198,
+        trueForm: {
+          appearance: 91,
+          looks: { stature: 88, build: 77, symmetry: 66, refinement: 55, vitality: 99, ornament: 44 },
+          raceAppearance: { kind: "demon", hornAnimal: "ram" }
+        },
+        collaboratorIds: []
+      }
+    } as never;
+    const victim = {
+      i: 2,
+      name: "Young Victim",
+      age: 24,
+      gender: "female",
+      culture: 3,
+      race: 1,
+      state: 2,
+      location: 9,
+      appearance: 75,
+      family: { spouses: 1, children: 0, grandchildren: 0, greatGrandchildren: 0, fatherId: 8 },
+      marriages: [2],
+      affinities: { 2: 50 },
+      titles: []
+    } as never;
+
+    expect(replaceAgedDemonCover(demon, [demon, victim], 1200)).toBe(victim);
+    expect(victim).toMatchObject({ dead: true, deathYear: 1200 });
+    expect(demon).toMatchObject({
+      name: "Young Victim",
+      age: 24,
+      gender: "female",
+      culture: 3,
+      appearance: 75,
+      family: { spouses: 1, children: 0, grandchildren: 0, greatGrandchildren: 0, fatherId: 8 },
+      marriages: [2],
+      affinities: { 2: 50 }
+    });
+    expect(demon.titles[0].title).toBe("Spymaster");
+    expect(demon.demonInfiltration.actualAge).toBe(198);
+    expect(demon.demonInfiltration.trueForm).toEqual({
+      appearance: 91,
+      looks: { stature: 88, build: 77, symmetry: 66, refinement: 55, vitality: 99, ornament: 44 },
+      raceAppearance: { kind: "demon", hornAnimal: "ram" }
+    });
+    expect(demon.demonInfiltration.identityReplacements).toEqual([
+      { year: 1200, victimId: 2, victimName: "Young Victim", previousCoverName: "Old Cover" }
+    ]);
+  });
+
+  it("does not murder a Human with an active non-political role", () => {
+    const demon = {
+      i: 1,
+      name: "Old Cover",
+      age: 70,
+      race: 1,
+      state: 2,
+      location: 9,
+      titles: [],
+      demonInfiltration: { coverStratum: "commoner", objective: "maximizeHumanDeaths", collaboratorIds: [] }
+    } as never;
+    const employedHuman = {
+      i: 2,
+      name: "Employed Human",
+      age: 24,
+      race: 1,
+      state: 2,
+      location: 9,
+      titles: [],
+      roles: [{ source: "economy", kind: "guildMaster", entityType: "market", entityId: 1, label: "Guild master" }]
+    } as never;
+
+    expect(replaceAgedDemonCover(demon, [demon, employedHuman], 1200)).toBeUndefined();
+    expect(employedHuman.dead).toBeUndefined();
   });
 });
 

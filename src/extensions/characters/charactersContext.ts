@@ -11,6 +11,7 @@ import { bindRaceService } from "../hostRaces";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Race } from "../../types/models";
 import { ck3Preset, dnd5ePreset } from "./abilityPresets";
+import { migrateDemonAges } from "./characterAge";
 import type { AbilityPreset, Character } from "./characterTypes";
 import { raceCatalog } from "./data/raceCatalog";
 import {
@@ -74,7 +75,7 @@ export function getCharacters(): Character[] {
   if (!simulation?.extensions) {
     const pack = getWorldContext().pack;
     if (!pack.characters) pack.characters = [];
-    return pack.characters;
+    return migrateDemonAges(pack.characters);
   }
   const extensions = simulation.extensions;
   let slice = extensions.characters;
@@ -83,7 +84,7 @@ export function getCharacters(): Character[] {
     extensions.characters = slice;
   }
   const characters = slice.characters;
-  if (Array.isArray(characters)) return characters as Character[];
+  if (Array.isArray(characters)) return migrateDemonAges(characters as Character[]);
   const next: Character[] = [];
   slice.characters = next;
   return next;

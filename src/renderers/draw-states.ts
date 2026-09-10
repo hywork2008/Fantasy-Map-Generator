@@ -21,6 +21,18 @@ export const StatesRenderer = {
     const { cells, states } = pack;
     const { focusScope } = viewContext;
 
+    // A dialog can finish unmounting after a new-map generation has already
+    // cleared the old pack. In that short staging window there are no states
+    // or packed cells to render, so treat the layer as empty instead of
+    // letting an editor cleanup abort the generation UI.
+    if (!states || !cells?.h || !cells.state) {
+      viewContext.statesBody.html("");
+      viewContext.defs.select<SVGGElement>("#statePaths").html("");
+      viewContext.statesHalo.html("");
+      TIME && console.timeEnd("drawStates");
+      return;
+    }
+
     const maxLength = states.length - 1;
     const bodyPaths = new Array(maxLength);
     const clipPaths = new Array(maxLength);

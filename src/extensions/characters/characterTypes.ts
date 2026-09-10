@@ -51,7 +51,10 @@ export interface CharacterEpithet {
 
 export interface CharacterWarService {
   campaignName: string;
+  /** Year the campaign began. Kept so a long-running war remains identifiable. */
   year: number;
+  /** First year this character could have served in the campaign. */
+  serviceStartYear?: number;
   opponentStateId: number;
   side: "attacker" | "defender";
   conduct: WarConductKind;
@@ -93,6 +96,37 @@ export interface CharacterRole {
   organizationId?: number;
   /** Optional subsystem-specific domain tag, e.g. Economy's CraftKnowledgeDomain for a guild role. */
   domain?: string;
+}
+
+export type DemonCoverStratum = "ruler" | "military" | "influential" | "commoner";
+
+/**
+ * Secret, simulation-facing identity for a Demon passing as Human.
+ *
+ * `Character.race` deliberately remains Human: ordinary character views and all
+ * civic/racial rules see only the cover identity. Consumers that implement
+ * discovery, intrigue, or infernal plots must opt in to reading this field.
+ */
+export interface DemonInfiltration {
+  coverStratum: DemonCoverStratum;
+  objective: "maximizeHumanDeaths";
+  /** Chronological Demon age; `Character.age` is the age of the Human guise. */
+  actualAge?: number;
+  /** The Demon's immutable body, kept separately from its current Human cover. */
+  trueForm?: {
+    appearance: number;
+    looks?: AppearanceAxes;
+    raceAppearance: Extract<CharacterRaceAppearance, { kind: "demon" }>;
+  };
+  /** Covers discarded after their Human age became implausible. */
+  identityReplacements?: Array<{
+    year: number;
+    victimId: number;
+    victimName: string;
+    previousCoverName: string;
+  }>;
+  /** Usually empty; only the small minority taking part in a current compact has peers. */
+  collaboratorIds: number[];
 }
 
 export interface CharacterSkills {
@@ -460,6 +494,8 @@ export interface Character {
    * Usually mirrors the culture's race at creation; may diverge later (adoption, etc.).
    */
   race?: number;
+  /** Present only on a Demon covertly passing as Human. */
+  demonInfiltration?: DemonInfiltration;
   /**
    * Array (not a single field) so a future personal union — one character
    * holding titles over multiple states — needs no schema change. Phase 1

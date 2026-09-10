@@ -43,6 +43,8 @@ export const VULNERABLE_AGE_MULTIPLIER = 1.6;
  */
 export const LONG_LIVED_LIFESPAN_MIN = 150;
 export const LONG_LIVED_RESISTANCE_MULTIPLIER = 0.4;
+/** A Demon inhabiting a Human cover resists mundane disease far beyond other long-lived folk. */
+export const DEMON_DISEASE_RESISTANCE_MULTIPLIER = 0.05;
 /** looks.vitality below this raises disease risk (frail constitution). */
 export const LOW_VITALITY_THRESHOLD = 40;
 export const LOW_VITALITY_MULTIPLIER = 1.25;
@@ -253,6 +255,12 @@ interface Vulnerability {
  * personal wealth (care/nutrition) into one disease-risk multiplier.
  */
 function characterVulnerability(character: Character): Vulnerability {
+  // `race` deliberately names the Human cover. Disease acts on the concealed
+  // supernatural body, so a Demon is neither a Human elder nor normally exposed
+  // to Human-scale infection and mortality.
+  if (character.demonInfiltration) {
+    return { multiplier: DEMON_DISEASE_RESISTANCE_MULTIPLIER, isElder: false };
+  }
   const raceId = resolveCharacterRaceId(character);
   const profile = resolveRaceAgeProfile(raceId);
 

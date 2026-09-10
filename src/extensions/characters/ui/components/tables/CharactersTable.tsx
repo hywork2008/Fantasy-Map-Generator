@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { SortableHeader } from "../../../../hostUi";
 import { formatPrice } from "../../../../hostUtils";
+import { formatCharacterAge } from "../../../characterAge";
 import type { CharacterRowData } from "../../../controllers/characters-overview";
 import { getCharacterEpithetSuffix } from "../../../utils/characterLabels";
 import { getCharacterRowStyle } from "../../../utils/personalityUtils";
@@ -138,7 +139,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
                         {getCharacterEpithetSuffix(c)}
                       </span>
                     </td>
-                    <td className="numeric">{c.age}</td>
+                    <td className="numeric">{formatCharacterAge(c)}</td>
                     <td className="numeric">{c.appearance}</td>
                     <td className="numeric">{c.prestige}</td>
                     <td className="numeric" data-tip="Personal wealth (held money)">

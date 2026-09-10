@@ -1,6 +1,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
+import { formatCharacterAge } from "../../characterAge";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import { selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
@@ -87,7 +88,7 @@ export const PlayerCharacterPanel: React.FC = () => {
                 )}
               </dd>
               <dt>Age</dt>
-              <dd>{character.age}</dd>
+              <dd>{formatCharacterAge(character)}</dd>
               <dt>Wealth</dt>
               <dd>{Math.round(character.wealth ?? 0)}</dd>
             </dl>

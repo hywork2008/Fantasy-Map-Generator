@@ -51,12 +51,29 @@ export function isWarRecordEligible(character: Pick<Character, "titles" | "roles
 }
 
 function officeTenureStartYear(character: Character, currentYear: number): number {
-  const starts = character.titles
-    .map(t => t.startYear)
-    .filter((year): year is number => typeof year === "number" && Number.isFinite(year));
+  const starts = [
+    ...character.titles.map(t => t.startYear),
+    ...(character.roles ?? []).map(role => role.startYear)
+  ].filter((year): year is number => typeof year === "number" && Number.isFinite(year));
   if (starts.length) return Math.min(...starts);
   const careerYears = Math.max(0, character.age - careerStartAge(character.race));
   return currentYear - careerYears;
+}
+
+/**
+ * The public date to show for a service entry. New records persist it explicitly;
+ * old saves are conservatively inferred from the public career that existed before
+ * the first cover replacement. Once a cover has been replaced, its old services
+ * cannot be safely reassigned without a persisted serviceStartYear.
+ */
+export function serviceStartYearForDisplay(
+  character: Character,
+  service: CharacterWarService,
+  currentYear: number
+): number {
+  if (service.serviceStartYear !== undefined) return service.serviceStartYear;
+  if (character.demonInfiltration?.identityReplacements?.length) return service.year;
+  return Math.max(service.year, officeTenureStartYear(character, currentYear));
 }
 
 function campaignOverlapsTenure(campaign: Campaign, tenureStart: number, currentYear: number): boolean {
@@ -203,6 +220,7 @@ export function reconstructMilitaryWarRecord(
     services.push({
       campaignName: campaign.name,
       year: Math.round(campaign.start),
+      serviceStartYear: Math.max(Math.round(campaign.start), Math.round(tenureStart)),
       opponentStateId: isDefender ? campaign.attacker : campaign.defender,
       side: isDefender ? "defender" : "attacker",
       conduct
@@ -225,7 +243,7 @@ function appendBattleExperience(character: Character, services: readonly Charact
     profile.experience.push({
       id: `war-${character.i}-${service.year}-${service.opponentStateId}`,
       domainId: CONDUCT_DOMAIN[service.conduct],
-      year: service.year,
+      year: service.serviceStartYear ?? service.year,
       coverage: 0.15,
       mode: "battle",
       role: service.side,

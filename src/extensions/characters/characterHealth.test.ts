@@ -3,6 +3,7 @@ import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import {
   advanceCharacterHealth,
+  DEMON_DISEASE_RESISTANCE_MULTIPLIER,
   diseaseDeathReason,
   diseaseDeathRiskFor,
   getCharacterHealth,
@@ -201,6 +202,17 @@ describe("diseaseDeathRiskFor / diseaseDeathReason", () => {
     const plague = baseCharacter({ affliction: { kind: "plague", severity: "severe", sinceYear: 1 } });
     const pox = baseCharacter({ affliction: { kind: "pox", severity: "severe", sinceYear: 1 } });
     expect(diseaseDeathRiskFor(plague)).toBeGreaterThan(diseaseDeathRiskFor(pox));
+  });
+
+  it("uses the Demon's true body rather than its Human cover for disease risk", () => {
+    const human = baseCharacter({ affliction: { kind: "flux", severity: "critical", sinceYear: 1 } });
+    const demon = baseCharacter({
+      age: 100,
+      affliction: { kind: "flux", severity: "critical", sinceYear: 1 },
+      demonInfiltration: { coverStratum: "commoner", objective: "maximizeHumanDeaths", collaboratorIds: [] }
+    });
+
+    expect(diseaseDeathRiskFor(demon)).toBeCloseTo(diseaseDeathRiskFor(human) * DEMON_DISEASE_RESISTANCE_MULTIPLIER, 8);
   });
 
   it("returns a flavor death reason only while afflicted", () => {

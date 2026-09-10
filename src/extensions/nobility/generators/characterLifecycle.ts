@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { isFantasySupernaturalEnabled } from "../../characters/arcane";
 import {
   applyCharacterBackstory,
   seedCharacterRelations,
@@ -53,6 +54,7 @@ import {
   getWorldContext,
   setRulerId
 } from "../nobilityContext";
+import { seedDemonInfiltration } from "./demonInfiltration";
 import { tryMilitaryCoup, tryProvokeWar } from "./marshalMischief";
 
 /** True when the state's culture race is enemy-dedicated (goblin warbands, etc.). */
@@ -99,6 +101,8 @@ function clearStateRulerIds(): void {
 
 function preserveNonPoliticalCharacters(characters: Character[] = []): Character[] {
   return characters.filter(character => {
+    // Regeneration rebuilds the covert roster to match the current state count.
+    if (character.demonInfiltration) return false;
     if (!character.roles?.length) return false;
 
     character.titles = [];
@@ -222,6 +226,9 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   }
 
   seedMilitaryWarRecords(characters, states, currentYear);
+  // Preserve a selected Human's established public record, but do not manufacture
+  // a long career for a newly created Demon cover from old state campaigns.
+  if (isFantasySupernaturalEnabled()) seedDemonInfiltration({ characters, states, pack, currentYear });
   calculateAffinities(characters);
   seedCharacterRelations(characters);
 
