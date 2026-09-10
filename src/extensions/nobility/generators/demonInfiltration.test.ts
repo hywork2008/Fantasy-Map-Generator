@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { allocateDemonHostStates, allocateDemonStrata, seedDemonInfiltration } from "./demonInfiltration";
+import {
+  allocateDemonHostStates,
+  allocateDemonStrata,
+  replenishDemonInfiltration,
+  seedDemonInfiltration
+} from "./demonInfiltration";
 
 describe("demon infiltration allocation", () => {
   it("matches the state count and preserves the intended social mix", () => {
@@ -81,5 +86,56 @@ describe("demon infiltration allocation", () => {
     expect(infiltrator.demonInfiltration?.trueForm?.raceAppearance).toMatchObject({ kind: "demon" });
     expect(infiltrator.demonInfiltration?.trueForm?.raceAppearance.hornAnimal).toBeTruthy();
     vi.restoreAllMocks();
+  });
+
+  it("replaces only serving rulers or military figures with a small new Demon cohort", () => {
+    const ruler = {
+      i: 1,
+      name: "Queen Alia",
+      age: 42,
+      race: 1,
+      culture: 1,
+      state: 1,
+      titles: [{ title: "Queen", landed: true, entityType: "state", entityId: 1, startYear: 990 }],
+      appearance: 64,
+      raceAppearance: { kind: "demon", hornAnimal: "ram" }
+    } as never;
+    const marshal = {
+      i: 2,
+      name: "Marshal Bren",
+      age: 39,
+      race: 1,
+      culture: 1,
+      state: 1,
+      titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1, startYear: 995 }],
+      appearance: 58,
+      raceAppearance: { kind: "demon", hornAnimal: "goat" }
+    } as never;
+    const steward = {
+      i: 3,
+      name: "Steward Cato",
+      age: 45,
+      race: 1,
+      culture: 1,
+      state: 1,
+      titles: [{ title: "Steward", landed: false, entityType: "state", entityId: 1, startYear: 993 }],
+      appearance: 51,
+      raceAppearance: { kind: "demon", hornAnimal: "ibex" }
+    } as never;
+
+    const added = replenishDemonInfiltration({
+      characters: [ruler, marshal, steward],
+      states: [{ i: 1, capital: 1, culture: 1 }] as never,
+      pack: { races: [] },
+      currentYear: 1100,
+      count: 3
+    });
+
+    expect(added).toHaveLength(2);
+    expect(added.map(character => character.name).sort()).toEqual(["Marshal Bren", "Queen Alia"]);
+    expect(added.every(character => character.demonInfiltration)).toBe(true);
+    expect(ruler.titles[0].title).toBe("Queen");
+    expect(marshal.titles[0].title).toBe("Marshal");
+    expect(steward.demonInfiltration).toBeUndefined();
   });
 });

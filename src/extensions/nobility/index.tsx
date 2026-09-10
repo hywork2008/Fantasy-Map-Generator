@@ -358,6 +358,7 @@ export function init(api: ExtensionAPI): void {
     if (isAnnualBoundary()) pruneDeadCharactersAnnual();
     if (!usesCourtSystems()) return;
     Characters.processResignationsAndSuccessions(effectiveDeltaYears);
+    if (isAnnualBoundary()) Characters.replenishDemonInfiltrationCentury();
     // Phase D: greed/commitment-driven skimming and court bribes.
     Characters.processCharacterCorruption(effectiveDeltaYears);
   });

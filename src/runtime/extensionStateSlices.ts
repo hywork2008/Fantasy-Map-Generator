@@ -594,6 +594,12 @@ function validateNobilitySlice(slice: Record<string, unknown>, world: WorldConte
       }
     }
   }
+  if (slice.lastDemonReplenishmentYear !== undefined) {
+    assertNonNegativeInteger(
+      slice.lastDemonReplenishmentYear,
+      "simulation.extensions.nobility.lastDemonReplenishmentYear"
+    );
+  }
   if (slice.voyageIntelBonus !== undefined) {
     assertRecord(slice.voyageIntelBonus, "simulation.extensions.nobility.voyageIntelBonus");
     for (const [key, amount] of Object.entries(slice.voyageIntelBonus as Record<string, unknown>)) {
