@@ -124,6 +124,8 @@ export interface DemonInfiltration {
    * intentionally overridden by `demonIdentity.arcane`.
    */
   coverIdentity?: DemonIdentity;
+  /** Long-term human knowledge accumulated across successive covers. */
+  humanSocietyExperience?: DemonSocietyExperience;
   /** The Demon's immutable body, kept separately from its current Human cover. */
   trueForm?: {
     appearance: number;
@@ -151,6 +153,18 @@ export interface CharacterSkills {
   martial: number;
   prowess: number;
   stewardship: number;
+}
+
+/** Persistent knowledge an infiltrator has acquired while living among Humans. */
+export interface DemonSocietyExperience {
+  /** Whole years spent in Human covers. */
+  years: number;
+  /** Number of public identities already worn, including the current one. */
+  coverCount: number;
+  /** Best Human skill witnessed or personally practiced across all covers. */
+  learnedSkillPeaks: Partial<CharacterSkills>;
+  /** Number of 50-year human-society milestones already used for infernal growth. */
+  arcaneGrowthMilestones: number;
 }
 
 export interface CharacterPersonality {

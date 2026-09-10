@@ -1,5 +1,7 @@
+import { rollCharacterArcane } from "../../characters/arcane";
 import { applyCharacterBackstory } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole, DemonCoverStratum, DemonIdentity } from "../../characters/characterTypes";
+import { initializeDemonSocietyExperience } from "../../characters/demonExperience";
 import { createPerson } from "../../characters/personFactory";
 import { rollDefaultAdultAge } from "../../characters/raceAge";
 import { getRaceDefinitions, HUMAN_RACE_ID, rollCharacterRaceAppearance } from "../../hostRaces";
@@ -128,6 +130,14 @@ function applyDemonArcaneIdentity(infiltrator: Character): void {
   for (const field of DEMON_ARCANE_FIELDS) infiltrator[field] = identity[field];
 }
 
+/** True forms are never constrained by the public character-race allow-list. */
+function forceDemonTrueIdentity(character: Character, demonRaceId: number): void {
+  if (character.race === demonRaceId) return;
+  character.race = demonRaceId;
+  character.arcane = rollCharacterArcane({ raceKey: "demon" });
+  delete character.arcaneLineage;
+}
+
 export interface SeedDemonInfiltrationOptions {
   characters: Character[];
   states: State[];
@@ -157,6 +167,7 @@ function turnIntoDemonInfiltrator(
           raceOverride: demonRaceId,
           roleClass: stratum === "military" ? "commander" : stratum === "influential" ? "merchant" : "ordinary"
         });
+  if (!wasOpenDemon && demonRaceId !== undefined) forceDemonTrueIdentity(trueFormSource, demonRaceId);
   const raceAppearance =
     trueFormSource.raceAppearance?.kind === "demon"
       ? structuredClone(trueFormSource.raceAppearance)
@@ -190,6 +201,7 @@ function turnIntoDemonInfiltrator(
     collaboratorIds: []
   };
   applyDemonArcaneIdentity(infiltrator);
+  initializeDemonSocietyExperience(infiltrator);
   return infiltrator;
 }
 
@@ -282,4 +294,27 @@ export function replenishDemonInfiltration(options: ReplenishDemonInfiltrationOp
     created.push(turnIntoDemonInfiltrator(candidate, stratum, options));
   }
   return created;
+}
+
+/**
+ * Migrates infiltrators written before true Demon identities bypassed the public
+ * race allow-list. Their public cover remains Human; only the hidden true sheet
+ * and effective Arcane value are corrected.
+ */
+export function repairDemonInfiltrationTrueIdentities(
+  options: Pick<SeedDemonInfiltrationOptions, "characters" | "pack">
+): number {
+  const demonRaceId = options.pack.races?.find(race => race.key === "demon")?.i;
+  if (demonRaceId === undefined) return 0;
+  let repaired = 0;
+  for (const character of options.characters) {
+    const infiltration = character.demonInfiltration;
+    if (!infiltration || infiltration.demonIdentity?.race === demonRaceId) continue;
+    const identity = infiltration.demonIdentity ?? cloneIdentity(character);
+    forceDemonTrueIdentity(identity, demonRaceId);
+    infiltration.demonIdentity = identity;
+    character.arcane = identity.arcane;
+    repaired += 1;
+  }
+  return repaired;
 }

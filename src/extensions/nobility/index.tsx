@@ -24,6 +24,7 @@ import { clearPlayerTravel, requestTravelToBurg, tickPlayerTravel } from "./cont
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
 import { pruneDeadCharactersAnnual } from "./generators/characterPruning";
+import { repairDemonInfiltrationTrueIdentities } from "./generators/demonInfiltration";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { addVoyageIntel, clearVoyageIntel, Espionage } from "./generators/espionage-generator";
 import { tryRecaptureHomeBurg } from "./generators/homeRecapture";
@@ -54,6 +55,8 @@ let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
 let _playerConflictRequestedHandler: ((e: Event) => void) | null = null;
 let _playerConflictEndedHandler: ((e: Event) => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
+/** Each loaded character list needs the legacy true-form migration only once. */
+const _repairedDemonInfiltrationCharacterLists = new WeakSet<object>();
 /** Unregister handles for the NOBILITY_TICK_SYSTEM_IDS chain, dropped in reverse on cleanup. */
 const _unregisterTickSystems: (() => void)[] = [];
 
@@ -350,6 +353,14 @@ export function init(api: ExtensionAPI): void {
     // Resolve sickness/health before aging so this same tick's mortality roll already
     // sees any fresh affliction (see characterHealth.ts's diseaseDeathRiskFor()).
     advanceCharacterHealth(effectiveDeltaYears);
+    const characters = api.worldContext.pack.characters;
+    if (characters?.length && !_repairedDemonInfiltrationCharacterLists.has(characters)) {
+      repairDemonInfiltrationTrueIdentities({
+        characters,
+        pack: api.worldContext.pack
+      });
+      _repairedDemonInfiltrationCharacterLists.add(characters);
+    }
     advanceCharacterAging(effectiveDeltaYears);
     // Annual maintenance, independent of ability preset: sweep long-dead characters nothing
     // still references (see characterPruning.ts) so the roster — and the full-pack/simulation

@@ -9,6 +9,7 @@ import { attractiveness, isSameRace } from "./appearance";
 import { adjustSolidarity, getFavor, getSolidarity, offerGift } from "./backstoryProfile";
 import { getWarPreference, hasPrinciple } from "./characterMotivation";
 import { type Character, type CommitmentKind, isCk3Character } from "./characterTypes";
+import { effectiveDemonSecretSkill } from "./demonExperience";
 import { marriageTrophyValue } from "./prestige";
 
 // ---------------------------------------------------------------------------
@@ -352,7 +353,8 @@ export function applyCharacterCorruption(characters: Character[], deltaYears: nu
       if (!(amount > 0)) continue;
 
       // Detection depends on Intrigue and planning, not preference for indirect methods.
-      const detectChance = Math.max(0.05, 0.55 - c.skills.intrigue / 150 - (p.rationality > 70 ? 0.05 : 0));
+      const intrigue = effectiveDemonSecretSkill(c, "intrigue");
+      const detectChance = Math.max(0.05, 0.55 - intrigue / 150 - (p.rationality > 70 ? 0.05 : 0));
       const detected = Math.random() < detectChance;
 
       events.push({ characterId: c.i, stateId: c.state, amount, detected });

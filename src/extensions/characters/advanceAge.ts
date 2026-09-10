@@ -23,6 +23,7 @@ import {
   isCk3Character,
   type RaisedIn
 } from "./characterTypes";
+import { advanceDemonSocietyExperience, inheritDemonCoverSkills } from "./demonExperience";
 import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
 /**
@@ -62,6 +63,7 @@ function assumeHumanCover(infiltrator: Character, cover: Character): void {
   const titles = infiltrator.titles;
   const pastTitles = infiltrator.pastTitles;
   syncDemonArcaneIdentity(infiltrator);
+  inheritDemonCoverSkills(infiltrator, cover);
 
   const publicCover = structuredClone(cover) as unknown as Record<string, unknown>;
   delete publicCover.demonInfiltration;
@@ -301,6 +303,7 @@ export function advanceCharacterAging(deltaYears: number): void {
       if (character.demonInfiltration.demonIdentity) {
         character.demonInfiltration.demonIdentity.age = character.demonInfiltration.actualAge;
       }
+      advanceDemonSocietyExperience(character, wholeYears);
     }
     character.ageFraction = accumulated - wholeYears;
     replaceAgedDemonCover(character, characters, getCurrentYear());

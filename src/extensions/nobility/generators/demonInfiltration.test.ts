@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   allocateDemonHostStates,
   allocateDemonStrata,
+  repairDemonInfiltrationTrueIdentities,
   replenishDemonInfiltration,
   seedDemonInfiltration
 } from "./demonInfiltration";
@@ -157,5 +158,31 @@ describe("demon infiltration allocation", () => {
     expect(ruler.titles[0].title).toBe("Queen");
     expect(marshal.titles[0].title).toBe("Marshal");
     expect(steward.demonInfiltration).toBeUndefined();
+  });
+
+  it("repairs an older hidden identity that was accidentally generated as Human", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const infiltrator = {
+      i: 1,
+      name: "Cover",
+      age: 45,
+      race: 1,
+      arcane: 4,
+      demonInfiltration: {
+        coverStratum: "ruler",
+        objective: "maximizeHumanDeaths",
+        demonIdentity: { i: 1, race: 1, arcane: 4 } as never,
+        collaboratorIds: []
+      }
+    } as never;
+
+    expect(
+      repairDemonInfiltrationTrueIdentities({ characters: [infiltrator], pack: { races: [{ i: 4, key: "demon" }] } })
+    ).toBe(1);
+    expect(infiltrator.race).toBe(1);
+    expect(infiltrator.demonInfiltration.demonIdentity.race).toBe(4);
+    expect(infiltrator.demonInfiltration.demonIdentity.arcane).toBeGreaterThan(10);
+    expect(infiltrator.arcane).toBe(infiltrator.demonInfiltration.demonIdentity.arcane);
+    vi.restoreAllMocks();
   });
 });
