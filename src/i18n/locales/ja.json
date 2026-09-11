@@ -1274,7 +1274,8 @@
         "construction": "建設",
         "navigation": "航法",
         "combat": "剣での戦闘",
-        "teaching": "教育"
+        "teaching": "教育",
+        "survival": "野外生存"
       },
       "targets": {
         "terrain": "地形",

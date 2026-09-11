@@ -416,4 +416,35 @@ describe("initial literacy from station and upbringing", () => {
     expect(evaluateExpertise(character, EXPERTISE_TASKS.interrogation).score).toBeCloseTo(76.67);
     expect(evaluateExpertise(character, EXPERTISE_TASKS.fabricateAnathema).score).toBeCloseTo(78.33);
   });
+
+  it("supports geography.survival, learning.botany, and purified prowess.fieldcraft in survival task", () => {
+    const survivalDef = SPECIALIZATION_DEFINITIONS.find(d => d.id === "geography.survival");
+    const botanyDef = SPECIALIZATION_DEFINITIONS.find(d => d.id === "learning.botany");
+    const fieldcraftDef = SPECIALIZATION_DEFINITIONS.find(d => d.id === "prowess.fieldcraft");
+
+    expect(survivalDef).toBeDefined();
+    expect(survivalDef?.skill).toBe("geography");
+    expect(survivalDef?.label).toEqual({ en: "Survival", ja: "野外生存術" });
+
+    expect(botanyDef).toBeDefined();
+    expect(botanyDef?.skill).toBe("learning");
+    expect(botanyDef?.label).toEqual({ en: "Botany", ja: "植物学・本草学" });
+    expect(botanyDef?.appraisal).toBe(true);
+
+    expect(fieldcraftDef).toBeDefined();
+    expect(fieldcraftDef?.skill).toBe("prowess");
+    expect(fieldcraftDef?.label).toEqual({ en: "Fieldcraft", ja: "野外踏破" });
+    expect(fieldcraftDef?.knowledge).toContain("身体ペース配分");
+
+    const character = expertiseCharacter();
+    character.specializations!.domains = [
+      { domainId: "geography.survival", practice: 80 },
+      { domainId: "prowess.fieldcraft", practice: 70 },
+      { domainId: "learning.botany", knowledge: 60 },
+      { domainId: "geography.climate", knowledge: 50 }
+    ];
+
+    expect(EXPERTISE_TASKS.survival).toBeDefined();
+    expect(evaluateExpertise(character, EXPERTISE_TASKS.survival).score).toBe(68);
+  });
 });

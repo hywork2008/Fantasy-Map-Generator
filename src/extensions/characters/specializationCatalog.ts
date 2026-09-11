@@ -312,6 +312,15 @@ export const SPECIALIZATION_DEFINITIONS: readonly SpecializationDefinition[] = [
     targets: "各学問を対象IDでさらに区分"
   },
   {
+    id: "learning.botany",
+    skill: "learning",
+    label: { en: "Botany", ja: "植物学・本草学" },
+    knowledge: "植物分類、生態特性、薬効・毒性、生育環境",
+    practice: "野外同定、毒抜き・調製、標本採取、栽培管理",
+    targets: "気候帯、地形、薬用・食用・有毒分類",
+    appraisal: true
+  },
+  {
     id: "learning.medicine",
     skill: "learning",
     label: { en: "Medicine", ja: "解剖" },
@@ -378,10 +387,10 @@ export const SPECIALIZATION_DEFINITIONS: readonly SpecializationDefinition[] = [
   {
     id: "prowess.fieldcraft",
     skill: "prowess",
-    label: { en: "Fieldcraft", ja: "野営" },
-    knowledge: "野営、生存、危険の見分け",
-    practice: "移動、登攀、水泳、隠密行動",
-    targets: "地形・気候、遠征経験"
+    label: { en: "Fieldcraft", ja: "野外踏破" },
+    knowledge: "登攀具・踏破具の操作理論、身体ペース配分、肉体負荷管理",
+    practice: "岩壁登攀、急流渡河、悪路走破、隠密行動",
+    targets: "険路、急流、登攀壁、遠征踏破歴"
   },
   {
     id: "artistry.ceramics",
@@ -616,6 +625,14 @@ export const SPECIALIZATION_DEFINITIONS: readonly SpecializationDefinition[] = [
     knowledge: "国境、要衝、勢力圏",
     practice: "国境案、拠点・進出先の評価",
     targets: "国家、戦域、交通網"
+  },
+  {
+    id: "geography.survival",
+    skill: "geography",
+    label: { en: "Survival", ja: "野外生存術" },
+    knowledge: "水脈・食糧確保理論、避難所構造、発火法、環境リスク評価",
+    practice: "シェルター構築、火起こし、水質浄化、現地資源調達",
+    targets: "過酷環境・地形（山岳、砂漠、森林、湿地、極地等）"
   },
   {
     id: "learning.translation",

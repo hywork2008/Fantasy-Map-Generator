@@ -275,7 +275,13 @@ export const EXPERTISE_TASKS: Record<string, readonly ExpertiseRequirement[]> = 
     { domainId: "geography.climate", axis: "knowledge", weight: 1 }
   ],
   combat: [{ domainId: "prowess.melee.swordsmanship", axis: "practice", weight: 1 }],
-  teaching: [{ domainId: "learning.education", axis: "practice", weight: 1 }]
+  teaching: [{ domainId: "learning.education", axis: "practice", weight: 1 }],
+  survival: [
+    { domainId: "geography.survival", axis: "practice", weight: 2 },
+    { domainId: "prowess.fieldcraft", axis: "practice", weight: 1 },
+    { domainId: "learning.botany", axis: "knowledge", weight: 1 },
+    { domainId: "geography.climate", axis: "knowledge", weight: 1 }
+  ]
 };
 
 export interface CommunicationRoute {

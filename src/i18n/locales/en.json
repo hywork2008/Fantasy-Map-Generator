@@ -1274,7 +1274,8 @@
         "construction": "Construction",
         "navigation": "Navigation",
         "combat": "Sword combat",
-        "teaching": "Teaching"
+        "teaching": "Teaching",
+        "survival": "Wilderness survival"
       },
       "targets": {
         "terrain": "Terrain",
