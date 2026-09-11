@@ -460,7 +460,7 @@ registerSimulationSystem({
   profileLabel: "fireSpirits",
   run: (context, writer) => {
     if (simulationContext.currentMonth !== 1 || simulationContext.currentDay !== 1) return;
-    const result = advanceFireSpirits(worldContext, simulationContext, () => context.rng.random());
+    const result = advanceFireSpirits(worldContext, simulationContext, () => context.rng.rand());
     if (result.changed) {
       writer.markChanged("simulation.cells", "simulation.military", "simulation.states");
     }
@@ -482,7 +482,7 @@ registerSimulationSystem({
       worldContext,
       simulationContext,
       stateId => stateSignals.get(stateId) ?? {},
-      () => context.rng.random()
+      () => context.rng.rand()
     );
     if (result.changed) {
       writer.markChanged("simulation.states");

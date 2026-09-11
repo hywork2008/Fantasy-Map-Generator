@@ -480,4 +480,74 @@ describe("timeEngine simulation system registration (P2-7)", () => {
       useFastAdvanceState.setState({ enabled: false, preset: "steady" });
     }
   });
+
+  it("steps across year-end (12/31 -> 1/1) under Fast-Forward without crashing in fire-spirits.tick or gremlins.tick", () => {
+    worldContext.seed = "year-end-transition";
+    worldContext.options = { year: 1000, month: 12, day: 30, era: "Test", culturesSet: "fantasy" } as never;
+    worldContext.nameBases = [];
+    worldContext.biomesData = { habitability: [0] } as never;
+    worldContext.notes = [];
+    worldContext.grid = {} as never;
+    worldContext.mapCoordinates = { latN: 40, latS: 20 } as never;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.pack = {
+      states: [
+        { i: 0, name: "Neutrals", removed: true, diplomacy: [] },
+        { i: 1, name: "State 1", removed: false, diplomacy: [], military: [] }
+      ],
+      burgs: [],
+      routes: [],
+      cells: {
+        i: [0, 1],
+        state: [0, 1],
+        province: [0, 1],
+        pop: [0, 100],
+        maleAdults: new Float32Array([0, 25]),
+        femaleAdults: new Float32Array([0, 25]),
+        children: new Float32Array([0, 25]),
+        elders: new Float32Array([0, 25]),
+        h: new Uint8Array([25, 25]),
+        f: new Uint16Array([1, 1]),
+        c: [[], []],
+        p: [
+          [0, 0],
+          [1, 1]
+        ]
+      }
+    } as never;
+
+    simulationContext.currentYear = 1000;
+    simulationContext.currentMonth = 12;
+    simulationContext.currentDay = 30;
+    simulationContext.tickCount = 364;
+    simulationContext.frontier = createEmptyFrontierSimulationState();
+    simulationContext.populationLoss = { simDay: 0, history: [] };
+    simulationContext.intelligence = {};
+    simulationContext.strategicGoals = {};
+    simulationContext.navalTechBonus = {};
+    initRng("year-end-transition");
+
+    useOptionsState.setState({
+      simDemographics: false,
+      simManpower: false,
+      simMilitaryRecovery: false,
+      culturesSet: "fantasy",
+      fireSpiritsEnabled: true,
+      gremlinsEnabled: true
+    });
+    useFastAdvanceState.setState({ enabled: true, preset: "steady" });
+
+    try {
+      // Step from 12/30 through 12/31 and into 1/1, 1/2 of next year (3 days).
+      // Previously, transitioning from 12/31 to 1/1 threw because fire-spirits.tick / gremlins.tick
+      // called context.rng.random() instead of context.rng.rand().
+      expect(() => runDaily(3, { notify: false })).not.toThrow();
+      expect(simulationContext.currentYear).toBe(1001);
+      expect(simulationContext.currentMonth).toBe(1);
+      expect(simulationContext.currentDay).toBe(2);
+    } finally {
+      useFastAdvanceState.setState({ enabled: false, preset: "steady" });
+    }
+  });
 });
