@@ -1,10 +1,14 @@
 import { worldContext } from "../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
 import { ARCTIC_CIRCLE_LATITUDE_DEG } from "../data/earthConfig";
+import { isFantasyCulturesSet } from "../data/raceCivicStance";
+import { evaluateCellFireSpiritStatus } from "../generators/fireSpirits";
 import { getForestClearingRate } from "../generators/forestStock";
+import { evaluateStateGremlinStatus } from "../generators/gremlins";
 import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
 import { getRiverCellHydrology } from "../generators/riverHydrology";
 import { getCellSubsistenceCapacity, getLivelihoodKind } from "../generators/subsistenceCapacity";
+import { buildStateSignals } from "../generators/technologyProgress";
 import { useCellInfoState } from "../store/cellInfoState";
 import { useOptionsState } from "../store/optionsState";
 import { usePopulationOverviewState } from "../store/populationOverviewState";
@@ -98,7 +102,26 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     currentDirection: isOceanCell ? `${worldContext.grid.cells.currentAngle?.[g] ?? 0}°` : "n/a",
     currentSpeed: isOceanCell ? getCurrentSpeedLabel(worldContext.grid.cells.currentSpeed?.[g] ?? 0) : "n/a",
     waterTemp: isOceanCell ? convertTemperature(worldContext.grid.cells.waterTemp?.[g] ?? 0) : "n/a",
-    enclosure: cells.h[i] < 20 && cells.enclosure ? `${cells.enclosure[i]}%` : "n/a"
+    enclosure: cells.h[i] < 20 && cells.enclosure ? `${cells.enclosure[i]}%` : "n/a",
+    fireSpirits: (() => {
+      if (!isFantasyCulturesSet(worldContext.options?.culturesSet)) return "n/a";
+      const status = evaluateCellFireSpiritStatus(worldContext.pack, i, worldContext.options ?? {});
+      if (!status.present) return "none";
+      if (status.controlledByElves) return "controlled by elves";
+      return `active (${status.reason} - explosive hazard!)`;
+    })(),
+    gremlins: (() => {
+      if (!isFantasyCulturesSet(worldContext.options?.culturesSet)) return "n/a";
+      const stateId = cells.state?.[i];
+      if (!stateId) return "none";
+      const signals = buildStateSignals().get(stateId) ?? {};
+      const status = evaluateStateGremlinStatus(stateId, worldContext, signals);
+      if (!status.infested) return "none";
+      if (status.warded === "full") return "warded (secret arcane art)";
+      if (status.warded === "partial")
+        return `infested (${Math.round(status.infestationLevel * 100)}% - partially warded)`;
+      return `infested (${Math.round(status.infestationLevel * 100)}% - disruptive)`;
+    })()
   });
 
   tooltipExtensions.updateCellInfo?.(point, i, g);

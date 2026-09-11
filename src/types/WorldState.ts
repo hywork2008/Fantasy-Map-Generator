@@ -241,6 +241,12 @@ export interface WorldOptions {
    * Whether character romance profiles apply a unique deterministic offset based on character ID.
    */
   romanceDiversityUniqueOffset?: boolean;
+  /** Cultures set name (e.g. "world", "highFantasy", "darkFantasy"). */
+  culturesSet?: string;
+  /** Whether fire spirits are enabled on fantasy maps. */
+  fireSpiritsEnabled?: boolean;
+  /** Whether gremlins are enabled on fantasy maps. */
+  gremlinsEnabled?: boolean;
 }
 
 /** Top-level world state. All generators and renderers operate on this object. */

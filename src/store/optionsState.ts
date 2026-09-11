@@ -283,6 +283,17 @@ export interface OptionsState {
   dangerRarity1Power: number;
   dangerRarity1Type: string;
 
+  /**
+   * Fantasy culture option: Fire spirits exist in populated cells and estuary/lava zones,
+   * causing explosion risks for gunpowder and ammo unless controlled by elves.
+   */
+  fireSpiritsEnabled: boolean;
+  /**
+   * Fantasy culture option: Gremlins proliferate around electrical machines and wires,
+   * causing intermittent shutdowns and loss of scientific reproducibility unless banished.
+   */
+  gremlinsEnabled: boolean;
+
   // World Configurator settings
   mapSize: number;
   latitude: number;
@@ -471,7 +482,9 @@ export const GENERATION_OPTION_KEYS = [
   "dangerRarity1Min",
   "dangerRarity1Max",
   "dangerRarity1Power",
-  "dangerRarity1Type"
+  "dangerRarity1Type",
+  "fireSpiritsEnabled",
+  "gremlinsEnabled"
 ] as const satisfies readonly (keyof OptionsValues)[];
 
 export type GenerationOptions = {
@@ -558,6 +571,8 @@ export const useOptionsState = create<OptionsState>(set => ({
   dangerRarity1Max: 40,
   dangerRarity1Power: 5,
   dangerRarity1Type: "Beast",
+  fireSpiritsEnabled: true,
+  gremlinsEnabled: true,
 
   mapSize: 12.9,
   latitude: 0,

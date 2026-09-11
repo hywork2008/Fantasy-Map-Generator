@@ -52,6 +52,10 @@ export interface CellInfoData {
   religion: string;
   burg: string;
   danger: string;
+  /** Fire spirits status for fantasy maps. */
+  fireSpirits?: string;
+  /** Gremlins status for fantasy maps. */
+  gremlins?: string;
   /** Extension-supplied row values, keyed by the id passed to ExtensionAPI.registerCellInfoRow(). */
   extra: Record<string, string>;
 }
@@ -100,6 +104,8 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   religion: "n/a",
   burg: "n/a",
   danger: "n/a",
+  fireSpirits: "n/a",
+  gremlins: "n/a",
   extra: {},
   isPinned: false,
   togglePinned: () => set(state => ({ isPinned: !state.isPinned })),

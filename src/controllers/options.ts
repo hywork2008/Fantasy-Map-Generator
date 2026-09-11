@@ -292,6 +292,8 @@ function changeCultureSet(): void {
     // Danger is on by default for fantasy sets but stays user-toggleable
     // (Danger tab checkbox) — a lock (below) protects an explicit choice.
     dangerEnabled: true,
+    fireSpiritsEnabled: true,
+    gremlinsEnabled: true,
     ...(threatDefaults ?? {})
   });
   // Keep lock keys in sync with the new fantasy defaults when they were already locked.
@@ -299,6 +301,8 @@ function changeCultureSet(): void {
   if (locked("oikoumeneLandShare")) store("oikoumeneLandShare", "0.45");
   if (locked("initialPopulationSaturation")) store("initialPopulationSaturation", "45");
   if (locked("dangerEnabled")) store("dangerEnabled", "true");
+  if (locked("fireSpiritsEnabled")) store("fireSpiritsEnabled", "true");
+  if (locked("gremlinsEnabled")) store("gremlinsEnabled", "true");
   if (threatDefaults?.threatCalculation && locked("threatCalculation")) {
     store("threatCalculation", threatDefaults.threatCalculation);
   }
@@ -537,7 +541,9 @@ export function applyStoredOptions(): void {
     "transparency",
     // This setting is stored by the legacy control without a React lock button.
     "gunpowderEraEnabled",
-    "initialFirearmsUnstocked"
+    "initialFirearmsUnstocked",
+    "fireSpiritsEnabled",
+    "gremlinsEnabled"
   ] as const satisfies readonly (keyof Omit<OptionsState, "setOption" | "setOptions">)[];
 
   type PersistedOptionKey = (typeof persistedOptionKeys)[number];
@@ -557,7 +563,11 @@ export function applyStoredOptions(): void {
 
     if (isPersistedOptionKey(key)) {
       const parsedValue =
-        key === "gunpowderEraEnabled" || key === "initialFirearmsUnstocked" || key === "forceIndustrialCultures"
+        key === "gunpowderEraEnabled" ||
+        key === "initialFirearmsUnstocked" ||
+        key === "forceIndustrialCultures" ||
+        key === "fireSpiritsEnabled" ||
+        key === "gremlinsEnabled"
           ? value === "true"
           : Number.isNaN(+value)
             ? value

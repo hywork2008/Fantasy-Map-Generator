@@ -472,6 +472,17 @@ const ERA_4: readonly TechnologyDefinition[] = [
     adopted: { min: { experimentRecord: 0.55, naturalPhilosophy: 0.4, treasury: 110 } },
     minimumYearsAtPreviousStage: { demonstrated: 3, adopted: 4 }
   },
+  {
+    id: "arcaneGremlinWarding",
+    label: "Secret Arcane Art of Gremlin Warding",
+    era: 4,
+    scope: "state",
+    prerequisites: ["experimentalNaturalPhilosophy"],
+    known: { min: { naturalPhilosophy: 0.3, treasury: 50 } },
+    demonstrated: { min: { naturalPhilosophy: 0.45, experimentRecord: 0.35, treasury: 90 } },
+    adopted: { min: { naturalPhilosophy: 0.6, experimentRecord: 0.5, administration: 0.4, treasury: 140 } },
+    minimumYearsAtPreviousStage: { demonstrated: 2, adopted: 2 }
+  },
   // docs/plan/technology-development-roadmap.md §7 row 6 (工場制手工業). Prerequisites are
   // mechanicalWorkshops (water power, the table's "水力") and commercialFinance (stewardship /
   // capital) rather than a fresh signal for each — both must be adopted before this node can even

@@ -190,6 +190,18 @@ export const CellInfoDialog: React.FC = () => {
             <th scope="row">{t("dialogs.cellInfo.danger")}</th>
             <td>{info.danger}</td>
           </tr>
+          {info.fireSpirits && info.fireSpirits !== "n/a" && (
+            <tr>
+              <th scope="row">{t("generation.fireSpirits")}</th>
+              <td>{info.fireSpirits}</td>
+            </tr>
+          )}
+          {info.gremlins && info.gremlins !== "n/a" && (
+            <tr>
+              <th scope="row">{t("generation.gremlins")}</th>
+              <td>{info.gremlins}</td>
+            </tr>
+          )}
           {cellInfoRows.map(row => (
             <tr key={row.id}>
               <th scope="row">{t(`extensions.cellInfo.${row.id}`, { defaultValue: row.label })}</th>

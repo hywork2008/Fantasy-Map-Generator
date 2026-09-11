@@ -44,7 +44,9 @@ import {
   isSystemDisabledByHistoryMode
 } from "./fastAdvance/historyModeRun";
 import { applyHistoryStubFunding } from "./fastAdvance/historyStubFunding";
+import { advanceFireSpirits } from "./fireSpirits";
 import { advanceFrontierExpansion, snapshotFrontierBudgets } from "./frontierExpansion";
+import { advanceGremlins } from "./gremlins";
 import { advanceIndependentBurgDiplomacy } from "./independentBurgIncorporation";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
@@ -53,7 +55,7 @@ import { advancePortDevelopment } from "./portDevelopment";
 import { advanceAllRegimentMovement } from "./regimentMovement";
 import { advanceSeasonalClimate } from "./seasonalClimate";
 import { createSimulationSystemRegistry, type SimulationStepContext, type SimulationSystem } from "./simulationSystem";
-import { seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
+import { buildStateSignals, seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
 import { createEmptyTechnologySimulationState } from "./technologyTypes";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
 import { advanceUndergroundEcology } from "./undergroundEcology";
@@ -443,6 +445,46 @@ registerSimulationSystem({
   profileLabel: "technologyProgress",
   run: (_context, writer) => {
     if (settleTechnologyAnnual(simulationContext.currentYear)) {
+      writer.markChanged("simulation.states");
+    }
+  }
+});
+
+// High Fantasy / Dark Fantasy Fire Spirits: spontaneous ignition of stored gunpowder/ammo unless warded by elves
+registerSimulationSystem({
+  id: "fire-spirits.tick",
+  phase: "politics",
+  reads: ["map.politics", "simulation.cells", "simulation.military", "simulation.states"],
+  writes: ["simulation.cells", "simulation.military", "simulation.states"],
+  cadence: { every: 1 },
+  profileLabel: "fireSpirits",
+  run: (context, writer) => {
+    if (simulationContext.currentMonth !== 1 || simulationContext.currentDay !== 1) return;
+    const result = advanceFireSpirits(worldContext, simulationContext, () => context.rng.random());
+    if (result.changed) {
+      writer.markChanged("simulation.cells", "simulation.military", "simulation.states");
+    }
+  }
+});
+
+// High Fantasy / Dark Fantasy Gremlins: disruption of electrical machinery and research reproducibility
+registerSimulationSystem({
+  id: "gremlins.tick",
+  phase: "economy",
+  reads: ["map.politics", "simulation.states"],
+  writes: ["simulation.states"],
+  cadence: { every: 1 },
+  profileLabel: "gremlins",
+  run: (context, writer) => {
+    if (simulationContext.currentMonth !== 1 || simulationContext.currentDay !== 1) return;
+    const stateSignals = buildStateSignals();
+    const result = advanceGremlins(
+      worldContext,
+      simulationContext,
+      stateId => stateSignals.get(stateId) ?? {},
+      () => context.rng.random()
+    );
+    if (result.changed) {
       writer.markChanged("simulation.states");
     }
   }

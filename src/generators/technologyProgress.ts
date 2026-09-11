@@ -15,6 +15,7 @@ import {
   meetsTechnologyRequirement,
   type TechnologyRequirementKind
 } from "../utils/technologyRequirementEase";
+import { evaluateStateGremlinStatus } from "./gremlins";
 import { getActiveTechnologyDefinitions, getTechnologyDefinition } from "./technologyDefinitions";
 import {
   createEmptyTechnologySimulationState,
@@ -539,8 +540,18 @@ export function settleTechnologyAnnual(year = simulationContext.currentYear): bo
         continue;
       }
 
+      const gremlinStatus = evaluateStateGremlinStatus(stateId, worldContext, signals);
+
       // Hints waive allowlisted knowledge ratios on the known climb only.
-      entry.stage = advanceStage(entry, def, signals, year, stageOf, liveHintKeys.has(`${stateId}:${def.id}`));
+      entry.stage = advanceStage(
+        entry,
+        def,
+        signals,
+        year,
+        stageOf,
+        liveHintKeys.has(`${stateId}:${def.id}`),
+        gremlinStatus.reproducibilityFactor
+      );
     }
   }
 
@@ -645,7 +656,7 @@ function emptySignals(): TechnologySignals {
   };
 }
 
-function buildStateSignals(): Map<number, TechnologySignals> {
+export function buildStateSignals(): Map<number, TechnologySignals> {
   const map = new Map<number, TechnologySignals>();
   const pack = worldContext.pack;
   if (!pack?.states) return map;
@@ -1551,10 +1562,16 @@ function thresholdsMet(
   return true;
 }
 
-function heldLongEnough(startYear: number | undefined, requiredYears: number | undefined, year: number): boolean {
+function heldLongEnough(
+  startYear: number | undefined,
+  requiredYears: number | undefined,
+  year: number,
+  reproducibilityFactor = 1
+): boolean {
   if (!requiredYears) return true;
   if (startYear === undefined) return false;
-  const waitYears = Math.floor(requiredYears / getTechnologyDevelopmentSpeed() / getTechnologyRequirementEase() + 1e-9);
+  const effectiveSpeed = Math.max(0.05, getTechnologyDevelopmentSpeed() * reproducibilityFactor);
+  const waitYears = Math.floor(requiredYears / effectiveSpeed / getTechnologyRequirementEase() + 1e-9);
   return year - startYear >= waitYears;
 }
 
@@ -1564,7 +1581,8 @@ function advanceStage(
   signals: TechnologySignals,
   year: number,
   stageOf: (id: string) => TechnologyStage,
-  hintKnowledgeRatios = false
+  hintKnowledgeRatios = false,
+  reproducibilityFactor = 1
 ): TechnologyStage {
   let stage = entry.stage;
   const waits = def.minimumYearsAtPreviousStage;
@@ -1577,7 +1595,7 @@ function advanceStage(
   }
   if (
     technologyStageRank(stage) === 1 &&
-    heldLongEnough(entry.discoveredYear, waits?.demonstrated, year) &&
+    heldLongEnough(entry.discoveredYear, waits?.demonstrated, year, reproducibilityFactor) &&
     thresholdsMet(def.demonstrated, signals)
   ) {
     stage = "demonstrated";
@@ -1585,7 +1603,7 @@ function advanceStage(
   }
   if (
     technologyStageRank(stage) === 2 &&
-    heldLongEnough(entry.demonstratedYear, waits?.adopted, year) &&
+    heldLongEnough(entry.demonstratedYear, waits?.adopted, year, reproducibilityFactor) &&
     thresholdsMet(def.adopted, signals)
   ) {
     stage = "adopted";
@@ -1605,7 +1623,10 @@ function advanceStage(
     entry.diffusion = Math.min(
       1,
       (entry.diffusion || 0) +
-        DIFFUSION_ANNUAL_GAIN * getTechnologyDevelopmentSpeed() * (1 + telegraphBonus + radioBonus)
+        DIFFUSION_ANNUAL_GAIN *
+          getTechnologyDevelopmentSpeed() *
+          reproducibilityFactor *
+          (1 + telegraphBonus + radioBonus)
     );
     if (entry.diffusion >= 1) stage = "diffused";
   }

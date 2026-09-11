@@ -5,6 +5,7 @@ import {
   heightmapLandmassThresholds,
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../../../../data";
+import { isFantasyCulturesSet } from "../../../../data/raceCivicStance";
 import { generationProgressStore, useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
@@ -428,6 +429,44 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
             <td></td>
           </tr>
+
+          {isFantasyCulturesSet(options.culturesSet) && (
+            <>
+              <tr data-tip={t("generation.fireSpiritsTip")}>
+                <td>
+                  <LockIconButton id="fireSpiritsEnabled" />
+                </td>
+                <th>
+                  <label htmlFor="fireSpiritsEnabled">{t("generation.fireSpirits")}</label>
+                </th>
+                <td colSpan={2}>
+                  <input
+                    id="fireSpiritsEnabled"
+                    type="checkbox"
+                    checked={options.fireSpiritsEnabled}
+                    onChange={e => updateOptionAndLock("fireSpiritsEnabled", e.target.checked)}
+                  />
+                </td>
+              </tr>
+
+              <tr data-tip={t("generation.gremlinsTip")}>
+                <td>
+                  <LockIconButton id="gremlinsEnabled" />
+                </td>
+                <th>
+                  <label htmlFor="gremlinsEnabled">{t("generation.gremlins")}</label>
+                </th>
+                <td colSpan={2}>
+                  <input
+                    id="gremlinsEnabled"
+                    type="checkbox"
+                    checked={options.gremlinsEnabled}
+                    onChange={e => updateOptionAndLock("gremlinsEnabled", e.target.checked)}
+                  />
+                </td>
+              </tr>
+            </>
+          )}
 
           <tr data-tip={t("generation.raceSettingsTip")}>
             <td>
