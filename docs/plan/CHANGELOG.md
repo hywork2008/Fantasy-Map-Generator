@@ -2,6 +2,7 @@
 
 2026-09-11
 
+- docs/plan/characters/craft-skills-expansion.md
 - docs/plan/war-fervor-and-weariness.md
 
 2026-09-09

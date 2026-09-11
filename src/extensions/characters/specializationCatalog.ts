@@ -696,6 +696,159 @@ export const SPECIALIZATION_DEFINITIONS: readonly SpecializationDefinition[] = [
     practice: "設計、施工監督、改修",
     targets: "城壁、城塞、砦",
     economyDomain: "fortification"
+  },
+  {
+    id: "engineering.metallurgy.foundry",
+    skill: "engineering",
+    label: { en: "Metal Casting", ja: "鋳造" },
+    knowledge: "鋳型設計、溶融金属流動、冷却速度制御",
+    practice: "型込め、注湯、仕上げ、中ぐり",
+    targets: "大砲、鐘、弾丸、鍋",
+    economyDomain: "foundry"
+  },
+  {
+    id: "engineering.metallurgy.goldsmithing",
+    skill: "engineering",
+    label: { en: "Goldsmithing", ja: "金銀細工" },
+    knowledge: "貴金属合金比率、彫金理論、宝石セッティング",
+    practice: "彫金、線細工、打出し、造幣極印",
+    targets: "装身具、貨幣、典礼具",
+    economyDomain: "goldsmithing"
+  },
+  {
+    id: "engineering.civil.masonry",
+    skill: "engineering",
+    label: { en: "Stonemasonry", ja: "石工" },
+    knowledge: "切石力学、組積構造、モルタル配合",
+    practice: "採石、切石加工、組積施工",
+    targets: "石橋、大聖堂、石壁、舗装",
+    economyDomain: "masonry"
+  },
+  {
+    id: "engineering.civil.hydraulics",
+    skill: "engineering",
+    label: { en: "Hydraulic Engineering", ja: "水利土木" },
+    knowledge: "流体力学、水路勾配、治水計画",
+    practice: "導水路掘削、堤防構築、揚水機設置",
+    targets: "灌漑水路、水道橋、堤防、鉱山排水",
+    economyDomain: "hydraulics"
+  },
+  {
+    id: "engineering.civil.mining",
+    skill: "engineering",
+    label: { en: "Mining Engineering", ja: "採鉱工学" },
+    knowledge: "地質構造、支保工理論、坑内換気",
+    practice: "坑道掘進、支保建て、採掘指揮",
+    targets: "鉱山、坑道、露天掘り",
+    economyDomain: "mining"
+  },
+  {
+    id: "engineering.production.carpentry",
+    skill: "engineering",
+    label: { en: "Carpentry", ja: "木工・大工" },
+    knowledge: "木材強度、継手構造、乾燥処理",
+    practice: "製材、ほぞ組み、樽締め、建て方",
+    targets: "建築骨組、荷車、密閉樽、家具",
+    economyDomain: "carpentry"
+  },
+  {
+    id: "engineering.production.shipwrighting",
+    skill: "engineering",
+    label: { en: "Shipwrighting", ja: "造船・船匠" },
+    knowledge: "船体浮力、復原性、肋骨線図",
+    practice: "竜骨据付け、外板張り、槙肌水密、艤装",
+    targets: "沿岸船、遠洋探検船、大型軍艦",
+    economyDomain: "shipwrighting"
+  },
+  {
+    id: "engineering.production.fletching",
+    skill: "engineering",
+    label: { en: "Bowmaking & Fletching", ja: "弓矢製作" },
+    knowledge: "弾性力学、複合材積層、空力飛翔",
+    practice: "弓幹削出し、矢羽根矧ぎ、弩機製作",
+    targets: "長弓、複合弓、弩、矢",
+    economyDomain: "fletching"
+  },
+  {
+    id: "engineering.production.leatherworking",
+    skill: "engineering",
+    label: { en: "Leatherworking", ja: "革細工" },
+    knowledge: "皮鞣し化学、型紙設計、硬化革工法",
+    practice: "浸漬鞣し、裁断、縫製、型成形",
+    targets: "靴、馬具、革鎧、革袋",
+    economyDomain: "leatherworking"
+  },
+  {
+    id: "engineering.materials.ceramics",
+    skill: "engineering",
+    label: { en: "Ceramics", ja: "陶芸・窯業" },
+    knowledge: "粘土鉱物組成、釉薬配合、窯内熱循環",
+    practice: "素地水簸、轆轤成形、施釉、窯焚き",
+    targets: "耐火坩堝、瓦、陶器、白磁",
+    economyDomain: "ceramics"
+  },
+  {
+    id: "engineering.materials.glassmaking",
+    skill: "engineering",
+    label: { en: "Glassmaking", ja: "硝子工" },
+    knowledge: "珪石融解、清澄剤反応、屈折率理論",
+    practice: "竿吹き、板硝子展延、徐冷、レンズ研磨",
+    targets: "瓶、窓ガラス、理化学硝子、レンズ",
+    economyDomain: "glassmaking"
+  },
+  {
+    id: "engineering.precision.instrumentMaking",
+    skill: "engineering",
+    label: { en: "Instrument Making", ja: "精密計器" },
+    knowledge: "目盛割出幾何、脱進調速理論、公差管理",
+    practice: "歯車加工、目盛刻線、軸受調相、校正",
+    targets: "日時計、機械時計、羅針盤、アストロラーベ",
+    economyDomain: "instrumentMaking"
+  },
+  {
+    id: "engineering.production.printing",
+    skill: "engineering",
+    label: { en: "Printing", ja: "製紙印刷" },
+    knowledge: "活字合金比率、印刷インキレオロジー、版面割付",
+    practice: "活字鋳造、文選組版、印刷圧調整、製本",
+    targets: "書籍、公文書、地図、聖典",
+    economyDomain: "printing"
+  },
+  {
+    id: "engineering.military.pyrotechnics",
+    skill: "engineering",
+    label: { en: "Pyrotechnics", ja: "火工・火薬" },
+    knowledge: "酸化還元燃焼論、造粒力学、信管時限計算",
+    practice: "原料精製、湿式圧搾、粒状化、導火線編組",
+    targets: "火薬、導火線、爆薬、花火",
+    economyDomain: "pyrotechnics"
+  },
+  {
+    id: "learning.medicine.apothecary",
+    skill: "learning",
+    label: { en: "Apothecary", ja: "薬学・調剤" },
+    knowledge: "本草学、薬理作用、毒物中和理論",
+    practice: "生薬採集、浸出蒸留、軟膏混和、調剤",
+    targets: "傷薬、解毒剤、強壮剤、防疫薬",
+    economyDomain: "apothecary"
+  },
+  {
+    id: "engineering.production.brewing",
+    skill: "engineering",
+    label: { en: "Brewing", ja: "発酵醸造" },
+    knowledge: "糖化発酵生化学、酵母生態、雑菌汚染防止",
+    practice: "麦汁煮沸、ホップ添加、発酵管理、樽詰熟成",
+    targets: "エール、ワイン、酢、蒸留酒",
+    economyDomain: "brewing"
+  },
+  {
+    id: "prowess.mounted.animalBreeding",
+    skill: "prowess",
+    label: { en: "Animal Breeding", ja: "家畜育種" },
+    knowledge: "遺伝形質選抜、馬匹解剖学、調教心理",
+    practice: "交配管理、装蹄、調馬、輓具装着",
+    targets: "軍馬、役牛、猟犬",
+    economyDomain: "animalBreeding"
   }
 ];
 export const SPECIALIZATIONS = new Map(SPECIALIZATION_DEFINITIONS.map(definition => [definition.id, definition]));

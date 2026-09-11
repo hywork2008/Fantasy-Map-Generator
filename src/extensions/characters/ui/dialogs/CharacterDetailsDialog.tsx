@@ -102,7 +102,101 @@ type CraftSkillSnapshot = Readonly<{
   lastPracticedYear?: number;
   reconstructionLeads?: readonly CraftTechniqueLeadSnapshot[];
 }>;
-const CRAFT_SKILL_DOMAINS = ["blacksmithing", "smelting", "weaving", "tailoring", "fortification"] as const;
+const CRAFT_SKILL_DOMAINS = [
+  "blacksmithing",
+  "smelting",
+  "foundry",
+  "goldsmithing",
+  "fortification",
+  "masonry",
+  "hydraulics",
+  "mining",
+  "carpentry",
+  "shipwrighting",
+  "fletching",
+  "weaving",
+  "tailoring",
+  "leatherworking",
+  "ceramics",
+  "glassmaking",
+  "instrumentMaking",
+  "printing",
+  "pyrotechnics",
+  "apothecary",
+  "brewing",
+  "animalBreeding"
+] as const;
+
+export type CraftSkillDomain = (typeof CRAFT_SKILL_DOMAINS)[number];
+
+const CRAFT_DOMAIN_ICONS: Readonly<Record<string, string>> = {
+  blacksmithing: "⚒️",
+  smelting: "🔥",
+  foundry: "🫗",
+  goldsmithing: "💍",
+  fortification: "🏰",
+  masonry: "🧱",
+  hydraulics: "🌊",
+  mining: "⛏️",
+  carpentry: "🪚",
+  shipwrighting: "⛵",
+  fletching: "🏹",
+  weaving: "🧵",
+  tailoring: "🪡",
+  leatherworking: "👞",
+  ceramics: "🏺",
+  glassmaking: "🧪",
+  instrumentMaking: "🧭",
+  printing: "📜",
+  pyrotechnics: "💣",
+  apothecary: "🌿",
+  brewing: "🍺",
+  animalBreeding: "🐎"
+};
+
+const CRAFT_SKILL_CATEGORIES = [
+  "all",
+  "metallurgy",
+  "masonry",
+  "woodworking",
+  "textiles",
+  "ceramicsPrecision",
+  "scholarlyChemical"
+] as const;
+type CraftSkillCategory = (typeof CRAFT_SKILL_CATEGORIES)[number];
+
+const CRAFT_DOMAIN_TO_CATEGORY: Readonly<Record<string, Exclude<CraftSkillCategory, "all">>> = {
+  blacksmithing: "metallurgy",
+  smelting: "metallurgy",
+  foundry: "metallurgy",
+  goldsmithing: "metallurgy",
+  fortification: "masonry",
+  masonry: "masonry",
+  hydraulics: "masonry",
+  mining: "masonry",
+  carpentry: "woodworking",
+  shipwrighting: "woodworking",
+  fletching: "woodworking",
+  weaving: "textiles",
+  tailoring: "textiles",
+  leatherworking: "textiles",
+  ceramics: "ceramicsPrecision",
+  glassmaking: "ceramicsPrecision",
+  instrumentMaking: "ceramicsPrecision",
+  printing: "scholarlyChemical",
+  pyrotechnics: "scholarlyChemical",
+  apothecary: "scholarlyChemical",
+  brewing: "scholarlyChemical",
+  animalBreeding: "scholarlyChemical"
+};
+
+function getCraftSkillTierKey(proficiency: number): string {
+  if (proficiency < 20) return "apprentice";
+  if (proficiency < 50) return "journeyman";
+  if (proficiency < 80) return "craftsman";
+  if (proficiency < 95) return "master";
+  return "grandmaster";
+}
 type CharacterDetailsTab =
   | "profile"
   | "skills"
@@ -261,6 +355,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const [, setInventoryRevision] = useState(0);
   const [, setLoadoutRevision] = useState(0);
   const [equipError, setEquipError] = useState<string | null>(null);
+  const [craftCategory, setCraftCategory] = useState<CraftSkillCategory>("all");
 
   // Honor one-shot tab requests (e.g. PC panel Prepare → Loadout).
   useEffect(() => {
@@ -1451,57 +1546,174 @@ export const CharacterDetailsDialog: React.FC = () => {
           </div>
         ) : null}
 
-        {activeTab === "craftSkills" && (
-          <div>
-            <p style={{ fontSize: "0.9em", marginTop: 0 }}>{t("characters.craftSkillsHint")}</p>
-            {craftSkills.length ? (
-              <table className="fmg-table character-details__table">
-                <thead>
-                  <tr>
-                    <th>{t("characters.craftSkillDiscipline")}</th>
-                    <th>{t("characters.craftSkillProficiency")}</th>
-                    <th>{t("characters.craftSkillAptitude")}</th>
-                    <th>{t("characters.craftSkillTechniques")}</th>
-                    <th>{t("characters.craftSkillLastPracticed")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {craftSkills.map(skill => {
-                    const techniques = skill.techniques.map(technique =>
-                      t(`characters.craftTechniqueNames.${technique}`, { defaultValue: technique })
-                    );
-                    const leads = (skill.reconstructionLeads ?? []).map(lead => {
-                      const technique = t(`characters.craftTechniqueNames.${lead.technique}`, {
-                        defaultValue: lead.technique
-                      });
-                      return t("characters.craftSkillReconstructionLead", {
-                        technique,
-                        progress: Math.round(lead.progress * 100)
-                      });
-                    });
-                    return (
-                      <tr key={`${skill.characterId}-${skill.domain}`}>
-                        <td>{t(`characters.craftSkillDomainNames.${skill.domain}`, { defaultValue: skill.domain })}</td>
-                        <td>{Math.round(skill.proficiency)}</td>
-                        <td>
-                          {t(`characters.craftSkillAptitudeNames.${skill.aptitude}`, { defaultValue: skill.aptitude })}
-                        </td>
-                        <td>{[...techniques, ...leads].join(", ") || t("characters.craftSkillNone")}</td>
-                        <td>
-                          {skill.lastPracticedYear === undefined
-                            ? t("characters.notAvailable")
-                            : t("characters.craftSkillLastPracticedValue", { year: skill.lastPracticedYear })}
-                        </td>
+        {activeTab === "craftSkills" &&
+          (() => {
+            const filteredCraftSkills = craftSkills.filter(skill => {
+              if (craftCategory === "all") return true;
+              return CRAFT_DOMAIN_TO_CATEGORY[skill.domain] === craftCategory;
+            });
+
+            return (
+              <div>
+                <p style={{ fontSize: "0.9em", marginTop: 0 }}>{t("characters.craftSkillsHint")}</p>
+
+                {craftSkills.length ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.85rem" }}>
+                    {CRAFT_SKILL_CATEGORIES.map(category => {
+                      const count =
+                        category === "all"
+                          ? craftSkills.length
+                          : craftSkills.filter(s => CRAFT_DOMAIN_TO_CATEGORY[s.domain] === category).length;
+                      if (category !== "all" && count === 0) return null;
+                      const isActive = craftCategory === category;
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          className={`options ${isActive ? "active" : ""}`}
+                          style={{
+                            padding: "0.2rem 0.6rem",
+                            fontSize: "0.82em",
+                            borderRadius: "4px",
+                            cursor: "pointer"
+                          }}
+                          onClick={() => setCraftCategory(category)}
+                        >
+                          {t(`characters.craftSkillCategoryNames.${category}`, { defaultValue: category })}
+                          <span style={{ marginLeft: "0.35rem", opacity: 0.75, fontSize: "0.85em" }}>({count})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {filteredCraftSkills.length ? (
+                  <table className="fmg-table character-details__table">
+                    <thead>
+                      <tr>
+                        <th style={{ minWidth: "130px" }}>{t("characters.craftSkillDiscipline")}</th>
+                        <th style={{ minWidth: "160px" }}>{t("characters.craftSkillProficiency")}</th>
+                        <th>{t("characters.craftSkillAptitude")}</th>
+                        <th>{t("characters.craftSkillTechniques")}</th>
+                        <th>{t("characters.craftSkillLastPracticed")}</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <p>{t("characters.noCraftSkills")}</p>
-            )}
-          </div>
-        )}
+                    </thead>
+                    <tbody>
+                      {filteredCraftSkills.map(skill => {
+                        const icon = CRAFT_DOMAIN_ICONS[skill.domain] ?? "🛠️";
+                        const tierKey = getCraftSkillTierKey(skill.proficiency);
+                        const techniques = skill.techniques.map(technique =>
+                          t(`characters.craftTechniqueNames.${technique}`, { defaultValue: technique })
+                        );
+                        const leads = (skill.reconstructionLeads ?? []).map(lead => {
+                          const technique = t(`characters.craftTechniqueNames.${lead.technique}`, {
+                            defaultValue: lead.technique
+                          });
+                          return t("characters.craftSkillReconstructionLead", {
+                            technique,
+                            progress: Math.round(lead.progress * 100)
+                          });
+                        });
+                        const allTechniques = [...techniques, ...leads];
+
+                        return (
+                          <tr key={`${skill.characterId}-${skill.domain}`}>
+                            <td>
+                              <span style={{ marginRight: "0.4rem" }}>{icon}</span>
+                              <strong>
+                                {t(`characters.craftSkillDomainNames.${skill.domain}`, { defaultValue: skill.domain })}
+                              </strong>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <span style={{ fontWeight: "bold", minWidth: "2.1em", textAlign: "right" }}>
+                                  {Math.round(skill.proficiency)}
+                                </span>
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    height: "6px",
+                                    backgroundColor: "rgba(128, 128, 128, 0.25)",
+                                    borderRadius: "3px",
+                                    overflow: "hidden",
+                                    minWidth: "35px"
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: `${Math.min(100, Math.max(0, skill.proficiency))}%`,
+                                      height: "100%",
+                                      backgroundColor:
+                                        skill.proficiency >= 80
+                                          ? "var(--gold-color, #e6b800)"
+                                          : skill.proficiency >= 50
+                                            ? "var(--accent-color, #4a90e2)"
+                                            : "var(--text-muted, #888)"
+                                    }}
+                                  />
+                                </div>
+                                <span
+                                  style={{
+                                    fontSize: "0.78em",
+                                    color: "var(--text-muted, #777)",
+                                    whiteSpace: "nowrap"
+                                  }}
+                                >
+                                  {t(`characters.craftSkillTierNames.${tierKey}`, { defaultValue: tierKey })}
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`aptitude-badge aptitude-badge--${skill.aptitude}`}>
+                                {t(`characters.craftSkillAptitudeNames.${skill.aptitude}`, {
+                                  defaultValue: skill.aptitude
+                                })}
+                              </span>
+                            </td>
+                            <td>
+                              {allTechniques.length > 0 ? (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                                  {allTechniques.map(item => (
+                                    <span
+                                      key={`${skill.characterId}-${skill.domain}-${item}`}
+                                      style={{
+                                        display: "inline-block",
+                                        padding: "0.1rem 0.35rem",
+                                        borderRadius: "3px",
+                                        fontSize: "0.85em",
+                                        backgroundColor:
+                                          item.includes("復元") || item.includes("reconstruction")
+                                            ? "rgba(220, 160, 20, 0.15)"
+                                            : "rgba(74, 144, 226, 0.12)",
+                                        border: "1px solid rgba(128, 128, 128, 0.2)"
+                                      }}
+                                    >
+                                      {item}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span style={{ color: "var(--text-muted, #888)", fontSize: "0.85em" }}>
+                                  {t("characters.craftSkillNone")}
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {skill.lastPracticedYear === undefined
+                                ? t("characters.notAvailable")
+                                : t("characters.craftSkillLastPracticedValue", { year: skill.lastPracticedYear })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>{t("characters.noCraftSkills")}</p>
+                )}
+              </div>
+            );
+          })()}
 
         {activeTab === "personality" && (
           <div>

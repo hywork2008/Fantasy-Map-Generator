@@ -19,6 +19,8 @@ vi.mock("./localDefense", () => ({
   captureBurg: vi.fn(),
   commanderPowerMultiplier: () => 1,
   occupyingDisciplineMultiplier: () => 1,
+  isBurgFortified: () => false,
+  fortificationAttackRatio: () => 1.5,
   regimentDistanceTo: (regiment: MilitaryRegiment) => regiment.x,
   regimentReinforcementRadius: () => 50
 }));
