@@ -394,4 +394,24 @@ describe("initial literacy from station and upbringing", () => {
     expect(noble.specializations!.languages[0].literacy).toHaveLength(1);
     expect(noble.specializations!.languages[1].literacy).toEqual([]);
   });
+
+  it("supports propaganda, censorship, and interrogation in intrigue tasks and catalogs", () => {
+    const ids = SPECIALIZATION_DEFINITIONS.map(d => d.id);
+    expect(ids).toContain("intrigue.propaganda");
+    expect(ids).toContain("intrigue.censorship");
+    expect(ids).toContain("intrigue.interrogation");
+
+    const character = expertiseCharacter();
+    character.specializations!.domains = [
+      { domainId: "intrigue.propaganda", practice: 85 },
+      { domainId: "intrigue.analysis", knowledge: 70 },
+      { domainId: "intrigue.censorship", practice: 90 },
+      { domainId: "intrigue.counterintelligence", knowledge: 75 },
+      { domainId: "intrigue.interrogation", practice: 80 }
+    ];
+
+    expect(evaluateExpertise(character, EXPERTISE_TASKS.propaganda).score).toBe(80);
+    expect(evaluateExpertise(character, EXPERTISE_TASKS.censorship).score).toBe(85);
+    expect(evaluateExpertise(character, EXPERTISE_TASKS.interrogation).score).toBeCloseTo(76.67);
+  });
 });

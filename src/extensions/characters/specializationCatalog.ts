@@ -240,6 +240,30 @@ export const SPECIALIZATION_DEFINITIONS: readonly SpecializationDefinition[] = [
     targets: "暗号体系、言語、文字体系"
   },
   {
+    id: "intrigue.propaganda",
+    skill: "intrigue",
+    label: { en: "Propaganda", ja: "扇動" },
+    knowledge: "集団心理、好戦感情醸成の論理、風説設計",
+    practice: "流言散布、世論誘導、好戦気運の醸成、反乱扇動",
+    targets: "階級・宗教・都市・敵対国家の習熟"
+  },
+  {
+    id: "intrigue.censorship",
+    skill: "intrigue",
+    label: { en: "Censorship", ja: "情報統制" },
+    knowledge: "情報流通路、禁書・検閲制度、摘発基準",
+    practice: "情報封殺、出版・書簡統制、敗報・異端の遮断",
+    targets: "伝達媒体（口伝/印刷/書簡）、地域、組織"
+  },
+  {
+    id: "intrigue.interrogation",
+    skill: "intrigue",
+    label: { en: "Interrogation", ja: "尋問・思想改造" },
+    knowledge: "心理誘導、認知的疲弊、自白・転向の理論",
+    practice: "尋問、心理的圧迫、虚偽自白の看破、転向工作・思想改造",
+    targets: "組織、信仰・宗派、捕虜階級"
+  },
+  {
     id: "learning.law",
     skill: "learning",
     label: { en: "Law", ja: "慣習法" },

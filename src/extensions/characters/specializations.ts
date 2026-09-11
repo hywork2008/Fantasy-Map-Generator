@@ -241,6 +241,18 @@ export const EXPERTISE_TASKS: Record<string, readonly ExpertiseRequirement[]> = 
     { domainId: "intrigue.analysis", axis: "practice", weight: 1 },
     { domainId: "intrigue.networks", axis: "practice", weight: 1 }
   ],
+  propaganda: [
+    { domainId: "intrigue.propaganda", axis: "practice", weight: 2 },
+    { domainId: "intrigue.analysis", axis: "knowledge", weight: 1 }
+  ],
+  censorship: [
+    { domainId: "intrigue.censorship", axis: "practice", weight: 2 },
+    { domainId: "intrigue.counterintelligence", axis: "knowledge", weight: 1 }
+  ],
+  interrogation: [
+    { domainId: "intrigue.interrogation", axis: "practice", weight: 2 },
+    { domainId: "intrigue.analysis", axis: "knowledge", weight: 1 }
+  ],
   ceramics: [
     { domainId: "artistry.ceramics", axis: "appraisal", weight: 2 },
     { domainId: "artistry.ceramics", axis: "knowledge", weight: 1 }
