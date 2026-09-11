@@ -28,6 +28,7 @@ import {
 import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
 import { resolveCharacterRaceName } from "../../controllers/characters-overview";
 import { setPlayerCharacter } from "../../controllers/playerCharacter";
+import { effectiveDemonSecretSkill } from "../../demonExperience";
 import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { serviceStartYearForDisplay } from "../../militaryWarRecord";
@@ -1353,15 +1354,21 @@ export const CharacterDetailsDialog: React.FC = () => {
                 overlayData={
                   demonIdentity
                     ? [
-                        { axis: t("characters.artistry"), value: demonIdentity.skills.artistry },
-                        { axis: t("characters.diplomacy"), value: demonIdentity.skills.diplomacy },
-                        { axis: t("characters.engineering"), value: demonIdentity.skills.engineering },
-                        { axis: t("characters.geography"), value: demonIdentity.skills.geography },
-                        { axis: t("characters.intrigue"), value: demonIdentity.skills.intrigue },
-                        { axis: t("characters.learning"), value: demonIdentity.skills.learning },
-                        { axis: t("characters.martial"), value: demonIdentity.skills.martial },
-                        { axis: t("characters.prowess"), value: demonIdentity.skills.prowess },
-                        { axis: t("characters.stewardship"), value: demonIdentity.skills.stewardship }
+                        { axis: t("characters.artistry"), value: effectiveDemonSecretSkill(character, "artistry") },
+                        { axis: t("characters.diplomacy"), value: effectiveDemonSecretSkill(character, "diplomacy") },
+                        {
+                          axis: t("characters.engineering"),
+                          value: effectiveDemonSecretSkill(character, "engineering")
+                        },
+                        { axis: t("characters.geography"), value: effectiveDemonSecretSkill(character, "geography") },
+                        { axis: t("characters.intrigue"), value: effectiveDemonSecretSkill(character, "intrigue") },
+                        { axis: t("characters.learning"), value: effectiveDemonSecretSkill(character, "learning") },
+                        { axis: t("characters.martial"), value: effectiveDemonSecretSkill(character, "martial") },
+                        { axis: t("characters.prowess"), value: effectiveDemonSecretSkill(character, "prowess") },
+                        {
+                          axis: t("characters.stewardship"),
+                          value: effectiveDemonSecretSkill(character, "stewardship")
+                        }
                       ]
                     : undefined
                 }

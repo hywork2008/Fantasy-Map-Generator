@@ -86,4 +86,22 @@ describe("Demon human-society experience", () => {
     expect(infiltrator.demonInfiltration!.demonIdentity!.arcane).toBe(72);
     expect(infiltrator.demonInfiltration!.humanSocietyExperience!.arcaneGrowthMilestones).toBe(2);
   });
+
+  it("ensures effective demon skill is at least as high as the human cover's current skill", () => {
+    const infiltrator = character({
+      skills: { ...character().skills, martial: 85, stewardship: 75 }
+    });
+    // Demon identity has lower stewardship (e.g. 50), but cover has 75
+    infiltrator.demonInfiltration!.demonIdentity!.skills = {
+      ...character().skills,
+      martial: 60,
+      stewardship: 50,
+      intrigue: 90
+    };
+    initializeDemonSocietyExperience(infiltrator);
+
+    expect(effectiveDemonSecretSkill(infiltrator, "martial")).toBeGreaterThanOrEqual(85);
+    expect(effectiveDemonSecretSkill(infiltrator, "stewardship")).toBeGreaterThanOrEqual(75);
+    expect(effectiveDemonSecretSkill(infiltrator, "intrigue")).toBeGreaterThanOrEqual(90);
+  });
 });

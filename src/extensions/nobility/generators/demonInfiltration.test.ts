@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { worldContext } from "../../hostCore";
 import {
   allocateDemonHostStates,
   allocateDemonStrata,
@@ -161,7 +162,7 @@ describe("demon infiltration allocation", () => {
   });
 
   it("repairs an older hidden identity that was accidentally generated as Human", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    vi.spyOn(Math, "random").mockReturnValue(0.6);
     const infiltrator = {
       i: 1,
       name: "Cover",
@@ -184,5 +185,61 @@ describe("demon infiltration allocation", () => {
     expect(infiltrator.demonInfiltration.demonIdentity.arcane).toBeGreaterThan(10);
     expect(infiltrator.arcane).toBe(infiltrator.demonInfiltration.demonIdentity.arcane);
     vi.restoreAllMocks();
+  });
+
+  it("endows the demon true form with heightened infernal skills and the appropriate role class", () => {
+    worldContext.pack = {
+      cultures: [
+        { i: 0, base: 0 },
+        { i: 1, base: 0, name: "Common" }
+      ],
+      races: [
+        { i: 1, key: "human" },
+        { i: 4, key: "demon" }
+      ]
+    } as never;
+    const humanRuler = {
+      i: 10,
+      name: "King Eldon",
+      age: 50,
+      race: 1,
+      culture: 1,
+      state: 1,
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1, startYear: 980 }],
+      skills: {
+        artistry: 40,
+        diplomacy: 50,
+        engineering: 40,
+        geography: 40,
+        intrigue: 50,
+        learning: 50,
+        martial: 50,
+        prowess: 40,
+        stewardship: 50
+      },
+      personality: {}
+    } as never;
+
+    const [infiltrator] = replenishDemonInfiltration({
+      characters: [humanRuler],
+      states: [{ i: 1, capital: 1, culture: 1 }] as never,
+      pack: {
+        races: [
+          { i: 1, key: "human" },
+          { i: 4, key: "demon" }
+        ]
+      },
+      currentYear: 1000,
+      count: 1
+    });
+
+    const demonIdentity = infiltrator.demonInfiltration?.demonIdentity;
+    expect(demonIdentity).toBeDefined();
+    expect(demonIdentity?.race).toBe(4);
+    // Age should be greater than default young human, reflecting actual demon adult span
+    expect(infiltrator.demonInfiltration?.actualAge).toBeGreaterThanOrEqual(28);
+    // Ruler cover grants ruler role class + intrigue primary, plus infernal boost
+    expect(demonIdentity?.skills.intrigue).toBeGreaterThan(55);
+    expect(demonIdentity?.skills.learning).toBeGreaterThan(50);
   });
 });

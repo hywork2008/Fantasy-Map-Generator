@@ -1,7 +1,14 @@
 import { rollCharacterArcane } from "../../characters/arcane";
 import { applyCharacterBackstory } from "../../characters/backstoryProfile";
-import type { Character, CharacterRole, DemonCoverStratum, DemonIdentity } from "../../characters/characterTypes";
-import { initializeDemonSocietyExperience } from "../../characters/demonExperience";
+import type {
+  Character,
+  CharacterRole,
+  CharacterRoleClass,
+  CharacterSkills,
+  DemonCoverStratum,
+  DemonIdentity
+} from "../../characters/characterTypes";
+import { CHARACTER_SKILL_KEYS, initializeDemonSocietyExperience } from "../../characters/demonExperience";
 import { createPerson } from "../../characters/personFactory";
 import { rollDefaultAdultAge } from "../../characters/raceAge";
 import { getRaceDefinitions, HUMAN_RACE_ID, rollCharacterRaceAppearance } from "../../hostRaces";
@@ -149,6 +156,32 @@ export interface SeedDemonInfiltrationOptions {
   currentYear: number;
 }
 
+/**
+ * Demons possess centuries of accumulated guile, martial experience, and deep knowledge
+ * far beyond a mortal lifetime. Endows the Demon's true identity sheet with innate racial
+ * superiority, age-scaled expertise, and elevated floors on intellect and deception.
+ */
+function applyDemonInfernalSkillBoost(character: Character, actualAge: number): void {
+  if (!character.skills) return;
+  const ageExpertise = Math.min(15, Math.floor(Math.max(0, actualAge - 30) / 20) * 2);
+  for (const key of CHARACTER_SKILL_KEYS) {
+    const current = character.skills[key] ?? 50;
+    let boost = ageExpertise + 4;
+    if (key === "intrigue") {
+      boost += 12;
+      character.skills[key] = Math.max(65, Math.min(100, current + boost));
+    } else if (key === "learning") {
+      boost += 10;
+      character.skills[key] = Math.max(60, Math.min(100, current + boost));
+    } else if (key === "prowess" || key === "martial") {
+      boost += 8;
+      character.skills[key] = Math.max(55, Math.min(100, current + boost));
+    } else {
+      character.skills[key] = Math.max(1, Math.min(100, current + boost));
+    }
+  }
+}
+
 function turnIntoDemonInfiltrator(
   infiltrator: Character,
   stratum: DemonCoverStratum,
@@ -159,15 +192,36 @@ function turnIntoDemonInfiltrator(
   // Existing public figures may originate in another folk's court. Their visible body is Human.
   const demonRaceId = pack.races?.find(race => race.key === "demon")?.i;
   const wasOpenDemon = demonRaceId !== undefined && infiltrator.race === demonRaceId;
+  const actualAge = wasOpenDemon
+    ? infiltrator.age
+    : demonRaceId !== undefined
+      ? rollDefaultAdultAge(demonRaceId)
+      : Math.max(80, infiltrator.age + 80);
+
+  const roleClass: CharacterRoleClass =
+    stratum === "ruler"
+      ? "ruler"
+      : stratum === "military"
+        ? "commander"
+        : stratum === "influential"
+          ? "merchant"
+          : "ordinary";
+  const primarySkill: keyof CharacterSkills = stratum === "military" ? "martial" : "intrigue";
+
   const trueFormSource =
     wasOpenDemon || demonRaceId === undefined
       ? infiltrator
       : createPerson(infiltrator.i, infiltrator.culture, {
           homeStateId: stateOf(infiltrator),
           raceOverride: demonRaceId,
-          roleClass: stratum === "military" ? "commander" : stratum === "influential" ? "merchant" : "ordinary"
+          roleClass,
+          primarySkill,
+          ageOverride: actualAge
         });
-  if (!wasOpenDemon && demonRaceId !== undefined) forceDemonTrueIdentity(trueFormSource, demonRaceId);
+  if (!wasOpenDemon && demonRaceId !== undefined) {
+    forceDemonTrueIdentity(trueFormSource, demonRaceId);
+    applyDemonInfernalSkillBoost(trueFormSource, actualAge);
+  }
   const raceAppearance =
     trueFormSource.raceAppearance?.kind === "demon"
       ? structuredClone(trueFormSource.raceAppearance)
@@ -178,11 +232,6 @@ function turnIntoDemonInfiltrator(
     raceAppearance
   };
   const demonIdentity = cloneIdentity(trueFormSource);
-  const actualAge = wasOpenDemon
-    ? infiltrator.age
-    : demonRaceId !== undefined
-      ? rollDefaultAdultAge(demonRaceId)
-      : Math.max(80, infiltrator.age + 80);
   // Every cover must begin at a plausible Human age. Existing candidates can
   // come from long-lived cultures and otherwise expose ages such as 198.
   if (wasOpenDemon || infiltrator.age >= 70) {
