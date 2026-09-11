@@ -589,15 +589,6 @@ class CulturesModule {
           raceKey: "amazones"
         },
         {
-          name: "Vharok",
-          base: 43,
-          personNameBase: 23, // Mesopotamian
-          odd: 0.7,
-          sort: (i: number) => t[i] - s[i],
-          shield: "fantasy1",
-          raceKey: "demon"
-        },
-        {
           name: "Veldan",
           base: 44,
           odd: 0.7,
@@ -865,15 +856,6 @@ class CulturesModule {
           sort: (i: number) => t[i] - s[i],
           shield: "horsehead2",
           raceKey: "arachnid"
-        },
-        {
-          name: "Vharok",
-          base: 43,
-          personNameBase: 23, // Mesopotamian
-          odd: 0.8,
-          sort: (i: number) => t[i] - s[i],
-          shield: "fantasy1",
-          raceKey: "demon"
         },
         {
           name: "Veldan",

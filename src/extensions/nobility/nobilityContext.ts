@@ -14,6 +14,7 @@ import type { ConflictAuthorization } from "./types";
 
 let _api: ExtensionAPI | null = null;
 let _talentAllocationLastSettledYearFallback: number | null = null;
+let _lastDemonReplenishmentYearFallback: number | null = null;
 
 export function initNobilityContext(api: ExtensionAPI): void {
   _api = api;
@@ -22,6 +23,7 @@ export function initNobilityContext(api: ExtensionAPI): void {
 export function clearNobilityContext(): void {
   _api = null;
   _talentAllocationLastSettledYearFallback = null;
+  _lastDemonReplenishmentYearFallback = null;
 }
 
 /** Supports pure generator helpers that are exercised without the extension lifecycle in unit tests. */
@@ -62,6 +64,18 @@ export function getCurrentYear(): number {
   const year = _api?.simulationContext?.currentYear;
   if (typeof year === "number" && Number.isFinite(year)) return year;
   return Number(getWorldContext().options.year) || 1000;
+}
+
+export function getCurrentMonth(): number {
+  const month = _api?.simulationContext?.currentMonth;
+  if (typeof month === "number" && Number.isFinite(month)) return month;
+  return 1;
+}
+
+export function getCurrentDay(): number {
+  const day = _api?.simulationContext?.currentDay;
+  if (typeof day === "number" && Number.isFinite(day)) return day;
+  return 1;
 }
 
 type NobilitySlice = Record<string, unknown>;
@@ -131,6 +145,29 @@ export function setTalentAllocationLastSettledYear(year: number): void {
     return;
   }
   _talentAllocationLastSettledYearFallback = year;
+}
+
+/**
+ * Year in which the infernal population was last replenished. This belongs in
+ * the simulation slice so loading an archive cannot cause a second recruitment
+ * during the same century.
+ */
+export function getLastDemonReplenishmentYear(): number | null {
+  const slice = getNobilitySlice();
+  if (slice) {
+    const value = slice.lastDemonReplenishmentYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _lastDemonReplenishmentYearFallback;
+}
+
+export function setLastDemonReplenishmentYear(year: number): void {
+  const slice = getNobilitySlice();
+  if (slice) {
+    slice.lastDemonReplenishmentYear = year;
+    return;
+  }
+  _lastDemonReplenishmentYearFallback = year;
 }
 
 /** Nobility-owned player conflict records, stored by state ID. */

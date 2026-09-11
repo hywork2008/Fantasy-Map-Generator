@@ -56,6 +56,8 @@ export type RaceKey =
   | "beastfolk"
   /** Bound servitors of draconic realms — no free polities (see raceBoundServitors). */
   | "wyrmkin"
+  /** Bound slave-folk of elf realms — no free polities (see raceBoundServitors). */
+  | "half_elf"
   | "arachnid"
   | "amazones"
   | (string & {});
@@ -64,6 +66,9 @@ export type RaceKey =
 export const APPEARANCE_AXIS_IDS = ["stature", "build", "symmetry", "refinement", "vitality", "ornament"] as const;
 export type AppearanceAxisId = (typeof APPEARANCE_AXIS_IDS)[number];
 export type AppearanceAxes = Record<AppearanceAxisId, number>;
+/** Optional per-axis roll clamp. Omitted axes use the global 1–100 looks range. */
+export type AppearanceAxisRange = { min: number; max: number };
+export type AppearanceRanges = Partial<Record<AppearanceAxisId, AppearanceAxisRange>>;
 
 /**
  * Race-default weights over phenotype axes when judging same-race beauty.
@@ -140,6 +145,26 @@ export interface RaceEnvironmentalSurvival {
 }
 
 /**
+ * Fantasy-only species supernatural traits. Not a CharacterSkills axis — Arcane uses a
+ * cosmic 1–100 scale (human cap 10, Demon cap 100) that must not sit next to Martial 50.
+ * Durability is mundane-weapon resistance, not Prowess (skill at fighting).
+ * Spec: docs/plan/characters/arcane.md
+ */
+export interface RaceSupernatural {
+  /** Hard cap on named-character Arcane (cosmic 1–100). */
+  arcaneCap: number;
+  /** Typical named-character Arcane before noise. Well below the cap so masters stay rare. */
+  arcaneMedian: number;
+  /** 0–1 chance to spend a ready war-working when present at a fight. Draconic is very low. */
+  arcaneInclination: number;
+  /**
+   * Mundane-weapon resistance (1 = human). Incoming casualties scale with 1/√durability;
+   * AI attack-force requirement scales with durability.
+   */
+  durability: number;
+}
+
+/**
  * Species / folk traits, independent of culture (language, names, expansion).
  * Index 0 is "Unknown" (Wildlands / unset).
  */
@@ -165,6 +190,8 @@ export interface Race {
   maxLifespan?: number;
   /** Mean phenotype at generation (axes still get individual noise). */
   looksBaseline?: Partial<AppearanceAxes>;
+  /** Per-axis min/max for looks rolls. When set, `rollPeakLooks` clamps to this instead of 1–100. */
+  looksRange?: AppearanceRanges;
   /** Same-race beauty ideal weights. */
   beautyIdeal?: RaceBeautyIdeal;
   /** Reproductive biology defaults. */
@@ -173,6 +200,8 @@ export interface Race {
   characterAppearance?: RaceCharacterAppearance;
   /** Species-level food, temperature, and low-density survival rules. */
   environmentalSurvival?: RaceEnvironmentalSurvival;
+  /** Fantasy Arcane caps / inclination and mundane-weapon durability. */
+  supernatural?: RaceSupernatural;
   lock?: boolean;
   removed?: boolean;
 }
@@ -415,7 +444,15 @@ export interface Burg {
   entranceCell?: number;
 }
 
+/** Optional cultural context for character romance descriptions; not a marriage simulation policy. */
+export interface CultureRomanceNorms {
+  marriage?: "monogamous" | "plural" | "episodic";
+  /** 0–100: social importance of looks, distinct from a race's beauty ideal. Unset = unknown. */
+  appearanceImportance?: number;
+}
+
 export interface Culture {
+  romanceNorms?: CultureRomanceNorms;
   name: string;
   i: number;
   base: number;

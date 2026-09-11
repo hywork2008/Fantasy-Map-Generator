@@ -52,6 +52,16 @@ describe("racePersonalityBias", () => {
     }
   });
 
+  it("sets Half Elf personality medians to the lower of Human and Elf", () => {
+    const human = racePersonalityBiasForKey("human");
+    const elf = racePersonalityBiasForKey("elf");
+    const half = racePersonalityBiasForKey("half_elf");
+    expect(half.boldness).toBe(Math.min(human.boldness ?? 0, elf.boldness ?? 0));
+    expect(half.rationality ?? 0).toBe(Math.min(human.rationality ?? 0, elf.rationality ?? 0));
+    expect(half.boldness).toBe(elf.boldness);
+    expect(half.rationality ?? 0).toBe(0);
+  });
+
   it("shapes god-line giants as distant, guileful, low-extraction (non-involvement)", () => {
     const bias = racePersonalityBiasForKey("giant");
     expect(bias.sociability ?? 0).toBeLessThan(0);

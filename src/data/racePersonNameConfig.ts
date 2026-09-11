@@ -7,6 +7,7 @@
  * Options → Generation → Race person names (dialog).
  */
 import type { RaceKey } from "../types/models";
+import { raceCatalog } from "./raceCatalog";
 import { RACE_DEFINITIONS } from "./races";
 
 /**
@@ -26,25 +27,8 @@ export type RacePersonNameMapping = Partial<Record<RaceKey, RacePersonNameSphere
  * Built-in defaults (High/Dark Fantasy culture templates).
  * Same race may have two spheres so sibling cultures stay distinct.
  */
-export const DEFAULT_RACE_PERSON_NAME_SPHERES: Readonly<Record<string, RacePersonNameSphereConfig>> = {
-  elf: { primary: 7, alternate: 22 }, // Greek, Celtic
-  dark_elf: { primary: 23, alternate: 42 }, // Mesopotamian, Levantine
-  dwarf: { primary: 6, alternate: 0 }, // Nordic, German heroic
-  giant: { primary: 6 }, // Nordic
-  draconic: { primary: 11 }, // Chinese
-  // Same linguistic sphere as host dragons (no free culture of their own).
-  wyrmkin: { primary: 11 }, // Chinese
-  amazones: { primary: 7 }, // Greek (antique / high fantasy Amazones)
-  // Long-lived infernal courts: Mesopotamian mythic (places stay Infernal Markov)
-  demon: { primary: 23 },
-  // Short-lived / Markov-default races intentionally omitted (null = place Markov)
-  beastfolk: { primary: null },
-  goblin: { primary: null },
-  orc: { primary: null },
-  arachnid: { primary: null },
-  human: { primary: null },
-  unknown: { primary: null }
-};
+export const DEFAULT_RACE_PERSON_NAME_SPHERES: Readonly<Record<string, RacePersonNameSphereConfig>> =
+  Object.fromEntries(raceCatalog.map(def => [def.key, def.personNameSpheres]));
 
 /** Spheres that have CC0 mythic/ancient person-name pools (for the picker UI). */
 export const PERSON_NAME_SPHERE_OPTIONS: readonly { id: number | null; label: string }[] = [

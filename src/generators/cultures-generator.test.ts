@@ -27,23 +27,21 @@ describe("fantasy culture templates", () => {
     worldContext.grid = { cells: { temp: [10] } } as unknown as Grid;
   }
 
-  it("includes Demon and Beastfolk cultures in High Fantasy", () => {
+  it("keeps Demon stateless and includes Beastfolk cultures in High Fantasy", () => {
     stubMapData();
     useOptionsState.setState({ culturesSet: "highFantasy" });
     const cultures = Cultures.getDefault();
-    expect(cultures.map(c => c.raceKey)).toEqual(expect.arrayContaining(["demon", "beastfolk"]));
-    expect(cultures.find(c => c.raceKey === "demon")?.name).toBe("Vharok");
+    expect(cultures.map(c => c.raceKey)).not.toContain("demon");
     expect(cultures.find(c => c.raceKey === "beastfolk")?.name).toBe("Veldan");
-    expect(cultures).toHaveLength(19);
+    expect(cultures).toHaveLength(18);
   });
 
-  it("includes Demon and Beastfolk cultures in Dark Fantasy", () => {
+  it("keeps Demon stateless and includes Beastfolk cultures in Dark Fantasy", () => {
     stubMapData();
     useOptionsState.setState({ culturesSet: "darkFantasy" });
     const cultures = Cultures.getDefault();
-    expect(cultures.map(c => c.raceKey)).toEqual(expect.arrayContaining(["demon", "beastfolk"]));
-    expect(cultures.find(c => c.raceKey === "demon")?.name).toBe("Vharok");
+    expect(cultures.map(c => c.raceKey)).not.toContain("demon");
     expect(cultures.find(c => c.raceKey === "beastfolk")?.name).toBe("Veldan");
-    expect(cultures).toHaveLength(36);
+    expect(cultures).toHaveLength(35);
   });
 });

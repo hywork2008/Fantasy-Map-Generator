@@ -6,10 +6,9 @@
  *
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
-import { isBoundServitorRaceKey, resolveRaceIdWithBoundServitor } from "../../data/raceBoundServitors";
-import { canAppearInMixedCourt, isDiplomaticCoreRaceKey } from "../../data/raceCivicStance";
-import { HUMAN_RACE_ID, UNKNOWN_RACE_ID } from "../../data/races";
+
 import type { Culture, Race, State, StateRacialComposition } from "../../types/models";
+import { canAppearInMixedCourt, HUMAN_RACE_ID, isDiplomaticCoreRaceKey, UNKNOWN_RACE_ID } from "../hostRaces";
 import { P } from "../hostUtils";
 import {
   getWorldContext,
@@ -17,6 +16,7 @@ import {
   isCharacterRaceAllowed,
   resolveAllowedCharacterRaceId
 } from "./charactersContext";
+import { isBoundServitorRaceKey, resolveRaceIdWithBoundServitor } from "./raceBoundServitors";
 import { isEnemyDedicatedRaceKey } from "./raceSkillBias";
 
 /** Weighted pick among positive weights keyed by id. */
@@ -121,20 +121,24 @@ export function selectCentralOffices<T>(offices: readonly T[], density: number):
 
 /**
  * Sample a race id for a new court character.
- * Mono: culture race, or bound servitor when role is merchant/ordinary under a host (draconic→wyrmkin).
+ * Mono: culture race, or bound servitor when role is merchant/ordinary under a host
+ * (draconic→wyrmkin always; elf→half_elf rarely on ordinary roles).
  * Mixed (rare): only diplomatic-core races (human / elf / dwarf); majority boosted.
  */
 export function sampleRaceIdForState(
   state: Pick<State, "culture" | "racialComposition">,
   culture: Pick<Culture, "race" | "monoRacial"> | undefined | null,
   races: readonly Race[] | undefined | null,
-  options?: { roleClass?: string }
+  options?: { roleClass?: string; chanceRoll?: (p: number) => boolean }
 ): number {
   const majorityRace = culture?.race ?? HUMAN_RACE_ID;
   const composition = resolveStateRacialComposition(state, culture, races);
   if (composition === "mono") {
     const hostId = majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
-    return resolveAllowedCharacterRaceId(resolveRaceIdWithBoundServitor(hostId, options?.roleClass, races), races);
+    return resolveAllowedCharacterRaceId(
+      resolveRaceIdWithBoundServitor(hostId, options?.roleClass, races, options?.chanceRoll),
+      races
+    );
   }
 
   if (!races?.length) return majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;

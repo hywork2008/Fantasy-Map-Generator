@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDefaultRaces } from "../../data/races";
-import { worldContext } from "../hostCore";
+import { useOptionsState, worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import {
@@ -322,5 +322,42 @@ describe("createPerson fantasy race appearance", () => {
       expect(beastfolk.raceAppearance.furryScale).toBeGreaterThanOrEqual(1);
       expect(beastfolk.raceAppearance.furryScale).toBeLessThanOrEqual(10);
     }
+  });
+});
+
+describe("createPerson Arcane on fantasy maps", () => {
+  const previous = useOptionsState.getState().culturesSet;
+
+  afterEach(() => {
+    useOptionsState.setState({ culturesSet: previous });
+    clearCharactersContext();
+  });
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    const races = createDefaultRaces();
+    const elf = races.find(r => r.key === "elf")!;
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
+        { i: 1, name: "Elvenhold", base: 1, shield: "heater", race: elf.i }
+      ],
+      nameBases: []
+    } as unknown as PackedGraph;
+  });
+
+  it("omits Arcane on historical culture sets", () => {
+    useOptionsState.setState({ culturesSet: "world" });
+    const person = createPerson(0, 1, { homeStateId: 1 });
+    expect(person.arcane).toBeUndefined();
+  });
+
+  it("rolls Arcane at or below the elf cap on High Fantasy", () => {
+    useOptionsState.setState({ culturesSet: "highFantasy" });
+    const person = createPerson(0, 1, { homeStateId: 1, raceOverride: 2 });
+    expect(person.arcane).toBeDefined();
+    expect(person.arcane).toBeGreaterThanOrEqual(0);
+    expect(person.arcane).toBeLessThanOrEqual(95);
   });
 });

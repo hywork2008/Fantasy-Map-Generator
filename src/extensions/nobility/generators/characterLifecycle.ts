@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { isFantasySupernaturalEnabled } from "../../characters/arcane";
 import {
   applyCharacterBackstory,
   seedCharacterRelations,
@@ -49,10 +50,13 @@ import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "..
 import {
   getCharacterGenerationBias,
   getCurrentYear,
+  getLastDemonReplenishmentYear,
   getRulerId,
   getWorldContext,
+  setLastDemonReplenishmentYear,
   setRulerId
 } from "../nobilityContext";
+import { replenishDemonInfiltration, seedDemonInfiltration } from "./demonInfiltration";
 import { tryMilitaryCoup, tryProvokeWar } from "./marshalMischief";
 
 /** True when the state's culture race is enemy-dedicated (goblin warbands, etc.). */
@@ -99,6 +103,8 @@ function clearStateRulerIds(): void {
 
 function preserveNonPoliticalCharacters(characters: Character[] = []): Character[] {
   return characters.filter(character => {
+    // Regeneration rebuilds the covert roster to match the current state count.
+    if (character.demonInfiltration) return false;
     if (!character.roles?.length) return false;
 
     character.titles = [];
@@ -222,6 +228,12 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   }
 
   seedMilitaryWarRecords(characters, states, currentYear);
+  // Preserve a selected Human's established public record, but do not manufacture
+  // a long career for a newly created Demon cover from old state campaigns.
+  if (isFantasySupernaturalEnabled()) seedDemonInfiltration({ characters, states, pack, currentYear });
+  // Start the century clock from the generated roster, rather than adding an
+  // extra cohort merely because a new map happens to begin on a round year.
+  setLastDemonReplenishmentYear(currentYear);
   calculateAffinities(characters);
   seedCharacterRelations(characters);
 
@@ -891,11 +903,38 @@ function processCharacterCorruption(deltaYears: number): void {
   }
 }
 
+/** Add a small fresh cohort every century so dead infiltrators do not permanently thin the covert population. */
+function replenishDemonInfiltrationCentury(): number {
+  if (!isFantasySupernaturalEnabled()) return 0;
+  const { pack } = getWorldContext();
+  if (!pack.characters?.length) return 0;
+
+  const currentYear = getCurrentYear();
+  const lastYear = getLastDemonReplenishmentYear();
+  // Older archives have no marker. Establish a baseline first; their original roster
+  // remains authoritative and the first replacement cohort arrives one century later.
+  if (lastYear === null) {
+    setLastDemonReplenishmentYear(currentYear);
+    return 0;
+  }
+  if (currentYear - lastYear < 100) return 0;
+
+  const added = replenishDemonInfiltration({
+    characters: pack.characters,
+    states: pack.states,
+    pack,
+    currentYear
+  });
+  setLastDemonReplenishmentYear(currentYear);
+  return added.length;
+}
+
 export const Characters = {
   generate,
   createOfficer,
   createProvinceLord,
   clear,
   processResignationsAndSuccessions,
-  processCharacterCorruption
+  processCharacterCorruption,
+  replenishDemonInfiltrationCentury
 };

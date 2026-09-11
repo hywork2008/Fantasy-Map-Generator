@@ -51,7 +51,10 @@ export interface CharacterEpithet {
 
 export interface CharacterWarService {
   campaignName: string;
+  /** Year the campaign began. Kept so a long-running war remains identifiable. */
   year: number;
+  /** First year this character could have served in the campaign. */
+  serviceStartYear?: number;
   opponentStateId: number;
   side: "attacker" | "defender";
   conduct: WarConductKind;
@@ -95,6 +98,51 @@ export interface CharacterRole {
   domain?: string;
 }
 
+export type DemonCoverStratum = "ruler" | "military" | "influential" | "commoner";
+
+/**
+ * Secret, simulation-facing identity for a Demon passing as Human.
+ *
+ * `Character.race` deliberately remains Human: ordinary character views and all
+ * civic/racial rules see only the cover identity. Consumers that implement
+ * discovery, intrigue, or infernal plots must opt in to reading this field.
+ */
+export interface DemonInfiltration {
+  coverStratum: DemonCoverStratum;
+  objective: "maximizeHumanDeaths";
+  /** Chronological Demon age; `Character.age` is the age of the Human guise. */
+  actualAge?: number;
+  /**
+   * Complete character sheet of the Demon. The outer Character remains the
+   * active Human cover so ordinary civic systems continue to see the disguise;
+   * consumers of infernal information opt in to this record instead.
+   */
+  demonIdentity?: DemonIdentity;
+  /**
+   * Complete sheet of the current Human whose identity is being worn. It keeps
+   * the Human Arcane value too, even though the visible Arcane readout is
+   * intentionally overridden by `demonIdentity.arcane`.
+   */
+  coverIdentity?: DemonIdentity;
+  /** Long-term human knowledge accumulated across successive covers. */
+  humanSocietyExperience?: DemonSocietyExperience;
+  /** The Demon's immutable body, kept separately from its current Human cover. */
+  trueForm?: {
+    appearance: number;
+    looks?: AppearanceAxes;
+    raceAppearance: Extract<CharacterRaceAppearance, { kind: "demon" }>;
+  };
+  /** Covers discarded after their Human age became implausible. */
+  identityReplacements?: Array<{
+    year: number;
+    victimId: number;
+    victimName: string;
+    previousCoverName: string;
+  }>;
+  /** Usually empty; only the small minority taking part in a current compact has peers. */
+  collaboratorIds: number[];
+}
+
 export interface CharacterSkills {
   artistry: number;
   diplomacy: number;
@@ -105,6 +153,18 @@ export interface CharacterSkills {
   martial: number;
   prowess: number;
   stewardship: number;
+}
+
+/** Persistent knowledge an infiltrator has acquired while living among Humans. */
+export interface DemonSocietyExperience {
+  /** Whole years spent in Human covers. */
+  years: number;
+  /** Number of public identities already worn, including the current one. */
+  coverCount: number;
+  /** Best Human skill witnessed or personally practiced across all covers. */
+  learnedSkillPeaks: Partial<CharacterSkills>;
+  /** Number of 50-year human-society milestones already used for infernal growth. */
+  arcaneGrowthMilestones: number;
 }
 
 export interface CharacterPersonality {
@@ -313,6 +373,13 @@ export interface CharacterFlavorHook {
   params?: Record<string, string>;
 }
 
+/** Passing Human whose Arcane can exceed the species cap of 10. Not shown as a race. */
+export type InfernalAtavismFlavor = "blueBlood" | "pactHouse";
+export interface ArcaneLineage {
+  kind: "infernal_atavism";
+  flavor: InfernalAtavismFlavor;
+}
+
 export type CharacterGoalKind =
   | "complete_service"
   | "gain_office"
@@ -332,7 +399,7 @@ export interface CharacterGoal {
 }
 
 export type CharacterPrinciple = "keep_oaths" | "protect_civilians" | "spare_prisoners" | "reject_aggression";
-export type CompassionScope = "everyone" | "community" | "faith" | "family";
+export type CompassionScope = "everyone" | "community" | "faith" | "family" | "species" | "self";
 
 /** Recorded events, never invented from present-day personality scores. */
 export interface CharacterLifeEvent {
@@ -453,6 +520,8 @@ export interface Character {
    * Usually mirrors the culture's race at creation; may diverge later (adoption, etc.).
    */
   race?: number;
+  /** Present only on a Demon covertly passing as Human. */
+  demonInfiltration?: DemonInfiltration;
   /**
    * Array (not a single field) so a future personal union — one character
    * holding titles over multiple states — needs no schema change. Phase 1
@@ -484,6 +553,22 @@ export interface Character {
   nationalityStateId?: number;
   roles?: CharacterRole[];
   skills: CharacterSkills;
+  /**
+   * Cosmic Arcane 0–100. Omitted on non-fantasy maps. Not a CharacterSkills axis —
+   * human cap is 10, Demon cap is 100. See docs/plan/characters/arcane.md.
+   */
+  arcane?: number;
+  /** Fractional calendar year when the next working may be spent. Missing = ready. */
+  arcaneReadyYear?: number;
+  /** Calamity (95+) workings spent this lifetime. Lower bands have no lifetime cap. */
+  arcaneWorkingsSpent?: number;
+  /** Calendar year of the last 90+ working. One 90+ working per state per year. */
+  arcaneLastHighYear?: number;
+  /**
+   * Hidden infernal atavism on a passing Human (no Demon looks). Flavor only in backstory hooks.
+   * See docs/plan/characters/arcane.md.
+   */
+  arcaneLineage?: ArcaneLineage;
   /** Optional detailed knowledge, practice, experience and language profile. */
   specializations?: CharacterSpecializationProfile;
   personality: CharacterPersonality;
@@ -571,6 +656,9 @@ export interface Character {
    */
   epithets?: CharacterEpithet[];
 }
+
+/** A full character sheet stored inside a Demon infiltration record, without nested disguises. */
+export type DemonIdentity = Omit<Character, "demonInfiltration">;
 
 /** Quality band shared by attire and weapons (1 = rags / farm tool … 5 = royal / masterwork). */
 export type EquipmentQuality = 1 | 2 | 3 | 4 | 5;

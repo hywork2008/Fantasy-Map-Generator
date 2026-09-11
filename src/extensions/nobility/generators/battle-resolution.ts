@@ -1,8 +1,21 @@
+import {
+  isFantasySupernaturalEnabled,
+  mundaneIncomingCasualtyFactor,
+  stateDurability,
+  trySpendArcaneWarWorking
+} from "../../characters/arcane";
 import type { Character } from "../../characters/characterTypes";
 import { recordSpecializationExperience, specializationScore } from "../../characters/specializations";
 import { applyDemographicCasualties, appServices, buildSeaRouteGraph, type StrategicGoal } from "../../hostCore";
 import type { ChronicleEvent, MilitaryRegiment } from "../../hostTypes";
-import { getApi, getRulerId, getWorldContext } from "../nobilityContext";
+import {
+  getApi,
+  getCurrentDay,
+  getCurrentMonth,
+  getCurrentYear,
+  getRulerId,
+  getWorldContext
+} from "../nobilityContext";
 import {
   calculateEffectiveSiegePower,
   captureBurg,
@@ -194,6 +207,48 @@ export const BattleResolutionGenerator = {
       }
 
       // Ensure attacker casualties don't exceed their total power
+      attackerCasualties = Math.min(attackerCasualties, attackerPower);
+    }
+
+    if (isFantasySupernaturalEnabled()) {
+      attackerCasualties *= mundaneIncomingCasualtyFactor(stateDurability(attackerState, pack));
+      defenderCasualties *= mundaneIncomingCasualtyFactor(stateDurability(targetState, pack));
+      const rand = () => appServices.rng.rand();
+      const year = getCurrentYear();
+      const month = getCurrentMonth();
+      const day = getCurrentDay();
+      const commandersA = attackingRegiments.map(r => r.commanderId).filter((id): id is number => id !== undefined);
+      const commandersB = arrivedDefendingRegiments
+        .map(r => r.commanderId)
+        .filter((id): id is number => id !== undefined);
+      const workingA = trySpendArcaneWarWorking({
+        characters,
+        stateId: attackerId,
+        battlefieldCell: targetBurg.cell,
+        currentYear: year,
+        currentMonth: month,
+        currentDay: day,
+        races: pack.races,
+        burgs: pack.burgs,
+        commanderIds: commandersA,
+        rand,
+        kind: "campaign"
+      });
+      const workingB = trySpendArcaneWarWorking({
+        characters,
+        stateId: goal.targetState,
+        battlefieldCell: targetBurg.cell,
+        currentYear: year,
+        currentMonth: month,
+        currentDay: day,
+        races: pack.races,
+        burgs: pack.burgs,
+        commanderIds: commandersB,
+        rand,
+        kind: "campaign"
+      });
+      if (workingA) defenderCasualties += workingA.casualties;
+      if (workingB) attackerCasualties += workingB.casualties;
       attackerCasualties = Math.min(attackerCasualties, attackerPower);
     }
 

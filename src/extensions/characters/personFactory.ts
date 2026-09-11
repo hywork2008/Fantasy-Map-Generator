@@ -1,5 +1,7 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
-import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "../../data/raceBoundServitors";
+import type { RaceFertility } from "../../types/models";
+import { APPEARANCE_AXIS_IDS } from "../../types/models";
+import { Names } from "../hostCore";
 import {
   DEFAULT_RACE_KEY,
   getRaceBeautyIdeal,
@@ -8,14 +10,18 @@ import {
   raceIdByKey,
   rollCharacterRaceAppearance,
   UNKNOWN_RACE_ID
-} from "../../data/races";
-import type { RaceFertility } from "../../types/models";
-import { APPEARANCE_AXIS_IDS } from "../../types/models";
-import { Names } from "../hostCore";
+} from "../hostRaces";
 import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
 import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
 import { ownRaceAppearanceScore, rollLooksForRace } from "./appearance";
+import {
+  infernalAtavismSupernaturalForRaceKey,
+  isFantasySupernaturalEnabled,
+  maybeHumanInfernalAtavism,
+  rollCharacterArcane,
+  scaleArcaneForMinor
+} from "./arcane";
 import { HEALTH_FULL } from "./characterHealth";
 import {
   getAbilityPreset,
@@ -51,6 +57,7 @@ import {
   rollDefaultAdultAge,
   rollYoungAdultAge
 } from "./raceAge";
+import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "./raceBoundServitors";
 import { rollCharacterPersonality } from "./racePersonalityBias";
 import { isEnemyDedicatedRaceKey, isEnemyDedicatedRole } from "./raceSkillBias";
 import { rollCharacterSkills } from "./skillGeneration";
@@ -504,7 +511,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
 
   // Race resolve order:
   // 1) culture host (or raceOverride for mixed courts / explicit callers)
-  // 2) bound servitor swap when culture host is e.g. draconic and role is merchant/ordinary
+  // 2) bound servitor swap when culture host is e.g. draconic (wyrmkin) or elf (rare half_elf)
   // 3) enemy-colony peaceful roles fall back to Human
   const cultureHostRace = resolveRaceIdForCulture(cultureId);
   const packRaces = (() => {
@@ -517,9 +524,12 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   let race: number;
   if (roleUsesBoundServitor(skillRoleClass)) {
     // Always key off the culture’s majority race so draconic markets never spawn dragon merchants.
-    race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces);
+    race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces, P);
+  } else if (raceOverride !== undefined) {
+    race = raceOverride;
   } else {
-    race = raceOverride ?? cultureHostRace;
+    // Rare bound overlays (Half Elf under Elf) may apply to non-merchant desks too.
+    race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces, P);
   }
   const peekRaceKey = (() => {
     try {
@@ -684,13 +694,31 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     health: HEALTH_FULL
   };
 
+  if (isFantasySupernaturalEnabled()) {
+    const infernalFlavor = maybeHumanInfernalAtavism(raceDef?.key, true);
+    let arcane = rollCharacterArcane({
+      raceKey: raceDef?.key,
+      lifespan: raceDef?.lifespan ?? raceLifespan,
+      supernatural: infernalFlavor ? infernalAtavismSupernaturalForRaceKey(raceDef?.key) : raceDef?.supernatural
+    });
+    if (isRaceMinor(age, race)) {
+      const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
+      arcane = scaleArcaneForMinor(arcane, age, maturity);
+    }
+    character.arcane = arcane;
+    if (infernalFlavor) {
+      character.arcaneLineage = { kind: "infernal_atavism", flavor: infernalFlavor };
+    }
+  }
+
   character.abilityProfile = buildAbilityProfile(presetId, skills, personality);
   if (usesCk3Systems)
     character.specializations = generateSpecializations(
       character,
       primarySkill,
       hasCharactersContext() ? getWorldContext().pack.languageWorld : undefined,
-      skillRoleClass
+      skillRoleClass,
+      raceDef?.key
     );
 
   return character;

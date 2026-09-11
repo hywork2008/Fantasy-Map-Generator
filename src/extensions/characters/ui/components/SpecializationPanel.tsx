@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getRaceById } from "../../../hostRaces";
 import { getApi, getWorldContext } from "../../charactersContext";
 import type { Character } from "../../characterTypes";
 import { SPECIALIZATION_DEFINITIONS, SPECIALIZATION_SKILLS, SPECIALIZATIONS } from "../../specializationCatalog";
@@ -32,6 +33,13 @@ export function SpecializationPanel({ character }: { character: Character }) {
   const profile = character.specializations;
   const world = getWorldContext().pack.languageWorld;
   const pack = getWorldContext().pack;
+  const raceKey = getRaceById(pack.races, character.race ?? pack.cultures?.[character.culture]?.race)?.key;
+  const visibleDefinitions = (skill?: string) =>
+    SPECIALIZATION_DEFINITIONS.filter(
+      definition =>
+        (!skill || definition.skill === skill) &&
+        (!definition.raceKeys?.length || (raceKey && definition.raceKeys.includes(raceKey)))
+    );
   const targetOptions: { id: string; name: string }[] =
     targetKind === "culture"
       ? pack.cultures
@@ -167,7 +175,7 @@ export function SpecializationPanel({ character }: { character: Character }) {
         <select value={selected} onChange={event => setSelected(event.target.value)}>
           {SPECIALIZATION_SKILLS.map(skill => (
             <optgroup key={skill} label={t(`characters.${skill}`)}>
-              {SPECIALIZATION_DEFINITIONS.filter(definition => definition.skill === skill).map(definition => (
+              {visibleDefinitions(skill).map(definition => (
                 <option key={definition.id} value={definition.id}>
                   {label(definition.id)}
                 </option>

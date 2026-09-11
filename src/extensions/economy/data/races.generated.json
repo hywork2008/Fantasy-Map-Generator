@@ -1,0 +1,59 @@
+[
+  {
+    "key": "unknown"
+  },
+  {
+    "key": "human"
+  },
+  {
+    "key": "elf"
+  },
+  {
+    "key": "dark_elf",
+    "hoardSpPerAdultYear": 0.08
+  },
+  {
+    "key": "dwarf"
+  },
+  {
+    "key": "goblin"
+  },
+  {
+    "key": "orc"
+  },
+  {
+    "key": "giant",
+    "hoardSpPerAdultYear": 0.2,
+    "waterTechBias": {
+      "ceilingBonus": {
+        "waterLifting": 0.3,
+        "municipalSanitation": 0.25
+      },
+      "administrationBonusBonus": 0.15,
+      "urgencyThresholdMultiplier": 0.6,
+      "constructionSpeedMultiplier": 1.35
+    }
+  },
+  {
+    "key": "draconic",
+    "hoardSpPerAdultYear": 1
+  },
+  {
+    "key": "arachnid"
+  },
+  {
+    "key": "amazones"
+  },
+  {
+    "key": "wyrmkin"
+  },
+  {
+    "key": "demon"
+  },
+  {
+    "key": "beastfolk"
+  },
+  {
+    "key": "half_elf"
+  }
+]

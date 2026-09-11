@@ -5,6 +5,7 @@ import {
   type SimulationContext
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { createDefaultRaces } from "../data/races";
 import { useOptionsState } from "../store/optionsState";
 import { rebuildDangerFromMonsters } from "./dangerField";
 import { advanceWildernessEcology } from "./wildernessEcology";
@@ -126,6 +127,37 @@ describe("advanceWildernessEcology", () => {
 
     expect(world.pack.monsters![0].power).toBeGreaterThan(3);
     expect(world.pack.monsters![0].power).toBeLessThanOrEqual(8);
+  });
+
+  it("lets a meteor caster shave an extra army-year off a rarity-5 hunt", () => {
+    useOptionsState.setState({ culturesSet: "darkFantasy", threatCalculation: "max" });
+    const world = createWorld();
+    world.pack.races = createDefaultRaces();
+    world.pack.monsters![0] = {
+      i: 0,
+      cell: 5,
+      name: "Calamity",
+      rarity: 5,
+      power: 50,
+      basePower: 50,
+      type: "Calamity"
+    };
+    world.pack.characters = [{ i: 1, state: 1, race: 2, arcane: 90, dead: false }];
+    const simulation = createSimulation();
+    simulation.wilderness.cullProjects[5] = {
+      cellId: 5,
+      stateId: 1,
+      monsterId: 0,
+      establishedYear: 99,
+      progressYears: 1,
+      dangerReduced: 0
+    };
+    world.pack.states![1].treasury = 80;
+
+    advanceWildernessEcology({ world, simulation, rng });
+
+    // Army chunk ceil(50/8)=7, rng.rand 0.1 triggers +1 swing, meteor adds 7 → 50-8-7=35.
+    expect(world.pack.monsters![0].power).toBe(35);
   });
 
   it("is a no-op outside January 1", () => {

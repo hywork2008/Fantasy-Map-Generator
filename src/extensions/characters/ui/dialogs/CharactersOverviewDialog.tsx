@@ -87,7 +87,7 @@ export const CharactersOverviewDialog: React.FC = () => {
       "Title",
       "State",
       "Wealth",
-      ...(showRace ? ["Race"] : []),
+      ...(showRace ? ["Race", "Arcane"] : []),
       ...(showFamily ? ["Marital Status", "Children"] : []),
       ...abilityPreset.stats.map(stat => stat.label)
     ];
@@ -108,7 +108,7 @@ export const CharactersOverviewDialog: React.FC = () => {
         row.title,
         row.stateName,
         c.wealth ?? 0,
-        ...(showRace ? [row.raceName] : []),
+        ...(showRace ? [row.raceName, c.arcane ?? ""] : []),
         ...(showFamily ? [(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried", c.family?.children ?? 0] : []),
         ...abilityPreset.stats.map(stat => getAbilityValue(c, stat.key) ?? stat.default)
       ]
@@ -157,6 +157,7 @@ export const CharactersOverviewDialog: React.FC = () => {
             rows={filteredCharacters}
             sortBy={sortBy}
             sortOrder={sortOrder}
+            showArcane={showRace}
             onSort={toggleSortBy}
             onCharacterClick={handleCharacterClick}
             showRace={showRace}

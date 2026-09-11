@@ -12,24 +12,12 @@
  * lives in `urbanWaterSystem.ts`; settlements are placed below a high water
  * source by the core burg generator before that inheritance is applied.
  */
-import { isFantasyCulturesSet } from "../../../data/raceCivicStance";
+import { isFantasyCulturesSet } from "../../hostRaces";
 import type { RaceKey } from "../../hostTypes";
+import { raceCatalogEntry } from "../data/raceCatalog";
+import type { RaceWaterTechBias } from "../data/raceTypes";
 
-export interface WaterTechRaceBias {
-  /**
-   * Additive raise to the historical-period ceiling for `waterLifting` /
-   * `municipalSanitation` only (see `waterTechCeilings()`). `sanitaryEngineering`
-   * is deliberately untouched — separated storm/foul systems and treatment are
-   * later technology than anything Rome had; tier 5 stays purely earned.
-   */
-  ceilingBonus: { waterLifting: number; municipalSanitation: number };
-  /** Treated as extra `administrationBonus` when evaluating `maxInvestableTier()`. */
-  administrationBonusBonus: number;
-  /** <1 lowers the effective demand-urgency threshold — builds proactively, not reactively. */
-  urgencyThresholdMultiplier: number;
-  /** >1 speeds annual construction progress once a project is underway (inherited engineering skill). */
-  constructionSpeedMultiplier: number;
-}
+export type WaterTechRaceBias = RaceWaterTechBias;
 
 /**
  * Giant (distant god-line, per raceCivicStance.ts / raceSkillBias.ts's
@@ -39,14 +27,6 @@ export interface WaterTechRaceBias {
  * managedSewers population gate (1500) converges on tier 4 within a handful of
  * simulated years even under an early-medieval period ceiling.
  */
-const RACE_WATER_TECH_BIAS: Readonly<Partial<Record<string, WaterTechRaceBias>>> = {
-  giant: {
-    ceilingBonus: { waterLifting: 0.3, municipalSanitation: 0.25 },
-    administrationBonusBonus: 0.15,
-    urgencyThresholdMultiplier: 0.6,
-    constructionSpeedMultiplier: 1.35
-  }
-};
 
 /** Null outside Fantasy culture sets (highFantasy/darkFantasy) or for races without an entry. */
 export function waterTechRaceBiasFor(
@@ -54,5 +34,5 @@ export function waterTechRaceBiasFor(
   culturesSet: string | undefined
 ): WaterTechRaceBias | null {
   if (!raceKey || !isFantasyCulturesSet(culturesSet)) return null;
-  return RACE_WATER_TECH_BIAS[raceKey] ?? null;
+  return raceCatalogEntry(raceKey)?.waterTechBias ?? null;
 }

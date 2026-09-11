@@ -89,6 +89,31 @@ describe("raceSkillBias", () => {
     expect(skillMeanFor("intrigue", { raceKey: "arachnid" }).mean).toBeGreaterThan(SKILL_BASE_MEAN + 5);
   });
 
+  it("sets Half Elf skill medians to the lower of Human and Elf", () => {
+    for (const skill of [
+      "martial",
+      "prowess",
+      "learning",
+      "artistry",
+      "geography",
+      "diplomacy",
+      "stewardship"
+    ] as const) {
+      const human = skillMeanFor(skill, { raceKey: "human" });
+      const elf = skillMeanFor(skill, { raceKey: "elf" });
+      const half = skillMeanFor(skill, { raceKey: "half_elf" });
+      expect(half.mean).toBe(Math.min(human.mean, elf.mean));
+      expect(half.min).toBe(Math.min(human.min, elf.min));
+      expect(half.max).toBe(Math.max(human.max, elf.max));
+    }
+    expect(skillMeanFor("martial", { raceKey: "half_elf" }).mean).toBe(
+      skillMeanFor("martial", { raceKey: "elf" }).mean
+    );
+    expect(skillMeanFor("learning", { raceKey: "half_elf" }).mean).toBe(
+      skillMeanFor("learning", { raceKey: "human" }).mean
+    );
+  });
+
   it("exports non-empty bias tables for fantasy races", () => {
     expect(Object.keys(raceSkillBiasForKey("elf")).length).toBeGreaterThan(0);
     expect(Object.keys(raceSkillBiasForKey("goblin")).length).toBeGreaterThan(0);

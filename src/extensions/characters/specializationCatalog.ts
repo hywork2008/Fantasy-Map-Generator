@@ -9,6 +9,8 @@ export interface SpecializationDefinition {
   targets: string;
   appraisal?: boolean;
   economyDomain?: string;
+  /** When set, generic office rolls skip this field; matching races get it as an extra domain. */
+  raceKeys?: readonly string[];
 }
 
 /** Stable IDs: labels never identify saved expertise. */
@@ -533,6 +535,15 @@ export const SPECIALIZATION_DEFINITIONS: readonly SpecializationDefinition[] = [
     knowledge: "化学工程、蒸留、反応、材料安全",
     practice: "装置設計、工程制御、試験",
     targets: "化学・医学の技術蓄積、試験工房"
+  },
+  {
+    id: "engineering.runes",
+    skill: "engineering",
+    label: { en: "Runes", ja: "ルーン" },
+    knowledge: "ルーン刻印、石と金属への拘束、氏族の銘式",
+    practice: "銘刻、補強、封印、修復",
+    targets: "武器、防具、坑道支保、門、氏族の遺構",
+    raceKeys: ["dwarf"]
   },
   {
     id: "geography.physical",

@@ -1,3 +1,4 @@
+import { supernaturalAttackForceMultiplier } from "../../characters/arcane";
 import { getWarPreference } from "../../characters/characterMotivation";
 import { getWarDriveModifiers } from "../../characters/characterSimulationHooks";
 import {
@@ -184,6 +185,7 @@ export class StrategicPlannerGenerator {
           targetCulture: targetState.culture
         });
         requiredAttackForce *= warDrive.forceRequirementMultiplier;
+        requiredAttackForce *= supernaturalAttackForceMultiplier(targetState, pack, year);
 
         let expectedCasualties: StrategicGoal["expectedCasualties"] = "moderate";
         if (isCornered) {

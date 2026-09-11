@@ -2,23 +2,25 @@
  * Race fertility helpers for household generation.
  * Spec: docs/plan/characters/appearance-and-reproduction.md §3
  */
-import { DEFAULT_RACE_FERTILITY, getRaceFertility } from "../../data/races";
+
 import type { RaceFertility } from "../../types/models";
+import { getDefaultRaceFertility, getRaceFertility } from "../hostRaces";
 import { gauss, rand } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 
 export function resolveFertilityForRace(raceId: number | undefined): RaceFertility {
-  if (raceId === undefined) return { ...DEFAULT_RACE_FERTILITY };
-  if (!hasCharactersContext()) return { ...DEFAULT_RACE_FERTILITY };
+  if (raceId === undefined) return { ...getDefaultRaceFertility() };
+  if (!hasCharactersContext()) return { ...getDefaultRaceFertility() };
   try {
     return getRaceFertility(getWorldContext().pack.races, raceId);
   } catch {
-    return { ...DEFAULT_RACE_FERTILITY };
+    return { ...getDefaultRaceFertility() };
   }
 }
 
 /** Sample live births for one pregnancy/clutch. */
 export function sampleLitter(fertility: RaceFertility): number {
+  if (fertility.litterMax < 1 || fertility.litterMean <= 0) return 0;
   const raw = gauss(
     fertility.litterMean,
     Math.max(0.25, fertility.litterMean * 0.35),

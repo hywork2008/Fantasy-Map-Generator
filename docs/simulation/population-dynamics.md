@@ -2,6 +2,8 @@
 
 本ドキュメントは、FMG（Fantasy Map Generator）における時間経過（Advance Time）に伴う、現実的な人口増減・人口ピラミッドの変化・およびフロンティア開拓をシミュレートするための設計仕様です。
 
+関連: Fantasy 文化セットの長寿種族は、現状この人間型コホートと全域共通の出生率のままである。K 倍率・種族ピラミッド・軍事質補正の調査は [long-lived-race-population-and-roster.md](../plan/long-lived-race-population-and-roster.md)。
+
 ## 1. 基本コンセプト：環境収容力（K）と60%スタート
 
 FMGのコアエンジンがバイオームや地形から算出する初期人口（`pack.cells.pop` および `burgs.population`）は、**「その土地が養える最大限界人口（環境収容力 ＝ K）」**として扱います。

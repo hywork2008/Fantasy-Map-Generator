@@ -7,6 +7,7 @@ import {
   characterPublicEpithetId,
   chooseRulerEpithet,
   FAVORITE_TO_RULER_MIN,
+  isBenevolentSovereign,
   isCourtierDeceiver,
   isFoolishSovereign,
   isTyrantSovereign,
@@ -233,6 +234,105 @@ describe("ruler epithets", () => {
     expect(chooseRulerEpithet(schemer)).not.toBe("tyrant_king");
   });
 
+  it("does not call an honorable or timid vengeful ruler a tyrant", () => {
+    const honorableRuler = character({
+      personality: { ...character().personality, compassion: 20, vengefulness: 80, honor: 75 }
+    });
+    expect(isTyrantSovereign(honorableRuler)).toBe(false);
+
+    const timidVengeful = character({
+      personality: { ...character().personality, compassion: 20, vengefulness: 80, honor: 20, boldness: 20 }
+    });
+    expect(isTyrantSovereign(timidVengeful)).toBe(false);
+
+    const passiveGreedy = character({
+      personality: {
+        ...character().personality,
+        compassion: 20,
+        honor: 20,
+        greed: 80,
+        vengefulness: 20,
+        boldness: 20
+      }
+    });
+    expect(isTyrantSovereign(passiveGreedy)).toBe(false);
+  });
+
+  it("identifies paranoid purgers and zealous inquisitors as tyrants", () => {
+    const paranoidPurger = character({
+      personality: {
+        ...character().personality,
+        compassion: 15,
+        honor: 30,
+        vengefulness: 80,
+        guile: 75,
+        sociability: 25,
+        boldness: 35
+      }
+    });
+    expect(isTyrantSovereign(paranoidPurger)).toBe(true);
+    expect(chooseRulerEpithet(paranoidPurger)).toBe("tyrant_king");
+
+    const zealousInquisitor = character({
+      personality: {
+        ...character().personality,
+        compassion: 15,
+        honor: 35,
+        zeal: 85,
+        piety: 80,
+        vengefulness: 65,
+        boldness: 35
+      }
+    });
+    expect(isTyrantSovereign(zealousInquisitor)).toBe(true);
+    expect(chooseRulerEpithet(zealousInquisitor)).toBe("tyrant_king");
+
+    // Devout with normal or high compassion is not an inquisitorial tyrant
+    const devoutMerciful = character({
+      personality: {
+        ...character().personality,
+        compassion: 60,
+        honor: 70,
+        zeal: 85,
+        piety: 80,
+        vengefulness: 65
+      }
+    });
+    expect(isTyrantSovereign(devoutMerciful)).toBe(false);
+  });
+
+  it("does not brand moderate or devout sovereigns like Fjolvar as tyrants", () => {
+    const fjolvar = character({
+      skills: {
+        artistry: 49,
+        diplomacy: 94,
+        engineering: 90,
+        geography: 53,
+        intrigue: 57,
+        learning: 42,
+        martial: 21,
+        prowess: 79,
+        stewardship: 79
+      },
+      personality: {
+        boldness: 48,
+        compassion: 30,
+        confidence: 48,
+        energy: 46,
+        greed: 48,
+        guile: 2,
+        honor: 48,
+        piety: 100,
+        rationality: 61,
+        sociability: 49,
+        vengefulness: 71,
+        zeal: 55
+      }
+    });
+    expect(isTyrantSovereign(fjolvar)).toBe(false);
+    expect(chooseRulerEpithet(fjolvar)).not.toBe("tyrant_king");
+  });
+
   it("keeps an incompetent sovereign the Fool rather than the Tyrant", () => {
     const cruelFool = fool({
       personality: { ...fool().personality, compassion: 15, vengefulness: 80, honor: 20, greed: 80 }
@@ -240,6 +340,40 @@ describe("ruler epithets", () => {
     expect(isFoolishSovereign(cruelFool)).toBe(true);
     expect(isTyrantSovereign(cruelFool)).toBe(true);
     expect(chooseRulerEpithet(cruelFool)).toBe("foolish_king");
+  });
+
+  it("does not brand competent governors like Eurryroe as the Fool", () => {
+    const eurryroe = character({
+      skills: {
+        artistry: 86,
+        diplomacy: 61,
+        engineering: 83,
+        geography: 66,
+        intrigue: 22,
+        learning: 67,
+        martial: 66,
+        prowess: 24,
+        stewardship: 100
+      },
+      personality: {
+        boldness: 55,
+        compassion: 89,
+        confidence: 79,
+        energy: 45,
+        greed: 5,
+        guile: 91,
+        honor: 26,
+        piety: 89,
+        rationality: 23,
+        sociability: 31,
+        vengefulness: 1,
+        zeal: 83
+      }
+    });
+    expect(isFoolishSovereign(eurryroe)).toBe(false);
+    expect(isTyrantSovereign(eurryroe)).toBe(false);
+    expect(isBenevolentSovereign(eurryroe)).toBe(true);
+    expect(chooseRulerEpithet(eurryroe)).toBe("benevolent_king");
   });
 
   it("does not treat a martial specialist as wise from prowess alone", () => {

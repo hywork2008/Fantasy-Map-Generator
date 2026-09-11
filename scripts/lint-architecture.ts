@@ -1,3 +1,4 @@
+import { raceBoundaryViolations } from "./races/checkBoundaries";
 import fs from "fs";
 import path from "path";
 
@@ -152,6 +153,11 @@ for (const file of getSourceFiles(path.join(ROOT, "src/extensions"))) {
   }
 }
 
+// Race catalog ownership applies to every runtime module (not just generators).
+for (const file of getSourceFiles(path.join(ROOT, "src"))) {
+  violations.push(...raceBoundaryViolations(relativePosix(file), fs.readFileSync(file, "utf8")));
+}
+
 // ── Report ───────────────────────────────────────────────────────────────────
 console.log("Architecture lint (Generator → Renderer boundary, P3-3)...");
 if (residualAllowed > 0) {
@@ -169,4 +175,5 @@ if (violations.length) {
 
 console.log("  Generator → Renderer: clean (allowlist only).");
 console.log("  Extension generators → Renderer: clean.");
+console.log("  Race catalog ownership: clean.");
 console.log("Done.");

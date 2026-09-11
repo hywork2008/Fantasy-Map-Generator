@@ -1,6 +1,7 @@
-import { getRaceById } from "../../../data/races";
 import type { Character } from "../../characters/characterTypes";
 import { getRaceMaturityAge } from "../../characters/raceAge";
+import { getRaceById } from "../../hostRaces";
+import { raceCatalog } from "../data/raceCatalog";
 import { getWorldContext } from "../economyContext";
 
 /**
@@ -36,11 +37,9 @@ import { getWorldContext } from "../economyContext";
  *   seed, which still pays them normally); the rest are short-lived or not thematically hoarders —
  *   unchanged from the already-tuned baseline.
  */
-export const RACE_HOARD_SP_PER_ADULT_YEAR: Readonly<Record<string, number>> = {
-  draconic: 1.0,
-  giant: 0.2,
-  dark_elf: 0.08
-};
+export const RACE_HOARD_SP_PER_ADULT_YEAR: Readonly<Record<string, number>> = Object.fromEntries(
+  raceCatalog.filter(def => def.hoardSpPerAdultYear !== undefined).map(def => [def.key, def.hoardSpPerAdultYear!])
+);
 
 /** Adult years (age past race maturity) a character has lived, never negative. */
 function adultYearsLived(character: Character): number {

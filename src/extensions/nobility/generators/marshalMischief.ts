@@ -1,5 +1,6 @@
 import { getWarPreference } from "../../characters/characterMotivation";
 import type { Character, TitleHolding } from "../../characters/characterTypes";
+import { effectiveDemonSecretSkill } from "../../characters/demonExperience";
 import { simulationContext } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { mayAdvanceAutonomousConflict } from "../conflictDirector";
@@ -100,7 +101,9 @@ export function tryProvokeWar(args: { state: State; states: readonly State[]; ma
   // Personality chooses the attempt; competence and contacts determine whether it works.
   if (args.marshal) {
     if (getWarPreference(args.marshal) < 60 || args.marshal.personality.guile < 60) return false;
-    const chance = Math.min(0.9, 0.1 + args.marshal.skills.intrigue * 0.006 + args.marshal.skills.diplomacy * 0.002);
+    const intrigue = effectiveDemonSecretSkill(args.marshal, "intrigue");
+    const diplomacy = effectiveDemonSecretSkill(args.marshal, "diplomacy");
+    const chance = Math.min(0.9, 0.1 + intrigue * 0.006 + diplomacy * 0.002);
     if (Math.random() >= chance) return false;
   }
 

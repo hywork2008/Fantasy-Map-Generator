@@ -1,3 +1,4 @@
+import { bindRaceService } from "../../hostRaces";
 /**
  * Extension API handle, simulation clock, and the shared economy-slice plumbing every other
 context module is built on. This module owns `_api`, so it must stay a single module: the blob-URL
@@ -36,6 +37,7 @@ export function registerContextFallbackReset(reset: () => void): void {
 let _api: ExtensionAPI | null = null;
 
 export function initEconomyContext(api: ExtensionAPI): void {
+  if (api.races) bindRaceService(api.races);
   _api = api;
 }
 

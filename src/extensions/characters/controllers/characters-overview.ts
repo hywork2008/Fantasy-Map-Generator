@@ -1,4 +1,4 @@
-import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../../data/raceCivicStance";
+import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../hostRaces";
 import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";
@@ -180,6 +180,9 @@ export function filterAndSortCharacters(
         break;
       case "race":
         result = a.raceName.localeCompare(b.raceName);
+        break;
+      case "arcane":
+        result = (a.c.arcane ?? 0) - (b.c.arcane ?? 0);
         break;
       case "gender":
         result = a.c.gender.localeCompare(b.c.gender);

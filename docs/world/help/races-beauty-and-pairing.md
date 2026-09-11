@@ -70,6 +70,8 @@ Socially (in fiction):
 
 Household child counts use **race fertility** (maturity age, interbirth spacing, litter size), not a single human “one child every four years” rule. Elves have sparse, late generations; goblins and arachnid folk breed faster and in larger clutches. See the race catalog and the design doc for numbers.
 
+Cross-folk children are treated as extreme deviance except among a small minority. **Humans** are the folk who can still leave offspring with many other races. Human–elf children are rare and sterile (like a liger: pairing is possible, further children are not). Descendants of Human–Demon unions may look entirely Human; the only tell is Arcane above the Human cap, whispered as “blue blood” or “a house of the contract,” never as Demon ancestry. See [arcane.md](../../plan/characters/arcane.md).
+
 **Long-lived pairing is episodic**, not lifelong continuous marriage: co-parenting bonds matter while raising young; most of a multi-century life is unpaired. Children may exist without a current spouse, and need not all share the same co-parent. Short-lived folk keep a more familiar continuous-household snapshot. **Dwarves** are the exception among long-lived races: continuous monogamy (clan household culture).
 
 ### Civic stance (who lives with whom)
@@ -81,7 +83,7 @@ See [multi-race-geopolitics.md](./multi-race-geopolitics.md) and `src/data/raceC
 | **Diplomatic** | Human, Elf, Dwarf | Mostly mono; rare mixed (only these three as staff) |
 | **Distant** | Dark Elf, Giant, Draconic, Amazones, Demon, Beastfolk | Always mono; full civil offices; keep distance |
 | **Enemy colony** | Goblin, Orc, Arachnid | Always mono; **ruler + martial only**; no merchants/guilds |
-| **Bound** | Wyrmkin | No free polity; only under **Draconic** (markets/craft thralls) |
+| **Bound** | Wyrmkin, Half Elf | No free polity; Wyrmkin under **Draconic**, Half Elf under **Elf** |
 
 ### Named-character skills (species tilt)
 
@@ -95,6 +97,7 @@ Role and office still dominate, but race shifts medians (`raceSkillBias.ts`):
 - **Giant** (distant god-line): Prowess = Draconic; Engineering = Dwarf; Artistry mid-high; Martial low; Learning −3; Intrigue +4 (managed distance, not court poison). Personality: low sociability/compassion, guile & confidence up, greed down, unhurried.
 - **Draconic** (distant): apex Prowess; weak Martial/Diplomacy/Engineering pride. **Merchants are Wyrmkin**, not dragons.
 - **Wyrmkin** (bound): stewardship/diplomacy up; prowess down; thrall origins; face of dragon trade.
+- **Half Elf** (bound, elf realms): rare slave-folk. Typical skills/looks sit at the **lower** Human or Elf parent; the **higher** parent is the ceiling. Sterile.
 - **Dark Elf / Amazones** (distant): underdark intrigue or warrior matriarchy — not cosmopolitan.
 - **Demon** (distant): Prowess/Intrigue/Learning up; Martial/Diplomacy down. Personality: confidence and guile, low compassion/sociability.
 - **Beastfolk** (distant): Prowess/Geography up; short-lived wilderness folk. Personality: energy and sociability among their own.

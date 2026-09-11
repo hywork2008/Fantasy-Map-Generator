@@ -27,6 +27,7 @@ import { PlayerCharacterPanel } from "./ui/components/PlayerCharacterPanel";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
 import { PlayerCharacterDialog } from "./ui/dialogs/PlayerCharacterDialog";
+import { RelationshipCompatibilityDialog } from "./ui/dialogs/RelationshipCompatibilityDialog";
 
 export const CHARACTERS_EXTENSION_ID = "characters";
 
@@ -283,6 +284,26 @@ export function init(api: ExtensionAPI): void {
   });
 
   api.registerDialog({
+    id: "RelationshipCompatibilityDialog",
+    extensionId: CHARACTERS_EXTENSION_ID,
+    component: RelationshipCompatibilityDialog
+  });
+
+  api.registerAction({
+    id: "characters-relationship-compatibility",
+    extensionId: CHARACTERS_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    dialogId: "relationshipCompatibility",
+    label: "Character Compatibility",
+    tooltip: "Inspect personality compatibility used in solidarity calculations",
+    onClick: () => {
+      if (api.isDialogOpen("relationshipCompatibility")) api.closeDialog("relationshipCompatibility");
+      else api.openDialog("relationshipCompatibility");
+    }
+  });
+
+  api.registerDialog({
     id: "CharacterDetailsDialog",
     extensionId: CHARACTERS_EXTENSION_ID,
     component: CharacterDetailsDialog
@@ -362,6 +383,7 @@ export function init(api: ExtensionAPI): void {
 
     if (!isEnabled && wasEnabled) {
       api.closeDialog("charactersOverview");
+      api.closeDialog("relationshipCompatibility");
       api.closeDialog("characterDetails");
       api.closeDialog("playerCharacter");
       clearPlayerCharacterSelection();
@@ -389,6 +411,7 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterLoadoutCommands = null;
 
   api.closeDialog("charactersOverview");
+  api.closeDialog("relationshipCompatibility");
   api.closeDialog("characterDetails");
   api.closeDialog("playerCharacter");
   clearPlayerCharacterSelection();

@@ -26,6 +26,7 @@ import {
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 import { expectsClericalCelibacy, getFormPack, resolveFormPackId } from "./cultureFormPacks";
+import * as compatibility from "./relationshipCompatibility";
 
 function baseCharacter(overrides: Partial<Character> & Pick<Character, "i" | "name">): Character {
   return {
@@ -539,6 +540,23 @@ describe("applyCharacterBackstory", () => {
 });
 
 describe("computeInitialSolidarity", () => {
+  it("adds the compatibility contribution exactly once while preserving other calculations", () => {
+    const a = baseCharacter({ i: 1, titles: [] });
+    const b = baseCharacter({ i: 2, titles: [] });
+    a.personality = { ...a.personality, rationality: 80, compassion: 50, honor: 50, guile: 50 };
+    b.personality = { ...a.personality };
+    const random = vi.spyOn(Math, "random").mockImplementation(Alea("compatibility-integration"));
+    const modifier = vi.spyOn(compatibility, "getCompatibilitySolidarityModifier").mockReturnValue(0);
+    const baseline = computeInitialSolidarity(a, b);
+    modifier.mockReturnValue(12);
+    random.mockImplementation(Alea("compatibility-integration"));
+    const adjusted = computeInitialSolidarity(a, b);
+    expect(adjusted).toBe(clampRelation(baseline + 12));
+    expect(modifier).toHaveBeenCalledTimes(2);
+    modifier.mockRestore();
+    random.mockRestore();
+  });
+
   it("makes high-guile officers often rivalrous or strained toward each other when hot-headed", () => {
     const makeOfficer = (i: number, name: string, guile: number, rationality: number) => {
       const c = baseCharacter({

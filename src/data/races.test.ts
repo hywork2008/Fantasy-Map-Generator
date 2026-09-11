@@ -41,8 +41,25 @@ describe("races catalog", () => {
       expect(race.looksBaseline?.stature).toBeDefined();
       expect(race.beautyIdeal?.weights).toBeDefined();
       expect(race.fertility?.interbirthYears).toBeGreaterThan(0);
-      expect(race.fertility!.litterMax).toBeGreaterThanOrEqual(1);
+      if (race.key === "half_elf") {
+        expect(race.fertility!.litterMean).toBe(0);
+        expect(race.fertility!.litterMax).toBe(0);
+      } else {
+        expect(race.fertility!.litterMax).toBeGreaterThanOrEqual(1);
+      }
     }
+  });
+
+  it("attaches fantasy Arcane caps and durability (Amazones 20, dwarf runes stay off Arcane)", () => {
+    const races = createDefaultRaces();
+    const byKey = Object.fromEntries(races.map(race => [race.key, race]));
+    expect(byKey.demon?.supernatural?.arcaneCap).toBe(100);
+    expect(byKey.elf?.supernatural?.arcaneCap).toBe(95);
+    expect(byKey.amazones?.supernatural?.arcaneCap).toBe(20);
+    expect(byKey.human?.supernatural?.arcaneCap).toBe(10);
+    expect(byKey.dwarf?.supernatural?.arcaneCap).toBe(10);
+    expect(byKey.draconic?.supernatural?.durability).toBeGreaterThan(byKey.giant?.supernatural?.durability ?? 0);
+    expect(byKey.draconic?.supernatural?.arcaneInclination).toBeLessThan(0.1);
   });
 
   it("records Giants' food- and temperature-independent low-density survival", () => {
@@ -74,5 +91,23 @@ describe("races catalog", () => {
     const races = createDefaultRaces();
     expect(raceIdByKey(races, "elf")).toBe(races.find(r => r.key === "elf")!.i);
     expect(raceIdByKey(races, "missing")).toBe(1); // human fallback
+  });
+
+  it("appends Half Elf after existing catalog ids and hybridizes Human×Elf looks", () => {
+    const races = createDefaultRaces();
+    const human = races.find(r => r.key === "human")!;
+    const elf = races.find(r => r.key === "elf")!;
+    const halfElf = races.find(r => r.key === "half_elf")!;
+    expect(halfElf.i).toBeGreaterThan(elf.i);
+    expect(halfElf.i).toBe(races.length - 1);
+
+    for (const axis of ["stature", "build", "symmetry", "refinement", "vitality", "ornament"] as const) {
+      const h = human.looksBaseline![axis]!;
+      const e = elf.looksBaseline![axis]!;
+      expect(halfElf.looksBaseline![axis]).toBe(Math.min(h, e));
+      expect(halfElf.looksRange![axis]).toEqual({ min: Math.min(h, e), max: Math.max(h, e) });
+    }
+    expect(halfElf.lifespan).toBe(Math.min(human.lifespan!, elf.lifespan!));
+    expect(halfElf.maxLifespan).toBe(Math.max(human.maxLifespan!, elf.maxLifespan!));
   });
 });

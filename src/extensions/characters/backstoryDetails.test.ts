@@ -44,5 +44,16 @@ describe("backstory display and CSV formatting", () => {
     expect(
       backstoryDetailRows({ origin: backstory.origin, commitment: backstory.commitment, tastes: [] }, t, () => "")
     ).toHaveLength(2);
+
+    for (const scope of ["self", "species"] as const) {
+      const scopeRows = backstoryDetailRows(
+        { origin: backstory.origin, commitment: backstory.commitment, tastes: [], compassionScope: scope },
+        t,
+        () => ""
+      );
+      const row = scopeRows.find(r => r.key === "compassionScope");
+      expect(row?.value).toBeTruthy();
+      expect(row?.value).not.toContain("characters.");
+    }
   });
 });

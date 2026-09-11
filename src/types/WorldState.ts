@@ -225,6 +225,22 @@ export interface WorldOptions {
    * This lives with the saved world rather than in UI preferences so reloading a map preserves its simulation rules.
    */
   conflictAutonomy?: ConflictAutonomy;
+  /**
+   * Whether character romance profiles take upbringing (origin.raisedIn) into account.
+   */
+  romanceDiversityUpbringing?: boolean;
+  /**
+   * Whether character romance profiles take life commitment (backstory.commitment) into account.
+   */
+  romanceDiversityCommitment?: boolean;
+  /**
+   * Whether character romance profiles take skill proficiencies into account.
+   */
+  romanceDiversitySkills?: boolean;
+  /**
+   * Whether character romance profiles apply a unique deterministic offset based on character ID.
+   */
+  romanceDiversityUniqueOffset?: boolean;
 }
 
 /** Top-level world state. All generators and renderers operate on this object. */

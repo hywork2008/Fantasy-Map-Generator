@@ -47,12 +47,19 @@ function isMinisterLike(character: Character): boolean {
   return MINISTER_ROLES.has(inferRoleClass(character));
 }
 
-/** Low judgment, and either poor governance or inability to read a plot. */
+/**
+ * 愚王・暗君: 全体的な統治能力・判断力・軍事・謀略が低水準な無能君主。
+ * いずれかの分野で人並み以上の才覚を発揮している君主は愚君にしない。
+ */
 export function isFoolishSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
   const p = character.personality;
+  const s = character.skills;
   if (p.rationality > 35) return false;
-  return governingCompetence(character) <= 42 || character.skills.intrigue <= 35;
+  if (governingCompetence(character) > 40) return false;
+  if (s.intrigue > 40) return false;
+  if (s.martial > 45) return false;
+  return true;
 }
 
 /** High judgment, competent at the desk, and not blind to intrigue. */
@@ -66,6 +73,7 @@ export function isWiseSovereign(character: Character): boolean {
 export function isGullibleSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
   if (isWiseSovereign(character)) return false;
+  if (governingCompetence(character) > 55) return false;
   const p = character.personality;
   return p.rationality <= 40 && (character.skills.intrigue <= 45 || governingCompetence(character) <= 45);
 }
@@ -86,14 +94,31 @@ export function isCourtierDeceiver(character: Character): boolean {
 }
 
 /**
- * 暴君: publicly cruel, not merely indirect or unsociable.
- * Compassion/Honor vs Greed/Vengefulness — Guile is not a moral score.
+ * 暴君: publicly cruel, not merely strict, observant, or calculating.
+ * Requires genuine cruelty (compassion <= 20), thin moral restraint (honor <= 45),
+ * and an aggressive impulse to oppress (ruthless retaliation, predatory greed, or domineering boldness).
  */
 export function isTyrantSovereign(character: Character): boolean {
   if (!isSovereignRuler(character)) return false;
   const p = character.personality;
-  if (p.compassion > 30) return false;
-  return p.vengefulness >= 70 || (p.honor <= 35 && p.greed >= 65);
+  // Genuine lack of mercy — 30 is merely pragmatic/detached, not cruel.
+  if (p.compassion > 20) return false;
+  // An honorable sovereign or devout moralist is not a tyrant.
+  if (p.honor > 45) return false;
+
+  // 1. 唯我独尊・覇道型 (Tyrannical Dominance)
+  const tyrannicalDominance = p.boldness >= 70 && (p.confidence ?? 50) >= 70 && p.vengefulness >= 55;
+  // 2. 苛烈な報復型 (Ruthless Retaliation)
+  const ruthlessRetaliation =
+    p.vengefulness >= 75 && p.boldness >= 45 && (p.boldness >= 60 || (p.confidence ?? 50) >= 60);
+  // 3. 強欲と苛政型 (Tyrannical Greed)
+  const tyrannicalGreed = p.honor <= 30 && p.greed >= 70 && (p.vengefulness >= 50 || p.boldness >= 50);
+  // 4. 猜疑と粛清型 (Paranoid Purge)
+  const paranoidPurge = p.vengefulness >= 70 && p.guile >= 65 && p.sociability <= 45;
+  // 5. 狂信的弾圧型 (Zealous Inquisitor)
+  const zealousPurge = p.zeal >= 75 && p.piety >= 65 && p.vengefulness >= 50;
+
+  return tyrannicalDominance || ruthlessRetaliation || tyrannicalGreed || paranoidPurge || zealousPurge;
 }
 
 export function isBenevolentSovereign(character: Character): boolean {

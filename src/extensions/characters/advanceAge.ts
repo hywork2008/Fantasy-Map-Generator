@@ -1,4 +1,4 @@
-import { getRaceById } from "../../data/races";
+import { getRaceById, HUMAN_RACE_ID } from "../hostRaces";
 import { P, rand } from "../hostUtils";
 import {
   LOOKS_SOFT_DECLINE_PER_YEAR,
@@ -23,6 +23,7 @@ import {
   isCk3Character,
   type RaisedIn
 } from "./characterTypes";
+import { advanceDemonSocietyExperience, inheritDemonCoverSkills } from "./demonExperience";
 import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
 /**
@@ -36,6 +37,50 @@ import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "
  * a spurious extra year: the smallest real step is a full day (0.0027 years).
  */
 const AGE_YEAR_EPSILON = 0.5 / 365.2425;
+
+const DEMON_ARCANE_FIELDS = ["arcane", "arcaneReadyYear", "arcaneWorkingsSpent", "arcaneLastHighYear"] as const;
+
+function cloneHumanCover(character: Character) {
+  const cover = structuredClone(character);
+  delete cover.demonInfiltration;
+  const storedCover = character.demonInfiltration?.coverIdentity;
+  if (storedCover) {
+    for (const field of DEMON_ARCANE_FIELDS) cover[field] = storedCover[field];
+  }
+  return cover;
+}
+
+function syncDemonArcaneIdentity(character: Character): void {
+  const identity = character.demonInfiltration?.demonIdentity;
+  if (!identity) return;
+  for (const field of DEMON_ARCANE_FIELDS) identity[field] = character[field];
+}
+
+/** Switch every public field to a new Human cover while retaining the Demon's offices and true sheet. */
+function assumeHumanCover(infiltrator: Character, cover: Character): void {
+  const demonInfiltration = infiltrator.demonInfiltration!;
+  const id = infiltrator.i;
+  const titles = infiltrator.titles;
+  const pastTitles = infiltrator.pastTitles;
+  syncDemonArcaneIdentity(infiltrator);
+  inheritDemonCoverSkills(infiltrator, cover);
+
+  const publicCover = structuredClone(cover) as unknown as Record<string, unknown>;
+  delete publicCover.demonInfiltration;
+  const target = infiltrator as unknown as Record<string, unknown>;
+  for (const key of Object.keys(target)) {
+    if (key !== "i" && key !== "titles" && key !== "pastTitles" && key !== "demonInfiltration") delete target[key];
+  }
+  Object.assign(target, publicCover);
+  infiltrator.i = id;
+  infiltrator.titles = titles;
+  infiltrator.pastTitles = pastTitles;
+  infiltrator.race = HUMAN_RACE_ID;
+  delete infiltrator.raceAppearance;
+  infiltrator.demonInfiltration = demonInfiltration;
+  demonInfiltration.coverIdentity = cloneHumanCover(cover);
+  for (const field of DEMON_ARCANE_FIELDS) infiltrator[field] = demonInfiltration.demonIdentity?.[field];
+}
 
 /** Physical decline sets in past this age for short-lived (human-scale) races only. */
 export const DECLINE_AGE_THRESHOLD = 35;
@@ -64,12 +109,69 @@ export const PROWESS_DECLINE_PER_YEAR_MILITARY = PROWESS_DECLINE_PER_YEAR_WARRIO
  */
 export const LONG_LIVED_LIFESPAN_MIN = 150;
 
+/** A Demon replaces its Human cover before this age becomes conspicuous. */
+export const DEMON_COVER_REPLACEMENT_AGE = 70;
+
+function coverProximity(infiltrator: Character, candidate: Character): number {
+  if (infiltrator.location !== undefined && candidate.location === infiltrator.location) return 2;
+  const infiltratorState = infiltrator.nationalityStateId ?? infiltrator.state;
+  const candidateState = candidate.nationalityStateId ?? candidate.state;
+  return infiltratorState === candidateState ? 1 : 0;
+}
+
+/**
+ * Give an aging infiltrator a plausible new public identity. The closest young,
+ * untitled Human is murdered; political offices and infernal abilities remain
+ * with the Demon while the victim's visible identity is copied onto it.
+ */
+export function replaceAgedDemonCover(
+  infiltrator: Character,
+  characters: readonly Character[],
+  currentYear: number
+): Character | undefined {
+  if (!infiltrator.demonInfiltration || infiltrator.age < DEMON_COVER_REPLACEMENT_AGE) return undefined;
+
+  const candidates = characters
+    .filter(
+      candidate =>
+        candidate !== infiltrator &&
+        !candidate.dead &&
+        !candidate.demonInfiltration &&
+        resolveCharacterRaceId(candidate) === HUMAN_RACE_ID &&
+        candidate.age >= 18 &&
+        candidate.age <= 35 &&
+        candidate.titles.length === 0 &&
+        !candidate.roles?.some(role => role.endYear === undefined) &&
+        coverProximity(infiltrator, candidate) > 0
+    )
+    .sort((a, b) => coverProximity(infiltrator, b) - coverProximity(infiltrator, a) || a.age - b.age || a.i - b.i);
+  const victim = candidates[0];
+  if (!victim) return undefined;
+
+  const previousCoverName = infiltrator.name;
+  const nextCover = structuredClone(victim);
+  victim.dead = true;
+  victim.deathYear = currentYear;
+  assumeHumanCover(infiltrator, nextCover);
+  infiltrator.demonInfiltration.identityReplacements ??= [];
+  infiltrator.demonInfiltration.identityReplacements.push({
+    year: currentYear,
+    victimId: victim.i,
+    victimName: victim.name,
+    previousCoverName
+  });
+  return victim;
+}
+
 /** True when this race should not take human mid-life physical age penalties. */
 export function raceIgnoresAgeDecline(lifespan: number | undefined | null): boolean {
   return (lifespan ?? 75) >= LONG_LIVED_LIFESPAN_MIN;
 }
 
-export function characterIgnoresAgeDecline(character: Pick<Character, "race" | "culture">): boolean {
+export function characterIgnoresAgeDecline(
+  character: Pick<Character, "race" | "culture" | "demonInfiltration">
+): boolean {
+  if (character.demonInfiltration) return true;
   if (!hasCharactersContext()) return false;
   try {
     const raceId = resolveCharacterRaceId(character);
@@ -196,7 +298,15 @@ export function advanceCharacterAging(deltaYears: number): void {
       declineAt(newAge, prowessRate, skipAgePenalty) - declineAt(oldAge, prowessRate, skipAgePenalty);
 
     character.age = newAge;
+    if (character.demonInfiltration) {
+      character.demonInfiltration.actualAge = (character.demonInfiltration.actualAge ?? oldAge) + wholeYears;
+      if (character.demonInfiltration.demonIdentity) {
+        character.demonInfiltration.demonIdentity.age = character.demonInfiltration.actualAge;
+      }
+      advanceDemonSocietyExperience(character, wholeYears);
+    }
     character.ageFraction = accumulated - wholeYears;
+    replaceAgedDemonCover(character, characters, getCurrentYear());
     if (appearanceDecline > 0) {
       // Prefer axis decline (vitality) + own-race Appearance cache when looks exist.
       if (character.looks) {

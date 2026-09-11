@@ -214,6 +214,28 @@ describe("bonds and hooks", () => {
     const surpriseHooks = generateCharacterHooks(surprise);
     expect(surpriseHooks[0]?.id).toBe("identity.contrast");
   });
+
+  it("adds a blue-blood or pact-house whisper for infernal-atavism humans", () => {
+    const blue = baseCharacter({
+      i: 3,
+      name: "Passer",
+      race: 1,
+      arcane: 48,
+      arcaneLineage: { kind: "infernal_atavism", flavor: "blueBlood" }
+    });
+    applyCharacterBackstory(blue, { roleClass: "ordinary", capitalBurgId: 1 });
+    expect(generateCharacterHooks(blue).some(hook => hook.id === "lineage.blueBlood")).toBe(true);
+
+    const pact = baseCharacter({
+      i: 4,
+      name: "Pact",
+      race: 1,
+      arcane: 61,
+      arcaneLineage: { kind: "infernal_atavism", flavor: "pactHouse" }
+    });
+    applyCharacterBackstory(pact, { roleClass: "ordinary", capitalBurgId: 1 });
+    expect(generateCharacterHooks(pact).some(hook => hook.id === "lineage.pactHouse")).toBe(true);
+  });
 });
 
 describe("finalizeCharacterSociety", () => {
