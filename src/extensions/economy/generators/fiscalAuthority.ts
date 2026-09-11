@@ -171,7 +171,6 @@ export function getFormFiscalPolicy(form: string | undefined): {
         canSpendPublicDirectly: true,
         notes: ["Anarchy: war-chest and personal funds blur — public seizure to personal is allowed."]
       };
-    case "Monarchy":
     default:
       return {
         canDrawHouseholdToPersonal: true,

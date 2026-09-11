@@ -72,7 +72,7 @@ function stripLandedStateTitle(character: Character, stateId: number, reason: st
   character.pastTitles ??= [];
   for (let i = character.titles.length - 1; i >= 0; i--) {
     const title = character.titles[i];
-    if (!title || title.entityType !== "state" || title.entityId !== stateId || !title.landed) continue;
+    if (title?.entityType !== "state" || title.entityId !== stateId || !title.landed) continue;
     const closed: TitleHolding = { ...title, endYear: title.startYear, reason };
     character.pastTitles.push(closed);
     character.titles.splice(i, 1);

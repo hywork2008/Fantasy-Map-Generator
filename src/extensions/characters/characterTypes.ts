@@ -71,9 +71,9 @@ export interface TitleHolding {
   title: string;
   /** true = sovereign/territorial ruler; false = government office or field command. */
   landed: boolean;
-  /** "state" for rulers/central offices; "province" for landed frontier lords. Extend with "burg" once that level is generated. */
-  entityType: "state" | "province";
-  /** pack.states[] id when entityType is "state"; pack.provinces[] id when "province". */
+  /** "state" for rulers/central offices; "province" for landed frontier lords; "burg" for burgomaster/council. */
+  entityType: "state" | "province" | "burg";
+  /** pack.states[] id when entityType is "state"; pack.provinces[] id when "province"; pack.burgs[] id when "burg". */
   entityId: number;
   startYear?: number;
   endYear?: number;
@@ -407,7 +407,7 @@ export interface CharacterLifeEvent {
   year: number;
   title: string;
   reason: string;
-  entityType: "state" | "province";
+  entityType: "state" | "province" | "burg";
   entityId: number;
 }
 

@@ -201,4 +201,32 @@ describe("characterPopulation", () => {
     expect(residents.every(character => character.race === elf.i)).toBe(true);
     expect(player?.race).toBe(elf.i);
   });
+
+  it("generates leadership rulers for independent/neutral burgs with proper titles", async () => {
+    // Add an independent burg to worldContext.pack.burgs
+    (worldContext.pack.burgs as any).push({
+      i: 2,
+      cell: 2,
+      x: 20,
+      y: 20,
+      state: 0,
+      culture: 1,
+      name: "Freeport",
+      independentGovernance: {
+        form: "patrician_council",
+        factions: [],
+        stances: {},
+        defenseResolve: 40
+      }
+    });
+
+    const rulers = generateBurgResidents
+      ? (await import("./characterPopulation")).generateIndependentBurgRulers(2)
+      : [];
+    expect(rulers).toHaveLength(3); // patrician council has 3 members
+    expect(rulers[0].titles?.[0]?.title).toBe("Grand Syndic");
+    expect(rulers[0].titles?.[0]?.entityType).toBe("burg");
+    expect(rulers[0].titles?.[0]?.entityId).toBe(2);
+    expect(worldContext.pack.burgs[2].independentGovernance?.rulerCharacterId).toBe(rulers[0].i);
+  });
 });

@@ -116,7 +116,7 @@ export function reserveMerchantHullsForCargo(args: {
 }): boolean {
   const runtime = getShipbuildingRuntimeState();
   const hulls = args.hullIds.map(id => runtime.hulls[id]);
-  if (hulls.some(hull => !hull || hull.owner !== "market" || (hull.status !== "docked" && hull.status !== "voyage"))) {
+  if (hulls.some(hull => hull?.owner !== "market" || (hull.status !== "docked" && hull.status !== "voyage"))) {
     return false;
   }
 
@@ -141,7 +141,7 @@ export function releaseMerchantHullsFromCargo(args: {
 }): boolean {
   const runtime = getShipbuildingRuntimeState();
   const hulls = args.hullIds.map(id => runtime.hulls[id]);
-  if (hulls.some(hull => !hull || hull.owner !== "market" || hull.status !== "cargo")) {
+  if (hulls.some(hull => hull?.owner !== "market" || hull.status !== "cargo")) {
     return false;
   }
 
@@ -254,7 +254,7 @@ export function applyCaravanHullPositions(
   const runtime = getShipbuildingRuntimeState();
   for (const update of updates) {
     const hull = runtime.hulls[update.hullId];
-    if (!hull || hull.owner !== "market") continue;
+    if (hull?.owner !== "market") continue;
     if (hull.status !== "cargo" && hull.status !== "docked") continue;
 
     hull.caravanId = update.caravanId;

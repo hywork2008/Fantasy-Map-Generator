@@ -103,7 +103,20 @@ const burgEditorInternal = {
     const populationAgeBands = getPopulationAgeBands(worldContext.pack.races, stateCulture?.race, isMonoRacial);
     const province = worldContext.pack.cells.province[b.cell];
     const provinceName = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
-    const stateName = worldContext.pack.states[b.state!].fullName || worldContext.pack.states[b.state!].name;
+    let stateName = worldContext.pack.states[b.state!].fullName || worldContext.pack.states[b.state!].name;
+    if (b.independentGovernance?.autonomyStatus === "protectorate") {
+      stateName += " (Autonomous / 自治特権都市)";
+    } else if (b.independentGovernance?.autonomyStatus === "tributary") {
+      stateName += " (Tributary / 従属都市)";
+    } else if (!b.state && b.independentGovernance?.form) {
+      const formLabel =
+        b.independentGovernance.form === "free_commune"
+          ? "Free Commune"
+          : b.independentGovernance.form === "patrician_council"
+            ? "Merchant Council"
+            : "Independent Autocracy";
+      stateName = `Independent (${formLabel})`;
+    }
     const provinceAndState = provinceName + stateName;
 
     const cultures = worldContext.pack.cultures

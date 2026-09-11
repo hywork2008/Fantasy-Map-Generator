@@ -31,6 +31,7 @@ import { generateWorldLanguages } from "../utils/worldLanguages";
 import { getStateExpandDangerCost } from "./dangerExpandPolicy";
 import { COA } from "./emblem/generator";
 import { enforceGiantWaterSourceSovereignty } from "./giantWaterSourceSovereignty";
+import { populateAllIndependentBurgs } from "./independentBurgGovernance";
 import { assignInitialPolities, clearUnclaimedOikoumenePopulation } from "./initialPolities";
 import { Names } from "./names-generator";
 
@@ -161,6 +162,7 @@ class StatesModule {
     }
     this.generateCampaigns();
     this.generateDiplomacy();
+    populateAllIndependentBurgs(this.worldContext);
 
     TIME && console.timeEnd("generateStates");
   }

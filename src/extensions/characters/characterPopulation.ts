@@ -185,3 +185,86 @@ export function createPlayerCharacter(options: CreatePlayerCharacterOptions): Ch
   });
   return character;
 }
+
+/**
+ * Generates official leadership characters for an independent/neutral burg.
+ * Depending on the governance form, spawns a single Burgomaster or multiple Councilors.
+ */
+export function generateIndependentBurgRulers(burgId: number): Character[] {
+  const { pack } = getWorldContext();
+  const burg = pack.burgs?.[burgId];
+  if (!burg || burg.removed || burg.state) return [];
+
+  const gov = burg.independentGovernance;
+  const form = gov?.form ?? "autocracy";
+  const count = form === "autocracy" ? 1 : form === "patrician_council" ? 3 : 2;
+
+  const cultureId = burg.culture ?? pack.cultures?.find(c => c.i > 0)?.i ?? 0;
+  const characters = getCharacters();
+  let nextId = getNextCharacterId(characters);
+  const created: Character[] = [];
+  const currentYear = getCurrentYear();
+
+  for (let idx = 0; idx < count; idx++) {
+    const isChief = idx === 0;
+    const titleName =
+      form === "autocracy"
+        ? burg.citadel
+          ? "Castellan"
+          : "Burgomaster"
+        : form === "patrician_council"
+          ? isChief
+            ? "Grand Syndic"
+            : "Patrician Councilor"
+          : isChief
+            ? "Consul"
+            : "Tribune";
+
+    const character = createPerson(nextId++, cultureId, {
+      homeStateId: 0,
+      primarySkill: form === "patrician_council" ? "stewardship" : form === "autocracy" ? "martial" : "diplomacy",
+      roleClass: form === "patrician_council" ? "merchant" : "ruler",
+      marriageExpectation: "dynastic"
+    });
+
+    character.location = burgId;
+    character.titles = [
+      {
+        title: titleName,
+        landed: true,
+        entityType: "burg",
+        entityId: burgId,
+        startYear: currentYear
+      }
+    ];
+
+    applyCharacterBackstory(character, {
+      roleClass: form === "patrician_council" ? "merchant" : "ruler",
+      homeBurgId: burgId,
+      birthBurgId: burgId
+    });
+
+    created.push(character);
+    characters.push(character);
+  }
+
+  // Update burg governance pointers
+  if (gov) {
+    if (form === "autocracy" && created[0]) {
+      gov.rulerCharacterId = created[0].i;
+    } else {
+      gov.rulerCharacterId = created[0]?.i;
+      gov.councilCharacterIds = created.map(c => c.i);
+    }
+  }
+
+  for (const c of created) {
+    seedRelationsWithPeers(c, characters);
+    finalizeCharacterSocietyForPeer(c, characters, {
+      stateNames: getStateNames(),
+      currentYear
+    });
+  }
+
+  return created;
+}

@@ -4,8 +4,7 @@ import {
   applyKnowledgeEwma,
   clampTechnologyDevelopmentSpeed,
   DEFAULT_TECHNOLOGY_DEVELOPMENT_SPEED,
-  getTechnologyDevelopmentSpeed,
-  MAX_TECHNOLOGY_DEVELOPMENT_SPEED
+  getTechnologyDevelopmentSpeed
 } from "./technologyDevelopmentSpeed";
 
 describe("technologyDevelopmentSpeed", () => {

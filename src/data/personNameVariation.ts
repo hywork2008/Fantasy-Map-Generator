@@ -252,7 +252,7 @@ export function applySphereVariation(baseName: string, sphereId: number, rnd: Pe
     }
     default: {
       // soft consonant twinning on last consonant run
-      raw = stem.replace(/([bcdfghjklmnpqrstvwxyz])\1?/i, (m, c: string) => `${c}${c}`);
+      raw = stem.replace(/([bcdfghjklmnpqrstvwxyz])\1?/i, (_m, c: string) => `${c}${c}`);
       if (raw === stem) {
         const s = pick(morph.suffixes, rnd);
         raw = `${stem}${s}`;

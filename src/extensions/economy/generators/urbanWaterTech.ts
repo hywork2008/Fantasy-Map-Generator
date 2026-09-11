@@ -64,7 +64,6 @@ export function waterTechCeilings(
         return { waterLifting: 0.98, municipalSanitation: 0.97, sanitaryEngineering: 0.9 };
       case "rocketryEra":
         return { waterLifting: 1, municipalSanitation: 1, sanitaryEngineering: 0.95 };
-      case "highMedieval":
       default:
         return { waterLifting: 0.55, municipalSanitation: 0.55, sanitaryEngineering: 0.08 };
     }

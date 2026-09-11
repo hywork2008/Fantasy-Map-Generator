@@ -45,6 +45,7 @@ import {
 } from "./fastAdvance/historyModeRun";
 import { applyHistoryStubFunding } from "./fastAdvance/historyStubFunding";
 import { advanceFrontierExpansion, snapshotFrontierBudgets } from "./frontierExpansion";
+import { advanceIndependentBurgDiplomacy } from "./independentBurgIncorporation";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
 import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
@@ -410,6 +411,23 @@ registerSimulationSystem({
   run: (_context, writer) => {
     const result = advanceUndergroundEcology({ world: worldContext, simulation: simulationContext });
     if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
+
+// Independent/neutral burg diplomatic incorporation: annual evaluations by neighboring states
+registerSimulationSystem({
+  id: "independent-burgs.tick",
+  phase: "politics",
+  reads: ["map.politics", "map.settlements"],
+  writes: ["map.politics", "map.settlements"],
+  cadence: { every: 1 },
+  profileLabel: "independentBurgDiplomacy",
+  run: (_context, writer) => {
+    const changed = advanceIndependentBurgDiplomacy({
+      world: worldContext,
+      simulation: simulationContext
+    });
+    if (changed) writer.markChanged("map.politics", "map.settlements");
   }
 });
 

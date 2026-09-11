@@ -442,6 +442,36 @@ export interface Burg {
   /** Surface cell this underground Burg opens onto. Equal to `cell` until a dedicated entrance
    *  placement exists (docs/temp/races/dwarf.md §5). */
   entranceCell?: number;
+  /** Governance structure, NPC rulers, factions, and diplomatic stance for neutral / independent burgs. */
+  independentGovernance?: IndependentBurgGovernance;
+}
+
+export type IndependentGovernanceForm = "autocracy" | "patrician_council" | "free_commune";
+
+export interface IndependentBurgFaction {
+  targetStateId: number; // 0 represents isolationist / independentist faction
+  weight: number; // 0..100 share of political influence
+  label: string;
+}
+
+export interface IndependentBurgStance {
+  targetStateId: number;
+  affinity: number; // -100..100 (Culture, religion, past interactions)
+  threat: number; // 0..100 (Geopolitical pressure, military proximity)
+  economicDependence: number; // 0..100 (Trade connections, vital supplies)
+  overallStance: "friendly" | "cautious" | "hostile" | "submissive";
+}
+
+export interface IndependentBurgGovernance {
+  form: IndependentGovernanceForm;
+  rulerCharacterId?: number;
+  councilCharacterIds?: number[];
+  factions: IndependentBurgFaction[];
+  stances: Record<number, IndependentBurgStance>;
+  autonomyStatus?: "full_independent" | "protectorate" | "tributary";
+  protectorStateId?: number;
+  leagueId?: number;
+  defenseResolve: number; // 0..100 (willingness to resist military subjugation)
 }
 
 /** Optional cultural context for character romance descriptions; not a marriage simulation policy. */

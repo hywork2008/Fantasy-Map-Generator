@@ -3,6 +3,7 @@
 2026-09-11
 
 - docs/plan/characters/craft-skills-expansion.md
+- docs/plan/neutral-burg-incorporation.md - 中立都市の統治機構・NPC政治姿勢および国家編入（平和的・武力的・第三国介入）
 - docs/plan/war-fervor-and-weariness.md
 
 2026-09-09
