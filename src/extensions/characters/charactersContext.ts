@@ -32,15 +32,52 @@ const _presets = new Map<string, AbilityPreset>([
 const DEFAULT_ABILITY_PRESET_ID = ck3Preset.id;
 let _fallbackAbilityPresetId = DEFAULT_ABILITY_PRESET_ID;
 const DEFAULT_ALLOWED_CHARACTER_RACE_KEYS = raceCatalog.filter(race => race.key !== "unknown").map(race => race.key);
-let _fallbackAllowedCharacterRaceKeys = [...DEFAULT_ALLOWED_CHARACTER_RACE_KEYS];
+
+function resolveInitialAllowedRaceKeys(): string[] {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const raw = localStorage.getItem("allowedRaceKeys");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const valid = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => (parsed as unknown[]).includes(key));
+          if (valid.length > 0) return valid;
+        }
+      }
+    }
+  } catch {
+    // Ignore storage parse errors
+  }
+  return [...DEFAULT_ALLOWED_CHARACTER_RACE_KEYS];
+}
+
+let _fallbackAllowedCharacterRaceKeys = resolveInitialAllowedRaceKeys();
 
 export function initCharactersContext(api: ExtensionAPI): void {
   if (api.races) bindRaceService(api.races);
   _api = api;
+  const slice = api.simulationContext?.extensions?.characters as Record<string, unknown> | undefined;
+  if (slice && Array.isArray(slice.allowedRaceKeys)) {
+    const selected = new Set(slice.allowedRaceKeys.filter((key): key is string => typeof key === "string"));
+    const valid = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => selected.has(key));
+    if (valid.length) {
+      _fallbackAllowedCharacterRaceKeys = valid;
+    }
+  } else if (slice && !slice.allowedRaceKeys) {
+    slice.allowedRaceKeys = [..._fallbackAllowedCharacterRaceKeys];
+  }
 }
 
 export function clearCharactersContext(): void {
   _api = null;
+  _fallbackAllowedCharacterRaceKeys = [...DEFAULT_ALLOWED_CHARACTER_RACE_KEYS];
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("allowedRaceKeys");
+    }
+  } catch {
+    // Ignore
+  }
 }
 
 /** Supports cross-extension callers (e.g. Economy's ruler household stipend) that must degrade gracefully when Characters is disabled, instead of hitting getApi()'s throw. */
@@ -159,13 +196,13 @@ export function getAllowedCharacterRaceKeys(): readonly string[] {
 }
 
 /** Persist the extension-wide race roster. At least one playable race must remain enabled. */
-export function setAllowedCharacterRaceKeys(keys: Iterable<string>): boolean {
+export function setAllowedCharacterRaceKeys(keys: Iterable<string>, persist = true): boolean {
   const selected = new Set(keys);
   const valid = DEFAULT_ALLOWED_CHARACTER_RACE_KEYS.filter(key => selected.has(key));
   if (!valid.length) return false;
 
   _fallbackAllowedCharacterRaceKeys = valid;
-  const extensions = getApi().simulationContext?.extensions;
+  const extensions = _api?.simulationContext?.extensions;
   if (extensions) {
     let slice = extensions.characters;
     if (!slice) {
@@ -173,6 +210,21 @@ export function setAllowedCharacterRaceKeys(keys: Iterable<string>): boolean {
       extensions.characters = slice;
     }
     slice.allowedRaceKeys = [...valid];
+  }
+
+  if (persist) {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("allowedRaceKeys", JSON.stringify(valid));
+        if (typeof document !== "undefined") {
+          document.dispatchEvent(
+            new CustomEvent("fmg:lock-changed", { detail: { id: "allowedRaceKeys", locked: true } })
+          );
+        }
+      }
+    } catch {
+      // Ignore storage errors in restricted environments
+    }
   }
   return true;
 }

@@ -12,7 +12,12 @@ import {
 } from "../data";
 import { convertLegacyLatitudeToGeographic, earthRegionFitGraph } from "../data/earthConfig";
 import { getEarthRegion } from "../data/earthRegions";
-import { parseRacePersonNameMapping, resolveRacePersonNameMapping } from "../data/racePersonNameConfig";
+import {
+  parseAllowedRaceKeys,
+  parseRacePersonNameMapping,
+  resolveRacePersonNameMapping
+} from "../data/racePersonNameConfig";
+import { setAllowedCharacterRaceKeys } from "../extensions/characters/charactersContext";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -665,6 +670,13 @@ export function applyStoredOptions(): void {
       optionsStore.setOption("racePersonNameSpheres", resolveRacePersonNameMapping(parseRacePersonNameMapping(parsed)));
     } catch {
       // keep defaults when storage is corrupt
+    }
+  }
+  if (stored("allowedRaceKeys")) {
+    const parsed = parseAllowedRaceKeys(stored("allowedRaceKeys"));
+    if (parsed) {
+      optionsStore.setOption("allowedRaceKeys", parsed);
+      setAllowedCharacterRaceKeys(parsed);
     }
   }
 

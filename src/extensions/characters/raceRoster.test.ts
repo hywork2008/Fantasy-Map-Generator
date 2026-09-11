@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createDefaultRaces } from "../../data/races";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI } from "../hostTypes";
-import { clearCharactersContext, initCharactersContext, setAllowedCharacterRaceKeys } from "./charactersContext";
+import {
+  clearCharactersContext,
+  getAllowedCharacterRaceKeys,
+  initCharactersContext,
+  setAllowedCharacterRaceKeys
+} from "./charactersContext";
 import {
   raceCharacterDensity,
   sampleRaceIdForState,
@@ -250,6 +255,18 @@ describe("sampleRaceIdForState", () => {
       expect(seen.has(human)).toBe(true);
       expect(seen.has(demon)).toBe(true);
       expect(seen.has(beastfolk)).toBe(true);
+    });
+
+    it("persists allowedRaceKeys to localStorage and survives context reinitialization", () => {
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      expect(setAllowedCharacterRaceKeys(["elf", "dwarf"])).toBe(true);
+      expect(localStorage.getItem("allowedRaceKeys")).toBe(JSON.stringify(["elf", "dwarf"]));
+      expect(getAllowedCharacterRaceKeys()).toEqual(["elf", "dwarf"]);
+
+      // Re-initialize context with a clean simulation slice (simulating reload)
+      const freshApi = { worldContext, simulationContext: { extensions: {} } } as unknown as ExtensionAPI;
+      initCharactersContext(freshApi);
+      expect(getAllowedCharacterRaceKeys()).toEqual(["elf", "dwarf"]);
     });
   });
 });

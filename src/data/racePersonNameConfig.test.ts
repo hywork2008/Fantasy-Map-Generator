@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   applyRacePersonNameSpheres,
+  DEFAULT_ALLOWED_RACE_KEYS,
   DEFAULT_RACE_PERSON_NAME_SPHERES,
+  parseAllowedRaceKeys,
   parseRacePersonNameMapping,
   resolveRacePersonNameMapping
 } from "./racePersonNameConfig";
@@ -64,5 +66,21 @@ describe("racePersonNameConfig", () => {
     const resolved = resolveRacePersonNameMapping({ dark_elf: { primary: 12 } });
     expect(resolved.dark_elf.primary).toBe(12);
     expect(resolved.elf.primary).toBe(7);
+  });
+
+  it("parseAllowedRaceKeys validates and filters race keys", () => {
+    expect(DEFAULT_ALLOWED_RACE_KEYS).toContain("human");
+    expect(DEFAULT_ALLOWED_RACE_KEYS).toContain("elf");
+    expect(DEFAULT_ALLOWED_RACE_KEYS).not.toContain("unknown");
+
+    // From string JSON
+    expect(parseAllowedRaceKeys(JSON.stringify(["human", "elf"]))).toEqual(["human", "elf"]);
+    // From array
+    expect(parseAllowedRaceKeys(["demon", "beastfolk", "invalid_race"])).toEqual(["demon", "beastfolk"]);
+    // Invalid payloads
+    expect(parseAllowedRaceKeys("not-json")).toBeNull();
+    expect(parseAllowedRaceKeys(null)).toBeNull();
+    expect(parseAllowedRaceKeys([])).toBeNull();
+    expect(parseAllowedRaceKeys(["nonexistent"])).toBeNull();
   });
 });

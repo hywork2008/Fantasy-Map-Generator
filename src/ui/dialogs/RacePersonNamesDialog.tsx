@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   configurablePersonNameRaces,
+  DEFAULT_ALLOWED_RACE_KEYS,
   DEFAULT_RACE_PERSON_NAME_SPHERES,
   PERSON_NAME_SPHERE_OPTIONS,
   type RacePersonNameMapping,
@@ -60,6 +61,8 @@ export const RacePersonNamesDialog: React.FC = () => {
     if (hasCharactersContext()) {
       setAbilityPresetId(getSelectedAbilityPresetId());
       setAllowedRaceKeys(new Set(getAllowedCharacterRaceKeys()));
+    } else {
+      setAllowedRaceKeys(new Set(useOptionsState.getState().allowedRaceKeys));
     }
   }, [isOpen]);
 
@@ -94,10 +97,13 @@ export const RacePersonNamesDialog: React.FC = () => {
   };
 
   const handleSave = () => {
+    const allowedKeys = Array.from(allowedRaceKeys);
     if (charactersReady) {
       if (!setSelectedAbilityPresetId(abilityPresetId)) return;
       if (!setAllowedCharacterRaceKeys(allowedRaceKeys)) return;
       useCharactersUiState.getState().bumpRefreshToken();
+    } else {
+      setAllowedCharacterRaceKeys(allowedRaceKeys);
     }
     const mapping: RacePersonNameMapping = {};
     for (const [key, cfg] of Object.entries(draft)) {
@@ -107,11 +113,13 @@ export const RacePersonNamesDialog: React.FC = () => {
       };
     }
     setOption("racePersonNameSpheres", mapping);
+    setOption("allowedRaceKeys", allowedKeys);
     closeDialog("racePersonNames");
   };
 
   const handleReset = () => {
     setDraft(resolveRacePersonNameMapping(DEFAULT_RACE_PERSON_NAME_SPHERES));
+    setAllowedRaceKeys(new Set(DEFAULT_ALLOWED_RACE_KEYS));
   };
 
   const toggleAllowedRace = (key: string): void => {
@@ -134,7 +142,7 @@ export const RacePersonNamesDialog: React.FC = () => {
       onClose={() => closeDialog("racePersonNames")}
       style={{ minWidth: "32em", maxWidth: "42em" }}
       buttons={[
-        { label: "Reset name defaults", onClick: handleReset },
+        { label: "Reset defaults", onClick: handleReset },
         { label: "Cancel", onClick: () => closeDialog("racePersonNames") },
         { label: "Save", onClick: handleSave }
       ]}

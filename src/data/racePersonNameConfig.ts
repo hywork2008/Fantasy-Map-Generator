@@ -53,6 +53,29 @@ export function configurablePersonNameRaces(): readonly { key: RaceKey; name: st
   return RACE_DEFINITIONS.filter(d => d.key !== "unknown").map(d => ({ key: d.key, name: d.name }));
 }
 
+/** Built-in list of race keys enabled for characters by default. */
+export const DEFAULT_ALLOWED_RACE_KEYS: readonly string[] = Object.freeze(
+  configurablePersonNameRaces().map(r => r.key)
+);
+
+/**
+ * Parse and sanitize a raw list of allowed race keys (from JSON string, array, or storage).
+ * Returns null if the payload is invalid or would leave no playable races enabled.
+ */
+export function parseAllowedRaceKeys(raw: unknown): string[] | null {
+  let list = raw;
+  if (typeof raw === "string") {
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(list)) return null;
+  const valid = (DEFAULT_ALLOWED_RACE_KEYS as readonly string[]).filter(key => (list as unknown[]).includes(key));
+  return valid.length > 0 ? valid : null;
+}
+
 /** Merge user overrides onto built-in defaults (clone, never mutate defaults). */
 export function resolveRacePersonNameMapping(
   user?: RacePersonNameMapping | null

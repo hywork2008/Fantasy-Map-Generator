@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { HeightmapTemplateRandomization } from "../data";
 import {
+  DEFAULT_ALLOWED_RACE_KEYS,
   DEFAULT_RACE_PERSON_NAME_SPHERES,
   type RacePersonNameMapping,
   resolveRacePersonNameMapping
@@ -75,6 +76,11 @@ export interface OptionsState {
    * Always persisted to localStorage as JSON (`racePersonNameSpheres`).
    */
   racePersonNameSpheres: RacePersonNameMapping;
+  /**
+   * Race keys enabled for character creation and NPC generation.
+   * Persisted to localStorage as JSON (`allowedRaceKeys`).
+   */
+  allowedRaceKeys: readonly string[];
   statesNumber: number;
   provincesRatio: number;
   sizeVariety: number;
@@ -437,6 +443,7 @@ export const GENERATION_OPTION_KEYS = [
   "cultures",
   "culturesSet",
   "racePersonNameSpheres",
+  "allowedRaceKeys",
   "religionsNumber",
   "emblemShape",
   "statesNumber",
@@ -510,6 +517,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   cultures: 12,
   culturesSet: "world",
   racePersonNameSpheres: resolveRacePersonNameMapping(DEFAULT_RACE_PERSON_NAME_SPHERES),
+  allowedRaceKeys: DEFAULT_ALLOWED_RACE_KEYS,
   statesNumber: 15,
   provincesRatio: 20,
   sizeVariety: 4,
@@ -607,8 +615,8 @@ export const useOptionsState = create<OptionsState>(set => ({
     // A lock is represented by a localStorage entry bearing the option key.
     // Keep that entry current when a user changes an already locked setting;
     // otherwise the old value would be restored on the next page load.
-    // Complex objects (race person-name map) always serialize as JSON.
-    if (key === "racePersonNameSpheres") {
+    // Complex objects (race person-name map, allowed race keys) always serialize as JSON.
+    if (key === "racePersonNameSpheres" || key === "allowedRaceKeys") {
       localStorage.setItem(key, JSON.stringify(value));
     } else if (localStorage.getItem(key) !== null) {
       localStorage.setItem(key, String(value));
@@ -619,7 +627,7 @@ export const useOptionsState = create<OptionsState>(set => ({
     // Preset controls can update several options together. Apply the same
     // invariant as setOption to each value that already has a lock.
     for (const [key, value] of Object.entries(updates)) {
-      if (key === "racePersonNameSpheres") {
+      if (key === "racePersonNameSpheres" || key === "allowedRaceKeys") {
         localStorage.setItem(key, JSON.stringify(value));
       } else if (localStorage.getItem(key) !== null) {
         localStorage.setItem(key, String(value));

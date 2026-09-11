@@ -1,4 +1,9 @@
-import { parseRacePersonNameMapping, resolveRacePersonNameMapping } from "../data/racePersonNameConfig";
+import {
+  parseAllowedRaceKeys,
+  parseRacePersonNameMapping,
+  resolveRacePersonNameMapping
+} from "../data/racePersonNameConfig";
+import { setAllowedCharacterRaceKeys } from "../extensions/characters/charactersContext";
 import { tip } from "../services/tooltipService";
 import { generationProgressStore } from "../store/generationProgressState";
 import {
@@ -236,6 +241,11 @@ export function sanitizeGenerationOptions(raw: unknown): Partial<GenerationOptio
     updates.racePersonNameSpheres = resolveRacePersonNameMapping(parseRacePersonNameMapping(raw.racePersonNameSpheres));
   }
 
+  if ("allowedRaceKeys" in raw) {
+    const parsed = parseAllowedRaceKeys(raw.allowedRaceKeys);
+    if (parsed) updates.allowedRaceKeys = parsed;
+  }
+
   return updates;
 }
 
@@ -257,7 +267,7 @@ export function parseGenerationOptionsExport(raw: string): GenerationOptionsImpo
 }
 
 function persistImportedOptionLock<K extends keyof GenerationOptions>(key: K, value: GenerationOptions[K]): void {
-  if (key === "racePersonNameSpheres") {
+  if (key === "racePersonNameSpheres" || key === "allowedRaceKeys") {
     localStorage.setItem(key, JSON.stringify(value));
   } else {
     localStorage.setItem(key, String(value));
@@ -269,6 +279,9 @@ function persistImportedOptionLock<K extends keyof GenerationOptions>(key: K, va
 export function applyGenerationOptions(updates: Partial<GenerationOptions>): GenerationOptions {
   const store = useOptionsState.getState();
   store.setOptions(updates);
+  if (updates.allowedRaceKeys) {
+    setAllowedCharacterRaceKeys(updates.allowedRaceKeys);
+  }
   const next = useOptionsState.getState();
   for (const key of GENERATION_OPTION_KEYS) {
     if (!Object.hasOwn(updates, key)) continue;

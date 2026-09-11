@@ -18,7 +18,8 @@ const importedLockKeys = [
   "culturesSet",
   "initialSettlementPattern",
   "oikoumeneLandShare",
-  "racePersonNameSpheres"
+  "racePersonNameSpheres",
+  "allowedRaceKeys"
 ] as const;
 
 afterEach(() => {

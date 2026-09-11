@@ -20,7 +20,7 @@ export function lock(id: string, valueToStore?: string): void {
   const options = useOptionsState.getState() as unknown as Record<string, unknown>;
   const value = options[id];
   if (id in options && typeof value !== "function") {
-    store(id, String(value));
+    store(id, typeof value === "object" && value !== null ? JSON.stringify(value) : String(value));
   } else {
     const input = document.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-stored="${id}"]`);
     if (input) store(id, input.value);

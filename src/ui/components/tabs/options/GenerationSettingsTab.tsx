@@ -470,15 +470,12 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip={t("generation.raceSettingsTip")}>
             <td>
-              <IconButton
-                data-tip={t("generation.openRaceSettings")}
-                icon="icon-book"
-                onClick={() => openDialog("racePersonNames")}
-              />
+              <LockIconButton id="allowedRaceKeys" />
             </td>
             <th>{t("generation.raceSettings")}</th>
             <td colSpan={2}>
               <button type="button" className="button" onClick={() => openDialog("racePersonNames")}>
+                <i className="icon-book" style={{ marginRight: "0.4em" }} />
                 {t("common.configure")}
               </button>
             </td>
