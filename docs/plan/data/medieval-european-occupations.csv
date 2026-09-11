@@ -249,3 +249,31 @@ No,English Name,Japanese Name
 248,Surveyor,測量士
 249,Engineer,技師
 250,Siege Engineer,攻城兵器技師
+251,Botanist,植物学者（本草学者）
+252,Inquisitor,異端審問官
+253,Theologian,神学者
+254,Philosopher,哲学者
+255,Naturalist,博物学者
+256,Mathematician,数学者
+257,Geographer,地理学者（地誌学者）
+258,Jurist,法学者
+259,Librarian,司書（図書管理人）
+260,Distiller,蒸留技師
+261,Potash Burner,灰焼き職人（ポタシュ職人）
+262,Saltpetreman,硝石採取人
+263,Perfumer,調香師
+264,Hydraulic Engineer,水利技師
+265,Lens Grinder,レンズ研磨師
+266,Typefounder,活字鋳造師
+267,Patternmaker,模型職人（木型職人）
+268,Machinist,機械工
+269,Boilermaker,ボイラー職人（製缶工）
+270,Prospector,探鉱師（鉱脈探索士）
+271,Metallurgist,冶金学者（冶金技師）
+272,Fortification Engineer,築城技師
+273,Artificer,火技師（砲術士）
+274,Sapper,工兵（坑道工）
+275,Quartermaster,兵站官
+276,Cryptographer,暗号解読士（暗号官）
+277,Spy,密偵（スパイ）
+278,Diplomat,外交官（使節）
