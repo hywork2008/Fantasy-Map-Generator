@@ -4,6 +4,7 @@ import en from "../../i18n/locales/en.json";
 import ja from "../../i18n/locales/ja.json";
 import { applyCharacterBackstory, gamblingPersonalityMult, offerGift } from "./backstoryProfile";
 import {
+  determineCompassionScope,
   getCompassionFor,
   getPersonalAmbition,
   getWarPreference,
@@ -114,6 +115,64 @@ describe("independent character motivations", () => {
     expect(getCompassionFor(a, b)).toBe(a.personality.compassion);
     a.backstory!.compassionScope = "faith";
     expect(getCompassionFor(a, b)).toBe(a.personality.compassion);
+    a.backstory!.compassionScope = "self";
+    expect(getCompassionFor(a, a)).toBe(a.personality.compassion);
+    expect(getCompassionFor(a, b)).toBeLessThan(a.personality.compassion);
+    a.backstory!.compassionScope = "species";
+    a.race = 1;
+    b.race = 1;
+    expect(getCompassionFor(a, b)).toBe(a.personality.compassion);
+    b.race = 2;
+    expect(getCompassionFor(a, b)).toBeLessThan(a.personality.compassion);
+  });
+
+  it("determines appropriate compassionScope from character traits and commitments", () => {
+    // 1. Cold, ruthless egoist -> self
+    const selfish = person();
+    selfish.personality.compassion = 15;
+    selfish.personality.greed = 85;
+    selfish.backstory!.commitment.primary = { kind: "self" };
+    expect(determineCompassionScope(selfish)).toBe("self");
+
+    // 2. High empathy humanitarian -> everyone
+    const saint = person();
+    saint.personality.compassion = 90;
+    saint.backstory!.commitment.primary = { kind: "people" };
+    saint.backstory!.principles = ["protect_civilians"];
+    expect(determineCompassionScope(saint)).toBe("everyone");
+
+    // 3. Devout believer -> faith
+    const monk = person();
+    monk.personality.piety = 90;
+    monk.backstory!.commitment.primary = { kind: "faith" };
+    monk.backstory!.origin.raisedIn = "monastery";
+    expect(determineCompassionScope(monk)).toBe("faith");
+
+    // 4. Family-first ruler / parent -> family
+    const familyPerson = person();
+    familyPerson.personality.compassion = 50;
+    familyPerson.family = { spouses: 1, children: 3, grandchildren: 0, greatGrandchildren: 0 };
+    familyPerson.backstory!.commitment.primary = { kind: "family" };
+    expect(determineCompassionScope(familyPerson)).toBe("family");
+
+    // 5. Ethnocentric / exile valuing kin and culture -> species
+    const exile = person();
+    exile.backstory!.origin.migration = "exile";
+    exile.backstory!.commitment.primary = { kind: "nation_culture" };
+    expect(determineCompassionScope(exile)).toBe("species");
+
+    // 6. Standard civic leader / soldier -> community
+    const soldier = person();
+    soldier.personality.compassion = 50;
+    soldier.backstory!.commitment.primary = { kind: "state", targetId: 1 };
+    expect(determineCompassionScope(soldier)).toBe("community");
+
+    // seedCharacterMotivation integrates determineCompassionScope
+    const charToSeed = person();
+    charToSeed.personality.compassion = 10;
+    charToSeed.backstory!.commitment.primary = { kind: "self" };
+    seedCharacterMotivation(charToSeed);
+    expect(charToSeed.backstory!.compassionScope).toBe("self");
   });
 
   it("does not infer violence or fictional life events from faith and zeal", () => {

@@ -1,4 +1,4 @@
-import type { Character, CharacterGoalKind, CharacterPrinciple } from "./characterTypes";
+import type { Character, CharacterGoalKind, CharacterPrinciple, CompassionScope } from "./characterTypes";
 
 type Subject = Pick<Character, "personality" | "backstory">;
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
@@ -8,7 +8,9 @@ export function getCompassionFor(character: Character, target: Character): numbe
   const base = character.personality.compassion;
   const scope = character.backstory?.compassionScope ?? "everyone";
   let included = true;
-  if (scope === "community") {
+  if (scope === "self") {
+    included = character.i === target.i;
+  } else if (scope === "community") {
     const ownState = character.nationalityStateId ?? character.state;
     const otherState = target.nationalityStateId ?? target.state;
     if (ownState && otherState) included = ownState === otherState;
@@ -25,6 +27,12 @@ export function getCompassionFor(character: Character, target: Character): numbe
         ...(character.family.childIds ?? []),
         ...(character.family.spouseIds ?? [])
       ].includes(target.i);
+  } else if (scope === "species") {
+    const ownRace = character.race;
+    const otherRace = target.race;
+    if (ownRace !== undefined && otherRace !== undefined) {
+      included = ownRace === otherRace;
+    }
   }
   return included ? base : Math.round(base * 0.25);
 }
@@ -76,6 +84,128 @@ export function getPersonalAmbition(character: Subject): number {
   );
 }
 
+/**
+ * Select the scope of interpersonal compassion based on character commitments, personality,
+ * origin, principles, and racial/demonic affiliation.
+ */
+export function determineCompassionScope(character: Character): CompassionScope {
+  if (character.backstory?.compassionScope) {
+    return character.backstory.compassionScope;
+  }
+
+  const p = character.personality;
+  const b = character.backstory;
+  const primaryKind = b?.commitment?.primary?.kind;
+  const secondaryKind = b?.commitment?.secondary?.kind;
+  const origin = b?.origin;
+
+  // Base weights for medieval fantasy society (community as baseline majority)
+  const scores: Record<CompassionScope, number> = {
+    community: 35,
+    faith: 20,
+    family: 20,
+    species: 15,
+    everyone: 5,
+    self: 5
+  };
+
+  // 1. Empathy & Compassion
+  if (p.compassion <= 20) {
+    scores.self += 40;
+    scores.everyone -= 30;
+  } else if (p.compassion <= 35) {
+    scores.self += 20;
+    scores.everyone -= 15;
+  } else if (p.compassion >= 80) {
+    scores.everyone += 40;
+    scores.self -= 40;
+  } else if (p.compassion >= 70) {
+    scores.everyone += 20;
+    scores.self -= 25;
+  }
+
+  // 2. Selfishness, Greed, and Malice
+  if (p.greed >= 75 && p.compassion <= 45) scores.self += 25;
+  if (p.guile >= 75 && p.compassion <= 40) scores.self += 20;
+  if (p.vengefulness >= 75 && p.compassion <= 40) scores.self += 15;
+
+  // 3. Piety & Faith
+  if (p.piety >= 75) scores.faith += 30;
+  else if (p.piety >= 60) scores.faith += 15;
+  else if (p.piety <= 25) scores.faith -= 20;
+
+  // 4. Commitments
+  const applyCommitment = (kind?: string, weight = 1) => {
+    if (!kind) return;
+    if (kind === "faith") scores.faith += 45 * weight;
+    else if (kind === "family" || kind === "house") scores.family += 45 * weight;
+    else if (kind === "self" || kind === "rivalry" || kind === "hedonism") scores.self += 35 * weight;
+    else if (kind === "nation_culture") {
+      scores.species += 35 * weight;
+      scores.community += 15 * weight;
+    } else if (
+      kind === "state" ||
+      kind === "domain" ||
+      kind === "office" ||
+      kind === "liege" ||
+      kind === "patron" ||
+      kind === "comrades"
+    ) {
+      scores.community += 30 * weight;
+    } else if (kind === "people") {
+      scores.community += 20 * weight;
+      scores.everyone += 30 * weight;
+    }
+  };
+  applyCommitment(primaryKind, 1);
+  applyCommitment(secondaryKind, 0.5);
+
+  // 5. Principles
+  if (hasPrinciple(character, "protect_civilians") || hasPrinciple(character, "reject_aggression")) {
+    scores.everyone += 25;
+    scores.community += 10;
+    scores.self -= 30;
+  }
+
+  // 6. Origin & Upbringing
+  if (origin) {
+    if (origin.raisedIn === "monastery" || origin.familyOccupation === "religion") {
+      scores.faith += 25;
+    }
+    if (origin.migration === "immigrant" || origin.migration === "exile") {
+      scores.species += 20;
+      scores.family += 15;
+      scores.community -= 15;
+    }
+  }
+
+  // 7. Demon infiltration
+  if (character.demonInfiltration) {
+    scores.self += 35;
+    scores.species += 15;
+    scores.everyone -= 30;
+  }
+
+  // 8. Family situation
+  const hasDirectFamily = (character.family?.spouses ?? 0) > 0 || (character.family?.children ?? 0) > 0;
+  if (hasDirectFamily) scores.family += 10;
+
+  // Tie-breaking preference: community > faith > family > species > everyone > self
+  const preferenceOrder: CompassionScope[] = ["community", "faith", "family", "species", "everyone", "self"];
+  let bestScope: CompassionScope = "community";
+  let maxScore = -Infinity;
+
+  for (const scope of preferenceOrder) {
+    const score = scores[scope];
+    if (score > maxScore) {
+      maxScore = score;
+      bestScope = scope;
+    }
+  }
+
+  return bestScope;
+}
+
 /** Seed modest present-day aspirations. No fabricated capture, bereavement, or conversion history. */
 export function seedCharacterMotivation(character: Character): void {
   const b = character.backstory;
@@ -100,6 +230,6 @@ export function seedCharacterMotivation(character: Character): void {
       ? ["reject_aggression" as const]
       : [])
   ];
-  b.compassionScope ??= "everyone";
+  b.compassionScope ??= determineCompassionScope(character);
   b.religiousWar ??= "unspecified";
 }

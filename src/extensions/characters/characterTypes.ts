@@ -399,7 +399,7 @@ export interface CharacterGoal {
 }
 
 export type CharacterPrinciple = "keep_oaths" | "protect_civilians" | "spare_prisoners" | "reject_aggression";
-export type CompassionScope = "everyone" | "community" | "faith" | "family";
+export type CompassionScope = "everyone" | "community" | "faith" | "family" | "species" | "self";
 
 /** Recorded events, never invented from present-day personality scores. */
 export interface CharacterLifeEvent {

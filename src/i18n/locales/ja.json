@@ -1055,7 +1055,9 @@
       "everyone": "すべての人",
       "community": "自分の共同体",
       "faith": "同じ信仰の人",
-      "family": "家族"
+      "family": "家族",
+      "species": "同じ種族",
+      "self": "自分自身のみ"
     },
     "religiousWarNames": {
       "unspecified": "戦争教義への明示的な賛同なし",

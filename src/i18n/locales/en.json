@@ -1055,7 +1055,9 @@
       "everyone": "Everyone",
       "community": "Own community",
       "faith": "Fellow believers",
-      "family": "Family"
+      "family": "Family",
+      "species": "Same species",
+      "self": "Self only"
     },
     "religiousWarNames": {
       "unspecified": "No declared war doctrine",
