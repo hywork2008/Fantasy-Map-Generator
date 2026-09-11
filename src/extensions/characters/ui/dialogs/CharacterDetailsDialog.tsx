@@ -476,6 +476,25 @@ export const CharacterDetailsDialog: React.FC = () => {
   const looks = character.looks;
   const demonTrueForm = character.demonInfiltration?.trueForm;
   const demonTrueLooks = demonTrueForm?.looks;
+  const demonSubject = demonTrueForm
+    ? {
+        race: demonIdentity?.race ?? races?.find(r => r.key === "demon")?.i ?? 4,
+        culture: demonIdentity?.culture ?? character.culture,
+        looks: demonTrueLooks,
+        appearance: demonTrueForm.appearance
+      }
+    : null;
+  const demonViewFromPlayer = playerCharacter && demonSubject ? attractiveness(playerCharacter, demonSubject) : null;
+  const demonAppearanceToYouKindKey =
+    demonViewFromPlayer === null
+      ? null
+      : demonViewFromPlayer.kind === "same_race"
+        ? "appearanceToYouKindSameRace"
+        : demonViewFromPlayer.kind === "cross_race_aesthetic"
+          ? "appearanceToYouKindAesthetic"
+          : demonViewFromPlayer.kind === "cross_race_partial"
+            ? "appearanceToYouKindPartial"
+            : "appearanceToYouKindAlien";
   const demonIdentityReplacements = character.demonInfiltration?.identityReplacements ?? [];
   const formatDemonIdentityReplacement = (replacement: (typeof demonIdentityReplacements)[number]) =>
     t("characters.demonIdentityReplacement", {
@@ -662,6 +681,22 @@ export const CharacterDetailsDialog: React.FC = () => {
               <th style={{ padding: "4px 0" }}>{t("characters.demonTrueAppearance")}</th>
               <td>{demonTrueForm.appearance}</td>
             </tr>
+            {demonViewFromPlayer && demonAppearanceToYouKindKey ? (
+              <tr>
+                <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceToYouTip")}>
+                  {t("characters.appearanceToYou")}
+                </th>
+                <td>
+                  {demonViewFromPlayer.score}
+                  <span style={{ fontSize: "0.85em", marginLeft: 6 }}>
+                    ({t(`characters.${demonAppearanceToYouKindKey}`)})
+                  </span>
+                  <div style={{ fontSize: "0.85em", marginTop: 2, lineHeight: 1.35 }}>
+                    {demonViewFromPlayer.reaction}
+                  </div>
+                </td>
+              </tr>
+            ) : null}
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.demonTrueHorns")}</th>
               <td>{demonTrueHorns}</td>
@@ -854,6 +889,11 @@ export const CharacterDetailsDialog: React.FC = () => {
     }
     if (demonTrueForm) {
       rows.push(`${t("characters.demonTrueAppearance")}, ${demonTrueForm.appearance}`);
+      if (demonViewFromPlayer && demonAppearanceToYouKindKey) {
+        rows.push(
+          `${t("characters.appearanceToYou")}, ${demonViewFromPlayer.score} (${t(`characters.${demonAppearanceToYouKindKey}`)}); ${demonViewFromPlayer.reaction}`
+        );
+      }
       rows.push(`${t("characters.demonTrueHorns")}, ${demonTrueHorns}`);
       if (demonTrueLooks) {
         rows.push(

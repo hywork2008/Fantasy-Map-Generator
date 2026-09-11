@@ -27,7 +27,7 @@ describe("demon infiltration allocation", () => {
   });
 
   it("preserves an open Demon's original appearance as its true form", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    vi.spyOn(Math, "random").mockReturnValue(0.6);
     const demon = {
       i: 1,
       name: "Azram",
@@ -82,7 +82,7 @@ describe("demon infiltration allocation", () => {
   });
 
   it("always gives the true form horns when the source Demon has none", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    vi.spyOn(Math, "random").mockReturnValue(0.6);
     const demon = {
       i: 1,
       name: "Hornless source",
@@ -241,5 +241,8 @@ describe("demon infiltration allocation", () => {
     // Ruler cover grants ruler role class + intrigue primary, plus infernal boost
     expect(demonIdentity?.skills.intrigue).toBeGreaterThan(55);
     expect(demonIdentity?.skills.learning).toBeGreaterThan(50);
+    // True form appearance must not be crushed by human age decline (should be in normal 30-90 range)
+    expect(infiltrator.demonInfiltration?.trueForm?.appearance).toBeGreaterThan(30);
+    expect(infiltrator.demonInfiltration?.trueForm?.looks?.vitality).toBeGreaterThan(30);
   });
 });

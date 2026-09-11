@@ -278,7 +278,7 @@ export function attractiveness(
   if (observerRaceId === subjectRaceId) {
     const ideal = getRaceBeautyIdeal(races, observerRaceId);
     const typicalLooks = getRaceLooksBaseline(races, observerRaceId);
-    const score = scoreLooksAgainstIdeal(subjectLooks, ideal, typicalLooks);
+    const score = subject.appearance ?? scoreLooksAgainstIdeal(subjectLooks, ideal, typicalLooks);
     return {
       score,
       kind: "same_race",

@@ -1,3 +1,5 @@
+import { DECLINE_AGE_THRESHOLD } from "../../characters/advanceAge";
+import { rollLooksForRace } from "../../characters/appearance";
 import { rollCharacterArcane } from "../../characters/arcane";
 import { applyCharacterBackstory } from "../../characters/backstoryProfile";
 import type {
@@ -139,10 +141,12 @@ function applyDemonArcaneIdentity(infiltrator: Character): void {
 
 /** True forms are never constrained by the public character-race allow-list. */
 function forceDemonTrueIdentity(character: Character, demonRaceId: number): void {
-  if (character.race === demonRaceId) return;
   character.race = demonRaceId;
   character.arcane = rollCharacterArcane({ raceKey: "demon" });
   delete character.arcaneLineage;
+  const { looks, appearance } = rollLooksForRace(demonRaceId, character.age, Number.POSITIVE_INFINITY);
+  character.looks = looks;
+  character.appearance = appearance;
 }
 
 export interface SeedDemonInfiltrationOptions {
@@ -234,12 +238,18 @@ function turnIntoDemonInfiltrator(
   const demonIdentity = cloneIdentity(trueFormSource);
   // Every cover must begin at a plausible Human age. Existing candidates can
   // come from long-lived cultures and otherwise expose ages such as 198.
+  const needsHumanLooksRegen = wasOpenDemon || infiltrator.race !== HUMAN_RACE_ID || infiltrator.age >= 70;
   if (wasOpenDemon || infiltrator.age >= 70) {
     infiltrator.age = rollDefaultAdultAge(HUMAN_RACE_ID);
     infiltrator.ageFraction = 0;
   }
   infiltrator.race = HUMAN_RACE_ID;
   delete infiltrator.raceAppearance;
+  if (needsHumanLooksRegen) {
+    const { looks, appearance } = rollLooksForRace(HUMAN_RACE_ID, infiltrator.age, DECLINE_AGE_THRESHOLD);
+    infiltrator.looks = looks;
+    infiltrator.appearance = appearance;
+  }
   infiltrator.demonInfiltration = {
     coverStratum: stratum,
     objective: "maximizeHumanDeaths",
@@ -358,11 +368,17 @@ export function repairDemonInfiltrationTrueIdentities(
   let repaired = 0;
   for (const character of options.characters) {
     const infiltration = character.demonInfiltration;
-    if (!infiltration || infiltration.demonIdentity?.race === demonRaceId) continue;
+    if (!infiltration) continue;
     const identity = infiltration.demonIdentity ?? cloneIdentity(character);
+    const looksCollapsed = infiltration.trueForm?.appearance !== undefined && infiltration.trueForm.appearance < 20;
+    if (identity.race === demonRaceId && !looksCollapsed) continue;
     forceDemonTrueIdentity(identity, demonRaceId);
     infiltration.demonIdentity = identity;
     character.arcane = identity.arcane;
+    if (infiltration.trueForm) {
+      infiltration.trueForm.appearance = identity.appearance;
+      if (identity.looks) infiltration.trueForm.looks = structuredClone(identity.looks);
+    }
     repaired += 1;
   }
   return repaired;

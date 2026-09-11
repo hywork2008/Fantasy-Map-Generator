@@ -99,7 +99,7 @@ describe("appearance / attractiveness", () => {
     expect(score).toBe(APPEARANCE_SCORE_CENTER);
   });
 
-  it("treats same race as full Appearance judgment", () => {
+  it("treats same race as full Appearance judgment and exactly matches subject.appearance when defined", () => {
     const a = char({
       i: 1,
       race: 1,
@@ -108,12 +108,23 @@ describe("appearance / attractiveness", () => {
     const b = char({
       i: 2,
       race: 1,
+      appearance: 84,
       looks: { stature: 50, build: 50, symmetry: 80, refinement: 70, vitality: 70, ornament: 40 }
     });
     expect(isSameRace(a, b)).toBe(true);
     const r = attractiveness(a, b);
     expect(r.kind).toBe("same_race");
-    expect(r.score).toBeGreaterThan(55);
+    expect(r.score).toBe(84);
+
+    // Demon true form evaluated by Human observer
+    const demonSubject = {
+      race: 4,
+      appearance: 56,
+      looks: { stature: 60, build: 65, symmetry: 45, refinement: 40, vitality: 80, ornament: 50 }
+    };
+    const rDemon = attractiveness(a, demonSubject as never);
+    expect(rDemon.score).toBeGreaterThan(0);
+    expect(["cross_race_alien", "cross_race_partial", "cross_race_aesthetic"]).toContain(rDemon.kind);
   });
 
   it("rolls peak Appearance with a few-percent ≥70 tail and rare ≥90", () => {
