@@ -167,6 +167,32 @@ export function isSameRace(a: Pick<Character, "race" | "culture">, b: Pick<Chara
 }
 
 /**
+ * Resolve true observer entity for attractiveness evaluation.
+ * If the character is a Demon passing in disguise (demonInfiltration), returns their infernal
+ * true self (Demon race, true looks/appearance) so judgments reflect their actual demonic perception.
+ */
+export function resolveAttractivenessObserver<
+  T extends Pick<Character, "race" | "culture" | "looks" | "appearance"> & Partial<Pick<Character, "demonInfiltration">>
+>(character: T, races?: readonly Race[]): T {
+  if (character.demonInfiltration) {
+    const list = races ?? (hasCharactersContext() ? getWorldContext().pack.races : undefined);
+    const demonRaceId =
+      character.demonInfiltration.demonIdentity?.race ??
+      list?.find(r => r.key === "demon")?.i ??
+      character.race ??
+      HUMAN_RACE_ID;
+    return {
+      ...character,
+      race: demonRaceId,
+      culture: character.demonInfiltration.demonIdentity?.culture ?? character.culture,
+      looks: character.demonInfiltration.trueForm?.looks ?? character.looks,
+      appearance: character.demonInfiltration.trueForm?.appearance ?? character.appearance
+    };
+  }
+  return character;
+}
+
+/**
  * 0–1 similarity of stature+build (physique). Used for limited cross-race "I can tell they're imposing".
  */
 export function physiqueSimilarity(a: AppearanceAxes, b: AppearanceAxes): number {

@@ -6,7 +6,7 @@ import { getRaceById, isFantasyCulturesSet } from "../../../hostRaces";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { dnd5ePreset, getDnd5eAbilityModifier } from "../../abilityPresets";
-import { attractiveness } from "../../appearance";
+import { attractiveness, resolveAttractivenessObserver } from "../../appearance";
 import {
   ARCANE_CALAMITY_MIN,
   arcaneBand,
@@ -383,7 +383,8 @@ export const CharacterDetailsDialog: React.FC = () => {
     playerCharacterId !== null && playerCharacterId !== character.i
       ? characters.find(c => c.i === playerCharacterId)
       : undefined;
-  const viewFromPlayer = playerCharacter ? attractiveness(playerCharacter, character) : null;
+  const playerObserver = playerCharacter ? resolveAttractivenessObserver(playerCharacter, races) : undefined;
+  const viewFromPlayer = playerObserver ? attractiveness(playerObserver, character) : null;
   const appearanceToYouKindKey =
     viewFromPlayer === null
       ? null
@@ -484,7 +485,7 @@ export const CharacterDetailsDialog: React.FC = () => {
         appearance: demonTrueForm.appearance
       }
     : null;
-  const demonViewFromPlayer = playerCharacter && demonSubject ? attractiveness(playerCharacter, demonSubject) : null;
+  const demonViewFromPlayer = playerObserver && demonSubject ? attractiveness(playerObserver, demonSubject) : null;
   const demonAppearanceToYouKindKey =
     demonViewFromPlayer === null
       ? null

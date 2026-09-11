@@ -10,6 +10,7 @@ import {
   isSameRace,
   ownRaceAppearanceScore,
   physiqueSimilarity,
+  resolveAttractivenessObserver,
   rollLooksForRace,
   scoreLooksAgainstIdeal
 } from "./appearance";
@@ -270,5 +271,82 @@ describe("appearance / attractiveness", () => {
     }
     expect(crossRaceAestheticReadability(raceIdByKey(races, "human"), halfId, races)).toBeGreaterThan(0.5);
     expect(crossRaceAestheticReadability(raceIdByKey(races, "elf"), halfId, races)).toBeGreaterThan(0.5);
+  });
+
+  it("evaluates appearance from Demon disguised as Human using demon perspective", () => {
+    const races = createDefaultRaces();
+    const demonId = raceIdByKey(races, "demon");
+    const humanId = raceIdByKey(races, "human");
+
+    // Demon -> Human readability exists
+    expect(crossRaceAestheticReadability(demonId, humanId, races)).toBe(0.9);
+
+    // Disguised Demon PC
+    const demonPC = char({
+      i: 1,
+      race: humanId,
+      culture: 1,
+      looks: { stature: 50, build: 50, symmetry: 50, refinement: 50, vitality: 50, ornament: 50 },
+      appearance: 50,
+      demonInfiltration: {
+        coverStratum: "commoner",
+        objective: "maximizeHumanDeaths",
+        collaboratorIds: [],
+        demonIdentity: {
+          i: 1,
+          name: "Belial",
+          age: 300,
+          gender: "male",
+          culture: 1,
+          race: demonId,
+          appearance: 88,
+          prestige: 50,
+          wealth: 0,
+          titles: [],
+          affinities: {},
+          marriages: [],
+          skills: {
+            artistry: 50,
+            diplomacy: 50,
+            engineering: 50,
+            geography: 50,
+            intrigue: 80,
+            learning: 70,
+            martial: 50,
+            prowess: 50,
+            stewardship: 50
+          }
+        },
+        trueForm: {
+          appearance: 88,
+          looks: { stature: 60, build: 60, symmetry: 70, refinement: 50, vitality: 80, ornament: 80 },
+          raceAppearance: { kind: "demon", hornAnimal: "goat" }
+        }
+      }
+    });
+
+    const observer = resolveAttractivenessObserver(demonPC, races);
+    expect(observer.race).toBe(demonId);
+    expect(observer.appearance).toBe(88);
+
+    // 1. Observing a Human: evaluated as cross_race_aesthetic by demon beauty ideal
+    const humanTarget = char({
+      i: 2,
+      race: humanId,
+      looks: { stature: 50, build: 50, symmetry: 50, refinement: 50, vitality: 50, ornament: 80 }
+    });
+    const viewOfHuman = attractiveness(observer, humanTarget);
+    expect(viewOfHuman.kind).toBe("cross_race_aesthetic");
+
+    // 2. Observing another Demon's true form: evaluated as same_race, score is exactly subject appearance
+    const demonTargetTrueSubject = {
+      race: demonId,
+      culture: 1,
+      looks: { stature: 55, build: 55, symmetry: 55, refinement: 55, vitality: 60, ornament: 60 },
+      appearance: 74
+    };
+    const viewOfDemonTrueForm = attractiveness(observer, demonTargetTrueSubject);
+    expect(viewOfDemonTrueForm.kind).toBe("same_race");
+    expect(viewOfDemonTrueForm.score).toBe(74); // Exactly 3's value
   });
 });

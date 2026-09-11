@@ -35,6 +35,11 @@
     "readability": 0.28
   },
   {
+    "observerKey": "demon",
+    "targetKey": "human",
+    "readability": 0.9
+  },
+  {
     "observerKey": "dwarf",
     "targetKey": "elf",
     "readability": 0.1
