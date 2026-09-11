@@ -407,11 +407,13 @@ describe("initial literacy from station and upbringing", () => {
       { domainId: "intrigue.analysis", knowledge: 70 },
       { domainId: "intrigue.censorship", practice: 90 },
       { domainId: "intrigue.counterintelligence", knowledge: 75 },
-      { domainId: "intrigue.interrogation", practice: 80 }
+      { domainId: "intrigue.interrogation", practice: 80 },
+      { domainId: "learning.theology", knowledge: 65 }
     ];
 
     expect(evaluateExpertise(character, EXPERTISE_TASKS.propaganda).score).toBe(80);
     expect(evaluateExpertise(character, EXPERTISE_TASKS.censorship).score).toBe(85);
     expect(evaluateExpertise(character, EXPERTISE_TASKS.interrogation).score).toBeCloseTo(76.67);
+    expect(evaluateExpertise(character, EXPERTISE_TASKS.fabricateAnathema).score).toBeCloseTo(78.33);
   });
 });

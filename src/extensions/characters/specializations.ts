@@ -253,6 +253,10 @@ export const EXPERTISE_TASKS: Record<string, readonly ExpertiseRequirement[]> = 
     { domainId: "intrigue.interrogation", axis: "practice", weight: 2 },
     { domainId: "intrigue.analysis", axis: "knowledge", weight: 1 }
   ],
+  fabricateAnathema: [
+    { domainId: "intrigue.propaganda", axis: "practice", weight: 2 },
+    { domainId: "learning.theology", axis: "knowledge", weight: 1 }
+  ],
   ceramics: [
     { domainId: "artistry.ceramics", axis: "appraisal", weight: 2 },
     { domainId: "artistry.ceramics", axis: "knowledge", weight: 1 }

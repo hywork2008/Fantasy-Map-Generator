@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-09-11
+
+- docs/plan/war-fervor-and-weariness.md
+
 2026-09-09
 
 - docs/plan/data/races.md - 種族データCSVのimport/export手順
