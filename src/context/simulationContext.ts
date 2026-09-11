@@ -145,6 +145,8 @@ export interface FrontierSimulationState {
    * Host-owned and extension-agnostic: any system may add to it via addFrontierApplicants().
    */
   applicantPoolByState: Record<number, { maleAdults: number; femaleAdults: number }>;
+  /** Year of incorporation by cell id, used for tax holiday and settlement subsidy tracking. */
+  incorporatedYearByCell: Record<number, number>;
 }
 
 export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimulationState {
@@ -157,7 +159,8 @@ export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimul
     governanceByState: {},
     seaborneBeachheadsByState: {},
     resourceClaimsByCell: {},
-    applicantPoolByState: {}
+    applicantPoolByState: {},
+    incorporatedYearByCell: {}
   };
 }
 

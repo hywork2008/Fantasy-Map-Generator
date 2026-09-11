@@ -84,6 +84,7 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
       cells.state[cellId] = project.stateId;
       cells.province[cellId] = provinceId;
       frontier.cellStages[cellId] = FRONTIER_STAGE.incorporated;
+      frontier.incorporatedYearByCell[cellId] = simulation.currentYear;
       const claim = frontier.resourceClaimsByCell[cellId];
       if (claim?.stateId === project.stateId) claim.status = "secured";
     }

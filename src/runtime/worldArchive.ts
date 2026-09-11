@@ -822,6 +822,19 @@ function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCou
       throw new Error(`Archive simulation.frontier.applicantPoolByState.${stateId} is invalid`);
     }
   }
+  if (frontier.incorporatedYearByCell === undefined) frontier.incorporatedYearByCell = {};
+  if (!isRecord(frontier.incorporatedYearByCell))
+    throw new Error("Archive simulation.frontier.incorporatedYearByCell must be a record");
+  for (const [cellId, year] of Object.entries(frontier.incorporatedYearByCell)) {
+    if (
+      !isFiniteNonNegativeInteger(Number(cellId)) ||
+      String(Number(cellId)) !== cellId ||
+      Number(cellId) >= cellCount ||
+      !isFiniteNonNegativeInteger(year)
+    ) {
+      throw new Error(`Archive simulation.frontier.incorporatedYearByCell.${cellId} is invalid`);
+    }
+  }
 }
 
 function assertAndNormalizeWilderness(simulation: Record<string, unknown>): void {

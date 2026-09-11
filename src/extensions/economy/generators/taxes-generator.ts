@@ -1,6 +1,6 @@
 import type { Burg } from "../../hostTypes";
 import { gauss, rn, TIME } from "../../hostUtils";
-import { getDeals, getWorldContext } from "../economyContext";
+import { getDeals, getSimulationContext, getSimulationYear, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
 import { settleAllBurgDiscontent } from "./burgDiscontent";
 import { updateDiplomaticReliability } from "./chanceryDiplomacy";
@@ -213,8 +213,45 @@ export class TaxesModule {
       // wallet pools (householdWealth.ts), so each is capped independently. A State with no Burg
       // (urban leg) or no owned rural land (rural leg) at all has no such wallet to draw from — it
       // keeps the pre-Phase-2 creation model for that leg rather than losing the revenue outright.
+      // Frontier tax holiday & settlement subsidies:
+      // Cells incorporated within 1-10 years are 100% tax-exempt and receive an annual subsidy.
+      // Cells incorporated within 11-15 years receive 50% tax relief.
+      // After 16 years, full standard taxation applies.
+      const sim = getSimulationContext();
+      const currentYear = getSimulationYear();
+      const frontier = sim?.frontier;
+      const cells = this.worldContext.pack.cells;
+
+      let taxableRuralPopulation = 0;
+      let frontierSettlementSubsidyTotal = 0;
+
+      if (cells?.state && frontier?.incorporatedYearByCell && currentYear !== undefined) {
+        for (let cellId = 0; cellId < cells.i.length; cellId++) {
+          if (cells.state[cellId] !== state.i) continue;
+          const pop = cells.pop[cellId] ?? 0;
+          if (pop <= 0) continue;
+
+          const incYear = frontier.incorporatedYearByCell[cellId];
+          if (incYear !== undefined) {
+            const elapsed = currentYear - incYear;
+            if (elapsed <= 10) {
+              // 1-10 years: 100% exempt + 1.5 gold annual settlement subsidy per cell
+              frontierSettlementSubsidyTotal += 1.5;
+              continue;
+            } else if (elapsed <= 15) {
+              // 11-15 years: 50% tax relief
+              taxableRuralPopulation += pop * 0.5;
+              continue;
+            }
+          }
+          taxableRuralPopulation += pop;
+        }
+      } else {
+        taxableRuralPopulation = state.rural || 0;
+      }
+
       const urbanPollTaxDemand = pollTaxRatePerHead * (state.urban || 0);
-      const ruralPollTaxDemand = pollTaxRatePerHead * (state.rural || 0);
+      const ruralPollTaxDemand = pollTaxRatePerHead * taxableRuralPopulation;
       const urbanPollTaxRevenue = stateHasBurgs(state.i)
         ? drawStateUrbanHouseholdWealth(state.i, urbanPollTaxDemand)
         : urbanPollTaxDemand;
@@ -227,6 +264,9 @@ export class TaxesModule {
       const rawDomesticIncome = pollTaxRevenue + voyageKept;
       // Credit L2 first so multi-ledger household purse (L2→L1) can draw this cycle's revenue.
       state.treasury = rn((state.treasury || 0) + rawDomesticIncome, 2);
+      if (frontierSettlementSubsidyTotal > 0) {
+        state.treasury = rn(Math.max(0, (state.treasury || 0) - frontierSettlementSubsidyTotal), 2);
+      }
       // Courts, scribes, tax farmers, messengers, and routine local administration consume
       // ordinary peace-time income before it becomes discretionary Treasury growth. This is
       // deliberately a real cash sink, not a cosmetic cap; a State that cannot cover it has

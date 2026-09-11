@@ -11,6 +11,7 @@ import {
   splitDemographicBuckets
 } from "./demographicTransfer";
 import { replacementAwareBirths } from "./demographyBirths";
+import { getSanitationDemographicMultipliers } from "./frontierGovernance";
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
@@ -138,8 +139,12 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const adultsToEldersFemale = femaleAdults * (deltaYears / 35);
     const elderDeaths = elders * (deltaYears / 10); // Elders die off in ~10 years average
 
-    // Apply child mortality linearly across childhood
-    const childDeaths = children * (demographicChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
+    const sanitationLevel = simulationContext.frontier?.governanceByState?.[stateId]?.investments?.sanitation ?? 0;
+    const { childMortalityMultiplier, growthRateMultiplier } = getSanitationDemographicMultipliers(sanitationLevel);
+
+    // Apply child mortality linearly across childhood (moderated by sanitation)
+    const effectiveChildMortalityRate = demographicChildMortalityRate * childMortalityMultiplier;
+    const childDeaths = children * (effectiveChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
     addLoss(naturalPts, stateId, elderDeaths + childDeaths);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);
@@ -154,7 +159,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     if (roomForGrowth >= 0) {
       children += replacementAwareBirths({
         femaleAdults,
-        baseGrowthRate,
+        baseGrowthRate: baseGrowthRate * growthRateMultiplier,
         deltaYears,
         roomForGrowth,
         naturalDeaths: elderDeaths + childDeaths
@@ -236,7 +241,12 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const adultsToEldersMale = maleAdults * (deltaYears / 35);
     const adultsToEldersFemale = femaleAdults * (deltaYears / 35);
     const elderDeaths = elders * (deltaYears / 10);
-    const childDeaths = children * (demographicChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
+
+    const sanitationLevel = simulationContext.frontier?.governanceByState?.[stateId]?.investments?.sanitation ?? 0;
+    const { childMortalityMultiplier, growthRateMultiplier } = getSanitationDemographicMultipliers(sanitationLevel);
+
+    const effectiveChildMortalityRate = demographicChildMortalityRate * childMortalityMultiplier;
+    const childDeaths = children * (effectiveChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
     addLoss(naturalPts, stateId, elderDeaths + childDeaths);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);
@@ -256,7 +266,8 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     if (roomForGrowth >= 0) {
       // Garrison forts have negligible resident families — suppress natural increase.
       if (burg.group !== "fort") {
-        const continuousBirths = femaleAdults * baseGrowthRate * deltaYears * Math.max(0, roomForGrowth);
+        const continuousBirths =
+          femaleAdults * (baseGrowthRate * growthRateMultiplier) * deltaYears * Math.max(0, roomForGrowth);
         // Optional economy birth-floor provider (urban pregnancy due). Never sum with continuous —
         // take the max so near-term pregnancies set a lower bound without double counting.
         // docs/plan/urban-housing-system.md PR-P2 / K19. Conception still requires spare room.

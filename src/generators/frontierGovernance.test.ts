@@ -6,7 +6,12 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createRNGService } from "../utils/probabilityUtils";
-import { advanceFrontierGovernance, assessFrontierSupport, getFrontierGovernance } from "./frontierGovernance";
+import {
+  advanceFrontierGovernance,
+  assessFrontierSupport,
+  getFrontierGovernance,
+  getSanitationDemographicMultipliers
+} from "./frontierGovernance";
 
 function createWorld(): WorldContext {
   return {
@@ -109,5 +114,19 @@ describe("frontier governance", () => {
 
     expect(assessment.canSupport).toBe(true);
     expect(assessment.failureReasons).not.toContain("Local food capacity is too low for the settlement");
+  });
+
+  it("calculates sanitation demographic multipliers correctly", () => {
+    const baseline = getSanitationDemographicMultipliers(0);
+    expect(baseline.childMortalityMultiplier).toBe(1);
+    expect(baseline.growthRateMultiplier).toBe(1);
+
+    const level2 = getSanitationDemographicMultipliers(2);
+    expect(level2.childMortalityMultiplier).toBeCloseTo(0.84);
+    expect(level2.growthRateMultiplier).toBeCloseTo(1.1);
+
+    const maxed = getSanitationDemographicMultipliers(10);
+    expect(maxed.childMortalityMultiplier).toBe(0.6);
+    expect(maxed.growthRateMultiplier).toBe(1.25);
   });
 });

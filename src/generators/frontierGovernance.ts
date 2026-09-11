@@ -38,6 +38,20 @@ export function getFrontierGovernance(simulation: SimulationContext, stateId: nu
 }
 
 /**
+ * Demographic modifiers provided by state sanitation infrastructure.
+ * Reduces child mortality and boosts net natural growth rate.
+ */
+export function getSanitationDemographicMultipliers(sanitationLevel: number): {
+  childMortalityMultiplier: number;
+  growthRateMultiplier: number;
+} {
+  const level = Math.max(0, sanitationLevel);
+  const childMortalityMultiplier = Math.max(0.6, 1 - level * 0.08);
+  const growthRateMultiplier = Math.min(1.25, 1 + level * 0.05);
+  return { childMortalityMultiplier, growthRateMultiplier };
+}
+
+/**
  * Applies a visible, annual public-works choice. The host owns the effects;
  * Nobility merely selects the policy and calls this helper when it is enabled.
  */
@@ -55,9 +69,25 @@ export function advanceFrontierGovernance(
     governance.lastEvaluatedYear = simulation.currentYear;
     governance.policy = choosePolicy(world, simulation, state.i);
     const investment = chooseInvestment(world, simulation, state.i, governance.policy, rng);
-    if (investment && (state.treasury ?? 0) >= INVESTMENT_COST + 12) {
-      state.treasury = Math.max(0, (state.treasury ?? 0) - INVESTMENT_COST);
-      governance.investments[investment]++;
+    if (investment) {
+      const currentLevel = governance.investments[investment] ?? 0;
+      const cost = Math.min(80, INVESTMENT_COST * (1 + currentLevel * 2));
+      if ((state.treasury ?? 0) >= cost + 12) {
+        state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
+        governance.investments[investment]++;
+      }
+    }
+    // Wealthy states can fund an additional public works project if treasury is high
+    if ((state.treasury ?? 0) >= 150) {
+      const secondInvestment = chooseInvestment(world, simulation, state.i, governance.policy, rng);
+      if (secondInvestment) {
+        const secondLevel = governance.investments[secondInvestment] ?? 0;
+        const secondCost = Math.min(80, INVESTMENT_COST * (1 + secondLevel * 2));
+        if ((state.treasury ?? 0) >= secondCost + 50) {
+          state.treasury = Math.max(0, (state.treasury ?? 0) - secondCost);
+          governance.investments[secondInvestment]++;
+        }
+      }
     }
     changed = true;
   }
@@ -83,7 +113,8 @@ export function assessFrontierSupport(
   const recoveryCost = disaster
     ? Math.max(1, EMERGENCY_RELIEF_COST - mitigationFor(disaster, governance, water.canDigWell))
     : 0;
-  const upkeep = Math.max(0, 1 - Math.min(1, governance.investments.road));
+  const baseUpkeep = project.origin === "seaborne" ? 2 : 1;
+  const upkeep = Math.max(0, baseUpkeep - Math.min(baseUpkeep, governance.investments.road));
   const food = Math.max(0, 1 - Math.min(1, governance.investments.granary));
   const failureReasons: string[] = [];
 

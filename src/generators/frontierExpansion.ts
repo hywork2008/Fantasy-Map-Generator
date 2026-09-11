@@ -8,7 +8,7 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
-import { allowsGeneratedSeaLanes } from "../utils/frontierStartMode";
+import { allowsGeneratedSeaLanes, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
 import { isTrueOceanHarborCell, isTrueOceanPortBurg } from "../utils/oceanPort";
 import type { RNGService } from "../utils/probabilityUtils";
@@ -55,6 +55,14 @@ const SEABORNE_HINTERLAND_SEARCH_HOPS = 12;
 const SEABORNE_SUPPLY_COST = 4;
 const SEABORNE_SUPPLY_FOOD = 2;
 const SEABORNE_SUPPLY_COLONISTS = 3;
+/** Overseas homeland pioneer fleet: significant capital investment chartering ships from the off-map metropole. */
+const HOMELAND_PIONEER_CONVOY_COST = 35;
+const HOMELAND_PIONEER_CONVOY_FOOD = 3;
+const HOMELAND_PIONEER_CONVOY_COLONISTS = 2.5;
+/** Overland homesteading bounty: recruiting migrants and destitute families with resettlement stipends. */
+const HOMESTEADING_BOUNTY_COST = 25;
+const HOMESTEADING_BOUNTY_FOOD = 2;
+const HOMESTEADING_BOUNTY_COLONISTS = 1.5;
 const FRONTIER_SECTOR_NAMES = [
   "east",
   "south-east",
@@ -270,7 +278,9 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
   for (const state of world.pack.states ?? []) {
     if (!state?.i || state.removed || isAtWar(state)) continue;
 
-    if (fundSeaborneBeachheadSupply(state.i, input, frontier)) topics.add("simulation.states");
+    let funded = fundSeaborneBeachheadSupply(state.i, input, frontier);
+    funded = fundFrontierRecruitment(state.i, input, frontier) || funded;
+    if (funded) topics.add("simulation.states");
 
     const slots = getFrontierProjectSlots(state.i, cells);
     let activeProjects = getActiveProjectCount(frontier, state.i);
@@ -349,6 +359,41 @@ function fundSeaborneBeachheadSupply(
   state.treasury = Math.max(0, (state.treasury ?? 0) - SEABORNE_SUPPLY_COST);
   consumeFood(state, SEABORNE_SUPPLY_FOOD);
   addFrontierApplicants(frontier, stateId, SEABORNE_SUPPLY_COLONISTS / 2, SEABORNE_SUPPLY_COLONISTS / 2);
+  return true;
+}
+
+/**
+ * Charters a dedicated homeland pioneer convoy (for seaborne polities) or issues
+ * a homesteading bounty (for land polities) when the applicant pool is low and
+ * the state has substantial surplus treasury. This converts idle wealth directly into
+ * frontier manpower, breaking decades-long demographic bottlenecks.
+ */
+function fundFrontierRecruitment(
+  stateId: number,
+  input: FrontierExpansionInput,
+  frontier: FrontierSimulationState
+): boolean {
+  const { states } = input.world.pack;
+  const state = states[stateId];
+  if (!state || state.removed) return false;
+
+  // Only recruit when the state cannot form even a minimal expedition from existing surplus
+  const available = getBestReachableColonistPool(stateId, input.world.pack.cells, frontier);
+  if (available >= MIN_COLONISTS) return false;
+
+  const isSeaborne =
+    normalizeFrontierStartMode(input.world.options?.frontierStartMode) === "seaborne" ||
+    (frontier.seaborneBeachheadsByState?.[stateId]?.length ?? 0) > 0;
+  const cost = isSeaborne ? HOMELAND_PIONEER_CONVOY_COST : HOMESTEADING_BOUNTY_COST;
+  const food = isSeaborne ? HOMELAND_PIONEER_CONVOY_FOOD : HOMESTEADING_BOUNTY_FOOD;
+  const colonists = isSeaborne ? HOMELAND_PIONEER_CONVOY_COLONISTS : HOMESTEADING_BOUNTY_COLONISTS;
+
+  const priorBudget = resolvedFrontierBudget(frontier, stateId, state.treasury);
+  if (priorBudget < TREASURY_RESERVE + SETUP_COST + cost) return false;
+
+  state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
+  consumeFood(state, food);
+  addFrontierApplicants(frontier, stateId, colonists / 2, colonists / 2);
   return true;
 }
 

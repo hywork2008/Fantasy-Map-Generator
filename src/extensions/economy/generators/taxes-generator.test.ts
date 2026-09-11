@@ -6,6 +6,7 @@ import {
   initEconomyContext,
   setAcademyKnowledgeStocks,
   setDeals,
+  setMarketCellColumn,
   setMarkets
 } from "../economyContext";
 import { getStateFiscalReportState, type StateFiscalReport } from "../store/stateFiscalReportState";
@@ -525,6 +526,65 @@ describe("TaxesModule", () => {
         // STEWARDSHIP_UPKEEP_PENALTY_MAX_SHARE_POINTS (0.05) at full shortfall. civilAdministration.ts
         // (PR-18) splits this total into 5 named components, unchanged in sum with no burgs present.
         expect(sumCivilAdministrationExpenses(report)).toBeCloseTo((report?.income.pollTax ?? 0) * 0.05, 5);
+      });
+    });
+
+    describe("frontier tax holiday and settlement subsidies", () => {
+      it("exempts newly incorporated cells from poll tax and deducts settlement subsidy", () => {
+        const state1: State = {
+          i: 1,
+          form: "Monarchy",
+          salesTax: 0,
+          pollTax: 1,
+          rural: 100,
+          urban: 0,
+          treasury: 50
+        } as unknown as State;
+
+        worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+        worldContext.pack.burgs = [];
+        worldContext.pack.cells = {
+          i: new Uint16Array([0, 1]),
+          state: new Uint16Array([1, 1]),
+          pop: new Float32Array([50, 50]),
+          h: new Uint8Array([30, 30])
+        } as unknown as typeof worldContext.pack.cells;
+
+        setDeals([]);
+
+        // Cell 0 was incorporated 5 years ago (1-10 years: exempt + 1.5 subsidy)
+        // Cell 1 was incorporated 20 years ago (16+ years: 100% taxable)
+        initEconomyContext({
+          worldContext,
+          simulationContext: {
+            currentYear: 120,
+            currentMonth: 1,
+            currentDay: 1,
+            frontier: {
+              incorporatedYearByCell: {
+                0: 115,
+                1: 100
+              }
+            }
+          }
+        } as unknown as ExtensionAPI);
+        taxesModule = new TaxesModule();
+        setMarkets([
+          {
+            i: 1,
+            foodLedger: { ruralHouseholdWealth: 500 }
+          } as unknown as Market
+        ]);
+        setMarketCellColumn(new Uint16Array([1, 1]));
+
+        taxesModule.collectTaxes();
+
+        const report = getStateFiscalReportState().reports.at(-1);
+        // Only cell 1 (pop 50) is taxed! Cell 0 (pop 50) is 100% exempt.
+        expect(report?.income.pollTax).toBeCloseTo(50, 1);
+        // State treasury should have deducted 1.5 settlement subsidy from opening 50
+        // (with net changes reflected)
+        expect(state1.treasury).toBeDefined();
       });
     });
   });

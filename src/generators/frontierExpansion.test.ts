@@ -974,4 +974,42 @@ describe("Frontier Expansion Phase 3", () => {
       expect.objectContaining({ stateId: 1, cellId: 2, sourceCellId: 0 })
     ]);
   });
+
+  it("recruits colonists with homeland convoy or homesteading bounty when live cells lack surplus", () => {
+    const world = createWorld(100);
+    world.options.frontierStartMode = "seaborne";
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1]),
+      c: [[1], [0]],
+      state: new Uint16Array([1, 0]),
+      province: new Uint16Array([1, 0]),
+      // Low population (no surplus over capacity * 0.65)
+      pop: new Float32Array([10, 0]),
+      capacity: new Float32Array([20, 20]),
+      children: new Float32Array([2.5, 0]),
+      maleAdults: new Float32Array([2.5, 0]),
+      femaleAdults: new Float32Array([2.5, 0]),
+      elders: new Float32Array([2.5, 0]),
+      danger: new Uint8Array([0, 10]),
+      h: new Uint8Array([30, 30]),
+      s: new Uint8Array([50, 50]),
+      r: new Uint16Array([1, 1]),
+      harbor: new Uint8Array([0, 0]),
+      conf: new Uint8Array([0, 0]),
+      burg: new Uint16Array([0, 0]),
+      routes: { 0: {}, 1: {} }
+    };
+    const simulation = createSimulation(100, 100, 2);
+    // Before advance, applicant pool is empty and candidates cannot form from cell 0 alone
+    expect(simulation.frontier.applicantPoolByState[1]).toBeUndefined();
+
+    const result = advance(world, simulation);
+
+    // Homeland convoy should have funded and established the outpost!
+    expect(result.established).toEqual([1]);
+    expect(world.pack.cells.pop[1]).toBeGreaterThanOrEqual(0.5);
+    // Treasury was spent on convoy (35) and outpost setup (8)
+    expect(world.pack.states[1]!.treasury).toBeLessThan(100);
+  });
 });
