@@ -169,6 +169,27 @@ export function parseRacesCsv(csv: string): RaceDefinition[] {
           set(def, path, value === "true");
         } else set(def, path, column in listColumns ? value.split("|").map(v => v.trim()) : value);
       }
+      // Environmental survival settings are independently optional. When a race opts
+      // into any of them, fill its omitted settings with their neutral values.
+      if (row.population_capacity_multiplier || row.food_independent || row.temperature_independent) {
+        if (!row.population_capacity_multiplier) set(def, "environmentalSurvival.populationCapacityMultiplier", 1);
+        if (!row.food_independent) set(def, "environmentalSurvival.foodIndependent", false);
+        if (!row.temperature_independent) set(def, "environmentalSurvival.temperatureIndependent", false);
+      }
+      // Water-technology effects are also independent. An omitted effect is neutral.
+      if (
+        row.water_lifting_ceiling_bonus ||
+        row.municipal_sanitation_ceiling_bonus ||
+        row.water_administration_bonus ||
+        row.water_urgency_threshold_multiplier ||
+        row.water_construction_speed_multiplier
+      ) {
+        if (!row.water_lifting_ceiling_bonus) set(def, "waterTechBias.ceilingBonus.waterLifting", 0);
+        if (!row.municipal_sanitation_ceiling_bonus) set(def, "waterTechBias.ceilingBonus.municipalSanitation", 0);
+        if (!row.water_administration_bonus) set(def, "waterTechBias.administrationBonusBonus", 0);
+        if (!row.water_urgency_threshold_multiplier) set(def, "waterTechBias.urgencyThresholdMultiplier", 1);
+        if (!row.water_construction_speed_multiplier) set(def, "waterTechBias.constructionSpeedMultiplier", 1);
+      }
       if (!/^[a-z][a-z0-9_]*$/.test(row.key) || !row.name) fail("key/name required (key: lowercase snake_case)");
       if (!!row.hybrid_parent_a !== !!row.hybrid_parent_b) fail("both hybrid parents required");
       return { id: Number(row.id), def: def as unknown as RaceDefinition, row, fail };

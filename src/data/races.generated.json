@@ -571,6 +571,11 @@
         "ram",
         "yak"
       ]
+    },
+    "environmentalSurvival": {
+      "foodIndependent": true,
+      "temperatureIndependent": true,
+      "populationCapacityMultiplier": 1
     }
   },
   {
