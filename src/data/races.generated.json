@@ -122,6 +122,11 @@
         "ornament": 0.2
       }
     },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.1,
+      "foodIndependent": false,
+      "temperatureIndependent": false
+    },
     "civicStance": "diplomatic",
     "key": "elf",
     "name": "Elf"
@@ -164,6 +169,11 @@
         "vitality": 0.4,
         "ornament": 0.7
       }
+    },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.3,
+      "foodIndependent": false,
+      "temperatureIndependent": false
     },
     "civicStance": "distant",
     "key": "dark_elf",
@@ -386,6 +396,11 @@
         "ornament": 0.8
       }
     },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.2,
+      "foodIndependent": false,
+      "temperatureIndependent": false
+    },
     "civicStance": "distant",
     "key": "draconic",
     "name": "Draconic"
@@ -555,6 +570,11 @@
         "ornament": 1.3
       }
     },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.1,
+      "foodIndependent": true,
+      "temperatureIndependent": true
+    },
     "civicStance": "distant",
     "key": "demon",
     "name": "Demon",
@@ -571,11 +591,6 @@
         "ram",
         "yak"
       ]
-    },
-    "environmentalSurvival": {
-      "foodIndependent": true,
-      "temperatureIndependent": true,
-      "populationCapacityMultiplier": 1
     }
   },
   {
