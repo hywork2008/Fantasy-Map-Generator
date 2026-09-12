@@ -41,7 +41,7 @@ describe("race CSV", () => {
   });
   it("allows appended species and keeps existing ids", () => {
     const defs = [...fullCatalog, { ...fullCatalog[1], key: "new_folk", name: "New Folk" }];
-    expect(parseRacesCsv(exportRacesCsv(defs))[15].key).toBe("new_folk");
+    expect(parseRacesCsv(exportRacesCsv(defs))[fullCatalog.length].key).toBe("new_folk");
   });
   it.each([
     ["human", "arcane_cap", "101"],

@@ -24,3 +24,7 @@ amazones,elf,0.35
 amazones,dark_elf,0.3
 amazones,orc,0.4
 demon,human,0.9
+demon,fallen_angel,0.85
+fallen_angel,demon,0.8
+human,fallen_angel,0.75
+fallen_angel,human,0.4

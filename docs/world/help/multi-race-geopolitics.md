@@ -89,6 +89,18 @@ Implementation: `src/data/raceBoundServitors.ts`, applied in `createPerson` / `s
 | Origins | Heavy **slave_born / freedman** stratum weights |
 | Biology | Sterile (Human–Elf liger). Looks and ability **medians** take the lower Human/Elf parent; **caps** take the higher. |
 
+### Bound slave-warriors and thralls (Demon realms: Fallen Angel & Human)
+
+| | |
+| :--- | :--- |
+| Host | **Demon** cultures only (Dark Fantasy open realms) |
+| Map | No independent culture/state templates |
+| Commanders | Majority **Fallen Angel** (~85%); occasional/rare **Demon** (~15%) |
+| Merchants & Artisans | Vast majority **Human** (~82%); occasional/rare **Fallen Angel** (~15%); extremely rare **Demon** (~3%) |
+| Common soldiers & unformed thralls | **Human** (rank-and-file levy/slaves not generated as named court characters) |
+| Host keeps | Rulers, province lords, archdemons |
+| Origins | Heavy **slave_born / freedman** stratum weights for Fallen Angels |
+
 ---
 
 ## Diplomatic core (human, elf, dwarf)
@@ -111,7 +123,7 @@ If one soldier ≈ one soldier, long-lived races cannot absorb endless attrition
 | Piece | Status |
 | :--- | :--- |
 | `raceCivicStance` | diplomatic / distant / enemy_colony / bound keys |
-| `raceBoundServitors` | draconic → wyrmkin for merchant/ordinary |
+| `raceBoundServitors` | draconic → wyrmkin; elf → half_elf; demon → fallen_angel (commander majority) & human/fallen_angel (civilians) |
 | `Culture.monoRacial` | Default mono; rare mixed only for human/elf/dwarf |
 | `State.racialComposition` | From culture at character gen |
 | Mixed court sampling | Human/elf/dwarf only |

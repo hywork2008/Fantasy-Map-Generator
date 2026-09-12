@@ -58,6 +58,8 @@ export type RaceKey =
   | "wyrmkin"
   /** Bound slave-folk of elf realms — no free polities (see raceBoundServitors). */
   | "half_elf"
+  /** Bound slave-warriors and thralls of demon realms — no free polities (see raceBoundServitors). */
+  | "fallen_angel"
   | "arachnid"
   | "amazones"
   | (string & {});

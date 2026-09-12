@@ -266,6 +266,15 @@
       "zeal": 8,
       "guile": 6,
       "confidence": 6
+    },
+    "boundServitor": {
+      "chance": 1,
+      "raceKey": "fallen_angel",
+      "roles": [
+        "commander",
+        "merchant",
+        "ordinary"
+      ]
     }
   },
   {
@@ -311,6 +320,24 @@
       "vengefulness": -10,
       "zeal": -4,
       "energy": -6
+    }
+  },
+  {
+    "key": "fallen_angel",
+    "skillBias": {
+      "diplomacy": -4,
+      "intrigue": 2,
+      "learning": 4,
+      "martial": 12,
+      "prowess": 10
+    },
+    "personalityBias": {
+      "boldness": 8,
+      "compassion": -6,
+      "honor": 4,
+      "vengefulness": 6,
+      "zeal": 4,
+      "confidence": 8
     }
   }
 ]

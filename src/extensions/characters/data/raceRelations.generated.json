@@ -36,6 +36,11 @@
   },
   {
     "observerKey": "demon",
+    "targetKey": "fallen_angel",
+    "readability": 0.85
+  },
+  {
+    "observerKey": "demon",
     "targetKey": "human",
     "readability": 0.9
   },
@@ -68,6 +73,16 @@
     "observerKey": "elf",
     "targetKey": "human",
     "readability": 0.32
+  },
+  {
+    "observerKey": "fallen_angel",
+    "targetKey": "demon",
+    "readability": 0.8
+  },
+  {
+    "observerKey": "fallen_angel",
+    "targetKey": "human",
+    "readability": 0.4
   },
   {
     "observerKey": "half_elf",
@@ -113,6 +128,11 @@
     "observerKey": "human",
     "targetKey": "elf",
     "readability": 0.8
+  },
+  {
+    "observerKey": "human",
+    "targetKey": "fallen_angel",
+    "readability": 0.75
   },
   {
     "observerKey": "human",

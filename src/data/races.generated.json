@@ -726,5 +726,52 @@
       "arcaneInclination": 0.12,
       "durability": 1
     }
+  },
+  {
+    "personNameSpheres": {
+      "primary": 42
+    },
+    "supernatural": {
+      "arcaneCap": 95,
+      "arcaneMedian": 50,
+      "arcaneInclination": 0.6,
+      "durability": 2
+    },
+    "mixedPolityChance": 0,
+    "lifespan": 800,
+    "maxLifespan": 2500,
+    "fertility": {
+      "fertilityStart": 100,
+      "fertilityEnd": 500,
+      "interbirthYears": 150,
+      "litterMean": 1,
+      "litterMax": 1
+    },
+    "looksBaseline": {
+      "stature": 65,
+      "build": 55,
+      "symmetry": 75,
+      "refinement": 80,
+      "vitality": 65,
+      "ornament": 60
+    },
+    "beautyIdeal": {
+      "weights": {
+        "stature": 0.5,
+        "build": 0.3,
+        "symmetry": 1.2,
+        "refinement": 1.3,
+        "vitality": 0.6,
+        "ornament": 0.8
+      }
+    },
+    "environmentalSurvival": {
+      "populationCapacityMultiplier": 0.2,
+      "foodIndependent": false,
+      "temperatureIndependent": true
+    },
+    "civicStance": "bound",
+    "key": "fallen_angel",
+    "name": "Fallen Angel"
   }
 ]

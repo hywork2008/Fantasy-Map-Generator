@@ -80,7 +80,8 @@ const stableKeys = [
   "wyrmkin",
   "demon",
   "beastfolk",
-  "half_elf"
+  "half_elf",
+  "fallen_angel"
 ];
 
 /** RFC 4180 records, including BOM, CRLF, escaped quotes and embedded newlines. */

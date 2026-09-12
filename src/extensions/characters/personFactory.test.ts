@@ -288,6 +288,122 @@ describe("createPerson bound servitors (wyrmkin under draconic)", () => {
   });
 });
 
+describe("createPerson bound servitors (fallen_angel and human under demon)", () => {
+  let prevSet: string;
+
+  afterEach(() => {
+    clearCharactersContext();
+    useOptionsState.setState({ culturesSet: prevSet });
+  });
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    prevSet = useOptionsState.getState().culturesSet;
+    useOptionsState.setState({ culturesSet: "darkFantasy" });
+    const races = createDefaultRaces();
+    const demon = races.find(r => r.key === "demon")!.i;
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
+        { i: 1, name: "Nethrakan", base: 41, shield: "fantasy3", race: demon }
+      ],
+      nameBases: []
+    } as unknown as PackedGraph;
+  });
+
+  it("produces majority fallen_angel commanders and occasional demon commanders", () => {
+    const races = createDefaultRaces();
+    const fallenAngel = races.find(r => r.key === "fallen_angel")!.i;
+    const demon = races.find(r => r.key === "demon")!.i;
+
+    const commanders = Array.from({ length: 100 }, () =>
+      createPerson(0, 1, {
+        roleClass: "commander",
+        homeStateId: 1,
+        allowOpenDemon: true
+      })
+    );
+
+    const fallenCount = commanders.filter(c => c.race === fallenAngel).length;
+    const demonCount = commanders.filter(c => c.race === demon).length;
+
+    expect(fallenCount + demonCount).toBe(100);
+    // Majority (~85%) are fallen angel
+    expect(fallenCount).toBeGreaterThan(65);
+    // Occasional/rare (~15%) are demon
+    expect(demonCount).toBeGreaterThan(3);
+  });
+
+  it("produces human majority, rare fallen_angel, and extremely rare demon for merchants", () => {
+    const races = createDefaultRaces();
+    const human = races.find(r => r.key === "human")!.i;
+    const fallenAngel = races.find(r => r.key === "fallen_angel")!.i;
+    const demon = races.find(r => r.key === "demon")!.i;
+
+    const merchants = Array.from({ length: 200 }, () =>
+      createPerson(0, 1, {
+        roleClass: "merchant",
+        homeStateId: 1,
+        allowOpenDemon: true
+      })
+    );
+
+    const humanCount = merchants.filter(c => c.race === human).length;
+    const fallenCount = merchants.filter(c => c.race === fallenAngel).length;
+    const demonCount = merchants.filter(c => c.race === demon).length;
+
+    expect(humanCount + fallenCount + demonCount).toBe(200);
+    // Vast majority are human (~82%)
+    expect(humanCount).toBeGreaterThan(130);
+    // Occasional/rare are fallen angel (~15%)
+    expect(fallenCount).toBeGreaterThan(10);
+    // Extremely rare are demon (~3%)
+    expect(demonCount).toBeLessThan(25);
+  });
+
+  it("keeps rulers demon under the demon culture", () => {
+    const races = createDefaultRaces();
+    const demon = races.find(r => r.key === "demon")!.i;
+    const ruler = createPerson(0, 1, {
+      roleClass: "ruler",
+      homeStateId: 1,
+      allowOpenDemon: true,
+      marriageExpectation: "dynastic"
+    });
+    expect(ruler.race).toBe(demon);
+  });
+
+  it("applies bound servitor logic even when caller provides raceOverride as demon", () => {
+    const races = createDefaultRaces();
+    const demon = races.find(r => r.key === "demon")!.i;
+    const fallenAngel = races.find(r => r.key === "fallen_angel")!.i;
+    const human = races.find(r => r.key === "human")!.i;
+
+    const commandersWithOverride = Array.from({ length: 50 }, () =>
+      createPerson(0, 1, {
+        roleClass: "commander",
+        homeStateId: 1,
+        raceOverride: demon,
+        allowOpenDemon: true
+      })
+    );
+    const commanderFallen = commandersWithOverride.filter(c => c.race === fallenAngel).length;
+    expect(commanderFallen).toBeGreaterThan(30);
+
+    const merchantsWithOverride = Array.from({ length: 50 }, () =>
+      createPerson(0, 1, {
+        roleClass: "merchant",
+        homeStateId: 1,
+        raceOverride: demon,
+        allowOpenDemon: true
+      })
+    );
+    const merchantHuman = merchantsWithOverride.filter(c => c.race === human).length;
+    expect(merchantHuman).toBeGreaterThan(30);
+  });
+});
+
 describe("createPerson fantasy race appearance", () => {
   afterEach(() => clearCharactersContext());
 

@@ -9,6 +9,12 @@
  * rate as Human infernal atavism / 「青い血」). Desk and common roles may resolve to
  * them; rulers, commanders, and province lords stay Elf.
  *
+ * Fallen Angels live only under **demon** cultures as bound slave-warriors and thralls.
+ * Most commanders are Fallen Angels (with Demons occasionally commanding); merchants
+ * and artisans are mostly Humans (unformed slave-folk), rarely Fallen Angels, and
+ * extremely rarely Demons. Common soldiers and unformed slave-folk remain Human.
+ * Rulers and province lords remain Demon.
+ *
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
 import type { Race, RaceKey } from "../../types/models";
@@ -32,6 +38,15 @@ export interface BoundServitorSpec {
 /** Same rare named-character rate as Human infernal atavism (`HUMAN_INFERNAL_ATAVISM_CHANCE`). */
 export const HALF_ELF_SERVITOR_CHANCE =
   raceCatalog.find(def => def.boundServitor?.raceKey === "half_elf")?.boundServitor?.chance ?? 0;
+
+/** Majority of Demon realm commanders are Fallen Angels (~85%); occasional/rare Demon (~15%). */
+export const DEMON_COMMANDER_FALLEN_ANGEL_CHANCE = 0.85;
+
+/** Demon merchants/artisans are extremely rare (~3%). */
+export const DEMON_CIVILIAN_DEMON_CHANCE = 0.03;
+
+/** Fallen Angel merchants/artisans are occasional/rare (~15%). */
+export const DEMON_CIVILIAN_FALLEN_ANGEL_CHANCE = 0.15;
 
 const DEFAULT_BOUND_SERVITOR_ROLES = ["merchant", "ordinary"] as const;
 
@@ -73,8 +88,15 @@ export type BoundServitorRoleClass =
   | "province_lord"
   | string;
 
-export function roleUsesBoundServitor(roleClass: BoundServitorRoleClass | undefined | null): boolean {
+export function roleUsesBoundServitor(
+  roleClass: BoundServitorRoleClass | undefined | null,
+  hostRaceKey?: string | null
+): boolean {
   if (!roleClass) return false;
+  if (hostRaceKey === "demon") {
+    // Under Demon realm: commanders (fallen angels), merchants and ordinary artisans/civilians (humans/fallen angels)
+    return roleClass === "commander" || roleClass === "merchant" || roleClass === "ordinary";
+  }
   // Commerce and everyday craft/desk work — the face of a dragon realm to outsiders.
   // Half Elf rare spawn also uses `ordinary` (see spec.roles).
   return roleClass === "merchant" || roleClass === "ordinary";
@@ -98,6 +120,41 @@ export function resolveRaceIdWithBoundServitor(
 ): number {
   if (!races?.length || !roleClass) return hostRaceId;
   const host = races[hostRaceId];
+
+  // Demon realms have specialized role stratifications:
+  // - Commanders: majority Fallen Angel, occasional Demon
+  // - Merchants / artisans (ordinary): vast majority Human, occasional Fallen Angel, extremely rare Demon
+  // - Rulers, lords: pure Demon
+  if (host?.key === "demon") {
+    const fallenAngelId = raceIdByKey(races, "fallen_angel");
+    const humanId = raceIdByKey(races, "human");
+    const hasFallenAngel = races[fallenAngelId]?.key === "fallen_angel";
+    const hasHuman = races[humanId]?.key === "human";
+
+    if (roleClass === "commander") {
+      if (hasFallenAngel && chanceRoll(DEMON_COMMANDER_FALLEN_ANGEL_CHANCE)) {
+        return fallenAngelId;
+      }
+      return hostRaceId;
+    }
+
+    if (roleClass === "merchant" || roleClass === "ordinary") {
+      if (chanceRoll(DEMON_CIVILIAN_DEMON_CHANCE)) {
+        return hostRaceId;
+      }
+      const pFallen = DEMON_CIVILIAN_FALLEN_ANGEL_CHANCE / (1 - DEMON_CIVILIAN_DEMON_CHANCE);
+      if (hasFallenAngel && chanceRoll(pFallen)) {
+        return fallenAngelId;
+      }
+      if (hasHuman) {
+        return humanId;
+      }
+      return raceIdByKey(races, "human");
+    }
+
+    return hostRaceId;
+  }
+
   const spec = boundServitorSpecForHost(host?.key);
   if (!spec) return hostRaceId;
   const roles = spec.roles ?? DEFAULT_BOUND_SERVITOR_ROLES;

@@ -20,6 +20,7 @@ import {
   type LoadoutGoodsCatalog,
   type NamedGoodRef
 } from "./loadoutSeed";
+import { isBoundServitorRaceKey } from "./raceBoundServitors";
 
 let _api: ExtensionAPI | null = null;
 
@@ -254,8 +255,13 @@ export function filterAllowedCharacterRaces(races: readonly Race[]): Race[] {
  */
 export function resolveAllowedCharacterRaceId(raceId: number, races: readonly Race[] | null | undefined): number {
   if (!races?.length) return raceId;
-  const allowed = new Set(getAllowedCharacterRaceKeys());
   const requested = races.find(race => race.i === raceId);
+  // Bound servitors (wyrmkin, half_elf, fallen_angel) are generated through explicit host demographic rules.
+  // They should never be randomized away by character race allow-lists.
+  if (requested && !requested.removed && isBoundServitorRaceKey(requested.key)) {
+    return requested.i;
+  }
+  const allowed = new Set(getAllowedCharacterRaceKeys());
   if (requested && !requested.removed && allowed.has(requested.key)) return requested.i;
 
   const candidates = filterAllowedCharacterRaces(races);

@@ -197,7 +197,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
         : office.primarySkill === "martial"
           ? "commander"
           : "central_officer";
-      const ids = resolvePersonCultureAndRace(state, pack);
+      const ids = resolvePersonCultureAndRace(state, pack, { roleClass: officerRoleClass });
       const officer = createPerson(nextId++, ids.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
@@ -343,7 +343,7 @@ function createOfficer(
 ): Character {
   const { pack } = getWorldContext();
   const nextId = getNextCharacterId(pack.characters);
-  const ids = resolvePersonCultureAndRace(state, pack);
+  const ids = resolvePersonCultureAndRace(state, pack, { roleClass: "commander" });
   const officer = createPerson(nextId, ids.cultureId, {
     homeStateId: state.i,
     formName: state.formName,
@@ -837,7 +837,7 @@ function processSuccessions(): void {
         : office.primarySkill === "martial"
           ? "commander"
           : "central_officer";
-      const ids = resolvePersonCultureAndRace(state, pack);
+      const ids = resolvePersonCultureAndRace(state, pack, { roleClass: officerRoleClass });
       const officer = createPerson(nextId++, ids.cultureId, {
         homeStateId: state.i,
         formName: state.formName,

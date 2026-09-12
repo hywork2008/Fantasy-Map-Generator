@@ -527,8 +527,10 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     }
   })();
   let race: number;
-  if (roleUsesBoundServitor(skillRoleClass)) {
-    // Always key off the culture’s majority race so draconic markets never spawn dragon merchants.
+  const hostRaceKey = packRaces?.[cultureHostRace]?.key;
+  if (roleUsesBoundServitor(skillRoleClass, hostRaceKey)) {
+    // Always key off the culture’s majority race so draconic markets never spawn dragon merchants,
+    // and demon realms staff commanders primarily with fallen angels and civilians with humans.
     race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces, P);
   } else if (raceOverride !== undefined) {
     race = raceOverride;
