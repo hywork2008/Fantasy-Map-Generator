@@ -58,7 +58,6 @@ describe("race CSV", () => {
     ["human", "civic_stance", "oops"],
     ["giant", "mixed_polity_chance", "0.1"],
     ["giant", "water_construction_speed_multiplier", "0"],
-    ["giant", "water_administration_bonus", ""],
     ["elf", "person_name_primary", "1.5"],
     ["elf", "skill_bias_martial", "-101"],
     ["elf", "personality_bias_energy", "101"],
@@ -78,7 +77,6 @@ describe("race CSV", () => {
     ["human", "key", "renamed"],
     ["human", "character_gender", "oops"],
     ["giant", "food_independent", "yes"],
-    ["giant", "population_capacity_multiplier", ""],
     ["demon", "horn_animals", "cat"],
     ["beastfolk", "furry_scale_min", "11"],
     ["half_elf", "hybrid_parent_a", "missing"],
@@ -86,6 +84,20 @@ describe("race CSV", () => {
     ["half_elf", "looks_stature", "50"]
   ])("rejects invalid %s.%s=%s with record context", (key, column, value) => {
     expect(() => parseRacesCsv(change(key, column, value))).toThrow(/CSV record/);
+  });
+  it("defaults omitted environmental survival settings to neutral values", () => {
+    const csv = change("demon", "temperature_independent", "", change("demon", "population_capacity_multiplier", ""));
+    expect(parseRacesCsv(csv).find(def => def.key === "demon")?.environmentalSurvival).toEqual({
+      foodIndependent: true,
+      temperatureIndependent: false,
+      populationCapacityMultiplier: 1
+    });
+  });
+  it("defaults omitted water technology effects to neutral values", () => {
+    const defs = parseRacesCsv(change("giant", "water_administration_bonus", ""));
+    expect(defs.find(def => def.key === "giant")?.waterTechBias).toMatchObject({
+      administrationBonusBonus: 0
+    });
   });
   it("rejects malformed CSV and unknown headers", () => {
     expect(() => parseRacesCsv(source.replace("lifespan_years", "typo"))).toThrow(/header/);

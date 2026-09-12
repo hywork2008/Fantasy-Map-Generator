@@ -40,8 +40,8 @@ UTF-8、1行ヘッダ、1種族1レコード。BOM、CRLF、引用符付きセ�
 | `looks_<axis>` | 外見の基準値（1〜100）。通常種族は6軸すべて必須 |
 | `beauty_weight_<axis>` | 同種族の美的評価の重み。負数も可。空欄はその軸を省略。最低1軸必要 |
 | `looks_<axis>_min`, `looks_<axis>_max` | 任意の外見生成範囲。軸ごとに両方指定または両方空欄。1 ≤ 最小 ≤ 基準 ≤ 最大 ≤ 100 |
-| `population_capacity_multiplier` | 環境収容人口の倍率（0以上） |
-| `food_independent`, `temperature_independent` | `true` / `false`。環境耐性は倍率を含む3列すべて指定、またはすべて空欄 |
+| `population_capacity_multiplier` | 環境収容人口の倍率（0以上）。環境耐性を指定してこの列が空欄の場合は `1` |
+| `food_independent`, `temperature_independent` | `true` / `false`。各項目は独立して指定でき、空欄は `false`（倍率も空欄なら `1`） |
 | `appearance_kind` | 空欄、`demon`、`beastfolk` |
 | `horn_animals` | demonの角の動物名。antelope,bison,buffalo,gazelle,goat,ibex,oryx,ram,yak から選択 |
 | `animals` | beastfolkの動物名。bear,cat,cattle,deer,dog,fox,goat,hare,horse,lion,otter,raccoon,tiger,wolf から選択 |
@@ -69,7 +69,7 @@ CSVは別モジュールの種族別パラメーターも管理する（下表�
 
 ## 別モジュールから移したパラメーター
 
-確率は0〜1で指定する（0.006 = 0.6%）。任意の機能グループは全列空欄で無効、指定する場合はそのグループの必須項目を揃える。Humanの先祖返りは互換定数が参照するためプロフィールを必須とし、無効化は確率0にする。
+確率は0〜1で指定する（0.006 = 0.6%）。先祖返り・隷属など、明記された相互依存のある機能グループは全必須項目を揃える。環境耐性と上下水道補正は各列を独立して指定でき、空欄は中立値になる。Humanの先祖返りは互換定数が参照するためプロフィールを必須とし、無効化は確率0にする。
 
 | 列 | 意味・制約 | 元の利用箇所 |
 | --- | --- | --- |
@@ -83,8 +83,8 @@ CSVは別モジュールの種族別パラメーターも管理する（下表�
 | `mixed_polity_chance` | 必須。混住政体の確率。diplomatic以外は0 | `raceCivicStance.ts` |
 | `bound_servitor_key`, `bound_servitor_roles`, `bound_servitor_chance` | **主人の行**で指定。隷属種族キー、役割のパイプ区切りリスト、出現確率。対象はboundで主人は1種族のみ。主人自身はbound不可 | `raceBoundServitors.ts` |
 | `hoard_sp_per_adult_year` | 成人後1年あたりの初期財産蓄積（SP、0以上）。空欄は追加なし | `raceWealthBias.ts` |
-| `water_lifting_ceiling_bonus`, `municipal_sanitation_ceiling_bonus`, `water_administration_bonus` | 上下水道の技術上限・行政補正（0〜1） | `raceWaterTechBias.ts` |
-| `water_urgency_threshold_multiplier`, `water_construction_speed_multiplier` | 上下水道の着工緊急度閾値・建設速度の正の倍率 | `raceWaterTechBias.ts` |
+| `water_lifting_ceiling_bonus`, `municipal_sanitation_ceiling_bonus`, `water_administration_bonus` | 上下水道の技術上限・行政補正（0〜1）。各列は独立し、空欄は `0` | `raceWaterTechBias.ts` |
+| `water_urgency_threshold_multiplier`, `water_construction_speed_multiplier` | 上下水道の着工緊急度閾値・建設速度の正の倍率。各列は独立し、空欄は `1` | `raceWaterTechBias.ts` |
 | `person_name_primary`, `person_name_alternate` | 人名圏ID（0以上の整数）またはnull（地名からMarkov生成）。primary空欄はnull、alternate空欄は代替なし | `racePersonNameConfig.ts` |
 | `continuous_monogamy` | 長命でも継続的単婚制を使う例外。空欄はfalse、true/falseを指定。現在Dwarfのみtrue | `raceAge.ts` |
 | `carnivorous_animals` | Beastfolk外見の動物候補のうち肉食扱いする動物のパイプ区切りリスト。animalsの部分集合 | `races.ts` |

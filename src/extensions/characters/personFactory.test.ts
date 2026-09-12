@@ -323,6 +323,40 @@ describe("createPerson fantasy race appearance", () => {
       expect(beastfolk.raceAppearance.furryScale).toBeLessThanOrEqual(10);
     }
   });
+
+  it("does not generate an exposed Demon on High Fantasy maps", () => {
+    const previousSet = useOptionsState.getState().culturesSet;
+    useOptionsState.setState({ culturesSet: "highFantasy" });
+
+    try {
+      const person = createPerson(0, 1, { homeStateId: 1 });
+      const human = createDefaultRaces().find(race => race.key === "human")!;
+      expect(person.race).toBe(human.i);
+      expect(person.raceAppearance).toBeUndefined();
+      expect(person.demonInfiltration).toBeUndefined();
+    } finally {
+      useOptionsState.setState({ culturesSet: previousSet });
+    }
+  });
+
+  it("endows overt Demons with supreme prowess, martial, arcane, and abyssal dominion", () => {
+    const races = createDefaultRaces();
+    const demon = races.find(race => race.key === "demon")!;
+    const overtDemon = createPerson(0, 1, {
+      homeStateId: 1,
+      raceOverride: demon.i,
+      roleClass: "ruler",
+      allowOpenDemon: true
+    });
+
+    expect(overtDemon.race).toBe(demon.i);
+    expect(overtDemon.demonDominion).toBeDefined();
+    expect(overtDemon.skills.prowess).toBeGreaterThanOrEqual(88);
+    expect(overtDemon.skills.martial).toBeGreaterThanOrEqual(85);
+    expect(overtDemon.skills.learning).toBeGreaterThanOrEqual(78);
+    expect(overtDemon.arcane).toBeGreaterThanOrEqual(90);
+    expect(overtDemon.demonInfiltration).toBeUndefined();
+  });
 });
 
 describe("createPerson Arcane on fantasy maps", () => {

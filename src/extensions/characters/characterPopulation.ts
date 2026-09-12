@@ -136,7 +136,8 @@ export function createPlayerCharacter(options: CreatePlayerCharacterOptions): Ch
     ageOverride: age,
     genderOverride: options.gender,
     raceOverride: options.raceId,
-    roleClass: "ordinary"
+    roleClass: "ordinary",
+    allowOpenDemon: true
   });
   const name = options.name.trim();
   if (name) character.name = name;
